@@ -56,6 +56,21 @@ where
     }
 }
 
+impl<'a, 'py, T, const N: usize> IntoPyObject<'py> for &'a [T; N]
+where
+    &'a T: IntoPyObject<'py>,
+    PyErr: From<<&'a T as IntoPyObject<'py>>::Error>,
+{
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.as_slice().into_pyobject(py)
+    }
+}
+
 impl<T, const N: usize> ToPyObject for [T; N]
 where
     T: ToPyObject,

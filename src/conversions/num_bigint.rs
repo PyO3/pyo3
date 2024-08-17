@@ -47,8 +47,6 @@
 //! assert n + 1 == value
 //! ```
 
-#[cfg(not(Py_LIMITED_API))]
-use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(Py_LIMITED_API)]
 use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
@@ -69,74 +67,34 @@ macro_rules! bigint_conversion {
     ($rust_ty: ty, $is_signed: literal, $to_bytes: path) => {
         #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
         impl ToPyObject for $rust_ty {
-            #[cfg(not(Py_LIMITED_API))]
+            #[inline]
             fn to_object(&self, py: Python<'_>) -> PyObject {
-                let bytes = $to_bytes(self);
-                #[cfg(not(Py_3_13))]
-                {
-                    unsafe {
-                        ffi::_PyLong_FromByteArray(
-                            bytes.as_ptr().cast(),
-                            bytes.len(),
-                            1,
-                            $is_signed.into(),
-                        )
-                        .assume_owned(py)
-                        .unbind()
-                    }
-                }
-                #[cfg(Py_3_13)]
-                {
-                    if $is_signed {
-                        unsafe {
-                            ffi::PyLong_FromNativeBytes(
-                                bytes.as_ptr().cast(),
-                                bytes.len(),
-                                ffi::Py_ASNATIVEBYTES_LITTLE_ENDIAN,
-                            )
-                            .assume_owned(py)
-                        }
-                    } else {
-                        unsafe {
-                            ffi::PyLong_FromUnsignedNativeBytes(
-                                bytes.as_ptr().cast(),
-                                bytes.len(),
-                                ffi::Py_ASNATIVEBYTES_LITTLE_ENDIAN,
-                            )
-                            .assume_owned(py)
-                        }
-                    }
-                    .unbind()
-                }
-            }
-
-            #[cfg(Py_LIMITED_API)]
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                let bytes = $to_bytes(self);
-                let bytes_obj = PyBytes::new(py, &bytes);
-                let kwargs = if $is_signed {
-                    let kwargs = crate::types::PyDict::new(py);
-                    kwargs.set_item(crate::intern!(py, "signed"), true).unwrap();
-                    Some(kwargs)
-                } else {
-                    None
-                };
-                py.get_type::<PyInt>()
-                    .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
-                    .expect("int.from_bytes() failed during to_object()") // FIXME: #1813 or similar
-                    .into()
+                self.into_pyobject(py).unwrap().into_any().unbind()
             }
         }
 
         #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
         impl IntoPy<PyObject> for $rust_ty {
+            #[inline]
             fn into_py(self, py: Python<'_>) -> PyObject {
-                self.to_object(py)
+                self.into_pyobject(py).unwrap().into_any().unbind()
             }
         }
 
         #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
         impl<'py> IntoPyObject<'py> for $rust_ty {
+            type Target = PyInt;
+            type Output = Bound<'py, Self::Target>;
+            type Error = PyErr;
+
+            #[inline]
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                (&self).into_pyobject(py)
+            }
+        }
+
+        #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
+        impl<'py> IntoPyObject<'py> for &$rust_ty {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;
             type Error = PyErr;

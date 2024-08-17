@@ -7,6 +7,9 @@ use crate::{
 };
 
 use super::any::PyAnyMethods;
+use crate::conversion::IntoPyObject;
+use crate::BoundObject;
+use std::convert::Infallible;
 
 /// Represents a Python `bool`.
 ///
@@ -145,28 +148,41 @@ impl PartialEq<Borrowed<'_, '_, PyBool>> for &'_ bool {
 impl ToPyObject for bool {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        unsafe {
-            PyObject::from_borrowed_ptr(
-                py,
-                if *self {
-                    ffi::Py_True()
-                } else {
-                    ffi::Py_False()
-                },
-            )
-        }
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl IntoPy<PyObject> for bool {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyBool::new(py, self).into_py(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 
     #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::builtin("bool")
+    }
+}
+
+impl<'py> IntoPyObject<'py> for bool {
+    type Target = PyBool;
+    type Output = Borrowed<'py, 'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PyBool::new(py, self))
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &bool {
+    type Target = PyBool;
+    type Output = Borrowed<'py, 'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
     }
 }
 

@@ -15,8 +15,10 @@ use std::ffi::CString;
 mod err_state;
 mod impls;
 
+use crate::conversion::IntoPyObject;
 pub use err_state::PyErrArguments;
 use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
+use std::convert::Infallible;
 
 /// Represents a Python exception.
 ///
@@ -783,20 +785,45 @@ impl std::fmt::Display for PyErr {
 impl std::error::Error for PyErr {}
 
 impl IntoPy<PyObject> for PyErr {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_value(py).into()
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl ToPyObject for PyErr {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.clone_ref(py).into_py(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl<'a> IntoPy<PyObject> for &'a PyErr {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.clone_ref(py).into_py(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
+    }
+}
+
+impl<'py> IntoPyObject<'py> for PyErr {
+    type Target = PyBaseException;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self.into_value(py).into_bound(py))
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &PyErr {
+    type Target = PyBaseException;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.clone_ref(py).into_pyobject(py)
     }
 }
 

@@ -44,6 +44,20 @@ where
     }
 }
 
+impl<'a, 'py, T> IntoPyObject<'py> for &'a Option<T>
+where
+    &'a T: IntoPyObject<'py>,
+{
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <&'a T as IntoPyObject<'py>>::Error;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.as_ref().into_pyobject(py)
+    }
+}
+
 impl<'py, T> FromPyObject<'py> for Option<T>
 where
     T: FromPyObject<'py>,

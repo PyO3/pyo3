@@ -56,10 +56,33 @@ where
 
 impl<'py, K, V, H> IntoPyObject<'py> for hashbrown::HashMap<K, V, H>
 where
-    K: hash::Hash + cmp::Eq + IntoPyObject<'py>,
+    K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
     V: IntoPyObject<'py>,
     H: hash::BuildHasher,
     PyErr: From<K::Error> + From<V::Error>,
+{
+    type Target = PyDict;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let dict = PyDict::new(py);
+        for (k, v) in self {
+            dict.set_item(
+                k.into_pyobject(py)?.into_bound(),
+                v.into_pyobject(py)?.into_bound(),
+            )?;
+        }
+        Ok(dict)
+    }
+}
+
+impl<'a, 'py, K, V, H> IntoPyObject<'py> for &'a hashbrown::HashMap<K, V, H>
+where
+    &'a K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
+    &'a V: IntoPyObject<'py>,
+    H: hash::BuildHasher,
+    PyErr: From<<&'a K as IntoPyObject<'py>>::Error> + From<<&'a V as IntoPyObject<'py>>::Error>,
 {
     type Target = PyDict;
     type Output = Bound<'py, Self::Target>;
@@ -118,9 +141,32 @@ where
 
 impl<'py, K, H> IntoPyObject<'py> for hashbrown::HashSet<K, H>
 where
-    K: hash::Hash + cmp::Eq + IntoPyObject<'py>,
+    K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
     H: hash::BuildHasher,
     PyErr: From<K::Error>,
+{
+    type Target = PySet;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        try_new_from_iter(
+            py,
+            self.into_iter().map(|item| {
+                item.into_pyobject(py)
+                    .map(BoundObject::into_any)
+                    .map(BoundObject::unbind)
+                    .map_err(Into::into)
+            }),
+        )
+    }
+}
+
+impl<'a, 'py, K, H> IntoPyObject<'py> for &'a hashbrown::HashSet<K, H>
+where
+    &'a K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
+    &'a H: hash::BuildHasher,
+    PyErr: From<<&'a K as IntoPyObject<'py>>::Error>,
 {
     type Target = PySet;
     type Output = Bound<'py, Self::Target>;

@@ -14,14 +14,14 @@ use crate::{
 impl ToPyObject for str {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyString::new(py, self).into()
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl<'a> IntoPy<PyObject> for &'a str {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyString::new(py, self).into()
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -33,7 +33,7 @@ impl<'a> IntoPy<PyObject> for &'a str {
 impl<'a> IntoPy<Py<PyString>> for &'a str {
     #[inline]
     fn into_py(self, py: Python<'_>) -> Py<PyString> {
-        PyString::new(py, self).into()
+        self.into_pyobject(py).unwrap().unbind()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -47,8 +47,20 @@ impl<'py> IntoPyObject<'py> for &str {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyString::new(py, self))
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &&str {
+    type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
     }
 }
 
@@ -57,14 +69,14 @@ impl<'py> IntoPyObject<'py> for &str {
 impl ToPyObject for Cow<'_, str> {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyString::new(py, self).into()
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl IntoPy<PyObject> for Cow<'_, str> {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -78,8 +90,20 @@ impl<'py> IntoPyObject<'py> for Cow<'_, str> {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &Cow<'_, str> {
+    type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (&**self).into_pyobject(py)
     }
 }
 
@@ -88,20 +112,21 @@ impl<'py> IntoPyObject<'py> for Cow<'_, str> {
 impl ToPyObject for String {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyString::new(py, self).into()
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl ToPyObject for char {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_py(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl IntoPy<PyObject> for char {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        let mut bytes = [0u8; 4];
-        PyString::new(py, self.encode_utf8(&mut bytes)).into()
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -121,9 +146,21 @@ impl<'py> IntoPyObject<'py> for char {
     }
 }
 
+impl<'py> IntoPyObject<'py> for &char {
+    type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
 impl IntoPy<PyObject> for String {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyString::new(py, &self).into()
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -145,7 +182,7 @@ impl<'py> IntoPyObject<'py> for String {
 impl<'a> IntoPy<PyObject> for &'a String {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyString::new(py, self).into()
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -159,6 +196,7 @@ impl<'py> IntoPyObject<'py> for &String {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyString::new(py, self))
     }

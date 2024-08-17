@@ -22,6 +22,18 @@ impl<'py, T: Copy + IntoPyObject<'py>> IntoPyObject<'py> for Cell<T> {
     type Output = T::Output;
     type Error = T::Error;
 
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.get().into_pyobject(py)
+    }
+}
+
+impl<'a, 'py, T: Copy + IntoPyObject<'py>> IntoPyObject<'py> for &'a Cell<T> {
+    type Target = T::Target;
+    type Output = T::Output;
+    type Error = T::Error;
+
+    #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.get().into_pyobject(py)
     }

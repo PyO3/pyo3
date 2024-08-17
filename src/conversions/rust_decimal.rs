@@ -83,22 +83,16 @@ fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
 }
 
 impl ToPyObject for Decimal {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        // TODO: handle error gracefully when ToPyObject can error
-        // look up the decimal.Decimal
-        let dec_cls = get_decimal_cls(py).expect("failed to load decimal.Decimal");
-        // now call the constructor with the Rust Decimal string-ified
-        // to not be lossy
-        let ret = dec_cls
-            .call1((self.to_string(),))
-            .expect("failed to call decimal.Decimal(value)");
-        ret.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl IntoPy<PyObject> for Decimal {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -112,6 +106,17 @@ impl<'py> IntoPyObject<'py> for Decimal {
         // now call the constructor with the Rust Decimal string-ified
         // to not be lossy
         dec_cls.call1((self.to_string(),))
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &Decimal {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
     }
 }
 

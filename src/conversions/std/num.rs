@@ -21,12 +21,13 @@ macro_rules! int_fits_larger_int {
         impl ToPyObject for $rust_type {
             #[inline]
             fn to_object(&self, py: Python<'_>) -> PyObject {
-                (*self as $larger_type).into_py(py)
+                self.into_pyobject(py).unwrap().into_any().unbind()
             }
         }
         impl IntoPy<PyObject> for $rust_type {
+            #[inline]
             fn into_py(self, py: Python<'_>) -> PyObject {
-                (self as $larger_type).into_py(py)
+                self.into_pyobject(py).unwrap().into_any().unbind()
             }
 
             #[cfg(feature = "experimental-inspect")]
@@ -90,13 +91,13 @@ macro_rules! int_convert_u64_or_i64 {
         impl ToPyObject for $rust_type {
             #[inline]
             fn to_object(&self, py: Python<'_>) -> PyObject {
-                unsafe { PyObject::from_owned_ptr(py, $pylong_from_ll_or_ull(*self)) }
+                self.into_pyobject(py).unwrap().into_any().unbind()
             }
         }
         impl IntoPy<PyObject> for $rust_type {
             #[inline]
             fn into_py(self, py: Python<'_>) -> PyObject {
-                unsafe { PyObject::from_owned_ptr(py, $pylong_from_ll_or_ull(self)) }
+                self.into_pyobject(py).unwrap().into_any().unbind()
             }
 
             #[cfg(feature = "experimental-inspect")]
@@ -117,6 +118,16 @@ macro_rules! int_convert_u64_or_i64 {
                 }
             }
         }
+        impl<'py> IntoPyObject<'py> for &$rust_type {
+            type Target = PyInt;
+            type Output = Bound<'py, Self::Target>;
+            type Error = Infallible;
+
+            #[inline]
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                (*self).into_pyobject(py)
+            }
+        }
         impl FromPyObject<'_> for $rust_type {
             fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<$rust_type> {
                 extract_int!(obj, !0, $pylong_as_ll_or_ull, $force_index_call)
@@ -133,13 +144,15 @@ macro_rules! int_convert_u64_or_i64 {
 macro_rules! int_fits_c_long {
     ($rust_type:ty) => {
         impl ToPyObject for $rust_type {
+            #[inline]
             fn to_object(&self, py: Python<'_>) -> PyObject {
-                unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(*self as c_long)) }
+                self.into_pyobject(py).unwrap().into_any().unbind()
             }
         }
         impl IntoPy<PyObject> for $rust_type {
+            #[inline]
             fn into_py(self, py: Python<'_>) -> PyObject {
-                unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(self as c_long)) }
+                self.into_pyobject(py).unwrap().into_any().unbind()
             }
 
             #[cfg(feature = "experimental-inspect")]
@@ -167,6 +180,7 @@ macro_rules! int_fits_c_long {
             type Output = Bound<'py, Self::Target>;
             type Error = Infallible;
 
+            #[inline]
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 (*self).into_pyobject(py)
             }
@@ -188,13 +202,15 @@ macro_rules! int_fits_c_long {
 }
 
 impl ToPyObject for u8 {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(*self as c_long)) }
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 impl IntoPy<PyObject> for u8 {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(self as c_long)) }
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
     #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
@@ -305,23 +321,39 @@ mod fast_128bit_int_conversion {
             impl ToPyObject for $rust_type {
                 #[inline]
                 fn to_object(&self, py: Python<'_>) -> PyObject {
-                    (*self).into_py(py)
+                    self.into_pyobject(py).unwrap().into_any().unbind()
                 }
             }
             impl IntoPy<PyObject> for $rust_type {
+                #[inline]
                 fn into_py(self, py: Python<'_>) -> PyObject {
+                    self.into_pyobject(py).unwrap().into_any().unbind()
+                }
+
+                #[cfg(feature = "experimental-inspect")]
+                fn type_output() -> TypeInfo {
+                    TypeInfo::builtin("int")
+                }
+            }
+
+            impl<'py> IntoPyObject<'py> for $rust_type {
+                type Target = PyInt;
+                type Output = Bound<'py, Self::Target>;
+                type Error = Infallible;
+
+                fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                     #[cfg(not(Py_3_13))]
                     {
                         let bytes = self.to_le_bytes();
                         unsafe {
-                            ffi::_PyLong_FromByteArray(
+                            Ok(ffi::_PyLong_FromByteArray(
                                 bytes.as_ptr().cast(),
                                 bytes.len(),
                                 1,
                                 $is_signed.into(),
                             )
                             .assume_owned(py)
-                            .unbind()
+                            .downcast_into_unchecked())
                         }
                     }
                     #[cfg(Py_3_13)]
@@ -330,30 +362,37 @@ mod fast_128bit_int_conversion {
 
                         if $is_signed {
                             unsafe {
-                                ffi::PyLong_FromNativeBytes(
+                                Ok(ffi::PyLong_FromNativeBytes(
                                     bytes.as_ptr().cast(),
                                     bytes.len(),
                                     ffi::Py_ASNATIVEBYTES_NATIVE_ENDIAN,
                                 )
                                 .assume_owned(py)
+                                .downcast_into_unchecked())
                             }
                         } else {
                             unsafe {
-                                ffi::PyLong_FromUnsignedNativeBytes(
+                                Ok(ffi::PyLong_FromUnsignedNativeBytes(
                                     bytes.as_ptr().cast(),
                                     bytes.len(),
                                     ffi::Py_ASNATIVEBYTES_NATIVE_ENDIAN,
                                 )
                                 .assume_owned(py)
+                                .downcast_into_unchecked())
                             }
                         }
-                        .unbind()
                     }
                 }
+            }
 
-                #[cfg(feature = "experimental-inspect")]
-                fn type_output() -> TypeInfo {
-                    TypeInfo::builtin("int")
+            impl<'py> IntoPyObject<'py> for &$rust_type {
+                type Target = PyInt;
+                type Output = Bound<'py, Self::Target>;
+                type Error = Infallible;
+
+                #[inline]
+                fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                    (*self).into_pyobject(py)
                 }
             }
 
@@ -428,30 +467,50 @@ mod slow_128bit_int_conversion {
             impl ToPyObject for $rust_type {
                 #[inline]
                 fn to_object(&self, py: Python<'_>) -> PyObject {
-                    (*self).into_py(py)
+                    self.into_pyobject(py).unwrap().into_any().unbind()
                 }
             }
 
             impl IntoPy<PyObject> for $rust_type {
+                #[inline]
                 fn into_py(self, py: Python<'_>) -> PyObject {
-                    let lower = (self as u64).into_py(py);
-                    let upper = ((self >> SHIFT) as $half_type).into_py(py);
-                    let shift = SHIFT.into_py(py);
-                    unsafe {
-                        let shifted = PyObject::from_owned_ptr(
-                            py,
-                            ffi::PyNumber_Lshift(upper.as_ptr(), shift.as_ptr()),
-                        );
-                        PyObject::from_owned_ptr(
-                            py,
-                            ffi::PyNumber_Or(shifted.as_ptr(), lower.as_ptr()),
-                        )
-                    }
+                    self.into_pyobject(py).unwrap().into_any().unbind()
                 }
 
                 #[cfg(feature = "experimental-inspect")]
                 fn type_output() -> TypeInfo {
                     TypeInfo::builtin("int")
+                }
+            }
+
+            impl<'py> IntoPyObject<'py> for $rust_type {
+                type Target = PyInt;
+                type Output = Bound<'py, Self::Target>;
+                type Error = Infallible;
+
+                fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                    let lower = (self as u64).into_pyobject(py)?;
+                    let upper = ((self >> SHIFT) as $half_type).into_pyobject(py)?;
+                    let shift = SHIFT.into_pyobject(py)?;
+                    unsafe {
+                        let shifted =
+                            ffi::PyNumber_Lshift(upper.as_ptr(), shift.as_ptr()).assume_owned(py);
+
+                        Ok(ffi::PyNumber_Or(shifted.as_ptr(), lower.as_ptr())
+                            .assume_owned(py)
+                            .downcast_into_unchecked())
+                    }
+                }
+            }
+
+            impl<'py> IntoPyObject<'py> for &$rust_type {
+                type Target = PyInt;
+                type Output = Bound<'py, Self::Target>;
+                type Error = Infallible;
+
+                #[inline]
+                fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                    (*self).into_pyobject(py)
                 }
             }
 
@@ -503,14 +562,38 @@ fn err_if_invalid_value<T: PartialEq>(
 macro_rules! nonzero_int_impl {
     ($nonzero_type:ty, $primitive_type:ty) => {
         impl ToPyObject for $nonzero_type {
+            #[inline]
             fn to_object(&self, py: Python<'_>) -> PyObject {
-                self.get().to_object(py)
+                self.into_pyobject(py).unwrap().into_any().unbind()
             }
         }
 
         impl IntoPy<PyObject> for $nonzero_type {
+            #[inline]
             fn into_py(self, py: Python<'_>) -> PyObject {
-                self.get().into_py(py)
+                self.into_pyobject(py).unwrap().into_any().unbind()
+            }
+        }
+
+        impl<'py> IntoPyObject<'py> for $nonzero_type {
+            type Target = PyInt;
+            type Output = Bound<'py, Self::Target>;
+            type Error = Infallible;
+
+            #[inline]
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                self.get().into_pyobject(py)
+            }
+        }
+
+        impl<'py> IntoPyObject<'py> for &$nonzero_type {
+            type Target = PyInt;
+            type Output = Bound<'py, Self::Target>;
+            type Error = Infallible;
+
+            #[inline]
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                (*self).into_pyobject(py)
             }
         }
 

@@ -291,6 +291,16 @@ impl<'a, 'py, T> IntoPyObject<'py> for Borrowed<'a, 'py, T> {
     }
 }
 
+impl<'a, 'py, T> IntoPyObject<'py> for &Borrowed<'a, 'py, T> {
+    type Target = T;
+    type Output = Borrowed<'a, 'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(*self)
+    }
+}
+
 impl<'py, T> IntoPyObject<'py> for Py<T> {
     type Target = T;
     type Output = Bound<'py, Self::Target>;
