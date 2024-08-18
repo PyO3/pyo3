@@ -1345,15 +1345,15 @@ where
     }
 }
 
-#[cfg_attr(
-    diagnostic_namespace,
-    diagnostic::on_unimplemented(
-        message = "`{Self}` cannot be converted to a Python object",
-        label = "required by `#[pyo3(get)]` to create a readable property from a field of type `{Self}`",
-        note = "implement `IntoPyObject` for `&{Self}` or `IntoPyObject + Clone` for `{Self}` to define the conversion",
-    )
+#[cfg(diagnostic_namespace)]
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be converted to a Python object",
+    label = "required by `#[pyo3(get)]` to create a readable property from a field of type `{Self}`",
+    note = "implement `IntoPyObject` for `&{Self}` or `IntoPyObject + Clone` for `{Self}` to define the conversion"
 )]
 pub trait PyO3GetFieldIntoPyObject: for<'py> IntoPyObject<'py, Error: Into<PyErr>> + Clone {}
+
+#[cfg(diagnostic_namespace)]
 impl<T> PyO3GetFieldIntoPyObject for T
 where
     for<'py> T: IntoPyObject<'py> + Clone,
@@ -1377,7 +1377,8 @@ impl<ClassT, FieldT, Offset, const IMPLEMENTS_TOPYOBJECT: bool, const IMPLEMENTS
 where
     ClassT: PyClass,
     Offset: OffsetCalculator<ClassT, FieldT>,
-    FieldT: PyO3GetFieldIntoPyObject,
+    for<'py> FieldT: IntoPyObject<'py> + Clone,
+    for<'py> PyErr: std::convert::From<<FieldT as IntoPyObject<'py>>::Error>,
 {
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         PyMethodDefType::Getter(PyGetterDef {
@@ -1420,6 +1421,22 @@ where
 impl<ClassT: PyClass, FieldT, Offset: OffsetCalculator<ClassT, FieldT>>
     PyClassGetterGenerator<ClassT, FieldT, Offset, false, false, false, false, false>
 {
+    #[cfg(not(diagnostic_namespace))]
+    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType
+    // The bound goes here rather than on the block so that this impl is always available
+    // if no specialization is used instead
+    where
+        for<'py> FieldT: IntoPyObject<'py> + Clone,
+        for<'py> PyErr: std::convert::From<<FieldT as IntoPyObject<'py>>::Error>,
+    {
+        PyMethodDefType::Getter(PyGetterDef {
+            name,
+            meth: pyo3_get_value_into_pyobject::<ClassT, FieldT, Offset>,
+            doc,
+        })
+    }
+
+    #[cfg(diagnostic_namespace)]
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType
     // The bound goes here rather than on the block so that this impl is always available
     // if no specialization is used instead
