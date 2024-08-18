@@ -308,7 +308,7 @@ where
 impl<S, B> From<(S, B)> for PyClassInitializer<S>
 where
     S: PyClass<BaseType = B>,
-    B: PyClass,
+    B: PyClass + PyClassBaseType<Initializer = PyClassInitializer<B>>,
     B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
 {
     #[track_caller]

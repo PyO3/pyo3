@@ -18,6 +18,8 @@ use crate::{ffi, Python, ToPyObject};
 #[repr(transparent)]
 pub struct PyDict(PyAny);
 
+pyobject_subclassable_native_type!(PyDict, crate::ffi::PyDictObject);
+
 pyobject_native_type!(
     PyDict,
     ffi::PyDictObject,

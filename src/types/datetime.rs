@@ -199,6 +199,7 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyDate_Check
 );
+pyobject_subclassable_native_type!(PyDate, crate::ffi::PyDateTime_Date);
 
 impl PyDate {
     /// Creates a new `datetime.date`.
@@ -269,6 +270,7 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyDateTime_Check
 );
+pyobject_subclassable_native_type!(PyDateTime, crate::ffi::PyDateTime_DateTime);
 
 impl PyDateTime {
     /// Creates a new `datetime.datetime` object.
@@ -514,6 +516,7 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyTime_Check
 );
+pyobject_subclassable_native_type!(PyTime, crate::ffi::PyDateTime_Time);
 
 impl PyTime {
     /// Creates a new `datetime.time` object.
@@ -669,6 +672,7 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyTZInfo_Check
 );
+pyobject_subclassable_native_type!(PyTzInfo, crate::ffi::PyObject);
 
 /// Equivalent to `datetime.timezone.utc`
 pub fn timezone_utc(py: Python<'_>) -> Bound<'_, PyTzInfo> {
@@ -720,6 +724,7 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyDelta_Check
 );
+pyobject_subclassable_native_type!(PyDelta, crate::ffi::PyDateTime_Delta);
 
 impl PyDelta {
     /// Creates a new `timedelta`.

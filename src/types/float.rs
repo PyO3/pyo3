@@ -23,6 +23,8 @@ use std::os::raw::c_double;
 #[repr(transparent)]
 pub struct PyFloat(PyAny);
 
+pyobject_subclassable_native_type!(PyFloat, crate::ffi::PyFloatObject);
+
 pyobject_native_type!(
     PyFloat,
     ffi::PyFloatObject,

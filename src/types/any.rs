@@ -44,6 +44,13 @@ pyobject_native_type_info!(
 );
 
 pyobject_native_type_sized!(PyAny, ffi::PyObject);
+// We cannot use `pyobject_subclassable_native_type!()` because it cfgs out on `Py_LIMITED_API`.
+impl crate::impl_::pyclass::PyClassBaseType for PyAny {
+    type LayoutAsBase = crate::impl_::pycell::PyClassObjectBase<ffi::PyObject>;
+    type BaseNativeType = PyAny;
+    type Initializer = crate::pyclass_init::PyNativeTypeInitializer<Self>;
+    type PyClassMutability = crate::pycell::impl_::ImmutableClass;
+}
 
 /// This trait represents the Python APIs which are usable on all Python objects.
 ///

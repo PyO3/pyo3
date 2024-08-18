@@ -12,7 +12,7 @@ macro_rules! make_struct_using_macro {
     // Ensure that one doesn't need to fall back on the escape type: tt
     // in order to macro create pyclass.
     ($class_name:ident, $py_name:literal) => {
-        #[pyclass(name=$py_name)]
+        #[pyclass(name=$py_name, subclass)]
         struct $class_name {}
     };
 }

@@ -62,6 +62,8 @@ impl<'py> PyFrozenSetBuilder<'py> {
 pub struct PyFrozenSet(PyAny);
 
 #[cfg(not(any(PyPy, GraalPy)))]
+pyobject_subclassable_native_type!(PyFrozenSet, crate::ffi::PySetObject);
+#[cfg(not(any(PyPy, GraalPy)))]
 pyobject_native_type!(
     PyFrozenSet,
     ffi::PySetObject,

@@ -2244,7 +2244,20 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! { #pyo3_path::PyAny }
         };
 
+        let pyclass_base_type_impl = attr.options.subclass.map(|subclass| {
+            quote_spanned! { subclass.span() =>
+                impl #pyo3_path::impl_::pyclass::PyClassBaseType for #cls {
+                    type LayoutAsBase = #pyo3_path::impl_::pycell::PyClassObject<Self>;
+                    type BaseNativeType = <Self as #pyo3_path::impl_::pyclass::PyClassImpl>::BaseNativeType;
+                    type Initializer = #pyo3_path::pyclass_init::PyClassInitializer<Self>;
+                    type PyClassMutability = <Self as #pyo3_path::impl_::pyclass::PyClassImpl>::PyClassMutability;
+                }
+            }
+        });
+
         Ok(quote! {
+            #pyclass_base_type_impl
+
             impl #pyo3_path::impl_::pyclass::PyClassImpl for #cls {
                 const IS_BASETYPE: bool = #is_basetype;
                 const IS_SUBCLASS: bool = #is_subclass;
