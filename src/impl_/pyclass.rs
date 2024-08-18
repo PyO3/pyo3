@@ -7,9 +7,10 @@ use crate::{
         pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
         pymethods::{PyGetterDef, PyMethodDefType},
     },
+    pycell::PyBorrowError,
     pyclass_init::PyObjectInit,
     types::{any::PyAnyMethods, PyBool},
-    Borrowed, BoundObject, IntoPy, Py, PyAny, PyClass, PyErr, PyResult, PyTypeInfo, Python,
+    Borrowed, BoundObject, IntoPy, Py, PyAny, PyClass, PyErr, PyRef, PyResult, PyTypeInfo, Python,
     ToPyObject,
 };
 use std::{
@@ -1489,6 +1490,17 @@ where
     pub const VALUE: bool = true;
 }
 
+/// ensures `obj` is not mutably aliased
+#[inline]
+unsafe fn ensure_no_mutable_alias<'py, ClassT: PyClass>(
+    py: Python<'py>,
+    obj: &*mut ffi::PyObject,
+) -> Result<PyRef<'py, ClassT>, PyBorrowError> {
+    BoundRef::ref_from_ptr(py, obj)
+        .downcast_unchecked::<ClassT>()
+        .try_borrow()
+}
+
 fn pyo3_get_value_topyobject<
     ClassT: PyClass,
     FieldT: ToPyObject,
@@ -1497,12 +1509,7 @@ fn pyo3_get_value_topyobject<
     py: Python<'_>,
     obj: *mut ffi::PyObject,
 ) -> PyResult<*mut ffi::PyObject> {
-    // Check for mutable aliasing
-    let _holder = unsafe {
-        BoundRef::ref_from_ptr(py, &obj)
-            .downcast_unchecked::<ClassT>()
-            .try_borrow()?
-    };
+    let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
 
     let value = unsafe { obj.cast::<u8>().add(Offset::offset()).cast::<FieldT>() };
 
@@ -1521,12 +1528,7 @@ where
     Offset: OffsetCalculator<ClassT, FieldT>,
     for<'a, 'py> PyErr: From<<&'a FieldT as IntoPyObject<'py>>::Error>,
 {
-    // Check for mutable aliasing
-    let _holder = unsafe {
-        BoundRef::ref_from_ptr(py, &obj)
-            .downcast_unchecked::<ClassT>()
-            .try_borrow()?
-    };
+    let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
 
     let value = unsafe { obj.cast::<u8>().add(Offset::offset()).cast::<FieldT>() };
 
@@ -1545,12 +1547,7 @@ where
     Offset: OffsetCalculator<ClassT, FieldT>,
     for<'py> <FieldT as IntoPyObject<'py>>::Error: Into<PyErr>,
 {
-    // Check for mutable aliasing
-    let _holder = unsafe {
-        BoundRef::ref_from_ptr(py, &obj)
-            .downcast_unchecked::<ClassT>()
-            .try_borrow()?
-    };
+    let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
 
     let value = unsafe { obj.cast::<u8>().add(Offset::offset()).cast::<FieldT>() };
 
@@ -1571,12 +1568,7 @@ fn pyo3_get_value<
     py: Python<'_>,
     obj: *mut ffi::PyObject,
 ) -> PyResult<*mut ffi::PyObject> {
-    // Check for mutable aliasing
-    let _holder = unsafe {
-        BoundRef::ref_from_ptr(py, &obj)
-            .downcast_unchecked::<ClassT>()
-            .try_borrow()?
-    };
+    let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
 
     let value = unsafe { obj.cast::<u8>().add(Offset::offset()).cast::<FieldT>() };
 
