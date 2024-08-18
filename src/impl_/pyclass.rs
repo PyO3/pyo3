@@ -1501,6 +1501,16 @@ unsafe fn ensure_no_mutable_alias<'py, ClassT: PyClass>(
         .try_borrow()
 }
 
+/// calculates the field pointer from an PyObject pointer
+#[inline]
+fn field_from_object<ClassT, FieldT, Offset>(obj: *mut ffi::PyObject) -> *mut FieldT
+where
+    ClassT: PyClass,
+    Offset: OffsetCalculator<ClassT, FieldT>,
+{
+    unsafe { obj.cast::<u8>().add(Offset::offset()).cast::<FieldT>() }
+}
+
 fn pyo3_get_value_topyobject<
     ClassT: PyClass,
     FieldT: ToPyObject,
@@ -1510,8 +1520,7 @@ fn pyo3_get_value_topyobject<
     obj: *mut ffi::PyObject,
 ) -> PyResult<*mut ffi::PyObject> {
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
-
-    let value = unsafe { obj.cast::<u8>().add(Offset::offset()).cast::<FieldT>() };
+    let value = field_from_object::<ClassT, FieldT, Offset>(obj);
 
     // SAFETY: Offset is known to describe the location of the value, and
     // _holder is preventing mutable aliasing
@@ -1529,8 +1538,7 @@ where
     for<'a, 'py> PyErr: From<<&'a FieldT as IntoPyObject<'py>>::Error>,
 {
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
-
-    let value = unsafe { obj.cast::<u8>().add(Offset::offset()).cast::<FieldT>() };
+    let value = field_from_object::<ClassT, FieldT, Offset>(obj);
 
     // SAFETY: Offset is known to describe the location of the value, and
     // _holder is preventing mutable aliasing
@@ -1548,8 +1556,7 @@ where
     for<'py> <FieldT as IntoPyObject<'py>>::Error: Into<PyErr>,
 {
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
-
-    let value = unsafe { obj.cast::<u8>().add(Offset::offset()).cast::<FieldT>() };
+    let value = field_from_object::<ClassT, FieldT, Offset>(obj);
 
     // SAFETY: Offset is known to describe the location of the value, and
     // _holder is preventing mutable aliasing
@@ -1569,8 +1576,7 @@ fn pyo3_get_value<
     obj: *mut ffi::PyObject,
 ) -> PyResult<*mut ffi::PyObject> {
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
-
-    let value = unsafe { obj.cast::<u8>().add(Offset::offset()).cast::<FieldT>() };
+    let value = field_from_object::<ClassT, FieldT, Offset>(obj);
 
     // SAFETY: Offset is known to describe the location of the value, and
     // _holder is preventing mutable aliasing
