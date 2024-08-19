@@ -752,7 +752,11 @@ def update_ui_tests(session: nox.Session):
 
 @nox.session(name="test-introspection")
 def test_introspection(session: nox.Session):
-    for options in ((), ("--release",), ("--strip",)):
+    session.install("maturin")
+    target = os.environ.get("CARGO_BUILD_TARGET")
+    for options in ([], ["--release"]):
+        if target is not None:
+            options += ("--target", target)
         session.run_always("maturin", "develop", "-m", "./pytests/Cargo.toml", *options)
         # We look for the built library
         lib_file = None

@@ -22,6 +22,7 @@ macro_rules! const_concat {
             }
             out
         }
+        #[allow(unsafe_code)]
         unsafe { ::std::str::from_utf8_unchecked(&combine(L.as_bytes(), R.as_bytes())) }
     }}
 }
