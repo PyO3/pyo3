@@ -3,6 +3,7 @@
 use pyo3::prelude::*;
 use pyo3::py_run;
 
+use pyo3::ffi;
 use pyo3::types::IntoPyDict;
 
 #[path = "../src/tests/common.rs"]
@@ -20,10 +21,10 @@ struct SubclassAble {}
 #[test]
 fn subclass() {
     Python::with_gil(|py| {
-        let d = [("SubclassAble", py.get_type_bound::<SubclassAble>())].into_py_dict_bound(py);
+        let d = [("SubclassAble", py.get_type::<SubclassAble>())].into_py_dict(py);
 
-        py.run_bound(
-            "class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)",
+        py.run(
+            ffi::c_str!("class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)"),
             None,
             Some(&d),
         )
@@ -72,7 +73,7 @@ impl SubClass {
 #[test]
 fn inheritance_with_new_methods() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<SubClass>();
+        let typeobj = py.get_type::<SubClass>();
         let inst = typeobj.call((), None).unwrap();
         py_run!(py, inst, "assert inst.val1 == 10; assert inst.val2 == 5");
     });
@@ -97,10 +98,10 @@ fn call_base_and_sub_methods() {
 fn mutation_fails() {
     Python::with_gil(|py| {
         let obj = Py::new(py, SubClass::new()).unwrap();
-        let global = [("obj", obj)].into_py_dict_bound(py);
+        let global = [("obj", obj)].into_py_dict(py);
         let e = py
-            .run_bound(
-                "obj.base_set(lambda: obj.sub_set_and_ret(1))",
+            .run(
+                ffi::c_str!("obj.base_set(lambda: obj.sub_set_and_ret(1))"),
                 Some(&global),
                 None,
             )
@@ -112,8 +113,8 @@ fn mutation_fails() {
 #[test]
 fn is_subclass_and_is_instance() {
     Python::with_gil(|py| {
-        let sub_ty = py.get_type_bound::<SubClass>();
-        let base_ty = py.get_type_bound::<BaseClass>();
+        let sub_ty = py.get_type::<SubClass>();
+        let base_ty = py.get_type::<BaseClass>();
         assert!(sub_ty.is_subclass_of::<BaseClass>().unwrap());
         assert!(sub_ty.is_subclass(&base_ty).unwrap());
 
@@ -155,7 +156,7 @@ impl SubClass2 {
 #[test]
 fn handle_result_in_new() {
     Python::with_gil(|py| {
-        let subclass = py.get_type_bound::<SubClass2>();
+        let subclass = py.get_type::<SubClass2>();
         py_run!(
             py,
             subclass,
@@ -244,7 +245,7 @@ mod inheriting_native_type {
             let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
             assert_eq!(dict_sub.get_refcnt(py), 1);
 
-            let item = &py.eval_bound("object()", None, None).unwrap();
+            let item = &py.eval(ffi::c_str!("object()"), None, None).unwrap();
             assert_eq!(item.get_refcnt(), 1);
 
             dict_sub.bind(py).set_item("foo", item).unwrap();
@@ -274,10 +275,10 @@ mod inheriting_native_type {
     #[test]
     fn custom_exception() {
         Python::with_gil(|py| {
-            let cls = py.get_type_bound::<CustomException>();
-            let dict = [("cls", &cls)].into_py_dict_bound(py);
-            let res = py.run_bound(
-            "e = cls('hello'); assert str(e) == 'hello'; assert e.context == 'Hello :)'; raise e",
+            let cls = py.get_type::<CustomException>();
+            let dict = [("cls", &cls)].into_py_dict(py);
+            let res = py.run(
+            ffi::c_str!("e = cls('hello'); assert str(e) == 'hello'; assert e.context == 'Hello :)'; raise e"),
             None,
             Some(&dict)
             );
@@ -315,7 +316,7 @@ fn test_subclass_ref_counts() {
     // regression test for issue #1363
     Python::with_gil(|py| {
         #[allow(non_snake_case)]
-        let SimpleClass = py.get_type_bound::<SimpleClass>();
+        let SimpleClass = py.get_type::<SimpleClass>();
         py_run!(
             py,
             SimpleClass,
@@ -354,7 +355,7 @@ fn module_add_class_inherit_bool_fails() {
     struct ExtendsBool;
 
     Python::with_gil(|py| {
-        let m = PyModule::new_bound(py, "test_module").unwrap();
+        let m = PyModule::new(py, "test_module").unwrap();
 
         let err = m.add_class::<ExtendsBool>().unwrap_err();
         assert_eq!(

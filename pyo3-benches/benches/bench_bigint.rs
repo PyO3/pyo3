@@ -8,7 +8,7 @@ use pyo3::types::PyDict;
 
 fn extract_bigint_extract_fail(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let d = PyDict::new_bound(py).into_any();
+        let d = PyDict::new(py).into_any();
 
         bench.iter(|| match black_box(&d).extract::<BigInt>() {
             Ok(v) => panic!("should err {}", v),

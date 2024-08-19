@@ -16,7 +16,7 @@ pub enum MyEnum {
 #[test]
 fn test_enum_class_attr() {
     Python::with_gil(|py| {
-        let my_enum = py.get_type_bound::<MyEnum>();
+        let my_enum = py.get_type::<MyEnum>();
         let var = Py::new(py, MyEnum::Variant).unwrap();
         py_assert!(py, my_enum var, "my_enum.Variant == var");
     })
@@ -30,8 +30,8 @@ fn return_enum() -> MyEnum {
 #[test]
 fn test_return_enum() {
     Python::with_gil(|py| {
-        let f = wrap_pyfunction_bound!(return_enum)(py).unwrap();
-        let mynum = py.get_type_bound::<MyEnum>();
+        let f = wrap_pyfunction!(return_enum)(py).unwrap();
+        let mynum = py.get_type::<MyEnum>();
 
         py_run!(py, f mynum, "assert f() == mynum.Variant")
     });
@@ -45,8 +45,8 @@ fn enum_arg(e: MyEnum) {
 #[test]
 fn test_enum_arg() {
     Python::with_gil(|py| {
-        let f = wrap_pyfunction_bound!(enum_arg)(py).unwrap();
-        let mynum = py.get_type_bound::<MyEnum>();
+        let f = wrap_pyfunction!(enum_arg)(py).unwrap();
+        let mynum = py.get_type::<MyEnum>();
 
         py_run!(py, f mynum, "f(mynum.OtherVariant)")
     })
@@ -63,7 +63,7 @@ enum CustomDiscriminant {
 fn test_custom_discriminant() {
     Python::with_gil(|py| {
         #[allow(non_snake_case)]
-        let CustomDiscriminant = py.get_type_bound::<CustomDiscriminant>();
+        let CustomDiscriminant = py.get_type::<CustomDiscriminant>();
         let one = Py::new(py, CustomDiscriminant::One).unwrap();
         let two = Py::new(py, CustomDiscriminant::Two).unwrap();
         py_run!(py, CustomDiscriminant one two, r#"
@@ -189,7 +189,7 @@ enum RenameAllVariantsEnum {
 #[test]
 fn test_renaming_all_enum_variants() {
     Python::with_gil(|py| {
-        let enum_obj = py.get_type_bound::<RenameAllVariantsEnum>();
+        let enum_obj = py.get_type::<RenameAllVariantsEnum>();
         py_assert!(py, enum_obj, "enum_obj.VARIANT_ONE == enum_obj.VARIANT_ONE");
         py_assert!(py, enum_obj, "enum_obj.VARIANT_TWO == enum_obj.VARIANT_TWO");
         py_assert!(
@@ -209,7 +209,7 @@ enum CustomModuleComplexEnum {
 #[test]
 fn test_custom_module() {
     Python::with_gil(|py| {
-        let enum_obj = py.get_type_bound::<CustomModuleComplexEnum>();
+        let enum_obj = py.get_type::<CustomModuleComplexEnum>();
         py_assert!(
             py,
             enum_obj,
@@ -259,7 +259,7 @@ fn test_simple_enum_with_hash() {
             ("obj", Py::new(py, class).unwrap().into_any()),
             ("hsh", hash.into_py(py)),
         ]
-        .into_py_dict_bound(py);
+        .into_py_dict(py);
 
         py_assert!(py, *env, "hash(obj) == hsh");
     });
@@ -290,7 +290,7 @@ fn test_complex_enum_with_hash() {
             ("obj", Py::new(py, class).unwrap().into_any()),
             ("hsh", hash.into_py(py)),
         ]
-        .into_py_dict_bound(py);
+        .into_py_dict(py);
 
         py_assert!(py, *env, "hash(obj) == hsh");
     });
@@ -340,7 +340,7 @@ mod deprecated {
     fn test_custom_discriminant() {
         Python::with_gil(|py| {
             #[allow(non_snake_case)]
-            let CustomDiscriminant = py.get_type_bound::<CustomDiscriminant>();
+            let CustomDiscriminant = py.get_type::<CustomDiscriminant>();
             let one = Py::new(py, CustomDiscriminant::One).unwrap();
             let two = Py::new(py, CustomDiscriminant::Two).unwrap();
             py_run!(py, CustomDiscriminant one two, r#"

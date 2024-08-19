@@ -5,6 +5,7 @@ use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::PyString;
 use pyo3::types::{IntoPyDict, PyDict, PyTuple};
+use pyo3_ffi::c_str;
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -75,7 +76,7 @@ fn test_module_with_functions() {
             "module_with_functions",
             wrap_pymodule!(module_with_functions)(py),
         )]
-        .into_py_dict_bound(py);
+        .into_py_dict(py);
 
         py_assert!(
             py,
@@ -132,14 +133,13 @@ fn test_module_with_explicit_py_arg() {
             "module_with_explicit_py_arg",
             wrap_pymodule!(module_with_explicit_py_arg)(py),
         )]
-        .into_py_dict_bound(py);
+        .into_py_dict(py);
 
         py_assert!(py, *d, "module_with_explicit_py_arg.double(3) == 6");
     });
 }
 
-#[pymodule]
-#[pyo3(name = "other_name")]
+#[pymodule(name = "other_name")]
 fn some_name(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("other_name", "other_name")?;
     Ok(())
@@ -150,7 +150,7 @@ fn test_module_renaming() {
     use pyo3::wrap_pymodule;
 
     Python::with_gil(|py| {
-        let d = [("different_name", wrap_pymodule!(some_name)(py))].into_py_dict_bound(py);
+        let d = [("different_name", wrap_pymodule!(some_name)(py))].into_py_dict(py);
 
         py_run!(py, *d, "assert different_name.__name__ == 'other_name'");
     });
@@ -159,11 +159,11 @@ fn test_module_renaming() {
 #[test]
 fn test_module_from_code_bound() {
     Python::with_gil(|py| {
-        let adder_mod = PyModule::from_code_bound(
+        let adder_mod = PyModule::from_code(
             py,
-            "def add(a,b):\n\treturn a+b",
-            "adder_mod.py",
-            "adder_mod",
+            c_str!("def add(a,b):\n\treturn a+b"),
+            c_str!("adder_mod.py"),
+            c_str!("adder_mod"),
         )
         .expect("Module code should be loaded");
 
@@ -280,10 +280,10 @@ fn superfunction() -> String {
 #[pymodule]
 fn supermodule(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(superfunction, module)?)?;
-    let module_to_add = PyModule::new_bound(module.py(), "submodule")?;
+    let module_to_add = PyModule::new(module.py(), "submodule")?;
     submodule(&module_to_add)?;
     module.add_submodule(&module_to_add)?;
-    let module_to_add = PyModule::new_bound(module.py(), "submodule_with_init_fn")?;
+    let module_to_add = PyModule::new(module.py(), "submodule_with_init_fn")?;
     submodule_with_init_fn(&module_to_add)?;
     module.add_submodule(&module_to_add)?;
     Ok(())

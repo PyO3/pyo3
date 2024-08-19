@@ -1,6 +1,9 @@
-use std::convert::Infallible;
+use std::{convert::Infallible, marker::PhantomData, ops::Deref};
 
-use crate::{ffi, IntoPy, PyObject, PyResult, Python};
+use crate::{
+    conversion::IntoPyObject, ffi, types::PyNone, Bound, BoundObject, IntoPy, PyErr, PyObject,
+    PyResult, Python,
+};
 
 /// Used to wrap values in `Option<T>` for default arguments.
 pub trait SomeWrap<T> {
@@ -19,61 +22,156 @@ impl<T> SomeWrap<T> for Option<T> {
     }
 }
 
-/// Used to wrap the result of `#[pyfunction]` and `#[pymethods]`.
-#[cfg_attr(
-    diagnostic_namespace,
-    diagnostic::on_unimplemented(
-        message = "`{Self}` cannot be converted to a Python object",
-        note = "`IntoPy` is automatically implemented by the `#[pyclass]` macro",
-        note = "if you do not wish to have a corresponding Python type, implement `IntoPy` manually",
-        note = "if you do not own `{Self}` you can perform a manual conversion to one of the types in `pyo3::types::*`"
-    )
-)]
-pub trait OkWrap<T> {
-    type Error;
-    fn wrap(self) -> Result<T, Self::Error>;
+// Hierarchy of conversions used in the `IntoPy` implementation
+pub struct Converter<T>(EmptyTupleConverter<T>);
+pub struct EmptyTupleConverter<T>(IntoPyObjectConverter<T>);
+pub struct IntoPyObjectConverter<T>(IntoPyConverter<T>);
+pub struct IntoPyConverter<T>(UnknownReturnResultType<T>);
+pub struct UnknownReturnResultType<T>(UnknownReturnType<T>);
+pub struct UnknownReturnType<T>(PhantomData<T>);
+
+pub fn converter<T>(_: &T) -> Converter<T> {
+    Converter(EmptyTupleConverter(IntoPyObjectConverter(IntoPyConverter(
+        UnknownReturnResultType(UnknownReturnType(PhantomData)),
+    ))))
 }
 
-// The T: IntoPy<PyObject> bound here is necessary to prevent the
-// implementation for Result<T, E> from conflicting
-impl<T> OkWrap<T> for T
-where
-    T: IntoPy<PyObject>,
-{
-    type Error = Infallible;
-    #[inline]
-    fn wrap(self) -> Result<T, Infallible> {
-        Ok(self)
+impl<T> Deref for Converter<T> {
+    type Target = EmptyTupleConverter<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
-impl<T, E> OkWrap<T> for Result<T, E>
-where
-    T: IntoPy<PyObject>,
-{
-    type Error = E;
-    #[inline]
-    fn wrap(self) -> Result<T, Self::Error> {
-        self
+impl<T> Deref for EmptyTupleConverter<T> {
+    type Target = IntoPyObjectConverter<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
-/// This is a follow-up function to `OkWrap::wrap` that converts the result into
-/// a `*mut ffi::PyObject` pointer.
-pub fn map_result_into_ptr<T: IntoPy<PyObject>>(
-    py: Python<'_>,
-    result: PyResult<T>,
-) -> PyResult<*mut ffi::PyObject> {
-    result.map(|obj| obj.into_py(py).into_ptr())
+impl<T> Deref for IntoPyObjectConverter<T> {
+    type Target = IntoPyConverter<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
-/// This is a follow-up function to `OkWrap::wrap` that converts the result into
-/// a safe wrapper.
-pub fn map_result_into_py<T: IntoPy<PyObject>>(
-    py: Python<'_>,
-    result: PyResult<T>,
-) -> PyResult<PyObject> {
-    result.map(|err| err.into_py(py))
+impl<T> Deref for IntoPyConverter<T> {
+    type Target = UnknownReturnResultType<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> Deref for UnknownReturnResultType<T> {
+    type Target = UnknownReturnType<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl EmptyTupleConverter<PyResult<()>> {
+    #[inline]
+    pub fn map_into_ptr(&self, py: Python<'_>, obj: PyResult<()>) -> PyResult<*mut ffi::PyObject> {
+        obj.map(|_| PyNone::get(py).to_owned().into_ptr())
+    }
+}
+
+impl<'py, T: IntoPyObject<'py>> IntoPyObjectConverter<T> {
+    #[inline]
+    pub fn wrap(&self, obj: T) -> Result<T, Infallible> {
+        Ok(obj)
+    }
+}
+
+impl<'py, T: IntoPyObject<'py>, E> IntoPyObjectConverter<Result<T, E>> {
+    #[inline]
+    pub fn wrap(&self, obj: Result<T, E>) -> Result<T, E> {
+        obj
+    }
+
+    #[inline]
+    pub fn map_into_pyobject(&self, py: Python<'py>, obj: PyResult<T>) -> PyResult<PyObject>
+    where
+        T: IntoPyObject<'py>,
+        PyErr: From<T::Error>,
+    {
+        obj.and_then(|obj| obj.into_pyobject(py).map_err(Into::into))
+            .map(BoundObject::into_any)
+            .map(BoundObject::unbind)
+    }
+
+    #[inline]
+    pub fn map_into_ptr(&self, py: Python<'py>, obj: PyResult<T>) -> PyResult<*mut ffi::PyObject>
+    where
+        T: IntoPyObject<'py>,
+        PyErr: From<T::Error>,
+    {
+        obj.and_then(|obj| obj.into_pyobject(py).map_err(Into::into))
+            .map(BoundObject::into_bound)
+            .map(Bound::into_ptr)
+    }
+}
+
+impl<T: IntoPy<PyObject>> IntoPyConverter<T> {
+    #[inline]
+    pub fn wrap(&self, obj: T) -> Result<T, Infallible> {
+        Ok(obj)
+    }
+}
+
+impl<T: IntoPy<PyObject>, E> IntoPyConverter<Result<T, E>> {
+    #[inline]
+    pub fn wrap(&self, obj: Result<T, E>) -> Result<T, E> {
+        obj
+    }
+
+    #[inline]
+    pub fn map_into_pyobject(&self, py: Python<'_>, obj: PyResult<T>) -> PyResult<PyObject> {
+        obj.map(|obj| obj.into_py(py))
+    }
+
+    #[inline]
+    pub fn map_into_ptr(&self, py: Python<'_>, obj: PyResult<T>) -> PyResult<*mut ffi::PyObject> {
+        obj.map(|obj| obj.into_py(py).into_ptr())
+    }
+}
+
+impl<T, E> UnknownReturnResultType<Result<T, E>> {
+    #[inline]
+    pub fn wrap<'py>(&self, _: Result<T, E>) -> Result<T, E>
+    where
+        T: IntoPyObject<'py>,
+    {
+        unreachable!("should be handled by IntoPyObjectConverter")
+    }
+}
+
+impl<T> UnknownReturnType<T> {
+    #[inline]
+    pub fn wrap<'py>(&self, _: T) -> T
+    where
+        T: IntoPyObject<'py>,
+    {
+        unreachable!("should be handled by IntoPyObjectConverter")
+    }
+
+    #[inline]
+    pub fn map_into_pyobject<'py>(&self, _: Python<'py>, _: PyResult<T>) -> PyResult<PyObject>
+    where
+        T: IntoPyObject<'py>,
+    {
+        unreachable!("should be handled by IntoPyObjectConverter")
+    }
+
+    #[inline]
+    pub fn map_into_ptr<'py>(&self, _: Python<'py>, _: PyResult<T>) -> PyResult<*mut ffi::PyObject>
+    where
+        T: IntoPyObject<'py>,
+    {
+        unreachable!("should be handled by IntoPyObjectConverter")
+    }
 }
 
 #[cfg(test)]
@@ -87,17 +185,5 @@ mod tests {
 
         let b: Option<u8> = SomeWrap::wrap(None);
         assert_eq!(b, None);
-    }
-
-    #[test]
-    fn wrap_result() {
-        let a: Result<u8, _> = OkWrap::wrap(42u8);
-        assert!(matches!(a, Ok(42)));
-
-        let b: PyResult<u8> = OkWrap::wrap(Ok(42u8));
-        assert!(matches!(b, Ok(42)));
-
-        let c: Result<u8, &str> = OkWrap::wrap(Err("error"));
-        assert_eq!(c, Err("error"));
     }
 }

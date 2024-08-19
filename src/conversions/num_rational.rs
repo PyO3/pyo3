@@ -43,11 +43,14 @@
 //! assert fraction + 5 == fraction_plus_five
 //! ```
 
+use crate::conversion::IntoPyObject;
 use crate::ffi;
 use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
-use crate::{Bound, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject};
+use crate::{
+    Bound, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+};
 
 #[cfg(feature = "num-bigint")]
 use num_bigint::BigInt;
@@ -82,17 +85,36 @@ macro_rules! rational_conversion {
         }
 
         impl ToPyObject for Ratio<$int> {
+            #[inline]
             fn to_object(&self, py: Python<'_>) -> PyObject {
-                let fraction_cls = get_fraction_cls(py).expect("failed to load fractions.Fraction");
-                let ret = fraction_cls
-                    .call1((self.numer().clone(), self.denom().clone()))
-                    .expect("failed to call fractions.Fraction(value)");
-                ret.to_object(py)
+                self.into_pyobject(py).unwrap().into_any().unbind()
             }
         }
         impl IntoPy<PyObject> for Ratio<$int> {
+            #[inline]
             fn into_py(self, py: Python<'_>) -> PyObject {
-                self.to_object(py)
+                self.into_pyobject(py).unwrap().into_any().unbind()
+            }
+        }
+
+        impl<'py> IntoPyObject<'py> for Ratio<$int> {
+            type Target = PyAny;
+            type Output = Bound<'py, Self::Target>;
+            type Error = PyErr;
+
+            #[inline]
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                (&self).into_pyobject(py)
+            }
+        }
+
+        impl<'py> IntoPyObject<'py> for &Ratio<$int> {
+            type Target = PyAny;
+            type Output = Bound<'py, Self::Target>;
+            type Error = PyErr;
+
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                get_fraction_cls(py)?.call1((self.numer().clone(), self.denom().clone()))
             }
         }
     };
@@ -115,9 +137,9 @@ mod tests {
     #[test]
     fn test_negative_fraction() {
         Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
-            py.run_bound(
-                "import fractions\npy_frac = fractions.Fraction(-0.125)",
+            let locals = PyDict::new(py);
+            py.run(
+                ffi::c_str!("import fractions\npy_frac = fractions.Fraction(-0.125)"),
                 None,
                 Some(&locals),
             )
@@ -131,9 +153,9 @@ mod tests {
     #[test]
     fn test_obj_with_incorrect_atts() {
         Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
-            py.run_bound(
-                "not_fraction = \"contains_incorrect_atts\"",
+            let locals = PyDict::new(py);
+            py.run(
+                ffi::c_str!("not_fraction = \"contains_incorrect_atts\""),
                 None,
                 Some(&locals),
             )
@@ -146,9 +168,11 @@ mod tests {
     #[test]
     fn test_fraction_with_fraction_type() {
         Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
-            py.run_bound(
-                "import fractions\npy_frac = fractions.Fraction(fractions.Fraction(10))",
+            let locals = PyDict::new(py);
+            py.run(
+                ffi::c_str!(
+                    "import fractions\npy_frac = fractions.Fraction(fractions.Fraction(10))"
+                ),
                 None,
                 Some(&locals),
             )
@@ -163,9 +187,9 @@ mod tests {
     #[test]
     fn test_fraction_with_decimal() {
         Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
-            py.run_bound(
-                "import fractions\n\nfrom decimal import Decimal\npy_frac = fractions.Fraction(Decimal(\"1.1\"))",
+            let locals = PyDict::new(py);
+            py.run(
+                ffi::c_str!("import fractions\n\nfrom decimal import Decimal\npy_frac = fractions.Fraction(Decimal(\"1.1\"))"),
                 None,
                 Some(&locals),
             )
@@ -180,9 +204,9 @@ mod tests {
     #[test]
     fn test_fraction_with_num_den() {
         Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
-            py.run_bound(
-                "import fractions\npy_frac = fractions.Fraction(10,5)",
+            let locals = PyDict::new(py);
+            py.run(
+                ffi::c_str!("import fractions\npy_frac = fractions.Fraction(10,5)"),
                 None,
                 Some(&locals),
             )
@@ -245,9 +269,9 @@ mod tests {
     #[test]
     fn test_infinity() {
         Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
-            let py_bound = py.run_bound(
-                "import fractions\npy_frac = fractions.Fraction(\"Infinity\")",
+            let locals = PyDict::new(py);
+            let py_bound = py.run(
+                ffi::c_str!("import fractions\npy_frac = fractions.Fraction(\"Infinity\")"),
                 None,
                 Some(&locals),
             );

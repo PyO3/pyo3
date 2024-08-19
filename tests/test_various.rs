@@ -56,7 +56,7 @@ fn return_custom_class() {
         assert_eq!(get_zero().value, 0);
 
         // Using from python
-        let get_zero = wrap_pyfunction_bound!(get_zero)(py).unwrap();
+        let get_zero = wrap_pyfunction!(get_zero)(py).unwrap();
         py_assert!(py, get_zero, "get_zero().value == 0");
     });
 }
@@ -91,7 +91,7 @@ fn intopytuple_pyclass() {
 #[test]
 fn pytuple_primitive_iter() {
     Python::with_gil(|py| {
-        let tup = PyTuple::new_bound(py, [1u32, 2, 3].iter());
+        let tup = PyTuple::new(py, [1u32, 2, 3].iter());
         py_assert!(py, tup, "tup == (1, 2, 3)");
     });
 }
@@ -99,7 +99,7 @@ fn pytuple_primitive_iter() {
 #[test]
 fn pytuple_pyclass_iter() {
     Python::with_gil(|py| {
-        let tup = PyTuple::new_bound(
+        let tup = PyTuple::new(
             py,
             [
                 Py::new(py, SimplePyClass {}).unwrap(),
@@ -134,12 +134,12 @@ fn test_pickle() {
         ) -> PyResult<(PyObject, Bound<'py, PyTuple>, PyObject)> {
             let cls = slf.to_object(py).getattr(py, "__class__")?;
             let dict = slf.to_object(py).getattr(py, "__dict__")?;
-            Ok((cls, PyTuple::empty_bound(py), dict))
+            Ok((cls, PyTuple::empty(py), dict))
         }
     }
 
     fn add_module(module: Bound<'_, PyModule>) -> PyResult<()> {
-        PyModule::import_bound(module.py(), "sys")?
+        PyModule::import(module.py(), "sys")?
             .dict()
             .get_item("modules")
             .unwrap()
@@ -149,7 +149,7 @@ fn test_pickle() {
     }
 
     Python::with_gil(|py| {
-        let module = PyModule::new_bound(py, "test_module").unwrap();
+        let module = PyModule::new(py, "test_module").unwrap();
         module.add_class::<PickleSupport>().unwrap();
         add_module(module).unwrap();
         let inst = Py::new(py, PickleSupport {}).unwrap();
@@ -203,6 +203,6 @@ fn result_conversion_function() -> Result<(), MyError> {
 #[test]
 fn test_result_conversion() {
     Python::with_gil(|py| {
-        wrap_pyfunction_bound!(result_conversion_function)(py).unwrap();
+        wrap_pyfunction!(result_conversion_function)(py).unwrap();
     });
 }

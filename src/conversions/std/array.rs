@@ -1,3 +1,4 @@
+use crate::conversion::IntoPyObject;
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
 use crate::types::PySequence;
@@ -33,6 +34,40 @@ where
 
             list
         }
+    }
+}
+
+impl<'py, T, const N: usize> IntoPyObject<'py> for [T; N]
+where
+    T: IntoPyObject<'py>,
+    PyErr: From<T::Error>,
+{
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    /// Turns [`[u8; N]`](std::array) into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
+    ///
+    /// [`PyBytes`]: crate::types::PyBytes
+    /// [`PyList`]: crate::types::PyList
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        T::owned_sequence_into_pyobject(self, py, crate::conversion::private::Token)
+    }
+}
+
+impl<'a, 'py, T, const N: usize> IntoPyObject<'py> for &'a [T; N]
+where
+    &'a T: IntoPyObject<'py>,
+    PyErr: From<<&'a T as IntoPyObject<'py>>::Error>,
+{
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.as_slice().into_pyobject(py)
     }
 }
 
@@ -130,7 +165,11 @@ mod tests {
         sync::atomic::{AtomicUsize, Ordering},
     };
 
-    use crate::types::any::PyAnyMethods;
+    use crate::{
+        conversion::IntoPyObject,
+        ffi,
+        types::{any::PyAnyMethods, PyBytes, PyBytesMethods},
+    };
     use crate::{types::PyList, IntoPy, PyResult, Python, ToPyObject};
 
     #[test]
@@ -158,8 +197,8 @@ mod tests {
     fn test_extract_bytearray_to_array() {
         Python::with_gil(|py| {
             let v: [u8; 33] = py
-                .eval_bound(
-                    "bytearray(b'abcabcabcabcabcabcabcabcabcabcabc')",
+                .eval(
+                    ffi::c_str!("bytearray(b'abcabcabcabcabcabcabcabcabcabcabc')"),
                     None,
                     None,
                 )
@@ -174,7 +213,7 @@ mod tests {
     fn test_extract_small_bytearray_to_array() {
         Python::with_gil(|py| {
             let v: [u8; 3] = py
-                .eval_bound("bytearray(b'abc')", None, None)
+                .eval(ffi::c_str!("bytearray(b'abc')"), None, None)
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -198,7 +237,7 @@ mod tests {
     fn test_extract_invalid_sequence_length() {
         Python::with_gil(|py| {
             let v: PyResult<[u8; 3]> = py
-                .eval_bound("bytearray(b'abcdefg')", None, None)
+                .eval(ffi::c_str!("bytearray(b'abcdefg')"), None, None)
                 .unwrap()
                 .extract();
             assert_eq!(
@@ -222,9 +261,24 @@ mod tests {
     }
 
     #[test]
+    fn test_array_intopyobject_impl() {
+        Python::with_gil(|py| {
+            let bytes: [u8; 6] = *b"foobar";
+            let obj = bytes.into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyBytes>());
+            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            assert_eq!(obj.as_bytes(), &bytes);
+
+            let nums: [u16; 4] = [0, 1, 2, 3];
+            let obj = nums.into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyList>());
+        });
+    }
+
+    #[test]
     fn test_extract_non_iterable_to_array() {
         Python::with_gil(|py| {
-            let v = py.eval_bound("42", None, None).unwrap();
+            let v = py.eval(ffi::c_str!("42"), None, None).unwrap();
             v.extract::<i32>().unwrap();
             v.extract::<[i32; 1]>().unwrap_err();
         });

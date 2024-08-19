@@ -3,7 +3,145 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.22.* to 0.23
+
+### `gil-refs` feature removed
+<details open>
+<summary><small>Click to expand</small></summary>
+
+PyO3 0.23 completes the removal of the "GIL Refs" API in favour of the new "Bound" API introduced in PyO3 0.21.
+
+With the removal of the old API, many "Bound" API functions which had been introduced with `_bound` suffixes no longer need the suffixes as these names has been freed up. For example, `PyTuple::new_bound` is now just `PyTuple::new` (the existing name remains but is deprecated).
+
+Before:
+
+```rust
+# #![allow(deprecated)]
+# use pyo3::prelude::*;
+# use pyo3::types::PyTuple;
+# fn main() {
+# Python::with_gil(|py| {
+// For example, for PyTuple. Many such APIs have been changed.
+let tup = PyTuple::new_bound(py, [1, 2, 3]);
+# })
+# }
+```
+
+After:
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::types::PyTuple;
+# fn main() {
+# Python::with_gil(|py| {
+// For example, for PyTuple. Many such APIs have been changed.
+let tup = PyTuple::new(py, [1, 2, 3]);
+# })
+# }
+```
+</details>
+
+### Renamed `IntoPyDict::into_py_dict_bound` into `IntoPyDict::into_py_dict`.
+<details open>
+<summary><small>Click to expand</small></summary>
+
+The `IntoPyDict::into_py_dict_bound` method has been renamed to `IntoPyDict::into_py_dict`. If you implemented `IntoPyDict` for your type, you should implement `into_py_dict` instead of `into_py_dict_bound`. The old name is still available but deprecated.
+
+Before:
+
+```rust,ignore
+# use pyo3::prelude::*;
+# use pyo3::types::{PyDict, IntoPyDict};
+# use pyo3::types::dict::PyDictItem;
+impl<T, I> IntoPyDict for I
+where
+    T: PyDictItem,
+    I: IntoIterator<Item = T>,
+{
+    fn into_py_dict_bound(self, py: Python<'_>) -> Bound<'_, PyDict> {
+        let dict = PyDict::new(py);
+        for item in self {
+            dict.set_item(item.key(), item.value())
+                .expect("Failed to set_item on dict");
+        }
+        dict
+    }
+}
+```
+
+After:
+
+```rust,ignore
+# use pyo3::prelude::*;
+# use pyo3::types::{PyDict, IntoPyDict};
+# use pyo3::types::dict::PyDictItem;
+impl<T, I> IntoPyDict for I
+where
+    T: PyDictItem,
+    I: IntoIterator<Item = T>,
+{
+    fn into_py_dict(self, py: Python<'_>) -> Bound<'_, PyDict> {
+        let dict = PyDict::new(py);
+        for item in self {
+            dict.set_item(item.key(), item.value())
+                .expect("Failed to set_item on dict");
+        }
+        dict
+    }
+}
+```
+</details>
+
+### Macro conversion changed for byte collections (`Vec<u8>`, `[u8; N]` and `SmallVec<[u8; N]>`).
+<details open>
+<summary><small>Click to expand</small></summary>
+
+PyO3 0.23 introduced the new fallible conversion trait `IntoPyObject`. The `#[pyfunction]` and
+`#[pymethods]` macros prefer `IntoPyObject` implementations over `IntoPy<PyObject>`.
+
+This change has an effect on functions and methods returning _byte_ collections like
+- `Vec<u8>`
+- `[u8; N]`
+- `SmallVec<[u8; N]>`
+
+In their new `IntoPyObject` implementation these will now turn into `PyBytes` rather than a
+`PyList`. All other `T`s are unaffected and still convert into a `PyList`.
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+#[pyfunction]
+fn foo() -> Vec<u8> { // would previously turn into a `PyList`, now `PyBytes`
+    vec![0, 1, 2, 3]
+}
+
+#[pyfunction]
+fn bar() -> Vec<u16> { // unaffected, returns `PyList`
+    vec![0, 1, 2, 3]
+}
+```
+
+If this conversion is _not_ desired, consider building a list manually using `PyList::new`.
+
+The following types were previously _only_ implemented for `u8` and now allow other `T`s turn into
+`PyList`
+- `&[T]`
+- `Cow<[T]>`
+
+This is purely additional and should just extend the possible return types.
+
+</details>
+
 ## from 0.21.* to 0.22
+
+### Deprecation of `gil-refs` feature continues
+<details open>
+<summary><small>Click to expand</small></summary>
+
+Following the introduction of the "Bound" API in PyO3 0.21 and the planned removal of the "GIL Refs" API, all functionality related to GIL Refs is now gated behind the `gil-refs` feature and emits a deprecation warning on use.
+
+See <a href="#from-021-to-022">the 0.21 migration entry</a> for help upgrading.
+</details>
 
 ### Deprecation of implicit default for trailing optional arguments
 <details open>
@@ -116,7 +254,7 @@ Python::with_gil(|py| {
 
 After:
 
-```rust
+```rust,ignore
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use pyo3::types::{PyBool};
@@ -235,8 +373,7 @@ The `__next__` and `__anext__` magic methods can now return any type convertible
 
 Starting with an implementation of a Python iterator using `IterNextOutput`, e.g.
 
-```rust
-#![allow(deprecated)]
+```rust,ignore
 use pyo3::prelude::*;
 use pyo3::iter::IterNextOutput;
 
@@ -479,7 +616,7 @@ A key thing to note here is because extracting to these types now ties them to t
 
 Before:
 
-```rust
+```rust,ignore
 # #[cfg(feature = "gil-refs")] {
 # use pyo3::prelude::*;
 # use pyo3::types::{PyList, PyType};
@@ -496,7 +633,7 @@ assert_eq!(name, "list");
 
 After:
 
-```rust
+```rust,ignore
 # #[cfg(any(not(Py_LIMITED_API), Py_3_10))] {
 # use pyo3::prelude::*;
 # use pyo3::types::{PyList, PyType};
@@ -517,7 +654,7 @@ To avoid needing to worry about lifetimes at all, it is also possible to use the
 
 The following example uses the same snippet as those just above, but this time the final extracted type is `PyBackedStr`:
 
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 # use pyo3::types::{PyList, PyType};
 # fn example<'py>(py: Python<'py>) -> PyResult<()> {
@@ -529,6 +666,7 @@ assert_eq!(&*name, "list");
 # }
 # Python::with_gil(example).unwrap();
 ```
+</details>
 
 ## from 0.19.* to 0.20
 
@@ -875,9 +1013,9 @@ fn function_with_defaults(a: i32, b: i32, c: i32) {}
 
 # fn main() {
 #     Python::with_gil(|py| {
-#         let simple = wrap_pyfunction_bound!(simple_function, py).unwrap();
+#         let simple = wrap_pyfunction!(simple_function, py).unwrap();
 #         assert_eq!(simple.getattr("__text_signature__").unwrap().to_string(), "(a, b, c)");
-#         let defaulted = wrap_pyfunction_bound!(function_with_defaults, py).unwrap();
+#         let defaulted = wrap_pyfunction!(function_with_defaults, py).unwrap();
 #         assert_eq!(defaulted.getattr("__text_signature__").unwrap().to_string(), "(a, b=1, c=2)");
 #     })
 # }

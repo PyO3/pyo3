@@ -22,8 +22,7 @@ fn num_kwds(kwds: Option<&Bound<'_, PyDict>>) -> usize {
 
 #[pymodule]
 fn module_with_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(num_kwds, m)?).unwrap();
-    Ok(())
+    m.add_function(wrap_pyfunction!(num_kwds, m)?)
 }
 ```
 
@@ -149,9 +148,9 @@ fn increment(x: u64, amount: Option<u64>) -> u64 {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let fun = pyo3::wrap_pyfunction_bound!(increment, py)?;
+#         let fun = pyo3::wrap_pyfunction!(increment, py)?;
 #
-#         let inspect = PyModule::import_bound(py, "inspect")?.getattr("signature")?;
+#         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
 #         let sig: String = inspect
 #             .call1((fun,))?
 #             .call_method0("__str__")?
@@ -177,9 +176,9 @@ fn increment(x: u64, amount: Option<u64>) -> u64 {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let fun = pyo3::wrap_pyfunction_bound!(increment, py)?;
+#         let fun = pyo3::wrap_pyfunction!(increment, py)?;
 #
-#         let inspect = PyModule::import_bound(py, "inspect")?.getattr("signature")?;
+#         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
 #         let sig: String = inspect
 #             .call1((fun,))?
 #             .call_method0("__str__")?
@@ -217,12 +216,12 @@ fn add(a: u64, b: u64) -> u64 {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let fun = pyo3::wrap_pyfunction_bound!(add, py)?;
+#         let fun = pyo3::wrap_pyfunction!(add, py)?;
 #
 #         let doc: String = fun.getattr("__doc__")?.extract()?;
 #         assert_eq!(doc, "This function adds two unsigned 64-bit integers.");
 #
-#         let inspect = PyModule::import_bound(py, "inspect")?.getattr("signature")?;
+#         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
 #         let sig: String = inspect
 #             .call1((fun,))?
 #             .call_method0("__str__")?
@@ -265,12 +264,12 @@ fn add(a: u64, b: u64) -> u64 {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let fun = pyo3::wrap_pyfunction_bound!(add, py)?;
+#         let fun = pyo3::wrap_pyfunction!(add, py)?;
 #
 #         let doc: String = fun.getattr("__doc__")?.extract()?;
 #         assert_eq!(doc, "This function adds two unsigned 64-bit integers.");
 #
-#         let inspect = PyModule::import_bound(py, "inspect")?.getattr("signature")?;
+#         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
 #         let sig: String = inspect
 #             .call1((fun,))?
 #             .call_method0("__str__")?
@@ -307,7 +306,7 @@ fn add(a: u64, b: u64) -> u64 {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let fun = pyo3::wrap_pyfunction_bound!(add, py)?;
+#         let fun = pyo3::wrap_pyfunction!(add, py)?;
 #
 #         let doc: String = fun.getattr("__doc__")?.extract()?;
 #         assert_eq!(doc, "This function adds two unsigned 64-bit integers.");

@@ -57,7 +57,7 @@ fn test_buffer() {
             },
         )
         .unwrap();
-        let env = [("ob", instance)].into_py_dict_bound(py);
+        let env = [("ob", instance)].into_py_dict(py);
         py_assert!(py, *env, "bytes(ob) == b' 23'");
     });
 
@@ -122,7 +122,7 @@ fn test_releasebuffer_unraisable_error() {
         let capture = UnraisableCapture::install(py);
 
         let instance = Py::new(py, ReleaseBufferError {}).unwrap();
-        let env = [("ob", instance.clone_ref(py))].into_py_dict_bound(py);
+        let env = [("ob", instance.clone_ref(py))].into_py_dict(py);
 
         assert!(capture.borrow(py).capture.is_none());
 

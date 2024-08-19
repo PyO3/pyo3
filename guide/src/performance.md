@@ -108,7 +108,7 @@ This limitation is important to keep in mind when this setting is used, especial
 ```rust,ignore
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
-let numbers: Py<PyList> = Python::with_gil(|py| PyList::empty_bound(py).unbind());
+let numbers: Py<PyList> = Python::with_gil(|py| PyList::empty(py).unbind());
 
 Python::with_gil(|py| {
     numbers.bind(py).append(23).unwrap();
@@ -124,7 +124,7 @@ will abort if the list not explicitly disposed via
 ```rust
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
-let numbers: Py<PyList> = Python::with_gil(|py| PyList::empty_bound(py).unbind());
+let numbers: Py<PyList> = Python::with_gil(|py| PyList::empty(py).unbind());
 
 Python::with_gil(|py| {
     numbers.bind(py).append(23).unwrap();

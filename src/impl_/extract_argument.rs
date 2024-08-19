@@ -65,7 +65,7 @@ where
     }
 }
 
-#[cfg(all(Py_LIMITED_API, not(any(feature = "gil-refs", Py_3_10))))]
+#[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
 impl<'a> PyFunctionArgument<'a, '_> for &'a str {
     type Holder = Option<std::borrow::Cow<'a, str>>;
 
@@ -171,9 +171,9 @@ where
 pub fn from_py_with<'a, 'py, T>(
     obj: &'a Bound<'py, PyAny>,
     arg_name: &str,
-    extractor: impl Into<super::frompyobject::Extractor<'a, 'py, T>>,
+    extractor: fn(&'a Bound<'py, PyAny>) -> PyResult<T>,
 ) -> PyResult<T> {
-    match extractor.into().call(obj) {
+    match extractor(obj) {
         Ok(value) => Ok(value),
         Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e)),
     }
@@ -184,7 +184,7 @@ pub fn from_py_with<'a, 'py, T>(
 pub fn from_py_with_with_default<'a, 'py, T>(
     obj: Option<&'a Bound<'py, PyAny>>,
     arg_name: &str,
-    extractor: impl Into<super::frompyobject::Extractor<'a, 'py, T>>,
+    extractor: fn(&'a Bound<'py, PyAny>) -> PyResult<T>,
     default: fn() -> T,
 ) -> PyResult<T> {
     match obj {
@@ -200,10 +200,7 @@ pub fn from_py_with_with_default<'a, 'py, T>(
 #[doc(hidden)]
 #[cold]
 pub fn argument_extraction_error(py: Python<'_>, arg_name: &str, error: PyErr) -> PyErr {
-    if error
-        .get_type_bound(py)
-        .is(&py.get_type_bound::<PyTypeError>())
-    {
+    if error.get_type_bound(py).is(&py.get_type::<PyTypeError>()) {
         let remapped_error = PyTypeError::new_err(format!(
             "argument '{}': {}",
             arg_name,
@@ -265,7 +262,7 @@ impl FunctionDescription {
     /// - `args` must be a pointer to a C-style array of valid `ffi::PyObject` pointers, or NULL.
     /// - `kwnames` must be a pointer to a PyTuple, or NULL.
     /// - `nargs + kwnames.len()` is the total length of the `args` array.
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     pub unsafe fn extract_arguments_fastcall<'py, V, K>(
         &self,
         py: Python<'py>,
@@ -709,7 +706,7 @@ impl<'py> VarargsHandler<'py> for TupleVarargs {
         varargs: &[Option<PyArg<'py>>],
         _function_description: &FunctionDescription,
     ) -> PyResult<Self::Varargs> {
-        Ok(PyTuple::new_bound(py, varargs))
+        Ok(PyTuple::new(py, varargs))
     }
 
     #[inline]
@@ -762,7 +759,7 @@ impl<'py> VarkeywordsHandler<'py> for DictVarkeywords {
         _function_description: &FunctionDescription,
     ) -> PyResult<()> {
         varkeywords
-            .get_or_insert_with(|| PyDict::new_bound(name.py()))
+            .get_or_insert_with(|| PyDict::new(name.py()))
             .set_item(name, value)
     }
 }
@@ -807,8 +804,8 @@ mod tests {
         };
 
         Python::with_gil(|py| {
-            let args = PyTuple::empty_bound(py);
-            let kwargs = [("foo", 0u8)].into_py_dict_bound(py);
+            let args = PyTuple::empty(py);
+            let kwargs = [("foo", 0u8)].into_py_dict(py);
             let err = unsafe {
                 function_description
                     .extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(
@@ -838,8 +835,8 @@ mod tests {
         };
 
         Python::with_gil(|py| {
-            let args = PyTuple::empty_bound(py);
-            let kwargs = [(1u8, 1u8)].into_py_dict_bound(py);
+            let args = PyTuple::empty(py);
+            let kwargs = [(1u8, 1u8)].into_py_dict(py);
             let err = unsafe {
                 function_description
                     .extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(
@@ -869,7 +866,7 @@ mod tests {
         };
 
         Python::with_gil(|py| {
-            let args = PyTuple::empty_bound(py);
+            let args = PyTuple::empty(py);
             let mut output = [None, None];
             let err = unsafe {
                 function_description.extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(

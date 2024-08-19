@@ -1,14 +1,18 @@
+use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
+use crate::types::PyString;
 use crate::{ffi, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
+use std::convert::Infallible;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 impl ToPyObject for Path {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.as_os_str().to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -25,40 +29,97 @@ impl FromPyObject<'_> for PathBuf {
 impl<'a> IntoPy<PyObject> for &'a Path {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.as_os_str().to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &Path {
+    type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.as_os_str().into_pyobject(py)
     }
 }
 
 impl<'a> ToPyObject for Cow<'a, Path> {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.as_os_str().to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl<'a> IntoPy<PyObject> for Cow<'a, Path> {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
+    }
+}
+
+impl<'py> IntoPyObject<'py> for Cow<'_, Path> {
+    type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.as_os_str().into_pyobject(py)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &Cow<'_, Path> {
+    type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.as_os_str().into_pyobject(py)
     }
 }
 
 impl ToPyObject for PathBuf {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.as_os_str().to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl IntoPy<PyObject> for PathBuf {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_os_string().to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
+    }
+}
+
+impl<'py> IntoPyObject<'py> for PathBuf {
+    type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.as_os_str().into_pyobject(py)
     }
 }
 
 impl<'a> IntoPy<PyObject> for &'a PathBuf {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.as_os_str().to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &PathBuf {
+    type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.as_os_str().into_pyobject(py)
     }
 }
 

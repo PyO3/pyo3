@@ -6,8 +6,6 @@ The first set of types are the [smart pointers][smart-pointers] which all Python
 
 The second set of types are types which fill in the generic parameter `T` of the smart pointers. The most common is `PyAny`, which represents any Python object (similar to Python's `typing.Any`). There are also concrete types for many Python built-in types, such as `PyList`, `PyDict`, and `PyTuple`. User defined `#[pyclass]` types also fit this category. The [second section below](#concrete-python-types) expands on how to use these types.
 
-Before PyO3 0.21, PyO3's main API to interact with Python objects was a deprecated API known as the "GIL Refs" API, containing reference types such as `&PyAny`, `&PyList`, and `&PyCell<T>` for user-defined `#[pyclass]` types. The [third section below](#the-gil-refs-api) details this deprecated API.
-
 ## PyO3's smart pointers
 
 PyO3's API offers three generic smart pointers: `Py<T>`, `Bound<'py, T>` and `Borrowed<'a, 'py, T>`. For each of these the type parameter `T` will be filled by a [concrete Python type](#concrete-python-types). For example, a Python list object can be represented by `Py<PyList>`, `Bound<'py, PyList>`, and `Borrowed<'a, 'py, PyList>`.
@@ -34,7 +32,7 @@ The lack of binding to the `'py` lifetime also carries drawbacks:
  - Almost all methods on `Py<T>` require a `Python<'py>` token as the first argument
  - Other functionality, such as [`Drop`][Drop], needs to check at runtime for attachment to the Python GIL, at a small performance cost
 
-Because of the drawbacks `Bound<'py, T>` is preferred for many of PyO3's APIs. In particular, `Bound<'py, T>` is the better for function arguments.
+Because of the drawbacks `Bound<'py, T>` is preferred for many of PyO3's APIs. In particular, `Bound<'py, T>` is better for function arguments.
 
 To convert a `Py<T>` into a `Bound<'py, T>`, the `Py::bind` and `Py::into_bound` methods are available. `Bound<'py, T>` can be converted back into `Py<T>` using [`Bound::unbind`].
 
@@ -63,7 +61,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyList;
 
 fn example<'py>(py: Python<'py>) -> PyResult<()> {
-    let x: Bound<'py, PyList> = PyList::empty_bound(py);
+    let x: Bound<'py, PyList> = PyList::empty(py);
     x.append(1)?;
     let y: Bound<'py, PyList> = x.clone(); // y is a new reference to the same list
     drop(x); // release the original reference x
@@ -79,7 +77,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyList;
 
 fn example(py: Python<'_>) -> PyResult<()> {
-    let x = PyList::empty_bound(py);
+    let x = PyList::empty(py);
     x.append(1)?;
     let y = x.clone();
     drop(x);
@@ -114,7 +112,7 @@ fn add<'py>(
     left.add(right)
 }
 # Python::with_gil(|py| {
-#     let s = pyo3::types::PyString::new_bound(py, "s");
+#     let s = pyo3::types::PyString::new(py, "s");
 #     assert!(add(&s, &s).unwrap().eq("ss").unwrap());
 # })
 ```
@@ -128,7 +126,7 @@ fn add(left: &Bound<'_, PyAny>, right: &Bound<'_, PyAny>) -> PyResult<PyObject> 
     Ok(output.unbind())
 }
 # Python::with_gil(|py| {
-#     let s = pyo3::types::PyString::new_bound(py, "s");
+#     let s = pyo3::types::PyString::new(py, "s");
 #     assert!(add(&s, &s).unwrap().bind(py).eq("ss").unwrap());
 # })
 ```
@@ -147,7 +145,7 @@ use pyo3::types::PyTuple;
 
 # fn example<'py>(py: Python<'py>) -> PyResult<()> {
 // Create a new tuple with the elements (0, 1, 2)
-let t = PyTuple::new_bound(py, [0, 1, 2]);
+let t = PyTuple::new(py, [0, 1, 2]);
 for i in 0..=2 {
     let entry: Borrowed<'_, 'py, PyAny> = t.get_borrowed_item(i)?;
     // `PyAnyMethods::extract` is available on `Borrowed`
@@ -234,7 +232,7 @@ fn get_first_item<'py>(list: &Bound<'py, PyList>) -> PyResult<Bound<'py, PyAny>>
     list.get_item(0)
 }
 # Python::with_gil(|py| {
-#     let l = PyList::new_bound(py, ["hello world"]);
+#     let l = PyList::new(py, ["hello world"]);
 #     assert!(get_first_item(&l).unwrap().eq("hello world").unwrap());
 # })
 ```
@@ -252,7 +250,7 @@ For example, the following snippet shows how to cast `Bound<'py, PyAny>` to `Bou
 # use pyo3::types::PyTuple;
 # fn example<'py>(py: Python<'py>) -> PyResult<()> {
 // create a new Python `tuple`, and use `.into_any()` to erase the type
-let obj: Bound<'py, PyAny> = PyTuple::empty_bound(py).into_any();
+let obj: Bound<'py, PyAny> = PyTuple::empty(py).into_any();
 
 // use `.downcast()` to cast to `PyTuple` without transferring ownership
 let _: &Bound<'py, PyTuple> = obj.downcast()?;
@@ -297,7 +295,7 @@ For example, the following snippet extracts a Rust tuple of integers from a Pyth
 # use pyo3::types::PyTuple;
 # fn example<'py>(py: Python<'py>) -> PyResult<()> {
 // create a new Python `tuple`, and use `.into_any()` to erase the type
-let obj: Bound<'py, PyAny> = PyTuple::new_bound(py, [1, 2, 3]).into_any();
+let obj: Bound<'py, PyAny> = PyTuple::new(py, [1, 2, 3]).into_any();
 
 // extracting the Python `tuple` to a rust `(i32, i32, i32)` tuple
 let (x, y, z) = obj.extract::<(i32, i32, i32)>()?;
@@ -309,186 +307,6 @@ assert_eq!((x, y, z), (1, 2, 3));
 
 To avoid copying data, [`#[pyclass]`][pyclass] types can directly reference Rust data stored within the Python objects without needing to `.extract()`. See the [corresponding documentation in the class section of the guide](./class.md#bound-and-interior-mutability)
 for more detail.
-
-## The GIL Refs API
-
-The GIL Refs API was PyO3's primary API prior to PyO3 0.21. The main difference was that instead of the `Bound<'py, PyAny>` smart pointer, the "GIL Reference" `&'py PyAny` was used. (This was similar for other Python types.)
-
-As of PyO3 0.21, the GIL Refs API is deprecated. See the [migration guide](./migration.md#from-020-to-021) for details on how to upgrade.
-
-The following sections note some historical detail about the GIL Refs API.
-
-### [`PyAny`][PyAny]
-
-**Represented:** a Python object of unspecified type. In the GIL Refs API, this was only accessed as the GIL Ref `&'py PyAny`.
-
-**Used:** `&'py PyAny` was used to refer to some Python object when the GIL lifetime was available for the whole duration access was needed. For example, intermediate values and arguments to `pyfunction`s or `pymethod`s implemented in Rust where any type is allowed.
-
-**Conversions:**
-
-For a `&PyAny` object reference `any` where the underlying object is a Python-native type such as
-a list:
-
-```rust
-# #![allow(unused_imports)]
-# use pyo3::prelude::*;
-# use pyo3::types::PyList;
-# #[cfg(feature = "gil-refs")]
-# Python::with_gil(|py| -> PyResult<()> {
-#[allow(deprecated)] // PyList::empty is part of the deprecated "GIL Refs" API.
-let obj: &PyAny = PyList::empty(py);
-
-// To &PyList with PyAny::downcast
-let _: &PyList = obj.downcast()?;
-
-// To Py<PyAny> (aka PyObject) with .into()
-let _: Py<PyAny> = obj.into();
-
-// To Py<PyList> with PyAny::extract
-let _: Py<PyList> = obj.extract()?;
-# Ok(())
-# }).unwrap();
-```
-
-For a `&PyAny` object reference `any` where the underlying object is a `#[pyclass]`:
-
-```rust
-# #![allow(unused_imports)]
-# use pyo3::prelude::*;
-# #[pyclass] #[derive(Clone)] struct MyClass { }
-# #[cfg(feature = "gil-refs")]
-# Python::with_gil(|py| -> PyResult<()> {
-#[allow(deprecated)] // into_ref is part of the deprecated GIL Refs API
-let obj: &PyAny = Py::new(py, MyClass {})?.into_ref(py);
-
-// To &PyCell<MyClass> with PyAny::downcast
-#[allow(deprecated)] // &PyCell is part of the deprecated GIL Refs API
-let _: &PyCell<MyClass> = obj.downcast()?;
-
-// To Py<PyAny> (aka PyObject) with .into()
-let _: Py<PyAny> = obj.into();
-
-// To Py<MyClass> with PyAny::extract
-let _: Py<MyClass> = obj.extract()?;
-
-// To MyClass with PyAny::extract, if MyClass: Clone
-let _: MyClass = obj.extract()?;
-
-// To PyRef<'_, MyClass> or PyRefMut<'_, MyClass> with PyAny::extract
-let _: PyRef<'_, MyClass> = obj.extract()?;
-let _: PyRefMut<'_, MyClass> = obj.extract()?;
-# Ok(())
-# }).unwrap();
-```
-
-### `PyTuple`, `PyDict`, and many more
-
-**Represented:** a native Python object of known type. In the GIL Refs API, they were only accessed as the GIL Refs `&'py PyTuple`, `&'py PyDict`.
-
-**Used:** `&'py PyTuple` and similar were used to operate with native Python types while holding the GIL. Like `PyAny`, this is the most convenient form to use for function arguments and intermediate values.
-
-These GIL Refs implement `Deref<Target = PyAny>`, so they all expose the same methods which can be found on `PyAny`.
-
-To see all Python types exposed by `PyO3` consult the [`pyo3::types`][pyo3::types] module.
-
-**Conversions:**
-
-```rust
-# #![allow(unused_imports)]
-# use pyo3::prelude::*;
-# use pyo3::types::PyList;
-# #[cfg(feature = "gil-refs")]
-# Python::with_gil(|py| -> PyResult<()> {
-#[allow(deprecated)] // PyList::empty is part of the deprecated "GIL Refs" API.
-let list = PyList::empty(py);
-
-// Use methods from PyAny on all Python types with Deref implementation
-let _ = list.repr()?;
-
-// To &PyAny automatically with Deref implementation
-let _: &PyAny = list;
-
-// To &PyAny explicitly with .as_ref()
-#[allow(deprecated)] // as_ref is part of the deprecated "GIL Refs" API.
-let _: &PyAny = list.as_ref();
-
-// To Py<T> with .into() or Py::from()
-let _: Py<PyList> = list.into();
-
-// To PyObject with .into() or .to_object(py)
-let _: PyObject = list.into();
-# Ok(())
-# }).unwrap();
-```
-
-### `Py<T>` and `PyObject`
-
-**Represented:** a GIL-independent reference to a Python object. This can be a Python native type
-(like `PyTuple`), or a `pyclass` type implemented in Rust. The most commonly-used variant,
-`Py<PyAny>`, is also known as `PyObject`.
-
-**Used:** Whenever you want to carry around references to a Python object without caring about a
-GIL lifetime.  For example, storing Python object references in a Rust struct that outlives the
-Python-Rust FFI boundary, or returning objects from functions implemented in Rust back to Python.
-
-Can be cloned using Python reference counts with `.clone()`.
-
-### `PyCell<SomeType>`
-
-**Represented:** a reference to a Rust object (instance of `PyClass`) wrapped in a Python object.  The cell part is an analog to stdlib's [`RefCell`][RefCell] to allow access to `&mut` references.
-
-**Used:** for accessing pure-Rust API of the instance (members and functions taking `&SomeType` or `&mut SomeType`) while maintaining the aliasing rules of Rust references.
-
-Like PyO3's Python native types, the GIL Ref `&PyCell<T>` implements `Deref<Target = PyAny>`, so it also exposed all of the methods on `PyAny`.
-
-**Conversions:**
-
-`PyCell<T>` was used to access `&T` and `&mut T` via `PyRef<T>` and `PyRefMut<T>` respectively.
-
-```rust
-#![allow(unused_imports)]
-# use pyo3::prelude::*;
-# #[pyclass] struct MyClass { }
-# #[cfg(feature = "gil-refs")]
-# Python::with_gil(|py| -> PyResult<()> {
-#[allow(deprecated)] // &PyCell is part of the deprecated GIL Refs API
-let cell: &PyCell<MyClass> = PyCell::new(py, MyClass {})?;
-
-// To PyRef<T> with .borrow() or .try_borrow()
-let py_ref: PyRef<'_, MyClass> = cell.try_borrow()?;
-let _: &MyClass = &*py_ref;
-# drop(py_ref);
-
-// To PyRefMut<T> with .borrow_mut() or .try_borrow_mut()
-let mut py_ref_mut: PyRefMut<'_, MyClass> = cell.try_borrow_mut()?;
-let _: &mut MyClass = &mut *py_ref_mut;
-# Ok(())
-# }).unwrap();
-```
-
-`PyCell<T>` was also accessed like a Python-native type.
-
-```rust
-#![allow(unused_imports)]
-# use pyo3::prelude::*;
-# #[pyclass] struct MyClass { }
-# #[cfg(feature = "gil-refs")]
-# Python::with_gil(|py| -> PyResult<()> {
-#[allow(deprecated)] // &PyCell is part of the deprecate GIL Refs API
-let cell: &PyCell<MyClass> = PyCell::new(py, MyClass {})?;
-
-// Use methods from PyAny on PyCell<T> with Deref implementation
-let _ = cell.repr()?;
-
-// To &PyAny automatically with Deref implementation
-let _: &PyAny = cell;
-
-// To &PyAny explicitly with .as_ref()
-#[allow(deprecated)] // as_ref is part of the deprecated "GIL Refs" API.
-let _: &PyAny = cell.as_ref();
-# Ok(())
-# }).unwrap();
-```
 
 [Bound]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html
 [`Bound::unbind`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html#method.unbind

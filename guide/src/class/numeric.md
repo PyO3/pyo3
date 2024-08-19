@@ -171,7 +171,7 @@ impl Number {
     }
 
     fn __complex__<'py>(&self, py: Python<'py>) -> Bound<'py, PyComplex> {
-        PyComplex::from_doubles_bound(py, self.0 as f64, 0.0)
+        PyComplex::from_doubles(py, self.0 as f64, 0.0)
     }
 }
 ```
@@ -321,7 +321,7 @@ impl Number {
     }
 
     fn __complex__<'py>(&self, py: Python<'py>) -> Bound<'py, PyComplex> {
-        PyComplex::from_doubles_bound(py, self.0 as f64, 0.0)
+        PyComplex::from_doubles(py, self.0 as f64, 0.0)
     }
 }
 
@@ -330,7 +330,7 @@ fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Number>()?;
     Ok(())
 }
-# const SCRIPT: &'static str = r#"
+# const SCRIPT: &'static std::ffi::CStr = pyo3::ffi::c_str!(r#"
 # def hash_djb2(s: str):
 #     n = Number(0)
 #     five = Number(5)
@@ -379,17 +379,17 @@ fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 #     pass
 # assert Number(1337).__str__() == '1337'
 # assert Number(1337).__repr__() == 'Number(1337)'
-"#;
+"#);
 
 #
 # use pyo3::PyTypeInfo;
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let globals = PyModule::import_bound(py, "__main__")?.dict();
+#         let globals = PyModule::import(py, "__main__")?.dict();
 #         globals.set_item("Number", Number::type_object_bound(py))?;
 #
-#         py.run_bound(SCRIPT, Some(&globals), None)?;
+#         py.run(SCRIPT, Some(&globals), None)?;
 #         Ok(())
 #     })
 # }

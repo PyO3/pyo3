@@ -4,7 +4,6 @@ use crate::pyport::Py_ssize_t;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct PyListObject {
     pub ob_base: PyVarObject,
     pub ob_item: *mut *mut PyObject,

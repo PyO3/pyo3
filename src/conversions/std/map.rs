@@ -3,10 +3,10 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
+    conversion::IntoPyObject,
     instance::Bound,
-    types::dict::PyDictMethods,
-    types::{any::PyAnyMethods, IntoPyDict, PyDict},
-    FromPyObject, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject,
+    types::{any::PyAnyMethods, dict::PyDictMethods, IntoPyDict, PyDict},
+    BoundObject, FromPyObject, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject,
 };
 
 impl<K, V, H> ToPyObject for collections::HashMap<K, V, H>
@@ -16,7 +16,7 @@ where
     H: hash::BuildHasher,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        IntoPyDict::into_py_dict_bound(self, py).into()
+        IntoPyDict::into_py_dict(self, py).into()
     }
 }
 
@@ -26,7 +26,7 @@ where
     V: ToPyObject,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        IntoPyDict::into_py_dict_bound(self, py).into()
+        IntoPyDict::into_py_dict(self, py).into()
     }
 }
 
@@ -40,12 +40,58 @@ where
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
-        IntoPyDict::into_py_dict_bound(iter, py).into()
+        IntoPyDict::into_py_dict(iter, py).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::dict_of(K::type_output(), V::type_output())
+    }
+}
+
+impl<'py, K, V, H> IntoPyObject<'py> for collections::HashMap<K, V, H>
+where
+    K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
+    V: IntoPyObject<'py>,
+    H: hash::BuildHasher,
+    PyErr: From<K::Error> + From<V::Error>,
+{
+    type Target = PyDict;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let dict = PyDict::new(py);
+        for (k, v) in self {
+            dict.set_item(
+                k.into_pyobject(py)?.into_bound(),
+                v.into_pyobject(py)?.into_bound(),
+            )?;
+        }
+        Ok(dict)
+    }
+}
+
+impl<'a, 'py, K, V, H> IntoPyObject<'py> for &'a collections::HashMap<K, V, H>
+where
+    &'a K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
+    &'a V: IntoPyObject<'py>,
+    &'a H: hash::BuildHasher,
+    PyErr: From<<&'a K as IntoPyObject<'py>>::Error> + From<<&'a V as IntoPyObject<'py>>::Error>,
+{
+    type Target = PyDict;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let dict = PyDict::new(py);
+        for (k, v) in self {
+            dict.set_item(
+                k.into_pyobject(py)?.into_bound(),
+                v.into_pyobject(py)?.into_bound(),
+            )?;
+        }
+        Ok(dict)
     }
 }
 
@@ -58,12 +104,56 @@ where
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
-        IntoPyDict::into_py_dict_bound(iter, py).into()
+        IntoPyDict::into_py_dict(iter, py).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::dict_of(K::type_output(), V::type_output())
+    }
+}
+
+impl<'py, K, V> IntoPyObject<'py> for collections::BTreeMap<K, V>
+where
+    K: IntoPyObject<'py> + cmp::Eq,
+    V: IntoPyObject<'py>,
+    PyErr: From<K::Error> + From<V::Error>,
+{
+    type Target = PyDict;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let dict = PyDict::new(py);
+        for (k, v) in self {
+            dict.set_item(
+                k.into_pyobject(py)?.into_bound(),
+                v.into_pyobject(py)?.into_bound(),
+            )?;
+        }
+        Ok(dict)
+    }
+}
+
+impl<'a, 'py, K, V> IntoPyObject<'py> for &'a collections::BTreeMap<K, V>
+where
+    &'a K: IntoPyObject<'py> + cmp::Eq,
+    &'a V: IntoPyObject<'py>,
+    PyErr: From<<&'a K as IntoPyObject<'py>>::Error> + From<<&'a V as IntoPyObject<'py>>::Error>,
+{
+    type Target = PyDict;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let dict = PyDict::new(py);
+        for (k, v) in self {
+            dict.set_item(
+                k.into_pyobject(py)?.into_bound(),
+                v.into_pyobject(py)?.into_bound(),
+            )?;
+        }
+        Ok(dict)
     }
 }
 

@@ -1,3 +1,4 @@
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 //! Raw FFI declarations for Python's C API.
 //!
 //! PyO3 can be used to write native Python modules or run Python code and modules from Rust.
@@ -102,7 +103,7 @@
 //!     PyMethodDef {
 //!         ml_name: c_str!("sum_as_string").as_ptr(),
 //!         ml_meth: PyMethodDefPointer {
-//!             _PyCFunctionFast: sum_as_string,
+//!             PyCFunctionFast: sum_as_string,
 //!         },
 //!         ml_flags: METH_FASTCALL,
 //!         ml_doc: c_str!("returns the sum of two integers as a string").as_ptr(),
@@ -221,11 +222,10 @@
 //! [`maturin`]: https://github.com/PyO3/maturin "Build and publish crates with pyo3, rust-cpython and cffi bindings as well as rust binaries as python packages"
 //! [`pyo3-build-config`]: https://docs.rs/pyo3-build-config
 //! [feature flags]: https://doc.rust-lang.org/cargo/reference/features.html "Features - The Cargo Book"
-//! [manual_builds]: https://pyo3.rs/latest/building-and-distribution.html#manual-builds "Manual builds - Building and Distribution - PyO3 user guide"
+#![doc = concat!("[manual_builds]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/building-and-distribution.html#manual-builds \"Manual builds - Building and Distribution - PyO3 user guide\"")]
 //! [setuptools-rust]: https://github.com/PyO3/setuptools-rust "Setuptools plugin for Rust extensions"
 //! [PEP 384]: https://www.python.org/dev/peps/pep-0384 "PEP 384 -- Defining a Stable ABI"
-//! [Features chapter of the guide]: https://pyo3.rs/latest/features.html#features-reference "Features Reference - PyO3 user guide"
-
+#![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features Reference - PyO3 user guide\"")]
 #![allow(
     missing_docs,
     non_camel_case_types,
@@ -290,6 +290,8 @@ pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &CStr {
 }
 
 use std::ffi::CStr;
+
+pub mod compat;
 
 pub use self::abstract_::*;
 pub use self::bltinmodule::*;

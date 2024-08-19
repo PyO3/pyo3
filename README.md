@@ -68,7 +68,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.22.0", features = ["extension-module"] }
+pyo3 = { version = "0.22.2", features = ["extension-module"] }
 ```
 
 **`src/lib.rs`**
@@ -137,7 +137,7 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.22.0"
+version = "0.22.2"
 features = ["auto-initialize"]
 ```
 
@@ -146,15 +146,16 @@ Example program displaying the value of `sys.version` and the current user name:
 ```rust
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
+use pyo3::ffi::c_str;
 
 fn main() -> PyResult<()> {
     Python::with_gil(|py| {
-        let sys = py.import_bound("sys")?;
+        let sys = py.import("sys")?;
         let version: String = sys.getattr("version")?.extract()?;
 
-        let locals = [("os", py.import_bound("os")?)].into_py_dict_bound(py);
-        let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
-        let user: String = py.eval_bound(code, None, Some(&locals))?.extract()?;
+        let locals = [("os", py.import("os")?)].into_py_dict(py);
+        let code = c_str!("os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'");
+        let user: String = py.eval(code, None, Some(&locals))?.extract()?;
 
         println!("Hello {}, I'm Python {}", user, version);
         Ok(())
@@ -193,8 +194,10 @@ about this topic.
 - [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library._
 - [feos](https://github.com/feos-org/feos) _Lightning fast thermodynamic modeling in Rust with fully developed Python interface._
 - [forust](https://github.com/jinlow/forust) _A lightweight gradient boosted decision tree library written in Rust._
+- [granian](https://github.com/emmett-framework/granian) _A Rust HTTP server for Python applications._
 - [greptimedb](https://github.com/GreptimeTeam/greptimedb/tree/main/src/script) _Support [Python scripting](https://docs.greptime.com/user-guide/python-scripts/overview) in the database_
 - [haem](https://github.com/BooleanCat/haem) _A Python library for working on Bioinformatics problems._
+- [html2text-rs](https://github.com/deedy5/html2text_rs) _Python library for converting HTML to markup or plain text._
 - [html-py-ever](https://github.com/PyO3/setuptools-rust/tree/main/examples/html-py-ever) _Using [html5ever](https://github.com/servo/html5ever) through [kuchiki](https://github.com/kuchiki-rs/kuchiki) to speed up html parsing and css-selecting._
 - [hyperjson](https://github.com/mre/hyperjson) _A hyper-fast Python module for reading/writing JSON data using Rust's serde-json._
 - [inline-python](https://github.com/fusion-engineering/inline-python) _Inline Python code directly in your Rust code._
@@ -211,9 +214,10 @@ about this topic.
 - [pyheck](https://github.com/kevinheavey/pyheck) _Fast case conversion library, built by wrapping [heck](https://github.com/withoutboats/heck)._
     - Quite easy to follow as there's not much code.
 - [pyre](https://github.com/Project-Dream-Weaver/pyre-http) _Fast Python HTTP server written in Rust._
-- [pyreqwest_impersonate](https://github.com/deedy5/pyreqwest_impersonate) _The fastest python HTTP client that can impersonate web browsers by mimicking their headers and TLS/JA3/JA4/HTTP2 fingerprints._
+- [primp](https://github.com/deedy5/primp) _The fastest python HTTP client that can impersonate web browsers by mimicking their headers and TLS/JA3/JA4/HTTP2 fingerprints._
 - [ril-py](https://github.com/Cryptex-github/ril-py) _A performant and high-level image processing library for Python written in Rust._
 - [river](https://github.com/online-ml/river) _Online machine learning in python, the computationally heavy statistics algorithms are implemented in Rust._
+- [robyn](https://github.com/sparckles/Robyn) A Super Fast Async Python Web Framework with a Rust runtime.
 - [rust-python-coverage](https://github.com/cjermain/rust-python-coverage) _Example PyO3 project with automated test coverage for Rust and Python._
 - [tiktoken](https://github.com/openai/tiktoken) _A fast BPE tokeniser for use with OpenAI's models._
 - [tokenizers](https://github.com/huggingface/tokenizers/tree/main/bindings/python) _Python bindings to the Hugging Face tokenizers (NLP) written in Rust._
@@ -223,6 +227,10 @@ about this topic.
 
 ## Articles and other media
 
+- [(Video) PyO3: From Python to Rust and Back Again](https://www.youtube.com/watch?v=UmL_CA-v3O8) - Jul 3, 2024
+- [Parsing Python ASTs 20x Faster with Rust](https://www.gauge.sh/blog/parsing-python-asts-20x-faster-with-rust) - Jun 17, 2024
+- [(Video) How Python Harnesses Rust through PyO3](https://www.youtube.com/watch?v=UkZ_m3Wj2hA) - May 18, 2024
+- [(Video) Combining Rust and Python: The Best of Both Worlds?](https://www.youtube.com/watch?v=lyG6AKzu4ew) - Mar 1, 2024
 - [(Video) Extending Python with Rust using PyO3](https://www.youtube.com/watch?v=T45ZEmSR1-s) - Dec 16, 2023
 - [A Week of PyO3 + rust-numpy (How to Speed Up Your Data Pipeline X Times)](https://terencezl.github.io/blog/2023/06/06/a-week-of-pyo3-rust-numpy/) - Jun 6, 2023
 - [(Podcast) PyO3 with David Hewitt](https://rustacean-station.org/episode/david-hewitt/) - May 19, 2023

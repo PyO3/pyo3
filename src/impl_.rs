@@ -10,7 +10,6 @@
 pub mod concat;
 #[cfg(feature = "experimental-async")]
 pub mod coroutine;
-pub mod deprecations;
 pub mod exceptions;
 pub mod extract_argument;
 pub mod freelist;

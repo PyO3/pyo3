@@ -1,17 +1,11 @@
 //! Interaction with Python's global interpreter lock
 
-#[cfg(feature = "gil-refs")]
-use crate::impl_::not_send::{NotSend, NOT_SEND};
 #[cfg(pyo3_disable_reference_pool)]
 use crate::impl_::panic::PanicTrap;
 use crate::{ffi, Python};
 #[cfg(not(pyo3_disable_reference_pool))]
 use once_cell::sync::Lazy;
 use std::cell::Cell;
-#[cfg(all(feature = "gil-refs", debug_assertions))]
-use std::cell::RefCell;
-#[cfg(all(feature = "gil-refs", not(debug_assertions)))]
-use std::cell::UnsafeCell;
 use std::{mem, ptr::NonNull, sync};
 
 static START: sync::Once = sync::Once::new();
@@ -27,12 +21,6 @@ std::thread_local! {
     /// Additionally, we sometimes need to prevent safe access to the GIL,
     /// e.g. when implementing `__traverse__`, which is represented by a negative value.
     static GIL_COUNT: Cell<isize> = const { Cell::new(0) };
-
-    /// Temporarily hold objects that will be released when the GILPool drops.
-    #[cfg(all(feature = "gil-refs", debug_assertions))]
-    static OWNED_OBJECTS: RefCell<PyObjVec> = const { RefCell::new(Vec::new()) };
-    #[cfg(all(feature = "gil-refs", not(debug_assertions)))]
-    static OWNED_OBJECTS: UnsafeCell<PyObjVec> = const { UnsafeCell::new(Vec::new()) };
 }
 
 const GIL_LOCKED_DURING_TRAVERSE: isize = -1;
@@ -67,7 +55,7 @@ fn gil_is_acquired() -> bool {
 ///
 /// # fn main() -> PyResult<()> {
 /// pyo3::prepare_freethreaded_python();
-/// Python::with_gil(|py| py.run_bound("print('Hello World')", None, None))
+/// Python::with_gil(|py| py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None))
 /// # }
 /// ```
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -110,7 +98,7 @@ pub fn prepare_freethreaded_python() {
 /// ```rust
 /// unsafe {
 ///     pyo3::with_embedded_python_interpreter(|py| {
-///         if let Err(e) = py.run_bound("print('Hello World')", None, None) {
+///         if let Err(e) = py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None) {
 ///             // We must make sure to not return a `PyErr`!
 ///             e.print(py);
 ///         }
@@ -135,7 +123,7 @@ where
         let py = guard.python();
         // Import the threading module - this ensures that it will associate this thread as the "main"
         // thread, which is important to avoid an `AssertionError` at finalization.
-        py.import_bound("threading").unwrap();
+        py.import("threading").unwrap();
 
         // Execute the closure.
         f(py)
@@ -152,12 +140,7 @@ pub(crate) enum GILGuard {
     /// Indicates the GIL was already held with this GILGuard was acquired.
     Assumed,
     /// Indicates that we actually acquired the GIL when this GILGuard was acquired
-    Ensured {
-        gstate: ffi::PyGILState_STATE,
-        #[cfg(feature = "gil-refs")]
-        #[allow(deprecated)]
-        pool: mem::ManuallyDrop<GILPool>,
-    },
+    Ensured { gstate: ffi::PyGILState_STATE },
 }
 
 impl GILGuard {
@@ -224,19 +207,11 @@ impl GILGuard {
         let gstate = ffi::PyGILState_Ensure(); // acquire GIL
         increment_gil_count();
 
-        #[cfg(feature = "gil-refs")]
-        #[allow(deprecated)]
-        let pool = mem::ManuallyDrop::new(GILPool::new());
-
         #[cfg(not(pyo3_disable_reference_pool))]
         if let Some(pool) = Lazy::get(&POOL) {
             pool.update_counts(Python::assume_gil_acquired());
         }
-        GILGuard::Ensured {
-            gstate,
-            #[cfg(feature = "gil-refs")]
-            pool,
-        }
+        GILGuard::Ensured { gstate }
     }
 
     /// Acquires the `GILGuard` while assuming that the GIL is already held.
@@ -262,14 +237,8 @@ impl Drop for GILGuard {
     fn drop(&mut self) {
         match self {
             GILGuard::Assumed => {}
-            GILGuard::Ensured {
-                gstate,
-                #[cfg(feature = "gil-refs")]
-                pool,
-            } => unsafe {
+            GILGuard::Ensured { gstate } => unsafe {
                 // Drop the objects in the pool before attempting to release the thread state
-                #[cfg(feature = "gil-refs")]
-                mem::ManuallyDrop::drop(pool);
                 ffi::PyGILState_Release(*gstate);
             },
         }
@@ -386,92 +355,6 @@ impl Drop for LockGIL {
     }
 }
 
-/// A RAII pool which PyO3 uses to store owned Python references.
-///
-/// See the [Memory Management] chapter of the guide for more information about how PyO3 uses
-/// [`GILPool`] to manage memory.
-
-///
-/// [Memory Management]: https://pyo3.rs/main/memory.html#gil-bound-memory
-#[cfg(feature = "gil-refs")]
-#[deprecated(
-    since = "0.21.0",
-    note = "`GILPool` has no function if PyO3's deprecated GIL Refs API is not used"
-)]
-pub struct GILPool {
-    /// Initial length of owned objects and anys.
-    /// `Option` is used since TSL can be broken when `new` is called from `atexit`.
-    start: Option<usize>,
-    _not_send: NotSend,
-}
-
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-impl GILPool {
-    /// Creates a new [`GILPool`]. This function should only ever be called with the GIL held.
-    ///
-    /// It is recommended not to use this API directly, but instead to use `Python::new_pool`, as
-    /// that guarantees the GIL is held.
-    ///
-    /// # Safety
-    ///
-    /// As well as requiring the GIL, see the safety notes on `Python::new_pool`.
-    #[inline]
-    pub unsafe fn new() -> GILPool {
-        // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
-        #[cfg(not(pyo3_disable_reference_pool))]
-        if let Some(pool) = Lazy::get(&POOL) {
-            pool.update_counts(Python::assume_gil_acquired());
-        }
-        GILPool {
-            start: OWNED_OBJECTS
-                .try_with(|owned_objects| {
-                    #[cfg(debug_assertions)]
-                    let len = owned_objects.borrow().len();
-                    #[cfg(not(debug_assertions))]
-                    // SAFETY: This is not re-entrant.
-                    let len = unsafe { (*owned_objects.get()).len() };
-                    len
-                })
-                .ok(),
-            _not_send: NOT_SEND,
-        }
-    }
-
-    /// Gets the Python token associated with this [`GILPool`].
-    #[inline]
-    pub fn python(&self) -> Python<'_> {
-        unsafe { Python::assume_gil_acquired() }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-impl Drop for GILPool {
-    fn drop(&mut self) {
-        if let Some(start) = self.start {
-            let owned_objects = OWNED_OBJECTS.with(|owned_objects| {
-                #[cfg(debug_assertions)]
-                let mut owned_objects = owned_objects.borrow_mut();
-                #[cfg(not(debug_assertions))]
-                // SAFETY: `OWNED_OBJECTS` is released before calling Py_DECREF,
-                // or Py_DECREF may call `GILPool::drop` recursively, resulting in invalid borrowing.
-                let owned_objects = unsafe { &mut *owned_objects.get() };
-                if start < owned_objects.len() {
-                    owned_objects.split_off(start)
-                } else {
-                    Vec::new()
-                }
-            });
-            for obj in owned_objects {
-                unsafe {
-                    ffi::Py_DECREF(obj.as_ptr());
-                }
-            }
-        }
-    }
-}
-
 /// Increments the reference count of a Python object if the GIL is held. If
 /// the GIL is not held, this function will panic.
 ///
@@ -513,25 +396,6 @@ pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
     }
 }
 
-/// Registers an owned object inside the GILPool, to be released when the GILPool drops.
-///
-/// # Safety
-/// The object must be an owned Python reference.
-#[cfg(feature = "gil-refs")]
-pub unsafe fn register_owned(_py: Python<'_>, obj: NonNull<ffi::PyObject>) {
-    debug_assert!(gil_is_acquired());
-    // Ignores the error in case this function called from `atexit`.
-    let _ = OWNED_OBJECTS.try_with(|owned_objects| {
-        #[cfg(debug_assertions)]
-        owned_objects.borrow_mut().push(obj);
-        #[cfg(not(debug_assertions))]
-        // SAFETY: This is not re-entrant.
-        unsafe {
-            (*owned_objects.get()).push(obj);
-        }
-    });
-}
-
 /// Increments pyo3's internal GIL count - to be called whenever GILPool or GILGuard is created.
 #[inline(always)]
 fn increment_gil_count() {
@@ -562,28 +426,16 @@ fn decrement_gil_count() {
 #[cfg(test)]
 mod tests {
     use super::GIL_COUNT;
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    use super::OWNED_OBJECTS;
     #[cfg(not(pyo3_disable_reference_pool))]
     use super::{gil_is_acquired, POOL};
-    #[cfg(feature = "gil-refs")]
-    use crate::{ffi, gil};
+    use crate::{ffi, PyObject, Python};
     use crate::{gil::GILGuard, types::any::PyAnyMethods};
-    use crate::{PyObject, Python};
     use std::ptr::NonNull;
 
     fn get_object(py: Python<'_>) -> PyObject {
-        py.eval_bound("object()", None, None).unwrap().unbind()
-    }
-
-    #[cfg(feature = "gil-refs")]
-    fn owned_object_count() -> usize {
-        #[cfg(debug_assertions)]
-        let len = OWNED_OBJECTS.with(|owned_objects| owned_objects.borrow().len());
-        #[cfg(not(debug_assertions))]
-        let len = OWNED_OBJECTS.with(|owned_objects| unsafe { (*owned_objects.get()).len() });
-        len
+        py.eval(ffi::c_str!("object()"), None, None)
+            .unwrap()
+            .unbind()
     }
 
     #[cfg(not(pyo3_disable_reference_pool))]
@@ -601,68 +453,6 @@ mod tests {
             .lock()
             .unwrap()
             .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
-    }
-
-    #[test]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_owned() {
-        Python::with_gil(|py| {
-            let obj = get_object(py);
-            let obj_ptr = obj.as_ptr();
-            // Ensure that obj does not get freed
-            let _ref = obj.clone_ref(py);
-
-            unsafe {
-                {
-                    let pool = py.new_pool();
-                    gil::register_owned(pool.python(), NonNull::new_unchecked(obj.into_ptr()));
-
-                    assert_eq!(owned_object_count(), 1);
-                    assert_eq!(ffi::Py_REFCNT(obj_ptr), 2);
-                }
-                {
-                    let _pool = py.new_pool();
-                    assert_eq!(owned_object_count(), 0);
-                    assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
-                }
-            }
-        })
-    }
-
-    #[test]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_owned_nested() {
-        Python::with_gil(|py| {
-            let obj = get_object(py);
-            // Ensure that obj does not get freed
-            let _ref = obj.clone_ref(py);
-            let obj_ptr = obj.as_ptr();
-
-            unsafe {
-                {
-                    let _pool = py.new_pool();
-                    assert_eq!(owned_object_count(), 0);
-
-                    gil::register_owned(py, NonNull::new_unchecked(obj.into_ptr()));
-
-                    assert_eq!(owned_object_count(), 1);
-                    assert_eq!(ffi::Py_REFCNT(obj_ptr), 2);
-                    {
-                        let _pool = py.new_pool();
-                        let obj = get_object(py);
-                        gil::register_owned(py, NonNull::new_unchecked(obj.into_ptr()));
-                        assert_eq!(owned_object_count(), 2);
-                    }
-                    assert_eq!(owned_object_count(), 1);
-                }
-                {
-                    assert_eq!(owned_object_count(), 0);
-                    assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
-                }
-            }
-        });
     }
 
     #[test]
@@ -783,7 +573,7 @@ mod tests {
     fn dropping_gil_does_not_invalidate_references() {
         // Acquiring GIL for the second time should be safe - see #864
         Python::with_gil(|py| {
-            let obj = Python::with_gil(|_| py.eval_bound("object()", None, None).unwrap());
+            let obj = Python::with_gil(|_| py.eval(ffi::c_str!("object()"), None, None).unwrap());
 
             // After gil2 drops, obj should still have a reference count of one
             assert_eq!(obj.get_refcnt(), 1);

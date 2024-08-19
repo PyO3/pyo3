@@ -1,11 +1,36 @@
 error[E0277]: `Blah` cannot be converted to a Python object
  --> tests/ui/missing_intopy.rs:4:14
   |
-4 | fn blah() -> Blah{
-  |              ^^^^ the trait `IntoPy<Py<PyAny>>` is not implemented for `Blah`, which is required by `Blah: OkWrap<_>`
+4 | fn blah() -> Blah {
+  |              ^^^^ the trait `IntoPyObject<'_>` is not implemented for `Blah`
   |
-  = note: `IntoPy` is automatically implemented by the `#[pyclass]` macro
-  = note: if you do not wish to have a corresponding Python type, implement `IntoPy` manually
+  = note: `IntoPyObject` is automatically implemented by the `#[pyclass]` macro
+  = note: if you do not wish to have a corresponding Python type, implement it manually
   = note: if you do not own `Blah` you can perform a manual conversion to one of the types in `pyo3::types::*`
-  = help: the trait `OkWrap<T>` is implemented for `Result<T, E>`
-  = note: required for `Blah` to implement `OkWrap<Blah>`
+  = help: the following other types implement trait `IntoPyObject<'py>`:
+            &&str
+            &'a BTreeMap<K, V>
+            &'a BTreeSet<K>
+            &'a Cell<T>
+            &'a HashMap<K, V, H>
+            &'a HashSet<K, H>
+            &'a Option<T>
+            &'a Py<T>
+          and $N others
+note: required by a bound in `UnknownReturnType::<T>::wrap`
+ --> src/impl_/wrap.rs
+  |
+  |     pub fn wrap<'py>(&self, _: T) -> T
+  |            ---- required by a bound in this associated function
+  |     where
+  |         T: IntoPyObject<'py>,
+  |            ^^^^^^^^^^^^^^^^^ required by this bound in `UnknownReturnType::<T>::wrap`
+
+error[E0599]: no method named `map_err` found for struct `Blah` in the current scope
+ --> tests/ui/missing_intopy.rs:4:14
+  |
+1 | struct Blah;
+  | ----------- method `map_err` not found for this struct
+...
+4 | fn blah() -> Blah {
+  |              ^^^^ method not found in `Blah`

@@ -7,13 +7,16 @@ use crate::types::{
     any::PyAnyMethods, list::PyListMethods, PyAny, PyCFunction, PyDict, PyList, PyString,
 };
 use crate::{exceptions, ffi, Bound, IntoPy, Py, PyObject, Python};
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::str;
 
-#[cfg(feature = "gil-refs")]
-use {super::PyStringMethods, crate::PyNativeType};
-
 /// Represents a Python [`module`][1] object.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyModule>`][crate::Py] or [`Bound<'py, PyModule>`][Bound].
+///
+/// For APIs available on `module` objects, see the [`PyModuleMethods`] trait which is implemented for
+/// [`Bound<'py, PyModule>`][Bound].
 ///
 /// As with all other Python objects, modules are first class citizens.
 /// This means they can be passed to or returned from functions,
@@ -35,21 +38,27 @@ impl PyModule {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let module = PyModule::new_bound(py, "my_module")?;
+    ///     let module = PyModule::new(py, "my_module")?;
     ///
     ///     assert_eq!(module.name()?, "my_module");
     ///     Ok(())
     /// })?;
     /// # Ok(())}
     ///  ```
-    pub fn new_bound<'py>(py: Python<'py>, name: &str) -> PyResult<Bound<'py, PyModule>> {
-        // Could use PyModule_NewObject, but it doesn't exist on PyPy.
-        let name = CString::new(name)?;
+    pub fn new<'py>(py: Python<'py>, name: &str) -> PyResult<Bound<'py, PyModule>> {
+        let name = PyString::new(py, name);
         unsafe {
-            ffi::PyModule_New(name.as_ptr())
+            ffi::PyModule_NewObject(name.as_ptr())
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated name for [`PyModule::new`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyModule::new`")]
+    #[inline]
+    pub fn new_bound<'py>(py: Python<'py>, name: &str) -> PyResult<Bound<'py, PyModule>> {
+        Self::new(py, name)
     }
 
     /// Imports the Python module with the specified name.
@@ -61,7 +70,7 @@ impl PyModule {
     /// use pyo3::prelude::*;
     ///
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::import_bound(py, "antigravity").expect("No flying for you.");
+    ///     let module = PyModule::import(py, "antigravity").expect("No flying for you.");
     /// });
     /// # }
     ///  ```
@@ -70,7 +79,7 @@ impl PyModule {
     /// ```python
     /// import antigravity
     /// ```
-    pub fn import_bound<N>(py: Python<'_>, name: N) -> PyResult<Bound<'_, PyModule>>
+    pub fn import<N>(py: Python<'_>, name: N) -> PyResult<Bound<'_, PyModule>>
     where
         N: IntoPy<Py<PyString>>,
     {
@@ -80,6 +89,16 @@ impl PyModule {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated name for [`PyModule::import`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyModule::import`")]
+    #[inline]
+    pub fn import_bound<N>(py: Python<'_>, name: N) -> PyResult<Bound<'_, PyModule>>
+    where
+        N: IntoPy<Py<PyString>>,
+    {
+        Self::import(py, name)
     }
 
     /// Creates and loads a module named `module_name`,
@@ -105,13 +124,14 @@ impl PyModule {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
+    /// use pyo3::ffi::c_str;
     ///
     /// # fn main() -> PyResult<()> {
     /// // This path is resolved relative to this file.
-    /// let code = include_str!("../../assets/script.py");
+    /// let code = c_str!(include_str!("../../assets/script.py"));
     ///
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     PyModule::from_code_bound(py, code, "example.py", "example")?;
+    ///     PyModule::from_code(py, code, c_str!("example.py"), c_str!("example"))?;
     ///     Ok(())
     /// })?;
     /// # Ok(())
@@ -122,6 +142,8 @@ impl PyModule {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
+    /// use pyo3::ffi::c_str;
+    /// use std::ffi::CString;
     ///
     /// # fn main() -> PyResult<()> {
     /// // This path is resolved by however the platform resolves paths,
@@ -130,12 +152,31 @@ impl PyModule {
     /// let code = std::fs::read_to_string("assets/script.py")?;
     ///
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     PyModule::from_code_bound(py, &code, "example.py", "example")?;
+    ///     PyModule::from_code(py, CString::new(code)?.as_c_str(), c_str!("example.py"), c_str!("example"))?;
     ///     Ok(())
     /// })?;
     /// Ok(())
     /// # }
     /// ```
+    pub fn from_code<'py>(
+        py: Python<'py>,
+        code: &CStr,
+        file_name: &CStr,
+        module_name: &CStr,
+    ) -> PyResult<Bound<'py, PyModule>> {
+        unsafe {
+            let code = ffi::Py_CompileString(code.as_ptr(), file_name.as_ptr(), ffi::Py_file_input)
+                .assume_owned_or_err(py)?;
+
+            ffi::PyImport_ExecCodeModuleEx(module_name.as_ptr(), code.as_ptr(), file_name.as_ptr())
+                .assume_owned_or_err(py)
+                .downcast_into()
+        }
+    }
+
+    /// Deprecated name for [`PyModule::from_code`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyModule::from_code`")]
+    #[inline]
     pub fn from_code_bound<'py>(
         py: Python<'py>,
         code: &str,
@@ -146,261 +187,7 @@ impl PyModule {
         let filename = CString::new(file_name)?;
         let module = CString::new(module_name)?;
 
-        unsafe {
-            let code = ffi::Py_CompileString(data.as_ptr(), filename.as_ptr(), ffi::Py_file_input)
-                .assume_owned_or_err(py)?;
-
-            ffi::PyImport_ExecCodeModuleEx(module.as_ptr(), code.as_ptr(), filename.as_ptr())
-                .assume_owned_or_err(py)
-                .downcast_into()
-        }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl PyModule {
-    /// Deprecated form of [`PyModule::new_bound`].
-    #[inline]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyModule::new` will be replaced by `PyModule::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<'py>(py: Python<'py>, name: &str) -> PyResult<&'py PyModule> {
-        Self::new_bound(py, name).map(Bound::into_gil_ref)
-    }
-
-    /// Deprecated form of [`PyModule::import_bound`].
-    #[inline]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyModule::import` will be replaced by `PyModule::import_bound` in a future PyO3 version"
-    )]
-    pub fn import<N>(py: Python<'_>, name: N) -> PyResult<&PyModule>
-    where
-        N: IntoPy<Py<PyString>>,
-    {
-        Self::import_bound(py, name).map(Bound::into_gil_ref)
-    }
-
-    /// Deprecated form of [`PyModule::from_code_bound`].
-    #[inline]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyModule::from_code` will be replaced by `PyModule::from_code_bound` in a future PyO3 version"
-    )]
-    pub fn from_code<'py>(
-        py: Python<'py>,
-        code: &str,
-        file_name: &str,
-        module_name: &str,
-    ) -> PyResult<&'py PyModule> {
-        Self::from_code_bound(py, code, file_name, module_name).map(Bound::into_gil_ref)
-    }
-
-    /// Returns the module's `__dict__` attribute, which contains the module's symbol table.
-    pub fn dict(&self) -> &PyDict {
-        self.as_borrowed().dict().into_gil_ref()
-    }
-
-    /// Returns the index (the `__all__` attribute) of the module,
-    /// creating one if needed.
-    ///
-    /// `__all__` declares the items that will be imported with `from my_module import *`.
-    pub fn index(&self) -> PyResult<&PyList> {
-        self.as_borrowed().index().map(Bound::into_gil_ref)
-    }
-
-    /// Returns the name (the `__name__` attribute) of the module.
-    ///
-    /// May fail if the module does not have a `__name__` attribute.
-    pub fn name(&self) -> PyResult<&str> {
-        self.as_borrowed().name()?.into_gil_ref().to_str()
-    }
-
-    /// Returns the filename (the `__file__` attribute) of the module.
-    ///
-    /// May fail if the module does not have a `__file__` attribute.
-    pub fn filename(&self) -> PyResult<&str> {
-        self.as_borrowed().filename()?.into_gil_ref().to_str()
-    }
-
-    /// Adds an attribute to the module.
-    ///
-    /// For adding classes, functions or modules, prefer to use [`PyModule::add_class`],
-    /// [`PyModule::add_function`] or [`PyModule::add_submodule`] instead, respectively.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use pyo3::prelude::*;
-    ///
-    /// #[pymodule]
-    /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    ///     module.add("c", 299_792_458)?;
-    ///     Ok(())
-    /// }
-    /// ```
-    ///
-    /// Python code can then do the following:
-    ///
-    /// ```python
-    /// from my_module import c
-    ///
-    /// print("c is", c)
-    /// ```
-    ///
-    /// This will result in the following output:
-    ///
-    /// ```text
-    /// c is 299792458
-    /// ```
-    pub fn add<V>(&self, name: &str, value: V) -> PyResult<()>
-    where
-        V: IntoPy<PyObject>,
-    {
-        self.as_borrowed().add(name, value)
-    }
-
-    /// Adds a new class to the module.
-    ///
-    /// Notice that this method does not take an argument.
-    /// Instead, this method is *generic*, and requires us to use the
-    /// "turbofish" syntax to specify the class we want to add.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use pyo3::prelude::*;
-    ///
-    /// #[pyclass]
-    /// struct Foo { /* fields omitted */ }
-    ///
-    /// #[pymodule]
-    /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    ///     module.add_class::<Foo>()?;
-    ///     Ok(())
-    /// }
-    ///  ```
-    ///
-    /// Python code can see this class as such:
-    /// ```python
-    /// from my_module import Foo
-    ///
-    /// print("Foo is", Foo)
-    /// ```
-    ///
-    /// This will result in the following output:
-    /// ```text
-    /// Foo is <class 'builtins.Foo'>
-    /// ```
-    ///
-    /// Note that as we haven't defined a [constructor][1], Python code can't actually
-    /// make an *instance* of `Foo` (or *get* one for that matter, as we haven't exported
-    /// anything that can return instances of `Foo`).
-    ///
-    /// [1]: https://pyo3.rs/latest/class.html#constructor
-    pub fn add_class<T>(&self) -> PyResult<()>
-    where
-        T: PyClass,
-    {
-        self.as_borrowed().add_class::<T>()
-    }
-
-    /// Adds a function or a (sub)module to a module, using the functions name as name.
-    ///
-    /// Prefer to use [`PyModule::add_function`] and/or [`PyModule::add_submodule`] instead.
-    pub fn add_wrapped<'a, T>(&'a self, wrapper: &impl Fn(Python<'a>) -> T) -> PyResult<()>
-    where
-        T: IntoPyCallbackOutput<PyObject>,
-    {
-        self.as_borrowed().add_wrapped(wrapper)
-    }
-
-    /// Adds a submodule to a module.
-    ///
-    /// This is especially useful for creating module hierarchies.
-    ///
-    /// Note that this doesn't define a *package*, so this won't allow Python code
-    /// to directly import submodules by using
-    /// <span style="white-space: pre">`from my_module import submodule`</span>.
-    /// For more information, see [#759][1] and [#1517][2].
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use pyo3::prelude::*;
-    ///
-    /// #[pymodule]
-    /// fn my_module(py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
-    ///     let submodule = PyModule::new_bound(py, "submodule")?;
-    ///     submodule.add("super_useful_constant", "important")?;
-    ///
-    ///     module.add_submodule(&submodule)?;
-    ///     Ok(())
-    /// }
-    /// ```
-    ///
-    /// Python code can then do the following:
-    ///
-    /// ```python
-    /// import my_module
-    ///
-    /// print("super_useful_constant is", my_module.submodule.super_useful_constant)
-    /// ```
-    ///
-    /// This will result in the following output:
-    ///
-    /// ```text
-    /// super_useful_constant is important
-    /// ```
-    ///
-    /// [1]: https://github.com/PyO3/pyo3/issues/759
-    /// [2]: https://github.com/PyO3/pyo3/issues/1517#issuecomment-808664021
-    pub fn add_submodule(&self, module: &PyModule) -> PyResult<()> {
-        self.as_borrowed().add_submodule(&module.as_borrowed())
-    }
-
-    /// Add a function to a module.
-    ///
-    /// Note that this also requires the [`wrap_pyfunction!`][2] macro
-    /// to wrap a function annotated with [`#[pyfunction]`][1].
-    ///
-    /// ```rust
-    /// use pyo3::prelude::*;
-    ///
-    /// #[pyfunction]
-    /// fn say_hello() {
-    ///     println!("Hello world!")
-    /// }
-    /// #[pymodule]
-    /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    ///     module.add_function(wrap_pyfunction!(say_hello, module)?)
-    /// }
-    /// ```
-    ///
-    /// Python code can then do the following:
-    ///
-    /// ```python
-    /// from my_module import say_hello
-    ///
-    /// say_hello()
-    /// ```
-    ///
-    /// This will result in the following output:
-    ///
-    /// ```text
-    /// Hello world!
-    /// ```
-    ///
-    /// [1]: crate::prelude::pyfunction
-    /// [2]: crate::wrap_pyfunction
-    pub fn add_function<'a>(&'a self, fun: &'a PyCFunction) -> PyResult<()> {
-        let name = fun
-            .as_borrowed()
-            .getattr(__name__(self.py()))?
-            .downcast_into::<PyString>()?;
-        let name = name.to_cow()?;
-        self.add(&name, fun)
+        Self::from_code(py, data.as_c_str(), filename.as_c_str(), module.as_c_str())
     }
 }
 
@@ -503,7 +290,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// make an *instance* of `Foo` (or *get* one for that matter, as we haven't exported
     /// anything that can return instances of `Foo`).
     ///
-    /// [1]: https://pyo3.rs/latest/class.html#constructor
+    #[doc = concat!("[1]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#constructor")]
     fn add_class<T>(&self) -> PyResult<()>
     where
         T: PyClass;
@@ -532,7 +319,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// #[pymodule]
     /// fn my_module(py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
-    ///     let submodule = PyModule::new_bound(py, "submodule")?;
+    ///     let submodule = PyModule::new(py, "submodule")?;
     ///     submodule.add("super_useful_constant", "important")?;
     ///
     ///     module.add_submodule(&submodule)?;
@@ -612,7 +399,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
             Ok(idx) => idx.downcast_into().map_err(PyErr::from),
             Err(err) => {
                 if err.is_instance_of::<exceptions::PyAttributeError>(self.py()) {
-                    let l = PyList::empty_bound(self.py());
+                    let l = PyList::empty(self.py());
                     self.setattr(__all__, &l).map_err(PyErr::from)?;
                     Ok(l)
                 } else {
@@ -735,7 +522,7 @@ mod tests {
     #[test]
     fn module_import_and_name() {
         Python::with_gil(|py| {
-            let builtins = PyModule::import_bound(py, "builtins").unwrap();
+            let builtins = PyModule::import(py, "builtins").unwrap();
             assert_eq!(builtins.name().unwrap(), "builtins");
         })
     }
@@ -744,7 +531,7 @@ mod tests {
     fn module_filename() {
         use crate::types::string::PyStringMethods;
         Python::with_gil(|py| {
-            let site = PyModule::import_bound(py, "site").unwrap();
+            let site = PyModule::import(py, "site").unwrap();
             assert!(site
                 .filename()
                 .unwrap()

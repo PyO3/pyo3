@@ -23,7 +23,7 @@ impl MacroDocs {
 #[test]
 fn meth_doc() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type_bound::<MacroDocs>())].into_py_dict_bound(py);
+        let d = [("C", py.get_type::<MacroDocs>())].into_py_dict(py);
         py_assert!(
             py,
             *d,

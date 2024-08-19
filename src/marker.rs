@@ -73,7 +73,7 @@
 //! use send_wrapper::SendWrapper;
 //!
 //! Python::with_gil(|py| {
-//!     let string = PyString::new_bound(py, "foo");
+//!     let string = PyString::new(py, "foo");
 //!
 //!     let wrapped = SendWrapper::new(string);
 //!
@@ -127,9 +127,6 @@ use crate::types::{
 };
 use crate::version::PythonVersionInfo;
 use crate::{ffi, Bound, IntoPy, Py, PyObject, PyTypeInfo};
-#[allow(deprecated)]
-#[cfg(feature = "gil-refs")]
-use crate::{gil::GILPool, FromPyPointer, PyNativeType};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -170,7 +167,7 @@ use std::os::raw::c_int;
 /// use send_wrapper::SendWrapper;
 ///
 /// Python::with_gil(|py| {
-///     let string = PyString::new_bound(py, "foo");
+///     let string = PyString::new(py, "foo");
 ///
 ///     let wrapped = SendWrapper::new(string);
 ///
@@ -279,10 +276,6 @@ mod nightly {
     // This means that PyString, PyList, etc all inherit !Ungil from  this.
     impl !Ungil for crate::PyAny {}
 
-    // All the borrowing wrappers
-    #[allow(deprecated)]
-    #[cfg(feature = "gil-refs")]
-    impl<T> !Ungil for crate::PyCell<T> {}
     impl<T> !Ungil for crate::PyRef<'_, T> {}
     impl<T> !Ungil for crate::PyRefMut<'_, T> {}
 
@@ -357,7 +350,7 @@ pub use nightly::Ungil;
 /// # Releasing and freeing memory
 ///
 /// The [`Python<'py>`] type can be used to create references to variables owned by the Python
-/// interpreter, using functions such as [`Python::eval_bound`] and [`PyModule::import_bound`].
+/// interpreter, using functions such as [`Python::eval_bound`] and [`PyModule::import`].
 #[derive(Copy, Clone)]
 pub struct Python<'py>(PhantomData<(&'py GILGuard, NotSend)>);
 
@@ -391,10 +384,11 @@ impl Python<'_> {
     ///
     /// ```
     /// use pyo3::prelude::*;
+    /// use pyo3::ffi::c_str;
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let x: i32 = py.eval_bound("5", None, None)?.extract()?;
+    ///     let x: i32 = py.eval(c_str!("5"), None, None)?.extract()?;
     ///     assert_eq!(x, 5);
     ///     Ok(())
     /// })
@@ -480,7 +474,7 @@ impl<'py> Python<'py> {
     /// #
     /// # fn main() -> PyResult<()> {
     /// #     Python::with_gil(|py| -> PyResult<()> {
-    /// #         let fun = pyo3::wrap_pyfunction_bound!(sum_numbers, py)?;
+    /// #         let fun = pyo3::wrap_pyfunction!(sum_numbers, py)?;
     /// #         let res = fun.call1((vec![1_u32, 2, 3],))?;
     /// #         assert_eq!(res.extract::<u32>()?, 6_u32);
     /// #         Ok(())
@@ -522,26 +516,6 @@ impl<'py> Python<'py> {
         f()
     }
 
-    /// Deprecated version of [`Python::eval_bound`]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`Python::eval` will be replaced by `Python::eval_bound` in a future PyO3 version"
-    )]
-    pub fn eval(
-        self,
-        code: &str,
-        globals: Option<&'py PyDict>,
-        locals: Option<&'py PyDict>,
-    ) -> PyResult<&'py PyAny> {
-        self.eval_bound(
-            code,
-            globals.map(PyNativeType::as_borrowed).as_deref(),
-            locals.map(PyNativeType::as_borrowed).as_deref(),
-        )
-        .map(Bound::into_gil_ref)
-    }
-
     /// Evaluates a Python expression in the given context and returns the result.
     ///
     /// If `globals` is `None`, it defaults to Python module `__main__`.
@@ -554,38 +528,34 @@ impl<'py> Python<'py> {
     ///
     /// ```
     /// # use pyo3::prelude::*;
+    /// # use pyo3::ffi::c_str;
     /// # Python::with_gil(|py| {
-    /// let result = py.eval_bound("[i * 10 for i in range(5)]", None, None).unwrap();
+    /// let result = py.eval(c_str!("[i * 10 for i in range(5)]"), None, None).unwrap();
     /// let res: Vec<i64> = result.extract().unwrap();
     /// assert_eq!(res, vec![0, 10, 20, 30, 40])
     /// # });
     /// ```
-    pub fn eval_bound(
+    pub fn eval(
         self,
-        code: &str,
+        code: &CStr,
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
         self.run_code(code, ffi::Py_eval_input, globals, locals)
     }
 
-    /// Deprecated version of [`Python::run_bound`]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`Python::run` will be replaced by `Python::run_bound` in a future PyO3 version"
-    )]
-    pub fn run(
+    /// Deprecated name for [`Python::eval`].
+    #[deprecated(since = "0.23.0", note = "renamed to `Python::eval`")]
+    #[track_caller]
+    #[inline]
+    pub fn eval_bound(
         self,
         code: &str,
-        globals: Option<&PyDict>,
-        locals: Option<&PyDict>,
-    ) -> PyResult<()> {
-        self.run_bound(
-            code,
-            globals.map(PyNativeType::as_borrowed).as_deref(),
-            locals.map(PyNativeType::as_borrowed).as_deref(),
-        )
+        globals: Option<&Bound<'py, PyDict>>,
+        locals: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let code = CString::new(code)?;
+        self.eval(&code, globals, locals)
     }
 
     /// Executes one or more Python statements in the given context.
@@ -601,15 +571,16 @@ impl<'py> Python<'py> {
     /// use pyo3::{
     ///     prelude::*,
     ///     types::{PyBytes, PyDict},
+    ///     ffi::c_str,
     /// };
     /// Python::with_gil(|py| {
-    ///     let locals = PyDict::new_bound(py);
-    ///     py.run_bound(
+    ///     let locals = PyDict::new(py);
+    ///     py.run(c_str!(
     ///         r#"
     /// import base64
     /// s = 'Hello Rust!'
     /// ret = base64.b64encode(s.encode('utf-8'))
-    /// "#,
+    /// "#),
     ///         None,
     ///         Some(&locals),
     ///     )
@@ -622,9 +593,9 @@ impl<'py> Python<'py> {
     ///
     /// You can use [`py_run!`](macro.py_run.html) for a handy alternative of `run`
     /// if you don't need `globals` and unwrapping is OK.
-    pub fn run_bound(
+    pub fn run(
         self,
-        code: &str,
+        code: &CStr,
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
@@ -632,6 +603,20 @@ impl<'py> Python<'py> {
         res.map(|obj| {
             debug_assert!(obj.is_none());
         })
+    }
+
+    /// Deprecated name for [`Python::run`].
+    #[deprecated(since = "0.23.0", note = "renamed to `Python::run`")]
+    #[track_caller]
+    #[inline]
+    pub fn run_bound(
+        self,
+        code: &str,
+        globals: Option<&Bound<'py, PyDict>>,
+        locals: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<()> {
+        let code = CString::new(code)?;
+        self.run(&code, globals, locals)
     }
 
     /// Runs code in the given context.
@@ -643,12 +628,11 @@ impl<'py> Python<'py> {
     /// If `locals` is `None`, it defaults to the value of `globals`.
     fn run_code(
         self,
-        code: &str,
+        code: &CStr,
         start: c_int,
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let code = CString::new(code)?;
         unsafe {
             let mptr = ffi::PyImport_AddModule(ffi::c_str!("__main__").as_ptr());
             if mptr.is_null() {
@@ -696,68 +680,63 @@ impl<'py> Python<'py> {
     }
 
     /// Gets the Python type object for type `T`.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`Python::get_type` will be replaced by `Python::get_type_bound` in a future PyO3 version"
-    )]
     #[inline]
-    pub fn get_type<T>(self) -> &'py PyType
-    where
-        T: PyTypeInfo,
-    {
-        self.get_type_bound::<T>().into_gil_ref()
-    }
-
-    /// Gets the Python type object for type `T`.
-    #[inline]
-    pub fn get_type_bound<T>(self) -> Bound<'py, PyType>
+    pub fn get_type<T>(self) -> Bound<'py, PyType>
     where
         T: PyTypeInfo,
     {
         T::type_object_bound(self)
     }
 
-    /// Deprecated form of [`Python::import_bound`]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`Python::import` will be replaced by `Python::import_bound` in a future PyO3 version"
-    )]
-    pub fn import<N>(self, name: N) -> PyResult<&'py PyModule>
+    /// Deprecated name for [`Python::get_type`].
+    #[deprecated(since = "0.23.0", note = "renamed to `Python::get_type`")]
+    #[track_caller]
+    #[inline]
+    pub fn get_type_bound<T>(self) -> Bound<'py, PyType>
     where
-        N: IntoPy<Py<PyString>>,
+        T: PyTypeInfo,
     {
-        Self::import_bound(self, name).map(Bound::into_gil_ref)
+        self.get_type::<T>()
     }
 
     /// Imports the Python module with the specified name.
+    pub fn import<N>(self, name: N) -> PyResult<Bound<'py, PyModule>>
+    where
+        N: IntoPy<Py<PyString>>,
+    {
+        PyModule::import(self, name)
+    }
+
+    /// Deprecated name for [`Python::import`].
+    #[deprecated(since = "0.23.0", note = "renamed to `Python::import`")]
+    #[track_caller]
+    #[inline]
     pub fn import_bound<N>(self, name: N) -> PyResult<Bound<'py, PyModule>>
     where
         N: IntoPy<Py<PyString>>,
     {
-        PyModule::import_bound(self, name)
+        self.import(name)
     }
 
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn None(self) -> PyObject {
-        PyNone::get_bound(self).into_py(self)
+        PyNone::get(self).into_py(self)
     }
 
     /// Gets the Python builtin value `Ellipsis`, or `...`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn Ellipsis(self) -> PyObject {
-        PyEllipsis::get_bound(self).into_py(self)
+        PyEllipsis::get(self).into_py(self)
     }
 
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn NotImplemented(self) -> PyObject {
-        PyNotImplemented::get_bound(self).into_py(self)
+        PyNotImplemented::get(self).into_py(self)
     }
 
     /// Gets the running Python interpreter version as a string.
@@ -799,163 +778,6 @@ impl<'py> Python<'py> {
         let version_number_str = version_str.split(' ').next().unwrap_or(version_str);
 
         PythonVersionInfo::from_str(version_number_str).unwrap()
-    }
-
-    /// Registers the object in the release pool, and tries to downcast to specific type.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `obj.downcast_bound::<T>(py)` instead of `py.checked_cast_as::<T>(obj)`"
-    )]
-    pub fn checked_cast_as<T>(
-        self,
-        obj: PyObject,
-    ) -> Result<&'py T, crate::err::PyDowncastError<'py>>
-    where
-        T: crate::PyTypeCheck<AsRefTarget = T>,
-    {
-        #[allow(deprecated)]
-        obj.into_ref(self).downcast()
-    }
-
-    /// Registers the object in the release pool, and does an unchecked downcast
-    /// to the specific type.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that ensure that the cast is valid.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `obj.downcast_bound_unchecked::<T>(py)` instead of `py.cast_as::<T>(obj)`"
-    )]
-    pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'py T
-    where
-        T: crate::type_object::HasPyGilRef<AsRefTarget = T>,
-    {
-        #[allow(deprecated)]
-        obj.into_ref(self).downcast_unchecked()
-    }
-
-    /// Registers the object pointer in the release pool,
-    /// and does an unchecked downcast to the specific type.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that ensure that the cast is valid.
-    #[allow(clippy::wrong_self_convention, deprecated)]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_owned_ptr(py, ptr)` or `Bound::from_owned_ptr(py, ptr)` instead"
-    )]
-    pub unsafe fn from_owned_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'py T
-    where
-        T: FromPyPointer<'py>,
-    {
-        FromPyPointer::from_owned_ptr(self, ptr)
-    }
-
-    /// Registers the owned object pointer in the release pool.
-    ///
-    /// Returns `Err(PyErr)` if the pointer is NULL.
-    /// Does an unchecked downcast to the specific type.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that ensure that the cast is valid.
-    #[allow(clippy::wrong_self_convention, deprecated)]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_owned_ptr_or_err(py, ptr)` or `Bound::from_owned_ptr_or_err(py, ptr)` instead"
-    )]
-    pub unsafe fn from_owned_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'py T>
-    where
-        T: FromPyPointer<'py>,
-    {
-        FromPyPointer::from_owned_ptr_or_err(self, ptr)
-    }
-
-    /// Registers the owned object pointer in release pool.
-    ///
-    /// Returns `None` if the pointer is NULL.
-    /// Does an unchecked downcast to the specific type.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that ensure that the cast is valid.
-    #[allow(clippy::wrong_self_convention, deprecated)]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_owned_ptr_or_opt(py, ptr)` or `Bound::from_owned_ptr_or_opt(py, ptr)` instead"
-    )]
-    pub unsafe fn from_owned_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'py T>
-    where
-        T: FromPyPointer<'py>,
-    {
-        FromPyPointer::from_owned_ptr_or_opt(self, ptr)
-    }
-
-    /// Does an unchecked downcast to the specific type.
-    ///
-    /// Panics if the pointer is NULL.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that ensure that the cast is valid.
-    #[allow(clippy::wrong_self_convention, deprecated)]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_borrowed_ptr(py, ptr)` or `Bound::from_borrowed_ptr(py, ptr)` instead"
-    )]
-    pub unsafe fn from_borrowed_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'py T
-    where
-        T: FromPyPointer<'py>,
-    {
-        FromPyPointer::from_borrowed_ptr(self, ptr)
-    }
-
-    /// Does an unchecked downcast to the specific type.
-    ///
-    /// Returns `Err(PyErr)` if the pointer is NULL.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that ensure that the cast is valid.
-    #[allow(clippy::wrong_self_convention, deprecated)]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_borrowed_ptr_or_err(py, ptr)` or `Bound::from_borrowed_ptr_or_err(py, ptr)` instead"
-    )]
-    pub unsafe fn from_borrowed_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'py T>
-    where
-        T: FromPyPointer<'py>,
-    {
-        FromPyPointer::from_borrowed_ptr_or_err(self, ptr)
-    }
-
-    /// Does an unchecked downcast to the specific type.
-    ///
-    /// Returns `None` if the pointer is NULL.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that ensure that the cast is valid.
-    #[allow(clippy::wrong_self_convention, deprecated)]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_borrowed_ptr_or_opt(py, ptr)` or `Bound::from_borrowed_ptr_or_opt(py, ptr)` instead"
-    )]
-    pub unsafe fn from_borrowed_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'py T>
-    where
-        T: FromPyPointer<'py>,
-    {
-        FromPyPointer::from_borrowed_ptr_or_opt(self, ptr)
     }
 
     /// Lets the Python interpreter check and handle any pending signals. This will invoke the
@@ -1003,148 +825,6 @@ impl<'py> Python<'py> {
     pub fn check_signals(self) -> PyResult<()> {
         err::error_on_minusone(self, unsafe { ffi::PyErr_CheckSignals() })
     }
-
-    /// Create a new pool for managing PyO3's GIL Refs. This has no functional
-    /// use for code which does not use the deprecated GIL Refs API.
-    ///
-    /// When this `GILPool` is dropped, all GIL Refs created after this `GILPool` will
-    /// all have their Python reference counts decremented, potentially allowing Python to drop
-    /// the corresponding Python objects.
-    ///
-    /// Typical usage of PyO3 will not need this API, as [`Python::with_gil`] automatically creates
-    /// a `GILPool` where appropriate.
-    ///
-    /// Advanced uses of PyO3 which perform long-running tasks which never free the GIL may need
-    /// to use this API to clear memory, as PyO3 usually does not clear memory until the GIL is
-    /// released.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use pyo3::prelude::*;
-    /// Python::with_gil(|py| {
-    ///     // Some long-running process like a webserver, which never releases the GIL.
-    ///     loop {
-    ///         // Create a new pool, so that PyO3 can clear memory at the end of the loop.
-    ///         #[allow(deprecated)]  // `new_pool` is not needed in code not using the GIL Refs API
-    ///         let pool = unsafe { py.new_pool() };
-    ///
-    ///         // It is recommended to *always* immediately set py to the pool's Python, to help
-    ///         // avoid creating references with invalid lifetimes.
-    ///         let py = pool.python();
-    ///
-    ///         // do stuff...
-    /// #       break;  // Exit the loop so that doctest terminates!
-    ///     }
-    /// });
-    /// ```
-    ///
-    /// # Safety
-    ///
-    /// Extreme care must be taken when using this API, as misuse can lead to accessing invalid
-    /// memory. In addition, the caller is responsible for guaranteeing that the GIL remains held
-    /// for the entire lifetime of the returned `GILPool`.
-    ///
-    /// Two best practices are required when using this API:
-    /// - From the moment `new_pool()` is called, only the `Python` token from the returned
-    ///   `GILPool` (accessible using [`.python()`]) should be used in PyO3 APIs. All other older
-    ///   `Python` tokens with longer lifetimes are unsafe to use until the `GILPool` is dropped,
-    ///   because they can be used to create PyO3 owned references which have lifetimes which
-    ///   outlive the `GILPool`.
-    /// - Similarly, methods on existing owned references will implicitly refer back to the
-    ///   `Python` token which that reference was originally created with. If the returned values
-    ///   from these methods are owned references they will inherit the same lifetime. As a result,
-    ///   Rust's lifetime rules may allow them to outlive the `GILPool`, even though this is not
-    ///   safe for reasons discussed above. Care must be taken to never access these return values
-    ///   after the `GILPool` is dropped, unless they are converted to `Py<T>` *before* the pool
-    ///   is dropped.
-    ///
-    /// [`.python()`]: crate::GILPool::python
-    #[inline]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "code not using the GIL Refs API can safely remove use of `Python::new_pool`"
-    )]
-    #[allow(deprecated)]
-    pub unsafe fn new_pool(self) -> GILPool {
-        GILPool::new()
-    }
-}
-
-impl Python<'_> {
-    /// Creates a scope using a new pool for managing PyO3's GIL Refs. This has no functional
-    /// use for code which does not use the deprecated GIL Refs API.
-    ///
-    /// This is a safe alterantive to [`new_pool`][Self::new_pool] as
-    /// it limits the closure to using the new GIL token at the cost of
-    /// being unable to capture existing GIL-bound references.
-    ///
-    /// Note that on stable Rust, this API suffers from the same the `SendWrapper` loophole
-    /// as [`allow_threads`][Self::allow_threads], c.f. the documentation of the [`Ungil`] trait,
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use pyo3::prelude::*;
-    /// Python::with_gil(|py| {
-    ///     // Some long-running process like a webserver, which never releases the GIL.
-    ///     loop {
-    ///         // Create a new scope, so that PyO3 can clear memory at the end of the loop.
-    ///         #[allow(deprecated)]  // `with_pool` is not needed in code not using the GIL Refs API
-    ///         py.with_pool(|py| {
-    ///             // do stuff...
-    ///         });
-    /// #       break;  // Exit the loop so that doctest terminates!
-    ///     }
-    /// });
-    /// ```
-    ///
-    /// The `Ungil` bound on the closure does prevent hanging on to existing GIL-bound references
-    ///
-    /// ```compile_fail
-    /// # #![allow(deprecated)]
-    /// # use pyo3::prelude::*;
-    /// # use pyo3::types::PyString;
-    ///
-    /// Python::with_gil(|py| {
-    ///     let old_str = PyString::new(py, "a message from the past");
-    ///
-    ///     py.with_pool(|_py| {
-    ///         print!("{:?}", old_str);
-    ///     });
-    /// });
-    /// ```
-    ///
-    /// or continuing to use the old GIL token
-    ///
-    /// ```compile_fail
-    /// # use pyo3::prelude::*;
-    ///
-    /// Python::with_gil(|old_py| {
-    ///     old_py.with_pool(|_new_py| {
-    ///         let _none = old_py.None();
-    ///     });
-    /// });
-    /// ```
-    #[inline]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "code not using the GIL Refs API can safely remove use of `Python::with_pool`"
-    )]
-    #[allow(deprecated)]
-    pub fn with_pool<F, R>(&self, f: F) -> R
-    where
-        F: for<'py> FnOnce(Python<'py>) -> R + Ungil,
-    {
-        // SAFETY: The closure is `Ungil`,
-        // i.e. it does not capture any GIL-bound references
-        // and accesses only the newly created GIL token.
-        let pool = unsafe { GILPool::new() };
-
-        f(pool.python())
-    }
 }
 
 impl<'unbound> Python<'unbound> {
@@ -1180,18 +860,18 @@ mod tests {
         Python::with_gil(|py| {
             // Make sure builtin names are accessible
             let v: i32 = py
-                .eval_bound("min(1, 2)", None, None)
+                .eval(ffi::c_str!("min(1, 2)"), None, None)
                 .map_err(|e| e.display(py))
                 .unwrap()
                 .extract()
                 .unwrap();
             assert_eq!(v, 1);
 
-            let d = [("foo", 13)].into_py_dict_bound(py);
+            let d = [("foo", 13)].into_py_dict(py);
 
             // Inject our own global namespace
             let v: i32 = py
-                .eval_bound("foo + 29", Some(&d), None)
+                .eval(ffi::c_str!("foo + 29"), Some(&d), None)
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -1199,7 +879,7 @@ mod tests {
 
             // Inject our own local namespace
             let v: i32 = py
-                .eval_bound("foo + 29", None, Some(&d))
+                .eval(ffi::c_str!("foo + 29"), None, Some(&d))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -1207,7 +887,7 @@ mod tests {
 
             // Make sure builtin names are still accessible when using a local namespace
             let v: i32 = py
-                .eval_bound("min(foo, 2)", None, Some(&d))
+                .eval(ffi::c_str!("min(foo, 2)"), None, Some(&d))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -1254,7 +934,7 @@ mod tests {
 
             // If allow_threads is implemented correctly, this thread still owns the GIL here
             // so the following Python calls should not cause crashes.
-            let list = PyList::new_bound(py, [1, 2, 3, 4]);
+            let list = PyList::new(py, [1, 2, 3, 4]);
             assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![1, 2, 3, 4]);
         });
     }
@@ -1262,7 +942,7 @@ mod tests {
     #[cfg(not(pyo3_disable_reference_pool))]
     #[test]
     fn test_allow_threads_pass_stuff_in() {
-        let list = Python::with_gil(|py| PyList::new_bound(py, vec!["foo", "bar"]).unbind());
+        let list = Python::with_gil(|py| PyList::new(py, vec!["foo", "bar"]).unbind());
         let mut v = vec![1, 2, 3];
         let a = std::sync::Arc::new(String::from("foo"));
 
@@ -1302,7 +982,7 @@ mod tests {
             assert_eq!(py.Ellipsis().to_string(), "Ellipsis");
 
             let v = py
-                .eval_bound("...", None, None)
+                .eval(ffi::c_str!("..."), None, None)
                 .map_err(|e| e.display(py))
                 .unwrap();
 
@@ -1315,9 +995,13 @@ mod tests {
         use crate::types::dict::PyDictMethods;
 
         Python::with_gil(|py| {
-            let namespace = PyDict::new_bound(py);
-            py.run_bound("class Foo: pass", Some(&namespace), Some(&namespace))
-                .unwrap();
+            let namespace = PyDict::new(py);
+            py.run(
+                ffi::c_str!("class Foo: pass"),
+                Some(&namespace),
+                Some(&namespace),
+            )
+            .unwrap();
             assert!(matches!(namespace.get_item("Foo"), Ok(Some(..))));
             assert!(matches!(namespace.get_item("__builtins__"), Ok(Some(..))));
         })

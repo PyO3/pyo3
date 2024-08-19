@@ -13,7 +13,7 @@ fails, so usually you will use something like
 # use pyo3::types::PyList;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let list = PyList::new_bound(py, b"foo");
+#         let list = PyList::new(py, b"foo");
 let v: Vec<i32> = list.extract()?;
 #         assert_eq!(&v, &[102, 111, 111]);
 #         Ok(())
@@ -46,6 +46,7 @@ the Python object, i.e. `obj.getattr("my_string")`, and call `extract()` on the 
 
 ```rust
 use pyo3::prelude::*;
+use pyo3_ffi::c_str;
 
 #[derive(FromPyObject)]
 struct RustyStruct {
@@ -54,13 +55,13 @@ struct RustyStruct {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let module = PyModule::from_code_bound(
+#         let module = PyModule::from_code(
 #             py,
-#             "class Foo:
+#             c_str!("class Foo:
 #             def __init__(self):
-#                 self.my_string = 'test'",
-#             "",
-#             "",
+#                 self.my_string = 'test'"),
+#             c_str!(""),
+#             c_str!(""),
 #         )?;
 #
 #         let class = module.getattr("Foo")?;
@@ -86,7 +87,7 @@ struct RustyStruct {
 # use pyo3::types::PyDict;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let dict = PyDict::new_bound(py);
+#         let dict = PyDict::new(py);
 #         dict.set_item("my_string", "test")?;
 #
 #         let rustystruct: RustyStruct = dict.extract()?;
@@ -100,6 +101,7 @@ The argument passed to `getattr` and `get_item` can also be configured:
 
 ```rust
 use pyo3::prelude::*;
+use pyo3_ffi::c_str;
 
 #[derive(FromPyObject)]
 struct RustyStruct {
@@ -111,14 +113,14 @@ struct RustyStruct {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let module = PyModule::from_code_bound(
+#         let module = PyModule::from_code(
 #             py,
-#             "class Foo(dict):
+#             c_str!("class Foo(dict):
 #             def __init__(self):
 #                 self.name = 'test'
-#                 self['key'] = 'test2'",
-#             "",
-#             "",
+#                 self['key'] = 'test2'"),
+#             c_str!(""),
+#             c_str!(""),
 #         )?;
 #
 #         let class = module.getattr("Foo")?;
@@ -155,7 +157,7 @@ struct RustyStruct {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let py_dict = py.eval_bound("{'foo': 'foo', 'bar': 'bar', 'foobar': 'foobar'}", None, None)?;
+#         let py_dict = py.eval(pyo3::ffi::c_str!("{'foo': 'foo', 'bar': 'bar', 'foobar': 'foobar'}"), None, None)?;
 #         let rustystruct: RustyStruct = py_dict.extract()?;
 # 		  assert_eq!(rustystruct.foo, "foo");
 #         assert_eq!(rustystruct.bar, "bar");
@@ -181,7 +183,7 @@ struct RustyTuple(String, String);
 # use pyo3::types::PyTuple;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let tuple = PyTuple::new_bound(py, vec!["test", "test2"]);
+#         let tuple = PyTuple::new(py, vec!["test", "test2"]);
 #
 #         let rustytuple: RustyTuple = tuple.extract()?;
 #         assert_eq!(rustytuple.0, "test");
@@ -204,7 +206,7 @@ struct RustyTuple((String,));
 # use pyo3::types::PyTuple;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let tuple = PyTuple::new_bound(py, vec!["test"]);
+#         let tuple = PyTuple::new(py, vec!["test"]);
 #
 #         let rustytuple: RustyTuple = tuple.extract()?;
 #         assert_eq!((rustytuple.0).0, "test");
@@ -236,7 +238,7 @@ struct RustyTransparentStruct {
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let s = PyString::new_bound(py, "test");
+#         let s = PyString::new(py, "test");
 #
 #         let tup: RustyTransparentTupleStruct = s.extract()?;
 #         assert_eq!(tup.0, "test");
@@ -262,6 +264,7 @@ attribute can be applied to single-field-variants.
 
 ```rust
 use pyo3::prelude::*;
+use pyo3_ffi::c_str;
 
 #[derive(FromPyObject)]
 # #[derive(Debug)]
@@ -303,7 +306,7 @@ enum RustyEnum<'py> {
 #             );
 #         }
 #         {
-#             let thing = PyString::new_bound(py, "text");
+#             let thing = PyString::new(py, "text");
 #             let rust_thing: RustyEnum<'_> = thing.extract()?;
 #
 #             assert_eq!(
@@ -339,15 +342,15 @@ enum RustyEnum<'py> {
 #             );
 #         }
 #         {
-#             let module = PyModule::from_code_bound(
+#             let module = PyModule::from_code(
 #                 py,
-#                 "class Foo(dict):
+#                 c_str!("class Foo(dict):
 #             def __init__(self):
 #                 self.x = 0
 #                 self.y = 1
-#                 self.z = 2",
-#                 "",
-#                 "",
+#                 self.z = 2"),
+#                 c_str!(""),
+#                 c_str!(""),
 #             )?;
 #
 #             let class = module.getattr("Foo")?;
@@ -364,14 +367,14 @@ enum RustyEnum<'py> {
 #         }
 #
 #         {
-#             let module = PyModule::from_code_bound(
+#             let module = PyModule::from_code(
 #                 py,
-#                 "class Foo(dict):
+#                 c_str!("class Foo(dict):
 #             def __init__(self):
 #                 self.x = 3
-#                 self.y = 4",
-#                 "",
-#                 "",
+#                 self.y = 4"),
+#                 c_str!(""),
+#                 c_str!(""),
 #             )?;
 #
 #             let class = module.getattr("Foo")?;
@@ -388,7 +391,7 @@ enum RustyEnum<'py> {
 #         }
 #
 #         {
-#             let thing = PyBytes::new_bound(py, b"text");
+#             let thing = PyBytes::new(py, b"text");
 #             let rust_thing: RustyEnum<'_> = thing.extract()?;
 #
 #             assert_eq!(

@@ -8,9 +8,6 @@ pub use self::capsule::{PyCapsule, PyCapsuleMethods};
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 pub use self::code::PyCode;
 pub use self::complex::{PyComplex, PyComplexMethods};
-#[allow(deprecated)]
-#[cfg(all(not(Py_LIMITED_API), feature = "gil-refs"))]
-pub use self::datetime::timezone_utc;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::{
     timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime,
@@ -25,7 +22,7 @@ pub use self::float::{PyFloat, PyFloatMethods};
 pub use self::frame::PyFrame;
 pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
 pub use self::function::PyCFunction;
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+#[cfg(all(not(Py_LIMITED_API), not(all(PyPy, not(Py_3_8))), not(GraalPy)))]
 pub use self::function::PyFunction;
 pub use self::iterator::PyIterator;
 pub use self::list::{PyList, PyListMethods};
@@ -34,8 +31,8 @@ pub use self::memoryview::PyMemoryView;
 pub use self::module::{PyModule, PyModuleMethods};
 pub use self::none::PyNone;
 pub use self::notimplemented::PyNotImplemented;
-pub use self::num::PyLong;
-pub use self::num::PyLong as PyInt;
+#[allow(deprecated)]
+pub use self::num::{PyInt, PyLong};
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::pysuper::PySuper;
 pub use self::sequence::{PySequence, PySequenceMethods};
@@ -43,7 +40,8 @@ pub use self::set::{PySet, PySetMethods};
 pub use self::slice::{PySlice, PySliceIndices, PySliceMethods};
 #[cfg(not(Py_LIMITED_API))]
 pub use self::string::PyStringData;
-pub use self::string::{PyString, PyString as PyUnicode, PyStringMethods};
+#[allow(deprecated)]
+pub use self::string::{PyString, PyStringMethods, PyUnicode};
 pub use self::traceback::{PyTraceback, PyTracebackMethods};
 pub use self::tuple::{PyTuple, PyTupleMethods};
 pub use self::typeobject::{PyType, PyTypeMethods};
@@ -60,10 +58,11 @@ pub use self::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefRe
 /// ```rust
 /// use pyo3::prelude::*;
 /// use pyo3::types::PyDict;
+/// use pyo3::ffi::c_str;
 ///
 /// # pub fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
-///     let dict = py.eval_bound("{'a':'b', 'c':'d'}", None, None)?.downcast_into::<PyDict>()?;
+///     let dict = py.eval(c_str!("{'a':'b', 'c':'d'}"), None, None)?.downcast_into::<PyDict>()?;
 ///
 ///     for (key, value) in &dict {
 ///         println!("key: {}, value: {}", key, value);
@@ -85,12 +84,6 @@ pub mod iter {
     pub use super::list::BoundListIterator;
     pub use super::set::BoundSetIterator;
     pub use super::tuple::{BorrowedTupleIterator, BoundTupleIterator};
-
-    #[cfg(feature = "gil-refs")]
-    pub use super::{
-        dict::PyDictIterator, frozenset::PyFrozenSetIterator, list::PyListIterator,
-        set::PySetIterator, tuple::PyTupleIterator,
-    };
 }
 
 /// Python objects that have a base type.
@@ -118,64 +111,12 @@ pub trait DerefToPyAny {
     // Empty.
 }
 
-// Implementations core to all native types
-#[doc(hidden)]
-#[macro_export]
-macro_rules! pyobject_native_type_base(
-    ($name:ty $(;$generics:ident)* ) => {
-        #[cfg(feature = "gil-refs")]
-        unsafe impl<$($generics,)*> $crate::PyNativeType for $name {
-            type AsRefSource = Self;
-        }
-
-        #[cfg(feature = "gil-refs")]
-        impl<$($generics,)*> ::std::fmt::Debug for $name {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
-                   -> ::std::result::Result<(), ::std::fmt::Error>
-            {
-                use $crate::{PyNativeType, types::{PyAnyMethods, PyStringMethods}};
-                let s = self.as_borrowed().repr().or(::std::result::Result::Err(::std::fmt::Error))?;
-                f.write_str(&s.to_string_lossy())
-            }
-        }
-
-        #[cfg(feature = "gil-refs")]
-        impl<$($generics,)*> ::std::fmt::Display for $name {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
-                   -> ::std::result::Result<(), ::std::fmt::Error>
-            {
-                use $crate::{PyNativeType, types::{PyAnyMethods, PyStringMethods, PyTypeMethods}};
-                match self.as_borrowed().str() {
-                    ::std::result::Result::Ok(s) => return f.write_str(&s.to_string_lossy()),
-                    ::std::result::Result::Err(err) => err.write_unraisable_bound(self.py(), ::std::option::Option::Some(&self.as_borrowed())),
-                }
-
-                match self.as_borrowed().get_type().name() {
-                    ::std::result::Result::Ok(name) => ::std::write!(f, "<unprintable {} object>", name),
-                    ::std::result::Result::Err(_err) => f.write_str("<unprintable object>"),
-                }
-            }
-        }
-
-        #[cfg(feature = "gil-refs")]
-        impl<$($generics,)*> $crate::ToPyObject for $name
-        {
-            #[inline]
-            fn to_object(&self, py: $crate::Python<'_>) -> $crate::PyObject {
-                unsafe { $crate::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
-            }
-        }
-    };
-);
-
 // Implementations core to all native types except for PyAny (because they don't
 // make sense on PyAny / have different implementations).
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_named (
     ($name:ty $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_base!($name $(;$generics)*);
-
         impl<$($generics,)*> ::std::convert::AsRef<$crate::PyAny> for $name {
             #[inline]
             fn as_ref(&self) -> &$crate::PyAny {
@@ -192,44 +133,6 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        unsafe impl<$($generics,)*> $crate::AsPyPointer for $name {
-            /// Gets the underlying FFI pointer, returns a borrowed pointer.
-            #[inline]
-            fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
-                self.0.as_ptr()
-            }
-        }
-
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        #[cfg(feature = "gil-refs")]
-        impl<$($generics,)*> $crate::IntoPy<$crate::Py<$name>> for &'_ $name {
-            #[inline]
-            fn into_py(self, py: $crate::Python<'_>) -> $crate::Py<$name> {
-                unsafe { $crate::Py::from_borrowed_ptr(py, self.as_ptr()) }
-            }
-        }
-
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        #[cfg(feature = "gil-refs")]
-        impl<$($generics,)*> ::std::convert::From<&'_ $name> for $crate::Py<$name> {
-            #[inline]
-            fn from(other: &$name) -> Self {
-                use $crate::PyNativeType;
-                unsafe { $crate::Py::from_borrowed_ptr(other.py(), other.as_ptr()) }
-            }
-        }
-
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        #[cfg(feature = "gil-refs")]
-        impl<'a, $($generics,)*> ::std::convert::From<&'a $name> for &'a $crate::PyAny {
-            fn from(ob: &'a $name) -> Self {
-                unsafe{&*(ob as *const $name as *const $crate::PyAny)}
-            }
-        }
-
         impl $crate::types::DerefToPyAny for $name {}
     };
 );
@@ -238,7 +141,10 @@ macro_rules! pyobject_native_type_named (
 #[macro_export]
 macro_rules! pyobject_native_static_type_object(
     ($typeobject:expr) => {
-        |_py| unsafe { ::std::ptr::addr_of_mut!($typeobject) }
+        |_py| {
+            #[allow(unused_unsafe)] // https://github.com/rust-lang/rust/pull/125834
+            unsafe { ::std::ptr::addr_of_mut!($typeobject) }
+        }
     };
 );
 
@@ -246,6 +152,7 @@ macro_rules! pyobject_native_static_type_object(
 #[macro_export]
 macro_rules! pyobject_native_type_info(
     ($name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        #[allow(unsafe_code)]
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
             const NAME: &'static str = stringify!($name);
             const MODULE: ::std::option::Option<&'static str> = $module;
@@ -276,24 +183,6 @@ macro_rules! pyobject_native_type_info(
     };
 );
 
-// NOTE: This macro is not included in pyobject_native_type_base!
-// because rust-numpy has a special implementation.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! pyobject_native_type_extract {
-    ($name:ty $(;$generics:ident)*) => {
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        #[cfg(feature = "gil-refs")]
-        impl<'py, $($generics,)*> $crate::FromPyObject<'py> for &'py $name {
-            #[inline]
-            fn extract_bound(obj: &$crate::Bound<'py, $crate::PyAny>) -> $crate::PyResult<Self> {
-                ::std::clone::Clone::clone(obj).into_gil_ref().downcast().map_err(::std::convert::Into::into)
-            }
-        }
-    }
-}
-
 /// Declares all of the boilerplate for Python types.
 #[doc(hidden)]
 #[macro_export]
@@ -301,7 +190,6 @@ macro_rules! pyobject_native_type_core {
     ($name:ty, $typeobject:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_named!($name $(;$generics)*);
         $crate::pyobject_native_type_info!($name, $typeobject, $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
-        $crate::pyobject_native_type_extract!($name $(;$generics)*);
     };
     ($name:ty, $typeobject:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_core!($name, $typeobject, #module=::std::option::Option::Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);

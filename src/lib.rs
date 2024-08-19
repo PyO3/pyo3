@@ -41,7 +41,7 @@
 //! - Types that also have the `'py` lifetime, such as the [`Bound<'py, T>`](Bound) smart pointer, are
 //!   bound to the Python GIL and rely on this to offer their functionality. These types often
 //!   have a [`.py()`](Bound::py) method to get the associated [`Python<'py>`](Python) token.
-//! - Functions which depend on the `'py` lifetime, such as [`PyList::new_bound`](types::PyList::new_bound),
+//! - Functions which depend on the `'py` lifetime, such as [`PyList::new`](types::PyList::new),
 //!   require a [`Python<'py>`](Python) token as an input. Sometimes the token is passed implicitly by
 //!   taking a [`Bound<'py, T>`](Bound) or other type which is bound to the `'py` lifetime.
 //! - Traits which depend on the `'py` lifetime, such as [`FromPyObject<'py>`](FromPyObject), usually have
@@ -232,15 +232,16 @@
 //! ```rust
 //! use pyo3::prelude::*;
 //! use pyo3::types::IntoPyDict;
+//! use pyo3::ffi::c_str;
 //!
 //! fn main() -> PyResult<()> {
 //!     Python::with_gil(|py| {
-//!         let sys = py.import_bound("sys")?;
+//!         let sys = py.import("sys")?;
 //!         let version: String = sys.getattr("version")?.extract()?;
 //!
-//!         let locals = [("os", py.import_bound("os")?)].into_py_dict_bound(py);
-//!         let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
-//!         let user: String = py.eval_bound(code, None, Some(&locals))?.extract()?;
+//!         let locals = [("os", py.import("os")?)].into_py_dict(py);
+//!         let code = c_str!("os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'");
+//!         let user: String = py.eval(code, None, Some(&locals))?.extract()?;
 //!
 //!         println!("Hello {}, I'm Python {}", user, version);
 //!         Ok(())
@@ -295,46 +296,33 @@
 //! [`rust_decimal`]: ./rust_decimal/index.html "Documenation about the `rust_decimal` feature."
 //! [`Decimal`]: https://docs.rs/rust_decimal/latest/rust_decimal/struct.Decimal.html
 //! [`serde`]: <./serde/index.html> "Documentation about the `serde` feature."
-//! [calling_rust]: https://pyo3.rs/latest/python-from-rust.html "Calling Python from Rust - PyO3 user guide"
+#![doc = concat!("[calling_rust]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/python-from-rust.html \"Calling Python from Rust - PyO3 user guide\"")]
 //! [examples subdirectory]: https://github.com/PyO3/pyo3/tree/main/examples
 //! [feature flags]: https://doc.rust-lang.org/cargo/reference/features.html "Features - The Cargo Book"
 //! [global interpreter lock]: https://docs.python.org/3/glossary.html#term-global-interpreter-lock
 //! [hashbrown]: https://docs.rs/hashbrown
 //! [smallvec]: https://docs.rs/smallvec
 //! [indexmap]: https://docs.rs/indexmap
-//! [manual_builds]: https://pyo3.rs/latest/building-and-distribution.html#manual-builds "Manual builds - Building and Distribution - PyO3 user guide"
+#![doc = concat!("[manual_builds]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/building-and-distribution.html#manual-builds \"Manual builds - Building and Distribution - PyO3 user guide\"")]
 //! [num-bigint]: https://docs.rs/num-bigint
 //! [num-complex]: https://docs.rs/num-complex
 //! [num-rational]: https://docs.rs/num-rational
 //! [serde]: https://docs.rs/serde
 //! [setuptools-rust]: https://github.com/PyO3/setuptools-rust "Setuptools plugin for Rust extensions"
 //! [the guide]: https://pyo3.rs "PyO3 user guide"
-//! [types]: https://pyo3.rs/latest/types.html "GIL lifetimes, mutability and Python object types"
+#![doc = concat!("[types]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/types.html \"GIL lifetimes, mutability and Python object types\"")]
 //! [PEP 384]: https://www.python.org/dev/peps/pep-0384 "PEP 384 -- Defining a Stable ABI"
 //! [Python from Rust]: https://github.com/PyO3/pyo3#using-python-from-rust
 //! [Rust from Python]: https://github.com/PyO3/pyo3#using-rust-from-python
-//! [Features chapter of the guide]: https://pyo3.rs/latest/features.html#features-reference "Features Reference - PyO3 user guide"
+#![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features Reference - PyO3 user guide\"")]
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
 pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-pub use crate::conversion::{FromPyPointer, PyTryFrom, PyTryInto};
-#[cfg(feature = "gil-refs")]
-pub use crate::err::PyDowncastError;
 pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-pub use crate::gil::GILPool;
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
-#[cfg(feature = "gil-refs")]
-pub use crate::instance::PyNativeType;
-pub use crate::instance::{Borrowed, Bound, Py, PyObject};
+pub use crate::instance::{Borrowed, Bound, BoundObject, Py, PyObject};
 pub use crate::marker::Python;
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-pub use crate::pycell::PyCell;
 pub use crate::pycell::{PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;
 pub use crate::pyclass_init::PyClassInitializer;
@@ -356,19 +344,24 @@ pub(crate) mod sealed;
 pub mod class {
     pub use self::gc::{PyTraverseError, PyVisit};
 
-    #[doc(hidden)]
-    pub use self::methods::{
-        PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType, PyMethodType, PySetterDef,
-    };
+    pub use self::methods::*;
 
     #[doc(hidden)]
     pub mod methods {
-        // frozen with the contents of the `impl_::pymethods` module in 0.20,
-        // this should probably all be replaced with deprecated type aliases and removed.
-        pub use crate::impl_::pymethods::{
-            IPowModulo, PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType,
-            PyMethodType, PySetterDef,
-        };
+        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
+        pub type IPowModulo = crate::impl_::pymethods::IPowModulo;
+        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
+        pub type PyClassAttributeDef = crate::impl_::pymethods::PyClassAttributeDef;
+        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
+        pub type PyGetterDef = crate::impl_::pymethods::PyGetterDef;
+        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
+        pub type PyMethodDef = crate::impl_::pymethods::PyMethodDef;
+        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
+        pub type PyMethodDefType = crate::impl_::pymethods::PyMethodDefType;
+        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
+        pub type PyMethodType = crate::impl_::pymethods::PyMethodType;
+        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
+        pub type PySetterDef = crate::impl_::pymethods::PySetterDef;
     }
 
     /// Old module which contained some implementation details of the `#[pyproto]` module.
@@ -380,30 +373,6 @@ pub mod class {
     /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
     pub mod basic {
         pub use crate::pyclass::CompareOp;
-    }
-
-    /// Old module which contained some implementation details of the `#[pyproto]` module.
-    ///
-    /// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::IterANextOutput` instead
-    /// of `use pyo3::class::pyasync::IterANextOutput`.
-    ///
-    /// For compatibility reasons this has not yet been removed, however will be done so
-    /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
-    pub mod pyasync {
-        #[allow(deprecated)]
-        pub use crate::pyclass::{IterANextOutput, PyIterANextOutput};
-    }
-
-    /// Old module which contained some implementation details of the `#[pyproto]` module.
-    ///
-    /// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::IterNextOutput` instead
-    /// of `use pyo3::class::pyasync::IterNextOutput`.
-    ///
-    /// For compatibility reasons this has not yet been removed, however will be done so
-    /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
-    pub mod iter {
-        #[allow(deprecated)]
-        pub use crate::pyclass::{IterNextOutput, PyIterNextOutput};
     }
 
     /// Old module which contained some implementation details of the `#[pyproto]` module.
@@ -445,10 +414,6 @@ pub mod conversion;
 mod conversions;
 #[cfg(feature = "experimental-async")]
 pub mod coroutine;
-#[macro_use]
-#[doc(hidden)]
-#[cfg(feature = "gil-refs")]
-pub mod derive_utils;
 mod err;
 pub mod exceptions;
 pub mod ffi;
@@ -461,7 +426,6 @@ pub mod marshal;
 #[macro_use]
 pub mod sync;
 pub mod panic;
-pub mod prelude;
 pub mod pybacked;
 pub mod pycell;
 pub mod pyclass;
@@ -484,7 +448,7 @@ pub use pyo3_macros::{pyfunction, pymethods, pymodule, FromPyObject};
 /// For more on creating Python classes,
 /// see the [class section of the guide][1].
 ///
-/// [1]: https://pyo3.rs/latest/class.html
+#[doc = concat!("[1]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html")]
 #[cfg(feature = "macros")]
 pub use pyo3_macros::pyclass;
 
@@ -495,15 +459,9 @@ mod macros;
 #[cfg(feature = "experimental-inspect")]
 pub mod inspect;
 
-/// Ths module only contains re-exports of pyo3 deprecation warnings and exists
-/// purely to make compiler error messages nicer.
-///
-/// (The compiler uses this module in error messages, probably because it's a public
-/// re-export at a shorter path than `pyo3::impl_::deprecations`.)
-#[doc(hidden)]
-pub mod deprecations {
-    pub use crate::impl_::deprecations::*;
-}
+// Putting the declaration of prelude at the end seems to help encourage rustc and rustdoc to prefer using
+// other paths to the same items. (e.g. `pyo3::types::PyAnyMethods` instead of `pyo3::prelude::PyAnyMethods`).
+pub mod prelude;
 
 /// Test readme and user guide
 #[cfg(doctest)]
@@ -542,7 +500,6 @@ pub mod doc_test {
         "guide/src/function.md" => guide_function_md,
         "guide/src/function/error-handling.md" => guide_function_error_handling_md,
         "guide/src/function/signature.md" => guide_function_signature_md,
-        "guide/src/memory.md" => guide_memory_md,
         "guide/src/migration.md" => guide_migration_md,
         "guide/src/module.md" => guide_module_md,
         "guide/src/parallelism.md" => guide_parallelism_md,

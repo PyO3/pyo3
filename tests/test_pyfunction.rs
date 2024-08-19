@@ -21,7 +21,7 @@ fn struct_function() {}
 #[test]
 fn test_rust_keyword_name() {
     Python::with_gil(|py| {
-        let f = wrap_pyfunction_bound!(struct_function)(py).unwrap();
+        let f = wrap_pyfunction!(struct_function)(py).unwrap();
 
         py_assert!(py, f, "f.__name__ == 'struct'");
     });
@@ -36,7 +36,7 @@ fn optional_bool(arg: Option<bool>) -> String {
 fn test_optional_bool() {
     // Regression test for issue #932
     Python::with_gil(|py| {
-        let f = wrap_pyfunction_bound!(optional_bool)(py).unwrap();
+        let f = wrap_pyfunction!(optional_bool)(py).unwrap();
 
         py_assert!(py, f, "f() == 'Some(true)'");
         py_assert!(py, f, "f(True) == 'Some(true)'");
@@ -60,7 +60,7 @@ fn buffer_inplace_add(py: Python<'_>, x: PyBuffer<i32>, y: PyBuffer<i32>) {
 #[test]
 fn test_buffer_add() {
     Python::with_gil(|py| {
-        let f = wrap_pyfunction_bound!(buffer_inplace_add)(py).unwrap();
+        let f = wrap_pyfunction!(buffer_inplace_add)(py).unwrap();
 
         py_expect_exception!(
             py,
@@ -104,8 +104,8 @@ fn function_with_pycfunction_arg<'py>(
 #[test]
 fn test_functions_with_function_args() {
     Python::with_gil(|py| {
-        let py_cfunc_arg = wrap_pyfunction_bound!(function_with_pycfunction_arg)(py).unwrap();
-        let bool_to_string = wrap_pyfunction_bound!(optional_bool)(py).unwrap();
+        let py_cfunc_arg = wrap_pyfunction!(function_with_pycfunction_arg)(py).unwrap();
+        let bool_to_string = wrap_pyfunction!(optional_bool)(py).unwrap();
 
         pyo3::py_run!(
             py,
@@ -118,7 +118,7 @@ fn test_functions_with_function_args() {
 
         #[cfg(not(any(Py_LIMITED_API, PyPy)))]
         {
-            let py_func_arg = wrap_pyfunction_bound!(function_with_pyfunction_arg)(py).unwrap();
+            let py_func_arg = wrap_pyfunction!(function_with_pyfunction_arg)(py).unwrap();
 
             pyo3::py_run!(
                 py,
@@ -152,7 +152,7 @@ fn function_with_custom_conversion(
 #[test]
 fn test_function_with_custom_conversion() {
     Python::with_gil(|py| {
-        let custom_conv_func = wrap_pyfunction_bound!(function_with_custom_conversion)(py).unwrap();
+        let custom_conv_func = wrap_pyfunction!(function_with_custom_conversion)(py).unwrap();
 
         pyo3::py_run!(
             py,
@@ -171,7 +171,7 @@ fn test_function_with_custom_conversion() {
 #[test]
 fn test_function_with_custom_conversion_error() {
     Python::with_gil(|py| {
-        let custom_conv_func = wrap_pyfunction_bound!(function_with_custom_conversion)(py).unwrap();
+        let custom_conv_func = wrap_pyfunction!(function_with_custom_conversion)(py).unwrap();
 
         py_expect_exception!(
             py,
@@ -208,13 +208,13 @@ fn test_from_py_with_defaults() {
     }
 
     Python::with_gil(|py| {
-        let f = wrap_pyfunction_bound!(from_py_with_option)(py).unwrap();
+        let f = wrap_pyfunction!(from_py_with_option)(py).unwrap();
 
         assert_eq!(f.call0().unwrap().extract::<i32>().unwrap(), 0);
         assert_eq!(f.call1((123,)).unwrap().extract::<i32>().unwrap(), 123);
         assert_eq!(f.call1((999,)).unwrap().extract::<i32>().unwrap(), 999);
 
-        let f2 = wrap_pyfunction_bound!(from_py_with_default)(py).unwrap();
+        let f2 = wrap_pyfunction!(from_py_with_default)(py).unwrap();
 
         assert_eq!(f2.call0().unwrap().extract::<usize>().unwrap(), 0);
         assert_eq!(f2.call1(("123",)).unwrap().extract::<usize>().unwrap(), 3);
@@ -247,7 +247,7 @@ fn conversion_error(
 #[test]
 fn test_conversion_error() {
     Python::with_gil(|py| {
-        let conversion_error = wrap_pyfunction_bound!(conversion_error)(py).unwrap();
+        let conversion_error = wrap_pyfunction!(conversion_error)(py).unwrap();
         py_expect_exception!(
             py,
             conversion_error,
@@ -342,7 +342,7 @@ fn test_pycfunction_new() {
             ffi::PyLong_FromLong(4200)
         }
 
-        let py_fn = PyCFunction::new_bound(
+        let py_fn = PyCFunction::new(
             py,
             c_fn,
             c_str!("py_fn"),
@@ -363,8 +363,7 @@ fn test_pycfunction_new() {
 #[test]
 fn test_pycfunction_new_with_keywords() {
     use pyo3::ffi;
-    use std::ffi::CString;
-    use std::os::raw::{c_char, c_long};
+    use std::os::raw::c_long;
     use std::ptr;
 
     Python::with_gil(|py| {
@@ -375,32 +374,42 @@ fn test_pycfunction_new_with_keywords() {
         ) -> *mut ffi::PyObject {
             let mut foo: c_long = 0;
             let mut bar: c_long = 0;
-            let foo_ptr: *mut c_long = &mut foo;
-            let bar_ptr: *mut c_long = &mut bar;
 
-            let foo_name = CString::new("foo").unwrap();
-            let foo_name_raw: *mut c_char = foo_name.into_raw();
-            let kw_bar_name = CString::new("kw_bar").unwrap();
-            let kw_bar_name_raw: *mut c_char = kw_bar_name.into_raw();
+            #[cfg(not(Py_3_13))]
+            let foo_name = std::ffi::CString::new("foo").unwrap();
+            #[cfg(not(Py_3_13))]
+            let kw_bar_name = std::ffi::CString::new("kw_bar").unwrap();
+            #[cfg(not(Py_3_13))]
+            let mut args_names = [foo_name.into_raw(), kw_bar_name.into_raw(), ptr::null_mut()];
 
-            let mut arglist = vec![foo_name_raw, kw_bar_name_raw, ptr::null_mut()];
-            let arglist_ptr: *mut *mut c_char = arglist.as_mut_ptr();
-
-            let arg_pattern: *const c_char = CString::new("l|l").unwrap().into_raw();
+            #[cfg(Py_3_13)]
+            let args_names = [
+                c_str!("foo").as_ptr(),
+                c_str!("kw_bar").as_ptr(),
+                ptr::null_mut(),
+            ];
 
             ffi::PyArg_ParseTupleAndKeywords(
                 args,
                 kwds,
-                arg_pattern,
-                arglist_ptr,
-                foo_ptr,
-                bar_ptr,
+                c_str!("l|l").as_ptr(),
+                #[cfg(Py_3_13)]
+                args_names.as_ptr(),
+                #[cfg(not(Py_3_13))]
+                args_names.as_mut_ptr(),
+                &mut foo,
+                &mut bar,
             );
+
+            #[cfg(not(Py_3_13))]
+            drop(std::ffi::CString::from_raw(args_names[0]));
+            #[cfg(not(Py_3_13))]
+            drop(std::ffi::CString::from_raw(args_names[1]));
 
             ffi::PyLong_FromLong(foo * bar)
         }
 
-        let py_fn = PyCFunction::new_with_keywords_bound(
+        let py_fn = PyCFunction::new_with_keywords(
             py,
             c_fn,
             c_str!("py_fn"),
@@ -444,13 +453,9 @@ fn test_closure() {
                 Ok(res)
             })
         };
-        let closure_py = PyCFunction::new_closure_bound(
-            py,
-            Some(c_str!("test_fn")),
-            Some(c_str!("test_fn doc")),
-            f,
-        )
-        .unwrap();
+        let closure_py =
+            PyCFunction::new_closure(py, Some(c_str!("test_fn")), Some(c_str!("test_fn doc")), f)
+                .unwrap();
 
         py_assert!(py, closure_py, "closure_py(42) == [43]");
         py_assert!(py, closure_py, "closure_py.__name__ == 'test_fn'");
@@ -474,7 +479,7 @@ fn test_closure_counter() {
             *counter += 1;
             Ok(*counter)
         };
-        let counter_py = PyCFunction::new_closure_bound(py, None, None, counter_fn).unwrap();
+        let counter_py = PyCFunction::new_closure(py, None, None, counter_fn).unwrap();
 
         py_assert!(py, counter_py, "counter_py() == 1");
         py_assert!(py, counter_py, "counter_py() == 2");
@@ -497,12 +502,12 @@ fn use_pyfunction() {
         use function_in_module::foo;
 
         // check imported name can be wrapped
-        let f = wrap_pyfunction_bound!(foo, py).unwrap();
+        let f = wrap_pyfunction!(foo, py).unwrap();
         assert_eq!(f.call1((5,)).unwrap().extract::<i32>().unwrap(), 5);
         assert_eq!(f.call1((42,)).unwrap().extract::<i32>().unwrap(), 42);
 
         // check path import can be wrapped
-        let f2 = wrap_pyfunction_bound!(function_in_module::foo, py).unwrap();
+        let f2 = wrap_pyfunction!(function_in_module::foo, py).unwrap();
         assert_eq!(f2.call1((5,)).unwrap().extract::<i32>().unwrap(), 5);
         assert_eq!(f2.call1((42,)).unwrap().extract::<i32>().unwrap(), 42);
     })
@@ -530,7 +535,7 @@ fn return_value_borrows_from_arguments<'py>(
 #[test]
 fn test_return_value_borrows_from_arguments() {
     Python::with_gil(|py| {
-        let function = wrap_pyfunction_bound!(return_value_borrows_from_arguments, py).unwrap();
+        let function = wrap_pyfunction!(return_value_borrows_from_arguments, py).unwrap();
 
         let key = Py::new(py, Key("key".to_owned())).unwrap();
         let value = Py::new(py, Value(42)).unwrap();
@@ -554,7 +559,7 @@ fn test_some_wrap_arguments() {
     }
 
     Python::with_gil(|py| {
-        let function = wrap_pyfunction_bound!(some_wrap_arguments, py).unwrap();
+        let function = wrap_pyfunction!(some_wrap_arguments, py).unwrap();
         py_assert!(py, function, "function() == [1, 2, None, None]");
     })
 }
@@ -571,7 +576,7 @@ fn test_reference_to_bound_arguments() {
     }
 
     Python::with_gil(|py| {
-        let function = wrap_pyfunction_bound!(reference_args, py).unwrap();
+        let function = wrap_pyfunction!(reference_args, py).unwrap();
         py_assert!(py, function, "function(1) == 1");
         py_assert!(py, function, "function(1, 2) == 3");
     })

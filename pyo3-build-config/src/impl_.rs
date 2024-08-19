@@ -177,12 +177,18 @@ impl InterpreterConfig {
             PythonImplementation::GraalPy => out.push("cargo:rustc-cfg=GraalPy".to_owned()),
         }
 
-        if self.abi3 {
+        // If Py_GIL_DISABLED is set, do not build with limited API support
+        if self.abi3 && !self.build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED) {
             out.push("cargo:rustc-cfg=Py_LIMITED_API".to_owned());
         }
 
         for flag in &self.build_flags.0 {
-            out.push(format!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag));
+            match flag {
+                BuildFlag::Py_GIL_DISABLED => {
+                    out.push("cargo:rustc-cfg=Py_GIL_DISABLED".to_owned())
+                }
+                flag => out.push(format!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag)),
+            }
         }
 
         out
@@ -996,6 +1002,7 @@ pub enum BuildFlag {
     Py_DEBUG,
     Py_REF_DEBUG,
     Py_TRACE_REFS,
+    Py_GIL_DISABLED,
     COUNT_ALLOCS,
     Other(String),
 }
@@ -1016,6 +1023,7 @@ impl FromStr for BuildFlag {
             "Py_DEBUG" => Ok(BuildFlag::Py_DEBUG),
             "Py_REF_DEBUG" => Ok(BuildFlag::Py_REF_DEBUG),
             "Py_TRACE_REFS" => Ok(BuildFlag::Py_TRACE_REFS),
+            "Py_GIL_DISABLED" => Ok(BuildFlag::Py_GIL_DISABLED),
             "COUNT_ALLOCS" => Ok(BuildFlag::COUNT_ALLOCS),
             other => Ok(BuildFlag::Other(other.to_owned())),
         }
@@ -1039,10 +1047,11 @@ impl FromStr for BuildFlag {
 pub struct BuildFlags(pub HashSet<BuildFlag>);
 
 impl BuildFlags {
-    const ALL: [BuildFlag; 4] = [
+    const ALL: [BuildFlag; 5] = [
         BuildFlag::Py_DEBUG,
         BuildFlag::Py_REF_DEBUG,
         BuildFlag::Py_TRACE_REFS,
+        BuildFlag::Py_GIL_DISABLED,
         BuildFlag::COUNT_ALLOCS,
     ];
 
@@ -2726,6 +2735,43 @@ mod tests {
                 "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=PyPy".to_owned(),
                 "cargo:rustc-cfg=Py_LIMITED_API".to_owned(),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_build_script_outputs_gil_disabled() {
+        let mut build_flags = BuildFlags::default();
+        build_flags.0.insert(BuildFlag::Py_GIL_DISABLED);
+        let interpreter_config = InterpreterConfig {
+            implementation: PythonImplementation::CPython,
+            version: PythonVersion {
+                major: 3,
+                minor: 13,
+            },
+            shared: true,
+            abi3: false,
+            lib_name: Some("python3".into()),
+            lib_dir: None,
+            executable: None,
+            pointer_width: None,
+            build_flags,
+            suppress_build_script_link_lines: false,
+            extra_build_script_lines: vec![],
+        };
+
+        assert_eq!(
+            interpreter_config.build_script_outputs(),
+            [
+                "cargo:rustc-cfg=Py_3_6".to_owned(),
+                "cargo:rustc-cfg=Py_3_7".to_owned(),
+                "cargo:rustc-cfg=Py_3_8".to_owned(),
+                "cargo:rustc-cfg=Py_3_9".to_owned(),
+                "cargo:rustc-cfg=Py_3_10".to_owned(),
+                "cargo:rustc-cfg=Py_3_11".to_owned(),
+                "cargo:rustc-cfg=Py_3_12".to_owned(),
+                "cargo:rustc-cfg=Py_3_13".to_owned(),
+                "cargo:rustc-cfg=Py_GIL_DISABLED".to_owned(),
             ]
         );
     }

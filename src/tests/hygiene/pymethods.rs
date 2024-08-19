@@ -1,6 +1,3 @@
-#![no_implicit_prelude]
-#![allow(unused_variables, clippy::unnecessary_wraps)]
-
 #[crate::pyclass]
 #[pyo3(crate = "crate")]
 pub struct Dummy;
@@ -24,7 +21,7 @@ impl Dummy {
     }
 
     fn __bytes__<'py>(&self, py: crate::Python<'py>) -> crate::Bound<'py, crate::types::PyBytes> {
-        crate::types::PyBytes::new_bound(py, &[0])
+        crate::types::PyBytes::new(py, &[0])
     }
 
     fn __format__(&self, format_spec: ::std::string::String) -> ::std::string::String {
@@ -76,7 +73,7 @@ impl Dummy {
     fn __delattr__(&mut self, name: ::std::string::String) {}
 
     fn __dir__<'py>(&self, py: crate::Python<'py>) -> crate::Bound<'py, crate::types::PyList> {
-        crate::types::PyList::new_bound(py, ::std::vec![0_u8])
+        crate::types::PyList::new(py, ::std::vec![0_u8])
     }
 
     //////////////////////
@@ -294,7 +291,7 @@ impl Dummy {
         &self,
         py: crate::Python<'py>,
     ) -> crate::Bound<'py, crate::types::PyComplex> {
-        crate::types::PyComplex::from_doubles_bound(py, 0.0, 0.0)
+        crate::types::PyComplex::from_doubles(py, 0.0, 0.0)
     }
 
     fn __int__(&self) -> u32 {

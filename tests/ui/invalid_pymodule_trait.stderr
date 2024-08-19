@@ -3,3 +3,9 @@ error: `#[pymodule_export]` may only be used on `use` statements
   |
 5 |     #[pymodule_export]
   |     ^
+
+error: cannot find attribute `pymodule_export` in this scope
+ --> tests/ui/invalid_pymodule_trait.rs:5:7
+  |
+5 |     #[pymodule_export]
+  |       ^^^^^^^^^^^^^^^

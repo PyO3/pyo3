@@ -7,12 +7,12 @@ use crate::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
             tp_dealloc_with_gc, MaybeRuntimePyMethodDef, PyClassItemsIter,
         },
-        pymethods::{Getter, Setter},
+        pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter},
         trampoline::trampoline,
     },
     internal_tricks::ptr_from_ref,
     types::{typeobject::PyTypeMethods, PyType},
-    Py, PyClass, PyGetterDef, PyMethodDefType, PyResult, PySetterDef, PyTypeInfo, Python,
+    Py, PyClass, PyResult, PyTypeInfo, Python,
 };
 use std::{
     collections::HashMap,
@@ -250,7 +250,7 @@ impl PyTypeBuilder {
                             if (*dict_ptr).is_null() {
                                 std::ptr::write(dict_ptr, ffi::PyDict_New());
                             }
-                            Ok(ffi::_Py_XNewRef(*dict_ptr))
+                            Ok(ffi::compat::Py_XNewRef(*dict_ptr))
                         })
                     }
                 }

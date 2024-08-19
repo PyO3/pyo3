@@ -9,10 +9,11 @@ use crate::{
     exceptions::PyRuntimeError,
     ffi,
     impl_::pyclass::MaybeRuntimePyMethodDef,
+    impl_::pymethods::PyMethodDefType,
     pyclass::{create_type_object, PyClassTypeObject},
     sync::{GILOnceCell, GILProtected},
     types::PyType,
-    Bound, PyClass, PyErr, PyMethodDefType, PyObject, PyResult, Python,
+    Bound, PyClass, PyErr, PyObject, PyResult, Python,
 };
 
 use super::PyClassItemsIter;

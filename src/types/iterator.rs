@@ -2,19 +2,21 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
 use crate::{ffi, Bound, PyAny, PyErr, PyResult, PyTypeCheck};
-#[cfg(feature = "gil-refs")]
-use crate::{AsPyPointer, PyDowncastError, PyNativeType};
 
 /// A Python iterator object.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyIterator>`][crate::Py] or [`Bound<'py, PyIterator>`][Bound].
 ///
 /// # Examples
 ///
 /// ```rust
 /// use pyo3::prelude::*;
+/// use pyo3::ffi::c_str;
 ///
 /// # fn main() -> PyResult<()> {
 /// Python::with_gil(|py| -> PyResult<()> {
-///     let list = py.eval_bound("iter([1, 2, 3, 4])", None, None)?;
+///     let list = py.eval(c_str!("iter([1, 2, 3, 4])"), None, None)?;
 ///     let numbers: PyResult<Vec<usize>> = list
 ///         .iter()?
 ///         .map(|i| i.and_then(|i|i.extract::<usize>()))
@@ -28,51 +30,25 @@ use crate::{AsPyPointer, PyDowncastError, PyNativeType};
 #[repr(transparent)]
 pub struct PyIterator(PyAny);
 pyobject_native_type_named!(PyIterator);
-pyobject_native_type_extract!(PyIterator);
 
 impl PyIterator {
-    /// Deprecated form of `PyIterator::from_bound_object`.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyIterator::from_object` will be replaced by `PyIterator::from_bound_object` in a future PyO3 version"
-    )]
-    pub fn from_object(obj: &PyAny) -> PyResult<&PyIterator> {
-        Self::from_bound_object(&obj.as_borrowed()).map(Bound::into_gil_ref)
-    }
-
     /// Builds an iterator for an iterable Python object; the equivalent of calling `iter(obj)` in Python.
     ///
     /// Usually it is more convenient to write [`obj.iter()`][crate::types::any::PyAnyMethods::iter],
     /// which is a more concise way of calling this function.
-    pub fn from_bound_object<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyIterator>> {
+    pub fn from_object<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyIterator>> {
         unsafe {
             ffi::PyObject_GetIter(obj.as_ptr())
                 .assume_owned_or_err(obj.py())
                 .downcast_into_unchecked()
         }
     }
-}
 
-#[cfg(feature = "gil-refs")]
-impl<'p> Iterator for &'p PyIterator {
-    type Item = PyResult<&'p PyAny>;
-
-    /// Retrieves the next item from an iterator.
-    ///
-    /// Returns `None` when the iterator is exhausted.
-    /// If an exception occurs, returns `Some(Err(..))`.
-    /// Further `next()` calls after an exception occurs are likely
-    /// to repeatedly result in the same exception.
-    fn next(&mut self) -> Option<Self::Item> {
-        self.as_borrowed()
-            .next()
-            .map(|result| result.map(Bound::into_gil_ref))
-    }
-
-    #[cfg(not(Py_LIMITED_API))]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.as_borrowed().size_hint()
+    /// Deprecated name for [`PyIterator::from_object`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyIterator::from_object`")]
+    #[inline]
+    pub fn from_bound_object<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyIterator>> {
+        Self::from_object(obj)
     }
 }
 
@@ -127,37 +103,12 @@ impl PyTypeCheck for PyIterator {
     }
 }
 
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-impl<'v> crate::PyTryFrom<'v> for PyIterator {
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyIterator, PyDowncastError<'v>> {
-        let value = value.into();
-        unsafe {
-            if ffi::PyIter_Check(value.as_ptr()) != 0 {
-                Ok(value.downcast_unchecked())
-            } else {
-                Err(PyDowncastError::new(value, "Iterator"))
-            }
-        }
-    }
-
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyIterator, PyDowncastError<'v>> {
-        value.into().downcast()
-    }
-
-    #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v PyIterator {
-        let ptr = value.into() as *const _ as *const PyIterator;
-        &*ptr
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::PyIterator;
     use crate::exceptions::PyTypeError;
     use crate::types::{PyAnyMethods, PyDict, PyList, PyListMethods};
-    use crate::{Python, ToPyObject};
+    use crate::{ffi, Python, ToPyObject};
 
     #[test]
     fn vec_iter() {
@@ -204,9 +155,9 @@ mod tests {
     fn iter_item_refcnt() {
         Python::with_gil(|py| {
             let count;
-            let obj = py.eval_bound("object()", None, None).unwrap();
+            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
             let list = {
-                let list = PyList::empty_bound(py);
+                let list = PyList::empty(py);
                 list.append(10).unwrap();
                 list.append(&obj).unwrap();
                 count = obj.get_refcnt();
@@ -230,21 +181,24 @@ mod tests {
 
     #[test]
     fn fibonacci_generator() {
-        let fibonacci_generator = r#"
+        let fibonacci_generator = ffi::c_str!(
+            r#"
 def fibonacci(target):
     a = 1
     b = 1
     for _ in range(target):
         yield a
         a, b = b, a + b
-"#;
+"#
+        );
 
         Python::with_gil(|py| {
-            let context = PyDict::new_bound(py);
-            py.run_bound(fibonacci_generator, None, Some(&context))
-                .unwrap();
+            let context = PyDict::new(py);
+            py.run(fibonacci_generator, None, Some(&context)).unwrap();
 
-            let generator = py.eval_bound("fibonacci(5)", None, Some(&context)).unwrap();
+            let generator = py
+                .eval(ffi::c_str!("fibonacci(5)"), None, Some(&context))
+                .unwrap();
             for (actual, expected) in generator.iter().unwrap().zip(&[1, 1, 2, 3, 5]) {
                 let actual = actual.unwrap().extract::<usize>().unwrap();
                 assert_eq!(actual, *expected)
@@ -257,22 +211,23 @@ def fibonacci(target):
         use crate::types::any::PyAnyMethods;
         use crate::Bound;
 
-        let fibonacci_generator = r#"
+        let fibonacci_generator = ffi::c_str!(
+            r#"
 def fibonacci(target):
     a = 1
     b = 1
     for _ in range(target):
         yield a
         a, b = b, a + b
-"#;
+"#
+        );
 
         Python::with_gil(|py| {
-            let context = PyDict::new_bound(py);
-            py.run_bound(fibonacci_generator, None, Some(&context))
-                .unwrap();
+            let context = PyDict::new(py);
+            py.run(fibonacci_generator, None, Some(&context)).unwrap();
 
             let generator: Bound<'_, PyIterator> = py
-                .eval_bound("fibonacci(5)", None, Some(&context))
+                .eval(ffi::c_str!("fibonacci(5)"), None, Some(&context))
                 .unwrap()
                 .downcast_into()
                 .unwrap();
@@ -289,21 +244,9 @@ def fibonacci(target):
     fn int_not_iterable() {
         Python::with_gil(|py| {
             let x = 5.to_object(py);
-            let err = PyIterator::from_bound_object(x.bind(py)).unwrap_err();
+            let err = PyIterator::from_object(x.bind(py)).unwrap_err();
 
             assert!(err.is_instance_of::<PyTypeError>(py));
-        });
-    }
-
-    #[test]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn iterator_try_from() {
-        Python::with_gil(|py| {
-            let obj: crate::Py<crate::PyAny> =
-                vec![10, 20].to_object(py).as_ref(py).iter().unwrap().into();
-            let iter = <PyIterator as crate::PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
-            assert!(obj.is(iter));
         });
     }
 
@@ -364,7 +307,7 @@ def fibonacci(target):
 
         // Regression test for 2913
         Python::with_gil(|py| {
-            let assert_iterator = crate::wrap_pyfunction_bound!(assert_iterator, py).unwrap();
+            let assert_iterator = crate::wrap_pyfunction!(assert_iterator, py).unwrap();
             crate::py_run!(
                 py,
                 assert_iterator,
@@ -383,7 +326,7 @@ def fibonacci(target):
     #[cfg(not(Py_LIMITED_API))]
     fn length_hint_becomes_size_hint_lower_bound() {
         Python::with_gil(|py| {
-            let list = py.eval_bound("[1, 2, 3]", None, None).unwrap();
+            let list = py.eval(ffi::c_str!("[1, 2, 3]"), None, None).unwrap();
             let iter = list.iter().unwrap();
             let hint = iter.size_hint();
             assert_eq!(hint, (3, None));

@@ -9,7 +9,6 @@ use std::ptr::addr_of_mut;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct PyGenObject {
     pub ob_base: PyObject,
     #[cfg(not(Py_3_11))]

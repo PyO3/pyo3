@@ -27,7 +27,6 @@
 - [Parallelism](parallelism.md)
 - [Debugging](debugging.md)
 - [Features reference](features.md)
-- [Memory management](memory.md)
 - [Performance](performance.md)
 - [Advanced topics](advanced.md)
 - [Building and distribution](building-and-distribution.md)

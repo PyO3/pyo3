@@ -55,14 +55,14 @@
 //! #
 //! # fn main() -> PyResult<()> {
 //! #     Python::with_gil(|py| -> PyResult<()> {
-//! #         let module = PyModule::new_bound(py, "my_module")?;
+//! #         let module = PyModule::new(py, "my_module")?;
 //! #
 //! #         module.add_function(&wrap_pyfunction!(get_eigenvalues, module)?)?;
 //! #
-//! #         let m11 = PyComplex::from_doubles_bound(py, 0_f64, -1_f64);
-//! #         let m12 = PyComplex::from_doubles_bound(py, 1_f64, 0_f64);
-//! #         let m21 = PyComplex::from_doubles_bound(py, 2_f64, -1_f64);
-//! #         let m22 = PyComplex::from_doubles_bound(py, -1_f64, 0_f64);
+//! #         let m11 = PyComplex::from_doubles(py, 0_f64, -1_f64);
+//! #         let m12 = PyComplex::from_doubles(py, 1_f64, 0_f64);
+//! #         let m21 = PyComplex::from_doubles(py, 2_f64, -1_f64);
+//! #         let m22 = PyComplex::from_doubles(py, -1_f64, 0_f64);
 //! #
 //! #         let result = module
 //! #             .getattr("get_eigenvalues")?
@@ -103,16 +103,6 @@ use num_complex::Complex;
 use std::os::raw::c_double;
 
 impl PyComplex {
-    /// Deprecated form of [`PyComplex::from_complex_bound`]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyComplex::from_complex` will be replaced by `PyComplex::from_complex_bound` in a future PyO3 version"
-    )]
-    pub fn from_complex<F: Into<c_double>>(py: Python<'_>, complex: Complex<F>) -> &PyComplex {
-        Self::from_complex_bound(py, complex).into_gil_ref()
-    }
-
     /// Creates a new Python `PyComplex` object from `num_complex`'s [`Complex`].
     pub fn from_complex_bound<F: Into<c_double>>(
         py: Python<'_>,
@@ -144,6 +134,35 @@ macro_rules! complex_conversion {
                         ffi::PyComplex_FromDoubles(self.re as c_double, self.im as c_double);
                     PyObject::from_owned_ptr(py, raw_obj)
                 }
+            }
+        }
+
+        #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
+        impl<'py> crate::conversion::IntoPyObject<'py> for Complex<$float> {
+            type Target = PyComplex;
+            type Output = Bound<'py, Self::Target>;
+            type Error = std::convert::Infallible;
+
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                unsafe {
+                    Ok(
+                        ffi::PyComplex_FromDoubles(self.re as c_double, self.im as c_double)
+                            .assume_owned(py)
+                            .downcast_into_unchecked(),
+                    )
+                }
+            }
+        }
+
+        #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
+        impl<'py> crate::conversion::IntoPyObject<'py> for &Complex<$float> {
+            type Target = PyComplex;
+            type Output = Bound<'py, Self::Target>;
+            type Error = std::convert::Infallible;
+
+            #[inline]
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                (*self).into_pyobject(py)
             }
         }
 
@@ -198,6 +217,7 @@ complex_conversion!(f64);
 mod tests {
     use super::*;
     use crate::types::{complex::PyComplexMethods, PyModule};
+    use pyo3_ffi::c_str;
 
     #[test]
     fn from_complex() {
@@ -226,18 +246,20 @@ mod tests {
     #[test]
     fn from_python_magic() {
         Python::with_gil(|py| {
-            let module = PyModule::from_code_bound(
+            let module = PyModule::from_code(
                 py,
-                r#"
+                c_str!(
+                    r#"
 class A:
     def __complex__(self): return 3.0+1.2j
 class B:
     def __float__(self): return 3.0
 class C:
     def __index__(self): return 3
-                "#,
-                "test.py",
-                "test",
+                "#
+                ),
+                c_str!("test.py"),
+                c_str!("test"),
             )
             .unwrap();
             let from_complex = module.getattr("A").unwrap().call0().unwrap();
@@ -264,9 +286,10 @@ class C:
     #[test]
     fn from_python_inherited_magic() {
         Python::with_gil(|py| {
-            let module = PyModule::from_code_bound(
+            let module = PyModule::from_code(
                 py,
-                r#"
+                c_str!(
+                    r#"
 class First: pass
 class ComplexMixin:
     def __complex__(self): return 3.0+1.2j
@@ -277,9 +300,10 @@ class IndexMixin:
 class A(First, ComplexMixin): pass
 class B(First, FloatMixin): pass
 class C(First, IndexMixin): pass
-                "#,
-                "test.py",
-                "test",
+                "#
+                ),
+                c_str!("test.py"),
+                c_str!("test"),
             )
             .unwrap();
             let from_complex = module.getattr("A").unwrap().call0().unwrap();
@@ -308,16 +332,18 @@ class C(First, IndexMixin): pass
         // `type(inst).attr(inst)` equivalent to `inst.attr()` for methods, but this isn't the only
         // way the descriptor protocol might be implemented.
         Python::with_gil(|py| {
-            let module = PyModule::from_code_bound(
+            let module = PyModule::from_code(
                 py,
-                r#"
+                c_str!(
+                    r#"
 class A:
     @property
     def __complex__(self):
         return lambda: 3.0+1.2j
-                "#,
-                "test.py",
-                "test",
+                "#
+                ),
+                c_str!("test.py"),
+                c_str!("test"),
             )
             .unwrap();
             let obj = module.getattr("A").unwrap().call0().unwrap();
@@ -331,16 +357,18 @@ class A:
     fn from_python_nondescriptor_magic() {
         // Magic methods don't need to implement the descriptor protocol, if they're callable.
         Python::with_gil(|py| {
-            let module = PyModule::from_code_bound(
+            let module = PyModule::from_code(
                 py,
-                r#"
+                c_str!(
+                    r#"
 class MyComplex:
     def __call__(self): return 3.0+1.2j
 class A:
     __complex__ = MyComplex()
-                "#,
-                "test.py",
-                "test",
+                "#
+                ),
+                c_str!("test.py"),
+                c_str!("test"),
             )
             .unwrap();
             let obj = module.getattr("A").unwrap().call0().unwrap();

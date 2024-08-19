@@ -685,7 +685,7 @@ mod return_not_implemented {
             py_expect_exception!(
                 py,
                 c2,
-                &format!("class Other: pass\nc2 {} Other()", operator),
+                format!("class Other: pass\nc2 {} Other()", operator),
                 PyTypeError
             );
         });

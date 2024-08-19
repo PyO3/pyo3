@@ -13,8 +13,7 @@ fn double(x: usize) -> usize {
 /// This module is implemented in Rust.
 #[pymodule]
 fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(double, m)?)?;
-    Ok(())
+    m.add_function(wrap_pyfunction!(double, m)?)
 }
 ```
 
@@ -32,11 +31,9 @@ fn double(x: usize) -> usize {
     x * 2
 }
 
-#[pymodule]
-#[pyo3(name = "custom_name")]
+#[pymodule(name = "custom_name")]
 fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(double, m)?)?;
-    Ok(())
+    m.add_function(wrap_pyfunction!(double, m)?)
 }
 ```
 
@@ -78,10 +75,9 @@ fn parent_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 }
 
 fn register_child_module(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
-    let child_module = PyModule::new_bound(parent_module.py(), "child_module")?;
+    let child_module = PyModule::new(parent_module.py(), "child_module")?;
     child_module.add_function(wrap_pyfunction!(func, &child_module)?)?;
-    parent_module.add_submodule(&child_module)?;
-    Ok(())
+    parent_module.add_submodule(&child_module)
 }
 
 #[pyfunction]
@@ -92,10 +88,11 @@ fn func() -> String {
 # Python::with_gil(|py| {
 #    use pyo3::wrap_pymodule;
 #    use pyo3::types::IntoPyDict;
+#    use pyo3::ffi::c_str;
 #    let parent_module = wrap_pymodule!(parent_module)(py);
-#    let ctx = [("parent_module", parent_module)].into_py_dict_bound(py);
+#    let ctx = [("parent_module", parent_module)].into_py_dict(py);
 #
-#    py.run_bound("assert parent_module.child_module.func() == 'func'", None, Some(&ctx)).unwrap();
+#    py.run(c_str!("assert parent_module.child_module.func() == 'func'"), None, Some(&ctx)).unwrap();
 # })
 ```
 
@@ -143,8 +140,7 @@ mod my_extension {
     #[pymodule_init]
     fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
         // Arbitrary code to run at the module initialization
-        m.add("double2", m.getattr("double")?)?;
-        Ok(())
+        m.add("double2", m.getattr("double")?)
     }
 }
 # }
@@ -155,7 +151,6 @@ For nested modules, the name of the parent module is automatically added.
 In the following example, the `Unit` class will have for `module` `my_extension.submodule` because it is properly nested
 but the `Ext` class will have for `module` the default `builtins` because it not nested.
 
-You can provide the `submodule` argument to `pymodule()` for modules that are not top-level modules.
 ```rust
 # mod declarative_module_module_attr_test {
 use pyo3::prelude::*;
@@ -170,7 +165,7 @@ mod my_extension {
     #[pymodule_export]
     use super::Ext;
 
-    #[pymodule(submodule)]
+    #[pymodule]
     mod submodule {
         use super::*;
         // This is a submodule
@@ -183,3 +178,4 @@ mod my_extension {
 ```
 It is possible to customize the `module` value for a `#[pymodule]` with the `#[pyo3(module = "MY_MODULE")]` option.
 
+You can provide the `submodule` argument to `pymodule()` for modules that are not top-level modules -- it is automatically set for modules nested inside of a `#[pymodule]`.

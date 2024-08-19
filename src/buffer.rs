@@ -19,8 +19,6 @@
 
 //! `PyBuffer` implementation
 use crate::Bound;
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{err, exceptions::PyBufferError, ffi, FromPyObject, PyAny, PyResult, Python};
 use std::marker::PhantomData;
 use std::os::raw;
@@ -191,16 +189,6 @@ impl<'py, T: Element> FromPyObject<'py> for PyBuffer<T> {
 }
 
 impl<T: Element> PyBuffer<T> {
-    /// Deprecated form of [`PyBuffer::get_bound`]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyBuffer::get` will be replaced by `PyBuffer::get_bound` in a future PyO3 version"
-    )]
-    pub fn get(obj: &PyAny) -> PyResult<PyBuffer<T>> {
-        Self::get_bound(&obj.as_borrowed())
-    }
-
     /// Gets the underlying buffer from the specified python object.
     pub fn get_bound(obj: &Bound<'_, PyAny>) -> PyResult<PyBuffer<T>> {
         // TODO: use nightly API Box::new_uninit() once stable
@@ -697,7 +685,7 @@ mod tests {
     #[test]
     fn test_debug() {
         Python::with_gil(|py| {
-            let bytes = py.eval_bound("b'abcde'", None, None).unwrap();
+            let bytes = py.eval(ffi::c_str!("b'abcde'"), None, None).unwrap();
             let buffer: PyBuffer<u8> = PyBuffer::get_bound(&bytes).unwrap();
             let expected = format!(
                 concat!(
@@ -859,7 +847,7 @@ mod tests {
     #[test]
     fn test_bytes_buffer() {
         Python::with_gil(|py| {
-            let bytes = py.eval_bound("b'abcde'", None, None).unwrap();
+            let bytes = py.eval(ffi::c_str!("b'abcde'"), None, None).unwrap();
             let buffer = PyBuffer::get_bound(&bytes).unwrap();
             assert_eq!(buffer.dimensions(), 1);
             assert_eq!(buffer.item_count(), 5);
@@ -892,7 +880,7 @@ mod tests {
     fn test_array_buffer() {
         Python::with_gil(|py| {
             let array = py
-                .import_bound("array")
+                .import("array")
                 .unwrap()
                 .call_method("array", ("f", (1.0, 1.5, 2.0, 2.5)), None)
                 .unwrap();

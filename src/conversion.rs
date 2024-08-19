@@ -5,15 +5,10 @@ use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
-use crate::{ffi, Borrowed, Bound, Py, PyAny, PyClass, PyObject, PyRef, PyRefMut, Python};
-#[cfg(feature = "gil-refs")]
-use {
-    crate::{
-        err::{self, PyDowncastError},
-        gil, PyNativeType,
-    },
-    std::ptr::NonNull,
+use crate::{
+    ffi, Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyErr, PyObject, PyRef, PyRefMut, Python,
 };
+use std::convert::Infallible;
 
 /// Returns a borrowed pointer to a Python object.
 ///
@@ -87,6 +82,7 @@ pub trait ToPyObject {
 /// ```rust
 /// use pyo3::prelude::*;
 ///
+/// # #[allow(dead_code)]
 /// #[pyclass]
 /// struct Number {
 ///     #[pyo3(get, set)]
@@ -178,6 +174,153 @@ pub trait IntoPy<T>: Sized {
     }
 }
 
+/// Defines a conversion from a Rust type to a Python object, which may fail.
+///
+/// It functions similarly to std's [`TryInto`] trait, but requires a [GIL token](Python)
+/// as an argument.
+#[cfg_attr(
+    diagnostic_namespace,
+    diagnostic::on_unimplemented(
+        message = "`{Self}` cannot be converted to a Python object",
+        note = "`IntoPyObject` is automatically implemented by the `#[pyclass]` macro",
+        note = "if you do not wish to have a corresponding Python type, implement it manually",
+        note = "if you do not own `{Self}` you can perform a manual conversion to one of the types in `pyo3::types::*`"
+    )
+)]
+pub trait IntoPyObject<'py>: Sized {
+    /// The Python output type
+    type Target;
+    /// The smart pointer type to use.
+    ///
+    /// This will usually be [`Bound<'py, Target>`], but can special cases `&'a Bound<'py, Target>`
+    /// or [`Borrowed<'a, 'py, Target>`] can be used to minimize reference counting overhead.
+    type Output: BoundObject<'py, Self::Target>;
+    /// The type returned in the event of a conversion error.
+    type Error;
+
+    /// Performs the conversion.
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error>;
+
+    /// Converts sequence of Self into a Python object. Used to specialize `Vec<u8>`, `[u8; N]`
+    /// and `SmallVec<[u8; N]>` as a sequence of bytes into a `bytes` object.
+    #[doc(hidden)]
+    fn owned_sequence_into_pyobject<I>(
+        iter: I,
+        py: Python<'py>,
+        _: private::Token,
+    ) -> Result<Bound<'py, PyAny>, PyErr>
+    where
+        I: IntoIterator<Item = Self> + AsRef<[Self]>,
+        I::IntoIter: ExactSizeIterator<Item = Self>,
+        PyErr: From<Self::Error>,
+    {
+        let mut iter = iter.into_iter().map(|e| {
+            e.into_pyobject(py)
+                .map(BoundObject::into_any)
+                .map(BoundObject::unbind)
+                .map_err(Into::into)
+        });
+        let list = crate::types::list::try_new_from_iter(py, &mut iter);
+        list.map(Bound::into_any)
+    }
+
+    /// Converts sequence of Self into a Python object. Used to specialize `&[u8]` and `Cow<[u8]>`
+    /// as a sequence of bytes into a `bytes` object.
+    #[doc(hidden)]
+    fn borrowed_sequence_into_pyobject<I>(
+        iter: I,
+        py: Python<'py>,
+        _: private::Token,
+    ) -> Result<Bound<'py, PyAny>, PyErr>
+    where
+        Self: private::Reference,
+        I: IntoIterator<Item = Self> + AsRef<[<Self as private::Reference>::BaseType]>,
+        I::IntoIter: ExactSizeIterator<Item = Self>,
+        PyErr: From<Self::Error>,
+    {
+        let mut iter = iter.into_iter().map(|e| {
+            e.into_pyobject(py)
+                .map(BoundObject::into_any)
+                .map(BoundObject::unbind)
+                .map_err(Into::into)
+        });
+        let list = crate::types::list::try_new_from_iter(py, &mut iter);
+        list.map(Bound::into_any)
+    }
+}
+
+pub(crate) mod private {
+    pub struct Token;
+
+    pub trait Reference {
+        type BaseType;
+    }
+
+    impl<T> Reference for &'_ T {
+        type BaseType = T;
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for Bound<'py, T> {
+    type Target = T;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self)
+    }
+}
+
+impl<'a, 'py, T> IntoPyObject<'py> for &'a Bound<'py, T> {
+    type Target = T;
+    type Output = &'a Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self)
+    }
+}
+
+impl<'a, 'py, T> IntoPyObject<'py> for Borrowed<'a, 'py, T> {
+    type Target = T;
+    type Output = Borrowed<'a, 'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self)
+    }
+}
+
+impl<'a, 'py, T> IntoPyObject<'py> for &Borrowed<'a, 'py, T> {
+    type Target = T;
+    type Output = Borrowed<'a, 'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(*self)
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for Py<T> {
+    type Target = T;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self.into_bound(py))
+    }
+}
+
+impl<'a, 'py, T> IntoPyObject<'py> for &'a Py<T> {
+    type Target = T;
+    type Output = Borrowed<'a, 'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self.bind_borrowed(py))
+    }
+}
+
 /// Extract a type from a Python object.
 ///
 ///
@@ -192,7 +335,7 @@ pub trait IntoPy<T>: Sized {
 /// # fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
 ///     // Calling `.extract()` on a `Bound` smart pointer
-///     let obj: Bound<'_, PyString> = PyString::new_bound(py, "blah");
+///     let obj: Bound<'_, PyString> = PyString::new(py, "blah");
 ///     let s: String = obj.extract()?;
 /// #   assert_eq!(s, "blah");
 ///
@@ -223,15 +366,6 @@ pub trait IntoPy<T>: Sized {
 /// infinite recursion, implementors must implement at least one of these methods. The recommendation
 /// is to implement `extract_bound` and leave `extract` as the default implementation.
 pub trait FromPyObject<'py>: Sized {
-    /// Extracts `Self` from the source GIL Ref `obj`.
-    ///
-    /// Implementors are encouraged to implement `extract_bound` and leave this method as the
-    /// default implementation, which will forward calls to `extract_bound`.
-    #[cfg(feature = "gil-refs")]
-    fn extract(ob: &'py PyAny) -> PyResult<Self> {
-        Self::extract_bound(&ob.as_borrowed())
-    }
-
     /// Extracts `Self` from the bound smart pointer `obj`.
     ///
     /// Implementors are encouraged to implement this method and leave `extract` defaulted, as
@@ -261,13 +395,9 @@ mod from_py_object_bound_sealed {
     // This generic implementation is why the seal is separate from
     // `crate::sealed::Sealed`.
     impl<'py, T> Sealed for T where T: super::FromPyObject<'py> {}
-    #[cfg(not(feature = "gil-refs"))]
     impl Sealed for &'_ str {}
-    #[cfg(not(feature = "gil-refs"))]
     impl Sealed for std::borrow::Cow<'_, str> {}
-    #[cfg(not(feature = "gil-refs"))]
     impl Sealed for &'_ [u8] {}
-    #[cfg(not(feature = "gil-refs"))]
     impl Sealed for std::borrow::Cow<'_, [u8]> {}
 }
 
@@ -339,34 +469,6 @@ impl<T: ?Sized + ToPyObject> ToPyObject for &'_ T {
     }
 }
 
-impl IntoPy<PyObject> for &'_ PyAny {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
-    }
-}
-
-impl<T> IntoPy<PyObject> for &'_ T
-where
-    T: AsRef<PyAny>,
-{
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, self.as_ref().as_ptr()) }
-    }
-}
-
-#[allow(deprecated)]
-#[cfg(feature = "gil-refs")]
-impl<'py, T> FromPyObject<'py> for &'py crate::PyCell<T>
-where
-    T: PyClass,
-{
-    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
-        obj.clone().into_gil_ref().downcast().map_err(Into::into)
-    }
-}
-
 impl<T> FromPyObject<'_> for T
 where
     T: PyClass + Clone,
@@ -395,257 +497,20 @@ where
     }
 }
 
-/// Trait implemented by Python object types that allow a checked downcast.
-/// If `T` implements `PyTryFrom`, we can convert `&PyAny` to `&T`.
-///
-/// This trait is similar to `std::convert::TryFrom`
-#[cfg(feature = "gil-refs")]
-#[deprecated(since = "0.21.0")]
-pub trait PyTryFrom<'v>: Sized + PyNativeType {
-    /// Cast from a concrete Python object type to PyObject.
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `value.downcast::<T>()` instead of `T::try_from(value)`"
-    )]
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError<'v>>;
-
-    /// Cast from a concrete Python object type to PyObject. With exact type check.
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `value.downcast_exact::<T>()` instead of `T::try_from_exact(value)`"
-    )]
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError<'v>>;
-
-    /// Cast a PyAny to a specific type of PyObject. The caller must
-    /// have already verified the reference is for this type.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that the type is valid or risk type confusion.
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `value.downcast_unchecked::<T>()` instead of `T::try_from_unchecked(value)`"
-    )]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self;
-}
-
-/// Trait implemented by Python object types that allow a checked downcast.
-/// This trait is similar to `std::convert::TryInto`
-#[cfg(feature = "gil-refs")]
-#[deprecated(since = "0.21.0")]
-pub trait PyTryInto<T>: Sized {
-    /// Cast from PyObject to a concrete Python object type.
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `value.downcast()` instead of `value.try_into()`"
-    )]
-    fn try_into(&self) -> Result<&T, PyDowncastError<'_>>;
-
-    /// Cast from PyObject to a concrete Python object type. With exact type check.
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `value.downcast()` instead of `value.try_into_exact()`"
-    )]
-    fn try_into_exact(&self) -> Result<&T, PyDowncastError<'_>>;
-}
-
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-mod implementations {
-    use super::*;
-    use crate::type_object::PyTypeInfo;
-
-    // TryFrom implies TryInto
-    impl<U> PyTryInto<U> for PyAny
-    where
-        U: for<'v> PyTryFrom<'v>,
-    {
-        fn try_into(&self) -> Result<&U, PyDowncastError<'_>> {
-            <U as PyTryFrom<'_>>::try_from(self)
-        }
-        fn try_into_exact(&self) -> Result<&U, PyDowncastError<'_>> {
-            U::try_from_exact(self)
-        }
-    }
-
-    impl<'v, T> PyTryFrom<'v> for T
-    where
-        T: PyTypeInfo<AsRefTarget = Self> + PyNativeType,
-    {
-        fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError<'v>> {
-            value.into().downcast()
-        }
-
-        fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError<'v>> {
-            value.into().downcast_exact()
-        }
-
-        #[inline]
-        unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self {
-            value.into().downcast_unchecked()
-        }
-    }
-
-    impl<'v, T> PyTryFrom<'v> for crate::PyCell<T>
-    where
-        T: 'v + PyClass,
-    {
-        fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError<'v>> {
-            value.into().downcast()
-        }
-        fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError<'v>> {
-            let value = value.into();
-            unsafe {
-                if T::is_exact_type_of(value) {
-                    Ok(Self::try_from_unchecked(value))
-                } else {
-                    Err(PyDowncastError::new(value, T::NAME))
-                }
-            }
-        }
-        #[inline]
-        unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self {
-            value.into().downcast_unchecked()
-        }
-    }
-}
-
 /// Converts `()` to an empty Python tuple.
 impl IntoPy<Py<PyTuple>> for () {
     fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
-        PyTuple::empty_bound(py).unbind()
+        PyTuple::empty(py).unbind()
     }
 }
 
-/// Raw level conversion between `*mut ffi::PyObject` and PyO3 types.
-///
-/// # Safety
-///
-/// See safety notes on individual functions.
-#[cfg(feature = "gil-refs")]
-#[deprecated(since = "0.21.0")]
-pub unsafe trait FromPyPointer<'p>: Sized {
-    /// Convert from an arbitrary `PyObject`.
-    ///
-    /// # Safety
-    ///
-    /// Implementations must ensure the object does not get freed during `'p`
-    /// and ensure that `ptr` is of the correct type.
-    /// Note that it must be safe to decrement the reference count of `ptr`.
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_owned_ptr_or_opt(py, ptr)` or `Bound::from_owned_ptr_or_opt(py, ptr)` instead"
-    )]
-    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self>;
-    /// Convert from an arbitrary `PyObject` or panic.
-    ///
-    /// # Safety
-    ///
-    /// Relies on [`from_owned_ptr_or_opt`](#method.from_owned_ptr_or_opt).
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_owned_ptr(py, ptr)` or `Bound::from_owned_ptr(py, ptr)` instead"
-    )]
-    unsafe fn from_owned_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
-        #[allow(deprecated)]
-        Self::from_owned_ptr_or_opt(py, ptr).unwrap_or_else(|| err::panic_after_error(py))
-    }
-    /// Convert from an arbitrary `PyObject` or panic.
-    ///
-    /// # Safety
-    ///
-    /// Relies on [`from_owned_ptr_or_opt`](#method.from_owned_ptr_or_opt).
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_owned_ptr(py, ptr)` or `Bound::from_owned_ptr(py, ptr)` instead"
-    )]
-    unsafe fn from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
-        #[allow(deprecated)]
-        Self::from_owned_ptr_or_panic(py, ptr)
-    }
-    /// Convert from an arbitrary `PyObject`.
-    ///
-    /// # Safety
-    ///
-    /// Relies on [`from_owned_ptr_or_opt`](#method.from_owned_ptr_or_opt).
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_owned_ptr_or_err(py, ptr)` or `Bound::from_owned_ptr_or_err(py, ptr)` instead"
-    )]
-    unsafe fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyResult<&'p Self> {
-        #[allow(deprecated)]
-        Self::from_owned_ptr_or_opt(py, ptr).ok_or_else(|| err::PyErr::fetch(py))
-    }
-    /// Convert from an arbitrary borrowed `PyObject`.
-    ///
-    /// # Safety
-    ///
-    /// Implementations must ensure the object does not get freed during `'p` and avoid type confusion.
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_borrowed_ptr_or_opt(py, ptr)` or `Bound::from_borrowed_ptr_or_opt(py, ptr)` instead"
-    )]
-    unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject)
-        -> Option<&'p Self>;
-    /// Convert from an arbitrary borrowed `PyObject`.
-    ///
-    /// # Safety
-    ///
-    /// Relies on unsafe fn [`from_borrowed_ptr_or_opt`](#method.from_borrowed_ptr_or_opt).
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_borrowed_ptr(py, ptr)` or `Bound::from_borrowed_ptr(py, ptr)` instead"
-    )]
-    unsafe fn from_borrowed_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
-        #[allow(deprecated)]
-        Self::from_borrowed_ptr_or_opt(py, ptr).unwrap_or_else(|| err::panic_after_error(py))
-    }
-    /// Convert from an arbitrary borrowed `PyObject`.
-    ///
-    /// # Safety
-    ///
-    /// Relies on unsafe fn [`from_borrowed_ptr_or_opt`](#method.from_borrowed_ptr_or_opt).
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_borrowed_ptr(py, ptr)` or `Bound::from_borrowed_ptr(py, ptr)` instead"
-    )]
-    unsafe fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
-        #[allow(deprecated)]
-        Self::from_borrowed_ptr_or_panic(py, ptr)
-    }
-    /// Convert from an arbitrary borrowed `PyObject`.
-    ///
-    /// # Safety
-    ///
-    /// Relies on unsafe fn [`from_borrowed_ptr_or_opt`](#method.from_borrowed_ptr_or_opt).
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_borrowed_ptr_or_err(py, ptr)` or `Bound::from_borrowed_ptr_or_err(py, ptr)` instead"
-    )]
-    unsafe fn from_borrowed_ptr_or_err(
-        py: Python<'p>,
-        ptr: *mut ffi::PyObject,
-    ) -> PyResult<&'p Self> {
-        #[allow(deprecated)]
-        Self::from_borrowed_ptr_or_opt(py, ptr).ok_or_else(|| err::PyErr::fetch(py))
-    }
-}
+impl<'py> IntoPyObject<'py> for () {
+    type Target = PyTuple;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
 
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-unsafe impl<'p, T> FromPyPointer<'p> for T
-where
-    T: 'p + crate::PyNativeType,
-{
-    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self> {
-        gil::register_owned(py, NonNull::new(ptr)?);
-        Some(&*(ptr as *mut Self))
-    }
-    unsafe fn from_borrowed_ptr_or_opt(
-        _py: Python<'p>,
-        ptr: *mut ffi::PyObject,
-    ) -> Option<&'p Self> {
-        NonNull::new(ptr as *mut Self).map(|p| &*p.as_ptr())
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PyTuple::empty(py))
     }
 }
 
@@ -665,51 +530,3 @@ where
 /// })
 /// ```
 mod test_no_clone {}
-
-#[cfg(test)]
-mod tests {
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    mod deprecated {
-        use super::super::PyTryFrom;
-        use crate::types::{IntoPyDict, PyAny, PyDict, PyList};
-        use crate::{Python, ToPyObject};
-
-        #[test]
-        fn test_try_from() {
-            Python::with_gil(|py| {
-                let list: &PyAny = vec![3, 6, 5, 4, 7].to_object(py).into_ref(py);
-                let dict: &PyAny = vec![("reverse", true)].into_py_dict(py).as_ref();
-
-                assert!(<PyList as PyTryFrom<'_>>::try_from(list).is_ok());
-                assert!(<PyDict as PyTryFrom<'_>>::try_from(dict).is_ok());
-
-                assert!(<PyAny as PyTryFrom<'_>>::try_from(list).is_ok());
-                assert!(<PyAny as PyTryFrom<'_>>::try_from(dict).is_ok());
-            });
-        }
-
-        #[test]
-        fn test_try_from_exact() {
-            Python::with_gil(|py| {
-                let list: &PyAny = vec![3, 6, 5, 4, 7].to_object(py).into_ref(py);
-                let dict: &PyAny = vec![("reverse", true)].into_py_dict(py).as_ref();
-
-                assert!(PyList::try_from_exact(list).is_ok());
-                assert!(PyDict::try_from_exact(dict).is_ok());
-
-                assert!(PyAny::try_from_exact(list).is_err());
-                assert!(PyAny::try_from_exact(dict).is_err());
-            });
-        }
-
-        #[test]
-        fn test_try_from_unchecked() {
-            Python::with_gil(|py| {
-                let list = PyList::new(py, [1, 2, 3]);
-                let val = unsafe { <PyList as PyTryFrom>::try_from_unchecked(list.as_ref()) };
-                assert!(list.is(val));
-            });
-        }
-    }
-}

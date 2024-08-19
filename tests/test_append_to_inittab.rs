@@ -22,18 +22,20 @@ mod module_mod_with_functions {
 #[cfg(not(PyPy))]
 #[test]
 fn test_module_append_to_inittab() {
-    use pyo3::append_to_inittab;
+    use pyo3::{append_to_inittab, ffi};
 
     append_to_inittab!(module_fn_with_functions);
 
     append_to_inittab!(module_mod_with_functions);
 
     Python::with_gil(|py| {
-        py.run_bound(
-            r#"
+        py.run(
+            ffi::c_str!(
+                r#"
 import module_fn_with_functions
 assert module_fn_with_functions.foo() == 123
-"#,
+"#
+            ),
             None,
             None,
         )
@@ -42,11 +44,13 @@ assert module_fn_with_functions.foo() == 123
     });
 
     Python::with_gil(|py| {
-        py.run_bound(
-            r#"
+        py.run(
+            ffi::c_str!(
+                r#"
 import module_mod_with_functions
 assert module_mod_with_functions.foo() == 123
-"#,
+"#
+            ),
             None,
             None,
         )

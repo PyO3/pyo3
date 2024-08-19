@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Now we can load our python_plugin/gadget_init_plugin.py file.
         // It can in turn import other stuff as it deems appropriate
-        let plugin = PyModule::import_bound(py, "gadget_init_plugin")?;
+        let plugin = PyModule::import(py, "gadget_init_plugin")?;
         // and call start function there, which will return a python reference to Gadget.
         // Gadget here is a "pyclass" object reference
         let gadget = plugin.getattr("start")?.call0()?;

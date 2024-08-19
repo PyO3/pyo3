@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::utils::Ctx;
+use crate::utils::{has_attribute, has_attribute_with_namespace, Ctx, PyO3CratePath};
 use crate::{
     attributes::{take_pyo3_options, CrateAttribute},
     konst::{ConstAttributes, ConstSpec},
@@ -10,6 +10,7 @@ use crate::{
 use proc_macro2::TokenStream;
 use pymethod::GeneratedPyMethod;
 use quote::{format_ident, quote};
+use syn::ImplItemFn;
 use syn::{
     parse::{Parse, ParseStream},
     spanned::Spanned,
@@ -84,6 +85,25 @@ pub fn build_py_methods(
     }
 }
 
+fn check_pyfunction(pyo3_path: &PyO3CratePath, meth: &mut ImplItemFn) -> syn::Result<()> {
+    let mut error = None;
+
+    meth.attrs.retain(|attr| {
+        let attrs = [attr.clone()];
+
+        if has_attribute(&attrs, "pyfunction")
+            || has_attribute_with_namespace(&attrs, Some(pyo3_path),  &["pyfunction"])
+            || has_attribute_with_namespace(&attrs, Some(pyo3_path),  &["prelude", "pyfunction"]) {
+                error = Some(err_spanned!(meth.sig.span() => "functions inside #[pymethods] do not need to be annotated with #[pyfunction]"));
+                false
+        } else {
+            true
+        }
+    });
+
+    error.map_or(Ok(()), Err)
+}
+
 pub fn impl_methods(
     ty: &syn::Type,
     impls: &mut [syn::ImplItem],
@@ -103,6 +123,9 @@ pub fn impl_methods(
                 let ctx = &Ctx::new(&options.krate, Some(&meth.sig));
                 let mut fun_options = PyFunctionOptions::from_attrs(&mut meth.attrs)?;
                 fun_options.krate = fun_options.krate.or_else(|| options.krate.clone());
+
+                check_pyfunction(&ctx.pyo3_path, meth)?;
+
                 match pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs, fun_options, ctx)?
                 {
                     GeneratedPyMethod::Method(MethodAndMethodDef {
@@ -130,7 +153,7 @@ pub fn impl_methods(
             }
             syn::ImplItem::Const(konst) => {
                 let ctx = &Ctx::new(&options.krate, None);
-                let attributes = ConstAttributes::from_attrs(&mut konst.attrs, ctx)?;
+                let attributes = ConstAttributes::from_attrs(&mut konst.attrs)?;
                 if attributes.is_class_attr {
                     let spec = ConstSpec {
                         rust_ident: konst.ident.clone(),
@@ -182,24 +205,22 @@ pub fn impl_methods(
     })
 }
 
-pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec<'_>, ctx: &Ctx) -> MethodAndMethodDef {
+pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec, ctx: &Ctx) -> MethodAndMethodDef {
     let member = &spec.rust_ident;
     let wrapper_ident = format_ident!("__pymethod_{}__", member);
-    let deprecations = &spec.attributes.deprecations;
     let python_name = spec.null_terminated_python_name(ctx);
     let Ctx { pyo3_path, .. } = ctx;
 
     let associated_method = quote! {
         fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
-            #deprecations
             ::std::result::Result::Ok(#pyo3_path::IntoPy::into_py(#cls::#member, py))
         }
     };
 
     let method_def = quote! {
         #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
-            #pyo3_path::class::PyMethodDefType::ClassAttribute({
-                #pyo3_path::class::PyClassAttributeDef::new(
+            #pyo3_path::impl_::pymethods::PyMethodDefType::ClassAttribute({
+                #pyo3_path::impl_::pymethods::PyClassAttributeDef::new(
                     #python_name,
                     #cls::#wrapper_ident
                 )

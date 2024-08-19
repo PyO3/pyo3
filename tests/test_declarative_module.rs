@@ -35,7 +35,7 @@ impl ValueClass {
 }
 
 #[pyclass(module = "module")]
-struct LocatedClass {}
+pub struct LocatedClass {}
 
 #[pyfunction]
 fn double(x: usize) -> usize {
@@ -49,8 +49,7 @@ create_exception!(
     "Some description."
 );
 
-#[pymodule]
-#[pyo3(submodule)]
+#[pymodule(submodule)]
 mod external_submodule {}
 
 /// A module written using declarative syntax.
@@ -115,7 +114,7 @@ mod declarative_module {
         }
     }
 
-    #[pymodule(submodule)]
+    #[pymodule]
     #[pyo3(module = "custom_root")]
     mod inner_custom_root {
         use super::*;
@@ -123,6 +122,9 @@ mod declarative_module {
         #[pyclass]
         struct Struct;
     }
+
+    #[pyo3::prelude::pymodule]
+    mod full_path_inner {}
 
     #[pymodule_init]
     fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -141,8 +143,7 @@ mod declarative_submodule {
     use super::{double, double_value};
 }
 
-#[pymodule]
-#[pyo3(name = "declarative_module_renamed")]
+#[pymodule(name = "declarative_module_renamed")]
 mod declarative_module2 {
     #[pymodule_export]
     use super::double;
@@ -245,5 +246,13 @@ fn test_module_names() {
             m,
             "m.inner_custom_root.Struct.__module__ == 'custom_root.inner_custom_root'"
         );
+    })
+}
+
+#[test]
+fn test_inner_module_full_path() {
+    Python::with_gil(|py| {
+        let m = declarative_module(py);
+        py_assert!(py, m, "m.full_path_inner");
     })
 }

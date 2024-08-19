@@ -95,7 +95,7 @@ impl Coroutine {
         match panic::catch_unwind(panic::AssertUnwindSafe(poll)) {
             Ok(Poll::Ready(res)) => {
                 self.close();
-                return Err(PyStopIteration::new_err(res?));
+                return Err(PyStopIteration::new_err((res?,)));
             }
             Err(err) => {
                 self.close();
@@ -107,7 +107,7 @@ impl Coroutine {
         if let Some(future) = self.waker.as_ref().unwrap().initialize_future(py)? {
             // `asyncio.Future` must be awaited; fortunately, it implements `__iter__ = __await__`
             // and will yield itself if its result has not been set in polling above
-            if let Some(future) = PyIterator::from_bound_object(&future.as_borrowed())
+            if let Some(future) = PyIterator::from_object(&future.as_borrowed())
                 .unwrap()
                 .next()
             {

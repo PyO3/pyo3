@@ -12,7 +12,7 @@ use std::{
 use crate::gil::GILGuard;
 use crate::{
     callback::PyCallbackOutput, ffi, ffi_ptr_ext::FfiPtrExt, impl_::panic::PanicTrap,
-    methods::IPowModulo, panic::PanicException, types::PyModule, Py, PyResult, Python,
+    impl_::pymethods::IPowModulo, panic::PanicException, types::PyModule, Py, PyResult, Python,
 };
 
 #[inline]

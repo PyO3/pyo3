@@ -13,7 +13,7 @@ struct EmptyClass {}
 #[test]
 fn empty_class() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<EmptyClass>();
+        let typeobj = py.get_type::<EmptyClass>();
         // By default, don't allow creating instances from python.
         assert!(typeobj.call((), None).is_err());
 
@@ -27,7 +27,7 @@ struct UnitClass;
 #[test]
 fn unit_class() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<UnitClass>();
+        let typeobj = py.get_type::<UnitClass>();
         // By default, don't allow creating instances from python.
         assert!(typeobj.call((), None).is_err());
 
@@ -58,7 +58,7 @@ struct ClassWithDocs {
 #[test]
 fn class_with_docstr() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<ClassWithDocs>();
+        let typeobj = py.get_type::<ClassWithDocs>();
         py_run!(
             py,
             typeobj,
@@ -104,7 +104,7 @@ impl EmptyClass2 {
 #[test]
 fn custom_names() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<EmptyClass2>();
+        let typeobj = py.get_type::<EmptyClass2>();
         py_assert!(py, typeobj, "typeobj.__name__ == 'CustomName'");
         py_assert!(py, typeobj, "typeobj.custom_fn.__name__ == 'custom_fn'");
         py_assert!(
@@ -142,7 +142,7 @@ impl ClassRustKeywords {
 #[test]
 fn keyword_names() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<ClassRustKeywords>();
+        let typeobj = py.get_type::<ClassRustKeywords>();
         py_assert!(py, typeobj, "typeobj.__name__ == 'loop'");
         py_assert!(py, typeobj, "typeobj.struct.__name__ == 'struct'");
         py_assert!(py, typeobj, "typeobj.type.__name__ == 'type'");
@@ -167,7 +167,7 @@ impl RawIdents {
 #[test]
 fn test_raw_idents() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<RawIdents>();
+        let typeobj = py.get_type::<RawIdents>();
         py_assert!(py, typeobj, "not hasattr(typeobj, 'r#fn')");
         py_assert!(py, typeobj, "hasattr(typeobj, 'fn')");
         py_assert!(py, typeobj, "hasattr(typeobj, 'type')");
@@ -184,7 +184,7 @@ struct EmptyClassInModule {}
 #[ignore]
 fn empty_class_in_module() {
     Python::with_gil(|py| {
-        let module = PyModule::new_bound(py, "test_module.nested").unwrap();
+        let module = PyModule::new(py, "test_module.nested").unwrap();
         module.add_class::<EmptyClassInModule>().unwrap();
 
         let ty = module.getattr("EmptyClassInModule").unwrap();
@@ -221,7 +221,7 @@ impl ClassWithObjectField {
 #[test]
 fn class_with_object_field() {
     Python::with_gil(|py| {
-        let ty = py.get_type_bound::<ClassWithObjectField>();
+        let ty = py.get_type::<ClassWithObjectField>();
         py_assert!(py, ty, "ty(5).value == 5");
         py_assert!(py, ty, "ty(None).value == None");
     });
@@ -249,7 +249,7 @@ fn class_with_hash() {
             ("obj", Py::new(py, class).unwrap().into_any()),
             ("hsh", hash.into_py(py)),
         ]
-        .into_py_dict_bound(py);
+        .into_py_dict(py);
 
         py_assert!(py, *env, "hash(obj) == hsh");
     });
@@ -288,7 +288,7 @@ impl UnsendableChild {
 
 fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
     let (keep_obj_here, obj) = Python::with_gil(|py| -> PyResult<_> {
-        let obj: Py<T> = PyType::new_bound::<T>(py).call1((5,))?.extract()?;
+        let obj: Py<T> = PyType::new::<T>(py).call1((5,))?.extract()?;
 
         // Accessing the value inside this thread should not panic
         let caught_panic =
@@ -405,7 +405,7 @@ struct TupleClass(#[pyo3(get, set, name = "value")] i32);
 #[test]
 fn test_tuple_struct_class() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<TupleClass>();
+        let typeobj = py.get_type::<TupleClass>();
         assert!(typeobj.call((), None).is_err());
 
         py_assert!(py, typeobj, "typeobj.__name__ == 'TupleClass'");

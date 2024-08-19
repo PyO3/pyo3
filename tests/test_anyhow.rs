@@ -1,6 +1,6 @@
 #![cfg(feature = "anyhow")]
 
-use pyo3::wrap_pyfunction_bound;
+use pyo3::{ffi, wrap_pyfunction};
 
 #[test]
 fn test_anyhow_py_function_ok_result() {
@@ -13,7 +13,7 @@ fn test_anyhow_py_function_ok_result() {
     }
 
     Python::with_gil(|py| {
-        let func = wrap_pyfunction_bound!(produce_ok_result)(py).unwrap();
+        let func = wrap_pyfunction!(produce_ok_result)(py).unwrap();
 
         py_run!(
             py,
@@ -36,14 +36,16 @@ fn test_anyhow_py_function_err_result() {
     }
 
     Python::with_gil(|py| {
-        let func = wrap_pyfunction_bound!(produce_err_result)(py).unwrap();
-        let locals = PyDict::new_bound(py);
+        let func = wrap_pyfunction!(produce_err_result)(py).unwrap();
+        let locals = PyDict::new(py);
         locals.set_item("func", func).unwrap();
 
-        py.run_bound(
-            r#"
+        py.run(
+            ffi::c_str!(
+                r#"
             func()
-            "#,
+            "#
+            ),
             None,
             Some(&locals),
         )

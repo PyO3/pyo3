@@ -1,14 +1,14 @@
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
     ffi,
-    impl_::freelist::FreeList,
-    impl_::pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
+    impl_::{
+        freelist::FreeList,
+        pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
+        pymethods::{PyGetterDef, PyMethodDefType},
+    },
     pyclass_init::PyObjectInit,
     types::{any::PyAnyMethods, PyBool},
-    Borrowed, IntoPy, Py, PyAny, PyClass, PyErr, PyMethodDefType, PyResult, PyTypeInfo, Python,
-    ToPyObject,
+    Borrowed, IntoPy, Py, PyAny, PyClass, PyErr, PyResult, PyTypeInfo, Python, ToPyObject,
 };
 use std::{
     borrow::Cow,
@@ -177,11 +177,6 @@ pub trait PyClassImpl: Sized + 'static {
 
     /// The closest native ancestor. This is `PyAny` by default, and when you declare
     /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
-    #[cfg(feature = "gil-refs")]
-    type BaseNativeType: PyTypeInfo + PyNativeType;
-    /// The closest native ancestor. This is `PyAny` by default, and when you declare
-    /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
-    #[cfg(not(feature = "gil-refs"))]
     type BaseNativeType: PyTypeInfo;
 
     /// This handles following two situations:
@@ -353,6 +348,7 @@ slot_fragment_trait! {
 #[macro_export]
 macro_rules! generate_pyclass_getattro_slot {
     ($cls:ty) => {{
+        #[allow(unsafe_code)]
         unsafe extern "C" fn __wrap(
             _slf: *mut $crate::ffi::PyObject,
             attr: *mut $crate::ffi::PyObject,
@@ -436,6 +432,7 @@ macro_rules! define_pyclass_setattr_slot {
         #[macro_export]
         macro_rules! $generate_macro {
             ($cls:ty) => {{
+                #[allow(unsafe_code)]
                 unsafe extern "C" fn __wrap(
                     _slf: *mut $crate::ffi::PyObject,
                     attr: *mut $crate::ffi::PyObject,
@@ -552,6 +549,7 @@ macro_rules! define_pyclass_binary_operator_slot {
         #[macro_export]
         macro_rules! $generate_macro {
             ($cls:ty) => {{
+                #[allow(unsafe_code)]
                 unsafe extern "C" fn __wrap(
                     _slf: *mut $crate::ffi::PyObject,
                     _other: *mut $crate::ffi::PyObject,
@@ -744,6 +742,7 @@ slot_fragment_trait! {
 #[macro_export]
 macro_rules! generate_pyclass_pow_slot {
     ($cls:ty) => {{
+        #[allow(unsafe_code)]
         unsafe extern "C" fn __wrap(
             _slf: *mut $crate::ffi::PyObject,
             _other: *mut $crate::ffi::PyObject,
@@ -828,7 +827,7 @@ slot_fragment_trait! {
         // By default `__ne__` will try `__eq__` and invert the result
         let slf = Borrowed::from_ptr(py, slf);
         let other = Borrowed::from_ptr(py, other);
-        slf.eq(other).map(|is_eq| PyBool::new_bound(py, !is_eq).to_owned().into_ptr())
+        slf.eq(other).map(|is_eq| PyBool::new(py, !is_eq).to_owned().into_ptr())
     }
 }
 
@@ -868,7 +867,7 @@ macro_rules! generate_pyclass_richcompare_slot {
     ($cls:ty) => {{
         #[allow(unknown_lints, non_local_definitions)]
         impl $cls {
-            #[allow(non_snake_case)]
+            #[allow(non_snake_case, unsafe_code)]
             unsafe extern "C" fn __pymethod___richcmp____(
                 slf: *mut $crate::ffi::PyObject,
                 other: *mut $crate::ffi::PyObject,
@@ -1252,7 +1251,7 @@ impl<
                 doc: doc.as_ptr(),
             })
         } else {
-            PyMethodDefType::Getter(crate::PyGetterDef {
+            PyMethodDefType::Getter(PyGetterDef {
                 name,
                 meth: pyo3_get_value_topyobject::<ClassT, Py<U>, Offset>,
                 doc,
@@ -1266,7 +1265,7 @@ impl<ClassT: PyClass, FieldT: ToPyObject, Offset: OffsetCalculator<ClassT, Field
     PyClassGetterGenerator<ClassT, FieldT, Offset, false, true>
 {
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
-        PyMethodDefType::Getter(crate::PyGetterDef {
+        PyMethodDefType::Getter(PyGetterDef {
             name,
             meth: pyo3_get_value_topyobject::<ClassT, FieldT, Offset>,
             doc,
@@ -1295,7 +1294,7 @@ impl<ClassT: PyClass, FieldT, Offset: OffsetCalculator<ClassT, FieldT>>
     where
         FieldT: PyO3GetField,
     {
-        PyMethodDefType::Getter(crate::PyGetterDef {
+        PyMethodDefType::Getter(PyGetterDef {
             name,
             meth: pyo3_get_value::<ClassT, FieldT, Offset>,
             doc,

@@ -27,7 +27,7 @@ const _PyDateTime_TIME_DATASIZE: usize = 6;
 const _PyDateTime_DATETIME_DATASIZE: usize = 10;
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 /// Structure representing a `datetime.timedelta`.
 pub struct PyDateTime_Delta {
     pub ob_base: PyObject,
@@ -46,7 +46,7 @@ pub struct PyDateTime_Delta {
 
 #[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 /// Structure representing a `datetime.time` without a `tzinfo` member.
 pub struct _PyDateTime_BaseTime {
     pub ob_base: PyObject,
@@ -56,7 +56,7 @@ pub struct _PyDateTime_BaseTime {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 /// Structure representing a `datetime.time`.
 pub struct PyDateTime_Time {
     pub ob_base: PyObject,
@@ -77,7 +77,7 @@ pub struct PyDateTime_Time {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 /// Structure representing a `datetime.date`
 pub struct PyDateTime_Date {
     pub ob_base: PyObject,
@@ -91,7 +91,7 @@ pub struct PyDateTime_Date {
 
 #[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 /// Structure representing a `datetime.datetime` without a `tzinfo` member.
 pub struct _PyDateTime_BaseDateTime {
     pub ob_base: PyObject,
@@ -101,7 +101,7 @@ pub struct _PyDateTime_BaseDateTime {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 /// Structure representing a `datetime.datetime`.
 pub struct PyDateTime_DateTime {
     pub ob_base: PyObject,
@@ -130,8 +130,8 @@ pub struct PyDateTime_DateTime {
 /// Returns a signed integer greater than 0.
 pub unsafe fn PyDateTime_GET_YEAR(o: *mut PyObject) -> c_int {
     // This should work for Date or DateTime
-    let d = *(o as *mut PyDateTime_Date);
-    c_int::from(d.data[0]) << 8 | c_int::from(d.data[1])
+    let data = (*(o as *mut PyDateTime_Date)).data;
+    c_int::from(data[0]) << 8 | c_int::from(data[1])
 }
 
 #[inline]
@@ -139,8 +139,8 @@ pub unsafe fn PyDateTime_GET_YEAR(o: *mut PyObject) -> c_int {
 /// Retrieve the month component of a `PyDateTime_Date` or `PyDateTime_DateTime`.
 /// Returns a signed integer in the range `[1, 12]`.
 pub unsafe fn PyDateTime_GET_MONTH(o: *mut PyObject) -> c_int {
-    let d = *(o as *mut PyDateTime_Date);
-    c_int::from(d.data[2])
+    let data = (*(o as *mut PyDateTime_Date)).data;
+    c_int::from(data[2])
 }
 
 #[inline]
@@ -148,8 +148,8 @@ pub unsafe fn PyDateTime_GET_MONTH(o: *mut PyObject) -> c_int {
 /// Retrieve the day component of a `PyDateTime_Date` or `PyDateTime_DateTime`.
 /// Returns a signed integer in the interval `[1, 31]`.
 pub unsafe fn PyDateTime_GET_DAY(o: *mut PyObject) -> c_int {
-    let d = *(o as *mut PyDateTime_Date);
-    c_int::from(d.data[3])
+    let data = (*(o as *mut PyDateTime_Date)).data;
+    c_int::from(data[3])
 }
 
 // Accessor macros for times

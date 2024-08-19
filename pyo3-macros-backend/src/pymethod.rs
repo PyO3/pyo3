@@ -4,7 +4,7 @@ use std::ffi::CString;
 use crate::attributes::{NameAttribute, RenamingRule};
 use crate::deprecations::deprecate_trailing_option_default;
 use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
-use crate::params::{check_arg_for_gil_refs, impl_regular_arg_param, Holders};
+use crate::params::{impl_regular_arg_param, Holders};
 use crate::utils::PythonDoc;
 use crate::utils::{Ctx, LitCStr};
 use crate::{
@@ -164,9 +164,8 @@ impl<'a> PyMethod<'a> {
         sig: &'a mut syn::Signature,
         meth_attrs: &mut Vec<syn::Attribute>,
         options: PyFunctionOptions,
-        ctx: &'a Ctx,
     ) -> Result<Self> {
-        let spec = FnSpec::parse(sig, meth_attrs, options, ctx)?;
+        let spec = FnSpec::parse(sig, meth_attrs, options)?;
 
         let method_name = spec.python_name.to_string();
         let kind = PyMethodKind::from_name(&method_name);
@@ -195,7 +194,7 @@ pub fn gen_py_method(
 ) -> Result<GeneratedPyMethod> {
     check_generic(sig)?;
     ensure_function_options_valid(&options)?;
-    let method = PyMethod::parse(sig, meth_attrs, options, ctx)?;
+    let method = PyMethod::parse(sig, meth_attrs, options)?;
     let spec = &method.spec;
     let Ctx { pyo3_path, .. } = ctx;
 
@@ -331,7 +330,7 @@ pub fn impl_py_method_def(
     let methoddef = spec.get_methoddef(quote! { #cls::#wrapper_ident }, doc, ctx);
     let method_def = quote! {
         #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
-            #pyo3_path::class::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
+            #pyo3_path::impl_::pymethods::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
         )
     };
     Ok(MethodAndMethodDef {
@@ -356,7 +355,6 @@ pub fn impl_py_method_def_new(
         || quote!(::std::option::Option::None),
         |text_signature| quote!(::std::option::Option::Some(#text_signature)),
     );
-    let deprecations = &spec.deprecations;
     let slot_def = quote! {
         #pyo3_path::ffi::PyType_Slot {
             slot: #pyo3_path::ffi::Py_tp_new,
@@ -365,10 +363,7 @@ pub fn impl_py_method_def_new(
                     subtype: *mut #pyo3_path::ffi::PyTypeObject,
                     args: *mut #pyo3_path::ffi::PyObject,
                     kwargs: *mut #pyo3_path::ffi::PyObject,
-                ) -> *mut #pyo3_path::ffi::PyObject
-                {
-                    #deprecations
-
+                ) -> *mut #pyo3_path::ffi::PyObject {
                     use #pyo3_path::impl_::pyclass::*;
                     #[allow(unknown_lints, non_local_definitions)]
                     impl PyClassNewTextSignature<#cls> for PyClassImplCollector<#cls> {
@@ -508,14 +503,15 @@ fn impl_py_class_attribute(
     let associated_method = quote! {
         fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
             let function = #cls::#name; // Shadow the method name to avoid #3017
-            #pyo3_path::impl_::wrap::map_result_into_py(py, #body)
+            let result = #body;
+            #pyo3_path::impl_::wrap::converter(&result).map_into_pyobject(py, result)
         }
     };
 
     let method_def = quote! {
         #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
-            #pyo3_path::class::PyMethodDefType::ClassAttribute({
-                #pyo3_path::class::PyClassAttributeDef::new(
+            #pyo3_path::impl_::pymethods::PyMethodDefType::ClassAttribute({
+                #pyo3_path::impl_::pymethods::PyClassAttributeDef::new(
                     #python_name,
                     #cls::#wrapper_ident
                 )
@@ -612,21 +608,18 @@ pub fn impl_py_setter_def(
         PropertyType::Function { spec, .. } => {
             let (_, args) = split_off_python_arg(&spec.signature.arguments);
             let value_arg = &args[0];
-            let (from_py_with, ident) = if let Some(from_py_with) =
-                &value_arg.from_py_with().as_ref().map(|f| &f.value)
-            {
-                let ident = syn::Ident::new("from_py_with", from_py_with.span());
-                (
-                    quote_spanned! { from_py_with.span() =>
-                        let e = #pyo3_path::impl_::deprecations::GilRefs::new();
-                        let #ident = #pyo3_path::impl_::deprecations::inspect_fn(#from_py_with, &e);
-                        e.from_py_with_arg();
-                    },
-                    ident,
-                )
-            } else {
-                (quote!(), syn::Ident::new("dummy", Span::call_site()))
-            };
+            let (from_py_with, ident) =
+                if let Some(from_py_with) = &value_arg.from_py_with().as_ref().map(|f| &f.value) {
+                    let ident = syn::Ident::new("from_py_with", from_py_with.span());
+                    (
+                        quote_spanned! { from_py_with.span() =>
+                            let #ident = #from_py_with;
+                        },
+                        ident,
+                    )
+                } else {
+                    (quote!(), syn::Ident::new("dummy", Span::call_site()))
+                };
 
             let arg = if let FnArg::Regular(arg) = &value_arg {
                 arg
@@ -634,15 +627,13 @@ pub fn impl_py_setter_def(
                 bail_spanned!(value_arg.name().span() => "The #[setter] value argument can't be *args, **kwargs or `cancel_handle`.");
             };
 
-            let tokens = impl_regular_arg_param(
+            let extract = impl_regular_arg_param(
                 arg,
                 ident,
                 quote!(::std::option::Option::Some(_value.into())),
                 &mut holders,
                 ctx,
             );
-            let extract =
-                check_arg_for_gil_refs(tokens, holders.push_gil_refs_checker(arg.ty.span()), ctx);
 
             let deprecation = deprecate_trailing_option_default(spec);
             quote! {
@@ -660,12 +651,8 @@ pub fn impl_py_setter_def(
                 .unwrap_or_default();
 
             let holder = holders.push_holder(span);
-            let gil_refs_checker = holders.push_gil_refs_checker(span);
             quote! {
-                let _val = #pyo3_path::impl_::deprecations::inspect_type(
-                    #pyo3_path::impl_::extract_argument::extract_argument(_value.into(), &mut #holder, #name)?,
-                    &#gil_refs_checker
-                );
+                let _val = #pyo3_path::impl_::extract_argument::extract_argument(_value.into(), &mut #holder, #name)?;
             }
         }
     };
@@ -682,7 +669,6 @@ pub fn impl_py_setter_def(
     }
 
     let init_holders = holders.init_holders(ctx);
-    let check_gil_refs = holders.check_gil_refs();
     let associated_method = quote! {
         #cfg_attrs
         unsafe fn #wrapper_ident(
@@ -698,7 +684,6 @@ pub fn impl_py_setter_def(
             #init_holders
             #extract
             let result = #setter_impl;
-            #check_gil_refs
             #pyo3_path::callback::convert(py, result)
         }
     };
@@ -706,8 +691,8 @@ pub fn impl_py_setter_def(
     let method_def = quote! {
         #cfg_attrs
         #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
-            #pyo3_path::class::PyMethodDefType::Setter(
-                #pyo3_path::class::PySetterDef::new(
+            #pyo3_path::impl_::pymethods::PyMethodDefType::Setter(
+                #pyo3_path::impl_::pymethods::PySetterDef::new(
                     #python_name,
                     #cls::#wrapper_ident,
                     #doc
@@ -788,6 +773,7 @@ pub fn impl_py_getter_def(
                     use #pyo3_path::impl_::pyclass::Probe;
 
                     struct Offset;
+                    #[allow(unsafe_code)]
                     unsafe impl #pyo3_path::impl_::pyclass::OffsetCalculator<#cls, #ty> for Offset {
                         fn offset() -> usize {
                             #pyo3_path::impl_::pyclass::class_offset::<#cls>() +
@@ -795,6 +781,7 @@ pub fn impl_py_getter_def(
                         }
                     }
 
+                    #[allow(unsafe_code)]
                     const GENERATOR: #pyo3_path::impl_::pyclass::PyClassGetterGenerator::<
                         #cls,
                         #ty,
@@ -824,7 +811,6 @@ pub fn impl_py_getter_def(
             };
 
             let init_holders = holders.init_holders(ctx);
-            let check_gil_refs = holders.check_gil_refs();
             let associated_method = quote! {
                 #cfg_attrs
                 unsafe fn #wrapper_ident(
@@ -833,7 +819,6 @@ pub fn impl_py_getter_def(
                 ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                     #init_holders
                     let result = #body;
-                    #check_gil_refs
                     result
                 }
             };
@@ -841,8 +826,8 @@ pub fn impl_py_getter_def(
             let method_def = quote! {
                 #cfg_attrs
                 #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
-                    #pyo3_path::class::PyMethodDefType::Getter(
-                        #pyo3_path::class::PyGetterDef::new(
+                    #pyo3_path::impl_::pymethods::PyMethodDefType::Getter(
+                        #pyo3_path::impl_::pymethods::PyGetterDef::new(
                             #python_name,
                             #cls::#wrapper_ident,
                             #doc
@@ -920,7 +905,7 @@ impl PropertyType<'_> {
     }
 }
 
-const __STR__: SlotDef = SlotDef::new("Py_tp_str", "reprfunc");
+pub const __STR__: SlotDef = SlotDef::new("Py_tp_str", "reprfunc");
 pub const __REPR__: SlotDef = SlotDef::new("Py_tp_repr", "reprfunc");
 pub const __HASH__: SlotDef = SlotDef::new("Py_tp_hash", "hashfunc")
     .ret_ty(Ty::PyHashT)
@@ -1139,35 +1124,30 @@ fn extract_object(
     ctx: &Ctx,
 ) -> TokenStream {
     let Ctx { pyo3_path, .. } = ctx;
-    let gil_refs_checker = holders.push_gil_refs_checker(arg.ty().span());
     let name = arg.name().unraw().to_string();
 
-    let extract = if let Some(from_py_with) =
-        arg.from_py_with().map(|from_py_with| &from_py_with.value)
-    {
-        let from_py_with_checker = holders.push_from_py_with_checker(from_py_with.span());
-        quote! {
-            #pyo3_path::impl_::extract_argument::from_py_with(
-                #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0,
-                #name,
-                #pyo3_path::impl_::deprecations::inspect_fn(#from_py_with, &#from_py_with_checker) as fn(_) -> _,
-            )
-        }
-    } else {
-        let holder = holders.push_holder(Span::call_site());
-        quote! {
-            #pyo3_path::impl_::extract_argument::extract_argument(
-                #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0,
-                &mut #holder,
-                #name
-            )
-        }
-    };
+    let extract =
+        if let Some(from_py_with) = arg.from_py_with().map(|from_py_with| &from_py_with.value) {
+            quote! {
+                #pyo3_path::impl_::extract_argument::from_py_with(
+                    #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0,
+                    #name,
+                    #from_py_with as fn(_) -> _,
+                )
+            }
+        } else {
+            let holder = holders.push_holder(Span::call_site());
+            quote! {
+                #pyo3_path::impl_::extract_argument::extract_argument(
+                    #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0,
+                    &mut #holder,
+                    #name
+                )
+            }
+        };
 
     let extracted = extract_error_mode.handle_error(extract, ctx);
-    quote! {
-        #pyo3_path::impl_::deprecations::inspect_type(#extracted, &#gil_refs_checker)
-    }
+    quote!(#extracted)
 }
 
 enum ReturnMode {
@@ -1177,15 +1157,13 @@ enum ReturnMode {
 }
 
 impl ReturnMode {
-    fn return_call_output(&self, call: TokenStream, ctx: &Ctx, holders: &Holders) -> TokenStream {
+    fn return_call_output(&self, call: TokenStream, ctx: &Ctx) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
-        let check_gil_refs = holders.check_gil_refs();
         match self {
             ReturnMode::Conversion(conversion) => {
                 let conversion = TokenGeneratorCtx(*conversion, ctx);
                 quote! {
                     let _result: #pyo3_path::PyResult<#conversion> = #pyo3_path::callback::convert(py, #call);
-                    #check_gil_refs
                     #pyo3_path::callback::convert(py, _result)
                 }
             }
@@ -1195,14 +1173,12 @@ impl ReturnMode {
                 quote! {
                     let _result = #call;
                     use #pyo3_path::impl_::pymethods::{#traits};
-                    #check_gil_refs
                     (&_result).#tag().convert(py, _result)
                 }
             }
             ReturnMode::ReturnSelf => quote! {
                 let _result: #pyo3_path::PyResult<()> = #pyo3_path::callback::convert(py, #call);
                 _result?;
-                #check_gil_refs
                 #pyo3_path::ffi::Py_XINCREF(_raw_slf);
                 ::std::result::Result::Ok(_raw_slf)
             },
@@ -1369,12 +1345,10 @@ fn generate_method_body(
     let args = extract_proto_arguments(spec, arguments, extract_error_mode, holders, ctx)?;
     let call = quote! { #cls::#rust_name(#self_arg #(#args),*) };
     Ok(if let Some(return_mode) = return_mode {
-        return_mode.return_call_output(call, ctx, holders)
+        return_mode.return_call_output(call, ctx)
     } else {
-        let check_gil_refs = holders.check_gil_refs();
         quote! {
             let result = #call;
-            #check_gil_refs;
             #pyo3_path::callback::convert(py, result)
         }
     })

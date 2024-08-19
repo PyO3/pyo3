@@ -288,6 +288,38 @@ pub fn apply_renaming_rule(rule: RenamingRule, name: &str) -> String {
     }
 }
 
-pub(crate) fn is_abi3() -> bool {
-    pyo3_build_config::get().abi3
+pub(crate) enum IdentOrStr<'a> {
+    Str(&'a str),
+    Ident(syn::Ident),
+}
+
+pub(crate) fn has_attribute(attrs: &[syn::Attribute], ident: &str) -> bool {
+    has_attribute_with_namespace(attrs, None, &[ident])
+}
+
+pub(crate) fn has_attribute_with_namespace(
+    attrs: &[syn::Attribute],
+    crate_path: Option<&PyO3CratePath>,
+    idents: &[&str],
+) -> bool {
+    let mut segments = vec![];
+    if let Some(c) = crate_path {
+        match c {
+            PyO3CratePath::Given(paths) => {
+                for p in &paths.segments {
+                    segments.push(IdentOrStr::Ident(p.ident.clone()));
+                }
+            }
+            PyO3CratePath::Default => segments.push(IdentOrStr::Str("pyo3")),
+        }
+    };
+    for i in idents {
+        segments.push(IdentOrStr::Str(i));
+    }
+
+    attrs.iter().any(|attr| {
+        segments
+            .iter()
+            .eq(attr.path().segments.iter().map(|v| &v.ident))
+    })
 }

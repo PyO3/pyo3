@@ -1,6 +1,4 @@
 use crate::types::PyIterator;
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{
     err::{self, PyErr, PyResult},
     ffi_ptr_ext::FfiPtrExt,
@@ -11,7 +9,13 @@ use crate::{
 use crate::{ffi, PyAny, PyObject, Python, ToPyObject};
 use std::ptr;
 
-/// Represents a Python `set`
+/// Represents a Python `set`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PySet>`][crate::Py] or [`Bound<'py, PySet>`][Bound].
+///
+/// For APIs available on `set` objects, see the [`PySetMethods`] trait which is implemented for
+/// [`Bound<'py, PySet>`][Bound].
 #[repr(transparent)]
 pub struct PySet(PyAny);
 
@@ -49,92 +53,6 @@ impl PySet {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl PySet {
-    /// Deprecated form of [`PySet::new_bound`].
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PySet::new` will be replaced by `PySet::new_bound` in a future PyO3 version"
-    )]
-    #[inline]
-    pub fn new<'a, 'p, T: ToPyObject + 'a>(
-        py: Python<'p>,
-        elements: impl IntoIterator<Item = &'a T>,
-    ) -> PyResult<&'p PySet> {
-        Self::new_bound(py, elements).map(Bound::into_gil_ref)
-    }
-
-    /// Deprecated form of [`PySet::empty_bound`].
-    #[deprecated(
-        since = "0.21.2",
-        note = "`PySet::empty` will be replaced by `PySet::empty_bound` in a future PyO3 version"
-    )]
-    pub fn empty(py: Python<'_>) -> PyResult<&PySet> {
-        Self::empty_bound(py).map(Bound::into_gil_ref)
-    }
-
-    /// Removes all elements from the set.
-    #[inline]
-    pub fn clear(&self) {
-        self.as_borrowed().clear()
-    }
-
-    /// Returns the number of items in the set.
-    ///
-    /// This is equivalent to the Python expression `len(self)`.
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.as_borrowed().len()
-    }
-
-    /// Checks if set is empty.
-    pub fn is_empty(&self) -> bool {
-        self.as_borrowed().is_empty()
-    }
-
-    /// Determines if the set contains the specified key.
-    ///
-    /// This is equivalent to the Python expression `key in self`.
-    pub fn contains<K>(&self, key: K) -> PyResult<bool>
-    where
-        K: ToPyObject,
-    {
-        self.as_borrowed().contains(key)
-    }
-
-    /// Removes the element from the set if it is present.
-    ///
-    /// Returns `true` if the element was present in the set.
-    pub fn discard<K>(&self, key: K) -> PyResult<bool>
-    where
-        K: ToPyObject,
-    {
-        self.as_borrowed().discard(key)
-    }
-
-    /// Adds an element to the set.
-    pub fn add<K>(&self, key: K) -> PyResult<()>
-    where
-        K: ToPyObject,
-    {
-        self.as_borrowed().add(key)
-    }
-
-    /// Removes and returns an arbitrary element from the set.
-    pub fn pop(&self) -> Option<PyObject> {
-        self.as_borrowed().pop().map(Bound::unbind)
-    }
-
-    /// Returns an iterator of values in this set.
-    ///
-    /// # Panics
-    ///
-    /// If PyO3 detects that the set is mutated during iteration, it will panic.
-    pub fn iter(&self) -> PySetIterator<'_> {
-        PySetIterator(BoundSetIterator::new(self.as_borrowed().to_owned()))
     }
 }
 
@@ -260,50 +178,6 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
     }
 }
 
-/// PyO3 implementation of an iterator for a Python `set` object.
-#[cfg(feature = "gil-refs")]
-pub struct PySetIterator<'py>(BoundSetIterator<'py>);
-
-#[cfg(feature = "gil-refs")]
-impl<'py> Iterator for PySetIterator<'py> {
-    type Item = &'py super::PyAny;
-
-    /// Advances the iterator and returns the next value.
-    ///
-    /// # Panics
-    ///
-    /// If PyO3 detects that the set is mutated during iteration, it will panic.
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(Bound::into_gil_ref)
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl ExactSizeIterator for PySetIterator<'_> {
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'py> IntoIterator for &'py PySet {
-    type Item = &'py PyAny;
-    type IntoIter = PySetIterator<'py>;
-    /// Returns an iterator of values in this set.
-    ///
-    /// # Panics
-    ///
-    /// If PyO3 detects that the set is mutated during iteration, it will panic.
-    fn into_iter(self) -> Self::IntoIter {
-        PySetIterator(BoundSetIterator::new(self.as_borrowed().to_owned()))
-    }
-}
-
 impl<'py> IntoIterator for Bound<'py, PySet> {
     type Item = Bound<'py, PyAny>;
     type IntoIter = BoundSetIterator<'py>;
@@ -343,7 +217,7 @@ pub struct BoundSetIterator<'p> {
 impl<'py> BoundSetIterator<'py> {
     pub(super) fn new(set: Bound<'py, PySet>) -> Self {
         Self {
-            it: PyIterator::from_bound_object(&set).unwrap(),
+            it: PyIterator::from_object(&set).unwrap(),
             remaining: set.len(),
         }
     }
@@ -374,33 +248,36 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
     py: Python<'_>,
     elements: impl IntoIterator<Item = T>,
 ) -> PyResult<Bound<'_, PySet>> {
-    fn inner<'py>(
-        py: Python<'py>,
-        elements: &mut dyn Iterator<Item = PyObject>,
-    ) -> PyResult<Bound<'py, PySet>> {
-        let set = unsafe {
-            // We create the  `Py` pointer because its Drop cleans up the set if user code panics.
-            ffi::PySet_New(std::ptr::null_mut())
-                .assume_owned_or_err(py)?
-                .downcast_into_unchecked()
-        };
-        let ptr = set.as_ptr();
+    let mut iter = elements.into_iter().map(|e| Ok(e.to_object(py)));
+    try_new_from_iter(py, &mut iter)
+}
 
-        for obj in elements {
-            err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj.as_ptr()) })?;
-        }
+#[inline]
+pub(crate) fn try_new_from_iter(
+    py: Python<'_>,
+    elements: impl IntoIterator<Item = PyResult<PyObject>>,
+) -> PyResult<Bound<'_, PySet>> {
+    let set = unsafe {
+        // We create the `Bound` pointer because its Drop cleans up the set if
+        // user code errors or panics.
+        ffi::PySet_New(std::ptr::null_mut())
+            .assume_owned_or_err(py)?
+            .downcast_into_unchecked()
+    };
+    let ptr = set.as_ptr();
 
-        Ok(set)
+    for obj in elements {
+        err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj?.as_ptr()) })?;
     }
 
-    let mut iter = elements.into_iter().map(|e| e.to_object(py));
-    inner(py, &mut iter)
+    Ok(set)
 }
 
 #[cfg(test)]
 mod tests {
     use super::PySet;
     use crate::{
+        ffi,
         types::{PyAnyMethods, PySetMethods},
         Python, ToPyObject,
     };
@@ -491,7 +368,11 @@ mod tests {
             let val2 = set.pop();
             assert!(val2.is_none());
             assert!(py
-                .eval_bound("print('Exception state should not be set.')", None, None)
+                .eval(
+                    ffi::c_str!("print('Exception state should not be set.')"),
+                    None,
+                    None
+                )
                 .is_ok());
         });
     }

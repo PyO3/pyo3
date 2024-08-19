@@ -21,9 +21,10 @@ use std::sync::atomic::{AtomicI64, Ordering};
 use crate::exceptions::PyImportError;
 use crate::{
     ffi,
+    impl_::pymethods::PyMethodDef,
     sync::GILOnceCell,
     types::{PyCFunction, PyModule, PyModuleMethods},
-    Bound, Py, PyClass, PyMethodDef, PyResult, PyTypeInfo, Python,
+    Bound, Py, PyClass, PyResult, PyTypeInfo, Python,
 };
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
@@ -54,6 +55,7 @@ impl ModuleDef {
         doc: &'static CStr,
         initializer: ModuleInitializer,
     ) -> Self {
+        #[allow(clippy::declare_interior_mutable_const)]
         const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
             m_base: ffi::PyModuleDef_HEAD_INIT,
             m_name: std::ptr::null(),
@@ -92,11 +94,11 @@ impl ModuleDef {
             use crate::types::any::PyAnyMethods;
             const PYPY_GOOD_VERSION: [u8; 3] = [7, 3, 8];
             let version = py
-                .import_bound("sys")?
+                .import("sys")?
                 .getattr("implementation")?
                 .getattr("version")?;
-            if version.lt(crate::types::PyTuple::new_bound(py, PYPY_GOOD_VERSION))? {
-                let warn = py.import_bound("warnings")?.getattr("warn")?;
+            if version.lt(crate::types::PyTuple::new(py, PYPY_GOOD_VERSION))? {
+                let warn = py.import("warnings")?.getattr("warn")?;
                 warn.call1((
                     "PyPy 3.7 versions older than 7.3.8 are known to have binary \
                         compatibility issues which may cause segfaults. Please upgrade.",
@@ -286,7 +288,7 @@ mod tests {
             assert_eq!((*module_def.ffi_def.get()).m_doc, DOC.as_ptr() as _);
 
             Python::with_gil(|py| {
-                module_def.initializer.0(&py.import_bound("builtins").unwrap()).unwrap();
+                module_def.initializer.0(&py.import("builtins").unwrap()).unwrap();
                 assert!(INIT_CALLED.load(Ordering::SeqCst));
             })
         }

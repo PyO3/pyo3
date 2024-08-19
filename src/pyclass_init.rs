@@ -121,7 +121,7 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
 ///     }
 /// }
 /// Python::with_gil(|py| {
-///     let typeobj = py.get_type_bound::<SubSubClass>();
+///     let typeobj = py.get_type::<SubSubClass>();
 ///     let sub_sub_class = typeobj.call((), None).unwrap();
 ///     py_run!(
 ///         py,
@@ -183,7 +183,7 @@ impl<T: PyClass> PyClassInitializer<T> {
     ///
     /// fn main() -> PyResult<()> {
     ///     Python::with_gil(|py| {
-    ///         let m = PyModule::new_bound(py, "example")?;
+    ///         let m = PyModule::new(py, "example")?;
     ///         m.add_class::<SubClass>()?;
     ///         m.add_class::<BaseClass>()?;
     ///

@@ -21,6 +21,7 @@ pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int {
 }
 
 extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyModule_NewObject")]
     pub fn PyModule_NewObject(name: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyModule_New")]
     pub fn PyModule_New(name: *const c_char) -> *mut PyObject;
@@ -52,7 +53,6 @@ extern "C" {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct PyModuleDef_Base {
     pub ob_base: PyObject,
     pub m_init: Option<extern "C" fn() -> *mut PyObject>,
@@ -60,6 +60,7 @@ pub struct PyModuleDef_Base {
     pub m_copy: *mut PyObject,
 }
 
+#[allow(clippy::declare_interior_mutable_const)]
 pub const PyModuleDef_HEAD_INIT: PyModuleDef_Base = PyModuleDef_Base {
     ob_base: PyObject_HEAD_INIT,
     m_init: None,
@@ -98,7 +99,6 @@ pub const Py_MOD_PER_INTERPRETER_GIL_SUPPORTED: *mut c_void = 2 as *mut c_void;
 // skipped non-limited _Py_mod_LAST_SLOT
 
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct PyModuleDef {
     pub m_base: PyModuleDef_Base,
     pub m_name: *const c_char,

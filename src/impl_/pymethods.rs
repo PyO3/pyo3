@@ -5,8 +5,6 @@ use crate::impl_::panic::PanicTrap;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
-#[cfg(feature = "gil-refs")]
-use crate::types::{PyModule, PyType};
 use crate::{
     ffi, Borrowed, Bound, DowncastError, Py, PyAny, PyClass, PyClassInitializer, PyErr, PyObject,
     PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
@@ -74,8 +72,8 @@ pub enum PyMethodDefType {
 pub enum PyMethodType {
     PyCFunction(ffi::PyCFunction),
     PyCFunctionWithKeywords(ffi::PyCFunctionWithKeywords),
-    #[cfg(not(Py_LIMITED_API))]
-    PyCFunctionFastWithKeywords(ffi::_PyCFunctionFastWithKeywords),
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+    PyCFunctionFastWithKeywords(ffi::PyCFunctionFastWithKeywords),
 }
 
 pub type PyClassAttributeFactory = for<'p> fn(Python<'p>) -> PyResult<PyObject>;
@@ -147,10 +145,10 @@ impl PyMethodDef {
     }
 
     /// Define a function that can take `*args` and `**kwargs`.
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     pub const fn fastcall_cfunction_with_keywords(
         ml_name: &'static CStr,
-        cfunction: ffi::_PyCFunctionFastWithKeywords,
+        cfunction: ffi::PyCFunctionFastWithKeywords,
         ml_doc: &'static CStr,
     ) -> Self {
         Self {
@@ -173,9 +171,9 @@ impl PyMethodDef {
             PyMethodType::PyCFunctionWithKeywords(meth) => ffi::PyMethodDefPointer {
                 PyCFunctionWithKeywords: meth,
             },
-            #[cfg(not(Py_LIMITED_API))]
+            #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
             PyMethodType::PyCFunctionFastWithKeywords(meth) => ffi::PyMethodDefPointer {
-                _PyCFunctionFastWithKeywords: meth,
+                PyCFunctionFastWithKeywords: meth,
             },
         };
 
@@ -467,33 +465,6 @@ impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
     }
 }
 
-// GIL Ref implementations for &'a T ran into trouble with orphan rules,
-// so explicit implementations are used instead for the two relevant types.
-#[cfg(feature = "gil-refs")]
-impl<'a> From<BoundRef<'a, 'a, PyType>> for &'a PyType {
-    #[inline]
-    fn from(bound: BoundRef<'a, 'a, PyType>) -> Self {
-        bound.0.as_gil_ref()
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'a> From<BoundRef<'a, 'a, PyModule>> for &'a PyModule {
-    #[inline]
-    fn from(bound: BoundRef<'a, 'a, PyModule>) -> Self {
-        bound.0.as_gil_ref()
-    }
-}
-
-#[allow(deprecated)]
-#[cfg(feature = "gil-refs")]
-impl<'a, 'py, T: PyClass> From<BoundRef<'a, 'py, T>> for &'a crate::PyCell<T> {
-    #[inline]
-    fn from(bound: BoundRef<'a, 'py, T>) -> Self {
-        bound.0.as_gil_ref()
-    }
-}
-
 impl<'a, 'py, T: PyClass> TryFrom<BoundRef<'a, 'py, T>> for PyRef<'py, T> {
     type Error = PyBorrowError;
     #[inline]
@@ -547,4 +518,41 @@ pub unsafe fn tp_new_impl<T: PyClass>(
     initializer
         .create_class_object_of_type(py, target_type)
         .map(Bound::into_ptr)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+    fn test_fastcall_function_with_keywords() {
+        use super::PyMethodDef;
+        use crate::types::{PyAnyMethods, PyCFunction};
+        use crate::{ffi, Python};
+
+        Python::with_gil(|py| {
+            unsafe extern "C" fn accepts_no_arguments(
+                _slf: *mut ffi::PyObject,
+                _args: *const *mut ffi::PyObject,
+                nargs: ffi::Py_ssize_t,
+                kwargs: *mut ffi::PyObject,
+            ) -> *mut ffi::PyObject {
+                assert_eq!(nargs, 0);
+                assert!(kwargs.is_null());
+                Python::assume_gil_acquired().None().into_ptr()
+            }
+
+            let f = PyCFunction::internal_new(
+                py,
+                &PyMethodDef::fastcall_cfunction_with_keywords(
+                    ffi::c_str!("test"),
+                    accepts_no_arguments,
+                    ffi::c_str!("doc"),
+                ),
+                None,
+            )
+            .unwrap();
+
+            f.call0().unwrap();
+        });
+    }
 }

@@ -1,8 +1,9 @@
 #![cfg(not(Py_LIMITED_API))]
 
-use pyo3::prelude::*;
 use pyo3::types::{timezone_utc_bound, IntoPyDict, PyDate, PyDateTime, PyTime};
+use pyo3::{ffi, prelude::*};
 use pyo3_ffi::PyDateTime_IMPORT;
+use std::ffi::CString;
 
 fn _get_subclasses<'py>(
     py: Python<'py>,
@@ -10,25 +11,37 @@ fn _get_subclasses<'py>(
     args: &str,
 ) -> PyResult<(Bound<'py, PyAny>, Bound<'py, PyAny>, Bound<'py, PyAny>)> {
     // Import the class from Python and create some subclasses
-    let datetime = py.import_bound("datetime")?;
+    let datetime = py.import("datetime")?;
 
-    let locals = [(py_type, datetime.getattr(py_type)?)].into_py_dict_bound(py);
+    let locals = [(py_type, datetime.getattr(py_type)?)].into_py_dict(py);
 
-    let make_subclass_py = format!("class Subklass({}):\n    pass", py_type);
+    let make_subclass_py = CString::new(format!("class Subklass({}):\n    pass", py_type))?;
 
-    let make_sub_subclass_py = "class SubSubklass(Subklass):\n    pass";
+    let make_sub_subclass_py = ffi::c_str!("class SubSubklass(Subklass):\n    pass");
 
-    py.run_bound(&make_subclass_py, None, Some(&locals))?;
-    py.run_bound(make_sub_subclass_py, None, Some(&locals))?;
+    py.run(&make_subclass_py, None, Some(&locals))?;
+    py.run(make_sub_subclass_py, None, Some(&locals))?;
 
     // Construct an instance of the base class
-    let obj = py.eval_bound(&format!("{}({})", py_type, args), None, Some(&locals))?;
+    let obj = py.eval(
+        &CString::new(format!("{}({})", py_type, args))?,
+        None,
+        Some(&locals),
+    )?;
 
     // Construct an instance of the subclass
-    let sub_obj = py.eval_bound(&format!("Subklass({})", args), None, Some(&locals))?;
+    let sub_obj = py.eval(
+        &CString::new(format!("Subklass({})", args))?,
+        None,
+        Some(&locals),
+    )?;
 
     // Construct an instance of the sub-subclass
-    let sub_sub_obj = py.eval_bound(&format!("SubSubklass({})", args), None, Some(&locals))?;
+    let sub_sub_obj = py.eval(
+        &CString::new(format!("SubSubklass({})", args))?,
+        None,
+        Some(&locals),
+    )?;
 
     Ok((obj, sub_obj, sub_sub_obj))
 }
@@ -122,10 +135,14 @@ fn test_datetime_utc() {
 
         let dt = PyDateTime::new_bound(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
 
-        let locals = [("dt", dt)].into_py_dict_bound(py);
+        let locals = [("dt", dt)].into_py_dict(py);
 
         let offset: f32 = py
-            .eval_bound("dt.utcoffset().total_seconds()", None, Some(&locals))
+            .eval(
+                ffi::c_str!("dt.utcoffset().total_seconds()"),
+                None,
+                Some(&locals),
+            )
             .unwrap()
             .extract()
             .unwrap();

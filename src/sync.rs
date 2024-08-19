@@ -59,7 +59,9 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 /// Unlike `once_cell::sync` which blocks threads to achieve thread safety, this implementation
 /// uses the Python GIL to mediate concurrent access. This helps in cases where `once_cell` or
 /// `lazy_static`'s synchronization strategy can lead to deadlocks when interacting with the Python
-/// GIL. For an example, see [the FAQ section](https://pyo3.rs/latest/faq.html) of the guide.
+/// GIL. For an example, see
+#[doc = concat!("[the FAQ section](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/faq.html)")]
+/// of the guide.
 ///
 /// Note that:
 ///  1) `get_or_init` and `get_or_try_init` do not protect against infinite recursion
@@ -85,7 +87,7 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 ///
 /// pub fn get_shared_list(py: Python<'_>) -> &Bound<'_, PyList> {
 ///     LIST_CELL
-///         .get_or_init(py, || PyList::empty_bound(py).unbind())
+///         .get_or_init(py, || PyList::empty(py).unbind())
 ///         .bind(py)
 /// }
 /// # Python::with_gil(|py| assert_eq!(get_shared_list(py).len(), 0));
@@ -124,10 +126,9 @@ impl<T> GILOnceCell<T> {
             return value;
         }
 
-        match self.init(py, || Ok::<T, std::convert::Infallible>(f())) {
-            Ok(value) => value,
-            Err(void) => match void {},
-        }
+        // .unwrap() will never panic because the result is always Ok
+        self.init(py, || Ok::<T, std::convert::Infallible>(f()))
+            .unwrap()
     }
 
     /// Like `get_or_init`, but accepts a fallible initialization function. If it fails, the cell
@@ -208,7 +209,7 @@ impl GILOnceCell<Py<PyType>> {
     ) -> PyResult<&Bound<'py, PyType>> {
         self.get_or_try_init(py, || {
             let type_object = py
-                .import_bound(module_name)?
+                .import(module_name)?
                 .getattr(attr_name)?
                 .downcast_into()?;
             Ok(type_object.unbind())
@@ -229,7 +230,7 @@ impl GILOnceCell<Py<PyType>> {
 ///
 /// #[pyfunction]
 /// fn create_dict(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
-///     let dict = PyDict::new_bound(py);
+///     let dict = PyDict::new(py);
 ///     //             👇 A new `PyString` is created
 ///     //                for every call of this function.
 ///     dict.set_item("foo", 42)?;
@@ -238,7 +239,7 @@ impl GILOnceCell<Py<PyType>> {
 ///
 /// #[pyfunction]
 /// fn create_dict_faster(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
-///     let dict = PyDict::new_bound(py);
+///     let dict = PyDict::new(py);
 ///     //               👇 A `PyString` is created once and reused
 ///     //                  for the lifetime of the program.
 ///     dict.set_item(intern!(py, "foo"), 42)?;
@@ -246,10 +247,10 @@ impl GILOnceCell<Py<PyType>> {
 /// }
 /// #
 /// # Python::with_gil(|py| {
-/// #     let fun_slow = wrap_pyfunction_bound!(create_dict, py).unwrap();
+/// #     let fun_slow = wrap_pyfunction!(create_dict, py).unwrap();
 /// #     let dict = fun_slow.call0().unwrap();
 /// #     assert!(dict.contains("foo").unwrap());
-/// #     let fun = wrap_pyfunction_bound!(create_dict_faster, py).unwrap();
+/// #     let fun = wrap_pyfunction!(create_dict_faster, py).unwrap();
 /// #     let dict = fun.call0().unwrap();
 /// #     assert!(dict.contains("foo").unwrap());
 /// # });
@@ -276,7 +277,7 @@ impl Interned {
     #[inline]
     pub fn get<'py>(&self, py: Python<'py>) -> &Bound<'py, PyString> {
         self.1
-            .get_or_init(py, || PyString::intern_bound(py, self.0).into())
+            .get_or_init(py, || PyString::intern(py, self.0).into())
             .bind(py)
     }
 }
@@ -294,7 +295,7 @@ mod tests {
             let foo2 = intern!(py, "foo");
             let foo3 = intern!(py, stringify!(foo));
 
-            let dict = PyDict::new_bound(py);
+            let dict = PyDict::new(py);
             dict.set_item(foo1, 42_usize).unwrap();
             assert!(dict.contains(foo2).unwrap());
             assert_eq!(
