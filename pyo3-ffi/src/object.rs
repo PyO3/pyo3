@@ -823,10 +823,10 @@ pub const Py_CONSTANT_EMPTY_TUPLE: c_uint = 9;
 extern "C" {
     #[cfg(Py_3_13)]
     #[cfg_attr(PyPy, link_name = "PyPy_GetConstant")]
-    fn Py_GetConstant(constant_id: c_uint) -> *mut PyObject;
+    pub fn Py_GetConstant(constant_id: c_uint) -> *mut PyObject;
     #[cfg(Py_3_13)]
     #[cfg_attr(PyPy, link_name = "PyPy_GetConstantBorrowed")]
-    fn Py_GetConstantBorrowed(constant_id: c_uint) -> *mut PyObject;
+    pub fn Py_GetConstantBorrowed(constant_id: c_uint) -> *mut PyObject;
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
