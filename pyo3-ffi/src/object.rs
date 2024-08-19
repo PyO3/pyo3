@@ -924,7 +924,8 @@ pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
 }
 
 extern "C" {
-    #[cfg(Py_3_13)]
+    #[cfg(any(Py_3_13, all(Py_3_11, not(Py_LIMITED_API))))]
+    #[cfg_attr(PyPy, link_name = "PyPyType_GetModuleByDef")]
     pub fn PyType_GetModuleByDef(
         arg1: *mut crate::PyTypeObject,
         arg2: *mut crate::PyModuleDef,

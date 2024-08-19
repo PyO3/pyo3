@@ -1,20 +1,23 @@
 #[cfg(Py_3_8)]
 use crate::vectorcallfunc;
-#[cfg(Py_3_11)]
-use crate::PyModuleDef;
 use crate::{object, PyGetSetDef, PyMemberDef, PyMethodDef, PyObject, Py_ssize_t};
 use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
 
-// skipped _Py_NewReference
-// skipped _Py_ForgetReference
-// skipped _Py_GetRefTotal
+// skipped private _Py_NewReference
+// skipped private _Py_NewReferenceNoTotal
+// skipped private _Py_ResurrectReference
 
-// skipped _Py_Identifier
+// skipped private _Py_GetGlobalRefTotal
+// skipped private _Py_GetRefTotal
+// skipped private _Py_GetLegacyRefTotal
+// skipped private _PyInterpreterState_GetRefTotal
 
-// skipped _Py_static_string_init
-// skipped _Py_static_string
-// skipped _Py_IDENTIFIER
+// skipped private _Py_Identifier
+
+// skipped private _Py_static_string_init
+// skipped private _Py_static_string
+// skipped private _Py_IDENTIFIER
 
 #[cfg(not(Py_3_11))] // moved to src/buffer.rs from Python
 mod bufferinfo {
@@ -295,12 +298,12 @@ pub struct PyTypeObject {
 #[cfg(Py_3_11)]
 #[repr(C)]
 #[derive(Clone)]
-pub struct _specialization_cache {
-    pub getitem: *mut PyObject,
+struct _specialization_cache {
+    getitem: *mut PyObject,
     #[cfg(Py_3_12)]
-    pub getitem_version: u32,
+    getitem_version: u32,
     #[cfg(Py_3_13)]
-    pub init: *mut PyObject,
+    init: *mut PyObject,
 }
 
 #[repr(C)]
@@ -319,9 +322,9 @@ pub struct PyHeapTypeObject {
     #[cfg(Py_3_9)]
     pub ht_module: *mut object::PyObject,
     #[cfg(Py_3_11)]
-    pub _ht_tpname: *mut c_char,
+    _ht_tpname: *mut c_char,
     #[cfg(Py_3_11)]
-    pub _spec_cache: _specialization_cache,
+    _spec_cache: _specialization_cache,
 }
 
 impl Default for PyHeapTypeObject {
@@ -332,82 +335,75 @@ impl Default for PyHeapTypeObject {
 }
 
 #[inline]
+#[cfg(not(Py_3_11))]
 pub unsafe fn PyHeapType_GET_MEMBERS(etype: *mut PyHeapTypeObject) -> *mut PyMemberDef {
     let py_type = object::Py_TYPE(etype as *mut object::PyObject);
     let ptr = etype.offset((*py_type).tp_basicsize);
     ptr as *mut PyMemberDef
 }
 
-// skipped _PyType_Name
-// skipped _PyType_Lookup
-// skipped _PyType_LookupId
-// skipped _PyObject_LookupSpecial
-// skipped _PyType_CalculateMetaclass
-// skipped _PyType_GetDocFromInternalDoc
-// skipped _PyType_GetTextSignatureFromInternalDoc
+// skipped private _PyType_Name
+// skipped private _PyType_Lookup
+// skipped private _PyType_LookupRef
 
 extern "C" {
-    #[cfg(Py_3_11)]
-    #[cfg_attr(PyPy, link_name = "PyPyType_GetModuleByDef")]
-    pub fn PyType_GetModuleByDef(ty: *mut PyTypeObject, def: *mut PyModuleDef) -> *mut PyObject;
-
     #[cfg(Py_3_12)]
     pub fn PyType_GetDict(o: *mut PyTypeObject) -> *mut PyObject;
 
     #[cfg_attr(PyPy, link_name = "PyPyObject_Print")]
     pub fn PyObject_Print(o: *mut PyObject, fp: *mut ::libc::FILE, flags: c_int) -> c_int;
 
-    // skipped _Py_BreakPoint
-    // skipped _PyObject_Dump
-    // skipped _PyObject_IsFreed
-    // skipped _PyObject_IsAbstract
-    // skipped _PyObject_GetAttrId
-    // skipped _PyObject_SetAttrId
-    // skipped _PyObject_LookupAttr
-    // skipped _PyObject_LookupAttrId
-    // skipped _PyObject_GetMethod
+    // skipped private _Py_BreakPoint
+    // skipped private _PyObject_Dump
 
-    #[cfg(not(PyPy))]
-    pub fn _PyObject_GetDictPtr(obj: *mut PyObject) -> *mut *mut PyObject;
-    #[cfg(not(PyPy))]
-    pub fn _PyObject_NextNotImplemented(arg1: *mut PyObject) -> *mut PyObject;
+    // skipped _PyObject_GetAttrId
+
+    // skipped private _PyObject_GetDictPtr
     pub fn PyObject_CallFinalizer(arg1: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyObject_CallFinalizerFromDealloc")]
     pub fn PyObject_CallFinalizerFromDealloc(arg1: *mut PyObject) -> c_int;
 
-    // skipped _PyObject_GenericGetAttrWithDict
-    // skipped _PyObject_GenericSetAttrWithDict
-    // skipped _PyObject_FunctionStr
+    // skipped private _PyObject_GenericGetAttrWithDict
+    // skipped private _PyObject_GenericSetAttrWithDict
+    // skipped private _PyObject_FunctionStr
 }
 
 // skipped Py_SETREF
 // skipped Py_XSETREF
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
-    pub static mut _PyNone_Type: PyTypeObject;
-    pub static mut _PyNotImplemented_Type: PyTypeObject;
-}
+// skipped private _PyObject_ASSERT_FROM
+// skipped private _PyObject_ASSERT_WITH_MSG
+// skipped private _PyObject_ASSERT
+// skipped private _PyObject_ASSERT_FAILED_MSG
+// skipped private _PyObject_AssertFailed
 
-// skipped _Py_SwappedOp
-
-// skipped _PyDebugAllocatorStats
-// skipped _PyObject_DebugTypeStats
-// skipped _PyObject_ASSERT_FROM
-// skipped _PyObject_ASSERT_WITH_MSG
-// skipped _PyObject_ASSERT
-// skipped _PyObject_ASSERT_FAILED_MSG
-// skipped _PyObject_AssertFailed
-// skipped _PyObject_CheckConsistency
+// skipped private _PyTrash_begin
+// skipped private _PyTrash_end
 
 // skipped _PyTrash_thread_deposit_object
 // skipped _PyTrash_thread_destroy_chain
-// skipped _PyTrash_begin
-// skipped _PyTrash_end
-// skipped _PyTrash_cond
-// skipped PyTrash_UNWIND_LEVEL
-// skipped Py_TRASHCAN_BEGIN_CONDITION
-// skipped Py_TRASHCAN_END
+
 // skipped Py_TRASHCAN_BEGIN
-// skipped Py_TRASHCAN_SAFE_BEGIN
-// skipped Py_TRASHCAN_SAFE_END
+// skipped Py_TRASHCAN_END
+
+// skipped PyObject_GetItemData
+
+// skipped PyObject_VisitManagedDict
+// skipped _PyObject_SetManagedDict
+// skipped PyObject_ClearManagedDict
+
+// skipped TYPE_MAX_WATCHERS
+
+// skipped PyType_WatchCallback
+// skipped PyType_AddWatcher
+// skipped PyType_ClearWatcher
+// skipped PyType_Watch
+// skipped PyType_Unwatch
+
+// skipped PyUnstable_Type_AssignVersionTag
+
+// skipped PyRefTracerEvent
+
+// skipped PyRefTracer
+// skipped PyRefTracer_SetTracer
+// skipped PyRefTracer_GetTracer
