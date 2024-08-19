@@ -134,8 +134,17 @@ pub struct PyVarObject {
 // skipped private _PyVarObject_CAST
 
 #[inline]
+#[cfg(not(all(PyPy, Py_3_10)))]
+#[cfg_attr(docsrs, doc(cfg(all())))]
 pub unsafe fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int {
     (x == y).into()
+}
+
+#[cfg(all(PyPy, Py_3_10))]
+#[cfg_attr(docsrs, doc(cfg(all())))]
+extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPy_Is")]
+    pub fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int;
 }
 
 // skipped private _Py_GetThreadLocal_Addr
