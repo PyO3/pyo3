@@ -1,6 +1,7 @@
 use crate::model::{Class, Function, Module};
 use anyhow::{bail, Context, Result};
 use goblin::elf::Elf;
+use goblin::mach::symbols::N_SECT;
 use goblin::mach::{Mach, MachO, SingleArch};
 use goblin::pe::PE;
 use goblin::Object;
@@ -140,7 +141,7 @@ fn find_introspection_chunks_in_macho(
         .collect::<Result<Vec<_>, _>>()?;
     let mut chunks = Vec::new();
     for (name, nlist) in macho.symbols().flatten() {
-        if is_introspection_symbol(name) {
+        if nlist.is_global() && nlist.get_type() == N_SECT && is_introspection_symbol(name) {
             let section = &sections[nlist.n_sect];
             let data_offset = nlist.n_value + u64::from(section.offset) - section.addr;
             chunks.push(read_symbol_value_with_ptr_and_len(

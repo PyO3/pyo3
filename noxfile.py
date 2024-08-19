@@ -734,15 +734,16 @@ def update_ui_tests(session: nox.Session):
 
 @nox.session(name="test-introspection")
 def test_introspection(session: nox.Session):
-    session.run_always("python", "-m", "pip", "install", "-v", "./pytests")
-    # We look for the built library
-    lib_file = None
-    for file in Path(session.virtualenv.location).rglob("pyo3_pytests.*"):
-        if file.is_file():
-            lib_file = str(file.resolve())
-    _run_cargo_test(
-        session, package="pyo3-introspection", env={"PYO3_PYTEST_LIB_PATH": lib_file}
-    )
+    for options in ((), ("--release",), ("--strip",)):
+        session.run_always("maturin", "develop", "-m", "./pytests/Cargo.toml", *options)
+        # We look for the built library
+        lib_file = None
+        for file in Path(session.virtualenv.location).rglob("pyo3_pytests.*"):
+            if file.is_file():
+                lib_file = str(file.resolve())
+        _run_cargo_test(
+            session, package="pyo3-introspection", env={"PYO3_PYTEST_LIB_PATH": lib_file}
+        )
 
 
 def _build_docs_for_ffi_check(session: nox.Session) -> None:
