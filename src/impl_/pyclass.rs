@@ -1345,22 +1345,6 @@ where
     }
 }
 
-#[cfg(diagnostic_namespace)]
-#[diagnostic::on_unimplemented(
-    message = "`{Self}` cannot be converted to a Python object",
-    label = "required by `#[pyo3(get)]` to create a readable property from a field of type `{Self}`",
-    note = "implement `IntoPyObject` for `&{Self}` or `IntoPyObject + Clone` for `{Self}` to define the conversion"
-)]
-pub trait PyO3GetFieldIntoPyObject: for<'py> IntoPyObject<'py, Error: Into<PyErr>> + Clone {}
-
-#[cfg(diagnostic_namespace)]
-impl<T> PyO3GetFieldIntoPyObject for T
-where
-    for<'py> T: IntoPyObject<'py> + Clone,
-    for<'py> PyErr: std::convert::From<<T as IntoPyObject<'py>>::Error>,
-{
-}
-
 /// Temporary case to prefer `IntoPyObject + Clone` over `IntoPy + Clone`, while still showing the
 /// `IntoPyObject` suggestion if neither is implemented;
 impl<ClassT, FieldT, Offset, const IMPLEMENTS_TOPYOBJECT: bool, const IMPLEMENTS_INTOPY: bool>
@@ -1389,24 +1373,13 @@ where
     }
 }
 
-#[cfg_attr(
-    diagnostic_namespace,
-    diagnostic::on_unimplemented(
-        message = "`{Self}` cannot be converted to a Python object",
-        label = "required by `#[pyo3(get)]` to create a readable property from a field of type `{Self}`",
-        note = "implement `ToPyObject` or `IntoPy<PyObject> + Clone` for `{Self}` to define the conversion",
-    )
-)]
-pub trait PyO3GetField: IntoPy<Py<PyAny>> + Clone {}
-impl<T: IntoPy<Py<PyAny>> + Clone> PyO3GetField for T {}
-
 /// IntoPy + Clone fallback case, which was the only behaviour before PyO3 0.22.
 impl<ClassT, FieldT, Offset>
     PyClassGetterGenerator<ClassT, FieldT, Offset, false, false, true, false, false>
 where
     ClassT: PyClass,
     Offset: OffsetCalculator<ClassT, FieldT>,
-    FieldT: PyO3GetField,
+    FieldT: IntoPy<Py<PyAny>> + Clone,
 {
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         PyMethodDefType::Getter(PyGetterDef {
@@ -1417,37 +1390,53 @@ where
     }
 }
 
+#[cfg(diagnostic_namespace)]
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be converted to a Python object",
+    label = "required by `#[pyo3(get)]` to create a readable property from a field of type `{Self}`",
+    note = "implement `IntoPyObject` for `&{Self}` or `IntoPyObject + Clone` for `{Self}` to define the conversion"
+)]
+pub trait PyO3GetField<'py>: IntoPyObject<'py, Error: Into<PyErr>> + Clone {}
+
+#[cfg(diagnostic_namespace)]
+impl<'py, T> PyO3GetField<'py> for T
+where
+    T: IntoPyObject<'py> + Clone,
+    PyErr: std::convert::From<<T as IntoPyObject<'py>>::Error>,
+{
+}
+
 /// Base case attempts to use IntoPyObject + Clone
 impl<ClassT: PyClass, FieldT, Offset: OffsetCalculator<ClassT, FieldT>>
     PyClassGetterGenerator<ClassT, FieldT, Offset, false, false, false, false, false>
 {
     #[cfg(not(diagnostic_namespace))]
-    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType
+    pub const fn generate(&self, _name: &'static CStr, _doc: &'static CStr) -> PyMethodDefType
     // The bound goes here rather than on the block so that this impl is always available
     // if no specialization is used instead
     where
         for<'py> FieldT: IntoPyObject<'py> + Clone,
         for<'py> PyErr: std::convert::From<<FieldT as IntoPyObject<'py>>::Error>,
     {
-        PyMethodDefType::Getter(PyGetterDef {
-            name,
-            meth: pyo3_get_value_into_pyobject::<ClassT, FieldT, Offset>,
-            doc,
-        })
+        // unreachable not allowed in const
+        panic!(
+            "exists purely to emit diagnostics on unimplemented traits. When `ToPyObject` \
+             and `IntoPy` are fully removed this will be replaced by the temporary `IntoPyObject` case above."
+        )
     }
 
     #[cfg(diagnostic_namespace)]
-    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType
+    pub const fn generate(&self, _name: &'static CStr, _doc: &'static CStr) -> PyMethodDefType
     // The bound goes here rather than on the block so that this impl is always available
     // if no specialization is used instead
     where
-        FieldT: PyO3GetFieldIntoPyObject,
+        for<'py> FieldT: PyO3GetField<'py>,
     {
-        PyMethodDefType::Getter(PyGetterDef {
-            name,
-            meth: pyo3_get_value_into_pyobject::<ClassT, FieldT, Offset>,
-            doc,
-        })
+        // unreachable not allowed in const
+        panic!(
+            "exists purely to emit diagnostics on unimplemented traits. When `ToPyObject` \
+             and `IntoPy` are fully removed this will be replaced by the temporary `IntoPyObject` case above."
+        )
     }
 }
 
