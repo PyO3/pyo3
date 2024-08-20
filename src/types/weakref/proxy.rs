@@ -238,11 +238,12 @@ mod tests {
         mod python_class {
             use super::*;
             use crate::ffi;
-            use crate::{py_result_ext::PyResultExt, types::PyType};
+            use crate::{py_result_ext::PyResultExt, types::PyDict, types::PyType};
 
             fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
-                py.run(ffi::c_str!("class A:\n    pass\n"), None, None)?;
-                py.eval(ffi::c_str!("A"), None, None)
+                let globals = PyDict::new(py);
+                py.run(ffi::c_str!("class A:\n    pass\n"), Some(&globals), None)?;
+                py.eval(ffi::c_str!("A"), Some(&globals), None)
                     .downcast_into::<PyType>()
             }
 
@@ -262,10 +263,7 @@ mod tests {
                         format!("<class {}>", CLASS_NAME)
                     );
 
-                    assert_eq!(
-                        reference.getattr("__class__")?.to_string(),
-                        "<class '__main__.A'>"
-                    );
+                    assert_eq!(reference.getattr("__class__")?.to_string(), "<class 'A'>");
                     #[cfg(not(Py_LIMITED_API))]
                     check_repr(&reference, &object, Some("A"))?;
 
@@ -782,15 +780,16 @@ mod tests {
         mod python_class {
             use super::*;
             use crate::ffi;
-            use crate::{py_result_ext::PyResultExt, types::PyType};
+            use crate::{py_result_ext::PyResultExt, types::PyDict, types::PyType};
 
             fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
+                let globals = PyDict::new(py);
                 py.run(
                     ffi::c_str!("class A:\n    def __call__(self):\n        return 'This class is callable!'\n"),
-                    None,
+                    Some(&globals),
                     None,
                 )?;
-                py.eval(ffi::c_str!("A"), None, None)
+                py.eval(ffi::c_str!("A"), Some(&globals), None)
                     .downcast_into::<PyType>()
             }
 
@@ -806,10 +805,7 @@ mod tests {
                     #[cfg(not(Py_LIMITED_API))]
                     assert_eq!(reference.get_type().to_string(), CLASS_NAME);
 
-                    assert_eq!(
-                        reference.getattr("__class__")?.to_string(),
-                        "<class '__main__.A'>"
-                    );
+                    assert_eq!(reference.getattr("__class__")?.to_string(), "<class 'A'>");
                     #[cfg(not(Py_LIMITED_API))]
                     check_repr(&reference, &object, Some("A"))?;
 
