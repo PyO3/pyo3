@@ -80,7 +80,7 @@ fn test_timezone_from_offset() {
     use crate::{ffi_ptr_ext::FfiPtrExt, types::PyDelta};
 
     Python::with_gil(|py| {
-        let delta = PyDelta::new_bound(py, 0, 100, 0, false).unwrap();
+        let delta = PyDelta::new(py, 0, 100, 0, false).unwrap();
         let tz = unsafe { PyTimeZone_FromOffset(delta.as_ptr()).assume_owned(py) };
         crate::py_run!(
             py,
@@ -98,7 +98,7 @@ fn test_timezone_from_offset_and_name() {
     use crate::{ffi_ptr_ext::FfiPtrExt, types::PyDelta};
 
     Python::with_gil(|py| {
-        let delta = PyDelta::new_bound(py, 0, 100, 0, false).unwrap();
+        let delta = PyDelta::new(py, 0, 100, 0, false).unwrap();
         let tzname = PyString::new(py, "testtz");
         let tz = unsafe {
             PyTimeZone_FromOffsetAndName(delta.as_ptr(), tzname.as_ptr()).assume_owned(py)
@@ -248,34 +248,34 @@ fn ucs4() {
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
 #[cfg(not(PyPy))]
 fn test_get_tzinfo() {
-    use crate::types::timezone_utc_bound;
+    use crate::types::timezone_utc;
 
     crate::Python::with_gil(|py| {
         use crate::types::{PyDateTime, PyTime};
 
-        let utc = &timezone_utc_bound(py);
+        let utc = &timezone_utc(py);
 
-        let dt = PyDateTime::new_bound(py, 2018, 1, 1, 0, 0, 0, 0, Some(utc)).unwrap();
+        let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(utc)).unwrap();
 
         assert!(
             unsafe { Bound::from_borrowed_ptr(py, PyDateTime_DATE_GET_TZINFO(dt.as_ptr())) }
                 .is(utc)
         );
 
-        let dt = PyDateTime::new_bound(py, 2018, 1, 1, 0, 0, 0, 0, None).unwrap();
+        let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, None).unwrap();
 
         assert!(
             unsafe { Bound::from_borrowed_ptr(py, PyDateTime_DATE_GET_TZINFO(dt.as_ptr())) }
                 .is_none()
         );
 
-        let t = PyTime::new_bound(py, 0, 0, 0, 0, Some(utc)).unwrap();
+        let t = PyTime::new(py, 0, 0, 0, 0, Some(utc)).unwrap();
 
         assert!(
             unsafe { Bound::from_borrowed_ptr(py, PyDateTime_TIME_GET_TZINFO(t.as_ptr())) }.is(utc)
         );
 
-        let t = PyTime::new_bound(py, 0, 0, 0, 0, None).unwrap();
+        let t = PyTime::new(py, 0, 0, 0, 0, None).unwrap();
 
         assert!(
             unsafe { Bound::from_borrowed_ptr(py, PyDateTime_TIME_GET_TZINFO(t.as_ptr())) }

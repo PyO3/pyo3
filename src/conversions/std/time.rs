@@ -5,7 +5,7 @@ use crate::types::any::PyAnyMethods;
 #[cfg(Py_LIMITED_API)]
 use crate::types::PyType;
 #[cfg(not(Py_LIMITED_API))]
-use crate::types::{timezone_utc_bound, PyDateTime, PyDelta, PyDeltaAccess};
+use crate::types::{timezone_utc, PyDateTime, PyDelta, PyDeltaAccess};
 #[cfg(Py_LIMITED_API)]
 use crate::Py;
 use crate::{
@@ -81,7 +81,7 @@ impl<'py> IntoPyObject<'py> for Duration {
 
         #[cfg(not(Py_LIMITED_API))]
         {
-            PyDelta::new_bound(
+            PyDelta::new(
                 py,
                 days.try_into()?,
                 seconds.try_into().unwrap(),
@@ -177,8 +177,7 @@ fn unix_epoch_py(py: Python<'_>) -> PyResult<&PyObject> {
         #[cfg(not(Py_LIMITED_API))]
         {
             Ok::<_, PyErr>(
-                PyDateTime::new_bound(py, 1970, 1, 1, 0, 0, 0, 0, Some(&timezone_utc_bound(py)))?
-                    .into(),
+                PyDateTime::new(py, 1970, 1, 1, 0, 0, 0, 0, Some(&timezone_utc(py)))?.into(),
             )
         }
         #[cfg(Py_LIMITED_API)]

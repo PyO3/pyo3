@@ -8,7 +8,7 @@ use pyo3::types::{
 
 #[pyfunction]
 fn make_date(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<Bound<'_, PyDate>> {
-    PyDate::new_bound(py, year, month, day)
+    PyDate::new(py, year, month, day)
 }
 
 #[pyfunction]
@@ -21,7 +21,7 @@ fn get_date_tuple<'py>(d: &Bound<'py, PyDate>) -> Bound<'py, PyTuple> {
 
 #[pyfunction]
 fn date_from_timestamp(py: Python<'_>, timestamp: i64) -> PyResult<Bound<'_, PyDate>> {
-    PyDate::from_timestamp_bound(py, timestamp)
+    PyDate::from_timestamp(py, timestamp)
 }
 
 #[pyfunction]
@@ -34,7 +34,7 @@ fn make_time<'py>(
     microsecond: u32,
     tzinfo: Option<&Bound<'py, PyTzInfo>>,
 ) -> PyResult<Bound<'py, PyTime>> {
-    PyTime::new_bound(py, hour, minute, second, microsecond, tzinfo)
+    PyTime::new(py, hour, minute, second, microsecond, tzinfo)
 }
 
 #[pyfunction]
@@ -48,7 +48,7 @@ fn time_with_fold<'py>(
     tzinfo: Option<&Bound<'py, PyTzInfo>>,
     fold: bool,
 ) -> PyResult<Bound<'py, PyTime>> {
-    PyTime::new_bound_with_fold(py, hour, minute, second, microsecond, tzinfo, fold)
+    PyTime::new_with_fold(py, hour, minute, second, microsecond, tzinfo, fold)
 }
 
 #[pyfunction]
@@ -85,7 +85,7 @@ fn make_delta(
     seconds: i32,
     microseconds: i32,
 ) -> PyResult<Bound<'_, PyDelta>> {
-    PyDelta::new_bound(py, days, seconds, microseconds, true)
+    PyDelta::new(py, days, seconds, microseconds, true)
 }
 
 #[pyfunction]
@@ -114,7 +114,7 @@ fn make_datetime<'py>(
     microsecond: u32,
     tzinfo: Option<&Bound<'py, PyTzInfo>>,
 ) -> PyResult<Bound<'py, PyDateTime>> {
-    PyDateTime::new_bound(
+    PyDateTime::new(
         py,
         year,
         month,
@@ -167,17 +167,17 @@ fn datetime_from_timestamp<'py>(
     ts: f64,
     tz: Option<&Bound<'py, PyTzInfo>>,
 ) -> PyResult<Bound<'py, PyDateTime>> {
-    PyDateTime::from_timestamp_bound(py, ts, tz)
+    PyDateTime::from_timestamp(py, ts, tz)
 }
 
 #[pyfunction]
 fn get_datetime_tzinfo<'py>(dt: &Bound<'py, PyDateTime>) -> Option<Bound<'py, PyTzInfo>> {
-    dt.get_tzinfo_bound()
+    dt.get_tzinfo()
 }
 
 #[pyfunction]
 fn get_time_tzinfo<'py>(dt: &Bound<'py, PyTime>) -> Option<Bound<'py, PyTzInfo>> {
-    dt.get_tzinfo_bound()
+    dt.get_tzinfo()
 }
 
 #[pyclass(extends=PyTzInfo)]
@@ -191,7 +191,7 @@ impl TzClass {
     }
 
     fn utcoffset<'py>(&self, dt: &Bound<'py, PyDateTime>) -> PyResult<Bound<'py, PyDelta>> {
-        PyDelta::new_bound(dt.py(), 0, 3600, 0, true)
+        PyDelta::new(dt.py(), 0, 3600, 0, true)
     }
 
     fn tzname(&self, _dt: &Bound<'_, PyDateTime>) -> String {
