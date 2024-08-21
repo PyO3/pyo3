@@ -52,6 +52,8 @@ macro_rules! compat_function {
 
 mod py_3_10;
 mod py_3_13;
+mod py_3_9;
 
 pub use self::py_3_10::*;
 pub use self::py_3_13::*;
+pub use self::py_3_9::*;

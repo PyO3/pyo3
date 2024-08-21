@@ -1180,20 +1180,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     fn call0(&self) -> PyResult<Bound<'py, PyAny>> {
-        cfg_if::cfg_if! {
-            if #[cfg(all(
-                not(PyPy),
-                not(GraalPy),
-                any(Py_3_10, all(not(Py_LIMITED_API), Py_3_9)) // PyObject_CallNoArgs was added to python in 3.9 but to limited API in 3.10
-            ))] {
-                // Optimized path on python 3.9+
-                unsafe {
-                    ffi::PyObject_CallNoArgs(self.as_ptr()).assume_owned_or_err(self.py())
-                }
-            } else {
-                self.call((), None)
-            }
-        }
+        unsafe { ffi::compat::PyObject_CallNoArgs(self.as_ptr()).assume_owned_or_err(self.py()) }
     }
 
     fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<Bound<'py, PyAny>> {
@@ -1218,18 +1205,11 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         N: IntoPy<Py<PyString>>,
     {
-        cfg_if::cfg_if! {
-            if #[cfg(all(Py_3_9, not(any(Py_LIMITED_API, PyPy, GraalPy))))] {
-                let py = self.py();
-
-                // Optimized path on python 3.9+
-                unsafe {
-                    let name = name.into_py(py).into_bound(py);
-                    ffi::PyObject_CallMethodNoArgs(self.as_ptr(), name.as_ptr()).assume_owned_or_err(py)
-                }
-            } else {
-                self.call_method(name, (), None)
-            }
+        let py = self.py();
+        let name = name.into_py(py).into_bound(py);
+        unsafe {
+            ffi::compat::PyObject_CallMethodNoArgs(self.as_ptr(), name.as_ptr())
+                .assume_owned_or_err(py)
         }
     }
 
