@@ -22,6 +22,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - run: python -m pip install --upgrade pip && pip install nox
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -38,6 +40,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: resolve MSRV
         id: resolve-msrv
         run:
@@ -50,6 +54,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - uses: obi1kenobi/cargo-semver-checks-action@v2
 
   check-msrv:
@@ -60,11 +66,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ needs.resolve.outputs.MSRV }}
-          targets: x86_64-unknown-linux-gnu
           components: rust-src
       - uses: actions/setup-python@v5
         with:
-          architecture: "x64"
+          python-version: '3.12'
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.event_name != 'merge_group' }}
@@ -143,6 +148,7 @@ jobs:
           components: clippy,rust-src
       - uses: actions/setup-python@v5
         with:
+          python-version: '3.12'
           architecture: ${{ matrix.platform.python-architecture }}
       - uses: Swatinem/rust-cache@v2
         with:
@@ -324,6 +330,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        with:
+          # FIXME valgrind detects an issue with Python 3.12.5, needs investigation
+          # whether it's a PyO3 issue or upstream CPython.
+          python-version: '3.12.4'
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.event_name != 'merge_group' }}
@@ -343,6 +353,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.event_name != 'merge_group' }}
@@ -363,6 +375,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.event_name != 'merge_group' }}
@@ -387,6 +401,8 @@ jobs:
         if: steps.should-skip.outputs.skip != 'true'
       - uses: actions/setup-python@v5
         if: steps.should-skip.outputs.skip != 'true'
+        with:
+          python-version: '3.12'
       - uses: Swatinem/rust-cache@v2
         if: steps.should-skip.outputs.skip != 'true'
         with:
@@ -546,6 +562,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.event_name != 'merge_group' }}
@@ -613,6 +631,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces:
