@@ -2,7 +2,7 @@
 use crate::vectorcallfunc;
 use crate::{object, PyGetSetDef, PyMemberDef, PyMethodDef, PyObject, Py_ssize_t};
 use std::mem;
-use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
+use std::os::raw::{c_char, c_int, c_uint, c_void};
 
 // skipped private _Py_NewReference
 // skipped private _Py_NewReferenceNoTotal
@@ -244,7 +244,7 @@ pub struct PyTypeObject {
     pub tp_setattro: Option<object::setattrofunc>,
     pub tp_as_buffer: *mut PyBufferProcs,
     #[cfg(not(Py_GIL_DISABLED))]
-    pub tp_flags: c_ulong,
+    pub tp_flags: std::os::raw::c_ulong,
     #[cfg(Py_GIL_DISABLED)]
     pub tp_flags: crate::impl_::AtomicCULong,
     pub tp_doc: *const c_char,

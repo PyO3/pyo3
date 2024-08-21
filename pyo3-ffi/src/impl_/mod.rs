@@ -1,8 +1,8 @@
 #[cfg(Py_GIL_DISABLED)]
 mod atomic_c_ulong {
-    pub(crate) struct GetAtomicCULong<const WIDTH: usize>();
+    pub struct GetAtomicCULong<const WIDTH: usize>();
 
-    pub(crate) trait AtomicCULongType {
+    pub trait AtomicCULongType {
         type Type;
     }
     impl AtomicCULongType for GetAtomicCULong<32> {
@@ -12,9 +12,11 @@ mod atomic_c_ulong {
         type Type = std::sync::atomic::AtomicU64;
     }
 
-    pub(crate) type TYPE = GetAtomicCULong<{ std::mem::size_of::<std::os::raw::c_ulong>() * 8 }>;
+    pub type TYPE =
+        <GetAtomicCULong<{ std::mem::size_of::<std::os::raw::c_ulong>() * 8 }> as AtomicCULongType>::Type;
 }
 
 /// Typedef for an atomic integer to match the platform-dependent c_ulong type.
 #[cfg(Py_GIL_DISABLED)]
-pub(crate) type AtomicCULong = atomic_c_ulong::TYPE;
+#[doc(hidden)]
+pub type AtomicCULong = atomic_c_ulong::TYPE;

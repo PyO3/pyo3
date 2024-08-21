@@ -907,7 +907,7 @@ pub unsafe fn PyType_HasFeature(ty: *mut PyTypeObject, feature: c_ulong) -> c_in
     let flags = PyType_GetFlags(ty);
 
     #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
-    let flags = (*ty).tp_flags.load(Ordering::Relaxed);
+    let flags = (*ty).tp_flags.load(std::sync::atomic::Ordering::Relaxed);
 
     #[cfg(all(not(Py_LIMITED_API), not(Py_GIL_DISABLED)))]
     let flags = (*ty).tp_flags;
