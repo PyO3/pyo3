@@ -177,7 +177,7 @@ pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
 
     #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), GraalPy))]
     {
-        _Py_REFCNT(obj)
+        _Py_REFCNT(ob)
     }
 }
 
