@@ -27,6 +27,10 @@ pub trait PyObjectInit<T>: Sized {
         py: Python<'_>,
         subtype: *mut PyTypeObject,
     ) -> PyResult<*mut ffi::PyObject>;
+
+    #[doc(hidden)]
+    fn can_be_subclassed(&self) -> bool;
+
     private_decl! {}
 }
 
@@ -79,6 +83,11 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
         }
         let type_object = T::type_object_raw(py);
         inner(py, type_object, subtype)
+    }
+
+    #[inline]
+    fn can_be_subclassed(&self) -> bool {
+        true
     }
 
     private_impl! {}
@@ -147,7 +156,14 @@ impl<T: PyClass> PyClassInitializer<T> {
     /// Constructs a new initializer from value `T` and base class' initializer.
     ///
     /// It is recommended to use `add_subclass` instead of this method for most usage.
+    #[track_caller]
+    #[inline]
     pub fn new(init: T, super_init: <T::BaseType as PyClassBaseType>::Initializer) -> Self {
+        // This is unsound; see https://github.com/PyO3/pyo3/issues/4452.
+        assert!(
+            super_init.can_be_subclassed(),
+            "you cannot add a subclass to an existing value",
+        );
         Self(PyClassInitializerImpl::New { init, super_init })
     }
 
@@ -197,6 +213,8 @@ impl<T: PyClass> PyClassInitializer<T> {
     ///     })
     /// }
     /// ```
+    #[track_caller]
+    #[inline]
     pub fn add_subclass<S>(self, subclass_value: S) -> PyClassInitializer<S>
     where
         S: PyClass<BaseType = T>,
@@ -268,6 +286,11 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
             .map(Bound::into_ptr)
     }
 
+    #[inline]
+    fn can_be_subclassed(&self) -> bool {
+        !matches!(self.0, PyClassInitializerImpl::Existing(..))
+    }
+
     private_impl! {}
 }
 
@@ -288,6 +311,8 @@ where
     B: PyClass,
     B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
 {
+    #[track_caller]
+    #[inline]
     fn from(sub_and_base: (S, B)) -> PyClassInitializer<S> {
         let (sub, base) = sub_and_base;
         PyClassInitializer::from(base).add_subclass(sub)
@@ -318,5 +343,29 @@ where
     #[inline]
     fn convert(self, _py: Python<'_>) -> PyResult<PyClassInitializer<T>> {
         Ok(self.into())
+    }
+}
+
+#[cfg(all(test, feature = "macros"))]
+mod tests {
+    //! See https://github.com/PyO3/pyo3/issues/4452.
+
+    use crate::prelude::*;
+
+    #[pyclass(crate = "crate", subclass)]
+    struct BaseClass {}
+
+    #[pyclass(crate = "crate", extends=BaseClass)]
+    struct SubClass {
+        _data: i32,
+    }
+
+    #[test]
+    #[should_panic]
+    fn add_subclass_to_py_is_unsound() {
+        Python::with_gil(|py| {
+            let base = Py::new(py, BaseClass {}).unwrap();
+            let _subclass = PyClassInitializer::from(base).add_subclass(SubClass { _data: 42 });
+        });
     }
 }
