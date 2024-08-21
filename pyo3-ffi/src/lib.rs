@@ -292,6 +292,7 @@ pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &CStr {
 use std::ffi::CStr;
 
 pub mod compat;
+mod impl_;
 
 pub use self::abstract_::*;
 pub use self::bltinmodule::*;

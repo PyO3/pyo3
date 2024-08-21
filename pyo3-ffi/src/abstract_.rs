@@ -1,23 +1,17 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
-use std::ptr;
-
-extern "C" {
-    #[cfg(PyPy)]
-    #[link_name = "PyPyObject_DelAttrString"]
-    pub fn PyObject_DelAttrString(o: *mut PyObject, attr_name: *const c_char) -> c_int;
-}
 
 #[inline]
-#[cfg(not(PyPy))]
+#[cfg(all(not(Py_3_13), not(PyPy)))] // CPython exposed as a function in 3.13, in object.h
 pub unsafe fn PyObject_DelAttrString(o: *mut PyObject, attr_name: *const c_char) -> c_int {
-    PyObject_SetAttrString(o, attr_name, ptr::null_mut())
+    PyObject_SetAttrString(o, attr_name, std::ptr::null_mut())
 }
 
 #[inline]
+#[cfg(all(not(Py_3_13), not(PyPy)))] // CPython exposed as a function in 3.13, in object.h
 pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_int {
-    PyObject_SetAttr(o, attr_name, ptr::null_mut())
+    PyObject_SetAttr(o, attr_name, std::ptr::null_mut())
 }
 
 extern "C" {

@@ -37,12 +37,9 @@ automated tooling because:
   - it gives us best control about how to adapt C conventions to Rust, and
   - there are many Python interpreter versions we support in a single set of files.
 
-We aim to provide straight-forward Rust wrappers resembling the file structure of
-[`cpython/Include`](https://github.com/python/cpython/tree/v3.9.2/Include).
+We aim to provide straight-forward Rust wrappers resembling the file structure of [`cpython/Include`](https://github.com/python/cpython/tree/3.13/Include).
 
-However, we still lack some APIs and are continuously updating the module to match
-the file contents upstream in CPython.
-The tracking issue is [#1289](https://github.com/PyO3/pyo3/issues/1289), and contribution is welcome.
+We are continuously updating the module to match the latest CPython version which PyO3 supports (i.e. as of time of writing Python 3.13). The tracking issue is [#1289](https://github.com/PyO3/pyo3/issues/1289), and contribution is welcome.
 
 In the [`pyo3-ffi`] crate, there is lots of conditional compilation such as `#[cfg(Py_LIMITED_API)]`,
 `#[cfg(Py_3_7)]`, and `#[cfg(PyPy)]`.
