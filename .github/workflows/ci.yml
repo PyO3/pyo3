@@ -331,7 +331,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          # FIXME valgrind detects an issue with Python 3.12.5, needs investigation
+          # whether it's a PyO3 issue or upstream CPython.
+          python-version: '3.12.4'
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.event_name != 'merge_group' }}
