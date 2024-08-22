@@ -1,5 +1,6 @@
 use std::iter::FusedIterator;
 
+use crate::conversion::IntoPyObject;
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
@@ -8,8 +9,8 @@ use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{any::PyAnyMethods, sequence::PySequenceMethods, PyList, PySequence};
 use crate::{
-    exceptions, Bound, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
-    ToPyObject,
+    exceptions, Bound, BoundObject, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult,
+    Python, ToPyObject,
 };
 
 #[inline]
@@ -523,6 +524,20 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         #[cfg(feature = "experimental-inspect")]
 fn type_output() -> TypeInfo {
             TypeInfo::Tuple(Some(vec![$( $T::type_output() ),+]))
+        }
+    }
+
+    impl <'py, $($T),+> IntoPyObject<'py> for ($($T,)+)
+    where
+        $($T: IntoPyObject<'py>,)+
+        PyErr: $(From<$T::Error> + )+
+    {
+        type Target = PyTuple;
+        type Output = Bound<'py, Self::Target>;
+        type Error = PyErr;
+
+        fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+            Ok(array_into_tuple(py, [$(self.$n.into_pyobject(py)?.into_any().unbind()),+]).into_bound(py))
         }
     }
 
