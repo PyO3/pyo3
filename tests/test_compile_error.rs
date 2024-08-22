@@ -62,5 +62,6 @@ fn test_compile_errors() {
     #[cfg(all(Py_LIMITED_API, not(Py_3_9)))]
     t.compile_fail("tests/ui/abi3_dict.rs");
     t.compile_fail("tests/ui/duplicate_pymodule_submodule.rs");
+    #[cfg(not(Py_LIMITED_API))]
     t.compile_fail("tests/ui/invalid_base_class.rs");
 }
