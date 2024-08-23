@@ -42,7 +42,7 @@ pub trait PyTracebackMethods<'py>: crate::sealed::Sealed {
     ///         .run(c_str!("raise Exception('banana')"), None, None)
     ///         .expect_err("raise will create a Python error");
     ///
-    ///     let traceback = err.traceback_bound(py).expect("raised exception will have a traceback");
+    ///     let traceback = err.traceback(py).expect("raised exception will have a traceback");
     ///     assert_eq!(
     ///         format!("{}{}", traceback.format()?, err),
     ///         "\
@@ -94,7 +94,7 @@ mod tests {
                 .expect_err("raising should have given us an error");
 
             assert_eq!(
-                err.traceback_bound(py).unwrap().format().unwrap(),
+                err.traceback(py).unwrap().format().unwrap(),
                 "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n"
             );
         })
@@ -118,9 +118,9 @@ except Exception as e:
                 Some(&locals),
             )
             .unwrap();
-            let err = PyErr::from_value_bound(locals.get_item("err").unwrap().unwrap());
-            let traceback = err.value_bound(py).getattr("__traceback__").unwrap();
-            assert!(err.traceback_bound(py).unwrap().is(&traceback));
+            let err = PyErr::from_value(locals.get_item("err").unwrap().unwrap());
+            let traceback = err.value(py).getattr("__traceback__").unwrap();
+            assert!(err.traceback(py).unwrap().is(&traceback));
         })
     }
 
@@ -142,7 +142,7 @@ def f():
             .unwrap();
             let f = locals.get_item("f").unwrap().unwrap();
             let err = f.call0().unwrap_err();
-            let traceback = err.traceback_bound(py).unwrap();
+            let traceback = err.traceback(py).unwrap();
             let err_object = err.clone_ref(py).into_py(py).into_bound(py);
 
             assert!(err_object.getattr("__traceback__").unwrap().is(&traceback));

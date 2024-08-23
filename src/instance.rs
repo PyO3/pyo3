@@ -464,7 +464,7 @@ fn python_format(
 ) -> Result<(), std::fmt::Error> {
     match format_result {
         Result::Ok(s) => return f.write_str(&s.to_string_lossy()),
-        Result::Err(err) => err.write_unraisable_bound(any.py(), Some(any)),
+        Result::Err(err) => err.write_unraisable(any.py(), Some(any)),
     }
 
     match any.get_type().name() {

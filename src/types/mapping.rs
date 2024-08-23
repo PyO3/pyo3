@@ -176,7 +176,7 @@ impl PyTypeCheck for PyMapping {
             || get_mapping_abc(object.py())
                 .and_then(|abc| object.is_instance(abc))
                 .unwrap_or_else(|err| {
-                    err.write_unraisable_bound(object.py(), Some(&object.as_borrowed()));
+                    err.write_unraisable(object.py(), Some(&object.as_borrowed()));
                     false
                 })
     }

@@ -276,7 +276,7 @@ mod tests {
                         let result = err.is_instance_of::<PyTypeError>(py);
                         #[cfg(not(Py_LIMITED_API))]
                         let result = result
-                            & (err.value_bound(py).to_string()
+                            & (err.value(py).to_string()
                                 == format!("{} object is not callable", CLASS_NAME));
                         result
                     }));
@@ -300,7 +300,7 @@ mod tests {
                         let result = err.is_instance_of::<PyTypeError>(py);
                         #[cfg(not(Py_LIMITED_API))]
                         let result = result
-                            & (err.value_bound(py).to_string()
+                            & (err.value(py).to_string()
                                 == format!("{} object is not callable", CLASS_NAME));
                         result
                     }));
@@ -550,7 +550,7 @@ mod tests {
                         let result = err.is_instance_of::<PyTypeError>(py);
                         #[cfg(not(Py_LIMITED_API))]
                         let result = result
-                            & (err.value_bound(py).to_string()
+                            & (err.value(py).to_string()
                                 == format!("{} object is not callable", CLASS_NAME));
                         result
                     }));
@@ -574,7 +574,7 @@ mod tests {
                         let result = err.is_instance_of::<PyTypeError>(py);
                         #[cfg(not(Py_LIMITED_API))]
                         let result = result
-                            & (err.value_bound(py).to_string()
+                            & (err.value(py).to_string()
                                 == format!("{} object is not callable", CLASS_NAME));
                         result
                     }));
@@ -835,7 +835,7 @@ mod tests {
                         .call0()
                         .err()
                         .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)
-                            & (err.value_bound(py).to_string()
+                            & (err.value(py).to_string()
                                 == "weakly-referenced object no longer exists")));
 
                     Ok(())
@@ -1104,7 +1104,7 @@ mod tests {
                         .call0()
                         .err()
                         .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)
-                            & (err.value_bound(py).to_string()
+                            & (err.value(py).to_string()
                                 == "weakly-referenced object no longer exists")));
 
                     Ok(())

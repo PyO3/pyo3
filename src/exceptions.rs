@@ -215,7 +215,7 @@ macro_rules! create_exception {
 
         $crate::impl_exception_boilerplate!($name);
 
-        $crate::create_exception_type_object!($module, $name, $base, ::std::option::Option::None);
+        $crate::create_exception_type_object!($module, $name, $base, None);
     };
     ($module: expr, $name: ident, $base: ty, $doc: expr) => {
         #[repr(transparent)]
@@ -225,12 +225,7 @@ macro_rules! create_exception {
 
         $crate::impl_exception_boilerplate!($name);
 
-        $crate::create_exception_type_object!(
-            $module,
-            $name,
-            $base,
-            ::std::option::Option::Some($doc)
-        );
+        $crate::create_exception_type_object!($module, $name, $base, Some($doc));
     };
 }
 
@@ -239,6 +234,12 @@ macro_rules! create_exception {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! create_exception_type_object {
+    ($module: expr, $name: ident, $base: ty, None) => {
+        $crate::create_exception_type_object!($module, $name, $base, ::std::option::Option::None);
+    };
+    ($module: expr, $name: ident, $base: ty, Some($doc: expr)) => {
+        $crate::create_exception_type_object!($module, $name, $base, ::std::option::Option::Some($crate::ffi::c_str!($doc)));
+    };
     ($module: expr, $name: ident, $base: ty, $doc: expr) => {
         $crate::pyobject_native_type_core!(
             $name,
@@ -254,9 +255,9 @@ macro_rules! create_exception_type_object {
 
                 TYPE_OBJECT
                     .get_or_init(py, ||
-                        $crate::PyErr::new_type_bound(
+                        $crate::PyErr::new_type(
                             py,
-                            concat!(stringify!($module), ".", stringify!($name)),
+                            $crate::ffi::c_str!(concat!(stringify!($module), ".", stringify!($name))),
                             $doc,
                             ::std::option::Option::Some(&py.get_type::<$base>()),
                             ::std::option::Option::None,
@@ -758,7 +759,7 @@ macro_rules! test_exception {
 
                 assert!(err.is_instance_of::<$exc_ty>(py));
 
-                let value = err.value_bound(py).as_any().downcast::<$exc_ty>().unwrap();
+                let value = err.value(py).as_any().downcast::<$exc_ty>().unwrap();
 
                 assert!($crate::PyErr::from(value.clone()).is_instance_of::<$exc_ty>(py));
             })
@@ -1072,7 +1073,7 @@ mod tests {
         let invalid_utf8 = b"fo\xd8o";
         #[cfg_attr(invalid_from_utf8_lint, allow(invalid_from_utf8))]
         let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
-        PyErr::from_value_bound(
+        PyErr::from_value(
             PyUnicodeDecodeError::new_utf8_bound(py, invalid_utf8, err)
                 .unwrap()
                 .into_any(),
