@@ -135,7 +135,7 @@ fn ensure_gil_enabled(interpreter_config: &InterpreterConfig) -> Result<()> {
         = help: set UNSAFE_PYO3_BUILD_FREE_THREADED=1 to suppress this check and build anyway for free-threaded Python",
         std::env::var("CARGO_PKG_VERSION").unwrap()
     );
-    if interpreter_config.abi3 {
+    if !gil_enabled && interpreter_config.abi3 {
         warn!(
             "The free-threaded build of CPython does not yet support abi3 so the build artifacts will be version-specific."
         )
