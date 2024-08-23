@@ -862,11 +862,13 @@ mod tests {
     #[cfg(all(feature = "macros", feature = "chrono"))]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_timezone_from_offset() {
+        use crate::types::PyNone;
+
         Python::with_gil(|py| {
             assert!(
                 timezone_from_offset(&PyDelta::new(py, 0, -3600, 0, true).unwrap())
                     .unwrap()
-                    .call_method1("utcoffset", ((),))
+                    .call_method1("utcoffset", (PyNone::get(py),))
                     .unwrap()
                     .downcast_into::<PyDelta>()
                     .unwrap()
@@ -877,7 +879,7 @@ mod tests {
             assert!(
                 timezone_from_offset(&PyDelta::new(py, 0, 3600, 0, true).unwrap())
                     .unwrap()
-                    .call_method1("utcoffset", ((),))
+                    .call_method1("utcoffset", (PyNone::get(py),))
                     .unwrap()
                     .downcast_into::<PyDelta>()
                     .unwrap()

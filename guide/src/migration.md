@@ -133,6 +133,71 @@ This is purely additional and should just extend the possible return types.
 
 </details>
 
+### Python API trait bounds changed
+<details open>
+<summary><small>Click to expand</small></summary>
+
+PyO3 0.23 introduces a new unified `IntoPyObject` trait to convert Rust types into Python objects.
+Notable features of this new trait:
+- conversions can now return an error 
+- compared to `IntoPy<T>` the generic `T` moved into an associated type, so
+  - there is now only one way to convert a given type
+  - the output type is stronger typed and may return any Python type instead of just `PyAny`
+- byte collections are special handled and convert into `PyBytes` now, see [above](#macro-conversion-changed-for-byte-collections-vecu8-u8-n-and-smallvecu8-n)
+- `()` (unit) is now only special handled in return position and otherwise converts into an empty `PyTuple`
+
+All PyO3 provided types as well as `#[pyclass]`es already implement `IntoPyObject`. Other types will
+need to adapt an implementation of `IntoPyObject` to stay compatible with the Python APIs.
+
+
+Before: 
+```rust
+# use pyo3::prelude::*;
+# #[allow(dead_code)]
+struct MyPyObjectWrapper(PyObject);
+
+impl IntoPy<PyObject> for MyPyObjectWrapper {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.0
+    }
+}
+
+impl ToPyObject for MyPyObjectWrapper {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        self.0.clone_ref(py)
+    }
+}
+```
+
+After:
+```rust
+# use pyo3::prelude::*;
+# #[allow(dead_code)]
+# struct MyPyObjectWrapper(PyObject);
+
+impl<'py> IntoPyObject<'py> for MyPyObjectWrapper {
+    type Target = PyAny; // the Python type
+    type Output = Bound<'py, Self::Target>; // in most cases this will be `Bound`
+    type Error = std::convert::Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self.0.into_bound(py))
+    }
+}
+
+// `ToPyObject` implementations should be converted to implementations on reference types
+impl<'a, 'py> IntoPyObject<'py> for &'a MyPyObjectWrapper {
+    type Target = PyAny;
+    type Output = Borrowed<'a, 'py, Self::Target>; // `Borrowed` can be used to optimized reference counting
+    type Error = std::convert::Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self.0.bind_borrowed(py))
+    }
+}
+```
+</details>
+
 ## from 0.21.* to 0.22
 
 ### Deprecation of `gil-refs` feature continues
