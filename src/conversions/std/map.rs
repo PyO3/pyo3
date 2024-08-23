@@ -76,7 +76,7 @@ impl<'a, 'py, K, V, H> IntoPyObject<'py> for &'a collections::HashMap<K, V, H>
 where
     &'a K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
     &'a V: IntoPyObject<'py>,
-    &'a H: hash::BuildHasher,
+    H: hash::BuildHasher,
     PyErr: From<<&'a K as IntoPyObject<'py>>::Error> + From<<&'a V as IntoPyObject<'py>>::Error>,
 {
     type Target = PyDict;

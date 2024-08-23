@@ -165,7 +165,7 @@ where
 impl<'a, 'py, K, H> IntoPyObject<'py> for &'a hashbrown::HashSet<K, H>
 where
     &'a K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
-    &'a H: hash::BuildHasher,
+    H: hash::BuildHasher,
     PyErr: From<<&'a K as IntoPyObject<'py>>::Error>,
 {
     type Target = PySet;
