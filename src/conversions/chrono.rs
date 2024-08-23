@@ -1340,7 +1340,7 @@ mod tests {
             .unwrap()
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(any(target_arch = "wasm32", Py_GIL_DISABLED)))]
     mod proptests {
         use super::*;
         use crate::tests::common::CatchWarnings;
