@@ -61,6 +61,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.61"
 rayon = "1.6.1"
 futures = "0.3.28"
+tempfile = "3.12.0"
 
 [build-dependencies]
 pyo3-build-config = { path = "pyo3-build-config", version = "=0.23.0-dev", features = ["resolve-config"] }
