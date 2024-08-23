@@ -406,7 +406,7 @@ jobs:
         id: resolve-shas
         run: |
           git fetch --depth=1 origin ${{ github.base_ref }}
-          echo head_sha=$(git rev-parse FETCH_HEAD) >> $GITHUB_OUTPUT
+          echo head_sha=$(git rev-parse HEAD) >> $GITHUB_OUTPUT
           echo base_sha=$(git rev-parse FETCH_HEAD) >> $GITHUB_OUTPUT
         if: steps.should-skip.outputs.skip != 'true'
       - uses: codecov/codecov-action@v4
