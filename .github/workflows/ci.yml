@@ -402,12 +402,21 @@ jobs:
         if: steps.should-skip.outputs.skip != 'true'
       - run: nox -s coverage
         if: steps.should-skip.outputs.skip != 'true'
+      - name: Resolve merge-base for coverage
+        id: resolve-base
+        run: |
+          git fetch --depth=1 origin ${{ github.base_ref }}
+          echo base_sha=$(git rev-parse FETCH_HEAD) >> $GITHUB_OUTPUT
+        if: steps.should-skip.outputs.skip != 'true'
       - uses: codecov/codecov-action@v4
         if: steps.should-skip.outputs.skip != 'true'
         with:
           file: coverage.json
           name: ${{ matrix.os }}
           token: ${{ secrets.CODECOV_TOKEN }}
+          # because we run pull_request, we need to tell codecov the base of the
+          # comparison
+          commit_parent: ${{ steps.resolve-base.outputs.base_sha }}
 
   emscripten:
     name: emscripten
