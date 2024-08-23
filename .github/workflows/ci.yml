@@ -417,6 +417,8 @@ jobs:
           # because we run pull_request, we need to tell codecov the base of the
           # comparison
           commit_parent: ${{ steps.resolve-base.outputs.base_sha }}
+          # codecov seems to calculate the branch unreliably for forks, so we set this explicitly
+          override_branch: ${{ github.event.pull_request.head.repo.full_name == 'PyO3/pyo3' && github.head_ref || format('{0}/{1}', github.event.pull_request.head.repo.full_name, github.head_ref) }}
 
   emscripten:
     name: emscripten
