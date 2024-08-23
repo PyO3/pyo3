@@ -403,9 +403,10 @@ jobs:
       - run: nox -s coverage
         if: steps.should-skip.outputs.skip != 'true'
       - name: Resolve merge-base for coverage
-        id: resolve-base
+        id: resolve-shas
         run: |
           git fetch --depth=1 origin ${{ github.base_ref }}
+          echo head_sha=$(git rev-parse FETCH_HEAD) >> $GITHUB_OUTPUT
           echo base_sha=$(git rev-parse FETCH_HEAD) >> $GITHUB_OUTPUT
         if: steps.should-skip.outputs.skip != 'true'
       - uses: codecov/codecov-action@v4
@@ -416,9 +417,11 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           # because we run pull_request, we need to tell codecov the base of the
           # comparison
-          commit_parent: ${{ steps.resolve-base.outputs.base_sha }}
+          override_commit: ${{ steps.resolve-shas.outputs.head_sha }}
+          override_pr: ${{ github.event.pull_request.number}}
+          commit_parent: ${{ steps.resolve-shas.outputs.base_sha }}
           # codecov seems to calculate the branch unreliably for forks, so we set this explicitly
-          override_branch: ${{ github.event.pull_request.head.repo.full_name == 'PyO3/pyo3' && github.head_ref || format('{0}/{1}', github.event.pull_request.head.repo.full_name, github.head_ref) }}
+          override_branch: ${{ github.event.pull_request.head.repo.full_name == 'PyO3/pyo3' && github.head_ref || format('{0}:{1}', github.event.pull_request.head.repo.full_name, github.head_ref) }}
 
   emscripten:
     name: emscripten
