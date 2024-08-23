@@ -1,4 +1,6 @@
-use crate::{PyMutex, PyObject};
+#[cfg(Py_GIL_DISABLED)]
+use crate::PyMutex;
+use crate::PyObject;
 
 #[repr(C)]
 #[cfg(Py_GIL_DISABLED)]
