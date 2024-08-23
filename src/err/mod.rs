@@ -328,7 +328,7 @@ impl PyErr {
     #[deprecated(since = "0.23.0", note = "renamed to `PyErr::traceback`")]
     #[inline]
     pub fn traceback_bound<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyTraceback>> {
-        self.normalized(py).ptraceback(py)
+        self.traceback(py)
     }
 
     /// Gets whether an error is present in the Python interpreter's global state.
@@ -467,10 +467,6 @@ impl PyErr {
     /// # Errors
     ///
     /// This function returns an error if `name` is not of the form `<module>.<ExceptionName>`.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if  `name` or `doc` cannot be converted to [`CString`]s.
     pub fn new_type<'py>(
         py: Python<'py>,
         name: &CStr,
