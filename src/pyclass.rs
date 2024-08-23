@@ -6,6 +6,7 @@ mod create_type_object;
 mod gc;
 
 pub(crate) use self::create_type_object::{create_type_object, PyClassTypeObject};
+
 pub use self::gc::{PyTraverseError, PyVisit};
 
 /// Types that can be used as Python classes.

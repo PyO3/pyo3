@@ -312,14 +312,6 @@ impl<'py, T: PyClass> PyRef<'py, T> {
             .try_borrow()
             .map(|_| Self { inner: obj.clone() })
     }
-
-    pub(crate) fn try_borrow_threadsafe(obj: &Bound<'py, T>) -> Result<Self, PyBorrowError> {
-        let cell = obj.get_class_object();
-        cell.check_threadsafe()?;
-        cell.borrow_checker()
-            .try_borrow()
-            .map(|_| Self { inner: obj.clone() })
-    }
 }
 
 impl<'p, T, U> PyRef<'p, T>
