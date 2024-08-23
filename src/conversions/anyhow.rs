@@ -150,7 +150,7 @@ mod test_anyhow {
             let pyerr = py
                 .run(ffi::c_str!("raise err"), None, Some(&locals))
                 .unwrap_err();
-            assert_eq!(pyerr.value_bound(py).to_string(), expected_contents);
+            assert_eq!(pyerr.value(py).to_string(), expected_contents);
         })
     }
 
@@ -169,7 +169,7 @@ mod test_anyhow {
             let pyerr = py
                 .run(ffi::c_str!("raise err"), None, Some(&locals))
                 .unwrap_err();
-            assert_eq!(pyerr.value_bound(py).to_string(), expected_contents);
+            assert_eq!(pyerr.value(py).to_string(), expected_contents);
         })
     }
 

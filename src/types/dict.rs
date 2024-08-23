@@ -757,7 +757,7 @@ mod tests {
                 }
                 Err(err) => {
                     assert!(err.is_instance_of::<PyTypeError>(py));
-                    assert_eq!(err.value_bound(py).to_string(), "Error from __hash__")
+                    assert_eq!(err.value(py).to_string(), "Error from __hash__")
                 }
             }
         })

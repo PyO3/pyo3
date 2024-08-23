@@ -1087,7 +1087,7 @@ impl ThreadCheckerImpl {
                 "{} is unsendable, but is being dropped on another thread",
                 type_name
             ))
-            .write_unraisable_bound(py, None);
+            .write_unraisable(py, None);
             return false;
         }
 

@@ -141,8 +141,8 @@ mod tests {
 
                 let py_err_recovered_from_rust_err: PyErr = rust_err_from_py_err.into();
                 assert!(py_err_recovered_from_rust_err
-                    .value_bound(py)
-                    .is(py_error_clone.value_bound(py))); // It should be the same exception
+                    .value(py)
+                    .is(py_error_clone.value(py))); // It should be the same exception
             })
         };
 

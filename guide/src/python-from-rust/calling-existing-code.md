@@ -368,9 +368,9 @@ class House(object):
                     .call_method1(
                         "__exit__",
                         (
-                            e.get_type_bound(py),
-                            e.value_bound(py),
-                            e.traceback_bound(py),
+                            e.get_type(py),
+                            e.value(py),
+                            e.traceback(py),
                         ),
                     )
                     .unwrap();
