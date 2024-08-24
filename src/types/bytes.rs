@@ -38,10 +38,10 @@ use std::str;
 /// let other = PyBytes::new(py, b"foo".as_slice());
 /// assert!(py_bytes.as_any().eq(other).unwrap());
 ///
-/// // Note that `eq` will convert it's argument to Python using `ToPyObject`,
-/// // so the following does not compare equal since the slice will convert into a
-/// // `list`, not a `bytes` object.
-/// assert!(!py_bytes.as_any().eq(b"foo".as_slice()).unwrap());
+/// // Note that `eq` will convert its argument to Python using `IntoPyObject`.
+/// // Byte collections are specialized, so that the following slice will indeed
+/// // convert into a `bytes` object and not a `list`:
+/// assert!(py_bytes.as_any().eq(b"foo".as_slice()).unwrap());
 /// # });
 /// ```
 #[repr(transparent)]

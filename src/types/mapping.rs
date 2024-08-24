@@ -1,3 +1,4 @@
+use crate::conversion::IntoPyObject;
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
@@ -6,7 +7,7 @@ use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyDict, PySequence, PyType};
-use crate::{ffi, Py, PyTypeCheck, Python, ToPyObject};
+use crate::{ffi, Py, PyErr, PyTypeCheck, Python};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
 ///
@@ -50,7 +51,8 @@ pub trait PyMappingMethods<'py>: crate::sealed::Sealed {
     /// This is equivalent to the Python expression `key in self`.
     fn contains<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>,
+        K::Error: Into<PyErr>;
 
     /// Gets the item in self with key `key`.
     ///
@@ -59,22 +61,26 @@ pub trait PyMappingMethods<'py>: crate::sealed::Sealed {
     /// This is equivalent to the Python expression `self[key]`.
     fn get_item<K>(&self, key: K) -> PyResult<Bound<'py, PyAny>>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>,
+        K::Error: Into<PyErr>;
 
     /// Sets the item in self with key `key`.
     ///
     /// This is equivalent to the Python expression `self[key] = value`.
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
     where
-        K: ToPyObject,
-        V: ToPyObject;
+        K: IntoPyObject<'py>,
+        V: IntoPyObject<'py>,
+        K::Error: Into<PyErr>,
+        V::Error: Into<PyErr>;
 
     /// Deletes the item with key `key`.
     ///
     /// This is equivalent to the Python statement `del self[key]`.
     fn del_item<K>(&self, key: K) -> PyResult<()>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>,
+        K::Error: Into<PyErr>;
 
     /// Returns a sequence containing all keys in the mapping.
     fn keys(&self) -> PyResult<Bound<'py, PySequence>>;
@@ -101,7 +107,8 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
 
     fn contains<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
+        K::Error: Into<PyErr>,
     {
         PyAnyMethods::contains(&**self, key)
     }
@@ -109,7 +116,8 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
     #[inline]
     fn get_item<K>(&self, key: K) -> PyResult<Bound<'py, PyAny>>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
+        K::Error: Into<PyErr>,
     {
         PyAnyMethods::get_item(&**self, key)
     }
@@ -117,8 +125,10 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
     #[inline]
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
     where
-        K: ToPyObject,
-        V: ToPyObject,
+        K: IntoPyObject<'py>,
+        V: IntoPyObject<'py>,
+        K::Error: Into<PyErr>,
+        V::Error: Into<PyErr>,
     {
         PyAnyMethods::set_item(&**self, key, value)
     }
@@ -126,7 +136,8 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
     #[inline]
     fn del_item<K>(&self, key: K) -> PyResult<()>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
+        K::Error: Into<PyErr>,
     {
         PyAnyMethods::del_item(&**self, key)
     }

@@ -46,6 +46,16 @@ macro_rules! int_fits_larger_int {
             }
         }
 
+        impl<'py> IntoPyObject<'py> for &$rust_type {
+            type Target = PyInt;
+            type Output = Bound<'py, Self::Target>;
+            type Error = Infallible;
+
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                (*self).into_pyobject(py)
+            }
+        }
+
         impl FromPyObject<'_> for $rust_type {
             fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
                 let val: $larger_type = obj.extract()?;
