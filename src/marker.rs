@@ -685,7 +685,7 @@ impl<'py> Python<'py> {
     where
         T: PyTypeInfo,
     {
-        T::type_object_bound(self)
+        T::type_object(self)
     }
 
     /// Deprecated name for [`Python::get_type`].

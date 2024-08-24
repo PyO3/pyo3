@@ -176,7 +176,7 @@ impl<T> AddTypeToModule<T> {
 
 impl<T: PyTypeInfo> PyAddToModule for AddTypeToModule<T> {
     fn add_to_module(&'static self, module: &Bound<'_, PyModule>) -> PyResult<()> {
-        module.add(T::NAME, T::type_object_bound(module.py()))
+        module.add(T::NAME, T::type_object(module.py()))
     }
 }
 

@@ -24,7 +24,7 @@ impl PyMapping {
     /// library). This is equivalent to `collections.abc.Mapping.register(T)` in Python.
     /// This registration is required for a pyclass to be downcastable from `PyAny` to `PyMapping`.
     pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
-        let ty = T::type_object_bound(py);
+        let ty = T::type_object(py);
         get_mapping_abc(py)?.call_method1("register", (ty,))?;
         Ok(())
     }
@@ -172,7 +172,7 @@ impl PyTypeCheck for PyMapping {
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         // Using `is_instance` for `collections.abc.Mapping` is slow, so provide
         // optimized case dict as a well-known mapping
-        PyDict::is_type_of_bound(object)
+        PyDict::is_type_of(object)
             || get_mapping_abc(object.py())
                 .and_then(|abc| object.is_instance(abc))
                 .unwrap_or_else(|err| {

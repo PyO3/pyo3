@@ -160,7 +160,7 @@ impl PyErr {
     {
         PyErr::from_state(PyErrState::Lazy(Box::new(move |py| {
             PyErrStateLazyFnOutput {
-                ptype: T::type_object_bound(py).into(),
+                ptype: T::type_object(py).into(),
                 pvalue: args.arguments(py),
             }
         })))
@@ -215,7 +215,7 @@ impl PyErr {
     ///     assert_eq!(err.to_string(), "TypeError: some type error");
     ///
     ///     // Case #2: Exception type
-    ///     let err = PyErr::from_value(PyTypeError::type_object_bound(py).into_any());
+    ///     let err = PyErr::from_value(PyTypeError::type_object(py).into_any());
     ///     assert_eq!(err.to_string(), "TypeError: ");
     ///
     ///     // Case #3: Invalid exception value
@@ -587,7 +587,7 @@ impl PyErr {
     where
         T: PyTypeInfo,
     {
-        self.is_instance(py, &T::type_object_bound(py))
+        self.is_instance(py, &T::type_object(py))
     }
 
     /// Writes the error back to the Python interpreter's global state.
@@ -1187,21 +1187,18 @@ mod tests {
     fn test_pyerr_matches() {
         Python::with_gil(|py| {
             let err = PyErr::new::<PyValueError, _>("foo");
-            assert!(err.matches(py, PyValueError::type_object_bound(py)));
+            assert!(err.matches(py, PyValueError::type_object(py)));
 
             assert!(err.matches(
                 py,
-                (
-                    PyValueError::type_object_bound(py),
-                    PyTypeError::type_object_bound(py)
-                )
+                (PyValueError::type_object(py), PyTypeError::type_object(py))
             ));
 
-            assert!(!err.matches(py, PyTypeError::type_object_bound(py)));
+            assert!(!err.matches(py, PyTypeError::type_object(py)));
 
             // String is not a valid exception class, so we should get a TypeError
-            let err: PyErr = PyErr::from_type(crate::types::PyString::type_object_bound(py), "foo");
-            assert!(err.matches(py, PyTypeError::type_object_bound(py)));
+            let err: PyErr = PyErr::from_type(crate::types::PyString::type_object(py), "foo");
+            assert!(err.matches(py, PyTypeError::type_object(py)));
         })
     }
 

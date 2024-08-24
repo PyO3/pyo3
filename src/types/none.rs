@@ -38,13 +38,13 @@ unsafe impl PyTypeInfo for PyNone {
     }
 
     #[inline]
-    fn is_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
+    fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
         // NoneType is not usable as a base type
-        Self::is_exact_type_of_bound(object)
+        Self::is_exact_type_of(object)
     }
 
     #[inline]
-    fn is_exact_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
+    fn is_exact_type_of(object: &Bound<'_, PyAny>) -> bool {
         object.is(&**Self::get(object.py()))
     }
 }
@@ -79,9 +79,7 @@ mod tests {
     #[test]
     fn test_none_type_object_consistent() {
         Python::with_gil(|py| {
-            assert!(PyNone::get(py)
-                .get_type()
-                .is(&PyNone::type_object_bound(py)));
+            assert!(PyNone::get(py).get_type().is(&PyNone::type_object(py)));
         })
     }
 
