@@ -24,7 +24,7 @@ impl PyType {
     /// Creates a new type object.
     #[inline]
     pub fn new<T: PyTypeInfo>(py: Python<'_>) -> Bound<'_, PyType> {
-        T::type_object_bound(py)
+        T::type_object(py)
     }
 
     /// Deprecated name for [`PyType::new`].
@@ -202,7 +202,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
     where
         T: PyTypeInfo,
     {
-        self.is_subclass(&T::type_object_bound(self.py()))
+        self.is_subclass(&T::type_object(self.py()))
     }
 
     fn mro(&self) -> Bound<'py, PyTuple> {

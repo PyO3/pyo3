@@ -27,7 +27,7 @@ impl PySequence {
     /// library). This is equivalent to `collections.abc.Sequence.register(T)` in Python.
     /// This registration is required for a pyclass to be downcastable from `PyAny` to `PySequence`.
     pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
-        let ty = T::type_object_bound(py);
+        let ty = T::type_object(py);
         get_sequence_abc(py)?.call_method1("register", (ty,))?;
         Ok(())
     }
@@ -362,8 +362,8 @@ impl PyTypeCheck for PySequence {
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         // Using `is_instance` for `collections.abc.Sequence` is slow, so provide
         // optimized cases for list and tuples as common well-known sequences
-        PyList::is_type_of_bound(object)
-            || PyTuple::is_type_of_bound(object)
+        PyList::is_type_of(object)
+            || PyTuple::is_type_of(object)
             || get_sequence_abc(object.py())
                 .and_then(|abc| object.is_instance(abc))
                 .unwrap_or_else(|err| {

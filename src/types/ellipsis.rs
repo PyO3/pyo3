@@ -37,13 +37,13 @@ unsafe impl PyTypeInfo for PyEllipsis {
     }
 
     #[inline]
-    fn is_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
+    fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
         // ellipsis is not usable as a base type
-        Self::is_exact_type_of_bound(object)
+        Self::is_exact_type_of(object)
     }
 
     #[inline]
-    fn is_exact_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
+    fn is_exact_type_of(object: &Bound<'_, PyAny>) -> bool {
         object.is(&**Self::get(object.py()))
     }
 }
@@ -67,7 +67,7 @@ mod tests {
         Python::with_gil(|py| {
             assert!(PyEllipsis::get(py)
                 .get_type()
-                .is(&PyEllipsis::type_object_bound(py)));
+                .is(&PyEllipsis::type_object(py)));
         })
     }
 

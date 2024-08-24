@@ -1430,12 +1430,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[inline]
     fn is_instance_of<T: PyTypeInfo>(&self) -> bool {
-        T::is_type_of_bound(self)
+        T::is_type_of(self)
     }
 
     #[inline]
     fn is_exact_instance_of<T: PyTypeInfo>(&self) -> bool {
-        T::is_exact_type_of_bound(self)
+        T::is_exact_type_of(self)
     }
 
     fn contains<V>(&self, value: V) -> PyResult<bool>
@@ -1917,7 +1917,7 @@ class SimpleClass:
     #[test]
     fn test_is_callable() {
         Python::with_gil(|py| {
-            assert!(PyList::type_object_bound(py).is_callable());
+            assert!(PyList::type_object(py).is_callable());
 
             let not_callable = 5.to_object(py).into_bound(py);
             assert!(!not_callable.is_callable());
