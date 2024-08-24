@@ -5,6 +5,8 @@ pub(crate) mod bytesobject;
 pub(crate) mod ceval;
 pub(crate) mod code;
 pub(crate) mod compile;
+#[cfg(Py_3_13)]
+pub(crate) mod critical_section;
 pub(crate) mod descrobject;
 #[cfg(not(PyPy))]
 pub(crate) mod dictobject;
@@ -45,6 +47,8 @@ pub use self::bytesobject::*;
 pub use self::ceval::*;
 pub use self::code::*;
 pub use self::compile::*;
+#[cfg(Py_3_13)]
+pub use self::critical_section::*;
 pub use self::descrobject::*;
 #[cfg(not(PyPy))]
 pub use self::dictobject::*;
