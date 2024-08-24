@@ -6,7 +6,7 @@ use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyList};
-use crate::{ffi, Python, ToPyObject};
+use crate::{ffi, BoundObject, Python, ToPyObject};
 
 /// Represents a Python `dict`.
 ///
@@ -130,7 +130,7 @@ pub trait PyDictMethods<'py>: crate::sealed::Sealed {
     /// This is equivalent to the Python expression `key in self`.
     fn contains<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>;
 
     /// Gets an item from the dictionary.
     ///
@@ -139,22 +139,22 @@ pub trait PyDictMethods<'py>: crate::sealed::Sealed {
     /// To get a `KeyError` for non-existing keys, use `PyAny::get_item`.
     fn get_item<K>(&self, key: K) -> PyResult<Option<Bound<'py, PyAny>>>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>;
 
     /// Sets an item value.
     ///
     /// This is equivalent to the Python statement `self[key] = value`.
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
     where
-        K: ToPyObject,
-        V: ToPyObject;
+        K: IntoPyObject<'py>,
+        V: IntoPyObject<'py>;
 
     /// Deletes an item.
     ///
     /// This is equivalent to the Python statement `del self[key]`.
     fn del_item<K>(&self, key: K) -> PyResult<()>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>;
 
     /// Returns a list of dict keys.
     ///
@@ -226,9 +226,9 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
 
     fn contains<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
     {
-        fn inner(dict: &Bound<'_, PyDict>, key: Bound<'_, PyAny>) -> PyResult<bool> {
+        fn inner(dict: &Bound<'_, PyDict>, key: &Bound<'_, PyAny>) -> PyResult<bool> {
             match unsafe { ffi::PyDict_Contains(dict.as_ptr(), key.as_ptr()) } {
                 1 => Ok(true),
                 0 => Ok(false),
@@ -237,16 +237,22 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).into_bound(py))
+        inner(
+            self,
+            &key.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+        )
     }
 
     fn get_item<K>(&self, key: K) -> PyResult<Option<Bound<'py, PyAny>>>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
     {
         fn inner<'py>(
             dict: &Bound<'py, PyDict>,
-            key: Bound<'_, PyAny>,
+            key: &Bound<'_, PyAny>,
         ) -> PyResult<Option<Bound<'py, PyAny>>> {
             let py = dict.py();
             let mut result: *mut ffi::PyObject = std::ptr::null_mut();
@@ -260,18 +266,24 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).into_bound(py))
+        inner(
+            self,
+            &key.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+        )
     }
 
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
     where
-        K: ToPyObject,
-        V: ToPyObject,
+        K: IntoPyObject<'py>,
+        V: IntoPyObject<'py>,
     {
         fn inner(
             dict: &Bound<'_, PyDict>,
-            key: Bound<'_, PyAny>,
-            value: Bound<'_, PyAny>,
+            key: &Bound<'_, PyAny>,
+            value: &Bound<'_, PyAny>,
         ) -> PyResult<()> {
             err::error_on_minusone(dict.py(), unsafe {
                 ffi::PyDict_SetItem(dict.as_ptr(), key.as_ptr(), value.as_ptr())
@@ -281,23 +293,36 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         let py = self.py();
         inner(
             self,
-            key.to_object(py).into_bound(py),
-            value.to_object(py).into_bound(py),
+            &key.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+            &value
+                .into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
         )
     }
 
     fn del_item<K>(&self, key: K) -> PyResult<()>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
     {
-        fn inner(dict: &Bound<'_, PyDict>, key: Bound<'_, PyAny>) -> PyResult<()> {
+        fn inner(dict: &Bound<'_, PyDict>, key: &Bound<'_, PyAny>) -> PyResult<()> {
             err::error_on_minusone(dict.py(), unsafe {
                 ffi::PyDict_DelItem(dict.as_ptr(), key.as_ptr())
             })
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).into_bound(py))
+        inner(
+            self,
+            &key.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+        )
     }
 
     fn keys(&self) -> Bound<'py, PyList> {
@@ -529,6 +554,7 @@ mod borrowed_iter {
     }
 }
 
+use crate::prelude::IntoPyObject;
 pub(crate) use borrowed_iter::BorrowedDictIter;
 
 /// Conversion trait that allows a sequence of tuples to be converted into `PyDict`
@@ -554,7 +580,7 @@ where
     fn into_py_dict(self, py: Python<'_>) -> Bound<'_, PyDict> {
         let dict = PyDict::new(py);
         for item in self {
-            dict.set_item(item.key(), item.value())
+            dict.set_item(item.key().to_object(py), item.value().to_object(py))
                 .expect("Failed to set_item on dict");
         }
         dict

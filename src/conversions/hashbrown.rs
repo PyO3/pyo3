@@ -67,10 +67,7 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
         for (k, v) in self {
-            dict.set_item(
-                k.into_pyobject(py).map_err(Into::into)?.into_bound(),
-                v.into_pyobject(py).map_err(Into::into)?.into_bound(),
-            )?;
+            dict.set_item(k, v)?;
         }
         Ok(dict)
     }
@@ -89,10 +86,7 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
         for (k, v) in self {
-            dict.set_item(
-                k.into_pyobject(py).map_err(Into::into)?.into_bound(),
-                v.into_pyobject(py).map_err(Into::into)?.into_bound(),
-            )?;
+            dict.set_item(k, v)?;
         }
         Ok(dict)
     }
