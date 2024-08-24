@@ -65,13 +65,13 @@ def test_new_classmethod():
         _ = AssertingSubClass(expected_type=str)
 
 
-class ClassWithoutConstructorPy:
+class ClassWithoutConstructor:
     def __new__(cls):
-        raise TypeError("No constructor defined")
+        raise TypeError("No constructor defined for ClassWithoutConstructor")
 
 
 @pytest.mark.parametrize(
-    "cls", [pyclasses.ClassWithoutConstructor, ClassWithoutConstructorPy]
+    "cls", [pyclasses.ClassWithoutConstructor, ClassWithoutConstructor]
 )
 def test_no_constructor_defined_propagates_cause(cls: Type):
     original_error = ValueError("Original message")
@@ -79,10 +79,12 @@ def test_no_constructor_defined_propagates_cause(cls: Type):
         try:
             raise original_error
         except Exception:
-            cls()  # should raise TypeError("No constructor defined")
+            cls()  # should raise TypeError("No constructor defined for ...")
 
     assert exc_info.type is TypeError
-    assert exc_info.value.args == ("No constructor defined",)
+    assert exc_info.value.args == (
+        "No constructor defined for ClassWithoutConstructor",
+    )
     assert exc_info.value.__context__ is original_error
 
 
