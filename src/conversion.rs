@@ -192,8 +192,8 @@ pub trait IntoPyObject<'py>: Sized {
     type Target;
     /// The smart pointer type to use.
     ///
-    /// This will usually be [`Bound<'py, Target>`], but can special cases `&'a Bound<'py, Target>`
-    /// or [`Borrowed<'a, 'py, Target>`] can be used to minimize reference counting overhead.
+    /// This will usually be [`Bound<'py, Target>`], but in special cases [`Borrowed<'a, 'py, Target>`] can be
+    /// used to minimize reference counting overhead.
     type Output: BoundObject<'py, Self::Target>;
     /// The type returned in the event of a conversion error.
     type Error;
@@ -273,11 +273,11 @@ impl<'py, T> IntoPyObject<'py> for Bound<'py, T> {
 
 impl<'a, 'py, T> IntoPyObject<'py> for &'a Bound<'py, T> {
     type Target = T;
-    type Output = &'a Bound<'py, Self::Target>;
+    type Output = Borrowed<'a, 'py, Self::Target>;
     type Error = Infallible;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(self)
+        Ok(self.as_borrowed())
     }
 }
 
