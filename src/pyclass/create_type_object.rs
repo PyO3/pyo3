@@ -524,14 +524,19 @@ fn bpo_45315_workaround(py: Python<'_>, class_name: CString) {
 
 /// Default new implementation
 unsafe extern "C" fn no_constructor_defined(
-    _subtype: *mut ffi::PyTypeObject,
+    subtype: *mut ffi::PyTypeObject,
     _args: *mut ffi::PyObject,
     _kwds: *mut ffi::PyObject,
 ) -> *mut ffi::PyObject {
-    trampoline(|_| {
-        Err(crate::exceptions::PyTypeError::new_err(
-            "No constructor defined",
-        ))
+    trampoline(|py| {
+        let tpobj = PyType::from_borrowed_type_ptr(py, subtype);
+        let name = tpobj
+            .name()
+            .map_or_else(|_| "<unknown>".into(), |name| name.to_string());
+        Err(crate::exceptions::PyTypeError::new_err(format!(
+            "No constructor defined for {}",
+            name
+        )))
     })
 }
 
