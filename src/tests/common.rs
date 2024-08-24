@@ -9,8 +9,10 @@ mod inner {
     #[allow(unused_imports)] // pulls in `use crate as pyo3` in `test_utils.rs`
     use super::*;
 
+    #[cfg(not(Py_GIL_DISABLED))]
     use pyo3::prelude::*;
 
+    #[cfg(not(Py_GIL_DISABLED))]
     use pyo3::types::{IntoPyDict, PyList};
 
     #[macro_export]
@@ -63,14 +65,14 @@ mod inner {
     }
 
     // sys.unraisablehook not available until Python 3.8
-    #[cfg(all(feature = "macros", Py_3_8))]
+    #[cfg(all(feature = "macros", Py_3_8, not(Py_GIL_DISABLED)))]
     #[pyclass(crate = "pyo3")]
     pub struct UnraisableCapture {
         pub capture: Option<(PyErr, PyObject)>,
         old_hook: Option<PyObject>,
     }
 
-    #[cfg(all(feature = "macros", Py_3_8))]
+    #[cfg(all(feature = "macros", Py_3_8, not(Py_GIL_DISABLED)))]
     #[pymethods(crate = "pyo3")]
     impl UnraisableCapture {
         pub fn hook(&mut self, unraisable: Bound<'_, PyAny>) {
@@ -80,7 +82,7 @@ mod inner {
         }
     }
 
-    #[cfg(all(feature = "macros", Py_3_8))]
+    #[cfg(all(feature = "macros", Py_3_8, not(Py_GIL_DISABLED)))]
     impl UnraisableCapture {
         pub fn install(py: Python<'_>) -> Py<Self> {
             let sys = py.import("sys").unwrap();
@@ -109,10 +111,12 @@ mod inner {
         }
     }
 
+    #[cfg(not(Py_GIL_DISABLED))]
     pub struct CatchWarnings<'py> {
         catch_warnings: Bound<'py, PyAny>,
     }
 
+    #[cfg(not(Py_GIL_DISABLED))]
     impl<'py> CatchWarnings<'py> {
         pub fn enter<R>(
             py: Python<'py>,
@@ -129,6 +133,7 @@ mod inner {
         }
     }
 
+    #[cfg(not(Py_GIL_DISABLED))]
     impl Drop for CatchWarnings<'_> {
         fn drop(&mut self) {
             let py = self.catch_warnings.py();
@@ -138,6 +143,7 @@ mod inner {
         }
     }
 
+    #[cfg(not(Py_GIL_DISABLED))]
     #[macro_export]
     macro_rules! assert_warnings {
         ($py:expr, $body:expr, [$(($category:ty, $message:literal)),+] $(,)? ) => {{

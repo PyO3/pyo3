@@ -99,7 +99,7 @@ fn test_exception_nosegfault() {
 }
 
 #[test]
-#[cfg(Py_3_8)]
+#[cfg(all(Py_3_8, not(Py_GIL_DISABLED)))]
 fn test_write_unraisable() {
     use common::UnraisableCapture;
     use pyo3::{exceptions::PyRuntimeError, ffi, types::PyNotImplemented};

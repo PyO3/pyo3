@@ -94,7 +94,7 @@ fn test_buffer_referenced() {
 }
 
 #[test]
-#[cfg(Py_3_8)] // sys.unraisablehook not available until Python 3.8
+#[cfg(all(Py_3_8, not(Py_GIL_DISABLED)))] // sys.unraisablehook not available until Python 3.8
 fn test_releasebuffer_unraisable_error() {
     use common::UnraisableCapture;
     use pyo3::exceptions::PyValueError;
