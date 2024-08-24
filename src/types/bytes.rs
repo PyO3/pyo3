@@ -38,9 +38,9 @@ use std::str;
 /// let other = PyBytes::new(py, b"foo".as_slice());
 /// assert!(py_bytes.as_any().eq(other).unwrap());
 ///
-/// // Note that `eq` will convert it's argument to Python using `IntoPyObject`,
-/// // byte collections are specialized, so that the following slice will indeed
-/// // convert into a `bytes` object and not a `list`
+/// // Note that `eq` will convert its argument to Python using `IntoPyObject`.
+/// // Byte collections are specialized, so that the following slice will indeed
+/// // convert into a `bytes` object and not a `list`:
 /// assert!(py_bytes.as_any().eq(b"foo".as_slice()).unwrap());
 /// # });
 /// ```
