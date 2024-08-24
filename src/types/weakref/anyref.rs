@@ -71,7 +71,7 @@ pub trait PyWeakrefMethods<'py> {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakrefReference::new_bound(&data)?;
+    ///     let reference = PyWeakrefReference::new(&data)?;
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
@@ -147,7 +147,7 @@ pub trait PyWeakrefMethods<'py> {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakrefReference::new_bound(&data)?;
+    ///     let reference = PyWeakrefReference::new(&data)?;
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
@@ -232,7 +232,7 @@ pub trait PyWeakrefMethods<'py> {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakrefReference::new_bound(&data)?;
+    ///     let reference = PyWeakrefReference::new(&data)?;
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed()),
@@ -306,7 +306,7 @@ pub trait PyWeakrefMethods<'py> {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakrefReference::new_bound(&data)?;
+    ///     let reference = PyWeakrefReference::new(&data)?;
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed()),
@@ -379,7 +379,7 @@ pub trait PyWeakrefMethods<'py> {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakrefReference::new_bound(&data)?;
+    ///     let reference = PyWeakrefReference::new(&data)?;
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
@@ -455,7 +455,7 @@ pub trait PyWeakrefMethods<'py> {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakrefReference::new_bound(&data)?;
+    ///     let reference = PyWeakrefReference::new(&data)?;
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
@@ -530,7 +530,7 @@ pub trait PyWeakrefMethods<'py> {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakrefReference::new_bound(&data)?;
+    ///     let reference = PyWeakrefReference::new(&data)?;
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
@@ -600,7 +600,7 @@ pub trait PyWeakrefMethods<'py> {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakrefReference::new_bound(&data)?;
+    ///     let reference = PyWeakrefReference::new(&data)?;
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
@@ -672,7 +672,7 @@ pub trait PyWeakrefMethods<'py> {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let object = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakrefReference::new_bound(&object)?;
+    ///     let reference = PyWeakrefReference::new(&object)?;
     ///
     ///     assert_eq!(
     ///         get_class(reference.as_borrowed())?,
@@ -733,7 +733,7 @@ pub trait PyWeakrefMethods<'py> {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let object = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakrefReference::new_bound(&object)?;
+    ///     let reference = PyWeakrefReference::new(&object)?;
     ///
     ///     assert_eq!(
     ///         get_class(reference.as_borrowed())?,
@@ -776,12 +776,12 @@ mod tests {
     use crate::{Bound, PyResult, Python};
 
     fn new_reference<'py>(object: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyWeakref>> {
-        let reference = PyWeakrefReference::new_bound(object)?;
+        let reference = PyWeakrefReference::new(object)?;
         reference.into_any().downcast_into().map_err(Into::into)
     }
 
     fn new_proxy<'py>(object: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyWeakref>> {
-        let reference = PyWeakrefProxy::new_bound(object)?;
+        let reference = PyWeakrefProxy::new(object)?;
         reference.into_any().downcast_into().map_err(Into::into)
     }
 
