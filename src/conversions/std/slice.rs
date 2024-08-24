@@ -22,7 +22,6 @@ impl<'a> IntoPy<PyObject> for &'a [u8] {
 impl<'a, 'py, T> IntoPyObject<'py> for &'a [T]
 where
     &'a T: IntoPyObject<'py>,
-    PyErr: From<<&'a T as IntoPyObject<'py>>::Error>,
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -86,7 +85,6 @@ impl<'py, T> IntoPyObject<'py> for Cow<'_, [T]>
 where
     T: Clone,
     for<'a> &'a T: IntoPyObject<'py>,
-    for<'a> PyErr: From<<&'a T as IntoPyObject<'py>>::Error>,
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;

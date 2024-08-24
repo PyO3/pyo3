@@ -284,7 +284,7 @@ pub trait IntoPyObject<'py>: Sized {
     /// used to minimize reference counting overhead.
     type Output: BoundObject<'py, Self::Target>;
     /// The type returned in the event of a conversion error.
-    type Error;
+    type Error: Into<PyErr>;
 
     /// Performs the conversion.
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error>;
@@ -300,7 +300,6 @@ pub trait IntoPyObject<'py>: Sized {
     where
         I: IntoIterator<Item = Self> + AsRef<[Self]>,
         I::IntoIter: ExactSizeIterator<Item = Self>,
-        PyErr: From<Self::Error>,
     {
         let mut iter = iter.into_iter().map(|e| {
             e.into_pyobject(py)
@@ -324,7 +323,6 @@ pub trait IntoPyObject<'py>: Sized {
         Self: private::Reference,
         I: IntoIterator<Item = Self> + AsRef<[<Self as private::Reference>::BaseType]>,
         I::IntoIter: ExactSizeIterator<Item = Self>,
-        PyErr: From<Self::Error>,
     {
         let mut iter = iter.into_iter().map(|e| {
             e.into_pyobject(py)

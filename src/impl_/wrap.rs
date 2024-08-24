@@ -1,8 +1,8 @@
 use std::{convert::Infallible, marker::PhantomData, ops::Deref};
 
 use crate::{
-    conversion::IntoPyObject, ffi, types::PyNone, Bound, BoundObject, IntoPy, PyErr, PyObject,
-    PyResult, Python,
+    conversion::IntoPyObject, ffi, types::PyNone, Bound, BoundObject, IntoPy, PyObject, PyResult,
+    Python,
 };
 
 /// Used to wrap values in `Option<T>` for default arguments.
@@ -95,7 +95,6 @@ impl<'py, T: IntoPyObject<'py>, E> IntoPyObjectConverter<Result<T, E>> {
     pub fn map_into_pyobject(&self, py: Python<'py>, obj: PyResult<T>) -> PyResult<PyObject>
     where
         T: IntoPyObject<'py>,
-        PyErr: From<T::Error>,
     {
         obj.and_then(|obj| obj.into_pyobject(py).map_err(Into::into))
             .map(BoundObject::into_any)
@@ -106,7 +105,6 @@ impl<'py, T: IntoPyObject<'py>, E> IntoPyObjectConverter<Result<T, E>> {
     pub fn map_into_ptr(&self, py: Python<'py>, obj: PyResult<T>) -> PyResult<*mut ffi::PyObject>
     where
         T: IntoPyObject<'py>,
-        PyErr: From<T::Error>,
     {
         obj.and_then(|obj| obj.into_pyobject(py).map_err(Into::into))
             .map(BoundObject::into_bound)

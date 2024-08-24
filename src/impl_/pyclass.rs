@@ -1334,7 +1334,6 @@ where
     ClassT: PyClass,
     for<'a, 'py> &'a FieldT: IntoPyObject<'py>,
     Offset: OffsetCalculator<ClassT, FieldT>,
-    for<'a, 'py> PyErr: From<<&'a FieldT as IntoPyObject<'py>>::Error>,
 {
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         PyMethodDefType::Getter(PyGetterDef {
@@ -1362,7 +1361,6 @@ where
     ClassT: PyClass,
     Offset: OffsetCalculator<ClassT, FieldT>,
     for<'py> FieldT: IntoPyObject<'py> + Clone,
-    for<'py> PyErr: std::convert::From<<FieldT as IntoPyObject<'py>>::Error>,
 {
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         PyMethodDefType::Getter(PyGetterDef {
@@ -1390,42 +1388,21 @@ where
     }
 }
 
-#[cfg(diagnostic_namespace)]
-#[diagnostic::on_unimplemented(
-    message = "`{Self}` cannot be converted to a Python object",
-    label = "required by `#[pyo3(get)]` to create a readable property from a field of type `{Self}`",
-    note = "implement `IntoPyObject` for `&{Self}` or `IntoPyObject + Clone` for `{Self}` to define the conversion"
+#[cfg_attr(
+    diagnostic_namespace,
+    diagnostic::on_unimplemented(
+        message = "`{Self}` cannot be converted to a Python object",
+        label = "required by `#[pyo3(get)]` to create a readable property from a field of type `{Self}`",
+        note = "implement `IntoPyObject` for `&{Self}` or `IntoPyObject + Clone` for `{Self}` to define the conversion"
+    )
 )]
-pub trait PyO3GetField<'py>: IntoPyObject<'py, Error: Into<PyErr>> + Clone {}
-
-#[cfg(diagnostic_namespace)]
-impl<'py, T> PyO3GetField<'py> for T
-where
-    T: IntoPyObject<'py> + Clone,
-    PyErr: std::convert::From<<T as IntoPyObject<'py>>::Error>,
-{
-}
+pub trait PyO3GetField<'py>: IntoPyObject<'py> + Clone {}
+impl<'py, T> PyO3GetField<'py> for T where T: IntoPyObject<'py> + Clone {}
 
 /// Base case attempts to use IntoPyObject + Clone
 impl<ClassT: PyClass, FieldT, Offset: OffsetCalculator<ClassT, FieldT>>
     PyClassGetterGenerator<ClassT, FieldT, Offset, false, false, false, false, false>
 {
-    #[cfg(not(diagnostic_namespace))]
-    pub const fn generate(&self, _name: &'static CStr, _doc: &'static CStr) -> PyMethodDefType
-    // The bound goes here rather than on the block so that this impl is always available
-    // if no specialization is used instead
-    where
-        for<'py> FieldT: IntoPyObject<'py> + Clone,
-        for<'py> PyErr: std::convert::From<<FieldT as IntoPyObject<'py>>::Error>,
-    {
-        // unreachable not allowed in const
-        panic!(
-            "exists purely to emit diagnostics on unimplemented traits. When `ToPyObject` \
-             and `IntoPy` are fully removed this will be replaced by the temporary `IntoPyObject` case above."
-        )
-    }
-
-    #[cfg(diagnostic_namespace)]
     pub const fn generate(&self, _name: &'static CStr, _doc: &'static CStr) -> PyMethodDefType
     // The bound goes here rather than on the block so that this impl is always available
     // if no specialization is used instead
@@ -1541,14 +1518,16 @@ where
     ClassT: PyClass,
     for<'a, 'py> &'a FieldT: IntoPyObject<'py>,
     Offset: OffsetCalculator<ClassT, FieldT>,
-    for<'a, 'py> PyErr: From<<&'a FieldT as IntoPyObject<'py>>::Error>,
 {
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
     let value = field_from_object::<ClassT, FieldT, Offset>(obj);
 
     // SAFETY: Offset is known to describe the location of the value, and
     // _holder is preventing mutable aliasing
-    Ok((unsafe { &*value }).into_pyobject(py)?.into_ptr())
+    Ok((unsafe { &*value })
+        .into_pyobject(py)
+        .map_err(Into::into)?
+        .into_ptr())
 }
 
 fn pyo3_get_value_into_pyobject<ClassT, FieldT, Offset>(
@@ -1559,7 +1538,6 @@ where
     ClassT: PyClass,
     for<'py> FieldT: IntoPyObject<'py> + Clone,
     Offset: OffsetCalculator<ClassT, FieldT>,
-    for<'py> <FieldT as IntoPyObject<'py>>::Error: Into<PyErr>,
 {
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
     let value = field_from_object::<ClassT, FieldT, Offset>(obj);

@@ -40,7 +40,6 @@ where
 impl<'py, T, const N: usize> IntoPyObject<'py> for [T; N]
 where
     T: IntoPyObject<'py>,
-    PyErr: From<T::Error>,
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -59,7 +58,6 @@ where
 impl<'a, 'py, T, const N: usize> IntoPyObject<'py> for &'a [T; N]
 where
     &'a T: IntoPyObject<'py>,
-    PyErr: From<<&'a T as IntoPyObject<'py>>::Error>,
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;

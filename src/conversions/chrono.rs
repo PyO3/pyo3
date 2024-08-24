@@ -1327,7 +1327,6 @@ mod tests {
     fn new_py_datetime_ob<'py, A>(py: Python<'py>, name: &str, args: A) -> Bound<'py, PyAny>
     where
         A: IntoPyObject<'py, Target = PyTuple>,
-        A::Error: Into<PyErr>,
     {
         py.import("datetime")
             .unwrap()

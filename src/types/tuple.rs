@@ -532,14 +532,13 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     impl <'py, $($T),+> IntoPyObject<'py> for ($($T,)+)
     where
         $($T: IntoPyObject<'py>,)+
-        PyErr: $(From<$T::Error> + )+
     {
         type Target = PyTuple;
         type Output = Bound<'py, Self::Target>;
         type Error = PyErr;
 
         fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-            Ok(array_into_tuple(py, [$(self.$n.into_pyobject(py)?.into_any().unbind()),+]).into_bound(py))
+            Ok(array_into_tuple(py, [$(self.$n.into_pyobject(py).map_err(Into::into)?.into_any().unbind()),+]).into_bound(py))
         }
     }
 
