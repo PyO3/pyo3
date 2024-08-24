@@ -1,5 +1,5 @@
 use crate::class::basic::CompareOp;
-use crate::conversion::{private, AsPyPointer, FromPyObjectBound, IntoPy, ToPyObject};
+use crate::conversion::{private, AsPyPointer, FromPyObjectBound, IntoPy, IntoPyObject};
 use crate::err::{DowncastError, DowncastIntoError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -10,7 +10,7 @@ use crate::type_object::{PyTypeCheck, PyTypeInfo};
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
-use crate::{err, ffi, Py, Python};
+use crate::{err, ffi, BoundObject, Py, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
@@ -81,7 +81,8 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
     where
-        N: IntoPy<Py<PyString>>;
+        N: IntoPyObject<'py, Target = PyString>,
+        N::Error: Into<PyErr>;
 
     /// Retrieves an attribute value.
     ///
@@ -107,7 +108,8 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```
     fn getattr<N>(&self, attr_name: N) -> PyResult<Bound<'py, PyAny>>
     where
-        N: IntoPy<Py<PyString>>;
+        N: IntoPyObject<'py, Target = PyString>,
+        N::Error: Into<PyErr>;
 
     /// Sets an attribute value.
     ///
@@ -133,8 +135,10 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```
     fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
     where
-        N: IntoPy<Py<PyString>>,
-        V: ToPyObject;
+        N: IntoPyObject<'py, Target = PyString>,
+        V: IntoPyObject<'py>,
+        N::Error: Into<PyErr>,
+        V::Error: Into<PyErr>;
 
     /// Deletes an attribute.
     ///
@@ -144,7 +148,8 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// to intern `attr_name`.
     fn delattr<N>(&self, attr_name: N) -> PyResult<()>
     where
-        N: IntoPy<Py<PyString>>;
+        N: IntoPyObject<'py, Target = PyString>,
+        N::Error: Into<PyErr>;
 
     /// Returns an [`Ordering`] between `self` and `other`.
     ///
@@ -194,7 +199,8 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```
     fn compare<O>(&self, other: O) -> PyResult<Ordering>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Tests whether two Python objects obey a given [`CompareOp`].
     ///
@@ -232,7 +238,8 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```
     fn rich_compare<O>(&self, other: O, compare_op: CompareOp) -> PyResult<Bound<'py, PyAny>>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Computes the negative of self.
     ///
@@ -257,114 +264,135 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// This is equivalent to the Python expression `self < other`.
     fn lt<O>(&self, other: O) -> PyResult<bool>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Tests whether this object is less than or equal to another.
     ///
     /// This is equivalent to the Python expression `self <= other`.
     fn le<O>(&self, other: O) -> PyResult<bool>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Tests whether this object is equal to another.
     ///
     /// This is equivalent to the Python expression `self == other`.
     fn eq<O>(&self, other: O) -> PyResult<bool>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Tests whether this object is not equal to another.
     ///
     /// This is equivalent to the Python expression `self != other`.
     fn ne<O>(&self, other: O) -> PyResult<bool>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Tests whether this object is greater than another.
     ///
     /// This is equivalent to the Python expression `self > other`.
     fn gt<O>(&self, other: O) -> PyResult<bool>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Tests whether this object is greater than or equal to another.
     ///
     /// This is equivalent to the Python expression `self >= other`.
     fn ge<O>(&self, other: O) -> PyResult<bool>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Computes `self + other`.
     fn add<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Computes `self - other`.
     fn sub<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Computes `self * other`.
     fn mul<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Computes `self @ other`.
     fn matmul<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Computes `self / other`.
     fn div<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Computes `self // other`.
     fn floor_div<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Computes `self % other`.
     fn rem<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Computes `divmod(self, other)`.
     fn divmod<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Computes `self << other`.
     fn lshift<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Computes `self >> other`.
     fn rshift<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Computes `self ** other % modulus` (`pow(self, other, modulus)`).
     /// `py.None()` may be passed for the `modulus`.
     fn pow<O1, O2>(&self, other: O1, modulus: O2) -> PyResult<Bound<'py, PyAny>>
     where
-        O1: ToPyObject,
-        O2: ToPyObject;
+        O1: IntoPyObject<'py>,
+        O2: IntoPyObject<'py>,
+        O1::Error: Into<PyErr>,
+        O2::Error: Into<PyErr>;
 
     /// Computes `self & other`.
     fn bitand<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Computes `self | other`.
     fn bitor<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Computes `self ^ other`.
     fn bitxor<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
     where
-        O: ToPyObject;
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>;
 
     /// Determines whether this object appears callable.
     ///
@@ -427,11 +455,9 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// })
     /// # }
     /// ```
-    fn call(
-        &self,
-        args: impl IntoPy<Py<PyTuple>>,
-        kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>>;
+    fn call<A>(&self, args: A, kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Bound<'py, PyAny>>
+    where
+        A: IntoPy<Py<PyTuple>>;
 
     /// Calls the object without arguments.
     ///
@@ -484,7 +510,9 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// })
     /// # }
     /// ```
-    fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<Bound<'py, PyAny>>;
+    fn call1<A>(&self, args: A) -> PyResult<Bound<'py, PyAny>>
+    where
+        A: IntoPy<Py<PyTuple>>;
 
     /// Calls a method on the object.
     ///
@@ -530,8 +558,9 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>>
     where
-        N: IntoPy<Py<PyString>>,
-        A: IntoPy<Py<PyTuple>>;
+        N: IntoPyObject<'py, Target = PyString>,
+        A: IntoPy<Py<PyTuple>>,
+        N::Error: Into<PyErr>;
 
     /// Calls a method on the object without arguments.
     ///
@@ -568,7 +597,8 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```
     fn call_method0<N>(&self, name: N) -> PyResult<Bound<'py, PyAny>>
     where
-        N: IntoPy<Py<PyString>>;
+        N: IntoPyObject<'py, Target = PyString>,
+        N::Error: Into<PyErr>;
 
     /// Calls a method on the object with only positional arguments.
     ///
@@ -606,8 +636,9 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```
     fn call_method1<N, A>(&self, name: N, args: A) -> PyResult<Bound<'py, PyAny>>
     where
-        N: IntoPy<Py<PyString>>,
-        A: IntoPy<Py<PyTuple>>;
+        N: IntoPyObject<'py, Target = PyString>,
+        A: IntoPy<Py<PyTuple>>,
+        N::Error: Into<PyErr>;
 
     /// Returns whether the object is considered to be true.
     ///
@@ -635,22 +666,26 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// This is equivalent to the Python expression `self[key]`.
     fn get_item<K>(&self, key: K) -> PyResult<Bound<'py, PyAny>>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>,
+        K::Error: Into<PyErr>;
 
     /// Sets a collection item value.
     ///
     /// This is equivalent to the Python expression `self[key] = value`.
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
     where
-        K: ToPyObject,
-        V: ToPyObject;
+        K: IntoPyObject<'py>,
+        V: IntoPyObject<'py>,
+        K::Error: Into<PyErr>,
+        V::Error: Into<PyErr>;
 
     /// Deletes an item from the collection.
     ///
     /// This is equivalent to the Python expression `del self[key]`.
     fn del_item<K>(&self, key: K) -> PyResult<()>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>,
+        K::Error: Into<PyErr>;
 
     /// Takes an object and returns an iterator for it.
     ///
@@ -862,7 +897,8 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// This is equivalent to the Python expression `value in self`.
     fn contains<V>(&self, value: V) -> PyResult<bool>
     where
-        V: ToPyObject;
+        V: IntoPyObject<'py>,
+        V::Error: Into<PyErr>;
 
     /// Return a proxy object that delegates method calls to a parent or sibling class of type.
     ///
@@ -876,17 +912,25 @@ macro_rules! implement_binop {
         #[doc = concat!("Computes `self ", $op, " other`.")]
         fn $name<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
         where
-            O: ToPyObject,
+            O: IntoPyObject<'py>,
+            O::Error: Into<PyErr>,
         {
             fn inner<'py>(
                 any: &Bound<'py, PyAny>,
-                other: Bound<'_, PyAny>,
+                other: &Bound<'_, PyAny>,
             ) -> PyResult<Bound<'py, PyAny>> {
                 unsafe { ffi::$c_api(any.as_ptr(), other.as_ptr()).assume_owned_or_err(any.py()) }
             }
 
             let py = self.py();
-            inner(self, other.to_object(py).into_bound(py))
+            inner(
+                self,
+                &other
+                    .into_pyobject(py)
+                    .map_err(Into::into)?
+                    .into_any()
+                    .as_borrowed(),
+            )
         }
     };
 }
@@ -899,7 +943,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPyObject<'py, Target = PyString>,
+        N::Error: Into<PyErr>,
     {
         // PyObject_HasAttr suppresses all exceptions, which was the behaviour of `hasattr` in Python 2.
         // Use an implementation which suppresses only AttributeError, which is consistent with `hasattr` in Python 3.
@@ -911,16 +956,17 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
             }
         }
 
-        inner(self.py(), self.getattr(attr_name))
+        inner(self.py(), self.getattr(attr_name).map_err(Into::into))
     }
 
     fn getattr<N>(&self, attr_name: N) -> PyResult<Bound<'py, PyAny>>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPyObject<'py, Target = PyString>,
+        N::Error: Into<PyErr>,
     {
         fn inner<'py>(
             any: &Bound<'py, PyAny>,
-            attr_name: Bound<'_, PyString>,
+            attr_name: &Bound<'_, PyString>,
         ) -> PyResult<Bound<'py, PyAny>> {
             unsafe {
                 ffi::PyObject_GetAttr(any.as_ptr(), attr_name.as_ptr())
@@ -928,19 +974,26 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
             }
         }
 
-        let py = self.py();
-        inner(self, attr_name.into_py(self.py()).into_bound(py))
+        inner(
+            self,
+            &attr_name
+                .into_pyobject(self.py())
+                .map_err(Into::into)?
+                .as_borrowed(),
+        )
     }
 
     fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
     where
-        N: IntoPy<Py<PyString>>,
-        V: ToPyObject,
+        N: IntoPyObject<'py, Target = PyString>,
+        V: IntoPyObject<'py>,
+        N::Error: Into<PyErr>,
+        V::Error: Into<PyErr>,
     {
         fn inner(
             any: &Bound<'_, PyAny>,
-            attr_name: Bound<'_, PyString>,
-            value: Bound<'_, PyAny>,
+            attr_name: &Bound<'_, PyString>,
+            value: &Bound<'_, PyAny>,
         ) -> PyResult<()> {
             err::error_on_minusone(any.py(), unsafe {
                 ffi::PyObject_SetAttr(any.as_ptr(), attr_name.as_ptr(), value.as_ptr())
@@ -950,30 +1003,45 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            attr_name.into_py(py).into_bound(py),
-            value.to_object(py).into_bound(py),
+            &attr_name
+                .into_pyobject(py)
+                .map_err(Into::into)?
+                .as_borrowed(),
+            &value
+                .into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
         )
     }
 
     fn delattr<N>(&self, attr_name: N) -> PyResult<()>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPyObject<'py, Target = PyString>,
+        N::Error: Into<PyErr>,
     {
-        fn inner(any: &Bound<'_, PyAny>, attr_name: Bound<'_, PyString>) -> PyResult<()> {
+        fn inner(any: &Bound<'_, PyAny>, attr_name: &Bound<'_, PyString>) -> PyResult<()> {
             err::error_on_minusone(any.py(), unsafe {
                 ffi::PyObject_DelAttr(any.as_ptr(), attr_name.as_ptr())
             })
         }
 
         let py = self.py();
-        inner(self, attr_name.into_py(py).into_bound(py))
+        inner(
+            self,
+            &attr_name
+                .into_pyobject(py)
+                .map_err(Into::into)?
+                .as_borrowed(),
+        )
     }
 
     fn compare<O>(&self, other: O) -> PyResult<Ordering>
     where
-        O: ToPyObject,
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>,
     {
-        fn inner(any: &Bound<'_, PyAny>, other: Bound<'_, PyAny>) -> PyResult<Ordering> {
+        fn inner(any: &Bound<'_, PyAny>, other: &Bound<'_, PyAny>) -> PyResult<Ordering> {
             let other = other.as_ptr();
             // Almost the same as ffi::PyObject_RichCompareBool, but this one doesn't try self == other.
             // See https://github.com/PyO3/pyo3/issues/985 for more.
@@ -996,16 +1064,24 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(self, other.to_object(py).into_bound(py))
+        inner(
+            self,
+            &other
+                .into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+        )
     }
 
     fn rich_compare<O>(&self, other: O, compare_op: CompareOp) -> PyResult<Bound<'py, PyAny>>
     where
-        O: ToPyObject,
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>,
     {
         fn inner<'py>(
             any: &Bound<'py, PyAny>,
-            other: Bound<'_, PyAny>,
+            other: &Bound<'_, PyAny>,
             compare_op: CompareOp,
         ) -> PyResult<Bound<'py, PyAny>> {
             unsafe {
@@ -1015,7 +1091,15 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(self, other.to_object(py).into_bound(py), compare_op)
+        inner(
+            self,
+            &other
+                .into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+            compare_op,
+        )
     }
 
     fn neg(&self) -> PyResult<Bound<'py, PyAny>> {
@@ -1048,7 +1132,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     fn lt<O>(&self, other: O) -> PyResult<bool>
     where
-        O: ToPyObject,
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>,
     {
         self.rich_compare(other, CompareOp::Lt)
             .and_then(|any| any.is_truthy())
@@ -1056,7 +1141,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     fn le<O>(&self, other: O) -> PyResult<bool>
     where
-        O: ToPyObject,
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>,
     {
         self.rich_compare(other, CompareOp::Le)
             .and_then(|any| any.is_truthy())
@@ -1064,7 +1150,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     fn eq<O>(&self, other: O) -> PyResult<bool>
     where
-        O: ToPyObject,
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>,
     {
         self.rich_compare(other, CompareOp::Eq)
             .and_then(|any| any.is_truthy())
@@ -1072,7 +1159,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     fn ne<O>(&self, other: O) -> PyResult<bool>
     where
-        O: ToPyObject,
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>,
     {
         self.rich_compare(other, CompareOp::Ne)
             .and_then(|any| any.is_truthy())
@@ -1080,7 +1168,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     fn gt<O>(&self, other: O) -> PyResult<bool>
     where
-        O: ToPyObject,
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>,
     {
         self.rich_compare(other, CompareOp::Gt)
             .and_then(|any| any.is_truthy())
@@ -1088,7 +1177,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     fn ge<O>(&self, other: O) -> PyResult<bool>
     where
-        O: ToPyObject,
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>,
     {
         self.rich_compare(other, CompareOp::Ge)
             .and_then(|any| any.is_truthy())
@@ -1110,11 +1200,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     /// Computes `divmod(self, other)`.
     fn divmod<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
     where
-        O: ToPyObject,
+        O: IntoPyObject<'py>,
+        O::Error: Into<PyErr>,
     {
         fn inner<'py>(
             any: &Bound<'py, PyAny>,
-            other: Bound<'_, PyAny>,
+            other: &Bound<'_, PyAny>,
         ) -> PyResult<Bound<'py, PyAny>> {
             unsafe {
                 ffi::PyNumber_Divmod(any.as_ptr(), other.as_ptr()).assume_owned_or_err(any.py())
@@ -1122,20 +1213,29 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(self, other.to_object(py).into_bound(py))
+        inner(
+            self,
+            &other
+                .into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+        )
     }
 
     /// Computes `self ** other % modulus` (`pow(self, other, modulus)`).
     /// `py.None()` may be passed for the `modulus`.
     fn pow<O1, O2>(&self, other: O1, modulus: O2) -> PyResult<Bound<'py, PyAny>>
     where
-        O1: ToPyObject,
-        O2: ToPyObject,
+        O1: IntoPyObject<'py>,
+        O2: IntoPyObject<'py>,
+        O1::Error: Into<PyErr>,
+        O2::Error: Into<PyErr>,
     {
         fn inner<'py>(
             any: &Bound<'py, PyAny>,
-            other: Bound<'_, PyAny>,
-            modulus: Bound<'_, PyAny>,
+            other: &Bound<'_, PyAny>,
+            modulus: &Bound<'_, PyAny>,
         ) -> PyResult<Bound<'py, PyAny>> {
             unsafe {
                 ffi::PyNumber_Power(any.as_ptr(), other.as_ptr(), modulus.as_ptr())
@@ -1146,8 +1246,16 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            other.to_object(py).into_bound(py),
-            modulus.to_object(py).into_bound(py),
+            &other
+                .into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+            &modulus
+                .into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
         )
     }
 
@@ -1155,11 +1263,10 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         unsafe { ffi::PyCallable_Check(self.as_ptr()) != 0 }
     }
 
-    fn call(
-        &self,
-        args: impl IntoPy<Py<PyTuple>>,
-        kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
+    fn call<A>(&self, args: A, kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Bound<'py, PyAny>>
+    where
+        A: IntoPy<Py<PyTuple>>,
+    {
         args.__py_call_vectorcall(
             self.py(),
             self.as_borrowed(),
@@ -1173,7 +1280,10 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         unsafe { ffi::compat::PyObject_CallNoArgs(self.as_ptr()).assume_owned_or_err(self.py()) }
     }
 
-    fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<Bound<'py, PyAny>> {
+    fn call1<A>(&self, args: A) -> PyResult<Bound<'py, PyAny>>
+    where
+        A: IntoPy<Py<PyTuple>>,
+    {
         args.__py_call_vectorcall1(self.py(), self.as_borrowed(), private::Token)
     }
 
@@ -1185,8 +1295,9 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPyObject<'py, Target = PyString>,
         A: IntoPy<Py<PyTuple>>,
+        N::Error: Into<PyErr>,
     {
         // Don't `args.into_py()`! This will lose the optimization of vectorcall.
         match kwargs {
@@ -1200,10 +1311,11 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     #[inline]
     fn call_method0<N>(&self, name: N) -> PyResult<Bound<'py, PyAny>>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPyObject<'py, Target = PyString>,
+        N::Error: Into<PyErr>,
     {
         let py = self.py();
-        let name = name.into_py(py).into_bound(py);
+        let name = name.into_pyobject(py).map_err(Into::into)?.into_bound();
         unsafe {
             ffi::compat::PyObject_CallMethodNoArgs(self.as_ptr(), name.as_ptr())
                 .assume_owned_or_err(py)
@@ -1212,13 +1324,16 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     fn call_method1<N, A>(&self, name: N, args: A) -> PyResult<Bound<'py, PyAny>>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPyObject<'py, Target = PyString>,
         A: IntoPy<Py<PyTuple>>,
+        N::Error: Into<PyErr>,
     {
         args.__py_call_method_vectorcall1(
             self.py(),
             self.as_borrowed(),
-            name.into_py(self.py()).into_bound(self.py()),
+            name.into_pyobject(self.py())
+                .map_err(Into::into)?
+                .as_borrowed(),
             private::Token,
         )
     }
@@ -1244,11 +1359,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     fn get_item<K>(&self, key: K) -> PyResult<Bound<'py, PyAny>>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
+        K::Error: Into<PyErr>,
     {
         fn inner<'py>(
             any: &Bound<'py, PyAny>,
-            key: Bound<'_, PyAny>,
+            key: &Bound<'_, PyAny>,
         ) -> PyResult<Bound<'py, PyAny>> {
             unsafe {
                 ffi::PyObject_GetItem(any.as_ptr(), key.as_ptr()).assume_owned_or_err(any.py())
@@ -1256,18 +1372,26 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).into_bound(py))
+        inner(
+            self,
+            &key.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+        )
     }
 
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
     where
-        K: ToPyObject,
-        V: ToPyObject,
+        K: IntoPyObject<'py>,
+        V: IntoPyObject<'py>,
+        K::Error: Into<PyErr>,
+        V::Error: Into<PyErr>,
     {
         fn inner(
             any: &Bound<'_, PyAny>,
-            key: Bound<'_, PyAny>,
-            value: Bound<'_, PyAny>,
+            key: &Bound<'_, PyAny>,
+            value: &Bound<'_, PyAny>,
         ) -> PyResult<()> {
             err::error_on_minusone(any.py(), unsafe {
                 ffi::PyObject_SetItem(any.as_ptr(), key.as_ptr(), value.as_ptr())
@@ -1277,23 +1401,37 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            key.to_object(py).into_bound(py),
-            value.to_object(py).into_bound(py),
+            &key.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+            &value
+                .into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
         )
     }
 
     fn del_item<K>(&self, key: K) -> PyResult<()>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
+        K::Error: Into<PyErr>,
     {
-        fn inner(any: &Bound<'_, PyAny>, key: Bound<'_, PyAny>) -> PyResult<()> {
+        fn inner(any: &Bound<'_, PyAny>, key: &Bound<'_, PyAny>) -> PyResult<()> {
             err::error_on_minusone(any.py(), unsafe {
                 ffi::PyObject_DelItem(any.as_ptr(), key.as_ptr())
             })
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).into_bound(py))
+        inner(
+            self,
+            &key.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+        )
     }
 
     fn iter(&self) -> PyResult<Bound<'py, PyIterator>> {
@@ -1442,9 +1580,10 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     fn contains<V>(&self, value: V) -> PyResult<bool>
     where
-        V: ToPyObject,
+        V: IntoPyObject<'py>,
+        V::Error: Into<PyErr>,
     {
-        fn inner(any: &Bound<'_, PyAny>, value: Bound<'_, PyAny>) -> PyResult<bool> {
+        fn inner(any: &Bound<'_, PyAny>, value: &Bound<'_, PyAny>) -> PyResult<bool> {
             match unsafe { ffi::PySequence_Contains(any.as_ptr(), value.as_ptr()) } {
                 0 => Ok(false),
                 1 => Ok(true),
@@ -1453,7 +1592,14 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(self, value.to_object(py).into_bound(py))
+        inner(
+            self,
+            &value
+                .into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+        )
     }
 
     #[cfg(not(any(PyPy, GraalPy)))]
@@ -1476,7 +1622,8 @@ impl<'py> Bound<'py, PyAny> {
     #[allow(dead_code)] // Currently only used with num-complex+abi3, so dead without that.
     pub(crate) fn lookup_special<N>(&self, attr_name: N) -> PyResult<Option<Bound<'py, PyAny>>>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPyObject<'py, Target = PyString>,
+        N::Error: Into<PyErr>,
     {
         let py = self.py();
         let self_type = self.get_type();

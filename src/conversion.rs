@@ -249,7 +249,7 @@ pub trait IntoPy<T>: Sized {
         self,
         _py: Python<'py>,
         object: Borrowed<'_, 'py, PyAny>,
-        method_name: Bound<'py, PyString>,
+        method_name: Borrowed<'_, 'py, PyString>,
         _: private::Token,
     ) -> PyResult<Bound<'py, PyAny>>
     where
@@ -628,7 +628,7 @@ impl IntoPy<Py<PyTuple>> for () {
         self,
         py: Python<'py>,
         object: Borrowed<'_, 'py, PyAny>,
-        method_name: Bound<'py, PyString>,
+        method_name: Borrowed<'_, 'py, PyString>,
         _: private::Token,
     ) -> PyResult<Bound<'py, PyAny>> {
         unsafe {

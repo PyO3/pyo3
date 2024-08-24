@@ -47,6 +47,7 @@ use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::datetime::timezone_from_offset;
+use crate::types::PyNone;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{
     timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
@@ -553,12 +554,12 @@ impl FromPyObject<'_> for FixedOffset {
         #[cfg(Py_LIMITED_API)]
         check_type(ob, &DatetimeTypes::get(ob.py()).tzinfo, "PyTzInfo")?;
 
-        // Passing `()` (so Python's None) to the `utcoffset` function will only
+        // Passing Python's None to the `utcoffset` function will only
         // work for timezones defined as fixed offsets in Python.
         // Any other timezone would require a datetime as the parameter, and return
         // None if the datetime is not provided.
         // Trying to convert None to a PyDelta in the next line will then fail.
-        let py_timedelta = ob.call_method1("utcoffset", ((),))?;
+        let py_timedelta = ob.call_method1("utcoffset", (PyNone::get(ob.py()),))?;
         if py_timedelta.is_none() {
             return Err(PyTypeError::new_err(format!(
                 "{:?} is not a fixed offset timezone",
@@ -812,7 +813,7 @@ fn timezone_utc(py: Python<'_>) -> Bound<'_, PyAny> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{types::PyTuple, Py};
+    use crate::{types::PyTuple, BoundObject};
     use std::{cmp::Ordering, panic};
 
     #[test]
@@ -1098,6 +1099,7 @@ mod tests {
 
             check_utc("regular", 2014, 5, 6, 7, 8, 9, 999_999, 999_999);
 
+            #[cfg(not(Py_GIL_DISABLED))]
             assert_warnings!(
                 py,
                 check_utc("leap second", 2014, 5, 6, 7, 8, 59, 1_999_999, 999_999),
@@ -1140,6 +1142,7 @@ mod tests {
 
             check_fixed_offset("regular", 2014, 5, 6, 7, 8, 9, 999_999, 999_999);
 
+            #[cfg(not(Py_GIL_DISABLED))]
             assert_warnings!(
                 py,
                 check_fixed_offset("leap second", 2014, 5, 6, 7, 8, 59, 1_999_999, 999_999),
@@ -1295,6 +1298,7 @@ mod tests {
 
             check_time("regular", 3, 5, 7, 999_999, 999_999);
 
+            #[cfg(not(Py_GIL_DISABLED))]
             assert_warnings!(
                 py,
                 check_time("leap second", 3, 5, 59, 1_999_999, 999_999),
@@ -1320,16 +1324,21 @@ mod tests {
         })
     }
 
-    fn new_py_datetime_ob<'py>(
-        py: Python<'py>,
-        name: &str,
-        args: impl IntoPy<Py<PyTuple>>,
-    ) -> Bound<'py, PyAny> {
+    fn new_py_datetime_ob<'py, A>(py: Python<'py>, name: &str, args: A) -> Bound<'py, PyAny>
+    where
+        A: IntoPyObject<'py, Target = PyTuple>,
+        A::Error: Into<PyErr>,
+    {
         py.import("datetime")
             .unwrap()
             .getattr(name)
             .unwrap()
-            .call1(args)
+            .call1(
+                args.into_pyobject(py)
+                    .map_err(Into::into)
+                    .unwrap()
+                    .into_bound(),
+            )
             .unwrap()
     }
 
@@ -1342,7 +1351,7 @@ mod tests {
             .unwrap()
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(any(target_arch = "wasm32", Py_GIL_DISABLED)))]
     mod proptests {
         use super::*;
         use crate::tests::common::CatchWarnings;

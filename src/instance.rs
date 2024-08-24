@@ -1,3 +1,4 @@
+use crate::conversion::IntoPyObject;
 use crate::err::{self, PyErr, PyResult};
 use crate::impl_::pycell::PyClassObject;
 use crate::internal_tricks::ptr_from_ref;
@@ -1426,9 +1427,10 @@ impl<T> Py<T> {
     /// #    version(sys, py).unwrap();
     /// # });
     /// ```
-    pub fn getattr<N>(&self, py: Python<'_>, attr_name: N) -> PyResult<PyObject>
+    pub fn getattr<'py, N>(&self, py: Python<'py>, attr_name: N) -> PyResult<PyObject>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPyObject<'py, Target = PyString>,
+        N::Error: Into<PyErr>,
     {
         self.bind(py).as_any().getattr(attr_name).map(Bound::unbind)
     }
@@ -1455,32 +1457,38 @@ impl<T> Py<T> {
     /// #    set_answer(ob, py).unwrap();
     /// # });
     /// ```
-    pub fn setattr<N, V>(&self, py: Python<'_>, attr_name: N, value: V) -> PyResult<()>
+    pub fn setattr<'py, N, V>(&self, py: Python<'py>, attr_name: N, value: V) -> PyResult<()>
     where
-        N: IntoPy<Py<PyString>>,
-        V: IntoPy<Py<PyAny>>,
+        N: IntoPyObject<'py, Target = PyString>,
+        V: IntoPyObject<'py>,
+        N::Error: Into<PyErr>,
+        V::Error: Into<PyErr>,
     {
-        self.bind(py)
-            .as_any()
-            .setattr(attr_name, value.into_py(py).into_bound(py))
+        self.bind(py).as_any().setattr(attr_name, value)
     }
 
     /// Calls the object.
     ///
     /// This is equivalent to the Python expression `self(*args, **kwargs)`.
-    pub fn call_bound(
+    pub fn call_bound<'py, N>(
         &self,
-        py: Python<'_>,
-        args: impl IntoPy<Py<PyTuple>>,
-        kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyResult<PyObject> {
+        py: Python<'py>,
+        args: N,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<PyObject>
+    where
+        N: IntoPy<Py<PyTuple>>,
+    {
         self.bind(py).as_any().call(args, kwargs).map(Bound::unbind)
     }
 
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
-    pub fn call1(&self, py: Python<'_>, args: impl IntoPy<Py<PyTuple>>) -> PyResult<PyObject> {
+    pub fn call1<'py, N>(&self, py: Python<'py>, args: N) -> PyResult<PyObject>
+    where
+        N: IntoPy<Py<PyTuple>>,
+    {
         self.bind(py).as_any().call1(args).map(Bound::unbind)
     }
 
@@ -1497,16 +1505,17 @@ impl<T> Py<T> {
     ///
     /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
     /// macro can be used to intern `name`.
-    pub fn call_method_bound<N, A>(
+    pub fn call_method_bound<'py, N, A>(
         &self,
-        py: Python<'_>,
+        py: Python<'py>,
         name: N,
         args: A,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyObject>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPyObject<'py, Target = PyString>,
         A: IntoPy<Py<PyTuple>>,
+        N::Error: Into<PyErr>,
     {
         self.bind(py)
             .as_any()
@@ -1520,10 +1529,11 @@ impl<T> Py<T> {
     ///
     /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
     /// macro can be used to intern `name`.
-    pub fn call_method1<N, A>(&self, py: Python<'_>, name: N, args: A) -> PyResult<PyObject>
+    pub fn call_method1<'py, N, A>(&self, py: Python<'py>, name: N, args: A) -> PyResult<PyObject>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPyObject<'py, Target = PyString>,
         A: IntoPy<Py<PyTuple>>,
+        N::Error: Into<PyErr>,
     {
         self.bind(py)
             .as_any()
@@ -1537,9 +1547,10 @@ impl<T> Py<T> {
     ///
     /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
     /// macro can be used to intern `name`.
-    pub fn call_method0<N>(&self, py: Python<'_>, name: N) -> PyResult<PyObject>
+    pub fn call_method0<'py, N>(&self, py: Python<'py>, name: N) -> PyResult<PyObject>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPyObject<'py, Target = PyString>,
+        N::Error: Into<PyErr>,
     {
         self.bind(py).as_any().call_method0(name).map(Bound::unbind)
     }

@@ -77,7 +77,7 @@ fn test_buffer_referenced() {
             }
             .into_py(py);
 
-            let buf = PyBuffer::<u8>::get_bound(instance.bind(py)).unwrap();
+            let buf = PyBuffer::<u8>::get(instance.bind(py)).unwrap();
             assert_eq!(buf.to_vec(py).unwrap(), input);
             drop(instance);
             buf
@@ -94,7 +94,7 @@ fn test_buffer_referenced() {
 }
 
 #[test]
-#[cfg(Py_3_8)] // sys.unraisablehook not available until Python 3.8
+#[cfg(all(Py_3_8, not(Py_GIL_DISABLED)))] // sys.unraisablehook not available until Python 3.8
 fn test_releasebuffer_unraisable_error() {
     use common::UnraisableCapture;
     use pyo3::exceptions::PyValueError;

@@ -621,7 +621,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             self,
             py: Python<'py>,
             object: Borrowed<'_, 'py, PyAny>,
-            method_name: Bound<'py, PyString>,
+            method_name: Borrowed<'_, 'py, PyString>,
             _: private::Token,
         ) -> PyResult<Bound<'py, PyAny>> {
             cfg_if::cfg_if! {
