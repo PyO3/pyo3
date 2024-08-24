@@ -1096,6 +1096,7 @@ mod tests {
 
             check_utc("regular", 2014, 5, 6, 7, 8, 9, 999_999, 999_999);
 
+            #[cfg(not(Py_GIL_DISABLED))]
             assert_warnings!(
                 py,
                 check_utc("leap second", 2014, 5, 6, 7, 8, 59, 1_999_999, 999_999),
@@ -1138,6 +1139,7 @@ mod tests {
 
             check_fixed_offset("regular", 2014, 5, 6, 7, 8, 9, 999_999, 999_999);
 
+            #[cfg(not(Py_GIL_DISABLED))]
             assert_warnings!(
                 py,
                 check_fixed_offset("leap second", 2014, 5, 6, 7, 8, 59, 1_999_999, 999_999),
@@ -1293,6 +1295,7 @@ mod tests {
 
             check_time("regular", 3, 5, 7, 999_999, 999_999);
 
+            #[cfg(not(Py_GIL_DISABLED))]
             assert_warnings!(
                 py,
                 check_time("leap second", 3, 5, 59, 1_999_999, 999_999),
