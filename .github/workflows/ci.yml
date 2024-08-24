@@ -399,6 +399,10 @@ jobs:
         run: echo 'skip=true' >> $GITHUB_OUTPUT
       - uses: actions/checkout@v4
         if: steps.should-skip.outputs.skip != 'true'
+        with:
+          # Use the PR head, not the merge commit, because the head commit (and the base)
+          # is what codecov uses to calculate diffs.
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-python@v5
         if: steps.should-skip.outputs.skip != 'true'
         with:
