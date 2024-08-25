@@ -1,10 +1,11 @@
 //! Defines conversions between Rust and Python types.
 use crate::err::PyResult;
+use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
-use crate::types::PyTuple;
+use crate::types::{PyDict, PyString, PyTuple};
 use crate::{
     ffi, Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyErr, PyObject, PyRef, PyRefMut, Python,
 };
@@ -171,6 +172,93 @@ pub trait IntoPy<T>: Sized {
     #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::Any
+    }
+
+    // The following methods are helpers to use the vectorcall API where possible.
+    // They are overridden on tuples to perform a vectorcall.
+    // Be careful when you're implementing these: they can never refer to `Bound` call methods,
+    // as those refer to these methods, so this will create an infinite recursion.
+    #[doc(hidden)]
+    #[inline]
+    fn __py_call_vectorcall1<'py>(
+        self,
+        py: Python<'py>,
+        function: Borrowed<'_, 'py, PyAny>,
+        _: private::Token,
+    ) -> PyResult<Bound<'py, PyAny>>
+    where
+        Self: IntoPy<Py<PyTuple>>,
+    {
+        #[inline]
+        fn inner<'py>(
+            py: Python<'py>,
+            function: Borrowed<'_, 'py, PyAny>,
+            args: Bound<'py, PyTuple>,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            unsafe {
+                ffi::PyObject_Call(function.as_ptr(), args.as_ptr(), std::ptr::null_mut())
+                    .assume_owned_or_err(py)
+            }
+        }
+        inner(
+            py,
+            function,
+            <Self as IntoPy<Py<PyTuple>>>::into_py(self, py).into_bound(py),
+        )
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    fn __py_call_vectorcall<'py>(
+        self,
+        py: Python<'py>,
+        function: Borrowed<'_, 'py, PyAny>,
+        kwargs: Option<Borrowed<'_, '_, PyDict>>,
+        _: private::Token,
+    ) -> PyResult<Bound<'py, PyAny>>
+    where
+        Self: IntoPy<Py<PyTuple>>,
+    {
+        #[inline]
+        fn inner<'py>(
+            py: Python<'py>,
+            function: Borrowed<'_, 'py, PyAny>,
+            args: Bound<'py, PyTuple>,
+            kwargs: Option<Borrowed<'_, '_, PyDict>>,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            unsafe {
+                ffi::PyObject_Call(
+                    function.as_ptr(),
+                    args.as_ptr(),
+                    kwargs.map_or_else(std::ptr::null_mut, |kwargs| kwargs.as_ptr()),
+                )
+                .assume_owned_or_err(py)
+            }
+        }
+        inner(
+            py,
+            function,
+            <Self as IntoPy<Py<PyTuple>>>::into_py(self, py).into_bound(py),
+            kwargs,
+        )
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    fn __py_call_method_vectorcall1<'py>(
+        self,
+        _py: Python<'py>,
+        object: Borrowed<'_, 'py, PyAny>,
+        method_name: Borrowed<'_, 'py, PyString>,
+        _: private::Token,
+    ) -> PyResult<Bound<'py, PyAny>>
+    where
+        Self: IntoPy<Py<PyTuple>>,
+    {
+        // Don't `self.into_py()`! This will lose the optimization of vectorcall.
+        object
+            .getattr(method_name)
+            .and_then(|method| method.call1(self))
     }
 }
 
@@ -501,6 +589,52 @@ where
 impl IntoPy<Py<PyTuple>> for () {
     fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
         PyTuple::empty(py).unbind()
+    }
+
+    #[inline]
+    fn __py_call_vectorcall1<'py>(
+        self,
+        py: Python<'py>,
+        function: Borrowed<'_, 'py, PyAny>,
+        _: private::Token,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        unsafe { ffi::compat::PyObject_CallNoArgs(function.as_ptr()).assume_owned_or_err(py) }
+    }
+
+    #[inline]
+    fn __py_call_vectorcall<'py>(
+        self,
+        py: Python<'py>,
+        function: Borrowed<'_, 'py, PyAny>,
+        kwargs: Option<Borrowed<'_, '_, PyDict>>,
+        _: private::Token,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        unsafe {
+            match kwargs {
+                Some(kwargs) => ffi::PyObject_Call(
+                    function.as_ptr(),
+                    PyTuple::empty(py).as_ptr(),
+                    kwargs.as_ptr(),
+                )
+                .assume_owned_or_err(py),
+                None => ffi::compat::PyObject_CallNoArgs(function.as_ptr()).assume_owned_or_err(py),
+            }
+        }
+    }
+
+    #[inline]
+    #[allow(clippy::used_underscore_binding)]
+    fn __py_call_method_vectorcall1<'py>(
+        self,
+        py: Python<'py>,
+        object: Borrowed<'_, 'py, PyAny>,
+        method_name: Borrowed<'_, 'py, PyString>,
+        _: private::Token,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        unsafe {
+            ffi::compat::PyObject_CallMethodNoArgs(object.as_ptr(), method_name.as_ptr())
+                .assume_owned_or_err(py)
+        }
     }
 }
 

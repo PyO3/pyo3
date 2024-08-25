@@ -813,7 +813,7 @@ fn timezone_utc(py: Python<'_>) -> Bound<'_, PyAny> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::PyTuple;
+    use crate::{types::PyTuple, BoundObject};
     use std::{cmp::Ordering, panic};
 
     #[test]
@@ -1333,7 +1333,12 @@ mod tests {
             .unwrap()
             .getattr(name)
             .unwrap()
-            .call1(args)
+            .call1(
+                args.into_pyobject(py)
+                    .map_err(Into::into)
+                    .unwrap()
+                    .into_bound(),
+            )
             .unwrap()
     }
 

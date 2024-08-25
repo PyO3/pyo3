@@ -1477,8 +1477,7 @@ impl<T> Py<T> {
         kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<PyObject>
     where
-        N: IntoPyObject<'py, Target = PyTuple>,
-        N::Error: Into<PyErr>,
+        N: IntoPy<Py<PyTuple>>,
     {
         self.bind(py).as_any().call(args, kwargs).map(Bound::unbind)
     }
@@ -1486,10 +1485,9 @@ impl<T> Py<T> {
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
-    pub fn call1<'py, N>(&self, py: Python<'py>, args: N) -> PyResult<PyObject>
+    pub fn call1<N>(&self, py: Python<'_>, args: N) -> PyResult<PyObject>
     where
-        N: IntoPyObject<'py, Target = PyTuple>,
-        N::Error: Into<PyErr>,
+        N: IntoPy<Py<PyTuple>>,
     {
         self.bind(py).as_any().call1(args).map(Bound::unbind)
     }
@@ -1516,9 +1514,8 @@ impl<T> Py<T> {
     ) -> PyResult<PyObject>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        A: IntoPyObject<'py, Target = PyTuple>,
+        A: IntoPy<Py<PyTuple>>,
         N::Error: Into<PyErr>,
-        A::Error: Into<PyErr>,
     {
         self.bind(py)
             .as_any()
@@ -1535,9 +1532,8 @@ impl<T> Py<T> {
     pub fn call_method1<'py, N, A>(&self, py: Python<'py>, name: N, args: A) -> PyResult<PyObject>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        A: IntoPyObject<'py, Target = PyTuple>,
+        A: IntoPy<Py<PyTuple>>,
         N::Error: Into<PyErr>,
-        A::Error: Into<PyErr>,
     {
         self.bind(py)
             .as_any()

@@ -1,5 +1,5 @@
 use crate::class::basic::CompareOp;
-use crate::conversion::{AsPyPointer, FromPyObjectBound, IntoPyObject};
+use crate::conversion::{private, AsPyPointer, FromPyObjectBound, IntoPy, IntoPyObject};
 use crate::err::{DowncastError, DowncastIntoError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -10,7 +10,7 @@ use crate::type_object::{PyTypeCheck, PyTypeInfo};
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
-use crate::{err, ffi, BoundObject, Python};
+use crate::{err, ffi, BoundObject, Py, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
@@ -457,8 +457,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```
     fn call<A>(&self, args: A, kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Bound<'py, PyAny>>
     where
-        A: IntoPyObject<'py, Target = PyTuple>,
-        A::Error: Into<PyErr>;
+        A: IntoPy<Py<PyTuple>>;
 
     /// Calls the object without arguments.
     ///
@@ -513,8 +512,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```
     fn call1<A>(&self, args: A) -> PyResult<Bound<'py, PyAny>>
     where
-        A: IntoPyObject<'py, Target = PyTuple>,
-        A::Error: Into<PyErr>;
+        A: IntoPy<Py<PyTuple>>;
 
     /// Calls a method on the object.
     ///
@@ -561,9 +559,8 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        A: IntoPyObject<'py, Target = PyTuple>,
-        N::Error: Into<PyErr>,
-        A::Error: Into<PyErr>;
+        A: IntoPy<Py<PyTuple>>,
+        N::Error: Into<PyErr>;
 
     /// Calls a method on the object without arguments.
     ///
@@ -640,9 +637,8 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     fn call_method1<N, A>(&self, name: N, args: A) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        A: IntoPyObject<'py, Target = PyTuple>,
-        N::Error: Into<PyErr>,
-        A::Error: Into<PyErr>;
+        A: IntoPy<Py<PyTuple>>,
+        N::Error: Into<PyErr>;
 
     /// Returns whether the object is considered to be true.
     ///
@@ -1269,44 +1265,29 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     fn call<A>(&self, args: A, kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Bound<'py, PyAny>>
     where
-        A: IntoPyObject<'py, Target = PyTuple>,
-        A::Error: Into<PyErr>,
+        A: IntoPy<Py<PyTuple>>,
     {
-        fn inner<'py>(
-            any: &Bound<'py, PyAny>,
-            args: &Bound<'_, PyTuple>,
-            kwargs: Option<&Bound<'_, PyDict>>,
-        ) -> PyResult<Bound<'py, PyAny>> {
-            unsafe {
-                ffi::PyObject_Call(
-                    any.as_ptr(),
-                    args.as_ptr(),
-                    kwargs.map_or(std::ptr::null_mut(), |dict| dict.as_ptr()),
-                )
-                .assume_owned_or_err(any.py())
-            }
-        }
-
-        let py = self.py();
-        inner(
-            self,
-            &args.into_pyobject(py).map_err(Into::into)?.as_borrowed(),
-            kwargs,
+        args.__py_call_vectorcall(
+            self.py(),
+            self.as_borrowed(),
+            kwargs.map(Bound::as_borrowed),
+            private::Token,
         )
     }
 
+    #[inline]
     fn call0(&self) -> PyResult<Bound<'py, PyAny>> {
         unsafe { ffi::compat::PyObject_CallNoArgs(self.as_ptr()).assume_owned_or_err(self.py()) }
     }
 
     fn call1<A>(&self, args: A) -> PyResult<Bound<'py, PyAny>>
     where
-        A: IntoPyObject<'py, Target = PyTuple>,
-        A::Error: Into<PyErr>,
+        A: IntoPy<Py<PyTuple>>,
     {
-        self.call(args, None)
+        args.__py_call_vectorcall1(self.py(), self.as_borrowed(), private::Token)
     }
 
+    #[inline]
     fn call_method<N, A>(
         &self,
         name: N,
@@ -1315,14 +1296,19 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     ) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        A: IntoPyObject<'py, Target = PyTuple>,
+        A: IntoPy<Py<PyTuple>>,
         N::Error: Into<PyErr>,
-        A::Error: Into<PyErr>,
     {
-        self.getattr(name)
-            .and_then(|method| method.call(args, kwargs))
+        // Don't `args.into_py()`! This will lose the optimization of vectorcall.
+        match kwargs {
+            Some(_) => self
+                .getattr(name)
+                .and_then(|method| method.call(args, kwargs)),
+            None => self.call_method1(name, args),
+        }
     }
 
+    #[inline]
     fn call_method0<N>(&self, name: N) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
@@ -1339,11 +1325,17 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     fn call_method1<N, A>(&self, name: N, args: A) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        A: IntoPyObject<'py, Target = PyTuple>,
+        A: IntoPy<Py<PyTuple>>,
         N::Error: Into<PyErr>,
-        A::Error: Into<PyErr>,
     {
-        self.call_method(name, args, None)
+        args.__py_call_method_vectorcall1(
+            self.py(),
+            self.as_borrowed(),
+            name.into_pyobject(self.py())
+                .map_err(Into::into)?
+                .as_borrowed(),
+            private::Token,
+        )
     }
 
     fn is_truthy(&self) -> PyResult<bool> {

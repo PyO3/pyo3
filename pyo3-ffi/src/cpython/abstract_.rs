@@ -40,7 +40,7 @@ extern "C" {
 }
 
 #[cfg(Py_3_8)]
-const PY_VECTORCALL_ARGUMENTS_OFFSET: size_t =
+pub const PY_VECTORCALL_ARGUMENTS_OFFSET: size_t =
     1 << (8 * std::mem::size_of::<size_t>() as size_t - 1);
 
 #[cfg(Py_3_8)]
