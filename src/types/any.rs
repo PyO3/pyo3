@@ -1,5 +1,5 @@
 use crate::class::basic::CompareOp;
-use crate::conversion::{AsPyPointer, FromPyObjectBound, IntoPy, ToPyObject};
+use crate::conversion::{private, AsPyPointer, FromPyObjectBound, IntoPy, ToPyObject};
 use crate::err::{DowncastError, DowncastIntoError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -1308,11 +1308,9 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// })
     /// # }
     /// ```
-    fn call(
-        &self,
-        args: impl IntoPy<Py<PyTuple>>,
-        kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>>;
+    fn call<A>(&self, args: A, kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Bound<'py, PyAny>>
+    where
+        A: IntoPy<Py<PyTuple>>;
 
     /// Calls the object without arguments.
     ///
@@ -1363,7 +1361,9 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// })
     /// # }
     /// ```
-    fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<Bound<'py, PyAny>>;
+    fn call1<A>(&self, args: A) -> PyResult<Bound<'py, PyAny>>
+    where
+        A: IntoPy<Py<PyTuple>>;
 
     /// Calls a method on the object.
     ///
@@ -2027,38 +2027,31 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         unsafe { ffi::PyCallable_Check(self.as_ptr()) != 0 }
     }
 
-    fn call(
-        &self,
-        args: impl IntoPy<Py<PyTuple>>,
-        kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        fn inner<'py>(
-            any: &Bound<'py, PyAny>,
-            args: Bound<'_, PyTuple>,
-            kwargs: Option<&Bound<'_, PyDict>>,
-        ) -> PyResult<Bound<'py, PyAny>> {
-            unsafe {
-                ffi::PyObject_Call(
-                    any.as_ptr(),
-                    args.as_ptr(),
-                    kwargs.map_or(std::ptr::null_mut(), |dict| dict.as_ptr()),
-                )
-                .assume_owned_or_err(any.py())
-            }
-        }
-
-        let py = self.py();
-        inner(self, args.into_py(py).into_bound(py), kwargs)
+    fn call<A>(&self, args: A, kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Bound<'py, PyAny>>
+    where
+        A: IntoPy<Py<PyTuple>>,
+    {
+        args.__py_call_vectorcall(
+            self.py(),
+            self.as_borrowed(),
+            kwargs.map(Bound::as_borrowed),
+            private::Token,
+        )
     }
 
+    #[inline]
     fn call0(&self) -> PyResult<Bound<'py, PyAny>> {
         unsafe { ffi::compat::PyObject_CallNoArgs(self.as_ptr()).assume_owned_or_err(self.py()) }
     }
 
-    fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<Bound<'py, PyAny>> {
-        self.call(args, None)
+    fn call1<A>(&self, args: A) -> PyResult<Bound<'py, PyAny>>
+    where
+        A: IntoPy<Py<PyTuple>>,
+    {
+        args.__py_call_vectorcall1(self.py(), self.as_borrowed(), private::Token)
     }
 
+    #[inline]
     fn call_method<N, A>(
         &self,
         name: N,
@@ -2069,10 +2062,16 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         N: IntoPy<Py<PyString>>,
         A: IntoPy<Py<PyTuple>>,
     {
-        self.getattr(name)
-            .and_then(|method| method.call(args, kwargs))
+        // Don't `args.into_py()`! This will lose the optimization of vectorcall.
+        match kwargs {
+            Some(_) => self
+                .getattr(name)
+                .and_then(|method| method.call(args, kwargs)),
+            None => self.call_method1(name, args),
+        }
     }
 
+    #[inline]
     fn call_method0<N>(&self, name: N) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPy<Py<PyString>>,
@@ -2090,7 +2089,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         N: IntoPy<Py<PyString>>,
         A: IntoPy<Py<PyTuple>>,
     {
-        self.call_method(name, args, None)
+        args.__py_call_method_vectorcall1(
+            self.py(),
+            self.as_borrowed(),
+            name.into_py(self.py()).bind_borrowed(self.py()),
+            private::Token,
+        )
     }
 
     fn is_truthy(&self) -> PyResult<bool> {

@@ -1502,19 +1502,25 @@ impl<T> Py<T> {
     /// Calls the object.
     ///
     /// This is equivalent to the Python expression `self(*args, **kwargs)`.
-    pub fn call_bound(
+    pub fn call_bound<N>(
         &self,
         py: Python<'_>,
-        args: impl IntoPy<Py<PyTuple>>,
+        args: N,
         kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<PyObject>
+    where
+        N: IntoPy<Py<PyTuple>>,
+    {
         self.bind(py).as_any().call(args, kwargs).map(Bound::unbind)
     }
 
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
-    pub fn call1(&self, py: Python<'_>, args: impl IntoPy<Py<PyTuple>>) -> PyResult<PyObject> {
+    pub fn call1<N>(&self, py: Python<'_>, args: N) -> PyResult<PyObject>
+    where
+        N: IntoPy<Py<PyTuple>>,
+    {
         self.bind(py).as_any().call1(args).map(Bound::unbind)
     }
 
