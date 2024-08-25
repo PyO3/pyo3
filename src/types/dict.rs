@@ -6,7 +6,7 @@ use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyList};
-use crate::{ffi, BoundObject, Python, ToPyObject};
+use crate::{ffi, BoundObject, Python};
 
 /// Represents a Python `dict`.
 ///
@@ -559,28 +559,29 @@ pub(crate) use borrowed_iter::BorrowedDictIter;
 
 /// Conversion trait that allows a sequence of tuples to be converted into `PyDict`
 /// Primary use case for this trait is `call` and `call_method` methods as keywords argument.
-pub trait IntoPyDict: Sized {
+pub trait IntoPyDict<'py>: Sized {
     /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
     /// depends on implementation.
-    fn into_py_dict(self, py: Python<'_>) -> Bound<'_, PyDict>;
+    fn into_py_dict(self, py: Python<'py>) -> Bound<'_, PyDict>;
 
     /// Deprecated name for [`IntoPyDict::into_py_dict`].
     #[deprecated(since = "0.23.0", note = "renamed to `IntoPyDict::into_py_dict`")]
     #[inline]
-    fn into_py_dict_bound(self, py: Python<'_>) -> Bound<'_, PyDict> {
+    fn into_py_dict_bound(self, py: Python<'py>) -> Bound<'_, PyDict> {
         self.into_py_dict(py)
     }
 }
 
-impl<T, I> IntoPyDict for I
+impl<'py, T, I> IntoPyDict<'py> for I
 where
-    T: PyDictItem,
+    T: PyDictItem<'py>,
     I: IntoIterator<Item = T>,
 {
-    fn into_py_dict(self, py: Python<'_>) -> Bound<'_, PyDict> {
+    fn into_py_dict(self, py: Python<'py>) -> Bound<'_, PyDict> {
         let dict = PyDict::new(py);
         for item in self {
-            dict.set_item(item.key().to_object(py), item.value().to_object(py))
+            let (key, value) = item.unpack();
+            dict.set_item(key, value)
                 .expect("Failed to set_item on dict");
         }
         dict
@@ -588,40 +589,35 @@ where
 }
 
 /// Represents a tuple which can be used as a PyDict item.
-pub trait PyDictItem {
-    type K: ToPyObject;
-    type V: ToPyObject;
-    fn key(&self) -> &Self::K;
-    fn value(&self) -> &Self::V;
+pub trait PyDictItem<'py> {
+    type K: IntoPyObject<'py>;
+    type V: IntoPyObject<'py>;
+    fn unpack(self) -> (Self::K, Self::V);
 }
 
-impl<K, V> PyDictItem for (K, V)
+impl<'py, K, V> PyDictItem<'py> for (K, V)
 where
-    K: ToPyObject,
-    V: ToPyObject,
+    K: IntoPyObject<'py>,
+    V: IntoPyObject<'py>,
 {
     type K = K;
     type V = V;
-    fn key(&self) -> &Self::K {
-        &self.0
-    }
-    fn value(&self) -> &Self::V {
-        &self.1
+
+    fn unpack(self) -> (Self::K, Self::V) {
+        (self.0, self.1)
     }
 }
 
-impl<K, V> PyDictItem for &(K, V)
+impl<'a, 'py, K, V> PyDictItem<'py> for &'a (K, V)
 where
-    K: ToPyObject,
-    V: ToPyObject,
+    &'a K: IntoPyObject<'py>,
+    &'a V: IntoPyObject<'py>,
 {
-    type K = K;
-    type V = V;
-    fn key(&self) -> &Self::K {
-        &self.0
-    }
-    fn value(&self) -> &Self::V {
-        &self.1
+    type K = &'a K;
+    type V = &'a V;
+
+    fn unpack(self) -> (Self::K, Self::V) {
+        (&self.0, &self.1)
     }
 }
 
@@ -629,6 +625,7 @@ where
 mod tests {
     use super::*;
     use crate::types::PyTuple;
+    use crate::ToPyObject;
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
