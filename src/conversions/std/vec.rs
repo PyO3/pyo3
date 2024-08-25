@@ -43,7 +43,6 @@ where
 impl<'py, T> IntoPyObject<'py> for Vec<T>
 where
     T: IntoPyObject<'py>,
-    PyErr: From<T::Error>,
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -62,7 +61,6 @@ where
 impl<'a, 'py, T> IntoPyObject<'py> for &'a Vec<T>
 where
     &'a T: IntoPyObject<'py>,
-    PyErr: From<<&'a T as IntoPyObject<'py>>::Error>,
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;

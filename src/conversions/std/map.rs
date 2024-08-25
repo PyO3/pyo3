@@ -54,7 +54,6 @@ where
     K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
     V: IntoPyObject<'py>,
     H: hash::BuildHasher,
-    PyErr: From<K::Error> + From<V::Error>,
 {
     type Target = PyDict;
     type Output = Bound<'py, Self::Target>;
@@ -64,8 +63,8 @@ where
         let dict = PyDict::new(py);
         for (k, v) in self {
             dict.set_item(
-                k.into_pyobject(py)?.into_bound(),
-                v.into_pyobject(py)?.into_bound(),
+                k.into_pyobject(py).map_err(Into::into)?.into_bound(),
+                v.into_pyobject(py).map_err(Into::into)?.into_bound(),
             )?;
         }
         Ok(dict)
@@ -77,7 +76,6 @@ where
     &'a K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
     &'a V: IntoPyObject<'py>,
     H: hash::BuildHasher,
-    PyErr: From<<&'a K as IntoPyObject<'py>>::Error> + From<<&'a V as IntoPyObject<'py>>::Error>,
 {
     type Target = PyDict;
     type Output = Bound<'py, Self::Target>;
@@ -87,8 +85,8 @@ where
         let dict = PyDict::new(py);
         for (k, v) in self {
             dict.set_item(
-                k.into_pyobject(py)?.into_bound(),
-                v.into_pyobject(py)?.into_bound(),
+                k.into_pyobject(py).map_err(Into::into)?.into_bound(),
+                v.into_pyobject(py).map_err(Into::into)?.into_bound(),
             )?;
         }
         Ok(dict)
@@ -117,7 +115,6 @@ impl<'py, K, V> IntoPyObject<'py> for collections::BTreeMap<K, V>
 where
     K: IntoPyObject<'py> + cmp::Eq,
     V: IntoPyObject<'py>,
-    PyErr: From<K::Error> + From<V::Error>,
 {
     type Target = PyDict;
     type Output = Bound<'py, Self::Target>;
@@ -127,8 +124,8 @@ where
         let dict = PyDict::new(py);
         for (k, v) in self {
             dict.set_item(
-                k.into_pyobject(py)?.into_bound(),
-                v.into_pyobject(py)?.into_bound(),
+                k.into_pyobject(py).map_err(Into::into)?.into_bound(),
+                v.into_pyobject(py).map_err(Into::into)?.into_bound(),
             )?;
         }
         Ok(dict)
@@ -139,7 +136,6 @@ impl<'a, 'py, K, V> IntoPyObject<'py> for &'a collections::BTreeMap<K, V>
 where
     &'a K: IntoPyObject<'py> + cmp::Eq,
     &'a V: IntoPyObject<'py>,
-    PyErr: From<<&'a K as IntoPyObject<'py>>::Error> + From<<&'a V as IntoPyObject<'py>>::Error>,
 {
     type Target = PyDict;
     type Output = Bound<'py, Self::Target>;
@@ -149,8 +145,8 @@ where
         let dict = PyDict::new(py);
         for (k, v) in self {
             dict.set_item(
-                k.into_pyobject(py)?.into_bound(),
-                v.into_pyobject(py)?.into_bound(),
+                k.into_pyobject(py).map_err(Into::into)?.into_bound(),
+                v.into_pyobject(py).map_err(Into::into)?.into_bound(),
             )?;
         }
         Ok(dict)

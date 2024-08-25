@@ -60,7 +60,6 @@ impl<'py, A> IntoPyObject<'py> for SmallVec<A>
 where
     A: Array,
     A::Item: IntoPyObject<'py>,
-    PyErr: From<<A::Item as IntoPyObject<'py>>::Error>,
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -80,7 +79,6 @@ impl<'a, 'py, A> IntoPyObject<'py> for &'a SmallVec<A>
 where
     A: Array,
     &'a A::Item: IntoPyObject<'py>,
-    PyErr: From<<&'a A::Item as IntoPyObject<'py>>::Error>,
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;

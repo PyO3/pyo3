@@ -58,7 +58,6 @@ impl<'py, K, S> IntoPyObject<'py> for collections::HashSet<K, S>
 where
     K: IntoPyObject<'py> + Eq + hash::Hash,
     S: hash::BuildHasher + Default,
-    PyErr: From<K::Error>,
 {
     type Target = PySet;
     type Output = Bound<'py, Self::Target>;
@@ -81,7 +80,6 @@ impl<'a, 'py, K, H> IntoPyObject<'py> for &'a collections::HashSet<K, H>
 where
     &'a K: IntoPyObject<'py> + Eq + hash::Hash,
     H: hash::BuildHasher,
-    PyErr: From<<&'a K as IntoPyObject<'py>>::Error>,
 {
     type Target = PySet;
     type Output = Bound<'py, Self::Target>;
@@ -143,7 +141,6 @@ where
 impl<'py, K> IntoPyObject<'py> for collections::BTreeSet<K>
 where
     K: IntoPyObject<'py> + cmp::Ord,
-    PyErr: From<K::Error>,
 {
     type Target = PySet;
     type Output = Bound<'py, Self::Target>;
@@ -165,7 +162,6 @@ where
 impl<'a, 'py, K> IntoPyObject<'py> for &'a collections::BTreeSet<K>
 where
     &'a K: IntoPyObject<'py> + cmp::Ord,
-    PyErr: From<<&'a K as IntoPyObject<'py>>::Error>,
 {
     type Target = PySet;
     type Output = Bound<'py, Self::Target>;

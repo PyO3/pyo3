@@ -1412,7 +1412,6 @@ impl<T> Py<T> {
     pub fn getattr<'py, N>(&self, py: Python<'py>, attr_name: N) -> PyResult<PyObject>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        N::Error: Into<PyErr>,
     {
         self.bind(py).as_any().getattr(attr_name).map(Bound::unbind)
     }
@@ -1443,8 +1442,6 @@ impl<T> Py<T> {
     where
         N: IntoPyObject<'py, Target = PyString>,
         V: IntoPyObject<'py>,
-        N::Error: Into<PyErr>,
-        V::Error: Into<PyErr>,
     {
         self.bind(py).as_any().setattr(attr_name, value)
     }
@@ -1497,7 +1494,6 @@ impl<T> Py<T> {
     where
         N: IntoPyObject<'py, Target = PyString>,
         A: IntoPy<Py<PyTuple>>,
-        N::Error: Into<PyErr>,
     {
         self.bind(py)
             .as_any()
@@ -1515,7 +1511,6 @@ impl<T> Py<T> {
     where
         N: IntoPyObject<'py, Target = PyString>,
         A: IntoPy<Py<PyTuple>>,
-        N::Error: Into<PyErr>,
     {
         self.bind(py)
             .as_any()
@@ -1532,7 +1527,6 @@ impl<T> Py<T> {
     pub fn call_method0<'py, N>(&self, py: Python<'py>, name: N) -> PyResult<PyObject>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        N::Error: Into<PyErr>,
     {
         self.bind(py).as_any().call_method0(name).map(Bound::unbind)
     }
