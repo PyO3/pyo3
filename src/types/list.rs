@@ -5,8 +5,9 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{PySequence, PyTuple};
-use crate::{Bound, PyAny, PyObject, Python, ToPyObject};
+use crate::{Borrowed, Bound, BoundObject, PyAny, PyObject, Python, ToPyObject};
 
+use crate::prelude::IntoPyObject;
 use crate::types::any::PyAnyMethods;
 use crate::types::sequence::PySequenceMethods;
 
@@ -189,7 +190,7 @@ pub trait PyListMethods<'py>: crate::sealed::Sealed {
     /// Raises `IndexError` if the index is out of range.
     fn set_item<I>(&self, index: usize, item: I) -> PyResult<()>
     where
-        I: ToPyObject;
+        I: IntoPyObject<'py>;
 
     /// Deletes the `index`th element of self.
     ///
@@ -209,28 +210,28 @@ pub trait PyListMethods<'py>: crate::sealed::Sealed {
     /// Appends an item to the list.
     fn append<I>(&self, item: I) -> PyResult<()>
     where
-        I: ToPyObject;
+        I: IntoPyObject<'py>;
 
     /// Inserts an item at the specified index.
     ///
     /// If `index >= self.len()`, inserts at the end.
     fn insert<I>(&self, index: usize, item: I) -> PyResult<()>
     where
-        I: ToPyObject;
+        I: IntoPyObject<'py>;
 
     /// Determines if self contains `value`.
     ///
     /// This is equivalent to the Python expression `value in self`.
     fn contains<V>(&self, value: V) -> PyResult<bool>
     where
-        V: ToPyObject;
+        V: IntoPyObject<'py>;
 
     /// Returns the first index `i` for which `self[i] == value`.
     ///
     /// This is equivalent to the Python expression `self.index(value)`.
     fn index<V>(&self, value: V) -> PyResult<usize>
     where
-        V: ToPyObject;
+        V: IntoPyObject<'py>;
 
     /// Returns an iterator over this list's items.
     fn iter(&self) -> BoundListIterator<'py>;
@@ -323,7 +324,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     /// Raises `IndexError` if the index is out of range.
     fn set_item<I>(&self, index: usize, item: I) -> PyResult<()>
     where
-        I: ToPyObject,
+        I: IntoPyObject<'py>,
     {
         fn inner(list: &Bound<'_, PyList>, index: usize, item: Bound<'_, PyAny>) -> PyResult<()> {
             err::error_on_minusone(list.py(), unsafe {
@@ -332,7 +333,14 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
         }
 
         let py = self.py();
-        inner(self, index, item.to_object(py).into_bound(py))
+        inner(
+            self,
+            index,
+            item.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .into_bound(),
+        )
     }
 
     /// Deletes the `index`th element of self.
@@ -369,16 +377,22 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     /// Appends an item to the list.
     fn append<I>(&self, item: I) -> PyResult<()>
     where
-        I: ToPyObject,
+        I: IntoPyObject<'py>,
     {
-        fn inner(list: &Bound<'_, PyList>, item: Bound<'_, PyAny>) -> PyResult<()> {
+        fn inner(list: &Bound<'_, PyList>, item: Borrowed<'_, '_, PyAny>) -> PyResult<()> {
             err::error_on_minusone(list.py(), unsafe {
                 ffi::PyList_Append(list.as_ptr(), item.as_ptr())
             })
         }
 
         let py = self.py();
-        inner(self, item.to_object(py).into_bound(py))
+        inner(
+            self,
+            item.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+        )
     }
 
     /// Inserts an item at the specified index.
@@ -386,16 +400,27 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     /// If `index >= self.len()`, inserts at the end.
     fn insert<I>(&self, index: usize, item: I) -> PyResult<()>
     where
-        I: ToPyObject,
+        I: IntoPyObject<'py>,
     {
-        fn inner(list: &Bound<'_, PyList>, index: usize, item: Bound<'_, PyAny>) -> PyResult<()> {
+        fn inner(
+            list: &Bound<'_, PyList>,
+            index: usize,
+            item: Borrowed<'_, '_, PyAny>,
+        ) -> PyResult<()> {
             err::error_on_minusone(list.py(), unsafe {
                 ffi::PyList_Insert(list.as_ptr(), get_ssize_index(index), item.as_ptr())
             })
         }
 
         let py = self.py();
-        inner(self, index, item.to_object(py).into_bound(py))
+        inner(
+            self,
+            index,
+            item.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+        )
     }
 
     /// Determines if self contains `value`.
@@ -404,7 +429,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     #[inline]
     fn contains<V>(&self, value: V) -> PyResult<bool>
     where
-        V: ToPyObject,
+        V: IntoPyObject<'py>,
     {
         self.as_sequence().contains(value)
     }
@@ -415,7 +440,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     #[inline]
     fn index<V>(&self, value: V) -> PyResult<usize>
     where
-        V: ToPyObject,
+        V: IntoPyObject<'py>,
     {
         self.as_sequence().index(value)
     }
@@ -544,7 +569,6 @@ mod tests {
     use crate::types::sequence::PySequenceMethods;
     use crate::types::{PyList, PyTuple};
     use crate::{ffi, Python};
-    use crate::{IntoPy, PyObject, ToPyObject};
 
     #[test]
     fn test_new() {
@@ -591,8 +615,8 @@ mod tests {
     fn test_set_item() {
         Python::with_gil(|py| {
             let list = PyList::new(py, [2, 3, 5, 7]);
-            let val = 42i32.to_object(py);
-            let val2 = 42i32.to_object(py);
+            let val = 42i32.into_pyobject(py).unwrap();
+            let val2 = 42i32.into_pyobject(py).unwrap();
             assert_eq!(2, list.get_item(0).unwrap().extract::<i32>().unwrap());
             list.set_item(0, val).unwrap();
             assert_eq!(42, list.get_item(0).unwrap().extract::<i32>().unwrap());
@@ -607,8 +631,8 @@ mod tests {
             let cnt;
             {
                 let v = vec![2];
-                let ob = v.to_object(py);
-                let list = ob.downcast_bound::<PyList>(py).unwrap();
+                let ob = v.into_pyobject(py).unwrap();
+                let list = ob.downcast::<PyList>().unwrap();
                 cnt = obj.get_refcnt();
                 list.set_item(0, &obj).unwrap();
             }
@@ -621,8 +645,8 @@ mod tests {
     fn test_insert() {
         Python::with_gil(|py| {
             let list = PyList::new(py, [2, 3, 5, 7]);
-            let val = 42i32.to_object(py);
-            let val2 = 43i32.to_object(py);
+            let val = 42i32.into_pyobject(py).unwrap();
+            let val2 = 43i32.into_pyobject(py).unwrap();
             assert_eq!(4, list.len());
             assert_eq!(2, list.get_item(0).unwrap().extract::<i32>().unwrap());
             list.insert(0, val).unwrap();
@@ -691,8 +715,8 @@ mod tests {
     fn test_iter_size_hint() {
         Python::with_gil(|py| {
             let v = vec![2, 3, 5, 7];
-            let ob = v.to_object(py);
-            let list = ob.downcast_bound::<PyList>(py).unwrap();
+            let ob = (&v).into_pyobject(py).unwrap();
+            let list = ob.downcast::<PyList>().unwrap();
 
             let mut iter = list.iter();
             assert_eq!(iter.size_hint(), (v.len(), Some(v.len())));
@@ -710,8 +734,8 @@ mod tests {
     fn test_iter_rev() {
         Python::with_gil(|py| {
             let v = vec![2, 3, 5, 7];
-            let ob = v.to_object(py);
-            let list = ob.downcast_bound::<PyList>(py).unwrap();
+            let ob = v.into_pyobject(py).unwrap();
+            let list = ob.downcast::<PyList>().unwrap();
 
             let mut iter = list.iter().rev();
 
@@ -832,10 +856,10 @@ mod tests {
     }
 
     #[test]
-    fn test_array_into_py() {
+    fn test_array_into_pyobject() {
         Python::with_gil(|py| {
-            let array: PyObject = [1, 2].into_py(py);
-            let list = array.downcast_bound::<PyList>(py).unwrap();
+            let array = [1, 2].into_pyobject(py).unwrap();
+            let list = array.downcast::<PyList>().unwrap();
             assert_eq!(1, list.get_item(0).unwrap().extract::<i32>().unwrap());
             assert_eq!(2, list.get_item(1).unwrap().extract::<i32>().unwrap());
         });
@@ -924,13 +948,13 @@ mod tests {
             let list = PyList::new(py, [1, 1, 2, 3, 5, 8]);
             assert_eq!(6, list.len());
 
-            let bad_needle = 7i32.to_object(py);
+            let bad_needle = 7i32.into_pyobject(py).unwrap();
             assert!(!list.contains(&bad_needle).unwrap());
 
-            let good_needle = 8i32.to_object(py);
+            let good_needle = 8i32.into_pyobject(py).unwrap();
             assert!(list.contains(&good_needle).unwrap());
 
-            let type_coerced_needle = 8f32.to_object(py);
+            let type_coerced_needle = 8f32.into_pyobject(py).unwrap();
             assert!(list.contains(&type_coerced_needle).unwrap());
         });
     }
@@ -948,6 +972,7 @@ mod tests {
         });
     }
 
+    use crate::prelude::IntoPyObject;
     use std::ops::Range;
 
     // An iterator that lies about its `ExactSizeIterator` implementation.
@@ -1005,7 +1030,7 @@ mod tests {
     #[cfg(feature = "macros")]
     #[test]
     fn bad_clone_mem_leaks() {
-        use crate::{Py, PyAny};
+        use crate::{IntoPy, Py, PyAny, ToPyObject};
         use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
         static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);
 
