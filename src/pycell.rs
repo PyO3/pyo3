@@ -199,7 +199,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::{ptr_from_mut, ptr_from_ref};
 use crate::pyclass::{boolean_struct::False, PyClass};
 use crate::types::any::PyAnyMethods;
-use crate::{ffi, Bound, IntoPy, PyErr, PyObject, Python};
+use crate::{ffi, Borrowed, Bound, IntoPy, PyErr, PyObject, Python};
 use std::convert::Infallible;
 use std::fmt;
 use std::mem::ManuallyDrop;
@@ -479,11 +479,11 @@ impl<'py, T: PyClass> IntoPyObject<'py> for PyRef<'py, T> {
 
 impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &'a PyRef<'py, T> {
     type Target = T;
-    type Output = &'a Bound<'py, T>;
+    type Output = Borrowed<'a, 'py, T>;
     type Error = Infallible;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(&self.inner)
+        Ok(self.inner.as_borrowed())
     }
 }
 
@@ -668,11 +668,11 @@ impl<'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for PyRefMut<'py, T> {
 
 impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &'a PyRefMut<'py, T> {
     type Target = T;
-    type Output = &'a Bound<'py, T>;
+    type Output = Borrowed<'a, 'py, T>;
     type Error = Infallible;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(&self.inner)
+        Ok(self.inner.as_borrowed())
     }
 }
 
