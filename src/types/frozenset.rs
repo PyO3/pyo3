@@ -1,3 +1,4 @@
+use crate::conversion::IntoPyObject;
 use crate::types::PyIterator;
 use crate::{
     err::{self, PyErr, PyResult},
@@ -7,6 +8,7 @@ use crate::{
     types::any::PyAnyMethods,
     Bound, PyAny, PyObject, Python, ToPyObject,
 };
+use crate::{Borrowed, BoundObject};
 use std::ptr;
 
 /// Allows building a Python `frozenset` one item at a time
@@ -139,7 +141,7 @@ pub trait PyFrozenSetMethods<'py>: crate::sealed::Sealed {
     /// This is equivalent to the Python expression `key in self`.
     fn contains<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>;
 
     /// Returns an iterator of values in this set.
     fn iter(&self) -> BoundFrozenSetIterator<'py>;
@@ -153,9 +155,12 @@ impl<'py> PyFrozenSetMethods<'py> for Bound<'py, PyFrozenSet> {
 
     fn contains<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
     {
-        fn inner(frozenset: &Bound<'_, PyFrozenSet>, key: Bound<'_, PyAny>) -> PyResult<bool> {
+        fn inner(
+            frozenset: &Bound<'_, PyFrozenSet>,
+            key: Borrowed<'_, '_, PyAny>,
+        ) -> PyResult<bool> {
             match unsafe { ffi::PySet_Contains(frozenset.as_ptr(), key.as_ptr()) } {
                 1 => Ok(true),
                 0 => Ok(false),
@@ -164,7 +169,13 @@ impl<'py> PyFrozenSetMethods<'py> for Bound<'py, PyFrozenSet> {
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).into_bound(py))
+        inner(
+            self,
+            key.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+        )
     }
 
     fn iter(&self) -> BoundFrozenSetIterator<'py> {

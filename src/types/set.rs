@@ -1,3 +1,4 @@
+use crate::conversion::IntoPyObject;
 use crate::types::PyIterator;
 use crate::{
     err::{self, PyErr, PyResult},
@@ -6,7 +7,7 @@ use crate::{
     py_result_ext::PyResultExt,
     types::any::PyAnyMethods,
 };
-use crate::{ffi, PyAny, PyObject, Python, ToPyObject};
+use crate::{ffi, Borrowed, BoundObject, PyAny, PyObject, Python, ToPyObject};
 use std::ptr;
 
 /// Represents a Python `set`.
@@ -101,19 +102,19 @@ pub trait PySetMethods<'py>: crate::sealed::Sealed {
     /// This is equivalent to the Python expression `key in self`.
     fn contains<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>;
 
     /// Removes the element from the set if it is present.
     ///
     /// Returns `true` if the element was present in the set.
     fn discard<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>;
 
     /// Adds an element to the set.
     fn add<K>(&self, key: K) -> PyResult<()>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>;
 
     /// Removes and returns an arbitrary element from the set.
     fn pop(&self) -> Option<Bound<'py, PyAny>>;
@@ -141,9 +142,9 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
 
     fn contains<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
     {
-        fn inner(set: &Bound<'_, PySet>, key: Bound<'_, PyAny>) -> PyResult<bool> {
+        fn inner(set: &Bound<'_, PySet>, key: Borrowed<'_, '_, PyAny>) -> PyResult<bool> {
             match unsafe { ffi::PySet_Contains(set.as_ptr(), key.as_ptr()) } {
                 1 => Ok(true),
                 0 => Ok(false),
@@ -152,14 +153,20 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).into_bound(py))
+        inner(
+            self,
+            key.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+        )
     }
 
     fn discard<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
     {
-        fn inner(set: &Bound<'_, PySet>, key: Bound<'_, PyAny>) -> PyResult<bool> {
+        fn inner(set: &Bound<'_, PySet>, key: Borrowed<'_, '_, PyAny>) -> PyResult<bool> {
             match unsafe { ffi::PySet_Discard(set.as_ptr(), key.as_ptr()) } {
                 1 => Ok(true),
                 0 => Ok(false),
@@ -168,21 +175,33 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).into_bound(py))
+        inner(
+            self,
+            key.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+        )
     }
 
     fn add<K>(&self, key: K) -> PyResult<()>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
     {
-        fn inner(set: &Bound<'_, PySet>, key: Bound<'_, PyAny>) -> PyResult<()> {
+        fn inner(set: &Bound<'_, PySet>, key: Borrowed<'_, '_, PyAny>) -> PyResult<()> {
             err::error_on_minusone(set.py(), unsafe {
                 ffi::PySet_Add(set.as_ptr(), key.as_ptr())
             })
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).into_bound(py))
+        inner(
+            self,
+            key.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+        )
     }
 
     fn pop(&self) -> Option<Bound<'py, PyAny>> {
@@ -297,9 +316,10 @@ pub(crate) fn try_new_from_iter(
 mod tests {
     use super::PySet;
     use crate::{
+        conversion::IntoPyObject,
         ffi,
         types::{PyAnyMethods, PySetMethods},
-        Python, ToPyObject,
+        Python,
     };
     use std::collections::HashSet;
 
@@ -326,13 +346,13 @@ mod tests {
     #[test]
     fn test_set_len() {
         Python::with_gil(|py| {
-            let mut v = HashSet::new();
-            let ob = v.to_object(py);
-            let set = ob.downcast_bound::<PySet>(py).unwrap();
+            let mut v = HashSet::<i32>::new();
+            let ob = (&v).into_pyobject(py).unwrap();
+            let set = ob.downcast::<PySet>().unwrap();
             assert_eq!(0, set.len());
             v.insert(7);
-            let ob = v.to_object(py);
-            let set2 = ob.downcast_bound::<PySet>(py).unwrap();
+            let ob = v.into_pyobject(py).unwrap();
+            let set2 = ob.downcast::<PySet>().unwrap();
             assert_eq!(1, set2.len());
         });
     }
