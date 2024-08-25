@@ -1485,7 +1485,7 @@ impl<T> Py<T> {
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
-    pub fn call1<'py, N>(&self, py: Python<'py>, args: N) -> PyResult<PyObject>
+    pub fn call1<N>(&self, py: Python<'_>, args: N) -> PyResult<PyObject>
     where
         N: IntoPy<Py<PyTuple>>,
     {
