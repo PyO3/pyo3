@@ -871,7 +871,7 @@ extern "C" {
 #[inline]
 pub unsafe fn Py_NotImplemented() -> *mut PyObject {
     #[cfg(all(not(GraalPy), all(Py_3_13, Py_LIMITED_API)))]
-    return Py_GetConstantBorrowed(Py_CONSTANT_NONE);
+    return Py_GetConstantBorrowed(Py_CONSTANT_NOT_IMPLEMENTED);
 
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
     return ptr::addr_of_mut!(_Py_NotImplementedStruct);
