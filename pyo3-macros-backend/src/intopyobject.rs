@@ -1,11 +1,11 @@
 use crate::attributes::{self, get_pyo3_options, CrateAttribute};
 use crate::utils::Ctx;
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned as _;
-use syn::{parse_quote, Attribute, DeriveInput, Fields, Index, Result, Token};
+use syn::{parse_quote, Attribute, DataEnum, DeriveInput, Fields, Ident, Index, Result, Token};
 
 /// Attributes for deriving FromPyObject scoped on containers.
 enum ContainerPyO3Attribute {
@@ -112,14 +112,21 @@ enum ContainerType<'a> {
 ///
 /// Either describes a struct or an enum variant.
 struct Container<'a> {
+    path: syn::Path,
+    receiver: Option<Ident>,
     ty: ContainerType<'a>,
 }
 
+/// Construct a container based on fields, identifier and attributes.
 impl<'a> Container<'a> {
-    /// Construct a container based on fields, identifier and attributes.
     ///
     /// Fails if the variant has no fields or incompatible attributes.
-    fn new(fields: &'a Fields, options: ContainerOptions) -> Result<Self> {
+    fn new(
+        receiver: Option<Ident>,
+        fields: &'a Fields,
+        path: syn::Path,
+        options: ContainerOptions,
+    ) -> Result<Self> {
         let style = match fields {
             Fields::Unnamed(unnamed) if !unnamed.unnamed.is_empty() => {
                 if unnamed.unnamed.iter().count() == 1 {
@@ -171,8 +178,39 @@ impl<'a> Container<'a> {
             ),
         };
 
-        let v = Container { ty: style };
+        let v = Container {
+            path,
+            receiver,
+            ty: style,
+        };
         Ok(v)
+    }
+
+    fn match_pattern(&self) -> TokenStream {
+        let path = &self.path;
+        let pattern = match &self.ty {
+            ContainerType::Struct(fields) => fields
+                .iter()
+                .enumerate()
+                .map(|(i, f)| {
+                    let ident = f.ident;
+                    let new_ident = format_ident!("arg{i}");
+                    quote! {#ident: #new_ident,}
+                })
+                .collect::<TokenStream>(),
+            ContainerType::StructNewtype(field) => {
+                let ident = field.ident.as_ref().unwrap();
+                quote!(#ident: arg0)
+            }
+            ContainerType::Tuple(fields) => {
+                let i = (0..fields.len()).map(Index::from);
+                let idents = (0..fields.len()).map(|i| format_ident!("arg{i}"));
+                quote! { #(#i: #idents,)* }
+            }
+            ContainerType::TupleNewtype(_) => quote!(0: arg0),
+        };
+
+        quote! { #path{ #pattern } }
     }
 
     /// Build derivation body for a struct.
@@ -189,30 +227,47 @@ impl<'a> Container<'a> {
     fn build_newtype_struct(&self, field: &syn::Field, ctx: &Ctx) -> IntoPyObjectImpl {
         let Ctx { pyo3_path, .. } = ctx;
         let ty = &field.ty;
-        let ident = if let Some(ident) = &field.ident {
-            quote! {self.#ident}
-        } else {
-            quote! {self.0}
-        };
+
+        let unpack = self
+            .receiver
+            .as_ref()
+            .map(|i| {
+                let pattern = self.match_pattern();
+                quote! { let #pattern = #i;}
+            })
+            .unwrap_or_default();
 
         IntoPyObjectImpl {
             target: quote! {<#ty as #pyo3_path::conversion::IntoPyObject<'py>>::Target},
             output: quote! {<#ty as #pyo3_path::conversion::IntoPyObject<'py>>::Output},
             error: quote! {<#ty as #pyo3_path::conversion::IntoPyObject<'py>>::Error},
-            body: quote! { <#ty as #pyo3_path::conversion::IntoPyObject<'py>>::into_pyobject(#ident, py) },
+            body: quote! {
+                #unpack
+                <#ty as #pyo3_path::conversion::IntoPyObject<'py>>::into_pyobject(arg0, py)
+            },
         }
     }
 
     fn build_struct(&self, fields: &[NamedStructField<'_>], ctx: &Ctx) -> IntoPyObjectImpl {
         let Ctx { pyo3_path, .. } = ctx;
 
+        let unpack = self
+            .receiver
+            .as_ref()
+            .map(|i| {
+                let pattern = self.match_pattern();
+                quote! { let #pattern = #i;}
+            })
+            .unwrap_or_default();
+
         let setter = fields
             .iter()
-            .map(|f| {
+            .enumerate()
+            .map(|(i, f)| {
                 let key = f.ident.unraw().to_string();
-                let ident = f.ident;
+                let value = format_ident!("arg{i}");
                 quote! {
-                    dict.set_item(#key, self.#ident)?;
+                    #pyo3_path::types::PyDictMethods::set_item(&dict, #key, #value)?;
                 }
             })
             .collect::<TokenStream>();
@@ -222,9 +277,10 @@ impl<'a> Container<'a> {
             output: quote!(#pyo3_path::Bound<'py, Self::Target>),
             error: quote!(#pyo3_path::PyErr),
             body: quote! {
+                #unpack
                 let dict = #pyo3_path::types::PyDict::new(py);
                 #setter
-                Ok(dict)
+                ::std::result::Result::Ok::<_, Self::Error>(dict)
             },
         }
     }
@@ -232,16 +288,24 @@ impl<'a> Container<'a> {
     fn build_tuple_struct(&self, fields: &[TupleStructField], ctx: &Ctx) -> IntoPyObjectImpl {
         let Ctx { pyo3_path, .. } = ctx;
 
+        let unpack = self
+            .receiver
+            .as_ref()
+            .map(|i| {
+                let pattern = self.match_pattern();
+                quote! { let #pattern = #i;}
+            })
+            .unwrap_or_default();
+
         let setter = fields
             .iter()
             .enumerate()
-            .map(|(index, _)| {
-                let i = Index {
-                    index: index as u32,
-                    span: Span::call_site(),
-                };
+            .map(|(i, _)| {
+                let value = format_ident!("arg{i}");
                 quote! {
-                    #pyo3_path::conversion::IntoPyObject::into_pyobject(self.#i, py)?,
+                    #pyo3_path::conversion::IntoPyObject::into_pyobject(#value, py)
+                        .map(#pyo3_path::BoundObject::into_any)
+                        .map(#pyo3_path::BoundObject::into_bound)?,
                 }
             })
             .collect::<TokenStream>();
@@ -251,7 +315,75 @@ impl<'a> Container<'a> {
             output: quote!(#pyo3_path::Bound<'py, Self::Target>),
             error: quote!(#pyo3_path::PyErr),
             body: quote! {
-                Ok(#pyo3_path::types::PyTuple::new(py, [#setter]))
+                #unpack
+                ::std::result::Result::Ok::<_, Self::Error>(#pyo3_path::types::PyTuple::new(py, [#setter]))
+            },
+        }
+    }
+}
+
+/// Describes derivation input of an enum.
+struct Enum<'a> {
+    variants: Vec<Container<'a>>,
+}
+
+impl<'a> Enum<'a> {
+    /// Construct a new enum representation.
+    ///
+    /// `data_enum` is the `syn` representation of the input enum, `ident` is the
+    /// `Identifier` of the enum.
+    fn new(data_enum: &'a DataEnum, ident: &'a Ident) -> Result<Self> {
+        ensure_spanned!(
+            !data_enum.variants.is_empty(),
+            ident.span() => "cannot derive `IntoPyObject` for empty enum"
+        );
+        let variants = data_enum
+            .variants
+            .iter()
+            .map(|variant| {
+                let attrs = ContainerOptions::from_attrs(&variant.attrs)?;
+                let var_ident = &variant.ident;
+                Container::new(
+                    None,
+                    &variant.fields,
+                    parse_quote!(#ident::#var_ident),
+                    attrs,
+                )
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        Ok(Enum { variants })
+    }
+
+    /// Build derivation body for enums.
+    fn build(&self, ctx: &Ctx) -> IntoPyObjectImpl {
+        let Ctx { pyo3_path, .. } = ctx;
+
+        let variants = self
+            .variants
+            .iter()
+            .map(|v| {
+                let IntoPyObjectImpl { body, .. } = v.build(ctx);
+                let pattern = v.match_pattern();
+                quote! {
+                    #pattern => {
+                        {#body}
+                            .map(#pyo3_path::BoundObject::into_any)
+                            .map(#pyo3_path::BoundObject::into_bound)
+                            .map_err(::std::convert::Into::<PyErr>::into)
+                    }
+                }
+            })
+            .collect::<TokenStream>();
+
+        IntoPyObjectImpl {
+            target: quote!(#pyo3_path::types::PyAny),
+            output: quote!(#pyo3_path::Bound<'py, Self::Target>),
+            error: quote!(#pyo3_path::PyErr),
+            body: quote! {
+                match self {
+                    #variants
+                }
             },
         }
     }
@@ -291,20 +423,24 @@ pub fn build_derive_into_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
         body,
     } = match &tokens.data {
         syn::Data::Enum(en) => {
-            // if options.transparent || options.annotation.is_some() {
-            //     bail_spanned!(tokens.span() => "`transparent` or `annotation` is not supported \
-            //                                     at top level for enums");
-            // }
-            // let en = Enum::new(en, &tokens.ident)?;
-            // en.build(ctx)
-            todo!()
+            if options.transparent.is_some() {
+                bail_spanned!(tokens.span() => "`transparent` is not supported at top level for enums");
+            }
+            let en = Enum::new(en, &tokens.ident)?;
+            en.build(ctx)
         }
         syn::Data::Struct(st) => {
-            let st = Container::new(&st.fields, options)?;
+            let ident = &tokens.ident;
+            let st = Container::new(
+                Some(Ident::new("self", Span::call_site())),
+                &st.fields,
+                parse_quote!(#ident),
+                options,
+            )?;
             st.build(ctx)
         }
         syn::Data::Union(_) => bail_spanned!(
-            tokens.span() => "#[derive(FromPyObject)] is not supported for unions"
+            tokens.span() => "#[derive(`IntoPyObject`)] is not supported for unions"
         ),
     };
 
