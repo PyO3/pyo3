@@ -1118,7 +1118,7 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     diagnostic::on_unimplemented(
         message = "pyclass `{Self}` cannot be subclassed",
         label = "required for `#[pyclass(extends={Self})]`",
-        note = "if you own `{Self}`, add `subclass` to the `#[pyclass]` macro: `#[pyclass(subclass)]`",
+        note = "`{Self}` must have `#[pyclass(subclass)]` to be eligible for subclassing",
         note = "with the `abi3` feature enabled, PyO3 does not support subclassing native types",
     )
 )]
@@ -1127,7 +1127,7 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     diagnostic::on_unimplemented(
         message = "pyclass `{Self}` cannot be subclassed",
         label = "required for `#[pyclass(extends={Self})]`",
-        note = "if you own `{Self}`, add `subclass` to the `#[pyclass]` macro: `#[pyclass(subclass)]`",
+        note = "`{Self}` must have `#[pyclass(subclass)]` to be eligible for subclassing",
     )
 )]
 pub trait PyClassBaseType: Sized {
