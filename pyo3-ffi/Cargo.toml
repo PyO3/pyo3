@@ -23,6 +23,9 @@ default = []
 # so that the module can also be used with statically linked python interpreters.
 extension-module = ["pyo3-build-config/extension-module"]
 
+# Use features not in the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
+unlimited-api = ["pyo3-build-config/unlimited-api"]
+
 # Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
 abi3 = ["pyo3-build-config/abi3"]
 
