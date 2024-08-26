@@ -5,9 +5,9 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{
-    build_derive_from_pyobject, build_py_class, build_py_enum, build_py_function, build_py_methods,
-    pymodule_function_impl, pymodule_module_impl, PyClassArgs, PyClassMethodsType,
-    PyFunctionOptions, PyModuleOptions,
+    build_derive_from_pyobject, build_derive_into_pyobject, build_py_class, build_py_enum,
+    build_py_function, build_py_methods, pymodule_function_impl, pymodule_module_impl, PyClassArgs,
+    PyClassMethodsType, PyFunctionOptions, PyModuleOptions,
 };
 use quote::quote;
 use syn::{parse_macro_input, Item};
@@ -148,6 +148,16 @@ pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
 
     quote!(
         #ast
+        #expanded
+    )
+    .into()
+}
+
+#[proc_macro_derive(IntoPyObject, attributes(pyo3))]
+pub fn derive_into_py_object(item: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(item as syn::DeriveInput);
+    let expanded = build_derive_into_pyobject(&ast).unwrap_or_compile_error();
+    quote!(
         #expanded
     )
     .into()
