@@ -257,6 +257,12 @@ impl<'a> Container<'a> {
     }
 }
 
+// if there is a `'py` lifetime, we treat is as the `Python<'py>` lifetime
+fn verify_and_get_lifetime(generics: &syn::Generics) -> Option<&syn::LifetimeParam> {
+    let mut lifetimes = generics.lifetimes();
+    lifetimes.find(|l| l.lifetime.ident == "py")
+}
+
 pub fn build_derive_into_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
     let options = ContainerOptions::from_attrs(&tokens.attrs)?;
     let ctx = &Ctx::new(&options.krate, None);
@@ -264,12 +270,12 @@ pub fn build_derive_into_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
 
     let mut trait_generics = tokens.generics.clone();
     let generics = &tokens.generics;
-    // let lt_param = if let Some(lt) = verify_and_get_lifetime(generics)? {
-    //     lt.clone()
-    // } else {
-    trait_generics.params.push(parse_quote!('py));
-    // parse_quote!('py)
-    // };
+    let lt_param = if let Some(lt) = verify_and_get_lifetime(generics) {
+        lt.clone()
+    } else {
+        trait_generics.params.push(parse_quote!('py));
+        parse_quote!('py)
+    };
     let mut where_clause: syn::WhereClause = parse_quote!(where);
     for param in generics.type_params() {
         let gen_ident = &param.ident;
@@ -305,12 +311,12 @@ pub fn build_derive_into_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
     let ident = &tokens.ident;
     Ok(quote!(
         #[automatically_derived]
-        impl #trait_generics #pyo3_path::conversion::IntoPyObject<'py> for #ident #generics #where_clause {
+        impl #trait_generics #pyo3_path::conversion::IntoPyObject<#lt_param> for #ident #generics #where_clause {
             type Target = #target;
             type Output = #output;
             type Error = #error;
 
-            fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> ::std::result::Result<Self::Output, Self::Error> {
+            fn into_pyobject(self, py: #pyo3_path::Python<#lt_param>) -> ::std::result::Result<Self::Output, Self::Error> {
                 #body
             }
         }
