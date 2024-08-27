@@ -8,8 +8,15 @@ pub use self::capsule::{PyCapsule, PyCapsuleMethods};
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 pub use self::code::PyCode;
 pub use self::complex::{PyComplex, PyComplexMethods};
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(feature = "unlimited-api")]
 pub use self::datetime::{
+    timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime,
+    PyTimeAccess, PyTzInfo, PyTzInfoAccess,
+};
+// With the `unlimited-api` feature not enabled, PyO3 can still make use of the `datetime` module
+// internally unless `Py_LIMITED_API` is defined.
+#[cfg(all(not(feature = "unlimited-api"), not(Py_LIMITED_API)))]
+pub(crate) use self::datetime::{
     timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime,
     PyTimeAccess, PyTzInfo, PyTzInfoAccess,
 };
@@ -18,11 +25,11 @@ pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
 pub use self::dict::{PyDictItems, PyDictKeys, PyDictValues};
 pub use self::ellipsis::PyEllipsis;
 pub use self::float::{PyFloat, PyFloatMethods};
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+#[cfg(all(feature = "unlimited-api", not(PyPy), not(GraalPy)))]
 pub use self::frame::PyFrame;
 pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
 pub use self::function::PyCFunction;
-#[cfg(all(not(Py_LIMITED_API), not(all(PyPy, not(Py_3_8))), not(GraalPy)))]
+#[cfg(all(feature = "unlimited-api", not(all(PyPy, not(Py_3_8))), not(GraalPy)))]
 pub use self::function::PyFunction;
 pub use self::iterator::PyIterator;
 pub use self::list::{PyList, PyListMethods};
@@ -227,8 +234,14 @@ pub(crate) mod capsule;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 mod code;
 pub(crate) mod complex;
+
+// datetime FFI bindings are only available in the unlimited API. PyO3 can still make use of these
+// for performance unless a build for `abi3` is requested.
 #[cfg(not(Py_LIMITED_API))]
+#[cfg_attr(docsrs, doc(cfg(feature = "unlimited-api")))]
+#[cfg_attr(not(feature = "unlimited-api"), allow(dead_code))]
 pub(crate) mod datetime;
+
 pub(crate) mod dict;
 mod ellipsis;
 pub(crate) mod float;

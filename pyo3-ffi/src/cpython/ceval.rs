@@ -11,7 +11,7 @@ extern "C" {
     #[cfg(Py_3_11)]
     pub fn _PyEval_EvalFrameDefault(
         tstate: *mut crate::PyThreadState,
-        frame: *mut crate::_PyInterpreterFrame,
+        frame: *mut crate::unlimited_api::_PyInterpreterFrame,
         exc: c_int,
     ) -> *mut crate::PyObject;
 

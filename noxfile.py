@@ -9,7 +9,17 @@ import tempfile
 from functools import lru_cache
 from glob import glob
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+)
 
 import nox
 import nox.command
@@ -47,10 +57,14 @@ def test_rust(session: nox.Session):
     _run_cargo_test(session, package="pyo3-macros")
     _run_cargo_test(session, package="pyo3-ffi")
 
-    _run_cargo_test(session)
-    _run_cargo_test(session, features="unlimited-api")
     if "skip-full" not in session.posargs:
         _run_cargo_test(session, features="full")
+        _run_cargo_test(session, features="full abi3")
+        _run_cargo_test(session, features="full unlimited-api")
+    else:
+        _run_cargo_test(session)
+        _run_cargo_test(session, features="abi3")
+        _run_cargo_test(session, features="unlimited-api")
 
 
 @nox.session(name="test-py", venv_backend="none")
@@ -864,6 +878,7 @@ def _run_cargo_test(
     *,
     package: Optional[str] = None,
     features: Optional[str] = None,
+    env: Mapping[str, str | None] | None = None,
 ) -> None:
     command = ["cargo"]
     if "careful" in session.posargs:
@@ -876,7 +891,7 @@ def _run_cargo_test(
     if features:
         command.append(f"--features={features}")
 
-    _run(session, *command, external=True)
+    _run(session, *command, external=True, env=env)
 
 
 def _run_cargo_publish(session: nox.Session, *, package: str) -> None:

@@ -1,11 +1,13 @@
-use crate::object::*;
-use crate::PyFrameObject;
-#[cfg(not(any(PyPy, GraalPy)))]
-use crate::_PyErr_StackItem;
 #[cfg(Py_3_11)]
 use std::os::raw::c_char;
 use std::os::raw::c_int;
 use std::ptr::addr_of_mut;
+
+use super::PyFrameObject;
+use crate::object::*;
+
+#[cfg(not(any(PyPy, GraalPy)))]
+use super::_PyErr_StackItem;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]

@@ -1,6 +1,7 @@
+use super::PyFrameObject;
 #[cfg(not(PyPy))]
 use crate::PyThreadState;
-use crate::{PyFrameObject, PyInterpreterState, PyObject};
+use crate::{PyInterpreterState, PyObject};
 use std::os::raw::c_int;
 
 // skipped _PyInterpreterState_RequiresIDRef
@@ -79,7 +80,7 @@ pub type _PyFrameEvalFunction = extern "C" fn(
 #[cfg(Py_3_11)]
 pub type _PyFrameEvalFunction = extern "C" fn(
     *mut crate::PyThreadState,
-    *mut crate::_PyInterpreterFrame,
+    *mut crate::unlimited_api::_PyInterpreterFrame,
     c_int,
 ) -> *mut crate::object::PyObject;
 

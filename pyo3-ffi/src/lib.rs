@@ -293,67 +293,6 @@ use std::ffi::CStr;
 
 pub mod compat;
 
-pub use self::abstract_::*;
-pub use self::bltinmodule::*;
-pub use self::boolobject::*;
-pub use self::bytearrayobject::*;
-pub use self::bytesobject::*;
-pub use self::ceval::*;
-#[cfg(Py_LIMITED_API)]
-pub use self::code::*;
-pub use self::codecs::*;
-pub use self::compile::*;
-pub use self::complexobject::*;
-#[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
-pub use self::context::*;
-#[cfg(not(Py_LIMITED_API))]
-pub use self::datetime::*;
-pub use self::descrobject::*;
-pub use self::dictobject::*;
-pub use self::enumobject::*;
-pub use self::fileobject::*;
-pub use self::fileutils::*;
-pub use self::floatobject::*;
-pub use self::import::*;
-pub use self::intrcheck::*;
-pub use self::iterobject::*;
-pub use self::listobject::*;
-pub use self::longobject::*;
-#[cfg(not(Py_LIMITED_API))]
-pub use self::marshal::*;
-pub use self::memoryobject::*;
-pub use self::methodobject::*;
-pub use self::modsupport::*;
-pub use self::moduleobject::*;
-pub use self::object::*;
-pub use self::objimpl::*;
-pub use self::osmodule::*;
-#[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
-pub use self::pyarena::*;
-#[cfg(Py_3_11)]
-pub use self::pybuffer::*;
-pub use self::pycapsule::*;
-pub use self::pyerrors::*;
-pub use self::pyframe::*;
-pub use self::pyhash::*;
-pub use self::pylifecycle::*;
-pub use self::pymem::*;
-pub use self::pyport::*;
-pub use self::pystate::*;
-pub use self::pystrtod::*;
-pub use self::pythonrun::*;
-pub use self::rangeobject::*;
-pub use self::setobject::*;
-pub use self::sliceobject::*;
-pub use self::structseq::*;
-pub use self::sysmodule::*;
-pub use self::traceback::*;
-pub use self::tupleobject::*;
-pub use self::typeslots::*;
-pub use self::unicodeobject::*;
-pub use self::warnings::*;
-pub use self::weakrefobject::*;
-
 mod abstract_;
 // skipped asdl.h
 // skipped ast.h
@@ -364,15 +303,13 @@ mod bytesobject;
 // skipped cellobject.h
 mod ceval;
 // skipped classobject.h
-#[cfg(Py_LIMITED_API)]
-mod code;
 mod codecs;
 mod compile;
 mod complexobject;
 #[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
 mod context; // It's actually 3.7.1, but no cfg for patches.
 #[cfg(not(Py_LIMITED_API))]
-pub(crate) mod datetime;
+mod datetime;
 mod descrobject;
 mod dictobject;
 // skipped dynamic_annotations.h
@@ -421,6 +358,7 @@ mod pyerrors;
 mod pyframe;
 mod pyhash;
 mod pylifecycle;
+mod pytypedefs;
 // skipped pymacconfig.h
 // skipped pymacro.h
 // skipped pymath.h
@@ -455,5 +393,85 @@ pub mod structmember;
 #[cfg(not(Py_LIMITED_API))]
 mod cpython;
 
+pub use self::abstract_::*;
+pub use self::bltinmodule::*;
+pub use self::boolobject::*;
+pub use self::bytearrayobject::*;
+pub use self::bytesobject::*;
+pub use self::ceval::*;
+pub use self::codecs::*;
+pub use self::compile::*;
+pub use self::complexobject::*;
+pub use self::descrobject::*;
+pub use self::dictobject::*;
+pub use self::enumobject::*;
+pub use self::fileobject::*;
+pub use self::fileutils::*;
+pub use self::floatobject::*;
+pub use self::import::*;
+pub use self::intrcheck::*;
+pub use self::iterobject::*;
+pub use self::listobject::*;
+pub use self::longobject::*;
+pub use self::memoryobject::*;
+pub use self::methodobject::*;
+pub use self::modsupport::*;
+pub use self::moduleobject::*;
+pub use self::object::*;
+pub use self::objimpl::*;
+pub use self::osmodule::*;
+#[cfg(Py_3_11)]
+pub use self::pybuffer::*;
+pub use self::pycapsule::*;
+pub use self::pyerrors::*;
+pub use self::pyframe::*;
+pub use self::pyhash::*;
+pub use self::pylifecycle::*;
+pub use self::pymem::*;
+pub use self::pyport::*;
+pub use self::pystate::*;
+pub use self::pystrtod::*;
+pub use self::pythonrun::*;
+pub use self::pytypedefs::*;
+pub use self::rangeobject::*;
+pub use self::setobject::*;
+pub use self::sliceobject::*;
+pub use self::structseq::*;
+pub use self::sysmodule::*;
+pub use self::traceback::*;
+pub use self::tupleobject::*;
+pub use self::typeslots::*;
+pub use self::unicodeobject::*;
+pub use self::warnings::*;
+pub use self::weakrefobject::*;
+
+/// Definitions that are not part of the Python "limited api". These are not available when
+/// building of ABI3.
+///
+/// Enabling the `unlimited-api` feature will make these definitions available in the top-level
+/// namespace of `pyo3-ffi`. Otherwise, (as long as the `abi3` feature is not enabled) they are
+/// available within this `unlimited_api` module for use of optimization.
+///
+/// When the `unlimited-api` feature is not enabled, these definitions are available within this
+/// module as long as the `abi3` feature is not enabled.
+///
+/// The "limited API" is a subset of the Python C API that is backed by the "stable ABI" and
+/// guaranteed not to change between Python versions. It is defined by [PEP 384].
+///
+/// [PEP 384]: https://www.python.org/dev/peps/pep-0384
+///
 #[cfg(not(Py_LIMITED_API))]
-pub use self::cpython::*;
+pub mod unlimited_api {
+
+    pub use super::cpython::*;
+
+    #[cfg(Py_3_8)]
+    pub use super::context::*;
+    pub use super::datetime::*;
+    pub use super::marshal::*;
+    #[cfg(not(any(PyPy, Py_3_10)))]
+    pub use super::pyarena::*;
+}
+
+#[cfg(feature = "unlimited-api")]
+pub use unlimited_api::*;

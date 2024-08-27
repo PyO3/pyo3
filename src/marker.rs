@@ -288,9 +288,9 @@ mod nightly {
     impl !Ungil for crate::ffi::PyWeakReference {}
     impl !Ungil for crate::ffi::PyFrameObject {}
     impl !Ungil for crate::ffi::PyCodeObject {}
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(feature = "unlimited-api")]
     impl !Ungil for crate::ffi::PyDictKeysObject {}
-    #[cfg(not(any(Py_LIMITED_API, Py_3_10)))]
+    #[cfg(all(feature = "unlimited-api", not(Py_3_10)))]
     impl !Ungil for crate::ffi::PyArena {}
 }
 
@@ -902,7 +902,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(feature = "unlimited-api")]
     fn test_acquire_gil() {
         const GIL_NOT_HELD: c_int = 0;
         const GIL_HELD: c_int = 1;

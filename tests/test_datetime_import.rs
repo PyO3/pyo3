@@ -1,4 +1,4 @@
-#![cfg(not(Py_LIMITED_API))]
+#![cfg(feature = "unlimited-api")]
 
 use pyo3::{prelude::*, types::PyDate};
 

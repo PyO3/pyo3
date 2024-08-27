@@ -1,4 +1,5 @@
-use crate::{PyConfig, PyPreConfig, PyStatus, Py_ssize_t};
+use super::{PyConfig, PyPreConfig, PyStatus};
+use crate::Py_ssize_t;
 use libc::wchar_t;
 use std::os::raw::{c_char, c_int};
 

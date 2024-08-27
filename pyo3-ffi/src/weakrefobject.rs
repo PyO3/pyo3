@@ -7,7 +7,7 @@ use std::ptr::addr_of_mut;
 opaque_struct!(PyWeakReference);
 
 #[cfg(all(not(PyPy), not(Py_LIMITED_API), not(GraalPy)))]
-pub use crate::_PyWeakReference as PyWeakReference;
+pub use crate::unlimited_api::_PyWeakReference as PyWeakReference;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {

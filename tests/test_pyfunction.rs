@@ -2,13 +2,13 @@
 
 use std::collections::HashMap;
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(feature = "unlimited-api", Py_3_11))]
 use pyo3::buffer::PyBuffer;
 use pyo3::ffi::c_str;
 use pyo3::prelude::*;
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(feature = "unlimited-api")]
 use pyo3::types::PyDateTime;
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(all(feature = "unlimited-api", not(all(PyPy, not(Py_3_8))), not(GraalPy)))]
 use pyo3::types::PyFunction;
 use pyo3::types::{self, PyCFunction};
 
@@ -45,7 +45,7 @@ fn test_optional_bool() {
     });
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(feature = "unlimited-api", Py_3_11))]
 #[pyfunction]
 fn buffer_inplace_add(py: Python<'_>, x: PyBuffer<i32>, y: PyBuffer<i32>) {
     let x = x.as_mut_slice(py).unwrap();
@@ -56,7 +56,7 @@ fn buffer_inplace_add(py: Python<'_>, x: PyBuffer<i32>, y: PyBuffer<i32>) {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(feature = "unlimited-api", Py_3_11))]
 #[test]
 fn test_buffer_add() {
     Python::with_gil(|py| {
@@ -88,7 +88,7 @@ assert a, array.array("i", [2, 4, 6, 8])
     });
 }
 
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(all(feature = "unlimited-api", not(all(PyPy, not(Py_3_8))), not(GraalPy)))]
 #[pyfunction]
 fn function_with_pyfunction_arg<'py>(fun: &Bound<'py, PyFunction>) -> PyResult<Bound<'py, PyAny>> {
     fun.call((), None)
@@ -116,7 +116,7 @@ fn test_functions_with_function_args() {
         "#
         );
 
-        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        #[cfg(all(feature = "unlimited-api", not(all(PyPy, not(Py_3_8))), not(GraalPy)))]
         {
             let py_func_arg = wrap_pyfunction!(function_with_pyfunction_arg)(py).unwrap();
 
@@ -132,7 +132,7 @@ fn test_functions_with_function_args() {
     });
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(feature = "unlimited-api")]
 fn datetime_to_timestamp(dt: &Bound<'_, PyAny>) -> PyResult<i64> {
     let dt = dt.downcast::<PyDateTime>()?;
     let ts: f64 = dt.call_method0("timestamp")?.extract()?;
@@ -140,7 +140,7 @@ fn datetime_to_timestamp(dt: &Bound<'_, PyAny>) -> PyResult<i64> {
     Ok(ts as i64)
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(feature = "unlimited-api")]
 #[pyfunction]
 fn function_with_custom_conversion(
     #[pyo3(from_py_with = "datetime_to_timestamp")] timestamp: i64,
@@ -148,7 +148,7 @@ fn function_with_custom_conversion(
     timestamp
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(feature = "unlimited-api")]
 #[test]
 fn test_function_with_custom_conversion() {
     Python::with_gil(|py| {
@@ -167,7 +167,7 @@ fn test_function_with_custom_conversion() {
     });
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(feature = "unlimited-api")]
 #[test]
 fn test_function_with_custom_conversion_error() {
     Python::with_gil(|py| {

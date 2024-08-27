@@ -1,7 +1,7 @@
+use super::PyCompilerFlags;
 use crate::object::*;
 #[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API, Py_3_10)))]
 use crate::pyarena::PyArena;
-use crate::PyCompilerFlags;
 #[cfg(not(any(PyPy, GraalPy, Py_3_10)))]
 use crate::{_mod, _node};
 use libc::FILE;

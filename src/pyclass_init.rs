@@ -56,10 +56,10 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
                 };
             }
 
-            #[cfg(Py_LIMITED_API)]
-            unreachable!("subclassing native types is not possible with the `abi3` feature");
+            #[cfg(not(feature = "unlimited-api"))]
+            unreachable!("subclassing native types currently requires the `unlimited-api` feature");
 
-            #[cfg(not(Py_LIMITED_API))]
+            #[cfg(feature = "unlimited-api")]
             {
                 match (*type_object).tp_new {
                     // FIXME: Call __new__ with actual arguments

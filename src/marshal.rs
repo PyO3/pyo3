@@ -1,4 +1,4 @@
-#![cfg(not(Py_LIMITED_API))]
+#![cfg(feature = "unlimited-api")]
 
 //! Support for the Python `marshal` format.
 

@@ -106,6 +106,12 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
     }
 
     if interpreter_config.abi3 {
+        if cargo_env_var("CARGO_FEATURE_UNLIMITED_API").is_some() {
+            bail!(
+                "the `unlimited-api` and `abi3` PyO3 features are both enabled. \
+                The Python unlimited API is not available when building for abi3."
+            )
+        }
         match interpreter_config.implementation {
             PythonImplementation::CPython => {}
             PythonImplementation::PyPy => warn!(

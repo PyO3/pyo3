@@ -1,4 +1,4 @@
-#![cfg(any(not(Py_LIMITED_API), Py_3_11))]
+#![cfg(any(feature = "unlimited-api", Py_3_11))]
 // Copyright (c) 2017 Daniel Grunwald
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this
