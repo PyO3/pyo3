@@ -1,7 +1,7 @@
 use crate::attributes::{self, get_pyo3_options, CrateAttribute};
 use crate::utils::Ctx;
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, quote_spanned};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned as _;
@@ -81,9 +81,12 @@ struct IntoPyObjectImpl {
 
 struct NamedStructField<'a> {
     ident: &'a syn::Ident,
+    field: &'a syn::Field,
 }
 
-struct TupleStructField {}
+struct TupleStructField<'a> {
+    field: &'a syn::Field,
+}
 
 /// Container Style
 ///
@@ -101,7 +104,7 @@ enum ContainerType<'a> {
     ///
     /// Variant contains a list of conversion methods for each of the fields that are directly
     ///  extracted from the tuple.
-    Tuple(Vec<TupleStructField>),
+    Tuple(Vec<TupleStructField<'a>>),
     /// Tuple newtype, e.g. `#[transparent] struct Foo(String)`
     ///
     /// The wrapped field is directly extracted from the object.
@@ -142,7 +145,7 @@ impl<'a> Container<'a> {
                     let tuple_fields = unnamed
                         .unnamed
                         .iter()
-                        .map(|_field| Ok(TupleStructField {}))
+                        .map(|field| Ok(TupleStructField { field }))
                         .collect::<Result<Vec<_>>>()?;
 
                     ContainerType::Tuple(tuple_fields)
@@ -167,7 +170,7 @@ impl<'a> Container<'a> {
                                 .as_ref()
                                 .expect("Named fields should have identifiers");
 
-                            Ok(NamedStructField { ident })
+                            Ok(NamedStructField { ident, field })
                         })
                         .collect::<Result<Vec<_>>>()?;
                     ContainerType::Struct(struct_fields)
@@ -241,7 +244,7 @@ impl<'a> Container<'a> {
             target: quote! {<#ty as #pyo3_path::conversion::IntoPyObject<'py>>::Target},
             output: quote! {<#ty as #pyo3_path::conversion::IntoPyObject<'py>>::Output},
             error: quote! {<#ty as #pyo3_path::conversion::IntoPyObject<'py>>::Error},
-            body: quote! {
+            body: quote_spanned! { ty.span() =>
                 #unpack
                 <#ty as #pyo3_path::conversion::IntoPyObject<'py>>::into_pyobject(arg0, py)
             },
@@ -265,7 +268,7 @@ impl<'a> Container<'a> {
             .enumerate()
             .map(|(i, f)| {
                 let key = f.ident.unraw().to_string();
-                let value = format_ident!("arg{i}");
+                let value = Ident::new(&format!("arg{i}"), f.field.ty.span());
                 quote! {
                     #pyo3_path::types::PyDictMethods::set_item(&dict, #key, #value)?;
                 }
@@ -285,7 +288,7 @@ impl<'a> Container<'a> {
         }
     }
 
-    fn build_tuple_struct(&self, fields: &[TupleStructField], ctx: &Ctx) -> IntoPyObjectImpl {
+    fn build_tuple_struct(&self, fields: &[TupleStructField<'_>], ctx: &Ctx) -> IntoPyObjectImpl {
         let Ctx { pyo3_path, .. } = ctx;
 
         let unpack = self
@@ -300,10 +303,11 @@ impl<'a> Container<'a> {
         let setter = fields
             .iter()
             .enumerate()
-            .map(|(i, _)| {
-                let value = format_ident!("arg{i}");
-                quote! {
-                    #pyo3_path::conversion::IntoPyObject::into_pyobject(#value, py)
+            .map(|(i, f)| {
+                let ty = &f.field.ty;
+                let value = Ident::new(&format!("arg{i}"), f.field.ty.span());
+                quote_spanned! { f.field.ty.span() =>
+                    <#ty as #pyo3_path::conversion::IntoPyObject>::into_pyobject(#value, py)
                         .map(#pyo3_path::BoundObject::into_any)
                         .map(#pyo3_path::BoundObject::into_bound)?,
                 }
