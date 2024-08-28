@@ -436,7 +436,8 @@ impl ExactSizeIterator for BoundDictIterator<'_> {
 impl<'py> BoundDictIterator<'py> {
     fn new(dict: Bound<'py, PyDict>) -> Self {
         let remaining = dict_len(&dict) as usize;
-        let iter = PyIterator::from_object(&dict.items()).unwrap();
+        let items = dict.call_method0(intern!(dict.py(), "items")).unwrap();
+        let iter = PyIterator::from_object(&items).unwrap();
 
         BoundDictIterator { iter, remaining }
     }
