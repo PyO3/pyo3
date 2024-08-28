@@ -1,23 +1,31 @@
-use std::os::raw::{c_int, c_void};
+use std::{
+    marker::PhantomData,
+    os::raw::{c_int, c_void},
+};
 
-use crate::{ffi, AsPyPointer, Python};
+use crate::{ffi, AsPyPointer};
 
 /// Error returned by a `__traverse__` visitor implementation.
 #[repr(transparent)]
-pub struct PyTraverseError(pub(crate) c_int);
+pub struct PyTraverseError(NonZeroCInt);
+
+impl PyTraverseError {
+    /// Returns the error code.
+    pub(crate) fn into_inner(self) -> c_int {
+        self.0.into()
+    }
+}
 
 /// Object visitor for GC.
 #[derive(Clone)]
-pub struct PyVisit<'p> {
+pub struct PyVisit<'a> {
     pub(crate) visit: ffi::visitproc,
     pub(crate) arg: *mut c_void,
-    /// VisitProc contains a Python instance to ensure that
-    /// 1) it is cannot be moved out of the traverse() call
-    /// 2) it cannot be sent to other threads
-    pub(crate) _py: Python<'p>,
+    /// Prevents the `PyVisit` from outliving the `__traverse__` call.
+    pub(crate) _guard: PhantomData<&'a ()>,
 }
 
-impl<'p> PyVisit<'p> {
+impl<'a> PyVisit<'a> {
     /// Visit `obj`.
     pub fn call<T>(&self, obj: &T) -> Result<(), PyTraverseError>
     where
@@ -25,24 +33,43 @@ impl<'p> PyVisit<'p> {
     {
         let ptr = obj.as_ptr();
         if !ptr.is_null() {
-            let r = unsafe { (self.visit)(ptr, self.arg) };
-            if r == 0 {
-                Ok(())
-            } else {
-                Err(PyTraverseError(r))
+            match NonZeroCInt::new(unsafe { (self.visit)(ptr, self.arg) }) {
+                None => Ok(()),
+                Some(r) => Err(PyTraverseError(r)),
             }
         } else {
             Ok(())
         }
     }
+}
 
-    /// Creates the PyVisit from the arguments to tp_traverse
-    #[doc(hidden)]
-    pub unsafe fn from_raw(visit: ffi::visitproc, arg: *mut c_void, py: Python<'p>) -> Self {
-        Self {
-            visit,
-            arg,
-            _py: py,
-        }
+/// Workaround for `NonZero<c_int>` not being available until MSRV 1.79
+mod get_nonzero_c_int {
+    pub struct GetNonZeroCInt<const WIDTH: usize>();
+
+    pub trait NonZeroCIntType {
+        type Type;
+    }
+    impl NonZeroCIntType for GetNonZeroCInt<16> {
+        type Type = std::num::NonZeroI16;
+    }
+    impl NonZeroCIntType for GetNonZeroCInt<32> {
+        type Type = std::num::NonZeroI32;
+    }
+
+    pub type Type =
+        <GetNonZeroCInt<{ std::mem::size_of::<std::os::raw::c_int>() * 8 }> as NonZeroCIntType>::Type;
+}
+
+use get_nonzero_c_int::Type as NonZeroCInt;
+
+#[cfg(test)]
+mod tests {
+    use super::PyVisit;
+    use static_assertions::assert_not_impl_any;
+
+    #[test]
+    fn py_visit_not_send_sync() {
+        assert_not_impl_any!(PyVisit<'_>: Send, Sync);
     }
 }
