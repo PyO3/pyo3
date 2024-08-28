@@ -2,15 +2,18 @@ use crate::callback::IntoPyCallbackOutput;
 use crate::exceptions::PyStopAsyncIteration;
 use crate::gil::LockGIL;
 use crate::impl_::panic::PanicTrap;
+use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout};
+use crate::pycell::impl_::PyClassBorrowChecker as _;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
 use crate::{
-    ffi, Borrowed, Bound, DowncastError, Py, PyAny, PyClass, PyClassInitializer, PyErr, PyObject,
-    PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
+    ffi, Bound, DowncastError, Py, PyAny, PyClass, PyClassInitializer, PyErr, PyObject, PyRef,
+    PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
 };
 use std::ffi::CStr;
 use std::fmt;
+use std::marker::PhantomData;
 use std::os::raw::{c_int, c_void};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr::null_mut;
@@ -232,6 +235,40 @@ impl PySetterDef {
 }
 
 /// Calls an implementation of __traverse__ for tp_traverse
+///
+/// NB cannot accept `'static` visitor, this is a sanity check below:
+///
+/// ```rust,compile_fail
+/// use pyo3::prelude::*;
+/// use pyo3::pyclass::{PyTraverseError, PyVisit};
+///
+/// #[pyclass]
+/// struct Foo;
+///
+/// #[pymethods]
+/// impl Foo {
+///     fn __traverse__(&self, _visit: PyVisit<'static>) -> Result<(), PyTraverseError> {
+///         Ok(())
+///     }
+/// }
+/// ```
+///
+/// Elided lifetime should compile ok:
+///
+/// ```rust
+/// use pyo3::prelude::*;
+/// use pyo3::pyclass::{PyTraverseError, PyVisit};
+///
+/// #[pyclass]
+/// struct Foo;
+///
+/// #[pymethods]
+/// impl Foo {
+///     fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+///         Ok(())
+///     }
+/// }
+/// ```
 #[doc(hidden)]
 pub unsafe fn _call_traverse<T>(
     slf: *mut ffi::PyObject,
@@ -250,25 +287,43 @@ where
     // Since we do not create a `GILPool` at all, it is important that our usage of the GIL
     // token does not produce any owned objects thereby calling into `register_owned`.
     let trap = PanicTrap::new("uncaught panic inside __traverse__ handler");
+    let lock = LockGIL::during_traverse();
 
-    let py = Python::assume_gil_acquired();
-    let slf = Borrowed::from_ptr_unchecked(py, slf).downcast_unchecked::<T>();
-    let borrow = PyRef::try_borrow_threadsafe(&slf);
-    let visit = PyVisit::from_raw(visit, arg, py);
+    // SAFETY: `slf` is a valid Python object pointer to a class object of type T, and
+    // traversal is running so no mutations can occur.
+    let class_object: &PyClassObject<T> = &*slf.cast();
 
-    let retval = if let Ok(borrow) = borrow {
-        let _lock = LockGIL::during_traverse();
+    let retval =
+    // `#[pyclass(unsendable)]` types can only be deallocated by their own thread, so
+    // do not traverse them if not on their owning thread :(
+    if class_object.check_threadsafe().is_ok()
+    // ... and we cannot traverse a type which might be being mutated by a Rust thread
+    && class_object.borrow_checker().try_borrow().is_ok() {
+        struct TraverseGuard<'a, T: PyClass>(&'a PyClassObject<T>);
+        impl<'a, T: PyClass> Drop for TraverseGuard<'a,  T> {
+            fn drop(&mut self) {
+                self.0.borrow_checker().release_borrow()
+            }
+        }
 
-        match catch_unwind(AssertUnwindSafe(move || impl_(&*borrow, visit))) {
-            Ok(res) => match res {
-                Ok(()) => 0,
-                Err(PyTraverseError(value)) => value,
-            },
+        // `.try_borrow()` above created a borrow, we need to release it when we're done
+        // traversing the object. This allows us to read `instance` safely.
+        let _guard = TraverseGuard(class_object);
+        let instance = &*class_object.contents.value.get();
+
+        let visit = PyVisit { visit, arg, _guard: PhantomData };
+
+        match catch_unwind(AssertUnwindSafe(move || impl_(instance, visit))) {
+            Ok(Ok(())) => 0,
+            Ok(Err(traverse_error)) => traverse_error.into_inner(),
             Err(_err) => -1,
         }
     } else {
         0
     };
+
+    // Drop lock before trap just in case dropping lock panics
+    drop(lock);
     trap.disarm();
     retval
 }
