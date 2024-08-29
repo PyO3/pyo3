@@ -89,7 +89,12 @@ def test_no_constructor_defined_propagates_cause(cls: Type):
 
 
 def test_dict():
-    d = pyclasses.ClassWithDict()
+    try:
+        ClassWithDict = pyclasses.ClassWithDict
+    except AttributeError:
+        pytest.skip("not defined using abi3 < 3.9")
+
+    d = ClassWithDict()
     assert d.__dict__ == {}
 
     d.foo = 42
