@@ -2,6 +2,8 @@
 
 use pyo3::types::{PyDict, PyString};
 use pyo3::{prelude::*, IntoPyObject};
+use std::collections::HashMap;
+use std::hash::Hash;
 
 #[macro_use]
 #[path = "../src/tests/common.rs"]
@@ -85,6 +87,37 @@ fn test_generic_transparent_named_field_struct() {
         let pyd = D { test: 1usize }.into_pyobject(py).unwrap();
         let d = pyd.extract::<usize>().unwrap();
         assert_eq!(d, 1);
+    });
+}
+
+#[derive(Debug, IntoPyObject)]
+pub struct GenericWithBound<K: Hash + Eq, V>(HashMap<K, V>);
+
+#[test]
+fn test_generic_with_bound() {
+    Python::with_gil(|py| {
+        let mut hash_map = HashMap::<String, i32>::new();
+        hash_map.insert("1".into(), 1);
+        hash_map.insert("2".into(), 2);
+        let map = GenericWithBound(hash_map).into_pyobject(py).unwrap();
+        assert_eq!(map.len(), 2);
+        assert_eq!(
+            map.get_item("1")
+                .unwrap()
+                .unwrap()
+                .extract::<i32>()
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            map.get_item("2")
+                .unwrap()
+                .unwrap()
+                .extract::<i32>()
+                .unwrap(),
+            2
+        );
+        assert!(map.get_item("3").unwrap().is_none());
     });
 }
 
