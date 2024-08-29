@@ -66,9 +66,11 @@ impl AssertingBaseClass {
 #[pyclass]
 struct ClassWithoutConstructor;
 
+#[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
 #[pyclass(dict)]
 struct ClassWithDict;
 
+#[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
 #[pymethods]
 impl ClassWithDict {
     #[new]
@@ -83,6 +85,7 @@ pub fn pyclasses(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyClassIter>()?;
     m.add_class::<AssertingBaseClass>()?;
     m.add_class::<ClassWithoutConstructor>()?;
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     m.add_class::<ClassWithDict>()?;
 
     Ok(())

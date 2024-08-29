@@ -402,6 +402,35 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
         })
     }
 
+    /// Import an externally-provided config file.
+    ///
+    /// The `abi3` features, if set, may apply an `abi3` constraint to the Python version.
+    #[allow(dead_code)] // only used in build.rs
+    pub(super) fn from_pyo3_config_file_env() -> Option<Result<Self>> {
+        cargo_env_var("PYO3_CONFIG_FILE").map(|path| {
+            let path = Path::new(&path);
+            println!("cargo:rerun-if-changed={}", path.display());
+            // Absolute path is necessary because this build script is run with a cwd different to the
+            // original `cargo build` instruction.
+            ensure!(
+                path.is_absolute(),
+                "PYO3_CONFIG_FILE must be an absolute path"
+            );
+
+            let mut config = InterpreterConfig::from_path(path)
+                .context("failed to parse contents of PYO3_CONFIG_FILE")?;
+            // If the abi3 feature is enabled, the minimum Python version is constrained by the abi3
+            // feature.
+            //
+            // TODO: abi3 is a property of the build mode, not the interpreter. Should this be
+            // removed from `InterpreterConfig`?
+            config.abi3 |= is_abi3();
+            config.fixup_for_abi3_version(get_abi3_version())?;
+
+            Ok(config)
+        })
+    }
+
     #[doc(hidden)]
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
