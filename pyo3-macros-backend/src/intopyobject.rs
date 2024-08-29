@@ -7,7 +7,7 @@ use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned as _;
 use syn::{parse_quote, Attribute, DataEnum, DeriveInput, Fields, Ident, Index, Result, Token};
 
-/// Attributes for deriving FromPyObject scoped on containers.
+/// Attributes for deriving `IntoPyObject` scoped on containers.
 enum ContainerPyO3Attribute {
     /// Treat the Container as a Wrapper, directly convert its field into the output object.
     Transparent(attributes::kw::transparent),
@@ -374,7 +374,7 @@ impl<'a> Enum<'a> {
                         {#body}
                             .map(#pyo3_path::BoundObject::into_any)
                             .map(#pyo3_path::BoundObject::into_bound)
-                            .map_err(::std::convert::Into::<PyErr>::into)
+                            .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
                     }
                 }
             })
