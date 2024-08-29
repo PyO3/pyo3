@@ -1,11 +1,9 @@
-use super::{PyIterator, PyMapping, PyTuple};
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
-use crate::types::any::PyAnyMethods;
-use crate::types::{PyAny, PyList};
+use crate::types::{PyAny, PyAnyMethods, PyIterator, PyList, PyMapping, PyTuple, PyTupleMethods};
 use crate::{ffi, BoundObject, IntoPyObject, Python};
 
 /// Represents a Python `dict`.
@@ -401,9 +399,23 @@ fn dict_len(dict: &Bound<'_, PyDict>) -> Py_ssize_t {
 }
 
 /// PyO3 implementation of an iterator for a Python `dict` object.
-pub struct BoundDictIterator<'py> {
-    iter: Bound<'py, PyIterator>,
-    remaining: usize,
+pub enum BoundDictIterator<'py> {
+    /// Iterator over the items of the dictionary, obtained by calling the python method `items()`.
+    #[allow(missing_docs)]
+    ItemIter {
+        iter: Bound<'py, PyIterator>,
+        remaining: ffi::Py_ssize_t,
+    },
+    /// Iterator over the items of the dictionary, using the C-API `PyDict_Next`. This variant is
+    /// only used when the dictionary is an exact instance of `PyDict` and the GIL enabled.
+    #[allow(missing_docs)]
+    #[cfg(not(Py_GIL_DISABLED))]
+    DictIter {
+        dict: Bound<'py, PyDict>,
+        ppos: ffi::Py_ssize_t,
+        di_used: ffi::Py_ssize_t,
+        remaining: ffi::Py_ssize_t,
+    },
 }
 
 impl<'py> Iterator for BoundDictIterator<'py> {
@@ -411,13 +423,67 @@ impl<'py> Iterator for BoundDictIterator<'py> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.remaining = self.remaining.saturating_sub(1);
-        self.iter.next().map(Result::unwrap).map(|pair| {
-            let tuple = pair.downcast::<PyTuple>().unwrap();
-            let key = tuple.get_item(0).unwrap();
-            let value = tuple.get_item(1).unwrap();
-            (key, value)
-        })
+        match self {
+            BoundDictIterator::ItemIter { iter, remaining } => {
+                *remaining = remaining.saturating_sub(1);
+                iter.next().map(Result::unwrap).map(|tuple| {
+                    let tuple = tuple.downcast::<PyTuple>().unwrap();
+                    let key = tuple.get_item(0).unwrap();
+                    let value = tuple.get_item(1).unwrap();
+                    (key, value)
+                })
+            }
+            #[cfg(not(Py_GIL_DISABLED))]
+            BoundDictIterator::DictIter {
+                dict,
+                ppos,
+                di_used,
+                remaining,
+            } => {
+                let ma_used = dict_len(dict);
+
+                // These checks are similar to what CPython does.
+                //
+                // If the dimension of the dict changes e.g. key-value pairs are removed
+                // or added during iteration, this will panic next time when `next` is called
+                if *di_used != ma_used {
+                    *di_used = -1;
+                    panic!("dictionary changed size during iteration");
+                };
+
+                // If the dict is changed in such a way that the length remains constant
+                // then this will panic at the end of iteration - similar to this:
+                //
+                // d = {"a":1, "b":2, "c": 3}
+                //
+                // for k, v in d.items():
+                //     d[f"{k}_"] = 4
+                //     del d[k]
+                //     print(k)
+                //
+                if *remaining == -1 {
+                    *di_used = -1;
+                    panic!("dictionary keys changed during iteration");
+                };
+
+                let mut key: *mut ffi::PyObject = std::ptr::null_mut();
+                let mut value: *mut ffi::PyObject = std::ptr::null_mut();
+
+                if unsafe { ffi::PyDict_Next(dict.as_ptr(), ppos, &mut key, &mut value) } != 0 {
+                    *remaining -= 1;
+                    let py = dict.py();
+                    // Safety:
+                    // - PyDict_Next returns borrowed values
+                    // - we have already checked that `PyDict_Next` succeeded, so we can assume these to be non-null
+                    Some((
+                        unsafe { key.assume_borrowed_unchecked(py) }.to_owned(),
+                        unsafe { value.assume_borrowed_unchecked(py) }.to_owned(),
+                    ))
+                } else {
+                    None
+                }
+            }
+        }
     }
 
     #[inline]
@@ -429,17 +495,31 @@ impl<'py> Iterator for BoundDictIterator<'py> {
 
 impl ExactSizeIterator for BoundDictIterator<'_> {
     fn len(&self) -> usize {
-        self.remaining
+        match self {
+            BoundDictIterator::ItemIter { remaining, .. } => *remaining as usize,
+            #[cfg(not(Py_GIL_DISABLED))]
+            BoundDictIterator::DictIter { remaining, .. } => *remaining as usize,
+        }
     }
 }
 
 impl<'py> BoundDictIterator<'py> {
     fn new(dict: Bound<'py, PyDict>) -> Self {
-        let remaining = dict_len(&dict) as usize;
+        let remaining = dict_len(&dict);
+
+        #[cfg(not(Py_GIL_DISABLED))]
+        if dict.is_exact_instance_of::<PyDict>() {
+            return BoundDictIterator::DictIter {
+                dict,
+                ppos: 0,
+                di_used: remaining,
+                remaining,
+            };
+        };
+
         let items = dict.call_method0(intern!(dict.py(), "items")).unwrap();
         let iter = PyIterator::from_object(&items).unwrap();
-
-        BoundDictIterator { iter, remaining }
+        BoundDictIterator::ItemIter { iter, remaining }
     }
 }
 
@@ -512,7 +592,6 @@ mod borrowed_iter {
     impl<'a, 'py> BorrowedDictIter<'a, 'py> {
         pub(super) fn new(dict: Borrowed<'a, 'py, PyDict>) -> Self {
             let len = dict_len(&dict);
-
             BorrowedDictIter { dict, ppos: 0, len }
         }
     }
