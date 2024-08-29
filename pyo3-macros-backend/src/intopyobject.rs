@@ -404,16 +404,18 @@ pub fn build_derive_into_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
     let ctx = &Ctx::new(&options.krate, None);
     let Ctx { pyo3_path, .. } = &ctx;
 
+    let (_, ty_generics, _) = tokens.generics.split_for_impl();
     let mut trait_generics = tokens.generics.clone();
-    let generics = &tokens.generics;
-    let lt_param = if let Some(lt) = verify_and_get_lifetime(generics) {
+    let lt_param = if let Some(lt) = verify_and_get_lifetime(&trait_generics) {
         lt.clone()
     } else {
         trait_generics.params.push(parse_quote!('py));
         parse_quote!('py)
     };
-    let mut where_clause: syn::WhereClause = parse_quote!(where);
-    for param in generics.type_params() {
+    let (impl_generics, _, where_clause) = trait_generics.split_for_impl();
+
+    let mut where_clause = where_clause.cloned().unwrap_or_else(|| parse_quote!(where));
+    for param in trait_generics.type_params() {
         let gen_ident = &param.ident;
         where_clause
             .predicates
@@ -451,7 +453,7 @@ pub fn build_derive_into_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
     let ident = &tokens.ident;
     Ok(quote!(
         #[automatically_derived]
-        impl #trait_generics #pyo3_path::conversion::IntoPyObject<#lt_param> for #ident #generics #where_clause {
+        impl #impl_generics #pyo3_path::conversion::IntoPyObject<#lt_param> for #ident #ty_generics #where_clause {
             type Target = #target;
             type Output = #output;
             type Error = #error;
