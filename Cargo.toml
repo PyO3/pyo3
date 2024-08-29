@@ -63,6 +63,7 @@ rayon = "1.6.1"
 futures = "0.3.28"
 tempfile = "3.12.0"
 static_assertions = "1.1.0"
+uuid = {version = "1.10.0", features = ["v4"] }
 
 [build-dependencies]
 pyo3-build-config = { path = "pyo3-build-config", version = "=0.23.0-dev", features = ["resolve-config"] }
