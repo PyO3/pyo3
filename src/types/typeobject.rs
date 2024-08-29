@@ -250,6 +250,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
 
 #[cfg(test)]
 mod tests {
+    use crate::tests::common::generate_unique_module_name;
     use crate::types::{PyAnyMethods, PyBool, PyInt, PyModule, PyTuple, PyType, PyTypeMethods};
     use crate::PyAny;
     use crate::Python;
@@ -314,6 +315,7 @@ mod tests {
     #[test]
     fn test_type_names_standard() {
         Python::with_gil(|py| {
+            let module_name = generate_unique_module_name("test_module");
             let module = PyModule::from_code(
                 py,
                 c_str!(
@@ -323,7 +325,7 @@ class MyClass:
 "#
                 ),
                 c_str!(file!()),
-                c_str!("test_module"),
+                &module_name,
             )
             .expect("module create failed");
 
@@ -331,10 +333,12 @@ class MyClass:
             let my_class_type = my_class.downcast_into::<PyType>().unwrap();
             assert_eq!(my_class_type.name().unwrap(), "MyClass");
             assert_eq!(my_class_type.qualname().unwrap(), "MyClass");
-            assert_eq!(my_class_type.module().unwrap(), "test_module");
+            let module_name = module_name.to_str().unwrap();
+            let qualname = format!("{module_name}.MyClass");
+            assert_eq!(my_class_type.module().unwrap(), module_name);
             assert_eq!(
                 my_class_type.fully_qualified_name().unwrap(),
-                "test_module.MyClass"
+                qualname.as_str()
             );
         });
     }
@@ -353,6 +357,7 @@ class MyClass:
     #[test]
     fn test_type_names_nested() {
         Python::with_gil(|py| {
+            let module_name = generate_unique_module_name("test_module");
             let module = PyModule::from_code(
                 py,
                 c_str!(
@@ -363,7 +368,7 @@ class OuterClass:
 "#
                 ),
                 c_str!(file!()),
-                c_str!("test_module"),
+                &module_name,
             )
             .expect("module create failed");
 
@@ -375,10 +380,12 @@ class OuterClass:
                 inner_class_type.qualname().unwrap(),
                 "OuterClass.InnerClass"
             );
-            assert_eq!(inner_class_type.module().unwrap(), "test_module");
+            let module_name = module_name.to_str().unwrap();
+            let qualname = format!("{module_name}.OuterClass.InnerClass");
+            assert_eq!(inner_class_type.module().unwrap(), module_name);
             assert_eq!(
                 inner_class_type.fully_qualified_name().unwrap(),
-                "test_module.OuterClass.InnerClass"
+                qualname.as_str()
             );
         });
     }

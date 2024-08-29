@@ -15,6 +15,8 @@ mod inner {
     #[cfg(not(Py_GIL_DISABLED))]
     use pyo3::types::{IntoPyDict, PyList};
 
+    use uuid::Uuid;
+
     #[macro_export]
     macro_rules! py_assert {
         ($py:expr, $($val:ident)+, $assertion:literal) => {
@@ -165,6 +167,11 @@ mod inner {
             })
             .unwrap();
         }};
+    }
+
+    pub fn generate_unique_module_name(base: &str) -> std::ffi::CString {
+        let uuid = Uuid::new_v4().simple().to_string();
+        std::ffi::CString::new(format!("{base}_{uuid}")).unwrap()
     }
 }
 

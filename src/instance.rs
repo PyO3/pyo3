@@ -1887,6 +1887,7 @@ impl PyObject {
 #[cfg(test)]
 mod tests {
     use super::{Bound, Py, PyObject};
+    use crate::tests::common::generate_unique_module_name;
     use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
     use crate::{ffi, Borrowed, PyAny, PyResult, Python, ToPyObject};
     use pyo3_ffi::c_str;
@@ -1962,7 +1963,8 @@ class A:
 a = A()
    "#
             );
-            let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
+            let module =
+                PyModule::from_code(py, CODE, c_str!(""), &generate_unique_module_name(""))?;
             let instance: Py<PyAny> = module.getattr("a")?.into();
 
             instance.getattr(py, "foo").unwrap_err();
@@ -1991,7 +1993,8 @@ class A:
 a = A()
    "#
             );
-            let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
+            let module =
+                PyModule::from_code(py, CODE, c_str!(""), &generate_unique_module_name(""))?;
             let instance: Py<PyAny> = module.getattr("a")?.into();
 
             let foo = crate::intern!(py, "foo");

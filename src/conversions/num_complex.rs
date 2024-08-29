@@ -216,6 +216,7 @@ complex_conversion!(f64);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tests::common::generate_unique_module_name;
     use crate::types::{complex::PyComplexMethods, PyModule};
     use pyo3_ffi::c_str;
 
@@ -259,7 +260,7 @@ class C:
                 "#
                 ),
                 c_str!("test.py"),
-                c_str!("test"),
+                &generate_unique_module_name("test"),
             )
             .unwrap();
             let from_complex = module.getattr("A").unwrap().call0().unwrap();
@@ -303,7 +304,7 @@ class C(First, IndexMixin): pass
                 "#
                 ),
                 c_str!("test.py"),
-                c_str!("test"),
+                &generate_unique_module_name("test"),
             )
             .unwrap();
             let from_complex = module.getattr("A").unwrap().call0().unwrap();
@@ -343,7 +344,7 @@ class A:
                 "#
                 ),
                 c_str!("test.py"),
-                c_str!("test"),
+                &generate_unique_module_name("test"),
             )
             .unwrap();
             let obj = module.getattr("A").unwrap().call0().unwrap();
@@ -368,7 +369,7 @@ class A:
                 "#
                 ),
                 c_str!("test.py"),
-                c_str!("test"),
+                &generate_unique_module_name("test"),
             )
             .unwrap();
             let obj = module.getattr("A").unwrap().call0().unwrap();

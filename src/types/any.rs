@@ -1603,6 +1603,7 @@ mod tests {
     use crate::{
         basic::CompareOp,
         ffi,
+        tests::common::generate_unique_module_name,
         types::{IntoPyDict, PyAny, PyAnyMethods, PyBool, PyInt, PyList, PyModule, PyTypeMethods},
         Bound, PyTypeInfo, Python, ToPyObject,
     };
@@ -1647,7 +1648,7 @@ class NonHeapNonDescriptorInt:
                 "#
                 ),
                 c_str!("test.py"),
-                c_str!("test"),
+                &generate_unique_module_name("test"),
             )
             .unwrap();
 
@@ -1716,7 +1717,7 @@ class SimpleClass:
 "#
                 ),
                 c_str!(file!()),
-                c_str!("test_module"),
+                &generate_unique_module_name("test_module"),
             )
             .expect("module creation failed");
 

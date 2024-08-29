@@ -337,6 +337,7 @@ fn int_n_bits(long: &Bound<'_, PyInt>) -> PyResult<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tests::common::generate_unique_module_name;
     use crate::types::{PyDict, PyModule};
     use indoc::indoc;
     use pyo3_ffi::c_str;
@@ -409,7 +410,13 @@ mod tests {
                         return self.x
                 "#
         ));
-        PyModule::from_code(py, index_code, c_str!("index.py"), c_str!("index")).unwrap()
+        PyModule::from_code(
+            py,
+            index_code,
+            c_str!("index.py"),
+            &generate_unique_module_name("index"),
+        )
+        .unwrap()
     }
 
     #[test]

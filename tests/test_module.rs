@@ -163,7 +163,7 @@ fn test_module_from_code_bound() {
             py,
             c_str!("def add(a,b):\n\treturn a+b"),
             c_str!("adder_mod.py"),
-            c_str!("adder_mod"),
+            &common::generate_unique_module_name("adder_mod"),
         )
         .expect("Module code should be loaded");
 
