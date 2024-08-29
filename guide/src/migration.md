@@ -153,11 +153,52 @@ Notable features of this new trait:
 - `()` (unit) is now only special handled in return position and otherwise converts into an empty `PyTuple`
 
 All PyO3 provided types as well as `#[pyclass]`es already implement `IntoPyObject`. Other types will
-need to adapt an implementation of `IntoPyObject` to stay compatible with the Python APIs.
+need to adapt an implementation of `IntoPyObject` to stay compatible with the Python APIs. In many cases
+the new [`#[derive(IntoPyObject)]`](#intopyobject-derive-macro) macro can be used instead of
+[manual implementations](#intopyobject-manual-implementation).
 
 Together with the introduction of `IntoPyObject` the old conversion traits `ToPyObject` and `IntoPy`
 are deprecated and will be removed in a future PyO3 version.
 
+#### `IntoPyObject` derive macro
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+# use std::collections::HashMap;
+# use std::hash::Hash;
+
+#[derive(IntoPyObject)]
+struct TransparentTuple(PyObject); // newtype tuple structs are implicitly `transparent`
+
+#[derive(IntoPyObject)]
+#[pyo3(transparent)]
+struct TransparentStruct<'py> { 
+    inner: Bound<'py, PyAny>, // `'py` lifetime will be used as the Python lifetime
+}
+
+#[derive(IntoPyObject)]
+struct Tuple<'a, K: Hash + Eq, V>(&'a str, HashMap<K, V>); // tuple structs convert into `PyTuple`, lifetimes and generics
+                                                           // are supported, the impl will be bounded by `K: IntoPyObject, V: IntoPyObject`
+
+#[derive(IntoPyObject)]
+struct Struct { // structs convert into `PyDict` with field names as keys
+    count: usize,
+    obj: Py<PyAny>,
+}
+
+
+#[derive(IntoPyObject)]
+enum Enum<'a, 'py, K: Hash + Eq, V> { // enums are supported and convert using the same
+    TransparentTuple(PyObject),       // rules on the variants as the structs above
+    #[pyo3(transparent)]
+    TransparentStruct { inner: Bound<'py, PyAny> },
+    Tuple(&'a str, HashMap<K, V>),
+    Struct { count: usize, obj: Py<PyAny>}
+}
+```
+
+#### `IntoPyObject` manual implementation
 
 Before:
 ```rust,ignore
