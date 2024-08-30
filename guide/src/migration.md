@@ -198,6 +198,27 @@ impl<'a, 'py> IntoPyObject<'py> for &'a MyPyObjectWrapper {
 ```
 </details>
 
+### Free-threaded Python Support
+<details open>
+<summary><small>Click to expand</small></summary>
+
+PyO3 0.23 introduces preliminary support for the new free-threaded build of
+CPython 3.13. PyO3 features that implicitly assumed the existence of the GIL
+are not exposed in the free-threaded build, since they are no longer safe.
+
+If you make use of these features then you will need to use conditional
+compilation to replace them for extensions built for free-threaded
+Python. Extensions built for the free-threaded build will have the
+`Py_GIL_DISABLED` attribute defined.
+
+### `GILProtected`
+
+`GILProtected` allows mutable access to static data by leveraging the GIL to
+lock concurrent access from other threads. In free-threaded python there is no
+GIL, so you will need to replace this type with some other form of locking.
+
+</details>
+
 ## from 0.21.* to 0.22
 
 ### Deprecation of `gil-refs` feature continues
