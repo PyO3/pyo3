@@ -32,6 +32,10 @@ pub trait BoundObject<'py, T>: bound_object_sealed::Sealed {
     fn into_ptr(self) -> *mut ffi::PyObject;
     /// Turn this smart pointer into an owned [`Py<T>`]
     fn unbind(self) -> Py<T>;
+    /// Turn this smart pointer into a raw pointer, that may be a strong reference or may not be.
+    fn into_ptr_raw(self) -> *mut ffi::PyObject;
+    /// Whether this is an owned `Bound` or a `Borrowed`.
+    const IS_OWNED: bool;
 }
 
 mod bound_object_sealed {
@@ -619,6 +623,12 @@ impl<'py, T> BoundObject<'py, T> for Bound<'py, T> {
     fn unbind(self) -> Py<T> {
         self.unbind()
     }
+
+    fn into_ptr_raw(self) -> *mut ffi::PyObject {
+        self.into_ptr()
+    }
+
+    const IS_OWNED: bool = true;
 }
 
 /// A borrowed equivalent to `Bound`.
@@ -825,6 +835,12 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
     fn unbind(self) -> Py<T> {
         (*self).to_owned().unbind()
     }
+
+    fn into_ptr_raw(self) -> *mut ffi::PyObject {
+        self.as_ptr()
+    }
+
+    const IS_OWNED: bool = false;
 }
 
 /// A GIL-independent reference to an object allocated on the Python heap.
