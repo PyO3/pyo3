@@ -17,7 +17,7 @@ use crate::attributes::{
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::{FnArg, FnSpec, PyArg, RegularArg};
 use crate::pyfunction::ConstructorAttribute;
-use crate::pyimpl::{gen_py_const, PyClassMethodsType};
+use crate::pyimpl::{gen_py_const, get_cfg_attributes, PyClassMethodsType};
 use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
     SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __REPR__, __RICHCMP__, __STR__,
@@ -533,7 +533,12 @@ impl<'a> PyClassSimpleEnum<'a> {
                 _ => bail_spanned!(variant.span() => "Must be a unit variant."),
             };
             let options = EnumVariantPyO3Options::take_pyo3_options(&mut variant.attrs)?;
-            Ok(PyClassEnumUnitVariant { ident, options })
+            let attrs = get_cfg_attributes(&variant.attrs);
+            Ok(PyClassEnumUnitVariant {
+                ident,
+                options,
+                attrs,
+            })
         }
 
         let ident = &enum_.ident;
@@ -693,6 +698,7 @@ impl<'a> EnumVariant for PyClassEnumVariant<'a> {
 struct PyClassEnumUnitVariant<'a> {
     ident: &'a syn::Ident,
     options: EnumVariantPyO3Options,
+    attrs: Vec<&'a syn::Attribute>,
 }
 
 impl<'a> EnumVariant for PyClassEnumUnitVariant<'a> {
@@ -880,13 +886,14 @@ fn impl_simple_enum(
     let (default_repr, default_repr_slot) = {
         let variants_repr = variants.iter().map(|variant| {
             let variant_name = variant.ident;
+            let attrs = &variant.attrs;
             // Assuming all variants are unit variants because they are the only type we support.
             let repr = format!(
                 "{}.{}",
                 get_class_python_name(cls, args),
                 variant.get_python_name(args),
             );
-            quote! { #cls::#variant_name => #repr, }
+            quote! { #(#attrs)* #cls::#variant_name => #repr, }
         });
         let mut repr_impl: syn::ImplItemFn = syn::parse_quote! {
             fn __pyo3__repr__(&self) -> &'static str {
@@ -908,7 +915,8 @@ fn impl_simple_enum(
         // This implementation allows us to convert &T to #repr_type without implementing `Copy`
         let variants_to_int = variants.iter().map(|variant| {
             let variant_name = variant.ident;
-            quote! { #cls::#variant_name => #cls::#variant_name as #repr_type, }
+            let attrs = &variant.attrs;
+            quote! { #(#attrs)* #cls::#variant_name => #cls::#variant_name as #repr_type, }
         });
         let mut int_impl: syn::ImplItemFn = syn::parse_quote! {
             fn __pyo3__int__(&self) -> #repr_type {
@@ -936,7 +944,9 @@ fn impl_simple_enum(
         methods_type,
         simple_enum_default_methods(
             cls,
-            variants.iter().map(|v| (v.ident, v.get_python_name(args))),
+            variants
+                .iter()
+                .map(|v| (v.ident, v.get_python_name(args), &v.attrs)),
             ctx,
         ),
         default_slots,
@@ -1474,7 +1484,13 @@ fn generate_default_protocol_slot(
 
 fn simple_enum_default_methods<'a>(
     cls: &'a syn::Ident,
-    unit_variant_names: impl IntoIterator<Item = (&'a syn::Ident, Cow<'a, syn::Ident>)>,
+    unit_variant_names: impl IntoIterator<
+        Item = (
+            &'a syn::Ident,
+            Cow<'a, syn::Ident>,
+            &'a Vec<&'a syn::Attribute>,
+        ),
+    >,
     ctx: &Ctx,
 ) -> Vec<MethodAndMethodDef> {
     let cls_type = syn::parse_quote!(#cls);
@@ -1490,7 +1506,25 @@ fn simple_enum_default_methods<'a>(
     };
     unit_variant_names
         .into_iter()
-        .map(|(var, py_name)| gen_py_const(&cls_type, &variant_to_attribute(var, &py_name), ctx))
+        .map(|(var, py_name, attrs)| {
+            let method = gen_py_const(&cls_type, &variant_to_attribute(var, &py_name), ctx);
+            let associated_method_tokens = method.associated_method;
+            let method_def_tokens = method.method_def;
+
+            let associated_method = quote! {
+                #(#attrs)*
+                #associated_method_tokens
+            };
+            let method_def = quote! {
+                #(#attrs)*
+                #method_def_tokens
+            };
+
+            MethodAndMethodDef {
+                associated_method,
+                method_def,
+            }
+        })
         .collect()
 }
 
