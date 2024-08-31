@@ -195,10 +195,9 @@ macro_rules! pyobject_native_type_core {
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! pyobject_native_type_sized {
+macro_rules! pyobject_subclassable_native_type {
     ($name:ty, $layout:path $(;$generics:ident)*) => {
-        unsafe impl $crate::type_object::PyLayout<$name> for $layout {}
-        impl $crate::type_object::PySizedLayout<$name> for $layout {}
+        #[cfg(not(Py_LIMITED_API))]
         impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
             type LayoutAsBase = $crate::impl_::pycell::PyClassObjectBase<$layout>;
             type BaseNativeType = $name;
@@ -206,6 +205,15 @@ macro_rules! pyobject_native_type_sized {
             type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
         }
     }
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! pyobject_native_type_sized {
+    ($name:ty, $layout:path $(;$generics:ident)*) => {
+        unsafe impl $crate::type_object::PyLayout<$name> for $layout {}
+        impl $crate::type_object::PySizedLayout<$name> for $layout {}
+    };
 }
 
 /// Declares all of the boilerplate for Python types which can be inherited from (because the exact

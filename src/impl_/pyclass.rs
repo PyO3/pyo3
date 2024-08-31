@@ -1116,7 +1116,18 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
 #[cfg_attr(
     all(diagnostic_namespace, feature = "abi3"),
     diagnostic::on_unimplemented(
-        note = "with the `abi3` feature enabled, PyO3 does not support subclassing native types"
+        message = "pyclass `{Self}` cannot be subclassed",
+        label = "required for `#[pyclass(extends={Self})]`",
+        note = "`{Self}` must have `#[pyclass(subclass)]` to be eligible for subclassing",
+        note = "with the `abi3` feature enabled, PyO3 does not support subclassing native types",
+    )
+)]
+#[cfg_attr(
+    all(diagnostic_namespace, not(feature = "abi3")),
+    diagnostic::on_unimplemented(
+        message = "pyclass `{Self}` cannot be subclassed",
+        label = "required for `#[pyclass(extends={Self})]`",
+        note = "`{Self}` must have `#[pyclass(subclass)]` to be eligible for subclassing",
     )
 )]
 pub trait PyClassBaseType: Sized {
@@ -1124,16 +1135,6 @@ pub trait PyClassBaseType: Sized {
     type BaseNativeType;
     type Initializer: PyObjectInit<Self>;
     type PyClassMutability: PyClassMutability;
-}
-
-/// All mutable PyClasses can be used as a base type.
-///
-/// In the future this will be extended to immutable PyClasses too.
-impl<T: PyClass> PyClassBaseType for T {
-    type LayoutAsBase = crate::impl_::pycell::PyClassObject<T>;
-    type BaseNativeType = T::BaseNativeType;
-    type Initializer = crate::pyclass_init::PyClassInitializer<Self>;
-    type PyClassMutability = T::PyClassMutability;
 }
 
 /// Implementation of tp_dealloc for pyclasses without gc
