@@ -456,13 +456,13 @@ impl<'a, 'py, T> IntoPyObject<'py> for &'a Py<T> {
 /// [`Cow::Owned`]: std::borrow::Cow::Owned
 
 pub trait FromPyObject<'a, 'py>: Sized {
-    /// Extracts `Self` from the bound smart pointer `obj`.
+    /// Extracts `Self` from the Python object `obj`.
     ///
     /// Users are advised against calling this method directly: instead, use this via
     /// [`Bound<'_, PyAny>::extract`] or [`Py::extract`].
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self>;
 
-    /// Deprecated name for [`FromPyObject::extract`]
+    /// Deprecated form of [`FromPyObject::extract`]
     #[deprecated(since = "0.23.0", note = "replaced by `FromPyObject::extract`")]
     fn extract_bound(ob: &'a Bound<'py, PyAny>) -> PyResult<Self> {
         Self::extract(ob.as_borrowed())
