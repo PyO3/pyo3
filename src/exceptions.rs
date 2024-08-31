@@ -624,13 +624,13 @@ impl_windows_native_exception!(
 
 impl PyUnicodeDecodeError {
     /// Creates a Python `UnicodeDecodeError`.
-    pub fn new_bound<'p>(
-        py: Python<'p>,
+    pub fn new<'py>(
+        py: Python<'py>,
         encoding: &CStr,
         input: &[u8],
         range: ops::Range<usize>,
         reason: &CStr,
-    ) -> PyResult<Bound<'p, PyUnicodeDecodeError>> {
+    ) -> PyResult<Bound<'py, PyUnicodeDecodeError>> {
         use crate::ffi_ptr_ext::FfiPtrExt;
         use crate::py_result_ext::PyResultExt;
         unsafe {
@@ -647,6 +647,19 @@ impl PyUnicodeDecodeError {
         .downcast_into()
     }
 
+    /// Deprecated name for [`PyUnicodeDecodeError::new`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyUnicodeDecodeError::new`")]
+    #[inline]
+    pub fn new_bound<'py>(
+        py: Python<'py>,
+        encoding: &CStr,
+        input: &[u8],
+        range: ops::Range<usize>,
+        reason: &CStr,
+    ) -> PyResult<Bound<'py, PyUnicodeDecodeError>> {
+        Self::new(py, encoding, input, range, reason)
+    }
+
     /// Creates a Python `UnicodeDecodeError` from a Rust UTF-8 decoding error.
     ///
     /// # Examples
@@ -660,7 +673,7 @@ impl PyUnicodeDecodeError {
     /// Python::with_gil(|py| {
     ///     let invalid_utf8 = b"fo\xd8o";
     ///     let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
-    ///     let decode_err = PyUnicodeDecodeError::new_utf8_bound(py, invalid_utf8, err)?;
+    ///     let decode_err = PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err)?;
     ///     assert_eq!(
     ///         decode_err.to_string(),
     ///         "'utf-8' codec can't decode byte 0xd8 in position 2: invalid utf-8"
@@ -668,19 +681,30 @@ impl PyUnicodeDecodeError {
     ///     Ok(())
     /// })
     /// # }
-    pub fn new_utf8_bound<'p>(
-        py: Python<'p>,
+    pub fn new_utf8<'py>(
+        py: Python<'py>,
         input: &[u8],
         err: std::str::Utf8Error,
-    ) -> PyResult<Bound<'p, PyUnicodeDecodeError>> {
+    ) -> PyResult<Bound<'py, PyUnicodeDecodeError>> {
         let pos = err.valid_up_to();
-        PyUnicodeDecodeError::new_bound(
+        PyUnicodeDecodeError::new(
             py,
             ffi::c_str!("utf-8"),
             input,
             pos..(pos + 1),
             ffi::c_str!("invalid utf-8"),
         )
+    }
+
+    /// Deprecated name for [`PyUnicodeDecodeError::new_utf8`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyUnicodeDecodeError::new_utf8`")]
+    #[inline]
+    pub fn new_utf8_bound<'py>(
+        py: Python<'py>,
+        input: &[u8],
+        err: std::str::Utf8Error,
+    ) -> PyResult<Bound<'py, PyUnicodeDecodeError>> {
+        Self::new_utf8(py, input, err)
     }
 }
 
@@ -1017,7 +1041,7 @@ mod tests {
         #[cfg_attr(invalid_from_utf8_lint, allow(invalid_from_utf8))]
         let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
         Python::with_gil(|py| {
-            let decode_err = PyUnicodeDecodeError::new_utf8_bound(py, invalid_utf8, err).unwrap();
+            let decode_err = PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap();
             assert_eq!(
                 format!("{:?}", decode_err),
                 "UnicodeDecodeError('utf-8', b'fo\\xd8o', 2, 3, 'invalid utf-8')"
@@ -1074,7 +1098,7 @@ mod tests {
         #[cfg_attr(invalid_from_utf8_lint, allow(invalid_from_utf8))]
         let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
         PyErr::from_value(
-            PyUnicodeDecodeError::new_utf8_bound(py, invalid_utf8, err)
+            PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err)
                 .unwrap()
                 .into_any(),
         )

@@ -70,7 +70,7 @@ impl<'a> PyStringData<'a> {
         match self {
             Self::Ucs1(data) => match str::from_utf8(data) {
                 Ok(s) => Ok(Cow::Borrowed(s)),
-                Err(e) => Err(PyUnicodeDecodeError::new_utf8_bound(py, data, e)?.into()),
+                Err(e) => Err(PyUnicodeDecodeError::new_utf8(py, data, e)?.into()),
             },
             Self::Ucs2(data) => match String::from_utf16(data) {
                 Ok(s) => Ok(Cow::Owned(s)),
@@ -78,7 +78,7 @@ impl<'a> PyStringData<'a> {
                     let mut message = e.to_string().as_bytes().to_vec();
                     message.push(0);
 
-                    Err(PyUnicodeDecodeError::new_bound(
+                    Err(PyUnicodeDecodeError::new(
                         py,
                         ffi::c_str!("utf-16"),
                         self.as_bytes(),
@@ -90,7 +90,7 @@ impl<'a> PyStringData<'a> {
             },
             Self::Ucs4(data) => match data.iter().map(|&c| std::char::from_u32(c)).collect() {
                 Some(s) => Ok(Cow::Owned(s)),
-                None => Err(PyUnicodeDecodeError::new_bound(
+                None => Err(PyUnicodeDecodeError::new(
                     py,
                     ffi::c_str!("utf-32"),
                     self.as_bytes(),
