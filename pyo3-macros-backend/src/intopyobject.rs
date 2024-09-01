@@ -177,7 +177,7 @@ impl<'a> Container<'a> {
                 }
             }
             _ => bail_spanned!(
-                fields.span() => "cannot derive `IntoPyObject` for empty structs and variants"
+                fields.span() => "cannot derive `IntoPyObject` for empty structs"
             ),
         };
 
@@ -347,6 +347,12 @@ impl<'a> Enum<'a> {
             .map(|variant| {
                 let attrs = ContainerOptions::from_attrs(&variant.attrs)?;
                 let var_ident = &variant.ident;
+
+                ensure_spanned!(
+                    !variant.fields.is_empty(),
+                    variant.ident.span() => "cannot derive `IntoPyObject` for empty variants"
+                );
+
                 Container::new(
                     None,
                     &variant.fields,

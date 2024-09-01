@@ -1,10 +1,10 @@
-error: cannot derive `IntoPyObject` for empty structs and variants
+error: cannot derive `IntoPyObject` for empty structs
  --> tests/ui/invalid_intopy_derive.rs:4:11
   |
 4 | struct Foo();
   |           ^^
 
-error: cannot derive `IntoPyObject` for empty structs and variants
+error: cannot derive `IntoPyObject` for empty structs
  --> tests/ui/invalid_intopy_derive.rs:7:13
   |
 7 | struct Foo2 {}
@@ -16,41 +16,41 @@ error: cannot derive `IntoPyObject` for empty enum
 10 | enum EmptyEnum {}
    |      ^^^^^^^^^
 
-error: cannot derive `IntoPyObject` for empty structs and variants
-  --> tests/ui/invalid_intopy_derive.rs:14:15
+error: cannot derive `IntoPyObject` for empty variants
+  --> tests/ui/invalid_intopy_derive.rs:14:5
    |
 14 |     EmptyTuple(),
-   |               ^^
+   |     ^^^^^^^^^^
 
-error: cannot derive `IntoPyObject` for empty structs and variants
-  --> tests/ui/invalid_intopy_derive.rs:20:17
+error: cannot derive `IntoPyObject` for empty variants
+  --> tests/ui/invalid_intopy_derive.rs:20:5
    |
 20 |     EmptyStruct {},
-   |                 ^^
+   |     ^^^^^^^^^^^
 
-error: cannot derive `IntoPyObject` for empty structs and variants
+error: cannot derive `IntoPyObject` for empty structs
   --> tests/ui/invalid_intopy_derive.rs:26:27
    |
 26 | struct EmptyTransparentTup();
    |                           ^^
 
-error: cannot derive `IntoPyObject` for empty structs and variants
+error: cannot derive `IntoPyObject` for empty structs
   --> tests/ui/invalid_intopy_derive.rs:30:31
    |
 30 | struct EmptyTransparentStruct {}
    |                               ^^
 
-error: cannot derive `IntoPyObject` for empty structs and variants
-  --> tests/ui/invalid_intopy_derive.rs:35:15
+error: cannot derive `IntoPyObject` for empty variants
+  --> tests/ui/invalid_intopy_derive.rs:35:5
    |
 35 |     EmptyTuple(),
-   |               ^^
+   |     ^^^^^^^^^^
 
-error: cannot derive `IntoPyObject` for empty structs and variants
-  --> tests/ui/invalid_intopy_derive.rs:42:17
+error: cannot derive `IntoPyObject` for empty variants
+  --> tests/ui/invalid_intopy_derive.rs:42:5
    |
 42 |     EmptyStruct {},
-   |                 ^^
+   |     ^^^^^^^^^^^
 
 error: transparent structs and variants can only have 1 field
   --> tests/ui/invalid_intopy_derive.rs:48:35
@@ -96,10 +96,8 @@ error: #[derive(`IntoPyObject`)] is not supported for unions
 81 | union Union {
    | ^^^^^
 
-error: cannot derive `IntoPyObject` for empty structs and variants
-  --> tests/ui/invalid_intopy_derive.rs:85:10
+error: cannot derive `IntoPyObject` for empty variants
+  --> tests/ui/invalid_intopy_derive.rs:87:5
    |
-85 | #[derive(IntoPyObject)]
-   |          ^^^^^^^^^^^^
-   |
-   = note: this error originates in the derive macro `IntoPyObject` (in Nightly builds, run with -Z macro-backtrace for more info)
+87 |     Unit,
+   |     ^^^^
