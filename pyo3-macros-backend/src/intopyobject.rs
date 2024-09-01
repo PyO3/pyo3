@@ -393,7 +393,7 @@ impl<'a> Enum<'a> {
     }
 }
 
-// if there is a `'py` lifetime, we treat is as the `Python<'py>` lifetime
+// if there is a `'py` lifetime, we treat it as the `Python<'py>` lifetime
 fn verify_and_get_lifetime(generics: &syn::Generics) -> Option<&syn::LifetimeParam> {
     let mut lifetimes = generics.lifetimes();
     lifetimes.find(|l| l.lifetime.ident == "py")
