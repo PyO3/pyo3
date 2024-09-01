@@ -162,39 +162,38 @@ are deprecated and will be removed in a future PyO3 version.
 
 #### `IntoPyObject` derive macro
 
+To migrate you may use the new `IntoPyObject` derive macro as below.
+
 ```rust
-# #![allow(dead_code)]
 # use pyo3::prelude::*;
-# use std::collections::HashMap;
-# use std::hash::Hash;
-
 #[derive(IntoPyObject)]
-struct TransparentTuple(PyObject); // newtype tuple structs are implicitly `transparent`
-
-#[derive(IntoPyObject)]
-#[pyo3(transparent)]
-struct TransparentStruct<'py> { 
-    inner: Bound<'py, PyAny>, // `'py` lifetime will be used as the Python lifetime
-}
-
-#[derive(IntoPyObject)]
-struct Tuple<'a, K: Hash + Eq, V>(&'a str, HashMap<K, V>); // tuple structs convert into `PyTuple`, lifetimes and generics
-                                                           // are supported, the impl will be bounded by `K: IntoPyObject, V: IntoPyObject`
-
-#[derive(IntoPyObject)]
-struct Struct { // structs convert into `PyDict` with field names as keys
+struct Struct { 
     count: usize,
     obj: Py<PyAny>,
 }
+```
 
+will expand into the following:
 
-#[derive(IntoPyObject)]
-enum Enum<'a, 'py, K: Hash + Eq, V> { // enums are supported and convert using the same
-    TransparentTuple(PyObject),       // rules on the variants as the structs above
-    #[pyo3(transparent)]
-    TransparentStruct { inner: Bound<'py, PyAny> },
-    Tuple(&'a str, HashMap<K, V>),
-    Struct { count: usize, obj: Py<PyAny>}
+```rust
+# use pyo3::prelude::*;
+# use pyo3::types::PyDict;
+# struct Struct { 
+#     count: usize,
+#     obj: Py<PyAny>,
+# }
+
+impl<'py> IntoPyObject<'py> for Struct {
+    type Target = PyDict;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let dict = PyDict::new(py);
+        dict.set_item("count", self.count)?;
+        dict.set_item("obj", self.obj)?;
+        Ok(dict)
+    }
 }
 ```
 
