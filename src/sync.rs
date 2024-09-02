@@ -8,7 +8,7 @@ use crate::{
     types::{any::PyAnyMethods, PyString, PyType},
     Bound, Py, PyResult, PyVisit, Python,
 };
-use std::cell::UnsafeCell;
+use std::{cell::UnsafeCell, mem::MaybeUninit, sync::Once};
 
 /// Value with concurrent access protected by the GIL.
 ///
@@ -68,7 +68,7 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 ///     from reentrant initialization.
 ///  2) If the initialization function `f` provided to `get_or_init` (or `get_or_try_init`)
 ///     temporarily releases the GIL (e.g. by calling `Python::import`) then it is possible
-///     for a second thread to also begin initializing the `GITOnceCell`. Even when this
+///     for a second thread to also begin initializing the `GILOnceCell`. Even when this
 ///     happens `GILOnceCell` guarantees that only **one** write to the cell ever occurs -
 ///     this is treated as a race, other threads will discard the value they compute and
 ///     return the result of the first complete computation.
@@ -92,8 +92,16 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 /// }
 /// # Python::with_gil(|py| assert_eq!(get_shared_list(py).len(), 0));
 /// ```
-#[derive(Default)]
-pub struct GILOnceCell<T>(UnsafeCell<Option<T>>);
+pub struct GILOnceCell<T> {
+    once: Once,
+    data: UnsafeCell<MaybeUninit<T>>,
+}
+
+impl<T> Default for GILOnceCell<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 // T: Send is needed for Sync because the thread which drops the GILOnceCell can be different
 // to the thread which fills it.
@@ -103,14 +111,21 @@ unsafe impl<T: Send> Send for GILOnceCell<T> {}
 impl<T> GILOnceCell<T> {
     /// Create a `GILOnceCell` which does not yet contain a value.
     pub const fn new() -> Self {
-        Self(UnsafeCell::new(None))
+        Self {
+            once: Once::new(),
+            data: UnsafeCell::new(MaybeUninit::uninit()),
+        }
     }
 
     /// Get a reference to the contained value, or `None` if the cell has not yet been written.
     #[inline]
     pub fn get(&self, _py: Python<'_>) -> Option<&T> {
-        // Safe because if the cell has not yet been written, None is returned.
-        unsafe { &*self.0.get() }.as_ref()
+        if self.once.is_completed() {
+            // SAFETY: the cell has been written.
+            Some(unsafe { (*self.data.get()).assume_init_ref() })
+        } else {
+            None
+        }
     }
 
     /// Get a reference to the contained value, initializing it if needed using the provided
@@ -164,7 +179,12 @@ impl<T> GILOnceCell<T> {
     /// Get the contents of the cell mutably. This is only possible if the reference to the cell is
     /// unique.
     pub fn get_mut(&mut self) -> Option<&mut T> {
-        self.0.get_mut().as_mut()
+        if self.once.is_completed() {
+            // SAFETY: the cell has been written.
+            Some(unsafe { (&mut *self.data.get()).assume_init_mut() })
+        } else {
+            None
+        }
     }
 
     /// Set the value in the cell.
@@ -172,28 +192,44 @@ impl<T> GILOnceCell<T> {
     /// If the cell has already been written, `Err(value)` will be returned containing the new
     /// value which was not written.
     pub fn set(&self, _py: Python<'_>, value: T) -> Result<(), T> {
-        // Safe because GIL is held, so no other thread can be writing to this cell concurrently.
-        let inner = unsafe { &mut *self.0.get() };
-        if inner.is_some() {
-            return Err(value);
-        }
+        let mut value = Some(value);
+        // NB this can block, but only for the duration which the first thread to complete
+        // initialization is writing to the cell. We therefore don't need to worry about
+        // deadlocks with the GIL.
+        self.once.call_once_force(|_| {
+            // SAFETY: no other threads can be writing this value, because we are
+            // inside the `call_once_force` closure.
+            unsafe {
+                // `.take().unwrap()` will never panic
+                (&mut *self.data.get()).write(value.take().unwrap());
+            }
+        });
 
-        *inner = Some(value);
-        Ok(())
+        match value {
+            // Some other thread wrote to the cell first
+            Some(value) => Err(value),
+            None => Ok(()),
+        }
     }
 
     /// Takes the value out of the cell, moving it back to an uninitialized state.
     ///
     /// Has no effect and returns None if the cell has not yet been written.
     pub fn take(&mut self) -> Option<T> {
-        self.0.get_mut().take()
+        // We leave `self` in a default (empty) state
+        std::mem::take(self).into_inner()
     }
 
     /// Consumes the cell, returning the wrapped value.
     ///
     /// Returns None if the cell has not yet been written.
     pub fn into_inner(self) -> Option<T> {
-        self.0.into_inner()
+        if self.once.is_completed() {
+            // SAFETY: the cell has been written.
+            Some(unsafe { self.data.into_inner().assume_init() })
+        } else {
+            None
+        }
     }
 }
 
