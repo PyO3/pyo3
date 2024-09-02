@@ -19,6 +19,8 @@ use crate::PyVisit;
 /// It ensures that only one thread at a time can access the inner value via shared references.
 /// It can be combined with interior mutability to obtain mutable references.
 ///
+/// This type is not defined for extensions built against the free-threaded CPython ABI.
+///
 /// # Example
 ///
 /// Combining `GILProtected` with `RefCell` enables mutable access to static data:
