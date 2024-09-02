@@ -1,5 +1,4 @@
 use std::{
-    cell::RefCell,
     ffi::CStr,
     marker::PhantomData,
     thread::{self, ThreadId},
@@ -16,10 +15,6 @@ use crate::{
     Bound, PyClass, PyErr, PyObject, PyResult, Python,
 };
 
-#[cfg(not(Py_GIL_DISABLED))]
-use crate::sync::GILProtected;
-
-#[cfg(Py_GIL_DISABLED)]
 use std::sync::Mutex;
 
 use super::PyClassItemsIter;
@@ -33,10 +28,7 @@ struct LazyTypeObjectInner {
     value: GILOnceCell<PyClassTypeObject>,
     // Threads which have begun initialization of the `tp_dict`. Used for
     // reentrant initialization detection.
-    #[cfg(not(Py_GIL_DISABLED))]
-    initializing_threads: GILProtected<RefCell<Vec<ThreadId>>>,
-    #[cfg(Py_GIL_DISABLED)]
-    initializing_threads: Mutex<RefCell<Vec<ThreadId>>>,
+    initializing_threads: Mutex<Vec<ThreadId>>,
     tp_dict_filled: GILOnceCell<()>,
 }
 
@@ -47,10 +39,7 @@ impl<T> LazyTypeObject<T> {
         LazyTypeObject(
             LazyTypeObjectInner {
                 value: GILOnceCell::new(),
-                #[cfg(not(Py_GIL_DISABLED))]
-                initializing_threads: GILProtected::new(RefCell::new(Vec::new())),
-                #[cfg(Py_GIL_DISABLED)]
-                initializing_threads: Mutex::new(RefCell::new(Vec::new())),
+                initializing_threads: Mutex::new(Vec::new()),
                 tp_dict_filled: GILOnceCell::new(),
             },
             PhantomData,
@@ -129,11 +118,7 @@ impl LazyTypeObjectInner {
 
         let thread_id = thread::current().id();
         {
-            #[cfg(not(Py_GIL_DISABLED))]
-            let cell = self.initializing_threads.get(py);
-            #[cfg(Py_GIL_DISABLED)]
-            let cell = self.initializing_threads.lock().unwrap();
-            let mut threads = cell.borrow_mut();
+            let mut threads = self.initializing_threads.lock().unwrap();
             if threads.contains(&thread_id) {
                 // Reentrant call: just return the type object, even if the
                 // `tp_dict` is not filled yet.
@@ -143,29 +128,18 @@ impl LazyTypeObjectInner {
         }
 
         struct InitializationGuard<'a> {
-            #[cfg(not(Py_GIL_DISABLED))]
-            initializing_threads: &'a GILProtected<RefCell<Vec<ThreadId>>>,
-            #[cfg(Py_GIL_DISABLED)]
-            initializing_threads: &'a Mutex<RefCell<Vec<ThreadId>>>,
-            #[cfg(not(Py_GIL_DISABLED))]
-            py: Python<'a>,
+            initializing_threads: &'a Mutex<Vec<ThreadId>>,
             thread_id: ThreadId,
         }
         impl Drop for InitializationGuard<'_> {
             fn drop(&mut self) {
-                #[cfg(not(Py_GIL_DISABLED))]
-                let cell = self.initializing_threads.get(self.py);
-                #[cfg(Py_GIL_DISABLED)]
-                let cell = self.initializing_threads.lock().unwrap();
-                let mut threads = cell.borrow_mut();
+                let mut threads = self.initializing_threads.lock().unwrap();
                 threads.retain(|id| *id != self.thread_id);
             }
         }
 
         let guard = InitializationGuard {
             initializing_threads: &self.initializing_threads,
-            #[cfg(not(Py_GIL_DISABLED))]
-            py,
             thread_id,
         };
 
@@ -210,17 +184,11 @@ impl LazyTypeObjectInner {
 
             // Initialization successfully complete, can clear the thread list.
             // (No further calls to get_or_init() will try to init, on any thread.)
-            #[cfg(not(Py_GIL_DISABLED))]
-            let cell = {
-                std::mem::forget(guard);
-                self.initializing_threads.get(py)
-            };
-            #[cfg(Py_GIL_DISABLED)]
-            let cell = {
+            let mut threads = {
                 drop(guard);
                 self.initializing_threads.lock().unwrap()
             };
-            cell.replace(Vec::new());
+            threads.clear();
             result
         });
 
