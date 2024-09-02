@@ -5,6 +5,7 @@
 //!
 //! [PEP 703]: https://peps.python.org/pep-703/
 use crate::{
+    ffi,
     types::{any::PyAnyMethods, PyString, PyType},
     Bound, Py, PyResult, PyVisit, Python,
 };
@@ -280,6 +281,70 @@ impl Interned {
             .get_or_init(py, || PyString::intern(py, self.0).into())
             .bind(py)
     }
+}
+
+/// Extension trait for [`std::sync::OnceLock`] which helps avoid deadlocks between the Python
+/// interpreter and initialization with the `OnceLock`.
+pub trait OnceLockExt<T>: once_lock_ext_sealed::Sealed {
+    /// Initializes this `OnceLock` with the given closure if it has not been initialized yet.
+    ///
+    /// If this function would block, this function detaches from the Python interpreter and
+    /// reattaches before calling `f`. This avoids deadlocks between the Python interpreter and
+    /// the `OnceLock` in cases where `f` can call arbitrary Python code, as calling arbitrary
+    /// Python code can lead to `f` itself blocking on the Python interpreter.
+    ///
+    /// By detaching from the Python interpreter before blocking, this ensures that if `f` blocks
+    /// then the Python interpreter cannot be blocked by `f` itself.
+    fn get_or_init_py_attached<F>(&self, py: Python<'_>, f: F) -> &T
+    where
+        F: FnOnce() -> T;
+}
+
+mod once_lock_ext_sealed {
+    pub trait Sealed {}
+    impl<T> Sealed for std::sync::OnceLock<T> {}
+}
+
+impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
+    fn get_or_init_py_attached<F>(&self, py: Python<'_>, f: F) -> &T
+    where
+        F: FnOnce() -> T,
+    {
+        // Use self.get() first to create a fast path when initialized
+        self.get()
+            .unwrap_or_else(|| init_once_lock_py_attached(self, py, f))
+    }
+}
+
+#[cold]
+fn init_once_lock_py_attached<'a, F, T>(
+    lock: &'a std::sync::OnceLock<T>,
+    _py: Python<'_>,
+    f: F,
+) -> &'a T
+where
+    F: FnOnce() -> T,
+{
+    // SAFETY: we are currently attached to a Python thread
+    let mut ts = Some(unsafe { ffi::PyEval_SaveThread() });
+
+    // By having detached here, we guarantee that `.get_or_init` cannot deadlock with
+    // the Python interpreter
+    let value = lock.get_or_init(move || {
+        let ts = ts.take().expect("ts is set to Some above");
+        // SAFETY: ts is a valid thread state and needs restoring
+        unsafe { ffi::PyEval_RestoreThread(ts) };
+        f()
+    });
+
+    // This covers the case where `.get_or_init` was called by another thread at the same
+    // time, so `PyEval_RestoreThread` inside the closure was not called on this thread.
+    if let Some(ts) = ts {
+        // SAFETY: ts is a valid thread state and needs restoring
+        unsafe { ffi::PyEval_RestoreThread(ts) };
+    }
+
+    value
 }
 
 #[cfg(test)]
