@@ -197,6 +197,15 @@ impl<T> GILOnceCell<T> {
     }
 }
 
+impl<T> GILOnceCell<Py<T>> {
+    /// Create a new cell that contains a new Python reference to the same contained object.
+    ///
+    /// Returns an uninitialised cell if `self` has not yet been initialised.
+    pub fn clone_ref(&self, py: Python<'_>) -> Self {
+        Self(UnsafeCell::new(self.get(py).map(|ob| ob.clone_ref(py))))
+    }
+}
+
 impl GILOnceCell<Py<PyType>> {
     /// Get a reference to the contained Python type, initializing it if needed.
     ///
@@ -325,7 +334,12 @@ mod tests {
             assert_eq!(cell.get_or_try_init(py, || Err(5)), Ok(&2));
 
             assert_eq!(cell.take(), Some(2));
-            assert_eq!(cell.into_inner(), None)
+            assert_eq!(cell.into_inner(), None);
+
+            let cell_py = GILOnceCell::new();
+            assert!(cell_py.clone_ref(py).get(py).is_none());
+            cell_py.get_or_init(py, || py.None());
+            assert!(cell_py.clone_ref(py).get(py).unwrap().is_none(py));
         })
     }
 }
