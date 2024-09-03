@@ -223,7 +223,9 @@ was not needed in the first place.
 
 Before:
 
-```rust,ignore
+```rust
+# fn main() {
+# #[cfg(not(Py_GIL_DISABLED))] {
 # use pyo3::prelude::*;
 use pyo3::sync::GILProtected;
 use pyo3::types::{PyDict, PyNone};
@@ -232,20 +234,20 @@ use std::cell::RefCell;
 static OBJECTS: GILProtected<RefCell<Vec<Py<PyDict>>>> =
     GILProtected::new(RefCell::new(Vec::new()));
 
-fn main() {
-    Python::with_gil(|py: Python| {
-        let d = PyDict::new(py);
-        // stand-in for something that executes arbitrary python code
-        d.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
-        OBJECTS.get(py).borrow_mut().push(d.unbind());
-    });
-}
+Python::with_gil(|py| {
+    // stand-in for something that executes arbitrary python code
+    let d = PyDict::new(py);
+    d.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
+    OBJECTS.get(py).borrow_mut().push(d.unbind());
+});
+# }}
 ```
 
 After:
 
 ```rust
-use pyo3::prelude::*;
+# use pyo3::prelude::*;
+# fn main() {
 #[cfg(not(Py_GIL_DISABLED))]
 use pyo3::sync::GILProtected;
 use pyo3::types::{PyDict, PyNone};
@@ -260,17 +262,16 @@ static OBJECTS: GILProtected<RefCell<Vec<Py<PyDict>>>> =
 #[cfg(Py_GIL_DISABLED)]
 static OBJECTS: Mutex<Vec<Py<PyDict>>> = Mutex::new(Vec::new());
 
-fn main() {
-    Python::with_gil(|py| {
-        let d = PyDict::new(py);
-        // stand-in for something that executes arbitrary python code
-        d.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
-        #[cfg(not(Py_GIL_DISABLED))]
-        OBJECTS.get(py).borrow_mut().push(d.unbind());
-        #[cfg(Py_GIL_DISABLED)]
-        OBJECTS.lock().unwrap().push(d.unbind());
-    });
-}
+Python::with_gil(|py| {
+    // stand-in for something that executes arbitrary python code
+    let d = PyDict::new(py);
+    d.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
+    #[cfg(not(Py_GIL_DISABLED))]
+    OBJECTS.get(py).borrow_mut().push(d.unbind());
+    #[cfg(Py_GIL_DISABLED)]
+    OBJECTS.lock().unwrap().push(d.unbind());
+});
+# }
 ```
 
 </details>
