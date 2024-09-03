@@ -107,10 +107,7 @@ impl Coroutine {
         if let Some(future) = self.waker.as_ref().unwrap().initialize_future(py)? {
             // `asyncio.Future` must be awaited; fortunately, it implements `__iter__ = __await__`
             // and will yield itself if its result has not been set in polling above
-            if let Some(future) = PyIterator::from_object(&future.as_borrowed())
-                .unwrap()
-                .next()
-            {
+            if let Some(future) = PyIterator::from_object(future).unwrap().next() {
                 // future has not been leaked into Python for now, and Rust code can only call
                 // `set_result(None)` in `Wake` implementation, so it's safe to unwrap
                 return Ok(future.unwrap().into());

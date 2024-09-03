@@ -659,6 +659,19 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
         (*self).clone()
     }
 
+    /// Returns the raw FFI pointer represented by self.
+    ///
+    /// # Safety
+    ///
+    /// Callers are responsible for ensuring that the pointer does not outlive self.
+    ///
+    /// The reference is borrowed; callers should not decrease the reference count
+    /// when they are finished with the pointer.
+    #[inline]
+    pub fn as_ptr(self) -> *mut ffi::PyObject {
+        self.0.as_ptr()
+    }
+
     pub(crate) fn to_any(self) -> Borrowed<'a, 'py, PyAny> {
         Borrowed(self.0, PhantomData, self.2)
     }
@@ -2062,11 +2075,7 @@ a = A()
     #[test]
     fn test_py2_into_py_object() {
         Python::with_gil(|py| {
-            let instance = py
-                .eval(ffi::c_str!("object()"), None, None)
-                .unwrap()
-                .as_borrowed()
-                .to_owned();
+            let instance = py.eval(ffi::c_str!("object()"), None, None).unwrap();
             let ptr = instance.as_ptr();
             let instance: PyObject = instance.clone().unbind();
             assert_eq!(instance.as_ptr(), ptr);
