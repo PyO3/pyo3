@@ -30,6 +30,7 @@ pub use self::list::{PyList, PyListMethods};
 pub use self::mapping::{PyMapping, PyMappingMethods};
 pub use self::memoryview::PyMemoryView;
 pub use self::module::{PyModule, PyModuleMethods};
+pub use self::mutex::{PyMutex, PyMutexGuard};
 pub use self::none::PyNone;
 pub use self::notimplemented::PyNotImplemented;
 #[allow(deprecated)]
@@ -250,6 +251,8 @@ pub(crate) mod list;
 pub(crate) mod mapping;
 mod memoryview;
 pub(crate) mod module;
+#[cfg(Py_3_13)]
+mod mutex;
 mod none;
 mod notimplemented;
 mod num;
