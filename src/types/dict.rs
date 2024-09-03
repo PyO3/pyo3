@@ -409,7 +409,6 @@ pub enum BoundDictIterator<'py> {
     /// Iterator over the items of the dictionary, using the C-API `PyDict_Next`. This variant is
     /// only used when the dictionary is an exact instance of `PyDict` and the GIL enabled.
     #[allow(missing_docs)]
-    #[cfg(not(Py_GIL_DISABLED))]
     DictIter {
         dict: Bound<'py, PyDict>,
         ppos: ffi::Py_ssize_t,
@@ -433,7 +432,6 @@ impl<'py> Iterator for BoundDictIterator<'py> {
                     (key, value)
                 })
             }
-            #[cfg(not(Py_GIL_DISABLED))]
             BoundDictIterator::DictIter {
                 dict,
                 ppos,
@@ -497,7 +495,6 @@ impl ExactSizeIterator for BoundDictIterator<'_> {
     fn len(&self) -> usize {
         match self {
             BoundDictIterator::ItemIter { remaining, .. } => *remaining as usize,
-            #[cfg(not(Py_GIL_DISABLED))]
             BoundDictIterator::DictIter { remaining, .. } => *remaining as usize,
         }
     }
@@ -507,8 +504,12 @@ impl<'py> BoundDictIterator<'py> {
     fn new(dict: Bound<'py, PyDict>) -> Self {
         let remaining = dict_len(&dict);
 
-        #[cfg(not(Py_GIL_DISABLED))]
         if dict.is_exact_instance_of::<PyDict>() {
+            // Copy the dictionary if the GIL is disabled, as we can't guarantee that the dictionary
+            // won't be modified during iteration.
+            #[cfg(Py_GIL_DISABLED)]
+            let dict = dict.copy().unwrap();
+
             return BoundDictIterator::DictIter {
                 dict,
                 ppos: 0,
