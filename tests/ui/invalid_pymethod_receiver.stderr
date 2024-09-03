@@ -10,5 +10,7 @@ error[E0277]: the trait bound `i32: TryFrom<BoundRef<'_, '_, MyClass>>` is not s
             <i32 as From<i8>>
             <i32 as From<u16>>
             <i32 as From<u8>>
+            <i32 as From<zerocopy::byteorder::I16<O>>>
+            <i32 as From<zerocopy::byteorder::I32<O>>>
   = note: required for `BoundRef<'_, '_, MyClass>` to implement `Into<i32>`
   = note: required for `i32` to implement `TryFrom<BoundRef<'_, '_, MyClass>>`
