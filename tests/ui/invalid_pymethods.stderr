@@ -191,4 +191,6 @@ error[E0277]: the trait bound `i32: From<BoundRef<'_, '_, PyType>>` is not satis
              <i32 as From<i8>>
              <i32 as From<u16>>
              <i32 as From<u8>>
+             <i32 as From<zerocopy::byteorder::I16<O>>>
+             <i32 as From<zerocopy::byteorder::I32<O>>>
    = note: required for `BoundRef<'_, '_, PyType>` to implement `Into<i32>`
