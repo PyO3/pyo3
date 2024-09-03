@@ -848,7 +848,7 @@ pub fn impl_py_getter_def(
 }
 
 /// Split an argument of pyo3::Python from the front of the arg list, if present
-fn split_off_python_arg<'a>(args: &'a [FnArg<'a>]) -> (Option<&PyArg<'_>>, &[FnArg<'_>]) {
+fn split_off_python_arg<'a, 'b>(args: &'a [FnArg<'b>]) -> (Option<&'a PyArg<'b>>, &'a [FnArg<'b>]) {
     match args {
         [FnArg::Py(py), args @ ..] => (Some(py), args),
         args => (None, args),
