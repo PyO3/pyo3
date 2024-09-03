@@ -666,7 +666,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::PyTuple;
+    use crate::tests::common::generate_unique_module_name;
+    use crate::types::{PyModule, PyTuple};
+    use pyo3_ffi::c_str;
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
@@ -969,6 +971,44 @@ mod tests {
             let mut key_sum = 0;
             let mut value_sum = 0;
             for (key, value) in dict {
+                key_sum += key.extract::<i32>().unwrap();
+                value_sum += value.extract::<i32>().unwrap();
+            }
+            assert_eq!(7 + 8 + 9, key_sum);
+            assert_eq!(32 + 42 + 123, value_sum);
+        });
+    }
+
+    #[test]
+    fn test_iter_subclass() {
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            v.insert(7, 32);
+            v.insert(8, 42);
+            v.insert(9, 123);
+            let dict = v.into_pyobject(py).unwrap();
+
+            let module = PyModule::from_code(
+                py,
+                c_str!("class DictSubclass(dict): pass"),
+                c_str!("test.py"),
+                &generate_unique_module_name("test"),
+            )
+            .unwrap();
+
+            let subclass = module
+                .getattr("DictSubclass")
+                .unwrap()
+                .call1((dict,))
+                .unwrap()
+                .downcast_into::<PyDict>()
+                .unwrap();
+
+            let mut key_sum = 0;
+            let mut value_sum = 0;
+            let iter = subclass.iter();
+            assert!(matches!(iter, BoundDictIterator::ItemIter { .. }));
+            for (key, value) in iter {
                 key_sum += key.extract::<i32>().unwrap();
                 value_sum += value.extract::<i32>().unwrap();
             }
