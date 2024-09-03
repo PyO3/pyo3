@@ -139,7 +139,7 @@ This is purely additional and should just extend the possible return types.
 
 PyO3 0.23 introduces a new unified `IntoPyObject` trait to convert Rust types into Python objects.
 Notable features of this new trait:
-- conversions can now return an error 
+- conversions can now return an error
 - compared to `IntoPy<T>` the generic `T` moved into an associated type, so
   - there is now only one way to convert a given type
   - the output type is stronger typed and may return any Python type instead of just `PyAny`
@@ -150,7 +150,7 @@ All PyO3 provided types as well as `#[pyclass]`es already implement `IntoPyObjec
 need to adapt an implementation of `IntoPyObject` to stay compatible with the Python APIs.
 
 
-Before: 
+Before:
 ```rust
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
@@ -247,6 +247,8 @@ fn increment(x: u64, amount: Option<u64>) -> u64 {
 If you rely on `impl<T> Clone for Py<T>` to fulfil trait requirements imposed by existing Rust code written without PyO3-based code in mind, the newly introduced feature `py-clone` must be enabled.
 
 However, take care to note that the behaviour is different from previous versions. If `Clone` was called without the GIL being held, we tried to delay the application of these reference count increments until PyO3-based code would re-acquire it. This turned out to be impossible to implement in a sound manner and hence was removed. Now, if `Clone` is called without the GIL being held, we panic instead for which calling code might not be prepared.
+
+It is advised to migrate off the `py-clone` feature. The simplest way to remove dependency on `impl<T> Clone for Py<T>` is to wrap `Py<T>` as `Arc<Py<T>>` and use cloning of the arc.
 
 Related to this, we also added a `pyo3_disable_reference_pool` conditional compilation flag which removes the infrastructure necessary to apply delayed reference count decrements implied by `impl<T> Drop for Py<T>`. They do not appear to be a soundness hazard as they should lead to memory leaks in the worst case. However, the global synchronization adds significant overhead to cross the Python-Rust boundary. Enabling this feature will remove these costs and make the `Drop` implementation abort the process if called without the GIL being held instead.
 </details>
