@@ -248,31 +248,27 @@ After:
 ```rust
 # use pyo3::prelude::*;
 # fn main() {
-#[cfg(not(Py_GIL_DISABLED))]
-use pyo3::sync::GILProtected;
 use pyo3::types::{PyDict, PyNone};
-#[cfg(not(Py_GIL_DISABLED))]
-use std::cell::RefCell;
-#[cfg(Py_GIL_DISABLED)]
 use std::sync::Mutex;
 
-#[cfg(not(Py_GIL_DISABLED))]
-static OBJECTS: GILProtected<RefCell<Vec<Py<PyDict>>>> =
-    GILProtected::new(RefCell::new(Vec::new()));
-#[cfg(Py_GIL_DISABLED)]
 static OBJECTS: Mutex<Vec<Py<PyDict>>> = Mutex::new(Vec::new());
 
 Python::with_gil(|py| {
     // stand-in for something that executes arbitrary python code
     let d = PyDict::new(py);
     d.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
-    #[cfg(not(Py_GIL_DISABLED))]
-    OBJECTS.get(py).borrow_mut().push(d.unbind());
-    #[cfg(Py_GIL_DISABLED)]
+    // we're not executing python code while holding the lock, so GILProtected
+    // was never needed
     OBJECTS.lock().unwrap().push(d.unbind());
 });
 # }
 ```
+
+If you are executing arbitrary Python code while holding the lock, then you will
+need to use conditional compilation to use `GILProtected` on GIL-enabled python
+builds and mutexes otherwise. Python 3.13 introduces `PyMutex`, which releases
+the GIL while the lock is held, so that is another option if you only need to
+support newer Python versions.
 
 </details>
 
