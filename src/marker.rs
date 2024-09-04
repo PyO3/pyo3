@@ -634,7 +634,7 @@ impl<'py> Python<'py> {
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
         unsafe {
-            let mptr = ffi::PyImport_AddModule(ffi::c_str!("__main__").as_ptr());
+            let mptr = ffi::compat::PyImport_AddModuleRef(ffi::c_str!("__main__").as_ptr());
             if mptr.is_null() {
                 return Err(PyErr::fetch(self));
             }
@@ -642,6 +642,7 @@ impl<'py> Python<'py> {
             let globals = globals
                 .map(|dict| dict.as_ptr())
                 .unwrap_or_else(|| ffi::PyModule_GetDict(mptr));
+            ffi::Py_DECREF(mptr);
             let locals = locals.map(|dict| dict.as_ptr()).unwrap_or(globals);
 
             // If `globals` don't provide `__builtins__`, most of the code will fail if Python
