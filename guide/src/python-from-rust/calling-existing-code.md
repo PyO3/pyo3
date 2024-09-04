@@ -27,7 +27,7 @@ fn main() -> PyResult<()> {
 ## Want to run just an expression? Then use `eval_bound`.
 
 [`Python::eval_bound`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval_bound) is
-a method to execute a [Python expression](https://docs.python.org/3.7/reference/expressions.html)
+a method to execute a [Python expression](https://docs.python.org/3/reference/expressions.html)
 and return the evaluated value as a `Bound<'py, PyAny>` object.
 
 ```rust
@@ -51,7 +51,7 @@ Python::with_gil(|py| {
 ## Want to run statements? Then use `run_bound`.
 
 [`Python::run_bound`] is a method to execute one or more
-[Python statements](https://docs.python.org/3.7/reference/simple_stmts.html).
+[Python statements](https://docs.python.org/3/reference/simple_stmts.html).
 This method returns nothing (like any Python statement), but you can get
 access to manipulated objects via the `locals` dict.
 
