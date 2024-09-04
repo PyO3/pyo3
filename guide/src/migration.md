@@ -198,6 +198,80 @@ impl<'a, 'py> IntoPyObject<'py> for &'a MyPyObjectWrapper {
 ```
 </details>
 
+### Free-threaded Python Support
+<details open>
+<summary><small>Click to expand</small></summary>
+
+PyO3 0.23 introduces preliminary support for the new free-threaded build of
+CPython 3.13. PyO3 features that implicitly assumed the existence of the GIL
+are not exposed in the free-threaded build, since they are no longer safe.
+
+If you make use of these features then you will need to account for the
+unavailability of this API in the free-threaded build. One way to handle it is
+via conditional compilation -- extensions built for the free-threaded build will
+have the `Py_GIL_DISABLED` attribute defined.
+
+### `GILProtected`
+
+`GILProtected` allows mutable access to static data by leveraging the GIL to
+lock concurrent access from other threads. In free-threaded python there is no
+GIL, so you will need to replace this type with some other form of locking. In
+many cases, `std::sync::Atomic` or `std::sync::Mutex` will be sufficient. If the
+locks do not guard the execution of arbitrary Python code or use of the CPython
+C API then conditional compilation is likely unnecessary since `GILProtected`
+was not needed in the first place.
+
+Before:
+
+```rust
+# fn main() {
+# #[cfg(not(Py_GIL_DISABLED))] {
+# use pyo3::prelude::*;
+use pyo3::sync::GILProtected;
+use pyo3::types::{PyDict, PyNone};
+use std::cell::RefCell;
+
+static OBJECTS: GILProtected<RefCell<Vec<Py<PyDict>>>> =
+    GILProtected::new(RefCell::new(Vec::new()));
+
+Python::with_gil(|py| {
+    // stand-in for something that executes arbitrary python code
+    let d = PyDict::new(py);
+    d.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
+    OBJECTS.get(py).borrow_mut().push(d.unbind());
+});
+# }}
+```
+
+After:
+
+```rust
+# use pyo3::prelude::*;
+# fn main() {
+use pyo3::types::{PyDict, PyNone};
+use std::sync::Mutex;
+
+static OBJECTS: Mutex<Vec<Py<PyDict>>> = Mutex::new(Vec::new());
+
+Python::with_gil(|py| {
+    // stand-in for something that executes arbitrary python code
+    let d = PyDict::new(py);
+    d.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
+    // we're not executing python code while holding the lock, so GILProtected
+    // was never needed
+    OBJECTS.lock().unwrap().push(d.unbind());
+});
+# }
+```
+
+If you are executing arbitrary Python code while holding the lock, then you will
+need to use conditional compilation to use `GILProtected` on GIL-enabled python
+builds and mutexes otherwise. Python 3.13 introduces `PyMutex`, which releases
+the GIL while the lock is held, so that is another option if you only need to
+support newer Python versions.
+
+</details>
+
 ## from 0.21.* to 0.22
 
 ### Deprecation of `gil-refs` feature continues

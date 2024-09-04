@@ -1,5 +1,4 @@
 use std::{
-    cell::RefCell,
     ffi::CStr,
     marker::PhantomData,
     thread::{self, ThreadId},
@@ -11,10 +10,12 @@ use crate::{
     impl_::pyclass::MaybeRuntimePyMethodDef,
     impl_::pymethods::PyMethodDefType,
     pyclass::{create_type_object, PyClassTypeObject},
-    sync::{GILOnceCell, GILProtected},
+    sync::GILOnceCell,
     types::PyType,
     Bound, PyClass, PyErr, PyObject, PyResult, Python,
 };
+
+use std::sync::Mutex;
 
 use super::PyClassItemsIter;
 
@@ -27,7 +28,7 @@ struct LazyTypeObjectInner {
     value: GILOnceCell<PyClassTypeObject>,
     // Threads which have begun initialization of the `tp_dict`. Used for
     // reentrant initialization detection.
-    initializing_threads: GILProtected<RefCell<Vec<ThreadId>>>,
+    initializing_threads: Mutex<Vec<ThreadId>>,
     tp_dict_filled: GILOnceCell<()>,
 }
 
@@ -38,7 +39,7 @@ impl<T> LazyTypeObject<T> {
         LazyTypeObject(
             LazyTypeObjectInner {
                 value: GILOnceCell::new(),
-                initializing_threads: GILProtected::new(RefCell::new(Vec::new())),
+                initializing_threads: Mutex::new(Vec::new()),
                 tp_dict_filled: GILOnceCell::new(),
             },
             PhantomData,
@@ -117,7 +118,7 @@ impl LazyTypeObjectInner {
 
         let thread_id = thread::current().id();
         {
-            let mut threads = self.initializing_threads.get(py).borrow_mut();
+            let mut threads = self.initializing_threads.lock().unwrap();
             if threads.contains(&thread_id) {
                 // Reentrant call: just return the type object, even if the
                 // `tp_dict` is not filled yet.
@@ -127,20 +128,18 @@ impl LazyTypeObjectInner {
         }
 
         struct InitializationGuard<'a> {
-            initializing_threads: &'a GILProtected<RefCell<Vec<ThreadId>>>,
-            py: Python<'a>,
+            initializing_threads: &'a Mutex<Vec<ThreadId>>,
             thread_id: ThreadId,
         }
         impl Drop for InitializationGuard<'_> {
             fn drop(&mut self) {
-                let mut threads = self.initializing_threads.get(self.py).borrow_mut();
+                let mut threads = self.initializing_threads.lock().unwrap();
                 threads.retain(|id| *id != self.thread_id);
             }
         }
 
         let guard = InitializationGuard {
             initializing_threads: &self.initializing_threads,
-            py,
             thread_id,
         };
 
@@ -185,8 +184,11 @@ impl LazyTypeObjectInner {
 
             // Initialization successfully complete, can clear the thread list.
             // (No further calls to get_or_init() will try to init, on any thread.)
-            std::mem::forget(guard);
-            self.initializing_threads.get(py).replace(Vec::new());
+            let mut threads = {
+                drop(guard);
+                self.initializing_threads.lock().unwrap()
+            };
+            threads.clear();
             result
         });
 
