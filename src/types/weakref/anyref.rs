@@ -1,7 +1,10 @@
 use crate::err::{DowncastError, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
-use crate::types::any::{PyAny, PyAnyMethods};
+use crate::types::{
+    any::{PyAny, PyAnyMethods},
+    PyNone,
+};
 use crate::{ffi, Borrowed, Bound};
 
 /// Represents any Python `weakref` reference.
@@ -502,7 +505,7 @@ pub trait PyWeakrefMethods<'py> {
     /// This function returns `Some(Bound<'py, PyAny>)` if the reference still exists, otherwise `None` will be returned.
     ///
     /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
-    /// It produces similair results to using [`PyWeakref_GetObject`] in the C api.
+    /// It produces similar results to using [`PyWeakref_GetObject`] in the C api.
     ///
     /// # Example
     #[cfg_attr(
@@ -572,7 +575,7 @@ pub trait PyWeakrefMethods<'py> {
     /// This function returns `Some(Borrowed<'_, 'py, PyAny>)` if the reference still exists, otherwise `None` will be returned.
     ///
     /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
-    /// It produces similair results to using [`PyWeakref_GetObject`] in the C api.
+    /// It produces similar results to using [`PyWeakref_GetObject`] in the C api.
     ///
     /// # Example
     #[cfg_attr(
@@ -644,7 +647,7 @@ pub trait PyWeakrefMethods<'py> {
     /// This function returns `Bound<'py, PyAny>`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::PyNone).
     ///
     /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
-    /// It produces similair results to using [`PyWeakref_GetObject`] in the C api.
+    /// It produces similar results to using [`PyWeakref_GetObject`] in the C api.
     ///
     /// # Example
     #[cfg_attr(
@@ -695,17 +698,14 @@ pub trait PyWeakrefMethods<'py> {
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
-    fn get_object(&self) -> Bound<'py, PyAny> {
-        // PyWeakref_GetObject does some error checking, however we ensure the passed object is Non-Null and a Weakref type.
-        self.get_object_borrowed().to_owned()
-    }
+    fn get_object(&self) -> Bound<'py, PyAny>;
 
     /// Retrieve to a Borrowed object pointed to by the weakref.
     ///
     /// This function returns `Borrowed<'py, PyAny>`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::PyNone).
     ///
     /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
-    /// It produces similair results to  using [`PyWeakref_GetObject`] in the C api.
+    /// It produces similar results to  using [`PyWeakref_GetObject`] in the C api.
     ///
     /// # Example
     #[cfg_attr(
@@ -766,6 +766,15 @@ impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakref> {
         // PyWeakref_GetObject does some error checking, however we ensure the passed object is Non-Null and a Weakref type.
         unsafe { ffi::PyWeakref_GetObject(self.as_ptr()).assume_borrowed_or_err(self.py()) }
              .expect("The 'weakref' weak reference instance should be valid (non-null and actually a weakref reference)")
+    }
+
+    fn get_object(&self) -> Bound<'py, PyAny> {
+        let mut obj: *mut ffi::PyObject = std::ptr::null_mut();
+        match unsafe { ffi::compat::PyWeakref_GetRef(self.as_ptr(), &mut obj) } {
+            std::os::raw::c_int::MIN..=-1 => panic!("The 'weakref' weak reference instance should be valid (non-null and actually a weakref reference)"),
+            0 => PyNone::get(self.py()).to_owned().into_any(),
+            1..=std::os::raw::c_int::MAX => unsafe { obj.assume_owned(self.py()) },
+        }
     }
 }
 
