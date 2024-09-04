@@ -92,9 +92,10 @@ If you're packaging your library for redistribution, you should indicated the Py
 
 To use PyO3 with bazel one needs to manually configure PyO3, PyO3-ffi and PyO3-macros. In particular, one needs to make sure that it is compiled with the right python flags for the version you intend to use.
 For example see:
-1. https://github.com/abrisco/rules_pyo3 -- General rules for building extension modules.
-2. https://github.com/OliverFM/pytorch_with_gazelle -- for a minimal example of a repo that can use PyO3, PyTorch and Gazelle to generate python Build files.
-3. https://github.com/TheButlah/rules_pyo3 -- is somewhat dated.
+
+1. [github.com/abrisco/rules_pyo3](https://github.com/abrisco/rules_pyo3) -- General rules for building extension modules.
+2. [github.com/OliverFM/pytorch_with_gazelle](https://github.com/OliverFM/pytorch_with_gazelle) -- for a minimal example of a repo that can use PyO3, PyTorch and Gazelle to generate python Build files.
+3. [github.com/TheButlah/rules_pyo3](https://github.com/TheButlah/rules_pyo3) -- is somewhat dated.
 
 #### Platform tags
 
