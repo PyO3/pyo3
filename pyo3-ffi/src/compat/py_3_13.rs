@@ -56,7 +56,7 @@ compat_function!(
 
     #[inline]
     pub unsafe fn PyWeakref_GetRef(
-        _ref: *mut crate::PyObject,
+        reference: *mut crate::PyObject,
         pobj: *mut *mut crate::PyObject,
     ) -> std::os::raw::c_int {
         use crate::{
@@ -64,14 +64,14 @@ compat_function!(
             PyWeakref_GetObject, Py_None,
         };
 
-        if !_ref.is_null() && PyWeakref_Check(_ref) == 0 {
+        if !reference.is_null() && PyWeakref_Check(reference) == 0 {
             *pobj = std::ptr::null_mut();
             PyErr_SetString(PyExc_TypeError, c_str!("expected a weakref").as_ptr());
             return -1;
         }
-        let obj = PyWeakref_GetObject(_ref);
+        let obj = PyWeakref_GetObject(reference);
         if obj.is_null() {
-            // SystemError if _ref is NULL
+            // SystemError if reference is NULL
             *pobj = std::ptr::null_mut();
             return -1;
         }
