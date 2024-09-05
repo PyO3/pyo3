@@ -44,11 +44,7 @@ error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_>` is not 
 20 | async fn missing_cancel_handle_attribute(_param: pyo3::coroutine::CancelHandle) {}
    |                                                  ^^^^ the trait `PyClass` is not implemented for `CancelHandle`, which is required by `CancelHandle: PyFunctionArgument<'_, '_>`
    |
-   = help: the following other types implement trait `PyFunctionArgument<'a, 'py>`:
-             &'a mut pyo3::coroutine::Coroutine
-             &'a pyo3::Bound<'py, T>
-             &'a pyo3::coroutine::Coroutine
-             Option<&'a pyo3::Bound<'py, T>>
+   = help: the trait `PyClass` is implemented for `pyo3::coroutine::Coroutine`
    = note: required for `CancelHandle` to implement `FromPyObject<'_>`
    = note: required for `CancelHandle` to implement `FromPyObjectBound<'_, '_>`
    = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_>`
