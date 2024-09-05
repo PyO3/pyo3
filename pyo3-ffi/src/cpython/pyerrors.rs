@@ -152,10 +152,7 @@ pub struct PyStopIterationObject {
     pub value: *mut PyObject,
 }
 
-extern "C" {
-    #[cfg(not(any(PyPy, GraalPy)))]
-    pub fn _PyErr_ChainExceptions(typ: *mut PyObject, val: *mut PyObject, tb: *mut PyObject);
-}
+// skipped _PyErr_ChainExceptions
 
 // skipped PyNameErrorObject
 // skipped PyAttributeErrorObject

@@ -1,7 +1,6 @@
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::Py_hash_t;
-use crate::{PyObject, Py_UCS1, Py_UCS2, Py_UCS4, Py_UNICODE, Py_ssize_t};
-#[cfg(not(any(Py_3_12, GraalPy)))]
+use crate::{PyObject, Py_UCS1, Py_UCS2, Py_UCS4, Py_ssize_t};
 use libc::wchar_t;
 use std::os::raw::{c_char, c_int, c_uint, c_void};
 
@@ -588,7 +587,7 @@ extern "C" {
     #[cfg(not(Py_3_12))]
     #[deprecated]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_FromUnicode")]
-    pub fn PyUnicode_FromUnicode(u: *const Py_UNICODE, size: Py_ssize_t) -> *mut PyObject;
+    pub fn PyUnicode_FromUnicode(u: *const wchar_t, size: Py_ssize_t) -> *mut PyObject;
 
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_FromKindAndData")]
     pub fn PyUnicode_FromKindAndData(
@@ -603,7 +602,7 @@ extern "C" {
     #[cfg(not(Py_3_12))]
     #[deprecated]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_AsUnicode")]
-    pub fn PyUnicode_AsUnicode(unicode: *mut PyObject) -> *mut Py_UNICODE;
+    pub fn PyUnicode_AsUnicode(unicode: *mut PyObject) -> *mut wchar_t;
 
     // skipped _PyUnicode_AsUnicode
 
@@ -613,7 +612,7 @@ extern "C" {
     pub fn PyUnicode_AsUnicodeAndSize(
         unicode: *mut PyObject,
         size: *mut Py_ssize_t,
-    ) -> *mut Py_UNICODE;
+    ) -> *mut wchar_t;
 
     // skipped PyUnicode_GetMax
 }
@@ -642,14 +641,14 @@ extern "C" {
     // skipped _PyUnicode_AsString
 
     pub fn PyUnicode_Encode(
-        s: *const Py_UNICODE,
+        s: *const wchar_t,
         size: Py_ssize_t,
         encoding: *const c_char,
         errors: *const c_char,
     ) -> *mut PyObject;
 
     pub fn PyUnicode_EncodeUTF7(
-        data: *const Py_UNICODE,
+        data: *const wchar_t,
         length: Py_ssize_t,
         base64SetO: c_int,
         base64WhiteSpace: c_int,
@@ -661,13 +660,13 @@ extern "C" {
 
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_EncodeUTF8")]
     pub fn PyUnicode_EncodeUTF8(
-        data: *const Py_UNICODE,
+        data: *const wchar_t,
         length: Py_ssize_t,
         errors: *const c_char,
     ) -> *mut PyObject;
 
     pub fn PyUnicode_EncodeUTF32(
-        data: *const Py_UNICODE,
+        data: *const wchar_t,
         length: Py_ssize_t,
         errors: *const c_char,
         byteorder: c_int,
@@ -676,7 +675,7 @@ extern "C" {
     // skipped _PyUnicode_EncodeUTF32
 
     pub fn PyUnicode_EncodeUTF16(
-        data: *const Py_UNICODE,
+        data: *const wchar_t,
         length: Py_ssize_t,
         errors: *const c_char,
         byteorder: c_int,
@@ -685,13 +684,11 @@ extern "C" {
     // skipped _PyUnicode_EncodeUTF16
     // skipped _PyUnicode_DecodeUnicodeEscape
 
-    pub fn PyUnicode_EncodeUnicodeEscape(
-        data: *const Py_UNICODE,
-        length: Py_ssize_t,
-    ) -> *mut PyObject;
+    pub fn PyUnicode_EncodeUnicodeEscape(data: *const wchar_t, length: Py_ssize_t)
+        -> *mut PyObject;
 
     pub fn PyUnicode_EncodeRawUnicodeEscape(
-        data: *const Py_UNICODE,
+        data: *const wchar_t,
         length: Py_ssize_t,
     ) -> *mut PyObject;
 
@@ -699,7 +696,7 @@ extern "C" {
 
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_EncodeLatin1")]
     pub fn PyUnicode_EncodeLatin1(
-        data: *const Py_UNICODE,
+        data: *const wchar_t,
         length: Py_ssize_t,
         errors: *const c_char,
     ) -> *mut PyObject;
@@ -708,13 +705,13 @@ extern "C" {
 
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_EncodeASCII")]
     pub fn PyUnicode_EncodeASCII(
-        data: *const Py_UNICODE,
+        data: *const wchar_t,
         length: Py_ssize_t,
         errors: *const c_char,
     ) -> *mut PyObject;
 
     pub fn PyUnicode_EncodeCharmap(
-        data: *const Py_UNICODE,
+        data: *const wchar_t,
         length: Py_ssize_t,
         mapping: *mut PyObject,
         errors: *const c_char,
@@ -723,7 +720,7 @@ extern "C" {
     // skipped _PyUnicode_EncodeCharmap
 
     pub fn PyUnicode_TranslateCharmap(
-        data: *const Py_UNICODE,
+        data: *const wchar_t,
         length: Py_ssize_t,
         table: *mut PyObject,
         errors: *const c_char,
@@ -733,17 +730,14 @@ extern "C" {
 
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_EncodeDecimal")]
     pub fn PyUnicode_EncodeDecimal(
-        s: *mut Py_UNICODE,
+        s: *mut wchar_t,
         length: Py_ssize_t,
         output: *mut c_char,
         errors: *const c_char,
     ) -> c_int;
 
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_TransformDecimalToASCII")]
-    pub fn PyUnicode_TransformDecimalToASCII(
-        s: *mut Py_UNICODE,
-        length: Py_ssize_t,
-    ) -> *mut PyObject;
+    pub fn PyUnicode_TransformDecimalToASCII(s: *mut wchar_t, length: Py_ssize_t) -> *mut PyObject;
 
     // skipped _PyUnicode_TransformDecimalAndSpaceToASCII
 }
