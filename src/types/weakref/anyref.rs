@@ -37,7 +37,7 @@ pub trait PyWeakrefMethods<'py> {
     /// Upgrade the weakref to a direct Bound object reference.
     ///
     /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
-    /// In Python it would be equivalent to [`PyWeakref_GetObject`].
+    /// In Python it would be equivalent to [`PyWeakref_GetRef`].
     ///
     /// # Example
     #[cfg_attr(
@@ -97,7 +97,7 @@ pub trait PyWeakrefMethods<'py> {
     /// This function panics is the current object is invalid.
     /// If used propperly this is never the case. (NonNull and actually a weakref type)
     ///
-    /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
+    /// [`PyWeakref_GetRef`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetRef
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
     fn upgrade_as<T>(&self) -> PyResult<Option<Bound<'py, T>>>
@@ -194,7 +194,7 @@ pub trait PyWeakrefMethods<'py> {
     /// Upgrade the weakref to a direct Bound object reference unchecked. The type of the recovered object is not checked before downcasting, this could lead to unexpected behavior. Use only when absolutely certain the type can be guaranteed. The `weakref` may still return `None`.
     ///
     /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
-    /// In Python it would be equivalent to [`PyWeakref_GetObject`].
+    /// In Python it would be equivalent to [`PyWeakref_GetRef`].
     ///
     /// # Safety
     /// Callers must ensure that the type is valid or risk type confusion.
@@ -258,7 +258,7 @@ pub trait PyWeakrefMethods<'py> {
     /// This function panics is the current object is invalid.
     /// If used propperly this is never the case. (NonNull and actually a weakref type)
     ///
-    /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
+    /// [`PyWeakref_GetRef`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetRef
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
     unsafe fn upgrade_as_unchecked<T>(&self) -> Option<Bound<'py, T>> {
@@ -345,7 +345,7 @@ pub trait PyWeakrefMethods<'py> {
     /// Upgrade the weakref to a exact direct Bound object reference.
     ///
     /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
-    /// In Python it would be equivalent to [`PyWeakref_GetObject`].
+    /// In Python it would be equivalent to [`PyWeakref_GetRef`].
     ///
     /// # Example
     #[cfg_attr(
@@ -405,7 +405,7 @@ pub trait PyWeakrefMethods<'py> {
     /// This function panics is the current object is invalid.
     /// If used propperly this is never the case. (NonNull and actually a weakref type)
     ///
-    /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
+    /// [`PyWeakref_GetRef`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetRef
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
     fn upgrade_as_exact<T>(&self) -> PyResult<Option<Bound<'py, T>>>
@@ -505,7 +505,7 @@ pub trait PyWeakrefMethods<'py> {
     /// This function returns `Some(Bound<'py, PyAny>)` if the reference still exists, otherwise `None` will be returned.
     ///
     /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
-    /// It produces similar results to using [`PyWeakref_GetObject`] in the C api.
+    /// It produces similar results to using [`PyWeakref_GetRef`] in the C api.
     ///
     /// # Example
     #[cfg_attr(
@@ -556,7 +556,7 @@ pub trait PyWeakrefMethods<'py> {
     /// This function panics is the current object is invalid.
     /// If used propperly this is never the case. (NonNull and actually a weakref type)
     ///
-    /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
+    /// [`PyWeakref_GetRef`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetRef
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
     fn upgrade(&self) -> Option<Bound<'py, PyAny>> {
@@ -647,7 +647,7 @@ pub trait PyWeakrefMethods<'py> {
     /// This function returns `Bound<'py, PyAny>`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::PyNone).
     ///
     /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
-    /// It produces similar results to using [`PyWeakref_GetObject`] in the C api.
+    /// It produces similar results to using [`PyWeakref_GetRef`] in the C api.
     ///
     /// # Example
     #[cfg_attr(
@@ -695,7 +695,7 @@ pub trait PyWeakrefMethods<'py> {
     /// This function panics is the current object is invalid.
     /// If used propperly this is never the case. (NonNull and actually a weakref type)
     ///
-    /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
+    /// [`PyWeakref_GetRef`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetRef
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
     fn get_object(&self) -> Bound<'py, PyAny>;
