@@ -45,7 +45,7 @@ compat_function!(
     pub unsafe fn PyImport_AddModuleRef(
         name: *const std::os::raw::c_char,
     ) -> *mut crate::PyObject {
-        use crate::{Py_XNewRef, PyImport_AddModule};
+        use crate::{compat::Py_XNewRef, PyImport_AddModule};
 
         Py_XNewRef(PyImport_AddModule(name))
     }
