@@ -758,12 +758,14 @@ pub trait PyWeakrefMethods<'py> {
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
     #[track_caller]
     // TODO: This function is the reason every function tracks caller, however it only panics when the weakref object is not actually a weakreference type. So is it this neccessary?
+    // TODO: we should deprecate this because it relies on the semantics of a deprecated C API item
     fn get_object_borrowed(&self) -> Borrowed<'_, 'py, PyAny>;
 }
 
 impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakref> {
     fn get_object_borrowed(&self) -> Borrowed<'_, 'py, PyAny> {
         // PyWeakref_GetObject does some error checking, however we ensure the passed object is Non-Null and a Weakref type.
+        #![allow(deprecated)]
         unsafe { ffi::PyWeakref_GetObject(self.as_ptr()).assume_borrowed_or_err(self.py()) }
              .expect("The 'weakref' weak reference instance should be valid (non-null and actually a weakref reference)")
     }

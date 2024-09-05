@@ -184,6 +184,7 @@ impl PyWeakrefProxy {
 impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakrefProxy> {
     fn get_object_borrowed(&self) -> Borrowed<'_, 'py, PyAny> {
         // PyWeakref_GetObject does some error checking, however we ensure the passed object is Non-Null and a Weakref type.
+        #![allow(deprecated)]
         unsafe { ffi::PyWeakref_GetObject(self.as_ptr()).assume_borrowed_or_err(self.py()) }
             .expect("The 'weakref.ProxyType' (or `weakref.CallableProxyType`) instance should be valid (non-null and actually a weakref reference)")
     }
