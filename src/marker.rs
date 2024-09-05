@@ -116,7 +116,7 @@
 //! [`SendWrapper`]: https://docs.rs/send_wrapper/latest/send_wrapper/struct.SendWrapper.html
 //! [`Rc`]: std::rc::Rc
 //! [`Py`]: crate::Py
-#[cfg(not(Py_3_10))]
+#[cfg(any(doc, not(Py_3_10)))]
 use crate::err::PyErr;
 use crate::err::{self, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
