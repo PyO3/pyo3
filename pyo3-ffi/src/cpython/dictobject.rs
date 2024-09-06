@@ -13,6 +13,10 @@ opaque_struct!(PyDictValues);
 pub struct PyDictObject {
     pub ob_base: PyObject,
     pub ma_used: Py_ssize_t,
+    #[cfg_attr(
+        Py_3_12,
+        deprecated(note = "Deprecated in Python 3.12 and will be removed in the future.")
+    )]
     pub ma_version_tag: u64,
     pub ma_keys: *mut PyDictKeysObject,
     #[cfg(not(Py_3_11))]
