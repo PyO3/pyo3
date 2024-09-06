@@ -30,6 +30,9 @@ extern "C" {
     pub fn PyImport_AddModuleObject(name: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyImport_AddModule")]
     pub fn PyImport_AddModule(name: *const c_char) -> *mut PyObject;
+    #[cfg(Py_3_13)]
+    #[cfg_attr(PyPy, link_name = "PyPyImport_AddModuleRef")]
+    pub fn PyImport_AddModuleRef(name: *const c_char) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyImport_ImportModule")]
     pub fn PyImport_ImportModule(name: *const c_char) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyImport_ImportModuleNoBlock")]

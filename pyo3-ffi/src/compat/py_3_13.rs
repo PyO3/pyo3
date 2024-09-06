@@ -37,3 +37,16 @@ compat_function!(
         item
     }
 );
+
+compat_function!(
+    originally_defined_for(Py_3_13);
+
+    #[inline]
+    pub unsafe fn PyImport_AddModuleRef(
+        name: *const std::os::raw::c_char,
+    ) -> *mut crate::PyObject {
+        use crate::{compat::Py_XNewRef, PyImport_AddModule};
+
+        Py_XNewRef(PyImport_AddModule(name))
+    }
+);

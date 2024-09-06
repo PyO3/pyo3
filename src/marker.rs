@@ -116,7 +116,9 @@
 //! [`SendWrapper`]: https://docs.rs/send_wrapper/latest/send_wrapper/struct.SendWrapper.html
 //! [`Rc`]: std::rc::Rc
 //! [`Py`]: crate::Py
-use crate::err::{self, PyErr, PyResult};
+#[cfg(any(doc, not(Py_3_10)))]
+use crate::err::PyErr;
+use crate::err::{self, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::gil::{GILGuard, SuspendGIL};
 use crate::impl_::not_send::NotSend;
@@ -633,17 +635,19 @@ impl<'py> Python<'py> {
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        unsafe {
-            let mptr = ffi::PyImport_AddModule(ffi::c_str!("__main__").as_ptr());
-            if mptr.is_null() {
-                return Err(PyErr::fetch(self));
-            }
+        let mptr = unsafe {
+            ffi::compat::PyImport_AddModuleRef(ffi::c_str!("__main__").as_ptr())
+                .assume_owned_or_err(self)?
+        };
+        let attr = mptr.getattr(crate::intern!(self, "__dict__"))?;
+        let globals = match globals {
+            Some(globals) => globals,
+            None => attr.downcast::<PyDict>()?,
+        };
+        let locals = locals.unwrap_or(globals);
 
-            let globals = globals
-                .map(|dict| dict.as_ptr())
-                .unwrap_or_else(|| ffi::PyModule_GetDict(mptr));
-            let locals = locals.map(|dict| dict.as_ptr()).unwrap_or(globals);
-
+        #[cfg(not(Py_3_10))]
+        {
             // If `globals` don't provide `__builtins__`, most of the code will fail if Python
             // version is <3.10. That's probably not what user intended, so insert `__builtins__`
             // for them.
@@ -652,30 +656,31 @@ impl<'py> Python<'py> {
             // - https://github.com/python/cpython/pull/24564 (the same fix in CPython 3.10)
             // - https://github.com/PyO3/pyo3/issues/3370
             let builtins_s = crate::intern!(self, "__builtins__").as_ptr();
-            let has_builtins = ffi::PyDict_Contains(globals, builtins_s);
+            let has_builtins = unsafe { ffi::PyDict_Contains(globals.as_ptr(), builtins_s) };
             if has_builtins == -1 {
                 return Err(PyErr::fetch(self));
             }
             if has_builtins == 0 {
                 // Inherit current builtins.
-                let builtins = ffi::PyEval_GetBuiltins();
+                let builtins = unsafe { ffi::PyEval_GetBuiltins() };
 
                 // `PyDict_SetItem` doesn't take ownership of `builtins`, but `PyEval_GetBuiltins`
                 // seems to return a borrowed reference, so no leak here.
-                if ffi::PyDict_SetItem(globals, builtins_s, builtins) == -1 {
+                if unsafe { ffi::PyDict_SetItem(globals.as_ptr(), builtins_s, builtins) } == -1 {
                     return Err(PyErr::fetch(self));
                 }
             }
+        }
 
-            let code_obj =
-                ffi::Py_CompileString(code.as_ptr(), ffi::c_str!("<string>").as_ptr(), start);
-            if code_obj.is_null() {
-                return Err(PyErr::fetch(self));
-            }
-            let res_ptr = ffi::PyEval_EvalCode(code_obj, globals, locals);
-            ffi::Py_DECREF(code_obj);
+        let code_obj = unsafe {
+            ffi::Py_CompileString(code.as_ptr(), ffi::c_str!("<string>").as_ptr(), start)
+                .assume_owned_or_err(self)?
+        };
 
-            res_ptr.assume_owned_or_err(self).downcast_into_unchecked()
+        unsafe {
+            ffi::PyEval_EvalCode(code_obj.as_ptr(), globals.as_ptr(), locals.as_ptr())
+                .assume_owned_or_err(self)
+                .downcast_into_unchecked()
         }
     }
 
@@ -997,12 +1002,15 @@ mod tests {
         Python::with_gil(|py| {
             let namespace = PyDict::new(py);
             py.run(
-                ffi::c_str!("class Foo: pass"),
+                ffi::c_str!("class Foo: pass\na = int(3)"),
                 Some(&namespace),
                 Some(&namespace),
             )
             .unwrap();
             assert!(matches!(namespace.get_item("Foo"), Ok(Some(..))));
+            assert!(matches!(namespace.get_item("a"), Ok(Some(..))));
+            // 3.9 and older did not automatically insert __builtins__ if it wasn't inserted "by hand"
+            #[cfg(not(Py_3_10))]
             assert!(matches!(namespace.get_item("__builtins__"), Ok(Some(..))));
         })
     }
