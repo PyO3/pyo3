@@ -147,15 +147,7 @@ where
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        try_new_from_iter(
-            py,
-            self.into_iter().map(|item| {
-                item.into_pyobject(py)
-                    .map(BoundObject::into_any)
-                    .map(BoundObject::unbind)
-                    .map_err(Into::into)
-            }),
-        )
+        try_new_from_iter(py, self)
     }
 }
 
@@ -169,15 +161,7 @@ where
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        try_new_from_iter(
-            py,
-            self.into_iter().map(|item| {
-                item.into_pyobject(py)
-                    .map(BoundObject::into_any)
-                    .map(BoundObject::unbind)
-                    .map_err(Into::into)
-            }),
-        )
+        try_new_from_iter(py, self)
     }
 }
 
@@ -272,11 +256,11 @@ mod tests {
     #[test]
     fn test_extract_hashbrown_hashset() {
         Python::with_gil(|py| {
-            let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+            let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
             let hash_set: hashbrown::HashSet<usize> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
 
-            let set = PyFrozenSet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+            let set = PyFrozenSet::new(py, [1, 2, 3, 4, 5]).unwrap();
             let hash_set: hashbrown::HashSet<usize> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
         });
