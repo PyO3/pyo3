@@ -710,7 +710,7 @@ fn warn_truncated_leap_second(obj: &Bound<'_, PyAny>) {
         ffi::c_str!("ignored leap-second, `datetime` does not support leap-seconds"),
         0,
     ) {
-        e.write_unraisable(py, Some(&obj.as_borrowed()))
+        e.write_unraisable(py, Some(obj))
     };
 }
 
