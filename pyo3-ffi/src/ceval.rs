@@ -104,7 +104,7 @@ extern "C" {
     #[cfg_attr(
         Py_3_9,
         deprecated(
-            note = "Deprecated in Python 3.9, this function alyways returns true in Python 3.7 or newer."
+            note = "Deprecated in Python 3.9, this function always returns true in Python 3.7 or newer."
         )
     )]
     pub fn PyEval_ThreadsInitialized() -> c_int;
