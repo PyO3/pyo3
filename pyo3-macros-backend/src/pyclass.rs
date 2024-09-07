@@ -533,11 +533,11 @@ impl<'a> PyClassSimpleEnum<'a> {
                 _ => bail_spanned!(variant.span() => "Must be a unit variant."),
             };
             let options = EnumVariantPyO3Options::take_pyo3_options(&mut variant.attrs)?;
-            let attrs = get_cfg_attributes(&variant.attrs);
+            let cfg_attrs = get_cfg_attributes(&variant.attrs);
             Ok(PyClassEnumUnitVariant {
                 ident,
                 options,
-                attrs,
+                cfg_attrs,
             })
         }
 
@@ -698,7 +698,7 @@ impl<'a> EnumVariant for PyClassEnumVariant<'a> {
 struct PyClassEnumUnitVariant<'a> {
     ident: &'a syn::Ident,
     options: EnumVariantPyO3Options,
-    attrs: Vec<&'a syn::Attribute>,
+    cfg_attrs: Vec<&'a syn::Attribute>,
 }
 
 impl<'a> EnumVariant for PyClassEnumUnitVariant<'a> {
@@ -886,14 +886,14 @@ fn impl_simple_enum(
     let (default_repr, default_repr_slot) = {
         let variants_repr = variants.iter().map(|variant| {
             let variant_name = variant.ident;
-            let attrs = &variant.attrs;
+            let cfg_attrs = &variant.cfg_attrs;
             // Assuming all variants are unit variants because they are the only type we support.
             let repr = format!(
                 "{}.{}",
                 get_class_python_name(cls, args),
                 variant.get_python_name(args),
             );
-            quote! { #(#attrs)* #cls::#variant_name => #repr, }
+            quote! { #(#cfg_attrs)* #cls::#variant_name => #repr, }
         });
         let mut repr_impl: syn::ImplItemFn = syn::parse_quote! {
             fn __pyo3__repr__(&self) -> &'static str {
@@ -915,8 +915,8 @@ fn impl_simple_enum(
         // This implementation allows us to convert &T to #repr_type without implementing `Copy`
         let variants_to_int = variants.iter().map(|variant| {
             let variant_name = variant.ident;
-            let attrs = &variant.attrs;
-            quote! { #(#attrs)* #cls::#variant_name => #cls::#variant_name as #repr_type, }
+            let cfg_attrs = &variant.cfg_attrs;
+            quote! { #(#cfg_attrs)* #cls::#variant_name => #cls::#variant_name as #repr_type, }
         });
         let mut int_impl: syn::ImplItemFn = syn::parse_quote! {
             fn __pyo3__int__(&self) -> #repr_type {
@@ -946,7 +946,7 @@ fn impl_simple_enum(
             cls,
             variants
                 .iter()
-                .map(|v| (v.ident, v.get_python_name(args), &v.attrs)),
+                .map(|v| (v.ident, v.get_python_name(args), &v.cfg_attrs)),
             ctx,
         ),
         default_slots,
