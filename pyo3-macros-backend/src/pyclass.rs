@@ -883,6 +883,8 @@ fn impl_simple_enum(
         ensure_spanned!(variant.options.constructor.is_none(), variant.options.constructor.span() => "`constructor` can't be used on a simple enum variant");
     }
 
+    let variant_cfg_check = generate_cfg_check(&variants, cls);
+
     let (default_repr, default_repr_slot) = {
         let variants_repr = variants.iter().map(|variant| {
             let variant_name = variant.ident;
@@ -897,7 +899,7 @@ fn impl_simple_enum(
         });
         let mut repr_impl: syn::ImplItemFn = syn::parse_quote! {
             fn __pyo3__repr__(&self) -> &'static str {
-                match self {
+                match *self {
                     #(#variants_repr)*
                 }
             }
@@ -920,7 +922,7 @@ fn impl_simple_enum(
         });
         let mut int_impl: syn::ImplItemFn = syn::parse_quote! {
             fn __pyo3__int__(&self) -> #repr_type {
-                match self {
+                match *self {
                     #(#variants_to_int)*
                 }
             }
@@ -955,6 +957,8 @@ fn impl_simple_enum(
     .impl_all(ctx)?;
 
     Ok(quote! {
+        #variant_cfg_check
+
         #pytypeinfo
 
         #pyclass_impls
@@ -2413,6 +2417,34 @@ fn define_inventory_class(inventory_class_name: &syn::Ident, ctx: &Ctx) -> Token
         }
 
         #pyo3_path::inventory::collect!(#inventory_class_name);
+    }
+}
+
+fn generate_cfg_check(variants: &[PyClassEnumUnitVariant<'_>], cls: &syn::Ident) -> TokenStream {
+    if variants.is_empty() {
+        return quote! {};
+    }
+
+    let mut conditions = Vec::new();
+
+    for variant in variants {
+        let cfg_attrs = &variant.cfg_attrs;
+
+        if cfg_attrs.is_empty() {
+            return quote! {};
+        }
+
+        for attr in cfg_attrs {
+            if let syn::Meta::List(meta) = &attr.meta {
+                let cfg_tokens = &meta.tokens;
+                conditions.push(quote! { not(#cfg_tokens) });
+            }
+        }
+    }
+
+    quote! {
+        #[cfg(all(#(#conditions),*))]
+        ::core::compile_error!(concat!("All variants of enum `", stringify!(#cls), "` have been disabled by cfg attributes"));
     }
 }
 
