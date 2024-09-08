@@ -145,7 +145,7 @@ use pyo3::types::PyTuple;
 
 # fn example<'py>(py: Python<'py>) -> PyResult<()> {
 // Create a new tuple with the elements (0, 1, 2)
-let t = PyTuple::new(py, [0, 1, 2]);
+let t = PyTuple::new(py, [0, 1, 2])?;
 for i in 0..=2 {
     let entry: Borrowed<'_, 'py, PyAny> = t.get_borrowed_item(i)?;
     // `PyAnyMethods::extract` is available on `Borrowed`
@@ -295,7 +295,7 @@ For example, the following snippet extracts a Rust tuple of integers from a Pyth
 # use pyo3::types::PyTuple;
 # fn example<'py>(py: Python<'py>) -> PyResult<()> {
 // create a new Python `tuple`, and use `.into_any()` to erase the type
-let obj: Bound<'py, PyAny> = PyTuple::new(py, [1, 2, 3]).into_any();
+let obj: Bound<'py, PyAny> = PyTuple::new(py, [1, 2, 3])?.into_any();
 
 // extracting the Python `tuple` to a rust `(i32, i32, i32)` tuple
 let (x, y, z) = obj.extract::<(i32, i32, i32)>()?;
