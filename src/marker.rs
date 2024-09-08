@@ -939,7 +939,7 @@ mod tests {
 
             // If allow_threads is implemented correctly, this thread still owns the GIL here
             // so the following Python calls should not cause crashes.
-            let list = PyList::new(py, [1, 2, 3, 4]);
+            let list = PyList::new(py, [1, 2, 3, 4]).unwrap();
             assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![1, 2, 3, 4]);
         });
     }
@@ -947,7 +947,7 @@ mod tests {
     #[cfg(not(pyo3_disable_reference_pool))]
     #[test]
     fn test_allow_threads_pass_stuff_in() {
-        let list = Python::with_gil(|py| PyList::new(py, vec!["foo", "bar"]).unbind());
+        let list = Python::with_gil(|py| PyList::new(py, vec!["foo", "bar"]).unwrap().unbind());
         let mut v = vec![1, 2, 3];
         let a = std::sync::Arc::new(String::from("foo"));
 

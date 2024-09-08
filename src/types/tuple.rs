@@ -1299,7 +1299,7 @@ mod tests {
         Python::with_gil(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3]);
             let list = tuple.to_list();
-            let list_expected = PyList::new(py, vec![1, 2, 3]);
+            let list_expected = PyList::new(py, vec![1, 2, 3]).unwrap();
             assert!(list.eq(list_expected).unwrap());
         })
     }

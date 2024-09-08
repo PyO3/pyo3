@@ -140,7 +140,7 @@ mod tests {
         Python::with_gil(|py| {
             let sv: SmallVec<[u64; 8]> = [1, 2, 3, 4, 5].iter().cloned().collect();
             let hso: PyObject = sv.clone().into_py(py);
-            let l = PyList::new(py, [1, 2, 3, 4, 5]);
+            let l = PyList::new(py, [1, 2, 3, 4, 5]).unwrap();
             assert!(l.eq(hso).unwrap());
         });
     }
@@ -148,7 +148,7 @@ mod tests {
     #[test]
     fn test_smallvec_from_py_object() {
         Python::with_gil(|py| {
-            let l = PyList::new(py, [1, 2, 3, 4, 5]);
+            let l = PyList::new(py, [1, 2, 3, 4, 5]).unwrap();
             let sv: SmallVec<[u64; 8]> = l.extract().unwrap();
             assert_eq!(sv.as_slice(), [1, 2, 3, 4, 5]);
         });
@@ -171,7 +171,7 @@ mod tests {
         Python::with_gil(|py| {
             let sv: SmallVec<[u64; 8]> = [1, 2, 3, 4, 5].iter().cloned().collect();
             let hso: PyObject = sv.to_object(py);
-            let l = PyList::new(py, [1, 2, 3, 4, 5]);
+            let l = PyList::new(py, [1, 2, 3, 4, 5]).unwrap();
             assert!(l.eq(hso).unwrap());
         });
     }

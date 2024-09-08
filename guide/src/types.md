@@ -232,7 +232,7 @@ fn get_first_item<'py>(list: &Bound<'py, PyList>) -> PyResult<Bound<'py, PyAny>>
     list.get_item(0)
 }
 # Python::with_gil(|py| {
-#     let l = PyList::new(py, ["hello world"]);
+#     let l = PyList::new(py, ["hello world"]).unwrap();
 #     assert!(get_first_item(&l).unwrap().eq("hello world").unwrap());
 # })
 ```
