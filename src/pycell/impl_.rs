@@ -1,9 +1,13 @@
 #![allow(missing_docs)]
 //! Crate-private implementation of PyClassObject
 
-use std::cell::{Cell, UnsafeCell};
+#[cfg(not(Py_GIL_DISABLED))]
+use std::cell::Cell;
+use std::cell::UnsafeCell;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
+#[cfg(Py_GIL_DISABLED)]
+use std::sync::Mutex;
 
 use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef,
@@ -65,7 +69,10 @@ impl BorrowFlag {
 }
 
 pub struct EmptySlot(());
+#[cfg(not(Py_GIL_DISABLED))]
 pub struct BorrowChecker(Cell<BorrowFlag>);
+#[cfg(Py_GIL_DISABLED)]
+pub struct BorrowChecker(Mutex<BorrowFlag>);
 
 pub trait PyClassBorrowChecker {
     /// Initial value for self
@@ -107,6 +114,7 @@ impl PyClassBorrowChecker for EmptySlot {
     }
 }
 
+#[cfg(not(Py_GIL_DISABLED))]
 impl PyClassBorrowChecker for BorrowChecker {
     #[inline]
     fn new() -> Self {
@@ -140,6 +148,43 @@ impl PyClassBorrowChecker for BorrowChecker {
 
     fn release_borrow_mut(&self) {
         self.0.set(BorrowFlag::UNUSED)
+    }
+}
+
+#[cfg(Py_GIL_DISABLED)]
+impl PyClassBorrowChecker for BorrowChecker {
+    #[inline]
+    fn new() -> Self {
+        Self(Mutex::new(BorrowFlag::UNUSED))
+    }
+
+    fn try_borrow(&self) -> Result<(), PyBorrowError> {
+        let mut flag = self.0.lock().unwrap();
+        if *flag != BorrowFlag::HAS_MUTABLE_BORROW {
+            *flag = flag.increment();
+            Ok(())
+        } else {
+            Err(PyBorrowError { _private: () })
+        }
+    }
+
+    fn release_borrow(&self) {
+        let mut flag = self.0.lock().unwrap();
+        *flag = flag.decrement();
+    }
+
+    fn try_borrow_mut(&self) -> Result<(), PyBorrowMutError> {
+        let mut flag = self.0.lock().unwrap();
+        if *flag == BorrowFlag::UNUSED {
+            *flag = BorrowFlag::HAS_MUTABLE_BORROW;
+            Ok(())
+        } else {
+            Err(PyBorrowMutError { _private: () })
+        }
+    }
+
+    fn release_borrow_mut(&self) {
+        *self.0.lock().unwrap() = BorrowFlag::UNUSED;
     }
 }
 
