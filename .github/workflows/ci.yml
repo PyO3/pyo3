@@ -513,7 +513,7 @@ jobs:
         with:
           components: rust-src
       # TODO: replace with setup-python when there is support
-      - uses: deadsnakes/action@v3.1.0
+      - uses: deadsnakes/action@v3.2.0
         with:
           python-version: '3.13-dev'
           nogil: true
