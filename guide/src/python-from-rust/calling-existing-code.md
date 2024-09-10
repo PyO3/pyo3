@@ -2,10 +2,9 @@
 
 If you already have some existing Python code that you need to execute from Rust, the following FAQs can help you select the right PyO3 functionality for your situation:
 
-## Want to access Python APIs? Then use `PyModule::import`.
+## Want to access Python APIs? Then use `import`.
 
-[`PyModule::import`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.import) can
-be used to get handle to a Python module from Rust. You can use this to import and use any Python
+[`Python::import`] can be used to get handle to a Python module from Rust. You can use this to import and use any Python
 module available in your environment.
 
 ```rust
@@ -13,7 +12,7 @@ use pyo3::prelude::*;
 
 fn main() -> PyResult<()> {
     Python::with_gil(|py| {
-        let builtins = PyModule::import(py, "builtins")?;
+        let builtins = py.import("builtins")?;
         let total: i32 = builtins
             .getattr("sum")?
             .call1((vec![1, 2, 3],))?
@@ -24,9 +23,16 @@ fn main() -> PyResult<()> {
 }
 ```
 
-## Want to run just an expression? Then use `eval_bound`.
+[`Python::import`] introduces an overhead each time it's called. To avoid this in functions that are called multiple times,
+using a [`GILOnceCell`]({{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html) is recommended. Specifically, for importing types,
+[`GILOnceCell::get_or_try_init_type_ref`]({{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html#method.get_or_try_init_type_ref) is provided
+(check out the [example]({{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html#example-using-giloncecell-to-avoid-the-overhead-of-importing-a-class-multiple-times)).
 
-[`Python::eval_bound`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval_bound) is
+[`Python::import`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.import
+
+## Want to run just an expression? Then use `eval`.
+
+[`Python::eval`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval) is
 a method to execute a [Python expression](https://docs.python.org/3/reference/expressions.html)
 and return the evaluated value as a `Bound<'py, PyAny>` object.
 
@@ -48,16 +54,18 @@ Python::with_gil(|py| {
 # }
 ```
 
-## Want to run statements? Then use `run_bound`.
+## Want to run statements? Then use `run`.
 
-[`Python::run_bound`] is a method to execute one or more
+[`Python::run`] is a method to execute one or more
 [Python statements](https://docs.python.org/3/reference/simple_stmts.html).
 This method returns nothing (like any Python statement), but you can get
 access to manipulated objects via the `locals` dict.
 
-You can also use the [`py_run!`] macro, which is a shorthand for [`Python::run_bound`].
+You can also use the [`py_run!`] macro, which is a shorthand for [`Python::run`].
 Since [`py_run!`] panics on exceptions, we recommend you use this macro only for
 quickly testing your Python extensions.
+
+[`Python::run`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.run
 
 ```rust
 use pyo3::prelude::*;
