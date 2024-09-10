@@ -1,7 +1,11 @@
+import concurrent.futures
+import sysconfig
 from typing import Type
 
 import pytest
 from pyo3_pytests import pyclasses
+
+FREETHREADED_BUILD = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
 
 
 def test_empty_class_init(benchmark):
@@ -51,6 +55,22 @@ def test_iter():
     with pytest.raises(StopIteration) as excinfo:
         next(i)
     assert excinfo.value.value == "Ended"
+
+
+@pytest.mark.skipif(not FREETHREADED_BUILD, "The GIL enforces runtime borrow checking")
+def test_parallel_iter():
+    i = pyclasses.PyClassThreadIter()
+
+    def func():
+        next(i)
+
+    # the second thread attempts to borrow a reference to the instance's
+    # state while the first thread is still sleeping, so we trigger a
+    # runtime borrow-check error
+    with pytest.raises(RuntimeError, match="Already borrowed"):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as tpe:
+            futures = [tpe.submit(func), tpe.submit(func)]
+            [f.result() for f in futures]
 
 
 class AssertingSubClass(pyclasses.AssertingBaseClass):
