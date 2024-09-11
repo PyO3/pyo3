@@ -21,7 +21,7 @@ The `#[pymodule]` procedural macro takes care of exporting the initialization fu
 module to Python.
 
 The module's name defaults to the name of the Rust function. You can override the module name by
-using `#[pyo3(name = "custom_name")]`:
+using `#[pymodule(name = "custom_name")]`:
 
 ```rust
 use pyo3::prelude::*;
