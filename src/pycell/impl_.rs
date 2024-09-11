@@ -1,13 +1,10 @@
 #![allow(missing_docs)]
 //! Crate-private implementation of PyClassObject
 
-#[cfg(not(Py_GIL_DISABLED))]
-use std::cell::Cell;
 use std::cell::UnsafeCell;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
-#[cfg(Py_GIL_DISABLED)]
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef,
@@ -54,25 +51,22 @@ impl<M: PyClassMutability> PyClassMutability for ExtendsMutableAncestor<M> {
     type MutableChild = ExtendsMutableAncestor<MutableClass>;
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-struct BorrowFlag(usize);
+#[derive(Debug)]
+struct BorrowFlag(AtomicUsize);
 
 impl BorrowFlag {
-    pub(crate) const UNUSED: BorrowFlag = BorrowFlag(0);
-    const HAS_MUTABLE_BORROW: BorrowFlag = BorrowFlag(usize::MAX);
-    const fn increment(self) -> Self {
-        Self(self.0 + 1)
+    pub(crate) const UNUSED: usize = 0;
+    const HAS_MUTABLE_BORROW: usize = usize::MAX;
+    fn increment(&self) {
+        self.0.fetch_add(1, Ordering::SeqCst);
     }
-    const fn decrement(self) -> Self {
-        Self(self.0 - 1)
+    fn decrement(&self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
     }
 }
 
 pub struct EmptySlot(());
-#[cfg(not(Py_GIL_DISABLED))]
-pub struct BorrowChecker(Cell<BorrowFlag>);
-#[cfg(Py_GIL_DISABLED)]
-pub struct BorrowChecker(Mutex<BorrowFlag>);
+pub struct BorrowChecker(BorrowFlag);
 
 pub trait PyClassBorrowChecker {
     /// Initial value for self
@@ -114,17 +108,17 @@ impl PyClassBorrowChecker for EmptySlot {
     }
 }
 
-#[cfg(not(Py_GIL_DISABLED))]
 impl PyClassBorrowChecker for BorrowChecker {
     #[inline]
     fn new() -> Self {
-        Self(Cell::new(BorrowFlag::UNUSED))
+        Self(BorrowFlag(AtomicUsize::new(BorrowFlag::UNUSED)))
     }
 
     fn try_borrow(&self) -> Result<(), PyBorrowError> {
-        let flag = self.0.get();
-        if flag != BorrowFlag::HAS_MUTABLE_BORROW {
-            self.0.set(flag.increment());
+        let flag = &self.0;
+        let value = flag.0.load(Ordering::SeqCst);
+        if value != BorrowFlag::HAS_MUTABLE_BORROW {
+            flag.increment();
             Ok(())
         } else {
             Err(PyBorrowError { _private: () })
@@ -132,59 +126,24 @@ impl PyClassBorrowChecker for BorrowChecker {
     }
 
     fn release_borrow(&self) {
-        let flag = self.0.get();
-        self.0.set(flag.decrement())
+        self.0.decrement();
     }
 
     fn try_borrow_mut(&self) -> Result<(), PyBorrowMutError> {
-        let flag = self.0.get();
-        if flag == BorrowFlag::UNUSED {
-            self.0.set(BorrowFlag::HAS_MUTABLE_BORROW);
-            Ok(())
-        } else {
-            Err(PyBorrowMutError { _private: () })
+        let flag = &self.0;
+        match flag.0.compare_exchange(
+            BorrowFlag::UNUSED,
+            BorrowFlag::HAS_MUTABLE_BORROW,
+            Ordering::SeqCst,
+            Ordering::SeqCst,
+        ) {
+            Ok(..) => Ok(()),
+            Err(..) => Err(PyBorrowMutError { _private: () }),
         }
     }
 
     fn release_borrow_mut(&self) {
-        self.0.set(BorrowFlag::UNUSED)
-    }
-}
-
-#[cfg(Py_GIL_DISABLED)]
-impl PyClassBorrowChecker for BorrowChecker {
-    #[inline]
-    fn new() -> Self {
-        Self(Mutex::new(BorrowFlag::UNUSED))
-    }
-
-    fn try_borrow(&self) -> Result<(), PyBorrowError> {
-        let mut flag = self.0.lock().unwrap();
-        if *flag != BorrowFlag::HAS_MUTABLE_BORROW {
-            *flag = flag.increment();
-            Ok(())
-        } else {
-            Err(PyBorrowError { _private: () })
-        }
-    }
-
-    fn release_borrow(&self) {
-        let mut flag = self.0.lock().unwrap();
-        *flag = flag.decrement();
-    }
-
-    fn try_borrow_mut(&self) -> Result<(), PyBorrowMutError> {
-        let mut flag = self.0.lock().unwrap();
-        if *flag == BorrowFlag::UNUSED {
-            *flag = BorrowFlag::HAS_MUTABLE_BORROW;
-            Ok(())
-        } else {
-            Err(PyBorrowMutError { _private: () })
-        }
-    }
-
-    fn release_borrow_mut(&self) {
-        *self.0.lock().unwrap() = BorrowFlag::UNUSED;
+        self.0 .0.store(BorrowFlag::UNUSED, Ordering::SeqCst)
     }
 }
 
