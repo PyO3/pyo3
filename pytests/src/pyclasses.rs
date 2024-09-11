@@ -58,13 +58,13 @@ impl PyClassThreadIter {
         Default::default()
     }
 
-    fn __next__(&mut self) -> PyResult<usize> {
+    fn __next__(&mut self) -> usize {
         let should_wait = self.count == 0;
         self.count += 1;
         if should_wait {
             thread::sleep(time::Duration::from_millis(100));
         }
-        Ok(self.count)
+        self.count
     }
 }
 

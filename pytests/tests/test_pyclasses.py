@@ -57,7 +57,9 @@ def test_iter():
     assert excinfo.value.value == "Ended"
 
 
-@pytest.mark.skipif(not FREETHREADED_BUILD, "The GIL enforces runtime borrow checking")
+@pytest.mark.skipif(
+    not FREETHREADED_BUILD, reason="The GIL enforces runtime borrow checking"
+)
 def test_parallel_iter():
     i = pyclasses.PyClassThreadIter()
 
