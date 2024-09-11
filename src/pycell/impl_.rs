@@ -57,6 +57,30 @@ struct BorrowFlag(AtomicUsize);
 impl BorrowFlag {
     pub(crate) const UNUSED: usize = 0;
     const HAS_MUTABLE_BORROW: usize = usize::MAX;
+    fn increment(&self) -> Result<(), PyBorrowError> {
+        let value = self.0.load(Ordering::Relaxed);
+        if value == BorrowFlag::HAS_MUTABLE_BORROW {
+            return Err(PyBorrowError { _private: () });
+        }
+        loop {
+            match self
+                .0
+                .compare_exchange(value, value + 1, Ordering::SeqCst, Ordering::SeqCst)
+            {
+                Ok(..) => {
+                    // value successfully incremented
+                    break Ok(());
+                }
+                Err(..) => {
+                    // value changed under us, need to reload and try again
+                    let value = self.0.load(Ordering::Relaxed);
+                    if value == BorrowFlag::HAS_MUTABLE_BORROW {
+                        return Err(PyBorrowError { _private: () });
+                    }
+                }
+            }
+        }
+    }
     fn decrement(&self) {
         self.0.fetch_sub(1, Ordering::SeqCst);
     }
@@ -112,29 +136,7 @@ impl PyClassBorrowChecker for BorrowChecker {
     }
 
     fn try_borrow(&self) -> Result<(), PyBorrowError> {
-        let flag = &self.0;
-        let mut value = flag.0.load(Ordering::Relaxed);
-        if value == BorrowFlag::HAS_MUTABLE_BORROW {
-            return Err(PyBorrowError { _private: () });
-        }
-        loop {
-            match flag
-                .0
-                .compare_exchange(value, value + 1, Ordering::SeqCst, Ordering::SeqCst)
-            {
-                Ok(..) => {
-                    // value successfully incremented
-                    break Ok(());
-                }
-                Err(..) => {
-                    // value changed under us, need to reload and try again
-                    value = flag.0.load(Ordering::Relaxed);
-                    if value == BorrowFlag::HAS_MUTABLE_BORROW {
-                        return Err(PyBorrowError { _private: () });
-                    }
-                }
-            }
-        }
+        self.0.increment()
     }
 
     fn release_borrow(&self) {
