@@ -990,8 +990,9 @@ unsafe fn bpo_35810_workaround(py: Python<'_>, ty: *mut ffi::PyTypeObject) {
     ffi::Py_INCREF(ty as *mut ffi::PyObject);
 }
 
-/// Implementation detail. Only to be used through our proc macro code.
 /// Method storage for `#[pyclass]`.
+///
+/// Implementation detail. Only to be used through our proc macro code.
 /// Allows arbitrary `#[pymethod]` blocks to submit their methods,
 /// which are eventually collected by `#[pyclass]`.
 #[cfg(feature = "multiple-pymethods")]
