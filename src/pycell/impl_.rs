@@ -58,7 +58,7 @@ impl BorrowFlag {
     pub(crate) const UNUSED: usize = 0;
     const HAS_MUTABLE_BORROW: usize = usize::MAX;
     fn increment(&self) -> Result<(), PyBorrowError> {
-        let value = self.0.load(Ordering::Relaxed);
+        let mut value = self.0.load(Ordering::Relaxed);
         if value == BorrowFlag::HAS_MUTABLE_BORROW {
             return Err(PyBorrowError { _private: () });
         }
@@ -71,12 +71,12 @@ impl BorrowFlag {
                     // value successfully incremented
                     break Ok(());
                 }
-                Err(..) => {
-                    // value changed under us, need to reload and try again
-                    let value = self.0.load(Ordering::Relaxed);
-                    if value == BorrowFlag::HAS_MUTABLE_BORROW {
+                Err(changed_value) => {
+                    // value changed under us, need to try again
+                    if changed_value == BorrowFlag::HAS_MUTABLE_BORROW {
                         return Err(PyBorrowError { _private: () });
                     }
+                    value = changed_value;
                 }
             }
         }
