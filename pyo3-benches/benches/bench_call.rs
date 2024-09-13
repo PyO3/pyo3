@@ -55,7 +55,7 @@ fn bench_call(b: &mut Bencher<'_>) {
             <_ as IntoPy<PyObject>>::into_py("s", py).into_bound(py),
             <_ as IntoPy<PyObject>>::into_py(1.23, py).into_bound(py),
         );
-        let kwargs = [("d", 1), ("e", 42)].into_py_dict(py);
+        let kwargs = [("d", 1), ("e", 42)].into_py_dict_bound(py);
 
         b.iter(|| {
             for _ in 0..1000 {
@@ -148,7 +148,7 @@ class Foo:
             <_ as IntoPy<PyObject>>::into_py("s", py).into_bound(py),
             <_ as IntoPy<PyObject>>::into_py(1.23, py).into_bound(py),
         );
-        let kwargs = [("d", 1), ("e", 42)].into_py_dict(py);
+        let kwargs = [("d", 1), ("e", 42)].into_py_dict_bound(py);
 
         b.iter(|| {
             for _ in 0..1000 {
