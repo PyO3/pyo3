@@ -1115,7 +1115,7 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
 /// Trait denoting that this class is suitable to be used as a base type for PyClass.
 
 #[cfg_attr(
-    all(diagnostic_namespace, feature = "abi3"),
+    all(diagnostic_namespace, Py_LIMITED_API),
     diagnostic::on_unimplemented(
         message = "pyclass `{Self}` cannot be subclassed",
         label = "required for `#[pyclass(extends={Self})]`",
@@ -1124,7 +1124,7 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     )
 )]
 #[cfg_attr(
-    all(diagnostic_namespace, not(feature = "abi3")),
+    all(diagnostic_namespace, not(Py_LIMITED_API)),
     diagnostic::on_unimplemented(
         message = "pyclass `{Self}` cannot be subclassed",
         label = "required for `#[pyclass(extends={Self})]`",
