@@ -7,5 +7,14 @@ error[E0277]: `Blah` cannot be converted to a Python object
   = note: `IntoPy` is automatically implemented by the `#[pyclass]` macro
   = note: if you do not wish to have a corresponding Python type, implement `IntoPy` manually
   = note: if you do not own `Blah` you can perform a manual conversion to one of the types in `pyo3::types::*`
-  = help: the trait `OkWrap<T>` is implemented for `Result<T, E>`
+  = help: the following other types implement trait `IntoPy<T>`:
+            `&'a OsString` implements `IntoPy<Py<PyAny>>`
+            `&'a Path` implements `IntoPy<Py<PyAny>>`
+            `&'a PathBuf` implements `IntoPy<Py<PyAny>>`
+            `&'a PyErr` implements `IntoPy<Py<PyAny>>`
+            `&'a String` implements `IntoPy<Py<PyAny>>`
+            `&'a [u8]` implements `IntoPy<Py<PyAny>>`
+            `&'a str` implements `IntoPy<Py<PyAny>>`
+            `&'a str` implements `IntoPy<Py<PyString>>`
+          and $N others
   = note: required for `Blah` to implement `OkWrap<Blah>`
