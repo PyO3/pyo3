@@ -290,7 +290,7 @@ mod tests {
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
             let mut value_sum = 0;
-            for el in mapping.items().unwrap().iter().unwrap() {
+            for el in mapping.items().unwrap().try_iter().unwrap() {
                 let tuple = el.unwrap().downcast_into::<PyTuple>().unwrap();
                 key_sum += tuple.get_item(0).unwrap().extract::<i32>().unwrap();
                 value_sum += tuple.get_item(1).unwrap().extract::<i32>().unwrap();
@@ -311,7 +311,7 @@ mod tests {
             let mapping = ob.downcast::<PyMapping>().unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
-            for el in mapping.keys().unwrap().iter().unwrap() {
+            for el in mapping.keys().unwrap().try_iter().unwrap() {
                 key_sum += el.unwrap().extract::<i32>().unwrap();
             }
             assert_eq!(7 + 8 + 9, key_sum);
@@ -329,7 +329,7 @@ mod tests {
             let mapping = ob.downcast::<PyMapping>().unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut values_sum = 0;
-            for el in mapping.values().unwrap().iter().unwrap() {
+            for el in mapping.values().unwrap().try_iter().unwrap() {
                 values_sum += el.unwrap().extract::<i32>().unwrap();
             }
             assert_eq!(32 + 42 + 123, values_sum);

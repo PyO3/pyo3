@@ -663,6 +663,13 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// This is typically a new iterator but if the argument is an iterator,
     /// this returns itself.
+    fn try_iter(&self) -> PyResult<Bound<'py, PyIterator>>;
+
+    /// Takes an object and returns an iterator for it.
+    ///
+    /// This is typically a new iterator but if the argument is an iterator,
+    /// this returns itself.
+    #[deprecated(since = "0.23.0", note = "use `try_iter` instead")]
     fn iter(&self) -> PyResult<Bound<'py, PyIterator>>;
 
     /// Returns the Python type object for this object's type.
@@ -1381,8 +1388,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         )
     }
 
-    fn iter(&self) -> PyResult<Bound<'py, PyIterator>> {
+    fn try_iter(&self) -> PyResult<Bound<'py, PyIterator>> {
         PyIterator::from_object(self)
+    }
+
+    fn iter(&self) -> PyResult<Bound<'py, PyIterator>> {
+        self.try_iter()
     }
 
     fn get_type(&self) -> Bound<'py, PyType> {

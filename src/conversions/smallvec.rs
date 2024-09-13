@@ -124,7 +124,7 @@ where
     };
 
     let mut sv = SmallVec::with_capacity(seq.len().unwrap_or(0));
-    for item in seq.iter()? {
+    for item in seq.try_iter()? {
         sv.push(item?.extract::<A::Item>()?);
     }
     Ok(sv)
