@@ -3,6 +3,7 @@
 
 /// Common macros and helpers for tests
 #[allow(dead_code)] // many tests do not use the complete set of functionality offered here
+#[allow(missing_docs)] // only used in tests
 #[macro_use]
 mod inner {
 
