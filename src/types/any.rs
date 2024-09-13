@@ -659,10 +659,30 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     where
         K: IntoPyObject<'py>;
 
-    /// Takes an object and returns an iterator for it.
+    /// Takes an object and returns an iterator for it. Returns an error if the object is not
+    /// iterable.
     ///
     /// This is typically a new iterator but if the argument is an iterator,
     /// this returns itself.
+    ///
+    /// # Example: Checking a Python object for iterability
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyAny, PyNone};
+    ///
+    /// fn is_iterable(obj: &Bound<'_, PyAny>) -> bool {
+    ///     match obj.try_iter() {
+    ///         Ok(_) => true,
+    ///         Err(_) => false,
+    ///     }
+    /// }
+    ///
+    /// Python::with_gil(|py| {
+    ///     assert!(is_iterable(&vec![1, 2, 3].into_pyobject(py).unwrap()));
+    ///     assert!(!is_iterable(&PyNone::get(py)));
+    /// });
+    /// ```
     fn try_iter(&self) -> PyResult<Bound<'py, PyIterator>>;
 
     /// Takes an object and returns an iterator for it.
