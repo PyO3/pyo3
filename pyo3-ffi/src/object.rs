@@ -655,8 +655,10 @@ extern "C" {
     pub fn Py_XNewRef(obj: *mut PyObject) -> *mut PyObject;
 }
 
-// macro _Py_NewRef not public; reimplemented directly inside Py_NewRef here
-// macro _Py_XNewRef not public; reimplemented directly inside Py_XNewRef here
+// 0.22.3 backwards-compatibility exports these private FFI definitions; they will be removed
+// in 0.23.0
+pub use crate::compat::Py_NewRef as _Py_NewRef;
+pub use crate::compat::Py_XNewRef as _Py_XNewRef;
 
 #[cfg(all(Py_3_10, any(not(Py_LIMITED_API), PyPy)))]
 #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
