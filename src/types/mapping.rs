@@ -163,7 +163,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
 fn get_mapping_abc(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     static MAPPING_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
 
-    MAPPING_ABC.get_or_try_init_type_ref(py, "collections.abc", "Mapping")
+    MAPPING_ABC.import(py, "collections.abc", "Mapping")
 }
 
 impl PyTypeCheck for PyMapping {

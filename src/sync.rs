@@ -5,8 +5,8 @@
 //!
 //! [PEP 703]: https://peps.python.org/pep-703/
 use crate::{
-    types::{any::PyAnyMethods, PyString, PyType},
-    Bound, Py, PyResult, Python,
+    types::{any::PyAnyMethods, PyString},
+    Bound, Py, PyResult, PyTypeCheck, Python,
 };
 use std::cell::UnsafeCell;
 
@@ -214,7 +214,10 @@ impl<T> GILOnceCell<Py<T>> {
     }
 }
 
-impl GILOnceCell<Py<PyType>> {
+impl<T> GILOnceCell<Py<T>>
+where
+    T: PyTypeCheck,
+{
     /// Get a reference to the contained Python type, initializing it if needed.
     ///
     /// This is a shorthand method for `get_or_init` which imports the type from Python on init.
@@ -233,7 +236,7 @@ impl GILOnceCell<Py<PyType>> {
     ///     // the `OrderedDict` class will be imported only once.
     ///     static ORDERED_DICT: GILOnceCell<Py<PyType>> = GILOnceCell::new();
     ///     ORDERED_DICT
-    ///         .get_or_try_init_type_ref(py, "collections", "OrderedDict")?
+    ///         .import(py, "collections", "OrderedDict")?
     ///         .call1((dict,))
     /// }
     ///
@@ -245,13 +248,12 @@ impl GILOnceCell<Py<PyType>> {
     /// #     assert!(dict.eq(ordered_dict).unwrap());
     /// # });
     /// ```
-    ///
-    pub fn get_or_try_init_type_ref<'py>(
+    pub fn import<'py>(
         &self,
         py: Python<'py>,
         module_name: &str,
         attr_name: &str,
-    ) -> PyResult<&Bound<'py, PyType>> {
+    ) -> PyResult<&Bound<'py, T>> {
         self.get_or_try_init(py, || {
             let type_object = py
                 .import(module_name)?

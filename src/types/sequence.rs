@@ -352,7 +352,7 @@ where
 fn get_sequence_abc(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     static SEQUENCE_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
 
-    SEQUENCE_ABC.get_or_try_init_type_ref(py, "collections.abc", "Sequence")
+    SEQUENCE_ABC.import(py, "collections.abc", "Sequence")
 }
 
 impl PyTypeCheck for PySequence {

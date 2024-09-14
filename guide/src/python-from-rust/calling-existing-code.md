@@ -2,9 +2,9 @@
 
 If you already have some existing Python code that you need to execute from Rust, the following FAQs can help you select the right PyO3 functionality for your situation:
 
-## Want to access Python APIs? Then use `import`.
+## Want to access Python APIs? Then use `PyModule::import`.
 
-[`Python::import`] can be used to get handle to a Python module from Rust. You can use this to import and use any Python
+[`PyModule::import`] can be used to get handle to a Python module from Rust. You can use this to import and use any Python
 module available in your environment.
 
 ```rust
@@ -12,7 +12,7 @@ use pyo3::prelude::*;
 
 fn main() -> PyResult<()> {
     Python::with_gil(|py| {
-        let builtins = py.import("builtins")?;
+        let builtins = PyModule::import(py, "builtins")?;
         let total: i32 = builtins
             .getattr("sum")?
             .call1((vec![1, 2, 3],))?
@@ -23,12 +23,12 @@ fn main() -> PyResult<()> {
 }
 ```
 
-[`Python::import`] introduces an overhead each time it's called. To avoid this in functions that are called multiple times,
+[`PyModule::import`] introduces an overhead each time it's called. To avoid this in functions that are called multiple times,
 using a [`GILOnceCell`]({{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html) is recommended. Specifically, for importing types,
-[`GILOnceCell::get_or_try_init_type_ref`]({{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html#method.get_or_try_init_type_ref) is provided
+[`GILOnceCell::import`]({{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html#method.import) is provided
 (check out the [example]({{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html#example-using-giloncecell-to-avoid-the-overhead-of-importing-a-class-multiple-times)).
 
-[`Python::import`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.import
+[`PyModule::import`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.import
 
 ## Want to run just an expression? Then use `eval`.
 
