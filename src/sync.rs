@@ -6,15 +6,20 @@
 //! [PEP 703]: https://peps.python.org/pep-703/
 use crate::{
     types::{any::PyAnyMethods, PyString, PyType},
-    Bound, Py, PyResult, PyVisit, Python,
+    Bound, Py, PyResult, Python,
 };
 use std::cell::UnsafeCell;
+
+#[cfg(not(Py_GIL_DISABLED))]
+use crate::PyVisit;
 
 /// Value with concurrent access protected by the GIL.
 ///
 /// This is a synchronization primitive based on Python's global interpreter lock (GIL).
 /// It ensures that only one thread at a time can access the inner value via shared references.
 /// It can be combined with interior mutability to obtain mutable references.
+///
+/// This type is not defined for extensions built against the free-threaded CPython ABI.
 ///
 /// # Example
 ///
@@ -31,10 +36,12 @@ use std::cell::UnsafeCell;
 ///     NUMBERS.get(py).borrow_mut().push(42);
 /// });
 /// ```
+#[cfg(not(Py_GIL_DISABLED))]
 pub struct GILProtected<T> {
     value: T,
 }
 
+#[cfg(not(Py_GIL_DISABLED))]
 impl<T> GILProtected<T> {
     /// Place the given value under the protection of the GIL.
     pub const fn new(value: T) -> Self {
@@ -52,6 +59,7 @@ impl<T> GILProtected<T> {
     }
 }
 
+#[cfg(not(Py_GIL_DISABLED))]
 unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 
 /// A write-once cell similar to [`once_cell::OnceCell`](https://docs.rs/once_cell/latest/once_cell/).
@@ -197,6 +205,15 @@ impl<T> GILOnceCell<T> {
     }
 }
 
+impl<T> GILOnceCell<Py<T>> {
+    /// Create a new cell that contains a new Python reference to the same contained object.
+    ///
+    /// Returns an uninitialised cell if `self` has not yet been initialised.
+    pub fn clone_ref(&self, py: Python<'_>) -> Self {
+        Self(UnsafeCell::new(self.get(py).map(|ob| ob.clone_ref(py))))
+    }
+}
+
 impl GILOnceCell<Py<PyType>> {
     /// Get a reference to the contained Python type, initializing it if needed.
     ///
@@ -325,7 +342,12 @@ mod tests {
             assert_eq!(cell.get_or_try_init(py, || Err(5)), Ok(&2));
 
             assert_eq!(cell.take(), Some(2));
-            assert_eq!(cell.into_inner(), None)
+            assert_eq!(cell.into_inner(), None);
+
+            let cell_py = GILOnceCell::new();
+            assert!(cell_py.clone_ref(py).get(py).is_none());
+            cell_py.get_or_init(py, || py.None());
+            assert!(cell_py.clone_ref(py).get(py).unwrap().is_none(py));
         })
     }
 }

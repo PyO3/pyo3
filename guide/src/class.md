@@ -330,7 +330,7 @@ or [`PyRefMut`] instead of `&mut self`.
 Then you can access a parent class by `self_.as_super()` as `&PyRef<Self::BaseClass>`,
 or by `self_.into_super()` as `PyRef<Self::BaseClass>` (and similar for the `PyRefMut`
 case). For convenience, `self_.as_ref()` can also be used to get `&Self::BaseClass`
-directly; however, this approach does not let you access base clases higher in the
+directly; however, this approach does not let you access base classes higher in the
 inheritance hierarchy, for which you would need to chain multiple `as_super` or
 `into_super` calls.
 

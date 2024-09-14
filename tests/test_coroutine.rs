@@ -69,10 +69,7 @@ fn test_coroutine_qualname() {
             assert coro.__name__ == name and coro.__qualname__ == qualname
         "#;
         let locals = [
-            (
-                "my_fn",
-                wrap_pyfunction!(my_fn, gil).unwrap().as_borrowed().as_any(),
-            ),
+            ("my_fn", wrap_pyfunction!(my_fn, gil).unwrap().as_any()),
             ("MyClass", gil.get_type::<MyClass>().as_any()),
         ]
         .into_py_dict(gil);

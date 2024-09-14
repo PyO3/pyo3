@@ -10,7 +10,7 @@ use crate::type_object::{PyTypeCheck, PyTypeInfo};
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
-use crate::{err, ffi, BoundObject, Py, Python};
+use crate::{err, ffi, Borrowed, BoundObject, Py, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
@@ -44,6 +44,13 @@ pyobject_native_type_info!(
 );
 
 pyobject_native_type_sized!(PyAny, ffi::PyObject);
+// We cannot use `pyobject_subclassable_native_type!()` because it cfgs out on `Py_LIMITED_API`.
+impl crate::impl_::pyclass::PyClassBaseType for PyAny {
+    type LayoutAsBase = crate::impl_::pycell::PyClassObjectBase<ffi::PyObject>;
+    type BaseNativeType = PyAny;
+    type Initializer = crate::pyclass_init::PyNativeTypeInitializer<Self>;
+    type PyClassMutability = crate::pycell::impl_::ImmutableClass;
+}
 
 /// This trait represents the Python APIs which are usable on all Python objects.
 ///
@@ -880,7 +887,7 @@ macro_rules! implement_binop {
         {
             fn inner<'py>(
                 any: &Bound<'py, PyAny>,
-                other: &Bound<'_, PyAny>,
+                other: Borrowed<'_, 'py, PyAny>,
             ) -> PyResult<Bound<'py, PyAny>> {
                 unsafe { ffi::$c_api(any.as_ptr(), other.as_ptr()).assume_owned_or_err(any.py()) }
             }
@@ -888,7 +895,7 @@ macro_rules! implement_binop {
             let py = self.py();
             inner(
                 self,
-                &other
+                other
                     .into_pyobject(py)
                     .map_err(Into::into)?
                     .into_any()
@@ -927,7 +934,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     {
         fn inner<'py>(
             any: &Bound<'py, PyAny>,
-            attr_name: &Bound<'_, PyString>,
+            attr_name: Borrowed<'_, '_, PyString>,
         ) -> PyResult<Bound<'py, PyAny>> {
             unsafe {
                 ffi::PyObject_GetAttr(any.as_ptr(), attr_name.as_ptr())
@@ -937,7 +944,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
         inner(
             self,
-            &attr_name
+            attr_name
                 .into_pyobject(self.py())
                 .map_err(Into::into)?
                 .as_borrowed(),
@@ -951,8 +958,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     {
         fn inner(
             any: &Bound<'_, PyAny>,
-            attr_name: &Bound<'_, PyString>,
-            value: &Bound<'_, PyAny>,
+            attr_name: Borrowed<'_, '_, PyString>,
+            value: Borrowed<'_, '_, PyAny>,
         ) -> PyResult<()> {
             err::error_on_minusone(any.py(), unsafe {
                 ffi::PyObject_SetAttr(any.as_ptr(), attr_name.as_ptr(), value.as_ptr())
@@ -962,11 +969,11 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            &attr_name
+            attr_name
                 .into_pyobject(py)
                 .map_err(Into::into)?
                 .as_borrowed(),
-            &value
+            value
                 .into_pyobject(py)
                 .map_err(Into::into)?
                 .into_any()
@@ -978,7 +985,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
-        fn inner(any: &Bound<'_, PyAny>, attr_name: &Bound<'_, PyString>) -> PyResult<()> {
+        fn inner(any: &Bound<'_, PyAny>, attr_name: Borrowed<'_, '_, PyString>) -> PyResult<()> {
             err::error_on_minusone(any.py(), unsafe {
                 ffi::PyObject_DelAttr(any.as_ptr(), attr_name.as_ptr())
             })
@@ -987,7 +994,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            &attr_name
+            attr_name
                 .into_pyobject(py)
                 .map_err(Into::into)?
                 .as_borrowed(),
@@ -998,7 +1005,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         O: IntoPyObject<'py>,
     {
-        fn inner(any: &Bound<'_, PyAny>, other: &Bound<'_, PyAny>) -> PyResult<Ordering> {
+        fn inner(any: &Bound<'_, PyAny>, other: Borrowed<'_, '_, PyAny>) -> PyResult<Ordering> {
             let other = other.as_ptr();
             // Almost the same as ffi::PyObject_RichCompareBool, but this one doesn't try self == other.
             // See https://github.com/PyO3/pyo3/issues/985 for more.
@@ -1023,7 +1030,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            &other
+            other
                 .into_pyobject(py)
                 .map_err(Into::into)?
                 .into_any()
@@ -1037,7 +1044,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     {
         fn inner<'py>(
             any: &Bound<'py, PyAny>,
-            other: &Bound<'_, PyAny>,
+            other: Borrowed<'_, 'py, PyAny>,
             compare_op: CompareOp,
         ) -> PyResult<Bound<'py, PyAny>> {
             unsafe {
@@ -1049,7 +1056,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            &other
+            other
                 .into_pyobject(py)
                 .map_err(Into::into)?
                 .into_any()
@@ -1154,7 +1161,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     {
         fn inner<'py>(
             any: &Bound<'py, PyAny>,
-            other: &Bound<'_, PyAny>,
+            other: Borrowed<'_, 'py, PyAny>,
         ) -> PyResult<Bound<'py, PyAny>> {
             unsafe {
                 ffi::PyNumber_Divmod(any.as_ptr(), other.as_ptr()).assume_owned_or_err(any.py())
@@ -1164,7 +1171,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            &other
+            other
                 .into_pyobject(py)
                 .map_err(Into::into)?
                 .into_any()
@@ -1181,8 +1188,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     {
         fn inner<'py>(
             any: &Bound<'py, PyAny>,
-            other: &Bound<'_, PyAny>,
-            modulus: &Bound<'_, PyAny>,
+            other: Borrowed<'_, 'py, PyAny>,
+            modulus: Borrowed<'_, 'py, PyAny>,
         ) -> PyResult<Bound<'py, PyAny>> {
             unsafe {
                 ffi::PyNumber_Power(any.as_ptr(), other.as_ptr(), modulus.as_ptr())
@@ -1193,12 +1200,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            &other
+            other
                 .into_pyobject(py)
                 .map_err(Into::into)?
                 .into_any()
                 .as_borrowed(),
-            &modulus
+            modulus
                 .into_pyobject(py)
                 .map_err(Into::into)?
                 .into_any()
@@ -1307,7 +1314,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     {
         fn inner<'py>(
             any: &Bound<'py, PyAny>,
-            key: &Bound<'_, PyAny>,
+            key: Borrowed<'_, 'py, PyAny>,
         ) -> PyResult<Bound<'py, PyAny>> {
             unsafe {
                 ffi::PyObject_GetItem(any.as_ptr(), key.as_ptr()).assume_owned_or_err(any.py())
@@ -1317,7 +1324,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            &key.into_pyobject(py)
+            key.into_pyobject(py)
                 .map_err(Into::into)?
                 .into_any()
                 .as_borrowed(),
@@ -1331,8 +1338,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     {
         fn inner(
             any: &Bound<'_, PyAny>,
-            key: &Bound<'_, PyAny>,
-            value: &Bound<'_, PyAny>,
+            key: Borrowed<'_, '_, PyAny>,
+            value: Borrowed<'_, '_, PyAny>,
         ) -> PyResult<()> {
             err::error_on_minusone(any.py(), unsafe {
                 ffi::PyObject_SetItem(any.as_ptr(), key.as_ptr(), value.as_ptr())
@@ -1342,11 +1349,11 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            &key.into_pyobject(py)
+            key.into_pyobject(py)
                 .map_err(Into::into)?
                 .into_any()
                 .as_borrowed(),
-            &value
+            value
                 .into_pyobject(py)
                 .map_err(Into::into)?
                 .into_any()
@@ -1358,7 +1365,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         K: IntoPyObject<'py>,
     {
-        fn inner(any: &Bound<'_, PyAny>, key: &Bound<'_, PyAny>) -> PyResult<()> {
+        fn inner(any: &Bound<'_, PyAny>, key: Borrowed<'_, '_, PyAny>) -> PyResult<()> {
             err::error_on_minusone(any.py(), unsafe {
                 ffi::PyObject_DelItem(any.as_ptr(), key.as_ptr())
             })
@@ -1367,7 +1374,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            &key.into_pyobject(py)
+            key.into_pyobject(py)
                 .map_err(Into::into)?
                 .into_any()
                 .as_borrowed(),
@@ -1522,7 +1529,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         V: IntoPyObject<'py>,
     {
-        fn inner(any: &Bound<'_, PyAny>, value: &Bound<'_, PyAny>) -> PyResult<bool> {
+        fn inner(any: &Bound<'_, PyAny>, value: Borrowed<'_, '_, PyAny>) -> PyResult<bool> {
             match unsafe { ffi::PySequence_Contains(any.as_ptr(), value.as_ptr()) } {
                 0 => Ok(false),
                 1 => Ok(true),
@@ -1533,7 +1540,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            &value
+            value
                 .into_pyobject(py)
                 .map_err(Into::into)?
                 .into_any()
@@ -1586,11 +1593,7 @@ impl<'py> Bound<'py, PyAny> {
                 let ret = descr_get(attr.as_ptr(), self.as_ptr(), self_type.as_ptr());
                 ret.assume_owned_or_err(py).map(Some)
             }
-        } else if let Ok(descr_get) = attr
-            .get_type()
-            .as_borrowed()
-            .getattr(crate::intern!(py, "__get__"))
-        {
+        } else if let Ok(descr_get) = attr.get_type().getattr(crate::intern!(py, "__get__")) {
             descr_get.call1((attr, self, self_type)).map(Some)
         } else {
             Ok(Some(attr))
@@ -1663,7 +1666,7 @@ class NonHeapNonDescriptorInt:
             let no_descriptor = module.getattr("NoDescriptorInt").unwrap().call0().unwrap();
             assert_eq!(eval_int(no_descriptor).unwrap(), 1);
             let missing = module.getattr("NoInt").unwrap().call0().unwrap();
-            assert!(missing.as_borrowed().lookup_special(int).unwrap().is_none());
+            assert!(missing.lookup_special(int).unwrap().is_none());
             // Note the instance override should _not_ call the instance method that returns 2,
             // because that's not how special lookups are meant to work.
             let instance_override = module.getattr("instance_override").unwrap();
@@ -1673,7 +1676,7 @@ class NonHeapNonDescriptorInt:
                 .unwrap()
                 .call0()
                 .unwrap();
-            assert!(descriptor_error.as_borrowed().lookup_special(int).is_err());
+            assert!(descriptor_error.lookup_special(int).is_err());
             let nonheap_nondescriptor = module
                 .getattr("NonHeapNonDescriptorInt")
                 .unwrap()
@@ -1699,7 +1702,7 @@ class NonHeapNonDescriptorInt:
         Python::with_gil(|py| {
             let list = vec![3, 6, 5, 4, 7].to_object(py);
             let dict = vec![("reverse", true)].into_py_dict(py);
-            list.call_method_bound(py, "sort", (), Some(&dict)).unwrap();
+            list.call_method(py, "sort", (), Some(&dict)).unwrap();
             assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
         });
     }

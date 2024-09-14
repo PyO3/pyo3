@@ -5,6 +5,7 @@ pub(crate) mod bytesobject;
 pub(crate) mod ceval;
 pub(crate) mod code;
 pub(crate) mod compile;
+pub(crate) mod complexobject;
 #[cfg(Py_3_13)]
 pub(crate) mod critical_section;
 pub(crate) mod descrobject;
@@ -47,6 +48,7 @@ pub use self::bytesobject::*;
 pub use self::ceval::*;
 pub use self::code::*;
 pub use self::compile::*;
+pub use self::complexobject::*;
 #[cfg(Py_3_13)]
 pub use self::critical_section::*;
 pub use self::descrobject::*;

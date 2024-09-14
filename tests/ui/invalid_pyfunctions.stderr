@@ -54,10 +54,10 @@ error[E0277]: the trait bound `&str: From<BoundRef<'_, '_, pyo3::types::PyModule
    |              ^ the trait `From<BoundRef<'_, '_, pyo3::types::PyModule>>` is not implemented for `&str`, which is required by `BoundRef<'_, '_, pyo3::types::PyModule>: Into<_>`
    |
    = help: the following other types implement trait `From<T>`:
-             <String as From<&String>>
-             <String as From<&mut str>>
-             <String as From<&str>>
-             <String as From<Box<str>>>
-             <String as From<Cow<'a, str>>>
-             <String as From<char>>
+             `String` implements `From<&String>`
+             `String` implements `From<&mut str>`
+             `String` implements `From<&str>`
+             `String` implements `From<Box<str>>`
+             `String` implements `From<Cow<'a, str>>`
+             `String` implements `From<char>`
    = note: required for `BoundRef<'_, '_, pyo3::types::PyModule>` to implement `Into<&str>`

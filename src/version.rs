@@ -15,7 +15,7 @@
 ///
 /// [`Python::version`]: crate::marker::Python::version
 #[derive(Debug)]
-pub struct PythonVersionInfo<'py> {
+pub struct PythonVersionInfo<'a> {
     /// Python major version (e.g. `3`).
     pub major: u8,
     /// Python minor version (e.g. `11`).
@@ -23,12 +23,12 @@ pub struct PythonVersionInfo<'py> {
     /// Python patch version (e.g. `0`).
     pub patch: u8,
     /// Python version suffix, if applicable (e.g. `a0`).
-    pub suffix: Option<&'py str>,
+    pub suffix: Option<&'a str>,
 }
 
-impl<'py> PythonVersionInfo<'py> {
+impl<'a> PythonVersionInfo<'a> {
     /// Parses a hard-coded Python interpreter version string (e.g. 3.9.0a4+).
-    pub(crate) fn from_str(version_number_str: &'py str) -> Result<Self, &str> {
+    pub(crate) fn from_str(version_number_str: &'a str) -> Result<PythonVersionInfo<'a>, &'a str> {
         fn split_and_parse_number(version_part: &str) -> (u8, Option<&str>) {
             match version_part.find(|c: char| !c.is_ascii_digit()) {
                 None => (version_part.parse().unwrap(), None),
