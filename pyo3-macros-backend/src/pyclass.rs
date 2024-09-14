@@ -2444,6 +2444,8 @@ fn generate_cfg_check(variants: &[PyClassEnumUnitVariant<'_>], cls: &syn::Ident)
         let cfg_attrs = &variant.cfg_attrs;
 
         if cfg_attrs.is_empty() {
+            // There's at least one variant of the enum without cfg attributes,
+            // so the check is not necessary
             return quote! {};
         }
 
@@ -2455,9 +2457,10 @@ fn generate_cfg_check(variants: &[PyClassEnumUnitVariant<'_>], cls: &syn::Ident)
         }
     }
 
-    quote! {
+    quote_spanned! {
+        cls.span() =>
         #[cfg(all(#(#conditions),*))]
-        ::core::compile_error!(concat!("All variants of enum `", stringify!(#cls), "` have been disabled by cfg attributes"));
+        ::core::compile_error!(concat!("#[pyclass] can't be used on enums without any variants - all variants of enum `", stringify!(#cls), "` have been configured out by cfg attributes"));
     }
 }
 
