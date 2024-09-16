@@ -17,6 +17,15 @@ struct CfgClass {
     pub b: u32,
 }
 
+#[pyclass(eq, eq_int)]
+#[derive(PartialEq)]
+enum CfgSimpleEnum {
+    #[cfg(any())]
+    DisabledVariant,
+    #[cfg(not(any()))]
+    EnabledVariant,
+}
+
 #[test]
 fn test_cfg() {
     Python::with_gil(|py| {
@@ -26,4 +35,19 @@ fn test_cfg() {
         let b: u32 = py_cfg.bind(py).getattr("b").unwrap().extract().unwrap();
         assert_eq!(b, 3);
     });
+}
+
+#[test]
+fn test_cfg_simple_enum() {
+    Python::with_gil(|py| {
+        let simple = py.get_type::<CfgSimpleEnum>();
+        pyo3::py_run!(
+            py,
+            simple,
+            r#"
+            assert hasattr(simple, "EnabledVariant")
+            assert not hasattr(simple, "DisabledVariant")
+        "#
+        );
+    })
 }
