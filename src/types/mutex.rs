@@ -57,30 +57,35 @@ impl<'a, T> DerefMut for PyMutexGuard<'a, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{PyAnyMethods, PyDict, PyDictMethods, PyList, PyNone};
+    use crate::sync::GILOnceCell;
+    use crate::types::{PyAnyMethods, PyDict, PyDictMethods, PyNone};
+    use crate::Py;
     use crate::Python;
 
     #[test]
     fn test_pymutex() {
-        Python::with_gil(|py| {
+        let mut mutex = Python::with_gil(|py| -> PyMutex<Py<PyDict>> {
             let d = PyDict::new(py);
-            let mut mutex = PyMutex::new(&d);
+            PyMutex::new(d.unbind())
+        });
 
-            let list = Python::with_gil(|py| PyList::new(py, vec!["foo", "bar"]).unbind());
-            let dict_guard = mutex.lock();
-
-            py.allow_threads(|| {
-                std::thread::spawn(move || {
-                    drop(list);
+        Python::with_gil(|py| {
+            let mut mutex = py.allow_threads(|| -> PyMutex<Py<PyDict>> {
+                std::thread::spawn(|| {
+                    let dict_guard = mutex.lock();
+                    Python::with_gil(|py| {
+                        let dict = dict_guard.bind(py);
+                        dict.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
+                    });
+                    drop(dict_guard);
+                    mutex
                 })
                 .join()
-                .unwrap();
+                .unwrap()
             });
 
-            dict_guard
-                .set_item(PyNone::get(py), PyNone::get(py))
-                .unwrap();
-            drop(dict_guard);
+            let dict_guard = mutex.lock();
+            let d = dict_guard.bind(py);
 
             assert!(d
                 .get_item(PyNone::get(py))
