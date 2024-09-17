@@ -1,41 +1,38 @@
-use std::ops::Deref;
+use std::cell::UnsafeCell;
+use std::ops::{Deref, DerefMut};
 
-/// Wrapper for [`PyMutex`](https://docs.python.org/3/c-api/init.html#c.PyMutex) exposing an RAII interface.
+/// Wrapper for [`PyMutex`](https://docs.python.org/3/c-api/init.html#c.PyMutex), exposing an RAII guard interface similar to `std::sync::Mutex`.
 #[derive(Debug)]
 pub struct PyMutex<T> {
-    _mutex: crate::ffi::PyMutex,
-    data: T,
+    _mutex: UnsafeCell<crate::ffi::PyMutex>,
+    data: UnsafeCell<T>,
 }
 
 /// RAII guard to handle releasing a PyMutex lock.
 #[derive(Debug)]
 pub struct PyMutexGuard<'a, T> {
-    _mutex: &'a mut crate::ffi::PyMutex,
-    data: &'a T,
+    mutex: &'a mut PyMutex<T>,
 }
 
 impl<T> PyMutex<T> {
     /// Acquire the mutex, blocking the current thread until it is able to do so.
     pub fn lock(&mut self) -> PyMutexGuard<'_, T> {
-        unsafe { crate::ffi::PyMutex_Lock(&mut self._mutex) };
-        PyMutexGuard {
-            _mutex: &mut self._mutex,
-            data: &self.data,
-        }
+        unsafe { crate::ffi::PyMutex_Lock(self._mutex.get_mut()) };
+        PyMutexGuard { mutex: &mut *self }
     }
 
     /// Create a new mutex in an unlocked state ready for use.
     pub fn new(value: T) -> Self {
         Self {
-            _mutex: crate::ffi::PyMutex::new(),
-            data: value,
+            _mutex: UnsafeCell::new(crate::ffi::PyMutex::new()),
+            data: UnsafeCell::new(value),
         }
     }
 }
 
 impl<'a, T> Drop for PyMutexGuard<'a, T> {
     fn drop(&mut self) {
-        unsafe { crate::ffi::PyMutex_Unlock(self._mutex) };
+        unsafe { crate::ffi::PyMutex_Unlock(self.mutex._mutex.get_mut()) };
     }
 }
 
@@ -43,7 +40,17 @@ impl<'a, T> Deref for PyMutexGuard<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        self.data
+        // safety: cannot be null pointer because PyMutexGuard::new always
+        // creates a valid PyMutex pointer
+        unsafe { &*self.mutex.data.get() }
+    }
+}
+
+impl<'a, T> DerefMut for PyMutexGuard<'a, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        // safety: cannot be null pointer because PyMutexGuard::new always
+        // creates a valid PyMutex pointer
+        self.mutex.data.get_mut()
     }
 }
 
