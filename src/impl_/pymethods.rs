@@ -18,6 +18,8 @@ use std::os::raw::{c_int, c_void};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr::null_mut;
 
+use super::trampoline;
+
 /// Python 3.8 and up - __ipow__ has modulo argument correctly populated.
 #[cfg(Py_3_8)]
 #[repr(transparent)]
@@ -275,6 +277,7 @@ pub unsafe fn _call_traverse<T>(
     impl_: fn(&T, PyVisit<'_>) -> Result<(), PyTraverseError>,
     visit: ffi::visitproc,
     arg: *mut c_void,
+    current_traverse: ffi::traverseproc,
 ) -> c_int
 where
     T: PyClass,
@@ -288,6 +291,11 @@ where
     // token does not produce any owned objects thereby calling into `register_owned`.
     let trap = PanicTrap::new("uncaught panic inside __traverse__ handler");
     let lock = LockGIL::during_traverse();
+
+    let super_retval = call_super_traverse(slf, visit, arg, current_traverse);
+    if super_retval != 0 {
+        return super_retval;
+    }
 
     // SAFETY: `slf` is a valid Python object pointer to a class object of type T, and
     // traversal is running so no mutations can occur.
@@ -326,6 +334,117 @@ where
     drop(lock);
     trap.disarm();
     retval
+}
+
+/// Call super-type traverse method, if necessary.
+///
+/// Adapted from https://github.com/cython/cython/blob/7acfb375fb54a033f021b0982a3cd40c34fb22ac/Cython/Utility/ExtensionTypes.c#L386
+///
+/// TODO: There are possible optimizations over looking up the base type in this way
+/// - if the base type is known in this module, can potentially look it up directly in module state
+///   (when we have it)
+/// - if the base type is a Python builtin, can jut call the C function directly
+/// - if the base type is a PyO3 type defined in the same module, can potentially do similar to
+///   tp_alloc where we solve this at compile time
+unsafe fn call_super_traverse(
+    obj: *mut ffi::PyObject,
+    visit: ffi::visitproc,
+    arg: *mut c_void,
+    current_traverse: ffi::traverseproc,
+) -> c_int {
+    let mut ty = ffi::Py_TYPE(obj);
+    let mut traverse: Option<ffi::traverseproc>;
+
+    // First find the current type by the current_traverse function
+    loop {
+        traverse = std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::Py_tp_traverse));
+        if traverse == Some(current_traverse) {
+            break;
+        }
+        ty = ffi::PyType_GetSlot(ty, ffi::Py_tp_base).cast();
+        if ty.is_null() {
+            // FIXME: return an error if current type not in the MRO? Should be impossible.
+            return 0;
+        }
+    }
+
+    // Get first base which has a different traverse function
+    while !ty.is_null() && traverse == Some(current_traverse) {
+        ty = ffi::PyType_GetSlot(ty, ffi::Py_tp_base).cast();
+        if ty.is_null() {
+            break;
+        }
+        traverse = std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::Py_tp_traverse));
+    }
+
+    // If we found a type with a different traverse function, call it
+    if let Some(traverse) = traverse {
+        return traverse(obj, visit, arg);
+    }
+
+    // FIXME same question as cython: what if the current type is not in the MRO?
+    return 0;
+}
+
+/// Calls an implementation of __clear__ for tp_clear
+pub unsafe fn _call_clear(
+    slf: *mut ffi::PyObject,
+    impl_: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<()>,
+    current_clear: ffi::inquiry,
+) -> c_int {
+    let super_retval = call_super_clear(slf, current_clear);
+    if super_retval != 0 {
+        return super_retval;
+    }
+    trampoline::trampoline(move |py| {
+        impl_(py, slf)?;
+        Ok(0)
+    })
+}
+
+/// Call super-type traverse method, if necessary.
+///
+/// Adapted from https://github.com/cython/cython/blob/7acfb375fb54a033f021b0982a3cd40c34fb22ac/Cython/Utility/ExtensionTypes.c#L386
+///
+/// TODO: There are possible optimizations over looking up the base type in this way
+/// - if the base type is known in this module, can potentially look it up directly in module state
+///   (when we have it)
+/// - if the base type is a Python builtin, can jut call the C function directly
+/// - if the base type is a PyO3 type defined in the same module, can potentially do similar to
+///   tp_alloc where we solve this at compile time
+unsafe fn call_super_clear(obj: *mut ffi::PyObject, current_clear: ffi::inquiry) -> c_int {
+    let mut ty = ffi::Py_TYPE(obj);
+    let mut clear: Option<ffi::inquiry>;
+
+    // First find the current type by the current_clear function
+    loop {
+        clear = std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::Py_tp_clear));
+        if clear == Some(current_clear) {
+            break;
+        }
+        ty = ffi::PyType_GetSlot(ty, ffi::Py_tp_base).cast();
+        if ty.is_null() {
+            // FIXME: return an error if current type not in the MRO? Should be impossible.
+            return 0;
+        }
+    }
+
+    // Get first base which has a different clear function
+    while !ty.is_null() && clear == Some(current_clear) {
+        ty = ffi::PyType_GetSlot(ty, ffi::Py_tp_base).cast();
+        if ty.is_null() {
+            break;
+        }
+        clear = std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::Py_tp_clear));
+    }
+
+    // If we found a type with a different clear function, call it
+    if let Some(clear) = clear {
+        return clear(obj);
+    }
+
+    // FIXME same question as cython: what if the current type is not in the MRO?
+    return 0;
 }
 
 // Autoref-based specialization for handling `__next__` returning `Option`
