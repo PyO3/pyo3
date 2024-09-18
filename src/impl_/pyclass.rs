@@ -23,8 +23,13 @@ use std::{
     thread,
 };
 
+mod assertions;
 mod lazy_type_object;
+mod probes;
+
+pub use assertions::*;
 pub use lazy_type_object::LazyTypeObject;
+pub use probes::*;
 
 /// Gets the offset of the dictionary from the start of the object in bytes.
 #[inline]
@@ -1416,67 +1421,6 @@ impl<ClassT: PyClass, FieldT, Offset: OffsetCalculator<ClassT, FieldT>>
              and `IntoPy` are fully removed this will be replaced by the temporary `IntoPyObject` case above."
         )
     }
-}
-
-/// Trait used to combine with zero-sized types to calculate at compile time
-/// some property of a type.
-///
-/// The trick uses the fact that an associated constant has higher priority
-/// than a trait constant, so we can use the trait to define the false case.
-///
-/// The true case is defined in the zero-sized type's impl block, which is
-/// gated on some property like trait bound or only being implemented
-/// for fixed concrete types.
-pub trait Probe {
-    const VALUE: bool = false;
-}
-
-macro_rules! probe {
-    ($name:ident) => {
-        pub struct $name<T>(PhantomData<T>);
-        impl<T> Probe for $name<T> {}
-    };
-}
-
-probe!(IsPyT);
-
-impl<T> IsPyT<Py<T>> {
-    pub const VALUE: bool = true;
-}
-
-probe!(IsToPyObject);
-
-#[allow(deprecated)]
-impl<T: ToPyObject> IsToPyObject<T> {
-    pub const VALUE: bool = true;
-}
-
-probe!(IsIntoPy);
-
-#[allow(deprecated)]
-impl<T: IntoPy<crate::PyObject>> IsIntoPy<T> {
-    pub const VALUE: bool = true;
-}
-
-probe!(IsIntoPyObjectRef);
-
-// Possible clippy beta regression,
-// see https://github.com/rust-lang/rust-clippy/issues/13578
-#[allow(clippy::extra_unused_lifetimes)]
-impl<'a, 'py, T: 'a> IsIntoPyObjectRef<T>
-where
-    &'a T: IntoPyObject<'py>,
-{
-    pub const VALUE: bool = true;
-}
-
-probe!(IsIntoPyObject);
-
-impl<'py, T> IsIntoPyObject<T>
-where
-    T: IntoPyObject<'py>,
-{
-    pub const VALUE: bool = true;
 }
 
 /// ensures `obj` is not mutably aliased

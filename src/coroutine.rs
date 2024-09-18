@@ -35,6 +35,10 @@ pub struct Coroutine {
     waker: Option<Arc<AsyncioWaker>>,
 }
 
+// Safety: `Coroutine` is allowed to be `Sync` even though the future is not,
+// because the future is polled with `&mut self` receiver
+unsafe impl Sync for Coroutine {}
+
 impl Coroutine {
     ///  Wrap a future into a Python coroutine.
     ///
