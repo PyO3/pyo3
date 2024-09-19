@@ -112,17 +112,15 @@ mod tests {
 
     #[test]
     fn test_pymutex_blocks() {
-        let mutex = OnceLock::<PyMutex<()>>::new();
+        let mutex = PyMutex::new(());
         let first_thread_locked_once = OnceLock::<bool>::new();
         let second_thread_locked_once = OnceLock::<bool>::new();
         let finished = OnceLock::<bool>::new();
         let (sender, receiver) = sync_channel::<bool>(0);
 
-        mutex.get_or_init(|| PyMutex::new(()));
-
         std::thread::scope(|s| {
             s.spawn(|| {
-                let guard = mutex.get().unwrap().lock();
+                let guard = mutex.lock();
                 first_thread_locked_once.set(true).unwrap();
                 while finished.get().is_none() {
                     if second_thread_locked_once.get().is_some() {
@@ -141,7 +139,6 @@ mod tests {
 
             s.spawn(|| {
                 while first_thread_locked_once.get().is_none() {}
-                let mutex = mutex.get().unwrap();
                 second_thread_locked_once.set(true).unwrap();
                 let guard = mutex.lock();
                 assert!(finished.get().unwrap());
