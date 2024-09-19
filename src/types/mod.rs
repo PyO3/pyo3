@@ -252,7 +252,7 @@ pub(crate) mod list;
 pub(crate) mod mapping;
 mod memoryview;
 pub(crate) mod module;
-#[cfg(Py_3_13)]
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
 mod mutex;
 mod none;
 mod notimplemented;
