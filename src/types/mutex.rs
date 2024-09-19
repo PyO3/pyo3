@@ -51,12 +51,14 @@ impl<'a, T> DerefMut for PyMutexGuard<'a, T> {
     fn deref_mut(&mut self) -> &mut T {
         // safety: cannot be null pointer because PyMutex::new always
         // creates a valid PyMutex pointer
-        unsafe { &mut *self.mutex.data.get() }
+        unsafe { &mut *self.inner.data.get() }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{mpsc::sync_channel, OnceLock};
+
     use super::*;
     use crate::types::{PyAnyMethods, PyDict, PyDictMethods, PyNone};
     use crate::Py;
@@ -93,6 +95,49 @@ mod tests {
                 .unwrap()
                 .eq(PyNone::get(py))
                 .unwrap());
+        });
+    }
+
+    #[test]
+    fn test_pymutex_blocks() {
+        let mutex = OnceLock::<PyMutex<()>>::new();
+        let first_thread_locked_once = OnceLock::<bool>::new();
+        let second_thread_locked_once = OnceLock::<bool>::new();
+        let finished = OnceLock::<bool>::new();
+        let (sender, receiver) = sync_channel::<bool>(0);
+
+        mutex.get_or_init(|| PyMutex::new(()));
+
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                let guard = mutex.get().unwrap().lock();
+                first_thread_locked_once.set(true).unwrap();
+                while finished.get().is_none() {
+                    if second_thread_locked_once.get().is_some() {
+                        // Wait a little to guard against the unlikely event that
+                        // the other thread isn't blocked on acquiring the mutex yet.
+                        // If PyMutex had a try_lock implementation this would be
+                        // unnecessary
+                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        // block (and hold the mutex) until the receiver actually receives something
+                        sender.send(true).unwrap();
+                        finished.set(true).unwrap();
+                    }
+                }
+                drop(guard);
+            });
+
+            s.spawn(|| {
+                while first_thread_locked_once.get().is_none() {}
+                let mutex = mutex.get().unwrap();
+                second_thread_locked_once.set(true).unwrap();
+                let guard = mutex.lock();
+                assert!(finished.get().unwrap());
+                drop(guard);
+            });
+
+            // threads are blocked until we receive
+            receiver.recv().unwrap();
         });
     }
 }
