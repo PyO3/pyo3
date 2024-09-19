@@ -69,7 +69,10 @@ impl<'a, T> DerefMut for PyMutexGuard<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{mpsc::sync_channel, OnceLock};
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc::sync_channel,
+    };
 
     use super::*;
     use crate::types::{PyAnyMethods, PyDict, PyDictMethods, PyNone};
@@ -113,17 +116,17 @@ mod tests {
     #[test]
     fn test_pymutex_blocks() {
         let mutex = PyMutex::new(());
-        let first_thread_locked_once = OnceLock::<bool>::new();
-        let second_thread_locked_once = OnceLock::<bool>::new();
-        let finished = OnceLock::<bool>::new();
+        let first_thread_locked_once = AtomicBool::new(false);
+        let second_thread_locked_once = AtomicBool::new(false);
+        let finished = AtomicBool::new(false);
         let (sender, receiver) = sync_channel::<bool>(0);
 
         std::thread::scope(|s| {
             s.spawn(|| {
                 let guard = mutex.lock();
-                first_thread_locked_once.set(true).unwrap();
-                while finished.get().is_none() {
-                    if second_thread_locked_once.get().is_some() {
+                first_thread_locked_once.store(true, Ordering::SeqCst);
+                while !finished.load(Ordering::SeqCst) {
+                    if second_thread_locked_once.load(Ordering::SeqCst) {
                         // Wait a little to guard against the unlikely event that
                         // the other thread isn't blocked on acquiring the mutex yet.
                         // If PyMutex had a try_lock implementation this would be
@@ -131,17 +134,17 @@ mod tests {
                         std::thread::sleep(std::time::Duration::from_millis(10));
                         // block (and hold the mutex) until the receiver actually receives something
                         sender.send(true).unwrap();
-                        finished.set(true).unwrap();
+                        finished.store(true, Ordering::SeqCst);
                     }
                 }
                 drop(guard);
             });
 
             s.spawn(|| {
-                while first_thread_locked_once.get().is_none() {}
-                second_thread_locked_once.set(true).unwrap();
+                while !first_thread_locked_once.load(Ordering::SeqCst) {}
+                second_thread_locked_once.store(true, Ordering::SeqCst);
                 let guard = mutex.lock();
-                assert!(finished.get().unwrap());
+                assert!(finished.load(Ordering::SeqCst));
                 drop(guard);
             });
 
