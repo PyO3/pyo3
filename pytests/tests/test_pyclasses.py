@@ -71,9 +71,16 @@ class ClassWithoutConstructor:
 
 
 @pytest.mark.parametrize(
-    "cls", [pyclasses.ClassWithoutConstructor, ClassWithoutConstructor]
+    "cls, exc_message",
+    [
+        (
+            pyclasses.ClassWithoutConstructor,
+            "cannot create 'builtins.ClassWithoutConstructor' instances",
+        ),
+        (ClassWithoutConstructor, "No constructor defined for ClassWithoutConstructor"),
+    ],
 )
-def test_no_constructor_defined_propagates_cause(cls: Type):
+def test_no_constructor_defined_propagates_cause(cls: Type, exc_message: str):
     original_error = ValueError("Original message")
     with pytest.raises(Exception) as exc_info:
         try:
@@ -82,9 +89,7 @@ def test_no_constructor_defined_propagates_cause(cls: Type):
             cls()  # should raise TypeError("No constructor defined for ...")
 
     assert exc_info.type is TypeError
-    assert exc_info.value.args == (
-        "No constructor defined for ClassWithoutConstructor",
-    )
+    assert exc_info.value.args == (exc_message,)
     assert exc_info.value.__context__ is original_error
 
 
