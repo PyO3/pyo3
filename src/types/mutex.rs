@@ -1,13 +1,25 @@
 use std::cell::UnsafeCell;
 use std::ops::{Deref, DerefMut};
 
-/// Wrapper for [`PyMutex`](https://docs.python.org/3/c-api/init.html#c.PyMutex), exposing an RAII guard interface similar to `std::sync::Mutex`.
+/// Wrapper for [`PyMutex`](https://docs.python.org/3/c-api/init.html#c.PyMutex), exposing an RAII guard interface.
+///
+/// Comapred with `std::sync::Mutex` or `parking_lot::Mutex`, this is a very
+/// stripped-down locking primitive that only supports blocking lock and unlock
+/// operations.
+
+/// `PyMutex` is hooked into CPython's garbage collector and the GIL in GIL-enabled
+/// builds. If a thread is blocked on aquiring the mutex and holds the GIL or would
+/// prevent Python from entering garbage collection, then Python will release the
+/// thread state, allowing garbage collection or other threads blocked by the GIL to
+/// proceed. This means it is impossible for PyMutex to deadlock with the GIL.
 pub struct PyMutex<T: ?Sized> {
     mutex: UnsafeCell<crate::ffi::PyMutex>,
     data: UnsafeCell<T>,
 }
 
 /// RAII guard to handle releasing a PyMutex lock.
+///
+/// The lock is released when `PyMutexGuard` is dropped.
 pub struct PyMutexGuard<'a, T> {
     inner: &'a PyMutex<T>,
 }
