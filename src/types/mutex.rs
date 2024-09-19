@@ -32,7 +32,7 @@ impl<T> PyMutex<T> {
     }
 
     /// Create a new mutex in an unlocked state ready for use.
-    pub fn new(value: T) -> Self {
+    pub const fn new(value: T) -> Self {
         Self {
             mutex: UnsafeCell::new(crate::ffi::PyMutex::new()),
             data: UnsafeCell::new(value),
