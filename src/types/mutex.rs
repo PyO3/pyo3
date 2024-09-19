@@ -141,7 +141,9 @@ mod tests {
             });
 
             s.spawn(|| {
-                while !first_thread_locked_once.load(Ordering::SeqCst) {}
+                while !first_thread_locked_once.load(Ordering::SeqCst) {
+                    std::hint::spin_loop();
+                }
                 second_thread_locked_once.store(true, Ordering::SeqCst);
                 let guard = mutex.lock();
                 assert!(finished.load(Ordering::SeqCst));
