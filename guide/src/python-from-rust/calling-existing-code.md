@@ -23,11 +23,6 @@ fn main() -> PyResult<()> {
 }
 ```
 
-[`PyModule::import`] introduces an overhead each time it's called. To avoid this in functions that are called multiple times,
-using a [`GILOnceCell`]({{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html) is recommended. Specifically, for importing types,
-[`GILOnceCell::import`]({{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html#method.import) is provided
-(check out the [example]({{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html#example-using-giloncecell-to-avoid-the-overhead-of-importing-a-class-multiple-times)).
-
 [`PyModule::import`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.import
 
 ## Want to run just an expression? Then use `eval`.

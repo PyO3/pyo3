@@ -224,7 +224,7 @@ where
     ///
     /// # Example: Using `GILOnceCell` to store a class in a static variable.
     ///
-    /// `GILOnceCell` can be used to avoid importing a class multiple times
+    /// `GILOnceCell` can be used to avoid importing a class multiple times:
     /// ```
     /// # use pyo3::prelude::*;
     /// # use pyo3::sync::GILOnceCell;
