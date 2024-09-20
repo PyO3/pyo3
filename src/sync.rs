@@ -222,8 +222,9 @@ where
     ///
     /// This is a shorthand method for `get_or_init` which imports the type from Python on init.
     ///
-    /// # Example: Using `GILOnceCell` to avoid the overhead of importing a class multiple times
+    /// # Example: Using `GILOnceCell` to store a class in a static variable.
     ///
+    /// `GILOnceCell` can be used to avoid importing a class multiple times
     /// ```
     /// # use pyo3::prelude::*;
     /// # use pyo3::sync::GILOnceCell;
