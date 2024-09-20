@@ -218,7 +218,7 @@ impl<T> GILOnceCell<Py<T>>
 where
     T: PyTypeCheck,
 {
-    /// Get a reference to the contained Python type, initializing it if needed.
+    /// Get a reference to the contained Python type, initializing the cell if needed.
     ///
     /// This is a shorthand method for `get_or_init` which imports the type from Python on init.
     ///
