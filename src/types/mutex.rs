@@ -6,7 +6,7 @@ use std::ops::{Deref, DerefMut};
 /// Comapred with `std::sync::Mutex` or `parking_lot::Mutex`, this is a very
 /// stripped-down locking primitive that only supports blocking lock and unlock
 /// operations.
-
+///
 /// `PyMutex` is hooked into CPython's garbage collector and the GIL in GIL-enabled
 /// builds. If a thread is blocked on aquiring the mutex and holds the GIL or would
 /// prevent Python from entering garbage collection, then Python will release the
