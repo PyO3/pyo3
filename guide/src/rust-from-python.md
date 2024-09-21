@@ -8,6 +8,6 @@ PyO3 can create three types of Python objects:
 
 - Python modules, via the `#[pymodule]` macro
 - Python functions, via the `#[pyfunction]` macro
-- Python classes, via the `#[pyclass]` macro (plus `#[pymethods]` to define methods for those clases)
+- Python classes, via the `#[pyclass]` macro (plus `#[pymethods]` to define methods for those classes)
 
 The following subchapters go through each of these in turn.
