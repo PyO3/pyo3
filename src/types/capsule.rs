@@ -194,8 +194,8 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     /// # Example
     ///
     /// ```
+    /// use std::os::raw::c_void;
     /// use std::sync::mpsc::{channel, Sender};
-    /// use libc::c_void;
     /// use pyo3::{prelude::*, types::PyCapsule};
     ///
     /// let (tx, rx) = channel::<String>();
@@ -357,13 +357,12 @@ fn name_ptr_ignore_error(slf: &Bound<'_, PyCapsule>) -> *const c_char {
 
 #[cfg(test)]
 mod tests {
-    use libc::c_void;
-
     use crate::prelude::PyModule;
     use crate::types::capsule::PyCapsuleMethods;
     use crate::types::module::PyModuleMethods;
     use crate::{types::PyCapsule, Py, PyResult, Python};
     use std::ffi::CString;
+    use std::os::raw::c_void;
     use std::sync::mpsc::{channel, Sender};
 
     #[test]
