@@ -79,6 +79,9 @@ impl PyModule {
     /// ```python
     /// import antigravity
     /// ```
+    ///
+    /// If you want to import a class, you can store a reference to it with
+    /// [`GILOnceCell::import`][crate::sync::GILOnceCell#method.import].
     pub fn import<N>(py: Python<'_>, name: N) -> PyResult<Bound<'_, PyModule>>
     where
         N: IntoPy<Py<PyString>>,
