@@ -766,7 +766,14 @@ pub fn impl_py_getter_def(
 
             // TODO: on MSRV 1.77+, we can use `::std::mem::offset_of!` here, and it should
             // make it possible for the `MaybeRuntimePyMethodDef` to be a `Static` variant.
-            let method_def = quote_spanned! {ty.span()=>
+            let generator = quote_spanned! { ty.span() =>
+                #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Runtime(
+                    || GENERATOR.generate(#python_name, #doc)
+                )
+            };
+            // This is separate so that the unsafe below does not inherit the span and thus does not
+            // trigger the `unsafe_code` lint
+            let method_def = quote! {
                 #cfg_attrs
                 {
                     #[allow(unused_imports)]  // might not be used if all probes are positve
@@ -790,9 +797,7 @@ pub fn impl_py_getter_def(
                         { #pyo3_path::impl_::pyclass::IsIntoPyObjectRef::<#ty>::VALUE },
                         { #pyo3_path::impl_::pyclass::IsIntoPyObject::<#ty>::VALUE },
                     > = unsafe { #pyo3_path::impl_::pyclass::PyClassGetterGenerator::new() };
-                    #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Runtime(
-                        || GENERATOR.generate(#python_name, #doc)
-                    )
+                    #generator
                 }
             };
 
