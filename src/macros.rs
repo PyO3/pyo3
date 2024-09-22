@@ -184,7 +184,6 @@ macro_rules! wrap_pymodule {
 #[macro_export]
 macro_rules! append_to_inittab {
     ($module:ident) => {
-        #[allow(unsafe_code)]
         unsafe {
             if $crate::ffi::Py_IsInitialized() != 0 {
                 ::std::panic!(
