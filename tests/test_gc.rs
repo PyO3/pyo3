@@ -120,6 +120,10 @@ fn gc_integration() {
     Python::with_gil(|py| {
         py.run(ffi::c_str!("import gc; gc.collect()"), None, None)
             .unwrap();
+        // threads are resumed before tp_clear() calls finish, so drop might not
+        // necessarily be called when we get here see
+        // https://peps.python.org/pep-0703/#stop-the-world
+        #[cfg(not(Py_GIL_DISABLED))]
         assert!(drop_called.load(Ordering::Relaxed));
     });
 }
