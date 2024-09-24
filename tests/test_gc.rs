@@ -34,6 +34,16 @@ fn class_with_freelist() {
     });
 }
 
+/// Tests that drop is eventually called on objects that are dropped when the
+/// GIL is not held.
+///
+///
+/// On the free-threaded build, threads are resumed before tp_clear() calls
+/// finish, so drop might not necessarily be called when a test checks. We
+/// therefore cannot check that behavior in the free-threaded build without
+/// introducing a flaky test
+///
+/// See https://peps.python.org/pep-0703/#stop-the-world
 struct TestDropCall {
     drop_called: Arc<AtomicBool>,
 }
@@ -71,7 +81,9 @@ fn data_is_dropped() {
         drop(inst);
     });
 
+    #[cfg(not(Py_GIL_DISABLED))]
     assert!(drop_called1.load(Ordering::Relaxed));
+    #[cfg(not(Py_GIL_DISABLED))]
     assert!(drop_called2.load(Ordering::Relaxed));
 }
 
@@ -120,9 +132,6 @@ fn gc_integration() {
     Python::with_gil(|py| {
         py.run(ffi::c_str!("import gc; gc.collect()"), None, None)
             .unwrap();
-        // threads are resumed before tp_clear() calls finish, so drop might not
-        // necessarily be called when we get here see
-        // https://peps.python.org/pep-0703/#stop-the-world
         #[cfg(not(Py_GIL_DISABLED))]
         assert!(drop_called.load(Ordering::Relaxed));
     });
@@ -229,7 +238,9 @@ fn inheritance_with_new_methods_with_drop() {
         base.data = Some(Arc::clone(&drop_called2));
     });
 
+    #[cfg(not(Py_GIL_DISABLED))]
     assert!(drop_called1.load(Ordering::Relaxed));
+    #[cfg(not(Py_GIL_DISABLED))]
     assert!(drop_called2.load(Ordering::Relaxed));
 }
 
@@ -482,6 +493,7 @@ fn drop_during_traversal_with_gil() {
                 .unwrap();
         });
     }
+    #[cfg(not(Py_GIL_DISABLED))]
     assert!(drop_called.load(Ordering::Relaxed));
 }
 
@@ -517,6 +529,7 @@ fn drop_during_traversal_without_gil() {
                 .unwrap();
         });
     }
+    #[cfg(not(Py_GIL_DISABLED))]
     assert!(drop_called.load(Ordering::Relaxed));
 }
 
