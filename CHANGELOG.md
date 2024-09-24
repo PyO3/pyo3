@@ -10,6 +10,40 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.22.3] - 2024-09-15
+
+### Added
+
+- Add `pyo3::ffi::compat` namespace with compatibility shims for C API functions added in recent versions of Python.
+- Add FFI definition `PyDict_GetItemRef` on Python 3.13 and newer, and `compat::PyDict_GetItemRef` for all versions. [#4355](https://github.com/PyO3/pyo3/pull/4355)
+- Add FFI definition `PyList_GetItemRef` on Python 3.13 and newer, and `pyo3_ffi::compat::PyList_GetItemRef` for all versions. [#4410](https://github.com/PyO3/pyo3/pull/4410)
+- Add FFI definitions `compat::Py_NewRef` and `compat::Py_XNewRef`. [#4445](https://github.com/PyO3/pyo3/pull/4445)
+- Add FFI definitions `compat::PyObject_CallNoArgs` and `compat::PyObject_CallMethodNoArgs`. [#4461](https://github.com/PyO3/pyo3/pull/4461)
+- Add `GilOnceCell<Py<T>>::clone_ref`. [#4511](https://github.com/PyO3/pyo3/pull/4511)
+
+### Changed
+
+- Improve error messages for `#[pyfunction]` defined inside `#[pymethods]`. [#4349](https://github.com/PyO3/pyo3/pull/4349)
+- Improve performance of calls to Python by using the vectorcall calling convention where possible. [#4456](https://github.com/PyO3/pyo3/pull/4456)
+- Mention the type name in the exception message when trying to instantiate a class with no constructor defined. [#4481](https://github.com/PyO3/pyo3/pull/4481)
+
+### Removed
+
+- Remove private FFI definition `_Py_PackageContext`. [#4420](https://github.com/PyO3/pyo3/pull/4420)
+
+### Fixed
+
+- Fix compile failure in declarative `#[pymodule]` under presence of `#![no_implicit_prelude]`. [#4328](https://github.com/PyO3/pyo3/pull/4328)
+- Fix use of borrowed reference in `PyDict::get_item` (unsafe in free-threaded Python). [#4355](https://github.com/PyO3/pyo3/pull/4355)
+- Fix `#[pyclass(eq)]` macro hygiene issues for structs and enums. [#4359](https://github.com/PyO3/pyo3/pull/4359)
+- Fix hygiene/span issues of `'#[pyfunction]` and `#[pymethods]` generated code which affected expansion in `macro_rules` context. [#4382](https://github.com/PyO3/pyo3/pull/4382)
+- Fix `unsafe_code` lint error in `#[pyclass]` generated code. [#4396](https://github.com/PyO3/pyo3/pull/4396)
+- Fix async functions returning a tuple only returning the first element to Python. [#4407](https://github.com/PyO3/pyo3/pull/4407)
+- Fix use of borrowed reference in `PyList::get_item` (unsafe in free-threaded Python). [#4410](https://github.com/PyO3/pyo3/pull/4410)
+- Correct FFI definition `PyArg_ParseTupleAndKeywords` to take `*const *const c_char` instead of `*mut *mut c_char` on Python 3.13 and up. [#4420](https://github.com/PyO3/pyo3/pull/4420)
+- Fix a soundness bug with `PyClassInitializer`: panic if adding subclass to existing instance via `PyClassInitializer::from(Py<BaseClass>).add_subclass(SubClass)`. [#4454](https://github.com/PyO3/pyo3/pull/4454)
+- Fix illegal reference counting op inside implementation of `__traverse__` handlers. [#4479](https://github.com/PyO3/pyo3/pull/4479)
+
 ## [0.22.2] - 2024-07-17
 
 ### Packaging
@@ -1839,7 +1873,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.22.2...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.22.3...HEAD
+[0.22.3]: https://github.com/pyo3/pyo3/compare/v0.22.2...v0.22.3
 [0.22.2]: https://github.com/pyo3/pyo3/compare/v0.22.1...v0.22.2
 [0.22.1]: https://github.com/pyo3/pyo3/compare/v0.22.0...v0.22.1
 [0.22.0]: https://github.com/pyo3/pyo3/compare/v0.21.2...v0.22.0
