@@ -1,5 +1,4 @@
 import concurrent.futures
-import sysconfig
 from typing import Type
 
 import pytest
