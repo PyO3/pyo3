@@ -1,4 +1,3 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{thread, time};
 
 use pyo3::exceptions::{PyStopIteration, PyValueError};
@@ -49,7 +48,7 @@ impl PyClassIter {
 #[pyclass]
 #[derive(Default)]
 struct PyClassThreadIter {
-    count: AtomicUsize,
+    count: usize,
 }
 
 #[pymethods]
@@ -59,12 +58,13 @@ impl PyClassThreadIter {
         Default::default()
     }
 
-    fn __next__(&mut self) -> usize {
-        let current_count = self.count.fetch_add(1, Ordering::SeqCst);
+    fn __next__(&mut self, py: Python<'_>) -> usize {
+        let current_count = self.count;
+        self.count += 1;
         if current_count == 0 {
-            thread::sleep(time::Duration::from_millis(100));
+            py.allow_threads(|| thread::sleep(time::Duration::from_millis(100)));
         }
-        current_count
+        self.count
     }
 }
 

@@ -5,8 +5,6 @@ from typing import Type
 import pytest
 from pyo3_pytests import pyclasses
 
-FREETHREADED_BUILD = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
-
 
 def test_empty_class_init(benchmark):
     benchmark(pyclasses.EmptyClass)
@@ -57,9 +55,6 @@ def test_iter():
     assert excinfo.value.value == "Ended"
 
 
-@pytest.mark.skipif(
-    not FREETHREADED_BUILD, reason="The GIL enforces runtime borrow checking"
-)
 def test_parallel_iter():
     i = pyclasses.PyClassThreadIter()
 
