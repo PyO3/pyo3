@@ -63,10 +63,18 @@ impl BorrowFlag {
             return Err(PyBorrowError { _private: () });
         }
         loop {
-            match self
-                .0
-                .compare_exchange(value, value + 1, Ordering::SeqCst, Ordering::SeqCst)
-            {
+            match self.0.compare_exchange(
+                // only increment if the value hasn't changed since the
+                // last atomic load
+                value,
+                value + 1,
+                // on success, the write is synchronized to ensure other threads
+                // can't acquire any references
+                Ordering::Release,
+                // on failure, the read is synchronized to ensure the borrowed reference
+                // state is observed
+                Ordering::Acquire,
+            ) {
                 Ok(..) => {
                     // value successfully incremented
                     break Ok(());
@@ -82,7 +90,10 @@ impl BorrowFlag {
         }
     }
     fn decrement(&self) {
-        self.0.fetch_sub(1, Ordering::SeqCst);
+        // impossible to get into a bad state from here so relaxed
+        // ordering is fine, the decrement only needs to eventually
+        // be visible
+        self.0.fetch_sub(1, Ordering::Relaxed);
     }
 }
 
