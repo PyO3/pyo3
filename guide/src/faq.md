@@ -2,6 +2,17 @@
 
 Sorry that you're having trouble using PyO3. If you can't find the answer to your problem in the list below, you can also reach out for help on [GitHub Discussions](https://github.com/PyO3/pyo3/discussions) and on [Discord](https://discord.gg/33kcChzH7f).
 
+## `pyo3` is recompiled on every build
+
+Unless a `PYO3_PYTHON` environment variable is set, PyO3 will use Python executable located in `$PATH` to build. However, you may have hidden processes building you crate, and then PyO3, with a different `PATH`; it's frequently the case with IDEs executing `cargo check` in background, as rust-analyser plugin does.
+
+A solution can be to set a fixed `PYO3_PYTHON` environment variable for each build. You can for example write a cargo [configuration file](https://doc.rust-lang.org/cargo/reference/config.html), e.g. `.cargo/config.toml`, with
+```toml
+[env]
+PYO3_PYTHON = "venv/bin/python" # or any other Python path like "/usr/bin/python" 
+```
+
+
 ## I'm experiencing deadlocks using PyO3 with lazy_static or once_cell!
 
 `lazy_static` and `once_cell::sync` both use locks to ensure that initialization is performed only by a single thread. Because the Python GIL is an additional lock this can lead to deadlocks in the following way:
