@@ -123,7 +123,7 @@ const HOST_CONFIG: &str = include_str!(concat!(env!("OUT_DIR"), "/pyo3-build-con
 #[cfg(feature = "resolve-config")]
 fn resolve_cross_compile_config_path() -> Option<PathBuf> {
     env::var_os("TARGET").map(|target| {
-        let mut path = PathBuf::from(env!("OUT_DIR"));
+        let mut path = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR not set"));
         path.push(Path::new(&target));
         path.push("pyo3-build-config.txt");
         path
