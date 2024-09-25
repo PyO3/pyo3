@@ -34,7 +34,6 @@ macro_rules! impl_exception_boilerplate {
         #[cfg(feature = "gil-refs")]
         impl ::std::error::Error for $name {
             fn source(&self) -> ::std::option::Option<&(dyn ::std::error::Error + 'static)> {
-                #[allow(unsafe_code)]
                 unsafe {
                     #[allow(deprecated)]
                     let cause: &$crate::exceptions::PyBaseException = self

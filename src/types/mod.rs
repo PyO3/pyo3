@@ -124,7 +124,6 @@ pub trait DerefToPyAny {
 macro_rules! pyobject_native_type_base(
     ($name:ty $(;$generics:ident)* ) => {
         #[cfg(feature = "gil-refs")]
-        #[allow(unsafe_code)]
         unsafe impl<$($generics,)*> $crate::PyNativeType for $name {
             type AsRefSource = Self;
         }
@@ -163,7 +162,6 @@ macro_rules! pyobject_native_type_base(
         {
             #[inline]
             fn to_object(&self, py: $crate::Python<'_>) -> $crate::PyObject {
-                #[allow(unsafe_code)]
                 unsafe { $crate::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }
@@ -194,7 +192,6 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        #[allow(unsafe_code)]
         unsafe impl<$($generics,)*> $crate::AsPyPointer for $name {
             /// Gets the underlying FFI pointer, returns a borrowed pointer.
             #[inline]
@@ -209,7 +206,6 @@ macro_rules! pyobject_native_type_named (
         impl<$($generics,)*> $crate::IntoPy<$crate::Py<$name>> for &'_ $name {
             #[inline]
             fn into_py(self, py: $crate::Python<'_>) -> $crate::Py<$name> {
-                #[allow(unsafe_code)]
                 unsafe { $crate::Py::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }
@@ -221,7 +217,6 @@ macro_rules! pyobject_native_type_named (
             #[inline]
             fn from(other: &$name) -> Self {
                 use $crate::PyNativeType;
-                #[allow(unsafe_code)]
                 unsafe { $crate::Py::from_borrowed_ptr(other.py(), other.as_ptr()) }
             }
         }
@@ -231,7 +226,6 @@ macro_rules! pyobject_native_type_named (
         #[cfg(feature = "gil-refs")]
         impl<'a, $($generics,)*> ::std::convert::From<&'a $name> for &'a $crate::PyAny {
             fn from(ob: &'a $name) -> Self {
-                #[allow(unsafe_code)]
                 unsafe{&*(ob as *const $name as *const $crate::PyAny)}
             }
         }
@@ -255,7 +249,6 @@ macro_rules! pyobject_native_static_type_object(
 #[macro_export]
 macro_rules! pyobject_native_type_info(
     ($name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        #[allow(unsafe_code)]
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
             const NAME: &'static str = stringify!($name);
             const MODULE: ::std::option::Option<&'static str> = $module;
