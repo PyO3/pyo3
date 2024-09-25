@@ -1659,7 +1659,7 @@ fn impl_pytypeinfo(
 
     #[cfg(feature = "gil-refs")]
     let has_py_gil_ref = quote! {
-        #[allow(deprecated, unsafe_code)]
+        #[allow(deprecated)]
         unsafe impl #pyo3_path::type_object::HasPyGilRef for #cls {
             type AsRefTarget = #pyo3_path::PyCell<Self>;
         }
@@ -1671,7 +1671,6 @@ fn impl_pytypeinfo(
     quote! {
         #has_py_gil_ref
 
-        #[allow(unsafe_code)]
         unsafe impl #pyo3_path::type_object::PyTypeInfo for #cls {
             const NAME: &'static str = #cls_name;
             const MODULE: ::std::option::Option<&'static str> = #module;
