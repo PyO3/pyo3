@@ -570,4 +570,44 @@ mod tests {
             assert_eq!(total_modifications, inst.borrow(py).x);
         });
     }
+
+    #[test]
+    fn test_thread_safety_2() {
+        struct SyncUnsafeCell<T>(UnsafeCell<T>);
+        unsafe impl<T> Sync for SyncUnsafeCell<T> {}
+
+        impl<T> SyncUnsafeCell<T> {
+            fn get(&self) -> *mut T {
+                self.0.get()
+            }
+        }
+
+        let data = SyncUnsafeCell(UnsafeCell::new(0));
+        let data2 = SyncUnsafeCell(UnsafeCell::new(0));
+        let borrow_checker = BorrowChecker(BorrowFlag(AtomicUsize::new(BorrowFlag::UNUSED)));
+
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                for _ in 0..1_000_000 {
+                    if borrow_checker.try_borrow_mut().is_ok() {
+                        // thread 1 writes to both values during the mutable borrow
+                        unsafe { *data.get() += 1 };
+                        unsafe { *data2.get() += 1 };
+                        borrow_checker.release_borrow_mut();
+                    }
+                }
+            });
+
+            s.spawn(|| {
+                for _ in 0..1_000_000 {
+                    if borrow_checker.try_borrow().is_ok() {
+                        // if the borrow checker is working correctly, it should be impossible
+                        // for thread 2 to observe a difference in the two values
+                        assert_eq!(unsafe { *data.get() }, unsafe { *data2.get() });
+                        borrow_checker.release_borrow();
+                    }
+                }
+            });
+        });
+    }
 }
