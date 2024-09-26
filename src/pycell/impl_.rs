@@ -527,4 +527,47 @@ mod tests {
             assert!(mmm_bound.extract::<PyRefMut<'_, MutableBase>>().is_ok());
         })
     }
+
+    #[test]
+    fn test_thread_safety() {
+        #[crate::pyclass(crate = "crate")]
+        struct MyClass {
+            x: u64,
+        }
+
+        Python::with_gil(|py| {
+            let inst = Py::new(py, MyClass { x: 0 }).unwrap();
+
+            let total_modifications = py.allow_threads(|| {
+                std::thread::scope(|s| {
+                    // Spawn a bunch of threads all racing to write to
+                    // the same instance of `MyClass`.
+                    let threads = (0..10)
+                        .map(|_| {
+                            s.spawn(|| {
+                                Python::with_gil(|py| {
+                                    // Each thread records its own view of how many writes it made
+                                    let mut local_modifications = 0;
+                                    for _ in 0..100 {
+                                        if let Ok(mut i) = inst.try_borrow_mut(py) {
+                                            i.x += 1;
+                                            local_modifications += 1;
+                                        }
+                                    }
+                                    local_modifications
+                                })
+                            })
+                        })
+                        .collect::<Vec<_>>();
+
+                    // Sum up the total number of writes made by all threads
+                    threads.into_iter().map(|t| t.join().unwrap()).sum::<u64>()
+                })
+            });
+
+            // If the implementation is free of data races, the total number of writes
+            // should match the final value of `x`.
+            assert_eq!(total_modifications, inst.borrow(py).x);
+        });
+    }
 }
