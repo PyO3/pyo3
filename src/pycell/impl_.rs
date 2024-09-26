@@ -156,10 +156,9 @@ impl PyClassBorrowChecker for BorrowChecker {
             // currently unused
             BorrowFlag::UNUSED,
             BorrowFlag::HAS_MUTABLE_BORROW,
-            // On success the read is synchronized to ensure other
-            // threads don't get a reference before this thread checks
-            // that it can get one
-            Ordering::Acquire,
+            // On success, reading the flag and updating its state are an atomic
+            // operation
+            Ordering::AcqRel,
             // It doesn't matter precisely when the failure gets turned
             // into an error
             Ordering::Relaxed,
