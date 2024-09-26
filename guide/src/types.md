@@ -40,7 +40,7 @@ To convert a `Py<T>` into a `Bound<'py, T>`, the `Py::bind` and `Py::into_bound`
 
 [`Bound<'py, T>`][Bound] is the counterpart to `Py<T>` which is also bound to the `'py` lifetime. It can be thought of as equivalent to the Rust tuple `(Python<'py>, Py<T>)`.
 
-By having the binding to the `'py` lifetime, `Bound<'py, T>` can offer the complete PyO3 API at maximum efficiency. This means that in almost all cases where `Py<T>` is not necessary for lifetime reasons, `Bound<'py, T>` should be used.
+By having the binding to the `'py` lifetime, `Bound<'py, T>` can offer the complete PyO3 API at maximum efficiency. This means that `Bound<'py, T>` should usually be used whenever carrying this lifetime is acceptable, and `Py<T>` otherwise.
 
 `Bound<'py, T>` engages in Python reference counting. This means that `Bound<'py, T>` owns a Python object. Rust code which just wants to borrow a Python object should use a shared reference `&Bound<'py, T>`. Just like `std::sync::Arc`, using `.clone()` and `drop()` will cheaply increment and decrement the reference count of the object (just in this case, the reference counting is implemented by the Python interpreter itself).
 
