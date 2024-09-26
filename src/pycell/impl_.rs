@@ -74,7 +74,7 @@ impl BorrowFlag {
                 Ok(..) => {
                     // value has been successfully incremented, we need an acquire fence
                     // so that data this borrow flag protects can be read safely in this thread
-                    std::atomic::fence(Ordering::Acquire);
+                    std::sync::atomic::fence(Ordering::Acquire);
                     break Ok(());
                 }
                 Err(changed_value) => {
