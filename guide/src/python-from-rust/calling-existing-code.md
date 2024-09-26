@@ -304,7 +304,7 @@ fn main() -> PyResult<()> {
             .import("sys")?
             .getattr("path")?
             .downcast_into::<PyList>()?;
-        syspath.insert(0, &path)?;
+        syspath.insert(0, path)?;
         let app: Py<PyAny> = PyModule::from_code(py, py_app.as_c_str(), c_str!(""), c_str!(""))?
             .getattr("run")?
             .into();

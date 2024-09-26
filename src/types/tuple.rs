@@ -207,14 +207,14 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// This is equivalent to the Python expression `value in self`.
     fn contains<V>(&self, value: V) -> PyResult<bool>
     where
-        V: ToPyObject;
+        V: IntoPyObject<'py>;
 
     /// Returns the first index `i` for which `self[i] == value`.
     ///
     /// This is equivalent to the Python expression `self.index(value)`.
     fn index<V>(&self, value: V) -> PyResult<usize>
     where
-        V: ToPyObject;
+        V: IntoPyObject<'py>;
 
     /// Returns an iterator over the tuple items.
     fn iter(&self) -> BoundTupleIterator<'py>;
@@ -290,7 +290,7 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
     #[inline]
     fn contains<V>(&self, value: V) -> PyResult<bool>
     where
-        V: ToPyObject,
+        V: IntoPyObject<'py>,
     {
         self.as_sequence().contains(value)
     }
@@ -298,7 +298,7 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
     #[inline]
     fn index<V>(&self, value: V) -> PyResult<usize>
     where
-        V: ToPyObject,
+        V: IntoPyObject<'py>,
     {
         self.as_sequence().index(value)
     }
@@ -799,7 +799,7 @@ tuple_conversion!(
 #[cfg(test)]
 mod tests {
     use crate::types::{any::PyAnyMethods, tuple::PyTupleMethods, PyList, PyTuple};
-    use crate::{Python, ToPyObject};
+    use crate::Python;
     use std::collections::HashSet;
 
     #[test]
@@ -820,8 +820,8 @@ mod tests {
     #[test]
     fn test_len() {
         Python::with_gil(|py| {
-            let ob = (1, 2, 3).to_object(py);
-            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
+            let ob = (1, 2, 3).into_pyobject(py).unwrap();
+            let tuple = ob.downcast::<PyTuple>().unwrap();
             assert_eq!(3, tuple.len());
             assert!(!tuple.is_empty());
             let ob = tuple.as_any();
@@ -852,8 +852,8 @@ mod tests {
     #[test]
     fn test_iter() {
         Python::with_gil(|py| {
-            let ob = (1, 2, 3).to_object(py);
-            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
+            let ob = (1, 2, 3).into_pyobject(py).unwrap();
+            let tuple = ob.downcast::<PyTuple>().unwrap();
             assert_eq!(3, tuple.len());
             let mut iter = tuple.iter();
 
@@ -876,8 +876,8 @@ mod tests {
     #[test]
     fn test_iter_rev() {
         Python::with_gil(|py| {
-            let ob = (1, 2, 3).to_object(py);
-            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
+            let ob = (1, 2, 3).into_pyobject(py).unwrap();
+            let tuple = ob.downcast::<PyTuple>().unwrap();
             assert_eq!(3, tuple.len());
             let mut iter = tuple.iter().rev();
 
@@ -946,8 +946,8 @@ mod tests {
     #[test]
     fn test_into_iter() {
         Python::with_gil(|py| {
-            let ob = (1, 2, 3).to_object(py);
-            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
+            let ob = (1, 2, 3).into_pyobject(py).unwrap();
+            let tuple = ob.downcast::<PyTuple>().unwrap();
             assert_eq!(3, tuple.len());
 
             for (i, item) in tuple.iter().enumerate() {
@@ -958,11 +958,8 @@ mod tests {
 
     #[test]
     fn test_into_iter_bound() {
-        use crate::Bound;
-
         Python::with_gil(|py| {
-            let ob = (1, 2, 3).to_object(py);
-            let tuple: &Bound<'_, PyTuple> = ob.downcast_bound(py).unwrap();
+            let tuple = (1, 2, 3).into_pyobject(py).unwrap();
             assert_eq!(3, tuple.len());
 
             let mut items = vec![];
@@ -977,8 +974,8 @@ mod tests {
     #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     fn test_as_slice() {
         Python::with_gil(|py| {
-            let ob = (1, 2, 3).to_object(py);
-            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
+            let ob = (1, 2, 3).into_pyobject(py).unwrap();
+            let tuple = ob.downcast::<PyTuple>().unwrap();
 
             let slice = tuple.as_slice();
             assert_eq!(3, slice.len());
@@ -991,61 +988,65 @@ mod tests {
     #[test]
     fn test_tuple_lengths_up_to_12() {
         Python::with_gil(|py| {
-            let t0 = (0,).to_object(py);
-            let t1 = (0, 1).to_object(py);
-            let t2 = (0, 1, 2).to_object(py);
-            let t3 = (0, 1, 2, 3).to_object(py);
-            let t4 = (0, 1, 2, 3, 4).to_object(py);
-            let t5 = (0, 1, 2, 3, 4, 5).to_object(py);
-            let t6 = (0, 1, 2, 3, 4, 5, 6).to_object(py);
-            let t7 = (0, 1, 2, 3, 4, 5, 6, 7).to_object(py);
-            let t8 = (0, 1, 2, 3, 4, 5, 6, 7, 8).to_object(py);
-            let t9 = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9).to_object(py);
-            let t10 = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10).to_object(py);
-            let t11 = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11).to_object(py);
+            let t0 = (0,).into_pyobject(py).unwrap();
+            let t1 = (0, 1).into_pyobject(py).unwrap();
+            let t2 = (0, 1, 2).into_pyobject(py).unwrap();
+            let t3 = (0, 1, 2, 3).into_pyobject(py).unwrap();
+            let t4 = (0, 1, 2, 3, 4).into_pyobject(py).unwrap();
+            let t5 = (0, 1, 2, 3, 4, 5).into_pyobject(py).unwrap();
+            let t6 = (0, 1, 2, 3, 4, 5, 6).into_pyobject(py).unwrap();
+            let t7 = (0, 1, 2, 3, 4, 5, 6, 7).into_pyobject(py).unwrap();
+            let t8 = (0, 1, 2, 3, 4, 5, 6, 7, 8).into_pyobject(py).unwrap();
+            let t9 = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9).into_pyobject(py).unwrap();
+            let t10 = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+                .into_pyobject(py)
+                .unwrap();
+            let t11 = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
+                .into_pyobject(py)
+                .unwrap();
 
-            assert_eq!(t0.extract::<(i32,)>(py).unwrap(), (0,));
-            assert_eq!(t1.extract::<(i32, i32)>(py).unwrap(), (0, 1,));
-            assert_eq!(t2.extract::<(i32, i32, i32)>(py).unwrap(), (0, 1, 2,));
+            assert_eq!(t0.extract::<(i32,)>().unwrap(), (0,));
+            assert_eq!(t1.extract::<(i32, i32)>().unwrap(), (0, 1,));
+            assert_eq!(t2.extract::<(i32, i32, i32)>().unwrap(), (0, 1, 2,));
             assert_eq!(
-                t3.extract::<(i32, i32, i32, i32,)>(py).unwrap(),
+                t3.extract::<(i32, i32, i32, i32,)>().unwrap(),
                 (0, 1, 2, 3,)
             );
             assert_eq!(
-                t4.extract::<(i32, i32, i32, i32, i32,)>(py).unwrap(),
+                t4.extract::<(i32, i32, i32, i32, i32,)>().unwrap(),
                 (0, 1, 2, 3, 4,)
             );
             assert_eq!(
-                t5.extract::<(i32, i32, i32, i32, i32, i32,)>(py).unwrap(),
+                t5.extract::<(i32, i32, i32, i32, i32, i32,)>().unwrap(),
                 (0, 1, 2, 3, 4, 5,)
             );
             assert_eq!(
-                t6.extract::<(i32, i32, i32, i32, i32, i32, i32,)>(py)
+                t6.extract::<(i32, i32, i32, i32, i32, i32, i32,)>()
                     .unwrap(),
                 (0, 1, 2, 3, 4, 5, 6,)
             );
             assert_eq!(
-                t7.extract::<(i32, i32, i32, i32, i32, i32, i32, i32,)>(py)
+                t7.extract::<(i32, i32, i32, i32, i32, i32, i32, i32,)>()
                     .unwrap(),
                 (0, 1, 2, 3, 4, 5, 6, 7,)
             );
             assert_eq!(
-                t8.extract::<(i32, i32, i32, i32, i32, i32, i32, i32, i32,)>(py)
+                t8.extract::<(i32, i32, i32, i32, i32, i32, i32, i32, i32,)>()
                     .unwrap(),
                 (0, 1, 2, 3, 4, 5, 6, 7, 8,)
             );
             assert_eq!(
-                t9.extract::<(i32, i32, i32, i32, i32, i32, i32, i32, i32, i32,)>(py)
+                t9.extract::<(i32, i32, i32, i32, i32, i32, i32, i32, i32, i32,)>()
                     .unwrap(),
                 (0, 1, 2, 3, 4, 5, 6, 7, 8, 9,)
             );
             assert_eq!(
-                t10.extract::<(i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32,)>(py)
+                t10.extract::<(i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32,)>()
                     .unwrap(),
                 (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,)
             );
             assert_eq!(
-                t11.extract::<(i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32,)>(py)
+                t11.extract::<(i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32,)>()
                     .unwrap(),
                 (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,)
             );
@@ -1055,8 +1056,8 @@ mod tests {
     #[test]
     fn test_tuple_get_item_invalid_index() {
         Python::with_gil(|py| {
-            let ob = (1, 2, 3).to_object(py);
-            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
+            let ob = (1, 2, 3).into_pyobject(py).unwrap();
+            let tuple = ob.downcast::<PyTuple>().unwrap();
             let obj = tuple.get_item(5);
             assert!(obj.is_err());
             assert_eq!(
@@ -1069,8 +1070,8 @@ mod tests {
     #[test]
     fn test_tuple_get_item_sanity() {
         Python::with_gil(|py| {
-            let ob = (1, 2, 3).to_object(py);
-            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
+            let ob = (1, 2, 3).into_pyobject(py).unwrap();
+            let tuple = ob.downcast::<PyTuple>().unwrap();
             let obj = tuple.get_item(0);
             assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 1);
         });
@@ -1080,8 +1081,8 @@ mod tests {
     #[test]
     fn test_tuple_get_item_unchecked_sanity() {
         Python::with_gil(|py| {
-            let ob = (1, 2, 3).to_object(py);
-            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
+            let ob = (1, 2, 3).into_pyobject(py).unwrap();
+            let tuple = ob.downcast::<PyTuple>().unwrap();
             let obj = unsafe { tuple.get_item_unchecked(0) };
             assert_eq!(obj.extract::<i32>().unwrap(), 1);
         });
@@ -1090,17 +1091,17 @@ mod tests {
     #[test]
     fn test_tuple_contains() {
         Python::with_gil(|py| {
-            let ob = (1, 1, 2, 3, 5, 8).to_object(py);
-            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
+            let ob = (1, 1, 2, 3, 5, 8).into_pyobject(py).unwrap();
+            let tuple = ob.downcast::<PyTuple>().unwrap();
             assert_eq!(6, tuple.len());
 
-            let bad_needle = 7i32.to_object(py);
+            let bad_needle = 7i32.into_pyobject(py).unwrap();
             assert!(!tuple.contains(&bad_needle).unwrap());
 
-            let good_needle = 8i32.to_object(py);
+            let good_needle = 8i32.into_pyobject(py).unwrap();
             assert!(tuple.contains(&good_needle).unwrap());
 
-            let type_coerced_needle = 8f32.to_object(py);
+            let type_coerced_needle = 8f32.into_pyobject(py).unwrap();
             assert!(tuple.contains(&type_coerced_needle).unwrap());
         });
     }
@@ -1108,8 +1109,8 @@ mod tests {
     #[test]
     fn test_tuple_index() {
         Python::with_gil(|py| {
-            let ob = (1, 1, 2, 3, 5, 8).to_object(py);
-            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
+            let ob = (1, 1, 2, 3, 5, 8).into_pyobject(py).unwrap();
+            let tuple = ob.downcast::<PyTuple>().unwrap();
             assert_eq!(0, tuple.index(1i32).unwrap());
             assert_eq!(2, tuple.index(2i32).unwrap());
             assert_eq!(3, tuple.index(3i32).unwrap());
@@ -1119,6 +1120,7 @@ mod tests {
         });
     }
 
+    use crate::prelude::IntoPyObject;
     use std::ops::Range;
 
     // An iterator that lies about its `ExactSizeIterator` implementation.
@@ -1176,7 +1178,7 @@ mod tests {
     #[cfg(feature = "macros")]
     #[test]
     fn bad_clone_mem_leaks() {
-        use crate::{IntoPy, Py, PyAny};
+        use crate::{IntoPy, Py, PyAny, ToPyObject};
         use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
         static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -1244,7 +1246,7 @@ mod tests {
     #[cfg(feature = "macros")]
     #[test]
     fn bad_clone_mem_leaks_2() {
-        use crate::{IntoPy, Py, PyAny};
+        use crate::{IntoPy, Py, PyAny, ToPyObject};
         use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
         static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);
