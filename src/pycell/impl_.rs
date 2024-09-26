@@ -59,31 +59,26 @@ impl BorrowFlag {
     const HAS_MUTABLE_BORROW: usize = usize::MAX;
     fn increment(&self) -> Result<(), PyBorrowError> {
         let mut value = self.0.load(Ordering::Relaxed);
-        if value == BorrowFlag::HAS_MUTABLE_BORROW {
-            return Err(PyBorrowError { _private: () });
-        }
         loop {
+            if value == BorrowFlag::HAS_MUTABLE_BORROW {
+                return Err(PyBorrowError { _private: () });
+            }
             match self.0.compare_exchange(
                 // only increment if the value hasn't changed since the
                 // last atomic load
                 value,
                 value + 1,
-                // on success, the write is synchronized to ensure other threads
-                // can't acquire any references
-                Ordering::Release,
-                // on failure, the read is synchronized to ensure the borrowed reference
-                // state is observed
-                Ordering::Acquire,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
             ) {
                 Ok(..) => {
-                    // value successfully incremented
+                    // value has been successfully incremented, we need an acquire fence
+                    // so that data this borrow flag protects can be read safely in this thread
+                    std::atomic::fence(Ordering::Acquire);
                     break Ok(());
                 }
                 Err(changed_value) => {
                     // value changed under us, need to try again
-                    if changed_value == BorrowFlag::HAS_MUTABLE_BORROW {
-                        return Err(PyBorrowError { _private: () });
-                    }
                     value = changed_value;
                 }
             }
