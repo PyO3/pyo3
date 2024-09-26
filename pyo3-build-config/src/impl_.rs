@@ -165,9 +165,7 @@ impl InterpreterConfig {
 
         let mut out = vec![];
 
-        // pyo3-build-config was released when Python 3.6 was supported, so minimum flag to emit is
-        // Py_3_6 (to avoid silently breaking users who depend on this cfg).
-        for i in 6..=self.version.minor {
+        for i in MINIMUM_SUPPORTED_VERSION.minor..=self.version.minor {
             out.push(format!("cargo:rustc-cfg=Py_3_{}", i));
         }
 
@@ -2708,7 +2706,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_6".to_owned(),
                 "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_3_8".to_owned(),
             ]
@@ -2721,7 +2718,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_6".to_owned(),
                 "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=PyPy".to_owned(),
@@ -2748,7 +2744,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_6".to_owned(),
                 "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_LIMITED_API".to_owned(),
             ]
@@ -2761,7 +2756,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_6".to_owned(),
                 "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=PyPy".to_owned(),
                 "cargo:rustc-cfg=Py_LIMITED_API".to_owned(),
@@ -2793,7 +2787,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_6".to_owned(),
                 "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
@@ -2827,7 +2820,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_6".to_owned(),
                 "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=py_sys_config=\"Py_DEBUG\"".to_owned(),
             ]
