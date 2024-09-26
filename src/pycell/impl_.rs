@@ -157,10 +157,17 @@ impl PyClassBorrowChecker for BorrowChecker {
     fn try_borrow_mut(&self) -> Result<(), PyBorrowMutError> {
         let flag = &self.0;
         match flag.0.compare_exchange(
+            // only allowed to transition to mutable borrow if the reference is
+            // currently unused
             BorrowFlag::UNUSED,
             BorrowFlag::HAS_MUTABLE_BORROW,
-            Ordering::SeqCst,
-            Ordering::SeqCst,
+            // On success the read is synchronized to ensure other
+            // threads don't get a reference before this thread checks
+            // that it can get one
+            Ordering::Acquire,
+            // It doesn't matter precisely when the failure gets turned
+            // into an error
+            Ordering::Relaxed,
         ) {
             Ok(..) => Ok(()),
             Err(..) => Err(PyBorrowMutError { _private: () }),
@@ -168,7 +175,7 @@ impl PyClassBorrowChecker for BorrowChecker {
     }
 
     fn release_borrow_mut(&self) {
-        self.0 .0.store(BorrowFlag::UNUSED, Ordering::SeqCst)
+        self.0 .0.store(BorrowFlag::UNUSED, Ordering::Release)
     }
 }
 
