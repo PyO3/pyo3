@@ -37,11 +37,10 @@ fn class_with_freelist() {
 /// Tests that drop is eventually called on objects that are dropped when the
 /// GIL is not held.
 ///
-///
 /// On the free-threaded build, threads are resumed before tp_clear() calls
-/// finish, so drop might not necessarily be called when a test checks. We
-/// therefore cannot check that behavior in the free-threaded build without
-/// introducing a flaky test
+/// finish. Therefore, if the type needs __traverse__, drop might not necessarily
+/// be called by the time the a test re-acquires a Python thread state and checks if
+/// drop has been called.
 ///
 /// See https://peps.python.org/pep-0703/#stop-the-world
 struct TestDropCall {
@@ -81,9 +80,7 @@ fn data_is_dropped() {
         drop(inst);
     });
 
-    #[cfg(not(Py_GIL_DISABLED))]
     assert!(drop_called1.load(Ordering::Relaxed));
-    #[cfg(not(Py_GIL_DISABLED))]
     assert!(drop_called2.load(Ordering::Relaxed));
 }
 
@@ -238,9 +235,7 @@ fn inheritance_with_new_methods_with_drop() {
         base.data = Some(Arc::clone(&drop_called2));
     });
 
-    #[cfg(not(Py_GIL_DISABLED))]
     assert!(drop_called1.load(Ordering::Relaxed));
-    #[cfg(not(Py_GIL_DISABLED))]
     assert!(drop_called2.load(Ordering::Relaxed));
 }
 
