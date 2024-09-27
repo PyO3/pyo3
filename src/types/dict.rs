@@ -178,6 +178,15 @@ pub trait PyDictMethods<'py>: crate::sealed::Sealed {
     /// so long as the set of keys does not change.
     fn iter(&self) -> BoundDictIterator<'py>;
 
+    /// Iterates over the contents of this dictionary while holding a critical section on the dict.
+    /// This is useful when the GIL is disabled and the dictionary is shared between threads.
+    /// It is not guaranteed that the dictionary will not be modified during iteration when the
+    /// closure calls arbitrary Python code that releases the current critical section.
+    #[cfg(Py_GIL_DISABLED)]
+    fn locked_for_each<F>(&self, closure: F) -> PyResult<()>
+    where
+        F: Fn(Bound<'py, PyAny>, Bound<'py, PyAny>) -> PyResult<()>;
+
     /// Returns `self` cast as a `PyMapping`.
     fn as_mapping(&self) -> &Bound<'py, PyMapping>;
 
@@ -353,6 +362,25 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
 
     fn iter(&self) -> BoundDictIterator<'py> {
         BoundDictIterator::new(self.clone())
+    }
+
+    #[cfg(Py_GIL_DISABLED)]
+    fn locked_for_each<F>(&self, closure: F) -> PyResult<()>
+    where
+        F: Fn(Bound<'py, PyAny>, Bound<'py, PyAny>) -> PyResult<()>,
+    {
+        let mut section = unsafe { std::mem::zeroed() };
+        unsafe { ffi::PyCriticalSection_Begin(&mut section, self.as_ptr()) };
+
+        for (key, value) in self {
+            if let Err(err) = closure(key, value) {
+                unsafe { ffi::PyCriticalSection_End(&mut section) };
+                return Err(err);
+            }
+        }
+
+        unsafe { ffi::PyCriticalSection_End(&mut section) };
+        Ok(())
     }
 
     fn as_mapping(&self) -> &Bound<'py, PyMapping> {
