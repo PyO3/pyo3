@@ -2,7 +2,7 @@ use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::types::{any::PyAny, PyNone};
-use crate::{ffi, Borrowed, Bound, ToPyObject};
+use crate::{ffi, Bound, ToPyObject};
 
 #[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
 use crate::type_object::PyTypeCheck;

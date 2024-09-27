@@ -1,11 +1,11 @@
-use crate::err::{DowncastError, PyResult};
+use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::{
     any::{PyAny, PyAnyMethods},
     PyNone,
 };
-use crate::{ffi, Borrowed, Bound};
+use crate::{ffi, Bound};
 
 /// Represents any Python `weakref` reference.
 ///
