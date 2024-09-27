@@ -62,24 +62,34 @@ impl<T> GILProtected<T> {
 #[cfg(not(Py_GIL_DISABLED))]
 unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 
-/// A write-once cell similar to [`once_cell::OnceCell`](https://docs.rs/once_cell/latest/once_cell/).
+/// A write-once primitive similar to [`std::sync::OnceLock<T>`].
 ///
-/// Unlike `once_cell::sync` which blocks threads to achieve thread safety, this implementation
-/// uses the Python GIL to mediate concurrent access. This helps in cases where `once_cell` or
-/// `lazy_static`'s synchronization strategy can lead to deadlocks when interacting with the Python
-/// GIL. For an example, see
-#[doc = concat!("[the FAQ section](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/faq.html)")]
+/// Unlike `OnceLock<T>` which blocks threads to achieve thread safety, `GilOnceCell<T>`
+/// allows calls to [`get_or_init`][GILOnceCell::get_or_init] and
+/// [`get_or_try_init`][GILOnceCell::get_or_try_init] to race to create an initialized value.
+/// (It is still guaranteed that only one thread will ever write to the cell.)
+///
+/// On Python versions that run with the Global Interpreter Lock (GIL), this helps to avoid
+/// deadlocks between initialization and the GIL. For an example of such a deadlock, see
+#[doc = concat!(
+    "[the FAQ section](https://pyo3.rs/v",
+    env!("CARGO_PKG_VERSION"),
+    "/faq.html#im-experiencing-deadlocks-using-pyo3-with-stdsynconcelock-stdsynclazylock-lazy_static-and-once_cell)"
+)]
 /// of the guide.
 ///
-/// Note that:
-///  1) `get_or_init` and `get_or_try_init` do not protect against infinite recursion
-///     from reentrant initialization.
-///  2) If the initialization function `f` provided to `get_or_init` (or `get_or_try_init`)
-///     temporarily releases the GIL (e.g. by calling `Python::import`) then it is possible
-///     for a second thread to also begin initializing the `GILOnceCell`. Even when this
-///     happens `GILOnceCell` guarantees that only **one** write to the cell ever occurs -
-///     this is treated as a race, other threads will discard the value they compute and
-///     return the result of the first complete computation.
+/// Note that because the GIL blocks concurrent execution, in practice the means that
+/// [`get_or_init`][GILOnceCell::get_or_init] and
+/// [`get_or_try_init`][GILOnceCell::get_or_try_init] can only race if the initialization
+/// function does work that can allow the GIL to switch threads (e.g. Python imports or calling
+/// Python functions). On freethreaded Python without the GIL, the race creating wasted work is
+/// more likely (and PyO3 may change GILOnceCell to behave more like the GIL build in the future).
+///
+/// # Re-entrant initialization
+///
+/// [`get_or_init`][GILOnceCell::get_or_init] and
+/// [`get_or_try_init`][GILOnceCell::get_or_try_init] do not protect against infinite recursion
+/// from reentrant initialization.
 ///
 /// # Examples
 ///
@@ -112,7 +122,8 @@ impl<T> Default for GILOnceCell<T> {
 }
 
 // T: Send is needed for Sync because the thread which drops the GILOnceCell can be different
-// to the thread which fills it.
+// to the thread which fills it. (e.g. think scoped thread which fills the cell and then exits,
+// leaving the cell to be dropped by the main thread).
 unsafe impl<T: Send + Sync> Sync for GILOnceCell<T> {}
 unsafe impl<T: Send> Send for GILOnceCell<T> {}
 

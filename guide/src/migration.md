@@ -205,6 +205,8 @@ impl<'a, 'py> IntoPyObject<'py> for &'a MyPyObjectWrapper {
 PyO3 0.23 introduces preliminary support for the new free-threaded build of
 CPython 3.13. PyO3 features that implicitly assumed the existence of the GIL
 are not exposed in the free-threaded build, since they are no longer safe.
+Other features, such as `GILOnceCell`, have been internally rewritten to be
+threadsafe without the GIL.
 
 If you make use of these features then you will need to account for the
 unavailability of this API in the free-threaded build. One way to handle it is
