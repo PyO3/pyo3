@@ -189,7 +189,7 @@ impl<T> GILOnceCell<T> {
     pub fn get_mut(&mut self) -> Option<&mut T> {
         if self.once.is_completed() {
             // SAFETY: the cell has been written.
-            Some(unsafe { (&mut *self.data.get()).assume_init_mut() })
+            Some(unsafe { (*self.data.get()).assume_init_mut() })
         } else {
             None
         }
@@ -209,7 +209,7 @@ impl<T> GILOnceCell<T> {
             // inside the `call_once_force` closure.
             unsafe {
                 // `.take().unwrap()` will never panic
-                (&mut *self.data.get()).write(value.take().unwrap());
+                (*self.data.get()).write(value.take().unwrap());
             }
         });
 
@@ -242,11 +242,18 @@ impl<T> GILOnceCell<T> {
 }
 
 impl<T> GILOnceCell<Py<T>> {
-    /// Create a new cell that contains a new Python reference to the same contained object.
+    /// Creates a new cell that contains a new Python reference to the same contained object.
     ///
-    /// Returns an uninitialised cell if `self` has not yet been initialised.
+    /// Returns an uninitialized cell if `self` has not yet been initialized.
     pub fn clone_ref(&self, py: Python<'_>) -> Self {
-        Self(UnsafeCell::new(self.get(py).map(|ob| ob.clone_ref(py))))
+        let cloned = Self {
+            once: Once::new(),
+            data: UnsafeCell::new(MaybeUninit::uninit()),
+        };
+        if let Some(value) = self.get(py) {
+            let _ = cloned.set(py, value.clone_ref(py));
+        }
+        cloned
     }
 }
 
