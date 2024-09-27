@@ -351,7 +351,6 @@ slot_fragment_trait! {
 #[macro_export]
 macro_rules! generate_pyclass_getattro_slot {
     ($cls:ty) => {{
-        #[allow(unsafe_code)]
         unsafe extern "C" fn __wrap(
             _slf: *mut $crate::ffi::PyObject,
             attr: *mut $crate::ffi::PyObject,
@@ -435,7 +434,6 @@ macro_rules! define_pyclass_setattr_slot {
         #[macro_export]
         macro_rules! $generate_macro {
             ($cls:ty) => {{
-                #[allow(unsafe_code)]
                 unsafe extern "C" fn __wrap(
                     _slf: *mut $crate::ffi::PyObject,
                     attr: *mut $crate::ffi::PyObject,
@@ -552,7 +550,6 @@ macro_rules! define_pyclass_binary_operator_slot {
         #[macro_export]
         macro_rules! $generate_macro {
             ($cls:ty) => {{
-                #[allow(unsafe_code)]
                 unsafe extern "C" fn __wrap(
                     _slf: *mut $crate::ffi::PyObject,
                     _other: *mut $crate::ffi::PyObject,
@@ -745,7 +742,6 @@ slot_fragment_trait! {
 #[macro_export]
 macro_rules! generate_pyclass_pow_slot {
     ($cls:ty) => {{
-        #[allow(unsafe_code)]
         unsafe extern "C" fn __wrap(
             _slf: *mut $crate::ffi::PyObject,
             _other: *mut $crate::ffi::PyObject,
@@ -870,7 +866,7 @@ macro_rules! generate_pyclass_richcompare_slot {
     ($cls:ty) => {{
         #[allow(unknown_lints, non_local_definitions)]
         impl $cls {
-            #[allow(non_snake_case, unsafe_code)]
+            #[allow(non_snake_case)]
             unsafe extern "C" fn __pymethod___richcmp____(
                 slf: *mut $crate::ffi::PyObject,
                 other: *mut $crate::ffi::PyObject,
@@ -990,8 +986,9 @@ unsafe fn bpo_35810_workaround(py: Python<'_>, ty: *mut ffi::PyTypeObject) {
     ffi::Py_INCREF(ty as *mut ffi::PyObject);
 }
 
-/// Implementation detail. Only to be used through our proc macro code.
 /// Method storage for `#[pyclass]`.
+///
+/// Implementation detail. Only to be used through our proc macro code.
 /// Allows arbitrary `#[pymethod]` blocks to submit their methods,
 /// which are eventually collected by `#[pyclass]`.
 #[cfg(feature = "multiple-pymethods")]
@@ -1114,7 +1111,7 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
 /// Trait denoting that this class is suitable to be used as a base type for PyClass.
 
 #[cfg_attr(
-    all(diagnostic_namespace, feature = "abi3"),
+    all(diagnostic_namespace, Py_LIMITED_API),
     diagnostic::on_unimplemented(
         message = "pyclass `{Self}` cannot be subclassed",
         label = "required for `#[pyclass(extends={Self})]`",
@@ -1123,7 +1120,7 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     )
 )]
 #[cfg_attr(
-    all(diagnostic_namespace, not(feature = "abi3")),
+    all(diagnostic_namespace, not(Py_LIMITED_API)),
     diagnostic::on_unimplemented(
         message = "pyclass `{Self}` cannot be subclassed",
         label = "required for `#[pyclass(extends={Self})]`",

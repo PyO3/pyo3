@@ -8,7 +8,19 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPySys_SetObject")]
     pub fn PySys_SetObject(arg1: *const c_char, arg2: *mut PyObject) -> c_int;
 
+    #[cfg_attr(
+        Py_3_11,
+        deprecated(
+            note = "Deprecated in Python 3.11, use `PyConfig.argv` and `PyConfig.parse_argv` instead"
+        )
+    )]
     pub fn PySys_SetArgv(arg1: c_int, arg2: *mut *mut wchar_t);
+    #[cfg_attr(
+        Py_3_11,
+        deprecated(
+            note = "Deprecated in Python 3.11, use `PyConfig.argv` and `PyConfig.parse_argv` instead"
+        )
+    )]
     pub fn PySys_SetArgvEx(arg1: c_int, arg2: *mut *mut wchar_t, arg3: c_int);
     pub fn PySys_SetPath(arg1: *const wchar_t);
 
@@ -19,6 +31,12 @@ extern "C" {
     pub fn PySys_FormatStdout(format: *const c_char, ...);
     pub fn PySys_FormatStderr(format: *const c_char, ...);
 
+    #[cfg_attr(
+        Py_3_13,
+        deprecated(
+            note = "Deprecated since Python 3.13. Clear sys.warnoptions and warnings.filters instead."
+        )
+    )]
     pub fn PySys_ResetWarnOptions();
     #[cfg_attr(Py_3_11, deprecated(note = "Python 3.11"))]
     pub fn PySys_AddWarnOption(arg1: *const wchar_t);

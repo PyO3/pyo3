@@ -1059,8 +1059,9 @@ impl FromStr for BuildFlag {
     }
 }
 
-/// A list of python interpreter compile-time preprocessor defines that
-/// we will pick up and pass to rustc via `--cfg=py_sys_config={varname}`;
+/// A list of python interpreter compile-time preprocessor defines.
+///
+/// PyO3 will pick these up and pass to rustc via `--cfg=py_sys_config={varname}`;
 /// this allows using them conditional cfg attributes in the .rs files, so
 ///
 /// ```rust

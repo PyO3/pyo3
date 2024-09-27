@@ -85,6 +85,7 @@ extern "C" {
     pub fn PyCFunction_GetFunction(f: *mut PyObject) -> Option<PyCFunction>;
     pub fn PyCFunction_GetSelf(f: *mut PyObject) -> *mut PyObject;
     pub fn PyCFunction_GetFlags(f: *mut PyObject) -> c_int;
+    #[cfg(not(Py_3_13))]
     #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
     pub fn PyCFunction_Call(
         f: *mut PyObject,

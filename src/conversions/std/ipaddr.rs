@@ -46,7 +46,7 @@ impl<'py> IntoPyObject<'py> for Ipv4Addr {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         static IPV4_ADDRESS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
         IPV4_ADDRESS
-            .get_or_try_init_type_ref(py, "ipaddress", "IPv4Address")?
+            .import(py, "ipaddress", "IPv4Address")?
             .call1((u32::from_be_bytes(self.octets()),))
     }
 }
@@ -77,7 +77,7 @@ impl<'py> IntoPyObject<'py> for Ipv6Addr {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         static IPV6_ADDRESS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
         IPV6_ADDRESS
-            .get_or_try_init_type_ref(py, "ipaddress", "IPv6Address")?
+            .import(py, "ipaddress", "IPv6Address")?
             .call1((u128::from_be_bytes(self.octets()),))
     }
 }

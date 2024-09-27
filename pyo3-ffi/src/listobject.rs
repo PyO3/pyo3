@@ -29,6 +29,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyList_GetItem")]
     pub fn PyList_GetItem(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
     #[cfg(Py_3_13)]
+    #[cfg_attr(PyPy, link_name = "PyPyList_GetItemRef")]
     pub fn PyList_GetItemRef(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyList_SetItem")]
     pub fn PyList_SetItem(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut PyObject) -> c_int;

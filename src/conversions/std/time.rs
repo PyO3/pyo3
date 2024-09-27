@@ -93,7 +93,7 @@ impl<'py> IntoPyObject<'py> for Duration {
         {
             static TIMEDELTA: GILOnceCell<Py<PyType>> = GILOnceCell::new();
             TIMEDELTA
-                .get_or_try_init_type_ref(py, "datetime", "timedelta")?
+                .import(py, "datetime", "timedelta")?
                 .call1((days, seconds, microseconds))
         }
     }

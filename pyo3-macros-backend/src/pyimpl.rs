@@ -330,7 +330,7 @@ fn submit_methods_inventory(
     }
 }
 
-fn get_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<&syn::Attribute> {
+pub(crate) fn get_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<&syn::Attribute> {
     attrs
         .iter()
         .filter(|attr| attr.path().is_ident("cfg"))

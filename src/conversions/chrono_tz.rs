@@ -66,7 +66,7 @@ impl<'py> IntoPyObject<'py> for Tz {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         static ZONE_INFO: GILOnceCell<Py<PyType>> = GILOnceCell::new();
         ZONE_INFO
-            .get_or_try_init_type_ref(py, "zoneinfo", "ZoneInfo")
+            .import(py, "zoneinfo", "ZoneInfo")
             .and_then(|obj| obj.call1((self.name(),)))
     }
 }

@@ -66,6 +66,12 @@ error: The `ord` option requires the `eq` option.
 83 | #[pyclass(ord)]
    |           ^^^
 
+error: #[pyclass] can't be used on enums without any variants - all variants of enum `AllEnumVariantsDisabled` have been configured out by cfg attributes
+  --> tests/ui/invalid_pyclass_enum.rs:98:6
+   |
+98 | enum AllEnumVariantsDisabled {
+   |      ^^^^^^^^^^^^^^^^^^^^^^^
+
 error[E0369]: binary operation `==` cannot be applied to type `&SimpleEqOptRequiresPartialEq`
   --> tests/ui/invalid_pyclass_enum.rs:31:11
    |
