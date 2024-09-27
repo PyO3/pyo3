@@ -466,6 +466,13 @@ impl<'py> Iterator for BoundDictIterator<'py> {
                 di_used,
                 remaining,
             } => {
+                #[cfg(Py_GIL_DISABLED)]
+                let mut section = unsafe { std::mem::zeroed() };
+                #[cfg(Py_GIL_DISABLED)]
+                unsafe {
+                    ffi::PyCriticalSection_Begin(&mut section, op)
+                };
+
                 let ma_used = dict_len(dict);
 
                 // These checks are similar to what CPython does.
@@ -495,7 +502,10 @@ impl<'py> Iterator for BoundDictIterator<'py> {
                 let mut key: *mut ffi::PyObject = std::ptr::null_mut();
                 let mut value: *mut ffi::PyObject = std::ptr::null_mut();
 
-                if unsafe { ffi::PyDict_Next(dict.as_ptr(), ppos, &mut key, &mut value) } != 0 {
+                let result = if unsafe {
+                    ffi::PyDict_Next(dict.as_ptr(), ppos, &mut key, &mut value)
+                } != 0
+                {
                     *remaining -= 1;
                     let py = dict.py();
                     // Safety:
@@ -507,7 +517,14 @@ impl<'py> Iterator for BoundDictIterator<'py> {
                     ))
                 } else {
                     None
+                };
+
+                #[cfg(Py_GIL_DISABLED)]
+                unsafe {
+                    ffi::PyCriticalSection_End(&mut section);
                 }
+
+                result
             }
         }
     }
