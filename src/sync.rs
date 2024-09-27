@@ -8,7 +8,7 @@ use crate::{
     types::{any::PyAnyMethods, PyString},
     Bound, Py, PyResult, PyTypeCheck, Python,
 };
-use std::{cell::UnsafeCell, mem::MaybeUninit, sync::Once};
+use std::{cell::UnsafeCell, marker::PhantomData, mem::MaybeUninit, sync::Once};
 
 #[cfg(not(Py_GIL_DISABLED))]
 use crate::PyVisit;
@@ -113,6 +113,28 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 pub struct GILOnceCell<T> {
     once: Once,
     data: UnsafeCell<MaybeUninit<T>>,
+
+    /// (Copied from std::sync::OnceLock)
+    ///
+    /// `PhantomData` to make sure dropck understands we're dropping T in our Drop impl.
+    ///
+    /// ```
+    /// use pyo3::Python;
+    /// use pyo3::sync::GILOnceCell;
+    ///
+    /// struct A<'a>(#[allow(dead_code)] &'a str);
+    ///
+    /// impl<'a> Drop for A<'a> {
+    ///     fn drop(&mut self) {}
+    /// }
+    ///
+    /// let cell = GILOnceCell::new();
+    /// {
+    ///     let s = String::new();
+    ///     let _ = Python::with_gil(|py| cell.set(py,A(&s)));
+    /// }
+    /// ```
+    _marker: PhantomData<T>,
 }
 
 impl<T> Default for GILOnceCell<T> {
@@ -133,6 +155,7 @@ impl<T> GILOnceCell<T> {
         Self {
             once: Once::new(),
             data: UnsafeCell::new(MaybeUninit::uninit()),
+            _marker: PhantomData,
         }
     }
 
@@ -235,20 +258,23 @@ impl<T> GILOnceCell<T> {
     ///
     /// Has no effect and returns None if the cell has not yet been written.
     pub fn take(&mut self) -> Option<T> {
-        // We leave `self` in a default (empty) state
-        std::mem::take(self).into_inner()
+        if self.once.is_completed() {
+            // Reset the cell to its default state so that it won't try to
+            // drop the value again.
+            self.once = Once::new();
+            // SAFETY: the cell has been written. `self.once` has been reset,
+            // so when `self` is dropped the value won't be read again.
+            Some(unsafe { self.data.get_mut().assume_init_read() })
+        } else {
+            None
+        }
     }
 
     /// Consumes the cell, returning the wrapped value.
     ///
     /// Returns None if the cell has not yet been written.
-    pub fn into_inner(self) -> Option<T> {
-        if self.once.is_completed() {
-            // SAFETY: the cell has been written.
-            Some(unsafe { self.data.into_inner().assume_init() })
-        } else {
-            None
-        }
+    pub fn into_inner(mut self) -> Option<T> {
+        self.take()
     }
 }
 
@@ -260,6 +286,7 @@ impl<T> GILOnceCell<Py<T>> {
         let cloned = Self {
             once: Once::new(),
             data: UnsafeCell::new(MaybeUninit::uninit()),
+            _marker: PhantomData,
         };
         if let Some(value) = self.get(py) {
             let _ = cloned.set(py, value.clone_ref(py));
@@ -317,6 +344,15 @@ where
             Ok(type_object.unbind())
         })
         .map(|ty| ty.bind(py))
+    }
+}
+
+impl<T> Drop for GILOnceCell<T> {
+    fn drop(&mut self) {
+        if self.once.is_completed() {
+            // SAFETY: the cell has been written.
+            unsafe { MaybeUninit::assume_init_drop(self.data.get_mut()) }
+        }
     }
 }
 
@@ -434,5 +470,28 @@ mod tests {
             cell_py.get_or_init(py, || py.None());
             assert!(cell_py.clone_ref(py).get(py).unwrap().is_none(py));
         })
+    }
+
+    #[test]
+    fn test_once_cell_drop() {
+        #[derive(Debug)]
+        struct RecordDrop<'a>(&'a mut bool);
+
+        impl Drop for RecordDrop<'_> {
+            fn drop(&mut self) {
+                *self.0 = true;
+            }
+        }
+
+        Python::with_gil(|py| {
+            let mut dropped = false;
+            let cell = GILOnceCell::new();
+            cell.set(py, RecordDrop(&mut dropped)).unwrap();
+            let drop_container = cell.get(py).unwrap();
+
+            assert!(!*drop_container.0);
+            drop(cell);
+            assert!(dropped);
+        });
     }
 }
