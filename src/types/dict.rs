@@ -435,7 +435,7 @@ pub enum BoundDictIterator<'py> {
         remaining: ffi::Py_ssize_t,
     },
     /// Iterator over the items of the dictionary, using the C-API `PyDict_Next`. This variant is
-    /// only used when the dictionary is an exact instance of `PyDict` and the GIL enabled.
+    /// only used when the dictionary is an exact instance of `PyDict`.
     #[allow(missing_docs)]
     DictIter {
         dict: Bound<'py, PyDict>,
@@ -534,6 +534,66 @@ impl<'py> Iterator for BoundDictIterator<'py> {
         let len = self.len();
         (len, Some(len))
     }
+
+    #[inline]
+    #[cfg(Py_GIL_DISABLED)]
+    fn fold<B, F>(mut self, init: B, mut f: F) -> B
+    where
+        Self: Sized,
+        F: FnMut(B, Self::Item) -> B,
+    {
+        let op = match self {
+            BoundDictIterator::ItemIter { ref iter, .. } => iter.as_ptr(),
+            BoundDictIterator::DictIter { ref dict, .. } => dict.as_ptr(),
+        };
+
+        let mut section = unsafe { std::mem::zeroed() };
+        unsafe { ffi::PyCriticalSection_Begin(&mut section, op) };
+
+        let mut accum = init;
+        for x in &mut self {
+            accum = f(accum, x);
+        }
+        unsafe {
+            ffi::PyCriticalSection_End(&mut section);
+        }
+        accum
+    }
+
+    #[inline]
+    #[cfg(all(Py_GIL_DISABLED, feature = "nightly"))]
+    fn try_fold<B, F, R>(&mut self, init: B, mut f: F) -> R
+    where
+        Self: Sized,
+        F: FnMut(B, Self::Item) -> R,
+        R: std::ops::Try<Output = B>,
+    {
+        use std::ops::ControlFlow;
+
+        let op = match self {
+            BoundDictIterator::ItemIter { ref iter, .. } => iter.as_ptr(),
+            BoundDictIterator::DictIter { ref dict, .. } => dict.as_ptr(),
+        };
+
+        let mut section = unsafe { std::mem::zeroed() };
+        unsafe { ffi::PyCriticalSection_Begin(&mut section, op) };
+
+        let mut accum = init;
+
+        for x in &mut self {
+            match f(accum, x).branch() {
+                ControlFlow::Continue(a) => accum = a,
+                ControlFlow::Break(err) => {
+                    unsafe { ffi::PyCriticalSection_End(&mut section) }
+                    return R::from_residual(err);
+                }
+            }
+        }
+        unsafe {
+            ffi::PyCriticalSection_End(&mut section);
+        }
+        R::from_output(accum)
+    }
 }
 
 impl ExactSizeIterator for BoundDictIterator<'_> {
@@ -550,11 +610,6 @@ impl<'py> BoundDictIterator<'py> {
         let remaining = dict_len(&dict);
 
         if dict.is_exact_instance_of::<PyDict>() {
-            // Copy the dictionary if the GIL is disabled, as we can't guarantee that the dictionary
-            // won't be modified during iteration.
-            #[cfg(Py_GIL_DISABLED)]
-            let dict = dict.copy().unwrap();
-
             return BoundDictIterator::DictIter {
                 dict,
                 ppos: 0,
