@@ -8,7 +8,7 @@ use pyo3::types::{PyList, PySequence};
 fn iter_list(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
-        let list = PyList::new(py, 0..LEN);
+        let list = PyList::new(py, 0..LEN).unwrap();
         let mut sum = 0;
         b.iter(|| {
             for x in &list {
@@ -29,7 +29,7 @@ fn list_new(b: &mut Bencher<'_>) {
 fn list_get_item(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
-        let list = PyList::new(py, 0..LEN);
+        let list = PyList::new(py, 0..LEN).unwrap();
         let mut sum = 0;
         b.iter(|| {
             for i in 0..LEN {
@@ -43,7 +43,7 @@ fn list_get_item(b: &mut Bencher<'_>) {
 fn list_get_item_unchecked(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
-        let list = PyList::new(py, 0..LEN);
+        let list = PyList::new(py, 0..LEN).unwrap();
         let mut sum = 0;
         b.iter(|| {
             for i in 0..LEN {
@@ -58,7 +58,7 @@ fn list_get_item_unchecked(b: &mut Bencher<'_>) {
 fn sequence_from_list(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
-        let list = &PyList::new(py, 0..LEN);
+        let list = &PyList::new(py, 0..LEN).unwrap();
         b.iter(|| black_box(list).downcast::<PySequence>().unwrap());
     });
 }

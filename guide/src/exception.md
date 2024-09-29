@@ -78,12 +78,15 @@ In PyO3 every object has the [`PyAny::is_instance`] and [`PyAny::is_instance_of`
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyList};
 
+# fn main() -> PyResult<()> {
 Python::with_gil(|py| {
     assert!(PyBool::new(py, true).is_instance_of::<PyBool>());
-    let list = PyList::new(py, &[1, 2, 3, 4]);
+    let list = PyList::new(py, &[1, 2, 3, 4])?;
     assert!(!list.is_instance_of::<PyBool>());
     assert!(list.is_instance_of::<PyList>());
-});
+# Ok(())
+})
+# }
 ```
 
 To check the type of an exception, you can similarly do:
