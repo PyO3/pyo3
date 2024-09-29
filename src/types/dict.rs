@@ -5,6 +5,8 @@ use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::{PyAny, PyAnyMethods, PyIterator, PyList, PyMapping, PyTuple, PyTupleMethods};
 use crate::{ffi, BoundObject, IntoPyObject, Python};
+#[cfg(Py_GIL_DISABLED)]
+use std::ops::ControlFlow;
 
 /// Represents a Python `dict`.
 ///
@@ -470,7 +472,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
                 let mut section = unsafe { std::mem::zeroed() };
                 #[cfg(Py_GIL_DISABLED)]
                 unsafe {
-                    ffi::PyCriticalSection_Begin(&mut section, op)
+                    ffi::PyCriticalSection_Begin(&mut section, dict.as_ptr());
                 };
 
                 let ma_used = dict_len(dict);
@@ -542,21 +544,14 @@ impl<'py> Iterator for BoundDictIterator<'py> {
         Self: Sized,
         F: FnMut(B, Self::Item) -> B,
     {
-        let op = match self {
-            BoundDictIterator::ItemIter { ref iter, .. } => iter.as_ptr(),
-            BoundDictIterator::DictIter { ref dict, .. } => dict.as_ptr(),
-        };
-
         let mut section = unsafe { std::mem::zeroed() };
-        unsafe { ffi::PyCriticalSection_Begin(&mut section, op) };
+        unsafe { ffi::PyCriticalSection_Begin(&mut section, self.as_ptr()) };
 
         let mut accum = init;
         for x in &mut self {
             accum = f(accum, x);
         }
-        unsafe {
-            ffi::PyCriticalSection_End(&mut section);
-        }
+        unsafe { ffi::PyCriticalSection_End(&mut section) };
         accum
     }
 
@@ -568,15 +563,8 @@ impl<'py> Iterator for BoundDictIterator<'py> {
         F: FnMut(B, Self::Item) -> R,
         R: std::ops::Try<Output = B>,
     {
-        use std::ops::ControlFlow;
-
-        let op = match self {
-            BoundDictIterator::ItemIter { ref iter, .. } => iter.as_ptr(),
-            BoundDictIterator::DictIter { ref dict, .. } => dict.as_ptr(),
-        };
-
         let mut section = unsafe { std::mem::zeroed() };
-        unsafe { ffi::PyCriticalSection_Begin(&mut section, op) };
+        unsafe { ffi::PyCriticalSection_Begin(&mut section, self.as_ptr()) };
 
         let mut accum = init;
 
@@ -589,10 +577,149 @@ impl<'py> Iterator for BoundDictIterator<'py> {
                 }
             }
         }
-        unsafe {
-            ffi::PyCriticalSection_End(&mut section);
-        }
+        unsafe { ffi::PyCriticalSection_End(&mut section) };
         R::from_output(accum)
+    }
+
+    #[inline]
+    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    fn all<F>(&mut self, f: F) -> bool
+    where
+        Self: Sized,
+        F: FnMut(Self::Item) -> bool,
+    {
+        let mut section = unsafe { std::mem::zeroed() };
+        unsafe { ffi::PyCriticalSection_Begin(&mut section, self.as_ptr()) };
+
+        #[inline]
+        fn check<T>(mut f: impl FnMut(T) -> bool) -> impl FnMut((), T) -> ControlFlow<()> {
+            move |(), x| {
+                if f(x) {
+                    ControlFlow::Continue(())
+                } else {
+                    ControlFlow::Break(())
+                }
+            }
+        }
+        let result = self.try_fold((), check(f)) == ControlFlow::Continue(());
+        unsafe { ffi::PyCriticalSection_End(&mut section) };
+        result
+    }
+
+    #[inline]
+    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    fn any<F>(&mut self, f: F) -> bool
+    where
+        Self: Sized,
+        F: FnMut(Self::Item) -> bool,
+    {
+        let mut section = unsafe { std::mem::zeroed() };
+        unsafe { ffi::PyCriticalSection_Begin(&mut section, self.as_ptr()) };
+
+        #[inline]
+        fn check<T>(mut f: impl FnMut(T) -> bool) -> impl FnMut((), T) -> ControlFlow<()> {
+            move |(), x| {
+                if f(x) {
+                    ControlFlow::Break(())
+                } else {
+                    ControlFlow::Continue(())
+                }
+            }
+        }
+
+        let result = self.try_fold((), check(f)) == ControlFlow::Break(());
+        unsafe { ffi::PyCriticalSection_End(&mut section) };
+        result
+    }
+
+    #[inline]
+    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    fn find<P>(&mut self, predicate: P) -> Option<Self::Item>
+    where
+        Self: Sized,
+        P: FnMut(&Self::Item) -> bool,
+    {
+        let mut section = unsafe { std::mem::zeroed() };
+        unsafe { ffi::PyCriticalSection_Begin(&mut section, self.as_ptr()) };
+
+        #[inline]
+        fn check<T>(mut predicate: impl FnMut(&T) -> bool) -> impl FnMut((), T) -> ControlFlow<T> {
+            move |(), x| {
+                if predicate(&x) {
+                    ControlFlow::Break(x)
+                } else {
+                    ControlFlow::Continue(())
+                }
+            }
+        }
+
+        let result = match self.try_fold((), check(predicate)) {
+            ControlFlow::Continue(_) => None,
+            ControlFlow::Break(x) => Some(x),
+        };
+        unsafe { ffi::PyCriticalSection_End(&mut section) };
+        result
+    }
+
+    #[inline]
+    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    fn find_map<B, F>(&mut self, f: F) -> Option<B>
+    where
+        Self: Sized,
+        F: FnMut(Self::Item) -> Option<B>,
+    {
+        let mut section = unsafe { std::mem::zeroed() };
+        unsafe { ffi::PyCriticalSection_Begin(&mut section, self.as_ptr()) };
+
+        #[inline]
+        fn check<T, B>(mut f: impl FnMut(T) -> Option<B>) -> impl FnMut((), T) -> ControlFlow<B> {
+            move |(), x| match f(x) {
+                Some(x) => ControlFlow::Break(x),
+                None => ControlFlow::Continue(()),
+            }
+        }
+
+        let result = match self.try_fold((), check(f)) {
+            ControlFlow::Continue(_) => None,
+            ControlFlow::Break(x) => Some(x),
+        };
+        unsafe { ffi::PyCriticalSection_End(&mut section) };
+        result
+    }
+
+    #[inline]
+    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    fn position<P>(&mut self, predicate: P) -> Option<usize>
+    where
+        Self: Sized,
+        P: FnMut(Self::Item) -> bool,
+    {
+        let mut section = unsafe { std::mem::zeroed() };
+        unsafe { ffi::PyCriticalSection_Begin(&mut section, self.as_ptr()) };
+
+        #[inline]
+        fn check<'a, T>(
+            mut predicate: impl FnMut(T) -> bool + 'a,
+            acc: &'a mut usize,
+        ) -> impl FnMut((), T) -> ControlFlow<usize, ()> + 'a {
+            move |_, x| {
+                if predicate(x) {
+                    ControlFlow::Break(*acc)
+                } else {
+                    *acc += 1;
+                    ControlFlow::Continue(())
+                }
+            }
+        }
+
+        let mut acc = 0;
+        let result = match self.try_fold((), check(predicate, &mut acc)) {
+            ControlFlow::Continue(_) => None,
+            ControlFlow::Break(x) => Some(x),
+        };
+
+        unsafe { ffi::PyCriticalSection_End(&mut section) };
+        result
     }
 }
 
@@ -621,6 +748,15 @@ impl<'py> BoundDictIterator<'py> {
         let items = dict.call_method0(intern!(dict.py(), "items")).unwrap();
         let iter = PyIterator::from_object(&items).unwrap();
         BoundDictIterator::ItemIter { iter, remaining }
+    }
+
+    #[inline]
+    #[cfg(Py_GIL_DISABLED)]
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        match self {
+            BoundDictIterator::ItemIter { ref iter, .. } => iter.as_ptr(),
+            BoundDictIterator::DictIter { ref dict, .. } => dict.as_ptr(),
+        }
     }
 }
 
