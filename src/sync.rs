@@ -81,10 +81,10 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 /// Note that because the GIL blocks concurrent execution, in practice the means that
 /// [`get_or_init`][GILOnceCell::get_or_init] and
 /// [`get_or_try_init`][GILOnceCell::get_or_try_init] may race if the initialization
-/// function leads to the GIL being released and a thread context switch. This can 
-/// happen when importing or calling any Python code, as long as it releases the 
+/// function leads to the GIL being released and a thread context switch. This can
+/// happen when importing or calling any Python code, as long as it releases the
 /// GIL at some point. On free-threaded Python without any GIL, the race is
-/// more likely since there is no GIL to prevent races. In the future, we may change
+/// more likely since there is no GIL to prevent races. In the future, PyO3 may change
 /// the semantics of GILOnceCell to behave more like the GIL build in the future.
 ///
 /// # Re-entrant initialization
@@ -120,7 +120,7 @@ pub struct GILOnceCell<T> {
     ///
     /// `PhantomData` to make sure dropck understands we're dropping T in our Drop impl.
     ///
-    /// ```
+    /// ```compile_error,E0597
     /// use pyo3::Python;
     /// use pyo3::sync::GILOnceCell;
     ///
@@ -214,6 +214,10 @@ impl<T> GILOnceCell<T> {
         // Note that f() could temporarily release the GIL, so it's possible that another thread
         // writes to this GILOnceCell before f() finishes. That's fine; we'll just have to discard
         // the value computed here and accept a bit of wasted computation.
+
+        // TODO: on the freethreaded build, consider wrapping this pair of operations in a
+        // critical section (requires a critical section API which can use a PyMutex without
+        // an object.)
         let value = f()?;
         let _ = self.set(py, value);
 
@@ -237,7 +241,7 @@ impl<T> GILOnceCell<T> {
     /// value which was not written.
     pub fn set(&self, _py: Python<'_>, value: T) -> Result<(), T> {
         let mut value = Some(value);
-        // NB this can block, but since this is only writing a single value and 
+        // NB this can block, but since this is only writing a single value and
         // does not call arbitrary python code, we don't need to worry about
         // deadlocks with the GIL.
         self.once.call_once_force(|_| {
