@@ -80,10 +80,12 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 ///
 /// Note that because the GIL blocks concurrent execution, in practice the means that
 /// [`get_or_init`][GILOnceCell::get_or_init] and
-/// [`get_or_try_init`][GILOnceCell::get_or_try_init] can only race if the initialization
-/// function does work that can allow the GIL to switch threads (e.g. Python imports or calling
-/// Python functions). On freethreaded Python without the GIL, the race creating wasted work is
-/// more likely (and PyO3 may change GILOnceCell to behave more like the GIL build in the future).
+/// [`get_or_try_init`][GILOnceCell::get_or_try_init] may race if the initialization
+/// function leads to the GIL being released and a thread context switch. This can 
+/// happen when importing or calling any Python code, as long as it releases the 
+/// GIL at some point. On free-threaded Python without any GIL, the race is
+/// more likely since there is no GIL to prevent races. In the future, we may change
+/// the semantics of GILOnceCell to behave more like the GIL build in the future.
 ///
 /// # Re-entrant initialization
 ///
@@ -235,8 +237,8 @@ impl<T> GILOnceCell<T> {
     /// value which was not written.
     pub fn set(&self, _py: Python<'_>, value: T) -> Result<(), T> {
         let mut value = Some(value);
-        // NB this can block, but only for the duration which the first thread to complete
-        // initialization is writing to the cell. We therefore don't need to worry about
+        // NB this can block, but since this is only writing a single value and 
+        // does not call arbitrary python code, we don't need to worry about
         // deadlocks with the GIL.
         self.once.call_once_force(|_| {
             // SAFETY: no other threads can be writing this value, because we are
