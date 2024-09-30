@@ -30,6 +30,8 @@ pub trait BoundObject<'py, T>: bound_object_sealed::Sealed {
     fn into_any(self) -> Self::Any;
     /// Turn this smart pointer into a strong reference pointer
     fn into_ptr(self) -> *mut ffi::PyObject;
+    /// Turn this smart pointer into a borrowed reference pointer
+    fn as_ptr(&self) -> *mut ffi::PyObject;
     /// Turn this smart pointer into an owned [`Py<T>`]
     fn unbind(self) -> Py<T>;
 }
@@ -616,6 +618,10 @@ impl<'py, T> BoundObject<'py, T> for Bound<'py, T> {
         self.into_ptr()
     }
 
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        self.as_ptr()
+    }
+
     fn unbind(self) -> Py<T> {
         self.unbind()
     }
@@ -833,6 +839,10 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 
     fn into_ptr(self) -> *mut ffi::PyObject {
         (*self).to_owned().into_ptr()
+    }
+
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        (*self).as_ptr()
     }
 
     fn unbind(self) -> Py<T> {
