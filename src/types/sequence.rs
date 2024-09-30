@@ -746,7 +746,11 @@ mod tests {
             let v = vec!["foo", "bar"];
             let ob = (&v).into_pyobject(py).unwrap();
             let seq = ob.downcast::<PySequence>().unwrap();
-            assert!(seq.to_list().unwrap().eq(PyList::new(py, &v)).unwrap());
+            assert!(seq
+                .to_list()
+                .unwrap()
+                .eq(PyList::new(py, &v).unwrap())
+                .unwrap());
         });
     }
 
@@ -759,7 +763,7 @@ mod tests {
             assert!(seq
                 .to_list()
                 .unwrap()
-                .eq(PyList::new(py, ["f", "o", "o"]))
+                .eq(PyList::new(py, ["f", "o", "o"]).unwrap())
                 .unwrap());
         });
     }
@@ -773,7 +777,7 @@ mod tests {
             assert!(seq
                 .to_tuple()
                 .unwrap()
-                .eq(PyTuple::new(py, ["foo", "bar"]))
+                .eq(PyTuple::new(py, ["foo", "bar"]).unwrap())
                 .unwrap());
         });
     }
@@ -784,7 +788,11 @@ mod tests {
             let v = vec!["foo", "bar"];
             let ob = (&v).into_pyobject(py).unwrap();
             let seq = ob.downcast::<PySequence>().unwrap();
-            assert!(seq.to_tuple().unwrap().eq(PyTuple::new(py, &v)).unwrap());
+            assert!(seq
+                .to_tuple()
+                .unwrap()
+                .eq(PyTuple::new(py, &v).unwrap())
+                .unwrap());
         });
     }
 

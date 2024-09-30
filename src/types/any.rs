@@ -2021,7 +2021,7 @@ class SimpleClass:
             let empty_list = PyList::empty(py).into_any();
             assert!(empty_list.is_empty().unwrap());
 
-            let list = PyList::new(py, vec![1, 2, 3]).into_any();
+            let list = PyList::new(py, vec![1, 2, 3]).unwrap().into_any();
             assert!(!list.is_empty().unwrap());
 
             let not_container = 5.to_object(py).into_bound(py);

@@ -285,7 +285,8 @@ mod tests {
                         py.get_type::<PyInt>(),
                         py.get_type::<PyAny>()
                     ]
-                ))
+                )
+                .unwrap())
                 .unwrap());
         });
     }
@@ -296,7 +297,7 @@ mod tests {
             assert!(py
                 .get_type::<PyBool>()
                 .bases()
-                .eq(PyTuple::new(py, [py.get_type::<PyInt>()]))
+                .eq(PyTuple::new(py, [py.get_type::<PyInt>()]).unwrap())
                 .unwrap());
         });
     }

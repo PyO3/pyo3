@@ -13,7 +13,7 @@ fails, so usually you will use something like
 # use pyo3::types::PyList;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let list = PyList::new(py, b"foo");
+#         let list = PyList::new(py, b"foo")?;
 let v: Vec<i32> = list.extract()?;
 #         assert_eq!(&v, &[102, 111, 111]);
 #         Ok(())
@@ -183,7 +183,7 @@ struct RustyTuple(String, String);
 # use pyo3::types::PyTuple;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let tuple = PyTuple::new(py, vec!["test", "test2"]);
+#         let tuple = PyTuple::new(py, vec!["test", "test2"])?;
 #
 #         let rustytuple: RustyTuple = tuple.extract()?;
 #         assert_eq!(rustytuple.0, "test");
@@ -206,7 +206,7 @@ struct RustyTuple((String,));
 # use pyo3::types::PyTuple;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let tuple = PyTuple::new(py, vec!["test"]);
+#         let tuple = PyTuple::new(py, vec!["test"])?;
 #
 #         let rustytuple: RustyTuple = tuple.extract()?;
 #         assert_eq!((rustytuple.0).0, "test");

@@ -304,7 +304,7 @@ pub trait IntoPyObject<'py>: Sized {
         let mut iter = iter.into_iter().map(|e| {
             e.into_pyobject(py)
                 .map(BoundObject::into_any)
-                .map(BoundObject::unbind)
+                .map(BoundObject::into_bound)
                 .map_err(Into::into)
         });
         let list = crate::types::list::try_new_from_iter(py, &mut iter);
@@ -327,7 +327,7 @@ pub trait IntoPyObject<'py>: Sized {
         let mut iter = iter.into_iter().map(|e| {
             e.into_pyobject(py)
                 .map(BoundObject::into_any)
-                .map(BoundObject::unbind)
+                .map(BoundObject::into_bound)
                 .map_err(Into::into)
         });
         let list = crate::types::list::try_new_from_iter(py, &mut iter);

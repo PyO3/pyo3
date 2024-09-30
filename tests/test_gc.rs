@@ -34,6 +34,15 @@ fn class_with_freelist() {
     });
 }
 
+/// Tests that drop is eventually called on objects that are dropped when the
+/// GIL is not held.
+///
+/// On the free-threaded build, threads are resumed before tp_clear() calls
+/// finish. Therefore, if the type needs __traverse__, drop might not necessarily
+/// be called by the time the a test re-acquires a Python thread state and checks if
+/// drop has been called.
+///
+/// See https://peps.python.org/pep-0703/#stop-the-world
 struct TestDropCall {
     drop_called: Arc<AtomicBool>,
 }
@@ -120,9 +129,6 @@ fn gc_integration() {
     Python::with_gil(|py| {
         py.run(ffi::c_str!("import gc; gc.collect()"), None, None)
             .unwrap();
-        // threads are resumed before tp_clear() calls finish, so drop might not
-        // necessarily be called when we get here see
-        // https://peps.python.org/pep-0703/#stop-the-world
         #[cfg(not(Py_GIL_DISABLED))]
         assert!(drop_called.load(Ordering::Relaxed));
     });
@@ -482,6 +488,7 @@ fn drop_during_traversal_with_gil() {
                 .unwrap();
         });
     }
+    #[cfg(not(Py_GIL_DISABLED))]
     assert!(drop_called.load(Ordering::Relaxed));
 }
 
@@ -517,6 +524,7 @@ fn drop_during_traversal_without_gil() {
                 .unwrap();
         });
     }
+    #[cfg(not(Py_GIL_DISABLED))]
     assert!(drop_called.load(Ordering::Relaxed));
 }
 
