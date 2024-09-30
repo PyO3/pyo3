@@ -182,7 +182,7 @@ pub trait PyListMethods<'py>: crate::sealed::Sealed {
     /// # Safety
     ///
     /// Caller must verify that the index is within the bounds of the list.
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, Py_GIL_DISABLED)))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny>;
 
     /// Takes the slice `self[low:high]` and returns it as a new list.
@@ -305,7 +305,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     /// # Safety
     ///
     /// Caller must verify that the index is within the bounds of the list.
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, Py_GIL_DISABLED)))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny> {
         // PyList_GET_ITEM return borrowed ptr; must make owned for safety (see #890).
         ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
@@ -496,9 +496,9 @@ impl<'py> BoundListIterator<'py> {
     }
 
     unsafe fn get_item(&self, index: usize) -> Bound<'py, PyAny> {
-        #[cfg(any(Py_LIMITED_API, PyPy))]
+        #[cfg(any(Py_LIMITED_API, PyPy, Py_GIL_DISABLED))]
         let item = self.list.get_item(index).expect("list.get failed");
-        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        #[cfg(not(any(Py_LIMITED_API, PyPy, Py_GIL_DISABLED)))]
         let item = self.list.get_item_unchecked(index);
         item
     }
@@ -893,7 +893,7 @@ mod tests {
         });
     }
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, Py_GIL_DISABLED)))]
     #[test]
     fn test_list_get_item_unchecked_sanity() {
         Python::with_gil(|py| {
