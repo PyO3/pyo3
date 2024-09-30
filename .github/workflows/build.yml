@@ -22,7 +22,7 @@ on:
 
 jobs:
   build:
-    continue-on-error: ${{ endsWith(inputs.python-version, '-dev') || contains(fromJSON('["3.7", "pypy3.7"]'), inputs.python-version) || inputs.rust == 'beta' || inputs.rust == 'nightly' }}
+    continue-on-error: ${{ endsWith(inputs.python-version, '-dev') || contains(fromJSON('["3.7", "3.8"]'), inputs.python-version) || contains(fromJSON('["beta", "nightly"]'), inputs.rust) }}
     runs-on: ${{ inputs.os }}
     if: ${{ !(startsWith(inputs.python-version, 'graalpy') && startsWith(inputs.os, 'windows')) }}
     steps:
@@ -95,8 +95,8 @@ jobs:
         run: cargo build --lib --tests --no-default-features --features "multiple-pymethods full $MAYBE_NIGHTLY"
 
       - if: ${{ startsWith(inputs.python-version, 'pypy') }}
-        name: Build PyPy (abi3-py37)
-        run: cargo build --lib --tests --no-default-features --features "multiple-pymethods abi3-py37 full $MAYBE_NIGHTLY"
+        name: Build PyPy (abi3-py39)
+        run: cargo build --lib --tests --no-default-features --features "multiple-pymethods abi3-py39 full $MAYBE_NIGHTLY"
 
       # Run tests (except on PyPy, because no embedding API).
       - if: ${{ !startsWith(inputs.python-version, 'pypy') && !startsWith(inputs.python-version, 'graalpy') }}
@@ -131,8 +131,7 @@ jobs:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
       - uses: dorny/paths-filter@v3
-        # pypy 3.7 and 3.8 are not PEP 3123 compliant so fail checks here
-        if: ${{ inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' && !startsWith(inputs.python-version, 'graalpy') }}
+        if: ${{ inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') }}
         id: ffi-changes
         with:
           base: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
@@ -145,9 +144,8 @@ jobs:
               - '.github/workflows/build.yml'
 
       - name: Run pyo3-ffi-check
-        # pypy 3.7 and 3.8 are not PEP 3123 compliant so fail checks here, nor
-        # is pypy 3.9 on windows
-        if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' && !startsWith(inputs.python-version, 'graalpy') && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows'))) }}
+        # pypy 3.9 on windows is not PEP 3123 compliant, nor is graalpy
+        if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows'))) }}
         run: nox -s ffi-check
 
     env:

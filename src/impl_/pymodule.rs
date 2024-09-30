@@ -89,22 +89,6 @@ impl ModuleDef {
     }
     /// Builds a module using user given initializer. Used for [`#[pymodule]`][crate::pymodule].
     pub fn make_module(&'static self, py: Python<'_>) -> PyResult<Py<PyModule>> {
-        #[cfg(all(PyPy, not(Py_3_8)))]
-        {
-            use crate::types::any::PyAnyMethods;
-            const PYPY_GOOD_VERSION: [u8; 3] = [7, 3, 8];
-            let version = py
-                .import("sys")?
-                .getattr("implementation")?
-                .getattr("version")?;
-            if version.lt(crate::types::PyTuple::new(py, PYPY_GOOD_VERSION)?)? {
-                let warn = py.import("warnings")?.getattr("warn")?;
-                warn.call1((
-                    "PyPy 3.7 versions older than 7.3.8 are known to have binary \
-                        compatibility issues which may cause segfaults. Please upgrade.",
-                ))?;
-            }
-        }
         // Check the interpreter ID has not changed, since we currently have no way to guarantee
         // that static data is not reused across interpreters.
         //

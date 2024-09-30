@@ -23,7 +23,7 @@ const SUPPORTED_VERSIONS_CPYTHON: SupportedVersions = SupportedVersions {
 };
 
 const SUPPORTED_VERSIONS_PYPY: SupportedVersions = SupportedVersions {
-    min: PythonVersion { major: 3, minor: 7 },
+    min: PythonVersion { major: 3, minor: 9 },
     max: PythonVersion {
         major: 3,
         minor: 10,
@@ -110,7 +110,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
             PythonImplementation::CPython => {}
             PythonImplementation::PyPy => warn!(
                 "PyPy does not yet support abi3 so the build artifacts will be version-specific. \
-                See https://foss.heptapod.net/pypy/pypy/-/issues/3397 for more information."
+                See https://github.com/pypy/pypy/issues/3397 for more information."
             ),
             PythonImplementation::GraalPy => warn!(
                 "GraalPy does not support abi3 so the build artifacts will be version-specific."

@@ -105,9 +105,9 @@ Rather than using just the `.so` or `.pyd` extension suggested above (depending 
 # CPython 3.10 on macOS
 .cpython-310-darwin.so
 
-# PyPy 7.3 (Python 3.8) on Linux
+# PyPy 7.3 (Python 3.9) on Linux
 $ python -c 'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX"))'
-.pypy38-pp73-x86_64-linux-gnu.so
+.pypy39-pp73-x86_64-linux-gnu.so
 ```
 
 So, for example, a valid module library name on CPython 3.10 for macOS is `your_module.cpython-310-darwin.so`, and its equivalent when compiled for PyPy 7.3 on Linux would be `your_module.pypy38-pp73-x86_64-linux-gnu.so`.

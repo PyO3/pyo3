@@ -31,7 +31,7 @@ PYO3_GUIDE_SRC = PYO3_DIR / "guide" / "src"
 PYO3_GUIDE_TARGET = PYO3_TARGET / "guide"
 PYO3_DOCS_TARGET = PYO3_TARGET / "doc"
 PY_VERSIONS = ("3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13")
-PYPY_VERSIONS = ("3.7", "3.8", "3.9", "3.10")
+PYPY_VERSIONS = ("3.9", "3.10")
 
 
 @nox.session(venv_backend="none")
@@ -646,8 +646,8 @@ def test_version_limits(session: nox.Session):
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
 
-        assert "3.6" not in PYPY_VERSIONS
-        config_file.set("PyPy", "3.6")
+        assert "3.8" not in PYPY_VERSIONS
+        config_file.set("PyPy", "3.8")
         _run_cargo(session, "check", env=env, expect_error=True)
 
         assert "3.11" not in PYPY_VERSIONS
