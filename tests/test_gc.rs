@@ -613,6 +613,7 @@ fn test_traverse_subclass() {
 
     #[pymethods]
     impl Sub {
+        #[allow(clippy::unnecessary_wraps)]
         fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
             // subclass traverse overrides the base class traverse
             Ok(())
@@ -674,6 +675,7 @@ fn test_traverse_subclass_override_clear() {
 
     #[pymethods]
     impl Sub {
+        #[allow(clippy::unnecessary_wraps)]
         fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
             // subclass traverse overrides the base class traverse
             Ok(())

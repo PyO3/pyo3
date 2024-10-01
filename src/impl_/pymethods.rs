@@ -357,11 +357,11 @@ unsafe fn call_super_traverse(
 
     // First find the current type by the current_traverse function
     loop {
-        traverse = std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::Py_tp_traverse));
+        traverse = get_tp_traverse(ty);
         if traverse == Some(current_traverse) {
             break;
         }
-        ty = ffi::PyType_GetSlot(ty, ffi::Py_tp_base).cast();
+        ty = get_tp_base(ty);
         if ty.is_null() {
             // FIXME: return an error if current type not in the MRO? Should be impossible.
             return 0;
@@ -370,11 +370,11 @@ unsafe fn call_super_traverse(
 
     // Get first base which has a different traverse function
     while !ty.is_null() && traverse == Some(current_traverse) {
-        ty = ffi::PyType_GetSlot(ty, ffi::Py_tp_base).cast();
+        ty = get_tp_base(ty);
         if ty.is_null() {
             break;
         }
-        traverse = std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::Py_tp_traverse));
+        traverse = get_tp_traverse(ty);
     }
 
     // If we found a type with a different traverse function, call it
@@ -418,11 +418,11 @@ unsafe fn call_super_clear(obj: *mut ffi::PyObject, current_clear: ffi::inquiry)
 
     // First find the current type by the current_clear function
     loop {
-        clear = std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::Py_tp_clear));
+        clear = get_tp_clear(ty);
         if clear == Some(current_clear) {
             break;
         }
-        ty = ffi::PyType_GetSlot(ty, ffi::Py_tp_base).cast();
+        ty = get_tp_base(ty);
         if ty.is_null() {
             // FIXME: return an error if current type not in the MRO? Should be impossible.
             return 0;
@@ -431,11 +431,11 @@ unsafe fn call_super_clear(obj: *mut ffi::PyObject, current_clear: ffi::inquiry)
 
     // Get first base which has a different clear function
     while !ty.is_null() && clear == Some(current_clear) {
-        ty = ffi::PyType_GetSlot(ty, ffi::Py_tp_base).cast();
+        ty = get_tp_base(ty);
         if ty.is_null() {
             break;
         }
-        clear = std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::Py_tp_clear));
+        clear = get_tp_clear(ty);
     }
 
     // If we found a type with a different clear function, call it
@@ -444,7 +444,7 @@ unsafe fn call_super_clear(obj: *mut ffi::PyObject, current_clear: ffi::inquiry)
     }
 
     // FIXME same question as cython: what if the current type is not in the MRO?
-    return 0;
+    0
 }
 
 // Autoref-based specialization for handling `__next__` returning `Option`
@@ -692,6 +692,42 @@ pub unsafe fn tp_new_impl<T: PyClass>(
     initializer
         .create_class_object_of_type(py, target_type)
         .map(Bound::into_ptr)
+}
+
+unsafe fn get_tp_traverse(ty: *mut ffi::PyTypeObject) -> Option<ffi::traverseproc> {
+    #[cfg(not(Py_LIMITED_API))]
+    {
+        (*ty).tp_traverse
+    }
+
+    #[cfg(Py_LIMITED_API)]
+    {
+        std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::Py_tp_traverse))
+    }
+}
+
+unsafe fn get_tp_clear(ty: *mut ffi::PyTypeObject) -> Option<ffi::inquiry> {
+    #[cfg(not(Py_LIMITED_API))]
+    {
+        (*ty).tp_clear
+    }
+
+    #[cfg(Py_LIMITED_API)]
+    {
+        std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::Py_tp_clear))
+    }
+}
+
+unsafe fn get_tp_base(ty: *mut ffi::PyTypeObject) -> *mut ffi::PyTypeObject {
+    #[cfg(not(Py_LIMITED_API))]
+    {
+        (*ty).tp_base
+    }
+
+    #[cfg(Py_LIMITED_API)]
+    {
+        ffi::PyType_GetSlot(ty, ffi::Py_tp_base).cast()
+    }
 }
 
 #[cfg(test)]
