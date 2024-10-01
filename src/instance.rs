@@ -1960,7 +1960,7 @@ mod tests {
 
             assert_repr(obj.call1(py, ((('x', 1),),)).unwrap().bind(py), "{'x': 1}");
             assert_repr(
-                obj.call(py, (), Some(&[('x', 1)].into_py_dict(py)))
+                obj.call(py, (), Some(&[('x', 1)].into_py_dict(py).unwrap()))
                     .unwrap()
                     .bind(py),
                 "{'x': 1}",

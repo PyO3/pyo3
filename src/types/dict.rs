@@ -562,13 +562,13 @@ pub(crate) use borrowed_iter::BorrowedDictIter;
 pub trait IntoPyDict<'py>: Sized {
     /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
     /// depends on implementation.
-    fn into_py_dict(self, py: Python<'py>) -> Bound<'_, PyDict>;
+    fn into_py_dict(self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>>;
 
     /// Deprecated name for [`IntoPyDict::into_py_dict`].
     #[deprecated(since = "0.23.0", note = "renamed to `IntoPyDict::into_py_dict`")]
     #[inline]
-    fn into_py_dict_bound(self, py: Python<'py>) -> Bound<'_, PyDict> {
-        self.into_py_dict(py)
+    fn into_py_dict_bound(self, py: Python<'py>) -> Bound<'py, PyDict> {
+        self.into_py_dict(py).unwrap()
     }
 }
 
@@ -577,14 +577,13 @@ where
     T: PyDictItem<'py>,
     I: IntoIterator<Item = T>,
 {
-    fn into_py_dict(self, py: Python<'py>) -> Bound<'_, PyDict> {
+    fn into_py_dict(self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let dict = PyDict::new(py);
         for item in self {
             let (key, value) = item.unpack();
-            dict.set_item(key, value)
-                .expect("Failed to set_item on dict");
+            dict.set_item(key, value)?;
         }
-        dict
+        Ok(dict)
     }
 }
 
@@ -631,7 +630,7 @@ mod tests {
     #[test]
     fn test_new() {
         Python::with_gil(|py| {
-            let dict = [(7, 32)].into_py_dict(py);
+            let dict = [(7, 32)].into_py_dict(py).unwrap();
             assert_eq!(
                 32,
                 dict.get_item(7i32)
@@ -691,7 +690,7 @@ mod tests {
     #[test]
     fn test_copy() {
         Python::with_gil(|py| {
-            let dict = [(7, 32)].into_py_dict(py);
+            let dict = [(7, 32)].into_py_dict(py).unwrap();
 
             let ndict = dict.copy().unwrap();
             assert_eq!(
@@ -1088,7 +1087,7 @@ mod tests {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let py_map = map.into_py_dict(py);
+            let py_map = map.into_py_dict(py).unwrap();
 
             assert_eq!(py_map.len(), 1);
             assert_eq!(
@@ -1109,7 +1108,7 @@ mod tests {
             let mut map = BTreeMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let py_map = map.into_py_dict(py);
+            let py_map = map.into_py_dict(py).unwrap();
 
             assert_eq!(py_map.len(), 1);
             assert_eq!(
@@ -1128,7 +1127,7 @@ mod tests {
     fn test_vec_into_dict() {
         Python::with_gil(|py| {
             let vec = vec![("a", 1), ("b", 2), ("c", 3)];
-            let py_map = vec.into_py_dict(py);
+            let py_map = vec.into_py_dict(py).unwrap();
 
             assert_eq!(py_map.len(), 3);
             assert_eq!(
@@ -1147,7 +1146,7 @@ mod tests {
     fn test_slice_into_dict() {
         Python::with_gil(|py| {
             let arr = [("a", 1), ("b", 2), ("c", 3)];
-            let py_map = arr.into_py_dict(py);
+            let py_map = arr.into_py_dict(py).unwrap();
 
             assert_eq!(py_map.len(), 3);
             assert_eq!(
@@ -1168,7 +1167,7 @@ mod tests {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let py_map = map.into_py_dict(py);
+            let py_map = map.into_py_dict(py).unwrap();
 
             assert_eq!(py_map.as_mapping().len().unwrap(), 1);
             assert_eq!(
@@ -1189,7 +1188,7 @@ mod tests {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let py_map = map.into_py_dict(py);
+            let py_map = map.into_py_dict(py).unwrap();
 
             let py_mapping = py_map.into_mapping();
             assert_eq!(py_mapping.len().unwrap(), 1);
@@ -1203,7 +1202,7 @@ mod tests {
         map.insert("a", 1);
         map.insert("b", 2);
         map.insert("c", 3);
-        map.into_py_dict(py)
+        map.into_py_dict(py).unwrap()
     }
 
     #[test]
@@ -1239,8 +1238,8 @@ mod tests {
     #[test]
     fn dict_update() {
         Python::with_gil(|py| {
-            let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict(py);
-            let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py);
+            let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict(py).unwrap();
+            let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py).unwrap();
             dict.update(other.as_mapping()).unwrap();
             assert_eq!(dict.len(), 4);
             assert_eq!(
@@ -1310,8 +1309,8 @@ mod tests {
     #[test]
     fn dict_update_if_missing() {
         Python::with_gil(|py| {
-            let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict(py);
-            let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py);
+            let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict(py).unwrap();
+            let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py).unwrap();
             dict.update_if_missing(other.as_mapping()).unwrap();
             assert_eq!(dict.len(), 4);
             assert_eq!(

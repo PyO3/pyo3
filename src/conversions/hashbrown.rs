@@ -25,7 +25,7 @@ use crate::{
         set::{new_from_iter, try_new_from_iter, PySetMethods},
         PyDict, PyFrozenSet, PySet,
     },
-    Bound, BoundObject, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use std::{cmp, hash};
 
@@ -238,7 +238,7 @@ mod tests {
             let mut map = hashbrown::HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let py_map = map.into_py_dict(py);
+            let py_map = map.into_py_dict(py).unwrap();
 
             assert_eq!(py_map.len(), 1);
             assert_eq!(

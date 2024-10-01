@@ -1365,7 +1365,7 @@ mod tests {
             fn test_pyo3_offset_fixed_frompyobject_created_in_python(timestamp in 0..(i32::MAX as i64), timedelta in -86399i32..=86399i32) {
                 Python::with_gil(|py| {
 
-                    let globals = [("datetime", py.import("datetime").unwrap())].into_py_dict(py);
+                    let globals = [("datetime", py.import("datetime").unwrap())].into_py_dict(py).unwrap();
                     let code = format!("datetime.datetime.fromtimestamp({}).replace(tzinfo=datetime.timezone(datetime.timedelta(seconds={})))", timestamp, timedelta);
                     let t = py.eval(&CString::new(code).unwrap(), Some(&globals), None).unwrap();
 

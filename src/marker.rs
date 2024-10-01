@@ -872,7 +872,7 @@ mod tests {
                 .unwrap();
             assert_eq!(v, 1);
 
-            let d = [("foo", 13)].into_py_dict(py);
+            let d = [("foo", 13)].into_py_dict(py).unwrap();
 
             // Inject our own global namespace
             let v: i32 = py
