@@ -1298,6 +1298,7 @@ impl SlotDef {
         let name = spec.name;
         let holders = holders.init_holders(ctx);
         let associated_method = quote! {
+            #[allow(non_snake_case)]
             unsafe fn #wrapper_ident(
                 py: #pyo3_path::Python<'_>,
                 _raw_slf: *mut #pyo3_path::ffi::PyObject,
@@ -1421,6 +1422,7 @@ impl SlotFragmentDef {
         let holders = holders.init_holders(ctx);
         Ok(quote! {
             impl #cls {
+                #[allow(non_snake_case)]
                 unsafe fn #wrapper_ident(
                     py: #pyo3_path::Python,
                     _raw_slf: *mut #pyo3_path::ffi::PyObject,
