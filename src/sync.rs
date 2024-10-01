@@ -367,11 +367,8 @@ where
             }
         }
 
-        let _guard = unsafe {
-            let mut section = std::mem::zeroed();
-            crate::ffi::PyCriticalSection_Begin(&mut section, object.as_ptr());
-            Guard(section)
-        };
+        let mut guard = Guard(unsafe { std::mem::zeroed() });
+        unsafe { crate::ffi::PyCriticalSection_Begin(&mut guard.0, object.as_ptr()) };
         f()
     }
     #[cfg(not(Py_GIL_DISABLED))]
