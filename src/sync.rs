@@ -383,12 +383,6 @@ mod tests {
 
     use crate::types::{PyDict, PyDictMethods};
 
-    #[cfg(feature = "macros")]
-    use std::sync::{
-        atomic::{AtomicBool, Ordering},
-        Barrier,
-    };
-
     #[test]
     fn test_intern() {
         Python::with_gil(|py| {
@@ -439,6 +433,11 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_critical_section() {
+        use std::sync::{
+            atomic::{AtomicBool, Ordering},
+            Barrier,
+        };
+
         let barrier = Barrier::new(2);
 
         #[crate::pyclass(crate = "crate")]
