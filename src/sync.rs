@@ -386,6 +386,7 @@ mod tests {
 
     use crate::types::{PyDict, PyDictMethods};
 
+    #[cfg(feature = "macros")]
     use std::sync::{
         atomic::{AtomicBool, Ordering},
         Barrier,
@@ -437,6 +438,7 @@ mod tests {
         })
     }
 
+    #[cfg(feature = "macros")]
     #[test]
     fn test_critical_section() {
         let barrier = Barrier::new(2);
