@@ -494,6 +494,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
         T: IntoPyCallbackOutput<'py, PyObject>,
     {
         fn inner(module: &Bound<'_, PyModule>, object: Bound<'_, PyAny>) -> PyResult<()> {
+            if object.is_instance_of::<PyModule>() {}
             let name = object.getattr(__name__(module.py()))?;
             module.add(name.downcast_into::<PyString>()?, object)
         }
