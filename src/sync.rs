@@ -439,6 +439,7 @@ mod tests {
     }
 
     #[cfg(feature = "macros")]
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_critical_section() {
         let barrier = Barrier::new(2);
