@@ -338,7 +338,7 @@ where
 
 /// Call super-type traverse method, if necessary.
 ///
-/// Adapted from https://github.com/cython/cython/blob/7acfb375fb54a033f021b0982a3cd40c34fb22ac/Cython/Utility/ExtensionTypes.c#L386
+/// Adapted from <https://github.com/cython/cython/blob/7acfb375fb54a033f021b0982a3cd40c34fb22ac/Cython/Utility/ExtensionTypes.c#L386>
 ///
 /// TODO: There are possible optimizations over looking up the base type in this way
 /// - if the base type is known in this module, can potentially look it up directly in module state
@@ -383,7 +383,7 @@ unsafe fn call_super_traverse(
     }
 
     // FIXME same question as cython: what if the current type is not in the MRO?
-    return 0;
+    0
 }
 
 /// Calls an implementation of __clear__ for tp_clear
@@ -404,7 +404,7 @@ pub unsafe fn _call_clear(
 
 /// Call super-type traverse method, if necessary.
 ///
-/// Adapted from https://github.com/cython/cython/blob/7acfb375fb54a033f021b0982a3cd40c34fb22ac/Cython/Utility/ExtensionTypes.c#L386
+/// Adapted from <https://github.com/cython/cython/blob/7acfb375fb54a033f021b0982a3cd40c34fb22ac/Cython/Utility/ExtensionTypes.c#L386>
 ///
 /// TODO: There are possible optimizations over looking up the base type in this way
 /// - if the base type is known in this module, can potentially look it up directly in module state
