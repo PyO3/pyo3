@@ -529,6 +529,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_thread_safety() {
         #[crate::pyclass(crate = "crate")]
         struct MyClass {
@@ -572,6 +573,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_thread_safety_2() {
         struct SyncUnsafeCell<T>(UnsafeCell<T>);
         unsafe impl<T> Sync for SyncUnsafeCell<T> {}
