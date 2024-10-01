@@ -330,7 +330,7 @@ impl Interned {
     }
 }
 
-/// Executes a closure on an object with an active Python critical section.
+/// Executes a closure with a Python critical section held on an object.
 ///
 /// Acquires the per-object lock for the object `op` that is held
 /// until the closure `f` is finished.
