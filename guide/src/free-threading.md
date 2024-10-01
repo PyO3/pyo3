@@ -86,8 +86,10 @@ on mutable pyclass implementations that do not make strong assumptions about the
 GIL.
 
 It was always possible to generate panics like this in PyO3 in code that
-releases the GIL with `allow_threads`, but now in free-threaded Python there are
-more opportunities to trigger these panics because there is no GIL.
+releases the GIL with `allow_threads` (see [the docs on interior
+mutability](./class.md#bound-and-interior-mutability),) but now in free-threaded
+Python there are more opportunities to trigger these panics because there is no
+GIL.
 
 We plan to allow user-selectable semantics for for mutable pyclass definitions in
 PyO3 0.24, allowing some form of opt-in locking to emulate the GIL if
