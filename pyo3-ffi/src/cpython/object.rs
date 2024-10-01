@@ -210,15 +210,6 @@ pub type printfunc =
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyTypeObject {
-    #[cfg(all(PyPy, not(Py_3_9)))]
-    pub ob_refcnt: Py_ssize_t,
-    #[cfg(all(PyPy, not(Py_3_9)))]
-    pub ob_pypy_link: Py_ssize_t,
-    #[cfg(all(PyPy, not(Py_3_9)))]
-    pub ob_type: *mut PyTypeObject,
-    #[cfg(all(PyPy, not(Py_3_9)))]
-    pub ob_size: Py_ssize_t,
-    #[cfg(not(all(PyPy, not(Py_3_9))))]
     pub ob_base: object::PyVarObject,
     #[cfg(GraalPy)]
     pub ob_size: Py_ssize_t,

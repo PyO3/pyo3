@@ -11,10 +11,13 @@
 /// ```
 /// use pyo3::{prelude::*, py_run, types::PyList};
 ///
+/// # fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
-///     let list = PyList::new(py, &[1, 2, 3]);
+///     let list = PyList::new(py, &[1, 2, 3])?;
 ///     py_run!(py, list, "assert list == [1, 2, 3]");
-/// });
+/// # Ok(())
+/// })
+/// # }
 /// ```
 ///
 /// You can use this macro to test pyfunctions or pyclasses quickly.
@@ -184,7 +187,6 @@ macro_rules! wrap_pymodule {
 #[macro_export]
 macro_rules! append_to_inittab {
     ($module:ident) => {
-        #[allow(unsafe_code)]
         unsafe {
             if $crate::ffi::Py_IsInitialized() != 0 {
                 ::std::panic!(

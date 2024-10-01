@@ -11,7 +11,7 @@ use crate::{
         set::{new_from_iter, try_new_from_iter, PySetMethods},
         PyFrozenSet, PySet,
     },
-    BoundObject, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 
 impl<T, S> ToPyObject for collections::HashSet<T, S>
@@ -64,15 +64,7 @@ where
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        try_new_from_iter(
-            py,
-            self.into_iter().map(|item| {
-                item.into_pyobject(py)
-                    .map(BoundObject::into_any)
-                    .map(BoundObject::unbind)
-                    .map_err(Into::into)
-            }),
-        )
+        try_new_from_iter(py, self)
     }
 }
 
@@ -86,15 +78,7 @@ where
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        try_new_from_iter(
-            py,
-            self.iter().map(|item| {
-                item.into_pyobject(py)
-                    .map(BoundObject::into_any)
-                    .map(BoundObject::unbind)
-                    .map_err(Into::into)
-            }),
-        )
+        try_new_from_iter(py, self.iter())
     }
 }
 
@@ -147,15 +131,7 @@ where
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        try_new_from_iter(
-            py,
-            self.into_iter().map(|item| {
-                item.into_pyobject(py)
-                    .map(BoundObject::into_any)
-                    .map(BoundObject::unbind)
-                    .map_err(Into::into)
-            }),
-        )
+        try_new_from_iter(py, self)
     }
 }
 
@@ -168,15 +144,7 @@ where
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        try_new_from_iter(
-            py,
-            self.iter().map(|item| {
-                item.into_pyobject(py)
-                    .map(BoundObject::into_any)
-                    .map(BoundObject::unbind)
-                    .map_err(Into::into)
-            }),
-        )
+        try_new_from_iter(py, self.iter())
     }
 }
 
@@ -212,11 +180,11 @@ mod tests {
     #[test]
     fn test_extract_hashset() {
         Python::with_gil(|py| {
-            let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+            let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
             let hash_set: HashSet<usize> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
 
-            let set = PyFrozenSet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+            let set = PyFrozenSet::new(py, [1, 2, 3, 4, 5]).unwrap();
             let hash_set: HashSet<usize> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
         });
@@ -225,11 +193,11 @@ mod tests {
     #[test]
     fn test_extract_btreeset() {
         Python::with_gil(|py| {
-            let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+            let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
             let hash_set: BTreeSet<usize> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
 
-            let set = PyFrozenSet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+            let set = PyFrozenSet::new(py, [1, 2, 3, 4, 5]).unwrap();
             let hash_set: BTreeSet<usize> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
         });

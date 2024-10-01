@@ -168,10 +168,24 @@ pub struct Tuple(String, usize);
 #[test]
 fn test_tuple_struct() {
     Python::with_gil(|py| {
-        let tup = PyTuple::new(py, &[1.into_py(py), "test".into_py(py)]);
+        let tup = PyTuple::new(
+            py,
+            &[
+                1i32.into_pyobject(py).unwrap().into_any(),
+                "test".into_pyobject(py).unwrap().into_any(),
+            ],
+        )
+        .unwrap();
         let tup = tup.extract::<Tuple>();
         assert!(tup.is_err());
-        let tup = PyTuple::new(py, &["test".into_py(py), 1.into_py(py)]);
+        let tup = PyTuple::new(
+            py,
+            &[
+                "test".into_pyobject(py).unwrap().into_any(),
+                1i32.into_pyobject(py).unwrap().into_any(),
+            ],
+        )
+        .unwrap();
         let tup = tup
             .extract::<Tuple>()
             .expect("Failed to extract Tuple from PyTuple");
@@ -333,7 +347,7 @@ pub struct PyBool {
 #[test]
 fn test_enum() {
     Python::with_gil(|py| {
-        let tup = PyTuple::new(py, &[1.into_py(py), "test".into_py(py)]);
+        let tup = PyTuple::new(py, &[1i32.into_py(py), "test".into_py(py)]).unwrap();
         let f = tup
             .extract::<Foo<'_>>()
             .expect("Failed to extract Foo from tuple");
@@ -599,6 +613,7 @@ pub struct TransparentFromPyWith {
 fn test_transparent_from_py_with() {
     Python::with_gil(|py| {
         let result = PyList::new(py, [1, 2, 3])
+            .unwrap()
             .extract::<TransparentFromPyWith>()
             .unwrap();
         let expected = TransparentFromPyWith { len: 3 };

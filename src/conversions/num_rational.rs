@@ -59,7 +59,7 @@ use num_rational::Ratio;
 static FRACTION_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
 
 fn get_fraction_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
-    FRACTION_CLS.get_or_try_init_type_ref(py, "fractions", "Fraction")
+    FRACTION_CLS.import(py, "fractions", "Fraction")
 }
 
 macro_rules! rational_conversion {

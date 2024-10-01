@@ -53,7 +53,7 @@ impl ClassWithProperties {
     }
 
     #[getter]
-    fn get_data_list<'py>(&self, py: Python<'py>) -> Bound<'py, PyList> {
+    fn get_data_list<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
         PyList::new(py, [self.num])
     }
 }

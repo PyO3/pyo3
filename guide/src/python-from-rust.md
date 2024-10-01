@@ -44,3 +44,7 @@ Because of the lack of exclusive `&mut` references, PyO3's APIs for Python objec
 [smart-pointers]: https://doc.rust-lang.org/book/ch15-00-smart-pointers.html
 [obtaining-py]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#obtaining-a-python-token
 [`pyo3::sync`]: {{#PYO3_DOCS_URL}}/pyo3/sync/index.html
+[eval]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval
+[import]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.import_bound
+[clone_ref]: {{#PYO3_DOCS_URL}}/pyo3/prelude/struct.Py.html#method.clone_ref
+[Bound]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html
