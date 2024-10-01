@@ -265,7 +265,7 @@ mod test_indexmap {
                 }
             }
 
-            let py_map = map.clone().into_py_dict(py).unwrap();
+            let py_map = (&map).into_py_dict(py).unwrap();
 
             let trip_map = py_map.extract::<indexmap::IndexMap<i32, i32>>().unwrap();
 
