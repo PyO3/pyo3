@@ -5,8 +5,8 @@ use crate::inspect::types::TypeInfo;
 use crate::{
     conversion::IntoPyObject,
     instance::Bound,
-    types::{any::PyAnyMethods, dict::PyDictMethods, IntoPyDict, PyDict},
-    BoundObject, FromPyObject, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject,
+    types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
+    FromPyObject, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject,
 };
 
 impl<K, V, H> ToPyObject for collections::HashMap<K, V, H>
@@ -16,7 +16,11 @@ where
     H: hash::BuildHasher,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        IntoPyDict::into_py_dict(self, py).into()
+        let dict = PyDict::new(py);
+        for (k, v) in self {
+            dict.set_item(k.to_object(py), v.to_object(py)).unwrap();
+        }
+        dict.into_any().unbind()
     }
 }
 
@@ -26,7 +30,11 @@ where
     V: ToPyObject,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        IntoPyDict::into_py_dict(self, py).into()
+        let dict = PyDict::new(py);
+        for (k, v) in self {
+            dict.set_item(k.to_object(py), v.to_object(py)).unwrap();
+        }
+        dict.into_any().unbind()
     }
 }
 
@@ -37,10 +45,11 @@ where
     H: hash::BuildHasher,
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        let iter = self
-            .into_iter()
-            .map(|(k, v)| (k.into_py(py), v.into_py(py)));
-        IntoPyDict::into_py_dict(iter, py).into()
+        let dict = PyDict::new(py);
+        for (k, v) in self {
+            dict.set_item(k.into_py(py), v.into_py(py)).unwrap();
+        }
+        dict.into_any().unbind()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -62,10 +71,7 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
         for (k, v) in self {
-            dict.set_item(
-                k.into_pyobject(py).map_err(Into::into)?.into_bound(),
-                v.into_pyobject(py).map_err(Into::into)?.into_bound(),
-            )?;
+            dict.set_item(k, v)?;
         }
         Ok(dict)
     }
@@ -84,10 +90,7 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
         for (k, v) in self {
-            dict.set_item(
-                k.into_pyobject(py).map_err(Into::into)?.into_bound(),
-                v.into_pyobject(py).map_err(Into::into)?.into_bound(),
-            )?;
+            dict.set_item(k, v)?;
         }
         Ok(dict)
     }
@@ -99,10 +102,11 @@ where
     V: IntoPy<PyObject>,
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        let iter = self
-            .into_iter()
-            .map(|(k, v)| (k.into_py(py), v.into_py(py)));
-        IntoPyDict::into_py_dict(iter, py).into()
+        let dict = PyDict::new(py);
+        for (k, v) in self {
+            dict.set_item(k.into_py(py), v.into_py(py)).unwrap();
+        }
+        dict.into_any().unbind()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -123,10 +127,7 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
         for (k, v) in self {
-            dict.set_item(
-                k.into_pyobject(py).map_err(Into::into)?.into_bound(),
-                v.into_pyobject(py).map_err(Into::into)?.into_bound(),
-            )?;
+            dict.set_item(k, v)?;
         }
         Ok(dict)
     }
@@ -144,10 +145,7 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
         for (k, v) in self {
-            dict.set_item(
-                k.into_pyobject(py).map_err(Into::into)?.into_bound(),
-                v.into_pyobject(py).map_err(Into::into)?.into_bound(),
-            )?;
+            dict.set_item(k, v)?;
         }
         Ok(dict)
     }

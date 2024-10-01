@@ -40,7 +40,7 @@ mod inner {
         // Case1: idents & no err_msg
         ($py:expr, $($val:ident)+, $code:expr, $err:ident) => {{
             use pyo3::types::IntoPyDict;
-            let d = [$((stringify!($val), $val.to_object($py)),)+].into_py_dict($py);
+            let d = [$((stringify!($val), $val.to_object($py)),)+].into_py_dict($py).unwrap();
             py_expect_exception!($py, *d, $code, $err)
         }};
         // Case2: dict & no err_msg
@@ -126,7 +126,7 @@ mod inner {
             f: impl FnOnce(&Bound<'py, PyList>) -> PyResult<R>,
         ) -> PyResult<R> {
             let warnings = py.import("warnings")?;
-            let kwargs = [("record", true)].into_py_dict(py);
+            let kwargs = [("record", true)].into_py_dict(py)?;
             let catch_warnings = warnings
                 .getattr("catch_warnings")?
                 .call((), Some(&kwargs))?;

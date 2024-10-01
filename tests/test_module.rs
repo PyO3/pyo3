@@ -76,7 +76,8 @@ fn test_module_with_functions() {
             "module_with_functions",
             wrap_pymodule!(module_with_functions)(py),
         )]
-        .into_py_dict(py);
+        .into_py_dict(py)
+        .unwrap();
 
         py_assert!(
             py,
@@ -133,7 +134,8 @@ fn test_module_with_explicit_py_arg() {
             "module_with_explicit_py_arg",
             wrap_pymodule!(module_with_explicit_py_arg)(py),
         )]
-        .into_py_dict(py);
+        .into_py_dict(py)
+        .unwrap();
 
         py_assert!(py, *d, "module_with_explicit_py_arg.double(3) == 6");
     });
@@ -150,7 +152,9 @@ fn test_module_renaming() {
     use pyo3::wrap_pymodule;
 
     Python::with_gil(|py| {
-        let d = [("different_name", wrap_pymodule!(some_name)(py))].into_py_dict(py);
+        let d = [("different_name", wrap_pymodule!(some_name)(py))]
+            .into_py_dict(py)
+            .unwrap();
 
         py_run!(py, *d, "assert different_name.__name__ == 'other_name'");
     });

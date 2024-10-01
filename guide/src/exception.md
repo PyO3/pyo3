@@ -23,15 +23,18 @@ use pyo3::exceptions::PyException;
 
 create_exception!(mymodule, CustomError, PyException);
 
+# fn main() -> PyResult<()> {
 Python::with_gil(|py| {
-    let ctx = [("CustomError", py.get_type::<CustomError>())].into_py_dict(py);
+    let ctx = [("CustomError", py.get_type::<CustomError>())].into_py_dict(py)?;
     pyo3::py_run!(
         py,
         *ctx,
         "assert str(CustomError) == \"<class 'mymodule.CustomError'>\""
     );
     pyo3::py_run!(py, *ctx, "assert CustomError('oops').args == ('oops',)");
-});
+#   Ok(())
+})
+# }
 ```
 
 When using PyO3 to create an extension module, you can add the new exception to
