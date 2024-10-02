@@ -61,10 +61,13 @@ macro_rules! impl_exception_boilerplate_bound {
 ///
 /// import_exception!(socket, gaierror);
 ///
+/// # fn main() -> pyo3::PyResult<()> {
 /// Python::with_gil(|py| {
-///     let ctx = [("gaierror", py.get_type::<gaierror>())].into_py_dict(py);
+///     let ctx = [("gaierror", py.get_type::<gaierror>())].into_py_dict(py)?;
 ///     pyo3::py_run!(py, *ctx, "import socket; assert gaierror is socket.gaierror");
-/// });
+/// #   Ok(())
+/// })
+/// # }
 ///
 /// ```
 #[macro_export]
@@ -905,7 +908,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let error_type = py.get_type::<CustomError>();
-            let ctx = [("CustomError", error_type)].into_py_dict(py);
+            let ctx = [("CustomError", error_type)].into_py_dict(py).unwrap();
             let type_description: String = py
                 .eval(ffi::c_str!("str(CustomError)"), None, Some(&ctx))
                 .unwrap()
@@ -932,7 +935,7 @@ mod tests {
         create_exception!(mymodule.exceptions, CustomError, PyException);
         Python::with_gil(|py| {
             let error_type = py.get_type::<CustomError>();
-            let ctx = [("CustomError", error_type)].into_py_dict(py);
+            let ctx = [("CustomError", error_type)].into_py_dict(py).unwrap();
             let type_description: String = py
                 .eval(ffi::c_str!("str(CustomError)"), None, Some(&ctx))
                 .unwrap()
@@ -951,7 +954,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let error_type = py.get_type::<CustomError>();
-            let ctx = [("CustomError", error_type)].into_py_dict(py);
+            let ctx = [("CustomError", error_type)].into_py_dict(py).unwrap();
             let type_description: String = py
                 .eval(ffi::c_str!("str(CustomError)"), None, Some(&ctx))
                 .unwrap()
@@ -984,7 +987,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let error_type = py.get_type::<CustomError>();
-            let ctx = [("CustomError", error_type)].into_py_dict(py);
+            let ctx = [("CustomError", error_type)].into_py_dict(py).unwrap();
             let type_description: String = py
                 .eval(ffi::c_str!("str(CustomError)"), None, Some(&ctx))
                 .unwrap()

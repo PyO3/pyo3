@@ -107,7 +107,9 @@ impl ByteSequence {
 
 /// Return a dict with `s = ByteSequence([1, 2, 3])`.
 fn seq_dict(py: Python<'_>) -> Bound<'_, pyo3::types::PyDict> {
-    let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
+    let d = [("ByteSequence", py.get_type::<ByteSequence>())]
+        .into_py_dict(py)
+        .unwrap();
     // Though we can construct `s` in Rust, let's test `__new__` works.
     py_run!(py, *d, "s = ByteSequence([1, 2, 3])");
     d
@@ -139,7 +141,9 @@ fn test_setitem() {
 #[test]
 fn test_delitem() {
     Python::with_gil(|py| {
-        let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
+        let d = [("ByteSequence", py.get_type::<ByteSequence>())]
+            .into_py_dict(py)
+            .unwrap();
 
         py_run!(
             py,
@@ -235,7 +239,9 @@ fn test_repeat() {
 #[test]
 fn test_inplace_repeat() {
     Python::with_gil(|py| {
-        let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
+        let d = [("ByteSequence", py.get_type::<ByteSequence>())]
+            .into_py_dict(py)
+            .unwrap();
 
         py_run!(
             py,

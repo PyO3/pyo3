@@ -6,7 +6,7 @@ use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyList};
-use crate::{ffi, Python, ToPyObject};
+use crate::{ffi, BoundObject, Python};
 
 /// Represents a Python `dict`.
 ///
@@ -130,7 +130,7 @@ pub trait PyDictMethods<'py>: crate::sealed::Sealed {
     /// This is equivalent to the Python expression `key in self`.
     fn contains<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>;
 
     /// Gets an item from the dictionary.
     ///
@@ -139,22 +139,22 @@ pub trait PyDictMethods<'py>: crate::sealed::Sealed {
     /// To get a `KeyError` for non-existing keys, use `PyAny::get_item`.
     fn get_item<K>(&self, key: K) -> PyResult<Option<Bound<'py, PyAny>>>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>;
 
     /// Sets an item value.
     ///
     /// This is equivalent to the Python statement `self[key] = value`.
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
     where
-        K: ToPyObject,
-        V: ToPyObject;
+        K: IntoPyObject<'py>,
+        V: IntoPyObject<'py>;
 
     /// Deletes an item.
     ///
     /// This is equivalent to the Python statement `del self[key]`.
     fn del_item<K>(&self, key: K) -> PyResult<()>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>;
 
     /// Returns a list of dict keys.
     ///
@@ -226,9 +226,9 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
 
     fn contains<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
     {
-        fn inner(dict: &Bound<'_, PyDict>, key: Bound<'_, PyAny>) -> PyResult<bool> {
+        fn inner(dict: &Bound<'_, PyDict>, key: &Bound<'_, PyAny>) -> PyResult<bool> {
             match unsafe { ffi::PyDict_Contains(dict.as_ptr(), key.as_ptr()) } {
                 1 => Ok(true),
                 0 => Ok(false),
@@ -237,16 +237,22 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).into_bound(py))
+        inner(
+            self,
+            &key.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+        )
     }
 
     fn get_item<K>(&self, key: K) -> PyResult<Option<Bound<'py, PyAny>>>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
     {
         fn inner<'py>(
             dict: &Bound<'py, PyDict>,
-            key: Bound<'_, PyAny>,
+            key: &Bound<'_, PyAny>,
         ) -> PyResult<Option<Bound<'py, PyAny>>> {
             let py = dict.py();
             let mut result: *mut ffi::PyObject = std::ptr::null_mut();
@@ -260,18 +266,24 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).into_bound(py))
+        inner(
+            self,
+            &key.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+        )
     }
 
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
     where
-        K: ToPyObject,
-        V: ToPyObject,
+        K: IntoPyObject<'py>,
+        V: IntoPyObject<'py>,
     {
         fn inner(
             dict: &Bound<'_, PyDict>,
-            key: Bound<'_, PyAny>,
-            value: Bound<'_, PyAny>,
+            key: &Bound<'_, PyAny>,
+            value: &Bound<'_, PyAny>,
         ) -> PyResult<()> {
             err::error_on_minusone(dict.py(), unsafe {
                 ffi::PyDict_SetItem(dict.as_ptr(), key.as_ptr(), value.as_ptr())
@@ -281,23 +293,36 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         let py = self.py();
         inner(
             self,
-            key.to_object(py).into_bound(py),
-            value.to_object(py).into_bound(py),
+            &key.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+            &value
+                .into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
         )
     }
 
     fn del_item<K>(&self, key: K) -> PyResult<()>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
     {
-        fn inner(dict: &Bound<'_, PyDict>, key: Bound<'_, PyAny>) -> PyResult<()> {
+        fn inner(dict: &Bound<'_, PyDict>, key: &Bound<'_, PyAny>) -> PyResult<()> {
             err::error_on_minusone(dict.py(), unsafe {
                 ffi::PyDict_DelItem(dict.as_ptr(), key.as_ptr())
             })
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).into_bound(py))
+        inner(
+            self,
+            &key.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
+        )
     }
 
     fn keys(&self) -> Bound<'py, PyList> {
@@ -529,73 +554,69 @@ mod borrowed_iter {
     }
 }
 
+use crate::prelude::IntoPyObject;
 pub(crate) use borrowed_iter::BorrowedDictIter;
 
 /// Conversion trait that allows a sequence of tuples to be converted into `PyDict`
 /// Primary use case for this trait is `call` and `call_method` methods as keywords argument.
-pub trait IntoPyDict: Sized {
+pub trait IntoPyDict<'py>: Sized {
     /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
     /// depends on implementation.
-    fn into_py_dict(self, py: Python<'_>) -> Bound<'_, PyDict>;
+    fn into_py_dict(self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>>;
 
     /// Deprecated name for [`IntoPyDict::into_py_dict`].
     #[deprecated(since = "0.23.0", note = "renamed to `IntoPyDict::into_py_dict`")]
     #[inline]
-    fn into_py_dict_bound(self, py: Python<'_>) -> Bound<'_, PyDict> {
-        self.into_py_dict(py)
+    fn into_py_dict_bound(self, py: Python<'py>) -> Bound<'py, PyDict> {
+        self.into_py_dict(py).unwrap()
     }
 }
 
-impl<T, I> IntoPyDict for I
+impl<'py, T, I> IntoPyDict<'py> for I
 where
-    T: PyDictItem,
+    T: PyDictItem<'py>,
     I: IntoIterator<Item = T>,
 {
-    fn into_py_dict(self, py: Python<'_>) -> Bound<'_, PyDict> {
+    fn into_py_dict(self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let dict = PyDict::new(py);
         for item in self {
-            dict.set_item(item.key(), item.value())
-                .expect("Failed to set_item on dict");
+            let (key, value) = item.unpack();
+            dict.set_item(key, value)?;
         }
-        dict
+        Ok(dict)
     }
 }
 
 /// Represents a tuple which can be used as a PyDict item.
-pub trait PyDictItem {
-    type K: ToPyObject;
-    type V: ToPyObject;
-    fn key(&self) -> &Self::K;
-    fn value(&self) -> &Self::V;
+trait PyDictItem<'py> {
+    type K: IntoPyObject<'py>;
+    type V: IntoPyObject<'py>;
+    fn unpack(self) -> (Self::K, Self::V);
 }
 
-impl<K, V> PyDictItem for (K, V)
+impl<'py, K, V> PyDictItem<'py> for (K, V)
 where
-    K: ToPyObject,
-    V: ToPyObject,
+    K: IntoPyObject<'py>,
+    V: IntoPyObject<'py>,
 {
     type K = K;
     type V = V;
-    fn key(&self) -> &Self::K {
-        &self.0
-    }
-    fn value(&self) -> &Self::V {
-        &self.1
+
+    fn unpack(self) -> (Self::K, Self::V) {
+        (self.0, self.1)
     }
 }
 
-impl<K, V> PyDictItem for &(K, V)
+impl<'a, 'py, K, V> PyDictItem<'py> for &'a (K, V)
 where
-    K: ToPyObject,
-    V: ToPyObject,
+    &'a K: IntoPyObject<'py>,
+    &'a V: IntoPyObject<'py>,
 {
-    type K = K;
-    type V = V;
-    fn key(&self) -> &Self::K {
-        &self.0
-    }
-    fn value(&self) -> &Self::V {
-        &self.1
+    type K = &'a K;
+    type V = &'a V;
+
+    fn unpack(self) -> (Self::K, Self::V) {
+        (&self.0, &self.1)
     }
 }
 
@@ -603,12 +624,13 @@ where
 mod tests {
     use super::*;
     use crate::types::PyTuple;
+    use crate::ToPyObject;
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
     fn test_new() {
         Python::with_gil(|py| {
-            let dict = [(7, 32)].into_py_dict(py);
+            let dict = [(7, 32)].into_py_dict(py).unwrap();
             assert_eq!(
                 32,
                 dict.get_item(7i32)
@@ -668,7 +690,7 @@ mod tests {
     #[test]
     fn test_copy() {
         Python::with_gil(|py| {
-            let dict = [(7, 32)].into_py_dict(py);
+            let dict = [(7, 32)].into_py_dict(py).unwrap();
 
             let ndict = dict.copy().unwrap();
             assert_eq!(
@@ -1065,7 +1087,7 @@ mod tests {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let py_map = map.into_py_dict(py);
+            let py_map = map.into_py_dict(py).unwrap();
 
             assert_eq!(py_map.len(), 1);
             assert_eq!(
@@ -1086,7 +1108,7 @@ mod tests {
             let mut map = BTreeMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let py_map = map.into_py_dict(py);
+            let py_map = map.into_py_dict(py).unwrap();
 
             assert_eq!(py_map.len(), 1);
             assert_eq!(
@@ -1105,7 +1127,7 @@ mod tests {
     fn test_vec_into_dict() {
         Python::with_gil(|py| {
             let vec = vec![("a", 1), ("b", 2), ("c", 3)];
-            let py_map = vec.into_py_dict(py);
+            let py_map = vec.into_py_dict(py).unwrap();
 
             assert_eq!(py_map.len(), 3);
             assert_eq!(
@@ -1124,7 +1146,7 @@ mod tests {
     fn test_slice_into_dict() {
         Python::with_gil(|py| {
             let arr = [("a", 1), ("b", 2), ("c", 3)];
-            let py_map = arr.into_py_dict(py);
+            let py_map = arr.into_py_dict(py).unwrap();
 
             assert_eq!(py_map.len(), 3);
             assert_eq!(
@@ -1145,7 +1167,7 @@ mod tests {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let py_map = map.into_py_dict(py);
+            let py_map = map.into_py_dict(py).unwrap();
 
             assert_eq!(py_map.as_mapping().len().unwrap(), 1);
             assert_eq!(
@@ -1166,7 +1188,7 @@ mod tests {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let py_map = map.into_py_dict(py);
+            let py_map = map.into_py_dict(py).unwrap();
 
             let py_mapping = py_map.into_mapping();
             assert_eq!(py_mapping.len().unwrap(), 1);
@@ -1180,7 +1202,7 @@ mod tests {
         map.insert("a", 1);
         map.insert("b", 2);
         map.insert("c", 3);
-        map.into_py_dict(py)
+        map.into_py_dict(py).unwrap()
     }
 
     #[test]
@@ -1216,8 +1238,8 @@ mod tests {
     #[test]
     fn dict_update() {
         Python::with_gil(|py| {
-            let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict(py);
-            let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py);
+            let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict(py).unwrap();
+            let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py).unwrap();
             dict.update(other.as_mapping()).unwrap();
             assert_eq!(dict.len(), 4);
             assert_eq!(
@@ -1287,8 +1309,8 @@ mod tests {
     #[test]
     fn dict_update_if_missing() {
         Python::with_gil(|py| {
-            let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict(py);
-            let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py);
+            let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict(py).unwrap();
+            let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py).unwrap();
             dict.update_if_missing(other.as_mapping()).unwrap();
             assert_eq!(dict.len(), 4);
             assert_eq!(

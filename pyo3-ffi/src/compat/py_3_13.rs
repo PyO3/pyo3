@@ -50,3 +50,36 @@ compat_function!(
         Py_XNewRef(PyImport_AddModule(name))
     }
 );
+
+compat_function!(
+    originally_defined_for(Py_3_13);
+
+    #[inline]
+    pub unsafe fn PyWeakref_GetRef(
+        reference: *mut crate::PyObject,
+        pobj: *mut *mut crate::PyObject,
+    ) -> std::os::raw::c_int {
+        use crate::{
+            compat::Py_NewRef, PyErr_SetString, PyExc_TypeError, PyWeakref_Check,
+            PyWeakref_GetObject, Py_None,
+        };
+
+        if !reference.is_null() && PyWeakref_Check(reference) == 0 {
+            *pobj = std::ptr::null_mut();
+            PyErr_SetString(PyExc_TypeError, c_str!("expected a weakref").as_ptr());
+            return -1;
+        }
+        let obj = PyWeakref_GetObject(reference);
+        if obj.is_null() {
+            // SystemError if reference is NULL
+            *pobj = std::ptr::null_mut();
+            return -1;
+        }
+        if obj == Py_None() {
+            *pobj = std::ptr::null_mut();
+            return 0;
+        }
+        *pobj = Py_NewRef(obj);
+        1
+    }
+);

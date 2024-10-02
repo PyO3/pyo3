@@ -89,7 +89,7 @@
 
 use crate::conversion::IntoPyObject;
 use crate::types::*;
-use crate::{Bound, BoundObject, FromPyObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
+use crate::{Bound, FromPyObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
 use std::{cmp, hash};
 
 impl<K, V, H> ToPyObject for indexmap::IndexMap<K, V, H>
@@ -99,7 +99,11 @@ where
     H: hash::BuildHasher,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        IntoPyDict::into_py_dict(self, py).into()
+        let dict = PyDict::new(py);
+        for (k, v) in self {
+            dict.set_item(k.to_object(py), v.to_object(py)).unwrap();
+        }
+        dict.into_any().unbind()
     }
 }
 
@@ -110,10 +114,11 @@ where
     H: hash::BuildHasher,
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        let iter = self
-            .into_iter()
-            .map(|(k, v)| (k.into_py(py), v.into_py(py)));
-        IntoPyDict::into_py_dict(iter, py).into()
+        let dict = PyDict::new(py);
+        for (k, v) in self {
+            dict.set_item(k.into_py(py), v.into_py(py)).unwrap();
+        }
+        dict.into_any().unbind()
     }
 }
 
@@ -130,10 +135,7 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
         for (k, v) in self {
-            dict.set_item(
-                k.into_pyobject(py).map_err(Into::into)?.into_bound(),
-                v.into_pyobject(py).map_err(Into::into)?.into_bound(),
-            )?;
+            dict.set_item(k, v)?;
         }
         Ok(dict)
     }
@@ -152,10 +154,7 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
         for (k, v) in self {
-            dict.set_item(
-                k.into_pyobject(py).map_err(Into::into)?.into_bound(),
-                v.into_pyobject(py).map_err(Into::into)?.into_bound(),
-            )?;
+            dict.set_item(k, v)?;
         }
         Ok(dict)
     }
@@ -237,7 +236,7 @@ mod test_indexmap {
             let mut map = indexmap::IndexMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let py_map = map.into_py_dict(py);
+            let py_map = map.into_py_dict(py).unwrap();
 
             assert_eq!(py_map.len(), 1);
             assert_eq!(
@@ -266,7 +265,7 @@ mod test_indexmap {
                 }
             }
 
-            let py_map = map.clone().into_py_dict(py);
+            let py_map = (&map).into_py_dict(py).unwrap();
 
             let trip_map = py_map.extract::<indexmap::IndexMap<i32, i32>>().unwrap();
 
