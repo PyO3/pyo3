@@ -9,7 +9,7 @@ use pyo3::{
 
 fn extract_str_extract_success(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let s = PyString::new_bound(py, "Hello, World!").into_any();
+        let s = PyString::new(py, "Hello, World!").into_any();
 
         bench.iter(|| black_box(&s).extract::<&str>().unwrap());
     });
@@ -26,10 +26,10 @@ fn extract_str_extract_fail(bench: &mut Bencher<'_>) {
     });
 }
 
-#[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+#[cfg(any(Py_3_10))]
 fn extract_str_downcast_success(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let s = PyString::new_bound(py, "Hello, World!").into_any();
+        let s = PyString::new(py, "Hello, World!").into_any();
 
         bench.iter(|| {
             let py_str = black_box(&s).downcast::<PyString>().unwrap();

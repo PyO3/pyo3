@@ -63,7 +63,7 @@ fn find_object_type(obj: &Bound<'_, PyAny>) -> ObjectType {
 
 fn bench_identify_object_type(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let obj = py.eval_bound("object()", None, None).unwrap();
+        let obj = py.eval(c"object()", None, None).unwrap();
 
         b.iter(|| find_object_type(&obj));
 
@@ -73,7 +73,7 @@ fn bench_identify_object_type(b: &mut Bencher<'_>) {
 
 fn bench_collect_generic_iterator(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let collection = py.eval_bound("list(range(1 << 20))", None, None).unwrap();
+        let collection = py.eval(c"list(range(1 << 20))", None, None).unwrap();
 
         b.iter(|| {
             collection

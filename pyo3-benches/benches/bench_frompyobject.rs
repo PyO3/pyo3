@@ -17,7 +17,7 @@ enum ManyTypes {
 
 fn enum_from_pyobject(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let any = PyString::new_bound(py, "hello world").into_any();
+        let any = PyString::new(py, "hello world").into_any();
 
         b.iter(|| black_box(&any).extract::<ManyTypes>().unwrap());
     })
@@ -41,7 +41,7 @@ fn list_via_extract(b: &mut Bencher<'_>) {
 
 fn not_a_list_via_downcast(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let any = PyString::new_bound(py, "foobar").into_any();
+        let any = PyString::new(py, "foobar").into_any();
 
         b.iter(|| black_box(&any).downcast::<PyList>().unwrap_err());
     })
@@ -49,7 +49,7 @@ fn not_a_list_via_downcast(b: &mut Bencher<'_>) {
 
 fn not_a_list_via_extract(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let any = PyString::new_bound(py, "foobar").into_any();
+        let any = PyString::new(py, "foobar").into_any();
 
         b.iter(|| black_box(&any).extract::<Bound<'_, PyList>>().unwrap_err());
     })
@@ -63,7 +63,7 @@ enum ListOrNotList<'a> {
 
 fn not_a_list_via_extract_enum(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let any = PyString::new_bound(py, "foobar").into_any();
+        let any = PyString::new(py, "foobar").into_any();
 
         b.iter(|| match black_box(&any).extract::<ListOrNotList<'_>>() {
             Ok(ListOrNotList::List(_list)) => panic!(),
