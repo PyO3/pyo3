@@ -64,6 +64,17 @@ impl<'py> IntoPyObject<'py> for &OsStr {
     }
 }
 
+impl<'py> IntoPyObject<'py> for &&OsStr {
+    type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
 // There's no FromPyObject implementation for &OsStr because albeit possible on Unix, this would
 // be impossible to implement on Windows. Hence it's omitted entirely
 
@@ -208,8 +219,10 @@ impl<'py> IntoPyObject<'py> for &OsString {
 
 #[cfg(test)]
 mod tests {
+    use crate::prelude::IntoPyObject;
     use crate::types::{PyAnyMethods, PyStringMethods};
-    use crate::{types::PyString, IntoPy, PyObject, Python, ToPyObject};
+    use crate::BoundObject;
+    use crate::{types::PyString, IntoPy, PyObject, Python};
     use std::fmt::Debug;
     use std::{
         borrow::Cow,
@@ -239,9 +252,13 @@ mod tests {
     #[test]
     fn test_topyobject_roundtrip() {
         Python::with_gil(|py| {
-            fn test_roundtrip<T: ToPyObject + AsRef<OsStr> + Debug>(py: Python<'_>, obj: T) {
-                let pyobject = obj.to_object(py);
-                let pystring = pyobject.downcast_bound::<PyString>(py).unwrap();
+            fn test_roundtrip<'py, T>(py: Python<'py>, obj: T)
+            where
+                T: IntoPyObject<'py> + AsRef<OsStr> + Debug + Clone,
+                T::Error: Debug,
+            {
+                let pyobject = obj.clone().into_pyobject(py).unwrap().into_any();
+                let pystring = pyobject.as_borrowed().downcast::<PyString>().unwrap();
                 assert_eq!(pystring.to_string_lossy(), obj.as_ref().to_string_lossy());
                 let roundtripped_obj: OsString = pystring.extract().unwrap();
                 assert_eq!(obj.as_ref(), roundtripped_obj.as_os_str());
