@@ -6,7 +6,7 @@ use crate::{
     ffi_ptr_ext::FfiPtrExt,
     py_result_ext::PyResultExt,
     types::any::PyAnyMethods,
-    Bound, PyAny, Python, ToPyObject,
+    Bound, PyAny, Python,
 };
 use crate::{Borrowed, BoundObject};
 use std::ptr;
@@ -103,8 +103,9 @@ impl PyFrozenSet {
 
     /// Deprecated name for [`PyFrozenSet::new`].
     #[deprecated(since = "0.23.0", note = "renamed to `PyFrozenSet::new`")]
+    #[allow(deprecated)]
     #[inline]
-    pub fn new_bound<'a, 'p, T: ToPyObject + 'a>(
+    pub fn new_bound<'a, 'p, T: crate::ToPyObject + 'a>(
         py: Python<'p>,
         elements: impl IntoIterator<Item = &'a T>,
     ) -> PyResult<Bound<'p, PyFrozenSet>> {

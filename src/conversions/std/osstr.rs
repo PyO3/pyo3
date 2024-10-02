@@ -3,11 +3,14 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyString;
-use crate::{ffi, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
+#[allow(deprecated)]
+use crate::ToPyObject;
+use crate::{ffi, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python};
 use std::borrow::Cow;
 use std::convert::Infallible;
 use std::ffi::{OsStr, OsString};
 
+#[allow(deprecated)]
 impl ToPyObject for OsStr {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -138,6 +141,7 @@ impl IntoPy<PyObject> for &'_ OsStr {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for Cow<'_, OsStr> {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -174,6 +178,7 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, OsStr> {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for OsString {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {

@@ -89,9 +89,12 @@
 
 use crate::conversion::IntoPyObject;
 use crate::types::*;
-use crate::{Bound, FromPyObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
+#[allow(deprecated)]
+use crate::ToPyObject;
+use crate::{Bound, FromPyObject, IntoPy, PyErr, PyObject, Python};
 use std::{cmp, hash};
 
+#[allow(deprecated)]
 impl<K, V, H> ToPyObject for indexmap::IndexMap<K, V, H>
 where
     K: hash::Hash + cmp::Eq + ToPyObject,
@@ -179,8 +182,9 @@ where
 #[cfg(test)]
 mod test_indexmap {
 
+    use crate::prelude::IntoPyObject;
     use crate::types::*;
-    use crate::{IntoPy, PyObject, Python, ToPyObject};
+    use crate::{IntoPy, PyObject, Python};
 
     #[test]
     fn test_indexmap_indexmap_to_python() {
@@ -188,8 +192,7 @@ mod test_indexmap {
             let mut map = indexmap::IndexMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let m = map.to_object(py);
-            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
+            let py_map = (&map).into_pyobject(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(

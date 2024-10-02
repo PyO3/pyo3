@@ -628,7 +628,6 @@ where
 mod tests {
     use super::*;
     use crate::types::PyTuple;
-    use crate::ToPyObject;
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
@@ -713,13 +712,11 @@ mod tests {
     #[test]
     fn test_len() {
         Python::with_gil(|py| {
-            let mut v = HashMap::new();
-            let ob = v.to_object(py);
-            let dict = ob.downcast_bound::<PyDict>(py).unwrap();
+            let mut v = HashMap::<i32, i32>::new();
+            let dict = (&v).into_pyobject(py).unwrap();
             assert_eq!(0, dict.len());
             v.insert(7, 32);
-            let ob = v.to_object(py);
-            let dict2 = ob.downcast_bound::<PyDict>(py).unwrap();
+            let dict2 = v.into_pyobject(py).unwrap();
             assert_eq!(1, dict2.len());
         });
     }
@@ -729,8 +726,7 @@ mod tests {
         Python::with_gil(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
-            let ob = v.to_object(py);
-            let dict = ob.downcast_bound::<PyDict>(py).unwrap();
+            let dict = v.into_pyobject(py).unwrap();
             assert!(dict.contains(7i32).unwrap());
             assert!(!dict.contains(8i32).unwrap());
         });
@@ -741,8 +737,7 @@ mod tests {
         Python::with_gil(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
-            let ob = v.to_object(py);
-            let dict = ob.downcast_bound::<PyDict>(py).unwrap();
+            let dict = v.into_pyobject(py).unwrap();
             assert_eq!(
                 32,
                 dict.get_item(7i32)
@@ -796,8 +791,7 @@ mod tests {
         Python::with_gil(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
-            let ob = v.to_object(py);
-            let dict = ob.downcast_bound::<PyDict>(py).unwrap();
+            let dict = v.into_pyobject(py).unwrap();
             assert!(dict.set_item(7i32, 42i32).is_ok()); // change
             assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
             assert_eq!(
@@ -839,8 +833,7 @@ mod tests {
         Python::with_gil(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
-            let ob = v.to_object(py);
-            let dict = ob.downcast_bound::<PyDict>(py).unwrap();
+            let dict = (&v).into_pyobject(py).unwrap();
             assert!(dict.set_item(7i32, 42i32).is_ok()); // change
             assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
             assert_eq!(32i32, v[&7i32]); // not updated!
@@ -853,8 +846,7 @@ mod tests {
         Python::with_gil(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
-            let ob = v.to_object(py);
-            let dict = ob.downcast_bound::<PyDict>(py).unwrap();
+            let dict = v.into_pyobject(py).unwrap();
             assert!(dict.del_item(7i32).is_ok());
             assert_eq!(0, dict.len());
             assert!(dict.get_item(7i32).unwrap().is_none());
@@ -866,8 +858,7 @@ mod tests {
         Python::with_gil(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
-            let ob = v.to_object(py);
-            let dict = ob.downcast_bound::<PyDict>(py).unwrap();
+            let dict = (&v).into_pyobject(py).unwrap();
             assert!(dict.del_item(7i32).is_ok()); // change
             assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
         });
@@ -880,8 +871,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let ob = v.to_object(py);
-            let dict = ob.downcast_bound::<PyDict>(py).unwrap();
+            let dict = v.into_pyobject(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
             let mut value_sum = 0;
@@ -902,8 +892,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let ob = v.to_object(py);
-            let dict = ob.downcast_bound::<PyDict>(py).unwrap();
+            let dict = v.into_pyobject(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
             for el in dict.keys() {
@@ -920,8 +909,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let ob = v.to_object(py);
-            let dict = ob.downcast_bound::<PyDict>(py).unwrap();
+            let dict = v.into_pyobject(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut values_sum = 0;
             for el in dict.values() {
@@ -938,8 +926,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let ob = v.to_object(py);
-            let dict = ob.downcast_bound::<PyDict>(py).unwrap();
+            let dict = v.into_pyobject(py).unwrap();
             let mut key_sum = 0;
             let mut value_sum = 0;
             for (key, value) in dict {
@@ -958,8 +945,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let ob = v.to_object(py);
-            let dict: &Bound<'_, PyDict> = ob.downcast_bound(py).unwrap();
+            let dict = v.into_pyobject(py).unwrap();
             let mut key_sum = 0;
             let mut value_sum = 0;
             for (key, value) in dict {
@@ -979,10 +965,9 @@ mod tests {
             v.insert(8, 42);
             v.insert(9, 123);
 
-            let ob = v.to_object(py);
-            let dict = ob.downcast_bound::<PyDict>(py).unwrap();
+            let dict = (&v).into_pyobject(py).unwrap();
 
-            for (key, value) in dict {
+            for (key, value) in &dict {
                 dict.set_item(key, value.extract::<i32>().unwrap() + 7)
                     .unwrap();
             }
@@ -997,8 +982,7 @@ mod tests {
             for i in 0..10 {
                 v.insert(i * 2, i * 2);
             }
-            let ob = v.to_object(py);
-            let dict = ob.downcast_bound::<PyDict>(py).unwrap();
+            let dict = v.into_pyobject(py).unwrap();
 
             for (i, (key, value)) in dict.iter().enumerate() {
                 let key = key.extract::<i32>().unwrap();
@@ -1022,8 +1006,7 @@ mod tests {
             for i in 0..10 {
                 v.insert(i * 2, i * 2);
             }
-            let ob = v.to_object(py);
-            let dict = ob.downcast_bound::<PyDict>(py).unwrap();
+            let dict = v.into_pyobject(py).unwrap();
 
             for (i, (key, value)) in dict.iter().enumerate() {
                 let key = key.extract::<i32>().unwrap();
@@ -1046,8 +1029,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let ob = v.to_object(py);
-            let dict = ob.downcast_bound::<PyDict>(py).unwrap();
+            let dict = (&v).into_pyobject(py).unwrap();
 
             let mut iter = dict.iter();
             assert_eq!(iter.size_hint(), (v.len(), Some(v.len())));
@@ -1072,8 +1054,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let ob = v.to_object(py);
-            let dict = ob.downcast_bound::<PyDict>(py).unwrap();
+            let dict = v.into_pyobject(py).unwrap();
             let mut key_sum = 0;
             let mut value_sum = 0;
             for (key, value) in dict {

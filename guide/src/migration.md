@@ -157,7 +157,7 @@ need to adapt an implementation of `IntoPyObject` to stay compatible with the Py
 
 
 Before:
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
 struct MyPyObjectWrapper(PyObject);

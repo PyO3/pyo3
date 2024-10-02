@@ -3,11 +3,13 @@ use crate::panic::PanicException;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{string::PyStringMethods, typeobject::PyTypeMethods, PyTraceback, PyType};
+#[allow(deprecated)]
+use crate::ToPyObject;
 use crate::{
     exceptions::{self, PyBaseException},
     ffi,
 };
-use crate::{Borrowed, IntoPy, Py, PyAny, PyObject, Python, ToPyObject};
+use crate::{Borrowed, BoundObject, IntoPy, Py, PyAny, PyObject, Python};
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::ffi::{CStr, CString};
@@ -560,11 +562,11 @@ impl PyErr {
     ///
     /// If `exc` is a class object, this also returns `true` when `self` is an instance of a subclass.
     /// If `exc` is a tuple, all exceptions in the tuple (and recursively in subtuples) are searched for a match.
-    pub fn matches<T>(&self, py: Python<'_>, exc: T) -> bool
+    pub fn matches<'py, T>(&self, py: Python<'py>, exc: T) -> Result<bool, T::Error>
     where
-        T: ToPyObject,
+        T: IntoPyObject<'py>,
     {
-        self.is_instance(py, exc.to_object(py).bind(py))
+        Ok(self.is_instance(py, &exc.into_pyobject(py)?.into_any().as_borrowed()))
     }
 
     /// Returns true if the current exception is instance of `T`.
@@ -884,6 +886,7 @@ impl IntoPy<PyObject> for PyErr {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for PyErr {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -933,7 +936,11 @@ impl PyErrArguments for PyDowncastErrorArguments {
             Ok(qn) => qn.to_cow().unwrap_or(FAILED_TO_EXTRACT),
             Err(_) => FAILED_TO_EXTRACT,
         };
-        format!("'{}' object cannot be converted to '{}'", from, self.to).to_object(py)
+        format!("'{}' object cannot be converted to '{}'", from, self.to)
+            .into_pyobject(py)
+            .unwrap()
+            .into_any()
+            .unbind()
     }
 }
 
@@ -1187,18 +1194,20 @@ mod tests {
     fn test_pyerr_matches() {
         Python::with_gil(|py| {
             let err = PyErr::new::<PyValueError, _>("foo");
-            assert!(err.matches(py, PyValueError::type_object(py)));
+            assert!(err.matches(py, PyValueError::type_object(py)).unwrap());
 
-            assert!(err.matches(
-                py,
-                (PyValueError::type_object(py), PyTypeError::type_object(py))
-            ));
+            assert!(err
+                .matches(
+                    py,
+                    (PyValueError::type_object(py), PyTypeError::type_object(py))
+                )
+                .unwrap());
 
-            assert!(!err.matches(py, PyTypeError::type_object(py)));
+            assert!(!err.matches(py, PyTypeError::type_object(py)).unwrap());
 
             // String is not a valid exception class, so we should get a TypeError
             let err: PyErr = PyErr::from_type(crate::types::PyString::type_object(py), "foo");
-            assert!(err.matches(py, PyTypeError::type_object(py)));
+            assert!(err.matches(py, PyTypeError::type_object(py)).unwrap());
         })
     }
 

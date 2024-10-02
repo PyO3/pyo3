@@ -3,7 +3,9 @@ use crate::ffi;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::prelude::IntoPyObject;
 use crate::types::any::PyAnyMethods;
-use crate::{Bound, PyAny, PyObject, Python, ToPyObject};
+#[allow(deprecated)]
+use crate::ToPyObject;
+use crate::{Bound, PyAny, PyObject, Python};
 use std::convert::Infallible;
 
 /// Represents a Python `slice`.
@@ -135,6 +137,7 @@ impl<'py> PySliceMethods<'py> for Bound<'py, PySlice> {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for PySliceIndices {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         PySlice::new(py, self.start, self.stop, self.step).into()

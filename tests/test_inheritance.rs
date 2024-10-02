@@ -285,7 +285,7 @@ mod inheriting_native_type {
             Some(&dict)
             );
             let err = res.unwrap_err();
-            assert!(err.matches(py, &cls), "{}", err);
+            assert!(err.matches(py, &cls).unwrap(), "{}", err);
 
             // catching the exception in Python also works:
             py_run!(

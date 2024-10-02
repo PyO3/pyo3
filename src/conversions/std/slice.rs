@@ -2,10 +2,12 @@ use std::borrow::Cow;
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[allow(deprecated)]
+use crate::ToPyObject;
 use crate::{
     conversion::IntoPyObject,
     types::{PyByteArray, PyByteArrayMethods, PyBytes},
-    Bound, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    Bound, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
 };
 
 impl IntoPy<PyObject> for &[u8] {
@@ -69,6 +71,7 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, [u8]> {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for Cow<'_, [u8]> {
     fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
         PyBytes::new(py, self.as_ref()).into()
@@ -77,7 +80,7 @@ impl ToPyObject for Cow<'_, [u8]> {
 
 impl IntoPy<Py<PyAny>> for Cow<'_, [u8]> {
     fn into_py(self, py: Python<'_>) -> Py<PyAny> {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -108,7 +111,7 @@ mod tests {
         conversion::IntoPyObject,
         ffi,
         types::{any::PyAnyMethods, PyBytes, PyBytesMethods, PyList},
-        Python, ToPyObject,
+        Python,
     };
 
     #[test]
@@ -138,11 +141,13 @@ mod tests {
                 .extract::<Cow<'_, [u8]>>()
                 .unwrap_err();
 
-            let cow = Cow::<[u8]>::Borrowed(b"foobar").to_object(py);
-            assert!(cow.bind(py).is_instance_of::<PyBytes>());
+            let cow = Cow::<[u8]>::Borrowed(b"foobar").into_pyobject(py).unwrap();
+            assert!(cow.is_instance_of::<PyBytes>());
 
-            let cow = Cow::<[u8]>::Owned(b"foobar".to_vec()).to_object(py);
-            assert!(cow.bind(py).is_instance_of::<PyBytes>());
+            let cow = Cow::<[u8]>::Owned(b"foobar".to_vec())
+                .into_pyobject(py)
+                .unwrap();
+            assert!(cow.is_instance_of::<PyBytes>());
         });
     }
 
