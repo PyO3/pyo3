@@ -2,7 +2,7 @@ use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::PyTypeCheck;
-use crate::types::any::PyAny;
+use crate::types::{any::PyAny, PyNone};
 use crate::{ffi, Borrowed, Bound, ToPyObject};
 
 #[cfg(feature = "gil-refs")]
@@ -558,10 +558,23 @@ impl PyWeakrefProxy {
 }
 
 impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakrefProxy> {
+    fn get_object(&self) -> Bound<'py, PyAny> {
+        let mut obj: *mut ffi::PyObject = std::ptr::null_mut();
+        match unsafe { ffi::compat::PyWeakref_GetRef(self.as_ptr(), &mut obj) } {
+            std::os::raw::c_int::MIN..=-1 => panic!("The 'weakref.ProxyType' (or `weakref.CallableProxyType`) instance should be valid (non-null and actually a weakref reference)"),
+            0 => PyNone::get_bound(self.py()).to_owned().into_any(),
+            1..=std::os::raw::c_int::MAX => unsafe { obj.assume_owned(self.py()) },
+        }
+    }
+
     fn get_object_borrowed(&self) -> Borrowed<'_, 'py, PyAny> {
-        // PyWeakref_GetObject does some error checking, however we ensure the passed object is Non-Null and a Weakref type.
-        unsafe { ffi::PyWeakref_GetObject(self.as_ptr()).assume_borrowed_or_err(self.py()) }
-            .expect("The 'weakref.ProxyType' (or `weakref.CallableProxyType`) instance should be valid (non-null and actually a weakref reference)")
+        // XXX: this deliberately leaks a reference, but this is a necessary safety measure
+        // to ensure that the object is not deallocated while we are using it.
+        unsafe {
+            self.get_object()
+                .into_ptr()
+                .assume_borrowed_unchecked(self.py())
+        }
     }
 }
 
@@ -744,6 +757,7 @@ mod tests {
 
                     {
                         // This test is a bit weird but ok.
+                        #[allow(deprecated)]
                         let obj = reference.upgrade_borrowed_as::<PyAny>();
 
                         assert!(obj.is_ok());
@@ -758,6 +772,7 @@ mod tests {
 
                     {
                         // This test is a bit weird but ok.
+                        #[allow(deprecated)]
                         let obj = reference.upgrade_borrowed_as::<PyAny>();
 
                         assert!(obj.is_ok());
@@ -808,6 +823,7 @@ mod tests {
 
                     {
                         // This test is a bit weird but ok.
+                        #[allow(deprecated)]
                         let obj = unsafe { reference.upgrade_borrowed_as_unchecked::<PyAny>() };
 
                         assert!(obj.is_some());
@@ -819,6 +835,7 @@ mod tests {
 
                     {
                         // This test is a bit weird but ok.
+                        #[allow(deprecated)]
                         let obj = unsafe { reference.upgrade_borrowed_as_unchecked::<PyAny>() };
 
                         assert!(obj.is_none());
@@ -847,6 +864,7 @@ mod tests {
             }
 
             #[test]
+            #[allow(deprecated)]
             fn test_weakref_upgrade_borrowed() -> PyResult<()> {
                 Python::with_gil(|py| {
                     let class = get_type(py)?;
@@ -884,6 +902,7 @@ mod tests {
             }
 
             #[test]
+            #[allow(deprecated)]
             fn test_weakref_get_object_borrowed() -> PyResult<()> {
                 Python::with_gil(|py| {
                     let class = get_type(py)?;
@@ -1006,6 +1025,7 @@ mod tests {
             }
 
             #[test]
+            #[allow(deprecated)]
             fn test_weakref_upgrade_borrowed_as() -> PyResult<()> {
                 Python::with_gil(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
@@ -1062,6 +1082,7 @@ mod tests {
             }
 
             #[test]
+            #[allow(deprecated)]
             fn test_weakref_upgrade_borrowed_as_unchecked() -> PyResult<()> {
                 Python::with_gil(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
@@ -1108,6 +1129,7 @@ mod tests {
             }
 
             #[test]
+            #[allow(deprecated)]
             fn test_weakref_upgrade_borrowed() -> PyResult<()> {
                 Python::with_gil(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
@@ -1143,6 +1165,7 @@ mod tests {
             }
 
             #[test]
+            #[allow(deprecated)]
             fn test_weakref_get_object_borrowed() -> PyResult<()> {
                 Python::with_gil(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
@@ -1269,6 +1292,7 @@ mod tests {
             }
 
             #[test]
+            #[allow(deprecated)]
             fn test_weakref_upgrade_borrowed_as() -> PyResult<()> {
                 Python::with_gil(|py| {
                     let class = get_type(py)?;
@@ -1333,6 +1357,7 @@ mod tests {
             }
 
             #[test]
+            #[allow(deprecated)]
             fn test_weakref_upgrade_borrowed_as_unchecked() -> PyResult<()> {
                 Python::with_gil(|py| {
                     let class = get_type(py)?;
@@ -1380,6 +1405,7 @@ mod tests {
             }
 
             #[test]
+            #[allow(deprecated)]
             fn test_weakref_upgrade_borrowed() -> PyResult<()> {
                 Python::with_gil(|py| {
                     let class = get_type(py)?;
@@ -1417,6 +1443,7 @@ mod tests {
             }
 
             #[test]
+            #[allow(deprecated)]
             fn test_weakref_get_object_borrowed() -> PyResult<()> {
                 Python::with_gil(|py| {
                     let class = get_type(py)?;
@@ -1533,6 +1560,7 @@ mod tests {
                 })
             }
             #[test]
+            #[allow(deprecated)]
             fn test_weakref_upgrade_borrowed_as() -> PyResult<()> {
                 Python::with_gil(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
@@ -1588,6 +1616,7 @@ mod tests {
                 })
             }
             #[test]
+            #[allow(deprecated)]
             fn test_weakref_upgrade_borrowed_as_unchecked() -> PyResult<()> {
                 Python::with_gil(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
@@ -1634,6 +1663,7 @@ mod tests {
             }
 
             #[test]
+            #[allow(deprecated)]
             fn test_weakref_upgrade_borrowed() -> PyResult<()> {
                 Python::with_gil(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
@@ -1669,6 +1699,7 @@ mod tests {
             }
 
             #[test]
+            #[allow(deprecated)]
             fn test_weakref_get_object_borrowed() -> PyResult<()> {
                 Python::with_gil(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
