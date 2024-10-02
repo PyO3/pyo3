@@ -8,7 +8,7 @@ use pyo3::types::{PyList, PySequence, PyTuple};
 fn iter_tuple(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
-        let tuple = PyTuple::new_bound(py, 0..LEN);
+        let tuple = PyTuple::new(py, 0..LEN).unwrap();
         let mut sum = 0;
         b.iter(|| {
             for x in tuple.iter_borrowed() {
@@ -22,14 +22,14 @@ fn iter_tuple(b: &mut Bencher<'_>) {
 fn tuple_new(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
-        b.iter_with_large_drop(|| PyTuple::new_bound(py, 0..LEN));
+        b.iter_with_large_drop(|| PyTuple::new(py, 0..LEN).unwrap());
     });
 }
 
 fn tuple_get_item(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
-        let tuple = PyTuple::new_bound(py, 0..LEN);
+        let tuple = PyTuple::new(py, 0..LEN).unwrap();
         let mut sum = 0;
         b.iter(|| {
             for i in 0..LEN {
@@ -43,7 +43,7 @@ fn tuple_get_item(b: &mut Bencher<'_>) {
 fn tuple_get_item_unchecked(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
-        let tuple = PyTuple::new_bound(py, 0..LEN);
+        let tuple = PyTuple::new(py, 0..LEN).unwrap();
         let mut sum = 0;
         b.iter(|| {
             for i in 0..LEN {
@@ -58,7 +58,7 @@ fn tuple_get_item_unchecked(b: &mut Bencher<'_>) {
 fn tuple_get_borrowed_item(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
-        let tuple = PyTuple::new_bound(py, 0..LEN);
+        let tuple = PyTuple::new(py, 0..LEN).unwrap();
         let mut sum = 0;
         b.iter(|| {
             for i in 0..LEN {
@@ -76,7 +76,7 @@ fn tuple_get_borrowed_item(b: &mut Bencher<'_>) {
 fn tuple_get_borrowed_item_unchecked(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
-        let tuple = PyTuple::new_bound(py, 0..LEN);
+        let tuple = PyTuple::new(py, 0..LEN).unwrap();
         let mut sum = 0;
         b.iter(|| {
             for i in 0..LEN {
@@ -94,7 +94,7 @@ fn tuple_get_borrowed_item_unchecked(b: &mut Bencher<'_>) {
 fn sequence_from_tuple(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
-        let tuple = PyTuple::new_bound(py, 0..LEN).into_any();
+        let tuple = PyTuple::new(py, 0..LEN).unwrap().into_any();
         b.iter(|| black_box(&tuple).downcast::<PySequence>().unwrap());
     });
 }
@@ -102,7 +102,7 @@ fn sequence_from_tuple(b: &mut Bencher<'_>) {
 fn tuple_new_list(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
-        let tuple = PyTuple::new_bound(py, 0..LEN);
+        let tuple = PyTuple::new(py, 0..LEN).unwrap();
         b.iter_with_large_drop(|| PyList::new(py, tuple.iter_borrowed()));
     });
 }
@@ -110,7 +110,7 @@ fn tuple_new_list(b: &mut Bencher<'_>) {
 fn tuple_to_list(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
-        let tuple = PyTuple::new_bound(py, 0..LEN);
+        let tuple = PyTuple::new(py, 0..LEN).unwrap();
         b.iter_with_large_drop(|| tuple.to_list());
     });
 }

@@ -39,7 +39,7 @@ fn list_get_item(b: &mut Bencher<'_>) {
     });
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, Py_GIL_DISABLED)))]
 fn list_get_item_unchecked(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
@@ -67,7 +67,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("iter_list", iter_list);
     c.bench_function("list_new", list_new);
     c.bench_function("list_get_item", list_get_item);
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, Py_GIL_DISABLED)))]
     c.bench_function("list_get_item_unchecked", list_get_item_unchecked);
     c.bench_function("sequence_from_list", sequence_from_list);
 }

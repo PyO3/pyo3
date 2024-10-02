@@ -13,14 +13,14 @@ fn set_new(b: &mut Bencher<'_>) {
         // Create Python objects up-front, so that the benchmark doesn't need to include
         // the cost of allocating LEN Python integers
         let elements: Vec<PyObject> = (0..LEN).map(|i| i.into_py(py)).collect();
-        b.iter_with_large_drop(|| PySet::new_bound(py, &elements).unwrap());
+        b.iter_with_large_drop(|| PySet::new(py, &elements).unwrap());
     });
 }
 
 fn iter_set(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
-        let set = PySet::new_bound(py, &(0..LEN).collect::<Vec<_>>()).unwrap();
+        let set = PySet::new(py, &(0..LEN).collect::<Vec<_>>()).unwrap();
         let mut sum = 0;
         b.iter(|| {
             for x in &set {
@@ -34,7 +34,7 @@ fn iter_set(b: &mut Bencher<'_>) {
 fn extract_hashset(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
-        let any = PySet::new_bound(py, &(0..LEN).collect::<Vec<_>>())
+        let any = PySet::new(py, &(0..LEN).collect::<Vec<_>>())
             .unwrap()
             .into_any();
         b.iter_with_large_drop(|| black_box(&any).extract::<HashSet<u64>>());
@@ -44,18 +44,17 @@ fn extract_hashset(b: &mut Bencher<'_>) {
 fn extract_btreeset(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
-        let any = PySet::new_bound(py, &(0..LEN).collect::<Vec<_>>())
+        let any = PySet::new(py, &(0..LEN).collect::<Vec<_>>())
             .unwrap()
             .into_any();
         b.iter_with_large_drop(|| black_box(&any).extract::<BTreeSet<u64>>());
     });
 }
 
-#[cfg(feature = "hashbrown")]
 fn extract_hashbrown_set(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
-        let any = PySet::new_bound(py, &(0..LEN).collect::<Vec<_>>())
+        let any = PySet::new(py, &(0..LEN).collect::<Vec<_>>())
             .unwrap()
             .into_any();
         b.iter_with_large_drop(|| black_box(&any).extract::<hashbrown::HashSet<u64>>());
@@ -67,8 +66,6 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("iter_set", iter_set);
     c.bench_function("extract_hashset", extract_hashset);
     c.bench_function("extract_btreeset", extract_btreeset);
-
-    #[cfg(feature = "hashbrown")]
     c.bench_function("extract_hashbrown_set", extract_hashbrown_set);
 }
 
