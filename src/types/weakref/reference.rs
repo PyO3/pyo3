@@ -744,7 +744,8 @@ mod tests {
                     assert!(obj.is_ok());
                     let obj = obj.unwrap();
 
-                    assert!(obj.is_none());
+                    // XXX: have to leak in the borrowed methods for safety :(
+                    assert!(obj.is_some());
                 }
 
                 Ok(())
@@ -803,7 +804,8 @@ mod tests {
                     // This test is a bit weird but ok.
                     let obj = unsafe { reference.upgrade_borrowed_as_unchecked::<PyAny>() };
 
-                    assert!(obj.is_none());
+                    // XXX: have to leak in the borrowed methods for safety :(
+                    assert!(obj.is_some());
                 }
 
                 Ok(())
@@ -846,8 +848,9 @@ mod tests {
 
                 drop(object);
 
-                assert!(reference.call0()?.is_none());
-                assert!(reference.upgrade_borrowed().is_none());
+                // XXX: have to leak in the borrowed methods for safety :(
+                assert!(!reference.call0()?.is_none());
+                assert!(reference.upgrade_borrowed().is_some());
 
                 Ok(())
             })
@@ -886,8 +889,9 @@ mod tests {
 
                 drop(object);
 
-                assert!(reference.call0()?.is_none());
-                assert!(reference.get_object_borrowed().is_none());
+                // XXX: have to leak in the borrowed methods for safety :(
+                assert!(!reference.call0()?.is_none());
+                assert!(!reference.get_object_borrowed().is_none());
 
                 Ok(())
             })
@@ -998,7 +1002,8 @@ mod tests {
                     assert!(obj.is_ok());
                     let obj = obj.unwrap();
 
-                    assert!(obj.is_none());
+                    // XXX: have to leak in the borrowed methods for safety :(
+                    assert!(obj.is_some());
                 }
 
                 Ok(())
@@ -1051,7 +1056,8 @@ mod tests {
                     let obj =
                         unsafe { reference.upgrade_borrowed_as_unchecked::<WeakrefablePyClass>() };
 
-                    assert!(obj.is_none());
+                    // XXX: have to leak in the borrowed methods for safety :(
+                    assert!(obj.is_some());
                 }
 
                 Ok(())
@@ -1092,8 +1098,9 @@ mod tests {
 
                 drop(object);
 
-                assert!(reference.call0()?.is_none());
-                assert!(reference.upgrade_borrowed().is_none());
+                // XXX: have to leak in the borrowed methods for safety :(
+                assert!(!reference.call0()?.is_none());
+                assert!(reference.upgrade_borrowed().is_some());
 
                 Ok(())
             })
@@ -1130,8 +1137,9 @@ mod tests {
 
                 drop(object);
 
-                assert!(reference.call0()?.is_none());
-                assert!(reference.get_object_borrowed().is_none());
+                // XXX: have to leak in the borrowed methods for safety :(
+                assert!(!reference.call0()?.is_none());
+                assert!(!reference.get_object_borrowed().is_none());
 
                 Ok(())
             })
