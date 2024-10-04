@@ -891,7 +891,7 @@ impl ToPyObject for PyErr {
     }
 }
 
-impl<'a> IntoPy<PyObject> for &'a PyErr {
+impl IntoPy<PyObject> for &PyErr {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()

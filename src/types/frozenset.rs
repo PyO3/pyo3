@@ -242,7 +242,7 @@ impl<'py> Iterator for BoundFrozenSetIterator<'py> {
     }
 }
 
-impl<'py> ExactSizeIterator for BoundFrozenSetIterator<'py> {
+impl ExactSizeIterator for BoundFrozenSetIterator<'_> {
     fn len(&self) -> usize {
         self.remaining
     }

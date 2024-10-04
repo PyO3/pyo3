@@ -43,9 +43,9 @@ mod bound_object_sealed {
     pub unsafe trait Sealed {}
 
     // SAFETY: `Bound` is layout-compatible with `*mut ffi::PyObject`.
-    unsafe impl<'py, T> Sealed for super::Bound<'py, T> {}
+    unsafe impl<T> Sealed for super::Bound<'_, T> {}
     // SAFETY: `Borrowed` is layout-compatible with `*mut ffi::PyObject`.
-    unsafe impl<'a, 'py, T> Sealed for super::Borrowed<'a, 'py, T> {}
+    unsafe impl<T> Sealed for super::Borrowed<'_, '_, T> {}
 }
 
 /// A GIL-attached equivalent to [`Py<T>`].
@@ -452,14 +452,14 @@ where
     }
 }
 
-impl<'py, T> std::fmt::Debug for Bound<'py, T> {
+impl<T> std::fmt::Debug for Bound<'_, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let any = self.as_any();
         python_format(any, any.repr(), f)
     }
 }
 
-impl<'py, T> std::fmt::Display for Bound<'py, T> {
+impl<T> std::fmt::Display for Bound<'_, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let any = self.as_any();
         python_format(any, any.str(), f)

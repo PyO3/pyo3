@@ -18,7 +18,7 @@ impl ToPyObject for str {
     }
 }
 
-impl<'a> IntoPy<PyObject> for &'a str {
+impl IntoPy<PyObject> for &str {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
@@ -30,7 +30,7 @@ impl<'a> IntoPy<PyObject> for &'a str {
     }
 }
 
-impl<'a> IntoPy<Py<PyString>> for &'a str {
+impl IntoPy<Py<PyString>> for &str {
     #[inline]
     fn into_py(self, py: Python<'_>) -> Py<PyString> {
         self.into_pyobject(py).unwrap().unbind()
@@ -179,7 +179,7 @@ impl<'py> IntoPyObject<'py> for String {
     }
 }
 
-impl<'a> IntoPy<PyObject> for &'a String {
+impl IntoPy<PyObject> for &String {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()

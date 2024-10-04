@@ -26,7 +26,7 @@ impl FromPyObject<'_> for PathBuf {
     }
 }
 
-impl<'a> IntoPy<PyObject> for &'a Path {
+impl IntoPy<PyObject> for &Path {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
@@ -55,14 +55,14 @@ impl<'py> IntoPyObject<'py> for &&Path {
     }
 }
 
-impl<'a> ToPyObject for Cow<'a, Path> {
+impl ToPyObject for Cow<'_, Path> {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
-impl<'a> IntoPy<PyObject> for Cow<'a, Path> {
+impl IntoPy<PyObject> for Cow<'_, Path> {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
@@ -116,7 +116,7 @@ impl<'py> IntoPyObject<'py> for PathBuf {
     }
 }
 
-impl<'a> IntoPy<PyObject> for &'a PathBuf {
+impl IntoPy<PyObject> for &PathBuf {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
