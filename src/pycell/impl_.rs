@@ -8,7 +8,9 @@ use std::mem::ManuallyDrop;
 use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef,
 };
-use crate::type_object::{get_tp_free, PyLayout, PySizedLayout};
+use crate::internal::get_slot::TP_FREE;
+use crate::type_object::{PyLayout, PySizedLayout};
+use crate::types::PyTypeMethods;
 use crate::{ffi, PyClass, PyTypeInfo, Python};
 
 use super::{PyBorrowError, PyBorrowMutError};
@@ -202,16 +204,21 @@ where
         Ok(())
     }
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
-        let type_obj = T::type_object_raw(py);
+        let type_obj = T::type_object(py);
+        let type_ptr = type_obj.as_type_ptr();
+
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
-        if type_obj == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type) {
-            return get_tp_free(ffi::Py_TYPE(slf))(slf.cast());
+        if type_ptr == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type) {
+            let tp_free = type_obj
+                .get_slot(TP_FREE)
+                .expect("PyBaseObject_Type should have tp_free");
+            return tp_free(slf.cast());
         }
 
         // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
         #[cfg(not(Py_LIMITED_API))]
         {
-            if let Some(dealloc) = (*type_obj).tp_dealloc {
+            if let Some(dealloc) = (*type_ptr).tp_dealloc {
                 // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
                 // assumes the exception is currently GC tracked, so we have to re-track
                 // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
@@ -221,7 +228,7 @@ where
                 }
                 dealloc(slf);
             } else {
-                get_tp_free(ffi::Py_TYPE(slf))(slf.cast());
+                (*type_ptr).tp_free.expect("type missing tp_free")(slf.cast());
             }
         }
 

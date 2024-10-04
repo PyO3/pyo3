@@ -409,6 +409,7 @@ mod tests;
 
 #[macro_use]
 mod internal_tricks;
+mod internal;
 
 pub mod buffer;
 #[doc(hidden)]
