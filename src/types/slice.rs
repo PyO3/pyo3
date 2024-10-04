@@ -1,11 +1,10 @@
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::prelude::IntoPyObject;
 use crate::types::any::PyAnyMethods;
 #[allow(deprecated)]
 use crate::ToPyObject;
-use crate::{Bound, PyAny, PyObject, Python};
+use crate::{Bound, IntoPyObject, PyAny, PyObject, Python};
 use std::convert::Infallible;
 
 /// Represents a Python `slice`.

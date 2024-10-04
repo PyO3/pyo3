@@ -577,8 +577,7 @@ impl PartialEq<Borrowed<'_, '_, PyString>> for &'_ str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::prelude::IntoPyObject;
-    use crate::PyObject;
+    use crate::{IntoPyObject, PyObject};
 
     #[test]
     fn test_to_cow_utf8() {

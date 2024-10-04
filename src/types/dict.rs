@@ -6,7 +6,7 @@ use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyList};
-use crate::{ffi, BoundObject, Python};
+use crate::{ffi, BoundObject, IntoPyObject, Python};
 
 /// Represents a Python `dict`.
 ///
@@ -558,7 +558,6 @@ mod borrowed_iter {
     }
 }
 
-use crate::prelude::IntoPyObject;
 pub(crate) use borrowed_iter::BorrowedDictIter;
 
 /// Conversion trait that allows a sequence of tuples to be converted into `PyDict`

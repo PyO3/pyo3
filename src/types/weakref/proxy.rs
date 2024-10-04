@@ -1,10 +1,9 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::prelude::IntoPyObject;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::PyTypeCheck;
 use crate::types::{any::PyAny, PyNone};
-use crate::{ffi, Bound, BoundObject};
+use crate::{ffi, Bound, BoundObject, IntoPyObject};
 
 use super::PyWeakrefMethods;
 

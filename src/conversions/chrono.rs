@@ -20,7 +20,7 @@
 //!
 //! ```rust
 //! use chrono::{DateTime, Duration, TimeZone, Utc};
-//! use pyo3::{Python, PyResult, conversion::IntoPyObject, types::PyAnyMethods};
+//! use pyo3::{Python, PyResult, IntoPyObject, types::PyAnyMethods};
 //!
 //! fn main() -> PyResult<()> {
 //!     pyo3::prepare_freethreaded_python();

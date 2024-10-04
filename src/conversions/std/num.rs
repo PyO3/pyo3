@@ -845,9 +845,8 @@ mod test_128bit_integers {
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::IntoPyObject;
     use crate::types::PyAnyMethods;
-    use crate::Python;
+    use crate::{IntoPyObject, Python};
     use std::num::*;
 
     #[test]

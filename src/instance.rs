@@ -1965,8 +1965,7 @@ impl PyObject {
 
 #[cfg(test)]
 mod tests {
-    use super::{Bound, Py, PyObject};
-    use crate::prelude::IntoPyObject;
+    use super::{Bound, IntoPyObject, Py, PyObject};
     use crate::tests::common::generate_unique_module_name;
     use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
     use crate::{ffi, Borrowed, PyAny, PyResult, Python};

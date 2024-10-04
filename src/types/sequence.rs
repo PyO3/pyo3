@@ -5,12 +5,11 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::inspect::types::TypeInfo;
 use crate::instance::Bound;
 use crate::internal_tricks::get_ssize_index;
-use crate::prelude::IntoPyObject;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{any::PyAnyMethods, PyAny, PyList, PyString, PyTuple, PyType};
-use crate::{ffi, Borrowed, BoundObject, FromPyObject, Py, PyTypeCheck, Python};
+use crate::{ffi, Borrowed, BoundObject, FromPyObject, IntoPyObject, Py, PyTypeCheck, Python};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 ///
@@ -408,9 +407,8 @@ impl PyTypeCheck for PySequence {
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::IntoPyObject;
     use crate::types::{PyAnyMethods, PyList, PySequence, PySequenceMethods, PyTuple};
-    use crate::{ffi, PyObject, Python};
+    use crate::{ffi, IntoPyObject, PyObject, Python};
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object

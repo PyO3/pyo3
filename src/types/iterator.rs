@@ -107,9 +107,8 @@ impl PyTypeCheck for PyIterator {
 mod tests {
     use super::PyIterator;
     use crate::exceptions::PyTypeError;
-    use crate::prelude::IntoPyObject;
     use crate::types::{PyAnyMethods, PyDict, PyList, PyListMethods};
-    use crate::{ffi, Python};
+    use crate::{ffi, IntoPyObject, Python};
 
     #[test]
     fn vec_iter() {

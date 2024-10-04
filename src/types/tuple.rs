@@ -821,8 +821,9 @@ tuple_conversion!(
 #[cfg(test)]
 mod tests {
     use crate::types::{any::PyAnyMethods, tuple::PyTupleMethods, PyList, PyTuple};
-    use crate::Python;
+    use crate::{IntoPyObject, Python};
     use std::collections::HashSet;
+    use std::ops::Range;
 
     #[test]
     fn test_new() {
@@ -1141,9 +1142,6 @@ mod tests {
             assert!(tuple.index(42i32).is_err());
         });
     }
-
-    use crate::prelude::IntoPyObject;
-    use std::ops::Range;
 
     // An iterator that lies about its `ExactSizeIterator` implementation.
     // See https://github.com/PyO3/pyo3/issues/2118

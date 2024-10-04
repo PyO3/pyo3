@@ -177,9 +177,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::IntoPyObject;
     use crate::types::{any::PyAnyMethods, PyFrozenSet, PySet};
-    use crate::{IntoPy, PyObject, Python};
+    use crate::{IntoPy, IntoPyObject, PyObject, Python};
     use std::collections::{BTreeSet, HashSet};
 
     #[test]

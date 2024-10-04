@@ -5,9 +5,8 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{PySequence, PyTuple};
-use crate::{Borrowed, Bound, BoundObject, PyAny, PyObject, Python};
+use crate::{Borrowed, Bound, BoundObject, IntoPyObject, PyAny, PyObject, Python};
 
-use crate::prelude::IntoPyObject;
 use crate::types::any::PyAnyMethods;
 use crate::types::sequence::PySequenceMethods;
 
@@ -575,7 +574,7 @@ mod tests {
     use crate::types::list::PyListMethods;
     use crate::types::sequence::PySequenceMethods;
     use crate::types::{PyList, PyTuple};
-    use crate::{ffi, Python};
+    use crate::{ffi, IntoPyObject, Python};
 
     #[test]
     fn test_new() {
@@ -979,7 +978,6 @@ mod tests {
         });
     }
 
-    use crate::prelude::IntoPyObject;
     use std::ops::Range;
 
     // An iterator that lies about its `ExactSizeIterator` implementation.

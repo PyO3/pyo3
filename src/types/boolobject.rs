@@ -254,10 +254,10 @@ impl FromPyObject<'_> for bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::IntoPyObject;
     use crate::types::any::PyAnyMethods;
     use crate::types::boolobject::PyBoolMethods;
     use crate::types::PyBool;
+    use crate::IntoPyObject;
     use crate::Python;
 
     #[test]

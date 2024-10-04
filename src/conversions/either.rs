@@ -26,7 +26,7 @@
 //!
 //! ```rust
 //! use either::Either;
-//! use pyo3::{Python, PyResult, conversion::IntoPyObject, types::PyAnyMethods};
+//! use pyo3::{Python, PyResult, IntoPyObject, types::PyAnyMethods};
 //!
 //! fn main() -> PyResult<()> {
 //!     pyo3::prepare_freethreaded_python();
@@ -172,9 +172,8 @@ mod tests {
     use std::borrow::Cow;
 
     use crate::exceptions::PyTypeError;
-    use crate::Python;
+    use crate::{IntoPyObject, Python};
 
-    use crate::prelude::IntoPyObject;
     use crate::types::PyAnyMethods;
     use either::Either;
 

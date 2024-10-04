@@ -224,10 +224,8 @@ impl<'py> IntoPyObject<'py> for &OsString {
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::IntoPyObject;
-    use crate::types::{PyAnyMethods, PyStringMethods};
-    use crate::BoundObject;
-    use crate::{types::PyString, IntoPy, PyObject, Python};
+    use crate::types::{PyAnyMethods, PyString, PyStringMethods};
+    use crate::{BoundObject, IntoPy, IntoPyObject, PyObject, Python};
     use std::fmt::Debug;
     use std::{
         borrow::Cow,

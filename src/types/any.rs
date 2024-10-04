@@ -1637,10 +1637,9 @@ mod tests {
     use crate::{
         basic::CompareOp,
         ffi,
-        prelude::IntoPyObject,
         tests::common::generate_unique_module_name,
         types::{IntoPyDict, PyAny, PyAnyMethods, PyBool, PyInt, PyList, PyModule, PyTypeMethods},
-        Bound, BoundObject, PyTypeInfo, Python,
+        Bound, BoundObject, IntoPyObject, PyTypeInfo, Python,
     };
     use pyo3_ffi::c_str;
     use std::fmt::Debug;

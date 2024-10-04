@@ -182,9 +182,8 @@ where
 #[cfg(test)]
 mod test_indexmap {
 
-    use crate::prelude::IntoPyObject;
     use crate::types::*;
-    use crate::{IntoPy, PyObject, Python};
+    use crate::{IntoPy, IntoPyObject, PyObject, Python};
 
     #[test]
     fn test_indexmap_indexmap_to_python() {

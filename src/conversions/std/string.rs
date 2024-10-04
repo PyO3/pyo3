@@ -265,10 +265,8 @@ impl FromPyObject<'_> for char {
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::IntoPyObject;
     use crate::types::any::PyAnyMethods;
-    use crate::Python;
-    use crate::{IntoPy, PyObject};
+    use crate::{IntoPy, IntoPyObject, PyObject, Python};
     use std::borrow::Cow;
 
     #[test]
