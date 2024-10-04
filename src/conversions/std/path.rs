@@ -44,6 +44,17 @@ impl<'py> IntoPyObject<'py> for &Path {
     }
 }
 
+impl<'py> IntoPyObject<'py> for &&Path {
+    type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
 impl<'a> ToPyObject for Cow<'a, Path> {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -125,8 +136,10 @@ impl<'py> IntoPyObject<'py> for &PathBuf {
 
 #[cfg(test)]
 mod tests {
+    use crate::prelude::IntoPyObject;
     use crate::types::{PyAnyMethods, PyStringMethods};
-    use crate::{types::PyString, IntoPy, PyObject, Python, ToPyObject};
+    use crate::BoundObject;
+    use crate::{types::PyString, IntoPy, PyObject, Python};
     use std::borrow::Cow;
     use std::fmt::Debug;
     use std::path::{Path, PathBuf};
@@ -155,9 +168,13 @@ mod tests {
     #[test]
     fn test_topyobject_roundtrip() {
         Python::with_gil(|py| {
-            fn test_roundtrip<T: ToPyObject + AsRef<Path> + Debug>(py: Python<'_>, obj: T) {
-                let pyobject = obj.to_object(py);
-                let pystring = pyobject.downcast_bound::<PyString>(py).unwrap();
+            fn test_roundtrip<'py, T>(py: Python<'py>, obj: T)
+            where
+                T: IntoPyObject<'py> + AsRef<Path> + Debug + Clone,
+                T::Error: Debug,
+            {
+                let pyobject = obj.clone().into_pyobject(py).unwrap().into_any();
+                let pystring = pyobject.as_borrowed().downcast::<PyString>().unwrap();
                 assert_eq!(pystring.to_string_lossy(), obj.as_ref().to_string_lossy());
                 let roundtripped_obj: PathBuf = pystring.extract().unwrap();
                 assert_eq!(obj.as_ref(), roundtripped_obj.as_path());
