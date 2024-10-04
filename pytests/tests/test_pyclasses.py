@@ -53,6 +53,7 @@ def test_iter():
         next(i)
     assert excinfo.value.value == "Ended"
 
+
 @pytest.mark.skipif(platform.machine() in ["wasm32", "wasm64"])
 def test_parallel_iter():
     import concurrent.futures
