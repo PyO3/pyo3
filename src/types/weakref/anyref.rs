@@ -338,6 +338,7 @@ pub trait PyWeakrefMethods<'py> {
         all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
         doc = "```rust"
     )]
+    /// #![allow(deprecated)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakrefReference;
     ///
