@@ -33,7 +33,7 @@ impl PyTypeCheck for PyWeakref {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyWeakref")]
-pub trait PyWeakrefMethods<'py> {
+pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// Upgrade the weakref to a direct Bound object reference.
     ///
     /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
