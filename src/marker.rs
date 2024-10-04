@@ -116,6 +116,7 @@
 //! [`SendWrapper`]: https://docs.rs/send_wrapper/latest/send_wrapper/struct.SendWrapper.html
 //! [`Rc`]: std::rc::Rc
 //! [`Py`]: crate::Py
+use crate::conversion::IntoPyObject;
 #[cfg(any(doc, not(Py_3_10)))]
 use crate::err::PyErr;
 use crate::err::{self, PyResult};
@@ -707,7 +708,7 @@ impl<'py> Python<'py> {
     /// Imports the Python module with the specified name.
     pub fn import<N>(self, name: N) -> PyResult<Bound<'py, PyModule>>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPyObject<'py, Target = PyString>,
     {
         PyModule::import(self, name)
     }
@@ -720,7 +721,7 @@ impl<'py> Python<'py> {
     where
         N: IntoPy<Py<PyString>>,
     {
-        self.import(name)
+        self.import(name.into_py(self))
     }
 
     /// Gets the Python builtin value `None`.
