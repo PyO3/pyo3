@@ -261,7 +261,11 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
             } {
                 std::os::raw::c_int::MIN..=-1 => Err(PyErr::fetch(py)),
                 0 => Ok(None),
-                1..=std::os::raw::c_int::MAX => Ok(Some(unsafe { result.assume_owned(py) })),
+                1..=std::os::raw::c_int::MAX => {
+                    // Safety: PyDict_GetItemRef positive return value means the result is a valid
+                    // owned reference
+                    Ok(Some(unsafe { result.assume_owned_unchecked(py) }))
+                }
             }
         }
 
