@@ -139,6 +139,7 @@ impl<'py> Bound<'py, PyAny> {
     /// # Safety
     ///
     /// - `ptr` must be a valid pointer to a Python object
+    /// - `ptr` must be a strong/owned reference
     pub(crate) unsafe fn from_owned_ptr_unchecked(
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
