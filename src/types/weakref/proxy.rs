@@ -2,7 +2,7 @@ use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::PyTypeCheck;
-use crate::types::{any::PyAny, PyNone};
+use crate::types::any::PyAny;
 use crate::{ffi, Bound, ToPyObject};
 
 use super::PyWeakrefMethods;
@@ -182,12 +182,12 @@ impl PyWeakrefProxy {
 }
 
 impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakrefProxy> {
-    fn get_object(&self) -> Bound<'py, PyAny> {
+    fn upgrade(&self) -> Option<Bound<'py, PyAny>> {
         let mut obj: *mut ffi::PyObject = std::ptr::null_mut();
         match unsafe { ffi::compat::PyWeakref_GetRef(self.as_ptr(), &mut obj) } {
             std::os::raw::c_int::MIN..=-1 => panic!("The 'weakref.ProxyType' (or `weakref.CallableProxyType`) instance should be valid (non-null and actually a weakref reference)"),
-            0 => PyNone::get(self.py()).to_owned().into_any(),
-            1..=std::os::raw::c_int::MAX => unsafe { obj.assume_owned(self.py()) },
+            0 => None,
+            1..=std::os::raw::c_int::MAX => Some(unsafe { obj.assume_owned(self.py()) }),
         }
     }
 }
@@ -273,7 +273,7 @@ mod tests {
                     let reference = PyWeakrefProxy::new(&object)?;
 
                     assert!(!reference.is(&object));
-                    assert!(reference.get_object().is(&object));
+                    assert!(reference.upgrade().unwrap().is(&object));
 
                     #[cfg(not(Py_LIMITED_API))]
                     assert_eq!(
@@ -301,7 +301,7 @@ mod tests {
 
                     drop(object);
 
-                    assert!(reference.get_object().is_none());
+                    assert!(reference.upgrade().is_none());
                     assert!(reference
                         .getattr("__class__")
                         .err()
@@ -416,11 +416,11 @@ mod tests {
                     let object = class.call0()?;
                     let reference = PyWeakrefProxy::new(&object)?;
 
-                    assert!(reference.get_object().is(&object));
+                    assert!(reference.upgrade().unwrap().is(&object));
 
                     drop(object);
 
-                    assert!(reference.get_object().is_none());
+                    assert!(reference.upgrade().is_none());
 
                     Ok(())
                 })
@@ -444,7 +444,7 @@ mod tests {
                     let reference = PyWeakrefProxy::new(&object)?;
 
                     assert!(!reference.is(&object));
-                    assert!(reference.get_object().is(&object));
+                    assert!(reference.upgrade().unwrap().is(&object));
                     #[cfg(not(Py_LIMITED_API))]
                     assert_eq!(
                         reference.get_type().to_string(),
@@ -474,7 +474,7 @@ mod tests {
 
                     drop(object);
 
-                    assert!(reference.get_object().is_none());
+                    assert!(reference.upgrade().is_none());
                     assert!(reference
                         .getattr("__class__")
                         .err()
@@ -574,6 +574,7 @@ mod tests {
             }
 
             #[test]
+            #[allow(deprecated)]
             fn test_weakref_get_object() -> PyResult<()> {
                 Python::with_gil(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
@@ -623,7 +624,7 @@ mod tests {
                     let reference = PyWeakrefProxy::new(&object)?;
 
                     assert!(!reference.is(&object));
-                    assert!(reference.get_object().is(&object));
+                    assert!(reference.upgrade().unwrap().is(&object));
                     #[cfg(not(Py_LIMITED_API))]
                     assert_eq!(reference.get_type().to_string(), CLASS_NAME);
 
@@ -640,7 +641,7 @@ mod tests {
 
                     drop(object);
 
-                    assert!(reference.get_object().is_none());
+                    assert!(reference.upgrade().is_none());
                     assert!(reference
                         .getattr("__class__")
                         .err()
@@ -747,6 +748,7 @@ mod tests {
             }
 
             #[test]
+            #[allow(deprecated)]
             fn test_weakref_get_object() -> PyResult<()> {
                 Python::with_gil(|py| {
                     let class = get_type(py)?;
@@ -788,7 +790,7 @@ mod tests {
                     let reference = PyWeakrefProxy::new(&object)?;
 
                     assert!(!reference.is(&object));
-                    assert!(reference.get_object().is(&object));
+                    assert!(reference.upgrade().unwrap().is(&object));
                     #[cfg(not(Py_LIMITED_API))]
                     assert_eq!(reference.get_type().to_string(), CLASS_NAME);
 
@@ -808,7 +810,7 @@ mod tests {
 
                     drop(object);
 
-                    assert!(reference.get_object().is_none());
+                    assert!(reference.upgrade().is_none());
                     assert!(reference
                         .getattr("__class__")
                         .err()
@@ -906,6 +908,7 @@ mod tests {
             }
 
             #[test]
+            #[allow(deprecated)]
             fn test_weakref_get_object() -> PyResult<()> {
                 Python::with_gil(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
