@@ -336,7 +336,7 @@ impl Interned {
 /// until the closure `f` is finished.
 ///
 /// This is structurally equivalent to the use of the paired
-/// Py_BEGIN_CRITICAL_SECTION and Py_END_CRITICAL_SECTION macros.
+/// Py_BEGIN_CRITICAL_SECTION and Py_END_CRITICAL_SECTION C-API macros.
 ///
 /// A no-op on GIL-enabled builds, where the critical section API is exposed as
 /// a no-op by the Python C API.
