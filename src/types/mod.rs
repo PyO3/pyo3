@@ -201,14 +201,6 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        unsafe impl<$($generics,)*> $crate::AsPyPointer for $name {
-            /// Gets the underlying FFI pointer, returns a borrowed pointer.
-            #[inline]
-            fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
-                self.0.as_ptr()
-            }
-        }
-
         impl $crate::types::DerefToPyAny for $name {}
     };
 );
