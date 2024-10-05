@@ -1,3 +1,5 @@
+use std::{thread, time};
+
 use pyo3::exceptions::{PyStopIteration, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyType;
@@ -43,6 +45,29 @@ impl PyClassIter {
     }
 }
 
+#[pyclass]
+#[derive(Default)]
+struct PyClassThreadIter {
+    count: usize,
+}
+
+#[pymethods]
+impl PyClassThreadIter {
+    #[new]
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    fn __next__(&mut self, py: Python<'_>) -> usize {
+        let current_count = self.count;
+        self.count += 1;
+        if current_count == 0 {
+            py.allow_threads(|| thread::sleep(time::Duration::from_millis(100)));
+        }
+        self.count
+    }
+}
+
 /// Demonstrates a base class which can operate on the relevant subclass in its constructor.
 #[pyclass(subclass)]
 #[derive(Clone, Debug)]
@@ -83,6 +108,7 @@ impl ClassWithDict {
 pub fn pyclasses(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<EmptyClass>()?;
     m.add_class::<PyClassIter>()?;
+    m.add_class::<PyClassThreadIter>()?;
     m.add_class::<AssertingBaseClass>()?;
     m.add_class::<ClassWithoutConstructor>()?;
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
