@@ -370,7 +370,7 @@ where
             inner: unsafe {
                 ManuallyDrop::new(self)
                     .as_ptr()
-                    .assume_owned(py)
+                    .assume_owned_unchecked(py)
                     .downcast_into_unchecked()
             },
         }
@@ -587,7 +587,7 @@ where
             inner: unsafe {
                 ManuallyDrop::new(self)
                     .as_ptr()
-                    .assume_owned(py)
+                    .assume_owned_unchecked(py)
                     .downcast_into_unchecked()
             },
         }

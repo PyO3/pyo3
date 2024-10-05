@@ -134,6 +134,19 @@ impl<'py> Bound<'py, PyAny> {
         Py::from_owned_ptr_or_err(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
     }
 
+    /// Constructs a new `Bound<'py, PyAny>` from a pointer without checking for null.
+    ///
+    /// # Safety
+    ///
+    /// - `ptr` must be a valid pointer to a Python object
+    /// - `ptr` must be a strong/owned reference
+    pub(crate) unsafe fn from_owned_ptr_unchecked(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> Self {
+        Self(py, ManuallyDrop::new(Py::from_owned_ptr_unchecked(ptr)))
+    }
+
     /// Constructs a new `Bound<'py, PyAny>` from a pointer by creating a new Python reference.
     /// Panics if `ptr` is null.
     ///
@@ -1628,6 +1641,15 @@ impl<T> Py<T> {
     #[inline]
     pub unsafe fn from_owned_ptr_or_opt(_py: Python<'_>, ptr: *mut ffi::PyObject) -> Option<Self> {
         NonNull::new(ptr).map(|nonnull_ptr| Py(nonnull_ptr, PhantomData))
+    }
+
+    /// Constructs a new `Py<T>` instance by taking ownership of the given FFI pointer.
+    ///
+    /// # Safety
+    ///
+    /// - `ptr` must be a non-null pointer to a Python object or type `T`.
+    pub(crate) unsafe fn from_owned_ptr_unchecked(ptr: *mut ffi::PyObject) -> Self {
+        Py(NonNull::new_unchecked(ptr), PhantomData)
     }
 
     /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.

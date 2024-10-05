@@ -395,7 +395,9 @@ impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakref> {
         match unsafe { ffi::compat::PyWeakref_GetRef(self.as_ptr(), &mut obj) } {
             std::os::raw::c_int::MIN..=-1 => panic!("The 'weakref' weak reference instance should be valid (non-null and actually a weakref reference)"),
             0 => PyNone::get(self.py()).to_owned().into_any(),
-            1..=std::os::raw::c_int::MAX => unsafe { obj.assume_owned(self.py()) },
+            // Safety: positive return value from `PyWeakRef_GetRef` guarantees the return value is
+            // a valid strong reference.
+            1..=std::os::raw::c_int::MAX => unsafe { obj.assume_owned_unchecked(self.py()) },
         }
     }
 }
