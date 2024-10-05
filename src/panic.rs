@@ -22,11 +22,11 @@ impl PanicException {
     #[cold]
     pub(crate) fn from_panic_payload(payload: Box<dyn Any + Send + 'static>) -> PyErr {
         if let Some(string) = payload.downcast_ref::<String>() {
-            Self::new_err((string.clone(),))
+            Self::new_err_arg(string.clone())
         } else if let Some(s) = payload.downcast_ref::<&str>() {
-            Self::new_err((s.to_string(),))
+            Self::new_err_arg(s.to_string())
         } else {
-            Self::new_err(("panic from Rust code",))
+            Self::new_err_arg("panic from Rust code")
         }
     }
 }

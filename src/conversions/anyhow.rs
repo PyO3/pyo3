@@ -113,7 +113,7 @@ impl From<anyhow::Error> for PyErr {
                 Err(error) => error,
             };
         }
-        PyRuntimeError::new_err(format!("{:?}", error))
+        PyRuntimeError::new_err_arg(format!("{:?}", error))
     }
 }
 
@@ -174,7 +174,7 @@ mod test_anyhow {
 
     #[test]
     fn test_pyo3_unwrap_simple_err() {
-        let origin_exc = PyValueError::new_err("Value Error");
+        let origin_exc = PyValueError::new_err_empty();
         let err: anyhow::Error = origin_exc.into();
         let converted: PyErr = err.into();
         assert!(Python::with_gil(
@@ -183,7 +183,7 @@ mod test_anyhow {
     }
     #[test]
     fn test_pyo3_unwrap_complex_err() {
-        let origin_exc = PyValueError::new_err("Value Error");
+        let origin_exc = PyValueError::new_err_empty();
         let mut err: anyhow::Error = origin_exc.into();
         err = err.context("Context");
         let converted: PyErr = err.into();

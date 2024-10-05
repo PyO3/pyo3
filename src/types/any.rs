@@ -1048,7 +1048,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
             } else if do_compare(other, ffi::Py_GT)? {
                 Ok(Ordering::Greater)
             } else {
-                Err(PyTypeError::new_err(
+                Err(PyTypeError::new_err_arg(
                     "PyAny::compare(): All comparisons returned false",
                 ))
             }
@@ -1818,7 +1818,7 @@ class SimpleClass:
         #[pymethods(crate = "crate")]
         impl GetattrFail {
             fn __getattr__(&self, attr: PyObject) -> PyResult<PyObject> {
-                Err(PyValueError::new_err(attr))
+                Err(PyValueError::new_err_arg(attr))
             }
         }
 
@@ -2073,7 +2073,7 @@ class SimpleClass:
         #[pymethods(crate = "crate")]
         impl DirFail {
             fn __dir__(&self) -> PyResult<PyObject> {
-                Err(PyValueError::new_err("uh-oh!"))
+                Err(PyValueError::new_err_empty())
             }
         }
 

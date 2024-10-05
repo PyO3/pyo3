@@ -41,7 +41,7 @@ impl ByteSequence {
         self.elements
             .get(idx as usize)
             .copied()
-            .ok_or_else(|| PyIndexError::new_err("list index out of range"))
+            .ok_or_else(|| PyIndexError::new_err_arg("list index out of range"))
     }
 
     fn __setitem__(&mut self, idx: isize, value: u8) {
@@ -57,7 +57,7 @@ impl ByteSequence {
             self.elements.remove(idx as usize);
             Ok(())
         } else {
-            Err(PyIndexError::new_err("list index out of range"))
+            Err(PyIndexError::new_err_arg("list index out of range"))
         }
     }
 
@@ -87,7 +87,7 @@ impl ByteSequence {
             }
             Ok(Self { elements })
         } else {
-            Err(PyValueError::new_err("invalid repeat count"))
+            Err(PyValueError::new_err_arg("invalid repeat count"))
         }
     }
 
@@ -100,7 +100,7 @@ impl ByteSequence {
             slf.elements = elements;
             Ok(slf.into())
         } else {
-            Err(PyValueError::new_err("invalid repeat count"))
+            Err(PyValueError::new_err_arg("invalid repeat count"))
         }
     }
 }
@@ -302,7 +302,7 @@ impl OptionList {
     fn __getitem__(&self, idx: isize) -> PyResult<Option<i64>> {
         match self.items.get(idx as usize) {
             Some(x) => Ok(*x),
-            None => Err(PyIndexError::new_err("Index out of bounds")),
+            None => Err(PyIndexError::new_err_arg("Index out of bounds")),
         }
     }
 }

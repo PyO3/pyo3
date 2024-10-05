@@ -695,7 +695,7 @@ impl fmt::Display for PyBorrowError {
 
 impl From<PyBorrowError> for PyErr {
     fn from(other: PyBorrowError) -> Self {
-        PyRuntimeError::new_err(other.to_string())
+        PyRuntimeError::new_err_arg(other.to_string())
     }
 }
 
@@ -720,7 +720,7 @@ impl fmt::Display for PyBorrowMutError {
 
 impl From<PyBorrowMutError> for PyErr {
     fn from(other: PyBorrowMutError) -> Self {
-        PyRuntimeError::new_err(other.to_string())
+        PyRuntimeError::new_err_arg(other.to_string())
     }
 }
 

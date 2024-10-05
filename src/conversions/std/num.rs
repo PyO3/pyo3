@@ -60,7 +60,7 @@ macro_rules! int_fits_larger_int {
             fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
                 let val: $larger_type = obj.extract()?;
                 <$rust_type>::try_from(val)
-                    .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
+                    .map_err(|e| exceptions::PyOverflowError::new_err_arg(e.to_string()))
             }
 
             #[cfg(feature = "experimental-inspect")]
@@ -200,7 +200,7 @@ macro_rules! int_fits_c_long {
             fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
                 let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
                 <$rust_type>::try_from(val)
-                    .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
+                    .map_err(|e| exceptions::PyOverflowError::new_err_arg(e.to_string()))
             }
 
             #[cfg(feature = "experimental-inspect")]
@@ -279,7 +279,7 @@ impl<'py> IntoPyObject<'py> for &'_ u8 {
 impl FromPyObject<'_> for u8 {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
-        u8::try_from(val).map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
+        u8::try_from(val).map_err(|e| exceptions::PyOverflowError::new_err_arg(e.to_string()))
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -445,7 +445,7 @@ mod fast_128bit_int_conversion {
                         .try_into()
                         .map_err(|_| PyErr::fetch(ob.py()))?;
                         if actual_size as usize > buffer.len() {
-                            return Err(crate::exceptions::PyOverflowError::new_err(
+                            return Err(crate::exceptions::PyOverflowError::new_err_arg(
                                 "Python int larger than 128 bits",
                             ));
                         }
@@ -611,7 +611,7 @@ macro_rules! nonzero_int_impl {
             fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
                 let val: $primitive_type = obj.extract()?;
                 <$nonzero_type>::try_from(val)
-                    .map_err(|_| exceptions::PyValueError::new_err("invalid zero value"))
+                    .map_err(|_| exceptions::PyValueError::new_err_arg("invalid zero value"))
             }
 
             #[cfg(feature = "experimental-inspect")]

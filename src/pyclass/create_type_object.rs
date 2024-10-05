@@ -440,7 +440,7 @@ impl PyTypeBuilder {
         unsafe { self.push_slot(ffi::Py_tp_dealloc, tp_dealloc as *mut c_void) }
 
         if self.has_clear && !self.has_traverse {
-            return Err(PyTypeError::new_err(format!(
+            return Err(PyTypeError::new_err_arg(format!(
                 "`#[pyclass]` {} implements __clear__ without __traverse__",
                 name
             )));
@@ -533,7 +533,7 @@ unsafe extern "C" fn no_constructor_defined(
         let name = tpobj
             .name()
             .map_or_else(|_| "<unknown>".into(), |name| name.to_string());
-        Err(crate::exceptions::PyTypeError::new_err(format!(
+        Err(crate::exceptions::PyTypeError::new_err_arg(format!(
             "No constructor defined for {}",
             name
         )))

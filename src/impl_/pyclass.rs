@@ -228,7 +228,7 @@ pub fn build_pyclass_doc(
             text_signature,
             doc.to_str().unwrap(),
         ))
-        .map_err(|_| PyValueError::new_err("class doc cannot contain nul bytes"))?;
+        .map_err(|_| PyValueError::new_err_arg("class doc cannot contain nul bytes"))?;
         Ok(Cow::Owned(doc))
     } else {
         Ok(Cow::Borrowed(doc))
@@ -341,8 +341,8 @@ slot_fragment_trait! {
         _slf: *mut ffi::PyObject,
         attr: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        Err(PyErr::new::<PyAttributeError, _>(
-            (Py::<PyAny>::from_borrowed_ptr(py, attr),)
+        Err(PyErr::new_arg::<PyAttributeError, _>(
+            Py::<PyAny>::from_borrowed_ptr(py, attr)
         ))
     }
 }
@@ -471,8 +471,8 @@ define_pyclass_setattr_slot! {
     PyClass__delattr__SlotFragment,
     __setattr__,
     __delattr__,
-    Err(PyAttributeError::new_err("can't set attribute")),
-    Err(PyAttributeError::new_err("can't delete attribute")),
+    Err(PyAttributeError::new_err_arg("can't set attribute")),
+    Err(PyAttributeError::new_err_arg("can't delete attribute")),
     generate_pyclass_setattr_slot,
     Py_tp_setattro,
     setattrofunc,
@@ -483,8 +483,8 @@ define_pyclass_setattr_slot! {
     PyClass__delete__SlotFragment,
     __set__,
     __delete__,
-    Err(PyNotImplementedError::new_err("can't set descriptor")),
-    Err(PyNotImplementedError::new_err("can't delete descriptor")),
+    Err(PyNotImplementedError::new_err_arg("can't set descriptor")),
+    Err(PyNotImplementedError::new_err_arg("can't delete descriptor")),
     generate_pyclass_setdescr_slot,
     Py_tp_descr_set,
     descrsetfunc,
@@ -495,8 +495,8 @@ define_pyclass_setattr_slot! {
     PyClass__delitem__SlotFragment,
     __setitem__,
     __delitem__,
-    Err(PyNotImplementedError::new_err("can't set item")),
-    Err(PyNotImplementedError::new_err("can't delete item")),
+    Err(PyNotImplementedError::new_err_arg("can't set item")),
+    Err(PyNotImplementedError::new_err_arg("can't delete item")),
     generate_pyclass_setitem_slot,
     Py_mp_ass_subscript,
     objobjargproc,
@@ -1080,7 +1080,7 @@ impl ThreadCheckerImpl {
 
     fn can_drop(&self, py: Python<'_>, type_name: &'static str) -> bool {
         if thread::current().id() != self.0 {
-            PyRuntimeError::new_err(format!(
+            PyRuntimeError::new_err_arg(format!(
                 "{} is unsendable, but is being dropped on another thread",
                 type_name
             ))

@@ -84,7 +84,8 @@ impl IntoPyCallbackOutput<()> for () {
 impl IntoPyCallbackOutput<ffi::Py_ssize_t> for usize {
     #[inline]
     fn convert(self, _py: Python<'_>) -> PyResult<ffi::Py_ssize_t> {
-        self.try_into().map_err(|_err| PyOverflowError::new_err(()))
+        self.try_into()
+            .map_err(|_err| PyOverflowError::new_err_empty())
     }
 }
 

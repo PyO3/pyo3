@@ -27,7 +27,7 @@ pub fn failed_to_extract_enum(
         )
         .unwrap();
     }
-    PyTypeError::new_err(err_msg)
+    PyTypeError::new_err_arg(err_msg)
 }
 
 /// Flattens a chain of errors into a single string.
@@ -85,7 +85,7 @@ fn failed_to_extract_struct_field(
     struct_name: &str,
     field_name: &str,
 ) -> PyErr {
-    let new_err = PyTypeError::new_err(format!(
+    let new_err = PyTypeError::new_err_arg(format!(
         "failed to extract field {}.{}",
         struct_name, field_name
     ));
@@ -137,7 +137,7 @@ fn failed_to_extract_tuple_struct_field(
     index: usize,
 ) -> PyErr {
     let new_err =
-        PyTypeError::new_err(format!("failed to extract field {}.{}", struct_name, index));
+        PyTypeError::new_err_arg(format!("failed to extract field {}.{}", struct_name, index));
     new_err.set_cause(py, ::std::option::Option::Some(inner_err));
     new_err
 }

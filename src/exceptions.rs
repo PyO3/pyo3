@@ -33,12 +33,49 @@ macro_rules! impl_exception_boilerplate_bound {
             ///
             /// [`PyErr`]: https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html "PyErr in pyo3"
             #[inline]
-            #[allow(dead_code)]
+            #[allow(dead_code, deprecated)]
+            #[deprecated(
+                since = "0.23.0",
+                note = "Use `new_err_empty`, `new_err_arg` or `new_err_args` instead"
+            )]
             pub fn new_err<A>(args: A) -> $crate::PyErr
             where
                 A: $crate::PyErrArguments + ::std::marker::Send + ::std::marker::Sync + 'static,
             {
                 $crate::PyErr::new::<$name, A>(args)
+            }
+            /// Creates a new [`PyErr`] of this type with no arguments.
+            ///
+            /// [`PyErr`]: https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html "PyErr in pyo3"
+            #[inline]
+            #[allow(dead_code)]
+            pub fn new_err_empty() -> $crate::PyErr {
+                $crate::PyErr::new_empty::<$name>()
+            }
+            /// Creates a new [`PyErr`] of this type with a single argument.
+            ///
+            /// [`PyErr`]: https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html "PyErr in pyo3"
+            #[inline]
+            #[allow(dead_code)]
+            pub fn new_err_arg<A>(arg: A) -> $crate::PyErr
+            where
+                A: $crate::conversion::IntoPy<$crate::PyObject>
+                    + ::std::marker::Send
+                    + ::std::marker::Sync
+                    + 'static,
+            {
+                $crate::PyErr::new_arg::<$name, A>(arg)
+            }
+            /// Creates a new [`PyErr`] of this type with an argument tuple.
+            ///
+            /// [`PyErr`]: https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html "PyErr in pyo3"
+            #[inline]
+            #[allow(dead_code)]
+            pub fn new_err_args<A>(args: A) -> $crate::PyErr
+            where
+                A: $crate::PyErrArguments + ::std::marker::Send + ::std::marker::Sync + 'static,
+            {
+                $crate::PyErr::new_args::<$name, A>(args)
             }
         }
     };
@@ -165,7 +202,7 @@ macro_rules! import_exception_bound {
 ///
 /// #[pyfunction]
 /// fn raise_myerror() -> PyResult<()> {
-///     let err = MyError::new_err("Some error happened.");
+///     let err = MyError::new_err_arg("Some error happened.");
 ///     Err(err)
 /// }
 ///
@@ -326,7 +363,7 @@ use pyo3::exceptions::Py", $name, ";
 #[pyfunction]
 fn always_throws() -> PyResult<()> {
     let message = \"I'm ", $name ,", and I was raised from Rust.\";
-    Err(Py", $name, "::new_err(message))
+    Err(Py", $name, "::new_err_arg(message))
 }
 #
 # Python::with_gil(|py| {
@@ -782,7 +819,7 @@ macro_rules! test_exception {
                     $(
                         .or(Some({ let $py = py; $constructor }))
                     )?
-                        .unwrap_or($exc_ty::new_err("a test exception"))
+                        .unwrap_or($exc_ty::new_err_arg("a test exception"))
                 };
 
                 assert!(err.is_instance_of::<$exc_ty>(py));
@@ -811,10 +848,10 @@ pub mod asyncio {
         test_exception!(CancelledError);
         test_exception!(InvalidStateError);
         test_exception!(TimeoutError);
-        test_exception!(IncompleteReadError, |_| IncompleteReadError::new_err((
-            "partial", "expected"
-        )));
-        test_exception!(LimitOverrunError, |_| LimitOverrunError::new_err((
+        test_exception!(IncompleteReadError, |_| IncompleteReadError::new_err_args(
+            ("partial", "expected")
+        ));
+        test_exception!(LimitOverrunError, |_| LimitOverrunError::new_err_args((
             "message", "consumed"
         )));
         test_exception!(QueueEmpty);
@@ -850,7 +887,7 @@ mod tests {
     #[test]
     fn test_check_exception() {
         Python::with_gil(|py| {
-            let err: PyErr = gaierror::new_err(());
+            let err: PyErr = gaierror::new_err_empty();
             let socket = py
                 .import("socket")
                 .map_err(|e| e.display(py))
@@ -878,7 +915,7 @@ mod tests {
     #[test]
     fn test_check_exception_nested() {
         Python::with_gil(|py| {
-            let err: PyErr = MessageError::new_err(());
+            let err: PyErr = MessageError::new_err_empty();
             let email = py
                 .import("email")
                 .map_err(|e| e.display(py))
@@ -1062,10 +1099,10 @@ mod tests {
         });
     }
     #[cfg(Py_3_11)]
-    test_exception!(PyBaseExceptionGroup, |_| PyBaseExceptionGroup::new_err((
-        "msg",
-        vec![PyValueError::new_err("err")]
-    )));
+    test_exception!(
+        PyBaseExceptionGroup,
+        |_| PyBaseExceptionGroup::new_err_args(("msg", vec![PyValueError::new_err_arg("err")]))
+    );
     test_exception!(PyBaseException);
     test_exception!(PyException);
     test_exception!(PyStopAsyncIteration);
@@ -1111,7 +1148,7 @@ mod tests {
         .eval(ffi::c_str!("chr(40960).encode('ascii')"), None, None)
         .unwrap_err());
     test_exception!(PyUnicodeTranslateError, |_| {
-        PyUnicodeTranslateError::new_err(("\u{3042}", 0, 1, "ouch"))
+        PyUnicodeTranslateError::new_err_args(("\u{3042}", 0, 1, "ouch"))
     });
     test_exception!(PyValueError);
     test_exception!(PyZeroDivisionError);

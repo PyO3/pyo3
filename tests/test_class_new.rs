@@ -185,7 +185,7 @@ struct CustomError;
 
 impl From<CustomError> for PyErr {
     fn from(_error: CustomError) -> PyErr {
-        PyValueError::new_err("custom error")
+        PyValueError::new_err_arg("custom error")
     }
 }
 

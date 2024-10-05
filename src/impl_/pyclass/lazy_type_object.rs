@@ -224,7 +224,7 @@ unsafe impl<T> Sync for LazyTypeObject<T> {}
 
 #[cold]
 fn wrap_in_runtime_error(py: Python<'_>, err: PyErr, message: String) -> PyErr {
-    let runtime_err = PyRuntimeError::new_err(message);
+    let runtime_err = PyRuntimeError::new_err_arg(message);
     runtime_err.set_cause(py, Some(err));
     runtime_err
 }

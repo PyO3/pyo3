@@ -150,7 +150,7 @@ where
 }
 
 fn invalid_sequence_length(expected: usize, actual: usize) -> PyErr {
-    exceptions::PyValueError::new_err(format!(
+    exceptions::PyValueError::new_err_arg(format!(
         "expected a sequence of length {} (got {})",
         expected, actual
     ))

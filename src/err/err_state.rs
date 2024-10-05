@@ -1,7 +1,7 @@
 use crate::{
     exceptions::{PyBaseException, PyTypeError},
     ffi,
-    types::{PyTraceback, PyType},
+    types::{PyTraceback, PyTuple, PyType},
     Bound, IntoPy, Py, PyAny, PyObject, PyTypeInfo, Python,
 };
 
@@ -98,24 +98,24 @@ pub(crate) enum PyErrState {
 
 /// Helper conversion trait that allows to use custom arguments for lazy exception construction.
 pub trait PyErrArguments: Send + Sync {
-    /// Arguments for exception
+    /// Arguments for exception (either a single object or a tuple)
     fn arguments(self, py: Python<'_>) -> PyObject;
 }
 
 impl<T> PyErrArguments for T
 where
-    T: IntoPy<PyObject> + Send + Sync,
+    T: IntoPy<Py<PyTuple>> + Send + Sync,
 {
     fn arguments(self, py: Python<'_>) -> PyObject {
-        self.into_py(py)
+        self.into_py(py).into_any()
     }
 }
 
 impl PyErrState {
-    pub(crate) fn lazy(ptype: Py<PyAny>, args: impl PyErrArguments + 'static) -> Self {
+    pub(crate) fn lazy(ptype: Py<PyAny>, arg: Option<impl PyErrArguments + 'static>) -> Self {
         PyErrState::Lazy(Box::new(move |py| PyErrStateLazyFnOutput {
             ptype,
-            pvalue: args.arguments(py),
+            pvalue: arg.map_or(py.None(), |arg| arg.arguments(py)),
         }))
     }
 

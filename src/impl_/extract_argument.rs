@@ -202,7 +202,7 @@ pub fn from_py_with_with_default<'a, 'py, T>(
 pub fn argument_extraction_error(py: Python<'_>, arg_name: &str, error: PyErr) -> PyErr {
     if error.get_type(py).is(&py.get_type::<PyTypeError>()) {
         let remapped_error =
-            PyTypeError::new_err(format!("argument '{}': {}", arg_name, error.value(py)));
+            PyTypeError::new_err_arg(format!("argument '{}': {}", arg_name, error.value(py)));
         remapped_error.set_cause(py, error.cause(py));
         remapped_error
     } else {
@@ -553,12 +553,12 @@ impl FunctionDescription {
                 was
             )
         };
-        PyTypeError::new_err(msg)
+        PyTypeError::new_err_arg(msg)
     }
 
     #[cold]
     fn multiple_values_for_argument(&self, argument: &str) -> PyErr {
-        PyTypeError::new_err(format!(
+        PyTypeError::new_err_arg(format!(
             "{} got multiple values for argument '{}'",
             self.full_name(),
             argument
@@ -567,7 +567,7 @@ impl FunctionDescription {
 
     #[cold]
     fn unexpected_keyword_argument(&self, argument: PyArg<'_>) -> PyErr {
-        PyTypeError::new_err(format!(
+        PyTypeError::new_err_arg(format!(
             "{} got an unexpected keyword argument '{}'",
             self.full_name(),
             argument.as_any()
@@ -581,7 +581,7 @@ impl FunctionDescription {
             self.full_name()
         );
         push_parameter_list(&mut msg, parameter_names);
-        PyTypeError::new_err(msg)
+        PyTypeError::new_err_arg(msg)
     }
 
     #[cold]
@@ -599,7 +599,7 @@ impl FunctionDescription {
             arguments,
         );
         push_parameter_list(&mut msg, parameter_names);
-        PyTypeError::new_err(msg)
+        PyTypeError::new_err_arg(msg)
     }
 
     #[cold]

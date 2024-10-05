@@ -55,7 +55,7 @@ impl ExampleContainer {
 
             return Ok(delta);
         } else {
-            return Err(PyTypeError::new_err("Unsupported type"));
+            return Err(PyTypeError::new_err_arg("Unsupported type"));
         }
     }
     fn __setitem__(&self, idx: IntOrSlice, value: u32) -> PyResult<()> {

@@ -34,7 +34,7 @@ impl IterAwaitable {
     fn __next__(&mut self, py: Python<'_>) -> PyResult<PyObject> {
         match self.result.take() {
             Some(res) => match res {
-                Ok(v) => Err(PyStopIteration::new_err(v)),
+                Ok(v) => Err(PyStopIteration::new_err_arg(v)),
                 Err(err) => Err(err),
             },
             _ => Ok(py.None()),
@@ -70,7 +70,7 @@ impl FutureAwaitable {
     fn __next__(mut pyself: PyRefMut<'_, Self>) -> PyResult<PyRefMut<'_, Self>> {
         match pyself.result {
             Some(_) => match pyself.result.take().unwrap() {
-                Ok(v) => Err(PyStopIteration::new_err(v)),
+                Ok(v) => Err(PyStopIteration::new_err_arg(v)),
                 Err(err) => Err(err),
             },
             _ => Ok(pyself),

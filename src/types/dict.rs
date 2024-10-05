@@ -771,7 +771,7 @@ mod tests {
             }
 
             fn __hash__(&self) -> PyResult<isize> {
-                Err(PyTypeError::new_err("Error from __hash__"))
+                Err(PyTypeError::new_err_arg("Error from __hash__"))
             }
         }
 

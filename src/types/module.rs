@@ -427,7 +427,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
         {
             self.dict()
                 .get_item("__name__")
-                .map_err(|_| exceptions::PyAttributeError::new_err("__name__"))?
+                .map_err(|_| exceptions::PyAttributeError::new_err_arg("__name__"))?
                 .downcast_into()
                 .map_err(PyErr::from)
         }
@@ -445,7 +445,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
         {
             self.dict()
                 .get_item("__file__")
-                .map_err(|_| exceptions::PyAttributeError::new_err("__file__"))?
+                .map_err(|_| exceptions::PyAttributeError::new_err_arg("__file__"))?
                 .downcast_into()
                 .map_err(PyErr::from)
         }
