@@ -199,7 +199,7 @@ impl<'py> IntoPyObject<'py> for OsString {
     }
 }
 
-impl<'a> IntoPy<PyObject> for &'a OsString {
+impl IntoPy<PyObject> for &OsString {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()

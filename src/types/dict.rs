@@ -466,7 +466,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
     }
 }
 
-impl<'py> ExactSizeIterator for BoundDictIterator<'py> {
+impl ExactSizeIterator for BoundDictIterator<'_> {
     fn len(&self) -> usize {
         self.len as usize
     }

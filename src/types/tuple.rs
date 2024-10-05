@@ -383,7 +383,7 @@ impl<'py> Iterator for BoundTupleIterator<'py> {
     }
 }
 
-impl<'py> DoubleEndedIterator for BoundTupleIterator<'py> {
+impl DoubleEndedIterator for BoundTupleIterator<'_> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.index < self.length {
@@ -399,7 +399,7 @@ impl<'py> DoubleEndedIterator for BoundTupleIterator<'py> {
     }
 }
 
-impl<'py> ExactSizeIterator for BoundTupleIterator<'py> {
+impl ExactSizeIterator for BoundTupleIterator<'_> {
     fn len(&self) -> usize {
         self.length.saturating_sub(self.index)
     }
@@ -475,7 +475,7 @@ impl<'a, 'py> Iterator for BorrowedTupleIterator<'a, 'py> {
     }
 }
 
-impl<'a, 'py> DoubleEndedIterator for BorrowedTupleIterator<'a, 'py> {
+impl DoubleEndedIterator for BorrowedTupleIterator<'_, '_> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.index < self.length {
@@ -488,7 +488,7 @@ impl<'a, 'py> DoubleEndedIterator for BorrowedTupleIterator<'a, 'py> {
     }
 }
 
-impl<'a, 'py> ExactSizeIterator for BorrowedTupleIterator<'a, 'py> {
+impl ExactSizeIterator for BorrowedTupleIterator<'_, '_> {
     fn len(&self) -> usize {
         self.length.saturating_sub(self.index)
     }

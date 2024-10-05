@@ -276,7 +276,7 @@ impl<'py> IntoPyObject<'py> for &'_ u8 {
     }
 }
 
-impl<'py> FromPyObject<'py> for u8 {
+impl FromPyObject<'_> for u8 {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
         u8::try_from(val).map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))

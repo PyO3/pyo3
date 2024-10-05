@@ -416,7 +416,7 @@ trait Traversable {
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>;
 }
 
-impl<'a> Traversable for PyRef<'a, HijackedTraverse> {
+impl Traversable for PyRef<'_, HijackedTraverse> {
     fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         self.hijacked.set(true);
         Ok(())

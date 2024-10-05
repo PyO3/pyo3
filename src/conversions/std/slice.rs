@@ -8,7 +8,7 @@ use crate::{
     Bound, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 
-impl<'a> IntoPy<PyObject> for &'a [u8] {
+impl IntoPy<PyObject> for &[u8] {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyBytes::new(py, self).unbind().into()
     }

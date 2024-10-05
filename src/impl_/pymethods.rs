@@ -300,7 +300,7 @@ where
     // ... and we cannot traverse a type which might be being mutated by a Rust thread
     && class_object.borrow_checker().try_borrow().is_ok() {
         struct TraverseGuard<'a, T: PyClass>(&'a PyClassObject<T>);
-        impl<'a, T: PyClass> Drop for TraverseGuard<'a,  T> {
+        impl<T: PyClass> Drop for TraverseGuard<'_,  T> {
             fn drop(&mut self) {
                 self.0.borrow_checker().release_borrow()
             }

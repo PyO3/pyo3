@@ -28,7 +28,7 @@ impl<'py, T: Copy + IntoPyObject<'py>> IntoPyObject<'py> for Cell<T> {
     }
 }
 
-impl<'a, 'py, T: Copy + IntoPyObject<'py>> IntoPyObject<'py> for &'a Cell<T> {
+impl<'py, T: Copy + IntoPyObject<'py>> IntoPyObject<'py> for &Cell<T> {
     type Target = T::Target;
     type Output = T::Output;
     type Error = T::Error;
