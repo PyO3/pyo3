@@ -659,10 +659,37 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     where
         K: IntoPyObject<'py>;
 
+    /// Takes an object and returns an iterator for it. Returns an error if the object is not
+    /// iterable.
+    ///
+    /// This is typically a new iterator but if the argument is an iterator,
+    /// this returns itself.
+    ///
+    /// # Example: Checking a Python object for iterability
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyAny, PyNone};
+    ///
+    /// fn is_iterable(obj: &Bound<'_, PyAny>) -> bool {
+    ///     match obj.try_iter() {
+    ///         Ok(_) => true,
+    ///         Err(_) => false,
+    ///     }
+    /// }
+    ///
+    /// Python::with_gil(|py| {
+    ///     assert!(is_iterable(&vec![1, 2, 3].into_pyobject(py).unwrap()));
+    ///     assert!(!is_iterable(&PyNone::get(py)));
+    /// });
+    /// ```
+    fn try_iter(&self) -> PyResult<Bound<'py, PyIterator>>;
+
     /// Takes an object and returns an iterator for it.
     ///
     /// This is typically a new iterator but if the argument is an iterator,
     /// this returns itself.
+    #[deprecated(since = "0.23.0", note = "use `try_iter` instead")]
     fn iter(&self) -> PyResult<Bound<'py, PyIterator>>;
 
     /// Returns the Python type object for this object's type.
@@ -1381,8 +1408,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         )
     }
 
-    fn iter(&self) -> PyResult<Bound<'py, PyIterator>> {
+    fn try_iter(&self) -> PyResult<Bound<'py, PyIterator>> {
         PyIterator::from_object(self)
+    }
+
+    fn iter(&self) -> PyResult<Bound<'py, PyIterator>> {
+        self.try_iter()
     }
 
     fn get_type(&self) -> Bound<'py, PyType> {
@@ -1701,7 +1732,7 @@ class NonHeapNonDescriptorInt:
     fn test_call_with_kwargs() {
         Python::with_gil(|py| {
             let list = vec![3, 6, 5, 4, 7].to_object(py);
-            let dict = vec![("reverse", true)].into_py_dict(py);
+            let dict = vec![("reverse", true)].into_py_dict(py).unwrap();
             list.call_method(py, "sort", (), Some(&dict)).unwrap();
             assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
         });
@@ -2021,7 +2052,7 @@ class SimpleClass:
             let empty_list = PyList::empty(py).into_any();
             assert!(empty_list.is_empty().unwrap());
 
-            let list = PyList::new(py, vec![1, 2, 3]).into_any();
+            let list = PyList::new(py, vec![1, 2, 3]).unwrap().into_any();
             assert!(!list.is_empty().unwrap());
 
             let not_container = 5.to_object(py).into_bound(py);

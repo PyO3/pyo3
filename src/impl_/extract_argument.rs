@@ -703,7 +703,7 @@ impl<'py> VarargsHandler<'py> for TupleVarargs {
         varargs: &[Option<PyArg<'py>>],
         _function_description: &FunctionDescription,
     ) -> PyResult<Self::Varargs> {
-        Ok(PyTuple::new(py, varargs))
+        PyTuple::new(py, varargs)
     }
 
     #[inline]
@@ -802,7 +802,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let args = PyTuple::empty(py);
-            let kwargs = [("foo", 0u8)].into_py_dict(py);
+            let kwargs = [("foo", 0u8)].into_py_dict(py).unwrap();
             let err = unsafe {
                 function_description
                     .extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(
@@ -833,7 +833,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let args = PyTuple::empty(py);
-            let kwargs = [(1u8, 1u8)].into_py_dict(py);
+            let kwargs = [(1u8, 1u8)].into_py_dict(py).unwrap();
             let err = unsafe {
                 function_description
                     .extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(

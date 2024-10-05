@@ -53,7 +53,7 @@ impl ClassWithProperties {
     }
 
     #[getter]
-    fn get_data_list<'py>(&self, py: Python<'py>) -> Bound<'py, PyList> {
+    fn get_data_list<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
         PyList::new(py, [self.num])
     }
 }
@@ -85,7 +85,9 @@ fn class_with_properties() {
         py_run!(py, inst, "inst.from_any = 15");
         py_run!(py, inst, "assert inst.get_num() == 15");
 
-        let d = [("C", py.get_type::<ClassWithProperties>())].into_py_dict(py);
+        let d = [("C", py.get_type::<ClassWithProperties>())]
+            .into_py_dict(py)
+            .unwrap();
         py_assert!(py, *d, "C.DATA.__doc__ == 'a getter for data'");
     });
 }

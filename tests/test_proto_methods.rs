@@ -851,8 +851,9 @@ struct DefaultedContains;
 impl DefaultedContains {
     fn __iter__(&self, py: Python<'_>) -> PyObject {
         PyList::new(py, ["a", "b", "c"])
+            .unwrap()
             .as_ref()
-            .iter()
+            .try_iter()
             .unwrap()
             .into()
     }
@@ -865,8 +866,9 @@ struct NoContains;
 impl NoContains {
     fn __iter__(&self, py: Python<'_>) -> PyObject {
         PyList::new(py, ["a", "b", "c"])
+            .unwrap()
             .as_ref()
-            .iter()
+            .try_iter()
             .unwrap()
             .into()
     }

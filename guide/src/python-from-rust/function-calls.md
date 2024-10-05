@@ -50,7 +50,7 @@ fn main() -> PyResult<()> {
         fun.call1(py, args)?;
 
         // call object with Python tuple of positional arguments
-        let args = PyTuple::new(py, &[arg1, arg2, arg3]);
+        let args = PyTuple::new(py, &[arg1, arg2, arg3])?;
         fun.call1(py, args)?;
         Ok(())
     })
@@ -90,17 +90,17 @@ fn main() -> PyResult<()> {
         .into();
 
         // call object with PyDict
-        let kwargs = [(key1, val1)].into_py_dict(py);
+        let kwargs = [(key1, val1)].into_py_dict(py)?;
         fun.call(py, (), Some(&kwargs))?;
 
         // pass arguments as Vec
         let kwargs = vec![(key1, val1), (key2, val2)];
-        fun.call(py, (), Some(&kwargs.into_py_dict(py)))?;
+        fun.call(py, (), Some(&kwargs.into_py_dict(py)?))?;
 
         // pass arguments as HashMap
         let mut kwargs = HashMap::<&str, i32>::new();
         kwargs.insert(key1, 1);
-        fun.call(py, (), Some(&kwargs.into_py_dict(py)))?;
+        fun.call(py, (), Some(&kwargs.into_py_dict(py)?))?;
 
         Ok(())
     })

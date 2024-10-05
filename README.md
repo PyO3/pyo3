@@ -16,9 +16,12 @@
 
 ## Usage
 
-PyO3 supports the following software versions:
-  - Python 3.7 and up (CPython, PyPy, and GraalPy)
-  - Rust 1.63 and up
+Requires Rust 1.63 or greater.
+
+PyO3 supports the following Python distributions:
+  - CPython 3.7 or greater
+  - PyPy 7.3 (Python 3.9+)
+  - GraalPy 24.0 or greater (Python 3.10+)
 
 You can use PyO3 to write a native Python module in Rust, or to embed Python in a Rust binary. The following sections explain each of these in turn.
 
@@ -153,7 +156,7 @@ fn main() -> PyResult<()> {
         let sys = py.import("sys")?;
         let version: String = sys.getattr("version")?.extract()?;
 
-        let locals = [("os", py.import("os")?)].into_py_dict(py);
+        let locals = [("os", py.import("os")?)].into_py_dict(py)?;
         let code = c_str!("os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'");
         let user: String = py.eval(code, None, Some(&locals))?.extract()?;
 

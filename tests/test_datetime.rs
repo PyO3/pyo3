@@ -13,7 +13,9 @@ fn _get_subclasses<'py>(
     // Import the class from Python and create some subclasses
     let datetime = py.import("datetime")?;
 
-    let locals = [(py_type, datetime.getattr(py_type)?)].into_py_dict(py);
+    let locals = [(py_type, datetime.getattr(py_type)?)]
+        .into_py_dict(py)
+        .unwrap();
 
     let make_subclass_py = CString::new(format!("class Subklass({}):\n    pass", py_type))?;
 
@@ -135,7 +137,7 @@ fn test_datetime_utc() {
 
         let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
 
-        let locals = [("dt", dt)].into_py_dict(py);
+        let locals = [("dt", dt)].into_py_dict(py).unwrap();
 
         let offset: f32 = py
             .eval(

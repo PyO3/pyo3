@@ -3,11 +3,6 @@
 //! This is the unsafe thin  wrapper around the [CPython C API](https://docs.python.org/3/c-api/datetime.html),
 //! and covers the various date and time related objects in the Python `datetime`
 //! standard library module.
-//!
-//! A note regarding PyPy (cpyext) support:
-//!
-//! Support for `PyDateTime_CAPI` is limited as of PyPy 7.0.0.
-//! `DateTime_FromTimestamp` and `Date_FromTimestamp` are currently not supported.
 
 #[cfg(GraalPy)]
 use crate::{PyLong_AsLong, PyLong_Check, PyObject_GetAttrString, Py_DecRef};

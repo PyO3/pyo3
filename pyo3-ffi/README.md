@@ -12,9 +12,12 @@ Manual][capi] for up-to-date documentation.
 
 # Minimum supported Rust and Python versions
 
-PyO3 supports the following software versions:
-  - Python 3.7 and up (CPython and PyPy)
-  - Rust 1.63 and up
+Requires Rust 1.63 or greater.
+
+`pyo3-ffi` supports the following Python distributions:
+  - CPython 3.7 or greater
+  - PyPy 7.3 (Python 3.9+)
+  - GraalPy 24.0 or greater (Python 3.10+)
 
 # Example: Building Python Native modules
 

@@ -45,23 +45,26 @@ let tup = PyTuple::new(py, [1, 2, 3]);
 <details open>
 <summary><small>Click to expand</small></summary>
 
-The `IntoPyDict::into_py_dict_bound` method has been renamed to `IntoPyDict::into_py_dict`. If you implemented `IntoPyDict` for your type, you should implement `into_py_dict` instead of `into_py_dict_bound`. The old name is still available but deprecated.
+The `IntoPyDict::into_py_dict_bound` method has been renamed to `IntoPyDict::into_py_dict` and is now fallible. If you implemented `IntoPyDict` for your type, you should implement `into_py_dict` instead of `into_py_dict_bound`. The old name is still available but deprecated.
 
 Before:
 
 ```rust,ignore
 # use pyo3::prelude::*;
 # use pyo3::types::{PyDict, IntoPyDict};
-# use pyo3::types::dict::PyDictItem;
-impl<T, I> IntoPyDict for I
+# use std::collections::HashMap;
+
+struct MyMap<K, V>(HashMap<K, V>);
+
+impl<K, V> IntoPyDict for MyMap<K, V>
 where
-    T: PyDictItem,
-    I: IntoIterator<Item = T>,
+    K: ToPyObject,
+    V: ToPyObject,
 {
     fn into_py_dict_bound(self, py: Python<'_>) -> Bound<'_, PyDict> {
-        let dict = PyDict::new(py);
-        for item in self {
-            dict.set_item(item.key(), item.value())
+        let dict = PyDict::new_bound(py);
+        for (key, value) in self.0 {
+            dict.set_item(key, value)
                 .expect("Failed to set_item on dict");
         }
         dict
@@ -71,22 +74,25 @@ where
 
 After:
 
-```rust,ignore
+```rust
 # use pyo3::prelude::*;
 # use pyo3::types::{PyDict, IntoPyDict};
-# use pyo3::types::dict::PyDictItem;
-impl<T, I> IntoPyDict for I
+# use std::collections::HashMap;
+
+# #[allow(dead_code)]
+# struct MyMap<K, V>(HashMap<K, V>);
+
+impl<'py, K, V> IntoPyDict<'py> for MyMap<K, V>
 where
-    T: PyDictItem,
-    I: IntoIterator<Item = T>,
+    K: IntoPyObject<'py>,
+    V: IntoPyObject<'py>,
 {
-    fn into_py_dict(self, py: Python<'_>) -> Bound<'_, PyDict> {
+    fn into_py_dict(self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let dict = PyDict::new(py);
-        for item in self {
-            dict.set_item(item.key(), item.value())
-                .expect("Failed to set_item on dict");
+        for (key, value) in self.0 {
+            dict.set_item(key, value)?;
         }
-        dict
+        Ok(dict)
     }
 }
 ```

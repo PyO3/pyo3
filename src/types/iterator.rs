@@ -18,7 +18,7 @@ use crate::{ffi, Bound, PyAny, PyErr, PyResult, PyTypeCheck};
 /// Python::with_gil(|py| -> PyResult<()> {
 ///     let list = py.eval(c_str!("iter([1, 2, 3, 4])"), None, None)?;
 ///     let numbers: PyResult<Vec<usize>> = list
-///         .iter()?
+///         .try_iter()?
 ///         .map(|i| i.and_then(|i|i.extract::<usize>()))
 ///         .collect();
 ///     let sum: usize = numbers?.iter().sum();
@@ -115,7 +115,7 @@ mod tests {
         Python::with_gil(|py| {
             let obj = vec![10, 20].to_object(py);
             let inst = obj.bind(py);
-            let mut it = inst.iter().unwrap();
+            let mut it = inst.try_iter().unwrap();
             assert_eq!(
                 10_i32,
                 it.next().unwrap().unwrap().extract::<'_, i32>().unwrap()
@@ -138,7 +138,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let inst = obj.bind(py);
-            let mut it = inst.iter().unwrap();
+            let mut it = inst.try_iter().unwrap();
 
             assert_eq!(
                 10_i32,
@@ -166,7 +166,7 @@ mod tests {
 
             {
                 let inst = list.bind(py);
-                let mut it = inst.iter().unwrap();
+                let mut it = inst.try_iter().unwrap();
 
                 assert_eq!(
                     10_i32,
@@ -199,7 +199,7 @@ def fibonacci(target):
             let generator = py
                 .eval(ffi::c_str!("fibonacci(5)"), None, Some(&context))
                 .unwrap();
-            for (actual, expected) in generator.iter().unwrap().zip(&[1, 1, 2, 3, 5]) {
+            for (actual, expected) in generator.try_iter().unwrap().zip(&[1, 1, 2, 3, 5]) {
                 let actual = actual.unwrap().extract::<usize>().unwrap();
                 assert_eq!(actual, *expected)
             }
@@ -327,7 +327,7 @@ def fibonacci(target):
     fn length_hint_becomes_size_hint_lower_bound() {
         Python::with_gil(|py| {
             let list = py.eval(ffi::c_str!("[1, 2, 3]"), None, None).unwrap();
-            let iter = list.iter().unwrap();
+            let iter = list.try_iter().unwrap();
             let hint = iter.size_hint();
             assert_eq!(hint, (3, None));
         });

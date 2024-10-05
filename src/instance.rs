@@ -30,6 +30,8 @@ pub trait BoundObject<'py, T>: bound_object_sealed::Sealed {
     fn into_any(self) -> Self::Any;
     /// Turn this smart pointer into a strong reference pointer
     fn into_ptr(self) -> *mut ffi::PyObject;
+    /// Turn this smart pointer into a borrowed reference pointer
+    fn as_ptr(&self) -> *mut ffi::PyObject;
     /// Turn this smart pointer into an owned [`Py<T>`]
     fn unbind(self) -> Py<T>;
 }
@@ -616,6 +618,10 @@ impl<'py, T> BoundObject<'py, T> for Bound<'py, T> {
         self.into_ptr()
     }
 
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        self.as_ptr()
+    }
+
     fn unbind(self) -> Py<T> {
         self.unbind()
     }
@@ -640,7 +646,7 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let tuple = PyTuple::new(py, [1, 2, 3]);
+    ///     let tuple = PyTuple::new(py, [1, 2, 3])?;
     ///
     ///     // borrows from `tuple`, so can only be
     ///     // used while `tuple` stays alive
@@ -833,6 +839,10 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 
     fn into_ptr(self) -> *mut ffi::PyObject {
         (*self).to_owned().into_ptr()
+    }
+
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        (*self).as_ptr()
     }
 
     fn unbind(self) -> Py<T> {
@@ -1950,7 +1960,7 @@ mod tests {
 
             assert_repr(obj.call1(py, ((('x', 1),),)).unwrap().bind(py), "{'x': 1}");
             assert_repr(
-                obj.call(py, (), Some(&[('x', 1)].into_py_dict(py)))
+                obj.call(py, (), Some(&[('x', 1)].into_py_dict(py).unwrap()))
                     .unwrap()
                     .bind(py),
                 "{'x': 1}",

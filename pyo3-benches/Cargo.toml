@@ -9,11 +9,15 @@ publish = false
 [dependencies]
 pyo3 = { path = "../", features = ["auto-initialize", "full"] }
 
+[build-dependencies]
+pyo3-build-config = { path = "../pyo3-build-config" }
+
 [dev-dependencies]
 codspeed-criterion-compat = "2.3"
 criterion = "0.5.1"
 num-bigint = "0.4.3"
 rust_decimal = { version = "1.0.0", default-features = false }
+hashbrown = "0.14"
 
 [[bench]]
 name = "bench_any"

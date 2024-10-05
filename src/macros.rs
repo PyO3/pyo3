@@ -11,10 +11,13 @@
 /// ```
 /// use pyo3::{prelude::*, py_run, types::PyList};
 ///
+/// # fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
-///     let list = PyList::new(py, &[1, 2, 3]);
+///     let list = PyList::new(py, &[1, 2, 3])?;
 ///     py_run!(py, list, "assert list == [1, 2, 3]");
-/// });
+/// # Ok(())
+/// })
+/// # }
 /// ```
 ///
 /// You can use this macro to test pyfunctions or pyclasses quickly.
@@ -72,10 +75,13 @@
 ///     }
 /// }
 ///
+/// # fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
-///     let locals = [("C", py.get_type::<MyClass>())].into_py_dict(py);
+///     let locals = [("C", py.get_type::<MyClass>())].into_py_dict(py)?;
 ///     pyo3::py_run!(py, *locals, "c = C()");
-/// });
+/// #   Ok(())
+/// })
+/// # }
 /// ```
 #[macro_export]
 macro_rules! py_run {
@@ -99,7 +105,7 @@ macro_rules! py_run_impl {
     ($py:expr, $($val:ident)+, $code:expr) => {{
         use $crate::types::IntoPyDict;
         use $crate::ToPyObject;
-        let d = [$((stringify!($val), $val.to_object($py)),)+].into_py_dict($py);
+        let d = [$((stringify!($val), $val.to_object($py)),)+].into_py_dict($py).unwrap();
         $crate::py_run_impl!($py, *d, $code)
     }};
     ($py:expr, *$dict:expr, $code:expr) => {{

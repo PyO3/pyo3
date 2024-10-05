@@ -1,4 +1,5 @@
 use crate::callback::IntoPyCallbackOutput;
+use crate::conversion::IntoPyObject;
 use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
@@ -6,7 +7,7 @@ use crate::pyclass::PyClass;
 use crate::types::{
     any::PyAnyMethods, list::PyListMethods, PyAny, PyCFunction, PyDict, PyList, PyString,
 };
-use crate::{exceptions, ffi, Bound, IntoPy, Py, PyObject, Python};
+use crate::{exceptions, ffi, Borrowed, Bound, BoundObject, Py, PyObject, Python};
 use std::ffi::{CStr, CString};
 use std::str;
 
@@ -82,11 +83,11 @@ impl PyModule {
     ///
     /// If you want to import a class, you can store a reference to it with
     /// [`GILOnceCell::import`][crate::sync::GILOnceCell#method.import].
-    pub fn import<N>(py: Python<'_>, name: N) -> PyResult<Bound<'_, PyModule>>
+    pub fn import<'py, N>(py: Python<'py>, name: N) -> PyResult<Bound<'py, PyModule>>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPyObject<'py, Target = PyString>,
     {
-        let name: Py<PyString> = name.into_py(py);
+        let name = name.into_pyobject(py).map_err(Into::into)?;
         unsafe {
             ffi::PyImport_Import(name.as_ptr())
                 .assume_owned_or_err(py)
@@ -99,9 +100,9 @@ impl PyModule {
     #[inline]
     pub fn import_bound<N>(py: Python<'_>, name: N) -> PyResult<Bound<'_, PyModule>>
     where
-        N: IntoPy<Py<PyString>>,
+        N: crate::IntoPy<Py<PyString>>,
     {
-        Self::import(py, name)
+        Self::import(py, name.into_py(py))
     }
 
     /// Creates and loads a module named `module_name`,
@@ -253,8 +254,8 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// ```
     fn add<N, V>(&self, name: N, value: V) -> PyResult<()>
     where
-        N: IntoPy<Py<PyString>>,
-        V: IntoPy<PyObject>;
+        N: IntoPyObject<'py, Target = PyString>,
+        V: IntoPyObject<'py>;
 
     /// Adds a new class to the module.
     ///
@@ -452,26 +453,30 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
 
     fn add<N, V>(&self, name: N, value: V) -> PyResult<()>
     where
-        N: IntoPy<Py<PyString>>,
-        V: IntoPy<PyObject>,
+        N: IntoPyObject<'py, Target = PyString>,
+        V: IntoPyObject<'py>,
     {
         fn inner(
             module: &Bound<'_, PyModule>,
-            name: Bound<'_, PyString>,
-            value: Bound<'_, PyAny>,
+            name: Borrowed<'_, '_, PyString>,
+            value: Borrowed<'_, '_, PyAny>,
         ) -> PyResult<()> {
             module
                 .index()?
-                .append(&name)
+                .append(name)
                 .expect("could not append __name__ to __all__");
-            module.setattr(name, value.into_py(module.py()))
+            module.setattr(name, value)
         }
 
         let py = self.py();
         inner(
             self,
-            name.into_py(py).into_bound(py),
-            value.into_py(py).into_bound(py),
+            name.into_pyobject(py).map_err(Into::into)?.as_borrowed(),
+            value
+                .into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
         )
     }
 

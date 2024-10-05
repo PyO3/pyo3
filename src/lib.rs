@@ -131,9 +131,12 @@
 //!
 //! # Minimum supported Rust and Python versions
 //!
-//! PyO3 supports the following software versions:
-//!   - Python 3.7 and up (CPython and PyPy)
-//!   - Rust 1.63 and up
+//! Requires Rust 1.63 or greater.
+//!
+//! PyO3 supports the following Python distributions:
+//!   - CPython 3.7 or greater
+//!   - PyPy 7.3 (Python 3.9+)
+//!   - GraalPy 24.0 or greater (Python 3.10+)
 //!
 //! # Example: Building a native Python module
 //!
@@ -239,7 +242,7 @@
 //!         let sys = py.import("sys")?;
 //!         let version: String = sys.getattr("version")?.extract()?;
 //!
-//!         let locals = [("os", py.import("os")?)].into_py_dict(py);
+//!         let locals = [("os", py.import("os")?)].into_py_dict(py)?;
 //!         let code = c_str!("os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'");
 //!         let user: String = py.eval(code, None, Some(&locals))?.extract()?;
 //!

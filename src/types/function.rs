@@ -222,8 +222,8 @@ unsafe impl<F: Send> Send for ClosureDestructor<F> {}
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyFunction>`][crate::Py] or [`Bound<'py, PyFunction>`][Bound].
 #[repr(transparent)]
-#[cfg(all(not(Py_LIMITED_API), not(all(PyPy, not(Py_3_8)))))]
+#[cfg(not(Py_LIMITED_API))]
 pub struct PyFunction(PyAny);
 
-#[cfg(all(not(Py_LIMITED_API), not(all(PyPy, not(Py_3_8)))))]
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_type_core!(PyFunction, pyobject_native_static_type_object!(ffi::PyFunction_Type), #checkfunction=ffi::PyFunction_Check);

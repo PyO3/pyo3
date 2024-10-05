@@ -91,7 +91,7 @@ fn intopytuple_pyclass() {
 #[test]
 fn pytuple_primitive_iter() {
     Python::with_gil(|py| {
-        let tup = PyTuple::new(py, [1u32, 2, 3].iter());
+        let tup = PyTuple::new(py, [1u32, 2, 3].iter()).unwrap();
         py_assert!(py, tup, "tup == (1, 2, 3)");
     });
 }
@@ -106,7 +106,8 @@ fn pytuple_pyclass_iter() {
                 Py::new(py, SimplePyClass {}).unwrap(),
             ]
             .iter(),
-        );
+        )
+        .unwrap();
         py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
         py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[0]).__name__");
         py_assert!(py, tup, "tup[0] != tup[1]");

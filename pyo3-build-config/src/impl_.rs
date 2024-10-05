@@ -165,9 +165,7 @@ impl InterpreterConfig {
 
         let mut out = vec![];
 
-        // pyo3-build-config was released when Python 3.6 was supported, so minimum flag to emit is
-        // Py_3_6 (to avoid silently breaking users who depend on this cfg).
-        for i in 6..=self.version.minor {
+        for i in MINIMUM_SUPPORTED_VERSION.minor..=self.version.minor {
             out.push(format!("cargo:rustc-cfg=Py_3_{}", i));
         }
 
@@ -1650,16 +1648,11 @@ fn default_lib_name_unix(
                 }
             }
         },
-        PythonImplementation::PyPy => {
-            if version >= (PythonVersion { major: 3, minor: 9 }) {
-                match ld_version {
-                    Some(ld_version) => format!("pypy{}-c", ld_version),
-                    None => format!("pypy{}.{}-c", version.major, version.minor),
-                }
-            } else {
-                format!("pypy{}-c", version.major)
-            }
-        }
+        PythonImplementation::PyPy => match ld_version {
+            Some(ld_version) => format!("pypy{}-c", ld_version),
+            None => format!("pypy{}.{}-c", version.major, version.minor),
+        },
+
         PythonImplementation::GraalPy => "python-native".to_string(),
     }
 }
@@ -2350,75 +2343,75 @@ mod tests {
         use PythonImplementation::*;
         assert_eq!(
             super::default_lib_name_windows(
-                PythonVersion { major: 3, minor: 7 },
+                PythonVersion { major: 3, minor: 9 },
                 CPython,
                 false,
                 false,
                 false,
             ),
-            "python37",
+            "python39",
         );
         assert_eq!(
             super::default_lib_name_windows(
-                PythonVersion { major: 3, minor: 7 },
+                PythonVersion { major: 3, minor: 9 },
                 CPython,
                 true,
                 false,
-                false,
-            ),
-            "python3",
-        );
-        assert_eq!(
-            super::default_lib_name_windows(
-                PythonVersion { major: 3, minor: 7 },
-                CPython,
-                false,
-                true,
-                false,
-            ),
-            "python3.7",
-        );
-        assert_eq!(
-            super::default_lib_name_windows(
-                PythonVersion { major: 3, minor: 7 },
-                CPython,
-                true,
-                true,
                 false,
             ),
             "python3",
         );
         assert_eq!(
             super::default_lib_name_windows(
-                PythonVersion { major: 3, minor: 7 },
+                PythonVersion { major: 3, minor: 9 },
+                CPython,
+                false,
+                true,
+                false,
+            ),
+            "python3.9",
+        );
+        assert_eq!(
+            super::default_lib_name_windows(
+                PythonVersion { major: 3, minor: 9 },
+                CPython,
+                true,
+                true,
+                false,
+            ),
+            "python3",
+        );
+        assert_eq!(
+            super::default_lib_name_windows(
+                PythonVersion { major: 3, minor: 9 },
                 PyPy,
                 true,
                 false,
                 false,
             ),
-            "python37",
+            "python39",
         );
         assert_eq!(
             super::default_lib_name_windows(
-                PythonVersion { major: 3, minor: 7 },
+                PythonVersion { major: 3, minor: 9 },
                 CPython,
                 false,
                 false,
                 true,
             ),
-            "python37_d",
+            "python39_d",
         );
         // abi3 debug builds on windows use version-specific lib
         // to workaround https://github.com/python/cpython/issues/101614
         assert_eq!(
             super::default_lib_name_windows(
-                PythonVersion { major: 3, minor: 7 },
+                PythonVersion { major: 3, minor: 9 },
                 CPython,
                 true,
                 false,
                 true,
             ),
-            "python37_d",
+            "python39_d",
         );
     }
 
@@ -2449,13 +2442,12 @@ mod tests {
             "python3.7md",
         );
 
-        // PyPy 3.7 ignores ldversion
+        // PyPy 3.9 includes ldversion
         assert_eq!(
-            super::default_lib_name_unix(PythonVersion { major: 3, minor: 7 }, PyPy, Some("3.7md")),
-            "pypy3-c",
+            super::default_lib_name_unix(PythonVersion { major: 3, minor: 9 }, PyPy, None),
+            "pypy3.9-c",
         );
 
-        // PyPy 3.9 includes ldversion
         assert_eq!(
             super::default_lib_name_unix(PythonVersion { major: 3, minor: 9 }, PyPy, Some("3.9d")),
             "pypy3.9d-c",
@@ -2694,7 +2686,7 @@ mod tests {
     fn test_build_script_outputs_base() {
         let interpreter_config = InterpreterConfig {
             implementation: PythonImplementation::CPython,
-            version: PythonVersion { major: 3, minor: 8 },
+            version: PythonVersion { major: 3, minor: 9 },
             shared: true,
             abi3: false,
             lib_name: Some("python3".into()),
@@ -2708,9 +2700,9 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_6".to_owned(),
                 "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_3_8".to_owned(),
+                "cargo:rustc-cfg=Py_3_9".to_owned(),
             ]
         );
 
@@ -2721,9 +2713,9 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_6".to_owned(),
                 "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_3_8".to_owned(),
+                "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=PyPy".to_owned(),
             ]
         );
@@ -2733,7 +2725,7 @@ mod tests {
     fn test_build_script_outputs_abi3() {
         let interpreter_config = InterpreterConfig {
             implementation: PythonImplementation::CPython,
-            version: PythonVersion { major: 3, minor: 7 },
+            version: PythonVersion { major: 3, minor: 9 },
             shared: true,
             abi3: true,
             lib_name: Some("python3".into()),
@@ -2748,8 +2740,9 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_6".to_owned(),
                 "cargo:rustc-cfg=Py_3_7".to_owned(),
+                "cargo:rustc-cfg=Py_3_8".to_owned(),
+                "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=Py_LIMITED_API".to_owned(),
             ]
         );
@@ -2761,8 +2754,9 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_6".to_owned(),
                 "cargo:rustc-cfg=Py_3_7".to_owned(),
+                "cargo:rustc-cfg=Py_3_8".to_owned(),
+                "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=PyPy".to_owned(),
                 "cargo:rustc-cfg=Py_LIMITED_API".to_owned(),
             ]
@@ -2793,7 +2787,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_6".to_owned(),
                 "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
@@ -2827,7 +2820,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_6".to_owned(),
                 "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=py_sys_config=\"Py_DEBUG\"".to_owned(),
             ]
