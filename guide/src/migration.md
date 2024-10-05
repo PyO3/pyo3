@@ -361,7 +361,7 @@ where
 {
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         let mut v = MyVec(Vec::new());
-        for item in obj.iter()? {
+        for item in obj.try_iter()? {
             v.0.push(item?.extract::<T>()?);
         }
         Ok(v)
@@ -380,7 +380,7 @@ where
 {
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let mut v = MyVec(Vec::new());
-        for item in obj.iter()? {
+        for item in obj.try_iter()? {
             v.0.push(item?.extract::<T>()?);
         }
         Ok(v)
