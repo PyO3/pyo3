@@ -3,11 +3,10 @@ use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
-use crate::types::any::PyAnyMethods;
-use crate::types::{PyBytes, PyInt};
+use crate::types::{PyAnyMethods, PyBytes, PyInt};
 use crate::{
-    exceptions, ffi, Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python,
-    ToPyObject,
+    exceptions, ffi, Borrowed, Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult,
+    Python, ToPyObject,
 };
 use std::convert::Infallible;
 use std::num::{
@@ -56,8 +55,8 @@ macro_rules! int_fits_larger_int {
             }
         }
 
-        impl FromPyObject<'_> for $rust_type {
-            fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        impl FromPyObject<'_, '_> for $rust_type {
+            fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
                 let val: $larger_type = obj.extract()?;
                 <$rust_type>::try_from(val)
                     .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
@@ -138,8 +137,8 @@ macro_rules! int_convert_u64_or_i64 {
                 (*self).into_pyobject(py)
             }
         }
-        impl FromPyObject<'_> for $rust_type {
-            fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<$rust_type> {
+        impl FromPyObject<'_, '_> for $rust_type {
+            fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<$rust_type> {
                 extract_int!(obj, !0, $pylong_as_ll_or_ull, $force_index_call)
             }
 
@@ -196,8 +195,8 @@ macro_rules! int_fits_c_long {
             }
         }
 
-        impl<'py> FromPyObject<'py> for $rust_type {
-            fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        impl<'py> FromPyObject<'_, 'py> for $rust_type {
+            fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
                 let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
                 <$rust_type>::try_from(val)
                     .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
@@ -276,8 +275,8 @@ impl<'py> IntoPyObject<'py> for &'_ u8 {
     }
 }
 
-impl FromPyObject<'_> for u8 {
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for u8 {
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
         let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
         u8::try_from(val).map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
     }
@@ -406,8 +405,8 @@ mod fast_128bit_int_conversion {
                 }
             }
 
-            impl FromPyObject<'_> for $rust_type {
-                fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<$rust_type> {
+            impl FromPyObject<'_, '_> for $rust_type {
+                fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<$rust_type> {
                     let num =
                         unsafe { ffi::PyNumber_Index(ob.as_ptr()).assume_owned_or_err(ob.py())? };
                     let mut buffer = [0u8; std::mem::size_of::<$rust_type>()];
@@ -524,8 +523,8 @@ mod slow_128bit_int_conversion {
                 }
             }
 
-            impl FromPyObject<'_> for $rust_type {
-                fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<$rust_type> {
+            impl FromPyObject<'_, '_> for $rust_type {
+                fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<$rust_type> {
                     let py = ob.py();
                     unsafe {
                         let lower = err_if_invalid_value(
@@ -607,8 +606,8 @@ macro_rules! nonzero_int_impl {
             }
         }
 
-        impl FromPyObject<'_> for $nonzero_type {
-            fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        impl FromPyObject<'_, '_> for $nonzero_type {
+            fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
                 let val: $primitive_type = obj.extract()?;
                 <$nonzero_type>::try_from(val)
                     .map_err(|_| exceptions::PyValueError::new_err("invalid zero value"))
@@ -638,6 +637,7 @@ nonzero_int_impl!(NonZeroUsize, usize);
 #[cfg(test)]
 mod test_128bit_integers {
     use super::*;
+    use crate::types::PyAnyMethods;
 
     #[cfg(not(target_arch = "wasm32"))]
     use crate::types::PyDict;

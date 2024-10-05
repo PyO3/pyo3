@@ -1,5 +1,5 @@
 use crate::class::basic::CompareOp;
-use crate::conversion::{private, AsPyPointer, FromPyObjectBound, IntoPy, IntoPyObject};
+use crate::conversion::{private, AsPyPointer, IntoPy, IntoPyObject};
 use crate::err::{DowncastError, DowncastIntoError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -10,7 +10,7 @@ use crate::type_object::{PyTypeCheck, PyTypeInfo};
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
-use crate::{err, ffi, Borrowed, BoundObject, Py, Python};
+use crate::{err, ffi, Borrowed, BoundObject, FromPyObject, Py, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
@@ -835,11 +835,10 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
 
     /// Extracts some type from the Python object.
     ///
-    /// This is a wrapper function around
-    /// [`FromPyObject::extract_bound()`](crate::FromPyObject::extract_bound).
+    /// This is a wrapper function around [`FromPyObject::extract()`](crate::FromPyObject::extract).
     fn extract<'a, T>(&'a self) -> PyResult<T>
     where
-        T: FromPyObjectBound<'a, 'py>;
+        T: FromPyObject<'a, 'py>;
 
     /// Returns the reference count for the Python object.
     fn get_refcnt(&self) -> isize;
@@ -1489,9 +1488,9 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     fn extract<'a, T>(&'a self) -> PyResult<T>
     where
-        T: FromPyObjectBound<'a, 'py>,
+        T: FromPyObject<'a, 'py>,
     {
-        FromPyObjectBound::from_py_object_bound(self.as_borrowed())
+        FromPyObject::extract(self.as_borrowed())
     }
 
     fn get_refcnt(&self) -> isize {

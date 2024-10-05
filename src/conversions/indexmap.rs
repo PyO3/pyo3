@@ -87,9 +87,9 @@
 //! # if another hash table was used, the order could be random
 //! ```
 
-use crate::conversion::IntoPyObject;
+use crate::conversion::{FromPyObjectOwned, IntoPyObject};
 use crate::types::*;
-use crate::{Bound, FromPyObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
+use crate::{Borrowed, Bound, FromPyObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
 use std::{cmp, hash};
 
 impl<K, V, H> ToPyObject for indexmap::IndexMap<K, V, H>
@@ -160,16 +160,16 @@ where
     }
 }
 
-impl<'py, K, V, S> FromPyObject<'py> for indexmap::IndexMap<K, V, S>
+impl<'py, K, V, S> FromPyObject<'_, 'py> for indexmap::IndexMap<K, V, S>
 where
-    K: FromPyObject<'py> + cmp::Eq + hash::Hash,
-    V: FromPyObject<'py>,
+    K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
+    V: FromPyObjectOwned<'py>,
     S: hash::BuildHasher + Default,
 {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.downcast::<PyDict>()?;
         let mut ret = indexmap::IndexMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict {
+        for (k, v) in dict.iter() {
             ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)
