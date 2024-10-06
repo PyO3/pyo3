@@ -1110,7 +1110,6 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
 }
 
 /// Trait denoting that this class is suitable to be used as a base type for PyClass.
-
 #[cfg_attr(
     all(diagnostic_namespace, Py_LIMITED_API),
     diagnostic::on_unimplemented(

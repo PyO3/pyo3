@@ -89,9 +89,9 @@ fn call_base_and_sub_methods() {
             py,
             obj,
             r#"
-    assert obj.base_method(10) == 100
-    assert obj.sub_method(10) == 50
-"#
+            assert obj.base_method(10) == 100
+            assert obj.sub_method(10) == 50
+            "#
         );
     });
 }
@@ -163,14 +163,14 @@ fn handle_result_in_new() {
             py,
             subclass,
             r#"
-try:
-    subclass(-10)
-    assert Fals
-except ValueError as e:
-    pass
-except Exception as e:
-    raise e
-"#
+            try:
+                subclass(-10)
+                assert Fals
+            except ValueError as e:
+                pass
+            except Exception as e:
+                raise e
+            "#
         );
     });
 }
@@ -180,7 +180,7 @@ except Exception as e:
 mod inheriting_native_type {
     use super::*;
     use pyo3::exceptions::PyException;
-    use pyo3::types::PyDict;
+    use pyo3::types::{PyDict, PyTuple};
 
     #[cfg(not(PyPy))]
     #[test]
@@ -299,6 +299,60 @@ mod inheriting_native_type {
                 "#
             )
         })
+    }
+
+    #[cfg(not(Py_LIMITED_API))]
+    #[test]
+    fn inherit_type() {
+        use pyo3::types::PyType;
+
+        #[pyclass(extends=PyType)]
+        #[derive(Debug)]
+        struct Metaclass {}
+
+        #[pymethods]
+        impl Metaclass {
+            #[new]
+            #[pyo3(signature = (*args, **kwds))]
+            fn new<'py>(
+                py: Python<'py>,
+                args: &Bound<'py, PyTuple>,
+                kwds: Option<&Bound<'py, PyDict>>,
+            ) -> PyResult<Bound<'py, Self>> {
+                let type_object = PyType::new_type::<Metaclass>(py, args, kwds)?;
+                type_object.setattr("some_var", 123)?;
+                Ok(type_object)
+            }
+
+            fn __getitem__(&self, item: u64) -> u64 {
+                item + 1
+            }
+        }
+
+        Python::with_gil(|py| {
+            #[allow(non_snake_case)]
+            let Metaclass = py.get_type::<Metaclass>();
+
+            // checking base is `type`
+            py_run!(py, Metaclass, r#"assert Metaclass.__bases__ == (type,)"#);
+
+            // check can be used as a metaclass
+            py_run!(
+                py,
+                Metaclass,
+                r#"
+                class Foo(metaclass=Metaclass):
+                    pass
+                assert type(Foo) is Metaclass
+                assert isinstance(Foo, Metaclass)
+                assert Foo.some_var == 123
+                assert Foo[100] == 101
+                FooDynamic = Metaclass("FooDynamic", (), {})
+                assert FooDynamic.some_var == 123
+                assert FooDynamic[100] == 101
+                "#
+            );
+        });
     }
 }
 

@@ -16,7 +16,7 @@ use crate::{ffi, Bound, Python};
 /// This trait must only be implemented for types which represent valid layouts of Python objects.
 pub unsafe trait PyLayout<T> {}
 
-/// `T: PySizedLayout<U>` represents that `T` is not a instance of
+/// `T: PySizedLayout<U>` represents that `T` is not an instance of
 /// [`PyVarObject`](https://docs.python.org/3/c-api/structures.html#c.PyVarObject).
 ///
 /// In addition, that `T` is a concrete representation of `U`.
