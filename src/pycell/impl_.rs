@@ -227,7 +227,7 @@ where
                 // assumes the exception is currently GC tracked, so we have to re-track
                 // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
                 #[cfg(not(any(Py_3_11, PyPy)))]
-                if ffi::PyType_FastSubclass(type_obj, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
+                if ffi::PyType_FastSubclass(type_ptr, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
                     ffi::PyObject_GC_Track(slf.cast());
                 }
                 dealloc(slf);
