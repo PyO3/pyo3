@@ -12,10 +12,9 @@ pub struct PyTupleObject {
 // skipped _PyTuple_Resize
 // skipped _PyTuple_MaybeUntrack
 
-/// Macro, trading safety for speed
-
 // skipped _PyTuple_CAST
 
+/// Macro, trading safety for speed
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyTuple_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {

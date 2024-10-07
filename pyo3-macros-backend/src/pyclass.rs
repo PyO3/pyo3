@@ -678,7 +678,7 @@ trait EnumVariant {
     }
 }
 
-impl<'a> EnumVariant for PyClassEnumVariant<'a> {
+impl EnumVariant for PyClassEnumVariant<'_> {
     fn get_ident(&self) -> &syn::Ident {
         match self {
             PyClassEnumVariant::Struct(struct_variant) => struct_variant.ident,
@@ -701,7 +701,7 @@ struct PyClassEnumUnitVariant<'a> {
     cfg_attrs: Vec<&'a syn::Attribute>,
 }
 
-impl<'a> EnumVariant for PyClassEnumUnitVariant<'a> {
+impl EnumVariant for PyClassEnumUnitVariant<'_> {
     fn get_ident(&self) -> &syn::Ident {
         self.ident
     }

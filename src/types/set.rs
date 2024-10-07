@@ -279,7 +279,7 @@ impl<'py> Iterator for BoundSetIterator<'py> {
     }
 }
 
-impl<'py> ExactSizeIterator for BoundSetIterator<'py> {
+impl ExactSizeIterator for BoundSetIterator<'_> {
     fn len(&self) -> usize {
         self.remaining
     }

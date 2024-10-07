@@ -559,7 +559,7 @@ fn find_and_remove_attribute(attrs: &mut Vec<syn::Attribute>, ident: &str) -> bo
     found
 }
 
-impl<'a> PartialEq<syn::Ident> for IdentOrStr<'a> {
+impl PartialEq<syn::Ident> for IdentOrStr<'_> {
     fn eq(&self, other: &syn::Ident) -> bool {
         match self {
             IdentOrStr::Str(s) => other == s,

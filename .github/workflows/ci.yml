@@ -93,7 +93,7 @@ jobs:
         rust: [stable]
         platform: [
           {
-            os: "macos-14",  # first available arm macos runner
+            os: "macos-latest",
             python-architecture: "arm64",
             rust-target: "aarch64-apple-darwin",
           },
@@ -180,7 +180,7 @@ jobs:
         platform:
           [
             {
-              os: "macos-14",  # first available arm macos runner
+              os: "macos-latest",  # first available arm macos runner
               python-architecture: "arm64",
               rust-target: "aarch64-apple-darwin",
             },
@@ -248,15 +248,10 @@ jobs:
         ]
         platform:
           [
-            # for the full matrix, use x86_64 macos runners because not all Python versions
-            # PyO3 supports are available for arm on GitHub Actions. (Availability starts
-            # around Python 3.10, can switch the full matrix to arm once earlier versions
-            # are dropped.)
-            # NB: if this switches to arm, switch the arm job below in the `include` to x86_64
             {
-              os: "macos-13",
-              python-architecture: "x64",
-              rust-target: "x86_64-apple-darwin",
+              os: "macos-latest",
+              python-architecture: "arm64",
+              rust-target: "aarch64-apple-darwin",
             },
             {
               os: "ubuntu-latest",
@@ -300,7 +295,7 @@ jobs:
                 rust-target: "x86_64-unknown-linux-gnu",
               }
 
-          # Test 32-bit Windows only with the latest Python version
+          # Test 32-bit Windows and x64 macOS only with the latest Python version
           - rust: stable
             python-version: "3.12"
             platform:
@@ -309,14 +304,65 @@ jobs:
                 python-architecture: "x86",
                 rust-target: "i686-pc-windows-msvc",
               }
-
-          # test arm macos runner with the latest Python version
-          # NB: if the full matrix switchess to arm, switch to x86_64 here
           - rust: stable
             python-version: "3.12"
             platform:
               {
-                os: "macos-14",
+                os: "macos-13",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
+
+          # arm64 macOS Python not available on GitHub Actions until 3.10
+          # so backfill 3.7-3.9 with x64 macOS runners
+          - rust: stable
+            python-version: "3.7"
+            platform:
+              {
+                os: "macos-13",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
+          - rust: stable
+            python-version: "3.8"
+            platform:
+              {
+                os: "macos-13",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
+          - rust: stable
+            python-version: "3.9"
+            platform:
+              {
+                os: "macos-13",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
+
+        exclude:
+          # arm64 macOS Python not available on GitHub Actions until 3.10
+          - rust: stable
+            python-version: "3.7"
+            platform:
+              {
+                os: "macos-latest",
+                python-architecture: "arm64",
+                rust-target: "aarch64-apple-darwin",
+              }
+          - rust: stable
+            python-version: "3.8"
+            platform:
+              {
+                os: "macos-latest",
+                python-architecture: "arm64",
+                rust-target: "aarch64-apple-darwin",
+              }
+          - rust: stable
+            python-version: "3.9"
+            platform:
+              {
+                os: "macos-latest",
                 python-architecture: "arm64",
                 rust-target: "aarch64-apple-darwin",
               }
@@ -389,7 +435,7 @@ jobs:
     name: coverage ${{ matrix.os }}
     strategy:
       matrix:
-        os: ["windows-latest", "macos-14", "ubuntu-latest"]  # first available arm macos runner
+        os: ["windows-latest", "macos-latest", "ubuntu-latest"]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -591,7 +637,7 @@ jobs:
           - os: "macos-13"  # last x86_64 macos runners
             target: "aarch64-apple-darwin"
           # macos aarch64 -> x86_64
-          - os: "macos-14"  # aarch64 macos runners
+          - os: "macos-latest"
             target: "x86_64-apple-darwin"
     steps:
       - uses: actions/checkout@v4

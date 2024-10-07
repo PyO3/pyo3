@@ -182,7 +182,7 @@ pub unsafe trait Element: Copy {
     fn is_compatible_format(format: &CStr) -> bool;
 }
 
-impl<'py, T: Element> FromPyObject<'py> for PyBuffer<T> {
+impl<T: Element> FromPyObject<'_> for PyBuffer<T> {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<PyBuffer<T>> {
         Self::get(obj)
     }
