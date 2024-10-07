@@ -39,9 +39,9 @@ use crate::exceptions::PyValueError;
 use crate::pybacked::PyBackedStr;
 use crate::sync::GILOnceCell;
 use crate::types::{any::PyAnyMethods, PyType};
+use crate::{intern, Bound, FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python};
 #[allow(deprecated)]
-use crate::ToPyObject;
-use crate::{intern, Bound, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python};
+use crate::{IntoPy, ToPyObject};
 use chrono_tz::Tz;
 use std::str::FromStr;
 
@@ -53,6 +53,7 @@ impl ToPyObject for Tz {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for Tz {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {

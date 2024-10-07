@@ -2,14 +2,14 @@ use std::{borrow::Cow, convert::Infallible};
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
-#[allow(deprecated)]
-use crate::ToPyObject;
 use crate::{
     conversion::IntoPyObject,
     instance::Bound,
     types::{any::PyAnyMethods, string::PyStringMethods, PyString},
-    FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python,
+    FromPyObject, Py, PyAny, PyObject, PyResult, Python,
 };
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 
 /// Converts a Rust `str` to a Python object.
 /// See `PyString::new` for details on the conversion.
@@ -21,6 +21,7 @@ impl ToPyObject for str {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for &str {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -28,6 +29,7 @@ impl IntoPy<PyObject> for &str {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<Py<PyString>> for &str {
     #[inline]
     fn into_py(self, py: Python<'_>) -> Py<PyString> {
@@ -77,6 +79,7 @@ impl ToPyObject for Cow<'_, str> {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for Cow<'_, str> {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -134,6 +137,7 @@ impl ToPyObject for char {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for char {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -173,6 +177,7 @@ impl<'py> IntoPyObject<'py> for &char {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for String {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -195,6 +200,7 @@ impl<'py> IntoPyObject<'py> for String {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for &String {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -276,11 +282,13 @@ impl FromPyObject<'_> for char {
 #[cfg(test)]
 mod tests {
     use crate::types::any::PyAnyMethods;
-    use crate::{IntoPy, IntoPyObject, PyObject, Python};
+    use crate::{IntoPyObject, PyObject, Python};
     use std::borrow::Cow;
 
     #[test]
+    #[allow(deprecated)]
     fn test_cow_into_py() {
+        use crate::IntoPy;
         Python::with_gil(|py| {
             let s = "Hello Python";
             let py_string: PyObject = Cow::Borrowed(s).into_py(py);
@@ -345,27 +353,30 @@ mod tests {
     }
 
     #[test]
-    fn test_string_into_py() {
+    fn test_string_into_pyobject() {
         Python::with_gil(|py| {
             let s = "Hello Python";
             let s2 = s.to_owned();
             let s3 = &s2;
             assert_eq!(
                 s,
-                IntoPy::<PyObject>::into_py(s3, py)
-                    .extract::<Cow<'_, str>>(py)
+                s3.into_pyobject(py)
+                    .unwrap()
+                    .extract::<Cow<'_, str>>()
                     .unwrap()
             );
             assert_eq!(
                 s,
-                IntoPy::<PyObject>::into_py(s2, py)
-                    .extract::<Cow<'_, str>>(py)
+                s2.into_pyobject(py)
+                    .unwrap()
+                    .extract::<Cow<'_, str>>()
                     .unwrap()
             );
             assert_eq!(
                 s,
-                IntoPy::<PyObject>::into_py(s, py)
-                    .extract::<Cow<'_, str>>(py)
+                s.into_pyobject(py)
+                    .unwrap()
+                    .extract::<Cow<'_, str>>()
                     .unwrap()
             );
         })

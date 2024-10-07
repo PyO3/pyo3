@@ -8,12 +8,11 @@ use crate::inspect::types::TypeInfo;
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{any::PyAnyMethods, sequence::PySequenceMethods, PyList, PySequence};
-#[allow(deprecated)]
-use crate::ToPyObject;
 use crate::{
-    exceptions, Bound, BoundObject, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult,
-    Python,
+    exceptions, Bound, BoundObject, FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python,
 };
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 
 #[inline]
 #[track_caller]
@@ -496,12 +495,14 @@ impl ExactSizeIterator for BorrowedTupleIterator<'_, '_> {
 
 impl FusedIterator for BorrowedTupleIterator<'_, '_> {}
 
+#[allow(deprecated)]
 impl IntoPy<Py<PyTuple>> for Bound<'_, PyTuple> {
     fn into_py(self, _: Python<'_>) -> Py<PyTuple> {
         self.unbind()
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<Py<PyTuple>> for &'_ Bound<'_, PyTuple> {
     fn into_py(self, _: Python<'_>) -> Py<PyTuple> {
         self.clone().unbind()
@@ -525,6 +526,8 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             array_into_tuple(py, [$(self.$n.to_object(py)),+]).into()
         }
     }
+
+    #[allow(deprecated)]
     impl <$($T: IntoPy<PyObject>),+> IntoPy<PyObject> for ($($T,)+) {
         fn into_py(self, py: Python<'_>) -> PyObject {
             array_into_tuple(py, [$(self.$n.into_py(py)),+]).into()
@@ -568,6 +571,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
+    #[allow(deprecated)]
     impl <$($T: IntoPy<PyObject>),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
         fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
             array_into_tuple(py, [$(self.$n.into_py(py)),+])

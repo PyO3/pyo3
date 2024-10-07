@@ -1,5 +1,3 @@
-#[allow(deprecated)]
-use crate::ToPyObject;
 use crate::{
     conversion::IntoPyObject,
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
@@ -12,8 +10,10 @@ use crate::{
     },
     pycell::PyBorrowError,
     types::{any::PyAnyMethods, PyBool},
-    Borrowed, BoundObject, IntoPy, Py, PyAny, PyClass, PyErr, PyRef, PyResult, PyTypeInfo, Python,
+    Borrowed, BoundObject, Py, PyAny, PyClass, PyErr, PyRef, PyResult, PyTypeInfo, Python,
 };
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 use std::{
     borrow::Cow,
     ffi::{CStr, CString},
@@ -1372,6 +1372,7 @@ where
 }
 
 /// IntoPy + Clone fallback case, which was the only behaviour before PyO3 0.22.
+#[allow(deprecated)]
 impl<ClassT, FieldT, Offset>
     PyClassGetterGenerator<ClassT, FieldT, Offset, false, false, true, false, false>
 where
@@ -1452,6 +1453,7 @@ impl<T: ToPyObject> IsToPyObject<T> {
 
 probe!(IsIntoPy);
 
+#[allow(deprecated)]
 impl<T: IntoPy<crate::PyObject>> IsIntoPy<T> {
     pub const VALUE: bool = true;
 }
@@ -1556,6 +1558,7 @@ where
         .into_ptr())
 }
 
+#[allow(deprecated)]
 fn pyo3_get_value<
     ClassT: PyClass,
     FieldT: IntoPy<Py<PyAny>> + Clone,

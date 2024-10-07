@@ -22,7 +22,7 @@ struct ExampleClass {
 impl ExampleClass {
     fn __getattr__(&self, py: Python<'_>, attr: &str) -> PyResult<PyObject> {
         if attr == "special_custom_attr" {
-            Ok(self.custom_attr.into_py(py))
+            Ok(self.custom_attr.into_pyobject(py)?.into_any().unbind())
         } else {
             Err(PyAttributeError::new_err(attr.to_string()))
         }

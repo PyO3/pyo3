@@ -1217,6 +1217,7 @@ Python::with_gil(|py| {
 After, some type annotations may be necessary:
 
 ```rust
+# #![allow(deprecated)]
 # use pyo3::prelude::*;
 #
 # fn main() {
@@ -1695,6 +1696,7 @@ After
 # #[allow(dead_code)]
 struct MyPyObjectWrapper(PyObject);
 
+# #[allow(deprecated)]
 impl IntoPy<PyObject> for MyPyObjectWrapper {
     fn into_py(self, _py: Python<'_>) -> PyObject {
         self.0
@@ -1714,6 +1716,7 @@ let obj = PyObject::from_py(1.234, py);
 
 After:
 ```rust
+# #![allow(deprecated)]
 # use pyo3::prelude::*;
 # Python::with_gil(|py| {
 let obj: PyObject = 1.234.into_py(py);

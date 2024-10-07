@@ -48,9 +48,9 @@ use crate::ffi;
 use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
+use crate::{Bound, FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python};
 #[allow(deprecated)]
-use crate::ToPyObject;
-use crate::{Bound, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python};
+use crate::{IntoPy, ToPyObject};
 
 #[cfg(feature = "num-bigint")]
 use num_bigint::BigInt;
@@ -91,6 +91,7 @@ macro_rules! rational_conversion {
                 self.into_pyobject(py).unwrap().into_any().unbind()
             }
         }
+        #[allow(deprecated)]
         impl IntoPy<PyObject> for Ratio<$int> {
             #[inline]
             fn into_py(self, py: Python<'_>) -> PyObject {
@@ -223,9 +224,9 @@ mod tests {
     #[test]
     fn test_int_roundtrip() {
         Python::with_gil(|py| {
-            let rs_frac = Ratio::new(1, 2);
-            let py_frac: PyObject = rs_frac.into_py(py);
-            let roundtripped: Ratio<i32> = py_frac.extract(py).unwrap();
+            let rs_frac = Ratio::new(1i32, 2);
+            let py_frac = rs_frac.into_pyobject(py).unwrap();
+            let roundtripped: Ratio<i32> = py_frac.extract().unwrap();
             assert_eq!(rs_frac, roundtripped);
             // float conversion
         })
@@ -236,8 +237,8 @@ mod tests {
     fn test_big_int_roundtrip() {
         Python::with_gil(|py| {
             let rs_frac = Ratio::from_float(5.5).unwrap();
-            let py_frac: PyObject = rs_frac.clone().into_py(py);
-            let roundtripped: Ratio<BigInt> = py_frac.extract(py).unwrap();
+            let py_frac = rs_frac.clone().into_pyobject(py).unwrap();
+            let roundtripped: Ratio<BigInt> = py_frac.extract().unwrap();
             assert_eq!(rs_frac, roundtripped);
         })
     }
@@ -248,8 +249,8 @@ mod tests {
         fn test_int_roundtrip(num in any::<i32>(), den in any::<i32>()) {
             Python::with_gil(|py| {
                 let rs_frac = Ratio::new(num, den);
-                let py_frac = rs_frac.into_py(py);
-                let roundtripped: Ratio<i32> = py_frac.extract(py).unwrap();
+                let py_frac = rs_frac.into_pyobject(py).unwrap();
+                let roundtripped: Ratio<i32> = py_frac.extract().unwrap();
                 assert_eq!(rs_frac, roundtripped);
             })
         }
@@ -259,8 +260,8 @@ mod tests {
         fn test_big_int_roundtrip(num in any::<f32>()) {
             Python::with_gil(|py| {
                 let rs_frac = Ratio::from_float(num).unwrap();
-                let py_frac = rs_frac.clone().into_py(py);
-                let roundtripped: Ratio<BigInt> = py_frac.extract(py).unwrap();
+                let py_frac = rs_frac.clone().into_pyobject(py).unwrap();
+                let roundtripped: Ratio<BigInt> = py_frac.extract().unwrap();
                 assert_eq!(roundtripped, rs_frac);
             })
         }

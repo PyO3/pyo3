@@ -130,6 +130,7 @@ macro_rules! complex_conversion {
         }
 
         #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
+        #[allow(deprecated)]
         impl crate::IntoPy<PyObject> for Complex<$float> {
             fn into_py(self, py: Python<'_>) -> PyObject {
                 unsafe {

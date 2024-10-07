@@ -2,12 +2,12 @@ use super::any::PyAnyMethods;
 use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
-#[allow(deprecated)]
-use crate::ToPyObject;
 use crate::{
-    ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, IntoPy, PyAny, PyErr,
-    PyObject, PyResult, Python,
+    ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, PyAny, PyErr, PyObject,
+    PyResult, Python,
 };
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 use std::convert::Infallible;
 use std::os::raw::c_double;
 
@@ -86,6 +86,7 @@ impl ToPyObject for f64 {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for f64 {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -163,6 +164,7 @@ impl ToPyObject for f32 {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for f32 {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {

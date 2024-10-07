@@ -2,15 +2,15 @@
 
 use std::{convert::Infallible, ops::Deref, ptr::NonNull, sync::Arc};
 
-#[allow(deprecated)]
-use crate::ToPyObject;
 use crate::{
     types::{
         any::PyAnyMethods, bytearray::PyByteArrayMethods, bytes::PyBytesMethods,
         string::PyStringMethods, PyByteArray, PyBytes, PyString,
     },
-    Bound, DowncastError, FromPyObject, IntoPy, IntoPyObject, Py, PyAny, PyErr, PyResult, Python,
+    Bound, DowncastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python,
 };
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 
 /// A wrapper around `str` where the storage is owned by a Python `bytes` or `str` object.
 ///
@@ -99,6 +99,7 @@ impl ToPyObject for PyBackedStr {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<Py<PyAny>> for PyBackedStr {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     fn into_py(self, _py: Python<'_>) -> Py<PyAny> {
@@ -248,6 +249,7 @@ impl ToPyObject for PyBackedBytes {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<Py<PyAny>> for PyBackedBytes {
     fn into_py(self, py: Python<'_>) -> Py<PyAny> {
         match self.storage {
@@ -403,6 +405,7 @@ mod test {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn py_backed_str_into_py() {
         Python::with_gil(|py| {
             let orig_str = PyString::new(py, "hello");
@@ -451,6 +454,7 @@ mod test {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn py_backed_bytes_into_pyobject() {
         Python::with_gil(|py| {
             let orig_bytes = PyBytes::new(py, b"abcde");
@@ -464,6 +468,7 @@ mod test {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn rust_backed_bytes_into_pyobject() {
         Python::with_gil(|py| {
             let orig_bytes = PyByteArray::new(py, b"abcde");

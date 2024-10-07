@@ -2,14 +2,15 @@ use std::borrow::Cow;
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
-#[allow(deprecated)]
-use crate::ToPyObject;
 use crate::{
     conversion::IntoPyObject,
     types::{PyByteArray, PyByteArrayMethods, PyBytes},
-    Bound, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    Bound, Py, PyAny, PyErr, PyObject, PyResult, Python,
 };
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for &[u8] {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyBytes::new(py, self).unbind().into()
@@ -82,6 +83,7 @@ impl ToPyObject for Cow<'_, [u8]> {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<Py<PyAny>> for Cow<'_, [u8]> {
     fn into_py(self, py: Python<'_>) -> Py<PyAny> {
         self.into_pyobject(py).unwrap().into_any().unbind()

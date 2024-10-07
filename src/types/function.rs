@@ -7,7 +7,7 @@ use crate::{
     impl_::pymethods::{self, PyMethodDef},
     types::{PyCapsule, PyDict, PyModule, PyString, PyTuple},
 };
-use crate::{Bound, IntoPy, Py, PyAny, PyResult, Python};
+use crate::{Bound, Py, PyAny, PyResult, Python};
 use std::cell::UnsafeCell;
 use std::ffi::CStr;
 
@@ -155,7 +155,7 @@ impl PyCFunction {
     ) -> PyResult<Bound<'py, Self>> {
         let (mod_ptr, module_name): (_, Option<Py<PyString>>) = if let Some(m) = module {
             let mod_ptr = m.as_ptr();
-            (mod_ptr, Some(m.name()?.into_py(py)))
+            (mod_ptr, Some(m.name()?.unbind()))
         } else {
             (std::ptr::null_mut(), None)
         };

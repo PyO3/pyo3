@@ -7,9 +7,9 @@ use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
+use crate::{intern, FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python};
 #[allow(deprecated)]
-use crate::ToPyObject;
-use crate::{intern, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python};
+use crate::{IntoPy, ToPyObject};
 
 impl FromPyObject<'_> for IpAddr {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
@@ -103,6 +103,7 @@ impl ToPyObject for IpAddr {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for IpAddr {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -153,12 +154,12 @@ mod test_ipaddr {
                     "IPv6Address"
                 };
 
-                let pyobj = ip.into_py(py);
-                let repr = pyobj.bind(py).repr().unwrap();
+                let pyobj = ip.into_pyobject(py).unwrap();
+                let repr = pyobj.repr().unwrap();
                 let repr = repr.to_string_lossy();
                 assert_eq!(repr, format!("{}('{}')", py_cls, ip));
 
-                let ip2: IpAddr = pyobj.extract(py).unwrap();
+                let ip2: IpAddr = pyobj.extract().unwrap();
                 assert_eq!(ip, ip2);
             }
             roundtrip(py, "127.0.0.1");

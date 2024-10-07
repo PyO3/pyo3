@@ -1044,6 +1044,7 @@ fn impl_complex_enum(
             .collect();
 
         quote! {
+            #[allow(deprecated)]
             impl #pyo3_path::IntoPy<#pyo3_path::PyObject> for #cls {
                 fn into_py(self, py: #pyo3_path::Python) -> #pyo3_path::PyObject {
                     match self {
@@ -1349,13 +1350,11 @@ fn impl_complex_enum_tuple_variant_getitem(
     let match_arms: Vec<_> = (0..num_fields)
         .map(|i| {
             let field_access = format_ident!("_{}", i);
-            quote! {
-            #i => ::std::result::Result::Ok(
-                #pyo3_path::IntoPy::into_py(
-                    #variant_cls::#field_access(slf)?
-                    , py)
-                )
-
+            quote! { #i =>
+                #pyo3_path::IntoPyObject::into_pyobject(#variant_cls::#field_access(slf)?, py)
+                    .map(#pyo3_path::BoundObject::into_any)
+                    .map(#pyo3_path::BoundObject::unbind)
+                    .map_err(::std::convert::Into::into)
             }
         })
         .collect();
@@ -1837,10 +1836,16 @@ fn pyclass_richcmp_arms(
         .map(|span| {
             quote_spanned! { span =>
                 #pyo3_path::pyclass::CompareOp::Eq => {
-                    ::std::result::Result::Ok(#pyo3_path::conversion::IntoPy::into_py(self_val == other, py))
+                    #pyo3_path::IntoPyObject::into_pyobject(self_val == other, py)
+                        .map(#pyo3_path::BoundObject::into_any)
+                        .map(#pyo3_path::BoundObject::unbind)
+                        .map_err(::std::convert::Into::into)
                 },
                 #pyo3_path::pyclass::CompareOp::Ne => {
-                    ::std::result::Result::Ok(#pyo3_path::conversion::IntoPy::into_py(self_val != other, py))
+                    #pyo3_path::IntoPyObject::into_pyobject(self_val != other, py)
+                        .map(#pyo3_path::BoundObject::into_any)
+                        .map(#pyo3_path::BoundObject::unbind)
+                        .map_err(::std::convert::Into::into)
                 },
             }
         })
@@ -1855,16 +1860,28 @@ fn pyclass_richcmp_arms(
         .map(|ord| {
             quote_spanned! { ord.span() =>
                 #pyo3_path::pyclass::CompareOp::Gt => {
-                    ::std::result::Result::Ok(#pyo3_path::conversion::IntoPy::into_py(self_val > other, py))
+                    #pyo3_path::IntoPyObject::into_pyobject(self_val > other, py)
+                        .map(#pyo3_path::BoundObject::into_any)
+                        .map(#pyo3_path::BoundObject::unbind)
+                        .map_err(::std::convert::Into::into)
                 },
                 #pyo3_path::pyclass::CompareOp::Lt => {
-                    ::std::result::Result::Ok(#pyo3_path::conversion::IntoPy::into_py(self_val < other, py))
+                    #pyo3_path::IntoPyObject::into_pyobject(self_val < other, py)
+                        .map(#pyo3_path::BoundObject::into_any)
+                        .map(#pyo3_path::BoundObject::unbind)
+                        .map_err(::std::convert::Into::into)
                  },
                 #pyo3_path::pyclass::CompareOp::Le => {
-                    ::std::result::Result::Ok(#pyo3_path::conversion::IntoPy::into_py(self_val <= other, py))
+                    #pyo3_path::IntoPyObject::into_pyobject(self_val <= other, py)
+                        .map(#pyo3_path::BoundObject::into_any)
+                        .map(#pyo3_path::BoundObject::unbind)
+                        .map_err(::std::convert::Into::into)
                  },
                 #pyo3_path::pyclass::CompareOp::Ge => {
-                    ::std::result::Result::Ok(#pyo3_path::conversion::IntoPy::into_py(self_val >= other, py))
+                    #pyo3_path::IntoPyObject::into_pyobject(self_val >= other, py)
+                        .map(#pyo3_path::BoundObject::into_any)
+                        .map(#pyo3_path::BoundObject::unbind)
+                        .map_err(::std::convert::Into::into)
                  },
             }
         })
@@ -2145,6 +2162,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         // If #cls is not extended type, we allow Self->PyObject conversion
         if attr.options.extends.is_none() {
             quote! {
+                #[allow(deprecated)]
                 impl #pyo3_path::IntoPy<#pyo3_path::PyObject> for #cls {
                     fn into_py(self, py: #pyo3_path::Python<'_>) -> #pyo3_path::PyObject {
                         #pyo3_path::IntoPy::into_py(#pyo3_path::Py::new(py, self).unwrap(), py)
