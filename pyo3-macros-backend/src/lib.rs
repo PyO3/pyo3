@@ -11,6 +11,7 @@ mod utils;
 mod attributes;
 mod deprecations;
 mod frompyobject;
+mod intopyobject;
 mod konst;
 mod method;
 mod module;
@@ -23,6 +24,7 @@ mod pyversions;
 mod quotes;
 
 pub use frompyobject::build_derive_from_pyobject;
+pub use intopyobject::build_derive_into_pyobject;
 pub use module::{pymodule_function_impl, pymodule_module_impl, PyModuleOptions};
 pub use pyclass::{build_py_class, build_py_enum, PyClassArgs};
 pub use pyfunction::{build_py_function, PyFunctionOptions};

@@ -153,8 +153,48 @@ Notable features of this new trait:
 - `()` (unit) is now only special handled in return position and otherwise converts into an empty `PyTuple`
 
 All PyO3 provided types as well as `#[pyclass]`es already implement `IntoPyObject`. Other types will
-need to adapt an implementation of `IntoPyObject` to stay compatible with the Python APIs.
+need to adapt an implementation of `IntoPyObject` to stay compatible with the Python APIs. In many cases
+the new [`#[derive(IntoPyObject)]`](#intopyobject-derive-macro) macro can be used instead of
+[manual implementations](#intopyobject-manual-implementation).
 
+#### `IntoPyObject` derive macro
+
+To migrate you may use the new `IntoPyObject` derive macro as below.
+
+```rust
+# use pyo3::prelude::*;
+#[derive(IntoPyObject)]
+struct Struct { 
+    count: usize,
+    obj: Py<PyAny>,
+}
+```
+
+will expand into the following:
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::types::PyDict;
+# struct Struct { 
+#     count: usize,
+#     obj: Py<PyAny>,
+# }
+
+impl<'py> IntoPyObject<'py> for Struct {
+    type Target = PyDict;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let dict = PyDict::new(py);
+        dict.set_item("count", self.count)?;
+        dict.set_item("obj", self.obj)?;
+        Ok(dict)
+    }
+}
+```
+
+#### `IntoPyObject` manual implementation
 
 Before:
 ```rust
