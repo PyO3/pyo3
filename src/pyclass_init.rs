@@ -2,12 +2,13 @@
 use crate::callback::IntoPyCallbackOutput;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, PyClassWeakRef};
-use crate::types::PyAnyMethods;
-use crate::{ffi, Bound, Py, PyClass, PyErr, PyResult, Python};
+use crate::internal::get_slot::TP_ALLOC;
+use crate::types::{PyAnyMethods, PyType};
+use crate::{ffi, Borrowed, Bound, Py, PyClass, PyErr, PyResult, Python};
 use crate::{
     ffi::PyTypeObject,
     pycell::impl_::{PyClassBorrowChecker, PyClassMutability, PyClassObjectContents},
-    type_object::{get_tp_alloc, PyTypeInfo},
+    type_object::PyTypeInfo,
 };
 use std::{
     cell::UnsafeCell,
@@ -50,8 +51,16 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
         ) -> PyResult<*mut ffi::PyObject> {
             // HACK (due to FIXME below): PyBaseObject_Type's tp_new isn't happy with NULL arguments
             let is_base_object = type_object == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type);
+            let subtype_borrowed: Borrowed<'_, '_, PyType> = subtype
+                .cast::<ffi::PyObject>()
+                .assume_borrowed_unchecked(py)
+                .downcast_unchecked();
+
             if is_base_object {
-                let alloc = get_tp_alloc(subtype).unwrap_or(ffi::PyType_GenericAlloc);
+                let alloc = subtype_borrowed
+                    .get_slot(TP_ALLOC)
+                    .unwrap_or(ffi::PyType_GenericAlloc);
+
                 let obj = alloc(subtype, 0);
                 return if obj.is_null() {
                     Err(PyErr::fetch(py))
