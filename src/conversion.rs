@@ -64,6 +64,10 @@ pub unsafe trait AsPyPointer {
 }
 
 /// Conversion trait that allows various objects to be converted into `PyObject`.
+#[deprecated(
+    since = "0.23.0",
+    note = "`ToPyObject` is going to be replaced by `IntoPyObject`. See the migration guide (https://pyo3.rs/v0.23/migration) for more information."
+)]
 pub trait ToPyObject {
     /// Converts self into a Python object.
     fn to_object(&self, py: Python<'_>) -> PyObject;
@@ -548,6 +552,7 @@ where
 
 /// Identity conversion: allows using existing `PyObject` instances where
 /// `T: ToPyObject` is expected.
+#[allow(deprecated)]
 impl<T: ?Sized + ToPyObject> ToPyObject for &'_ T {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {

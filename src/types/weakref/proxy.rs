@@ -3,7 +3,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::PyTypeCheck;
 use crate::types::{any::PyAny, PyNone};
-use crate::{ffi, Bound, ToPyObject};
+use crate::{ffi, Bound, BoundObject, IntoPyObject};
 
 use super::PyWeakrefMethods;
 
@@ -148,7 +148,7 @@ impl PyWeakrefProxy {
         callback: C,
     ) -> PyResult<Bound<'py, PyWeakrefProxy>>
     where
-        C: ToPyObject,
+        C: IntoPyObject<'py>,
     {
         fn inner<'py>(
             object: &Bound<'py, PyAny>,
@@ -164,20 +164,28 @@ impl PyWeakrefProxy {
         }
 
         let py = object.py();
-        inner(object, callback.to_object(py).into_bound(py))
+        inner(
+            object,
+            callback
+                .into_pyobject(py)
+                .map(BoundObject::into_any)
+                .map(BoundObject::into_bound)
+                .map_err(Into::into)?,
+        )
     }
 
     /// Deprecated name for [`PyWeakrefProxy::new_with`].
     #[deprecated(since = "0.23.0", note = "renamed to `PyWeakrefProxy::new_with`")]
+    #[allow(deprecated)]
     #[inline]
     pub fn new_bound_with<'py, C>(
         object: &Bound<'py, PyAny>,
         callback: C,
     ) -> PyResult<Bound<'py, PyWeakrefProxy>>
     where
-        C: ToPyObject,
+        C: crate::ToPyObject,
     {
-        Self::new_with(object, callback)
+        Self::new_with(object, callback.to_object(object.py()))
     }
 }
 

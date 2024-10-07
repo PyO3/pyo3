@@ -10,9 +10,11 @@ use crate::internal_tricks::get_ssize_index;
 use crate::types::{
     any::PyAnyMethods, sequence::PySequenceMethods, PyDict, PyList, PySequence, PyString,
 };
+#[allow(deprecated)]
+use crate::ToPyObject;
 use crate::{
     exceptions, Bound, BoundObject, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult,
-    Python, ToPyObject,
+    Python,
 };
 
 #[inline]
@@ -111,6 +113,7 @@ impl PyTuple {
 
     /// Deprecated name for [`PyTuple::new`].
     #[deprecated(since = "0.23.0", note = "renamed to `PyTuple::new`")]
+    #[allow(deprecated)]
     #[track_caller]
     #[inline]
     pub fn new_bound<T, U>(
@@ -169,14 +172,13 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// Gets the tuple item at the specified index.
     /// # Example
     /// ```
-    /// use pyo3::{prelude::*, types::PyTuple};
+    /// use pyo3::prelude::*;
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let ob = (1, 2, 3).to_object(py);
-    ///     let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
+    ///     let tuple = (1, 2, 3).into_pyobject(py)?;
     ///     let obj = tuple.get_item(0);
-    ///     assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 1);
+    ///     assert_eq!(obj?.extract::<i32>()?, 1);
     ///     Ok(())
     /// })
     /// # }
@@ -519,6 +521,7 @@ fn wrong_tuple_length(t: &Bound<'_, PyTuple>, expected_length: usize) -> PyErr {
 }
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
+    #[allow(deprecated)]
     impl <$($T: ToPyObject),+> ToPyObject for ($($T,)+) {
         fn to_object(&self, py: Python<'_>) -> PyObject {
             array_into_tuple(py, [$(self.$n.to_object(py)),+]).into()
@@ -818,8 +821,9 @@ tuple_conversion!(
 #[cfg(test)]
 mod tests {
     use crate::types::{any::PyAnyMethods, tuple::PyTupleMethods, PyList, PyTuple};
-    use crate::Python;
+    use crate::{IntoPyObject, Python};
     use std::collections::HashSet;
+    use std::ops::Range;
 
     #[test]
     fn test_new() {
@@ -1138,9 +1142,6 @@ mod tests {
             assert!(tuple.index(42i32).is_err());
         });
     }
-
-    use crate::prelude::IntoPyObject;
-    use std::ops::Range;
 
     // An iterator that lies about its `ExactSizeIterator` implementation.
     // See https://github.com/PyO3/pyo3/issues/2118

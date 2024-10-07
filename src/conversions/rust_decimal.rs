@@ -55,9 +55,9 @@ use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
-use crate::{
-    Bound, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
-};
+#[allow(deprecated)]
+use crate::ToPyObject;
+use crate::{Bound, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python};
 use rust_decimal::Decimal;
 use std::str::FromStr;
 
@@ -82,6 +82,7 @@ fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     DECIMAL_CLS.import(py, "decimal", "Decimal")
 }
 
+#[allow(deprecated)]
 impl ToPyObject for Decimal {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {

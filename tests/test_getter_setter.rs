@@ -228,8 +228,8 @@ fn cell_getter_setter() {
         cell_inner: Cell::new(10),
     };
     Python::with_gil(|py| {
-        let inst = Py::new(py, c).unwrap().to_object(py);
-        let cell = Cell::new(20).to_object(py);
+        let inst = Py::new(py, c).unwrap();
+        let cell = Cell::new(20i32).into_pyobject(py).unwrap();
 
         py_run!(py, cell, "assert cell == 20");
         py_run!(py, inst, "assert inst.cell_inner == 10");
@@ -255,7 +255,7 @@ fn borrowed_value_with_lifetime_of_self() {
     }
 
     Python::with_gil(|py| {
-        let inst = Py::new(py, BorrowedValue {}).unwrap().to_object(py);
+        let inst = Py::new(py, BorrowedValue {}).unwrap();
 
         py_run!(py, inst, "assert inst.value == 'value'");
     });
@@ -276,8 +276,7 @@ fn frozen_py_field_get() {
                 value: "value".into_py(py),
             },
         )
-        .unwrap()
-        .to_object(py);
+        .unwrap();
 
         py_run!(py, inst, "assert inst.value == 'value'");
     });

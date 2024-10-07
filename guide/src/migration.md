@@ -155,9 +155,12 @@ Notable features of this new trait:
 All PyO3 provided types as well as `#[pyclass]`es already implement `IntoPyObject`. Other types will
 need to adapt an implementation of `IntoPyObject` to stay compatible with the Python APIs.
 
+Together with the introduction of `IntoPyObject` the old conversion traits `ToPyObject` and `IntoPy`
+are deprecated and will be removed in a future PyO3 version.
+
 
 Before:
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
 struct MyPyObjectWrapper(PyObject);

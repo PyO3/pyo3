@@ -132,9 +132,9 @@ fn test_pickle() {
         pub fn __reduce__<'py>(
             slf: &Bound<'py, Self>,
             py: Python<'py>,
-        ) -> PyResult<(PyObject, Bound<'py, PyTuple>, PyObject)> {
-            let cls = slf.to_object(py).getattr(py, "__class__")?;
-            let dict = slf.to_object(py).getattr(py, "__dict__")?;
+        ) -> PyResult<(Bound<'py, PyAny>, Bound<'py, PyTuple>, Bound<'py, PyAny>)> {
+            let cls = slf.getattr("__class__")?;
+            let dict = slf.getattr("__dict__")?;
             Ok((cls, PyTuple::empty(py), dict))
         }
     }

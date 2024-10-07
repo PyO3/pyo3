@@ -1,5 +1,7 @@
 use crate::conversion::IntoPyObject;
 use crate::types::PyIterator;
+#[allow(deprecated)]
+use crate::ToPyObject;
 use crate::{
     err::{self, PyErr, PyResult},
     ffi_ptr_ext::FfiPtrExt,
@@ -7,7 +9,7 @@ use crate::{
     py_result_ext::PyResultExt,
     types::any::PyAnyMethods,
 };
-use crate::{ffi, Borrowed, BoundObject, PyAny, Python, ToPyObject};
+use crate::{ffi, Borrowed, BoundObject, PyAny, Python};
 use std::ptr;
 
 /// Represents a Python `set`.
@@ -55,6 +57,7 @@ impl PySet {
 
     /// Deprecated name for [`PySet::new`].
     #[deprecated(since = "0.23.0", note = "renamed to `PySet::new`")]
+    #[allow(deprecated)]
     #[inline]
     pub fn new_bound<'a, 'p, T: ToPyObject + 'a>(
         py: Python<'p>,
@@ -285,6 +288,7 @@ impl ExactSizeIterator for BoundSetIterator<'_> {
     }
 }
 
+#[allow(deprecated)]
 #[inline]
 pub(crate) fn new_from_iter<T: ToPyObject>(
     py: Python<'_>,

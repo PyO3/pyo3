@@ -2,6 +2,8 @@ use std::{cmp, collections, hash};
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[allow(deprecated)]
+use crate::ToPyObject;
 use crate::{
     conversion::IntoPyObject,
     instance::Bound,
@@ -11,9 +13,10 @@ use crate::{
         set::{new_from_iter, try_new_from_iter, PySetMethods},
         PyFrozenSet, PySet,
     },
-    FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python,
 };
 
+#[allow(deprecated)]
 impl<T, S> ToPyObject for collections::HashSet<T, S>
 where
     T: hash::Hash + Eq + ToPyObject,
@@ -26,6 +29,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<T> ToPyObject for collections::BTreeSet<T>
 where
     T: hash::Hash + Eq + ToPyObject,
@@ -174,7 +178,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::types::{any::PyAnyMethods, PyFrozenSet, PySet};
-    use crate::{IntoPy, PyObject, Python, ToPyObject};
+    use crate::{IntoPy, IntoPyObject, PyObject, Python};
     use std::collections::{BTreeSet, HashSet};
 
     #[test]
@@ -218,16 +222,16 @@ mod tests {
     }
 
     #[test]
-    fn test_set_to_object() {
+    fn test_set_into_pyobject() {
         Python::with_gil(|py| {
             let bt: BTreeSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
             let hs: HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
 
-            let bto: PyObject = bt.to_object(py);
-            let hso: PyObject = hs.to_object(py);
+            let bto = (&bt).into_pyobject(py).unwrap();
+            let hso = (&hs).into_pyobject(py).unwrap();
 
-            assert_eq!(bt, bto.extract(py).unwrap());
-            assert_eq!(hs, hso.extract(py).unwrap());
+            assert_eq!(bt, bto.extract().unwrap());
+            assert_eq!(hs, hso.extract().unwrap());
         });
     }
 }

@@ -49,12 +49,14 @@
 
 #[cfg(Py_LIMITED_API)]
 use crate::types::{bytes::PyBytesMethods, PyBytes};
+#[allow(deprecated)]
+use crate::ToPyObject;
 use crate::{
     conversion::IntoPyObject,
     ffi,
     instance::Bound,
     types::{any::PyAnyMethods, PyInt},
-    FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
 };
 
 use num_bigint::{BigInt, BigUint};
@@ -66,6 +68,7 @@ use num_bigint::Sign;
 macro_rules! bigint_conversion {
     ($rust_ty: ty, $is_signed: literal, $to_bytes: path) => {
         #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
+        #[allow(deprecated)]
         impl ToPyObject for $rust_ty {
             #[inline]
             fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -355,11 +358,11 @@ mod tests {
         })
     }
 
-    fn python_fib(py: Python<'_>) -> impl Iterator<Item = PyObject> + '_ {
-        let mut f0 = 1.to_object(py);
-        let mut f1 = 1.to_object(py);
+    fn python_fib(py: Python<'_>) -> impl Iterator<Item = Bound<'_, PyAny>> + '_ {
+        let mut f0 = 1i32.into_pyobject(py).unwrap().into_any();
+        let mut f1 = 1i32.into_pyobject(py).unwrap().into_any();
         std::iter::from_fn(move || {
-            let f2 = f0.call_method1(py, "__add__", (f1.bind(py),)).unwrap();
+            let f2 = f0.call_method1("__add__", (&f1,)).unwrap();
             Some(std::mem::replace(&mut f0, std::mem::replace(&mut f1, f2)))
         })
     }
@@ -370,9 +373,9 @@ mod tests {
             // check the first 2000 numbers in the fibonacci sequence
             for (py_result, rs_result) in python_fib(py).zip(rust_fib::<BigUint>()).take(2000) {
                 // Python -> Rust
-                assert_eq!(py_result.extract::<BigUint>(py).unwrap(), rs_result);
+                assert_eq!(py_result.extract::<BigUint>().unwrap(), rs_result);
                 // Rust -> Python
-                assert!(py_result.bind(py).eq(rs_result).unwrap());
+                assert!(py_result.eq(rs_result).unwrap());
             }
         });
     }
@@ -383,19 +386,19 @@ mod tests {
             // check the first 2000 numbers in the fibonacci sequence
             for (py_result, rs_result) in python_fib(py).zip(rust_fib::<BigInt>()).take(2000) {
                 // Python -> Rust
-                assert_eq!(py_result.extract::<BigInt>(py).unwrap(), rs_result);
+                assert_eq!(py_result.extract::<BigInt>().unwrap(), rs_result);
                 // Rust -> Python
-                assert!(py_result.bind(py).eq(&rs_result).unwrap());
+                assert!(py_result.eq(&rs_result).unwrap());
 
                 // negate
 
                 let rs_result = rs_result * -1;
-                let py_result = py_result.call_method0(py, "__neg__").unwrap();
+                let py_result = py_result.call_method0("__neg__").unwrap();
 
                 // Python -> Rust
-                assert_eq!(py_result.extract::<BigInt>(py).unwrap(), rs_result);
+                assert_eq!(py_result.extract::<BigInt>().unwrap(), rs_result);
                 // Rust -> Python
-                assert!(py_result.bind(py).eq(rs_result).unwrap());
+                assert!(py_result.eq(rs_result).unwrap());
             }
         });
     }
@@ -435,7 +438,7 @@ mod tests {
     #[test]
     fn handle_zero() {
         Python::with_gil(|py| {
-            let zero: BigInt = 0.to_object(py).extract(py).unwrap();
+            let zero: BigInt = 0i32.into_pyobject(py).unwrap().extract().unwrap();
             assert_eq!(zero, BigInt::from(0));
         })
     }

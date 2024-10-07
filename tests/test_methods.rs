@@ -4,6 +4,7 @@ use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::PySequence;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
+use pyo3::BoundObject;
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -213,24 +214,33 @@ impl MethSignature {
         test
     }
     #[pyo3(signature = (*args, **kwargs))]
-    fn get_kwargs(
+    fn get_kwargs<'py>(
         &self,
-        py: Python<'_>,
-        args: &Bound<'_, PyTuple>,
-        kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyObject {
-        [args.to_object(py), kwargs.to_object(py)].to_object(py)
+        py: Python<'py>,
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        [
+            args.as_any().clone(),
+            kwargs.into_pyobject(py)?.into_any().into_bound(),
+        ]
+        .into_pyobject(py)
     }
 
     #[pyo3(signature = (a, *args, **kwargs))]
-    fn get_pos_arg_kw(
+    fn get_pos_arg_kw<'py>(
         &self,
-        py: Python<'_>,
+        py: Python<'py>,
         a: i32,
-        args: &Bound<'_, PyTuple>,
-        kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyObject {
-        [a.to_object(py), args.to_object(py), kwargs.to_object(py)].to_object(py)
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        [
+            a.into_pyobject(py)?.into_any().into_bound(),
+            args.as_any().clone(),
+            kwargs.into_pyobject(py)?.into_any().into_bound(),
+        ]
+        .into_pyobject(py)
     }
 
     #[pyo3(signature = (a, b, /))]
@@ -274,8 +284,13 @@ impl MethSignature {
         py: Python<'_>,
         a: i32,
         kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyObject {
-        [a.to_object(py), kwargs.to_object(py)].to_object(py)
+    ) -> PyResult<PyObject> {
+        [
+            a.into_pyobject(py)?.into_any().into_bound(),
+            kwargs.into_pyobject(py)?.into_any().into_bound(),
+        ]
+        .into_pyobject(py)
+        .map(BoundObject::unbind)
     }
 
     #[pyo3(signature = (a=0, /, **kwargs))]
@@ -284,8 +299,13 @@ impl MethSignature {
         py: Python<'_>,
         a: i32,
         kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyObject {
-        [a.to_object(py), kwargs.to_object(py)].to_object(py)
+    ) -> PyResult<PyObject> {
+        [
+            a.into_pyobject(py)?.into_any().into_bound(),
+            kwargs.into_pyobject(py)?.into_any().into_bound(),
+        ]
+        .into_pyobject(py)
+        .map(BoundObject::unbind)
     }
 
     #[pyo3(signature = (*, a = 2, b = 3))]
@@ -309,8 +329,11 @@ impl MethSignature {
         py: Python<'_>,
         args: &Bound<'_, PyTuple>,
         a: i32,
-    ) -> PyObject {
-        (args, a).to_object(py)
+    ) -> PyResult<PyObject> {
+        (args, a)
+            .into_pyobject(py)
+            .map(BoundObject::into_any)
+            .map(BoundObject::unbind)
     }
 
     #[pyo3(signature = (a, b = 2, *, c = 3))]
@@ -324,8 +347,18 @@ impl MethSignature {
     }
 
     #[pyo3(signature = (a, **kwargs))]
-    fn get_pos_kw(&self, py: Python<'_>, a: i32, kwargs: Option<&Bound<'_, PyDict>>) -> PyObject {
-        [a.to_object(py), kwargs.to_object(py)].to_object(py)
+    fn get_pos_kw(
+        &self,
+        py: Python<'_>,
+        a: i32,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyObject> {
+        [
+            a.into_pyobject(py)?.into_any().into_bound(),
+            kwargs.into_pyobject(py)?.into_any().into_bound(),
+        ]
+        .into_pyobject(py)
+        .map(BoundObject::unbind)
     }
 
     // "args" can be anything that can be extracted from PyTuple

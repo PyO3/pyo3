@@ -5,12 +5,11 @@ use std::{convert::Infallible, ops::Deref, ptr::NonNull, sync::Arc};
 #[allow(deprecated)]
 use crate::ToPyObject;
 use crate::{
-    prelude::IntoPyObject,
     types::{
         any::PyAnyMethods, bytearray::PyByteArrayMethods, bytes::PyBytesMethods,
         string::PyStringMethods, PyByteArray, PyBytes, PyString,
     },
-    Bound, DowncastError, FromPyObject, IntoPy, Py, PyAny, PyErr, PyResult, Python,
+    Bound, DowncastError, FromPyObject, IntoPy, IntoPyObject, Py, PyAny, PyErr, PyResult, Python,
 };
 
 /// A wrapper around `str` where the storage is owned by a Python `bytes` or `str` object.
@@ -360,8 +359,7 @@ use impl_traits;
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::prelude::IntoPyObject;
-    use crate::Python;
+    use crate::{IntoPyObject, Python};
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
 

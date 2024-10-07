@@ -577,7 +577,7 @@ impl PartialEq<Borrowed<'_, '_, PyString>> for &'_ str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{PyObject, ToPyObject};
+    use crate::{IntoPyObject, PyObject};
 
     #[test]
     fn test_to_cow_utf8() {
@@ -650,8 +650,7 @@ mod tests {
     #[test]
     fn test_debug_string() {
         Python::with_gil(|py| {
-            let v = "Hello\n".to_object(py);
-            let s = v.downcast_bound::<PyString>(py).unwrap();
+            let s = "Hello\n".into_pyobject(py).unwrap();
             assert_eq!(format!("{:?}", s), "'Hello\\n'");
         })
     }
@@ -659,8 +658,7 @@ mod tests {
     #[test]
     fn test_display_string() {
         Python::with_gil(|py| {
-            let v = "Hello\n".to_object(py);
-            let s = v.downcast_bound::<PyString>(py).unwrap();
+            let s = "Hello\n".into_pyobject(py).unwrap();
             assert_eq!(format!("{}", s), "Hello\n");
         })
     }
