@@ -257,7 +257,7 @@ fn test_simple_enum_with_hash() {
 
         let env = [
             ("obj", Py::new(py, class).unwrap().into_any()),
-            ("hsh", hash.into_py(py)),
+            ("hsh", hash.into_pyobject(py).unwrap().into_any().unbind()),
         ]
         .into_py_dict(py)
         .unwrap();
@@ -289,7 +289,7 @@ fn test_complex_enum_with_hash() {
 
         let env = [
             ("obj", Py::new(py, class).unwrap().into_any()),
-            ("hsh", hash.into_py(py)),
+            ("hsh", hash.into_pyobject(py).unwrap().into_any().unbind()),
         ]
         .into_py_dict(py)
         .unwrap();

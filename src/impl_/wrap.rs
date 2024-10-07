@@ -1,8 +1,9 @@
 use std::{convert::Infallible, marker::PhantomData, ops::Deref};
 
+#[allow(deprecated)]
+use crate::IntoPy;
 use crate::{
-    conversion::IntoPyObject, ffi, types::PyNone, Bound, BoundObject, IntoPy, PyObject, PyResult,
-    Python,
+    conversion::IntoPyObject, ffi, types::PyNone, Bound, BoundObject, PyObject, PyResult, Python,
 };
 
 /// Used to wrap values in `Option<T>` for default arguments.
@@ -112,6 +113,7 @@ impl<'py, T: IntoPyObject<'py>, E> IntoPyObjectConverter<Result<T, E>> {
     }
 }
 
+#[allow(deprecated)]
 impl<T: IntoPy<PyObject>> IntoPyConverter<T> {
     #[inline]
     pub fn wrap(&self, obj: T) -> Result<T, Infallible> {
@@ -119,6 +121,7 @@ impl<T: IntoPy<PyObject>> IntoPyConverter<T> {
     }
 }
 
+#[allow(deprecated)]
 impl<T: IntoPy<PyObject>, E> IntoPyConverter<Result<T, E>> {
     #[inline]
     pub fn wrap(&self, obj: Result<T, E>) -> Result<T, E> {

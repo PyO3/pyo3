@@ -15,7 +15,7 @@ use crate::{
     exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
     panic::PanicException,
     types::{string::PyStringMethods, PyIterator, PyString},
-    Bound, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    Bound, BoundObject, IntoPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python,
 };
 
 pub(crate) mod cancel;
@@ -42,24 +42,27 @@ impl Coroutine {
     /// (should always be `None` anyway).
     ///
     /// `Coroutine `throw` drop the wrapped future and reraise the exception passed
-    pub(crate) fn new<F, T, E>(
-        name: Option<Py<PyString>>,
+    pub(crate) fn new<'py, F, T, E>(
+        name: Option<Bound<'py, PyString>>,
         qualname_prefix: Option<&'static str>,
         throw_callback: Option<ThrowCallback>,
         future: F,
     ) -> Self
     where
         F: Future<Output = Result<T, E>> + Send + 'static,
-        T: IntoPy<PyObject>,
+        T: IntoPyObject<'py>,
         E: Into<PyErr>,
     {
         let wrap = async move {
             let obj = future.await.map_err(Into::into)?;
             // SAFETY: GIL is acquired when future is polled (see `Coroutine::poll`)
-            Ok(obj.into_py(unsafe { Python::assume_gil_acquired() }))
+            obj.into_pyobject(unsafe { Python::assume_gil_acquired() })
+                .map(BoundObject::into_any)
+                .map(BoundObject::unbind)
+                .map_err(Into::into)
         };
         Self {
-            name,
+            name: name.map(Bound::unbind),
             qualname_prefix,
             throw_callback,
             future: Some(Box::pin(wrap)),
@@ -115,7 +118,7 @@ impl Coroutine {
         }
         // if waker has been waken during future polling, this is roughly equivalent to
         // `await asyncio.sleep(0)`, so just yield `None`.
-        Ok(py.None().into_py(py))
+        Ok(py.None())
     }
 }
 
@@ -132,9 +135,11 @@ impl Coroutine {
     #[getter]
     fn __qualname__(&self, py: Python<'_>) -> PyResult<Py<PyString>> {
         match (&self.name, &self.qualname_prefix) {
-            (Some(name), Some(prefix)) => Ok(format!("{}.{}", prefix, name.bind(py).to_cow()?)
+            (Some(name), Some(prefix)) => format!("{}.{}", prefix, name.bind(py).to_cow()?)
                 .as_str()
-                .into_py(py)),
+                .into_pyobject(py)
+                .map(BoundObject::unbind)
+                .map_err(Into::into),
             (Some(name), None) => Ok(name.clone_ref(py)),
             (None, _) => Err(PyAttributeError::new_err("__qualname__")),
         }

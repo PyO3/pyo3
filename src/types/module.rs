@@ -97,6 +97,7 @@ impl PyModule {
 
     /// Deprecated name for [`PyModule::import`].
     #[deprecated(since = "0.23.0", note = "renamed to `PyModule::import`")]
+    #[allow(deprecated)]
     #[inline]
     pub fn import_bound<N>(py: Python<'_>, name: N) -> PyResult<Bound<'_, PyModule>>
     where

@@ -8,9 +8,9 @@ use crate::types::PyType;
 use crate::types::{timezone_utc, PyDateTime, PyDelta, PyDeltaAccess};
 #[cfg(Py_LIMITED_API)]
 use crate::Py;
+use crate::{intern, Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python};
 #[allow(deprecated)]
-use crate::ToPyObject;
-use crate::{intern, Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python};
+use crate::{IntoPy, ToPyObject};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
@@ -60,6 +60,7 @@ impl ToPyObject for Duration {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for Duration {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -141,6 +142,7 @@ impl ToPyObject for SystemTime {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for SystemTime {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -201,7 +203,6 @@ fn unix_epoch_py(py: Python<'_>) -> PyResult<&PyObject> {
 mod tests {
     use super::*;
     use crate::types::PyDict;
-    use std::panic;
 
     #[test]
     fn test_duration_frompyobject() {
@@ -347,24 +348,26 @@ mod tests {
     }
 
     #[test]
-    fn test_time_topyobject() {
+    fn test_time_intopyobject() {
         Python::with_gil(|py| {
-            let assert_eq = |l: PyObject, r: Bound<'_, PyAny>| {
-                assert!(l.bind(py).eq(r).unwrap());
+            let assert_eq = |l: Bound<'_, PyAny>, r: Bound<'_, PyAny>| {
+                assert!(l.eq(r).unwrap());
             };
 
             assert_eq(
                 UNIX_EPOCH
                     .checked_add(Duration::new(1580702706, 7123))
                     .unwrap()
-                    .into_py(py),
+                    .into_pyobject(py)
+                    .unwrap(),
                 new_datetime(py, 2020, 2, 3, 4, 5, 6, 7),
             );
             assert_eq(
                 UNIX_EPOCH
                     .checked_add(Duration::new(253402300799, 999999000))
                     .unwrap()
-                    .into_py(py),
+                    .into_pyobject(py)
+                    .unwrap(),
                 max_datetime(py),
             );
         });
@@ -403,12 +406,12 @@ mod tests {
     }
 
     #[test]
-    fn test_time_topyobject_overflow() {
+    fn test_time_intopyobject_overflow() {
         let big_system_time = UNIX_EPOCH
             .checked_add(Duration::new(300000000000, 0))
             .unwrap();
         Python::with_gil(|py| {
-            assert!(panic::catch_unwind(|| big_system_time.into_py(py)).is_err());
+            assert!(big_system_time.into_pyobject(py).is_err());
         })
     }
 
