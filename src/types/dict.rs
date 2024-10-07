@@ -771,10 +771,10 @@ where
 {
     fn into_py_dict(self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let dict = PyDict::new(py);
-        for item in self {
+        self.into_iter().try_for_each(|item| {
             let (key, value) = item.unpack();
-            dict.set_item(key, value)?;
-        }
+            dict.set_item(key, value)
+        })?;
         Ok(dict)
     }
 }
