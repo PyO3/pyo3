@@ -2,18 +2,18 @@
 
 Sorry that you're having trouble using PyO3. If you can't find the answer to your problem in the list below, you can also reach out for help on [GitHub Discussions](https://github.com/PyO3/pyo3/discussions) and on [Discord](https://discord.gg/33kcChzH7f).
 
-## I'm experiencing deadlocks using PyO3 with lazy_static or once_cell!
+## I'm experiencing deadlocks using PyO3 with `std::sync::OnceLock`, `std::sync::LazyLock`, `lazy_static`, and `once_cell`!
 
-`lazy_static` and `once_cell::sync` both use locks to ensure that initialization is performed only by a single thread. Because the Python GIL is an additional lock this can lead to deadlocks in the following way:
+`OnceLock`, `LazyLock`, and their thirdparty predecessors use blocking to ensure only one thread ever initializes them. Because the Python GIL is an additional lock this can lead to deadlocks in the following way:
 
-1. A thread (thread A) which has acquired the Python GIL starts initialization of a `lazy_static` value.
+1. A thread (thread A) which has acquired the Python GIL starts initialization of a `OnceLock` value.
 2. The initialization code calls some Python API which temporarily releases the GIL e.g. `Python::import`.
-3. Another thread (thread B) acquires the Python GIL and attempts to access the same `lazy_static` value.
-4. Thread B is blocked, because it waits for `lazy_static`'s initialization to lock to release.
+3. Another thread (thread B) acquires the Python GIL and attempts to access the same `OnceLock` value.
+4. Thread B is blocked, because it waits for `OnceLock`'s initialization to lock to release.
 5. Thread A is blocked, because it waits to re-acquire the GIL which thread B still holds.
 6. Deadlock.
 
-PyO3 provides a struct [`GILOnceCell`] which works equivalently to `OnceCell` but relies solely on the Python GIL for thread safety. This means it can be used in place of `lazy_static` or `once_cell` where you are experiencing the deadlock described above. See the documentation for [`GILOnceCell`] for an example how to use it.
+PyO3 provides a struct [`GILOnceCell`] which works similarly to these types but avoids risk of deadlocking with the Python GIL. This means it can be used in place of other choices when you are experiencing the deadlock described above. See the documentation for [`GILOnceCell`] for further details and an example how to use it.
 
 [`GILOnceCell`]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html
 

@@ -8,7 +8,7 @@ use crate::{
     types::{any::PyAnyMethods, PyAny, PyString},
     Bound, Py, PyResult, PyTypeCheck, Python,
 };
-use std::cell::UnsafeCell;
+use std::{cell::UnsafeCell, marker::PhantomData, mem::MaybeUninit, sync::Once};
 
 #[cfg(not(Py_GIL_DISABLED))]
 use crate::PyVisit;
@@ -62,24 +62,36 @@ impl<T> GILProtected<T> {
 #[cfg(not(Py_GIL_DISABLED))]
 unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 
-/// A write-once cell similar to [`once_cell::OnceCell`](https://docs.rs/once_cell/latest/once_cell/).
+/// A write-once primitive similar to [`std::sync::OnceLock<T>`].
 ///
-/// Unlike `once_cell::sync` which blocks threads to achieve thread safety, this implementation
-/// uses the Python GIL to mediate concurrent access. This helps in cases where `once_cell` or
-/// `lazy_static`'s synchronization strategy can lead to deadlocks when interacting with the Python
-/// GIL. For an example, see
-#[doc = concat!("[the FAQ section](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/faq.html)")]
+/// Unlike `OnceLock<T>` which blocks threads to achieve thread safety, `GilOnceCell<T>`
+/// allows calls to [`get_or_init`][GILOnceCell::get_or_init] and
+/// [`get_or_try_init`][GILOnceCell::get_or_try_init] to race to create an initialized value.
+/// (It is still guaranteed that only one thread will ever write to the cell.)
+///
+/// On Python versions that run with the Global Interpreter Lock (GIL), this helps to avoid
+/// deadlocks between initialization and the GIL. For an example of such a deadlock, see
+#[doc = concat!(
+    "[the FAQ section](https://pyo3.rs/v",
+    env!("CARGO_PKG_VERSION"),
+    "/faq.html#im-experiencing-deadlocks-using-pyo3-with-stdsynconcelock-stdsynclazylock-lazy_static-and-once_cell)"
+)]
 /// of the guide.
 ///
-/// Note that:
-///  1) `get_or_init` and `get_or_try_init` do not protect against infinite recursion
-///     from reentrant initialization.
-///  2) If the initialization function `f` provided to `get_or_init` (or `get_or_try_init`)
-///     temporarily releases the GIL (e.g. by calling `Python::import`) then it is possible
-///     for a second thread to also begin initializing the `GITOnceCell`. Even when this
-///     happens `GILOnceCell` guarantees that only **one** write to the cell ever occurs -
-///     this is treated as a race, other threads will discard the value they compute and
-///     return the result of the first complete computation.
+/// Note that because the GIL blocks concurrent execution, in practice the means that
+/// [`get_or_init`][GILOnceCell::get_or_init] and
+/// [`get_or_try_init`][GILOnceCell::get_or_try_init] may race if the initialization
+/// function leads to the GIL being released and a thread context switch. This can
+/// happen when importing or calling any Python code, as long as it releases the
+/// GIL at some point. On free-threaded Python without any GIL, the race is
+/// more likely since there is no GIL to prevent races. In the future, PyO3 may change
+/// the semantics of GILOnceCell to behave more like the GIL build in the future.
+///
+/// # Re-entrant initialization
+///
+/// [`get_or_init`][GILOnceCell::get_or_init] and
+/// [`get_or_try_init`][GILOnceCell::get_or_try_init] do not protect against infinite recursion
+/// from reentrant initialization.
 ///
 /// # Examples
 ///
@@ -100,25 +112,64 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 /// }
 /// # Python::with_gil(|py| assert_eq!(get_shared_list(py).len(), 0));
 /// ```
-#[derive(Default)]
-pub struct GILOnceCell<T>(UnsafeCell<Option<T>>);
+pub struct GILOnceCell<T> {
+    once: Once,
+    data: UnsafeCell<MaybeUninit<T>>,
+
+    /// (Copied from std::sync::OnceLock)
+    ///
+    /// `PhantomData` to make sure dropck understands we're dropping T in our Drop impl.
+    ///
+    /// ```compile_error,E0597
+    /// use pyo3::Python;
+    /// use pyo3::sync::GILOnceCell;
+    ///
+    /// struct A<'a>(#[allow(dead_code)] &'a str);
+    ///
+    /// impl<'a> Drop for A<'a> {
+    ///     fn drop(&mut self) {}
+    /// }
+    ///
+    /// let cell = GILOnceCell::new();
+    /// {
+    ///     let s = String::new();
+    ///     let _ = Python::with_gil(|py| cell.set(py,A(&s)));
+    /// }
+    /// ```
+    _marker: PhantomData<T>,
+}
+
+impl<T> Default for GILOnceCell<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 // T: Send is needed for Sync because the thread which drops the GILOnceCell can be different
-// to the thread which fills it.
+// to the thread which fills it. (e.g. think scoped thread which fills the cell and then exits,
+// leaving the cell to be dropped by the main thread).
 unsafe impl<T: Send + Sync> Sync for GILOnceCell<T> {}
 unsafe impl<T: Send> Send for GILOnceCell<T> {}
 
 impl<T> GILOnceCell<T> {
     /// Create a `GILOnceCell` which does not yet contain a value.
     pub const fn new() -> Self {
-        Self(UnsafeCell::new(None))
+        Self {
+            once: Once::new(),
+            data: UnsafeCell::new(MaybeUninit::uninit()),
+            _marker: PhantomData,
+        }
     }
 
     /// Get a reference to the contained value, or `None` if the cell has not yet been written.
     #[inline]
     pub fn get(&self, _py: Python<'_>) -> Option<&T> {
-        // Safe because if the cell has not yet been written, None is returned.
-        unsafe { &*self.0.get() }.as_ref()
+        if self.once.is_completed() {
+            // SAFETY: the cell has been written.
+            Some(unsafe { (*self.data.get()).assume_init_ref() })
+        } else {
+            None
+        }
     }
 
     /// Get a reference to the contained value, initializing it if needed using the provided
@@ -163,6 +214,10 @@ impl<T> GILOnceCell<T> {
         // Note that f() could temporarily release the GIL, so it's possible that another thread
         // writes to this GILOnceCell before f() finishes. That's fine; we'll just have to discard
         // the value computed here and accept a bit of wasted computation.
+
+        // TODO: on the freethreaded build, consider wrapping this pair of operations in a
+        // critical section (requires a critical section API which can use a PyMutex without
+        // an object.)
         let value = f()?;
         let _ = self.set(py, value);
 
@@ -172,7 +227,12 @@ impl<T> GILOnceCell<T> {
     /// Get the contents of the cell mutably. This is only possible if the reference to the cell is
     /// unique.
     pub fn get_mut(&mut self) -> Option<&mut T> {
-        self.0.get_mut().as_mut()
+        if self.once.is_completed() {
+            // SAFETY: the cell has been written.
+            Some(unsafe { (*self.data.get()).assume_init_mut() })
+        } else {
+            None
+        }
     }
 
     /// Set the value in the cell.
@@ -180,37 +240,64 @@ impl<T> GILOnceCell<T> {
     /// If the cell has already been written, `Err(value)` will be returned containing the new
     /// value which was not written.
     pub fn set(&self, _py: Python<'_>, value: T) -> Result<(), T> {
-        // Safe because GIL is held, so no other thread can be writing to this cell concurrently.
-        let inner = unsafe { &mut *self.0.get() };
-        if inner.is_some() {
-            return Err(value);
-        }
+        let mut value = Some(value);
+        // NB this can block, but since this is only writing a single value and
+        // does not call arbitrary python code, we don't need to worry about
+        // deadlocks with the GIL.
+        self.once.call_once_force(|_| {
+            // SAFETY: no other threads can be writing this value, because we are
+            // inside the `call_once_force` closure.
+            unsafe {
+                // `.take().unwrap()` will never panic
+                (*self.data.get()).write(value.take().unwrap());
+            }
+        });
 
-        *inner = Some(value);
-        Ok(())
+        match value {
+            // Some other thread wrote to the cell first
+            Some(value) => Err(value),
+            None => Ok(()),
+        }
     }
 
     /// Takes the value out of the cell, moving it back to an uninitialized state.
     ///
     /// Has no effect and returns None if the cell has not yet been written.
     pub fn take(&mut self) -> Option<T> {
-        self.0.get_mut().take()
+        if self.once.is_completed() {
+            // Reset the cell to its default state so that it won't try to
+            // drop the value again.
+            self.once = Once::new();
+            // SAFETY: the cell has been written. `self.once` has been reset,
+            // so when `self` is dropped the value won't be read again.
+            Some(unsafe { self.data.get_mut().assume_init_read() })
+        } else {
+            None
+        }
     }
 
     /// Consumes the cell, returning the wrapped value.
     ///
     /// Returns None if the cell has not yet been written.
-    pub fn into_inner(self) -> Option<T> {
-        self.0.into_inner()
+    pub fn into_inner(mut self) -> Option<T> {
+        self.take()
     }
 }
 
 impl<T> GILOnceCell<Py<T>> {
-    /// Create a new cell that contains a new Python reference to the same contained object.
+    /// Creates a new cell that contains a new Python reference to the same contained object.
     ///
-    /// Returns an uninitialised cell if `self` has not yet been initialised.
+    /// Returns an uninitialized cell if `self` has not yet been initialized.
     pub fn clone_ref(&self, py: Python<'_>) -> Self {
-        Self(UnsafeCell::new(self.get(py).map(|ob| ob.clone_ref(py))))
+        let cloned = Self {
+            once: Once::new(),
+            data: UnsafeCell::new(MaybeUninit::uninit()),
+            _marker: PhantomData,
+        };
+        if let Some(value) = self.get(py) {
+            let _ = cloned.set(py, value.clone_ref(py));
+        }
+        cloned
     }
 }
 
@@ -263,6 +350,15 @@ where
             Ok(type_object.unbind())
         })
         .map(|ty| ty.bind(py))
+    }
+}
+
+impl<T> Drop for GILOnceCell<T> {
+    fn drop(&mut self) {
+        if self.once.is_completed() {
+            // SAFETY: the cell has been written.
+            unsafe { MaybeUninit::assume_init_drop(self.data.get_mut()) }
+        }
     }
 }
 
@@ -427,6 +523,29 @@ mod tests {
             cell_py.get_or_init(py, || py.None());
             assert!(cell_py.clone_ref(py).get(py).unwrap().is_none(py));
         })
+    }
+
+    #[test]
+    fn test_once_cell_drop() {
+        #[derive(Debug)]
+        struct RecordDrop<'a>(&'a mut bool);
+
+        impl Drop for RecordDrop<'_> {
+            fn drop(&mut self) {
+                *self.0 = true;
+            }
+        }
+
+        Python::with_gil(|py| {
+            let mut dropped = false;
+            let cell = GILOnceCell::new();
+            cell.set(py, RecordDrop(&mut dropped)).unwrap();
+            let drop_container = cell.get(py).unwrap();
+
+            assert!(!*drop_container.0);
+            drop(cell);
+            assert!(dropped);
+        });
     }
 
     #[cfg(feature = "macros")]

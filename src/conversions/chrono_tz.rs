@@ -117,7 +117,7 @@ mod tests {
     fn test_into_pyobject() {
         Python::with_gil(|py| {
             let assert_eq = |l: Bound<'_, PyAny>, r: Bound<'_, PyAny>| {
-                assert!(l.eq(r).unwrap());
+                assert!(l.eq(&r).unwrap(), "{:?} != {:?}", l, r);
             };
 
             assert_eq(
