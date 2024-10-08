@@ -58,5 +58,12 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyWeakref_NewProxy")]
     pub fn PyWeakref_NewProxy(ob: *mut PyObject, callback: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyWeakref_GetObject")]
-    pub fn PyWeakref_GetObject(_ref: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(
+        Py_3_13,
+        deprecated(note = "deprecated since Python 3.13. Use `PyWeakref_GetRef` instead.")
+    )]
+    pub fn PyWeakref_GetObject(reference: *mut PyObject) -> *mut PyObject;
+    #[cfg(Py_3_13)]
+    #[cfg_attr(PyPy, link_name = "PyPyWeakref_GetRef")]
+    pub fn PyWeakref_GetRef(reference: *mut PyObject, pobj: *mut *mut PyObject) -> c_int;
 }

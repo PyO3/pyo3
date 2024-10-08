@@ -121,15 +121,24 @@ pub trait DerefToPyAny {
 // Implementations core to all native types
 #[doc(hidden)]
 #[macro_export]
+#[cfg_attr(docsrs, doc(cfg(all())))]
+#[cfg(not(feature = "gil-refs"))]
+macro_rules! pyobject_native_type_base(
+    // empty implementation on non-gil-refs
+    ($name:ty $(;$generics:ident)* ) => {};
+);
+
+// Implementations core to all native types
+#[doc(hidden)]
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(all())))]
+#[cfg(feature = "gil-refs")]
 macro_rules! pyobject_native_type_base(
     ($name:ty $(;$generics:ident)* ) => {
-        #[cfg(feature = "gil-refs")]
-        #[allow(unsafe_code)]
         unsafe impl<$($generics,)*> $crate::PyNativeType for $name {
             type AsRefSource = Self;
         }
 
-        #[cfg(feature = "gil-refs")]
         impl<$($generics,)*> ::std::fmt::Debug for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
                    -> ::std::result::Result<(), ::std::fmt::Error>
@@ -140,7 +149,6 @@ macro_rules! pyobject_native_type_base(
             }
         }
 
-        #[cfg(feature = "gil-refs")]
         impl<$($generics,)*> ::std::fmt::Display for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
                    -> ::std::result::Result<(), ::std::fmt::Error>
@@ -158,12 +166,10 @@ macro_rules! pyobject_native_type_base(
             }
         }
 
-        #[cfg(feature = "gil-refs")]
         impl<$($generics,)*> $crate::ToPyObject for $name
         {
             #[inline]
             fn to_object(&self, py: $crate::Python<'_>) -> $crate::PyObject {
-                #[allow(unsafe_code)]
                 unsafe { $crate::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }
@@ -174,6 +180,35 @@ macro_rules! pyobject_native_type_base(
 // make sense on PyAny / have different implementations).
 #[doc(hidden)]
 #[macro_export]
+#[cfg_attr(docsrs, doc(cfg(all())))]
+#[cfg(not(feature = "gil-refs"))]
+macro_rules! pyobject_native_type_named (
+    ($name:ty $(;$generics:ident)*) => {
+
+        impl<$($generics,)*> ::std::convert::AsRef<$crate::PyAny> for $name {
+            #[inline]
+            fn as_ref(&self) -> &$crate::PyAny {
+                &self.0
+            }
+        }
+
+        impl<$($generics,)*> ::std::ops::Deref for $name {
+            type Target = $crate::PyAny;
+
+            #[inline]
+            fn deref(&self) -> &$crate::PyAny {
+                &self.0
+            }
+        }
+
+        impl $crate::types::DerefToPyAny for $name {}
+    };
+);
+
+#[doc(hidden)]
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(all())))]
+#[cfg(feature = "gil-refs")]
 macro_rules! pyobject_native_type_named (
     ($name:ty $(;$generics:ident)*) => {
         $crate::pyobject_native_type_base!($name $(;$generics)*);
@@ -194,7 +229,6 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        #[allow(unsafe_code)]
         unsafe impl<$($generics,)*> $crate::AsPyPointer for $name {
             /// Gets the underlying FFI pointer, returns a borrowed pointer.
             #[inline]
@@ -205,33 +239,27 @@ macro_rules! pyobject_native_type_named (
 
         // FIXME https://github.com/PyO3/pyo3/issues/3903
         #[allow(unknown_lints, non_local_definitions)]
-        #[cfg(feature = "gil-refs")]
         impl<$($generics,)*> $crate::IntoPy<$crate::Py<$name>> for &'_ $name {
             #[inline]
             fn into_py(self, py: $crate::Python<'_>) -> $crate::Py<$name> {
-                #[allow(unsafe_code)]
                 unsafe { $crate::Py::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }
 
         // FIXME https://github.com/PyO3/pyo3/issues/3903
         #[allow(unknown_lints, non_local_definitions)]
-        #[cfg(feature = "gil-refs")]
         impl<$($generics,)*> ::std::convert::From<&'_ $name> for $crate::Py<$name> {
             #[inline]
             fn from(other: &$name) -> Self {
                 use $crate::PyNativeType;
-                #[allow(unsafe_code)]
                 unsafe { $crate::Py::from_borrowed_ptr(other.py(), other.as_ptr()) }
             }
         }
 
         // FIXME https://github.com/PyO3/pyo3/issues/3903
         #[allow(unknown_lints, non_local_definitions)]
-        #[cfg(feature = "gil-refs")]
         impl<'a, $($generics,)*> ::std::convert::From<&'a $name> for &'a $crate::PyAny {
             fn from(ob: &'a $name) -> Self {
-                #[allow(unsafe_code)]
                 unsafe{&*(ob as *const $name as *const $crate::PyAny)}
             }
         }
@@ -255,7 +283,6 @@ macro_rules! pyobject_native_static_type_object(
 #[macro_export]
 macro_rules! pyobject_native_type_info(
     ($name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        #[allow(unsafe_code)]
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
             const NAME: &'static str = stringify!($name);
             const MODULE: ::std::option::Option<&'static str> = $module;
@@ -286,11 +313,23 @@ macro_rules! pyobject_native_type_info(
 // because rust-numpy has a special implementation.
 #[doc(hidden)]
 #[macro_export]
+#[cfg_attr(docsrs, doc(cfg(all())))]
+#[cfg(not(feature = "gil-refs"))]
+macro_rules! pyobject_native_type_extract {
+    // no body for non-gil-refs
+    ($name:ty $(;$generics:ident)*) => {};
+}
+
+// NOTE: This macro is not included in pyobject_native_type_base!
+// because rust-numpy has a special implementation.
+#[doc(hidden)]
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(all())))]
+#[cfg(feature = "gil-refs")]
 macro_rules! pyobject_native_type_extract {
     ($name:ty $(;$generics:ident)*) => {
         // FIXME https://github.com/PyO3/pyo3/issues/3903
         #[allow(unknown_lints, non_local_definitions)]
-        #[cfg(feature = "gil-refs")]
         impl<'py, $($generics,)*> $crate::FromPyObject<'py> for &'py $name {
             #[inline]
             fn extract_bound(obj: &$crate::Bound<'py, $crate::PyAny>) -> $crate::PyResult<Self> {

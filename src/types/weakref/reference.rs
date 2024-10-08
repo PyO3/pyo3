@@ -1,7 +1,7 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
-use crate::types::any::PyAny;
+use crate::types::{any::PyAny, PyNone};
 use crate::{ffi, Borrowed, Bound, ToPyObject};
 
 #[cfg(any(any(PyPy, GraalPy, Py_LIMITED_API), feature = "gil-refs"))]
@@ -561,10 +561,23 @@ impl PyWeakrefReference {
 }
 
 impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakrefReference> {
+    fn get_object(&self) -> Bound<'py, PyAny> {
+        let mut obj: *mut ffi::PyObject = std::ptr::null_mut();
+        match unsafe { ffi::compat::PyWeakref_GetRef(self.as_ptr(), &mut obj) } {
+            std::os::raw::c_int::MIN..=-1 => panic!("The 'weakref.ReferenceType' instance should be valid (non-null and actually a weakref reference)"),
+            0 => PyNone::get_bound(self.py()).to_owned().into_any(),
+            1..=std::os::raw::c_int::MAX => unsafe { obj.assume_owned(self.py()) },
+        }
+    }
+
     fn get_object_borrowed(&self) -> Borrowed<'_, 'py, PyAny> {
-        // PyWeakref_GetObject does some error checking, however we ensure the passed object is Non-Null and a Weakref type.
-        unsafe { ffi::PyWeakref_GetObject(self.as_ptr()).assume_borrowed_or_err(self.py()) }
-            .expect("The 'weakref.ReferenceType' instance should be valid (non-null and actually a weakref reference)")
+        // XXX: this deliberately leaks a reference, but this is a necessary safety measure
+        // to ensure that the object is not deallocated while we are using it.
+        unsafe {
+            self.get_object()
+                .into_ptr()
+                .assume_borrowed_unchecked(self.py())
+        }
     }
 }
 
@@ -703,6 +716,7 @@ mod tests {
         }
 
         #[test]
+        #[allow(deprecated)]
         fn test_weakref_upgrade_borrowed_as() -> PyResult<()> {
             Python::with_gil(|py| {
                 let class = get_type(py)?;
@@ -730,7 +744,8 @@ mod tests {
                     assert!(obj.is_ok());
                     let obj = obj.unwrap();
 
-                    assert!(obj.is_none());
+                    // XXX: have to leak in the borrowed methods for safety :(
+                    assert!(obj.is_some());
                 }
 
                 Ok(())
@@ -767,6 +782,7 @@ mod tests {
         }
 
         #[test]
+        #[allow(deprecated)]
         fn test_weakref_upgrade_borrowed_as_unchecked() -> PyResult<()> {
             Python::with_gil(|py| {
                 let class = get_type(py)?;
@@ -788,7 +804,8 @@ mod tests {
                     // This test is a bit weird but ok.
                     let obj = unsafe { reference.upgrade_borrowed_as_unchecked::<PyAny>() };
 
-                    assert!(obj.is_none());
+                    // XXX: have to leak in the borrowed methods for safety :(
+                    assert!(obj.is_some());
                 }
 
                 Ok(())
@@ -816,6 +833,7 @@ mod tests {
         }
 
         #[test]
+        #[allow(deprecated)]
         fn test_weakref_upgrade_borrowed() -> PyResult<()> {
             Python::with_gil(|py| {
                 let class = get_type(py)?;
@@ -830,8 +848,9 @@ mod tests {
 
                 drop(object);
 
-                assert!(reference.call0()?.is_none());
-                assert!(reference.upgrade_borrowed().is_none());
+                // XXX: have to leak in the borrowed methods for safety :(
+                assert!(!reference.call0()?.is_none());
+                assert!(reference.upgrade_borrowed().is_some());
 
                 Ok(())
             })
@@ -858,6 +877,7 @@ mod tests {
         }
 
         #[test]
+        #[allow(deprecated)]
         fn test_weakref_get_object_borrowed() -> PyResult<()> {
             Python::with_gil(|py| {
                 let class = get_type(py)?;
@@ -869,8 +889,9 @@ mod tests {
 
                 drop(object);
 
-                assert!(reference.call0()?.is_none());
-                assert!(reference.get_object_borrowed().is_none());
+                // XXX: have to leak in the borrowed methods for safety :(
+                assert!(!reference.call0()?.is_none());
+                assert!(!reference.get_object_borrowed().is_none());
 
                 Ok(())
             })
@@ -957,6 +978,7 @@ mod tests {
         }
 
         #[test]
+        #[allow(deprecated)]
         fn test_weakref_upgrade_borrowed_as() -> PyResult<()> {
             Python::with_gil(|py| {
                 let object = Py::new(py, WeakrefablePyClass {})?;
@@ -980,7 +1002,8 @@ mod tests {
                     assert!(obj.is_ok());
                     let obj = obj.unwrap();
 
-                    assert!(obj.is_none());
+                    // XXX: have to leak in the borrowed methods for safety :(
+                    assert!(obj.is_some());
                 }
 
                 Ok(())
@@ -1013,6 +1036,7 @@ mod tests {
         }
 
         #[test]
+        #[allow(deprecated)]
         fn test_weakref_upgrade_borrowed_as_unchecked() -> PyResult<()> {
             Python::with_gil(|py| {
                 let object = Py::new(py, WeakrefablePyClass {})?;
@@ -1032,7 +1056,8 @@ mod tests {
                     let obj =
                         unsafe { reference.upgrade_borrowed_as_unchecked::<WeakrefablePyClass>() };
 
-                    assert!(obj.is_none());
+                    // XXX: have to leak in the borrowed methods for safety :(
+                    assert!(obj.is_some());
                 }
 
                 Ok(())
@@ -1059,6 +1084,7 @@ mod tests {
         }
 
         #[test]
+        #[allow(deprecated)]
         fn test_weakref_upgrade_borrowed() -> PyResult<()> {
             Python::with_gil(|py| {
                 let object = Py::new(py, WeakrefablePyClass {})?;
@@ -1072,8 +1098,9 @@ mod tests {
 
                 drop(object);
 
-                assert!(reference.call0()?.is_none());
-                assert!(reference.upgrade_borrowed().is_none());
+                // XXX: have to leak in the borrowed methods for safety :(
+                assert!(!reference.call0()?.is_none());
+                assert!(reference.upgrade_borrowed().is_some());
 
                 Ok(())
             })
@@ -1099,6 +1126,7 @@ mod tests {
         }
 
         #[test]
+        #[allow(deprecated)]
         fn test_weakref_get_object_borrowed() -> PyResult<()> {
             Python::with_gil(|py| {
                 let object = Py::new(py, WeakrefablePyClass {})?;
@@ -1109,8 +1137,9 @@ mod tests {
 
                 drop(object);
 
-                assert!(reference.call0()?.is_none());
-                assert!(reference.get_object_borrowed().is_none());
+                // XXX: have to leak in the borrowed methods for safety :(
+                assert!(!reference.call0()?.is_none());
+                assert!(!reference.get_object_borrowed().is_none());
 
                 Ok(())
             })
