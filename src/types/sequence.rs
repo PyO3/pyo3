@@ -5,12 +5,11 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::inspect::types::TypeInfo;
 use crate::instance::Bound;
 use crate::internal_tricks::get_ssize_index;
-use crate::prelude::IntoPyObject;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{any::PyAnyMethods, PyAny, PyList, PyString, PyTuple, PyType};
-use crate::{ffi, Borrowed, BoundObject, FromPyObject, Py, PyTypeCheck, Python};
+use crate::{ffi, Borrowed, BoundObject, FromPyObject, IntoPyObject, Py, PyTypeCheck, Python};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 ///
@@ -376,7 +375,7 @@ where
     };
 
     let mut v = Vec::with_capacity(seq.len().unwrap_or(0));
-    for item in seq.iter()? {
+    for item in seq.try_iter()? {
         v.push(item?.extract::<T>()?);
     }
     Ok(v)
@@ -408,9 +407,8 @@ impl PyTypeCheck for PySequence {
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::IntoPyObject;
     use crate::types::{PyAnyMethods, PyList, PySequence, PySequenceMethods, PyTuple};
-    use crate::{ffi, PyObject, Python};
+    use crate::{ffi, IntoPyObject, PyObject, Python};
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object
@@ -656,7 +654,7 @@ mod tests {
             let ob = (&v).into_pyobject(py).unwrap();
             let seq = ob.downcast::<PySequence>().unwrap();
             let mut idx = 0;
-            for el in seq.iter().unwrap() {
+            for el in seq.try_iter().unwrap() {
                 assert_eq!(v[idx], el.unwrap().extract::<i32>().unwrap());
                 idx += 1;
             }
@@ -688,7 +686,7 @@ mod tests {
             let concat_seq = seq.concat(seq).unwrap();
             assert_eq!(6, concat_seq.len().unwrap());
             let concat_v: Vec<i32> = vec![1, 2, 3, 1, 2, 3];
-            for (el, cc) in concat_seq.iter().unwrap().zip(concat_v) {
+            for (el, cc) in concat_seq.try_iter().unwrap().zip(concat_v) {
                 assert_eq!(cc, el.unwrap().extract::<i32>().unwrap());
             }
         });
@@ -703,7 +701,7 @@ mod tests {
             let concat_seq = seq.concat(seq).unwrap();
             assert_eq!(12, concat_seq.len().unwrap());
             let concat_v = "stringstring".to_owned();
-            for (el, cc) in seq.iter().unwrap().zip(concat_v.chars()) {
+            for (el, cc) in seq.try_iter().unwrap().zip(concat_v.chars()) {
                 assert_eq!(cc, el.unwrap().extract::<char>().unwrap());
             }
         });
@@ -718,7 +716,7 @@ mod tests {
             let repeat_seq = seq.repeat(3).unwrap();
             assert_eq!(6, repeat_seq.len().unwrap());
             let repeated = ["foo", "bar", "foo", "bar", "foo", "bar"];
-            for (el, rpt) in repeat_seq.iter().unwrap().zip(repeated.iter()) {
+            for (el, rpt) in repeat_seq.try_iter().unwrap().zip(repeated.iter()) {
                 assert_eq!(*rpt, el.unwrap().extract::<String>().unwrap());
             }
         });

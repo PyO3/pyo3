@@ -294,8 +294,8 @@ enum RustyEnum<'py> {
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
 #         {
-#             let thing = 42_u8.to_object(py);
-#             let rust_thing: RustyEnum<'_> = thing.extract(py)?;
+#             let thing = 42_u8.into_pyobject(py)?;
+#             let rust_thing: RustyEnum<'_> = thing.extract()?;
 #
 #             assert_eq!(
 #                 42,
@@ -318,8 +318,8 @@ enum RustyEnum<'py> {
 #             );
 #         }
 #         {
-#             let thing = (32_u8, 73_u8).to_object(py);
-#             let rust_thing: RustyEnum<'_> = thing.extract(py)?;
+#             let thing = (32_u8, 73_u8).into_pyobject(py)?;
+#             let rust_thing: RustyEnum<'_> = thing.extract()?;
 #
 #             assert_eq!(
 #                 (32, 73),
@@ -330,8 +330,8 @@ enum RustyEnum<'py> {
 #             );
 #         }
 #         {
-#             let thing = ("foo", 73_u8).to_object(py);
-#             let rust_thing: RustyEnum<'_> = thing.extract(py)?;
+#             let thing = ("foo", 73_u8).into_pyobject(py)?;
+#             let rust_thing: RustyEnum<'_> = thing.extract()?;
 #
 #             assert_eq!(
 #                 (String::from("foo"), 73),
@@ -427,8 +427,8 @@ enum RustyEnum {
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
 #         {
-#             let thing = 42_u8.to_object(py);
-#             let rust_thing: RustyEnum = thing.extract(py)?;
+#             let thing = 42_u8.into_pyobject(py)?;
+#             let rust_thing: RustyEnum = thing.extract()?;
 #
 #             assert_eq!(
 #                 42,
@@ -440,8 +440,8 @@ enum RustyEnum {
 #         }
 #
 #         {
-#             let thing = "foo".to_object(py);
-#             let rust_thing: RustyEnum = thing.extract(py)?;
+#             let thing = "foo".into_pyobject(py)?;
+#             let rust_thing: RustyEnum = thing.extract()?;
 #
 #             assert_eq!(
 #                 "foo",
@@ -453,8 +453,8 @@ enum RustyEnum {
 #         }
 #
 #         {
-#             let thing = b"foo".to_object(py);
-#             let error = thing.extract::<RustyEnum>(py).unwrap_err();
+#             let thing = b"foo".into_pyobject(py)?;
+#             let error = thing.extract::<RustyEnum>().unwrap_err();
 #             assert!(error.is_instance_of::<pyo3::exceptions::PyTypeError>(py));
 #         }
 #

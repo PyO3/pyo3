@@ -40,14 +40,15 @@ mod inner {
         // Case1: idents & no err_msg
         ($py:expr, $($val:ident)+, $code:expr, $err:ident) => {{
             use pyo3::types::IntoPyDict;
-            let d = [$((stringify!($val), $val.to_object($py)),)+].into_py_dict($py).unwrap();
+            use pyo3::BoundObject;
+            let d = [$((stringify!($val), (&$val).into_pyobject($py).unwrap().into_any().into_bound()),)+].into_py_dict($py).unwrap();
             py_expect_exception!($py, *d, $code, $err)
         }};
         // Case2: dict & no err_msg
         ($py:expr, *$dict:expr, $code:expr, $err:ident) => {{
             let res = $py.run(&std::ffi::CString::new($code).unwrap(), None, Some(&$dict.as_borrowed()));
             let err = res.expect_err(&format!("Did not raise {}", stringify!($err)));
-            if !err.matches($py, $py.get_type::<pyo3::exceptions::$err>()) {
+            if !err.matches($py, $py.get_type::<pyo3::exceptions::$err>()).unwrap() {
                 panic!("Expected {} but got {:?}", stringify!($err), err)
             }
             err

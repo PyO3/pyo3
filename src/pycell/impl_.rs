@@ -1,14 +1,17 @@
 #![allow(missing_docs)]
 //! Crate-private implementation of PyClassObject
 
-use std::cell::{Cell, UnsafeCell};
+use std::cell::UnsafeCell;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef,
 };
-use crate::type_object::{get_tp_free, PyLayout, PySizedLayout};
+use crate::internal::get_slot::TP_FREE;
+use crate::type_object::{PyLayout, PySizedLayout};
+use crate::types::{PyType, PyTypeMethods};
 use crate::{ffi, PyClass, PyTypeInfo, Python};
 
 use super::{PyBorrowError, PyBorrowMutError};
@@ -50,22 +53,49 @@ impl<M: PyClassMutability> PyClassMutability for ExtendsMutableAncestor<M> {
     type MutableChild = ExtendsMutableAncestor<MutableClass>;
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-struct BorrowFlag(usize);
+#[derive(Debug)]
+struct BorrowFlag(AtomicUsize);
 
 impl BorrowFlag {
-    pub(crate) const UNUSED: BorrowFlag = BorrowFlag(0);
-    const HAS_MUTABLE_BORROW: BorrowFlag = BorrowFlag(usize::MAX);
-    const fn increment(self) -> Self {
-        Self(self.0 + 1)
+    pub(crate) const UNUSED: usize = 0;
+    const HAS_MUTABLE_BORROW: usize = usize::MAX;
+    fn increment(&self) -> Result<(), PyBorrowError> {
+        let mut value = self.0.load(Ordering::Relaxed);
+        loop {
+            if value == BorrowFlag::HAS_MUTABLE_BORROW {
+                return Err(PyBorrowError { _private: () });
+            }
+            match self.0.compare_exchange(
+                // only increment if the value hasn't changed since the
+                // last atomic load
+                value,
+                value + 1,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            ) {
+                Ok(..) => {
+                    // value has been successfully incremented, we need an acquire fence
+                    // so that data this borrow flag protects can be read safely in this thread
+                    std::sync::atomic::fence(Ordering::Acquire);
+                    break Ok(());
+                }
+                Err(changed_value) => {
+                    // value changed under us, need to try again
+                    value = changed_value;
+                }
+            }
+        }
     }
-    const fn decrement(self) -> Self {
-        Self(self.0 - 1)
+    fn decrement(&self) {
+        // impossible to get into a bad state from here so relaxed
+        // ordering is fine, the decrement only needs to eventually
+        // be visible
+        self.0.fetch_sub(1, Ordering::Relaxed);
     }
 }
 
 pub struct EmptySlot(());
-pub struct BorrowChecker(Cell<BorrowFlag>);
+pub struct BorrowChecker(BorrowFlag);
 
 pub trait PyClassBorrowChecker {
     /// Initial value for self
@@ -110,36 +140,38 @@ impl PyClassBorrowChecker for EmptySlot {
 impl PyClassBorrowChecker for BorrowChecker {
     #[inline]
     fn new() -> Self {
-        Self(Cell::new(BorrowFlag::UNUSED))
+        Self(BorrowFlag(AtomicUsize::new(BorrowFlag::UNUSED)))
     }
 
     fn try_borrow(&self) -> Result<(), PyBorrowError> {
-        let flag = self.0.get();
-        if flag != BorrowFlag::HAS_MUTABLE_BORROW {
-            self.0.set(flag.increment());
-            Ok(())
-        } else {
-            Err(PyBorrowError { _private: () })
-        }
+        self.0.increment()
     }
 
     fn release_borrow(&self) {
-        let flag = self.0.get();
-        self.0.set(flag.decrement())
+        self.0.decrement();
     }
 
     fn try_borrow_mut(&self) -> Result<(), PyBorrowMutError> {
-        let flag = self.0.get();
-        if flag == BorrowFlag::UNUSED {
-            self.0.set(BorrowFlag::HAS_MUTABLE_BORROW);
-            Ok(())
-        } else {
-            Err(PyBorrowMutError { _private: () })
+        let flag = &self.0;
+        match flag.0.compare_exchange(
+            // only allowed to transition to mutable borrow if the reference is
+            // currently unused
+            BorrowFlag::UNUSED,
+            BorrowFlag::HAS_MUTABLE_BORROW,
+            // On success, reading the flag and updating its state are an atomic
+            // operation
+            Ordering::AcqRel,
+            // It doesn't matter precisely when the failure gets turned
+            // into an error
+            Ordering::Relaxed,
+        ) {
+            Ok(..) => Ok(()),
+            Err(..) => Err(PyBorrowMutError { _private: () }),
         }
     }
 
     fn release_borrow_mut(&self) {
-        self.0.set(BorrowFlag::UNUSED)
+        self.0 .0.store(BorrowFlag::UNUSED, Ordering::Release)
     }
 }
 
@@ -202,26 +234,37 @@ where
         Ok(())
     }
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
-        let type_obj = T::type_object_raw(py);
+        // FIXME: there is potentially subtle issues here if the base is overwritten
+        // at runtime? To be investigated.
+        let type_obj = T::type_object(py);
+        let type_ptr = type_obj.as_type_ptr();
+        let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(slf));
+
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
-        if type_obj == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type) {
-            return get_tp_free(ffi::Py_TYPE(slf))(slf.cast());
+        if type_ptr == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type) {
+            let tp_free = actual_type
+                .get_slot(TP_FREE)
+                .expect("PyBaseObject_Type should have tp_free");
+            return tp_free(slf.cast());
         }
 
         // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
         #[cfg(not(Py_LIMITED_API))]
         {
-            if let Some(dealloc) = (*type_obj).tp_dealloc {
+            // FIXME: should this be using actual_type.tp_dealloc?
+            if let Some(dealloc) = (*type_ptr).tp_dealloc {
                 // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
                 // assumes the exception is currently GC tracked, so we have to re-track
                 // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
                 #[cfg(not(any(Py_3_11, PyPy)))]
-                if ffi::PyType_FastSubclass(type_obj, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
+                if ffi::PyType_FastSubclass(type_ptr, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
                     ffi::PyObject_GC_Track(slf.cast());
                 }
                 dealloc(slf);
             } else {
-                get_tp_free(ffi::Py_TYPE(slf))(slf.cast());
+                (*actual_type.as_type_ptr())
+                    .tp_free
+                    .expect("type missing tp_free")(slf.cast());
             }
         }
 
@@ -496,5 +539,90 @@ mod tests {
                 .is_ok());
             assert!(mmm_bound.extract::<PyRefMut<'_, MutableBase>>().is_ok());
         })
+    }
+
+    #[test]
+    #[cfg(not(target_arch = "wasm32"))]
+    fn test_thread_safety() {
+        #[crate::pyclass(crate = "crate")]
+        struct MyClass {
+            x: u64,
+        }
+
+        Python::with_gil(|py| {
+            let inst = Py::new(py, MyClass { x: 0 }).unwrap();
+
+            let total_modifications = py.allow_threads(|| {
+                std::thread::scope(|s| {
+                    // Spawn a bunch of threads all racing to write to
+                    // the same instance of `MyClass`.
+                    let threads = (0..10)
+                        .map(|_| {
+                            s.spawn(|| {
+                                Python::with_gil(|py| {
+                                    // Each thread records its own view of how many writes it made
+                                    let mut local_modifications = 0;
+                                    for _ in 0..100 {
+                                        if let Ok(mut i) = inst.try_borrow_mut(py) {
+                                            i.x += 1;
+                                            local_modifications += 1;
+                                        }
+                                    }
+                                    local_modifications
+                                })
+                            })
+                        })
+                        .collect::<Vec<_>>();
+
+                    // Sum up the total number of writes made by all threads
+                    threads.into_iter().map(|t| t.join().unwrap()).sum::<u64>()
+                })
+            });
+
+            // If the implementation is free of data races, the total number of writes
+            // should match the final value of `x`.
+            assert_eq!(total_modifications, inst.borrow(py).x);
+        });
+    }
+
+    #[test]
+    #[cfg(not(target_arch = "wasm32"))]
+    fn test_thread_safety_2() {
+        struct SyncUnsafeCell<T>(UnsafeCell<T>);
+        unsafe impl<T> Sync for SyncUnsafeCell<T> {}
+
+        impl<T> SyncUnsafeCell<T> {
+            fn get(&self) -> *mut T {
+                self.0.get()
+            }
+        }
+
+        let data = SyncUnsafeCell(UnsafeCell::new(0));
+        let data2 = SyncUnsafeCell(UnsafeCell::new(0));
+        let borrow_checker = BorrowChecker(BorrowFlag(AtomicUsize::new(BorrowFlag::UNUSED)));
+
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                for _ in 0..1_000_000 {
+                    if borrow_checker.try_borrow_mut().is_ok() {
+                        // thread 1 writes to both values during the mutable borrow
+                        unsafe { *data.get() += 1 };
+                        unsafe { *data2.get() += 1 };
+                        borrow_checker.release_borrow_mut();
+                    }
+                }
+            });
+
+            s.spawn(|| {
+                for _ in 0..1_000_000 {
+                    if borrow_checker.try_borrow().is_ok() {
+                        // if the borrow checker is working correctly, it should be impossible
+                        // for thread 2 to observe a difference in the two values
+                        assert_eq!(unsafe { *data.get() }, unsafe { *data2.get() });
+                        borrow_checker.release_borrow();
+                    }
+                }
+            });
+        });
     }
 }

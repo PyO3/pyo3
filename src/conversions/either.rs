@@ -26,18 +26,19 @@
 //!
 //! ```rust
 //! use either::Either;
-//! use pyo3::{Python, ToPyObject};
+//! use pyo3::{Python, PyResult, IntoPyObject, types::PyAnyMethods};
 //!
-//! fn main() {
+//! fn main() -> PyResult<()> {
 //!     pyo3::prepare_freethreaded_python();
 //!     Python::with_gil(|py| {
 //!         // Create a string and an int in Python.
-//!         let py_str = "crab".to_object(py);
-//!         let py_int = 42.to_object(py);
+//!         let py_str = "crab".into_pyobject(py)?;
+//!         let py_int = 42i32.into_pyobject(py)?;
 //!         // Now convert it to an Either<i32, String>.
-//!         let either_str: Either<i32, String> = py_str.extract(py).unwrap();
-//!         let either_int: Either<i32, String> = py_int.extract(py).unwrap();
-//!     });
+//!         let either_str: Either<i32, String> = py_str.extract()?;
+//!         let either_int: Either<i32, String> = py_int.extract()?;
+//!         Ok(())
+//!     })
 //! }
 //! ```
 //!
@@ -45,9 +46,11 @@
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[allow(deprecated)]
+use crate::ToPyObject;
 use crate::{
     conversion::IntoPyObject, exceptions::PyTypeError, types::any::PyAnyMethods, Bound,
-    BoundObject, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    BoundObject, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python,
 };
 use either::Either;
 
@@ -119,6 +122,7 @@ where
 }
 
 #[cfg_attr(docsrs, doc(cfg(feature = "either")))]
+#[allow(deprecated)]
 impl<L, R> ToPyObject for Either<L, R>
 where
     L: ToPyObject,
@@ -168,8 +172,9 @@ mod tests {
     use std::borrow::Cow;
 
     use crate::exceptions::PyTypeError;
-    use crate::{Python, ToPyObject};
+    use crate::{IntoPyObject, Python};
 
+    use crate::types::PyAnyMethods;
     use either::Either;
 
     #[test]
@@ -180,30 +185,30 @@ mod tests {
 
         Python::with_gil(|py| {
             let l = E::Left(42);
-            let obj_l = l.to_object(py);
-            assert_eq!(obj_l.extract::<i32>(py).unwrap(), 42);
-            assert_eq!(obj_l.extract::<E>(py).unwrap(), l);
+            let obj_l = (&l).into_pyobject(py).unwrap();
+            assert_eq!(obj_l.extract::<i32>().unwrap(), 42);
+            assert_eq!(obj_l.extract::<E>().unwrap(), l);
 
             let r = E::Right("foo".to_owned());
-            let obj_r = r.to_object(py);
-            assert_eq!(obj_r.extract::<Cow<'_, str>>(py).unwrap(), "foo");
-            assert_eq!(obj_r.extract::<E>(py).unwrap(), r);
+            let obj_r = (&r).into_pyobject(py).unwrap();
+            assert_eq!(obj_r.extract::<Cow<'_, str>>().unwrap(), "foo");
+            assert_eq!(obj_r.extract::<E>().unwrap(), r);
 
-            let obj_s = "foo".to_object(py);
-            let err = obj_s.extract::<E1>(py).unwrap_err();
+            let obj_s = "foo".into_pyobject(py).unwrap();
+            let err = obj_s.extract::<E1>().unwrap_err();
             assert!(err.is_instance_of::<PyTypeError>(py));
             assert_eq!(
                 err.to_string(),
                 "TypeError: failed to convert the value to 'Union[i32, f32]'"
             );
 
-            let obj_i = 42.to_object(py);
-            assert_eq!(obj_i.extract::<E1>(py).unwrap(), E1::Left(42));
-            assert_eq!(obj_i.extract::<E2>(py).unwrap(), E2::Left(42.0));
+            let obj_i = 42i32.into_pyobject(py).unwrap();
+            assert_eq!(obj_i.extract::<E1>().unwrap(), E1::Left(42));
+            assert_eq!(obj_i.extract::<E2>().unwrap(), E2::Left(42.0));
 
-            let obj_f = 42.0.to_object(py);
-            assert_eq!(obj_f.extract::<E1>(py).unwrap(), E1::Right(42.0));
-            assert_eq!(obj_f.extract::<E2>(py).unwrap(), E2::Left(42.0));
+            let obj_f = 42.0f64.into_pyobject(py).unwrap();
+            assert_eq!(obj_f.extract::<E1>().unwrap(), E1::Right(42.0));
+            assert_eq!(obj_f.extract::<E2>().unwrap(), E2::Left(42.0));
         });
     }
 }

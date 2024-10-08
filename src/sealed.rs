@@ -1,6 +1,7 @@
 use crate::types::{
     PyBool, PyByteArray, PyBytes, PyCapsule, PyComplex, PyDict, PyFloat, PyFrozenSet, PyList,
     PyMapping, PyModule, PySequence, PySet, PySlice, PyString, PyTraceback, PyTuple, PyType,
+    PyWeakref, PyWeakrefProxy, PyWeakrefReference,
 };
 use crate::{ffi, Bound, PyAny, PyResult};
 
@@ -32,3 +33,6 @@ impl Sealed for Bound<'_, PyString> {}
 impl Sealed for Bound<'_, PyTraceback> {}
 impl Sealed for Bound<'_, PyTuple> {}
 impl Sealed for Bound<'_, PyType> {}
+impl Sealed for Bound<'_, PyWeakref> {}
+impl Sealed for Bound<'_, PyWeakrefProxy> {}
+impl Sealed for Bound<'_, PyWeakrefReference> {}

@@ -5,7 +5,7 @@
 //!
 //! [PEP 703]: https://peps.python.org/pep-703/
 use crate::{
-    types::{any::PyAnyMethods, PyString},
+    types::{any::PyAnyMethods, PyAny, PyString},
     Bound, Py, PyResult, PyTypeCheck, Python,
 };
 use std::cell::UnsafeCell;
@@ -330,11 +330,58 @@ impl Interned {
     }
 }
 
+/// Executes a closure with a Python critical section held on an object.
+///
+/// Acquires the per-object lock for the object `op` that is held
+/// until the closure `f` is finished.
+///
+/// This is structurally equivalent to the use of the paired
+/// Py_BEGIN_CRITICAL_SECTION and Py_END_CRITICAL_SECTION C-API macros.
+///
+/// A no-op on GIL-enabled builds, where the critical section API is exposed as
+/// a no-op by the Python C API.
+///
+/// Provides weaker locking guarantees than traditional locks, but can in some
+/// cases be used to provide guarantees similar to the GIL without the risk of
+/// deadlocks associated with traditional locks.
+///
+/// Many CPython C API functions do not acquire the per-object lock on objects
+/// passed to Python. You should not expect critical sections applied to
+/// built-in types to prevent concurrent modification. This API is most useful
+/// for user-defined types with full control over how the internal state for the
+/// type is managed.
+#[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
+pub fn with_critical_section<F, R>(object: &Bound<'_, PyAny>, f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    #[cfg(Py_GIL_DISABLED)]
+    {
+        struct Guard(crate::ffi::PyCriticalSection);
+
+        impl Drop for Guard {
+            fn drop(&mut self) {
+                unsafe {
+                    crate::ffi::PyCriticalSection_End(&mut self.0);
+                }
+            }
+        }
+
+        let mut guard = Guard(unsafe { std::mem::zeroed() });
+        unsafe { crate::ffi::PyCriticalSection_Begin(&mut guard.0, object.as_ptr()) };
+        f()
+    }
+    #[cfg(not(Py_GIL_DISABLED))]
+    {
+        f()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use crate::types::{dict::PyDictMethods, PyDict};
+    use crate::types::{PyDict, PyDictMethods};
 
     #[test]
     fn test_intern() {
@@ -380,5 +427,47 @@ mod tests {
             cell_py.get_or_init(py, || py.None());
             assert!(cell_py.clone_ref(py).get(py).unwrap().is_none(py));
         })
+    }
+
+    #[cfg(feature = "macros")]
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[test]
+    fn test_critical_section() {
+        use std::sync::{
+            atomic::{AtomicBool, Ordering},
+            Barrier,
+        };
+
+        let barrier = Barrier::new(2);
+
+        #[crate::pyclass(crate = "crate")]
+        struct BoolWrapper(AtomicBool);
+
+        let bool_wrapper = Python::with_gil(|py| -> Py<BoolWrapper> {
+            Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap()
+        });
+
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                Python::with_gil(|py| {
+                    let b = bool_wrapper.bind(py);
+                    with_critical_section(b, || {
+                        barrier.wait();
+                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        b.borrow().0.store(true, Ordering::Release);
+                    })
+                });
+            });
+            s.spawn(|| {
+                barrier.wait();
+                Python::with_gil(|py| {
+                    let b = bool_wrapper.bind(py);
+                    // this blocks until the other thread's critical section finishes
+                    with_critical_section(b, || {
+                        assert!(b.borrow().0.load(Ordering::Acquire));
+                    });
+                });
+            });
+        });
     }
 }

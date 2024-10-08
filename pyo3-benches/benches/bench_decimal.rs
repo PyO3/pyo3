@@ -9,8 +9,8 @@ use pyo3::types::PyDict;
 fn decimal_via_extract(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let locals = PyDict::new(py);
-        py.run_bound(
-            r#"
+        py.run(
+            cr#"
 import decimal
 py_dec = decimal.Decimal("0.0")
 "#,

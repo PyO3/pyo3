@@ -19,7 +19,7 @@ fn extract_bigint_extract_fail(bench: &mut Bencher<'_>) {
 
 fn extract_bigint_small(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let int = py.eval_bound("-42", None, None).unwrap();
+        let int = py.eval(c"-42", None, None).unwrap();
 
         bench.iter_with_large_drop(|| black_box(&int).extract::<BigInt>().unwrap());
     });
@@ -27,7 +27,7 @@ fn extract_bigint_small(bench: &mut Bencher<'_>) {
 
 fn extract_bigint_big_negative(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let int = py.eval_bound("-10**300", None, None).unwrap();
+        let int = py.eval(c"-10**300", None, None).unwrap();
 
         bench.iter_with_large_drop(|| black_box(&int).extract::<BigInt>().unwrap());
     });
@@ -35,7 +35,7 @@ fn extract_bigint_big_negative(bench: &mut Bencher<'_>) {
 
 fn extract_bigint_big_positive(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let int = py.eval_bound("10**300", None, None).unwrap();
+        let int = py.eval(c"10**300", None, None).unwrap();
 
         bench.iter_with_large_drop(|| black_box(&int).extract::<BigInt>().unwrap());
     });
@@ -43,7 +43,7 @@ fn extract_bigint_big_positive(bench: &mut Bencher<'_>) {
 
 fn extract_bigint_huge_negative(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let int = py.eval_bound("-10**3000", None, None).unwrap();
+        let int = py.eval(c"-10**3000", None, None).unwrap();
 
         bench.iter_with_large_drop(|| black_box(&int).extract::<BigInt>().unwrap());
     });
@@ -51,7 +51,7 @@ fn extract_bigint_huge_negative(bench: &mut Bencher<'_>) {
 
 fn extract_bigint_huge_positive(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let int = py.eval_bound("10**3000", None, None).unwrap();
+        let int = py.eval(c"10**3000", None, None).unwrap();
 
         bench.iter_with_large_drop(|| black_box(&int).extract::<BigInt>().unwrap());
     });

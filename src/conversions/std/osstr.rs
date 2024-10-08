@@ -3,11 +3,14 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyString;
-use crate::{ffi, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
+#[allow(deprecated)]
+use crate::ToPyObject;
+use crate::{ffi, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python};
 use std::borrow::Cow;
 use std::convert::Infallible;
 use std::ffi::{OsStr, OsString};
 
+#[allow(deprecated)]
 impl ToPyObject for OsStr {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -61,6 +64,17 @@ impl<'py> IntoPyObject<'py> for &OsStr {
                 )
             }
         }
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &&OsStr {
+    type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
     }
 }
 
@@ -127,6 +141,7 @@ impl IntoPy<PyObject> for &'_ OsStr {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for Cow<'_, OsStr> {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -163,6 +178,7 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, OsStr> {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for OsString {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -188,7 +204,7 @@ impl<'py> IntoPyObject<'py> for OsString {
     }
 }
 
-impl<'a> IntoPy<PyObject> for &'a OsString {
+impl IntoPy<PyObject> for &OsString {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
@@ -208,8 +224,8 @@ impl<'py> IntoPyObject<'py> for &OsString {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{PyAnyMethods, PyStringMethods};
-    use crate::{types::PyString, IntoPy, PyObject, Python, ToPyObject};
+    use crate::types::{PyAnyMethods, PyString, PyStringMethods};
+    use crate::{BoundObject, IntoPy, IntoPyObject, PyObject, Python};
     use std::fmt::Debug;
     use std::{
         borrow::Cow,
@@ -239,9 +255,13 @@ mod tests {
     #[test]
     fn test_topyobject_roundtrip() {
         Python::with_gil(|py| {
-            fn test_roundtrip<T: ToPyObject + AsRef<OsStr> + Debug>(py: Python<'_>, obj: T) {
-                let pyobject = obj.to_object(py);
-                let pystring = pyobject.downcast_bound::<PyString>(py).unwrap();
+            fn test_roundtrip<'py, T>(py: Python<'py>, obj: T)
+            where
+                T: IntoPyObject<'py> + AsRef<OsStr> + Debug + Clone,
+                T::Error: Debug,
+            {
+                let pyobject = obj.clone().into_pyobject(py).unwrap().into_any();
+                let pystring = pyobject.as_borrowed().downcast::<PyString>().unwrap();
                 assert_eq!(pystring.to_string_lossy(), obj.as_ref().to_string_lossy());
                 let roundtripped_obj: OsString = pystring.extract().unwrap();
                 assert_eq!(obj.as_ref(), roundtripped_obj.as_os_str());

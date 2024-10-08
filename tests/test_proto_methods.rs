@@ -853,7 +853,7 @@ impl DefaultedContains {
         PyList::new(py, ["a", "b", "c"])
             .unwrap()
             .as_ref()
-            .iter()
+            .try_iter()
             .unwrap()
             .into()
     }
@@ -868,7 +868,7 @@ impl NoContains {
         PyList::new(py, ["a", "b", "c"])
             .unwrap()
             .as_ref()
-            .iter()
+            .try_iter()
             .unwrap()
             .into()
     }

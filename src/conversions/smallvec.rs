@@ -23,12 +23,14 @@ use crate::types::any::PyAnyMethods;
 use crate::types::list::new_from_iter;
 use crate::types::{PySequence, PyString};
 use crate::PyErr;
+#[allow(deprecated)]
+use crate::ToPyObject;
 use crate::{
     err::DowncastError, ffi, Bound, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python,
-    ToPyObject,
 };
 use smallvec::{Array, SmallVec};
 
+#[allow(deprecated)]
 impl<A> ToPyObject for SmallVec<A>
 where
     A: Array,
@@ -124,7 +126,7 @@ where
     };
 
     let mut sv = SmallVec::with_capacity(seq.len().unwrap_or(0));
-    for item in seq.iter()? {
+    for item in seq.try_iter()? {
         sv.push(item?.extract::<A::Item>()?);
     }
     Ok(sv)
@@ -167,10 +169,10 @@ mod tests {
     }
 
     #[test]
-    fn test_smallvec_to_object() {
+    fn test_smallvec_into_pyobject() {
         Python::with_gil(|py| {
             let sv: SmallVec<[u64; 8]> = [1, 2, 3, 4, 5].iter().cloned().collect();
-            let hso: PyObject = sv.to_object(py);
+            let hso = sv.into_pyobject(py).unwrap();
             let l = PyList::new(py, [1, 2, 3, 4, 5]).unwrap();
             assert!(l.eq(hso).unwrap());
         });

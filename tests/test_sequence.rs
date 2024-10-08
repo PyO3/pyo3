@@ -264,7 +264,10 @@ struct GenericList {
 fn test_generic_list_get() {
     Python::with_gil(|py| {
         let list: PyObject = GenericList {
-            items: [1, 2, 3].iter().map(|i| i.to_object(py)).collect(),
+            items: [1i32, 2, 3]
+                .iter()
+                .map(|i| i.into_pyobject(py).unwrap().into_any().unbind())
+                .collect(),
         }
         .into_py(py);
 
