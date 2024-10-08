@@ -3,10 +3,12 @@ use crate::exceptions::PyStopAsyncIteration;
 use crate::gil::LockGIL;
 use crate::impl_::panic::PanicTrap;
 use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout};
+use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
 use crate::pycell::impl_::PyClassBorrowChecker as _;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
+use crate::types::PyType;
 use crate::{
     ffi, Bound, DowncastError, Py, PyAny, PyClass, PyClassInitializer, PyErr, PyObject, PyRef,
     PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
@@ -352,16 +354,20 @@ unsafe fn call_super_traverse(
     arg: *mut c_void,
     current_traverse: ffi::traverseproc,
 ) -> c_int {
+    // SAFETY: in this function here it's ok to work with raw type objects `ffi::Py_TYPE`
+    // because the GC is running and so
+    // - (a) we cannot do refcounting and
+    // - (b) the type of the object cannot change.
     let mut ty = ffi::Py_TYPE(obj);
     let mut traverse: Option<ffi::traverseproc>;
 
     // First find the current type by the current_traverse function
     loop {
-        traverse = get_tp_traverse(ty);
+        traverse = get_slot(ty, TP_TRAVERSE);
         if traverse == Some(current_traverse) {
             break;
         }
-        ty = get_tp_base(ty);
+        ty = get_slot(ty, TP_BASE);
         if ty.is_null() {
             // FIXME: return an error if current type not in the MRO? Should be impossible.
             return 0;
@@ -369,12 +375,12 @@ unsafe fn call_super_traverse(
     }
 
     // Get first base which has a different traverse function
-    while !ty.is_null() && traverse == Some(current_traverse) {
-        ty = get_tp_base(ty);
+    while traverse == Some(current_traverse) {
+        ty = get_slot(ty, TP_BASE);
         if ty.is_null() {
             break;
         }
-        traverse = get_tp_traverse(ty);
+        traverse = get_slot(ty, TP_TRAVERSE);
     }
 
     // If we found a type with a different traverse function, call it
@@ -392,11 +398,11 @@ pub unsafe fn _call_clear(
     impl_: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<()>,
     current_clear: ffi::inquiry,
 ) -> c_int {
-    let super_retval = call_super_clear(slf, current_clear);
-    if super_retval != 0 {
-        return super_retval;
-    }
     trampoline::trampoline(move |py| {
+        let super_retval = call_super_clear(py, slf, current_clear);
+        if super_retval != 0 {
+            return Err(PyErr::fetch(py));
+        }
         impl_(py, slf)?;
         Ok(0)
     })
@@ -412,30 +418,36 @@ pub unsafe fn _call_clear(
 /// - if the base type is a Python builtin, can jut call the C function directly
 /// - if the base type is a PyO3 type defined in the same module, can potentially do similar to
 ///   tp_alloc where we solve this at compile time
-unsafe fn call_super_clear(obj: *mut ffi::PyObject, current_clear: ffi::inquiry) -> c_int {
-    let mut ty = ffi::Py_TYPE(obj);
+unsafe fn call_super_clear(
+    py: Python<'_>,
+    obj: *mut ffi::PyObject,
+    current_clear: ffi::inquiry,
+) -> c_int {
+    let mut ty = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(obj));
     let mut clear: Option<ffi::inquiry>;
 
     // First find the current type by the current_clear function
     loop {
-        clear = get_tp_clear(ty);
+        clear = ty.get_slot(TP_CLEAR);
         if clear == Some(current_clear) {
             break;
         }
-        ty = get_tp_base(ty);
-        if ty.is_null() {
+        let base = ty.get_slot(TP_BASE);
+        if base.is_null() {
             // FIXME: return an error if current type not in the MRO? Should be impossible.
             return 0;
         }
+        ty = PyType::from_borrowed_type_ptr(py, base);
     }
 
     // Get first base which has a different clear function
-    while !ty.is_null() && clear == Some(current_clear) {
-        ty = get_tp_base(ty);
-        if ty.is_null() {
+    while clear == Some(current_clear) {
+        let base = ty.get_slot(TP_BASE);
+        if base.is_null() {
             break;
         }
-        clear = get_tp_clear(ty);
+        ty = PyType::from_borrowed_type_ptr(py, base);
+        clear = ty.get_slot(TP_CLEAR);
     }
 
     // If we found a type with a different clear function, call it
@@ -692,42 +704,6 @@ pub unsafe fn tp_new_impl<T: PyClass>(
     initializer
         .create_class_object_of_type(py, target_type)
         .map(Bound::into_ptr)
-}
-
-unsafe fn get_tp_traverse(ty: *mut ffi::PyTypeObject) -> Option<ffi::traverseproc> {
-    #[cfg(not(Py_LIMITED_API))]
-    {
-        (*ty).tp_traverse
-    }
-
-    #[cfg(Py_LIMITED_API)]
-    {
-        std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::Py_tp_traverse))
-    }
-}
-
-unsafe fn get_tp_clear(ty: *mut ffi::PyTypeObject) -> Option<ffi::inquiry> {
-    #[cfg(not(Py_LIMITED_API))]
-    {
-        (*ty).tp_clear
-    }
-
-    #[cfg(Py_LIMITED_API)]
-    {
-        std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::Py_tp_clear))
-    }
-}
-
-unsafe fn get_tp_base(ty: *mut ffi::PyTypeObject) -> *mut ffi::PyTypeObject {
-    #[cfg(not(Py_LIMITED_API))]
-    {
-        (*ty).tp_base
-    }
-
-    #[cfg(Py_LIMITED_API)]
-    {
-        ffi::PyType_GetSlot(ty, ffi::Py_tp_base).cast()
-    }
 }
 
 #[cfg(test)]
