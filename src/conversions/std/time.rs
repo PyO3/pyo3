@@ -8,9 +8,9 @@ use crate::types::PyType;
 use crate::types::{timezone_utc, PyDateTime, PyDelta, PyDeltaAccess};
 #[cfg(Py_LIMITED_API)]
 use crate::Py;
-use crate::{
-    intern, Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
-};
+#[allow(deprecated)]
+use crate::ToPyObject;
+use crate::{intern, Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
@@ -52,6 +52,7 @@ impl FromPyObject<'_> for Duration {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for Duration {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -132,6 +133,7 @@ impl FromPyObject<'_> for SystemTime {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for SystemTime {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -249,47 +251,59 @@ mod tests {
     }
 
     #[test]
-    fn test_duration_topyobject() {
+    fn test_duration_into_pyobject() {
         Python::with_gil(|py| {
-            let assert_eq = |l: PyObject, r: Bound<'_, PyAny>| {
-                assert!(l.bind(py).eq(r).unwrap());
+            let assert_eq = |l: Bound<'_, PyAny>, r: Bound<'_, PyAny>| {
+                assert!(l.eq(r).unwrap());
             };
 
             assert_eq(
-                Duration::new(0, 0).to_object(py),
+                Duration::new(0, 0).into_pyobject(py).unwrap().into_any(),
                 new_timedelta(py, 0, 0, 0),
             );
             assert_eq(
-                Duration::new(86400, 0).to_object(py),
+                Duration::new(86400, 0)
+                    .into_pyobject(py)
+                    .unwrap()
+                    .into_any(),
                 new_timedelta(py, 1, 0, 0),
             );
             assert_eq(
-                Duration::new(1, 0).to_object(py),
+                Duration::new(1, 0).into_pyobject(py).unwrap().into_any(),
                 new_timedelta(py, 0, 1, 0),
             );
             assert_eq(
-                Duration::new(0, 1_000).to_object(py),
+                Duration::new(0, 1_000)
+                    .into_pyobject(py)
+                    .unwrap()
+                    .into_any(),
                 new_timedelta(py, 0, 0, 1),
             );
             assert_eq(
-                Duration::new(0, 1).to_object(py),
+                Duration::new(0, 1).into_pyobject(py).unwrap().into_any(),
                 new_timedelta(py, 0, 0, 0),
             );
             assert_eq(
-                Duration::new(86401, 1_000).to_object(py),
+                Duration::new(86401, 1_000)
+                    .into_pyobject(py)
+                    .unwrap()
+                    .into_any(),
                 new_timedelta(py, 1, 1, 1),
             );
             assert_eq(
-                Duration::new(86399999999999, 999999000).to_object(py),
+                Duration::new(86399999999999, 999999000)
+                    .into_pyobject(py)
+                    .unwrap()
+                    .into_any(),
                 timedelta_class(py).getattr("max").unwrap(),
             );
         });
     }
 
     #[test]
-    fn test_duration_topyobject_overflow() {
+    fn test_duration_into_pyobject_overflow() {
         Python::with_gil(|py| {
-            assert!(panic::catch_unwind(|| Duration::MAX.to_object(py)).is_err());
+            assert!(Duration::MAX.into_pyobject(py).is_err());
         })
     }
 

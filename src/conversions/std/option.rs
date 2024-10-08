@@ -1,13 +1,14 @@
 use crate::{
     conversion::IntoPyObject, ffi, types::any::PyAnyMethods, AsPyPointer, Bound, BoundObject,
-    FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
+    FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python,
 };
 
 /// `Option::Some<T>` is converted like `T`.
 /// `Option::None` is converted to Python `None`.
-impl<T> ToPyObject for Option<T>
+#[allow(deprecated)]
+impl<T> crate::ToPyObject for Option<T>
 where
-    T: ToPyObject,
+    T: crate::ToPyObject,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         self.as_ref()

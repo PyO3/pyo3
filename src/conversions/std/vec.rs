@@ -2,8 +2,11 @@ use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::types::list::new_from_iter;
-use crate::{Bound, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject};
+#[allow(deprecated)]
+use crate::ToPyObject;
+use crate::{Bound, IntoPy, PyAny, PyErr, PyObject, Python};
 
+#[allow(deprecated)]
 impl<T> ToPyObject for [T]
 where
     T: ToPyObject,
@@ -15,6 +18,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<T> ToPyObject for Vec<T>
 where
     T: ToPyObject,

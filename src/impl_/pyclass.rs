@@ -1,3 +1,5 @@
+#[allow(deprecated)]
+use crate::ToPyObject;
 use crate::{
     conversion::IntoPyObject,
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
@@ -11,7 +13,6 @@ use crate::{
     pyclass_init::PyObjectInit,
     types::{any::PyAnyMethods, PyBool},
     Borrowed, BoundObject, IntoPy, Py, PyAny, PyClass, PyErr, PyRef, PyResult, PyTypeInfo, Python,
-    ToPyObject,
 };
 use std::{
     borrow::Cow,
@@ -1292,6 +1293,7 @@ impl<
 
 /// Fallback case; Field is not `Py<T>`; try to use `ToPyObject` to avoid potentially expensive
 /// clones of containers like `Vec`
+#[allow(deprecated)]
 impl<
         ClassT: PyClass,
         FieldT: ToPyObject,
@@ -1443,6 +1445,7 @@ impl<T> IsPyT<Py<T>> {
 
 probe!(IsToPyObject);
 
+#[allow(deprecated)]
 impl<T: ToPyObject> IsToPyObject<T> {
     pub const VALUE: bool = true;
 }
@@ -1492,6 +1495,7 @@ where
     unsafe { obj.cast::<u8>().add(Offset::offset()).cast::<FieldT>() }
 }
 
+#[allow(deprecated)]
 fn pyo3_get_value_topyobject<
     ClassT: PyClass,
     FieldT: ToPyObject,

@@ -16,6 +16,8 @@
 //!
 //! Note that you must use compatible versions of hashbrown and PyO3.
 //! The required hashbrown version may vary based on the version of PyO3.
+#[allow(deprecated)]
+use crate::ToPyObject;
 use crate::{
     conversion::IntoPyObject,
     types::{
@@ -25,10 +27,11 @@ use crate::{
         set::{new_from_iter, try_new_from_iter, PySetMethods},
         PyDict, PyFrozenSet, PySet,
     },
-    Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python,
 };
 use std::{cmp, hash};
 
+#[allow(deprecated)]
 impl<K, V, H> ToPyObject for hashbrown::HashMap<K, V, H>
 where
     K: hash::Hash + cmp::Eq + ToPyObject,
@@ -113,6 +116,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<T> ToPyObject for hashbrown::HashSet<T>
 where
     T: hash::Hash + Eq + ToPyObject,
@@ -194,8 +198,7 @@ mod tests {
             let mut map = hashbrown::HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let m = map.to_object(py);
-            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
+            let py_map = (&map).into_pyobject(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(

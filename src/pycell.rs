@@ -265,7 +265,7 @@ impl<'p, T: PyClass> PyRef<'p, T> {
     }
 }
 
-impl<'p, T, U> AsRef<U> for PyRef<'p, T>
+impl<T, U> AsRef<U> for PyRef<'_, T>
 where
     T: PyClass<BaseType = U>,
     U: PyClass,
@@ -370,7 +370,7 @@ where
             inner: unsafe {
                 ManuallyDrop::new(self)
                     .as_ptr()
-                    .assume_owned(py)
+                    .assume_owned_unchecked(py)
                     .downcast_into_unchecked()
             },
         }
@@ -429,7 +429,7 @@ where
     }
 }
 
-impl<'p, T: PyClass> Deref for PyRef<'p, T> {
+impl<T: PyClass> Deref for PyRef<'_, T> {
     type Target = T;
 
     #[inline]
@@ -438,7 +438,7 @@ impl<'p, T: PyClass> Deref for PyRef<'p, T> {
     }
 }
 
-impl<'p, T: PyClass> Drop for PyRef<'p, T> {
+impl<T: PyClass> Drop for PyRef<'_, T> {
     fn drop(&mut self) {
         self.inner
             .get_class_object()
@@ -479,7 +479,7 @@ impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &'a PyRef<'py, T> {
     }
 }
 
-unsafe impl<'a, T: PyClass> AsPyPointer for PyRef<'a, T> {
+unsafe impl<T: PyClass> AsPyPointer for PyRef<'_, T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.inner.as_ptr()
     }
@@ -508,7 +508,7 @@ impl<'p, T: PyClass<Frozen = False>> PyRefMut<'p, T> {
     }
 }
 
-impl<'p, T, U> AsRef<U> for PyRefMut<'p, T>
+impl<T, U> AsRef<U> for PyRefMut<'_, T>
 where
     T: PyClass<BaseType = U, Frozen = False>,
     U: PyClass<Frozen = False>,
@@ -518,7 +518,7 @@ where
     }
 }
 
-impl<'p, T, U> AsMut<U> for PyRefMut<'p, T>
+impl<T, U> AsMut<U> for PyRefMut<'_, T>
 where
     T: PyClass<BaseType = U, Frozen = False>,
     U: PyClass<Frozen = False>,
@@ -587,7 +587,7 @@ where
             inner: unsafe {
                 ManuallyDrop::new(self)
                     .as_ptr()
-                    .assume_owned(py)
+                    .assume_owned_unchecked(py)
                     .downcast_into_unchecked()
             },
         }
@@ -611,7 +611,7 @@ where
     }
 }
 
-impl<'p, T: PyClass<Frozen = False>> Deref for PyRefMut<'p, T> {
+impl<T: PyClass<Frozen = False>> Deref for PyRefMut<'_, T> {
     type Target = T;
 
     #[inline]
@@ -620,14 +620,14 @@ impl<'p, T: PyClass<Frozen = False>> Deref for PyRefMut<'p, T> {
     }
 }
 
-impl<'p, T: PyClass<Frozen = False>> DerefMut for PyRefMut<'p, T> {
+impl<T: PyClass<Frozen = False>> DerefMut for PyRefMut<'_, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut *self.inner.get_class_object().get_ptr() }
     }
 }
 
-impl<'p, T: PyClass<Frozen = False>> Drop for PyRefMut<'p, T> {
+impl<T: PyClass<Frozen = False>> Drop for PyRefMut<'_, T> {
     fn drop(&mut self) {
         self.inner
             .get_class_object()

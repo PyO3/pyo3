@@ -93,11 +93,13 @@
 //! result = get_eigenvalues(m11,m12,m21,m22)
 //! assert result == [complex(1,-1), complex(-2,0)]
 //! ```
+#[allow(deprecated)]
+use crate::ToPyObject;
 use crate::{
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     types::{any::PyAnyMethods, PyComplex},
-    Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python,
 };
 use num_complex::Complex;
 use std::os::raw::c_double;
@@ -119,6 +121,7 @@ impl PyComplex {
 macro_rules! complex_conversion {
     ($float: ty) => {
         #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
+        #[allow(deprecated)]
         impl ToPyObject for Complex<$float> {
             #[inline]
             fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -218,6 +221,7 @@ mod tests {
     use super::*;
     use crate::tests::common::generate_unique_module_name;
     use crate::types::{complex::PyComplexMethods, PyModule};
+    use crate::IntoPyObject;
     use pyo3_ffi::c_str;
 
     #[test]
@@ -232,16 +236,16 @@ mod tests {
     #[test]
     fn to_from_complex() {
         Python::with_gil(|py| {
-            let val = Complex::new(3.0, 1.2);
-            let obj = val.to_object(py);
-            assert_eq!(obj.extract::<Complex<f64>>(py).unwrap(), val);
+            let val = Complex::new(3.0f64, 1.2);
+            let obj = val.into_pyobject(py).unwrap();
+            assert_eq!(obj.extract::<Complex<f64>>().unwrap(), val);
         });
     }
     #[test]
     fn from_complex_err() {
         Python::with_gil(|py| {
-            let obj = vec![1].to_object(py);
-            assert!(obj.extract::<Complex<f64>>(py).is_err());
+            let obj = vec![1i32].into_pyobject(py).unwrap();
+            assert!(obj.extract::<Complex<f64>>().is_err());
         });
     }
     #[test]

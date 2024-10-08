@@ -17,7 +17,7 @@ fn test_cloneable_pyclass() {
     let c = Cloneable { x: 10 };
 
     Python::with_gil(|py| {
-        let py_c = Py::new(py, c.clone()).unwrap().to_object(py);
+        let py_c = Py::new(py, c.clone()).unwrap();
 
         let c2: Cloneable = py_c.extract(py).unwrap();
         assert_eq!(c, c2);
@@ -69,8 +69,7 @@ fn test_polymorphic_container_stores_base_class() {
                 inner: Py::new(py, BaseClass::default()).unwrap(),
             },
         )
-        .unwrap()
-        .to_object(py);
+        .unwrap();
 
         py_assert!(py, p, "p.inner.foo() == 'BaseClass'");
     });
@@ -85,8 +84,7 @@ fn test_polymorphic_container_stores_sub_class() {
                 inner: Py::new(py, BaseClass::default()).unwrap(),
             },
         )
-        .unwrap()
-        .to_object(py);
+        .unwrap();
 
         p.bind(py)
             .setattr(
@@ -112,8 +110,7 @@ fn test_polymorphic_container_does_not_accept_other_types() {
                 inner: Py::new(py, BaseClass::default()).unwrap(),
             },
         )
-        .unwrap()
-        .to_object(py);
+        .unwrap();
 
         let setattr = |value: PyObject| p.bind(py).setattr("inner", value);
 

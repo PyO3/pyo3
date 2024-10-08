@@ -48,9 +48,9 @@ use crate::ffi;
 use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
-use crate::{
-    Bound, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
-};
+#[allow(deprecated)]
+use crate::ToPyObject;
+use crate::{Bound, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python};
 
 #[cfg(feature = "num-bigint")]
 use num_bigint::BigInt;
@@ -84,6 +84,7 @@ macro_rules! rational_conversion {
             }
         }
 
+        #[allow(deprecated)]
         impl ToPyObject for Ratio<$int> {
             #[inline]
             fn to_object(&self, py: Python<'_>) -> PyObject {

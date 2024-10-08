@@ -2,7 +2,7 @@ use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::types::{any::PyAny, PyNone};
-use crate::{ffi, Bound, ToPyObject};
+use crate::{ffi, Bound, BoundObject, IntoPyObject};
 
 #[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
 use crate::type_object::PyTypeCheck;
@@ -157,7 +157,7 @@ impl PyWeakrefReference {
         callback: C,
     ) -> PyResult<Bound<'py, PyWeakrefReference>>
     where
-        C: ToPyObject,
+        C: IntoPyObject<'py>,
     {
         fn inner<'py>(
             object: &Bound<'py, PyAny>,
@@ -173,20 +173,28 @@ impl PyWeakrefReference {
         }
 
         let py = object.py();
-        inner(object, callback.to_object(py).into_bound(py))
+        inner(
+            object,
+            callback
+                .into_pyobject(py)
+                .map(BoundObject::into_any)
+                .map(BoundObject::into_bound)
+                .map_err(Into::into)?,
+        )
     }
 
     /// Deprecated name for [`PyWeakrefReference::new_with`].
     #[deprecated(since = "0.23.0", note = "renamed to `PyWeakrefReference::new_with`")]
+    #[allow(deprecated)]
     #[inline]
     pub fn new_bound_with<'py, C>(
         object: &Bound<'py, PyAny>,
         callback: C,
     ) -> PyResult<Bound<'py, PyWeakrefReference>>
     where
-        C: ToPyObject,
+        C: crate::ToPyObject,
     {
-        Self::new_with(object, callback)
+        Self::new_with(object, callback.to_object(object.py()))
     }
 }
 
@@ -196,7 +204,9 @@ impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakrefReference> {
         match unsafe { ffi::compat::PyWeakref_GetRef(self.as_ptr(), &mut obj) } {
             std::os::raw::c_int::MIN..=-1 => panic!("The 'weakref.ReferenceType' instance should be valid (non-null and actually a weakref reference)"),
             0 => PyNone::get(self.py()).to_owned().into_any(),
-            1..=std::os::raw::c_int::MAX => unsafe { obj.assume_owned(self.py()) },
+            // Safety: positive return value from `PyWeakRef_GetRef` guarantees the return value is
+            // a valid strong reference.
+            1..=std::os::raw::c_int::MAX => unsafe { obj.assume_owned_unchecked(self.py()) },
         }
     }
 }

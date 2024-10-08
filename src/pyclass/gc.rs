@@ -25,7 +25,7 @@ pub struct PyVisit<'a> {
     pub(crate) _guard: PhantomData<&'a ()>,
 }
 
-impl<'a> PyVisit<'a> {
+impl PyVisit<'_> {
     /// Visit `obj`.
     pub fn call<T>(&self, obj: &T) -> Result<(), PyTraverseError>
     where

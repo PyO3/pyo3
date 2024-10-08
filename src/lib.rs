@@ -320,7 +320,9 @@
 #![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features Reference - PyO3 user guide\"")]
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
-pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
+#[allow(deprecated)]
+pub use crate::conversion::ToPyObject;
+pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, IntoPyObject};
 pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
@@ -409,6 +411,7 @@ mod tests;
 
 #[macro_use]
 mod internal_tricks;
+mod internal;
 
 pub mod buffer;
 #[doc(hidden)]

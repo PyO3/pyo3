@@ -1,7 +1,8 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[allow(deprecated)]
+use crate::ToPyObject;
 use crate::{
     ffi, types::any::PyAnyMethods, Borrowed, Bound, IntoPy, PyAny, PyObject, PyTypeInfo, Python,
-    ToPyObject,
 };
 
 /// Represents the Python `None` object.
@@ -50,6 +51,7 @@ unsafe impl PyTypeInfo for PyNone {
 }
 
 /// `()` is converted to Python `None`.
+#[allow(deprecated)]
 impl ToPyObject for () {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         PyNone::get(py).into_py(py)
@@ -67,7 +69,7 @@ impl IntoPy<PyObject> for () {
 mod tests {
     use crate::types::any::PyAnyMethods;
     use crate::types::{PyDict, PyNone};
-    use crate::{IntoPy, PyObject, PyTypeInfo, Python, ToPyObject};
+    use crate::{IntoPy, PyObject, PyTypeInfo, Python};
     #[test]
     fn test_none_is_itself() {
         Python::with_gil(|py| {
@@ -91,7 +93,9 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_unit_to_object_is_none() {
+        use crate::ToPyObject;
         Python::with_gil(|py| {
             assert!(().to_object(py).downcast_bound::<PyNone>(py).is_ok());
         })

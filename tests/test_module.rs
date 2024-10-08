@@ -5,6 +5,7 @@ use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::PyString;
 use pyo3::types::{IntoPyDict, PyDict, PyTuple};
+use pyo3::BoundObject;
 use pyo3_ffi::c_str;
 
 #[path = "../src/tests/common.rs"]
@@ -173,13 +174,12 @@ fn test_module_from_code_bound() {
 
         let add_func = adder_mod
             .getattr("add")
-            .expect("Add function should be in the module")
-            .to_object(py);
+            .expect("Add function should be in the module");
 
         let ret_value: i32 = add_func
-            .call1(py, (1, 2))
+            .call1((1, 2))
             .expect("A value should be returned")
-            .extract(py)
+            .extract()
             .expect("The value should be able to be converted to an i32");
 
         assert_eq!(ret_value, 3);
@@ -321,14 +321,19 @@ fn test_module_nesting() {
 // Test that argument parsing specification works for pyfunctions
 
 #[pyfunction(signature = (a=5, *args))]
-fn ext_vararg_fn(py: Python<'_>, a: i32, args: &Bound<'_, PyTuple>) -> PyObject {
-    [a.to_object(py), args.into_py(py)].to_object(py)
+fn ext_vararg_fn(py: Python<'_>, a: i32, args: &Bound<'_, PyTuple>) -> PyResult<PyObject> {
+    [
+        a.into_pyobject(py)?.into_any().into_bound(),
+        args.as_any().clone(),
+    ]
+    .into_pyobject(py)
+    .map(BoundObject::unbind)
 }
 
 #[pymodule]
 fn vararg_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     #[pyfn(m, signature = (a=5, *args))]
-    fn int_vararg_fn(py: Python<'_>, a: i32, args: &Bound<'_, PyTuple>) -> PyObject {
+    fn int_vararg_fn(py: Python<'_>, a: i32, args: &Bound<'_, PyTuple>) -> PyResult<PyObject> {
         ext_vararg_fn(py, a, args)
     }
 

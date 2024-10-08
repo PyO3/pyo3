@@ -3,12 +3,15 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyString;
-use crate::{ffi, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
+#[allow(deprecated)]
+use crate::ToPyObject;
+use crate::{ffi, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python};
 use std::borrow::Cow;
 use std::convert::Infallible;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
+#[allow(deprecated)]
 impl ToPyObject for Path {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -26,7 +29,7 @@ impl FromPyObject<'_> for PathBuf {
     }
 }
 
-impl<'a> IntoPy<PyObject> for &'a Path {
+impl IntoPy<PyObject> for &Path {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
@@ -55,14 +58,15 @@ impl<'py> IntoPyObject<'py> for &&Path {
     }
 }
 
-impl<'a> ToPyObject for Cow<'a, Path> {
+#[allow(deprecated)]
+impl ToPyObject for Cow<'_, Path> {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
-impl<'a> IntoPy<PyObject> for Cow<'a, Path> {
+impl IntoPy<PyObject> for Cow<'_, Path> {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
@@ -91,6 +95,7 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, Path> {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for PathBuf {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -116,7 +121,7 @@ impl<'py> IntoPyObject<'py> for PathBuf {
     }
 }
 
-impl<'a> IntoPy<PyObject> for &'a PathBuf {
+impl IntoPy<PyObject> for &PathBuf {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
@@ -136,10 +141,8 @@ impl<'py> IntoPyObject<'py> for &PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::IntoPyObject;
-    use crate::types::{PyAnyMethods, PyStringMethods};
-    use crate::BoundObject;
-    use crate::{types::PyString, IntoPy, PyObject, Python};
+    use crate::types::{PyAnyMethods, PyString, PyStringMethods};
+    use crate::{BoundObject, IntoPy, IntoPyObject, PyObject, Python};
     use std::borrow::Cow;
     use std::fmt::Debug;
     use std::path::{Path, PathBuf};
