@@ -105,8 +105,7 @@ macro_rules! impl_slots {
                             // (3.7, 3.8, 3.9) and then look in the type object anyway. This is only ok
                             // because we know that the interpreter is not going to change the size
                             // of the type objects for these historical versions.
-                            if !is_runtime_3_10(tp.py())
-                                && unsafe { ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) } == 0
+                            if !is_runtime_3_10 && unsafe { ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) } == 0
                             {
                                 return unsafe { (*ty.cast::<PyTypeObject39Snapshot>()).$field };
                             }
