@@ -428,8 +428,15 @@ impl PyTypeBuilder {
         unsafe { self.push_slot(ffi::Py_tp_base, self.tp_base) }
 
         if !self.has_new {
-            // Safety: This is the correct slot type for Py_tp_new
-            unsafe { self.push_slot(ffi::Py_tp_new, no_constructor_defined as *mut c_void) }
+            #[cfg(not(Py_3_10))]
+            {
+                // Safety: This is the correct slot type for Py_tp_new
+                unsafe { self.push_slot(ffi::Py_tp_new, no_constructor_defined as *mut c_void) }
+            }
+            #[cfg(Py_3_10)]
+            {
+                self.class_flags |= ffi::Py_TPFLAGS_DISALLOW_INSTANTIATION;
+            }
         }
 
         let tp_dealloc = if self.has_traverse || unsafe { ffi::PyType_IS_GC(self.tp_base) == 1 } {
@@ -523,6 +530,7 @@ fn bpo_45315_workaround(py: Python<'_>, class_name: CString) {
 }
 
 /// Default new implementation
+#[cfg(not(Py_3_10))]
 unsafe extern "C" fn no_constructor_defined(
     subtype: *mut ffi::PyTypeObject,
     _args: *mut ffi::PyObject,
