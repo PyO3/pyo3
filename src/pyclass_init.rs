@@ -344,7 +344,7 @@ impl<'py, T: PyClass> From<Bound<'py, T>> for PyClassInitializer<T> {
 
 // Implementation used by proc macros to allow anything convertible to PyClassInitializer<T> to be
 // the return value of pyclass #[new] method (optionally wrapped in `Result<U, E>`).
-impl<T, U> IntoPyCallbackOutput<PyClassInitializer<T>> for U
+impl<T, U> IntoPyCallbackOutput<'_, PyClassInitializer<T>> for U
 where
     T: PyClass,
     U: Into<PyClassInitializer<T>>,
