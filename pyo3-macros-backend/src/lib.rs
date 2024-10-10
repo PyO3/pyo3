@@ -15,6 +15,7 @@ mod konst;
 mod method;
 mod module;
 mod params;
+mod pycall;
 mod pyclass;
 mod pyfunction;
 mod pyimpl;
@@ -24,6 +25,7 @@ mod quotes;
 
 pub use frompyobject::build_derive_from_pyobject;
 pub use module::{pymodule_function_impl, pymodule_module_impl, PyModuleOptions};
+pub use pycall::{build_pycall_output, PycallInput};
 pub use pyclass::{build_py_class, build_py_enum, PyClassArgs};
 pub use pyfunction::{build_py_function, PyFunctionOptions};
 pub use pyimpl::{build_py_methods, PyClassMethodsType};
