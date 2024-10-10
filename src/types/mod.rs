@@ -200,7 +200,7 @@ macro_rules! pyobject_subclassable_native_type {
         impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
             type LayoutAsBase = $crate::impl_::pycell::PyClassObjectBase<$layout>;
             type BaseNativeType = $name;
-            type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
+            type Initializer = $crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
             type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
         }
     }

@@ -49,7 +49,7 @@ pyobject_native_type_sized!(PyAny, ffi::PyObject);
 impl crate::impl_::pyclass::PyClassBaseType for PyAny {
     type LayoutAsBase = crate::impl_::pycell::PyClassObjectBase<ffi::PyObject>;
     type BaseNativeType = PyAny;
-    type Initializer = crate::pyclass_init::PyNativeTypeInitializer<Self>;
+    type Initializer = crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
     type PyClassMutability = crate::pycell::impl_::ImmutableClass;
 }
 
