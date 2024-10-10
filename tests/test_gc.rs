@@ -625,7 +625,7 @@ fn test_traverse_subclass() {
             drop_called: drop_called.clone(),
         };
         let obj = Bound::new(py, PyClassInitializer::from(base).add_subclass(Sub {})).unwrap();
-        obj.borrow_mut().as_super().cycle = Some(obj.to_object(py));
+        obj.borrow_mut().as_super().cycle = Some(obj.clone().into_any().unbind());
 
         drop(obj);
         assert!(!drop_called.load(Ordering::Relaxed));
@@ -691,7 +691,7 @@ fn test_traverse_subclass_override_clear() {
             drop_called: drop_called.clone(),
         };
         let obj = Bound::new(py, PyClassInitializer::from(base).add_subclass(Sub {})).unwrap();
-        obj.borrow_mut().as_super().cycle = Some(obj.to_object(py));
+        obj.borrow_mut().as_super().cycle = Some(obj.clone().into_any().unbind());
 
         drop(obj);
         assert!(!drop_called.load(Ordering::Relaxed));
