@@ -7,7 +7,7 @@ use crate::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
             tp_dealloc_with_gc, MaybeRuntimePyMethodDef, PyClassItemsIter,
         },
-        pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter},
+        pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, _call_clear},
         trampoline::trampoline,
     },
     internal_tricks::ptr_from_ref,
@@ -432,7 +432,8 @@ impl PyTypeBuilder {
             unsafe { self.push_slot(ffi::Py_tp_new, no_constructor_defined as *mut c_void) }
         }
 
-        let tp_dealloc = if self.has_traverse || unsafe { ffi::PyType_IS_GC(self.tp_base) == 1 } {
+        let base_is_gc = unsafe { ffi::PyType_IS_GC(self.tp_base) == 1 };
+        let tp_dealloc = if self.has_traverse || base_is_gc {
             self.tp_dealloc_with_gc
         } else {
             self.tp_dealloc
@@ -444,6 +445,22 @@ impl PyTypeBuilder {
                 "`#[pyclass]` {} implements __clear__ without __traverse__",
                 name
             )));
+        }
+
+        // If this type is a GC type, and the base also is, we may need to add
+        // `tp_traverse` / `tp_clear` implementations to call the base, if this type didn't
+        // define `__traverse__` or `__clear__`.
+        //
+        // This is because when Py_TPFLAGS_HAVE_GC is set, then `tp_traverse` and
+        // `tp_clear` are not inherited.
+        if ((self.class_flags & ffi::Py_TPFLAGS_HAVE_GC) != 0) && base_is_gc {
+            // If this assertion breaks, need to consider doing the same for __traverse__.
+            assert!(self.has_traverse); // Py_TPFLAGS_HAVE_GC is set when a `__traverse__` method is found
+
+            if !self.has_clear {
+                // Safety: This is the correct slot type for Py_tp_clear
+                unsafe { self.push_slot(ffi::Py_tp_clear, call_super_clear as *mut c_void) }
+            }
         }
 
         // For sequences, implement sq_length instead of mp_length
@@ -538,6 +555,10 @@ unsafe extern "C" fn no_constructor_defined(
             name
         )))
     })
+}
+
+unsafe extern "C" fn call_super_clear(slf: *mut ffi::PyObject) -> c_int {
+    _call_clear(slf, |_, _| Ok(()), call_super_clear)
 }
 
 #[derive(Default)]

@@ -579,6 +579,134 @@ fn unsendable_are_not_traversed_on_foreign_thread() {
     });
 }
 
+#[test]
+fn test_traverse_subclass() {
+    #[pyclass(subclass)]
+    struct Base {
+        cycle: Option<PyObject>,
+        drop_called: Arc<AtomicBool>,
+    }
+
+    #[pymethods]
+    impl Base {
+        fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            visit.call(&self.cycle)?;
+            Ok(())
+        }
+
+        fn __clear__(&mut self) {
+            self.cycle = None;
+        }
+    }
+
+    impl Drop for Base {
+        fn drop(&mut self) {
+            self.drop_called.store(true, Ordering::Relaxed);
+        }
+    }
+
+    #[pyclass(extends = Base)]
+    struct Sub {}
+
+    #[pymethods]
+    impl Sub {
+        #[allow(clippy::unnecessary_wraps)]
+        fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            // subclass traverse overrides the base class traverse
+            Ok(())
+        }
+    }
+
+    let drop_called = Arc::new(AtomicBool::new(false));
+
+    Python::with_gil(|py| {
+        let base = Base {
+            cycle: None,
+            drop_called: drop_called.clone(),
+        };
+        let obj = Bound::new(py, PyClassInitializer::from(base).add_subclass(Sub {})).unwrap();
+        obj.borrow_mut().as_super().cycle = Some(obj.clone().into_any().unbind());
+
+        drop(obj);
+        assert!(!drop_called.load(Ordering::Relaxed));
+
+        // due to the internal GC mechanism, we may need multiple
+        // (but not too many) collections to get `inst` actually dropped.
+        for _ in 0..10 {
+            py.run(ffi::c_str!("import gc; gc.collect()"), None, None)
+                .unwrap();
+        }
+
+        assert!(drop_called.load(Ordering::Relaxed));
+    });
+}
+
+#[test]
+fn test_traverse_subclass_override_clear() {
+    #[pyclass(subclass)]
+    struct Base {
+        cycle: Option<PyObject>,
+        drop_called: Arc<AtomicBool>,
+    }
+
+    #[pymethods]
+    impl Base {
+        fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            visit.call(&self.cycle)?;
+            Ok(())
+        }
+
+        fn __clear__(&mut self) {
+            self.cycle = None;
+        }
+    }
+
+    impl Drop for Base {
+        fn drop(&mut self) {
+            self.drop_called.store(true, Ordering::Relaxed);
+        }
+    }
+
+    #[pyclass(extends = Base)]
+    struct Sub {}
+
+    #[pymethods]
+    impl Sub {
+        #[allow(clippy::unnecessary_wraps)]
+        fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            // subclass traverse overrides the base class traverse
+            Ok(())
+        }
+
+        fn __clear__(&self) {
+            // subclass clear overrides the base class clear
+        }
+    }
+
+    let drop_called = Arc::new(AtomicBool::new(false));
+
+    Python::with_gil(|py| {
+        let base = Base {
+            cycle: None,
+            drop_called: drop_called.clone(),
+        };
+        let obj = Bound::new(py, PyClassInitializer::from(base).add_subclass(Sub {})).unwrap();
+        obj.borrow_mut().as_super().cycle = Some(obj.clone().into_any().unbind());
+
+        drop(obj);
+        assert!(!drop_called.load(Ordering::Relaxed));
+
+        // due to the internal GC mechanism, we may need multiple
+        // (but not too many) collections to get `inst` actually dropped.
+        for _ in 0..10 {
+            py.run(ffi::c_str!("import gc; gc.collect()"), None, None)
+                .unwrap();
+        }
+
+        assert!(drop_called.load(Ordering::Relaxed));
+    });
+}
+
 // Manual traversal utilities
 
 unsafe fn get_type_traverse(tp: *mut pyo3::ffi::PyTypeObject) -> Option<pyo3::ffi::traverseproc> {
