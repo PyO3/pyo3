@@ -114,6 +114,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(Py_GIL_DISABLED))] // https://github.com/python/cpython/issues/116738#issuecomment-2404360445
     fn test_into_pyobject() {
         Python::with_gil(|py| {
             let assert_eq = |l: Bound<'_, PyAny>, r: Bound<'_, PyAny>| {

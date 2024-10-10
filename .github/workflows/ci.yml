@@ -312,6 +312,15 @@ jobs:
                 python-architecture: "x64",
                 rust-target: "x86_64-apple-darwin",
               }
+          # ubuntu-latest (24.04) no longer supports 3.7, so run on 22.04
+          - rust: stable
+            python-version: "3.7"
+            platform:
+              {
+                os: "ubuntu-22.04",
+                python-architecture: "x64",
+                rust-target: "x86_64-unknown-linux-gnu",
+              }
 
           # arm64 macOS Python not available on GitHub Actions until 3.10
           # so backfill 3.7-3.9 with x64 macOS runners
@@ -341,6 +350,9 @@ jobs:
               }
 
         exclude:
+          # ubuntu-latest (24.04) no longer supports 3.7
+          - python-version: "3.7"
+            platform: { os: "ubuntu-latest" }
           # arm64 macOS Python not available on GitHub Actions until 3.10
           - rust: stable
             python-version: "3.7"
@@ -572,6 +584,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.event_name != 'merge_group' }}
@@ -641,6 +656,9 @@ jobs:
             target: "x86_64-apple-darwin"
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces:
