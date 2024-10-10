@@ -6,6 +6,7 @@
 //! APIs may may change at any time without documentation in the CHANGELOG and without
 //! breaking semver guarantees.
 
+pub mod callback;
 #[cfg(feature = "experimental-async")]
 pub mod coroutine;
 pub mod exceptions;

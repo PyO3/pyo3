@@ -312,7 +312,7 @@ impl ExtractErrorMode {
             ExtractErrorMode::NotImplemented => quote! {
                 match #extract {
                     ::std::result::Result::Ok(value) => value,
-                    ::std::result::Result::Err(_) => { return #pyo3_path::callback::convert(py, py.NotImplemented()); },
+                    ::std::result::Result::Err(_) => { return #pyo3_path::impl_::callback::convert(py, py.NotImplemented()); },
                 }
             },
         }
@@ -836,7 +836,7 @@ impl<'a> FnSpec<'a> {
                         _args: *mut #pyo3_path::ffi::PyObject,
                         _kwargs: *mut #pyo3_path::ffi::PyObject
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
-                        use #pyo3_path::callback::IntoPyCallbackOutput;
+                        use #pyo3_path::impl_::callback::IntoPyCallbackOutput;
                         #deprecation
                         let _slf_ref = &_slf;
                         let function = #rust_name; // Shadow the function name to avoid #3017

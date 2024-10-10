@@ -1,6 +1,6 @@
 //! Contains initialization utilities for `#[pyclass]`.
-use crate::callback::IntoPyCallbackOutput;
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, PyClassWeakRef};
 use crate::internal::get_slot::TP_ALLOC;
 use crate::types::{PyAnyMethods, PyType};

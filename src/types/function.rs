@@ -104,7 +104,7 @@ impl PyCFunction {
     ) -> PyResult<Bound<'py, Self>>
     where
         F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
-        for<'p> R: crate::callback::IntoPyCallbackOutput<'p, *mut ffi::PyObject>,
+        for<'p> R: crate::impl_::callback::IntoPyCallbackOutput<'p, *mut ffi::PyObject>,
     {
         let name = name.unwrap_or(ffi::c_str!("pyo3-closure"));
         let doc = doc.unwrap_or(ffi::c_str!(""));
@@ -142,7 +142,7 @@ impl PyCFunction {
     ) -> PyResult<Bound<'py, Self>>
     where
         F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
-        for<'p> R: crate::callback::IntoPyCallbackOutput<'p, *mut ffi::PyObject>,
+        for<'p> R: crate::impl_::callback::IntoPyCallbackOutput<'p, *mut ffi::PyObject>,
     {
         Self::new_closure(py, name, doc, closure)
     }
@@ -185,7 +185,7 @@ unsafe extern "C" fn run_closure<F, R>(
 ) -> *mut ffi::PyObject
 where
     F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
-    for<'py> R: crate::callback::IntoPyCallbackOutput<'py, *mut ffi::PyObject>,
+    for<'py> R: crate::impl_::callback::IntoPyCallbackOutput<'py, *mut ffi::PyObject>,
 {
     use crate::types::any::PyAnyMethods;
 
@@ -202,7 +202,7 @@ where
                 .as_ref()
                 .map(|b| b.downcast_unchecked::<PyDict>());
             let result = (boxed_fn.closure)(args, kwargs);
-            crate::callback::convert(py, result)
+            crate::impl_::callback::convert(py, result)
         },
     )
 }
