@@ -6,9 +6,11 @@ use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{DerefToPyAny, PyDict, PyString, PyTuple};
+#[allow(deprecated)]
+use crate::ToPyObject;
 use crate::{
     ffi, AsPyPointer, DowncastError, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer,
-    PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
+    PyRef, PyRefMut, PyTypeInfo, Python,
 };
 use crate::{gil, PyTypeCheck};
 use std::marker::PhantomData;
@@ -819,6 +821,7 @@ impl<T> Clone for Borrowed<'_, '_, T> {
 
 impl<T> Copy for Borrowed<'_, '_, T> {}
 
+#[allow(deprecated)]
 impl<T> ToPyObject for Borrowed<'_, '_, T> {
     /// Converts `Py` instance -> PyObject.
     #[inline]
@@ -1708,6 +1711,7 @@ impl<T> Py<T> {
     }
 }
 
+#[allow(deprecated)]
 impl<T> ToPyObject for Py<T> {
     /// Converts `Py` instance -> PyObject.
     #[inline]
@@ -1728,10 +1732,11 @@ impl<T> IntoPy<PyObject> for Py<T> {
 impl<T> IntoPy<PyObject> for &'_ Py<T> {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
+#[allow(deprecated)]
 impl<T> ToPyObject for Bound<'_, T> {
     /// Converts `&Bound` instance -> PyObject, increasing the reference count.
     #[inline]
@@ -1752,7 +1757,7 @@ impl<T> IntoPy<PyObject> for &Bound<'_, T> {
     /// Converts `&Bound` instance -> PyObject, increasing the reference count.
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -1960,31 +1965,30 @@ impl PyObject {
 
 #[cfg(test)]
 mod tests {
-    use super::{Bound, Py, PyObject};
+    use super::{Bound, IntoPyObject, Py, PyObject};
     use crate::tests::common::generate_unique_module_name;
     use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
-    use crate::{ffi, Borrowed, PyAny, PyResult, Python, ToPyObject};
+    use crate::{ffi, Borrowed, PyAny, PyResult, Python};
     use pyo3_ffi::c_str;
     use std::ffi::CStr;
 
     #[test]
     fn test_call() {
         Python::with_gil(|py| {
-            let obj = py.get_type::<PyDict>().to_object(py);
+            let obj = py.get_type::<PyDict>().into_pyobject(py).unwrap();
 
-            let assert_repr = |obj: &Bound<'_, PyAny>, expected: &str| {
+            let assert_repr = |obj: Bound<'_, PyAny>, expected: &str| {
                 assert_eq!(obj.repr().unwrap(), expected);
             };
 
-            assert_repr(obj.call0(py).unwrap().bind(py), "{}");
-            assert_repr(obj.call1(py, ()).unwrap().bind(py), "{}");
-            assert_repr(obj.call(py, (), None).unwrap().bind(py), "{}");
+            assert_repr(obj.call0().unwrap(), "{}");
+            assert_repr(obj.call1(()).unwrap(), "{}");
+            assert_repr(obj.call((), None).unwrap(), "{}");
 
-            assert_repr(obj.call1(py, ((('x', 1),),)).unwrap().bind(py), "{'x': 1}");
+            assert_repr(obj.call1(((('x', 1),),)).unwrap(), "{'x': 1}");
             assert_repr(
-                obj.call(py, (), Some(&[('x', 1)].into_py_dict(py).unwrap()))
-                    .unwrap()
-                    .bind(py),
+                obj.call((), Some(&[('x', 1)].into_py_dict(py).unwrap()))
+                    .unwrap(),
                 "{'x': 1}",
             );
         })
@@ -2117,7 +2121,7 @@ a = A()
     #[test]
     fn test_debug_fmt() {
         Python::with_gil(|py| {
-            let obj = "hello world".to_object(py).into_bound(py);
+            let obj = "hello world".into_pyobject(py).unwrap();
             assert_eq!(format!("{:?}", obj), "'hello world'");
         });
     }
@@ -2125,7 +2129,7 @@ a = A()
     #[test]
     fn test_display_fmt() {
         Python::with_gil(|py| {
-            let obj = "hello world".to_object(py).into_bound(py);
+            let obj = "hello world".into_pyobject(py).unwrap();
             assert_eq!(format!("{}", obj), "hello world");
         });
     }

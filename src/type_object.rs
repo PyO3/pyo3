@@ -118,32 +118,3 @@ where
         T::is_type_of(object)
     }
 }
-
-#[inline]
-pub(crate) unsafe fn get_tp_alloc(tp: *mut ffi::PyTypeObject) -> Option<ffi::allocfunc> {
-    #[cfg(not(Py_LIMITED_API))]
-    {
-        (*tp).tp_alloc
-    }
-
-    #[cfg(Py_LIMITED_API)]
-    {
-        let ptr = ffi::PyType_GetSlot(tp, ffi::Py_tp_alloc);
-        std::mem::transmute(ptr)
-    }
-}
-
-#[inline]
-pub(crate) unsafe fn get_tp_free(tp: *mut ffi::PyTypeObject) -> ffi::freefunc {
-    #[cfg(not(Py_LIMITED_API))]
-    {
-        (*tp).tp_free.unwrap()
-    }
-
-    #[cfg(Py_LIMITED_API)]
-    {
-        let ptr = ffi::PyType_GetSlot(tp, ffi::Py_tp_free);
-        debug_assert_ne!(ptr, std::ptr::null_mut());
-        std::mem::transmute(ptr)
-    }
-}

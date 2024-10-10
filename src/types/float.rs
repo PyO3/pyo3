@@ -2,9 +2,11 @@ use super::any::PyAnyMethods;
 use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[allow(deprecated)]
+use crate::ToPyObject;
 use crate::{
     ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, IntoPy, PyAny, PyErr,
-    PyObject, PyResult, Python, ToPyObject,
+    PyObject, PyResult, Python,
 };
 use std::convert::Infallible;
 use std::os::raw::c_double;
@@ -76,6 +78,7 @@ impl<'py> PyFloatMethods<'py> for Bound<'py, PyFloat> {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for f64 {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -147,6 +150,7 @@ impl<'py> FromPyObject<'py> for f64 {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for f32 {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -279,8 +283,9 @@ impl_partial_eq_for_float!(f32);
 #[cfg(test)]
 mod tests {
     use crate::{
-        types::{PyFloat, PyFloatMethods},
-        Python, ToPyObject,
+        conversion::IntoPyObject,
+        types::{PyAnyMethods, PyFloat, PyFloatMethods},
+        Python,
     };
 
     macro_rules! num_to_py_object_and_back (
@@ -292,8 +297,8 @@ mod tests {
                 Python::with_gil(|py| {
 
                 let val = 123 as $t1;
-                let obj = val.to_object(py);
-                assert_approx_eq!(obj.extract::<$t2>(py).unwrap(), val as $t2);
+                let obj = val.into_pyobject(py).unwrap();
+                assert_approx_eq!(obj.extract::<$t2>().unwrap(), val as $t2);
                 });
             }
         )

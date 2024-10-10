@@ -155,9 +155,12 @@ Notable features of this new trait:
 All PyO3 provided types as well as `#[pyclass]`es already implement `IntoPyObject`. Other types will
 need to adapt an implementation of `IntoPyObject` to stay compatible with the Python APIs.
 
+Together with the introduction of `IntoPyObject` the old conversion traits `ToPyObject` and `IntoPy`
+are deprecated and will be removed in a future PyO3 version.
+
 
 Before:
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
 struct MyPyObjectWrapper(PyObject);
@@ -211,6 +214,8 @@ impl<'a, 'py> IntoPyObject<'py> for &'a MyPyObjectWrapper {
 PyO3 0.23 introduces preliminary support for the new free-threaded build of
 CPython 3.13. PyO3 features that implicitly assumed the existence of the GIL
 are not exposed in the free-threaded build, since they are no longer safe.
+Other features, such as `GILOnceCell`, have been internally rewritten to be
+threadsafe without the GIL.
 
 If you make use of these features then you will need to account for the
 unavailability of this API in the free-threaded build. One way to handle it is

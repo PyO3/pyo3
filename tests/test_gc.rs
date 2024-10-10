@@ -121,7 +121,7 @@ fn gc_integration() {
         .unwrap();
 
         let mut borrow = inst.borrow_mut();
-        borrow.self_ref = inst.to_object(py);
+        borrow.self_ref = inst.clone().into_any().unbind();
 
         py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
     });
@@ -274,18 +274,16 @@ fn gc_during_borrow() {
             // create an object and check that traversing it works normally
             // when it's not borrowed
             let cell = Bound::new(py, TraversableClass::new()).unwrap();
-            let obj = cell.to_object(py);
             assert!(!cell.borrow().traversed.load(Ordering::Relaxed));
-            traverse(obj.as_ptr(), novisit, std::ptr::null_mut());
+            traverse(cell.as_ptr(), novisit, std::ptr::null_mut());
             assert!(cell.borrow().traversed.load(Ordering::Relaxed));
 
             // create an object and check that it is not traversed if the GC
             // is invoked while it is already borrowed mutably
             let cell2 = Bound::new(py, TraversableClass::new()).unwrap();
-            let obj2 = cell2.to_object(py);
             let guard = cell2.borrow_mut();
             assert!(!guard.traversed.load(Ordering::Relaxed));
-            traverse(obj2.as_ptr(), novisit, std::ptr::null_mut());
+            traverse(cell2.as_ptr(), novisit, std::ptr::null_mut());
             assert!(!guard.traversed.load(Ordering::Relaxed));
             drop(guard);
         }
@@ -431,9 +429,8 @@ fn traverse_cannot_be_hijacked() {
         let traverse = get_type_traverse(ty.as_type_ptr()).unwrap();
 
         let cell = Bound::new(py, HijackedTraverse::new()).unwrap();
-        let obj = cell.to_object(py);
         assert_eq!(cell.borrow().traversed_and_hijacked(), (false, false));
-        traverse(obj.as_ptr(), novisit, std::ptr::null_mut());
+        traverse(cell.as_ptr(), novisit, std::ptr::null_mut());
         assert_eq!(cell.borrow().traversed_and_hijacked(), (true, false));
     })
 }

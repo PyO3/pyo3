@@ -21,16 +21,17 @@
 //!
 //! ```rust,no_run
 //! use chrono_tz::Tz;
-//! use pyo3::{Python, ToPyObject};
+//! use pyo3::{Python, PyResult, IntoPyObject, types::PyAnyMethods};
 //!
-//! fn main() {
+//! fn main() -> PyResult<()> {
 //!     pyo3::prepare_freethreaded_python();
 //!     Python::with_gil(|py| {
 //!         // Convert to Python
-//!         let py_tzinfo = Tz::Europe__Paris.to_object(py);
+//!         let py_tzinfo = Tz::Europe__Paris.into_pyobject(py)?;
 //!         // Convert back to Rust
-//!         assert_eq!(py_tzinfo.extract::<Tz>(py).unwrap(), Tz::Europe__Paris);
-//!     });
+//!         assert_eq!(py_tzinfo.extract::<Tz>()?, Tz::Europe__Paris);
+//!         Ok(())
+//!     })
 //! }
 //! ```
 use crate::conversion::IntoPyObject;
@@ -38,12 +39,13 @@ use crate::exceptions::PyValueError;
 use crate::pybacked::PyBackedStr;
 use crate::sync::GILOnceCell;
 use crate::types::{any::PyAnyMethods, PyType};
-use crate::{
-    intern, Bound, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
-};
+#[allow(deprecated)]
+use crate::ToPyObject;
+use crate::{intern, Bound, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python};
 use chrono_tz::Tz;
 use std::str::FromStr;
 
+#[allow(deprecated)]
 impl ToPyObject for Tz {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -112,19 +114,19 @@ mod tests {
     }
 
     #[test]
-    fn test_topyobject() {
+    fn test_into_pyobject() {
         Python::with_gil(|py| {
-            let assert_eq = |l: PyObject, r: Bound<'_, PyAny>| {
-                assert!(l.bind(py).eq(r).unwrap());
+            let assert_eq = |l: Bound<'_, PyAny>, r: Bound<'_, PyAny>| {
+                assert!(l.eq(&r).unwrap(), "{:?} != {:?}", l, r);
             };
 
             assert_eq(
-                Tz::Europe__Paris.to_object(py),
+                Tz::Europe__Paris.into_pyobject(py).unwrap(),
                 new_zoneinfo(py, "Europe/Paris"),
             );
-            assert_eq(Tz::UTC.to_object(py), new_zoneinfo(py, "UTC"));
+            assert_eq(Tz::UTC.into_pyobject(py).unwrap(), new_zoneinfo(py, "UTC"));
             assert_eq(
-                Tz::Etc__GMTMinus5.to_object(py),
+                Tz::Etc__GMTMinus5.into_pyobject(py).unwrap(),
                 new_zoneinfo(py, "Etc/GMT-5"),
             );
         });

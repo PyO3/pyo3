@@ -1,9 +1,11 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[allow(deprecated)]
+use crate::ToPyObject;
 use crate::{
     exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
     types::typeobject::PyTypeMethods, Borrowed, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
-    Python, ToPyObject,
+    Python,
 };
 
 use super::any::PyAnyMethods;
@@ -145,6 +147,7 @@ impl PartialEq<Borrowed<'_, '_, PyBool>> for &'_ bool {
 }
 
 /// Converts a Rust `bool` to a Python `bool`.
+#[allow(deprecated)]
 impl ToPyObject for bool {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -254,8 +257,8 @@ mod tests {
     use crate::types::any::PyAnyMethods;
     use crate::types::boolobject::PyBoolMethods;
     use crate::types::PyBool;
+    use crate::IntoPyObject;
     use crate::Python;
-    use crate::ToPyObject;
 
     #[test]
     fn test_true() {
@@ -263,7 +266,7 @@ mod tests {
             assert!(PyBool::new(py, true).is_true());
             let t = PyBool::new(py, true);
             assert!(t.extract::<bool>().unwrap());
-            assert!(true.to_object(py).is(&*PyBool::new(py, true)));
+            assert!(true.into_pyobject(py).unwrap().is(&*PyBool::new(py, true)));
         });
     }
 
@@ -273,7 +276,10 @@ mod tests {
             assert!(!PyBool::new(py, false).is_true());
             let t = PyBool::new(py, false);
             assert!(!t.extract::<bool>().unwrap());
-            assert!(false.to_object(py).is(&*PyBool::new(py, false)));
+            assert!(false
+                .into_pyobject(py)
+                .unwrap()
+                .is(&*PyBool::new(py, false)));
         });
     }
 

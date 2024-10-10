@@ -412,10 +412,10 @@ impl SubSubClass {
         let base = PyClassInitializer::from(BaseClass::new());
         let sub = base.add_subclass(SubClass { val2: val });
         if val % 2 == 0 {
-            Ok(Py::new(py, sub)?.to_object(py))
+            Ok(Py::new(py, sub)?.into_any())
         } else {
             let sub_sub = sub.add_subclass(SubSubClass { val3: val });
-            Ok(Py::new(py, sub_sub)?.to_object(py))
+            Ok(Py::new(py, sub_sub)?.into_any())
         }
     }
 }

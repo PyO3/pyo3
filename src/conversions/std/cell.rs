@@ -2,10 +2,11 @@ use std::cell::Cell;
 
 use crate::{
     conversion::IntoPyObject, types::any::PyAnyMethods, Bound, FromPyObject, IntoPy, PyAny,
-    PyObject, PyResult, Python, ToPyObject,
+    PyObject, PyResult, Python,
 };
 
-impl<T: Copy + ToPyObject> ToPyObject for Cell<T> {
+#[allow(deprecated)]
+impl<T: Copy + crate::ToPyObject> crate::ToPyObject for Cell<T> {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         self.get().to_object(py)
     }
