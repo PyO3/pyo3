@@ -10,6 +10,8 @@ use crate::impl_::{
     pymodule::{AddClassToModule, AddTypeToModule, ModuleDef},
 };
 
+use crate::pyclass_init::{PyClassInitializer, PyNativeTypeInitializer, PyObjectInit};
+
 pub trait Sealed {}
 
 // for FfiPtrExt
@@ -46,3 +48,7 @@ impl<T> Sealed for AddTypeToModule<T> {}
 impl<T> Sealed for AddClassToModule<T> {}
 impl Sealed for PyMethodDef {}
 impl Sealed for ModuleDef {}
+
+impl<T: PyObjectInit<T>> Sealed for T {}
+impl<T: crate::type_object::PyTypeInfo> Sealed for PyNativeTypeInitializer<T> {}
+impl<T: crate::pyclass::PyClass> Sealed for PyClassInitializer<T> {}

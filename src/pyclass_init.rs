@@ -8,6 +8,7 @@ use crate::{ffi, Borrowed, Bound, Py, PyClass, PyErr, PyResult, Python};
 use crate::{
     ffi::PyTypeObject,
     pycell::impl_::{PyClassBorrowChecker, PyClassMutability, PyClassObjectContents},
+    sealed::Sealed,
     type_object::PyTypeInfo,
 };
 use std::{
@@ -20,7 +21,7 @@ use std::{
 ///
 /// This trait is intended to use internally for distinguishing `#[pyclass]` and
 /// Python native types.
-pub trait PyObjectInit<T>: Sized {
+pub trait PyObjectInit<T>: Sized + Sealed {
     /// # Safety
     /// - `subtype` must be a valid pointer to a type object of T or a subclass.
     unsafe fn into_new_object(
