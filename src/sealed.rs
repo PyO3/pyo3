@@ -5,12 +5,13 @@ use crate::types::{
 };
 use crate::{ffi, Bound, PyAny, PyResult};
 
+use crate::pyclass_init::PyClassInitializer;
+
 use crate::impl_::{
+    pyclass_init::{PyNativeTypeInitializer, PyObjectInit},
     pymethods::PyMethodDef,
     pymodule::{AddClassToModule, AddTypeToModule, ModuleDef},
 };
-
-use crate::pyclass_init::{PyClassInitializer, PyNativeTypeInitializer, PyObjectInit};
 
 pub trait Sealed {}
 
