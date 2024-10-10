@@ -68,7 +68,7 @@
 //!             .downcast::<_pyo3::PyCell<Number>>()?;
 //!         let mut _ref = _cell.try_borrow_mut()?;
 //!         let _slf: &mut Number = &mut *_ref;
-//!         _pyo3::callback::convert(py, Number::increment(_slf))
+//!         _pyo3::impl_::callback::convert(py, Number::increment(_slf))
 //!     })
 //! }
 //! ```

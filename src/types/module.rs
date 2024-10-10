@@ -1,7 +1,7 @@
-use crate::callback::IntoPyCallbackOutput;
 use crate::conversion::IntoPyObject;
 use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::py_result_ext::PyResultExt;
 use crate::pyclass::PyClass;
 use crate::types::{
