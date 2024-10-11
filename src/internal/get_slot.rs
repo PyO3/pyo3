@@ -11,7 +11,14 @@ impl Bound<'_, PyType> {
     where
         Slot<S>: GetSlotImpl,
     {
-        slot.get_slot(self.as_borrowed())
+        // SAFETY: `self` is a valid type object.
+        unsafe {
+            slot.get_slot(
+                self.as_type_ptr(),
+                #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
+                is_runtime_3_10(self.py()),
+            )
+        }
     }
 }
 
@@ -21,13 +28,50 @@ impl Borrowed<'_, '_, PyType> {
     where
         Slot<S>: GetSlotImpl,
     {
-        slot.get_slot(self)
+        // SAFETY: `self` is a valid type object.
+        unsafe {
+            slot.get_slot(
+                self.as_type_ptr(),
+                #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
+                is_runtime_3_10(self.py()),
+            )
+        }
     }
+}
+
+/// Gets a slot from a raw FFI pointer.
+///
+/// Safety:
+///   - `ty` must be a valid non-null pointer to a `PyTypeObject`.
+///   - The Python runtime must be initialized
+pub(crate) unsafe fn get_slot<const S: c_int>(
+    ty: *mut ffi::PyTypeObject,
+    slot: Slot<S>,
+) -> <Slot<S> as GetSlotImpl>::Type
+where
+    Slot<S>: GetSlotImpl,
+{
+    slot.get_slot(
+        ty,
+        // SAFETY: the Python runtime is initialized
+        #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
+        is_runtime_3_10(crate::Python::assume_gil_acquired()),
+    )
 }
 
 pub(crate) trait GetSlotImpl {
     type Type;
-    fn get_slot(self, tp: Borrowed<'_, '_, PyType>) -> Self::Type;
+
+    /// Gets the requested slot from a type object.
+    ///
+    /// Safety:
+    ///  - `ty` must be a valid non-null pointer to a `PyTypeObject`.
+    ///  - `is_runtime_3_10` must be `false` if the runtime is not Python 3.10 or later.
+    unsafe fn get_slot(
+        self,
+        ty: *mut ffi::PyTypeObject,
+        #[cfg(all(Py_LIMITED_API, not(Py_3_10)))] is_runtime_3_10: bool,
+    ) -> Self::Type;
 }
 
 #[derive(Copy, Clone)]
@@ -42,12 +86,14 @@ macro_rules! impl_slots {
                 type Type = $tp;
 
                 #[inline]
-                fn get_slot(self, tp: Borrowed<'_, '_, PyType>) -> Self::Type {
-                    let ptr = tp.as_type_ptr();
-
+                unsafe fn get_slot(
+                    self,
+                    ty: *mut ffi::PyTypeObject,
+                    #[cfg(all(Py_LIMITED_API, not(Py_3_10)))] is_runtime_3_10: bool
+                ) -> Self::Type {
                     #[cfg(not(Py_LIMITED_API))]
-                    unsafe {
-                        (*ptr).$field
+                    {
+                        (*ty).$field
                     }
 
                     #[cfg(Py_LIMITED_API)]
@@ -59,15 +105,14 @@ macro_rules! impl_slots {
                             // (3.7, 3.8, 3.9) and then look in the type object anyway. This is only ok
                             // because we know that the interpreter is not going to change the size
                             // of the type objects for these historical versions.
-                            if !is_runtime_3_10(tp.py())
-                                && unsafe { ffi::PyType_HasFeature(ptr, ffi::Py_TPFLAGS_HEAPTYPE) } == 0
+                            if !is_runtime_3_10 && ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) == 0
                             {
-                                return unsafe { (*ptr.cast::<PyTypeObject39Snapshot>()).$field };
+                                return (*ty.cast::<PyTypeObject39Snapshot>()).$field;
                             }
                         }
 
                         // SAFETY: slot type is set carefully to be valid
-                        unsafe { std::mem::transmute(ffi::PyType_GetSlot(ptr, ffi::$slot)) }
+                        std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::$slot))
                     }
                 }
             }
@@ -75,11 +120,14 @@ macro_rules! impl_slots {
     };
 }
 
-// Slots are implemented on-demand as needed.
+// Slots are implemented on-demand as needed.)
 impl_slots! {
     TP_ALLOC: (Py_tp_alloc, tp_alloc) -> Option<ffi::allocfunc>,
+    TP_BASE: (Py_tp_base, tp_base) -> *mut ffi::PyTypeObject,
+    TP_CLEAR: (Py_tp_clear, tp_clear) -> Option<ffi::inquiry>,
     TP_DESCR_GET: (Py_tp_descr_get, tp_descr_get) -> Option<ffi::descrgetfunc>,
     TP_FREE: (Py_tp_free, tp_free) -> Option<ffi::freefunc>,
+    TP_TRAVERSE: (Py_tp_traverse, tp_traverse) -> Option<ffi::traverseproc>,
 }
 
 #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
