@@ -570,6 +570,8 @@ def set_msrv_package_versions(session: nox.Session):
         "trybuild": "1.0.89",
         "eyre": "0.6.8",
         "allocator-api2": "0.2.10",
+        "indexmap": "2.5.0",  # to be compatible with hashbrown 0.14
+        "hashbrown": "0.14.5",  # https://github.com/rust-lang/hashbrown/issues/574
     }
 
     # run cargo update first to ensure that everything is at highest
