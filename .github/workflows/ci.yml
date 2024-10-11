@@ -350,6 +350,15 @@ jobs:
                 python-architecture: "x64",
                 rust-target: "x86_64-apple-darwin",
               }
+          # pypy macOS support came in 3.8
+          - rust: stable
+            python-version: "pypy3.7"
+            platform:
+              {
+                os: "macos-13",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
 
         exclude:
           # ubuntu-latest (24.04) no longer supports 3.7
@@ -374,6 +383,15 @@ jobs:
               }
           - rust: stable
             python-version: "3.9"
+            platform:
+              {
+                os: "macos-latest",
+                python-architecture: "arm64",
+                rust-target: "aarch64-apple-darwin",
+              }
+          # pypy macOS support came in 3.8
+          - rust: stable
+            python-version: "pypy3.7"
             platform:
               {
                 os: "macos-latest",
