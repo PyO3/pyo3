@@ -10,6 +10,25 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.22.4] - 2024-10-12
+
+### Added
+
+- Add FFI definition `PyWeakref_GetRef` and `compat::PyWeakref_GetRef`. [#4528](https://github.com/PyO3/pyo3/pull/4528)
+
+### Changed
+
+- Deprecate `_borrowed` methods on `PyWeakRef` and `PyWeakrefProxy` (just use the owning forms). [#4590](https://github.com/PyO3/pyo3/pull/4590)
+
+### Fixed
+
+- Revert removal of private FFI function `_PyLong_NumBits` on Python 3.13 and later. [#4450](https://github.com/PyO3/pyo3/pull/4450)
+- Fix `__traverse__` functions for base classes not being called by subclasses created with `#[pyclass(extends = ...)]`. [#4563](https://github.com/PyO3/pyo3/pull/4563)
+- Fix regression in 0.22.3 failing compiles under `#![forbid(unsafe_code)]`. [#4574](https://github.com/PyO3/pyo3/pull/4574)
+- Workaround possible use-after-free in `_borrowed` methods on `PyWeakRef` and `PyWeakrefProxy` by leaking their contents. [#4590](https://github.com/PyO3/pyo3/pull/4590)
+- Fix crash calling `PyType_GetSlot` on static types before Python 3.10. [#4599](https://github.com/PyO3/pyo3/pull/4599)
+
+
 ## [0.22.3] - 2024-09-15
 
 ### Added
@@ -1873,7 +1892,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.22.3...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.22.4...HEAD
+[0.22.4]: https://github.com/pyo3/pyo3/compare/v0.22.3...v0.22.4
 [0.22.3]: https://github.com/pyo3/pyo3/compare/v0.22.2...v0.22.3
 [0.22.2]: https://github.com/pyo3/pyo3/compare/v0.22.1...v0.22.2
 [0.22.1]: https://github.com/pyo3/pyo3/compare/v0.22.0...v0.22.1
