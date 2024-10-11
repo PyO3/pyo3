@@ -11,7 +11,7 @@ use std::{
 
 use crate::gil::GILGuard;
 use crate::{
-    callback::PyCallbackOutput, ffi, ffi_ptr_ext::FfiPtrExt, impl_::panic::PanicTrap,
+    ffi, ffi_ptr_ext::FfiPtrExt, impl_::callback::PyCallbackOutput, impl_::panic::PanicTrap,
     impl_::pymethods::IPowModulo, panic::PanicException, types::PyModule, Py, PyResult, Python,
 };
 

@@ -1,6 +1,6 @@
-use crate::callback::IntoPyCallbackOutput;
 use crate::exceptions::PyStopAsyncIteration;
 use crate::gil::LockGIL;
+use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::panic::PanicTrap;
 use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout};
 use crate::pycell::impl_::PyClassBorrowChecker as _;

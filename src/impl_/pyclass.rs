@@ -446,7 +446,7 @@ macro_rules! define_pyclass_setattr_slot {
                         value,
                         |py, _slf, attr, value| {
                             use ::std::option::Option::*;
-                            use $crate::callback::IntoPyCallbackOutput;
+                            use $crate::impl_::callback::IntoPyCallbackOutput;
                             use $crate::impl_::pyclass::*;
                             let collector = PyClassImplCollector::<$cls>::new();
                             if let Some(value) = ::std::ptr::NonNull::new(value) {
