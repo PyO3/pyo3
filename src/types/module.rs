@@ -1,7 +1,7 @@
-use crate::callback::IntoPyCallbackOutput;
 use crate::conversion::IntoPyObject;
 use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::py_result_ext::PyResultExt;
 use crate::pyclass::PyClass;
 use crate::types::{
@@ -305,7 +305,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// instead.
     fn add_wrapped<T>(&self, wrapper: &impl Fn(Python<'py>) -> T) -> PyResult<()>
     where
-        T: IntoPyCallbackOutput<PyObject>;
+        T: IntoPyCallbackOutput<'py, PyObject>;
 
     /// Adds a submodule to a module.
     ///
@@ -490,7 +490,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
 
     fn add_wrapped<T>(&self, wrapper: &impl Fn(Python<'py>) -> T) -> PyResult<()>
     where
-        T: IntoPyCallbackOutput<PyObject>,
+        T: IntoPyCallbackOutput<'py, PyObject>,
     {
         fn inner(module: &Bound<'_, PyModule>, object: Bound<'_, PyAny>) -> PyResult<()> {
             let name = object.getattr(__name__(module.py()))?;

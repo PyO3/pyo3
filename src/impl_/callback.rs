@@ -3,7 +3,7 @@
 use crate::err::{PyErr, PyResult};
 use crate::exceptions::PyOverflowError;
 use crate::ffi::{self, Py_hash_t};
-use crate::{IntoPy, PyObject, Python};
+use crate::{BoundObject, IntoPyObject, PyObject, Python};
 use std::os::raw::c_int;
 
 /// A type which can be the return type of a python C-API callback
@@ -25,17 +25,17 @@ impl PyCallbackOutput for ffi::Py_ssize_t {
 }
 
 /// Convert the result of callback function into the appropriate return value.
-pub trait IntoPyCallbackOutput<Target> {
-    fn convert(self, py: Python<'_>) -> PyResult<Target>;
+pub trait IntoPyCallbackOutput<'py, Target> {
+    fn convert(self, py: Python<'py>) -> PyResult<Target>;
 }
 
-impl<T, E, U> IntoPyCallbackOutput<U> for Result<T, E>
+impl<'py, T, E, U> IntoPyCallbackOutput<'py, U> for Result<T, E>
 where
-    T: IntoPyCallbackOutput<U>,
+    T: IntoPyCallbackOutput<'py, U>,
     E: Into<PyErr>,
 {
     #[inline]
-    fn convert(self, py: Python<'_>) -> PyResult<U> {
+    fn convert(self, py: Python<'py>) -> PyResult<U> {
         match self {
             Ok(v) => v.convert(py),
             Err(e) => Err(e.into()),
@@ -43,45 +43,47 @@ where
     }
 }
 
-impl<T> IntoPyCallbackOutput<*mut ffi::PyObject> for T
+impl<'py, T> IntoPyCallbackOutput<'py, *mut ffi::PyObject> for T
 where
-    T: IntoPy<PyObject>,
+    T: IntoPyObject<'py>,
 {
     #[inline]
-    fn convert(self, py: Python<'_>) -> PyResult<*mut ffi::PyObject> {
-        Ok(self.into_py(py).into_ptr())
+    fn convert(self, py: Python<'py>) -> PyResult<*mut ffi::PyObject> {
+        self.into_pyobject(py)
+            .map(BoundObject::into_ptr)
+            .map_err(Into::into)
     }
 }
 
-impl IntoPyCallbackOutput<Self> for *mut ffi::PyObject {
+impl IntoPyCallbackOutput<'_, Self> for *mut ffi::PyObject {
     #[inline]
     fn convert(self, _: Python<'_>) -> PyResult<Self> {
         Ok(self)
     }
 }
 
-impl IntoPyCallbackOutput<std::os::raw::c_int> for () {
+impl IntoPyCallbackOutput<'_, std::os::raw::c_int> for () {
     #[inline]
     fn convert(self, _: Python<'_>) -> PyResult<std::os::raw::c_int> {
         Ok(0)
     }
 }
 
-impl IntoPyCallbackOutput<std::os::raw::c_int> for bool {
+impl IntoPyCallbackOutput<'_, std::os::raw::c_int> for bool {
     #[inline]
     fn convert(self, _: Python<'_>) -> PyResult<std::os::raw::c_int> {
         Ok(self as c_int)
     }
 }
 
-impl IntoPyCallbackOutput<()> for () {
+impl IntoPyCallbackOutput<'_, ()> for () {
     #[inline]
     fn convert(self, _: Python<'_>) -> PyResult<()> {
         Ok(())
     }
 }
 
-impl IntoPyCallbackOutput<ffi::Py_ssize_t> for usize {
+impl IntoPyCallbackOutput<'_, ffi::Py_ssize_t> for usize {
     #[inline]
     fn convert(self, _py: Python<'_>) -> PyResult<ffi::Py_ssize_t> {
         self.try_into().map_err(|_err| PyOverflowError::new_err(()))
@@ -90,27 +92,30 @@ impl IntoPyCallbackOutput<ffi::Py_ssize_t> for usize {
 
 // Converters needed for `#[pyproto]` implementations
 
-impl IntoPyCallbackOutput<bool> for bool {
+impl IntoPyCallbackOutput<'_, bool> for bool {
     #[inline]
     fn convert(self, _: Python<'_>) -> PyResult<bool> {
         Ok(self)
     }
 }
 
-impl IntoPyCallbackOutput<usize> for usize {
+impl IntoPyCallbackOutput<'_, usize> for usize {
     #[inline]
     fn convert(self, _: Python<'_>) -> PyResult<usize> {
         Ok(self)
     }
 }
 
-impl<T> IntoPyCallbackOutput<PyObject> for T
+impl<'py, T> IntoPyCallbackOutput<'py, PyObject> for T
 where
-    T: IntoPy<PyObject>,
+    T: IntoPyObject<'py>,
 {
     #[inline]
-    fn convert(self, py: Python<'_>) -> PyResult<PyObject> {
-        Ok(self.into_py(py))
+    fn convert(self, py: Python<'py>) -> PyResult<PyObject> {
+        self.into_pyobject(py)
+            .map(BoundObject::into_any)
+            .map(BoundObject::unbind)
+            .map_err(Into::into)
     }
 }
 
@@ -141,7 +146,7 @@ wrapping_cast!(i64, Py_hash_t);
 
 pub struct HashCallbackOutput(Py_hash_t);
 
-impl IntoPyCallbackOutput<Py_hash_t> for HashCallbackOutput {
+impl IntoPyCallbackOutput<'_, Py_hash_t> for HashCallbackOutput {
     #[inline]
     fn convert(self, _py: Python<'_>) -> PyResult<Py_hash_t> {
         let hash = self.0;
@@ -153,7 +158,7 @@ impl IntoPyCallbackOutput<Py_hash_t> for HashCallbackOutput {
     }
 }
 
-impl<T> IntoPyCallbackOutput<HashCallbackOutput> for T
+impl<T> IntoPyCallbackOutput<'_, HashCallbackOutput> for T
 where
     T: WrappingCastTo<Py_hash_t>,
 {
@@ -165,9 +170,9 @@ where
 
 #[doc(hidden)]
 #[inline]
-pub fn convert<T, U>(py: Python<'_>, value: T) -> PyResult<U>
+pub fn convert<'py, T, U>(py: Python<'py>, value: T) -> PyResult<U>
 where
-    T: IntoPyCallbackOutput<U>,
+    T: IntoPyCallbackOutput<'py, U>,
 {
     value.convert(py)
 }

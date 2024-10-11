@@ -5,6 +5,11 @@ use crate::types::{
 };
 use crate::{ffi, Bound, PyAny, PyResult};
 
+use crate::impl_::{
+    pymethods::PyMethodDef,
+    pymodule::{AddClassToModule, AddTypeToModule, ModuleDef},
+};
+
 pub trait Sealed {}
 
 // for FfiPtrExt
@@ -36,3 +41,8 @@ impl Sealed for Bound<'_, PyType> {}
 impl Sealed for Bound<'_, PyWeakref> {}
 impl Sealed for Bound<'_, PyWeakrefProxy> {}
 impl Sealed for Bound<'_, PyWeakrefReference> {}
+
+impl<T> Sealed for AddTypeToModule<T> {}
+impl<T> Sealed for AddClassToModule<T> {}
+impl Sealed for PyMethodDef {}
+impl Sealed for ModuleDef {}

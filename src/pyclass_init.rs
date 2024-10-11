@@ -1,6 +1,6 @@
 //! Contains initialization utilities for `#[pyclass]`.
-use crate::callback::IntoPyCallbackOutput;
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, PyClassWeakRef};
 use crate::internal::get_slot::TP_ALLOC;
 use crate::types::{PyAnyMethods, PyType};
@@ -344,7 +344,7 @@ impl<'py, T: PyClass> From<Bound<'py, T>> for PyClassInitializer<T> {
 
 // Implementation used by proc macros to allow anything convertible to PyClassInitializer<T> to be
 // the return value of pyclass #[new] method (optionally wrapped in `Result<U, E>`).
-impl<T, U> IntoPyCallbackOutput<PyClassInitializer<T>> for U
+impl<T, U> IntoPyCallbackOutput<'_, PyClassInitializer<T>> for U
 where
     T: PyClass,
     U: Into<PyClassInitializer<T>>,

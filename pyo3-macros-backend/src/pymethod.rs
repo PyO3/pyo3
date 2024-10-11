@@ -734,7 +734,7 @@ pub fn impl_py_setter_def(
             #init_holders
             #extract
             let result = #setter_impl;
-            #pyo3_path::callback::convert(py, result)
+            #pyo3_path::impl_::callback::convert(py, result)
         }
     };
 
@@ -863,7 +863,7 @@ pub fn impl_py_getter_def(
             let wrapper_ident = format_ident!("__pymethod_get_{}__", spec.name);
             let call = impl_call_getter(cls, spec, self_type, &mut holders, ctx)?;
             let body = quote! {
-                #pyo3_path::callback::convert(py, #call)
+                #pyo3_path::impl_::callback::convert(py, #call)
             };
 
             let init_holders = holders.init_holders(ctx);
@@ -966,7 +966,7 @@ pub const __REPR__: SlotDef = SlotDef::new("Py_tp_repr", "reprfunc");
 pub const __HASH__: SlotDef = SlotDef::new("Py_tp_hash", "hashfunc")
     .ret_ty(Ty::PyHashT)
     .return_conversion(TokenGenerator(
-        |Ctx { pyo3_path, .. }: &Ctx| quote! { #pyo3_path::callback::HashCallbackOutput },
+        |Ctx { pyo3_path, .. }: &Ctx| quote! { #pyo3_path::impl_::callback::HashCallbackOutput },
     ));
 pub const __RICHCMP__: SlotDef = SlotDef::new("Py_tp_richcompare", "richcmpfunc")
     .extract_error_mode(ExtractErrorMode::NotImplemented)
@@ -1219,8 +1219,8 @@ impl ReturnMode {
             ReturnMode::Conversion(conversion) => {
                 let conversion = TokenGeneratorCtx(*conversion, ctx);
                 quote! {
-                    let _result: #pyo3_path::PyResult<#conversion> = #pyo3_path::callback::convert(py, #call);
-                    #pyo3_path::callback::convert(py, _result)
+                    let _result: #pyo3_path::PyResult<#conversion> = #pyo3_path::impl_::callback::convert(py, #call);
+                    #pyo3_path::impl_::callback::convert(py, _result)
                 }
             }
             ReturnMode::SpecializedConversion(traits, tag) => {
@@ -1233,7 +1233,7 @@ impl ReturnMode {
                 }
             }
             ReturnMode::ReturnSelf => quote! {
-                let _result: #pyo3_path::PyResult<()> = #pyo3_path::callback::convert(py, #call);
+                let _result: #pyo3_path::PyResult<()> = #pyo3_path::impl_::callback::convert(py, #call);
                 _result?;
                 #pyo3_path::ffi::Py_XINCREF(_raw_slf);
                 ::std::result::Result::Ok(_raw_slf)
@@ -1406,7 +1406,7 @@ fn generate_method_body(
     } else {
         quote! {
             let result = #call;
-            #pyo3_path::callback::convert(py, result)
+            #pyo3_path::impl_::callback::convert(py, result)
         }
     })
 }

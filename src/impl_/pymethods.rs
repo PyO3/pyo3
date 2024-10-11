@@ -1,6 +1,6 @@
-use crate::callback::IntoPyCallbackOutput;
 use crate::exceptions::PyStopAsyncIteration;
 use crate::gil::LockGIL;
+use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::panic::PanicTrap;
 use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout};
 use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
@@ -465,9 +465,9 @@ pub struct IterBaseTag;
 
 impl IterBaseTag {
     #[inline]
-    pub fn convert<Value, Target>(self, py: Python<'_>, value: Value) -> PyResult<Target>
+    pub fn convert<'py, Value, Target>(self, py: Python<'py>, value: Value) -> PyResult<Target>
     where
-        Value: IntoPyCallbackOutput<Target>,
+        Value: IntoPyCallbackOutput<'py, Target>,
     {
         value.convert(py)
     }
@@ -486,13 +486,13 @@ pub struct IterOptionTag;
 
 impl IterOptionTag {
     #[inline]
-    pub fn convert<Value>(
+    pub fn convert<'py, Value>(
         self,
-        py: Python<'_>,
+        py: Python<'py>,
         value: Option<Value>,
     ) -> PyResult<*mut ffi::PyObject>
     where
-        Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+        Value: IntoPyCallbackOutput<'py, *mut ffi::PyObject>,
     {
         match value {
             Some(value) => value.convert(py),
@@ -514,13 +514,13 @@ pub struct IterResultOptionTag;
 
 impl IterResultOptionTag {
     #[inline]
-    pub fn convert<Value, Error>(
+    pub fn convert<'py, Value, Error>(
         self,
-        py: Python<'_>,
+        py: Python<'py>,
         value: Result<Option<Value>, Error>,
     ) -> PyResult<*mut ffi::PyObject>
     where
-        Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+        Value: IntoPyCallbackOutput<'py, *mut ffi::PyObject>,
         Error: Into<PyErr>,
     {
         match value {
@@ -546,9 +546,9 @@ pub struct AsyncIterBaseTag;
 
 impl AsyncIterBaseTag {
     #[inline]
-    pub fn convert<Value, Target>(self, py: Python<'_>, value: Value) -> PyResult<Target>
+    pub fn convert<'py, Value, Target>(self, py: Python<'py>, value: Value) -> PyResult<Target>
     where
-        Value: IntoPyCallbackOutput<Target>,
+        Value: IntoPyCallbackOutput<'py, Target>,
     {
         value.convert(py)
     }
@@ -567,13 +567,13 @@ pub struct AsyncIterOptionTag;
 
 impl AsyncIterOptionTag {
     #[inline]
-    pub fn convert<Value>(
+    pub fn convert<'py, Value>(
         self,
-        py: Python<'_>,
+        py: Python<'py>,
         value: Option<Value>,
     ) -> PyResult<*mut ffi::PyObject>
     where
-        Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+        Value: IntoPyCallbackOutput<'py, *mut ffi::PyObject>,
     {
         match value {
             Some(value) => value.convert(py),
@@ -595,13 +595,13 @@ pub struct AsyncIterResultOptionTag;
 
 impl AsyncIterResultOptionTag {
     #[inline]
-    pub fn convert<Value, Error>(
+    pub fn convert<'py, Value, Error>(
         self,
-        py: Python<'_>,
+        py: Python<'py>,
         value: Result<Option<Value>, Error>,
     ) -> PyResult<*mut ffi::PyObject>
     where
-        Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+        Value: IntoPyCallbackOutput<'py, *mut ffi::PyObject>,
         Error: Into<PyErr>,
     {
         match value {
