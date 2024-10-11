@@ -97,7 +97,6 @@ impl PyMethodKind {
             "__ior__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__IOR__)),
             "__getbuffer__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__GETBUFFER__)),
             "__releasebuffer__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__RELEASEBUFFER__)),
-            "__clear__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__CLEAR__)),
             // Protocols implemented through traits
             "__getattribute__" => {
                 PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__GETATTRIBUTE__))
@@ -146,6 +145,7 @@ impl PyMethodKind {
             // Some tricky protocols which don't fit the pattern of the rest
             "__call__" => PyMethodKind::Proto(PyMethodProtoKind::Call),
             "__traverse__" => PyMethodKind::Proto(PyMethodProtoKind::Traverse),
+            "__clear__" => PyMethodKind::Proto(PyMethodProtoKind::Clear),
             // Not a proto
             _ => PyMethodKind::Fn,
         }
@@ -156,6 +156,7 @@ enum PyMethodProtoKind {
     Slot(&'static SlotDef),
     Call,
     Traverse,
+    Clear,
     SlotFragment(&'static SlotFragmentDef),
 }
 
@@ -216,6 +217,9 @@ pub fn gen_py_method(
                 }
                 PyMethodProtoKind::Traverse => {
                     GeneratedPyMethod::Proto(impl_traverse_slot(cls, spec, ctx)?)
+                }
+                PyMethodProtoKind::Clear => {
+                    GeneratedPyMethod::Proto(impl_clear_slot(cls, spec, ctx)?)
                 }
                 PyMethodProtoKind::SlotFragment(slot_fragment_def) => {
                     let proto = slot_fragment_def.generate_pyproto_fragment(cls, spec, ctx)?;
@@ -462,13 +466,59 @@ fn impl_traverse_slot(
             visit: #pyo3_path::ffi::visitproc,
             arg: *mut ::std::os::raw::c_void,
         ) -> ::std::os::raw::c_int {
-            #pyo3_path::impl_::pymethods::_call_traverse::<#cls>(slf, #cls::#rust_fn_ident, visit, arg)
+            #pyo3_path::impl_::pymethods::_call_traverse::<#cls>(slf, #cls::#rust_fn_ident, visit, arg, #cls::__pymethod_traverse__)
         }
     };
     let slot_def = quote! {
         #pyo3_path::ffi::PyType_Slot {
             slot: #pyo3_path::ffi::Py_tp_traverse,
             pfunc: #cls::__pymethod_traverse__ as #pyo3_path::ffi::traverseproc as _
+        }
+    };
+    Ok(MethodAndSlotDef {
+        associated_method,
+        slot_def,
+    })
+}
+
+fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result<MethodAndSlotDef> {
+    let Ctx { pyo3_path, .. } = ctx;
+    let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
+    let self_type = match &spec.tp {
+        FnType::Fn(self_type) => self_type,
+        _ => bail_spanned!(spec.name.span() => "expected instance method for `__clear__` function"),
+    };
+    let mut holders = Holders::new();
+    let slf = self_type.receiver(cls, ExtractErrorMode::Raise, &mut holders, ctx);
+
+    if let [arg, ..] = args {
+        bail_spanned!(arg.ty().span() => "`__clear__` function expected to have no arguments");
+    }
+
+    let name = &spec.name;
+    let holders = holders.init_holders(ctx);
+    let fncall = if py_arg.is_some() {
+        quote!(#cls::#name(#slf, py))
+    } else {
+        quote!(#cls::#name(#slf))
+    };
+
+    let associated_method = quote! {
+        pub unsafe extern "C" fn __pymethod_clear__(
+            _slf: *mut #pyo3_path::ffi::PyObject,
+        ) -> ::std::os::raw::c_int {
+            #pyo3_path::impl_::pymethods::_call_clear(_slf, |py, _slf| {
+                #holders
+                let result = #fncall;
+                let result = #pyo3_path::impl_::wrap::converter(&result).wrap(result)?;
+                Ok(result)
+            }, #cls::__pymethod_clear__)
+        }
+    };
+    let slot_def = quote! {
+        #pyo3_path::ffi::PyType_Slot {
+            slot: #pyo3_path::ffi::Py_tp_clear,
+            pfunc: #cls::__pymethod_clear__ as #pyo3_path::ffi::inquiry as _
         }
     };
     Ok(MethodAndSlotDef {
