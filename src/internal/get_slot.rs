@@ -92,7 +92,7 @@ macro_rules! impl_slots {
                     #[cfg(all(Py_LIMITED_API, not(Py_3_10)))] is_runtime_3_10: bool
                 ) -> Self::Type {
                     #[cfg(not(Py_LIMITED_API))]
-                    unsafe {
+                    {
                         (*ty).$field
                     }
 
@@ -105,14 +105,14 @@ macro_rules! impl_slots {
                             // (3.7, 3.8, 3.9) and then look in the type object anyway. This is only ok
                             // because we know that the interpreter is not going to change the size
                             // of the type objects for these historical versions.
-                            if !is_runtime_3_10 && unsafe { ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) } == 0
+                            if !is_runtime_3_10 && ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) == 0
                             {
-                                return unsafe { (*ty.cast::<PyTypeObject39Snapshot>()).$field };
+                                return (*ty.cast::<PyTypeObject39Snapshot>()).$field;
                             }
                         }
 
                         // SAFETY: slot type is set carefully to be valid
-                        unsafe { std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::$slot)) }
+                        std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::$slot))
                     }
                 }
             }
