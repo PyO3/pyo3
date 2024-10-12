@@ -212,8 +212,6 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
     fn can_be_subclassed(&self) -> bool {
         !matches!(self.0, PyClassInitializerImpl::Existing(..))
     }
-
-    private_impl! {}
 }
 
 impl<T> From<T> for PyClassInitializer<T>

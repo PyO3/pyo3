@@ -21,8 +21,6 @@ pub trait PyObjectInit<T>: Sized + Sealed {
 
     #[doc(hidden)]
     fn can_be_subclassed(&self) -> bool;
-
-    private_decl! {}
 }
 
 /// Initializer for Python native types, like `PyDict`.
@@ -88,6 +86,4 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
     fn can_be_subclassed(&self) -> bool {
         true
     }
-
-    private_impl! {}
 }
