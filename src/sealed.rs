@@ -5,7 +5,10 @@ use crate::types::{
 };
 use crate::{ffi, Bound, PyAny, PyResult};
 
+use crate::pyclass_init::PyClassInitializer;
+
 use crate::impl_::{
+    pyclass_init::PyNativeTypeInitializer,
     pymethods::PyMethodDef,
     pymodule::{AddClassToModule, AddTypeToModule, ModuleDef},
 };
@@ -46,3 +49,6 @@ impl<T> Sealed for AddTypeToModule<T> {}
 impl<T> Sealed for AddClassToModule<T> {}
 impl Sealed for PyMethodDef {}
 impl Sealed for ModuleDef {}
+
+impl<T: crate::type_object::PyTypeInfo> Sealed for PyNativeTypeInitializer<T> {}
+impl<T: crate::pyclass::PyClass> Sealed for PyClassInitializer<T> {}

@@ -7,10 +7,10 @@ use crate::{
     impl_::{
         freelist::FreeList,
         pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
+        pyclass_init::PyObjectInit,
         pymethods::{PyGetterDef, PyMethodDefType},
     },
     pycell::PyBorrowError,
-    pyclass_init::PyObjectInit,
     types::{any::PyAnyMethods, PyBool},
     Borrowed, BoundObject, IntoPy, Py, PyAny, PyClass, PyErr, PyRef, PyResult, PyTypeInfo, Python,
 };

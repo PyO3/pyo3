@@ -17,6 +17,7 @@ pub(crate) mod not_send;
 pub mod panic;
 pub mod pycell;
 pub mod pyclass;
+pub mod pyclass_init;
 pub mod pyfunction;
 pub mod pymethods;
 pub mod pymodule;
