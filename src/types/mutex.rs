@@ -3,15 +3,15 @@ use std::ops::{Deref, DerefMut};
 
 /// Wrapper for [`PyMutex`](https://docs.python.org/3/c-api/init.html#c.PyMutex), exposing an RAII guard interface.
 ///
-/// Comapred with `std::sync::Mutex` or `parking_lot::Mutex`, this is a very
+/// Compared with `std::sync::Mutex` or `parking_lot::Mutex`, this is a very
 /// stripped-down locking primitive that only supports blocking lock and unlock
 /// operations.
 ///
-/// `PyMutex` is hooked into CPython's garbage collector and the GIL in GIL-enabled
-/// builds. If a thread is blocked on aquiring the mutex and holds the GIL or would
-/// prevent Python from entering garbage collection, then Python will release the
-/// thread state, allowing garbage collection or other threads blocked by the GIL to
-/// proceed. This means it is impossible for PyMutex to deadlock with the GIL.
+/// Consider using this type if arbitrary Python code might execute while the
+/// lock is held. On the GIL-enabled build, PyMutex will release the GIL if the
+/// thread is blocked on acquiring the lock. On the free-threaded build, threads
+/// blocked on acquiring a PyMutex will not prevent the garbage collector from
+/// running.
 pub struct PyMutex<T: ?Sized> {
     mutex: UnsafeCell<crate::ffi::PyMutex>,
     data: UnsafeCell<T>,
@@ -71,7 +71,7 @@ impl<'a, T> DerefMut for PyMutexGuard<'a, T> {
 mod tests {
     use std::sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc::sync_channel,
+        Barrier,
     };
 
     use super::*;
@@ -119,7 +119,7 @@ mod tests {
         let first_thread_locked_once = AtomicBool::new(false);
         let second_thread_locked_once = AtomicBool::new(false);
         let finished = AtomicBool::new(false);
-        let (sender, receiver) = sync_channel::<bool>(0);
+        let barrier = Barrier::new(2);
 
         std::thread::scope(|s| {
             s.spawn(|| {
@@ -133,7 +133,7 @@ mod tests {
                         // unnecessary
                         std::thread::sleep(std::time::Duration::from_millis(10));
                         // block (and hold the mutex) until the receiver actually receives something
-                        sender.send(true).unwrap();
+                        barrier.wait();
                         finished.store(true, Ordering::SeqCst);
                     }
                 }
@@ -150,8 +150,7 @@ mod tests {
                 drop(guard);
             });
 
-            // threads are blocked until we receive
-            receiver.recv().unwrap();
+            barrier.wait();
         });
     }
 }
