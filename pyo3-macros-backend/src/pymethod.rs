@@ -504,21 +504,21 @@ fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result
     };
 
     let associated_method = quote! {
-        pub unsafe extern "C" fn __pymethod_clear__(
+        pub unsafe extern "C" fn __pymethod___clear____(
             _slf: *mut #pyo3_path::ffi::PyObject,
         ) -> ::std::os::raw::c_int {
             #pyo3_path::impl_::pymethods::_call_clear(_slf, |py, _slf| {
                 #holders
                 let result = #fncall;
                 let result = #pyo3_path::impl_::wrap::converter(&result).wrap(result)?;
-                Ok(result)
-            }, #cls::__pymethod_clear__)
+                ::std::result::Result::Ok(result)
+            }, #cls::__pymethod___clear____)
         }
     };
     let slot_def = quote! {
         #pyo3_path::ffi::PyType_Slot {
             slot: #pyo3_path::ffi::Py_tp_clear,
-            pfunc: #cls::__pymethod_clear__ as #pyo3_path::ffi::inquiry as _
+            pfunc: #cls::__pymethod___clear____ as #pyo3_path::ffi::inquiry as _
         }
     };
     Ok(MethodAndSlotDef {
