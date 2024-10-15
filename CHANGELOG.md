@@ -10,6 +10,13 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.22.5] - 2024-10-15
+
+### Fixed
+
+- Fix regression in 0.22.4 of naming collision in `__clear__` slot and `clear` method generated code. [#4619](https://github.com/PyO3/pyo3/pull/4619)
+
+
 ## [0.22.4] - 2024-10-12
 
 ### Added
@@ -1892,7 +1899,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.22.4...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.22.5...HEAD
+[0.22.5]: https://github.com/pyo3/pyo3/compare/v0.22.4...v0.22.5
 [0.22.4]: https://github.com/pyo3/pyo3/compare/v0.22.3...v0.22.4
 [0.22.3]: https://github.com/pyo3/pyo3/compare/v0.22.2...v0.22.3
 [0.22.2]: https://github.com/pyo3/pyo3/compare/v0.22.1...v0.22.2
