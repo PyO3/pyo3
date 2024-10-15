@@ -1,12 +1,12 @@
-use super::PyMapping;
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
-use crate::types::any::PyAnyMethods;
-use crate::types::{PyAny, PyList};
+use crate::types::{PyAny, PyAnyMethods, PyIterator, PyList, PyMapping, PyTuple, PyTupleMethods};
 use crate::{ffi, BoundObject, IntoPyObject, Python};
+#[cfg(Py_GIL_DISABLED)]
+use std::ops::ControlFlow;
 
 /// Represents a Python `dict`.
 ///
@@ -179,6 +179,15 @@ pub trait PyDictMethods<'py>: crate::sealed::Sealed {
     /// It is allowed to modify values as you iterate over the dictionary, but only
     /// so long as the set of keys does not change.
     fn iter(&self) -> BoundDictIterator<'py>;
+
+    /// Iterates over the contents of this dictionary while holding a critical section on the dict.
+    /// This is useful when the GIL is disabled and the dictionary is shared between threads.
+    /// It is not guaranteed that the dictionary will not be modified during iteration when the
+    /// closure calls arbitrary Python code that releases the current critical section.
+    #[cfg(Py_GIL_DISABLED)]
+    fn locked_for_each<F>(&self, closure: F) -> PyResult<()>
+    where
+        F: Fn(Bound<'py, PyAny>, Bound<'py, PyAny>) -> PyResult<()>;
 
     /// Returns `self` cast as a `PyMapping`.
     fn as_mapping(&self) -> &Bound<'py, PyMapping>;
@@ -357,6 +366,24 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         BoundDictIterator::new(self.clone())
     }
 
+    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    fn locked_for_each<F>(&self, f: F) -> PyResult<()>
+    where
+        F: Fn(Bound<'py, PyAny>, Bound<'py, PyAny>) -> PyResult<()>,
+    {
+        #[cfg(feature = "nightly")]
+        {
+            self.iter().try_for_each(|(key, value)| f(key, value))
+        }
+
+        #[cfg(not(feature = "nightly"))]
+        {
+            crate::sync::with_critical_section(self, || {
+                self.iter().try_for_each(|(key, value)| f(key, value))
+            })
+        }
+    }
+
     fn as_mapping(&self) -> &Bound<'py, PyMapping> {
         unsafe { self.downcast_unchecked() }
     }
@@ -401,11 +428,22 @@ fn dict_len(dict: &Bound<'_, PyDict>) -> Py_ssize_t {
 }
 
 /// PyO3 implementation of an iterator for a Python `dict` object.
-pub struct BoundDictIterator<'py> {
-    dict: Bound<'py, PyDict>,
-    ppos: ffi::Py_ssize_t,
-    di_used: ffi::Py_ssize_t,
-    len: ffi::Py_ssize_t,
+pub enum BoundDictIterator<'py> {
+    /// Iterator over the items of the dictionary, obtained by calling the python method `items()`.
+    #[allow(missing_docs)]
+    ItemIter {
+        iter: Bound<'py, PyIterator>,
+        remaining: ffi::Py_ssize_t,
+    },
+    /// Iterator over the items of the dictionary, using the C-API `PyDict_Next`. This variant is
+    /// only used when the dictionary is an exact instance of `PyDict`.
+    #[allow(missing_docs)]
+    DictIter {
+        dict: Bound<'py, PyDict>,
+        ppos: ffi::Py_ssize_t,
+        di_used: ffi::Py_ssize_t,
+        remaining: ffi::Py_ssize_t,
+    },
 }
 
 impl<'py> Iterator for BoundDictIterator<'py> {
@@ -413,50 +451,69 @@ impl<'py> Iterator for BoundDictIterator<'py> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let ma_used = dict_len(&self.dict);
+        self.with_critical_section(|iter| match iter {
+            BoundDictIterator::ItemIter {
+                iter: ref mut py_iter,
+                ref mut remaining,
+            } => {
+                *remaining = remaining.saturating_sub(1);
+                py_iter.next().map(Result::unwrap).map(|tuple| {
+                    let tuple = tuple.downcast::<PyTuple>().unwrap();
+                    let key = tuple.get_item(0).unwrap();
+                    let value = tuple.get_item(1).unwrap();
+                    (key, value)
+                })
+            }
+            BoundDictIterator::DictIter {
+                ref mut dict,
+                ref mut ppos,
+                ref mut di_used,
+                ref mut remaining,
+            } => {
+                let ma_used = dict_len(dict);
 
-        // These checks are similar to what CPython does.
-        //
-        // If the dimension of the dict changes e.g. key-value pairs are removed
-        // or added during iteration, this will panic next time when `next` is called
-        if self.di_used != ma_used {
-            self.di_used = -1;
-            panic!("dictionary changed size during iteration");
-        };
+                // These checks are similar to what CPython does.
+                //
+                // If the dimension of the dict changes e.g. key-value pairs are removed
+                // or added during iteration, this will panic next time when `next` is called
+                if *di_used != ma_used {
+                    *di_used = -1;
+                    panic!("dictionary changed size during iteration");
+                };
 
-        // If the dict is changed in such a way that the length remains constant
-        // then this will panic at the end of iteration - similar to this:
-        //
-        // d = {"a":1, "b":2, "c": 3}
-        //
-        // for k, v in d.items():
-        //     d[f"{k}_"] = 4
-        //     del d[k]
-        //     print(k)
-        //
-        if self.len == -1 {
-            self.di_used = -1;
-            panic!("dictionary keys changed during iteration");
-        };
+                // If the dict is changed in such a way that the length remains constant
+                // then this will panic at the end of iteration - similar to this:
+                //
+                // d = {"a":1, "b":2, "c": 3}
+                //
+                // for k, v in d.items():
+                //     d[f"{k}_"] = 4
+                //     del d[k]
+                //     print(k)
+                //
+                if *remaining == -1 {
+                    *di_used = -1;
+                    panic!("dictionary keys changed during iteration");
+                };
 
-        let mut key: *mut ffi::PyObject = std::ptr::null_mut();
-        let mut value: *mut ffi::PyObject = std::ptr::null_mut();
+                let mut key: *mut ffi::PyObject = std::ptr::null_mut();
+                let mut value: *mut ffi::PyObject = std::ptr::null_mut();
 
-        if unsafe { ffi::PyDict_Next(self.dict.as_ptr(), &mut self.ppos, &mut key, &mut value) }
-            != 0
-        {
-            self.len -= 1;
-            let py = self.dict.py();
-            // Safety:
-            // - PyDict_Next returns borrowed values
-            // - we have already checked that `PyDict_Next` succeeded, so we can assume these to be non-null
-            Some((
-                unsafe { key.assume_borrowed_unchecked(py) }.to_owned(),
-                unsafe { value.assume_borrowed_unchecked(py) }.to_owned(),
-            ))
-        } else {
-            None
-        }
+                if unsafe { ffi::PyDict_Next(dict.as_ptr(), ppos, &mut key, &mut value) } != 0 {
+                    *remaining -= 1;
+                    let py = dict.py();
+                    // Safety:
+                    // - PyDict_Next returns borrowed values
+                    // - we have already checked that `PyDict_Next` succeeded, so we can assume these to be non-null
+                    Some((
+                        unsafe { key.assume_borrowed_unchecked(py) }.to_owned(),
+                        unsafe { value.assume_borrowed_unchecked(py) }.to_owned(),
+                    ))
+                } else {
+                    None
+                }
+            }
+        })
     }
 
     #[inline]
@@ -464,22 +521,210 @@ impl<'py> Iterator for BoundDictIterator<'py> {
         let len = self.len();
         (len, Some(len))
     }
+
+    #[inline]
+    #[cfg(Py_GIL_DISABLED)]
+    fn fold<B, F>(mut self, init: B, mut f: F) -> B
+    where
+        Self: Sized,
+        F: FnMut(B, Self::Item) -> B,
+    {
+        self.with_critical_section(|mut iter| {
+            let mut accum = init;
+            for x in &mut iter {
+                accum = f(accum, x);
+            }
+            accum
+        })
+    }
+
+    #[inline]
+    #[cfg(all(Py_GIL_DISABLED, feature = "nightly"))]
+    fn try_fold<B, F, R>(&mut self, init: B, mut f: F) -> R
+    where
+        Self: Sized,
+        F: FnMut(B, Self::Item) -> R,
+        R: std::ops::Try<Output = B>,
+    {
+        self.with_critical_section(|mut iter| {
+            let mut accum = init;
+            for x in &mut iter {
+                accum = f(accum, x)?
+            }
+            R::from_output(accum)
+        })
+    }
+
+    #[inline]
+    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    fn all<F>(&mut self, f: F) -> bool
+    where
+        Self: Sized,
+        F: FnMut(Self::Item) -> bool,
+    {
+        self.with_critical_section(|iter| {
+            #[inline]
+            fn check<T>(mut f: impl FnMut(T) -> bool) -> impl FnMut((), T) -> ControlFlow<()> {
+                move |(), x| {
+                    if f(x) {
+                        ControlFlow::Continue(())
+                    } else {
+                        ControlFlow::Break(())
+                    }
+                }
+            }
+            iter.try_fold((), check(f)) == ControlFlow::Continue(())
+        })
+    }
+
+    #[inline]
+    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    fn any<F>(&mut self, f: F) -> bool
+    where
+        Self: Sized,
+        F: FnMut(Self::Item) -> bool,
+    {
+        self.with_critical_section(|iter| {
+            #[inline]
+            fn check<T>(mut f: impl FnMut(T) -> bool) -> impl FnMut((), T) -> ControlFlow<()> {
+                move |(), x| {
+                    if f(x) {
+                        ControlFlow::Break(())
+                    } else {
+                        ControlFlow::Continue(())
+                    }
+                }
+            }
+
+            iter.try_fold((), check(f)) == ControlFlow::Break(())
+        })
+    }
+
+    #[inline]
+    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    fn find<P>(&mut self, predicate: P) -> Option<Self::Item>
+    where
+        Self: Sized,
+        P: FnMut(&Self::Item) -> bool,
+    {
+        self.with_critical_section(|iter| {
+            #[inline]
+            fn check<T>(
+                mut predicate: impl FnMut(&T) -> bool,
+            ) -> impl FnMut((), T) -> ControlFlow<T> {
+                move |(), x| {
+                    if predicate(&x) {
+                        ControlFlow::Break(x)
+                    } else {
+                        ControlFlow::Continue(())
+                    }
+                }
+            }
+
+            match iter.try_fold((), check(predicate)) {
+                ControlFlow::Continue(_) => None,
+                ControlFlow::Break(x) => Some(x),
+            }
+        })
+    }
+
+    #[inline]
+    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    fn find_map<B, F>(&mut self, f: F) -> Option<B>
+    where
+        Self: Sized,
+        F: FnMut(Self::Item) -> Option<B>,
+    {
+        self.with_critical_section(|iter| {
+            #[inline]
+            fn check<T, B>(
+                mut f: impl FnMut(T) -> Option<B>,
+            ) -> impl FnMut((), T) -> ControlFlow<B> {
+                move |(), x| match f(x) {
+                    Some(x) => ControlFlow::Break(x),
+                    None => ControlFlow::Continue(()),
+                }
+            }
+
+            match iter.try_fold((), check(f)) {
+                ControlFlow::Continue(_) => None,
+                ControlFlow::Break(x) => Some(x),
+            }
+        })
+    }
+
+    #[inline]
+    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    fn position<P>(&mut self, predicate: P) -> Option<usize>
+    where
+        Self: Sized,
+        P: FnMut(Self::Item) -> bool,
+    {
+        self.with_critical_section(|iter| {
+            #[inline]
+            fn check<'a, T>(
+                mut predicate: impl FnMut(T) -> bool + 'a,
+                acc: &'a mut usize,
+            ) -> impl FnMut((), T) -> ControlFlow<usize, ()> + 'a {
+                move |_, x| {
+                    if predicate(x) {
+                        ControlFlow::Break(*acc)
+                    } else {
+                        *acc += 1;
+                        ControlFlow::Continue(())
+                    }
+                }
+            }
+
+            let mut acc = 0;
+            match iter.try_fold((), check(predicate, &mut acc)) {
+                ControlFlow::Continue(_) => None,
+                ControlFlow::Break(x) => Some(x),
+            }
+        })
+    }
 }
 
 impl ExactSizeIterator for BoundDictIterator<'_> {
     fn len(&self) -> usize {
-        self.len as usize
+        match self {
+            BoundDictIterator::ItemIter { remaining, .. } => *remaining as usize,
+            BoundDictIterator::DictIter { remaining, .. } => *remaining as usize,
+        }
     }
 }
 
 impl<'py> BoundDictIterator<'py> {
     fn new(dict: Bound<'py, PyDict>) -> Self {
-        let len = dict_len(&dict);
-        BoundDictIterator {
-            dict,
-            ppos: 0,
-            di_used: len,
-            len,
+        let remaining = dict_len(&dict);
+
+        if dict.is_exact_instance_of::<PyDict>() {
+            return BoundDictIterator::DictIter {
+                dict,
+                ppos: 0,
+                di_used: remaining,
+                remaining,
+            };
+        };
+
+        let items = dict.call_method0(intern!(dict.py(), "items")).unwrap();
+        let iter = PyIterator::from_object(&items).unwrap();
+        BoundDictIterator::ItemIter { iter, remaining }
+    }
+
+    #[inline]
+    fn with_critical_section<F, R>(&mut self, f: F) -> R
+    where
+        F: FnOnce(&mut Self) -> R,
+    {
+        match self {
+            BoundDictIterator::ItemIter { .. } => f(self),
+            #[cfg(not(Py_GIL_DISABLED))]
+            BoundDictIterator::DictIter { .. } => f(self),
+            #[cfg(Py_GIL_DISABLED)]
+            BoundDictIterator::DictIter { ref dict, .. } => {
+                crate::sync::with_critical_section(dict.clone().as_ref(), || f(self))
+            }
         }
     }
 }
@@ -626,7 +871,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::PyTuple;
+    use crate::tests::common::generate_unique_module_name;
+    use crate::types::{PyModule, PyTuple};
+    use pyo3_ffi::c_str;
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
@@ -929,6 +1176,44 @@ mod tests {
             let mut key_sum = 0;
             let mut value_sum = 0;
             for (key, value) in dict {
+                key_sum += key.extract::<i32>().unwrap();
+                value_sum += value.extract::<i32>().unwrap();
+            }
+            assert_eq!(7 + 8 + 9, key_sum);
+            assert_eq!(32 + 42 + 123, value_sum);
+        });
+    }
+
+    #[test]
+    fn test_iter_subclass() {
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            v.insert(7, 32);
+            v.insert(8, 42);
+            v.insert(9, 123);
+            let dict = v.into_pyobject(py).unwrap();
+
+            let module = PyModule::from_code(
+                py,
+                c_str!("class DictSubclass(dict): pass"),
+                c_str!("test.py"),
+                &generate_unique_module_name("test"),
+            )
+            .unwrap();
+
+            let subclass = module
+                .getattr("DictSubclass")
+                .unwrap()
+                .call1((dict,))
+                .unwrap()
+                .downcast_into::<PyDict>()
+                .unwrap();
+
+            let mut key_sum = 0;
+            let mut value_sum = 0;
+            let iter = subclass.iter();
+            assert!(matches!(iter, BoundDictIterator::ItemIter { .. }));
+            for (key, value) in iter {
                 key_sum += key.extract::<i32>().unwrap();
                 value_sum += value.extract::<i32>().unwrap();
             }
