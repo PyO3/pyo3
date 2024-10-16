@@ -46,15 +46,16 @@
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
-#[allow(deprecated)]
-use crate::ToPyObject;
 use crate::{
     conversion::IntoPyObject, exceptions::PyTypeError, types::any::PyAnyMethods, Bound,
-    BoundObject, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python,
+    BoundObject, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python,
 };
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 use either::Either;
 
 #[cfg_attr(docsrs, doc(cfg(feature = "either")))]
+#[allow(deprecated)]
 impl<L, R> IntoPy<PyObject> for Either<L, R>
 where
     L: IntoPy<PyObject>,

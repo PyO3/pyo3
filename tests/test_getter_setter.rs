@@ -4,6 +4,7 @@ use std::cell::Cell;
 
 use pyo3::prelude::*;
 use pyo3::py_run;
+use pyo3::types::PyString;
 use pyo3::types::{IntoPyDict, PyList};
 
 #[path = "../src/tests/common.rs"]
@@ -266,14 +267,14 @@ fn frozen_py_field_get() {
     #[pyclass(frozen)]
     struct FrozenPyField {
         #[pyo3(get)]
-        value: Py<PyAny>,
+        value: Py<PyString>,
     }
 
     Python::with_gil(|py| {
         let inst = Py::new(
             py,
             FrozenPyField {
-                value: "value".into_py(py),
+                value: "value".into_pyobject(py).unwrap().unbind(),
             },
         )
         .unwrap();

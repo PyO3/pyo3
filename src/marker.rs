@@ -129,7 +129,9 @@ use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
 };
 use crate::version::PythonVersionInfo;
-use crate::{ffi, Bound, IntoPy, Py, PyObject, PyTypeInfo};
+#[allow(deprecated)]
+use crate::IntoPy;
+use crate::{ffi, Bound, Py, PyObject, PyTypeInfo};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -715,6 +717,7 @@ impl<'py> Python<'py> {
 
     /// Deprecated name for [`Python::import`].
     #[deprecated(since = "0.23.0", note = "renamed to `Python::import`")]
+    #[allow(deprecated)]
     #[track_caller]
     #[inline]
     pub fn import_bound<N>(self, name: N) -> PyResult<Bound<'py, PyModule>>
@@ -728,21 +731,21 @@ impl<'py> Python<'py> {
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn None(self) -> PyObject {
-        PyNone::get(self).into_py(self)
+        PyNone::get(self).to_owned().into_any().unbind()
     }
 
     /// Gets the Python builtin value `Ellipsis`, or `...`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn Ellipsis(self) -> PyObject {
-        PyEllipsis::get(self).into_py(self)
+        PyEllipsis::get(self).to_owned().into_any().unbind()
     }
 
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn NotImplemented(self) -> PyObject {
-        PyNotImplemented::get(self).into_py(self)
+        PyNotImplemented::get(self).to_owned().into_any().unbind()
     }
 
     /// Gets the running Python interpreter version as a string.

@@ -3,9 +3,9 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyString;
+use crate::{ffi, FromPyObject, PyAny, PyObject, PyResult, Python};
 #[allow(deprecated)]
-use crate::ToPyObject;
-use crate::{ffi, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python};
+use crate::{IntoPy, ToPyObject};
 use std::borrow::Cow;
 use std::convert::Infallible;
 use std::ffi::{OsStr, OsString};
@@ -134,6 +134,7 @@ impl FromPyObject<'_> for OsString {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for &'_ OsStr {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -149,6 +150,7 @@ impl ToPyObject for Cow<'_, OsStr> {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for Cow<'_, OsStr> {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -186,6 +188,7 @@ impl ToPyObject for OsString {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for OsString {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -204,6 +207,7 @@ impl<'py> IntoPyObject<'py> for OsString {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for &OsString {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -225,7 +229,7 @@ impl<'py> IntoPyObject<'py> for &OsString {
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAnyMethods, PyString, PyStringMethods};
-    use crate::{BoundObject, IntoPy, IntoPyObject, PyObject, Python};
+    use crate::{BoundObject, IntoPyObject, Python};
     use std::fmt::Debug;
     use std::{
         borrow::Cow,
@@ -246,14 +250,14 @@ mod tests {
             let os_str = OsStr::from_bytes(payload);
 
             // do a roundtrip into Pythonland and back and compare
-            let py_str: PyObject = os_str.into_py(py);
-            let os_str_2: OsString = py_str.extract(py).unwrap();
+            let py_str = os_str.into_pyobject(py).unwrap();
+            let os_str_2: OsString = py_str.extract().unwrap();
             assert_eq!(os_str, os_str_2);
         });
     }
 
     #[test]
-    fn test_topyobject_roundtrip() {
+    fn test_intopyobject_roundtrip() {
         Python::with_gil(|py| {
             fn test_roundtrip<'py, T>(py: Python<'py>, obj: T)
             where
@@ -272,25 +276,5 @@ mod tests {
             test_roundtrip::<Cow<'_, OsStr>>(py, Cow::Owned(os_str.to_os_string()));
             test_roundtrip::<OsString>(py, os_str.to_os_string());
         });
-    }
-
-    #[test]
-    fn test_intopy_roundtrip() {
-        Python::with_gil(|py| {
-            fn test_roundtrip<T: IntoPy<PyObject> + AsRef<OsStr> + Debug + Clone>(
-                py: Python<'_>,
-                obj: T,
-            ) {
-                let pyobject = obj.clone().into_py(py);
-                let pystring = pyobject.downcast_bound::<PyString>(py).unwrap();
-                assert_eq!(pystring.to_string_lossy(), obj.as_ref().to_string_lossy());
-                let roundtripped_obj: OsString = pystring.extract().unwrap();
-                assert!(obj.as_ref() == roundtripped_obj.as_os_str());
-            }
-            let os_str = OsStr::new("Hello\0\n🐍");
-            test_roundtrip::<&OsStr>(py, os_str);
-            test_roundtrip::<OsString>(py, os_str.to_os_string());
-            test_roundtrip::<&OsString>(py, &os_str.to_os_string());
-        })
     }
 }

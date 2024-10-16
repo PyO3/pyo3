@@ -20,16 +20,17 @@ use std::convert::Infallible;
 ///
 /// ```rust
 /// use pyo3::prelude::*;
-/// use pyo3::types::PyString;
 /// use pyo3::ffi;
 ///
 /// Python::with_gil(|py| {
-///     let s: Py<PyString> = "foo".into_py(py);
+///     let s = "foo".into_pyobject(py)?;
 ///     let ptr = s.as_ptr();
 ///
 ///     let is_really_a_pystring = unsafe { ffi::PyUnicode_CheckExact(ptr) };
 ///     assert_eq!(is_really_a_pystring, 1);
-/// });
+/// #   Ok::<_, PyErr>(())
+/// })
+/// # .unwrap();
 /// ```
 ///
 /// # Safety
@@ -42,14 +43,16 @@ use std::convert::Infallible;
 /// # use pyo3::ffi;
 /// #
 /// Python::with_gil(|py| {
-///     let ptr: *mut ffi::PyObject = 0xabad1dea_u32.into_py(py).as_ptr();
+///     let ptr: *mut ffi::PyObject = 0xabad1dea_u32.into_pyobject(py)?.as_ptr();
 ///
 ///     let isnt_a_pystring = unsafe {
 ///         // `ptr` is dangling, this is UB
 ///         ffi::PyUnicode_CheckExact(ptr)
 ///     };
-/// #    assert_eq!(isnt_a_pystring, 0);
-/// });
+/// #   assert_eq!(isnt_a_pystring, 0);
+/// #   Ok::<_, PyErr>(())
+/// })
+/// # .unwrap();
 /// ```
 ///
 /// This happens because the pointer returned by `as_ptr` does not carry any lifetime information
@@ -101,6 +104,7 @@ pub trait ToPyObject {
 /// However, it may not be desirable to expose the existence of `Number` to Python code.
 /// `IntoPy` allows us to define a conversion to an appropriate Python object.
 /// ```rust
+/// #![allow(deprecated)]
 /// use pyo3::prelude::*;
 ///
 /// # #[allow(dead_code)]
@@ -122,6 +126,7 @@ pub trait ToPyObject {
 /// This is useful for types like enums that can carry different types.
 ///
 /// ```rust
+/// #![allow(deprecated)]
 /// use pyo3::prelude::*;
 ///
 /// enum Value {
@@ -161,6 +166,10 @@ pub trait ToPyObject {
         note = "if you do not wish to have a corresponding Python type, implement it manually",
         note = "if you do not own `{Self}` you can perform a manual conversion to one of the types in `pyo3::types::*`"
     )
+)]
+#[deprecated(
+    since = "0.23.0",
+    note = "`IntoPy` is going to be replaced by `IntoPyObject`. See the migration guide (https://pyo3.rs/v0.23/migration) for more information."
 )]
 pub trait IntoPy<T>: Sized {
     /// Performs the conversion.
@@ -589,6 +598,7 @@ where
 }
 
 /// Converts `()` to an empty Python tuple.
+#[allow(deprecated)]
 impl IntoPy<Py<PyTuple>> for () {
     fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
         PyTuple::empty(py).unbind()

@@ -199,7 +199,9 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::{ptr_from_mut, ptr_from_ref};
 use crate::pyclass::{boolean_struct::False, PyClass};
 use crate::types::any::PyAnyMethods;
-use crate::{ffi, Borrowed, Bound, IntoPy, PyErr, PyObject, Python};
+#[allow(deprecated)]
+use crate::IntoPy;
+use crate::{ffi, Borrowed, Bound, PyErr, PyObject, Python};
 use std::convert::Infallible;
 use std::fmt;
 use std::mem::ManuallyDrop;
@@ -447,12 +449,14 @@ impl<T: PyClass> Drop for PyRef<'_, T> {
     }
 }
 
+#[allow(deprecated)]
 impl<T: PyClass> IntoPy<PyObject> for PyRef<'_, T> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
     }
 }
 
+#[allow(deprecated)]
 impl<T: PyClass> IntoPy<PyObject> for &'_ PyRef<'_, T> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
@@ -636,12 +640,14 @@ impl<T: PyClass<Frozen = False>> Drop for PyRefMut<'_, T> {
     }
 }
 
+#[allow(deprecated)]
 impl<T: PyClass<Frozen = False>> IntoPy<PyObject> for PyRefMut<'_, T> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
     }
 }
 
+#[allow(deprecated)]
 impl<T: PyClass<Frozen = False>> IntoPy<PyObject> for &'_ PyRefMut<'_, T> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.inner.clone().into_py(py)
