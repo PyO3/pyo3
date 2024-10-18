@@ -568,13 +568,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-src
-      - uses: astral-sh/setup-uv@f3bcaebff5eace81a1c062af9f9011aae482ca9d
-      - run: |
-          uv python install 3.13t
-          uv venv --python 3.13t
-          uv pip install pip
-          . .venv/bin/activate
-          echo PATH=$PATH >> $GITHUB_ENV
+      # TODO: replace with setup-python when there is support
+      - uses: deadsnakes/action@v3.2.0
+        with:
+          python-version: '3.13-dev'
+          nogil: true
       - run: python3 -m sysconfig
       - run: python3 -m pip install --upgrade pip && pip install nox
       - run: nox -s ffi-check
