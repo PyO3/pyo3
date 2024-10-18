@@ -4,7 +4,7 @@ CPython 3.13 introduces an experimental "free-threaded" build of CPython that
 does not rely on the [global interpreter
 lock](https://docs.python.org/3/glossary.html#term-global-interpreter-lock)
 (often referred to as the GIL) for thread safety. As of version 0.23, PyO3 also
-has preliminary support for building rust extensions for the free-threaded
+has preliminary support for building Rust extensions for the free-threaded
 Python build and support for calling into free-threaded Python from Rust.
 
 If you want more background on free-threaded Python in general, see the [what's
@@ -30,9 +30,9 @@ PyO3's support for free-threaded Python will enable authoring native Python
 extensions that are thread-safe by construction, with much stronger safety
 guarantees than C extensions. Our goal is to enable ["fearless
 concurrency"](https://doc.rust-lang.org/book/ch16-00-concurrency.html) in the
-native Python runtime by building on the rust `Send` and `Sync` traits.
+native Python runtime by building on the Rust `Send` and `Sync` traits.
 
-This document provides advice for porting rust code using PyO3 to run under
+This document provides advice for porting Rust code using PyO3 to run under
 free-threaded Python. While many simple PyO3 uses, like defining an immutable
 Python class, will likely work "out of the box", there are currently some
 limitations.
@@ -45,7 +45,7 @@ change the names of these types to de-emphasize the role of the GIL in future
 versions of PyO3, but for now you should remember that the use of the term `GIL`
 in functions and types like `with_gil` and `GILOnceCell` is historical.
 
-Instead, you can think about whether or not a rust thread is attached to a
+Instead, you can think about whether or not a Rust thread is attached to a
 Python interpreter runtime. See [PEP
 703](https://peps.python.org/pep-0703/#thread-states) for more background about
 how threads can be attached and detached from the interpreter runtime, in a
@@ -60,14 +60,26 @@ threads simultaneously attached.
 
 The main reason for attaching to the Python runtime is to interact with Python
 objects or call into the CPython C API. To interact with the Python runtime, the
-thread must register itself by attaching to the interpreter runtime.
+thread must register itself by attaching to the interpreter runtime. If you are
+not yet attached to the Python runtime, you can register the thread using the
+[`Python::with_gil`] function. Threads created via the Python `threading` module
+do not not need to do this, but all other OS threads that interact with the
+Python runtime must explicitly attach using `with_gil` and obtain a `'py`
+liftime.
 
-In the GIL-enabled build, releasing the GIL allows other threads to
-proceed. This is no longer necessary in the free-threaded build, but you should
-still detach from the interpreter runtime using [`Python::allow_threads`] when
-doing long-running tasks that do not require the CPython runtime, since
-detaching from the runtime allows the Python garbage collector to run, freeing
-unused memory.
+In the GIL-enabled build, PyO3 uses the `Python<'py>` type and the `'py` lifetime
+to signify that the global interpreter lock is held. In the freethreaded build,
+holding a `'py` lifetime means the thread is currently attached to the Python
+interpreter but other threads might be simultaneously interacting with the
+Python runtime.
+
+Since there is no GIL in the free-threaded build, releasing the GIL for
+long-running tasks is no longer necessary to ensure other threads run, but you
+should still detach from the interpreter runtime using [`Python::allow_threads`]
+when doing long-running tasks that do not require the CPython runtime. The
+garbage collector can only run if all threads are detached from the runtime (in
+a stop-the-world state), so detaching from the runtime allows freeing unused
+memory.
 
 ## Runtime panics for multithreaded access of mutable `pyclass` instances
 
@@ -76,7 +88,7 @@ mutable state, it may not currently be straightforward to support free-threaded
 Python without the risk of runtime mutable borrow panics. PyO3 does not lock
 access to Python state, so if more than one thread tries to access a Python
 object that has already been mutably borrowed, only runtime checking enforces
-safety around mutably aliased rust variables the Python interpreter can
+safety around mutably aliased Rust variables the Python interpreter can
 access. We believe that it would require adding an `unsafe impl` for `Send` or
 `Sync` to trigger this behavior in code using PyO3. Please report any issues
 related to runtime borrow checker errors on mutable pyclass implementations that
@@ -136,8 +148,8 @@ Python::with_gil(|py| {
     // stand-in for something that executes arbitrary Python code
     let d = PyDict::new(py);
     d.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
-    // we're not executing Python code while holding the lock, so GILProtected
-    // was never needed
+    // as with any `Mutex` usage, lock the mutex for as little time as possible
+    // in this case, we do it just while pushing into the `Vec`
     OBJECTS.lock().unwrap().push(d.unbind());
 });
 # }
@@ -148,6 +160,6 @@ need to use conditional compilation to use `GILProtected` on GIL-enabled Python
 builds and mutexes otherwise. If your use of `GILProtected` does not guard the
 execution of arbitrary Python code or use of the CPython C API, then conditional
 compilation is likely unnecessary since `GILProtected` was not needed in the
-first place and instead rust mutexes or atomics should be preferred. Python 3.13
-introduces `PyMutex`, which releases the GIL while the lock is held, so that is
-another option if you only need to support newer Python versions.
+first place and instead Rust mutexes or atomics should be preferred. Python 3.13
+introduces `PyMutex`, which releases the GIL while the waiting for the lock, so
+that is another option if you only need to support newer Python versions.
