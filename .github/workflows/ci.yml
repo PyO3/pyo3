@@ -555,7 +555,6 @@ jobs:
       - run: python3 -m nox -s test
 
   test-free-threaded:
-    if: github.ref != 'refs/heads/main'
     needs: [fmt]
     runs-on: ubuntu-latest
     env:
