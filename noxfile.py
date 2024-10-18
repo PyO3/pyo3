@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 import sys
+import sysconfig
 import tempfile
 from functools import lru_cache
 from glob import glob
@@ -32,6 +33,7 @@ PYO3_GUIDE_TARGET = PYO3_TARGET / "guide"
 PYO3_DOCS_TARGET = PYO3_TARGET / "doc"
 PY_VERSIONS = ("3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13")
 PYPY_VERSIONS = ("3.9", "3.10")
+FREE_THREADED_BUILD = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
 
 
 @nox.session(venv_backend="none")
@@ -48,10 +50,14 @@ def test_rust(session: nox.Session):
     _run_cargo_test(session, package="pyo3-ffi")
 
     _run_cargo_test(session)
-    _run_cargo_test(session, features="abi3")
+    # the free-threaded build ignores abi3, so we skip abi3
+    # tests to avoid unnecessarily running the tests twice
+    if not FREE_THREADED_BUILD:
+        _run_cargo_test(session, features="abi3")
     if "skip-full" not in session.posargs:
         _run_cargo_test(session, features="full")
-        _run_cargo_test(session, features="abi3 full")
+        if not FREE_THREADED_BUILD:
+            _run_cargo_test(session, features="abi3 full")
 
 
 @nox.session(name="test-py", venv_backend="none")
