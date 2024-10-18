@@ -83,24 +83,69 @@ garbage collector can only run if all threads are detached from the runtime (in
 a stop-the-world state), so detaching from the runtime allows freeing unused
 memory.
 
-## Runtime panics for multithreaded access of mutable `pyclass` instances
+## Exceptions and panics for multithreaded access of mutable `pyclass` instances
 
-If you wrote code that makes strong assumptions about the GIL protecting shared
-mutable state, it may not currently be straightforward to support free-threaded
-Python without the risk of runtime mutable borrow panics. PyO3 does not lock
-access to Python state, so if more than one thread tries to access a Python
-object that has already been mutably borrowed, only runtime checking enforces
-safety around mutably aliased Rust variables the Python interpreter can
-access. We believe that it would require adding an `unsafe impl` for `Send` or
-`Sync` to trigger this behavior in code using PyO3. Please report any issues
-related to runtime borrow checker errors on mutable pyclass implementations that
-do not make strong assumptions about the GIL.
-
-It was always possible to generate panics like this in PyO3 in code that
-releases the GIL with `allow_threads` (see [the docs on interior
+Data attached to `pyclass` instances is protected from concurrent access by a
+`RefCell`-like pattern of runtime borrow checking. Like a `RefCell`, PyO3 will
+raise exceptions (or in some cases panic) to enforce exclusive access for
+mutable borrows. It was always possible to generate panics like this in PyO3 in
+code that releases the GIL with `allow_threads` or caling a `pymethod` accepting
+`&self` from a `&mut self` (see [the docs on interior
 mutability](./class.md#bound-and-interior-mutability),) but now in free-threaded
-Python there are more opportunities to trigger these panics because there is no
-GIL.
+Python there are more opportunities to trigger these panics from Python because
+there is no GIL to lock concurrent access to mutably borrowed data from Python.
+
+The most straightforward way to trigger this problem to use the Python
+`threading` module to simultaneously call a rust function that mutably borrows a
+`pyclass`. For example, consider the following `PyClass` implementation:
+
+```
+# use python::prelude::*;
+# fn main() {
+#[pyclass]
+#[derive(Default)]
+struct ThreadIter {
+    count: usize,
+}
+
+#[pymethods]
+impl ThreadIter {
+    #[new]
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    fn __next__(&mut self, py: Python<'_>) -> usize {
+        self.count += 1;
+        self.count
+    }
+# }
+```
+
+And then if we do something like this in Python:
+
+```
+import concurrent.futures
+from my_module import ThreadIter
+
+i = ThreadIter()
+
+def increment():
+    next(i)
+
+with concurrent.futures.ThreadPoolExecutor(max_workers=16) as tpe:
+    futures = [tpe.submit(increment) for _ in range(100)]
+    [f.result() for f in futures]
+```
+
+We will see an exception:
+
+```
+Traceback (most recent call last)
+  File "example.py", line 5, in <module>
+    next(i)
+RuntimeError: Already borrowed
+```
 
 We plan to allow user-selectable semantics for mutable pyclass definitions in
 PyO3 0.24, allowing some form of opt-in locking to emulate the GIL if that is
