@@ -15,16 +15,18 @@ for porting C extensions, and [PEP 703](https://peps.python.org/pep-0703/),
 which provides the technical background for the free-threading implementation in
 CPython.
 
-The main benefit for supporting free-threaded Python is that both pure Python
-code and code interacting with Python via the CPython C API can run
-simultaneously on multiple OS threads.  This means it's much more
-straightforward to achieve multithreaded parallelism in the Python layer, using
-the `threading` module, without any need to ensure the GIL is released during
-compute-heavy tasks, or any worries about [Amdahl's
-law](https://en.wikipedia.org/wiki/Amdahl%27s_law) limiting parallel
-performance. If you have ever needed to use `multiprocessing` to achieve a
-speedup for some Python code, free-threading will likely allow the use of Python
-threads instead for the same workflow.
+In the GIL-enabled build, the global interpreter lock serializes access to the
+Python runtime. The GIL is therefore a fundamental limitation to parallel
+scaling of multithreaded Python workflows, due to [Amdahl's
+law](https://en.wikipedia.org/wiki/Amdahl%27s_law), because any time spent
+executing a parallel processing task on only one execution context fundamentally
+cannot be sped up using parallelism.
+
+The free-threaded build removes this limit on multithreaded Python scaling. This
+means it's much more straightforward to achieve parallelism using the Python
+`threading` module. If you have ever needed to use `multiprocessing` to achieve
+a parallel speedup for some Python code, free-threading will likely allow the
+use of Python threads instead for the same workflow.
 
 PyO3's support for free-threaded Python will enable authoring native Python
 extensions that are thread-safe by construction, with much stronger safety
@@ -109,7 +111,7 @@ needed.
 `GILProtected` is a PyO3 type that allows mutable access to static data by
 leveraging the GIL to lock concurrent access from other threads. In
 free-threaded Python there is no GIL, so you will need to replace this type with
-some other form of locking. In many cases, a type from `std::sync::Atomic` or
+some other form of locking. In many cases, a type from `std::sync::atomic` or
 a `std::sync::Mutex` will be sufficient.
 
 Before:
