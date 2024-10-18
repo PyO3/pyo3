@@ -1438,7 +1438,10 @@ fn cross_compile_from_sysconfigdata(
 ) -> Result<Option<InterpreterConfig>> {
     if let Some(path) = find_sysconfigdata(cross_compile_config)? {
         let data = parse_sysconfigdata(path)?;
-        let config = InterpreterConfig::from_sysconfigdata(&data)?;
+        let mut config = InterpreterConfig::from_sysconfigdata(&data)?;
+        if let Some(cross_lib_dir) = cross_compile_config.lib_dir_string() {
+            config.lib_dir = Some(cross_lib_dir)
+        }
 
         Ok(Some(config))
     } else {
