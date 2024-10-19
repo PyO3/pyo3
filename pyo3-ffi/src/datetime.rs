@@ -618,6 +618,10 @@ pub unsafe fn PyDateTime_IMPORT() {
         let py_datetime_c_api =
             PyCapsule_Import(PyDateTime_CAPSULE_NAME.as_ptr(), 1) as *mut PyDateTime_CAPI;
 
+        if py_datetime_c_api.is_null() {
+            return;
+        }
+
         // Protect against race conditions when the datetime API is concurrently
         // initialized in multiple threads. UnsafeCell.get() cannot panic so this
         // won't panic either.
