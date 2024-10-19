@@ -456,13 +456,29 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
       - run: python -m pip install --upgrade pip && pip install nox
       - run: nox -s coverage
+      - name: Set PR base on codecov
+        run: |
+          # fetch the merge commit between the PR base and head
+          git fetch --progress --depth=1 origin "+refs/heads/$BASE_REF:refs/heads/$BASE_REF"
+          while [ -z "$(git merge-base "$BASE_REF" "$HEAD_REF")" ]; do
+            git fetch -q --deepen="10" origin "$BASE_REF" "$HEAD_REF";
+          done
+
+          # inform codecov about the merge base
+          curl -Os https://cli.codecov.io/latest/linux/codecov
+          sudo chmod +x codecov
+          ./codecov pr-base-picking \
+            --base-sha $(git merge-base "$BASE_REF" "$HEAD_REF") \
+            --pr ${{ github.event.number }}
+            --slug PyO3/pyo3
+            --token ${{ secrets.CODECOV_TOKEN }}
+            --service github
+        shell: bash
       - uses: codecov/codecov-action@v4
         with:
           file: coverage.json
           name: ${{ matrix.os }}
           token: ${{ secrets.CODECOV_TOKEN }}
-          override_commit: ${{ github.sha }}
-          override_pr: ${{ github.event.pull_request.number}}
 
   emscripten:
     name: emscripten
