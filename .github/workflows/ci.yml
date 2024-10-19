@@ -461,6 +461,8 @@ jobs:
           file: coverage.json
           name: ${{ matrix.os }}
           token: ${{ secrets.CODECOV_TOKEN }}
+          override_commit: ${{ github.sha }}
+          override_pr: ${{ github.event.pull_request.number}}
 
   emscripten:
     name: emscripten
