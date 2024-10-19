@@ -555,7 +555,6 @@ jobs:
       - run: python3 -m nox -s test
 
   test-free-threaded:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     needs: [fmt]
     runs-on: ubuntu-latest
     env:
