@@ -4,16 +4,16 @@
 //! and covers the various date and time related objects in the Python `datetime`
 //! standard library module.
 
+#[cfg(not(PyPy))]
+use crate::PyCapsule_Import;
 #[cfg(GraalPy)]
 use crate::{PyLong_AsLong, PyLong_Check, PyObject_GetAttrString, Py_DecRef};
 use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_TYPE};
-use std::cell::UnsafeCell;
 #[cfg(not(GraalPy))]
 use std::os::raw::c_char;
 use std::os::raw::c_int;
 use std::ptr;
-#[cfg(not(PyPy))]
-use {crate::PyCapsule_Import, std::ffi::CString};
+use std::{cell::UnsafeCell, ffi::CStr};
 #[cfg(not(any(PyPy, GraalPy)))]
 use {crate::Py_hash_t, std::os::raw::c_uchar};
 // Type struct wrappers
@@ -593,6 +593,8 @@ pub struct PyDateTime_CAPI {
 // Python already shares this object between threads, so it's no more evil for us to do it too!
 unsafe impl Sync for PyDateTime_CAPI {}
 
+pub const PyDateTime_CAPSULE_NAME: &CStr = c_str!("datetime.datetime_CAPI");
+
 /// Returns a pointer to a `PyDateTime_CAPI` instance
 ///
 /// # Note
@@ -603,11 +605,6 @@ pub unsafe fn PyDateTimeAPI() -> *mut PyDateTime_CAPI {
     *PyDateTimeAPI_impl.0.get()
 }
 
-#[inline]
-pub unsafe fn PyDateTime_TimeZone_UTC() -> *mut PyObject {
-    (*PyDateTimeAPI()).TimeZone_UTC
-}
-
 /// Populates the `PyDateTimeAPI` object
 pub unsafe fn PyDateTime_IMPORT() {
     // PyPy expects the C-API to be initialized via PyDateTime_Import, so trying to use
@@ -616,17 +613,16 @@ pub unsafe fn PyDateTime_IMPORT() {
     let py_datetime_c_api = PyDateTime_Import();
 
     #[cfg(not(PyPy))]
-    let py_datetime_c_api = {
-        // PyDateTime_CAPSULE_NAME is a macro in C
-        let PyDateTime_CAPSULE_NAME = CString::new("datetime.datetime_CAPI").unwrap();
-
-        PyCapsule_Import(PyDateTime_CAPSULE_NAME.as_ptr(), 1) as *mut PyDateTime_CAPI
-    };
+    let py_datetime_c_api =
+        PyCapsule_Import(PyDateTime_CAPSULE_NAME.as_ptr(), 1) as *mut PyDateTime_CAPI;
 
     *PyDateTimeAPI_impl.0.get() = py_datetime_c_api;
 }
 
-// skipped non-limited PyDateTime_TimeZone_UTC
+#[inline]
+pub unsafe fn PyDateTime_TimeZone_UTC() -> *mut PyObject {
+    (*PyDateTimeAPI()).TimeZone_UTC
+}
 
 /// Type Check macros
 ///
