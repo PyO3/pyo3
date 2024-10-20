@@ -457,8 +457,12 @@ jobs:
       - run: python -m pip install --upgrade pip && pip install nox
       - run: nox -s coverage
       - name: Set PR base on codecov
+        if: ${{ github.event_name == 'pull_request' && matrix.os == 'ubuntu-latest' }}
         run: |
           # fetch the merge commit between the PR base and head
+          BASE_REF=${{ github.event.pull_request.base.ref }}
+          HEAD_REF=${{ github.sha }}
+
           git fetch --progress --depth=1 origin "+refs/heads/$BASE_REF:refs/heads/$BASE_REF"
           while [ -z "$(git merge-base "$BASE_REF" "$HEAD_REF")" ]; do
             git fetch -q --deepen="10" origin "$BASE_REF" "$HEAD_REF";
