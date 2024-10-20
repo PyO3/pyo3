@@ -474,9 +474,9 @@ jobs:
           sudo chmod +x codecov
           ./codecov pr-base-picking \
             --base-sha $MERGE_BASE \
-            --pr ${{ github.event.number }}
-            --slug PyO3/pyo3
-            --token ${{ secrets.CODECOV_TOKEN }}
+            --pr ${{ github.event.number }} \
+            --slug PyO3/pyo3 \
+            --token ${{ secrets.CODECOV_TOKEN }} \
             --service github
       - run: python -m pip install --upgrade pip && pip install nox
       - run: nox -s coverage
