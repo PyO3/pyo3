@@ -459,7 +459,7 @@ jobs:
         run: |
           # fetch the merge commit between the PR base and head
           BASE_REF=refs/heads/${{ github.event.pull_request.base.ref }}
-          MERGE_REF=refs/pull${{ github.event.pull_request.number }}/merge
+          MERGE_REF=refs/pull/${{ github.event.pull_request.number }}/merge
 
           git fetch --progress --depth=1 origin "+$BASE_REF:$BASE_REF" "+$MERGE_REF:$MERGE_REF"
           while [ -z "$(git merge-base "$BASE_REF" "$MERGE_REF")" ]; do
