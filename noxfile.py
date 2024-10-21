@@ -95,6 +95,14 @@ def coverage(session: nox.Session) -> None:
     )
 
 
+@nox.session(name="set-coverage-env", venv_backend="none")
+def set_coverage_env(session: nox.Session) -> None:
+    """For use in GitHub Actions to set coverage environment variables."""
+    with open(os.environ["GITHUB_ENV"], "a") as env_file:
+        for k, v in _get_coverage_env().items():
+            print(f"{k}={v}", file=env_file)
+
+
 @nox.session(venv_backend="none")
 def rustfmt(session: nox.Session):
     _run_cargo(session, "fmt", "--all", "--check")
