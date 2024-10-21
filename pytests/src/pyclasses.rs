@@ -104,7 +104,7 @@ impl ClassWithDict {
     }
 }
 
-#[pymodule]
+#[pymodule(supports_free_threaded = true)]
 pub fn pyclasses(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<EmptyClass>()?;
     m.add_class::<PyClassIter>()?;
