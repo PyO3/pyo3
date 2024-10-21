@@ -577,6 +577,7 @@ jobs:
           cargo llvm-cov clean --workspace --profraw-only
           nox -s set-coverage-env
       - run: nox -s ffi-check
+      - run: nox -s clippy-all
       - run: nox
       - name: Generate coverage report
         run: nox -s generate-coverage-report
