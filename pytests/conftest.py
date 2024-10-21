@@ -2,7 +2,7 @@ import sysconfig
 import sys
 import pytest
 
-FREE_THREADED_BUILD = bool(sysconfig.get_config_var('Py_GIL_DISABLED'))
+FREE_THREADED_BUILD = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
 
 gil_enabled_at_start = True
 if FREE_THREADED_BUILD:
