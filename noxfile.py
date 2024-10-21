@@ -72,7 +72,19 @@ def coverage(session: nox.Session) -> None:
     session.env.update(_get_coverage_env())
     _run_cargo(session, "llvm-cov", "clean", "--workspace")
     test(session)
+    generate_coverage_report(session)
 
+
+@nox.session(name="set-coverage-env", venv_backend="none")
+def set_coverage_env(session: nox.Session) -> None:
+    """For use in GitHub Actions to set coverage environment variables."""
+    with open(os.environ["GITHUB_ENV"], "a") as env_file:
+        for k, v in _get_coverage_env().items():
+            print(f"{k}={v}", file=env_file)
+
+
+@nox.session(name="generate-coverage-report", venv_backend="none")
+def generate_coverage_report(session: nox.Session) -> None:
     cov_format = "codecov"
     output_file = "coverage.json"
 
