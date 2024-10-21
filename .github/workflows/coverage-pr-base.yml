@@ -1,0 +1,40 @@
+# This runs as a separate job because it needs to run on the `pull_request_target` event
+# in order to access the CODECOV_TOKEN secret.
+#
+# This is safe because this doesn't run arbitrary code from PRs.
+
+name: Set Codecov PR base
+on:
+  # See safety note / doc at the top of this file.
+  pull_request_target:
+
+jobs:
+  coverage-pr-base:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Set PR base on codecov
+        run: |
+          # fetch the merge commit between the PR base and head
+          BASE_REF=refs/heads/${{ github.event.pull_request.base.ref }}
+          MERGE_REF=refs/pull/${{ github.event.pull_request.number }}/merge
+
+          git fetch --progress --depth=1 origin "+$BASE_REF:$BASE_REF" "+$MERGE_REF:$MERGE_REF"
+          while [ -z "$(git merge-base "$BASE_REF" "$MERGE_REF")" ]; do
+            git fetch -q --deepen="10" origin "$BASE_REF" "$MERGE_REF";
+          done
+
+          MERGE_BASE=$(git merge-base "$BASE_REF" "$MERGE_REF")
+          echo "Merge base: $MERGE_BASE"
+
+          # inform codecov about the merge base
+          pip install codecov-cli
+          codecovcli pr-base-picking \
+            --base-sha $MERGE_BASE \
+            --pr ${{ github.event.number }} \
+            --slug PyO3/pyo3 \
+            --token ${{ secrets.CODECOV_TOKEN }} \
+            --service github
