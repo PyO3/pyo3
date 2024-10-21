@@ -9,6 +9,7 @@ use crate::types::{
 };
 use crate::{exceptions, ffi, Borrowed, Bound, BoundObject, Py, PyObject, Python};
 use std::ffi::{CStr, CString};
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
 use std::os::raw::c_int;
 use std::str;
 
@@ -417,6 +418,8 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// GIL when Python imports it on the free-threaded build, since all module
     /// objects defined in the extension have `Py_MOD_GIL` set to
     /// `Py_MOD_GIL_NOT_USED`.
+    #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+    #[cfg_attr(docsrs, doc(cfg(all())))]
     fn supports_free_threaded(&self, supports_free_threaded: bool) -> PyResult<()>;
 }
 
@@ -545,6 +548,8 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
         self.add(name.downcast_into::<PyString>()?, fun)
     }
 
+    #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+    #[cfg_attr(docsrs, doc(cfg(all())))]
     fn supports_free_threaded(&self, supports_free_threaded: bool) -> PyResult<()> {
         let gil_used = match supports_free_threaded {
             true => ffi::Py_MOD_GIL_NOT_USED,

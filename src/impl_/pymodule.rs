@@ -1,6 +1,8 @@
 //! Implementation details of `#[pymodule]` which need to be accessible from proc-macro generated code.
 
-use std::{cell::UnsafeCell, ffi::CStr, marker::PhantomData, os::raw::c_int};
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+use std::os::raw::c_int;
+use std::{cell::UnsafeCell, ffi::CStr, marker::PhantomData};
 
 #[cfg(all(
     not(any(PyPy, GraalPy)),
@@ -19,12 +21,14 @@ use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+use crate::PyErr;
 use crate::{
     ffi,
     impl_::pymethods::PyMethodDef,
     sync::GILOnceCell,
     types::{PyCFunction, PyModule, PyModuleMethods},
-    Bound, Py, PyClass, PyErr, PyResult, PyTypeInfo, Python,
+    Bound, Py, PyClass, PyResult, PyTypeInfo, Python,
 };
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
@@ -91,6 +95,7 @@ impl ModuleDef {
         }
     }
     /// Builds a module using user given initializer. Used for [`#[pymodule]`][crate::pymodule].
+    #[cfg_attr(any(Py_LIMITED_API, not(Py_3_13)), allow(unused_variables))]
     pub fn make_module(
         &'static self,
         py: Python<'_>,
@@ -141,17 +146,20 @@ impl ModuleDef {
                         ffi::PyModule_Create(self.ffi_def.get()),
                     )?
                 };
-                let gil_used = {
-                    if supports_free_threaded {
-                        ffi::Py_MOD_GIL_NOT_USED
-                    } else {
-                        ffi::Py_MOD_GIL_USED
-                    }
-                };
-                match unsafe { ffi::PyUnstable_Module_SetGIL(module.as_ptr(), gil_used) } {
-                    c_int::MIN..=-1 => return Err(PyErr::fetch(py)),
-                    0..=c_int::MAX => {}
-                };
+                #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+                {
+                    let gil_used = {
+                        if supports_free_threaded {
+                            ffi::Py_MOD_GIL_NOT_USED
+                        } else {
+                            ffi::Py_MOD_GIL_USED
+                        }
+                    };
+                    match unsafe { ffi::PyUnstable_Module_SetGIL(module.as_ptr(), gil_used) } {
+                        c_int::MIN..=-1 => return Err(PyErr::fetch(py)),
+                        0..=c_int::MAX => {}
+                    };
+                }
                 self.initializer.0(module.bind(py))?;
                 Ok(module)
             })
