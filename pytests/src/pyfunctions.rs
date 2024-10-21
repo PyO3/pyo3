@@ -67,7 +67,7 @@ fn args_kwargs<'py>(
     (args, kwargs)
 }
 
-#[pymodule]
+#[pymodule(supports_free_threaded = true)]
 pub fn pyfunctions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(none, m)?)?;
     m.add_function(wrap_pyfunction!(simple, m)?)?;
