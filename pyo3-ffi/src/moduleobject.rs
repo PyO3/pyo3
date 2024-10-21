@@ -107,7 +107,7 @@ pub const Py_MOD_GIL_NOT_USED: *mut c_void = 1 as *mut c_void;
 
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
 extern "C" {
-    pub fn PyUnstable_Module_SetGIL(module: *mut PyObject, gil: *mut c_void);
+    pub fn PyUnstable_Module_SetGIL(module: *mut PyObject, gil: *mut c_void) -> c_int;
 }
 
 #[repr(C)]
