@@ -121,7 +121,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
     Ok(())
 }
 
-fn ensure_gil_enabled(interpreter_config: &InterpreterConfig) -> Result<()> {
+fn ensure_gil_enabled(interpreter_config: &InterpreterConfig) {
     let gil_enabled = interpreter_config
         .build_flags
         .0
@@ -132,8 +132,6 @@ fn ensure_gil_enabled(interpreter_config: &InterpreterConfig) -> Result<()> {
             "The free-threaded build of CPython does not yet support abi3 so the build artifacts will be version-specific."
         )
     }
-
-    Ok(())
 }
 
 fn ensure_target_pointer_width(interpreter_config: &InterpreterConfig) -> Result<()> {
@@ -201,7 +199,7 @@ fn configure_pyo3() -> Result<()> {
 
     ensure_python_version(&interpreter_config)?;
     ensure_target_pointer_width(&interpreter_config)?;
-    ensure_gil_enabled(&interpreter_config)?;
+    ensure_gil_enabled(&interpreter_config);
 
     // Serialize the whole interpreter config into DEP_PYTHON_PYO3_CONFIG env var.
     interpreter_config.to_cargo_dep_env()?;
