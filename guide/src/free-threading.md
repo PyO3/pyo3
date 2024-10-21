@@ -100,7 +100,7 @@ The most straightforward way to trigger this problem to use the Python
 `pyclass`. For example, consider the following `PyClass` implementation:
 
 ```
-# use python::prelude::*;
+# use pyo3::prelude::*;
 # fn main() {
 #[pyclass]
 #[derive(Default)]
@@ -119,12 +119,13 @@ impl ThreadIter {
         self.count += 1;
         self.count
     }
+}
 # }
 ```
 
 And then if we do something like this in Python:
 
-```
+```python
 import concurrent.futures
 from my_module import ThreadIter
 
@@ -140,7 +141,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=16) as tpe:
 
 We will see an exception:
 
-```
+```text
 Traceback (most recent call last)
   File "example.py", line 5, in <module>
     next(i)
