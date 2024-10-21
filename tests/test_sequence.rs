@@ -263,13 +263,14 @@ struct GenericList {
 #[test]
 fn test_generic_list_get() {
     Python::with_gil(|py| {
-        let list: PyObject = GenericList {
+        let list = GenericList {
             items: [1i32, 2, 3]
                 .iter()
                 .map(|i| i.into_pyobject(py).unwrap().into_any().unbind())
                 .collect(),
         }
-        .into_py(py);
+        .into_pyobject(py)
+        .unwrap();
 
         py_assert!(py, list, "list.items == [1, 2, 3]");
     });
@@ -286,7 +287,7 @@ fn test_generic_list_set() {
             .items
             .iter()
             .zip(&[1u32, 2, 3])
-            .all(|(a, b)| a.bind(py).eq(b.into_py(py)).unwrap()));
+            .all(|(a, b)| a.bind(py).eq(b.into_pyobject(py).unwrap()).unwrap()));
     });
 }
 

@@ -1,6 +1,6 @@
 use crate::{
     conversion::IntoPyObject, ffi, types::any::PyAnyMethods, AsPyPointer, Bound, BoundObject,
-    FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python,
+    FromPyObject, PyAny, PyObject, PyResult, Python,
 };
 
 /// `Option::Some<T>` is converted like `T`.
@@ -16,9 +16,10 @@ where
     }
 }
 
-impl<T> IntoPy<PyObject> for Option<T>
+#[allow(deprecated)]
+impl<T> crate::IntoPy<PyObject> for Option<T>
 where
-    T: IntoPy<PyObject>,
+    T: crate::IntoPy<PyObject>,
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.map_or_else(|| py.None(), |val| val.into_py(py))

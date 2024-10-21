@@ -227,12 +227,11 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::class::basic::CompareOp;
     /// use pyo3::prelude::*;
-    /// use pyo3::types::PyInt;
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let a: Bound<'_, PyInt> = 0_u8.into_py(py).into_bound(py).downcast_into()?;
-    ///     let b: Bound<'_, PyInt> = 42_u8.into_py(py).into_bound(py).downcast_into()?;
+    ///     let a = 0_u8.into_pyobject(py)?;
+    ///     let b = 42_u8.into_pyobject(py)?;
     ///     assert!(a.rich_compare(b, CompareOp::Le)?.is_truthy()?);
     ///     Ok(())
     /// })?;
