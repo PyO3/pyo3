@@ -19,7 +19,7 @@ impl ExampleClass {
 }
 
 /// An example module implemented in Rust using PyO3.
-#[pymodule]
+#[pymodule(supports_free_threaded = true)]
 fn _setuptools_rust_starter(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ExampleClass>()?;
     m.add_wrapped(wrap_pymodule!(submodule::submodule))?;
