@@ -11,13 +11,14 @@ use std::{cell::UnsafeCell, ffi::CStr, marker::PhantomData};
     not(target_has_atomic = "64"),
 ))]
 use portable_atomic::{AtomicI64, Ordering};
+use std::sync::atomic::AtomicBool;
 #[cfg(all(
     not(any(PyPy, GraalPy)),
     Py_3_9,
     not(all(windows, Py_LIMITED_API, not(Py_3_10))),
     target_has_atomic = "64",
 ))]
-use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
+use std::sync::atomic::{AtomicI64, Ordering};
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
