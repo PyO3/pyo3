@@ -184,7 +184,6 @@ pub trait PyDictMethods<'py>: crate::sealed::Sealed {
     /// This is useful when the GIL is disabled and the dictionary is shared between threads.
     /// It is not guaranteed that the dictionary will not be modified during iteration when the
     /// closure calls arbitrary Python code that releases the current critical section.
-    #[cfg(Py_GIL_DISABLED)]
     fn locked_for_each<F>(&self, closure: F) -> PyResult<()>
     where
         F: Fn(Bound<'py, PyAny>, Bound<'py, PyAny>) -> PyResult<()>;
@@ -365,14 +364,15 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
     fn iter(&self) -> BoundDictIterator<'py> {
         BoundDictIterator::new(self.clone())
     }
-
-    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    
     fn locked_for_each<F>(&self, f: F) -> PyResult<()>
     where
         F: Fn(Bound<'py, PyAny>, Bound<'py, PyAny>) -> PyResult<()>,
     {
         #[cfg(feature = "nightly")]
         {
+            // We don't need a critical section when the nightly feature is enabled because
+            // try_for_each is locked by the implementation of try_fold.
             self.iter().try_for_each(|(key, value)| f(key, value))
         }
 
