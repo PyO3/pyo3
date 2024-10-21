@@ -1,3 +1,4 @@
+use std::os::raw::c_int;
 use std::ptr;
 
 use pyo3_ffi::*;

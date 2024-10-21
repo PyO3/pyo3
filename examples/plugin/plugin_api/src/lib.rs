@@ -25,7 +25,7 @@ impl Gadget {
 }
 
 /// A Python module for plugin interface types
-#[pymodule]
+#[pymodule(supports_free_threaded = true)]
 pub fn plugin_api(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Gadget>()?;
     Ok(())

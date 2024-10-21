@@ -75,7 +75,7 @@ impl ExampleContainer {
     }
 }
 
-#[pymodule(name = "getitem")]
+#[pymodule(name = "getitem", supports_free_threaded = true)]
 fn example(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // ? -https://github.com/PyO3/maturin/issues/475
     m.add_class::<ExampleContainer>()?;
