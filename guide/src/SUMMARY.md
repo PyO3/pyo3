@@ -25,6 +25,7 @@
   - [Conversion traits](conversions/traits.md)
 - [Using `async` and `await`](async-await.md)
 - [Parallelism](parallelism.md)
+- [Supporting Free-Threaded Python](free-threading.md)
 - [Debugging](debugging.md)
 - [Features reference](features.md)
 - [Performance](performance.md)

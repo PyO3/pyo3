@@ -501,6 +501,7 @@ pub mod doc_test {
         "guide/src/exception.md" => guide_exception_md,
         "guide/src/faq.md" => guide_faq_md,
         "guide/src/features.md" => guide_features_md,
+        "guide/src/free-threading.md" => guide_free_threading_md,
         "guide/src/function.md" => guide_function_md,
         "guide/src/function/error-handling.md" => guide_function_error_handling_md,
         "guide/src/function/signature.md" => guide_function_signature_md,
