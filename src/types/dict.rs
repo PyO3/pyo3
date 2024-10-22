@@ -5,8 +5,6 @@ use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::{PyAny, PyAnyMethods, PyList, PyMapping};
 use crate::{ffi, BoundObject, IntoPyObject, Python};
-#[cfg(Py_GIL_DISABLED)]
-use std::ops::ControlFlow;
 
 /// Represents a Python `dict`.
 ///
@@ -435,9 +433,86 @@ fn dict_len(dict: &Bound<'_, PyDict>) -> Py_ssize_t {
 /// PyO3 implementation of an iterator for a Python `dict` object.
 pub struct BoundDictIterator<'py> {
     dict: Bound<'py, PyDict>,
-    ppos: ffi::Py_ssize_t,
-    di_used: ffi::Py_ssize_t,
-    remaining: ffi::Py_ssize_t,
+    inner: DictIterImpl,
+}
+
+enum DictIterImpl {
+    DictIter {
+        ppos: ffi::Py_ssize_t,
+        di_used: ffi::Py_ssize_t,
+        remaining: ffi::Py_ssize_t,
+    },
+}
+
+impl DictIterImpl {
+    #[inline]
+    fn next<'py>(
+        &mut self,
+        dict: &Bound<'py, PyDict>,
+    ) -> Option<(Bound<'py, PyAny>, Bound<'py, PyAny>)> {
+        match self {
+            Self::DictIter {
+                di_used,
+                remaining,
+                ppos,
+                ..
+            } => crate::sync::with_critical_section(dict, || {
+                let ma_used = dict_len(dict);
+
+                // These checks are similar to what CPython does.
+                //
+                // If the dimension of the dict changes e.g. key-value pairs are removed
+                // or added during iteration, this will panic next time when `next` is called
+                if *di_used != ma_used {
+                    *di_used = -1;
+                    panic!("dictionary changed size during iteration");
+                };
+
+                // If the dict is changed in such a way that the length remains constant
+                // then this will panic at the end of iteration - similar to this:
+                //
+                // d = {"a":1, "b":2, "c": 3}
+                //
+                // for k, v in d.items():
+                //     d[f"{k}_"] = 4
+                //     del d[k]
+                //     print(k)
+                //
+                if *remaining == -1 {
+                    *di_used = -1;
+                    panic!("dictionary keys changed during iteration");
+                };
+
+                let mut key: *mut ffi::PyObject = std::ptr::null_mut();
+                let mut value: *mut ffi::PyObject = std::ptr::null_mut();
+
+                if unsafe { ffi::PyDict_Next(dict.as_ptr(), ppos, &mut key, &mut value) } != 0 {
+                    *remaining -= 1;
+                    let py = dict.py();
+                    // Safety:
+                    // - PyDict_Next returns borrowed values
+                    // - we have already checked that `PyDict_Next` succeeded, so we can assume these to be non-null
+                    Some((
+                        unsafe { key.assume_borrowed_unchecked(py) }.to_owned(),
+                        unsafe { value.assume_borrowed_unchecked(py) }.to_owned(),
+                    ))
+                } else {
+                    None
+                }
+            }),
+        }
+    }
+
+    #[cfg(Py_GIL_DISABLED)]
+    #[inline]
+    fn with_critical_section<F, R>(&mut self, dict: &Bound<'_, PyDict>, f: F) -> R
+    where
+        F: FnOnce(&mut Self) -> R,
+    {
+        match self {
+            Self::DictIter { .. } => crate::sync::with_critical_section(dict, || f(self)),
+        }
+    }
 }
 
 impl<'py> Iterator for BoundDictIterator<'py> {
@@ -445,52 +520,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        crate::sync::with_critical_section(self.dict.as_any(), || {
-            let ma_used = dict_len(&self.dict);
-
-            // These checks are similar to what CPython does.
-            //
-            // If the dimension of the dict changes e.g. key-value pairs are removed
-            // or added during iteration, this will panic next time when `next` is called
-            if self.di_used != ma_used {
-                self.di_used = -1;
-                panic!("dictionary changed size during iteration");
-            };
-
-            // If the dict is changed in such a way that the length remains constant
-            // then this will panic at the end of iteration - similar to this:
-            //
-            // d = {"a":1, "b":2, "c": 3}
-            //
-            // for k, v in d.items():
-            //     d[f"{k}_"] = 4
-            //     del d[k]
-            //     print(k)
-            //
-            if self.remaining == -1 {
-                self.di_used = -1;
-                panic!("dictionary keys changed during iteration");
-            };
-
-            let mut key: *mut ffi::PyObject = std::ptr::null_mut();
-            let mut value: *mut ffi::PyObject = std::ptr::null_mut();
-
-            if unsafe { ffi::PyDict_Next(self.dict.as_ptr(), &mut self.ppos, &mut key, &mut value) }
-                != 0
-            {
-                self.remaining -= 1;
-                let py = self.dict.py();
-                // Safety:
-                // - PyDict_Next returns borrowed values
-                // - we have already checked that `PyDict_Next` succeeded, so we can assume these to be non-null
-                Some((
-                    unsafe { key.assume_borrowed_unchecked(py) }.to_owned(),
-                    unsafe { value.assume_borrowed_unchecked(py) }.to_owned(),
-                ))
-            } else {
-                None
-            }
-        })
+        self.inner.next(&self.dict)
     }
 
     #[inline]
@@ -506,9 +536,9 @@ impl<'py> Iterator for BoundDictIterator<'py> {
         Self: Sized,
         F: FnMut(B, Self::Item) -> B,
     {
-        self.with_critical_section(|mut iter| {
+        self.inner.with_critical_section(&self.dict, |inner| {
             let mut accum = init;
-            for x in &mut iter {
+            while let Some(x) = inner.next(&self.dict) {
                 accum = f(accum, x);
             }
             accum
@@ -523,9 +553,9 @@ impl<'py> Iterator for BoundDictIterator<'py> {
         F: FnMut(B, Self::Item) -> R,
         R: std::ops::Try<Output = B>,
     {
-        self.with_critical_section(|mut iter| {
+        self.inner.with_critical_section(&self.dict, |inner| {
             let mut accum = init;
-            for x in &mut iter {
+            while let Some(x) = inner.next(&self.dict) {
                 accum = f(accum, x)?
             }
             R::from_output(accum)
@@ -534,137 +564,97 @@ impl<'py> Iterator for BoundDictIterator<'py> {
 
     #[inline]
     #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
-    fn all<F>(&mut self, f: F) -> bool
+    fn all<F>(&mut self, mut f: F) -> bool
     where
         Self: Sized,
         F: FnMut(Self::Item) -> bool,
     {
-        self.with_critical_section(|iter| {
-            #[inline]
-            fn check<T>(mut f: impl FnMut(T) -> bool) -> impl FnMut((), T) -> ControlFlow<()> {
-                move |(), x| {
-                    if f(x) {
-                        ControlFlow::Continue(())
-                    } else {
-                        ControlFlow::Break(())
-                    }
+        self.inner.with_critical_section(&self.dict, |inner| {
+            while let Some(x) = inner.next(&self.dict) {
+                if !f(x) {
+                    return false;
                 }
             }
-            iter.try_fold((), check(f)) == ControlFlow::Continue(())
+            true
         })
     }
 
     #[inline]
     #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
-    fn any<F>(&mut self, f: F) -> bool
+    fn any<F>(&mut self, mut f: F) -> bool
     where
         Self: Sized,
         F: FnMut(Self::Item) -> bool,
     {
-        self.with_critical_section(|iter| {
-            #[inline]
-            fn check<T>(mut f: impl FnMut(T) -> bool) -> impl FnMut((), T) -> ControlFlow<()> {
-                move |(), x| {
-                    if f(x) {
-                        ControlFlow::Break(())
-                    } else {
-                        ControlFlow::Continue(())
-                    }
+        self.inner.with_critical_section(&self.dict, |inner| {
+            while let Some(x) = inner.next(&self.dict) {
+                if f(x) {
+                    return true;
                 }
             }
-
-            iter.try_fold((), check(f)) == ControlFlow::Break(())
+            false
         })
     }
 
     #[inline]
     #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
-    fn find<P>(&mut self, predicate: P) -> Option<Self::Item>
+    fn find<P>(&mut self, mut predicate: P) -> Option<Self::Item>
     where
         Self: Sized,
         P: FnMut(&Self::Item) -> bool,
     {
-        self.with_critical_section(|iter| {
-            #[inline]
-            fn check<T>(
-                mut predicate: impl FnMut(&T) -> bool,
-            ) -> impl FnMut((), T) -> ControlFlow<T> {
-                move |(), x| {
-                    if predicate(&x) {
-                        ControlFlow::Break(x)
-                    } else {
-                        ControlFlow::Continue(())
-                    }
+        self.inner.with_critical_section(&self.dict, |inner| {
+            while let Some(x) = inner.next(&self.dict) {
+                if predicate(&x) {
+                    return Some(x);
                 }
             }
-
-            match iter.try_fold((), check(predicate)) {
-                ControlFlow::Continue(_) => None,
-                ControlFlow::Break(x) => Some(x),
-            }
+            None
         })
     }
 
     #[inline]
     #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
-    fn find_map<B, F>(&mut self, f: F) -> Option<B>
+    fn find_map<B, F>(&mut self, mut f: F) -> Option<B>
     where
         Self: Sized,
         F: FnMut(Self::Item) -> Option<B>,
     {
-        self.with_critical_section(|iter| {
-            #[inline]
-            fn check<T, B>(
-                mut f: impl FnMut(T) -> Option<B>,
-            ) -> impl FnMut((), T) -> ControlFlow<B> {
-                move |(), x| match f(x) {
-                    Some(x) => ControlFlow::Break(x),
-                    None => ControlFlow::Continue(()),
+        self.inner.with_critical_section(&self.dict, |inner| {
+            while let Some(x) = inner.next(&self.dict) {
+                if let found @ Some(_) = f(x) {
+                    return found;
                 }
             }
-
-            match iter.try_fold((), check(f)) {
-                ControlFlow::Continue(_) => None,
-                ControlFlow::Break(x) => Some(x),
-            }
+            None
         })
     }
 
     #[inline]
     #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
-    fn position<P>(&mut self, predicate: P) -> Option<usize>
+    fn position<P>(&mut self, mut predicate: P) -> Option<usize>
     where
         Self: Sized,
         P: FnMut(Self::Item) -> bool,
     {
-        self.with_critical_section(|iter| {
-            #[inline]
-            fn check<'a, T>(
-                mut predicate: impl FnMut(T) -> bool + 'a,
-                acc: &'a mut usize,
-            ) -> impl FnMut((), T) -> ControlFlow<usize, ()> + 'a {
-                move |_, x| {
-                    if predicate(x) {
-                        ControlFlow::Break(*acc)
-                    } else {
-                        *acc += 1;
-                        ControlFlow::Continue(())
-                    }
-                }
-            }
-
+        self.inner.with_critical_section(&self.dict, |inner| {
             let mut acc = 0;
-            match iter.try_fold((), check(predicate, &mut acc)) {
-                ControlFlow::Continue(_) => None,
-                ControlFlow::Break(x) => Some(x),
+            while let Some(x) = inner.next(&self.dict) {
+                if predicate(x) {
+                    return Some(acc);
+                }
+                acc += 1;
             }
+            None
         })
     }
 }
 
 impl ExactSizeIterator for BoundDictIterator<'_> {
     fn len(&self) -> usize {
-        self.remaining as usize
+        match self.inner {
+            DictIterImpl::DictIter { remaining, .. } => remaining as usize,
+        }
     }
 }
 
@@ -674,19 +664,12 @@ impl<'py> BoundDictIterator<'py> {
 
         Self {
             dict,
-            ppos: 0,
-            di_used: remaining,
-            remaining,
+            inner: DictIterImpl::DictIter {
+                ppos: 0,
+                di_used: remaining,
+                remaining,
+            },
         }
-    }
-
-    #[cfg(Py_GIL_DISABLED)]
-    #[inline]
-    fn with_critical_section<F, R>(&mut self, f: F) -> R
-    where
-        F: FnOnce(&mut Self) -> R,
-    {
-        crate::sync::with_critical_section(&self.dict.clone(), || f(self))
     }
 }
 
