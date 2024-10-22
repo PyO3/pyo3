@@ -1,6 +1,6 @@
 //! Implementation details of `#[pymodule]` which need to be accessible from proc-macro generated code.
 
-#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+#[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
 use std::os::raw::c_int;
 use std::{cell::UnsafeCell, ffi::CStr, marker::PhantomData};
 
@@ -22,7 +22,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
-#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+#[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
 use crate::PyErr;
 use crate::{
     ffi,
@@ -96,7 +96,7 @@ impl ModuleDef {
         }
     }
     /// Builds a module using user given initializer. Used for [`#[pymodule]`][crate::pymodule].
-    #[cfg_attr(any(Py_LIMITED_API, not(Py_3_13)), allow(unused_variables))]
+    #[cfg_attr(any(Py_LIMITED_API, not(Py_GIL_DISABLED)), allow(unused_variables))]
     pub fn make_module(
         &'static self,
         py: Python<'_>,
@@ -147,7 +147,7 @@ impl ModuleDef {
                         ffi::PyModule_Create(self.ffi_def.get()),
                     )?
                 };
-                #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+                #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
                 {
                     let gil_used = {
                         if supports_free_threaded {
