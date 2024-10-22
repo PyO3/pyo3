@@ -184,6 +184,11 @@ pub trait PyDictMethods<'py>: crate::sealed::Sealed {
     /// This is useful when the GIL is disabled and the dictionary is shared between threads.
     /// It is not guaranteed that the dictionary will not be modified during iteration when the
     /// closure calls arbitrary Python code that releases the current critical section.
+    ///
+    /// This method is a small performance optimization over `.iter().try_for_each()` when the
+    /// nightly feature is not enabled because we cannot implement an optimised version of
+    /// `iter().try_fold()` on stable yet. If your iteration is infallible then this method has the
+    /// same performance as `.iter().for_each()`.
     fn locked_for_each<F>(&self, closure: F) -> PyResult<()>
     where
         F: Fn(Bound<'py, PyAny>, Bound<'py, PyAny>) -> PyResult<()>;
