@@ -1561,4 +1561,107 @@ mod tests {
             );
         })
     }
+
+    #[test]
+    fn test_iter_all() {
+        Python::with_gil(|py| {
+            let dict = [(1, true), (2, true), (3, true)].into_py_dict(py).unwrap();
+            assert!(dict.iter().all(|(_, v)| v.extract::<bool>().unwrap()));
+
+            let dict = [(1, true), (2, false), (3, true)].into_py_dict(py).unwrap();
+            assert!(!dict.iter().all(|(_, v)| v.extract::<bool>().unwrap()));
+        });
+    }
+
+    #[test]
+    fn test_iter_any() {
+        Python::with_gil(|py| {
+            let dict = [(1, true), (2, false), (3, false)]
+                .into_py_dict(py)
+                .unwrap();
+            assert!(dict.iter().any(|(_, v)| v.extract::<bool>().unwrap()));
+
+            let dict = [(1, false), (2, false), (3, false)]
+                .into_py_dict(py)
+                .unwrap();
+            assert!(!dict.iter().any(|(_, v)| v.extract::<bool>().unwrap()));
+        });
+    }
+
+    #[test]
+    #[allow(clippy::search_is_some)]
+    fn test_iter_find() {
+        Python::with_gil(|py| {
+            let dict = [(1, false), (2, true), (3, false)]
+                .into_py_dict(py)
+                .unwrap();
+
+            assert_eq!(
+                Some((2, true)),
+                dict.iter()
+                    .find(|(_, v)| v.extract::<bool>().unwrap())
+                    .map(|(k, v)| (k.extract().unwrap(), v.extract().unwrap()))
+            );
+
+            let dict = [(1, false), (2, false), (3, false)]
+                .into_py_dict(py)
+                .unwrap();
+
+            assert!(dict
+                .iter()
+                .find(|(_, v)| v.extract::<bool>().unwrap())
+                .is_none());
+        });
+    }
+
+    #[test]
+    #[allow(clippy::search_is_some)]
+    fn test_iter_position() {
+        Python::with_gil(|py| {
+            let dict = [(1, false), (2, false), (3, true)]
+                .into_py_dict(py)
+                .unwrap();
+            assert_eq!(
+                Some(2),
+                dict.iter().position(|(_, v)| v.extract::<bool>().unwrap())
+            );
+
+            let dict = [(1, false), (2, false), (3, false)]
+                .into_py_dict(py)
+                .unwrap();
+            assert!(dict
+                .iter()
+                .position(|(_, v)| v.extract::<bool>().unwrap())
+                .is_none());
+        });
+    }
+
+    #[test]
+    fn test_iter_fold() {
+        Python::with_gil(|py| {
+            let dict = [(1, 1), (2, 2), (3, 3)].into_py_dict(py).unwrap();
+            let sum = dict
+                .iter()
+                .fold(0, |acc, (_, v)| acc + v.extract::<i32>().unwrap());
+            assert_eq!(sum, 6);
+        });
+    }
+
+    #[test]
+    fn test_iter_try_fold() {
+        Python::with_gil(|py| {
+            let dict = [(1, 1), (2, 2), (3, 3)].into_py_dict(py).unwrap();
+            let sum = dict
+                .iter()
+                .try_fold(0, |acc, (_, v)| PyResult::Ok(acc + v.extract::<i32>()?))
+                .unwrap();
+            assert_eq!(sum, 6);
+
+            let dict = [(1, "foo"), (2, "bar")].into_py_dict(py).unwrap();
+            assert!(dict
+                .iter()
+                .try_fold(0, |acc, (_, v)| PyResult::Ok(acc + v.extract::<i32>()?))
+                .is_err());
+        });
+    }
 }
