@@ -23,6 +23,7 @@ static mut SEQUENTIAL_SLOTS: &[PyModuleDef_Slot] = &[
         slot: Py_mod_multiple_interpreters,
         value: Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
     },
+    #[cfg(Py_GIL_DISABLED)]
     PyModuleDef_Slot {
         slot: Py_mod_gil,
         value: Py_MOD_GIL_NOT_USED,
