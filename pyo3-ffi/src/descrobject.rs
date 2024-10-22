@@ -1,6 +1,6 @@
 use crate::methodobject::PyMethodDef;
 use crate::object::{PyObject, PyTypeObject};
-use crate::Py_ssize_t;
+use crate::{PyObject_TypeCheck, Py_ssize_t};
 use std::os::raw::{c_char, c_int, c_void};
 use std::ptr;
 
@@ -66,6 +66,11 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyDictProxy_New")]
     pub fn PyDictProxy_New(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PyWrapper_New(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
+}
+
+#[inline]
+pub unsafe fn PyDictProxy_Check(op: *mut PyObject) -> c_int {
+    PyObject_TypeCheck(op, std::ptr::addr_of_mut!(PyDictProxy_Type))
 }
 
 /// Represents the [PyMemberDef](https://docs.python.org/3/c-api/structures.html#c.PyMemberDef)

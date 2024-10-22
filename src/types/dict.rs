@@ -591,7 +591,7 @@ where
 }
 
 /// Represents a tuple which can be used as a PyDict item.
-trait PyDictItem<'py> {
+pub trait PyDictItem<'py> {
     type K: IntoPyObject<'py>;
     type V: IntoPyObject<'py>;
     fn unpack(self) -> (Self::K, Self::V);
