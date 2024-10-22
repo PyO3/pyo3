@@ -3,7 +3,7 @@ use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
-use crate::types::{PyAny, PyAnyMethods, PyIterator, PyList, PyMapping, PyTuple, PyTupleMethods};
+use crate::types::{PyAny, PyAnyMethods, PyList, PyMapping};
 use crate::{ffi, BoundObject, IntoPyObject, Python};
 #[cfg(Py_GIL_DISABLED)]
 use std::ops::ControlFlow;
@@ -364,7 +364,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
     fn iter(&self) -> BoundDictIterator<'py> {
         BoundDictIterator::new(self.clone())
     }
-    
+
     fn locked_for_each<F>(&self, f: F) -> PyResult<()>
     where
         F: Fn(Bound<'py, PyAny>, Bound<'py, PyAny>) -> PyResult<()>,
@@ -428,22 +428,11 @@ fn dict_len(dict: &Bound<'_, PyDict>) -> Py_ssize_t {
 }
 
 /// PyO3 implementation of an iterator for a Python `dict` object.
-pub enum BoundDictIterator<'py> {
-    /// Iterator over the items of the dictionary, obtained by calling the python method `items()`.
-    #[allow(missing_docs)]
-    ItemIter {
-        iter: Bound<'py, PyIterator>,
-        remaining: ffi::Py_ssize_t,
-    },
-    /// Iterator over the items of the dictionary, using the C-API `PyDict_Next`. This variant is
-    /// only used when the dictionary is an exact instance of `PyDict`.
-    #[allow(missing_docs)]
-    DictIter {
-        dict: Bound<'py, PyDict>,
-        ppos: ffi::Py_ssize_t,
-        di_used: ffi::Py_ssize_t,
-        remaining: ffi::Py_ssize_t,
-    },
+pub struct BoundDictIterator<'py> {
+    dict: Bound<'py, PyDict>,
+    ppos: ffi::Py_ssize_t,
+    di_used: ffi::Py_ssize_t,
+    remaining: ffi::Py_ssize_t,
 }
 
 impl<'py> Iterator for BoundDictIterator<'py> {
@@ -451,67 +440,50 @@ impl<'py> Iterator for BoundDictIterator<'py> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.with_critical_section(|iter| match iter {
-            BoundDictIterator::ItemIter {
-                iter: ref mut py_iter,
-                ref mut remaining,
-            } => {
-                *remaining = remaining.saturating_sub(1);
-                py_iter.next().map(Result::unwrap).map(|tuple| {
-                    let tuple = tuple.downcast::<PyTuple>().unwrap();
-                    let key = tuple.get_item(0).unwrap();
-                    let value = tuple.get_item(1).unwrap();
-                    (key, value)
-                })
-            }
-            BoundDictIterator::DictIter {
-                ref mut dict,
-                ref mut ppos,
-                ref mut di_used,
-                ref mut remaining,
-            } => {
-                let ma_used = dict_len(dict);
+        crate::sync::with_critical_section(self.dict.as_any(), || {
+            let ma_used = dict_len(&self.dict);
 
-                // These checks are similar to what CPython does.
-                //
-                // If the dimension of the dict changes e.g. key-value pairs are removed
-                // or added during iteration, this will panic next time when `next` is called
-                if *di_used != ma_used {
-                    *di_used = -1;
-                    panic!("dictionary changed size during iteration");
-                };
+            // These checks are similar to what CPython does.
+            //
+            // If the dimension of the dict changes e.g. key-value pairs are removed
+            // or added during iteration, this will panic next time when `next` is called
+            if self.di_used != ma_used {
+                self.di_used = -1;
+                panic!("dictionary changed size during iteration");
+            };
 
-                // If the dict is changed in such a way that the length remains constant
-                // then this will panic at the end of iteration - similar to this:
-                //
-                // d = {"a":1, "b":2, "c": 3}
-                //
-                // for k, v in d.items():
-                //     d[f"{k}_"] = 4
-                //     del d[k]
-                //     print(k)
-                //
-                if *remaining == -1 {
-                    *di_used = -1;
-                    panic!("dictionary keys changed during iteration");
-                };
+            // If the dict is changed in such a way that the length remains constant
+            // then this will panic at the end of iteration - similar to this:
+            //
+            // d = {"a":1, "b":2, "c": 3}
+            //
+            // for k, v in d.items():
+            //     d[f"{k}_"] = 4
+            //     del d[k]
+            //     print(k)
+            //
+            if self.remaining == -1 {
+                self.di_used = -1;
+                panic!("dictionary keys changed during iteration");
+            };
 
-                let mut key: *mut ffi::PyObject = std::ptr::null_mut();
-                let mut value: *mut ffi::PyObject = std::ptr::null_mut();
+            let mut key: *mut ffi::PyObject = std::ptr::null_mut();
+            let mut value: *mut ffi::PyObject = std::ptr::null_mut();
 
-                if unsafe { ffi::PyDict_Next(dict.as_ptr(), ppos, &mut key, &mut value) } != 0 {
-                    *remaining -= 1;
-                    let py = dict.py();
-                    // Safety:
-                    // - PyDict_Next returns borrowed values
-                    // - we have already checked that `PyDict_Next` succeeded, so we can assume these to be non-null
-                    Some((
-                        unsafe { key.assume_borrowed_unchecked(py) }.to_owned(),
-                        unsafe { value.assume_borrowed_unchecked(py) }.to_owned(),
-                    ))
-                } else {
-                    None
-                }
+            if unsafe { ffi::PyDict_Next(self.dict.as_ptr(), &mut self.ppos, &mut key, &mut value) }
+                != 0
+            {
+                self.remaining -= 1;
+                let py = self.dict.py();
+                // Safety:
+                // - PyDict_Next returns borrowed values
+                // - we have already checked that `PyDict_Next` succeeded, so we can assume these to be non-null
+                Some((
+                    unsafe { key.assume_borrowed_unchecked(py) }.to_owned(),
+                    unsafe { value.assume_borrowed_unchecked(py) }.to_owned(),
+                ))
+            } else {
+                None
             }
         })
     }
@@ -687,10 +659,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
 
 impl ExactSizeIterator for BoundDictIterator<'_> {
     fn len(&self) -> usize {
-        match self {
-            BoundDictIterator::ItemIter { remaining, .. } => *remaining as usize,
-            BoundDictIterator::DictIter { remaining, .. } => *remaining as usize,
-        }
+        self.remaining as usize
     }
 }
 
@@ -698,34 +667,21 @@ impl<'py> BoundDictIterator<'py> {
     fn new(dict: Bound<'py, PyDict>) -> Self {
         let remaining = dict_len(&dict);
 
-        if dict.is_exact_instance_of::<PyDict>() {
-            return BoundDictIterator::DictIter {
-                dict,
-                ppos: 0,
-                di_used: remaining,
-                remaining,
-            };
-        };
-
-        let items = dict.call_method0(intern!(dict.py(), "items")).unwrap();
-        let iter = PyIterator::from_object(&items).unwrap();
-        BoundDictIterator::ItemIter { iter, remaining }
+        Self {
+            dict,
+            ppos: 0,
+            di_used: remaining,
+            remaining,
+        }
     }
 
+    #[cfg(Py_GIL_DISABLED)]
     #[inline]
     fn with_critical_section<F, R>(&mut self, f: F) -> R
     where
         F: FnOnce(&mut Self) -> R,
     {
-        match self {
-            BoundDictIterator::ItemIter { .. } => f(self),
-            #[cfg(not(Py_GIL_DISABLED))]
-            BoundDictIterator::DictIter { .. } => f(self),
-            #[cfg(Py_GIL_DISABLED)]
-            BoundDictIterator::DictIter { ref dict, .. } => {
-                crate::sync::with_critical_section(dict.clone().as_ref(), || f(self))
-            }
-        }
+        crate::sync::with_critical_section(&self.dict.clone(), || f(self))
     }
 }
 
@@ -871,9 +827,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::common::generate_unique_module_name;
-    use crate::types::{PyModule, PyTuple};
-    use pyo3_ffi::c_str;
+    use crate::types::PyTuple;
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
@@ -1176,44 +1130,6 @@ mod tests {
             let mut key_sum = 0;
             let mut value_sum = 0;
             for (key, value) in dict {
-                key_sum += key.extract::<i32>().unwrap();
-                value_sum += value.extract::<i32>().unwrap();
-            }
-            assert_eq!(7 + 8 + 9, key_sum);
-            assert_eq!(32 + 42 + 123, value_sum);
-        });
-    }
-
-    #[test]
-    fn test_iter_subclass() {
-        Python::with_gil(|py| {
-            let mut v = HashMap::new();
-            v.insert(7, 32);
-            v.insert(8, 42);
-            v.insert(9, 123);
-            let dict = v.into_pyobject(py).unwrap();
-
-            let module = PyModule::from_code(
-                py,
-                c_str!("class DictSubclass(dict): pass"),
-                c_str!("test.py"),
-                &generate_unique_module_name("test"),
-            )
-            .unwrap();
-
-            let subclass = module
-                .getattr("DictSubclass")
-                .unwrap()
-                .call1((dict,))
-                .unwrap()
-                .downcast_into::<PyDict>()
-                .unwrap();
-
-            let mut key_sum = 0;
-            let mut value_sum = 0;
-            let iter = subclass.iter();
-            assert!(matches!(iter, BoundDictIterator::ItemIter { .. }));
-            for (key, value) in iter {
                 key_sum += key.extract::<i32>().unwrap();
                 value_sum += value.extract::<i32>().unwrap();
             }
