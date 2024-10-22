@@ -560,6 +560,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
                 0..=c_int::MAX => Ok(()),
             }
         }
+        #[cfg(any(Py_LIMITED_API, not(Py_GIL_DISABLED)))]
         Ok(())
     }
 }

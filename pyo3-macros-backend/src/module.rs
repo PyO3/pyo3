@@ -355,7 +355,8 @@ pub fn pymodule_module_impl(
         options.submodule.is_some(),
         options
             .supports_free_threaded
-            .is_some_and(|op| op.value.value),
+            .map(|op| op.value.value)
+            .unwrap_or(false),
     );
 
     Ok(quote!(
@@ -402,7 +403,8 @@ pub fn pymodule_function_impl(
         false,
         options
             .supports_free_threaded
-            .is_some_and(|op| op.value.value),
+            .map(|op| op.value.value)
+            .unwrap_or(false),
     );
 
     // Module function called with optional Python<'_> marker as first arg, followed by the module.
