@@ -107,7 +107,7 @@ impl<'py, 'a> PyMappingProxyMethods<'py, 'a> for Bound<'py, PyMappingProxy> {
 
     fn try_iter(&'a self) -> PyResult<BoundMappingProxyIterator<'py, 'a>> {
         Ok(BoundMappingProxyIterator {
-            iterator: PyIterator::from_object(&self)?,
+            iterator: PyIterator::from_object(self)?,
             mappingproxy: self,
         })
     }
