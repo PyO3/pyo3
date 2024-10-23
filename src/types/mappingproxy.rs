@@ -61,15 +61,12 @@ pub trait PyMappingProxyMethods<'py>: crate::sealed::Sealed {
     /// Returns a sequence of tuples of all (key, value) pairs in the mapping.
     fn items(&self) -> PyResult<Bound<'py, PySequence>>;
 
-    /// Returns an iterator of `Result<(key, value)>` pairs in this MappingProxy.
-    ///
-    /// If PyO3 detects that the dictionary is mutated during iteration, it will panic.
-    /// It is allowed to modify values as you iterate over the dictionary, but only
-    /// so long as the set of keys does not change.
-    fn iter(self) -> BoundMappingProxyIterator<'py>;
-
     /// Returns `self` cast as a `PyMapping`.
     fn as_mapping(&self) -> &Bound<'py, PyMapping>;
+
+    /// Takes an object and returns an iterator for it. Returns an error if the object is not
+    /// iterable.
+    fn try_iter(self) -> PyResult<BoundMappingProxyIterator<'py>>;
 }
 
 impl<'py> PyMappingProxyMethods<'py> for Bound<'py, PyMappingProxy> {
@@ -109,12 +106,15 @@ impl<'py> PyMappingProxyMethods<'py> for Bound<'py, PyMappingProxy> {
         }
     }
 
-    fn iter(self) -> BoundMappingProxyIterator<'py> {
-        self.into_iter()
-    }
-
     fn as_mapping(&self) -> &Bound<'py, PyMapping> {
         unsafe { self.downcast_unchecked() }
+    }
+
+    fn try_iter(self) -> PyResult<BoundMappingProxyIterator<'py>> {
+        Ok(BoundMappingProxyIterator {
+            iterator: PyIterator::from_object(&self)?,
+            mappingproxy: self,
+        })
     }
 }
 
@@ -135,18 +135,6 @@ impl<'py> Iterator for BoundMappingProxyIterator<'py> {
             },
             Err(e) => Err(e),
         })
-    }
-}
-
-impl<'py> std::iter::IntoIterator for Bound<'py, PyMappingProxy> {
-    type Item = PyResult<(Bound<'py, PyAny>, Bound<'py, PyAny>)>;
-    type IntoIter = BoundMappingProxyIterator<'py>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        BoundMappingProxyIterator {
-            iterator: PyIterator::from_object(&self).unwrap(),
-            mappingproxy: self,
-        }
     }
 }
 
@@ -349,7 +337,7 @@ mod tests {
             let mappingproxy = PyMappingProxy::new(py, dict.as_mapping());
             let mut key_sum = 0;
             let mut value_sum = 0;
-            for res in mappingproxy.iter() {
+            for res in mappingproxy.try_iter().unwrap() {
                 let (key, value) = res.unwrap();
                 key_sum += key.extract::<i32>().unwrap();
                 value_sum += value.extract::<i32>().unwrap();
@@ -546,7 +534,8 @@ mod tests {
             assert_eq!(
                 map.into_iter().collect::<Vec<(String, String)>>(),
                 mappingproxy
-                    .iter()
+                    .try_iter()
+                    .unwrap()
                     .map(|object| {
                         let tuple = object.unwrap();
                         (
@@ -573,7 +562,8 @@ mod tests {
                 mappingproxy
                     .copy()
                     .unwrap()
-                    .iter()
+                    .try_iter()
+                    .unwrap()
                     .map(|object| {
                         let tuple = object.unwrap();
                         (
@@ -618,7 +608,7 @@ mod tests {
             let mappingproxy = PyMappingProxy::new(py, dict.as_mapping());
 
             let mut sum = 0;
-            for result in mappingproxy {
+            for result in mappingproxy.try_iter().unwrap() {
                 let (k, _v) = result.unwrap();
                 let i: u64 = k.extract().unwrap();
                 sum += i;
