@@ -176,7 +176,6 @@ macro_rules! wrap_pymodule {
         &|py| {
             use $module as wrapped_pymodule;
             wrapped_pymodule::_PYO3_DEF
-                // corrected in add_wrapped later based on the parent module's settings
                 .make_module(py, false)
                 .expect("failed to wrap pymodule")
         }
