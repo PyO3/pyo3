@@ -22,9 +22,9 @@ jobs:
           BASE_REF=refs/heads/${{ github.event.pull_request.base.ref }}
           MERGE_REF=refs/pull/${{ github.event.pull_request.number }}/merge
 
-          git fetch --progress --depth=1 origin "+$BASE_REF:$BASE_REF" "+$MERGE_REF:$MERGE_REF"
+          git fetch -u --progress --depth=1 origin "+$BASE_REF:$BASE_REF" "+$MERGE_REF:$MERGE_REF"
           while [ -z "$(git merge-base "$BASE_REF" "$MERGE_REF")" ]; do
-            git fetch -q --deepen="10" origin "$BASE_REF" "$MERGE_REF";
+            git fetch -u -q --deepen="10" origin "$BASE_REF" "$MERGE_REF";
           done
 
           MERGE_BASE=$(git merge-base "$BASE_REF" "$MERGE_REF")
