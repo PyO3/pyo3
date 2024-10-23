@@ -173,29 +173,6 @@ struct Struct {
 }
 ```
 
-will expand into the following:
-
-```rust
-# use pyo3::prelude::*;
-# use pyo3::types::PyDict;
-# struct Struct { 
-#     count: usize,
-#     obj: Py<PyAny>,
-# }
-
-impl<'py> IntoPyObject<'py> for Struct {
-    type Target = PyDict;
-    type Output = Bound<'py, Self::Target>;
-    type Error = PyErr;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let dict = PyDict::new(py);
-        dict.set_item("count", self.count)?;
-        dict.set_item("obj", self.obj)?;
-        Ok(dict)
-    }
-}
-```
 
 #### `IntoPyObject` manual implementation
 

@@ -522,7 +522,7 @@ struct Struct {
 struct Tuple<'a, K: Hash + Eq, V>(&'a str, HashMap<K, V>);
 ```
 
-For structs with a single field (newtype patter) the `#[pyo3(transparent)]` option can be used to
+For structs with a single field (newtype pattern) the `#[pyo3(transparent)]` option can be used to
 forward the implementation to the inner type.
 
 
