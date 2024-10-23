@@ -57,7 +57,7 @@
 //!
 //! ```rust
 //! #[cfg(py_sys_config = "Py_DEBUG")]
-//! // code that only runs if python was compiled with Py_DEBUG
+//! println!("only runs if python was compiled with Py_DEBUG")
 //! ```
 //!
 //! To use these attributes, add [`pyo3-build-config`] as a build dependency in
