@@ -30,11 +30,6 @@ impl PyMappingProxy {
                 .downcast_into_unchecked()
         }
     }
-
-    // /// Checks if the mappingproxy is empty, i.e. `len(self) == 0`.
-    // pub fn is_empty(&self) -> bool {
-    //     self.len().unwrap_or_default() == 0
-    // }
 }
 
 /// Implementation of functionality for [`PyMappingProxy`].
@@ -43,7 +38,7 @@ impl PyMappingProxy {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyMappingProxy")]
-pub trait PyMappingProxyMethods<'py>: crate::sealed::Sealed {
+pub trait PyMappingProxyMethods<'py, 'a>: crate::sealed::Sealed {
     /// Returns a new mappingproxy that contains the same key-value pairs as self.
     ///
     /// This is equivalent to the Python expression `self.copy()`.
@@ -66,10 +61,10 @@ pub trait PyMappingProxyMethods<'py>: crate::sealed::Sealed {
 
     /// Takes an object and returns an iterator for it. Returns an error if the object is not
     /// iterable.
-    fn try_iter(self) -> PyResult<BoundMappingProxyIterator<'py>>;
+    fn try_iter(&'a self) -> PyResult<BoundMappingProxyIterator<'py, 'a>>;
 }
 
-impl<'py> PyMappingProxyMethods<'py> for Bound<'py, PyMappingProxy> {
+impl<'py, 'a> PyMappingProxyMethods<'py, 'a> for Bound<'py, PyMappingProxy> {
     fn copy(&self) -> PyResult<Bound<'_, PyMappingProxy>> {
         let res = self.call_method0("copy")?;
         unsafe { Ok(res.downcast_into_unchecked::<PyMappingProxy>()) }
@@ -110,7 +105,7 @@ impl<'py> PyMappingProxyMethods<'py> for Bound<'py, PyMappingProxy> {
         unsafe { self.downcast_unchecked() }
     }
 
-    fn try_iter(self) -> PyResult<BoundMappingProxyIterator<'py>> {
+    fn try_iter(&'a self) -> PyResult<BoundMappingProxyIterator<'py, 'a>> {
         Ok(BoundMappingProxyIterator {
             iterator: PyIterator::from_object(&self)?,
             mappingproxy: self,
@@ -118,12 +113,12 @@ impl<'py> PyMappingProxyMethods<'py> for Bound<'py, PyMappingProxy> {
     }
 }
 
-pub struct BoundMappingProxyIterator<'py> {
+pub struct BoundMappingProxyIterator<'py, 'a> {
     iterator: Bound<'py, PyIterator>,
-    mappingproxy: Bound<'py, PyMappingProxy>,
+    mappingproxy: &'a Bound<'py, PyMappingProxy>,
 }
 
-impl<'py> Iterator for BoundMappingProxyIterator<'py> {
+impl<'py, 'a> Iterator for BoundMappingProxyIterator<'py, 'a> {
     type Item = PyResult<(Bound<'py, PyAny>, Bound<'py, PyAny>)>;
 
     #[inline]
