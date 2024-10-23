@@ -60,10 +60,10 @@ explaining which module caused it to re-enable the GIL. You can also force the
 GIL to remain disabled by setting the `PYTHON_GIL=0` as an environment variable
 or passing `-Xgil=0` when starting Python (`0` means the GIL is turned off).
 
-If you are sure that all data structures exposed in a [`PyModule`] are
+If you are sure that all data structures exposed in a `PyModule` are
 thread-safe, then pass `supports_free_threaded = true` as a parameter to the
 `pymodule` procedural macro declaring the module or call
-[`PyModule::supports_free_threaded`] on a `PyModule` instance.  For example:
+`PyModule::supports_free_threaded` on a `PyModule` instance.  For example:
 
 ```rust
 use pyo3::prelude::*;
@@ -163,7 +163,7 @@ The most straightforward way to trigger this problem to use the Python
 `threading` module to simultaneously call a rust function that mutably borrows a
 `pyclass`. For example, consider the following `PyClass` implementation:
 
-```
+```rust
 # use pyo3::prelude::*;
 # fn main() {
 #[pyclass]
