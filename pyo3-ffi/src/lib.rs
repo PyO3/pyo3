@@ -48,6 +48,22 @@
 //! - `Py_LIMITED_API`: Marks code enabled when the `abi3` feature flag is enabled.
 //! - `PyPy` - Marks code enabled when compiling for PyPy.
 //!
+//! Add [`pyo3-build-config`] as a build dependency in your `Cargo.toml`:
+//!
+//! ```toml
+//! [build-dependency]
+//! pyo3-build-config = "VER"
+//! ```
+//!
+//! And then either create a new `build.rs` file in the project root or modify
+//! the existing `build.rs` file to call `use_pyo3_cfgs()`:
+//!
+//! ```rust
+//! fn main() {
+//!     pyo3_build_config::use_pyo3_cfgs();
+//! }
+//! ```
+//!
 //! # Minimum supported Rust and Python versions
 //!
 //! `pyo3-ffi` supports the following Python distributions:
