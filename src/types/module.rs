@@ -391,8 +391,8 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// Declare whether or not this module supports running with the GIL disabled
     ///
     /// If the module does not rely on the GIL for thread safety, you can pass True
-    /// to this function so that when the module is imported the interpreter will
-    /// not enable the GIL at runtime on the free-threaded interpreter.
+    /// to this function to indicate the module does not rely on the GIL for 
+    /// thread-safety.
     ///
     /// This function sets the [`Py_MOD_GIL`
     /// slot](https://docs.python.org/3/c-api/module.html#c.Py_mod_gil) on the
