@@ -16,7 +16,6 @@ use crate::{
 use std::{
     ffi::CStr,
     marker::PhantomData,
-    mem::offset_of,
     os::raw::{c_int, c_void},
     ptr::{self, NonNull},
     sync::Mutex,
@@ -1229,7 +1228,7 @@ impl<
             PyMethodDefType::StructMember(ffi::PyMemberDef {
                 name: name.as_ptr(),
                 type_code: ffi::Py_T_OBJECT_EX,
-                offset: (offset_of!(PyClassObject<ClassT>, contents) + OFFSET) as ffi::Py_ssize_t,
+                offset: (<PyClassObject<ClassT>>::contents_offset() + OFFSET) as ffi::Py_ssize_t,
                 flags: ffi::Py_READONLY,
                 doc: doc.as_ptr(),
             })
@@ -1329,13 +1328,7 @@ where
     // SAFETY: `obj` is a valid pointer to `ClassT`
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
     // SAFETY: _holder prevents mutable aliasing, caller upholds other safety invariants
-    unsafe {
-        inner::<FieldT>(
-            py,
-            obj,
-            offset_of!(PyClassObject<ClassT>, contents) + OFFSET,
-        )
-    }
+    unsafe { inner::<FieldT>(py, obj, <PyClassObject<ClassT>>::contents_offset() + OFFSET) }
 }
 
 /// Gets a field value from a pyclass and produces a python value using `IntoPyObject` for `FieldT`,
@@ -1373,13 +1366,7 @@ where
     // SAFETY: `obj` is a valid pointer to `ClassT`
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
     // SAFETY: _holder prevents mutable aliasing, caller upholds other safety invariants
-    unsafe {
-        inner::<FieldT>(
-            py,
-            obj,
-            offset_of!(PyClassObject<ClassT>, contents) + OFFSET,
-        )
-    }
+    unsafe { inner::<FieldT>(py, obj, <PyClassObject<ClassT>>::contents_offset() + OFFSET) }
 }
 
 pub struct ConvertField<
@@ -1412,7 +1399,10 @@ pub trait ExtractPyClassWithClone {}
 #[cfg(test)]
 #[cfg(feature = "macros")]
 mod tests {
+    use crate::pycell::impl_::PyClassObjectContents;
+
     use super::*;
+    use std::mem::offset_of;
 
     #[test]
     fn get_py_for_frozen_class() {
@@ -1437,10 +1427,15 @@ mod tests {
             Some(PyMethodDefType::StructMember(member)) => {
                 assert_eq!(unsafe { CStr::from_ptr(member.name) }, c"value");
                 assert_eq!(member.type_code, ffi::Py_T_OBJECT_EX);
+                #[repr(C)]
+                struct ExpectedLayout {
+                    ob_base: ffi::PyObject,
+                    contents: PyClassObjectContents<FrozenClass>,
+                }
                 assert_eq!(
                     member.offset,
-                    (offset_of!(PyClassObject<FrozenClass>, contents)
-                        + offset_of!(FrozenClass, value)) as ffi::Py_ssize_t
+                    (offset_of!(ExpectedLayout, contents) + offset_of!(FrozenClass, value))
+                        as ffi::Py_ssize_t
                 );
                 assert_eq!(member.flags, ffi::Py_READONLY);
             }
@@ -1553,7 +1548,7 @@ mod tests {
         assert_eq!(def.type_code, ffi::Py_T_OBJECT_EX);
         assert_eq!(
             def.offset,
-            (offset_of!(PyClassObject<MyClass>, contents) + FIELD_OFFSET) as ffi::Py_ssize_t
+            (<PyClassObject<MyClass>>::contents_offset() + FIELD_OFFSET) as ffi::Py_ssize_t
         );
         assert_eq!(def.flags, ffi::Py_READONLY);
     }

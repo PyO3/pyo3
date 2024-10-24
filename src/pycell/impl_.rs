@@ -280,7 +280,7 @@ where
 #[repr(C)]
 pub struct PyClassObject<T: PyClassImpl> {
     pub(crate) ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
-    pub(crate) contents: PyClassObjectContents<T>,
+    contents: PyClassObjectContents<T>,
 }
 
 #[repr(C)]
@@ -297,6 +297,10 @@ impl<T: PyClassImpl> PyClassObject<T> {
         self.contents.value.get()
     }
 
+    pub(crate) fn contents(&self) -> &PyClassObjectContents<T> {
+        &self.contents
+    }
+
     /// used to set PyType_Spec::basicsize
     /// https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize
     pub(crate) fn basicsize() -> ffi::Py_ssize_t {
@@ -306,6 +310,10 @@ impl<T: PyClassImpl> PyClassObject<T> {
         #[allow(clippy::useless_conversion)]
         size.try_into().expect("size should fit in Py_ssize_t")
     }
+
+    /// Gets the offset of the contents from the start of the struct in bytes.
+    pub(crate) const fn contents_offset() -> usize {
+        offset_of!(PyClassObject<T>, contents)
     }
 
     /// Gets the offset of the dictionary from the start of the struct in bytes.
@@ -331,9 +339,7 @@ impl<T: PyClassImpl> PyClassObject<T> {
         )]
         offset.try_into().expect("offset should fit in Py_ssize_t")
     }
-}
 
-impl<T: PyClassImpl> PyClassObject<T> {
     pub(crate) fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
         T::PyClassMutability::borrow_checker(self)
     }
