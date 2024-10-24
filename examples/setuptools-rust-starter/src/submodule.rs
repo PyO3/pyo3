@@ -15,7 +15,7 @@ impl SubmoduleClass {
     }
 }
 
-#[pymodule]
+#[pymodule(supports_free_threaded = true)]
 pub fn submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<SubmoduleClass>()?;
     Ok(())

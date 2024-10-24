@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
-use std::cell::Cell;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// A function decorator that keeps track how often it is called.
 ///
@@ -10,7 +10,7 @@ pub struct PyCounter {
     // Keeps track of how many calls have gone through.
     //
     // See the discussion at the end for why `Cell` is used.
-    count: Cell<u64>,
+    count: AtomicU64,
 
     // This is the actual function being wrapped.
     wraps: Py<PyAny>,
@@ -26,14 +26,14 @@ impl PyCounter {
     #[new]
     fn __new__(wraps: Py<PyAny>) -> Self {
         PyCounter {
-            count: Cell::new(0),
+            count: AtomicU64::new(0),
             wraps,
         }
     }
 
     #[getter]
     fn count(&self) -> u64 {
-        self.count.get()
+        self.count.load(Ordering::Acquire)
     }
 
     #[pyo3(signature = (*args, **kwargs))]
@@ -43,9 +43,7 @@ impl PyCounter {
         args: &Bound<'_, PyTuple>,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Py<PyAny>> {
-        let old_count = self.count.get();
-        let new_count = old_count + 1;
-        self.count.set(new_count);
+        let new_count = self.count.fetch_add(1, Ordering::Relaxed) + 1;
         let name = self.wraps.getattr(py, "__name__")?;
 
         println!("{} has been called {} time(s).", name, new_count);
@@ -59,7 +57,7 @@ impl PyCounter {
     }
 }
 
-#[pymodule]
+#[pymodule(supports_free_threaded = true)]
 pub fn decorator(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyCounter>()?;
     Ok(())

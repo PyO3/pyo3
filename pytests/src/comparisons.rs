@@ -112,7 +112,7 @@ impl OrderedDefaultNe {
     }
 }
 
-#[pymodule]
+#[pymodule(supports_free_threaded = true)]
 pub fn comparisons(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Eq>()?;
     m.add_class::<EqDefaultNe>()?;
