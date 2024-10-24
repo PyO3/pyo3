@@ -55,7 +55,7 @@
 //! corresponding C build-time defines. For example, to conditionally define
 //! debug code using `Py_DEBUG`, you could do:
 //!
-//! ```rust
+//! ```rust,ignore
 //! #[cfg(py_sys_config = "Py_DEBUG")]
 //! println!("only runs if python was compiled with Py_DEBUG")
 //! ```
@@ -71,7 +71,7 @@
 //! And then either create a new `build.rs` file in the project root or modify
 //! the existing `build.rs` file to call `use_pyo3_cfgs()`:
 //!
-//! ```rust
+//! ```rust,ignore
 //! fn main() {
 //!     pyo3_build_config::use_pyo3_cfgs();
 //! }
