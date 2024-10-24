@@ -3,20 +3,20 @@ use crate::impl_::pymethods::{Deleter, PyDeleterDef};
 #[cfg(not(Py_3_10))]
 use crate::types::typeobject::PyTypeMethods;
 use crate::{
+    Py, PyClass, PyResult, PyTypeInfo, Python,
     exceptions::PyTypeError,
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     impl_::{
         pycell::PyClassObject,
         pyclass::{
-            assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
-            tp_dealloc_with_gc, PyClassImpl, PyClassItemsIter,
+            PyClassImpl, PyClassItemsIter, assign_sequence_item_from_mapping,
+            get_sequence_item_from_mapping, tp_dealloc, tp_dealloc_with_gc,
         },
-        pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, _call_clear},
+        pymethods::{_call_clear, Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter},
         trampoline::trampoline,
     },
     types::PyType,
-    Py, PyClass, PyResult, PyTypeInfo, Python,
 };
 use std::{
     collections::HashMap,
@@ -56,7 +56,7 @@ where
         items_iter: PyClassItemsIter,
         name: &'static str,
         module: Option<&'static str>,
-        size_of: usize,
+        basicsize: ffi::Py_ssize_t,
     ) -> PyResult<PyClassTypeObject> {
         unsafe {
             PyTypeBuilder {
@@ -87,7 +87,7 @@ where
             .offsets(dict_offset, weaklist_offset)
             .set_is_basetype(is_basetype)
             .class_items(items_iter)
-            .build(py, name, module, size_of)
+            .build(py, name, module, basicsize)
         }
     }
 
@@ -107,7 +107,7 @@ where
             T::items_iter(),
             <T as PyClass>::NAME,
             <T as PyClassImpl>::MODULE,
-            std::mem::size_of::<PyClassObject<T>>(),
+            PyClassObject::<T>::basicsize(),
         )
     }
 }
@@ -425,7 +425,7 @@ impl PyTypeBuilder {
         py: Python<'_>,
         name: &'static str,
         module_name: Option<&'static str>,
-        basicsize: usize,
+        basicsize: ffi::Py_ssize_t,
     ) -> PyResult<PyClassTypeObject> {
         // `c_ulong` and `c_uint` have the same size
         // on some platforms (like windows)
