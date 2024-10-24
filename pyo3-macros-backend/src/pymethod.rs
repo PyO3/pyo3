@@ -831,8 +831,8 @@ pub fn impl_py_getter_def(
 
                     struct Offset;
                     unsafe impl #pyo3_path::impl_::pyclass::OffsetCalculator<#cls, #ty> for Offset {
-                        fn offset() -> usize {
-                            #pyo3_path::impl_::pyclass::class_offset::<#cls>() +
+                        fn offset() -> #pyo3_path::impl_::pyclass::PyObjectOffset {
+                            #pyo3_path::impl_::pyclass::subclass_offset::<#cls>() +
                             #pyo3_path::impl_::pyclass::offset_of!(#cls, #field)
                         }
                     }

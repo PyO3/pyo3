@@ -5,7 +5,7 @@ use crate::{
         pycell::PyClassObject,
         pyclass::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
-            tp_dealloc_with_gc, MaybeRuntimePyMethodDef, PyClassItemsIter,
+            tp_dealloc_with_gc, MaybeRuntimePyMethodDef, PyClassItemsIter, PyObjectOffset,
         },
         pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, _call_clear},
         trampoline::trampoline,
@@ -41,8 +41,8 @@ where
         is_mapping: bool,
         is_sequence: bool,
         doc: &'static CStr,
-        dict_offset: Option<ffi::Py_ssize_t>,
-        weaklist_offset: Option<ffi::Py_ssize_t>,
+        dict_offset: Option<PyObjectOffset>,
+        weaklist_offset: Option<PyObjectOffset>,
         is_basetype: bool,
         items_iter: PyClassItemsIter,
         name: &'static str,
@@ -120,7 +120,7 @@ struct PyTypeBuilder {
     has_setitem: bool,
     has_traverse: bool,
     has_clear: bool,
-    dict_offset: Option<ffi::Py_ssize_t>,
+    dict_offset: Option<PyObjectOffset>,
     class_flags: c_ulong,
     // Before Python 3.9, need to patch in buffer methods manually (they don't work in slots)
     #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
@@ -357,20 +357,26 @@ impl PyTypeBuilder {
 
     fn offsets(
         mut self,
-        dict_offset: Option<ffi::Py_ssize_t>,
-        #[allow(unused_variables)] weaklist_offset: Option<ffi::Py_ssize_t>,
+        dict_offset: Option<PyObjectOffset>,
+        #[allow(unused_variables)] weaklist_offset: Option<PyObjectOffset>,
     ) -> Self {
         self.dict_offset = dict_offset;
 
         #[cfg(Py_3_9)]
         {
             #[inline(always)]
-            fn offset_def(name: &'static CStr, offset: ffi::Py_ssize_t) -> ffi::PyMemberDef {
+            fn offset_def(name: &'static CStr, offset: PyObjectOffset) -> ffi::PyMemberDef {
+                let (offset, is_relative) = offset.to_value_and_is_relative();
+                let flags = if is_relative {
+                    ffi::Py_READONLY | ffi::Py_RELATIVE_OFFSET
+                } else {
+                    ffi::Py_READONLY
+                };
                 ffi::PyMemberDef {
                     name: name.as_ptr().cast(),
                     type_code: ffi::Py_T_PYSSIZET,
                     offset,
-                    flags: ffi::Py_READONLY,
+                    flags,
                     doc: std::ptr::null_mut(),
                 }
             }
@@ -400,12 +406,24 @@ impl PyTypeBuilder {
                     (*(*type_object).tp_as_buffer).bf_releasebuffer =
                         builder.buffer_procs.bf_releasebuffer;
 
-                    if let Some(dict_offset) = dict_offset {
-                        (*type_object).tp_dictoffset = dict_offset;
+                    match dict_offset {
+                        Some(PyObjectOffset::Absolute(offset)) => {
+                            (*type_object).tp_dictoffset = offset;
+                        }
+                        Some(PyObjectOffset::Relative(_)) => {
+                            panic!("relative offsets not supported until python 3.12")
+                        }
+                        _ => {}
                     }
 
-                    if let Some(weaklist_offset) = weaklist_offset {
-                        (*type_object).tp_weaklistoffset = weaklist_offset;
+                    match weaklist_offset {
+                        Some(PyObjectOffset::Absolute(offset)) => {
+                            (*type_object).tp_weaklistoffset = offset;
+                        }
+                        Some(PyObjectOffset::Relative(_)) => {
+                            panic!("relative offsets not supported until python 3.12")
+                        }
+                        _ => {}
                     }
                 }));
         }

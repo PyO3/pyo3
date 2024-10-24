@@ -7,7 +7,7 @@ use std::mem::ManuallyDrop;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::impl_::pyclass::{
-    PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef,
+    PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef, PyObjectOffset,
 };
 use crate::internal::get_slot::TP_FREE;
 use crate::type_object::{PyLayout, PySizedLayout};
@@ -309,12 +309,16 @@ impl<T: PyClassImpl> PyClassObject<T> {
     }
 
     /// Gets the offset of the contents from the start of the struct in bytes.
-    pub(crate) fn contents_offset() -> usize {
-        memoffset::offset_of!(PyClassObject<T>, contents)
+    pub(crate) fn contents_offset() -> PyObjectOffset {
+        let offset = memoffset::offset_of!(PyClassObject<T>, contents);
+
+        // Py_ssize_t may not be equal to isize on all platforms
+        #[allow(clippy::useless_conversion)]
+        PyObjectOffset::Absolute(offset.try_into().expect("offset should fit in Py_ssize_t"))
     }
 
     /// Gets the offset of the dictionary from the start of the struct in bytes.
-    pub(crate) fn dict_offset() -> ffi::Py_ssize_t {
+    pub(crate) fn dict_offset() -> PyObjectOffset {
         use memoffset::offset_of;
 
         let offset =
@@ -322,11 +326,11 @@ impl<T: PyClassImpl> PyClassObject<T> {
 
         // Py_ssize_t may not be equal to isize on all platforms
         #[allow(clippy::useless_conversion)]
-        offset.try_into().expect("offset should fit in Py_ssize_t")
+        PyObjectOffset::Absolute(offset.try_into().expect("offset should fit in Py_ssize_t"))
     }
 
     /// Gets the offset of the weakref list from the start of the struct in bytes.
-    pub(crate) fn weaklist_offset() -> ffi::Py_ssize_t {
+    pub(crate) fn weaklist_offset() -> PyObjectOffset {
         use memoffset::offset_of;
 
         let offset =
@@ -334,7 +338,7 @@ impl<T: PyClassImpl> PyClassObject<T> {
 
         // Py_ssize_t may not be equal to isize on all platforms
         #[allow(clippy::useless_conversion)]
-        offset.try_into().expect("offset should fit in Py_ssize_t")
+        PyObjectOffset::Absolute(offset.try_into().expect("offset should fit in Py_ssize_t"))
     }
 
     pub(crate) fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {

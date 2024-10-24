@@ -28,13 +28,13 @@ pub use lazy_type_object::LazyTypeObject;
 
 /// Gets the offset of the dictionary from the start of the object in bytes.
 #[inline]
-pub fn dict_offset<T: PyClass>() -> ffi::Py_ssize_t {
+pub fn dict_offset<T: PyClass>() -> PyObjectOffset {
     PyClassObject::<T>::dict_offset()
 }
 
 /// Gets the offset of the weakref list from the start of the object in bytes.
 #[inline]
-pub fn weaklist_offset<T: PyClass>() -> ffi::Py_ssize_t {
+pub fn weaklist_offset<T: PyClass>() -> PyObjectOffset {
     PyClassObject::<T>::weaklist_offset()
 }
 
@@ -200,13 +200,17 @@ pub trait PyClassImpl: Sized + 'static {
 
     fn items_iter() -> PyClassItemsIter;
 
+    /// Used to provide the __dictoffset__ slot
+    /// (equivalent to [tp_dictoffset](https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_dictoffset))
     #[inline]
-    fn dict_offset() -> Option<ffi::Py_ssize_t> {
+    fn dict_offset() -> Option<PyObjectOffset> {
         None
     }
 
+    /// Used to provide the __weaklistoffset__ slot
+    /// (equivalent to [tp_weaklistoffset](https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_weaklistoffset)
     #[inline]
-    fn weaklist_offset() -> Option<ffi::Py_ssize_t> {
+    fn weaklist_offset() -> Option<PyObjectOffset> {
         None
     }
 
@@ -1180,6 +1184,40 @@ pub(crate) unsafe extern "C" fn assign_sequence_item_from_mapping(
     result
 }
 
+/// Offset of a field within a `PyClassObject<T>`, in bytes.
+#[derive(Clone, Copy)]
+pub enum PyObjectOffset {
+    /// An offset relative to the start of the object
+    Absolute(ffi::Py_ssize_t),
+    /// An offset relative to the start of the subclass-specific data. Only allowed when basicsize is negative.
+    /// <https://docs.python.org/3.12/c-api/structures.html#c.Py_RELATIVE_OFFSET>
+    Relative(ffi::Py_ssize_t),
+}
+
+impl PyObjectOffset {
+    pub fn to_value_and_is_relative(&self) -> (ffi::Py_ssize_t, bool) {
+        match self {
+            PyObjectOffset::Absolute(offset) => (*offset, false),
+            PyObjectOffset::Relative(offset) => (*offset, true),
+        }
+    }
+}
+
+impl std::ops::Add<usize> for PyObjectOffset {
+    type Output = PyObjectOffset;
+
+    fn add(self, rhs: usize) -> Self::Output {
+        // Py_ssize_t may not be equal to isize on all platforms
+        #[allow(clippy::useless_conversion)]
+        let rhs: ffi::Py_ssize_t = rhs.try_into().expect("offset should fit in Py_ssize_t");
+
+        match self {
+            PyObjectOffset::Absolute(offset) => PyObjectOffset::Absolute(offset + rhs),
+            PyObjectOffset::Relative(offset) => PyObjectOffset::Relative(offset + rhs),
+        }
+    }
+}
+
 /// Helper trait to locate field within a `#[pyclass]` for a `#[pyo3(get)]`.
 ///
 /// Below MSRV 1.77 we can't use `std::mem::offset_of!`, and the replacement in
@@ -1190,11 +1228,11 @@ pub(crate) unsafe extern "C" fn assign_sequence_item_from_mapping(
 /// The trait is unsafe to implement because producing an incorrect offset will lead to UB.
 pub unsafe trait OffsetCalculator<T: PyClass, U> {
     /// Offset to the field within a `PyClassObject<T>`, in bytes.
-    fn offset() -> usize;
+    fn offset() -> PyObjectOffset;
 }
 
 // Used in generated implementations of OffsetCalculator
-pub fn class_offset<T: PyClass>() -> usize {
+pub fn subclass_offset<T: PyClass>() -> PyObjectOffset {
     PyClassObject::<T>::contents_offset()
 }
 
@@ -1274,11 +1312,17 @@ impl<
     pub fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         use crate::pyclass::boolean_struct::private::Boolean;
         if ClassT::Frozen::VALUE {
+            let (offset, is_relative) = Offset::offset().to_value_and_is_relative();
+            let flags = if is_relative {
+                ffi::Py_READONLY | ffi::Py_RELATIVE_OFFSET
+            } else {
+                ffi::Py_READONLY
+            };
             PyMethodDefType::StructMember(ffi::PyMemberDef {
                 name: name.as_ptr(),
                 type_code: ffi::Py_T_OBJECT_EX,
-                offset: Offset::offset() as ffi::Py_ssize_t,
-                flags: ffi::Py_READONLY,
+                offset,
+                flags,
                 doc: doc.as_ptr(),
             })
         } else {
@@ -1497,7 +1541,12 @@ where
     ClassT: PyClass,
     Offset: OffsetCalculator<ClassT, FieldT>,
 {
-    unsafe { obj.cast::<u8>().add(Offset::offset()).cast::<FieldT>() }
+    match Offset::offset() {
+        PyObjectOffset::Absolute(offset) => unsafe {
+            obj.cast::<u8>().add(offset as usize).cast::<FieldT>()
+        },
+        PyObjectOffset::Relative(_) => todo!("not yet supported"),
+    }
 }
 
 #[allow(deprecated)]
