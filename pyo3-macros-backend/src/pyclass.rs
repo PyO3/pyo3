@@ -2466,7 +2466,7 @@ impl<'a> PyClassImplsBuilder<'a> {
 
         let dict_offset = if self.attr.options.dict.is_some() {
             quote! {
-                fn dict_offset() -> ::std::option::Option<#pyo3_path::ffi::Py_ssize_t> {
+                fn dict_offset() -> ::std::option::Option<#pyo3_path::impl_::pyclass::PyObjectOffset> {
                     ::std::option::Option::Some(#pyo3_path::impl_::pyclass::dict_offset::<Self>())
                 }
             }
@@ -2474,10 +2474,9 @@ impl<'a> PyClassImplsBuilder<'a> {
             TokenStream::new()
         };
 
-        // insert space for weak ref
         let weaklist_offset = if self.attr.options.weakref.is_some() {
             quote! {
-                fn weaklist_offset() -> ::std::option::Option<#pyo3_path::ffi::Py_ssize_t> {
+                fn weaklist_offset() -> ::std::option::Option<#pyo3_path::impl_::pyclass::PyObjectOffset> {
                     ::std::option::Option::Some(#pyo3_path::impl_::pyclass::weaklist_offset::<Self>())
                 }
             }
