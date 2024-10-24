@@ -451,10 +451,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          # Use the PR head, not the merge commit, because the head commit (and the base)
-          # is what codecov uses to calculate diffs.
-          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -572,10 +568,24 @@ jobs:
         with:
           python-version: '3.13-dev'
           nogil: true
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
       - run: python3 -m sysconfig
       - run: python3 -m pip install --upgrade pip && pip install nox
+      - name: Prepare coverage environment
+        run: |
+          cargo llvm-cov clean --workspace --profraw-only
+          nox -s set-coverage-env
       - run: nox -s ffi-check
       - run: nox
+      - name: Generate coverage report
+        run: nox -s generate-coverage-report
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage.json
+          name: test-free-threaded
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   test-version-limits:
     needs: [fmt]
