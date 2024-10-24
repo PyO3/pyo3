@@ -2,11 +2,12 @@ use crate::conversion::IntoPyObject;
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
 use crate::types::PySequence;
-#[allow(deprecated)]
-use crate::ToPyObject;
-use crate::{err::DowncastError, ffi, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python};
+use crate::{err::DowncastError, ffi, FromPyObject, Py, PyAny, PyObject, PyResult, Python};
 use crate::{exceptions, PyErr};
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 
+#[allow(deprecated)]
 impl<T, const N: usize> IntoPy<PyObject> for [T; N]
 where
     T: IntoPy<PyObject>,
@@ -168,7 +169,7 @@ mod tests {
         ffi,
         types::{any::PyAnyMethods, PyBytes, PyBytesMethods},
     };
-    use crate::{types::PyList, IntoPy, PyResult, Python};
+    use crate::{types::PyList, PyResult, Python};
 
     #[test]
     fn array_try_from_fn() {
@@ -246,11 +247,15 @@ mod tests {
     }
 
     #[test]
-    fn test_intopy_array_conversion() {
+    fn test_intopyobject_array_conversion() {
         Python::with_gil(|py| {
             let array: [f32; 4] = [0.0, -16.0, 16.0, 42.0];
-            let pyobject = array.into_py(py);
-            let pylist = pyobject.downcast_bound::<PyList>(py).unwrap();
+            let pylist = array
+                .into_pyobject(py)
+                .unwrap()
+                .downcast_into::<PyList>()
+                .unwrap();
+
             assert_eq!(pylist.get_item(0).unwrap().extract::<f32>().unwrap(), 0.0);
             assert_eq!(pylist.get_item(1).unwrap().extract::<f32>().unwrap(), -16.0);
             assert_eq!(pylist.get_item(2).unwrap().extract::<f32>().unwrap(), 16.0);
@@ -290,8 +295,11 @@ mod tests {
 
         Python::with_gil(|py| {
             let array: [Foo; 8] = [Foo, Foo, Foo, Foo, Foo, Foo, Foo, Foo];
-            let pyobject = array.into_py(py);
-            let list = pyobject.downcast_bound::<PyList>(py).unwrap();
+            let list = array
+                .into_pyobject(py)
+                .unwrap()
+                .downcast_into::<PyList>()
+                .unwrap();
             let _bound = list.get_item(4).unwrap().downcast::<Foo>().unwrap();
         });
     }

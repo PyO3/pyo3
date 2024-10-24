@@ -435,22 +435,22 @@ fn test_closure() {
                  _kwargs: Option<&Bound<'_, types::PyDict>>|
          -> PyResult<_> {
             Python::with_gil(|py| {
-                let res: Vec<_> = args
+                let res: PyResult<Vec<_>> = args
                     .iter()
                     .map(|elem| {
                         if let Ok(i) = elem.extract::<i64>() {
-                            (i + 1).into_py(py)
+                            Ok((i + 1).into_pyobject(py)?.into_any().unbind())
                         } else if let Ok(f) = elem.extract::<f64>() {
-                            (2. * f).into_py(py)
+                            Ok((2. * f).into_pyobject(py)?.into_any().unbind())
                         } else if let Ok(mut s) = elem.extract::<String>() {
                             s.push_str("-py");
-                            s.into_py(py)
+                            Ok(s.into_pyobject(py)?.into_any().unbind())
                         } else {
                             panic!("unexpected argument type for {:?}", elem)
                         }
                     })
                     .collect();
-                Ok(res)
+                res
             })
         };
         let closure_py =

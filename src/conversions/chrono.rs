@@ -54,11 +54,11 @@ use crate::types::{
     timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
     PyTzInfo, PyTzInfoAccess,
 };
-#[allow(deprecated)]
-use crate::ToPyObject;
-use crate::{ffi, Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python};
+use crate::{ffi, Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python};
 #[cfg(Py_LIMITED_API)]
 use crate::{intern, DowncastError};
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 use chrono::offset::{FixedOffset, Utc};
 use chrono::{
     DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Timelike,
@@ -72,6 +72,7 @@ impl ToPyObject for Duration {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for Duration {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -178,6 +179,7 @@ impl ToPyObject for NaiveDate {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for NaiveDate {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -244,6 +246,7 @@ impl ToPyObject for NaiveTime {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for NaiveTime {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -320,6 +323,7 @@ impl ToPyObject for NaiveDateTime {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for NaiveDateTime {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -411,6 +415,7 @@ impl<Tz: TimeZone> ToPyObject for DateTime<Tz> {
     }
 }
 
+#[allow(deprecated)]
 impl<Tz: TimeZone> IntoPy<PyObject> for DateTime<Tz> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
@@ -505,6 +510,7 @@ impl ToPyObject for FixedOffset {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for FixedOffset {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -589,6 +595,7 @@ impl ToPyObject for Utc {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for Utc {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -1408,8 +1415,8 @@ mod tests {
                 // python values of durations (from -999999999 to 999999999 days),
                 Python::with_gil(|py| {
                     let dur = Duration::days(days);
-                    let py_delta = dur.into_py(py);
-                    let roundtripped: Duration = py_delta.extract(py).expect("Round trip");
+                    let py_delta = dur.into_pyobject(py).unwrap();
+                    let roundtripped: Duration = py_delta.extract().expect("Round trip");
                     assert_eq!(dur, roundtripped);
                 })
             }
@@ -1418,8 +1425,8 @@ mod tests {
             fn test_fixed_offset_roundtrip(secs in -86399i32..=86399i32) {
                 Python::with_gil(|py| {
                     let offset = FixedOffset::east_opt(secs).unwrap();
-                    let py_offset = offset.into_py(py);
-                    let roundtripped: FixedOffset = py_offset.extract(py).expect("Round trip");
+                    let py_offset = offset.into_pyobject(py).unwrap();
+                    let roundtripped: FixedOffset = py_offset.extract().expect("Round trip");
                     assert_eq!(offset, roundtripped);
                 })
             }
@@ -1504,8 +1511,8 @@ mod tests {
                     if let (Some(date), Some(time)) = (date_opt, time_opt) {
                         let dt: DateTime<Utc> = NaiveDateTime::new(date, time).and_utc();
                         // Wrap in CatchWarnings to avoid into_py firing warning for truncated leap second
-                        let py_dt = CatchWarnings::enter(py, |_| Ok(dt.into_py(py))).unwrap();
-                        let roundtripped: DateTime<Utc> = py_dt.extract(py).expect("Round trip");
+                        let py_dt = CatchWarnings::enter(py, |_| dt.into_pyobject(py)).unwrap();
+                        let roundtripped: DateTime<Utc> = py_dt.extract().expect("Round trip");
                         // Leap seconds are not roundtripped
                         let expected_roundtrip_time = micro.checked_sub(1_000_000).map(|micro| NaiveTime::from_hms_micro_opt(hour, min, sec, micro).unwrap()).unwrap_or(time);
                         let expected_roundtrip_dt: DateTime<Utc> = NaiveDateTime::new(date, expected_roundtrip_time).and_utc();
@@ -1532,8 +1539,8 @@ mod tests {
                     if let (Some(date), Some(time)) = (date_opt, time_opt) {
                         let dt: DateTime<FixedOffset> = NaiveDateTime::new(date, time).and_local_timezone(offset).unwrap();
                         // Wrap in CatchWarnings to avoid into_py firing warning for truncated leap second
-                        let py_dt = CatchWarnings::enter(py, |_| Ok(dt.into_py(py))).unwrap();
-                        let roundtripped: DateTime<FixedOffset> = py_dt.extract(py).expect("Round trip");
+                        let py_dt = CatchWarnings::enter(py, |_| dt.into_pyobject(py)).unwrap();
+                        let roundtripped: DateTime<FixedOffset> = py_dt.extract().expect("Round trip");
                         // Leap seconds are not roundtripped
                         let expected_roundtrip_time = micro.checked_sub(1_000_000).map(|micro| NaiveTime::from_hms_micro_opt(hour, min, sec, micro).unwrap()).unwrap_or(time);
                         let expected_roundtrip_dt: DateTime<FixedOffset> = NaiveDateTime::new(date, expected_roundtrip_time).and_local_timezone(offset).unwrap();

@@ -55,9 +55,9 @@ use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
+use crate::{Bound, FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python};
 #[allow(deprecated)]
-use crate::ToPyObject;
-use crate::{Bound, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python};
+use crate::{IntoPy, ToPyObject};
 use rust_decimal::Decimal;
 use std::str::FromStr;
 
@@ -90,6 +90,7 @@ impl ToPyObject for Decimal {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for Decimal {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -138,7 +139,7 @@ mod test_rust_decimal {
             fn $name() {
                 Python::with_gil(|py| {
                     let rs_orig = $rs;
-                    let rs_dec = rs_orig.into_py(py);
+                    let rs_dec = rs_orig.into_pyobject(py).unwrap();
                     let locals = PyDict::new(py);
                     locals.set_item("rs_dec", &rs_dec).unwrap();
                     // Checks if Rust Decimal -> Python Decimal conversion is correct
@@ -181,7 +182,7 @@ mod test_rust_decimal {
         ) {
             let num = Decimal::from_parts(lo, mid, high, negative, scale);
             Python::with_gil(|py| {
-                let rs_dec = num.into_py(py);
+                let rs_dec = num.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
                 locals.set_item("rs_dec", &rs_dec).unwrap();
                 py.run(
@@ -189,7 +190,7 @@ mod test_rust_decimal {
                        "import decimal\npy_dec = decimal.Decimal(\"{}\")\nassert py_dec == rs_dec",
                      num)).unwrap(),
                 None, Some(&locals)).unwrap();
-                let roundtripped: Decimal = rs_dec.extract(py).unwrap();
+                let roundtripped: Decimal = rs_dec.extract().unwrap();
                 assert_eq!(num, roundtripped);
             })
         }
@@ -197,8 +198,8 @@ mod test_rust_decimal {
         #[test]
         fn test_integers(num in any::<i64>()) {
             Python::with_gil(|py| {
-                let py_num = num.into_py(py);
-                let roundtripped: Decimal = py_num.extract(py).unwrap();
+                let py_num = num.into_pyobject(py).unwrap();
+                let roundtripped: Decimal = py_num.extract().unwrap();
                 let rs_dec = Decimal::new(num, 0);
                 assert_eq!(rs_dec, roundtripped);
             })

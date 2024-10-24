@@ -1,8 +1,8 @@
 use std::cell::Cell;
 
 use crate::{
-    conversion::IntoPyObject, types::any::PyAnyMethods, Bound, FromPyObject, IntoPy, PyAny,
-    PyObject, PyResult, Python,
+    conversion::IntoPyObject, types::any::PyAnyMethods, Bound, FromPyObject, PyAny, PyObject,
+    PyResult, Python,
 };
 
 #[allow(deprecated)]
@@ -12,7 +12,8 @@ impl<T: Copy + crate::ToPyObject> crate::ToPyObject for Cell<T> {
     }
 }
 
-impl<T: Copy + IntoPy<PyObject>> IntoPy<PyObject> for Cell<T> {
+#[allow(deprecated)]
+impl<T: Copy + crate::IntoPy<PyObject>> crate::IntoPy<PyObject> for Cell<T> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.get().into_py(py)
     }

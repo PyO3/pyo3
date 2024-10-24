@@ -6,7 +6,7 @@ use crate::Python;
 use crate::types::PyString;
 
 #[cfg(not(Py_LIMITED_API))]
-use crate::{types::PyDict, Bound, IntoPy, Py, PyAny};
+use crate::{types::PyDict, Bound, PyAny};
 #[cfg(not(any(Py_3_12, Py_LIMITED_API)))]
 use libc::wchar_t;
 
@@ -14,8 +14,9 @@ use libc::wchar_t;
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
 #[test]
 fn test_datetime_fromtimestamp() {
+    use crate::IntoPyObject;
     Python::with_gil(|py| {
-        let args: Py<PyAny> = (100,).into_py(py);
+        let args = (100,).into_pyobject(py).unwrap();
         let dt = unsafe {
             PyDateTime_IMPORT();
             Bound::from_owned_ptr(py, PyDateTime_FromTimestamp(args.as_ptr()))
@@ -35,8 +36,9 @@ fn test_datetime_fromtimestamp() {
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
 #[test]
 fn test_date_fromtimestamp() {
+    use crate::IntoPyObject;
     Python::with_gil(|py| {
-        let args: Py<PyAny> = (100,).into_py(py);
+        let args = (100,).into_pyobject(py).unwrap();
         let dt = unsafe {
             PyDateTime_IMPORT();
             Bound::from_owned_ptr(py, PyDate_FromTimestamp(args.as_ptr()))

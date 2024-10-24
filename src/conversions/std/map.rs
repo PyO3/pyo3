@@ -2,14 +2,14 @@ use std::{cmp, collections, hash};
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
-#[allow(deprecated)]
-use crate::ToPyObject;
 use crate::{
     conversion::IntoPyObject,
     instance::Bound,
     types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
-    FromPyObject, IntoPy, PyAny, PyErr, PyObject, Python,
+    FromPyObject, PyAny, PyErr, PyObject, Python,
 };
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 
 #[allow(deprecated)]
 impl<K, V, H> ToPyObject for collections::HashMap<K, V, H>
@@ -42,6 +42,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<K, V, H> IntoPy<PyObject> for collections::HashMap<K, V, H>
 where
     K: hash::Hash + cmp::Eq + IntoPy<PyObject>,
@@ -100,6 +101,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<K, V> IntoPy<PyObject> for collections::BTreeMap<K, V>
 where
     K: cmp::Eq + IntoPy<PyObject>,
@@ -251,8 +253,7 @@ mod tests {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let m: PyObject = map.into_py(py);
-            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
+            let py_map = map.into_pyobject(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(
@@ -273,8 +274,7 @@ mod tests {
             let mut map = BTreeMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let m: PyObject = map.into_py(py);
-            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
+            let py_map = map.into_pyobject(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(

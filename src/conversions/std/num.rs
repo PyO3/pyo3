@@ -5,11 +5,9 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::inspect::types::TypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyBytes, PyInt};
+use crate::{exceptions, ffi, Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python};
 #[allow(deprecated)]
-use crate::ToPyObject;
-use crate::{
-    exceptions, ffi, Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python,
-};
+use crate::{IntoPy, ToPyObject};
 use std::convert::Infallible;
 use std::num::{
     NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize, NonZeroU128,
@@ -26,6 +24,7 @@ macro_rules! int_fits_larger_int {
                 self.into_pyobject(py).unwrap().into_any().unbind()
             }
         }
+        #[allow(deprecated)]
         impl IntoPy<PyObject> for $rust_type {
             #[inline]
             fn into_py(self, py: Python<'_>) -> PyObject {
@@ -107,6 +106,7 @@ macro_rules! int_convert_u64_or_i64 {
                 self.into_pyobject(py).unwrap().into_any().unbind()
             }
         }
+        #[allow(deprecated)]
         impl IntoPy<PyObject> for $rust_type {
             #[inline]
             fn into_py(self, py: Python<'_>) -> PyObject {
@@ -163,6 +163,7 @@ macro_rules! int_fits_c_long {
                 self.into_pyobject(py).unwrap().into_any().unbind()
             }
         }
+        #[allow(deprecated)]
         impl IntoPy<PyObject> for $rust_type {
             #[inline]
             fn into_py(self, py: Python<'_>) -> PyObject {
@@ -222,6 +223,7 @@ impl ToPyObject for u8 {
         self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
+#[allow(deprecated)]
 impl IntoPy<PyObject> for u8 {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -340,6 +342,8 @@ mod fast_128bit_int_conversion {
                     self.into_pyobject(py).unwrap().into_any().unbind()
                 }
             }
+
+            #[allow(deprecated)]
             impl IntoPy<PyObject> for $rust_type {
                 #[inline]
                 fn into_py(self, py: Python<'_>) -> PyObject {
@@ -586,6 +590,7 @@ macro_rules! nonzero_int_impl {
             }
         }
 
+        #[allow(deprecated)]
         impl IntoPy<PyObject> for $nonzero_type {
             #[inline]
             fn into_py(self, py: Python<'_>) -> PyObject {
@@ -664,11 +669,11 @@ mod test_128bit_integers {
         #[test]
         fn test_i128_roundtrip(x: i128) {
             Python::with_gil(|py| {
-                let x_py = x.into_py(py);
+                let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
-                locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
+                locals.set_item("x_py", &x_py).unwrap();
                 py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
-                let roundtripped: i128 = x_py.extract(py).unwrap();
+                let roundtripped: i128 = x_py.extract().unwrap();
                 assert_eq!(x, roundtripped);
             })
         }
@@ -680,11 +685,11 @@ mod test_128bit_integers {
                 .prop_map(|x| NonZeroI128::new(x).unwrap())
         ) {
             Python::with_gil(|py| {
-                let x_py = x.into_py(py);
+                let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
-                locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
+                locals.set_item("x_py", &x_py).unwrap();
                 py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
-                let roundtripped: NonZeroI128 = x_py.extract(py).unwrap();
+                let roundtripped: NonZeroI128 = x_py.extract().unwrap();
                 assert_eq!(x, roundtripped);
             })
         }
@@ -695,11 +700,11 @@ mod test_128bit_integers {
         #[test]
         fn test_u128_roundtrip(x: u128) {
             Python::with_gil(|py| {
-                let x_py = x.into_py(py);
+                let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
-                locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
+                locals.set_item("x_py", &x_py).unwrap();
                 py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
-                let roundtripped: u128 = x_py.extract(py).unwrap();
+                let roundtripped: u128 = x_py.extract().unwrap();
                 assert_eq!(x, roundtripped);
             })
         }
@@ -711,11 +716,11 @@ mod test_128bit_integers {
                 .prop_map(|x| NonZeroU128::new(x).unwrap())
         ) {
             Python::with_gil(|py| {
-                let x_py = x.into_py(py);
+                let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
-                locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
+                locals.set_item("x_py", &x_py).unwrap();
                 py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
-                let roundtripped: NonZeroU128 = x_py.extract(py).unwrap();
+                let roundtripped: NonZeroU128 = x_py.extract().unwrap();
                 assert_eq!(x, roundtripped);
             })
         }

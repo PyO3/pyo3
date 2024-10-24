@@ -89,9 +89,9 @@
 
 use crate::conversion::IntoPyObject;
 use crate::types::*;
+use crate::{Bound, FromPyObject, PyErr, PyObject, Python};
 #[allow(deprecated)]
-use crate::ToPyObject;
-use crate::{Bound, FromPyObject, IntoPy, PyErr, PyObject, Python};
+use crate::{IntoPy, ToPyObject};
 use std::{cmp, hash};
 
 #[allow(deprecated)]
@@ -110,6 +110,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<K, V, H> IntoPy<PyObject> for indexmap::IndexMap<K, V, H>
 where
     K: hash::Hash + cmp::Eq + IntoPy<PyObject>,
@@ -183,10 +184,10 @@ where
 mod test_indexmap {
 
     use crate::types::*;
-    use crate::{IntoPy, IntoPyObject, PyObject, Python};
+    use crate::{IntoPyObject, Python};
 
     #[test]
-    fn test_indexmap_indexmap_to_python() {
+    fn test_indexmap_indexmap_into_pyobject() {
         Python::with_gil(|py| {
             let mut map = indexmap::IndexMap::<i32, i32>::new();
             map.insert(1, 1);
@@ -206,28 +207,6 @@ mod test_indexmap {
             assert_eq!(
                 map,
                 py_map.extract::<indexmap::IndexMap::<i32, i32>>().unwrap()
-            );
-        });
-    }
-
-    #[test]
-    fn test_indexmap_indexmap_into_python() {
-        Python::with_gil(|py| {
-            let mut map = indexmap::IndexMap::<i32, i32>::new();
-            map.insert(1, 1);
-
-            let m: PyObject = map.into_py(py);
-            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
-
-            assert!(py_map.len() == 1);
-            assert!(
-                py_map
-                    .get_item(1)
-                    .unwrap()
-                    .unwrap()
-                    .extract::<i32>()
-                    .unwrap()
-                    == 1
             );
         });
     }

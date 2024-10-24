@@ -97,19 +97,21 @@ given signatures should be interpreted as follows:
 
     ```rust
     use pyo3::class::basic::CompareOp;
+    use pyo3::types::PyNotImplemented;
 
     # use pyo3::prelude::*;
+    # use pyo3::BoundObject;
     #
     # #[pyclass]
     # struct Number(i32);
     #
     #[pymethods]
     impl Number {
-        fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> PyObject {
+        fn __richcmp__<'py>(&self, other: &Self, op: CompareOp, py: Python<'py>) -> PyResult<Borrowed<'py, 'py, PyAny>> {
             match op {
-                CompareOp::Eq => (self.0 == other.0).into_py(py),
-                CompareOp::Ne => (self.0 != other.0).into_py(py),
-                _ => py.NotImplemented(),
+                CompareOp::Eq => Ok((self.0 == other.0).into_pyobject(py)?.into_any()),
+                CompareOp::Ne => Ok((self.0 != other.0).into_pyobject(py)?.into_any()),
+                _ => Ok(PyNotImplemented::get(py).into_any()),
             }
         }
     }

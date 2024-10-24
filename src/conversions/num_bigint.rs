@@ -49,15 +49,15 @@
 
 #[cfg(Py_LIMITED_API)]
 use crate::types::{bytes::PyBytesMethods, PyBytes};
-#[allow(deprecated)]
-use crate::ToPyObject;
 use crate::{
     conversion::IntoPyObject,
     ffi,
     instance::Bound,
     types::{any::PyAnyMethods, PyInt},
-    FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python,
 };
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 
 use num_bigint::{BigInt, BigUint};
 
@@ -77,6 +77,7 @@ macro_rules! bigint_conversion {
         }
 
         #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
+        #[allow(deprecated)]
         impl IntoPy<PyObject> for $rust_ty {
             #[inline]
             fn into_py(self, py: Python<'_>) -> PyObject {
@@ -451,8 +452,8 @@ mod tests {
                 ($T:ty, $value:expr, $py:expr) => {
                     let value = $value;
                     println!("{}: {}", stringify!($T), value);
-                    let python_value = value.clone().into_py(py);
-                    let roundtrip_value = python_value.extract::<$T>(py).unwrap();
+                    let python_value = value.clone().into_pyobject(py).unwrap();
+                    let roundtrip_value = python_value.extract::<$T>().unwrap();
                     assert_eq!(value, roundtrip_value);
                 };
             }
