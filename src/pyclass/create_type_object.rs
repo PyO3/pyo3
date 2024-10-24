@@ -47,7 +47,7 @@ where
         items_iter: PyClassItemsIter,
         name: &'static str,
         module: Option<&'static str>,
-        size_of: usize,
+        basicsize: ffi::Py_ssize_t,
     ) -> PyResult<PyClassTypeObject> {
         PyTypeBuilder {
             slots: Vec::new(),
@@ -75,7 +75,7 @@ where
         .offsets(dict_offset, weaklist_offset)
         .set_is_basetype(is_basetype)
         .class_items(items_iter)
-        .build(py, name, module, size_of)
+        .build(py, name, module, basicsize)
     }
 
     unsafe {
@@ -93,7 +93,7 @@ where
             T::items_iter(),
             T::NAME,
             T::MODULE,
-            std::mem::size_of::<PyClassObject<T>>(),
+            PyClassObject::<T>::basicsize(),
         )
     }
 }
@@ -417,7 +417,7 @@ impl PyTypeBuilder {
         py: Python<'_>,
         name: &'static str,
         module_name: Option<&'static str>,
-        basicsize: usize,
+        basicsize: ffi::Py_ssize_t,
     ) -> PyResult<PyClassTypeObject> {
         // `c_ulong` and `c_uint` have the same size
         // on some platforms (like windows)
