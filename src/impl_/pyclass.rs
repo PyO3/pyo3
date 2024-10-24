@@ -1195,7 +1195,7 @@ pub unsafe trait OffsetCalculator<T: PyClass, U> {
 
 // Used in generated implementations of OffsetCalculator
 pub fn class_offset<T: PyClass>() -> usize {
-    offset_of!(PyClassObject<T>, contents)
+    PyClassObject::<T>::contents_offset()
 }
 
 // Used in generated implementations of OffsetCalculator
@@ -1578,6 +1578,8 @@ fn pyo3_get_value<
 #[cfg(test)]
 #[cfg(feature = "macros")]
 mod tests {
+    use crate::pycell::impl_::PyClassObjectContents;
+
     use super::*;
 
     #[test]
@@ -1606,9 +1608,14 @@ mod tests {
             Some(PyMethodDefType::StructMember(member)) => {
                 assert_eq!(unsafe { CStr::from_ptr(member.name) }, ffi::c_str!("value"));
                 assert_eq!(member.type_code, ffi::Py_T_OBJECT_EX);
+                #[repr(C)]
+                struct ExpectedLayout {
+                    ob_base: ffi::PyObject,
+                    contents: PyClassObjectContents<FrozenClass>,
+                }
                 assert_eq!(
                     member.offset,
-                    (memoffset::offset_of!(PyClassObject<FrozenClass>, contents)
+                    (memoffset::offset_of!(ExpectedLayout, contents)
                         + memoffset::offset_of!(FrozenClass, value))
                         as ffi::Py_ssize_t
                 );

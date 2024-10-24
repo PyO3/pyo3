@@ -319,7 +319,7 @@ where
         // `.try_borrow()` above created a borrow, we need to release it when we're done
         // traversing the object. This allows us to read `instance` safely.
         let _guard = TraverseGuard(class_object);
-        let instance = &*class_object.contents.value.get();
+        let instance = &*class_object.contents().value.get();
 
         let visit = PyVisit { visit, arg, _guard: PhantomData };
 
