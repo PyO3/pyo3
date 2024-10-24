@@ -438,6 +438,8 @@ pub mod pycell;
 pub mod pyclass;
 pub mod pyclass_init;
 
+#[doc(hidden)]
+pub mod pycall;
 pub mod type_object;
 pub mod types;
 mod version;
