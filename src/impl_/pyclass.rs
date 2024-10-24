@@ -34,13 +34,13 @@ pub use probes::*;
 
 /// Gets the offset of the dictionary from the start of the object in bytes.
 #[inline]
-pub fn dict_offset<T: PyClass>() -> ffi::Py_ssize_t {
+pub fn dict_offset<T: PyClass>() -> PyObjectOffset {
     PyClassObject::<T>::dict_offset()
 }
 
 /// Gets the offset of the weakref list from the start of the object in bytes.
 #[inline]
-pub fn weaklist_offset<T: PyClass>() -> ffi::Py_ssize_t {
+pub fn weaklist_offset<T: PyClass>() -> PyObjectOffset {
     PyClassObject::<T>::weaklist_offset()
 }
 
@@ -218,13 +218,17 @@ pub trait PyClassImpl: Sized + 'static {
 
     fn items_iter() -> PyClassItemsIter;
 
+    /// Used to provide the __dictoffset__ slot
+    /// (equivalent to [tp_dictoffset](https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_dictoffset))
     #[inline]
-    fn dict_offset() -> Option<ffi::Py_ssize_t> {
+    fn dict_offset() -> Option<PyObjectOffset> {
         None
     }
 
+    /// Used to provide the __weaklistoffset__ slot
+    /// (equivalent to [tp_weaklistoffset](https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_weaklistoffset)
     #[inline]
-    fn weaklist_offset() -> Option<ffi::Py_ssize_t> {
+    fn weaklist_offset() -> Option<PyObjectOffset> {
         None
     }
 
@@ -1162,6 +1166,40 @@ pub(crate) unsafe extern "C" fn assign_sequence_item_from_mapping(
     }
 }
 
+/// Offset of a field within a `PyClassObject<T>`, in bytes.
+#[derive(Clone, Copy)]
+pub enum PyObjectOffset {
+    /// An offset relative to the start of the object
+    Absolute(ffi::Py_ssize_t),
+    /// An offset relative to the start of the subclass-specific data. Only allowed when basicsize is negative.
+    /// <https://docs.python.org/3.12/c-api/structures.html#c.Py_RELATIVE_OFFSET>
+    Relative(ffi::Py_ssize_t),
+}
+
+impl PyObjectOffset {
+    pub fn to_value_and_is_relative(&self) -> (ffi::Py_ssize_t, bool) {
+        match self {
+            PyObjectOffset::Absolute(offset) => (*offset, false),
+            PyObjectOffset::Relative(offset) => (*offset, true),
+        }
+    }
+}
+
+impl std::ops::Add<usize> for PyObjectOffset {
+    type Output = PyObjectOffset;
+
+    fn add(self, rhs: usize) -> Self::Output {
+        // Py_ssize_t may not be equal to isize on all platforms
+        #[allow(clippy::useless_conversion)]
+        let rhs: ffi::Py_ssize_t = rhs.try_into().expect("offset should fit in Py_ssize_t");
+
+        match self {
+            PyObjectOffset::Absolute(offset) => PyObjectOffset::Absolute(offset + rhs),
+            PyObjectOffset::Relative(offset) => PyObjectOffset::Relative(offset + rhs),
+        }
+    }
+}
+
 /// Type which uses specialization on impl blocks to determine how to read a field from a Rust pyclass
 /// as part of a `#[pyo3(get)]` annotation.
 pub struct PyClassGetterGenerator<
@@ -1225,11 +1263,18 @@ impl<
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         use crate::pyclass::boolean_struct::private::Boolean;
         if ClassT::Frozen::VALUE {
+            let (offset, flags) = match <PyClassObject<ClassT>>::contents_offset() {
+                PyObjectOffset::Absolute(offset) => (offset, ffi::Py_READONLY),
+                PyObjectOffset::Relative(offset) => {
+                    (offset, ffi::Py_READONLY | ffi::Py_RELATIVE_OFFSET)
+                }
+            };
+
             PyMethodDefType::StructMember(ffi::PyMemberDef {
                 name: name.as_ptr(),
                 type_code: ffi::Py_T_OBJECT_EX,
-                offset: (<PyClassObject<ClassT>>::contents_offset() + OFFSET) as ffi::Py_ssize_t,
-                flags: ffi::Py_READONLY,
+                offset: offset + OFFSET as ffi::Py_ssize_t,
+                flags,
                 doc: doc.as_ptr(),
             })
         } else {
@@ -1327,8 +1372,12 @@ where
 
     // SAFETY: `obj` is a valid pointer to `ClassT`
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
+    let contents_offset = match <PyClassObject<ClassT>>::contents_offset() {
+        PyObjectOffset::Absolute(offset) => offset as usize,
+        PyObjectOffset::Relative(_) => todo!(),
+    };
     // SAFETY: _holder prevents mutable aliasing, caller upholds other safety invariants
-    unsafe { inner::<FieldT>(py, obj, <PyClassObject<ClassT>>::contents_offset() + OFFSET) }
+    unsafe { inner::<FieldT>(py, obj, contents_offset + OFFSET) }
 }
 
 /// Gets a field value from a pyclass and produces a python value using `IntoPyObject` for `FieldT`,
@@ -1365,8 +1414,12 @@ where
 
     // SAFETY: `obj` is a valid pointer to `ClassT`
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
+    let contents_offset = match <PyClassObject<ClassT>>::contents_offset() {
+        PyObjectOffset::Absolute(offset) => offset as usize,
+        PyObjectOffset::Relative(_) => todo!(),
+    };
     // SAFETY: _holder prevents mutable aliasing, caller upholds other safety invariants
-    unsafe { inner::<FieldT>(py, obj, <PyClassObject<ClassT>>::contents_offset() + OFFSET) }
+    unsafe { inner::<FieldT>(py, obj, contents_offset + OFFSET) }
 }
 
 pub struct ConvertField<
@@ -1546,9 +1599,13 @@ mod tests {
         // SAFETY: def.doc originated from a CStr
         assert_eq!(unsafe { CStr::from_ptr(def.doc) }, c"My field doc");
         assert_eq!(def.type_code, ffi::Py_T_OBJECT_EX);
+        let PyObjectOffset::Absolute(contents_offset) = <PyClassObject<MyClass>>::contents_offset()
+        else {
+            panic!()
+        };
         assert_eq!(
             def.offset,
-            (<PyClassObject<MyClass>>::contents_offset() + FIELD_OFFSET) as ffi::Py_ssize_t
+            contents_offset + FIELD_OFFSET as ffi::Py_ssize_t
         );
         assert_eq!(def.flags, ffi::Py_READONLY);
     }
