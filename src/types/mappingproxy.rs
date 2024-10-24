@@ -118,7 +118,7 @@ pub struct BoundMappingProxyIterator<'py, 'a> {
     mappingproxy: &'a Bound<'py, PyMappingProxy>,
 }
 
-impl<'py, 'a> Iterator for BoundMappingProxyIterator<'py, 'a> {
+impl<'py> Iterator for BoundMappingProxyIterator<'py, '_> {
     type Item = PyResult<(Bound<'py, PyAny>, Bound<'py, PyAny>)>;
 
     #[inline]
