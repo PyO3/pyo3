@@ -2,7 +2,7 @@
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList, PyString, PyTuple};
+use pyo3::types::{IntoPyDict, PyDict, PyList, PyString, PyTuple};
 
 #[macro_use]
 #[path = "../src/tests/common.rs"]
@@ -106,6 +106,21 @@ fn test_generic_transparent_named_field_struct() {
             .extract::<D<usize>>(py)
             .expect("Failed to extract D<usize> from String");
         assert_eq!(d.test, 1);
+    });
+}
+
+#[derive(Debug, FromPyObject)]
+pub struct GenericWithBound<K: std::hash::Hash + Eq, V>(std::collections::HashMap<K, V>);
+
+#[test]
+fn test_generic_with_bound() {
+    Python::with_gil(|py| {
+        let dict = [("1", 1), ("2", 2)].into_py_dict(py).unwrap();
+        let map = dict.extract::<GenericWithBound<String, i32>>().unwrap().0;
+        assert_eq!(map.len(), 2);
+        assert_eq!(map["1"], 1);
+        assert_eq!(map["2"], 2);
+        assert!(!map.contains_key("3"));
     });
 }
 
