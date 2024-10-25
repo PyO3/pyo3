@@ -320,7 +320,7 @@ impl<'a> Container<'a> {
             error: quote!(#pyo3_path::PyErr),
             body: quote! {
                 #unpack
-                ::std::result::Result::Ok::<_, Self::Error>(#pyo3_path::types::PyTuple::new(py, [#setter]))
+                #pyo3_path::types::PyTuple::new(py, [#setter])
             },
         }
     }
