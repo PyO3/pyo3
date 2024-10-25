@@ -51,7 +51,7 @@ impl PyErrState {
         Self::from_inner(PyErrStateInner::Normalized(normalized))
     }
 
-    pub fn restore(self, py: Python<'_>) {
+    pub(crate) fn restore(self, py: Python<'_>) {
         self.inner
             .into_inner()
             .expect("PyErr state should never be invalid outside of normalization")
@@ -214,7 +214,7 @@ enum PyErrStateInner {
 }
 
 impl PyErrStateInner {
-    pub fn normalize(self, py: Python<'_>) -> PyErrStateNormalized {
+    fn normalize(self, py: Python<'_>) -> PyErrStateNormalized {
         match self {
             #[cfg(not(Py_3_12))]
             PyErrStateInner::Lazy(lazy) => {
@@ -250,7 +250,7 @@ impl PyErrStateInner {
     }
 
     #[cfg(not(Py_3_12))]
-    pub fn restore(self, py: Python<'_>) {
+    fn restore(self, py: Python<'_>) {
         let (ptype, pvalue, ptraceback) = match self {
             PyErrStateInner::Lazy(lazy) => lazy_into_normalized_ffi_tuple(py, lazy),
             PyErrStateInner::FfiTuple {
@@ -276,7 +276,7 @@ impl PyErrStateInner {
     }
 
     #[cfg(Py_3_12)]
-    pub fn restore(self, py: Python<'_>) {
+    fn restore(self, py: Python<'_>) {
         match self {
             PyErrStateInner::Lazy(lazy) => raise_lazy(py, lazy),
             PyErrStateInner::Normalized(PyErrStateNormalized { pvalue }) => unsafe {
