@@ -5,7 +5,7 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{PySequence, PyTuple};
-use crate::{Borrowed, Bound, BoundObject, IntoPyObject, PyAny, PyObject, Python};
+use crate::{Borrowed, Bound, BoundObject, IntoPyObject, PyAny, PyErr, PyObject, Python};
 
 use crate::types::any::PyAnyMethods;
 use crate::types::sequence::PySequenceMethods;
@@ -51,18 +51,18 @@ pub(crate) fn try_new_from_iter<'py>(
         // - its Drop cleans up the list if user code or the asserts panic.
         let list = ptr.assume_owned(py).downcast_into_unchecked();
 
-        let mut counter: Py_ssize_t = 0;
-
-        for obj in (&mut elements).take(len as usize) {
-            #[cfg(not(Py_LIMITED_API))]
-            ffi::PyList_SET_ITEM(ptr, counter, obj?.into_ptr());
-            #[cfg(Py_LIMITED_API)]
-            ffi::PyList_SetItem(ptr, counter, obj?.into_ptr());
-            counter += 1;
-        }
+        let count = (&mut elements)
+            .take(len as usize)
+            .try_fold(0, |count, item| {
+                #[cfg(not(Py_LIMITED_API))]
+                ffi::PyList_SET_ITEM(ptr, count, item?.into_ptr());
+                #[cfg(Py_LIMITED_API)]
+                ffi::PyList_SetItem(ptr, count, item?.into_ptr());
+                Ok::<_, PyErr>(count + 1)
+            })?;
 
         assert!(elements.next().is_none(), "Attempted to create PyList but `elements` was larger than reported by its `ExactSizeIterator` implementation.");
-        assert_eq!(len, counter, "Attempted to create PyList but `elements` was smaller than reported by its `ExactSizeIterator` implementation.");
+        assert_eq!(len, count, "Attempted to create PyList but `elements` was smaller than reported by its `ExactSizeIterator` implementation.");
 
         Ok(list)
     }
