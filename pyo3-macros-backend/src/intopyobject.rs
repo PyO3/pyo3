@@ -5,7 +5,10 @@ use quote::{format_ident, quote, quote_spanned};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned as _;
-use syn::{parse_quote, Attribute, DataEnum, DeriveInput, Fields, Ident, Index, Result, Token};
+use syn::{
+    parenthesized, parse_quote, Attribute, DataEnum, DeriveInput, Fields, Ident, Index, Result,
+    Token,
+};
 
 /// Attributes for deriving `IntoPyObject` scoped on containers.
 enum ContainerPyO3Attribute {
@@ -72,6 +75,95 @@ impl ContainerOptions {
     }
 }
 
+#[derive(Debug, Clone)]
+struct ItemOption {
+    field: Option<syn::LitStr>,
+    span: Span,
+}
+
+impl ItemOption {
+    fn span(&self) -> Span {
+        self.span
+    }
+}
+
+enum FieldAttribute {
+    Item(ItemOption),
+}
+
+impl Parse for FieldAttribute {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(attributes::kw::attribute) {
+            let attr: attributes::kw::attribute = input.parse()?;
+            bail_spanned!(attr.span => "`attribute` is not supported by `IntoPyObject`");
+        } else if lookahead.peek(attributes::kw::item) {
+            let attr: attributes::kw::item = input.parse()?;
+            if input.peek(syn::token::Paren) {
+                let content;
+                let _ = parenthesized!(content in input);
+                let key = content.parse()?;
+                if !content.is_empty() {
+                    return Err(
+                        content.error("expected at most one argument: `item` or `item(key)`")
+                    );
+                }
+                Ok(FieldAttribute::Item(ItemOption {
+                    field: Some(key),
+                    span: attr.span,
+                }))
+            } else {
+                Ok(FieldAttribute::Item(ItemOption {
+                    field: None,
+                    span: attr.span,
+                }))
+            }
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+struct FieldAttributes {
+    item: Option<ItemOption>,
+}
+
+impl FieldAttributes {
+    /// Extract the field attributes.
+    fn from_attrs(attrs: &[Attribute]) -> Result<Self> {
+        let mut options = FieldAttributes::default();
+
+        for attr in attrs {
+            if let Some(pyo3_attrs) = get_pyo3_options(attr)? {
+                pyo3_attrs
+                    .into_iter()
+                    .try_for_each(|opt| options.set_option(opt))?;
+            }
+        }
+        Ok(options)
+    }
+
+    fn set_option(&mut self, option: FieldAttribute) -> syn::Result<()> {
+        macro_rules! set_option {
+            ($key:ident) => {
+                {
+                    ensure_spanned!(
+                        self.$key.is_none(),
+                        $key.span() => concat!("`", stringify!($key), "` may only be specified once")
+                    );
+                    self.$key = Some($key);
+                }
+            };
+        }
+
+        match option {
+            FieldAttribute::Item(item) => set_option!(item),
+        }
+        Ok(())
+    }
+}
+
 struct IntoPyObjectImpl {
     target: TokenStream,
     output: TokenStream,
@@ -82,6 +174,7 @@ struct IntoPyObjectImpl {
 struct NamedStructField<'a> {
     ident: &'a syn::Ident,
     field: &'a syn::Field,
+    item: Option<ItemOption>,
 }
 
 struct TupleStructField<'a> {
@@ -132,22 +225,28 @@ impl<'a> Container<'a> {
     ) -> Result<Self> {
         let style = match fields {
             Fields::Unnamed(unnamed) if !unnamed.unnamed.is_empty() => {
-                if unnamed.unnamed.iter().count() == 1 {
+                let mut tuple_fields = unnamed
+                    .unnamed
+                    .iter()
+                    .map(|field| {
+                        let attrs = FieldAttributes::from_attrs(&field.attrs)?;
+                        ensure_spanned!(
+                            attrs.item.is_none(),
+                            attrs.item.unwrap().span() => "`item` is not permitted on tuple struct elements."
+                        );
+                        Ok(TupleStructField { field })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                if tuple_fields.len() == 1 {
                     // Always treat a 1-length tuple struct as "transparent", even without the
                     // explicit annotation.
-                    let field = unnamed.unnamed.iter().next().unwrap();
+                    let TupleStructField { field } = tuple_fields.pop().unwrap();
                     ContainerType::TupleNewtype(field)
                 } else if options.transparent.is_some() {
                     bail_spanned!(
                         fields.span() => "transparent structs and variants can only have 1 field"
                     );
                 } else {
-                    let tuple_fields = unnamed
-                        .unnamed
-                        .iter()
-                        .map(|field| Ok(TupleStructField { field }))
-                        .collect::<Result<Vec<_>>>()?;
-
                     ContainerType::Tuple(tuple_fields)
                 }
             }
@@ -159,6 +258,11 @@ impl<'a> Container<'a> {
                     );
 
                     let field = named.named.iter().next().unwrap();
+                    let attrs = FieldAttributes::from_attrs(&field.attrs)?;
+                    ensure_spanned!(
+                        attrs.item.is_none(),
+                        attrs.item.unwrap().span() => "`transparent` structs may not have `item` for the inner field"
+                    );
                     ContainerType::StructNewtype(field)
                 } else {
                     let struct_fields = named
@@ -170,7 +274,13 @@ impl<'a> Container<'a> {
                                 .as_ref()
                                 .expect("Named fields should have identifiers");
 
-                            Ok(NamedStructField { ident, field })
+                            let attrs = FieldAttributes::from_attrs(&field.attrs)?;
+
+                            Ok(NamedStructField {
+                                ident,
+                                field,
+                                item: attrs.item,
+                            })
                         })
                         .collect::<Result<Vec<_>>>()?;
                     ContainerType::Struct(struct_fields)
@@ -267,7 +377,12 @@ impl<'a> Container<'a> {
             .iter()
             .enumerate()
             .map(|(i, f)| {
-                let key = f.ident.unraw().to_string();
+                let key = f
+                    .item
+                    .as_ref()
+                    .and_then(|item| item.field.as_ref())
+                    .map(|item| item.value())
+                    .unwrap_or_else(|| f.ident.unraw().to_string());
                 let value = Ident::new(&format!("arg{i}"), f.field.ty.span());
                 quote! {
                     #pyo3_path::types::PyDictMethods::set_item(&dict, #key, #value)?;

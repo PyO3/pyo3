@@ -87,4 +87,23 @@ enum UnitEnum {
     Unit,
 }
 
+#[derive(IntoPyObject)]
+struct TupleAttribute(#[pyo3(attribute)] String, usize);
+
+#[derive(IntoPyObject)]
+struct TupleItem(#[pyo3(item)] String, usize);
+
+#[derive(IntoPyObject)]
+struct StructAttribute {
+    #[pyo3(attribute)]
+    foo: String,
+}
+
+#[derive(IntoPyObject)]
+#[pyo3(transparent)]
+struct StructTransparentItem {
+    #[pyo3(item)]
+    foo: String,
+}
+
 fn main() {}
