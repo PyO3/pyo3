@@ -189,6 +189,7 @@ about this topic.
 - [ballista-python](https://github.com/apache/arrow-ballista-python) _A Python library that binds to Apache Arrow distributed query engine Ballista._
 - [bed-reader](https://github.com/fastlmm/bed-reader) _Read and write the PLINK BED format, simply and efficiently._
     - Shows Rayon/ndarray::parallel (including capturing errors, controlling thread num), Python types to Rust generics, Github Actions
+- [cellular_raza](https://cellular-raza.com) _A cellular agent-based simulation framework for building complex models from a clean slate._
 - [connector-x](https://github.com/sfu-db/connector-x) _Fastest library to load data from DB to DataFrames in Rust and Python._
 - [cryptography](https://github.com/pyca/cryptography/tree/main/src/rust) _Python cryptography library with some functionality in Rust._
 - [css-inline](https://github.com/Stranger6667/css-inline/tree/master/bindings/python) _CSS inlining for Python implemented in Rust._
