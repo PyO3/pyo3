@@ -315,10 +315,10 @@ where
     };
     let ptr = set.as_ptr();
 
-    for e in elements {
-        let obj = e.into_pyobject(py).map_err(Into::into)?;
-        err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj.as_ptr()) })?;
-    }
+    elements.into_iter().try_for_each(|element| {
+        let obj = element.into_pyobject(py).map_err(Into::into)?;
+        err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj.as_ptr()) })
+    })?;
 
     Ok(set)
 }
