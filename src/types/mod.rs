@@ -173,6 +173,8 @@ macro_rules! pyobject_native_type_info(
             const MODULE: ::std::option::Option<&'static str> = $module;
             $crate::pyobject_type_info_type_hint!($type_hint_module, $type_hint_name);
 
+            type Layout<T: $crate::impl_::pyclass::PyClassImpl> = $crate::impl_::pycell::PyStaticClassObject<T>;
+
             #[inline]
             #[allow(clippy::redundant_closure_call)]
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {

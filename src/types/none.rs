@@ -1,4 +1,6 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::impl_::pycell::PyStaticClassObject;
+use crate::impl_::pyclass::PyClassImpl;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::TypeHint;
 use crate::{ffi, types::any::PyAnyMethods, Borrowed, Bound, PyAny, PyTypeInfo, Python};
@@ -31,6 +33,8 @@ unsafe impl PyTypeInfo for PyNone {
 
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: TypeHint = TypeHint::builtin("None");
+
+    type Layout<T: PyClassImpl> = PyStaticClassObject<T>;
 
     fn type_object_raw(_py: Python<'_>) -> *mut ffi::PyTypeObject {
         unsafe { ffi::Py_TYPE(ffi::Py_None()) }

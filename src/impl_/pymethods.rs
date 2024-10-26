@@ -1,7 +1,7 @@
 use crate::exceptions::PyStopAsyncIteration;
 use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::panic::PanicTrap;
-use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout};
+use crate::impl_::pycell::PyClassObjectLayout;
 use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
 use crate::internal::state::ForbidAttaching;
 use crate::pycell::impl_::{InternalPyClassObjectLayout, PyClassBorrowChecker as _};
@@ -19,6 +19,7 @@ use std::marker::PhantomData;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr::{null_mut, NonNull};
 
+use super::pyclass::PyClassImpl;
 use super::trampoline;
 use crate::internal_tricks::{clear_eq, traverse_eq};
 
@@ -306,7 +307,7 @@ where
 
     // SAFETY: `slf` is a valid Python object pointer to a class object of type T, and
     // traversal is running so no mutations can occur.
-    let class_object: &PyClassObject<T> = unsafe { &*slf.cast() };
+    let class_object: &<T as PyClassImpl>::Layout = unsafe { &*slf.cast() };
 
     let retval =
     // `#[pyclass(unsendable)]` types can only be deallocated by their own thread, so
@@ -314,8 +315,8 @@ where
     if class_object.check_threadsafe().is_ok()
     // ... and we cannot traverse a type which might be being mutated by a Rust thread
     && class_object.borrow_checker().try_borrow().is_ok() {
-        struct TraverseGuard<'a, T: PyClass>(&'a PyClassObject<T>);
-        impl<T: PyClass> Drop for TraverseGuard<'_,  T> {
+        struct TraverseGuard<'a, U: PyClassImpl, V: InternalPyClassObjectLayout<U>>(&'a V, PhantomData<U>);
+        impl<U: PyClassImpl, V: InternalPyClassObjectLayout<U>> Drop for TraverseGuard<'_, U, V> {
             fn drop(&mut self) {
                 self.0.borrow_checker().release_borrow()
             }
@@ -323,7 +324,7 @@ where
 
         // `.try_borrow()` above created a borrow, we need to release it when we're done
         // traversing the object. This allows us to read `instance` safely.
-        let _guard = TraverseGuard(class_object);
+        let _guard = TraverseGuard(class_object, PhantomData);
         let instance = unsafe {&*class_object.contents().value.get()};
 
         let visit = PyVisit { visit, arg, _guard: PhantomData };
