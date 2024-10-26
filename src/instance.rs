@@ -1495,7 +1495,7 @@ impl<T> Py<T> {
         kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<PyObject>
     where
-        A: IntoPy<Py<PyTuple>>,
+        A: IntoPyObject<'py, Target = PyTuple>,
     {
         self.bind(py).as_any().call(args, kwargs).map(Bound::unbind)
     }
@@ -1509,15 +1509,15 @@ impl<T> Py<T> {
         args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyObject> {
-        self.call(py, args, kwargs)
+        self.call(py, args.into_py(py), kwargs)
     }
 
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
-    pub fn call1<N>(&self, py: Python<'_>, args: N) -> PyResult<PyObject>
+    pub fn call1<'py, N>(&self, py: Python<'py>, args: N) -> PyResult<PyObject>
     where
-        N: IntoPy<Py<PyTuple>>,
+        N: IntoPyObject<'py, Target = PyTuple>,
     {
         self.bind(py).as_any().call1(args).map(Bound::unbind)
     }
@@ -1540,11 +1540,11 @@ impl<T> Py<T> {
         py: Python<'py>,
         name: N,
         args: A,
-        kwargs: Option<&Bound<'_, PyDict>>,
+        kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<PyObject>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        A: IntoPy<Py<PyTuple>>,
+        A: IntoPyObject<'py, Target = PyTuple>,
     {
         self.bind(py)
             .as_any()
@@ -1566,7 +1566,7 @@ impl<T> Py<T> {
         N: IntoPy<Py<PyString>>,
         A: IntoPy<Py<PyTuple>>,
     {
-        self.call_method(py, name.into_py(py), args, kwargs)
+        self.call_method(py, name.into_py(py), args.into_py(py), kwargs)
     }
 
     /// Calls a method on the object with only positional arguments.
@@ -1578,7 +1578,7 @@ impl<T> Py<T> {
     pub fn call_method1<'py, N, A>(&self, py: Python<'py>, name: N, args: A) -> PyResult<PyObject>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        A: IntoPy<Py<PyTuple>>,
+        A: IntoPyObject<'py, Target = PyTuple>,
     {
         self.bind(py)
             .as_any()
