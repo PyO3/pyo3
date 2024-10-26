@@ -225,6 +225,28 @@ pub trait PyClassObjectLayout<T>: PyLayout<T> {
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject);
 }
 
+#[doc(hidden)]
+pub(crate) trait InternalPyClassObjectLayout<T: PyClassImpl>: PyLayout<T> {
+    /// Gets the offset of the contents from the start of the struct in bytes.
+    const CONTENTS_OFFSET: PyObjectOffset;
+
+    fn get_ptr(&self) -> *mut T;
+
+    fn contents(&self) -> &PyClassObjectContents<T>;
+
+    /// used to set PyType_Spec::basicsize
+    /// https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize
+    fn basicsize() -> ffi::Py_ssize_t;
+
+    /// Gets the offset of the dictionary from the start of the struct in bytes.
+    fn dict_offset() -> PyObjectOffset;
+
+    /// Gets the offset of the weakref list from the start of the struct in bytes.
+    fn weaklist_offset() -> PyObjectOffset;
+
+    fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker;
+}
+
 impl<T, U> PyClassObjectLayout<T> for PyClassObjectBase<U>
 where
     U: PySizedLayout<T>,
@@ -292,18 +314,27 @@ pub(crate) struct PyClassObjectContents<T: PyClassImpl> {
     pub(crate) weakref: T::WeakRef,
 }
 
-impl<T: PyClassImpl> PyClassObject<T> {
-    pub(crate) fn get_ptr(&self) -> *mut T {
+impl<T: PyClassImpl> InternalPyClassObjectLayout<T> for PyClassObject<T> {
+    /// Gets the offset of the contents from the start of the struct in bytes.
+    const CONTENTS_OFFSET: PyObjectOffset = {
+        let offset = offset_of!(PyClassObject<T>, contents);
+
+        // Py_ssize_t may not be equal to isize on all platforms
+        assert!(offset <= ffi::Py_ssize_t::MAX as usize);
+        PyObjectOffset::Absolute(offset as ffi::Py_ssize_t)
+    };
+
+    fn get_ptr(&self) -> *mut T {
         self.contents.value.get()
     }
 
-    pub(crate) fn contents(&self) -> &PyClassObjectContents<T> {
+    fn contents(&self) -> &PyClassObjectContents<T> {
         &self.contents
     }
 
     /// used to set PyType_Spec::basicsize
     /// https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize
-    pub(crate) fn basicsize() -> ffi::Py_ssize_t {
+    fn basicsize() -> ffi::Py_ssize_t {
         let size = std::mem::size_of::<Self>();
 
         // Py_ssize_t may not be equal to isize on all platforms
@@ -311,17 +342,8 @@ impl<T: PyClassImpl> PyClassObject<T> {
         size.try_into().expect("size should fit in Py_ssize_t")
     }
 
-    /// Gets the offset of the contents from the start of the struct in bytes.
-    pub(crate) const fn contents_offset() -> PyObjectOffset {
-        let offset = offset_of!(PyClassObject<T>, contents);
-
-        // Py_ssize_t may not be equal to isize on all platforms
-        assert!(offset <= ffi::Py_ssize_t::MAX as usize);
-        PyObjectOffset::Absolute(offset as ffi::Py_ssize_t)
-    }
-
     /// Gets the offset of the dictionary from the start of the struct in bytes.
-    pub(crate) fn dict_offset() -> PyObjectOffset {
+    fn dict_offset() -> PyObjectOffset {
         let offset =
             offset_of!(PyClassObject<T>, contents) + offset_of!(PyClassObjectContents<T>, dict);
 
@@ -333,7 +355,7 @@ impl<T: PyClassImpl> PyClassObject<T> {
     }
 
     /// Gets the offset of the weakref list from the start of the struct in bytes.
-    pub(crate) fn weaklist_offset() -> PyObjectOffset {
+    fn weaklist_offset() -> PyObjectOffset {
         let offset =
             offset_of!(PyClassObject<T>, contents) + offset_of!(PyClassObjectContents<T>, weakref);
 
@@ -344,7 +366,7 @@ impl<T: PyClassImpl> PyClassObject<T> {
         PyObjectOffset::Absolute(offset.try_into().expect("offset should fit in Py_ssize_t"))
     }
 
-    pub(crate) fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
+    fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
         T::PyClassMutability::borrow_checker(self)
     }
 }
@@ -429,6 +451,23 @@ mod tests {
 
     #[pyclass(crate = "crate", extends = ImmutableChildOfImmutableBase, frozen)]
     struct ImmutableChildOfImmutableChildOfImmutableBase;
+
+    #[pyclass(crate = "crate", subclass)]
+    struct BaseWithData(#[allow(unused)] u64);
+
+    #[pyclass(crate = "crate", extends = BaseWithData)]
+    struct ChildWithData(#[allow(unused)] u64);
+
+    #[pyclass(crate = "crate", extends = BaseWithData)]
+    struct ChildWithoutData;
+
+    #[test]
+    fn test_inherited_size() {
+        let base_size = PyClassObject::<BaseWithData>::basicsize();
+        assert!(base_size > 0); // negative indicates variable sized
+        assert_eq!(base_size, PyClassObject::<ChildWithoutData>::basicsize());
+        assert!(base_size < PyClassObject::<ChildWithData>::basicsize());
+    }
 
     fn assert_mutable<T: PyClass<Frozen = False, PyClassMutability = MutableClass>>() {}
     fn assert_immutable<T: PyClass<Frozen = True, PyClassMutability = ImmutableClass>>() {}
