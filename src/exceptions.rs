@@ -124,7 +124,8 @@ macro_rules! import_exception_bound {
         $crate::pyobject_native_type_info!(
             $name,
             $name::type_object_raw,
-            ::std::option::Option::Some(stringify!($module))
+            ::std::option::Option::Some(stringify!($module)),
+            $crate::impl_::pycell::PyStaticClassObject<T>
         );
 
         impl $crate::types::DerefToPyAny for $name {}

@@ -153,12 +153,12 @@ macro_rules! pyobject_native_static_type_object(
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_info(
-    ($name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+    ($name:ty, $typeobject:expr, $module:expr, $layout:path $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
             const NAME: &'static str = stringify!($name);
             const MODULE: ::std::option::Option<&'static str> = $module;
 
-            type Layout<T: $crate::impl_::pyclass::PyClassImpl> = $crate::impl_::pycell::PyStaticClassObject<T>;
+            type Layout<T: $crate::impl_::pyclass::PyClassImpl> = $layout;
 
             #[inline]
             #[allow(clippy::redundant_closure_call)]
@@ -186,12 +186,15 @@ macro_rules! pyobject_native_type_info(
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_core {
-    ($name:ty, $typeobject:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+    ($name:ty, $typeobject:expr, #module=$module:expr, #layout=$layout:path $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_named!($name $(;$generics)*);
-        $crate::pyobject_native_type_info!($name, $typeobject, $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
+        $crate::pyobject_native_type_info!($name, $typeobject, $module, $layout $(, #checkfunction=$checkfunction)? $(;$generics)*);
+    };
+    ($name:ty, $typeobject:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_core!($name, $typeobject, #module=$module, #layout=$crate::impl_::pycell::PyStaticClassObject<T> $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
     ($name:ty, $typeobject:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_core!($name, $typeobject, #module=::std::option::Option::Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
+        $crate::pyobject_native_type_core!($name, $typeobject, #module=::std::option::Option::Some("builtins"), #layout=$crate::impl_::pycell::PyStaticClassObject<T> $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
 }
 

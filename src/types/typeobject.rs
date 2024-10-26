@@ -18,7 +18,13 @@ use super::PyString;
 #[repr(transparent)]
 pub struct PyType(PyAny);
 
-pyobject_native_type_core!(PyType, pyobject_native_static_type_object!(ffi::PyType_Type), #checkfunction=ffi::PyType_Check);
+pyobject_native_type_core!(
+    PyType,
+    pyobject_native_static_type_object!(ffi::PyType_Type),
+    #module=::std::option::Option::Some("builtins"),
+    #layout=crate::impl_::pycell::PyStaticClassObject<T>,
+    #checkfunction = ffi::PyType_Check
+);
 
 impl PyType {
     /// Creates a new type object.
