@@ -49,13 +49,13 @@ pub trait PyMappingProxyMethods<'py, 'a>: crate::sealed::Sealed {
     /// Checks if the mappingproxy is empty, i.e. `len(self) == 0`.
     fn is_empty(&self) -> PyResult<bool>;
 
-    /// Returns a sequence containing all keys in the mapping.
+    /// Returns a list containing all keys in the mapping.
     fn keys(&self) -> PyResult<Bound<'py, PyList>>;
 
-    /// Returns a sequence containing all values in the mapping.
+    /// Returns a list containing all values in the mapping.
     fn values(&self) -> PyResult<Bound<'py, PyList>>;
 
-    /// Returns a sequence of tuples of all (key, value) pairs in the mapping.
+    /// Returns a list of tuples of all (key, value) pairs in the mapping.
     fn items(&self) -> PyResult<Bound<'py, PyList>>;
 
     /// Returns `self` cast as a `PyMapping`.
