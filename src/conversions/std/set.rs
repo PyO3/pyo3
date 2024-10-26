@@ -75,6 +75,7 @@ where
 impl<'a, 'py, K, H> IntoPyObject<'py> for &'a collections::HashSet<K, H>
 where
     &'a K: IntoPyObject<'py> + Eq + hash::Hash,
+    K: 'a, // MSRV
     H: hash::BuildHasher,
 {
     type Target = PySet;
@@ -147,6 +148,7 @@ where
 impl<'a, 'py, K> IntoPyObject<'py> for &'a collections::BTreeSet<K>
 where
     &'a K: IntoPyObject<'py> + cmp::Ord,
+    K: 'a,
 {
     type Target = PySet;
     type Output = Bound<'py, Self::Target>;

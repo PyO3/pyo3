@@ -85,6 +85,8 @@ impl<'a, 'py, K, V, H> IntoPyObject<'py> for &'a collections::HashMap<K, V, H>
 where
     &'a K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
     &'a V: IntoPyObject<'py>,
+    K: 'a, // MSRV
+    V: 'a, // MSRV
     H: hash::BuildHasher,
 {
     type Target = PyDict;
@@ -146,6 +148,8 @@ impl<'a, 'py, K, V> IntoPyObject<'py> for &'a collections::BTreeMap<K, V>
 where
     &'a K: IntoPyObject<'py> + cmp::Eq,
     &'a V: IntoPyObject<'py>,
+    K: 'a,
+    V: 'a,
 {
     type Target = PyDict;
     type Output = Bound<'py, Self::Target>;
