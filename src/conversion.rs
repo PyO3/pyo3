@@ -1,11 +1,10 @@
 //! Defines conversions between Rust and Python types.
 use crate::err::PyResult;
-use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
-use crate::types::{PyDict, PyString, PyTuple};
+use crate::types::PyTuple;
 use crate::{
     ffi, Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyErr, PyObject, PyRef, PyRefMut, Python,
 };
@@ -165,105 +164,6 @@ pub trait ToPyObject {
 pub trait IntoPy<T>: Sized {
     /// Performs the conversion.
     fn into_py(self, py: Python<'_>) -> T;
-
-    /// Extracts the type hint information for this type when it appears as a return value.
-    ///
-    /// For example, `Vec<u32>` would return `List[int]`.
-    /// The default implementation returns `Any`, which is correct for any type.
-    ///
-    /// For most types, the return value for this method will be identical to that of [`FromPyObject::type_input`].
-    /// It may be different for some types, such as `Dict`, to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::Any
-    }
-
-    // The following methods are helpers to use the vectorcall API where possible.
-    // They are overridden on tuples to perform a vectorcall.
-    // Be careful when you're implementing these: they can never refer to `Bound` call methods,
-    // as those refer to these methods, so this will create an infinite recursion.
-    #[doc(hidden)]
-    #[inline]
-    fn __py_call_vectorcall1<'py>(
-        self,
-        py: Python<'py>,
-        function: Borrowed<'_, 'py, PyAny>,
-        _: private::Token,
-    ) -> PyResult<Bound<'py, PyAny>>
-    where
-        Self: IntoPy<Py<PyTuple>>,
-    {
-        #[inline]
-        fn inner<'py>(
-            py: Python<'py>,
-            function: Borrowed<'_, 'py, PyAny>,
-            args: Bound<'py, PyTuple>,
-        ) -> PyResult<Bound<'py, PyAny>> {
-            unsafe {
-                ffi::PyObject_Call(function.as_ptr(), args.as_ptr(), std::ptr::null_mut())
-                    .assume_owned_or_err(py)
-            }
-        }
-        inner(
-            py,
-            function,
-            <Self as IntoPy<Py<PyTuple>>>::into_py(self, py).into_bound(py),
-        )
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn __py_call_vectorcall<'py>(
-        self,
-        py: Python<'py>,
-        function: Borrowed<'_, 'py, PyAny>,
-        kwargs: Option<Borrowed<'_, '_, PyDict>>,
-        _: private::Token,
-    ) -> PyResult<Bound<'py, PyAny>>
-    where
-        Self: IntoPy<Py<PyTuple>>,
-    {
-        #[inline]
-        fn inner<'py>(
-            py: Python<'py>,
-            function: Borrowed<'_, 'py, PyAny>,
-            args: Bound<'py, PyTuple>,
-            kwargs: Option<Borrowed<'_, '_, PyDict>>,
-        ) -> PyResult<Bound<'py, PyAny>> {
-            unsafe {
-                ffi::PyObject_Call(
-                    function.as_ptr(),
-                    args.as_ptr(),
-                    kwargs.map_or_else(std::ptr::null_mut, |kwargs| kwargs.as_ptr()),
-                )
-                .assume_owned_or_err(py)
-            }
-        }
-        inner(
-            py,
-            function,
-            <Self as IntoPy<Py<PyTuple>>>::into_py(self, py).into_bound(py),
-            kwargs,
-        )
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn __py_call_method_vectorcall1<'py>(
-        self,
-        _py: Python<'py>,
-        object: Borrowed<'_, 'py, PyAny>,
-        method_name: Borrowed<'_, 'py, PyString>,
-        _: private::Token,
-    ) -> PyResult<Bound<'py, PyAny>>
-    where
-        Self: IntoPy<Py<PyTuple>>,
-    {
-        // Don't `self.into_py()`! This will lose the optimization of vectorcall.
-        object
-            .getattr(method_name)
-            .and_then(|method| method.call1(self))
-    }
 }
 
 /// Defines a conversion from a Rust type to a Python object, which may fail.
@@ -292,6 +192,18 @@ pub trait IntoPyObject<'py>: Sized {
 
     /// Performs the conversion.
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error>;
+
+    /// Extracts the type hint information for this type when it appears as a return value.
+    ///
+    /// For example, `Vec<u32>` would return `List[int]`.
+    /// The default implementation returns `Any`, which is correct for any type.
+    ///
+    /// For most types, the return value for this method will be identical to that of [`FromPyObject::type_input`].
+    /// It may be different for some types, such as `Dict`, to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::Any
+    }
 
     /// Converts sequence of Self into a Python object. Used to specialize `Vec<u8>`, `[u8; N]`
     /// and `SmallVec<[u8; N]>` as a sequence of bytes into a `bytes` object.
@@ -467,8 +379,9 @@ pub trait FromPyObject<'py>: Sized {
     /// For example, `Vec<u32>` would return `Sequence[int]`.
     /// The default implementation returns `Any`, which is correct for any type.
     ///
-    /// For most types, the return value for this method will be identical to that of [`IntoPy::type_output`].
-    /// It may be different for some types, such as `Dict`, to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
+    /// For most types, the return value for this method will be identical to that of
+    /// [`IntoPyObject::type_output`]. It may be different for some types, such as `Dict`,
+    /// to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
     #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         TypeInfo::Any
@@ -528,8 +441,9 @@ pub trait FromPyObjectBound<'a, 'py>: Sized + from_py_object_bound_sealed::Seale
     /// For example, `Vec<u32>` would return `Sequence[int]`.
     /// The default implementation returns `Any`, which is correct for any type.
     ///
-    /// For most types, the return value for this method will be identical to that of [`IntoPy::type_output`].
-    /// It may be different for some types, such as `Dict`, to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
+    /// For most types, the return value for this method will be identical to that of
+    /// [`IntoPyObject::type_output`]. It may be different for some types, such as `Dict`,
+    /// to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
     #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         TypeInfo::Any
@@ -592,52 +506,6 @@ where
 impl IntoPy<Py<PyTuple>> for () {
     fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
         PyTuple::empty(py).unbind()
-    }
-
-    #[inline]
-    fn __py_call_vectorcall1<'py>(
-        self,
-        py: Python<'py>,
-        function: Borrowed<'_, 'py, PyAny>,
-        _: private::Token,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        unsafe { ffi::compat::PyObject_CallNoArgs(function.as_ptr()).assume_owned_or_err(py) }
-    }
-
-    #[inline]
-    fn __py_call_vectorcall<'py>(
-        self,
-        py: Python<'py>,
-        function: Borrowed<'_, 'py, PyAny>,
-        kwargs: Option<Borrowed<'_, '_, PyDict>>,
-        _: private::Token,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        unsafe {
-            match kwargs {
-                Some(kwargs) => ffi::PyObject_Call(
-                    function.as_ptr(),
-                    PyTuple::empty(py).as_ptr(),
-                    kwargs.as_ptr(),
-                )
-                .assume_owned_or_err(py),
-                None => ffi::compat::PyObject_CallNoArgs(function.as_ptr()).assume_owned_or_err(py),
-            }
-        }
-    }
-
-    #[inline]
-    #[allow(clippy::used_underscore_binding)]
-    fn __py_call_method_vectorcall1<'py>(
-        self,
-        py: Python<'py>,
-        object: Borrowed<'_, 'py, PyAny>,
-        method_name: Borrowed<'_, 'py, PyString>,
-        _: private::Token,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        unsafe {
-            ffi::compat::PyObject_CallMethodNoArgs(object.as_ptr(), method_name.as_ptr())
-                .assume_owned_or_err(py)
-        }
     }
 }
 

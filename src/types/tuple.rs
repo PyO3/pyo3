@@ -1,15 +1,13 @@
 use std::iter::FusedIterator;
 
-use crate::conversion::{private, IntoPyObject};
+use crate::conversion::IntoPyObject;
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
-use crate::types::{
-    any::PyAnyMethods, sequence::PySequenceMethods, PyDict, PyList, PySequence, PyString,
-};
+use crate::types::{any::PyAnyMethods, sequence::PySequenceMethods, PyList, PySequence};
 #[allow(deprecated)]
 use crate::ToPyObject;
 use crate::{
@@ -531,11 +529,6 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn into_py(self, py: Python<'_>) -> PyObject {
             array_into_tuple(py, [$(self.$n.into_py(py)),+]).into()
         }
-
-        #[cfg(feature = "experimental-inspect")]
-        fn type_output() -> TypeInfo {
-            TypeInfo::Tuple(Some(vec![$( $T::type_output() ),+]))
-        }
     }
 
     impl <'py, $($T),+> IntoPyObject<'py> for ($($T,)+)
@@ -549,11 +542,17 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
             Ok(array_into_tuple(py, [$(self.$n.into_pyobject(py).map_err(Into::into)?.into_any().unbind()),+]).into_bound(py))
         }
+
+        #[cfg(feature = "experimental-inspect")]
+        fn type_output() -> TypeInfo {
+            TypeInfo::Tuple(Some(vec![$( $T::type_output() ),+]))
+        }
     }
 
     impl <'a, 'py, $($T),+> IntoPyObject<'py> for &'a ($($T,)+)
     where
         $(&'a $T: IntoPyObject<'py>,)+
+        $($T: 'a,)+ // MSRV
     {
         type Target = PyTuple;
         type Output = Bound<'py, Self::Target>;
@@ -562,119 +561,16 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
             Ok(array_into_tuple(py, [$(self.$n.into_pyobject(py).map_err(Into::into)?.into_any().unbind()),+]).into_bound(py))
         }
+
+        #[cfg(feature = "experimental-inspect")]
+        fn type_output() -> TypeInfo {
+            TypeInfo::Tuple(Some(vec![$( <&$T>::type_output() ),+]))
+        }
     }
 
     impl <$($T: IntoPy<PyObject>),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
         fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
             array_into_tuple(py, [$(self.$n.into_py(py)),+])
-        }
-
-        #[cfg(feature = "experimental-inspect")]
-        fn type_output() -> TypeInfo {
-            TypeInfo::Tuple(Some(vec![$( $T::type_output() ),+]))
-        }
-
-        #[inline]
-        fn __py_call_vectorcall1<'py>(
-            self,
-            py: Python<'py>,
-            function: Borrowed<'_, 'py, PyAny>,
-            _: private::Token,
-        ) -> PyResult<Bound<'py, PyAny>> {
-            cfg_if::cfg_if! {
-                if #[cfg(all(Py_3_9, not(any(PyPy, GraalPy, Py_LIMITED_API))))] {
-                    // We need this to drop the arguments correctly.
-                    let args_bound = [$(self.$n.into_py(py).into_bound(py),)*];
-                    if $length == 1 {
-                        unsafe {
-                            ffi::PyObject_CallOneArg(function.as_ptr(), args_bound[0].as_ptr()).assume_owned_or_err(py)
-                        }
-                    } else {
-                        // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
-                        let mut args = [std::ptr::null_mut(), $(args_bound[$n].as_ptr()),*];
-                        unsafe {
-                            ffi::PyObject_Vectorcall(
-                                function.as_ptr(),
-                                args.as_mut_ptr().add(1),
-                                $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
-                                std::ptr::null_mut(),
-                            )
-                            .assume_owned_or_err(py)
-                        }
-                    }
-                } else {
-                    function.call1(<Self as IntoPy<Py<PyTuple>>>::into_py(self, py).into_bound(py))
-                }
-            }
-        }
-
-        #[inline]
-        fn __py_call_vectorcall<'py>(
-            self,
-            py: Python<'py>,
-            function: Borrowed<'_, 'py, PyAny>,
-            kwargs: Option<Borrowed<'_, '_, PyDict>>,
-            _: private::Token,
-        ) -> PyResult<Bound<'py, PyAny>> {
-            cfg_if::cfg_if! {
-                if #[cfg(all(Py_3_9, not(any(PyPy, GraalPy, Py_LIMITED_API))))] {
-                    // We need this to drop the arguments correctly.
-                    let args_bound = [$(self.$n.into_py(py).into_bound(py),)*];
-                    // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
-                    let mut args = [std::ptr::null_mut(), $(args_bound[$n].as_ptr()),*];
-                    unsafe {
-                        ffi::PyObject_VectorcallDict(
-                            function.as_ptr(),
-                            args.as_mut_ptr().add(1),
-                            $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
-                            kwargs.map_or_else(std::ptr::null_mut, |kwargs| kwargs.as_ptr()),
-                        )
-                        .assume_owned_or_err(py)
-                    }
-                } else {
-                    function.call(<Self as IntoPy<Py<PyTuple>>>::into_py(self, py).into_bound(py), kwargs.as_deref())
-                }
-            }
-        }
-
-        #[inline]
-        fn __py_call_method_vectorcall1<'py>(
-            self,
-            py: Python<'py>,
-            object: Borrowed<'_, 'py, PyAny>,
-            method_name: Borrowed<'_, 'py, PyString>,
-            _: private::Token,
-        ) -> PyResult<Bound<'py, PyAny>> {
-            cfg_if::cfg_if! {
-                if #[cfg(all(Py_3_9, not(any(PyPy, GraalPy, Py_LIMITED_API))))] {
-                    // We need this to drop the arguments correctly.
-                    let args_bound = [$(self.$n.into_py(py).into_bound(py),)*];
-                    if $length == 1 {
-                        unsafe {
-                            ffi::PyObject_CallMethodOneArg(
-                                    object.as_ptr(),
-                                    method_name.as_ptr(),
-                                    args_bound[0].as_ptr(),
-                            )
-                            .assume_owned_or_err(py)
-                        }
-                    } else {
-                        let mut args = [object.as_ptr(), $(args_bound[$n].as_ptr()),*];
-                        unsafe {
-                            ffi::PyObject_VectorcallMethod(
-                                method_name.as_ptr(),
-                                args.as_mut_ptr(),
-                                // +1 for the receiver.
-                                1 + $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
-                                std::ptr::null_mut(),
-                            )
-                            .assume_owned_or_err(py)
-                        }
-                    }
-                } else {
-                    object.call_method1(method_name, <Self as IntoPy<Py<PyTuple>>>::into_py(self, py).into_bound(py))
-                }
-            }
         }
     }
 

@@ -277,6 +277,7 @@ mod test {
 
     use crate::inspect::types::{ModuleName, TypeInfo};
 
+    #[track_caller]
     pub fn assert_display(t: &TypeInfo, expected: &str) {
         assert_eq!(format!("{}", t), expected)
     }
@@ -405,7 +406,7 @@ mod conversion {
     use std::collections::{HashMap, HashSet};
 
     use crate::inspect::types::test::assert_display;
-    use crate::{FromPyObject, IntoPy};
+    use crate::{FromPyObject, IntoPyObject};
 
     #[test]
     fn unsigned_int() {
@@ -463,7 +464,8 @@ mod conversion {
         assert_display(&String::type_output(), "str");
         assert_display(&String::type_input(), "str");
 
-        assert_display(&<&[u8]>::type_output(), "bytes");
+        assert_display(&<&[u8]>::type_output(), "Union[bytes, List[int]]");
+        assert_display(&<&[String]>::type_output(), "Union[bytes, List[str]]");
         assert_display(
             &<&[u8] as crate::conversion::FromPyObjectBound>::type_input(),
             "bytes",

@@ -439,4 +439,14 @@ impl Clear {
 struct Dummy2;
 
 #[crate::pymethods(crate = "crate")]
-impl Dummy2 {}
+impl Dummy2 {
+    #[classmethod]
+    fn __len__(cls: &crate::Bound<'_, crate::types::PyType>) -> crate::PyResult<usize> {
+        ::std::result::Result::Ok(0)
+    }
+
+    #[staticmethod]
+    fn __repr__() -> &'static str {
+        "Dummy"
+    }
+}

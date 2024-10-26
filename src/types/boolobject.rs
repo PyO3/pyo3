@@ -160,11 +160,6 @@ impl IntoPy<PyObject> for bool {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::builtin("bool")
-    }
 }
 
 impl<'py> IntoPyObject<'py> for bool {
@@ -176,6 +171,11 @@ impl<'py> IntoPyObject<'py> for bool {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyBool::new(py, self))
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::builtin("bool")
+    }
 }
 
 impl<'py> IntoPyObject<'py> for &bool {
@@ -186,6 +186,11 @@ impl<'py> IntoPyObject<'py> for &bool {
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::builtin("bool")
     }
 }
 

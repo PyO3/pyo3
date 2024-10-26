@@ -489,7 +489,117 @@ If the input is neither a string nor an integer, the error message will be:
     - the argument must be the name of the function as a string.
     - the function signature must be `fn(&Bound<PyAny>) -> PyResult<T>` where `T` is the Rust type of the argument.
 
+### `IntoPyObject`
+This trait defines the to-python conversion for a Rust type. All types in PyO3 implement this trait,
+as does a `#[pyclass]` which doesn't use `extends`.
+
+Occasionally you may choose to implement this for custom types which are mapped to Python types
+_without_ having a unique python type.
+
+#### derive macro
+
+`IntoPyObject` can be implemented using our derive macro. Both `struct`s and `enum`s are supported.
+
+`struct`s will turn into a `PyDict` using the field names as keys, tuple `struct`s will turn convert
+into `PyTuple` with the fields in declaration order.
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+# use std::collections::HashMap;
+# use std::hash::Hash;
+
+// structs convert into `PyDict` with field names as keys
+#[derive(IntoPyObject)]
+struct Struct { 
+    count: usize,
+    obj: Py<PyAny>,
+}
+
+// tuple structs convert into `PyTuple`
+// lifetimes and generics are supported, the impl will be bounded by
+// `K: IntoPyObject, V: IntoPyObject`
+#[derive(IntoPyObject)]
+struct Tuple<'a, K: Hash + Eq, V>(&'a str, HashMap<K, V>);
+```
+
+For structs with a single field (newtype pattern) the `#[pyo3(transparent)]` option can be used to
+forward the implementation to the inner type.
+
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+
+// newtype tuple structs are implicitly `transparent`
+#[derive(IntoPyObject)]
+struct TransparentTuple(PyObject); 
+
+#[derive(IntoPyObject)]
+#[pyo3(transparent)]
+struct TransparentStruct<'py> { 
+    inner: Bound<'py, PyAny>, // `'py` lifetime will be used as the Python lifetime
+}
+```
+
+For `enum`s each variant is converted according to the rules for `struct`s above.
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+# use std::collections::HashMap;
+# use std::hash::Hash;
+
+#[derive(IntoPyObject)]
+enum Enum<'a, 'py, K: Hash + Eq, V> { // enums are supported and convert using the same
+    TransparentTuple(PyObject),       // rules on the variants as the structs above
+    #[pyo3(transparent)]
+    TransparentStruct { inner: Bound<'py, PyAny> },
+    Tuple(&'a str, HashMap<K, V>),
+    Struct { count: usize, obj: Py<PyAny> }
+}
+```
+
+#### manual implementation
+
+If the derive macro is not suitable for your use case, `IntoPyObject` can be implemented manually as
+demonstrated below.
+
+```rust
+# use pyo3::prelude::*;
+# #[allow(dead_code)]
+struct MyPyObjectWrapper(PyObject);
+
+impl<'py> IntoPyObject<'py> for MyPyObjectWrapper {
+    type Target = PyAny; // the Python type
+    type Output = Bound<'py, Self::Target>; // in most cases this will be `Bound`
+    type Error = std::convert::Infallible; // the conversion error type, has to be convertable to `PyErr`
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self.0.into_bound(py))
+    }
+}
+
+// equivalent to former `ToPyObject` implementations 
+impl<'a, 'py> IntoPyObject<'py> for &'a MyPyObjectWrapper {
+    type Target = PyAny;
+    type Output = Borrowed<'a, 'py, Self::Target>; // `Borrowed` can be used to optimized reference counting
+    type Error = std::convert::Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self.0.bind_borrowed(py))
+    }
+}
+```
+
 ### `IntoPy<T>`
+
+<div class="warning">
+
+⚠️ Warning: API update in progress 🛠️
+
+PyO3 0.23 has introduced `IntoPyObject` as the new trait for to-python conversions. While `#[pymethods]` and `#[pyfunction]` contain a compatibility layer to allow `IntoPy<PyObject>` as a return type, all Python API have been migrated to use `IntoPyObject`. To migrate implement `IntoPyObject` for your type.
+</div>
+
 
 This trait defines the to-python conversion for a Rust type. It is usually implemented as
 `IntoPy<PyObject>`, which is the trait needed for returning a value from `#[pyfunction]` and
@@ -513,6 +623,14 @@ impl IntoPy<PyObject> for MyPyObjectWrapper {
 ```
 
 ### The `ToPyObject` trait
+
+<div class="warning">
+
+⚠️ Warning: API update in progress 🛠️
+
+PyO3 0.23 has introduced `IntoPyObject` as the new trait for to-python conversions. To migrate
+implement `IntoPyObject` on a referece of your type (`impl<'py> IntoPyObject<'py> for &Type { ... }`).
+</div>
 
 [`ToPyObject`] is a conversion trait that allows various objects to be
 converted into [`PyObject`]. `IntoPy<PyObject>` serves the
