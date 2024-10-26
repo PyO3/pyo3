@@ -166,14 +166,14 @@ macro_rules! pyobject_type_info_type_hint(
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_info(
-    ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+    ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr, $module:expr, $layout:path $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         // SAFETY: macro caller has upheld the safety contracts
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
             const NAME: &'static str = stringify!($name);
             const MODULE: ::std::option::Option<&'static str> = $module;
             $crate::pyobject_type_info_type_hint!($type_hint_module, $type_hint_name);
 
-            type Layout<T: $crate::impl_::pyclass::PyClassImpl> = $crate::impl_::pycell::PyStaticClassObject<T>;
+            type Layout<T: $crate::impl_::pyclass::PyClassImpl> = $layout;
 
             #[inline]
             #[allow(clippy::redundant_closure_call)]
@@ -206,12 +206,15 @@ macro_rules! pyobject_native_type_info(
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_core {
-    ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+    ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr, #module=$module:expr, #layout=$layout:path $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_named!($name $(;$generics)*);
-        $crate::pyobject_native_type_info!($name, $typeobject, $type_hint_module, $type_hint_name, $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
+        $crate::pyobject_native_type_info!($name, $typeobject, $type_hint_module, $type_hint_name, $module, $layout $(, #checkfunction=$checkfunction)? $(;$generics)*);
+    };
+    ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_core!($name, $typeobject, $type_hint_module, $type_hint_name, #module=$module, #layout=$crate::impl_::pycell::PyStaticClassObject<T> $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
     ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_core!($name, $typeobject, $type_hint_module, $type_hint_name, #module=::std::option::Option::Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
+        $crate::pyobject_native_type_core!($name, $typeobject, $type_hint_module, $type_hint_name, #module=::std::option::Option::Some("builtins"), #layout=$crate::impl_::pycell::PyStaticClassObject<T> $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
 }
 
