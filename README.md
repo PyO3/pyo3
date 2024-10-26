@@ -220,6 +220,7 @@ about this topic.
     - Quite easy to follow as there's not much code.
 - [pyre](https://github.com/Project-Dream-Weaver/pyre-http) _Fast Python HTTP server written in Rust._
 - [primp](https://github.com/deedy5/primp) _The fastest python HTTP client that can impersonate web browsers by mimicking their headers and TLS/JA3/JA4/HTTP2 fingerprints._
+- [rateslib](https://github.com/attack68/rateslib) _A fixed income library for Python using Rust extensions._
 - [ril-py](https://github.com/Cryptex-github/ril-py) _A performant and high-level image processing library for Python written in Rust._
 - [river](https://github.com/online-ml/river) _Online machine learning in python, the computationally heavy statistics algorithms are implemented in Rust._
 - [robyn](https://github.com/sparckles/Robyn) A Super Fast Async Python Web Framework with a Rust runtime.
