@@ -1,6 +1,7 @@
 use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout as _};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
+use crate::pycell::impl_::InternalPyClassObjectLayout as _;
 use crate::pycell::PyBorrowMutError;
 use crate::pycell::{impl_::PyClassBorrowChecker, PyBorrowError};
 use crate::pyclass::boolean_struct::False;

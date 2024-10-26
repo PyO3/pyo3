@@ -8,7 +8,7 @@ use crate::{
         pyclass_init::PyObjectInit,
         pymethods::{PyGetterDef, PyMethodDefType},
     },
-    pycell::PyBorrowError,
+    pycell::{impl_::InternalPyClassObjectLayout, PyBorrowError},
     types::{any::PyAnyMethods, PyBool},
     Borrowed, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult,
     PyTypeCheck, PyTypeInfo, Python,
@@ -1171,8 +1171,10 @@ pub(crate) unsafe extern "C" fn assign_sequence_item_from_mapping(
 pub enum PyObjectOffset {
     /// An offset relative to the start of the object
     Absolute(ffi::Py_ssize_t),
-    /// An offset relative to the start of the subclass-specific data. Only allowed when basicsize is negative.
+    /// An offset relative to the start of the subclass-specific data.
+    /// Only allowed when basicsize is negative (which is only allowed for python >=3.12).
     /// <https://docs.python.org/3.12/c-api/structures.html#c.Py_RELATIVE_OFFSET>
+    #[cfg(Py_3_12)]
     Relative(ffi::Py_ssize_t),
 }
 
@@ -1180,6 +1182,7 @@ impl PyObjectOffset {
     pub fn to_value_and_is_relative(&self) -> (ffi::Py_ssize_t, bool) {
         match self {
             PyObjectOffset::Absolute(offset) => (*offset, false),
+            #[cfg(Py_3_12)]
             PyObjectOffset::Relative(offset) => (*offset, true),
         }
     }
@@ -1195,6 +1198,7 @@ impl std::ops::Add<usize> for PyObjectOffset {
 
         match self {
             PyObjectOffset::Absolute(offset) => PyObjectOffset::Absolute(offset + rhs),
+            #[cfg(Py_3_12)]
             PyObjectOffset::Relative(offset) => PyObjectOffset::Relative(offset + rhs),
         }
     }
@@ -1263,7 +1267,7 @@ impl<
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         use crate::pyclass::boolean_struct::private::Boolean;
         if ClassT::Frozen::VALUE {
-            let (offset, flags) = match <PyClassObject<ClassT>>::contents_offset() {
+            let (offset, flags) = match <PyClassObject<ClassT>>::CONTENTS_OFFSET {
                 PyObjectOffset::Absolute(offset) => (offset, ffi::Py_READONLY),
                 PyObjectOffset::Relative(offset) => {
                     (offset, ffi::Py_READONLY | ffi::Py_RELATIVE_OFFSET)
@@ -1372,7 +1376,7 @@ where
 
     // SAFETY: `obj` is a valid pointer to `ClassT`
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
-    let contents_offset = match <PyClassObject<ClassT>>::contents_offset() {
+    let contents_offset = match <PyClassObject<ClassT>>::CONTENTS_OFFSET {
         PyObjectOffset::Absolute(offset) => offset as usize,
         PyObjectOffset::Relative(_) => todo!(),
     };
@@ -1414,7 +1418,7 @@ where
 
     // SAFETY: `obj` is a valid pointer to `ClassT`
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
-    let contents_offset = match <PyClassObject<ClassT>>::contents_offset() {
+    let contents_offset = match <PyClassObject<ClassT>>::CONTENTS_OFFSET {
         PyObjectOffset::Absolute(offset) => offset as usize,
         PyObjectOffset::Relative(_) => todo!(),
     };
@@ -1599,7 +1603,7 @@ mod tests {
         // SAFETY: def.doc originated from a CStr
         assert_eq!(unsafe { CStr::from_ptr(def.doc) }, c"My field doc");
         assert_eq!(def.type_code, ffi::Py_T_OBJECT_EX);
-        let PyObjectOffset::Absolute(contents_offset) = <PyClassObject<MyClass>>::contents_offset()
+        let PyObjectOffset::Absolute(contents_offset) = <PyClassObject<MyClass>>::CONTENTS_OFFSET
         else {
             panic!()
         };
