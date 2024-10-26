@@ -4,7 +4,7 @@ use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::panic::PanicTrap;
 use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout};
 use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
-use crate::pycell::impl_::PyClassBorrowChecker as _;
+use crate::pycell::impl_::{InternalPyClassObjectLayout, PyClassBorrowChecker as _};
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;

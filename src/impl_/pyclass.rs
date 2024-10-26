@@ -8,7 +8,7 @@ use crate::{
         pyclass_init::PyObjectInit,
         pymethods::{PyGetterDef, PyMethodDefType},
     },
-    pycell::PyBorrowError,
+    pycell::{impl_::InternalPyClassObjectLayout, PyBorrowError},
     types::{any::PyAnyMethods, PyBool},
     Borrowed, BoundObject, Py, PyAny, PyClass, PyErr, PyRef, PyResult, PyTypeInfo, Python,
 };
@@ -1189,8 +1189,10 @@ pub(crate) unsafe extern "C" fn assign_sequence_item_from_mapping(
 pub enum PyObjectOffset {
     /// An offset relative to the start of the object
     Absolute(ffi::Py_ssize_t),
-    /// An offset relative to the start of the subclass-specific data. Only allowed when basicsize is negative.
+    /// An offset relative to the start of the subclass-specific data.
+    /// Only allowed when basicsize is negative (which is only allowed for python >=3.12).
     /// <https://docs.python.org/3.12/c-api/structures.html#c.Py_RELATIVE_OFFSET>
+    #[cfg(Py_3_12)]
     Relative(ffi::Py_ssize_t),
 }
 
@@ -1198,6 +1200,7 @@ impl PyObjectOffset {
     pub fn to_value_and_is_relative(&self) -> (ffi::Py_ssize_t, bool) {
         match self {
             PyObjectOffset::Absolute(offset) => (*offset, false),
+            #[cfg(Py_3_12)]
             PyObjectOffset::Relative(offset) => (*offset, true),
         }
     }
@@ -1213,6 +1216,7 @@ impl std::ops::Add<usize> for PyObjectOffset {
 
         match self {
             PyObjectOffset::Absolute(offset) => PyObjectOffset::Absolute(offset + rhs),
+            #[cfg(Py_3_12)]
             PyObjectOffset::Relative(offset) => PyObjectOffset::Relative(offset + rhs),
         }
     }
