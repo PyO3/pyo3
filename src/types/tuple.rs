@@ -529,11 +529,6 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn into_py(self, py: Python<'_>) -> PyObject {
             array_into_tuple(py, [$(self.$n.into_py(py)),+]).into()
         }
-
-        #[cfg(feature = "experimental-inspect")]
-        fn type_output() -> TypeInfo {
-            TypeInfo::Tuple(Some(vec![$( $T::type_output() ),+]))
-        }
     }
 
     impl <'py, $($T),+> IntoPyObject<'py> for ($($T,)+)
@@ -547,11 +542,17 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
             Ok(array_into_tuple(py, [$(self.$n.into_pyobject(py).map_err(Into::into)?.into_any().unbind()),+]).into_bound(py))
         }
+
+        #[cfg(feature = "experimental-inspect")]
+        fn type_output() -> TypeInfo {
+            TypeInfo::Tuple(Some(vec![$( $T::type_output() ),+]))
+        }
     }
 
     impl <'a, 'py, $($T),+> IntoPyObject<'py> for &'a ($($T,)+)
     where
         $(&'a $T: IntoPyObject<'py>,)+
+        $($T: 'a,)+ // MSRV
     {
         type Target = PyTuple;
         type Output = Bound<'py, Self::Target>;
@@ -560,16 +561,16 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
             Ok(array_into_tuple(py, [$(self.$n.into_pyobject(py).map_err(Into::into)?.into_any().unbind()),+]).into_bound(py))
         }
+
+        #[cfg(feature = "experimental-inspect")]
+        fn type_output() -> TypeInfo {
+            TypeInfo::Tuple(Some(vec![$( <&$T>::type_output() ),+]))
+        }
     }
 
     impl <$($T: IntoPy<PyObject>),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
         fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
             array_into_tuple(py, [$(self.$n.into_py(py)),+])
-        }
-
-        #[cfg(feature = "experimental-inspect")]
-        fn type_output() -> TypeInfo {
-            TypeInfo::Tuple(Some(vec![$( $T::type_output() ),+]))
         }
     }
 

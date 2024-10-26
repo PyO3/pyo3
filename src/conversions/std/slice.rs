@@ -14,16 +14,12 @@ impl IntoPy<PyObject> for &[u8] {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyBytes::new(py, self).unbind().into()
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::builtin("bytes")
-    }
 }
 
 impl<'a, 'py, T> IntoPyObject<'py> for &'a [T]
 where
     &'a T: IntoPyObject<'py>,
+    T: 'a, // MSRV
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -37,6 +33,14 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         <&T>::borrowed_sequence_into_pyobject(self, py, crate::conversion::private::Token)
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::union_of(&[
+            TypeInfo::builtin("bytes"),
+            TypeInfo::list_of(<&T>::type_output()),
+        ])
+    }
 }
 
 impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a [u8] {
@@ -46,7 +50,7 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a [u8] {
 
     #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
-        Self::type_output()
+        TypeInfo::builtin("bytes")
     }
 }
 

@@ -26,22 +26,12 @@ impl IntoPy<PyObject> for &str {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        <String>::type_output()
-    }
 }
 
 impl IntoPy<Py<PyString>> for &str {
     #[inline]
     fn into_py(self, py: Python<'_>) -> Py<PyString> {
         self.into_pyobject(py).unwrap().unbind()
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        <String>::type_output()
     }
 }
 
@@ -54,6 +44,11 @@ impl<'py> IntoPyObject<'py> for &str {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyString::new(py, self))
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
+    }
 }
 
 impl<'py> IntoPyObject<'py> for &&str {
@@ -64,6 +59,11 @@ impl<'py> IntoPyObject<'py> for &&str {
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
     }
 }
 
@@ -82,11 +82,6 @@ impl IntoPy<PyObject> for Cow<'_, str> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        <String>::type_output()
-    }
 }
 
 impl<'py> IntoPyObject<'py> for Cow<'_, str> {
@@ -98,6 +93,11 @@ impl<'py> IntoPyObject<'py> for Cow<'_, str> {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
+    }
 }
 
 impl<'py> IntoPyObject<'py> for &Cow<'_, str> {
@@ -108,6 +108,11 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, str> {
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (&**self).into_pyobject(py)
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
     }
 }
 
@@ -134,11 +139,6 @@ impl IntoPy<PyObject> for char {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        <String>::type_output()
-    }
 }
 
 impl<'py> IntoPyObject<'py> for char {
@@ -149,6 +149,11 @@ impl<'py> IntoPyObject<'py> for char {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let mut bytes = [0u8; 4];
         Ok(PyString::new(py, self.encode_utf8(&mut bytes)))
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
     }
 }
 
@@ -161,17 +166,17 @@ impl<'py> IntoPyObject<'py> for &char {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
+    }
 }
 
 impl IntoPy<PyObject> for String {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::builtin("str")
     }
 }
 
@@ -183,17 +188,17 @@ impl<'py> IntoPyObject<'py> for String {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyString::new(py, &self))
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::builtin("str")
+    }
 }
 
 impl IntoPy<PyObject> for &String {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        <String>::type_output()
     }
 }
 
@@ -205,6 +210,11 @@ impl<'py> IntoPyObject<'py> for &String {
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyString::new(py, self))
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
     }
 }
 

@@ -55,11 +55,6 @@ where
         }
         dict.into_any().unbind()
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::dict_of(K::type_output(), V::type_output())
-    }
 }
 
 impl<'py, K, V, H> IntoPyObject<'py> for collections::HashMap<K, V, H>
@@ -79,12 +74,19 @@ where
         }
         Ok(dict)
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::dict_of(K::type_output(), V::type_output())
+    }
 }
 
 impl<'a, 'py, K, V, H> IntoPyObject<'py> for &'a collections::HashMap<K, V, H>
 where
     &'a K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
     &'a V: IntoPyObject<'py>,
+    K: 'a, // MSRV
+    V: 'a, // MSRV
     H: hash::BuildHasher,
 {
     type Target = PyDict;
@@ -97,6 +99,11 @@ where
             dict.set_item(k, v)?;
         }
         Ok(dict)
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::dict_of(<&K>::type_output(), <&V>::type_output())
     }
 }
 
@@ -111,11 +118,6 @@ where
             dict.set_item(k.into_py(py), v.into_py(py)).unwrap();
         }
         dict.into_any().unbind()
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::dict_of(K::type_output(), V::type_output())
     }
 }
 
@@ -135,12 +137,19 @@ where
         }
         Ok(dict)
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::dict_of(K::type_output(), V::type_output())
+    }
 }
 
 impl<'a, 'py, K, V> IntoPyObject<'py> for &'a collections::BTreeMap<K, V>
 where
     &'a K: IntoPyObject<'py> + cmp::Eq,
     &'a V: IntoPyObject<'py>,
+    K: 'a,
+    V: 'a,
 {
     type Target = PyDict;
     type Output = Bound<'py, Self::Target>;
@@ -152,6 +161,11 @@ where
             dict.set_item(k, v)?;
         }
         Ok(dict)
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::dict_of(<&K>::type_output(), <&V>::type_output())
     }
 }
 

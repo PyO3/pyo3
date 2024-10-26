@@ -37,11 +37,6 @@ where
         let list = new_from_iter(py, &mut iter);
         list.into()
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::list_of(T::type_output())
-    }
 }
 
 impl<'py, T> IntoPyObject<'py> for Vec<T>
@@ -60,11 +55,17 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         T::owned_sequence_into_pyobject(self, py, crate::conversion::private::Token)
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::list_of(T::type_output())
+    }
 }
 
 impl<'a, 'py, T> IntoPyObject<'py> for &'a Vec<T>
 where
     &'a T: IntoPyObject<'py>,
+    T: 'a, // MSRV
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -76,6 +77,11 @@ where
         // `&Vec<u8>`, but that'd be inconsistent with the `IntoPyObject` impl
         // above which always returns a `PyAny` for `Vec<T>`.
         self.as_slice().into_pyobject(py).map(Bound::into_any)
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::list_of(<&T>::type_output())
     }
 }
 

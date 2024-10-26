@@ -51,11 +51,6 @@ where
             .expect("Failed to create Python set from HashSet")
             .into()
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::set_of(K::type_output())
-    }
 }
 
 impl<'py, K, S> IntoPyObject<'py> for collections::HashSet<K, S>
@@ -70,11 +65,17 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         try_new_from_iter(py, self)
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::set_of(K::type_output())
+    }
 }
 
 impl<'a, 'py, K, H> IntoPyObject<'py> for &'a collections::HashSet<K, H>
 where
     &'a K: IntoPyObject<'py> + Eq + hash::Hash,
+    K: 'a, // MSRV
     H: hash::BuildHasher,
 {
     type Target = PySet;
@@ -83,6 +84,11 @@ where
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         try_new_from_iter(py, self.iter())
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::set_of(<&K>::type_output())
     }
 }
 
@@ -119,11 +125,6 @@ where
             .expect("Failed to create Python set from BTreeSet")
             .into()
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::set_of(K::type_output())
-    }
 }
 
 impl<'py, K> IntoPyObject<'py> for collections::BTreeSet<K>
@@ -137,11 +138,17 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         try_new_from_iter(py, self)
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::set_of(K::type_output())
+    }
 }
 
 impl<'a, 'py, K> IntoPyObject<'py> for &'a collections::BTreeSet<K>
 where
     &'a K: IntoPyObject<'py> + cmp::Ord,
+    K: 'a,
 {
     type Target = PySet;
     type Output = Bound<'py, Self::Target>;
@@ -149,6 +156,11 @@ where
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         try_new_from_iter(py, self.iter())
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::set_of(<&K>::type_output())
     }
 }
 
