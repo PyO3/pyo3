@@ -3,7 +3,7 @@
 use crate::call::PyCallArgs;
 use crate::conversion::IntoPyObject;
 use crate::err::{PyErr, PyResult};
-use crate::impl_::pycell::PyClassObject;
+use crate::impl_::pyclass::PyClassImpl;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 use crate::pycell::impl_::InternalPyClassObjectLayout;
@@ -754,7 +754,7 @@ where
     }
 
     #[inline]
-    pub(crate) fn get_class_object(&self) -> &PyClassObject<T> {
+    pub(crate) fn get_class_object(&self) -> &<T as PyClassImpl>::Layout {
         self.1.get_class_object()
     }
 }
@@ -1080,11 +1080,11 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
 impl<'a, T: PyClass> Borrowed<'a, '_, T> {
     /// Get a view on the underlying `PyClass` contents.
     #[inline]
-    pub(crate) fn get_class_object(self) -> &'a PyClassObject<T> {
+    pub(crate) fn get_class_object(self) -> &'a <T as PyClassImpl>::Layout {
         // Safety: Borrowed<'a, '_, T: PyClass> is known to contain an object
         // which is laid out in memory as a PyClassObject<T> and lives for at
         // least 'a.
-        unsafe { &*self.as_ptr().cast::<PyClassObject<T>>() }
+        unsafe { &*self.as_ptr().cast::<<T as PyClassImpl>::Layout>() }
     }
 }
 
@@ -1684,10 +1684,10 @@ where
 
     /// Get a view on the underlying `PyClass` contents.
     #[inline]
-    pub(crate) fn get_class_object(&self) -> &PyClassObject<T> {
-        let class_object = self.as_ptr().cast::<PyClassObject<T>>();
+    pub(crate) fn get_class_object(&self) -> &<T as PyClassImpl>::Layout {
+        let class_object = self.as_ptr().cast::<<T as PyClassImpl>::Layout>();
         // Safety: Bound<T: PyClass> is known to contain an object which is laid out in memory as a
-        // PyClassObject<T>.
+        // <T as PyClassImpl>::Layout object
         unsafe { &*class_object }
     }
 }

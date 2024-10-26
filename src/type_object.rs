@@ -1,8 +1,10 @@
 //! Python type object information
 
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::impl_::pyclass::PyClassImpl;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_identifier, PyStaticExpr};
+use crate::pycell::impl_::InternalPyClassObjectLayout;
 use crate::types::{PyAny, PyType};
 use crate::{ffi, Bound, Python};
 use std::ptr;
@@ -59,6 +61,9 @@ pub unsafe trait PyTypeInfo: Sized {
     /// Provides the full python type as a type hint.
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr = type_hint_identifier!("typing", "Any");
+
+    /// The type of object layout to use for ancestors or descendents of this type
+    type Layout<T: PyClassImpl>: InternalPyClassObjectLayout<T>;
 
     /// Returns the PyTypeObject instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;

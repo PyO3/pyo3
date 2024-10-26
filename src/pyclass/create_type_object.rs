@@ -7,7 +7,6 @@ use crate::{
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     impl_::{
-        pycell::PyClassObject,
         pyclass::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
             tp_dealloc_with_gc, PyClassImpl, PyClassItemsIter, PyObjectOffset,
@@ -108,7 +107,7 @@ where
             T::items_iter(),
             <T as PyClass>::NAME,
             <T as PyClassImpl>::MODULE,
-            PyClassObject::<T>::basicsize(),
+            <T as PyClassImpl>::Layout::basicsize(),
         )
     }
 }

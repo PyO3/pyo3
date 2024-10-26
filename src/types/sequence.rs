@@ -29,6 +29,9 @@ unsafe impl PyTypeInfo for PySequence {
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr = type_hint_identifier!("collections.abc", "Sequence");
 
+    type Layout<T: crate::impl_::pyclass::PyClassImpl> =
+        crate::impl_::pycell::PyStaticClassObject<T>;
+
     #[inline]
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject {
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();

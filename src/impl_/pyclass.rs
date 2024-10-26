@@ -35,13 +35,13 @@ pub use probes::*;
 /// Gets the offset of the dictionary from the start of the object in bytes.
 #[inline]
 pub fn dict_offset<T: PyClass>() -> PyObjectOffset {
-    PyClassObject::<T>::dict_offset()
+    <T as PyClassImpl>::Layout::dict_offset()
 }
 
 /// Gets the offset of the weakref list from the start of the object in bytes.
 #[inline]
 pub fn weaklist_offset<T: PyClass>() -> PyObjectOffset {
-    PyClassObject::<T>::weaklist_offset()
+    <T as PyClassImpl>::Layout::weaklist_offset()
 }
 
 mod sealed {
@@ -176,6 +176,9 @@ pub trait PyClassImpl: Sized + 'static {
 
     /// #[pyclass(immutable_type)]
     const IS_IMMUTABLE_TYPE: bool = false;
+
+    /// Description of how this class is laid out in memory
+    type Layout: InternalPyClassObjectLayout<Self>;
 
     /// Base class
     type BaseType: PyTypeInfo + PyClassBaseType;
@@ -889,8 +892,6 @@ macro_rules! generate_pyclass_richcompare_slot {
 }
 pub use generate_pyclass_richcompare_slot;
 
-use super::pycell::PyClassObject;
-
 /// Implements a freelist.
 ///
 /// Do not implement this trait manually. Instead, use `#[pyclass(freelist = N)]`
@@ -1121,7 +1122,7 @@ pub trait PyClassBaseType: Sized {
 
 /// Implementation of tp_dealloc for pyclasses without gc
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
-    unsafe { crate::impl_::trampoline::dealloc(obj, PyClassObject::<T>::tp_dealloc) }
+    unsafe { crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc) }
 }
 
 /// Implementation of tp_dealloc for pyclasses with gc
@@ -1130,7 +1131,7 @@ pub(crate) unsafe extern "C" fn tp_dealloc_with_gc<T: PyClass>(obj: *mut ffi::Py
     unsafe {
         ffi::PyObject_GC_UnTrack(obj.cast());
     }
-    unsafe { crate::impl_::trampoline::dealloc(obj, PyClassObject::<T>::tp_dealloc) }
+    unsafe { crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc) }
 }
 
 pub(crate) unsafe extern "C" fn get_sequence_item_from_mapping(
@@ -1166,7 +1167,7 @@ pub(crate) unsafe extern "C" fn assign_sequence_item_from_mapping(
     }
 }
 
-/// Offset of a field within a `PyClassObject<T>`, in bytes.
+/// Offset of a field within a PyObject in bytes.
 #[derive(Clone, Copy)]
 pub enum PyObjectOffset {
     /// An offset relative to the start of the object
@@ -1267,7 +1268,7 @@ impl<
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         use crate::pyclass::boolean_struct::private::Boolean;
         if ClassT::Frozen::VALUE {
-            let (offset, flags) = match <PyClassObject<ClassT>>::CONTENTS_OFFSET {
+            let (offset, flags) = match <ClassT as PyClassImpl>::Layout::CONTENTS_OFFSET {
                 PyObjectOffset::Absolute(offset) => (offset, ffi::Py_READONLY),
                 PyObjectOffset::Relative(offset) => {
                     (offset, ffi::Py_READONLY | ffi::Py_RELATIVE_OFFSET)
@@ -1376,7 +1377,7 @@ where
 
     // SAFETY: `obj` is a valid pointer to `ClassT`
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
-    let contents_offset = match <PyClassObject<ClassT>>::CONTENTS_OFFSET {
+    let contents_offset = match <ClassT as PyClassImpl>::Layout::CONTENTS_OFFSET {
         PyObjectOffset::Absolute(offset) => offset as usize,
         PyObjectOffset::Relative(_) => todo!(),
     };
@@ -1418,7 +1419,7 @@ where
 
     // SAFETY: `obj` is a valid pointer to `ClassT`
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
-    let contents_offset = match <PyClassObject<ClassT>>::CONTENTS_OFFSET {
+    let contents_offset = match <ClassT as PyClassImpl>::Layout::CONTENTS_OFFSET {
         PyObjectOffset::Absolute(offset) => offset as usize,
         PyObjectOffset::Relative(_) => todo!(),
     };
@@ -1603,7 +1604,8 @@ mod tests {
         // SAFETY: def.doc originated from a CStr
         assert_eq!(unsafe { CStr::from_ptr(def.doc) }, c"My field doc");
         assert_eq!(def.type_code, ffi::Py_T_OBJECT_EX);
-        let PyObjectOffset::Absolute(contents_offset) = <PyClassObject<MyClass>>::CONTENTS_OFFSET
+        let PyObjectOffset::Absolute(contents_offset) =
+            <MyClass as PyClassImpl>::Layout::CONTENTS_OFFSET
         else {
             panic!()
         };
