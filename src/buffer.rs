@@ -191,14 +191,14 @@ impl<T: Element> FromPyObject<'_> for PyBuffer<T> {
 impl<T: Element> PyBuffer<T> {
     /// Gets the underlying buffer from the specified python object.
     pub fn get(obj: &Bound<'_, PyAny>) -> PyResult<PyBuffer<T>> {
-        // TODO: use nightly API Box::new_uninit() once stable
+        // TODO: use nightly API Box::new_uninit() once our MSRV is 1.82
         let mut buf = Box::new(mem::MaybeUninit::uninit());
         let buf: Box<ffi::Py_buffer> = {
             err::error_on_minusone(obj.py(), unsafe {
                 ffi::PyObject_GetBuffer(obj.as_ptr(), buf.as_mut_ptr(), ffi::PyBUF_FULL_RO)
             })?;
             // Safety: buf is initialized by PyObject_GetBuffer.
-            // TODO: use nightly API Box::assume_init() once stable
+            // TODO: use nightly API Box::assume_init() once our MSRV is 1.82
             unsafe { mem::transmute(buf) }
         };
         // Create PyBuffer immediately so that if validation checks fail, the PyBuffer::drop code
