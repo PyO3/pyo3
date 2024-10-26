@@ -1,0 +1,127 @@
+error: cannot derive `IntoPyObject` for empty structs
+ --> tests/ui/invalid_intopy_derive.rs:4:11
+  |
+4 | struct Foo();
+  |           ^^
+
+error: cannot derive `IntoPyObject` for empty structs
+ --> tests/ui/invalid_intopy_derive.rs:7:13
+  |
+7 | struct Foo2 {}
+  |             ^^
+
+error: cannot derive `IntoPyObject` for empty enum
+  --> tests/ui/invalid_intopy_derive.rs:10:6
+   |
+10 | enum EmptyEnum {}
+   |      ^^^^^^^^^
+
+error: cannot derive `IntoPyObject` for empty variants
+  --> tests/ui/invalid_intopy_derive.rs:14:5
+   |
+14 |     EmptyTuple(),
+   |     ^^^^^^^^^^
+
+error: cannot derive `IntoPyObject` for empty variants
+  --> tests/ui/invalid_intopy_derive.rs:20:5
+   |
+20 |     EmptyStruct {},
+   |     ^^^^^^^^^^^
+
+error: cannot derive `IntoPyObject` for empty structs
+  --> tests/ui/invalid_intopy_derive.rs:26:27
+   |
+26 | struct EmptyTransparentTup();
+   |                           ^^
+
+error: cannot derive `IntoPyObject` for empty structs
+  --> tests/ui/invalid_intopy_derive.rs:30:31
+   |
+30 | struct EmptyTransparentStruct {}
+   |                               ^^
+
+error: cannot derive `IntoPyObject` for empty variants
+  --> tests/ui/invalid_intopy_derive.rs:35:5
+   |
+35 |     EmptyTuple(),
+   |     ^^^^^^^^^^
+
+error: cannot derive `IntoPyObject` for empty variants
+  --> tests/ui/invalid_intopy_derive.rs:42:5
+   |
+42 |     EmptyStruct {},
+   |     ^^^^^^^^^^^
+
+error: transparent structs and variants can only have 1 field
+  --> tests/ui/invalid_intopy_derive.rs:48:35
+   |
+48 | struct TransparentTupTooManyFields(String, String);
+   |                                   ^^^^^^^^^^^^^^^^
+
+error: transparent structs and variants can only have 1 field
+  --> tests/ui/invalid_intopy_derive.rs:52:39
+   |
+52 |   struct TransparentStructTooManyFields {
+   |  _______________________________________^
+53 | |     foo: String,
+54 | |     bar: String,
+55 | | }
+   | |_^
+
+error: transparent structs and variants can only have 1 field
+  --> tests/ui/invalid_intopy_derive.rs:60:15
+   |
+60 |     EmptyTuple(String, String),
+   |               ^^^^^^^^^^^^^^^^
+
+error: transparent structs and variants can only have 1 field
+  --> tests/ui/invalid_intopy_derive.rs:67:17
+   |
+67 |       EmptyStruct {
+   |  _________________^
+68 | |         foo: String,
+69 | |         bar: String,
+70 | |     },
+   | |_____^
+
+error: expected `transparent` or `crate`
+  --> tests/ui/invalid_intopy_derive.rs:75:8
+   |
+75 | #[pyo3(unknown = "should not work")]
+   |        ^^^^^^^
+
+error: #[derive(`IntoPyObject`)] is not supported for unions
+  --> tests/ui/invalid_intopy_derive.rs:81:1
+   |
+81 | union Union {
+   | ^^^^^
+
+error: cannot derive `IntoPyObject` for empty variants
+  --> tests/ui/invalid_intopy_derive.rs:87:5
+   |
+87 |     Unit,
+   |     ^^^^
+
+error: `attribute` is not supported by `IntoPyObject`
+  --> tests/ui/invalid_intopy_derive.rs:91:30
+   |
+91 | struct TupleAttribute(#[pyo3(attribute)] String, usize);
+   |                              ^^^^^^^^^
+
+error: `item` is not permitted on tuple struct elements.
+  --> tests/ui/invalid_intopy_derive.rs:94:25
+   |
+94 | struct TupleItem(#[pyo3(item)] String, usize);
+   |                         ^^^^
+
+error: `attribute` is not supported by `IntoPyObject`
+  --> tests/ui/invalid_intopy_derive.rs:98:12
+   |
+98 |     #[pyo3(attribute)]
+   |            ^^^^^^^^^
+
+error: `transparent` structs may not have `item` for the inner field
+   --> tests/ui/invalid_intopy_derive.rs:105:12
+    |
+105 |     #[pyo3(item)]
+    |            ^^^^

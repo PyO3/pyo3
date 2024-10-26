@@ -56,3 +56,39 @@ macro_rules! macro_rules_hygiene {
 }
 
 macro_rules_hygiene!(MyClass1, MyClass2);
+
+#[derive(crate::IntoPyObject)]
+#[pyo3(crate = "crate")]
+struct IntoPyObject1(i32); // transparent newtype case
+
+#[derive(crate::IntoPyObject)]
+#[pyo3(crate = "crate", transparent)]
+struct IntoPyObject2<'a> {
+    inner: &'a str, // transparent newtype case
+}
+
+#[derive(crate::IntoPyObject)]
+#[pyo3(crate = "crate")]
+struct IntoPyObject3<'py>(i32, crate::Bound<'py, crate::PyAny>); // tuple case
+
+#[derive(crate::IntoPyObject)]
+#[pyo3(crate = "crate")]
+struct IntoPyObject4<'a, 'py> {
+    callable: &'a crate::Bound<'py, crate::PyAny>, // struct case
+    num: usize,
+}
+
+#[derive(crate::IntoPyObject)]
+#[pyo3(crate = "crate")]
+enum IntoPyObject5<'a, 'py> {
+    TransparentTuple(i32),
+    #[pyo3(transparent)]
+    TransparentStruct {
+        f: crate::Py<crate::PyAny>,
+    },
+    Tuple(crate::Bound<'py, crate::types::PyString>, usize),
+    Struct {
+        f: i32,
+        g: &'a str,
+    },
+} // enum case
