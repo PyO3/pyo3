@@ -177,30 +177,30 @@ impl PyClassBorrowChecker for BorrowChecker {
 
 pub trait GetBorrowChecker<T: PyClassImpl> {
     fn borrow_checker(
-        class_object: &PyClassObject<T>,
+        class_object: &T::Layout,
     ) -> &<T::PyClassMutability as PyClassMutability>::Checker;
 }
 
 impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for MutableClass {
-    fn borrow_checker(class_object: &PyClassObject<T>) -> &BorrowChecker {
-        &class_object.contents.borrow_checker
+    fn borrow_checker(class_object: &T::Layout) -> &BorrowChecker {
+        &class_object.contents().borrow_checker
     }
 }
 
 impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for ImmutableClass {
-    fn borrow_checker(class_object: &PyClassObject<T>) -> &EmptySlot {
-        &class_object.contents.borrow_checker
+    fn borrow_checker(class_object: &T::Layout) -> &EmptySlot {
+        &class_object.contents().borrow_checker
     }
 }
 
 impl<T: PyClassImpl<PyClassMutability = Self>, M: PyClassMutability> GetBorrowChecker<T>
     for ExtendsMutableAncestor<M>
 where
-    T::BaseType: PyClassImpl + PyClassBaseType<LayoutAsBase = PyClassObject<T::BaseType>>,
+    T::BaseType: PyClassImpl + PyClassBaseType<LayoutAsBase = <T::BaseType as PyClassImpl>::Layout>,
     <T::BaseType as PyClassImpl>::PyClassMutability: PyClassMutability<Checker = BorrowChecker>,
 {
-    fn borrow_checker(class_object: &PyClassObject<T>) -> &BorrowChecker {
-        <<T::BaseType as PyClassImpl>::PyClassMutability as GetBorrowChecker<T::BaseType>>::borrow_checker(&class_object.ob_base)
+    fn borrow_checker(class_object: &T::Layout) -> &BorrowChecker {
+        <<T::BaseType as PyClassImpl>::PyClassMutability as GetBorrowChecker<T::BaseType>>::borrow_checker(class_object.ob_base())
     }
 }
 
@@ -211,7 +211,7 @@ pub struct PyClassObjectBase<T> {
     ob_base: T,
 }
 
-unsafe impl<T, U> PyLayout<T> for PyClassObjectBase<U> where U: PySizedLayout<T> {}
+unsafe impl<T, U> PyLayout<T> for PyClassObjectBase<U> where U: PyLayout<T> {}
 
 #[doc(hidden)]
 pub trait PyClassObjectLayout<T>: PyLayout<T> {
@@ -225,10 +225,13 @@ pub trait PyClassObjectLayout<T>: PyLayout<T> {
 }
 
 #[doc(hidden)]
-pub(crate) trait InternalPyClassObjectLayout<T: PyClassImpl>: PyLayout<T> {
+pub trait InternalPyClassObjectLayout<T: PyClassImpl>: PyClassObjectLayout<T> {
     fn get_ptr(&self) -> *mut T;
 
     fn contents(&self) -> &PyClassObjectContents<T>;
+    fn contents_mut(&mut self) -> &mut PyClassObjectContents<T>;
+
+    fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase;
 
     /// used to set PyType_Spec::basicsize
     /// https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize
@@ -248,7 +251,7 @@ pub(crate) trait InternalPyClassObjectLayout<T: PyClassImpl>: PyLayout<T> {
 
 impl<T, U> PyClassObjectLayout<T> for PyClassObjectBase<U>
 where
-    U: PySizedLayout<T>,
+    U: PyLayout<T>,
     T: PyTypeInfo,
 {
     fn ensure_threadsafe(&self) {}
@@ -297,8 +300,8 @@ where
 
 /// The layout of a PyClass as a Python object
 #[repr(C)]
-pub struct PyClassObject<T: PyClassImpl> {
-    pub(crate) ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
+pub struct PyStaticClassObject<T: PyClassImpl> {
+    ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
     contents: PyClassObjectContents<T>,
 }
 
@@ -311,13 +314,21 @@ pub(crate) struct PyClassObjectContents<T: PyClassImpl> {
     pub(crate) weakref: T::WeakRef,
 }
 
-impl<T: PyClassImpl> InternalPyClassObjectLayout<T> for PyClassObject<T> {
+impl<T: PyClassImpl> InternalPyClassObjectLayout<T> for PyStaticClassObject<T> {
     fn get_ptr(&self) -> *mut T {
         self.contents.value.get()
     }
 
+    fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase {
+        &self.ob_base
+    }
+
     fn contents(&self) -> &PyClassObjectContents<T> {
         &self.contents
+    }
+
+    fn contents_mut(&mut self) -> &mut PyClassObjectContents<T> {
+        &mut self.contents
     }
 
     /// used to set PyType_Spec::basicsize
@@ -332,7 +343,7 @@ impl<T: PyClassImpl> InternalPyClassObjectLayout<T> for PyClassObject<T> {
 
     /// Gets the offset of the contents from the start of the struct in bytes.
     fn contents_offset() -> PyObjectOffset {
-        let offset = memoffset::offset_of!(PyClassObject<T>, contents);
+        let offset = memoffset::offset_of!(PyStaticClassObject<T>, contents);
 
         // Py_ssize_t may not be equal to isize on all platforms
         #[allow(clippy::useless_conversion)]
@@ -343,8 +354,8 @@ impl<T: PyClassImpl> InternalPyClassObjectLayout<T> for PyClassObject<T> {
     fn dict_offset() -> PyObjectOffset {
         use memoffset::offset_of;
 
-        let offset =
-            offset_of!(PyClassObject<T>, contents) + offset_of!(PyClassObjectContents<T>, dict);
+        let offset = offset_of!(PyStaticClassObject<T>, contents)
+            + offset_of!(PyClassObjectContents<T>, dict);
 
         // Py_ssize_t may not be equal to isize on all platforms
         #[allow(clippy::useless_conversion)]
@@ -355,8 +366,8 @@ impl<T: PyClassImpl> InternalPyClassObjectLayout<T> for PyClassObject<T> {
     fn weaklist_offset() -> PyObjectOffset {
         use memoffset::offset_of;
 
-        let offset =
-            offset_of!(PyClassObject<T>, contents) + offset_of!(PyClassObjectContents<T>, weakref);
+        let offset = offset_of!(PyStaticClassObject<T>, contents)
+            + offset_of!(PyClassObjectContents<T>, weakref);
 
         // Py_ssize_t may not be equal to isize on all platforms
         #[allow(clippy::useless_conversion)]
@@ -364,14 +375,16 @@ impl<T: PyClassImpl> InternalPyClassObjectLayout<T> for PyClassObject<T> {
     }
 
     fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
-        T::PyClassMutability::borrow_checker(self)
+        // Safety: T::Layout must be PyStaticClassObject<T>
+        let slf: &T::Layout = unsafe { std::mem::transmute(self) };
+        T::PyClassMutability::borrow_checker(slf)
     }
 }
 
-unsafe impl<T: PyClassImpl> PyLayout<T> for PyClassObject<T> {}
-impl<T: PyClass> PySizedLayout<T> for PyClassObject<T> {}
+unsafe impl<T: PyClassImpl> PyLayout<T> for PyStaticClassObject<T> {}
+impl<T: PyClass> PySizedLayout<T> for PyStaticClassObject<T> {}
 
-impl<T: PyClassImpl> PyClassObjectLayout<T> for PyClassObject<T>
+impl<T: PyClassImpl> PyClassObjectLayout<T> for PyStaticClassObject<T>
 where
     <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectLayout<T::BaseType>,
 {
@@ -387,12 +400,13 @@ where
     }
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
         // Safety: Python only calls tp_dealloc when no references to the object remain.
-        let class_object = &mut *(slf.cast::<PyClassObject<T>>());
-        if class_object.contents.thread_checker.can_drop(py) {
-            ManuallyDrop::drop(&mut class_object.contents.value);
+        let class_object = &mut *(slf.cast::<T::Layout>());
+        let contents = class_object.contents_mut();
+        if contents.thread_checker.can_drop(py) {
+            ManuallyDrop::drop(&mut contents.value);
         }
-        class_object.contents.dict.clear_dict(py);
-        class_object.contents.weakref.clear_weakrefs(slf, py);
+        contents.dict.clear_dict(py);
+        contents.weakref.clear_weakrefs(slf, py);
         <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf)
     }
 }
@@ -458,10 +472,13 @@ mod tests {
 
     #[test]
     fn test_inherited_size() {
-        let base_size = PyClassObject::<BaseWithData>::basicsize();
+        let base_size = PyStaticClassObject::<BaseWithData>::basicsize();
         assert!(base_size > 0); // negative indicates variable sized
-        assert_eq!(base_size, PyClassObject::<ChildWithoutData>::basicsize());
-        assert!(base_size < PyClassObject::<ChildWithData>::basicsize());
+        assert_eq!(
+            base_size,
+            PyStaticClassObject::<ChildWithoutData>::basicsize()
+        );
+        assert!(base_size < PyStaticClassObject::<ChildWithData>::basicsize());
     }
 
     fn assert_mutable<T: PyClass<Frozen = False, PyClassMutability = MutableClass>>() {}

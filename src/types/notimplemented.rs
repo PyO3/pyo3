@@ -1,6 +1,9 @@
 use crate::{
-    ffi, ffi_ptr_ext::FfiPtrExt, types::any::PyAnyMethods, Borrowed, Bound, PyAny, PyTypeInfo,
-    Python,
+    ffi,
+    ffi_ptr_ext::FfiPtrExt,
+    impl_::{pycell::PyStaticClassObject, pyclass::PyClassImpl},
+    types::any::PyAnyMethods,
+    Borrowed, Bound, PyAny, PyTypeInfo, Python,
 };
 
 /// Represents the Python `NotImplemented` object.
@@ -34,6 +37,8 @@ impl PyNotImplemented {
 unsafe impl PyTypeInfo for PyNotImplemented {
     const NAME: &'static str = "NotImplementedType";
     const MODULE: Option<&'static str> = None;
+
+    type Layout<T: PyClassImpl> = PyStaticClassObject<T>;
 
     fn type_object_raw(_py: Python<'_>) -> *mut ffi::PyTypeObject {
         unsafe { ffi::Py_TYPE(ffi::Py_NotImplemented()) }

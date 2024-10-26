@@ -29,13 +29,13 @@ pub use lazy_type_object::LazyTypeObject;
 /// Gets the offset of the dictionary from the start of the object in bytes.
 #[inline]
 pub fn dict_offset<T: PyClass>() -> PyObjectOffset {
-    PyClassObject::<T>::dict_offset()
+    <T as PyClassImpl>::Layout::dict_offset()
 }
 
 /// Gets the offset of the weakref list from the start of the object in bytes.
 #[inline]
 pub fn weaklist_offset<T: PyClass>() -> PyObjectOffset {
-    PyClassObject::<T>::weaklist_offset()
+    <T as PyClassImpl>::Layout::weaklist_offset()
 }
 
 /// Represents the `__dict__` field for `#[pyclass]`.
@@ -166,6 +166,8 @@ pub trait PyClassImpl: Sized + 'static {
 
     /// #[pyclass(sequence)]
     const IS_SEQUENCE: bool = false;
+
+    type Layout: InternalPyClassObjectLayout<Self>;
 
     /// Base class
     type BaseType: PyTypeInfo + PyClassBaseType;
@@ -900,7 +902,7 @@ macro_rules! generate_pyclass_richcompare_slot {
 }
 pub use generate_pyclass_richcompare_slot;
 
-use super::{pycell::PyClassObject, pymethods::BoundRef};
+use super::pymethods::BoundRef;
 
 /// Implements a freelist.
 ///
@@ -1114,7 +1116,6 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
 }
 
 /// Trait denoting that this class is suitable to be used as a base type for PyClass.
-
 #[cfg_attr(
     all(diagnostic_namespace, Py_LIMITED_API),
     diagnostic::on_unimplemented(
@@ -1141,7 +1142,7 @@ pub trait PyClassBaseType: Sized {
 
 /// Implementation of tp_dealloc for pyclasses without gc
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
-    crate::impl_::trampoline::dealloc(obj, PyClassObject::<T>::tp_dealloc)
+    crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc)
 }
 
 /// Implementation of tp_dealloc for pyclasses with gc
@@ -1150,7 +1151,7 @@ pub(crate) unsafe extern "C" fn tp_dealloc_with_gc<T: PyClass>(obj: *mut ffi::Py
     {
         ffi::PyObject_GC_UnTrack(obj.cast());
     }
-    crate::impl_::trampoline::dealloc(obj, PyClassObject::<T>::tp_dealloc)
+    crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc)
 }
 
 pub(crate) unsafe extern "C" fn get_sequence_item_from_mapping(
@@ -1184,7 +1185,7 @@ pub(crate) unsafe extern "C" fn assign_sequence_item_from_mapping(
     result
 }
 
-/// Offset of a field within a `PyClassObject<T>`, in bytes.
+/// Offset of a field within a PyObject in bytes.
 #[derive(Clone, Copy)]
 pub enum PyObjectOffset {
     /// An offset relative to the start of the object
@@ -1231,13 +1232,13 @@ impl std::ops::Add<usize> for PyObjectOffset {
 ///
 /// The trait is unsafe to implement because producing an incorrect offset will lead to UB.
 pub unsafe trait OffsetCalculator<T: PyClass, U> {
-    /// Offset to the field within a `PyClassObject<T>`, in bytes.
+    /// Offset to the field within a PyObject
     fn offset() -> PyObjectOffset;
 }
 
 // Used in generated implementations of OffsetCalculator
 pub fn subclass_offset<T: PyClass>() -> PyObjectOffset {
-    PyClassObject::<T>::contents_offset()
+    <T as PyClassImpl>::Layout::contents_offset()
 }
 
 // Used in generated implementations of OffsetCalculator

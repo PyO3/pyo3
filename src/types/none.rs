@@ -1,4 +1,6 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::impl_::pycell::PyStaticClassObject;
+use crate::impl_::pyclass::PyClassImpl;
 use crate::{ffi, types::any::PyAnyMethods, Borrowed, Bound, PyAny, PyObject, PyTypeInfo, Python};
 #[allow(deprecated)]
 use crate::{IntoPy, ToPyObject};
@@ -31,6 +33,8 @@ unsafe impl PyTypeInfo for PyNone {
     const NAME: &'static str = "NoneType";
 
     const MODULE: Option<&'static str> = None;
+
+    type Layout<T: PyClassImpl> = PyStaticClassObject<T>;
 
     fn type_object_raw(_py: Python<'_>) -> *mut ffi::PyTypeObject {
         unsafe { ffi::Py_TYPE(ffi::Py_None()) }

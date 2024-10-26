@@ -1,6 +1,6 @@
 use crate::conversion::IntoPyObject;
 use crate::err::{self, PyErr, PyResult};
-use crate::impl_::pycell::PyClassObject;
+use crate::impl_::pyclass::PyClassImpl;
 use crate::internal_tricks::ptr_from_ref;
 use crate::pycell::impl_::InternalPyClassObjectLayout;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
@@ -463,7 +463,7 @@ where
     }
 
     #[inline]
-    pub(crate) fn get_class_object(&self) -> &PyClassObject<T> {
+    pub(crate) fn get_class_object(&self) -> &<T as PyClassImpl>::Layout {
         self.1.get_class_object()
     }
 }
@@ -1296,10 +1296,10 @@ where
 
     /// Get a view on the underlying `PyClass` contents.
     #[inline]
-    pub(crate) fn get_class_object(&self) -> &PyClassObject<T> {
-        let class_object = self.as_ptr().cast::<PyClassObject<T>>();
+    pub(crate) fn get_class_object(&self) -> &<T as PyClassImpl>::Layout {
+        let class_object = self.as_ptr().cast::<<T as PyClassImpl>::Layout>();
         // Safety: Bound<T: PyClass> is known to contain an object which is laid out in memory as a
-        // PyClassObject<T>.
+        // <T as PyClassImpl>::Layout object
         unsafe { &*class_object }
     }
 }

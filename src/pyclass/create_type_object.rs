@@ -2,10 +2,10 @@ use crate::{
     exceptions::PyTypeError,
     ffi,
     impl_::{
-        pycell::PyClassObject,
         pyclass::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
-            tp_dealloc_with_gc, MaybeRuntimePyMethodDef, PyClassItemsIter, PyObjectOffset,
+            tp_dealloc_with_gc, MaybeRuntimePyMethodDef, PyClassImpl, PyClassItemsIter,
+            PyObjectOffset,
         },
         pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, _call_clear},
         trampoline::trampoline,
@@ -94,7 +94,7 @@ where
             T::items_iter(),
             T::NAME,
             T::MODULE,
-            PyClassObject::<T>::basicsize(),
+            <T as PyClassImpl>::Layout::basicsize(),
         )
     }
 }
