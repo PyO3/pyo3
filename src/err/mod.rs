@@ -101,10 +101,14 @@ pub trait PyErrArguments: Send + Sync {
 
 impl<T> PyErrArguments for T
 where
-    T: IntoPy<PyObject> + Send + Sync,
+    T: for<'py> IntoPyObject<'py> + Send + Sync,
 {
     fn arguments(self, py: Python<'_>) -> PyObject {
-        self.into_py(py)
+        // FIXME: `arguments` should become fallible
+        match self.into_pyobject(py) {
+            Ok(obj) => obj.into_any().unbind(),
+            Err(e) => panic!("Converting PyErr arguments failed: {}", e.into()),
+        }
     }
 }
 
