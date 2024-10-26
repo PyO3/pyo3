@@ -126,7 +126,6 @@ impl PyErrStateNormalized {
 
     #[cfg(Py_3_12)]
     pub(crate) fn ptype<'py>(&self, py: Python<'py>) -> Bound<'py, PyType> {
-        use crate::types::any::PyAnyMethods;
         self.pvalue.bind(py).get_type()
     }
 
