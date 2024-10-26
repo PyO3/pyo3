@@ -301,13 +301,6 @@ where
     }
 }
 
-/// The layout of a PyClass as a Python object
-#[repr(C)]
-pub struct PyStaticClassObject<T: PyClassImpl> {
-    ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
-    contents: PyClassObjectContents<T>,
-}
-
 #[repr(C)]
 pub(crate) struct PyClassObjectContents<T: PyClassImpl> {
     pub(crate) value: ManuallyDrop<UnsafeCell<T>>,
@@ -315,6 +308,13 @@ pub(crate) struct PyClassObjectContents<T: PyClassImpl> {
     pub(crate) thread_checker: T::ThreadChecker,
     pub(crate) dict: T::Dict,
     pub(crate) weakref: T::WeakRef,
+}
+
+/// The layout of a PyClass with a known sized base class as a Python object
+#[repr(C)]
+pub struct PyStaticClassObject<T: PyClassImpl> {
+    ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
+    contents: PyClassObjectContents<T>,
 }
 
 impl<T: PyClassImpl> InternalPyClassObjectLayout<T> for PyStaticClassObject<T> {
