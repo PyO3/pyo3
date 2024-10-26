@@ -164,18 +164,6 @@ pub trait ToPyObject {
 pub trait IntoPy<T>: Sized {
     /// Performs the conversion.
     fn into_py(self, py: Python<'_>) -> T;
-
-    /// Extracts the type hint information for this type when it appears as a return value.
-    ///
-    /// For example, `Vec<u32>` would return `List[int]`.
-    /// The default implementation returns `Any`, which is correct for any type.
-    ///
-    /// For most types, the return value for this method will be identical to that of [`FromPyObject::type_input`].
-    /// It may be different for some types, such as `Dict`, to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::Any
-    }
 }
 
 /// Defines a conversion from a Rust type to a Python object, which may fail.
@@ -204,6 +192,18 @@ pub trait IntoPyObject<'py>: Sized {
 
     /// Performs the conversion.
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error>;
+
+    /// Extracts the type hint information for this type when it appears as a return value.
+    ///
+    /// For example, `Vec<u32>` would return `List[int]`.
+    /// The default implementation returns `Any`, which is correct for any type.
+    ///
+    /// For most types, the return value for this method will be identical to that of [`FromPyObject::type_input`].
+    /// It may be different for some types, such as `Dict`, to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::Any
+    }
 
     /// Converts sequence of Self into a Python object. Used to specialize `Vec<u8>`, `[u8; N]`
     /// and `SmallVec<[u8; N]>` as a sequence of bytes into a `bytes` object.
@@ -379,8 +379,9 @@ pub trait FromPyObject<'py>: Sized {
     /// For example, `Vec<u32>` would return `Sequence[int]`.
     /// The default implementation returns `Any`, which is correct for any type.
     ///
-    /// For most types, the return value for this method will be identical to that of [`IntoPy::type_output`].
-    /// It may be different for some types, such as `Dict`, to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
+    /// For most types, the return value for this method will be identical to that of
+    /// [`IntoPyObject::type_output`]. It may be different for some types, such as `Dict`,
+    /// to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
     #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         TypeInfo::Any
@@ -440,8 +441,9 @@ pub trait FromPyObjectBound<'a, 'py>: Sized + from_py_object_bound_sealed::Seale
     /// For example, `Vec<u32>` would return `Sequence[int]`.
     /// The default implementation returns `Any`, which is correct for any type.
     ///
-    /// For most types, the return value for this method will be identical to that of [`IntoPy::type_output`].
-    /// It may be different for some types, such as `Dict`, to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
+    /// For most types, the return value for this method will be identical to that of
+    /// [`IntoPyObject::type_output`]. It may be different for some types, such as `Dict`,
+    /// to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
     #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         TypeInfo::Any
