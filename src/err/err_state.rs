@@ -102,9 +102,6 @@ pub(crate) struct PyErrStateNormalized {
 
 impl PyErrStateNormalized {
     pub(crate) fn new(pvalue: Bound<'_, PyBaseException>) -> Self {
-        #[cfg(not(Py_3_12))]
-        use crate::types::any::PyAnyMethods;
-
         Self {
             #[cfg(not(Py_3_12))]
             ptype: pvalue.get_type().into(),
