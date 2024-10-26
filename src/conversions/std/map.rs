@@ -7,10 +7,7 @@ use crate::ToPyObject;
 use crate::{
     conversion::IntoPyObject,
     instance::Bound,
-    types::{
-        any::PyAnyMethods, dict::PyDictMethods, mappingproxy::PyMappingProxyMethods, PyDict,
-        PyMappingProxy,
-    },
+    types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
     FromPyObject, IntoPy, PyAny, PyErr, PyObject, Python,
 };
 
@@ -165,19 +162,9 @@ where
     S: hash::BuildHasher + Default,
 {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
-        if let Ok(dict) = ob.downcast::<PyDict>() {
-            let mut ret = collections::HashMap::with_capacity_and_hasher(dict.len(), S::default());
-            for (k, v) in dict {
-                ret.insert(k.extract()?, v.extract()?);
-            }
-            return Ok(ret);
-        }
-
-        let mappingproxy = ob.downcast::<PyMappingProxy>()?;
-        let mut ret =
-            collections::HashMap::with_capacity_and_hasher(mappingproxy.len()?, S::default());
-        for res in mappingproxy.try_iter()? {
-            let (k, v) = res?;
+        let dict = ob.downcast::<PyDict>()?;
+        let mut ret = collections::HashMap::with_capacity_and_hasher(dict.len(), S::default());
+        for (k, v) in dict {
             ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)
@@ -195,18 +182,9 @@ where
     V: FromPyObject<'py>,
 {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
-        if let Ok(dict) = ob.downcast::<PyDict>() {
-            let mut ret = collections::BTreeMap::new();
-            for (k, v) in dict {
-                ret.insert(k.extract()?, v.extract()?);
-            }
-            return Ok(ret);
-        }
-
-        let mappingproxy = ob.downcast::<PyMappingProxy>()?;
+        let dict = ob.downcast::<PyDict>()?;
         let mut ret = collections::BTreeMap::new();
-        for res in mappingproxy.try_iter()? {
-            let (k, v) = res?;
+        for (k, v) in dict {
             ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)

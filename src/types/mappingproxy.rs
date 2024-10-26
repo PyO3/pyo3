@@ -5,17 +5,24 @@ use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
-use crate::types::{PyAny, PyIterator, PySequence};
+use crate::types::{PyAny, PyIterator, PyList};
 use crate::{ffi, Python};
+
+use std::os::raw::c_int;
 
 /// Represents a Python `mappingproxy`.
 #[repr(transparent)]
 pub struct PyMappingProxy(PyAny);
 
+#[inline]
+unsafe fn dict_proxy_check(op: *mut ffi::PyObject) -> c_int {
+    ffi::Py_IS_TYPE(op, std::ptr::addr_of_mut!(ffi::PyDictProxy_Type))
+}
+
 pyobject_native_type_core!(
     PyMappingProxy,
     pyobject_native_static_type_object!(ffi::PyDictProxy_Type),
-    #checkfunction=ffi::PyDictProxy_Check
+    #checkfunction=dict_proxy_check
 );
 
 impl PyMappingProxy {
@@ -39,22 +46,17 @@ impl PyMappingProxy {
 /// `arbitrary_self_types`.
 #[doc(alias = "PyMappingProxy")]
 pub trait PyMappingProxyMethods<'py, 'a>: crate::sealed::Sealed {
-    /// Returns a new mappingproxy that contains the same key-value pairs as self.
-    ///
-    /// This is equivalent to the Python expression `self.copy()`.
-    fn copy(&self) -> PyResult<Bound<'_, PyMappingProxy>>;
-
     /// Checks if the mappingproxy is empty, i.e. `len(self) == 0`.
     fn is_empty(&self) -> PyResult<bool>;
 
     /// Returns a sequence containing all keys in the mapping.
-    fn keys(&self) -> PyResult<Bound<'py, PySequence>>;
+    fn keys(&self) -> PyResult<Bound<'py, PyList>>;
 
     /// Returns a sequence containing all values in the mapping.
-    fn values(&self) -> PyResult<Bound<'py, PySequence>>;
+    fn values(&self) -> PyResult<Bound<'py, PyList>>;
 
     /// Returns a sequence of tuples of all (key, value) pairs in the mapping.
-    fn items(&self) -> PyResult<Bound<'py, PySequence>>;
+    fn items(&self) -> PyResult<Bound<'py, PyList>>;
 
     /// Returns `self` cast as a `PyMapping`.
     fn as_mapping(&self) -> &Bound<'py, PyMapping>;
@@ -65,17 +67,12 @@ pub trait PyMappingProxyMethods<'py, 'a>: crate::sealed::Sealed {
 }
 
 impl<'py, 'a> PyMappingProxyMethods<'py, 'a> for Bound<'py, PyMappingProxy> {
-    fn copy(&self) -> PyResult<Bound<'_, PyMappingProxy>> {
-        let res = self.call_method0("copy")?;
-        unsafe { Ok(res.downcast_into_unchecked::<PyMappingProxy>()) }
-    }
-
     fn is_empty(&self) -> PyResult<bool> {
         Ok(self.len()? == 0)
     }
 
     #[inline]
-    fn keys(&self) -> PyResult<Bound<'py, PySequence>> {
+    fn keys(&self) -> PyResult<Bound<'py, PyList>> {
         unsafe {
             Ok(ffi::PyMapping_Keys(self.as_ptr())
                 .assume_owned_or_err(self.py())?
@@ -84,7 +81,7 @@ impl<'py, 'a> PyMappingProxyMethods<'py, 'a> for Bound<'py, PyMappingProxy> {
     }
 
     #[inline]
-    fn values(&self) -> PyResult<Bound<'py, PySequence>> {
+    fn values(&self) -> PyResult<Bound<'py, PyList>> {
         unsafe {
             Ok(ffi::PyMapping_Values(self.as_ptr())
                 .assume_owned_or_err(self.py())?
@@ -93,7 +90,7 @@ impl<'py, 'a> PyMappingProxyMethods<'py, 'a> for Bound<'py, PyMappingProxy> {
     }
 
     #[inline]
-    fn items(&self) -> PyResult<Bound<'py, PySequence>> {
+    fn items(&self) -> PyResult<Bound<'py, PyList>> {
         unsafe {
             Ok(ffi::PyMapping_Items(self.as_ptr())
                 .assume_owned_or_err(self.py())?
@@ -160,28 +157,6 @@ mod tests {
                     .unwrap()
             );
             assert!(mappingproxy
-                .get_item(8i32)
-                .unwrap_err()
-                .is_instance_of::<PyKeyError>(py));
-            let map: HashMap<i32, i32> = [(7, 32)].iter().cloned().collect();
-            assert_eq!(map, mappingproxy.extract().unwrap());
-            let map: BTreeMap<i32, i32> = [(7, 32)].iter().cloned().collect();
-            assert_eq!(map, mappingproxy.extract().unwrap());
-        });
-    }
-
-    #[test]
-    fn test_copy() {
-        Python::with_gil(|py| {
-            let dict = [(7, 32)].into_py_dict(py).unwrap();
-            let mappingproxy = PyMappingProxy::new(py, dict.as_mapping());
-
-            let new_dict = mappingproxy.copy().unwrap();
-            assert_eq!(
-                32,
-                new_dict.get_item(7i32).unwrap().extract::<i32>().unwrap()
-            );
-            assert!(new_dict
                 .get_item(8i32)
                 .unwrap_err()
                 .is_instance_of::<PyKeyError>(py));
@@ -339,36 +314,6 @@ mod tests {
             }
             assert_eq!(7 + 8 + 9, key_sum);
             assert_eq!(32 + 42 + 123, value_sum);
-        });
-    }
-
-    #[test]
-    fn test_hashmap_to_python() {
-        Python::with_gil(|py| {
-            let mut map = HashMap::<i32, i32>::new();
-            map.insert(1, 1);
-
-            let dict = map.clone().into_py_dict(py).unwrap();
-            let py_map = PyMappingProxy::new(py, dict.as_mapping());
-
-            assert_eq!(py_map.len().unwrap(), 1);
-            assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
-            assert_eq!(map, py_map.extract().unwrap());
-        });
-    }
-
-    #[test]
-    fn test_btreemap_to_python() {
-        Python::with_gil(|py| {
-            let mut map = BTreeMap::<i32, i32>::new();
-            map.insert(1, 1);
-
-            let dict = map.clone().into_py_dict(py).unwrap();
-            let py_map = PyMappingProxy::new(py, dict.as_mapping());
-
-            assert_eq!(py_map.len().unwrap(), 1);
-            assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
-            assert_eq!(map, py_map.extract().unwrap());
         });
     }
 
@@ -555,8 +500,7 @@ mod tests {
             assert_eq!(
                 items,
                 mappingproxy
-                    .copy()
-                    .unwrap()
+                    .clone()
                     .try_iter()
                     .unwrap()
                     .map(|object| {
@@ -581,8 +525,7 @@ mod tests {
             for index in 1..LEN {
                 assert_eq!(
                     mappingproxy
-                        .copy()
-                        .unwrap()
+                        .clone()
                         .get_item(index)
                         .unwrap()
                         .extract::<usize>()
