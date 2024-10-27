@@ -175,6 +175,110 @@ except Exception as e:
     });
 }
 
+#[cfg(Py_3_12)]
+mod inheriting_type {
+    use super::*;
+    use pyo3::types::{PyDict, PyTuple};
+
+    #[test]
+    fn inherit_type() {
+        use pyo3::types::PyType;
+
+        #[pyclass(subclass, extends=PyType)]
+        #[derive(Debug)]
+        struct Metaclass {
+            counter: u64,
+        }
+
+        #[pymethods]
+        impl Metaclass {
+            #[new]
+            #[pyo3(signature = (*args, **kwds))]
+            fn new<'py>(
+                py: Python<'py>,
+                args: &Bound<'py, PyTuple>,
+                kwds: Option<&Bound<'py, PyDict>>,
+            ) -> PyResult<Bound<'py, Self>> {
+                let type_object = PyType::new_type::<Metaclass>(py, args, kwds)?;
+                type_object.setattr("some_var", 123)?;
+                Ok(type_object)
+            }
+
+            fn __getitem__(&self, item: u64) -> u64 {
+                item + 1
+            }
+
+            fn increment_counter(&mut self) {
+                self.counter += 1;
+            }
+
+            fn get_counter(&self) -> u64 {
+                self.counter
+            }
+        }
+
+        Python::with_gil(|py| {
+            #[allow(non_snake_case)]
+            let Metaclass = py.get_type::<Metaclass>();
+
+            // checking base is `type`
+            py_run!(py, Metaclass, r#"assert Metaclass.__bases__ == (type,)"#);
+
+            // check can be used as a metaclass
+            py_run!(
+                py,
+                Metaclass,
+                r#"
+                class Foo(metaclass=Metaclass):
+                    value = "foo_value"
+                assert type(Foo) is Metaclass
+                assert isinstance(Foo, Metaclass)
+                assert Foo.value == "foo_value"
+                assert Foo.some_var == 123
+                assert Foo[100] == 101
+                FooDynamic = Metaclass("FooDynamic", (), {})
+                assert FooDynamic.some_var == 123
+                assert FooDynamic[100] == 101
+                "#
+            );
+
+            // can hold data
+            py_run!(
+                py,
+                Metaclass,
+                r#"
+                class Foo(metaclass=Metaclass):
+                    pass
+
+                assert Foo.get_counter() == 0
+                Foo.increment_counter()
+                assert Foo.get_counter() == 1
+                "#
+            );
+
+            // can be subclassed
+            py_run!(
+                py,
+                Metaclass,
+                r#"
+                class Foo(Metaclass):
+                    value = "foo_value"
+
+                class Bar(metaclass=Metaclass):
+                    value = "bar_value"
+
+                assert Bar.get_counter() == 0
+                Bar.increment_counter()
+                assert Bar.get_counter() == 1
+                assert Bar.value == "bar_value"
+                assert Bar.some_var == 123
+                assert Bar[100] == 101
+                "#
+            );
+        });
+    }
+}
+
 // Subclassing builtin types is not allowed in the LIMITED API.
 #[cfg(not(Py_LIMITED_API))]
 mod inheriting_native_type {
