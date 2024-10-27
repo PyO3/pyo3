@@ -214,6 +214,25 @@ pub struct PyClassObjectBase<T> {
 
 unsafe impl<T, U> PyLayout<T> for PyClassObjectBase<U> where U: PyLayout<T> {}
 
+/// Base layout of PyClassObject.
+#[doc(hidden)]
+#[repr(C)]
+pub struct PyVariableClassObjectBase {
+    ob_base: ffi::PyVarObject,
+}
+
+unsafe impl<T> PyLayout<T> for PyVariableClassObjectBase {}
+
+impl<T: PyTypeInfo> PyClassObjectLayout<T> for PyVariableClassObjectBase {
+    fn ensure_threadsafe(&self) {}
+    fn check_threadsafe(&self) -> Result<(), PyBorrowError> {
+        Ok(())
+    }
+    unsafe fn tp_dealloc(_py: Python<'_>, _slf: *mut ffi::PyObject) {
+        // TODO(matt):
+    }
+}
+
 #[doc(hidden)]
 pub trait PyClassObjectLayout<T>: PyLayout<T> {
     fn ensure_threadsafe(&self);
@@ -233,6 +252,7 @@ pub trait InternalPyClassObjectLayout<T: PyClassImpl>: PyClassObjectLayout<T> {
     fn get_ptr(&self) -> *mut T;
 
     fn contents(&self) -> &PyClassObjectContents<T>;
+
     fn contents_mut(&mut self) -> &mut PyClassObjectContents<T>;
 
     fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase;
@@ -308,6 +328,16 @@ pub(crate) struct PyClassObjectContents<T: PyClassImpl> {
     pub(crate) thread_checker: T::ThreadChecker,
     pub(crate) dict: T::Dict,
     pub(crate) weakref: T::WeakRef,
+}
+
+impl<T: PyClassImpl> PyClassObjectContents<T> {
+    unsafe fn dealloc(&mut self, py: Python<'_>, py_object: *mut ffi::PyObject) {
+        if self.thread_checker.can_drop(py) {
+            unsafe { ManuallyDrop::drop(&mut self.value) };
+        }
+        self.dict.clear_dict(py);
+        unsafe { self.weakref.clear_weakrefs(py_object, py) };
+    }
 }
 
 /// The layout of a PyClass with a known sized base class as a Python object
@@ -404,15 +434,106 @@ where
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
         // Safety: Python only calls tp_dealloc when no references to the object remain.
         let class_object = unsafe { &mut *(slf.cast::<T::Layout>()) };
-        let contents = class_object.contents_mut();
-        if contents.thread_checker.can_drop(py) {
-            unsafe { ManuallyDrop::drop(&mut contents.value) };
+        unsafe { class_object.contents_mut().dealloc(py, slf) };
+        unsafe { <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf) }
+    }
+}
+
+#[repr(C)]
+pub struct PyVariableClassObject<T: PyClassImpl> {
+    ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
+}
+
+impl<T: PyClassImpl> PyVariableClassObject<T> {
+    #[cfg(Py_3_12)]
+    fn get_contents_ptr(&self) -> *mut PyClassObjectContents<T> {
+        // https://peps.python.org/pep-0697/
+        let obj = std::ptr::from_ref(self).cast_mut().cast();
+        let type_obj = unsafe { ffi::Py_TYPE(obj) };
+        let pointer = unsafe { ffi::PyObject_GetTypeData(obj, type_obj) };
+        pointer.cast()
+    }
+}
+
+#[cfg(Py_3_12)]
+impl<T: PyClassImpl> InternalPyClassObjectLayout<T> for PyVariableClassObject<T> {
+    /// Gets the offset of the contents from the start of the struct in bytes.
+    const CONTENTS_OFFSET: PyObjectOffset = PyObjectOffset::Relative(0);
+
+    fn get_ptr(&self) -> *mut T {
+        self.contents().value.get()
+    }
+
+    fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase {
+        &self.ob_base
+    }
+
+    fn contents(&self) -> &PyClassObjectContents<T> {
+        unsafe { (self.get_contents_ptr() as *const PyClassObjectContents<T>).as_ref() }
+            .expect("should be able to cast PyClassObjectContents pointer")
+    }
+
+    fn contents_mut(&mut self) -> &mut PyClassObjectContents<T> {
+        unsafe { self.get_contents_ptr().as_mut() }
+            .expect("should be able to cast PyClassObjectContents pointer")
+    }
+
+    /// used to set PyType_Spec::basicsize
+    /// https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize
+    fn basicsize() -> ffi::Py_ssize_t {
+        let size = std::mem::size_of::<PyClassObjectContents<T>>();
+        // negative to indicate 'extra' space that cpython will allocate for us
+        -ffi::Py_ssize_t::try_from(size).expect("offset should fit in Py_ssize_t")
+    }
+
+    /// Gets the offset of the dictionary from the start of the struct in bytes.
+    fn dict_offset() -> PyObjectOffset {
+        let offset = offset_of!(PyClassObjectContents<T>, dict);
+        #[allow(
+            clippy::useless_conversion,
+            reason = "Py_ssize_t may not be isize on all platforms"
+        )]
+        PyObjectOffset::Relative(offset.try_into().expect("offset should fit in Py_ssize_t"))
+    }
+
+    /// Gets the offset of the weakref list from the start of the struct in bytes.
+    fn weaklist_offset() -> PyObjectOffset {
+        let offset = offset_of!(PyClassObjectContents<T>, weakref);
+        #[allow(
+            clippy::useless_conversion,
+            reason = "Py_ssize_t may not be isize on all platforms"
+        )]
+        PyObjectOffset::Relative(offset.try_into().expect("offset should fit in Py_ssize_t"))
+    }
+
+    fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
+        // Safety: T::Layout must be PyStaticClassObject<T>
+        let slf: &T::Layout = unsafe { std::mem::transmute(self) };
+        T::PyClassMutability::borrow_checker(slf)
+    }
+}
+
+unsafe impl<T: PyClassImpl> PyLayout<T> for PyVariableClassObject<T> {}
+
+impl<T: PyClassImpl> PyClassObjectLayout<T> for PyVariableClassObject<T>
+where
+    <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectLayout<T::BaseType>,
+{
+    fn ensure_threadsafe(&self) {
+        self.contents().thread_checker.ensure();
+        self.ob_base.ensure_threadsafe();
+    }
+    fn check_threadsafe(&self) -> Result<(), PyBorrowError> {
+        if !self.contents().thread_checker.check() {
+            return Err(PyBorrowError { _private: () });
         }
-        contents.dict.clear_dict(py);
-        unsafe {
-            contents.weakref.clear_weakrefs(slf, py);
-            <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf)
-        }
+        self.ob_base.check_threadsafe()
+    }
+    unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
+        // Safety: Python only calls tp_dealloc when no references to the object remain.
+        let class_object = unsafe { &mut *(slf.cast::<T::Layout>()) };
+        unsafe { class_object.contents_mut().dealloc(py, slf) };
+        unsafe { <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf) }
     }
 }
 
