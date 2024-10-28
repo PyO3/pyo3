@@ -39,11 +39,12 @@ free-threaded Python.
 
 ## Supporting free-threaded Python with PyO3
 
-Many simple uses of PyO3, like exposing bindings for a "pure" Rust function with
-no side-effects or defining an immutable Python class, will likely work "out of
-the box" on the free-threaded build. All that will be necessary is to
+Many simple uses of PyO3, like exposing bindings for a "pure" Rust function
+with no side-effects or defining an immutable Python class, will likely work
+"out of the box" on the free-threaded build. All that will be necessary is to
 annotate Python modules declared by rust code in your project to declare that
-they support free-threaded Python.
+they support free-threaded Python, for example by declaring the module with
+`#[pymodule(supports_free_threaded = true)]`.
 
 At a low-level, annotating a module sets the `Py_MOD_GIL` slot on modules
 defined by an extension to `Py_MOD_GIL_NOT_USED`, which allows the interpreter
