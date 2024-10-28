@@ -4,7 +4,10 @@ use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::get_ssize_index;
-use crate::types::{PySequence, PyTuple};
+use crate::try_extend::TryExtend;
+use crate::types::{PyDict, PySequence, PyTuple};
+#[cfg(feature = "nightly")]
+use crate::types::{PyIterator, PySet};
 use crate::{Borrowed, Bound, BoundObject, IntoPyObject, PyAny, PyErr, PyObject, Python};
 
 use crate::types::any::PyAnyMethods;
@@ -478,6 +481,58 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     }
 }
 
+impl<'py, I> TryExtend<I, PyResult<Bound<'py, PyAny>>> for Bound<'_, PyList>
+where
+    I: IntoIterator<Item = PyResult<Bound<'py, PyAny>>>,
+{
+    #[cfg(not(feature = "nightly"))]
+    fn try_extend(&mut self, iter: I) -> PyResult<()> {
+        iter.into_iter().try_for_each(|item| self.append(item?))
+    }
+
+    #[cfg(feature = "nightly")]
+    default fn try_extend(&mut self, iter: I) -> PyResult<()> {
+        iter.into_iter().try_for_each(|item| self.append(item?))
+    }
+}
+
+impl<'py, I> TryExtend<I, Bound<'py, PyAny>> for Bound<'_, PyList>
+where
+    I: IntoIterator<Item = Bound<'py, PyAny>>,
+{
+    #[cfg(not(feature = "nightly"))]
+    fn try_extend(&mut self, iter: I) -> PyResult<()> {
+        iter.into_iter().try_for_each(|item| self.append(item))
+    }
+
+    #[cfg(feature = "nightly")]
+    default fn try_extend(&mut self, iter: I) -> PyResult<()> {
+        iter.into_iter().try_for_each(|item| self.append(item))
+    }
+}
+
+macro_rules! impl_try_extend_specialization(
+    ($i:ty, $t:ty) => {
+        impl<'py> TryExtend<$i, $t> for Bound<'_, PyList> {
+            fn try_extend(&mut self, iter: $i) -> PyResult<()> {
+                err::error_on_minusone(self.py(), unsafe {
+                    ffi::compat::PyList_Extend(self.as_ptr(), iter.as_ptr())
+                })
+            }
+        }
+    }
+);
+
+impl_try_extend_specialization!(Bound<'py, PyDict>, (Bound<'py, PyAny>, Bound<'py, PyAny>));
+#[cfg(feature = "nightly")]
+impl_try_extend_specialization!(Bound<'py, PyIterator>, PyResult<Bound<'py, PyAny>>);
+#[cfg(feature = "nightly")]
+impl_try_extend_specialization!(Bound<'py, PyList>, Bound<'py, PyAny>);
+#[cfg(feature = "nightly")]
+impl_try_extend_specialization!(Bound<'py, PySet>, Bound<'py, PyAny>);
+#[cfg(feature = "nightly")]
+impl_try_extend_specialization!(Bound<'py, PyTuple>, Bound<'py, PyAny>);
+
 /// Used by `PyList::iter()`.
 pub struct BoundListIterator<'py> {
     list: Bound<'py, PyList>,
@@ -573,8 +628,8 @@ mod tests {
     use crate::types::any::PyAnyMethods;
     use crate::types::list::PyListMethods;
     use crate::types::sequence::PySequenceMethods;
-    use crate::types::{PyList, PyTuple};
-    use crate::{ffi, IntoPyObject, Python};
+    use crate::types::{IntoPyDict, PyList, PyTuple};
+    use crate::{ffi, Bound, IntoPyObject, PyResult, Python, TryExtend};
 
     #[test]
     fn test_new() {
@@ -1101,5 +1156,31 @@ mod tests {
             let tuple_expected = PyTuple::new(py, vec![1, 2, 3]).unwrap();
             assert!(tuple.eq(tuple_expected).unwrap());
         })
+    }
+
+    #[test]
+    fn test_list_extend() {
+        Python::with_gil::<_, PyResult<()>>(|py| {
+            let mut list = PyList::empty(py);
+
+            let vec = vec![Bound::into_any(1.into_pyobject(py)?)];
+            list.try_extend(vec)?;
+
+            let slice = [Bound::into_any(2.into_pyobject(py)?)];
+            list.try_extend(slice)?;
+
+            let dict = [(3, 3)].into_py_dict(py)?;
+            list.try_extend(dict)?;
+
+            let other_list = PyList::new(py, [4])?;
+            list.try_extend(other_list)?;
+
+            let tuple = PyTuple::new(py, [5])?;
+            list.try_extend(tuple)?;
+
+            assert_eq!(list.len(), 5);
+            Ok(())
+        })
+        .unwrap();
     }
 }
