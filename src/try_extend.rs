@@ -10,3 +10,14 @@ where
     /// Extends a collection with elements from an iterator, returning an error if the operation fails.
     fn try_extend(&mut self, iter: I) -> PyResult<()>;
 }
+
+impl<I, A, T> TryExtend<I, A> for T
+where
+    I: IntoIterator<Item = A>,
+    T: Extend<A>,
+{
+    fn try_extend(&mut self, iter: I) -> PyResult<()> {
+        self.extend(iter);
+        Ok(())
+    }
+}
