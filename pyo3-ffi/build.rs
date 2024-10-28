@@ -6,7 +6,6 @@ use pyo3_build_config::{
     },
     warn, BuildFlag, PythonImplementation,
 };
-use std::ops::Not;
 
 /// Minimum Python version PyO3 supports.
 struct SupportedVersions {
@@ -107,7 +106,17 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
 
     if interpreter_config.abi3 {
         match interpreter_config.implementation {
-            PythonImplementation::CPython => {}
+            PythonImplementation::CPython => {
+                if interpreter_config
+                    .build_flags
+                    .0
+                    .contains(&BuildFlag::Py_GIL_DISABLED)
+                {
+                    warn!(
+                            "The free-threaded build of CPython does not yet support abi3 so the build artifacts will be version-specific."
+                        )
+                }
+            }
             PythonImplementation::PyPy => warn!(
                 "PyPy does not yet support abi3 so the build artifacts will be version-specific. \
                 See https://github.com/pypy/pypy/issues/3397 for more information."
@@ -119,19 +128,6 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
     }
 
     Ok(())
-}
-
-fn ensure_gil_enabled(interpreter_config: &InterpreterConfig) {
-    let gil_enabled = interpreter_config
-        .build_flags
-        .0
-        .contains(&BuildFlag::Py_GIL_DISABLED)
-        .not();
-    if !gil_enabled && interpreter_config.abi3 {
-        warn!(
-            "The free-threaded build of CPython does not yet support abi3 so the build artifacts will be version-specific."
-        )
-    }
 }
 
 fn ensure_target_pointer_width(interpreter_config: &InterpreterConfig) -> Result<()> {
@@ -199,7 +195,6 @@ fn configure_pyo3() -> Result<()> {
 
     ensure_python_version(&interpreter_config)?;
     ensure_target_pointer_width(&interpreter_config)?;
-    ensure_gil_enabled(&interpreter_config);
 
     // Serialize the whole interpreter config into DEP_PYTHON_PYO3_CONFIG env var.
     interpreter_config.to_cargo_dep_env()?;
