@@ -44,7 +44,7 @@ pub mod kw {
     syn::custom_keyword!(transparent);
     syn::custom_keyword!(unsendable);
     syn::custom_keyword!(weakref);
-    syn::custom_keyword!(supports_free_threaded);
+    syn::custom_keyword!(gil_used);
 }
 
 fn take_int(read: &mut &str, tracker: &mut usize) -> String {
@@ -309,7 +309,7 @@ pub type RenameAllAttribute = KeywordAttribute<kw::rename_all, RenamingRuleLitSt
 pub type StrFormatterAttribute = OptionalKeywordAttribute<kw::str, StringFormatter>;
 pub type TextSignatureAttribute = KeywordAttribute<kw::text_signature, TextSignatureAttributeValue>;
 pub type SubmoduleAttribute = kw::submodule;
-pub type FreeThreadedAttribute = KeywordAttribute<kw::supports_free_threaded, LitBool>;
+pub type GILUsedAttribute = KeywordAttribute<kw::gil_used, LitBool>;
 
 impl<K: Parse + std::fmt::Debug, V: Parse> Parse for KeywordAttribute<K, V> {
     fn parse(input: ParseStream<'_>) -> Result<Self> {

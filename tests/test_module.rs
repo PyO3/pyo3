@@ -37,7 +37,7 @@ fn double(x: usize) -> usize {
 }
 
 /// This module is implemented in Rust.
-#[pymodule(supports_free_threaded = true)]
+#[pymodule(gil_used = false)]
 fn module_with_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     #[pyfn(m)]
     #[pyo3(name = "no_parameters")]
@@ -182,9 +182,7 @@ fn test_module_from_code_bound() {
             .extract()
             .expect("The value should be able to be converted to an i32");
 
-        adder_mod
-            .supports_free_threaded(true)
-            .expect("Disabling the GIL failed");
+        adder_mod.gil_used(false).expect("Disabling the GIL failed");
 
         assert_eq!(ret_value, 3);
     });

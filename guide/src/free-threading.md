@@ -44,7 +44,7 @@ with no side-effects or defining an immutable Python class, will likely work
 "out of the box" on the free-threaded build. All that will be necessary is to
 annotate Python modules declared by rust code in your project to declare that
 they support free-threaded Python, for example by declaring the module with
-`#[pymodule(supports_free_threaded = true)]`.
+`#[pymodule(gil_used = false)]`.
 
 At a low-level, annotating a module sets the `Py_MOD_GIL` slot on modules
 defined by an extension to `Py_MOD_GIL_NOT_USED`, which allows the interpreter
@@ -62,15 +62,15 @@ GIL to remain disabled by setting the `PYTHON_GIL=0` as an environment variable
 or passing `-Xgil=0` when starting Python (`0` means the GIL is turned off).
 
 If you are sure that all data structures exposed in a `PyModule` are
-thread-safe, then pass `supports_free_threaded = true` as a parameter to the
+thread-safe, then pass `gil_used = false` as a parameter to the
 `pymodule` procedural macro declaring the module or call
-`PyModule::supports_free_threaded` on a `PyModule` instance.  For example:
+`PyModule::gil_used` on a `PyModule` instance.  For example:
 
 ```rust
 use pyo3::prelude::*;
 
 /// This module supports free-threaded Python
-#[pymodule(supports_free_threaded = true)]
+#[pymodule(gil_used = false)]
 fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // add members to the module that you know are thread-safe
     Ok(())
@@ -85,7 +85,7 @@ use pyo3::prelude::*;
 # #[allow(dead_code)]
 fn register_child_module(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let child_module = PyModule::new(parent_module.py(), "child_module")?;
-    child_module.supports_free_threaded(true)?;
+    child_module.gil_used(false)?;
     parent_module.add_submodule(&child_module)
 }
 

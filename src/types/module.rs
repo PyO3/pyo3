@@ -405,10 +405,10 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     ///
-    /// #[pymodule(supports_free_threaded = true)]
+    /// #[pymodule(gil_used = false)]
     /// fn my_module(py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     let submodule = PyModule::new(py, "submodule")?;
-    ///     submodule.supports_free_threaded(true)?;
+    ///     submodule.gil_used(false)?;
     ///     module.add_submodule(&submodule)?;
     ///     Ok(())
     /// }
@@ -420,7 +420,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// `Py_MOD_GIL_NOT_USED`.
     ///
     /// This is a no-op on the GIL-enabled build.
-    fn supports_free_threaded(&self, supports_free_threaded: bool) -> PyResult<()>;
+    fn gil_used(&self, gil_used: bool) -> PyResult<()>;
 }
 
 impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
@@ -549,12 +549,12 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
     }
 
     #[cfg_attr(any(Py_LIMITED_API, not(Py_GIL_DISABLED)), allow(unused_variables))]
-    fn supports_free_threaded(&self, supports_free_threaded: bool) -> PyResult<()> {
+    fn gil_used(&self, gil_used: bool) -> PyResult<()> {
         #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
         {
-            let gil_used = match supports_free_threaded {
-                true => ffi::Py_MOD_GIL_NOT_USED,
-                false => ffi::Py_MOD_GIL_USED,
+            let gil_used = match gil_used {
+                true => ffi::Py_MOD_GIL_USED,
+                false => ffi::Py_MOD_GIL_NOT_USED,
             };
             match unsafe { ffi::PyUnstable_Module_SetGIL(self.as_ptr(), gil_used) } {
                 c_int::MIN..=-1 => Err(PyErr::fetch(self.py())),

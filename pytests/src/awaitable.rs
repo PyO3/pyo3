@@ -78,7 +78,7 @@ impl FutureAwaitable {
     }
 }
 
-#[pymodule(supports_free_threaded = true)]
+#[pymodule(gil_used = false)]
 pub fn awaitable(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<IterAwaitable>()?;
     m.add_class::<FutureAwaitable>()?;

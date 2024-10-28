@@ -45,7 +45,7 @@ pub struct ModuleDef {
     /// Initialized module object, cached to avoid reinitialization.
     module: GILOnceCell<Py<PyModule>>,
     /// Whether or not the module supports running without the GIL
-    supports_free_threaded: AtomicBool,
+    gil_used: AtomicBool,
 }
 
 /// Wrapper to enable initializer to be used in const fns.
@@ -90,16 +90,12 @@ impl ModuleDef {
             ))]
             interpreter: AtomicI64::new(-1),
             module: GILOnceCell::new(),
-            supports_free_threaded: AtomicBool::new(false),
+            gil_used: AtomicBool::new(true),
         }
     }
     /// Builds a module using user given initializer. Used for [`#[pymodule]`][crate::pymodule].
     #[cfg_attr(any(Py_LIMITED_API, not(Py_GIL_DISABLED)), allow(unused_variables))]
-    pub fn make_module(
-        &'static self,
-        py: Python<'_>,
-        supports_free_threaded: bool,
-    ) -> PyResult<Py<PyModule>> {
+    pub fn make_module(&'static self, py: Python<'_>, gil_used: bool) -> PyResult<Py<PyModule>> {
         // Check the interpreter ID has not changed, since we currently have no way to guarantee
         // that static data is not reused across interpreters.
         //
@@ -147,14 +143,14 @@ impl ModuleDef {
                 };
                 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
                 {
-                    let gil_used = {
-                        if supports_free_threaded {
-                            ffi::Py_MOD_GIL_NOT_USED
-                        } else {
+                    let gil_used_ptr = {
+                        if gil_used {
                             ffi::Py_MOD_GIL_USED
+                        } else {
+                            ffi::Py_MOD_GIL_NOT_USED
                         }
                     };
-                    if unsafe { ffi::PyUnstable_Module_SetGIL(module.as_ptr(), gil_used) } < 0 {
+                    if unsafe { ffi::PyUnstable_Module_SetGIL(module.as_ptr(), gil_used_ptr) } < 0 {
                         return Err(PyErr::fetch(py));
                     }
                 }
@@ -215,11 +211,8 @@ impl PyAddToModule for PyMethodDef {
 impl PyAddToModule for ModuleDef {
     fn add_to_module(&'static self, module: &Bound<'_, PyModule>) -> PyResult<()> {
         module.add_submodule(
-            self.make_module(
-                module.py(),
-                self.supports_free_threaded.load(Ordering::Relaxed),
-            )?
-            .bind(module.py()),
+            self.make_module(module.py(), self.gil_used.load(Ordering::Relaxed))?
+                .bind(module.py()),
         )
     }
 }

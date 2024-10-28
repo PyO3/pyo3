@@ -17,7 +17,7 @@ impl Subclassable {
     }
 }
 
-#[pymodule(supports_free_threaded = true)]
+#[pymodule(gil_used = false)]
 pub fn subclassing(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Subclassable>()?;
     Ok(())
