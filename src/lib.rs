@@ -1,7 +1,7 @@
 #![warn(missing_docs)]
 #![cfg_attr(
     feature = "nightly",
-    feature(auto_traits, negative_impls, try_trait_v2)
+    feature(auto_traits, negative_impls, try_trait_v2, min_specialization)
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 // Deny some lints in doctests.
@@ -345,6 +345,7 @@ pub use crate::marker::Python;
 pub use crate::pycell::{PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;
 pub use crate::pyclass_init::PyClassInitializer;
+pub use crate::try_extend::TryExtend;
 pub use crate::type_object::{PyTypeCheck, PyTypeInfo};
 pub use crate::types::PyAny;
 pub use crate::version::PythonVersionInfo;
@@ -449,6 +450,7 @@ pub mod pycell;
 pub mod pyclass;
 pub mod pyclass_init;
 
+pub mod try_extend;
 pub mod type_object;
 pub mod types;
 mod version;
