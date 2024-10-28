@@ -32,7 +32,7 @@ fn count_line(line: &str, needle: &str) -> usize {
     total
 }
 
-#[pymodule(supports_free_threaded = true)]
+#[pymodule]
 fn word_count(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(search, m)?)?;
     m.add_function(wrap_pyfunction!(search_sequential, m)?)?;
