@@ -6,7 +6,9 @@ use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::bytes::PyBytesMethods;
 use crate::types::PyBytes;
-use crate::{ffi, Bound, IntoPy, Py, PyAny, PyResult, Python};
+#[allow(deprecated)]
+use crate::IntoPy;
+use crate::{ffi, Bound, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
 use std::str;
 
@@ -444,18 +446,21 @@ impl Py<PyString> {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<Py<PyString>> for Bound<'_, PyString> {
     fn into_py(self, _py: Python<'_>) -> Py<PyString> {
         self.unbind()
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<Py<PyString>> for &Bound<'_, PyString> {
     fn into_py(self, _py: Python<'_>) -> Py<PyString> {
         self.clone().unbind()
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<Py<PyString>> for &'_ Py<PyString> {
     fn into_py(self, py: Python<'_>) -> Py<PyString> {
         self.clone_ref(py)
@@ -805,7 +810,7 @@ mod tests {
     fn test_py_to_str_utf8() {
         Python::with_gil(|py| {
             let s = "ascii 🐈";
-            let py_string: Py<PyString> = PyString::new(py, s).into_py(py);
+            let py_string = PyString::new(py, s).unbind();
 
             #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
             assert_eq!(s, py_string.to_str(py).unwrap());

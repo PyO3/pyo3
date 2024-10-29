@@ -6,13 +6,13 @@ use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{DerefToPyAny, PyDict, PyString, PyTuple};
-#[allow(deprecated)]
-use crate::ToPyObject;
 use crate::{
-    ffi, AsPyPointer, DowncastError, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer,
-    PyRef, PyRefMut, PyTypeInfo, Python,
+    ffi, AsPyPointer, DowncastError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef,
+    PyRefMut, PyTypeInfo, Python,
 };
 use crate::{gil, PyTypeCheck};
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::ops::Deref;
@@ -830,6 +830,7 @@ impl<T> ToPyObject for Borrowed<'_, '_, T> {
     }
 }
 
+#[allow(deprecated)]
 impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
     /// Converts `Py` instance -> PyObject.
     #[inline]
@@ -1465,7 +1466,7 @@ impl<T> Py<T> {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, IntoPy, PyObject, Python, PyResult};
+    /// # use pyo3::{intern, pyfunction, types::PyModule, IntoPyObject, PyObject, Python, PyResult};
     /// #
     /// #[pyfunction]
     /// fn set_answer(ob: PyObject, py: Python<'_>) -> PyResult<()> {
@@ -1473,7 +1474,7 @@ impl<T> Py<T> {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let ob = PyModule::new(py, "empty").unwrap().into_py(py);
+    /// #    let ob = PyModule::new(py, "empty").unwrap().into_pyobject(py).unwrap().into_any().unbind();
     /// #    set_answer(ob, py).unwrap();
     /// # });
     /// ```
@@ -1497,11 +1498,19 @@ impl<T> Py<T> {
     where
         A: IntoPyObject<'py, Target = PyTuple>,
     {
-        self.bind(py).as_any().call(args, kwargs).map(Bound::unbind)
+        self.bind(py)
+            .as_any()
+            .call(
+                // FIXME(icxolu): remove explicit args conversion
+                args.into_pyobject(py).map_err(Into::into)?.into_bound(),
+                kwargs,
+            )
+            .map(Bound::unbind)
     }
 
     /// Deprecated name for [`Py::call`].
     #[deprecated(since = "0.23.0", note = "renamed to `Py::call`")]
+    #[allow(deprecated)]
     #[inline]
     pub fn call_bound(
         &self,
@@ -1519,7 +1528,11 @@ impl<T> Py<T> {
     where
         N: IntoPyObject<'py, Target = PyTuple>,
     {
-        self.bind(py).as_any().call1(args).map(Bound::unbind)
+        self.bind(py)
+            .as_any()
+            // FIXME(icxolu): remove explicit args conversion
+            .call1(args.into_pyobject(py).map_err(Into::into)?.into_bound())
+            .map(Bound::unbind)
     }
 
     /// Calls the object without arguments.
@@ -1548,12 +1561,18 @@ impl<T> Py<T> {
     {
         self.bind(py)
             .as_any()
-            .call_method(name, args, kwargs)
+            .call_method(
+                name,
+                // FIXME(icxolu): remove explicit args conversion
+                args.into_pyobject(py).map_err(Into::into)?.into_bound(),
+                kwargs,
+            )
             .map(Bound::unbind)
     }
 
     /// Deprecated name for [`Py::call_method`].
     #[deprecated(since = "0.23.0", note = "renamed to `Py::call_method`")]
+    #[allow(deprecated)]
     #[inline]
     pub fn call_method_bound<N, A>(
         &self,
@@ -1582,7 +1601,11 @@ impl<T> Py<T> {
     {
         self.bind(py)
             .as_any()
-            .call_method1(name, args)
+            .call_method1(
+                name,
+                // FIXME(icxolu): remove explicit args conversion
+                args.into_pyobject(py).map_err(Into::into)?.into_bound(),
+            )
             .map(Bound::unbind)
     }
 
@@ -1720,6 +1743,7 @@ impl<T> ToPyObject for Py<T> {
     }
 }
 
+#[allow(deprecated)]
 impl<T> IntoPy<PyObject> for Py<T> {
     /// Converts a `Py` instance to `PyObject`.
     /// Consumes `self` without calling `Py_DECREF()`.
@@ -1729,6 +1753,7 @@ impl<T> IntoPy<PyObject> for Py<T> {
     }
 }
 
+#[allow(deprecated)]
 impl<T> IntoPy<PyObject> for &'_ Py<T> {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -1745,6 +1770,7 @@ impl<T> ToPyObject for Bound<'_, T> {
     }
 }
 
+#[allow(deprecated)]
 impl<T> IntoPy<PyObject> for Bound<'_, T> {
     /// Converts a `Bound` instance to `PyObject`.
     #[inline]
@@ -1753,6 +1779,7 @@ impl<T> IntoPy<PyObject> for Bound<'_, T> {
     }
 }
 
+#[allow(deprecated)]
 impl<T> IntoPy<PyObject> for &Bound<'_, T> {
     /// Converts `&Bound` instance -> PyObject, increasing the reference count.
     #[inline]
@@ -1785,8 +1812,7 @@ where
 {
     #[inline]
     fn from(other: Bound<'_, T>) -> Self {
-        let py = other.py();
-        other.into_py(py)
+        other.into_any().unbind()
     }
 }
 
@@ -1928,7 +1954,7 @@ impl PyObject {
     /// }
     ///
     /// Python::with_gil(|py| {
-    ///     let class: PyObject = Py::new(py, Class { i: 0 }).unwrap().into_py(py);
+    ///     let class: PyObject = Py::new(py, Class { i: 0 })?.into_any();
     ///
     ///     let class_bound = class.downcast_bound::<Class>(py)?;
     ///

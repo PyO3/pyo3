@@ -615,6 +615,7 @@ use pyo3::prelude::*;
 # #[allow(dead_code)]
 struct MyPyObjectWrapper(PyObject);
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for MyPyObjectWrapper {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.0

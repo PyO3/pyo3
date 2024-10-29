@@ -112,11 +112,11 @@ fn test_polymorphic_container_does_not_accept_other_types() {
         )
         .unwrap();
 
-        let setattr = |value: PyObject| p.bind(py).setattr("inner", value);
+        let setattr = |value: Bound<'_, PyAny>| p.bind(py).setattr("inner", value);
 
-        assert!(setattr(1i32.into_py(py)).is_err());
-        assert!(setattr(py.None()).is_err());
-        assert!(setattr((1i32, 2i32).into_py(py)).is_err());
+        assert!(setattr(1i32.into_pyobject(py).unwrap().into_any()).is_err());
+        assert!(setattr(py.None().into_bound(py)).is_err());
+        assert!(setattr((1i32, 2i32).into_pyobject(py).unwrap().into_any()).is_err());
     });
 }
 

@@ -9,26 +9,21 @@ use crate::{
     pycell::impl_::PyClassBorrowChecker,
     pyclass::boolean_struct::False,
     types::{PyAnyMethods, PyString},
-    IntoPy, Py, PyAny, PyClass, PyErr, PyObject, PyResult, Python,
+    IntoPyObject, Py, PyAny, PyClass, PyErr, PyResult, Python,
 };
 
-pub fn new_coroutine<F, T, E>(
-    name: &Bound<'_, PyString>,
+pub fn new_coroutine<'py, F, T, E>(
+    name: &Bound<'py, PyString>,
     qualname_prefix: Option<&'static str>,
     throw_callback: Option<ThrowCallback>,
     future: F,
 ) -> Coroutine
 where
     F: Future<Output = Result<T, E>> + Send + 'static,
-    T: IntoPy<PyObject>,
+    T: IntoPyObject<'py>,
     E: Into<PyErr>,
 {
-    Coroutine::new(
-        Some(name.clone().into()),
-        qualname_prefix,
-        throw_callback,
-        future,
-    )
+    Coroutine::new(Some(name.clone()), qualname_prefix, throw_callback, future)
 }
 
 fn get_ptr<T: PyClass>(obj: &Py<T>) -> *mut T {

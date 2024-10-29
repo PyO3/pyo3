@@ -3,13 +3,13 @@ use crate::panic::PanicException;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{string::PyStringMethods, typeobject::PyTypeMethods, PyTraceback, PyType};
-#[allow(deprecated)]
-use crate::ToPyObject;
 use crate::{
     exceptions::{self, PyBaseException},
     ffi,
 };
-use crate::{Borrowed, BoundObject, IntoPy, Py, PyAny, PyObject, Python};
+use crate::{Borrowed, BoundObject, Py, PyAny, PyObject, Python};
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 use std::borrow::Cow;
 use std::ffi::{CStr, CString};
 
@@ -246,7 +246,7 @@ impl PyErr {
                 // is not the case
                 let obj = err.into_inner();
                 let py = obj.py();
-                PyErrState::lazy_arguments(obj.into_py(py), py.None())
+                PyErrState::lazy_arguments(obj.unbind(), py.None())
             }
         };
 
@@ -793,6 +793,7 @@ impl std::fmt::Display for PyErr {
 
 impl std::error::Error for PyErr {}
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for PyErr {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -808,6 +809,7 @@ impl ToPyObject for PyErr {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for &PyErr {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {

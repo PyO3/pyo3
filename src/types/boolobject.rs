@@ -1,12 +1,11 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
-#[allow(deprecated)]
-use crate::ToPyObject;
 use crate::{
     exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
-    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
-    Python,
+    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, PyObject, PyResult, Python,
 };
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 
 use super::any::PyAnyMethods;
 use crate::conversion::IntoPyObject;
@@ -155,6 +154,7 @@ impl ToPyObject for bool {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for bool {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {

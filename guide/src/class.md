@@ -1258,8 +1258,8 @@ enum Shape {
 
 # #[cfg(Py_3_10)]
 Python::with_gil(|py| {
-    let circle = Shape::Circle { radius: 10.0 }.into_py(py);
-    let square = Shape::RegularPolygon(4, 10.0).into_py(py);
+    let circle = Shape::Circle { radius: 10.0 }.into_pyobject(py)?;
+    let square = Shape::RegularPolygon(4, 10.0).into_pyobject(py)?;
     let cls = py.get_type::<Shape>();
     pyo3::py_run!(py, circle square cls, r#"
         assert isinstance(circle, cls)
@@ -1284,11 +1284,13 @@ Python::with_gil(|py| {
 
         assert count_vertices(cls, circle) == 0
         assert count_vertices(cls, square) == 4
-    "#)
+    "#);
+#   Ok::<_, PyErr>(())
 })
+# .unwrap();
 ```
 
-WARNING: `Py::new` and `.into_py` are currently inconsistent. Note how the constructed value is _not_ an instance of the specific variant. For this reason, constructing values is only recommended using `.into_py`.
+WARNING: `Py::new` and `.into_pyobject` are currently inconsistent. Note how the constructed value is _not_ an instance of the specific variant. For this reason, constructing values is only recommended using `.into_pyobject`.
 
 ```rust
 # use pyo3::prelude::*;
@@ -1404,6 +1406,7 @@ impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a
     }
 }
 
+#[allow(deprecated)]
 impl pyo3::IntoPy<PyObject> for MyClass {
     fn into_py(self, py: pyo3::Python<'_>) -> pyo3::PyObject {
         pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)

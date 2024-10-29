@@ -23,11 +23,9 @@ use crate::types::any::PyAnyMethods;
 use crate::types::list::new_from_iter;
 use crate::types::{PySequence, PyString};
 use crate::PyErr;
+use crate::{err::DowncastError, ffi, Bound, FromPyObject, PyAny, PyObject, PyResult, Python};
 #[allow(deprecated)]
-use crate::ToPyObject;
-use crate::{
-    err::DowncastError, ffi, Bound, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python,
-};
+use crate::{IntoPy, ToPyObject};
 use smallvec::{Array, SmallVec};
 
 #[allow(deprecated)]
@@ -41,6 +39,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<A> IntoPy<PyObject> for SmallVec<A>
 where
     A: Array,
@@ -144,6 +143,7 @@ mod tests {
     use crate::types::{PyBytes, PyBytesMethods, PyDict, PyList};
 
     #[test]
+    #[allow(deprecated)]
     fn test_smallvec_into_py() {
         Python::with_gil(|py| {
             let sv: SmallVec<[u64; 8]> = [1, 2, 3, 4, 5].iter().cloned().collect();
