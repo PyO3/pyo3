@@ -130,7 +130,7 @@
 //!
 //! **`src/lib.rs`**
 //! ```rust
-#![doc = include_str!("../../examples/string-sum/src/lib.rs")]
+#![doc = include_str!("../examples/string-sum/src/lib.rs")]
 //! ```
 //!
 //! With those two files in place, now `maturin` needs to be installed. This can be done using
