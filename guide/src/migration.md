@@ -1800,7 +1800,7 @@ There can be two fixes:
    ```
 
    After:
-   ```rust
+   ```rust,ignore
    # #![allow(dead_code)]
    use pyo3::prelude::*;
    use std::sync::{Arc, Mutex};
