@@ -1,6 +1,5 @@
 use crate::method::{FnArg, FnSpec};
 use proc_macro2::TokenStream;
-use quote::quote_spanned;
 
 pub(crate) fn deprecate_trailing_option_default(spec: &FnSpec<'_>) -> TokenStream {
     if spec.signature.attribute.is_none()
@@ -42,7 +41,7 @@ pub(crate) fn deprecate_trailing_option_default(spec: &FnSpec<'_>) -> TokenStrea
         deprecation_msg.push_str(
             "))]` to this function to silence this warning and keep the current behavior",
         );
-        quote_spanned! { spec.name.span() =>
+        quote_at_location! { spec.name.span() =>
             #[deprecated(note = #deprecation_msg)]
             #[allow(dead_code)]
             const SIGNATURE: () = ();

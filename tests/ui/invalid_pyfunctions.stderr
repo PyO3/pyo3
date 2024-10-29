@@ -50,6 +50,9 @@ error: expected `&PyModule` or `Py<PyModule>` as first argument with `pass_modul
 error[E0277]: the trait bound `&str: From<BoundRef<'_, '_, pyo3::types::PyModule>>` is not satisfied
   --> tests/ui/invalid_pyfunctions.rs:36:14
    |
+34 | #[pyfunction(pass_module)]
+   | -------------------------- in this procedural macro expansion
+35 | fn first_argument_not_module<'a, 'py>(
 36 |     _string: &str,
    |              ^ the trait `From<BoundRef<'_, '_, pyo3::types::PyModule>>` is not implemented for `&str`, which is required by `BoundRef<'_, '_, pyo3::types::PyModule>: Into<_>`
    |
@@ -61,3 +64,4 @@ error[E0277]: the trait bound `&str: From<BoundRef<'_, '_, pyo3::types::PyModule
              `String` implements `From<Cow<'a, str>>`
              `String` implements `From<char>`
    = note: required for `BoundRef<'_, '_, pyo3::types::PyModule>` to implement `Into<&str>`
+   = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)

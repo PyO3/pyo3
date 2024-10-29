@@ -42,6 +42,12 @@ macro_rules! ensure_spanned {
     };
 }
 
+macro_rules! quote_at_location {
+    ($span:expr => $($tokens:tt)*) => {
+        quote::quote_spanned!(proc_macro2::Span::call_site().located_at($span) => $($tokens)*)
+    };
+}
+
 /// Check if the given type `ty` is `pyo3::Python`.
 pub fn is_python(ty: &syn::Type) -> bool {
     match unwrap_ty_group(ty) {
@@ -101,7 +107,7 @@ impl quote::ToTokens for LitCStr {
         } else {
             let pyo3_path = &self.pyo3_path;
             let lit = self.lit.to_str().unwrap();
-            tokens.extend(quote::quote_spanned!(self.span => #pyo3_path::ffi::c_str!(#lit)));
+            tokens.extend(quote_at_location!(self.span => #pyo3_path::ffi::c_str!(#lit)));
         }
     }
 }
@@ -258,8 +264,8 @@ pub enum PyO3CratePath {
 impl PyO3CratePath {
     pub fn to_tokens_spanned(&self, span: Span) -> TokenStream {
         match self {
-            Self::Given(path) => quote::quote_spanned! { span => #path },
-            Self::Default => quote::quote_spanned! {  span => ::pyo3 },
+            Self::Given(path) => quote_at_location! { span => #path },
+            Self::Default => quote_at_location! {  span => ::pyo3 },
         }
     }
 }

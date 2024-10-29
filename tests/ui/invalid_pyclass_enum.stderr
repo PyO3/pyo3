@@ -69,8 +69,13 @@ error: The `ord` option requires the `eq` option.
 error: #[pyclass] can't be used on enums without any variants - all variants of enum `AllEnumVariantsDisabled` have been configured out by cfg attributes
   --> tests/ui/invalid_pyclass_enum.rs:98:6
    |
+96 | #[pyclass(eq)]
+   | -------------- in this procedural macro expansion
+97 | #[derive(PartialEq)]
 98 | enum AllEnumVariantsDisabled {
    |      ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0369]: binary operation `==` cannot be applied to type `&SimpleEqOptRequiresPartialEq`
   --> tests/ui/invalid_pyclass_enum.rs:31:11
@@ -83,6 +88,7 @@ note: an implementation of `PartialEq` might be missing for `SimpleEqOptRequires
    |
 32 | enum SimpleEqOptRequiresPartialEq {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider annotating `SimpleEqOptRequiresPartialEq` with `#[derive(PartialEq)]`
    |
 32 + #[derive(PartialEq)]
@@ -100,6 +106,7 @@ note: an implementation of `PartialEq` might be missing for `SimpleEqOptRequires
    |
 32 | enum SimpleEqOptRequiresPartialEq {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider annotating `SimpleEqOptRequiresPartialEq` with `#[derive(PartialEq)]`
    |
 32 + #[derive(PartialEq)]
@@ -117,6 +124,7 @@ note: an implementation of `PartialEq` might be missing for `ComplexEqOptRequire
    |
 38 | enum ComplexEqOptRequiresPartialEq {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider annotating `ComplexEqOptRequiresPartialEq` with `#[derive(PartialEq)]`
    |
 38 + #[derive(PartialEq)]
@@ -134,6 +142,7 @@ note: an implementation of `PartialEq` might be missing for `ComplexEqOptRequire
    |
 38 | enum ComplexEqOptRequiresPartialEq {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider annotating `ComplexEqOptRequiresPartialEq` with `#[derive(PartialEq)]`
    |
 38 + #[derive(PartialEq)]
@@ -175,6 +184,7 @@ note: an implementation of `PartialOrd` might be missing for `InvalidOrderedComp
    |
 91 | enum InvalidOrderedComplexEnum2 {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialOrd`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider annotating `InvalidOrderedComplexEnum2` with `#[derive(PartialEq, PartialOrd)]`
    |
 91 + #[derive(PartialEq, PartialOrd)]
@@ -192,6 +202,7 @@ note: an implementation of `PartialOrd` might be missing for `InvalidOrderedComp
    |
 91 | enum InvalidOrderedComplexEnum2 {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialOrd`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider annotating `InvalidOrderedComplexEnum2` with `#[derive(PartialEq, PartialOrd)]`
    |
 91 + #[derive(PartialEq, PartialOrd)]
@@ -209,6 +220,7 @@ note: an implementation of `PartialOrd` might be missing for `InvalidOrderedComp
    |
 91 | enum InvalidOrderedComplexEnum2 {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialOrd`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider annotating `InvalidOrderedComplexEnum2` with `#[derive(PartialEq, PartialOrd)]`
    |
 91 + #[derive(PartialEq, PartialOrd)]
@@ -226,6 +238,7 @@ note: an implementation of `PartialOrd` might be missing for `InvalidOrderedComp
    |
 91 | enum InvalidOrderedComplexEnum2 {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialOrd`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider annotating `InvalidOrderedComplexEnum2` with `#[derive(PartialEq, PartialOrd)]`
    |
 91 + #[derive(PartialEq, PartialOrd)]

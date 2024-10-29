@@ -1,6 +1,8 @@
 error[E0277]: `Blah` cannot be converted to a Python object
  --> tests/ui/missing_intopy.rs:4:14
   |
+3 | #[pyo3::pyfunction]
+  | ------------------- in this procedural macro expansion
 4 | fn blah() -> Blah {
   |              ^^^^ the trait `IntoPyObject<'_>` is not implemented for `Blah`
   |
@@ -25,12 +27,17 @@ note: required by a bound in `UnknownReturnType::<T>::wrap`
   |     where
   |         T: IntoPyObject<'py>,
   |            ^^^^^^^^^^^^^^^^^ required by this bound in `UnknownReturnType::<T>::wrap`
+  = note: this error originates in the attribute macro `pyo3::pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0599]: no method named `map_err` found for struct `Blah` in the current scope
  --> tests/ui/missing_intopy.rs:4:14
   |
 1 | struct Blah;
   | ----------- method `map_err` not found for this struct
-...
+2 |
+3 | #[pyo3::pyfunction]
+  | ------------------- in this procedural macro expansion
 4 | fn blah() -> Blah {
   |              ^^^^ method not found in `Blah`
+  |
+  = note: this error originates in the attribute macro `pyo3::pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)

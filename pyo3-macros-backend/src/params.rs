@@ -5,7 +5,7 @@ use crate::{
     quotes::some_wrap,
 };
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned};
+use quote::{format_ident, quote};
 use syn::spanned::Spanned;
 
 pub struct Holders {
@@ -61,7 +61,7 @@ pub fn impl_arg_params(
         .filter_map(|(i, arg)| {
             let from_py_with = &arg.from_py_with()?.value;
             let from_py_with_holder = format_ident!("from_py_with_{}", i);
-            Some(quote_spanned! { from_py_with.span() =>
+            Some(quote_at_location! { from_py_with.span() =>
                 let #from_py_with_holder = #from_py_with;
             })
         })
@@ -196,7 +196,7 @@ fn impl_arg_param(
         FnArg::VarArgs(arg) => {
             let holder = holders.push_holder(arg.name.span());
             let name_str = arg.name.to_string();
-            quote_spanned! { arg.name.span() =>
+            quote_at_location! { arg.name.span() =>
                 #pyo3_path::impl_::extract_argument::extract_argument(
                     &_args,
                     &mut #holder,
@@ -207,7 +207,7 @@ fn impl_arg_param(
         FnArg::KwArgs(arg) => {
             let holder = holders.push_holder(arg.name.span());
             let name_str = arg.name.to_string();
-            quote_spanned! { arg.name.span() =>
+            quote_at_location! { arg.name.span() =>
                 #pyo3_path::impl_::extract_argument::extract_optional_argument(
                     _kwargs.as_deref(),
                     &mut #holder,
@@ -236,7 +236,7 @@ pub(crate) fn impl_regular_arg_param(
     // Use this macro inside this function, to ensure that all code generated here is associated
     // with the function argument
     macro_rules! quote_arg_span {
-        ($($tokens:tt)*) => { quote_spanned!(arg.ty.span() => $($tokens)*) }
+        ($($tokens:tt)*) => { quote_at_location!(arg.ty.span() => $($tokens)*) }
     }
 
     let name_str = arg.name.to_string();

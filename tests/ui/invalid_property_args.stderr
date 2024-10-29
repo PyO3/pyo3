@@ -49,6 +49,9 @@ error: `name` is useless without `get` or `set`
 error[E0277]: `PhantomData<i32>` cannot be converted to a Python object
   --> tests/ui/invalid_property_args.rs:45:12
    |
+42 | #[pyclass]
+   | ---------- in this procedural macro expansion
+...
 45 |     value: ::std::marker::PhantomData<i32>,
    |            ^ required by `#[pyo3(get)]` to create a readable property from a field of type `PhantomData<i32>`
    |
@@ -73,3 +76,4 @@ note: required by a bound in `PyClassGetterGenerator::<ClassT, FieldT, Offset, f
 ...
    |         for<'py> FieldT: PyO3GetField<'py>,
    |                          ^^^^^^^^^^^^^^^^^ required by this bound in `PyClassGetterGenerator::<ClassT, FieldT, Offset, false, false, false, false, false>::generate`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)

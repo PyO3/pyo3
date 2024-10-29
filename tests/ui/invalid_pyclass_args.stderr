@@ -206,6 +206,7 @@ note: an implementation of `PartialEq` might be missing for `EqOptRequiresEq`
    |
 35 | struct EqOptRequiresEq {}
    | ^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider annotating `EqOptRequiresEq` with `#[derive(PartialEq)]`
    |
 35 + #[derive(PartialEq)]
@@ -223,6 +224,7 @@ note: an implementation of `PartialEq` might be missing for `EqOptRequiresEq`
    |
 35 | struct EqOptRequiresEq {}
    | ^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider annotating `EqOptRequiresEq` with `#[derive(PartialEq)]`
    |
 35 + #[derive(PartialEq)]

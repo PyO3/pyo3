@@ -1,6 +1,9 @@
 error[E0277]: the trait bound `i32: TryFrom<BoundRef<'_, '_, MyClass>>` is not satisfied
  --> tests/ui/invalid_pymethod_receiver.rs:8:44
   |
+6 | #[pymethods]
+  | ------------ in this procedural macro expansion
+7 | impl MyClass {
 8 |     fn method_with_invalid_self_type(_slf: i32, _py: Python<'_>, _index: u32) {}
   |                                            ^^^ the trait `From<BoundRef<'_, '_, MyClass>>` is not implemented for `i32`, which is required by `i32: TryFrom<BoundRef<'_, '_, MyClass>>`
   |
@@ -12,3 +15,4 @@ error[E0277]: the trait bound `i32: TryFrom<BoundRef<'_, '_, MyClass>>` is not s
             `i32` implements `From<u8>`
   = note: required for `BoundRef<'_, '_, MyClass>` to implement `Into<i32>`
   = note: required for `i32` to implement `TryFrom<BoundRef<'_, '_, MyClass>>`
+  = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)

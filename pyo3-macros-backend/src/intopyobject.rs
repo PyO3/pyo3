@@ -1,7 +1,7 @@
 use crate::attributes::{self, get_pyo3_options, CrateAttribute};
 use crate::utils::Ctx;
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned};
+use quote::{format_ident, quote};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned as _;
@@ -354,7 +354,7 @@ impl<'a> Container<'a> {
             target: quote! {<#ty as #pyo3_path::conversion::IntoPyObject<'py>>::Target},
             output: quote! {<#ty as #pyo3_path::conversion::IntoPyObject<'py>>::Output},
             error: quote! {<#ty as #pyo3_path::conversion::IntoPyObject<'py>>::Error},
-            body: quote_spanned! { ty.span() =>
+            body: quote_at_location! { ty.span() =>
                 #unpack
                 <#ty as #pyo3_path::conversion::IntoPyObject<'py>>::into_pyobject(arg0, py)
             },
@@ -421,7 +421,7 @@ impl<'a> Container<'a> {
             .map(|(i, f)| {
                 let ty = &f.field.ty;
                 let value = Ident::new(&format!("arg{i}"), f.field.ty.span());
-                quote_spanned! { f.field.ty.span() =>
+                quote_at_location! { f.field.ty.span() =>
                     <#ty as #pyo3_path::conversion::IntoPyObject>::into_pyobject(#value, py)
                         .map(#pyo3_path::BoundObject::into_any)
                         .map(#pyo3_path::BoundObject::into_bound)?,

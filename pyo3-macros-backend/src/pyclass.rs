@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::fmt::Debug;
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{format_ident, quote, ToTokens};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
@@ -1835,7 +1835,7 @@ fn pyclass_richcmp_arms(
         .map(|eq| eq.span)
         .or(options.eq_int.map(|eq_int| eq_int.span))
         .map(|span| {
-            quote_spanned! { span =>
+            quote_at_location! { span =>
                 #pyo3_path::pyclass::CompareOp::Eq => {
                     ::std::result::Result::Ok(#pyo3_path::conversion::IntoPy::into_py(self_val == other, py))
                 },
@@ -1853,7 +1853,7 @@ fn pyclass_richcmp_arms(
     let ord_arms = options
         .ord
         .map(|ord| {
-            quote_spanned! { ord.span() =>
+            quote_at_location! { ord.span() =>
                 #pyo3_path::pyclass::CompareOp::Gt => {
                     ::std::result::Result::Ok(#pyo3_path::conversion::IntoPy::into_py(self_val > other, py))
                 },
@@ -1913,7 +1913,7 @@ fn pyclass_richcmp_simple_enum(
     let arms = pyclass_richcmp_arms(&options, ctx)?;
 
     let eq = options.eq.map(|eq| {
-        quote_spanned! { eq.span() =>
+        quote_at_location! { eq.span() =>
             let self_val = self;
             if let ::std::result::Result::Ok(other) = #pyo3_path::types::PyAnyMethods::downcast::<Self>(other) {
                 let other = &*other.borrow();
@@ -1925,7 +1925,7 @@ fn pyclass_richcmp_simple_enum(
     });
 
     let eq_int = options.eq_int.map(|eq_int| {
-        quote_spanned! { eq_int.span() =>
+        quote_at_location! { eq_int.span() =>
             let self_val = self.__pyo3__int__();
             if let ::std::result::Result::Ok(other) = #pyo3_path::types::PyAnyMethods::extract::<#repr_type>(other).or_else(|_| {
                 #pyo3_path::types::PyAnyMethods::downcast::<Self>(other).map(|o| o.borrow().__pyo3__int__())
@@ -2282,7 +2282,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         };
 
         let pyclass_base_type_impl = attr.options.subclass.map(|subclass| {
-            quote_spanned! { subclass.span() =>
+            quote_at_location! { subclass.span() =>
                 impl #pyo3_path::impl_::pyclass::PyClassBaseType for #cls {
                     type LayoutAsBase = #pyo3_path::impl_::pycell::PyClassObject<Self>;
                     type BaseNativeType = <Self as #pyo3_path::impl_::pyclass::PyClassImpl>::BaseNativeType;
@@ -2456,7 +2456,7 @@ fn generate_cfg_check(variants: &[PyClassEnumUnitVariant<'_>], cls: &syn::Ident)
         }
     }
 
-    quote_spanned! {
+    quote_at_location! {
         cls.span() =>
         #[cfg(all(#(#conditions),*))]
         ::core::compile_error!(concat!("#[pyclass] can't be used on enums without any variants - all variants of enum `", stringify!(#cls), "` have been configured out by cfg attributes"));

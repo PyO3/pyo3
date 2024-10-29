@@ -13,7 +13,7 @@ use crate::{
 };
 use crate::{quotes, utils};
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{format_ident, quote, ToTokens};
 use syn::{ext::IdentExt, spanned::Spanned, Result};
 
 /// Generated code for a single pymethod item.
@@ -662,7 +662,7 @@ pub fn impl_py_setter_def(
                 if let Some(from_py_with) = &value_arg.from_py_with().as_ref().map(|f| &f.value) {
                     let ident = syn::Ident::new("from_py_with", from_py_with.span());
                     (
-                        quote_spanned! { from_py_with.span() =>
+                        quote_at_location! { from_py_with.span() =>
                             let #ident = #from_py_with;
                         },
                         ident,
@@ -816,7 +816,7 @@ pub fn impl_py_getter_def(
 
             // TODO: on MSRV 1.77+, we can use `::std::mem::offset_of!` here, and it should
             // make it possible for the `MaybeRuntimePyMethodDef` to be a `Static` variant.
-            let generator = quote_spanned! { ty.span() =>
+            let generator = quote_at_location! { ty.span() =>
                 #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Runtime(
                     || GENERATOR.generate(#python_name, #doc)
                 )

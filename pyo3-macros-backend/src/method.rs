@@ -3,7 +3,7 @@ use std::ffi::CString;
 use std::fmt::Display;
 
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{format_ident, quote, ToTokens};
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
 use crate::deprecations::deprecate_trailing_option_default;
@@ -265,7 +265,7 @@ impl FnType {
                 let py = syn::Ident::new("py", Span::call_site());
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
-                let ret = quote_spanned! { *span =>
+                let ret = quote_at_location! { *span =>
                     #[allow(clippy::useless_conversion)]
                     ::std::convert::Into::into(
                         #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
@@ -278,7 +278,7 @@ impl FnType {
                 let py = syn::Ident::new("py", Span::call_site());
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
-                let ret = quote_spanned! { *span =>
+                let ret = quote_at_location! { *span =>
                     #[allow(clippy::useless_conversion)]
                     ::std::convert::Into::into(
                         #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
@@ -342,7 +342,7 @@ impl SelfType {
                 let holder = holders.push_holder(*span);
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 error_mode.handle_error(
-                    quote_spanned! { *span =>
+                    quote_at_location! { *span =>
                         #pyo3_path::impl_::extract_argument::#method::<#cls>(
                             #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf).0,
                             &mut #holder,
@@ -354,7 +354,7 @@ impl SelfType {
             SelfType::TryFromBoundRef(span) => {
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 error_mode.handle_error(
-                    quote_spanned! { *span =>
+                    quote_at_location! { *span =>
                         #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf).downcast::<#cls>()
                             .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
                             .and_then(
@@ -824,7 +824,7 @@ impl<'a> FnSpec<'a> {
                 let self_arg = self
                     .tp
                     .self_arg(cls, ExtractErrorMode::Raise, &mut holders, ctx);
-                let call = quote_spanned! {*output_span=> #rust_name(#self_arg #(#args),*) };
+                let call = quote_at_location! {*output_span=> #rust_name(#self_arg #(#args),*) };
                 let init_holders = holders.init_holders(ctx);
                 quote! {
                     unsafe fn #ident(
