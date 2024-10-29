@@ -64,21 +64,11 @@ pub trait PyMappingProxyMethods<'py, 'a>: crate::sealed::Sealed {
     /// Takes an object and returns an iterator for it. Returns an error if the object is not
     /// iterable.
     fn try_iter(&'a self) -> PyResult<BoundMappingProxyIterator<'py, 'a>>;
-
-    /// Returns a new mapping that contains the same key-value pairs as self.
-    ///
-    /// This is equivalent to the Python expression `self.copy()`.
-    fn copy(&self) -> PyResult<Bound<'py, PyMapping>>;
 }
 
 impl<'py, 'a> PyMappingProxyMethods<'py, 'a> for Bound<'py, PyMappingProxy> {
     fn is_empty(&self) -> PyResult<bool> {
         Ok(self.len()? == 0)
-    }
-
-    fn copy(&self) -> PyResult<Bound<'py, PyMapping>> {
-        let res = self.call_method0("copy")?;
-        unsafe { Ok(res.downcast_into_unchecked::<PyMapping>()) }
     }
 
     #[inline]
@@ -430,33 +420,6 @@ mod tests {
         });
     }
 
-    #[test]
-    fn test_copy() {
-        Python::with_gil(|py| {
-            let dict = [(7, 32)].into_py_dict(py).unwrap();
-            let mappingproxy = PyMappingProxy::new(py, dict.as_mapping());
-
-            let new_dict = mappingproxy.copy().unwrap();
-            assert_eq!(
-                32,
-                new_dict.get_item(7i32).unwrap().extract::<i32>().unwrap()
-            );
-            new_dict.set_item(9i32, 42).unwrap();
-            assert_eq!(
-                42,
-                new_dict.get_item(9i32).unwrap().extract::<i32>().unwrap()
-            );
-            assert!(new_dict
-                .get_item(8i32)
-                .unwrap_err()
-                .is_instance_of::<PyKeyError>(py));
-            assert!(mappingproxy
-                .get_item(9i32)
-                .unwrap_err()
-                .is_instance_of::<PyKeyError>(py));
-        });
-    }
-
     #[cfg(not(PyPy))]
     fn abc_mappingproxy(py: Python<'_>) -> Bound<'_, PyMappingProxy> {
         let mut map = HashMap::<&'static str, i32>::new();
@@ -562,8 +525,7 @@ mod tests {
             for index in 1..LEN {
                 assert_eq!(
                     mappingproxy
-                        .copy()
-                        .unwrap()
+                        .clone()
                         .get_item(index)
                         .unwrap()
                         .extract::<usize>()

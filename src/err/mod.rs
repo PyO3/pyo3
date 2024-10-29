@@ -359,60 +359,6 @@ impl PyErr {
     /// expected to have been set, for example from [`PyErr::occurred`] or by an error return value
     /// from a C FFI function, use [`PyErr::fetch`].
     pub fn take(py: Python<'_>) -> Option<PyErr> {
-        Self::_take(py)
-    }
-
-    #[cfg(not(Py_3_12))]
-    fn _take(py: Python<'_>) -> Option<PyErr> {
-        let (ptype, pvalue, ptraceback) = unsafe {
-            let mut ptype: *mut ffi::PyObject = std::ptr::null_mut();
-            let mut pvalue: *mut ffi::PyObject = std::ptr::null_mut();
-            let mut ptraceback: *mut ffi::PyObject = std::ptr::null_mut();
-            ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback);
-
-            // Convert to Py immediately so that any references are freed by early return.
-            let ptype = PyObject::from_owned_ptr_or_opt(py, ptype);
-            let pvalue = PyObject::from_owned_ptr_or_opt(py, pvalue);
-            let ptraceback = PyObject::from_owned_ptr_or_opt(py, ptraceback);
-
-            // A valid exception state should always have a non-null ptype, but the other two may be
-            // null.
-            let ptype = match ptype {
-                Some(ptype) => ptype,
-                None => {
-                    debug_assert!(
-                        pvalue.is_none(),
-                        "Exception type was null but value was not null"
-                    );
-                    debug_assert!(
-                        ptraceback.is_none(),
-                        "Exception type was null but traceback was not null"
-                    );
-                    return None;
-                }
-            };
-
-            (ptype, pvalue, ptraceback)
-        };
-
-        if ptype.as_ptr() == PanicException::type_object_raw(py).cast() {
-            let msg = pvalue
-                .as_ref()
-                .and_then(|obj| obj.bind(py).str().ok())
-                .map(|py_str| py_str.to_string_lossy().into())
-                .unwrap_or_else(|| String::from("Unwrapped panic from Python code"));
-
-            let state = PyErrState::ffi_tuple(ptype, pvalue, ptraceback);
-            Self::print_panic_and_unwind(py, state, msg)
-        }
-
-        Some(PyErr::from_state(PyErrState::ffi_tuple(
-            ptype, pvalue, ptraceback,
-        )))
-    }
-
-    #[cfg(Py_3_12)]
-    fn _take(py: Python<'_>) -> Option<PyErr> {
         let state = PyErrStateNormalized::take(py)?;
         let pvalue = state.pvalue.bind(py);
         if pvalue.get_type().as_ptr() == PanicException::type_object_raw(py).cast() {
