@@ -42,6 +42,7 @@ use std::convert::Infallible;
 /// # use pyo3::ffi;
 /// #
 /// Python::with_gil(|py| {
+///     // ERROR: calling `.as_ptr()` will throw away the temporary object and leave `ptr` dangling.
 ///     let ptr: *mut ffi::PyObject = 0xabad1dea_u32.into_pyobject(py)?.as_ptr();
 ///
 ///     let isnt_a_pystring = unsafe {
