@@ -1,6 +1,8 @@
 use std::marker::PhantomData;
 
-use crate::{conversion::IntoPyObject, IntoPy, Py, ToPyObject};
+#[allow(deprecated)]
+use crate::ToPyObject;
+use crate::{conversion::IntoPyObject, IntoPy, Py};
 
 /// Trait used to combine with zero-sized types to calculate at compile time
 /// some property of a type.
