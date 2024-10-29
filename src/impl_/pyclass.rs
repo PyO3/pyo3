@@ -167,6 +167,7 @@ pub trait PyClassImpl: Sized + 'static {
     /// #[pyclass(sequence)]
     const IS_SEQUENCE: bool = false;
 
+    /// Description of how this class is laid out in memory
     type Layout: InternalPyClassObjectLayout<Self>;
 
     /// Base class

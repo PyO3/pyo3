@@ -141,6 +141,9 @@ given signatures should be interpreted as follows:
 
     Determines the "truthyness" of an object.
 
+  - `__init__(<self>, ...) -> object` - here, any argument list can be defined
+    as for normal `pymethods`
+
   - `__call__(<self>, ...) -> object` - here, any argument list can be defined
     as for normal `pymethods`
 

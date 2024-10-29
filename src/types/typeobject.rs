@@ -1,4 +1,4 @@
-use super::{PyDict, PyString};
+use super::PyString;
 use crate::err::{self, PyResult};
 use crate::instance::Borrowed;
 #[cfg(not(Py_3_13))]
@@ -44,29 +44,6 @@ impl PyType {
     #[inline]
     pub fn new_bound<T: PyTypeInfo>(py: Python<'_>) -> Bound<'_, PyType> {
         Self::new::<T>(py)
-    }
-
-    /// Creates a new type object (class). The resulting type/class will inherit the given metaclass `T`
-    ///
-    /// Equivalent to calling `type(name, bases, dict, **kwds)`
-    /// <https://docs.python.org/3/library/functions.html#type>
-    #[cfg(not(Py_LIMITED_API))]
-    pub fn new_type<'py, T: PyTypeInfo>(
-        py: Python<'py>,
-        args: &Bound<'py, PyTuple>,
-        kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, T>> {
-        let new_fn = unsafe {
-            ffi::PyType_Type
-                .tp_new
-                .expect("PyType_Type.tp_new should be present")
-        };
-        let raw_type = T::type_object_raw(py);
-        let raw_args = args.as_ptr();
-        let raw_kwargs = kwargs.map(|v| v.as_ptr()).unwrap_or(std::ptr::null_mut());
-        let obj_ptr = unsafe { new_fn(raw_type, raw_args, raw_kwargs) };
-        let borrowed_obj = unsafe { Borrowed::from_ptr_or_err(py, obj_ptr) }?;
-        Ok(borrowed_obj.downcast()?.to_owned())
     }
 
     /// Converts the given FFI pointer into `Bound<PyType>`, to use in safe code.
@@ -422,42 +399,6 @@ class OuterClass:
             assert_eq!(
                 inner_class_type.fully_qualified_name().unwrap(),
                 qualname.as_str()
-            );
-        });
-    }
-
-    #[test]
-    #[cfg(all(not(Py_LIMITED_API), feature = "macros"))]
-    fn test_new_type() {
-        use crate::{
-            types::{PyDict, PyList, PyString},
-            IntoPy,
-        };
-
-        Python::with_gil(|py| {
-            #[allow(non_snake_case)]
-            let ListType = py.get_type::<PyList>();
-            let name = PyString::new(py, "MyClass");
-            let bases = PyTuple::new(py, [ListType]).unwrap();
-            let dict = PyDict::new(py);
-            dict.set_item("foo", 123_i32.into_py(py)).unwrap();
-            let args = PyTuple::new(py, [name.as_any(), bases.as_any(), dict.as_any()]).unwrap();
-            #[allow(non_snake_case)]
-            let MyClass = PyType::new_type::<PyType>(py, &args, None).unwrap();
-
-            assert_eq!(MyClass.name().unwrap(), "MyClass");
-            assert_eq!(MyClass.qualname().unwrap(), "MyClass");
-
-            crate::py_run!(
-                py,
-                MyClass,
-                r#"
-                assert type(MyClass) is type
-                assert MyClass.__bases__ == (list,)
-                assert issubclass(MyClass, list)
-                assert MyClass.foo == 123
-                assert not hasattr(MyClass, "__module__")
-                "#
             );
         });
     }

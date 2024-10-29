@@ -143,6 +143,7 @@ impl PyMethodKind {
             "__gt__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__GT__)),
             "__ge__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__GE__)),
             // Some tricky protocols which don't fit the pattern of the rest
+            "__init__" => PyMethodKind::Proto(PyMethodProtoKind::Init),
             "__call__" => PyMethodKind::Proto(PyMethodProtoKind::Call),
             "__traverse__" => PyMethodKind::Proto(PyMethodProtoKind::Traverse),
             "__clear__" => PyMethodKind::Proto(PyMethodProtoKind::Clear),
@@ -154,6 +155,7 @@ impl PyMethodKind {
 
 enum PyMethodProtoKind {
     Slot(&'static SlotDef),
+    Init,
     Call,
     Traverse,
     Clear,
@@ -211,6 +213,9 @@ pub fn gen_py_method(
                 PyMethodProtoKind::Slot(slot_def) => {
                     let slot = slot_def.generate_type_slot(cls, spec, &method.method_name, ctx)?;
                     GeneratedPyMethod::Proto(slot)
+                }
+                PyMethodProtoKind::Init => {
+                    GeneratedPyMethod::Proto(impl_init_slot(cls, method.spec, ctx)?)
                 }
                 PyMethodProtoKind::Call => {
                     GeneratedPyMethod::Proto(impl_call_slot(cls, method.spec, ctx)?)
@@ -303,8 +308,11 @@ fn ensure_no_forbidden_protocol_attributes(
     method_name: &str,
 ) -> syn::Result<()> {
     if let Some(signature) = &spec.signature.attribute {
-        // __call__ is allowed to have a signature, but nothing else is.
-        if !matches!(proto_kind, PyMethodProtoKind::Call) {
+        // __call__ and __init__ are allowed to have a signature, but nothing else is.
+        if !matches!(
+            proto_kind,
+            PyMethodProtoKind::Call | PyMethodProtoKind::Init
+        ) {
             bail_spanned!(signature.kw.span() => format!("`signature` cannot be used with magic method `{}`", method_name));
         }
     }
@@ -386,6 +394,42 @@ pub fn impl_py_method_def_new(
                 }
                 trampoline
             } as #pyo3_path::ffi::newfunc as _
+        }
+    };
+    Ok(MethodAndSlotDef {
+        associated_method,
+        slot_def,
+    })
+}
+
+fn impl_init_slot(cls: &syn::Type, mut spec: FnSpec<'_>, ctx: &Ctx) -> Result<MethodAndSlotDef> {
+    let Ctx { pyo3_path, .. } = ctx;
+
+    // HACK: __init__ proto slot must always use varargs calling convention, so change the spec.
+    // Probably indicates there's a refactoring opportunity somewhere.
+    spec.convention = CallingConvention::Varargs;
+
+    let wrapper_ident = syn::Ident::new("__pymethod___init____", Span::call_site());
+    let associated_method = spec.get_wrapper_function(&wrapper_ident, Some(cls), ctx)?;
+    let slot_def = quote! {
+        #pyo3_path::ffi::PyType_Slot {
+            slot: #pyo3_path::ffi::Py_tp_init,
+            pfunc: {
+                unsafe extern "C" fn trampoline(
+                    slf: *mut #pyo3_path::ffi::PyObject,
+                    args: *mut #pyo3_path::ffi::PyObject,
+                    kwargs: *mut #pyo3_path::ffi::PyObject,
+                ) -> ::std::os::raw::c_int
+                {
+                    #pyo3_path::impl_::trampoline::initproc(
+                        slf,
+                        args,
+                        kwargs,
+                        #cls::#wrapper_ident
+                    )
+                }
+                trampoline
+            } as #pyo3_path::ffi::initproc as _
         }
     };
     Ok(MethodAndSlotDef {

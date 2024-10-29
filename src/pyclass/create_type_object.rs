@@ -446,8 +446,14 @@ impl PyTypeBuilder {
 
         unsafe { self.push_slot(ffi::Py_tp_base, self.tp_base) }
 
-        if !self.has_new {
-            // Safety: This is the correct slot type for Py_tp_new
+        // Safety: self.tp_base must be a valid PyTypeObject
+        if unsafe { ffi::PyType_IsSubtype(self.tp_base, &raw mut ffi::PyType_Type) } != 0 {
+            // if the pyclass derives from `type` (is a metaclass) then `tp_new` must not be set.
+            // Metaclasses that override tp_new are not supported.
+            // https://docs.python.org/3/c-api/type.html#c.PyType_FromMetaclass
+            assert!(!self.has_new, "Metaclasses must not specify __new__");
+        } else if !self.has_new {
+            // Safety: The default constructor is a valid value of tp_new
             unsafe { self.push_slot(ffi::Py_tp_new, no_constructor_defined as *mut c_void) }
         }
 

@@ -122,6 +122,23 @@ trampolines!(
     pub fn unaryfunc(slf: *mut ffi::PyObject) -> *mut ffi::PyObject;
 );
 
+// tp_init should return 0 on success and -1 on error
+// https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_init
+#[inline]
+pub unsafe fn initproc(
+    slf: *mut ffi::PyObject,
+    args: *mut ffi::PyObject,
+    kwargs: *mut ffi::PyObject,
+    f: for<'py> unsafe fn(
+        Python<'py>,
+        *mut ffi::PyObject,
+        *mut ffi::PyObject,
+        *mut ffi::PyObject,
+    ) -> PyResult<*mut ffi::PyObject>,
+) -> c_int {
+    trampoline(|py| f(py, slf, args, kwargs).map(|_| 0))
+}
+
 #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
 trampoline! {
     pub fn getbufferproc(slf: *mut ffi::PyObject, buf: *mut ffi::Py_buffer, flags: c_int) -> c_int;

@@ -192,16 +192,14 @@ mod inheriting_type {
 
         #[pymethods]
         impl Metaclass {
-            #[new]
-            #[pyo3(signature = (*args, **kwds))]
-            fn new<'py>(
-                py: Python<'py>,
-                args: &Bound<'py, PyTuple>,
-                kwds: Option<&Bound<'py, PyDict>>,
-            ) -> PyResult<Bound<'py, Self>> {
-                let type_object = PyType::new_type::<Metaclass>(py, args, kwds)?;
-                type_object.setattr("some_var", 123)?;
-                Ok(type_object)
+            #[pyo3(signature = (*_args, **_kwargs))]
+            fn __init__(
+                slf: Bound<'_, Metaclass>,
+                _args: Bound<'_, PyTuple>,
+                _kwargs: Option<Bound<'_, PyDict>>,
+            ) -> PyResult<()> {
+                slf.as_any().setattr("some_var", 123)?;
+                Ok(())
             }
 
             fn __getitem__(&self, item: u64) -> u64 {

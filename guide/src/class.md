@@ -1374,6 +1374,7 @@ impl pyo3::types::DerefToPyAny for MyClass {}
 unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
     const NAME: &'static str = "MyClass";
     const MODULE: ::std::option::Option<&'static str> = ::std::option::Option::None;
+    type Layout<T: pyo3::impl_::pyclass::PyClassImpl> = pyo3::impl_::pycell::PyStaticClassObject<T>;
     #[inline]
     fn type_object_raw(py: pyo3::Python<'_>) -> *mut pyo3::ffi::PyTypeObject {
         <Self as pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()
@@ -1418,6 +1419,7 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     const IS_SUBCLASS: bool = false;
     const IS_MAPPING: bool = false;
     const IS_SEQUENCE: bool = false;
+    type Layout = <MyClass as pyo3::type_object::PyTypeInfo>::Layout<MyClass>;
     type BaseType = PyAny;
     type ThreadChecker = pyo3::impl_::pyclass::SendablePyClass<MyClass>;
     type PyClassMutability = <<pyo3::PyAny as pyo3::impl_::pyclass::PyClassBaseType>::PyClassMutability as pyo3::impl_::pycell::PyClassMutability>::MutableChild;
