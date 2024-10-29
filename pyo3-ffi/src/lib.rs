@@ -64,7 +64,7 @@
 //! your `Cargo.toml`:
 //!
 //! ```toml
-//! [build-dependency]
+//! [build-dependencies]
 #![doc = concat!("pyo3-build-config =\"", env!("CARGO_PKG_VERSION"),  "\"")]
 //! ```
 //!
@@ -161,7 +161,7 @@
 //! in the CPython C API to register the module. This is the "old" style for registering modules
 //! and has the limitation that it cannot support subinterpreters. You can also create a module
 //! using the new multi-phase initialization API that does support subinterpreters. See the
-//! [`sequential`] example in [`examples`] folder at the root of the repository for a worked example
+//! [`sequential`] examples located at the root of the `pyo3-ffi` crate for a worked example
 //! of how to this using `pyo3-ffi`.
 //!
 //!
@@ -189,8 +189,8 @@
 #![doc = concat!("[manual_builds]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/building-and-distribution.html#manual-builds \"Manual builds - Building and Distribution - PyO3 user guide\"")]
 //! [setuptools-rust]: https://github.com/PyO3/setuptools-rust "Setuptools plugin for Rust extensions"
 //! [PEP 384]: https://www.python.org/dev/peps/pep-0384 "PEP 384 -- Defining a Stable ABI"
-//! [`sequential`]: https://github.com/PyO3/pyo3/tree/main/examples/sequential "An example illustrating multi-phase initialization"
-//! [`examples`]: https://github.com/PyO3/pyo3/tree/main/examples/sequential "PyO3 examples"
+#![doc = concat!("[`sequential`]: https://github.com/PyO3/pyo3/tree/v", env!("CARGO_PKG_VERSION"), "/examples/sequential \"An example illustrating multi-phase initialization\"")]
+#![doc = concat!("[`examples`]: https://github.com/PyO3/pyo3/tree/v", env!("CARGO_PKG_VERSION"), "/examples/sequential \"PyO3 examples\"")]
 #![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features Reference - PyO3 user guide\"")]
 #![allow(
     missing_docs,
