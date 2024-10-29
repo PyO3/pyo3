@@ -6,7 +6,7 @@ use crate::py_result_ext::PyResultExt;
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
-use crate::types::{PyAny, PyDict, PySequence, PyType};
+use crate::types::{PyAny, PyDict, PyList, PyType};
 use crate::{ffi, Py, PyTypeCheck, Python};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
@@ -77,14 +77,14 @@ pub trait PyMappingMethods<'py>: crate::sealed::Sealed {
     where
         K: IntoPyObject<'py>;
 
-    /// Returns a sequence containing all keys in the mapping.
-    fn keys(&self) -> PyResult<Bound<'py, PySequence>>;
+    /// Returns a list containing all keys in the mapping.
+    fn keys(&self) -> PyResult<Bound<'py, PyList>>;
 
-    /// Returns a sequence containing all values in the mapping.
-    fn values(&self) -> PyResult<Bound<'py, PySequence>>;
+    /// Returns a list containing all values in the mapping.
+    fn values(&self) -> PyResult<Bound<'py, PyList>>;
 
-    /// Returns a sequence of tuples of all (key, value) pairs in the mapping.
-    fn items(&self) -> PyResult<Bound<'py, PySequence>>;
+    /// Returns a list of all (key, value) pairs in the mapping.
+    fn items(&self) -> PyResult<Bound<'py, PyList>>;
 }
 
 impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
@@ -133,7 +133,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
     }
 
     #[inline]
-    fn keys(&self) -> PyResult<Bound<'py, PySequence>> {
+    fn keys(&self) -> PyResult<Bound<'py, PyList>> {
         unsafe {
             ffi::PyMapping_Keys(self.as_ptr())
                 .assume_owned_or_err(self.py())
@@ -142,7 +142,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
     }
 
     #[inline]
-    fn values(&self) -> PyResult<Bound<'py, PySequence>> {
+    fn values(&self) -> PyResult<Bound<'py, PyList>> {
         unsafe {
             ffi::PyMapping_Values(self.as_ptr())
                 .assume_owned_or_err(self.py())
@@ -151,7 +151,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
     }
 
     #[inline]
-    fn items(&self) -> PyResult<Bound<'py, PySequence>> {
+    fn items(&self) -> PyResult<Bound<'py, PyList>> {
         unsafe {
             ffi::PyMapping_Items(self.as_ptr())
                 .assume_owned_or_err(self.py())
