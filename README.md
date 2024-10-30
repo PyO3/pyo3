@@ -207,7 +207,7 @@ about this topic.
 - [hyperjson](https://github.com/mre/hyperjson) _A hyper-fast Python module for reading/writing JSON data using Rust's serde-json._
 - [inline-python](https://github.com/fusion-engineering/inline-python) _Inline Python code directly in your Rust code._
 - [johnnycanencrypt](https://github.com/kushaldas/johnnycanencrypt) OpenPGP library with Yubikey support.
-- [jsonschema-rs](https://github.com/Stranger6667/jsonschema-rs/tree/master/bindings/python) _Fast JSON Schema validation library._
+- [jsonschema](https://github.com/Stranger6667/jsonschema/tree/master/crates/jsonschema-py) _A high-performance JSON Schema validator for Python._
 - [mocpy](https://github.com/cds-astro/mocpy) _Astronomical Python library offering data structures for describing any arbitrary coverage regions on the unit sphere._
 - [opendal](https://github.com/apache/opendal/tree/main/bindings/python) _A data access layer that allows users to easily and efficiently retrieve data from various storage services in a unified way._
 - [orjson](https://github.com/ijl/orjson) _Fast Python JSON library._
