@@ -64,8 +64,8 @@
 //! your `Cargo.toml`:
 //!
 //! ```toml
-//! [build-dependency]
-//! pyo3-build-config = "VER"
+//! [build-dependencies]
+#![doc = concat!("pyo3-build-config =\"", env!("CARGO_PKG_VERSION"),  "\"")]
 //! ```
 //!
 //! And then either create a new `build.rs` file in the project root or modify
@@ -108,102 +108,29 @@
 //! [dependencies.pyo3-ffi]
 #![doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")]
 //! features = ["extension-module"]
+//!
+//! [build-dependencies]
+//! # This is only necessary if you need to configure your build based on
+//! # the Python version or the compile-time configuration for the interpreter.
+#![doc = concat!("pyo3_build_config = \"", env!("CARGO_PKG_VERSION"),  "\"")]
+//! ```
+//!
+//! If you need to use conditional compilation based on Python version or how
+//! Python was compiled, you need to add `pyo3-build-config` as a
+//! `build-dependency` in your `Cargo.toml` as in the example above and either
+//! create a new `build.rs` file or modify an existing one so that
+//! `pyo3_build_config::use_pyo3_cfgs()` gets called at build time:
+//!
+//! **`build.rs`**
+//! ```rust,ignore
+//! fn main() {
+//!     pyo3_build_config::use_pyo3_cfgs()
+//! }
 //! ```
 //!
 //! **`src/lib.rs`**
 //! ```rust
-//! use std::os::raw::c_char;
-//! use std::ptr;
-//!
-//! use pyo3_ffi::*;
-//!
-//! static mut MODULE_DEF: PyModuleDef = PyModuleDef {
-//!     m_base: PyModuleDef_HEAD_INIT,
-//!     m_name: c_str!("string_sum").as_ptr(),
-//!     m_doc: c_str!("A Python module written in Rust.").as_ptr(),
-//!     m_size: 0,
-//!     m_methods: unsafe { METHODS.as_mut_ptr().cast() },
-//!     m_slots: std::ptr::null_mut(),
-//!     m_traverse: None,
-//!     m_clear: None,
-//!     m_free: None,
-//! };
-//!
-//! static mut METHODS: [PyMethodDef; 2] = [
-//!     PyMethodDef {
-//!         ml_name: c_str!("sum_as_string").as_ptr(),
-//!         ml_meth: PyMethodDefPointer {
-//!             PyCFunctionFast: sum_as_string,
-//!         },
-//!         ml_flags: METH_FASTCALL,
-//!         ml_doc: c_str!("returns the sum of two integers as a string").as_ptr(),
-//!     },
-//!     // A zeroed PyMethodDef to mark the end of the array.
-//!     PyMethodDef::zeroed()
-//! ];
-//!
-//! // The module initialization function, which must be named `PyInit_<your_module>`.
-//! #[allow(non_snake_case)]
-//! #[no_mangle]
-//! pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
-//!     PyModule_Create(ptr::addr_of_mut!(MODULE_DEF))
-//! }
-//!
-//! pub unsafe extern "C" fn sum_as_string(
-//!     _self: *mut PyObject,
-//!     args: *mut *mut PyObject,
-//!     nargs: Py_ssize_t,
-//! ) -> *mut PyObject {
-//!     if nargs != 2 {
-//!         PyErr_SetString(
-//!             PyExc_TypeError,
-//!             c_str!("sum_as_string() expected 2 positional arguments").as_ptr(),
-//!         );
-//!         return std::ptr::null_mut();
-//!     }
-//!
-//!     let arg1 = *args;
-//!     if PyLong_Check(arg1) == 0 {
-//!         PyErr_SetString(
-//!             PyExc_TypeError,
-//!             c_str!("sum_as_string() expected an int for positional argument 1").as_ptr(),
-//!         );
-//!         return std::ptr::null_mut();
-//!     }
-//!
-//!     let arg1 = PyLong_AsLong(arg1);
-//!     if !PyErr_Occurred().is_null() {
-//!         return ptr::null_mut();
-//!     }
-//!
-//!     let arg2 = *args.add(1);
-//!     if PyLong_Check(arg2) == 0 {
-//!         PyErr_SetString(
-//!             PyExc_TypeError,
-//!             c_str!("sum_as_string() expected an int for positional argument 2").as_ptr(),
-//!         );
-//!         return std::ptr::null_mut();
-//!     }
-//!
-//!     let arg2 = PyLong_AsLong(arg2);
-//!     if !PyErr_Occurred().is_null() {
-//!         return ptr::null_mut();
-//!     }
-//!
-//!     match arg1.checked_add(arg2) {
-//!         Some(sum) => {
-//!             let string = sum.to_string();
-//!             PyUnicode_FromStringAndSize(string.as_ptr().cast::<c_char>(), string.len() as isize)
-//!         }
-//!         None => {
-//!             PyErr_SetString(
-//!                 PyExc_OverflowError,
-//!                 c_str!("arguments too large to add").as_ptr(),
-//!             );
-//!             std::ptr::null_mut()
-//!         }
-//!     }
-//! }
+#![doc = include_str!("../examples/string-sum/src/lib.rs")]
 //! ```
 //!
 //! With those two files in place, now `maturin` needs to be installed. This can be done using
@@ -230,6 +157,12 @@
 //! [manually][manual_builds]. Both offer more flexibility than `maturin` but require further
 //! configuration.
 //!
+//! This example stores the module definition statically and uses the `PyModule_Create` function
+//! in the CPython C API to register the module. This is the "old" style for registering modules
+//! and has the limitation that it cannot support subinterpreters. You can also create a module
+//! using the new multi-phase initialization API that does support subinterpreters. See the
+//! `sequential` project located in the `examples` directory at the root of the `pyo3-ffi` crate
+//! for a worked example of how to this using `pyo3-ffi`.
 //!
 //! # Using Python from Rust
 //!
@@ -255,7 +188,7 @@
 #![doc = concat!("[manual_builds]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/building-and-distribution.html#manual-builds \"Manual builds - Building and Distribution - PyO3 user guide\"")]
 //! [setuptools-rust]: https://github.com/PyO3/setuptools-rust "Setuptools plugin for Rust extensions"
 //! [PEP 384]: https://www.python.org/dev/peps/pep-0384 "PEP 384 -- Defining a Stable ABI"
-#![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features Reference - PyO3 user guide\"")]
+#![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features eference - PyO3 user guide\"")]
 #![allow(
     missing_docs,
     non_camel_case_types,
