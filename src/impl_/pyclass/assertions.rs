@@ -40,10 +40,10 @@ impl<T> PyClassSync<true> for T {}
 impl<T> PyClassSync<false> for T {}
 
 mod tests {
-    use super::assert_pyclass_sync;
-
     #[test]
     fn test_assert_pyclass_sync() {
+        use super::assert_pyclass_sync;
+
         #[crate::pyclass(crate = "crate")]
         struct MyClass {}
         assert_pyclass_sync::<MyClass, true>();
