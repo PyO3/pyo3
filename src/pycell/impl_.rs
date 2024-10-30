@@ -3,7 +3,8 @@
 
 use std::cell::UnsafeCell;
 use std::marker::PhantomData;
-use std::mem::ManuallyDrop;
+use std::mem::{ManuallyDrop, MaybeUninit};
+use std::ptr::addr_of_mut;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::impl_::pyclass::{
@@ -245,6 +246,10 @@ pub trait PyClassObjectLayout<T>: PyLayout<T> {
 
 #[doc(hidden)]
 pub trait InternalPyClassObjectLayout<T: PyClassImpl>: PyClassObjectLayout<T> {
+    /// Obtain a pointer to the contents of an uninitialized PyObject of this type
+    /// Safety: the provided object must have the layout that the implementation is expecting
+    unsafe fn contents_uninitialised(obj: *mut ffi::PyObject) -> *mut MaybeUninit<PyClassObjectContents<T>>;
+
     fn get_ptr(&self) -> *mut T;
 
     fn contents(&self) -> &PyClassObjectContents<T>;
@@ -253,7 +258,7 @@ pub trait InternalPyClassObjectLayout<T: PyClassImpl>: PyClassObjectLayout<T> {
 
     fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase;
 
-    /// used to set PyType_Spec::basicsize
+    /// Used to set PyType_Spec::basicsize
     /// https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize
     fn basicsize() -> ffi::Py_ssize_t;
 
@@ -345,6 +350,16 @@ pub struct PyStaticClassObject<T: PyClassImpl> {
 }
 
 impl<T: PyClassImpl> InternalPyClassObjectLayout<T> for PyStaticClassObject<T> {
+    unsafe fn contents_uninitialised(obj: *mut ffi::PyObject) -> *mut MaybeUninit<PyClassObjectContents<T>> {
+        #[repr(C)]
+        struct PartiallyInitializedClassObject<T: PyClassImpl> {
+            _ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
+            contents: MaybeUninit<PyClassObjectContents<T>>,
+        }
+        let obj: *mut PartiallyInitializedClassObject<T> = obj.cast();
+        addr_of_mut!((*obj).contents)
+    }
+
     fn get_ptr(&self) -> *mut T {
         self.contents.value.get()
     }
@@ -438,17 +453,25 @@ pub struct PyVariableClassObject<T: PyClassImpl> {
 
 impl<T: PyClassImpl> PyVariableClassObject<T> {
     #[cfg(Py_3_12)]
-    fn get_contents_ptr(&self) -> *mut PyClassObjectContents<T> {
+    fn get_contents_of_obj(obj: *mut ffi::PyObject) -> *mut PyClassObjectContents<T> {
         // https://peps.python.org/pep-0697/
-        let obj = self as *const PyVariableClassObject<T> as *mut ffi::PyObject;
         let type_obj = unsafe { ffi::Py_TYPE(obj) };
         let pointer = unsafe { ffi::PyObject_GetTypeData(obj, type_obj) };
         return pointer as *mut PyClassObjectContents<T>;
+    }
+
+    #[cfg(Py_3_12)]
+    fn get_contents_ptr(&self) -> *mut PyClassObjectContents<T> {
+        Self::get_contents_of_obj(self as *const PyVariableClassObject<T> as *mut ffi::PyObject)
     }
 }
 
 #[cfg(Py_3_12)]
 impl<T: PyClassImpl> InternalPyClassObjectLayout<T> for PyVariableClassObject<T> {
+    unsafe fn contents_uninitialised(obj: *mut ffi::PyObject) -> * mut MaybeUninit<PyClassObjectContents<T>> {
+        Self::get_contents_of_obj(obj) as *mut MaybeUninit<PyClassObjectContents<T>>
+    }
+
     fn get_ptr(&self) -> *mut T {
         self.contents().value.get()
     }
