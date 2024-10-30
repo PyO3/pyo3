@@ -38,3 +38,14 @@ impl<T> PyClassSync<true> for T {}
 // an implementation for `false`` to avoid a useless diagnostic.
 #[cfg(not(diagnostic_namespace))]
 impl<T> PyClassSync<false> for T {}
+
+mod tests {
+    use super::assert_pyclass_sync;
+
+    #[test]
+    fn test_assert_pyclass_sync() {
+        #[crate::pyclass(crate = "crate")]
+        struct IntWrapper {}
+        assert_pyclass_sync::<IntWrapper, true>();
+    }
+}
