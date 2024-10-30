@@ -45,7 +45,7 @@ mod tests {
     #[test]
     fn test_assert_pyclass_sync() {
         #[crate::pyclass(crate = "crate")]
-        struct IntWrapper {}
-        assert_pyclass_sync::<IntWrapper, true>();
+        struct MyClass {}
+        assert_pyclass_sync::<MyClass, true>();
     }
 }
