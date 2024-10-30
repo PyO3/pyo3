@@ -4,7 +4,7 @@ use crate::{
     exceptions::{PyBaseException, PyTypeError},
     ffi,
     ffi_ptr_ext::FfiPtrExt,
-    types::{PyAnyMethods, PyTraceback, PyType},
+    types::{PyAnyMethods, PyString, PyTraceback, PyTuple, PyType},
     Bound, Py, PyAny, PyErrArguments, PyObject, PyTypeInfo, Python,
 };
 
@@ -310,6 +310,7 @@ fn lazy_into_normalized_ffi_tuple(
 /// API in CPython.
 fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
     let PyErrStateLazyFnOutput { ptype, pvalue } = lazy(py);
+    let state = create_normalized_exception(ptype.bind(py), pvalue.into_bound(py));
     unsafe {
         if ffi::PyExceptionClass_Check(ptype.as_ptr()) == 0 {
             ffi::PyErr_SetString(
@@ -317,7 +318,54 @@ fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
                 ffi::c_str!("exceptions must derive from BaseException").as_ptr(),
             )
         } else {
-            ffi::PyErr_SetObject(ptype.as_ptr(), pvalue.as_ptr())
+            ffi::PyErr_SetObject(ptype.as_ptr(), state.pvalue.as_ptr())
         }
+    }
+}
+
+fn create_normalized_exception<'py>(
+    ptype: &Bound<'py, PyAny>,
+    mut pvalue: Bound<'py, PyAny>,
+) -> PyErrStateNormalized {
+    let py = ptype.py();
+
+    // 1: check type is a subclass of BaseException
+    let ptype: Bound<'py, PyType> = if unsafe { ffi::PyExceptionClass_Check(ptype.as_ptr()) } == 0 {
+        pvalue = PyString::new(py, "exceptions must derive from BaseException").into_any();
+        PyTypeError::type_object(py)
+    } else {
+        // Safety: PyExceptionClass_Check guarantees that ptype is a subclass of BaseException
+        unsafe { ptype.downcast_unchecked() }.clone()
+    };
+
+    // special cases for the value, inherited from Python, we should probably split out the
+    // None and tuple cases
+    let pvalue = if pvalue.is_exact_instance(&ptype) {
+        // Safety: already an exception value of the correct type
+        Ok(unsafe { pvalue.downcast_into_unchecked::<PyBaseException>() })
+    } else if pvalue.is_none() {
+        // None -> no arguments
+        ptype.call0().and_then(|pvalue| Ok(pvalue.downcast_into()?))
+    } else if let Ok(tup) = pvalue.downcast::<PyTuple>() {
+        // Tuple -> use as tuple of arguments
+        ptype
+            .call1(tup)
+            .and_then(|pvalue| Ok(pvalue.downcast_into()?))
+    } else {
+        // Anything else -> use as single argument
+        ptype
+            .call1((pvalue,))
+            .and_then(|pvalue| Ok(pvalue.downcast_into()?))
+    };
+
+    match pvalue {
+        Ok(pvalue) => PyErrStateNormalized {
+            #[cfg(not(Py_3_12))]
+            ptype,
+            pvalue: pvalue.unbind(),
+            #[cfg(not(Py_3_12))]
+            ptraceback: None,
+        },
+        Err(e) => e.normalized(py).clone_ref(py),
     }
 }
