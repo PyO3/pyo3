@@ -40,6 +40,7 @@ impl<T> PyClassSync<true> for T {}
 impl<T> PyClassSync<false> for T {}
 
 mod tests {
+    #[cfg(feature = "macros")]
     #[test]
     fn test_assert_pyclass_sync() {
         use super::assert_pyclass_sync;
