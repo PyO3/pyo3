@@ -5,6 +5,7 @@ use pyo3::class::PyVisit;
 use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::py_run;
+#[cfg(not(target_arch = "wasm32"))]
 use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Once;
