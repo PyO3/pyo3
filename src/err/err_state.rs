@@ -356,21 +356,22 @@ fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::OnceLock;
 
-    use crate::{exceptions::PyValueError, PyErr, PyErrArguments, PyObject, Python};
+    use crate::{
+        exceptions::PyValueError, sync::GILOnceCell, PyErr, PyErrArguments, PyObject, Python,
+    };
 
     #[test]
     #[should_panic(expected = "Re-entrant normalization of PyErrState detected")]
     fn test_reentrant_normalization() {
-        static ERR: OnceLock<PyErr> = OnceLock::new();
+        static ERR: GILOnceCell<PyErr> = GILOnceCell::new();
 
         struct RecursiveArgs;
 
         impl PyErrArguments for RecursiveArgs {
             fn arguments(self, py: Python<'_>) -> PyObject {
                 // .value(py) triggers normalization
-                ERR.get()
+                ERR.get(py)
                     .expect("is set just below")
                     .value(py)
                     .clone()
@@ -378,16 +379,15 @@ mod tests {
             }
         }
 
-        ERR.set(PyValueError::new_err(RecursiveArgs)).unwrap();
-
         Python::with_gil(|py| {
-            ERR.get().expect("is set just above").value(py);
+            ERR.set(py, PyValueError::new_err(RecursiveArgs)).unwrap();
+            ERR.get(py).expect("is set just above").value(py);
         })
     }
 
     #[test]
     fn test_no_deadlock_thread_switch() {
-        static ERR: OnceLock<PyErr> = OnceLock::new();
+        static ERR: GILOnceCell<PyErr> = GILOnceCell::new();
 
         struct GILSwitchArgs;
 
@@ -402,14 +402,14 @@ mod tests {
             }
         }
 
-        ERR.set(PyValueError::new_err(GILSwitchArgs)).unwrap();
+        Python::with_gil(|py| ERR.set(py, PyValueError::new_err(GILSwitchArgs)).unwrap());
 
         // Let many threads attempt to read the normalized value at the same time
         let handles = (0..10)
             .map(|_| {
                 std::thread::spawn(|| {
                     Python::with_gil(|py| {
-                        ERR.get().expect("is set just above").value(py);
+                        ERR.get(py).expect("is set just above").value(py);
                     });
                 })
             })
@@ -423,7 +423,7 @@ mod tests {
         // this assertion
         Python::with_gil(|py| {
             assert!(ERR
-                .get()
+                .get(py)
                 .expect("is set above")
                 .is_instance_of::<PyValueError>(py))
         });
