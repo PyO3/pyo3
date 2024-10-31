@@ -5,10 +5,17 @@
 //!
 //! [PEP 703]: https://peps.python.org/pep-703/
 use crate::{
+    ffi,
+    sealed::Sealed,
     types::{any::PyAnyMethods, PyAny, PyString},
     Bound, Py, PyResult, PyTypeCheck, Python,
 };
-use std::{cell::UnsafeCell, marker::PhantomData, mem::MaybeUninit, sync::Once};
+use std::{
+    cell::UnsafeCell,
+    marker::PhantomData,
+    mem::MaybeUninit,
+    sync::{Once, OnceState},
+};
 
 #[cfg(not(Py_GIL_DISABLED))]
 use crate::PyVisit;
@@ -470,6 +477,58 @@ where
     #[cfg(not(Py_GIL_DISABLED))]
     {
         f()
+    }
+}
+
+/// Helper trait for `Once` to help avoid deadlocking when using a `Once` when attached to a
+/// Python thread.
+pub trait OnceExt: Sealed {
+    /// Similar to [`call_once`][Once::call_once], but releases the Python GIL temporarily
+    /// if blocking on another thread currently calling this `Once`.
+    fn call_once_py_attached(&self, py: Python<'_>, f: impl FnOnce());
+
+    /// Similar to [`call_once_force`][Once::call_once_force], but releases the Python GIL
+    /// temporarily if blocking on another thread currently calling this `Once`.
+    fn call_once_force_py_attached(&self, py: Python<'_>, f: impl FnOnce(&OnceState));
+}
+
+impl OnceExt for Once {
+    fn call_once_py_attached(&self, _py: Python<'_>, f: impl FnOnce()) {
+        if self.is_completed() {
+            return;
+        }
+
+        // Safety: we are currently attached to the GIL, and we expect to block. We will save
+        // the current thread state and restore it as soon as we are done blocking.
+        let mut ts = Some(unsafe { ffi::PyEval_SaveThread() });
+
+        self.call_once(|| {
+            unsafe { ffi::PyEval_RestoreThread(ts.take().unwrap()) };
+            f();
+        });
+        if let Some(ts) = ts {
+            // Some other thread filled this Once, so we need to restore the GIL state.
+            unsafe { ffi::PyEval_RestoreThread(ts) };
+        }
+    }
+
+    fn call_once_force_py_attached(&self, _py: Python<'_>, f: impl FnOnce(&OnceState)) {
+        if self.is_completed() {
+            return;
+        }
+
+        // Safety: we are currently attached to the GIL, and we expect to block. We will save
+        // the current thread state and restore it as soon as we are done blocking.
+        let mut ts = Some(unsafe { ffi::PyEval_SaveThread() });
+
+        self.call_once_force(|state| {
+            unsafe { ffi::PyEval_RestoreThread(ts.take().unwrap()) };
+            f(state);
+        });
+        if let Some(ts) = ts {
+            // Some other thread filled this Once, so we need to restore the GIL state.
+            unsafe { ffi::PyEval_RestoreThread(ts) };
+        }
     }
 }
 
