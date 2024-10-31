@@ -16,8 +16,8 @@ where
     diagnostic_namespace,
     diagnostic::on_unimplemented(
         message = "the trait `Sync` is not implemented for `{Self}`",
-        label = "needs to implement `Sync` to be `#[pyclass]`",
-        note = "to opt-out of threading support, use `#[pyclass(unsendable)]`",
+        label = "required by `#[pyclass]`",
+        note = "replace thread-unsafe fields with thread-safe alternatives",
         note = "see <TODO INSERT PYO3 GUIDE> for more information",
     )
 )]
