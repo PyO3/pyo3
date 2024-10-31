@@ -270,9 +270,9 @@ impl FnType {
                     ::std::convert::Into::into(
                         #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
                             .downcast_unchecked::<#pyo3_path::types::PyType>()
-                    ),
+                    )
                 };
-                Some(ret)
+                Some(quote! { unsafe { #ret }, })
             }
             FnType::FnModule(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
@@ -283,9 +283,9 @@ impl FnType {
                     ::std::convert::Into::into(
                         #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
                             .downcast_unchecked::<#pyo3_path::types::PyModule>()
-                    ),
+                    )
                 };
-                Some(ret)
+                Some(quote! { unsafe { #ret }, })
             }
             FnType::FnNew | FnType::FnStatic | FnType::ClassAttribute => None,
         }
@@ -332,6 +332,8 @@ impl SelfType {
         let py = syn::Ident::new("py", Span::call_site());
         let slf = syn::Ident::new("_slf", Span::call_site());
         let Ctx { pyo3_path, .. } = ctx;
+        let bound_ref =
+            quote! { unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf) } };
         match self {
             SelfType::Receiver { span, mutable } => {
                 let method = if *mutable {
@@ -344,7 +346,7 @@ impl SelfType {
                 error_mode.handle_error(
                     quote_spanned! { *span =>
                         #pyo3_path::impl_::extract_argument::#method::<#cls>(
-                            #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf).0,
+                            #bound_ref.0,
                             &mut #holder,
                         )
                     },
@@ -355,7 +357,7 @@ impl SelfType {
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 error_mode.handle_error(
                     quote_spanned! { *span =>
-                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf).downcast::<#cls>()
+                        #bound_ref.downcast::<#cls>()
                             .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
                             .and_then(
                                 #[allow(unknown_lints, clippy::unnecessary_fallible_conversions)]  // In case slf is Py<Self> (unknown_lints can be removed when MSRV is 1.75+)
@@ -665,14 +667,14 @@ impl<'a> FnSpec<'a> {
                     FnType::Fn(SelfType::Receiver { mutable: false, .. }) => {
                         quote! {{
                             #(let #arg_names = #args;)*
-                            let __guard = #pyo3_path::impl_::coroutine::RefGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))?;
+                            let __guard = unsafe { #pyo3_path::impl_::coroutine::RefGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))? };
                             async move { function(&__guard, #(#arg_names),*).await }
                         }}
                     }
                     FnType::Fn(SelfType::Receiver { mutable: true, .. }) => {
                         quote! {{
                             #(let #arg_names = #args;)*
-                            let mut __guard = #pyo3_path::impl_::coroutine::RefMutGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))?;
+                            let mut __guard = unsafe { #pyo3_path::impl_::coroutine::RefMutGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))? };
                             async move { function(&mut __guard, #(#arg_names),*).await }
                         }}
                     }
@@ -862,11 +864,13 @@ impl<'a> FnSpec<'a> {
                             _args: *mut #pyo3_path::ffi::PyObject,
                         ) -> *mut #pyo3_path::ffi::PyObject
                         {
-                            #pyo3_path::impl_::trampoline::noargs(
-                                _slf,
-                                _args,
-                                #wrapper
-                            )
+                            unsafe {
+                                #pyo3_path::impl_::trampoline::noargs(
+                                    _slf,
+                                    _args,
+                                    #wrapper
+                                )
+                            }
                         }
                         trampoline
                     },

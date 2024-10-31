@@ -449,7 +449,7 @@ fn module_initialization(
             #[doc(hidden)]
             #[export_name = #pyinit_symbol]
             pub unsafe extern "C" fn __pyo3_init() -> *mut #pyo3_path::ffi::PyObject {
-                #pyo3_path::impl_::trampoline::module_init(|py| _PYO3_DEF.make_module(py))
+                unsafe { #pyo3_path::impl_::trampoline::module_init(|py| _PYO3_DEF.make_module(py)) }
             }
         });
     }
