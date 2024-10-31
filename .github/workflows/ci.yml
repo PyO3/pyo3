@@ -553,8 +553,6 @@ jobs:
   test-free-threaded:
     needs: [fmt]
     runs-on: ubuntu-latest
-    env:
-      UNSAFE_PYO3_BUILD_FREE_THREADED: 1
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
