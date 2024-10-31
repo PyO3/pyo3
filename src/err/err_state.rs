@@ -83,9 +83,10 @@ impl PyErrState {
         // Guard against re-entrant normalization, because `Once` does not provide
         // re-entrancy guarantees.
         if let Some(thread) = self.normalizing_thread.lock().unwrap().as_ref() {
-            if *thread == std::thread::current().id() {
-                panic!("Re-entrant normalization of PyErrState detected");
-            }
+            assert!(
+                !(*thread == std::thread::current().id()),
+                "Re-entrant normalization of PyErrState detected"
+            );
         }
 
         self.normalized.call_once(|| {
@@ -113,7 +114,7 @@ impl PyErrState {
             // Safety: self.inner will never be written again once normalized.
             &*self.inner.get()
         } {
-            Some(PyErrStateInner::Normalized(n)) => return n,
+            Some(PyErrStateInner::Normalized(n)) => n,
             _ => unreachable!(),
         }
     }
