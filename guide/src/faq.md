@@ -13,9 +13,11 @@ Sorry that you're having trouble using PyO3. If you can't find the answer to you
 5. Thread A is blocked, because it waits to re-acquire the GIL which thread B still holds.
 6. Deadlock.
 
-PyO3 provides a struct [`GILOnceCell`] which works similarly to these types but avoids risk of deadlocking with the Python GIL. This means it can be used in place of other choices when you are experiencing the deadlock described above. See the documentation for [`GILOnceCell`] for further details and an example how to use it.
+PyO3 provides a struct [`GILOnceCell`] and an extension trait [`OnceExt`] that
+enable functionality similar to these types but avoid the risk of deadlocking with the Python GIL. This means they can be used in place of other choices when you are experiencing the deadlock described above. See the documentation for [`GILOnceCell`] and [`OnceExt`] for further details and an example how to use them.
 
 [`GILOnceCell`]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html
+[`OnceExt`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html
 
 ## I can't run `cargo test`; or I can't build in a Cargo workspace: I'm having linker issues like "Symbol not found" or "Undefined reference to _PyExc_SystemError"!
 
