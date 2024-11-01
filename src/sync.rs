@@ -480,6 +480,7 @@ where
     }
 }
 
+#[cfg(rustc_has_once_lock)]
 mod once_lock_ext_sealed {
     pub trait Sealed {}
     impl<T> Sealed for std::sync::OnceLock<T> {}
@@ -499,6 +500,7 @@ pub trait OnceExt: Sealed {
 
 // Extension trait for [`std::sync::OnceLock`] which helps avoid deadlocks between the Python
 /// interpreter and initialization with the `OnceLock`.
+#[cfg(rustc_has_once_lock)]
 pub trait OnceLockExt<T>: once_lock_ext_sealed::Sealed {
     /// Initializes this `OnceLock` with the given closure if it has not been initialized yet.
     ///
@@ -542,6 +544,7 @@ impl OnceExt for Once {
     }
 }
 
+#[cfg(rustc_has_once_lock)]
 impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
     fn get_or_init_py_attached<F>(&self, py: Python<'_>, f: F) -> &T
     where
@@ -560,10 +563,10 @@ where
 {
     // Safety: we are currently attached to the GIL, and we expect to block. We will save
     // the current thread state and restore it as soon as we are done blocking.
-    let mut ts = Guard(Some(unsafe { ffi::PyEval_SaveThread() }));
+    let ts_guard = Guard(Some(unsafe { ffi::PyEval_SaveThread() }));
 
     once.call_once(|| {
-        unsafe { ffi::PyEval_RestoreThread(ts.0.take().unwrap()) };
+        drop(ts_guard);
         f();
     });
 }
@@ -575,14 +578,15 @@ where
 {
     // Safety: we are currently attached to the GIL, and we expect to block. We will save
     // the current thread state and restore it as soon as we are done blocking.
-    let mut ts = Guard(Some(unsafe { ffi::PyEval_SaveThread() }));
+    let ts_guard = Guard(Some(unsafe { ffi::PyEval_SaveThread() }));
 
     once.call_once_force(|state| {
-        unsafe { ffi::PyEval_RestoreThread(ts.0.take().unwrap()) };
+        drop(ts_guard);
         f(state);
     });
 }
 
+#[cfg(rustc_has_once_lock)]
 #[cold]
 fn init_once_lock_py_attached<'a, F, T>(
     lock: &'a std::sync::OnceLock<T>,
@@ -593,14 +597,12 @@ where
     F: FnOnce() -> T,
 {
     // SAFETY: we are currently attached to a Python thread
-    let mut ts = Guard(Some(unsafe { ffi::PyEval_SaveThread() }));
+    let ts_guard = Guard(Some(unsafe { ffi::PyEval_SaveThread() }));
 
     // By having detached here, we guarantee that `.get_or_init` cannot deadlock with
     // the Python interpreter
     let value = lock.get_or_init(move || {
-        let ts = ts.0.take().expect("ts is set to Some above");
-        // SAFETY: ts is a valid thread state and needs restoring
-        unsafe { ffi::PyEval_RestoreThread(ts) };
+        drop(ts_guard);
         f()
     });
 
@@ -756,5 +758,21 @@ mod tests {
                 init.call_once_py_attached(py, || {});
             });
         });
+    }
+
+    #[cfg(rustc_has_once_lock)]
+    #[test]
+    fn test_once_lock_ext() {
+        let cell = std::sync::OnceLock::new();
+        std::thread::scope(|s| {
+            assert!(cell.get().is_none());
+
+            s.spawn(|| {
+                Python::with_gil(|py| {
+                    assert_eq!(*cell.get_or_init_py_attached(py, || 12345), 12345);
+                });
+            });
+        });
+        assert_eq!(cell.get(), Some(&12345));
     }
 }

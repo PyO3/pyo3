@@ -168,15 +168,17 @@ once, it can be problematic in some contexts that `GILOnceCell` does not block
 like the standard library `OnceLock`.
 
 In cases where the initialization function must run exactly once, you can bring
-the `OnceExt` trait into scope. This trait adds `OnceExt::call_once_py_attached`
-and `OnceExt::call_once_force_py_attached` functions to the api of
-`std::sync::Once`, enabling use of `Once` in contexts where the GIL is
-held. These functions are analogous to `Once::call_once` and
-`Once::call_once_force` except they both accept a `Python<'py>` token in
-addition to an `FnOnce`. Both functions release the GIL and re-acquire it before
-executing the function, avoiding deadlocks with the GIL that are possible
-without using these functions. Here is an example of how to use this function to
-enable single-initialization of a runtime cache:
+the `OnceExt` or `OnceLockExt` traits into scope. The `OnceExt` trait adds
+`OnceExt::call_once_py_attached` and `OnceExt::call_once_force_py_attached`
+functions to the api of `std::sync::Once`, enabling use of `Once` in contexts
+where the GIL is held. Similarly, `OnceLockExt` adds
+`OnceLockExt::get_or_init_py_attached`. These functions are analogous to
+`Once::call_once`, `Once::call_once_force`, and `OnceLock::get_or_init` except
+they accept a `Python<'py>` token in addition to an `FnOnce`. All of these
+functions release the GIL and re-acquire it before executing the function,
+avoiding deadlocks with the GIL that are possible without using the PyO3
+extension traits. Here is an example of how to use `OnceExt` to
+enable single-initialization of a runtime cache holding a `Py<PyDict>`.
 
 ```rust
 # fn main() {

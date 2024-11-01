@@ -138,6 +138,10 @@ fn resolve_cross_compile_config_path() -> Option<PathBuf> {
 pub fn print_feature_cfgs() {
     let rustc_minor_version = rustc_minor_version().unwrap_or(0);
 
+    if rustc_minor_version >= 70 {
+        println!("cargo:rustc-cfg=rustc_has_once_lock");
+    }
+
     // invalid_from_utf8 lint was added in Rust 1.74
     if rustc_minor_version >= 74 {
         println!("cargo:rustc-cfg=invalid_from_utf8_lint");
@@ -175,6 +179,7 @@ pub fn print_expected_cfgs() {
     println!("cargo:rustc-check-cfg=cfg(pyo3_leak_on_drop_without_reference_pool)");
     println!("cargo:rustc-check-cfg=cfg(diagnostic_namespace)");
     println!("cargo:rustc-check-cfg=cfg(c_str_lit)");
+    println!("cargo:rustc-check-cfg=cfg(rustc_has_once_lock)");
 
     // allow `Py_3_*` cfgs from the minimum supported version up to the
     // maximum minor version (+1 for development for the next)
