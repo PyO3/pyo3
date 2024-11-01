@@ -480,6 +480,11 @@ where
     }
 }
 
+mod once_lock_ext_sealed {
+    pub trait Sealed {}
+    impl<T> Sealed for std::sync::OnceLock<T> {}
+}
+
 /// Helper trait for `Once` to help avoid deadlocking when using a `Once` when attached to a
 /// Python thread.
 pub trait OnceExt: Sealed {
@@ -490,6 +495,23 @@ pub trait OnceExt: Sealed {
     /// Similar to [`call_once_force`][Once::call_once_force], but releases the Python GIL
     /// temporarily if blocking on another thread currently calling this `Once`.
     fn call_once_force_py_attached(&self, py: Python<'_>, f: impl FnOnce(&OnceState));
+}
+
+// Extension trait for [`std::sync::OnceLock`] which helps avoid deadlocks between the Python
+/// interpreter and initialization with the `OnceLock`.
+pub trait OnceLockExt<T>: once_lock_ext_sealed::Sealed {
+    /// Initializes this `OnceLock` with the given closure if it has not been initialized yet.
+    ///
+    /// If this function would block, this function detaches from the Python interpreter and
+    /// reattaches before calling `f`. This avoids deadlocks between the Python interpreter and
+    /// the `OnceLock` in cases where `f` can call arbitrary Python code, as calling arbitrary
+    /// Python code can lead to `f` itself blocking on the Python interpreter.
+    ///
+    /// By detaching from the Python interpreter before blocking, this ensures that if `f` blocks
+    /// then the Python interpreter cannot be blocked by `f` itself.
+    fn get_or_init_py_attached<F>(&self, py: Python<'_>, f: F) -> &T
+    where
+        F: FnOnce() -> T;
 }
 
 struct Guard(Option<*mut crate::ffi::PyThreadState>);
@@ -517,6 +539,17 @@ impl OnceExt for Once {
         }
 
         init_once_force_py_attached(self, py, f);
+    }
+}
+
+impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
+    fn get_or_init_py_attached<F>(&self, py: Python<'_>, f: F) -> &T
+    where
+        F: FnOnce() -> T,
+    {
+        // Use self.get() first to create a fast path when initialized
+        self.get()
+            .unwrap_or_else(|| init_once_lock_py_attached(self, py, f))
     }
 }
 
@@ -548,6 +581,30 @@ where
         unsafe { ffi::PyEval_RestoreThread(ts.0.take().unwrap()) };
         f(state);
     });
+}
+
+#[cold]
+fn init_once_lock_py_attached<'a, F, T>(
+    lock: &'a std::sync::OnceLock<T>,
+    _py: Python<'_>,
+    f: F,
+) -> &'a T
+where
+    F: FnOnce() -> T,
+{
+    // SAFETY: we are currently attached to a Python thread
+    let mut ts = Guard(Some(unsafe { ffi::PyEval_SaveThread() }));
+
+    // By having detached here, we guarantee that `.get_or_init` cannot deadlock with
+    // the Python interpreter
+    let value = lock.get_or_init(move || {
+        let ts = ts.0.take().expect("ts is set to Some above");
+        // SAFETY: ts is a valid thread state and needs restoring
+        unsafe { ffi::PyEval_RestoreThread(ts) };
+        f()
+    });
+
+    value
 }
 
 #[cfg(test)]
