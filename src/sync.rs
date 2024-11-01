@@ -503,35 +503,51 @@ impl Drop for Guard {
 }
 
 impl OnceExt for Once {
-    fn call_once_py_attached(&self, _py: Python<'_>, f: impl FnOnce()) {
+    fn call_once_py_attached(&self, py: Python<'_>, f: impl FnOnce()) {
         if self.is_completed() {
             return;
         }
 
-        // Safety: we are currently attached to the GIL, and we expect to block. We will save
-        // the current thread state and restore it as soon as we are done blocking.
-        let mut ts = Guard(Some(unsafe { ffi::PyEval_SaveThread() }));
-
-        self.call_once(|| {
-            unsafe { ffi::PyEval_RestoreThread(ts.0.take().unwrap()) };
-            f();
-        });
+        init_once_py_attached(self, py, f)
     }
 
-    fn call_once_force_py_attached(&self, _py: Python<'_>, f: impl FnOnce(&OnceState)) {
+    fn call_once_force_py_attached(&self, py: Python<'_>, f: impl FnOnce(&OnceState)) {
         if self.is_completed() {
             return;
         }
 
-        // Safety: we are currently attached to the GIL, and we expect to block. We will save
-        // the current thread state and restore it as soon as we are done blocking.
-        let mut ts = Guard(Some(unsafe { ffi::PyEval_SaveThread() }));
-
-        self.call_once_force(|state| {
-            unsafe { ffi::PyEval_RestoreThread(ts.0.take().unwrap()) };
-            f(state);
-        });
+        init_once_force_py_attached(self, py, f);
     }
+}
+
+#[cold]
+fn init_once_py_attached<F, T>(once: &Once, _py: Python<'_>, f: F)
+where
+    F: FnOnce() -> T,
+{
+    // Safety: we are currently attached to the GIL, and we expect to block. We will save
+    // the current thread state and restore it as soon as we are done blocking.
+    let mut ts = Guard(Some(unsafe { ffi::PyEval_SaveThread() }));
+
+    once.call_once(|| {
+        unsafe { ffi::PyEval_RestoreThread(ts.0.take().unwrap()) };
+        f();
+    });
+}
+
+#[cold]
+fn init_once_force_py_attached<F, T>(once: &Once, _py: Python<'_>, f: F)
+where
+    F: FnOnce(&OnceState) -> T,
+{
+    // Safety: we are currently attached to the GIL, and we expect to block. We will save
+    // the current thread state and restore it as soon as we are done blocking.
+    let mut ts = Guard(Some(unsafe { ffi::PyEval_SaveThread() }));
+
+    once.call_once_force(|state| {
+        unsafe { ffi::PyEval_RestoreThread(ts.0.take().unwrap()) };
+        f(state);
+    });
 }
 
 #[cfg(test)]
@@ -652,7 +668,7 @@ mod tests {
     }
 
     #[test]
-    fn test_call_once_ext() {
+    fn test_once_ext() {
         // adapted from the example in the docs for Once::try_once_force
         let init = Once::new();
         std::thread::scope(|s| {
