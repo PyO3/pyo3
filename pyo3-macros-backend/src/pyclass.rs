@@ -2317,7 +2317,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 cls.span() =>
                 const _: () = {
                     use #pyo3_path::impl_::pyclass::*;
-                    assert_pyclass_sync::<#cls, { IsSync::<#cls>::VALUE }>();
+                    assert_pyclass_sync::<#cls>();
                 };
             }
         };

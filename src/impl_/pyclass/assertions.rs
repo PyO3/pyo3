@@ -6,9 +6,10 @@
 ///
 /// The additional `const IS_SYNC: bool` parameter is used to allow the custom
 /// diagnostic to be emitted; if `PyClassSync`
-pub const fn assert_pyclass_sync<T, const IS_SYNC: bool>()
+#[allow(unused)]
+pub const fn assert_pyclass_sync<T>()
 where
-    T: PyClassSync<IS_SYNC> + Sync,
+    T: PyClassSync + Sync,
 {
 }
 
@@ -21,23 +22,9 @@ where
         note = "see <TODO INSERT PYO3 GUIDE> for more information",
     )
 )]
-pub trait PyClassSync<const IS_SYNC: bool>: private::Sealed<IS_SYNC> {}
+pub trait PyClassSync<T: Sync = Self> {}
 
-mod private {
-    pub trait Sealed<const IS_SYNC: bool> {}
-    impl<T> Sealed<true> for T {}
-    #[cfg(not(diagnostic_namespace))]
-    impl<T> Sealed<false> for T {}
-}
-
-// If `true` is passed for the const parameter, then the diagnostic will
-// not be emitted.
-impl<T> PyClassSync<true> for T {}
-
-// Without `diagnostic_namespace`, the trait bound is not useful, so we add
-// an implementation for `false`` to avoid a useless diagnostic.
-#[cfg(not(diagnostic_namespace))]
-impl<T> PyClassSync<false> for T {}
+impl<T> PyClassSync for T where T: Sync {}
 
 mod tests {
     #[cfg(feature = "macros")]
@@ -47,6 +34,7 @@ mod tests {
 
         #[crate::pyclass(crate = "crate")]
         struct MyClass {}
-        assert_pyclass_sync::<MyClass, true>();
+
+        assert_pyclass_sync::<MyClass>();
     }
 }
