@@ -83,3 +83,24 @@ compat_function!(
         1
     }
 );
+
+compat_function!(
+    originally_defined_for(Py_3_13);
+
+    #[inline]
+    pub unsafe fn PyList_Extend(
+        list: *mut crate::PyObject,
+        iterable: *mut crate::PyObject,
+    ) -> std::os::raw::c_int {
+        crate::PyList_SetSlice(list, crate::PY_SSIZE_T_MAX, crate::PY_SSIZE_T_MAX, iterable)
+    }
+);
+
+compat_function!(
+    originally_defined_for(Py_3_13);
+
+    #[inline]
+    pub unsafe fn PyList_Clear(list: *mut crate::PyObject) -> std::os::raw::c_int {
+        crate::PyList_SetSlice(list, 0, crate::PY_SSIZE_T_MAX, std::ptr::null_mut())
+    }
+);
