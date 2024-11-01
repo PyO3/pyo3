@@ -492,6 +492,16 @@ pub trait OnceExt: Sealed {
     fn call_once_force_py_attached(&self, py: Python<'_>, f: impl FnOnce(&OnceState));
 }
 
+struct Guard(Option<*mut crate::ffi::PyThreadState>);
+
+impl Drop for Guard {
+    fn drop(&mut self) {
+        if let Some(ts) = self.0 {
+            unsafe { ffi::PyEval_RestoreThread(ts) };
+        }
+    }
+}
+
 impl OnceExt for Once {
     fn call_once_py_attached(&self, _py: Python<'_>, f: impl FnOnce()) {
         if self.is_completed() {
@@ -500,16 +510,12 @@ impl OnceExt for Once {
 
         // Safety: we are currently attached to the GIL, and we expect to block. We will save
         // the current thread state and restore it as soon as we are done blocking.
-        let mut ts = Some(unsafe { ffi::PyEval_SaveThread() });
+        let mut ts = Guard(Some(unsafe { ffi::PyEval_SaveThread() }));
 
         self.call_once(|| {
-            unsafe { ffi::PyEval_RestoreThread(ts.take().unwrap()) };
+            unsafe { ffi::PyEval_RestoreThread(ts.0.take().unwrap()) };
             f();
         });
-        if let Some(ts) = ts {
-            // Some other thread filled this Once, so we need to restore the GIL state.
-            unsafe { ffi::PyEval_RestoreThread(ts) };
-        }
     }
 
     fn call_once_force_py_attached(&self, _py: Python<'_>, f: impl FnOnce(&OnceState)) {
@@ -519,16 +525,12 @@ impl OnceExt for Once {
 
         // Safety: we are currently attached to the GIL, and we expect to block. We will save
         // the current thread state and restore it as soon as we are done blocking.
-        let mut ts = Some(unsafe { ffi::PyEval_SaveThread() });
+        let mut ts = Guard(Some(unsafe { ffi::PyEval_SaveThread() }));
 
         self.call_once_force(|state| {
-            unsafe { ffi::PyEval_RestoreThread(ts.take().unwrap()) };
+            unsafe { ffi::PyEval_RestoreThread(ts.0.take().unwrap()) };
             f(state);
         });
-        if let Some(ts) = ts {
-            // Some other thread filled this Once, so we need to restore the GIL state.
-            unsafe { ffi::PyEval_RestoreThread(ts) };
-        }
     }
 }
 
@@ -645,6 +647,40 @@ mod tests {
                         assert!(b.borrow().0.load(Ordering::Acquire));
                     });
                 });
+            });
+        });
+    }
+
+    #[test]
+    fn test_call_once_ext() {
+        // adapted from the example in the docs for Once::try_once_force
+        let init = Once::new();
+        std::thread::scope(|s| {
+            // poison the once
+            let handle = s.spawn(|| {
+                Python::with_gil(|py| {
+                    init.call_once_py_attached(py, || panic!());
+                })
+            });
+            assert!(handle.join().is_err());
+
+            // poisoning propagates
+            let handle = s.spawn(|| {
+                Python::with_gil(|py| {
+                    init.call_once_py_attached(py, || {});
+                });
+            });
+
+            assert!(handle.join().is_err());
+
+            // call_once_force will still run and reset the poisoned state
+            Python::with_gil(|py| {
+                init.call_once_force_py_attached(py, |state| {
+                    assert!(state.is_poisoned());
+                });
+
+                // once any success happens, we stop propagating the poison
+                init.call_once_py_attached(py, || {});
             });
         });
     }
