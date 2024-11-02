@@ -44,14 +44,16 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
             type_object: *mut PyTypeObject,
             subtype: *mut PyTypeObject,
         ) -> PyResult<*mut ffi::PyObject> {
-            // HACK (due to FIXME below): PyBaseObject_Type's tp_new isn't happy with NULL arguments
+            // HACK (due to FIXME below): PyBaseObject_Type and PyType_Type tp_new aren't happy with NULL arguments
             let is_base_object = type_object == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type);
-            let subtype_borrowed: Borrowed<'_, '_, PyType> = subtype
-                .cast::<ffi::PyObject>()
-                .assume_borrowed_unchecked(py)
-                .downcast_unchecked();
+            let is_metaclass = type_object == std::ptr::addr_of_mut!(ffi::PyType_Type);
 
-            if is_base_object {
+            if is_base_object || is_metaclass {
+                let subtype_borrowed: Borrowed<'_, '_, PyType> = subtype
+                    .cast::<ffi::PyObject>()
+                    .assume_borrowed_unchecked(py)
+                    .downcast_unchecked();
+
                 let alloc = subtype_borrowed
                     .get_slot(TP_ALLOC)
                     .unwrap_or(ffi::PyType_GenericAlloc);

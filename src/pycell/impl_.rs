@@ -295,11 +295,13 @@ unsafe fn tp_dealloc(py: Python<'_>, obj: *mut ffi::PyObject, type_ptr: *mut ffi
     // at runtime? To be investigated.
     let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(obj));
 
-    // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
-    if type_ptr == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type) {
+    // For `#[pyclass]` types which inherit from PyAny or PyType, we can just call tp_free
+    let is_base_object = type_ptr == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type);
+    let is_metaclass = type_ptr == std::ptr::addr_of_mut!(ffi::PyType_Type);
+    if is_base_object || is_metaclass {
         let tp_free = actual_type
             .get_slot(TP_FREE)
-            .expect("PyBaseObject_Type should have tp_free");
+            .expect("base type should have tp_free");
         return tp_free(obj.cast());
     }
 

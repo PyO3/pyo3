@@ -8,7 +8,10 @@ use crate::{
         pyclass_init::PyObjectInit,
         pymethods::{PyGetterDef, PyMethodDefType},
     },
-    pycell::{impl_::InternalPyClassObjectLayout, PyBorrowError},
+    pycell::{
+        impl_::{InternalPyClassObjectLayout, PyClassObjectContents},
+        PyBorrowError,
+    },
     types::{any::PyAnyMethods, PyBool},
     Borrowed, BoundObject, Py, PyAny, PyClass, PyErr, PyRef, PyResult, PyTypeInfo, Python,
 };
@@ -1187,7 +1190,7 @@ pub(crate) unsafe extern "C" fn assign_sequence_item_from_mapping(
 }
 
 /// Offset of a field within a PyObject in bytes.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum PyObjectOffset {
     /// An offset relative to the start of the object
     Absolute(ffi::Py_ssize_t),
@@ -1547,12 +1550,19 @@ where
     ClassT: PyClass,
     Offset: OffsetCalculator<ClassT, FieldT>,
 {
-    match Offset::offset() {
-        PyObjectOffset::Absolute(offset) => unsafe {
-            obj.cast::<u8>().add(offset as usize).cast::<FieldT>()
-        },
-        PyObjectOffset::Relative(_) => todo!("not yet supported"),
-    }
+    let (base, offset) = match Offset::offset() {
+        PyObjectOffset::Absolute(offset) => (obj.cast::<u8>(), offset),
+        #[cfg(Py_3_12)]
+        PyObjectOffset::Relative(offset) => {
+            let class_ptr = obj.cast::<<ClassT as PyClassImpl>::Layout>();
+            // Safety: the object `obj` must have the layout `ClassT::Layout`
+            let class_obj = unsafe { &mut *class_ptr };
+            let contents = class_obj.contents_mut() as *mut PyClassObjectContents<ClassT>;
+            (contents.cast::<u8>(), offset)
+        }
+    };
+    // Safety: conditions for pointer addition must be met
+    unsafe { base.add(offset as usize) }.cast::<FieldT>()
 }
 
 #[allow(deprecated)]
