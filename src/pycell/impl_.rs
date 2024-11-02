@@ -12,8 +12,10 @@ use crate::impl_::pyclass::{
 };
 use crate::internal::get_slot::TP_FREE;
 use crate::type_object::{PyLayout, PySizedLayout};
-use crate::types::{PyType, PyTypeMethods};
+use crate::types::PyType;
 use crate::{ffi, PyClass, PyTypeInfo, Python};
+
+use crate::types::PyTypeMethods;
 
 use super::{PyBorrowError, PyBorrowMutError};
 
@@ -213,7 +215,7 @@ pub struct PyClassObjectBase<T> {
     ob_base: T,
 }
 
-unsafe impl<T, U> PyLayout<T> for PyClassObjectBase<U> where U: PyLayout<T> {}
+unsafe impl<T, U> PyLayout<T> for PyClassObjectBase<U> where U: PySizedLayout<T> {}
 
 /// Base layout of PyClassObject.
 #[doc(hidden)]
@@ -285,7 +287,7 @@ pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
 
 impl<T, U> PyClassObjectBaseLayout<T> for PyClassObjectBase<U>
 where
-    U: PyLayout<T>,
+    U: PySizedLayout<T>,
     T: PyTypeInfo,
 {
     fn ensure_threadsafe(&self) {}
