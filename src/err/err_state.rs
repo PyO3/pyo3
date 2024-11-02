@@ -25,6 +25,8 @@ pub(crate) struct PyErrState {
 // handed out as a reference.
 unsafe impl Send for PyErrState {}
 unsafe impl Sync for PyErrState {}
+#[cfg(feature = "nightly")]
+unsafe impl crate::marker::Ungil for PyErrState {}
 
 impl PyErrState {
     pub(crate) fn lazy(f: Box<PyErrStateLazyFn>) -> Self {
