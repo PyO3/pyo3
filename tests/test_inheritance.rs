@@ -178,43 +178,50 @@ except Exception as e:
 #[cfg(Py_3_12)]
 mod inheriting_type {
     use super::*;
+    use pyo3::types::PyType;
     use pyo3::types::{PyDict, PyTuple};
+
+    #[pyclass(subclass, extends=PyType)]
+    #[derive(Debug)]
+    struct Metaclass {
+        counter: u64,
+    }
+
+    impl Default for Metaclass {
+        fn default() -> Self {
+            Self { counter: 999 }
+        }
+    }
+
+    #[pymethods]
+    impl Metaclass {
+        #[pyo3(signature = (*_args, **_kwargs))]
+        fn __init__(
+            slf: Bound<'_, Metaclass>,
+            _args: Bound<'_, PyTuple>,
+            _kwargs: Option<Bound<'_, PyDict>>,
+        ) -> PyResult<()> {
+            let mut slf = slf.borrow_mut();
+            assert_eq!(slf.counter, 999);
+            slf.counter = 5;
+            Ok(())
+        }
+
+        fn __getitem__(&self, item: u64) -> u64 {
+            item + 1
+        }
+
+        fn increment_counter(&mut self) {
+            self.counter += 1;
+        }
+
+        fn get_counter(&self) -> u64 {
+            self.counter
+        }
+    }
 
     #[test]
     fn inherit_type() {
-        use pyo3::types::PyType;
-
-        #[pyclass(subclass, extends=PyType)]
-        #[derive(Debug, Default)]
-        struct Metaclass {
-            counter: u64,
-        }
-
-        #[pymethods]
-        impl Metaclass {
-            #[pyo3(signature = (*_args, **_kwargs))]
-            fn __init__(
-                slf: Bound<'_, Metaclass>,
-                _args: Bound<'_, PyTuple>,
-                _kwargs: Option<Bound<'_, PyDict>>,
-            ) -> PyResult<()> {
-                slf.as_any().setattr("some_var", 123)?;
-                Ok(())
-            }
-
-            fn __getitem__(&self, item: u64) -> u64 {
-                item + 1
-            }
-
-            fn increment_counter(&mut self) {
-                self.counter += 1;
-            }
-
-            fn get_counter(&self) -> u64 {
-                self.counter
-            }
-        }
-
         Python::with_gil(|py| {
             #[allow(non_snake_case)]
             let Metaclass = py.get_type::<Metaclass>();
@@ -232,10 +239,9 @@ mod inheriting_type {
                 assert type(Foo) is Metaclass
                 assert isinstance(Foo, Metaclass)
                 assert Foo.value == "foo_value"
-                assert Foo.some_var == 123
                 assert Foo[100] == 101
                 FooDynamic = Metaclass("FooDynamic", (), {})
-                assert FooDynamic.some_var == 123
+                assert type(FooDynamic) is Metaclass
                 assert FooDynamic[100] == 101
                 "#
             );
@@ -248,9 +254,9 @@ mod inheriting_type {
                 class Foo(metaclass=Metaclass):
                     pass
 
-                assert Foo.get_counter() == 0
+                assert Foo.get_counter() == 5
                 Foo.increment_counter()
-                assert Foo.get_counter() == 1
+                assert Foo.get_counter() == 6
                 "#
             );
 
@@ -262,14 +268,14 @@ mod inheriting_type {
                 class Foo(Metaclass):
                     value = "foo_value"
 
-                class Bar(metaclass=Metaclass):
+                class Bar(metaclass=Foo):
                     value = "bar_value"
 
-                assert Bar.get_counter() == 0
+                assert isinstance(Bar, Foo)
+                assert Bar.get_counter() == 5
                 Bar.increment_counter()
-                assert Bar.get_counter() == 1
+                assert Bar.get_counter() == 6
                 assert Bar.value == "bar_value"
-                assert Bar.some_var == 123
                 assert Bar[100] == 101
                 "#
             );
@@ -283,14 +289,14 @@ mod inheriting_type {
 
         #[pyclass(subclass, extends=PyType)]
         #[derive(Debug, Default)]
-        struct Metaclass {}
+        struct MetaclassMissingInit {}
 
         #[pymethods]
-        impl Metaclass {}
+        impl MetaclassMissingInit {}
 
         Python::with_gil(|py| {
             #[allow(non_snake_case)]
-            let Metaclass = py.get_type::<Metaclass>();
+            let Metaclass = py.get_type::<MetaclassMissingInit>();
 
             // panics when used
             py_run!(
@@ -311,19 +317,19 @@ mod inheriting_type {
 
         #[pyclass(subclass, extends=PyType)]
         #[derive(Debug, Default)]
-        struct Metaclass {}
+        struct MetaclassWithNew {}
 
         #[pymethods]
-        impl Metaclass {
+        impl MetaclassWithNew {
             #[new]
             #[pyo3(signature = (*_args, **_kwargs))]
             fn new(_args: Bound<'_, PyTuple>, _kwargs: Option<Bound<'_, PyDict>>) -> Self {
-                Metaclass {}
+                MetaclassWithNew {}
             }
 
             #[pyo3(signature = (*_args, **_kwargs))]
             fn __init__(
-                _slf: Bound<'_, Metaclass>,
+                _slf: Bound<'_, MetaclassWithNew>,
                 _args: Bound<'_, PyTuple>,
                 _kwargs: Option<Bound<'_, PyDict>>,
             ) -> PyResult<()> {
@@ -333,7 +339,7 @@ mod inheriting_type {
 
         Python::with_gil(|py| {
             #[allow(non_snake_case)]
-            let Metaclass = py.get_type::<Metaclass>();
+            let Metaclass = py.get_type::<MetaclassWithNew>();
 
             // panics when used
             py_run!(

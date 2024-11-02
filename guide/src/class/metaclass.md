@@ -8,7 +8,7 @@ Some examples of where metaclasses can be used:
 - [`EnumType`](https://docs.python.org/3/library/enum.html) for defining enums
 - [`NamedTuple`](https://docs.python.org/3/library/typing.html#typing.NamedTuple) for defining tuples with elements
   that can be accessed by name in addition to index.
-- to implement patterns such as singleton classes
+- singleton classes
 - automatic registration of classes
 - ORM
 - serialization / deserialization / validation (e.g. [pydantic](https://docs.pydantic.dev/latest/api/base_model/))
@@ -65,7 +65,7 @@ In the example above `MyMetaclass` extends `PyType` (making it a metaclass). It 
 [this is not supported](https://docs.python.org/3/c-api/type.html#c.PyType_FromMetaclass). Instead `__init__` is
 defined which is called whenever a class is created that uses `MyMetaclass` as its metaclass.
 The arguments to `__init__` are the same as the arguments to `type(name, bases, kwds)`. A `Default` impl is required
-in order to define `__init__`.
+in order to define `__init__`. The data in the struct is initialised to `Default` before `__init__` is called.
 
 When special methods like `__getitem__` are defined for a metaclass they apply to the classes they construct, so
 `Foo[123]` calls `MyMetaclass.__getitem__(Foo, 123)`.

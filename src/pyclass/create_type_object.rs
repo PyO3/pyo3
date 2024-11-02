@@ -414,9 +414,7 @@ impl PyTypeBuilder {
                         Some(PyObjectOffset::Absolute(offset)) => {
                             (*type_object).tp_dictoffset = offset;
                         }
-                        Some(PyObjectOffset::Relative(_)) => {
-                            panic!("relative offsets not supported until python 3.12")
-                        }
+                        // PyObjectOffset::Relative requires >=3.12
                         _ => {}
                     }
 
@@ -424,9 +422,7 @@ impl PyTypeBuilder {
                         Some(PyObjectOffset::Absolute(offset)) => {
                             (*type_object).tp_weaklistoffset = offset;
                         }
-                        Some(PyObjectOffset::Relative(_)) => {
-                            panic!("relative offsets not supported until python 3.12")
-                        }
+                        // PyObjectOffset::Relative requires >=3.12
                         _ => {}
                     }
                 }));

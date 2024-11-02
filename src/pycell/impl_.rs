@@ -12,8 +12,11 @@ use crate::impl_::pyclass::{
 };
 use crate::internal::get_slot::TP_FREE;
 use crate::type_object::{PyLayout, PySizedLayout};
-use crate::types::{PyType, PyTypeMethods};
+use crate::types::PyType;
 use crate::{ffi, PyClass, PyTypeInfo, Python};
+
+#[cfg(not(Py_LIMITED_API))]
+use crate::types::PyTypeMethods;
 
 use super::{PyBorrowError, PyBorrowMutError};
 
@@ -212,7 +215,7 @@ pub struct PyClassObjectBase<T> {
     ob_base: T,
 }
 
-unsafe impl<T, U> PyLayout<T> for PyClassObjectBase<U> where U: PyLayout<T> {}
+unsafe impl<T, U> PyLayout<T> for PyClassObjectBase<U> where U: PySizedLayout<T> {}
 
 /// Base layout of PyClassObject.
 #[doc(hidden)]
@@ -278,7 +281,7 @@ pub trait InternalPyClassObjectLayout<T: PyClassImpl>: PyClassObjectLayout<T> {
 
 impl<T, U> PyClassObjectLayout<T> for PyClassObjectBase<U>
 where
-    U: PyLayout<T>,
+    U: PySizedLayout<T>,
     T: PyTypeInfo,
 {
     fn ensure_threadsafe(&self) {}
@@ -475,7 +478,7 @@ impl<T: PyClassImpl> PyVariableClassObject<T> {
         // https://peps.python.org/pep-0697/
         let type_obj = unsafe { ffi::Py_TYPE(obj) };
         let pointer = unsafe { ffi::PyObject_GetTypeData(obj, type_obj) };
-        return pointer as *mut PyClassObjectContents<T>;
+        pointer as *mut PyClassObjectContents<T>
     }
 
     #[cfg(Py_3_12)]
