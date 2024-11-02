@@ -65,6 +65,8 @@ def test_py(session: nox.Session) -> None:
     _run(session, "nox", "-f", "pytests/noxfile.py", external=True)
     for example in glob("examples/*/noxfile.py"):
         _run(session, "nox", "-f", example, external=True)
+    for example in glob("pyo3-ffi/examples/*/noxfile.py"):
+        _run(session, "nox", "-f", example, external=True)
 
 
 @nox.session(venv_backend="none")

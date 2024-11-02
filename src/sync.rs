@@ -5,10 +5,17 @@
 //!
 //! [PEP 703]: https://peps.python.org/pep-703/
 use crate::{
+    ffi,
+    sealed::Sealed,
     types::{any::PyAnyMethods, PyAny, PyString},
     Bound, Py, PyResult, PyTypeCheck, Python,
 };
-use std::{cell::UnsafeCell, marker::PhantomData, mem::MaybeUninit, sync::Once};
+use std::{
+    cell::UnsafeCell,
+    marker::PhantomData,
+    mem::MaybeUninit,
+    sync::{Once, OnceState},
+};
 
 #[cfg(not(Py_GIL_DISABLED))]
 use crate::PyVisit;
@@ -473,6 +480,139 @@ where
     }
 }
 
+#[cfg(rustc_has_once_lock)]
+mod once_lock_ext_sealed {
+    pub trait Sealed {}
+    impl<T> Sealed for std::sync::OnceLock<T> {}
+}
+
+/// Helper trait for `Once` to help avoid deadlocking when using a `Once` when attached to a
+/// Python thread.
+pub trait OnceExt: Sealed {
+    /// Similar to [`call_once`][Once::call_once], but releases the Python GIL temporarily
+    /// if blocking on another thread currently calling this `Once`.
+    fn call_once_py_attached(&self, py: Python<'_>, f: impl FnOnce());
+
+    /// Similar to [`call_once_force`][Once::call_once_force], but releases the Python GIL
+    /// temporarily if blocking on another thread currently calling this `Once`.
+    fn call_once_force_py_attached(&self, py: Python<'_>, f: impl FnOnce(&OnceState));
+}
+
+// Extension trait for [`std::sync::OnceLock`] which helps avoid deadlocks between the Python
+/// interpreter and initialization with the `OnceLock`.
+#[cfg(rustc_has_once_lock)]
+pub trait OnceLockExt<T>: once_lock_ext_sealed::Sealed {
+    /// Initializes this `OnceLock` with the given closure if it has not been initialized yet.
+    ///
+    /// If this function would block, this function detaches from the Python interpreter and
+    /// reattaches before calling `f`. This avoids deadlocks between the Python interpreter and
+    /// the `OnceLock` in cases where `f` can call arbitrary Python code, as calling arbitrary
+    /// Python code can lead to `f` itself blocking on the Python interpreter.
+    ///
+    /// By detaching from the Python interpreter before blocking, this ensures that if `f` blocks
+    /// then the Python interpreter cannot be blocked by `f` itself.
+    fn get_or_init_py_attached<F>(&self, py: Python<'_>, f: F) -> &T
+    where
+        F: FnOnce() -> T;
+}
+
+struct Guard(*mut crate::ffi::PyThreadState);
+
+impl Drop for Guard {
+    fn drop(&mut self) {
+        unsafe { ffi::PyEval_RestoreThread(self.0) };
+    }
+}
+
+impl OnceExt for Once {
+    fn call_once_py_attached(&self, py: Python<'_>, f: impl FnOnce()) {
+        if self.is_completed() {
+            return;
+        }
+
+        init_once_py_attached(self, py, f)
+    }
+
+    fn call_once_force_py_attached(&self, py: Python<'_>, f: impl FnOnce(&OnceState)) {
+        if self.is_completed() {
+            return;
+        }
+
+        init_once_force_py_attached(self, py, f);
+    }
+}
+
+#[cfg(rustc_has_once_lock)]
+impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
+    fn get_or_init_py_attached<F>(&self, py: Python<'_>, f: F) -> &T
+    where
+        F: FnOnce() -> T,
+    {
+        // this trait is guarded by a rustc version config
+        // so clippy's MSRV check is wrong
+        #[allow(clippy::incompatible_msrv)]
+        // Use self.get() first to create a fast path when initialized
+        self.get()
+            .unwrap_or_else(|| init_once_lock_py_attached(self, py, f))
+    }
+}
+
+#[cold]
+fn init_once_py_attached<F, T>(once: &Once, _py: Python<'_>, f: F)
+where
+    F: FnOnce() -> T,
+{
+    // Safety: we are currently attached to the GIL, and we expect to block. We will save
+    // the current thread state and restore it as soon as we are done blocking.
+    let ts_guard = Guard(unsafe { ffi::PyEval_SaveThread() });
+
+    once.call_once(move || {
+        drop(ts_guard);
+        f();
+    });
+}
+
+#[cold]
+fn init_once_force_py_attached<F, T>(once: &Once, _py: Python<'_>, f: F)
+where
+    F: FnOnce(&OnceState) -> T,
+{
+    // Safety: we are currently attached to the GIL, and we expect to block. We will save
+    // the current thread state and restore it as soon as we are done blocking.
+    let ts_guard = Guard(unsafe { ffi::PyEval_SaveThread() });
+
+    once.call_once_force(move |state| {
+        drop(ts_guard);
+        f(state);
+    });
+}
+
+#[cfg(rustc_has_once_lock)]
+#[cold]
+fn init_once_lock_py_attached<'a, F, T>(
+    lock: &'a std::sync::OnceLock<T>,
+    _py: Python<'_>,
+    f: F,
+) -> &'a T
+where
+    F: FnOnce() -> T,
+{
+    // SAFETY: we are currently attached to a Python thread
+    let ts_guard = Guard(unsafe { ffi::PyEval_SaveThread() });
+
+    // this trait is guarded by a rustc version config
+    // so clippy's MSRV check is wrong
+    #[allow(clippy::incompatible_msrv)]
+    // By having detached here, we guarantee that `.get_or_init` cannot deadlock with
+    // the Python interpreter
+    let value = lock.get_or_init(move || {
+        drop(ts_guard);
+        f()
+    });
+
+    value
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -588,5 +728,57 @@ mod tests {
                 });
             });
         });
+    }
+
+    #[test]
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    fn test_once_ext() {
+        // adapted from the example in the docs for Once::try_once_force
+        let init = Once::new();
+        std::thread::scope(|s| {
+            // poison the once
+            let handle = s.spawn(|| {
+                Python::with_gil(|py| {
+                    init.call_once_py_attached(py, || panic!());
+                })
+            });
+            assert!(handle.join().is_err());
+
+            // poisoning propagates
+            let handle = s.spawn(|| {
+                Python::with_gil(|py| {
+                    init.call_once_py_attached(py, || {});
+                });
+            });
+
+            assert!(handle.join().is_err());
+
+            // call_once_force will still run and reset the poisoned state
+            Python::with_gil(|py| {
+                init.call_once_force_py_attached(py, |state| {
+                    assert!(state.is_poisoned());
+                });
+
+                // once any success happens, we stop propagating the poison
+                init.call_once_py_attached(py, || {});
+            });
+        });
+    }
+
+    #[cfg(rustc_has_once_lock)]
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[test]
+    fn test_once_lock_ext() {
+        let cell = std::sync::OnceLock::new();
+        std::thread::scope(|s| {
+            assert!(cell.get().is_none());
+
+            s.spawn(|| {
+                Python::with_gil(|py| {
+                    assert_eq!(*cell.get_or_init_py_attached(py, || 12345), 12345);
+                });
+            });
+        });
+        assert_eq!(cell.get(), Some(&12345));
     }
 }

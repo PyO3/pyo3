@@ -79,7 +79,7 @@ pub fn impl_arg_params(
             .collect();
         return (
             quote! {
-                let _args = #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_args);
+                let _args = unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_args) };
                 let _kwargs = #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr_or_opt(py, &_kwargs);
                 #from_py_with
             },
@@ -301,9 +301,10 @@ pub(crate) fn impl_regular_arg_param(
         }
     } else {
         let holder = holders.push_holder(arg.name.span());
+        let unwrap = quote! {unsafe { #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value) }};
         quote_arg_span! {
             #pyo3_path::impl_::extract_argument::extract_argument(
-                #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value),
+                #unwrap,
                 &mut #holder,
                 #name_str
             )?

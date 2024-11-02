@@ -9,9 +9,11 @@ Below is a brief description of each of these:
 | `decorator` | A project showcasing the example from the [Emulating callable objects](https://pyo3.rs/latest/class/call.html) chapter of the guide. |
 | `maturin-starter` | A template project which is configured to use [`maturin`](https://github.com/PyO3/maturin) for development. |
 | `setuptools-rust-starter` | A template project which is configured to use [`setuptools_rust`](https://github.com/PyO3/setuptools-rust/) for development. |
-| `word-count` | A quick performance comparison between word counter implementations written in each of Rust and Python. |
 | `plugin` | Illustrates how to use Python as a scripting language within a Rust application |
-| `sequential` | Illustrates how to use pyo3-ffi to write subinterpreter-safe modules |
+
+Note that there are also other examples in the `pyo3-ffi/examples`
+directory that illustrate how to create rust extensions using raw FFI calls into
+the CPython C API instead of using PyO3's abstractions.
 
 ## Creating new projects from these examples
 

@@ -8,6 +8,6 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3-ffi = { path = "../../pyo3-ffi", features = ["extension-module"] }
+pyo3-ffi = { path = "../../", features = ["extension-module"] }
 
 [workspace]

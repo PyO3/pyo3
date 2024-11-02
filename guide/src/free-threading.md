@@ -152,6 +152,60 @@ We plan to allow user-selectable semantics for mutable pyclass definitions in
 PyO3 0.24, allowing some form of opt-in locking to emulate the GIL if that is
 needed.
 
+## Thread-safe single initialization
+
+Until version 0.23, PyO3 provided only `GILOnceCell` to enable deadlock-free
+single initialization of data in contexts that might execute arbitrary Python
+code. While we have updated `GILOnceCell` to avoid thread safety issues
+triggered only under the free-threaded build, the design of `GILOnceCell` is
+inherently thread-unsafe, in a manner that can be problematic even in the
+GIL-enabled build.
+
+If, for example, the function executed by `GILOnceCell` releases the GIL or
+calls code that releases the GIL, then it is possible for multiple threads to
+try to race to initialize the cell. While the cell will only ever be intialized
+once, it can be problematic in some contexts that `GILOnceCell` does not block
+like the standard library `OnceLock`.
+
+In cases where the initialization function must run exactly once, you can bring
+the `OnceExt` or `OnceLockExt` traits into scope. The `OnceExt` trait adds
+`OnceExt::call_once_py_attached` and `OnceExt::call_once_force_py_attached`
+functions to the api of `std::sync::Once`, enabling use of `Once` in contexts
+where the GIL is held. Similarly, `OnceLockExt` adds
+`OnceLockExt::get_or_init_py_attached`. These functions are analogous to
+`Once::call_once`, `Once::call_once_force`, and `OnceLock::get_or_init` except
+they accept a `Python<'py>` token in addition to an `FnOnce`. All of these
+functions release the GIL and re-acquire it before executing the function,
+avoiding deadlocks with the GIL that are possible without using the PyO3
+extension traits. Here is an example of how to use `OnceExt` to
+enable single-initialization of a runtime cache holding a `Py<PyDict>`.
+
+```rust
+# fn main() {
+# use pyo3::prelude::*;
+use std::sync::Once;
+use pyo3::sync::OnceExt;
+use pyo3::types::PyDict;
+
+struct RuntimeCache {
+    once: Once,
+    cache: Option<Py<PyDict>>
+}
+
+let mut cache = RuntimeCache {
+    once: Once::new(),
+    cache: None
+};
+
+Python::with_gil(|py| {
+    // guaranteed to be called once and only once
+    cache.once.call_once_py_attached(py, || {
+        cache.cache = Some(PyDict::new(py).unbind());
+    });
+});
+# }
+```
+
 ## `GILProtected` is not exposed
 
 `GILProtected` is a PyO3 type that allows mutable access to static data by

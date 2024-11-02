@@ -123,14 +123,25 @@
 //! - `nightly`: Uses  `#![feature(auto_traits, negative_impls)]` to define [`Ungil`] as an auto trait.
 //
 //! ## `rustc` environment flags
-//!
-//! PyO3 uses `rustc`'s `--cfg` flags to enable or disable code used for different Python versions.
-//! If you want to do this for your own crate, you can do so with the [`pyo3-build-config`] crate.
-//!
-//! - `Py_3_7`, `Py_3_8`, `Py_3_9`, `Py_3_10`: Marks code that is only enabled when
-//!  compiling for a given minimum Python version.
+//! - `Py_3_7`, `Py_3_8`, `Py_3_9`, `Py_3_10`, `Py_3_11`, `Py_3_12`, `Py_3_13`: Marks code that is
+//!    only enabled when compiling for a given minimum Python version.
 //! - `Py_LIMITED_API`: Marks code enabled when the `abi3` feature flag is enabled.
+//! - `Py_GIL_DISABLED`: Marks code that runs only in the free-threaded build of CPython.
 //! - `PyPy` - Marks code enabled when compiling for PyPy.
+//! - `GraalPy` - Marks code enabled when compiling for GraalPy.
+//!
+//! Additionally, you can query for the values `Py_DEBUG`, `Py_REF_DEBUG`,
+//! `Py_TRACE_REFS`, and `COUNT_ALLOCS` from `py_sys_config` to query for the
+//! corresponding C build-time defines. For example, to conditionally define
+//! debug code using `Py_DEBUG`, you could do:
+//!
+//! ```rust,ignore
+//! #[cfg(py_sys_config = "Py_DEBUG")]
+//! println!("only runs if python was compiled with Py_DEBUG")
+//! ```
+//! To use these attributes, add [`pyo3-build-config`] as a build dependency in
+//! your `Cargo.toml` and call `pyo3_build_config::use_pyo3_cfgs()` in a
+//! `build.rs` file.
 //!
 //! # Minimum supported Rust and Python versions
 //!
