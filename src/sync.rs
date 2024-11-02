@@ -516,13 +516,11 @@ pub trait OnceLockExt<T>: once_lock_ext_sealed::Sealed {
         F: FnOnce() -> T;
 }
 
-struct Guard(Option<*mut crate::ffi::PyThreadState>);
+struct Guard(*mut crate::ffi::PyThreadState);
 
 impl Drop for Guard {
     fn drop(&mut self) {
-        if let Some(ts) = self.0 {
-            unsafe { ffi::PyEval_RestoreThread(ts) };
-        }
+        unsafe { ffi::PyEval_RestoreThread(self.0) };
     }
 }
 
@@ -566,9 +564,9 @@ where
 {
     // Safety: we are currently attached to the GIL, and we expect to block. We will save
     // the current thread state and restore it as soon as we are done blocking.
-    let ts_guard = Guard(Some(unsafe { ffi::PyEval_SaveThread() }));
+    let ts_guard = Guard(unsafe { ffi::PyEval_SaveThread() });
 
-    once.call_once(|| {
+    once.call_once(move || {
         drop(ts_guard);
         f();
     });
@@ -581,9 +579,9 @@ where
 {
     // Safety: we are currently attached to the GIL, and we expect to block. We will save
     // the current thread state and restore it as soon as we are done blocking.
-    let ts_guard = Guard(Some(unsafe { ffi::PyEval_SaveThread() }));
+    let ts_guard = Guard(unsafe { ffi::PyEval_SaveThread() });
 
-    once.call_once_force(|state| {
+    once.call_once_force(move |state| {
         drop(ts_guard);
         f(state);
     });
@@ -600,7 +598,7 @@ where
     F: FnOnce() -> T,
 {
     // SAFETY: we are currently attached to a Python thread
-    let ts_guard = Guard(Some(unsafe { ffi::PyEval_SaveThread() }));
+    let ts_guard = Guard(unsafe { ffi::PyEval_SaveThread() });
 
     // this trait is guarded by a rustc version config
     // so clippy's MSRV check is wrong
