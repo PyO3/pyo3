@@ -1168,7 +1168,7 @@ pub(crate) unsafe extern "C" fn assign_sequence_item_from_mapping(
 }
 
 /// Offset of a field within a PyObject in bytes.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum PyObjectOffset {
     /// An offset relative to the start of the object
     Absolute(ffi::Py_ssize_t),
@@ -1364,7 +1364,7 @@ where
     /// - value of type `FieldT` must exist at the given offset within obj
     unsafe fn inner<FieldT>(
         py: Python<'_>,
-        obj: *mut ffi::PyObject,
+        obj: *const (),
         offset: usize,
     ) -> PyResult<*mut ffi::PyObject>
     where
@@ -1377,12 +1377,12 @@ where
 
     // SAFETY: `obj` is a valid pointer to `ClassT`
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
-    let contents_offset = match <ClassT as PyClassImpl>::Layout::CONTENTS_OFFSET {
-        PyObjectOffset::Absolute(offset) => offset as usize,
-        PyObjectOffset::Relative(_) => todo!(),
-    };
+    let class_ptr = obj.cast::<<ClassT as PyClassImpl>::Layout>();
+    let class_obj = unsafe { &*class_ptr };
+    let contents_ptr = ptr::from_ref(class_obj.contents());
+
     // SAFETY: _holder prevents mutable aliasing, caller upholds other safety invariants
-    unsafe { inner::<FieldT>(py, obj, contents_offset + OFFSET) }
+    unsafe { inner::<FieldT>(py, contents_ptr.cast(), OFFSET) }
 }
 
 /// Gets a field value from a pyclass and produces a python value using `IntoPyObject` for `FieldT`,
@@ -1406,7 +1406,7 @@ where
     /// - value of type `FieldT` must exist at the given offset within obj
     unsafe fn inner<FieldT>(
         py: Python<'_>,
-        obj: *mut ffi::PyObject,
+        obj: *const (),
         offset: usize,
     ) -> PyResult<*mut ffi::PyObject>
     where
@@ -1419,12 +1419,12 @@ where
 
     // SAFETY: `obj` is a valid pointer to `ClassT`
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
-    let contents_offset = match <ClassT as PyClassImpl>::Layout::CONTENTS_OFFSET {
-        PyObjectOffset::Absolute(offset) => offset as usize,
-        PyObjectOffset::Relative(_) => todo!(),
-    };
+    let class_ptr = obj.cast::<<ClassT as PyClassImpl>::Layout>();
+    let class_obj = unsafe { &*class_ptr };
+    let contents_ptr = ptr::from_ref(class_obj.contents());
+
     // SAFETY: _holder prevents mutable aliasing, caller upholds other safety invariants
-    unsafe { inner::<FieldT>(py, obj, contents_offset + OFFSET) }
+    unsafe { inner::<FieldT>(py, contents_ptr.cast(), OFFSET) }
 }
 
 pub struct ConvertField<
