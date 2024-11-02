@@ -230,7 +230,12 @@ PyO3 0.23 introduces preliminary support for the new free-threaded build of
 CPython 3.13. PyO3 features that implicitly assumed the existence of the GIL are
 not exposed in the free-threaded build, since they are no longer safe.  Other
 features, such as `GILOnceCell`, have been internally rewritten to be threadsafe
-without the GIL.
+without the GIL, although note that `GILOnceCell` is inherently racey. You can
+also use `OnceExt::call_once_py_attached` or
+`OnceExt::call_once_force_py_attached` to enable use of `std::sync::Once` in
+code that has the GIL acquired without risking a dealock with the GIL. We plan
+We plan to expose more extension traits in the future that make it easier to
+write code for the GIL-enabled and free-threaded builds of Python.
 
 If you make use of these features then you will need to account for the
 unavailability of this API in the free-threaded build. One way to handle it is

@@ -1,9 +1,11 @@
 #![cfg(feature = "macros")]
 
+use std::sync::Once;
+
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
-use pyo3::sync::GILOnceCell;
+use pyo3::sync::{GILOnceCell, OnceExt};
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -149,9 +151,17 @@ mod declarative_module2 {
 
 fn declarative_module(py: Python<'_>) -> &Bound<'_, PyModule> {
     static MODULE: GILOnceCell<Py<PyModule>> = GILOnceCell::new();
-    MODULE
-        .get_or_init(py, || pyo3::wrap_pymodule!(declarative_module)(py))
-        .bind(py)
+    static ONCE: Once = Once::new();
+
+    // Guarantee that the module is only ever initialized once; GILOnceCell can race.
+    // TODO: use OnceLock when MSRV >= 1.70
+    ONCE.call_once_py_attached(py, || {
+        MODULE
+            .set(py, pyo3::wrap_pymodule!(declarative_module)(py))
+            .expect("only ever set once");
+    });
+
+    MODULE.get(py).expect("once is completed").bind(py)
 }
 
 #[test]
