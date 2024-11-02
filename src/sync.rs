@@ -550,6 +550,9 @@ impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
     where
         F: FnOnce() -> T,
     {
+        // this trait is guarded by a rustc version config
+        // so clippy's MSRV check is wrong
+        #[allow(clippy::incompatible_msrv)]
         // Use self.get() first to create a fast path when initialized
         self.get()
             .unwrap_or_else(|| init_once_lock_py_attached(self, py, f))
@@ -599,6 +602,9 @@ where
     // SAFETY: we are currently attached to a Python thread
     let ts_guard = Guard(Some(unsafe { ffi::PyEval_SaveThread() }));
 
+    // this trait is guarded by a rustc version config
+    // so clippy's MSRV check is wrong
+    #[allow(clippy::incompatible_msrv)]
     // By having detached here, we guarantee that `.get_or_init` cannot deadlock with
     // the Python interpreter
     let value = lock.get_or_init(move || {
