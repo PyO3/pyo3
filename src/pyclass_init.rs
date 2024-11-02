@@ -1,17 +1,12 @@
 //! Contains initialization utilities for `#[pyclass]`.
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::callback::IntoPyCallbackOutput;
-use crate::impl_::pyclass::{
-    PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef,
-};
+use crate::impl_::pyclass::{PyClassBaseType, PyClassImpl};
 use crate::impl_::pyclass_init::{PyNativeTypeInitializer, PyObjectInit};
 use crate::pycell::impl_::InternalPyClassObjectLayout;
 use crate::{ffi, Bound, Py, PyClass, PyResult, Python};
-use crate::{
-    ffi::PyTypeObject,
-    pycell::impl_::{PyClassBorrowChecker, PyClassMutability, PyClassObjectContents},
-};
-use std::{cell::UnsafeCell, marker::PhantomData, mem::ManuallyDrop};
+use crate::{ffi::PyTypeObject, pycell::impl_::PyClassObjectContents};
+use std::marker::PhantomData;
 
 /// Initializer for our `#[pyclass]` system.
 ///
@@ -171,18 +166,7 @@ impl<T: PyClass> PyClassInitializer<T> {
         let obj = unsafe { super_init.into_new_object(py, target_type)? };
 
         let contents = unsafe { <T as PyClassImpl>::Layout::contents_uninitialised(obj) };
-        unsafe {
-            std::ptr::write(
-                (*contents).as_mut_ptr(),
-                PyClassObjectContents {
-                    value: ManuallyDrop::new(UnsafeCell::new(init)),
-                    borrow_checker: <T::PyClassMutability as PyClassMutability>::Storage::new(),
-                    thread_checker: T::ThreadChecker::new(),
-                    dict: T::Dict::INIT,
-                    weakref: T::WeakRef::INIT,
-                },
-            );
-        }
+        unsafe { std::ptr::write((*contents).as_mut_ptr(), PyClassObjectContents::new(init)) };
 
         // Safety: obj is a valid pointer to an object of type `target_type`, which` is a known
         // subclass of `T`

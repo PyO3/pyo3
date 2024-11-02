@@ -229,8 +229,8 @@ impl<T: PyTypeInfo> PyClassObjectLayout<T> for PyVariableClassObjectBase {
     fn check_threadsafe(&self) -> Result<(), PyBorrowError> {
         Ok(())
     }
-    unsafe fn tp_dealloc(_py: Python<'_>, _slf: *mut ffi::PyObject) {
-        // TODO(matt):
+    unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
+        unsafe { tp_dealloc(slf, &T::type_object(py)) };
     }
 }
 
@@ -287,44 +287,48 @@ where
         Ok(())
     }
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
-        unsafe {
-            // FIXME: there is potentially subtle issues here if the base is overwritten
-            // at runtime? To be investigated.
-            let type_obj = T::type_object(py);
-            let type_ptr = type_obj.as_type_ptr();
-            let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(slf));
+        unsafe { tp_dealloc(slf, &T::type_object(py)) };
+    }
+}
 
-            // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
-            if std::ptr::eq(type_ptr, std::ptr::addr_of!(ffi::PyBaseObject_Type)) {
-                let tp_free = actual_type
-                    .get_slot(TP_FREE)
-                    .expect("PyBaseObject_Type should have tp_free");
-                return tp_free(slf.cast());
-            }
+unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType>) {
+    let py = type_obj.py();
+    unsafe {
+        // FIXME: there is potentially subtle issues here if the base is overwritten
+        // at runtime? To be investigated.
+        let type_ptr = type_obj.as_type_ptr();
+        let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(slf));
 
-            // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
-            #[cfg(not(Py_LIMITED_API))]
-            {
-                // FIXME: should this be using actual_type.tp_dealloc?
-                if let Some(dealloc) = (*type_ptr).tp_dealloc {
-                    // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
-                    // assumes the exception is currently GC tracked, so we have to re-track
-                    // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
-                    #[cfg(not(any(Py_3_11, PyPy)))]
-                    if ffi::PyType_FastSubclass(type_ptr, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
-                        ffi::PyObject_GC_Track(slf.cast());
-                    }
-                    dealloc(slf);
-                } else {
-                    (*actual_type.as_type_ptr())
-                        .tp_free
-                        .expect("type missing tp_free")(slf.cast());
-                }
-            }
-
-            #[cfg(Py_LIMITED_API)]
-            unreachable!("subclassing native types is not possible with the `abi3` feature");
+        // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
+        if std::ptr::eq(type_ptr, std::ptr::addr_of!(ffi::PyBaseObject_Type)) {
+            let tp_free = actual_type
+                .get_slot(TP_FREE)
+                .expect("PyBaseObject_Type should have tp_free");
+            return tp_free(slf.cast());
         }
+
+        // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            // FIXME: should this be using actual_type.tp_dealloc?
+            if let Some(dealloc) = (*type_ptr).tp_dealloc {
+                // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
+                // assumes the exception is currently GC tracked, so we have to re-track
+                // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
+                #[cfg(not(any(Py_3_11, PyPy)))]
+                if ffi::PyType_FastSubclass(type_ptr, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
+                    ffi::PyObject_GC_Track(slf.cast());
+                }
+                dealloc(slf);
+            } else {
+                (*actual_type.as_type_ptr())
+                    .tp_free
+                    .expect("type missing tp_free")(slf.cast());
+            }
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        unreachable!("subclassing native types is not possible with the `abi3` feature");
     }
 }
 
@@ -338,6 +342,16 @@ pub(crate) struct PyClassObjectContents<T: PyClassImpl> {
 }
 
 impl<T: PyClassImpl> PyClassObjectContents<T> {
+    pub(crate) fn new(init: T) -> Self {
+        PyClassObjectContents {
+            value: ManuallyDrop::new(UnsafeCell::new(init)),
+            borrow_checker: <T::PyClassMutability as PyClassMutability>::Storage::new(),
+            thread_checker: T::ThreadChecker::new(),
+            dict: T::Dict::INIT,
+            weakref: T::WeakRef::INIT,
+        }
+    }
+
     unsafe fn dealloc(&mut self, py: Python<'_>, py_object: *mut ffi::PyObject) {
         if self.thread_checker.can_drop(py) {
             unsafe { ManuallyDrop::drop(&mut self.value) };
