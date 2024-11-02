@@ -731,6 +731,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     fn test_once_ext() {
         // adapted from the example in the docs for Once::try_once_force
         let init = Once::new();
@@ -765,6 +766,7 @@ mod tests {
     }
 
     #[cfg(rustc_has_once_lock)]
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_once_lock_ext() {
         let cell = std::sync::OnceLock::new();
