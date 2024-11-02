@@ -30,7 +30,7 @@ impl MyMetaclass {
         _args: Bound<'_, PyTuple>,
         _kwargs: Option<Bound<'_, PyDict>>,
     ) -> PyResult<()> {
-        slf.as_any().setattr("some_var", 123)?;
+        slf.borrow_mut().counter = 5;
         Ok(())
     }
 
