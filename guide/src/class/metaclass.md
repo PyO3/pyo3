@@ -17,6 +17,7 @@ Some examples of where metaclasses can be used:
 
 ```rust
 #[pyclass(subclass, extends=PyType)]
+#[derive(Default)]
 struct MyMetaclass {
     counter: u64,
 };
@@ -63,7 +64,8 @@ assert Foo.get_counter() == 1
 In the example above `MyMetaclass` extends `PyType` (making it a metaclass). It does not define `#[new]` as
 [this is not supported](https://docs.python.org/3/c-api/type.html#c.PyType_FromMetaclass). Instead `__init__` is
 defined which is called whenever a class is created that uses `MyMetaclass` as its metaclass.
-The arguments to `__init__` are the same as the arguments to `type(name, bases, kwds)`.
+The arguments to `__init__` are the same as the arguments to `type(name, bases, kwds)`. A `Default` impl is required
+in order to define `__init__`.
 
 When special methods like `__getitem__` are defined for a metaclass they apply to the classes they construct, so
 `Foo[123]` calls `MyMetaclass.__getitem__(Foo, 123)`.

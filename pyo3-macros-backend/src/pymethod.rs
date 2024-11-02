@@ -421,6 +421,7 @@ fn impl_init_slot(cls: &syn::Type, mut spec: FnSpec<'_>, ctx: &Ctx) -> Result<Me
                     kwargs: *mut #pyo3_path::ffi::PyObject,
                 ) -> ::std::os::raw::c_int
                 {
+                    #pyo3_path::impl_::pyclass_init::initialize_with_default::<#cls>(slf);
                     #pyo3_path::impl_::trampoline::initproc(
                         slf,
                         args,

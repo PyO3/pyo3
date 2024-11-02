@@ -1,10 +1,17 @@
 //! Contains initialization utilities for `#[pyclass]`.
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::impl_::pyclass::PyClassImpl;
 use crate::internal::get_slot::TP_ALLOC;
+use crate::pycell::impl_::{InternalPyClassObjectLayout, PyClassObjectContents};
 use crate::types::PyType;
 use crate::{ffi, Borrowed, PyErr, PyResult, Python};
 use crate::{ffi::PyTypeObject, sealed::Sealed, type_object::PyTypeInfo};
 use std::marker::PhantomData;
+
+pub unsafe fn initialize_with_default<T: PyClassImpl + Default>(obj: *mut ffi::PyObject) {
+    let contents = T::Layout::contents_uninitialised(obj);
+    (*contents).write(PyClassObjectContents::new(T::default()));
+}
 
 /// Initializer for Python types.
 ///

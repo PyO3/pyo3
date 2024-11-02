@@ -1,0 +1,16 @@
+error[E0277]: the trait bound `MyClass: Default` is not satisfied
+ --> tests/ui/init_without_default.rs:7:6
+  |
+7 | impl MyClass {
+  |      ^^^^^^^ the trait `Default` is not implemented for `MyClass`
+  |
+note: required by a bound in `initialize_with_default`
+ --> src/impl_/pyclass_init.rs
+  |
+  | pub unsafe fn initialize_with_default<T: PyClassImpl + Default>(obj: *mut ffi::PyObject) {
+  |                                                        ^^^^^^^ required by this bound in `initialize_with_default`
+help: consider annotating `MyClass` with `#[derive(Default)]`
+  |
+4  + #[derive(Default)]
+5  | struct MyClass {}
+   |

@@ -185,7 +185,7 @@ mod inheriting_type {
         use pyo3::types::PyType;
 
         #[pyclass(subclass, extends=PyType)]
-        #[derive(Debug)]
+        #[derive(Debug, Default)]
         struct Metaclass {
             counter: u64,
         }
@@ -271,6 +271,77 @@ mod inheriting_type {
                 assert Bar.value == "bar_value"
                 assert Bar.some_var == 123
                 assert Bar[100] == 101
+                "#
+            );
+        });
+    }
+
+    #[test]
+    #[should_panic = "Metaclasses must specify __init__"]
+    fn inherit_type_missing_init() {
+        use pyo3::types::PyType;
+
+        #[pyclass(subclass, extends=PyType)]
+        #[derive(Debug, Default)]
+        struct Metaclass {}
+
+        #[pymethods]
+        impl Metaclass {}
+
+        Python::with_gil(|py| {
+            #[allow(non_snake_case)]
+            let Metaclass = py.get_type::<Metaclass>();
+
+            // panics when used
+            py_run!(
+                py,
+                Metaclass,
+                r#"
+                class Foo(metaclass=Metaclass):
+                    pass
+                "#
+            );
+        });
+    }
+
+    #[test]
+    #[should_panic = "Metaclasses must not specify __new__ (use __init__ instead)"]
+    fn inherit_type_with_new() {
+        use pyo3::types::PyType;
+
+        #[pyclass(subclass, extends=PyType)]
+        #[derive(Debug, Default)]
+        struct Metaclass {}
+
+        #[pymethods]
+        impl Metaclass {
+            #[new]
+            #[pyo3(signature = (*_args, **_kwargs))]
+            fn new(_args: Bound<'_, PyTuple>, _kwargs: Option<Bound<'_, PyDict>>) -> Self {
+                Metaclass {}
+            }
+
+            #[pyo3(signature = (*_args, **_kwargs))]
+            fn __init__(
+                _slf: Bound<'_, Metaclass>,
+                _args: Bound<'_, PyTuple>,
+                _kwargs: Option<Bound<'_, PyDict>>,
+            ) -> PyResult<()> {
+                Ok(())
+            }
+        }
+
+        Python::with_gil(|py| {
+            #[allow(non_snake_case)]
+            let Metaclass = py.get_type::<Metaclass>();
+
+            // panics when used
+            py_run!(
+                py,
+                Metaclass,
+                r#"
+                class Foo(metaclass=Metaclass):
+                    pass
                 "#
             );
         });

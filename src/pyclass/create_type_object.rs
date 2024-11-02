@@ -62,6 +62,7 @@ where
             is_mapping,
             is_sequence,
             has_new: false,
+            has_init: false,
             has_dealloc: false,
             has_getitem: false,
             has_setitem: false,
@@ -116,6 +117,7 @@ struct PyTypeBuilder {
     is_mapping: bool,
     is_sequence: bool,
     has_new: bool,
+    has_init: bool,
     has_dealloc: bool,
     has_getitem: bool,
     has_setitem: bool,
@@ -134,6 +136,7 @@ impl PyTypeBuilder {
     unsafe fn push_slot<T>(&mut self, slot: c_int, pfunc: *mut T) {
         match slot {
             ffi::Py_tp_new => self.has_new = true,
+            ffi::Py_tp_init => self.has_init = true,
             ffi::Py_tp_dealloc => self.has_dealloc = true,
             ffi::Py_mp_subscript => self.has_getitem = true,
             ffi::Py_mp_ass_subscript => self.has_setitem = true,
@@ -447,11 +450,18 @@ impl PyTypeBuilder {
         unsafe { self.push_slot(ffi::Py_tp_base, self.tp_base) }
 
         // Safety: self.tp_base must be a valid PyTypeObject
-        if unsafe { ffi::PyType_IsSubtype(self.tp_base, &raw mut ffi::PyType_Type) } != 0 {
+        let is_metaclass =
+            unsafe { ffi::PyType_IsSubtype(self.tp_base, &raw mut ffi::PyType_Type) } != 0;
+        if is_metaclass {
             // if the pyclass derives from `type` (is a metaclass) then `tp_new` must not be set.
             // Metaclasses that override tp_new are not supported.
             // https://docs.python.org/3/c-api/type.html#c.PyType_FromMetaclass
-            assert!(!self.has_new, "Metaclasses must not specify __new__");
+            assert!(
+                !self.has_new,
+                "Metaclasses must not specify __new__ (use __init__ instead)"
+            );
+            // To avoid uninitialized memory, __init__ must be defined instead
+            assert!(self.has_init, "Metaclasses must specify __init__");
         } else if !self.has_new {
             // Safety: The default constructor is a valid value of tp_new
             unsafe { self.push_slot(ffi::Py_tp_new, no_constructor_defined as *mut c_void) }
