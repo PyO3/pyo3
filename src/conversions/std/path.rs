@@ -144,7 +144,7 @@ impl<'py> IntoPyObject<'py> for &PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{PyAnyMethods, PyString, PyStringMethods};
+    use crate::types::{PyString, PyStringMethods};
     use crate::{BoundObject, IntoPyObject, Python};
     use std::borrow::Cow;
     use std::fmt::Debug;
@@ -154,6 +154,7 @@ mod tests {
     #[cfg(not(windows))]
     fn test_non_utf8_conversion() {
         Python::with_gil(|py| {
+            use crate::types::PyAnyMethods;
             use std::ffi::OsStr;
             #[cfg(not(target_os = "wasi"))]
             use std::os::unix::ffi::OsStrExt;
