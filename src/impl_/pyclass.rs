@@ -4,11 +4,11 @@ use crate::{
     ffi_ptr_ext::FfiPtrExt,
     impl_::{
         freelist::PyObjectFreeList,
-        pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
+        pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectBaseLayout},
         pyclass_init::PyObjectInit,
         pymethods::{PyGetterDef, PyMethodDefType},
     },
-    pycell::{impl_::InternalPyClassObjectLayout, PyBorrowError},
+    pycell::{impl_::PyClassObjectLayout, PyBorrowError},
     types::{any::PyAnyMethods, PyBool},
     Borrowed, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult,
     PyTypeCheck, PyTypeInfo, Python,
@@ -178,7 +178,7 @@ pub trait PyClassImpl: Sized + 'static {
     const IS_IMMUTABLE_TYPE: bool = false;
 
     /// Description of how this class is laid out in memory
-    type Layout: InternalPyClassObjectLayout<Self>;
+    type Layout: PyClassObjectLayout<Self>;
 
     /// Base class
     type BaseType: PyTypeInfo + PyClassBaseType;
@@ -1114,7 +1114,7 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     )
 )]
 pub trait PyClassBaseType: Sized {
-    type LayoutAsBase: PyClassObjectLayout<Self>;
+    type LayoutAsBase: PyClassObjectBaseLayout<Self>;
     type BaseNativeType;
     type Initializer: PyObjectInit<Self>;
     type PyClassMutability: PyClassMutability;

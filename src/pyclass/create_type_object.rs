@@ -14,7 +14,7 @@ use crate::{
         pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, _call_clear},
         trampoline::trampoline,
     },
-    pycell::impl_::InternalPyClassObjectLayout,
+    pycell::impl_::PyClassObjectLayout,
     types::PyType,
     Py, PyClass, PyResult, PyTypeInfo, Python,
 };
