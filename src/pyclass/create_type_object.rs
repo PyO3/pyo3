@@ -275,7 +275,8 @@ impl PyTypeBuilder {
                 }
 
                 get_dict = get_dict_impl;
-                closure = dict_offset as _;
+                let PyObjectOffset::Absolute(offset) = dict_offset;
+                closure = offset as _;
             }
 
             property_defs.push(ffi::PyGetSetDef {
@@ -376,11 +377,12 @@ impl PyTypeBuilder {
         {
             #[inline(always)]
             fn offset_def(name: &'static CStr, offset: PyObjectOffset) -> ffi::PyMemberDef {
-                let (offset, is_relative) = offset.to_value_and_is_relative();
-                let flags = if is_relative {
-                    ffi::Py_READONLY | ffi::Py_RELATIVE_OFFSET
-                } else {
-                    ffi::Py_READONLY
+                let (offset, flags) = match offset {
+                    PyObjectOffset::Absolute(offset) => (offset, ffi::Py_READONLY),
+                    #[cfg(Py_3_12)]
+                    PyObjectOffset::Relative(offset) => {
+                        (offset, ffi::Py_READONLY | ffi::Py_RELATIVE_OFFSET)
+                    }
                 };
                 ffi::PyMemberDef {
                     name: name.as_ptr().cast(),
@@ -418,16 +420,13 @@ impl PyTypeBuilder {
                         Some(PyObjectOffset::Absolute(offset)) => {
                             (*type_object).tp_dictoffset = offset;
                         }
-                        // PyObjectOffset::Relative requires >=3.12
-                        _ => {}
+                        None => {}
                     }
-
                     match weaklist_offset {
                         Some(PyObjectOffset::Absolute(offset)) => {
                             (*type_object).tp_weaklistoffset = offset;
                         }
-                        // PyObjectOffset::Relative requires >=3.12
-                        _ => {}
+                        None => {}
                     }
                 }));
         }
