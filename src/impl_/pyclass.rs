@@ -1179,16 +1179,6 @@ pub enum PyObjectOffset {
     Relative(ffi::Py_ssize_t),
 }
 
-impl PyObjectOffset {
-    pub fn to_value_and_is_relative(&self) -> (ffi::Py_ssize_t, bool) {
-        match self {
-            PyObjectOffset::Absolute(offset) => (*offset, false),
-            #[cfg(Py_3_12)]
-            PyObjectOffset::Relative(offset) => (*offset, true),
-        }
-    }
-}
-
 impl std::ops::Add<usize> for PyObjectOffset {
     type Output = PyObjectOffset;
 
@@ -1270,6 +1260,7 @@ impl<
         if ClassT::Frozen::VALUE {
             let (offset, flags) = match <ClassT as PyClassImpl>::Layout::CONTENTS_OFFSET {
                 PyObjectOffset::Absolute(offset) => (offset, ffi::Py_READONLY),
+                #[cfg(Py_3_12)]
                 PyObjectOffset::Relative(offset) => {
                     (offset, ffi::Py_READONLY | ffi::Py_RELATIVE_OFFSET)
                 }
@@ -1604,6 +1595,7 @@ mod tests {
         // SAFETY: def.doc originated from a CStr
         assert_eq!(unsafe { CStr::from_ptr(def.doc) }, c"My field doc");
         assert_eq!(def.type_code, ffi::Py_T_OBJECT_EX);
+        #[allow(irrefutable_let_patterns)]
         let PyObjectOffset::Absolute(contents_offset) =
             <MyClass as PyClassImpl>::Layout::CONTENTS_OFFSET
         else {
