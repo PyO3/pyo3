@@ -292,7 +292,6 @@ impl<'py, T> IntoPyObjectExt<'py> for T where T: IntoPyObject<'py> {}
 /// [`Cow<'a, str>`]: std::borrow::Cow
 /// [`Cow::Borrowed`]: std::borrow::Cow::Borrowed
 /// [`Cow::Owned`]: std::borrow::Cow::Owned
-
 pub trait FromPyObject<'a, 'py>: Sized {
     /// Provides the type hint information for this type when it appears as an argument.
     ///

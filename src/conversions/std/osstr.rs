@@ -179,6 +179,7 @@ mod tests {
     #[cfg(not(windows))]
     fn test_non_utf8_conversion() {
         Python::attach(|py| {
+            use crate::types::PyAnyMethods;
             #[cfg(not(target_os = "wasi"))]
             use std::os::unix::ffi::OsStrExt;
             #[cfg(target_os = "wasi")]
