@@ -1,3 +1,5 @@
+#[cfg(Py_3_12)]
+use crate::pycell::impl_::PyClassObjectContents;
 use crate::{
     conversion::IntoPyObject,
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
@@ -8,10 +10,7 @@ use crate::{
         pyclass_init::PyObjectInit,
         pymethods::{PyGetterDef, PyMethodDefType},
     },
-    pycell::{
-        impl_::{InternalPyClassObjectLayout, PyClassObjectContents},
-        PyBorrowError,
-    },
+    pycell::{impl_::InternalPyClassObjectLayout, PyBorrowError},
     types::{any::PyAnyMethods, PyBool},
     Borrowed, BoundObject, Py, PyAny, PyClass, PyErr, PyRef, PyResult, PyTypeInfo, Python,
 };
@@ -1197,18 +1196,7 @@ pub enum PyObjectOffset {
     /// An offset relative to the start of the subclass-specific data.
     /// Only allowed when basicsize is negative (which is only allowed for python >=3.12).
     /// <https://docs.python.org/3.12/c-api/structures.html#c.Py_RELATIVE_OFFSET>
-    #[cfg(Py_3_12)]
     Relative(ffi::Py_ssize_t),
-}
-
-impl PyObjectOffset {
-    pub fn to_value_and_is_relative(&self) -> (ffi::Py_ssize_t, bool) {
-        match self {
-            PyObjectOffset::Absolute(offset) => (*offset, false),
-            #[cfg(Py_3_12)]
-            PyObjectOffset::Relative(offset) => (*offset, true),
-        }
-    }
 }
 
 impl std::ops::Add<usize> for PyObjectOffset {
@@ -1221,7 +1209,6 @@ impl std::ops::Add<usize> for PyObjectOffset {
 
         match self {
             PyObjectOffset::Absolute(offset) => PyObjectOffset::Absolute(offset + rhs),
-            #[cfg(Py_3_12)]
             PyObjectOffset::Relative(offset) => PyObjectOffset::Relative(offset + rhs),
         }
     }
@@ -1321,11 +1308,16 @@ impl<
     pub fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         use crate::pyclass::boolean_struct::private::Boolean;
         if ClassT::Frozen::VALUE {
-            let (offset, is_relative) = Offset::offset().to_value_and_is_relative();
-            let flags = if is_relative {
-                ffi::Py_READONLY | ffi::Py_RELATIVE_OFFSET
-            } else {
-                ffi::Py_READONLY
+            let (offset, flags) = match Offset::offset() {
+                PyObjectOffset::Absolute(offset) => (offset, ffi::Py_READONLY),
+                #[cfg(Py_3_12)]
+                PyObjectOffset::Relative(offset) => {
+                    (offset, ffi::Py_READONLY | ffi::Py_RELATIVE_OFFSET)
+                }
+                #[cfg(not(Py_3_12))]
+                PyObjectOffset::Relative(_) => {
+                    panic!("relative offsets not valid before python 3.12");
+                }
             };
             PyMethodDefType::StructMember(ffi::PyMemberDef {
                 name: name.as_ptr(),
@@ -1559,6 +1551,10 @@ where
             let class_obj = unsafe { &mut *class_ptr };
             let contents = class_obj.contents_mut() as *mut PyClassObjectContents<ClassT>;
             (contents.cast::<u8>(), offset)
+        }
+        #[cfg(not(Py_3_12))]
+        PyObjectOffset::Relative(_) => {
+            panic!("relative offsets not valid before python 3.12");
         }
     };
     // Safety: conditions for pointer addition must be met

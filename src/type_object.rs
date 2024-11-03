@@ -2,7 +2,6 @@
 
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pyclass::PyClassImpl;
-use crate::pycell::impl_::InternalPyClassObjectLayout;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyType};
 use crate::{ffi, Bound, Python};
@@ -44,8 +43,9 @@ pub unsafe trait PyTypeInfo: Sized {
     /// Module name, if any.
     const MODULE: Option<&'static str>;
 
-    /// The type of object layout to use for ancestors or descendents of this type
-    type Layout<T: PyClassImpl>: InternalPyClassObjectLayout<T>;
+    /// The type of object layout to use for ancestors or descendants of this type.
+    /// should implement `InternalPyClassObjectLayout<T>` in order to actually use it as a layout.
+    type Layout<T: PyClassImpl>;
 
     /// Returns the PyTypeObject instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;

@@ -200,11 +200,10 @@ mod inheriting_type {
             slf: Bound<'_, Metaclass>,
             _args: Bound<'_, PyTuple>,
             _kwargs: Option<Bound<'_, PyDict>>,
-        ) -> PyResult<()> {
+        ) {
             let mut slf = slf.borrow_mut();
             assert_eq!(slf.counter, 999);
             slf.counter = 5;
-            Ok(())
         }
 
         fn __getitem__(&self, item: u64) -> u64 {
@@ -283,7 +282,7 @@ mod inheriting_type {
     }
 
     #[test]
-    #[should_panic = "Metaclasses must specify __init__"]
+    #[should_panic(expected = "Metaclasses must specify __init__")]
     fn inherit_type_missing_init() {
         use pyo3::types::PyType;
 
@@ -311,7 +310,7 @@ mod inheriting_type {
     }
 
     #[test]
-    #[should_panic = "Metaclasses must not specify __new__ (use __init__ instead)"]
+    #[should_panic(expected = "Metaclasses must not specify __new__ (use __init__ instead)")]
     fn inherit_type_with_new() {
         use pyo3::types::PyType;
 
@@ -332,8 +331,7 @@ mod inheriting_type {
                 _slf: Bound<'_, MetaclassWithNew>,
                 _args: Bound<'_, PyTuple>,
                 _kwargs: Option<Bound<'_, PyDict>>,
-            ) -> PyResult<()> {
-                Ok(())
+            ) {
             }
         }
 

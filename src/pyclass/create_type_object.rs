@@ -19,7 +19,7 @@ use std::{
     collections::HashMap,
     ffi::{CStr, CString},
     os::raw::{c_char, c_int, c_ulong, c_void},
-    ptr,
+    ptr::{self, addr_of_mut},
 };
 
 pub(crate) struct PyClassTypeObject {
@@ -260,7 +260,11 @@ impl PyTypeBuilder {
                 }
 
                 get_dict = get_dict_impl;
-                closure = dict_offset as _;
+                if let PyObjectOffset::Absolute(offset) = dict_offset {
+                    closure = offset as _;
+                } else {
+                    unreachable!("PyObjectOffset::Relative requires >=3.12");
+                }
             }
 
             property_defs.push(ffi::PyGetSetDef {
@@ -370,11 +374,16 @@ impl PyTypeBuilder {
         {
             #[inline(always)]
             fn offset_def(name: &'static CStr, offset: PyObjectOffset) -> ffi::PyMemberDef {
-                let (offset, is_relative) = offset.to_value_and_is_relative();
-                let flags = if is_relative {
-                    ffi::Py_READONLY | ffi::Py_RELATIVE_OFFSET
-                } else {
-                    ffi::Py_READONLY
+                let (offset, flags) = match offset {
+                    PyObjectOffset::Absolute(offset) => (offset, ffi::Py_READONLY),
+                    #[cfg(Py_3_12)]
+                    PyObjectOffset::Relative(offset) => {
+                        (offset, ffi::Py_READONLY | ffi::Py_RELATIVE_OFFSET)
+                    }
+                    #[cfg(not(Py_3_12))]
+                    PyObjectOffset::Relative(_) => {
+                        panic!("relative offsets not valid before python 3.12");
+                    }
                 };
                 ffi::PyMemberDef {
                     name: name.as_ptr().cast(),
@@ -414,16 +423,19 @@ impl PyTypeBuilder {
                         Some(PyObjectOffset::Absolute(offset)) => {
                             (*type_object).tp_dictoffset = offset;
                         }
-                        // PyObjectOffset::Relative requires >=3.12
-                        _ => {}
+                        Some(PyObjectOffset::Relative(_)) => {
+                            panic!("PyObjectOffset::Relative requires >=3.12")
+                        }
+                        None => {}
                     }
-
                     match weaklist_offset {
                         Some(PyObjectOffset::Absolute(offset)) => {
                             (*type_object).tp_weaklistoffset = offset;
                         }
-                        // PyObjectOffset::Relative requires >=3.12
-                        _ => {}
+                        Some(PyObjectOffset::Relative(_)) => {
+                            panic!("PyObjectOffset::Relative requires >=3.12")
+                        }
+                        None => {}
                     }
                 }));
         }
@@ -447,7 +459,7 @@ impl PyTypeBuilder {
 
         // Safety: self.tp_base must be a valid PyTypeObject
         let is_metaclass =
-            unsafe { ffi::PyType_IsSubtype(self.tp_base, &raw mut ffi::PyType_Type) } != 0;
+            unsafe { ffi::PyType_IsSubtype(self.tp_base, addr_of_mut!(ffi::PyType_Type)) } != 0;
         if is_metaclass {
             // if the pyclass derives from `type` (is a metaclass) then `tp_new` must not be set.
             // Metaclasses that override tp_new are not supported.

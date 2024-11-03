@@ -29,9 +29,8 @@ impl MyMetaclass {
         slf: Bound<'_, Metaclass>,
         _args: Bound<'_, PyTuple>,
         _kwargs: Option<Bound<'_, PyDict>>,
-    ) -> PyResult<()> {
+    ) {
         slf.borrow_mut().counter = 5;
-        Ok(())
     }
 
     fn __getitem__(&self, item: u64) -> u64 {

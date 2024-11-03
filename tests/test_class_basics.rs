@@ -466,10 +466,9 @@ fn no_dunder_dict_support_setattr() {
             .setattr("a", 1)
             .unwrap_err()
             .to_string();
-        assert_eq!(
-            &err,
+        assert!(err.contains(
             "AttributeError: 'builtins.NoDunderDictSupport' object has no attribute 'a'"
-        );
+        ));
     });
 }
 

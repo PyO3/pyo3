@@ -23,6 +23,9 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/reject_generics.rs");
     t.compile_fail("tests/ui/deprecations.rs");
     t.compile_fail("tests/ui/invalid_closure.rs");
+    // only possible to extend variable sized types after 3.12
+    #[cfg(not(Py_3_12))]
+    t.compile_fail("tests/ui/invalid_extend_variable_sized.rs");
     t.compile_fail("tests/ui/pyclass_send.rs");
     t.compile_fail("tests/ui/invalid_argument_attributes.rs");
     t.compile_fail("tests/ui/invalid_intopy_derive.rs");

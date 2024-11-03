@@ -248,6 +248,14 @@ pub trait PyClassObjectLayout<T>: PyLayout<T> {
 }
 
 #[doc(hidden)]
+#[cfg_attr(
+    all(diagnostic_namespace),
+    diagnostic::on_unimplemented(
+        message = "the class layout is not valid",
+        label = "required for `#[pyclass(extends=...)]`",
+        note = "the python version being built against influences which layouts are valid",
+    )
+)]
 pub trait InternalPyClassObjectLayout<T: PyClassImpl>: PyClassObjectLayout<T> {
     /// Obtain a pointer to the contents of an uninitialized PyObject of this type
     /// Safety: the provided object must have the layout that the implementation is expecting
@@ -551,6 +559,7 @@ impl<T: PyClassImpl> InternalPyClassObjectLayout<T> for PyVariableClassObject<T>
 
 unsafe impl<T: PyClassImpl> PyLayout<T> for PyVariableClassObject<T> {}
 
+#[cfg(Py_3_12)]
 impl<T: PyClassImpl> PyClassObjectLayout<T> for PyVariableClassObject<T>
 where
     <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectLayout<T::BaseType>,
