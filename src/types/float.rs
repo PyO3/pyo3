@@ -2,8 +2,7 @@ use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, PyAny, PyErr, PyResult,
-    Python,
+    ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, PyAny, PyErr, Python,
 };
 use std::convert::Infallible;
 use std::ffi::c_double;
@@ -107,12 +106,14 @@ impl<'py> IntoPyObject<'py> for &f64 {
 }
 
 impl<'py> FromPyObject<'_, 'py> for f64 {
+    type Error = PyErr;
+
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = "float";
 
     // PyFloat_AsDouble returns -1.0 upon failure
     #[allow(clippy::float_cmp)]
-    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         // On non-limited API, .value() uses PyFloat_AS_DOUBLE which
         // allows us to have an optimized fast path for the case when
         // we have exactly a `float` object (it's not worth going through
@@ -177,11 +178,13 @@ impl<'py> IntoPyObject<'py> for &f32 {
     }
 }
 
-impl<'py> FromPyObject<'_, 'py> for f32 {
+impl<'a, 'py> FromPyObject<'a, 'py> for f32 {
+    type Error = <f64 as FromPyObject<'a, 'py>>::Error;
+
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = "float";
 
-    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         Ok(obj.extract::<f64>()? as f32)
     }
 

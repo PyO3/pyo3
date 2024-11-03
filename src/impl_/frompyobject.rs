@@ -54,7 +54,7 @@ where
         Ok(value) => Ok(value),
         Err(err) => Err(failed_to_extract_struct_field(
             obj.py(),
-            err,
+            err.into(),
             struct_name,
             field_name,
         )),
@@ -104,7 +104,7 @@ where
         Ok(value) => Ok(value),
         Err(err) => Err(failed_to_extract_tuple_struct_field(
             obj.py(),
-            err,
+            err.into(),
             struct_name,
             index,
         )),

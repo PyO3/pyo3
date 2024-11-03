@@ -124,7 +124,9 @@ bigint_conversion!(BigInt, true, BigInt::to_signed_bytes_le);
 
 #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
 impl<'py> FromPyObject<'_, 'py> for BigInt {
-    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<BigInt> {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<BigInt, Self::Error> {
         let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
         let num_owned: Py<PyInt>;
@@ -172,7 +174,9 @@ impl<'py> FromPyObject<'_, 'py> for BigInt {
 
 #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
 impl<'py> FromPyObject<'_, 'py> for BigUint {
-    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<BigUint> {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<BigUint, Self::Error> {
         let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
         let num_owned: Py<PyInt>;

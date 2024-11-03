@@ -2,7 +2,7 @@ use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::types::PyString;
-use crate::{ffi, Borrowed, FromPyObject, PyAny, PyResult, Python};
+use crate::{ffi, Borrowed, FromPyObject, PyAny, PyErr, Python};
 use std::borrow::Cow;
 use std::convert::Infallible;
 use std::ffi::{OsStr, OsString};
@@ -71,7 +71,9 @@ impl<'py> IntoPyObject<'py> for &&OsStr {
 // be impossible to implement on Windows. Hence it's omitted entirely
 
 impl FromPyObject<'_, '_> for OsString {
-    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let pystring = ob.cast::<PyString>()?;
 
         #[cfg(not(windows))]

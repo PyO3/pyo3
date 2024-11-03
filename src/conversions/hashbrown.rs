@@ -73,11 +73,16 @@ where
     V: FromPyObjectOwned<'py>,
     S: hash::BuildHasher + Default,
 {
+    type Error = PyErr;
+
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.cast::<PyDict>()?;
         let mut ret = hashbrown::HashMap::with_capacity_and_hasher(dict.len(), S::default());
         for (k, v) in dict.iter() {
-            ret.insert(k.extract()?, v.extract()?);
+            ret.insert(
+                k.extract().map_err(Into::into)?,
+                v.extract().map_err(Into::into)?,
+            );
         }
         Ok(ret)
     }
@@ -116,12 +121,20 @@ where
     K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
+    type Error = PyErr;
+
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         match ob.cast::<PySet>() {
-            Ok(set) => set.iter().map(|any| any.extract()).collect(),
+            Ok(set) => set
+                .iter()
+                .map(|any| any.extract().map_err(Into::into))
+                .collect(),
             Err(err) => {
                 if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
-                    frozen_set.iter().map(|any| any.extract()).collect()
+                    frozen_set
+                        .iter()
+                        .map(|any| any.extract().map_err(Into::into))
+                        .collect()
                 } else {
                     Err(PyErr::from(err))
                 }

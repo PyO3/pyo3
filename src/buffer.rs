@@ -19,7 +19,7 @@
 
 //! `PyBuffer` implementation
 use crate::{err, exceptions::PyBufferError, ffi, FromPyObject, PyAny, PyResult, Python};
-use crate::{Borrowed, Bound};
+use crate::{Borrowed, Bound, PyErr};
 use std::ffi::{
     c_char, c_int, c_long, c_longlong, c_schar, c_short, c_uchar, c_uint, c_ulong, c_ulonglong,
     c_ushort, c_void,
@@ -186,7 +186,9 @@ pub unsafe trait Element: Copy {
 }
 
 impl<T: Element> FromPyObject<'_, '_> for PyBuffer<T> {
-    fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<PyBuffer<T>> {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<PyBuffer<T>, Self::Error> {
         Self::get(&obj)
     }
 }

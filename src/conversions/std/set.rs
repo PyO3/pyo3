@@ -10,7 +10,7 @@ use crate::{
         set::{try_new_from_iter, PySetMethods},
         PyFrozenSet, PySet,
     },
-    Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python,
+    Borrowed, Bound, FromPyObject, PyAny, PyErr, Python,
 };
 
 impl<'py, K, S> IntoPyObject<'py> for collections::HashSet<K, S>
@@ -57,12 +57,20 @@ where
     K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
-    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         match ob.cast::<PySet>() {
-            Ok(set) => set.iter().map(|any| any.extract()).collect(),
+            Ok(set) => set
+                .iter()
+                .map(|any| any.extract().map_err(Into::into))
+                .collect(),
             Err(err) => {
                 if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
-                    frozen_set.iter().map(|any| any.extract()).collect()
+                    frozen_set
+                        .iter()
+                        .map(|any| any.extract().map_err(Into::into))
+                        .collect()
                 } else {
                     Err(PyErr::from(err))
                 }
@@ -117,12 +125,20 @@ impl<'py, K> FromPyObject<'_, 'py> for collections::BTreeSet<K>
 where
     K: FromPyObjectOwned<'py> + cmp::Ord,
 {
-    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         match ob.cast::<PySet>() {
-            Ok(set) => set.iter().map(|any| any.extract()).collect(),
+            Ok(set) => set
+                .iter()
+                .map(|any| any.extract().map_err(Into::into))
+                .collect(),
             Err(err) => {
                 if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
-                    frozen_set.iter().map(|any| any.extract()).collect()
+                    frozen_set
+                        .iter()
+                        .map(|any| any.extract().map_err(Into::into))
+                        .collect()
                 } else {
                     Err(PyErr::from(err))
                 }

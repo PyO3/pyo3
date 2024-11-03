@@ -2327,6 +2327,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 impl<'a, 'holder, 'py> #pyo3_path::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false> for &'holder #cls
                 {
                     type Holder = ::std::option::Option<#pyo3_path::PyClassGuard<'a, #cls>>;
+                    type Error = #pyo3_path::PyErr;
 
                     #input_type
 
@@ -2341,6 +2342,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 impl<'a, 'holder, 'py> #pyo3_path::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false> for &'holder #cls
                 {
                     type Holder = ::std::option::Option<#pyo3_path::PyClassGuard<'a, #cls>>;
+                    type Error = #pyo3_path::PyErr;
 
                     #input_type
 
@@ -2353,6 +2355,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 impl<'a, 'holder, 'py> #pyo3_path::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false> for &'holder mut #cls
                 {
                     type Holder = ::std::option::Option<#pyo3_path::PyClassGuardMut<'a, #cls>>;
+                    type Error =#pyo3_path::PyErr;
 
                     #input_type
 

@@ -2,11 +2,12 @@
 use crate::inspect::types::TypeInfo;
 use crate::{
     exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
-    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, PyResult, Python,
+    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, Python,
 };
 
 use super::any::PyAnyMethods;
 use crate::conversion::IntoPyObject;
+use crate::PyErr;
 use std::convert::Infallible;
 use std::ptr;
 
@@ -178,10 +179,12 @@ impl<'py> IntoPyObject<'py> for &bool {
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
 impl FromPyObject<'_, '_> for bool {
+    type Error = PyErr;
+
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = "bool";
 
-    fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let err = match obj.cast::<PyBool>() {
             Ok(obj) => return Ok(obj.is_true()),
             Err(err) => err,

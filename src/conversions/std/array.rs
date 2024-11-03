@@ -40,7 +40,9 @@ impl<'py, T, const N: usize> FromPyObject<'_, 'py> for [T; N]
 where
     T: FromPyObjectOwned<'py>,
 {
-    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         create_array_from_obj(obj)
     }
 }
@@ -62,7 +64,10 @@ where
     if seq_len != N {
         return Err(invalid_sequence_length(N, seq_len));
     }
-    array_try_from_fn(|idx| seq.get_item(idx).and_then(|any| any.extract()))
+    array_try_from_fn(|idx| {
+        seq.get_item(idx)
+            .and_then(|any| any.extract().map_err(Into::into))
+    })
 }
 
 // TODO use std::array::try_from_fn, if that stabilises:

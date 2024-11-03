@@ -122,8 +122,10 @@ impl<'py> IntoPyObject<'py> for &Timestamp {
     }
 }
 
-impl<'py> FromPyObject<'_, 'py> for Timestamp {
-    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+impl<'a, 'py> FromPyObject<'a, 'py> for Timestamp {
+    type Error = <Zoned as FromPyObject<'a, 'py>>::Error;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let zoned = ob.extract::<Zoned>()?;
         Ok(zoned.timestamp())
     }
@@ -155,6 +157,8 @@ impl<'py> IntoPyObject<'py> for &Date {
 }
 
 impl<'py> FromPyObject<'_, 'py> for Date {
+    type Error = PyErr;
+
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let date = ob.cast::<PyDate>()?;
 
@@ -207,6 +211,8 @@ impl<'py> IntoPyObject<'py> for &Time {
 }
 
 impl<'py> FromPyObject<'_, 'py> for Time {
+    type Error = PyErr;
+
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let ob = ob.cast::<PyTime>()?;
         #[allow(clippy::explicit_auto_deref)]
@@ -235,6 +241,8 @@ impl<'py> IntoPyObject<'py> for &DateTime {
 }
 
 impl<'py> FromPyObject<'_, 'py> for DateTime {
+    type Error = PyErr;
+
     fn extract(dt: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let dt = dt.cast::<PyDateTime>()?;
         let has_tzinfo = dt.get_tzinfo().is_some();
@@ -285,6 +293,8 @@ impl<'py> IntoPyObject<'py> for &Zoned {
 }
 
 impl<'py> FromPyObject<'_, 'py> for Zoned {
+    type Error = PyErr;
+
     fn extract(dt: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let dt = dt.cast::<PyDateTime>()?;
 
@@ -343,6 +353,8 @@ impl<'py> IntoPyObject<'py> for &TimeZone {
 }
 
 impl<'py> FromPyObject<'_, 'py> for TimeZone {
+    type Error = PyErr;
+
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let ob = ob.cast::<PyTzInfo>()?;
 
@@ -380,6 +392,8 @@ impl<'py> IntoPyObject<'py> for Offset {
 }
 
 impl<'py> FromPyObject<'_, 'py> for Offset {
+    type Error = PyErr;
+
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let py = ob.py();
         let ob = ob.cast::<PyTzInfo>()?;
@@ -428,6 +442,8 @@ impl<'py> IntoPyObject<'py> for SignedDuration {
 }
 
 impl<'py> FromPyObject<'_, 'py> for SignedDuration {
+    type Error = PyErr;
+
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let delta = ob.cast::<PyDelta>()?;
 
@@ -453,6 +469,8 @@ impl<'py> FromPyObject<'_, 'py> for SignedDuration {
 }
 
 impl<'py> FromPyObject<'_, 'py> for Span {
+    type Error = PyErr;
+
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let duration = ob.extract::<SignedDuration>()?;
         Ok(duration.try_into()?)

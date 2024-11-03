@@ -72,6 +72,8 @@ fn get_invalid_operation_error_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType
 }
 
 impl FromPyObject<'_, '_> for BigDecimal {
+    type Error = PyErr;
+
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
         let py_str = &obj.str()?;
         let rs_str = &py_str.to_cow()?;

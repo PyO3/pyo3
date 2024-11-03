@@ -38,7 +38,7 @@ use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
 use crate::pybacked::PyBackedStr;
 use crate::types::{any::PyAnyMethods, PyTzInfo};
-use crate::{intern, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
+use crate::{intern, Borrowed, Bound, FromPyObject, PyAny, PyErr, Python};
 use chrono_tz::Tz;
 use std::str::FromStr;
 
@@ -64,7 +64,9 @@ impl<'py> IntoPyObject<'py> for &Tz {
 }
 
 impl FromPyObject<'_, '_> for Tz {
-    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Tz> {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         Tz::from_str(
             &ob.getattr(intern!(ob.py(), "key"))?
                 .extract::<PyBackedStr>()?,

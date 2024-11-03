@@ -79,6 +79,8 @@ fn get_uuid_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
 }
 
 impl FromPyObject<'_, '_> for Uuid {
+    type Error = PyErr;
+
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
         let py = obj.py();
         let uuid_cls = get_uuid_cls(py)?;

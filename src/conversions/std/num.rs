@@ -51,10 +51,12 @@ macro_rules! int_fits_larger_int {
         }
 
         impl FromPyObject<'_, '_> for $rust_type {
+            type Error = PyErr;
+
             #[cfg(feature = "experimental-inspect")]
             const INPUT_TYPE: &'static str = <$larger_type>::INPUT_TYPE;
 
-            fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
+            fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
                 let val: $larger_type = obj.extract()?;
                 <$rust_type>::try_from(val)
                     .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
@@ -130,10 +132,12 @@ macro_rules! int_convert_u64_or_i64 {
             }
         }
         impl FromPyObject<'_, '_> for $rust_type {
+            type Error = PyErr;
+
             #[cfg(feature = "experimental-inspect")]
             const INPUT_TYPE: &'static str = "int";
 
-            fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<$rust_type> {
+            fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
                 extract_int!(obj, !0, $pylong_as_ll_or_ull, $force_index_call)
             }
 
@@ -189,10 +193,12 @@ macro_rules! int_fits_c_long {
         }
 
         impl<'py> FromPyObject<'_, 'py> for $rust_type {
+            type Error = PyErr;
+
             #[cfg(feature = "experimental-inspect")]
             const INPUT_TYPE: &'static str = "int";
 
-            fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+            fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
                 let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
                 <$rust_type>::try_from(val)
                     .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
@@ -272,10 +278,12 @@ impl<'py> IntoPyObject<'py> for &'_ u8 {
 }
 
 impl<'py> FromPyObject<'_, 'py> for u8 {
+    type Error = PyErr;
+
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = "int";
 
-    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
         u8::try_from(val).map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
     }
@@ -403,10 +411,12 @@ mod fast_128bit_int_conversion {
             }
 
             impl FromPyObject<'_, '_> for $rust_type {
+                type Error = PyErr;
+
                 #[cfg(feature = "experimental-inspect")]
                 const INPUT_TYPE: &'static str = "int";
 
-                fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<$rust_type> {
+                fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
                     let num =
                         unsafe { ffi::PyNumber_Index(ob.as_ptr()).assume_owned_or_err(ob.py())? };
                     let mut buffer = [0u8; std::mem::size_of::<$rust_type>()];
@@ -522,10 +532,12 @@ mod slow_128bit_int_conversion {
             }
 
             impl FromPyObject<'_, '_> for $rust_type {
+                type Error = PyErr;
+
                 #[cfg(feature = "experimental-inspect")]
                 const INPUT_TYPE: &'static str = "int";
 
-                fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<$rust_type> {
+                fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
                     let py = ob.py();
                     unsafe {
                         let lower = err_if_invalid_value(
@@ -610,10 +622,12 @@ macro_rules! nonzero_int_impl {
         }
 
         impl FromPyObject<'_, '_> for $nonzero_type {
+            type Error = PyErr;
+
             #[cfg(feature = "experimental-inspect")]
             const INPUT_TYPE: &'static str = <$primitive_type>::INPUT_TYPE;
 
-            fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
+            fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
                 let val: $primitive_type = obj.extract()?;
                 <$nonzero_type>::try_from(val)
                     .map_err(|_| exceptions::PyValueError::new_err("invalid zero value"))

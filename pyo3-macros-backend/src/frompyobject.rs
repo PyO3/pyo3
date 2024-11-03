@@ -606,7 +606,8 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
     Ok(quote!(
         #[automatically_derived]
         impl #impl_generics #pyo3_path::FromPyObject<'_, #lt_param> for #ident #ty_generics #where_clause {
-            fn extract(obj: #pyo3_path::Borrowed<'_, #lt_param, #pyo3_path::PyAny>) -> #pyo3_path::PyResult<Self> {
+            type Error = #pyo3_path::PyErr;
+            fn extract(obj: #pyo3_path::Borrowed<'_, #lt_param, #pyo3_path::PyAny>) -> ::std::result::Result<Self, Self::Error> {
                 let obj: &#pyo3_path::Bound<'_, _> = &*obj;
                 #derives
             }

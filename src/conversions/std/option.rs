@@ -1,6 +1,5 @@
 use crate::{
-    conversion::IntoPyObject, types::any::PyAnyMethods, BoundObject, FromPyObject, PyAny, PyResult,
-    Python,
+    conversion::IntoPyObject, types::any::PyAnyMethods, BoundObject, FromPyObject, PyAny, Python,
 };
 use crate::{Borrowed, Bound};
 
@@ -42,7 +41,9 @@ impl<'a, 'py, T> FromPyObject<'a, 'py> for Option<T>
 where
     T: FromPyObject<'a, 'py>,
 {
-    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
+    type Error = T::Error;
+
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         if obj.is_none() {
             Ok(None)
         } else {

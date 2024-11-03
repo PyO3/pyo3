@@ -889,15 +889,17 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     }
 
     impl<'a, 'py, $($T: FromPyObject<'a, 'py>),+> FromPyObject<'a, 'py> for ($($T,)+) {
-        fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self>
+        type Error = PyErr;
+
+        fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error>
         {
             let t = obj.cast::<PyTuple>()?;
             if t.len() == $length {
                 #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
-                return Ok(($(t.get_borrowed_item($n)?.extract::<$T>()?,)+));
+                return Ok(($(t.get_borrowed_item($n)?.extract::<$T>().map_err(Into::into)?,)+));
 
                 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-                unsafe {return Ok(($(t.get_borrowed_item_unchecked($n).extract::<$T>()?,)+));}
+                unsafe {return Ok(($(t.get_borrowed_item_unchecked($n).extract::<$T>().map_err(Into::into)?,)+));}
             } else {
                 Err(wrong_tuple_length(t, $length))
             }

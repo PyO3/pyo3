@@ -70,7 +70,9 @@ impl<'a, 'py, T> FromPyObject<'a, 'py> for MyWrapper<T>
 where
     T: FromPyObject<'a, 'py>
 {
-    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
+    type Error = T::Error;
+
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         obj.extract().map(MyWrapper)
     }
 }
@@ -108,10 +110,12 @@ where
     T: FromPyObjectOwned<'py> // 👈 can only extract owned values, because each `item` below
                               //    is a temporary short lived owned reference
 {
-    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let mut v = MyVec(Vec::new());
         for item in obj.try_iter()? {
-            v.0.push(item?.extract::<T>()?);
+            v.0.push(item?.extract::<T>().map_err(Into::into)?);
         }
         Ok(v)
     }

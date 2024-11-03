@@ -60,7 +60,9 @@ use rust_decimal::Decimal;
 use std::str::FromStr;
 
 impl FromPyObject<'_, '_> for Decimal {
-    fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         // use the string representation to not be lossy
         if let Ok(val) = obj.extract() {
             Ok(Decimal::new(val, 0))

@@ -1410,6 +1410,7 @@ impl pyo3::PyClass for MyClass {
 impl<'a, 'holder, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false> for &'holder MyClass
 {
     type Holder = ::std::option::Option<pyo3::PyClassGuard<'a, MyClass>>;
+    type Error = pyo3::PyErr;
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = "MyClass";
 
@@ -1422,6 +1423,7 @@ impl<'a, 'holder, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'ho
 impl<'a, 'holder, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false> for &'holder mut MyClass
 {
     type Holder = ::std::option::Option<pyo3::PyClassGuardMut<'a, MyClass>>;
+    type Error = pyo3::PyErr;
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = "MyClass";
 

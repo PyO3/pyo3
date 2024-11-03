@@ -181,7 +181,9 @@ impl<'py> IntoPyObject<'py> for Duration {
 }
 
 impl FromPyObject<'_, '_> for Duration {
-    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Duration> {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         #[cfg(not(Py_LIMITED_API))]
         let (days, seconds, microseconds) = {
             let delta = ob.cast::<PyDelta>()?;
@@ -224,7 +226,9 @@ impl<'py> IntoPyObject<'py> for Date {
 }
 
 impl FromPyObject<'_, '_> for Date {
-    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Date> {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let (year, month, day) = {
             #[cfg(not(Py_LIMITED_API))]
             {
@@ -265,7 +269,9 @@ impl<'py> IntoPyObject<'py> for Time {
 }
 
 impl FromPyObject<'_, '_> for Time {
-    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Time> {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let (hour, minute, second, microsecond) = {
             #[cfg(not(Py_LIMITED_API))]
             {
@@ -324,7 +330,9 @@ impl<'py> IntoPyObject<'py> for PrimitiveDateTime {
 }
 
 impl FromPyObject<'_, '_> for PrimitiveDateTime {
-    fn extract(dt: Borrowed<'_, '_, PyAny>) -> PyResult<PrimitiveDateTime> {
+    type Error = PyErr;
+
+    fn extract(dt: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let has_tzinfo = {
             #[cfg(not(Py_LIMITED_API))]
             {
@@ -361,7 +369,9 @@ impl<'py> IntoPyObject<'py> for UtcOffset {
 }
 
 impl FromPyObject<'_, '_> for UtcOffset {
-    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<UtcOffset> {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         #[cfg(not(Py_LIMITED_API))]
         let ob = ob.cast::<PyTzInfo>()?;
 
@@ -418,7 +428,9 @@ impl<'py> IntoPyObject<'py> for OffsetDateTime {
 }
 
 impl FromPyObject<'_, '_> for OffsetDateTime {
-    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<OffsetDateTime> {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let offset: UtcOffset = {
             #[cfg(not(Py_LIMITED_API))]
             {
@@ -481,7 +493,9 @@ impl<'py> IntoPyObject<'py> for UtcDateTime {
 }
 
 impl FromPyObject<'_, '_> for UtcDateTime {
-    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<UtcDateTime> {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let tzinfo = {
             #[cfg(not(Py_LIMITED_API))]
             {

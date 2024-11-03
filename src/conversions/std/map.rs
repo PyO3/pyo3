@@ -113,11 +113,16 @@ where
     V: FromPyObjectOwned<'py>,
     S: hash::BuildHasher + Default,
 {
-    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, PyErr> {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let dict = ob.cast::<PyDict>()?;
         let mut ret = collections::HashMap::with_capacity_and_hasher(dict.len(), S::default());
         for (k, v) in dict.iter() {
-            ret.insert(k.extract()?, v.extract()?);
+            ret.insert(
+                k.extract().map_err(Into::into)?,
+                v.extract().map_err(Into::into)?,
+            );
         }
         Ok(ret)
     }
@@ -133,11 +138,16 @@ where
     K: FromPyObjectOwned<'py> + cmp::Ord,
     V: FromPyObjectOwned<'py>,
 {
+    type Error = PyErr;
+
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.cast::<PyDict>()?;
         let mut ret = collections::BTreeMap::new();
         for (k, v) in dict.iter() {
-            ret.insert(k.extract()?, v.extract()?);
+            ret.insert(
+                k.extract().map_err(Into::into)?,
+                v.extract().map_err(Into::into)?,
+            );
         }
         Ok(ret)
     }
