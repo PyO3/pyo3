@@ -208,7 +208,8 @@ where
     }
 }
 
-/// Base layout of PyClassObject.
+/// Base layout of PyClassObject with a known sized base type.
+/// Corresponds to [PyObject](https://docs.python.org/3/c-api/structures.html#c.PyObject) from the C API.
 #[doc(hidden)]
 #[repr(C)]
 pub struct PyClassObjectBase<T> {
@@ -217,7 +218,8 @@ pub struct PyClassObjectBase<T> {
 
 unsafe impl<T, U> PyLayout<T> for PyClassObjectBase<U> where U: PySizedLayout<T> {}
 
-/// Base layout of PyClassObject.
+/// Base layout of PyClassObject with an unknown sized base type.
+/// Corresponds to [PyVarObject](https://docs.python.org/3/c-api/structures.html#c.PyVarObject) from the C API.
 #[doc(hidden)]
 #[repr(C)]
 pub struct PyVariableClassObjectBase {
@@ -236,6 +238,7 @@ impl<T: PyTypeInfo> PyClassObjectBaseLayout<T> for PyVariableClassObjectBase {
     }
 }
 
+/// functionality common to all PyObjects regardless of the layout
 #[doc(hidden)]
 pub trait PyClassObjectBaseLayout<T>: PyLayout<T> {
     fn ensure_threadsafe(&self);
@@ -258,22 +261,27 @@ pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
     /// Gets the offset of the contents from the start of the struct in bytes.
     const CONTENTS_OFFSET: PyObjectOffset;
 
-    /// Obtain a pointer to the contents of an uninitialized PyObject of this type
+    /// Obtain a pointer to the contents of an uninitialized PyObject of this type.
+    ///
     /// Safety: the provided object must have the layout that the implementation is expecting
     unsafe fn contents_uninitialised(
         obj: *mut ffi::PyObject,
     ) -> *mut MaybeUninit<PyClassObjectContents<T>>;
 
-    fn get_ptr(&self) -> *mut T;
-
+    /// Obtain a reference to the structure that contains the pyclass struct and associated metadata.
     fn contents(&self) -> &PyClassObjectContents<T>;
 
+    /// Obtain a mutable reference to the structure that contains the pyclass struct and associated metadata.
     fn contents_mut(&mut self) -> &mut PyClassObjectContents<T>;
 
+    /// Obtain a pointer to the pyclass struct.
+    fn get_ptr(&self) -> *mut T;
+
+    /// obtain a reference to the data at the start of the PyObject.
     fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase;
 
-    /// Used to set PyType_Spec::basicsize
-    /// https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize
+    /// Used to set `PyType_Spec::basicsize`
+    /// ([docs](https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize))
     fn basicsize() -> ffi::Py_ssize_t;
 
     /// Gets the offset of the dictionary from the start of the struct in bytes.
@@ -373,7 +381,7 @@ impl<T: PyClassImpl> PyClassObjectContents<T> {
     }
 }
 
-/// The layout of a PyClass with a known sized base class as a Python object
+/// The layout of a PyClassObject with a known sized base class.
 #[repr(C)]
 pub struct PyStaticClassObject<T: PyClassImpl> {
     ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
@@ -402,14 +410,6 @@ impl<T: PyClassImpl> PyClassObjectLayout<T> for PyStaticClassObject<T> {
         unsafe { addr_of_mut!((*obj).contents) }
     }
 
-    fn get_ptr(&self) -> *mut T {
-        self.contents.value.get()
-    }
-
-    fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase {
-        &self.ob_base
-    }
-
     fn contents(&self) -> &PyClassObjectContents<T> {
         &self.contents
     }
@@ -418,8 +418,14 @@ impl<T: PyClassImpl> PyClassObjectLayout<T> for PyStaticClassObject<T> {
         &mut self.contents
     }
 
-    /// used to set PyType_Spec::basicsize
-    /// https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize
+    fn get_ptr(&self) -> *mut T {
+        self.contents.value.get()
+    }
+
+    fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase {
+        &self.ob_base
+    }
+
     fn basicsize() -> ffi::Py_ssize_t {
         let size = std::mem::size_of::<Self>();
 
@@ -428,7 +434,6 @@ impl<T: PyClassImpl> PyClassObjectLayout<T> for PyStaticClassObject<T> {
         size.try_into().expect("size should fit in Py_ssize_t")
     }
 
-    /// Gets the offset of the dictionary from the start of the struct in bytes.
     fn dict_offset() -> PyObjectOffset {
         let offset = offset_of!(PyStaticClassObject<T>, contents)
             + offset_of!(PyClassObjectContents<T>, dict);
@@ -440,7 +445,6 @@ impl<T: PyClassImpl> PyClassObjectLayout<T> for PyStaticClassObject<T> {
         PyObjectOffset::Absolute(offset.try_into().expect("offset should fit in Py_ssize_t"))
     }
 
-    /// Gets the offset of the weakref list from the start of the struct in bytes.
     fn weaklist_offset() -> PyObjectOffset {
         let offset = offset_of!(PyStaticClassObject<T>, contents)
             + offset_of!(PyClassObjectContents<T>, weakref);
@@ -484,6 +488,10 @@ where
     }
 }
 
+/// A layout for a PyClassObject with an unknown sized base type.
+///
+/// Utilises [PEP-697](https://peps.python.org/pep-0697/)
+#[doc(hidden)]
 #[repr(C)]
 pub struct PyVariableClassObject<T: PyClassImpl> {
     ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
@@ -533,15 +541,12 @@ impl<T: PyClassImpl> PyClassObjectLayout<T> for PyVariableClassObject<T> {
             .expect("should be able to cast PyClassObjectContents pointer")
     }
 
-    /// used to set PyType_Spec::basicsize
-    /// https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize
     fn basicsize() -> ffi::Py_ssize_t {
         let size = std::mem::size_of::<PyClassObjectContents<T>>();
         // negative to indicate 'extra' space that cpython will allocate for us
         -ffi::Py_ssize_t::try_from(size).expect("offset should fit in Py_ssize_t")
     }
 
-    /// Gets the offset of the dictionary from the start of the struct in bytes.
     fn dict_offset() -> PyObjectOffset {
         let offset = offset_of!(PyClassObjectContents<T>, dict);
         #[allow(
@@ -551,7 +556,6 @@ impl<T: PyClassImpl> PyClassObjectLayout<T> for PyVariableClassObject<T> {
         PyObjectOffset::Relative(offset.try_into().expect("offset should fit in Py_ssize_t"))
     }
 
-    /// Gets the offset of the weakref list from the start of the struct in bytes.
     fn weaklist_offset() -> PyObjectOffset {
         let offset = offset_of!(PyClassObjectContents<T>, weakref);
         #[allow(
