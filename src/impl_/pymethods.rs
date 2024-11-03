@@ -1,10 +1,10 @@
 use crate::exceptions::PyStopAsyncIteration;
 use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::panic::PanicTrap;
-use crate::impl_::pycell::PyClassObjectLayout;
+use crate::impl_::pycell::PyClassObjectBaseLayout;
 use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
 use crate::internal::state::ForbidAttaching;
-use crate::pycell::impl_::{InternalPyClassObjectLayout, PyClassBorrowChecker as _};
+use crate::pycell::impl_::{PyClassBorrowChecker as _, PyClassObjectLayout};
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
 use crate::types::PyType;
@@ -315,8 +315,8 @@ where
     if class_object.check_threadsafe().is_ok()
     // ... and we cannot traverse a type which might be being mutated by a Rust thread
     && class_object.borrow_checker().try_borrow().is_ok() {
-        struct TraverseGuard<'a, U: PyClassImpl, V: InternalPyClassObjectLayout<U>>(&'a V, PhantomData<U>);
-        impl<U: PyClassImpl, V: InternalPyClassObjectLayout<U>> Drop for TraverseGuard<'_, U, V> {
+        struct TraverseGuard<'a, T: PyClassImpl>(&'a T::Layout);
+        impl<T: PyClassImpl> Drop for TraverseGuard<'_, T> {
             fn drop(&mut self) {
                 self.0.borrow_checker().release_borrow()
             }
@@ -324,7 +324,7 @@ where
 
         // `.try_borrow()` above created a borrow, we need to release it when we're done
         // traversing the object. This allows us to read `instance` safely.
-        let _guard = TraverseGuard(class_object, PhantomData);
+        let _guard = TraverseGuard::<T>(class_object);
         let instance = unsafe {&*class_object.contents().value.get()};
 
         let visit = PyVisit { visit, arg, _guard: PhantomData };

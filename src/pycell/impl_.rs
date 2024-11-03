@@ -224,7 +224,7 @@ pub struct PyVariableClassObjectBase {
 
 unsafe impl<T> PyLayout<T> for PyVariableClassObjectBase {}
 
-impl<T: PyTypeInfo> PyClassObjectLayout<T> for PyVariableClassObjectBase {
+impl<T: PyTypeInfo> PyClassObjectBaseLayout<T> for PyVariableClassObjectBase {
     fn ensure_threadsafe(&self) {}
     fn check_threadsafe(&self) -> Result<(), PyBorrowError> {
         Ok(())
@@ -235,7 +235,7 @@ impl<T: PyTypeInfo> PyClassObjectLayout<T> for PyVariableClassObjectBase {
 }
 
 #[doc(hidden)]
-pub trait PyClassObjectLayout<T>: PyLayout<T> {
+pub trait PyClassObjectBaseLayout<T>: PyLayout<T> {
     fn ensure_threadsafe(&self);
     fn check_threadsafe(&self) -> Result<(), PyBorrowError>;
     /// Implementation of tp_dealloc.
@@ -245,8 +245,14 @@ pub trait PyClassObjectLayout<T>: PyLayout<T> {
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject);
 }
 
+/// Functionality required for creating and managing the memory associated with a pyclass annotated struct.
 #[doc(hidden)]
-pub trait InternalPyClassObjectLayout<T: PyClassImpl>: PyClassObjectLayout<T> {
+#[diagnostic::on_unimplemented(
+    message = "the class layout is not valid",
+    label = "required for `#[pyclass(extends=...)]`",
+    note = "the python version being built against influences which layouts are valid"
+)]
+pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
     /// Gets the offset of the contents from the start of the struct in bytes.
     const CONTENTS_OFFSET: PyObjectOffset;
 
@@ -277,7 +283,7 @@ pub trait InternalPyClassObjectLayout<T: PyClassImpl>: PyClassObjectLayout<T> {
     fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker;
 }
 
-impl<T, U> PyClassObjectLayout<T> for PyClassObjectBase<U>
+impl<T, U> PyClassObjectBaseLayout<T> for PyClassObjectBase<U>
 where
     U: PyLayout<T>,
     T: PyTypeInfo,
@@ -291,6 +297,10 @@ where
     }
 }
 
+/// Implementation of tp_dealloc.
+/// # Safety
+/// - `slf` must be a valid pointer to an instance of the type at `type_obj` or a subclass.
+/// - `slf` must not be used after this call (as it will be freed).
 unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType>) {
     let py = type_obj.py();
     unsafe {
@@ -368,7 +378,7 @@ pub struct PyStaticClassObject<T: PyClassImpl> {
     contents: PyClassObjectContents<T>,
 }
 
-impl<T: PyClassImpl> InternalPyClassObjectLayout<T> for PyStaticClassObject<T> {
+impl<T: PyClassImpl> PyClassObjectLayout<T> for PyStaticClassObject<T> {
     /// Gets the offset of the contents from the start of the struct in bytes.
     const CONTENTS_OFFSET: PyObjectOffset = {
         let offset = offset_of!(Self, contents);
@@ -450,9 +460,9 @@ impl<T: PyClassImpl> InternalPyClassObjectLayout<T> for PyStaticClassObject<T> {
 unsafe impl<T: PyClassImpl> PyLayout<T> for PyStaticClassObject<T> {}
 impl<T: PyClass> PySizedLayout<T> for PyStaticClassObject<T> {}
 
-impl<T: PyClassImpl> PyClassObjectLayout<T> for PyStaticClassObject<T>
+impl<T: PyClassImpl> PyClassObjectBaseLayout<T> for PyStaticClassObject<T>
 where
-    <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectLayout<T::BaseType>,
+    <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
 {
     fn ensure_threadsafe(&self) {
         self.contents.thread_checker.ensure();
@@ -493,7 +503,7 @@ impl<T: PyClassImpl> PyVariableClassObject<T> {
 }
 
 #[cfg(Py_3_12)]
-impl<T: PyClassImpl> InternalPyClassObjectLayout<T> for PyVariableClassObject<T> {
+impl<T: PyClassImpl> PyClassObjectLayout<T> for PyVariableClassObject<T> {
     /// Gets the offset of the contents from the start of the struct in bytes.
     const CONTENTS_OFFSET: PyObjectOffset = PyObjectOffset::Relative(0);
 
@@ -512,7 +522,7 @@ impl<T: PyClassImpl> InternalPyClassObjectLayout<T> for PyVariableClassObject<T>
     }
 
     fn contents(&self) -> &PyClassObjectContents<T> {
-        unsafe { (self.get_contents_ptr() as *const PyClassObjectContents<T>).as_ref() }
+        unsafe { self.get_contents_ptr().cast_const().as_ref() }
             .expect("should be able to cast PyClassObjectContents pointer")
     }
 
@@ -558,9 +568,10 @@ impl<T: PyClassImpl> InternalPyClassObjectLayout<T> for PyVariableClassObject<T>
 
 unsafe impl<T: PyClassImpl> PyLayout<T> for PyVariableClassObject<T> {}
 
-impl<T: PyClassImpl> PyClassObjectLayout<T> for PyVariableClassObject<T>
+#[cfg(Py_3_12)]
+impl<T: PyClassImpl> PyClassObjectBaseLayout<T> for PyVariableClassObject<T>
 where
-    <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectLayout<T::BaseType>,
+    <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
 {
     fn ensure_threadsafe(&self) {
         self.contents().thread_checker.ensure();
