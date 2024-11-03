@@ -44,7 +44,7 @@ pub unsafe trait PyTypeInfo: Sized {
     const MODULE: Option<&'static str>;
 
     /// The type of object layout to use for ancestors or descendants of this type.
-    /// should implement `InternalPyClassObjectLayout<T>` in order to actually use it as a layout.
+    /// should implement `PyClassObjectLayout<T>` in order to actually use it as a layout.
     type Layout<T: PyClassImpl>;
 
     /// Returns the PyTypeObject instance for this type.

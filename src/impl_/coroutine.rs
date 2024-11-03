@@ -6,7 +6,7 @@ use std::{
 use crate::{
     coroutine::{cancel::ThrowCallback, Coroutine},
     instance::Bound,
-    pycell::impl_::{InternalPyClassObjectLayout, PyClassBorrowChecker},
+    pycell::impl_::{PyClassBorrowChecker, PyClassObjectLayout},
     pyclass::boolean_struct::False,
     types::{PyAnyMethods, PyString},
     IntoPyObject, Py, PyAny, PyClass, PyErr, PyResult, Python,

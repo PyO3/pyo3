@@ -6,11 +6,11 @@ use crate::{
     ffi,
     impl_::{
         freelist::FreeList,
-        pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
+        pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectBaseLayout},
         pyclass_init::PyObjectInit,
         pymethods::{PyGetterDef, PyMethodDefType},
     },
-    pycell::{impl_::InternalPyClassObjectLayout, PyBorrowError},
+    pycell::{impl_::PyClassObjectLayout, PyBorrowError},
     types::{any::PyAnyMethods, PyBool},
     Borrowed, BoundObject, Py, PyAny, PyClass, PyErr, PyRef, PyResult, PyTypeInfo, Python,
 };
@@ -170,7 +170,7 @@ pub trait PyClassImpl: Sized + 'static {
     const IS_SEQUENCE: bool = false;
 
     /// Description of how this class is laid out in memory
-    type Layout: InternalPyClassObjectLayout<Self>;
+    type Layout: PyClassObjectLayout<Self>;
 
     /// Base class
     type BaseType: PyTypeInfo + PyClassBaseType;
@@ -1137,7 +1137,7 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     )
 )]
 pub trait PyClassBaseType: Sized {
-    type LayoutAsBase: PyClassObjectLayout<Self>;
+    type LayoutAsBase: PyClassObjectBaseLayout<Self>;
     type BaseNativeType;
     type Initializer: PyObjectInit<Self>;
     type PyClassMutability: PyClassMutability;
@@ -1549,7 +1549,7 @@ where
             let class_ptr = obj.cast::<<ClassT as PyClassImpl>::Layout>();
             // Safety: the object `obj` must have the layout `ClassT::Layout`
             let class_obj = unsafe { &mut *class_ptr };
-            let contents = class_obj.contents_mut() as *mut PyClassObjectContents<ClassT>;
+            let contents = (&mut class_obj.contents_mut().0) as *mut PyClassObjectContents<ClassT>;
             (contents.cast::<u8>(), offset)
         }
         #[cfg(not(Py_3_12))]

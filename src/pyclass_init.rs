@@ -3,7 +3,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::pyclass::{PyClassBaseType, PyClassImpl};
 use crate::impl_::pyclass_init::{PyNativeTypeInitializer, PyObjectInit};
-use crate::pycell::impl_::InternalPyClassObjectLayout;
+use crate::pycell::impl_::{PyClassObjectLayout, WrappedPyClassObjectContents};
 use crate::types::PyAnyMethods;
 use crate::{ffi, Bound, Py, PyClass, PyResult, Python};
 use crate::{ffi::PyTypeObject, pycell::impl_::PyClassObjectContents};
@@ -167,7 +167,9 @@ impl<T: PyClass> PyClassInitializer<T> {
         let obj = super_init.into_new_object(py, target_type)?;
 
         let contents = <T as PyClassImpl>::Layout::contents_uninitialised(obj);
-        (*contents).write(PyClassObjectContents::new(init));
+        (*contents).write(WrappedPyClassObjectContents(PyClassObjectContents::new(
+            init,
+        )));
 
         // Safety: obj is a valid pointer to an object of type `target_type`, which` is a known
         // subclass of `T`
