@@ -63,7 +63,9 @@ fn get_fraction_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
 macro_rules! rational_conversion {
     ($int: ty) => {
         impl<'py> FromPyObject<'_, 'py> for Ratio<$int> {
-            fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+            type Error = PyErr;
+
+            fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
                 let py = obj.py();
                 let py_numerator_obj = obj.getattr(crate::intern!(py, "numerator"))?;
                 let py_denominator_obj = obj.getattr(crate::intern!(py, "denominator"))?;

@@ -1,6 +1,6 @@
 use std::cell::Cell;
 
-use crate::{conversion::IntoPyObject, Borrowed, FromPyObject, PyAny, PyResult, Python};
+use crate::{conversion::IntoPyObject, Borrowed, FromPyObject, PyAny, Python};
 
 impl<'py, T: Copy + IntoPyObject<'py>> IntoPyObject<'py> for Cell<T> {
     type Target = T::Target;
@@ -25,7 +25,9 @@ impl<'py, T: Copy + IntoPyObject<'py>> IntoPyObject<'py> for &Cell<T> {
 }
 
 impl<'a, 'py, T: FromPyObject<'a, 'py>> FromPyObject<'a, 'py> for Cell<T> {
-    fn extract(ob: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
+    type Error = T::Error;
+
+    fn extract(ob: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         ob.extract().map(Cell::new)
     }
 }

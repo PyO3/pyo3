@@ -857,7 +857,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// Extracts some type from the Python object.
     ///
     /// This is a wrapper function around [`FromPyObject::extract()`](crate::FromPyObject::extract).
-    fn extract<'a, T>(&'a self) -> PyResult<T>
+    fn extract<'a, T>(&'a self) -> Result<T, T::Error>
     where
         T: FromPyObject<'a, 'py>;
 
@@ -1497,7 +1497,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         unsafe { std::mem::transmute(self) }
     }
 
-    fn extract<'a, T>(&'a self) -> PyResult<T>
+    fn extract<'a, T>(&'a self) -> Result<T, T::Error>
     where
         T: FromPyObject<'a, 'py>,
     {

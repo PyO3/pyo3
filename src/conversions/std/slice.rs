@@ -5,7 +5,7 @@ use crate::inspect::types::TypeInfo;
 use crate::{
     conversion::IntoPyObject,
     types::{PyByteArray, PyByteArrayMethods, PyBytes},
-    Bound, PyAny, PyErr, PyResult, Python,
+    Bound, PyAny, PyErr, Python,
 };
 
 impl<'a, 'py, T> IntoPyObject<'py> for &'a [T]
@@ -36,7 +36,9 @@ where
 }
 
 impl<'a> crate::conversion::FromPyObject<'a, '_> for &'a [u8] {
-    fn extract(obj: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
+    type Error = PyErr;
+
+    fn extract(obj: crate::Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
         Ok(obj.downcast::<PyBytes>()?.as_bytes())
     }
 
@@ -52,7 +54,9 @@ impl<'a> crate::conversion::FromPyObject<'a, '_> for &'a [u8] {
 /// pointing into the source object, and no copying or heap allocations will happen.
 /// If it is a `bytearray`, its contents will be copied to an owned `Cow`.
 impl<'a> crate::conversion::FromPyObject<'a, '_> for Cow<'a, [u8]> {
-    fn extract(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
+    type Error = PyErr;
+
+    fn extract(ob: crate::Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
         if let Ok(bytes) = ob.downcast::<PyBytes>() {
             return Ok(Cow::Borrowed(bytes.as_bytes()));
         }
