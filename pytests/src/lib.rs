@@ -8,7 +8,6 @@ pub mod comparisons;
 pub mod datetime;
 pub mod dict_iter;
 pub mod enums;
-pub mod free_threaded_mod;
 pub mod misc;
 pub mod objstore;
 pub mod othermod;
@@ -36,7 +35,6 @@ fn pyo3_pytests(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(pyfunctions::pyfunctions))?;
     m.add_wrapped(wrap_pymodule!(sequence::sequence))?;
     m.add_wrapped(wrap_pymodule!(subclassing::subclassing))?;
-    m.add_wrapped(wrap_pymodule!(free_threaded_mod::free_threaded_mod))?;
 
     // Inserting to sys.modules allows importing submodules nicely from Python
     // e.g. import pyo3_pytests.buf_and_str as bas
