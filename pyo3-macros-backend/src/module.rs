@@ -353,7 +353,7 @@ pub fn pymodule_module_impl(
         ctx,
         module_def,
         options.submodule.is_some(),
-        options.gil_used.map(|op| op.value.value).unwrap_or(true),
+        options.gil_used.map_or(true, |op| op.value.value),
     );
 
     Ok(quote!(
@@ -398,7 +398,7 @@ pub fn pymodule_function_impl(
         ctx,
         quote! { MakeDef::make_def() },
         false,
-        options.gil_used.map(|op| op.value.value).unwrap_or(true),
+        options.gil_used.map_or(true, |op| op.value.value),
     );
 
     // Module function called with optional Python<'_> marker as first arg, followed by the module.
