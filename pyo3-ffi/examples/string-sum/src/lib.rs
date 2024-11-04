@@ -39,6 +39,7 @@ pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
     #[cfg(Py_GIL_DISABLED)]
     {
         if PyUnstable_Module_SetGIL(module, Py_MOD_GIL_NOT_USED) < 0 {
+            Py_DECREF(module);
             return std::ptr::null_mut();
         }
     }
