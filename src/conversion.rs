@@ -333,6 +333,20 @@ impl<'a, 'py, T> IntoPyObject<'py> for &'a Py<T> {
     }
 }
 
+impl<'a, 'py, T> IntoPyObject<'py> for &&'a T
+where
+    &'a T: IntoPyObject<'py>,
+{
+    type Target = <&'a T as IntoPyObject<'py>>::Target;
+    type Output = <&'a T as IntoPyObject<'py>>::Output;
+    type Error = <&'a T as IntoPyObject<'py>>::Error;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
 /// Extract a type from a Python object.
 ///
 ///
