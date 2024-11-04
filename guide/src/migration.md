@@ -1064,7 +1064,7 @@ Python::with_gil(|py| {
 });
 ```
 
-Furthermore, `Python::acquire_gil` provides ownership of a `GILGuard` which can be freely stored and passed around. This is usually not helpful as it may keep the lock held for a long time thereby blocking progress in other parts of the program. Due to the generative lifetime attached to the GIL token supplied by `Python::with_gil`, the problem is avoided as the GIL token can only be passed down the call chain. Often, this issue can also be avoided entirely as any GIL-bound reference `&'py PyAny` implies access to a GIL token `Python<'py>` via the [`PyAny::py`](https://docs.rs/pyo3/latest/pyo3/types/struct.PyAny.html#method.py) method.
+Furthermore, `Python::acquire_gil` provides ownership of a `GILGuard` which can be freely stored and passed around. This is usually not helpful as it may keep the lock held for a long time thereby blocking progress in other parts of the program. Due to the generative lifetime attached to the GIL token supplied by `Python::with_gil`, the problem is avoided as the GIL token can only be passed down the call chain. Often, this issue can also be avoided entirely as any GIL-bound reference `&'py PyAny` implies access to a GIL token `Python<'py>` via the [`PyAny::py`](https://docs.rs/pyo3/0.22.5/pyo3/types/struct.PyAny.html#method.py) method.
 </details>
 
 ## from 0.17.* to 0.18

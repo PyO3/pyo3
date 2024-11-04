@@ -49,9 +49,9 @@ awkward to think about a runtime environment where there is no GIL. We plan to
 change the names of these types to de-emphasize the role of the GIL in future
 versions of PyO3, but for now you should remember that the use of the term `GIL`
 in functions and types like
-[`Python::with_gil`](https://docs.rs/pyo3/latest/pyo3/marker/struct.Python.html#method.with_gil)
+[`Python::with_gil`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.with_gil)
 and
-[`GILOnceCell`](https://docs.rs/pyo3/latest/pyo3/sync/struct.GILOnceCell.html)
+[`GILOnceCell`]({{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html)
 is historical.
 
 Instead, you can think about whether or not a Rust thread is attached to a
@@ -71,14 +71,14 @@ The main reason for attaching to the Python runtime is to interact with Python
 objects or call into the CPython C API. To interact with the Python runtime, the
 thread must register itself by attaching to the interpreter runtime. If you are
 not yet attached to the Python runtime, you can register the thread using the
-[`Python::with_gil`](https://docs.rs/pyo3/latest/pyo3/marker/struct.Python.html#method.with_gil)
+[`Python::with_gil`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.with_gil)
 function. Threads created via the Python
 [`threading`](https://docs.python.org/3/library/threading.html) module do not
 not need to do this, but all other OS threads that interact with the Python
 runtime must explicitly attach using `with_gil` and obtain a `'py` liftime.
 
 In the GIL-enabled build, PyO3 uses the
-[`Python<'py>`](https://docs.rs/pyo3/latest/pyo3/marker/struct.Python.html) type
+[`Python<'py>`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html) type
 and the `'py` lifetime to signify that the global interpreter lock is held. In
 the freethreaded build, holding a `'py` lifetime means only that the thread is
 currently attached to the Python interpreter -- other threads can be
@@ -87,7 +87,7 @@ simultaneously interacting with the interpreter.
 Since there is no GIL in the free-threaded build, releasing the GIL for
 long-running tasks is no longer necessary to ensure other threads run, but you
 should still detach from the interpreter runtime using
-[`Python::allow_threads`](https://docs.rs/pyo3/latest/pyo3/marker/struct.Python.html#method.allow_threads)
+[`Python::allow_threads`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.allow_threads)
 when doing long-running tasks that do not require the CPython runtime. The
 garbage collector can only run if all threads are detached from the runtime (in
 a stop-the-world state), so detaching from the runtime allows freeing unused
@@ -100,7 +100,7 @@ Data attached to `pyclass` instances is protected from concurrent access by a
 raise exceptions (or in some cases panic) to enforce exclusive access for
 mutable borrows. It was always possible to generate panics like this in PyO3 in
 code that releases the GIL with
-[`Python::allow_threads`](https://docs.rs/pyo3/latest/pyo3/marker/struct.Python.html#method.allow_threads)
+[`Python::allow_threads`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.allow_threads)
 or calling a python method accepting
 `&self` from a `&mut self` (see [the docs on interior
 mutability](./class.md#bound-and-interior-mutability),) but now in free-threaded
@@ -109,7 +109,7 @@ there is no GIL to lock concurrent access to mutably borrowed data from Python.
 
 The most straightforward way to trigger this problem to use the Python
 `threading` module to simultaneously call a rust function that mutably borrows a
-[`pyclass`](https://docs.rs/pyo3/latest/pyo3/attr.pyclass.html). For example,
+[`pyclass`]({{#PYO3_DOCS_URL}}/pyo3/attr.pyclass.html). For example,
 consider the following implementation:
 
 ```
@@ -221,7 +221,7 @@ Python::with_gil(|py| {
 
 ## `GILProtected` is not exposed
 
-[`GILProtected`](https://docs.rs/pyo3/latest/pyo3/sync/struct.GILProtected.html)
+[`GILProtected`]({{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILProtected.html)
 is a PyO3 type that allows mutable access to static data by leveraging the GIL
 to lock concurrent access from other threads. In free-threaded Python there is
 no GIL, so you will need to replace this type with some other form of
