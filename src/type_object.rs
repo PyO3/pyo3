@@ -28,7 +28,7 @@ pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 ///
 /// This trait is marked unsafe because:
 ///  - specifying the incorrect layout can lead to memory errors
-///  - the return value of type_object must always point to the same PyTypeObject instance
+///  - the return value of type_object must always point to the same `PyTypeObject` instance
 ///
 /// It is safely implemented by the `pyclass` macro.
 ///
@@ -43,11 +43,16 @@ pub unsafe trait PyTypeInfo: Sized {
     /// Module name, if any.
     const MODULE: Option<&'static str>;
 
+    /// Whether classes that extend from this type must use the 'opaque type' extension mechanism
+    /// rather than using the standard mechanism of placing the data for this type at the beginning
+    /// of a new `repr(C)` struct
+    const OPAQUE: bool;
+
     /// The type of object layout to use for ancestors or descendants of this type.
     /// should implement `PyClassObjectLayout<T>` in order to actually use it as a layout.
     type Layout<T: PyClassImpl>;
 
-    /// Returns the PyTypeObject instance for this type.
+    /// Returns the `PyTypeObject` instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;
 
     /// Returns the safe abstraction over the type object.

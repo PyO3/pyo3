@@ -21,6 +21,7 @@ pyobject_native_type_core!(
     PyType,
     pyobject_native_static_type_object!(ffi::PyType_Type),
     #module=::std::option::Option::Some("builtins"),
+    #opaque=true,
     #layout=crate::impl_::pycell::PyVariableClassObject<T>,
     #checkfunction = ffi::PyType_Check
 );

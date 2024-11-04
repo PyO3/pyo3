@@ -125,6 +125,7 @@ macro_rules! import_exception_bound {
             $name,
             $name::type_object_raw,
             ::std::option::Option::Some(stringify!($module)),
+            false,
             $crate::impl_::pycell::PyStaticClassObject<T>
         );
 

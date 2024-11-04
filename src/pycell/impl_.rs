@@ -3,7 +3,7 @@
 
 use std::cell::UnsafeCell;
 use std::marker::PhantomData;
-use std::mem::{ManuallyDrop, MaybeUninit};
+use std::mem::ManuallyDrop;
 use std::ptr::addr_of_mut;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -284,13 +284,6 @@ impl<'a, T: PyClassImpl> From<&'a mut PyClassObjectContents<T>>
     )
 )]
 pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
-    /// Obtain a pointer to the contents of an uninitialized PyObject of this type.
-    ///
-    /// Safety: the provided object must have the layout that the implementation is expecting
-    unsafe fn contents_uninitialised(
-        obj: *mut ffi::PyObject,
-    ) -> *mut MaybeUninit<WrappedPyClassObjectContents<T>>;
-
     /// obtain a reference to the structure that contains the pyclass struct and associated metadata.
     fn contents(&self) -> &WrappedPyClassObjectContents<T>;
 
@@ -413,18 +406,6 @@ pub struct PyStaticClassObject<T: PyClassImpl> {
 }
 
 impl<T: PyClassImpl> PyClassObjectLayout<T> for PyStaticClassObject<T> {
-    unsafe fn contents_uninitialised(
-        obj: *mut ffi::PyObject,
-    ) -> *mut MaybeUninit<WrappedPyClassObjectContents<T>> {
-        #[repr(C)]
-        struct PartiallyInitializedClassObject<T: PyClassImpl> {
-            _ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
-            contents: MaybeUninit<WrappedPyClassObjectContents<T>>,
-        }
-        let obj: *mut PartiallyInitializedClassObject<T> = obj.cast();
-        addr_of_mut!((*obj).contents)
-    }
-
     fn contents(&self) -> &WrappedPyClassObjectContents<T> {
         (&self.contents).into()
     }
@@ -532,12 +513,6 @@ impl<T: PyClassImpl> PyVariableClassObject<T> {
 
 #[cfg(Py_3_12)]
 impl<T: PyClassImpl> PyClassObjectLayout<T> for PyVariableClassObject<T> {
-    unsafe fn contents_uninitialised(
-        obj: *mut ffi::PyObject,
-    ) -> *mut MaybeUninit<WrappedPyClassObjectContents<T>> {
-        Self::get_contents_of_obj(obj) as *mut MaybeUninit<WrappedPyClassObjectContents<T>>
-    }
-
     fn get_ptr(&self) -> *mut T {
         self.contents().0.value.get()
     }
@@ -616,6 +591,65 @@ where
 fn usize_to_py_ssize(value: usize) -> ffi::Py_ssize_t {
     #[allow(clippy::useless_conversion)]
     value.try_into().expect("value should fit in Py_ssize_t")
+}
+
+/// Utilities for working with `PyObject` objects that utilise [PEP 697](https://peps.python.org/pep-0697/).
+#[doc(hidden)]
+mod opaque_layout {
+    use super::PyClassObjectContents;
+    use crate::ffi;
+    use crate::impl_::pyclass::PyClassImpl;
+
+    #[cfg(Py_3_12)]
+    pub fn get_contents_ptr<T: PyClassImpl>(
+        obj: *mut ffi::PyObject,
+    ) -> *mut PyClassObjectContents<T> {
+        #[cfg(Py_3_12)]
+        {
+            let type_obj = unsafe { ffi::Py_TYPE(obj) };
+            assert!(!type_obj.is_null());
+            let pointer = unsafe { ffi::PyObject_GetTypeData(obj, type_obj) };
+            assert!(!pointer.is_null());
+            pointer as *mut PyClassObjectContents<T>
+        }
+
+        #[cfg(not(Py_3_12))]
+        panic!("opaque layout not supported until python 3.12");
+    }
+}
+
+/// Utilities for working with `PyObject` objects that utilise the standard layout for python extensions,
+/// where the base class is placed at the beginning of a `repr(C)` struct.
+#[doc(hidden)]
+mod static_layout {
+    use crate::impl_::pyclass::{PyClassBaseType, PyClassImpl};
+
+    use super::PyClassObjectContents;
+
+    #[repr(C)]
+    pub struct ClassObject<T: PyClassImpl> {
+        pub ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
+        pub contents: PyClassObjectContents<T>,
+    }
+}
+
+pub(crate) struct PyObjectLayout {}
+
+impl PyObjectLayout {
+    /// Obtain a pointer to the contents of an PyObject of this type.
+    ///
+    /// Safety: the provided object must be valid and have the layout indicated by `T`
+    pub(crate) unsafe fn get_contents_ptr<T: PyClassImpl>(
+        obj: *mut ffi::PyObject,
+    ) -> *mut PyClassObjectContents<T> {
+        debug_assert!(!obj.is_null());
+        if <T::BaseType as PyTypeInfo>::OPAQUE {
+            opaque_layout::get_contents_ptr(obj)
+        } else {
+            let obj: *mut static_layout::ClassObject<T> = obj.cast();
+            addr_of_mut!((*obj).contents)
+        }
+    }
 }
 
 #[cfg(test)]

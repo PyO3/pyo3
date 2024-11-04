@@ -37,6 +37,7 @@ impl PyNotImplemented {
 unsafe impl PyTypeInfo for PyNotImplemented {
     const NAME: &'static str = "NotImplementedType";
     const MODULE: Option<&'static str> = None;
+    const OPAQUE: bool = false;
 
     type Layout<T: PyClassImpl> = PyStaticClassObject<T>;
 

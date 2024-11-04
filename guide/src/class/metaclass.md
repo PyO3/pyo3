@@ -15,6 +15,8 @@ Some examples of where metaclasses can be used:
 
 ### Example: A Simple Metaclass
 
+Note: Creating metaclasses is only possible with python 3.12+
+
 ```rust
 #[pyclass(subclass, extends=PyType)]
 #[derive(Default)]

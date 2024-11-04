@@ -1811,6 +1811,7 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
         unsafe impl #pyo3_path::type_object::PyTypeInfo for #cls {
             const NAME: &'static str = #cls_name;
             const MODULE: ::std::option::Option<&'static str> = #module;
+            const OPAQUE: bool = <<#cls as #pyo3_path::impl_::pyclass::PyClassImpl>::BaseNativeType as #pyo3_path::type_object::PyTypeInfo>::OPAQUE;
 
             type Layout<T: #pyo3_path::impl_::pyclass::PyClassImpl> = <<#cls as #pyo3_path::impl_::pyclass::PyClassImpl>::BaseNativeType as #pyo3_path::type_object::PyTypeInfo>::Layout<T>;
 

@@ -42,6 +42,7 @@ pyobject_native_type_info!(
     PyAny,
     pyobject_native_static_type_object!(ffi::PyBaseObject_Type),
     Some("builtins"),
+    false,
     PyStaticClassObject<T>,
     #checkfunction=PyObject_Check
 );
