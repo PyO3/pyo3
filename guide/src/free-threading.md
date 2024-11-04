@@ -24,7 +24,7 @@ cannot be sped up using parallelism.
 
 The free-threaded build removes this limit on multithreaded Python scaling. This
 means it's much more straightforward to achieve parallelism using the Python
-[`threading`](https://docs.python.org/3/library/threading.html) module. If you
+[`threading`] module. If you
 have ever needed to use
 [`multiprocessing`](https://docs.python.org/3/library/multiprocessing.html) to
 achieve a parallel speedup for some Python code, free-threading will likely
@@ -48,11 +48,8 @@ We are aware that there are some naming issues in the PyO3 API that make it
 awkward to think about a runtime environment where there is no GIL. We plan to
 change the names of these types to de-emphasize the role of the GIL in future
 versions of PyO3, but for now you should remember that the use of the term `GIL`
-in functions and types like
-[`Python::with_gil`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.with_gil)
-and
-[`GILOnceCell`]({{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html)
-is historical.
+in functions and types like [`Python::with_gil`] and [`GILOnceCell`] is
+historical.
 
 Instead, you can think about whether or not a Rust thread is attached to a
 Python interpreter runtime. See [PEP
@@ -71,23 +68,20 @@ The main reason for attaching to the Python runtime is to interact with Python
 objects or call into the CPython C API. To interact with the Python runtime, the
 thread must register itself by attaching to the interpreter runtime. If you are
 not yet attached to the Python runtime, you can register the thread using the
-[`Python::with_gil`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.with_gil)
-function. Threads created via the Python
-[`threading`](https://docs.python.org/3/library/threading.html) module do not
-not need to do this, but all other OS threads that interact with the Python
-runtime must explicitly attach using `with_gil` and obtain a `'py` liftime.
+[`Python::with_gil`] function. Threads created via the Python [`threading`]
+module do not not need to do this, but all other OS threads that interact with
+the Python runtime must explicitly attach using `with_gil` and obtain a `'py`
+liftime.
 
-In the GIL-enabled build, PyO3 uses the
-[`Python<'py>`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html) type
-and the `'py` lifetime to signify that the global interpreter lock is held. In
-the freethreaded build, holding a `'py` lifetime means only that the thread is
+In the GIL-enabled build, PyO3 uses the [`Python<'py>`] type and the `'py`
+lifetime to signify that the global interpreter lock is held. In the
+freethreaded build, holding a `'py` lifetime means only that the thread is
 currently attached to the Python interpreter -- other threads can be
 simultaneously interacting with the interpreter.
 
 Since there is no GIL in the free-threaded build, releasing the GIL for
 long-running tasks is no longer necessary to ensure other threads run, but you
-should still detach from the interpreter runtime using
-[`Python::allow_threads`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.allow_threads)
+should still detach from the interpreter runtime using [`Python::allow_threads`]
 when doing long-running tasks that do not require the CPython runtime. The
 garbage collector can only run if all threads are detached from the runtime (in
 a stop-the-world state), so detaching from the runtime allows freeing unused
@@ -99,16 +93,14 @@ Data attached to `pyclass` instances is protected from concurrent access by a
 `RefCell`-like pattern of runtime borrow checking. Like a `RefCell`, PyO3 will
 raise exceptions (or in some cases panic) to enforce exclusive access for
 mutable borrows. It was always possible to generate panics like this in PyO3 in
-code that releases the GIL with
-[`Python::allow_threads`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.allow_threads)
-or calling a python method accepting
-`&self` from a `&mut self` (see [the docs on interior
+code that releases the GIL with [`Python::allow_threads`] or calling a python
+method accepting `&self` from a `&mut self` (see [the docs on interior
 mutability](./class.md#bound-and-interior-mutability),) but now in free-threaded
 Python there are more opportunities to trigger these panics from Python because
 there is no GIL to lock concurrent access to mutably borrowed data from Python.
 
 The most straightforward way to trigger this problem to use the Python
-`threading` module to simultaneously call a rust function that mutably borrows a
+[`threading`] module to simultaneously call a rust function that mutably borrows a
 [`pyclass`]({{#PYO3_DOCS_URL}}/pyo3/attr.pyclass.html). For example,
 consider the following implementation:
 
@@ -167,30 +159,30 @@ needed.
 
 ## Thread-safe single initialization
 
-Until version 0.23, PyO3 provided only `GILOnceCell` to enable deadlock-free
+Until version 0.23, PyO3 provided only [`GILOnceCell`] to enable deadlock-free
 single initialization of data in contexts that might execute arbitrary Python
-code. While we have updated `GILOnceCell` to avoid thread safety issues
-triggered only under the free-threaded build, the design of `GILOnceCell` is
+code. While we have updated [`GILOnceCell`] to avoid thread safety issues
+triggered only under the free-threaded build, the design of [`GILOnceCell`] is
 inherently thread-unsafe, in a manner that can be problematic even in the
 GIL-enabled build.
 
-If, for example, the function executed by `GILOnceCell` releases the GIL or
+If, for example, the function executed by [`GILOnceCell`] releases the GIL or
 calls code that releases the GIL, then it is possible for multiple threads to
 try to race to initialize the cell. While the cell will only ever be intialized
-once, it can be problematic in some contexts that `GILOnceCell` does not block
-like the standard library `OnceLock`.
+once, it can be problematic in some contexts that [`GILOnceCell`] does not block
+like the standard library [`OnceLock`].
 
 In cases where the initialization function must run exactly once, you can bring
-the `OnceExt` or `OnceLockExt` traits into scope. The `OnceExt` trait adds
-`OnceExt::call_once_py_attached` and `OnceExt::call_once_force_py_attached`
-functions to the api of `std::sync::Once`, enabling use of `Once` in contexts
-where the GIL is held. Similarly, `OnceLockExt` adds
-`OnceLockExt::get_or_init_py_attached`. These functions are analogous to
-`Once::call_once`, `Once::call_once_force`, and `OnceLock::get_or_init` except
-they accept a `Python<'py>` token in addition to an `FnOnce`. All of these
+the [`OnceExt`] or [`OnceLockExt`] traits into scope. The [`OnceExt`] trait adds
+[`OnceExt::call_once_py_attached`] and [`OnceExt::call_once_force_py_attached`]
+functions to the api of `std::sync::Once`, enabling use of [`Once`] in contexts
+where the GIL is held. Similarly, [`OnceLockExt`] adds
+[`OnceLockExt::get_or_init_py_attached`]. These functions are analogous to
+[`Once::call_once`], [`Once::call_once_force`], and [`OnceLock::get_or_init`] except
+they accept a [`Python<'py>`] token in addition to an `FnOnce`. All of these
 functions release the GIL and re-acquire it before executing the function,
 avoiding deadlocks with the GIL that are possible without using the PyO3
-extension traits. Here is an example of how to use `OnceExt` to
+extension traits. Here is an example of how to use [`OnceExt`] to
 enable single-initialization of a runtime cache holding a `Py<PyDict>`.
 
 ```rust
@@ -221,11 +213,10 @@ Python::with_gil(|py| {
 
 ## `GILProtected` is not exposed
 
-[`GILProtected`]({{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILProtected.html)
-is a PyO3 type that allows mutable access to static data by leveraging the GIL
-to lock concurrent access from other threads. In free-threaded Python there is
-no GIL, so you will need to replace this type with some other form of
-locking. In many cases, a type from
+[`GILProtected`] is a PyO3 type that allows mutable access to static data by
+leveraging the GIL to lock concurrent access from other threads. In
+free-threaded Python there is no GIL, so you will need to replace this type with
+some other form of locking. In many cases, a type from
 [`std::sync::atomic`](https://doc.rust-lang.org/std/sync/atomic/) or a
 [`std::sync::Mutex`](https://doc.rust-lang.org/std/sync/struct.Mutex.html) will
 be sufficient.
@@ -274,11 +265,28 @@ Python::with_gil(|py| {
 ```
 
 If you are executing arbitrary Python code while holding the lock, then you will
-need to use conditional compilation to use `GILProtected` on GIL-enabled Python
-builds and mutexes otherwise. If your use of `GILProtected` does not guard the
+need to use conditional compilation to use [`GILProtected`] on GIL-enabled Python
+builds and mutexes otherwise. If your use of [`GILProtected`] does not guard the
 execution of arbitrary Python code or use of the CPython C API, then conditional
-compilation is likely unnecessary since `GILProtected` was not needed in the
+compilation is likely unnecessary since [`GILProtected`] was not needed in the
 first place and instead Rust mutexes or atomics should be preferred. Python 3.13
 introduces [`PyMutex`](https://docs.python.org/3/c-api/init.html#c.PyMutex),
 which releases the GIL while the waiting for the lock, so that is another option
 if you only need to support newer Python versions.
+
+[`GILOnceCell`]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html
+[`GILProtected]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILProtected.html
+[`Once`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html
+[`Once::call_once`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html#tymethod.call_once
+[`Once::call_once_force`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html#tymethod.call_once_force
+[`OnceExt]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html
+[`OnceExt::call_once_py_attached`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html#tymethod.call_once_py_attached
+[`OnceExt::call_once_force_py_attached`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html#tymethod.call_once_force_py_attached
+[`OnceLockExt]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceLockExt.html
+[`OnceLockExt::get_or_init_py_attached]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceLockExt.html#tymethod.get_or_init_py_attached
+[`OnceLock`]: https://doc.rust-lang.org/stable/std/sync/struct.OnceLock.html
+[`OnceLock::get_or_init`]: https://doc.rust-lang.org/stable/std/sync/struct.OnceLock.html#tymethod.get_or_init
+[`Python::allow_threads`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.allow_threads
+[`Python::with_gil`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.with_gil
+[`Python<'py>`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html
+[`threading`]: https://docs.python.org/3/library/threading.html
