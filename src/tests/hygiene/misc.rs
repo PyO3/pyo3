@@ -71,7 +71,7 @@ struct IntoPyObject2<'a> {
 #[pyo3(crate = "crate")]
 struct IntoPyObject3<'py>(i32, crate::Bound<'py, crate::PyAny>); // tuple case
 
-#[derive(crate::IntoPyObject)]
+#[derive(crate::IntoPyObject, crate::IntoPyObjectRef)]
 #[pyo3(crate = "crate")]
 struct IntoPyObject4<'a, 'py> {
     callable: &'a crate::Bound<'py, crate::PyAny>, // struct case
