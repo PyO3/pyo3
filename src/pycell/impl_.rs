@@ -208,36 +208,6 @@ where
     }
 }
 
-/// Base layout of PyClassObject with a known sized base type.
-/// Corresponds to [PyObject](https://docs.python.org/3/c-api/structures.html#c.PyObject) from the C API.
-#[doc(hidden)]
-#[repr(C)]
-pub struct PyClassObjectBase<T> {
-    ob_base: T,
-}
-
-unsafe impl<T, U> PyLayout<T> for PyClassObjectBase<U> where U: PySizedLayout<T> {}
-
-/// Base layout of PyClassObject with an unknown sized base type.
-/// Corresponds to [PyVarObject](https://docs.python.org/3/c-api/structures.html#c.PyVarObject) from the C API.
-#[doc(hidden)]
-#[repr(C)]
-pub struct PyVariableClassObjectBase {
-    ob_base: ffi::PyVarObject,
-}
-
-unsafe impl<T> PyLayout<T> for PyVariableClassObjectBase {}
-
-impl<T: PyTypeInfo> PyClassObjectBaseLayout<T> for PyVariableClassObjectBase {
-    fn ensure_threadsafe(&self) {}
-    fn check_threadsafe(&self) -> Result<(), PyBorrowError> {
-        Ok(())
-    }
-    unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
-        tp_dealloc(py, slf, T::type_object_raw(py));
-    }
-}
-
 /// functionality common to all PyObjects regardless of the layout
 #[doc(hidden)]
 pub trait PyClassObjectBaseLayout<T>: PyLayout<T> {
@@ -308,21 +278,7 @@ pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
     fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker;
 }
 
-impl<T, U> PyClassObjectBaseLayout<T> for PyClassObjectBase<U>
-where
-    U: PySizedLayout<T>,
-    T: PyTypeInfo,
-{
-    fn ensure_threadsafe(&self) {}
-    fn check_threadsafe(&self) -> Result<(), PyBorrowError> {
-        Ok(())
-    }
-    unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
-        tp_dealloc(py, slf, T::type_object_raw(py));
-    }
-}
-
-/// Implementation of tp_dealloc.
+/// Implementation of `tp_dealloc`.
 /// # Safety
 /// - obj must be a valid pointer to an instance of the type at `type_ptr` or a subclass.
 /// - obj must not be used after this call (as it will be freed).
@@ -577,10 +533,32 @@ fn usize_to_py_ssize(value: usize) -> ffi::Py_ssize_t {
 
 /// Utilities for working with `PyObject` objects that utilise [PEP 697](https://peps.python.org/pep-0697/).
 #[doc(hidden)]
-mod opaque_layout {
-    use super::PyClassObjectContents;
-    use crate::ffi;
+pub(crate) mod opaque_layout {
+    use super::{tp_dealloc, PyClassObjectBaseLayout, PyClassObjectContents};
     use crate::impl_::pyclass::PyClassImpl;
+    use crate::pycell::PyBorrowError;
+    use crate::type_object::PyLayout;
+    use crate::{ffi, PyTypeInfo, Python};
+
+    /// Base layout of `PyClassObject` with an unknown sized base type.
+    /// Corresponds to [PyVarObject](https://docs.python.org/3/c-api/structures.html#c.PyVarObject) from the C API.
+    #[doc(hidden)]
+    #[repr(C)]
+    pub struct PyVariableClassObjectBase {
+        ob_base: ffi::PyVarObject,
+    }
+
+    unsafe impl<T: PyTypeInfo> PyLayout<T> for PyVariableClassObjectBase {}
+
+    impl<T: PyTypeInfo> PyClassObjectBaseLayout<T> for PyVariableClassObjectBase {
+        fn ensure_threadsafe(&self) {}
+        fn check_threadsafe(&self) -> Result<(), PyBorrowError> {
+            Ok(())
+        }
+        unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
+            tp_dealloc(py, slf, T::type_object_raw(py));
+        }
+    }
 
     #[cfg(Py_3_12)]
     pub fn get_contents_ptr<T: PyClassImpl>(
@@ -603,10 +581,16 @@ mod opaque_layout {
 /// Utilities for working with `PyObject` objects that utilise the standard layout for python extensions,
 /// where the base class is placed at the beginning of a `repr(C)` struct.
 #[doc(hidden)]
-mod static_layout {
-    use crate::impl_::pyclass::{PyClassBaseType, PyClassImpl};
+pub(crate) mod static_layout {
+    use crate::{
+        ffi,
+        impl_::pyclass::{PyClassBaseType, PyClassImpl},
+        pycell::PyBorrowError,
+        type_object::{PyLayout, PySizedLayout},
+        PyTypeInfo, Python,
+    };
 
-    use super::PyClassObjectContents;
+    use super::{tp_dealloc, PyClassObjectBaseLayout, PyClassObjectContents};
 
     // The layout of a `PyObject` that uses the static layout
     #[repr(C)]
@@ -614,12 +598,36 @@ mod static_layout {
         pub ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
         pub contents: PyClassObjectContents<T>,
     }
+
+    /// Base layout of PyClassObject with a known sized base type.
+    /// Corresponds to [PyObject](https://docs.python.org/3/c-api/structures.html#c.PyObject) from the C API.
+    #[doc(hidden)]
+    #[repr(C)]
+    pub struct PyClassObjectBase<T> {
+        ob_base: T,
+    }
+
+    unsafe impl<T, U> PyLayout<T> for PyClassObjectBase<U> where U: PySizedLayout<T> {}
+
+    impl<T, U> PyClassObjectBaseLayout<T> for PyClassObjectBase<U>
+    where
+        U: PySizedLayout<T>,
+        T: PyTypeInfo,
+    {
+        fn ensure_threadsafe(&self) {}
+        fn check_threadsafe(&self) -> Result<(), PyBorrowError> {
+            Ok(())
+        }
+        unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
+            tp_dealloc(py, slf, T::type_object_raw(py));
+        }
+    }
 }
 
 pub(crate) struct PyObjectLayout {}
 
 impl PyObjectLayout {
-    /// Obtain a pointer to the contents of an `PyObject` of type `T`.
+    /// Obtain a pointer to the contents of a `PyObject` of type `T`.
     ///
     /// Safety: the provided object must be valid and have the layout indicated by `T`
     pub(crate) unsafe fn get_contents_ptr<T: PyClassImpl>(
@@ -632,6 +640,24 @@ impl PyObjectLayout {
             let obj: *mut static_layout::ClassObject<T> = obj.cast();
             addr_of_mut!((*obj).contents)
         }
+    }
+
+    /// obtain a pointer to the pyclass struct of a `PyObject` of type `T`.
+    ///
+    /// Safety: the provided object must be valid and have the layout indicated by `T`
+    pub(crate) unsafe fn get_data_ptr<T: PyClassImpl>(obj: *mut ffi::PyObject) -> *mut T {
+        let contents = PyObjectLayout::get_contents_ptr::<T>(obj);
+        (*contents).value.get()
+    }
+
+    /// obtain a reference to the data at the start of the `PyObject`.
+    ///
+    /// Safety: the provided object must be valid and have the layout indicated by `T`
+    pub(crate) unsafe fn ob_base<T: PyClassImpl>(
+        obj: *mut ffi::PyObject,
+    ) -> *mut <T::BaseType as PyClassBaseType>::LayoutAsBase {
+        // the base layout is always at the beginning of the `PyObject` so the pointer can simply be casted
+        obj as *mut <T::BaseType as PyClassBaseType>::LayoutAsBase
     }
 
     /// Used to set `PyType_Spec::basicsize` when creating a `PyTypeObject` for `T`
@@ -710,10 +736,7 @@ mod tests {
     fn test_inherited_size() {
         let base_size = PyObjectLayout::basicsize::<BaseWithData>();
         assert!(base_size > 0); // negative indicates variable sized
-        assert_eq!(
-            base_size,
-            PyObjectLayout::basicsize::<ChildWithoutData>()
-        );
+        assert_eq!(base_size, PyObjectLayout::basicsize::<ChildWithoutData>());
         assert!(base_size < PyObjectLayout::basicsize::<ChildWithData>());
     }
 

@@ -2,7 +2,7 @@ use crate::conversion::IntoPyObject;
 use crate::err::{self, PyErr, PyResult};
 use crate::impl_::pyclass::PyClassImpl;
 use crate::internal_tricks::ptr_from_ref;
-use crate::pycell::impl_::PyClassObjectLayout;
+use crate::pycell::impl_::{PyObjectHandle, PyObjectLayout};
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
@@ -1290,8 +1290,9 @@ where
     where
         T: PyClass<Frozen = True> + Sync,
     {
+        let obj = self.as_ptr();
         // Safety: The class itself is frozen and `Sync`
-        unsafe { &*self.get_class_object().get_ptr() }
+        unsafe { &*PyObjectLayout::get_data_ptr::<T>(obj) }
     }
 
     /// Get a view on the underlying `PyClass` contents.

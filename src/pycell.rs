@@ -208,7 +208,7 @@ use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 
 pub(crate) mod impl_;
-use impl_::{PyClassBorrowChecker, PyClassObjectBaseLayout, PyClassObjectLayout};
+use impl_::{PyClassBorrowChecker, PyClassObjectBaseLayout, PyClassObjectLayout, PyObjectLayout};
 
 /// A wrapper type for an immutably borrowed value from a [`Bound<'py, T>`].
 ///
@@ -436,7 +436,8 @@ impl<T: PyClass> Deref for PyRef<'_, T> {
 
     #[inline]
     fn deref(&self) -> &T {
-        unsafe { &*self.inner.get_class_object().get_ptr() }
+        let obj = self.inner.as_ptr();
+        unsafe { &*PyObjectLayout::get_data_ptr::<T>(obj) }
     }
 }
 
@@ -620,14 +621,16 @@ impl<T: PyClass<Frozen = False>> Deref for PyRefMut<'_, T> {
 
     #[inline]
     fn deref(&self) -> &T {
-        unsafe { &*self.inner.get_class_object().get_ptr() }
+        let obj = self.inner.as_ptr();
+        unsafe { &*PyObjectLayout::get_data_ptr::<T>(obj) }
     }
 }
 
 impl<T: PyClass<Frozen = False>> DerefMut for PyRefMut<'_, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
-        unsafe { &mut *self.inner.get_class_object().get_ptr() }
+        let obj = self.inner.as_ptr();
+        unsafe { &mut *PyObjectLayout::get_data_ptr::<T>(obj) }
     }
 }
 
