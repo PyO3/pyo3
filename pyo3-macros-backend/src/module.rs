@@ -458,6 +458,9 @@ fn module_initialization(
         pub(super) struct MakeDef;
         #[doc(hidden)]
         pub static _PYO3_DEF: #pyo3_path::impl_::pymodule::ModuleDef = #module_def;
+        #[doc(hidden)]
+        // so wrapped submodules can see what gil_used is
+        pub static __PYO3_GIL_USED: bool = #gil_used;
     };
     if !is_submodule {
         result.extend(quote! {
