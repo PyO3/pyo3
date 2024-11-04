@@ -92,10 +92,10 @@ fn register_child_module(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
 ```
 
 See the
-[`string-sum`](https://github.com/PyO3/pyo3/tree/main/examples/string-sum)
+[`string-sum`](https://github.com/PyO3/pyo3/tree/main/pyo3-ffi/examples/string-sum)
 example for how to declare free-threaded support using raw FFI calls for modules
 using single-phase initialization and the
-[`sequential`](https://github.com/PyO3/pyo3/tree/main/examples/sequential)
+[`sequential`](https://github.com/PyO3/pyo3/tree/main/pyo3-ffi/examples/sequential)
 example for modules using multi-phase initialization.
 
 ## Special considerations for the free-threaded build
