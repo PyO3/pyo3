@@ -1,5 +1,3 @@
-#[cfg(Py_3_12)]
-use crate::pycell::impl_::PyClassObjectContents;
 use crate::{
     conversion::IntoPyObject,
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
@@ -10,7 +8,10 @@ use crate::{
         pyclass_init::PyObjectInit,
         pymethods::{PyGetterDef, PyMethodDefType},
     },
-    pycell::{impl_::PyClassObjectLayout, PyBorrowError},
+    pycell::{
+        impl_::{PyClassObjectLayout, PyObjectLayout},
+        PyBorrowError,
+    },
     types::{any::PyAnyMethods, PyBool},
     Borrowed, BoundObject, Py, PyAny, PyClass, PyErr, PyRef, PyResult, PyTypeInfo, Python,
 };
@@ -31,13 +32,13 @@ pub use lazy_type_object::LazyTypeObject;
 /// Gets the offset of the dictionary from the start of the object in bytes.
 #[inline]
 pub fn dict_offset<T: PyClass>() -> PyObjectOffset {
-    <T as PyClassImpl>::Layout::dict_offset()
+    PyObjectLayout::dict_offset::<T>()
 }
 
 /// Gets the offset of the weakref list from the start of the object in bytes.
 #[inline]
 pub fn weaklist_offset<T: PyClass>() -> PyObjectOffset {
-    <T as PyClassImpl>::Layout::weaklist_offset()
+    PyObjectLayout::weaklist_offset::<T>()
 }
 
 /// Represents the `__dict__` field for `#[pyclass]`.
@@ -1229,7 +1230,7 @@ pub unsafe trait OffsetCalculator<T: PyClass, U> {
 
 // Used in generated implementations of OffsetCalculator
 pub fn subclass_offset<T: PyClass>() -> PyObjectOffset {
-    <T as PyClassImpl>::Layout::contents_offset()
+    PyObjectLayout::contents_offset::<T>()
 }
 
 // Used in generated implementations of OffsetCalculator
@@ -1546,10 +1547,8 @@ where
         PyObjectOffset::Absolute(offset) => (obj.cast::<u8>(), offset),
         #[cfg(Py_3_12)]
         PyObjectOffset::Relative(offset) => {
-            let class_ptr = obj.cast::<<ClassT as PyClassImpl>::Layout>();
-            // Safety: the object `obj` must have the layout `ClassT::Layout`
-            let class_obj = unsafe { &mut *class_ptr };
-            let contents = (&mut class_obj.contents_mut().0) as *mut PyClassObjectContents<ClassT>;
+            // Safety: obj must be a valid `PyObject` of type `ClassT`
+            let contents = unsafe { PyObjectLayout::get_contents_ptr::<ClassT>(obj) };
             (contents.cast::<u8>(), offset)
         }
         #[cfg(not(Py_3_12))]

@@ -257,23 +257,11 @@ pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
     /// obtain a reference to the structure that contains the pyclass struct and associated metadata.
     fn contents(&self) -> &WrappedPyClassObjectContents<T>;
 
-    /// obtain a mutable reference to the structure that contains the pyclass struct and associated metadata.
-    fn contents_mut(&mut self) -> &mut WrappedPyClassObjectContents<T>;
-
     /// obtain a pointer to the pyclass struct.
     fn get_ptr(&self) -> *mut T;
 
     /// obtain a reference to the data at the start of the PyObject.
     fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase;
-
-    /// Gets the offset of the contents from the start of the struct in bytes.
-    fn contents_offset() -> PyObjectOffset;
-
-    /// Gets the offset of the dictionary from the start of the struct in bytes.
-    fn dict_offset() -> PyObjectOffset;
-
-    /// Gets the offset of the weakref list from the start of the struct in bytes.
-    fn weaklist_offset() -> PyObjectOffset;
 
     fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker;
 }
@@ -362,41 +350,12 @@ impl<T: PyClassImpl> PyClassObjectLayout<T> for PyStaticClassObject<T> {
         (&self.contents).into()
     }
 
-    fn contents_mut(&mut self) -> &mut WrappedPyClassObjectContents<T> {
-        (&mut self.contents).into()
-    }
-
     fn get_ptr(&self) -> *mut T {
         self.contents.value.get()
     }
 
     fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase {
         &self.ob_base
-    }
-
-    fn contents_offset() -> PyObjectOffset {
-        PyObjectOffset::Absolute(usize_to_py_ssize(memoffset::offset_of!(
-            PyStaticClassObject<T>,
-            contents
-        )))
-    }
-
-    fn dict_offset() -> PyObjectOffset {
-        use memoffset::offset_of;
-
-        let offset = offset_of!(PyStaticClassObject<T>, contents)
-            + offset_of!(PyClassObjectContents<T>, dict);
-
-        PyObjectOffset::Absolute(usize_to_py_ssize(offset))
-    }
-
-    fn weaklist_offset() -> PyObjectOffset {
-        use memoffset::offset_of;
-
-        let offset = offset_of!(PyStaticClassObject<T>, contents)
-            + offset_of!(PyClassObjectContents<T>, weakref);
-
-        PyObjectOffset::Absolute(usize_to_py_ssize(offset))
     }
 
     fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
@@ -425,8 +384,8 @@ where
     }
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
         // Safety: Python only calls tp_dealloc when no references to the object remain.
-        let class_object = &mut *(slf.cast::<T::Layout>());
-        class_object.contents_mut().0.dealloc(py, slf);
+        let contents = unsafe { PyObjectLayout::get_contents_ptr::<T>(slf) };
+        (*contents).dealloc(py, slf);
         <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf)
     }
 }
@@ -470,29 +429,6 @@ impl<T: PyClassImpl> PyClassObjectLayout<T> for PyVariableClassObject<T> {
             .expect("should be able to cast PyClassObjectContents pointer")
     }
 
-    fn contents_mut(&mut self) -> &mut WrappedPyClassObjectContents<T> {
-        unsafe { self.get_contents_ptr().as_mut() }
-            .expect("should be able to cast PyClassObjectContents pointer")
-    }
-
-    fn contents_offset() -> PyObjectOffset {
-        PyObjectOffset::Relative(0)
-    }
-
-    fn dict_offset() -> PyObjectOffset {
-        PyObjectOffset::Relative(usize_to_py_ssize(memoffset::offset_of!(
-            PyClassObjectContents<T>,
-            dict
-        )))
-    }
-
-    fn weaklist_offset() -> PyObjectOffset {
-        PyObjectOffset::Relative(usize_to_py_ssize(memoffset::offset_of!(
-            PyClassObjectContents<T>,
-            weakref
-        )))
-    }
-
     fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
         // Safety: T::Layout must be PyStaticClassObject<T>
         let slf: &T::Layout = unsafe { std::mem::transmute(self) };
@@ -519,8 +455,8 @@ where
     }
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
         // Safety: Python only calls tp_dealloc when no references to the object remain.
-        let class_object = &mut *(slf.cast::<T::Layout>());
-        class_object.contents_mut().0.dealloc(py, slf);
+        let contents = unsafe { PyObjectLayout::get_contents_ptr::<T>(slf) };
+        (*contents).dealloc(py, slf);
         <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf)
     }
 }
@@ -574,6 +510,12 @@ pub(crate) mod opaque_layout {
         }
 
         #[cfg(not(Py_3_12))]
+        panic_unsupported();
+    }
+
+    #[inline(always)]
+    #[cfg(not(Py_3_12))]
+    fn panic_unsupported() {
         panic!("opaque layout not supported until python 3.12");
     }
 }
@@ -664,13 +606,107 @@ impl PyObjectLayout {
     /// ([docs](https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize))
     pub(crate) fn basicsize<T: PyClassImpl>() -> ffi::Py_ssize_t {
         if <T::BaseType as PyTypeInfo>::OPAQUE {
-            // negative to indicate 'extra' space that python will allocate
-            // specifically for `T` excluding the base class
-            -usize_to_py_ssize(std::mem::size_of::<PyClassObjectContents<T>>())
+            #[cfg(Py_3_12)]
+            {
+                // negative to indicate 'extra' space that python will allocate
+                // specifically for `T` excluding the base class
+                -usize_to_py_ssize(std::mem::size_of::<PyClassObjectContents<T>>())
+            }
+
+            #[cfg(not(Py_3_12))]
+            opaque_layout::panic_unsupported();
         } else {
             usize_to_py_ssize(std::mem::size_of::<static_layout::ClassObject<T>>())
         }
     }
+
+    /// Gets the offset of the contents from the start of the struct in bytes.
+    pub(crate) fn contents_offset<T: PyClassImpl>() -> PyObjectOffset {
+        if <T::BaseType as PyTypeInfo>::OPAQUE {
+            #[cfg(Py_3_12)]
+            {
+                PyObjectOffset::Relative(0)
+            }
+
+            #[cfg(not(Py_3_12))]
+            opaque_layout::panic_unsupported();
+        } else {
+            PyObjectOffset::Absolute(usize_to_py_ssize(memoffset::offset_of!(
+                static_layout::ClassObject<T>,
+                contents
+            )))
+        }
+    }
+
+    /// Gets the offset of the dictionary from the start of the struct in bytes.
+    pub(crate) fn dict_offset<T: PyClassImpl>() -> PyObjectOffset {
+        if <T::BaseType as PyTypeInfo>::OPAQUE {
+            #[cfg(Py_3_12)]
+            {
+                PyObjectOffset::Relative(usize_to_py_ssize(memoffset::offset_of!(
+                    PyClassObjectContents<T>,
+                    dict
+                )))
+            }
+
+            #[cfg(not(Py_3_12))]
+            opaque_layout::panic_unsupported();
+        } else {
+            let offset = memoffset::offset_of!(static_layout::ClassObject<T>, contents)
+                + memoffset::offset_of!(PyClassObjectContents<T>, dict);
+
+            PyObjectOffset::Absolute(usize_to_py_ssize(offset))
+        }
+    }
+
+    /// Gets the offset of the weakref list from the start of the struct in bytes.
+    pub(crate) fn weaklist_offset<T: PyClassImpl>() -> PyObjectOffset {
+        if <T::BaseType as PyTypeInfo>::OPAQUE {
+            #[cfg(Py_3_12)]
+            {
+                PyObjectOffset::Relative(usize_to_py_ssize(memoffset::offset_of!(
+                    PyClassObjectContents<T>,
+                    weakref
+                )))
+            }
+
+            #[cfg(not(Py_3_12))]
+            opaque_layout::panic_unsupported();
+        } else {
+            let offset = memoffset::offset_of!(static_layout::ClassObject<T>, contents)
+                + memoffset::offset_of!(PyClassObjectContents<T>, weakref);
+
+            PyObjectOffset::Absolute(usize_to_py_ssize(offset))
+        }
+    }
+}
+
+/// A wrapper around PyObject to provide [PyObjectLayout] functionality.
+pub(crate) struct PyObjectHandle<'a, T: PyClassImpl>(*mut ffi::PyObject, PhantomData<&'a T>);
+
+impl<'a, T: PyClassImpl> PyObjectHandle<'a, T> {
+    /// Safety: obj must point to a valid PyObject with the type `T`
+    pub unsafe fn new(obj: *mut ffi::PyObject) -> Self {
+        debug_assert!(!obj.is_null());
+        PyObjectHandle(obj, PhantomData)
+    }
+
+    pub fn contents(&'a self) -> &'a PyClassObjectContents<T> {
+        unsafe { &*PyObjectLayout::get_contents_ptr::<T>(self.0) }
+    }
+
+    pub fn data(&'a self) -> &'a T {
+        unsafe { &*PyObjectLayout::get_data_ptr::<T>(self.0) }
+    }
+
+    pub fn ensure_threadsafe(&self) {
+        let contents = unsafe { &(*PyObjectLayout::get_contents_ptr::<T>(self.0)) };
+        contents.thread_checker.ensure();
+        let base = unsafe { &(*PyObjectLayout::ob_base::<T>(self.0)) };
+        base.ensure_threadsafe();
+    }
+
+    pub fn borrow_checker(&self) {}
 }
 
 #[cfg(test)]
