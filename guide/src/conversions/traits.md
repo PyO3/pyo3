@@ -559,6 +559,9 @@ enum Enum<'a, 'py, K: Hash + Eq, V> { // enums are supported and convert using t
 }
 ```
 
+Additionally `IntoPyObject` can be derived for a reference to a struct or enum using the
+`IntoPyObjectRef` derive macro. All the same rules from above apply as well.
+
 #### manual implementation
 
 If the derive macro is not suitable for your use case, `IntoPyObject` can be implemented manually as
