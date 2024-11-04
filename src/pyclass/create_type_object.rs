@@ -4,14 +4,13 @@ use crate::{
     impl_::{
         pyclass::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
-            tp_dealloc_with_gc, MaybeRuntimePyMethodDef, PyClassImpl, PyClassItemsIter,
-            PyObjectOffset,
+            tp_dealloc_with_gc, MaybeRuntimePyMethodDef, PyClassItemsIter, PyObjectOffset,
         },
         pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, _call_clear},
         trampoline::trampoline,
     },
     internal_tricks::ptr_from_ref,
-    pycell::impl_::PyClassObjectLayout,
+    pycell::impl_::PyObjectLayout,
     types::{typeobject::PyTypeMethods, PyType},
     Py, PyClass, PyResult, PyTypeInfo, Python,
 };
@@ -95,7 +94,7 @@ where
             T::items_iter(),
             T::NAME,
             T::MODULE,
-            <T as PyClassImpl>::Layout::basicsize(),
+            PyObjectLayout::basicsize::<T>(),
         )
     }
 }

@@ -296,10 +296,6 @@ pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
     /// obtain a reference to the data at the start of the PyObject.
     fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase;
 
-    /// Used to set `PyType_Spec::basicsize`
-    /// ([docs](https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize))
-    fn basicsize() -> ffi::Py_ssize_t;
-
     /// Gets the offset of the contents from the start of the struct in bytes.
     fn contents_offset() -> PyObjectOffset;
 
@@ -422,14 +418,6 @@ impl<T: PyClassImpl> PyClassObjectLayout<T> for PyStaticClassObject<T> {
         &self.ob_base
     }
 
-    fn basicsize() -> ffi::Py_ssize_t {
-        let size = std::mem::size_of::<Self>();
-
-        // Py_ssize_t may not be equal to isize on all platforms
-        #[allow(clippy::useless_conversion)]
-        size.try_into().expect("size should fit in Py_ssize_t")
-    }
-
     fn contents_offset() -> PyObjectOffset {
         PyObjectOffset::Absolute(usize_to_py_ssize(memoffset::offset_of!(
             PyStaticClassObject<T>,
@@ -531,12 +519,6 @@ impl<T: PyClassImpl> PyClassObjectLayout<T> for PyVariableClassObject<T> {
             .expect("should be able to cast PyClassObjectContents pointer")
     }
 
-    fn basicsize() -> ffi::Py_ssize_t {
-        let size = std::mem::size_of::<PyClassObjectContents<T>>();
-        // negative to indicate 'extra' space that cpython will allocate for us
-        -usize_to_py_ssize(size)
-    }
-
     fn contents_offset() -> PyObjectOffset {
         PyObjectOffset::Relative(0)
     }
@@ -626,6 +608,7 @@ mod static_layout {
 
     use super::PyClassObjectContents;
 
+    // The layout of a `PyObject` that uses the static layout
     #[repr(C)]
     pub struct ClassObject<T: PyClassImpl> {
         pub ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
@@ -636,7 +619,7 @@ mod static_layout {
 pub(crate) struct PyObjectLayout {}
 
 impl PyObjectLayout {
-    /// Obtain a pointer to the contents of an PyObject of this type.
+    /// Obtain a pointer to the contents of an `PyObject` of type `T`.
     ///
     /// Safety: the provided object must be valid and have the layout indicated by `T`
     pub(crate) unsafe fn get_contents_ptr<T: PyClassImpl>(
@@ -648,6 +631,18 @@ impl PyObjectLayout {
         } else {
             let obj: *mut static_layout::ClassObject<T> = obj.cast();
             addr_of_mut!((*obj).contents)
+        }
+    }
+
+    /// Used to set `PyType_Spec::basicsize` when creating a `PyTypeObject` for `T`
+    /// ([docs](https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize))
+    pub(crate) fn basicsize<T: PyClassImpl>() -> ffi::Py_ssize_t {
+        if <T::BaseType as PyTypeInfo>::OPAQUE {
+            // negative to indicate 'extra' space that python will allocate
+            // specifically for `T` excluding the base class
+            -usize_to_py_ssize(std::mem::size_of::<PyClassObjectContents<T>>())
+        } else {
+            usize_to_py_ssize(std::mem::size_of::<static_layout::ClassObject<T>>())
         }
     }
 }
@@ -713,13 +708,13 @@ mod tests {
 
     #[test]
     fn test_inherited_size() {
-        let base_size = PyStaticClassObject::<BaseWithData>::basicsize();
+        let base_size = PyObjectLayout::basicsize::<BaseWithData>();
         assert!(base_size > 0); // negative indicates variable sized
         assert_eq!(
             base_size,
-            PyStaticClassObject::<ChildWithoutData>::basicsize()
+            PyObjectLayout::basicsize::<ChildWithoutData>()
         );
-        assert!(base_size < PyStaticClassObject::<ChildWithData>::basicsize());
+        assert!(base_size < PyObjectLayout::basicsize::<ChildWithData>());
     }
 
     fn assert_mutable<T: PyClass<Frozen = False, PyClassMutability = MutableClass>>() {}
