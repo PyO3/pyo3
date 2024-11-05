@@ -275,7 +275,7 @@ which releases the GIL while the waiting for the lock, so that is another option
 if you only need to support newer Python versions.
 
 [`GILOnceCell`]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html
-[`GILProtected`]: https://docs.rs/pyo3/latest/pyo3/sync/struct.GILProtected.html
+[`GILProtected`]: https://docs.rs/pyo3/0.22/pyo3/sync/struct.GILProtected.html
 [`Once`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html
 [`Once::call_once`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html#tymethod.call_once
 [`Once::call_once_force`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html#tymethod.call_once_force
