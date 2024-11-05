@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 pub struct PyCounter {
     // Keeps track of how many calls have gone through.
     //
-    // See the discussion at the end for why `Cell` is used.
+    // See the discussion at the end for why `AtomicU64` is used.
     count: AtomicU64,
 
     // This is the actual function being wrapped.
