@@ -388,6 +388,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     fn test_no_deadlock_thread_switch() {
         static ERR: GILOnceCell<PyErr> = GILOnceCell::new();
 
