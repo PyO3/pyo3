@@ -8,17 +8,20 @@ use std::{cell::UnsafeCell, ffi::CStr, marker::PhantomData};
     not(all(windows, Py_LIMITED_API, not(Py_3_10))),
     not(target_has_atomic = "64"),
 ))]
-use portable_atomic::{AtomicI64, Ordering};
+use portable_atomic::AtomicI64;
 #[cfg(all(
     not(any(PyPy, GraalPy)),
     Py_3_9,
     not(all(windows, Py_LIMITED_API, not(Py_3_10))),
     target_has_atomic = "64",
 ))]
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::atomic::AtomicI64;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
+#[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
+use crate::PyErr;
 use crate::{
     ffi,
     impl_::pymethods::PyMethodDef,
@@ -41,6 +44,8 @@ pub struct ModuleDef {
     interpreter: AtomicI64,
     /// Initialized module object, cached to avoid reinitialization.
     module: GILOnceCell<Py<PyModule>>,
+    /// Whether or not the module supports running without the GIL
+    gil_used: AtomicBool,
 }
 
 /// Wrapper to enable initializer to be used in const fns.
@@ -85,10 +90,12 @@ impl ModuleDef {
             ))]
             interpreter: AtomicI64::new(-1),
             module: GILOnceCell::new(),
+            gil_used: AtomicBool::new(true),
         }
     }
     /// Builds a module using user given initializer. Used for [`#[pymodule]`][crate::pymodule].
-    pub fn make_module(&'static self, py: Python<'_>) -> PyResult<Py<PyModule>> {
+    #[cfg_attr(any(Py_LIMITED_API, not(Py_GIL_DISABLED)), allow(unused_variables))]
+    pub fn make_module(&'static self, py: Python<'_>, gil_used: bool) -> PyResult<Py<PyModule>> {
         // Check the interpreter ID has not changed, since we currently have no way to guarantee
         // that static data is not reused across interpreters.
         //
@@ -134,6 +141,19 @@ impl ModuleDef {
                         ffi::PyModule_Create(self.ffi_def.get()),
                     )?
                 };
+                #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
+                {
+                    let gil_used_ptr = {
+                        if gil_used {
+                            ffi::Py_MOD_GIL_USED
+                        } else {
+                            ffi::Py_MOD_GIL_NOT_USED
+                        }
+                    };
+                    if unsafe { ffi::PyUnstable_Module_SetGIL(module.as_ptr(), gil_used_ptr) } < 0 {
+                        return Err(PyErr::fetch(py));
+                    }
+                }
                 self.initializer.0(module.bind(py))?;
                 Ok(module)
             })
@@ -190,7 +210,10 @@ impl PyAddToModule for PyMethodDef {
 /// For adding a module to a module.
 impl PyAddToModule for ModuleDef {
     fn add_to_module(&'static self, module: &Bound<'_, PyModule>) -> PyResult<()> {
-        module.add_submodule(self.make_module(module.py())?.bind(module.py()))
+        module.add_submodule(
+            self.make_module(module.py(), self.gil_used.load(Ordering::Relaxed))?
+                .bind(module.py()),
+        )
     }
 }
 
@@ -223,7 +246,7 @@ mod tests {
             )
         };
         Python::with_gil(|py| {
-            let module = MODULE_DEF.make_module(py).unwrap().into_bound(py);
+            let module = MODULE_DEF.make_module(py, false).unwrap().into_bound(py);
             assert_eq!(
                 module
                     .getattr("__name__")

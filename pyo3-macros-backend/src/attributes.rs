@@ -7,7 +7,7 @@ use syn::{
     punctuated::Punctuated,
     spanned::Spanned,
     token::Comma,
-    Attribute, Expr, ExprPath, Ident, Index, LitStr, Member, Path, Result, Token,
+    Attribute, Expr, ExprPath, Ident, Index, LitBool, LitStr, Member, Path, Result, Token,
 };
 
 pub mod kw {
@@ -44,6 +44,7 @@ pub mod kw {
     syn::custom_keyword!(transparent);
     syn::custom_keyword!(unsendable);
     syn::custom_keyword!(weakref);
+    syn::custom_keyword!(gil_used);
 }
 
 fn take_int(read: &mut &str, tracker: &mut usize) -> String {
@@ -308,6 +309,7 @@ pub type RenameAllAttribute = KeywordAttribute<kw::rename_all, RenamingRuleLitSt
 pub type StrFormatterAttribute = OptionalKeywordAttribute<kw::str, StringFormatter>;
 pub type TextSignatureAttribute = KeywordAttribute<kw::text_signature, TextSignatureAttributeValue>;
 pub type SubmoduleAttribute = kw::submodule;
+pub type GILUsedAttribute = KeywordAttribute<kw::gil_used, LitBool>;
 
 impl<K: Parse + std::fmt::Debug, V: Parse> Parse for KeywordAttribute<K, V> {
     fn parse(input: ParseStream<'_>) -> Result<Self> {

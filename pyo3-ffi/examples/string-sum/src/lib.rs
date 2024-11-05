@@ -32,7 +32,18 @@ static mut METHODS: &[PyMethodDef] = &[
 #[allow(non_snake_case)]
 #[no_mangle]
 pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
-    PyModule_Create(ptr::addr_of_mut!(MODULE_DEF))
+    let module = PyModule_Create(ptr::addr_of_mut!(MODULE_DEF));
+    if module.is_null() {
+        return module;
+    }
+    #[cfg(Py_GIL_DISABLED)]
+    {
+        if PyUnstable_Module_SetGIL(module, Py_MOD_GIL_NOT_USED) < 0 {
+            Py_DECREF(module);
+            return std::ptr::null_mut();
+        }
+    }
+    module
 }
 
 /// A helper to parse function arguments

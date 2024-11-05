@@ -2,8 +2,8 @@
 
 use crate::{
     attributes::{
-        self, kw, take_attributes, take_pyo3_options, CrateAttribute, ModuleAttribute,
-        NameAttribute, SubmoduleAttribute,
+        self, kw, take_attributes, take_pyo3_options, CrateAttribute, GILUsedAttribute,
+        ModuleAttribute, NameAttribute, SubmoduleAttribute,
     },
     get_doc,
     pyclass::PyClassPyO3Option,
@@ -29,6 +29,7 @@ pub struct PyModuleOptions {
     name: Option<NameAttribute>,
     module: Option<ModuleAttribute>,
     submodule: Option<kw::submodule>,
+    gil_used: Option<GILUsedAttribute>,
 }
 
 impl Parse for PyModuleOptions {
@@ -72,6 +73,9 @@ impl PyModuleOptions {
                     submodule,
                     " (it is implicitly always specified for nested modules)"
                 ),
+                PyModulePyO3Option::GILUsed(gil_used) => {
+                    set_option!(gil_used)
+                }
             }
         }
         Ok(())
@@ -344,7 +348,13 @@ pub fn pymodule_module_impl(
             )
         }
     }};
-    let initialization = module_initialization(&name, ctx, module_def, options.submodule.is_some());
+    let initialization = module_initialization(
+        &name,
+        ctx,
+        module_def,
+        options.submodule.is_some(),
+        options.gil_used.map_or(true, |op| op.value.value),
+    );
 
     Ok(quote!(
         #(#attrs)*
@@ -383,7 +393,13 @@ pub fn pymodule_function_impl(
     let vis = &function.vis;
     let doc = get_doc(&function.attrs, None, ctx);
 
-    let initialization = module_initialization(&name, ctx, quote! { MakeDef::make_def() }, false);
+    let initialization = module_initialization(
+        &name,
+        ctx,
+        quote! { MakeDef::make_def() },
+        false,
+        options.gil_used.map_or(true, |op| op.value.value),
+    );
 
     // Module function called with optional Python<'_> marker as first arg, followed by the module.
     let mut module_args = Vec::new();
@@ -428,6 +444,7 @@ fn module_initialization(
     ctx: &Ctx,
     module_def: TokenStream,
     is_submodule: bool,
+    gil_used: bool,
 ) -> TokenStream {
     let Ctx { pyo3_path, .. } = ctx;
     let pyinit_symbol = format!("PyInit_{}", name);
@@ -441,6 +458,9 @@ fn module_initialization(
         pub(super) struct MakeDef;
         #[doc(hidden)]
         pub static _PYO3_DEF: #pyo3_path::impl_::pymodule::ModuleDef = #module_def;
+        #[doc(hidden)]
+        // so wrapped submodules can see what gil_used is
+        pub static __PYO3_GIL_USED: bool = #gil_used;
     };
     if !is_submodule {
         result.extend(quote! {
@@ -449,7 +469,7 @@ fn module_initialization(
             #[doc(hidden)]
             #[export_name = #pyinit_symbol]
             pub unsafe extern "C" fn __pyo3_init() -> *mut #pyo3_path::ffi::PyObject {
-                unsafe { #pyo3_path::impl_::trampoline::module_init(|py| _PYO3_DEF.make_module(py)) }
+                unsafe { #pyo3_path::impl_::trampoline::module_init(|py| _PYO3_DEF.make_module(py, #gil_used)) }
             }
         });
     }
@@ -596,6 +616,7 @@ enum PyModulePyO3Option {
     Crate(CrateAttribute),
     Name(NameAttribute),
     Module(ModuleAttribute),
+    GILUsed(GILUsedAttribute),
 }
 
 impl Parse for PyModulePyO3Option {
@@ -609,6 +630,8 @@ impl Parse for PyModulePyO3Option {
             input.parse().map(PyModulePyO3Option::Module)
         } else if lookahead.peek(attributes::kw::submodule) {
             input.parse().map(PyModulePyO3Option::Submodule)
+        } else if lookahead.peek(attributes::kw::gil_used) {
+            input.parse().map(PyModulePyO3Option::GILUsed)
         } else {
             Err(lookahead.error())
         }

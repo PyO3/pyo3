@@ -10,4 +10,7 @@ crate-type = ["cdylib", "lib"]
 [dependencies]
 pyo3-ffi = { path = "../../", features = ["extension-module"] }
 
+[build-dependencies]
+pyo3-build-config = { path = "../../../pyo3-build-config" }
+
 [workspace]

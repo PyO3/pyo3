@@ -676,14 +676,6 @@ def test_version_limits(session: nox.Session):
         config_file.set("PyPy", "3.11")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        # Python build with GIL disabled should fail building
-        config_file.set("CPython", "3.13", build_flags=["Py_GIL_DISABLED"])
-        _run_cargo(session, "check", env=env, expect_error=True)
-
-        # Python build with GIL disabled should pass with env flag on
-        env["UNSAFE_PYO3_BUILD_FREE_THREADED"] = "1"
-        _run_cargo(session, "check", env=env)
-
 
 @nox.session(name="check-feature-powerset", venv_backend="none")
 def check_feature_powerset(session: nox.Session):

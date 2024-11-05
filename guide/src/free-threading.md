@@ -38,11 +38,83 @@ native Python runtime by building on the Rust [`Send` and
 `Sync`](https://doc.rust-lang.org/nomicon/send-and-sync.html) traits.
 
 This document provides advice for porting Rust code using PyO3 to run under
-free-threaded Python. While many simple PyO3 uses, like defining an immutable
-Python class, will likely work "out of the box", there are currently some
-limitations.
+free-threaded Python.
 
-## Many symbols exposed by PyO3 have `GIL` in the name
+## Supporting free-threaded Python with PyO3
+
+Many simple uses of PyO3, like exposing bindings for a "pure" Rust function
+with no side-effects or defining an immutable Python class, will likely work
+"out of the box" on the free-threaded build. All that will be necessary is to
+annotate Python modules declared by rust code in your project to declare that
+they support free-threaded Python, for example by declaring the module with
+`#[pymodule(gil_used = false)]`.
+
+At a low-level, annotating a module sets the `Py_MOD_GIL` slot on modules
+defined by an extension to `Py_MOD_GIL_NOT_USED`, which allows the interpreter
+to see at runtime that the author of the extension thinks the extension is
+thread-safe. You should only do this if you know that your extension is
+thread-safe. Because of Rust's guarantees, this is already true for many
+extensions, however see below for more discussion about how to evaluate the
+thread safety of existing Rust extensions and how to think about the PyO3 API
+using a Python runtime with no GIL.
+
+If you do not explicitly mark that modules are thread-safe, the Python
+interpreter will re-enable the GIL at runtime and print a `RuntimeWarning`
+explaining which module caused it to re-enable the GIL. You can also force the
+GIL to remain disabled by setting the `PYTHON_GIL=0` as an environment variable
+or passing `-Xgil=0` when starting Python (`0` means the GIL is turned off).
+
+If you are sure that all data structures exposed in a `PyModule` are
+thread-safe, then pass `gil_used = false` as a parameter to the
+`pymodule` procedural macro declaring the module or call
+`PyModule::gil_used` on a `PyModule` instance.  For example:
+
+```rust
+use pyo3::prelude::*;
+
+/// This module supports free-threaded Python
+#[pymodule(gil_used = false)]
+fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // add members to the module that you know are thread-safe
+    Ok(())
+}
+```
+
+Or for a module that is set up without using the `pymodule` macro:
+
+```rust
+use pyo3::prelude::*;
+
+# #[allow(dead_code)]
+fn register_child_module(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
+    let child_module = PyModule::new(parent_module.py(), "child_module")?;
+    child_module.gil_used(false)?;
+    parent_module.add_submodule(&child_module)
+}
+
+```
+
+See the
+[`string-sum`](https://github.com/PyO3/pyo3/tree/main/pyo3-ffi/examples/string-sum)
+example for how to declare free-threaded support using raw FFI calls for modules
+using single-phase initialization and the
+[`sequential`](https://github.com/PyO3/pyo3/tree/main/pyo3-ffi/examples/sequential)
+example for modules using multi-phase initialization.
+
+## Special considerations for the free-threaded build
+
+The free-threaded interpreter does not have a GIL, and this can make interacting
+with the PyO3 API confusing, since the API was originally designed around strong
+assumptions about the GIL providing locking.  Additionally, since the GIL
+provided locking for operations on Python objects, many existing extensions that
+provide mutable data structures relied on the GIL to make interior mutability
+thread-safe.
+
+Working with PyO3 under the free-threaded interpreter therefore requires some
+additional care and mental overhead compared with a GIL-enabled interpreter. We
+discuss how to handle this below.
+
+### Many symbols exposed by PyO3 have `GIL` in the name
 
 We are aware that there are some naming issues in the PyO3 API that make it
 awkward to think about a runtime environment where there is no GIL. We plan to
@@ -87,7 +159,7 @@ garbage collector can only run if all threads are detached from the runtime (in
 a stop-the-world state), so detaching from the runtime allows freeing unused
 memory.
 
-## Exceptions and panics for multithreaded access of mutable `pyclass` instances
+### Exceptions and panics for multithreaded access of mutable `pyclass` instances
 
 Data attached to `pyclass` instances is protected from concurrent access by a
 `RefCell`-like pattern of runtime borrow checking. Like a `RefCell`, PyO3 will
@@ -104,7 +176,7 @@ The most straightforward way to trigger this problem to use the Python
 [`pyclass`]({{#PYO3_DOCS_URL}}/pyo3/attr.pyclass.html). For example,
 consider the following implementation:
 
-```
+```rust
 # use pyo3::prelude::*;
 # fn main() {
 #[pyclass]
@@ -211,7 +283,7 @@ Python::with_gil(|py| {
 # }
 ```
 
-## `GILProtected` is not exposed
+### `GILProtected` is not exposed
 
 [`GILProtected`] is a PyO3 type that allows mutable access to static data by
 leveraging the GIL to lock concurrent access from other threads. In

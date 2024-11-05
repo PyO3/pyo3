@@ -9,6 +9,8 @@ use crate::types::{
 };
 use crate::{exceptions, ffi, Borrowed, Bound, BoundObject, Py, PyObject, Python};
 use std::ffi::{CStr, CString};
+#[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
+use std::os::raw::c_int;
 use std::str;
 
 /// Represents a Python [`module`][1] object.
@@ -385,6 +387,40 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// [1]: crate::prelude::pyfunction
     /// [2]: crate::wrap_pyfunction
     fn add_function(&self, fun: Bound<'_, PyCFunction>) -> PyResult<()>;
+
+    /// Declare whether or not this module supports running with the GIL disabled
+    ///
+    /// If the module does not rely on the GIL for thread safety, you can pass
+    /// `false` to this function to indicate the module does not rely on the GIL
+    /// for thread-safety.
+    ///
+    /// This function sets the [`Py_MOD_GIL`
+    /// slot](https://docs.python.org/3/c-api/module.html#c.Py_mod_gil) on the
+    /// module object. The default is `Py_MOD_GIL_USED`, so passing `true` to
+    /// this function is a no-op unless you have already set `Py_MOD_GIL` to
+    /// `Py_MOD_GIL_NOT_USED` elsewhere.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    ///
+    /// #[pymodule(gil_used = false)]
+    /// fn my_module(py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
+    ///     let submodule = PyModule::new(py, "submodule")?;
+    ///     submodule.gil_used(false)?;
+    ///     module.add_submodule(&submodule)?;
+    ///     Ok(())
+    /// }
+    /// ```
+    ///
+    /// The resulting module will not print a `RuntimeWarning` and re-enable the
+    /// GIL when Python imports it on the free-threaded build, since all module
+    /// objects defined in the extension have `Py_MOD_GIL` set to
+    /// `Py_MOD_GIL_NOT_USED`.
+    ///
+    /// This is a no-op on the GIL-enabled build.
+    fn gil_used(&self, gil_used: bool) -> PyResult<()>;
 }
 
 impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
@@ -510,6 +546,23 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
     fn add_function(&self, fun: Bound<'_, PyCFunction>) -> PyResult<()> {
         let name = fun.getattr(__name__(self.py()))?;
         self.add(name.downcast_into::<PyString>()?, fun)
+    }
+
+    #[cfg_attr(any(Py_LIMITED_API, not(Py_GIL_DISABLED)), allow(unused_variables))]
+    fn gil_used(&self, gil_used: bool) -> PyResult<()> {
+        #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
+        {
+            let gil_used = match gil_used {
+                true => ffi::Py_MOD_GIL_USED,
+                false => ffi::Py_MOD_GIL_NOT_USED,
+            };
+            match unsafe { ffi::PyUnstable_Module_SetGIL(self.as_ptr(), gil_used) } {
+                c_int::MIN..=-1 => Err(PyErr::fetch(self.py())),
+                0..=c_int::MAX => Ok(()),
+            }
+        }
+        #[cfg(any(Py_LIMITED_API, not(Py_GIL_DISABLED)))]
+        Ok(())
     }
 }
 
