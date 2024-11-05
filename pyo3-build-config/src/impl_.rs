@@ -1040,12 +1040,18 @@ impl FromStr for BuildFlag {
 pub struct BuildFlags(pub HashSet<BuildFlag>);
 
 impl BuildFlags {
-    const ALL: [BuildFlag; 4] = [
-        BuildFlag::Py_DEBUG,
-        BuildFlag::Py_REF_DEBUG,
-        BuildFlag::Py_TRACE_REFS,
-        BuildFlag::COUNT_ALLOCS,
-    ];
+    fn iter_all() -> impl Iterator<Item = BuildFlag> {
+        [
+            BuildFlag::Py_DEBUG,
+            BuildFlag::Py_REF_DEBUG,
+            BuildFlag::Py_TRACE_REFS,
+            BuildFlag::COUNT_ALLOCS,
+            // done this way for the 0.22 branch because adding Py_GIL_DISABLED as
+            // an enum member is a breaking change
+            BuildFlag::Other("Py_GIL_DISABLED".to_string()),
+        ]
+        .into_iter()
+    }
 
     pub fn new() -> Self {
         BuildFlags(HashSet::new())
@@ -1053,14 +1059,12 @@ impl BuildFlags {
 
     fn from_sysconfigdata(config_map: &Sysconfigdata) -> Self {
         Self(
-            BuildFlags::ALL
-                .iter()
+            BuildFlags::iter_all()
                 .filter(|flag| {
                     config_map
                         .get_value(flag.to_string())
                         .map_or(false, |value| value == "1")
                 })
-                .cloned()
                 .collect(),
         )
         .fixup()
@@ -1079,7 +1083,7 @@ impl BuildFlags {
         let mut script = String::from("import sysconfig\n");
         script.push_str("config = sysconfig.get_config_vars()\n");
 
-        for k in &BuildFlags::ALL {
+        for k in BuildFlags::iter_all() {
             use std::fmt::Write;
             writeln!(&mut script, "print(config.get('{}', '0'))", k).unwrap();
         }
@@ -1087,12 +1091,11 @@ impl BuildFlags {
         let stdout = run_python_script(interpreter.as_ref(), &script)?;
         let split_stdout: Vec<&str> = stdout.trim_end().lines().collect();
         ensure!(
-            split_stdout.len() == BuildFlags::ALL.len(),
+            split_stdout.len() == BuildFlags::iter_all().count(),
             "Python stdout len didn't return expected number of lines: {}",
             split_stdout.len()
         );
-        let flags = BuildFlags::ALL
-            .iter()
+        let flags = BuildFlags::iter_all()
             .zip(split_stdout)
             .filter(|(_, flag_value)| *flag_value == "1")
             .map(|(flag, _)| flag.clone())
@@ -1980,7 +1983,7 @@ mod tests {
             HashSet::new()
         );
 
-        for flag in &BuildFlags::ALL {
+        for flag in BuildFlags::iter_all() {
             sysconfigdata.insert(flag.to_string(), "0".into());
         }
 
@@ -1990,7 +1993,7 @@ mod tests {
         );
 
         let mut expected_flags = HashSet::new();
-        for flag in &BuildFlags::ALL {
+        for flag in BuildFlags::iter_all() {
             sysconfigdata.insert(flag.to_string(), "1".into());
             expected_flags.insert(flag.clone());
         }
