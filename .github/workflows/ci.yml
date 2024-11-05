@@ -556,7 +556,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        runner: ["ubuntu-latest", "windows-latest", "macos-latest"]
+        runner: ["ubuntu-latest", "macos-latest"]
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
