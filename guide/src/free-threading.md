@@ -275,15 +275,15 @@ which releases the GIL while the waiting for the lock, so that is another option
 if you only need to support newer Python versions.
 
 [`GILOnceCell`]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html
-[`GILProtected]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILProtected.html
+[`GILProtected`]: https://docs.rs/pyo3/latest/pyo3/sync/struct.GILProtected.html
 [`Once`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html
 [`Once::call_once`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html#tymethod.call_once
 [`Once::call_once_force`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html#tymethod.call_once_force
-[`OnceExt]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html
+[`OnceExt`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html
 [`OnceExt::call_once_py_attached`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html#tymethod.call_once_py_attached
 [`OnceExt::call_once_force_py_attached`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html#tymethod.call_once_force_py_attached
-[`OnceLockExt]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceLockExt.html
-[`OnceLockExt::get_or_init_py_attached]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceLockExt.html#tymethod.get_or_init_py_attached
+[`OnceLockExt`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceLockExt.html
+[`OnceLockExt::get_or_init_py_attached`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceLockExt.html#tymethod.get_or_init_py_attached
 [`OnceLock`]: https://doc.rust-lang.org/stable/std/sync/struct.OnceLock.html
 [`OnceLock::get_or_init`]: https://doc.rust-lang.org/stable/std/sync/struct.OnceLock.html#tymethod.get_or_init
 [`Python::allow_threads`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.allow_threads
