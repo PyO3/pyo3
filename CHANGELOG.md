@@ -10,6 +10,12 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.22.6] - 2024-11-05
+
+### Fixed
+
+- Fix detection of freethreaded Python 3.13t added in PyO3 0.22.2; freethreaded is not yet supported (support coming soon in 0.23). [#4684](https://github.com/PyO3/pyo3/pull/4684)
+
 ## [0.22.5] - 2024-10-15
 
 ### Fixed
@@ -1901,7 +1907,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.22.5...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.22.6...HEAD
+[0.22.6]: https://github.com/pyo3/pyo3/compare/v0.22.5...v0.22.6
 [0.22.5]: https://github.com/pyo3/pyo3/compare/v0.22.4...v0.22.5
 [0.22.4]: https://github.com/pyo3/pyo3/compare/v0.22.3...v0.22.4
 [0.22.3]: https://github.com/pyo3/pyo3/compare/v0.22.2...v0.22.3
