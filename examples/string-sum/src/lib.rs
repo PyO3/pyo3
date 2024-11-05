@@ -52,6 +52,7 @@ unsafe fn parse_arg_as_i32(obj: *mut PyObject, n_arg: usize) -> Option<i32> {
     let mut overflow = 0;
     let i_long: c_long = PyLong_AsLongAndOverflow(obj, &mut overflow);
 
+    #[allow(irrefutable_let_patterns)] // some platforms have c_long equal to i32
     if overflow != 0 {
         raise_overflowerror(obj);
         None
