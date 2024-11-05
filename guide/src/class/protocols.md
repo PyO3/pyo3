@@ -158,9 +158,11 @@ Example:
 ```rust
 use pyo3::prelude::*;
 
+use std::sync::Mutex;
+
 #[pyclass]
 struct MyIterator {
-    iter: Box<dyn Iterator<Item = PyObject> + Send>,
+    iter: Mutex<Box<dyn Iterator<Item = PyObject> + Send>>,
 }
 
 #[pymethods]
@@ -168,8 +170,8 @@ impl MyIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyObject> {
-        slf.iter.next()
+    fn __next__(slf: PyRefMut<'_, Self>) -> Option<PyObject> {
+        slf.iter.lock().unwrap().next()
     }
 }
 ```

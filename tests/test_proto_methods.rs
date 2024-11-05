@@ -4,6 +4,7 @@ use pyo3::exceptions::{PyAttributeError, PyIndexError, PyValueError};
 use pyo3::types::{PyDict, PyList, PyMapping, PySequence, PySlice, PyType};
 use pyo3::{prelude::*, py_run};
 use std::iter;
+use std::sync::Mutex;
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -361,7 +362,7 @@ fn sequence() {
 
 #[pyclass]
 struct Iterator {
-    iter: Box<dyn iter::Iterator<Item = i32> + Send>,
+    iter: Mutex<Box<dyn iter::Iterator<Item = i32> + Send>>,
 }
 
 #[pymethods]
@@ -370,8 +371,8 @@ impl Iterator {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<i32> {
-        slf.iter.next()
+    fn __next__(slf: PyRefMut<'_, Self>) -> Option<i32> {
+        slf.iter.lock().unwrap().next()
     }
 }
 
@@ -381,7 +382,7 @@ fn iterator() {
         let inst = Py::new(
             py,
             Iterator {
-                iter: Box::new(5..8),
+                iter: Mutex::new(Box::new(5..8)),
             },
         )
         .unwrap();

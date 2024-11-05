@@ -2310,7 +2310,21 @@ impl<'a> PyClassImplsBuilder<'a> {
             }
         });
 
+        let assertions = if attr.options.unsendable.is_some() {
+            TokenStream::new()
+        } else {
+            quote_spanned! {
+                cls.span() =>
+                const _: () = {
+                    use #pyo3_path::impl_::pyclass::*;
+                    assert_pyclass_sync::<#cls>();
+                };
+            }
+        };
+
         Ok(quote! {
+            #assertions
+
             #pyclass_base_type_impl
 
             impl #pyo3_path::impl_::pyclass::PyClassImpl for #cls {

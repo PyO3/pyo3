@@ -5,10 +5,11 @@ use pyo3::class::PyVisit;
 use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::py_run;
+#[cfg(not(target_arch = "wasm32"))]
 use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::sync::Once;
+use std::sync::{Arc, Mutex};
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -403,20 +404,23 @@ fn tries_gil_in_traverse() {
 fn traverse_cannot_be_hijacked() {
     #[pyclass]
     struct HijackedTraverse {
-        traversed: Cell<bool>,
-        hijacked: Cell<bool>,
+        traversed: AtomicBool,
+        hijacked: AtomicBool,
     }
 
     impl HijackedTraverse {
         fn new() -> Self {
             Self {
-                traversed: Cell::new(false),
-                hijacked: Cell::new(false),
+                traversed: AtomicBool::new(false),
+                hijacked: AtomicBool::new(false),
             }
         }
 
         fn traversed_and_hijacked(&self) -> (bool, bool) {
-            (self.traversed.get(), self.hijacked.get())
+            (
+                self.traversed.load(Ordering::Acquire),
+                self.hijacked.load(Ordering::Acquire),
+            )
         }
     }
 
@@ -424,7 +428,7 @@ fn traverse_cannot_be_hijacked() {
     impl HijackedTraverse {
         #[allow(clippy::unnecessary_wraps)]
         fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-            self.traversed.set(true);
+            self.traversed.store(true, Ordering::Release);
             Ok(())
         }
     }
@@ -436,7 +440,7 @@ fn traverse_cannot_be_hijacked() {
 
     impl Traversable for PyRef<'_, HijackedTraverse> {
         fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-            self.hijacked.set(true);
+            self.hijacked.store(true, Ordering::Release);
             Ok(())
         }
     }
@@ -455,7 +459,7 @@ fn traverse_cannot_be_hijacked() {
 
 #[pyclass]
 struct DropDuringTraversal {
-    cycle: Cell<Option<Py<Self>>>,
+    cycle: Mutex<Option<Py<Self>>>,
     _guard: DropGuard,
 }
 
@@ -463,7 +467,8 @@ struct DropDuringTraversal {
 impl DropDuringTraversal {
     #[allow(clippy::unnecessary_wraps)]
     fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-        self.cycle.take();
+        let mut cycle_ref = self.cycle.lock().unwrap();
+        *cycle_ref = None;
         Ok(())
     }
 }
@@ -474,7 +479,7 @@ fn drop_during_traversal_with_gil() {
     let (guard, check) = drop_check();
 
     let ptr = Python::with_gil(|py| {
-        let cycle = Cell::new(None);
+        let cycle = Mutex::new(None);
         let inst = Py::new(
             py,
             DropDuringTraversal {
@@ -484,7 +489,7 @@ fn drop_during_traversal_with_gil() {
         )
         .unwrap();
 
-        inst.borrow_mut(py).cycle.set(Some(inst.clone_ref(py)));
+        *inst.borrow_mut(py).cycle.lock().unwrap() = Some(inst.clone_ref(py));
 
         check.assert_not_dropped();
         let ptr = inst.as_ptr();
@@ -508,7 +513,7 @@ fn drop_during_traversal_without_gil() {
     let (guard, check) = drop_check();
 
     let inst = Python::with_gil(|py| {
-        let cycle = Cell::new(None);
+        let cycle = Mutex::new(None);
         let inst = Py::new(
             py,
             DropDuringTraversal {
@@ -518,7 +523,7 @@ fn drop_during_traversal_without_gil() {
         )
         .unwrap();
 
-        inst.borrow_mut(py).cycle.set(Some(inst.clone_ref(py)));
+        *inst.borrow_mut(py).cycle.lock().unwrap() = Some(inst.clone_ref(py));
 
         check.assert_not_dropped();
         inst
