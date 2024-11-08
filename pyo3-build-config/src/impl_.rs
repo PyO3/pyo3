@@ -386,13 +386,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         };
         let lib_dir = get_key!(sysconfigdata, "LIBDIR").ok().map(str::to_string);
         let gil_disabled = match sysconfigdata.get_value("Py_GIL_DISABLED") {
-            Some(value) => {
-                if value == "1" {
-                    true
-                } else {
-                    false
-                }
-            }
+            Some(value) => value == "1",
             None => false,
         };
         let lib_name = Some(default_lib_name_unix(
