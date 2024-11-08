@@ -1532,6 +1532,7 @@ pub struct Deprecation;
 
 impl<T> DeprecationTest<T> {
     #[inline]
+    #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         DeprecationTest(Deprecation, ::std::marker::PhantomData)
     }
