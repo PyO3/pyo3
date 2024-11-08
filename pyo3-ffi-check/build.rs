@@ -8,11 +8,11 @@ fn main() {
             "import sysconfig; print(sysconfig.get_config_var('INCLUDEPY'), end='');",
         )
         .expect("failed to get lib dir");
-    let gil_disabled_on_windows = dbg!(config
+    let gil_disabled_on_windows = config
         .run_python_script(
             "import sysconfig; import platform; print(sysconfig.get_config_var('Py_GIL_DISABLED') == 1 and platform.system() == 'Windows');",
         )
-        .expect("failed to get Py_GIL_DISABLED").trim_end()) == "True";
+        .expect("failed to get Py_GIL_DISABLED").trim_end() == "True";
 
     let clang_args = if gil_disabled_on_windows {
         vec![
@@ -22,8 +22,6 @@ fn main() {
     } else {
         vec![format!("-I{python_include_dir}")]
     };
-
-    dbg!(&clang_args);
 
     println!("cargo:rerun-if-changed=wrapper.h");
 
