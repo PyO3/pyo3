@@ -1127,9 +1127,13 @@ impl BuildFlags {
     /// the interpreter and printing variables of interest from
     /// sysconfig.get_config_vars.
     fn from_interpreter(interpreter: impl AsRef<Path>) -> Result<Self> {
-        // sysconfig is missing all the flags on windows, so we can't actually
-        // query the interpreter directly for its build flags.
-        if cfg!(windows) {
+        let script = String::from("import sys;print(sys.version_info < (3, 13))");
+        let stdout = run_python_script(interpreter.as_ref(), &script)?;
+
+        // sysconfig is missing all the flags on windows for Python 3.12 and
+        // older, so we can't actually query the interpreter directly for its
+        // build flags on those versions.
+        if cfg!(windows) && stdout.trim_end() == "True" {
             return Ok(Self::new());
         }
 
