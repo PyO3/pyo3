@@ -2,6 +2,7 @@
 
 use pyo3::prelude::*;
 use pyo3::py_run;
+use pyo3::types::PyString;
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -356,4 +357,49 @@ mod deprecated {
             "#);
         })
     }
+}
+
+#[test]
+fn custom_eq() {
+    #[pyclass(frozen)]
+    #[derive(PartialEq)]
+    pub enum CustomPyEq {
+        A,
+        B,
+    }
+
+    #[pymethods]
+    impl CustomPyEq {
+        fn __eq__(&self, other: &Bound<'_, PyAny>) -> bool {
+            if let Ok(rhs) = other.downcast::<PyString>() {
+                rhs.to_cow().map_or(false, |rhs| self.__str__() == rhs)
+            } else if let Ok(rhs) = other.downcast::<Self>() {
+                self == rhs.get()
+            } else {
+                false
+            }
+        }
+
+        fn __str__(&self) -> String {
+            match self {
+                CustomPyEq::A => "A".to_string(),
+                CustomPyEq::B => "B".to_string(),
+            }
+        }
+    }
+
+    Python::with_gil(|py| {
+        let a = Bound::new(py, CustomPyEq::A).unwrap();
+        let b = Bound::new(py, CustomPyEq::B).unwrap();
+
+        assert!(a.as_any().eq(&a).unwrap());
+        assert!(a.as_any().eq("A").unwrap());
+        assert!(a.as_any().ne(&b).unwrap());
+        assert!(a.as_any().ne("B").unwrap());
+
+        assert!(b.as_any().eq(&b).unwrap());
+        assert!(b.as_any().eq("B").unwrap());
+        assert!(b.as_any().ne(&a).unwrap());
+        assert!(b.as_any().ne("A").unwrap());
+    })
 }
