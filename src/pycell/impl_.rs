@@ -104,15 +104,13 @@ pub struct BorrowChecker(BorrowFlag);
 pub trait PyClassBorrowChecker {
     /// Initial value for self
     fn new() -> Self;
-
     /// Increments immutable borrow count, if possible
     fn try_borrow(&self) -> Result<(), PyBorrowError>;
-
     /// Decrements immutable borrow count
     fn release_borrow(&self);
     /// Increments mutable borrow count, if possible
     fn try_borrow_mut(&self) -> Result<(), PyBorrowMutError>;
-    /// Decremements mutable borrow count
+    /// Decrements mutable borrow count
     fn release_borrow_mut(&self);
 }
 
@@ -180,31 +178,36 @@ impl PyClassBorrowChecker for BorrowChecker {
 }
 
 pub trait GetBorrowChecker<T: PyClassImpl> {
-    fn borrow_checker(
-        class_object: &T::Layout,
-    ) -> &<T::PyClassMutability as PyClassMutability>::Checker;
+    fn borrow_checker(obj: &ffi::PyObject)
+        -> &<T::PyClassMutability as PyClassMutability>::Checker;
 }
 
 impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for MutableClass {
-    fn borrow_checker(class_object: &T::Layout) -> &BorrowChecker {
-        &class_object.contents().0.borrow_checker
+    fn borrow_checker(obj: &ffi::PyObject) -> &BorrowChecker {
+        let obj = (obj as *const ffi::PyObject).cast_mut();
+        let contents = unsafe { PyObjectLayout::get_contents_ptr::<T>(obj) };
+        unsafe { &(*contents).borrow_checker }
     }
 }
 
 impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for ImmutableClass {
-    fn borrow_checker(class_object: &T::Layout) -> &EmptySlot {
-        &class_object.contents().0.borrow_checker
+    fn borrow_checker(obj: &ffi::PyObject) -> &EmptySlot {
+        let obj = (obj as *const ffi::PyObject).cast_mut();
+        let contents = unsafe { PyObjectLayout::get_contents_ptr::<T>(obj) };
+        unsafe { &(*contents).borrow_checker }
     }
 }
 
-impl<T: PyClassImpl<PyClassMutability = Self>, M: PyClassMutability> GetBorrowChecker<T>
-    for ExtendsMutableAncestor<M>
+impl<T, M> GetBorrowChecker<T> for ExtendsMutableAncestor<M>
 where
-    T::BaseType: PyClassImpl + PyClassBaseType<LayoutAsBase = <T::BaseType as PyClassImpl>::Layout>,
+    T: PyClassImpl<PyClassMutability = Self>,
+    M: PyClassMutability,
+    T::BaseType: PyClassImpl,
     <T::BaseType as PyClassImpl>::PyClassMutability: PyClassMutability<Checker = BorrowChecker>,
 {
-    fn borrow_checker(class_object: &T::Layout) -> &BorrowChecker {
-        <<T::BaseType as PyClassImpl>::PyClassMutability as GetBorrowChecker<T::BaseType>>::borrow_checker(class_object.ob_base())
+    fn borrow_checker(obj: &ffi::PyObject) -> &BorrowChecker {
+        // the same PyObject pointer can be re-interpreted as the base/parent type
+        <<T::BaseType as PyClassImpl>::PyClassMutability as GetBorrowChecker<T::BaseType>>::borrow_checker(obj)
     }
 }
 
@@ -256,14 +259,6 @@ impl<'a, T: PyClassImpl> From<&'a mut PyClassObjectContents<T>>
 pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
     /// obtain a reference to the structure that contains the pyclass struct and associated metadata.
     fn contents(&self) -> &WrappedPyClassObjectContents<T>;
-
-    /// obtain a pointer to the pyclass struct.
-    fn get_ptr(&self) -> *mut T;
-
-    /// obtain a reference to the data at the start of the PyObject.
-    fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase;
-
-    fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker;
 }
 
 /// Implementation of `tp_dealloc`.
@@ -275,6 +270,7 @@ unsafe fn tp_dealloc(py: Python<'_>, obj: *mut ffi::PyObject, type_ptr: *mut ffi
     // at runtime? To be investigated.
     let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(obj));
 
+    // TODO(matt): is this correct?
     // For `#[pyclass]` types which inherit from PyAny or PyType, we can just call tp_free
     let is_base_object = type_ptr == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type);
     let is_metaclass = type_ptr == std::ptr::addr_of_mut!(ffi::PyType_Type);
@@ -349,20 +345,6 @@ impl<T: PyClassImpl> PyClassObjectLayout<T> for PyStaticClassObject<T> {
     fn contents(&self) -> &WrappedPyClassObjectContents<T> {
         (&self.contents).into()
     }
-
-    fn get_ptr(&self) -> *mut T {
-        self.contents.value.get()
-    }
-
-    fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase {
-        &self.ob_base
-    }
-
-    fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
-        // Safety: T::Layout must be PyStaticClassObject<T>
-        let slf: &T::Layout = unsafe { std::mem::transmute(self) };
-        T::PyClassMutability::borrow_checker(slf)
-    }
 }
 
 unsafe impl<T: PyClassImpl> PyLayout<T> for PyStaticClassObject<T> {}
@@ -416,23 +398,9 @@ impl<T: PyClassImpl> PyVariableClassObject<T> {
 
 #[cfg(Py_3_12)]
 impl<T: PyClassImpl> PyClassObjectLayout<T> for PyVariableClassObject<T> {
-    fn get_ptr(&self) -> *mut T {
-        self.contents().0.value.get()
-    }
-
-    fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase {
-        &self.ob_base
-    }
-
     fn contents(&self) -> &WrappedPyClassObjectContents<T> {
         unsafe { self.get_contents_ptr().cast_const().as_ref() }
             .expect("should be able to cast PyClassObjectContents pointer")
-    }
-
-    fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
-        // Safety: T::Layout must be PyStaticClassObject<T>
-        let slf: &T::Layout = unsafe { std::mem::transmute(self) };
-        T::PyClassMutability::borrow_checker(slf)
     }
 }
 
@@ -566,6 +534,7 @@ pub(crate) mod static_layout {
     }
 }
 
+/// Functions for working with `PyObject`s
 pub(crate) struct PyObjectLayout {}
 
 impl PyObjectLayout {
@@ -590,6 +559,18 @@ impl PyObjectLayout {
     pub(crate) unsafe fn get_data_ptr<T: PyClassImpl>(obj: *mut ffi::PyObject) -> *mut T {
         let contents = PyObjectLayout::get_contents_ptr::<T>(obj);
         (*contents).value.get()
+    }
+
+    pub(crate) unsafe fn get_data<T: PyClassImpl>(obj: &ffi::PyObject) -> &T {
+        let obj_ref = (obj as *const ffi::PyObject).cast_mut();
+        let data_ptr = unsafe { PyObjectLayout::get_data_ptr::<T>(obj_ref) };
+        unsafe { &*data_ptr }
+    }
+
+    pub(crate) unsafe fn get_borrow_checker<T: PyClassImpl>(
+        obj: &ffi::PyObject,
+    ) -> &<T::PyClassMutability as PyClassMutability>::Checker {
+        T::PyClassMutability::borrow_checker(obj)
     }
 
     /// obtain a reference to the data at the start of the `PyObject`.
@@ -682,8 +663,10 @@ impl PyObjectLayout {
 }
 
 /// A wrapper around PyObject to provide [PyObjectLayout] functionality.
+#[allow(unused)]
 pub(crate) struct PyObjectHandle<'a, T: PyClassImpl>(*mut ffi::PyObject, PhantomData<&'a T>);
 
+#[allow(unused)]
 impl<'a, T: PyClassImpl> PyObjectHandle<'a, T> {
     /// Safety: obj must point to a valid PyObject with the type `T`
     pub unsafe fn new(obj: *mut ffi::PyObject) -> Self {

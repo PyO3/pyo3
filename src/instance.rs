@@ -466,6 +466,11 @@ where
     pub(crate) fn get_class_object(&self) -> &<T as PyClassImpl>::Layout {
         self.1.get_class_object()
     }
+
+    #[inline]
+    pub(crate) fn get_raw_object(&self) -> &ffi::PyObject {
+        self.1.get_raw_object()
+    }
 }
 
 impl<T> std::fmt::Debug for Bound<'_, T> {
@@ -1302,6 +1307,15 @@ where
         // Safety: Bound<T: PyClass> is known to contain an object which is laid out in memory as a
         // <T as PyClassImpl>::Layout object
         unsafe { &*class_object }
+    }
+
+    /// Get a reference to the underlying `PyObject`
+    #[inline]
+    pub(crate) fn get_raw_object(&self) -> &ffi::PyObject {
+        let obj = self.as_ptr();
+        assert!(!obj.is_null());
+        // Safety: obj is a valid pointer to a PyObject
+        unsafe { &*obj }
     }
 }
 

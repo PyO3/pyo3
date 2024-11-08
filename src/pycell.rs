@@ -208,7 +208,7 @@ use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 
 pub(crate) mod impl_;
-use impl_::{PyClassBorrowChecker, PyClassObjectBaseLayout, PyClassObjectLayout, PyObjectLayout};
+use impl_::{PyClassBorrowChecker, PyClassObjectBaseLayout, PyObjectLayout};
 
 /// A wrapper type for an immutably borrowed value from a [`Bound<'py, T>`].
 ///
@@ -310,7 +310,9 @@ impl<'py, T: PyClass> PyRef<'py, T> {
     pub(crate) fn try_borrow(obj: &Bound<'py, T>) -> Result<Self, PyBorrowError> {
         let cell = obj.get_class_object();
         cell.ensure_threadsafe();
-        cell.borrow_checker()
+        let raw_obj = obj.get_raw_object();
+        let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(raw_obj) };
+        borrow_checker
             .try_borrow()
             .map(|_| Self { inner: obj.clone() })
     }
@@ -443,10 +445,9 @@ impl<T: PyClass> Deref for PyRef<'_, T> {
 
 impl<T: PyClass> Drop for PyRef<'_, T> {
     fn drop(&mut self) {
-        self.inner
-            .get_class_object()
-            .borrow_checker()
-            .release_borrow()
+        let obj = self.inner.get_raw_object();
+        let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(obj) };
+        borrow_checker.release_borrow();
     }
 }
 
@@ -567,7 +568,9 @@ impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
     pub(crate) fn try_borrow(obj: &Bound<'py, T>) -> Result<Self, PyBorrowMutError> {
         let cell = obj.get_class_object();
         cell.ensure_threadsafe();
-        cell.borrow_checker()
+        let raw_obj = obj.get_raw_object();
+        let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(raw_obj) };
+        borrow_checker
             .try_borrow_mut()
             .map(|_| Self { inner: obj.clone() })
     }
@@ -636,10 +639,9 @@ impl<T: PyClass<Frozen = False>> DerefMut for PyRefMut<'_, T> {
 
 impl<T: PyClass<Frozen = False>> Drop for PyRefMut<'_, T> {
     fn drop(&mut self) {
-        self.inner
-            .get_class_object()
-            .borrow_checker()
-            .release_borrow_mut()
+        let obj = self.inner.get_raw_object();
+        let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(obj) };
+        borrow_checker.release_borrow_mut();
     }
 }
 

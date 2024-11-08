@@ -158,22 +158,22 @@ unsafe impl Sync for PyClassItems {}
 /// Users are discouraged from implementing this trait manually; it is a PyO3 implementation detail
 /// and may be changed at any time.
 pub trait PyClassImpl: Sized + 'static {
-    /// #[pyclass(subclass)]
+    /// `#[pyclass(subclass)]`
     const IS_BASETYPE: bool = false;
 
-    /// #[pyclass(extends=...)]
+    /// `#[pyclass(extends=...)]`
     const IS_SUBCLASS: bool = false;
 
-    /// #[pyclass(mapping)]
+    /// `#[pyclass(mapping)]`
     const IS_MAPPING: bool = false;
 
-    /// #[pyclass(sequence)]
+    /// `#[pyclass(sequence)]`
     const IS_SEQUENCE: bool = false;
 
     /// Description of how this class is laid out in memory
     type Layout: PyClassObjectLayout<Self>;
 
-    /// Base class
+    /// Base class (the direct parent configured via `#[pyclass(extends=...)]`)
     type BaseType: PyTypeInfo + PyClassBaseType;
 
     /// Immutable or mutable
@@ -1119,7 +1119,8 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     private_impl! {}
 }
 
-/// Trait denoting that this class is suitable to be used as a base type for PyClass.
+/// Trait denoting that this class is suitable to be used as a base type for PyClass
+/// (meaning it can be used with `#[pyclass(extends=...)]`).
 #[cfg_attr(
     all(diagnostic_namespace, Py_LIMITED_API),
     diagnostic::on_unimplemented(
