@@ -3,7 +3,6 @@ use crate::conversion::{AsPyPointer, FromPyObjectBound, IntoPyObject};
 use crate::err::{DowncastError, DowncastIntoError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::impl_::pycell::PyStaticClassObject;
 use crate::instance::Bound;
 use crate::internal::get_slot::TP_DESCR_GET;
 use crate::internal_tricks::ptr_from_ref;
@@ -43,15 +42,15 @@ pyobject_native_type_info!(
     pyobject_native_static_type_object!(ffi::PyBaseObject_Type),
     Some("builtins"),
     false,
-    PyStaticClassObject<T>,
     #checkfunction=PyObject_Check
 );
-
+pyobject_native_type_marker!(PyAny);
 pyobject_native_type_sized!(PyAny, ffi::PyObject);
 // We cannot use `pyobject_subclassable_native_type!()` because it cfgs out on `Py_LIMITED_API`.
 impl crate::impl_::pyclass::PyClassBaseType for PyAny {
-    type LayoutAsBase = crate::impl_::pycell::PyClassObjectBase<ffi::PyObject>;
+    type StaticLayout = crate::impl_::pycell::PyStaticNativeLayout<ffi::PyObject>;
     type BaseNativeType = PyAny;
+    type RecursiveOperations = crate::impl_::pycell::PyNativeTypeRecursiveOperations<Self>;
     type Initializer = crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
     type PyClassMutability = crate::pycell::impl_::ImmutableClass;
 }

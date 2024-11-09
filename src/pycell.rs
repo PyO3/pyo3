@@ -208,7 +208,7 @@ use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 
 pub(crate) mod impl_;
-use impl_::{PyClassBorrowChecker, PyClassObjectBaseLayout, PyObjectLayout};
+use impl_::{PyClassBorrowChecker, PyObjectLayout};
 
 /// A wrapper type for an immutably borrowed value from a [`Bound<'py, T>`].
 ///
@@ -308,9 +308,8 @@ impl<'py, T: PyClass> PyRef<'py, T> {
     }
 
     pub(crate) fn try_borrow(obj: &Bound<'py, T>) -> Result<Self, PyBorrowError> {
-        let cell = obj.get_class_object();
-        cell.ensure_threadsafe();
         let raw_obj = obj.get_raw_object();
+        unsafe { PyObjectLayout::ensure_threadsafe::<T>(raw_obj) };
         let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(raw_obj) };
         borrow_checker
             .try_borrow()
@@ -566,9 +565,8 @@ impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
     }
 
     pub(crate) fn try_borrow(obj: &Bound<'py, T>) -> Result<Self, PyBorrowMutError> {
-        let cell = obj.get_class_object();
-        cell.ensure_threadsafe();
         let raw_obj = obj.get_raw_object();
+        unsafe { PyObjectLayout::ensure_threadsafe::<T>(raw_obj) };
         let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(raw_obj) };
         borrow_checker
             .try_borrow_mut()

@@ -1,14 +1,22 @@
 //! Python type object information
 
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::impl_::pyclass::PyClassImpl;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyType};
 use crate::{ffi, Bound, Python};
 
+/// `T: PyNativeType` represents that `T` is a struct representing a 'native python class'.
+/// a 'native class' is a wrapper around a `ffi::PyTypeObject` that is defined by the python
+/// API such as `PyDict` for `dict`.
+///
+/// This trait is intended to be used internally.
+///
+/// # Safety
+///
+/// This trait must only be implemented for types which represent native python classes.
+pub unsafe trait PyNativeType {}
+
 /// `T: PyLayout<U>` represents that `T` is a concrete representation of `U` in the Python heap.
-/// E.g., `PyClassObject` is a concrete representation of all `pyclass`es, and `ffi::PyObject`
-/// is of `PyAny`.
 ///
 /// This trait is intended to be used internally.
 ///
@@ -47,10 +55,6 @@ pub unsafe trait PyTypeInfo: Sized {
     /// rather than using the standard mechanism of placing the data for this type at the beginning
     /// of a new `repr(C)` struct
     const OPAQUE: bool;
-
-    /// The type of object layout to use for ancestors or descendants of this type.
-    /// should implement `PyClassObjectLayout<T>` in order to actually use it as a layout.
-    type Layout<T: PyClassImpl>;
 
     /// Returns the `PyTypeObject` instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;

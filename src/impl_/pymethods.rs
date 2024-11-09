@@ -2,7 +2,6 @@ use crate::exceptions::PyStopAsyncIteration;
 use crate::gil::LockGIL;
 use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::panic::PanicTrap;
-use crate::impl_::pycell::PyClassObjectBaseLayout;
 use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
 use crate::pycell::impl_::{PyClassBorrowChecker as _, PyObjectLayout};
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
@@ -300,15 +299,14 @@ where
         return super_retval;
     }
 
-    let raw_obj = &*slf;
     // SAFETY: `slf` is a valid Python object pointer to a class object of type T, and
     // traversal is running so no mutations can occur.
-    let class_object: &<T as PyClassImpl>::Layout = &*slf.cast();
+    let raw_obj = &*slf;
 
     let retval =
     // `#[pyclass(unsendable)]` types can only be deallocated by their own thread, so
     // do not traverse them if not on their owning thread :(
-    if class_object.check_threadsafe().is_ok()
+    if PyObjectLayout::check_threadsafe::<T>(raw_obj).is_ok()
     // ... and we cannot traverse a type which might be being mutated by a Rust thread
     && PyObjectLayout::get_borrow_checker::<T>(raw_obj).try_borrow().is_ok() {
         struct TraverseGuard<'a, Cls: PyClassImpl>(&'a ffi::PyObject, PhantomData<Cls>);

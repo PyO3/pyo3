@@ -1,6 +1,5 @@
 use crate::conversion::IntoPyObject;
 use crate::err::{self, PyErr, PyResult};
-use crate::impl_::pyclass::PyClassImpl;
 use crate::internal_tricks::ptr_from_ref;
 use crate::pycell::impl_::PyObjectLayout;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
@@ -460,11 +459,6 @@ where
     pub fn into_super(self) -> Bound<'py, T::BaseType> {
         // a pyclass can always be safely "downcast" to its base type
         unsafe { self.into_any().downcast_into_unchecked() }
-    }
-
-    #[inline]
-    pub(crate) fn get_class_object(&self) -> &<T as PyClassImpl>::Layout {
-        self.1.get_class_object()
     }
 
     #[inline]
@@ -1298,15 +1292,6 @@ where
         let obj = self.as_ptr();
         // Safety: The class itself is frozen and `Sync`
         unsafe { &*PyObjectLayout::get_data_ptr::<T>(obj) }
-    }
-
-    /// Get a view on the underlying `PyClass` contents.
-    #[inline]
-    pub(crate) fn get_class_object(&self) -> &<T as PyClassImpl>::Layout {
-        let class_object = self.as_ptr().cast::<<T as PyClassImpl>::Layout>();
-        // Safety: Bound<T: PyClass> is known to contain an object which is laid out in memory as a
-        // <T as PyClassImpl>::Layout object
-        unsafe { &*class_object }
     }
 
     /// Get a reference to the underlying `PyObject`

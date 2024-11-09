@@ -4,14 +4,15 @@ use crate::{
     ffi,
     impl_::{
         freelist::FreeList,
-        pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectBaseLayout},
+        pycell::{GetBorrowChecker, PyClassMutability},
         pyclass_init::PyObjectInit,
         pymethods::{PyGetterDef, PyMethodDefType},
     },
     pycell::{
-        impl_::{PyClassObjectLayout, PyObjectLayout},
+        impl_::{PyObjectLayout, PyObjectRecursiveOperations},
         PyBorrowError,
     },
+    type_object::PyLayout,
     types::{any::PyAnyMethods, PyBool},
     Borrowed, BoundObject, Py, PyAny, PyClass, PyErr, PyRef, PyResult, PyTypeInfo, Python,
 };
@@ -169,9 +170,6 @@ pub trait PyClassImpl: Sized + 'static {
 
     /// `#[pyclass(sequence)]`
     const IS_SEQUENCE: bool = false;
-
-    /// Description of how this class is laid out in memory
-    type Layout: PyClassObjectLayout<Self>;
 
     /// Base class (the direct parent configured via `#[pyclass(extends=...)]`)
     type BaseType: PyTypeInfo + PyClassBaseType;
@@ -1139,24 +1137,24 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     )
 )]
 pub trait PyClassBaseType: Sized {
-    type LayoutAsBase: PyClassObjectBaseLayout<Self>;
+    /// A struct that describes the memory layout of a `*mut ffi:PyObject` with the type of `Self`.
+    /// Only valid when `<T as PyTypeInfo>::OPAQUE` is false.
+    type StaticLayout: PyLayout<Self>;
+    // TODO(matt): introduce :PyTypeInfo bounds
     type BaseNativeType;
+    type RecursiveOperations: PyObjectRecursiveOperations;
     type Initializer: PyObjectInit<Self>;
     type PyClassMutability: PyClassMutability;
 }
 
 /// Implementation of tp_dealloc for pyclasses without gc
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
-    crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc)
+    crate::impl_::trampoline::dealloc(obj, PyObjectLayout::deallocate::<T>)
 }
 
 /// Implementation of tp_dealloc for pyclasses with gc
 pub(crate) unsafe extern "C" fn tp_dealloc_with_gc<T: PyClass>(obj: *mut ffi::PyObject) {
-    #[cfg(not(PyPy))]
-    {
-        ffi::PyObject_GC_UnTrack(obj.cast());
-    }
-    crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc)
+    crate::impl_::trampoline::dealloc(obj, PyObjectLayout::deallocate_with_gc::<T>)
 }
 
 pub(crate) unsafe extern "C" fn get_sequence_item_from_mapping(

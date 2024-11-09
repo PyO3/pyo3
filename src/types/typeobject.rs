@@ -22,13 +22,13 @@ pyobject_native_type_core!(
     pyobject_native_static_type_object!(ffi::PyType_Type),
     #module=::std::option::Option::Some("builtins"),
     #opaque=true,
-    #layout=crate::impl_::pycell::PyVariableClassObject<T>,
     #checkfunction = ffi::PyType_Check
 );
 
 impl crate::impl_::pyclass::PyClassBaseType for PyType {
-    type LayoutAsBase = crate::impl_::pycell::PyVariableClassObjectBase;
+    type StaticLayout = crate::impl_::pycell::InvalidStaticLayout;
     type BaseNativeType = PyType;
+    type RecursiveOperations = crate::impl_::pycell::PyNativeTypeRecursiveOperations<Self>;
     type Initializer = crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
     type PyClassMutability = crate::pycell::impl_::ImmutableClass;
 }

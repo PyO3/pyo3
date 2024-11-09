@@ -11,9 +11,9 @@ use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef, PyObjectOffset,
 };
 use crate::internal::get_slot::TP_FREE;
-use crate::type_object::{PyLayout, PySizedLayout};
+use crate::type_object::PyNativeType;
 use crate::types::PyType;
-use crate::{ffi, PyClass, PyTypeInfo, Python};
+use crate::{ffi, PyTypeInfo, Python};
 
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::PyTypeMethods;
@@ -211,66 +211,6 @@ where
     }
 }
 
-/// functionality common to all PyObjects regardless of the layout
-#[doc(hidden)]
-pub trait PyClassObjectBaseLayout<T>: PyLayout<T> {
-    fn ensure_threadsafe(&self);
-    fn check_threadsafe(&self) -> Result<(), PyBorrowError>;
-    /// Implementation of tp_dealloc.
-    /// # Safety
-    /// - slf must be a valid pointer to an instance of a T or a subclass.
-    /// - slf must not be used after this call (as it will be freed).
-    unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject);
-}
-
-/// Functionality required for creating and managing the memory associated with a pyclass annotated struct.
-#[doc(hidden)]
-pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {}
-
-/// Implementation of `tp_dealloc`.
-/// # Safety
-/// - obj must be a valid pointer to an instance of the type at `type_ptr` or a subclass.
-/// - obj must not be used after this call (as it will be freed).
-unsafe fn tp_dealloc(py: Python<'_>, obj: *mut ffi::PyObject, type_ptr: *mut ffi::PyTypeObject) {
-    // FIXME: there is potentially subtle issues here if the base is overwritten
-    // at runtime? To be investigated.
-    let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(obj));
-
-    // TODO(matt): is this correct?
-    // For `#[pyclass]` types which inherit from PyAny or PyType, we can just call tp_free
-    let is_base_object = type_ptr == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type);
-    let is_metaclass = type_ptr == std::ptr::addr_of_mut!(ffi::PyType_Type);
-    if is_base_object || is_metaclass {
-        let tp_free = actual_type
-            .get_slot(TP_FREE)
-            .expect("base type should have tp_free");
-        return tp_free(obj.cast());
-    }
-
-    // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
-    #[cfg(not(Py_LIMITED_API))]
-    {
-        // FIXME: should this be using actual_type.tp_dealloc?
-        if let Some(dealloc) = (*type_ptr).tp_dealloc {
-            // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
-            // assumes the exception is currently GC tracked, so we have to re-track
-            // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
-            #[cfg(not(any(Py_3_11, PyPy)))]
-            if ffi::PyType_FastSubclass(type_ptr, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
-                ffi::PyObject_GC_Track(obj.cast());
-            }
-            dealloc(obj);
-        } else {
-            (*actual_type.as_type_ptr())
-                .tp_free
-                .expect("type missing tp_free")(obj.cast());
-        }
-    }
-
-    #[cfg(Py_LIMITED_API)]
-    unreachable!("subclassing native types is not possible with the `abi3` feature");
-}
-
 #[repr(C)]
 pub(crate) struct PyClassObjectContents<T: PyClassImpl> {
     pub(crate) value: ManuallyDrop<UnsafeCell<T>>,
@@ -300,115 +240,127 @@ impl<T: PyClassImpl> PyClassObjectContents<T> {
     }
 }
 
-/// The layout of a PyClassObject with a known sized base class.
-#[repr(C)]
-pub struct PyStaticClassObject<T: PyClassImpl> {
-    ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
-    contents: PyClassObjectContents<T>,
-}
-
-impl<T: PyClassImpl> PyClassObjectLayout<T> for PyStaticClassObject<T> {}
-
-unsafe impl<T: PyClassImpl> PyLayout<T> for PyStaticClassObject<T> {}
-impl<T: PyClass> PySizedLayout<T> for PyStaticClassObject<T> {}
-
-impl<T: PyClassImpl> PyClassObjectBaseLayout<T> for PyStaticClassObject<T>
-where
-    <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
-{
-    fn ensure_threadsafe(&self) {
-        self.contents.thread_checker.ensure();
-        self.ob_base.ensure_threadsafe();
-    }
-    fn check_threadsafe(&self) -> Result<(), PyBorrowError> {
-        if !self.contents.thread_checker.check() {
-            return Err(PyBorrowError { _private: () });
-        }
-        self.ob_base.check_threadsafe()
-    }
-    unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
-        // Safety: Python only calls tp_dealloc when no references to the object remain.
-        let contents = unsafe { PyObjectLayout::get_contents_ptr::<T>(slf) };
-        (*contents).dealloc(py, slf);
-        <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf)
-    }
-}
-
-/// A layout for a PyClassObject with an unknown sized base type.
-///
-/// Utilises [PEP-697](https://peps.python.org/pep-0697/)
-#[doc(hidden)]
-#[repr(C)]
-pub struct PyVariableClassObject<T: PyClassImpl> {
-    ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
-}
-
-#[cfg(Py_3_12)]
-impl<T: PyClassImpl> PyClassObjectLayout<T> for PyVariableClassObject<T> {}
-
-unsafe impl<T: PyClassImpl> PyLayout<T> for PyVariableClassObject<T> {}
-
-#[cfg(Py_3_12)]
-impl<T: PyClassImpl> PyClassObjectBaseLayout<T> for PyVariableClassObject<T>
-where
-    <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
-{
-    fn ensure_threadsafe(&self) {
-        let obj_ptr = self as *const Self as *mut ffi::PyObject;
-        let contents = unsafe { &*PyObjectLayout::get_contents_ptr::<T>(obj_ptr) };
-        contents.thread_checker.ensure();
-        self.ob_base.ensure_threadsafe();
-    }
-    fn check_threadsafe(&self) -> Result<(), PyBorrowError> {
-        let obj_ptr = self as *const Self as *mut ffi::PyObject;
-        let contents = unsafe { &*PyObjectLayout::get_contents_ptr::<T>(obj_ptr) };
-        if !contents.thread_checker.check() {
-            return Err(PyBorrowError { _private: () });
-        }
-        self.ob_base.check_threadsafe()
-    }
-    unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
-        // Safety: Python only calls tp_dealloc when no references to the object remain.
-        let contents = unsafe { PyObjectLayout::get_contents_ptr::<T>(slf) };
-        (*contents).dealloc(py, slf);
-        <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf)
-    }
-}
-
 /// Py_ssize_t may not be equal to isize on all platforms
 fn usize_to_py_ssize(value: usize) -> ffi::Py_ssize_t {
     #[allow(clippy::useless_conversion)]
     value.try_into().expect("value should fit in Py_ssize_t")
 }
 
+/// Functions for working with `PyObjects` recursively by re-interpreting the object
+/// as being an instance of the most derived class through each base class until
+/// the `BaseNativeType` is reached.
+#[doc(hidden)]
+pub trait PyObjectRecursiveOperations {
+    unsafe fn ensure_threadsafe(obj: *mut ffi::PyObject);
+    unsafe fn check_threadsafe(obj: *mut ffi::PyObject) -> Result<(), PyBorrowError>;
+    /// Cleanup then free the memory for `obj`.
+    ///
+    /// # Safety
+    /// - slf must be a valid pointer to an instance of a T or a subclass.
+    /// - slf must not be used after this call (as it will be freed).
+    unsafe fn deallocate(py: Python<'_>, obj: *mut ffi::PyObject);
+}
+
+/// Used to fill out `PyClassBaseType::RecursiveOperations` for instances of `PyClass`
+pub struct PyClassRecursiveOperations<T>(PhantomData<T>);
+
+impl<T: PyClassImpl> PyObjectRecursiveOperations for PyClassRecursiveOperations<T> {
+    unsafe fn ensure_threadsafe(obj: *mut ffi::PyObject) {
+        let contents = unsafe { &*PyObjectLayout::get_contents_ptr::<T>(obj) };
+        contents.thread_checker.ensure();
+        <T::BaseType as PyClassBaseType>::RecursiveOperations::ensure_threadsafe(obj);
+    }
+
+    unsafe fn check_threadsafe(obj: *mut ffi::PyObject) -> Result<(), PyBorrowError> {
+        let contents = unsafe { &*PyObjectLayout::get_contents_ptr::<T>(obj) };
+        if !contents.thread_checker.check() {
+            return Err(PyBorrowError { _private: () });
+        }
+        <T::BaseType as PyClassBaseType>::RecursiveOperations::check_threadsafe(obj)
+    }
+
+    unsafe fn deallocate(py: Python<'_>, obj: *mut ffi::PyObject) {
+        // Safety: Python only calls tp_dealloc when no references to the object remain.
+        let contents = unsafe { &mut *PyObjectLayout::get_contents_ptr::<T>(obj) };
+        contents.dealloc(py, obj);
+        <T::BaseType as PyClassBaseType>::RecursiveOperations::deallocate(py, obj);
+    }
+}
+
+/// Used to fill out `PyClassBaseType::RecursiveOperations` for native types
+pub struct PyNativeTypeRecursiveOperations<T>(PhantomData<T>);
+
+impl<T: PyNativeType + PyTypeInfo> PyObjectRecursiveOperations
+    for PyNativeTypeRecursiveOperations<T>
+{
+    unsafe fn ensure_threadsafe(_obj: *mut ffi::PyObject) {}
+
+    unsafe fn check_threadsafe(_obj: *mut ffi::PyObject) -> Result<(), PyBorrowError> {
+        Ok(())
+    }
+
+    /// Call the destructor (`tp_dealloc`) of an object which is an instance of a
+    /// subclass of the native type `T`.
+    ///
+    /// Does not clear up any data from subtypes of `type_ptr` so it is assumed that those
+    /// destructors have been called first.
+    ///
+    /// [tp_dealloc docs](https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_dealloc)
+    ///
+    /// # Safety
+    /// - obj must be a valid pointer to an instance of the type at `type_ptr` or a subclass.
+    /// - obj must not be used after this call (as it will be freed).
+    unsafe fn deallocate(py: Python<'_>, obj: *mut ffi::PyObject) {
+        // the `BaseNativeType` of the object
+        let type_ptr = <T as PyTypeInfo>::type_object_raw(py);
+
+        // FIXME: there is potentially subtle issues here if the base is overwritten at runtime? To be investigated.
+
+        // the 'most derived class' of `obj`. i.e. the result of calling `type(obj)`.
+        let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(obj));
+
+        // TODO(matt): is this correct?
+        // For `#[pyclass]` types which inherit from PyAny or PyType, we can just call tp_free
+        let is_base_object = type_ptr == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type);
+        let is_metaclass = type_ptr == std::ptr::addr_of_mut!(ffi::PyType_Type);
+        if is_base_object || is_metaclass {
+            let tp_free = actual_type
+                .get_slot(TP_FREE)
+                .expect("base type should have tp_free");
+            return tp_free(obj.cast());
+        }
+
+        // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            // FIXME: should this be using actual_type.tp_dealloc?
+            if let Some(dealloc) = (*type_ptr).tp_dealloc {
+                // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
+                // assumes the exception is currently GC tracked, so we have to re-track
+                // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
+                #[cfg(not(any(Py_3_11, PyPy)))]
+                if ffi::PyType_FastSubclass(type_ptr, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
+                    ffi::PyObject_GC_Track(obj.cast());
+                }
+                dealloc(obj);
+            } else {
+                (*actual_type.as_type_ptr())
+                    .tp_free
+                    .expect("type missing tp_free")(obj.cast());
+            }
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        unreachable!("subclassing native types is not possible with the `abi3` feature");
+    }
+}
+
 /// Utilities for working with `PyObject` objects that utilise [PEP 697](https://peps.python.org/pep-0697/).
 #[doc(hidden)]
 pub(crate) mod opaque_layout {
-    use super::{tp_dealloc, PyClassObjectBaseLayout, PyClassObjectContents};
+    use super::PyClassObjectContents;
+    use crate::ffi;
     use crate::impl_::pyclass::PyClassImpl;
-    use crate::pycell::PyBorrowError;
-    use crate::type_object::PyLayout;
-    use crate::{ffi, PyTypeInfo, Python};
-
-    /// Base layout of `PyClassObject` with an unknown sized base type.
-    /// Corresponds to [PyVarObject](https://docs.python.org/3/c-api/structures.html#c.PyVarObject) from the C API.
-    #[doc(hidden)]
-    #[repr(C)]
-    pub struct PyVariableClassObjectBase {
-        ob_base: ffi::PyVarObject,
-    }
-
-    unsafe impl<T: PyTypeInfo> PyLayout<T> for PyVariableClassObjectBase {}
-
-    impl<T: PyTypeInfo> PyClassObjectBaseLayout<T> for PyVariableClassObjectBase {
-        fn ensure_threadsafe(&self) {}
-        fn check_threadsafe(&self) -> Result<(), PyBorrowError> {
-            Ok(())
-        }
-        unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
-            tp_dealloc(py, slf, T::type_object_raw(py));
-        }
-    }
 
     #[cfg(Py_3_12)]
     pub fn get_contents_ptr<T: PyClassImpl>(
@@ -440,45 +392,39 @@ pub(crate) mod opaque_layout {
 #[doc(hidden)]
 pub(crate) mod static_layout {
     use crate::{
-        ffi,
         impl_::pyclass::{PyClassBaseType, PyClassImpl},
-        pycell::PyBorrowError,
         type_object::{PyLayout, PySizedLayout},
-        PyTypeInfo, Python,
     };
 
-    use super::{tp_dealloc, PyClassObjectBaseLayout, PyClassObjectContents};
+    use super::PyClassObjectContents;
 
     // The layout of a `PyObject` that uses the static layout
     #[repr(C)]
-    pub struct ClassObject<T: PyClassImpl> {
-        pub ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
-        pub contents: PyClassObjectContents<T>,
+    pub struct PyStaticClassLayout<T: PyClassImpl> {
+        pub(crate) ob_base: <T::BaseType as PyClassBaseType>::StaticLayout,
+        pub(crate) contents: PyClassObjectContents<T>,
     }
+
+    unsafe impl<T: PyClassImpl> PyLayout<T> for PyStaticClassLayout<T> {}
 
     /// Base layout of PyClassObject with a known sized base type.
     /// Corresponds to [PyObject](https://docs.python.org/3/c-api/structures.html#c.PyObject) from the C API.
     #[doc(hidden)]
     #[repr(C)]
-    pub struct PyClassObjectBase<T> {
+    pub struct PyStaticNativeLayout<T> {
         ob_base: T,
     }
 
-    unsafe impl<T, U> PyLayout<T> for PyClassObjectBase<U> where U: PySizedLayout<T> {}
+    unsafe impl<T, U> PyLayout<T> for PyStaticNativeLayout<U> where U: PySizedLayout<T> {}
 
-    impl<T, U> PyClassObjectBaseLayout<T> for PyClassObjectBase<U>
-    where
-        U: PySizedLayout<T>,
-        T: PyTypeInfo,
-    {
-        fn ensure_threadsafe(&self) {}
-        fn check_threadsafe(&self) -> Result<(), PyBorrowError> {
-            Ok(())
-        }
-        unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
-            tp_dealloc(py, slf, T::type_object_raw(py));
-        }
-    }
+    /// a struct for use with opaque native types to indicate that they
+    /// cannot be used as part of a static layout.
+    #[repr(C)]
+    pub struct InvalidStaticLayout;
+
+    /// This is valid insofar as casting a `*mut ffi::PyObject` to `*mut InvalidStaticLayout` is valid
+    /// since nothing can actually be read by dereferencing.
+    unsafe impl<T> PyLayout<T> for InvalidStaticLayout {}
 }
 
 /// Functions for working with `PyObject`s
@@ -495,7 +441,13 @@ impl PyObjectLayout {
         if <T::BaseType as PyTypeInfo>::OPAQUE {
             opaque_layout::get_contents_ptr(obj)
         } else {
-            let obj: *mut static_layout::ClassObject<T> = obj.cast();
+            let obj: *mut static_layout::PyStaticClassLayout<T> = obj.cast();
+            // indicates `ob_base` has type InvalidBaseLayout
+            debug_assert_ne!(
+                std::mem::offset_of!(static_layout::PyStaticClassLayout<T>, contents),
+                0,
+                "invalid ob_base found"
+            );
             addr_of_mut!((*obj).contents)
         }
     }
@@ -520,14 +472,53 @@ impl PyObjectLayout {
         T::PyClassMutability::borrow_checker(obj)
     }
 
-    /// obtain a reference to the data at the start of the `PyObject`.
+    pub(crate) unsafe fn ensure_threadsafe<T: PyClassImpl>(obj: &ffi::PyObject) {
+        unsafe {
+            PyClassRecursiveOperations::<T>::ensure_threadsafe(
+                obj as *const ffi::PyObject as *mut ffi::PyObject,
+            )
+        };
+    }
+
+    pub(crate) unsafe fn check_threadsafe<T: PyClassImpl>(
+        obj: &ffi::PyObject,
+    ) -> Result<(), PyBorrowError> {
+        unsafe {
+            PyClassRecursiveOperations::<T>::check_threadsafe(
+                obj as *const ffi::PyObject as *mut ffi::PyObject,
+            )
+        }
+    }
+
+    /// Clean up then free the memory associated with `obj`.
     ///
-    /// Safety: the provided object must be valid and have the layout indicated by `T`
-    pub(crate) unsafe fn ob_base<T: PyClassImpl>(
-        obj: *mut ffi::PyObject,
-    ) -> *mut <T::BaseType as PyClassBaseType>::LayoutAsBase {
-        // the base layout is always at the beginning of the `PyObject` so the pointer can simply be casted
-        obj as *mut <T::BaseType as PyClassBaseType>::LayoutAsBase
+    /// See [tp_dealloc docs](https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_dealloc)
+    pub(crate) fn deallocate<T: PyClassImpl>(py: Python<'_>, obj: *mut ffi::PyObject) {
+        unsafe {
+            PyClassRecursiveOperations::<T>::deallocate(
+                py,
+                obj as *const ffi::PyObject as *mut ffi::PyObject,
+            )
+        };
+    }
+
+    /// Clean up then free the memory associated with `obj`.
+    ///
+    /// Use instead of `deallocate()` if `T` has the `Py_TPFLAGS_HAVE_GC` flag set.
+    ///
+    /// See [tp_dealloc docs](https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_dealloc)
+    pub(crate) fn deallocate_with_gc<T: PyClassImpl>(py: Python<'_>, obj: *mut ffi::PyObject) {
+        unsafe {
+            // TODO(matt): verify T has flag set
+            #[cfg(not(PyPy))]
+            {
+                ffi::PyObject_GC_UnTrack(obj.cast());
+            }
+            PyClassRecursiveOperations::<T>::deallocate(
+                py,
+                obj as *const ffi::PyObject as *mut ffi::PyObject,
+            )
+        };
     }
 
     /// Used to set `PyType_Spec::basicsize` when creating a `PyTypeObject` for `T`
@@ -544,7 +535,7 @@ impl PyObjectLayout {
             #[cfg(not(Py_3_12))]
             opaque_layout::panic_unsupported();
         } else {
-            usize_to_py_ssize(std::mem::size_of::<static_layout::ClassObject<T>>())
+            usize_to_py_ssize(std::mem::size_of::<static_layout::PyStaticClassLayout<T>>())
         }
     }
 
@@ -560,7 +551,7 @@ impl PyObjectLayout {
             opaque_layout::panic_unsupported();
         } else {
             PyObjectOffset::Absolute(usize_to_py_ssize(memoffset::offset_of!(
-                static_layout::ClassObject<T>,
+                static_layout::PyStaticClassLayout<T>,
                 contents
             )))
         }
@@ -580,7 +571,7 @@ impl PyObjectLayout {
             #[cfg(not(Py_3_12))]
             opaque_layout::panic_unsupported();
         } else {
-            let offset = memoffset::offset_of!(static_layout::ClassObject<T>, contents)
+            let offset = memoffset::offset_of!(static_layout::PyStaticClassLayout<T>, contents)
                 + memoffset::offset_of!(PyClassObjectContents<T>, dict);
 
             PyObjectOffset::Absolute(usize_to_py_ssize(offset))
@@ -601,7 +592,7 @@ impl PyObjectLayout {
             #[cfg(not(Py_3_12))]
             opaque_layout::panic_unsupported();
         } else {
-            let offset = memoffset::offset_of!(static_layout::ClassObject<T>, contents)
+            let offset = memoffset::offset_of!(static_layout::PyStaticClassLayout<T>, contents)
                 + memoffset::offset_of!(PyClassObjectContents<T>, weakref);
 
             PyObjectOffset::Absolute(usize_to_py_ssize(offset))
@@ -628,15 +619,6 @@ impl<'a, T: PyClassImpl> PyObjectHandle<'a, T> {
     pub fn data(&'a self) -> &'a T {
         unsafe { &*PyObjectLayout::get_data_ptr::<T>(self.0) }
     }
-
-    pub fn ensure_threadsafe(&self) {
-        let contents = unsafe { &(*PyObjectLayout::get_contents_ptr::<T>(self.0)) };
-        contents.thread_checker.ensure();
-        let base = unsafe { &(*PyObjectLayout::ob_base::<T>(self.0)) };
-        base.ensure_threadsafe();
-    }
-
-    pub fn borrow_checker(&self) {}
 }
 
 #[cfg(test)]
@@ -644,8 +626,8 @@ impl<'a, T: PyClassImpl> PyObjectHandle<'a, T> {
 mod tests {
     use super::*;
 
-    use crate::prelude::*;
     use crate::pyclass::boolean_struct::{False, True};
+    use crate::{prelude::*, PyClass};
 
     #[pyclass(crate = "crate", subclass)]
     struct MutableBase;
@@ -704,6 +686,19 @@ mod tests {
         assert!(base_size > 0); // negative indicates variable sized
         assert_eq!(base_size, PyObjectLayout::basicsize::<ChildWithoutData>());
         assert!(base_size < PyObjectLayout::basicsize::<ChildWithData>());
+    }
+
+    #[test]
+    fn test_invalid_base() {
+        assert_eq!(std::mem::size_of::<static_layout::InvalidStaticLayout>(), 0);
+
+        #[repr(C)]
+        struct InvalidLayout {
+            ob_base: static_layout::InvalidStaticLayout,
+            contents: u8,
+        }
+
+        assert_eq!(std::mem::offset_of!(InvalidLayout, contents), 0);
     }
 
     fn assert_mutable<T: PyClass<Frozen = False, PyClassMutability = MutableClass>>() {}

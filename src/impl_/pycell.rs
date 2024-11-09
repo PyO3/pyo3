@@ -1,5 +1,6 @@
 //! Externally-accessible implementation of pycell
 pub use crate::pycell::impl_::{
-    opaque_layout::PyVariableClassObjectBase, static_layout::PyClassObjectBase, GetBorrowChecker,
-    PyClassMutability, PyClassObjectBaseLayout, PyStaticClassObject, PyVariableClassObject,
+    static_layout::InvalidStaticLayout, static_layout::PyStaticClassLayout,
+    static_layout::PyStaticNativeLayout, GetBorrowChecker, PyClassMutability,
+    PyClassRecursiveOperations, PyNativeTypeRecursiveOperations, PyObjectRecursiveOperations,
 };

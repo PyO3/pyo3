@@ -1,9 +1,6 @@
 use crate::{
-    ffi,
-    ffi_ptr_ext::FfiPtrExt,
-    impl_::{pycell::PyStaticClassObject, pyclass::PyClassImpl},
-    types::any::PyAnyMethods,
-    Borrowed, Bound, PyAny, PyTypeInfo, Python,
+    ffi, ffi_ptr_ext::FfiPtrExt, types::any::PyAnyMethods, Borrowed, Bound, PyAny, PyTypeInfo,
+    Python,
 };
 
 /// Represents the Python `Ellipsis` object.
@@ -34,8 +31,6 @@ unsafe impl PyTypeInfo for PyEllipsis {
     const NAME: &'static str = "ellipsis";
     const MODULE: Option<&'static str> = None;
     const OPAQUE: bool = false;
-
-    type Layout<T: PyClassImpl> = PyStaticClassObject<T>;
 
     fn type_object_raw(_py: Python<'_>) -> *mut ffi::PyTypeObject {
         unsafe { ffi::Py_TYPE(ffi::Py_Ellipsis()) }
