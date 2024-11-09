@@ -1349,7 +1349,10 @@ impl SlotDef {
         let name = spec.name;
         let holders = holders.init_holders(ctx);
         let dep = if method_name == "__richcmp__" {
-            quote! { impl #pyo3_path::impl_::pyclass::HasCustomRichCmp for #cls {} }
+            quote! {
+                #[allow(unknown_lints, non_local_definitions)]
+                impl #pyo3_path::impl_::pyclass::HasCustomRichCmp for #cls {}
+            }
         } else {
             TokenStream::default()
         };
