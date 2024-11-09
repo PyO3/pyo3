@@ -1546,7 +1546,7 @@ where
         PyObjectOffset::Absolute(offset) => (obj.cast::<u8>(), offset),
         #[cfg(Py_3_12)]
         PyObjectOffset::Relative(offset) => {
-            // Safety: obj must be a valid `PyObject` of type `ClassT`
+            // Safety: obj must be a valid `PyObject` whose type is a subtype of `ClassT`
             let contents = unsafe { PyObjectLayout::get_contents_ptr::<ClassT>(obj) };
             (contents.cast::<u8>(), offset)
         }

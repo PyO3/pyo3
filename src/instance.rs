@@ -463,7 +463,7 @@ where
 
     #[inline]
     pub(crate) fn get_raw_object(&self) -> &ffi::PyObject {
-        self.1.get_raw_object()
+        self.1.as_raw_ref()
     }
 }
 
@@ -551,6 +551,17 @@ impl<'py, T> Bound<'py, T> {
     #[inline]
     pub fn as_ptr(&self) -> *mut ffi::PyObject {
         self.1.as_ptr()
+    }
+
+    /// Returns the raw FFI object represented by self.
+    ///
+    /// # Safety
+    ///
+    /// The reference is borrowed; callers should not decrease the reference count
+    /// when they are finished with the object.
+    #[inline]
+    pub fn as_raw_ref(&self) -> &ffi::PyObject {
+        self.1.as_raw_ref()
     }
 
     /// Returns an owned raw FFI pointer represented by self.
@@ -1116,6 +1127,17 @@ impl<T> Py<T> {
         self.0.as_ptr()
     }
 
+    /// Returns the raw FFI object represented by self.
+    ///
+    /// # Safety
+    ///
+    /// The reference is borrowed; callers should not decrease the reference count
+    /// when they are finished with the object.
+    #[inline]
+    pub fn as_raw_ref(&self) -> &ffi::PyObject {
+        unsafe { &*self.0.as_ptr() }
+    }
+
     /// Returns an owned raw FFI pointer represented by self.
     ///
     /// # Safety
@@ -1289,18 +1311,8 @@ where
     where
         T: PyClass<Frozen = True> + Sync,
     {
-        let obj = self.as_ptr();
         // Safety: The class itself is frozen and `Sync`
-        unsafe { &*PyObjectLayout::get_data_ptr::<T>(obj) }
-    }
-
-    /// Get a reference to the underlying `PyObject`
-    #[inline]
-    pub(crate) fn get_raw_object(&self) -> &ffi::PyObject {
-        let obj = self.as_ptr();
-        assert!(!obj.is_null());
-        // Safety: obj is a valid pointer to a PyObject
-        unsafe { &*obj }
+        unsafe { PyObjectLayout::get_data::<T>(self.as_raw_ref()) }
     }
 }
 

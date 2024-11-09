@@ -3,6 +3,7 @@
 use pyo3::types::{PyDict, PyInt, PyTuple};
 use pyo3::{prelude::*, types::PyType};
 use pyo3::{py_run, PyTypeInfo};
+use static_assertions::const_assert;
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -29,7 +30,7 @@ impl ClassWithObjectField {
 fn class_with_object_field() {
     Python::with_gil(|py| {
         let ty = py.get_type::<ClassWithObjectField>();
-        assert!(<ClassWithObjectField as PyTypeInfo>::OPAQUE);
+        const_assert!(<ClassWithObjectField as PyTypeInfo>::OPAQUE);
         py_run!(
             py,
             ty,

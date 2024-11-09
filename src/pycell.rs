@@ -308,7 +308,7 @@ impl<'py, T: PyClass> PyRef<'py, T> {
     }
 
     pub(crate) fn try_borrow(obj: &Bound<'py, T>) -> Result<Self, PyBorrowError> {
-        let raw_obj = obj.get_raw_object();
+        let raw_obj = obj.as_raw_ref();
         unsafe { PyObjectLayout::ensure_threadsafe::<T>(raw_obj) };
         let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(raw_obj) };
         borrow_checker
@@ -437,14 +437,13 @@ impl<T: PyClass> Deref for PyRef<'_, T> {
 
     #[inline]
     fn deref(&self) -> &T {
-        let obj = self.inner.as_ptr();
-        unsafe { &*PyObjectLayout::get_data_ptr::<T>(obj) }
+        unsafe { PyObjectLayout::get_data::<T>(self.inner.as_raw_ref()) }
     }
 }
 
 impl<T: PyClass> Drop for PyRef<'_, T> {
     fn drop(&mut self) {
-        let obj = self.inner.get_raw_object();
+        let obj = self.inner.as_raw_ref();
         let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(obj) };
         borrow_checker.release_borrow();
     }
@@ -565,7 +564,7 @@ impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
     }
 
     pub(crate) fn try_borrow(obj: &Bound<'py, T>) -> Result<Self, PyBorrowMutError> {
-        let raw_obj = obj.get_raw_object();
+        let raw_obj = obj.as_raw_ref();
         unsafe { PyObjectLayout::ensure_threadsafe::<T>(raw_obj) };
         let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(raw_obj) };
         borrow_checker
@@ -622,16 +621,14 @@ impl<T: PyClass<Frozen = False>> Deref for PyRefMut<'_, T> {
 
     #[inline]
     fn deref(&self) -> &T {
-        let obj = self.inner.as_ptr();
-        unsafe { &*PyObjectLayout::get_data_ptr::<T>(obj) }
+        unsafe { PyObjectLayout::get_data::<T>(self.inner.as_raw_ref()) }
     }
 }
 
 impl<T: PyClass<Frozen = False>> DerefMut for PyRefMut<'_, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
-        let obj = self.inner.as_ptr();
-        unsafe { &mut *PyObjectLayout::get_data_ptr::<T>(obj) }
+        unsafe { &mut *PyObjectLayout::get_data_ptr::<T>(self.inner.as_ptr()) }
     }
 }
 

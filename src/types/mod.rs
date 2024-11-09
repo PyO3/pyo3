@@ -139,6 +139,7 @@ macro_rules! pyobject_native_type_named (
     };
 );
 
+/// Obtain the address of the given static `PyTypeObject`.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_static_type_object(
@@ -214,7 +215,7 @@ macro_rules! pyobject_subclassable_native_type {
         impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
             type StaticLayout = $crate::impl_::pycell::PyStaticNativeLayout<$layout>;
             type BaseNativeType = $name;
-            type RecursiveOperations = crate::impl_::pycell::PyNativeTypeRecursiveOperations<Self>;
+            type RecursiveOperations = $crate::impl_::pycell::PyNativeTypeRecursiveOperations<Self>;
             type Initializer = $crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
             type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
         }

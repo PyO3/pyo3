@@ -312,7 +312,7 @@ where
         struct TraverseGuard<'a, Cls: PyClassImpl>(&'a ffi::PyObject, PhantomData<Cls>);
         impl<Cls: PyClassImpl> Drop for TraverseGuard<'_, Cls> {
             fn drop(&mut self) {
-                let borrow_checker = unsafe {PyObjectLayout::get_borrow_checker::<Cls>(self.0)};
+                let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<Cls>(self.0) };
                 borrow_checker.release_borrow();
             }
         }
@@ -320,7 +320,7 @@ where
         // `.try_borrow()` above created a borrow, we need to release it when we're done
         // traversing the object. This allows us to read `instance` safely.
         let _guard: TraverseGuard<'_, T> = TraverseGuard(raw_obj, PhantomData);
-        let instance  = unsafe {PyObjectLayout::get_data::<T>(raw_obj)};
+        let instance  = PyObjectLayout::get_data::<T>(raw_obj);
 
         let visit = PyVisit { visit, arg, _guard: PhantomData };
 

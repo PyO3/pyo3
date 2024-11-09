@@ -18,7 +18,7 @@ use crate::{ffi, PyTypeInfo, Python};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::PyTypeMethods;
 
-use super::{PyBorrowError, PyBorrowMutError};
+use super::{ptr_from_ref, PyBorrowError, PyBorrowMutError};
 
 pub trait PyClassMutability {
     // The storage for this inheritance layer. Only the first mutable class in
@@ -184,17 +184,15 @@ pub trait GetBorrowChecker<T: PyClassImpl> {
 
 impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for MutableClass {
     fn borrow_checker(obj: &ffi::PyObject) -> &BorrowChecker {
-        let obj = (obj as *const ffi::PyObject).cast_mut();
-        let contents = unsafe { PyObjectLayout::get_contents_ptr::<T>(obj) };
-        unsafe { &(*contents).borrow_checker }
+        let contents = unsafe { PyObjectLayout::get_contents::<T>(obj) };
+        &contents.borrow_checker
     }
 }
 
 impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for ImmutableClass {
     fn borrow_checker(obj: &ffi::PyObject) -> &EmptySlot {
-        let obj = (obj as *const ffi::PyObject).cast_mut();
-        let contents = unsafe { PyObjectLayout::get_contents_ptr::<T>(obj) };
-        unsafe { &(*contents).borrow_checker }
+        let contents = unsafe { PyObjectLayout::get_contents::<T>(obj) };
+        &contents.borrow_checker
     }
 }
 
@@ -251,8 +249,8 @@ fn usize_to_py_ssize(value: usize) -> ffi::Py_ssize_t {
 /// the `BaseNativeType` is reached.
 #[doc(hidden)]
 pub trait PyObjectRecursiveOperations {
-    unsafe fn ensure_threadsafe(obj: *mut ffi::PyObject);
-    unsafe fn check_threadsafe(obj: *mut ffi::PyObject) -> Result<(), PyBorrowError>;
+    unsafe fn ensure_threadsafe(obj: &ffi::PyObject);
+    unsafe fn check_threadsafe(obj: &ffi::PyObject) -> Result<(), PyBorrowError>;
     /// Cleanup then free the memory for `obj`.
     ///
     /// # Safety
@@ -265,14 +263,14 @@ pub trait PyObjectRecursiveOperations {
 pub struct PyClassRecursiveOperations<T>(PhantomData<T>);
 
 impl<T: PyClassImpl> PyObjectRecursiveOperations for PyClassRecursiveOperations<T> {
-    unsafe fn ensure_threadsafe(obj: *mut ffi::PyObject) {
-        let contents = unsafe { &*PyObjectLayout::get_contents_ptr::<T>(obj) };
+    unsafe fn ensure_threadsafe(obj: &ffi::PyObject) {
+        let contents = PyObjectLayout::get_contents::<T>(obj);
         contents.thread_checker.ensure();
         <T::BaseType as PyClassBaseType>::RecursiveOperations::ensure_threadsafe(obj);
     }
 
-    unsafe fn check_threadsafe(obj: *mut ffi::PyObject) -> Result<(), PyBorrowError> {
-        let contents = unsafe { &*PyObjectLayout::get_contents_ptr::<T>(obj) };
+    unsafe fn check_threadsafe(obj: &ffi::PyObject) -> Result<(), PyBorrowError> {
+        let contents = PyObjectLayout::get_contents::<T>(obj);
         if !contents.thread_checker.check() {
             return Err(PyBorrowError { _private: () });
         }
@@ -281,7 +279,7 @@ impl<T: PyClassImpl> PyObjectRecursiveOperations for PyClassRecursiveOperations<
 
     unsafe fn deallocate(py: Python<'_>, obj: *mut ffi::PyObject) {
         // Safety: Python only calls tp_dealloc when no references to the object remain.
-        let contents = unsafe { &mut *PyObjectLayout::get_contents_ptr::<T>(obj) };
+        let contents = &mut *PyObjectLayout::get_contents_ptr::<T>(obj);
         contents.dealloc(py, obj);
         <T::BaseType as PyClassBaseType>::RecursiveOperations::deallocate(py, obj);
     }
@@ -293,9 +291,9 @@ pub struct PyNativeTypeRecursiveOperations<T>(PhantomData<T>);
 impl<T: PyNativeType + PyTypeInfo> PyObjectRecursiveOperations
     for PyNativeTypeRecursiveOperations<T>
 {
-    unsafe fn ensure_threadsafe(_obj: *mut ffi::PyObject) {}
+    unsafe fn ensure_threadsafe(_obj: &ffi::PyObject) {}
 
-    unsafe fn check_threadsafe(_obj: *mut ffi::PyObject) -> Result<(), PyBorrowError> {
+    unsafe fn check_threadsafe(_obj: &ffi::PyObject) -> Result<(), PyBorrowError> {
         Ok(())
     }
 
@@ -452,6 +450,12 @@ impl PyObjectLayout {
         }
     }
 
+    pub(crate) unsafe fn get_contents<T: PyClassImpl>(
+        obj: &ffi::PyObject,
+    ) -> &PyClassObjectContents<T> {
+        &*PyObjectLayout::get_contents_ptr::<T>(ptr_from_ref(obj).cast_mut()).cast_const()
+    }
+
     /// obtain a pointer to the pyclass struct of a `PyObject` of type `T`.
     ///
     /// Safety: the provided object must be valid and have the layout indicated by `T`
@@ -461,9 +465,7 @@ impl PyObjectLayout {
     }
 
     pub(crate) unsafe fn get_data<T: PyClassImpl>(obj: &ffi::PyObject) -> &T {
-        let obj_ref = (obj as *const ffi::PyObject).cast_mut();
-        let data_ptr = unsafe { PyObjectLayout::get_data_ptr::<T>(obj_ref) };
-        unsafe { &*data_ptr }
+        &*PyObjectLayout::get_data_ptr::<T>(ptr_from_ref(obj).cast_mut())
     }
 
     pub(crate) unsafe fn get_borrow_checker<T: PyClassImpl>(
@@ -473,21 +475,13 @@ impl PyObjectLayout {
     }
 
     pub(crate) unsafe fn ensure_threadsafe<T: PyClassImpl>(obj: &ffi::PyObject) {
-        unsafe {
-            PyClassRecursiveOperations::<T>::ensure_threadsafe(
-                obj as *const ffi::PyObject as *mut ffi::PyObject,
-            )
-        };
+        PyClassRecursiveOperations::<T>::ensure_threadsafe(obj)
     }
 
     pub(crate) unsafe fn check_threadsafe<T: PyClassImpl>(
         obj: &ffi::PyObject,
     ) -> Result<(), PyBorrowError> {
-        unsafe {
-            PyClassRecursiveOperations::<T>::check_threadsafe(
-                obj as *const ffi::PyObject as *mut ffi::PyObject,
-            )
-        }
+        PyClassRecursiveOperations::<T>::check_threadsafe(obj)
     }
 
     /// Clean up then free the memory associated with `obj`.
@@ -495,10 +489,7 @@ impl PyObjectLayout {
     /// See [tp_dealloc docs](https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_dealloc)
     pub(crate) fn deallocate<T: PyClassImpl>(py: Python<'_>, obj: *mut ffi::PyObject) {
         unsafe {
-            PyClassRecursiveOperations::<T>::deallocate(
-                py,
-                obj as *const ffi::PyObject as *mut ffi::PyObject,
-            )
+            PyClassRecursiveOperations::<T>::deallocate(py, obj);
         };
     }
 
@@ -514,10 +505,7 @@ impl PyObjectLayout {
             {
                 ffi::PyObject_GC_UnTrack(obj.cast());
             }
-            PyClassRecursiveOperations::<T>::deallocate(
-                py,
-                obj as *const ffi::PyObject as *mut ffi::PyObject,
-            )
+            PyClassRecursiveOperations::<T>::deallocate(py, obj);
         };
     }
 
@@ -597,27 +585,6 @@ impl PyObjectLayout {
 
             PyObjectOffset::Absolute(usize_to_py_ssize(offset))
         }
-    }
-}
-
-/// A wrapper around PyObject to provide [PyObjectLayout] functionality.
-#[allow(unused)]
-pub(crate) struct PyObjectHandle<'a, T: PyClassImpl>(*mut ffi::PyObject, PhantomData<&'a T>);
-
-#[allow(unused)]
-impl<'a, T: PyClassImpl> PyObjectHandle<'a, T> {
-    /// Safety: obj must point to a valid PyObject with the type `T`
-    pub unsafe fn new(obj: *mut ffi::PyObject) -> Self {
-        debug_assert!(!obj.is_null());
-        PyObjectHandle(obj, PhantomData)
-    }
-
-    pub fn contents(&'a self) -> &'a PyClassObjectContents<T> {
-        unsafe { &*PyObjectLayout::get_contents_ptr::<T>(self.0) }
-    }
-
-    pub fn data(&'a self) -> &'a T {
-        unsafe { &*PyObjectLayout::get_data_ptr::<T>(self.0) }
     }
 }
 
