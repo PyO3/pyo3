@@ -1,8 +1,7 @@
 use crate::conversion::IntoPyObject;
 use crate::err::{self, PyErr, PyResult};
 use crate::internal_tricks::ptr_from_ref;
-use crate::pycell::impl_::PyObjectLayout;
-use crate::pycell::{PyBorrowError, PyBorrowMutError};
+use crate::pycell::{layout::PyObjectLayout, PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{DerefToPyAny, PyDict, PyString, PyTuple};

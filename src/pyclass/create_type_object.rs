@@ -10,7 +10,7 @@ use crate::{
         trampoline::trampoline,
     },
     internal_tricks::ptr_from_ref,
-    pycell::impl_::PyObjectLayout,
+    pycell::layout::PyObjectLayout,
     types::{typeobject::PyTypeMethods, PyType},
     Py, PyClass, PyResult, PyTypeInfo, Python,
 };

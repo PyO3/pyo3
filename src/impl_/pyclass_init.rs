@@ -2,7 +2,7 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pyclass::PyClassImpl;
 use crate::internal::get_slot::TP_ALLOC;
-use crate::pycell::impl_::{PyClassObjectContents, PyObjectLayout};
+use crate::pycell::layout::{PyClassObjectContents, PyObjectLayout};
 use crate::types::PyType;
 use crate::{ffi, Borrowed, PyErr, PyResult, Python};
 use crate::{ffi::PyTypeObject, sealed::Sealed, type_object::PyTypeInfo};

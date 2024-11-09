@@ -52,7 +52,7 @@ impl crate::impl_::pyclass::PyClassBaseType for PyAny {
     type BaseNativeType = PyAny;
     type RecursiveOperations = crate::impl_::pycell::PyNativeTypeRecursiveOperations<Self>;
     type Initializer = crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
-    type PyClassMutability = crate::pycell::impl_::ImmutableClass;
+    type PyClassMutability = crate::pycell::borrow_checker::ImmutableClass;
 }
 
 /// This trait represents the Python APIs which are usable on all Python objects.

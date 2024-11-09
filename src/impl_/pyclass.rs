@@ -9,7 +9,7 @@ use crate::{
         pymethods::{PyGetterDef, PyMethodDefType},
     },
     pycell::{
-        impl_::{PyObjectLayout, PyObjectRecursiveOperations},
+        layout::{PyObjectLayout, PyObjectRecursiveOperations},
         PyBorrowError,
     },
     type_object::PyLayout,
@@ -1637,7 +1637,7 @@ fn pyo3_get_value<
 #[cfg(test)]
 #[cfg(feature = "macros")]
 mod tests {
-    use crate::pycell::impl_::PyClassObjectContents;
+    use crate::pycell::layout::PyClassObjectContents;
 
     use super::*;
 

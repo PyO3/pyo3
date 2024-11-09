@@ -207,8 +207,10 @@ use std::fmt;
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 
-pub(crate) mod impl_;
-use impl_::{PyClassBorrowChecker, PyObjectLayout};
+pub(crate) mod borrow_checker;
+pub(crate) mod layout;
+use borrow_checker::PyClassBorrowChecker;
+use layout::PyObjectLayout;
 
 /// A wrapper type for an immutably borrowed value from a [`Bound<'py, T>`].
 ///

@@ -3,10 +3,10 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::pyclass::PyClassBaseType;
 use crate::impl_::pyclass_init::{PyNativeTypeInitializer, PyObjectInit};
-use crate::pycell::impl_::PyObjectLayout;
+use crate::pycell::layout::PyObjectLayout;
 use crate::types::PyAnyMethods;
 use crate::{ffi, Bound, Py, PyClass, PyResult, Python};
-use crate::{ffi::PyTypeObject, pycell::impl_::PyClassObjectContents};
+use crate::{ffi::PyTypeObject, pycell::layout::PyClassObjectContents};
 use std::marker::PhantomData;
 
 /// Initializer for our `#[pyclass]` system.
