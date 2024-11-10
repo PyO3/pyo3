@@ -4,9 +4,10 @@
 use std::marker::PhantomData;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::ffi;
 use crate::impl_::pyclass::PyClassImpl;
+use crate::{ffi, PyTypeInfo};
 
+use super::layout::AssumeInitializedTypeProvider;
 use super::{PyBorrowError, PyBorrowMutError, PyObjectLayout};
 
 pub trait PyClassMutability {
@@ -171,16 +172,18 @@ pub trait GetBorrowChecker<T: PyClassImpl> {
         -> &<T::PyClassMutability as PyClassMutability>::Checker;
 }
 
-impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for MutableClass {
+impl<T: PyClassImpl<PyClassMutability = Self> + PyTypeInfo> GetBorrowChecker<T> for MutableClass {
     fn borrow_checker(obj: &ffi::PyObject) -> &BorrowChecker {
-        let contents = unsafe { PyObjectLayout::get_contents::<T>(obj) };
+        let type_provider = unsafe { AssumeInitializedTypeProvider::new() };
+        let contents = unsafe { PyObjectLayout::get_contents::<T, _>(obj, type_provider) };
         &contents.borrow_checker
     }
 }
 
-impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for ImmutableClass {
+impl<T: PyClassImpl<PyClassMutability = Self> + PyTypeInfo> GetBorrowChecker<T> for ImmutableClass {
     fn borrow_checker(obj: &ffi::PyObject) -> &EmptySlot {
-        let contents = unsafe { PyObjectLayout::get_contents::<T>(obj) };
+        let type_provider = unsafe { AssumeInitializedTypeProvider::new() };
+        let contents = unsafe { PyObjectLayout::get_contents::<T, _>(obj, type_provider) };
         &contents.borrow_checker
     }
 }

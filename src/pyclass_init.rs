@@ -3,7 +3,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::pyclass::PyClassBaseType;
 use crate::impl_::pyclass_init::{PyNativeTypeInitializer, PyObjectInit};
-use crate::pycell::layout::PyObjectLayout;
+use crate::pycell::layout::{LazyTypeProvider, PyObjectLayout};
 use crate::types::PyAnyMethods;
 use crate::{ffi, Bound, Py, PyClass, PyResult, Python};
 use crate::{ffi::PyTypeObject, pycell::layout::PyClassObjectContents};
@@ -167,7 +167,7 @@ impl<T: PyClass> PyClassInitializer<T> {
         let obj = super_init.into_new_object(py, target_type)?;
 
         std::ptr::write(
-            PyObjectLayout::get_contents_ptr::<T>(obj),
+            PyObjectLayout::get_contents_ptr::<T, _>(obj, LazyTypeProvider::new(py)),
             PyClassObjectContents::new(init),
         );
 

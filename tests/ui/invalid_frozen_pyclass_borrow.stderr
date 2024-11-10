@@ -60,31 +60,31 @@ note: required by a bound in `pyo3::Bound::<'py, T>::borrow_mut`
    |                    ^^^^^^^^^^^^^^ required by this bound in `Bound::<'py, T>::borrow_mut`
 
 error[E0271]: type mismatch resolving `<MutableBase as PyClass>::Frozen == True`
-  --> tests/ui/invalid_frozen_pyclass_borrow.rs:29:11
+  --> tests/ui/invalid_frozen_pyclass_borrow.rs:29:20
    |
-29 |     class.get();
-   |           ^^^ expected `True`, found `False`
+29 |     unsafe { class.get(); }
+   |                    ^^^ expected `True`, found `False`
    |
 note: required by a bound in `pyo3::Py::<T>::get`
   --> src/instance.rs
    |
-   |     pub fn get(&self) -> &T
-   |            --- required by a bound in this associated function
+   |     pub unsafe fn get(&self) -> &T
+   |                   --- required by a bound in this associated function
    |     where
    |         T: PyClass<Frozen = True> + Sync,
    |                    ^^^^^^^^^^^^^ required by this bound in `Py::<T>::get`
 
 error[E0271]: type mismatch resolving `<MutableBase as PyClass>::Frozen == True`
-  --> tests/ui/invalid_frozen_pyclass_borrow.rs:33:11
+  --> tests/ui/invalid_frozen_pyclass_borrow.rs:33:20
    |
-33 |     class.get();
-   |           ^^^ expected `True`, found `False`
+33 |     unsafe { class.get(); }
+   |                    ^^^ expected `True`, found `False`
    |
 note: required by a bound in `pyo3::Bound::<'py, T>::get`
   --> src/instance.rs
    |
-   |     pub fn get(&self) -> &T
-   |            --- required by a bound in this associated function
+   |     pub unsafe fn get(&self) -> &T
+   |                   --- required by a bound in this associated function
    |     where
    |         T: PyClass<Frozen = True> + Sync,
    |                    ^^^^^^^^^^^^^ required by this bound in `Bound::<'py, T>::get`

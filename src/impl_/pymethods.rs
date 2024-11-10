@@ -3,8 +3,8 @@ use crate::gil::LockGIL;
 use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::panic::PanicTrap;
 use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
-use crate::pycell::borrow_checker::PyClassBorrowChecker;
-use crate::pycell::layout::PyObjectLayout;
+use crate::pycell::borrow_checker::{GetBorrowChecker, PyClassBorrowChecker};
+use crate::pycell::layout::{AssumeInitializedTypeProvider, PyObjectLayout};
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
@@ -20,6 +20,7 @@ use std::os::raw::{c_int, c_void};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr::null_mut;
 
+use super::pycell::{PyClassRecursiveOperations, PyObjectRecursiveOperations};
 use super::pyclass::PyClassImpl;
 use super::trampoline;
 
@@ -285,6 +286,16 @@ pub unsafe fn _call_traverse<T>(
 where
     T: PyClass,
 {
+    {
+        let py = Python::assume_gil_acquired();
+        // allows functions that traverse the contents of `slf` below to assume that all
+        // the type objects are initialized. Only classes using the opaque layout use
+        // type objects to traverse the object.
+        if T::OPAQUE {
+            PyClassRecursiveOperations::<T>::ensure_type_objects_initialized(py);
+        }
+    }
+
     // It is important the implementation of `__traverse__` cannot safely access the GIL,
     // c.f. https://github.com/PyO3/pyo3/issues/3165, and hence we do not expose our GIL
     // token to the user code and lock safe methods for acquiring the GIL.
@@ -307,13 +318,13 @@ where
     let retval =
     // `#[pyclass(unsendable)]` types can only be deallocated by their own thread, so
     // do not traverse them if not on their owning thread :(
-    if PyObjectLayout::check_threadsafe::<T>(raw_obj).is_ok()
+    if PyClassRecursiveOperations::<T>::check_threadsafe(raw_obj).is_ok()
     // ... and we cannot traverse a type which might be being mutated by a Rust thread
-    && PyObjectLayout::get_borrow_checker::<T>(raw_obj).try_borrow().is_ok() {
+    && T::PyClassMutability::borrow_checker(raw_obj).try_borrow().is_ok() {
         struct TraverseGuard<'a, Cls: PyClassImpl>(&'a ffi::PyObject, PhantomData<Cls>);
         impl<Cls: PyClassImpl> Drop for TraverseGuard<'_, Cls> {
             fn drop(&mut self) {
-                let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<Cls>(self.0) };
+                let borrow_checker = Cls::PyClassMutability::borrow_checker(self.0);
                 borrow_checker.release_borrow();
             }
         }
@@ -321,7 +332,9 @@ where
         // `.try_borrow()` above created a borrow, we need to release it when we're done
         // traversing the object. This allows us to read `instance` safely.
         let _guard: TraverseGuard<'_, T> = TraverseGuard(raw_obj, PhantomData);
-        let instance  = PyObjectLayout::get_data::<T>(raw_obj);
+        // Safety: type object is manually initialized above
+        let type_provider = AssumeInitializedTypeProvider::new();
+        let instance  = PyObjectLayout::get_data::<T, _>(raw_obj, type_provider);
 
         let visit = PyVisit { visit, arg, _guard: PhantomData };
 

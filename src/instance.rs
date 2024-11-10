@@ -1,6 +1,7 @@
 use crate::conversion::IntoPyObject;
 use crate::err::{self, PyErr, PyResult};
 use crate::internal_tricks::ptr_from_ref;
+use crate::pycell::layout::AssumeInitializedTypeProvider;
 use crate::pycell::{layout::PyObjectLayout, PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
@@ -325,9 +326,24 @@ where
         PyRefMut::try_borrow(self)
     }
 
+    /// Call this function before using `get()`
+    pub fn enable_get(py: Python<'_>)
+    where
+        T: PyTypeInfo,
+    {
+        // only classes using the opaque layout require type objects for traversal
+        if T::OPAQUE {
+            let _ = T::type_object_raw(py);
+        }
+    }
+
     /// Provide an immutable borrow of the value `T` without acquiring the GIL.
     ///
     /// This is available if the class is [`frozen`][macro@crate::pyclass] and [`Sync`].
+    ///
+    /// # Safety
+    ///
+    /// `enable_get()` must have been called for `T` beforehand.
     ///
     /// # Examples
     ///
@@ -349,7 +365,7 @@ where
     /// });
     /// ```
     #[inline]
-    pub fn get(&self) -> &T
+    pub unsafe fn get(&self) -> &T
     where
         T: PyClass<Frozen = True> + Sync,
     {
@@ -1281,9 +1297,24 @@ where
         self.bind(py).try_borrow_mut()
     }
 
+    /// Call this function before using `get()`
+    pub fn enable_get(py: Python<'_>)
+    where
+        T: PyTypeInfo,
+    {
+        // only classes using the opaque layout require type objects for traversal
+        if T::OPAQUE {
+            let _ = T::type_object_raw(py);
+        }
+    }
+
     /// Provide an immutable borrow of the value `T` without acquiring the GIL.
     ///
     /// This is available if the class is [`frozen`][macro@crate::pyclass] and [`Sync`].
+    ///
+    /// # Safety
+    ///
+    /// `enable_get()` must have been called for `T` beforehand.
     ///
     /// # Examples
     ///
@@ -1306,12 +1337,14 @@ where
     /// # Python::with_gil(move |_py| drop(cell));
     /// ```
     #[inline]
-    pub fn get(&self) -> &T
+    pub unsafe fn get(&self) -> &T
     where
         T: PyClass<Frozen = True> + Sync,
     {
+        // Safety: `enable_get()` has already been called.
+        let type_provider = unsafe { AssumeInitializedTypeProvider::new() };
         // Safety: The class itself is frozen and `Sync`
-        unsafe { PyObjectLayout::get_data::<T>(self.as_raw_ref()) }
+        unsafe { PyObjectLayout::get_data::<T, _>(self.as_raw_ref(), type_provider) }
     }
 }
 
@@ -2347,11 +2380,11 @@ a = A()
         #[test]
         fn test_frozen_get() {
             Python::with_gil(|py| {
+                Py::<FrozenClass>::enable_get(py);
                 for i in 0..10 {
                     let instance = Py::new(py, FrozenClass(i)).unwrap();
-                    assert_eq!(instance.get().0, i);
-
-                    assert_eq!(instance.bind(py).get().0, i);
+                    assert_eq!(unsafe { instance.get().0 }, i);
+                    assert_eq!(unsafe { instance.bind(py).get().0 }, i);
                 }
             })
         }

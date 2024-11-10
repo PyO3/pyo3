@@ -9,7 +9,7 @@ use crate::{
         pymethods::{PyGetterDef, PyMethodDefType},
     },
     pycell::{
-        layout::{PyObjectLayout, PyObjectRecursiveOperations},
+        layout::{LazyTypeProvider, PyObjectLayout, PyObjectRecursiveOperations},
         PyBorrowError,
     },
     type_object::PyLayout,
@@ -1537,7 +1537,7 @@ unsafe fn ensure_no_mutable_alias<'py, ClassT: PyClass>(
 
 /// calculates the field pointer from an PyObject pointer
 #[inline]
-fn field_from_object<ClassT, FieldT, Offset>(obj: *mut ffi::PyObject) -> *mut FieldT
+fn field_from_object<ClassT, FieldT, Offset>(py: Python<'_>, obj: *mut ffi::PyObject) -> *mut FieldT
 where
     ClassT: PyClass,
     Offset: OffsetCalculator<ClassT, FieldT>,
@@ -1547,7 +1547,9 @@ where
         #[cfg(Py_3_12)]
         PyObjectOffset::Relative(offset) => {
             // Safety: obj must be a valid `PyObject` whose type is a subtype of `ClassT`
-            let contents = unsafe { PyObjectLayout::get_contents_ptr::<ClassT>(obj) };
+            let contents = unsafe {
+                PyObjectLayout::get_contents_ptr::<ClassT, _>(obj, LazyTypeProvider::new(py))
+            };
             (contents.cast::<u8>(), offset)
         }
         #[cfg(not(Py_3_12))]
@@ -1569,7 +1571,7 @@ fn pyo3_get_value_topyobject<
     obj: *mut ffi::PyObject,
 ) -> PyResult<*mut ffi::PyObject> {
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
-    let value = field_from_object::<ClassT, FieldT, Offset>(obj);
+    let value = field_from_object::<ClassT, FieldT, Offset>(py, obj);
 
     // SAFETY: Offset is known to describe the location of the value, and
     // _holder is preventing mutable aliasing
@@ -1586,7 +1588,7 @@ where
     Offset: OffsetCalculator<ClassT, FieldT>,
 {
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
-    let value = field_from_object::<ClassT, FieldT, Offset>(obj);
+    let value = field_from_object::<ClassT, FieldT, Offset>(py, obj);
 
     // SAFETY: Offset is known to describe the location of the value, and
     // _holder is preventing mutable aliasing
@@ -1606,7 +1608,7 @@ where
     Offset: OffsetCalculator<ClassT, FieldT>,
 {
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
-    let value = field_from_object::<ClassT, FieldT, Offset>(obj);
+    let value = field_from_object::<ClassT, FieldT, Offset>(py, obj);
 
     // SAFETY: Offset is known to describe the location of the value, and
     // _holder is preventing mutable aliasing
@@ -1627,7 +1629,7 @@ fn pyo3_get_value<
     obj: *mut ffi::PyObject,
 ) -> PyResult<*mut ffi::PyObject> {
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
-    let value = field_from_object::<ClassT, FieldT, Offset>(obj);
+    let value = field_from_object::<ClassT, FieldT, Offset>(py, obj);
 
     // SAFETY: Offset is known to describe the location of the value, and
     // _holder is preventing mutable aliasing
