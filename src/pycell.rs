@@ -574,9 +574,9 @@ impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
             .map(|_| Self { inner: obj.clone() })
     }
 
-    pub(crate) fn downgrade(slf: &Self) -> &PyRef<'py, T> {
+    pub(crate) fn downgrade(&self) -> &PyRef<'py, T> {
         // `PyRefMut<T>` and `PyRef<T>` have the same layout
-        unsafe { &*ptr_from_ref(slf).cast() }
+        unsafe { &*ptr_from_ref(self).cast() }
     }
 }
 

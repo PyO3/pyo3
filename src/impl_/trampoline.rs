@@ -129,6 +129,8 @@ pub unsafe fn initproc(
     slf: *mut ffi::PyObject,
     args: *mut ffi::PyObject,
     kwargs: *mut ffi::PyObject,
+    // initializes the object to a valid state before running the user-defined init function
+    initialize: unsafe fn(*mut ffi::PyObject),
     f: for<'py> unsafe fn(
         Python<'py>,
         *mut ffi::PyObject,
@@ -137,7 +139,10 @@ pub unsafe fn initproc(
     ) -> PyResult<*mut ffi::PyObject>,
 ) -> c_int {
     // the map() discards the success value of `f` and converts to the success return value for tp_init (0)
-    trampoline(|py| f(py, slf, args, kwargs).map(|_| 0))
+    trampoline(|py| {
+        initialize(slf);
+        f(py, slf, args, kwargs).map(|_| 0)
+    })
 }
 
 #[cfg(any(not(Py_LIMITED_API), Py_3_11))]

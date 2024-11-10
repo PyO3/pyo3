@@ -34,7 +34,9 @@ pub(crate) struct PyClassObjectContents<T: PyClassImpl> {
     pub(crate) value: ManuallyDrop<UnsafeCell<T>>,
     pub(crate) borrow_checker: <T::PyClassMutability as PyClassMutability>::Storage,
     pub(crate) thread_checker: T::ThreadChecker,
+    /// A pointer to a `PyObject` if `T` is annotated with `#[pyclass(dict)]` and a zero-sized field otherwise.
     pub(crate) dict: T::Dict,
+    /// A pointer to a `PyObject` if `T` is annotated with `#[pyclass(weakref)]` and a zero-sized field otherwise.
     pub(crate) weakref: T::WeakRef,
 }
 
@@ -187,8 +189,8 @@ pub(crate) mod opaque_layout {
             let type_obj = unsafe { ffi::Py_TYPE(obj) };
             assert!(!type_obj.is_null());
             let pointer = unsafe { ffi::PyObject_GetTypeData(obj, type_obj) };
-            assert!(!pointer.is_null());
-            pointer as *mut PyClassObjectContents<T>
+            assert!(!pointer.is_null(), "pointer to pyclass data returned NULL");
+            pointer.cast()
         }
 
         #[cfg(not(Py_3_12))]
