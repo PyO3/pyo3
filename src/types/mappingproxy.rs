@@ -19,11 +19,8 @@ unsafe fn dict_proxy_check(op: *mut ffi::PyObject) -> c_int {
     ffi::Py_IS_TYPE(op, std::ptr::addr_of_mut!(ffi::PyDictProxy_Type))
 }
 
-pyobject_native_type_core!(
-    PyMappingProxy,
-    pyobject_native_static_type_object!(ffi::PyDictProxy_Type),
-    #checkfunction=dict_proxy_check
-);
+pyobject_native_type_core!(PyMappingProxy, #checkfunction=dict_proxy_check);
+pyobject_native_type_object_methods!(PyMappingProxy, #global=ffi::PyDictProxy_Type);
 
 impl PyMappingProxy {
     /// Creates a mappingproxy from an object.

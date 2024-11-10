@@ -18,7 +18,8 @@ use std::ffi::CStr;
 #[repr(transparent)]
 pub struct PyCFunction(PyAny);
 
-pyobject_native_type_core!(PyCFunction, pyobject_native_static_type_object!(ffi::PyCFunction_Type), #checkfunction=ffi::PyCFunction_Check);
+pyobject_native_type_core!(PyCFunction, #checkfunction=ffi::PyCFunction_Check);
+pyobject_native_type_object_methods!(PyCFunction, #global=ffi::PyCFunction_Type);
 
 impl PyCFunction {
     /// Create a new built-in function with keywords (*args and/or **kwargs).
@@ -226,4 +227,6 @@ unsafe impl<F: Send> Send for ClosureDestructor<F> {}
 pub struct PyFunction(PyAny);
 
 #[cfg(not(Py_LIMITED_API))]
-pyobject_native_type_core!(PyFunction, pyobject_native_static_type_object!(ffi::PyFunction_Type), #checkfunction=ffi::PyFunction_Check);
+pyobject_native_type_core!(PyFunction, #checkfunction=ffi::PyFunction_Check);
+#[cfg(not(Py_LIMITED_API))]
+pyobject_native_type_object_methods!(PyFunction, #global=ffi::PyFunction_Type);

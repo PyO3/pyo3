@@ -18,12 +18,8 @@ pub struct PyDict(PyAny);
 
 pyobject_subclassable_native_type!(PyDict, crate::ffi::PyDictObject);
 
-pyobject_native_type!(
-    PyDict,
-    ffi::PyDictObject,
-    pyobject_native_static_type_object!(ffi::PyDict_Type),
-    #checkfunction=ffi::PyDict_Check
-);
+pyobject_native_type!(PyDict, ffi::PyDictObject, #checkfunction=ffi::PyDict_Check);
+pyobject_native_type_object_methods!(PyDict, #global=ffi::PyDict_Type);
 
 /// Represents a Python `dict_keys`.
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -31,11 +27,9 @@ pyobject_native_type!(
 pub struct PyDictKeys(PyAny);
 
 #[cfg(not(any(PyPy, GraalPy)))]
-pyobject_native_type_core!(
-    PyDictKeys,
-    pyobject_native_static_type_object!(ffi::PyDictKeys_Type),
-    #checkfunction=ffi::PyDictKeys_Check
-);
+pyobject_native_type_core!(PyDictKeys, #checkfunction=ffi::PyDictKeys_Check);
+#[cfg(not(any(PyPy, GraalPy)))]
+pyobject_native_type_object_methods!(PyDictKeys, #global=ffi::PyDictKeys_Type);
 
 /// Represents a Python `dict_values`.
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -43,11 +37,9 @@ pyobject_native_type_core!(
 pub struct PyDictValues(PyAny);
 
 #[cfg(not(any(PyPy, GraalPy)))]
-pyobject_native_type_core!(
-    PyDictValues,
-    pyobject_native_static_type_object!(ffi::PyDictValues_Type),
-    #checkfunction=ffi::PyDictValues_Check
-);
+pyobject_native_type_core!(PyDictValues, #checkfunction=ffi::PyDictValues_Check);
+#[cfg(not(any(PyPy, GraalPy)))]
+pyobject_native_type_object_methods!(PyDictValues, #global=ffi::PyDictValues_Type);
 
 /// Represents a Python `dict_items`.
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -55,11 +47,9 @@ pyobject_native_type_core!(
 pub struct PyDictItems(PyAny);
 
 #[cfg(not(any(PyPy, GraalPy)))]
-pyobject_native_type_core!(
-    PyDictItems,
-    pyobject_native_static_type_object!(ffi::PyDictItems_Type),
-    #checkfunction=ffi::PyDictItems_Check
-);
+pyobject_native_type_core!(PyDictItems, #checkfunction=ffi::PyDictItems_Check);
+#[cfg(not(any(PyPy, GraalPy)))]
+pyobject_native_type_object_methods!(PyDictItems, #global=ffi::PyDictItems_Type);
 
 impl PyDict {
     /// Creates a new empty dictionary.

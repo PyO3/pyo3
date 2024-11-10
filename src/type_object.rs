@@ -42,8 +42,8 @@ pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 ///
 /// # Safety
 ///
-/// Implementations must provide an implementation for `type_object_raw` which infallibly produces a
-/// non-null pointer to the corresponding Python type object.
+/// Implementations must return the correct non-null `PyTypeObject` pointer corresponding to the type of `Self`
+/// from `type_object_raw` and `try_get_type_object_raw`.
 pub unsafe trait PyTypeInfo: Sized {
     /// Class name.
     const NAME: &'static str;
@@ -52,12 +52,20 @@ pub unsafe trait PyTypeInfo: Sized {
     const MODULE: Option<&'static str>;
 
     /// Whether classes that extend from this type must use the 'opaque type' extension mechanism
-    /// rather than using the standard mechanism of placing the data for this type at the beginning
+    /// rather than using the standard mechanism of placing the data for this type at the end
     /// of a new `repr(C)` struct
     const OPAQUE: bool;
 
     /// Returns the `PyTypeObject` instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;
+
+    /// Returns the `PyTypeObject` instance for this type if it is known statically or has already
+    /// been initialized (by calling `type_object_raw()`).
+    ///
+    /// # Safety
+    /// - It is valid to always return Some.
+    /// - It is not valid to return None once `type_object_raw()` has been called.
+    fn try_get_type_object_raw() -> Option<*mut ffi::PyTypeObject>;
 
     /// Returns the safe abstraction over the type object.
     #[inline]

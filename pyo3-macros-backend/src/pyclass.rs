@@ -1820,6 +1820,12 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
                     .get_or_init(py)
                     .as_type_ptr()
             }
+
+            #[inline]
+            fn try_get_type_object_raw() -> ::std::option::Option<*mut #pyo3_path::ffi::PyTypeObject> {
+                <#cls as #pyo3_path::impl_::pyclass::PyClassImpl>::lazy_type_object()
+                    .try_get_raw()
+            }
         }
     }
 }

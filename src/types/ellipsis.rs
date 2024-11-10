@@ -36,6 +36,10 @@ unsafe impl PyTypeInfo for PyEllipsis {
         unsafe { ffi::Py_TYPE(ffi::Py_Ellipsis()) }
     }
 
+    fn try_get_type_object_raw() -> Option<*mut ffi::PyTypeObject> {
+        Some(unsafe { ffi::Py_TYPE(ffi::Py_Ellipsis()) })
+    }
+
     #[inline]
     fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
         // ellipsis is not usable as a base type

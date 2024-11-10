@@ -19,12 +19,8 @@ use std::convert::Infallible;
 #[repr(transparent)]
 pub struct PySlice(PyAny);
 
-pyobject_native_type!(
-    PySlice,
-    ffi::PySliceObject,
-    pyobject_native_static_type_object!(ffi::PySlice_Type),
-    #checkfunction=ffi::PySlice_Check
-);
+pyobject_native_type!(PySlice, ffi::PySliceObject, #checkfunction=ffi::PySlice_Check);
+pyobject_native_type_object_methods!(PySlice, #global=ffi::PySlice_Type);
 
 /// Return value from [`PySliceMethods::indices`].
 #[derive(Debug, Eq, PartialEq)]

@@ -20,13 +20,8 @@ use std::os::raw::c_double;
 pub struct PyComplex(PyAny);
 
 pyobject_subclassable_native_type!(PyComplex, ffi::PyComplexObject);
-
-pyobject_native_type!(
-    PyComplex,
-    ffi::PyComplexObject,
-    pyobject_native_static_type_object!(ffi::PyComplex_Type),
-    #checkfunction=ffi::PyComplex_Check
-);
+pyobject_native_type!(PyComplex, ffi::PyComplexObject, #checkfunction=ffi::PyComplex_Check);
+pyobject_native_type_object_methods!(PyComplex, #global=ffi::PyComplex_Type);
 
 impl PyComplex {
     /// Creates a new `PyComplex` from the given real and imaginary values.

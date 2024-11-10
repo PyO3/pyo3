@@ -8,8 +8,5 @@ use crate::PyAny;
 #[repr(transparent)]
 pub struct PyFrame(PyAny);
 
-pyobject_native_type_core!(
-    PyFrame,
-    pyobject_native_static_type_object!(ffi::PyFrame_Type),
-    #checkfunction=ffi::PyFrame_Check
-);
+pyobject_native_type_core!(PyFrame, #checkfunction=ffi::PyFrame_Check);
+pyobject_native_type_object_methods!(PyFrame, #global=ffi::PyFrame_Type);

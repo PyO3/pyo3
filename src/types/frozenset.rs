@@ -72,19 +72,11 @@ pub struct PyFrozenSet(PyAny);
 #[cfg(not(any(PyPy, GraalPy)))]
 pyobject_subclassable_native_type!(PyFrozenSet, crate::ffi::PySetObject);
 #[cfg(not(any(PyPy, GraalPy)))]
-pyobject_native_type!(
-    PyFrozenSet,
-    ffi::PySetObject,
-    pyobject_native_static_type_object!(ffi::PyFrozenSet_Type),
-    #checkfunction=ffi::PyFrozenSet_Check
-);
-
+pyobject_native_type!(PyFrozenSet, ffi::PySetObject, #checkfunction=ffi::PyFrozenSet_Check);
 #[cfg(any(PyPy, GraalPy))]
-pyobject_native_type_core!(
-    PyFrozenSet,
-    pyobject_native_static_type_object!(ffi::PyFrozenSet_Type),
-    #checkfunction=ffi::PyFrozenSet_Check
-);
+pyobject_native_type_core!(PyFrozenSet, #checkfunction=ffi::PyFrozenSet_Check);
+
+pyobject_native_type_object_methods!(PyFrozenSet, #global=ffi::PyFrozenSet_Type);
 
 impl PyFrozenSet {
     /// Creates a new frozenset.

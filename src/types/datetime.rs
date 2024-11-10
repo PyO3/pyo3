@@ -30,6 +30,8 @@ use std::os::raw::c_int;
 #[cfg(feature = "chrono")]
 use std::ptr;
 
+use super::PyType;
+
 fn ensure_datetime_api(py: Python<'_>) -> PyResult<&'static PyDateTime_CAPI> {
     if let Some(api) = unsafe { pyo3_ffi::PyDateTimeAPI().as_ref() } {
         Ok(api)
@@ -195,9 +197,14 @@ pub struct PyDate(PyAny);
 pyobject_native_type!(
     PyDate,
     crate::ffi::PyDateTime_Date,
-    |py| expect_datetime_api(py).DateType,
     #module=Some("datetime"),
     #checkfunction=PyDate_Check
+);
+pyobject_native_type_object_methods!(
+    PyDate,
+    #create=|py| unsafe {
+        PyType::from_borrowed_type_ptr(py, expect_datetime_api(py).DateType).unbind()
+    }
 );
 pyobject_subclassable_native_type!(PyDate, crate::ffi::PyDateTime_Date);
 
@@ -266,9 +273,14 @@ pub struct PyDateTime(PyAny);
 pyobject_native_type!(
     PyDateTime,
     crate::ffi::PyDateTime_DateTime,
-    |py| expect_datetime_api(py).DateTimeType,
     #module=Some("datetime"),
     #checkfunction=PyDateTime_Check
+);
+pyobject_native_type_object_methods!(
+    PyDateTime,
+    #create=|py| unsafe {
+        PyType::from_borrowed_type_ptr(py, expect_datetime_api(py).DateTimeType).unbind()
+    }
 );
 pyobject_subclassable_native_type!(PyDateTime, crate::ffi::PyDateTime_DateTime);
 
@@ -512,9 +524,14 @@ pub struct PyTime(PyAny);
 pyobject_native_type!(
     PyTime,
     crate::ffi::PyDateTime_Time,
-    |py| expect_datetime_api(py).TimeType,
     #module=Some("datetime"),
     #checkfunction=PyTime_Check
+);
+pyobject_native_type_object_methods!(
+    PyTime,
+    #create=|py| unsafe {
+        PyType::from_borrowed_type_ptr(py, expect_datetime_api(py).TimeType).unbind()
+    }
 );
 pyobject_subclassable_native_type!(PyTime, crate::ffi::PyDateTime_Time);
 
@@ -668,9 +685,14 @@ pub struct PyTzInfo(PyAny);
 pyobject_native_type!(
     PyTzInfo,
     crate::ffi::PyObject,
-    |py| expect_datetime_api(py).TZInfoType,
     #module=Some("datetime"),
     #checkfunction=PyTZInfo_Check
+);
+pyobject_native_type_object_methods!(
+    PyTzInfo,
+    #create=|py| unsafe {
+        PyType::from_borrowed_type_ptr(py, expect_datetime_api(py).TZInfoType).unbind()
+    }
 );
 pyobject_subclassable_native_type!(PyTzInfo, crate::ffi::PyObject);
 
@@ -720,9 +742,14 @@ pub struct PyDelta(PyAny);
 pyobject_native_type!(
     PyDelta,
     crate::ffi::PyDateTime_Delta,
-    |py| expect_datetime_api(py).DeltaType,
     #module=Some("datetime"),
     #checkfunction=PyDelta_Check
+);
+pyobject_native_type_object_methods!(
+    PyDelta,
+    #create=|py| unsafe {
+        PyType::from_borrowed_type_ptr(py, expect_datetime_api(py).DeltaType).unbind()
+    }
 );
 pyobject_subclassable_native_type!(PyDelta, crate::ffi::PyDateTime_Delta);
 

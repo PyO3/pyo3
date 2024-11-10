@@ -40,6 +40,10 @@ unsafe impl PyTypeInfo for PyNotImplemented {
         unsafe { ffi::Py_TYPE(ffi::Py_NotImplemented()) }
     }
 
+    fn try_get_type_object_raw() -> Option<*mut ffi::PyTypeObject> {
+        Some(unsafe { ffi::Py_TYPE(ffi::Py_NotImplemented()) })
+    }
+
     #[inline]
     fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
         // NotImplementedType is not usable as a base type

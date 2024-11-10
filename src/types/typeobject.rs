@@ -19,11 +19,11 @@ pub struct PyType(PyAny);
 
 pyobject_native_type_core!(
     PyType,
-    pyobject_native_static_type_object!(ffi::PyType_Type),
-    #module=::std::option::Option::Some("builtins"),
+    #module=Some("builtins"),
     #opaque=true,
-    #checkfunction = ffi::PyType_Check
+    #checkfunction=ffi::PyType_Check
 );
+pyobject_native_type_object_methods!(PyType, #global=ffi::PyType_Type);
 
 impl crate::impl_::pyclass::PyClassBaseType for PyType {
     type StaticLayout = crate::impl_::pycell::InvalidStaticLayout;

@@ -39,11 +39,11 @@ fn PyObject_Check(_: *mut ffi::PyObject) -> c_int {
 
 pyobject_native_type_info!(
     PyAny,
-    pyobject_native_static_type_object!(ffi::PyBaseObject_Type),
     Some("builtins"),
     false,
     #checkfunction=PyObject_Check
 );
+pyobject_native_type_object_methods!(PyAny, #global=ffi::PyBaseObject_Type);
 pyobject_native_type_marker!(PyAny);
 pyobject_native_type_sized!(PyAny, ffi::PyObject);
 // We cannot use `pyobject_subclassable_native_type!()` because it cfgs out on `Py_LIMITED_API`.

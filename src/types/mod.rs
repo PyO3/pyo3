@@ -139,31 +139,25 @@ macro_rules! pyobject_native_type_named (
     };
 );
 
-/// Obtain the address of the given static `PyTypeObject`.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! pyobject_native_static_type_object(
-    ($typeobject:expr) => {
-        |_py| {
-            #[allow(unused_unsafe)] // https://github.com/rust-lang/rust/pull/125834
-            unsafe { ::std::ptr::addr_of_mut!($typeobject) }
-        }
-    };
-);
-
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_info(
-    ($name:ty, $typeobject:expr, $module:expr, $opaque:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+    ($name:ty, $module:expr, $opaque:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
             const NAME: &'static str = stringify!($name);
             const MODULE: ::std::option::Option<&'static str> = $module;
             const OPAQUE: bool = $opaque;
 
             #[inline]
-            #[allow(clippy::redundant_closure_call)]
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
-                $typeobject(py)
+                // provided by pyobject_native_type_object_methods!()
+                Self::type_object_raw_impl(py)
+            }
+
+            #[inline]
+            fn try_get_type_object_raw() -> ::std::option::Option<*mut $crate::ffi::PyTypeObject> {
+                // provided by pyobject_native_type_object_methods!()
+                Self::try_get_type_object_raw_impl()
             }
 
             $(
@@ -194,16 +188,34 @@ macro_rules! pyobject_native_type_marker(
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_core {
-    ($name:ty, $typeobject:expr, #module=$module:expr, #opaque=$opaque:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+    ($name:ty, #module=$module:expr, #opaque=$opaque:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_named!($name $(;$generics)*);
         $crate::pyobject_native_type_marker!($name);
-        $crate::pyobject_native_type_info!($name, $typeobject, $module, $opaque $(, #checkfunction=$checkfunction)? $(;$generics)*);
+        $crate::pyobject_native_type_info!(
+            $name,
+            $module,
+            $opaque
+            $(, #checkfunction=$checkfunction)?
+            $(;$generics)*
+        );
     };
-    ($name:ty, $typeobject:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_core!($name, $typeobject, #module=$module, #opaque=false $(, #checkfunction=$checkfunction)? $(;$generics)*);
+    ($name:ty, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_core!(
+            $name,
+            #module=$module,
+            #opaque=false
+            $(, #checkfunction=$checkfunction)?
+            $(;$generics)*
+        );
     };
-    ($name:ty, $typeobject:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_core!($name, $typeobject, #module=::std::option::Option::Some("builtins"), #opaque=false $(, #checkfunction=$checkfunction)? $(;$generics)*);
+    ($name:ty $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_core!(
+            $name,
+            #module=::std::option::Option::Some("builtins"),
+            #opaque=false
+            $(, #checkfunction=$checkfunction)?
+            $(;$generics)*
+        );
     };
 }
 
@@ -236,11 +248,80 @@ macro_rules! pyobject_native_type_sized {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type {
-    ($name:ty, $layout:path, $typeobject:expr $(, #module=$module:expr)? $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_core!($name, $typeobject $(, #module=$module)? $(, #checkfunction=$checkfunction)? $(;$generics)*);
+    ($name:ty, $layout:path $(, #module=$module:expr)? $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_core!($name $(, #module=$module)? $(, #checkfunction=$checkfunction)? $(;$generics)*);
         // To prevent inheriting native types with ABI3
         #[cfg(not(Py_LIMITED_API))]
         $crate::pyobject_native_type_sized!($name, $layout $(;$generics)*);
+    };
+}
+
+/// Implement methods for obtaining the type object associated with a native type.
+/// These methods are referred to in `pyobject_native_type_info` for implementing `PyTypeInfo`.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! pyobject_native_type_object_methods {
+    // the type object is not known statically and so must be created (once) with the GIL held
+    ($name:ty, #create=$create_type_object:expr) => {
+        impl $name {
+            fn type_object_cell() -> &'static $crate::sync::GILOnceCell<$crate::Py<$crate::types::PyType>> {
+                static TYPE_OBJECT: $crate::sync::GILOnceCell<$crate::Py<$crate::types::PyType>> =
+                    $crate::sync::GILOnceCell::new();
+                &TYPE_OBJECT
+            }
+
+            #[allow(clippy::redundant_closure_call)]
+            fn type_object_raw_impl(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
+                Self::type_object_cell()
+                    .get_or_init(py, || $create_type_object(py))
+                    .as_ptr()
+                    .cast::<$crate::ffi::PyTypeObject>()
+            }
+
+            fn try_get_type_object_raw_impl() -> ::std::option::Option<*mut $crate::ffi::PyTypeObject> {
+                unsafe {
+                    Self::type_object_cell().get_raw().map(|obj| { (*obj).as_ptr().cast() })
+                }
+            }
+        }
+    };
+    // the type object can be created without holding the GIL
+    ($name:ty, #get=$get_type_object:expr) => {
+        impl $name {
+            fn type_object_raw_impl(_py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
+                Self::try_get_type_object_raw_impl().expect("type object is None when it should be Some")
+            }
+
+            #[allow(clippy::redundant_closure_call)]
+            fn try_get_type_object_raw_impl() -> ::std::option::Option<*mut $crate::ffi::PyTypeObject> {
+                Some($get_type_object())
+            }
+        }
+    };
+    // the type object is imported from a module
+    ($name:ty, #import_module=$import_module:expr, #import_name=$import_name:expr) => {
+        $crate::pyobject_native_type_object_methods!($name, #create=|py: $crate::Python<'_>| {
+            let module = stringify!($import_module);
+            let name = stringify!($import_name);
+            || -> $crate::PyResult<$crate::Py<$crate::types::PyType>> {
+                use $crate::types::PyAnyMethods;
+                $crate::PyResult::Ok(py.import(module)?.getattr(name)?.downcast_into()?.unbind())
+            }()
+            .unwrap_or_else(|e| ::std::panic!("failed to import {}.{}: {}", module, name, e))
+        });
+    };
+    // the type object is known statically
+    ($name:ty, #global=$ffi_type_object:path) => {
+        $crate::pyobject_native_type_object_methods!($name, #get=|| {
+            #[allow(unused_unsafe)] // https://github.com/rust-lang/rust/pull/125834
+            unsafe { ::std::ptr::addr_of_mut!($ffi_type_object) }
+        });
+    };
+    // the type object is known statically
+    ($name:ty, #global_ptr=$ffi_type_object:path) => {
+        $crate::pyobject_native_type_object_methods!($name, #get=|| {
+            unsafe { $ffi_type_object.cast::<$crate::ffi::PyTypeObject>() }
+        });
     };
 }
 
