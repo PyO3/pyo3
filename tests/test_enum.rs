@@ -202,9 +202,10 @@ fn test_renaming_all_enum_variants() {
 }
 
 #[pyclass(module = "custom_module")]
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 enum CustomModuleComplexEnum {
     Variant(),
+    Py(Py<PyAny>),
 }
 
 #[test]
