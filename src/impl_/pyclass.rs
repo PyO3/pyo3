@@ -9,7 +9,7 @@ use crate::{
         pymethods::{PyGetterDef, PyMethodDefType},
     },
     pycell::{
-        layout::{LazyTypeProvider, PyObjectLayout, PyObjectRecursiveOperations},
+        layout::{PyObjectLayout, PyObjectRecursiveOperations, TypeObjectStrategy},
         PyBorrowError,
     },
     type_object::PyLayout,
@@ -1547,7 +1547,7 @@ where
         PyObjectOffset::Relative(offset) => {
             // Safety: obj must be a valid `PyObject` whose type is a subtype of `ClassT`
             let contents = unsafe {
-                PyObjectLayout::get_contents_ptr::<ClassT, _>(obj, LazyTypeProvider::new(py))
+                PyObjectLayout::get_contents_ptr::<ClassT>(obj, TypeObjectStrategy::lazy(py))
             };
             (contents.cast::<u8>(), offset)
         }

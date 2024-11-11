@@ -1,7 +1,7 @@
 //! Contains initialization utilities for `#[pyclass]`.
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal::get_slot::TP_ALLOC;
-use crate::pycell::layout::{LazyTypeProvider, PyClassObjectContents, PyObjectLayout};
+use crate::pycell::layout::{PyClassObjectContents, PyObjectLayout, TypeObjectStrategy};
 use crate::types::PyType;
 use crate::{ffi, Borrowed, PyClass, PyErr, PyResult, Python};
 use crate::{ffi::PyTypeObject, sealed::Sealed, type_object::PyTypeInfo};
@@ -11,8 +11,9 @@ pub unsafe fn initialize_with_default<T: PyClass + Default>(
     py: Python<'_>,
     obj: *mut ffi::PyObject,
 ) {
+    // TODO(matt): need to initialize all base classes, should be recursive
     std::ptr::write(
-        PyObjectLayout::get_contents_ptr::<T, _>(obj, LazyTypeProvider::new(py)),
+        PyObjectLayout::get_contents_ptr::<T>(obj, TypeObjectStrategy::lazy(py)),
         PyClassObjectContents::new(T::default()),
     );
 }

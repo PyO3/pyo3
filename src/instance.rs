@@ -1,7 +1,7 @@
 use crate::conversion::IntoPyObject;
 use crate::err::{self, PyErr, PyResult};
 use crate::internal_tricks::ptr_from_ref;
-use crate::pycell::layout::AssumeInitializedTypeProvider;
+use crate::pycell::layout::TypeObjectStrategy;
 use crate::pycell::{layout::PyObjectLayout, PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
@@ -1343,8 +1343,8 @@ where
         T: PyClass<Frozen = True> + Sync,
     {
         // Safety: `enable_get()` has already been called for `T`.
-        let type_provider = unsafe { AssumeInitializedTypeProvider::new() };
-        PyObjectLayout::get_data::<T, _>(self.as_raw_ref(), type_provider)
+        let strategy = unsafe { TypeObjectStrategy::assume_init() };
+        PyObjectLayout::get_data::<T>(self.as_raw_ref(), strategy)
     }
 }
 

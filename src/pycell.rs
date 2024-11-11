@@ -210,7 +210,7 @@ use std::ops::{Deref, DerefMut};
 pub(crate) mod borrow_checker;
 pub(crate) mod layout;
 use borrow_checker::PyClassBorrowChecker;
-use layout::{LazyTypeProvider, PyObjectLayout};
+use layout::{PyObjectLayout, TypeObjectStrategy};
 
 /// A wrapper type for an immutably borrowed value from a [`Bound<'py, T>`].
 ///
@@ -441,7 +441,7 @@ impl<'py, T: PyClass> Deref for PyRef<'py, T> {
     #[inline]
     fn deref(&self) -> &T {
         let py: Python<'py> = unsafe { Python::assume_gil_acquired() };
-        PyObjectLayout::get_data::<T, _>(self.inner.as_raw_ref(), LazyTypeProvider::new(py))
+        PyObjectLayout::get_data::<T>(self.inner.as_raw_ref(), TypeObjectStrategy::lazy(py))
     }
 }
 
@@ -628,7 +628,7 @@ impl<'py, T: PyClass<Frozen = False>> Deref for PyRefMut<'py, T> {
     #[inline]
     fn deref(&self) -> &T {
         let py: Python<'py> = unsafe { Python::assume_gil_acquired() };
-        PyObjectLayout::get_data::<T, _>(self.inner.as_raw_ref(), LazyTypeProvider::new(py))
+        PyObjectLayout::get_data::<T>(self.inner.as_raw_ref(), TypeObjectStrategy::lazy(py))
     }
 }
 
@@ -637,9 +637,9 @@ impl<'py, T: PyClass<Frozen = False>> DerefMut for PyRefMut<'py, T> {
     fn deref_mut(&mut self) -> &mut T {
         let py: Python<'py> = unsafe { Python::assume_gil_acquired() };
         unsafe {
-            &mut *PyObjectLayout::get_data_ptr::<T, _>(
+            &mut *PyObjectLayout::get_data_ptr::<T>(
                 self.inner.as_ptr(),
-                LazyTypeProvider::new(py),
+                TypeObjectStrategy::lazy(py),
             )
         }
     }
