@@ -49,6 +49,8 @@ annotate Python modules declared by rust code in your project to declare that
 they support free-threaded Python, for example by declaring the module with
 `#[pymodule(gil_used = false)]`.
 
+More complicated `#[pyclass]` types may need to deal with thread-safety directly; there is [a dedicated section of the guide](./class/thread-safety.md) to discuss this.
+
 At a low-level, annotating a module sets the `Py_MOD_GIL` slot on modules
 defined by an extension to `Py_MOD_GIL_NOT_USED`, which allows the interpreter
 to see at runtime that the author of the extension thinks the extension is

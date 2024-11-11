@@ -31,7 +31,7 @@ impl MyClass {
         self.x
     }
 
-    fn set_y(&mut self, value: i32) -> i32 {
+    fn set_y(&mut self, value: i32) {
         self.y = value;
     }
 }
@@ -39,15 +39,79 @@ impl MyClass {
 
 In the above example, if calls to `get_x` and `set_y` overlap (from two different threads) then at least one of those threads will experience a runtime error indicating that the data was "already borrowed".
 
+To avoid these errors, you can take control of the interior mutability yourself in one of the following ways.
+
+
+
 There are three main ways that more complicated thread-safety topics can become relevant when writing `#[pyclass]` types:
-  - To avoid possible "already borrowed" runtime errors, a `#[pyclass]` may choose to use [atomic data structures](https://doc.rust-lang.org/std/sync/atomic/).
+  - To avoid possible "already borrowed" runtime errors, a `#[pyclass]` may choose to use .
   - To avoid possible "already borrowed" runtime errors, a `#[pyclass]` may choose to use locks.
   - If a `#[pyclass]` contains data which is itself not `Sync` or `Send`, then it becomes the responsibility of the `#[pyclass]` type to be a safe wrapper around the unsynchronized data.
 
-The following sections touch on each of these options
 
-## Using atomic data structures
 
-## Using locks
+### Using atomic data structures
 
-## Wrapping unsynchronized data
+To remove the possibility of having overlapping `&self` and `&mut self` references produce runtime errors, consider using `#[pyclass(frozen)]` and use [atomic data structures](https://doc.rust-lang.org/std/sync/atomic/) to control modifications directly.
+
+For example, a thread-safe version of the above `MyClass` using atomic integers would be as follows:
+
+```rust
+# use pyo3::prelude::*;
+use std::sync::atomic::{AtomicI32, Ordering};
+
+#[pyclass(frozen)]
+struct MyClass {
+    x: AtomicI32,
+    y: AtomicI32,
+}
+
+#[pymethods]
+impl MyClass {
+    fn get_x(&self) -> i32 {
+        self.x.load(Ordering::Relaxed)
+    }
+
+    fn set_y(&self, value: i32) {
+        self.y.store(value, Ordering::Relaxed)
+    }
+}
+```
+
+### Using locks
+
+An alternative to atomic data structures is to use [locks](https://doc.rust-lang.org/std/sync/struct.Mutex.html) to make threads wait for access to shared data.
+
+For example, a thread-safe version of the above `MyClass` using locks would be as follows:
+
+```rust
+# use pyo3::prelude::*;
+use std::sync::Mutex;
+
+struct MyClassInner {
+    x: i32,
+    y: i32,
+}
+
+#[pyclass(frozen)]
+struct MyClass {
+    inner: Mutex<MyClassInner>
+}
+
+#[pymethods]
+impl MyClass {
+    fn get_x(&self) -> i32 {
+        self.inner.lock().expect("lock not poisoned").x
+    }
+
+    fn set_y(&self, value: i32) {
+        self.inner.lock().expect("lock not poisoned").y = value;
+    }
+}
+```
+
+### Wrapping unsynchronized data
+
+In some cases, the data structures stored within a `#[pyclass]` may themselves not be thread-safe. Rust will therefore not implement `Send` and `Sync` on the `#[pyclass]` type.
+
+To achieve thread-safety, a manual `Send` and `Sync` implementation is required which is `unsafe` and should only be done following careful review of the soundness of the implementation. Doing this for PyO3 types is no different than for any other Rust code, [the Rustonomicon](https://doc.rust-lang.org/nomicon/send-and-sync.html) has a great discussion on this.
