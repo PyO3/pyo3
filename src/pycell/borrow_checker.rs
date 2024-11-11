@@ -175,7 +175,7 @@ pub trait GetBorrowChecker<T: PyClassImpl> {
 impl<T: PyClassImpl<PyClassMutability = Self> + PyTypeInfo> GetBorrowChecker<T> for MutableClass {
     fn borrow_checker(obj: &ffi::PyObject) -> &BorrowChecker {
         let type_provider = unsafe { AssumeInitializedTypeProvider::new() };
-        let contents = unsafe { PyObjectLayout::get_contents::<T, _>(obj, type_provider) };
+        let contents = PyObjectLayout::get_contents::<T, _>(obj, type_provider);
         &contents.borrow_checker
     }
 }
@@ -183,7 +183,7 @@ impl<T: PyClassImpl<PyClassMutability = Self> + PyTypeInfo> GetBorrowChecker<T> 
 impl<T: PyClassImpl<PyClassMutability = Self> + PyTypeInfo> GetBorrowChecker<T> for ImmutableClass {
     fn borrow_checker(obj: &ffi::PyObject) -> &EmptySlot {
         let type_provider = unsafe { AssumeInitializedTypeProvider::new() };
-        let contents = unsafe { PyObjectLayout::get_contents::<T, _>(obj, type_provider) };
+        let contents = PyObjectLayout::get_contents::<T, _>(obj, type_provider);
         &contents.borrow_checker
     }
 }

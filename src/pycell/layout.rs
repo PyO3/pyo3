@@ -342,12 +342,14 @@ impl PyObjectLayout {
         }
     }
 
-    pub(crate) unsafe fn get_contents<T: PyClassImpl + PyTypeInfo, P: TypeObjectProvider<T>>(
+    pub(crate) fn get_contents<T: PyClassImpl + PyTypeInfo, P: TypeObjectProvider<T>>(
         obj: &ffi::PyObject,
         type_provider: P,
     ) -> &PyClassObjectContents<T> {
-        &*PyObjectLayout::get_contents_ptr::<T, P>(ptr_from_ref(obj).cast_mut(), type_provider)
-            .cast_const()
+        unsafe {
+            &*PyObjectLayout::get_contents_ptr::<T, P>(ptr_from_ref(obj).cast_mut(), type_provider)
+                .cast_const()
+        }
     }
 
     /// obtain a pointer to the pyclass struct of a `PyObject` of type `T`.
@@ -361,31 +363,37 @@ impl PyObjectLayout {
         (*contents).value.get()
     }
 
-    pub(crate) unsafe fn get_data<T: PyClassImpl + PyTypeInfo, P: TypeObjectProvider<T>>(
+    pub(crate) fn get_data<T: PyClassImpl + PyTypeInfo, P: TypeObjectProvider<T>>(
         obj: &ffi::PyObject,
         type_provider: P,
     ) -> &T {
-        &*PyObjectLayout::get_data_ptr::<T, P>(ptr_from_ref(obj).cast_mut(), type_provider)
+        unsafe {
+            &*PyObjectLayout::get_data_ptr::<T, P>(ptr_from_ref(obj).cast_mut(), type_provider)
+        }
     }
 
-    pub(crate) unsafe fn get_borrow_checker<'o, T: PyClassImpl + PyTypeInfo>(
+    pub(crate) fn get_borrow_checker<'o, T: PyClassImpl + PyTypeInfo>(
         py: Python<'_>,
         obj: &'o ffi::PyObject,
     ) -> &'o <T::PyClassMutability as PyClassMutability>::Checker {
-        if T::OPAQUE {
-            PyClassRecursiveOperations::<T>::ensure_type_objects_initialized(py);
+        unsafe {
+            if T::OPAQUE {
+                PyClassRecursiveOperations::<T>::ensure_type_objects_initialized(py);
+            }
+            T::PyClassMutability::borrow_checker(obj)
         }
-        T::PyClassMutability::borrow_checker(obj)
     }
 
-    pub(crate) unsafe fn ensure_threadsafe<T: PyClassImpl + PyTypeInfo>(
+    pub(crate) fn ensure_threadsafe<T: PyClassImpl + PyTypeInfo>(
         py: Python<'_>,
         obj: &ffi::PyObject,
     ) {
-        if T::OPAQUE {
-            PyClassRecursiveOperations::<T>::ensure_type_objects_initialized(py);
+        unsafe {
+            if T::OPAQUE {
+                PyClassRecursiveOperations::<T>::ensure_type_objects_initialized(py);
+            }
+            PyClassRecursiveOperations::<T>::ensure_threadsafe(obj);
         }
-        PyClassRecursiveOperations::<T>::ensure_threadsafe(obj);
     }
 
     /// Clean up then free the memory associated with `obj`.
@@ -407,7 +415,6 @@ impl PyObjectLayout {
         obj: *mut ffi::PyObject,
     ) {
         unsafe {
-            // TODO(matt): verify T has flag set
             #[cfg(not(PyPy))]
             {
                 ffi::PyObject_GC_UnTrack(obj.cast());

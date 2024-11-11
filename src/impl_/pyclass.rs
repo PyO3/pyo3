@@ -1140,8 +1140,7 @@ pub trait PyClassBaseType: Sized {
     /// A struct that describes the memory layout of a `*mut ffi:PyObject` with the type of `Self`.
     /// Only valid when `<T as PyTypeInfo>::OPAQUE` is false.
     type StaticLayout: PyLayout<Self>;
-    // TODO(matt): introduce :PyTypeInfo bounds
-    type BaseNativeType;
+    type BaseNativeType: PyTypeInfo;
     type RecursiveOperations: PyObjectRecursiveOperations;
     type Initializer: PyObjectInit<Self>;
     type PyClassMutability: PyClassMutability;

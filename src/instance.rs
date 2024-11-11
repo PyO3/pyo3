@@ -1343,8 +1343,7 @@ where
     {
         // Safety: `enable_get()` has already been called.
         let type_provider = unsafe { AssumeInitializedTypeProvider::new() };
-        // Safety: The class itself is frozen and `Sync`
-        unsafe { PyObjectLayout::get_data::<T, _>(self.as_raw_ref(), type_provider) }
+        PyObjectLayout::get_data::<T, _>(self.as_raw_ref(), type_provider)
     }
 }
 
