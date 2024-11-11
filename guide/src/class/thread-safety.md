@@ -41,15 +41,6 @@ In the above example, if calls to `get_x` and `set_y` overlap (from two differen
 
 To avoid these errors, you can take control of the interior mutability yourself in one of the following ways.
 
-
-
-There are three main ways that more complicated thread-safety topics can become relevant when writing `#[pyclass]` types:
-  - To avoid possible "already borrowed" runtime errors, a `#[pyclass]` may choose to use .
-  - To avoid possible "already borrowed" runtime errors, a `#[pyclass]` may choose to use locks.
-  - If a `#[pyclass]` contains data which is itself not `Sync` or `Send`, then it becomes the responsibility of the `#[pyclass]` type to be a safe wrapper around the unsynchronized data.
-
-
-
 ### Using atomic data structures
 
 To remove the possibility of having overlapping `&self` and `&mut self` references produce runtime errors, consider using `#[pyclass(frozen)]` and use [atomic data structures](https://doc.rust-lang.org/std/sync/atomic/) to control modifications directly.
