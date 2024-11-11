@@ -72,6 +72,7 @@ pub struct PyClassPyO3Options {
     pub module: Option<ModuleAttribute>,
     pub name: Option<NameAttribute>,
     pub ord: Option<kw::ord>,
+    pub opaque: Option<kw::opaque>,
     pub rename_all: Option<RenameAllAttribute>,
     pub sequence: Option<kw::sequence>,
     pub set_all: Option<kw::set_all>,
@@ -95,6 +96,7 @@ pub enum PyClassPyO3Option {
     Module(ModuleAttribute),
     Name(NameAttribute),
     Ord(kw::ord),
+    Opaque(kw::opaque),
     RenameAll(RenameAllAttribute),
     Sequence(kw::sequence),
     SetAll(kw::set_all),
@@ -133,6 +135,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Name)
         } else if lookahead.peek(attributes::kw::ord) {
             input.parse().map(PyClassPyO3Option::Ord)
+        } else if lookahead.peek(attributes::kw::opaque) {
+            input.parse().map(PyClassPyO3Option::Opaque)
         } else if lookahead.peek(kw::rename_all) {
             input.parse().map(PyClassPyO3Option::RenameAll)
         } else if lookahead.peek(attributes::kw::sequence) {
@@ -205,6 +209,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Module(module) => set_option!(module),
             PyClassPyO3Option::Name(name) => set_option!(name),
             PyClassPyO3Option::Ord(ord) => set_option!(ord),
+            PyClassPyO3Option::Opaque(opaque) => set_option!(opaque),
             PyClassPyO3Option::RenameAll(rename_all) => set_option!(rename_all),
             PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
             PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
@@ -1807,11 +1812,17 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
         quote! { ::core::option::Option::None }
     };
 
+    let opaque = if attr.options.opaque.is_some() {
+        quote! { true }
+    } else {
+        quote! { <<#cls as #pyo3_path::impl_::pyclass::PyClassImpl>::BaseType as #pyo3_path::type_object::PyTypeInfo>::OPAQUE }
+    };
+
     quote! {
         unsafe impl #pyo3_path::type_object::PyTypeInfo for #cls {
             const NAME: &'static str = #cls_name;
             const MODULE: ::std::option::Option<&'static str> = #module;
-            const OPAQUE: bool = <<#cls as #pyo3_path::impl_::pyclass::PyClassImpl>::BaseNativeType as #pyo3_path::type_object::PyTypeInfo>::OPAQUE;
+            const OPAQUE: bool = #opaque;
 
             #[inline]
             fn type_object_raw(py: #pyo3_path::Python<'_>) -> *mut #pyo3_path::ffi::PyTypeObject {

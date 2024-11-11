@@ -329,7 +329,7 @@ impl PyObjectLayout {
         strategy: TypeObjectStrategy<'_>,
     ) -> *mut PyClassObjectContents<T> {
         debug_assert!(!obj.is_null());
-        if <T::BaseType as PyTypeInfo>::OPAQUE {
+        if T::OPAQUE {
             opaque_layout::get_contents_ptr(obj, strategy)
         } else {
             let obj: *mut static_layout::PyStaticClassLayout<T> = obj.cast();
