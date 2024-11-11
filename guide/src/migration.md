@@ -12,7 +12,7 @@ PyO3 0.23 is a significant rework of PyO3's internals for two major improvements
  - Rework of to-Python conversions with a new `IntoPyObject` trait.
 
 These changes are both substantial and reasonable efforts have been made to allow as much code as possible to continue to work as-is despite the changes. The impacts are likely to be seen in three places when upgrading:
- - PyO3's datastructures [are now threadsafe](#free-threaded-python-support) instead of reliant on the GIL for synchronization. In particular, `#[pyclass]` types are [now required to be `Sync`](./class/thread-safety.md).
+ - PyO3's datastructures [are now thread-safe](#free-threaded-python-support) instead of reliant on the GIL for synchronization. In particular, `#[pyclass]` types are [now required to be `Sync`](./class/thread-safety.md).
  - The [`IntoPyObject` trait](#new-intopyobject-trait-unifies-to-python-conversions) may need to be implemented for types in your codebase. In most cases this can simply be done with [`#[derive(IntoPyObject)]`](#intopyobject-and-intopyobjectref-derive-macros). There will be many deprecation warnings from the replacement of `IntoPy` and `ToPyObject` traits.
  - There will be many deprecation warnings from the [final removal of the `gil-refs` feature](#gil-refs-feature-removed), which opened up API space for a cleanup and simplification to PyO3's "Bound" API.
 
@@ -28,7 +28,7 @@ CPython 3.13, aka "3.13t".
 
 Because this build allows multiple Python threads to operate simultaneously on underlying Rust data, the `#[pyclass]` macro now requires that types it operates on implement `Sync`.
 
-Aside from the change to `#[pyclass]`, most features of PyO3 work unchanged, as the changes have been to the internal datastructures to make them threadsafe. An example of this is the `GILOnceCell` type, which used the GIL to synchronize single-initialization. It now uses internal locks to guarantee that only one write ever succeeds, however it allows for multiple racing runs of the initialization closure. It may be preferable to instead use `std::sync::OnceLock` in combination with the `pyo3::sync::OnceLockExt` trait which adds `OnceLock::get_or_init_py_attached` for single-initialization where the initialization closure is guaranteed only ever to run once and without deadlocking with the GIL.
+Aside from the change to `#[pyclass]`, most features of PyO3 work unchanged, as the changes have been to the internal datastructures to make them thread-safe. An example of this is the `GILOnceCell` type, which used the GIL to synchronize single-initialization. It now uses internal locks to guarantee that only one write ever succeeds, however it allows for multiple racing runs of the initialization closure. It may be preferable to instead use `std::sync::OnceLock` in combination with the `pyo3::sync::OnceLockExt` trait which adds `OnceLock::get_or_init_py_attached` for single-initialization where the initialization closure is guaranteed only ever to run once and without deadlocking with the GIL.
 
 Future PyO3 versions will likely add more traits and datastructures to make working with free-threaded Python easier.
 
