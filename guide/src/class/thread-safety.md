@@ -40,7 +40,7 @@ impl MyClass {
 In the above example, if calls to `get_x` and `set_y` overlap (from two different threads) then at least one of those threads will experience a runtime error indicating that the data was "already borrowed".
 
 There are three main ways that more complicated thread-safety topics can become relevant when writing `#[pyclass]` types:
-  - To avoid possible "already borrowed" runtime errors, a `#[pyclass]` may choose to use atomic datastructures.
+  - To avoid possible "already borrowed" runtime errors, a `#[pyclass]` may choose to use [atomic data structures](https://doc.rust-lang.org/std/sync/atomic/).
   - To avoid possible "already borrowed" runtime errors, a `#[pyclass]` may choose to use locks.
   - If a `#[pyclass]` contains data which is itself not `Sync` or `Send`, then it becomes the responsibility of the `#[pyclass]` type to be a safe wrapper around the unsynchronized data.
 
