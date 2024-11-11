@@ -59,10 +59,11 @@ thread safety of existing Rust extensions and how to think about the PyO3 API
 using a Python runtime with no GIL.
 
 If you do not explicitly mark that modules are thread-safe, the Python
-interpreter will re-enable the GIL at runtime and print a `RuntimeWarning`
-explaining which module caused it to re-enable the GIL. You can also force the
-GIL to remain disabled by setting the `PYTHON_GIL=0` as an environment variable
-or passing `-Xgil=0` when starting Python (`0` means the GIL is turned off).
+interpreter will re-enable the GIL at runtime while importing your module and
+print a `RuntimeWarning` with a message containing the name of the module
+causing it to re-enable the GIL. You can force the GIL to remain disabled by
+setting the `PYTHON_GIL=0` as an environment variable or passing `-Xgil=0` when
+starting Python (`0` means the GIL is turned off).
 
 If you are sure that all data structures exposed in a `PyModule` are
 thread-safe, then pass `gil_used = false` as a parameter to the
@@ -94,6 +95,10 @@ fn register_child_module(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
 
 ```
 
+For now you must explicitly opt in to free-threading support by annotating
+modules defined in your extension. In a future version of `PyO3`, we plan to
+make `gil_used = false` the default.
+
 See the
 [`string-sum`](https://github.com/PyO3/pyo3/tree/main/pyo3-ffi/examples/string-sum)
 example for how to declare free-threaded support using raw FFI calls for modules
@@ -123,33 +128,29 @@ versions of PyO3, but for now you should remember that the use of the term `GIL`
 in functions and types like [`Python::with_gil`] and [`GILOnceCell`] is
 historical.
 
-Instead, you can think about whether or not a Rust thread is attached to a
-Python interpreter runtime. See [PEP
+Instead, you should think about whether or not a Rust thread is attached to a
+Python interpreter runtime. Calling into the CPython C API is only legal when an
+OS thread is explicitly attached to the interpreter runtime. In the GIL-enabled
+build, this happens when the GIL is acquired. In the free-threaded build there
+is no GIL, but the same C macros that release or acquire the GIL in the
+GIL-enabled build instead ask the interpreter to attach the thread to the Python
+runtime, and there can be many threads simultaneously attached. See [PEP
 703](https://peps.python.org/pep-0703/#thread-states) for more background about
 how threads can be attached and detached from the interpreter runtime, in a
 manner analagous to releasing and acquiring the GIL in the GIL-enabled build.
-
-Calling into the CPython C API is only legal when an OS thread is explicitly
-attached to the interpreter runtime. In the GIL-enabled build, this happens when
-the GIL is acquired. In the free-threaded build there is no GIL, but the same C
-macros that release or acquire the GIL in the GIL-enabled build instead ask the
-interpreter to attach the thread to the Python runtime, and there can be many
-threads simultaneously attached.
-
-The main reason for attaching to the Python runtime is to interact with Python
-objects or call into the CPython C API. To interact with the Python runtime, the
-thread must register itself by attaching to the interpreter runtime. If you are
-not yet attached to the Python runtime, you can register the thread using the
-[`Python::with_gil`] function. Threads created via the Python [`threading`]
-module do not not need to do this, but all other OS threads that interact with
-the Python runtime must explicitly attach using `with_gil` and obtain a `'py`
-liftime.
 
 In the GIL-enabled build, PyO3 uses the [`Python<'py>`] type and the `'py`
 lifetime to signify that the global interpreter lock is held. In the
 freethreaded build, holding a `'py` lifetime means only that the thread is
 currently attached to the Python interpreter -- other threads can be
 simultaneously interacting with the interpreter.
+
+The main reason for obtaining a `'py` lifetime is to interact with Python
+objects or call into the CPython C API. If you are not yet attached to the
+Python runtime, you can register a thread using the [`Python::with_gil`]
+function. Threads created via the Python [`threading`] module do not not need to
+do this, but all other OS threads that interact with the Python runtime must
+explicitly attach using `with_gil` and obtain a `'py` liftime.
 
 Since there is no GIL in the free-threaded build, releasing the GIL for
 long-running tasks is no longer necessary to ensure other threads run, but you
@@ -227,7 +228,9 @@ RuntimeError: Already borrowed
 
 We plan to allow user-selectable semantics for mutable pyclass definitions in
 PyO3 0.24, allowing some form of opt-in locking to emulate the GIL if that is
-needed.
+needed. For now you should explicitly add locking, possibly using conditional
+compilation or using the critical section API to avoid creating deadlocks with
+the GIL.
 
 ## Thread-safe single initialization
 
@@ -240,7 +243,7 @@ GIL-enabled build.
 
 If, for example, the function executed by [`GILOnceCell`] releases the GIL or
 calls code that releases the GIL, then it is possible for multiple threads to
-try to race to initialize the cell. While the cell will only ever be intialized
+race to initialize the cell. While the cell will only ever be intialized
 once, it can be problematic in some contexts that [`GILOnceCell`] does not block
 like the standard library [`OnceLock`].
 
