@@ -37,7 +37,7 @@ impl MyClass {
 }
 ```
 
-In the above example, if calls to `get_x` and `set_y` overlap (from two different threads) then at least one of those threads will experience a runtime error suggesting that the data was "already borrowed".
+In the above example, if calls to `get_x` and `set_y` overlap (from two different threads) then at least one of those threads will experience a runtime error indicating that the data was "already borrowed".
 
 There are three main ways that more complicated thread-safety topics can become relevant when writing `#[pyclass]` types:
   - To avoid possible "already borrowed" runtime errors, a `#[pyclass]` may choose to use atomic datastructures.
