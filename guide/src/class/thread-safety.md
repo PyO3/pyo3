@@ -4,7 +4,7 @@ Python objects are freely shared between threads by the Python interpreter. This
 - there is no control which thread might eventually drop the `#[pyclass]` object, meaning `Send` is required.
 - multiple threads can potentially be reading the `#[pyclass]` data simultaneously, meaning `Sync` is required.
 
-This section of the guide discusses various datastructures which can be used to make types satisfy these requirements.
+This section of the guide discusses various data structures which can be used to make types satisfy these requirements.
 
 In special cases where it is known that your Python application is never going to use threads (this is rare!), these thread-safety requirements can be opted-out with [`#[pyclass(unsendable)]`](../class.md#customizing-the-class), at the cost of making concurrent access to the Rust data be runtime errors. This is only for very specific use cases; it is almost always better to make proper thread-safe types.
 
@@ -46,7 +46,7 @@ There are three main ways that more complicated thread-safety topics can become 
 
 The following sections touch on each of these options
 
-## Using atomic datastructures
+## Using atomic data structures
 
 ## Using locks
 
