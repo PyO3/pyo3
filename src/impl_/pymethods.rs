@@ -315,16 +315,20 @@ where
     // traversal is running so no mutations can occur.
     let raw_obj = &*slf;
 
+    // SAFETY: type objects for `T` and all base classes of `T` have been initialized
+    // above if they are required.
+    let type_provider = AssumeInitializedTypeProvider::new();
+
     let retval =
     // `#[pyclass(unsendable)]` types can only be deallocated by their own thread, so
     // do not traverse them if not on their owning thread :(
-    if PyClassRecursiveOperations::<T>::check_threadsafe(raw_obj).is_ok()
+    if PyClassRecursiveOperations::<T>::check_threadsafe(raw_obj, type_provider).is_ok()
     // ... and we cannot traverse a type which might be being mutated by a Rust thread
-    && T::PyClassMutability::borrow_checker(raw_obj).try_borrow().is_ok() {
+    && T::PyClassMutability::borrow_checker(raw_obj, type_provider).try_borrow().is_ok() {
         struct TraverseGuard<'a, Cls: PyClassImpl>(&'a ffi::PyObject, PhantomData<Cls>);
         impl<Cls: PyClassImpl> Drop for TraverseGuard<'_, Cls> {
             fn drop(&mut self) {
-                let borrow_checker = Cls::PyClassMutability::borrow_checker(self.0);
+                let borrow_checker = Cls::PyClassMutability::borrow_checker(self.0, unsafe { AssumeInitializedTypeProvider::new() });
                 borrow_checker.release_borrow();
             }
         }
@@ -333,7 +337,6 @@ where
         // traversing the object. This allows us to read `instance` safely.
         let _guard: TraverseGuard<'_, T> = TraverseGuard(raw_obj, PhantomData);
         // Safety: type object is manually initialized above
-        let type_provider = AssumeInitializedTypeProvider::new();
         let instance  = PyObjectLayout::get_data::<T, _>(raw_obj, type_provider);
 
         let visit = PyVisit { visit, arg, _guard: PhantomData };

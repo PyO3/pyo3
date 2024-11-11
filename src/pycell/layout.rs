@@ -72,18 +72,13 @@ pub trait PyObjectRecursiveOperations {
     unsafe fn ensure_type_objects_initialized(py: Python<'_>);
 
     /// Call `PyClassThreadChecker::ensure` on all ancestor types of the provided object.
-    ///
-    /// # Safety
-    ///
-    /// - if the object uses the opaque layout, all ancestor types must be initialized beforehand.
-    unsafe fn ensure_threadsafe(obj: &ffi::PyObject);
+    fn ensure_threadsafe<P: TypeObjectProvider>(obj: &ffi::PyObject, type_provider: P);
 
     /// Call `PyClassThreadChecker::check` on all ancestor types of the provided object.
-    ///
-    /// # Safety
-    ///
-    /// - if the object uses the opaque layout, all ancestor types must be initialized beforehand.
-    unsafe fn check_threadsafe(obj: &ffi::PyObject) -> Result<(), PyBorrowError>;
+    fn check_threadsafe<P: TypeObjectProvider>(
+        obj: &ffi::PyObject,
+        type_provider: P,
+    ) -> Result<(), PyBorrowError>;
 
     /// Cleanup then free the memory for `obj`.
     ///
@@ -102,20 +97,24 @@ impl<T: PyClassImpl + PyTypeInfo> PyObjectRecursiveOperations for PyClassRecursi
         <T::BaseType as PyClassBaseType>::RecursiveOperations::ensure_type_objects_initialized(py);
     }
 
-    unsafe fn ensure_threadsafe(obj: &ffi::PyObject) {
-        let type_provider = AssumeInitializedTypeProvider::new();
+    fn ensure_threadsafe<P: TypeObjectProvider>(obj: &ffi::PyObject, type_provider: P) {
         let contents = PyObjectLayout::get_contents::<T, _>(obj, type_provider);
         contents.thread_checker.ensure();
-        <T::BaseType as PyClassBaseType>::RecursiveOperations::ensure_threadsafe(obj);
+        <T::BaseType as PyClassBaseType>::RecursiveOperations::ensure_threadsafe(
+            obj,
+            type_provider,
+        );
     }
 
-    unsafe fn check_threadsafe(obj: &ffi::PyObject) -> Result<(), PyBorrowError> {
-        let type_provider = AssumeInitializedTypeProvider::new();
+    fn check_threadsafe<P: TypeObjectProvider>(
+        obj: &ffi::PyObject,
+        type_provider: P,
+    ) -> Result<(), PyBorrowError> {
         let contents = PyObjectLayout::get_contents::<T, _>(obj, type_provider);
         if !contents.thread_checker.check() {
             return Err(PyBorrowError { _private: () });
         }
-        <T::BaseType as PyClassBaseType>::RecursiveOperations::check_threadsafe(obj)
+        <T::BaseType as PyClassBaseType>::RecursiveOperations::check_threadsafe(obj, type_provider)
     }
 
     unsafe fn deallocate(py: Python<'_>, obj: *mut ffi::PyObject) {
@@ -137,9 +136,12 @@ impl<T: PyNativeType + PyTypeInfo> PyObjectRecursiveOperations
         let _ = <T as PyTypeInfo>::type_object_raw(py);
     }
 
-    unsafe fn ensure_threadsafe(_obj: &ffi::PyObject) {}
+    fn ensure_threadsafe<P: TypeObjectProvider>(_obj: &ffi::PyObject, _type_provider: P) {}
 
-    unsafe fn check_threadsafe(_obj: &ffi::PyObject) -> Result<(), PyBorrowError> {
+    fn check_threadsafe<P: TypeObjectProvider>(
+        _obj: &ffi::PyObject,
+        _type_provider: P,
+    ) -> Result<(), PyBorrowError> {
         Ok(())
     }
 
@@ -207,13 +209,13 @@ pub(crate) mod opaque_layout {
     use crate::{ffi, impl_::pyclass::PyClassImpl, PyTypeInfo};
 
     #[cfg(Py_3_12)]
-    pub fn get_contents_ptr<T: PyClassImpl + PyTypeInfo, P: TypeObjectProvider<T>>(
+    pub fn get_contents_ptr<T: PyClassImpl + PyTypeInfo, P: TypeObjectProvider>(
         obj: *mut ffi::PyObject,
         type_provider: P,
     ) -> *mut PyClassObjectContents<T> {
         #[cfg(Py_3_12)]
         {
-            let type_obj = type_provider.get_type_object();
+            let type_obj = type_provider.get_type_object::<T>();
             assert!(!type_obj.is_null(), "type object is NULL");
             let pointer = unsafe { ffi::PyObject_GetTypeData(obj, type_obj) };
             assert!(!pointer.is_null(), "pointer to pyclass data returned NULL");
@@ -276,37 +278,49 @@ pub(crate) mod static_layout {
 /// `PyTypeInfo::type_object_raw()` requires the GIL to be held because it may lazily construct the type object.
 /// Some situations require that the GIL is not held so `PyObjectLayout` cannot call this method directly.
 /// The different solutions to this have different trade-offs so the caller can decide using a `TypeObjectProvider`.
-pub trait TypeObjectProvider<T: PyTypeInfo> {
-    fn get_type_object(&self) -> *mut ffi::PyTypeObject;
+pub trait TypeObjectProvider: Clone + Copy {
+    fn get_type_object<T: PyTypeInfo>(&self) -> *mut ffi::PyTypeObject;
 }
 
-/// Hold the GIL and only obtain/construct the type object if required.
-///
-/// Since the type object is only required for accessing opaque objects, this option has the best
-/// performance but it requires the GIL being held.
-pub struct LazyTypeProvider<'py, T: PyTypeInfo>(PhantomData<&'py T>);
-impl<'py, T: PyTypeInfo> LazyTypeProvider<'py, T> {
+/// Hold the GIL and only obtain/construct type objects lazily when required.
+#[derive(Clone, Copy)]
+pub struct LazyTypeProvider<'py>(PhantomData<&'py ()>);
+impl<'py> LazyTypeProvider<'py> {
     pub fn new(_py: Python<'py>) -> Self {
         Self(PhantomData)
     }
 }
-impl<'py, T: PyTypeInfo> TypeObjectProvider<T> for LazyTypeProvider<'py, T> {
-    fn get_type_object(&self) -> *mut ffi::PyTypeObject {
+impl<'py> TypeObjectProvider for LazyTypeProvider<'py> {
+    fn get_type_object<T: PyTypeInfo>(&self) -> *mut ffi::PyTypeObject {
         let py: Python<'py> = unsafe { Python::assume_gil_acquired() };
         T::type_object_raw(py)
     }
 }
 
-/// Will assume that `PyTypeInfo::type_object_raw()` has been called so the type object
-/// is cached and can be obtained without holding the GIL.
-pub struct AssumeInitializedTypeProvider<T: PyTypeInfo>(PhantomData<T>);
-impl<T: PyTypeInfo> AssumeInitializedTypeProvider<T> {
+/// Assume that `PyTypeInfo::type_object_raw()` has been called for any of the required type objects.
+///
+/// once initialized, the type objects are cached and can be obtained without holding the GIL.
+#[derive(Clone, Copy)]
+pub struct AssumeInitializedTypeProvider;
+impl AssumeInitializedTypeProvider {
+    /// Create a type provider that assumes that whatever `T` it is called with has already been initialized.
+    ///
+    /// # Safety
+    ///
+    /// - ensure that any `T` that may be used with this object has already been initialized
+    ///   by calling `T::type_object_raw()`.
+    /// - only `PyTypeInfo::OPAQUE` classes require type objects for traversal so if this object is only
+    ///   used with non-opaque classes then no action is required.
+    /// - when used with `PyClassRecursiveOperations` or `GetBorrowChecker`, the object may be used with
+    ///   base classes as well as the most derived type.
+    ///   `PyClassRecursiveOperations::ensure_type_objects_initialized()` can be used to initialize
+    ///   all base classes above the given type.
     pub unsafe fn new() -> Self {
-        Self(PhantomData)
+        Self
     }
 }
-impl<T: PyTypeInfo> TypeObjectProvider<T> for AssumeInitializedTypeProvider<T> {
-    fn get_type_object(&self) -> *mut ffi::PyTypeObject {
+impl TypeObjectProvider for AssumeInitializedTypeProvider {
+    fn get_type_object<T: PyTypeInfo>(&self) -> *mut ffi::PyTypeObject {
         T::try_get_type_object_raw().unwrap_or_else(|| {
             panic!(
                 "type object for {} not initialized",
@@ -323,7 +337,7 @@ impl PyObjectLayout {
     /// Obtain a pointer to the contents of a `PyObject` of type `T`.
     ///
     /// Safety: the provided object must be valid and have the layout indicated by `T`
-    pub(crate) unsafe fn get_contents_ptr<T: PyClassImpl + PyTypeInfo, P: TypeObjectProvider<T>>(
+    pub(crate) unsafe fn get_contents_ptr<T: PyClassImpl + PyTypeInfo, P: TypeObjectProvider>(
         obj: *mut ffi::PyObject,
         type_provider: P,
     ) -> *mut PyClassObjectContents<T> {
@@ -342,7 +356,7 @@ impl PyObjectLayout {
         }
     }
 
-    pub(crate) fn get_contents<T: PyClassImpl + PyTypeInfo, P: TypeObjectProvider<T>>(
+    pub(crate) fn get_contents<T: PyClassImpl + PyTypeInfo, P: TypeObjectProvider>(
         obj: &ffi::PyObject,
         type_provider: P,
     ) -> &PyClassObjectContents<T> {
@@ -355,7 +369,7 @@ impl PyObjectLayout {
     /// obtain a pointer to the pyclass struct of a `PyObject` of type `T`.
     ///
     /// Safety: the provided object must be valid and have the layout indicated by `T`
-    pub(crate) unsafe fn get_data_ptr<T: PyClassImpl + PyTypeInfo, P: TypeObjectProvider<T>>(
+    pub(crate) unsafe fn get_data_ptr<T: PyClassImpl + PyTypeInfo, P: TypeObjectProvider>(
         obj: *mut ffi::PyObject,
         type_provider: P,
     ) -> *mut T {
@@ -363,7 +377,7 @@ impl PyObjectLayout {
         (*contents).value.get()
     }
 
-    pub(crate) fn get_data<T: PyClassImpl + PyTypeInfo, P: TypeObjectProvider<T>>(
+    pub(crate) fn get_data<T: PyClassImpl + PyTypeInfo, P: TypeObjectProvider>(
         obj: &ffi::PyObject,
         type_provider: P,
     ) -> &T {
@@ -376,24 +390,14 @@ impl PyObjectLayout {
         py: Python<'_>,
         obj: &'o ffi::PyObject,
     ) -> &'o <T::PyClassMutability as PyClassMutability>::Checker {
-        unsafe {
-            if T::OPAQUE {
-                PyClassRecursiveOperations::<T>::ensure_type_objects_initialized(py);
-            }
-            T::PyClassMutability::borrow_checker(obj)
-        }
+        T::PyClassMutability::borrow_checker(obj, LazyTypeProvider::new(py))
     }
 
     pub(crate) fn ensure_threadsafe<T: PyClassImpl + PyTypeInfo>(
         py: Python<'_>,
         obj: &ffi::PyObject,
     ) {
-        unsafe {
-            if T::OPAQUE {
-                PyClassRecursiveOperations::<T>::ensure_type_objects_initialized(py);
-            }
-            PyClassRecursiveOperations::<T>::ensure_threadsafe(obj);
-        }
+        PyClassRecursiveOperations::<T>::ensure_threadsafe(obj, LazyTypeProvider::new(py));
     }
 
     /// Clean up then free the memory associated with `obj`.

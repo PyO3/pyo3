@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::impl_::pyclass::PyClassImpl;
 use crate::{ffi, PyTypeInfo};
 
-use super::layout::AssumeInitializedTypeProvider;
+use super::layout::TypeObjectProvider;
 use super::{PyBorrowError, PyBorrowMutError, PyObjectLayout};
 
 pub trait PyClassMutability {
@@ -168,21 +168,24 @@ impl PyClassBorrowChecker for BorrowChecker {
 }
 
 pub trait GetBorrowChecker<T: PyClassImpl> {
-    fn borrow_checker(obj: &ffi::PyObject)
-        -> &<T::PyClassMutability as PyClassMutability>::Checker;
+    fn borrow_checker<P: TypeObjectProvider>(
+        obj: &ffi::PyObject,
+        type_provider: P,
+    ) -> &<T::PyClassMutability as PyClassMutability>::Checker;
 }
 
 impl<T: PyClassImpl<PyClassMutability = Self> + PyTypeInfo> GetBorrowChecker<T> for MutableClass {
-    fn borrow_checker(obj: &ffi::PyObject) -> &BorrowChecker {
-        let type_provider = unsafe { AssumeInitializedTypeProvider::new() };
+    fn borrow_checker<P: TypeObjectProvider>(
+        obj: &ffi::PyObject,
+        type_provider: P,
+    ) -> &BorrowChecker {
         let contents = PyObjectLayout::get_contents::<T, _>(obj, type_provider);
         &contents.borrow_checker
     }
 }
 
 impl<T: PyClassImpl<PyClassMutability = Self> + PyTypeInfo> GetBorrowChecker<T> for ImmutableClass {
-    fn borrow_checker(obj: &ffi::PyObject) -> &EmptySlot {
-        let type_provider = unsafe { AssumeInitializedTypeProvider::new() };
+    fn borrow_checker<P: TypeObjectProvider>(obj: &ffi::PyObject, type_provider: P) -> &EmptySlot {
         let contents = PyObjectLayout::get_contents::<T, _>(obj, type_provider);
         &contents.borrow_checker
     }
@@ -195,9 +198,12 @@ where
     T::BaseType: PyClassImpl,
     <T::BaseType as PyClassImpl>::PyClassMutability: PyClassMutability<Checker = BorrowChecker>,
 {
-    fn borrow_checker(obj: &ffi::PyObject) -> &BorrowChecker {
+    fn borrow_checker<P: TypeObjectProvider>(
+        obj: &ffi::PyObject,
+        type_provider: P,
+    ) -> &BorrowChecker {
         // the same PyObject pointer can be re-interpreted as the base/parent type
-        <<T::BaseType as PyClassImpl>::PyClassMutability as GetBorrowChecker<T::BaseType>>::borrow_checker(obj)
+        <<T::BaseType as PyClassImpl>::PyClassMutability as GetBorrowChecker<T::BaseType>>::borrow_checker(obj, type_provider)
     }
 }
 

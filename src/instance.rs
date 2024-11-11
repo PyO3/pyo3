@@ -369,6 +369,7 @@ where
     where
         T: PyClass<Frozen = True> + Sync,
     {
+        // Safety: `enable_get()` has already been called for `T`.
         self.1.get()
     }
 
@@ -1341,7 +1342,7 @@ where
     where
         T: PyClass<Frozen = True> + Sync,
     {
-        // Safety: `enable_get()` has already been called.
+        // Safety: `enable_get()` has already been called for `T`.
         let type_provider = unsafe { AssumeInitializedTypeProvider::new() };
         PyObjectLayout::get_data::<T, _>(self.as_raw_ref(), type_provider)
     }
