@@ -229,7 +229,7 @@ Python::with_gil(|py| {
 });
 ```
 
-You can also import [`BoundObject`] to call methods shared by `Bound` and `Borrowed`.
+You can also bring `BoundObject` into scope to call methods provided by the trait on `Bound` and `Borrowed` instances.
 
 ## Concrete Python types
 
