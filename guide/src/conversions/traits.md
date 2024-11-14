@@ -626,6 +626,69 @@ impl IntoPy<PyObject> for MyPyObjectWrapper {
 }
 ```
 
+#### `BoundObject` for conversions that may be `Bound` or `Borrowed`
+
+`IntoPyObject::into_py_object` returns either `Bound` or `Borrowed` depending on the implementation for a concrete type. For example, the `IntoPyObject` implementation for `u32` produces a `Bound<'py, PyInt>` and the `bool` implementation produces a `Borrowed<'py, 'py, PyBool>`:
+
+```rust
+use pyo3::prelude::*;
+use pyo3::IntoPyObject;
+use pyo3::types::{PyBool, PyInt};
+
+let ints: Vec<u32> = vec![1, 2, 3, 4];
+let bools = vec![true, false, false, true];
+
+Python::with_gil(|py| {
+    let ints_as_pyint: Vec<Bound<'_, PyInt>> = ints
+        .iter()
+        .map(|x| Ok(x.into_pyobject(py)?))
+        .collect::<PyResult<_>>()
+        .unwrap();
+
+    let bools_as_pybool: Vec<Borrowed<'_, '_, PyBool>> = bools
+        .iter()
+        .map(|x| Ok(x.into_pyobject(py)?))
+        .collect::<PyResult<_>>()
+        .unwrap();
+});
+```
+
+In this example if we wanted to combine `ints_as_pyints` and `bools_as_pybool` into a single `Vec<Py<PyAny>>` to return from the `with_gil` closure, we would have to manually convert the concrete types for the smart pointers and the python types.
+
+Instead, we can write a function that generically converts vectors of either integers or bools into a vector of `Py<'py, PyAny>`:
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::BoundObject;
+# use pyo3::IntoPyObject;
+
+# let bools = vec![true, false, false, true];
+# let ints = vec![1, 2, 3, 4];
+
+fn convert_to_vec_of_pyobj<'py, T>(py: Python<'py>, the_vec: Vec<T>) -> PyResult<Vec<Py<PyAny>>>
+where
+   T: IntoPyObject<'py> + Copy
+{
+    the_vec.iter()
+        .map(|x| {
+            x.into_pyobject(py)
+                .map_err(Into::into)
+                .map(BoundObject::into_any)
+                .map(BoundObject::unbind)
+            }
+        ).collect()
+}
+
+let vec_of_pyobjs: Vec<Py<PyAny>> = Python::with_gil(|py| {
+    let mut result: Vec<Py<PyAny>> = vec![];
+    result.extend(convert_to_vec_of_pyobj(py, bools).unwrap());
+    result.extend(convert_to_vec_of_pyobj(py, ints).unwrap());
+    result
+});
+```
+
+You can also bring `BoundObject` into scope to call methods provided by the trait on `Bound` and `Borrowed` instances.
+
 ### The `ToPyObject` trait
 
 <div class="warning">
