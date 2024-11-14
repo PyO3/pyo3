@@ -157,6 +157,8 @@ need to adapt an implementation of `IntoPyObject` to stay compatible with the Py
 the new [`#[derive(IntoPyObject)]`](#intopyobject-derive-macro) macro can be used instead of
 [manual implementations](#intopyobject-manual-implementation).
 
+Since the `IntoPyObject::into_pyobject` may return either a `Bound` or `Borrowed`, you may find the [`BoundObject`](types.md#using-boundobject-to-deal-objects-that-may-be-bound-or-borrowed) trait to be useful to write code that generically handles either type of smart pointer.
+
 Together with the introduction of `IntoPyObject` the old conversion traits `ToPyObject` and `IntoPy`
 are deprecated and will be removed in a future PyO3 version.
 

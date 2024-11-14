@@ -197,6 +197,37 @@ let obj: &Py<PyAny> = borrowed.as_unbound();
 let obj: Py<PyAny> = borrowed.to_owned().unbind().
 ```
 
+### Using BoundObject to deal objects that may be Bound or Borrowed
+
+You can use the [`BoundObject`][BoundObject] trait to handle function arguments or intermediate values in an iterator pipeline that may be either `Bound` or `Borrowed`. For example, the `IntoPyObject` implementation for `bool` returns a `Borrowed<'py, 'py, PyBool>`, but the implementation for `usize` returns a `Bound<'py, PyBool>`, so to write a function that generically converts vectors of either integers or bools into a vector of `Bound<'py, PyAny>`, you could do:
+
+```rust
+use pyo3::prelude::*;
+use pyo3::BoundObject;
+use pyo3::IntoPyObject;
+
+let bools = vec![true, false, false, true];
+let ints = vec![1, 2, 3, 4];
+
+fn convert_to_vec_of_pyobj<'py, T: IntoPyObject<'py> + Copy>(py: Python<'py>, the_vec: Vec<T>) -> PyResult<Vec<Bound<'py, PyAny>>> {
+    the_vec.iter()
+        .map(|x| {
+            x.into_pyobject(py)
+                .map_err(Into::into)
+                .map(BoundObject::into_any)
+                .map(BoundObject::into_bound)
+            }
+        ).collect()
+}
+
+Python::with_gil(|py| {
+    let vec_of_pybools = convert_to_vec_of_pyobj(py, bools);
+    let vec_of_pyints = convert_to_vec_of_pyobj(py, ints);
+});
+```
+
+You can also import [`BoundObject`] to call methods shared by `Bound` or `Borrowed`.
+
 ## Concrete Python types
 
 In all of `Py<T>`, `Bound<'py, T>`, and `Borrowed<'a, 'py, T>`, the type parameter `T` denotes the type of the Python object referred to by the smart pointer.
@@ -329,3 +360,4 @@ for more detail.
 [PyList_append]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyList.html#method.append
 [RefCell]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
 [smart-pointers]: https://doc.rust-lang.org/book/ch15-00-smart-pointers.html
+[BoundObject]: {{#PYO3_DOCS_URL}}/pyo3/instance/trait.BoundObject.html
