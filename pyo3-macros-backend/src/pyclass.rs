@@ -1186,19 +1186,21 @@ fn impl_complex_enum_variant_match_args(
     variant_cls_type: &syn::Type,
     field_names: &mut Vec<Ident>,
 ) -> (MethodAndMethodDef, syn::ImplItemConst) {
+    let ident = format_ident!("__match_args__");
     let match_args_const_impl: syn::ImplItemConst = {
         let args_tp = field_names.iter().map(|_| {
             quote! { &'static str }
         });
         parse_quote! {
-            const __match_args__: ( #(#args_tp,)* ) = (
+            #[allow(non_upper_case_globals)]
+            const #ident: ( #(#args_tp,)* ) = (
                 #(stringify!(#field_names),)*
             );
         }
     };
 
     let spec = ConstSpec {
-        rust_ident: format_ident!("__match_args__"),
+        rust_ident: ident,
         attributes: ConstAttributes {
             is_class_attr: true,
             name: None,
