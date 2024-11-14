@@ -226,7 +226,7 @@ Python::with_gil(|py| {
 });
 ```
 
-You can also import [`BoundObject`] to call methods shared by `Bound` or `Borrowed`.
+You can also import [`BoundObject`] to call methods shared by `Bound` and `Borrowed`.
 
 ## Concrete Python types
 
