@@ -209,7 +209,10 @@ use pyo3::IntoPyObject;
 let bools = vec![true, false, false, true];
 let ints = vec![1, 2, 3, 4];
 
-fn convert_to_vec_of_pyobj<'py, T: IntoPyObject<'py> + Copy>(py: Python<'py>, the_vec: Vec<T>) -> PyResult<Vec<Bound<'py, PyAny>>> {
+fn convert_to_vec_of_pyobj<'py, T>(py: Python<'py>, the_vec: Vec<T>) -> PyResult<Vec<Bound<'py, PyAny>>>
+where
+   T: IntoPyObject<'py> + Copy
+{
     the_vec.iter()
         .map(|x| {
             x.into_pyobject(py)
