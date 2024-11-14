@@ -199,7 +199,7 @@ let obj: Py<PyAny> = borrowed.to_owned().unbind().
 
 ### Using BoundObject to deal objects that may be Bound or Borrowed
 
-You can use the [`BoundObject`][BoundObject] trait to handle function arguments or intermediate values in an iterator pipeline that may be either `Bound` or `Borrowed`. For example, the `IntoPyObject` implementation for `bool` returns a `Borrowed<'py, 'py, PyBool>`, but the implementation for `usize` returns a `Bound<'py, PyBool>`, so to write a function that generically converts vectors of either integers or bools into a vector of `Bound<'py, PyAny>`, you could do:
+You can use the [`BoundObject`][BoundObject] trait to handle function arguments or intermediate values in an iterator pipeline that may be either `Bound` or `Borrowed`. For example, the `IntoPyObject` implementation for `bool` returns a `Borrowed<'py, 'py, PyBool>`, but the implementation for `usize` returns a `Bound<'py, PyInt>`, so to write a function that generically converts vectors of either integers or bools into a vector of `Bound<'py, PyAny>`, you could do:
 
 ```rust
 use pyo3::prelude::*;
