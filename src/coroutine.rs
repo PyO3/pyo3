@@ -137,14 +137,13 @@ impl Coroutine {
     }
 
     #[getter]
-    fn __qualname__(&self, py: Python<'_>) -> PyResult<Py<PyString>> {
+    fn __qualname__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyString>> {
         match (&self.name, &self.qualname_prefix) {
-            (Some(name), Some(prefix)) => format!("{}.{}", prefix, name.bind(py).to_cow()?)
-                .as_str()
-                .into_pyobject(py)
-                .map(BoundObject::unbind)
-                .map_err(Into::into),
-            (Some(name), None) => Ok(name.clone_ref(py)),
+            (Some(name), Some(prefix)) => Ok(PyString::new(
+                py,
+                &format!("{}.{}", prefix, name.bind(py).to_cow()?),
+            )),
+            (Some(name), None) => Ok(name.bind(py).clone()),
             (None, _) => Err(PyAttributeError::new_err("__qualname__")),
         }
     }
