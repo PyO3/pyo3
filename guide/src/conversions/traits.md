@@ -691,7 +691,7 @@ let vec_of_pyobjs: Vec<Py<PyAny>> = Python::with_gil(|py| {
 });
 ```
 
-You can also bring `BoundObject` into scope to call methods provided by the trait on `Bound` and `Borrowed` instances.
+In the example above we used `BoundObject::into_any` and `BoundObject::unbind` to manipulate the python types and smart pointers into the result type we wanted to produce from the function.
 
 ### The `ToPyObject` trait
 
