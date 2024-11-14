@@ -655,7 +655,7 @@ Python::with_gil(|py| {
 
 In this example if we wanted to combine `ints_as_pyints` and `bools_as_pybool` into a single `Vec<Py<PyAny>>` to return from the `with_gil` closure, we would have to manually convert the concrete types for the smart pointers and the python types.
 
-Instead, we can write a function that generically converts vectors of either integers or bools into a vector of `Py<'py, PyAny>`:
+Instead, we can write a function that generically converts vectors of either integers or bools into a vector of `Py<PyAny>`:
 
 ```rust
 # use pyo3::prelude::*;
