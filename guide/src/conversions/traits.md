@@ -675,14 +675,16 @@ where
                 .map_err(Into::into)
                 .map(BoundObject::into_any)
                 .map(BoundObject::unbind)
-            }
-        ).collect()
+            })
+        .collect()
 }
 
 let vec_of_pyobjs: Vec<Py<PyAny>> = Python::with_gil(|py| {
+    let mut bools_as_pyany = convert_to_vec_of_pyobj(py, bools).unwrap();
+    let mut ints_as_pyany = convert_to_vec_of_pyobj(py, ints).unwrap();
     let mut result: Vec<Py<PyAny>> = vec![];
-    result.extend(convert_to_vec_of_pyobj(py, bools).unwrap());
-    result.extend(convert_to_vec_of_pyobj(py, ints).unwrap());
+    result.append(&mut bools_as_pyany);
+    result.append(&mut ints_as_pyany);
     result
 });
 ```
