@@ -334,7 +334,7 @@
 #![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features Reference - PyO3 user guide\"")]
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
-pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPyObject};
+pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPyObject, IntoPyObjectExt};
 #[allow(deprecated)]
 pub use crate::conversion::{IntoPy, ToPyObject};
 pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};

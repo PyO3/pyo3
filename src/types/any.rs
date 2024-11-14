@@ -11,7 +11,7 @@ use crate::type_object::{PyTypeCheck, PyTypeInfo};
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
-use crate::{err, ffi, Borrowed, BoundObject, Python};
+use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
@@ -1000,11 +1000,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
                 .into_pyobject(py)
                 .map_err(Into::into)?
                 .as_borrowed(),
-            value
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            value.into_bound_object_py_any(py)?.as_borrowed(),
         )
     }
 
@@ -1055,14 +1051,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(
-            self,
-            other
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
-        )
+        inner(self, other.into_bound_object_py_any(py)?.as_borrowed())
     }
 
     fn rich_compare<O>(&self, other: O, compare_op: CompareOp) -> PyResult<Bound<'py, PyAny>>
@@ -1083,11 +1072,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            other
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            other.into_bound_object_py_any(py)?.as_borrowed(),
             compare_op,
         )
     }
@@ -1196,14 +1181,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(
-            self,
-            other
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
-        )
+        inner(self, other.into_bound_object_py_any(py)?.as_borrowed())
     }
 
     /// Computes `self ** other % modulus` (`pow(self, other, modulus)`).
@@ -1227,16 +1205,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            other
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
-            modulus
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            other.into_bound_object_py_any(py)?.as_borrowed(),
+            modulus.into_bound_object_py_any(py)?.as_borrowed(),
         )
     }
 
@@ -1383,11 +1353,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
                 .map_err(Into::into)?
                 .into_any()
                 .as_borrowed(),
-            value
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            value.into_bound_object_py_any(py)?.as_borrowed(),
         )
     }
 
@@ -1572,14 +1538,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(
-            self,
-            value
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
-        )
+        inner(self, value.into_bound_object_py_any(py)?.as_borrowed())
     }
 
     #[cfg(not(any(PyPy, GraalPy)))]
