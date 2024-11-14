@@ -2322,11 +2322,11 @@ impl<'a> PyClassImplsBuilder<'a> {
         let assertions = if attr.options.unsendable.is_some() {
             TokenStream::new()
         } else {
-            quote_spanned! {
-                cls.span() =>
+            let assert = quote_spanned! { cls.span() => assert_pyclass_sync::<#cls>(); };
+            quote! {
                 const _: () = {
                     use #pyo3_path::impl_::pyclass::*;
-                    assert_pyclass_sync::<#cls>();
+                    #assert
                 };
             }
         };
