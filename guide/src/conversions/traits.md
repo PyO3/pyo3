@@ -671,11 +671,13 @@ where
 {
     the_vec.iter()
         .map(|x| {
-            x.into_pyobject(py)
-                .map_err(Into::into)
-                .map(BoundObject::into_any)
-                .map(BoundObject::unbind)
-            })
+            Ok(
+                x.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .unbind()
+            )
+        })
         .collect()
 }
 
