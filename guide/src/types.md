@@ -329,4 +329,3 @@ for more detail.
 [PyList_append]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyList.html#method.append
 [RefCell]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
 [smart-pointers]: https://doc.rust-lang.org/book/ch15-00-smart-pointers.html
-[BoundObject]: {{#PYO3_DOCS_URL}}/pyo3/instance/trait.BoundObject.html
