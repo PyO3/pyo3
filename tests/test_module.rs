@@ -329,7 +329,7 @@ fn ext_vararg_fn(py: Python<'_>, a: i32, args: &Bound<'_, PyTuple>) -> PyResult<
         args.as_any().clone(),
     ]
     .into_pyobject(py)
-    .map(BoundObject::unbind)
+    .map(Bound::unbind)
 }
 
 #[pymodule]

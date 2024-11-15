@@ -248,6 +248,7 @@ print("executable", sys.executable)
 print("calcsize_pointer", struct.calcsize("P"))
 print("mingw", get_platform().startswith("mingw"))
 print("ext_suffix", get_config_var("EXT_SUFFIX"))
+print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
 "#;
         let output = run_python_script(interpreter.as_ref(), SCRIPT)?;
         let map: HashMap<String, String> = parse_script_output(&output);
@@ -290,6 +291,13 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
 
         let implementation = map["implementation"].parse()?;
 
+        let gil_disabled = match map["gil_disabled"].as_str() {
+            "1" => true,
+            "0" => false,
+            "None" => false,
+            _ => panic!("Unknown Py_GIL_DISABLED value"),
+        };
+
         let lib_name = if cfg!(windows) {
             default_lib_name_windows(
                 version,
@@ -300,12 +308,14 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
                 // on Windows from sysconfig - e.g. ext_suffix may be
                 // `_d.cp312-win_amd64.pyd` for 3.12 debug build
                 map["ext_suffix"].starts_with("_d."),
+                gil_disabled,
             )
         } else {
             default_lib_name_unix(
                 version,
                 implementation,
                 map.get("ld_version").map(String::as_str),
+                gil_disabled,
             )
         };
 
@@ -375,10 +385,15 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
             _ => false,
         };
         let lib_dir = get_key!(sysconfigdata, "LIBDIR").ok().map(str::to_string);
+        let gil_disabled = match sysconfigdata.get_value("Py_GIL_DISABLED") {
+            Some(value) => value == "1",
+            None => false,
+        };
         let lib_name = Some(default_lib_name_unix(
             version,
             implementation,
             sysconfigdata.get_value("LDVERSION"),
+            gil_disabled,
         ));
         let pointer_width = parse_key!(sysconfigdata, "SIZEOF_VOID_P")
             .map(|bytes_width: u32| bytes_width * 8)
@@ -1106,10 +1121,15 @@ impl BuildFlags {
     /// the interpreter and printing variables of interest from
     /// sysconfig.get_config_vars.
     fn from_interpreter(interpreter: impl AsRef<Path>) -> Result<Self> {
-        // sysconfig is missing all the flags on windows, so we can't actually
-        // query the interpreter directly for its build flags.
+        // sysconfig is missing all the flags on windows for Python 3.12 and
+        // older, so we can't actually query the interpreter directly for its
+        // build flags on those versions.
         if cfg!(windows) {
-            return Ok(Self::new());
+            let script = String::from("import sys;print(sys.version_info < (3, 13))");
+            let stdout = run_python_script(interpreter.as_ref(), &script)?;
+            if stdout.trim_end() == "True" {
+                return Ok(Self::new());
+            }
         }
 
         let mut script = String::from("import sysconfig\n");
@@ -1528,6 +1548,7 @@ fn default_abi3_config(host: &Triple, version: PythonVersion) -> InterpreterConf
             abi3,
             false,
             false,
+            false,
         ))
     } else {
         None
@@ -1604,9 +1625,10 @@ fn default_lib_name_for_target(
             abi3,
             false,
             false,
+            false,
         ))
     } else if is_linking_libpython_for_target(target) {
-        Some(default_lib_name_unix(version, implementation, None))
+        Some(default_lib_name_unix(version, implementation, None, false))
     } else {
         None
     }
@@ -1618,16 +1640,26 @@ fn default_lib_name_windows(
     abi3: bool,
     mingw: bool,
     debug: bool,
+    gil_disabled: bool,
 ) -> String {
     if debug {
         // CPython bug: linking against python3_d.dll raises error
         // https://github.com/python/cpython/issues/101614
-        format!("python{}{}_d", version.major, version.minor)
+        if gil_disabled {
+            format!("python{}{}t_d", version.major, version.minor)
+        } else {
+            format!("python{}{}_d", version.major, version.minor)
+        }
     } else if abi3 && !(implementation.is_pypy() || implementation.is_graalpy()) {
         WINDOWS_ABI3_LIB_NAME.to_owned()
     } else if mingw {
+        if gil_disabled {
+            panic!("MinGW free-threaded builds are not currently tested or supported")
+        }
         // https://packages.msys2.org/base/mingw-w64-python
         format!("python{}.{}", version.major, version.minor)
+    } else if gil_disabled {
+        format!("python{}{}t", version.major, version.minor)
     } else {
         format!("python{}{}", version.major, version.minor)
     }
@@ -1637,6 +1669,7 @@ fn default_lib_name_unix(
     version: PythonVersion,
     implementation: PythonImplementation,
     ld_version: Option<&str>,
+    gil_disabled: bool,
 ) -> String {
     match implementation {
         PythonImplementation::CPython => match ld_version {
@@ -1644,7 +1677,11 @@ fn default_lib_name_unix(
             None => {
                 if version > PythonVersion::PY37 {
                     // PEP 3149 ABI version tags are finally gone
-                    format!("python{}.{}", version.major, version.minor)
+                    if gil_disabled {
+                        format!("python{}.{}t", version.major, version.minor)
+                    } else {
+                        format!("python{}.{}", version.major, version.minor)
+                    }
                 } else {
                     // Work around https://bugs.python.org/issue36707
                     format!("python{}.{}m", version.major, version.minor)
@@ -2351,6 +2388,7 @@ mod tests {
                 false,
                 false,
                 false,
+                false,
             ),
             "python39",
         );
@@ -2359,6 +2397,7 @@ mod tests {
                 PythonVersion { major: 3, minor: 9 },
                 CPython,
                 true,
+                false,
                 false,
                 false,
             ),
@@ -2370,6 +2409,7 @@ mod tests {
                 CPython,
                 false,
                 true,
+                false,
                 false,
             ),
             "python3.9",
@@ -2381,6 +2421,7 @@ mod tests {
                 true,
                 true,
                 false,
+                false,
             ),
             "python3",
         );
@@ -2389,6 +2430,7 @@ mod tests {
                 PythonVersion { major: 3, minor: 9 },
                 PyPy,
                 true,
+                false,
                 false,
                 false,
             ),
@@ -2401,6 +2443,7 @@ mod tests {
                 false,
                 false,
                 true,
+                false,
             ),
             "python39_d",
         );
@@ -2413,6 +2456,7 @@ mod tests {
                 true,
                 false,
                 true,
+                false,
             ),
             "python39_d",
         );
@@ -2423,16 +2467,31 @@ mod tests {
         use PythonImplementation::*;
         // Defaults to python3.7m for CPython 3.7
         assert_eq!(
-            super::default_lib_name_unix(PythonVersion { major: 3, minor: 7 }, CPython, None),
+            super::default_lib_name_unix(
+                PythonVersion { major: 3, minor: 7 },
+                CPython,
+                None,
+                false
+            ),
             "python3.7m",
         );
         // Defaults to pythonX.Y for CPython 3.8+
         assert_eq!(
-            super::default_lib_name_unix(PythonVersion { major: 3, minor: 8 }, CPython, None),
+            super::default_lib_name_unix(
+                PythonVersion { major: 3, minor: 8 },
+                CPython,
+                None,
+                false
+            ),
             "python3.8",
         );
         assert_eq!(
-            super::default_lib_name_unix(PythonVersion { major: 3, minor: 9 }, CPython, None),
+            super::default_lib_name_unix(
+                PythonVersion { major: 3, minor: 9 },
+                CPython,
+                None,
+                false
+            ),
             "python3.9",
         );
         // Can use ldversion to override for CPython
@@ -2440,19 +2499,25 @@ mod tests {
             super::default_lib_name_unix(
                 PythonVersion { major: 3, minor: 9 },
                 CPython,
-                Some("3.7md")
+                Some("3.7md"),
+                false
             ),
             "python3.7md",
         );
 
         // PyPy 3.9 includes ldversion
         assert_eq!(
-            super::default_lib_name_unix(PythonVersion { major: 3, minor: 9 }, PyPy, None),
+            super::default_lib_name_unix(PythonVersion { major: 3, minor: 9 }, PyPy, None, false),
             "pypy3.9-c",
         );
 
         assert_eq!(
-            super::default_lib_name_unix(PythonVersion { major: 3, minor: 9 }, PyPy, Some("3.9d")),
+            super::default_lib_name_unix(
+                PythonVersion { major: 3, minor: 9 },
+                PyPy,
+                Some("3.9d"),
+                false
+            ),
             "pypy3.9d-c",
         );
     }
