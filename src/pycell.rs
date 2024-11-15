@@ -7,7 +7,7 @@
 //! PyO3 deals with these differences by employing the [Interior Mutability]
 //! pattern. This requires that PyO3 enforces the borrowing rules and it has two mechanisms for
 //! doing so:
-//! - Statically it can enforce threadsafe access with the [`Python<'py>`](crate::Python) token.
+//! - Statically it can enforce thread-safe access with the [`Python<'py>`](crate::Python) token.
 //!   All Rust code holding that token, or anything derived from it, can assume that they have
 //!   safe access to the Python interpreter's state. For this reason all the native Python objects
 //!   can be mutated through shared references.
