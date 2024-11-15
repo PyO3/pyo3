@@ -147,7 +147,7 @@ members = [
 
 [package.metadata.docs.rs]
 no-default-features = true
-features = ["full", "gil-refs"]
+features = ["full"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [workspace.lints.clippy]
