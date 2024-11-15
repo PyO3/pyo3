@@ -506,6 +506,7 @@ pub mod doc_test {
         "guide/src/class/object.md" => guide_class_object,
         "guide/src/class/numeric.md" => guide_class_numeric,
         "guide/src/class/protocols.md" => guide_class_protocols_md,
+        "guide/src/class/thread-safety.md" => guide_class_thread_safety_md,
         "guide/src/conversions.md" => guide_conversions_md,
         "guide/src/conversions/tables.md" => guide_conversions_tables_md,
         "guide/src/conversions/traits.md" => guide_conversions_traits_md,

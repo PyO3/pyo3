@@ -58,7 +58,7 @@ Notable features of this new trait include:
 
 All PyO3 provided types as well as `#[pyclass]`es already implement `IntoPyObject`. Other types will
 need to adapt an implementation of `IntoPyObject` to stay compatible with the Python APIs. In many cases
-the new [`#[derive(IntoPyObject)]`](#intopyobject-derive-macro) macro can be used instead of
+the new [`#[derive(IntoPyObject)]`](#intopyobject-and-intopyobjectref-derive-macros) macro can be used instead of
 [manual implementations](#intopyobject-manual-implementation).
 
 Together with the introduction of `IntoPyObject` the old conversion traits `ToPyObject` and `IntoPy`
