@@ -47,8 +47,8 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    exceptions::PyTypeError, types::any::PyAnyMethods, Bound, BoundObject, FromPyObject,
-    IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, PyResult, Python,
+    exceptions::PyTypeError, types::any::PyAnyMethods, Bound, FromPyObject, IntoPyObject,
+    IntoPyObjectExt, PyAny, PyErr, PyObject, PyResult, Python,
 };
 #[allow(deprecated)]
 use crate::{IntoPy, ToPyObject};

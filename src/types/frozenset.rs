@@ -1,4 +1,3 @@
-use crate::conversion::IntoPyObject;
 use crate::types::PyIterator;
 use crate::{
     err::{self, PyErr, PyResult},
@@ -8,7 +7,7 @@ use crate::{
     types::any::PyAnyMethods,
     Bound, PyAny, Python,
 };
-use crate::{Borrowed, BoundObject};
+use crate::{Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt};
 use std::ptr;
 
 /// Allows building a Python `frozenset` one item at a time
@@ -181,10 +180,7 @@ impl<'py> PyFrozenSetMethods<'py> for Bound<'py, PyFrozenSet> {
         let py = self.py();
         inner(
             self,
-            key.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -266,7 +262,7 @@ where
     let ptr = set.as_ptr();
 
     for e in elements {
-        let obj = e.into_pyobject(py).map_err(Into::into)?;
+        let obj = e.into_pyobject_or_pyerr(py)?;
         err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj.as_ptr()) })?;
     }
 

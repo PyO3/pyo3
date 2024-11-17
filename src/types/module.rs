@@ -1,4 +1,3 @@
-use crate::conversion::IntoPyObject;
 use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::callback::IntoPyCallbackOutput;
@@ -7,7 +6,10 @@ use crate::pyclass::PyClass;
 use crate::types::{
     any::PyAnyMethods, list::PyListMethods, PyAny, PyCFunction, PyDict, PyList, PyString,
 };
-use crate::{exceptions, ffi, Borrowed, Bound, BoundObject, Py, PyObject, Python};
+use crate::{
+    exceptions, ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, PyObject,
+    Python,
+};
 use std::ffi::{CStr, CString};
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
 use std::os::raw::c_int;
@@ -89,7 +91,7 @@ impl PyModule {
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
-        let name = name.into_pyobject(py).map_err(Into::into)?;
+        let name = name.into_pyobject_or_pyerr(py)?;
         unsafe {
             ffi::PyImport_Import(name.as_ptr())
                 .assume_owned_or_err(py)
@@ -508,12 +510,8 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
         let py = self.py();
         inner(
             self,
-            name.into_pyobject(py).map_err(Into::into)?.as_borrowed(),
-            value
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            name.into_pyobject_or_pyerr(py)?.as_borrowed(),
+            value.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 

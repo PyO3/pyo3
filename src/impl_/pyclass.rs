@@ -1,5 +1,4 @@
 use crate::{
-    conversion::IntoPyObject,
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
     ffi,
     impl_::{
@@ -10,7 +9,8 @@ use crate::{
     },
     pycell::PyBorrowError,
     types::{any::PyAnyMethods, PyBool},
-    Borrowed, BoundObject, Py, PyAny, PyClass, PyErr, PyRef, PyResult, PyTypeInfo, Python,
+    Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyErr, PyRef,
+    PyResult, PyTypeInfo, Python,
 };
 #[allow(deprecated)]
 use crate::{IntoPy, ToPyObject};
@@ -1532,10 +1532,7 @@ impl<const IMPLEMENTS_INTOPYOBJECT: bool> ConvertField<true, IMPLEMENTS_INTOPYOB
     where
         &'a T: IntoPyObject<'py>,
     {
-        obj.into_pyobject(py)
-            .map(BoundObject::into_any)
-            .map(BoundObject::unbind)
-            .map_err(Into::into)
+        obj.into_py_any(py)
     }
 }
 
@@ -1545,11 +1542,7 @@ impl<const IMPLEMENTS_INTOPYOBJECT: bool> ConvertField<false, IMPLEMENTS_INTOPYO
     where
         T: PyO3GetField<'py>,
     {
-        obj.clone()
-            .into_pyobject(py)
-            .map(BoundObject::into_any)
-            .map(BoundObject::unbind)
-            .map_err(Into::into)
+        obj.clone().into_py_any(py)
     }
 }
 

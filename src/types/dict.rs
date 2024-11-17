@@ -4,7 +4,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::{PyAny, PyAnyMethods, PyList, PyMapping};
-use crate::{ffi, BoundObject, IntoPyObject, Python};
+use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
 
 /// Represents a Python `dict`.
 ///
@@ -239,7 +239,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
     where
         K: IntoPyObject<'py>,
     {
-        fn inner(dict: &Bound<'_, PyDict>, key: &Bound<'_, PyAny>) -> PyResult<bool> {
+        fn inner(dict: &Bound<'_, PyDict>, key: Borrowed<'_, '_, PyAny>) -> PyResult<bool> {
             match unsafe { ffi::PyDict_Contains(dict.as_ptr(), key.as_ptr()) } {
                 1 => Ok(true),
                 0 => Ok(false),
@@ -250,10 +250,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         let py = self.py();
         inner(
             self,
-            &key.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -263,7 +260,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
     {
         fn inner<'py>(
             dict: &Bound<'py, PyDict>,
-            key: &Bound<'_, PyAny>,
+            key: Borrowed<'_, '_, PyAny>,
         ) -> PyResult<Option<Bound<'py, PyAny>>> {
             let py = dict.py();
             let mut result: *mut ffi::PyObject = std::ptr::null_mut();
@@ -283,10 +280,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         let py = self.py();
         inner(
             self,
-            &key.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -297,8 +291,8 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
     {
         fn inner(
             dict: &Bound<'_, PyDict>,
-            key: &Bound<'_, PyAny>,
-            value: &Bound<'_, PyAny>,
+            key: Borrowed<'_, '_, PyAny>,
+            value: Borrowed<'_, '_, PyAny>,
         ) -> PyResult<()> {
             err::error_on_minusone(dict.py(), unsafe {
                 ffi::PyDict_SetItem(dict.as_ptr(), key.as_ptr(), value.as_ptr())
@@ -308,15 +302,8 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         let py = self.py();
         inner(
             self,
-            &key.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
-            &value
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
+            value.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -324,7 +311,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
     where
         K: IntoPyObject<'py>,
     {
-        fn inner(dict: &Bound<'_, PyDict>, key: &Bound<'_, PyAny>) -> PyResult<()> {
+        fn inner(dict: &Bound<'_, PyDict>, key: Borrowed<'_, '_, PyAny>) -> PyResult<()> {
             err::error_on_minusone(dict.py(), unsafe {
                 ffi::PyDict_DelItem(dict.as_ptr(), key.as_ptr())
             })
@@ -333,10 +320,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         let py = self.py();
         inner(
             self,
-            &key.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
