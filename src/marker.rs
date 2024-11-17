@@ -1,6 +1,6 @@
 //! Fundamental properties of objects tied to the Python interpreter.
 //!
-//! The Python interpreter is not threadsafe. To protect the Python interpreter in multithreaded
+//! The Python interpreter is not thread-safe. To protect the Python interpreter in multithreaded
 //! scenarios there is a global lock, the *global interpreter lock* (hereafter referred to as *GIL*)
 //! that must be held to safely interact with Python objects. This is why in PyO3 when you acquire
 //! the GIL you get a [`Python`] marker token that carries the *lifetime* of holding the GIL and all
