@@ -10,6 +10,10 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.23.1] - 2024-11-16
+
+Re-release of 0.23.0 with fixes to docs.rs build.
+
 ## [0.23.0] - 2024-11-15
 
 ### Packaging
@@ -1996,7 +2000,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.23.0...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.23.1...HEAD
+[0.23.1]: https://github.com/pyo3/pyo3/compare/v0.23.0...v0.23.1
 [0.23.0]: https://github.com/pyo3/pyo3/compare/v0.22.5...v0.23.0
 [0.22.5]: https://github.com/pyo3/pyo3/compare/v0.22.4...v0.22.5
 [0.22.4]: https://github.com/pyo3/pyo3/compare/v0.22.3...v0.22.4
