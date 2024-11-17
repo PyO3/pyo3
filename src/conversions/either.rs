@@ -82,8 +82,8 @@ where
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match self {
-            Either::Left(l) => l.into_py_any(py),
-            Either::Right(r) => r.into_py_any(py),
+            Either::Left(l) => l.into_bound_py_any(py),
+            Either::Right(r) => r.into_bound_py_any(py),
         }
     }
 }
@@ -100,8 +100,8 @@ where
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match self {
-            Either::Left(l) => l.into_py_any(py),
-            Either::Right(r) => r.into_py_any(py),
+            Either::Left(l) => l.into_bound_py_any(py),
+            Either::Right(r) => r.into_bound_py_any(py),
         }
     }
 }

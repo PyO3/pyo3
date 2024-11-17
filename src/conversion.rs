@@ -178,11 +178,23 @@ pub trait IntoPy<T>: Sized {
 
 /// Defines a conversion from a Rust type to a Python object, which may fail.
 ///
+/// This trait has `#[derive(IntoPyObject)]` to automatically implement it for simple types and
+/// `#[derive(IntoPyObjectRef)]` to implement the same for references.
+///
 /// It functions similarly to std's [`TryInto`] trait, but requires a [GIL token](Python)
 /// as an argument.
 ///
 /// The [`into_pyobject`][IntoPyObject::into_pyobject] method is designed for maximum flexibility and efficiency; it
 ///  - allows for a concrete Python type to be returned (the [`Target`][IntoPyObject::Target] associated type)
+///  - allows for the smart pointer containing the Python object to be either `Bound<'py, Self::Target>` or `Borrowed<'a, 'py, Self::Target>`
+///    to avoid unnecessary reference counting overhead
+///  - allows for a custom error type to be returned in the event of a conversion error to avoid
+///    unnecessarily creating a Python exception
+///
+/// # See also
+///
+/// - The [`IntoPyObjectExt`] trait, which provides convenience methods for common usages of
+///   `IntoPyObject` which erase type information and convert errors to `PyErr`.
 #[cfg_attr(
     diagnostic_namespace,
     diagnostic::on_unimplemented(
@@ -230,7 +242,7 @@ pub trait IntoPyObject<'py>: Sized {
         I: IntoIterator<Item = Self> + AsRef<[Self]>,
         I::IntoIter: ExactSizeIterator<Item = Self>,
     {
-        let mut iter = iter.into_iter().map(|e| e.into_py_any(py));
+        let mut iter = iter.into_iter().map(|e| e.into_bound_py_any(py));
         let list = crate::types::list::try_new_from_iter(py, &mut iter);
         list.map(Bound::into_any)
     }
@@ -248,7 +260,7 @@ pub trait IntoPyObject<'py>: Sized {
         I: IntoIterator<Item = Self> + AsRef<[<Self as private::Reference>::BaseType]>,
         I::IntoIter: ExactSizeIterator<Item = Self>,
     {
-        let mut iter = iter.into_iter().map(|e| e.into_py_any(py));
+        let mut iter = iter.into_iter().map(|e| e.into_bound_py_any(py));
         let list = crate::types::list::try_new_from_iter(py, &mut iter);
         list.map(Bound::into_any)
     }
@@ -355,23 +367,32 @@ mod into_pyobject_ext {
 pub trait IntoPyObjectExt<'py>: IntoPyObject<'py> + into_pyobject_ext::Sealed {
     /// Converts `self` into an owned Python object, dropping type information.
     #[inline]
-    fn into_py_any(self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.into_pyobject(py)
-            .map(|obj| obj.into_any().into_bound())
-            .map_err(Into::into)
+    fn into_bound_py_any(self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        match self.into_pyobject(py) {
+            Ok(obj) => Ok(obj.into_any().into_bound()),
+            Err(err) => Err(err.into()),
+        }
     }
 
-    /// Converts `self` into a Python object, dropping type information.
-    ///
-    /// This is typically only useful when the resulting output is going to be passed
-    /// to another function that only needs to borrow the output.
+    /// Converts `self` into an owned Python object, dropping type information and unbinding it
+    /// from the `'py` lifetime.
     #[inline]
-    fn into_bound_object_py_any(
-        self,
-        py: Python<'py>,
-    ) -> PyResult<<Self::Output as BoundObject<'py, Self::Target>>::Any> {
+    fn into_py_any(self, py: Python<'py>) -> PyResult<Py<PyAny>> {
         match self.into_pyobject(py) {
-            Ok(obj) => Ok(obj.into_any()),
+            Ok(obj) => Ok(obj.into_any().unbind()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    /// Converts `self` into a Python object.
+    ///
+    /// This is equivalent to calling [`into_pyobject`][IntoPyObject::into_pyobject] followed
+    /// with `.map_err(Into::into)` to convert the error type to [`PyErr`]. This is helpful
+    /// for generic code which wants to make use of the `?` operator.
+    #[inline]
+    fn into_pyobject_or_pyerr(self, py: Python<'py>) -> PyResult<Self::Output> {
+        match self.into_pyobject(py) {
+            Ok(obj) => Ok(obj),
             Err(err) => Err(err.into()),
         }
     }
