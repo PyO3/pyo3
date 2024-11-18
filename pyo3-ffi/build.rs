@@ -112,9 +112,16 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                     .0
                     .contains(&BuildFlag::Py_GIL_DISABLED)
                 {
-                    warn!(
+                    let version = interpreter_config.version;
+                    if version < PythonVersion::PY313 {
+                        panic!(
+                            "The free-threaded ABI is not defined for versions older than 3.13, tried to build using Python {}.{} ABI", version.major, version.minor
+                        );
+                    } else {
+                        warn!(
                             "The free-threaded build of CPython does not yet support abi3 so the build artifacts will be version-specific."
                         )
+                    }
                 }
             }
             PythonImplementation::PyPy => warn!(

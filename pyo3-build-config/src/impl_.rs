@@ -691,6 +691,11 @@ pub struct PythonVersion {
 }
 
 impl PythonVersion {
+    pub const PY313: Self = PythonVersion {
+        major: 3,
+        minor: 13,
+    };
+    #[allow(dead_code)]
     const PY37: Self = PythonVersion { major: 3, minor: 7 };
 }
 
@@ -1606,11 +1611,9 @@ fn load_cross_compile_config(
     Ok(config)
 }
 
-// Link against python3.lib for the stable ABI on Windows.
-// See https://www.python.org/dev/peps/pep-0384/#linkage
-//
-// This contains only the limited ABI symbols.
+// These contains only the limited ABI symbols.
 const WINDOWS_ABI3_LIB_NAME: &str = "python3";
+const WINDOWS_ABI3_DEBUG_LIB_NAME: &str = "python3_d";
 
 fn default_lib_name_for_target(
     version: PythonVersion,
@@ -1642,16 +1645,19 @@ fn default_lib_name_windows(
     debug: bool,
     gil_disabled: bool,
 ) -> String {
-    if debug {
+    if debug && version.minor < 10 {
         // CPython bug: linking against python3_d.dll raises error
         // https://github.com/python/cpython/issues/101614
-        if gil_disabled {
-            format!("python{}{}t_d", version.major, version.minor)
-        } else {
-            format!("python{}{}_d", version.major, version.minor)
-        }
+        format!("python{}{}_d", version.major, version.minor)
     } else if abi3 && !(implementation.is_pypy() || implementation.is_graalpy()) {
-        WINDOWS_ABI3_LIB_NAME.to_owned()
+        if gil_disabled {
+            panic!("Free-threaded ABI does not support limited API extensions");
+        }
+        if debug {
+            WINDOWS_ABI3_DEBUG_LIB_NAME.to_owned()
+        } else {
+            WINDOWS_ABI3_LIB_NAME.to_owned()
+        }
     } else if mingw {
         if gil_disabled {
             panic!("MinGW free-threaded builds are not currently tested or supported")
@@ -1659,7 +1665,16 @@ fn default_lib_name_windows(
         // https://packages.msys2.org/base/mingw-w64-python
         format!("python{}.{}", version.major, version.minor)
     } else if gil_disabled {
-        format!("python{}{}t", version.major, version.minor)
+        if version.major <= 3 && version.minor < 13 {
+            panic!("Cannot compile C extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", version.major, version.minor);
+        }
+        if debug {
+            format!("python{}{}t_d", version.major, version.minor)
+        } else {
+            format!("python{}{}t", version.major, version.minor)
+        }
+    } else if debug {
+        format!("python{}{}_d", version.major, version.minor)
     } else {
         format!("python{}{}", version.major, version.minor)
     }
@@ -1676,8 +1691,10 @@ fn default_lib_name_unix(
             Some(ld_version) => format!("python{}", ld_version),
             None => {
                 if version > PythonVersion::PY37 {
-                    // PEP 3149 ABI version tags are finally gone
                     if gil_disabled {
+                        if version < PythonVersion::PY313 {
+                            panic!("Cannot compile C extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", version.major, version.minor);
+                        }
                         format!("python{}.{}t", version.major, version.minor)
                     } else {
                         format!("python{}.{}", version.major, version.minor)
@@ -2392,6 +2409,17 @@ mod tests {
             ),
             "python39",
         );
+        assert!(std::panic::catch_unwind(|| {
+            super::default_lib_name_windows(
+                PythonVersion { major: 3, minor: 9 },
+                CPython,
+                false,
+                false,
+                false,
+                true,
+            )
+        })
+        .is_err());
         assert_eq!(
             super::default_lib_name_windows(
                 PythonVersion { major: 3, minor: 9 },
@@ -2447,7 +2475,7 @@ mod tests {
             ),
             "python39_d",
         );
-        // abi3 debug builds on windows use version-specific lib
+        // abi3 debug builds on windows use version-specific lib on 3.9 and older
         // to workaround https://github.com/python/cpython/issues/101614
         assert_eq!(
             super::default_lib_name_windows(
@@ -2459,6 +2487,107 @@ mod tests {
                 false,
             ),
             "python39_d",
+        );
+        assert_eq!(
+            super::default_lib_name_windows(
+                PythonVersion {
+                    major: 3,
+                    minor: 10
+                },
+                CPython,
+                true,
+                false,
+                true,
+                false,
+            ),
+            "python3_d",
+        );
+        // Python versions older than 3.13 panic if gil_disabled is true
+        assert!(std::panic::catch_unwind(|| {
+            super::default_lib_name_windows(
+                PythonVersion {
+                    major: 3,
+                    minor: 12,
+                },
+                CPython,
+                false,
+                false,
+                false,
+                true,
+            )
+        })
+        .is_err());
+        // abi3 and free-threading are incompatible
+        assert!(std::panic::catch_unwind(|| {
+            super::default_lib_name_windows(
+                PythonVersion {
+                    major: 3,
+                    minor: 12,
+                },
+                CPython,
+                true,
+                false,
+                false,
+                true,
+            )
+        })
+        .is_err());
+        assert!(std::panic::catch_unwind(|| {
+            super::default_lib_name_windows(
+                PythonVersion {
+                    major: 3,
+                    minor: 13,
+                },
+                CPython,
+                true,
+                false,
+                false,
+                true,
+            )
+        })
+        .is_err());
+        // mingw and free-threading are incompatible (until someone adds support)
+        assert!(std::panic::catch_unwind(|| {
+            super::default_lib_name_windows(
+                PythonVersion {
+                    major: 3,
+                    minor: 12,
+                },
+                CPython,
+                false,
+                true,
+                false,
+                true,
+            )
+        })
+        .is_err());
+        assert_eq!(
+            super::default_lib_name_windows(
+                PythonVersion {
+                    major: 3,
+                    minor: 13
+                },
+                CPython,
+                false,
+                false,
+                false,
+                true,
+            ),
+            "python313t",
+        );
+        assert_eq!(
+            super::default_lib_name_windows(
+                PythonVersion {
+                    major: 3,
+                    minor: 13
+                },
+                CPython,
+                false,
+                false,
+                true,
+                true,
+            ),
+            "python313t_d",
         );
     }
 
@@ -2520,6 +2649,33 @@ mod tests {
             ),
             "pypy3.9d-c",
         );
+
+        // free-threading adds a t suffix
+        assert_eq!(
+            super::default_lib_name_unix(
+                PythonVersion {
+                    major: 3,
+                    minor: 13
+                },
+                CPython,
+                None,
+                true
+            ),
+            "python3.13t",
+        );
+        // 3.12 and older are incompatible with gil_disabled
+        assert!(std::panic::catch_unwind(|| {
+            super::default_lib_name_unix(
+                PythonVersion {
+                    major: 3,
+                    minor: 12,
+                },
+                CPython,
+                None,
+                true,
+            )
+        })
+        .is_err());
     }
 
     #[test]
