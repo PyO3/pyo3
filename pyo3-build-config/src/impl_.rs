@@ -1650,9 +1650,6 @@ fn default_lib_name_windows(
         // https://github.com/python/cpython/issues/101614
         format!("python{}{}_d", version.major, version.minor)
     } else if abi3 && !(implementation.is_pypy() || implementation.is_graalpy()) {
-        if gil_disabled {
-            panic!("Free-threaded ABI does not support limited API extensions");
-        }
         if debug {
             WINDOWS_ABI3_DEBUG_LIB_NAME.to_owned()
         } else {
@@ -2511,35 +2508,6 @@ mod tests {
                 },
                 CPython,
                 false,
-                false,
-                false,
-                true,
-            )
-        })
-        .is_err());
-        // abi3 and free-threading are incompatible
-        assert!(std::panic::catch_unwind(|| {
-            super::default_lib_name_windows(
-                PythonVersion {
-                    major: 3,
-                    minor: 12,
-                },
-                CPython,
-                true,
-                false,
-                false,
-                true,
-            )
-        })
-        .is_err());
-        assert!(std::panic::catch_unwind(|| {
-            super::default_lib_name_windows(
-                PythonVersion {
-                    major: 3,
-                    minor: 13,
-                },
-                CPython,
-                true,
                 false,
                 false,
                 true,
