@@ -23,11 +23,11 @@ impl IterAwaitable {
         }
     }
 
-    fn __await__(pyself: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __await__<'a, 'py>(pyself: PyRef<'a, 'py, Self>) -> PyRef<'a, 'py, Self> {
         pyself
     }
 
-    fn __iter__(pyself: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __iter__<'a, 'py>(pyself: PyRef<'a, 'py, Self>) -> PyRef<'a, 'py, Self> {
         pyself
     }
 
@@ -59,15 +59,15 @@ impl FutureAwaitable {
         }
     }
 
-    fn __await__(pyself: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __await__<'a, 'py>(pyself: PyRef<'a, 'py, Self>) -> PyRef<'a, 'py, Self> {
         pyself
     }
 
-    fn __iter__(pyself: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __iter__<'a, 'py>(pyself: PyRef<'a, 'py, Self>) -> PyRef<'a, 'py, Self> {
         pyself
     }
 
-    fn __next__(mut pyself: PyRefMut<'_, Self>) -> PyResult<PyRefMut<'_, Self>> {
+    fn __next__<'a, 'py>(mut pyself: PyRefMut<'a, 'py, Self>) -> PyResult<PyRefMut<'a, 'py, Self>> {
         match pyself.result {
             Some(_) => match pyself.result.take().unwrap() {
                 Ok(v) => Err(PyStopIteration::new_err(v)),

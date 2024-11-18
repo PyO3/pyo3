@@ -97,7 +97,7 @@
 //!
 //!     // We borrow the guard and then dereference
 //!     // it to get a mutable reference to Number
-//!     let mut guard: PyRefMut<'_, Number> = n.bind(py).borrow_mut();
+//!     let mut guard: PyRefMut<'_, '_, Number> = n.bind(py).borrow_mut();
 //!     let n_mutable: &mut Number = &mut *guard;
 //!
 //!     n_mutable.increment();
@@ -195,10 +195,8 @@
 
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyRuntimeError;
-use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::{ptr_from_mut, ptr_from_ref};
 use crate::pyclass::{boolean_struct::False, PyClass};
-use crate::types::any::PyAnyMethods;
 use crate::{ffi, Borrowed, Bound, PyErr, Python};
 use std::convert::Infallible;
 use std::fmt;
@@ -236,7 +234,7 @@ use impl_::{PyClassBorrowChecker, PyClassObjectLayout};
 ///         (Child { name: "Caterpillar" }, Parent { basename: "Butterfly" })
 ///     }
 ///
-///     fn format(slf: PyRef<'_, Self>) -> String {
+///     fn format(slf: PyRef<'_, '_, Self>) -> String {
 ///         // We can get *mut ffi::PyObject from PyRef
 ///         let refcnt = unsafe { pyo3::ffi::Py_REFCNT(slf.as_ptr()) };
 ///         // We can get &Self::BaseType by as_ref
@@ -246,26 +244,24 @@ use impl_::{PyClassBorrowChecker, PyClassObjectLayout};
 /// }
 /// # Python::with_gil(|py| {
 /// #     let sub = Py::new(py, Child::new()).unwrap();
-/// #     pyo3::py_run!(py, sub, "assert sub.format() == 'Caterpillar(base: Butterfly, cnt: 4)', sub.format()");
+/// #     pyo3::py_run!(py, sub, "assert sub.format() == 'Caterpillar(base: Butterfly, cnt: 3)', sub.format()");
 /// # });
 /// ```
 ///
 /// See the [module-level documentation](self) for more information.
 #[repr(transparent)]
-pub struct PyRef<'p, T: PyClass> {
-    // TODO: once the GIL Ref API is removed, consider adding a lifetime parameter to `PyRef` to
-    // store `Borrowed` here instead, avoiding reference counting overhead.
-    inner: Bound<'p, T>,
+pub struct PyRef<'a, 'py, T: PyClass> {
+    inner: Borrowed<'a, 'py, T>,
 }
 
-impl<'p, T: PyClass> PyRef<'p, T> {
+impl<'py, T: PyClass> PyRef<'_, 'py, T> {
     /// Returns a `Python` token that is bound to the lifetime of the `PyRef`.
-    pub fn py(&self) -> Python<'p> {
+    pub fn py(&self) -> Python<'py> {
         self.inner.py()
     }
 }
 
-impl<T, U> AsRef<U> for PyRef<'_, T>
+impl<T, U> AsRef<U> for PyRef<'_, '_, T>
 where
     T: PyClass<BaseType = U>,
     U: PyClass,
@@ -275,7 +271,7 @@ where
     }
 }
 
-impl<'py, T: PyClass> PyRef<'py, T> {
+impl<'a, 'py, T: PyClass> PyRef<'a, 'py, T> {
     /// Returns the raw FFI pointer represented by self.
     ///
     /// # Safety
@@ -297,24 +293,24 @@ impl<'py, T: PyClass> PyRef<'py, T> {
     /// of the pointer or decrease the reference count (e.g. with [`pyo3::ffi::Py_DecRef`](crate::ffi::Py_DecRef)).
     #[inline]
     pub fn into_ptr(self) -> *mut ffi::PyObject {
-        self.inner.clone().into_ptr()
+        self.inner.to_owned().into_ptr()
     }
 
     #[track_caller]
-    pub(crate) fn borrow(obj: &Bound<'py, T>) -> Self {
+    pub(crate) fn borrow(obj: Borrowed<'a, 'py, T>) -> Self {
         Self::try_borrow(obj).expect("Already mutably borrowed")
     }
 
-    pub(crate) fn try_borrow(obj: &Bound<'py, T>) -> Result<Self, PyBorrowError> {
+    pub(crate) fn try_borrow(obj: Borrowed<'a, 'py, T>) -> Result<Self, PyBorrowError> {
         let cell = obj.get_class_object();
         cell.ensure_threadsafe();
         cell.borrow_checker()
             .try_borrow()
-            .map(|_| Self { inner: obj.clone() })
+            .map(|_| Self { inner: obj })
     }
 }
 
-impl<'p, T, U> PyRef<'p, T>
+impl<'a, 'py, T, U> PyRef<'a, 'py, T>
 where
     T: PyClass<BaseType = U>,
     U: PyClass,
@@ -353,7 +349,7 @@ where
     ///             .add_subclass(Base2 { name2: "base2" })
     ///             .add_subclass(Self { name3: "sub" })
     ///     }
-    ///     fn name(slf: PyRef<'_, Self>) -> String {
+    ///     fn name(slf: PyRef<'_, '_, Self>) -> String {
     ///         let subname = slf.name3;
     ///         let super_ = slf.into_super();
     ///         format!("{} {} {}", super_.as_ref().name1, super_.name2, subname)
@@ -364,15 +360,9 @@ where
     /// #     pyo3::py_run!(py, sub, "assert sub.name() == 'base1 base2 sub'")
     /// # });
     /// ```
-    pub fn into_super(self) -> PyRef<'p, U> {
-        let py = self.py();
+    pub fn into_super(self) -> PyRef<'a, 'py, U> {
         PyRef {
-            inner: unsafe {
-                ManuallyDrop::new(self)
-                    .as_ptr()
-                    .assume_owned_unchecked(py)
-                    .downcast_into_unchecked()
-            },
+            inner: unsafe { ManuallyDrop::new(self).inner.to_any().downcast_unchecked() },
         }
     }
 
@@ -410,7 +400,7 @@ where
     ///     fn sub_name_len(&self) -> usize {
     ///         self.sub_name.len()
     ///     }
-    ///     fn format_name_lengths(slf: PyRef<'_, Self>) -> String {
+    ///     fn format_name_lengths(slf: PyRef<'_, '_, Self>) -> String {
     ///         format!("{} {}", slf.as_super().base_name_len(), slf.sub_name_len())
     ///     }
     /// }
@@ -419,17 +409,17 @@ where
     /// #     pyo3::py_run!(py, sub, "assert sub.format_name_lengths() == '9 8'")
     /// # });
     /// ```
-    pub fn as_super(&self) -> &PyRef<'p, U> {
-        let ptr = ptr_from_ref::<Bound<'p, T>>(&self.inner)
-            // `Bound<T>` has the same layout as `Bound<T::BaseType>`
-            .cast::<Bound<'p, T::BaseType>>()
-            // `Bound<T::BaseType>` has the same layout as `PyRef<T::BaseType>`
-            .cast::<PyRef<'p, T::BaseType>>();
+    pub fn as_super(&self) -> &PyRef<'a, 'py, U> {
+        let ptr = ptr_from_ref::<Borrowed<'a, 'py, T>>(&self.inner)
+            // `Borrowed<T>` has the same layout as `Borrowed<T::BaseType>`
+            .cast::<Borrowed<'a, 'py, T::BaseType>>()
+            // `Borrowed<T::BaseType>` has the same layout as `PyRef<T::BaseType>`
+            .cast::<PyRef<'a, 'py, T::BaseType>>();
         unsafe { &*ptr }
     }
 }
 
-impl<T: PyClass> Deref for PyRef<'_, T> {
+impl<T: PyClass> Deref for PyRef<'_, '_, T> {
     type Target = T;
 
     #[inline]
@@ -438,7 +428,7 @@ impl<T: PyClass> Deref for PyRef<'_, T> {
     }
 }
 
-impl<T: PyClass> Drop for PyRef<'_, T> {
+impl<T: PyClass> Drop for PyRef<'_, '_, T> {
     fn drop(&mut self) {
         self.inner
             .get_class_object()
@@ -447,27 +437,27 @@ impl<T: PyClass> Drop for PyRef<'_, T> {
     }
 }
 
-impl<'py, T: PyClass> IntoPyObject<'py> for PyRef<'py, T> {
-    type Target = T;
-    type Output = Bound<'py, T>;
-    type Error = Infallible;
-
-    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(self.inner.clone())
-    }
-}
-
-impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &'a PyRef<'py, T> {
+impl<'a, 'py, T: PyClass> IntoPyObject<'py> for PyRef<'a, 'py, T> {
     type Target = T;
     type Output = Borrowed<'a, 'py, T>;
     type Error = Infallible;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(self.inner.as_borrowed())
+        Ok(self.inner)
     }
 }
 
-impl<T: PyClass + fmt::Debug> fmt::Debug for PyRef<'_, T> {
+impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &PyRef<'a, 'py, T> {
+    type Target = T;
+    type Output = Borrowed<'a, 'py, T>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self.inner)
+    }
+}
+
+impl<T: PyClass + fmt::Debug> fmt::Debug for PyRef<'_, '_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&**self, f)
     }
@@ -477,20 +467,18 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyRef<'_, T> {
 ///
 /// See the [module-level documentation](self) for more information.
 #[repr(transparent)]
-pub struct PyRefMut<'p, T: PyClass<Frozen = False>> {
-    // TODO: once the GIL Ref API is removed, consider adding a lifetime parameter to `PyRef` to
-    // store `Borrowed` here instead, avoiding reference counting overhead.
-    inner: Bound<'p, T>,
+pub struct PyRefMut<'a, 'py, T: PyClass<Frozen = False>> {
+    inner: Borrowed<'a, 'py, T>,
 }
 
-impl<'p, T: PyClass<Frozen = False>> PyRefMut<'p, T> {
+impl<'py, T: PyClass<Frozen = False>> PyRefMut<'_, 'py, T> {
     /// Returns a `Python` token that is bound to the lifetime of the `PyRefMut`.
-    pub fn py(&self) -> Python<'p> {
+    pub fn py(&self) -> Python<'py> {
         self.inner.py()
     }
 }
 
-impl<T, U> AsRef<U> for PyRefMut<'_, T>
+impl<T, U> AsRef<U> for PyRefMut<'_, '_, T>
 where
     T: PyClass<BaseType = U, Frozen = False>,
     U: PyClass<Frozen = False>,
@@ -500,7 +488,7 @@ where
     }
 }
 
-impl<T, U> AsMut<U> for PyRefMut<'_, T>
+impl<T, U> AsMut<U> for PyRefMut<'_, '_, T>
 where
     T: PyClass<BaseType = U, Frozen = False>,
     U: PyClass<Frozen = False>,
@@ -510,7 +498,7 @@ where
     }
 }
 
-impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
+impl<'a, 'py, T: PyClass<Frozen = False>> PyRefMut<'a, 'py, T> {
     /// Returns the raw FFI pointer represented by self.
     ///
     /// # Safety
@@ -532,30 +520,30 @@ impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
     /// of the pointer or decrease the reference count (e.g. with [`pyo3::ffi::Py_DecRef`](crate::ffi::Py_DecRef)).
     #[inline]
     pub fn into_ptr(self) -> *mut ffi::PyObject {
-        self.inner.clone().into_ptr()
+        self.inner.to_owned().into_ptr()
     }
 
     #[inline]
     #[track_caller]
-    pub(crate) fn borrow(obj: &Bound<'py, T>) -> Self {
+    pub(crate) fn borrow(obj: Borrowed<'a, 'py, T>) -> Self {
         Self::try_borrow(obj).expect("Already borrowed")
     }
 
-    pub(crate) fn try_borrow(obj: &Bound<'py, T>) -> Result<Self, PyBorrowMutError> {
+    pub(crate) fn try_borrow(obj: Borrowed<'a, 'py, T>) -> Result<Self, PyBorrowMutError> {
         let cell = obj.get_class_object();
         cell.ensure_threadsafe();
         cell.borrow_checker()
             .try_borrow_mut()
-            .map(|_| Self { inner: obj.clone() })
+            .map(|_| Self { inner: obj })
     }
 
-    pub(crate) fn downgrade(slf: &Self) -> &PyRef<'py, T> {
+    pub(crate) fn downgrade(slf: &Self) -> &PyRef<'a, 'py, T> {
         // `PyRefMut<T>` and `PyRef<T>` have the same layout
         unsafe { &*ptr_from_ref(slf).cast() }
     }
 }
 
-impl<'p, T, U> PyRefMut<'p, T>
+impl<'a, 'py, T, U> PyRefMut<'a, 'py, T>
 where
     T: PyClass<BaseType = U, Frozen = False>,
     U: PyClass<Frozen = False>,
@@ -563,15 +551,9 @@ where
     /// Gets a `PyRef<T::BaseType>`.
     ///
     /// See [`PyRef::into_super`] for more.
-    pub fn into_super(self) -> PyRefMut<'p, U> {
-        let py = self.py();
+    pub fn into_super(self) -> PyRefMut<'a, 'py, U> {
         PyRefMut {
-            inner: unsafe {
-                ManuallyDrop::new(self)
-                    .as_ptr()
-                    .assume_owned_unchecked(py)
-                    .downcast_into_unchecked()
-            },
+            inner: unsafe { ManuallyDrop::new(self).inner.to_any().downcast_unchecked() },
         }
     }
 
@@ -582,18 +564,18 @@ where
     /// can also be chained to access the super-superclass (and so on).
     ///
     /// See [`PyRef::as_super`] for more.
-    pub fn as_super(&mut self) -> &mut PyRefMut<'p, U> {
-        let ptr = ptr_from_mut::<Bound<'p, T>>(&mut self.inner)
-            // `Bound<T>` has the same layout as `Bound<T::BaseType>`
-            .cast::<Bound<'p, T::BaseType>>()
-            // `Bound<T::BaseType>` has the same layout as `PyRefMut<T::BaseType>`,
+    pub fn as_super(&mut self) -> &mut PyRefMut<'a, 'py, U> {
+        let ptr = ptr_from_mut::<Borrowed<'a, 'py, T>>(&mut self.inner)
+            // `Borrowed<T>` has the same layout as `Borrowed<T::BaseType>`
+            .cast::<Borrowed<'a, 'py, T::BaseType>>()
+            // `Borrowed<T::BaseType>` has the same layout as `PyRefMut<T::BaseType>`,
             // and the mutable borrow on `self` prevents aliasing
-            .cast::<PyRefMut<'p, T::BaseType>>();
+            .cast::<PyRefMut<'a, 'py, T::BaseType>>();
         unsafe { &mut *ptr }
     }
 }
 
-impl<T: PyClass<Frozen = False>> Deref for PyRefMut<'_, T> {
+impl<T: PyClass<Frozen = False>> Deref for PyRefMut<'_, '_, T> {
     type Target = T;
 
     #[inline]
@@ -602,14 +584,14 @@ impl<T: PyClass<Frozen = False>> Deref for PyRefMut<'_, T> {
     }
 }
 
-impl<T: PyClass<Frozen = False>> DerefMut for PyRefMut<'_, T> {
+impl<T: PyClass<Frozen = False>> DerefMut for PyRefMut<'_, '_, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut *self.inner.get_class_object().get_ptr() }
     }
 }
 
-impl<T: PyClass<Frozen = False>> Drop for PyRefMut<'_, T> {
+impl<T: PyClass<Frozen = False>> Drop for PyRefMut<'_, '_, T> {
     fn drop(&mut self) {
         self.inner
             .get_class_object()
@@ -618,17 +600,17 @@ impl<T: PyClass<Frozen = False>> Drop for PyRefMut<'_, T> {
     }
 }
 
-impl<'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for PyRefMut<'py, T> {
+impl<'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for PyRefMut<'_, 'py, T> {
     type Target = T;
     type Output = Bound<'py, T>;
     type Error = Infallible;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(self.inner.clone())
+        Ok(self.inner.to_owned())
     }
 }
 
-impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &'a PyRefMut<'py, T> {
+impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &'a PyRefMut<'_, 'py, T> {
     type Target = T;
     type Output = Borrowed<'a, 'py, T>;
     type Error = Infallible;
@@ -638,7 +620,7 @@ impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &'a PyRefMut<'py
     }
 }
 
-impl<T: PyClass<Frozen = False> + fmt::Debug> fmt::Debug for PyRefMut<'_, T> {
+impl<T: PyClass<Frozen = False> + fmt::Debug> fmt::Debug for PyRefMut<'_, '_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self.deref(), f)
     }
@@ -759,13 +741,13 @@ mod tests {
             crate::Py::new(py, init).expect("allocation error")
         }
 
-        fn get_values(self_: PyRef<'_, Self>) -> (usize, usize, usize) {
+        fn get_values(self_: PyRef<'_, '_, Self>) -> (usize, usize, usize) {
             let val1 = self_.as_super().as_super().val1;
             let val2 = self_.as_super().val2;
             (val1, val2, self_.val3)
         }
 
-        fn double_values(mut self_: PyRefMut<'_, Self>) {
+        fn double_values(mut self_: PyRefMut<'_, '_, Self>) {
             self_.as_super().as_super().val1 *= 2;
             self_.as_super().val2 *= 2;
             self_.val3 *= 2;

@@ -654,7 +654,13 @@ impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
     }
 }
 
-impl<'a, 'py, T: PyClass> TryFrom<BoundRef<'a, 'py, T>> for PyRef<'py, T> {
+impl<'a, 'py, T: PyClass> BoundRef<'a, 'py, T> {
+    pub fn try_borrow(self) -> Result<PyRef<'a, 'py, T>, PyBorrowError> {
+        PyRef::try_borrow(self.0.as_borrowed())
+    }
+}
+
+impl<'a, 'py, T: PyClass> TryFrom<BoundRef<'a, 'py, T>> for PyRef<'a, 'py, T> {
     type Error = PyBorrowError;
     #[inline]
     fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
@@ -662,7 +668,7 @@ impl<'a, 'py, T: PyClass> TryFrom<BoundRef<'a, 'py, T>> for PyRef<'py, T> {
     }
 }
 
-impl<'a, 'py, T: PyClass<Frozen = False>> TryFrom<BoundRef<'a, 'py, T>> for PyRefMut<'py, T> {
+impl<'a, 'py, T: PyClass<Frozen = False>> TryFrom<BoundRef<'a, 'py, T>> for PyRefMut<'a, 'py, T> {
     type Error = PyBorrowMutError;
     #[inline]
     fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {

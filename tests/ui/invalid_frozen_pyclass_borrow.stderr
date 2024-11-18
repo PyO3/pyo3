@@ -13,8 +13,8 @@ error[E0271]: type mismatch resolving `<Foo as PyClass>::Frozen == False`
 note: required by a bound in `extract_pyclass_ref_mut`
   --> src/impl_/extract_argument.rs
    |
-   | pub fn extract_pyclass_ref_mut<'a, 'py: 'a, T: PyClass<Frozen = False>>(
-   |                                                        ^^^^^^^^^^^^^^ required by this bound in `extract_pyclass_ref_mut`
+   | pub fn extract_pyclass_ref_mut<'a, 'holder, 'py: 'a, T: PyClass<Frozen = False>>(
+   |                                                                 ^^^^^^^^^^^^^^ required by this bound in `extract_pyclass_ref_mut`
 
 error[E0271]: type mismatch resolving `<Foo as PyClass>::Frozen == False`
  --> tests/ui/invalid_frozen_pyclass_borrow.rs:9:1
@@ -25,8 +25,8 @@ error[E0271]: type mismatch resolving `<Foo as PyClass>::Frozen == False`
 note: required by a bound in `PyRefMut`
  --> src/pycell.rs
   |
-  | pub struct PyRefMut<'p, T: PyClass<Frozen = False>> {
-  |                                    ^^^^^^^^^^^^^^ required by this bound in `PyRefMut`
+  | pub struct PyRefMut<'a, 'py, T: PyClass<Frozen = False>> {
+  |                                         ^^^^^^^^^^^^^^ required by this bound in `PyRefMut`
   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0271]: type mismatch resolving `<Foo as PyClass>::Frozen == False`
@@ -38,7 +38,7 @@ error[E0271]: type mismatch resolving `<Foo as PyClass>::Frozen == False`
 note: required by a bound in `pyo3::Bound::<'py, T>::borrow_mut`
   --> src/instance.rs
    |
-   |     pub fn borrow_mut(&self) -> PyRefMut<'py, T>
+   |     pub fn borrow_mut<'a>(&'a self) -> PyRefMut<'a, 'py, T>
    |            ---------- required by a bound in this associated function
    |     where
    |         T: PyClass<Frozen = False>,
@@ -53,7 +53,7 @@ error[E0271]: type mismatch resolving `<ImmutableChild as PyClass>::Frozen == Fa
 note: required by a bound in `pyo3::Bound::<'py, T>::borrow_mut`
   --> src/instance.rs
    |
-   |     pub fn borrow_mut(&self) -> PyRefMut<'py, T>
+   |     pub fn borrow_mut<'a>(&'a self) -> PyRefMut<'a, 'py, T>
    |            ---------- required by a bound in this associated function
    |     where
    |         T: PyClass<Frozen = False>,

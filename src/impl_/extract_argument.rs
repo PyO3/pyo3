@@ -20,43 +20,44 @@ type PyArg<'py> = Borrowed<'py, 'py, PyAny>;
 /// will be dropped as soon as the pyfunction call ends.
 ///
 /// There exists a trivial blanket implementation for `T: FromPyObject` with `Holder = ()`.
-pub trait PyFunctionArgument<'a, 'py, const IS_OPTION: bool>: Sized + 'a {
+pub trait PyFunctionArgument<'a, 'holder, 'py, const IS_OPTION: bool>: Sized {
     type Holder: FunctionArgumentHolder;
-    fn extract(obj: &'a Bound<'py, PyAny>, holder: &'a mut Self::Holder) -> PyResult<Self>;
+    fn extract(obj: &'a Bound<'py, PyAny>, holder: &'holder mut Self::Holder) -> PyResult<Self>;
 }
 
-impl<'a, 'py, T> PyFunctionArgument<'a, 'py, false> for T
+impl<'a, 'holder, 'py, T> PyFunctionArgument<'a, 'holder, 'py, false> for T
 where
-    T: FromPyObject<'a, 'py> + 'a,
+    T: FromPyObject<'a, 'py>,
 {
     type Holder = ();
 
     #[inline]
-    fn extract(obj: &'a Bound<'py, PyAny>, _: &'a mut ()) -> PyResult<Self> {
+    fn extract(obj: &'a Bound<'py, PyAny>, _: &'holder mut ()) -> PyResult<Self> {
         obj.extract()
     }
 }
 
-impl<'a, 'py, T: 'py> PyFunctionArgument<'a, 'py, false> for &'a Bound<'py, T>
+impl<'a: 'holder, 'holder, 'py, T> PyFunctionArgument<'a, 'holder, 'py, false>
+    for &'holder Bound<'py, T>
 where
     T: PyTypeCheck,
 {
     type Holder = ();
 
     #[inline]
-    fn extract(obj: &'a Bound<'py, PyAny>, _: &'a mut ()) -> PyResult<Self> {
+    fn extract(obj: &'a Bound<'py, PyAny>, _: &'holder mut ()) -> PyResult<Self> {
         obj.downcast().map_err(Into::into)
     }
 }
 
-impl<'a, 'py, T> PyFunctionArgument<'a, 'py, true> for Option<T>
+impl<'a, 'holder, 'py, T> PyFunctionArgument<'a, 'holder, 'py, true> for Option<T>
 where
-    T: PyFunctionArgument<'a, 'py, false>, // inner `Option`s will use `FromPyObject`
+    T: PyFunctionArgument<'a, 'holder, 'py, false>, // inner `Option`s will use `FromPyObject`
 {
     type Holder = T::Holder;
 
     #[inline]
-    fn extract(obj: &'a Bound<'py, PyAny>, holder: &'a mut T::Holder) -> PyResult<Self> {
+    fn extract(obj: &'a Bound<'py, PyAny>, holder: &'holder mut T::Holder) -> PyResult<Self> {
         if obj.is_none() {
             Ok(None)
         } else {
@@ -66,13 +67,13 @@ where
 }
 
 #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
-impl<'a> PyFunctionArgument<'a, '_, false> for &'a str {
+impl<'a: 'holder, 'holder> PyFunctionArgument<'a, 'holder, '_, false> for &'holder str {
     type Holder = Option<std::borrow::Cow<'a, str>>;
 
     #[inline]
     fn extract(
         obj: &'a Bound<'_, PyAny>,
-        holder: &'a mut Option<std::borrow::Cow<'a, str>>,
+        holder: &'holder mut Option<std::borrow::Cow<'a, str>>,
     ) -> PyResult<Self> {
         Ok(holder.insert(obj.extract()?))
     }
@@ -93,30 +94,30 @@ impl<T> FunctionArgumentHolder for Option<T> {
 }
 
 #[inline]
-pub fn extract_pyclass_ref<'a, 'py: 'a, T: PyClass>(
+pub fn extract_pyclass_ref<'a, 'holder, 'py: 'a, T: PyClass>(
     obj: &'a Bound<'py, PyAny>,
-    holder: &'a mut Option<PyRef<'py, T>>,
-) -> PyResult<&'a T> {
+    holder: &'holder mut Option<PyRef<'a, 'py, T>>,
+) -> PyResult<&'holder T> {
     Ok(&*holder.insert(obj.extract()?))
 }
 
 #[inline]
-pub fn extract_pyclass_ref_mut<'a, 'py: 'a, T: PyClass<Frozen = False>>(
+pub fn extract_pyclass_ref_mut<'a, 'holder, 'py: 'a, T: PyClass<Frozen = False>>(
     obj: &'a Bound<'py, PyAny>,
-    holder: &'a mut Option<PyRefMut<'py, T>>,
-) -> PyResult<&'a mut T> {
+    holder: &'holder mut Option<PyRefMut<'a, 'py, T>>,
+) -> PyResult<&'holder mut T> {
     Ok(&mut *holder.insert(obj.extract()?))
 }
 
 /// The standard implementation of how PyO3 extracts a `#[pyfunction]` or `#[pymethod]` function argument.
 #[doc(hidden)]
-pub fn extract_argument<'a, 'py, T, const IS_OPTION: bool>(
+pub fn extract_argument<'a, 'holder, 'py, T, const IS_OPTION: bool>(
     obj: &'a Bound<'py, PyAny>,
-    holder: &'a mut T::Holder,
+    holder: &'holder mut T::Holder,
     arg_name: &str,
 ) -> PyResult<T>
 where
-    T: PyFunctionArgument<'a, 'py, IS_OPTION>,
+    T: PyFunctionArgument<'a, 'holder, 'py, IS_OPTION>,
 {
     match PyFunctionArgument::extract(obj, holder) {
         Ok(value) => Ok(value),
@@ -127,14 +128,14 @@ where
 /// Alternative to [`extract_argument`] used for `Option<T>` arguments. This is necessary because Option<&T>
 /// does not implement `PyFunctionArgument` for `T: PyClass`.
 #[doc(hidden)]
-pub fn extract_optional_argument<'a, 'py, T, const IS_OPTION: bool>(
+pub fn extract_optional_argument<'a, 'holder, 'py, T, const IS_OPTION: bool>(
     obj: Option<&'a Bound<'py, PyAny>>,
-    holder: &'a mut T::Holder,
+    holder: &'holder mut T::Holder,
     arg_name: &str,
     default: fn() -> Option<T>,
 ) -> PyResult<Option<T>>
 where
-    T: PyFunctionArgument<'a, 'py, IS_OPTION>,
+    T: PyFunctionArgument<'a, 'holder, 'py, IS_OPTION>,
 {
     match obj {
         Some(obj) => {
@@ -151,14 +152,14 @@ where
 
 /// Alternative to [`extract_argument`] used when the argument has a default value provided by an annotation.
 #[doc(hidden)]
-pub fn extract_argument_with_default<'a, 'py, T, const IS_OPTION: bool>(
+pub fn extract_argument_with_default<'a, 'holder, 'py, T, const IS_OPTION: bool>(
     obj: Option<&'a Bound<'py, PyAny>>,
-    holder: &'a mut T::Holder,
+    holder: &'holder mut T::Holder,
     arg_name: &str,
     default: fn() -> T,
 ) -> PyResult<T>
 where
-    T: PyFunctionArgument<'a, 'py, IS_OPTION>,
+    T: PyFunctionArgument<'a, 'holder, 'py, IS_OPTION>,
 {
     match obj {
         Some(obj) => extract_argument(obj, holder, arg_name),

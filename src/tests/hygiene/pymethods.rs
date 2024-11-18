@@ -123,7 +123,10 @@ impl Dummy {
 
     fn __delitem__(&self, key: u32) {}
 
-    fn __iter__(_: crate::pycell::PyRef<'_, Self>, py: crate::Python<'_>) -> crate::Py<DummyIter> {
+    fn __iter__(
+        _: crate::pycell::PyRef<'_, '_, Self>,
+        py: crate::Python<'_>,
+    ) -> crate::Py<DummyIter> {
         crate::Py::new(py, DummyIter {}).unwrap()
     }
 
@@ -132,7 +135,7 @@ impl Dummy {
     }
 
     fn __reversed__(
-        slf: crate::pycell::PyRef<'_, Self>,
+        slf: crate::pycell::PyRef<'_, '_, Self>,
         py: crate::Python<'_>,
     ) -> crate::Py<DummyIter> {
         crate::Py::new(py, DummyIter {}).unwrap()
@@ -274,19 +277,27 @@ impl Dummy {
 
     fn __ior__(&mut self, other: &Self) {}
 
-    fn __neg__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
+    fn __neg__<'a, 'py>(
+        slf: crate::pycell::PyRef<'a, 'py, Self>,
+    ) -> crate::pycell::PyRef<'a, 'py, Self> {
         slf
     }
 
-    fn __pos__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
+    fn __pos__<'a, 'py>(
+        slf: crate::pycell::PyRef<'a, 'py, Self>,
+    ) -> crate::pycell::PyRef<'a, 'py, Self> {
         slf
     }
 
-    fn __abs__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
+    fn __abs__<'a, 'py>(
+        slf: crate::pycell::PyRef<'a, 'py, Self>,
+    ) -> crate::pycell::PyRef<'a, 'py, Self> {
         slf
     }
 
-    fn __invert__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
+    fn __invert__<'a, 'py>(
+        slf: crate::pycell::PyRef<'a, 'py, Self>,
+    ) -> crate::pycell::PyRef<'a, 'py, Self> {
         slf
     }
 
@@ -344,7 +355,9 @@ impl Dummy {
     // Awaitable Objects
     //////////////////////
 
-    fn __await__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
+    fn __await__<'a, 'py>(
+        slf: crate::pycell::PyRef<'a, 'py, Self>,
+    ) -> crate::pycell::PyRef<'a, 'py, Self> {
         slf
     }
 
@@ -354,7 +367,7 @@ impl Dummy {
     //////////////////////
 
     fn __aiter__(
-        slf: crate::pycell::PyRef<'_, Self>,
+        slf: crate::pycell::PyRef<'_, '_, Self>,
         py: crate::Python<'_>,
     ) -> crate::Py<DummyIter> {
         crate::Py::new(py, DummyIter {}).unwrap()

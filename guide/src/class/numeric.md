@@ -3,11 +3,12 @@
 At this point we have a `Number` class that we can't actually do any math on!
 
 Before proceeding, we should think about how we want to handle overflows. There are three obvious solutions:
+
 - We can have infinite precision just like Python's `int`. However that would be quite boring - we'd
- be reinventing the wheel.
+  be reinventing the wheel.
 - We can raise exceptions whenever `Number` overflows, but that makes the API painful to use.
 - We can wrap around the boundary of `i32`. This is the approach we'll take here. To do that we'll just forward to `i32`'s
- `wrapping_*` methods.
+  `wrapping_*` methods.
 
 ### Fixing our constructor
 
@@ -42,6 +43,7 @@ fn wrap(obj: &Bound<'_, PyAny>) -> PyResult<i32> {
     Ok(val as i32)
 }
 ```
+
 We also add documentation, via `///` comments, which are visible to Python users.
 
 ```rust,no_run
@@ -67,7 +69,6 @@ impl Number {
     }
 }
 ```
-
 
 With that out of the way, let's implement some operators:
 ```rust,no_run
@@ -132,7 +133,7 @@ impl Number {
 #
 #[pymethods]
 impl Number {
-    fn __pos__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __pos__<'a, 'py>(slf: PyRef<'a, 'py, Self>) -> PyRef<'a, 'py, Self> {
         slf
     }
 
@@ -178,7 +179,7 @@ impl Number {
 
 We do not implement the in-place operations like `__iadd__` because we do not wish to mutate `Number`.
 Similarly we're not interested in supporting operations with different types, so we do not implement
- the reflected operations like `__radd__` either.
+the reflected operations like `__radd__` either.
 
 Now Python can use our `Number` class:
 
@@ -405,13 +406,15 @@ function that does:
 unsigned long PyLong_AsUnsignedLongMask(PyObject *obj)
 ```
 
-We can call this function from Rust by using [`pyo3::ffi::PyLong_AsUnsignedLongMask`]. This is an *unsafe*
+We can call this function from Rust by using [`pyo3::ffi::PyLong_AsUnsignedLongMask`]. This is an _unsafe_
 function, which means we have to use an unsafe block to call it and take responsibility for upholding
 the contracts of this function. Let's review those contracts:
+
 - The GIL must be held. If it's not, calling this function causes a data race.
 - The pointer must be valid, i.e. it must be properly aligned and point to a valid Python object.
 
 Let's create that helper function. The signature has to be `fn(&Bound<'_, PyAny>) -> PyResult<T>`.
+
 - `&Bound<'_, PyAny>` represents a checked borrowed reference, so the pointer derived from it is valid (and not null).
 - Whenever we have borrowed references to Python objects in scope, it is guaranteed that the GIL is held. This reference is also where we can get a [`Python`] token to use in our call to [`PyErr::take`].
 

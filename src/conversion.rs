@@ -363,20 +363,20 @@ where
     }
 }
 
-impl<'py, T> FromPyObject<'_, 'py> for PyRef<'py, T>
+impl<'a, 'py, T> FromPyObject<'a, 'py> for PyRef<'a, 'py, T>
 where
     T: PyClass,
 {
-    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
         obj.downcast::<T>()?.try_borrow().map_err(Into::into)
     }
 }
 
-impl<'py, T> FromPyObject<'_, 'py> for PyRefMut<'py, T>
+impl<'a, 'py, T> FromPyObject<'a, 'py> for PyRefMut<'a, 'py, T>
 where
     T: PyClass<Frozen = False>,
 {
-    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
         obj.downcast::<T>()?.try_borrow_mut().map_err(Into::into)
     }
 }

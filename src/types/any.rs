@@ -765,7 +765,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///     class_bound.borrow_mut().i += 1;
     ///
     ///     // Alternatively you can get a `PyRefMut` directly
-    ///     let class_ref: PyRefMut<'_, Class> = class.extract()?;
+    ///     let class_ref: PyRefMut<'_, '_, Class> = class.extract()?;
     ///     assert_eq!(class_ref.i, 1);
     ///     Ok(())
     /// })

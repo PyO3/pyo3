@@ -367,11 +367,11 @@ struct Iterator {
 
 #[pymethods]
 impl Iterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __iter__<'a, 'py>(slf: PyRef<'a, 'py, Self>) -> PyRef<'a, 'py, Self> {
         slf
     }
 
-    fn __next__(slf: PyRefMut<'_, Self>) -> Option<i32> {
+    fn __next__(slf: PyRefMut<'_, '_, Self>) -> Option<i32> {
         slf.iter.lock().unwrap().next()
     }
 }
@@ -648,11 +648,11 @@ impl OnceFuture {
         }
     }
 
-    fn __await__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __await__<'a, 'py>(slf: PyRef<'a, 'py, Self>) -> PyRef<'a, 'py, Self> {
         slf
     }
 
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __iter__<'a, 'py>(slf: PyRef<'a, 'py, Self>) -> PyRef<'a, 'py, Self> {
         slf
     }
     fn __next__<'py>(&mut self, py: Python<'py>) -> Option<&Bound<'py, PyAny>> {
@@ -708,7 +708,7 @@ impl AsyncIterator {
         }
     }
 
-    fn __aiter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __aiter__<'a, 'py>(slf: PyRef<'a, 'py, Self>) -> PyRef<'a, 'py, Self> {
         slf
     }
 
@@ -767,11 +767,11 @@ impl DescrCounter {
         DescrCounter { count: 0 }
     }
     /// Each access will increase the count
-    fn __get__<'a>(
-        mut slf: PyRefMut<'a, Self>,
-        _instance: &Bound<'_, PyAny>,
-        _owner: Option<&Bound<'_, PyType>>,
-    ) -> PyRefMut<'a, Self> {
+    fn __get__<'a, 'py>(
+        mut slf: PyRefMut<'a, 'py, Self>,
+        _instance: &Bound<'py, PyAny>,
+        _owner: Option<&Bound<'py, PyType>>,
+    ) -> PyRefMut<'a, 'py, Self> {
         slf.count += 1;
         slf
     }

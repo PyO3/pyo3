@@ -473,7 +473,7 @@ fn traverse_cannot_be_hijacked() {
         fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>;
     }
 
-    impl Traversable for PyRef<'_, HijackedTraverse> {
+    impl Traversable for PyRef<'_, '_, HijackedTraverse> {
         fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
             self.hijacked.store(true, Ordering::Release);
             Ok(())

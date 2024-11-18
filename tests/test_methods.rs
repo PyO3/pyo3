@@ -775,7 +775,7 @@ impl MethodWithPyClassArg {
             value: self.value + other.value,
         }
     }
-    fn add_pyref(&self, other: PyRef<'_, MethodWithPyClassArg>) -> MethodWithPyClassArg {
+    fn add_pyref(&self, other: PyRef<'_, '_, MethodWithPyClassArg>) -> MethodWithPyClassArg {
         MethodWithPyClassArg {
             value: self.value + other.value,
         }
@@ -783,7 +783,7 @@ impl MethodWithPyClassArg {
     fn inplace_add(&self, other: &mut MethodWithPyClassArg) {
         other.value += self.value;
     }
-    fn inplace_add_pyref(&self, mut other: PyRefMut<'_, MethodWithPyClassArg>) {
+    fn inplace_add_pyref(&self, mut other: PyRefMut<'_, '_, MethodWithPyClassArg>) {
         other.value += self.value;
     }
     #[pyo3(signature=(other = None))]
