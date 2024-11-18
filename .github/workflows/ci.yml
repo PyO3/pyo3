@@ -466,7 +466,7 @@ jobs:
       - run: nox -s coverage
       - uses: codecov/codecov-action@v5
         with:
-          file: coverage.json
+          files: coverage.json
           name: ${{ matrix.os }}
           token: ${{ secrets.CODECOV_TOKEN }}
 
@@ -552,11 +552,11 @@ jobs:
 
   test-free-threaded:
     needs: [fmt]
-    name: Free threaded tests - ${{ matrix.runner }}
-    runs-on: ${{ matrix.runner }}
+    name: Free threaded tests - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        runner: ["ubuntu-latest", "macos-latest", "windows-latest"]
+        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -584,8 +584,8 @@ jobs:
       - name: Upload coverage report
         uses: codecov/codecov-action@v5
         with:
-          file: coverage.json
-          name: test-free-threaded
+          files: coverage.json
+          name: ${{ matrix.os }}-test-free-threaded
           token: ${{ secrets.CODECOV_TOKEN }}
 
   test-version-limits:
