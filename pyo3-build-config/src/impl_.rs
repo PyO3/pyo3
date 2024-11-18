@@ -1662,7 +1662,7 @@ fn default_lib_name_windows(
         // https://packages.msys2.org/base/mingw-w64-python
         format!("python{}.{}", version.major, version.minor)
     } else if gil_disabled {
-        if version.major <= 3 && version.minor < 13 {
+        if version < PythonVersion::PY313 {
             panic!("Cannot compile C extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", version.major, version.minor);
         }
         if debug {
