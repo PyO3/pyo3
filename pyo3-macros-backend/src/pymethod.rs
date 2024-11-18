@@ -1140,7 +1140,7 @@ impl Ty {
                 extract_error_mode,
                 holders,
                 arg,
-                quote! { #ident.as_ptr() },
+                quote! { #ident },
                 ctx
             ),
             Ty::IPowModulo => extract_object(
@@ -1465,6 +1465,15 @@ impl SlotFragmentDef {
         let method = syn::Ident::new(fragment, Span::call_site());
         let wrapper_ident = format_ident!("__pymethod_{}__", fragment);
         let arg_types: &Vec<_> = &arguments.iter().map(|arg| arg.ffi_type(ctx)).collect();
+        let nn = arguments
+            .iter()
+            .enumerate()
+            .filter(|(_, arg)| matches!(arg, Ty::NonNullObject))
+            .map(|(i, _)| {
+                let i = format_ident!("arg{}", i);
+                quote! { let #i = #i.as_ptr(); }
+            })
+            .collect::<TokenStream>();
         let arg_idents: &Vec<_> = &(0..arguments.len())
             .map(|i| format_ident!("arg{}", i))
             .collect();
@@ -1489,6 +1498,7 @@ impl SlotFragmentDef {
                     #(#arg_idents: #arg_types),*
                 ) -> #pyo3_path::PyResult<#ret_ty> {
                     let _slf = _raw_slf;
+                    #nn
                     #holders
                     #body
                 }
