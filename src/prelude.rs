@@ -16,6 +16,7 @@ pub use crate::instance::{Borrowed, Bound, Py, PyObject};
 pub use crate::marker::Python;
 pub use crate::pycell::{PyRef, PyRefMut};
 pub use crate::pyclass_init::PyClassInitializer;
+pub use crate::try_extend::TryExtend;
 pub use crate::types::{PyAny, PyModule};
 
 #[cfg(feature = "macros")]
