@@ -695,7 +695,10 @@ impl PythonVersion {
         major: 3,
         minor: 13,
     };
-    #[allow(dead_code)]
+    const PY310: Self = PythonVersion {
+        major: 3,
+        minor: 10,
+    };
     const PY37: Self = PythonVersion { major: 3, minor: 7 };
 }
 
@@ -1645,7 +1648,7 @@ fn default_lib_name_windows(
     debug: bool,
     gil_disabled: bool,
 ) -> String {
-    if debug && version.minor < 10 {
+    if debug && version < PythonVersion::PY310 {
         // CPython bug: linking against python3_d.dll raises error
         // https://github.com/python/cpython/issues/101614
         format!("python{}{}_d", version.major, version.minor)
@@ -1688,6 +1691,7 @@ fn default_lib_name_unix(
             Some(ld_version) => format!("python{}", ld_version),
             None => {
                 if version > PythonVersion::PY37 {
+                    // PEP 3149 ABI version tags are finally gone
                     if gil_disabled {
                         if version < PythonVersion::PY313 {
                             panic!("Cannot compile C extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", version.major, version.minor);
