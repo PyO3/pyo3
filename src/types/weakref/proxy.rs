@@ -3,7 +3,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::PyTypeCheck;
 use crate::types::any::PyAny;
-use crate::{ffi, Bound, BoundObject, IntoPyObject};
+use crate::{ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt};
 
 use super::PyWeakrefMethods;
 
@@ -152,7 +152,7 @@ impl PyWeakrefProxy {
     {
         fn inner<'py>(
             object: &Bound<'py, PyAny>,
-            callback: Bound<'py, PyAny>,
+            callback: Borrowed<'_, 'py, PyAny>,
         ) -> PyResult<Bound<'py, PyWeakrefProxy>> {
             unsafe {
                 Bound::from_owned_ptr_or_err(
@@ -167,10 +167,9 @@ impl PyWeakrefProxy {
         inner(
             object,
             callback
-                .into_pyobject(py)
-                .map(BoundObject::into_any)
-                .map(BoundObject::into_bound)
-                .map_err(Into::into)?,
+                .into_pyobject_or_pyerr(py)?
+                .into_any()
+                .as_borrowed(),
         )
     }
 

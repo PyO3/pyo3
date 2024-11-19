@@ -178,8 +178,23 @@ pub trait IntoPy<T>: Sized {
 
 /// Defines a conversion from a Rust type to a Python object, which may fail.
 ///
+/// This trait has `#[derive(IntoPyObject)]` to automatically implement it for simple types and
+/// `#[derive(IntoPyObjectRef)]` to implement the same for references.
+///
 /// It functions similarly to std's [`TryInto`] trait, but requires a [GIL token](Python)
 /// as an argument.
+///
+/// The [`into_pyobject`][IntoPyObject::into_pyobject] method is designed for maximum flexibility and efficiency; it
+///  - allows for a concrete Python type to be returned (the [`Target`][IntoPyObject::Target] associated type)
+///  - allows for the smart pointer containing the Python object to be either `Bound<'py, Self::Target>` or `Borrowed<'a, 'py, Self::Target>`
+///    to avoid unnecessary reference counting overhead
+///  - allows for a custom error type to be returned in the event of a conversion error to avoid
+///    unnecessarily creating a Python exception
+///
+/// # See also
+///
+/// - The [`IntoPyObjectExt`] trait, which provides convenience methods for common usages of
+///   `IntoPyObject` which erase type information and convert errors to `PyErr`.
 #[cfg_attr(
     diagnostic_namespace,
     diagnostic::on_unimplemented(
@@ -227,12 +242,7 @@ pub trait IntoPyObject<'py>: Sized {
         I: IntoIterator<Item = Self> + AsRef<[Self]>,
         I::IntoIter: ExactSizeIterator<Item = Self>,
     {
-        let mut iter = iter.into_iter().map(|e| {
-            e.into_pyobject(py)
-                .map(BoundObject::into_any)
-                .map(BoundObject::into_bound)
-                .map_err(Into::into)
-        });
+        let mut iter = iter.into_iter().map(|e| e.into_bound_py_any(py));
         let list = crate::types::list::try_new_from_iter(py, &mut iter);
         list.map(Bound::into_any)
     }
@@ -250,12 +260,7 @@ pub trait IntoPyObject<'py>: Sized {
         I: IntoIterator<Item = Self> + AsRef<[<Self as private::Reference>::BaseType]>,
         I::IntoIter: ExactSizeIterator<Item = Self>,
     {
-        let mut iter = iter.into_iter().map(|e| {
-            e.into_pyobject(py)
-                .map(BoundObject::into_any)
-                .map(BoundObject::into_bound)
-                .map_err(Into::into)
-        });
+        let mut iter = iter.into_iter().map(|e| e.into_bound_py_any(py));
         let list = crate::types::list::try_new_from_iter(py, &mut iter);
         list.map(Bound::into_any)
     }
@@ -346,6 +351,54 @@ where
         (*self).into_pyobject(py)
     }
 }
+
+mod into_pyobject_ext {
+    pub trait Sealed {}
+    impl<'py, T> Sealed for T where T: super::IntoPyObject<'py> {}
+}
+
+/// Convenience methods for common usages of [`IntoPyObject`]. Every type that implements
+/// [`IntoPyObject`] also implements this trait.
+///
+/// These methods:
+///   - Drop type information from the output, returning a `PyAny` object.
+///   - Always convert the `Error` type to `PyErr`, which may incur a performance penalty but it
+///     more convenient in contexts where the `?` operator would produce a `PyErr` anyway.
+pub trait IntoPyObjectExt<'py>: IntoPyObject<'py> + into_pyobject_ext::Sealed {
+    /// Converts `self` into an owned Python object, dropping type information.
+    #[inline]
+    fn into_bound_py_any(self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        match self.into_pyobject(py) {
+            Ok(obj) => Ok(obj.into_any().into_bound()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    /// Converts `self` into an owned Python object, dropping type information and unbinding it
+    /// from the `'py` lifetime.
+    #[inline]
+    fn into_py_any(self, py: Python<'py>) -> PyResult<Py<PyAny>> {
+        match self.into_pyobject(py) {
+            Ok(obj) => Ok(obj.into_any().unbind()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    /// Converts `self` into a Python object.
+    ///
+    /// This is equivalent to calling [`into_pyobject`][IntoPyObject::into_pyobject] followed
+    /// with `.map_err(Into::into)` to convert the error type to [`PyErr`]. This is helpful
+    /// for generic code which wants to make use of the `?` operator.
+    #[inline]
+    fn into_pyobject_or_pyerr(self, py: Python<'py>) -> PyResult<Self::Output> {
+        match self.into_pyobject(py) {
+            Ok(obj) => Ok(obj),
+            Err(err) => Err(err.into()),
+        }
+    }
+}
+
+impl<'py, T> IntoPyObjectExt<'py> for T where T: IntoPyObject<'py> {}
 
 /// Extract a type from a Python object.
 ///

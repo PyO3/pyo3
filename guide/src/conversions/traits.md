@@ -490,8 +490,10 @@ If the input is neither a string nor an integer, the error message will be:
     - the function signature must be `fn(&Bound<PyAny>) -> PyResult<T>` where `T` is the Rust type of the argument.
 
 ### `IntoPyObject`
-This trait defines the to-python conversion for a Rust type. All types in PyO3 implement this trait,
+The ['IntoPyObject'] trait defines the to-python conversion for a Rust type. All types in PyO3 implement this trait,
 as does a `#[pyclass]` which doesn't use `extends`.
+
+This trait defines a single method, `into_pyobject()`, which returns a [`Result`] with `Ok` and `Err` types depending on the input value. For convenience, there is a companion [`IntoPyObjectExt`] trait which adds methods such as `into_py_any()` which converts the `Ok` and `Err` types to commonly used types (in the case of `into_py_any()`, `Py<PyAny>` and `PyErr` respectively).
 
 Occasionally you may choose to implement this for custom types which are mapped to Python types
 _without_ having a unique python type.
@@ -510,7 +512,7 @@ into `PyTuple` with the fields in declaration order.
 
 // structs convert into `PyDict` with field names as keys
 #[derive(IntoPyObject)]
-struct Struct { 
+struct Struct {
     count: usize,
     obj: Py<PyAny>,
 }
@@ -532,11 +534,11 @@ forward the implementation to the inner type.
 
 // newtype tuple structs are implicitly `transparent`
 #[derive(IntoPyObject)]
-struct TransparentTuple(PyObject); 
+struct TransparentTuple(PyObject);
 
 #[derive(IntoPyObject)]
 #[pyo3(transparent)]
-struct TransparentStruct<'py> { 
+struct TransparentStruct<'py> {
     inner: Bound<'py, PyAny>, // `'py` lifetime will be used as the Python lifetime
 }
 ```
@@ -582,7 +584,7 @@ impl<'py> IntoPyObject<'py> for MyPyObjectWrapper {
     }
 }
 
-// equivalent to former `ToPyObject` implementations 
+// equivalent to former `ToPyObject` implementations
 impl<'a, 'py> IntoPyObject<'py> for &'a MyPyObjectWrapper {
     type Target = PyAny;
     type Output = Borrowed<'a, 'py, Self::Target>; // `Borrowed` can be used to optimized reference counting
@@ -590,38 +592,6 @@ impl<'a, 'py> IntoPyObject<'py> for &'a MyPyObjectWrapper {
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.0.bind_borrowed(py))
-    }
-}
-```
-
-### `IntoPy<T>`
-
-<div class="warning">
-
-⚠️ Warning: API update in progress 🛠️
-
-PyO3 0.23 has introduced `IntoPyObject` as the new trait for to-python conversions. While `#[pymethods]` and `#[pyfunction]` contain a compatibility layer to allow `IntoPy<PyObject>` as a return type, all Python API have been migrated to use `IntoPyObject`. To migrate implement `IntoPyObject` for your type.
-</div>
-
-
-This trait defines the to-python conversion for a Rust type. It is usually implemented as
-`IntoPy<PyObject>`, which is the trait needed for returning a value from `#[pyfunction]` and
-`#[pymethods]`.
-
-All types in PyO3 implement this trait, as does a `#[pyclass]` which doesn't use `extends`.
-
-Occasionally you may choose to implement this for custom types which are mapped to Python types
-_without_ having a unique python type.
-
-```rust
-use pyo3::prelude::*;
-# #[allow(dead_code)]
-struct MyPyObjectWrapper(PyObject);
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for MyPyObjectWrapper {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.0
     }
 }
 ```
@@ -672,6 +642,8 @@ where
     the_vec.iter()
         .map(|x| {
             Ok(
+                // Note: the below is equivalent to `x.into_py_any()`
+                // from the `IntoPyObjectExt` trait
                 x.into_pyobject(py)
                 .map_err(Into::into)?
                 .into_any()
@@ -693,6 +665,38 @@ let vec_of_pyobjs: Vec<Py<PyAny>> = Python::with_gil(|py| {
 
 In the example above we used `BoundObject::into_any` and `BoundObject::unbind` to manipulate the python types and smart pointers into the result type we wanted to produce from the function.
 
+### `IntoPy<T>`
+
+<div class="warning">
+
+⚠️ Warning: API update in progress 🛠️
+
+PyO3 0.23 has introduced `IntoPyObject` as the new trait for to-python conversions. While `#[pymethods]` and `#[pyfunction]` contain a compatibility layer to allow `IntoPy<PyObject>` as a return type, all Python API have been migrated to use `IntoPyObject`. To migrate implement `IntoPyObject` for your type.
+</div>
+
+
+This trait defines the to-python conversion for a Rust type. It is usually implemented as
+`IntoPy<PyObject>`, which is the trait needed for returning a value from `#[pyfunction]` and
+`#[pymethods]`.
+
+All types in PyO3 implement this trait, as does a `#[pyclass]` which doesn't use `extends`.
+
+Occasionally you may choose to implement this for custom types which are mapped to Python types
+_without_ having a unique python type.
+
+```rust
+use pyo3::prelude::*;
+# #[allow(dead_code)]
+struct MyPyObjectWrapper(PyObject);
+
+#[allow(deprecated)]
+impl IntoPy<PyObject> for MyPyObjectWrapper {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.0
+    }
+}
+```
+
 ### The `ToPyObject` trait
 
 <div class="warning">
@@ -710,8 +714,12 @@ same purpose, except that it consumes `self`.
 [`IntoPy`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.IntoPy.html
 [`FromPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.FromPyObject.html
 [`ToPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.ToPyObject.html
+[`IntoPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.IntoPyObject.html
+[`IntoPyObjectExt`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.IntoPyObjectExt.html
 [`PyObject`]: {{#PYO3_DOCS_URL}}/pyo3/type.PyObject.html
 
 [`PyRef`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
 [`PyRefMut`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRefMut.html
 [`BoundObject`]: {{#PYO3_DOCS_URL}}/pyo3/instance/trait.BoundObject.html
+
+[`Result`]: https://doc.rust-lang.org/stable/std/result/enum.Result.html

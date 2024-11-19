@@ -15,7 +15,7 @@ use crate::{
     exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
     panic::PanicException,
     types::{string::PyStringMethods, PyIterator, PyString},
-    Bound, BoundObject, IntoPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    Bound, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyObject, PyResult, Python,
 };
 
 pub(crate) mod cancel;
@@ -60,10 +60,7 @@ impl Coroutine {
         let wrap = async move {
             let obj = future.await.map_err(Into::into)?;
             // SAFETY: GIL is acquired when future is polled (see `Coroutine::poll`)
-            obj.into_pyobject(unsafe { Python::assume_gil_acquired() })
-                .map(BoundObject::into_any)
-                .map(BoundObject::unbind)
-                .map_err(Into::into)
+            obj.into_py_any(unsafe { Python::assume_gil_acquired() })
         };
         Self {
             name: name.map(Bound::unbind),

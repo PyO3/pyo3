@@ -1,4 +1,3 @@
-use crate::conversion::IntoPyObject;
 use crate::types::PyIterator;
 #[allow(deprecated)]
 use crate::ToPyObject;
@@ -9,7 +8,7 @@ use crate::{
     py_result_ext::PyResultExt,
     types::any::PyAnyMethods,
 };
-use crate::{ffi, Borrowed, BoundObject, PyAny, Python};
+use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, Python};
 use std::ptr;
 
 /// Represents a Python `set`.
@@ -161,10 +160,7 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
         let py = self.py();
         inner(
             self,
-            key.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -183,10 +179,7 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
         let py = self.py();
         inner(
             self,
-            key.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -203,10 +196,7 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
         let py = self.py();
         inner(
             self,
-            key.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -316,7 +306,7 @@ where
     let ptr = set.as_ptr();
 
     elements.into_iter().try_for_each(|element| {
-        let obj = element.into_pyobject(py).map_err(Into::into)?;
+        let obj = element.into_pyobject_or_pyerr(py)?;
         err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj.as_ptr()) })
     })?;
 

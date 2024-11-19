@@ -1,6 +1,5 @@
 use std::iter::FusedIterator;
 
-use crate::conversion::IntoPyObject;
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
@@ -9,7 +8,8 @@ use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{any::PyAnyMethods, sequence::PySequenceMethods, PyList, PySequence};
 use crate::{
-    exceptions, Bound, BoundObject, FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyObject,
+    PyResult, Python,
 };
 #[allow(deprecated)]
 use crate::{IntoPy, ToPyObject};
@@ -99,12 +99,7 @@ impl PyTuple {
         T: IntoPyObject<'py>,
         U: ExactSizeIterator<Item = T>,
     {
-        let elements = elements.into_iter().map(|e| {
-            e.into_pyobject(py)
-                .map(BoundObject::into_any)
-                .map(BoundObject::into_bound)
-                .map_err(Into::into)
-        });
+        let elements = elements.into_iter().map(|e| e.into_bound_py_any(py));
         try_new_from_iter(py, elements)
     }
 
@@ -523,14 +518,14 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     #[allow(deprecated)]
     impl <$($T: ToPyObject),+> ToPyObject for ($($T,)+) {
         fn to_object(&self, py: Python<'_>) -> PyObject {
-            array_into_tuple(py, [$(self.$n.to_object(py)),+]).into()
+            array_into_tuple(py, [$(self.$n.to_object(py).into_bound(py)),+]).into()
         }
     }
 
     #[allow(deprecated)]
     impl <$($T: IntoPy<PyObject>),+> IntoPy<PyObject> for ($($T,)+) {
         fn into_py(self, py: Python<'_>) -> PyObject {
-            array_into_tuple(py, [$(self.$n.into_py(py)),+]).into()
+            array_into_tuple(py, [$(self.$n.into_py(py).into_bound(py)),+]).into()
         }
     }
 
@@ -543,7 +538,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         type Error = PyErr;
 
         fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-            Ok(array_into_tuple(py, [$(self.$n.into_pyobject(py).map_err(Into::into)?.into_any().unbind()),+]).into_bound(py))
+            Ok(array_into_tuple(py, [$(self.$n.into_bound_py_any(py)?),+]))
         }
 
         #[cfg(feature = "experimental-inspect")]
@@ -562,7 +557,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         type Error = PyErr;
 
         fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-            Ok(array_into_tuple(py, [$(self.$n.into_pyobject(py).map_err(Into::into)?.into_any().unbind()),+]).into_bound(py))
+            Ok(array_into_tuple(py, [$(self.$n.into_bound_py_any(py)?),+]))
         }
 
         #[cfg(feature = "experimental-inspect")]
@@ -574,7 +569,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     #[allow(deprecated)]
     impl <$($T: IntoPy<PyObject>),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
         fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
-            array_into_tuple(py, [$(self.$n.into_py(py)),+])
+            array_into_tuple(py, [$(self.$n.into_py(py).into_bound(py)),+]).unbind()
         }
     }
 
@@ -600,10 +595,13 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     }
 });
 
-fn array_into_tuple<const N: usize>(py: Python<'_>, array: [PyObject; N]) -> Py<PyTuple> {
+fn array_into_tuple<'py, const N: usize>(
+    py: Python<'py>,
+    array: [Bound<'py, PyAny>; N],
+) -> Bound<'py, PyTuple> {
     unsafe {
         let ptr = ffi::PyTuple_New(N.try_into().expect("0 < N <= 12"));
-        let tup = Py::from_owned_ptr(py, ptr);
+        let tup = ptr.assume_owned(py).downcast_into_unchecked();
         for (index, obj) in array.into_iter().enumerate() {
             #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
             ffi::PyTuple_SET_ITEM(ptr, index as ffi::Py_ssize_t, obj.into_ptr());
