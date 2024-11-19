@@ -5,7 +5,9 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{PySequence, PyTuple};
-use crate::{Borrowed, Bound, BoundObject, IntoPyObject, PyAny, PyErr, PyObject, Python};
+use crate::{
+    Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, Python,
+};
 
 use crate::types::any::PyAnyMethods;
 use crate::types::sequence::PySequenceMethods;
@@ -104,12 +106,7 @@ impl PyList {
         T: IntoPyObject<'py>,
         U: ExactSizeIterator<Item = T>,
     {
-        let iter = elements.into_iter().map(|e| {
-            e.into_pyobject(py)
-                .map(BoundObject::into_any)
-                .map(BoundObject::into_bound)
-                .map_err(Into::into)
-        });
+        let iter = elements.into_iter().map(|e| e.into_bound_py_any(py));
         try_new_from_iter(py, iter)
     }
 
@@ -339,14 +336,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
         }
 
         let py = self.py();
-        inner(
-            self,
-            index,
-            item.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .into_bound(),
-        )
+        inner(self, index, item.into_bound_py_any(py)?)
     }
 
     /// Deletes the `index`th element of self.
@@ -394,10 +384,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
         let py = self.py();
         inner(
             self,
-            item.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            item.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -422,10 +409,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
         inner(
             self,
             index,
-            item.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            item.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 

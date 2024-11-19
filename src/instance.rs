@@ -1466,7 +1466,7 @@ impl<T> Py<T> {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, IntoPyObject, PyObject, Python, PyResult};
+    /// # use pyo3::{intern, pyfunction, types::PyModule, IntoPyObjectExt, PyObject, Python, PyResult};
     /// #
     /// #[pyfunction]
     /// fn set_answer(ob: PyObject, py: Python<'_>) -> PyResult<()> {
@@ -1474,7 +1474,7 @@ impl<T> Py<T> {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let ob = PyModule::new(py, "empty").unwrap().into_pyobject(py).unwrap().into_any().unbind();
+    /// #    let ob = PyModule::new(py, "empty").unwrap().into_py_any(py).unwrap();
     /// #    set_answer(ob, py).unwrap();
     /// # });
     /// ```

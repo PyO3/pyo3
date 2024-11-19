@@ -1367,10 +1367,7 @@ fn impl_complex_enum_tuple_variant_getitem(
         .map(|i| {
             let field_access = format_ident!("_{}", i);
             quote! { #i =>
-                #pyo3_path::IntoPyObject::into_pyobject(#variant_cls::#field_access(slf)?, py)
-                    .map(#pyo3_path::BoundObject::into_any)
-                    .map(#pyo3_path::BoundObject::unbind)
-                    .map_err(::std::convert::Into::into)
+                #pyo3_path::IntoPyObjectExt::into_py_any(#variant_cls::#field_access(slf)?, py)
             }
         })
         .collect();
@@ -1852,16 +1849,10 @@ fn pyclass_richcmp_arms(
         .map(|span| {
             quote_spanned! { span =>
                 #pyo3_path::pyclass::CompareOp::Eq => {
-                    #pyo3_path::IntoPyObject::into_pyobject(self_val == other, py)
-                        .map(#pyo3_path::BoundObject::into_any)
-                        .map(#pyo3_path::BoundObject::unbind)
-                        .map_err(::std::convert::Into::into)
+                    #pyo3_path::IntoPyObjectExt::into_py_any(self_val == other, py)
                 },
                 #pyo3_path::pyclass::CompareOp::Ne => {
-                    #pyo3_path::IntoPyObject::into_pyobject(self_val != other, py)
-                        .map(#pyo3_path::BoundObject::into_any)
-                        .map(#pyo3_path::BoundObject::unbind)
-                        .map_err(::std::convert::Into::into)
+                    #pyo3_path::IntoPyObjectExt::into_py_any(self_val != other, py)
                 },
             }
         })
@@ -1876,28 +1867,16 @@ fn pyclass_richcmp_arms(
         .map(|ord| {
             quote_spanned! { ord.span() =>
                 #pyo3_path::pyclass::CompareOp::Gt => {
-                    #pyo3_path::IntoPyObject::into_pyobject(self_val > other, py)
-                        .map(#pyo3_path::BoundObject::into_any)
-                        .map(#pyo3_path::BoundObject::unbind)
-                        .map_err(::std::convert::Into::into)
+                    #pyo3_path::IntoPyObjectExt::into_py_any(self_val > other, py)
                 },
                 #pyo3_path::pyclass::CompareOp::Lt => {
-                    #pyo3_path::IntoPyObject::into_pyobject(self_val < other, py)
-                        .map(#pyo3_path::BoundObject::into_any)
-                        .map(#pyo3_path::BoundObject::unbind)
-                        .map_err(::std::convert::Into::into)
+                    #pyo3_path::IntoPyObjectExt::into_py_any(self_val < other, py)
                  },
                 #pyo3_path::pyclass::CompareOp::Le => {
-                    #pyo3_path::IntoPyObject::into_pyobject(self_val <= other, py)
-                        .map(#pyo3_path::BoundObject::into_any)
-                        .map(#pyo3_path::BoundObject::unbind)
-                        .map_err(::std::convert::Into::into)
+                    #pyo3_path::IntoPyObjectExt::into_py_any(self_val <= other, py)
                  },
                 #pyo3_path::pyclass::CompareOp::Ge => {
-                    #pyo3_path::IntoPyObject::into_pyobject(self_val >= other, py)
-                        .map(#pyo3_path::BoundObject::into_any)
-                        .map(#pyo3_path::BoundObject::unbind)
-                        .map_err(::std::convert::Into::into)
+                    #pyo3_path::IntoPyObjectExt::into_py_any(self_val >= other, py)
                  },
             }
         })
