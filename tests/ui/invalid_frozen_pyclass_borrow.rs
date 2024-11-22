@@ -26,11 +26,11 @@ fn borrow_mut_of_child_fails(child: Py<ImmutableChild>, py: Python) {
 }
 
 fn py_get_of_mutable_class_fails(class: Py<MutableBase>) {
-    unsafe { class.get(); }
+    class.get();
 }
 
 fn pyclass_get_of_mutable_class_fails(class: &Bound<'_, MutableBase>) {
-    unsafe { class.get(); }
+    class.get();
 }
 
 #[pyclass(frozen)]

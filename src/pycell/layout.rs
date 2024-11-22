@@ -9,7 +9,7 @@ use std::ptr::addr_of_mut;
 use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef, PyObjectOffset,
 };
-use crate::internal::get_slot::TP_FREE;
+use crate::internal::get_slot::{TP_DEALLOC, TP_FREE};
 use crate::pycell::borrow_checker::{GetBorrowChecker, PyClassBorrowChecker};
 use crate::type_object::PyNativeType;
 use crate::types::PyType;
@@ -21,10 +21,10 @@ use crate::types::PyTypeMethods;
 use super::borrow_checker::PyClassMutability;
 use super::{ptr_from_ref, PyBorrowError};
 
-/// The data of a `ffi::PyObject` specifically relating to type `T`.
+/// The data of a [ffi::PyObject] specifically relating to type `T`.
 ///
 /// In an inheritance hierarchy where `#[pyclass(extends=PyDict)] struct A;` and `#[pyclass(extends=A)] struct B;`
-/// a `ffi::PyObject` of type `B` has separate memory for `ffi::PyDictObject` (the base native type) and
+/// a [ffi::PyObject] of type `B` has separate memory for [ffi::PyDictObject] (the base native type) and
 /// `PyClassObjectContents<A>` and `PyClassObjectContents<B>`. The memory associated with `A` or `B` can be obtained
 /// using `PyObjectLayout::get_contents::<T>()` (where `T=A` or `T=B`).
 #[repr(C)]
@@ -33,9 +33,9 @@ pub(crate) struct PyClassObjectContents<T: PyClassImpl> {
     pub(crate) value: ManuallyDrop<UnsafeCell<T>>,
     pub(crate) borrow_checker: <T::PyClassMutability as PyClassMutability>::Storage,
     pub(crate) thread_checker: T::ThreadChecker,
-    /// A pointer to a `PyObject` if `T` is annotated with `#[pyclass(dict)]` and a zero-sized field otherwise.
+    /// A pointer to a [ffi::PyObject]` if `T` is annotated with `#[pyclass(dict)]` and a zero-sized field otherwise.
     pub(crate) dict: T::Dict,
-    /// A pointer to a `PyObject` if `T` is annotated with `#[pyclass(weakref)]` and a zero-sized field otherwise.
+    /// A pointer to a [ffi::PyObject] if `T` is annotated with `#[pyclass(weakref)]` and a zero-sized field otherwise.
     pub(crate) weakref: T::WeakRef,
 }
 
@@ -67,14 +67,14 @@ impl<T: PyClassImpl> PyClassObjectContents<T> {
 /// then calling a method on a PyObject of type `B` will call the method for `B`, then `A`, then `PyDict`.
 #[doc(hidden)]
 pub trait PyObjectRecursiveOperations {
-    /// `PyTypeInfo::type_object_raw()` may create type objects lazily.
+    /// [PyTypeInfo::type_object_raw()] may create type objects lazily.
     /// This method ensures that the type objects for all ancestor types of the provided object.
-    unsafe fn ensure_type_objects_initialized(py: Python<'_>);
+    fn ensure_type_objects_initialized(py: Python<'_>);
 
-    /// Call `PyClassThreadChecker::ensure` on all ancestor types of the provided object.
+    /// Call [PyClassThreadChecker::ensure()] on all ancestor types of the provided object.
     fn ensure_threadsafe(obj: &ffi::PyObject, strategy: TypeObjectStrategy<'_>);
 
-    /// Call `PyClassThreadChecker::check` on all ancestor types of the provided object.
+    /// Call [PyClassThreadChecker::check()] on all ancestor types of the provided object.
     fn check_threadsafe(
         obj: &ffi::PyObject,
         strategy: TypeObjectStrategy<'_>,
@@ -88,17 +88,17 @@ pub trait PyObjectRecursiveOperations {
     unsafe fn deallocate(py: Python<'_>, obj: *mut ffi::PyObject);
 }
 
-/// Used to fill out `PyClassBaseType::RecursiveOperations` for instances of `PyClass`
+/// Used to fill out [PyClassBaseType::RecursiveOperations] for instances of `PyClass`
 pub struct PyClassRecursiveOperations<T>(PhantomData<T>);
 
 impl<T: PyClassImpl + PyTypeInfo> PyObjectRecursiveOperations for PyClassRecursiveOperations<T> {
-    unsafe fn ensure_type_objects_initialized(py: Python<'_>) {
+    fn ensure_type_objects_initialized(py: Python<'_>) {
         let _ = <T as PyTypeInfo>::type_object_raw(py);
         <T::BaseType as PyClassBaseType>::RecursiveOperations::ensure_type_objects_initialized(py);
     }
 
     fn ensure_threadsafe(obj: &ffi::PyObject, strategy: TypeObjectStrategy<'_>) {
-        let contents = PyObjectLayout::get_contents::<T>(obj, strategy);
+        let contents = unsafe { PyObjectLayout::get_contents::<T>(obj, strategy) };
         contents.thread_checker.ensure();
         <T::BaseType as PyClassBaseType>::RecursiveOperations::ensure_threadsafe(obj, strategy);
     }
@@ -107,7 +107,7 @@ impl<T: PyClassImpl + PyTypeInfo> PyObjectRecursiveOperations for PyClassRecursi
         obj: &ffi::PyObject,
         strategy: TypeObjectStrategy<'_>,
     ) -> Result<(), PyBorrowError> {
-        let contents = PyObjectLayout::get_contents::<T>(obj, strategy);
+        let contents = unsafe { PyObjectLayout::get_contents::<T>(obj, strategy) };
         if !contents.thread_checker.check() {
             return Err(PyBorrowError { _private: () });
         }
@@ -123,13 +123,13 @@ impl<T: PyClassImpl + PyTypeInfo> PyObjectRecursiveOperations for PyClassRecursi
     }
 }
 
-/// Used to fill out `PyClassBaseType::RecursiveOperations` for native types
+/// Used to fill out [PyClassBaseType::RecursiveOperations] for native types
 pub struct PyNativeTypeRecursiveOperations<T>(PhantomData<T>);
 
 impl<T: PyNativeType + PyTypeInfo> PyObjectRecursiveOperations
     for PyNativeTypeRecursiveOperations<T>
 {
-    unsafe fn ensure_type_objects_initialized(py: Python<'_>) {
+    fn ensure_type_objects_initialized(py: Python<'_>) {
         let _ = <T as PyTypeInfo>::type_object_raw(py);
     }
 
@@ -162,15 +162,21 @@ impl<T: PyNativeType + PyTypeInfo> PyObjectRecursiveOperations
         // the 'most derived class' of `obj`. i.e. the result of calling `type(obj)`.
         let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(obj));
 
-        // TODO(matt): is this correct?
-        // For `#[pyclass]` types which inherit from PyAny or PyType, we can just call tp_free
-        let is_base_object = type_ptr == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type);
-        let is_metaclass = type_ptr == std::ptr::addr_of_mut!(ffi::PyType_Type);
-        if is_base_object || is_metaclass {
+        if type_ptr == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type) {
+            // the `PyBaseObject_Type` destructor (tp_dealloc) just calls tp_free so we can do this directly
             let tp_free = actual_type
                 .get_slot(TP_FREE)
                 .expect("base type should have tp_free");
             return tp_free(obj.cast());
+        }
+
+        if type_ptr == std::ptr::addr_of_mut!(ffi::PyType_Type) {
+            let tp_dealloc = PyType::from_borrowed_type_ptr(py, type_ptr)
+                .get_slot(TP_DEALLOC)
+                .expect("PyType_Type should have tp_dealloc");
+            // `PyType_Type::dealloc` calls `Py_GC_UNTRACK` so we have to re-track before deallocating
+            ffi::PyObject_GC_Track(obj.cast());
+            return tp_dealloc(obj.cast());
         }
 
         // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
@@ -201,42 +207,47 @@ impl<T: PyNativeType + PyTypeInfo> PyObjectRecursiveOperations
 /// Utilities for working with `PyObject` objects that utilise [PEP 697](https://peps.python.org/pep-0697/).
 #[doc(hidden)]
 pub(crate) mod opaque_layout {
-    use super::PyClassObjectContents;
-    use super::TypeObjectStrategy;
-    use crate::{ffi, impl_::pyclass::PyClassImpl, PyTypeInfo};
+    #[cfg(Py_3_12)]
+    use super::{PyClassObjectContents, TypeObjectStrategy};
+    #[cfg(Py_3_12)]
+    use crate::ffi;
+    use crate::{impl_::pyclass::PyClassImpl, PyTypeInfo};
 
     #[cfg(Py_3_12)]
     pub fn get_contents_ptr<T: PyClassImpl + PyTypeInfo>(
         obj: *mut ffi::PyObject,
         strategy: TypeObjectStrategy<'_>,
     ) -> *mut PyClassObjectContents<T> {
-        #[cfg(Py_3_12)]
-        {
-            let type_obj = match strategy {
-                TypeObjectStrategy::Lazy(py) => T::type_object_raw(py),
-                TypeObjectStrategy::AssumeInit(_) => {
-                    T::try_get_type_object_raw().unwrap_or_else(|| {
-                        panic!(
-                            "type object for {} not initialized",
-                            std::any::type_name::<T>()
-                        )
-                    })
-                }
-            };
-            assert!(!type_obj.is_null(), "type object is NULL");
-            let pointer = unsafe { ffi::PyObject_GetTypeData(obj, type_obj) };
-            assert!(!pointer.is_null(), "pointer to pyclass data returned NULL");
-            pointer.cast()
-        }
-
-        #[cfg(not(Py_3_12))]
-        panic_unsupported();
+        let type_obj = match strategy {
+            TypeObjectStrategy::Lazy(py) => T::type_object_raw(py),
+            TypeObjectStrategy::AssumeInit(_) => {
+                T::try_get_type_object_raw().unwrap_or_else(|| {
+                    panic!(
+                        "type object for {} not initialized",
+                        std::any::type_name::<T>()
+                    )
+                })
+            }
+        };
+        assert!(!type_obj.is_null(), "type object is NULL");
+        debug_assert!(
+            unsafe { ffi::PyType_IsSubtype(ffi::Py_TYPE(obj), type_obj) } == 1,
+            "the object is not an instance of {}",
+            std::any::type_name::<T>()
+        );
+        let pointer = unsafe { ffi::PyObject_GetTypeData(obj, type_obj) };
+        assert!(!pointer.is_null(), "pointer to pyclass data returned NULL");
+        pointer.cast()
     }
 
     #[inline(always)]
     #[cfg(not(Py_3_12))]
-    fn panic_unsupported() {
-        panic!("opaque layout not supported until python 3.12");
+    pub fn panic_unsupported<T: PyClassImpl + PyTypeInfo>() -> ! {
+        assert!(T::OPAQUE);
+        panic!(
+            "The opaque object layout (used by {}) is not supported until python 3.12",
+            std::any::type_name::<T>()
+        );
     }
 }
 
@@ -280,11 +291,11 @@ pub(crate) mod static_layout {
     unsafe impl<T> PyLayout<T> for InvalidStaticLayout {}
 }
 
-/// The method to use for obtaining a `*mut ffi::PyTypeObject` pointer describing `T: PyTypeInfo` for
-/// use with `PyObjectLayout` functions.
+/// The method to use for obtaining a [ffi::PyTypeObject] pointer describing `T: PyTypeInfo` for
+/// use with [PyObjectLayout] functions.
 ///
-/// `PyTypeInfo::type_object_raw()` requires the GIL to be held because it may lazily construct the type object.
-/// Some situations require that the GIL is not held so `PyObjectLayout` cannot call this method directly.
+/// [PyTypeInfo::type_object_raw()] requires the GIL to be held because it may lazily construct the type object.
+/// Some situations require that the GIL is not held so [PyObjectLayout] cannot call this method directly.
 /// The different solutions to this have different trade-offs.
 #[derive(Clone, Copy)]
 pub enum TypeObjectStrategy<'a> {
@@ -298,39 +309,49 @@ impl<'a> TypeObjectStrategy<'a> {
         TypeObjectStrategy::Lazy(py)
     }
 
-    /// Assume that `PyTypeInfo::type_object_raw()` has been called for any of the required type objects.
+    /// Assume that [PyTypeInfo::type_object_raw()] has been called for any of the required type objects.
     ///
     /// Once initialized, the type objects are cached and can be obtained without holding the GIL.
     ///
     /// # Safety
     ///
     /// - Ensure that any `T` that may be used with this strategy has already been initialized
-    ///   by calling `T::type_object_raw()`.
-    /// - Only `PyTypeInfo::OPAQUE` classes require type objects for traversal so if this strategy is only
+    ///   by calling [PyTypeInfo::type_object_raw()].
+    /// - Only [PyTypeInfo::OPAQUE] classes require type objects for traversal so if this strategy is only
     ///   used with non-opaque classes then no action is required.
-    /// - When used with `PyClassRecursiveOperations` or `GetBorrowChecker`, the strategy may be used with
+    /// - When used with [PyClassRecursiveOperations] or [GetBorrowChecker], the strategy may be used with
     ///   base classes as well as the most derived type.
-    ///   `PyClassRecursiveOperations::ensure_type_objects_initialized()` can be used to initialize
+    ///   [PyClassRecursiveOperations::ensure_type_objects_initialized()] can be used to initialize
     ///   all base classes above the given type.
     pub unsafe fn assume_init() -> Self {
         TypeObjectStrategy::AssumeInit(PhantomData)
     }
 }
 
-/// Functions for working with `PyObject`s
+/// Functions for working with [ffi::PyObject]s
 pub(crate) struct PyObjectLayout {}
 
 impl PyObjectLayout {
-    /// Obtain a pointer to the contents of a `PyObject` of type `T`.
+    /// Obtain a pointer to the portion of `obj` relating to the type `T`
     ///
-    /// Safety: the provided object must be valid and have the layout indicated by `T`
+    /// # Safety
+    /// `obj` must point to a valid `PyObject` whose type is `T` or a subclass of `T`.
     pub(crate) unsafe fn get_contents_ptr<T: PyClassImpl + PyTypeInfo>(
         obj: *mut ffi::PyObject,
         strategy: TypeObjectStrategy<'_>,
     ) -> *mut PyClassObjectContents<T> {
-        debug_assert!(!obj.is_null());
+        debug_assert!(!obj.is_null(), "get_contents_ptr of null object");
         if T::OPAQUE {
-            opaque_layout::get_contents_ptr(obj, strategy)
+            #[cfg(Py_3_12)]
+            {
+                opaque_layout::get_contents_ptr(obj, strategy)
+            }
+
+            #[cfg(not(Py_3_12))]
+            {
+                let _ = strategy;
+                opaque_layout::panic_unsupported::<T>();
+            }
         } else {
             let obj: *mut static_layout::PyStaticClassLayout<T> = obj.cast();
             // indicates `ob_base` has type InvalidBaseLayout
@@ -343,7 +364,11 @@ impl PyObjectLayout {
         }
     }
 
-    pub(crate) fn get_contents<'a, T: PyClassImpl + PyTypeInfo>(
+    /// Obtain a reference to the portion of `obj` relating to the type `T`
+    ///
+    /// # Safety
+    /// `obj` must point to a valid `PyObject` whose type is `T` or a subclass of `T`.
+    pub(crate) unsafe fn get_contents<'a, T: PyClassImpl + PyTypeInfo>(
         obj: &'a ffi::PyObject,
         strategy: TypeObjectStrategy<'_>,
     ) -> &'a PyClassObjectContents<T> {
@@ -353,9 +378,10 @@ impl PyObjectLayout {
         }
     }
 
-    /// obtain a pointer to the pyclass struct of a `PyObject` of type `T`.
+    /// Obtain a pointer to the portion of `obj` containing the data for `T`
     ///
-    /// Safety: the provided object must be valid and have the layout indicated by `T`
+    /// # Safety
+    /// `obj` must point to a valid `PyObject` whose type is `T` or a subclass of `T`.
     pub(crate) unsafe fn get_data_ptr<T: PyClassImpl + PyTypeInfo>(
         obj: *mut ffi::PyObject,
         strategy: TypeObjectStrategy<'_>,
@@ -364,21 +390,37 @@ impl PyObjectLayout {
         (*contents).value.get()
     }
 
-    pub(crate) fn get_data<'a, T: PyClassImpl + PyTypeInfo>(
+    /// Obtain a reference to the portion of `obj` containing the data for `T`
+    ///
+    /// # Safety
+    /// `obj` must point to a valid [ffi::PyObject] whose type is `T` or a subclass of `T`.
+    pub(crate) unsafe fn get_data<'a, T: PyClassImpl + PyTypeInfo>(
         obj: &'a ffi::PyObject,
         strategy: TypeObjectStrategy<'_>,
     ) -> &'a T {
         unsafe { &*PyObjectLayout::get_data_ptr::<T>(ptr_from_ref(obj).cast_mut(), strategy) }
     }
 
-    pub(crate) fn get_borrow_checker<'a, T: PyClassImpl + PyTypeInfo>(
+    /// Obtain a reference to the borrow checker for `obj`
+    ///
+    /// Note: this method is for convenience. The implementation is in [GetBorrowChecker].
+    ///
+    /// # Safety
+    /// `obj` must point to a valid [ffi::PyObject] whose type is `T` or a subclass of `T`.
+    pub(crate) unsafe fn get_borrow_checker<'a, T: PyClassImpl + PyTypeInfo>(
         py: Python<'_>,
         obj: &'a ffi::PyObject,
     ) -> &'a <T::PyClassMutability as PyClassMutability>::Checker {
         T::PyClassMutability::borrow_checker(obj, TypeObjectStrategy::lazy(py))
     }
 
-    pub(crate) fn ensure_threadsafe<T: PyClassImpl + PyTypeInfo>(
+    /// Ensure that `obj` is thread safe.
+    ///
+    /// Note: this method is for convenience. The implementation is in [PyClassRecursiveOperations].
+    ///
+    /// # Safety
+    /// `obj` must point to a valid [ffi::PyObject] whose type is `T` or a subclass of `T`.
+    pub(crate) unsafe fn ensure_threadsafe<T: PyClassImpl + PyTypeInfo>(
         py: Python<'_>,
         obj: &ffi::PyObject,
     ) {
@@ -387,8 +429,13 @@ impl PyObjectLayout {
 
     /// Clean up then free the memory associated with `obj`.
     ///
+    /// Note: this method is for convenience. The implementation is in [PyClassRecursiveOperations].
+    ///
     /// See [tp_dealloc docs](https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_dealloc)
-    pub(crate) fn deallocate<T: PyClassImpl + PyTypeInfo>(py: Python<'_>, obj: *mut ffi::PyObject) {
+    pub(crate) unsafe fn deallocate<T: PyClassImpl + PyTypeInfo>(
+        py: Python<'_>,
+        obj: *mut ffi::PyObject,
+    ) {
         unsafe {
             PyClassRecursiveOperations::<T>::deallocate(py, obj);
         };
@@ -399,7 +446,7 @@ impl PyObjectLayout {
     /// Use instead of `deallocate()` if `T` has the `Py_TPFLAGS_HAVE_GC` flag set.
     ///
     /// See [tp_dealloc docs](https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_dealloc)
-    pub(crate) fn deallocate_with_gc<T: PyClassImpl + PyTypeInfo>(
+    pub(crate) unsafe fn deallocate_with_gc<T: PyClassImpl + PyTypeInfo>(
         py: Python<'_>,
         obj: *mut ffi::PyObject,
     ) {
@@ -414,32 +461,32 @@ impl PyObjectLayout {
 
     /// Used to set `PyType_Spec::basicsize` when creating a `PyTypeObject` for `T`
     /// ([docs](https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize))
-    pub(crate) fn basicsize<T: PyClassImpl>() -> ffi::Py_ssize_t {
-        if <T::BaseType as PyTypeInfo>::OPAQUE {
+    pub(crate) fn basicsize<T: PyClassImpl + PyTypeInfo>() -> ffi::Py_ssize_t {
+        if T::OPAQUE {
             #[cfg(Py_3_12)]
             {
                 // negative to indicate 'extra' space that python will allocate
-                // specifically for `T` excluding the base class
+                // specifically for `T` excluding the base class.
                 -usize_to_py_ssize(std::mem::size_of::<PyClassObjectContents<T>>())
             }
 
             #[cfg(not(Py_3_12))]
-            opaque_layout::panic_unsupported();
+            opaque_layout::panic_unsupported::<T>();
         } else {
             usize_to_py_ssize(std::mem::size_of::<static_layout::PyStaticClassLayout<T>>())
         }
     }
 
     /// Gets the offset of the contents from the start of the struct in bytes.
-    pub(crate) fn contents_offset<T: PyClassImpl>() -> PyObjectOffset {
-        if <T::BaseType as PyTypeInfo>::OPAQUE {
+    pub(crate) fn contents_offset<T: PyClassImpl + PyTypeInfo>() -> PyObjectOffset {
+        if T::OPAQUE {
             #[cfg(Py_3_12)]
             {
                 PyObjectOffset::Relative(0)
             }
 
             #[cfg(not(Py_3_12))]
-            opaque_layout::panic_unsupported();
+            opaque_layout::panic_unsupported::<T>();
         } else {
             PyObjectOffset::Absolute(usize_to_py_ssize(memoffset::offset_of!(
                 static_layout::PyStaticClassLayout<T>,
@@ -449,8 +496,8 @@ impl PyObjectLayout {
     }
 
     /// Gets the offset of the dictionary from the start of the struct in bytes.
-    pub(crate) fn dict_offset<T: PyClassImpl>() -> PyObjectOffset {
-        if <T::BaseType as PyTypeInfo>::OPAQUE {
+    pub(crate) fn dict_offset<T: PyClassImpl + PyTypeInfo>() -> PyObjectOffset {
+        if T::OPAQUE {
             #[cfg(Py_3_12)]
             {
                 PyObjectOffset::Relative(usize_to_py_ssize(memoffset::offset_of!(
@@ -460,7 +507,7 @@ impl PyObjectLayout {
             }
 
             #[cfg(not(Py_3_12))]
-            opaque_layout::panic_unsupported();
+            opaque_layout::panic_unsupported::<T>();
         } else {
             let offset = memoffset::offset_of!(static_layout::PyStaticClassLayout<T>, contents)
                 + memoffset::offset_of!(PyClassObjectContents<T>, dict);
@@ -470,8 +517,8 @@ impl PyObjectLayout {
     }
 
     /// Gets the offset of the weakref list from the start of the struct in bytes.
-    pub(crate) fn weaklist_offset<T: PyClassImpl>() -> PyObjectOffset {
-        if <T::BaseType as PyTypeInfo>::OPAQUE {
+    pub(crate) fn weaklist_offset<T: PyClassImpl + PyTypeInfo>() -> PyObjectOffset {
+        if T::OPAQUE {
             #[cfg(Py_3_12)]
             {
                 PyObjectOffset::Relative(usize_to_py_ssize(memoffset::offset_of!(
@@ -481,7 +528,7 @@ impl PyObjectLayout {
             }
 
             #[cfg(not(Py_3_12))]
-            opaque_layout::panic_unsupported();
+            opaque_layout::panic_unsupported::<T>();
         } else {
             let offset = memoffset::offset_of!(static_layout::PyStaticClassLayout<T>, contents)
                 + memoffset::offset_of!(PyClassObjectContents<T>, weakref);
@@ -492,35 +539,497 @@ impl PyObjectLayout {
 }
 
 /// Py_ssize_t may not be equal to isize on all platforms
-fn usize_to_py_ssize(value: usize) -> ffi::Py_ssize_t {
+pub(crate) fn usize_to_py_ssize(value: usize) -> ffi::Py_ssize_t {
     #[allow(clippy::useless_conversion)]
     value.try_into().expect("value should fit in Py_ssize_t")
 }
 
-#[cfg(test)]
-#[cfg(feature = "macros")]
-mod tests {
+/// Tests specific to the static layout
+#[cfg(all(test, feature = "macros"))]
+mod static_tests {
+    use static_assertions::const_assert;
+
     use super::*;
 
     use crate::prelude::*;
+    use memoffset::offset_of;
+    use std::mem::size_of;
 
-    #[pyclass(crate = "crate", subclass)]
-    struct BaseWithData(#[allow(unused)] u64);
+    /// Test the functions calculate properties about the static layout without requiring an instance.
+    /// The class in this test extends the default base class `PyAny` so there is 'no inheritance'.
+    #[test]
+    fn test_type_properties_no_inheritance() {
+        #[pyclass(crate = "crate", extends=PyAny)]
+        struct MyClass(#[allow(unused)] u64);
 
-    #[pyclass(crate = "crate", extends = BaseWithData)]
-    struct ChildWithData(#[allow(unused)] u64);
+        const_assert!(<MyClass as PyTypeInfo>::OPAQUE == false);
 
-    #[pyclass(crate = "crate", extends = BaseWithData)]
-    struct ChildWithoutData;
+        #[repr(C)]
+        struct ExpectedLayout {
+            // typically called `ob_base`. In C it is defined using the `PyObject_HEAD` macro
+            // https://docs.python.org/3/c-api/structures.html
+            native_base: ffi::PyObject,
+            contents: PyClassObjectContents<MyClass>,
+        }
+
+        let expected_size = size_of::<ExpectedLayout>() as ffi::Py_ssize_t;
+        assert_eq!(PyObjectLayout::basicsize::<MyClass>(), expected_size);
+
+        let expected_contents_offset = offset_of!(ExpectedLayout, contents) as ffi::Py_ssize_t;
+        assert_eq!(
+            PyObjectLayout::contents_offset::<MyClass>(),
+            PyObjectOffset::Absolute(expected_contents_offset),
+        );
+
+        let dict_size = size_of::<<MyClass as PyClassImpl>::Dict>();
+        assert_eq!(dict_size, 0);
+        let expected_dict_offset_in_contents =
+            offset_of!(PyClassObjectContents<MyClass>, dict) as ffi::Py_ssize_t;
+        assert_eq!(
+            PyObjectLayout::dict_offset::<MyClass>(),
+            PyObjectOffset::Absolute(expected_contents_offset + expected_dict_offset_in_contents),
+        );
+
+        let weakref_size = size_of::<<MyClass as PyClassImpl>::WeakRef>();
+        assert_eq!(weakref_size, 0);
+        let expected_weakref_offset_in_contents =
+            offset_of!(PyClassObjectContents<MyClass>, weakref) as ffi::Py_ssize_t;
+        assert_eq!(
+            PyObjectLayout::weaklist_offset::<MyClass>(),
+            PyObjectOffset::Absolute(
+                expected_contents_offset + expected_weakref_offset_in_contents
+            ),
+        );
+
+        assert_eq!(
+            expected_dict_offset_in_contents,
+            expected_weakref_offset_in_contents
+        );
+    }
+
+    /// Test the functions calculate properties about the static layout without requiring an instance.
+    /// The class in this test requires extra space for the `dict` and `weaklist` fields
+    #[test]
+    fn test_layout_properties_no_inheritance_optional_fields() {
+        #[pyclass(crate = "crate", dict, weakref, extends=PyAny)]
+        struct MyClass(#[allow(unused)] u64);
+
+        const_assert!(<MyClass as PyTypeInfo>::OPAQUE == false);
+
+        #[repr(C)]
+        struct ExpectedLayout {
+            // typically called `ob_base`. In C it is defined using the `PyObject_HEAD` macro
+            // https://docs.python.org/3/c-api/structures.html
+            native_base: ffi::PyObject,
+            contents: PyClassObjectContents<MyClass>,
+        }
+
+        let expected_size = size_of::<ExpectedLayout>() as ffi::Py_ssize_t;
+        assert_eq!(PyObjectLayout::basicsize::<MyClass>(), expected_size);
+
+        let expected_contents_offset = offset_of!(ExpectedLayout, contents) as ffi::Py_ssize_t;
+        assert_eq!(
+            PyObjectLayout::contents_offset::<MyClass>(),
+            PyObjectOffset::Absolute(expected_contents_offset),
+        );
+
+        let dict_size = size_of::<<MyClass as PyClassImpl>::Dict>();
+        assert!(dict_size > 0);
+        let expected_dict_offset_in_contents =
+            offset_of!(PyClassObjectContents<MyClass>, dict) as ffi::Py_ssize_t;
+        assert_eq!(
+            PyObjectLayout::dict_offset::<MyClass>(),
+            PyObjectOffset::Absolute(expected_contents_offset + expected_dict_offset_in_contents),
+        );
+
+        let weakref_size = size_of::<<MyClass as PyClassImpl>::WeakRef>();
+        assert!(weakref_size > 0);
+        let expected_weakref_offset_in_contents =
+            offset_of!(PyClassObjectContents<MyClass>, weakref) as ffi::Py_ssize_t;
+        assert_eq!(
+            PyObjectLayout::weaklist_offset::<MyClass>(),
+            PyObjectOffset::Absolute(
+                expected_contents_offset + expected_weakref_offset_in_contents
+            ),
+        );
+
+        assert!(expected_dict_offset_in_contents < expected_weakref_offset_in_contents);
+    }
+
+    #[test]
+    #[cfg(not(Py_LIMITED_API))]
+    fn test_type_properties_with_inheritance() {
+        use std::any::TypeId;
+
+        use crate::types::PyDict;
+
+        #[pyclass(crate = "crate", subclass, extends=PyDict)]
+        struct ParentClass {
+            #[allow(unused)]
+            parent_field: u64,
+        }
+
+        #[pyclass(crate = "crate", extends=ParentClass)]
+        struct ChildClass {
+            #[allow(unused)]
+            child_field: String,
+        }
+
+        const_assert!(<ParentClass as PyTypeInfo>::OPAQUE == false);
+        const_assert!(<ChildClass as PyTypeInfo>::OPAQUE == false);
+        assert_eq!(
+            TypeId::of::<<ChildClass as PyClassImpl>::BaseType>(),
+            TypeId::of::<ParentClass>()
+        );
+        assert_eq!(
+            TypeId::of::<<ParentClass as PyClassImpl>::BaseType>(),
+            TypeId::of::<PyDict>()
+        );
+
+        #[repr(C)]
+        struct ExpectedLayout {
+            native_base: ffi::PyDictObject,
+            parent_contents: PyClassObjectContents<ParentClass>,
+            child_contents: PyClassObjectContents<ChildClass>,
+        }
+
+        let expected_size = size_of::<ExpectedLayout>() as ffi::Py_ssize_t;
+        assert_eq!(PyObjectLayout::basicsize::<ChildClass>(), expected_size);
+
+        Python::with_gil(|py| {
+            let typ = ChildClass::type_object(py);
+            let raw_typ = typ.as_ptr().cast::<ffi::PyTypeObject>();
+            let typ_size = unsafe { (*raw_typ).tp_basicsize };
+            assert_eq!(typ_size, expected_size);
+        });
+
+        let expected_parent_contents_offset =
+            offset_of!(ExpectedLayout, parent_contents) as ffi::Py_ssize_t;
+        assert_eq!(
+            PyObjectLayout::contents_offset::<ParentClass>(),
+            PyObjectOffset::Absolute(expected_parent_contents_offset),
+        );
+
+        let expected_child_contents_offset =
+            offset_of!(ExpectedLayout, child_contents) as ffi::Py_ssize_t;
+        assert_eq!(
+            PyObjectLayout::contents_offset::<ChildClass>(),
+            PyObjectOffset::Absolute(expected_child_contents_offset),
+        );
+
+        let child_dict_size = size_of::<<ChildClass as PyClassImpl>::Dict>();
+        assert_eq!(child_dict_size, 0);
+        let expected_child_dict_offset_in_contents =
+            offset_of!(PyClassObjectContents<ChildClass>, dict) as ffi::Py_ssize_t;
+        assert_eq!(
+            PyObjectLayout::dict_offset::<ChildClass>(),
+            PyObjectOffset::Absolute(
+                expected_child_contents_offset + expected_child_dict_offset_in_contents
+            ),
+        );
+
+        let child_weakref_size = size_of::<<ChildClass as PyClassImpl>::WeakRef>();
+        assert_eq!(child_weakref_size, 0);
+        let expected_child_weakref_offset_in_contents =
+            offset_of!(PyClassObjectContents<ChildClass>, weakref) as ffi::Py_ssize_t;
+        assert_eq!(
+            PyObjectLayout::weaklist_offset::<ChildClass>(),
+            PyObjectOffset::Absolute(
+                expected_child_contents_offset + expected_child_weakref_offset_in_contents
+            ),
+        );
+    }
+
+    /// Test the functions that operate on pyclass instances
+    /// The class in this test extends the default base class `PyAny` so there is 'no inheritance'.
+    #[test]
+    fn test_contents_access_no_inheritance() {
+        #[pyclass(crate = "crate", extends=PyAny)]
+        struct MyClass {
+            my_value: u64,
+        }
+
+        const_assert!(<MyClass as PyTypeInfo>::OPAQUE == false);
+
+        #[repr(C)]
+        struct ExpectedLayout {
+            native_base: ffi::PyObject,
+            contents: PyClassObjectContents<MyClass>,
+        }
+
+        Python::with_gil(|py| {
+            let obj = Py::new(py, MyClass { my_value: 123 }).unwrap();
+            let obj_ptr = obj.as_ptr();
+
+            // test obtaining contents pointer normally (with GIL held)
+            let contents_ptr = unsafe {
+                PyObjectLayout::get_contents_ptr::<MyClass>(obj_ptr, TypeObjectStrategy::lazy(py))
+            };
+
+            // work around the fact that pointers are not `Send`
+            let obj_ptr_int = obj_ptr as usize;
+            let contents_ptr_int = contents_ptr as usize;
+
+            // test that the contents pointer can be obtained without the GIL held
+            py.allow_threads(move || {
+                let obj_ptr = obj_ptr_int as *mut ffi::PyObject;
+                let contents_ptr = contents_ptr_int as *mut PyClassObjectContents<MyClass>;
+
+                // Safety: type object was created when `obj` was constructed
+                let contents_ptr_without_gil = unsafe {
+                    PyObjectLayout::get_contents_ptr::<MyClass>(
+                        obj_ptr,
+                        TypeObjectStrategy::assume_init(),
+                    )
+                };
+                assert_eq!(contents_ptr, contents_ptr_without_gil);
+            });
+
+            // test that contents pointer matches expecations
+            let casted_obj = obj_ptr.cast::<ExpectedLayout>();
+            let expected_contents_ptr = unsafe { addr_of_mut!((*casted_obj).contents) };
+            assert_eq!(contents_ptr, expected_contents_ptr);
+
+            // test getting contents by reference
+            let contents = unsafe {
+                PyObjectLayout::get_contents::<MyClass>(
+                    obj.as_raw_ref(),
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+            assert_eq!(ptr_from_ref(contents), expected_contents_ptr);
+
+            // test getting data pointer
+            let data_ptr = unsafe {
+                PyObjectLayout::get_data_ptr::<MyClass>(obj_ptr, TypeObjectStrategy::lazy(py))
+            };
+            let expected_data_ptr = unsafe { (*expected_contents_ptr).value.get() };
+            assert_eq!(data_ptr, expected_data_ptr);
+            assert_eq!(unsafe { (*data_ptr).my_value }, 123);
+
+            // test getting data by reference
+            let data = unsafe {
+                PyObjectLayout::get_data::<MyClass>(obj.as_raw_ref(), TypeObjectStrategy::lazy(py))
+            };
+            assert_eq!(ptr_from_ref(data), expected_data_ptr);
+        });
+    }
+
+    /// Test the functions that operate on pyclass instances.
+    #[test]
+    #[cfg(not(Py_LIMITED_API))]
+    fn test_contents_access_with_inheritance() {
+        use crate::types::PyDict;
+
+        #[pyclass(crate = "crate", subclass, extends=PyDict)]
+        struct ParentClass {
+            parent_value: u64,
+        }
+
+        #[pyclass(crate = "crate", extends=ParentClass)]
+        struct ChildClass {
+            child_value: String,
+        }
+
+        const_assert!(<ParentClass as PyTypeInfo>::OPAQUE == false);
+        const_assert!(<ChildClass as PyTypeInfo>::OPAQUE == false);
+
+        #[repr(C)]
+        struct ExpectedLayout {
+            native_base: ffi::PyDictObject,
+            parent_contents: PyClassObjectContents<ParentClass>,
+            child_contents: PyClassObjectContents<ChildClass>,
+        }
+
+        Python::with_gil(|py| {
+            let obj = Py::new(
+                py,
+                PyClassInitializer::from(ParentClass { parent_value: 123 }).add_subclass(
+                    ChildClass {
+                        child_value: "foo".to_owned(),
+                    },
+                ),
+            )
+            .unwrap();
+            let obj_ptr = obj.as_ptr();
+
+            // test obtaining contents pointer normally (with GIL held)
+            let parent_contents_ptr = unsafe {
+                PyObjectLayout::get_contents_ptr::<ParentClass>(
+                    obj_ptr,
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+            let child_contents_ptr = unsafe {
+                PyObjectLayout::get_contents_ptr::<ChildClass>(
+                    obj_ptr,
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+
+            // work around the fact that pointers are not `Send`
+            let obj_ptr_int = obj_ptr as usize;
+            let parent_contents_ptr_int = parent_contents_ptr as usize;
+            let child_contents_ptr_int = child_contents_ptr as usize;
+
+            // test that the contents pointer can be obtained without the GIL held
+            py.allow_threads(move || {
+                let obj_ptr = obj_ptr_int as *mut ffi::PyObject;
+                let parent_contents_ptr =
+                    parent_contents_ptr_int as *mut PyClassObjectContents<ParentClass>;
+                let child_contents_ptr =
+                    child_contents_ptr_int as *mut PyClassObjectContents<ChildClass>;
+
+                // Safety: type object was created when `obj` was constructed
+                let parent_contents_ptr_without_gil = unsafe {
+                    PyObjectLayout::get_contents_ptr::<ParentClass>(
+                        obj_ptr,
+                        TypeObjectStrategy::assume_init(),
+                    )
+                };
+                let child_contents_ptr_without_gil = unsafe {
+                    PyObjectLayout::get_contents_ptr::<ChildClass>(
+                        obj_ptr,
+                        TypeObjectStrategy::assume_init(),
+                    )
+                };
+                assert_eq!(parent_contents_ptr, parent_contents_ptr_without_gil);
+                assert_eq!(child_contents_ptr, child_contents_ptr_without_gil);
+            });
+
+            // test that contents pointer matches expecations
+            let casted_obj = obj_ptr.cast::<ExpectedLayout>();
+            let expected_parent_contents_ptr =
+                unsafe { addr_of_mut!((*casted_obj).parent_contents) };
+            let expected_child_contents_ptr = unsafe { addr_of_mut!((*casted_obj).child_contents) };
+            assert_eq!(parent_contents_ptr, expected_parent_contents_ptr);
+            assert_eq!(child_contents_ptr, expected_child_contents_ptr);
+
+            // test getting contents by reference
+            let parent_contents = unsafe {
+                PyObjectLayout::get_contents::<ParentClass>(
+                    obj.as_raw_ref(),
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+            let child_contents = unsafe {
+                PyObjectLayout::get_contents::<ChildClass>(
+                    obj.as_raw_ref(),
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+            assert_eq!(ptr_from_ref(parent_contents), expected_parent_contents_ptr);
+            assert_eq!(ptr_from_ref(child_contents), expected_child_contents_ptr);
+
+            // test getting data pointer
+            let parent_data_ptr = unsafe {
+                PyObjectLayout::get_data_ptr::<ParentClass>(obj_ptr, TypeObjectStrategy::lazy(py))
+            };
+            let child_data_ptr = unsafe {
+                PyObjectLayout::get_data_ptr::<ChildClass>(obj_ptr, TypeObjectStrategy::lazy(py))
+            };
+            let expected_parent_data_ptr = unsafe { (*expected_parent_contents_ptr).value.get() };
+            let expected_child_data_ptr = unsafe { (*expected_child_contents_ptr).value.get() };
+            assert_eq!(parent_data_ptr, expected_parent_data_ptr);
+            assert_eq!(unsafe { (*parent_data_ptr).parent_value }, 123);
+            assert_eq!(child_data_ptr, expected_child_data_ptr);
+            assert_eq!(unsafe { &(*child_data_ptr).child_value }, "foo");
+
+            // test getting data by reference
+            let parent_data = unsafe {
+                PyObjectLayout::get_data::<ParentClass>(
+                    obj.as_raw_ref(),
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+            let child_data = unsafe {
+                PyObjectLayout::get_data::<ChildClass>(
+                    obj.as_raw_ref(),
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+            assert_eq!(ptr_from_ref(parent_data), expected_parent_data_ptr);
+            assert_eq!(ptr_from_ref(child_data), expected_child_data_ptr);
+        });
+    }
 
     #[test]
     fn test_inherited_size() {
-        let base_size = PyObjectLayout::basicsize::<BaseWithData>();
-        assert!(base_size > 0); // negative indicates variable sized
-        assert_eq!(base_size, PyObjectLayout::basicsize::<ChildWithoutData>());
-        assert!(base_size < PyObjectLayout::basicsize::<ChildWithData>());
+        #[pyclass(crate = "crate", subclass)]
+        struct ParentClass;
+
+        #[pyclass(crate = "crate", extends = ParentClass)]
+        struct ChildClass(#[allow(unused)] u64);
+
+        const_assert!(<ParentClass as PyTypeInfo>::OPAQUE == false);
+        const_assert!(<ChildClass as PyTypeInfo>::OPAQUE == false);
+
+        #[repr(C)]
+        struct ExpectedLayoutWithData {
+            native_base: ffi::PyObject,
+            parent_class: PyClassObjectContents<ParentClass>,
+            child_class: PyClassObjectContents<ChildClass>,
+        }
+        let expected_size = std::mem::size_of::<ExpectedLayoutWithData>() as ffi::Py_ssize_t;
+
+        assert_eq!(PyObjectLayout::basicsize::<ChildClass>(), expected_size);
     }
 
+    /// Test that `Drop::drop` is called for pyclasses
+    #[test]
+    fn test_destructor_called() {
+        use std::sync::{Arc, Mutex};
+
+        let deallocations: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+
+        #[pyclass(crate = "crate", subclass)]
+        struct ParentClass(Arc<Mutex<Vec<String>>>);
+
+        impl Drop for ParentClass {
+            fn drop(&mut self) {
+                self.0.lock().unwrap().push("ParentClass".to_owned());
+            }
+        }
+
+        #[pyclass(crate = "crate", extends = ParentClass)]
+        struct ChildClass(Arc<Mutex<Vec<String>>>);
+
+        impl Drop for ChildClass {
+            fn drop(&mut self) {
+                self.0.lock().unwrap().push("ChildClass".to_owned());
+            }
+        }
+
+        const_assert!(<ParentClass as PyTypeInfo>::OPAQUE == false);
+        const_assert!(<ChildClass as PyTypeInfo>::OPAQUE == false);
+
+        Python::with_gil(|py| {
+            let obj = Py::new(
+                py,
+                PyClassInitializer::from(ParentClass(deallocations.clone()))
+                    .add_subclass(ChildClass(deallocations.clone())),
+            )
+            .unwrap();
+            assert!(deallocations.lock().unwrap().is_empty());
+            drop(obj);
+        });
+
+        assert_eq!(
+            deallocations.lock().unwrap().as_slice(),
+            &["ChildClass", "ParentClass"]
+        );
+    }
+
+    #[test]
+    fn test_empty_class() {
+        #[pyclass(crate = "crate")]
+        struct EmptyClass;
+
+        // even if the user class has no data some additional space is required
+        assert!(size_of::<PyClassObjectContents<EmptyClass>>() > 0);
+    }
+
+    /// It is essential that `InvalidStaticLayout` has 0 size so that it can be distinguished from a valid layout
     #[test]
     fn test_invalid_base() {
         assert_eq!(std::mem::size_of::<static_layout::InvalidStaticLayout>(), 0);
@@ -532,5 +1041,680 @@ mod tests {
         }
 
         assert_eq!(std::mem::offset_of!(InvalidLayout, contents), 0);
+    }
+}
+
+/// Tests specific to the opaque layout
+#[cfg(all(test, Py_3_12, feature = "macros"))]
+mod opaque_tests {
+    use memoffset::offset_of;
+    use static_assertions::const_assert;
+    use std::ops::Range;
+
+    use super::*;
+
+    use crate::{prelude::*, PyClass};
+
+    /// Check that all the type properties are as expected for the given class `T`.
+    /// Unlike the static layout, the properties of a type in the opaque layout are
+    /// derived entirely from `T`, not the whole [ffi::PyObject].
+    fn check_opaque_type_properties<T: PyClass>(has_dict: bool, has_weakref: bool) {
+        let contents_size = size_of::<PyClassObjectContents<T>>() as ffi::Py_ssize_t;
+        // negative indicates 'in addition to the base class'
+        assert!(PyObjectLayout::basicsize::<T>() == -contents_size);
+
+        assert_eq!(
+            PyObjectLayout::contents_offset::<T>(),
+            PyObjectOffset::Relative(0),
+        );
+
+        let dict_size = size_of::<<T as PyClassImpl>::Dict>();
+        if has_dict {
+            assert!(dict_size > 0);
+        } else {
+            assert_eq!(dict_size, 0);
+        }
+        let expected_dict_offset_in_contents =
+            offset_of!(PyClassObjectContents<T>, dict) as ffi::Py_ssize_t;
+        assert_eq!(
+            PyObjectLayout::dict_offset::<T>(),
+            PyObjectOffset::Relative(expected_dict_offset_in_contents),
+        );
+
+        let weakref_size = size_of::<<T as PyClassImpl>::WeakRef>();
+        if has_weakref {
+            assert!(weakref_size > 0);
+        } else {
+            assert_eq!(weakref_size, 0);
+        }
+        let expected_weakref_offset_in_contents =
+            offset_of!(PyClassObjectContents<T>, weakref) as ffi::Py_ssize_t;
+        assert_eq!(
+            PyObjectLayout::weaklist_offset::<T>(),
+            PyObjectOffset::Relative(expected_weakref_offset_in_contents),
+        );
+
+        if has_dict {
+            assert!(expected_dict_offset_in_contents < expected_weakref_offset_in_contents);
+        } else {
+            assert_eq!(
+                expected_dict_offset_in_contents,
+                expected_weakref_offset_in_contents
+            );
+        }
+    }
+
+    /// Test the functions calculate properties about the opaque layout without requiring an instance.
+    /// The class in this test extends the default base class `PyAny` so there is 'no inheritance'.
+    #[test]
+    fn test_type_properties_no_inheritance() {
+        #[pyclass(crate = "crate", opaque, extends=PyAny)]
+        struct MyClass(#[allow(unused)] u64);
+        const_assert!(<MyClass as PyTypeInfo>::OPAQUE == true);
+
+        check_opaque_type_properties::<MyClass>(false, false);
+    }
+
+    /// Test the functions calculate properties about the opaque layout without requiring an instance.
+    /// The class in this test requires extra space for the `dict` and `weaklist` fields
+    #[test]
+    fn test_layout_properties_no_inheritance_optional_fields() {
+        #[pyclass(crate = "crate", dict, weakref, opaque, extends=PyAny)]
+        struct MyClass(#[allow(unused)] u64);
+        const_assert!(<MyClass as PyTypeInfo>::OPAQUE == true);
+
+        check_opaque_type_properties::<MyClass>(true, true);
+    }
+
+    #[test]
+    #[cfg(not(Py_LIMITED_API))]
+    fn test_type_properties_with_inheritance_opaque_base() {
+        use std::any::TypeId;
+
+        use crate::types::PyDict;
+
+        #[pyclass(crate = "crate", subclass, opaque, extends=PyDict)]
+        struct ParentClass {
+            #[allow(unused)]
+            parent_field: u64,
+        }
+
+        #[pyclass(crate = "crate", extends=ParentClass)]
+        struct ChildClass {
+            #[allow(unused)]
+            child_field: String,
+        }
+
+        const_assert!(<ParentClass as PyTypeInfo>::OPAQUE == true);
+        const_assert!(<ChildClass as PyTypeInfo>::OPAQUE == true);
+        assert_eq!(
+            TypeId::of::<<ChildClass as PyClassImpl>::BaseType>(),
+            TypeId::of::<ParentClass>()
+        );
+        assert_eq!(
+            TypeId::of::<<ParentClass as PyClassImpl>::BaseType>(),
+            TypeId::of::<PyDict>()
+        );
+
+        check_opaque_type_properties::<ParentClass>(false, false);
+        check_opaque_type_properties::<ChildClass>(false, false);
+    }
+
+    #[test]
+    #[cfg(not(Py_LIMITED_API))]
+    fn test_type_properties_with_inheritance_static_base() {
+        use std::any::TypeId;
+
+        use crate::types::PyDict;
+
+        #[pyclass(crate = "crate", subclass, extends=PyDict)]
+        struct ParentClass {
+            #[allow(unused)]
+            parent_field: u64,
+        }
+
+        #[pyclass(crate = "crate", opaque, extends=ParentClass)]
+        struct ChildClass {
+            #[allow(unused)]
+            child_field: String,
+        }
+
+        const_assert!(<ParentClass as PyTypeInfo>::OPAQUE == false);
+        const_assert!(<ChildClass as PyTypeInfo>::OPAQUE == true);
+        assert_eq!(
+            TypeId::of::<<ChildClass as PyClassImpl>::BaseType>(),
+            TypeId::of::<ParentClass>()
+        );
+        assert_eq!(
+            TypeId::of::<<ParentClass as PyClassImpl>::BaseType>(),
+            TypeId::of::<PyDict>()
+        );
+
+        check_opaque_type_properties::<ChildClass>(false, false);
+
+        #[repr(C)]
+        struct ParentExpectedLayout {
+            native_base: ffi::PyDictObject,
+            parent_contents: PyClassObjectContents<ParentClass>,
+        }
+
+        let expected_size = size_of::<ParentExpectedLayout>() as ffi::Py_ssize_t;
+        assert_eq!(PyObjectLayout::basicsize::<ParentClass>(), expected_size);
+
+        let expected_parent_contents_offset =
+            offset_of!(ParentExpectedLayout, parent_contents) as ffi::Py_ssize_t;
+        assert_eq!(
+            PyObjectLayout::contents_offset::<ParentClass>(),
+            PyObjectOffset::Absolute(expected_parent_contents_offset),
+        );
+    }
+
+    /// Test the functions that operate on pyclass instances
+    /// The class in this test extends the default base class `PyAny` so there is 'no inheritance'.
+    #[test]
+    fn test_contents_access_no_inheritance() {
+        #[pyclass(crate = "crate", opaque, extends=PyAny)]
+        struct MyClass {
+            my_value: u64,
+        }
+
+        const_assert!(<MyClass as PyTypeInfo>::OPAQUE == true);
+
+        Python::with_gil(|py| {
+            let obj = Py::new(py, MyClass { my_value: 123 }).unwrap();
+            let obj_ptr = obj.as_ptr();
+
+            // test obtaining contents pointer normally (with GIL held)
+            let contents_ptr = unsafe {
+                PyObjectLayout::get_contents_ptr::<MyClass>(obj_ptr, TypeObjectStrategy::lazy(py))
+            };
+
+            // work around the fact that pointers are not `Send`
+            let obj_ptr_int = obj_ptr as usize;
+            let contents_ptr_int = contents_ptr as usize;
+
+            // test that the contents pointer can be obtained without the GIL held
+            py.allow_threads(move || {
+                let obj_ptr = obj_ptr_int as *mut ffi::PyObject;
+                let contents_ptr = contents_ptr_int as *mut PyClassObjectContents<MyClass>;
+
+                // Safety: type object was created when `obj` was constructed
+                let contents_ptr_without_gil = unsafe {
+                    PyObjectLayout::get_contents_ptr::<MyClass>(
+                        obj_ptr,
+                        TypeObjectStrategy::assume_init(),
+                    )
+                };
+                assert_eq!(contents_ptr, contents_ptr_without_gil);
+            });
+
+            // test that contents pointer matches expecations
+            // the `MyClass` data has to be between the base type and the end of the PyObject.
+            let pyobject_size = get_pyobject_size::<MyClass>(py);
+            let contents_range = bytes_range(
+                contents_ptr_int - obj_ptr_int,
+                size_of::<PyClassObjectContents<MyClass>>(),
+            );
+            assert!(contents_range.start >= size_of::<ffi::PyObject>());
+            assert!(contents_range.end <= pyobject_size);
+
+            // test getting contents by reference
+            let contents = unsafe {
+                PyObjectLayout::get_contents::<MyClass>(
+                    obj.as_raw_ref(),
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+            assert_eq!(ptr_from_ref(contents), contents_ptr);
+
+            // test getting data pointer
+            let data_ptr = unsafe {
+                PyObjectLayout::get_data_ptr::<MyClass>(obj_ptr, TypeObjectStrategy::lazy(py))
+            };
+            let expected_data_ptr = unsafe { (*contents_ptr).value.get() };
+            assert_eq!(data_ptr, expected_data_ptr);
+            assert_eq!(unsafe { (*data_ptr).my_value }, 123);
+
+            // test getting data by reference
+            let data = unsafe {
+                PyObjectLayout::get_data::<MyClass>(obj.as_raw_ref(), TypeObjectStrategy::lazy(py))
+            };
+            assert_eq!(ptr_from_ref(data), expected_data_ptr);
+        });
+    }
+
+    /// Test the functions that operate on pyclass instances.
+    #[test]
+    #[cfg(not(Py_LIMITED_API))]
+    fn test_contents_access_with_inheritance_opaque_base() {
+        use crate::types::PyDict;
+
+        #[pyclass(crate = "crate", subclass, opaque, extends=PyDict)]
+        struct ParentClass {
+            parent_value: u64,
+        }
+
+        #[pyclass(crate = "crate", extends=ParentClass)]
+        struct ChildClass {
+            child_value: String,
+        }
+
+        const_assert!(<ParentClass as PyTypeInfo>::OPAQUE == true);
+        const_assert!(<ChildClass as PyTypeInfo>::OPAQUE == true);
+
+        Python::with_gil(|py| {
+            let obj = Py::new(
+                py,
+                PyClassInitializer::from(ParentClass { parent_value: 123 }).add_subclass(
+                    ChildClass {
+                        child_value: "foo".to_owned(),
+                    },
+                ),
+            )
+            .unwrap();
+            let obj_ptr = obj.as_ptr();
+
+            // test obtaining contents pointer normally (with GIL held)
+            let parent_contents_ptr = unsafe {
+                PyObjectLayout::get_contents_ptr::<ParentClass>(
+                    obj_ptr,
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+            let child_contents_ptr = unsafe {
+                PyObjectLayout::get_contents_ptr::<ChildClass>(
+                    obj_ptr,
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+
+            // work around the fact that pointers are not `Send`
+            let obj_ptr_int = obj_ptr as usize;
+            let parent_contents_ptr_int = parent_contents_ptr as usize;
+            let child_contents_ptr_int = child_contents_ptr as usize;
+
+            // test that the contents pointer can be obtained without the GIL held
+            py.allow_threads(move || {
+                let obj_ptr = obj_ptr_int as *mut ffi::PyObject;
+                let parent_contents_ptr =
+                    parent_contents_ptr_int as *mut PyClassObjectContents<ParentClass>;
+                let child_contents_ptr =
+                    child_contents_ptr_int as *mut PyClassObjectContents<ChildClass>;
+
+                // Safety: type object was created when `obj` was constructed
+                let parent_contents_ptr_without_gil = unsafe {
+                    PyObjectLayout::get_contents_ptr::<ParentClass>(
+                        obj_ptr,
+                        TypeObjectStrategy::assume_init(),
+                    )
+                };
+                let child_contents_ptr_without_gil = unsafe {
+                    PyObjectLayout::get_contents_ptr::<ChildClass>(
+                        obj_ptr,
+                        TypeObjectStrategy::assume_init(),
+                    )
+                };
+                assert_eq!(parent_contents_ptr, parent_contents_ptr_without_gil);
+                assert_eq!(child_contents_ptr, child_contents_ptr_without_gil);
+            });
+
+            // test that contents pointer matches expecations
+            let parent_pyobject_size = get_pyobject_size::<ParentClass>(py);
+            let child_pyobject_size = get_pyobject_size::<ChildClass>(py);
+            assert!(child_pyobject_size > parent_pyobject_size);
+            let parent_range = bytes_range(
+                parent_contents_ptr_int - obj_ptr_int,
+                size_of::<PyClassObjectContents<ParentClass>>(),
+            );
+            let child_range = bytes_range(
+                child_contents_ptr_int - obj_ptr_int,
+                size_of::<PyClassObjectContents<ChildClass>>(),
+            );
+            assert!(parent_range.start >= size_of::<ffi::PyDictObject>());
+            assert!(parent_range.end <= parent_pyobject_size);
+            assert!(child_range.start >= parent_range.end);
+            assert!(child_range.end <= child_pyobject_size);
+
+            // test getting contents by reference
+            let parent_contents = unsafe {
+                PyObjectLayout::get_contents::<ParentClass>(
+                    obj.as_raw_ref(),
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+            let child_contents = unsafe {
+                PyObjectLayout::get_contents::<ChildClass>(
+                    obj.as_raw_ref(),
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+            assert_eq!(ptr_from_ref(parent_contents), parent_contents_ptr);
+            assert_eq!(ptr_from_ref(child_contents), child_contents_ptr);
+
+            // test getting data pointer
+            let parent_data_ptr = unsafe {
+                PyObjectLayout::get_data_ptr::<ParentClass>(obj_ptr, TypeObjectStrategy::lazy(py))
+            };
+            let child_data_ptr = unsafe {
+                PyObjectLayout::get_data_ptr::<ChildClass>(obj_ptr, TypeObjectStrategy::lazy(py))
+            };
+            let expected_parent_data_ptr = unsafe { (*parent_contents_ptr).value.get() };
+            let expected_child_data_ptr = unsafe { (*child_contents_ptr).value.get() };
+            assert_eq!(parent_data_ptr, expected_parent_data_ptr);
+            assert_eq!(unsafe { (*parent_data_ptr).parent_value }, 123);
+            assert_eq!(child_data_ptr, expected_child_data_ptr);
+            assert_eq!(unsafe { &(*child_data_ptr).child_value }, "foo");
+
+            // test getting data by reference
+            let parent_data = unsafe {
+                PyObjectLayout::get_data::<ParentClass>(
+                    obj.as_raw_ref(),
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+            let child_data = unsafe {
+                PyObjectLayout::get_data::<ChildClass>(
+                    obj.as_raw_ref(),
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+            assert_eq!(ptr_from_ref(parent_data), expected_parent_data_ptr);
+            assert_eq!(ptr_from_ref(child_data), expected_child_data_ptr);
+        });
+    }
+
+    /// Test the functions that operate on pyclass instances.
+    #[test]
+    #[cfg(not(Py_LIMITED_API))]
+    fn test_contents_access_with_inheritance_static_base() {
+        use crate::types::PyDict;
+
+        #[pyclass(crate = "crate", subclass, extends=PyDict)]
+        struct ParentClass {
+            parent_value: u64,
+        }
+
+        #[pyclass(crate = "crate", opaque, extends=ParentClass)]
+        struct ChildClass {
+            child_value: String,
+        }
+
+        const_assert!(<ParentClass as PyTypeInfo>::OPAQUE == false);
+        const_assert!(<ChildClass as PyTypeInfo>::OPAQUE == true);
+
+        Python::with_gil(|py| {
+            let obj = Py::new(
+                py,
+                PyClassInitializer::from(ParentClass { parent_value: 123 }).add_subclass(
+                    ChildClass {
+                        child_value: "foo".to_owned(),
+                    },
+                ),
+            )
+            .unwrap();
+            let obj_ptr = obj.as_ptr();
+
+            // test obtaining contents pointer normally (with GIL held)
+            let parent_contents_ptr = unsafe {
+                PyObjectLayout::get_contents_ptr::<ParentClass>(
+                    obj_ptr,
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+            let child_contents_ptr = unsafe {
+                PyObjectLayout::get_contents_ptr::<ChildClass>(
+                    obj_ptr,
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+
+            // work around the fact that pointers are not `Send`
+            let obj_ptr_int = obj_ptr as usize;
+            let parent_contents_ptr_int = parent_contents_ptr as usize;
+            let child_contents_ptr_int = child_contents_ptr as usize;
+
+            // test that the contents pointer can be obtained without the GIL held
+            py.allow_threads(move || {
+                let obj_ptr = obj_ptr_int as *mut ffi::PyObject;
+                let parent_contents_ptr =
+                    parent_contents_ptr_int as *mut PyClassObjectContents<ParentClass>;
+                let child_contents_ptr =
+                    child_contents_ptr_int as *mut PyClassObjectContents<ChildClass>;
+
+                // Safety: type object was created when `obj` was constructed
+                let parent_contents_ptr_without_gil = unsafe {
+                    PyObjectLayout::get_contents_ptr::<ParentClass>(
+                        obj_ptr,
+                        TypeObjectStrategy::assume_init(),
+                    )
+                };
+                let child_contents_ptr_without_gil = unsafe {
+                    PyObjectLayout::get_contents_ptr::<ChildClass>(
+                        obj_ptr,
+                        TypeObjectStrategy::assume_init(),
+                    )
+                };
+                assert_eq!(parent_contents_ptr, parent_contents_ptr_without_gil);
+                assert_eq!(child_contents_ptr, child_contents_ptr_without_gil);
+            });
+
+            // test that contents pointer matches expecations
+            let parent_pyobject_size = get_pyobject_size::<ParentClass>(py);
+            let child_pyobject_size = get_pyobject_size::<ChildClass>(py);
+            assert!(child_pyobject_size > parent_pyobject_size);
+            let parent_range = bytes_range(
+                parent_contents_ptr_int - obj_ptr_int,
+                size_of::<PyClassObjectContents<ParentClass>>(),
+            );
+            let child_range = bytes_range(
+                child_contents_ptr_int - obj_ptr_int,
+                size_of::<PyClassObjectContents<ChildClass>>(),
+            );
+            assert!(parent_range.start >= size_of::<ffi::PyDictObject>());
+            assert!(parent_range.end <= parent_pyobject_size);
+            assert!(child_range.start >= parent_range.end);
+            assert!(child_range.end <= child_pyobject_size);
+
+            // test getting contents by reference
+            let parent_contents = unsafe {
+                PyObjectLayout::get_contents::<ParentClass>(
+                    obj.as_raw_ref(),
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+            let child_contents = unsafe {
+                PyObjectLayout::get_contents::<ChildClass>(
+                    obj.as_raw_ref(),
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+            assert_eq!(ptr_from_ref(parent_contents), parent_contents_ptr);
+            assert_eq!(ptr_from_ref(child_contents), child_contents_ptr);
+
+            // test getting data pointer
+            let parent_data_ptr = unsafe {
+                PyObjectLayout::get_data_ptr::<ParentClass>(obj_ptr, TypeObjectStrategy::lazy(py))
+            };
+            let child_data_ptr = unsafe {
+                PyObjectLayout::get_data_ptr::<ChildClass>(obj_ptr, TypeObjectStrategy::lazy(py))
+            };
+            let expected_parent_data_ptr = unsafe { (*parent_contents_ptr).value.get() };
+            let expected_child_data_ptr = unsafe { (*child_contents_ptr).value.get() };
+            assert_eq!(parent_data_ptr, expected_parent_data_ptr);
+            assert_eq!(unsafe { (*parent_data_ptr).parent_value }, 123);
+            assert_eq!(child_data_ptr, expected_child_data_ptr);
+            assert_eq!(unsafe { &(*child_data_ptr).child_value }, "foo");
+
+            // test getting data by reference
+            let parent_data = unsafe {
+                PyObjectLayout::get_data::<ParentClass>(
+                    obj.as_raw_ref(),
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+            let child_data = unsafe {
+                PyObjectLayout::get_data::<ChildClass>(
+                    obj.as_raw_ref(),
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+            assert_eq!(ptr_from_ref(parent_data), expected_parent_data_ptr);
+            assert_eq!(ptr_from_ref(child_data), expected_child_data_ptr);
+        });
+    }
+
+    /// Test that `Drop::drop` is called for pyclasses
+    #[test]
+    fn test_destructor_called() {
+        use std::sync::{Arc, Mutex};
+
+        let deallocations: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+
+        #[pyclass(crate = "crate", subclass, opaque)]
+        struct ParentClass(Arc<Mutex<Vec<String>>>);
+
+        impl Drop for ParentClass {
+            fn drop(&mut self) {
+                self.0.lock().unwrap().push("ParentClass".to_owned());
+            }
+        }
+
+        #[pyclass(crate = "crate", extends = ParentClass)]
+        struct ChildClass(Arc<Mutex<Vec<String>>>);
+
+        impl Drop for ChildClass {
+            fn drop(&mut self) {
+                self.0.lock().unwrap().push("ChildClass".to_owned());
+            }
+        }
+
+        const_assert!(<ParentClass as PyTypeInfo>::OPAQUE == true);
+        const_assert!(<ChildClass as PyTypeInfo>::OPAQUE == true);
+
+        Python::with_gil(|py| {
+            let obj = Py::new(
+                py,
+                PyClassInitializer::from(ParentClass(deallocations.clone()))
+                    .add_subclass(ChildClass(deallocations.clone())),
+            )
+            .unwrap();
+            assert!(deallocations.lock().unwrap().is_empty());
+            drop(obj);
+        });
+
+        assert_eq!(
+            deallocations.lock().unwrap().as_slice(),
+            &["ChildClass", "ParentClass"]
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "OpaqueClassNeverConstructed not initialized")]
+    fn test_panic_when_incorrectly_assume_initialized() {
+        #[pyclass(crate = "crate", opaque)]
+        struct OpaqueClassNeverConstructed;
+
+        const_assert!(<OpaqueClassNeverConstructed as PyTypeInfo>::OPAQUE);
+
+        let obj = Python::with_gil(|py| py.None());
+
+        assert!(OpaqueClassNeverConstructed::try_get_type_object_raw().is_none());
+        unsafe {
+            PyObjectLayout::get_contents_ptr::<OpaqueClassNeverConstructed>(
+                obj.as_ptr(),
+                TypeObjectStrategy::assume_init(),
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "the object is not an instance of")]
+    fn test_panic_when_incorrect_type() {
+        use crate::types::PyDict;
+
+        #[pyclass(crate = "crate", subclass, opaque, extends=PyDict)]
+        struct ParentClass {
+            #[allow(unused)]
+            parent_value: u64,
+        }
+
+        #[pyclass(crate = "crate", extends=ParentClass)]
+        struct ChildClass {
+            #[allow(unused)]
+            child_value: String,
+        }
+
+        const_assert!(<ParentClass as PyTypeInfo>::OPAQUE == true);
+        const_assert!(<ChildClass as PyTypeInfo>::OPAQUE == true);
+
+        Python::with_gil(|py| {
+            let obj = Py::new(py, ParentClass { parent_value: 123 }).unwrap();
+            let obj_ptr = obj.as_ptr();
+
+            unsafe {
+                PyObjectLayout::get_contents_ptr::<ChildClass>(
+                    obj_ptr,
+                    TypeObjectStrategy::lazy(py),
+                )
+            };
+        });
+    }
+
+    /// The size in bytes of a [ffi::PyObject] of the type `T`
+    fn get_pyobject_size<T: PyClass>(py: Python<'_>) -> usize {
+        let typ = <T as PyTypeInfo>::type_object(py);
+        let raw_typ = typ.as_ptr().cast::<ffi::PyTypeObject>();
+        let size = unsafe { (*raw_typ).tp_basicsize };
+        usize::try_from(size).expect("size should be a valid usize")
+    }
+
+    /// Create a range from a start and size instead of a start and end
+    fn bytes_range(start: usize, size: usize) -> Range<usize> {
+        Range {
+            start,
+            end: start + size,
+        }
+    }
+}
+
+#[cfg(all(test, not(Py_3_12), feature = "macros"))]
+mod opaque_fail_tests {
+    use crate::{
+        prelude::*,
+        types::{PyDict, PyTuple, PyType},
+        PyTypeInfo,
+    };
+
+    #[pyclass(crate = "crate", extends=PyType)]
+    #[derive(Default)]
+    struct Metaclass;
+
+    #[pymethods(crate = "crate")]
+    impl Metaclass {
+        #[pyo3(signature = (*_args, **_kwargs))]
+        fn __init__(&mut self, _args: &Bound<'_, PyTuple>, _kwargs: Option<&Bound<'_, PyDict>>) {}
+    }
+
+    /// PyType uses the opaque layout. Explicitly using `#[pyclass(opaque)]` can be caught at compile time
+    /// but it is possible to create a pyclass that uses the opaque layout by extending an opaque native type.
+    #[test]
+    #[should_panic(
+        expected = "The opaque object layout (used by pyo3::pycell::layout::opaque_fail_tests::Metaclass) is not supported until python 3.12"
+    )]
+    fn test_panic_at_construction_inherit_opaque() {
+        Python::with_gil(|py| {
+            Py::new(py, Metaclass::default()).unwrap();
+        });
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "The opaque object layout (used by pyo3::pycell::layout::opaque_fail_tests::Metaclass) is not supported until python 3.12"
+    )]
+    fn test_panic_at_type_construction_inherit_opaque() {
+        Python::with_gil(|py| {
+            <Metaclass as PyTypeInfo>::type_object(py);
+        });
     }
 }

@@ -126,6 +126,7 @@ impl_slots! {
     TP_BASE: (Py_tp_base, tp_base) -> *mut ffi::PyTypeObject,
     TP_CLEAR: (Py_tp_clear, tp_clear) -> Option<ffi::inquiry>,
     TP_DESCR_GET: (Py_tp_descr_get, tp_descr_get) -> Option<ffi::descrgetfunc>,
+    TP_DEALLOC: (Py_tp_dealloc, tp_dealloc) -> Option<ffi::destructor>,
     TP_FREE: (Py_tp_free, tp_free) -> Option<ffi::freefunc>,
     TP_TRAVERSE: (Py_tp_traverse, tp_traverse) -> Option<ffi::traverseproc>,
 }

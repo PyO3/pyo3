@@ -1,0 +1,16 @@
+error: #[pyclass(opaque)] requires python 3.12 or later
+ --> tests/ui/invalid_opaque.rs:3:1
+  |
+3 | #[pyclass(opaque)]
+  | ^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0046]: not all trait items implemented, missing: `OPAQUE`
+ --> tests/ui/invalid_opaque.rs:3:1
+  |
+3 | #[pyclass(opaque)]
+  | ^^^^^^^^^^^^^^^^^^ missing `OPAQUE` in implementation
+  |
+  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+  = help: implement the missing item: `const OPAQUE: bool = false;`

@@ -286,16 +286,6 @@ pub unsafe fn _call_traverse<T>(
 where
     T: PyClass,
 {
-    {
-        let py = Python::assume_gil_acquired();
-        // allows functions that traverse the contents of `slf` below to assume that all
-        // the type objects are initialized. Only classes using the opaque layout use
-        // type objects to traverse the object.
-        if T::OPAQUE {
-            PyClassRecursiveOperations::<T>::ensure_type_objects_initialized(py);
-        }
-    }
-
     // It is important the implementation of `__traverse__` cannot safely access the GIL,
     // c.f. https://github.com/PyO3/pyo3/issues/3165, and hence we do not expose our GIL
     // token to the user code and lock safe methods for acquiring the GIL.
@@ -315,8 +305,9 @@ where
     // traversal is running so no mutations can occur.
     let raw_obj = &*slf;
 
-    // SAFETY: type objects for `T` and all base classes of `T` have been initialized
-    // above if they are required.
+    // SAFETY: type objects for `T` and all ancestors of `T` are created the first time an
+    // instance of `T` is created. Since `slf` is an instance of `T` the type objects must
+    // have been created.
     let strategy = TypeObjectStrategy::assume_init();
 
     let retval =
@@ -339,7 +330,6 @@ where
         // `.try_borrow()` above created a borrow, we need to release it when we're done
         // traversing the object. This allows us to read `instance` safely.
         let _guard: TraverseGuard<'_, T> = TraverseGuard(raw_obj, PhantomData);
-        // Safety: type object is manually initialized above
         let instance  = PyObjectLayout::get_data::<T>(raw_obj, strategy);
 
         let visit = PyVisit { visit, arg, _guard: PhantomData };

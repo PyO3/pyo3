@@ -645,20 +645,18 @@ fn access_frozen_class_without_gil() {
     }
 
     let py_counter: Py<FrozenCounter> = Python::with_gil(|py| {
-        Py::<FrozenCounter>::enable_get(py);
-
         let counter = FrozenCounter {
             value: AtomicUsize::new(0),
         };
 
         let cell = Bound::new(py, counter).unwrap();
 
-        unsafe { cell.get().value.fetch_add(1, Ordering::Relaxed) };
+        cell.get().value.fetch_add(1, Ordering::Relaxed);
 
         cell.into()
     });
 
-    assert_eq!(unsafe { py_counter.get().value.load(Ordering::Relaxed) }, 1);
+    assert_eq!(py_counter.get().value.load(Ordering::Relaxed), 1);
 
     Python::with_gil(move |_py| drop(py_counter));
 }

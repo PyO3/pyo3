@@ -163,7 +163,7 @@ impl PyClassBorrowChecker for BorrowChecker {
     }
 
     fn release_borrow_mut(&self) {
-        self.0 .0.store(BorrowFlag::UNUSED, Ordering::Release)
+        self.0.0.store(BorrowFlag::UNUSED, Ordering::Release)
     }
 }
 
@@ -179,7 +179,7 @@ impl<T: PyClassImpl<PyClassMutability = Self> + PyTypeInfo> GetBorrowChecker<T> 
         obj: &'a ffi::PyObject,
         strategy: TypeObjectStrategy<'_>,
     ) -> &'a BorrowChecker {
-        let contents = PyObjectLayout::get_contents::<T>(obj, strategy);
+        let contents = unsafe { PyObjectLayout::get_contents::<T>(obj, strategy) };
         &contents.borrow_checker
     }
 }
@@ -189,7 +189,7 @@ impl<T: PyClassImpl<PyClassMutability = Self> + PyTypeInfo> GetBorrowChecker<T> 
         obj: &'a ffi::PyObject,
         strategy: TypeObjectStrategy<'_>,
     ) -> &'a EmptySlot {
-        let contents = PyObjectLayout::get_contents::<T>(obj, strategy);
+        let contents = unsafe { PyObjectLayout::get_contents::<T>(obj, strategy) };
         &contents.borrow_checker
     }
 }

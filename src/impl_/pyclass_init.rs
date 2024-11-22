@@ -5,13 +5,18 @@ use crate::pycell::layout::{PyClassObjectContents, PyObjectLayout, TypeObjectStr
 use crate::types::PyType;
 use crate::{ffi, Borrowed, PyClass, PyErr, PyResult, Python};
 use crate::{ffi::PyTypeObject, sealed::Sealed, type_object::PyTypeInfo};
+use std::any::TypeId;
 use std::marker::PhantomData;
 
 pub unsafe fn initialize_with_default<T: PyClass + Default>(
     py: Python<'_>,
     obj: *mut ffi::PyObject,
 ) {
-    // TODO(matt): need to initialize all base classes, should be recursive
+    if TypeId::of::<T::BaseNativeType>() != TypeId::of::<T::BaseType>() {
+        // only sets the PyClassContents of the 'most derived type'
+        // so any parent pyclasses would remain uninitialized.
+        panic!("initialize_with_default does not currently support multi-level inheritance");
+    }
     std::ptr::write(
         PyObjectLayout::get_contents_ptr::<T>(obj, TypeObjectStrategy::lazy(py)),
         PyClassObjectContents::new(T::default()),

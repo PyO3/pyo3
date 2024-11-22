@@ -220,12 +220,12 @@ mod inheriting_type {
     }
 
     #[test]
-    fn inherit_type() {
+    fn test_metaclass() {
         Python::with_gil(|py| {
             #[allow(non_snake_case)]
             let Metaclass = py.get_type::<Metaclass>();
 
-            // checking base is `type`
+            // check base type
             py_run!(py, Metaclass, r#"assert Metaclass.__bases__ == (type,)"#);
 
             // check can be used as a metaclass
@@ -281,6 +281,50 @@ mod inheriting_type {
         });
     }
 
+    #[pyclass(subclass, extends=Metaclass)]
+    #[derive(Debug)]
+    struct MetaclassSubclass {
+        subclass_value: String,
+    }
+
+    impl Default for MetaclassSubclass {
+        fn default() -> Self {
+            Self {
+                subclass_value: "foo".to_owned(),
+            }
+        }
+    }
+
+    #[pymethods]
+    impl MetaclassSubclass {
+        #[pyo3(signature = (*_args, **_kwargs))]
+        fn __init__(
+            _slf: Bound<'_, MetaclassSubclass>,
+            _args: Bound<'_, PyTuple>,
+            _kwargs: Option<Bound<'_, PyDict>>,
+        ) {
+        }
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "initialize_with_default does not currently support multi-level inheritance"
+    )]
+    fn test_metaclass_subclass() {
+        Python::with_gil(|py| {
+            #[allow(non_snake_case)]
+            let MetaclassSubclass = py.get_type::<MetaclassSubclass>();
+            py_run!(
+                py,
+                MetaclassSubclass,
+                r#"
+                class Foo(metaclass=MetaclassSubclass):
+                    pass
+                "#
+            );
+        });
+    }
+
     #[test]
     #[should_panic(expected = "Metaclasses must specify __init__")]
     fn inherit_type_missing_init() {
@@ -288,7 +332,7 @@ mod inheriting_type {
 
         #[pyclass(subclass, extends=PyType)]
         #[derive(Debug, Default)]
-        struct MetaclassMissingInit {}
+        struct MetaclassMissingInit;
 
         #[pymethods]
         impl MetaclassMissingInit {}
@@ -316,7 +360,7 @@ mod inheriting_type {
 
         #[pyclass(subclass, extends=PyType)]
         #[derive(Debug, Default)]
-        struct MetaclassWithNew {}
+        struct MetaclassWithNew;
 
         #[pymethods]
         impl MetaclassWithNew {

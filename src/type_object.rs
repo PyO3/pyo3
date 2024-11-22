@@ -56,15 +56,15 @@ pub unsafe trait PyTypeInfo: Sized {
     /// of a new `repr(C)` struct
     const OPAQUE: bool;
 
-    /// Returns the `PyTypeObject` instance for this type.
+    /// Returns the [ffi::PyTypeObject] instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;
 
-    /// Returns the `PyTypeObject` instance for this type if it is known statically or has already
-    /// been initialized (by calling `type_object_raw()`).
+    /// Returns the [ffi::PyTypeObject] instance for this type if it is known statically or has already
+    /// been initialized (by calling [PyTypeInfo::type_object_raw()]).
     ///
     /// # Safety
     /// - It is valid to always return Some.
-    /// - It is not valid to return None once `type_object_raw()` has been called.
+    /// - It is not valid to return None once [PyTypeInfo::type_object_raw()] has been called.
     fn try_get_type_object_raw() -> Option<*mut ffi::PyTypeObject>;
 
     /// Returns the safe abstraction over the type object.

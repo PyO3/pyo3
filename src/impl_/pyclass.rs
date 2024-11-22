@@ -1,3 +1,5 @@
+#[cfg(Py_3_12)]
+use crate::pycell::layout::TypeObjectStrategy;
 use crate::{
     conversion::IntoPyObject,
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
@@ -9,7 +11,7 @@ use crate::{
         pymethods::{PyGetterDef, PyMethodDefType},
     },
     pycell::{
-        layout::{PyObjectLayout, PyObjectRecursiveOperations, TypeObjectStrategy},
+        layout::{usize_to_py_ssize, PyObjectLayout, PyObjectRecursiveOperations},
         PyBorrowError,
     },
     type_object::PyLayout,
@@ -1188,7 +1190,7 @@ pub(crate) unsafe extern "C" fn assign_sequence_item_from_mapping(
 }
 
 /// Offset of a field within a PyObject in bytes.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PyObjectOffset {
     /// An offset relative to the start of the object
     Absolute(ffi::Py_ssize_t),
@@ -1202,10 +1204,7 @@ impl std::ops::Add<usize> for PyObjectOffset {
     type Output = PyObjectOffset;
 
     fn add(self, rhs: usize) -> Self::Output {
-        // Py_ssize_t may not be equal to isize on all platforms
-        #[allow(clippy::useless_conversion)]
-        let rhs: ffi::Py_ssize_t = rhs.try_into().expect("offset should fit in Py_ssize_t");
-
+        let rhs = usize_to_py_ssize(rhs);
         match self {
             PyObjectOffset::Absolute(offset) => PyObjectOffset::Absolute(offset + rhs),
             PyObjectOffset::Relative(offset) => PyObjectOffset::Relative(offset + rhs),
@@ -1553,6 +1552,7 @@ where
         }
         #[cfg(not(Py_3_12))]
         PyObjectOffset::Relative(_) => {
+            let _ = py;
             panic!("relative offsets not valid before python 3.12");
         }
     };

@@ -122,7 +122,8 @@ The easiest way to configure the python version is to install with the system pa
 `Py_LIMITED_API` can be controlled with the `abi3` feature of the `pyo3` crate:
 
 ```
-PYO3_PYTHON=/path/to/python cargo nextest run --package pyo3 --features abi3 ...
+LD_LIBRARY_PATH=<python_path>/lib PYO3_PYTHON=<python_path>/bin/python \
+    cargo nextest run --package pyo3 --features abi3 ...
 ```
 
 use the `PYO3_PRINT_CONFIG=1` to check the identified configuration.

@@ -1196,6 +1196,7 @@ fn impl_complex_enum_variant_match_args(
             quote! { &'static str }
         });
         parse_quote! {
+            #[allow(non_upper_case_globals)]
             const __match_args__: ( #(#args_tp,)* ) = (
                 #(stringify!(#field_names),)*
             );
@@ -1813,16 +1814,25 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
     };
 
     let opaque = if attr.options.opaque.is_some() {
-        quote! { true }
+        quote! {
+            #[cfg(Py_3_12)]
+            const OPAQUE: bool = true;
+
+            #[cfg(not(Py_3_12))]
+            ::core::compile_error!("#[pyclass(opaque)] requires python 3.12 or later");
+        }
     } else {
-        quote! { <<#cls as #pyo3_path::impl_::pyclass::PyClassImpl>::BaseType as #pyo3_path::type_object::PyTypeInfo>::OPAQUE }
+        // if opaque is not supported an error will be raised at construction
+        quote! {
+            const OPAQUE: bool = <<#cls as #pyo3_path::impl_::pyclass::PyClassImpl>::BaseType as #pyo3_path::type_object::PyTypeInfo>::OPAQUE;
+        }
     };
 
     quote! {
         unsafe impl #pyo3_path::type_object::PyTypeInfo for #cls {
             const NAME: &'static str = #cls_name;
             const MODULE: ::std::option::Option<&'static str> = #module;
-            const OPAQUE: bool = #opaque;
+            #opaque
 
             #[inline]
             fn type_object_raw(py: #pyo3_path::Python<'_>) -> *mut #pyo3_path::ffi::PyTypeObject {
