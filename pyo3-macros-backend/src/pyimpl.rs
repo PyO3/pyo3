@@ -213,10 +213,7 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec, ctx: &Ctx) -> MethodAndMe
 
     let associated_method = quote! {
         fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
-            #pyo3_path::IntoPyObject::into_pyobject(#cls::#member, py)
-                .map(#pyo3_path::BoundObject::into_any)
-                .map(#pyo3_path::BoundObject::unbind)
-                .map_err(::std::convert::Into::into)
+            #pyo3_path::IntoPyObjectExt::into_py_any(#cls::#member, py)
         }
     };
 

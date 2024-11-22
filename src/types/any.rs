@@ -11,7 +11,7 @@ use crate::type_object::{PyTypeCheck, PyTypeInfo};
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
-use crate::{err, ffi, Borrowed, BoundObject, Python};
+use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
@@ -924,11 +924,7 @@ macro_rules! implement_binop {
             let py = self.py();
             inner(
                 self,
-                other
-                    .into_pyobject(py)
-                    .map_err(Into::into)?
-                    .into_any()
-                    .as_borrowed(),
+                other.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
             )
         }
     };
@@ -998,15 +994,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            attr_name
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .as_borrowed(),
-            value
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            attr_name.into_pyobject_or_pyerr(py)?.as_borrowed(),
+            value.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -1021,13 +1010,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(
-            self,
-            attr_name
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .as_borrowed(),
-        )
+        inner(self, attr_name.into_pyobject_or_pyerr(py)?.as_borrowed())
     }
 
     fn compare<O>(&self, other: O) -> PyResult<Ordering>
@@ -1059,11 +1042,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            other
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            other.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -1085,11 +1064,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            other
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            other.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
             compare_op,
         )
     }
@@ -1200,11 +1175,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            other
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            other.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -1229,16 +1200,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            other
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
-            modulus
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            other.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
+            modulus.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -1266,11 +1229,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(
-            self,
-            args.into_pyobject(py).map_err(Into::into)?.as_borrowed(),
-            kwargs,
-        )
+        inner(self, args.into_pyobject_or_pyerr(py)?.as_borrowed(), kwargs)
     }
 
     #[inline]
@@ -1306,7 +1265,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         N: IntoPyObject<'py, Target = PyString>,
     {
         let py = self.py();
-        let name = name.into_pyobject(py).map_err(Into::into)?.into_bound();
+        let name = name.into_pyobject_or_pyerr(py)?.into_bound();
         unsafe {
             ffi::compat::PyObject_CallMethodNoArgs(self.as_ptr(), name.as_ptr())
                 .assume_owned_or_err(py)
@@ -1356,10 +1315,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            key.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -1381,15 +1337,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            key.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
-            value
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
+            value.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -1406,10 +1355,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            key.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -1576,11 +1522,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            value
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            value.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 

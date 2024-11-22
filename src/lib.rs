@@ -334,7 +334,7 @@
 #![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features Reference - PyO3 user guide\"")]
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
-pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPyObject};
+pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPyObject, IntoPyObjectExt};
 #[allow(deprecated)]
 pub use crate::conversion::{IntoPy, ToPyObject};
 pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
@@ -457,7 +457,9 @@ mod version;
 pub use crate::conversions::*;
 
 #[cfg(feature = "macros")]
-pub use pyo3_macros::{pyfunction, pymethods, pymodule, FromPyObject, IntoPyObject};
+pub use pyo3_macros::{
+    pyfunction, pymethods, pymodule, FromPyObject, IntoPyObject, IntoPyObjectRef,
+};
 
 /// A proc macro used to expose Rust structs and fieldless enums as Python objects.
 ///
@@ -504,6 +506,7 @@ pub mod doc_test {
         "guide/src/class/object.md" => guide_class_object,
         "guide/src/class/numeric.md" => guide_class_numeric,
         "guide/src/class/protocols.md" => guide_class_protocols_md,
+        "guide/src/class/thread-safety.md" => guide_class_thread_safety_md,
         "guide/src/conversions.md" => guide_conversions_md,
         "guide/src/conversions/tables.md" => guide_conversions_tables_md,
         "guide/src/conversions/traits.md" => guide_conversions_traits_md,

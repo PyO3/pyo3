@@ -162,6 +162,17 @@ error: The format string syntax cannot be used with enums
 171 | #[pyclass(eq, str = "Stuff...")]
     |                     ^^^^^^^^^^
 
+error[E0119]: conflicting implementations of trait `HasCustomRichCmp` for type `EqOptAndManualRichCmp`
+  --> tests/ui/invalid_pyclass_args.rs:41:1
+   |
+37 | #[pyclass(eq)]
+   | -------------- first implementation here
+...
+41 | #[pymethods]
+   | ^^^^^^^^^^^^ conflicting implementation for `EqOptAndManualRichCmp`
+   |
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
   --> tests/ui/invalid_pyclass_args.rs:37:1
    |

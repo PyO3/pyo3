@@ -9,7 +9,10 @@ use crate::py_result_ext::PyResultExt;
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{any::PyAnyMethods, PyAny, PyList, PyString, PyTuple, PyType};
-use crate::{ffi, Borrowed, BoundObject, FromPyObject, IntoPyObject, Py, PyTypeCheck, Python};
+use crate::{
+    ffi, Borrowed, BoundObject, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyTypeCheck,
+    Python,
+};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 ///
@@ -221,10 +224,7 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
         inner(
             self,
             i,
-            item.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            item.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -269,11 +269,7 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
         let py = self.py();
         inner(
             self,
-            value
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            value.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -294,11 +290,7 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
         let py = self.py();
         inner(
             self,
-            value
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            value.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -316,11 +308,7 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
         let py = self.py();
         inner(
             self,
-            value
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            value.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 

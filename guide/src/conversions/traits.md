@@ -490,8 +490,10 @@ If the input is neither a string nor an integer, the error message will be:
     - the function signature must be `fn(&Bound<PyAny>) -> PyResult<T>` where `T` is the Rust type of the argument.
 
 ### `IntoPyObject`
-This trait defines the to-python conversion for a Rust type. All types in PyO3 implement this trait,
+The ['IntoPyObject'] trait defines the to-python conversion for a Rust type. All types in PyO3 implement this trait,
 as does a `#[pyclass]` which doesn't use `extends`.
+
+This trait defines a single method, `into_pyobject()`, which returns a [`Result`] with `Ok` and `Err` types depending on the input value. For convenience, there is a companion [`IntoPyObjectExt`] trait which adds methods such as `into_py_any()` which converts the `Ok` and `Err` types to commonly used types (in the case of `into_py_any()`, `Py<PyAny>` and `PyErr` respectively).
 
 Occasionally you may choose to implement this for custom types which are mapped to Python types
 _without_ having a unique python type.
@@ -510,7 +512,7 @@ into `PyTuple` with the fields in declaration order.
 
 // structs convert into `PyDict` with field names as keys
 #[derive(IntoPyObject)]
-struct Struct { 
+struct Struct {
     count: usize,
     obj: Py<PyAny>,
 }
@@ -532,11 +534,11 @@ forward the implementation to the inner type.
 
 // newtype tuple structs are implicitly `transparent`
 #[derive(IntoPyObject)]
-struct TransparentTuple(PyObject); 
+struct TransparentTuple(PyObject);
 
 #[derive(IntoPyObject)]
 #[pyo3(transparent)]
-struct TransparentStruct<'py> { 
+struct TransparentStruct<'py> {
     inner: Bound<'py, PyAny>, // `'py` lifetime will be used as the Python lifetime
 }
 ```
@@ -559,6 +561,9 @@ enum Enum<'a, 'py, K: Hash + Eq, V> { // enums are supported and convert using t
 }
 ```
 
+Additionally `IntoPyObject` can be derived for a reference to a struct or enum using the
+`IntoPyObjectRef` derive macro. All the same rules from above apply as well.
+
 #### manual implementation
 
 If the derive macro is not suitable for your use case, `IntoPyObject` can be implemented manually as
@@ -579,7 +584,7 @@ impl<'py> IntoPyObject<'py> for MyPyObjectWrapper {
     }
 }
 
-// equivalent to former `ToPyObject` implementations 
+// equivalent to former `ToPyObject` implementations
 impl<'a, 'py> IntoPyObject<'py> for &'a MyPyObjectWrapper {
     type Target = PyAny;
     type Output = Borrowed<'a, 'py, Self::Target>; // `Borrowed` can be used to optimized reference counting
@@ -590,6 +595,75 @@ impl<'a, 'py> IntoPyObject<'py> for &'a MyPyObjectWrapper {
     }
 }
 ```
+
+#### `BoundObject` for conversions that may be `Bound` or `Borrowed`
+
+`IntoPyObject::into_py_object` returns either `Bound` or `Borrowed` depending on the implementation for a concrete type. For example, the `IntoPyObject` implementation for `u32` produces a `Bound<'py, PyInt>` and the `bool` implementation produces a `Borrowed<'py, 'py, PyBool>`:
+
+```rust
+use pyo3::prelude::*;
+use pyo3::IntoPyObject;
+use pyo3::types::{PyBool, PyInt};
+
+let ints: Vec<u32> = vec![1, 2, 3, 4];
+let bools = vec![true, false, false, true];
+
+Python::with_gil(|py| {
+    let ints_as_pyint: Vec<Bound<'_, PyInt>> = ints
+        .iter()
+        .map(|x| Ok(x.into_pyobject(py)?))
+        .collect::<PyResult<_>>()
+        .unwrap();
+
+    let bools_as_pybool: Vec<Borrowed<'_, '_, PyBool>> = bools
+        .iter()
+        .map(|x| Ok(x.into_pyobject(py)?))
+        .collect::<PyResult<_>>()
+        .unwrap();
+});
+```
+
+In this example if we wanted to combine `ints_as_pyints` and `bools_as_pybool` into a single `Vec<Py<PyAny>>` to return from the `with_gil` closure, we would have to manually convert the concrete types for the smart pointers and the python types.
+
+Instead, we can write a function that generically converts vectors of either integers or bools into a vector of `Py<PyAny>` using the [`BoundObject`] trait:
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::BoundObject;
+# use pyo3::IntoPyObject;
+
+# let bools = vec![true, false, false, true];
+# let ints = vec![1, 2, 3, 4];
+
+fn convert_to_vec_of_pyobj<'py, T>(py: Python<'py>, the_vec: Vec<T>) -> PyResult<Vec<Py<PyAny>>>
+where
+   T: IntoPyObject<'py> + Copy
+{
+    the_vec.iter()
+        .map(|x| {
+            Ok(
+                // Note: the below is equivalent to `x.into_py_any()`
+                // from the `IntoPyObjectExt` trait
+                x.into_pyobject(py)
+                .map_err(Into::into)?
+                .into_any()
+                .unbind()
+            )
+        })
+        .collect()
+}
+
+let vec_of_pyobjs: Vec<Py<PyAny>> = Python::with_gil(|py| {
+    let mut bools_as_pyany = convert_to_vec_of_pyobj(py, bools).unwrap();
+    let mut ints_as_pyany = convert_to_vec_of_pyobj(py, ints).unwrap();
+    let mut result: Vec<Py<PyAny>> = vec![];
+    result.append(&mut bools_as_pyany);
+    result.append(&mut ints_as_pyany);
+    result
+});
+```
+
+In the example above we used `BoundObject::into_any` and `BoundObject::unbind` to manipulate the python types and smart pointers into the result type we wanted to produce from the function.
 
 ### `IntoPy<T>`
 
@@ -640,7 +714,12 @@ same purpose, except that it consumes `self`.
 [`IntoPy`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.IntoPy.html
 [`FromPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.FromPyObject.html
 [`ToPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.ToPyObject.html
+[`IntoPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.IntoPyObject.html
+[`IntoPyObjectExt`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.IntoPyObjectExt.html
 [`PyObject`]: {{#PYO3_DOCS_URL}}/pyo3/type.PyObject.html
 
 [`PyRef`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
 [`PyRefMut`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRefMut.html
+[`BoundObject`]: {{#PYO3_DOCS_URL}}/pyo3/instance/trait.BoundObject.html
+
+[`Result`]: https://doc.rust-lang.org/stable/std/result/enum.Result.html

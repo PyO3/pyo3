@@ -28,7 +28,7 @@ fn double(x: i32) -> i32 {
     x * 2
 }
 
-#[pymodule]
+#[pymodule(gil_used = false)]
 pub fn othermod(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(double, m)?)?;
 

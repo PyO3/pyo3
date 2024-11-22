@@ -17,7 +17,7 @@ pub mod pyfunctions;
 pub mod sequence;
 pub mod subclassing;
 
-#[pymodule]
+#[pymodule(gil_used = false)]
 fn pyo3_pytests(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(awaitable::awaitable))?;
     #[cfg(not(Py_LIMITED_API))]

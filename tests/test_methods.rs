@@ -290,7 +290,7 @@ impl MethSignature {
             kwargs.into_pyobject(py)?.into_any().into_bound(),
         ]
         .into_pyobject(py)
-        .map(BoundObject::unbind)
+        .map(Bound::unbind)
     }
 
     #[pyo3(signature = (a=0, /, **kwargs))]
@@ -305,7 +305,7 @@ impl MethSignature {
             kwargs.into_pyobject(py)?.into_any().into_bound(),
         ]
         .into_pyobject(py)
-        .map(BoundObject::unbind)
+        .map(Bound::unbind)
     }
 
     #[pyo3(signature = (*, a = 2, b = 3))]
@@ -333,7 +333,7 @@ impl MethSignature {
         (args, a)
             .into_pyobject(py)
             .map(BoundObject::into_any)
-            .map(BoundObject::unbind)
+            .map(Bound::unbind)
     }
 
     #[pyo3(signature = (a, b = 2, *, c = 3))]
@@ -358,7 +358,7 @@ impl MethSignature {
             kwargs.into_pyobject(py)?.into_any().into_bound(),
         ]
         .into_pyobject(py)
-        .map(BoundObject::unbind)
+        .map(Bound::unbind)
     }
 
     // "args" can be anything that can be extracted from PyTuple

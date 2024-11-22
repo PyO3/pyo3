@@ -1070,7 +1070,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 ///
 /// # A note on `Send` and `Sync`
 ///
-/// Accessing this object is threadsafe, since any access to its API requires a [`Python<'py>`](crate::Python) token.
+/// Accessing this object is thread-safe, since any access to its API requires a [`Python<'py>`](crate::Python) token.
 /// As you can only get this by acquiring the GIL, `Py<...>` implements [`Send`] and [`Sync`].
 ///
 /// [`Rc`]: std::rc::Rc
@@ -1482,7 +1482,7 @@ impl<T> Py<T> {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, IntoPyObject, PyObject, Python, PyResult};
+    /// # use pyo3::{intern, pyfunction, types::PyModule, IntoPyObjectExt, PyObject, Python, PyResult};
     /// #
     /// #[pyfunction]
     /// fn set_answer(ob: PyObject, py: Python<'_>) -> PyResult<()> {
@@ -1490,7 +1490,7 @@ impl<T> Py<T> {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let ob = PyModule::new(py, "empty").unwrap().into_pyobject(py).unwrap().into_any().unbind();
+    /// #    let ob = PyModule::new(py, "empty").unwrap().into_py_any(py).unwrap();
     /// #    set_answer(ob, py).unwrap();
     /// # });
     /// ```

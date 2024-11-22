@@ -4,7 +4,7 @@ use pyo3::{
     wrap_pyfunction, Bound, PyResult,
 };
 
-#[pymodule]
+#[pymodule(gil_used = false)]
 pub fn enums(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<SimpleEnum>()?;
     m.add_class::<ComplexEnum>()?;

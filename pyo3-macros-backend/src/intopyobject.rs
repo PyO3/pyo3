@@ -164,10 +164,17 @@ impl FieldAttributes {
     }
 }
 
+enum IntoPyObjectTypes {
+    Transparent(syn::Type),
+    Opaque {
+        target: TokenStream,
+        output: TokenStream,
+        error: TokenStream,
+    },
+}
+
 struct IntoPyObjectImpl {
-    target: TokenStream,
-    output: TokenStream,
-    error: TokenStream,
+    types: IntoPyObjectTypes,
     body: TokenStream,
 }
 
@@ -351,12 +358,10 @@ impl<'a> Container<'a> {
             .unwrap_or_default();
 
         IntoPyObjectImpl {
-            target: quote! {<#ty as #pyo3_path::conversion::IntoPyObject<'py>>::Target},
-            output: quote! {<#ty as #pyo3_path::conversion::IntoPyObject<'py>>::Output},
-            error: quote! {<#ty as #pyo3_path::conversion::IntoPyObject<'py>>::Error},
+            types: IntoPyObjectTypes::Transparent(ty.clone()),
             body: quote_spanned! { ty.span() =>
                 #unpack
-                <#ty as #pyo3_path::conversion::IntoPyObject<'py>>::into_pyobject(arg0, py)
+                #pyo3_path::conversion::IntoPyObject::into_pyobject(arg0, py)
             },
         }
     }
@@ -391,9 +396,11 @@ impl<'a> Container<'a> {
             .collect::<TokenStream>();
 
         IntoPyObjectImpl {
-            target: quote!(#pyo3_path::types::PyDict),
-            output: quote!(#pyo3_path::Bound<'py, Self::Target>),
-            error: quote!(#pyo3_path::PyErr),
+            types: IntoPyObjectTypes::Opaque {
+                target: quote!(#pyo3_path::types::PyDict),
+                output: quote!(#pyo3_path::Bound<'py, Self::Target>),
+                error: quote!(#pyo3_path::PyErr),
+            },
             body: quote! {
                 #unpack
                 let dict = #pyo3_path::types::PyDict::new(py);
@@ -419,10 +426,9 @@ impl<'a> Container<'a> {
             .iter()
             .enumerate()
             .map(|(i, f)| {
-                let ty = &f.field.ty;
                 let value = Ident::new(&format!("arg{i}"), f.field.ty.span());
                 quote_spanned! { f.field.ty.span() =>
-                    <#ty as #pyo3_path::conversion::IntoPyObject>::into_pyobject(#value, py)
+                    #pyo3_path::conversion::IntoPyObject::into_pyobject(#value, py)
                         .map(#pyo3_path::BoundObject::into_any)
                         .map(#pyo3_path::BoundObject::into_bound)?,
                 }
@@ -430,9 +436,11 @@ impl<'a> Container<'a> {
             .collect::<TokenStream>();
 
         IntoPyObjectImpl {
-            target: quote!(#pyo3_path::types::PyTuple),
-            output: quote!(#pyo3_path::Bound<'py, Self::Target>),
-            error: quote!(#pyo3_path::PyErr),
+            types: IntoPyObjectTypes::Opaque {
+                target: quote!(#pyo3_path::types::PyTuple),
+                output: quote!(#pyo3_path::Bound<'py, Self::Target>),
+                error: quote!(#pyo3_path::PyErr),
+            },
             body: quote! {
                 #unpack
                 #pyo3_path::types::PyTuple::new(py, [#setter])
@@ -502,9 +510,11 @@ impl<'a> Enum<'a> {
             .collect::<TokenStream>();
 
         IntoPyObjectImpl {
-            target: quote!(#pyo3_path::types::PyAny),
-            output: quote!(#pyo3_path::Bound<'py, Self::Target>),
-            error: quote!(#pyo3_path::PyErr),
+            types: IntoPyObjectTypes::Opaque {
+                target: quote!(#pyo3_path::types::PyAny),
+                output: quote!(#pyo3_path::Bound<'py, Self::Target>),
+                error: quote!(#pyo3_path::PyErr),
+            },
             body: quote! {
                 match self {
                     #variants
@@ -520,13 +530,16 @@ fn verify_and_get_lifetime(generics: &syn::Generics) -> Option<&syn::LifetimePar
     lifetimes.find(|l| l.lifetime.ident == "py")
 }
 
-pub fn build_derive_into_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
+pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Result<TokenStream> {
     let options = ContainerOptions::from_attrs(&tokens.attrs)?;
     let ctx = &Ctx::new(&options.krate, None);
     let Ctx { pyo3_path, .. } = &ctx;
 
     let (_, ty_generics, _) = tokens.generics.split_for_impl();
     let mut trait_generics = tokens.generics.clone();
+    if REF {
+        trait_generics.params.push(parse_quote!('_a));
+    }
     let lt_param = if let Some(lt) = verify_and_get_lifetime(&trait_generics) {
         lt.clone()
     } else {
@@ -538,17 +551,14 @@ pub fn build_derive_into_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
     let mut where_clause = where_clause.cloned().unwrap_or_else(|| parse_quote!(where));
     for param in trait_generics.type_params() {
         let gen_ident = &param.ident;
-        where_clause
-            .predicates
-            .push(parse_quote!(#gen_ident: #pyo3_path::conversion::IntoPyObject<'py>))
+        where_clause.predicates.push(if REF {
+            parse_quote!(&'_a #gen_ident: #pyo3_path::conversion::IntoPyObject<'py>)
+        } else {
+            parse_quote!(#gen_ident: #pyo3_path::conversion::IntoPyObject<'py>)
+        })
     }
 
-    let IntoPyObjectImpl {
-        target,
-        output,
-        error,
-        body,
-    } = match &tokens.data {
+    let IntoPyObjectImpl { types, body } = match &tokens.data {
         syn::Data::Enum(en) => {
             if options.transparent.is_some() {
                 bail_spanned!(tokens.span() => "`transparent` is not supported at top level for enums");
@@ -571,7 +581,35 @@ pub fn build_derive_into_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
         ),
     };
 
+    let (target, output, error) = match types {
+        IntoPyObjectTypes::Transparent(ty) => {
+            if REF {
+                (
+                    quote! { <&'_a #ty as #pyo3_path::IntoPyObject<'py>>::Target },
+                    quote! { <&'_a #ty as #pyo3_path::IntoPyObject<'py>>::Output },
+                    quote! { <&'_a #ty as #pyo3_path::IntoPyObject<'py>>::Error },
+                )
+            } else {
+                (
+                    quote! { <#ty as #pyo3_path::IntoPyObject<'py>>::Target },
+                    quote! { <#ty as #pyo3_path::IntoPyObject<'py>>::Output },
+                    quote! { <#ty as #pyo3_path::IntoPyObject<'py>>::Error },
+                )
+            }
+        }
+        IntoPyObjectTypes::Opaque {
+            target,
+            output,
+            error,
+        } => (target, output, error),
+    };
+
     let ident = &tokens.ident;
+    let ident = if REF {
+        quote! { &'_a #ident}
+    } else {
+        quote! { #ident }
+    };
     Ok(quote!(
         #[automatically_derived]
         impl #impl_generics #pyo3_path::conversion::IntoPyObject<#lt_param> for #ident #ty_generics #where_clause {

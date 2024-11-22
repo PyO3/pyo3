@@ -15,7 +15,7 @@ use crate::{
     exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
     panic::PanicException,
     types::{string::PyStringMethods, PyIterator, PyString},
-    Bound, BoundObject, IntoPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    Bound, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyObject, PyResult, Python,
 };
 
 pub(crate) mod cancel;
@@ -34,6 +34,10 @@ pub struct Coroutine {
     future: Option<Pin<Box<dyn Future<Output = PyResult<PyObject>> + Send>>>,
     waker: Option<Arc<AsyncioWaker>>,
 }
+
+// Safety: `Coroutine` is allowed to be `Sync` even though the future is not,
+// because the future is polled with `&mut self` receiver
+unsafe impl Sync for Coroutine {}
 
 impl Coroutine {
     ///  Wrap a future into a Python coroutine.
@@ -56,10 +60,7 @@ impl Coroutine {
         let wrap = async move {
             let obj = future.await.map_err(Into::into)?;
             // SAFETY: GIL is acquired when future is polled (see `Coroutine::poll`)
-            obj.into_pyobject(unsafe { Python::assume_gil_acquired() })
-                .map(BoundObject::into_any)
-                .map(BoundObject::unbind)
-                .map_err(Into::into)
+            obj.into_py_any(unsafe { Python::assume_gil_acquired() })
         };
         Self {
             name: name.map(Bound::unbind),
@@ -133,14 +134,13 @@ impl Coroutine {
     }
 
     #[getter]
-    fn __qualname__(&self, py: Python<'_>) -> PyResult<Py<PyString>> {
+    fn __qualname__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyString>> {
         match (&self.name, &self.qualname_prefix) {
-            (Some(name), Some(prefix)) => format!("{}.{}", prefix, name.bind(py).to_cow()?)
-                .as_str()
-                .into_pyobject(py)
-                .map(BoundObject::unbind)
-                .map_err(Into::into),
-            (Some(name), None) => Ok(name.clone_ref(py)),
+            (Some(name), Some(prefix)) => Ok(PyString::new(
+                py,
+                &format!("{}.{}", prefix, name.bind(py).to_cow()?),
+            )),
+            (Some(name), None) => Ok(name.bind(py).clone()),
             (None, _) => Err(PyAttributeError::new_err("__qualname__")),
         }
     }

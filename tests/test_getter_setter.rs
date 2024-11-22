@@ -217,7 +217,7 @@ fn get_all_and_set() {
     });
 }
 
-#[pyclass]
+#[pyclass(unsendable)]
 struct CellGetterSetter {
     #[pyo3(get, set)]
     cell_inner: Cell<i32>,

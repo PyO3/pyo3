@@ -1191,6 +1191,7 @@ fn impl_complex_enum_variant_match_args(
     variant_cls_type: &syn::Type,
     field_names: &mut Vec<Ident>,
 ) -> (MethodAndMethodDef, syn::ImplItemConst) {
+    let ident = format_ident!("__match_args__");
     let match_args_const_impl: syn::ImplItemConst = {
         let args_tp = field_names.iter().map(|_| {
             quote! { &'static str }
@@ -1204,7 +1205,7 @@ fn impl_complex_enum_variant_match_args(
     };
 
     let spec = ConstSpec {
-        rust_ident: format_ident!("__match_args__"),
+        rust_ident: ident,
         attributes: ConstAttributes {
             is_class_attr: true,
             name: None,
@@ -1239,9 +1240,16 @@ fn impl_complex_enum_struct_variant_cls(
             complex_enum_variant_field_getter(&variant_cls_type, field_name, field.span, ctx)?;
 
         let field_getter_impl = quote! {
-            fn #field_name(slf: #pyo3_path::PyRef<Self>) -> #pyo3_path::PyResult<#field_type> {
+            fn #field_name(slf: #pyo3_path::PyRef<Self>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+                #[allow(unused_imports)]
+                use #pyo3_path::impl_::pyclass::Probe;
+                let py = slf.py();
                 match &*slf.into_super() {
-                    #enum_name::#variant_ident { #field_name, .. } => ::std::result::Result::Ok(::std::clone::Clone::clone(&#field_name)),
+                    #enum_name::#variant_ident { #field_name, .. } =>
+                        #pyo3_path::impl_::pyclass::ConvertField::<
+                            { #pyo3_path::impl_::pyclass::IsIntoPyObjectRef::<#field_type>::VALUE },
+                            { #pyo3_path::impl_::pyclass::IsIntoPyObject::<#field_type>::VALUE },
+                        >::convert_field::<#field_type>(#field_name, py),
                     _ => ::core::unreachable!("Wrong complex enum variant found in variant wrapper PyClass"),
                 }
             }
@@ -1308,9 +1316,16 @@ fn impl_complex_enum_tuple_variant_field_getters(
             })
             .collect();
         let field_getter_impl: syn::ImplItemFn = parse_quote! {
-            fn #field_name(slf: #pyo3_path::PyRef<Self>) -> #pyo3_path::PyResult<#field_type> {
+            fn #field_name(slf: #pyo3_path::PyRef<Self>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+                #[allow(unused_imports)]
+                use #pyo3_path::impl_::pyclass::Probe;
+                let py = slf.py();
                 match &*slf.into_super() {
-                    #enum_name::#variant_ident ( #(#field_access_tokens), *) => ::std::result::Result::Ok(::std::clone::Clone::clone(&val)),
+                    #enum_name::#variant_ident ( #(#field_access_tokens), *) =>
+                        #pyo3_path::impl_::pyclass::ConvertField::<
+                            { #pyo3_path::impl_::pyclass::IsIntoPyObjectRef::<#field_type>::VALUE },
+                            { #pyo3_path::impl_::pyclass::IsIntoPyObject::<#field_type>::VALUE },
+                        >::convert_field::<#field_type>(val, py),
                     _ => ::core::unreachable!("Wrong complex enum variant found in variant wrapper PyClass"),
                 }
             }
@@ -1357,10 +1372,7 @@ fn impl_complex_enum_tuple_variant_getitem(
         .map(|i| {
             let field_access = format_ident!("_{}", i);
             quote! { #i =>
-                #pyo3_path::IntoPyObject::into_pyobject(#variant_cls::#field_access(slf)?, py)
-                    .map(#pyo3_path::BoundObject::into_any)
-                    .map(#pyo3_path::BoundObject::unbind)
-                    .map_err(::std::convert::Into::into)
+                #pyo3_path::IntoPyObjectExt::into_py_any(#variant_cls::#field_access(slf)?, py)
             }
         })
         .collect();
@@ -1864,16 +1876,10 @@ fn pyclass_richcmp_arms(
         .map(|span| {
             quote_spanned! { span =>
                 #pyo3_path::pyclass::CompareOp::Eq => {
-                    #pyo3_path::IntoPyObject::into_pyobject(self_val == other, py)
-                        .map(#pyo3_path::BoundObject::into_any)
-                        .map(#pyo3_path::BoundObject::unbind)
-                        .map_err(::std::convert::Into::into)
+                    #pyo3_path::IntoPyObjectExt::into_py_any(self_val == other, py)
                 },
                 #pyo3_path::pyclass::CompareOp::Ne => {
-                    #pyo3_path::IntoPyObject::into_pyobject(self_val != other, py)
-                        .map(#pyo3_path::BoundObject::into_any)
-                        .map(#pyo3_path::BoundObject::unbind)
-                        .map_err(::std::convert::Into::into)
+                    #pyo3_path::IntoPyObjectExt::into_py_any(self_val != other, py)
                 },
             }
         })
@@ -1888,28 +1894,16 @@ fn pyclass_richcmp_arms(
         .map(|ord| {
             quote_spanned! { ord.span() =>
                 #pyo3_path::pyclass::CompareOp::Gt => {
-                    #pyo3_path::IntoPyObject::into_pyobject(self_val > other, py)
-                        .map(#pyo3_path::BoundObject::into_any)
-                        .map(#pyo3_path::BoundObject::unbind)
-                        .map_err(::std::convert::Into::into)
+                    #pyo3_path::IntoPyObjectExt::into_py_any(self_val > other, py)
                 },
                 #pyo3_path::pyclass::CompareOp::Lt => {
-                    #pyo3_path::IntoPyObject::into_pyobject(self_val < other, py)
-                        .map(#pyo3_path::BoundObject::into_any)
-                        .map(#pyo3_path::BoundObject::unbind)
-                        .map_err(::std::convert::Into::into)
+                    #pyo3_path::IntoPyObjectExt::into_py_any(self_val < other, py)
                  },
                 #pyo3_path::pyclass::CompareOp::Le => {
-                    #pyo3_path::IntoPyObject::into_pyobject(self_val <= other, py)
-                        .map(#pyo3_path::BoundObject::into_any)
-                        .map(#pyo3_path::BoundObject::unbind)
-                        .map_err(::std::convert::Into::into)
+                    #pyo3_path::IntoPyObjectExt::into_py_any(self_val <= other, py)
                  },
                 #pyo3_path::pyclass::CompareOp::Ge => {
-                    #pyo3_path::IntoPyObject::into_pyobject(self_val >= other, py)
-                        .map(#pyo3_path::BoundObject::into_any)
-                        .map(#pyo3_path::BoundObject::unbind)
-                        .map_err(::std::convert::Into::into)
+                    #pyo3_path::IntoPyObjectExt::into_py_any(self_val >= other, py)
                  },
             }
         })
@@ -1936,12 +1930,7 @@ fn pyclass_richcmp_simple_enum(
     let deprecation = (options.eq_int.is_none() && options.eq.is_none())
         .then(|| {
             quote! {
-                #[deprecated(
-                    since = "0.22.0",
-                    note = "Implicit equality for simple enums is deprecated. Use `#[pyclass(eq, eq_int)]` to keep the current behavior."
-                )]
-                const DEPRECATION: () = ();
-                const _: () = DEPRECATION;
+                let _ = #pyo3_path::impl_::pyclass::DeprecationTest::<#cls>::new().autogenerated_equality();
             }
         })
         .unwrap_or_default();
@@ -2338,7 +2327,21 @@ impl<'a> PyClassImplsBuilder<'a> {
             }
         });
 
+        let assertions = if attr.options.unsendable.is_some() {
+            TokenStream::new()
+        } else {
+            let assert = quote_spanned! { cls.span() => assert_pyclass_sync::<#cls>(); };
+            quote! {
+                const _: () = {
+                    use #pyo3_path::impl_::pyclass::*;
+                    #assert
+                };
+            }
+        };
+
         Ok(quote! {
+            #assertions
+
             #pyclass_base_type_impl
 
             impl #pyo3_path::impl_::pyclass::PyClassImpl for #cls {

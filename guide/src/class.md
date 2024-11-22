@@ -73,7 +73,7 @@ The above example generates implementations for [`PyTypeInfo`] and [`PyClass`] f
 
 ### Restrictions
 
-To integrate Rust types with Python, PyO3 needs to place some restrictions on the types which can be annotated with `#[pyclass]`. In particular, they must have no lifetime parameters, no generic parameters, and must implement `Send`. The reason for each of these is explained below.
+To integrate Rust types with Python, PyO3 needs to place some restrictions on the types which can be annotated with `#[pyclass]`. In particular, they must have no lifetime parameters, no generic parameters, and must be thread-safe. The reason for each of these is explained below.
 
 #### No lifetime parameters
 
@@ -119,9 +119,13 @@ create_interface!(IntClass, i64);
 create_interface!(FloatClass, String);
 ```
 
-#### Must be Send
+#### Must be thread-safe
 
-Because Python objects are freely shared between threads by the Python interpreter, there is no guarantee which thread will eventually drop the object. Therefore all types annotated with `#[pyclass]` must implement `Send` (unless annotated with [`#[pyclass(unsendable)]`](#customizing-the-class)).
+Python objects are freely shared between threads by the Python interpreter. This means that:
+- Python objects may be created and destroyed by different Python threads; therefore #[pyclass]` objects must be `Send`.
+- Python objects may be accessed by multiple python threads simultaneously; therefore `#[pyclass]` objects must be `Sync`.
+
+For now, don't worry about these requirements; simple classes will already be thread-safe. There is a [detailed discussion on thread-safety](./class/thread-safety.md) later in the guide.
 
 ## Constructor
 
