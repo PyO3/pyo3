@@ -163,7 +163,7 @@ impl PyClassBorrowChecker for BorrowChecker {
     }
 
     fn release_borrow_mut(&self) {
-        self.0.0.store(BorrowFlag::UNUSED, Ordering::Release)
+        self.0 .0.store(BorrowFlag::UNUSED, Ordering::Release)
     }
 }
 

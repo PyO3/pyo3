@@ -282,18 +282,8 @@ mod inheriting_type {
     }
 
     #[pyclass(subclass, extends=Metaclass)]
-    #[derive(Debug)]
-    struct MetaclassSubclass {
-        subclass_value: String,
-    }
-
-    impl Default for MetaclassSubclass {
-        fn default() -> Self {
-            Self {
-                subclass_value: "foo".to_owned(),
-            }
-        }
-    }
+    #[derive(Debug, Default)]
+    struct MetaclassSubclass {}
 
     #[pymethods]
     impl MetaclassSubclass {

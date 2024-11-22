@@ -292,7 +292,9 @@ impl SubClass {
 }
 
 #[test]
-#[should_panic(expected = "initialize_with_default does not currently support multi-level inheritance")]
+#[should_panic(
+    expected = "initialize_with_default does not currently support multi-level inheritance"
+)]
 fn subclass_pyclass_init() {
     Python::with_gil(|py| {
         let sub_cls = py.get_type::<SubClass>();

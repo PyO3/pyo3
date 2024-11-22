@@ -546,9 +546,12 @@ pub(crate) fn usize_to_py_ssize(value: usize) -> ffi::Py_ssize_t {
 
 /// Tests specific to the static layout
 #[cfg(all(test, feature = "macros"))]
+#[allow(clippy::bool_comparison)] // `== false` is harder to miss than !
 mod static_tests {
     use static_assertions::const_assert;
 
+    #[cfg(not(Py_LIMITED_API))]
+    use super::test_utils::get_pyobject_size;
     use super::*;
 
     use crate::prelude::*;
@@ -697,9 +700,7 @@ mod static_tests {
         assert_eq!(PyObjectLayout::basicsize::<ChildClass>(), expected_size);
 
         Python::with_gil(|py| {
-            let typ = ChildClass::type_object(py);
-            let raw_typ = typ.as_ptr().cast::<ffi::PyTypeObject>();
-            let typ_size = unsafe { (*raw_typ).tp_basicsize };
+            let typ_size = get_pyobject_size::<ChildClass>(py) as isize;
             assert_eq!(typ_size, expected_size);
         });
 
@@ -1046,11 +1047,14 @@ mod static_tests {
 
 /// Tests specific to the opaque layout
 #[cfg(all(test, Py_3_12, feature = "macros"))]
+#[allow(clippy::bool_comparison)] // `== false` is harder to miss than !
 mod opaque_tests {
     use memoffset::offset_of;
     use static_assertions::const_assert;
     use std::ops::Range;
 
+    #[cfg(not(Py_LIMITED_API))]
+    use super::test_utils::get_pyobject_size;
     use super::*;
 
     use crate::{prelude::*, PyClass};
@@ -1250,13 +1254,16 @@ mod opaque_tests {
 
             // test that contents pointer matches expecations
             // the `MyClass` data has to be between the base type and the end of the PyObject.
-            let pyobject_size = get_pyobject_size::<MyClass>(py);
-            let contents_range = bytes_range(
-                contents_ptr_int - obj_ptr_int,
-                size_of::<PyClassObjectContents<MyClass>>(),
-            );
-            assert!(contents_range.start >= size_of::<ffi::PyObject>());
-            assert!(contents_range.end <= pyobject_size);
+            #[cfg(not(Py_LIMITED_API))]
+            {
+                let pyobject_size = get_pyobject_size::<MyClass>(py);
+                let contents_range = bytes_range(
+                    contents_ptr_int - obj_ptr_int,
+                    size_of::<PyClassObjectContents<MyClass>>(),
+                );
+                assert!(contents_range.start >= size_of::<ffi::PyObject>());
+                assert!(contents_range.end <= pyobject_size);
+            }
 
             // test getting contents by reference
             let contents = unsafe {
@@ -1628,7 +1635,7 @@ mod opaque_tests {
     }
 
     #[test]
-    #[cfg(debug_assertions)]
+    #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
     #[should_panic(expected = "the object is not an instance of")]
     fn test_panic_when_incorrect_type() {
         use crate::types::PyDict;
@@ -1661,15 +1668,8 @@ mod opaque_tests {
         });
     }
 
-    /// The size in bytes of a [ffi::PyObject] of the type `T`
-    fn get_pyobject_size<T: PyClass>(py: Python<'_>) -> usize {
-        let typ = <T as PyTypeInfo>::type_object(py);
-        let raw_typ = typ.as_ptr().cast::<ffi::PyTypeObject>();
-        let size = unsafe { (*raw_typ).tp_basicsize };
-        usize::try_from(size).expect("size should be a valid usize")
-    }
-
     /// Create a range from a start and size instead of a start and end
+    #[allow(unused)]
     fn bytes_range(start: usize, size: usize) -> Range<usize> {
         Range {
             start,
@@ -1716,5 +1716,20 @@ mod opaque_fail_tests {
         Python::with_gil(|py| {
             <Metaclass as PyTypeInfo>::type_object(py);
         });
+    }
+}
+
+#[cfg(test)]
+mod test_utils {
+    #[cfg(not(Py_LIMITED_API))]
+    use crate::{ffi, PyClass, PyTypeInfo, Python};
+
+    /// The size in bytes of a [ffi::PyObject] of the type `T`
+    #[cfg(not(Py_LIMITED_API))]
+    pub fn get_pyobject_size<T: PyClass>(py: Python<'_>) -> usize {
+        let typ = <T as PyTypeInfo>::type_object(py);
+        let raw_typ = typ.as_ptr().cast::<ffi::PyTypeObject>();
+        let size = unsafe { (*raw_typ).tp_basicsize };
+        usize::try_from(size).expect("size should be a valid usize")
     }
 }
