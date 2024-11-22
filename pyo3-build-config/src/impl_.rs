@@ -309,14 +309,14 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
                 // `_d.cp312-win_amd64.pyd` for 3.12 debug build
                 map["ext_suffix"].starts_with("_d."),
                 gil_disabled,
-            )
+            )?
         } else {
             default_lib_name_unix(
                 version,
                 implementation,
                 map.get("ld_version").map(String::as_str),
                 gil_disabled,
-            )
+            )?
         };
 
         let lib_dir = if cfg!(windows) {
@@ -394,7 +394,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             implementation,
             sysconfigdata.get_value("LDVERSION"),
             gil_disabled,
-        ));
+        )?);
         let pointer_width = parse_key!(sysconfigdata, "SIZEOF_VOID_P")
             .map(|bytes_width: u32| bytes_width * 8)
             .ok();
@@ -1544,7 +1544,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
 /// Windows, macOS and Linux.
 ///
 /// Must be called from a PyO3 crate build script.
-fn default_abi3_config(host: &Triple, version: PythonVersion) -> InterpreterConfig {
+fn default_abi3_config(host: &Triple, version: PythonVersion) -> Result<InterpreterConfig> {
     // FIXME: PyPy & GraalPy do not support the Stable ABI.
     let implementation = PythonImplementation::CPython;
     let abi3 = true;
@@ -1557,12 +1557,12 @@ fn default_abi3_config(host: &Triple, version: PythonVersion) -> InterpreterConf
             false,
             false,
             false,
-        ))
+        )?)
     } else {
         None
     };
 
-    InterpreterConfig {
+    Ok(InterpreterConfig {
         implementation,
         version,
         shared: true,
@@ -1574,7 +1574,7 @@ fn default_abi3_config(host: &Triple, version: PythonVersion) -> InterpreterConf
         build_flags: BuildFlags::default(),
         suppress_build_script_link_lines: false,
         extra_build_script_lines: vec![],
-    }
+    })
 }
 
 /// Detects the cross compilation target interpreter configuration from all
@@ -1625,16 +1625,9 @@ fn default_lib_name_for_target(
     target: &Triple,
 ) -> Option<String> {
     if target.operating_system == OperatingSystem::Windows {
-        Some(default_lib_name_windows(
-            version,
-            implementation,
-            abi3,
-            false,
-            false,
-            false,
-        ))
+        Some(default_lib_name_windows(version, implementation, abi3, false, false, false).unwrap())
     } else if is_linking_libpython_for_target(target) {
-        Some(default_lib_name_unix(version, implementation, None, false))
+        Some(default_lib_name_unix(version, implementation, None, false).unwrap())
     } else {
         None
     }
@@ -1647,36 +1640,35 @@ fn default_lib_name_windows(
     mingw: bool,
     debug: bool,
     gil_disabled: bool,
-) -> String {
+) -> Result<String> {
     if debug && version < PythonVersion::PY310 {
         // CPython bug: linking against python3_d.dll raises error
         // https://github.com/python/cpython/issues/101614
-        format!("python{}{}_d", version.major, version.minor)
+        Ok(format!("python{}{}_d", version.major, version.minor))
     } else if abi3 && !(implementation.is_pypy() || implementation.is_graalpy()) {
         if debug {
-            WINDOWS_ABI3_DEBUG_LIB_NAME.to_owned()
+            Ok(WINDOWS_ABI3_DEBUG_LIB_NAME.to_owned())
         } else {
-            WINDOWS_ABI3_LIB_NAME.to_owned()
+            Ok(WINDOWS_ABI3_LIB_NAME.to_owned())
         }
     } else if mingw {
-        if gil_disabled {
-            panic!("MinGW free-threaded builds are not currently tested or supported")
-        }
+        ensure!(
+            !gil_disabled,
+            "MinGW free-threaded builds are not currently tested or supported"
+        );
         // https://packages.msys2.org/base/mingw-w64-python
-        format!("python{}.{}", version.major, version.minor)
+        Ok(format!("python{}.{}", version.major, version.minor))
     } else if gil_disabled {
-        if version < PythonVersion::PY313 {
-            panic!("Cannot compile C extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", version.major, version.minor);
-        }
+        ensure!(version >= PythonVersion::PY313, "Cannot compile C extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", version.major, version.minor);
         if debug {
-            format!("python{}{}t_d", version.major, version.minor)
+            Ok(format!("python{}{}t_d", version.major, version.minor))
         } else {
-            format!("python{}{}t", version.major, version.minor)
+            Ok(format!("python{}{}t", version.major, version.minor))
         }
     } else if debug {
-        format!("python{}{}_d", version.major, version.minor)
+        Ok(format!("python{}{}_d", version.major, version.minor))
     } else {
-        format!("python{}{}", version.major, version.minor)
+        Ok(format!("python{}{}", version.major, version.minor))
     }
 }
 
@@ -1685,33 +1677,31 @@ fn default_lib_name_unix(
     implementation: PythonImplementation,
     ld_version: Option<&str>,
     gil_disabled: bool,
-) -> String {
+) -> Result<String> {
     match implementation {
         PythonImplementation::CPython => match ld_version {
-            Some(ld_version) => format!("python{}", ld_version),
+            Some(ld_version) => Ok(format!("python{}", ld_version)),
             None => {
                 if version > PythonVersion::PY37 {
                     // PEP 3149 ABI version tags are finally gone
                     if gil_disabled {
-                        if version < PythonVersion::PY313 {
-                            panic!("Cannot compile C extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", version.major, version.minor);
-                        }
-                        format!("python{}.{}t", version.major, version.minor)
+                        ensure!(version >= PythonVersion::PY313, "Cannot compile C extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", version.major, version.minor);
+                        Ok(format!("python{}.{}t", version.major, version.minor))
                     } else {
-                        format!("python{}.{}", version.major, version.minor)
+                        Ok(format!("python{}.{}", version.major, version.minor))
                     }
                 } else {
                     // Work around https://bugs.python.org/issue36707
-                    format!("python{}.{}m", version.major, version.minor)
+                    Ok(format!("python{}.{}m", version.major, version.minor))
                 }
             }
         },
         PythonImplementation::PyPy => match ld_version {
-            Some(ld_version) => format!("pypy{}-c", ld_version),
-            None => format!("pypy{}.{}-c", version.major, version.minor),
+            Some(ld_version) => Ok(format!("pypy{}-c", ld_version)),
+            None => Ok(format!("pypy{}.{}-c", version.major, version.minor)),
         },
 
-        PythonImplementation::GraalPy => "python-native".to_string(),
+        PythonImplementation::GraalPy => Ok("python-native".to_string()),
     }
 }
 
@@ -1881,7 +1871,7 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
         );
     };
 
-    let mut interpreter_config = default_abi3_config(&host, abi3_version.unwrap());
+    let mut interpreter_config = default_abi3_config(&host, abi3_version.unwrap())?;
 
     // Auto generate python3.dll import libraries for Windows targets.
     #[cfg(feature = "python3-dll-a")]
@@ -2218,7 +2208,7 @@ mod tests {
         let min_version = "3.7".parse().unwrap();
 
         assert_eq!(
-            default_abi3_config(&host, min_version),
+            default_abi3_config(&host, min_version).unwrap(),
             InterpreterConfig {
                 implementation: PythonImplementation::CPython,
                 version: PythonVersion { major: 3, minor: 7 },
@@ -2241,7 +2231,7 @@ mod tests {
         let min_version = "3.9".parse().unwrap();
 
         assert_eq!(
-            default_abi3_config(&host, min_version),
+            default_abi3_config(&host, min_version).unwrap(),
             InterpreterConfig {
                 implementation: PythonImplementation::CPython,
                 version: PythonVersion { major: 3, minor: 9 },
@@ -2407,19 +2397,18 @@ mod tests {
                 false,
                 false,
                 false,
-            ),
+            )
+            .unwrap(),
             "python39",
         );
-        assert!(std::panic::catch_unwind(|| {
-            super::default_lib_name_windows(
-                PythonVersion { major: 3, minor: 9 },
-                CPython,
-                false,
-                false,
-                false,
-                true,
-            )
-        })
+        assert!(super::default_lib_name_windows(
+            PythonVersion { major: 3, minor: 9 },
+            CPython,
+            false,
+            false,
+            false,
+            true,
+        )
         .is_err());
         assert_eq!(
             super::default_lib_name_windows(
@@ -2429,7 +2418,8 @@ mod tests {
                 false,
                 false,
                 false,
-            ),
+            )
+            .unwrap(),
             "python3",
         );
         assert_eq!(
@@ -2440,7 +2430,8 @@ mod tests {
                 true,
                 false,
                 false,
-            ),
+            )
+            .unwrap(),
             "python3.9",
         );
         assert_eq!(
@@ -2451,7 +2442,8 @@ mod tests {
                 true,
                 false,
                 false,
-            ),
+            )
+            .unwrap(),
             "python3",
         );
         assert_eq!(
@@ -2462,7 +2454,8 @@ mod tests {
                 false,
                 false,
                 false,
-            ),
+            )
+            .unwrap(),
             "python39",
         );
         assert_eq!(
@@ -2473,7 +2466,8 @@ mod tests {
                 false,
                 true,
                 false,
-            ),
+            )
+            .unwrap(),
             "python39_d",
         );
         // abi3 debug builds on windows use version-specific lib on 3.9 and older
@@ -2486,7 +2480,8 @@ mod tests {
                 false,
                 true,
                 false,
-            ),
+            )
+            .unwrap(),
             "python39_d",
         );
         assert_eq!(
@@ -2500,38 +2495,35 @@ mod tests {
                 false,
                 true,
                 false,
-            ),
+            )
+            .unwrap(),
             "python3_d",
         );
         // Python versions older than 3.13 panic if gil_disabled is true
-        assert!(std::panic::catch_unwind(|| {
-            super::default_lib_name_windows(
-                PythonVersion {
-                    major: 3,
-                    minor: 12,
-                },
-                CPython,
-                false,
-                false,
-                false,
-                true,
-            )
-        })
+        assert!(super::default_lib_name_windows(
+            PythonVersion {
+                major: 3,
+                minor: 12,
+            },
+            CPython,
+            false,
+            false,
+            false,
+            true,
+        )
         .is_err());
         // mingw and free-threading are incompatible (until someone adds support)
-        assert!(std::panic::catch_unwind(|| {
-            super::default_lib_name_windows(
-                PythonVersion {
-                    major: 3,
-                    minor: 12,
-                },
-                CPython,
-                false,
-                true,
-                false,
-                true,
-            )
-        })
+        assert!(super::default_lib_name_windows(
+            PythonVersion {
+                major: 3,
+                minor: 12,
+            },
+            CPython,
+            false,
+            true,
+            false,
+            true,
+        )
         .is_err());
         assert_eq!(
             super::default_lib_name_windows(
@@ -2544,7 +2536,8 @@ mod tests {
                 false,
                 false,
                 true,
-            ),
+            )
+            .unwrap(),
             "python313t",
         );
         assert_eq!(
@@ -2558,7 +2551,8 @@ mod tests {
                 false,
                 true,
                 true,
-            ),
+            )
+            .unwrap(),
             "python313t_d",
         );
     }
@@ -2573,7 +2567,8 @@ mod tests {
                 CPython,
                 None,
                 false
-            ),
+            )
+            .unwrap(),
             "python3.7m",
         );
         // Defaults to pythonX.Y for CPython 3.8+
@@ -2583,7 +2578,8 @@ mod tests {
                 CPython,
                 None,
                 false
-            ),
+            )
+            .unwrap(),
             "python3.8",
         );
         assert_eq!(
@@ -2592,7 +2588,8 @@ mod tests {
                 CPython,
                 None,
                 false
-            ),
+            )
+            .unwrap(),
             "python3.9",
         );
         // Can use ldversion to override for CPython
@@ -2602,13 +2599,15 @@ mod tests {
                 CPython,
                 Some("3.7md"),
                 false
-            ),
+            )
+            .unwrap(),
             "python3.7md",
         );
 
         // PyPy 3.9 includes ldversion
         assert_eq!(
-            super::default_lib_name_unix(PythonVersion { major: 3, minor: 9 }, PyPy, None, false),
+            super::default_lib_name_unix(PythonVersion { major: 3, minor: 9 }, PyPy, None, false)
+                .unwrap(),
             "pypy3.9-c",
         );
 
@@ -2618,7 +2617,8 @@ mod tests {
                 PyPy,
                 Some("3.9d"),
                 false
-            ),
+            )
+            .unwrap(),
             "pypy3.9d-c",
         );
 
@@ -2632,21 +2632,20 @@ mod tests {
                 CPython,
                 None,
                 true
-            ),
+            )
+            .unwrap(),
             "python3.13t",
         );
         // 3.12 and older are incompatible with gil_disabled
-        assert!(std::panic::catch_unwind(|| {
-            super::default_lib_name_unix(
-                PythonVersion {
-                    major: 3,
-                    minor: 12,
-                },
-                CPython,
-                None,
-                true,
-            )
-        })
+        assert!(super::default_lib_name_unix(
+            PythonVersion {
+                major: 3,
+                minor: 12,
+            },
+            CPython,
+            None,
+            true,
+        )
         .is_err());
     }
 
