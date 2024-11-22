@@ -45,9 +45,7 @@ fn class_with_object_field() {
         let obj = Bound::new(py, ClassWithObjectField { value: None }).unwrap();
         py_run!(py, obj, "obj.value = 5");
         let obj_ref = obj.borrow();
-        let Some(value) = &obj_ref.value else {
-            panic!("obj_ref.value is None");
-        };
+        let value = obj_ref.value.as_ref().unwrap();
         assert_eq!(*value.downcast_bound::<PyInt>(py).unwrap(), 5);
     });
 }

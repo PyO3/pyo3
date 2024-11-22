@@ -276,7 +276,8 @@ macro_rules! impl_windows_native_exception (
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
-        $crate::pyobject_native_type!($name, $layout, |_py| unsafe { $crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject });
+        $crate::pyobject_native_type!($name, $layout);
+        $crate::pyobject_native_type_object_methods!($name, #global_ptr=$crate::ffi::$exc_name);
     );
     ($name:ident, $exc_name:ident, $doc:expr) => (
         impl_windows_native_exception!($name, $exc_name, $doc, $crate::ffi::PyBaseExceptionObject);

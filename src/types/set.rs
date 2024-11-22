@@ -29,7 +29,6 @@ pyobject_native_type!(PySet, ffi::PySetObject, #checkfunction=ffi::PySet_Check);
 #[cfg(any(PyPy, GraalPy))]
 pyobject_native_type_core!(PySet, #checkfunction=ffi::PySet_Check);
 
-#[cfg(not(any(PyPy, GraalPy)))]
 pyobject_native_type_object_methods!(PySet, #global=ffi::PySet_Type);
 
 impl PySet {

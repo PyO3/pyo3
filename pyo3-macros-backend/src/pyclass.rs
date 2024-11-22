@@ -1198,7 +1198,7 @@ fn impl_complex_enum_variant_match_args(
         });
         parse_quote! {
             #[allow(non_upper_case_globals)]
-            const __match_args__: ( #(#args_tp,)* ) = (
+            const #ident: ( #(#args_tp,)* ) = (
                 #(stringify!(#field_names),)*
             );
         }

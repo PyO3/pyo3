@@ -47,3 +47,15 @@ pub(crate) const fn ptr_from_ref<T>(t: &T) -> *const T {
 pub(crate) fn ptr_from_mut<T>(t: &mut T) -> *mut T {
     t as *mut T
 }
+
+// TODO: use ptr::cast_mut on MSRV 1.65
+#[inline]
+pub(crate) fn cast_mut<T>(t: *const T) -> *mut T {
+    t as *mut T
+}
+
+// TODO: use ptr::cast_const on MSRV 1.65
+#[inline]
+pub(crate) fn cast_const<T>(t: *mut T) -> *const T {
+    t as *const T
+}

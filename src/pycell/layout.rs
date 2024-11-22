@@ -6,10 +6,13 @@ use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::ptr::addr_of_mut;
 
+use memoffset::offset_of;
+
 use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef, PyObjectOffset,
 };
 use crate::internal::get_slot::{TP_DEALLOC, TP_FREE};
+use crate::internal_tricks::{cast_const, cast_mut};
 use crate::pycell::borrow_checker::{GetBorrowChecker, PyClassBorrowChecker};
 use crate::type_object::PyNativeType;
 use crate::types::PyType;
@@ -175,6 +178,7 @@ impl<T: PyNativeType + PyTypeInfo> PyObjectRecursiveOperations
                 .get_slot(TP_DEALLOC)
                 .expect("PyType_Type should have tp_dealloc");
             // `PyType_Type::dealloc` calls `Py_GC_UNTRACK` so we have to re-track before deallocating
+            #[cfg(not(PyPy))]
             ffi::PyObject_GC_Track(obj.cast());
             return tp_dealloc(obj.cast());
         }
@@ -214,7 +218,7 @@ pub(crate) mod opaque_layout {
     use crate::{impl_::pyclass::PyClassImpl, PyTypeInfo};
 
     #[cfg(Py_3_12)]
-    pub fn get_contents_ptr<T: PyClassImpl + PyTypeInfo>(
+    pub(crate) fn get_contents_ptr<T: PyClassImpl + PyTypeInfo>(
         obj: *mut ffi::PyObject,
         strategy: TypeObjectStrategy<'_>,
     ) -> *mut PyClassObjectContents<T> {
@@ -356,7 +360,7 @@ impl PyObjectLayout {
             let obj: *mut static_layout::PyStaticClassLayout<T> = obj.cast();
             // indicates `ob_base` has type InvalidBaseLayout
             debug_assert_ne!(
-                std::mem::offset_of!(static_layout::PyStaticClassLayout<T>, contents),
+                offset_of!(static_layout::PyStaticClassLayout<T>, contents),
                 0,
                 "invalid ob_base found"
             );
@@ -372,10 +376,10 @@ impl PyObjectLayout {
         obj: &'a ffi::PyObject,
         strategy: TypeObjectStrategy<'_>,
     ) -> &'a PyClassObjectContents<T> {
-        unsafe {
-            &*PyObjectLayout::get_contents_ptr::<T>(ptr_from_ref(obj).cast_mut(), strategy)
-                .cast_const()
-        }
+        &*cast_const(PyObjectLayout::get_contents_ptr::<T>(
+            cast_mut(ptr_from_ref(obj)),
+            strategy,
+        ))
     }
 
     /// Obtain a pointer to the portion of `obj` containing the data for `T`
@@ -398,7 +402,7 @@ impl PyObjectLayout {
         obj: &'a ffi::PyObject,
         strategy: TypeObjectStrategy<'_>,
     ) -> &'a T {
-        unsafe { &*PyObjectLayout::get_data_ptr::<T>(ptr_from_ref(obj).cast_mut(), strategy) }
+        &*PyObjectLayout::get_data_ptr::<T>(cast_mut(ptr_from_ref(obj)), strategy)
     }
 
     /// Obtain a reference to the borrow checker for `obj`
@@ -436,9 +440,7 @@ impl PyObjectLayout {
         py: Python<'_>,
         obj: *mut ffi::PyObject,
     ) {
-        unsafe {
-            PyClassRecursiveOperations::<T>::deallocate(py, obj);
-        };
+        PyClassRecursiveOperations::<T>::deallocate(py, obj);
     }
 
     /// Clean up then free the memory associated with `obj`.
@@ -450,13 +452,11 @@ impl PyObjectLayout {
         py: Python<'_>,
         obj: *mut ffi::PyObject,
     ) {
-        unsafe {
-            #[cfg(not(PyPy))]
-            {
-                ffi::PyObject_GC_UnTrack(obj.cast());
-            }
-            PyClassRecursiveOperations::<T>::deallocate(py, obj);
-        };
+        #[cfg(not(PyPy))]
+        {
+            ffi::PyObject_GC_UnTrack(obj.cast());
+        }
+        PyClassRecursiveOperations::<T>::deallocate(py, obj);
     }
 
     /// Used to set `PyType_Spec::basicsize` when creating a `PyTypeObject` for `T`
@@ -613,6 +613,7 @@ mod static_tests {
     /// Test the functions calculate properties about the static layout without requiring an instance.
     /// The class in this test requires extra space for the `dict` and `weaklist` fields
     #[test]
+    #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
     fn test_layout_properties_no_inheritance_optional_fields() {
         #[pyclass(crate = "crate", dict, weakref, extends=PyAny)]
         struct MyClass(#[allow(unused)] u64);
@@ -1041,7 +1042,7 @@ mod static_tests {
             contents: u8,
         }
 
-        assert_eq!(std::mem::offset_of!(InvalidLayout, contents), 0);
+        assert_eq!(offset_of!(InvalidLayout, contents), 0);
     }
 }
 
@@ -1051,6 +1052,7 @@ mod static_tests {
 mod opaque_tests {
     use memoffset::offset_of;
     use static_assertions::const_assert;
+    use std::mem::size_of;
     use std::ops::Range;
 
     #[cfg(not(Py_LIMITED_API))]
@@ -1704,7 +1706,7 @@ mod opaque_fail_tests {
     )]
     fn test_panic_at_construction_inherit_opaque() {
         Python::with_gil(|py| {
-            Py::new(py, Metaclass::default()).unwrap();
+            Py::new(py, Metaclass).unwrap();
         });
     }
 
@@ -1726,6 +1728,7 @@ mod test_utils {
 
     /// The size in bytes of a [ffi::PyObject] of the type `T`
     #[cfg(not(Py_LIMITED_API))]
+    #[allow(unused)]
     pub fn get_pyobject_size<T: PyClass>(py: Python<'_>) -> usize {
         let typ = <T as PyTypeInfo>::type_object(py);
         let raw_typ = typ.as_ptr().cast::<ffi::PyTypeObject>();
