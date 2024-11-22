@@ -660,10 +660,14 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         )
     }
 
-    /// Lowers the configured version to the abi3 version, if set.
+    /// Updates configured ABI to build for to the requested abi3 version
+    /// This is a no-op for platforms where abi3 is not supported
     fn fixup_for_abi3_version(&mut self, abi3_version: Option<PythonVersion>) -> Result<()> {
-        // PyPy doesn't support abi3; don't adjust the version
-        if self.implementation.is_pypy() || self.implementation.is_graalpy() {
+        // PyPy, GraalPy, and the free-threaded build don't support abi3; don't adjust the version
+        if self.implementation.is_pypy()
+            || self.implementation.is_graalpy()
+            || self.build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED)
+        {
             return Ok(());
         }
 
