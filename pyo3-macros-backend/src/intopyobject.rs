@@ -512,7 +512,7 @@ impl<'a> Enum<'a> {
         IntoPyObjectImpl {
             types: IntoPyObjectTypes::Opaque {
                 target: quote!(#pyo3_path::types::PyAny),
-                output: quote!(#pyo3_path::Bound<'py, Self::Target>),
+                output: quote!(#pyo3_path::Bound<'py, <Self as #pyo3_path::conversion::IntoPyObject<'py>>::Target>),
                 error: quote!(#pyo3_path::PyErr),
             },
             body: quote! {
@@ -617,7 +617,10 @@ pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Resu
             type Output = #output;
             type Error = #error;
 
-            fn into_pyobject(self, py: #pyo3_path::Python<#lt_param>) -> ::std::result::Result<Self::Output, Self::Error> {
+            fn into_pyobject(self, py: #pyo3_path::Python<#lt_param>) -> ::std::result::Result<
+                <Self as #pyo3_path::conversion::IntoPyObject>::Output,
+                <Self as #pyo3_path::conversion::IntoPyObject>::Error,
+            > {
                 #body
             }
         }
