@@ -1,11 +1,10 @@
 use pyo3_build_config::{
     bail, ensure, print_feature_cfgs,
     pyo3_build_script_impl::{
-        cargo_env_var, env_var,
-        errors::{Error, Result},
-        is_linking_libpython, resolve_interpreter_config, InterpreterConfig, PythonVersion,
+        cargo_env_var, env_var, errors::Result, is_linking_libpython, resolve_interpreter_config,
+        InterpreterConfig, PythonVersion,
     },
-    warn, BuildFlag, PythonImplementation,
+    warn, PythonImplementation,
 };
 
 /// Minimum Python version PyO3 supports.
