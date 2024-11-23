@@ -176,7 +176,7 @@ impl InterpreterConfig {
         }
 
         // If Py_GIL_DISABLED is set, do not build with limited API support
-        if self.abi3 && !self.build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED) {
+        if self.abi3 && !self.is_free_threaded() {
             out.push("cargo:rustc-cfg=Py_LIMITED_API".to_owned());
         }
 
@@ -660,13 +660,17 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         )
     }
 
+    pub fn is_free_threaded(&self) -> bool {
+        self.build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED)
+    }
+
     /// Updates configured ABI to build for to the requested abi3 version
     /// This is a no-op for platforms where abi3 is not supported
     fn fixup_for_abi3_version(&mut self, abi3_version: Option<PythonVersion>) -> Result<()> {
         // PyPy, GraalPy, and the free-threaded build don't support abi3; don't adjust the version
         if self.implementation.is_pypy()
             || self.implementation.is_graalpy()
-            || self.build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED)
+            || self.is_free_threaded()
         {
             return Ok(());
         }
