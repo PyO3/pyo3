@@ -2507,7 +2507,7 @@ mod tests {
             .unwrap(),
             "python3_d",
         );
-        // Python versions older than 3.13 panic if gil_disabled is true
+        // Python versions older than 3.13 don't support gil_disabled
         assert!(super::default_lib_name_windows(
             PythonVersion {
                 major: 3,

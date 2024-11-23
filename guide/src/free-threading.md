@@ -247,9 +247,9 @@ the GIL.
 
 The free-threaded build uses a completely new ABI and there is not yet an
 equivalent to the limited API for the free-threaded ABI. That means if your
-crate depends on PyO3 using the `abi3` feature or an an `abi-pyxx` feature, PyO3
-will print a warning and ignore that setting when building extensions using the
-free-threaded interpreter.
+crate depends on PyO3 using the `abi3` feature or an an `abi3-pyxx` feature,
+PyO3 will print a warning and ignore that setting when building extensions using
+the free-threaded interpreter.
 
 This means that if your package makes use of the ABI forward compatibility
 provided by the limited API to uploads only one wheel for each release of your

@@ -1,8 +1,9 @@
 use pyo3_build_config::{
     bail, ensure, print_feature_cfgs,
     pyo3_build_script_impl::{
-        cargo_env_var, env_var, errors::Result, is_linking_libpython, resolve_interpreter_config,
-        InterpreterConfig, PythonVersion,
+        cargo_env_var, env_var,
+        errors::{Error, Result},
+        is_linking_libpython, resolve_interpreter_config, InterpreterConfig, PythonVersion,
     },
     warn, BuildFlag, PythonImplementation,
 };
@@ -56,20 +57,21 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 interpreter_config.version,
                 versions.min,
             );
-            if !interpreter_config
-                .build_flags
-                .0
-                .contains(&BuildFlag::Py_GIL_DISABLED)
-            {
-                ensure!(
-                        interpreter_config.version <= versions.max || env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").map_or(false, |os_str| os_str == "1"),
+            if interpreter_config.version > versions.max {
+                ensure!(!interpreter_config.is_free_threaded(),
+                        "The configured Python interpreter version ({}) is newer than PyO3's maximum supported version ({})\n\
+                         = help: please check if an updated version of PyO3 is available. Current version: {}\n\
+                         = help: The free-threaded build of CPython does not support the limited API so this check cannot be suppressed.",
+                        interpreter_config.version, versions.max, std::env::var("CARGO_PKG_VERSION").unwrap()
+                );
+                ensure!(env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").map_or(false, |os_str| os_str == "1"),
                         "the configured Python interpreter version ({}) is newer than PyO3's maximum supported version ({})\n\
                          = help: please check if an updated version of PyO3 is available. Current version: {}\n\
                          = help: set PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 to suppress this check and build anyway using the stable ABI",
                         interpreter_config.version,
                         versions.max,
                         std::env::var("CARGO_PKG_VERSION").unwrap(),
-                    );
+                );
             }
         }
         PythonImplementation::PyPy => {
