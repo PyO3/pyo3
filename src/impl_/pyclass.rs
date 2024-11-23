@@ -1146,8 +1146,8 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     )
 )]
 pub trait PyClassBaseType: Sized {
-    /// A struct that describes the memory layout of a `*mut ffi:PyObject` with the type of `Self`.
-    /// Only valid when `<T as PyTypeInfo>::OPAQUE` is false.
+    /// A struct that describes the memory layout of a `ffi:PyObject` with the type of `Self`.
+    /// Only valid when `<T as PyTypeInfo>::OPAQUE` is `false`.
     type StaticLayout: PyLayout<Self>;
     type BaseNativeType: PyTypeInfo;
     type RecursiveOperations: PyObjectRecursiveOperations;

@@ -1286,7 +1286,6 @@ where
     ///
     /// This is available if the class is [`frozen`][macro@crate::pyclass] and [`Sync`].
     ///
-    ///
     /// # Examples
     ///
     /// ```

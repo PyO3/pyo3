@@ -36,7 +36,7 @@ pub(crate) struct PyClassObjectContents<T: PyClassImpl> {
     pub(crate) value: ManuallyDrop<UnsafeCell<T>>,
     pub(crate) borrow_checker: <T::PyClassMutability as PyClassMutability>::Storage,
     pub(crate) thread_checker: T::ThreadChecker,
-    /// A pointer to a [ffi::PyObject]` if `T` is annotated with `#[pyclass(dict)]` and a zero-sized field otherwise.
+    /// A pointer to a [ffi::PyObject] if `T` is annotated with `#[pyclass(dict)]` and a zero-sized field otherwise.
     pub(crate) dict: T::Dict,
     /// A pointer to a [ffi::PyObject] if `T` is annotated with `#[pyclass(weakref)]` and a zero-sized field otherwise.
     pub(crate) weakref: T::WeakRef,
@@ -62,7 +62,7 @@ impl<T: PyClassImpl> PyClassObjectContents<T> {
     }
 }
 
-/// Functions for working with `PyObjects` recursively by re-interpreting the object
+/// Functions for working with [ffi::PyObject]s recursively by re-interpreting the object
 /// as being an instance of the most derived class through each base class until
 /// the `BaseNativeType` is reached.
 ///
@@ -86,8 +86,8 @@ pub trait PyObjectRecursiveOperations {
     /// Cleanup then free the memory for `obj`.
     ///
     /// # Safety
-    /// - slf must be a valid pointer to an instance of a T or a subclass.
-    /// - slf must not be used after this call (as it will be freed).
+    /// - `obj` must be a valid pointer to an instance of a `T` or a subclass.
+    /// - `obj` must not be used after this call (as it will be freed).
     unsafe fn deallocate(py: Python<'_>, obj: *mut ffi::PyObject);
 }
 
@@ -154,8 +154,8 @@ impl<T: PyNativeType + PyTypeInfo> PyObjectRecursiveOperations
     /// [tp_dealloc docs](https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_dealloc)
     ///
     /// # Safety
-    /// - obj must be a valid pointer to an instance of the type at `type_ptr` or a subclass.
-    /// - obj must not be used after this call (as it will be freed).
+    /// - `obj` must be a valid pointer to an instance of the type at `type_ptr` or a subclass.
+    /// - `obj` must not be used after this call (as it will be freed).
     unsafe fn deallocate(py: Python<'_>, obj: *mut ffi::PyObject) {
         // the `BaseNativeType` of the object
         let type_ptr = <T as PyTypeInfo>::type_object_raw(py);
@@ -208,7 +208,7 @@ impl<T: PyNativeType + PyTypeInfo> PyObjectRecursiveOperations
     }
 }
 
-/// Utilities for working with `PyObject` objects that utilise [PEP 697](https://peps.python.org/pep-0697/).
+/// Utilities for working with [ffi::PyObject] objects that utilise [PEP 697](https://peps.python.org/pep-0697/).
 #[doc(hidden)]
 pub(crate) mod opaque_layout {
     #[cfg(Py_3_12)]
@@ -255,7 +255,7 @@ pub(crate) mod opaque_layout {
     }
 }
 
-/// Utilities for working with `PyObject` objects that utilise the standard layout for python extensions,
+/// Utilities for working with [ffi::PyObject] objects that utilise the standard layout for python extensions,
 /// where the base class is placed at the beginning of a `repr(C)` struct.
 #[doc(hidden)]
 pub(crate) mod static_layout {
@@ -266,7 +266,7 @@ pub(crate) mod static_layout {
 
     use super::PyClassObjectContents;
 
-    // The layout of a `PyObject` that uses the static layout
+    // The layout of a [ffi::PyObject] that uses the static layout
     #[repr(C)]
     pub struct PyStaticClassLayout<T: PyClassImpl> {
         pub(crate) ob_base: <T::BaseType as PyClassBaseType>::StaticLayout,
@@ -275,7 +275,7 @@ pub(crate) mod static_layout {
 
     unsafe impl<T: PyClassImpl> PyLayout<T> for PyStaticClassLayout<T> {}
 
-    /// Base layout of PyClassObject with a known sized base type.
+    /// Base layout of [PyClassObject] with a known sized base type.
     /// Corresponds to [PyObject](https://docs.python.org/3/c-api/structures.html#c.PyObject) from the C API.
     #[doc(hidden)]
     #[repr(C)]
@@ -1698,8 +1698,8 @@ mod opaque_fail_tests {
         fn __init__(&mut self, _args: &Bound<'_, PyTuple>, _kwargs: Option<&Bound<'_, PyDict>>) {}
     }
 
-    /// PyType uses the opaque layout. Explicitly using `#[pyclass(opaque)]` can be caught at compile time
-    /// but it is possible to create a pyclass that uses the opaque layout by extending an opaque native type.
+    /// PyType uses the opaque layout. While explicitly using `#[pyclass(opaque)]` can be caught at compile time,
+    /// it is also possible to create a pyclass that uses the opaque layout by extending an opaque native type.
     #[test]
     #[should_panic(
         expected = "The opaque object layout (used by pyo3::pycell::layout::opaque_fail_tests::Metaclass) is not supported until python 3.12"

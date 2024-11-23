@@ -122,8 +122,8 @@ trampolines!(
     pub fn unaryfunc(slf: *mut ffi::PyObject) -> *mut ffi::PyObject;
 );
 
-// tp_init should return 0 on success and -1 on error
-// https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_init
+/// `tp_init` should return 0 on success and -1 on error.
+/// [docs](https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_init)
 #[inline]
 pub unsafe fn initproc(
     slf: *mut ffi::PyObject,

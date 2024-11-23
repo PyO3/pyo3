@@ -6,7 +6,7 @@ use crate::types::{PyAny, PyType};
 use crate::{ffi, Bound, Python};
 
 /// `T: PyNativeType` represents that `T` is a struct representing a 'native python class'.
-/// a 'native class' is a wrapper around a `ffi::PyTypeObject` that is defined by the python
+/// a 'native class' is a wrapper around a [ffi::PyTypeObject] that is defined by the python
 /// API such as `PyDict` for `dict`.
 ///
 /// This trait is intended to be used internally.
