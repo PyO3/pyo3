@@ -1660,7 +1660,7 @@ fn complex_enum_struct_variant_new<'a>(
             constructor.into_signature(),
         )?
     } else {
-        crate::pyfunction::FunctionSignature::from_arguments(args)?
+        crate::pyfunction::FunctionSignature::from_arguments(args)
     };
 
     let spec = FnSpec {
@@ -1714,7 +1714,7 @@ fn complex_enum_tuple_variant_new<'a>(
             constructor.into_signature(),
         )?
     } else {
-        crate::pyfunction::FunctionSignature::from_arguments(args)?
+        crate::pyfunction::FunctionSignature::from_arguments(args)
     };
 
     let spec = FnSpec {
@@ -1737,7 +1737,7 @@ fn complex_enum_variant_field_getter<'a>(
     field_span: Span,
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
-    let signature = crate::pyfunction::FunctionSignature::from_arguments(vec![])?;
+    let signature = crate::pyfunction::FunctionSignature::from_arguments(vec![]);
 
     let self_type = crate::method::SelfType::TryFromBoundRef(field_span);
 

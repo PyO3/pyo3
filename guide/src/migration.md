@@ -872,7 +872,7 @@ Python::with_gil(|py| -> PyResult<()> {
 <details>
 <summary><small>Click to expand</small></summary>
 
-[Trailing `Option<T>` arguments](./function/signature.md#trailing-optional-arguments) have an automatic default of `None`. To avoid unwanted changes when modifying function signatures, in PyO3 0.18 it was deprecated to have a required argument after an `Option<T>` argument without using `#[pyo3(signature = (...))]` to specify the intended defaults. In PyO3 0.20, this becomes a hard error.
+Trailing `Option<T>` arguments have an automatic default of `None`. To avoid unwanted changes when modifying function signatures, in PyO3 0.18 it was deprecated to have a required argument after an `Option<T>` argument without using `#[pyo3(signature = (...))]` to specify the intended defaults. In PyO3 0.20, this becomes a hard error.
 
 Before:
 
@@ -1095,7 +1095,7 @@ Starting with PyO3 0.18, this is deprecated and a future PyO3 version will requi
 
 Before, x in the below example would be required to be passed from Python code:
 
-```rust,compile_fail
+```rust,compile_fail,ignore
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 

@@ -22,35 +22,28 @@ error: destructuring in arguments is not supported
 14 | fn destructured_argument((_a, _b): (i32, i32)) {}
    |                          ^^^^^^^^
 
-error: required arguments after an `Option<_>` argument are ambiguous
-       = help: add a `#[pyo3(signature)]` annotation on this function to unambiguously specify the default values for all optional parameters
-  --> tests/ui/invalid_pyfunctions.rs:17:63
-   |
-17 | fn function_with_required_after_option(_opt: Option<i32>, _x: i32) {}
-   |                                                               ^^^
-
 error: args cannot be optional
-  --> tests/ui/invalid_pyfunctions.rs:21:32
+  --> tests/ui/invalid_pyfunctions.rs:18:32
    |
-21 | fn function_with_optional_args(args: Option<Bound<'_, PyTuple>>) {
+18 | fn function_with_optional_args(args: Option<Bound<'_, PyTuple>>) {
    |                                ^^^^
 
 error: kwargs must be Option<_>
-  --> tests/ui/invalid_pyfunctions.rs:27:34
+  --> tests/ui/invalid_pyfunctions.rs:24:34
    |
-27 | fn function_with_required_kwargs(kwargs: Bound<'_, PyDict>) {
+24 | fn function_with_required_kwargs(kwargs: Bound<'_, PyDict>) {
    |                                  ^^^^^^
 
 error: expected `&PyModule` or `Py<PyModule>` as first argument with `pass_module`
-  --> tests/ui/invalid_pyfunctions.rs:32:37
+  --> tests/ui/invalid_pyfunctions.rs:29:37
    |
-32 | fn pass_module_but_no_arguments<'py>() {}
+29 | fn pass_module_but_no_arguments<'py>() {}
    |                                     ^^
 
 error[E0277]: the trait bound `&str: From<BoundRef<'_, '_, pyo3::types::PyModule>>` is not satisfied
-  --> tests/ui/invalid_pyfunctions.rs:36:14
+  --> tests/ui/invalid_pyfunctions.rs:33:14
    |
-36 |     _string: &str,
+33 |     _string: &str,
    |              ^ the trait `From<BoundRef<'_, '_, pyo3::types::PyModule>>` is not implemented for `&str`, which is required by `BoundRef<'_, '_, pyo3::types::PyModule>: Into<_>`
    |
    = help: the following other types implement trait `From<T>`:

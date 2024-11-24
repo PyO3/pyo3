@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::ffi::CString;
 
 use crate::attributes::{NameAttribute, RenamingRule};
-use crate::deprecations::deprecate_trailing_option_default;
 use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
 use crate::params::{impl_regular_arg_param, Holders};
 use crate::utils::PythonDoc;
@@ -685,9 +684,7 @@ pub fn impl_py_setter_def(
                 ctx,
             );
 
-            let deprecation = deprecate_trailing_option_default(spec);
             quote! {
-                #deprecation
                 #from_py_with
                 let _val = #extract;
             }

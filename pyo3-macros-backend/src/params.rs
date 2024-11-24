@@ -245,10 +245,7 @@ pub(crate) fn impl_regular_arg_param(
     // Option<T> arguments have special treatment: the default should be specified _without_ the
     // Some() wrapper. Maybe this should be changed in future?!
     if arg.option_wrapped_type.is_some() {
-        default = Some(default.map_or_else(
-            || quote!(::std::option::Option::None),
-            |tokens| some_wrap(tokens, ctx),
-        ));
+        default = default.map(|tokens| some_wrap(tokens, ctx));
     }
 
     if arg.from_py_with.is_some() {
@@ -273,31 +270,32 @@ pub(crate) fn impl_regular_arg_param(
                 )?
             }
         }
-    } else if arg.option_wrapped_type.is_some() {
-        let holder = holders.push_holder(arg.name.span());
-        quote_arg_span! {
-            #pyo3_path::impl_::extract_argument::extract_optional_argument(
-                #arg_value,
-                &mut #holder,
-                #name_str,
-                #[allow(clippy::redundant_closure)]
-                {
-                    || #default
-                }
-            )?
-        }
     } else if let Some(default) = default {
         let holder = holders.push_holder(arg.name.span());
-        quote_arg_span! {
-            #pyo3_path::impl_::extract_argument::extract_argument_with_default(
-                #arg_value,
-                &mut #holder,
-                #name_str,
-                #[allow(clippy::redundant_closure)]
-                {
-                    || #default
-                }
-            )?
+        if arg.option_wrapped_type.is_some() {
+            quote_arg_span! {
+                #pyo3_path::impl_::extract_argument::extract_optional_argument(
+                    #arg_value,
+                    &mut #holder,
+                    #name_str,
+                    #[allow(clippy::redundant_closure)]
+                    {
+                        || #default
+                    }
+                )?
+            }
+        } else {
+            quote_arg_span! {
+                    #pyo3_path::impl_::extract_argument::extract_argument_with_default(
+                        #arg_value,
+                        &mut #holder,
+                        #name_str,
+                        #[allow(clippy::redundant_closure)]
+                        {
+                            || #default
+                        }
+                    )?
+            }
         }
     } else {
         let holder = holders.push_holder(arg.name.span());
