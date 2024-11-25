@@ -260,15 +260,6 @@ mod tests {
     #[pyclass(crate = "crate", extends = ImmutableChildOfImmutableBase, frozen)]
     struct ImmutableChildOfImmutableChildOfImmutableBase;
 
-    #[pyclass(crate = "crate", subclass)]
-    struct BaseWithData(#[allow(unused)] u64);
-
-    #[pyclass(crate = "crate", extends = BaseWithData)]
-    struct ChildWithData(#[allow(unused)] u64);
-
-    #[pyclass(crate = "crate", extends = BaseWithData)]
-    struct ChildWithoutData;
-
     fn assert_mutable<T: PyClass<Frozen = False, PyClassMutability = MutableClass>>() {}
     fn assert_immutable<T: PyClass<Frozen = True, PyClassMutability = ImmutableClass>>() {}
     fn assert_mutable_with_mutable_ancestor<

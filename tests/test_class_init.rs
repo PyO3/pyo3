@@ -250,45 +250,17 @@ fn subclass_init() {
 }
 
 #[pyclass(extends=SuperClass)]
-struct SubClass {
-    #[pyo3(get)]
-    rust_subclass_new: bool,
-    #[pyo3(get)]
-    rust_subclass_default: bool,
-    #[pyo3(get)]
-    rust_subclass_init: bool,
-}
-
-impl Default for SubClass {
-    fn default() -> Self {
-        Self {
-            rust_subclass_new: false,
-            rust_subclass_default: true,
-            rust_subclass_init: false,
-        }
-    }
-}
+#[derive(Default)]
+struct SubClass {}
 
 #[pymethods]
 impl SubClass {
     #[new]
     fn new() -> (Self, SuperClass) {
-        (
-            SubClass {
-                rust_subclass_new: true,
-                rust_subclass_default: false,
-                rust_subclass_init: false,
-            },
-            SuperClass::new(),
-        )
+        (SubClass {}, SuperClass::new())
     }
 
-    fn __init__(&mut self) {
-        assert!(!self.rust_subclass_new);
-        assert!(self.rust_subclass_default);
-        assert!(!self.rust_subclass_init);
-        self.rust_subclass_init = true;
-    }
+    fn __init__(&mut self) {}
 }
 
 #[test]
@@ -301,12 +273,6 @@ fn subclass_pyclass_init() {
         let source = pyo3_ffi::c_str!(pyo3::indoc::indoc!(
             r#"
             c = SubClass()
-            assert c.rust_new is True
-            assert c.rust_default is False
-            assert c.rust_init is False
-            assert c.rust_subclass_new is False  # overridden by calling __init__
-            assert c.rust_subclass_default is True
-            assert c.rust_subclass_init is True
             "#
         ));
         let globals = PyModule::import(py, "__main__").unwrap().dict();

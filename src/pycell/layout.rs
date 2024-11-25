@@ -24,7 +24,7 @@ use crate::types::PyTypeMethods;
 use super::borrow_checker::PyClassMutability;
 use super::{ptr_from_ref, PyBorrowError};
 
-/// The data of a [ffi::PyObject] specifically relating to type `T`.
+/// The layout of the region of a [ffi::PyObject] specifically relating to type `T`.
 ///
 /// In an inheritance hierarchy where `#[pyclass(extends=PyDict)] struct A;` and `#[pyclass(extends=A)] struct B;`
 /// a [ffi::PyObject] of type `B` has separate memory for [ffi::PyDictObject] (the base native type) and
@@ -217,8 +217,12 @@ pub(crate) mod opaque_layout {
     use crate::ffi;
     use crate::{impl_::pyclass::PyClassImpl, PyTypeInfo};
 
+    /// Obtain a pointer to the region of `obj` that relates to `T`
+    ///
+    /// # Safety
+    /// - `obj` must be a valid `ffi::PyObject` of type `T` or a subclass of `T` that uses the opaque layout
     #[cfg(Py_3_12)]
-    pub(crate) fn get_contents_ptr<T: PyClassImpl + PyTypeInfo>(
+    pub(crate) unsafe fn get_contents_ptr<T: PyClassImpl + PyTypeInfo>(
         obj: *mut ffi::PyObject,
         strategy: TypeObjectStrategy<'_>,
     ) -> *mut PyClassObjectContents<T> {
@@ -275,7 +279,7 @@ pub(crate) mod static_layout {
 
     unsafe impl<T: PyClassImpl> PyLayout<T> for PyStaticClassLayout<T> {}
 
-    /// Base layout of [PyClassObject] with a known sized base type.
+    /// Layout of a native type `T` with a known size (not opaque)
     /// Corresponds to [PyObject](https://docs.python.org/3/c-api/structures.html#c.PyObject) from the C API.
     #[doc(hidden)]
     #[repr(C)]
@@ -291,7 +295,7 @@ pub(crate) mod static_layout {
     pub struct InvalidStaticLayout;
 
     /// This is valid insofar as casting a `*mut ffi::PyObject` to `*mut InvalidStaticLayout` is valid
-    /// since nothing can actually be read by dereferencing.
+    /// since `InvalidStaticLayout` has no fields to read.
     unsafe impl<T> PyLayout<T> for InvalidStaticLayout {}
 }
 
@@ -358,7 +362,7 @@ impl PyObjectLayout {
             }
         } else {
             let obj: *mut static_layout::PyStaticClassLayout<T> = obj.cast();
-            // indicates `ob_base` has type InvalidBaseLayout
+            // indicates `ob_base` has type [static_layout::InvalidStaticLayout]
             debug_assert_ne!(
                 offset_of!(static_layout::PyStaticClassLayout<T>, contents),
                 0,
@@ -382,7 +386,7 @@ impl PyObjectLayout {
         ))
     }
 
-    /// Obtain a pointer to the portion of `obj` containing the data for `T`
+    /// Obtain a pointer to the portion of `obj` containing the user data for `T`
     ///
     /// # Safety
     /// `obj` must point to a valid `PyObject` whose type is `T` or a subclass of `T`.
@@ -394,7 +398,7 @@ impl PyObjectLayout {
         (*contents).value.get()
     }
 
-    /// Obtain a reference to the portion of `obj` containing the data for `T`
+    /// Obtain a reference to the portion of `obj` containing the user data for `T`
     ///
     /// # Safety
     /// `obj` must point to a valid [ffi::PyObject] whose type is `T` or a subclass of `T`.
@@ -569,8 +573,8 @@ mod static_tests {
 
         #[repr(C)]
         struct ExpectedLayout {
-            // typically called `ob_base`. In C it is defined using the `PyObject_HEAD` macro
-            // https://docs.python.org/3/c-api/structures.html
+            /// typically called `ob_base`. In C it is defined using the `PyObject_HEAD` macro
+            /// [docs](https://docs.python.org/3/c-api/structures.html)
             native_base: ffi::PyObject,
             contents: PyClassObjectContents<MyClass>,
         }
@@ -622,8 +626,6 @@ mod static_tests {
 
         #[repr(C)]
         struct ExpectedLayout {
-            // typically called `ob_base`. In C it is defined using the `PyObject_HEAD` macro
-            // https://docs.python.org/3/c-api/structures.html
             native_base: ffi::PyObject,
             contents: PyClassObjectContents<MyClass>,
         }

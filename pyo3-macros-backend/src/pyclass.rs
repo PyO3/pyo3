@@ -1827,7 +1827,6 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
 
     let opaque = if attr.options.opaque.is_some() {
         quote! {
-            #[cfg(Py_3_12)]
             const OPAQUE: bool = true;
 
             #[cfg(not(Py_3_12))]

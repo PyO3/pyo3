@@ -405,8 +405,6 @@ pub fn impl_py_method_def_new(
 fn impl_init_slot(cls: &syn::Type, mut spec: FnSpec<'_>, ctx: &Ctx) -> Result<MethodAndSlotDef> {
     let Ctx { pyo3_path, .. } = ctx;
 
-    // HACK: __init__ proto slot must always use varargs calling convention, so change the spec.
-    // Probably indicates there's a refactoring opportunity somewhere.
     spec.convention = CallingConvention::Varargs;
 
     let wrapper_ident = syn::Ident::new("__pymethod___init____", Span::call_site());

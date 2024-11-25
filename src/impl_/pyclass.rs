@@ -211,14 +211,14 @@ pub trait PyClassImpl: Sized + 'static {
 
     fn items_iter() -> PyClassItemsIter;
 
-    /// Used to provide the __dictoffset__ slot
+    /// Used to provide the `__dictoffset__` slot
     /// (equivalent to [tp_dictoffset](https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_dictoffset))
     #[inline]
     fn dict_offset() -> Option<PyObjectOffset> {
         None
     }
 
-    /// Used to provide the __weaklistoffset__ slot
+    /// Used to provide the `__weaklistoffset__` slot
     /// (equivalent to [tp_weaklistoffset](https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_weaklistoffset)
     #[inline]
     fn weaklist_offset() -> Option<PyObjectOffset> {
@@ -1147,10 +1147,15 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
 )]
 pub trait PyClassBaseType: Sized {
     /// A struct that describes the memory layout of a `ffi:PyObject` with the type of `Self`.
-    /// Only valid when `<T as PyTypeInfo>::OPAQUE` is `false`.
+    /// Only valid when `<T as PyTypeInfo>::OPAQUE == false`.
     type StaticLayout: PyLayout<Self>;
+    /// The nearest ancestor in the inheritance tree that is a native type (not a `#[pyclass]` annotated struct).
     type BaseNativeType: PyTypeInfo;
+    /// The implementation for recursive operations that walk the inheritance tree back to the `BaseNativeType`.
+    /// (two implementations: one for native type, one for pyclass)
     type RecursiveOperations: PyObjectRecursiveOperations;
+    /// The implementation for constructing new a new `ffi::PyObject` of this type.
+    /// (two implementations: one for native type, one for pyclass)
     type Initializer: PyObjectInit<Self>;
     type PyClassMutability: PyClassMutability;
 }
