@@ -108,6 +108,15 @@ using single-phase initialization and the
 [`sequential`](https://github.com/PyO3/pyo3/tree/main/pyo3-ffi/examples/sequential)
 example for modules using multi-phase initialization.
 
+If you would like to use conditional compilation to trigger different code paths
+under the free-threaded build, you can use the `Py_GIL_DISABLED` attribute once
+you have configured your crate to generate the necessary build configuration
+data. See [the guide
+section](./building-and-distribution/multiple-python-versions.md) for more
+details about supporting multiple different Python versions, including the
+free-threaded build.
+
+
 ## Special considerations for the free-threaded build
 
 The free-threaded interpreter does not have a GIL, and this can make interacting
@@ -234,7 +243,24 @@ needed. For now you should explicitly add locking, possibly using conditional
 compilation or using the critical section API to avoid creating deadlocks with
 the GIL.
 
-## Thread-safe single initialization
+### Cannot build extensions using the limited API
+
+The free-threaded build uses a completely new ABI and there is not yet an
+equivalent to the limited API for the free-threaded ABI. That means if your
+crate depends on PyO3 using the `abi3` feature or an an `abi3-pyxx` feature,
+PyO3 will print a warning and ignore that setting when building extensions using
+the free-threaded interpreter.
+
+This means that if your package makes use of the ABI forward compatibility
+provided by the limited API to uploads only one wheel for each release of your
+package, you will need to update and tooling or instructions to also upload a
+version-specific free-threaded wheel.
+
+See [the guide section](./building-and-distribution/multiple-python-versions.md)
+for more details about supporting multiple different Python versions, including
+the free-threaded build.
+
+### Thread-safe single initialization
 
 Until version 0.23, PyO3 provided only [`GILOnceCell`] to enable deadlock-free
 single initialization of data in contexts that might execute arbitrary Python
