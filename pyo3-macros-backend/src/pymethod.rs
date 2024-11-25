@@ -1348,14 +1348,6 @@ impl SlotDef {
         )?;
         let name = spec.name;
         let holders = holders.init_holders(ctx);
-        let dep = if method_name == "__richcmp__" {
-            quote! {
-                #[allow(unknown_lints, non_local_definitions)]
-                impl #pyo3_path::impl_::pyclass::HasCustomRichCmp for #cls {}
-            }
-        } else {
-            TokenStream::default()
-        };
         let associated_method = quote! {
             #[allow(non_snake_case)]
             unsafe fn #wrapper_ident(
@@ -1363,7 +1355,6 @@ impl SlotDef {
                 _raw_slf: *mut #pyo3_path::ffi::PyObject,
                 #(#arg_idents: #arg_types),*
             ) -> #pyo3_path::PyResult<#ret_ty> {
-                #dep
                 let function = #cls::#name; // Shadow the method name to avoid #3017
                 let _slf = _raw_slf;
                 #holders
