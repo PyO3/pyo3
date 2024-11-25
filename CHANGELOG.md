@@ -10,6 +10,18 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.23.2] - 2024-11-25
+
+### Added
+
+- Add `IntoPyObjectExt` trait. [#4708](https://github.com/PyO3/pyo3/pull/4708)
+
+### Fixed
+
+- Fix compile failures when building for free-threaded Python when the `abi3` or `abi3-pyxx` features are enabled. [#4719](https://github.com/PyO3/pyo3/pull/4719)
+- Fix `ambiguous_associated_items` lint error in `#[pyclass]` and `#[derive(IntoPyObject)]` macros. [#4725](https://github.com/PyO3/pyo3/pull/4725)
+
+
 ## [0.23.1] - 2024-11-16
 
 Re-release of 0.23.0 with fixes to docs.rs build.
@@ -2000,7 +2012,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.23.1...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.23.2...HEAD
+[0.23.2]: https://github.com/pyo3/pyo3/compare/v0.23.1...v0.23.2
 [0.23.1]: https://github.com/pyo3/pyo3/compare/v0.23.0...v0.23.1
 [0.23.0]: https://github.com/pyo3/pyo3/compare/v0.22.5...v0.23.0
 [0.22.5]: https://github.com/pyo3/pyo3/compare/v0.22.4...v0.22.5
