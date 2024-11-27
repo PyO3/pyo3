@@ -25,10 +25,4 @@ fn pyfunction_option_4(
 ) {
 }
 
-#[pyclass]
-pub enum SimpleEnumWithoutEq {
-    VariamtA,
-    VariantB,
-}
-
 fn main() {}
