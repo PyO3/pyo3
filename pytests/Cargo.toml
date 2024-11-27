@@ -5,6 +5,7 @@ version = "0.1.0"
 description = "Python-based tests for PyO3"
 edition = "2021"
 publish = false
+rust-version = "1.63"
 
 [dependencies]
 pyo3 = { path = "../", features = ["extension-module"] }
