@@ -1122,11 +1122,7 @@ impl BuildFlags {
         Self(
             BuildFlags::ALL
                 .iter()
-                .filter(|flag| {
-                    config_map
-                        .get_value(flag.to_string())
-                        .map_or(false, |value| value == "1")
-                })
+                .filter(|flag| config_map.get_value(flag.to_string()) == Some("1"))
                 .cloned()
                 .collect(),
         )
