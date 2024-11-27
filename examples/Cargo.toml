@@ -3,6 +3,7 @@ name = "pyo3-examples"
 version = "0.0.0"
 publish = false
 edition = "2021"
+rust-version = "1.63"
 
 [dev-dependencies]
 pyo3 = { path = "..", features = ["auto-initialize", "extension-module"] }

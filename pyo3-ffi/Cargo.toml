@@ -10,6 +10,7 @@ categories = ["api-bindings", "development-tools::ffi"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
 links = "python"
+rust-version = "1.63"
 
 [dependencies]
 libc = "0.2.62"
