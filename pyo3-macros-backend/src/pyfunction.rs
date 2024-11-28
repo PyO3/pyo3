@@ -239,7 +239,7 @@ pub fn impl_wrap_pyfunction(
     let signature = if let Some(signature) = signature {
         FunctionSignature::from_arguments_and_attribute(arguments, signature)?
     } else {
-        FunctionSignature::from_arguments(arguments)?
+        FunctionSignature::from_arguments(arguments)
     };
 
     let spec = method::FnSpec {

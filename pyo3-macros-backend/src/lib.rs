@@ -9,7 +9,6 @@
 mod utils;
 
 mod attributes;
-mod deprecations;
 mod frompyobject;
 mod intopyobject;
 mod konst;
