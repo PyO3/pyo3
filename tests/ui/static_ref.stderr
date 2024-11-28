@@ -5,7 +5,7 @@ error: lifetime may not live long enough
   | ^^^^^^^^^^^^^
   | |
   | lifetime `'py` defined here
-  | cast requires that `'py` must outlive `'static`
+  | coercion requires that `'py` must outlive `'static`
   |
   = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
 
@@ -42,6 +42,6 @@ error: lifetime may not live long enough
   | ^^^^^^^^^^^^^
   | |
   | lifetime `'py` defined here
-  | cast requires that `'py` must outlive `'static`
+  | coercion requires that `'py` must outlive `'static`
   |
   = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
