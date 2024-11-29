@@ -1649,7 +1649,7 @@ fn default_lib_name_windows(
         // CPython bug: linking against python3_d.dll raises error
         // https://github.com/python/cpython/issues/101614
         Ok(format!("python{}{}_d", version.major, version.minor))
-    } else if abi3 && !(implementation.is_pypy() || implementation.is_graalpy()) {
+    } else if abi3 && !(gil_disabled || implementation.is_pypy() || implementation.is_graalpy()) {
         if debug {
             Ok(WINDOWS_ABI3_DEBUG_LIB_NAME.to_owned())
         } else {
@@ -2537,6 +2537,21 @@ mod tests {
                 },
                 CPython,
                 false,
+                false,
+                false,
+                true,
+            )
+            .unwrap(),
+            "python313t",
+        );
+        assert_eq!(
+            super::default_lib_name_windows(
+                PythonVersion {
+                    major: 3,
+                    minor: 13
+                },
+                CPython,
+                true, // abi3 true should not affect the free-threaded lib name
                 false,
                 false,
                 true,
