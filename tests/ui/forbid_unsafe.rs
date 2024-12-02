@@ -28,4 +28,16 @@ mod gh_4394 {
     pub struct Version;
 }
 
+mod from_py_with {
+    use pyo3::prelude::*;
+    use pyo3::types::PyBytes;
+
+    fn bytes_from_py(bytes: &Bound<'_, PyAny>) -> PyResult<Vec<u8>> {
+        Ok(bytes.downcast::<PyBytes>()?.as_bytes().to_vec())
+    }
+
+    #[pyfunction]
+    fn f(#[pyo3(from_py_with = "bytes_from_py")] _bytes: Vec<u8>) {}
+}
+
 fn main() {}
