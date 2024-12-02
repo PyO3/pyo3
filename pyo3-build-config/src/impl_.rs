@@ -554,8 +554,17 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         if self.lib_dir.is_none() {
             let target = target_triple_from_env();
             let py_version = if self.abi3 { None } else { Some(self.version) };
-            self.lib_dir =
-                import_lib::generate_import_lib(&target, self.implementation, py_version)?;
+            let abiflags = if self.is_free_threaded() {
+                Some("t")
+            } else {
+                None
+            };
+            self.lib_dir = import_lib::generate_import_lib(
+                &target,
+                self.implementation,
+                py_version,
+                abiflags,
+            )?;
         }
         Ok(())
     }
@@ -1521,6 +1530,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
                 .implementation
                 .unwrap_or(PythonImplementation::CPython),
             py_version,
+            None,
         )?;
     }
 
@@ -1889,6 +1899,7 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
             &host,
             interpreter_config.implementation,
             py_version,
+            None,
         )?;
     }
 
