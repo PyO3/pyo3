@@ -265,9 +265,10 @@ pub(crate) fn impl_regular_arg_param(
                 )?
             }
         } else {
+            let unwrap = quote! {unsafe { #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value) }};
             quote_arg_span! {
                 #pyo3_path::impl_::extract_argument::from_py_with(
-                    #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value),
+                    #unwrap,
                     #name_str,
                     #from_py_with as fn(_) -> _,
                 )?
