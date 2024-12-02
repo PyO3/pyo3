@@ -148,6 +148,28 @@ jobs:
         if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows'))) }}
         run: nox -s ffi-check
 
+      - if: ${{ inputs.rust == 'stable' && inputs.os == 'ubuntu-latest' && !startsWith(inputs.python-version, 'graalpy') && !startsWith(inputs.python-version, 'pypy') }}
+        uses: uraimo/run-on-arch-action@v2.7.2
+        name: FFI check on aarch64
+        with:
+          arch: aarch64
+          distro: ubuntu22.04
+          install: |
+            set -x
+            if command -v apt-get &> /dev/null; then
+              echo "installing python & pip with apt-get..."
+              apt-get update
+              apt-get install -y --no-install-recommends python3 python3-pip python3-venv git
+            else
+              echo "installing python & pip with apk..."
+              apk update
+              apk add python3 py3-pip git
+            fi
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+          run: |
+            pip install nox
+            nox -s ffi-check
+
     env:
       CARGO_TERM_VERBOSE: true
       CARGO_BUILD_TARGET: ${{ inputs.rust-target }}
