@@ -149,7 +149,7 @@ jobs:
         run: nox -s ffi-check
 
       - if: ${{ inputs.rust == 'stable' && inputs.os == 'ubuntu-latest' && !startsWith(inputs.python-version, 'graalpy') && !startsWith(inputs.python-version, 'pypy') }}
-        uses: uraimo/run-on-arch-action@v2.7.2
+        uses: uraimo/run-on-arch-action@v2.8.1
         name: FFI check on aarch64
         with:
           arch: aarch64
