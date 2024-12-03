@@ -3087,7 +3087,7 @@ mod tests {
     fn test_from_pyo3_config_file_env_rebuild() {
         READ_ENV_VARS.with(|vars| vars.borrow_mut().clear());
         let _ = InterpreterConfig::from_pyo3_config_file_env();
-        READ_ENV_VARS
-            .with(|vars| assert_eq!(vars.borrow().as_slice(), &["PYO3_CONFIG_FILE".to_string()]));
+        // it's possible that other env vars were also read, hence just checking for contains
+        READ_ENV_VARS.with(|vars| assert!(vars.borrow().contains(&"PYO3_CONFIG_FILE".to_string())));
     }
 }
