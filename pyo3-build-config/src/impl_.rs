@@ -44,7 +44,7 @@ pub(crate) const ABI3_MAX_MINOR: u8 = 12;
 
 #[cfg(test)]
 thread_local! {
-    static READ_ENV_VARS: RefCell<Vec<String>> = RefCell::new(Vec::new());
+    static READ_ENV_VARS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
 }
 
 /// Gets an environment variable owned by cargo.
