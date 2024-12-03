@@ -420,7 +420,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
     /// The `abi3` features, if set, may apply an `abi3` constraint to the Python version.
     #[allow(dead_code)] // only used in build.rs
     pub(super) fn from_pyo3_config_file_env() -> Option<Result<Self>> {
-        cargo_env_var("PYO3_CONFIG_FILE").map(|path| {
+        env_var("PYO3_CONFIG_FILE").map(|path| {
             let path = Path::new(&path);
             println!("cargo:rerun-if-changed={}", path.display());
             // Absolute path is necessary because this build script is run with a cwd different to the
