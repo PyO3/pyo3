@@ -10,6 +10,19 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.23.3] - 2024-12-03
+
+### Packaging
+
+- Bump optional `python3-dll-a` dependency to 0.2.11. [#4749](https://github.com/PyO3/pyo3/pull/4749)
+
+### Fixed
+
+- Fix unresolved symbol link failures on Windows when compiling for Python 3.13t with `abi3` features enabled. [#4733](https://github.com/PyO3/pyo3/pull/4733)
+- Fix unresolved symbol link failures on Windows when compiling for Python 3.13t using the `generate-import-lib` feature. [#4749](https://github.com/PyO3/pyo3/pull/4749)
+- Fix compile-time regression in PyO3 0.23.0 where changing `PYO3_CONFIG_FILE` would not reconfigure PyO3 for the new interpreter. [#4758](https://github.com/PyO3/pyo3/pull/4758)
+
+
 ## [0.23.2] - 2024-11-25
 
 ### Added
@@ -2013,7 +2026,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.23.2...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.23.3...HEAD
+[0.23.3]: https://github.com/pyo3/pyo3/compare/v0.23.2...v0.23.3
 [0.23.2]: https://github.com/pyo3/pyo3/compare/v0.23.1...v0.23.2
 [0.23.1]: https://github.com/pyo3/pyo3/compare/v0.23.0...v0.23.1
 [0.23.0]: https://github.com/pyo3/pyo3/compare/v0.22.5...v0.23.0
