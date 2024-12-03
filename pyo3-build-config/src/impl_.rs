@@ -6,6 +6,8 @@
 #[path = "import_lib.rs"]
 mod import_lib;
 
+#[cfg(test)]
+use std::cell::RefCell;
 use std::{
     collections::{HashMap, HashSet},
     env,
@@ -15,8 +17,7 @@ use std::{
     io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    str,
-    str::FromStr,
+    str::{self, FromStr},
 };
 
 pub use target_lexicon::Triple;
@@ -41,6 +42,11 @@ const MINIMUM_SUPPORTED_VERSION_GRAALPY: PythonVersion = PythonVersion {
 /// Maximum Python version that can be used as minimum required Python version with abi3.
 pub(crate) const ABI3_MAX_MINOR: u8 = 12;
 
+#[cfg(test)]
+thread_local! {
+    static READ_ENV_VARS: RefCell<Vec<String>> = RefCell::new(Vec::new());
+}
+
 /// Gets an environment variable owned by cargo.
 ///
 /// Environment variables set by cargo are expected to be valid UTF8.
@@ -53,6 +59,12 @@ pub fn cargo_env_var(var: &str) -> Option<String> {
 pub fn env_var(var: &str) -> Option<OsString> {
     if cfg!(feature = "resolve-config") {
         println!("cargo:rerun-if-env-changed={}", var);
+    }
+    #[cfg(test)]
+    {
+        READ_ENV_VARS.with(|env_vars| {
+            env_vars.borrow_mut().push(var.to_owned());
+        });
     }
     env::var_os(var)
 }
@@ -3069,5 +3081,13 @@ mod tests {
               - 1: \
             "
         ));
+    }
+
+    #[test]
+    fn test_from_pyo3_config_file_env_rebuild() {
+        READ_ENV_VARS.with(|vars| vars.borrow_mut().clear());
+        let _ = InterpreterConfig::from_pyo3_config_file_env();
+        READ_ENV_VARS
+            .with(|vars| assert_eq!(vars.borrow().as_slice(), &["PYO3_CONFIG_FILE".to_string()]));
     }
 }
