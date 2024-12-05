@@ -165,6 +165,6 @@ thread that owns the GIL spins forever waiting for the result of the rayon
 thread. Calling `allow_threads` allows the GIL to be released in the thread
 collecting the results from the worker threads. You should always call
 `allow_threads` in situations that spawn worker threads, but especially so in
-cases where worker threads need to acquire the GIL to prevent deadlocks.
+cases where worker threads need to acquire the GIL, to prevent deadlocks.
 
 [`Python::allow_threads`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.allow_threads
