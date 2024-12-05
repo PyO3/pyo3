@@ -140,10 +140,8 @@ struct UserID {
     id: i64,
 }
 
-let instances: Vec<Py<UserID>> = Python::with_gil(|py| {
-    (0..10).map(|x| Py::new(py, UserID { id: x }).unwrap()).collect()
-});
 let allowed_ids: Vec<bool> = Python::with_gil(|outer_py| {
+    let instances: Vec<Py<UserID>> = (0..10).map(|x| Py::new(outer_py, UserID { id: x }).unwrap()).collect();
     outer_py.allow_threads(|| {
         (0..instances.len()).into_par_iter().map(|index| {
             Python::with_gil(|inner_py| {
