@@ -125,8 +125,8 @@ in parallel. It is also possible to spawn threads in Rust that acquire the GIL
 and operate on Python objects. However, care must be taken to avoid writing code
 that deadlocks with the GIL in these cases.
 
-In the example below, we share a `vec` of User ID objects defined using the
-`pyclass` macro and spawn threads to process the collection of data into a `vec`
+In the example below, we share a `Vec` of User ID objects defined using the
+`pyclass` macro and spawn threads to process the collection of data into a `Vec`
 of booleans based on a predicate using a rayon parallel iterator:
 
 ```rust,no_run
