@@ -1,3 +1,4 @@
+#[cfg(any(all(not(PyPy), not(GraalPy)), not(Py_3_11)))]
 use libc::size_t;
 use std::os::raw::c_int;
 
