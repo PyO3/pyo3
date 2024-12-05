@@ -428,6 +428,7 @@ mod internal_tricks;
 mod internal;
 
 pub mod buffer;
+pub mod call;
 pub mod conversion;
 mod conversions;
 #[cfg(feature = "experimental-async")]

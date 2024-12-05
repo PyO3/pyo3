@@ -1,0 +1,29 @@
+error[E0277]: `&str` cannot used as a Python `call` argument
+ --> tests/ui/invalid_pycallargs.rs:6:19
+  |
+6 |         any.call1("foo");
+  |             ----- ^^^^^ the trait `PyCallArgs<'_>` is not implemented for `&str`
+  |             |
+  |             required by a bound introduced by this call
+  |
+  = note: `PyCallArgs` is implemented for Rust tuples, `Bound<'py, PyTuple>` and `Py<PyTuple>`
+  = note: if your type is convertable to `PyTuple` via `IntoPyObject`, call `<arg>.into_pyobject(py)` manually
+  = note: if you meant to pass the type as a single argument, wrap it in a 1-tuple, `(<arg>,)`
+  = help: the following other types implement trait `PyCallArgs<'py>`:
+            &'a (T0, T1)
+            &'a (T0, T1, T2)
+            &'a (T0, T1, T2, T3)
+            &'a (T0, T1, T2, T3, T4)
+            &'a (T0, T1, T2, T3, T4, T5)
+            &'a (T0, T1, T2, T3, T4, T5, T6)
+            &'a (T0, T1, T2, T3, T4, T5, T6, T7)
+            &'a (T0, T1, T2, T3, T4, T5, T6, T7, T8)
+          and $N others
+note: required by a bound in `call1`
+ --> src/types/any.rs
+  |
+  |     fn call1<A>(&self, args: A) -> PyResult<Bound<'py, PyAny>>
+  |        ----- required by a bound in this associated function
+  |     where
+  |         A: PyCallArgs<'py>;
+  |            ^^^^^^^^^^^^^^^ required by this bound in `PyAnyMethods::call1`
