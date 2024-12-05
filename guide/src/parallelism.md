@@ -133,7 +133,7 @@ of booleans based on a predicate using a rayon parallel iterator:
 use pyo3::prelude::*;
 
 // These traits let us use int_par_iter and map
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 #[pyclass]
 struct UserID {
@@ -143,9 +143,9 @@ struct UserID {
 let allowed_ids: Vec<bool> = Python::with_gil(|outer_py| {
     let instances: Vec<Py<UserID>> = (0..10).map(|x| Py::new(outer_py, UserID { id: x }).unwrap()).collect();
     outer_py.allow_threads(|| {
-        (0..instances.len()).into_par_iter().map(|index| {
+        instances.par_iter().map(|instance| {
             Python::with_gil(|inner_py| {
-                instances[index].borrow(inner_py).id > 5
+                instance.borrow(inner_py).id > 5
             })
         }).collect()
     })
