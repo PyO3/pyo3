@@ -43,7 +43,13 @@ impl PyErrState {
     }
 
     pub(crate) fn normalized(normalized: PyErrStateNormalized) -> Self {
-        Self::from_inner(PyErrStateInner::Normalized(normalized))
+        let state = Self::from_inner(PyErrStateInner::Normalized(normalized));
+        // This state is already normalized, by completing the Once immediately we avoid
+        // reaching the `py.allow_threads` in `make_normalized` which is less efficient
+        // and introduces a GIL switch which could deadlock.
+        // See https://github.com/PyO3/pyo3/issues/4764
+        state.normalized.call_once(|| {});
+        state
     }
 
     pub(crate) fn restore(self, py: Python<'_>) {
