@@ -1,7 +1,8 @@
 use crate::{
-    conversion::IntoPyObject, ffi, types::any::PyAnyMethods, AsPyPointer, Bound, BoundObject,
+    conversion::IntoPyObject, ffi, types::any::PyAnyMethods, AsPyPointer, BoundObject,
     FromPyObject, PyAny, PyObject, PyResult, Python,
 };
+use crate::{Borrowed, Bound};
 
 /// `Option::Some<T>` is converted like `T`.
 /// `Option::None` is converted to Python `None`.
@@ -60,11 +61,11 @@ where
     }
 }
 
-impl<'py, T> FromPyObject<'py> for Option<T>
+impl<'a, 'py, T> FromPyObject<'a, 'py> for Option<T>
 where
-    T: FromPyObject<'py>,
+    T: FromPyObject<'a, 'py>,
 {
-    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
         if obj.is_none() {
             Ok(None)
         } else {
