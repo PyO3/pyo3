@@ -38,5 +38,5 @@ jobs:
         env:
           # Don't put these in bash, because we don't want the expansion to
           # risk code execution
-          BASE_REF: "refs/heads/{{ github.event.pull_request.base.ref }}"
+          BASE_REF: "refs/heads/${{ github.event.pull_request.base.ref }}"
           MERGE_REF: "refs/pull/${{ github.event.pull_request.number }}/merge"
