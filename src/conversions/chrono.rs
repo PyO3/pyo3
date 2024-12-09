@@ -971,8 +971,8 @@ mod tests {
 
         // Also check that trying to convert an out of bound value errors.
         Python::with_gil(|py| {
-            assert!(Duration::min_value().into_pyobject(py).is_err());
-            assert!(Duration::max_value().into_pyobject(py).is_err());
+            assert!(Duration::MIN.into_pyobject(py).is_err());
+            assert!(Duration::MAX.into_pyobject(py).is_err());
         });
     }
 
