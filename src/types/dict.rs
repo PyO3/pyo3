@@ -438,6 +438,8 @@ enum DictIterImpl {
 
 impl DictIterImpl {
     #[inline]
+    /// Safety: the dict should be locked with a critical section on the free-threaded build
+    /// and otherwise not shared between threads in code that releases the GIL.
     unsafe fn next_unchecked<'py>(
         &mut self,
         dict: &Bound<'py, PyDict>,
@@ -448,7 +450,7 @@ impl DictIterImpl {
                 remaining,
                 ppos,
                 ..
-            } => crate::sync::with_critical_section(dict, || {
+            } => {
                 let ma_used = dict_len(dict);
 
                 // These checks are similar to what CPython does.
@@ -478,20 +480,20 @@ impl DictIterImpl {
                 let mut key: *mut ffi::PyObject = std::ptr::null_mut();
                 let mut value: *mut ffi::PyObject = std::ptr::null_mut();
 
-                if ffi::PyDict_Next(dict.as_ptr(), ppos, &mut key, &mut value) != 0 {
+                if unsafe { ffi::PyDict_Next(dict.as_ptr(), ppos, &mut key, &mut value) != 0 } {
                     *remaining -= 1;
                     let py = dict.py();
                     // Safety:
                     // - PyDict_Next returns borrowed values
                     // - we have already checked that `PyDict_Next` succeeded, so we can assume these to be non-null
                     Some((
-                        key.assume_borrowed_unchecked(py).to_owned(),
-                        value.assume_borrowed_unchecked(py).to_owned(),
+                        unsafe { key.assume_borrowed_unchecked(py).to_owned() },
+                        unsafe { value.assume_borrowed_unchecked(py).to_owned() },
                     ))
                 } else {
                     None
                 }
-            }),
+            }
         }
     }
 
