@@ -181,7 +181,8 @@ pub trait PyDictMethods<'py>: crate::sealed::Sealed {
     /// Iterates over the contents of this dictionary while holding a critical section on the dict.
     /// This is useful when the GIL is disabled and the dictionary is shared between threads.
     /// It is not guaranteed that the dictionary will not be modified during iteration when the
-    /// closure calls arbitrary Python code that releases the current critical section.
+    /// closure calls arbitrary Python code that releases the critical section held by the
+    /// iterator. Otherwise, the dictionary will not be modified during iteration.
     ///
     /// This method is a small performance optimization over `.iter().try_for_each()` when the
     /// nightly feature is not enabled because we cannot implement an optimised version of
@@ -396,7 +397,8 @@ impl<'a, 'py> Borrowed<'a, 'py, PyDict> {
     /// Iterates over the contents of this dictionary without incrementing reference counts.
     ///
     /// # Safety
-    /// It must be known that this dictionary will not be modified during iteration.
+    /// It must be known that this dictionary will not be modified during iteration,
+    /// for example, when parsing arguments in a keyword arguments dictionary.
     pub(crate) unsafe fn iter_borrowed(self) -> BorrowedDictIter<'a, 'py> {
         BorrowedDictIter::new(self)
     }
