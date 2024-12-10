@@ -14,9 +14,6 @@ fn wildcard_argument(_: i32) {}
 fn destructured_argument((_a, _b): (i32, i32)) {}
 
 #[pyfunction]
-fn function_with_required_after_option(_opt: Option<i32>, _x: i32) {}
-
-#[pyfunction]
 #[pyo3(signature=(*args))]
 fn function_with_optional_args(args: Option<Bound<'_, PyTuple>>) {
     let _ = args;

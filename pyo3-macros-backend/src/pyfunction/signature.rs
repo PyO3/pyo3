@@ -459,7 +459,7 @@ impl<'a> FunctionSignature<'a> {
     }
 
     /// Without `#[pyo3(signature)]` or `#[args]` - just take the Rust function arguments as positional.
-    pub fn from_arguments(arguments: Vec<FnArg<'a>>) -> syn::Result<Self> {
+    pub fn from_arguments(arguments: Vec<FnArg<'a>>) -> Self {
         let mut python_signature = PythonSignature::default();
         for arg in &arguments {
             // Python<'_> arguments don't show in Python signature
@@ -467,17 +467,11 @@ impl<'a> FunctionSignature<'a> {
                 continue;
             }
 
-            if let FnArg::Regular(RegularArg {
-                ty,
-                option_wrapped_type: None,
-                ..
-            }) = arg
-            {
+            if let FnArg::Regular(RegularArg { .. }) = arg {
                 // This argument is required, all previous arguments must also have been required
-                ensure_spanned!(
-                    python_signature.required_positional_parameters == python_signature.positional_parameters.len(),
-                    ty.span() => "required arguments after an `Option<_>` argument are ambiguous\n\
-                    = help: add a `#[pyo3(signature)]` annotation on this function to unambiguously specify the default values for all optional parameters"
+                assert_eq!(
+                    python_signature.required_positional_parameters,
+                    python_signature.positional_parameters.len(),
                 );
 
                 python_signature.required_positional_parameters =
@@ -489,11 +483,11 @@ impl<'a> FunctionSignature<'a> {
                 .push(arg.name().unraw().to_string());
         }
 
-        Ok(Self {
+        Self {
             arguments,
             python_signature,
             attribute: None,
-        })
+        }
     }
 
     fn default_value_for_parameter(&self, parameter: &str) -> String {

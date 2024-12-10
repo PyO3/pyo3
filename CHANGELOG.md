@@ -10,6 +10,31 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.23.3] - 2024-12-03
+
+### Packaging
+
+- Bump optional `python3-dll-a` dependency to 0.2.11. [#4749](https://github.com/PyO3/pyo3/pull/4749)
+
+### Fixed
+
+- Fix unresolved symbol link failures on Windows when compiling for Python 3.13t with `abi3` features enabled. [#4733](https://github.com/PyO3/pyo3/pull/4733)
+- Fix unresolved symbol link failures on Windows when compiling for Python 3.13t using the `generate-import-lib` feature. [#4749](https://github.com/PyO3/pyo3/pull/4749)
+- Fix compile-time regression in PyO3 0.23.0 where changing `PYO3_CONFIG_FILE` would not reconfigure PyO3 for the new interpreter. [#4758](https://github.com/PyO3/pyo3/pull/4758)
+
+
+## [0.23.2] - 2024-11-25
+
+### Added
+
+- Add `IntoPyObjectExt` trait. [#4708](https://github.com/PyO3/pyo3/pull/4708)
+
+### Fixed
+
+- Fix compile failures when building for free-threaded Python when the `abi3` or `abi3-pyxx` features are enabled. [#4719](https://github.com/PyO3/pyo3/pull/4719)
+- Fix `ambiguous_associated_items` lint error in `#[pyclass]` and `#[derive(IntoPyObject)]` macros. [#4725](https://github.com/PyO3/pyo3/pull/4725)
+
+
 ## [0.23.1] - 2024-11-16
 
 Re-release of 0.23.0 with fixes to docs.rs build.
@@ -133,6 +158,7 @@ Re-release of 0.23.0 with fixes to docs.rs build.
 - Revert removal of private FFI function `_PyLong_NumBits` on Python 3.13 and later. [#4450](https://github.com/PyO3/pyo3/pull/4450)
 - Fix `__traverse__` functions for base classes not being called by subclasses created with `#[pyclass(extends = ...)]`. [#4563](https://github.com/PyO3/pyo3/pull/4563)
 - Fix regression in 0.22.3 failing compiles under `#![forbid(unsafe_code)]`. [#4574](https://github.com/PyO3/pyo3/pull/4574)
+- Fix `create_exception` macro triggering lint and compile errors due to interaction with `gil-refs` feature. [#4589](https://github.com/PyO3/pyo3/pull/4589)
 - Workaround possible use-after-free in `_borrowed` methods on `PyWeakRef` and `PyWeakrefProxy` by leaking their contents. [#4590](https://github.com/PyO3/pyo3/pull/4590)
 - Fix crash calling `PyType_GetSlot` on static types before Python 3.10. [#4599](https://github.com/PyO3/pyo3/pull/4599)
 
@@ -163,7 +189,7 @@ Re-release of 0.23.0 with fixes to docs.rs build.
 - Fix compile failure in declarative `#[pymodule]` under presence of `#![no_implicit_prelude]`. [#4328](https://github.com/PyO3/pyo3/pull/4328)
 - Fix use of borrowed reference in `PyDict::get_item` (unsafe in free-threaded Python). [#4355](https://github.com/PyO3/pyo3/pull/4355)
 - Fix `#[pyclass(eq)]` macro hygiene issues for structs and enums. [#4359](https://github.com/PyO3/pyo3/pull/4359)
-- Fix hygiene/span issues of `'#[pyfunction]` and `#[pymethods]` generated code which affected expansion in `macro_rules` context. [#4382](https://github.com/PyO3/pyo3/pull/4382)
+- Fix hygiene/span issues of `#[pyfunction]` and `#[pymethods]` generated code which affected expansion in `macro_rules` context. [#4382](https://github.com/PyO3/pyo3/pull/4382)
 - Fix `unsafe_code` lint error in `#[pyclass]` generated code. [#4396](https://github.com/PyO3/pyo3/pull/4396)
 - Fix async functions returning a tuple only returning the first element to Python. [#4407](https://github.com/PyO3/pyo3/pull/4407)
 - Fix use of borrowed reference in `PyList::get_item` (unsafe in free-threaded Python). [#4410](https://github.com/PyO3/pyo3/pull/4410)
@@ -197,7 +223,7 @@ Re-release of 0.23.0 with fixes to docs.rs build.
 ### Fixed
 
 - Return `NotImplemented` instead of raising `TypeError` from generated equality method when comparing different types. [#4287](https://github.com/PyO3/pyo3/pull/4287)
-- Handle full-path `#[pyo3::prelude::pymodule]` and similar for `#[pyclass]` and `#[pyfunction]` in declarative modules.[#4288](https://github.com/PyO3/pyo3/pull/4288)
+- Handle full-path `#[pyo3::prelude::pymodule]` and similar for `#[pyclass]` and `#[pyfunction]` in declarative modules. [#4288](https://github.com/PyO3/pyo3/pull/4288)
 - Fix 128-bit int regression on big-endian platforms with Python <3.13. [#4291](https://github.com/PyO3/pyo3/pull/4291)
 - Stop generating code that will never be covered with declarative modules. [#4297](https://github.com/PyO3/pyo3/pull/4297)
 - Fix invalid deprecation warning for trailing optional on `#[setter]` function. [#4304](https://github.com/PyO3/pyo3/pull/4304)
@@ -2000,7 +2026,9 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.23.1...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.23.3...HEAD
+[0.23.3]: https://github.com/pyo3/pyo3/compare/v0.23.2...v0.23.3
+[0.23.2]: https://github.com/pyo3/pyo3/compare/v0.23.1...v0.23.2
 [0.23.1]: https://github.com/pyo3/pyo3/compare/v0.23.0...v0.23.1
 [0.23.0]: https://github.com/pyo3/pyo3/compare/v0.22.5...v0.23.0
 [0.22.5]: https://github.com/pyo3/pyo3/compare/v0.22.4...v0.22.5

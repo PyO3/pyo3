@@ -122,8 +122,8 @@ create_interface!(FloatClass, String);
 #### Must be thread-safe
 
 Python objects are freely shared between threads by the Python interpreter. This means that:
-- Python objects may be created and destroyed by different Python threads; therefore #[pyclass]` objects must be `Send`.
-- Python objects may be accessed by multiple python threads simultaneously; therefore `#[pyclass]` objects must be `Sync`.
+- Python objects may be created and destroyed by different Python threads; therefore `#[pyclass]` objects must be `Send`.
+- Python objects may be accessed by multiple Python threads simultaneously; therefore `#[pyclass]` objects must be `Sync`.
 
 For now, don't worry about these requirements; simple classes will already be thread-safe. There is a [detailed discussion on thread-safety](./class/thread-safety.md) later in the guide.
 

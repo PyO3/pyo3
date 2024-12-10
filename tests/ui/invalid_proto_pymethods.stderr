@@ -40,17 +40,6 @@ note: candidate #2 is defined in an impl for the type `EqAndRichcmp`
    | ^^^^^^^^^^^^
    = note: this error originates in the macro `::pyo3::impl_::pyclass::generate_pyclass_richcompare_slot` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0119]: conflicting implementations of trait `HasCustomRichCmp` for type `EqAndRichcmp`
-  --> tests/ui/invalid_proto_pymethods.rs:55:1
-   |
-55 | #[pymethods]
-   | ^^^^^^^^^^^^
-   | |
-   | first implementation here
-   | conflicting implementation for `EqAndRichcmp`
-   |
-   = note: this error originates in the macro `::pyo3::impl_::pyclass::generate_pyclass_richcompare_slot` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
-
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
   --> tests/ui/invalid_proto_pymethods.rs:55:1
    |
