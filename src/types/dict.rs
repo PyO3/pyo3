@@ -512,10 +512,17 @@ impl<'py> Iterator for BoundDictIterator<'py> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner
-            .with_critical_section(&self.dict, |inner| unsafe {
-                inner.next_unchecked(&self.dict)
-            })
+        #[cfg(Py_GIL_DISABLED)]
+        {
+            self.inner
+                .with_critical_section(&self.dict, |inner| unsafe {
+                    inner.next_unchecked(&self.dict)
+                })
+        }
+        #[cfg(not(Py_GIL_DISABLED))]
+        {
+            unsafe { self.inner.next_unchecked(&self.dict) }
+        }
     }
 
     #[inline]
