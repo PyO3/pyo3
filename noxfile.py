@@ -44,6 +44,8 @@ def test(session: nox.Session) -> None:
 
 @nox.session(name="test-rust", venv_backend="none")
 def test_rust(session: nox.Session):
+    _run_cargo_package_metadata_test(session, packages=["pyo3", "pyo3-ffi"])
+
     _run_cargo_test(session, package="pyo3-build-config")
     _run_cargo_test(session, package="pyo3-macros-backend")
     _run_cargo_test(session, package="pyo3-macros")
@@ -912,6 +914,22 @@ def _run_cargo_set_package_version(
     if project:
         command.append(f"--manifest-path={project}/Cargo.toml")
     _run(session, *command, external=True)
+
+
+def _run_cargo_package_metadata_test(
+    session: nox.Session, *, packages: List[str]
+) -> None:
+    output = _get_output("cargo", "metadata", "--format-version=1", "--no-deps")
+    cargo_packages = json.loads(output)["packages"]
+    for package in packages:
+        # Check Python interpreter version support in package metadata
+        metadata = next(
+            pkg["metadata"] for pkg in cargo_packages if pkg["name"] == package
+        )
+        for python_impl in ["cpython", "pypy"]:
+            version_info = metadata[python_impl]
+            assert "min-version" in version_info
+            assert "max-version" in version_info
 
 
 def _get_output(*args: str) -> str:
