@@ -61,7 +61,8 @@ use crate::{intern, DowncastError};
 use crate::{IntoPy, ToPyObject};
 use chrono::offset::{FixedOffset, Utc};
 use chrono::{
-    DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Timelike,
+    DateTime, Datelike, Duration, LocalResult, NaiveDate, NaiveDateTime, NaiveTime, Offset,
+    TimeZone, Timelike,
 };
 
 #[allow(deprecated)]
@@ -503,12 +504,26 @@ impl<Tz: TimeZone + for<'py> FromPyObject<'py>> FromPyObject<'_> for DateTime<Tz
             ));
         };
         let naive_dt = NaiveDateTime::new(py_date_to_naive_date(dt)?, py_time_to_naive_time(dt)?);
-        naive_dt.and_local_timezone(tz).single().ok_or_else(|| {
-            PyValueError::new_err(format!(
-                "The datetime {:?} contains an incompatible or ambiguous timezone",
+        match naive_dt.and_local_timezone(tz) {
+            LocalResult::Single(value) => Ok(value),
+            LocalResult::Ambiguous(earliest, latest) => {
+                #[cfg(not(Py_LIMITED_API))]
+                let fold = dt.get_fold();
+
+                #[cfg(Py_LIMITED_API)]
+                let fold = dt.getattr(intern!(dt.py(), "fold"))?.extract::<usize>()? > 0;
+
+                if fold {
+                    Ok(latest)
+                } else {
+                    Ok(earliest)
+                }
+            }
+            LocalResult::None => Err(PyValueError::new_err(format!(
+                "The datetime {:?} contains an incompatible timezone",
                 dt
-            ))
-        })
+            ))),
+        }
     }
 }
 
