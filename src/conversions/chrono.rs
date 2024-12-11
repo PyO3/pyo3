@@ -1185,6 +1185,35 @@ mod tests {
     }
 
     #[test]
+    #[cfg(all(Py_3_9, feature = "chrono-tz", not(windows)))]
+    fn test_pyo3_datetime_into_pyobject_tz() {
+        Python::with_gil(|py| {
+            let datetime = NaiveDate::from_ymd_opt(2024, 12, 11)
+                .unwrap()
+                .and_hms_opt(23, 3, 13)
+                .unwrap()
+                .and_local_timezone(chrono_tz::Tz::Europe__London)
+                .unwrap();
+            let datetime = datetime.into_pyobject(py).unwrap();
+            let py_datetime = new_py_datetime_ob(
+                py,
+                "datetime",
+                (
+                    2024,
+                    12,
+                    11,
+                    23,
+                    3,
+                    13,
+                    0,
+                    python_zoneinfo(py, "Europe/London"),
+                ),
+            );
+            assert_eq!(datetime.compare(&py_datetime).unwrap(), Ordering::Equal);
+        })
+    }
+
+    #[test]
     fn test_pyo3_datetime_frompyobject_utc() {
         Python::with_gil(|py| {
             let year = 2014;
@@ -1384,6 +1413,16 @@ mod tests {
             .getattr("timezone")
             .unwrap()
             .getattr("utc")
+            .unwrap()
+    }
+
+    #[cfg(all(Py_3_9, feature = "chrono-tz", not(windows)))]
+    fn python_zoneinfo<'py>(py: Python<'py>, timezone: &str) -> Bound<'py, PyAny> {
+        py.import("zoneinfo")
+            .unwrap()
+            .getattr("ZoneInfo")
+            .unwrap()
+            .call1((timezone,))
             .unwrap()
     }
 
