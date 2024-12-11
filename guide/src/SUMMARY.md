@@ -35,6 +35,7 @@
   - [Supporting multiple Python versions](building-and-distribution/multiple-python-versions.md)
 - [Useful crates](ecosystem.md)
   - [Logging](ecosystem/logging.md)
+  - [Tracing](ecosystem/tracing.md)
   - [Using `async` and `await`](ecosystem/async-await.md)
 - [FAQ and troubleshooting](faq.md)
 
