@@ -54,7 +54,7 @@ use crate::types::{
     timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
     PyTzInfo, PyTzInfoAccess,
 };
-use crate::{ffi, Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python};
+use crate::{ffi, Bound, FromPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, PyResult, Python};
 #[cfg(Py_LIMITED_API)]
 use crate::{intern, DowncastError};
 #[allow(deprecated)]
@@ -418,11 +418,14 @@ impl<Tz: TimeZone> ToPyObject for DateTime<Tz> {
 #[allow(deprecated)]
 impl<Tz: TimeZone> IntoPy<PyObject> for DateTime<Tz> {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
+        self.to_object(py)
     }
 }
 
-impl<'py, Tz: TimeZone> IntoPyObject<'py> for DateTime<Tz> {
+impl<'py, Tz: TimeZone> IntoPyObject<'py> for DateTime<Tz>
+where
+    Tz: IntoPyObject<'py>,
+{
     #[cfg(Py_LIMITED_API)]
     type Target = PyAny;
     #[cfg(not(Py_LIMITED_API))]
@@ -436,7 +439,10 @@ impl<'py, Tz: TimeZone> IntoPyObject<'py> for DateTime<Tz> {
     }
 }
 
-impl<'py, Tz: TimeZone> IntoPyObject<'py> for &DateTime<Tz> {
+impl<'py, Tz: TimeZone> IntoPyObject<'py> for &DateTime<Tz>
+where
+    Tz: IntoPyObject<'py>,
+{
     #[cfg(Py_LIMITED_API)]
     type Target = PyAny;
     #[cfg(not(Py_LIMITED_API))]
@@ -445,7 +451,11 @@ impl<'py, Tz: TimeZone> IntoPyObject<'py> for &DateTime<Tz> {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let tz = self.offset().fix().into_pyobject(py)?;
+        let tz = self.timezone().into_bound_py_any(py)?;
+
+        #[cfg(not(Py_LIMITED_API))]
+        let tz = tz.downcast()?;
+
         let DateArgs { year, month, day } = (&self.naive_local().date()).into();
         let TimeArgs {
             hour,
@@ -456,7 +466,7 @@ impl<'py, Tz: TimeZone> IntoPyObject<'py> for &DateTime<Tz> {
         } = (&self.naive_local().time()).into();
 
         #[cfg(not(Py_LIMITED_API))]
-        let datetime = PyDateTime::new(py, year, month, day, hour, min, sec, micro, Some(&tz))?;
+        let datetime = PyDateTime::new(py, year, month, day, hour, min, sec, micro, Some(tz))?;
 
         #[cfg(Py_LIMITED_API)]
         let datetime = DatetimeTypes::try_get(py).and_then(|dt| {
