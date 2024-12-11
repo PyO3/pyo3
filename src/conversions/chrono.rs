@@ -971,8 +971,12 @@ mod tests {
 
         // Also check that trying to convert an out of bound value errors.
         Python::with_gil(|py| {
-            assert!(Duration::min_value().into_pyobject(py).is_err());
-            assert!(Duration::max_value().into_pyobject(py).is_err());
+            // min_value and max_value were deprecated in chrono 0.4.39
+            #[allow(deprecated)]
+            {
+                assert!(Duration::min_value().into_pyobject(py).is_err());
+                assert!(Duration::max_value().into_pyobject(py).is_err());
+            }
         });
     }
 
