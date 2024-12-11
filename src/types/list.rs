@@ -497,6 +497,7 @@ impl ListIterImpl {
     #[inline]
     /// Safety: the list should be locked with a critical section on the free-threaded build
     /// and otherwise not shared between threads when the GIL is released.
+    #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
     unsafe fn next_unchecked<'py>(
         &mut self,
         list: &Bound<'py, PyList>,
@@ -517,7 +518,28 @@ impl ListIterImpl {
         }
     }
 
+    #[cfg(any(Py_LIMITED_API, PyPy))]
+    fn next<'py>(&mut self, list: &Bound<'py, PyList>) -> Option<Bound<'py, PyAny>> {
+        match self {
+            Self::ListIter { index, length, .. } => {
+                let length = (*length).min(list.len());
+                let my_index = *index;
+
+                if *index < length {
+                    let item = list.get_item(my_index).expect("get-item failed");
+                    *index += 1;
+                    Some(item)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    /// Safety: the list should be locked with a critical section on the free-threaded build
+    /// and otherwise not shared between threads when the GIL is released.
     #[inline]
+    #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
     unsafe fn next_back_unchecked<'py>(
         &mut self,
         list: &Bound<'py, PyList>,
@@ -528,6 +550,24 @@ impl ListIterImpl {
 
                 if *index < current_length {
                     let item = unsafe { list.get_item_unchecked(current_length - 1) };
+                    *length = current_length - 1;
+                    Some(item)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    #[inline]
+    #[cfg(any(Py_LIMITED_API, PyPy))]
+    fn next_back<'py>(&mut self, list: &Bound<'py, PyList>) -> Option<Bound<'py, PyAny>> {
+        match self {
+            Self::ListIter { index, length, .. } => {
+                let current_length = (*length).min(list.len());
+
+                if *index < current_length {
+                    let item = list.get_item(current_length - 1).expect("get-item failed");
                     *length = current_length - 1;
                     Some(item)
                 } else {
@@ -578,7 +618,11 @@ impl<'py> Iterator for BoundListIterator<'py> {
                     inner.next_unchecked(&self.list)
                 })
         }
-        #[cfg(not(Py_GIL_DISABLED))]
+        #[cfg(any(Py_LIMITED_API, PyPy))]
+        {
+            self.inner.next(&self.list)
+        }
+        #[cfg(all(not(Py_GIL_DISABLED), not(Py_LIMITED_API), not(PyPy)))]
         {
             unsafe { self.inner.next_unchecked(&self.list) }
         }
@@ -704,7 +748,11 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
                     inner.next_back_unchecked(&self.list)
                 })
         }
-        #[cfg(not(Py_GIL_DISABLED))]
+        #[cfg(any(Py_LIMITED_API, PyPy))]
+        {
+            self.inner.next_back(&self.list)
+        }
+        #[cfg(all(not(Py_GIL_DISABLED), not(Py_LIMITED_API), not(PyPy)))]
         {
             unsafe { self.inner.next_back_unchecked(&self.list) }
         }
