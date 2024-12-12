@@ -611,16 +611,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
         }
         #[cfg(any(Py_LIMITED_API, PyPy))]
         {
-            let length = length.0.min(list.len());
-            let my_index = index.0;
-
-            if index.0 < length {
-                let item = list.get_item(my_index).expect("get-item failed");
-                index.0 += 1;
-                Some(item)
-            } else {
-                None
-            }
+            Self::next(index, length, list)
         }
         #[cfg(all(not(Py_GIL_DISABLED), not(Py_LIMITED_API), not(PyPy)))]
         {
