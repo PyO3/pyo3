@@ -657,6 +657,23 @@ impl<'py> Iterator for BoundListIterator<'py> {
     }
 
     #[inline]
+    #[cfg(all(Py_GIL_DISABLED, feature = "nightly"))]
+    fn try_fold<B, F, R>(&mut self, init: B, mut f: F) -> R
+    where
+        Self: Sized,
+        F: FnMut(B, Self::Item) -> R,
+        R: std::ops::Try<Output = B>,
+    {
+        self.inner.with_critical_section(&self.list, |inner| {
+            let mut accum = init;
+            while let Some(x) = unsafe { inner.next_unchecked(&self.list) } {
+                accum = f(accum, x)?
+            }
+            R::from_output(accum)
+        })
+    }
+
+    #[inline]
     #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
     fn all<F>(&mut self, mut f: F) -> bool
     where
