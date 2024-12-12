@@ -2294,10 +2294,9 @@ impl<'a> PyClassImplsBuilder<'a> {
         let assertions = if attr.options.unsendable.is_some() {
             TokenStream::new()
         } else {
-            let assert = quote_spanned! { cls.span() => assert_pyclass_sync::<#cls>(); };
+            let assert = quote_spanned! { cls.span() => #pyo3_path::impl_::pyclass::assert_pyclass_sync::<#cls>(); };
             quote! {
                 const _: () = {
-                    use #pyo3_path::impl_::pyclass::*;
                     #assert
                 };
             }
@@ -2337,7 +2336,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                     static DOC: #pyo3_path::sync::GILOnceCell<::std::borrow::Cow<'static, ::std::ffi::CStr>> = #pyo3_path::sync::GILOnceCell::new();
                     DOC.get_or_try_init(py, || {
                         let collector = PyClassImplCollector::<Self>::new();
-                        build_pyclass_doc(<#cls as #pyo3_path::PyTypeInfo>::NAME, #doc, collector.new_text_signature())
+                        build_pyclass_doc(<Self as #pyo3_path::PyTypeInfo>::NAME, #doc, collector.new_text_signature())
                     }).map(::std::ops::Deref::deref)
                 }
 
