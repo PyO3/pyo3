@@ -54,7 +54,7 @@ use crate::types::{
     timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
     PyTzInfo, PyTzInfoAccess,
 };
-use crate::{ffi, Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python};
+use crate::{ffi, Bound, FromPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, PyResult, Python};
 #[cfg(Py_LIMITED_API)]
 use crate::{intern, DowncastError};
 #[allow(deprecated)]
@@ -418,11 +418,14 @@ impl<Tz: TimeZone> ToPyObject for DateTime<Tz> {
 #[allow(deprecated)]
 impl<Tz: TimeZone> IntoPy<PyObject> for DateTime<Tz> {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
+        self.to_object(py)
     }
 }
 
-impl<'py, Tz: TimeZone> IntoPyObject<'py> for DateTime<Tz> {
+impl<'py, Tz: TimeZone> IntoPyObject<'py> for DateTime<Tz>
+where
+    Tz: IntoPyObject<'py>,
+{
     #[cfg(Py_LIMITED_API)]
     type Target = PyAny;
     #[cfg(not(Py_LIMITED_API))]
@@ -436,7 +439,10 @@ impl<'py, Tz: TimeZone> IntoPyObject<'py> for DateTime<Tz> {
     }
 }
 
-impl<'py, Tz: TimeZone> IntoPyObject<'py> for &DateTime<Tz> {
+impl<'py, Tz: TimeZone> IntoPyObject<'py> for &DateTime<Tz>
+where
+    Tz: IntoPyObject<'py>,
+{
     #[cfg(Py_LIMITED_API)]
     type Target = PyAny;
     #[cfg(not(Py_LIMITED_API))]
@@ -445,7 +451,11 @@ impl<'py, Tz: TimeZone> IntoPyObject<'py> for &DateTime<Tz> {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let tz = self.offset().fix().into_pyobject(py)?;
+        let tz = self.timezone().into_bound_py_any(py)?;
+
+        #[cfg(not(Py_LIMITED_API))]
+        let tz = tz.downcast()?;
+
         let DateArgs { year, month, day } = (&self.naive_local().date()).into();
         let TimeArgs {
             hour,
@@ -456,7 +466,7 @@ impl<'py, Tz: TimeZone> IntoPyObject<'py> for &DateTime<Tz> {
         } = (&self.naive_local().time()).into();
 
         #[cfg(not(Py_LIMITED_API))]
-        let datetime = PyDateTime::new(py, year, month, day, hour, min, sec, micro, Some(&tz))?;
+        let datetime = PyDateTime::new(py, year, month, day, hour, min, sec, micro, Some(tz))?;
 
         #[cfg(Py_LIMITED_API)]
         let datetime = DatetimeTypes::try_get(py).and_then(|dt| {
@@ -1175,6 +1185,35 @@ mod tests {
     }
 
     #[test]
+    #[cfg(all(Py_3_9, feature = "chrono-tz", not(windows)))]
+    fn test_pyo3_datetime_into_pyobject_tz() {
+        Python::with_gil(|py| {
+            let datetime = NaiveDate::from_ymd_opt(2024, 12, 11)
+                .unwrap()
+                .and_hms_opt(23, 3, 13)
+                .unwrap()
+                .and_local_timezone(chrono_tz::Tz::Europe__London)
+                .unwrap();
+            let datetime = datetime.into_pyobject(py).unwrap();
+            let py_datetime = new_py_datetime_ob(
+                py,
+                "datetime",
+                (
+                    2024,
+                    12,
+                    11,
+                    23,
+                    3,
+                    13,
+                    0,
+                    python_zoneinfo(py, "Europe/London"),
+                ),
+            );
+            assert_eq!(datetime.compare(&py_datetime).unwrap(), Ordering::Equal);
+        })
+    }
+
+    #[test]
     fn test_pyo3_datetime_frompyobject_utc() {
         Python::with_gil(|py| {
             let year = 2014;
@@ -1374,6 +1413,16 @@ mod tests {
             .getattr("timezone")
             .unwrap()
             .getattr("utc")
+            .unwrap()
+    }
+
+    #[cfg(all(Py_3_9, feature = "chrono-tz", not(windows)))]
+    fn python_zoneinfo<'py>(py: Python<'py>, timezone: &str) -> Bound<'py, PyAny> {
+        py.import("zoneinfo")
+            .unwrap()
+            .getattr("ZoneInfo")
+            .unwrap()
+            .call1((timezone,))
             .unwrap()
     }
 
