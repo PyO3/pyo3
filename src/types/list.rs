@@ -641,7 +641,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(Py_GIL_DISABLED)]
+    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
     fn fold<B, F>(mut self, init: B, mut f: F) -> B
     where
         Self: Sized,
@@ -765,7 +765,7 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
     }
 
     #[inline]
-    #[cfg(Py_GIL_DISABLED)]
+    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
     fn rfold<B, F>(mut self, init: B, mut f: F) -> B
     where
         Self: Sized,
