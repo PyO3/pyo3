@@ -67,4 +67,5 @@ fn test_compile_errors() {
     #[cfg(all(not(Py_LIMITED_API), Py_3_11))]
     t.compile_fail("tests/ui/invalid_base_class.rs");
     t.pass("tests/ui/ambiguous_associated_items.rs");
+    t.pass("tests/ui/pyclass_probe.rs");
 }
