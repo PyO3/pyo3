@@ -495,6 +495,14 @@ pub struct BoundListIterator<'py> {
     length: Length,
 }
 
+/// Helper to manage lifetimes below
+#[inline]
+fn split_borrow<'a, 'py>(
+    instance: &'a mut BoundListIterator<'py>,
+) -> (&'a mut Index, &'a mut Length, &'a Bound<'py, PyList>) {
+    (&mut instance.index, &mut instance.length, &instance.list)
+}
+
 impl<'py> BoundListIterator<'py> {
     fn new(list: Bound<'py, PyList>) -> Self {
         Self {
@@ -504,12 +512,12 @@ impl<'py> BoundListIterator<'py> {
         }
     }
 
-    #[inline]
     /// # Safety
     ///
     /// On the free-threaded build, caller must verify they have exclusive
     /// access to the list by holding a lock or by holding the innermost
     /// critical section on the list.
+    #[inline]
     #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
     unsafe fn next_unchecked(
         index: &mut Index,
@@ -593,11 +601,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let Self {
-            ref mut index,
-            ref mut length,
-            ref list,
-        } = self;
+        let (index, length, list) = split_borrow(self);
 
         #[cfg(Py_GIL_DISABLED)]
         {
@@ -637,11 +641,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
         Self: Sized,
         F: FnMut(B, Self::Item) -> B,
     {
-        let Self {
-            ref mut index,
-            ref mut length,
-            ref list,
-        } = self;
+        let (index, length, list) = split_borrow(&mut self);
 
         crate::sync::with_critical_section(list, || {
             let mut accum = init;
@@ -660,11 +660,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
         F: FnMut(B, Self::Item) -> R,
         R: std::ops::Try<Output = B>,
     {
-        let Self {
-            ref mut index,
-            ref mut length,
-            ref list,
-        } = self;
+        let (index, length, list) = split_borrow(&mut self);
 
         crate::sync::with_critical_section(list, || {
             let mut accum = init;
@@ -682,11 +678,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
         Self: Sized,
         F: FnMut(Self::Item) -> bool,
     {
-        let Self {
-            ref mut index,
-            ref mut length,
-            ref list,
-        } = self;
+        let (index, length, list) = split_borrow(self);
 
         crate::sync::with_critical_section(list, || {
             while let Some(x) = unsafe { Self::next_unchecked(index, length, list) } {
@@ -705,11 +697,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
         Self: Sized,
         F: FnMut(Self::Item) -> bool,
     {
-        let Self {
-            ref mut index,
-            ref mut length,
-            ref list,
-        } = self;
+        let (index, length, list) = split_borrow(self);
 
         crate::sync::with_critical_section(list, || {
             while let Some(x) = unsafe { Self::next_unchecked(index, length, list) } {
@@ -728,11 +716,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
         Self: Sized,
         P: FnMut(&Self::Item) -> bool,
     {
-        let Self {
-            ref mut index,
-            ref mut length,
-            ref list,
-        } = self;
+        let (index, length, list) = split_borrow(self);
 
         crate::sync::with_critical_section(list, || {
             while let Some(x) = unsafe { Self::next_unchecked(index, length, list) } {
@@ -751,11 +735,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
         Self: Sized,
         F: FnMut(Self::Item) -> Option<B>,
     {
-        let Self {
-            ref mut index,
-            ref mut length,
-            ref list,
-        } = self;
+        let (index, length, list) = split_borrow(self);
 
         crate::sync::with_critical_section(list, || {
             while let Some(x) = unsafe { Self::next_unchecked(index, length, list) } {
@@ -774,11 +754,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
         Self: Sized,
         P: FnMut(Self::Item) -> bool,
     {
-        let Self {
-            ref mut index,
-            ref mut length,
-            ref list,
-        } = self;
+        let (index, length, list) = split_borrow(self);
 
         crate::sync::with_critical_section(list, || {
             let mut acc = 0;
@@ -796,11 +772,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
 impl DoubleEndedIterator for BoundListIterator<'_> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
-        let Self {
-            ref mut index,
-            ref mut length,
-            ref list,
-        } = self;
+        let (index, length, list) = split_borrow(self);
 
         #[cfg(Py_GIL_DISABLED)]
         {
@@ -825,11 +797,7 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
         Self: Sized,
         F: FnMut(B, Self::Item) -> B,
     {
-        let Self {
-            ref mut index,
-            ref mut length,
-            ref list,
-        } = self;
+        let (index, length, list) = split_borrow(&mut self);
 
         crate::sync::with_critical_section(list, || {
             let mut accum = init;
@@ -848,11 +816,7 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
         F: FnMut(B, Self::Item) -> R,
         R: std::ops::Try<Output = B>,
     {
-        let Self {
-            ref mut index,
-            ref mut length,
-            ref list,
-        } = self;
+        let (index, length, list) = split_borrow(&mut self);
 
         crate::sync::with_critical_section(list, || {
             let mut accum = init;
