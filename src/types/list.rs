@@ -495,8 +495,11 @@ enum ListIterImpl {
 
 impl ListIterImpl {
     #[inline]
-    /// Safety: the list should be locked with a critical section on the free-threaded build
-    /// and otherwise not shared between threads when the GIL is released.
+    /// # Safety
+    ///
+    /// On the free-threaded build, caller must verify they have exclusive
+    /// access to the list by holding a lock or by holding the innermost
+    /// critical section on the list.
     #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
     unsafe fn next_unchecked<'py>(
         &mut self,
@@ -536,8 +539,11 @@ impl ListIterImpl {
         }
     }
 
-    /// Safety: the list should be locked with a critical section on the free-threaded build
-    /// and otherwise not shared between threads when the GIL is released.
+    /// # Safety
+    ///
+    /// On the free-threaded build, caller must verify they have exclusive
+    /// access to the list by holding a lock or by holding the innermost
+    /// critical section on the list.
     #[inline]
     #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
     unsafe fn next_back_unchecked<'py>(
