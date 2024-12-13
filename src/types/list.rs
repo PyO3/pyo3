@@ -1117,6 +1117,23 @@ mod tests {
     }
 
     #[test]
+    fn test_iter_fold_out_of_bounds() {
+        Python::with_gil(|py: Python<'_>| {
+            let list = PyList::new(py, [1, 2, 3]).unwrap();
+            let sum = list.iter().fold(0, |_, _| {
+                // clear the list to create a pathological fold operation
+                // that mutates the list as it processes it
+                for _ in 0..3 {
+                    list.del_item(0).unwrap();
+                }
+                -5
+            });
+            assert_eq!(sum, -5);
+            assert!(list.len() == 0);
+        });
+    }
+
+    #[test]
     fn test_iter_rfold() {
         Python::with_gil(|py: Python<'_>| {
             let list = PyList::new(py, [1, 2, 3]).unwrap();
