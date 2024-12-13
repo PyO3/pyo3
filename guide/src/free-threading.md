@@ -163,7 +163,7 @@ function. Threads created via the Python [`threading`] module do not not need to
 do this, and pyo3 will handle setting up the [`Python<'py>`] token when CPython
 calls into your extension, but all other OS threads that interact with the
 Python runtime must explicitly attach using `with_gil` and obtain a `'py`
-liftime.
+lifetime.
 
 ### Global synchronization events can cause hangs and deadlocks
 
