@@ -1,10 +1,12 @@
 //! Contains initialization utilities for `#[pyclass]`.
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::internal::get_slot::TP_ALLOC;
-use crate::types::PyType;
-use crate::{ffi, Borrowed, PyErr, PyResult, Python};
+use crate::internal::get_slot::TP_NEW;
+use crate::types::{PyDict, PyTuple, PyType};
+use crate::{ffi, Borrowed, Bound, PyErr, PyResult, Python};
 use crate::{ffi::PyTypeObject, sealed::Sealed, type_object::PyTypeInfo};
 use std::marker::PhantomData;
+
+use super::pyclass::PyClassBaseType;
 
 /// Initializer for Python types.
 ///
@@ -17,69 +19,70 @@ pub trait PyObjectInit<T>: Sized + Sealed {
         self,
         py: Python<'_>,
         subtype: *mut PyTypeObject,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<*mut ffi::PyObject>;
 
     #[doc(hidden)]
     fn can_be_subclassed(&self) -> bool;
 }
 
-/// Initializer for Python native types, like `PyDict`.
-pub struct PyNativeTypeInitializer<T: PyTypeInfo>(pub PhantomData<T>);
+/// Initializer for Python native types, like [PyDict].
+pub struct PyNativeTypeInitializer<T: PyTypeInfo + PyClassBaseType>(pub PhantomData<T>);
 
-impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
+impl<T: PyTypeInfo + PyClassBaseType> PyObjectInit<T> for PyNativeTypeInitializer<T> {
+    /// call `__new__` ([ffi::PyTypeObject::tp_new]) for the native base type.
+    /// This will allocate a new python object and initialize the part relating to the native base type.
     unsafe fn into_new_object(
         self,
         py: Python<'_>,
         subtype: *mut PyTypeObject,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<*mut ffi::PyObject> {
         unsafe fn inner(
             py: Python<'_>,
-            type_object: *mut PyTypeObject,
+            native_base_type: *mut PyTypeObject,
             subtype: *mut PyTypeObject,
+            args: &Bound<'_, PyTuple>,
+            kwargs: Option<&Bound<'_, PyDict>>,
+            new_accepts_arguments: bool,
         ) -> PyResult<*mut ffi::PyObject> {
-            // HACK (due to FIXME below): PyBaseObject_Type's tp_new isn't happy with NULL arguments
-            let is_base_object = type_object == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type);
-            let subtype_borrowed: Borrowed<'_, '_, PyType> = subtype
+            let native_base_type_borrowed: Borrowed<'_, '_, PyType> = native_base_type
                 .cast::<ffi::PyObject>()
                 .assume_borrowed_unchecked(py)
                 .downcast_unchecked();
+            let tp_new = native_base_type_borrowed
+                .get_slot(TP_NEW)
+                .unwrap_or(ffi::PyType_GenericNew);
 
-            if is_base_object {
-                let alloc = subtype_borrowed
-                    .get_slot(TP_ALLOC)
-                    .unwrap_or(ffi::PyType_GenericAlloc);
+            let obj = if new_accepts_arguments {
+                tp_new(
+                    subtype,
+                    args.as_ptr(),
+                    kwargs
+                        .map(|obj| obj.as_ptr())
+                        .unwrap_or(std::ptr::null_mut()),
+                )
+            } else {
+                let args = PyTuple::empty(py);
+                tp_new(subtype, args.as_ptr(), std::ptr::null_mut())
+            };
 
-                let obj = alloc(subtype, 0);
-                return if obj.is_null() {
-                    Err(PyErr::fetch(py))
-                } else {
-                    Ok(obj)
-                };
-            }
-
-            #[cfg(Py_LIMITED_API)]
-            unreachable!("subclassing native types is not possible with the `abi3` feature");
-
-            #[cfg(not(Py_LIMITED_API))]
-            {
-                match (*type_object).tp_new {
-                    // FIXME: Call __new__ with actual arguments
-                    Some(newfunc) => {
-                        let obj = newfunc(subtype, std::ptr::null_mut(), std::ptr::null_mut());
-                        if obj.is_null() {
-                            Err(PyErr::fetch(py))
-                        } else {
-                            Ok(obj)
-                        }
-                    }
-                    None => Err(crate::exceptions::PyTypeError::new_err(
-                        "base type without tp_new",
-                    )),
-                }
+            if obj.is_null() {
+                Err(PyErr::fetch(py))
+            } else {
+                Ok(obj)
             }
         }
-        let type_object = T::type_object_raw(py);
-        inner(py, type_object, subtype)
+        inner(
+            py,
+            T::type_object_raw(py),
+            subtype,
+            args,
+            kwargs,
+            T::NEW_ACCEPTS_ARGUMENTS,
+        )
     }
 
     #[inline]

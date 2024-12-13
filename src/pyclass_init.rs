@@ -1,9 +1,60 @@
 //! Contains initialization utilities for `#[pyclass]`.
+//!
+//! # Background
+//!
+//! Initialization of a regular empty python class `class MyClass: pass`
+//! - `MyClass(*args, **kwargs) == MyClass.__call__(*args, **kwargs) == type.__call__(*args, **kwargs)`
+//!   - `MyClass.tp_call` is NULL but `obj.__call__` uses `Py_TYPE(obj)->tp_call` ([ffi::_PyObject_MakeTpCall])
+//!     - so `__call__` is inherited from the metaclass which is `type` in this case.
+//!   - `type.__call__` calls `obj = MyClass.__new__(MyClass, *args, **kwargs) == object.__new__(MyClass, *args, **kwargs)`
+//!     - `MyClass.tp_new` is inherited from the base class which is `object` in this case.
+//!     - Allocates a new object and does some basic initialization
+//!   - `type.__call__` calls `MyClass.__init__(obj, *args, **kwargs) == object.__init__(obj, *args, **kwargs)`
+//!     - `MyClass.tp_init` is inherited from the base class which is `object` in this case.
+//!     - Does some checks but is essentially a no-op
+//!
+//! So in general for `class MyClass(BaseClass, metaclass=MetaClass): pass`
+//! - `MyClass(*args, **kwargs)`
+//!   - `Metaclass.__call__(*args, **kwargs)`
+//!     - `BaseClass.__new__(*args, **kwargs)`
+//!     - `BaseClass.__init__(*args, **kwargs)`
+//!
+//! - If `MyClass` defines `__new__` then it must delegate to `super(MyClass, cls).__new__(cls, *args, **kwargs)` to
+//!   allocate the object.
+//!   - is is the responsibility of `MyClass` to call `super().__new__()` with the correct arguments.
+//!     `object.__new__()` does not accept any arguments for example.
+//! - If `MyClass` defines `__init__` then it should call `super().__init__()` to recursively initialize
+//!   the base classes. Again, passing arguments is the responsibility of MyClass.
+//!
+//! Initialization of a pyo3 `#[pyclass] struct MyClass;`
+//! - `MyClass(*args, **kwargs) == MyClass.__call__(*args, **kwargs) == type.__call__(*args, **kwargs)`
+//!   - Calls `obj = MyClass.__new__(MyClass, *args, **kwargs)`
+//!     - Calls user defined `#[new]` function, returning a [IntoPyCallbackOutput<PyClassInitializer>] which has
+//!       instances of each user defined struct in the inheritance hierarchy.
+//!     - Calls [PyClassInitializer::create_class_object_of_type]
+//!       - Recursively calls back to the base native type.
+//!       - At the base native type, [PyObjectInit::into_new_object] calls `__new__` for the base native type
+//!         (passing the [ffi::PyTypeObject] of the most derived type)
+//!         - Allocates a new python object with enough space to fit the user structs and the native base type data.
+//!         - Initializes the native base type part of the new object.
+//!       - Moves the data for the user structs into the appropriate locations in the new python object.
+//!   - Calls `MyClass.__init__(obj, *args, **kwargs)`
+//!     - Inherited from native base class
+//!
+//! ## Notes:
+//! - pyo3 classes annotated with `#[pyclass(dict)]` have a `__dict__` attribute. When using the `tp_dictoffset`
+//!   mechanism instead of `Py_TPFLAGS_MANAGED_DICT` to enable this, the dict is stored in the [PyClassObjectContents]
+//!   of the most derived type and is set to NULL at construction and initialized to a new dictionary by
+//!   [ffi::PyObject_GenericGetDict] when first accessed.
+//! - The python documentation also mentions 'static' classes which define their [ffi::PyTypeObject] in static/global
+//!   memory. Builtins like `dict` (`PyDict_Type`) are defined this way but classes defined in python and pyo3 are
+//!   'heap' types where the [ffi::PyTypeObject] objects are allocated at runtime.
+//!
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, PyClassWeakRef};
 use crate::impl_::pyclass_init::{PyNativeTypeInitializer, PyObjectInit};
-use crate::types::PyAnyMethods;
+use crate::types::{PyAnyMethods, PyDict, PyTuple};
 use crate::{ffi, Bound, Py, PyClass, PyResult, Python};
 use crate::{
     ffi::PyTypeObject,
@@ -150,18 +201,22 @@ impl<T: PyClass> PyClassInitializer<T> {
     where
         T: PyClass,
     {
-        unsafe { self.create_class_object_of_type(py, T::type_object_raw(py)) }
+        unsafe {
+            self.create_class_object_of_type(py, T::type_object_raw(py), &PyTuple::empty(py), None)
+        }
     }
 
     /// Creates a new class object and initializes it given a typeobject `subtype`.
     ///
     /// # Safety
     /// `subtype` must be a valid pointer to the type object of T or a subclass.
-    pub(crate) unsafe fn create_class_object_of_type(
+    pub(crate) unsafe fn create_class_object_of_type<'py>(
         self,
-        py: Python<'_>,
+        py: Python<'py>,
         target_type: *mut crate::ffi::PyTypeObject,
-    ) -> PyResult<Bound<'_, T>>
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, T>>
     where
         T: PyClass,
     {
@@ -178,7 +233,7 @@ impl<T: PyClass> PyClassInitializer<T> {
             PyClassInitializerImpl::New { init, super_init } => (init, super_init),
         };
 
-        let obj = super_init.into_new_object(py, target_type)?;
+        let obj = super_init.into_new_object(py, target_type, args, kwargs)?;
 
         let part_init: *mut PartiallyInitializedClassObject<T> = obj.cast();
         std::ptr::write(
@@ -203,8 +258,10 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
         self,
         py: Python<'_>,
         subtype: *mut PyTypeObject,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<*mut ffi::PyObject> {
-        self.create_class_object_of_type(py, subtype)
+        self.create_class_object_of_type(py, subtype, args, kwargs)
             .map(Bound::into_ptr)
     }
 
@@ -268,9 +325,12 @@ where
 
 #[cfg(all(test, feature = "macros"))]
 mod tests {
-    //! See https://github.com/PyO3/pyo3/issues/4452.
-
-    use crate::prelude::*;
+    use crate::{
+        ffi,
+        prelude::*,
+        types::{PyDict, PyType},
+        PyTypeInfo,
+    };
 
     #[pyclass(crate = "crate", subclass)]
     struct BaseClass {}
@@ -280,12 +340,99 @@ mod tests {
         _data: i32,
     }
 
+    /// See https://github.com/PyO3/pyo3/issues/4452.
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "you cannot add a subclass to an existing value")]
     fn add_subclass_to_py_is_unsound() {
         Python::with_gil(|py| {
             let base = Py::new(py, BaseClass {}).unwrap();
             let _subclass = PyClassInitializer::from(base).add_subclass(SubClass { _data: 42 });
+        });
+    }
+
+    /// Verify the correctness of the documentation describing class initialization.
+    #[test]
+    fn empty_class_inherits_expected_slots() {
+        Python::with_gil(|py| {
+            let namespace = PyDict::new(py);
+            py.run(
+                ffi::c_str!("class EmptyClass: pass"),
+                Some(&namespace),
+                Some(&namespace),
+            )
+            .unwrap();
+            let empty_class = namespace
+                .get_item("EmptyClass")
+                .unwrap()
+                .unwrap()
+                .downcast::<PyType>()
+                .unwrap()
+                .as_type_ptr();
+
+            let object_type = PyAny::type_object(py).as_type_ptr();
+            unsafe {
+                assert_eq!(
+                    ffi::PyType_GetSlot(empty_class, ffi::Py_tp_new),
+                    ffi::PyType_GetSlot(object_type, ffi::Py_tp_new)
+                );
+                assert_eq!(
+                    ffi::PyType_GetSlot(empty_class, ffi::Py_tp_init),
+                    ffi::PyType_GetSlot(object_type, ffi::Py_tp_init)
+                );
+                assert!(ffi::PyType_GetSlot(empty_class, ffi::Py_tp_call).is_null(),);
+            }
+
+            let base_class = BaseClass::type_object_raw(py);
+            unsafe {
+                // tp_new is always set for pyclasses, not inherited
+                assert_ne!(
+                    ffi::PyType_GetSlot(base_class, ffi::Py_tp_new),
+                    ffi::PyType_GetSlot(object_type, ffi::Py_tp_new)
+                );
+                assert_eq!(
+                    ffi::PyType_GetSlot(base_class, ffi::Py_tp_init),
+                    ffi::PyType_GetSlot(object_type, ffi::Py_tp_init)
+                );
+                assert!(ffi::PyType_GetSlot(base_class, ffi::Py_tp_call).is_null(),);
+            }
+        });
+    }
+
+    /// Verify the correctness of the documentation describing class initialization.
+    #[test]
+    #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
+    fn managed_dict_initialized_as_expected() {
+        use crate::{impl_::pyclass::PyClassImpl, types::PyFloat};
+
+        unsafe fn get_dict<T: PyClassImpl>(obj: *mut ffi::PyObject) -> *mut *mut ffi::PyObject {
+            let dict_offset = T::dict_offset().unwrap();
+            (obj as *mut u8).add(usize::try_from(dict_offset).unwrap()) as *mut *mut ffi::PyObject
+        }
+
+        #[pyclass(crate = "crate", dict)]
+        struct ClassWithDict {}
+
+        Python::with_gil(|py| {
+            let obj = Py::new(py, ClassWithDict {}).unwrap();
+            unsafe {
+                let obj_dict = get_dict::<ClassWithDict>(obj.as_ptr());
+                assert!((*obj_dict).is_null());
+                crate::py_run!(py, obj, "obj.__dict__");
+                assert!(!(*obj_dict).is_null());
+            }
+        });
+
+        #[pyclass(crate = "crate", dict, extends=PyFloat)]
+        struct ExtendedClassWithDict {}
+
+        Python::with_gil(|py| {
+            let obj = Py::new(py, ExtendedClassWithDict {}).unwrap();
+            unsafe {
+                let obj_dict = get_dict::<ExtendedClassWithDict>(obj.as_ptr());
+                assert!((*obj_dict).is_null());
+                crate::py_run!(py, obj, "obj.__dict__");
+                assert!(!(*obj_dict).is_null());
+            }
         });
     }
 }

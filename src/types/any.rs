@@ -51,6 +51,8 @@ impl crate::impl_::pyclass::PyClassBaseType for PyAny {
     type BaseNativeType = PyAny;
     type Initializer = crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
     type PyClassMutability = crate::pycell::impl_::ImmutableClass;
+    // `object.__new__` should be called with only the type of object to create, without any other arguments.
+    const NEW_ACCEPTS_ARGUMENTS: bool = false;
 }
 
 /// This trait represents the Python APIs which are usable on all Python objects.

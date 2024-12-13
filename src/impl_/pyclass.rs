@@ -1138,6 +1138,9 @@ pub trait PyClassBaseType: Sized {
     type BaseNativeType;
     type Initializer: PyObjectInit<Self>;
     type PyClassMutability: PyClassMutability;
+    /// Whether `__new__` ([ffi::PyTypeObject::tp_new]) for this type accepts arguments other
+    /// than the type of object to create.
+    const NEW_ACCEPTS_ARGUMENTS: bool = true;
 }
 
 /// Implementation of tp_dealloc for pyclasses without gc

@@ -51,7 +51,10 @@ impl<T> Sealed for AddClassToModule<T> {}
 impl Sealed for PyMethodDef {}
 impl Sealed for ModuleDef {}
 
-impl<T: crate::type_object::PyTypeInfo> Sealed for PyNativeTypeInitializer<T> {}
+impl<T: crate::type_object::PyTypeInfo + crate::impl_::pyclass::PyClassBaseType> Sealed
+    for PyNativeTypeInitializer<T>
+{
+}
 impl<T: crate::pyclass::PyClass> Sealed for PyClassInitializer<T> {}
 
 impl Sealed for std::sync::Once {}
