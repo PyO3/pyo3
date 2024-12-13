@@ -44,10 +44,12 @@
 use crate::conversion::IntoPyObject;
 use crate::exceptions::{PyTypeError, PyUserWarning, PyValueError};
 #[cfg(Py_LIMITED_API)]
-use crate::sync::GILOnceCell;
+use crate::intern;
 use crate::types::any::PyAnyMethods;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::datetime::timezone_from_offset;
+#[cfg(Py_LIMITED_API)]
+use crate::types::datetime_abi3::{check_type, timezone_utc, DatetimeTypes};
 #[cfg(Py_LIMITED_API)]
 use crate::types::IntoPyDict;
 use crate::types::PyNone;
@@ -57,8 +59,6 @@ use crate::types::{
     PyTzInfo, PyTzInfoAccess,
 };
 use crate::{ffi, Bound, FromPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, PyResult, Python};
-#[cfg(Py_LIMITED_API)]
-use crate::{intern, DowncastError};
 #[allow(deprecated)]
 use crate::{IntoPy, ToPyObject};
 use chrono::offset::{FixedOffset, Utc};
@@ -809,54 +809,6 @@ fn py_time_to_naive_time(py_time: &Bound<'_, PyAny>) -> PyResult<NaiveTime> {
             .extract()?,
     )
     .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))
-}
-
-#[cfg(Py_LIMITED_API)]
-fn check_type(value: &Bound<'_, PyAny>, t: &PyObject, type_name: &'static str) -> PyResult<()> {
-    if !value.is_instance(t.bind(value.py()))? {
-        return Err(DowncastError::new(value, type_name).into());
-    }
-    Ok(())
-}
-
-#[cfg(Py_LIMITED_API)]
-struct DatetimeTypes {
-    date: PyObject,
-    datetime: PyObject,
-    time: PyObject,
-    timedelta: PyObject,
-    timezone: PyObject,
-    timezone_utc: PyObject,
-    tzinfo: PyObject,
-}
-
-#[cfg(Py_LIMITED_API)]
-impl DatetimeTypes {
-    fn get(py: Python<'_>) -> &Self {
-        Self::try_get(py).expect("failed to load datetime module")
-    }
-
-    fn try_get(py: Python<'_>) -> PyResult<&Self> {
-        static TYPES: GILOnceCell<DatetimeTypes> = GILOnceCell::new();
-        TYPES.get_or_try_init(py, || {
-            let datetime = py.import("datetime")?;
-            let timezone = datetime.getattr("timezone")?;
-            Ok::<_, PyErr>(Self {
-                date: datetime.getattr("date")?.into(),
-                datetime: datetime.getattr("datetime")?.into(),
-                time: datetime.getattr("time")?.into(),
-                timedelta: datetime.getattr("timedelta")?.into(),
-                timezone_utc: timezone.getattr("utc")?.into(),
-                timezone: timezone.into(),
-                tzinfo: datetime.getattr("tzinfo")?.into(),
-            })
-        })
-    }
-}
-
-#[cfg(Py_LIMITED_API)]
-fn timezone_utc(py: Python<'_>) -> Bound<'_, PyAny> {
-    DatetimeTypes::get(py).timezone_utc.bind(py).clone()
 }
 
 #[cfg(test)]
