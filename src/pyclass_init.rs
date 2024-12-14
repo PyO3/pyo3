@@ -29,9 +29,9 @@
 //! Initialization of a pyo3 `#[pyclass] struct MyClass;`
 //! - `MyClass(*args, **kwargs) == MyClass.__call__(*args, **kwargs) == type.__call__(*args, **kwargs)`
 //!   - Calls `obj = MyClass.__new__(MyClass, *args, **kwargs)`
-//!     - Calls user defined `#[new]` function, returning a [IntoPyCallbackOutput<PyClassInitializer>] which has
+//!     - Calls user defined `#[new]` function, returning a [`IntoPyCallbackOutput<PyClassInitializer>`] which has
 //!       instances of each user defined struct in the inheritance hierarchy.
-//!     - Calls [PyClassInitializer::create_class_object_of_type]
+//!     - Calls `PyClassInitializer::create_class_object_of_type`
 //!       - Recursively calls back to the base native type.
 //!       - At the base native type, [PyObjectInit::into_new_object] calls `__new__` for the base native type
 //!         (passing the [ffi::PyTypeObject] of the most derived type)
@@ -43,7 +43,7 @@
 //!
 //! ## Notes:
 //! - pyo3 classes annotated with `#[pyclass(dict)]` have a `__dict__` attribute. When using the `tp_dictoffset`
-//!   mechanism instead of `Py_TPFLAGS_MANAGED_DICT` to enable this, the dict is stored in the [PyClassObjectContents]
+//!   mechanism instead of `Py_TPFLAGS_MANAGED_DICT` to enable this, the dict is stored in the `PyClassObjectContents`
 //!   of the most derived type and is set to NULL at construction and initialized to a new dictionary by
 //!   [ffi::PyObject_GenericGetDict] when first accessed.
 //! - The python documentation also mentions 'static' classes which define their [ffi::PyTypeObject] in static/global
@@ -379,7 +379,7 @@ mod tests {
                     ffi::PyType_GetSlot(empty_class, ffi::Py_tp_init),
                     ffi::PyType_GetSlot(object_type, ffi::Py_tp_init)
                 );
-                assert!(ffi::PyType_GetSlot(empty_class, ffi::Py_tp_call).is_null(),);
+                assert!(ffi::PyType_GetSlot(empty_class, ffi::Py_tp_call).is_null());
             }
 
             let base_class = BaseClass::type_object_raw(py);
@@ -393,7 +393,7 @@ mod tests {
                     ffi::PyType_GetSlot(base_class, ffi::Py_tp_init),
                     ffi::PyType_GetSlot(object_type, ffi::Py_tp_init)
                 );
-                assert!(ffi::PyType_GetSlot(base_class, ffi::Py_tp_call).is_null(),);
+                assert!(ffi::PyType_GetSlot(base_class, ffi::Py_tp_call).is_null());
             }
         });
     }

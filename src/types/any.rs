@@ -51,8 +51,16 @@ impl crate::impl_::pyclass::PyClassBaseType for PyAny {
     type BaseNativeType = PyAny;
     type Initializer = crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
     type PyClassMutability = crate::pycell::impl_::ImmutableClass;
-    // `object.__new__` should be called with only the type of object to create, without any other arguments.
-    const NEW_ACCEPTS_ARGUMENTS: bool = false;
+    /// `object.__new__` (`ffi::PyBaseObject_Type.tp_new`) has some unique behaviour that must be worked around:
+    /// - it does not accept any arguments (if args or kwargs are non-empty a `TypeError` is raised) and in the current
+    ///   implementation, arguments are propagated to the native base class `__new__` function.
+    /// - it initializes `__dict__` if applicable (`#[pyclass(dict)]`). Currently this dict will leak because
+    ///   the pointer to it will be overwritten when the rust-managed data is written to the pyobject.
+    /// - it checks for any abstract methods and refuses to construct if any are found. This is generally not applicable
+    ///   to pyo3 classes.
+    ///
+    /// on the other hand, [ffi::PyType_GenericNew] simply allocates space for the object without initializing anything.
+    const OVERRIDE_TP_NEW: Option<ffi::newfunc> = Some(ffi::PyType_GenericNew);
 }
 
 /// This trait represents the Python APIs which are usable on all Python objects.

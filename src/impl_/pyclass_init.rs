@@ -1,8 +1,9 @@
 //! Contains initialization utilities for `#[pyclass]`.
+use crate::exceptions::PyTypeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal::get_slot::TP_NEW;
 use crate::types::{PyDict, PyTuple, PyType};
-use crate::{ffi, Borrowed, Bound, PyErr, PyResult, Python};
+use crate::{ffi, Bound, PyErr, PyResult, Python};
 use crate::{ffi::PyTypeObject, sealed::Sealed, type_object::PyTypeInfo};
 use std::marker::PhantomData;
 
@@ -46,28 +47,28 @@ impl<T: PyTypeInfo + PyClassBaseType> PyObjectInit<T> for PyNativeTypeInitialize
             subtype: *mut PyTypeObject,
             args: &Bound<'_, PyTuple>,
             kwargs: Option<&Bound<'_, PyDict>>,
-            new_accepts_arguments: bool,
+            override_tp_new: Option<ffi::newfunc>,
         ) -> PyResult<*mut ffi::PyObject> {
-            let native_base_type_borrowed: Borrowed<'_, '_, PyType> = native_base_type
-                .cast::<ffi::PyObject>()
-                .assume_borrowed_unchecked(py)
-                .downcast_unchecked();
-            let tp_new = native_base_type_borrowed
-                .get_slot(TP_NEW)
-                .unwrap_or(ffi::PyType_GenericNew);
-
-            let obj = if new_accepts_arguments {
-                tp_new(
-                    subtype,
-                    args.as_ptr(),
-                    kwargs
-                        .map(|obj| obj.as_ptr())
-                        .unwrap_or(std::ptr::null_mut()),
-                )
+            let tp_new = if let Some(tp_new) = override_tp_new {
+                tp_new
             } else {
-                let args = PyTuple::empty(py);
-                tp_new(subtype, args.as_ptr(), std::ptr::null_mut())
+                native_base_type
+                    .cast::<ffi::PyObject>()
+                    .assume_borrowed_unchecked(py)
+                    .downcast_unchecked::<PyType>()
+                    .get_slot(TP_NEW)
+                    .ok_or_else(|| {
+                        PyTypeError::new_err("cannot construct type that does not define __new__")
+                    })?
             };
+
+            let obj = tp_new(
+                subtype,
+                args.as_ptr(),
+                kwargs
+                    .map(|obj| obj.as_ptr())
+                    .unwrap_or(std::ptr::null_mut()),
+            );
 
             if obj.is_null() {
                 Err(PyErr::fetch(py))
@@ -81,7 +82,7 @@ impl<T: PyTypeInfo + PyClassBaseType> PyObjectInit<T> for PyNativeTypeInitialize
             subtype,
             args,
             kwargs,
-            T::NEW_ACCEPTS_ARGUMENTS,
+            T::OVERRIDE_TP_NEW,
         )
     }
 
