@@ -2897,6 +2897,16 @@ mod tests {
     }
 
     #[test]
+    fn test_is_cross_compiling_from_to() {
+        assert!(cross_compiling_from_to(
+            &triple!("x86_64-pc-windows-msvc"),
+            &triple!("aarch64-pc-windows-msvc")
+        )
+        .unwrap()
+        .is_some());
+    }
+
+    #[test]
     fn test_run_python_script() {
         // as above, this should be okay in CI where Python is presumed installed
         let interpreter = make_interpreter_config()
