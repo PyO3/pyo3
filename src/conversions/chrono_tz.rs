@@ -98,6 +98,10 @@ impl FromPyObject<'_> for Tz {
 #[cfg(all(test, not(windows)))] // Troubles loading timezones on Windows
 mod tests {
     use super::*;
+    use crate::prelude::PyAnyMethods;
+    use crate::Python;
+    use chrono::{DateTime, Utc};
+    use chrono_tz::Tz;
 
     #[test]
     fn test_frompyobject() {
@@ -112,6 +116,54 @@ mod tests {
                 Tz::Etc__GMTMinus5
             );
         });
+    }
+
+    #[test]
+    fn test_ambiguous_datetime_to_pyobject() {
+        let dates = [
+            DateTime::<Utc>::from_str("2020-10-24 23:00:00 UTC").unwrap(),
+            DateTime::<Utc>::from_str("2020-10-25 00:00:00 UTC").unwrap(),
+            DateTime::<Utc>::from_str("2020-10-25 01:00:00 UTC").unwrap(),
+        ];
+
+        let dates = dates.map(|dt| dt.with_timezone(&Tz::Europe__London));
+
+        assert_eq!(
+            dates.map(|dt| dt.to_string()),
+            [
+                "2020-10-25 00:00:00 BST",
+                "2020-10-25 01:00:00 BST",
+                "2020-10-25 01:00:00 GMT"
+            ]
+        );
+
+        let dates = Python::with_gil(|py| {
+            let pydates = dates.map(|dt| dt.into_pyobject(py).unwrap());
+            assert_eq!(
+                pydates
+                    .clone()
+                    .map(|dt| dt.getattr("hour").unwrap().extract::<usize>().unwrap()),
+                [0, 1, 1]
+            );
+
+            assert_eq!(
+                pydates
+                    .clone()
+                    .map(|dt| dt.getattr("fold").unwrap().extract::<usize>().unwrap() > 0),
+                [false, false, true]
+            );
+
+            pydates.map(|dt| dt.extract::<DateTime<Tz>>().unwrap())
+        });
+
+        assert_eq!(
+            dates.map(|dt| dt.to_string()),
+            [
+                "2020-10-25 00:00:00 BST",
+                "2020-10-25 01:00:00 BST",
+                "2020-10-25 01:00:00 GMT"
+            ]
+        );
     }
 
     #[test]
