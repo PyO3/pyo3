@@ -38,9 +38,21 @@ fn datetime_to_pydatetime<'py>(
     )
 }
 
+#[cfg(Py_LIMITED_API)]
+fn datetime_to_pydatetime<'py>(
+    _py: Python<'py>,
+    _datetime: &DateTime,
+    _fold: bool,
+    _timezone: Option<&TimeZone>,
+) -> PyResult<Bound<'py, PyAny>> {
+    todo!()
+}
+
 impl<'py> IntoPyObject<'py> for Timestamp {
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyDateTime;
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
@@ -52,6 +64,8 @@ impl<'py> IntoPyObject<'py> for Timestamp {
 impl<'py> IntoPyObject<'py> for &Timestamp {
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyDateTime;
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
@@ -71,6 +85,8 @@ impl<'py> FromPyObject<'py> for Timestamp {
 impl<'py> IntoPyObject<'py> for Date {
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyDate;
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
@@ -82,37 +98,56 @@ impl<'py> IntoPyObject<'py> for Date {
 impl<'py> IntoPyObject<'py> for &Date {
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyDate;
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         #[cfg(not(Py_LIMITED_API))]
-        PyDate::new(
-            py,
-            self.year().into(),
-            self.month().try_into()?,
-            self.day().try_into()?,
-        )
+        {
+            PyDate::new(
+                py,
+                self.year().into(),
+                self.month().try_into()?,
+                self.day().try_into()?,
+            )
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        {
+            todo!()
+        }
     }
 }
 
 impl<'py> FromPyObject<'py> for Date {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         #[cfg(not(Py_LIMITED_API))]
-        let date = ob.downcast::<PyDate>()?;
+        {
+            let date = ob.downcast::<PyDate>()?;
+            Date::new(
+                date.get_year().try_into()?,
+                date.get_month().try_into()?,
+                date.get_day().try_into()?,
+            )
+            .map_err(Into::into)
+        }
 
+        #[cfg(Py_LIMITED_API)]
         Date::new(
-            date.get_year().try_into()?,
-            date.get_month().try_into()?,
-            date.get_day().try_into()?,
+            ob.getattr(intern!(ob.py(), "year"))?.extract()?,
+            ob.getattr(intern!(ob.py(), "month"))?.extract()?,
+            ob.getattr(intern!(ob.py(), "day"))?.extract()?,
         )
-        .map_err(Into::into)
     }
 }
 
 impl<'py> IntoPyObject<'py> for Time {
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyTime;
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
@@ -124,39 +159,63 @@ impl<'py> IntoPyObject<'py> for Time {
 impl<'py> IntoPyObject<'py> for &Time {
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyTime;
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         #[cfg(not(Py_LIMITED_API))]
-        PyTime::new(
-            py,
-            self.hour().try_into()?,
-            self.minute().try_into()?,
-            self.second().try_into()?,
-            self.microsecond().try_into()?,
-            None,
-        )
+        {
+            PyTime::new(
+                py,
+                self.hour().try_into()?,
+                self.minute().try_into()?,
+                self.second().try_into()?,
+                self.microsecond().try_into()?,
+                None,
+            )
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        {
+            todo!()
+        }
     }
 }
 
 impl<'py> FromPyObject<'py> for Time {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         #[cfg(not(Py_LIMITED_API))]
-        let time = ob.downcast::<PyTime>()?;
-        Time::new(
-            time.get_hour().try_into()?,
-            time.get_minute().try_into()?,
-            time.get_second().try_into()?,
-            time.get_microsecond().try_into()?,
-        )
-        .map_err(Into::into)
+        {
+            let time = ob.downcast::<PyTime>()?;
+            Time::new(
+                time.get_hour().try_into()?,
+                time.get_minute().try_into()?,
+                time.get_second().try_into()?,
+                time.get_microsecond().try_into()?,
+            )
+            .map_err(Into::into)
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        {
+            Time::new(
+                ob.getattr(intern!(ob.py(), "hour"))?.extract()?,
+                ob.getattr(intern!(ob.py(), "minute"))?.extract()?,
+                ob.getattr(intern!(ob.py(), "second"))?.extract()?,
+                ob.getattr(intern!(ob.py(), "microsecond"))?.extract()?,
+            )
+            .map_err(Into::into)
+        }
     }
 }
 
 impl<'py> IntoPyObject<'py> for DateTime {
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyDateTime;
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
@@ -168,6 +227,8 @@ impl<'py> IntoPyObject<'py> for DateTime {
 impl<'py> IntoPyObject<'py> for &DateTime {
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyDateTime;
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
@@ -185,6 +246,8 @@ impl<'py> FromPyObject<'py> for DateTime {
 impl<'py> IntoPyObject<'py> for Zoned {
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyDateTime;
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
@@ -196,6 +259,8 @@ impl<'py> IntoPyObject<'py> for Zoned {
 impl<'py> IntoPyObject<'py> for &Zoned {
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyDateTime;
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
@@ -218,8 +283,14 @@ impl<'py> FromPyObject<'py> for Zoned {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         #[cfg(not(Py_LIMITED_API))]
         let dt = ob.downcast::<PyDateTime>()?;
+
         let tz = {
+            #[cfg(not(Py_LIMITED_API))]
             let tzinfo: Option<_> = dt.get_tzinfo();
+
+            #[cfg(Py_LIMITED_API)]
+            let tzinfo: Option<Bound<'_, PyAny>> =
+                ob.getattr(intern!(ob.py(), "tzinfo"))?.extract()?;
 
             tzinfo
                 .map(|tz| tz.extract::<TimeZone>())
@@ -229,21 +300,18 @@ impl<'py> FromPyObject<'py> for Zoned {
                     ))
                 })?
         };
-        let datetime = ob.extract::<DateTime>()?;
-        let zoned = tz.to_ambiguous_zoned(datetime);
-        match zoned.offset() {
-            AmbiguousOffset::Unambiguous { .. } => Ok(tz.to_zoned(datetime)?),
-            AmbiguousOffset::Fold { .. } => {
-                let fold = false;
-                match fold {
-                    true => Ok(zoned.later()?),
-                    false => Ok(zoned.earlier()?),
-                }
-            }
-            AmbiguousOffset::Gap { .. } => Err(PyValueError::new_err(format!(
-                "The datetime {:?} contains an incompatible timezone",
-                dt
-            ))),
+        let zoned = tz.into_ambiguous_zoned(ob.extract()?);
+
+        #[cfg(not(Py_LIMITED_API))]
+        let fold = dt.get_fold();
+
+        #[cfg(Py_LIMITED_API)]
+        let fold = ob.getattr(intern!(ob.py(), "fold"))?.extract::<usize>()? > 0;
+
+        if fold {
+            Ok(zoned.later()?)
+        } else {
+            Ok(zoned.earlier()?)
         }
     }
 }
@@ -251,6 +319,8 @@ impl<'py> FromPyObject<'py> for Zoned {
 impl<'py> IntoPyObject<'py> for TimeZone {
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyTzInfo;
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
@@ -262,6 +332,8 @@ impl<'py> IntoPyObject<'py> for TimeZone {
 impl<'py> IntoPyObject<'py> for &TimeZone {
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyTzInfo;
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
