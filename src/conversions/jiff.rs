@@ -8,12 +8,13 @@ use crate::types::datetime::timezone_from_offset;
 use crate::types::{PyAnyMethods, PyNone, PyType};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{
-    PyDate, PyDateAccess, PyDateTime, PyTime, PyTimeAccess, PyTzInfo, PyTzInfoAccess,
+    PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess, PyTzInfo,
+    PyTzInfoAccess,
 };
 use crate::{intern, Bound, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python};
 use jiff::civil::{Date, DateTime, Time};
 use jiff::tz::{AmbiguousOffset, Offset, TimeZone};
-use jiff::{Timestamp, Zoned};
+use jiff::{SignedDuration, Timestamp, Zoned};
 use std::time::Duration;
 
 #[cfg(not(Py_LIMITED_API))]
@@ -404,8 +405,7 @@ impl<'py> IntoPyObject<'py> for &Offset {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let duration: Duration = self.duration_since(Offset::UTC).try_into()?;
-        let delta = duration.into_pyobject(py)?;
+        let delta = self.duration_since(Offset::UTC).into_pyobject(py)?;
 
         #[cfg(not(Py_LIMITED_API))]
         {
@@ -447,10 +447,67 @@ impl<'py> FromPyObject<'py> for Offset {
             )));
         }
 
-        let total_seconds: Duration = py_timedelta.extract()?;
+        let total_seconds = py_timedelta.extract::<SignedDuration>()?.as_secs();
+        debug_assert!(
+            (total_seconds / 3600).abs() <= 24,
+            "Offset must be between -24 hours and 24 hours but was {}h",
+            total_seconds / 3600
+        );
         // This cast is safe since the timedelta is limited to -24 hours and 24 hours.
-        let total_seconds = total_seconds.as_secs() as i32;
-        Ok(Offset::from_seconds(total_seconds)?)
+        Ok(Offset::from_seconds(total_seconds as i32)?)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &SignedDuration {
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyDelta;
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let seconds: i32 = self.as_secs().try_into()?;
+        let microseconds: i32 = self.subsec_micros();
+        
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            PyDelta::new(py, 0, seconds, microseconds, true)
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        todo!()
+    }
+}
+
+impl<'py> IntoPyObject<'py> for SignedDuration {
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyDelta;
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (&self).into_pyobject(py)
+    }
+}
+
+impl<'py> FromPyObject<'py> for SignedDuration {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        #[cfg(not(Py_LIMITED_API))]
+        let (seconds, microseconds) = {
+            let delta = ob.downcast::<PyDelta>()?;
+            let days = delta.get_days() as i64;
+            let seconds = delta.get_seconds() as i64;
+            let microseconds = delta.get_microseconds();
+            (days * 24 * 60 * 60 + seconds, microseconds)
+        };
+
+        #[cfg(Py_LIMITED_API)]
+        let (seconds, microseconds) = { todo!() };
+
+        Ok(SignedDuration::new(seconds, microseconds * 1000))
     }
 }
 
