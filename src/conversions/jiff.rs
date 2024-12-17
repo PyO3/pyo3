@@ -540,6 +540,8 @@ impl From<jiff::Error> for PyErr {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(not(Py_LIMITED_API))]
+    use crate::types::timezone_utc;
     use crate::{types::PyTuple, BoundObject};
     use jiff::tz::Offset;
     use std::cmp::Ordering;
@@ -562,7 +564,7 @@ mod tests {
                 Some(&locals),
             )
             .unwrap();
-            let result: PyResult<FixedOffset> = locals.get_item("zi").unwrap().unwrap().extract();
+            let result: PyResult<Offset> = locals.get_item("zi").unwrap().unwrap().extract();
             assert!(result.is_err());
             let res = result.err().unwrap();
             // Also check the error message is what we expect
@@ -601,6 +603,40 @@ mod tests {
         });
     }
 
+    #[test]
+    fn test_invalid_types_fail() {
+        Python::with_gil(|py| {
+            let none = py.None().into_bound(py);
+            assert_eq!(
+                none.extract::<Span>().unwrap_err().to_string(),
+                "TypeError: 'NoneType' object cannot be converted to 'PyDelta'"
+            );
+            assert_eq!(
+                none.extract::<Offset>().unwrap_err().to_string(),
+                "TypeError: 'NoneType' object cannot be converted to 'PyTzInfo'"
+            );
+            assert_eq!(
+                none.extract::<TimeZone>().unwrap_err().to_string(),
+                "TypeError: 'NoneType' object cannot be converted to 'PyTzInfo'"
+            );
+            assert_eq!(
+                none.extract::<Time>().unwrap_err().to_string(),
+                "TypeError: 'NoneType' object cannot be converted to 'PyTime'"
+            );
+            assert_eq!(
+                none.extract::<Date>().unwrap_err().to_string(),
+                "TypeError: 'NoneType' object cannot be converted to 'PyDate'"
+            );
+            assert_eq!(
+                none.extract::<DateTime>().unwrap_err().to_string(),
+                "TypeError: 'NoneType' object cannot be converted to 'PyDateTime'"
+            );
+            assert_eq!(
+                none.extract::<Zoned>().unwrap_err().to_string(),
+                "TypeError: 'NoneType' object cannot be converted to 'PyDateTime'"
+            );
+        });
+    }
 
     #[test]
     fn test_pyo3_date_into_pyobject() {
@@ -722,11 +758,9 @@ mod tests {
     #[cfg(all(Py_3_9, not(windows)))]
     fn test_pyo3_datetime_into_pyobject_tz() {
         Python::with_gil(|py| {
-            let datetime = NaiveDate::from_ymd_opt(2024, 12, 11)
+            let datetime = DateTime::new(2024, 12, 11, 23, 3, 13, 0)
                 .unwrap()
-                .and_hms_opt(23, 3, 13)
-                .unwrap()
-                .and_local_timezone(chrono_tz::Tz::Europe__London)
+                .to_zoned(TimeZone::get("Europe/London").unwrap())
                 .unwrap();
             let datetime = datetime.into_pyobject(py).unwrap();
             let py_datetime = new_py_datetime_ob(
@@ -747,6 +781,30 @@ mod tests {
         })
     }
 
+    #[test]
+    fn test_pyo3_datetime_frompyobject_utc() {
+        Python::with_gil(|py| {
+            let year = 2014;
+            let month = 5;
+            let day = 6;
+            let hour = 7;
+            let minute = 8;
+            let second = 9;
+            let micro = 999_999;
+            let tz_utc = timezone_utc(py);
+            let py_datetime = new_py_datetime_ob(
+                py,
+                "datetime",
+                (year, month, day, hour, minute, second, micro, tz_utc),
+            );
+            let py_datetime: Zoned = py_datetime.extract().unwrap();
+            let datetime = DateTime::new(year, month, day, hour, minute, second, micro * 1000)
+                .unwrap()
+                .to_zoned(TimeZone::UTC)
+                .unwrap();
+            assert_eq!(py_datetime, datetime,);
+        })
+    }
 
     #[test]
     fn test_pyo3_datetime_frompyobject_fixed_offset() {
@@ -774,6 +832,103 @@ mod tests {
         })
     }
 
+    #[test]
+    fn test_pyo3_offset_fixed_into_pyobject() {
+        Python::with_gil(|py| {
+            // Chrono offset
+            let offset = Offset::from_seconds(3600)
+                .unwrap()
+                .into_pyobject(py)
+                .unwrap();
+            // Python timezone from timedelta
+            let td = new_py_datetime_ob(py, "timedelta", (0, 3600, 0));
+            let py_timedelta = new_py_datetime_ob(py, "timezone", (td,));
+            // Should be equal
+            assert!(offset.eq(py_timedelta).unwrap());
+
+            // Same but with negative values
+            let offset = Offset::from_seconds(-3600)
+                .unwrap()
+                .into_pyobject(py)
+                .unwrap();
+            let td = new_py_datetime_ob(py, "timedelta", (0, -3600, 0));
+            let py_timedelta = new_py_datetime_ob(py, "timezone", (td,));
+            assert!(offset.eq(py_timedelta).unwrap());
+        })
+    }
+
+    #[test]
+    fn test_pyo3_offset_fixed_frompyobject() {
+        Python::with_gil(|py| {
+            let py_timedelta = new_py_datetime_ob(py, "timedelta", (0, 3600, 0));
+            let py_tzinfo = new_py_datetime_ob(py, "timezone", (py_timedelta,));
+            let offset: Offset = py_tzinfo.extract().unwrap();
+            assert_eq!(Offset::from_seconds(3600).unwrap(), offset);
+        })
+    }
+
+    #[test]
+    fn test_pyo3_offset_utc_into_pyobject() {
+        Python::with_gil(|py| {
+            let utc = Offset::UTC.into_pyobject(py).unwrap();
+            let py_utc = python_utc(py);
+            assert!(utc.is(&py_utc));
+        })
+    }
+
+    #[test]
+    fn test_pyo3_offset_utc_frompyobject() {
+        Python::with_gil(|py| {
+            let py_utc = python_utc(py);
+            let py_utc: Offset = py_utc.extract().unwrap();
+            assert_eq!(Offset::UTC, py_utc);
+
+            let py_timedelta = new_py_datetime_ob(py, "timedelta", (0, 0, 0));
+            let py_timezone_utc = new_py_datetime_ob(py, "timezone", (py_timedelta,));
+            let py_timezone_utc: Offset = py_timezone_utc.extract().unwrap();
+            assert_eq!(Offset::UTC, py_timezone_utc);
+
+            let py_timedelta = new_py_datetime_ob(py, "timedelta", (0, 3600, 0));
+            let py_timezone = new_py_datetime_ob(py, "timezone", (py_timedelta,));
+            assert_ne!(Offset::UTC, py_timezone.extract::<Offset>().unwrap());
+        })
+    }
+
+    #[test]
+    fn test_pyo3_time_into_pyobject() {
+        Python::with_gil(|py| {
+            let check_time = |name: &'static str, hour, minute, second, ms, py_ms| {
+                let time = Time::new(hour, minute, second, ms * 1000)
+                    .unwrap()
+                    .into_pyobject(py)
+                    .unwrap();
+                let py_time = new_py_datetime_ob(py, "time", (hour, minute, second, py_ms));
+                assert!(
+                    time.eq(&py_time).unwrap(),
+                    "{}: {} != {}",
+                    name,
+                    time,
+                    py_time
+                );
+            };
+
+            check_time("regular", 3, 5, 7, 999_999, 999_999);
+        })
+    }
+
+    #[test]
+    fn test_pyo3_time_frompyobject() {
+        let hour = 3;
+        let minute = 5;
+        let second = 7;
+        let micro = 999_999;
+        Python::with_gil(|py| {
+            let py_time = new_py_datetime_ob(py, "time", (hour, minute, second, micro));
+            let py_time: Time = py_time.extract().unwrap();
+            let time = Time::new(hour, minute, second, micro * 1000).unwrap();
+            assert_eq!(py_time, time);
+        })
+    }
 
     fn new_py_datetime_ob<'py, A>(py: Python<'py>, name: &str, args: A) -> Bound<'py, PyAny>
     where
