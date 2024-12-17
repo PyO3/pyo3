@@ -14,8 +14,7 @@ use crate::types::{
 use crate::{intern, Bound, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python};
 use jiff::civil::{Date, DateTime, Time};
 use jiff::tz::{AmbiguousOffset, Offset, TimeZone};
-use jiff::{SignedDuration, Timestamp, Zoned};
-use std::time::Duration;
+use jiff::{SignedDuration, Span, Timestamp, Zoned};
 
 #[cfg(not(Py_LIMITED_API))]
 fn datetime_to_pydatetime<'py>(
@@ -469,7 +468,7 @@ impl<'py> IntoPyObject<'py> for &SignedDuration {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let seconds: i32 = self.as_secs().try_into()?;
         let microseconds: i32 = self.subsec_micros();
-        
+
         #[cfg(not(Py_LIMITED_API))]
         {
             PyDelta::new(py, 0, seconds, microseconds, true)
@@ -508,6 +507,27 @@ impl<'py> FromPyObject<'py> for SignedDuration {
         let (seconds, microseconds) = { todo!() };
 
         Ok(SignedDuration::new(seconds, microseconds * 1000))
+    }
+}
+
+impl<'py> IntoPyObject<'py> for Span {
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyDelta;
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let duration: SignedDuration = self.try_into()?;
+        duration.into_pyobject(py)
+    }
+}
+
+impl<'py> FromPyObject<'py> for Span {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let duration = ob.extract::<SignedDuration>()?;
+        Ok(duration.try_into()?)
     }
 }
 
