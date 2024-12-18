@@ -5,6 +5,10 @@ use crate::pybacked::PyBackedStr;
 use crate::sync::GILOnceCell;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::datetime::timezone_from_offset;
+#[cfg(Py_LIMITED_API)]
+use crate::types::datetime_abi::{check_type, DatetimeTypes};
+#[cfg(Py_LIMITED_API)]
+use crate::types::IntoPyDict;
 use crate::types::{PyAnyMethods, PyNone, PyType};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{
@@ -50,12 +54,35 @@ fn datetime_to_pydatetime<'py>(
 
 #[cfg(Py_LIMITED_API)]
 fn datetime_to_pydatetime<'py>(
-    _py: Python<'py>,
-    _datetime: &DateTime,
-    _fold: bool,
-    _timezone: Option<&TimeZone>,
+    py: Python<'py>,
+    datetime: &DateTime,
+    fold: bool,
+    timezone: Option<&TimeZone>,
 ) -> PyResult<Bound<'py, PyAny>> {
-    todo!()
+    DatetimeTypes::try_get(py)?.datetime.bind(py).call(
+        (
+            datetime.year(),
+            datetime.month(),
+            datetime.day(),
+            datetime.hour(),
+            datetime.minute(),
+            datetime.second(),
+            datetime.subsec_nanosecond() / 1000,
+            timezone
+                .map(|tz| {
+                    if tz.iana_name().is_some() {
+                        tz.into_pyobject(py)
+                    } else {
+                        // TODO after https://github.com/BurntSushi/jiff/pull/170 we can remove this special case
+                        let (offset, _, _) = tz.to_offset(tz.to_timestamp(*datetime)?);
+                        offset.into_pyobject(py)
+                    }
+                })
+                .transpose()?
+                .as_ref(),
+        ),
+        Some(&[("fold", fold as u8)].into_py_dict(py)?),
+    )
 }
 
 #[cfg(not(Py_LIMITED_API))]
@@ -75,7 +102,7 @@ fn pytime_to_time(time: &Bound<'_, PyAny>) -> PyResult<Time> {
         time.getattr(intern!(py, "hour"))?.extract()?,
         time.getattr(intern!(py, "minute"))?.extract()?,
         time.getattr(intern!(py, "second"))?.extract()?,
-        time.getattr(intern!(py, "microsecond"))?.extract()? * 1000,
+        time.getattr(intern!(py, "microsecond"))?.extract::<i32>()? * 1000,
     )?)
 }
 
@@ -146,7 +173,10 @@ impl<'py> IntoPyObject<'py> for &Date {
 
         #[cfg(Py_LIMITED_API)]
         {
-            todo!()
+            DatetimeTypes::try_get(py)?
+                .date
+                .bind(py)
+                .call1((self.year(), self.month(), self.day()))
         }
     }
 }
@@ -156,20 +186,22 @@ impl<'py> FromPyObject<'py> for Date {
         #[cfg(not(Py_LIMITED_API))]
         {
             let date = ob.downcast::<PyDate>()?;
-            Date::new(
+            Ok(Date::new(
                 date.get_year().try_into()?,
                 date.get_month().try_into()?,
                 date.get_day().try_into()?,
-            )
-            .map_err(Into::into)
+            )?)
         }
 
         #[cfg(Py_LIMITED_API)]
-        Date::new(
-            ob.getattr(intern!(ob.py(), "year"))?.extract()?,
-            ob.getattr(intern!(ob.py(), "month"))?.extract()?,
-            ob.getattr(intern!(ob.py(), "day"))?.extract()?,
-        )
+        {
+            check_type(ob, &DatetimeTypes::get(ob.py()).date, "PyDate")?;
+            Ok(Date::new(
+                ob.getattr(intern!(ob.py(), "year"))?.extract()?,
+                ob.getattr(intern!(ob.py(), "month"))?.extract()?,
+                ob.getattr(intern!(ob.py(), "day"))?.extract()?,
+            )?)
+        }
     }
 }
 
@@ -209,7 +241,12 @@ impl<'py> IntoPyObject<'py> for &Time {
 
         #[cfg(Py_LIMITED_API)]
         {
-            todo!()
+            DatetimeTypes::try_get(py)?.time.bind(py).call1((
+                self.hour(),
+                self.minute(),
+                self.second(),
+                self.subsec_nanosecond() / 1000,
+            ))
         }
     }
 }
@@ -218,6 +255,9 @@ impl<'py> FromPyObject<'py> for Time {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         #[cfg(not(Py_LIMITED_API))]
         let ob = ob.downcast::<PyTime>()?;
+
+        #[cfg(Py_LIMITED_API)]
+        check_type(ob, &DatetimeTypes::get(ob.py()).time, "PyTime")?;
 
         pytime_to_time(ob)
     }
@@ -253,6 +293,9 @@ impl<'py> FromPyObject<'py> for DateTime {
     fn extract_bound(dt: &Bound<'py, PyAny>) -> PyResult<Self> {
         #[cfg(not(Py_LIMITED_API))]
         let dt = dt.downcast::<PyDateTime>()?;
+
+        #[cfg(Py_LIMITED_API)]
+        check_type(dt, &DatetimeTypes::get(dt.py()).datetime, "PyDateTime")?;
 
         #[cfg(not(Py_LIMITED_API))]
         let has_tzinfo = dt.get_tzinfo().is_some();
@@ -308,6 +351,9 @@ impl<'py> FromPyObject<'py> for Zoned {
     fn extract_bound(dt: &Bound<'py, PyAny>) -> PyResult<Self> {
         #[cfg(not(Py_LIMITED_API))]
         let dt = dt.downcast::<PyDateTime>()?;
+
+        #[cfg(Py_LIMITED_API)]
+        check_type(dt, &DatetimeTypes::get(dt.py()).datetime, "PyDateTime")?;
 
         let tz = {
             #[cfg(not(Py_LIMITED_API))]
@@ -376,6 +422,7 @@ impl<'py> IntoPyObject<'py> for &TimeZone {
             Ok(tz)
         } else {
             // TODO add support for fixed offsets after https://github.com/BurntSushi/jiff/pull/170 is merged
+            // self.to_fixed_offset()?.into_pyobject(py)
 
             Err(PyValueError::new_err(
                 "Cannot convert a TimeZone without an IANA name to a python ZoneInfo",
@@ -413,7 +460,10 @@ impl<'py> IntoPyObject<'py> for &Offset {
 
         #[cfg(Py_LIMITED_API)]
         {
-            todo!()
+            DatetimeTypes::try_get(py)?
+                .timezone
+                .bind(py)
+                .call1((delta,))
         }
     }
 }
@@ -437,6 +487,9 @@ impl<'py> FromPyObject<'py> for Offset {
 
         #[cfg(not(Py_LIMITED_API))]
         let ob = ob.downcast::<PyTzInfo>()?;
+
+        #[cfg(Py_LIMITED_API)]
+        check_type(ob, &DatetimeTypes::get(ob.py()).tzinfo, "PyTzInfo")?;
 
         let py_timedelta = ob.call_method1(intern!(py, "utcoffset"), (PyNone::get(py),))?;
         if py_timedelta.is_none() {
@@ -466,16 +519,23 @@ impl<'py> IntoPyObject<'py> for &SignedDuration {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let seconds: i32 = self.as_secs().try_into()?;
-        let microseconds: i32 = self.subsec_micros();
+        let total_seconds = self.as_secs();
+        let days: i32 = (total_seconds / (24 * 60 * 60)).try_into()?;
+        let seconds: i32 = (total_seconds % (24 * 60 * 60)).try_into()?;
+        let microseconds = self.subsec_micros();
 
         #[cfg(not(Py_LIMITED_API))]
         {
-            PyDelta::new(py, 0, seconds, microseconds, true)
+            PyDelta::new(py, days, seconds, microseconds, true)
         }
 
         #[cfg(Py_LIMITED_API)]
-        todo!()
+        {
+            DatetimeTypes::try_get(py)?
+                .timedelta
+                .bind(py)
+                .call1((days, seconds, microseconds))
+        }
     }
 }
 
@@ -504,7 +564,15 @@ impl<'py> FromPyObject<'py> for SignedDuration {
         };
 
         #[cfg(Py_LIMITED_API)]
-        let (seconds, microseconds) = { todo!() };
+        let (seconds, microseconds) = {
+            check_type(ob, &DatetimeTypes::get(ob.py()).timedelta, "PyDelta")?;
+            let days = ob.getattr(intern!(ob.py(), "days"))?.extract::<i64>()?;
+            let seconds = ob.getattr(intern!(ob.py(), "seconds"))?.extract::<i64>()?;
+            let microseconds = ob
+                .getattr(intern!(ob.py(), "microseconds"))?
+                .extract::<i32>()?;
+            (days * 24 * 60 * 60 + seconds, microseconds)
+        };
 
         Ok(SignedDuration::new(seconds, microseconds * 1000))
     }
@@ -545,6 +613,7 @@ mod tests {
     use crate::{types::PyTuple, BoundObject};
     use jiff::tz::Offset;
     use std::cmp::Ordering;
+    use std::str::FromStr;
 
     #[test]
     // Only Python>=3.9 has the zoneinfo package
@@ -807,6 +876,55 @@ mod tests {
     }
 
     #[test]
+    fn test_ambiguous_datetime_to_pyobject() {
+        let dates = [
+            Zoned::from_str("2020-10-24 23:00:00[UTC]").unwrap(),
+            Zoned::from_str("2020-10-25 00:00:00[UTC]").unwrap(),
+            Zoned::from_str("2020-10-25 01:00:00[UTC]").unwrap(),
+        ];
+
+        let tz = TimeZone::get("Europe/London").unwrap();
+        let dates = dates.map(|dt| dt.with_time_zone(tz.clone()));
+
+        assert_eq!(
+            dates.clone().map(|ref dt| dt.to_string()),
+            [
+                "2020-10-25T00:00:00+01:00[Europe/London]",
+                "2020-10-25T01:00:00+01:00[Europe/London]",
+                "2020-10-25T01:00:00+00:00[Europe/London]"
+            ]
+        );
+
+        let dates = Python::with_gil(|py| {
+            let pydates = dates.map(|dt| dt.into_pyobject(py).unwrap());
+            assert_eq!(
+                pydates
+                    .clone()
+                    .map(|dt| dt.getattr("hour").unwrap().extract::<usize>().unwrap()),
+                [0, 1, 1]
+            );
+
+            assert_eq!(
+                pydates
+                    .clone()
+                    .map(|dt| dt.getattr("fold").unwrap().extract::<usize>().unwrap() > 0),
+                [false, false, true]
+            );
+
+            pydates.map(|dt| dt.extract::<Zoned>().unwrap())
+        });
+
+        assert_eq!(
+            dates.map(|dt| dt.to_string()),
+            [
+                "2020-10-25T00:00:00+01:00[Europe/London]",
+                "2020-10-25T01:00:00+01:00[Europe/London]",
+                "2020-10-25T01:00:00+00:00[Europe/London]"
+            ]
+        );
+    }
+
+    #[test]
     fn test_pyo3_datetime_frompyobject_fixed_offset() {
         Python::with_gil(|py| {
             let year = 2014;
@@ -993,148 +1111,161 @@ mod tests {
 
         proptest! {
 
-                // Range is limited to 1970 to 2038 due to windows limitations
-                #[test]
-                fn test_pyo3_offset_fixed_frompyobject_created_in_python(timestamp in 0..(i32::MAX as i64), timedelta in -86399i32..=86399i32) {
-                    Python::with_gil(|py| {
+            // Range is limited to 1970 to 2038 due to windows limitations
+            #[test]
+            fn test_pyo3_offset_fixed_frompyobject_created_in_python(timestamp in 0..(i32::MAX as i64), timedelta in -86399i32..=86399i32) {
+                Python::with_gil(|py| {
 
-                        let globals = [("datetime", py.import("datetime").unwrap())].into_py_dict(py).unwrap();
-                        let code = format!("datetime.datetime.fromtimestamp({}).replace(tzinfo=datetime.timezone(datetime.timedelta(seconds={})))", timestamp, timedelta);
-                        let t = py.eval(&CString::new(code).unwrap(), Some(&globals), None).unwrap();
+                    let globals = [("datetime", py.import("datetime").unwrap())].into_py_dict(py).unwrap();
+                    let code = format!("datetime.datetime.fromtimestamp({}).replace(tzinfo=datetime.timezone(datetime.timedelta(seconds={})))", timestamp, timedelta);
+                    let t = py.eval(&CString::new(code).unwrap(), Some(&globals), None).unwrap();
 
-                        // Get ISO 8601 string from python
-                        let py_iso_str = t.call_method0("isoformat").unwrap();
+                    // Get ISO 8601 string from python
+                    let py_iso_str = t.call_method0("isoformat").unwrap();
 
-                        // Get ISO 8601 string from rust
-                        let rust_iso_str = t.extract::<Zoned>().unwrap().strftime("%Y-%m-%dT%H:%M:%S%:z").to_string();
+                    // Get ISO 8601 string from rust
+                    let rust_iso_str = t.extract::<Zoned>().unwrap().strftime("%Y-%m-%dT%H:%M:%S%:z").to_string();
 
-                        // They should be equal
-                        assert_eq!(py_iso_str.to_string(), rust_iso_str);
-                    })
-                }
-
-        //         #[test]
-        //         fn test_duration_roundtrip(days in -999999999i64..=999999999i64) {
-        //             // Test roundtrip conversion rust->python->rust for all allowed
-        //             // python values of durations (from -999999999 to 999999999 days),
-        //             Python::with_gil(|py| {
-        //                 let dur = Duration::days(days);
-        //                 let py_delta = dur.into_pyobject(py).unwrap();
-        //                 let roundtripped: Duration = py_delta.extract().expect("Round trip");
-        //                 assert_eq!(dur, roundtripped);
-        //             })
-        //         }
-
-                #[test]
-                fn test_fixed_offset_roundtrip(secs in -86399i32..=86399i32) {
-                    Python::with_gil(|py| {
-                        let offset = Offset::from_seconds(secs).unwrap();
-                        let py_offset = offset.into_pyobject(py).unwrap();
-                        let roundtripped: Offset = py_offset.extract().expect("Round trip");
-                        assert_eq!(offset, roundtripped);
-                    })
-                }
-
-                #[test]
-                fn test_naive_date_roundtrip(
-                    year in 1i32..=9999i32,
-                    month in 1u32..=12u32,
-                    day in 1u32..=31u32
-                ) {
-                    // Test roundtrip conversion rust->python->rust for all allowed
-                    // python dates (from year 1 to year 9999)
-                    Python::with_gil(|py| {
-                        if let Ok(date) = try_date(year, month, day) {
-                            let py_date = date.into_pyobject(py).unwrap();
-                            let roundtripped: Date = py_date.extract().expect("Round trip");
-                            assert_eq!(date, roundtripped);
-                        }
-                    })
-                }
-
-                #[test]
-                fn test_naive_time_roundtrip(
-                    hour in 0u32..=23u32,
-                    min in 0u32..=59u32,
-                    sec in 0u32..=59u32,
-                    micro in 0u32..=1_999_999u32
-                ) {
-                    Python::with_gil(|py| {
-                        if let Ok(time) = try_time(hour, min, sec, micro) {
-                            let py_time = time.into_pyobject(py).unwrap();
-                            let roundtripped: Time = py_time.extract().expect("Round trip");
-                            assert_eq!(time, roundtripped);
-                        }
-                    })
-                }
-
-                #[test]
-                fn test_naive_datetime_roundtrip(
-                    year in 1i32..=9999i32,
-                    month in 1u32..=12u32,
-                    day in 1u32..=31u32,
-                    hour in 0u32..=24u32,
-                    min in 0u32..=60u32,
-                    sec in 0u32..=60u32,
-                    micro in 0u32..=999_999u32
-                ) {
-                    Python::with_gil(|py| {
-                        let date_opt = try_date(year, month, day);
-                        let time_opt = try_time(hour, min, sec, micro);
-                        if let (Ok(date), Ok(time)) = (date_opt, time_opt) {
-                            let dt = DateTime::from_parts(date, time);
-                            let pydt = dt.into_pyobject(py).unwrap();
-                            let roundtripped: DateTime = pydt.extract().expect("Round trip");
-                            assert_eq!(dt, roundtripped);
-                        }
-                    })
-                }
-
-                #[test]
-                fn test_utc_datetime_roundtrip(
-                    year in 1i32..=9999i32,
-                    month in 1u32..=12u32,
-                    day in 1u32..=31u32,
-                    hour in 0u32..=23u32,
-                    min in 0u32..=59u32,
-                    sec in 0u32..=59u32,
-                    micro in 0u32..=1_999_999u32
-                ) {
-                    Python::with_gil(|py| {
-                        let date_opt = try_date(year, month, day);
-                        let time_opt = try_time(hour, min, sec, micro);
-                        if let (Ok(date), Ok(time)) = (date_opt, time_opt) {
-                            let dt: Zoned = DateTime::from_parts(date, time).to_zoned(TimeZone::UTC).unwrap();
-                            let py_dt = (&dt).into_pyobject(py).unwrap();
-                            let roundtripped: Zoned = py_dt.extract().expect("Round trip");
-                            assert_eq!(dt, roundtripped);
-                        }
-                    })
-                }
-
-                #[test]
-                fn test_fixed_offset_datetime_roundtrip(
-                    year in 1i32..=9999i32,
-                    month in 1u32..=12u32,
-                    day in 1u32..=31u32,
-                    hour in 0u32..=23u32,
-                    min in 0u32..=59u32,
-                    sec in 0u32..=59u32,
-                    micro in 0u32..=1_999_999u32,
-                    offset_secs in -86399i32..=86399i32
-                ) {
-                    Python::with_gil(|py| {
-                        let date_opt = try_date(year, month, day);
-                        let time_opt = try_time(hour, min, sec, micro);
-                        let offset = Offset::from_seconds(offset_secs).unwrap();
-                        if let (Ok(date), Ok(time)) = (date_opt, time_opt) {
-                            let dt: Zoned = DateTime::from_parts(date, time).to_zoned(offset.to_time_zone()).unwrap();
-                            let py_dt = (&dt).into_pyobject(py).unwrap();
-                            let roundtripped: Zoned = py_dt.extract().expect("Round trip");
-                            assert_eq!(dt, roundtripped);
-                        }
-                    })
-                }
+                    // They should be equal
+                    assert_eq!(py_iso_str.to_string(), rust_iso_str);
+                })
             }
+
+            #[test]
+            fn test_duration_roundtrip(days in -999999999i64..=999999999i64) {
+                // Test roundtrip conversion rust->python->rust for all allowed
+                // python values of durations (from -999999999 to 999999999 days),
+                Python::with_gil(|py| {
+                    let dur = SignedDuration::new(days * 24 * 60 * 60, 0);
+                    let py_delta = dur.into_pyobject(py).unwrap();
+                    let roundtripped: SignedDuration = py_delta.extract().expect("Round trip");
+                    assert_eq!(dur, roundtripped);
+                })
+            }
+
+            #[test]
+            fn test_span_roundtrip(days in -999999999i64..=999999999i64) {
+                // Test roundtrip conversion rust->python->rust for all allowed
+                // python values of durations (from -999999999 to 999999999 days),
+                Python::with_gil(|py| {
+                    if let Ok(span) = Span::new().try_days(days) {
+                        let py_delta = span.into_pyobject(py).unwrap();
+                        let roundtripped: Span = py_delta.extract().expect("Round trip");
+                        assert_eq!(span.compare(roundtripped).unwrap(), Ordering::Equal);
+                    }
+                })
+            }
+
+            #[test]
+            fn test_fixed_offset_roundtrip(secs in -86399i32..=86399i32) {
+                Python::with_gil(|py| {
+                    let offset = Offset::from_seconds(secs).unwrap();
+                    let py_offset = offset.into_pyobject(py).unwrap();
+                    let roundtripped: Offset = py_offset.extract().expect("Round trip");
+                    assert_eq!(offset, roundtripped);
+                })
+            }
+
+            #[test]
+            fn test_naive_date_roundtrip(
+                year in 1i32..=9999i32,
+                month in 1u32..=12u32,
+                day in 1u32..=31u32
+            ) {
+                // Test roundtrip conversion rust->python->rust for all allowed
+                // python dates (from year 1 to year 9999)
+                Python::with_gil(|py| {
+                    if let Ok(date) = try_date(year, month, day) {
+                        let py_date = date.into_pyobject(py).unwrap();
+                        let roundtripped: Date = py_date.extract().expect("Round trip");
+                        assert_eq!(date, roundtripped);
+                    }
+                })
+            }
+
+            #[test]
+            fn test_naive_time_roundtrip(
+                hour in 0u32..=23u32,
+                min in 0u32..=59u32,
+                sec in 0u32..=59u32,
+                micro in 0u32..=1_999_999u32
+            ) {
+                Python::with_gil(|py| {
+                    if let Ok(time) = try_time(hour, min, sec, micro) {
+                        let py_time = time.into_pyobject(py).unwrap();
+                        let roundtripped: Time = py_time.extract().expect("Round trip");
+                        assert_eq!(time, roundtripped);
+                    }
+                })
+            }
+
+            #[test]
+            fn test_naive_datetime_roundtrip(
+                year in 1i32..=9999i32,
+                month in 1u32..=12u32,
+                day in 1u32..=31u32,
+                hour in 0u32..=24u32,
+                min in 0u32..=60u32,
+                sec in 0u32..=60u32,
+                micro in 0u32..=999_999u32
+            ) {
+                Python::with_gil(|py| {
+                    let date_opt = try_date(year, month, day);
+                    let time_opt = try_time(hour, min, sec, micro);
+                    if let (Ok(date), Ok(time)) = (date_opt, time_opt) {
+                        let dt = DateTime::from_parts(date, time);
+                        let pydt = dt.into_pyobject(py).unwrap();
+                        let roundtripped: DateTime = pydt.extract().expect("Round trip");
+                        assert_eq!(dt, roundtripped);
+                    }
+                })
+            }
+
+            #[test]
+            fn test_utc_datetime_roundtrip(
+                year in 1i32..=9999i32,
+                month in 1u32..=12u32,
+                day in 1u32..=31u32,
+                hour in 0u32..=23u32,
+                min in 0u32..=59u32,
+                sec in 0u32..=59u32,
+                micro in 0u32..=1_999_999u32
+            ) {
+                Python::with_gil(|py| {
+                    let date_opt = try_date(year, month, day);
+                    let time_opt = try_time(hour, min, sec, micro);
+                    if let (Ok(date), Ok(time)) = (date_opt, time_opt) {
+                        let dt: Zoned = DateTime::from_parts(date, time).to_zoned(TimeZone::UTC).unwrap();
+                        let py_dt = (&dt).into_pyobject(py).unwrap();
+                        let roundtripped: Zoned = py_dt.extract().expect("Round trip");
+                        assert_eq!(dt, roundtripped);
+                    }
+                })
+            }
+
+            #[test]
+            fn test_fixed_offset_datetime_roundtrip(
+                year in 1i32..=9999i32,
+                month in 1u32..=12u32,
+                day in 1u32..=31u32,
+                hour in 0u32..=23u32,
+                min in 0u32..=59u32,
+                sec in 0u32..=59u32,
+                micro in 0u32..=1_999_999u32,
+                offset_secs in -86399i32..=86399i32
+            ) {
+                Python::with_gil(|py| {
+                    let date_opt = try_date(year, month, day);
+                    let time_opt = try_time(hour, min, sec, micro);
+                    let offset = Offset::from_seconds(offset_secs).unwrap();
+                    if let (Ok(date), Ok(time)) = (date_opt, time_opt) {
+                        let dt: Zoned = DateTime::from_parts(date, time).to_zoned(offset.to_time_zone()).unwrap();
+                        let py_dt = (&dt).into_pyobject(py).unwrap();
+                        let roundtripped: Zoned = py_dt.extract().expect("Round trip");
+                        assert_eq!(dt, roundtripped);
+                    }
+                })
+            }
+        }
     }
 }
