@@ -183,10 +183,10 @@ mutability](./class.md#bound-and-interior-mutability),) but now in free-threaded
 Python there are more opportunities to trigger these panics from Python because
 there is no GIL to lock concurrent access to mutably borrowed data from Python.
 
-The most straightforward way to trigger this problem to use the Python
+The most straightforward way to trigger this problem is to use the Python
 [`threading`] module to simultaneously call a rust function that mutably borrows a
-[`pyclass`]({{#PYO3_DOCS_URL}}/pyo3/attr.pyclass.html). For example,
-consider the following implementation:
+[`pyclass`]({{#PYO3_DOCS_URL}}/pyo3/attr.pyclass.html) in multiple threads. For
+example, consider the following implementation:
 
 ```rust
 # use pyo3::prelude::*;
@@ -240,7 +240,7 @@ RuntimeError: Already borrowed
 We plan to allow user-selectable semantics for mutable pyclass definitions in
 PyO3 0.24, allowing some form of opt-in locking to emulate the GIL if that is
 needed. For now you should explicitly add locking, possibly using conditional
-compilation or using the critical section API to avoid creating deadlocks with
+compilation or using the critical section API, to avoid creating deadlocks with
 the GIL.
 
 ### Cannot build extensions using the limited API
@@ -252,8 +252,8 @@ PyO3 will print a warning and ignore that setting when building extensions using
 the free-threaded interpreter.
 
 This means that if your package makes use of the ABI forward compatibility
-provided by the limited API to uploads only one wheel for each release of your
-package, you will need to update and tooling or instructions to also upload a
+provided by the limited API to upload only one wheel for each release of your
+package, you will need to update your release procedure to also upload a
 version-specific free-threaded wheel.
 
 See [the guide section](./building-and-distribution/multiple-python-versions.md)
