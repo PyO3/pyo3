@@ -565,7 +565,11 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         // Auto generate python3.dll import libraries for Windows targets.
         if self.lib_dir.is_none() {
             let target = target_triple_from_env();
-            let py_version = if self.abi3 { None } else { Some(self.version) };
+            let py_version = if self.implementation == PythonImplementation::CPython && self.abi3 {
+                None
+            } else {
+                Some(self.version)
+            };
             let abiflags = if self.is_free_threaded() {
                 Some("t")
             } else {
