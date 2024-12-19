@@ -1,4 +1,4 @@
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(PyPy))]
 use crate::Py_hash_t;
 use crate::{PyObject, Py_UCS1, Py_UCS2, Py_UCS4, Py_ssize_t};
 use libc::wchar_t;
@@ -250,9 +250,8 @@ impl From<PyASCIIObjectState> for u32 {
 #[repr(C)]
 pub struct PyASCIIObject {
     pub ob_base: PyObject,
-    #[cfg(not(GraalPy))]
     pub length: Py_ssize_t,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub hash: Py_hash_t,
     /// A bit field with various properties.
     ///
@@ -265,9 +264,8 @@ pub struct PyASCIIObject {
     /// unsigned int ascii:1;
     /// unsigned int ready:1;
     /// unsigned int :24;
-    #[cfg(not(GraalPy))]
     pub state: u32,
-    #[cfg(not(any(Py_3_12, GraalPy)))]
+    #[cfg(not(Py_3_12))]
     pub wstr: *mut wchar_t,
 }
 
@@ -379,11 +377,9 @@ impl PyASCIIObject {
 #[repr(C)]
 pub struct PyCompactUnicodeObject {
     pub _base: PyASCIIObject,
-    #[cfg(not(GraalPy))]
     pub utf8_length: Py_ssize_t,
-    #[cfg(not(GraalPy))]
     pub utf8: *mut c_char,
-    #[cfg(not(any(Py_3_12, GraalPy)))]
+    #[cfg(not(Py_3_12))]
     pub wstr_length: Py_ssize_t,
 }
 
@@ -398,7 +394,6 @@ pub union PyUnicodeObjectData {
 #[repr(C)]
 pub struct PyUnicodeObject {
     pub _base: PyCompactUnicodeObject,
-    #[cfg(not(GraalPy))]
     pub data: PyUnicodeObjectData,
 }
 
