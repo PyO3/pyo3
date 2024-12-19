@@ -497,7 +497,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         let mut lib_dir = None;
         let mut executable = None;
         let mut pointer_width = None;
-        let mut build_flags = None;
+        let mut build_flags: Option<BuildFlags> = None;
         let mut suppress_build_script_link_lines = None;
         let mut extra_build_script_lines = vec![];
 
@@ -535,10 +535,12 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         let version = version.ok_or("missing value for version")?;
         let implementation = implementation.unwrap_or(PythonImplementation::CPython);
         let abi3 = abi3.unwrap_or(false);
+        let build_flags = build_flags.unwrap_or_default();
+        let gil_disable = build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED);
         // Fixup lib_name if it's not set
         let lib_name = lib_name.or_else(|| {
             if let Ok(Ok(target)) = env::var("TARGET").map(|target| target.parse::<Triple>()) {
-                default_lib_name_for_target(version, implementation, abi3, &target)
+                default_lib_name_for_target(version, implementation, abi3, gil_disable, &target)
             } else {
                 None
             }
@@ -553,7 +555,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             lib_dir,
             executable,
             pointer_width,
-            build_flags: build_flags.unwrap_or_default(),
+            build_flags,
             suppress_build_script_link_lines: suppress_build_script_link_lines.unwrap_or(false),
             extra_build_script_lines,
         })
@@ -565,7 +567,10 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         // Auto generate python3.dll import libraries for Windows targets.
         if self.lib_dir.is_none() {
             let target = target_triple_from_env();
-            let py_version = if self.implementation == PythonImplementation::CPython && self.abi3 {
+            let py_version = if self.implementation == PythonImplementation::CPython
+                && self.abi3
+                && !self.is_free_threaded()
+            {
                 None
             } else {
                 Some(self.version)
@@ -1530,16 +1535,26 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
     let implementation = cross_compile_config
         .implementation
         .unwrap_or(PythonImplementation::CPython);
+    let gil_disabled = false;
 
-    let lib_name =
-        default_lib_name_for_target(version, implementation, abi3, &cross_compile_config.target);
+    let lib_name = default_lib_name_for_target(
+        version,
+        implementation,
+        abi3,
+        gil_disabled,
+        &cross_compile_config.target,
+    );
 
     let mut lib_dir = cross_compile_config.lib_dir_string();
 
     // Auto generate python3.dll import libraries for Windows targets.
     #[cfg(feature = "python3-dll-a")]
     if lib_dir.is_none() {
-        let py_version = if abi3 { None } else { Some(version) };
+        let py_version = if implementation == PythonImplementation::CPython && abi3 {
+            None
+        } else {
+            Some(version)
+        };
         lib_dir = self::import_lib::generate_import_lib(
             &cross_compile_config.target,
             cross_compile_config
@@ -1652,12 +1667,16 @@ fn default_lib_name_for_target(
     version: PythonVersion,
     implementation: PythonImplementation,
     abi3: bool,
+    gil_disabled: bool,
     target: &Triple,
 ) -> Option<String> {
     if target.operating_system == OperatingSystem::Windows {
-        Some(default_lib_name_windows(version, implementation, abi3, false, false, false).unwrap())
+        Some(
+            default_lib_name_windows(version, implementation, abi3, false, false, gil_disabled)
+                .unwrap(),
+        )
     } else if is_linking_libpython_for_target(target) {
-        Some(default_lib_name_unix(version, implementation, None, false).unwrap())
+        Some(default_lib_name_unix(version, implementation, None, gil_disabled).unwrap())
     } else {
         None
     }
@@ -1906,7 +1925,9 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     // Auto generate python3.dll import libraries for Windows targets.
     #[cfg(feature = "python3-dll-a")]
     {
-        let py_version = if interpreter_config.abi3 {
+        let py_version = if interpreter_config.implementation == PythonImplementation::CPython
+            && interpreter_config.abi3
+        {
             None
         } else {
             Some(interpreter_config.version)
