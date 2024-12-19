@@ -156,20 +156,40 @@ freethreaded build, holding a `'py` lifetime means only that the thread is
 currently attached to the Python interpreter -- other threads can be
 simultaneously interacting with the interpreter.
 
-The main reason for obtaining a `'py` lifetime is to interact with Python
+You still need to obtain a `'py` lifetime is to interact with Python
 objects or call into the CPython C API. If you are not yet attached to the
 Python runtime, you can register a thread using the [`Python::with_gil`]
 function. Threads created via the Python [`threading`] module do not not need to
-do this, but all other OS threads that interact with the Python runtime must
-explicitly attach using `with_gil` and obtain a `'py` liftime.
+do this, and pyo3 will handle setting up the [`Python<'py>`] token when CPython
+calls into your extension.
 
-Since there is no GIL in the free-threaded build, releasing the GIL for
-long-running tasks is no longer necessary to ensure other threads run, but you
-should still detach from the interpreter runtime using [`Python::allow_threads`]
-when doing long-running tasks that do not require the CPython runtime. The
-garbage collector can only run if all threads are detached from the runtime (in
-a stop-the-world state), so detaching from the runtime allows freeing unused
-memory.
+### Global synchronization events can cause hangs and deadlocks
+
+The free-threaded build triggers global synchronization events in the following
+situations:
+
+* During garbage collection in order to get a globally consistent view of
+  reference counts and references between objects
+* In Python 3.13, when the first background thread is started in
+  order to mark certain objects as immortal
+* When either `sys.settrace` or `sys.setprofile` are called in order to
+  instrument running code objects and threads
+* Before `os.fork()` is called.
+
+This is a non-exhaustive list and there may be other situations in future Python
+versions that can trigger global synchronization events.
+
+This means that you should detach from the interpreter runtime using
+[`Python::allow_threads`] in exactly the same situations as you should detach
+from the runtime in the GIL-enabled build: when doing long-running tasks that do
+not require the CPython runtime or when doing any task that needs to re-attach
+to the runtime (see the [guide
+section](parallelism.md#sharing-python-objects-between-rust-threads) that
+covers this). In the former case, you would observe a hang on threads that are
+waiting on the long-running task to complete, and in the latter case you would
+see a deadlock while a thread tries to attach after the runtime triggers a
+global synchronization event, but the spawning thread prevents the
+synchronization event from completing.
 
 ### Exceptions and panics for multithreaded access of mutable `pyclass` instances
 
