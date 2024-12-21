@@ -835,7 +835,7 @@ mod tests {
             assert_eq!(iter.next_back().unwrap().extract::<i32>().unwrap(), 2);
             assert_eq!(iter.nth_back(0).unwrap().extract::<i32>().unwrap(), 1);
 
-            let v = vec![1,2,3,4,5];
+            let v = vec![1, 2, 3, 4, 5];
             let ob = (&v).into_pyobject(py).unwrap();
             let list = ob.downcast::<PyList>().unwrap();
 
