@@ -494,7 +494,6 @@ impl<'py> Iterator for BoundListIterator<'py> {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let length = self.length.min(self.list.len());
-
         if self.index < length {
             let item = unsafe { self.get_item(self.index) };
             self.index += 1;
@@ -509,6 +508,20 @@ impl<'py> Iterator for BoundListIterator<'py> {
         let len = self.len();
         (len, Some(len))
     }
+
+    #[inline]
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        let length = self.length.min(self.list.len());
+        let target_index = self.index + n;
+        if self.index + n < length {
+            let item = unsafe { self.get_item(target_index) };
+            self.index = target_index + 1;
+            Some(item)
+        } else {
+            self.index = self.list.len();
+            None
+        }
+    }
 }
 
 impl DoubleEndedIterator for BoundListIterator<'_> {
@@ -521,6 +534,20 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
             self.length = length - 1;
             Some(item)
         } else {
+            None
+        }
+    }
+
+    #[inline]
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        let length = self.length.min(self.list.len());
+        if self.index + n < length {
+            let target_index = length - n - 1;
+            let item = unsafe { self.get_item(target_index) };
+            self.length = target_index;
+            Some(item)
+        } else {
+            self.length = length;
             None
         }
     }
@@ -717,6 +744,114 @@ mod tests {
             for _ in &mut iter {}
 
             assert_eq!(iter.size_hint(), (0, Some(0)));
+        });
+    }
+
+    #[test]
+    fn test_iter_nth() {
+        Python::with_gil(|py| {
+            let v = vec![6, 7, 8, 9, 10];
+            let ob = (&v).into_pyobject(py).unwrap();
+            let list = ob.downcast::<PyList>().unwrap();
+
+            let mut iter = list.iter();
+            assert_eq!(iter.nth(0).unwrap().extract::<i32>().unwrap(), 6);
+            assert_eq!(iter.nth(1).unwrap().extract::<i32>().unwrap(), 8);
+            assert_eq!(iter.nth(1).unwrap().extract::<i32>().unwrap(), 10);
+            assert!(iter.nth(1).is_none());
+
+            let v: Vec<i32> = vec![];
+            let ob = (&v).into_pyobject(py).unwrap();
+            let list = ob.downcast::<PyList>().unwrap();
+
+            let mut iter = list.iter();
+            assert!(iter.nth(0).is_none());
+            assert!(iter.nth(1).is_none());
+
+            let v = vec![1, 2, 3];
+            let ob = (&v).into_pyobject(py).unwrap();
+            let list = ob.downcast::<PyList>().unwrap();
+
+            let mut iter = list.iter();
+            assert!(iter.nth(10).is_none());
+
+            let v = vec![10];
+            let ob = (&v).into_pyobject(py).unwrap();
+            let list = ob.downcast::<PyList>().unwrap();
+
+            let mut iter = list.iter();
+            assert_eq!(iter.nth(0).unwrap().extract::<i32>().unwrap(), 10);
+            assert!(iter.nth(0).is_none());
+
+            let v = vec![6, 7, 8, 9, 10];
+            let ob = (&v).into_pyobject(py).unwrap();
+            let list = ob.downcast::<PyList>().unwrap();
+            let mut iter = list.iter();
+            assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 6);
+            assert_eq!(iter.nth(2).unwrap().extract::<i32>().unwrap(), 9);
+            assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 10);
+
+            let mut iter = list.iter();
+            iter.nth_back(1);
+            assert_eq!(iter.nth(2).unwrap().extract::<i32>().unwrap(), 8);
+            assert!(iter.nth(0).is_none());
+        });
+    }
+
+    #[test]
+    fn test_iter_nth_back() {
+        Python::with_gil(|py| {
+            let v = vec![1, 2, 3, 4, 5];
+            let ob = (&v).into_pyobject(py).unwrap();
+            let list = ob.downcast::<PyList>().unwrap();
+
+            let mut iter = list.iter();
+            assert_eq!(iter.nth_back(0).unwrap().extract::<i32>().unwrap(), 5);
+            assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 3);
+            assert!(iter.nth_back(2).is_none());
+
+            let v: Vec<i32> = vec![];
+            let ob = (&v).into_pyobject(py).unwrap();
+            let list = ob.downcast::<PyList>().unwrap();
+
+            let mut iter = list.iter();
+            assert!(iter.nth_back(0).is_none());
+            assert!(iter.nth_back(1).is_none());
+
+            let v = vec![1, 2, 3];
+            let ob = (&v).into_pyobject(py).unwrap();
+            let list = ob.downcast::<PyList>().unwrap();
+
+            let mut iter = list.iter();
+            assert!(iter.nth_back(5).is_none());
+
+            let v = vec![1, 2, 3, 4, 5];
+            let ob = (&v).into_pyobject(py).unwrap();
+            let list = ob.downcast::<PyList>().unwrap();
+
+            let mut iter = list.iter();
+            iter.next_back(); // Consume the last element
+            assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 3);
+            assert_eq!(iter.next_back().unwrap().extract::<i32>().unwrap(), 2);
+            assert_eq!(iter.nth_back(0).unwrap().extract::<i32>().unwrap(), 1);
+
+            let v = vec![1,2,3,4,5];
+            let ob = (&v).into_pyobject(py).unwrap();
+            let list = ob.downcast::<PyList>().unwrap();
+
+            let mut iter = list.iter();
+            assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 4);
+            assert_eq!(iter.nth_back(2).unwrap().extract::<i32>().unwrap(), 1);
+
+            let mut iter2 = list.iter();
+            iter2.next_back();
+            assert_eq!(iter2.nth_back(1).unwrap().extract::<i32>().unwrap(), 3);
+            assert_eq!(iter2.next_back().unwrap().extract::<i32>().unwrap(), 2);
+
+            let mut iter3 = list.iter();
+            iter3.nth(1);
+            assert_eq!(iter3.nth_back(2).unwrap().extract::<i32>().unwrap(), 3);
+            assert!(iter3.nth_back(0).is_none());
         });
     }
 
