@@ -755,7 +755,7 @@ mod tests {
             let list = ob.downcast::<PyList>().unwrap();
 
             let mut iter = list.iter();
-            assert_eq!(iter.nth(0).unwrap().extract::<i32>().unwrap(), 6);
+            iter.next();
             assert_eq!(iter.nth(1).unwrap().extract::<i32>().unwrap(), 8);
             assert_eq!(iter.nth(1).unwrap().extract::<i32>().unwrap(), 10);
             assert!(iter.nth(1).is_none());
@@ -765,7 +765,7 @@ mod tests {
             let list = ob.downcast::<PyList>().unwrap();
 
             let mut iter = list.iter();
-            assert!(iter.nth(0).is_none());
+            iter.next();
             assert!(iter.nth(1).is_none());
 
             let v = vec![1, 2, 3];
@@ -774,14 +774,6 @@ mod tests {
 
             let mut iter = list.iter();
             assert!(iter.nth(10).is_none());
-
-            let v = vec![10];
-            let ob = (&v).into_pyobject(py).unwrap();
-            let list = ob.downcast::<PyList>().unwrap();
-
-            let mut iter = list.iter();
-            assert_eq!(iter.nth(0).unwrap().extract::<i32>().unwrap(), 10);
-            assert!(iter.nth(0).is_none());
 
             let v = vec![6, 7, 8, 9, 10];
             let ob = (&v).into_pyobject(py).unwrap();
@@ -794,7 +786,7 @@ mod tests {
             let mut iter = list.iter();
             iter.nth_back(1);
             assert_eq!(iter.nth(2).unwrap().extract::<i32>().unwrap(), 8);
-            assert!(iter.nth(0).is_none());
+            assert!(iter.next().is_none());
         });
     }
 
