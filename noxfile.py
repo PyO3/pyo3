@@ -708,8 +708,8 @@ def test_version_limits(session: nox.Session):
         config_file.set("CPython", "3.6")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        assert "3.14" not in PY_VERSIONS
-        config_file.set("CPython", "3.14")
+        assert "3.15" not in PY_VERSIONS
+        config_file.set("CPython", "3.15")
         _run_cargo(session, "check", env=env, expect_error=True)
 
         # 3.14 CPython should build with forward compatibility
