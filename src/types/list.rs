@@ -18,7 +18,7 @@ use crate::types::sequence::PySequenceMethods;
 /// [`Py<PyList>`][crate::Py] or [`Bound<'py, PyList>`][Bound].
 ///
 /// For APIs available on `list` objects, see the [`PyListMethods`] trait which is implemented for
-/// [`Bound<'py, PyDict>`][Bound].
+/// [`Bound<'py, PyList>`][Bound].
 #[repr(transparent)]
 pub struct PyList(PyAny);
 
