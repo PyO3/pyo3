@@ -648,3 +648,41 @@ fn test_transparent_from_py_with() {
         assert_eq!(result, expected);
     });
 }
+
+#[derive(Debug, FromPyObject, PartialEq, Eq)]
+pub struct WithKeywordAttr {
+    r#box: usize,
+}
+
+#[pyclass]
+pub struct WithKeywordAttrC {
+    #[pyo3(get)]
+    r#box: usize,
+}
+
+#[test]
+fn test_with_keyword_attr() {
+    Python::with_gil(|py| {
+        let cls = WithKeywordAttrC { r#box: 3 }.into_pyobject(py).unwrap();
+        let result = cls.extract::<WithKeywordAttr>().unwrap();
+        let expected = WithKeywordAttr { r#box: 3 };
+        assert_eq!(result, expected);
+    });
+}
+
+#[derive(Debug, FromPyObject, PartialEq, Eq)]
+pub struct WithKeywordItem {
+    #[pyo3(item)]
+    r#box: usize,
+}
+
+#[test]
+fn test_with_keyword_item() {
+    Python::with_gil(|py| {
+        let dict = PyDict::new(py);
+        dict.set_item("box", 3).unwrap();
+        let result = dict.extract::<WithKeywordItem>().unwrap();
+        let expected = WithKeywordItem { r#box: 3 };
+        assert_eq!(result, expected);
+    });
+}
