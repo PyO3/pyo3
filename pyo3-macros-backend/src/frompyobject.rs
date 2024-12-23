@@ -3,6 +3,7 @@ use crate::utils::Ctx;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
+    ext::IdentExt,
     parenthesized,
     parse::{Parse, ParseStream},
     parse_quote,
@@ -323,11 +324,11 @@ impl<'a> Container<'a> {
     fn build_struct(&self, struct_fields: &[NamedStructField<'_>], ctx: &Ctx) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
         let self_ty = &self.path;
-        let struct_name = &self.name();
-        let mut fields: Punctuated<TokenStream, syn::Token![,]> = Punctuated::new();
+        let struct_name = self.name();
+        let mut fields: Punctuated<TokenStream, Token![,]> = Punctuated::new();
         for field in struct_fields {
-            let ident = &field.ident;
-            let field_name = ident.to_string();
+            let ident = field.ident;
+            let field_name = ident.unraw().to_string();
             let getter = match field.getter.as_ref().unwrap_or(&FieldGetter::GetAttr(None)) {
                 FieldGetter::GetAttr(Some(name)) => {
                     quote!(#pyo3_path::types::PyAnyMethods::getattr(obj, #pyo3_path::intern!(obj.py(), #name)))
