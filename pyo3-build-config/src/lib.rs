@@ -160,6 +160,10 @@ pub fn print_feature_cfgs() {
     if rustc_minor_version >= 83 {
         println!("cargo:rustc-cfg=io_error_more");
     }
+
+    if rustc_minor_version >= 85 {
+        println!("cargo:rustc-cfg=fn_ptr_eq");
+    }
 }
 
 /// Registers `pyo3`s config names as reachable cfg expressions
@@ -185,6 +189,7 @@ pub fn print_expected_cfgs() {
     println!("cargo:rustc-check-cfg=cfg(c_str_lit)");
     println!("cargo:rustc-check-cfg=cfg(rustc_has_once_lock)");
     println!("cargo:rustc-check-cfg=cfg(io_error_more)");
+    println!("cargo:rustc-check-cfg=cfg(fn_ptr_eq)");
 
     // allow `Py_3_*` cfgs from the minimum supported version up to the
     // maximum minor version (+1 for development for the next)
