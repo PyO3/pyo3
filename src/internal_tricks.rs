@@ -1,4 +1,4 @@
-use crate::ffi::{Py_ssize_t, PY_SSIZE_T_MAX};
+use crate::ffi::{self, Py_ssize_t, PY_SSIZE_T_MAX};
 pub struct PrivateMarker;
 
 macro_rules! private_decl {
@@ -46,4 +46,32 @@ pub(crate) const fn ptr_from_ref<T>(t: &T) -> *const T {
 #[inline]
 pub(crate) fn ptr_from_mut<T>(t: &mut T) -> *mut T {
     t as *mut T
+}
+
+// TODO: use ptr::fn_addr_eq on MSRV 1.85
+pub(crate) fn clear_eq(f: Option<ffi::inquiry>, g: ffi::inquiry) -> bool {
+    #[cfg(fn_ptr_eq)]
+    {
+        let Some(f) = f else { return false };
+        std::ptr::fn_addr_eq(f, g)
+    }
+
+    #[cfg(not(fn_ptr_eq))]
+    {
+        f == Some(g)
+    }
+}
+
+// TODO: use ptr::fn_addr_eq on MSRV 1.85
+pub(crate) fn traverse_eq(f: Option<ffi::traverseproc>, g: ffi::traverseproc) -> bool {
+    #[cfg(fn_ptr_eq)]
+    {
+        let Some(f) = f else { return false };
+        std::ptr::fn_addr_eq(f, g)
+    }
+
+    #[cfg(not(fn_ptr_eq))]
+    {
+        f == Some(g)
+    }
 }
