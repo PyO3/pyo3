@@ -43,18 +43,27 @@ pub fn weaklist_offset<T: PyClass>() -> ffi::Py_ssize_t {
     PyClassObject::<T>::weaklist_offset()
 }
 
+mod sealed {
+    pub trait Sealed {}
+
+    impl Sealed for super::PyClassDummySlot {}
+    impl Sealed for super::PyClassDictSlot {}
+    impl Sealed for super::PyClassWeakRefSlot {}
+    impl Sealed for super::ThreadCheckerImpl {}
+    impl<T: Send> Sealed for super::SendablePyClass<T> {}
+}
+
 /// Represents the `__dict__` field for `#[pyclass]`.
-pub trait PyClassDict {
+pub trait PyClassDict: sealed::Sealed {
     /// Initial form of a [PyObject](crate::ffi::PyObject) `__dict__` reference.
     const INIT: Self;
     /// Empties the dictionary of its key-value pairs.
     #[inline]
     fn clear_dict(&mut self, _py: Python<'_>) {}
-    private_decl! {}
 }
 
 /// Represents the `__weakref__` field for `#[pyclass]`.
-pub trait PyClassWeakRef {
+pub trait PyClassWeakRef: sealed::Sealed {
     /// Initializes a `weakref` instance.
     const INIT: Self;
     /// Clears the weak references to the given object.
@@ -64,19 +73,16 @@ pub trait PyClassWeakRef {
     /// - The GIL must be held.
     #[inline]
     unsafe fn clear_weakrefs(&mut self, _obj: *mut ffi::PyObject, _py: Python<'_>) {}
-    private_decl! {}
 }
 
 /// Zero-sized dummy field.
 pub struct PyClassDummySlot;
 
 impl PyClassDict for PyClassDummySlot {
-    private_impl! {}
     const INIT: Self = PyClassDummySlot;
 }
 
 impl PyClassWeakRef for PyClassDummySlot {
-    private_impl! {}
     const INIT: Self = PyClassDummySlot;
 }
 
@@ -88,7 +94,6 @@ impl PyClassWeakRef for PyClassDummySlot {
 pub struct PyClassDictSlot(*mut ffi::PyObject);
 
 impl PyClassDict for PyClassDictSlot {
-    private_impl! {}
     const INIT: Self = Self(std::ptr::null_mut());
     #[inline]
     fn clear_dict(&mut self, _py: Python<'_>) {
@@ -106,7 +111,6 @@ impl PyClassDict for PyClassDictSlot {
 pub struct PyClassWeakRefSlot(*mut ffi::PyObject);
 
 impl PyClassWeakRef for PyClassWeakRefSlot {
-    private_impl! {}
     const INIT: Self = Self(std::ptr::null_mut());
     #[inline]
     unsafe fn clear_weakrefs(&mut self, obj: *mut ffi::PyObject, _py: Python<'_>) {
@@ -1034,12 +1038,11 @@ impl<T> PyClassNewTextSignature<T> for &'_ PyClassImplCollector<T> {
 // Thread checkers
 
 #[doc(hidden)]
-pub trait PyClassThreadChecker<T>: Sized {
+pub trait PyClassThreadChecker<T>: Sized + sealed::Sealed {
     fn ensure(&self);
     fn check(&self) -> bool;
     fn can_drop(&self, py: Python<'_>) -> bool;
     fn new() -> Self;
-    private_decl! {}
 }
 
 /// Default thread checker for `#[pyclass]`.
@@ -1062,7 +1065,6 @@ impl<T: Send> PyClassThreadChecker<T> for SendablePyClass<T> {
     fn new() -> Self {
         SendablePyClass(PhantomData)
     }
-    private_impl! {}
 }
 
 /// Thread checker for `#[pyclass(unsendable)]` types.
@@ -1111,7 +1113,6 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     fn new() -> Self {
         ThreadCheckerImpl(thread::current().id())
     }
-    private_impl! {}
 }
 
 /// Trait denoting that this class is suitable to be used as a base type for PyClass.
