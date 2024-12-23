@@ -65,7 +65,7 @@ pub fn add_extension_module_link_args() {
 }
 
 fn _add_extension_module_link_args(triple: &Triple, mut writer: impl std::io::Write) {
-    if triple.operating_system == OperatingSystem::Darwin {
+    if matches!(triple.operating_system, OperatingSystem::Darwin(_)) {
         writeln!(writer, "cargo:rustc-cdylib-link-arg=-undefined").unwrap();
         writeln!(writer, "cargo:rustc-cdylib-link-arg=dynamic_lookup").unwrap();
     } else if triple == &Triple::from_str("wasm32-unknown-emscripten").unwrap() {
