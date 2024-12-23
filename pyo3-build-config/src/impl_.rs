@@ -938,8 +938,8 @@ impl CrossCompileConfig {
             && host.operating_system == OperatingSystem::Windows;
 
         // Not cross-compiling to compile for x86-64 Python from macOS arm64 and vice versa
-        compatible |= target.operating_system == OperatingSystem::Darwin
-            && host.operating_system == OperatingSystem::Darwin;
+        compatible |= matches!(target.operating_system, OperatingSystem::Darwin(_))
+            && matches!(host.operating_system, OperatingSystem::Darwin(_));
 
         !compatible
     }
