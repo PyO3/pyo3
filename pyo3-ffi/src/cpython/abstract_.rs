@@ -1,5 +1,7 @@
 use crate::{PyObject, Py_ssize_t};
-use std::os::raw::{c_char, c_int};
+#[cfg(not(all(Py_3_11, GraalPy)))]
+use std::os::raw::c_char;
+use std::os::raw::c_int;
 
 #[cfg(not(Py_3_11))]
 use crate::Py_buffer;

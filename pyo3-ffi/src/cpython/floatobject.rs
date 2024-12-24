@@ -6,7 +6,6 @@ use std::os::raw::c_double;
 #[repr(C)]
 pub struct PyFloatObject {
     pub ob_base: PyObject,
-    #[cfg(not(GraalPy))]
     pub ob_fval: c_double,
 }
 
