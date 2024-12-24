@@ -23,7 +23,7 @@ pub use self::float::{PyFloat, PyFloatMethods};
 pub use self::frame::PyFrame;
 pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
 pub use self::function::PyCFunction;
-#[cfg(all(not(Py_LIMITED_API), not(all(PyPy, not(Py_3_8))), not(GraalPy)))]
+#[cfg(all(not(Py_LIMITED_API), not(all(PyPy, not(Py_3_8)))))]
 pub use self::function::PyFunction;
 pub use self::iterator::PyIterator;
 pub use self::list::{PyList, PyListMethods};

@@ -129,6 +129,9 @@ pub struct PyVarObject {
     pub ob_base: PyObject,
     #[cfg(not(GraalPy))]
     pub ob_size: Py_ssize_t,
+    // On GraalPy the field is physically there, but not always populated. We hide it to prevent accidental misuse
+    #[cfg(GraalPy)]
+    pub _ob_size_graalpy: Py_ssize_t,
 }
 
 // skipped private _PyVarObject_CAST
