@@ -520,8 +520,8 @@ jobs:
           components: rust-src
       - name: Install python3 standalone debug build with nox
         run: |
-          PBS_RELEASE="20241016"
-          PBS_PYTHON_VERSION="3.13.0"
+          PBS_RELEASE="20241219"
+          PBS_PYTHON_VERSION="3.13.1"
           PBS_ARCHIVE="cpython-${PBS_PYTHON_VERSION}+${PBS_RELEASE}-x86_64-unknown-linux-gnu-debug-full.tar.zst"
           wget "https://github.com/indygreg/python-build-standalone/releases/download/${PBS_RELEASE}/${PBS_ARCHIVE}"
           tar -I zstd -xf "${PBS_ARCHIVE}"
