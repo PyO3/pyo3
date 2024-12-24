@@ -37,15 +37,7 @@ fn datetime_to_pydatetime<'py>(
         datetime.second().try_into()?,
         (datetime.subsec_nanosecond() / 1000).try_into()?,
         timezone
-            .map(|tz| {
-                if tz.iana_name().is_some() {
-                    tz.into_pyobject(py)
-                } else {
-                    // TODO after https://github.com/BurntSushi/jiff/pull/170 we can remove this special case
-                    let (offset, _, _) = tz.to_offset(tz.to_timestamp(*datetime)?);
-                    offset.into_pyobject(py)
-                }
-            })
+            .map(|tz| tz.into_pyobject(py))
             .transpose()?
             .as_ref(),
         fold,
@@ -68,18 +60,7 @@ fn datetime_to_pydatetime<'py>(
             datetime.minute(),
             datetime.second(),
             datetime.subsec_nanosecond() / 1000,
-            timezone
-                .map(|tz| {
-                    if tz.iana_name().is_some() {
-                        tz.into_pyobject(py)
-                    } else {
-                        // TODO after https://github.com/BurntSushi/jiff/pull/170 we can remove this special case
-                        let (offset, _, _) = tz.to_offset(tz.to_timestamp(*datetime)?);
-                        offset.into_pyobject(py)
-                    }
-                })
-                .transpose()?
-                .as_ref(),
+            timezone,
         ),
         Some(&[("fold", fold as u8)].into_py_dict(py)?),
     )
@@ -423,12 +404,9 @@ impl<'py> IntoPyObject<'py> for &TimeZone {
 
             Ok(tz)
         } else {
-            // TODO add support for fixed offsets after https://github.com/BurntSushi/jiff/pull/170 is merged
-            // self.to_fixed_offset()?.into_pyobject(py)
-
-            Err(PyValueError::new_err(
-                "Cannot convert a TimeZone without an IANA name to a python ZoneInfo",
-            ))
+            // TODO use `to_fixed_offset()?` after https://github.com/BurntSushi/jiff/pull/170 is merged
+            let (offset, _, _) = self.to_offset(Timestamp::MIN);
+            offset.into_pyobject(py)
         }
     }
 }
