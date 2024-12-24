@@ -6,15 +6,15 @@ use crate::sync::GILOnceCell;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::datetime::timezone_from_offset;
 #[cfg(Py_LIMITED_API)]
-use crate::types::datetime_abi::{check_type, DatetimeTypes};
+use crate::types::datetime_abi::{check_type, timezone_utc, DatetimeTypes};
 #[cfg(Py_LIMITED_API)]
 use crate::types::IntoPyDict;
-use crate::types::{PyAnyMethods, PyNone, PyType};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{
-    PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess, PyTzInfo,
-    PyTzInfoAccess,
+    timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
+    PyTzInfo, PyTzInfoAccess,
 };
+use crate::types::{PyAnyMethods, PyNone, PyType};
 use crate::{intern, Bound, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python};
 use jiff::civil::{Date, DateTime, Time};
 use jiff::tz::{AmbiguousOffset, Offset, TimeZone};
@@ -410,7 +410,9 @@ impl<'py> IntoPyObject<'py> for &TimeZone {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        if let Some(iana_name) = self.iana_name() {
+        if self == &TimeZone::UTC {
+            Ok(timezone_utc(py))
+        } else if let Some(iana_name) = self.iana_name() {
             static ZONE_INFO: GILOnceCell<Py<PyType>> = GILOnceCell::new();
             let tz = ZONE_INFO
                 .import(py, "zoneinfo", "ZoneInfo")
@@ -433,6 +435,12 @@ impl<'py> IntoPyObject<'py> for &TimeZone {
 
 impl<'py> FromPyObject<'py> for TimeZone {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        #[cfg(not(Py_LIMITED_API))]
+        let ob = ob.downcast::<PyTzInfo>()?;
+
+        #[cfg(Py_LIMITED_API)]
+        check_type(ob, &DatetimeTypes::get(ob.py()).tzinfo, "PyTzInfo")?;
+
         let attr = intern!(ob.py(), "key");
         if ob.hasattr(attr)? {
             Ok(TimeZone::get(&ob.getattr(attr)?.extract::<PyBackedStr>()?)?)
@@ -451,6 +459,10 @@ impl<'py> IntoPyObject<'py> for &Offset {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        if self == &Offset::UTC {
+            return Ok(timezone_utc(py));
+        }
+
         let delta = self.duration_since(Offset::UTC).into_pyobject(py)?;
 
         #[cfg(not(Py_LIMITED_API))]
@@ -587,6 +599,7 @@ impl<'py> IntoPyObject<'py> for Span {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        // This can fail if this Span contains units greater than days.
         let duration: SignedDuration = self.try_into()?;
         duration.into_pyobject(py)
     }
