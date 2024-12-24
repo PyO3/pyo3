@@ -211,8 +211,6 @@ pub type printfunc =
 #[derive(Debug)]
 pub struct PyTypeObject {
     pub ob_base: object::PyVarObject,
-    #[cfg(GraalPy)]
-    pub ob_size: Py_ssize_t,
     pub tp_name: *const c_char,
     pub tp_basicsize: Py_ssize_t,
     pub tp_itemsize: Py_ssize_t,
