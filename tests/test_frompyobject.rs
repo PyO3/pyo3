@@ -686,3 +686,35 @@ fn test_with_keyword_item() {
         assert_eq!(result, expected);
     });
 }
+
+#[derive(Debug, FromPyObject, PartialEq, Eq)]
+pub struct WithDefaultItem {
+    #[pyo3(item, default)]
+    value: Option<usize>,
+}
+
+#[test]
+fn test_with_default_item() {
+    Python::with_gil(|py| {
+        let dict = PyDict::new(py);
+        let result = dict.extract::<WithDefaultItem>().unwrap();
+        let expected = WithDefaultItem { value: None };
+        assert_eq!(result, expected);
+    });
+}
+
+#[derive(Debug, FromPyObject, PartialEq, Eq)]
+pub struct WithExplicitDefaultItem {
+    #[pyo3(item, default = 1)]
+    value: usize,
+}
+
+#[test]
+fn test_with_explicit_default_item() {
+    Python::with_gil(|py| {
+        let dict = PyDict::new(py);
+        let result = dict.extract::<WithExplicitDefaultItem>().unwrap();
+        let expected = WithExplicitDefaultItem { value: 1 };
+        assert_eq!(result, expected);
+    });
+}

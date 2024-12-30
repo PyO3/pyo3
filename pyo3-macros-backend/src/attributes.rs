@@ -45,6 +45,7 @@ pub mod kw {
     syn::custom_keyword!(unsendable);
     syn::custom_keyword!(weakref);
     syn::custom_keyword!(gil_used);
+    syn::custom_keyword!(default);
 }
 
 fn take_int(read: &mut &str, tracker: &mut usize) -> String {
@@ -350,6 +351,8 @@ impl<K: ToTokens, V: ToTokens> ToTokens for OptionalKeywordAttribute<K, V> {
 }
 
 pub type FromPyWithAttribute = KeywordAttribute<kw::from_py_with, LitStrValue<ExprPath>>;
+
+pub type DefaultAttribute = OptionalKeywordAttribute<kw::default, Expr>;
 
 /// For specifying the path to the pyo3 crate.
 pub type CrateAttribute = KeywordAttribute<Token![crate], LitStrValue<Path>>;
