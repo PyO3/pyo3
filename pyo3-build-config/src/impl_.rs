@@ -22,7 +22,7 @@ use std::{
 
 pub use target_lexicon::Triple;
 
-use target_lexicon::{Environment, OperatingSystem};
+use target_lexicon::{Architecture, Environment, OperatingSystem};
 
 use crate::{
     bail, ensure,
@@ -944,7 +944,9 @@ impl CrossCompileConfig {
 
         // Not cross-compiling to compile for 32-bit Python from windows 64-bit
         compatible |= target.operating_system == OperatingSystem::Windows
-            && host.operating_system == OperatingSystem::Windows;
+            && host.operating_system == OperatingSystem::Windows
+            && matches!(target.architecture, Architecture::X86_32(_))
+            && host.architecture == Architecture::X86_64;
 
         // Not cross-compiling to compile for x86-64 Python from macOS arm64 and vice versa
         compatible |= target.operating_system == OperatingSystem::Darwin
@@ -2953,6 +2955,16 @@ mod tests {
         )
         .unwrap()
         .is_none());
+    }
+
+    #[test]
+    fn test_is_cross_compiling_from_to() {
+        assert!(cross_compiling_from_to(
+            &triple!("x86_64-pc-windows-msvc"),
+            &triple!("aarch64-pc-windows-msvc")
+        )
+        .unwrap()
+        .is_some());
     }
 
     #[test]
