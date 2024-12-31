@@ -497,7 +497,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         let mut lib_dir = None;
         let mut executable = None;
         let mut pointer_width = None;
-        let mut build_flags = None;
+        let mut build_flags: Option<BuildFlags> = None;
         let mut suppress_build_script_link_lines = None;
         let mut extra_build_script_lines = vec![];
 
@@ -535,10 +535,12 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         let version = version.ok_or("missing value for version")?;
         let implementation = implementation.unwrap_or(PythonImplementation::CPython);
         let abi3 = abi3.unwrap_or(false);
+        let build_flags = build_flags.unwrap_or_default();
+        let gil_disabled = build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED);
         // Fixup lib_name if it's not set
         let lib_name = lib_name.or_else(|| {
             if let Ok(Ok(target)) = env::var("TARGET").map(|target| target.parse::<Triple>()) {
-                default_lib_name_for_target(version, implementation, abi3, &target)
+                default_lib_name_for_target(version, implementation, abi3, gil_disabled, &target)
             } else {
                 None
             }
@@ -553,7 +555,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             lib_dir,
             executable,
             pointer_width,
-            build_flags: build_flags.unwrap_or_default(),
+            build_flags,
             suppress_build_script_link_lines: suppress_build_script_link_lines.unwrap_or(false),
             extra_build_script_lines,
         })
@@ -565,7 +567,10 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         // Auto generate python3.dll import libraries for Windows targets.
         if self.lib_dir.is_none() {
             let target = target_triple_from_env();
-            let py_version = if self.implementation == PythonImplementation::CPython && self.abi3 {
+            let py_version = if self.implementation == PythonImplementation::CPython
+                && self.abi3
+                && !self.is_free_threaded()
+            {
                 None
             } else {
                 Some(self.version)
@@ -893,6 +898,9 @@ pub struct CrossCompileConfig {
 
     /// The compile target triple (e.g. aarch64-unknown-linux-gnu)
     target: Triple,
+
+    /// Python ABI flags, used to detect free-threaded Python builds.
+    abiflags: Option<String>,
 }
 
 impl CrossCompileConfig {
@@ -907,7 +915,7 @@ impl CrossCompileConfig {
     ) -> Result<Option<Self>> {
         if env_vars.any() || Self::is_cross_compiling_from_to(host, target) {
             let lib_dir = env_vars.lib_dir_path()?;
-            let version = env_vars.parse_version()?;
+            let (version, abiflags) = env_vars.parse_version()?;
             let implementation = env_vars.parse_implementation()?;
             let target = target.clone();
 
@@ -916,6 +924,7 @@ impl CrossCompileConfig {
                 version,
                 implementation,
                 target,
+                abiflags,
             }))
         } else {
             Ok(None)
@@ -989,22 +998,25 @@ impl CrossCompileEnvVars {
     }
 
     /// Parses `PYO3_CROSS_PYTHON_VERSION` environment variable value
-    /// into `PythonVersion`.
-    fn parse_version(&self) -> Result<Option<PythonVersion>> {
-        let version = self
-            .pyo3_cross_python_version
-            .as_ref()
-            .map(|os_string| {
+    /// into `PythonVersion` and ABI flags.
+    fn parse_version(&self) -> Result<(Option<PythonVersion>, Option<String>)> {
+        match self.pyo3_cross_python_version.as_ref() {
+            Some(os_string) => {
                 let utf8_str = os_string
                     .to_str()
                     .ok_or("PYO3_CROSS_PYTHON_VERSION is not valid a UTF-8 string")?;
-                utf8_str
+                let (utf8_str, abiflags) = if let Some(version) = utf8_str.strip_suffix('t') {
+                    (version, Some("t".to_string()))
+                } else {
+                    (utf8_str, None)
+                };
+                let version = utf8_str
                     .parse()
-                    .context("failed to parse PYO3_CROSS_PYTHON_VERSION")
-            })
-            .transpose()?;
-
-        Ok(version)
+                    .context("failed to parse PYO3_CROSS_PYTHON_VERSION")?;
+                Ok((Some(version), abiflags))
+            }
+            None => Ok((None, None)),
+        }
     }
 
     /// Parses `PYO3_CROSS_PYTHON_IMPLEMENTATION` environment variable value
@@ -1530,16 +1542,27 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
     let implementation = cross_compile_config
         .implementation
         .unwrap_or(PythonImplementation::CPython);
+    let gil_disabled = cross_compile_config.abiflags.as_deref() == Some("t");
 
-    let lib_name =
-        default_lib_name_for_target(version, implementation, abi3, &cross_compile_config.target);
+    let lib_name = default_lib_name_for_target(
+        version,
+        implementation,
+        abi3,
+        gil_disabled,
+        &cross_compile_config.target,
+    );
 
     let mut lib_dir = cross_compile_config.lib_dir_string();
 
     // Auto generate python3.dll import libraries for Windows targets.
     #[cfg(feature = "python3-dll-a")]
     if lib_dir.is_none() {
-        let py_version = if abi3 { None } else { Some(version) };
+        let py_version = if implementation == PythonImplementation::CPython && abi3 && !gil_disabled
+        {
+            None
+        } else {
+            Some(version)
+        };
         lib_dir = self::import_lib::generate_import_lib(
             &cross_compile_config.target,
             cross_compile_config
@@ -1652,12 +1675,16 @@ fn default_lib_name_for_target(
     version: PythonVersion,
     implementation: PythonImplementation,
     abi3: bool,
+    gil_disabled: bool,
     target: &Triple,
 ) -> Option<String> {
     if target.operating_system == OperatingSystem::Windows {
-        Some(default_lib_name_windows(version, implementation, abi3, false, false, false).unwrap())
+        Some(
+            default_lib_name_windows(version, implementation, abi3, false, false, gil_disabled)
+                .unwrap(),
+        )
     } else if is_linking_libpython_for_target(target) {
-        Some(default_lib_name_unix(version, implementation, None, false).unwrap())
+        Some(default_lib_name_unix(version, implementation, None, gil_disabled).unwrap())
     } else {
         None
     }
@@ -1906,7 +1933,14 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     // Auto generate python3.dll import libraries for Windows targets.
     #[cfg(feature = "python3-dll-a")]
     {
-        let py_version = if interpreter_config.abi3 {
+        let gil_disabled = interpreter_config
+            .build_flags
+            .0
+            .contains(&BuildFlag::Py_GIL_DISABLED);
+        let py_version = if interpreter_config.implementation == PythonImplementation::CPython
+            && interpreter_config.abi3
+            && !gil_disabled
+        {
             None
         } else {
             Some(interpreter_config.version)
@@ -2706,7 +2740,7 @@ mod tests {
 
         assert_eq!(
             env_vars.parse_version().unwrap(),
-            Some(PythonVersion { major: 3, minor: 9 })
+            (Some(PythonVersion { major: 3, minor: 9 }), None),
         );
 
         let env_vars = CrossCompileEnvVars {
@@ -2716,7 +2750,25 @@ mod tests {
             pyo3_cross_python_implementation: None,
         };
 
-        assert_eq!(env_vars.parse_version().unwrap(), None);
+        assert_eq!(env_vars.parse_version().unwrap(), (None, None));
+
+        let env_vars = CrossCompileEnvVars {
+            pyo3_cross: None,
+            pyo3_cross_lib_dir: None,
+            pyo3_cross_python_version: Some("3.13t".into()),
+            pyo3_cross_python_implementation: None,
+        };
+
+        assert_eq!(
+            env_vars.parse_version().unwrap(),
+            (
+                Some(PythonVersion {
+                    major: 3,
+                    minor: 13
+                }),
+                Some("t".into())
+            ),
+        );
 
         let env_vars = CrossCompileEnvVars {
             pyo3_cross: None,
@@ -2799,6 +2851,11 @@ mod tests {
             version: Some(interpreter_config.version),
             implementation: Some(interpreter_config.implementation),
             target: triple!("x86_64-unknown-linux-gnu"),
+            abiflags: if interpreter_config.is_free_threaded() {
+                Some("t".into())
+            } else {
+                None
+            },
         };
 
         let sysconfigdata_path = match find_sysconfigdata(&cross) {
@@ -3074,6 +3131,7 @@ mod tests {
             version: None,
             implementation: None,
             target: triple!("x86_64-unknown-linux-gnu"),
+            abiflags: None,
         })
         .unwrap_err();
 
