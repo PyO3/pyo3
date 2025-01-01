@@ -1,6 +1,6 @@
 # Parallelism
 
-CPython has the infamous [Global Interpreter Lock](https://docs.python.org/3/glossary.html#term-global-interpreter-lock), which prevents several threads from executing Python bytecode in parallel. This makes threading in Python a bad fit for [CPU-bound](https://en.wikipedia.org/wiki/CPU-bound) tasks and often forces developers to accept the overhead of multiprocessing.
+CPython has the infamous [Global Interpreter Lock](https://docs.python.org/3/glossary.html#term-global-interpreter-lock) (GIL), which prevents several threads from executing Python bytecode in parallel. This makes threading in Python a bad fit for [CPU-bound](https://en.wikipedia.org/wiki/CPU-bound) tasks and often forces developers to accept the overhead of multiprocessing. There is an experimental "free-threaded" version of CPython 3.13 that does not have a GIL, see the PyO3 docs on [free-threaded Python](./free-threading.md) for more information about that.
 
 In PyO3 parallelism can be easily achieved in Rust-only code. Let's take a look at our [word-count](https://github.com/PyO3/pyo3/blob/main/examples/word-count/src/lib.rs) example, where we have a `search` function that utilizes the [rayon](https://github.com/rayon-rs/rayon) crate to count words in parallel.
 ```rust,no_run
@@ -116,5 +116,62 @@ test_word_count_python_sequential                      27.3985 (15.82)    45.452
 ```
 
 You can see that the Python threaded version is not much slower than the Rust sequential version, which means compared to an execution on a single CPU core the speed has doubled.
+
+## Sharing Python objects between Rust threads
+
+In the example above we made a Python interface to a low-level rust function,
+and then leveraged the python `threading` module to run the low-level function
+in parallel. It is also possible to spawn threads in Rust that acquire the GIL
+and operate on Python objects. However, care must be taken to avoid writing code
+that deadlocks with the GIL in these cases.
+
+* Note: This example is meant to illustrate how to drop and re-acquire the GIL
+        to avoid creating deadlocks. Unless the spawned threads subsequently
+        release the GIL or you are using the free-threaded build of CPython, you
+        will not see any speedups due to multi-threaded parallelism using `rayon`
+        to parallelize code that acquires and holds the GIL for the entire
+        execution of the spawned thread.
+
+In the example below, we share a `Vec` of User ID objects defined using the
+`pyclass` macro and spawn threads to process the collection of data into a `Vec`
+of booleans based on a predicate using a rayon parallel iterator:
+
+```rust,no_run
+use pyo3::prelude::*;
+
+// These traits let us use int_par_iter and map
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+
+#[pyclass]
+struct UserID {
+    id: i64,
+}
+
+let allowed_ids: Vec<bool> = Python::with_gil(|outer_py| {
+    let instances: Vec<Py<UserID>> = (0..10).map(|x| Py::new(outer_py, UserID { id: x }).unwrap()).collect();
+    outer_py.allow_threads(|| {
+        instances.par_iter().map(|instance| {
+            Python::with_gil(|inner_py| {
+                instance.borrow(inner_py).id > 5
+            })
+        }).collect()
+    })
+});
+assert!(allowed_ids.into_iter().filter(|b| *b).count() == 4);
+```
+
+It's important to note that there is an `outer_py` GIL lifetime token as well as
+an `inner_py` token. Sharing GIL lifetime tokens between threads is not allowed
+and threads must individually acquire the GIL to access data wrapped by a python
+object.
+
+It's also important to see that this example uses [`Python::allow_threads`] to
+wrap the code that spawns OS threads via `rayon`. If this example didn't use
+`allow_threads`, a rayon worker thread would block on acquiring the GIL while a
+thread that owns the GIL spins forever waiting for the result of the rayon
+thread. Calling `allow_threads` allows the GIL to be released in the thread
+collecting the results from the worker threads. You should always call
+`allow_threads` in situations that spawn worker threads, but especially so in
+cases where worker threads need to acquire the GIL, to prevent deadlocks.
 
 [`Python::allow_threads`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.allow_threads
