@@ -437,9 +437,10 @@ enum DictIterImpl {
 }
 
 impl DictIterImpl {
+    #[deny(unsafe_op_in_unsafe_fn)]
+    #[inline]
     /// Safety: the dict should be locked with a critical section on the free-threaded build
     /// and otherwise not shared between threads in code that releases the GIL.
-    #[inline]
     unsafe fn next_unchecked<'py>(
         &mut self,
         dict: &Bound<'py, PyDict>,
