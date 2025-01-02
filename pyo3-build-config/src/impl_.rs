@@ -167,6 +167,8 @@ pub struct InterpreterConfig {
     ///
     /// Serialized to multiple `extra_build_script_line` values.
     pub extra_build_script_lines: Vec<String>,
+    /// macOS Python3.framework requires special rpath handling
+    pub python_framework_prefix: Option<String>,
 }
 
 impl InterpreterConfig {
@@ -245,6 +247,7 @@ WINDOWS = platform.system() == "Windows"
 
 # macOS framework packages use shared linking
 FRAMEWORK = bool(get_config_var("PYTHONFRAMEWORK"))
+FRAMEWORK_PREFIX = get_config_var("PYTHONFRAMEWORKPREFIX")
 
 # unix-style shared library enabled
 SHARED = bool(get_config_var("Py_ENABLE_SHARED"))
@@ -253,6 +256,7 @@ print("implementation", platform.python_implementation())
 print("version_major", sys.version_info[0])
 print("version_minor", sys.version_info[1])
 print("shared", PYPY or GRAALPY or ANACONDA or WINDOWS or FRAMEWORK or SHARED)
+print("python_framework_prefix", FRAMEWORK_PREFIX)
 print_if_set("ld_version", get_config_var("LDVERSION"))
 print_if_set("libdir", get_config_var("LIBDIR"))
 print_if_set("base_prefix", base_prefix)
@@ -289,6 +293,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         };
 
         let shared = map["shared"].as_str() == "True";
+        let python_framework_prefix = map.get("python_framework_prefix").cloned();
 
         let version = PythonVersion {
             major: map["version_major"]
@@ -359,6 +364,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             build_flags: BuildFlags::from_interpreter(interpreter)?,
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
+            python_framework_prefix,
         })
     }
 
@@ -396,6 +402,9 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             Some(s) => !s.is_empty(),
             _ => false,
         };
+        let python_framework_prefix = sysconfigdata
+            .get_value("PYTHONFRAMEWORKPREFIX")
+            .map(str::to_string);
         let lib_dir = get_key!(sysconfigdata, "LIBDIR").ok().map(str::to_string);
         let gil_disabled = match sysconfigdata.get_value("Py_GIL_DISABLED") {
             Some(value) => value == "1",
@@ -424,6 +433,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             build_flags,
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
+            python_framework_prefix,
         })
     }
 
@@ -500,6 +510,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         let mut build_flags: Option<BuildFlags> = None;
         let mut suppress_build_script_link_lines = None;
         let mut extra_build_script_lines = vec![];
+        let mut python_framework_prefix = None;
 
         for (i, line) in lines.enumerate() {
             let line = line.context("failed to read line from config")?;
@@ -528,6 +539,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
                 "extra_build_script_line" => {
                     extra_build_script_lines.push(value.to_string());
                 }
+                "python_framework_prefix" => parse_value!(python_framework_prefix, value),
                 unknown => warn!("unknown config key `{}`", unknown),
             }
         }
@@ -558,6 +570,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             build_flags,
             suppress_build_script_link_lines: suppress_build_script_link_lines.unwrap_or(false),
             extra_build_script_lines,
+            python_framework_prefix,
         })
     }
 
@@ -650,6 +663,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         write_option_line!(executable)?;
         write_option_line!(pointer_width)?;
         write_line!(build_flags)?;
+        write_option_line!(python_framework_prefix)?;
         write_line!(suppress_build_script_link_lines)?;
         for line in &self.extra_build_script_lines {
             writeln!(writer, "extra_build_script_line={}", line)
@@ -1587,6 +1601,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
         build_flags: BuildFlags::default(),
         suppress_build_script_link_lines: false,
         extra_build_script_lines: vec![],
+        python_framework_prefix: None,
     })
 }
 
@@ -1629,6 +1644,7 @@ fn default_abi3_config(host: &Triple, version: PythonVersion) -> Result<Interpre
         build_flags: BuildFlags::default(),
         suppress_build_script_link_lines: false,
         extra_build_script_lines: vec![],
+        python_framework_prefix: None,
     })
 }
 
@@ -2011,6 +2027,7 @@ mod tests {
             version: MINIMUM_SUPPORTED_VERSION,
             suppress_build_script_link_lines: true,
             extra_build_script_lines: vec!["cargo:test1".to_string(), "cargo:test2".to_string()],
+            python_framework_prefix: None,
         };
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
@@ -2039,6 +2056,7 @@ mod tests {
             },
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
+            python_framework_prefix: None,
         };
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
@@ -2060,6 +2078,7 @@ mod tests {
             version: MINIMUM_SUPPORTED_VERSION,
             suppress_build_script_link_lines: true,
             extra_build_script_lines: vec!["cargo:test1".to_string(), "cargo:test2".to_string()],
+            python_framework_prefix: None,
         };
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
@@ -2086,6 +2105,7 @@ mod tests {
                 build_flags: BuildFlags::default(),
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
+                python_framework_prefix: None,
             }
         )
     }
@@ -2108,6 +2128,7 @@ mod tests {
                 build_flags: BuildFlags::default(),
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
+                python_framework_prefix: None,
             }
         )
     }
@@ -2210,6 +2231,7 @@ mod tests {
                 version: PythonVersion::PY37,
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
+                python_framework_prefix: None,
             }
         );
     }
@@ -2239,6 +2261,7 @@ mod tests {
                 version: PythonVersion::PY37,
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
+                python_framework_prefix: None,
             }
         );
 
@@ -2265,6 +2288,7 @@ mod tests {
                 version: PythonVersion::PY37,
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
+                python_framework_prefix: None,
             }
         );
     }
@@ -2288,6 +2312,7 @@ mod tests {
                 build_flags: BuildFlags::default(),
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
+                python_framework_prefix: None,
             }
         );
     }
@@ -2311,6 +2336,7 @@ mod tests {
                 build_flags: BuildFlags::default(),
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
+                python_framework_prefix: None,
             }
         );
     }
@@ -2345,6 +2371,7 @@ mod tests {
                 build_flags: BuildFlags::default(),
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
+                python_framework_prefix: None,
             }
         );
     }
@@ -2379,6 +2406,7 @@ mod tests {
                 build_flags: BuildFlags::default(),
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
+                python_framework_prefix: None,
             }
         );
     }
@@ -2413,6 +2441,7 @@ mod tests {
                 build_flags: BuildFlags::default(),
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
+                python_framework_prefix: None,
             }
         );
     }
@@ -2449,6 +2478,7 @@ mod tests {
                 build_flags: BuildFlags::default(),
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
+                python_framework_prefix: None,
             }
         );
     }
@@ -2796,6 +2826,7 @@ mod tests {
             version: PythonVersion { major: 3, minor: 7 },
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
+            python_framework_prefix: None,
         };
 
         config
@@ -2818,6 +2849,7 @@ mod tests {
             version: PythonVersion { major: 3, minor: 7 },
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
+            python_framework_prefix: None,
         };
 
         assert!(config
@@ -2882,6 +2914,7 @@ mod tests {
                 version: interpreter_config.version,
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
+                python_framework_prefix: None,
             }
         )
     }
@@ -3006,6 +3039,7 @@ mod tests {
             build_flags: BuildFlags::default(),
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
+            python_framework_prefix: None,
         };
         assert_eq!(
             interpreter_config.build_script_outputs(),
@@ -3045,6 +3079,7 @@ mod tests {
             build_flags: BuildFlags::default(),
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
+            python_framework_prefix: None,
         };
 
         assert_eq!(
@@ -3092,6 +3127,7 @@ mod tests {
             build_flags,
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
+            python_framework_prefix: None,
         };
 
         assert_eq!(
@@ -3125,6 +3161,7 @@ mod tests {
             build_flags,
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
+            python_framework_prefix: None,
         };
 
         assert_eq!(
