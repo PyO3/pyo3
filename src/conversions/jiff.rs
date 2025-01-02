@@ -404,9 +404,7 @@ impl<'py> IntoPyObject<'py> for &TimeZone {
 
             Ok(tz)
         } else {
-            // TODO use `to_fixed_offset()?` after https://github.com/BurntSushi/jiff/pull/170 is merged
-            let (offset, _, _) = self.to_offset(Timestamp::MIN);
-            offset.into_pyobject(py)
+            self.to_fixed_offset()?.into_pyobject(py)
         }
     }
 }
