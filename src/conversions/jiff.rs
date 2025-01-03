@@ -602,7 +602,6 @@ mod tests {
     use crate::{types::PyTuple, BoundObject};
     use jiff::tz::Offset;
     use std::cmp::Ordering;
-    use std::str::FromStr;
 
     #[test]
     // Only Python>=3.9 has the zoneinfo package
@@ -865,7 +864,9 @@ mod tests {
     }
 
     #[test]
+    #[cfg(all(Py_3_9, not(windows)))]
     fn test_ambiguous_datetime_to_pyobject() {
+        use std::str::FromStr;
         let dates = [
             Zoned::from_str("2020-10-24 23:00:00[UTC]").unwrap(),
             Zoned::from_str("2020-10-25 00:00:00[UTC]").unwrap(),
