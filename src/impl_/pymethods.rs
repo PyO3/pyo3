@@ -21,6 +21,7 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr::null_mut;
 
 use super::trampoline;
+use crate::internal_tricks::{clear_eq, traverse_eq};
 
 /// Python 3.8 and up - __ipow__ has modulo argument correctly populated.
 #[cfg(Py_3_8)]
@@ -364,7 +365,7 @@ unsafe fn call_super_traverse(
     // First find the current type by the current_traverse function
     loop {
         traverse = get_slot(ty, TP_TRAVERSE);
-        if traverse == Some(current_traverse) {
+        if traverse_eq(traverse, current_traverse) {
             break;
         }
         ty = get_slot(ty, TP_BASE);
@@ -375,7 +376,7 @@ unsafe fn call_super_traverse(
     }
 
     // Get first base which has a different traverse function
-    while traverse == Some(current_traverse) {
+    while traverse_eq(traverse, current_traverse) {
         ty = get_slot(ty, TP_BASE);
         if ty.is_null() {
             break;
@@ -429,7 +430,7 @@ unsafe fn call_super_clear(
     // First find the current type by the current_clear function
     loop {
         clear = ty.get_slot(TP_CLEAR);
-        if clear == Some(current_clear) {
+        if clear_eq(clear, current_clear) {
             break;
         }
         let base = ty.get_slot(TP_BASE);
@@ -441,7 +442,7 @@ unsafe fn call_super_clear(
     }
 
     // Get first base which has a different clear function
-    while clear == Some(current_clear) {
+    while clear_eq(clear, current_clear) {
         let base = ty.get_slot(TP_BASE);
         if base.is_null() {
             break;

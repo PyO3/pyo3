@@ -92,6 +92,44 @@ pub enum TupleEnumEqOrd {
     Variant2(u32),
 }
 
+#[crate::pyclass(crate = "crate")]
+pub enum ComplexEnumManyVariantFields {
+    ManyStructFields {
+        field_1: u16,
+        field_2: u32,
+        field_3: u32,
+        field_4: i32,
+        field_5: u32,
+        field_6: u32,
+        field_7: u8,
+        field_8: u32,
+        field_9: i32,
+        field_10: u32,
+        field_11: u32,
+        field_12: u32,
+        field_13: u32,
+        field_14: i16,
+        field_15: u32,
+    },
+    ManyTupleFields(
+        u16,
+        u32,
+        u32,
+        i32,
+        u32,
+        u32,
+        u8,
+        u32,
+        i32,
+        u32,
+        u32,
+        u32,
+        u32,
+        i16,
+        u32,
+    ),
+}
+
 #[crate::pyclass(str = "{x}, {y}, {z}")]
 #[pyo3(crate = "crate")]
 pub struct PointFmt {

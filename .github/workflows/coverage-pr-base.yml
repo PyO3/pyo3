@@ -19,9 +19,6 @@ jobs:
       - name: Set PR base on codecov
         run: |
           # fetch the merge commit between the PR base and head
-          BASE_REF=refs/heads/${{ github.event.pull_request.base.ref }}
-          MERGE_REF=refs/pull/${{ github.event.pull_request.number }}/merge
-
           git fetch -u --progress --depth=1 origin "+$BASE_REF:$BASE_REF" "+$MERGE_REF:$MERGE_REF"
           while [ -z "$(git merge-base "$BASE_REF" "$MERGE_REF")" ]; do
             git fetch -u -q --deepen="10" origin "$BASE_REF" "$MERGE_REF";
@@ -38,3 +35,8 @@ jobs:
             --slug PyO3/pyo3 \
             --token ${{ secrets.CODECOV_TOKEN }} \
             --service github
+        env:
+          # Don't put these in bash, because we don't want the expansion to
+          # risk code execution
+          BASE_REF: "refs/heads/${{ github.event.pull_request.base.ref }}"
+          MERGE_REF: "refs/pull/${{ github.event.pull_request.number }}/merge"

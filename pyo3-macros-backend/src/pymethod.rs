@@ -527,7 +527,7 @@ fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result
     })
 }
 
-fn impl_py_class_attribute(
+pub(crate) fn impl_py_class_attribute(
     cls: &syn::Type,
     spec: &FnSpec<'_>,
     ctx: &Ctx,

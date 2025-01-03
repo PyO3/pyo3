@@ -1,7 +1,9 @@
 use std::env;
 
 use pyo3_build_config::pyo3_build_script_impl::{cargo_env_var, errors::Result};
-use pyo3_build_config::{bail, print_feature_cfgs, InterpreterConfig};
+use pyo3_build_config::{
+    add_python_framework_link_args, bail, print_feature_cfgs, InterpreterConfig,
+};
 
 fn ensure_auto_initialize_ok(interpreter_config: &InterpreterConfig) -> Result<()> {
     if cargo_env_var("CARGO_FEATURE_AUTO_INITIALIZE").is_some() && !interpreter_config.shared {
@@ -41,6 +43,9 @@ fn configure_pyo3() -> Result<()> {
 
     // Emit cfgs like `invalid_from_utf8_lint`
     print_feature_cfgs();
+
+    // Make `cargo test` etc work on macOS with Xcode bundled Python
+    add_python_framework_link_args();
 
     Ok(())
 }

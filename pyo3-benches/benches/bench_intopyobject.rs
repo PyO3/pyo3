@@ -17,7 +17,7 @@ fn bytes_new_small(b: &mut Bencher<'_>) {
 }
 
 fn bytes_new_medium(b: &mut Bencher<'_>) {
-    let data = (0..u8::MAX).into_iter().collect::<Vec<u8>>();
+    let data = (0..u8::MAX).collect::<Vec<u8>>();
     bench_bytes_new(b, &data);
 }
 
@@ -37,7 +37,7 @@ fn byte_slice_into_pyobject_small(b: &mut Bencher<'_>) {
 }
 
 fn byte_slice_into_pyobject_medium(b: &mut Bencher<'_>) {
-    let data = (0..u8::MAX).into_iter().collect::<Vec<u8>>();
+    let data = (0..u8::MAX).collect::<Vec<u8>>();
     bench_bytes_into_pyobject(b, &data);
 }
 
@@ -46,9 +46,10 @@ fn byte_slice_into_pyobject_large(b: &mut Bencher<'_>) {
     bench_bytes_into_pyobject(b, &data);
 }
 
+#[allow(deprecated)]
 fn byte_slice_into_py(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let data = (0..u8::MAX).into_iter().collect::<Vec<u8>>();
+        let data = (0..u8::MAX).collect::<Vec<u8>>();
         let bytes = data.as_slice();
         b.iter_with_large_drop(|| black_box(bytes).into_py(py));
     });
@@ -56,14 +57,15 @@ fn byte_slice_into_py(b: &mut Bencher<'_>) {
 
 fn vec_into_pyobject(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let bytes = (0..u8::MAX).into_iter().collect::<Vec<u8>>();
+        let bytes = (0..u8::MAX).collect::<Vec<u8>>();
         b.iter_with_large_drop(|| black_box(&bytes).clone().into_pyobject(py));
     });
 }
 
+#[allow(deprecated)]
 fn vec_into_py(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let bytes = (0..u8::MAX).into_iter().collect::<Vec<u8>>();
+        let bytes = (0..u8::MAX).collect::<Vec<u8>>();
         b.iter_with_large_drop(|| black_box(&bytes).clone().into_py(py));
     });
 }

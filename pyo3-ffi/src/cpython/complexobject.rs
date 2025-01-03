@@ -19,7 +19,6 @@ pub struct Py_complex {
 #[repr(C)]
 pub struct PyComplexObject {
     pub ob_base: PyObject,
-    #[cfg(not(GraalPy))]
     pub cval: Py_complex,
 }
 

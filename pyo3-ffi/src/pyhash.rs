@@ -1,7 +1,9 @@
-#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 use crate::pyport::{Py_hash_t, Py_ssize_t};
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-use std::os::raw::{c_char, c_void};
+use std::os::raw::c_char;
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+use std::os::raw::c_void;
 
 use std::os::raw::{c_int, c_ulong};
 
@@ -10,7 +12,7 @@ extern "C" {
     // skipped non-limited _Py_HashPointer
     // skipped non-limited _Py_HashPointerRaw
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     pub fn _Py_HashBytes(src: *const c_void, len: Py_ssize_t) -> Py_hash_t;
 }
 
