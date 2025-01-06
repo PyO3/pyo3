@@ -453,7 +453,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
         BoundListIterator::new(self.clone())
     }
 
-    /// Returns an iterator that holds a critical section on the list.
+    /// Iterates over a list while holding a critical section, calling a closure on each item
     fn locked_for_each<F>(&self, closure: F) -> PyResult<()>
     where
         F: Fn(Bound<'py, PyAny>) -> PyResult<()>,
