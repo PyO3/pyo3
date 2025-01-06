@@ -17,7 +17,7 @@ use crate::types::{
 use crate::types::{PyAnyMethods, PyNone, PyType};
 use crate::{intern, Bound, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python};
 use jiff::civil::{Date, DateTime, Time};
-use jiff::tz::{AmbiguousOffset, Offset, TimeZone};
+use jiff::tz::{Offset, TimeZone};
 use jiff::{SignedDuration, Span, Timestamp, Zoned};
 
 #[cfg(not(Py_LIMITED_API))]
@@ -314,17 +314,22 @@ impl<'py> IntoPyObject<'py> for &Zoned {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let ambiguous_offset = self
-            .time_zone()
-            .to_ambiguous_zoned(self.datetime())
-            .offset();
-
-        let fold = match ambiguous_offset {
-            AmbiguousOffset::Unambiguous { .. } => false,
-            AmbiguousOffset::Fold { after, .. } => after == self.offset(),
-            AmbiguousOffset::Gap { .. } => unreachable!(),
-        };
-        datetime_to_pydatetime(py, &self.datetime(), fold, Some(self.time_zone()))
+        fn fold(zoned: &Zoned) -> Option<bool> {
+            let prev = zoned.time_zone().preceding(zoned.timestamp()).next()?;
+            let next = zoned.time_zone().following(prev.timestamp()).next()?;
+            let start_of_current_offset = if next.timestamp() == zoned.timestamp() {
+                next.timestamp()
+            } else {
+                prev.timestamp()
+            };
+            Some(zoned.timestamp() + (zoned.offset() - prev.offset()) <= start_of_current_offset)
+        }
+        datetime_to_pydatetime(
+            py,
+            &self.datetime(),
+            fold(self).unwrap_or(false),
+            Some(self.time_zone()),
+        )
     }
 }
 
@@ -871,6 +876,7 @@ mod tests {
             Zoned::from_str("2020-10-24 23:00:00[UTC]").unwrap(),
             Zoned::from_str("2020-10-25 00:00:00[UTC]").unwrap(),
             Zoned::from_str("2020-10-25 01:00:00[UTC]").unwrap(),
+            Zoned::from_str("2020-10-25 02:00:00[UTC]").unwrap(),
         ];
 
         let tz = TimeZone::get("Europe/London").unwrap();
@@ -881,7 +887,8 @@ mod tests {
             [
                 "2020-10-25T00:00:00+01:00[Europe/London]",
                 "2020-10-25T01:00:00+01:00[Europe/London]",
-                "2020-10-25T01:00:00+00:00[Europe/London]"
+                "2020-10-25T01:00:00+00:00[Europe/London]",
+                "2020-10-25T02:00:00+00:00[Europe/London]",
             ]
         );
 
@@ -891,14 +898,14 @@ mod tests {
                 pydates
                     .clone()
                     .map(|dt| dt.getattr("hour").unwrap().extract::<usize>().unwrap()),
-                [0, 1, 1]
+                [0, 1, 1, 2]
             );
 
             assert_eq!(
                 pydates
                     .clone()
                     .map(|dt| dt.getattr("fold").unwrap().extract::<usize>().unwrap() > 0),
-                [false, false, true]
+                [false, false, true, false]
             );
 
             pydates.map(|dt| dt.extract::<Zoned>().unwrap())
@@ -909,7 +916,8 @@ mod tests {
             [
                 "2020-10-25T00:00:00+01:00[Europe/London]",
                 "2020-10-25T01:00:00+01:00[Europe/London]",
-                "2020-10-25T01:00:00+00:00[Europe/London]"
+                "2020-10-25T01:00:00+00:00[Europe/London]",
+                "2020-10-25T02:00:00+00:00[Europe/London]",
             ]
         );
     }
@@ -1078,6 +1086,7 @@ mod tests {
     mod proptests {
         use super::*;
         use crate::types::IntoPyDict;
+        use jiff::tz::TimeZoneTransition;
         use proptest::prelude::*;
         use std::ffi::CString;
 
@@ -1097,6 +1106,16 @@ mod tests {
                 sec.try_into()?,
                 (micro * 1000).try_into()?,
             )?)
+        }
+
+        prop_compose! {
+            fn timezone_transitions(timezone: &TimeZone)
+                            (year in 1900i16..=2100i16, month in 1i8..=12i8)
+                            -> TimeZoneTransition<'_> {
+                let datetime = DateTime::new(year, month, 1, 0, 0, 0, 0).unwrap();
+                let timestamp= timezone.to_zoned(datetime).unwrap().timestamp();
+                timezone.following(timestamp).next().unwrap()
+            }
         }
 
         proptest! {
@@ -1255,6 +1274,30 @@ mod tests {
                         assert_eq!(dt, roundtripped);
                     }
                 })
+            }
+
+            #[test]
+            #[cfg(all(Py_3_9, not(windows)))]
+            fn test_zoned_datetime_roundtrip_around_timezone_transition(
+                (timezone, transition) in prop_oneof![
+                                Just(&TimeZone::get("Europe/London").unwrap()),
+                                Just(&TimeZone::get("America/New_York").unwrap()),
+                                Just(&TimeZone::get("Australia/Sydney").unwrap()),
+                            ].prop_flat_map(|tz| (Just(tz), timezone_transitions(tz))),
+                hour in -2i32..=2i32,
+                min in 0u32..=59u32,
+            ) {
+
+                Python::with_gil(|py| {
+                    let transition_moment = transition.timestamp();
+                    let zoned = (transition_moment - Span::new().hours(hour).minutes(min))
+                        .to_zoned(timezone.clone());
+
+                    let py_dt = (&zoned).into_pyobject(py).unwrap();
+                    let roundtripped: Zoned = py_dt.extract().expect("Round trip");
+                    assert_eq!(zoned, roundtripped);
+                })
+
             }
         }
     }
