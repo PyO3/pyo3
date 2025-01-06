@@ -718,3 +718,38 @@ fn test_with_explicit_default_item() {
         assert_eq!(result, expected);
     });
 }
+
+#[derive(Debug, FromPyObject, PartialEq, Eq)]
+pub struct WithDefaultItemAndConversionFunction {
+    #[pyo3(item, default, from_py_with = "Bound::<'_, PyAny>::len")]
+    value: usize,
+}
+
+#[test]
+fn test_with_default_item_and_conversion_function() {
+    Python::with_gil(|py| {
+        // Filled case
+        let dict = PyDict::new(py);
+        dict.set_item("value", (1,)).unwrap();
+        let result = dict
+            .extract::<WithDefaultItemAndConversionFunction>()
+            .unwrap();
+        let expected = WithDefaultItemAndConversionFunction { value: 1 };
+        assert_eq!(result, expected);
+
+        // Empty case
+        let dict = PyDict::new(py);
+        let result = dict
+            .extract::<WithDefaultItemAndConversionFunction>()
+            .unwrap();
+        let expected = WithDefaultItemAndConversionFunction { value: 0 };
+        assert_eq!(result, expected);
+
+        // Error case
+        let dict = PyDict::new(py);
+        dict.set_item("value", 1).unwrap();
+        assert!(dict
+            .extract::<WithDefaultItemAndConversionFunction>()
+            .is_err());
+    });
+}

@@ -488,6 +488,40 @@ If the input is neither a string nor an integer, the error message will be:
     - apply a custom function to convert the field from Python the desired Rust type.
     - the argument must be the name of the function as a string.
     - the function signature must be `fn(&Bound<PyAny>) -> PyResult<T>` where `T` is the Rust type of the argument.
+- `pyo3(default)`, `pyo3(default = ...)`
+  - if the argument is set, uses the given default value.
+  - in this case, the argument must be a Rust expression returning a value of the desired Rust type.
+  - if the argument is not set, [`Default::default`](https://doc.rust-lang.org/std/default/trait.Default.html#tymethod.default) is used.
+  - this attribute is only supported on named struct fields.
+
+For example, the code below applies the given conversion function on the `"value"` dict item to compute its length or fall back to the type default value (0):
+
+```rust
+use pyo3::prelude::*;
+
+#[derive(FromPyObject)]
+struct RustyStruct {
+    #[pyo3(item("value"), default, from_py_with = "Bound::<'_, PyAny>::len")]
+    len: usize,
+}
+#
+# use pyo3::types::PyDict;
+# fn main() -> PyResult<()> {
+#     Python::with_gil(|py| -> PyResult<()> {
+#         // Filled case
+#         let dict = PyDict::new(py);
+#         dict.set_item("value", (1,)).unwrap();
+#         let result = dict.extract::<RustyStruct>()?;
+#         assert_eq!(result.len, 1);
+#
+#         // Empty case
+#         let dict = PyDict::new(py);
+#         let result = dict.extract::<RustyStruct>()?;
+#         assert_eq!(result.len, 0);
+#         Ok(())
+#     })
+# }
+```
 
 ### `IntoPyObject`
 The ['IntoPyObject'] trait defines the to-python conversion for a Rust type. All types in PyO3 implement this trait,

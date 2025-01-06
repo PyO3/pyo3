@@ -362,9 +362,9 @@ impl<'a> Container<'a> {
                 let default_expr = if let Some(default_expr) = &default.value {
                     default_expr.to_token_stream()
                 } else {
-                    quote!(Default::default())
+                    quote!(::std::default::Default::default())
                 };
-                quote!(if let Ok(value) = #getter {
+                quote!(if let ::std::result::Result::Ok(value) = #getter {
                     #extractor
                 } else {
                     #default_expr
@@ -533,7 +533,7 @@ impl Parse for FieldPyO3Attribute {
             }
         } else if lookahead.peek(attributes::kw::from_py_with) {
             input.parse().map(FieldPyO3Attribute::FromPyWith)
-        } else if lookahead.peek(attributes::kw::default) {
+        } else if lookahead.peek(Token![default]) {
             input.parse().map(FieldPyO3Attribute::Default)
         } else {
             Err(lookahead.error())
