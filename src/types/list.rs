@@ -181,7 +181,7 @@ pub trait PyListMethods<'py>: crate::sealed::Sealed {
     /// Caller must verify that the index is within the bounds of the list.
     /// On the free-threaded build, caller must verify they have exclusive access to the list
     /// via a lock or by holding the innermost critical section on the list.
-    #[cfg(not(any(Py_LIMITED_API)))]
+    #[cfg(not(Py_LIMITED_API))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny>;
 
     /// Takes the slice `self[low:high]` and returns it as a new list.
@@ -521,7 +521,7 @@ impl<'py> BoundListIterator<'py> {
     /// access to the list by holding a lock or by holding the innermost
     /// critical section on the list.
     #[inline]
-    #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
+    #[cfg(not(Py_LIMITED_API))]
     unsafe fn next_unchecked(
         index: &mut Index,
         length: &mut Length,
@@ -539,7 +539,7 @@ impl<'py> BoundListIterator<'py> {
         }
     }
 
-    #[cfg(any(Py_LIMITED_API, PyPy))]
+    #[cfg(Py_LIMITED_API)]
     fn next(
         index: &mut Index,
         length: &mut Length,
@@ -563,7 +563,7 @@ impl<'py> BoundListIterator<'py> {
     /// access to the list by holding a lock or by holding the innermost
     /// critical section on the list.
     #[inline]
-    #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
+    #[cfg(not(Py_LIMITED_API))]
     unsafe fn next_back_unchecked(
         index: &mut Index,
         length: &mut Length,
@@ -581,7 +581,7 @@ impl<'py> BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(any(Py_LIMITED_API, PyPy))]
+    #[cfg(Py_LIMITED_API)]
     fn next_back(
         index: &mut Index,
         length: &mut Length,
@@ -612,11 +612,11 @@ impl<'py> Iterator for BoundListIterator<'py> {
                 Self::next_unchecked(index, length, list)
             })
         }
-        #[cfg(any(Py_LIMITED_API, PyPy))]
+        #[cfg(Py_LIMITED_API)]
         {
             Self::next(index, length, list)
         }
-        #[cfg(all(not(Py_GIL_DISABLED), not(Py_LIMITED_API), not(PyPy)))]
+        #[cfg(all(not(Py_GIL_DISABLED), not(Py_LIMITED_API)))]
         {
             unsafe { Self::next_unchecked(index, length, list) }
         }
@@ -774,11 +774,11 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
                 Self::next_back_unchecked(index, length, list)
             })
         }
-        #[cfg(any(Py_LIMITED_API, PyPy))]
+        #[cfg(Py_LIMITED_API)]
         {
             Self::next_back(index, length, list)
         }
-        #[cfg(all(not(Py_GIL_DISABLED), not(Py_LIMITED_API), not(PyPy)))]
+        #[cfg(all(not(Py_GIL_DISABLED), not(Py_LIMITED_API)))]
         {
             unsafe { Self::next_back_unchecked(index, length, list) }
         }
@@ -1309,7 +1309,7 @@ mod tests {
         });
     }
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(Py_LIMITED_API))]
     #[test]
     fn test_list_get_item_unchecked_sanity() {
         Python::with_gil(|py| {
