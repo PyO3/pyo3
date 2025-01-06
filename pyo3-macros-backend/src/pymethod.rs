@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::ffi::CString;
 
-use crate::attributes::{NameAttribute, RenamingRule};
+use crate::attributes::{FromPyWithAttribute, NameAttribute, RenamingRule};
 use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
 use crate::params::{impl_regular_arg_param, Holders};
 use crate::utils::PythonDoc;
@@ -1179,14 +1179,20 @@ fn extract_object(
     let Ctx { pyo3_path, .. } = ctx;
     let name = arg.name().unraw().to_string();
 
-    let extract = if let Some(from_py_with) =
-        arg.from_py_with().map(|from_py_with| &from_py_with.value)
+    let extract = if let Some(FromPyWithAttribute {
+        kw,
+        value: extractor,
+    }) = arg.from_py_with()
     {
+        let extractor = quote_spanned! { kw.span =>
+            { let from_py_with: fn(_) -> _ = #extractor; from_py_with }
+        };
+
         quote! {
             #pyo3_path::impl_::extract_argument::from_py_with(
                 unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0 },
                 #name,
-                #from_py_with as fn(_) -> _,
+                #extractor,
             )
         }
     } else {
