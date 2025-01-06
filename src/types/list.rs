@@ -587,6 +587,7 @@ impl<'py> BoundListIterator<'py> {
         }
     }
 
+    #[cfg(not(Py_LIMITED_API))]
     fn with_critical_section<R>(
         &mut self,
         f: impl FnOnce(&mut Index, &mut Length, &Bound<'py, PyList>) -> R,
@@ -605,7 +606,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        #[cfg(Py_GIL_DISABLED)]
+        #[cfg(not(Py_LIMITED_API))]
         {
             self.with_critical_section(|index, length, list| unsafe {
                 Self::next_unchecked(index, length, list)
@@ -613,11 +614,12 @@ impl<'py> Iterator for BoundListIterator<'py> {
         }
         #[cfg(Py_LIMITED_API)]
         {
+            let Self {
+                index,
+                length,
+                list,
+            } = self;
             Self::next(index, length, list)
-        }
-        #[cfg(all(not(Py_GIL_DISABLED), not(Py_LIMITED_API)))]
-        {
-            unsafe { Self::next_unchecked(index, length, list) }
         }
     }
 
@@ -751,7 +753,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
 impl DoubleEndedIterator for BoundListIterator<'_> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
-        #[cfg(Py_GIL_DISABLED)]
+        #[cfg(not(Py_LIMITED_API))]
         {
             self.with_critical_section(|index, length, list| unsafe {
                 Self::next_back_unchecked(index, length, list)
@@ -759,11 +761,12 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
         }
         #[cfg(Py_LIMITED_API)]
         {
+            let Self {
+                index,
+                length,
+                list,
+            } = self;
             Self::next_back(index, length, list)
-        }
-        #[cfg(all(not(Py_GIL_DISABLED), not(Py_LIMITED_API)))]
-        {
-            unsafe { Self::next_back_unchecked(index, length, list) }
         }
     }
 
