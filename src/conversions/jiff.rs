@@ -653,7 +653,7 @@ mod tests {
 
     #[test]
     fn test_naive_to_timezone_aware_fails() {
-        // Test that if a user tries to convert a python's timezone aware datetime into a naive
+        // Test that if a user tries to convert a python's naive datetime into a timezone aware
         // one, the conversion fails.
         Python::with_gil(|py| {
             let py_datetime = new_py_datetime_ob(py, "datetime", (2022, 1, 1, 1, 0, 0, 0));
@@ -951,7 +951,7 @@ mod tests {
     #[test]
     fn test_pyo3_offset_fixed_into_pyobject() {
         Python::with_gil(|py| {
-            // Chrono offset
+            // jiff offset
             let offset = Offset::from_seconds(3600)
                 .unwrap()
                 .into_pyobject(py)
