@@ -239,7 +239,7 @@ mod code;
 pub(crate) mod complex;
 #[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
-#[cfg(all(Py_LIMITED_API, any(feature = "jiff", feature = "chrono")))]
+#[cfg(all(Py_LIMITED_API, any(feature = "chrono", feature = "_jiff")))]
 pub(crate) mod datetime_abi;
 pub(crate) mod dict;
 mod ellipsis;

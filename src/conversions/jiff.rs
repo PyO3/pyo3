@@ -1,4 +1,4 @@
-#![cfg(feature = "jiff")]
+#![cfg(feature = "_jiff")]
 
 use crate::exceptions::{PyTypeError, PyValueError};
 use crate::pybacked::PyBackedStr;
@@ -19,6 +19,8 @@ use crate::{intern, Bound, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResul
 use jiff::civil::{Date, DateTime, Time};
 use jiff::tz::{Offset, TimeZone};
 use jiff::{SignedDuration, Span, Timestamp, Zoned};
+#[cfg(feature = "jiff-01")]
+use jiff_01 as jiff;
 
 #[cfg(not(Py_LIMITED_API))]
 fn datetime_to_pydatetime<'py>(
