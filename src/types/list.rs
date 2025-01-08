@@ -511,6 +511,7 @@ impl<'py> BoundListIterator<'py> {
     /// critical section on the list.
     #[inline]
     #[cfg(not(Py_LIMITED_API))]
+    #[deny(unsafe_op_in_unsafe_fn)]
     unsafe fn next_unchecked(
         index: &mut Index,
         length: &mut Length,
@@ -553,6 +554,7 @@ impl<'py> BoundListIterator<'py> {
     /// critical section on the list.
     #[inline]
     #[cfg(not(Py_LIMITED_API))]
+    #[deny(unsafe_op_in_unsafe_fn)]
     unsafe fn next_back_unchecked(
         index: &mut Index,
         length: &mut Length,
