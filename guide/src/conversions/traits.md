@@ -492,7 +492,9 @@ If the input is neither a string nor an integer, the error message will be:
   - if the argument is set, uses the given default value.
   - in this case, the argument must be a Rust expression returning a value of the desired Rust type.
   - if the argument is not set, [`Default::default`](https://doc.rust-lang.org/std/default/trait.Default.html#tymethod.default) is used.
-  - this attribute is only supported on named struct fields.
+  - note that the default value is only used if the field is not set.
+    If the field is set and the conversion function from Python to Rust fails, an exception is raised and the default value is not used.
+  - this attribute is only supported on named fields.
 
 For example, the code below applies the given conversion function on the `"value"` dict item to compute its length or fall back to the type default value (0):
 
@@ -503,6 +505,8 @@ use pyo3::prelude::*;
 struct RustyStruct {
     #[pyo3(item("value"), default, from_py_with = "Bound::<'_, PyAny>::len")]
     len: usize,
+    #[pyo3(item)]
+    other: usize,
 }
 #
 # use pyo3::types::PyDict;
@@ -511,13 +515,17 @@ struct RustyStruct {
 #         // Filled case
 #         let dict = PyDict::new(py);
 #         dict.set_item("value", (1,)).unwrap();
+#         dict.set_item("other", 1).unwrap();
 #         let result = dict.extract::<RustyStruct>()?;
 #         assert_eq!(result.len, 1);
+#         assert_eq!(result.other, 1);
 #
 #         // Empty case
 #         let dict = PyDict::new(py);
+#         dict.set_item("other", 1).unwrap();
 #         let result = dict.extract::<RustyStruct>()?;
 #         assert_eq!(result.len, 0);
+#         assert_eq!(result.other, 1);
 #         Ok(())
 #     })
 # }

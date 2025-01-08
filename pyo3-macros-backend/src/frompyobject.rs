@@ -147,6 +147,10 @@ impl<'a> Container<'a> {
                             attrs.getter.is_none(),
                             field.span() => "`getter` is not permitted on tuple struct elements."
                         );
+                        ensure_spanned!(
+                            attrs.default.is_none(),
+                            field.span() => "`default` is not permitted on tuple struct elements."
+                        );
                         Ok(TupleStructField {
                             from_py_with: attrs.from_py_with,
                         })
@@ -200,7 +204,11 @@ impl<'a> Container<'a> {
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
-                if options.transparent {
+                if struct_fields.iter().all(|field| field.default.is_some()) {
+                    bail_spanned!(
+                        fields.span() => "cannot derive FromPyObject for structs and variants with only default values"
+                    )
+                } else if options.transparent {
                     ensure_spanned!(
                         struct_fields.len() == 1,
                         fields.span() => "transparent structs and variants can only have 1 field"

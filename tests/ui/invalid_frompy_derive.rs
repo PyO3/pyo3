@@ -213,4 +213,21 @@ struct FromItemAllConflictAttrWithArgs {
     field: String,
 }
 
+#[derive(FromPyObject)]
+struct StructWithOnlyDefaultValues {
+    #[pyo3(default)]
+    field: String,
+}
+
+#[derive(FromPyObject)]
+enum EnumVariantWithOnlyDefaultValues {
+    Foo {
+        #[pyo3(default)]
+        field: String,
+    },
+}
+
+#[derive(FromPyObject)]
+struct NamedTuplesWithDefaultValues(#[pyo3(default)] String);
+
 fn main() {}
