@@ -656,14 +656,17 @@ jobs:
           # ubuntu x86_64 -> windows x86_64
           - os: "ubuntu-latest"
             target: "x86_64-pc-windows-gnu"
-            flags: "-i python3.12 --features abi3 --features generate-import-lib"
-            manylinux: off
+            flags: "-i python3.12 --features generate-import-lib"
           # macos x86_64 -> aarch64
           - os: "macos-13" # last x86_64 macos runners
             target: "aarch64-apple-darwin"
           # macos aarch64 -> x86_64
           - os: "macos-latest"
             target: "x86_64-apple-darwin"
+          # windows x86_64 -> aarch64
+          - os: "windows-latest"
+            target: "aarch64-pc-windows-msvc"
+            flags: "-i python3.12 --features generate-import-lib"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -677,11 +680,18 @@ jobs:
       - name: Setup cross-compiler
         if: ${{ matrix.target == 'x86_64-pc-windows-gnu' }}
         run: sudo apt-get install -y mingw-w64 llvm
-      - uses: PyO3/maturin-action@v1
+      - name: Compile version-specific library
+        uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
           args: --release -m examples/maturin-starter/Cargo.toml ${{ matrix.flags }}
+      - name: Compile abi3 library
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          args: --release -m examples/maturin-starter/Cargo.toml --features abi3 ${{ matrix.flags }}
 
   test-cross-compilation-windows:
     needs: [fmt]

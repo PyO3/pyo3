@@ -2,7 +2,7 @@ use crate::object::*;
 use crate::PyFrameObject;
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::_PyErr_StackItem;
-#[cfg(Py_3_11)]
+#[cfg(all(Py_3_11, not(GraalPy)))]
 use std::os::raw::c_char;
 use std::os::raw::c_int;
 use std::ptr::addr_of_mut;
