@@ -339,6 +339,7 @@ def test_emscripten(session: nox.Session):
             f"-C link-arg=-lpython{info.pymajorminor}",
             "-C link-arg=-lexpat",
             "-C link-arg=-lmpdec",
+            "-C link-arg=-lsqlite3",
             "-C link-arg=-lz",
             "-C link-arg=-lbz2",
             "-C link-arg=-sALLOW_MEMORY_GROWTH=1",
