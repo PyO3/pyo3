@@ -1,4 +1,3 @@
-use std::iter::FusedIterator;
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -7,6 +6,7 @@ use crate::types::{PySequence, PyTuple};
 use crate::{
     Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, Python,
 };
+use std::iter::FusedIterator;
 
 use crate::types::any::PyAnyMethods;
 use crate::types::sequence::PySequenceMethods;
@@ -630,7 +630,7 @@ impl<'py> BoundListIterator<'py> {
         let length_size = length.0.min(list.len());
         if index.0 + n < length_size {
             let target_index = length_size - n - 1;
-            let item = unsafe {list.get_item_unchecked(target_index)};
+            let item = unsafe { list.get_item_unchecked(target_index) };
             *length = Length(target_index);
             Some(item)
         } else {
@@ -821,7 +821,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
                         index.0 = target_index;
                         Ok(())
                     }
-                    Err(_) => Err(NonZero::new(n - index.0))
+                    Err(_) => Err(NonZero::new(n - index.0)),
                 }
             } else {
                 Err(NonZero::new(n - index.0))
