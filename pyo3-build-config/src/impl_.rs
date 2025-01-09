@@ -2001,7 +2001,7 @@ fn unescape(escaped: &str) -> Vec<u8> {
             }
         }
 
-        bytes.push(unhex(chunk[0]) << 4 | unhex(chunk[1]));
+        bytes.push((unhex(chunk[0]) << 4) | unhex(chunk[1]));
     }
 
     bytes

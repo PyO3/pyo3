@@ -119,7 +119,7 @@ pub struct PyDateTime_DateTime {
 pub unsafe fn PyDateTime_GET_YEAR(o: *mut PyObject) -> c_int {
     // This should work for Date or DateTime
     let data = (*(o as *mut PyDateTime_Date)).data;
-    c_int::from(data[0]) << 8 | c_int::from(data[1])
+    (c_int::from(data[0]) << 8) | c_int::from(data[1])
 }
 
 #[inline]
