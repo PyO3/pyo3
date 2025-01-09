@@ -238,6 +238,7 @@ def test_datetime_typeerror():
 
 @given(dt=st.datetimes(MIN_DATETIME, MAX_DATETIME))
 @example(dt=pdt.datetime(1971, 1, 2, 0, 0))
+@example(dt=pdt.datetime(4011, 7, 28, 23, 53, 28, 538099, fold=1))
 def test_datetime_from_timestamp(dt):
     try:
         ts = pdt.datetime.timestamp(dt)
