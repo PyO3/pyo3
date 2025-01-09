@@ -351,7 +351,7 @@ def test_emscripten(session: nox.Session):
         session,
         "bash",
         "-c",
-        f"source {info.builddir/'emsdk/emsdk_env.sh'} && cargo test",
+        f"source {info.builddir / 'emsdk/emsdk_env.sh'} && cargo test",
     )
 
 
@@ -951,7 +951,7 @@ class _ConfigFile:
             f"""\
 implementation={implementation}
 version={version}
-build_flags={','.join(build_flags)}
+build_flags={",".join(build_flags)}
 suppress_build_script_link_lines=true
 """
         )
