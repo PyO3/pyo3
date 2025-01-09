@@ -115,7 +115,7 @@ jobs:
             {
               os: "ubuntu-latest",
               python-architecture: "x64",
-              rust-target: "wasm32-wasi",
+              rust-target: "wasm32-wasip1",
             },
             {
               os: "windows-latest",
