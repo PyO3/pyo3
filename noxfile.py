@@ -797,7 +797,7 @@ def _get_rust_default_target() -> str:
 def _get_feature_sets() -> Tuple[Tuple[str, ...], ...]:
     """Returns feature sets to use for clippy job"""
     cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
-    if "wasm32-wasi" not in cargo_target:
+    if "wasm32-wasip1" not in cargo_target:
         # multiple-pymethods not supported on wasm
         return (
             ("--no-default-features",),
