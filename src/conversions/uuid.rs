@@ -76,7 +76,7 @@ impl FromPyObject<'_> for Uuid {
         let py = obj.py();
 
         if let Ok(uuid_cls) = get_uuid_cls(py) {
-            if obj.is_exact_instance(&uuid_cls) {
+            if obj.is_exact_instance(uuid_cls) {
                 let uuid_int: u128 = obj.getattr("int")?.extract()?;
                 return Ok(Uuid::from_u128(uuid_int.to_le()));
             }
@@ -108,7 +108,7 @@ impl FromPyObject<'_> for Uuid {
 
         let py_str = &obj.str()?;
         let rs_str = &py_str.to_cow()?;
-        Uuid::parse_str(&rs_str)
+        Uuid::parse_str(rs_str)
             .map_err(|e| PyValueError::new_err(format!("Invalid UUID string: {e}")))
     }
 }
@@ -117,7 +117,7 @@ impl FromPyObject<'_> for Uuid {
 impl ToPyObject for Uuid {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
+        self.into_pyobject(py).unwrap().unbind()
     }
 }
 
@@ -125,7 +125,7 @@ impl ToPyObject for Uuid {
 impl IntoPy<PyObject> for Uuid {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
+        self.into_pyobject(py).unwrap().unbind()
     }
 }
 
@@ -142,6 +142,16 @@ impl<'py> IntoPyObject<'py> for Uuid {
             .call((), Some(&kwargs))
             .expect("failed to call uuid.UUID")
             .into_pyobject(py)?)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &Uuid {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
     }
 }
 
