@@ -443,7 +443,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
             Err(err) => {
                 if err.is_instance_of::<exceptions::PyAttributeError>(self.py()) {
                     let l = PyList::empty(self.py());
-                    self.setattr(__all__, &l).map_err(PyErr::from)?;
+                    self.setattr(__all__, &l)?;
                     Ok(l)
                 } else {
                     Err(err)

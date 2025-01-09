@@ -44,7 +44,7 @@ error[E0277]: the trait bound `&str: From<BoundRef<'_, '_, pyo3::types::PyModule
   --> tests/ui/invalid_pyfunctions.rs:33:14
    |
 33 |     _string: &str,
-   |              ^ the trait `From<BoundRef<'_, '_, pyo3::types::PyModule>>` is not implemented for `&str`, which is required by `BoundRef<'_, '_, pyo3::types::PyModule>: Into<_>`
+   |              ^ the trait `From<BoundRef<'_, '_, pyo3::types::PyModule>>` is not implemented for `&str`
    |
    = help: the following other types implement trait `From<T>`:
              `String` implements `From<&String>`

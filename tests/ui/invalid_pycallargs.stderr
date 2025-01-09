@@ -27,3 +27,7 @@ note: required by a bound in `call1`
   |     where
   |         A: PyCallArgs<'py>;
   |            ^^^^^^^^^^^^^^^ required by this bound in `PyAnyMethods::call1`
+help: use a unary tuple instead
+  |
+6 |         any.call1(("foo",));
+  |                   +     ++
