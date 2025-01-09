@@ -52,7 +52,7 @@ error[E0277]: `PhantomData<i32>` cannot be converted to a Python object
 45 |     value: ::std::marker::PhantomData<i32>,
    |            ^ required by `#[pyo3(get)]` to create a readable property from a field of type `PhantomData<i32>`
    |
-   = help: the trait `IntoPyObject<'_>` is not implemented for `PhantomData<i32>`, which is required by `for<'py> PhantomData<i32>: PyO3GetField<'py>`
+   = help: the trait `IntoPyObject<'_>` is not implemented for `PhantomData<i32>`
    = note: implement `IntoPyObject` for `&PhantomData<i32>` or `IntoPyObject + Clone` for `PhantomData<i32>` to define the conversion
    = help: the following other types implement trait `IntoPyObject<'py>`:
              &&'a T
