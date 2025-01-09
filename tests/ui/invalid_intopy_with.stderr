@@ -1,0 +1,23 @@
+error[E0308]: mismatched types
+ --> tests/ui/invalid_intopy_with.rs:5:27
+  |
+3 | #[derive(IntoPyObject)]
+  |          ------------ expected due to this
+4 | struct InvalidIntoPyWithFn {
+5 |     #[pyo3(into_py_with = into)]
+  |                           ^^^^ incorrect number of function parameters
+  |
+  = note: expected fn pointer `for<'a> fn(_, Python<'a>) -> Result<pyo3::Bound<'a, PyAny>, PyErr>`
+                found fn item `fn(String) -> Py<PyAny> {into}`
+
+error[E0308]: mismatched types
+  --> tests/ui/invalid_intopy_with.rs:11:31
+   |
+9  | #[derive(IntoPyObjectRef)]
+   |          --------------- expected due to this
+10 | struct InvalidIntoPyWithRefFn {
+11 |     #[pyo3(into_py_with_ref = into_ref)]
+   |                               ^^^^^^^^ expected fn pointer, found fn item
+   |
+   = note: expected fn pointer `for<'a> fn(_, Python<'a>) -> Result<pyo3::Bound<'a, PyAny>, PyErr>`
+                 found fn item `for<'a> fn(String, Python<'a>) -> pyo3::Bound<'a, PyAny> {into_ref}`

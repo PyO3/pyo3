@@ -25,6 +25,8 @@ pub mod kw {
     syn::custom_keyword!(get);
     syn::custom_keyword!(get_all);
     syn::custom_keyword!(hash);
+    syn::custom_keyword!(into_py_with);
+    syn::custom_keyword!(into_py_with_ref);
     syn::custom_keyword!(item);
     syn::custom_keyword!(from_item_all);
     syn::custom_keyword!(mapping);
@@ -350,6 +352,8 @@ impl<K: ToTokens, V: ToTokens> ToTokens for OptionalKeywordAttribute<K, V> {
 }
 
 pub type FromPyWithAttribute = KeywordAttribute<kw::from_py_with, LitStrValue<ExprPath>>;
+pub type IntoPyWithAttribute = KeywordAttribute<kw::into_py_with, ExprPath>;
+pub type IntoPyWithRefAttribute = KeywordAttribute<kw::into_py_with_ref, ExprPath>;
 
 pub type DefaultAttribute = OptionalKeywordAttribute<Token![default], Expr>;
 

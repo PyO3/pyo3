@@ -26,6 +26,8 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/pyclass_send.rs");
     t.compile_fail("tests/ui/invalid_argument_attributes.rs");
     t.compile_fail("tests/ui/invalid_intopy_derive.rs");
+    #[cfg(not(windows))]
+    t.compile_fail("tests/ui/invalid_intopy_with.rs");
     t.compile_fail("tests/ui/invalid_frompy_derive.rs");
     t.compile_fail("tests/ui/static_ref.rs");
     t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
