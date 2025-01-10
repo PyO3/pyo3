@@ -27,3 +27,14 @@ error: `from_py_with` may only be specified once per argument
    |
 16 | fn from_py_with_repeated(#[pyo3(from_py_with = "func", from_py_with = "func")] _param: String) {}
    |                                                        ^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+  --> tests/ui/invalid_argument_attributes.rs:23:13
+   |
+22 | #[pyfunction]
+   | ------------- here the type of `from_py_with` is inferred to be `fn(&pyo3::Bound<'_, PyBytes>) -> Vec<u8>`
+23 | fn f(#[pyo3(from_py_with = "bytes_from_py")] _bytes: Vec<u8>) {}
+   |             ^^^^^^^^^^^^ expected `PyAny`, found `PyBytes`
+   |
+   = note: expected fn pointer `fn(&pyo3::Bound<'_, PyAny>) -> Result<_, PyErr>`
+              found fn pointer `fn(&pyo3::Bound<'_, PyBytes>) -> Vec<u8>`
