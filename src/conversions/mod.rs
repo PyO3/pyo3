@@ -14,3 +14,4 @@ pub mod rust_decimal;
 pub mod serde;
 pub mod smallvec;
 mod std;
+pub mod uuid;
