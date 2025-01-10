@@ -949,7 +949,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
             }
         }
 
-        inner(self.py(), self.getattr(attr_name).map_err(Into::into))
+        inner(self.py(), self.getattr(attr_name))
     }
 
     fn getattr<N>(&self, attr_name: N) -> PyResult<Bound<'py, PyAny>>
