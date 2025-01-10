@@ -2,6 +2,8 @@ use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::get_ssize_index;
+use crate::types::any::PyAnyMethods;
+use crate::types::sequence::PySequenceMethods;
 use crate::types::{PySequence, PyTuple};
 use crate::{
     Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, Python,
@@ -9,8 +11,6 @@ use crate::{
 use std::iter::FusedIterator;
 #[cfg(feature = "nightly")]
 use std::num::NonZero;
-use crate::types::any::PyAnyMethods;
-use crate::types::sequence::PySequenceMethods;
 
 /// Represents a Python `list`.
 ///
@@ -579,7 +579,7 @@ impl<'py> BoundListIterator<'py> {
         let length = length.0.min(list.len());
         let target_index = index.0 + n;
         if index.0 + n < length {
-            let item =list.get_item(target_index).expect("get-item failed");
+            let item = list.get_item(target_index).expect("get-item failed");
             index.0 = target_index + 1;
             Some(item)
         } else {
@@ -706,12 +706,14 @@ impl<'py> Iterator for BoundListIterator<'py> {
 
     #[inline]
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        #[cfg(not(Py_LIMITED_API))] {
+        #[cfg(not(Py_LIMITED_API))]
+        {
             self.with_critical_section(|index, length, list| unsafe {
                 Self::nth_unchecked(index, length, list, n)
             })
         }
-        #[cfg(Py_LIMITED_API)] {
+        #[cfg(Py_LIMITED_API)]
+        {
             let Self {
                 index,
                 length,
@@ -886,12 +888,14 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
 
     #[inline]
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-        #[cfg(not(Py_LIMITED_API))] {
+        #[cfg(not(Py_LIMITED_API))]
+        {
             self.with_critical_section(|index, length, list| unsafe {
                 Self::nth_back_unchecked(index, length, list, n)
             })
         }
-        #[cfg(Py_LIMITED_API)] {
+        #[cfg(Py_LIMITED_API)]
+        {
             let Self {
                 index,
                 length,
