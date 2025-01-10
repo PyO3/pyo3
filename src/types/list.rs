@@ -979,13 +979,13 @@ impl<'py> IntoIterator for &Bound<'py, PyList> {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(feature = "nightly")]
-    use std::num::NonZero;
     use crate::types::any::PyAnyMethods;
     use crate::types::list::PyListMethods;
     use crate::types::sequence::PySequenceMethods;
     use crate::types::{PyList, PyTuple};
     use crate::{ffi, IntoPyObject, PyResult, Python};
+    #[cfg(feature = "nightly")]
+    use std::num::NonZero;
 
     #[test]
     fn test_new() {
@@ -1775,5 +1775,4 @@ mod tests {
             assert_eq!(iter4.next().unwrap().extract::<i32>().unwrap(), 1);
         })
     }
-
 }
