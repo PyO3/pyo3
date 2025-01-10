@@ -55,9 +55,9 @@ def test_rust(session: nox.Session):
     if not FREE_THREADED_BUILD:
         _run_cargo_test(session, features="abi3")
     if "skip-full" not in session.posargs:
-        _run_cargo_test(session, features="full")
+        _run_cargo_test(session, features="full jiff-01")
         if not FREE_THREADED_BUILD:
-            _run_cargo_test(session, features="abi3 full")
+            _run_cargo_test(session, features="abi3 full jiff-01")
 
 
 @nox.session(name="test-py", venv_backend="none")
@@ -131,7 +131,8 @@ def clippy(session: nox.Session) -> bool:
 def _clippy(session: nox.Session, *, env: Dict[str, str] = None) -> bool:
     success = True
     env = env or os.environ
-    for feature_set in _get_feature_sets():
+    jiff_features_set = (("--features=jiff-01",), ("--features=jiff-01 abi3",))
+    for feature_set in _get_feature_sets() + jiff_features_set:
         try:
             _run_cargo(
                 session,
@@ -388,7 +389,7 @@ def docs(session: nox.Session) -> None:
         "doc",
         "--lib",
         "--no-default-features",
-        "--features=full",
+        "--features=full,jiff-01",
         "--no-deps",
         "--workspace",
         *cargo_flags,
@@ -761,8 +762,8 @@ def update_ui_tests(session: nox.Session):
     env["TRYBUILD"] = "overwrite"
     command = ["test", "--test", "test_compile_error"]
     _run_cargo(session, *command, env=env)
-    _run_cargo(session, *command, "--features=full", env=env)
-    _run_cargo(session, *command, "--features=abi3,full", env=env)
+    _run_cargo(session, *command, "--features=full,jiff-01", env=env)
+    _run_cargo(session, *command, "--features=abi3,full,jiff-01", env=env)
 
 
 def _build_docs_for_ffi_check(session: nox.Session) -> None:
