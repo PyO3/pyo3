@@ -9,7 +9,7 @@ use crate::{
     Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, Python,
 };
 use std::iter::FusedIterator;
-#[cfg(feature = "nightly")]
+#[cfg(all(not(Py_LIMITED_API), feature = "nightly"))]
 use std::num::NonZero;
 
 /// Represents a Python `list`.
@@ -548,7 +548,7 @@ impl<'py> BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(all(not(Py_LIMITED_API), not(feature = "nightly")))]
+    #[cfg(all(not(Py_LIMITED_API), feature = "nightly"))]
     #[deny(unsafe_op_in_unsafe_fn)]
     unsafe fn nth_unchecked(
         index: &mut Index,
@@ -568,7 +568,7 @@ impl<'py> BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(Py_LIMITED_API)]
+    #[cfg(all(Py_LIMITED_API, feature = "nightly"))]
     #[deny(unsafe_op_in_unsafe_fn)]
     fn nth(
         index: &mut Index,
@@ -630,7 +630,7 @@ impl<'py> BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(all(not(Py_LIMITED_API), not(feature = "nightly")))]
+    #[cfg(all(not(Py_LIMITED_API), feature = "nightly"))]
     #[deny(unsafe_op_in_unsafe_fn)]
     unsafe fn nth_back_unchecked(
         index: &mut Index,
@@ -650,7 +650,7 @@ impl<'py> BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(Py_LIMITED_API)]
+    #[cfg(all(Py_LIMITED_API, feature = "nightly"))]
     fn nth_back(
         index: &mut Index,
         length: &mut Length,
@@ -705,7 +705,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(not(feature = "nightly"))]
+    #[cfg(feature = "nightly")]
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
         #[cfg(not(Py_LIMITED_API))]
         {
@@ -851,7 +851,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(feature = "nightly")]
+    #[cfg(all(not(Py_LIMITED_API), feature = "nightly"))]
     fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
         self.with_critical_section(|index, length, list| {
             let max_len = length.0.min(list.len());
@@ -898,7 +898,7 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
     }
 
     #[inline]
-    #[cfg(not(feature = "nightly"))]
+    #[cfg(feature = "nightly")]
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
         #[cfg(not(Py_LIMITED_API))]
         {
