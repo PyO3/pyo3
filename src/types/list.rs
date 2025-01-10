@@ -7,7 +7,8 @@ use crate::{
     Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, Python,
 };
 use std::iter::FusedIterator;
-
+#[cfg(feature = "nightly")]
+use std::num::NonZero;
 use crate::types::any::PyAnyMethods;
 use crate::types::sequence::PySequenceMethods;
 
@@ -546,11 +547,6 @@ impl<'py> BoundListIterator<'py> {
         }
     }
 
-    /// # Safety
-    ///
-    /// On the free-threaded build, caller must verify they have exclusive
-    /// access to the list by holding a lock or by holding the innermost
-    /// critical section on the list.
     #[inline]
     #[cfg(not(Py_LIMITED_API))]
     #[deny(unsafe_op_in_unsafe_fn)]
@@ -564,6 +560,26 @@ impl<'py> BoundListIterator<'py> {
         let target_index = index.0 + n;
         if index.0 + n < length {
             let item = unsafe { list.get_item_unchecked(target_index) };
+            index.0 = target_index + 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    #[cfg(Py_LIMITED_API)]
+    #[deny(unsafe_op_in_unsafe_fn)]
+    fn nth(
+        index: &mut Index,
+        length: &mut Length,
+        list: &Bound<'py, PyList>,
+        n: usize,
+    ) -> Option<Bound<'py, PyAny>> {
+        let length = length.0.min(list.len());
+        let target_index = index.0 + n;
+        if index.0 + n < length {
+            let item =list.get_item(target_index).expect("get-item failed");
             index.0 = target_index + 1;
             Some(item)
         } else {
@@ -613,11 +629,6 @@ impl<'py> BoundListIterator<'py> {
         }
     }
 
-    /// # Safety
-    ///
-    /// On the free-threaded build, caller must verify they have exclusive
-    /// access to the list by holding a lock or by holding the innermost
-    /// critical section on the list.
     #[inline]
     #[cfg(not(Py_LIMITED_API))]
     #[deny(unsafe_op_in_unsafe_fn)]
@@ -631,6 +642,25 @@ impl<'py> BoundListIterator<'py> {
         if index.0 + n < length_size {
             let target_index = length_size - n - 1;
             let item = unsafe { list.get_item_unchecked(target_index) };
+            *length = Length(target_index);
+            Some(item)
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    #[cfg(Py_LIMITED_API)]
+    fn nth_back(
+        index: &mut Index,
+        length: &mut Length,
+        list: &Bound<'py, PyList>,
+        n: usize,
+    ) -> Option<Bound<'py, PyAny>> {
+        let length_size = length.0.min(list.len());
+        if index.0 + n < length_size {
+            let target_index = length_size - n - 1;
+            let item = list.get_item(target_index).expect("get-item failed");
             *length = Length(target_index);
             Some(item)
         } else {
@@ -675,11 +705,20 @@ impl<'py> Iterator for BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        self.with_critical_section(|index, length, list| unsafe {
-            Self::nth_unchecked(index, length, list, n)
-        })
+        #[cfg(not(Py_LIMITED_API))] {
+            self.with_critical_section(|index, length, list| unsafe {
+                Self::nth_unchecked(index, length, list, n)
+            })
+        }
+        #[cfg(Py_LIMITED_API)] {
+            let Self {
+                index,
+                length,
+                list,
+            } = self;
+            Self::nth(index, length, list, n)
+        }
     }
 
     #[inline]
@@ -809,22 +848,17 @@ impl<'py> Iterator for BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(all(Py_GIL_DISABLED, feature = "nightly"))]
+    #[cfg(feature = "nightly")]
     fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
         self.with_critical_section(|index, length, list| {
             let length = length.0.min(list.len());
             let target_index = index.0 + n;
             if index.0 + n < length {
-                let item = list.get_item(target_index);
-                match item {
-                    Ok(_) => {
-                        index.0 = target_index;
-                        Ok(())
-                    }
-                    Err(_) => Err(NonZero::new(n - index.0)),
-                }
+                let item = unsafe { list.get_item_unchecked(target_index) };
+                index.0 = target_index;
+                Ok(())
             } else {
-                Err(NonZero::new(n - index.0))
+                Err(unsafe { NonZero::new_unchecked(n - index.0) })
             }
         })
     }
@@ -851,11 +885,20 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
     }
 
     #[inline]
-    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-        self.with_critical_section(|index, length, list| unsafe {
-            Self::nth_back_unchecked(index, length, list, n)
-        })
+        #[cfg(not(Py_LIMITED_API))] {
+            self.with_critical_section(|index, length, list| unsafe {
+                Self::nth_back_unchecked(index, length, list, n)
+            })
+        }
+        #[cfg(Py_LIMITED_API)] {
+            let Self {
+                index,
+                length,
+                list,
+            } = self;
+            Self::nth_back(index, length, list, n)
+        }
     }
 
     #[inline]
