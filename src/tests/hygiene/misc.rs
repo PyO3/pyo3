@@ -12,6 +12,8 @@ struct Derive3 {
     f: i32,
     #[pyo3(item(42))]
     g: i32,
+    #[pyo3(default)]
+    h: i32,
 } // struct case
 
 #[derive(crate::FromPyObject)]

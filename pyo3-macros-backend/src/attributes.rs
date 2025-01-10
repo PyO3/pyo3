@@ -351,6 +351,8 @@ impl<K: ToTokens, V: ToTokens> ToTokens for OptionalKeywordAttribute<K, V> {
 
 pub type FromPyWithAttribute = KeywordAttribute<kw::from_py_with, LitStrValue<ExprPath>>;
 
+pub type DefaultAttribute = OptionalKeywordAttribute<Token![default], Expr>;
+
 /// For specifying the path to the pyo3 crate.
 pub type CrateAttribute = KeywordAttribute<Token![crate], LitStrValue<Path>>;
 

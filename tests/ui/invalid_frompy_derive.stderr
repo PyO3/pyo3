@@ -84,7 +84,7 @@ error: transparent structs and variants can only have 1 field
 70 | |     },
    | |_____^
 
-error: expected one of: `attribute`, `item`, `from_py_with`
+error: expected one of: `attribute`, `item`, `from_py_with`, `default`
   --> tests/ui/invalid_frompy_derive.rs:76:12
    |
 76 |     #[pyo3(attr)]
@@ -223,3 +223,29 @@ error: The struct is already annotated with `from_item_all`, `attribute` is not 
     |
 210 | #[pyo3(from_item_all)]
     |        ^^^^^^^^^^^^^
+
+error: cannot derive FromPyObject for structs and variants with only default values
+   --> tests/ui/invalid_frompy_derive.rs:217:36
+    |
+217 |   struct StructWithOnlyDefaultValues {
+    |  ____________________________________^
+218 | |     #[pyo3(default)]
+219 | |     field: String,
+220 | | }
+    | |_^
+
+error: cannot derive FromPyObject for structs and variants with only default values
+   --> tests/ui/invalid_frompy_derive.rs:224:9
+    |
+224 |       Foo {
+    |  _________^
+225 | |         #[pyo3(default)]
+226 | |         field: String,
+227 | |     },
+    | |_____^
+
+error: `default` is not permitted on tuple struct elements.
+   --> tests/ui/invalid_frompy_derive.rs:231:37
+    |
+231 | struct NamedTuplesWithDefaultValues(#[pyo3(default)] String);
+    |                                     ^

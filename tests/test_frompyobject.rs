@@ -686,3 +686,117 @@ fn test_with_keyword_item() {
         assert_eq!(result, expected);
     });
 }
+
+#[derive(Debug, FromPyObject, PartialEq, Eq)]
+pub struct WithDefaultItem {
+    #[pyo3(item, default)]
+    opt: Option<usize>,
+    #[pyo3(item)]
+    value: usize,
+}
+
+#[test]
+fn test_with_default_item() {
+    Python::with_gil(|py| {
+        let dict = PyDict::new(py);
+        dict.set_item("value", 3).unwrap();
+        let result = dict.extract::<WithDefaultItem>().unwrap();
+        let expected = WithDefaultItem {
+            value: 3,
+            opt: None,
+        };
+        assert_eq!(result, expected);
+    });
+}
+
+#[derive(Debug, FromPyObject, PartialEq, Eq)]
+pub struct WithExplicitDefaultItem {
+    #[pyo3(item, default = 1)]
+    opt: usize,
+    #[pyo3(item)]
+    value: usize,
+}
+
+#[test]
+fn test_with_explicit_default_item() {
+    Python::with_gil(|py| {
+        let dict = PyDict::new(py);
+        dict.set_item("value", 3).unwrap();
+        let result = dict.extract::<WithExplicitDefaultItem>().unwrap();
+        let expected = WithExplicitDefaultItem { value: 3, opt: 1 };
+        assert_eq!(result, expected);
+    });
+}
+
+#[derive(Debug, FromPyObject, PartialEq, Eq)]
+pub struct WithDefaultItemAndConversionFunction {
+    #[pyo3(item, default, from_py_with = "Bound::<'_, PyAny>::len")]
+    opt: usize,
+    #[pyo3(item)]
+    value: usize,
+}
+
+#[test]
+fn test_with_default_item_and_conversion_function() {
+    Python::with_gil(|py| {
+        // Filled case
+        let dict = PyDict::new(py);
+        dict.set_item("opt", (1,)).unwrap();
+        dict.set_item("value", 3).unwrap();
+        let result = dict
+            .extract::<WithDefaultItemAndConversionFunction>()
+            .unwrap();
+        let expected = WithDefaultItemAndConversionFunction { opt: 1, value: 3 };
+        assert_eq!(result, expected);
+
+        // Empty case
+        let dict = PyDict::new(py);
+        dict.set_item("value", 3).unwrap();
+        let result = dict
+            .extract::<WithDefaultItemAndConversionFunction>()
+            .unwrap();
+        let expected = WithDefaultItemAndConversionFunction { opt: 0, value: 3 };
+        assert_eq!(result, expected);
+
+        // Error case
+        let dict = PyDict::new(py);
+        dict.set_item("value", 3).unwrap();
+        dict.set_item("opt", 1).unwrap();
+        assert!(dict
+            .extract::<WithDefaultItemAndConversionFunction>()
+            .is_err());
+    });
+}
+
+#[derive(Debug, FromPyObject, PartialEq, Eq)]
+pub enum WithDefaultItemEnum {
+    #[pyo3(from_item_all)]
+    Foo {
+        a: usize,
+        #[pyo3(default)]
+        b: usize,
+    },
+    NeverUsedA {
+        a: usize,
+    },
+}
+
+#[test]
+fn test_with_default_item_enum() {
+    Python::with_gil(|py| {
+        // A and B filled
+        let dict = PyDict::new(py);
+        dict.set_item("a", 1).unwrap();
+        dict.set_item("b", 2).unwrap();
+        let result = dict.extract::<WithDefaultItemEnum>().unwrap();
+        let expected = WithDefaultItemEnum::Foo { a: 1, b: 2 };
+        assert_eq!(result, expected);
+
+        // A filled
+        let dict = PyDict::new(py);
+        dict.set_item("a", 1).unwrap();
+        let result = dict.extract::<WithDefaultItemEnum>().unwrap();
+        let expected = WithDefaultItemEnum::Foo { a: 1, b: 0 };
+        assert_eq!(result, expected);
+    });
+}
