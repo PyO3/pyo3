@@ -548,7 +548,7 @@ impl<'py> BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(all(not(Py_LIMITED_API), not(feature = "nightly")))]
     #[deny(unsafe_op_in_unsafe_fn)]
     unsafe fn nth_unchecked(
         index: &mut Index,
@@ -630,7 +630,7 @@ impl<'py> BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(all(not(Py_LIMITED_API), not(feature = "nightly")))]
     #[deny(unsafe_op_in_unsafe_fn)]
     unsafe fn nth_back_unchecked(
         index: &mut Index,
