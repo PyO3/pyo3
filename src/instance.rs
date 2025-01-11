@@ -2021,6 +2021,50 @@ mod tests {
     }
 
     #[test]
+    fn test_call_tuple_ref() {
+        let assert_repr = |obj: &Bound<'_, PyAny>, expected: &str| {
+            use crate::prelude::PyStringMethods;
+            assert_eq!(
+                obj.repr()
+                    .unwrap()
+                    .to_cow()
+                    .unwrap()
+                    .trim_matches(|c| c == '{' || c == '}'),
+                expected.trim_matches(|c| c == ',' || c == ' ')
+            );
+        };
+
+        macro_rules! tuple {
+            ($py:ident, $($key: literal => $value: literal),+) => {
+                let ty_obj = $py.get_type::<PyDict>().into_pyobject($py).unwrap();
+                assert!(ty_obj.call1(&(($(($key),)+),)).is_err());
+                let obj = ty_obj.call1(&(($(($key, i32::from($value)),)+),)).unwrap();
+                assert_repr(&obj, concat!($("'", $key, "'", ": ", stringify!($value), ", ",)+));
+                assert!(obj.call_method1("update", &(($(($key),)+),)).is_err());
+                obj.call_method1("update", &(($((i32::from($value), $key),)+),)).unwrap();
+                assert_repr(&obj, concat!(
+                    concat!($("'", $key, "'", ": ", stringify!($value), ", ",)+),
+                    concat!($(stringify!($value), ": ", "'", $key, "'", ", ",)+)
+                ));
+            };
+        }
+
+        Python::with_gil(|py| {
+            tuple!(py, "a" => 1);
+            tuple!(py, "a" => 1, "b" => 2);
+            tuple!(py, "a" => 1, "b" => 2, "c" => 3);
+            tuple!(py, "a" => 1, "b" => 2, "c" => 3, "d" => 4);
+            tuple!(py, "a" => 1, "b" => 2, "c" => 3, "d" => 4, "e" => 5);
+            tuple!(py, "a" => 1, "b" => 2, "c" => 3, "d" => 4, "e" => 5, "f" => 6);
+            tuple!(py, "a" => 1, "b" => 2, "c" => 3, "d" => 4, "e" => 5, "f" => 6, "g" => 7);
+            tuple!(py, "a" => 1, "b" => 2, "c" => 3, "d" => 4, "e" => 5, "f" => 6, "g" => 7, "h" => 8);
+            tuple!(py, "a" => 1, "b" => 2, "c" => 3, "d" => 4, "e" => 5, "f" => 6, "g" => 7, "h" => 8, "i" => 9);
+            tuple!(py, "a" => 1, "b" => 2, "c" => 3, "d" => 4, "e" => 5, "f" => 6, "g" => 7, "h" => 8, "i" => 9, "j" => 10, "k" => 11);
+            tuple!(py, "a" => 1, "b" => 2, "c" => 3, "d" => 4, "e" => 5, "f" => 6, "g" => 7, "h" => 8, "i" => 9, "j" => 10, "k" => 11, "l" => 12);
+        })
+    }
+
+    #[test]
     fn test_call_for_non_existing_method() {
         Python::with_gil(|py| {
             let obj: PyObject = PyDict::new(py).into();

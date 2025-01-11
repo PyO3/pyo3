@@ -1,5 +1,7 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
+#[cfg(any(Py_3_12, all(Py_3_8, not(Py_LIMITED_API))))]
+use libc::size_t;
 use std::os::raw::{c_char, c_int};
 
 #[inline]
@@ -69,6 +71,28 @@ extern "C" {
         o: *mut PyObject,
         method: *mut PyObject,
         ...
+    ) -> *mut PyObject;
+}
+#[cfg(any(Py_3_12, all(Py_3_8, not(Py_LIMITED_API))))]
+pub const PY_VECTORCALL_ARGUMENTS_OFFSET: size_t =
+    1 << (8 * std::mem::size_of::<size_t>() as size_t - 1);
+
+extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyObject_Vectorcall")]
+    #[cfg(any(Py_3_12, all(Py_3_11, not(Py_LIMITED_API))))]
+    pub fn PyObject_Vectorcall(
+        callable: *mut PyObject,
+        args: *const *mut PyObject,
+        nargsf: size_t,
+        kwnames: *mut PyObject,
+    ) -> *mut PyObject;
+
+    #[cfg(any(Py_3_12, all(Py_3_9, not(any(Py_LIMITED_API, PyPy, GraalPy)))))]
+    pub fn PyObject_VectorcallMethod(
+        name: *mut PyObject,
+        args: *const *mut PyObject,
+        nargsf: size_t,
+        kwnames: *mut PyObject,
     ) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyObject_Type")]
     pub fn PyObject_Type(o: *mut PyObject) -> *mut PyObject;
