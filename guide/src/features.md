@@ -119,6 +119,11 @@ These features enable conversions between Python types and types from other Rust
 
 Adds a dependency on [anyhow](https://docs.rs/anyhow). Enables a conversion from [anyhow](https://docs.rs/anyhow)’s [`Error`](https://docs.rs/anyhow/latest/anyhow/struct.Error.html) type to [`PyErr`]({{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html), for easy error handling.
 
+### `arcstr`
+
+Adds a dependency on [arcstr](https://docs.rs/arcstr). 
+Enables conversion from and to [`ArcStr`](https://docs.rs/arcstr/latest/arcstr/struct.ArcStr.html) and [`Substr`](https://docs.rs/arcstr/latest/arcstr/struct.Substr.html).
+
 ### `chrono`
 
 Adds a dependency on [chrono](https://docs.rs/chrono). Enables a conversion from [chrono](https://docs.rs/chrono)'s types to python:
