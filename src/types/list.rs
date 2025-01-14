@@ -559,11 +559,13 @@ impl<'py> BoundListIterator<'py> {
         let target_index = index.0 + n;
         if target_index < length {
             let item = {
-                #[cfg(Py_LIMITED_API)] {
+                #[cfg(Py_LIMITED_API)]
+                {
                     list.get_item(target_index).expect("get-item failed")
                 }
 
-                #[cfg(not(Py_LIMITED_API))] {
+                #[cfg(not(Py_LIMITED_API))]
+                {
                     unsafe { list.get_item_unchecked(target_index) }
                 }
             };
@@ -684,9 +686,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     #[inline]
     #[cfg(not(feature = "nightly"))]
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        self.with_critical_section(|index, length, list| {
-            Self::nth(index, length, list, n)
-        })
+        self.with_critical_section(|index, length, list| Self::nth(index, length, list, n))
     }
 
     #[inline]
