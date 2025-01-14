@@ -548,7 +548,7 @@ impl<'py> BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(not(feature = "nightly"))]
+    #[cfg(all(not(Py_LIMITED_API), not(feature = "nightly")))]
     fn nth(
         index: &mut Index,
         length: &mut Length,
@@ -619,7 +619,7 @@ impl<'py> BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(not(feature = "nightly"))]
+    #[cfg(all(not(Py_LIMITED_API), not(feature = "nightly")))]
     fn nth_back(
         index: &mut Index,
         length: &mut Length,
@@ -684,7 +684,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(not(feature = "nightly"))]
+    #[cfg(all(not(Py_LIMITED_API), not(feature = "nightly")))]
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
         self.with_critical_section(|index, length, list| Self::nth(index, length, list, n))
     }
@@ -863,7 +863,7 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
     }
 
     #[inline]
-    #[cfg(not(feature = "nightly"))]
+    #[cfg(all(not(Py_LIMITED_API), not(feature = "nightly")))]
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
         self.with_critical_section(|index, length, list| Self::nth_back(index, length, list, n))
     }
