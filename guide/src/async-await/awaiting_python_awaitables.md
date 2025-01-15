@@ -1,7 +1,7 @@
 # Awaiting Python awaitables
 
 Python awaitable can be awaited on Rust side
-using [`await_in_coroutine`]({{#PYO3_DOCS_URL}}/pyo3/coroutine/fn.await_in_coroutine).
+using [`await_in_coroutine`]({{#PYO3_DOCS_URL}}/pyo3/coroutine/fn.await_in_coroutine.html).
 
 ```rust
 # # ![allow(dead_code)]
