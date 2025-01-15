@@ -647,7 +647,6 @@ impl<'py> BoundListIterator<'py> {
         }
     }
 
-    #[cfg(not(Py_LIMITED_API))]
     fn with_critical_section<R>(
         &mut self,
         f: impl FnOnce(&mut Index, &mut Length, &Bound<'py, PyList>) -> R,
@@ -819,25 +818,12 @@ impl<'py> Iterator for BoundListIterator<'py> {
     #[cfg(feature = "nightly")]
     fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
         self.with_critical_section(|index, length, list| {
-            let max_len = length.0.min(list.len());
-            let currently_at = index.0;
-            if currently_at >= max_len {
-                if n == 0 {
-                    return Ok(());
-                } else {
-                    return Err(unsafe { NonZero::new_unchecked(n) });
+            for i in 0..n {
+                if unsafe { Self::next_unchecked(index, length, list).is_none() } {
+                    return Err(unsafe { NonZero::new_unchecked(n - i) });
                 }
             }
-
-            let items_left = max_len - currently_at;
-            if n <= items_left {
-                index.0 += n;
-                Ok(())
-            } else {
-                index.0 = max_len;
-                let remainder = n - items_left;
-                Err(unsafe { NonZero::new_unchecked(remainder) })
-            }
+            Ok(())
         })
     }
 }
@@ -898,6 +884,19 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
                 accum = f(accum, x)?
             }
             R::from_output(accum)
+        })
+    }
+
+    #[inline]
+    #[cfg(feature = "nightly")]
+    fn advance_back_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
+        self.with_critical_section(|index, length, list| {
+            for i in 0..n {
+                if unsafe { Self::next_back_unchecked(index, length, list).is_none() } {
+                    return Err(unsafe { NonZero::new_unchecked(n - i) });
+                }
+            }
+            Ok(())
         })
     }
 }
@@ -1638,7 +1637,8 @@ mod tests {
             assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 10);
 
             let mut iter = list.iter();
-            iter.nth_back(1);
+            println!("iter.nth_back(1) = {:?}", iter.nth_back(1));
+            // assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 9);
             assert_eq!(iter.nth(2).unwrap().extract::<i32>().unwrap(), 8);
             assert!(iter.next().is_none());
         });
@@ -1724,6 +1724,32 @@ mod tests {
             let mut iter4 = list.iter();
             assert_eq!(iter4.advance_by(0), Ok(()));
             assert_eq!(iter4.next().unwrap().extract::<i32>().unwrap(), 1);
+        })
+    }
+
+    #[cfg(feature = "nightly")]
+    #[test]
+    fn test_iter_advance_back_by() {
+        Python::with_gil(|py| {
+            let v = vec![1, 2, 3, 4, 5];
+            let ob = (&v).into_pyobject(py).unwrap();
+            let list = ob.downcast::<PyList>().unwrap();
+
+            let mut iter = list.iter();
+            assert_eq!(iter.advance_back_by(2), Ok(()));
+            assert_eq!(iter.next_back().unwrap().extract::<i32>().unwrap(), 3);
+            assert_eq!(iter.advance_back_by(0), Ok(()));
+            assert_eq!(iter.advance_back_by(100), Err(NonZero::new(98).unwrap()));
+
+            let mut iter2 = list.iter();
+            assert_eq!(iter2.advance_back_by(6), Err(NonZero::new(1).unwrap()));
+
+            let mut iter3 = list.iter();
+            assert_eq!(iter3.advance_back_by(5), Ok(()));
+
+            let mut iter4 = list.iter();
+            assert_eq!(iter4.advance_back_by(0), Ok(()));
+            assert_eq!(iter4.next_back().unwrap().extract::<i32>().unwrap(), 5);
         })
     }
 }
