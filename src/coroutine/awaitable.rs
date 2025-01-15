@@ -144,7 +144,6 @@ impl Future for AwaitImpl {
 /// })
 /// # }
 /// ```
-/// ```rust
 pub fn await_in_coroutine(
     obj: &Bound<'_, PyAny>,
 ) -> PyResult<impl Future<Output = PyResult<PyObject>> + Send + Sync + 'static> {
