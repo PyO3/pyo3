@@ -18,9 +18,13 @@ use crate::{
     Bound, IntoPyObject, IntoPyObjectExt, Py, PyErr, PyObject, PyResult, Python,
 };
 
+#[cfg(feature = "anyio")]
+mod anyio;
 mod asyncio;
 mod awaitable;
 mod cancel;
+#[cfg(feature = "anyio")]
+mod trio;
 mod waker;
 
 pub use awaitable::await_in_coroutine;

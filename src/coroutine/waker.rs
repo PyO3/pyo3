@@ -6,7 +6,6 @@ use std::{
 
 use crate::{
     coroutine::{
-        asyncio::AsyncioWaker,
         awaitable::{delegate, YieldOrReturn},
         CoroOp,
     },
@@ -17,10 +16,18 @@ use crate::{
     Bound, PyObject, PyResult, Python,
 };
 
+cfg_if::cfg_if! {
+    if #[cfg(feature = "anyio")] {
+        type WakerImpl = crate::coroutine::anyio::AnyioWaker;
+    } else {
+        type WakerImpl = crate::coroutine::asyncio::AsyncioWaker;
+    }
+}
+
 const MIXED_AWAITABLE_AND_FUTURE_ERROR: &str = "Python awaitable mixed with Rust future";
 
 enum State {
-    Pending(AsyncioWaker),
+    Pending(WakerImpl),
     Waken,
     Delegated(PyObject),
 }
@@ -48,11 +55,11 @@ impl CoroutineWaker {
     }
 
     pub(super) fn yield_(&self, py: Python<'_>) -> PyResult<PyObject> {
-        let init = || PyResult::Ok(State::Pending(AsyncioWaker::new(py)?));
+        let init = || PyResult::Ok(State::Pending(WakerImpl::new(py)?));
         let state = self.state.get_or_try_init(py, init)?;
         match state {
             State::Pending(waker) => waker.yield_(py),
-            State::Waken => AsyncioWaker::yield_waken(py),
+            State::Waken => WakerImpl::yield_waken(py),
             State::Delegated(obj) => Ok(obj.clone_ref(py)),
         }
     }
