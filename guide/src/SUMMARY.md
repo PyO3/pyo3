@@ -25,6 +25,7 @@
   - [Mapping of Rust types to Python types](conversions/tables.md)
   - [Conversion traits](conversions/traits.md)
 - [Using `async` and `await`](async-await.md)
+  - [Awaiting Python awaitables](async-await/awaiting_python_awaitables)
 - [Parallelism](parallelism.md)
 - [Supporting Free-Threaded Python](free-threading.md)
 - [Debugging](debugging.md)
