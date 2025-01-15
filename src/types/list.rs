@@ -647,7 +647,7 @@ impl<'py> BoundListIterator<'py> {
         }
     }
 
-    #[cfg(not(Py_LIMITED_API))]
+    #[allow(dead_code)]
     fn with_critical_section<R>(
         &mut self,
         f: impl FnOnce(&mut Index, &mut Length, &Bound<'py, PyList>) -> R,
