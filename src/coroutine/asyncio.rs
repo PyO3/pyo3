@@ -50,7 +50,7 @@ impl AsyncioWaker {
         };
         // future has not been wakened (because `yield_waken` would have been called
         // otherwise), so it is expected to yield itself
-        Ok(iter.next().expect("future didn't yield")?.into_py_any(py)?)
+        iter.next().expect("future didn't yield")?.into_py_any(py)
     }
 
     #[allow(clippy::unnecessary_wraps)]

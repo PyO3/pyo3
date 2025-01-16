@@ -102,7 +102,7 @@ enum WakerHack {
 }
 
 thread_local! {
-    static WAKER_HACK: Cell<Option<WakerHack>> = Cell::new(None);
+    static WAKER_HACK: Cell<Option<WakerHack>> = const { Cell::new(None) };
 }
 
 pub(crate) fn try_delegate(
