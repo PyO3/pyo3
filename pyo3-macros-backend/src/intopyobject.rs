@@ -1,6 +1,4 @@
-use crate::attributes::{
-    self, get_pyo3_options, CrateAttribute, IntoPyWithAttribute, IntoPyWithRefAttribute,
-};
+use crate::attributes::{self, get_pyo3_options, CrateAttribute, IntoPyWithAttribute};
 use crate::utils::Ctx;
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned};
@@ -92,7 +90,6 @@ impl ItemOption {
 enum FieldAttribute {
     Item(ItemOption),
     IntoPyWith(IntoPyWithAttribute),
-    IntoPyWithRef(IntoPyWithRefAttribute),
 }
 
 impl Parse for FieldAttribute {
@@ -124,8 +121,6 @@ impl Parse for FieldAttribute {
             }
         } else if lookahead.peek(attributes::kw::into_py_with) {
             input.parse().map(FieldAttribute::IntoPyWith)
-        } else if lookahead.peek(attributes::kw::into_py_with_ref) {
-            input.parse().map(FieldAttribute::IntoPyWithRef)
         } else {
             Err(lookahead.error())
         }
@@ -136,7 +131,6 @@ impl Parse for FieldAttribute {
 struct FieldAttributes {
     item: Option<ItemOption>,
     into_py_with: Option<IntoPyWithAttribute>,
-    into_py_with_ref: Option<IntoPyWithRefAttribute>,
 }
 
 impl FieldAttributes {
@@ -170,7 +164,6 @@ impl FieldAttributes {
         match option {
             FieldAttribute::Item(item) => set_option!(item),
             FieldAttribute::IntoPyWith(into_py_with) => set_option!(into_py_with),
-            FieldAttribute::IntoPyWithRef(into_py_with_ref) => set_option!(into_py_with_ref),
         }
         Ok(())
     }
@@ -195,13 +188,11 @@ struct NamedStructField<'a> {
     field: &'a syn::Field,
     item: Option<ItemOption>,
     into_py_with: Option<IntoPyWithAttribute>,
-    into_py_with_ref: Option<IntoPyWithRefAttribute>,
 }
 
 struct TupleStructField<'a> {
     field: &'a syn::Field,
     into_py_with: Option<IntoPyWithAttribute>,
-    into_py_with_ref: Option<IntoPyWithRefAttribute>,
 }
 
 /// Container Style
@@ -260,7 +251,6 @@ impl<'a, const REF: bool> Container<'a, REF> {
                         Ok(TupleStructField {
                             field,
                             into_py_with: attrs.into_py_with,
-                            into_py_with_ref: attrs.into_py_with_ref
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -270,15 +260,10 @@ impl<'a, const REF: bool> Container<'a, REF> {
                     let TupleStructField {
                         field,
                         into_py_with,
-                        into_py_with_ref,
                     } = tuple_fields.pop().unwrap();
                     ensure_spanned!(
                         into_py_with.is_none(),
                         into_py_with.span() => "`into_py_with` is not permitted on `transparent` structs"
-                    );
-                    ensure_spanned!(
-                        into_py_with_ref.is_none(),
-                        into_py_with_ref.span() => "`into_py_with_ref` is not permitted on `transparent` structs"
                     );
                     ContainerType::TupleNewtype(field)
                 } else if options.transparent.is_some() {
@@ -306,10 +291,6 @@ impl<'a, const REF: bool> Container<'a, REF> {
                         attrs.into_py_with.is_none(),
                         attrs.into_py_with.span() => "`into_py_with` is not permitted on `transparent` structs or variants"
                     );
-                    ensure_spanned!(
-                        attrs.into_py_with_ref.is_none(),
-                        attrs.into_py_with_ref.span() => "`into_py_with_ref` is not permitted on `transparent` structs or variants"
-                    );
                     ContainerType::StructNewtype(field)
                 } else {
                     let struct_fields = named
@@ -328,7 +309,6 @@ impl<'a, const REF: bool> Container<'a, REF> {
                                 field,
                                 item: attrs.item,
                                 into_py_with: attrs.into_py_with,
-                                into_py_with_ref: attrs.into_py_with_ref,
                             })
                         })
                         .collect::<Result<Vec<_>>>()?;
@@ -431,16 +411,16 @@ impl<'a, const REF: bool> Container<'a, REF> {
                     .map(|item| item.value())
                     .unwrap_or_else(|| f.ident.unraw().to_string());
                 let value = Ident::new(&format!("arg{i}"), f.field.ty.span());
-                let expr_path = if REF {
-                    f.into_py_with_ref.as_ref().map(|i|&i.value)
-                } else {
-                    f.into_py_with.as_ref().map(|i|&i.value)
-                };
 
-                if let Some(expr_path) = expr_path {
+                if let Some(expr_path) = f.into_py_with.as_ref().map(|i|&i.value) {
+                    let cow = if REF {
+                        quote!(::std::borrow::Cow::Borrowed(#value))
+                    } else {
+                        quote!(::std::borrow::Cow::Owned(#value))
+                    };
                     quote! {
-                        let into_py_with: fn(_, #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'_, #pyo3_path::PyAny>> = #expr_path;
-                        #pyo3_path::types::PyDictMethods::set_item(&dict, #key, into_py_with(#value, py)?)?;
+                        let into_py_with: fn(::std::borrow::Cow<'_, _>, #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::PyAny>> = #expr_path;
+                        #pyo3_path::types::PyDictMethods::set_item(&dict, #key, into_py_with(#cow, py)?)?;
                     }
                 } else {
                     quote! {
@@ -483,16 +463,17 @@ impl<'a, const REF: bool> Container<'a, REF> {
             .map(|(i, f)| {
                 let ty = &f.field.ty;
                 let value = Ident::new(&format!("arg{i}"), f.field.ty.span());
-                let expr_path = if REF {
-                    f.into_py_with_ref.as_ref().map(|i|&i.value)
-                } else {
-                    f.into_py_with.as_ref().map(|i|&i.value)
-                };
-                if let Some(expr_path) = expr_path {
+
+                if let Some(expr_path) = f.into_py_with.as_ref().map(|i|&i.value) {
+                    let cow = if REF {
+                        quote!(::std::borrow::Cow::Borrowed(#value))
+                    } else {
+                        quote!(::std::borrow::Cow::Owned(#value))
+                    };
                     quote_spanned! { ty.span() =>
                         {
-                            let into_py_with: fn(_, #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'_, #pyo3_path::PyAny>> = #expr_path;
-                            into_py_with(#value, py)?
+                            let into_py_with: fn(::std::borrow::Cow<'_, _>, #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::PyAny>> = #expr_path;
+                            into_py_with(#cow, py)?
                         },
                     }
                 } else {

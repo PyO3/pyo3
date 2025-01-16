@@ -607,30 +607,27 @@ Additionally `IntoPyObject` can be derived for a reference to a struct or enum u
 `IntoPyObjectRef` derive macro. All the same rules from above apply as well.
 
 ##### `#[derive(IntoPyObject)]`/`#[derive(IntoPyObjectRef)]` Field Attributes
-- `pyo3(into_py_with = ...)`/`pyo3(into_py_with_ref = ...)`
+- `pyo3(into_py_with = ...)`
     - apply a custom function to convert the field from Rust into Python.
     - the argument must be the function indentifier
-    - the function signature must be `fn(T, Python<'_>) -> PyResult<Bound<'_, PyAny>>`/`fn<'py>(&T, Python<'py>) -> PyResult<Bound<'py, PyAny>>` where `T` is the Rust type of the argument.
+    - the function signature must be `fn(Cow<'_, T>, Python<'py>) -> PyResult<Bound<'py, PyAny>>` where `T` is the Rust type of the argument.
 
     ```rust
     # use pyo3::prelude::*;
     # use pyo3::IntoPyObjectExt;
+    # use std::borrow::Cow;
+    #[derive(Clone)]
     struct NotIntoPy(usize);
 
     #[derive(IntoPyObject, IntoPyObjectRef)]
     struct MyStruct {
-        #[pyo3(into_py_with = convert, into_py_with_ref = convert_ref)]
+        #[pyo3(into_py_with = convert)]
         not_into_py: NotIntoPy,
     }
 
-    /// Convert `NotIntoPy` into Python by value
-    fn convert(NotIntoPy(i): NotIntoPy, py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
-        i.into_bound_py_any(py)
-    }
-
-    /// Convert `NotIntoPy` into Python by reference
-    fn convert_ref<'py>(&NotIntoPy(i): &NotIntoPy, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        i.into_bound_py_any(py)
+    /// Convert `NotIntoPy` into Python
+    fn convert<'py>(not_into_py: Cow<'_, NotIntoPy>, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        not_into_py.0.into_bound_py_any(py)
     }
     ```
 

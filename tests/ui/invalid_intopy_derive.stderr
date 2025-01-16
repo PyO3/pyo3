@@ -144,32 +144,14 @@ error: `into_py_with` is not permitted on `transparent` structs
 125 | struct TupleTransparentIntoPyWith(#[pyo3(into_py_with = into)] String);
     |                                          ^^^^^^^^^^^^
 
-error: `into_py_with_ref` is not permitted on `transparent` structs
-   --> tests/ui/invalid_intopy_derive.rs:129:45
-    |
-129 | struct TupleTransparentIntoPyWithRef(#[pyo3(into_py_with_ref = into_ref)] String);
-    |                                             ^^^^^^^^^^^^^^^^
-
 error: `into_py_with` is not permitted on `transparent` structs
-   --> tests/ui/invalid_intopy_derive.rs:133:29
+   --> tests/ui/invalid_intopy_derive.rs:129:29
     |
-133 |     TransparentTuple(#[pyo3(into_py_with = into)] usize),
+129 |     TransparentTuple(#[pyo3(into_py_with = into)] usize),
     |                             ^^^^^^^^^^^^
 
 error: `into_py_with` is not permitted on `transparent` structs or variants
-   --> tests/ui/invalid_intopy_derive.rs:140:16
+   --> tests/ui/invalid_intopy_derive.rs:136:16
     |
-140 |         #[pyo3(into_py_with = into)]
+136 |         #[pyo3(into_py_with = into)]
     |                ^^^^^^^^^^^^
-
-error: `into_py_with_ref` is not permitted on `transparent` structs
-   --> tests/ui/invalid_intopy_derive.rs:147:29
-    |
-147 |     TransparentTuple(#[pyo3(into_py_with_ref = into_ref)] usize),
-    |                             ^^^^^^^^^^^^^^^^
-
-error: `into_py_with_ref` is not permitted on `transparent` structs or variants
-   --> tests/ui/invalid_intopy_derive.rs:154:16
-    |
-154 |         #[pyo3(into_py_with_ref = into_ref)]
-    |                ^^^^^^^^^^^^^^^^

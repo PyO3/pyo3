@@ -150,14 +150,14 @@ fn test_transparent_tuple_struct() {
     });
 }
 
-fn phantom_into_py<T>(
-    _: std::marker::PhantomData<T>,
-    py: Python<'_>,
-) -> PyResult<Bound<'_, PyAny>> {
+fn phantom_into_py<'py, T>(
+    _: std::borrow::Cow<'_, std::marker::PhantomData<T>>,
+    py: Python<'py>,
+) -> PyResult<Bound<'py, PyAny>> {
     std::any::type_name::<T>().into_bound_py_any(py)
 }
 
-#[derive(Debug, IntoPyObject)]
+#[derive(Debug, IntoPyObject, IntoPyObjectRef)]
 pub enum Foo<'py> {
     TupleVar(
         usize,
@@ -218,16 +218,15 @@ pub struct Zap {
     #[pyo3(item)]
     name: String,
 
-    #[pyo3(into_py_with = zap_into_py, into_py_with_ref = zap_into_py_ref, item("my_object"))]
+    #[pyo3(into_py_with = zap_into_py, item("my_object"))]
     some_object_length: usize,
 }
 
-fn zap_into_py(len: usize, py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
-    Ok(PyList::new(py, 1..len + 1)?.into_any())
-}
-
-fn zap_into_py_ref<'py>(&len: &usize, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-    Ok(PyList::new(py, 1..len + 1)?.into_any())
+fn zap_into_py<'py>(
+    len: std::borrow::Cow<'_, usize>,
+    py: Python<'py>,
+) -> PyResult<Bound<'py, PyAny>> {
+    Ok(PyList::new(py, 1..*len + 1)?.into_any())
 }
 
 #[test]
