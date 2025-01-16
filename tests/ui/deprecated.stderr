@@ -1,0 +1,33 @@
+error: use of deprecated constant `__pyfunction_from_py_with_in_function::LIT_STR_DEPRECATION`: remove the quotes from the literal
+       = help: use `Bound :: < '_, PyAny > :: len` instead of `"Bound :: < '_, PyAny > :: len"`
+ --> tests/ui/deprecated.rs:6:27
+  |
+6 |     #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")] argument: usize,
+  |                           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+note: the lint level is defined here
+ --> tests/ui/deprecated.rs:1:9
+  |
+1 | #![deny(deprecated)]
+  |         ^^^^^^^^^^
+
+error: use of deprecated constant `Number::__pymethod___new____::LIT_STR_DEPRECATION`: remove the quotes from the literal
+       = help: use `Bound :: < '_, PyAny > :: len` instead of `"Bound :: < '_, PyAny > :: len"`
+  --> tests/ui/deprecated.rs:18:31
+   |
+18 |         #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")] value: usize,
+   |                               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: use of deprecated constant `<FromPyWithStruct as pyo3::FromPyObject<'py>>::extract_bound::LIT_STR_DEPRECATION`: remove the quotes from the literal
+       = help: use `Bound :: < '_, PyAny > :: len` instead of `"Bound :: < '_, PyAny > :: len"`
+  --> tests/ui/deprecated.rs:26:27
+   |
+26 |     #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")]
+   |                           ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: use of deprecated constant `<FromPyWithTuple as pyo3::FromPyObject<'py>>::extract_bound::LIT_STR_DEPRECATION`: remove the quotes from the literal
+       = help: use `Bound :: < '_, PyAny > :: len` instead of `"Bound :: < '_, PyAny > :: len"`
+  --> tests/ui/deprecated.rs:33:27
+   |
+33 |     #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")] usize,
+   |                           ^^^^^^^^^^^^^^^^^^^^^^^^^
