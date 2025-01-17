@@ -1,5 +1,4 @@
 #![warn(missing_docs)]
-#[allow(clippy::literal_string_with_formatting_args)]
 #![cfg_attr(
     feature = "nightly",
     feature(auto_traits, negative_impls, try_trait_v2)
