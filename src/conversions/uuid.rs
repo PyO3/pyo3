@@ -57,9 +57,8 @@ use crate::exceptions::{PyTypeError, PyValueError};
 use crate::instance::Bound;
 use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
-use crate::types::bytearray::PyByteArrayMethods;
 use crate::types::{
-    IntoPyDict, PyByteArray, PyBytes, PyBytesMethods, PyInt, PyStringMethods, PyType,
+    PyBytes, PyBytesMethods, PyInt, PyStringMethods, PyType,
 };
 use crate::{FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python};
 #[allow(deprecated)]
@@ -82,14 +81,12 @@ impl FromPyObject<'_> for Uuid {
             }
         }
 
-        if obj.is_instance_of::<PyBytes>() || obj.is_instance_of::<PyByteArray>() {
+        if obj.is_instance_of::<PyBytes>() {
             let bytes = if let Ok(py_bytes) = obj.downcast::<PyBytes>() {
                 py_bytes.as_bytes()
-            } else if let Ok(py_bytearray) = obj.downcast::<PyByteArray>() {
-                &py_bytearray.to_vec()
             } else {
                 return Err(PyTypeError::new_err(
-                    "Expected bytes or bytearray for UUID extraction.",
+                    "Expected bytes for UUID extraction.",
                 ));
             };
 
@@ -136,11 +133,9 @@ impl<'py> IntoPyObject<'py> for Uuid {
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let uuid_cls = get_uuid_cls(py)?;
-        let kwargs = [("int", self.as_u128())].into_py_dict(py)?;
 
         Ok(uuid_cls
-            .call((), Some(&kwargs))
-            .expect("failed to call uuid.UUID")
+            .call1((py.None(), py.None(), py.None(), py.None(), self.as_u128()))?
             .into_pyobject(py)?)
     }
 }
