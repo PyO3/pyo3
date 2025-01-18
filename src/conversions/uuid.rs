@@ -57,9 +57,7 @@ use crate::exceptions::{PyTypeError, PyValueError};
 use crate::instance::Bound;
 use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
-use crate::types::{
-    PyBytes, PyBytesMethods, PyInt, PyStringMethods, PyType,
-};
+use crate::types::{PyBytes, PyBytesMethods, PyInt, PyStringMethods, PyType};
 use crate::{FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python};
 #[allow(deprecated)]
 use crate::{IntoPy, ToPyObject};
@@ -85,9 +83,7 @@ impl FromPyObject<'_> for Uuid {
             let bytes = if let Ok(py_bytes) = obj.downcast::<PyBytes>() {
                 py_bytes.as_bytes()
             } else {
-                return Err(PyTypeError::new_err(
-                    "Expected bytes for UUID extraction.",
-                ));
+                return Err(PyTypeError::new_err("Expected bytes for UUID extraction."));
             };
 
             return Uuid::from_slice(bytes)
