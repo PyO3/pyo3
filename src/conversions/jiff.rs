@@ -22,7 +22,7 @@
 //! ```rust
 //! # #![cfg_attr(windows, allow(unused_imports))]
 //! # use jiff_01 as jiff;
-//! use jiff::{Zoned, ToSpan};
+//! use jiff::{Zoned, SignedDuration, ToSpan};
 //! use pyo3::{Python, PyResult, IntoPyObject, types::PyAnyMethods};
 //!
 //! # #[cfg(windows)]
@@ -36,7 +36,7 @@
 //!         let jiff_span = 1.second();
 //!         // Convert them to Python
 //!         let py_datetime = jiff_zoned.into_pyobject(py)?;
-//!         let py_timedelta = jiff_span.into_pyobject(py)?;
+//!         let py_timedelta = SignedDuration::try_from(jiff_span)?.into_pyobject(py)?;
 //!         // Do an operation in Python
 //!         let py_sum = py_datetime.call_method1("__add__", (py_timedelta,))?;
 //!         // Convert back to Rust
@@ -619,21 +619,6 @@ impl<'py> FromPyObject<'py> for SignedDuration {
     }
 }
 
-impl<'py> IntoPyObject<'py> for Span {
-    #[cfg(not(Py_LIMITED_API))]
-    type Target = PyDelta;
-    #[cfg(Py_LIMITED_API)]
-    type Target = PyAny;
-    type Output = Bound<'py, Self::Target>;
-    type Error = PyErr;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        // This can fail if this Span contains units greater than days.
-        let duration: SignedDuration = self.try_into()?;
-        duration.into_pyobject(py)
-    }
-}
-
 impl<'py> FromPyObject<'py> for Span {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         let duration = ob.extract::<SignedDuration>()?;
@@ -1206,7 +1191,8 @@ mod tests {
                 // python values of durations (from -999999999 to 999999999 days),
                 Python::with_gil(|py| {
                     if let Ok(span) = Span::new().try_days(days) {
-                        let py_delta = span.into_pyobject(py).unwrap();
+                        let date = Date::new(2025, 1, 1).unwrap();
+                        let py_delta = span.to_jiff_duration(date).unwrap().into_pyobject(py).unwrap();
                         let roundtripped: Span = py_delta.extract().expect("Round trip");
                         assert_eq!(span.compare(roundtripped).unwrap(), Ordering::Equal);
                     }
