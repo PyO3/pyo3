@@ -154,7 +154,6 @@ Adds a dependency on [indexmap](https://docs.rs/indexmap) and enables conversion
 ### `jiff-01`
 
 Adds a dependency on [jiff@0.1](https://docs.rs/jiff/0.1) and requires MSRV 1.70. Enables a conversion from [jiff](https://docs.rs/jiff)'s types to python:
-- [Span](https://docs.rs/jiff/0.1/jiff/struct.Span.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
 - [SignedDuration](https://docs.rs/jiff/0.1/jiff/struct.SignedDuration.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
 - [TimeZone](https://docs.rs/jiff/0.1/jiff/tz/struct.TimeZone.html) -> [`PyTzInfo`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTzInfo.html)
 - [Offset](https://docs.rs/jiff/0.1/jiff/tz/struct.Offset.html) -> [`PyTzInfo`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTzInfo.html)
