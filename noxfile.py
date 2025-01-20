@@ -391,6 +391,12 @@ def docs(session: nox.Session) -> None:
     rustdoc_flags.append(session.env.get("RUSTDOCFLAGS", ""))
     session.env["RUSTDOCFLAGS"] = " ".join(rustdoc_flags)
 
+    features = "full"
+
+    if get_rust_version()[:2] >= (1, 70):
+        # jiff needs MSRC 1.70+
+        features += ",jiff-01"
+
     shutil.rmtree(PYO3_DOCS_TARGET, ignore_errors=True)
     _run_cargo(
         session,
@@ -398,7 +404,7 @@ def docs(session: nox.Session) -> None:
         "doc",
         "--lib",
         "--no-default-features",
-        "--features=full,jiff-01",
+        f"--features={features}",
         "--no-deps",
         "--workspace",
         *cargo_flags,
