@@ -7,6 +7,7 @@ pub mod either;
 pub mod eyre;
 pub mod hashbrown;
 pub mod indexmap;
+pub mod jiff;
 pub mod num_bigint;
 pub mod num_complex;
 pub mod num_rational;
