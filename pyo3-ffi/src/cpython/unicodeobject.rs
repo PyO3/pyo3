@@ -2,7 +2,7 @@
 use crate::Py_hash_t;
 use crate::{PyObject, Py_UCS1, Py_UCS2, Py_UCS4, Py_ssize_t};
 use libc::wchar_t;
-use std::os::raw::{c_char, c_int, c_uint, c_void, c_ushort};
+use std::os::raw::{c_char, c_int, c_uint, c_ushort, c_void};
 
 // skipped Py_UNICODE_ISSPACE()
 // skipped Py_UNICODE_ISLOWER()
@@ -143,7 +143,7 @@ const STATE_ASCII_WIDTH: u8 = 1;
 #[cfg(all(not(GraalPy), Py_3_14))]
 const STATE_STATICALLY_ALLOCATED_INDEX: usize =
     (STATE_INTERNED_WIDTH + STATE_KIND_WIDTH + STATE_COMPACT_WIDTH + STATE_ASCII_WIDTH) as usize;
-    #[cfg(all(not(GraalPy), Py_3_14))]
+#[cfg(all(not(GraalPy), Py_3_14))]
 const STATE_STATICALLY_ALLOCATED_WIDTH: u8 = 1;
 
 #[cfg(not(any(Py_3_12, GraalPy)))]
@@ -285,27 +285,39 @@ impl PyASCIIObjectState {
     #[cfg(not(Py_3_14))]
     #[inline]
     unsafe fn statically_allocated(&self) -> c_uint {
-        std::mem::transmute(self.bitfield.get(STATE_STATICALLY_ALLOCATED_INDEX, STATE_STATICALLY_ALLOCATED_WIDTH) as u32)
+        std::mem::transmute(self.bitfield.get(
+            STATE_STATICALLY_ALLOCATED_INDEX,
+            STATE_STATICALLY_ALLOCATED_WIDTH,
+        ) as u32)
     }
 
     #[cfg(not(Py_3_14))]
     #[inline]
     unsafe fn set_statically_allocated(&mut self, val: c_uint) {
         let val: u32 = std::mem::transmute(val);
-        self.bitfield
-            .set(STATE_STATICALLY_ALLOCATED_INDEX, STATE_STATICALLY_ALLOCATED_WIDTH, val as u64)
+        self.bitfield.set(
+            STATE_STATICALLY_ALLOCATED_INDEX,
+            STATE_STATICALLY_ALLOCATED_WIDTH,
+            val as u64,
+        )
     }
 
     #[inline]
     unsafe fn statically_allocated(&self) -> c_ushort {
-        std::mem::transmute(self.bitfield.get(STATE_STATICALLY_ALLOCATED_INDEX, STATE_STATICALLY_ALLOCATED_WIDTH) as c_ushort)
+        std::mem::transmute(self.bitfield.get(
+            STATE_STATICALLY_ALLOCATED_INDEX,
+            STATE_STATICALLY_ALLOCATED_WIDTH,
+        ) as c_ushort)
     }
 
     #[inline]
     unsafe fn set_statically_allocated(&mut self, val: c_ushort) {
         let val: c_ushort = std::mem::transmute(val);
-        self.bitfield
-            .set(STATE_STATICALLY_ALLOCATED_INDEX, STATE_STATICALLY_ALLOCATED_WIDTH, val as u64)
+        self.bitfield.set(
+            STATE_STATICALLY_ALLOCATED_INDEX,
+            STATE_STATICALLY_ALLOCATED_WIDTH,
+            val as u64,
+        )
     }
 
     #[cfg(not(Py_3_12))]
@@ -358,7 +370,7 @@ pub struct PyASCIIObject {
     /// unsigned int ascii:1;
     /// unsigned int ready:1;
     /// unsigned int :24;
-    /// 
+    ///
     /// 3.12 and 3.13:
     /// unsigned int interned:2; // SSTATE_* constants.
     /// unsigned int kind:3;     // PyUnicode_*_KIND constants.
@@ -366,7 +378,7 @@ pub struct PyASCIIObject {
     /// unsigned int ascii:1;
     /// unsigned int statically_allocated:1;
     /// unsigned int :24;
-    /// 
+    ///
     /// 3.14 and later:
     /// uint16_t interned;   // SSTATE_* constants.
     /// unsigned short kind:3; // PyUnicode_*_KIND constants.
