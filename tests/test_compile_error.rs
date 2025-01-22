@@ -29,6 +29,7 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_frompy_derive.rs");
     t.compile_fail("tests/ui/static_ref.rs");
     t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
+    #[cfg(not(any(feature = "uuid")))]
     t.compile_fail("tests/ui/invalid_pyfunctions.rs");
     #[cfg(not(any(feature = "hashbrown", feature = "indexmap")))]
     t.compile_fail("tests/ui/invalid_pymethods.rs");

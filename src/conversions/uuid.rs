@@ -81,16 +81,13 @@ fn get_uuid_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
 impl FromPyObject<'_> for Uuid {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         let py = obj.py();
+        let uuid_cls = get_uuid_cls(py)?;
 
-        if let Ok(uuid_cls) = get_uuid_cls(py) {
-            if obj.is_instance(uuid_cls)? {
-                let uuid_int: u128 = obj.getattr(intern!(py, "int"))?.extract()?;
-                Ok(Uuid::from_u128(uuid_int.to_le()))
-            } else {
-                Err(PyTypeError::new_err("Expected a `uuid.UUID` instance."))
-            }
+        if obj.is_instance(uuid_cls)? {
+            let uuid_int: u128 = obj.getattr(intern!(py, "int"))?.extract()?;
+            Ok(Uuid::from_u128(uuid_int.to_le()))
         } else {
-            Err(PyTypeError::new_err("Failed to import `uuid.UUID`."))
+            Err(PyTypeError::new_err("Expected a `uuid.UUID` instance."))
         }
     }
 }

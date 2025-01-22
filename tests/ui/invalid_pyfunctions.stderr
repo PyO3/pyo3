@@ -53,5 +53,4 @@ error[E0277]: the trait bound `&str: From<BoundRef<'_, '_, pyo3::types::PyModule
              `String` implements `From<Box<str>>`
              `String` implements `From<Cow<'_, str>>`
              `String` implements `From<char>`
-             `String` implements `From<uuid::Uuid>`
    = note: required for `BoundRef<'_, '_, pyo3::types::PyModule>` to implement `Into<&str>`
