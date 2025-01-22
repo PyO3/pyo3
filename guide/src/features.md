@@ -211,3 +211,7 @@ struct User {
 Adds a dependency on [smallvec](https://docs.rs/smallvec) and enables conversions into its [`SmallVec`](https://docs.rs/smallvec/latest/smallvec/struct.SmallVec.html) type.
 
 [set-configuration-options]: https://doc.rust-lang.org/reference/conditional-compilation.html#set-configuration-options
+
+### `uuid`
+
+Adds a dependency on [uuid](https://docs.rs/uuid) and enables conversions into its [`Uuid`](https://docs.rs/uuid/latest/uuid/struct.Uuid.html) type.

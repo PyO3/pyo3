@@ -286,6 +286,7 @@
 //! [`HashMap`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashMap.html
 //! [`HashSet`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html
 //! [`SmallVec`]: https://docs.rs/smallvec/latest/smallvec/struct.SmallVec.html
+//! [`Uuid`]: https://docs.rs/uuid/latest/uuid/struct.Uuid.html
 //! [`IndexMap`]: https://docs.rs/indexmap/latest/indexmap/map/struct.IndexMap.html
 //! [`BigInt`]: https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html
 //! [`BigUint`]: https://docs.rs/num-bigint/latest/num_bigint/struct.BigUint.html
@@ -319,6 +320,7 @@
 //! [global interpreter lock]: https://docs.python.org/3/glossary.html#term-global-interpreter-lock
 //! [hashbrown]: https://docs.rs/hashbrown
 //! [smallvec]: https://docs.rs/smallvec
+//! [uuid]: https://docs.rs/uuid
 //! [indexmap]: https://docs.rs/indexmap
 #![doc = concat!("[manual_builds]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/building-and-distribution.html#manual-builds \"Manual builds - Building and Distribution - PyO3 user guide\"")]
 //! [num-bigint]: https://docs.rs/num-bigint
