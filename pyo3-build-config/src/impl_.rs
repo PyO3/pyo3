@@ -179,7 +179,7 @@ impl InterpreterConfig {
 
         let mut out = vec![];
 
-        for i in MINIMUM_SUPPORTED_VERSION.minor..=self.version.minor + 1 {
+        for i in MINIMUM_SUPPORTED_VERSION.minor..=self.version.minor {
             out.push(format!("cargo:rustc-cfg=Py_3_{}", i));
         }
 
@@ -3116,7 +3116,7 @@ mod tests {
             implementation: PythonImplementation::CPython,
             version: PythonVersion {
                 major: 3,
-                minor: 14,
+                minor: 13,
             },
             shared: true,
             abi3: false,
@@ -3140,7 +3140,6 @@ mod tests {
                 "cargo:rustc-cfg=Py_3_11".to_owned(),
                 "cargo:rustc-cfg=Py_3_12".to_owned(),
                 "cargo:rustc-cfg=Py_3_13".to_owned(),
-                "cargo:rustc-cfg=Py_3_14".to_owned(),
                 "cargo:rustc-cfg=Py_GIL_DISABLED".to_owned(),
             ]
         );
