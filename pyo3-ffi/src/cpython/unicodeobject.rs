@@ -1,7 +1,7 @@
 #[cfg(any(Py_3_11, not(PyPy)))]
 use crate::Py_hash_t;
 use crate::{PyObject, Py_UCS1, Py_UCS2, Py_UCS4, Py_ssize_t};
-use libc::{c_ushort, wchar_t};
+use libc::wchar_t;
 #[cfg(Py_3_14)]
 use std::os::raw::c_ushort;
 use std::os::raw::{c_char, c_int, c_uint, c_void};
