@@ -839,6 +839,13 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
     }
 }
 
+unsafe impl<T> AsPyPointer for Borrowed<'_, '_, T> {
+    #[inline]
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        Self::as_ptr(*self)
+    }
+}
+
 impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
     type Any = Borrowed<'a, 'py, PyAny>;
 
