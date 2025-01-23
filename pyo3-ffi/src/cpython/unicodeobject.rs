@@ -2,7 +2,9 @@
 use crate::Py_hash_t;
 use crate::{PyObject, Py_UCS1, Py_UCS2, Py_UCS4, Py_ssize_t};
 use libc::wchar_t;
-use std::os::raw::{c_char, c_int, c_uint, c_ushort, c_void};
+use std::os::raw::{c_char, c_int, c_uint, c_void};
+#[cfg(Py_3_14)]
+use std::os::raw::c_ushort;
 
 // skipped Py_UNICODE_ISSPACE()
 // skipped Py_UNICODE_ISLOWER()
