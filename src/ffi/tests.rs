@@ -158,6 +158,11 @@ fn ascii_object_bitfield() {
         o.set_ready(1);
         #[cfg(not(Py_3_12))]
         assert_eq!(o.ready(), 1);
+
+        #[cfg(Py_3_12)]
+        o.set_statically_allocated(1);
+        #[cfg(Py_3_12)]
+        assert_eq!(o.statically_allocated(), 1);
     }
 }
 
