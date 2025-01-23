@@ -1,10 +1,10 @@
 #[cfg(any(Py_3_11, not(PyPy)))]
 use crate::Py_hash_t;
 use crate::{PyObject, Py_UCS1, Py_UCS2, Py_UCS4, Py_ssize_t};
-use libc::wchar_t;
-use std::os::raw::{c_char, c_int, c_uint, c_void};
+use libc::{c_ushort, wchar_t};
 #[cfg(Py_3_14)]
 use std::os::raw::c_ushort;
+use std::os::raw::{c_char, c_int, c_uint, c_void};
 
 // skipped Py_UNICODE_ISSPACE()
 // skipped Py_UNICODE_ISLOWER()
@@ -585,6 +585,46 @@ impl PyASCIIObject {
     pub unsafe fn set_ready(&mut self, val: c_uint) {
         let mut state = PyASCIIObjectState::from(self.state);
         state.set_ready(val);
+        self.state = u32::from(state);
+    }
+
+    /// Get the `statically_allocated` field of the [`PyASCIIObject`] state bitfield.
+    ///
+    /// Returns either `0` or `1`.
+    #[inline]
+    #[cfg(all(Py_3_12, not(Py_3_14)))]
+    pub unsafe fn statically_allocated(&self) -> c_uint {
+        PyASCIIObjectState::from(self.state).statically_allocated()
+    }
+
+    /// Set the `statically_allocated` flag of the [`PyASCIIObject`] state bitfield.
+    ///
+    /// Calling this function with an argument that is neither `0` nor `1` is invalid.
+    #[inline]
+    #[cfg(all(Py_3_12, not(Py_3_14)))]
+    pub unsafe fn set_statically_allocated(&mut self, val: c_uint) {
+        let mut state = PyASCIIObjectState::from(self.state);
+        state.set_statically_allocated(val);
+        self.state = u32::from(state);
+    }
+
+    /// Get the `statically_allocated` field of the [`PyASCIIObject`] state bitfield.
+    ///
+    /// Returns either `0` or `1`.
+    #[inline]
+    #[cfg(Py_3_14)]
+    pub unsafe fn statically_allocated(&self) -> c_ushort {
+        PyASCIIObjectState::from(self.state).statically_allocated()
+    }
+
+    /// Set the `statically_allocated` flag of the [`PyASCIIObject`] state bitfield.
+    ///
+    /// Calling this function with an argument that is neither `0` nor `1` is invalid.
+    #[inline]
+    #[cfg(Py_3_14)]
+    pub unsafe fn set_statically_allocated(&mut self, val: c_ushort) {
+        let mut state = PyASCIIObjectState::from(self.state);
+        state.set_statically_allocated(val);
         self.state = u32::from(state);
     }
 }
