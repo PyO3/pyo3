@@ -28,7 +28,7 @@ fn main() {
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")
         .clang_args(clang_args)
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         // blocklist some values which apparently have conflicting definitions on unix
         .blocklist_item("FP_NORMAL")
         .blocklist_item("FP_SUBNORMAL")

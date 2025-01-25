@@ -103,6 +103,11 @@ jobs:
               rust-target: "x86_64-unknown-linux-gnu",
             },
             {
+              os: "ubuntu-22.04-arm",
+              python-architecture: "arm64",
+              rust-target: "aarch64-unknown-linux-gnu",
+            },
+            {
               os: "ubuntu-latest",
               python-architecture: "x64",
               rust-target: "powerpc64le-unknown-linux-gnu",
@@ -192,6 +197,11 @@ jobs:
               os: "ubuntu-latest",
               python-architecture: "x64",
               rust-target: "x86_64-unknown-linux-gnu",
+            },
+            {
+              os: "ubuntu-22.04-arm",
+              python-architecture: "arm64",
+              rust-target: "aarch64-unknown-linux-gnu",
             },
             {
               os: "windows-latest",
@@ -347,6 +357,15 @@ jobs:
                 os: "macos-13",
                 python-architecture: "x64",
                 rust-target: "x86_64-apple-darwin",
+              }
+          # arm64 Linux runner is in public preview, so test 3.13 on it
+          - rust: stable
+            python-version: "3.13"
+            platform:
+              {
+                os: "ubuntu-22.04-arm",
+                python-architecture: "arm64",
+                rust-target: "aarch64-unknown-linux-gnu",
               }
 
         exclude:
