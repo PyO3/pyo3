@@ -182,7 +182,7 @@ fn emit_link_config(interpreter_config: &InterpreterConfig) -> Result<()> {
     Ok(())
 }
 
-fn do_cc(interpreter_config: &InterpreterConfig) -> Result<()> {
+fn do_cc(interpreter_config: &InterpreterConfig) {
     let implementation_def = match interpreter_config.implementation {
         PythonImplementation::CPython => "PYTHON_IS_CPYTHON",
         PythonImplementation::PyPy => "PYTHON_IS_PYPY",
@@ -195,7 +195,6 @@ fn do_cc(interpreter_config: &InterpreterConfig) -> Result<()> {
         .define(implementation_def, None)
         .cpp_link_stdlib("stdc++")
         .compile("acquire_gil");
-    Ok(())
 }
 
 /// Prepares the PyO3 crate for compilation.
@@ -234,7 +233,7 @@ fn configure_pyo3() -> Result<()> {
     // Emit cfgs like `invalid_from_utf8_lint`
     print_feature_cfgs();
 
-    do_cc(&interpreter_config)?;
+    do_cc(&interpreter_config);
 
     Ok(())
 }
