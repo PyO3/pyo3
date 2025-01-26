@@ -43,6 +43,7 @@ paste = "1"
 
 [build-dependencies]
 pyo3-build-config = { path = "../pyo3-build-config", version = "=0.23.5", features = ["resolve-config"] }
+cc = "1.2"
 
 [lints]
 workspace = true

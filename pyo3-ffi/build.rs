@@ -182,6 +182,22 @@ fn emit_link_config(interpreter_config: &InterpreterConfig) -> Result<()> {
     Ok(())
 }
 
+fn do_cc(interpreter_config: &InterpreterConfig) -> Result<()> {
+    let implementation_def = match interpreter_config.implementation {
+        PythonImplementation::CPython => "PYTHON_IS_CPYTHON",
+        PythonImplementation::PyPy => "PYTHON_IS_PYPY",
+        PythonImplementation::GraalPy => "PYTHON_IS_GRAALPY",
+    };
+    println!("cargo:rerun-if-changed=src/acquire_gil.cpp");
+    cc::Build::new()
+        .cpp(true)
+        .file("src/acquire_gil.cpp")
+        .define(implementation_def, None)
+        .cpp_link_stdlib("stdc++")
+        .compile("acquire_gil");
+    Ok(())
+}
+
 /// Prepares the PyO3 crate for compilation.
 ///
 /// This loads the config from pyo3-build-config and then makes some additional checks to improve UX
@@ -217,6 +233,8 @@ fn configure_pyo3() -> Result<()> {
 
     // Emit cfgs like `invalid_from_utf8_lint`
     print_feature_cfgs();
+
+    do_cc(&interpreter_config)?;
 
     Ok(())
 }

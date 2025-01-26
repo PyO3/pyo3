@@ -81,7 +81,13 @@ pub enum PyGILState_STATE {
 }
 
 extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure")]
+    // The PyGILState_Ensure function will call pthread_exit during interpreter shutdown,
+    // which causes undefined behavior. Redirect to the "safe" version that hangs instead,
+    // as Python 3.14 does.
+    //
+    // See https://github.com/rust-lang/rust/issues/135929
+    #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure_Safe")]
+    #[cfg_attr(not(PyPy), link_name = "PyGILState_Ensure_Safe")]
     pub fn PyGILState_Ensure() -> PyGILState_STATE;
     #[cfg_attr(PyPy, link_name = "PyPyGILState_Release")]
     pub fn PyGILState_Release(arg1: PyGILState_STATE);
