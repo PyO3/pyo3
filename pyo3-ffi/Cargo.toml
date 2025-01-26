@@ -42,6 +42,7 @@ generate-import-lib = ["pyo3-build-config/python3-dll-a"]
 paste = "1"
 
 [build-dependencies]
+cc = "1.2"
 pyo3-build-config = { path = "../pyo3-build-config", version = "=0.23.3", features = ["resolve-config"] }
 
 [lints]
