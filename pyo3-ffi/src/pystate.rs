@@ -80,15 +80,50 @@ pub enum PyGILState_STATE {
     PyGILState_UNLOCKED,
 }
 
+struct HangThread;
+
+impl Drop for HangThread {
+    fn drop(&mut self) {
+        loop {
+            #[cfg(target_family = "unix")]
+            unsafe {
+                libc::pause();
+            }
+            #[cfg(not(target_family = "unix"))]
+            std::thread::sleep(std::time::Duration::from_secs(9_999_999));
+        }
+    }
+}
+
+// The PyGILState_Ensure function will call pthread_exit during interpreter shutdown,
+// which causes undefined behavior. Redirect to the "safe" version that hangs instead,
+// as Python 3.14 does.
+//
+// See https://github.com/rust-lang/rust/issues/135929
+
+// C-unwind only supported (and necessary) since 1.71
+mod raw {
+    #[rustversion::since(1.71)]
+    extern "C-unwind" {
+        #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure")]
+        pub fn PyGILState_Ensure() -> super::PyGILState_STATE;
+    }
+
+    #[rustversion::before(1.71)]
+    extern "C" {
+        #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure")]
+        pub fn PyGILState_Ensure() -> super::PyGILState_STATE;
+    }
+}
+
+pub unsafe extern "C" fn PyGILState_Ensure() -> PyGILState_STATE {
+    let guard = HangThread;
+    let ret: PyGILState_STATE = raw::PyGILState_Ensure();
+    std::mem::forget(guard);
+    ret
+}
+
 extern "C" {
-    // The PyGILState_Ensure function will call pthread_exit during interpreter shutdown,
-    // which causes undefined behavior. Redirect to the "safe" version that hangs instead,
-    // as Python 3.14 does.
-    //
-    // See https://github.com/rust-lang/rust/issues/135929
-    #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure_Safe")]
-    #[cfg_attr(not(PyPy), link_name = "PyGILState_Ensure_Safe")]
-    pub fn PyGILState_Ensure() -> PyGILState_STATE;
     #[cfg_attr(PyPy, link_name = "PyPyGILState_Release")]
     pub fn PyGILState_Release(arg1: PyGILState_STATE);
     #[cfg(not(PyPy))]
