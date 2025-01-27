@@ -17,7 +17,7 @@ struct LockHolder {
 
 // This will hammer the GIL once the retyrbed LockHolder is dropped.
 #[pyfunction]
-fn hammer_gil_in_thread() -> PyResult<LockHolder> {
+fn hammer_gil_in_thread() -> LockHolder {
     let (sender, receiver) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         receiver.recv().ok();
@@ -25,7 +25,7 @@ fn hammer_gil_in_thread() -> PyResult<LockHolder> {
             Python::with_gil(|_py| ());
         }
     });
-    Ok(LockHolder { sender })
+    LockHolder { sender }
 }
 
 #[pyfunction]
