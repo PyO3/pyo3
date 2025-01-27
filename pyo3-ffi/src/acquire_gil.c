@@ -1,6 +1,4 @@
 #if defined(_WIN32)
-#include <windows.h>
-#include <synchapi.h>
 #else
 #include <pthread.h>
 #include <unistd.h>
@@ -19,18 +17,9 @@ int gil_func_name(void);
 
 #if defined(_WIN32)
 int wrapped_func_name(void) {
-    // Do the equivalent of https://github.com/python/cpython/issues/87135 (included
-    // in Python 3.14) to avoid pthread_exit unwinding the current thread, which tends
-    // to cause undefined behavior in Rust.
-    //
-    // Unfortunately, I don't know of a way to do a catch(...) from Rust.
-    __try {
-        return gil_func_name();
-    } __catch(void) {
-        while(1) {
-            SleepEx(INFINITE, TRUE);
-        }
-    }
+    // In MSVC, PyThread_exit_thread calls _endthreadex(0), which does not use SEH. This can
+    // cause Rust-level UB if there is pinned memory, but AFAICT there's not much we can do about it.
+    return gil_func_name();
 }
 #else
 static void hang_thread(void *ignore) {
