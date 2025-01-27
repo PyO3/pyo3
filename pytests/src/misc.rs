@@ -9,6 +9,25 @@ fn issue_219() {
     Python::with_gil(|_| {});
 }
 
+#[pyclass]
+struct LockHolder {
+    #[allow(unused)]
+    sender: std::sync::mpsc::Sender<()>,
+}
+
+// This will hammer the GIL once the retyrbed LockHolder is dropped.
+#[pyfunction]
+fn hammer_gil_in_thread() -> PyResult<LockHolder> {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        receiver.recv().ok();
+        loop {
+            Python::with_gil(|_py| ());
+        }
+    });
+    Ok(LockHolder { sender })
+}
+
 #[pyfunction]
 fn get_type_fully_qualified_name<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyString>> {
     obj.get_type().fully_qualified_name()
@@ -35,6 +54,7 @@ fn get_item_and_run_callback(dict: Bound<'_, PyDict>, callback: Bound<'_, PyAny>
 #[pymodule(gil_used = false)]
 pub fn misc(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(issue_219, m)?)?;
+    m.add_function(wrap_pyfunction!(hammer_gil_in_thread, m)?)?;
     m.add_function(wrap_pyfunction!(get_type_fully_qualified_name, m)?)?;
     m.add_function(wrap_pyfunction!(accepts_bool, m)?)?;
     m.add_function(wrap_pyfunction!(get_item_and_run_callback, m)?)?;
