@@ -12,7 +12,8 @@ fn issue_219() {
 #[pyclass]
 struct LockHolder {
     #[allow(unused)]
-    sender: std::sync::mpsc::Sender<()>,
+    // Mutex needed for the MSRV
+    sender: std::sync::Mutex<std::sync::mpsc::Sender<()>>,
 }
 
 // This will hammer the GIL once the LockHolder is dropped.
@@ -27,7 +28,9 @@ fn hammer_gil_in_thread() -> LockHolder {
             Python::with_gil(|_py| ());
         }
     });
-    LockHolder { sender }
+    LockHolder {
+        sender: std::sync::Mutex::new(sender),
+    }
 }
 
 #[pyfunction]
