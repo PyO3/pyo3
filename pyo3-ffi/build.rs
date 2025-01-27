@@ -190,10 +190,8 @@ fn do_cc(interpreter_config: &InterpreterConfig) {
     };
     println!("cargo:rerun-if-changed=src/acquire_gil.cpp");
     cc::Build::new()
-        .cpp(true)
-        .file("src/acquire_gil.cpp")
+        .file("src/acquire_gil.c")
         .define(implementation_def, None)
-        .cpp_link_stdlib("stdc++")
         .compile("acquire_gil");
 }
 
