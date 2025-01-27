@@ -15,12 +15,14 @@ struct LockHolder {
     sender: std::sync::mpsc::Sender<()>,
 }
 
-// This will hammer the GIL once the retyrbed LockHolder is dropped.
+// This will hammer the GIL once the LockHolder is dropped.
 #[pyfunction]
 fn hammer_gil_in_thread() -> LockHolder {
     let (sender, receiver) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         receiver.recv().ok();
+        // now the interpreter has shut down, so hammer the GIL. In buggy
+        // versions of PyO3 this will cause a crash.
         loop {
             Python::with_gil(|_py| ());
         }
