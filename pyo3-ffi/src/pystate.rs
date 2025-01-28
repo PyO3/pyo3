@@ -101,7 +101,8 @@ impl Drop for HangThread {
 //
 // See https://github.com/rust-lang/rust/issues/135929
 
-// C-unwind only supported (and necessary) since 1.71
+// C-unwind only supported (and necessary) since 1.71. Python 3.14+ does not do
+// pthread_exit from PyGILState_Ensure (https://github.com/python/cpython/issues/87135).
 mod raw {
     #[cfg(all(not(Py_3_14), rustc_has_extern_c_unwind))]
     extern "C-unwind" {
