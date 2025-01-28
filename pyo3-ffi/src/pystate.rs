@@ -120,6 +120,24 @@ mod raw {
 #[cfg(not(Py_3_14))]
 pub unsafe extern "C" fn PyGILState_Ensure() -> PyGILState_STATE {
     let guard = HangThread;
+    // If `PyGILState_Ensure` calls `pthread_exit`, which it does on Python < 3.14
+    // when the interpreter is shutting down, this will cause a forced unwind.
+    // doing a forced unwind through a function with a Rust destructor is unspecified
+    // behavior.
+    //
+    // However, currently it runs the destructor, which will cause the thread to
+    // hang as it should.
+    //
+    // And if we don't catch the unwinding here, then one of our callers probably has a destructor,
+    // so it's unspecified behavior anyway, and on many configurations causes the process to abort.
+    //
+    // The alternative is for pyo3 to contain custom C or C++ code that catches the `pthread_exit`,
+    // but that's also annoying from a portability point of view.
+    //
+    // On Windows, `PyGILState_Ensure` calls `_endthreadex` instead, which AFAICT can't be caught
+    // and therefore will cause unsafety if there are pinned objects on the stack. AFAICT there's
+    // nothing we can do it other than waiting for Python 3.14 or not using Windows. At least,
+    // if there is nothing pinned on the stack, it won't cause the process to crash.
     let ret: PyGILState_STATE = raw::PyGILState_Ensure();
     std::mem::forget(guard);
     ret
