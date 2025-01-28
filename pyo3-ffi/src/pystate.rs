@@ -103,25 +103,29 @@ impl Drop for HangThread {
 
 // C-unwind only supported (and necessary) since 1.71
 mod raw {
-    #[rustversion::since(1.71)]
+    #[cfg(all(not(Py_3_14), rustc_has_extern_c_unwind))]
     extern "C-unwind" {
         #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure")]
         pub fn PyGILState_Ensure() -> super::PyGILState_STATE;
     }
 
-    #[rustversion::before(1.71)]
+    #[cfg(not(all(not(Py_3_14), rustc_has_extern_c_unwind)))]
     extern "C" {
         #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure")]
         pub fn PyGILState_Ensure() -> super::PyGILState_STATE;
     }
 }
 
+#[cfg(not(Py_3_14))]
 pub unsafe extern "C" fn PyGILState_Ensure() -> PyGILState_STATE {
     let guard = HangThread;
     let ret: PyGILState_STATE = raw::PyGILState_Ensure();
     std::mem::forget(guard);
     ret
 }
+
+#[cfg(Py_3_14)]
+pub use self::raw::PyGILState_Ensure;
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyGILState_Release")]

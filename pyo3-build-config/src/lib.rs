@@ -180,6 +180,10 @@ pub fn print_feature_cfgs() {
         println!("cargo:rustc-cfg=rustc_has_once_lock");
     }
 
+    if rustc_minor_version >= 71 {
+        println!("cargo:rustc-cfg=rustc_has_extern_c_unwind");
+    }
+
     // invalid_from_utf8 lint was added in Rust 1.74
     if rustc_minor_version >= 74 {
         println!("cargo:rustc-cfg=invalid_from_utf8_lint");
@@ -226,12 +230,14 @@ pub fn print_expected_cfgs() {
     println!("cargo:rustc-check-cfg=cfg(diagnostic_namespace)");
     println!("cargo:rustc-check-cfg=cfg(c_str_lit)");
     println!("cargo:rustc-check-cfg=cfg(rustc_has_once_lock)");
+    println!("cargo:rustc-check-cfg=cfg(rustc_has_extern_c_unwind)");
     println!("cargo:rustc-check-cfg=cfg(io_error_more)");
     println!("cargo:rustc-check-cfg=cfg(fn_ptr_eq)");
 
     // allow `Py_3_*` cfgs from the minimum supported version up to the
     // maximum minor version (+1 for development for the next)
-    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::ABI3_MAX_MINOR + 1 {
+    // FIXME: support cfg(Py_3_14) as well due to PyGILState_Ensure
+    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=std::cmp::max(14, impl_::ABI3_MAX_MINOR + 1) {
         println!("cargo:rustc-check-cfg=cfg(Py_3_{i})");
     }
 }
