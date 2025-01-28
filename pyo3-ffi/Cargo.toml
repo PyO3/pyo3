@@ -14,7 +14,6 @@ rust-version = "1.63"
 
 [dependencies]
 libc = "0.2.62"
-rustversion = "1"
 
 [features]
 
