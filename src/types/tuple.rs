@@ -378,6 +378,14 @@ impl<'py> Iterator for BoundTupleIterator<'py> {
     }
 
     #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
+    }
+
+    #[inline]
     fn last(mut self) -> Option<Self::Item>
     where
         Self: Sized,
@@ -555,6 +563,14 @@ impl<'a, 'py> Iterator for BorrowedTupleIterator<'a, 'py> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = self.len();
         (len, Some(len))
+    }
+
+    #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
     }
 
     #[inline]
@@ -1751,6 +1767,14 @@ mod tests {
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
             let last = tuple.iter().last();
             assert_eq!(last.unwrap().extract::<i32>().unwrap(), 3);
+        })
+    }
+
+    #[test]
+    fn test_iter_count() {
+        Python::with_gil(|py| {
+            let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
+            assert_eq!(tuple.iter().count(), 3);
         })
     }
 }

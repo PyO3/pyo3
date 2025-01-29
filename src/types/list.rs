@@ -696,6 +696,14 @@ impl<'py> Iterator for BoundListIterator<'py> {
     }
 
     #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
+    }
+
+    #[inline]
     fn last(mut self) -> Option<Self::Item>
     where
         Self: Sized,
@@ -1793,6 +1801,14 @@ mod tests {
             let list = PyList::new(py, vec![1, 2, 3]).unwrap();
             let last = list.iter().last();
             assert_eq!(last.unwrap().extract::<i32>().unwrap(), 3);
+        })
+    }
+
+    #[test]
+    fn test_iter_count() {
+        Python::with_gil(|py| {
+            let list = PyList::new(py, vec![1, 2, 3]).unwrap();
+            assert_eq!(list.iter().count(), 3);
         })
     }
 }
