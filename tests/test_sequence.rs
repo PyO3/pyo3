@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::exceptions::{PyIndexError, PyValueError};
-use pyo3::types::{IntoPyDict, PyList, PyMapping, PySequence};
+use pyo3::types::{IntoPyDict, PyList, PyListMethods, PyMapping, PySequence};
 use pyo3::{ffi, prelude::*};
 
 use pyo3::py_run;
@@ -20,7 +20,7 @@ impl ByteSequence {
     #[pyo3(signature=(elements = None))]
     fn new(elements: Option<&Bound<'_, PyList>>) -> PyResult<Self> {
         if let Some(pylist) = elements {
-            let mut elems = Vec::with_capacity(pylist.len());
+            let mut elems = Vec::with_capacity(PyListMethods::len(pylist));
             for pyelem in pylist {
                 let elem = pyelem.extract()?;
                 elems.push(elem);

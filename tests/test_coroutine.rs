@@ -147,7 +147,7 @@ fn cancelled_coroutine() {
         asyncio.run(main())
         "#;
         let globals = gil.import("__main__").unwrap().dict();
-        globals.set_item("sleep", sleep).unwrap();
+        PyDictMethods::set_item(&globals, "sleep", sleep).unwrap();
         let err = gil
             .run(
                 &CString::new(pyo3::unindent::unindent(&handle_windows(test))).unwrap(),
@@ -186,9 +186,7 @@ fn coroutine_cancel_handle() {
         assert asyncio.run(main()) == 0
         "#;
         let globals = gil.import("__main__").unwrap().dict();
-        globals
-            .set_item("cancellable_sleep", cancellable_sleep)
-            .unwrap();
+        PyDictMethods::set_item(&globals, "cancellable_sleep", cancellable_sleep).unwrap();
         gil.run(
             &CString::new(pyo3::unindent::unindent(&handle_windows(test))).unwrap(),
             Some(&globals),
@@ -218,7 +216,7 @@ fn coroutine_is_cancelled() {
         asyncio.run(main())
         "#;
         let globals = gil.import("__main__").unwrap().dict();
-        globals.set_item("sleep_loop", sleep_loop).unwrap();
+        PyDictMethods::set_item(&globals, "sleep_loop", sleep_loop).unwrap();
         gil.run(
             &CString::new(pyo3::unindent::unindent(&handle_windows(test))).unwrap(),
             Some(&globals),

@@ -659,7 +659,10 @@ mod tests {
                 Some(&locals),
             )
             .unwrap();
-            let result: PyResult<Offset> = locals.get_item("zi").unwrap().unwrap().extract();
+            let result: PyResult<Offset> = PyDictMethods::get_item(&locals, "zi")
+                .unwrap()
+                .unwrap()
+                .extract();
             assert!(result.is_err());
             let res = result.err().unwrap();
             // Also check the error message is what we expect

@@ -113,7 +113,7 @@ fn add<'py>(
 }
 # Python::with_gil(|py| {
 #     let s = pyo3::types::PyString::new(py, "s");
-#     assert!(add(&s, &s).unwrap().eq("ss").unwrap());
+#     assert!(add(s.as_any(), s.as_any()).unwrap().eq("ss").unwrap());
 # })
 ```
 
@@ -127,7 +127,7 @@ fn add(left: &Bound<'_, PyAny>, right: &Bound<'_, PyAny>) -> PyResult<PyObject> 
 }
 # Python::with_gil(|py| {
 #     let s = pyo3::types::PyString::new(py, "s");
-#     assert!(add(&s, &s).unwrap().bind(py).eq("ss").unwrap());
+#     assert!(add(s.as_any(), s.as_any()).unwrap().bind(py).eq("ss").unwrap());
 # })
 ```
 
@@ -229,7 +229,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyList;
 
 fn get_first_item<'py>(list: &Bound<'py, PyList>) -> PyResult<Bound<'py, PyAny>> {
-    list.get_item(0)
+    PyListMethods::get_item(list, 0)
 }
 # Python::with_gil(|py| {
 #     let l = PyList::new(py, ["hello world"]).unwrap();

@@ -74,7 +74,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakrefReference::new(&data)?;
+    ///     let reference = PyWeakrefReference::new(data.as_any())?;
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
@@ -154,7 +154,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakrefReference::new(&data)?;
+    ///     let reference = PyWeakrefReference::new(data.as_any())?;
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed()),
@@ -224,7 +224,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakrefReference::new(&data)?;
+    ///     let reference = PyWeakrefReference::new(data.as_any())?;
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
@@ -294,7 +294,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakrefReference::new(&data)?;
+    ///     let reference = PyWeakrefReference::new(data.as_any())?;
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
@@ -356,7 +356,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let object = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakrefReference::new(&object)?;
+    ///     let reference = PyWeakrefReference::new(object.as_any())?;
     ///
     ///     assert_eq!(
     ///         get_class(reference.as_borrowed())?,
@@ -451,7 +451,7 @@ mod tests {
 
                         assert!(obj.is_some());
                         assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()
-                            && obj.is_exact_instance(&class)));
+                            && obj.is_exact_instance(class.as_any())));
                     }
 
                     drop(object);
@@ -493,7 +493,7 @@ mod tests {
 
                         assert!(obj.is_some());
                         assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()
-                            && obj.is_exact_instance(&class)));
+                            && obj.is_exact_instance(class.as_any())));
                     }
 
                     drop(object);
@@ -600,7 +600,7 @@ mod tests {
             ) -> PyResult<()> {
                 Python::with_gil(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
-                    let reference = create_reference(object.bind(py))?;
+                    let reference = create_reference(object.bind(py).as_any())?;
 
                     {
                         let obj = reference.upgrade_as::<WeakrefablePyClass>();
@@ -641,7 +641,7 @@ mod tests {
             ) -> PyResult<()> {
                 Python::with_gil(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
-                    let reference = create_reference(object.bind(py))?;
+                    let reference = create_reference(object.bind(py).as_any())?;
 
                     {
                         let obj = unsafe { reference.upgrade_as_unchecked::<WeakrefablePyClass>() };
@@ -679,7 +679,7 @@ mod tests {
 
                 Python::with_gil(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
-                    let reference = create_reference(object.bind(py))?;
+                    let reference = create_reference(object.bind(py).as_any())?;
 
                     assert!(not_call_retrievable || reference.call0()?.is(&object));
                     assert!(reference.upgrade().is_some());
@@ -712,7 +712,7 @@ mod tests {
 
                 Python::with_gil(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
-                    let reference = create_reference(object.bind(py))?;
+                    let reference = create_reference(object.bind(py).as_any())?;
 
                     assert!(not_call_retrievable || reference.call0()?.is(&object));
                     assert!(reference.get_object().is(&object));

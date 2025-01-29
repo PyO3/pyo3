@@ -5,7 +5,7 @@ use crate::internal_tricks::ptr_from_ref;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
-use crate::types::{DerefToPyAny, PyDict, PyString, PyTuple};
+use crate::types::{PyDict, PyString, PyTuple};
 use crate::{
     ffi, AsPyPointer, DowncastError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef,
     PyRefMut, PyTypeInfo, Python,
@@ -494,21 +494,6 @@ fn python_format(
     match any.get_type().name() {
         Result::Ok(name) => std::write!(f, "<unprintable {} object>", name),
         Result::Err(_err) => f.write_str("<unprintable object>"),
-    }
-}
-
-// The trait bound is needed to avoid running into the auto-deref recursion
-// limit (error[E0055]), because `Bound<PyAny>` would deref into itself. See:
-// https://github.com/rust-lang/rust/issues/19509
-impl<'py, T> Deref for Bound<'py, T>
-where
-    T: DerefToPyAny,
-{
-    type Target = Bound<'py, PyAny>;
-
-    #[inline]
-    fn deref(&self) -> &Bound<'py, PyAny> {
-        self.as_any()
     }
 }
 

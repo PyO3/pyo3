@@ -88,7 +88,7 @@ struct RustyStruct {
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
 #         let dict = PyDict::new(py);
-#         dict.set_item("my_string", "test")?;
+#         PyDictMethods::set_item(&dict, "my_string", "test")?;
 #
 #         let rustystruct: RustyStruct = dict.extract()?;
 #         assert_eq!(rustystruct.my_string, "test");
@@ -514,15 +514,15 @@ struct RustyStruct {
 #     Python::with_gil(|py| -> PyResult<()> {
 #         // Filled case
 #         let dict = PyDict::new(py);
-#         dict.set_item("value", (1,)).unwrap();
-#         dict.set_item("other", 1).unwrap();
+#         PyDictMethods::set_item(&dict, "value", (1,)).unwrap();
+#         PyDictMethods::set_item(&dict, "other", 1).unwrap();
 #         let result = dict.extract::<RustyStruct>()?;
 #         assert_eq!(result.len, 1);
 #         assert_eq!(result.other, 1);
 #
 #         // Empty case
 #         let dict = PyDict::new(py);
-#         dict.set_item("other", 1).unwrap();
+#         PyDictMethods::set_item(&dict, "other", 1).unwrap();
 #         let result = dict.extract::<RustyStruct>()?;
 #         assert_eq!(result.len, 0);
 #         assert_eq!(result.other, 1);

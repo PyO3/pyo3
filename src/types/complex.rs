@@ -242,7 +242,7 @@ impl<'py> PyComplexMethods<'py> for Bound<'py, PyComplex> {
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn abs(&self) -> c_double {
         PyAnyMethods::abs(self.as_any())
-            .downcast_into()
+            .downcast_into::<crate::types::PyFloat>()
             .expect("Complex method __abs__ failed.")
             .extract()
             .expect("Failed to extract to c double.")

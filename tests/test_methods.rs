@@ -3,7 +3,7 @@
 use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::PySequence;
-use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
+use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PySetMethods, PyString, PyTuple, PyType};
 use pyo3::BoundObject;
 
 #[path = "../src/tests/common.rs"]
@@ -741,7 +741,7 @@ impl MethodWithLifeTime {
     fn set_to_list<'py>(&self, set: &Bound<'py, PySet>) -> PyResult<Bound<'py, PyList>> {
         let py = set.py();
         let mut items = vec![];
-        for _ in 0..set.len() {
+        for _ in 0..PySetMethods::len(set) {
             items.push(set.pop().unwrap());
         }
         let list = PyList::new(py, items)?;

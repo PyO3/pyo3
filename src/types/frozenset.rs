@@ -205,7 +205,7 @@ impl<'py> IntoIterator for &Bound<'py, PyFrozenSet> {
 
     /// Returns an iterator of values in this set.
     fn into_iter(self) -> Self::IntoIter {
-        self.iter()
+        PyFrozenSetMethods::iter(self)
     }
 }
 
@@ -219,8 +219,8 @@ pub struct BoundFrozenSetIterator<'p> {
 impl<'py> BoundFrozenSetIterator<'py> {
     pub(super) fn new(set: Bound<'py, PyFrozenSet>) -> Self {
         Self {
-            it: PyIterator::from_object(&set).unwrap(),
-            remaining: set.len(),
+            it: PyIterator::from_object(set.as_any()).unwrap(),
+            remaining: PyFrozenSetMethods::len(&set),
         }
     }
 }
@@ -277,7 +277,7 @@ mod tests {
     fn test_frozenset_new_and_len() {
         Python::with_gil(|py| {
             let set = PyFrozenSet::new(py, [1]).unwrap();
-            assert_eq!(1, set.len());
+            assert_eq!(1, PyFrozenSetMethods::len(&set));
 
             let v = vec![1];
             assert!(PyFrozenSet::new(py, &[v]).is_err());
@@ -288,8 +288,8 @@ mod tests {
     fn test_frozenset_empty() {
         Python::with_gil(|py| {
             let set = PyFrozenSet::empty(py).unwrap();
-            assert_eq!(0, set.len());
-            assert!(set.is_empty());
+            assert_eq!(0, PyFrozenSetMethods::len(&set));
+            assert!(PyFrozenSetMethods::is_empty(&set));
         });
     }
 
@@ -297,7 +297,7 @@ mod tests {
     fn test_frozenset_contains() {
         Python::with_gil(|py| {
             let set = PyFrozenSet::new(py, [1]).unwrap();
-            assert!(set.contains(1).unwrap());
+            assert!(PyFrozenSetMethods::contains(&set, 1).unwrap());
         });
     }
 
@@ -327,7 +327,7 @@ mod tests {
     fn test_frozenset_iter_size_hint() {
         Python::with_gil(|py| {
             let set = PyFrozenSet::new(py, [1]).unwrap();
-            let mut iter = set.iter();
+            let mut iter = PyFrozenSetMethods::iter(&set);
 
             // Exact size
             assert_eq!(iter.len(), 1);
@@ -353,9 +353,9 @@ mod tests {
             // finalize it
             let set = builder.finalize();
 
-            assert!(set.contains(1).unwrap());
-            assert!(set.contains(2).unwrap());
-            assert!(!set.contains(3).unwrap());
+            assert!(PyFrozenSetMethods::contains(&set, 1).unwrap());
+            assert!(PyFrozenSetMethods::contains(&set, 2).unwrap());
+            assert!(!PyFrozenSetMethods::contains(&set, 3).unwrap());
         });
     }
 }

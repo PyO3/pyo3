@@ -234,7 +234,7 @@ impl<'py> IntoIterator for &Bound<'py, PySet> {
     ///
     /// If PyO3 detects that the set is mutated during iteration, it will panic.
     fn into_iter(self) -> Self::IntoIter {
-        self.iter()
+        PySetMethods::iter(self)
     }
 }
 
@@ -249,8 +249,8 @@ pub struct BoundSetIterator<'p> {
 impl<'py> BoundSetIterator<'py> {
     pub(super) fn new(set: Bound<'py, PySet>) -> Self {
         Self {
-            it: PyIterator::from_object(&set).unwrap(),
-            remaining: set.len(),
+            it: PyIterator::from_object(set.as_any()).unwrap(),
+            remaining: PySetMethods::len(&set),
         }
     }
 }
@@ -325,7 +325,7 @@ mod tests {
     fn test_set_new() {
         Python::with_gil(|py| {
             let set = PySet::new(py, [1]).unwrap();
-            assert_eq!(1, set.len());
+            assert_eq!(1, PySetMethods::len(&set));
 
             let v = vec![1];
             assert!(PySet::new(py, &[v]).is_err());
@@ -336,8 +336,8 @@ mod tests {
     fn test_set_empty() {
         Python::with_gil(|py| {
             let set = PySet::empty(py).unwrap();
-            assert_eq!(0, set.len());
-            assert!(set.is_empty());
+            assert_eq!(0, PySetMethods::len(&set));
+            assert!(PySetMethods::is_empty(&set));
         });
     }
 
@@ -347,11 +347,11 @@ mod tests {
             let mut v = HashSet::<i32>::new();
             let ob = (&v).into_pyobject(py).unwrap();
             let set = ob.downcast::<PySet>().unwrap();
-            assert_eq!(0, set.len());
+            assert_eq!(0, PySetMethods::len(set));
             v.insert(7);
             let ob = v.into_pyobject(py).unwrap();
             let set2 = ob.downcast::<PySet>().unwrap();
-            assert_eq!(1, set2.len());
+            assert_eq!(1, PySetMethods::len(set2));
         });
     }
 
@@ -359,9 +359,9 @@ mod tests {
     fn test_set_clear() {
         Python::with_gil(|py| {
             let set = PySet::new(py, [1]).unwrap();
-            assert_eq!(1, set.len());
+            assert_eq!(1, PySetMethods::len(&set));
             set.clear();
-            assert_eq!(0, set.len());
+            assert_eq!(0, PySetMethods::len(&set));
         });
     }
 
@@ -369,7 +369,7 @@ mod tests {
     fn test_set_contains() {
         Python::with_gil(|py| {
             let set = PySet::new(py, [1]).unwrap();
-            assert!(set.contains(1).unwrap());
+            assert!(PySetMethods::contains(&set, 1).unwrap());
         });
     }
 
@@ -378,10 +378,10 @@ mod tests {
         Python::with_gil(|py| {
             let set = PySet::new(py, [1]).unwrap();
             assert!(!set.discard(2).unwrap());
-            assert_eq!(1, set.len());
+            assert_eq!(1, PySetMethods::len(&set));
 
             assert!(set.discard(1).unwrap());
-            assert_eq!(0, set.len());
+            assert_eq!(0, PySetMethods::len(&set));
             assert!(!set.discard(1).unwrap());
 
             assert!(set.discard(vec![1, 2]).is_err());
@@ -392,8 +392,8 @@ mod tests {
     fn test_set_add() {
         Python::with_gil(|py| {
             let set = PySet::new(py, [1, 2]).unwrap();
-            set.add(1).unwrap(); // Add a dupliated element
-            assert!(set.contains(1).unwrap());
+            PySetMethods::add(&set, 1).unwrap(); // Add a dupliated element
+            assert!(PySetMethods::contains(&set, 1).unwrap());
         });
     }
 
@@ -446,7 +446,7 @@ mod tests {
             let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
 
             for _ in &set {
-                let _ = set.add(42);
+                let _ = PySetMethods::add(&set, 42);
             }
         });
     }
@@ -460,7 +460,7 @@ mod tests {
             for item in &set {
                 let item: i32 = item.extract().unwrap();
                 let _ = set.del_item(item);
-                let _ = set.add(item + 10);
+                let _ = PySetMethods::add(&set, item + 10);
             }
         });
     }
@@ -469,7 +469,7 @@ mod tests {
     fn test_set_iter_size_hint() {
         Python::with_gil(|py| {
             let set = PySet::new(py, [1]).unwrap();
-            let mut iter = set.iter();
+            let mut iter = PySetMethods::iter(&set);
 
             // Exact size
             assert_eq!(iter.len(), 1);

@@ -315,7 +315,7 @@ impl FunctionDescription {
             let kwargs = ::std::slice::from_raw_parts(
                 // Safety: PyArg has the same memory layout as `*mut ffi::PyObject`
                 args.offset(nargs).cast::<PyArg<'py>>(),
-                kwnames.len(),
+                PyTupleMethods::len(&*kwnames),
             );
 
             self.handle_kwargs::<K, _>(
@@ -400,7 +400,7 @@ impl FunctionDescription {
 
         // Once all inputs have been processed, check that all required arguments have been provided.
 
-        self.ensure_no_missing_required_positional_arguments(output, args.len())?;
+        self.ensure_no_missing_required_positional_arguments(output, PyTupleMethods::len(&*args))?;
         self.ensure_no_missing_required_keyword_arguments(output)?;
 
         Ok((varargs, varkeywords))
@@ -683,7 +683,7 @@ impl<'py> VarargsHandler<'py> for NoVarargs {
         function_description: &FunctionDescription,
     ) -> PyResult<Self::Varargs> {
         let positional_parameter_count = function_description.positional_parameter_names.len();
-        let provided_args_count = args.len();
+        let provided_args_count = PyTupleMethods::len(args);
         if provided_args_count <= positional_parameter_count {
             Ok(())
         } else {
@@ -712,7 +712,7 @@ impl<'py> VarargsHandler<'py> for TupleVarargs {
         function_description: &FunctionDescription,
     ) -> PyResult<Self::Varargs> {
         let positional_parameters = function_description.positional_parameter_names.len();
-        Ok(args.get_slice(positional_parameters, args.len()))
+        Ok(args.get_slice(positional_parameters, PyTupleMethods::len(args)))
     }
 }
 
@@ -755,9 +755,11 @@ impl<'py> VarkeywordsHandler<'py> for DictVarkeywords {
         value: PyArg<'py>,
         _function_description: &FunctionDescription,
     ) -> PyResult<()> {
-        varkeywords
-            .get_or_insert_with(|| PyDict::new(name.py()))
-            .set_item(name, value)
+        PyDictMethods::set_item(
+            varkeywords.get_or_insert_with(|| PyDict::new(name.py())),
+            name,
+            value,
+        )
     }
 }
 

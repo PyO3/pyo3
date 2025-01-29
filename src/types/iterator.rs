@@ -164,7 +164,7 @@ mod tests {
             };
 
             {
-                let mut it = list.iter();
+                let mut it = PyListMethods::iter(&list);
 
                 assert_eq!(10_i32, it.next().unwrap().extract::<'_, i32>().unwrap());
                 assert!(it.next().unwrap().is(&obj));
@@ -239,7 +239,7 @@ def fibonacci(target):
     fn int_not_iterable() {
         Python::with_gil(|py| {
             let x = 5i32.into_pyobject(py).unwrap();
-            let err = PyIterator::from_object(&x).unwrap_err();
+            let err = PyIterator::from_object(x.as_any()).unwrap_err();
 
             assert!(err.is_instance_of::<PyTypeError>(py));
         });
