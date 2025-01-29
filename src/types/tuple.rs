@@ -378,6 +378,14 @@ impl<'py> Iterator for BoundTupleIterator<'py> {
     }
 
     #[inline]
+    fn last(mut self) -> Option<Self::Item>
+    where
+        Self: Sized,
+    {
+        self.next_back()
+    }
+
+    #[inline]
     #[cfg(not(feature = "nightly"))]
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
         let length = self.length.min(self.tuple.len());
@@ -547,6 +555,14 @@ impl<'a, 'py> Iterator for BorrowedTupleIterator<'a, 'py> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = self.len();
         (len, Some(len))
+    }
+
+    #[inline]
+    fn last(mut self) -> Option<Self::Item>
+    where
+        Self: Sized,
+    {
+        self.next_back()
     }
 }
 
@@ -1726,6 +1742,15 @@ mod tests {
             let mut iter4 = tuple.iter();
             assert_eq!(iter4.advance_back_by(0), Ok(()));
             assert_eq!(iter4.next_back().unwrap().extract::<i32>().unwrap(), 5);
+        })
+    }
+
+    #[test]
+    fn test_iter_last() {
+        Python::with_gil(|py| {
+            let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
+            let last = tuple.iter().last();
+            assert_eq!(last.unwrap().extract::<i32>().unwrap(), 3);
         })
     }
 }
