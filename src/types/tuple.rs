@@ -378,6 +378,14 @@ impl<'py> Iterator for BoundTupleIterator<'py> {
     }
 
     #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
+    }
+
+    #[inline]
     fn last(mut self) -> Option<Self::Item>
     where
         Self: Sized,
@@ -555,6 +563,14 @@ impl<'a, 'py> Iterator for BorrowedTupleIterator<'a, 'py> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = self.len();
         (len, Some(len))
+    }
+
+    #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
     }
 
     #[inline]
