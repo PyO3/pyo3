@@ -171,7 +171,7 @@ macro_rules! import_exception_bound {
 ///
 /// #[pymodule]
 /// fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-///     m.add("MyError", m.py().get_type::<MyError>())?;
+///     PyModuleMethods::add(m, "MyError", m.py().get_type::<MyError>())?;
 ///     m.add_function(wrap_pyfunction!(raise_myerror, m)?)?;
 ///     Ok(())
 /// }
@@ -179,8 +179,8 @@ macro_rules! import_exception_bound {
 /// #     Python::with_gil(|py| -> PyResult<()> {
 /// #         let fun = wrap_pyfunction!(raise_myerror, py)?;
 /// #         let locals = pyo3::types::PyDict::new(py);
-/// #         locals.set_item("MyError", py.get_type::<MyError>())?;
-/// #         locals.set_item("raise_myerror", fun)?;
+/// #         PyDictMethods::set_item(&locals, "MyError", py.get_type::<MyError>())?;
+/// #         PyDictMethods::set_item(&locals, "raise_myerror", fun)?;
 /// #
 /// #         py.run(pyo3::ffi::c_str!(
 /// # "try:

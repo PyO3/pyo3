@@ -186,7 +186,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// #     Python::with_gil(|py| -> PyResult<()> {
     /// #         let fun = wrap_pyfunction!(a_valid_function, py)?;
     /// #         let locals = pyo3::types::PyDict::new(py);
-    /// #         locals.set_item("a_valid_function", fun)?;
+    /// #         PyDictMethods::set_item(&locals, "a_valid_function", fun)?;
     /// #
     /// #         py.run(pyo3::ffi::c_str!(
     /// # r#"b = bytearray(b"hello world")
@@ -278,7 +278,7 @@ impl<'py> PyByteArrayMethods<'py> for Bound<'py, PyByteArray> {
     }
 
     fn is_empty(&self) -> bool {
-        self.len() == 0
+        PyByteArrayMethods::len(self) == 0
     }
 
     fn data(&self) -> *mut u8 {
@@ -317,12 +317,12 @@ impl<'a> Borrowed<'a, '_, PyByteArray> {
 
     #[allow(clippy::wrong_self_convention)]
     unsafe fn as_bytes(self) -> &'a [u8] {
-        slice::from_raw_parts(self.data(), self.len())
+        slice::from_raw_parts(self.data(), PyByteArrayMethods::len(&*self))
     }
 
     #[allow(clippy::wrong_self_convention)]
     unsafe fn as_bytes_mut(self) -> &'a mut [u8] {
-        slice::from_raw_parts_mut(self.data(), self.len())
+        slice::from_raw_parts_mut(self.data(), PyByteArrayMethods::len(&*self))
     }
 }
 
@@ -346,7 +346,7 @@ mod tests {
         Python::with_gil(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
-            assert_eq!(src.len(), bytearray.len());
+            assert_eq!(src.len(), PyByteArrayMethods::len(&bytearray));
         });
     }
 
@@ -417,7 +417,7 @@ mod tests {
     fn test_try_from() {
         Python::with_gil(|py| {
             let src = b"Hello Python";
-            let bytearray: &Bound<'_, PyAny> = &PyByteArray::new(py, src);
+            let bytearray: &Bound<'_, PyAny> = &PyByteArray::new(py, src).into_any();
             let bytearray: Bound<'_, PyByteArray> = TryInto::try_into(bytearray).unwrap();
 
             assert_eq!(src, unsafe { bytearray.as_bytes() });
@@ -431,7 +431,7 @@ mod tests {
             let bytearray = PyByteArray::new(py, src);
 
             bytearray.resize(20).unwrap();
-            assert_eq!(20, bytearray.len());
+            assert_eq!(20, PyByteArrayMethods::len(&bytearray));
         });
     }
 

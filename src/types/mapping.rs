@@ -97,14 +97,14 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
 
     #[inline]
     fn is_empty(&self) -> PyResult<bool> {
-        self.len().map(|l| l == 0)
+        PyMappingMethods::len(self).map(|l| l == 0)
     }
 
     fn contains<K>(&self, key: K) -> PyResult<bool>
     where
         K: IntoPyObject<'py>,
     {
-        PyAnyMethods::contains(&**self, key)
+        PyAnyMethods::contains(self, key)
     }
 
     #[inline]
@@ -112,7 +112,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
     where
         K: IntoPyObject<'py>,
     {
-        PyAnyMethods::get_item(&**self, key)
+        PyAnyMethods::get_item(self, key)
     }
 
     #[inline]
@@ -121,7 +121,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
         K: IntoPyObject<'py>,
         V: IntoPyObject<'py>,
     {
-        PyAnyMethods::set_item(&**self, key, value)
+        PyAnyMethods::set_item(self, key, value)
     }
 
     #[inline]
@@ -129,7 +129,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
     where
         K: IntoPyObject<'py>,
     {
-        PyAnyMethods::del_item(&**self, key)
+        PyAnyMethods::del_item(self, key)
     }
 
     #[inline]
@@ -175,7 +175,7 @@ impl PyTypeCheck for PyMapping {
         // optimized case dict as a well-known mapping
         PyDict::is_type_of(object)
             || get_mapping_abc(object.py())
-                .and_then(|abc| object.is_instance(abc))
+                .and_then(|abc| object.is_instance(abc.as_any()))
                 .unwrap_or_else(|err| {
                     err.write_unraisable(object.py(), Some(object));
                     false
@@ -198,14 +198,14 @@ mod tests {
             let mut v = HashMap::<i32, i32>::new();
             let ob = (&v).into_pyobject(py).unwrap();
             let mapping = ob.downcast::<PyMapping>().unwrap();
-            assert_eq!(0, mapping.len().unwrap());
-            assert!(mapping.is_empty().unwrap());
+            assert_eq!(0, PyMappingMethods::len(mapping).unwrap());
+            assert!(PyMappingMethods::is_empty(mapping).unwrap());
 
             v.insert(7, 32);
             let ob = v.into_pyobject(py).unwrap();
             let mapping2 = ob.downcast::<PyMapping>().unwrap();
-            assert_eq!(1, mapping2.len().unwrap());
-            assert!(!mapping2.is_empty().unwrap());
+            assert_eq!(1, PyMappingMethods::len(mapping2).unwrap());
+            assert!(!PyMappingMethods::is_empty(mapping2).unwrap());
         });
     }
 
@@ -216,11 +216,11 @@ mod tests {
             v.insert("key0", 1234);
             let ob = v.into_pyobject(py).unwrap();
             let mapping = ob.downcast::<PyMapping>().unwrap();
-            mapping.set_item("key1", "foo").unwrap();
+            PyMappingMethods::set_item(mapping, "key1", "foo").unwrap();
 
-            assert!(mapping.contains("key0").unwrap());
-            assert!(mapping.contains("key1").unwrap());
-            assert!(!mapping.contains("key2").unwrap());
+            assert!(PyMappingMethods::contains(mapping, "key0").unwrap());
+            assert!(PyMappingMethods::contains(mapping, "key1").unwrap());
+            assert!(!PyMappingMethods::contains(mapping, "key2").unwrap());
         });
     }
 
@@ -233,10 +233,12 @@ mod tests {
             let mapping = ob.downcast::<PyMapping>().unwrap();
             assert_eq!(
                 32,
-                mapping.get_item(7i32).unwrap().extract::<i32>().unwrap()
+                PyMappingMethods::get_item(mapping, 7i32)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
             );
-            assert!(mapping
-                .get_item(8i32)
+            assert!(PyMappingMethods::get_item(mapping, 8i32)
                 .unwrap_err()
                 .is_instance_of::<PyKeyError>(py));
         });
@@ -249,15 +251,21 @@ mod tests {
             v.insert(7, 32);
             let ob = v.into_pyobject(py).unwrap();
             let mapping = ob.downcast::<PyMapping>().unwrap();
-            assert!(mapping.set_item(7i32, 42i32).is_ok()); // change
-            assert!(mapping.set_item(8i32, 123i32).is_ok()); // insert
+            assert!(PyMappingMethods::set_item(mapping, 7i32, 42i32).is_ok()); // change
+            assert!(PyMappingMethods::set_item(mapping, 8i32, 123i32).is_ok()); // insert
             assert_eq!(
                 42i32,
-                mapping.get_item(7i32).unwrap().extract::<i32>().unwrap()
+                PyMappingMethods::get_item(mapping, 7i32)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
             );
             assert_eq!(
                 123i32,
-                mapping.get_item(8i32).unwrap().extract::<i32>().unwrap()
+                PyMappingMethods::get_item(mapping, 8i32)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
             );
         });
     }
@@ -269,10 +277,9 @@ mod tests {
             v.insert(7, 32);
             let ob = v.into_pyobject(py).unwrap();
             let mapping = ob.downcast::<PyMapping>().unwrap();
-            assert!(mapping.del_item(7i32).is_ok());
-            assert_eq!(0, mapping.len().unwrap());
-            assert!(mapping
-                .get_item(7i32)
+            assert!(PyMappingMethods::del_item(mapping, 7i32).is_ok());
+            assert_eq!(0, PyMappingMethods::len(mapping).unwrap());
+            assert!(PyMappingMethods::get_item(mapping, 7i32)
                 .unwrap_err()
                 .is_instance_of::<PyKeyError>(py));
         });

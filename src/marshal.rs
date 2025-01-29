@@ -29,7 +29,7 @@ pub const VERSION: i32 = 4;
 /// dict.set_item("mies", "wim").unwrap();
 /// dict.set_item("zus", "jet").unwrap();
 ///
-/// let bytes = marshal::dumps(&dict, marshal::VERSION);
+/// let bytes = marshal::dumps(dict.as_any(), marshal::VERSION);
 /// # });
 /// ```
 pub fn dumps<'py>(object: &Bound<'py, PyAny>, version: i32) -> PyResult<Bound<'py, PyBytes>> {
@@ -80,11 +80,11 @@ mod tests {
     fn marshal_roundtrip() {
         Python::with_gil(|py| {
             let dict = PyDict::new(py);
-            dict.set_item("aap", "noot").unwrap();
-            dict.set_item("mies", "wim").unwrap();
-            dict.set_item("zus", "jet").unwrap();
+            PyDictMethods::set_item(&dict, "aap", "noot").unwrap();
+            PyDictMethods::set_item(&dict, "mies", "wim").unwrap();
+            PyDictMethods::set_item(&dict, "zus", "jet").unwrap();
 
-            let pybytes = dumps(&dict, VERSION).expect("marshalling failed");
+            let pybytes = dumps(dict.as_any(), VERSION).expect("marshalling failed");
             let deserialized = loads(py, pybytes.as_bytes()).expect("unmarshalling failed");
 
             assert!(dict.eq(&deserialized).unwrap());

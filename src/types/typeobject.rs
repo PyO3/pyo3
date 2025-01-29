@@ -202,7 +202,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
     where
         T: PyTypeInfo,
     {
-        self.is_subclass(&T::type_object(self.py()))
+        self.is_subclass(T::type_object(self.py()).as_any())
     }
 
     fn mro(&self) -> Bound<'py, PyTuple> {
@@ -261,7 +261,7 @@ mod tests {
         Python::with_gil(|py| {
             let bool_type = py.get_type::<PyBool>();
             let long_type = py.get_type::<PyInt>();
-            assert!(bool_type.is_subclass(&long_type).unwrap());
+            assert!(bool_type.is_subclass(long_type.as_any()).unwrap());
         });
     }
 

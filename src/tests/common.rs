@@ -155,8 +155,8 @@ mod inner {
                 use $crate::types::{PyListMethods, PyStringMethods};
                 $body;
                 let expected_warnings = [$((<$category as $crate::type_object::PyTypeInfo>::type_object($py), $message)),+];
-                assert_eq!(w.len(), expected_warnings.len());
-                for (warning, (category, message)) in w.iter().zip(expected_warnings) {
+                assert_eq!(PyListMethods::len(w), expected_warnings.len());
+                for (warning, (category, message)) in PyListMethods::iter(w).zip(expected_warnings) {
 
                     assert!(warning.getattr("category").unwrap().is(&category));
                     assert_eq!(

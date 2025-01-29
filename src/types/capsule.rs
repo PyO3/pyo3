@@ -36,7 +36,7 @@ use std::os::raw::{c_char, c_int, c_void};
 ///     let capsule = PyCapsule::new(py, foo, Some(name.clone()))?;
 ///
 ///     let module = PyModule::import(py, "builtins")?;
-///     module.add("capsule", capsule)?;
+///     PyModuleMethods::add(&module, "capsule", capsule)?;
 ///
 ///     let cap: &Foo = unsafe { PyCapsule::import(py, name.as_ref())? };
 ///     assert_eq!(cap.val, 123);

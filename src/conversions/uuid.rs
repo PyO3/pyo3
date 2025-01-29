@@ -83,7 +83,7 @@ impl FromPyObject<'_> for Uuid {
         let py = obj.py();
         let uuid_cls = get_uuid_cls(py)?;
 
-        if obj.is_instance(uuid_cls)? {
+        if obj.is_instance(uuid_cls.as_any())? {
             let uuid_int: u128 = obj.getattr(intern!(py, "int"))?.extract()?;
             Ok(Uuid::from_u128(uuid_int.to_le()))
         } else {
@@ -130,7 +130,7 @@ mod tests {
                     let rs_orig = $rs;
                     let rs_uuid = rs_orig.into_pyobject(py).unwrap();
                     let locals = PyDict::new(py);
-                    locals.set_item("rs_uuid", &rs_uuid).unwrap();
+                    PyDictMethods::set_item(&locals, "rs_uuid", &rs_uuid).unwrap();
 
                     py.run(
                         &CString::new(format!(
@@ -143,7 +143,9 @@ mod tests {
                     )
                     .unwrap();
 
-                    let py_uuid = locals.get_item("py_uuid").unwrap().unwrap();
+                    let py_uuid = PyDictMethods::get_item(&locals, "py_uuid")
+                        .unwrap()
+                        .unwrap();
                     let py_result: Uuid = py_uuid.extract().unwrap();
                     assert_eq!(rs_orig, py_result);
 

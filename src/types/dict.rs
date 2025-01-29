@@ -233,7 +233,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
     }
 
     fn is_empty(&self) -> bool {
-        self.len() == 0
+        PyDictMethods::len(self) == 0
     }
 
     fn contains<K>(&self, key: K) -> PyResult<bool>
@@ -366,8 +366,8 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
 
         #[cfg(not(feature = "nightly"))]
         {
-            crate::sync::with_critical_section(self, || {
-                self.iter().try_for_each(|(key, value)| f(key, value))
+            crate::sync::with_critical_section(self.as_any(), || {
+                PyDictMethods::iter(self).try_for_each(|(key, value)| f(key, value))
             })
         }
     }
@@ -692,7 +692,7 @@ impl<'py> IntoIterator for &Bound<'py, PyDict> {
     type IntoIter = BoundDictIterator<'py>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.iter()
+        PyDictMethods::iter(self)
     }
 }
 
@@ -778,7 +778,7 @@ where
         let dict = PyDict::new(py);
         self.into_iter().try_for_each(|item| {
             let (key, value) = item.unpack();
-            dict.set_item(key, value)
+            PyDictMethods::set_item(&dict, key, value)
         })?;
         Ok(dict)
     }
@@ -829,13 +829,13 @@ mod tests {
             let dict = [(7, 32)].into_py_dict(py).unwrap();
             assert_eq!(
                 32,
-                dict.get_item(7i32)
+                PyDictMethods::get_item(&dict, 7i32)
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
                     .unwrap()
             );
-            assert!(dict.get_item(8i32).unwrap().is_none());
+            assert!(PyDictMethods::get_item(&dict, 8i32).unwrap().is_none());
             let map: HashMap<i32, i32> = [(7, 32)].iter().cloned().collect();
             assert_eq!(map, dict.extract().unwrap());
             let map: BTreeMap<i32, i32> = [(7, 32)].iter().cloned().collect();
@@ -848,10 +848,10 @@ mod tests {
     fn test_from_sequence() {
         Python::with_gil(|py| {
             let items = PyList::new(py, vec![("a", 1), ("b", 2)]).unwrap();
-            let dict = PyDict::from_sequence(&items).unwrap();
+            let dict = PyDict::from_sequence(items.as_any()).unwrap();
             assert_eq!(
                 1,
-                dict.get_item("a")
+                PyDictMethods::get_item(&dict, "a")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -859,7 +859,7 @@ mod tests {
             );
             assert_eq!(
                 2,
-                dict.get_item("b")
+                PyDictMethods::get_item(&dict, "b")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -879,7 +879,7 @@ mod tests {
     fn test_from_sequence_err() {
         Python::with_gil(|py| {
             let items = PyList::new(py, vec!["a", "b"]).unwrap();
-            assert!(PyDict::from_sequence(&items).is_err());
+            assert!(PyDict::from_sequence(items.as_any()).is_err());
         });
     }
 
@@ -891,14 +891,13 @@ mod tests {
             let ndict = dict.copy().unwrap();
             assert_eq!(
                 32,
-                ndict
-                    .get_item(7i32)
+                PyDictMethods::get_item(&ndict, 7i32)
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
                     .unwrap()
             );
-            assert!(ndict.get_item(8i32).unwrap().is_none());
+            assert!(PyDictMethods::get_item(&ndict, 8i32).unwrap().is_none());
         });
     }
 
@@ -907,10 +906,10 @@ mod tests {
         Python::with_gil(|py| {
             let mut v = HashMap::<i32, i32>::new();
             let dict = (&v).into_pyobject(py).unwrap();
-            assert_eq!(0, dict.len());
+            assert_eq!(0, PyDictMethods::len(&dict));
             v.insert(7, 32);
             let dict2 = v.into_pyobject(py).unwrap();
-            assert_eq!(1, dict2.len());
+            assert_eq!(1, PyDictMethods::len(&dict2));
         });
     }
 
@@ -920,8 +919,8 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let dict = v.into_pyobject(py).unwrap();
-            assert!(dict.contains(7i32).unwrap());
-            assert!(!dict.contains(8i32).unwrap());
+            assert!(PyDictMethods::contains(&dict, 7i32).unwrap());
+            assert!(!PyDictMethods::contains(&dict, 8i32).unwrap());
         });
     }
 
@@ -933,13 +932,13 @@ mod tests {
             let dict = v.into_pyobject(py).unwrap();
             assert_eq!(
                 32,
-                dict.get_item(7i32)
+                PyDictMethods::get_item(&dict, 7i32)
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
                     .unwrap()
             );
-            assert!(dict.get_item(8i32).unwrap().is_none());
+            assert!(PyDictMethods::get_item(&dict, 8i32).unwrap().is_none());
         });
     }
 
@@ -967,7 +966,7 @@ mod tests {
             let class = py.get_type::<HashErrors>();
             let instance = class.call0().unwrap();
             let d = PyDict::new(py);
-            match d.get_item(instance) {
+            match PyDictMethods::get_item(&d, instance) {
                 Ok(_) => {
                     panic!("this get_item call should always error")
                 }
@@ -985,11 +984,11 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let dict = v.into_pyobject(py).unwrap();
-            assert!(dict.set_item(7i32, 42i32).is_ok()); // change
-            assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
+            assert!(PyDictMethods::set_item(&dict, 7i32, 42i32).is_ok()); // change
+            assert!(PyDictMethods::set_item(&dict, 8i32, 123i32).is_ok()); // insert
             assert_eq!(
                 42i32,
-                dict.get_item(7i32)
+                PyDictMethods::get_item(&dict, 7i32)
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -997,7 +996,7 @@ mod tests {
             );
             assert_eq!(
                 123i32,
-                dict.get_item(8i32)
+                PyDictMethods::get_item(&dict, 8i32)
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1027,8 +1026,8 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let dict = (&v).into_pyobject(py).unwrap();
-            assert!(dict.set_item(7i32, 42i32).is_ok()); // change
-            assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
+            assert!(PyDictMethods::set_item(&dict, 7i32, 42i32).is_ok()); // change
+            assert!(PyDictMethods::set_item(&dict, 8i32, 123i32).is_ok()); // insert
             assert_eq!(32i32, v[&7i32]); // not updated!
             assert_eq!(None, v.get(&8i32));
         });
@@ -1040,9 +1039,9 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let dict = v.into_pyobject(py).unwrap();
-            assert!(dict.del_item(7i32).is_ok());
-            assert_eq!(0, dict.len());
-            assert!(dict.get_item(7i32).unwrap().is_none());
+            assert!(PyDictMethods::del_item(&dict, 7i32).is_ok());
+            assert_eq!(0, PyDictMethods::len(&dict));
+            assert!(PyDictMethods::get_item(&dict, 7i32).unwrap().is_none());
         });
     }
 
@@ -1052,7 +1051,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let dict = (&v).into_pyobject(py).unwrap();
-            assert!(dict.del_item(7i32).is_ok()); // change
+            assert!(PyDictMethods::del_item(&dict, 7i32).is_ok()); // change
             assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
         });
     }
@@ -1161,8 +1160,7 @@ mod tests {
             let dict = (&v).into_pyobject(py).unwrap();
 
             for (key, value) in &dict {
-                dict.set_item(key, value.extract::<i32>().unwrap() + 7)
-                    .unwrap();
+                PyDictMethods::set_item(&dict, key, value.extract::<i32>().unwrap() + 7).unwrap();
             }
         });
     }
@@ -1177,11 +1175,11 @@ mod tests {
             }
             let dict = v.into_pyobject(py).unwrap();
 
-            for (i, (key, value)) in dict.iter().enumerate() {
+            for (i, (key, value)) in PyDictMethods::iter(&dict).enumerate() {
                 let key = key.extract::<i32>().unwrap();
                 let value = value.extract::<i32>().unwrap();
 
-                dict.set_item(key + 1, value + 1).unwrap();
+                PyDictMethods::set_item(&dict, key + 1, value + 1).unwrap();
 
                 if i > 1000 {
                     // avoid this test just running out of memory if it fails
@@ -1201,11 +1199,11 @@ mod tests {
             }
             let dict = v.into_pyobject(py).unwrap();
 
-            for (i, (key, value)) in dict.iter().enumerate() {
+            for (i, (key, value)) in PyDictMethods::iter(&dict).enumerate() {
                 let key = key.extract::<i32>().unwrap();
                 let value = value.extract::<i32>().unwrap();
-                dict.del_item(key).unwrap();
-                dict.set_item(key + 1, value + 1).unwrap();
+                PyDictMethods::del_item(&dict, key).unwrap();
+                PyDictMethods::set_item(&dict, key + 1, value + 1).unwrap();
 
                 if i > 1000 {
                     // avoid this test just running out of memory if it fails
@@ -1224,7 +1222,7 @@ mod tests {
             v.insert(9, 123);
             let dict = (&v).into_pyobject(py).unwrap();
 
-            let mut iter = dict.iter();
+            let mut iter = PyDictMethods::iter(&dict);
             assert_eq!(iter.size_hint(), (v.len(), Some(v.len())));
             iter.next();
             assert_eq!(iter.size_hint(), (v.len() - 1, Some(v.len() - 1)));
@@ -1267,10 +1265,9 @@ mod tests {
 
             let py_map = map.into_py_dict(py).unwrap();
 
-            assert_eq!(py_map.len(), 1);
+            assert_eq!(PyDictMethods::len(&py_map), 1);
             assert_eq!(
-                py_map
-                    .get_item(1)
+                PyDictMethods::get_item(&py_map, 1)
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1288,10 +1285,9 @@ mod tests {
 
             let py_map = map.into_py_dict(py).unwrap();
 
-            assert_eq!(py_map.len(), 1);
+            assert_eq!(PyDictMethods::len(&py_map), 1);
             assert_eq!(
-                py_map
-                    .get_item(1)
+                PyDictMethods::get_item(&py_map, 1)
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1307,10 +1303,9 @@ mod tests {
             let vec = vec![("a", 1), ("b", 2), ("c", 3)];
             let py_map = vec.into_py_dict(py).unwrap();
 
-            assert_eq!(py_map.len(), 3);
+            assert_eq!(PyDictMethods::len(&py_map), 3);
             assert_eq!(
-                py_map
-                    .get_item("b")
+                PyDictMethods::get_item(&py_map, "b")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1326,10 +1321,9 @@ mod tests {
             let arr = [("a", 1), ("b", 2), ("c", 3)];
             let py_map = arr.into_py_dict(py).unwrap();
 
-            assert_eq!(py_map.len(), 3);
+            assert_eq!(PyDictMethods::len(&py_map), 3);
             assert_eq!(
-                py_map
-                    .get_item("b")
+                PyDictMethods::get_item(&py_map, "b")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1389,7 +1383,9 @@ mod tests {
         Python::with_gil(|py| {
             let dict = abc_dict(py);
             let keys = dict.call_method0("keys").unwrap();
-            assert!(keys.is_instance(&py.get_type::<PyDictKeys>()).unwrap());
+            assert!(keys
+                .is_instance(py.get_type::<PyDictKeys>().as_any())
+                .unwrap());
         })
     }
 
@@ -1399,7 +1395,9 @@ mod tests {
         Python::with_gil(|py| {
             let dict = abc_dict(py);
             let values = dict.call_method0("values").unwrap();
-            assert!(values.is_instance(&py.get_type::<PyDictValues>()).unwrap());
+            assert!(values
+                .is_instance(py.get_type::<PyDictValues>().as_any())
+                .unwrap());
         })
     }
 
@@ -1409,7 +1407,9 @@ mod tests {
         Python::with_gil(|py| {
             let dict = abc_dict(py);
             let items = dict.call_method0("items").unwrap();
-            assert!(items.is_instance(&py.get_type::<PyDictItems>()).unwrap());
+            assert!(items
+                .is_instance(py.get_type::<PyDictItems>().as_any())
+                .unwrap());
         })
     }
 
@@ -1419,9 +1419,9 @@ mod tests {
             let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict(py).unwrap();
             let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py).unwrap();
             dict.update(other.as_mapping()).unwrap();
-            assert_eq!(dict.len(), 4);
+            assert_eq!(PyDictMethods::len(&dict), 4);
             assert_eq!(
-                dict.get_item("a")
+                PyDictMethods::get_item(&dict, "a")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1429,7 +1429,7 @@ mod tests {
                 1
             );
             assert_eq!(
-                dict.get_item("b")
+                PyDictMethods::get_item(&dict, "b")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1437,7 +1437,7 @@ mod tests {
                 4
             );
             assert_eq!(
-                dict.get_item("c")
+                PyDictMethods::get_item(&dict, "c")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1445,7 +1445,7 @@ mod tests {
                 5
             );
             assert_eq!(
-                dict.get_item("d")
+                PyDictMethods::get_item(&dict, "d")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1453,10 +1453,9 @@ mod tests {
                 6
             );
 
-            assert_eq!(other.len(), 3);
+            assert_eq!(PyDictMethods::len(&other), 3);
             assert_eq!(
-                other
-                    .get_item("b")
+                PyDictMethods::get_item(&other, "b")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1464,8 +1463,7 @@ mod tests {
                 4
             );
             assert_eq!(
-                other
-                    .get_item("c")
+                PyDictMethods::get_item(&other, "c")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1473,8 +1471,7 @@ mod tests {
                 5
             );
             assert_eq!(
-                other
-                    .get_item("d")
+                PyDictMethods::get_item(&other, "d")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1490,9 +1487,9 @@ mod tests {
             let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict(py).unwrap();
             let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py).unwrap();
             dict.update_if_missing(other.as_mapping()).unwrap();
-            assert_eq!(dict.len(), 4);
+            assert_eq!(PyDictMethods::len(&dict), 4);
             assert_eq!(
-                dict.get_item("a")
+                PyDictMethods::get_item(&dict, "a")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1500,7 +1497,7 @@ mod tests {
                 1
             );
             assert_eq!(
-                dict.get_item("b")
+                PyDictMethods::get_item(&dict, "b")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1508,7 +1505,7 @@ mod tests {
                 2
             );
             assert_eq!(
-                dict.get_item("c")
+                PyDictMethods::get_item(&dict, "c")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1516,7 +1513,7 @@ mod tests {
                 3
             );
             assert_eq!(
-                dict.get_item("d")
+                PyDictMethods::get_item(&dict, "d")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1524,10 +1521,9 @@ mod tests {
                 6
             );
 
-            assert_eq!(other.len(), 3);
+            assert_eq!(PyDictMethods::len(&other), 3);
             assert_eq!(
-                other
-                    .get_item("b")
+                PyDictMethods::get_item(&other, "b")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1535,8 +1531,7 @@ mod tests {
                 4
             );
             assert_eq!(
-                other
-                    .get_item("c")
+                PyDictMethods::get_item(&other, "c")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1544,8 +1539,7 @@ mod tests {
                 5
             );
             assert_eq!(
-                other
-                    .get_item("d")
+                PyDictMethods::get_item(&other, "d")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1559,10 +1553,10 @@ mod tests {
     fn test_iter_all() {
         Python::with_gil(|py| {
             let dict = [(1, true), (2, true), (3, true)].into_py_dict(py).unwrap();
-            assert!(dict.iter().all(|(_, v)| v.extract::<bool>().unwrap()));
+            assert!(PyDictMethods::iter(&dict).all(|(_, v)| v.extract::<bool>().unwrap()));
 
             let dict = [(1, true), (2, false), (3, true)].into_py_dict(py).unwrap();
-            assert!(!dict.iter().all(|(_, v)| v.extract::<bool>().unwrap()));
+            assert!(!PyDictMethods::iter(&dict).all(|(_, v)| v.extract::<bool>().unwrap()));
         });
     }
 
@@ -1572,12 +1566,12 @@ mod tests {
             let dict = [(1, true), (2, false), (3, false)]
                 .into_py_dict(py)
                 .unwrap();
-            assert!(dict.iter().any(|(_, v)| v.extract::<bool>().unwrap()));
+            assert!(PyDictMethods::iter(&dict).any(|(_, v)| v.extract::<bool>().unwrap()));
 
             let dict = [(1, false), (2, false), (3, false)]
                 .into_py_dict(py)
                 .unwrap();
-            assert!(!dict.iter().any(|(_, v)| v.extract::<bool>().unwrap()));
+            assert!(!PyDictMethods::iter(&dict).any(|(_, v)| v.extract::<bool>().unwrap()));
         });
     }
 
@@ -1591,7 +1585,7 @@ mod tests {
 
             assert_eq!(
                 Some((2, true)),
-                dict.iter()
+                PyDictMethods::iter(&dict)
                     .find(|(_, v)| v.extract::<bool>().unwrap())
                     .map(|(k, v)| (k.extract().unwrap(), v.extract().unwrap()))
             );
@@ -1600,8 +1594,7 @@ mod tests {
                 .into_py_dict(py)
                 .unwrap();
 
-            assert!(dict
-                .iter()
+            assert!(PyDictMethods::iter(&dict)
                 .find(|(_, v)| v.extract::<bool>().unwrap())
                 .is_none());
         });
@@ -1616,14 +1609,13 @@ mod tests {
                 .unwrap();
             assert_eq!(
                 Some(2),
-                dict.iter().position(|(_, v)| v.extract::<bool>().unwrap())
+                PyDictMethods::iter(&dict).position(|(_, v)| v.extract::<bool>().unwrap())
             );
 
             let dict = [(1, false), (2, false), (3, false)]
                 .into_py_dict(py)
                 .unwrap();
-            assert!(dict
-                .iter()
+            assert!(PyDictMethods::iter(&dict)
                 .position(|(_, v)| v.extract::<bool>().unwrap())
                 .is_none());
         });
@@ -1633,9 +1625,8 @@ mod tests {
     fn test_iter_fold() {
         Python::with_gil(|py| {
             let dict = [(1, 1), (2, 2), (3, 3)].into_py_dict(py).unwrap();
-            let sum = dict
-                .iter()
-                .fold(0, |acc, (_, v)| acc + v.extract::<i32>().unwrap());
+            let sum =
+                PyDictMethods::iter(&dict).fold(0, |acc, (_, v)| acc + v.extract::<i32>().unwrap());
             assert_eq!(sum, 6);
         });
     }
@@ -1644,15 +1635,13 @@ mod tests {
     fn test_iter_try_fold() {
         Python::with_gil(|py| {
             let dict = [(1, 1), (2, 2), (3, 3)].into_py_dict(py).unwrap();
-            let sum = dict
-                .iter()
+            let sum = PyDictMethods::iter(&dict)
                 .try_fold(0, |acc, (_, v)| PyResult::Ok(acc + v.extract::<i32>()?))
                 .unwrap();
             assert_eq!(sum, 6);
 
             let dict = [(1, "foo"), (2, "bar")].into_py_dict(py).unwrap();
-            assert!(dict
-                .iter()
+            assert!(PyDictMethods::iter(&dict)
                 .try_fold(0, |acc, (_, v)| PyResult::Ok(acc + v.extract::<i32>()?))
                 .is_err());
         });

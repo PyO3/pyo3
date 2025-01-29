@@ -141,7 +141,7 @@ mod test_rust_decimal {
                     let rs_orig = $rs;
                     let rs_dec = rs_orig.into_pyobject(py).unwrap();
                     let locals = PyDict::new(py);
-                    locals.set_item("rs_dec", &rs_dec).unwrap();
+                    PyDictMethods::set_item(&locals, "rs_dec", &rs_dec).unwrap();
                     // Checks if Rust Decimal -> Python Decimal conversion is correct
                     py.run(
                         &CString::new(format!(
@@ -154,7 +154,7 @@ mod test_rust_decimal {
                     )
                     .unwrap();
                     // Checks if Python Decimal -> Rust Decimal conversion is correct
-                    let py_dec = locals.get_item("py_dec").unwrap().unwrap();
+                    let py_dec = PyDictMethods::get_item(&locals, "py_dec").unwrap().unwrap();
                     let py_result: Decimal = py_dec.extract().unwrap();
                     assert_eq!(rs_orig, py_result);
                 })
@@ -184,7 +184,7 @@ mod test_rust_decimal {
             Python::with_gil(|py| {
                 let rs_dec = num.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
-                locals.set_item("rs_dec", &rs_dec).unwrap();
+                PyDictMethods::set_item(&locals, "rs_dec", &rs_dec).unwrap();
                 py.run(
                     &CString::new(format!(
                        "import decimal\npy_dec = decimal.Decimal(\"{}\")\nassert py_dec == rs_dec",
@@ -216,7 +216,7 @@ mod test_rust_decimal {
                 Some(&locals),
             )
             .unwrap();
-            let py_dec = locals.get_item("py_dec").unwrap().unwrap();
+            let py_dec = PyDictMethods::get_item(&locals, "py_dec").unwrap().unwrap();
             let roundtripped: Result<Decimal, PyErr> = py_dec.extract();
             assert!(roundtripped.is_err());
         })
@@ -232,7 +232,7 @@ mod test_rust_decimal {
                 Some(&locals),
             )
             .unwrap();
-            let py_dec = locals.get_item("py_dec").unwrap().unwrap();
+            let py_dec = PyDictMethods::get_item(&locals, "py_dec").unwrap().unwrap();
             let roundtripped: Decimal = py_dec.extract().unwrap();
             let rs_dec = Decimal::from_scientific("1e3").unwrap();
             assert_eq!(rs_dec, roundtripped);
@@ -249,7 +249,7 @@ mod test_rust_decimal {
                 Some(&locals),
             )
             .unwrap();
-            let py_dec = locals.get_item("py_dec").unwrap().unwrap();
+            let py_dec = PyDictMethods::get_item(&locals, "py_dec").unwrap().unwrap();
             let roundtripped: Result<Decimal, PyErr> = py_dec.extract();
             assert!(roundtripped.is_err());
         })

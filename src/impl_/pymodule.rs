@@ -240,7 +240,7 @@ mod tests {
                 ffi::c_str!("test_module"),
                 ffi::c_str!("some doc"),
                 ModuleInitializer(|m| {
-                    m.add("SOME_CONSTANT", 42)?;
+                    PyModuleMethods::add(m, "SOME_CONSTANT", 42)?;
                     Ok(())
                 }),
             )

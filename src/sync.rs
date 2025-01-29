@@ -117,7 +117,7 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 ///         .get_or_init(py, || PyList::empty(py).unbind())
 ///         .bind(py)
 /// }
-/// # Python::with_gil(|py| assert_eq!(get_shared_list(py).len(), 0));
+/// # Python::with_gil(|py| assert_eq!(PyListMethods::len(get_shared_list(py)), 0));
 /// ```
 pub struct GILOnceCell<T> {
     once: Once,
@@ -337,7 +337,7 @@ where
     ///
     /// # Python::with_gil(|py| {
     /// #     let dict = PyDict::new(py);
-    /// #     dict.set_item(intern!(py, "foo"), 42).unwrap();
+    /// #     PyDictMethods::set_item(&dict, intern!(py, "foo"), 42).unwrap();
     /// #     let fun = wrap_pyfunction!(create_ordered_dict, py).unwrap();
     /// #     let ordered_dict = fun.call1((&dict,)).unwrap();
     /// #     assert!(dict.eq(ordered_dict).unwrap());
@@ -384,7 +384,7 @@ impl<T> Drop for GILOnceCell<T> {
 ///     let dict = PyDict::new(py);
 ///     //             👇 A new `PyString` is created
 ///     //                for every call of this function.
-///     dict.set_item("foo", 42)?;
+///     PyDictMethods::set_item(&dict, "foo", 42)?;
 ///     Ok(dict)
 /// }
 ///
@@ -393,7 +393,7 @@ impl<T> Drop for GILOnceCell<T> {
 ///     let dict = PyDict::new(py);
 ///     //               👇 A `PyString` is created once and reused
 ///     //                  for the lifetime of the program.
-///     dict.set_item(intern!(py, "foo"), 42)?;
+///     PyDictMethods::set_item(&dict, intern!(py, "foo"), 42)?;
 ///     Ok(dict)
 /// }
 /// #
@@ -627,10 +627,10 @@ mod tests {
             let foo3 = intern!(py, stringify!(foo));
 
             let dict = PyDict::new(py);
-            dict.set_item(foo1, 42_usize).unwrap();
-            assert!(dict.contains(foo2).unwrap());
+            PyDictMethods::set_item(&dict, foo1, 42_usize).unwrap();
+            assert!(PyDictMethods::contains(&dict, foo2).unwrap());
             assert_eq!(
-                dict.get_item(foo3)
+                PyDictMethods::get_item(&dict, foo3)
                     .unwrap()
                     .unwrap()
                     .extract::<usize>()
@@ -710,7 +710,7 @@ mod tests {
             s.spawn(|| {
                 Python::with_gil(|py| {
                     let b = bool_wrapper.bind(py);
-                    with_critical_section(b, || {
+                    with_critical_section(b.as_any(), || {
                         barrier.wait();
                         std::thread::sleep(std::time::Duration::from_millis(10));
                         b.borrow().0.store(true, Ordering::Release);
@@ -722,7 +722,7 @@ mod tests {
                 Python::with_gil(|py| {
                     let b = bool_wrapper.bind(py);
                     // this blocks until the other thread's critical section finishes
-                    with_critical_section(b, || {
+                    with_critical_section(b.as_any(), || {
                         assert!(b.borrow().0.load(Ordering::Acquire));
                     });
                 });

@@ -104,7 +104,7 @@ where
     fn to_object(&self, py: Python<'_>) -> PyObject {
         let dict = PyDict::new(py);
         for (k, v) in self {
-            dict.set_item(k.to_object(py), v.to_object(py)).unwrap();
+            PyDictMethods::set_item(&dict, k.to_object(py), v.to_object(py)).unwrap();
         }
         dict.into_any().unbind()
     }
@@ -120,7 +120,7 @@ where
     fn into_py(self, py: Python<'_>) -> PyObject {
         let dict = PyDict::new(py);
         for (k, v) in self {
-            dict.set_item(k.into_py(py), v.into_py(py)).unwrap();
+            PyDictMethods::set_item(&dict, k.into_py(py), v.into_py(py)).unwrap();
         }
         dict.into_any().unbind()
     }
@@ -139,7 +139,7 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
         for (k, v) in self {
-            dict.set_item(k, v)?;
+            PyDictMethods::set_item(&dict, k, v)?;
         }
         Ok(dict)
     }
@@ -158,7 +158,7 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
         for (k, v) in self {
-            dict.set_item(k, v)?;
+            PyDictMethods::set_item(&dict, k, v)?;
         }
         Ok(dict)
     }
@@ -172,7 +172,8 @@ where
 {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.downcast::<PyDict>()?;
-        let mut ret = indexmap::IndexMap::with_capacity_and_hasher(dict.len(), S::default());
+        let mut ret =
+            indexmap::IndexMap::with_capacity_and_hasher(PyDictMethods::len(dict), S::default());
         for (k, v) in dict {
             ret.insert(k.extract()?, v.extract()?);
         }
@@ -194,10 +195,9 @@ mod test_indexmap {
 
             let py_map = (&map).into_pyobject(py).unwrap();
 
-            assert!(py_map.len() == 1);
+            assert!(PyDictMethods::len(&py_map) == 1);
             assert!(
-                py_map
-                    .get_item(1)
+                PyDictMethods::get_item(&py_map, 1)
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -219,10 +219,9 @@ mod test_indexmap {
 
             let py_map = map.into_py_dict(py).unwrap();
 
-            assert_eq!(py_map.len(), 1);
+            assert_eq!(PyDictMethods::len(&py_map), 1);
             assert_eq!(
-                py_map
-                    .get_item(1)
+                PyDictMethods::get_item(&py_map, 1)
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -250,8 +249,10 @@ mod test_indexmap {
 
             let trip_map = py_map.extract::<indexmap::IndexMap<i32, i32>>().unwrap();
 
-            for (((k1, v1), (k2, v2)), (k3, v3)) in
-                map.iter().zip(py_map.iter()).zip(trip_map.iter())
+            for (((k1, v1), (k2, v2)), (k3, v3)) in map
+                .iter()
+                .zip(PyDictMethods::iter(&py_map))
+                .zip(trip_map.iter())
             {
                 let k2 = k2.extract::<i32>().unwrap();
                 let v2 = v2.extract::<i32>().unwrap();

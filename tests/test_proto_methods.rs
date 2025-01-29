@@ -1,7 +1,9 @@
 #![cfg(feature = "macros")]
 
 use pyo3::exceptions::{PyAttributeError, PyIndexError, PyValueError};
-use pyo3::types::{PyDict, PyList, PyMapping, PySequence, PySlice, PyType};
+use pyo3::types::{
+    PyDict, PyList, PyMapping, PyMappingMethods, PySequence, PySequenceMethods, PySlice, PyType,
+};
 use pyo3::{prelude::*, py_run};
 use std::iter;
 use std::sync::Mutex;
@@ -188,20 +190,20 @@ pub struct Mapping {
 #[pymethods]
 impl Mapping {
     fn __len__(&self, py: Python<'_>) -> usize {
-        self.values.bind(py).len()
+        PyDictMethods::len(self.values.bind(py))
     }
 
     fn __getitem__<'py>(&self, key: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
-        let any: &Bound<'py, PyAny> = self.values.bind(key.py());
+        let any: &Bound<'py, PyAny> = self.values.bind(key.py()).as_any();
         any.get_item(key)
     }
 
     fn __setitem__<'py>(&self, key: &Bound<'py, PyAny>, value: &Bound<'py, PyAny>) -> PyResult<()> {
-        self.values.bind(key.py()).set_item(key, value)
+        PyDictMethods::set_item(self.values.bind(key.py()), key, value)
     }
 
     fn __delitem__(&self, key: &Bound<'_, PyAny>) -> PyResult<()> {
-        self.values.bind(key.py()).del_item(key)
+        PyDictMethods::del_item(self.values.bind(key.py()), key)
     }
 }
 
@@ -232,15 +234,21 @@ fn mapping() {
         py_expect_exception!(py, inst, "[*inst] == []", PyKeyError, "0");
 
         // check mapping protocol
-        assert_eq!(mapping.len().unwrap(), 0);
+        assert_eq!(PyMappingMethods::len(mapping).unwrap(), 0);
 
-        mapping.set_item(0, 5).unwrap();
-        assert_eq!(mapping.len().unwrap(), 1);
+        PyMappingMethods::set_item(mapping, 0, 5).unwrap();
+        assert_eq!(PyMappingMethods::len(mapping).unwrap(), 1);
 
-        assert_eq!(mapping.get_item(0).unwrap().extract::<u8>().unwrap(), 5);
+        assert_eq!(
+            PyMappingMethods::get_item(mapping, 0)
+                .unwrap()
+                .extract::<u8>()
+                .unwrap(),
+            5
+        );
 
-        mapping.del_item(0).unwrap();
-        assert_eq!(mapping.len().unwrap(), 0);
+        PyMappingMethods::del_item(mapping, 0).unwrap();
+        assert_eq!(PyMappingMethods::len(mapping).unwrap(), 0);
     });
 }
 
@@ -345,16 +353,22 @@ fn sequence() {
 
         // we don't implement sequence length so that CPython doesn't attempt to correct negative
         // indices.
-        assert!(sequence.len().is_err());
+        assert!(PySequenceMethods::len(sequence).is_err());
         // however regular python len() works thanks to mp_len slot
         assert_eq!(inst.bind(py).len().unwrap(), 0);
 
         py_run!(py, inst, "inst.append(0)");
-        sequence.set_item(0, 5).unwrap();
+        PySequenceMethods::set_item(sequence, 0, 5).unwrap();
         assert_eq!(inst.bind(py).len().unwrap(), 1);
 
-        assert_eq!(sequence.get_item(0).unwrap().extract::<u8>().unwrap(), 5);
-        sequence.del_item(0).unwrap();
+        assert_eq!(
+            PySequenceMethods::get_item(sequence, 0)
+                .unwrap()
+                .extract::<u8>()
+                .unwrap(),
+            5
+        );
+        PySequenceMethods::del_item(sequence, 0).unwrap();
 
         assert_eq!(inst.bind(py).len().unwrap(), 0);
     });
@@ -687,7 +701,7 @@ asyncio.run(main())
 "#
         );
         let globals = PyModule::import(py, "__main__").unwrap().dict();
-        globals.set_item("Once", once).unwrap();
+        globals.as_any().set_item("Once", once).unwrap();
         py.run(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
@@ -743,8 +757,9 @@ asyncio.run(main())
 "#
         );
         let globals = PyModule::import(py, "__main__").unwrap().dict();
-        globals.set_item("Once", once).unwrap();
+        globals.as_any().set_item("Once", once).unwrap();
         globals
+            .as_any()
             .set_item("AsyncIterator", py.get_type::<AsyncIterator>())
             .unwrap();
         py.run(source, Some(&globals), None)
@@ -815,7 +830,7 @@ assert c.counter.count == 1
 "#
         ));
         let globals = PyModule::import(py, "__main__").unwrap().dict();
-        globals.set_item("Counter", counter).unwrap();
+        globals.as_any().set_item("Counter", counter).unwrap();
         py.run(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();

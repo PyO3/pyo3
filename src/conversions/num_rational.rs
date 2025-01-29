@@ -146,7 +146,9 @@ mod tests {
                 Some(&locals),
             )
             .unwrap();
-            let py_frac = locals.get_item("py_frac").unwrap().unwrap();
+            let py_frac = PyDictMethods::get_item(&locals, "py_frac")
+                .unwrap()
+                .unwrap();
             let roundtripped: Ratio<i32> = py_frac.extract().unwrap();
             let rs_frac = Ratio::new(-1, 8);
             assert_eq!(roundtripped, rs_frac);
@@ -162,7 +164,9 @@ mod tests {
                 Some(&locals),
             )
             .unwrap();
-            let py_frac = locals.get_item("not_fraction").unwrap().unwrap();
+            let py_frac = PyDictMethods::get_item(&locals, "not_fraction")
+                .unwrap()
+                .unwrap();
             assert!(py_frac.extract::<Ratio<i32>>().is_err());
         })
     }
@@ -179,7 +183,9 @@ mod tests {
                 Some(&locals),
             )
             .unwrap();
-            let py_frac = locals.get_item("py_frac").unwrap().unwrap();
+            let py_frac = PyDictMethods::get_item(&locals, "py_frac")
+                .unwrap()
+                .unwrap();
             let roundtripped: Ratio<i32> = py_frac.extract().unwrap();
             let rs_frac = Ratio::new(10, 1);
             assert_eq!(roundtripped, rs_frac);
@@ -196,7 +202,9 @@ mod tests {
                 Some(&locals),
             )
             .unwrap();
-            let py_frac = locals.get_item("py_frac").unwrap().unwrap();
+            let py_frac = PyDictMethods::get_item(&locals, "py_frac")
+                .unwrap()
+                .unwrap();
             let roundtripped: Ratio<i32> = py_frac.extract().unwrap();
             let rs_frac = Ratio::new(11, 10);
             assert_eq!(roundtripped, rs_frac);
@@ -213,7 +221,9 @@ mod tests {
                 Some(&locals),
             )
             .unwrap();
-            let py_frac = locals.get_item("py_frac").unwrap().unwrap();
+            let py_frac = PyDictMethods::get_item(&locals, "py_frac")
+                .unwrap()
+                .unwrap();
             let roundtripped: Ratio<i32> = py_frac.extract().unwrap();
             let rs_frac = Ratio::new(10, 5);
             assert_eq!(roundtripped, rs_frac);

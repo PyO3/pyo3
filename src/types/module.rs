@@ -239,7 +239,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// #[pymodule]
     /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    ///     module.add("c", 299_792_458)?;
+    ///     PyModuleMethods::add(module, "c", 299_792_458)?;
     ///     Ok(())
     /// }
     /// ```
@@ -329,7 +329,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// #[pymodule]
     /// fn my_module(py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     let submodule = PyModule::new(py, "submodule")?;
-    ///     submodule.add("super_useful_constant", "important")?;
+    ///     PyModuleMethods::add(&submodule, "super_useful_constant", "important")?;
     ///
     ///     module.add_submodule(&submodule)?;
     ///     Ok(())
@@ -520,7 +520,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
         T: PyClass,
     {
         let py = self.py();
-        self.add(T::NAME, T::lazy_type_object().get_or_try_init(py)?)
+        PyModuleMethods::add(self, T::NAME, T::lazy_type_object().get_or_try_init(py)?)
     }
 
     fn add_wrapped<T>(&self, wrapper: &impl Fn(Python<'py>) -> T) -> PyResult<()>
@@ -529,7 +529,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
     {
         fn inner(module: &Bound<'_, PyModule>, object: Bound<'_, PyAny>) -> PyResult<()> {
             let name = object.getattr(__name__(module.py()))?;
-            module.add(name.downcast_into::<PyString>()?, object)
+            PyModuleMethods::add(module, name.downcast_into::<PyString>()?, object)
         }
 
         let py = self.py();
@@ -538,12 +538,12 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
 
     fn add_submodule(&self, module: &Bound<'_, PyModule>) -> PyResult<()> {
         let name = module.name()?;
-        self.add(name, module)
+        PyModuleMethods::add(self, name, module)
     }
 
     fn add_function(&self, fun: Bound<'_, PyCFunction>) -> PyResult<()> {
         let name = fun.getattr(__name__(self.py()))?;
-        self.add(name.downcast_into::<PyString>()?, fun)
+        PyModuleMethods::add(self, name.downcast_into::<PyString>()?, fun)
     }
 
     #[cfg_attr(any(Py_LIMITED_API, not(Py_GIL_DISABLED)), allow(unused_variables))]

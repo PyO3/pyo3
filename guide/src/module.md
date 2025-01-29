@@ -140,7 +140,7 @@ mod my_extension {
     #[pymodule_init]
     fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
         // Arbitrary code to run at the module initialization
-        m.add("double2", m.getattr("double")?)
+        PyModuleMethods::add(m, "double2", m.getattr("double")?)
     }
 }
 # }

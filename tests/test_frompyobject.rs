@@ -2,7 +2,7 @@
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyDict, PyList, PyString, PyTuple};
+use pyo3::types::{IntoPyDict, PyDict, PyDictMethods, PyList, PyString, PyTuple};
 
 #[macro_use]
 #[path = "../src/tests/common.rs"]
@@ -426,7 +426,7 @@ fn test_enum() {
         }
 
         let dict = PyDict::new(py);
-        dict.set_item("a", "test").expect("Failed to set item");
+        PyDictMethods::set_item(&dict, "a", "test").expect("Failed to set item");
         let f = dict
             .extract::<Foo<'_>>()
             .expect("Failed to extract Foo from dict");
@@ -436,7 +436,7 @@ fn test_enum() {
         }
 
         let dict = PyDict::new(py);
-        dict.set_item("foo", "test").expect("Failed to set item");
+        PyDictMethods::set_item(&dict, "foo", "test").expect("Failed to set item");
         let f = dict
             .extract::<Foo<'_>>()
             .expect("Failed to extract Foo from dict");
@@ -501,7 +501,7 @@ fn test_enum_catch_all() {
         match f {
             EnumWithCatchAll::CatchAll(any) => {
                 let d = any.extract::<Bound<'_, PyDict>>().expect("Expected pydict");
-                assert!(d.is_empty());
+                assert!(PyDictMethods::is_empty(&d));
             }
             _ => panic!(
                 "Expected extracting EnumWithCatchAll::CatchAll, got {:?}",
@@ -680,7 +680,7 @@ pub struct WithKeywordItem {
 fn test_with_keyword_item() {
     Python::with_gil(|py| {
         let dict = PyDict::new(py);
-        dict.set_item("box", 3).unwrap();
+        PyDictMethods::set_item(&dict, "box", 3).unwrap();
         let result = dict.extract::<WithKeywordItem>().unwrap();
         let expected = WithKeywordItem { r#box: 3 };
         assert_eq!(result, expected);
@@ -699,7 +699,7 @@ pub struct WithDefaultItem {
 fn test_with_default_item() {
     Python::with_gil(|py| {
         let dict = PyDict::new(py);
-        dict.set_item("value", 3).unwrap();
+        PyDictMethods::set_item(&dict, "value", 3).unwrap();
         let result = dict.extract::<WithDefaultItem>().unwrap();
         let expected = WithDefaultItem {
             value: 3,
@@ -721,7 +721,7 @@ pub struct WithExplicitDefaultItem {
 fn test_with_explicit_default_item() {
     Python::with_gil(|py| {
         let dict = PyDict::new(py);
-        dict.set_item("value", 3).unwrap();
+        PyDictMethods::set_item(&dict, "value", 3).unwrap();
         let result = dict.extract::<WithExplicitDefaultItem>().unwrap();
         let expected = WithExplicitDefaultItem { value: 3, opt: 1 };
         assert_eq!(result, expected);
@@ -741,8 +741,8 @@ fn test_with_default_item_and_conversion_function() {
     Python::with_gil(|py| {
         // Filled case
         let dict = PyDict::new(py);
-        dict.set_item("opt", (1,)).unwrap();
-        dict.set_item("value", 3).unwrap();
+        PyDictMethods::set_item(&dict, "opt", (1,)).unwrap();
+        PyDictMethods::set_item(&dict, "value", 3).unwrap();
         let result = dict
             .extract::<WithDefaultItemAndConversionFunction>()
             .unwrap();
@@ -751,7 +751,7 @@ fn test_with_default_item_and_conversion_function() {
 
         // Empty case
         let dict = PyDict::new(py);
-        dict.set_item("value", 3).unwrap();
+        PyDictMethods::set_item(&dict, "value", 3).unwrap();
         let result = dict
             .extract::<WithDefaultItemAndConversionFunction>()
             .unwrap();
@@ -760,8 +760,8 @@ fn test_with_default_item_and_conversion_function() {
 
         // Error case
         let dict = PyDict::new(py);
-        dict.set_item("value", 3).unwrap();
-        dict.set_item("opt", 1).unwrap();
+        PyDictMethods::set_item(&dict, "value", 3).unwrap();
+        PyDictMethods::set_item(&dict, "opt", 1).unwrap();
         assert!(dict
             .extract::<WithDefaultItemAndConversionFunction>()
             .is_err());
@@ -786,15 +786,15 @@ fn test_with_default_item_enum() {
     Python::with_gil(|py| {
         // A and B filled
         let dict = PyDict::new(py);
-        dict.set_item("a", 1).unwrap();
-        dict.set_item("b", 2).unwrap();
+        PyDictMethods::set_item(&dict, "a", 1).unwrap();
+        PyDictMethods::set_item(&dict, "b", 2).unwrap();
         let result = dict.extract::<WithDefaultItemEnum>().unwrap();
         let expected = WithDefaultItemEnum::Foo { a: 1, b: 2 };
         assert_eq!(result, expected);
 
         // A filled
         let dict = PyDict::new(py);
-        dict.set_item("a", 1).unwrap();
+        PyDictMethods::set_item(&dict, "a", 1).unwrap();
         let result = dict.extract::<WithDefaultItemEnum>().unwrap();
         let expected = WithDefaultItemEnum::Foo { a: 1, b: 0 };
         assert_eq!(result, expected);

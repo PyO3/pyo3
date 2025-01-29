@@ -590,7 +590,7 @@ impl<'py> Python<'py> {
     ///         Some(&locals),
     ///     )
     ///     .unwrap();
-    ///     let ret = locals.get_item("ret").unwrap().unwrap();
+    ///     let ret = PyDictMethods::get_item(&locals, "ret").unwrap().unwrap();
     ///     let b64 = ret.downcast::<PyBytes>().unwrap();
     ///     assert_eq!(b64.as_bytes(), b"SGVsbG8gUnVzdCE=");
     /// });
@@ -1011,11 +1011,20 @@ mod tests {
                 Some(&namespace),
             )
             .unwrap();
-            assert!(matches!(namespace.get_item("Foo"), Ok(Some(..))));
-            assert!(matches!(namespace.get_item("a"), Ok(Some(..))));
+            assert!(matches!(
+                PyDictMethods::get_item(&namespace, "Foo"),
+                Ok(Some(..))
+            ));
+            assert!(matches!(
+                PyDictMethods::get_item(&namespace, "a"),
+                Ok(Some(..))
+            ));
             // 3.9 and older did not automatically insert __builtins__ if it wasn't inserted "by hand"
             #[cfg(not(Py_3_10))]
-            assert!(matches!(namespace.get_item("__builtins__"), Ok(Some(..))));
+            assert!(matches!(
+                PyDictMethods::get_item(&namespace, "__builtins__"),
+                Ok(Some(..))
+            ));
         })
     }
 }

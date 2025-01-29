@@ -25,7 +25,7 @@ fn get_item_and_run_callback(dict: Bound<'_, PyDict>, callback: Bound<'_, PyAny>
     // gevent can instigate a context switch. This had problematic interactions
     // with PyO3's removed "GIL Pool".
     // For context, see https://github.com/PyO3/pyo3/issues/3668
-    let item = dict.get_item("key")?.expect("key not found in dict");
+    let item = PyDictMethods::get_item(&dict, "key")?.expect("key not found in dict");
     let string = item.to_string();
     callback.call0()?;
     assert_eq!(item.to_string(), string);

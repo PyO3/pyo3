@@ -104,7 +104,7 @@ impl<'py, 'a> PyMappingProxyMethods<'py, 'a> for Bound<'py, PyMappingProxy> {
 
     fn try_iter(&'a self) -> PyResult<BoundMappingProxyIterator<'py, 'a>> {
         Ok(BoundMappingProxyIterator {
-            iterator: PyIterator::from_object(self)?,
+            iterator: PyIterator::from_object(self.as_any())?,
             mappingproxy: self,
         })
     }
@@ -233,7 +233,7 @@ mod tests {
             let map: HashMap<usize, usize> = HashMap::new();
             let dict = map.into_py_dict(py).unwrap();
             let mappingproxy = PyMappingProxy::new(py, dict.as_mapping());
-            assert!(mappingproxy.is_empty().unwrap());
+            assert!(PyMappingProxyMethods::is_empty(&mappingproxy).unwrap());
         });
     }
 
@@ -307,7 +307,7 @@ mod tests {
             let mappingproxy = PyMappingProxy::new(py, dict.as_mapping());
             let mut key_sum = 0;
             let mut value_sum = 0;
-            for res in mappingproxy.try_iter().unwrap() {
+            for res in PyMappingProxyMethods::try_iter(&mappingproxy).unwrap() {
                 let (key, value) = res.unwrap();
                 key_sum += key.extract::<i32>().unwrap();
                 value_sum += value.extract::<i32>().unwrap();
@@ -436,7 +436,9 @@ mod tests {
         Python::with_gil(|py| {
             let mappingproxy = abc_mappingproxy(py);
             let keys = mappingproxy.call_method0("keys").unwrap();
-            assert!(keys.is_instance(&py.get_type::<PyDictKeys>()).unwrap());
+            assert!(keys
+                .is_instance(py.get_type::<PyDictKeys>().as_any())
+                .unwrap());
         })
     }
 
@@ -446,7 +448,9 @@ mod tests {
         Python::with_gil(|py| {
             let mappingproxy = abc_mappingproxy(py);
             let values = mappingproxy.call_method0("values").unwrap();
-            assert!(values.is_instance(&py.get_type::<PyDictValues>()).unwrap());
+            assert!(values
+                .is_instance(py.get_type::<PyDictValues>().as_any())
+                .unwrap());
         })
     }
 
@@ -456,7 +460,9 @@ mod tests {
         Python::with_gil(|py| {
             let mappingproxy = abc_mappingproxy(py);
             let items = mappingproxy.call_method0("items").unwrap();
-            assert!(items.is_instance(&py.get_type::<PyDictItems>()).unwrap());
+            assert!(items
+                .is_instance(py.get_type::<PyDictItems>().as_any())
+                .unwrap());
         })
     }
 
@@ -473,8 +479,7 @@ mod tests {
 
             assert_eq!(
                 map.into_iter().collect::<Vec<(String, String)>>(),
-                mappingproxy
-                    .try_iter()
+                PyMappingProxyMethods::try_iter(&mappingproxy)
                     .unwrap()
                     .map(|object| {
                         let tuple = object.unwrap();
@@ -499,9 +504,7 @@ mod tests {
 
             assert_eq!(
                 items,
-                mappingproxy
-                    .clone()
-                    .try_iter()
+                PyMappingProxyMethods::try_iter(&mappingproxy.clone())
                     .unwrap()
                     .map(|object| {
                         let tuple = object.unwrap();
@@ -546,7 +549,7 @@ mod tests {
             let mappingproxy = PyMappingProxy::new(py, dict.as_mapping());
 
             let mut sum = 0;
-            for result in mappingproxy.try_iter().unwrap() {
+            for result in PyMappingProxyMethods::try_iter(&mappingproxy).unwrap() {
                 let (k, _v) = result.unwrap();
                 let i: u64 = k.extract().unwrap();
                 sum += i;

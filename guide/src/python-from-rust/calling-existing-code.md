@@ -201,7 +201,7 @@ fn main() -> PyResult<()> {
         let py_modules: Bound<'_, PyDict> = sys.getattr("modules")?.downcast_into()?;
 
         // Insert foo into sys.modules
-        py_modules.set_item("foo", foo_module)?;
+        PyDictMethods::set_item(&py_modules, "foo", foo_module)?;
 
         // Now we can import + run our python code
         Python::run(py, c_str!("import foo; foo.add_one(6)"), None, None)

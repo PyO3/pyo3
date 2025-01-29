@@ -360,7 +360,7 @@ static OBJECTS: GILProtected<RefCell<Vec<Py<PyDict>>>> =
 Python::with_gil(|py| {
     // stand-in for something that executes arbitrary Python code
     let d = PyDict::new(py);
-    d.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
+    PyDictMethods::set_item(&d, PyNone::get(py), PyNone::get(py)).unwrap();
     OBJECTS.get(py).borrow_mut().push(d.unbind());
 });
 # }}
@@ -379,7 +379,7 @@ static OBJECTS: Mutex<Vec<Py<PyDict>>> = Mutex::new(Vec::new());
 Python::with_gil(|py| {
     // stand-in for something that executes arbitrary Python code
     let d = PyDict::new(py);
-    d.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
+    PyDictMethods::set_item(&d, PyNone::get(py), PyNone::get(py)).unwrap();
     // as with any `Mutex` usage, lock the mutex for as little time as possible
     // in this case, we do it just while pushing into the `Vec`
     OBJECTS.lock().unwrap().push(d.unbind());

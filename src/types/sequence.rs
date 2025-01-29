@@ -149,7 +149,7 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
 
     #[inline]
     fn is_empty(&self) -> PyResult<bool> {
-        self.len().map(|l| l == 0)
+        PySequenceMethods::len(self).map(|l| l == 0)
     }
 
     #[inline]
@@ -362,7 +362,7 @@ where
         }
     };
 
-    let mut v = Vec::with_capacity(seq.len().unwrap_or(0));
+    let mut v = Vec::with_capacity(PySequenceMethods::len(seq).unwrap_or(0));
     for item in seq.try_iter()? {
         v.push(item?.extract::<T>()?);
     }
@@ -385,7 +385,7 @@ impl PyTypeCheck for PySequence {
         PyList::is_type_of(object)
             || PyTuple::is_type_of(object)
             || get_sequence_abc(object.py())
-                .and_then(|abc| object.is_instance(abc))
+                .and_then(|abc| object.is_instance(abc.as_any()))
                 .unwrap_or_else(|err| {
                     err.write_unraisable(object.py(), Some(object));
                     false
@@ -448,10 +448,10 @@ mod tests {
             let v: Vec<i32> = vec![];
             let ob = v.into_pyobject(py).unwrap();
             let seq = ob.downcast::<PySequence>().unwrap();
-            assert_eq!(0, seq.len().unwrap());
+            assert_eq!(0, PySequenceMethods::len(seq).unwrap());
 
             let needle = 7i32.into_pyobject(py).unwrap();
-            assert!(!seq.contains(&needle).unwrap());
+            assert!(!PySequenceMethods::contains(seq, &needle).unwrap());
         });
     }
 
@@ -460,11 +460,11 @@ mod tests {
         Python::with_gil(|py| {
             let list = vec![1].into_pyobject(py).unwrap();
             let seq = list.downcast::<PySequence>().unwrap();
-            assert!(!seq.is_empty().unwrap());
+            assert!(!PySequenceMethods::is_empty(seq).unwrap());
             let vec: Vec<u32> = Vec::new();
             let empty_list = vec.into_pyobject(py).unwrap();
             let empty_seq = empty_list.downcast::<PySequence>().unwrap();
-            assert!(empty_seq.is_empty().unwrap());
+            assert!(PySequenceMethods::is_empty(empty_seq).unwrap());
         });
     }
 
@@ -474,16 +474,16 @@ mod tests {
             let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
             let ob = v.into_pyobject(py).unwrap();
             let seq = ob.downcast::<PySequence>().unwrap();
-            assert_eq!(6, seq.len().unwrap());
+            assert_eq!(6, PySequenceMethods::len(seq).unwrap());
 
             let bad_needle = 7i32.into_pyobject(py).unwrap();
-            assert!(!seq.contains(&bad_needle).unwrap());
+            assert!(!PySequenceMethods::contains(seq, &bad_needle).unwrap());
 
             let good_needle = 8i32.into_pyobject(py).unwrap();
-            assert!(seq.contains(&good_needle).unwrap());
+            assert!(PySequenceMethods::contains(seq, &good_needle).unwrap());
 
             let type_coerced_needle = 8f32.into_pyobject(py).unwrap();
-            assert!(seq.contains(&type_coerced_needle).unwrap());
+            assert!(PySequenceMethods::contains(seq, &type_coerced_needle).unwrap());
         });
     }
 
@@ -493,13 +493,49 @@ mod tests {
             let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
             let ob = v.into_pyobject(py).unwrap();
             let seq = ob.downcast::<PySequence>().unwrap();
-            assert_eq!(1, seq.get_item(0).unwrap().extract::<i32>().unwrap());
-            assert_eq!(1, seq.get_item(1).unwrap().extract::<i32>().unwrap());
-            assert_eq!(2, seq.get_item(2).unwrap().extract::<i32>().unwrap());
-            assert_eq!(3, seq.get_item(3).unwrap().extract::<i32>().unwrap());
-            assert_eq!(5, seq.get_item(4).unwrap().extract::<i32>().unwrap());
-            assert_eq!(8, seq.get_item(5).unwrap().extract::<i32>().unwrap());
-            assert!(seq.get_item(10).is_err());
+            assert_eq!(
+                1,
+                PySequenceMethods::get_item(seq, 0)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert_eq!(
+                1,
+                PySequenceMethods::get_item(seq, 1)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert_eq!(
+                2,
+                PySequenceMethods::get_item(seq, 2)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert_eq!(
+                3,
+                PySequenceMethods::get_item(seq, 3)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert_eq!(
+                5,
+                PySequenceMethods::get_item(seq, 4)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert_eq!(
+                8,
+                PySequenceMethods::get_item(seq, 5)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert!(PySequenceMethods::get_item(seq, 10).is_err());
         });
     }
 
@@ -509,21 +545,57 @@ mod tests {
             let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
             let ob = v.into_pyobject(py).unwrap();
             let seq = ob.downcast::<PySequence>().unwrap();
-            assert!(seq.del_item(10).is_err());
-            assert_eq!(1, seq.get_item(0).unwrap().extract::<i32>().unwrap());
-            assert!(seq.del_item(0).is_ok());
-            assert_eq!(1, seq.get_item(0).unwrap().extract::<i32>().unwrap());
-            assert!(seq.del_item(0).is_ok());
-            assert_eq!(2, seq.get_item(0).unwrap().extract::<i32>().unwrap());
-            assert!(seq.del_item(0).is_ok());
-            assert_eq!(3, seq.get_item(0).unwrap().extract::<i32>().unwrap());
-            assert!(seq.del_item(0).is_ok());
-            assert_eq!(5, seq.get_item(0).unwrap().extract::<i32>().unwrap());
-            assert!(seq.del_item(0).is_ok());
-            assert_eq!(8, seq.get_item(0).unwrap().extract::<i32>().unwrap());
-            assert!(seq.del_item(0).is_ok());
-            assert_eq!(0, seq.len().unwrap());
-            assert!(seq.del_item(0).is_err());
+            assert!(PySequenceMethods::del_item(seq, 10).is_err());
+            assert_eq!(
+                1,
+                PySequenceMethods::get_item(seq, 0)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert!(PySequenceMethods::del_item(seq, 0).is_ok());
+            assert_eq!(
+                1,
+                PySequenceMethods::get_item(seq, 0)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert!(PySequenceMethods::del_item(seq, 0).is_ok());
+            assert_eq!(
+                2,
+                PySequenceMethods::get_item(seq, 0)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert!(PySequenceMethods::del_item(seq, 0).is_ok());
+            assert_eq!(
+                3,
+                PySequenceMethods::get_item(seq, 0)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert!(PySequenceMethods::del_item(seq, 0).is_ok());
+            assert_eq!(
+                5,
+                PySequenceMethods::get_item(seq, 0)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert!(PySequenceMethods::del_item(seq, 0).is_ok());
+            assert_eq!(
+                8,
+                PySequenceMethods::get_item(seq, 0)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert!(PySequenceMethods::del_item(seq, 0).is_ok());
+            assert_eq!(0, PySequenceMethods::len(seq).unwrap());
+            assert!(PySequenceMethods::del_item(seq, 0).is_err());
         });
     }
 
@@ -533,9 +605,21 @@ mod tests {
             let v: Vec<i32> = vec![1, 2];
             let ob = v.into_pyobject(py).unwrap();
             let seq = ob.downcast::<PySequence>().unwrap();
-            assert_eq!(2, seq.get_item(1).unwrap().extract::<i32>().unwrap());
-            assert!(seq.set_item(1, 10).is_ok());
-            assert_eq!(10, seq.get_item(1).unwrap().extract::<i32>().unwrap());
+            assert_eq!(
+                2,
+                PySequenceMethods::get_item(seq, 1)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert!(PySequenceMethods::set_item(seq, 1, 10).is_ok());
+            assert_eq!(
+                10,
+                PySequenceMethods::get_item(seq, 1)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
         });
     }
 
@@ -547,8 +631,8 @@ mod tests {
             let v: Vec<i32> = vec![1, 2];
             let ob = v.into_pyobject(py).unwrap();
             let seq = ob.downcast::<PySequence>().unwrap();
-            assert!(seq.set_item(1, &obj).is_ok());
-            assert!(seq.get_item(1).unwrap().as_ptr() == obj.as_ptr());
+            assert!(PySequenceMethods::set_item(seq, 1, &obj).is_ok());
+            assert!(PySequenceMethods::get_item(seq, 1).unwrap().as_ptr() == obj.as_ptr());
         });
 
         Python::with_gil(move |py| {
@@ -586,7 +670,7 @@ mod tests {
             let ins = w.into_pyobject(py).unwrap();
             seq.set_slice(1, 4, &ins).unwrap();
             assert_eq!([1, 7, 4, 5, 8], seq.extract::<[i32; 5]>().unwrap());
-            seq.set_slice(3, 100, &PyList::empty(py)).unwrap();
+            seq.set_slice(3, 100, PyList::empty(py).as_any()).unwrap();
             assert_eq!([1, 7, 4], seq.extract::<[i32; 3]>().unwrap());
         });
     }
@@ -658,10 +742,10 @@ mod tests {
             let seq = ob.downcast::<PySequence>().unwrap();
 
             let bad_needle = "blurst".into_pyobject(py).unwrap();
-            assert!(!seq.contains(bad_needle).unwrap());
+            assert!(!PySequenceMethods::contains(seq, bad_needle).unwrap());
 
             let good_needle = "worst".into_pyobject(py).unwrap();
-            assert!(seq.contains(good_needle).unwrap());
+            assert!(PySequenceMethods::contains(seq, good_needle).unwrap());
         });
     }
 
@@ -672,7 +756,7 @@ mod tests {
             let ob = v.into_pyobject(py).unwrap();
             let seq = ob.downcast::<PySequence>().unwrap();
             let concat_seq = seq.concat(seq).unwrap();
-            assert_eq!(6, concat_seq.len().unwrap());
+            assert_eq!(6, PySequenceMethods::len(&concat_seq).unwrap());
             let concat_v: Vec<i32> = vec![1, 2, 3, 1, 2, 3];
             for (el, cc) in concat_seq.try_iter().unwrap().zip(concat_v) {
                 assert_eq!(cc, el.unwrap().extract::<i32>().unwrap());
@@ -687,7 +771,7 @@ mod tests {
             let ob = v.into_pyobject(py).unwrap();
             let seq = ob.downcast::<PySequence>().unwrap();
             let concat_seq = seq.concat(seq).unwrap();
-            assert_eq!(12, concat_seq.len().unwrap());
+            assert_eq!(12, PySequenceMethods::len(&concat_seq).unwrap());
             let concat_v = "stringstring".to_owned();
             for (el, cc) in seq.try_iter().unwrap().zip(concat_v.chars()) {
                 assert_eq!(cc, el.unwrap().extract::<char>().unwrap());
@@ -702,7 +786,7 @@ mod tests {
             let ob = v.into_pyobject(py).unwrap();
             let seq = ob.downcast::<PySequence>().unwrap();
             let repeat_seq = seq.repeat(3).unwrap();
-            assert_eq!(6, repeat_seq.len().unwrap());
+            assert_eq!(6, PySequenceMethods::len(&repeat_seq).unwrap());
             let repeated = ["foo", "bar", "foo", "bar", "foo", "bar"];
             for (el, rpt) in repeat_seq.try_iter().unwrap().zip(repeated.iter()) {
                 assert_eq!(*rpt, el.unwrap().extract::<String>().unwrap());
@@ -717,11 +801,11 @@ mod tests {
             let ob = v.into_pyobject(py).unwrap();
             let seq = ob.downcast::<PySequence>().unwrap();
             let rep_seq = seq.in_place_repeat(3).unwrap();
-            assert_eq!(6, seq.len().unwrap());
+            assert_eq!(6, PySequenceMethods::len(seq).unwrap());
             assert!(seq.is(&rep_seq));
 
             let conc_seq = seq.in_place_concat(seq).unwrap();
-            assert_eq!(12, seq.len().unwrap());
+            assert_eq!(12, PySequenceMethods::len(seq).unwrap());
             assert!(seq.is(&conc_seq));
         });
     }

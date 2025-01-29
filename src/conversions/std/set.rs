@@ -100,10 +100,12 @@ where
 {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         match ob.downcast::<PySet>() {
-            Ok(set) => set.iter().map(|any| any.extract()).collect(),
+            Ok(set) => PySetMethods::iter(set).map(|any| any.extract()).collect(),
             Err(err) => {
                 if let Ok(frozen_set) = ob.downcast::<PyFrozenSet>() {
-                    frozen_set.iter().map(|any| any.extract()).collect()
+                    PyFrozenSetMethods::iter(frozen_set)
+                        .map(|any| any.extract())
+                        .collect()
                 } else {
                     Err(PyErr::from(err))
                 }
@@ -172,10 +174,12 @@ where
 {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         match ob.downcast::<PySet>() {
-            Ok(set) => set.iter().map(|any| any.extract()).collect(),
+            Ok(set) => PySetMethods::iter(set).map(|any| any.extract()).collect(),
             Err(err) => {
                 if let Ok(frozen_set) = ob.downcast::<PyFrozenSet>() {
-                    frozen_set.iter().map(|any| any.extract()).collect()
+                    PyFrozenSetMethods::iter(frozen_set)
+                        .map(|any| any.extract())
+                        .collect()
                 } else {
                     Err(PyErr::from(err))
                 }
