@@ -632,6 +632,14 @@ impl<'py> Iterator for BoundListIterator<'py> {
     }
 
     #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
+    }
+
+    #[inline]
     fn last(mut self) -> Option<Self::Item>
     where
         Self: Sized,
