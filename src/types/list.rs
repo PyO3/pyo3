@@ -632,6 +632,14 @@ impl<'py> Iterator for BoundListIterator<'py> {
     }
 
     #[inline]
+    fn last(mut self) -> Option<Self::Item>
+    where
+        Self: Sized,
+    {
+        self.next_back()
+    }
+
+    #[inline]
     #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
     fn fold<B, F>(mut self, init: B, mut f: F) -> B
     where
