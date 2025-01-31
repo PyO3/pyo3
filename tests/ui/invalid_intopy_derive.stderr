@@ -84,7 +84,7 @@ error: transparent structs and variants can only have 1 field
 70 | |     },
    | |_____^
 
-error: expected `transparent` or `crate`
+error: expected one of: `transparent`, `from_item_all`, `annotation`, `crate`, `rename_all`
   --> tests/ui/invalid_intopy_derive.rs:75:8
    |
 75 | #[pyo3(unknown = "should not work")]
@@ -102,25 +102,19 @@ error: cannot derive `IntoPyObject` for empty variants
 87 |     Unit,
    |     ^^^^
 
-error: `attribute` is not supported by `IntoPyObject`
+error: `item` and `attribute` are not permitted on tuple struct elements.
   --> tests/ui/invalid_intopy_derive.rs:91:30
    |
 91 | struct TupleAttribute(#[pyo3(attribute)] String, usize);
    |                              ^^^^^^^^^
 
-error: `item` is not permitted on tuple struct elements.
+error: `item` and `attribute` are not permitted on tuple struct elements.
   --> tests/ui/invalid_intopy_derive.rs:94:25
    |
 94 | struct TupleItem(#[pyo3(item)] String, usize);
    |                         ^^^^
 
-error: `attribute` is not supported by `IntoPyObject`
-  --> tests/ui/invalid_intopy_derive.rs:98:12
-   |
-98 |     #[pyo3(attribute)]
-   |            ^^^^^^^^^
-
-error: `transparent` structs may not have `item` for the inner field
+error: `transparent` structs may not have `item` nor `attribute` for the inner field
    --> tests/ui/invalid_intopy_derive.rs:105:12
     |
 105 |     #[pyo3(item)]
