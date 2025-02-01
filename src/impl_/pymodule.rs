@@ -26,7 +26,7 @@ use crate::{
     ffi,
     impl_::pymethods::PyMethodDef,
     sync::GILOnceCell,
-    types::{PyCFunction, PyModule, PyModuleMethods},
+    types::{PyCFunction, PyModule},
     Bound, Py, PyClass, PyResult, PyTypeInfo, Python,
 };
 
@@ -227,7 +227,7 @@ mod tests {
 
     use crate::{
         ffi,
-        types::{any::PyAnyMethods, module::PyModuleMethods, PyModule},
+        types::{any::PyAnyMethods, PyModule},
         Bound, PyResult, Python,
     };
 
@@ -240,7 +240,7 @@ mod tests {
                 ffi::c_str!("test_module"),
                 ffi::c_str!("some doc"),
                 ModuleInitializer(|m| {
-                    PyModuleMethods::add(m, "SOME_CONSTANT", 42)?;
+                    m.add("SOME_CONSTANT", 42)?;
                     Ok(())
                 }),
             )

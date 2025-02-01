@@ -22,6 +22,7 @@
         non_local_definitions,
     )
 )))]
+#![feature(arbitrary_self_types)]
 
 //! Rust bindings to the Python interpreter.
 //!

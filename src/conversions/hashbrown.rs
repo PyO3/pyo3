@@ -20,9 +20,7 @@ use crate::{
     conversion::IntoPyObject,
     types::{
         any::PyAnyMethods,
-        dict::PyDictMethods,
-        frozenset::PyFrozenSetMethods,
-        set::{new_from_iter, try_new_from_iter, PySetMethods},
+        set::{new_from_iter, try_new_from_iter},
         PyDict, PyFrozenSet, PySet,
     },
     Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python,
@@ -41,7 +39,7 @@ where
     fn to_object(&self, py: Python<'_>) -> PyObject {
         let dict = PyDict::new(py);
         for (k, v) in self {
-            PyDictMethods::set_item(&dict, k.to_object(py), v.to_object(py)).unwrap();
+            dict.set_item(k.to_object(py), v.to_object(py)).unwrap();
         }
         dict.into_any().unbind()
     }
@@ -57,7 +55,7 @@ where
     fn into_py(self, py: Python<'_>) -> PyObject {
         let dict = PyDict::new(py);
         for (k, v) in self {
-            PyDictMethods::set_item(&dict, k.into_py(py), v.into_py(py)).unwrap();
+            dict.set_item(k.into_py(py), v.into_py(py)).unwrap();
         }
         dict.into_any().unbind()
     }
@@ -76,7 +74,7 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
         for (k, v) in self {
-            PyDictMethods::set_item(&dict, k, v)?;
+            dict.set_item(k, v)?;
         }
         Ok(dict)
     }
@@ -95,7 +93,7 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
         for (k, v) in self {
-            PyDictMethods::set_item(&dict, k, v)?;
+            dict.set_item(k, v)?;
         }
         Ok(dict)
     }
@@ -109,8 +107,7 @@ where
 {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.downcast::<PyDict>()?;
-        let mut ret =
-            hashbrown::HashMap::with_capacity_and_hasher(PyDictMethods::len(dict), S::default());
+        let mut ret = hashbrown::HashMap::with_capacity_and_hasher(dict.len(), S::default());
         for (k, v) in dict {
             ret.insert(k.extract()?, v.extract()?);
         }
@@ -178,12 +175,10 @@ where
 {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         match ob.downcast::<PySet>() {
-            Ok(set) => PySetMethods::iter(set).map(|any| any.extract()).collect(),
+            Ok(set) => set.iter().map(|any| any.extract()).collect(),
             Err(err) => {
                 if let Ok(frozen_set) = ob.downcast::<PyFrozenSet>() {
-                    PyFrozenSetMethods::iter(frozen_set)
-                        .map(|any| any.extract())
-                        .collect()
+                    frozen_set.iter().map(|any| any.extract()).collect()
                 } else {
                     Err(PyErr::from(err))
                 }
@@ -205,9 +200,10 @@ mod tests {
 
             let py_map = (&map).into_pyobject(py).unwrap();
 
-            assert!(PyDictMethods::len(&py_map) == 1);
+            assert!(py_map.len() == 1);
             assert!(
-                PyDictMethods::get_item(&py_map, 1)
+                py_map
+                    .get_item(1)
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -226,9 +222,10 @@ mod tests {
 
             let py_map = map.into_py_dict(py).unwrap();
 
-            assert_eq!(PyDictMethods::len(&py_map), 1);
+            assert_eq!(py_map.len(), 1);
             assert_eq!(
-                PyDictMethods::get_item(&py_map, 1)
+                py_map
+                    .get_item(1)
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()

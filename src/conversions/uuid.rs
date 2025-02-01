@@ -117,7 +117,6 @@ impl<'py> IntoPyObject<'py> for &Uuid {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::dict::PyDictMethods;
     use crate::types::PyDict;
     use std::ffi::CString;
     use uuid::Uuid;
@@ -130,7 +129,7 @@ mod tests {
                     let rs_orig = $rs;
                     let rs_uuid = rs_orig.into_pyobject(py).unwrap();
                     let locals = PyDict::new(py);
-                    PyDictMethods::set_item(&locals, "rs_uuid", &rs_uuid).unwrap();
+                    locals.set_item("rs_uuid", &rs_uuid).unwrap();
 
                     py.run(
                         &CString::new(format!(
@@ -143,9 +142,7 @@ mod tests {
                     )
                     .unwrap();
 
-                    let py_uuid = PyDictMethods::get_item(&locals, "py_uuid")
-                        .unwrap()
-                        .unwrap();
+                    let py_uuid = locals.get_item("py_uuid").unwrap().unwrap();
                     let py_result: Uuid = py_uuid.extract().unwrap();
                     assert_eq!(rs_orig, py_result);
 

@@ -71,8 +71,8 @@ struct FooBound<'py>(Bound<'py, PyList>);
 impl PartialEq<Foo> for FooBound<'_> {
     fn eq(&self, other: &Foo) -> bool {
         Python::with_gil(|py| {
-            let len = PyListMethods::len(other.0.bind(py));
-            PyListMethods::len(&self.0) == len
+            let len = other.0.bind(py).len();
+            self.0.len() == len
         })
     }
 }
@@ -91,8 +91,8 @@ impl PartialEq<Foo> for FooBound<'_> {
     fn eq(&self, other: &Foo) -> bool {
         // Access to `&Bound<'py, PyAny>` implies access to `Python<'py>`.
         let py = self.0.py();
-        let len = PyListMethods::len(other.0.bind(py));
-        PyListMethods::len(&self.0) == len
+        let len = other.0.bind(py).len();
+        self.0.len() == len
     }
 }
 ```

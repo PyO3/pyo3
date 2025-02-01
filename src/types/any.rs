@@ -429,7 +429,7 @@ pub trait PyAnyMethods<'py> {
     ///     let fun = module.getattr("function")?;
     ///     let args = ("hello",);
     ///     let kwargs = PyDict::new(py);
-    ///     PyDictMethods::set_item(&kwargs, "cruel", "world")?;
+    ///     kwargs.set_item("cruel", "world")?;
     ///     let result = fun.call(args, Some(&kwargs))?;
     ///     assert_eq!(result.extract::<String>()?, "called with args and kwargs");
     ///     Ok(())
@@ -525,7 +525,7 @@ pub trait PyAnyMethods<'py> {
     ///     let instance = module.getattr("a")?;
     ///     let args = ("hello",);
     ///     let kwargs = PyDict::new(py);
-    ///     PyDictMethods::set_item(&kwargs, "cruel", "world")?;
+    ///     kwargs.set_item("cruel", "world")?;
     ///     let result = instance.call_method("method", args, Some(&kwargs))?;
     ///     assert_eq!(result.extract::<String>()?, "called with args and kwargs");
     ///     Ok(())
@@ -1987,7 +1987,7 @@ mod tests {
         basic::CompareOp,
         ffi,
         tests::common::generate_unique_module_name,
-        types::{IntoPyDict, PyAny, PyAnyMethods, PyBool, PyInt, PyList, PyModule, PyTypeMethods},
+        types::{IntoPyDict, PyAny, PyAnyMethods, PyBool, PyInt, PyList, PyModule},
         Bound, BoundObject, IntoPyObject, PyTypeInfo, Python,
     };
     use pyo3_ffi::c_str;

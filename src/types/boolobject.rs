@@ -1,8 +1,8 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
-    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, PyObject, PyResult, Python,
+    exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject,
+    PyAny, PyObject, PyResult, Python,
 };
 #[allow(deprecated)]
 use crate::{IntoPy, ToPyObject};
@@ -16,15 +16,12 @@ use std::convert::Infallible;
 ///
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyBool>`][crate::Py] or [`Bound<'py, PyBool>`][Bound].
-///
-/// For APIs available on `bool` objects, see the [`PyBoolMethods`] trait which is implemented for
-/// [`Bound<'py, PyBool>`][Bound].
 #[repr(transparent)]
 pub struct PyBool(PyAny);
 
 pyobject_native_type!(PyBool, ffi::PyObject, pyobject_native_static_type_object!(ffi::PyBool_Type), #checkfunction=ffi::PyBool_Check);
 
-impl PyBool {
+impl<'py> PyBool {
     /// Depending on `val`, returns `true` or `false`.
     ///
     /// # Note
@@ -45,22 +42,10 @@ impl PyBool {
     pub fn new_bound(py: Python<'_>, val: bool) -> Borrowed<'_, '_, Self> {
         Self::new(py, val)
     }
-}
 
-/// Implementation of functionality for [`PyBool`].
-///
-/// These methods are defined for the `Bound<'py, PyBool>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
-#[doc(alias = "PyBool")]
-pub trait PyBoolMethods<'py>: crate::sealed::Sealed {
-    /// Gets whether this boolean is `true`.
-    fn is_true(&self) -> bool;
-}
-
-impl<'py> PyBoolMethods<'py> for Bound<'py, PyBool> {
     #[inline]
-    fn is_true(&self) -> bool {
+    /// Gets whether this boolean is `true`.
+    fn is_true(self: &Bound<'py, Self>) -> bool {
         self.as_ptr() == unsafe { crate::ffi::Py_True() }
     }
 }
@@ -260,7 +245,6 @@ impl FromPyObject<'_> for bool {
 #[cfg(test)]
 mod tests {
     use crate::types::any::PyAnyMethods;
-    use crate::types::boolobject::PyBoolMethods;
     use crate::types::PyBool;
     use crate::IntoPyObject;
     use crate::Python;

@@ -10,9 +10,6 @@ use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
 ///
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyDict>`][crate::Py] or [`Bound<'py, PyDict>`][Bound].
-///
-/// For APIs available on `dict` objects, see the [`PyDictMethods`] trait which is implemented for
-/// [`Bound<'py, PyDict>`][Bound].
 #[repr(transparent)]
 pub struct PyDict(PyAny);
 
@@ -61,16 +58,16 @@ pyobject_native_type_core!(
     #checkfunction=ffi::PyDictItems_Check
 );
 
-impl PyDict {
+impl<'py> PyDict {
     /// Creates a new empty dictionary.
-    pub fn new(py: Python<'_>) -> Bound<'_, PyDict> {
+    pub fn new(py: Python<'py>) -> Bound<'py, PyDict> {
         unsafe { ffi::PyDict_New().assume_owned(py).downcast_into_unchecked() }
     }
 
     /// Deprecated name for [`PyDict::new`].
     #[deprecated(since = "0.23.0", note = "renamed to `PyDict::new`")]
     #[inline]
-    pub fn new_bound(py: Python<'_>) -> Bound<'_, PyDict> {
+    pub fn new_bound(py: Python<'py>) -> Bound<'py, PyDict> {
         Self::new(py)
     }
 
@@ -82,7 +79,7 @@ impl PyDict {
     /// Returns an error on invalid input. In the case of key collisions,
     /// this keeps the last entry seen.
     #[cfg(not(any(PyPy, GraalPy)))]
-    pub fn from_sequence<'py>(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
+    pub fn from_sequence(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
         let py = seq.py();
         let dict = Self::new(py);
         err::error_on_minusone(py, unsafe {
@@ -95,128 +92,14 @@ impl PyDict {
     #[cfg(not(any(PyPy, GraalPy)))]
     #[deprecated(since = "0.23.0", note = "renamed to `PyDict::from_sequence`")]
     #[inline]
-    pub fn from_sequence_bound<'py>(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
+    pub fn from_sequence_bound(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
         Self::from_sequence(seq)
     }
-}
 
-/// Implementation of functionality for [`PyDict`].
-///
-/// These methods are defined for the `Bound<'py, PyDict>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
-#[doc(alias = "PyDict")]
-pub trait PyDictMethods<'py>: crate::sealed::Sealed {
     /// Returns a new dictionary that contains the same key-value pairs as self.
     ///
     /// This is equivalent to the Python expression `self.copy()`.
-    fn copy(&self) -> PyResult<Bound<'py, PyDict>>;
-
-    /// Empties an existing dictionary of all key-value pairs.
-    fn clear(&self);
-
-    /// Return the number of items in the dictionary.
-    ///
-    /// This is equivalent to the Python expression `len(self)`.
-    fn len(&self) -> usize;
-
-    /// Checks if the dict is empty, i.e. `len(self) == 0`.
-    fn is_empty(&self) -> bool;
-
-    /// Determines if the dictionary contains the specified key.
-    ///
-    /// This is equivalent to the Python expression `key in self`.
-    fn contains<K>(&self, key: K) -> PyResult<bool>
-    where
-        K: IntoPyObject<'py>;
-
-    /// Gets an item from the dictionary.
-    ///
-    /// Returns `None` if the item is not present, or if an error occurs.
-    ///
-    /// To get a `KeyError` for non-existing keys, use `PyAny::get_item`.
-    fn get_item<K>(&self, key: K) -> PyResult<Option<Bound<'py, PyAny>>>
-    where
-        K: IntoPyObject<'py>;
-
-    /// Sets an item value.
-    ///
-    /// This is equivalent to the Python statement `self[key] = value`.
-    fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
-    where
-        K: IntoPyObject<'py>,
-        V: IntoPyObject<'py>;
-
-    /// Deletes an item.
-    ///
-    /// This is equivalent to the Python statement `del self[key]`.
-    fn del_item<K>(&self, key: K) -> PyResult<()>
-    where
-        K: IntoPyObject<'py>;
-
-    /// Returns a list of dict keys.
-    ///
-    /// This is equivalent to the Python expression `list(dict.keys())`.
-    fn keys(&self) -> Bound<'py, PyList>;
-
-    /// Returns a list of dict values.
-    ///
-    /// This is equivalent to the Python expression `list(dict.values())`.
-    fn values(&self) -> Bound<'py, PyList>;
-
-    /// Returns a list of dict items.
-    ///
-    /// This is equivalent to the Python expression `list(dict.items())`.
-    fn items(&self) -> Bound<'py, PyList>;
-
-    /// Returns an iterator of `(key, value)` pairs in this dictionary.
-    ///
-    /// # Panics
-    ///
-    /// If PyO3 detects that the dictionary is mutated during iteration, it will panic.
-    /// It is allowed to modify values as you iterate over the dictionary, but only
-    /// so long as the set of keys does not change.
-    fn iter(&self) -> BoundDictIterator<'py>;
-
-    /// Iterates over the contents of this dictionary while holding a critical section on the dict.
-    /// This is useful when the GIL is disabled and the dictionary is shared between threads.
-    /// It is not guaranteed that the dictionary will not be modified during iteration when the
-    /// closure calls arbitrary Python code that releases the critical section held by the
-    /// iterator. Otherwise, the dictionary will not be modified during iteration.
-    ///
-    /// This method is a small performance optimization over `.iter().try_for_each()` when the
-    /// nightly feature is not enabled because we cannot implement an optimised version of
-    /// `iter().try_fold()` on stable yet. If your iteration is infallible then this method has the
-    /// same performance as `.iter().for_each()`.
-    fn locked_for_each<F>(&self, closure: F) -> PyResult<()>
-    where
-        F: Fn(Bound<'py, PyAny>, Bound<'py, PyAny>) -> PyResult<()>;
-
-    /// Returns `self` cast as a `PyMapping`.
-    fn as_mapping(&self) -> &Bound<'py, PyMapping>;
-
-    /// Returns `self` cast as a `PyMapping`.
-    fn into_mapping(self) -> Bound<'py, PyMapping>;
-
-    /// Update this dictionary with the key/value pairs from another.
-    ///
-    /// This is equivalent to the Python expression `self.update(other)`. If `other` is a `PyDict`, you may want
-    /// to use `self.update(other.as_mapping())`, note: `PyDict::as_mapping` is a zero-cost conversion.
-    fn update(&self, other: &Bound<'_, PyMapping>) -> PyResult<()>;
-
-    /// Add key/value pairs from another dictionary to this one only when they do not exist in this.
-    ///
-    /// This is equivalent to the Python expression `self.update({k: v for k, v in other.items() if k not in self})`.
-    /// If `other` is a `PyDict`, you may want to use `self.update_if_missing(other.as_mapping())`,
-    /// note: `PyDict::as_mapping` is a zero-cost conversion.
-    ///
-    /// This method uses [`PyDict_Merge`](https://docs.python.org/3/c-api/dict.html#c.PyDict_Merge) internally,
-    /// so should have the same performance as `update`.
-    fn update_if_missing(&self, other: &Bound<'_, PyMapping>) -> PyResult<()>;
-}
-
-impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
-    fn copy(&self) -> PyResult<Bound<'py, PyDict>> {
+    pub fn copy(self: &Bound<'py, Self>) -> PyResult<Bound<'py, PyDict>> {
         unsafe {
             ffi::PyDict_Copy(self.as_ptr())
                 .assume_owned_or_err(self.py())
@@ -224,19 +107,27 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         }
     }
 
-    fn clear(&self) {
+    /// Empties an existing dictionary of all key-value pairs.
+    pub fn clear(self: &Bound<'py, Self>) {
         unsafe { ffi::PyDict_Clear(self.as_ptr()) }
     }
 
-    fn len(&self) -> usize {
+    /// Return the number of items in the dictionary.
+    ///
+    /// This is equivalent to the Python expression `len(self)`.
+    pub fn len(self: &Bound<'py, Self>) -> usize {
         dict_len(self) as usize
     }
 
-    fn is_empty(&self) -> bool {
-        PyDictMethods::len(self) == 0
+    /// Checks if the dict is empty, i.e. `len(self) == 0`.
+    pub fn is_empty(self: &Bound<'py, Self>) -> bool {
+        self.len() == 0
     }
 
-    fn contains<K>(&self, key: K) -> PyResult<bool>
+    /// Determines if the dictionary contains the specified key.
+    ///
+    /// This is equivalent to the Python expression `key in self`.
+    pub fn contains<K>(self: &Bound<'py, Self>, key: K) -> PyResult<bool>
     where
         K: IntoPyObject<'py>,
     {
@@ -255,7 +146,12 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         )
     }
 
-    fn get_item<K>(&self, key: K) -> PyResult<Option<Bound<'py, PyAny>>>
+    /// Gets an item from the dictionary.
+    ///
+    /// Returns `None` if the item is not present, or if an error occurs.
+    ///
+    /// To get a `KeyError` for non-existing keys, use `PyAny::get_item`.
+    pub fn get_item<K>(self: &Bound<'py, Self>, key: K) -> PyResult<Option<Bound<'py, PyAny>>>
     where
         K: IntoPyObject<'py>,
     {
@@ -285,7 +181,10 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         )
     }
 
-    fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
+    /// Sets an item value.
+    ///
+    /// This is equivalent to the Python statement `self[key] = value`.
+    pub fn set_item<K, V>(self: &Bound<'py, Self>, key: K, value: V) -> PyResult<()>
     where
         K: IntoPyObject<'py>,
         V: IntoPyObject<'py>,
@@ -308,7 +207,10 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         )
     }
 
-    fn del_item<K>(&self, key: K) -> PyResult<()>
+    /// Deletes an item.
+    ///
+    /// This is equivalent to the Python statement `del self[key]`.
+    pub fn del_item<K>(self: &Bound<'py, Self>, key: K) -> PyResult<()>
     where
         K: IntoPyObject<'py>,
     {
@@ -325,7 +227,10 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         )
     }
 
-    fn keys(&self) -> Bound<'py, PyList> {
+    /// Returns a list of dict keys.
+    ///
+    /// This is equivalent to the Python expression `list(dict.keys())`.
+    pub fn keys(self: &Bound<'py, Self>) -> Bound<'py, PyList> {
         unsafe {
             ffi::PyDict_Keys(self.as_ptr())
                 .assume_owned(self.py())
@@ -333,7 +238,10 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         }
     }
 
-    fn values(&self) -> Bound<'py, PyList> {
+    /// Returns a list of dict values.
+    ///
+    /// This is equivalent to the Python expression `list(dict.values())`.
+    pub fn values(self: &Bound<'py, Self>) -> Bound<'py, PyList> {
         unsafe {
             ffi::PyDict_Values(self.as_ptr())
                 .assume_owned(self.py())
@@ -341,7 +249,10 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         }
     }
 
-    fn items(&self) -> Bound<'py, PyList> {
+    /// Returns a list of dict items.
+    ///
+    /// This is equivalent to the Python expression `list(dict.items())`.
+    pub fn items(self: &Bound<'py, Self>) -> Bound<'py, PyList> {
         unsafe {
             ffi::PyDict_Items(self.as_ptr())
                 .assume_owned(self.py())
@@ -349,11 +260,28 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         }
     }
 
-    fn iter(&self) -> BoundDictIterator<'py> {
+    /// Returns an iterator of `(key, value)` pairs in this dictionary.
+    ///
+    /// # Panics
+    ///
+    /// If PyO3 detects that the dictionary is mutated during iteration, it will panic.
+    /// It is allowed to modify values as you iterate over the dictionary, but only
+    /// so long as the set of keys does not change.
+    pub fn iter(self: &Bound<'py, Self>) -> BoundDictIterator<'py> {
         BoundDictIterator::new(self.clone())
     }
 
-    fn locked_for_each<F>(&self, f: F) -> PyResult<()>
+    /// Iterates over the contents of this dictionary while holding a critical section on the dict.
+    /// This is useful when the GIL is disabled and the dictionary is shared between threads.
+    /// It is not guaranteed that the dictionary will not be modified during iteration when the
+    /// closure calls arbitrary Python code that releases the critical section held by the
+    /// iterator. Otherwise, the dictionary will not be modified during iteration.
+    ///
+    /// This method is a small performance optimization over `.iter().try_for_each()` when the
+    /// nightly feature is not enabled because we cannot implement an optimised version of
+    /// `iter().try_fold()` on stable yet. If your iteration is infallible then this method has the
+    /// same performance as `.iter().for_each()`.
+    pub fn locked_for_each<F>(self: &Bound<'py, Self>, f: F) -> PyResult<()>
     where
         F: Fn(Bound<'py, PyAny>, Bound<'py, PyAny>) -> PyResult<()>,
     {
@@ -367,26 +295,43 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         #[cfg(not(feature = "nightly"))]
         {
             crate::sync::with_critical_section(self.as_any(), || {
-                PyDictMethods::iter(self).try_for_each(|(key, value)| f(key, value))
+                self.iter().try_for_each(|(key, value)| f(key, value))
             })
         }
     }
 
-    fn as_mapping(&self) -> &Bound<'py, PyMapping> {
+    /// Returns `self` cast as a `PyMapping`.
+    pub fn as_mapping(self: &Bound<'py, Self>) -> &Bound<'py, PyMapping> {
         unsafe { self.downcast_unchecked() }
     }
 
-    fn into_mapping(self) -> Bound<'py, PyMapping> {
-        unsafe { self.into_any().downcast_into_unchecked() }
+    /// Returns `self` cast as a `PyMapping`.
+    pub fn into_mapping(self: Bound<'py, Self>) -> Bound<'py, PyMapping> {
+        unsafe { self.downcast_into_unchecked() }
     }
 
-    fn update(&self, other: &Bound<'_, PyMapping>) -> PyResult<()> {
+    /// Update this dictionary with the key/value pairs from another.
+    ///
+    /// This is equivalent to the Python expression `self.update(other)`. If `other` is a `PyDict`, you may want
+    /// to use `self.update(other.as_mapping())`, note: `PyDict::as_mapping` is a zero-cost conversion.
+    pub fn update(self: &Bound<'py, Self>, other: &Bound<'_, PyMapping>) -> PyResult<()> {
         err::error_on_minusone(self.py(), unsafe {
             ffi::PyDict_Update(self.as_ptr(), other.as_ptr())
         })
     }
 
-    fn update_if_missing(&self, other: &Bound<'_, PyMapping>) -> PyResult<()> {
+    /// Add key/value pairs from another dictionary to this one only when they do not exist in this.
+    ///
+    /// This is equivalent to the Python expression `self.update({k: v for k, v in other.items() if k not in self})`.
+    /// If `other` is a `PyDict`, you may want to use `self.update_if_missing(other.as_mapping())`,
+    /// note: `PyDict::as_mapping` is a zero-cost conversion.
+    ///
+    /// This method uses [`PyDict_Merge`](https://docs.python.org/3/c-api/dict.html#c.PyDict_Merge) internally,
+    /// so should have the same performance as `update`.
+    pub fn update_if_missing(
+        self: &Bound<'py, Self>,
+        other: &Bound<'_, PyMapping>,
+    ) -> PyResult<()> {
         err::error_on_minusone(self.py(), unsafe {
             ffi::PyDict_Merge(self.as_ptr(), other.as_ptr(), 0)
         })
@@ -692,7 +637,7 @@ impl<'py> IntoIterator for &Bound<'py, PyDict> {
     type IntoIter = BoundDictIterator<'py>;
 
     fn into_iter(self) -> Self::IntoIter {
-        PyDictMethods::iter(self)
+        self.iter()
     }
 }
 
@@ -778,7 +723,7 @@ where
         let dict = PyDict::new(py);
         self.into_iter().try_for_each(|item| {
             let (key, value) = item.unpack();
-            PyDictMethods::set_item(&dict, key, value)
+            dict.set_item(key, value)
         })?;
         Ok(dict)
     }
@@ -829,13 +774,13 @@ mod tests {
             let dict = [(7, 32)].into_py_dict(py).unwrap();
             assert_eq!(
                 32,
-                PyDictMethods::get_item(&dict, 7i32)
+                dict.get_item(7i32)
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
                     .unwrap()
             );
-            assert!(PyDictMethods::get_item(&dict, 8i32).unwrap().is_none());
+            assert!(dict.get_item(8i32).unwrap().is_none());
             let map: HashMap<i32, i32> = [(7, 32)].iter().cloned().collect();
             assert_eq!(map, dict.extract().unwrap());
             let map: BTreeMap<i32, i32> = [(7, 32)].iter().cloned().collect();
@@ -851,7 +796,7 @@ mod tests {
             let dict = PyDict::from_sequence(items.as_any()).unwrap();
             assert_eq!(
                 1,
-                PyDictMethods::get_item(&dict, "a")
+                dict.get_item("a")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -859,7 +804,7 @@ mod tests {
             );
             assert_eq!(
                 2,
-                PyDictMethods::get_item(&dict, "b")
+                dict.get_item("b")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -891,13 +836,14 @@ mod tests {
             let ndict = dict.copy().unwrap();
             assert_eq!(
                 32,
-                PyDictMethods::get_item(&ndict, 7i32)
+                ndict
+                    .get_item(7i32)
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
                     .unwrap()
             );
-            assert!(PyDictMethods::get_item(&ndict, 8i32).unwrap().is_none());
+            assert!(ndict.get_item(8i32).unwrap().is_none());
         });
     }
 
@@ -906,10 +852,10 @@ mod tests {
         Python::with_gil(|py| {
             let mut v = HashMap::<i32, i32>::new();
             let dict = (&v).into_pyobject(py).unwrap();
-            assert_eq!(0, PyDictMethods::len(&dict));
+            assert_eq!(0, dict.len());
             v.insert(7, 32);
             let dict2 = v.into_pyobject(py).unwrap();
-            assert_eq!(1, PyDictMethods::len(&dict2));
+            assert_eq!(1, dict2.len());
         });
     }
 
@@ -919,8 +865,8 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let dict = v.into_pyobject(py).unwrap();
-            assert!(PyDictMethods::contains(&dict, 7i32).unwrap());
-            assert!(!PyDictMethods::contains(&dict, 8i32).unwrap());
+            assert!(dict.contains(7i32).unwrap());
+            assert!(!dict.contains(8i32).unwrap());
         });
     }
 
@@ -932,13 +878,13 @@ mod tests {
             let dict = v.into_pyobject(py).unwrap();
             assert_eq!(
                 32,
-                PyDictMethods::get_item(&dict, 7i32)
+                dict.get_item(7i32)
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
                     .unwrap()
             );
-            assert!(PyDictMethods::get_item(&dict, 8i32).unwrap().is_none());
+            assert!(dict.get_item(8i32).unwrap().is_none());
         });
     }
 
@@ -966,7 +912,7 @@ mod tests {
             let class = py.get_type::<HashErrors>();
             let instance = class.call0().unwrap();
             let d = PyDict::new(py);
-            match PyDictMethods::get_item(&d, instance) {
+            match d.get_item(instance) {
                 Ok(_) => {
                     panic!("this get_item call should always error")
                 }
@@ -984,11 +930,11 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let dict = v.into_pyobject(py).unwrap();
-            assert!(PyDictMethods::set_item(&dict, 7i32, 42i32).is_ok()); // change
-            assert!(PyDictMethods::set_item(&dict, 8i32, 123i32).is_ok()); // insert
+            assert!(dict.set_item(7i32, 42i32).is_ok()); // change
+            assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
             assert_eq!(
                 42i32,
-                PyDictMethods::get_item(&dict, 7i32)
+                dict.get_item(7i32)
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -996,7 +942,7 @@ mod tests {
             );
             assert_eq!(
                 123i32,
-                PyDictMethods::get_item(&dict, 8i32)
+                dict.get_item(8i32)
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1026,8 +972,8 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let dict = (&v).into_pyobject(py).unwrap();
-            assert!(PyDictMethods::set_item(&dict, 7i32, 42i32).is_ok()); // change
-            assert!(PyDictMethods::set_item(&dict, 8i32, 123i32).is_ok()); // insert
+            assert!(dict.set_item(7i32, 42i32).is_ok()); // change
+            assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
             assert_eq!(32i32, v[&7i32]); // not updated!
             assert_eq!(None, v.get(&8i32));
         });
@@ -1039,9 +985,9 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let dict = v.into_pyobject(py).unwrap();
-            assert!(PyDictMethods::del_item(&dict, 7i32).is_ok());
-            assert_eq!(0, PyDictMethods::len(&dict));
-            assert!(PyDictMethods::get_item(&dict, 7i32).unwrap().is_none());
+            assert!(dict.del_item(7i32).is_ok());
+            assert_eq!(0, dict.len());
+            assert!(dict.get_item(7i32).unwrap().is_none());
         });
     }
 
@@ -1051,7 +997,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let dict = (&v).into_pyobject(py).unwrap();
-            assert!(PyDictMethods::del_item(&dict, 7i32).is_ok()); // change
+            assert!(dict.del_item(7i32).is_ok()); // change
             assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
         });
     }
@@ -1160,7 +1106,8 @@ mod tests {
             let dict = (&v).into_pyobject(py).unwrap();
 
             for (key, value) in &dict {
-                PyDictMethods::set_item(&dict, key, value.extract::<i32>().unwrap() + 7).unwrap();
+                dict.set_item(key, value.extract::<i32>().unwrap() + 7)
+                    .unwrap();
             }
         });
     }
@@ -1175,11 +1122,11 @@ mod tests {
             }
             let dict = v.into_pyobject(py).unwrap();
 
-            for (i, (key, value)) in PyDictMethods::iter(&dict).enumerate() {
+            for (i, (key, value)) in dict.iter().enumerate() {
                 let key = key.extract::<i32>().unwrap();
                 let value = value.extract::<i32>().unwrap();
 
-                PyDictMethods::set_item(&dict, key + 1, value + 1).unwrap();
+                dict.set_item(key + 1, value + 1).unwrap();
 
                 if i > 1000 {
                     // avoid this test just running out of memory if it fails
@@ -1199,11 +1146,11 @@ mod tests {
             }
             let dict = v.into_pyobject(py).unwrap();
 
-            for (i, (key, value)) in PyDictMethods::iter(&dict).enumerate() {
+            for (i, (key, value)) in dict.iter().enumerate() {
                 let key = key.extract::<i32>().unwrap();
                 let value = value.extract::<i32>().unwrap();
-                PyDictMethods::del_item(&dict, key).unwrap();
-                PyDictMethods::set_item(&dict, key + 1, value + 1).unwrap();
+                dict.del_item(key).unwrap();
+                dict.set_item(key + 1, value + 1).unwrap();
 
                 if i > 1000 {
                     // avoid this test just running out of memory if it fails
@@ -1222,7 +1169,7 @@ mod tests {
             v.insert(9, 123);
             let dict = (&v).into_pyobject(py).unwrap();
 
-            let mut iter = PyDictMethods::iter(&dict);
+            let mut iter = dict.iter();
             assert_eq!(iter.size_hint(), (v.len(), Some(v.len())));
             iter.next();
             assert_eq!(iter.size_hint(), (v.len() - 1, Some(v.len() - 1)));
@@ -1265,9 +1212,10 @@ mod tests {
 
             let py_map = map.into_py_dict(py).unwrap();
 
-            assert_eq!(PyDictMethods::len(&py_map), 1);
+            assert_eq!(py_map.len(), 1);
             assert_eq!(
-                PyDictMethods::get_item(&py_map, 1)
+                py_map
+                    .get_item(1)
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1285,9 +1233,10 @@ mod tests {
 
             let py_map = map.into_py_dict(py).unwrap();
 
-            assert_eq!(PyDictMethods::len(&py_map), 1);
+            assert_eq!(py_map.len(), 1);
             assert_eq!(
-                PyDictMethods::get_item(&py_map, 1)
+                py_map
+                    .get_item(1)
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1303,9 +1252,10 @@ mod tests {
             let vec = vec![("a", 1), ("b", 2), ("c", 3)];
             let py_map = vec.into_py_dict(py).unwrap();
 
-            assert_eq!(PyDictMethods::len(&py_map), 3);
+            assert_eq!(py_map.len(), 3);
             assert_eq!(
-                PyDictMethods::get_item(&py_map, "b")
+                py_map
+                    .get_item("b")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1321,9 +1271,10 @@ mod tests {
             let arr = [("a", 1), ("b", 2), ("c", 3)];
             let py_map = arr.into_py_dict(py).unwrap();
 
-            assert_eq!(PyDictMethods::len(&py_map), 3);
+            assert_eq!(py_map.len(), 3);
             assert_eq!(
-                PyDictMethods::get_item(&py_map, "b")
+                py_map
+                    .get_item("b")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1419,9 +1370,9 @@ mod tests {
             let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict(py).unwrap();
             let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py).unwrap();
             dict.update(other.as_mapping()).unwrap();
-            assert_eq!(PyDictMethods::len(&dict), 4);
+            assert_eq!(dict.len(), 4);
             assert_eq!(
-                PyDictMethods::get_item(&dict, "a")
+                dict.get_item("a")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1429,7 +1380,7 @@ mod tests {
                 1
             );
             assert_eq!(
-                PyDictMethods::get_item(&dict, "b")
+                dict.get_item("b")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1437,7 +1388,7 @@ mod tests {
                 4
             );
             assert_eq!(
-                PyDictMethods::get_item(&dict, "c")
+                dict.get_item("c")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1445,7 +1396,7 @@ mod tests {
                 5
             );
             assert_eq!(
-                PyDictMethods::get_item(&dict, "d")
+                dict.get_item("d")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1453,9 +1404,10 @@ mod tests {
                 6
             );
 
-            assert_eq!(PyDictMethods::len(&other), 3);
+            assert_eq!(other.len(), 3);
             assert_eq!(
-                PyDictMethods::get_item(&other, "b")
+                other
+                    .get_item("b")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1463,7 +1415,8 @@ mod tests {
                 4
             );
             assert_eq!(
-                PyDictMethods::get_item(&other, "c")
+                other
+                    .get_item("c")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1471,7 +1424,8 @@ mod tests {
                 5
             );
             assert_eq!(
-                PyDictMethods::get_item(&other, "d")
+                other
+                    .get_item("d")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1487,9 +1441,9 @@ mod tests {
             let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict(py).unwrap();
             let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py).unwrap();
             dict.update_if_missing(other.as_mapping()).unwrap();
-            assert_eq!(PyDictMethods::len(&dict), 4);
+            assert_eq!(dict.len(), 4);
             assert_eq!(
-                PyDictMethods::get_item(&dict, "a")
+                dict.get_item("a")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1497,7 +1451,7 @@ mod tests {
                 1
             );
             assert_eq!(
-                PyDictMethods::get_item(&dict, "b")
+                dict.get_item("b")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1505,7 +1459,7 @@ mod tests {
                 2
             );
             assert_eq!(
-                PyDictMethods::get_item(&dict, "c")
+                dict.get_item("c")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1513,7 +1467,7 @@ mod tests {
                 3
             );
             assert_eq!(
-                PyDictMethods::get_item(&dict, "d")
+                dict.get_item("d")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1521,9 +1475,10 @@ mod tests {
                 6
             );
 
-            assert_eq!(PyDictMethods::len(&other), 3);
+            assert_eq!(other.len(), 3);
             assert_eq!(
-                PyDictMethods::get_item(&other, "b")
+                other
+                    .get_item("b")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1531,7 +1486,8 @@ mod tests {
                 4
             );
             assert_eq!(
-                PyDictMethods::get_item(&other, "c")
+                other
+                    .get_item("c")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1539,7 +1495,8 @@ mod tests {
                 5
             );
             assert_eq!(
-                PyDictMethods::get_item(&other, "d")
+                other
+                    .get_item("d")
                     .unwrap()
                     .unwrap()
                     .extract::<i32>()
@@ -1553,10 +1510,10 @@ mod tests {
     fn test_iter_all() {
         Python::with_gil(|py| {
             let dict = [(1, true), (2, true), (3, true)].into_py_dict(py).unwrap();
-            assert!(PyDictMethods::iter(&dict).all(|(_, v)| v.extract::<bool>().unwrap()));
+            assert!(dict.iter().all(|(_, v)| v.extract::<bool>().unwrap()));
 
             let dict = [(1, true), (2, false), (3, true)].into_py_dict(py).unwrap();
-            assert!(!PyDictMethods::iter(&dict).all(|(_, v)| v.extract::<bool>().unwrap()));
+            assert!(!dict.iter().all(|(_, v)| v.extract::<bool>().unwrap()));
         });
     }
 
@@ -1566,12 +1523,12 @@ mod tests {
             let dict = [(1, true), (2, false), (3, false)]
                 .into_py_dict(py)
                 .unwrap();
-            assert!(PyDictMethods::iter(&dict).any(|(_, v)| v.extract::<bool>().unwrap()));
+            assert!(dict.iter().any(|(_, v)| v.extract::<bool>().unwrap()));
 
             let dict = [(1, false), (2, false), (3, false)]
                 .into_py_dict(py)
                 .unwrap();
-            assert!(!PyDictMethods::iter(&dict).any(|(_, v)| v.extract::<bool>().unwrap()));
+            assert!(!dict.iter().any(|(_, v)| v.extract::<bool>().unwrap()));
         });
     }
 
@@ -1585,7 +1542,7 @@ mod tests {
 
             assert_eq!(
                 Some((2, true)),
-                PyDictMethods::iter(&dict)
+                dict.iter()
                     .find(|(_, v)| v.extract::<bool>().unwrap())
                     .map(|(k, v)| (k.extract().unwrap(), v.extract().unwrap()))
             );
@@ -1594,7 +1551,8 @@ mod tests {
                 .into_py_dict(py)
                 .unwrap();
 
-            assert!(PyDictMethods::iter(&dict)
+            assert!(dict
+                .iter()
                 .find(|(_, v)| v.extract::<bool>().unwrap())
                 .is_none());
         });
@@ -1609,13 +1567,14 @@ mod tests {
                 .unwrap();
             assert_eq!(
                 Some(2),
-                PyDictMethods::iter(&dict).position(|(_, v)| v.extract::<bool>().unwrap())
+                dict.iter().position(|(_, v)| v.extract::<bool>().unwrap())
             );
 
             let dict = [(1, false), (2, false), (3, false)]
                 .into_py_dict(py)
                 .unwrap();
-            assert!(PyDictMethods::iter(&dict)
+            assert!(dict
+                .iter()
                 .position(|(_, v)| v.extract::<bool>().unwrap())
                 .is_none());
         });
@@ -1625,8 +1584,9 @@ mod tests {
     fn test_iter_fold() {
         Python::with_gil(|py| {
             let dict = [(1, 1), (2, 2), (3, 3)].into_py_dict(py).unwrap();
-            let sum =
-                PyDictMethods::iter(&dict).fold(0, |acc, (_, v)| acc + v.extract::<i32>().unwrap());
+            let sum = dict
+                .iter()
+                .fold(0, |acc, (_, v)| acc + v.extract::<i32>().unwrap());
             assert_eq!(sum, 6);
         });
     }
@@ -1635,13 +1595,15 @@ mod tests {
     fn test_iter_try_fold() {
         Python::with_gil(|py| {
             let dict = [(1, 1), (2, 2), (3, 3)].into_py_dict(py).unwrap();
-            let sum = PyDictMethods::iter(&dict)
+            let sum = dict
+                .iter()
                 .try_fold(0, |acc, (_, v)| PyResult::Ok(acc + v.extract::<i32>()?))
                 .unwrap();
             assert_eq!(sum, 6);
 
             let dict = [(1, "foo"), (2, "bar")].into_py_dict(py).unwrap();
-            assert!(PyDictMethods::iter(&dict)
+            assert!(dict
+                .iter()
                 .try_fold(0, |acc, (_, v)| PyResult::Ok(acc + v.extract::<i32>()?))
                 .is_err());
         });

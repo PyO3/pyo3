@@ -89,7 +89,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::conversion::IntoPyObject;
-    use crate::types::{PyAnyMethods, PyBytes, PyBytesMethods, PyList};
+    use crate::types::{PyAnyMethods, PyBytes, PyList};
     use crate::Python;
 
     #[test]

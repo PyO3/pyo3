@@ -16,9 +16,6 @@ use std::os::raw::{c_char, c_int, c_void};
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyCapsule>`][crate::Py] or [`Bound<'py, PyCapsule>`][Bound].
 ///
-/// For APIs available on capsule objects, see the [`PyCapsuleMethods`] trait which is implemented for
-/// [`Bound<'py, PyCapsule>`][Bound].
-///
 /// # Example
 /// ```
 /// use pyo3::{prelude::*, types::PyCapsule};
@@ -36,7 +33,7 @@ use std::os::raw::{c_char, c_int, c_void};
 ///     let capsule = PyCapsule::new(py, foo, Some(name.clone()))?;
 ///
 ///     let module = PyModule::import(py, "builtins")?;
-///     PyModuleMethods::add(&module, "capsule", capsule)?;
+///     module.add("capsule", capsule)?;
 ///
 ///     let cap: &Foo = unsafe { PyCapsule::import(py, name.as_ref())? };
 ///     assert_eq!(cap.val, 123);
@@ -49,7 +46,7 @@ pub struct PyCapsule(PyAny);
 
 pyobject_native_type_core!(PyCapsule, pyobject_native_static_type_object!(ffi::PyCapsule_Type), #checkfunction=ffi::PyCapsule_CheckExact);
 
-impl PyCapsule {
+impl<'py> PyCapsule {
     /// Constructs a new capsule whose contents are `value`, associated with `name`.
     /// `name` is the identifier for the capsule; if it is stored as an attribute of a module,
     /// the name should be in the format `"modulename.attribute"`.
@@ -82,10 +79,10 @@ impl PyCapsule {
     /// });
     /// ```
     pub fn new<T: 'static + Send + AssertNotZeroSized>(
-        py: Python<'_>,
+        py: Python<'py>,
         value: T,
         name: Option<CString>,
-    ) -> PyResult<Bound<'_, Self>> {
+    ) -> PyResult<Bound<'py, Self>> {
         Self::new_with_destructor(py, value, name, |_, _| {})
     }
 
@@ -93,10 +90,10 @@ impl PyCapsule {
     #[deprecated(since = "0.23.0", note = "renamed to `PyCapsule::new`")]
     #[inline]
     pub fn new_bound<T: 'static + Send + AssertNotZeroSized>(
-        py: Python<'_>,
+        py: Python<'py>,
         value: T,
         name: Option<CString>,
-    ) -> PyResult<Bound<'_, Self>> {
+    ) -> PyResult<Bound<'py, Self>> {
         Self::new(py, value, name)
     }
 
@@ -111,11 +108,11 @@ impl PyCapsule {
         T: 'static + Send + AssertNotZeroSized,
         F: FnOnce(T, *mut c_void) + Send,
     >(
-        py: Python<'_>,
+        py: Python<'py>,
         value: T,
         name: Option<CString>,
         destructor: F,
-    ) -> PyResult<Bound<'_, Self>> {
+    ) -> PyResult<Bound<'py, Self>> {
         AssertNotZeroSized::assert_not_zero_sized(&value);
 
         // Sanity check for capsule layout
@@ -162,7 +159,7 @@ impl PyCapsule {
     /// # Safety
     ///
     /// It must be known that the capsule imported by `name` contains an item of type `T`.
-    pub unsafe fn import<'py, T>(py: Python<'py>, name: &CStr) -> PyResult<&'py T> {
+    pub unsafe fn import<T>(py: Python<'py>, name: &CStr) -> PyResult<&'py T> {
         let ptr = ffi::PyCapsule_Import(name.as_ptr(), false as c_int);
         if ptr.is_null() {
             Err(PyErr::fetch(py))
@@ -170,15 +167,7 @@ impl PyCapsule {
             Ok(&*ptr.cast::<T>())
         }
     }
-}
 
-/// Implementation of functionality for [`PyCapsule`].
-///
-/// These methods are defined for the `Bound<'py, PyCapsule>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
-#[doc(alias = "PyCapsule")]
-pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     /// Sets the context pointer in the capsule.
     ///
     /// Returns an error if this capsule is not valid.
@@ -216,40 +205,8 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// assert_eq!(rx.recv(), Ok("Destructor called!".to_string()));
     /// ```
-    fn set_context(&self, context: *mut c_void) -> PyResult<()>;
-
-    /// Gets the current context stored in the capsule. If there is no context, the pointer
-    /// will be null.
-    ///
-    /// Returns an error if this capsule is not valid.
-    fn context(&self) -> PyResult<*mut c_void>;
-
-    /// Obtains a reference to the value of this capsule.
-    ///
-    /// # Safety
-    ///
-    /// It must be known that this capsule is valid and its pointer is to an item of type `T`.
-    unsafe fn reference<T>(&self) -> &'py T;
-
-    /// Gets the raw `c_void` pointer to the value in this capsule.
-    ///
-    /// Returns null if this capsule is not valid.
-    fn pointer(&self) -> *mut c_void;
-
-    /// Checks if this is a valid capsule.
-    ///
-    /// Returns true if the stored `pointer()` is non-null.
-    fn is_valid(&self) -> bool;
-
-    /// Retrieves the name of this capsule, if set.
-    ///
-    /// Returns an error if this capsule is not valid.
-    fn name(&self) -> PyResult<Option<&'py CStr>>;
-}
-
-impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    fn set_context(&self, context: *mut c_void) -> PyResult<()> {
+    pub fn set_context(self: &Bound<'py, Self>, context: *mut c_void) -> PyResult<()> {
         let result = unsafe { ffi::PyCapsule_SetContext(self.as_ptr(), context) };
         if result != 0 {
             Err(PyErr::fetch(self.py()))
@@ -258,7 +215,11 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
         }
     }
 
-    fn context(&self) -> PyResult<*mut c_void> {
+    /// Gets the current context stored in the capsule. If there is no context, the pointer
+    /// will be null.
+    ///
+    /// Returns an error if this capsule is not valid.
+    pub fn context(self: &Bound<'py, Self>) -> PyResult<*mut c_void> {
         let ctx = unsafe { ffi::PyCapsule_GetContext(self.as_ptr()) };
         if ctx.is_null() {
             ensure_no_error(self.py())?
@@ -266,11 +227,19 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
         Ok(ctx)
     }
 
-    unsafe fn reference<T>(&self) -> &'py T {
+    /// Obtains a reference to the value of this capsule.
+    ///
+    /// # Safety
+    ///
+    /// It must be known that this capsule is valid and its pointer is to an item of type `T`.
+    pub unsafe fn reference<T>(self: &Bound<'py, Self>) -> &'py T {
         &*self.pointer().cast()
     }
 
-    fn pointer(&self) -> *mut c_void {
+    /// Gets the raw `c_void` pointer to the value in this capsule.
+    ///
+    /// Returns null if this capsule is not valid.
+    pub fn pointer(self: &Bound<'py, Self>) -> *mut c_void {
         unsafe {
             let ptr = ffi::PyCapsule_GetPointer(self.as_ptr(), name_ptr_ignore_error(self));
             if ptr.is_null() {
@@ -280,7 +249,10 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
         }
     }
 
-    fn is_valid(&self) -> bool {
+    /// Checks if this is a valid capsule.
+    ///
+    /// Returns true if the stored `pointer()` is non-null.
+    pub fn is_valid(self: &Bound<'py, Self>) -> bool {
         // As well as if the stored pointer is null, PyCapsule_IsValid also returns false if
         // self.as_ptr() is null or not a ptr to a PyCapsule object. Both of these are guaranteed
         // to not be the case thanks to invariants of this PyCapsule struct.
@@ -288,7 +260,10 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
         r != 0
     }
 
-    fn name(&self) -> PyResult<Option<&'py CStr>> {
+    /// Retrieves the name of this capsule, if set.
+    ///
+    /// Returns an error if this capsule is not valid.
+    pub fn name(self: &Bound<'py, Self>) -> PyResult<Option<&'py CStr>> {
         unsafe {
             let ptr = ffi::PyCapsule_GetName(self.as_ptr());
             if ptr.is_null() {
@@ -358,8 +333,6 @@ fn name_ptr_ignore_error(slf: &Bound<'_, PyCapsule>) -> *const c_char {
 #[cfg(test)]
 mod tests {
     use crate::prelude::PyModule;
-    use crate::types::capsule::PyCapsuleMethods;
-    use crate::types::module::PyModuleMethods;
     use crate::{types::PyCapsule, Py, PyResult, Python};
     use std::ffi::CString;
     use std::os::raw::c_void;

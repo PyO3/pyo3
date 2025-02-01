@@ -698,9 +698,6 @@ mod test_128bit_integers {
     use crate::types::PyDict;
 
     #[cfg(not(target_arch = "wasm32"))]
-    use crate::types::dict::PyDictMethods;
-
-    #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -713,7 +710,7 @@ mod test_128bit_integers {
             Python::with_gil(|py| {
                 let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
-                PyDictMethods::set_item(&locals, "x_py", &x_py).unwrap();
+                locals.set_item("x_py", &x_py).unwrap();
                 py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
                 let roundtripped: i128 = x_py.extract().unwrap();
                 assert_eq!(x, roundtripped);
@@ -729,7 +726,7 @@ mod test_128bit_integers {
             Python::with_gil(|py| {
                 let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
-                PyDictMethods::set_item(&locals, "x_py", &x_py).unwrap();
+                locals.set_item("x_py", &x_py).unwrap();
                 py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
                 let roundtripped: NonZeroI128 = x_py.extract().unwrap();
                 assert_eq!(x, roundtripped);
@@ -744,7 +741,7 @@ mod test_128bit_integers {
             Python::with_gil(|py| {
                 let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
-                PyDictMethods::set_item(&locals, "x_py", &x_py).unwrap();
+                locals.set_item("x_py", &x_py).unwrap();
                 py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
                 let roundtripped: u128 = x_py.extract().unwrap();
                 assert_eq!(x, roundtripped);
@@ -760,7 +757,7 @@ mod test_128bit_integers {
             Python::with_gil(|py| {
                 let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
-                PyDictMethods::set_item(&locals, "x_py", &x_py).unwrap();
+                locals.set_item("x_py", &x_py).unwrap();
                 py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
                 let roundtripped: NonZeroU128 = x_py.extract().unwrap();
                 assert_eq!(x, roundtripped);

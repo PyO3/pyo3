@@ -27,7 +27,6 @@ fn test_anyhow_py_function_ok_result() {
 
 #[test]
 fn test_anyhow_py_function_err_result() {
-    use pyo3::prelude::PyDictMethods;
     use pyo3::{pyfunction, types::PyDict, Python};
 
     #[pyfunction]

@@ -15,9 +15,6 @@ use std::ptr;
 ///
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PySet>`][crate::Py] or [`Bound<'py, PySet>`][Bound].
-///
-/// For APIs available on `set` objects, see the [`PySetMethods`] trait which is implemented for
-/// [`Bound<'py, PySet>`][Bound].
 #[repr(transparent)]
 pub struct PySet(PyAny);
 
@@ -39,12 +36,12 @@ pyobject_native_type_core!(
     #checkfunction=ffi::PySet_Check
 );
 
-impl PySet {
+impl<'py> PySet {
     /// Creates a new set with elements from the given slice.
     ///
     /// Returns an error if some element is not hashable.
     #[inline]
-    pub fn new<'py, T>(
+    pub fn new<T>(
         py: Python<'py>,
         elements: impl IntoIterator<Item = T>,
     ) -> PyResult<Bound<'py, PySet>>
@@ -58,15 +55,15 @@ impl PySet {
     #[deprecated(since = "0.23.0", note = "renamed to `PySet::new`")]
     #[allow(deprecated)]
     #[inline]
-    pub fn new_bound<'a, 'p, T: ToPyObject + 'a>(
-        py: Python<'p>,
+    pub fn new_bound<'a, T: ToPyObject + 'a>(
+        py: Python<'py>,
         elements: impl IntoIterator<Item = &'a T>,
-    ) -> PyResult<Bound<'p, PySet>> {
+    ) -> PyResult<Bound<'py, PySet>> {
         Self::new(py, elements.into_iter().map(|e| e.to_object(py)))
     }
 
     /// Creates a new empty set.
-    pub fn empty(py: Python<'_>) -> PyResult<Bound<'_, PySet>> {
+    pub fn empty(py: Python<'py>) -> PyResult<Bound<'py, PySet>> {
         unsafe {
             ffi::PySet_New(ptr::null_mut())
                 .assume_owned_or_err(py)
@@ -77,75 +74,35 @@ impl PySet {
     /// Deprecated name for [`PySet::empty`].
     #[deprecated(since = "0.23.0", note = "renamed to `PySet::empty`")]
     #[inline]
-    pub fn empty_bound(py: Python<'_>) -> PyResult<Bound<'_, PySet>> {
+    pub fn empty_bound(py: Python<'py>) -> PyResult<Bound<'py, PySet>> {
         Self::empty(py)
     }
-}
 
-/// Implementation of functionality for [`PySet`].
-///
-/// These methods are defined for the `Bound<'py, PySet>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
-#[doc(alias = "PySet")]
-pub trait PySetMethods<'py>: crate::sealed::Sealed {
     /// Removes all elements from the set.
-    fn clear(&self);
+    #[inline]
+    pub fn clear(self: &Bound<'py, Self>) {
+        unsafe {
+            ffi::PySet_Clear(self.as_ptr());
+        }
+    }
 
     /// Returns the number of items in the set.
     ///
     /// This is equivalent to the Python expression `len(self)`.
-    fn len(&self) -> usize;
+    #[inline]
+    pub fn len(self: &Bound<'py, Self>) -> usize {
+        unsafe { ffi::PySet_Size(self.as_ptr()) as usize }
+    }
 
     /// Checks if set is empty.
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(self: &Bound<'py, Self>) -> bool {
         self.len() == 0
     }
 
     /// Determines if the set contains the specified key.
     ///
     /// This is equivalent to the Python expression `key in self`.
-    fn contains<K>(&self, key: K) -> PyResult<bool>
-    where
-        K: IntoPyObject<'py>;
-
-    /// Removes the element from the set if it is present.
-    ///
-    /// Returns `true` if the element was present in the set.
-    fn discard<K>(&self, key: K) -> PyResult<bool>
-    where
-        K: IntoPyObject<'py>;
-
-    /// Adds an element to the set.
-    fn add<K>(&self, key: K) -> PyResult<()>
-    where
-        K: IntoPyObject<'py>;
-
-    /// Removes and returns an arbitrary element from the set.
-    fn pop(&self) -> Option<Bound<'py, PyAny>>;
-
-    /// Returns an iterator of values in this set.
-    ///
-    /// # Panics
-    ///
-    /// If PyO3 detects that the set is mutated during iteration, it will panic.
-    fn iter(&self) -> BoundSetIterator<'py>;
-}
-
-impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
-    #[inline]
-    fn clear(&self) {
-        unsafe {
-            ffi::PySet_Clear(self.as_ptr());
-        }
-    }
-
-    #[inline]
-    fn len(&self) -> usize {
-        unsafe { ffi::PySet_Size(self.as_ptr()) as usize }
-    }
-
-    fn contains<K>(&self, key: K) -> PyResult<bool>
+    pub fn contains<K>(self: &Bound<'py, Self>, key: K) -> PyResult<bool>
     where
         K: IntoPyObject<'py>,
     {
@@ -164,7 +121,10 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
         )
     }
 
-    fn discard<K>(&self, key: K) -> PyResult<bool>
+    /// Removes the element from the set if it is present.
+    ///
+    /// Returns `true` if the element was present in the set.
+    pub fn discard<K>(self: &Bound<'py, Self>, key: K) -> PyResult<bool>
     where
         K: IntoPyObject<'py>,
     {
@@ -183,7 +143,8 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
         )
     }
 
-    fn add<K>(&self, key: K) -> PyResult<()>
+    /// Adds an element to the set.
+    pub fn add<K>(self: &Bound<'py, Self>, key: K) -> PyResult<()>
     where
         K: IntoPyObject<'py>,
     {
@@ -200,12 +161,18 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
         )
     }
 
-    fn pop(&self) -> Option<Bound<'py, PyAny>> {
+    /// Removes and returns an arbitrary element from the set.
+    pub fn pop(self: &Bound<'py, Self>) -> Option<Bound<'py, PyAny>> {
         let element = unsafe { ffi::PySet_Pop(self.as_ptr()).assume_owned_or_err(self.py()) };
         element.ok()
     }
 
-    fn iter(&self) -> BoundSetIterator<'py> {
+    /// Returns an iterator of values in this set.
+    ///
+    /// # Panics
+    ///
+    /// If PyO3 detects that the set is mutated during iteration, it will panic.
+    pub fn iter(self: &Bound<'py, Self>) -> BoundSetIterator<'py> {
         BoundSetIterator::new(self.clone())
     }
 }
@@ -234,7 +201,7 @@ impl<'py> IntoIterator for &Bound<'py, PySet> {
     ///
     /// If PyO3 detects that the set is mutated during iteration, it will panic.
     fn into_iter(self) -> Self::IntoIter {
-        PySetMethods::iter(self)
+        self.iter()
     }
 }
 
@@ -250,7 +217,7 @@ impl<'py> BoundSetIterator<'py> {
     pub(super) fn new(set: Bound<'py, PySet>) -> Self {
         Self {
             it: PyIterator::from_object(set.as_any()).unwrap(),
-            remaining: PySetMethods::len(&set),
+            remaining: set.len(),
         }
     }
 }
@@ -313,19 +280,14 @@ where
 #[cfg(test)]
 mod tests {
     use super::PySet;
-    use crate::{
-        conversion::IntoPyObject,
-        ffi,
-        types::{PyAnyMethods, PySetMethods},
-        Python,
-    };
+    use crate::{conversion::IntoPyObject, ffi, types::PyAnyMethods, Python};
     use std::collections::HashSet;
 
     #[test]
     fn test_set_new() {
         Python::with_gil(|py| {
             let set = PySet::new(py, [1]).unwrap();
-            assert_eq!(1, PySetMethods::len(&set));
+            assert_eq!(1, set.len());
 
             let v = vec![1];
             assert!(PySet::new(py, &[v]).is_err());
@@ -336,8 +298,8 @@ mod tests {
     fn test_set_empty() {
         Python::with_gil(|py| {
             let set = PySet::empty(py).unwrap();
-            assert_eq!(0, PySetMethods::len(&set));
-            assert!(PySetMethods::is_empty(&set));
+            assert_eq!(0, set.len());
+            assert!(set.is_empty());
         });
     }
 
@@ -347,11 +309,11 @@ mod tests {
             let mut v = HashSet::<i32>::new();
             let ob = (&v).into_pyobject(py).unwrap();
             let set = ob.downcast::<PySet>().unwrap();
-            assert_eq!(0, PySetMethods::len(set));
+            assert_eq!(0, set.len());
             v.insert(7);
             let ob = v.into_pyobject(py).unwrap();
             let set2 = ob.downcast::<PySet>().unwrap();
-            assert_eq!(1, PySetMethods::len(set2));
+            assert_eq!(1, set2.len());
         });
     }
 
@@ -359,9 +321,9 @@ mod tests {
     fn test_set_clear() {
         Python::with_gil(|py| {
             let set = PySet::new(py, [1]).unwrap();
-            assert_eq!(1, PySetMethods::len(&set));
+            assert_eq!(1, set.len());
             set.clear();
-            assert_eq!(0, PySetMethods::len(&set));
+            assert_eq!(0, set.len());
         });
     }
 
@@ -369,7 +331,7 @@ mod tests {
     fn test_set_contains() {
         Python::with_gil(|py| {
             let set = PySet::new(py, [1]).unwrap();
-            assert!(PySetMethods::contains(&set, 1).unwrap());
+            assert!(set.contains(1).unwrap());
         });
     }
 
@@ -378,10 +340,10 @@ mod tests {
         Python::with_gil(|py| {
             let set = PySet::new(py, [1]).unwrap();
             assert!(!set.discard(2).unwrap());
-            assert_eq!(1, PySetMethods::len(&set));
+            assert_eq!(1, set.len());
 
             assert!(set.discard(1).unwrap());
-            assert_eq!(0, PySetMethods::len(&set));
+            assert_eq!(0, set.len());
             assert!(!set.discard(1).unwrap());
 
             assert!(set.discard(vec![1, 2]).is_err());
@@ -392,8 +354,8 @@ mod tests {
     fn test_set_add() {
         Python::with_gil(|py| {
             let set = PySet::new(py, [1, 2]).unwrap();
-            PySetMethods::add(&set, 1).unwrap(); // Add a dupliated element
-            assert!(PySetMethods::contains(&set, 1).unwrap());
+            set.add(1).unwrap(); // Add a dupliated element
+            assert!(set.contains(1).unwrap());
         });
     }
 
@@ -446,7 +408,7 @@ mod tests {
             let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
 
             for _ in &set {
-                let _ = PySetMethods::add(&set, 42);
+                let _ = set.add(42);
             }
         });
     }
@@ -460,7 +422,7 @@ mod tests {
             for item in &set {
                 let item: i32 = item.extract().unwrap();
                 let _ = set.del_item(item);
-                let _ = PySetMethods::add(&set, item + 10);
+                let _ = set.add(item + 10);
             }
         });
     }
@@ -469,7 +431,7 @@ mod tests {
     fn test_set_iter_size_hint() {
         Python::with_gil(|py| {
             let set = PySet::new(py, [1]).unwrap();
-            let mut iter = PySetMethods::iter(&set);
+            let mut iter = set.iter();
 
             // Exact size
             assert_eq!(iter.len(), 1);

@@ -62,9 +62,6 @@ impl<'py> PyFrozenSetBuilder<'py> {
 ///
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyFrozenSet>`][crate::Py] or [`Bound<'py, PyFrozenSet>`][Bound].
-///
-/// For APIs available on `frozenset` objects, see the [`PyFrozenSetMethods`] trait which is implemented for
-/// [`Bound<'py, PyFrozenSet>`][Bound].
 #[repr(transparent)]
 pub struct PyFrozenSet(PyAny);
 
@@ -85,12 +82,12 @@ pyobject_native_type_core!(
     #checkfunction=ffi::PyFrozenSet_Check
 );
 
-impl PyFrozenSet {
+impl<'py> PyFrozenSet {
     /// Creates a new frozenset.
     ///
     /// May panic when running out of memory.
     #[inline]
-    pub fn new<'py, T>(
+    pub fn new<T>(
         py: Python<'py>,
         elements: impl IntoIterator<Item = T>,
     ) -> PyResult<Bound<'py, PyFrozenSet>>
@@ -104,15 +101,15 @@ impl PyFrozenSet {
     #[deprecated(since = "0.23.0", note = "renamed to `PyFrozenSet::new`")]
     #[allow(deprecated)]
     #[inline]
-    pub fn new_bound<'a, 'p, T: crate::ToPyObject + 'a>(
-        py: Python<'p>,
+    pub fn new_bound<'a, T: crate::ToPyObject + 'a>(
+        py: Python<'py>,
         elements: impl IntoIterator<Item = &'a T>,
-    ) -> PyResult<Bound<'p, PyFrozenSet>> {
+    ) -> PyResult<Bound<'py, PyFrozenSet>> {
         Self::new(py, elements.into_iter().map(|e| e.to_object(py)))
     }
 
     /// Creates a new empty frozen set
-    pub fn empty(py: Python<'_>) -> PyResult<Bound<'_, PyFrozenSet>> {
+    pub fn empty(py: Python<'py>) -> PyResult<Bound<'py, PyFrozenSet>> {
         unsafe {
             ffi::PyFrozenSet_New(ptr::null_mut())
                 .assume_owned_or_err(py)
@@ -123,46 +120,27 @@ impl PyFrozenSet {
     /// Deprecated name for [`PyFrozenSet::empty`].
     #[deprecated(since = "0.23.0", note = "renamed to `PyFrozenSet::empty`")]
     #[inline]
-    pub fn empty_bound(py: Python<'_>) -> PyResult<Bound<'_, PyFrozenSet>> {
+    pub fn empty_bound(py: Python<'py>) -> PyResult<Bound<'py, PyFrozenSet>> {
         Self::empty(py)
     }
-}
 
-/// Implementation of functionality for [`PyFrozenSet`].
-///
-/// These methods are defined for the `Bound<'py, PyFrozenSet>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
-#[doc(alias = "PyFrozenSet")]
-pub trait PyFrozenSetMethods<'py>: crate::sealed::Sealed {
     /// Returns the number of items in the set.
     ///
     /// This is equivalent to the Python expression `len(self)`.
-    fn len(&self) -> usize;
+    #[inline]
+    pub fn len(self: &Bound<'py, Self>) -> usize {
+        unsafe { ffi::PySet_Size(self.as_ptr()) as usize }
+    }
 
     /// Checks if set is empty.
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(self: &Bound<'py, Self>) -> bool {
         self.len() == 0
     }
 
     /// Determines if the set contains the specified key.
     ///
     /// This is equivalent to the Python expression `key in self`.
-    fn contains<K>(&self, key: K) -> PyResult<bool>
-    where
-        K: IntoPyObject<'py>;
-
-    /// Returns an iterator of values in this set.
-    fn iter(&self) -> BoundFrozenSetIterator<'py>;
-}
-
-impl<'py> PyFrozenSetMethods<'py> for Bound<'py, PyFrozenSet> {
-    #[inline]
-    fn len(&self) -> usize {
-        unsafe { ffi::PySet_Size(self.as_ptr()) as usize }
-    }
-
-    fn contains<K>(&self, key: K) -> PyResult<bool>
+    pub fn contains<K>(self: &Bound<'py, Self>, key: K) -> PyResult<bool>
     where
         K: IntoPyObject<'py>,
     {
@@ -184,7 +162,8 @@ impl<'py> PyFrozenSetMethods<'py> for Bound<'py, PyFrozenSet> {
         )
     }
 
-    fn iter(&self) -> BoundFrozenSetIterator<'py> {
+    /// Returns an iterator of values in this set.
+    pub fn iter(self: &Bound<'py, Self>) -> BoundFrozenSetIterator<'py> {
         BoundFrozenSetIterator::new(self.clone())
     }
 }
@@ -205,7 +184,7 @@ impl<'py> IntoIterator for &Bound<'py, PyFrozenSet> {
 
     /// Returns an iterator of values in this set.
     fn into_iter(self) -> Self::IntoIter {
-        PyFrozenSetMethods::iter(self)
+        self.iter()
     }
 }
 
@@ -220,7 +199,7 @@ impl<'py> BoundFrozenSetIterator<'py> {
     pub(super) fn new(set: Bound<'py, PyFrozenSet>) -> Self {
         Self {
             it: PyIterator::from_object(set.as_any()).unwrap(),
-            remaining: PyFrozenSetMethods::len(&set),
+            remaining: set.len(),
         }
     }
 }
@@ -277,7 +256,7 @@ mod tests {
     fn test_frozenset_new_and_len() {
         Python::with_gil(|py| {
             let set = PyFrozenSet::new(py, [1]).unwrap();
-            assert_eq!(1, PyFrozenSetMethods::len(&set));
+            assert_eq!(1, set.len());
 
             let v = vec![1];
             assert!(PyFrozenSet::new(py, &[v]).is_err());
@@ -288,8 +267,8 @@ mod tests {
     fn test_frozenset_empty() {
         Python::with_gil(|py| {
             let set = PyFrozenSet::empty(py).unwrap();
-            assert_eq!(0, PyFrozenSetMethods::len(&set));
-            assert!(PyFrozenSetMethods::is_empty(&set));
+            assert_eq!(0, set.len());
+            assert!(set.is_empty());
         });
     }
 
@@ -297,7 +276,7 @@ mod tests {
     fn test_frozenset_contains() {
         Python::with_gil(|py| {
             let set = PyFrozenSet::new(py, [1]).unwrap();
-            assert!(PyFrozenSetMethods::contains(&set, 1).unwrap());
+            assert!(set.contains(1).unwrap());
         });
     }
 
@@ -327,7 +306,7 @@ mod tests {
     fn test_frozenset_iter_size_hint() {
         Python::with_gil(|py| {
             let set = PyFrozenSet::new(py, [1]).unwrap();
-            let mut iter = PyFrozenSetMethods::iter(&set);
+            let mut iter = set.iter();
 
             // Exact size
             assert_eq!(iter.len(), 1);
@@ -353,9 +332,9 @@ mod tests {
             // finalize it
             let set = builder.finalize();
 
-            assert!(PyFrozenSetMethods::contains(&set, 1).unwrap());
-            assert!(PyFrozenSetMethods::contains(&set, 2).unwrap());
-            assert!(!PyFrozenSetMethods::contains(&set, 3).unwrap());
+            assert!(set.contains(1).unwrap());
+            assert!(set.contains(2).unwrap());
+            assert!(!set.contains(3).unwrap());
         });
     }
 }

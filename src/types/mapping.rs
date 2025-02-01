@@ -13,110 +13,64 @@ use crate::{ffi, Py, PyTypeCheck, Python};
 ///
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyMapping>`][crate::Py] or [`Bound<'py, PyMapping>`][Bound].
-///
-/// For APIs available on mapping objects, see the [`PyMappingMethods`] trait which is implemented for
-/// [`Bound<'py, PyMapping>`][Bound].
 #[repr(transparent)]
 pub struct PyMapping(PyAny);
 pyobject_native_type_named!(PyMapping);
 
-impl PyMapping {
+impl<'py> PyMapping {
     /// Register a pyclass as a subclass of `collections.abc.Mapping` (from the Python standard
     /// library). This is equivalent to `collections.abc.Mapping.register(T)` in Python.
     /// This registration is required for a pyclass to be downcastable from `PyAny` to `PyMapping`.
-    pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
+    pub fn register<T: PyTypeInfo>(py: Python<'py>) -> PyResult<()> {
         let ty = T::type_object(py);
         get_mapping_abc(py)?.call_method1("register", (ty,))?;
         Ok(())
     }
-}
 
-/// Implementation of functionality for [`PyMapping`].
-///
-/// These methods are defined for the `Bound<'py, PyMapping>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
-#[doc(alias = "PyMapping")]
-pub trait PyMappingMethods<'py>: crate::sealed::Sealed {
     /// Returns the number of objects in the mapping.
     ///
     /// This is equivalent to the Python expression `len(self)`.
-    fn len(&self) -> PyResult<usize>;
-
-    /// Returns whether the mapping is empty.
-    fn is_empty(&self) -> PyResult<bool>;
-
-    /// Determines if the mapping contains the specified key.
-    ///
-    /// This is equivalent to the Python expression `key in self`.
-    fn contains<K>(&self, key: K) -> PyResult<bool>
-    where
-        K: IntoPyObject<'py>;
-
-    /// Gets the item in self with key `key`.
-    ///
-    /// Returns an `Err` if the item with specified key is not found, usually `KeyError`.
-    ///
-    /// This is equivalent to the Python expression `self[key]`.
-    fn get_item<K>(&self, key: K) -> PyResult<Bound<'py, PyAny>>
-    where
-        K: IntoPyObject<'py>;
-
-    /// Sets the item in self with key `key`.
-    ///
-    /// This is equivalent to the Python expression `self[key] = value`.
-    fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
-    where
-        K: IntoPyObject<'py>,
-        V: IntoPyObject<'py>;
-
-    /// Deletes the item with key `key`.
-    ///
-    /// This is equivalent to the Python statement `del self[key]`.
-    fn del_item<K>(&self, key: K) -> PyResult<()>
-    where
-        K: IntoPyObject<'py>;
-
-    /// Returns a list containing all keys in the mapping.
-    fn keys(&self) -> PyResult<Bound<'py, PyList>>;
-
-    /// Returns a list containing all values in the mapping.
-    fn values(&self) -> PyResult<Bound<'py, PyList>>;
-
-    /// Returns a list of all (key, value) pairs in the mapping.
-    fn items(&self) -> PyResult<Bound<'py, PyList>>;
-}
-
-impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
     #[inline]
-    fn len(&self) -> PyResult<usize> {
+    pub fn len(self: &Bound<'py, Self>) -> PyResult<usize> {
         let v = unsafe { ffi::PyMapping_Size(self.as_ptr()) };
         crate::err::error_on_minusone(self.py(), v)?;
         Ok(v as usize)
     }
 
+    /// Returns whether the mapping is empty.
     #[inline]
-    fn is_empty(&self) -> PyResult<bool> {
-        PyMappingMethods::len(self).map(|l| l == 0)
+    pub fn is_empty(self: &Bound<'py, Self>) -> PyResult<bool> {
+        self.len().map(|l| l == 0)
     }
 
-    fn contains<K>(&self, key: K) -> PyResult<bool>
+    /// Determines if the mapping contains the specified key.
+    ///
+    /// This is equivalent to the Python expression `key in self`.
+    pub fn contains<K>(self: &Bound<'py, Self>, key: K) -> PyResult<bool>
     where
         K: IntoPyObject<'py>,
     {
         PyAnyMethods::contains(self, key)
     }
 
+    /// Gets the item in self with key `key`.
+    ///
+    /// Returns an `Err` if the item with specified key is not found, usually `KeyError`.
+    ///
+    /// This is equivalent to the Python expression `self[key]`.
     #[inline]
-    fn get_item<K>(&self, key: K) -> PyResult<Bound<'py, PyAny>>
+    pub fn get_item<K>(self: &Bound<'py, Self>, key: K) -> PyResult<Bound<'py, PyAny>>
     where
         K: IntoPyObject<'py>,
     {
         PyAnyMethods::get_item(self, key)
     }
 
+    /// Sets the item in self with key `key`.
+    ///
+    /// This is equivalent to the Python expression `self[key] = value`.
     #[inline]
-    fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
+    pub fn set_item<K, V>(self: &Bound<'py, Self>, key: K, value: V) -> PyResult<()>
     where
         K: IntoPyObject<'py>,
         V: IntoPyObject<'py>,
@@ -124,16 +78,20 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
         PyAnyMethods::set_item(self, key, value)
     }
 
+    /// Deletes the item with key `key`.
+    ///
+    /// This is equivalent to the Python statement `del self[key]`.
     #[inline]
-    fn del_item<K>(&self, key: K) -> PyResult<()>
+    pub fn del_item<K>(self: &Bound<'py, Self>, key: K) -> PyResult<()>
     where
         K: IntoPyObject<'py>,
     {
         PyAnyMethods::del_item(self, key)
     }
 
+    /// Returns a list containing all keys in the mapping.
     #[inline]
-    fn keys(&self) -> PyResult<Bound<'py, PyList>> {
+    pub fn keys(self: &Bound<'py, Self>) -> PyResult<Bound<'py, PyList>> {
         unsafe {
             ffi::PyMapping_Keys(self.as_ptr())
                 .assume_owned_or_err(self.py())
@@ -141,8 +99,9 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
         }
     }
 
+    /// Returns a list containing all values in the mapping.
     #[inline]
-    fn values(&self) -> PyResult<Bound<'py, PyList>> {
+    pub fn values(self: &Bound<'py, Self>) -> PyResult<Bound<'py, PyList>> {
         unsafe {
             ffi::PyMapping_Values(self.as_ptr())
                 .assume_owned_or_err(self.py())
@@ -150,8 +109,9 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
         }
     }
 
+    /// Returns a list of all (key, value) pairs in the mapping.
     #[inline]
-    fn items(&self) -> PyResult<Bound<'py, PyList>> {
+    pub fn items(self: &Bound<'py, Self>) -> PyResult<Bound<'py, PyList>> {
         unsafe {
             ffi::PyMapping_Items(self.as_ptr())
                 .assume_owned_or_err(self.py())
@@ -198,14 +158,14 @@ mod tests {
             let mut v = HashMap::<i32, i32>::new();
             let ob = (&v).into_pyobject(py).unwrap();
             let mapping = ob.downcast::<PyMapping>().unwrap();
-            assert_eq!(0, PyMappingMethods::len(mapping).unwrap());
-            assert!(PyMappingMethods::is_empty(mapping).unwrap());
+            assert_eq!(0, mapping.len().unwrap());
+            assert!(mapping.is_empty().unwrap());
 
             v.insert(7, 32);
             let ob = v.into_pyobject(py).unwrap();
             let mapping2 = ob.downcast::<PyMapping>().unwrap();
-            assert_eq!(1, PyMappingMethods::len(mapping2).unwrap());
-            assert!(!PyMappingMethods::is_empty(mapping2).unwrap());
+            assert_eq!(1, mapping2.len().unwrap());
+            assert!(!mapping2.is_empty().unwrap());
         });
     }
 
@@ -216,11 +176,11 @@ mod tests {
             v.insert("key0", 1234);
             let ob = v.into_pyobject(py).unwrap();
             let mapping = ob.downcast::<PyMapping>().unwrap();
-            PyMappingMethods::set_item(mapping, "key1", "foo").unwrap();
+            mapping.set_item("key1", "foo").unwrap();
 
-            assert!(PyMappingMethods::contains(mapping, "key0").unwrap());
-            assert!(PyMappingMethods::contains(mapping, "key1").unwrap());
-            assert!(!PyMappingMethods::contains(mapping, "key2").unwrap());
+            assert!(mapping.contains("key0").unwrap());
+            assert!(mapping.contains("key1").unwrap());
+            assert!(!mapping.contains("key2").unwrap());
         });
     }
 
@@ -233,12 +193,10 @@ mod tests {
             let mapping = ob.downcast::<PyMapping>().unwrap();
             assert_eq!(
                 32,
-                PyMappingMethods::get_item(mapping, 7i32)
-                    .unwrap()
-                    .extract::<i32>()
-                    .unwrap()
+                mapping.get_item(7i32).unwrap().extract::<i32>().unwrap()
             );
-            assert!(PyMappingMethods::get_item(mapping, 8i32)
+            assert!(mapping
+                .get_item(8i32)
                 .unwrap_err()
                 .is_instance_of::<PyKeyError>(py));
         });
@@ -251,21 +209,15 @@ mod tests {
             v.insert(7, 32);
             let ob = v.into_pyobject(py).unwrap();
             let mapping = ob.downcast::<PyMapping>().unwrap();
-            assert!(PyMappingMethods::set_item(mapping, 7i32, 42i32).is_ok()); // change
-            assert!(PyMappingMethods::set_item(mapping, 8i32, 123i32).is_ok()); // insert
+            assert!(mapping.set_item(7i32, 42i32).is_ok()); // change
+            assert!(mapping.set_item(8i32, 123i32).is_ok()); // insert
             assert_eq!(
                 42i32,
-                PyMappingMethods::get_item(mapping, 7i32)
-                    .unwrap()
-                    .extract::<i32>()
-                    .unwrap()
+                mapping.get_item(7i32).unwrap().extract::<i32>().unwrap()
             );
             assert_eq!(
                 123i32,
-                PyMappingMethods::get_item(mapping, 8i32)
-                    .unwrap()
-                    .extract::<i32>()
-                    .unwrap()
+                mapping.get_item(8i32).unwrap().extract::<i32>().unwrap()
             );
         });
     }
@@ -277,9 +229,10 @@ mod tests {
             v.insert(7, 32);
             let ob = v.into_pyobject(py).unwrap();
             let mapping = ob.downcast::<PyMapping>().unwrap();
-            assert!(PyMappingMethods::del_item(mapping, 7i32).is_ok());
-            assert_eq!(0, PyMappingMethods::len(mapping).unwrap());
-            assert!(PyMappingMethods::get_item(mapping, 7i32)
+            assert!(mapping.del_item(7i32).is_ok());
+            assert_eq!(0, mapping.len().unwrap());
+            assert!(mapping
+                .get_item(7i32)
                 .unwrap_err()
                 .is_instance_of::<PyKeyError>(py));
         });

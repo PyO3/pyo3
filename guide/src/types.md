@@ -137,7 +137,7 @@ fn add(left: &Bound<'_, PyAny>, right: &Bound<'_, PyAny>) -> PyResult<PyObject> 
 
 `Borrowed<'a, 'py, T>` dereferences to `Bound<'py, T>`, so all methods on `Bound<'py, T>` are available on `Borrowed<'a, 'py, T>`.
 
-An example where `Borrowed<'a, 'py, T>` is used is in [`PyTupleMethods::get_borrowed_item`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyTupleMethods.html#tymethod.get_item):
+An example where `Borrowed<'a, 'py, T>` is used is in [`PyTuple::get_borrowed_item`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTuple.html#tymethod.get_item):
 
 ```rust
 use pyo3::prelude::*;
@@ -215,21 +215,14 @@ The following subsections covers some further detail about how to work with thes
 
 Each concrete Python type such as `PyAny`, `PyTuple` and `PyDict` exposes its API on the corresponding bound smart pointer `Bound<'py, PyAny>`, `Bound<'py, PyTuple>` and `Bound<'py, PyDict>`.
 
-Each type's API is exposed as a trait: [`PyAnyMethods`], [`PyTupleMethods`], [`PyDictMethods`], and so on for all concrete types. Using traits rather than associated methods on the `Bound` smart pointer is done for a couple of reasons:
-- Clarity of documentation: each trait gets its own documentation page in the PyO3 API docs. If all methods were on the `Bound` smart pointer directly, the vast majority of PyO3's API would be on a single, extremely long, documentation page.
-- Consistency: downstream code implementing Rust APIs for existing Python types can also follow this pattern of using a trait. Downstream code would not be allowed to add new associated methods directly on the `Bound` type.
-- Future design: it is hoped that a future Rust with [arbitrary self types](https://github.com/rust-lang/rust/issues/44874) will remove the need for these traits in favour of placing the methods directly on `PyAny`, `PyTuple`, `PyDict`, and so on.
-
-These traits are all included in the `pyo3::prelude` module, so with the glob import `use pyo3::prelude::*` the full PyO3 API is made available to downstream code.
-
-The following function accesses the first item in the input Python list, using the `.get_item()` method from the `PyListMethods` trait:
+The following function accesses the first item in the input Python list, using the `.get_item()` method:
 
 ```rust
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
 fn get_first_item<'py>(list: &Bound<'py, PyList>) -> PyResult<Bound<'py, PyAny>> {
-    PyListMethods::get_item(list, 0)
+    list.get_item(0)
 }
 # Python::with_gil(|py| {
 #     let l = PyList::new(py, ["hello world"]).unwrap();
@@ -317,8 +310,6 @@ for more detail.
 [PyAnyMethods::downcast_into]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.downcast_into
 [`PyTypeCheck`]: {{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PyTypeCheck.html
 [`PyAnyMethods`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html
-[`PyDictMethods`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyDictMethods.html
-[`PyTupleMethods`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyTupleMethods.html
 [pyclass]: class.md
 [Borrowed]: {{#PYO3_DOCS_URL}}/pyo3/struct.Borrowed.html
 [Drop]: https://doc.rust-lang.org/std/ops/trait.Drop.html

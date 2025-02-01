@@ -387,7 +387,7 @@ fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
 #         let globals = PyModule::import(py, "__main__")?.dict();
-#         PyDictMethods::set_item(&globals, "Number", Number::type_object(py))?;
+#         globals.set_item("Number", Number::type_object(py))?;
 #
 #         py.run(SCRIPT, Some(&globals), None)?;
 #         Ok(())

@@ -227,7 +227,7 @@ where
     fn into_py_dict_bound(self, py: Python<'_>) -> Bound<'_, PyDict> {
         let dict = PyDict::new_bound(py);
         for (key, value) in self.0 {
-            PyDictMethods::set_item(&dict, key, value)
+            dict.set_item(key, value)
                 .expect("Failed to set_item on dict");
         }
         dict
@@ -253,7 +253,7 @@ where
     fn into_py_dict(self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let dict = PyDict::new(py);
         for (key, value) in self.0 {
-            PyDictMethods::set_item(&dict, key, value)?;
+            dict.set_item(key, value)?;
         }
         Ok(dict)
     }

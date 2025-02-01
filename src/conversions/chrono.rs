@@ -825,7 +825,6 @@ mod tests {
     fn test_zoneinfo_is_not_fixed_offset() {
         use crate::ffi;
         use crate::types::any::PyAnyMethods;
-        use crate::types::dict::PyDictMethods;
 
         Python::with_gil(|py| {
             let locals = crate::types::PyDict::new(py);
@@ -835,10 +834,7 @@ mod tests {
                 Some(&locals),
             )
             .unwrap();
-            let result: PyResult<FixedOffset> = PyDictMethods::get_item(&locals, "zi")
-                .unwrap()
-                .unwrap()
-                .extract();
+            let result: PyResult<FixedOffset> = locals.get_item("zi").unwrap().unwrap().extract();
             assert!(result.is_err());
             let res = result.err().unwrap();
             // Also check the error message is what we expect

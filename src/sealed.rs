@@ -1,9 +1,7 @@
-use crate::exceptions::{PyBaseException, PyValueError};
 use crate::types::{
-    PyBool, PyByteArray, PyBytes, PyCFunction, PyCapsule, PyComplex, PyDict, PyEllipsis, PyFloat,
-    PyFrozenSet, PyInt, PyList, PyMapping, PyMappingProxy, PyModule, PyNone, PyNotImplemented,
-    PySequence, PySet, PySlice, PyString, PyTraceback, PyTuple, PyType, PyWeakref, PyWeakrefProxy,
-    PyWeakrefReference,
+    PyBool, PyByteArray, PyBytes, PyCapsule, PyComplex, PyDict, PyFloat, PyFrozenSet, PyList,
+    PyMapping, PyMappingProxy, PyModule, PySequence, PySet, PySlice, PyString, PyTraceback,
+    PyTuple, PyType, PyWeakref, PyWeakrefProxy, PyWeakrefReference,
 };
 use crate::{ffi, Bound, PyAny, PyResult};
 
@@ -25,24 +23,18 @@ impl Sealed for PyResult<Bound<'_, PyAny>> {}
 
 // for Py(...)Methods
 impl Sealed for Bound<'_, PyAny> {}
-impl Sealed for Bound<'_, PyBaseException> {}
 impl Sealed for Bound<'_, PyBool> {}
 impl Sealed for Bound<'_, PyByteArray> {}
 impl Sealed for Bound<'_, PyBytes> {}
-impl Sealed for Bound<'_, PyCFunction> {}
 impl Sealed for Bound<'_, PyCapsule> {}
 impl Sealed for Bound<'_, PyComplex> {}
 impl Sealed for Bound<'_, PyDict> {}
-impl Sealed for Bound<'_, PyEllipsis> {}
 impl Sealed for Bound<'_, PyFloat> {}
 impl Sealed for Bound<'_, PyFrozenSet> {}
-impl Sealed for Bound<'_, PyInt> {}
 impl Sealed for Bound<'_, PyList> {}
 impl Sealed for Bound<'_, PyMapping> {}
 impl Sealed for Bound<'_, PyMappingProxy> {}
 impl Sealed for Bound<'_, PyModule> {}
-impl Sealed for Bound<'_, PyNone> {}
-impl Sealed for Bound<'_, PyNotImplemented> {}
 impl Sealed for Bound<'_, PySequence> {}
 impl Sealed for Bound<'_, PySet> {}
 impl Sealed for Bound<'_, PySlice> {}
@@ -50,7 +42,6 @@ impl Sealed for Bound<'_, PyString> {}
 impl Sealed for Bound<'_, PyTraceback> {}
 impl Sealed for Bound<'_, PyTuple> {}
 impl Sealed for Bound<'_, PyType> {}
-impl Sealed for Bound<'_, PyValueError> {}
 impl Sealed for Bound<'_, PyWeakref> {}
 impl Sealed for Bound<'_, PyWeakrefProxy> {}
 impl Sealed for Bound<'_, PyWeakrefReference> {}

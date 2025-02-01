@@ -3,7 +3,7 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::sync::GILOnceCell;
-use pyo3::types::{IntoPyDict, PyModuleMethods};
+use pyo3::types::IntoPyDict;
 
 #[pyclass]
 struct EmptyClassWithNew {}
@@ -170,7 +170,7 @@ assert c.from_rust is False
 "#
         ));
         let globals = PyModule::import(py, "__main__").unwrap().dict();
-        globals.as_any().set_item("SuperClass", super_cls).unwrap();
+        globals.set_item("SuperClass", super_cls).unwrap();
         py.run(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();

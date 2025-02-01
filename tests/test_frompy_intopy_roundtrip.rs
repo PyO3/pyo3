@@ -117,9 +117,10 @@ fn test_generic_with_bound() {
         hash_map.insert("2".into(), 2);
         let map = GenericWithBound(hash_map);
         let py_map = (&map).into_pyobject(py).unwrap();
-        assert_eq!(PyDictMethods::len(&py_map), 2);
+        assert_eq!(py_map.len(), 2);
         assert_eq!(
-            PyDictMethods::get_item(&py_map, "1")
+            py_map
+                .get_item("1")
                 .unwrap()
                 .unwrap()
                 .extract::<i32>()
@@ -127,19 +128,21 @@ fn test_generic_with_bound() {
             1
         );
         assert_eq!(
-            PyDictMethods::get_item(&py_map, "2")
+            py_map
+                .get_item("2")
                 .unwrap()
                 .unwrap()
                 .extract::<i32>()
                 .unwrap(),
             2
         );
-        assert!(PyDictMethods::get_item(&py_map, "3").unwrap().is_none());
+        assert!(py_map.get_item("3").unwrap().is_none());
 
         let py_map = map.into_pyobject(py).unwrap();
-        assert_eq!(PyDictMethods::len(&py_map), 2);
+        assert_eq!(py_map.len(), 2);
         assert_eq!(
-            PyDictMethods::get_item(&py_map, "1")
+            py_map
+                .get_item("1")
                 .unwrap()
                 .unwrap()
                 .extract::<i32>()
@@ -147,14 +150,15 @@ fn test_generic_with_bound() {
             1
         );
         assert_eq!(
-            PyDictMethods::get_item(&py_map, "2")
+            py_map
+                .get_item("2")
                 .unwrap()
                 .unwrap()
                 .extract::<i32>()
                 .unwrap(),
             2
         );
-        assert!(PyDictMethods::get_item(&py_map, "3").unwrap().is_none());
+        assert!(py_map.get_item("3").unwrap().is_none());
     });
 }
 

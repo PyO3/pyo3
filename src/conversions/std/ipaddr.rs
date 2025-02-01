@@ -5,7 +5,6 @@ use crate::exceptions::PyValueError;
 use crate::instance::Bound;
 use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
-use crate::types::string::PyStringMethods;
 use crate::types::PyType;
 use crate::{intern, FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python};
 #[allow(deprecated)]

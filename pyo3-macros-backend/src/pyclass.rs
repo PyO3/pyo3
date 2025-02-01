@@ -1829,7 +1829,6 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
 
             #[inline]
             fn type_object_raw(py: #pyo3_path::Python<'_>) -> *mut #pyo3_path::ffi::PyTypeObject {
-                use #pyo3_path::prelude::PyTypeMethods;
                 <#cls as #pyo3_path::impl_::pyclass::PyClassImpl>::lazy_type_object()
                     .get_or_init(py)
                     .as_type_ptr()

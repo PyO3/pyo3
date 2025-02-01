@@ -470,7 +470,7 @@ impl DictWithCounter {
     fn set(slf: &Bound<'_, Self>, key: String, value: Bound<'_, PyAny>) -> PyResult<()> {
         slf.borrow_mut().counter.entry(key.clone()).or_insert(0);
         let dict = slf.downcast::<PyDict>()?;
-        PyDictMethods::set_item(dict, key, value)
+        dict.set_item(key, value)
     }
 }
 # Python::with_gil(|py| {

@@ -3,10 +3,7 @@
 use std::{convert::Infallible, ops::Deref, ptr::NonNull, sync::Arc};
 
 use crate::{
-    types::{
-        any::PyAnyMethods, bytearray::PyByteArrayMethods, bytes::PyBytesMethods,
-        string::PyStringMethods, PyByteArray, PyBytes, PyString,
-    },
+    types::{any::PyAnyMethods, PyByteArray, PyBytes, PyString},
     Bound, DowncastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python,
 };
 #[allow(deprecated)]

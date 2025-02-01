@@ -48,7 +48,7 @@
 //! ```
 
 #[cfg(Py_LIMITED_API)]
-use crate::types::{bytes::PyBytesMethods, PyBytes};
+use crate::types::PyBytes;
 use crate::{
     conversion::IntoPyObject,
     ffi,

@@ -221,7 +221,7 @@ complex_conversion!(f64);
 mod tests {
     use super::*;
     use crate::tests::common::generate_unique_module_name;
-    use crate::types::{complex::PyComplexMethods, PyModule};
+    use crate::types::PyModule;
     use crate::IntoPyObject;
     use pyo3_ffi::c_str;
 
