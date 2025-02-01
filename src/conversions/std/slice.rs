@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use crate::inspect::types::TypeInfo;
 use crate::{
     conversion::IntoPyObject,
-    types::{PyByteArray, PyByteArrayMethods, PyBytes},
+    types::{PyByteArray, PyBytes},
     Bound, Py, PyAny, PyErr, PyObject, PyResult, Python,
 };
 #[allow(deprecated)]
@@ -116,7 +116,7 @@ mod tests {
     use crate::{
         conversion::IntoPyObject,
         ffi,
-        types::{any::PyAnyMethods, PyBytes, PyBytesMethods, PyList},
+        types::{any::PyAnyMethods, PyBytes, PyList},
         Python,
     };
 

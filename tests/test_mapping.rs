@@ -24,7 +24,7 @@ impl Mapping {
     #[pyo3(signature=(elements=None))]
     fn new(elements: Option<&Bound<'_, PyList>>) -> PyResult<Self> {
         if let Some(pylist) = elements {
-            let mut elems = HashMap::with_capacity(PyListMethods::len(pylist));
+            let mut elems = HashMap::with_capacity(pylist.len());
             for (i, pyelem) in pylist.into_iter().enumerate() {
                 let elem = pyelem.extract()?;
                 elems.insert(elem, i);

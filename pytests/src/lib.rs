@@ -41,64 +41,20 @@ fn pyo3_pytests(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     let sys = PyModule::import(py, "sys")?;
     let sys_modules = sys.getattr("modules")?.downcast_into::<PyDict>()?;
-    PyDictMethods::set_item(
-        &sys_modules,
-        "pyo3_pytests.awaitable",
-        m.getattr("awaitable")?,
-    )?;
-    PyDictMethods::set_item(
-        &sys_modules,
-        "pyo3_pytests.buf_and_str",
-        m.getattr("buf_and_str")?,
-    )?;
-    PyDictMethods::set_item(
-        &sys_modules,
-        "pyo3_pytests.comparisons",
-        m.getattr("comparisons")?,
-    )?;
-    PyDictMethods::set_item(
-        &sys_modules,
-        "pyo3_pytests.datetime",
-        m.getattr("datetime")?,
-    )?;
-    PyDictMethods::set_item(
-        &sys_modules,
-        "pyo3_pytests.dict_iter",
-        m.getattr("dict_iter")?,
-    )?;
-    PyDictMethods::set_item(&sys_modules, "pyo3_pytests.enums", m.getattr("enums")?)?;
-    PyDictMethods::set_item(&sys_modules, "pyo3_pytests.misc", m.getattr("misc")?)?;
-    PyDictMethods::set_item(
-        &sys_modules,
-        "pyo3_pytests.objstore",
-        m.getattr("objstore")?,
-    )?;
-    PyDictMethods::set_item(
-        &sys_modules,
-        "pyo3_pytests.othermod",
-        m.getattr("othermod")?,
-    )?;
-    PyDictMethods::set_item(&sys_modules, "pyo3_pytests.path", m.getattr("path")?)?;
-    PyDictMethods::set_item(
-        &sys_modules,
-        "pyo3_pytests.pyclasses",
-        m.getattr("pyclasses")?,
-    )?;
-    PyDictMethods::set_item(
-        &sys_modules,
-        "pyo3_pytests.pyfunctions",
-        m.getattr("pyfunctions")?,
-    )?;
-    PyDictMethods::set_item(
-        &sys_modules,
-        "pyo3_pytests.sequence",
-        m.getattr("sequence")?,
-    )?;
-    PyDictMethods::set_item(
-        &sys_modules,
-        "pyo3_pytests.subclassing",
-        m.getattr("subclassing")?,
-    )?;
+    sys_modules.set_item("pyo3_pytests.awaitable", m.getattr("awaitable")?)?;
+    sys_modules.set_item("pyo3_pytests.buf_and_str", m.getattr("buf_and_str")?)?;
+    sys_modules.set_item("pyo3_pytests.comparisons", m.getattr("comparisons")?)?;
+    sys_modules.set_item("pyo3_pytests.datetime", m.getattr("datetime")?)?;
+    sys_modules.set_item("pyo3_pytests.dict_iter", m.getattr("dict_iter")?)?;
+    sys_modules.set_item("pyo3_pytests.enums", m.getattr("enums")?)?;
+    sys_modules.set_item("pyo3_pytests.misc", m.getattr("misc")?)?;
+    sys_modules.set_item("pyo3_pytests.objstore", m.getattr("objstore")?)?;
+    sys_modules.set_item("pyo3_pytests.othermod", m.getattr("othermod")?)?;
+    sys_modules.set_item("pyo3_pytests.path", m.getattr("path")?)?;
+    sys_modules.set_item("pyo3_pytests.pyclasses", m.getattr("pyclasses")?)?;
+    sys_modules.set_item("pyo3_pytests.pyfunctions", m.getattr("pyfunctions")?)?;
+    sys_modules.set_item("pyo3_pytests.sequence", m.getattr("sequence")?)?;
+    sys_modules.set_item("pyo3_pytests.subclassing", m.getattr("subclassing")?)?;
 
     Ok(())
 }

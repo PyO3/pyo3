@@ -8,9 +8,6 @@ use std::os::raw::c_double;
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyComplex>`][crate::Py] or [`Bound<'py, PyComplex>`][Bound].
 ///
-/// For APIs available on `complex` objects, see the [`PyComplexMethods`] trait which is implemented for
-/// [`Bound<'py, PyComplex>`][Bound].
-///
 /// Note that `PyComplex` supports only basic operations. For advanced operations
 /// consider using [num-complex](https://docs.rs/num-complex)'s [`Complex`] type instead.
 /// This optional dependency can be activated with the `num-complex` feature flag.
@@ -28,9 +25,9 @@ pyobject_native_type!(
     #checkfunction=ffi::PyComplex_Check
 );
 
-impl PyComplex {
+impl<'py> PyComplex {
     /// Creates a new `PyComplex` from the given real and imaginary values.
-    pub fn from_doubles(py: Python<'_>, real: c_double, imag: c_double) -> Bound<'_, PyComplex> {
+    pub fn from_doubles(py: Python<'py>, real: c_double, imag: c_double) -> Bound<'py, PyComplex> {
         use crate::ffi_ptr_ext::FfiPtrExt;
         unsafe {
             ffi::PyComplex_FromDoubles(real, imag)
@@ -43,11 +40,41 @@ impl PyComplex {
     #[deprecated(since = "0.23.0", note = "renamed to `PyComplex::from_doubles`")]
     #[inline]
     pub fn from_doubles_bound(
-        py: Python<'_>,
+        py: Python<'py>,
         real: c_double,
         imag: c_double,
-    ) -> Bound<'_, PyComplex> {
+    ) -> Bound<'py, PyComplex> {
         Self::from_doubles(py, real, imag)
+    }
+
+    /// Returns the real part of the complex number.
+    pub fn real(self: &Bound<'py, Self>) -> c_double {
+        unsafe { ffi::PyComplex_RealAsDouble(self.as_ptr()) }
+    }
+
+    /// Returns the imaginary part of the complex number.
+    pub fn imag(self: &Bound<'py, Self>) -> c_double {
+        unsafe { ffi::PyComplex_ImagAsDouble(self.as_ptr()) }
+    }
+
+    /// Returns `|self|`.
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+    pub fn abs(self: &Bound<'py, Self>) -> c_double {
+        PyAnyMethods::abs(self.as_any())
+            .downcast_into::<crate::types::PyFloat>()
+            .expect("Complex method __abs__ failed.")
+            .extract()
+            .expect("Failed to extract to c double.")
+    }
+
+    /// Returns `self` raised to the power of `other`.
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+    pub fn pow(self: &Bound<'py, Self>, other: &Bound<'py, PyComplex>) -> Bound<'py, PyComplex> {
+        Python::with_gil(|py| {
+            PyAnyMethods::pow(self.as_any(), other, py.None())
+                .downcast_into()
+                .expect("Complex method __pow__ failed.")
+        })
     }
 }
 
@@ -133,7 +160,7 @@ mod not_limited_impls {
     #[cfg(test)]
     mod tests {
         use super::PyComplex;
-        use crate::{types::complex::PyComplexMethods, Python};
+        use crate::Python;
         use assert_approx_eq::assert_approx_eq;
 
         #[test]
@@ -211,57 +238,10 @@ mod not_limited_impls {
     }
 }
 
-/// Implementation of functionality for [`PyComplex`].
-///
-/// These methods are defined for the `Bound<'py, PyComplex>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
-#[doc(alias = "PyComplex")]
-pub trait PyComplexMethods<'py>: crate::sealed::Sealed {
-    /// Returns the real part of the complex number.
-    fn real(&self) -> c_double;
-    /// Returns the imaginary part of the complex number.
-    fn imag(&self) -> c_double;
-    /// Returns `|self|`.
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-    fn abs(&self) -> c_double;
-    /// Returns `self` raised to the power of `other`.
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-    fn pow(&self, other: &Bound<'py, PyComplex>) -> Bound<'py, PyComplex>;
-}
-
-impl<'py> PyComplexMethods<'py> for Bound<'py, PyComplex> {
-    fn real(&self) -> c_double {
-        unsafe { ffi::PyComplex_RealAsDouble(self.as_ptr()) }
-    }
-
-    fn imag(&self) -> c_double {
-        unsafe { ffi::PyComplex_ImagAsDouble(self.as_ptr()) }
-    }
-
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-    fn abs(&self) -> c_double {
-        PyAnyMethods::abs(self.as_any())
-            .downcast_into::<crate::types::PyFloat>()
-            .expect("Complex method __abs__ failed.")
-            .extract()
-            .expect("Failed to extract to c double.")
-    }
-
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-    fn pow(&self, other: &Bound<'py, PyComplex>) -> Bound<'py, PyComplex> {
-        Python::with_gil(|py| {
-            PyAnyMethods::pow(self.as_any(), other, py.None())
-                .downcast_into()
-                .expect("Complex method __pow__ failed.")
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::PyComplex;
-    use crate::{types::complex::PyComplexMethods, Python};
+    use crate::Python;
     use assert_approx_eq::assert_approx_eq;
 
     #[test]

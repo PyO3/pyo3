@@ -26,7 +26,7 @@ fn test_named_fields_struct() {
         };
         let pya = a.into_pyobject(py).unwrap();
         assert_eq!(
-            PyDictMethods::get_item(&pya, "s")
+            pya.get_item("s")
                 .unwrap()
                 .unwrap()
                 .downcast::<PyString>()
@@ -34,7 +34,7 @@ fn test_named_fields_struct() {
             "Hello"
         );
         assert_eq!(
-            PyDictMethods::get_item(&pya, "t")
+            pya.get_item("t")
                 .unwrap()
                 .unwrap()
                 .downcast::<PyString>()
@@ -42,7 +42,7 @@ fn test_named_fields_struct() {
             "World"
         );
         assert_eq!(
-            PyDictMethods::get_item(&pya, "p")
+            pya.get_item("p")
                 .unwrap()
                 .unwrap()
                 .extract::<i32>()
@@ -100,9 +100,9 @@ fn test_generic_with_bound() {
         hash_map.insert("1".into(), 1);
         hash_map.insert("2".into(), 2);
         let map = GenericWithBound(hash_map).into_pyobject(py).unwrap();
-        assert_eq!(PyDictMethods::len(&map), 2);
+        assert_eq!(map.len(), 2);
         assert_eq!(
-            PyDictMethods::get_item(&map, "1")
+            map.get_item("1")
                 .unwrap()
                 .unwrap()
                 .extract::<i32>()
@@ -110,14 +110,14 @@ fn test_generic_with_bound() {
             1
         );
         assert_eq!(
-            PyDictMethods::get_item(&map, "2")
+            map.get_item("2")
                 .unwrap()
                 .unwrap()
                 .extract::<i32>()
                 .unwrap(),
             2
         );
-        assert!(PyDictMethods::get_item(&map, "3").unwrap().is_none());
+        assert!(map.get_item("3").unwrap().is_none());
     });
 }
 
@@ -182,7 +182,7 @@ fn test_enum() {
         .unwrap();
 
         assert_eq!(
-            PyDictMethods::get_item(&foo, "test")
+            foo.get_item("test")
                 .unwrap()
                 .unwrap()
                 .downcast_into::<PyString>()

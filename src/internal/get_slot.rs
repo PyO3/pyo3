@@ -1,8 +1,4 @@
-use crate::{
-    ffi,
-    types::{PyType, PyTypeMethods},
-    Borrowed, Bound,
-};
+use crate::{ffi, types::PyType, Borrowed, Bound};
 use std::os::raw::c_int;
 
 impl Bound<'_, PyType> {

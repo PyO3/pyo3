@@ -117,7 +117,7 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 ///         .get_or_init(py, || PyList::empty(py).unbind())
 ///         .bind(py)
 /// }
-/// # Python::with_gil(|py| assert_eq!(PyListMethods::len(get_shared_list(py)), 0));
+/// # Python::with_gil(|py| assert_eq!(get_shared_list(py).len(), 0));
 /// ```
 pub struct GILOnceCell<T> {
     once: Once,
@@ -337,7 +337,7 @@ where
     ///
     /// # Python::with_gil(|py| {
     /// #     let dict = PyDict::new(py);
-    /// #     PyDictMethods::set_item(&dict, intern!(py, "foo"), 42).unwrap();
+    /// #     dict.set_item(intern!(py, "foo"), 42).unwrap();
     /// #     let fun = wrap_pyfunction!(create_ordered_dict, py).unwrap();
     /// #     let ordered_dict = fun.call1((&dict,)).unwrap();
     /// #     assert!(dict.eq(ordered_dict).unwrap());
@@ -384,7 +384,7 @@ impl<T> Drop for GILOnceCell<T> {
 ///     let dict = PyDict::new(py);
 ///     //             👇 A new `PyString` is created
 ///     //                for every call of this function.
-///     PyDictMethods::set_item(&dict, "foo", 42)?;
+///     dict.set_item("foo", 42)?;
 ///     Ok(dict)
 /// }
 ///
@@ -393,7 +393,7 @@ impl<T> Drop for GILOnceCell<T> {
 ///     let dict = PyDict::new(py);
 ///     //               👇 A `PyString` is created once and reused
 ///     //                  for the lifetime of the program.
-///     PyDictMethods::set_item(&dict, intern!(py, "foo"), 42)?;
+///     dict.set_item(intern!(py, "foo"), 42)?;
 ///     Ok(dict)
 /// }
 /// #
@@ -617,7 +617,7 @@ where
 mod tests {
     use super::*;
 
-    use crate::types::{PyDict, PyDictMethods};
+    use crate::types::PyDict;
 
     #[test]
     fn test_intern() {
@@ -627,10 +627,10 @@ mod tests {
             let foo3 = intern!(py, stringify!(foo));
 
             let dict = PyDict::new(py);
-            PyDictMethods::set_item(&dict, foo1, 42_usize).unwrap();
-            assert!(PyDictMethods::contains(&dict, foo2).unwrap());
+            dict.set_item(foo1, 42_usize).unwrap();
+            assert!(dict.contains(foo2).unwrap());
             assert_eq!(
-                PyDictMethods::get_item(&dict, foo3)
+                dict.get_item(foo3)
                     .unwrap()
                     .unwrap()
                     .extract::<usize>()

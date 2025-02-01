@@ -117,7 +117,7 @@ fn pytuple_pyclass_iter() {
 #[test]
 #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 fn test_pickle() {
-    use pyo3::types::{PyDict, PyDictMethods};
+    use pyo3::types::PyDict;
 
     #[pyclass(dict, module = "test_module")]
     struct PickleSupport {}
@@ -140,14 +140,13 @@ fn test_pickle() {
     }
 
     fn add_module(module: Bound<'_, PyModule>) -> PyResult<()> {
-        PyDictMethods::set_item(
-            PyDictMethods::get_item(&PyModule::import(module.py(), "sys")?.dict(), "modules")
-                .unwrap()
-                .unwrap()
-                .downcast::<PyDict>()?,
-            module.name()?,
-            module,
-        )
+        PyModule::import(module.py(), "sys")?
+            .dict()
+            .get_item("modules")
+            .unwrap()
+            .unwrap()
+            .downcast::<PyDict>()?
+            .set_item(module.name()?, module)
     }
 
     Python::with_gil(|py| {

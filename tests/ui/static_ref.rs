@@ -3,12 +3,12 @@ use pyo3::types::PyList;
 
 #[pyfunction]
 fn static_ref(list: &'static Bound<'_, PyList>) -> usize {
-    PyListMethods::len(list)
+    list.len()
 }
 
 #[pyfunction]
 fn static_py(list: &Bound<'static, PyList>) -> usize {
-    PyListMethods::len(list)
+    list.len()
 }
 
 fn main() {}

@@ -10,7 +10,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyDateTime;
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
 use pyo3::types::PyFunction;
-use pyo3::types::{self, PyCFunction, PyTupleMethods};
+use pyo3::types::{self, PyCFunction};
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -435,7 +435,8 @@ fn test_closure() {
                  _kwargs: Option<&Bound<'_, types::PyDict>>|
          -> PyResult<_> {
             Python::with_gil(|py| {
-                let res: PyResult<Vec<_>> = PyTupleMethods::iter(args)
+                let res: PyResult<Vec<_>> = args
+                    .iter()
                     .map(|elem| {
                         if let Ok(i) = elem.extract::<i64>() {
                             Ok((i + 1).into_pyobject(py)?.into_any().unbind())

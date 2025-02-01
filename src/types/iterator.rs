@@ -107,7 +107,7 @@ impl PyTypeCheck for PyIterator {
 mod tests {
     use super::PyIterator;
     use crate::exceptions::PyTypeError;
-    use crate::types::{PyAnyMethods, PyDict, PyList, PyListMethods};
+    use crate::types::{PyAnyMethods, PyDict, PyList};
     use crate::{ffi, IntoPyObject, Python};
 
     #[test]
@@ -164,7 +164,7 @@ mod tests {
             };
 
             {
-                let mut it = PyListMethods::iter(&list);
+                let mut it = list.iter();
 
                 assert_eq!(10_i32, it.next().unwrap().extract::<'_, i32>().unwrap());
                 assert!(it.next().unwrap().is(&obj));

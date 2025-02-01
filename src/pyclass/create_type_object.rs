@@ -11,7 +11,7 @@ use crate::{
         trampoline::trampoline,
     },
     internal_tricks::ptr_from_ref,
-    types::{typeobject::PyTypeMethods, PyType},
+    types::PyType,
     Py, PyClass, PyResult, PyTypeInfo, Python,
 };
 use std::{

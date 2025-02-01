@@ -93,7 +93,6 @@ macro_rules! import_exception {
 
         impl $name {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
-                use $crate::types::PyTypeMethods;
                 static TYPE_OBJECT: $crate::impl_::exceptions::ImportedExceptionTypeObject =
                     $crate::impl_::exceptions::ImportedExceptionTypeObject::new(stringify!($module), stringify!($name));
                 TYPE_OBJECT.get(py).as_type_ptr()
@@ -131,7 +130,6 @@ macro_rules! import_exception_bound {
 
         impl $name {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
-                use $crate::types::PyTypeMethods;
                 static TYPE_OBJECT: $crate::impl_::exceptions::ImportedExceptionTypeObject =
                     $crate::impl_::exceptions::ImportedExceptionTypeObject::new(
                         stringify!($module),
@@ -171,7 +169,7 @@ macro_rules! import_exception_bound {
 ///
 /// #[pymodule]
 /// fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-///     PyModuleMethods::add(m, "MyError", m.py().get_type::<MyError>())?;
+///     m.add("MyError", m.py().get_type::<MyError>())?;
 ///     m.add_function(wrap_pyfunction!(raise_myerror, m)?)?;
 ///     Ok(())
 /// }
@@ -179,8 +177,8 @@ macro_rules! import_exception_bound {
 /// #     Python::with_gil(|py| -> PyResult<()> {
 /// #         let fun = wrap_pyfunction!(raise_myerror, py)?;
 /// #         let locals = pyo3::types::PyDict::new(py);
-/// #         PyDictMethods::set_item(&locals, "MyError", py.get_type::<MyError>())?;
-/// #         PyDictMethods::set_item(&locals, "raise_myerror", fun)?;
+/// #         locals.set_item("MyError", py.get_type::<MyError>())?;
+/// #         locals.set_item("raise_myerror", fun)?;
 /// #
 /// #         py.run(pyo3::ffi::c_str!(
 /// # "try:

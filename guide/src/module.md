@@ -62,7 +62,7 @@ print(my_extension.__doc__)
 ## Python submodules
 
 You can create a module hierarchy within a single extension module by using
-[`Bound<'_, PyModule>::add_submodule()`]({{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyModuleMethods.html#tymethod.add_submodule).
+[`Bound<'_, PyModule>::add_submodule()`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#tymethod.add_submodule).
 For example, you could define the modules `parent_module` and `parent_module.child_module`.
 
 ```rust
@@ -140,7 +140,7 @@ mod my_extension {
     #[pymodule_init]
     fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
         // Arbitrary code to run at the module initialization
-        PyModuleMethods::add(m, "double2", m.getattr("double")?)
+        m.add("double2", m.getattr("double")?)
     }
 }
 # }

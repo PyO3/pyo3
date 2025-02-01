@@ -167,7 +167,7 @@ mod tests {
     use crate::{
         conversion::IntoPyObject,
         ffi,
-        types::{any::PyAnyMethods, PyBytes, PyBytesMethods},
+        types::{any::PyAnyMethods, PyBytes},
     };
     use crate::{types::PyList, PyResult, Python};
 

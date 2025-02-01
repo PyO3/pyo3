@@ -1,7 +1,5 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
-use crate::types::capsule::PyCapsuleMethods;
-use crate::types::module::PyModuleMethods;
 use crate::{
     ffi,
     impl_::pymethods::{self, PyMethodDef},

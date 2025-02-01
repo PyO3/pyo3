@@ -25,54 +25,24 @@ pyobject_native_type_core!(
     #checkfunction=dict_proxy_check
 );
 
-impl PyMappingProxy {
+impl<'py, 'a> PyMappingProxy {
     /// Creates a mappingproxy from an object.
-    pub fn new<'py>(
-        py: Python<'py>,
-        elements: &Bound<'py, PyMapping>,
-    ) -> Bound<'py, PyMappingProxy> {
+    pub fn new(py: Python<'py>, elements: &Bound<'py, PyMapping>) -> Bound<'py, PyMappingProxy> {
         unsafe {
             ffi::PyDictProxy_New(elements.as_ptr())
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
     }
-}
 
-/// Implementation of functionality for [`PyMappingProxy`].
-///
-/// These methods are defined for the `Bound<'py, PyMappingProxy>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
-#[doc(alias = "PyMappingProxy")]
-pub trait PyMappingProxyMethods<'py, 'a>: crate::sealed::Sealed {
     /// Checks if the mappingproxy is empty, i.e. `len(self) == 0`.
-    fn is_empty(&self) -> PyResult<bool>;
-
-    /// Returns a list containing all keys in the mapping.
-    fn keys(&self) -> PyResult<Bound<'py, PyList>>;
-
-    /// Returns a list containing all values in the mapping.
-    fn values(&self) -> PyResult<Bound<'py, PyList>>;
-
-    /// Returns a list of tuples of all (key, value) pairs in the mapping.
-    fn items(&self) -> PyResult<Bound<'py, PyList>>;
-
-    /// Returns `self` cast as a `PyMapping`.
-    fn as_mapping(&self) -> &Bound<'py, PyMapping>;
-
-    /// Takes an object and returns an iterator for it. Returns an error if the object is not
-    /// iterable.
-    fn try_iter(&'a self) -> PyResult<BoundMappingProxyIterator<'py, 'a>>;
-}
-
-impl<'py, 'a> PyMappingProxyMethods<'py, 'a> for Bound<'py, PyMappingProxy> {
-    fn is_empty(&self) -> PyResult<bool> {
+    pub fn is_empty(self: &Bound<'py, Self>) -> PyResult<bool> {
         Ok(self.len()? == 0)
     }
 
+    /// Returns a list containing all keys in the mapping.
     #[inline]
-    fn keys(&self) -> PyResult<Bound<'py, PyList>> {
+    pub fn keys(self: &Bound<'py, Self>) -> PyResult<Bound<'py, PyList>> {
         unsafe {
             Ok(ffi::PyMapping_Keys(self.as_ptr())
                 .assume_owned_or_err(self.py())?
@@ -80,8 +50,9 @@ impl<'py, 'a> PyMappingProxyMethods<'py, 'a> for Bound<'py, PyMappingProxy> {
         }
     }
 
+    /// Returns a list containing all values in the mapping.
     #[inline]
-    fn values(&self) -> PyResult<Bound<'py, PyList>> {
+    pub fn values(self: &Bound<'py, Self>) -> PyResult<Bound<'py, PyList>> {
         unsafe {
             Ok(ffi::PyMapping_Values(self.as_ptr())
                 .assume_owned_or_err(self.py())?
@@ -89,8 +60,9 @@ impl<'py, 'a> PyMappingProxyMethods<'py, 'a> for Bound<'py, PyMappingProxy> {
         }
     }
 
+    /// Returns a list of tuples of all (key, value) pairs in the mapping.
     #[inline]
-    fn items(&self) -> PyResult<Bound<'py, PyList>> {
+    pub fn items(self: &Bound<'py, Self>) -> PyResult<Bound<'py, PyList>> {
         unsafe {
             Ok(ffi::PyMapping_Items(self.as_ptr())
                 .assume_owned_or_err(self.py())?
@@ -98,11 +70,14 @@ impl<'py, 'a> PyMappingProxyMethods<'py, 'a> for Bound<'py, PyMappingProxy> {
         }
     }
 
-    fn as_mapping(&self) -> &Bound<'py, PyMapping> {
+    /// Returns `self` cast as a `PyMapping`.
+    pub fn as_mapping(self: &Bound<'py, Self>) -> &Bound<'py, PyMapping> {
         unsafe { self.downcast_unchecked() }
     }
 
-    fn try_iter(&'a self) -> PyResult<BoundMappingProxyIterator<'py, 'a>> {
+    /// Takes an object and returns an iterator for it. Returns an error if the object is not
+    /// iterable.
+    pub fn try_iter(self: &'a Bound<'py, Self>) -> PyResult<BoundMappingProxyIterator<'py, 'a>> {
         Ok(BoundMappingProxyIterator {
             iterator: PyIterator::from_object(self.as_any())?,
             mappingproxy: self,
@@ -233,7 +208,7 @@ mod tests {
             let map: HashMap<usize, usize> = HashMap::new();
             let dict = map.into_py_dict(py).unwrap();
             let mappingproxy = PyMappingProxy::new(py, dict.as_mapping());
-            assert!(PyMappingProxyMethods::is_empty(&mappingproxy).unwrap());
+            assert!(mappingproxy.is_empty().unwrap());
         });
     }
 
@@ -307,7 +282,7 @@ mod tests {
             let mappingproxy = PyMappingProxy::new(py, dict.as_mapping());
             let mut key_sum = 0;
             let mut value_sum = 0;
-            for res in PyMappingProxyMethods::try_iter(&mappingproxy).unwrap() {
+            for res in mappingproxy.try_iter().unwrap() {
                 let (key, value) = res.unwrap();
                 key_sum += key.extract::<i32>().unwrap();
                 value_sum += value.extract::<i32>().unwrap();
@@ -479,7 +454,8 @@ mod tests {
 
             assert_eq!(
                 map.into_iter().collect::<Vec<(String, String)>>(),
-                PyMappingProxyMethods::try_iter(&mappingproxy)
+                mappingproxy
+                    .try_iter()
                     .unwrap()
                     .map(|object| {
                         let tuple = object.unwrap();
@@ -504,7 +480,9 @@ mod tests {
 
             assert_eq!(
                 items,
-                PyMappingProxyMethods::try_iter(&mappingproxy.clone())
+                mappingproxy
+                    .clone()
+                    .try_iter()
                     .unwrap()
                     .map(|object| {
                         let tuple = object.unwrap();
@@ -549,7 +527,7 @@ mod tests {
             let mappingproxy = PyMappingProxy::new(py, dict.as_mapping());
 
             let mut sum = 0;
-            for result in PyMappingProxyMethods::try_iter(&mappingproxy).unwrap() {
+            for result in mappingproxy.try_iter().unwrap() {
                 let (k, _v) = result.unwrap();
                 let i: u64 = k.extract().unwrap();
                 sum += i;

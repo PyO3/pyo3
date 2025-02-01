@@ -4,7 +4,7 @@ use crate::impl_::pycell::PyClassObject;
 use crate::internal_tricks::ptr_from_ref;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
-use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
+use crate::types::any::PyAnyMethods;
 use crate::types::{PyDict, PyString, PyTuple};
 use crate::{
     ffi, AsPyPointer, DowncastError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef,
@@ -495,6 +495,10 @@ fn python_format(
         Result::Ok(name) => std::write!(f, "<unprintable {} object>", name),
         Result::Err(_err) => f.write_str("<unprintable object>"),
     }
+}
+
+impl<T> std::ops::Receiver for Bound<'_, T> {
+    type Target = T;
 }
 
 impl<'py, T> AsRef<Bound<'py, PyAny>> for Bound<'py, T> {
@@ -2008,7 +2012,6 @@ mod tests {
     #[test]
     fn test_call_tuple_ref() {
         let assert_repr = |obj: &Bound<'_, PyAny>, expected: &str| {
-            use crate::prelude::PyStringMethods;
             assert_eq!(
                 obj.repr()
                     .unwrap()

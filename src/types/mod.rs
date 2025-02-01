@@ -1,52 +1,52 @@
 //! Various types defined by the Python interpreter such as `int`, `str` and `tuple`.
 
 pub use self::any::{PyAny, PyAnyMethods};
-pub use self::boolobject::{PyBool, PyBoolMethods};
-pub use self::bytearray::{PyByteArray, PyByteArrayMethods};
-pub use self::bytes::{PyBytes, PyBytesMethods};
-pub use self::capsule::{PyCapsule, PyCapsuleMethods};
+pub use self::boolobject::PyBool;
+pub use self::bytearray::PyByteArray;
+pub use self::bytes::PyBytes;
+pub use self::capsule::PyCapsule;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 pub use self::code::PyCode;
-pub use self::complex::{PyComplex, PyComplexMethods};
+pub use self::complex::PyComplex;
 #[cfg(not(Py_LIMITED_API))]
 #[allow(deprecated)]
 pub use self::datetime::{
     timezone_utc, timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess,
     PyTime, PyTimeAccess, PyTzInfo, PyTzInfoAccess,
 };
-pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
+pub use self::dict::{IntoPyDict, PyDict};
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::dict::{PyDictItems, PyDictKeys, PyDictValues};
 pub use self::ellipsis::PyEllipsis;
-pub use self::float::{PyFloat, PyFloatMethods};
+pub use self::float::PyFloat;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 pub use self::frame::PyFrame;
-pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
+pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder};
 pub use self::function::PyCFunction;
 #[cfg(all(not(Py_LIMITED_API), not(all(PyPy, not(Py_3_8)))))]
 pub use self::function::PyFunction;
 pub use self::iterator::PyIterator;
-pub use self::list::{PyList, PyListMethods};
-pub use self::mapping::{PyMapping, PyMappingMethods};
+pub use self::list::PyList;
+pub use self::mapping::PyMapping;
 pub use self::mappingproxy::PyMappingProxy;
 pub use self::memoryview::PyMemoryView;
-pub use self::module::{PyModule, PyModuleMethods};
+pub use self::module::PyModule;
 pub use self::none::PyNone;
 pub use self::notimplemented::PyNotImplemented;
 #[allow(deprecated)]
 pub use self::num::{PyInt, PyLong};
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::pysuper::PySuper;
-pub use self::sequence::{PySequence, PySequenceMethods};
-pub use self::set::{PySet, PySetMethods};
-pub use self::slice::{PySlice, PySliceIndices, PySliceMethods};
+pub use self::sequence::PySequence;
+pub use self::set::PySet;
+pub use self::slice::{PySlice, PySliceIndices};
 #[cfg(not(Py_LIMITED_API))]
 pub use self::string::PyStringData;
 #[allow(deprecated)]
-pub use self::string::{PyString, PyStringMethods, PyUnicode};
-pub use self::traceback::{PyTraceback, PyTracebackMethods};
-pub use self::tuple::{PyTuple, PyTupleMethods};
-pub use self::typeobject::{PyType, PyTypeMethods};
+pub use self::string::{PyString, PyUnicode};
+pub use self::traceback::PyTraceback;
+pub use self::tuple::PyTuple;
+pub use self::typeobject::PyType;
 pub use self::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefReference};
 
 /// Iteration over Python collections.

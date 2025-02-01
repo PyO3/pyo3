@@ -11,7 +11,7 @@ use crate::impl_::pyclass::{
 };
 use crate::internal::get_slot::TP_FREE;
 use crate::type_object::{PyLayout, PySizedLayout};
-use crate::types::{PyType, PyTypeMethods};
+use crate::types::PyType;
 use crate::{ffi, PyClass, PyTypeInfo, Python};
 
 use super::{PyBorrowError, PyBorrowMutError};

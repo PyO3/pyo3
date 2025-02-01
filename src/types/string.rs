@@ -4,7 +4,6 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
-use crate::types::bytes::PyBytesMethods;
 use crate::types::PyBytes;
 #[allow(deprecated)]
 use crate::IntoPy;
@@ -130,9 +129,6 @@ impl<'a> PyStringData<'a> {
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyString>`][crate::Py] or [`Bound<'py, PyString>`][Bound].
 ///
-/// For APIs available on `str` objects, see the [`PyStringMethods`] trait which is implemented for
-/// [`Bound<'py, PyString>`][Bound].
-///
 /// # Equality
 ///
 /// For convenience, [`Bound<'py, PyString>`] implements [`PartialEq<str>`] to allow comparing the
@@ -160,11 +156,11 @@ pub struct PyString(PyAny);
 
 pyobject_native_type_core!(PyString, pyobject_native_static_type_object!(ffi::PyUnicode_Type), #checkfunction=ffi::PyUnicode_Check);
 
-impl PyString {
+impl<'py> PyString {
     /// Creates a new Python string object.
     ///
     /// Panics if out of memory.
-    pub fn new<'py>(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
+    pub fn new(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
         let ptr = s.as_ptr().cast();
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
@@ -177,7 +173,7 @@ impl PyString {
     /// Deprecated name for [`PyString::new`].
     #[deprecated(since = "0.23.0", note = "renamed to `PyString::new`")]
     #[inline]
-    pub fn new_bound<'py>(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
+    pub fn new_bound(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
         Self::new(py, s)
     }
 
@@ -189,7 +185,7 @@ impl PyString {
     /// temporary Python string object and is thereby slower than [`PyString::new_bound`].
     ///
     /// Panics if out of memory.
-    pub fn intern<'py>(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
+    pub fn intern(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
         let ptr = s.as_ptr().cast();
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
@@ -204,14 +200,14 @@ impl PyString {
     /// Deprecated name for [`PyString::intern`].
     #[deprecated(since = "0.23.0", note = "renamed to `PyString::intern`")]
     #[inline]
-    pub fn intern_bound<'py>(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
+    pub fn intern_bound(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
         Self::intern(py, s)
     }
 
     /// Attempts to create a Python string from a Python [bytes-like object].
     ///
     /// [bytes-like object]: (https://docs.python.org/3/glossary.html#term-bytes-like-object).
-    pub fn from_object<'py>(
+    pub fn from_object(
         src: &Bound<'py, PyAny>,
         encoding: &str,
         errors: &str,
@@ -230,43 +226,47 @@ impl PyString {
     /// Deprecated name for [`PyString::from_object`].
     #[deprecated(since = "0.23.0", note = "renamed to `PyString::from_object`")]
     #[inline]
-    pub fn from_object_bound<'py>(
+    pub fn from_object_bound(
         src: &Bound<'py, PyAny>,
         encoding: &str,
         errors: &str,
     ) -> PyResult<Bound<'py, PyString>> {
         Self::from_object(src, encoding, errors)
     }
-}
 
-/// Implementation of functionality for [`PyString`].
-///
-/// These methods are defined for the `Bound<'py, PyString>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
-#[doc(alias = "PyString")]
-pub trait PyStringMethods<'py>: crate::sealed::Sealed {
     /// Gets the Python string as a Rust UTF-8 string slice.
     ///
     /// Returns a `UnicodeEncodeError` if the input is not valid unicode
     /// (containing unpaired surrogates).
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
-    fn to_str(&self) -> PyResult<&str>;
+    pub fn to_str(self: &Bound<'py, Self>) -> PyResult<&str> {
+        self.as_borrowed().to_str()
+    }
 
     /// Converts the `PyString` into a Rust string, avoiding copying when possible.
     ///
     /// Returns a `UnicodeEncodeError` if the input is not valid unicode
     /// (containing unpaired surrogates).
-    fn to_cow(&self) -> PyResult<Cow<'_, str>>;
+    pub fn to_cow(self: &Bound<'py, Self>) -> PyResult<Cow<'_, str>> {
+        self.as_borrowed().to_cow()
+    }
 
     /// Converts the `PyString` into a Rust string.
     ///
     /// Unpaired surrogates invalid UTF-8 sequences are
     /// replaced with `U+FFFD REPLACEMENT CHARACTER`.
-    fn to_string_lossy(&self) -> Cow<'_, str>;
+    pub fn to_string_lossy(self: &Bound<'py, Self>) -> Cow<'_, str> {
+        self.as_borrowed().to_string_lossy()
+    }
 
     /// Encodes this string as a Python `bytes` object, using UTF-8 encoding.
-    fn encode_utf8(&self) -> PyResult<Bound<'py, PyBytes>>;
+    pub fn encode_utf8(self: &Bound<'py, Self>) -> PyResult<Bound<'py, PyBytes>> {
+        unsafe {
+            ffi::PyUnicode_AsUTF8String(self.as_ptr())
+                .assume_owned_or_err(self.py())
+                .downcast_into_unchecked::<PyBytes>()
+        }
+    }
 
     /// Obtains the raw data backing the Python string.
     ///
@@ -283,33 +283,7 @@ pub trait PyStringMethods<'py>: crate::sealed::Sealed {
     /// By using this API, you accept responsibility for testing that PyStringData behaves as
     /// expected on the targets where you plan to distribute your software.
     #[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy)))]
-    unsafe fn data(&self) -> PyResult<PyStringData<'_>>;
-}
-
-impl<'py> PyStringMethods<'py> for Bound<'py, PyString> {
-    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
-    fn to_str(&self) -> PyResult<&str> {
-        self.as_borrowed().to_str()
-    }
-
-    fn to_cow(&self) -> PyResult<Cow<'_, str>> {
-        self.as_borrowed().to_cow()
-    }
-
-    fn to_string_lossy(&self) -> Cow<'_, str> {
-        self.as_borrowed().to_string_lossy()
-    }
-
-    fn encode_utf8(&self) -> PyResult<Bound<'py, PyBytes>> {
-        unsafe {
-            ffi::PyUnicode_AsUTF8String(self.as_ptr())
-                .assume_owned_or_err(self.py())
-                .downcast_into_unchecked::<PyBytes>()
-        }
-    }
-
-    #[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy)))]
-    unsafe fn data(&self) -> PyResult<PyStringData<'_>> {
+    pub unsafe fn data(self: &Bound<'py, Self>) -> PyResult<PyStringData<'_>> {
         self.as_borrowed().data()
     }
 }
