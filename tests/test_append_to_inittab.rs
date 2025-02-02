@@ -9,7 +9,7 @@ fn foo() -> usize {
 
 #[pymodule]
 fn module_fn_with_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(foo, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(foo, m)?)?;
     Ok(())
 }
 

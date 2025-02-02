@@ -95,7 +95,7 @@ macro_rules! import_exception {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
                 static TYPE_OBJECT: $crate::impl_::exceptions::ImportedExceptionTypeObject =
                     $crate::impl_::exceptions::ImportedExceptionTypeObject::new(stringify!($module), stringify!($name));
-                TYPE_OBJECT.get(py).as_type_ptr()
+                $crate::types::PyType::as_type_ptr(TYPE_OBJECT.get(py))
             }
         }
     };
@@ -135,7 +135,7 @@ macro_rules! import_exception_bound {
                         stringify!($module),
                         stringify!($name),
                     );
-                TYPE_OBJECT.get(py).as_type_ptr()
+                $crate::types::PyType::as_type_ptr(TYPE_OBJECT.get(py))
             }
         }
     };
@@ -169,8 +169,8 @@ macro_rules! import_exception_bound {
 ///
 /// #[pymodule]
 /// fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-///     m.add("MyError", m.py().get_type::<MyError>())?;
-///     m.add_function(wrap_pyfunction!(raise_myerror, m)?)?;
+///     PyModule::add(m, "MyError", m.py().get_type::<MyError>())?;
+///     PyModule::add_function(m, wrap_pyfunction!(raise_myerror, m)?)?;
 ///     Ok(())
 /// }
 /// # fn main() -> PyResult<()> {

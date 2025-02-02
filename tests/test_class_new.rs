@@ -169,7 +169,7 @@ c = Class()
 assert c.from_rust is False
 "#
         ));
-        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        let globals = PyModule::dict(&PyModule::import(py, "__main__").unwrap());
         globals.set_item("SuperClass", super_cls).unwrap();
         py.run(source, Some(&globals), None)
             .map_err(|e| e.display(py))

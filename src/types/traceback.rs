@@ -26,7 +26,7 @@ impl<'py> PyTraceback {
     /// The following code formats a Python traceback and exception pair from Rust:
     ///
     /// ```rust
-    /// # use pyo3::{Python, PyResult, ffi::c_str};
+    /// # use pyo3::{Python, PyResult, ffi::c_str, types::PyTraceback};
     /// # let result: PyResult<()> =
     /// Python::with_gil(|py| {
     ///     let err = py
@@ -35,7 +35,7 @@ impl<'py> PyTraceback {
     ///
     ///     let traceback = err.traceback(py).expect("raised exception will have a traceback");
     ///     assert_eq!(
-    ///         format!("{}{}", traceback.format()?, err),
+    ///         format!("{}{}", PyTraceback::format(&traceback)?, err),
     ///         "\
     /// Traceback (most recent call last):
     ///   File \"<string>\", line 1, in <module>

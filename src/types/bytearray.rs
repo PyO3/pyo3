@@ -54,7 +54,7 @@ impl<'py> PyByteArray {
     ///         bytes.copy_from_slice(b"Hello Rust");
     ///         Ok(())
     ///     })?;
-    ///     let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
+    ///     let bytearray: &[u8] = unsafe { PyByteArray::as_bytes(&py_bytearray) };
     ///     assert_eq!(bytearray, b"Hello Rust");
     ///     Ok(())
     /// })
@@ -163,7 +163,7 @@ impl<'py> PyByteArray {
     ///     let section = {
     ///         // SAFETY: We promise to not let the interpreter regain control
     ///         // or invoke any PyO3 APIs while using the slice.
-    ///         let slice = unsafe { bytes.as_bytes() };
+    ///         let slice = unsafe { PyByteArray::as_bytes(bytes) };
     ///
     ///         // Copy only a section of `bytes` while avoiding
     ///         // `to_vec` which copies the entire thing.
@@ -213,7 +213,7 @@ impl<'py> PyByteArray {
     /// # #[allow(dead_code)]
     /// #[pyfunction]
     /// fn bug(py: Python<'_>, bytes: &Bound<'_, PyByteArray>) {
-    ///     let slice = unsafe { bytes.as_bytes() };
+    ///     let slice = unsafe { PyByteArray::as_bytes(bytes) };
     ///
     ///     // This explicitly yields control back to the Python interpreter...
     ///     // ...but it's not always this obvious. Many things do this implicitly.
@@ -253,7 +253,7 @@ impl<'py> PyByteArray {
     /// # use pyo3::types::PyByteArray;
     /// # Python::with_gil(|py| {
     /// let bytearray = PyByteArray::new(py, b"Hello World.");
-    /// let mut copied_message = bytearray.to_vec();
+    /// let mut copied_message = PyByteArray::to_vec(&bytearray);
     /// assert_eq!(b"Hello World.", copied_message.as_slice());
     ///
     /// copied_message[11] = b'!';

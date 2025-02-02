@@ -26,7 +26,7 @@ fn test_named_fields_struct() {
         };
         let pya = a.into_pyobject(py).unwrap();
         assert_eq!(
-            pya.get_item("s")
+            PyDict::get_item(&pya, "s")
                 .unwrap()
                 .unwrap()
                 .downcast::<PyString>()
@@ -34,7 +34,7 @@ fn test_named_fields_struct() {
             "Hello"
         );
         assert_eq!(
-            pya.get_item("t")
+            PyDict::get_item(&pya, "t")
                 .unwrap()
                 .unwrap()
                 .downcast::<PyString>()
@@ -42,7 +42,7 @@ fn test_named_fields_struct() {
             "World"
         );
         assert_eq!(
-            pya.get_item("p")
+            PyDict::get_item(&pya, "p")
                 .unwrap()
                 .unwrap()
                 .extract::<i32>()
@@ -100,9 +100,9 @@ fn test_generic_with_bound() {
         hash_map.insert("1".into(), 1);
         hash_map.insert("2".into(), 2);
         let map = GenericWithBound(hash_map).into_pyobject(py).unwrap();
-        assert_eq!(map.len(), 2);
+        assert_eq!(PyDict::len(&map), 2);
         assert_eq!(
-            map.get_item("1")
+            PyDict::get_item(&map, "1")
                 .unwrap()
                 .unwrap()
                 .extract::<i32>()
@@ -110,14 +110,14 @@ fn test_generic_with_bound() {
             1
         );
         assert_eq!(
-            map.get_item("2")
+            PyDict::get_item(&map, "2")
                 .unwrap()
                 .unwrap()
                 .extract::<i32>()
                 .unwrap(),
             2
         );
-        assert!(map.get_item("3").unwrap().is_none());
+        assert!(PyDict::get_item(&map, "3").unwrap().is_none());
     });
 }
 
@@ -182,7 +182,7 @@ fn test_enum() {
         .unwrap();
 
         assert_eq!(
-            foo.get_item("test")
+            PyDict::get_item(&foo, "test")
                 .unwrap()
                 .unwrap()
                 .downcast_into::<PyString>()

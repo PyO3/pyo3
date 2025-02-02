@@ -62,7 +62,7 @@ fn test_named_fields_struct() {
             .extract::<A<'_>>(py)
             .expect("Failed to extract A from PyA");
         assert_eq!(a.s, "foo");
-        assert_eq!(a.t.to_string_lossy(), "bar");
+        assert_eq!(PyString::to_string_lossy(&a.t), "bar");
         assert!(a.p.is_none());
     });
 }
@@ -395,7 +395,7 @@ fn test_enum() {
             .extract::<Foo<'_>>()
             .expect("Failed to extract Foo from PyE");
         match f {
-            Foo::StructVar { test } => assert_eq!(test.to_string_lossy(), "foo"),
+            Foo::StructVar { test } => assert_eq!(PyString::to_string_lossy(&test), "foo"),
             _ => panic!("Expected extracting Foo::StructVar, got {:?}", f),
         }
 
@@ -501,7 +501,7 @@ fn test_enum_catch_all() {
         match f {
             EnumWithCatchAll::CatchAll(any) => {
                 let d = any.extract::<Bound<'_, PyDict>>().expect("Expected pydict");
-                assert!(d.is_empty());
+                assert!(PyDict::is_empty(&d));
             }
             _ => panic!(
                 "Expected extracting EnumWithCatchAll::CatchAll, got {:?}",

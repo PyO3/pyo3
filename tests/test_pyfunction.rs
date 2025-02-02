@@ -435,8 +435,7 @@ fn test_closure() {
                  _kwargs: Option<&Bound<'_, types::PyDict>>|
          -> PyResult<_> {
             Python::with_gil(|py| {
-                let res: PyResult<Vec<_>> = args
-                    .iter()
+                let res: PyResult<Vec<_>> = types::PyTuple::iter(args)
                     .map(|elem| {
                         if let Ok(i) = elem.extract::<i64>() {
                             Ok((i + 1).into_pyobject(py)?.into_any().unbind())
@@ -597,8 +596,8 @@ fn test_pyfunction_raw_ident() {
 
     #[pymodule]
     fn m(m: &Bound<'_, PyModule>) -> PyResult<()> {
-        m.add_function(wrap_pyfunction!(r#struct, m)?)?;
-        m.add_function(wrap_pyfunction!(raw_ident, m)?)?;
+        PyModule::add_function(m, wrap_pyfunction!(r#struct, m)?)?;
+        PyModule::add_function(m, wrap_pyfunction!(raw_ident, m)?)?;
         Ok(())
     }
 

@@ -40,7 +40,7 @@ impl<'py> PyModule {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let module = PyModule::new(py, "my_module")?;
     ///
-    ///     assert_eq!(module.name()?, "my_module");
+    ///     assert_eq!(PyModule::name(&module)?, "my_module");
     ///     Ok(())
     /// })?;
     /// # Ok(())}
@@ -282,7 +282,7 @@ impl<'py> PyModule {
     ///
     /// #[pymodule]
     /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    ///     module.add("c", 299_792_458)?;
+    ///     PyModule::add(module, "c", 299_792_458)?;
     ///     Ok(())
     /// }
     /// ```
@@ -341,7 +341,7 @@ impl<'py> PyModule {
     ///
     /// #[pymodule]
     /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    ///     module.add_class::<Foo>()?;
+    ///     PyModule::add_class::<Foo>(module)?;
     ///     Ok(())
     /// }
     ///  ```
@@ -408,9 +408,9 @@ impl<'py> PyModule {
     /// #[pymodule]
     /// fn my_module(py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     let submodule = PyModule::new(py, "submodule")?;
-    ///     submodule.add("super_useful_constant", "important")?;
+    ///     PyModule::add(&submodule, "super_useful_constant", "important")?;
     ///
-    ///     module.add_submodule(&submodule)?;
+    ///     PyModule::add_submodule(module, &submodule)?;
     ///     Ok(())
     /// }
     /// ```
@@ -450,7 +450,7 @@ impl<'py> PyModule {
     /// }
     /// #[pymodule]
     /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    ///     module.add_function(wrap_pyfunction!(say_hello, module)?)
+    ///     PyModule::add_function(module, wrap_pyfunction!(say_hello, module)?)
     /// }
     /// ```
     ///
@@ -495,8 +495,8 @@ impl<'py> PyModule {
     /// #[pymodule(gil_used = false)]
     /// fn my_module(py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     let submodule = PyModule::new(py, "submodule")?;
-    ///     submodule.gil_used(false)?;
-    ///     module.add_submodule(&submodule)?;
+    ///     PyModule::gil_used(&submodule, false)?;
+    ///     PyModule::add_submodule(module, &submodule)?;
     ///     Ok(())
     /// }
     /// ```

@@ -119,13 +119,13 @@ fn test_fallible_class_attribute() {
 
         fn reset(self) -> PyResult<String> {
             let py = self.string_io.py();
-            let payload = self
-                .string_io
-                .getattr("getvalue")?
-                .call0()?
-                .downcast::<PyString>()?
-                .to_cow()?
-                .into_owned();
+            let payload = PyString::to_cow(
+                self.string_io
+                    .getattr("getvalue")?
+                    .call0()?
+                    .downcast::<PyString>()?,
+            )?
+            .into_owned();
             let sys = py.import("sys")?;
             sys.setattr("stderr", self.oldstderr)?;
             Ok(payload)

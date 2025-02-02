@@ -491,7 +491,10 @@ fn process_functions_in_module(options: &PyModuleOptions, func: &mut syn::ItemFn
                 let statements: Vec<syn::Stmt> = syn::parse_quote! {
                     #wrapped_function
                     {
-                        #module_name.add_function(#pyo3_path::wrap_pyfunction!(#name, #module_name.as_borrowed())?)?;
+                        #pyo3_path::types::PyModule::add_function(
+                            #module_name,
+                            #pyo3_path::wrap_pyfunction!(#name, #module_name.as_borrowed())?,
+                        )?;
                     }
                 };
                 stmts.extend(statements);

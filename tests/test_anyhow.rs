@@ -37,7 +37,7 @@ fn test_anyhow_py_function_err_result() {
     Python::with_gil(|py| {
         let func = wrap_pyfunction!(produce_err_result)(py).unwrap();
         let locals = PyDict::new(py);
-        locals.set_item("func", func).unwrap();
+        PyDict::set_item(&locals, "func", func).unwrap();
 
         py.run(
             ffi::c_str!(

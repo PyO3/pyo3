@@ -25,9 +25,9 @@ pub const VERSION: i32 = 4;
 /// # use pyo3::{marshal, types::PyDict};
 /// # pyo3::Python::with_gil(|py| {
 /// let dict = PyDict::new(py);
-/// dict.set_item("aap", "noot").unwrap();
-/// dict.set_item("mies", "wim").unwrap();
-/// dict.set_item("zus", "jet").unwrap();
+/// PyDict::set_item(&dict, "aap", "noot").unwrap();
+/// PyDict::set_item(&dict, "mies", "wim").unwrap();
+/// PyDict::set_item(&dict, "zus", "jet").unwrap();
 ///
 /// let bytes = marshal::dumps(dict.as_any(), marshal::VERSION);
 /// # });

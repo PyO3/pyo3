@@ -62,7 +62,7 @@ use pyo3::types::PyList;
 
 fn example<'py>(py: Python<'py>) -> PyResult<()> {
     let x: Bound<'py, PyList> = PyList::empty(py);
-    x.append(1)?;
+    PyList::append(&x, 1)?;
     let y: Bound<'py, PyList> = x.clone(); // y is a new reference to the same list
     drop(x); // release the original reference x
     Ok(())
@@ -78,7 +78,7 @@ use pyo3::types::PyList;
 
 fn example(py: Python<'_>) -> PyResult<()> {
     let x = PyList::empty(py);
-    x.append(1)?;
+    PyList::append(&x, 1)?;
     let y = x.clone();
     drop(x);
     Ok(())
@@ -147,7 +147,7 @@ use pyo3::types::PyTuple;
 // Create a new tuple with the elements (0, 1, 2)
 let t = PyTuple::new(py, [0, 1, 2])?;
 for i in 0..=2 {
-    let entry: Borrowed<'_, 'py, PyAny> = t.get_borrowed_item(i)?;
+    let entry: Borrowed<'_, 'py, PyAny> = PyTuple::get_borrowed_item(&t, i)?;
     // `PyAnyMethods::extract` is available on `Borrowed`
     // via the dereference to `Bound`
     let value: usize = entry.extract()?;

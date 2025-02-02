@@ -117,7 +117,7 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 ///         .get_or_init(py, || PyList::empty(py).unbind())
 ///         .bind(py)
 /// }
-/// # Python::with_gil(|py| assert_eq!(get_shared_list(py).len(), 0));
+/// # Python::with_gil(|py| assert_eq!(PyList::len(get_shared_list(py)), 0));
 /// ```
 pub struct GILOnceCell<T> {
     once: Once,

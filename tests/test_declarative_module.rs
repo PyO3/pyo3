@@ -128,7 +128,7 @@ mod declarative_module {
 
     #[pymodule_init]
     fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
-        m.add("double2", m.getattr("double")?)
+        PyModule::add(m, "double2", m.getattr("double")?)
     }
 }
 

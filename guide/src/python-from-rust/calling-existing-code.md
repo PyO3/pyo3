@@ -166,7 +166,7 @@ fn add_one(x: i64) -> i64 {
 
 #[pymodule]
 fn foo(foo_module: &Bound<'_, PyModule>) -> PyResult<()> {
-    foo_module.add_function(wrap_pyfunction!(add_one, foo_module)?)?;
+    PyModule::add_function(foo_module, wrap_pyfunction!(add_one, foo_module)?)?;
     Ok(())
 }
 
@@ -194,7 +194,7 @@ fn main() -> PyResult<()> {
     Python::with_gil(|py| {
         // Create new module
         let foo_module = PyModule::new(py, "foo")?;
-        foo_module.add_function(wrap_pyfunction!(add_one, &foo_module)?)?;
+        PyModule::add_function(&foo_module, wrap_pyfunction!(add_one, &foo_module)?)?;
 
         // Import and get sys.modules
         let sys = PyModule::import(py, "sys")?;
@@ -304,7 +304,7 @@ fn main() -> PyResult<()> {
             .import("sys")?
             .getattr("path")?
             .downcast_into::<PyList>()?;
-        syspath.insert(0, path)?;
+        PyList::insert(&syspath, 0, path)?;
         let app: Py<PyAny> = PyModule::from_code(py, py_app.as_c_str(), c_str!(""), c_str!(""))?
             .getattr("run")?
             .into();

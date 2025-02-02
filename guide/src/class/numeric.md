@@ -210,7 +210,7 @@ use std::hash::{Hash, Hasher};
 use pyo3::exceptions::{PyValueError, PyZeroDivisionError};
 use pyo3::prelude::*;
 use pyo3::class::basic::CompareOp;
-use pyo3::types::{PyComplex, PyString};
+use pyo3::types::{PyComplex, PyString, PyType};
 
 fn wrap(obj: &Bound<'_, PyAny>) -> PyResult<i32> {
     let val = obj.call_method1("__and__", (0xFFFFFFFF_u32,))?;
@@ -231,7 +231,7 @@ impl Number {
 
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
        // Get the class name dynamically in case `Number` is subclassed
-       let class_name: Bound<'_, PyString> = slf.get_type().qualname()?;
+       let class_name: Bound<'_, PyString> = PyType::qualname(&slf.get_type())?;
         Ok(format!("{}({})", class_name, slf.borrow().0))
     }
 
@@ -327,7 +327,7 @@ impl Number {
 
 #[pymodule]
 fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<Number>()?;
+    PyModule::add_class::<Number>(m)?;
     Ok(())
 }
 # const SCRIPT: &'static std::ffi::CStr = pyo3::ffi::c_str!(r#"
@@ -386,7 +386,7 @@ fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let globals = PyModule::import(py, "__main__")?.dict();
+#         let globals = PyModule::dict(&PyModule::import(py, "__main__")?);
 #         globals.set_item("Number", Number::type_object(py))?;
 #
 #         py.run(SCRIPT, Some(&globals), None)?;

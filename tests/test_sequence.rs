@@ -20,7 +20,7 @@ impl ByteSequence {
     #[pyo3(signature=(elements = None))]
     fn new(elements: Option<&Bound<'_, PyList>>) -> PyResult<Self> {
         if let Some(pylist) = elements {
-            let mut elems = Vec::with_capacity(pylist.len());
+            let mut elems = Vec::with_capacity(PyList::len(pylist));
             for pyelem in pylist {
                 let elem = pyelem.extract()?;
                 elems.push(elem);

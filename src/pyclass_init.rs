@@ -122,8 +122,8 @@ impl<T: PyClass> PyClassInitializer<T> {
     /// fn main() -> PyResult<()> {
     ///     Python::with_gil(|py| {
     ///         let m = PyModule::new(py, "example")?;
-    ///         m.add_class::<SubClass>()?;
-    ///         m.add_class::<BaseClass>()?;
+    ///         PyModule::add_class::<SubClass>(&m)?;
+    ///         PyModule::add_class::<BaseClass>(&m)?;
     ///
     ///         let instance = m.getattr("SubClass")?.call1((92,))?;
     ///

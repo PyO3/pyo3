@@ -33,7 +33,7 @@ use std::os::raw::{c_char, c_int, c_void};
 ///     let capsule = PyCapsule::new(py, foo, Some(name.clone()))?;
 ///
 ///     let module = PyModule::import(py, "builtins")?;
-///     module.add("capsule", capsule)?;
+///     PyModule::add(&module, "capsule", capsule)?;
 ///
 ///     let cap: &Foo = unsafe { PyCapsule::import(py, name.as_ref())? };
 ///     assert_eq!(cap.val, 123);
@@ -63,7 +63,7 @@ impl<'py> PyCapsule {
     /// Python::with_gil(|py| {
     ///     let name = CString::new("foo").unwrap();
     ///     let capsule = PyCapsule::new(py, 123_u32, Some(name)).unwrap();
-    ///     let val = unsafe { capsule.reference::<u32>() };
+    ///     let val = unsafe { PyCapsule::reference::<u32>(&capsule) };
     ///     assert_eq!(*val, 123);
     /// });
     /// ```
@@ -199,7 +199,7 @@ impl<'py> PyCapsule {
     ///         PyCapsule::new_with_destructor(py, 123, None, destructor as fn(u32, *mut c_void))
     ///             .unwrap();
     ///     let context = Box::new(tx);  // `Sender<String>` is our context, box it up and ship it!
-    ///     capsule.set_context(Box::into_raw(context).cast()).unwrap();
+    ///     PyCapsule::set_context(&capsule, Box::into_raw(context).cast()).unwrap();
     ///     // This scope will end, causing our destructor to be called...
     /// });
     ///

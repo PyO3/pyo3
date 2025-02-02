@@ -590,9 +590,9 @@ impl<'py> Python<'py> {
     ///         Some(&locals),
     ///     )
     ///     .unwrap();
-    ///     let ret = locals.get_item("ret").unwrap().unwrap();
+    ///     let ret = PyDict::get_item(&locals, "ret").unwrap().unwrap();
     ///     let b64 = ret.downcast::<PyBytes>().unwrap();
-    ///     assert_eq!(b64.as_bytes(), b"SGVsbG8gUnVzdCE=");
+    ///     assert_eq!(PyBytes::as_bytes(b64), b"SGVsbG8gUnVzdCE=");
     /// });
     /// ```
     ///

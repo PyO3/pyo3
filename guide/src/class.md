@@ -193,7 +193,7 @@ The next step is to create the module initializer and add our class to it:
 #
 #[pymodule]
 fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<Number>()?;
+    PyModule::add_class::<Number>(m)?;
     Ok(())
 }
 ```
@@ -974,7 +974,7 @@ impl MyClass {
 #     Python::with_gil(|py| {
 #         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
 #         let module = PyModule::new(py, "my_module")?;
-#         module.add_class::<MyClass>()?;
+#         PyModule::add_class::<MyClass>(&module)?;
 #         let class = module.getattr("MyClass")?;
 #
 #         if cfg!(not(Py_LIMITED_API)) || py.version_info() >= (3, 10)  {
@@ -1380,9 +1380,10 @@ unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
     const MODULE: ::std::option::Option<&'static str> = ::std::option::Option::None;
     #[inline]
     fn type_object_raw(py: pyo3::Python<'_>) -> *mut pyo3::ffi::PyTypeObject {
-        <Self as pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()
+        pyo3::types::PyType::as_type_ptr(
+            <Self as pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()
             .get_or_init(py)
-            .as_type_ptr()
+        )
     }
 }
 

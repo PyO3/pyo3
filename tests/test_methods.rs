@@ -75,12 +75,15 @@ impl ClassMethod {
     #[classmethod]
     /// Test class method.
     fn method(cls: &Bound<'_, PyType>) -> PyResult<String> {
-        Ok(format!("{}.method()!", cls.qualname()?))
+        Ok(format!("{}.method()!", PyType::qualname(cls)?))
     }
 
     #[classmethod]
     fn method_owned(cls: Py<PyType>, py: Python<'_>) -> PyResult<String> {
-        Ok(format!("{}.method_owned()!", cls.bind(py).qualname()?))
+        Ok(format!(
+            "{}.method_owned()!",
+            PyType::qualname(&cls.bind(py))?
+        ))
     }
 }
 
@@ -109,7 +112,7 @@ struct ClassMethodWithArgs {}
 impl ClassMethodWithArgs {
     #[classmethod]
     fn method(cls: &Bound<'_, PyType>, input: &Bound<'_, PyString>) -> PyResult<String> {
-        Ok(format!("{}.method({})", cls.qualname()?, input))
+        Ok(format!("{}.method({})", PyType::qualname(cls)?, input))
     }
 }
 
@@ -741,11 +744,11 @@ impl MethodWithLifeTime {
     fn set_to_list<'py>(&self, set: &Bound<'py, PySet>) -> PyResult<Bound<'py, PyList>> {
         let py = set.py();
         let mut items = vec![];
-        for _ in 0..set.len() {
-            items.push(set.pop().unwrap());
+        for _ in 0..PySet::len(set) {
+            items.push(PySet::pop(set).unwrap());
         }
         let list = PyList::new(py, items)?;
-        list.sort()?;
+        PyList::sort(&list)?;
         Ok(list)
     }
 }
@@ -990,7 +993,7 @@ impl r#RawIdents {
 fn test_raw_idents() {
     Python::with_gil(|py| {
         let raw_idents_type = py.get_type::<r#RawIdents>();
-        assert_eq!(raw_idents_type.qualname().unwrap(), "RawIdents");
+        assert_eq!(PyType::qualname(&raw_idents_type).unwrap(), "RawIdents");
         py_run!(
             py,
             raw_idents_type,

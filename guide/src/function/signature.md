@@ -17,12 +17,12 @@ use pyo3::types::PyDict;
 #[pyfunction]
 #[pyo3(signature = (**kwds))]
 fn num_kwds(kwds: Option<&Bound<'_, PyDict>>) -> usize {
-    kwds.map_or(0, |dict| dict.len())
+    kwds.map_or(0, PyDict::len)
 }
 
 #[pymodule]
 fn module_with_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(num_kwds, m)?)
+    PyModule::add_function(m, wrap_pyfunction!(num_kwds, m)?)
 }
 ```
 
