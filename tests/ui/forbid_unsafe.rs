@@ -33,7 +33,7 @@ mod from_py_with {
     use pyo3::types::PyBytes;
 
     fn bytes_from_py(bytes: &Bound<'_, PyAny>) -> PyResult<Vec<u8>> {
-        Ok(bytes.downcast::<PyBytes>()?.as_bytes().to_vec())
+        Ok(PyBytes::as_bytes(bytes.downcast::<PyBytes>()?).to_vec())
     }
 
     #[pyfunction]

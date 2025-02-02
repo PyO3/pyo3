@@ -390,7 +390,7 @@ impl<'a> Container<'a> {
                     .unwrap_or_else(|| f.ident.unraw().to_string());
                 let value = Ident::new(&format!("arg{i}"), f.field.ty.span());
                 quote! {
-                    dict.set_item(#key, #value)?;
+                    #pyo3_path::types::PyDict::set_item(&dict, #key, #value)?;
                 }
             })
             .collect::<TokenStream>();

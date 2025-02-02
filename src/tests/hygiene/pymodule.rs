@@ -16,8 +16,8 @@ fn foo(
 #[crate::pymodule]
 #[pyo3(crate = "crate")]
 fn my_module(m: &crate::Bound<'_, crate::types::PyModule>) -> crate::PyResult<()> {
-    m.add_function(crate::wrap_pyfunction!(do_something, m)?)?;
-    m.add_wrapped(crate::wrap_pymodule!(foo))?;
+    crate::types::PyModule::add_function(m, crate::wrap_pyfunction!(do_something, m)?)?;
+    crate::types::PyModule::add_wrapped(m, crate::wrap_pymodule!(foo))?;
 
     ::std::result::Result::Ok(())
 }
