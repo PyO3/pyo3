@@ -176,12 +176,6 @@ error: expected `=`
 158 |     #[pyo3(from_py_with)]
     |                        ^
 
-error: expected string literal
-   --> tests/ui/invalid_frompy_derive.rs:164:27
-    |
-164 |     #[pyo3(from_py_with = func)]
-    |                           ^^^^
-
 error: `getter` is not permitted on tuple struct elements.
    --> tests/ui/invalid_frompy_derive.rs:169:27
     |
@@ -249,3 +243,9 @@ error: `default` is not permitted on tuple struct elements.
     |
 231 | struct NamedTuplesWithDefaultValues(#[pyo3(default)] String);
     |                                     ^
+
+error[E0425]: cannot find value `func` in this scope
+   --> tests/ui/invalid_frompy_derive.rs:164:27
+    |
+164 |     #[pyo3(from_py_with = func)]
+    |                           ^^^^ not found in this scope
