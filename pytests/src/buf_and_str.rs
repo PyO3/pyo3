@@ -30,7 +30,7 @@ impl BytesExtractor {
 
     #[staticmethod]
     pub fn from_str_lossy(string: &Bound<'_, PyString>) -> usize {
-        let rust_string_lossy: String = string.to_string_lossy().to_string();
+        let rust_string_lossy: String = PyString::to_string_lossy(string).to_string();
         rust_string_lossy.len()
     }
 
@@ -49,7 +49,7 @@ fn return_memoryview(py: Python<'_>) -> PyResult<Bound<'_, PyMemoryView>> {
 
 #[pymodule(gil_used = false)]
 pub fn buf_and_str(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<BytesExtractor>()?;
-    m.add_function(wrap_pyfunction!(return_memoryview, m)?)?;
+    PyModule::add_class::<BytesExtractor>(m)?;
+    PyModule::add_function(m, wrap_pyfunction!(return_memoryview, m)?)?;
     Ok(())
 }

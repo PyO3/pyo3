@@ -65,7 +65,7 @@ impl Iter {
     }
 
     fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<PyObject>> {
-        let bytes = PyBytes::as_bytes(&slf.keys.bind(slf.py()));
+        let bytes = PyBytes::as_bytes(slf.keys.bind(slf.py()));
         match bytes.get(slf.idx) {
             Some(&b) => {
                 slf.idx += 1;

@@ -82,7 +82,7 @@ impl ClassMethod {
     fn method_owned(cls: Py<PyType>, py: Python<'_>) -> PyResult<String> {
         Ok(format!(
             "{}.method_owned()!",
-            PyType::qualname(&cls.bind(py))?
+            PyType::qualname(cls.bind(py))?
         ))
     }
 }

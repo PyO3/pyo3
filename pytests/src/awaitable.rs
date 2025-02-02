@@ -80,7 +80,7 @@ impl FutureAwaitable {
 
 #[pymodule(gil_used = false)]
 pub fn awaitable(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<IterAwaitable>()?;
-    m.add_class::<FutureAwaitable>()?;
+    PyModule::add_class::<IterAwaitable>(m)?;
+    PyModule::add_class::<FutureAwaitable>(m)?;
     Ok(())
 }

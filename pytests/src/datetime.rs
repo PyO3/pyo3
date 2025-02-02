@@ -205,24 +205,24 @@ impl TzClass {
 
 #[pymodule(gil_used = false)]
 pub fn datetime(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(make_date, m)?)?;
-    m.add_function(wrap_pyfunction!(get_date_tuple, m)?)?;
-    m.add_function(wrap_pyfunction!(date_from_timestamp, m)?)?;
-    m.add_function(wrap_pyfunction!(make_time, m)?)?;
-    m.add_function(wrap_pyfunction!(get_time_tuple, m)?)?;
-    m.add_function(wrap_pyfunction!(make_delta, m)?)?;
-    m.add_function(wrap_pyfunction!(get_delta_tuple, m)?)?;
-    m.add_function(wrap_pyfunction!(make_datetime, m)?)?;
-    m.add_function(wrap_pyfunction!(get_datetime_tuple, m)?)?;
-    m.add_function(wrap_pyfunction!(datetime_from_timestamp, m)?)?;
-    m.add_function(wrap_pyfunction!(get_datetime_tzinfo, m)?)?;
-    m.add_function(wrap_pyfunction!(get_time_tzinfo, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(make_date, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(get_date_tuple, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(date_from_timestamp, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(make_time, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(get_time_tuple, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(make_delta, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(get_delta_tuple, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(make_datetime, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(get_datetime_tuple, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(datetime_from_timestamp, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(get_datetime_tzinfo, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(get_time_tzinfo, m)?)?;
 
-    m.add_function(wrap_pyfunction!(time_with_fold, m)?)?;
-    m.add_function(wrap_pyfunction!(get_time_tuple_fold, m)?)?;
-    m.add_function(wrap_pyfunction!(get_datetime_tuple_fold, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(time_with_fold, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(get_time_tuple_fold, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(get_datetime_tuple_fold, m)?)?;
 
-    m.add_class::<TzClass>()?;
+    PyModule::add_class::<TzClass>(m)?;
 
     Ok(())
 }

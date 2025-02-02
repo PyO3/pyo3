@@ -388,7 +388,7 @@ fn pyfunction_with_module_owned(
     module: Py<PyModule>,
     py: Python<'_>,
 ) -> PyResult<Bound<'_, PyString>> {
-    PyModule::name(&module.bind(py))
+    PyModule::name(module.bind(py))
 }
 
 #[pyfunction]

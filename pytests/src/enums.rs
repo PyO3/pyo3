@@ -2,15 +2,15 @@ use pyo3::{pyclass, pyfunction, pymodule, types::PyModule, wrap_pyfunction, Boun
 
 #[pymodule(gil_used = false)]
 pub fn enums(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<SimpleEnum>()?;
-    m.add_class::<ComplexEnum>()?;
-    m.add_class::<SimpleTupleEnum>()?;
-    m.add_class::<TupleEnum>()?;
-    m.add_class::<MixedComplexEnum>()?;
-    m.add_wrapped(wrap_pyfunction!(do_simple_stuff))?;
-    m.add_wrapped(wrap_pyfunction!(do_complex_stuff))?;
-    m.add_wrapped(wrap_pyfunction!(do_tuple_stuff))?;
-    m.add_wrapped(wrap_pyfunction!(do_mixed_complex_stuff))?;
+    PyModule::add_class::<SimpleEnum>(m)?;
+    PyModule::add_class::<ComplexEnum>(m)?;
+    PyModule::add_class::<SimpleTupleEnum>(m)?;
+    PyModule::add_class::<TupleEnum>(m)?;
+    PyModule::add_class::<MixedComplexEnum>(m)?;
+    PyModule::add_wrapped(m, wrap_pyfunction!(do_simple_stuff))?;
+    PyModule::add_wrapped(m, wrap_pyfunction!(do_complex_stuff))?;
+    PyModule::add_wrapped(m, wrap_pyfunction!(do_tuple_stuff))?;
+    PyModule::add_wrapped(m, wrap_pyfunction!(do_mixed_complex_stuff))?;
     Ok(())
 }
 

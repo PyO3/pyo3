@@ -4,7 +4,7 @@ use pyo3::types::PyDict;
 
 #[pymodule]
 pub fn dict_iter(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<DictSize>()?;
+    PyModule::add_class::<DictSize>(m)?;
     Ok(())
 }
 

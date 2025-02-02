@@ -106,13 +106,13 @@ impl ClassWithDict {
 
 #[pymodule(gil_used = false)]
 pub fn pyclasses(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<EmptyClass>()?;
-    m.add_class::<PyClassIter>()?;
-    m.add_class::<PyClassThreadIter>()?;
-    m.add_class::<AssertingBaseClass>()?;
-    m.add_class::<ClassWithoutConstructor>()?;
+    PyModule::add_class::<EmptyClass>(m)?;
+    PyModule::add_class::<PyClassIter>(m)?;
+    PyModule::add_class::<PyClassThreadIter>(m)?;
+    PyModule::add_class::<AssertingBaseClass>(m)?;
+    PyModule::add_class::<ClassWithoutConstructor>(m)?;
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
-    m.add_class::<ClassWithDict>()?;
+    PyModule::add_class::<ClassWithDict>(m)?;
 
     Ok(())
 }

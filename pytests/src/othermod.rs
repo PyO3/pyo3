@@ -30,12 +30,12 @@ fn double(x: i32) -> i32 {
 
 #[pymodule(gil_used = false)]
 pub fn othermod(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(double, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(double, m)?)?;
 
-    m.add_class::<ModClass>()?;
+    PyModule::add_class::<ModClass>(m)?;
 
-    m.add("USIZE_MIN", usize::MIN)?;
-    m.add("USIZE_MAX", usize::MAX)?;
+    PyModule::add(m, "USIZE_MIN", usize::MIN)?;
+    PyModule::add(m, "USIZE_MAX", usize::MAX)?;
 
     Ok(())
 }
