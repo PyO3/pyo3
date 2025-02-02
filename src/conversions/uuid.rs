@@ -40,8 +40,8 @@
 //!
 //! #[pymodule]
 //! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-//!     m.add_function(wrap_pyfunction!(get_uuid_from_str, m)?)?;
-//!     m.add_function(wrap_pyfunction!(get_uuid, m)?)?;
+//!     PyModule::add_function(m, wrap_pyfunction!(get_uuid_from_str, m)?)?;
+//!     PyModule::add_function(m, wrap_pyfunction!(get_uuid, m)?)?;
 //!     Ok(())
 //! }
 //! ```
