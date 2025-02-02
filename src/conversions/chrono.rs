@@ -282,7 +282,7 @@ impl<'py> IntoPyObject<'py> for NaiveTime {
             .and_then(|dt| dt.time.bind(py).call1((hour, min, sec, micro)))?;
 
         if truncated_leap_second {
-            warn_truncated_leap_second(&time);
+            warn_truncated_leap_second(time.as_any());
         }
 
         Ok(time)
@@ -363,7 +363,7 @@ impl<'py> IntoPyObject<'py> for NaiveDateTime {
         })?;
 
         if truncated_leap_second {
-            warn_truncated_leap_second(&datetime);
+            warn_truncated_leap_second(datetime.as_any());
         }
 
         Ok(datetime)
@@ -486,7 +486,7 @@ where
         })?;
 
         if truncated_leap_second {
-            warn_truncated_leap_second(&datetime);
+            warn_truncated_leap_second(datetime.as_any());
         }
 
         Ok(datetime)
@@ -746,7 +746,7 @@ fn naive_datetime_to_py_datetime(
         .call1((year, month, day, hour, min, sec, micro, tzinfo))
         .expect("failed to construct datetime.datetime");
     if truncated_leap_second {
-        warn_truncated_leap_second(&datetime);
+        warn_truncated_leap_second(datetime.as_any());
     }
     datetime.into()
 }
@@ -755,7 +755,7 @@ fn warn_truncated_leap_second(obj: &Bound<'_, PyAny>) {
     let py = obj.py();
     if let Err(e) = PyErr::warn(
         py,
-        &py.get_type::<PyUserWarning>(),
+        py.get_type::<PyUserWarning>().as_any(),
         ffi::c_str!("ignored leap-second, `datetime` does not support leap-seconds"),
         0,
     ) {
@@ -825,7 +825,6 @@ mod tests {
     fn test_zoneinfo_is_not_fixed_offset() {
         use crate::ffi;
         use crate::types::any::PyAnyMethods;
-        use crate::types::dict::PyDictMethods;
 
         Python::with_gil(|py| {
             let locals = crate::types::PyDict::new(py);

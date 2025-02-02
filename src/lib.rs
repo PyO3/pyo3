@@ -22,6 +22,7 @@
         non_local_definitions,
     )
 )))]
+#![feature(arbitrary_self_types)]
 
 //! Rust bindings to the Python interpreter.
 //!
@@ -196,7 +197,7 @@
 //! /// A Python module implemented in Rust.
 //! #[pymodule]
 //! fn string_sum(m: &Bound<'_, PyModule>) -> PyResult<()> {
-//!     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
+//!     PyModule::add_function(m, wrap_pyfunction!(sum_as_string, m)?)?;
 //!
 //!     Ok(())
 //! }

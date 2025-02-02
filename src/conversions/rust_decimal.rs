@@ -31,7 +31,7 @@
 //!
 //! #[pymodule]
 //! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-//!     m.add_function(wrap_pyfunction!(add_one, m)?)?;
+//!     PyModule::add_function(m, wrap_pyfunction!(add_one, m)?)?;
 //!     Ok(())
 //! }
 //! ```
@@ -53,7 +53,6 @@ use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
 use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
-use crate::types::string::PyStringMethods;
 use crate::types::PyType;
 use crate::{Bound, FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python};
 #[allow(deprecated)]
@@ -125,7 +124,6 @@ impl<'py> IntoPyObject<'py> for &Decimal {
 #[cfg(test)]
 mod test_rust_decimal {
     use super::*;
-    use crate::types::dict::PyDictMethods;
     use crate::types::PyDict;
     use std::ffi::CString;
 

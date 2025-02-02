@@ -71,8 +71,8 @@ struct FooBound<'py>(Bound<'py, PyList>);
 impl PartialEq<Foo> for FooBound<'_> {
     fn eq(&self, other: &Foo) -> bool {
         Python::with_gil(|py| {
-            let len = other.0.bind(py).len();
-            self.0.len() == len
+            let len = PyList::len(&other.0.bind(py));
+            PyList::len(&self.0) == len
         })
     }
 }
@@ -91,8 +91,8 @@ impl PartialEq<Foo> for FooBound<'_> {
     fn eq(&self, other: &Foo) -> bool {
         // Access to `&Bound<'py, PyAny>` implies access to `Python<'py>`.
         let py = self.0.py();
-        let len = other.0.bind(py).len();
-        self.0.len() == len
+        let len = PyList::len(&other.0.bind(py));
+        PyList::len(&self.0) == len
     }
 }
 ```
@@ -124,11 +124,11 @@ This limitation is important to keep in mind when this setting is used, especial
 let numbers: Py<PyList> = Python::with_gil(|py| PyList::empty(py).unbind());
 
 Python::with_gil(|py| {
-    numbers.bind(py).append(23).unwrap();
+    PyList::append(&numbers.bind(py), 23).unwrap();
 });
 
 Python::with_gil(|py| {
-    numbers.bind(py).append(42).unwrap();
+    PyList::append(&numbers.bind(py), 42).unwrap();
 });
 ```
 
@@ -140,11 +140,11 @@ will abort if the list not explicitly disposed via
 let numbers: Py<PyList> = Python::with_gil(|py| PyList::empty(py).unbind());
 
 Python::with_gil(|py| {
-    numbers.bind(py).append(23).unwrap();
+    PyList::append(&numbers.bind(py), 23).unwrap();
 });
 
 Python::with_gil(|py| {
-    numbers.bind(py).append(42).unwrap();
+    PyList::append(&numbers.bind(py), 42).unwrap();
 });
 
 Python::with_gil(move |py| {

@@ -107,7 +107,7 @@ impl PyTypeCheck for PyIterator {
 mod tests {
     use super::PyIterator;
     use crate::exceptions::PyTypeError;
-    use crate::types::{PyAnyMethods, PyDict, PyList, PyListMethods};
+    use crate::types::{PyAnyMethods, PyDict, PyList};
     use crate::{ffi, IntoPyObject, Python};
 
     #[test]
@@ -239,7 +239,7 @@ def fibonacci(target):
     fn int_not_iterable() {
         Python::with_gil(|py| {
             let x = 5i32.into_pyobject(py).unwrap();
-            let err = PyIterator::from_object(&x).unwrap_err();
+            let err = PyIterator::from_object(x.as_any()).unwrap_err();
 
             assert!(err.is_instance_of::<PyTypeError>(py));
         });

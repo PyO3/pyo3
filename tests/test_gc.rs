@@ -5,6 +5,7 @@ use pyo3::class::PyVisit;
 use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::py_run;
+use pyo3::types::PyType;
 #[cfg(not(target_arch = "wasm32"))]
 use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -283,7 +284,7 @@ fn gc_during_borrow() {
     Python::with_gil(|py| {
         // get the traverse function
         let ty = py.get_type::<TraversableClass>();
-        let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
+        let traverse = unsafe { get_type_traverse(PyType::as_type_ptr(&ty)).unwrap() };
 
         // create an object and check that traversing it works normally
         // when it's not borrowed
@@ -328,7 +329,7 @@ fn traverse_partial() {
     Python::with_gil(|py| {
         // get the traverse function
         let ty = py.get_type::<PartialTraverse>();
-        let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
+        let traverse = unsafe { get_type_traverse(PyType::as_type_ptr(&ty)).unwrap() };
 
         // confirm that traversing errors
         let obj = Py::new(py, PartialTraverse::new(py)).unwrap();
@@ -363,7 +364,7 @@ fn traverse_panic() {
     Python::with_gil(|py| {
         // get the traverse function
         let ty = py.get_type::<PanickyTraverse>();
-        let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
+        let traverse = unsafe { get_type_traverse(PyType::as_type_ptr(&ty)).unwrap() };
 
         // confirm that traversing errors
         let obj = Py::new(py, PanickyTraverse::new(py)).unwrap();
@@ -389,7 +390,7 @@ fn tries_gil_in_traverse() {
     Python::with_gil(|py| {
         // get the traverse function
         let ty = py.get_type::<TriesGILInTraverse>();
-        let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
+        let traverse = unsafe { get_type_traverse(PyType::as_type_ptr(&ty)).unwrap() };
 
         // confirm that traversing panicks
         let obj = Py::new(py, TriesGILInTraverse {}).unwrap();
@@ -448,7 +449,7 @@ fn traverse_cannot_be_hijacked() {
     Python::with_gil(|py| {
         // get the traverse function
         let ty = py.get_type::<HijackedTraverse>();
-        let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
+        let traverse = unsafe { get_type_traverse(PyType::as_type_ptr(&ty)).unwrap() };
 
         let cell = Bound::new(py, HijackedTraverse::new()).unwrap();
         assert_eq!(cell.borrow().traversed_and_hijacked(), (false, false));
@@ -561,7 +562,7 @@ fn unsendable_are_not_traversed_on_foreign_thread() {
 
     Python::with_gil(|py| {
         let ty = py.get_type::<UnsendableTraversal>();
-        let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
+        let traverse = unsafe { get_type_traverse(PyType::as_type_ptr(&ty)).unwrap() };
 
         let obj = Bound::new(
             py,

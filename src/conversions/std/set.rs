@@ -7,8 +7,7 @@ use crate::{
     instance::Bound,
     types::{
         any::PyAnyMethods,
-        frozenset::PyFrozenSetMethods,
-        set::{new_from_iter, try_new_from_iter, PySetMethods},
+        set::{new_from_iter, try_new_from_iter},
         PyFrozenSet, PySet,
     },
     FromPyObject, PyAny, PyErr, PyObject, PyResult, Python,

@@ -4,8 +4,8 @@ use crate::impl_::pycell::PyClassObject;
 use crate::internal_tricks::ptr_from_ref;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
-use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
-use crate::types::{DerefToPyAny, PyDict, PyString, PyTuple};
+use crate::types::any::PyAnyMethods;
+use crate::types::{PyDict, PyString, PyTuple};
 use crate::{
     ffi, AsPyPointer, DowncastError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef,
     PyRefMut, PyTypeInfo, Python,
@@ -497,19 +497,8 @@ fn python_format(
     }
 }
 
-// The trait bound is needed to avoid running into the auto-deref recursion
-// limit (error[E0055]), because `Bound<PyAny>` would deref into itself. See:
-// https://github.com/rust-lang/rust/issues/19509
-impl<'py, T> Deref for Bound<'py, T>
-where
-    T: DerefToPyAny,
-{
-    type Target = Bound<'py, PyAny>;
-
-    #[inline]
-    fn deref(&self) -> &Bound<'py, PyAny> {
-        self.as_any()
-    }
+impl<T> std::ops::Receiver for Bound<'_, T> {
+    type Target = T;
 }
 
 impl<'py, T> AsRef<Bound<'py, PyAny>> for Bound<'py, T> {
@@ -665,7 +654,7 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
     ///
     ///     // borrows from `tuple`, so can only be
     ///     // used while `tuple` stays alive
-    ///     let borrowed = tuple.get_borrowed_item(0)?;
+    ///     let borrowed = PyTuple::get_borrowed_item(&tuple, 0)?;
     ///
     ///     // creates a new owned reference, which
     ///     // can be used indendently of `tuple`
@@ -947,7 +936,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// # fn main() -> PyResult<()> {
 /// #     Python::with_gil(|py| {
 /// #         let m = pyo3::types::PyModule::new(py, "test")?;
-/// #         m.add_class::<Foo>()?;
+/// #         PyModule::add_class::<Foo>(&m)?;
 /// #
 /// #         let foo: Bound<'_, Foo> = m.getattr("Foo")?.call0()?.downcast_into()?;
 /// #         let dict = &foo.borrow().inner;
@@ -984,7 +973,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// # fn main() -> PyResult<()> {
 /// #     Python::with_gil(|py| {
 /// #         let m = pyo3::types::PyModule::new(py, "test")?;
-/// #         m.add_class::<Foo>()?;
+/// #         PyModule::add_class::<Foo>(&m)?;
 /// #
 /// #         let foo: Bound<'_, Foo> = m.getattr("Foo")?.call0()?.downcast_into()?;
 /// #         let bar = &foo.borrow().inner;
@@ -2023,7 +2012,6 @@ mod tests {
     #[test]
     fn test_call_tuple_ref() {
         let assert_repr = |obj: &Bound<'_, PyAny>, expected: &str| {
-            use crate::prelude::PyStringMethods;
             assert_eq!(
                 obj.repr()
                     .unwrap()

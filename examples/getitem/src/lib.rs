@@ -28,7 +28,7 @@ impl ExampleContainer {
         } else if let Ok(slice) = key.downcast::<PySlice>() {
             // METHOD 1 - the use PySliceIndices to help with bounds checking and for cases when only start or end are provided
             // in this case the start/stop/step all filled in to give valid values based on the max_length given
-            let index = slice.indices(self.max_length as isize).unwrap();
+            let index = PySlice::indices(&slice, self.max_length as isize).unwrap();
             let _delta = index.stop - index.start;
 
             // METHOD 2 - Do the getattr manually really only needed if you have some special cases for stop/_step not being present
@@ -61,7 +61,7 @@ impl ExampleContainer {
     fn __setitem__(&self, idx: IntOrSlice, value: u32) -> PyResult<()> {
         match idx {
             IntOrSlice::Slice(slice) => {
-                let index = slice.indices(self.max_length as isize).unwrap();
+                let index = PySlice::indices(&slice, self.max_length as isize).unwrap();
                 println!(
                     "Got a slice! {}-{}, step: {}, value: {}",
                     index.start, index.stop, index.step, value
@@ -78,6 +78,6 @@ impl ExampleContainer {
 #[pymodule(name = "getitem")]
 fn example(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // ? -https://github.com/PyO3/maturin/issues/475
-    m.add_class::<ExampleContainer>()?;
+    PyModule::add_class::<ExampleContainer>(m)?;
     Ok(())
 }

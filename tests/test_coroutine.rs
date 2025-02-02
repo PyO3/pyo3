@@ -146,7 +146,7 @@ fn cancelled_coroutine() {
             await task
         asyncio.run(main())
         "#;
-        let globals = gil.import("__main__").unwrap().dict();
+        let globals = PyModule::dict(&gil.import("__main__").unwrap());
         globals.set_item("sleep", sleep).unwrap();
         let err = gil
             .run(
@@ -156,7 +156,7 @@ fn cancelled_coroutine() {
             )
             .unwrap_err();
         assert_eq!(
-            err.value(gil).get_type().qualname().unwrap(),
+            PyType::qualname(&err.value(gil).get_type()).unwrap(),
             "CancelledError"
         );
     })
@@ -185,7 +185,7 @@ fn coroutine_cancel_handle() {
             return await task
         assert asyncio.run(main()) == 0
         "#;
-        let globals = gil.import("__main__").unwrap().dict();
+        let globals = PyModule::dict(&gil.import("__main__").unwrap());
         globals
             .set_item("cancellable_sleep", cancellable_sleep)
             .unwrap();
@@ -217,7 +217,7 @@ fn coroutine_is_cancelled() {
             await task
         asyncio.run(main())
         "#;
-        let globals = gil.import("__main__").unwrap().dict();
+        let globals = PyModule::dict(&gil.import("__main__").unwrap());
         globals.set_item("sleep_loop", sleep_loop).unwrap();
         gil.run(
             &CString::new(pyo3::unindent::unindent(&handle_windows(test))).unwrap(),

@@ -3,7 +3,7 @@ use crate::{
     exceptions::PyTypeError,
     ffi,
     pyclass::boolean_struct::False,
-    types::{any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods, PyDict, PyTuple},
+    types::{any::PyAnyMethods, PyDict, PyTuple},
     Borrowed, Bound, PyAny, PyClass, PyErr, PyRef, PyRefMut, PyResult, PyTypeCheck, Python,
 };
 

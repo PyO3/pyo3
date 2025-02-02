@@ -145,7 +145,7 @@ impl<'py> IntoPyObject<'py> for &PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{PyAnyMethods, PyString, PyStringMethods};
+    use crate::types::{PyAnyMethods, PyString};
     use crate::{BoundObject, IntoPyObject, Python};
     use std::borrow::Cow;
     use std::fmt::Debug;

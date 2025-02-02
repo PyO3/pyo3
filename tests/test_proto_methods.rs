@@ -188,11 +188,11 @@ pub struct Mapping {
 #[pymethods]
 impl Mapping {
     fn __len__(&self, py: Python<'_>) -> usize {
-        self.values.bind(py).len()
+        PyDict::len(self.values.bind(py))
     }
 
     fn __getitem__<'py>(&self, key: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
-        let any: &Bound<'py, PyAny> = self.values.bind(key.py());
+        let any: &Bound<'py, PyAny> = self.values.bind(key.py()).as_any();
         any.get_item(key)
     }
 
@@ -345,16 +345,22 @@ fn sequence() {
 
         // we don't implement sequence length so that CPython doesn't attempt to correct negative
         // indices.
-        assert!(sequence.len().is_err());
+        assert!(PySequence::len(sequence).is_err());
         // however regular python len() works thanks to mp_len slot
         assert_eq!(inst.bind(py).len().unwrap(), 0);
 
         py_run!(py, inst, "inst.append(0)");
-        sequence.set_item(0, 5).unwrap();
+        PySequence::set_item(sequence, 0, 5).unwrap();
         assert_eq!(inst.bind(py).len().unwrap(), 1);
 
-        assert_eq!(sequence.get_item(0).unwrap().extract::<u8>().unwrap(), 5);
-        sequence.del_item(0).unwrap();
+        assert_eq!(
+            PySequence::get_item(sequence, 0)
+                .unwrap()
+                .extract::<u8>()
+                .unwrap(),
+            5
+        );
+        PySequence::del_item(sequence, 0).unwrap();
 
         assert_eq!(inst.bind(py).len().unwrap(), 0);
     });
@@ -528,7 +534,7 @@ struct GetItem {}
 impl GetItem {
     fn __getitem__(&self, idx: &Bound<'_, PyAny>) -> PyResult<&'static str> {
         if let Ok(slice) = idx.downcast::<PySlice>() {
-            let indices = slice.indices(1000)?;
+            let indices = PySlice::indices(slice, 1000)?;
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
                 return Ok("slice");
             }
@@ -686,7 +692,7 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 asyncio.run(main())
 "#
         );
-        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        let globals = PyModule::dict(&PyModule::import(py, "__main__").unwrap());
         globals.set_item("Once", once).unwrap();
         py.run(source, Some(&globals), None)
             .map_err(|e| e.display(py))
@@ -742,7 +748,7 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 asyncio.run(main())
 "#
         );
-        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        let globals = PyModule::dict(&PyModule::import(py, "__main__").unwrap());
         globals.set_item("Once", once).unwrap();
         globals
             .set_item("AsyncIterator", py.get_type::<AsyncIterator>())
@@ -814,7 +820,7 @@ del c.counter
 assert c.counter.count == 1
 "#
         ));
-        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        let globals = PyModule::dict(&PyModule::import(py, "__main__").unwrap());
         globals.set_item("Counter", counter).unwrap();
         py.run(source, Some(&globals), None)
             .map_err(|e| e.display(py))

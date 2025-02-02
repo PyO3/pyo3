@@ -91,8 +91,8 @@ use pyo3::prelude::*;
 # #[allow(dead_code)]
 fn register_child_module(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let child_module = PyModule::new(parent_module.py(), "child_module")?;
-    child_module.gil_used(false)?;
-    parent_module.add_submodule(&child_module)
+    PyModule::gil_used(&child_module, false)?;
+    PyModule::add_submodule(parent_module, &child_module)
 }
 
 ```

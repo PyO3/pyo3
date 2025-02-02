@@ -28,7 +28,7 @@
 //!
 //! #[pymodule]
 //! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-//!     m.add_function(wrap_pyfunction!(add_five_to_fraction, m)?)?;
+//!     PyModule::add_function(m, wrap_pyfunction!(add_five_to_fraction, m)?)?;
 //!     Ok(())
 //! }
 //! ```
@@ -131,7 +131,6 @@ rational_conversion!(BigInt);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::dict::PyDictMethods;
     use crate::types::PyDict;
 
     #[cfg(not(target_arch = "wasm32"))]

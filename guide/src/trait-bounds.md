@@ -132,7 +132,7 @@ struct UserModel {
 
 #[pymodule]
 fn trait_exposure(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<UserModel>()?;
+    PyModule::add_class::<UserModel>(m)?;
     Ok(())
 }
 
@@ -382,7 +382,7 @@ Let's break it down in order to perform better error handling:
 ```rust
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
-# use pyo3::types::PyList;
+# use pyo3::types::{PyList, PyType};
 #
 # pub trait Model {
 #   fn set_variables(&mut self, inputs: &Vec<f64>);
@@ -405,10 +405,10 @@ impl Model for UserModel {
                 .call_method("get_results", (), None)
                 .unwrap();
 
-            if py_result.get_type().name().unwrap() != "list" {
+            if PyType::name(&py_result.get_type()).unwrap() != "list" {
                 panic!(
                     "Expected a list for the get_results() method signature, got {}",
-                    py_result.get_type().name().unwrap()
+                    PyType::name(&py_result.get_type()).unwrap()
                 );
             }
             py_result.extract()
@@ -459,7 +459,7 @@ It is also required to make the struct public.
 ```rust
 # #![allow(dead_code)]
 use pyo3::prelude::*;
-use pyo3::types::PyList;
+use pyo3::types::{PyList, PyType};
 
 pub trait Model {
     fn set_variables(&mut self, var: &Vec<f64>);
@@ -484,8 +484,8 @@ pub struct UserModel {
 
 #[pymodule]
 fn trait_exposure(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<UserModel>()?;
-    m.add_function(wrap_pyfunction!(solve_wrapper, m)?)?;
+    PyModule::add_class::<UserModel>(m)?;
+    PyModule::add_function(m, wrap_pyfunction!(solve_wrapper, m)?)?;
     Ok(())
 }
 
@@ -531,10 +531,10 @@ impl Model for UserModel {
                 .call_method("get_results", (), None)
                 .unwrap();
 
-            if py_result.get_type().name().unwrap() != "list" {
+            if PyType::name(&py_result.get_type()).unwrap() != "list" {
                 panic!(
                     "Expected a list for the get_results() method signature, got {}",
-                    py_result.get_type().name().unwrap()
+                    PyType::name(&py_result.get_type()).unwrap()
                 );
             }
             py_result.extract()

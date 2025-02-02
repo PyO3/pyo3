@@ -72,7 +72,7 @@
 //!
 //! #[pymodule]
 //! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-//!     m.add_function(wrap_pyfunction!(calculate_statistics, m)?)?;
+//!     PyModule::add_function(m, wrap_pyfunction!(calculate_statistics, m)?)?;
 //!     Ok(())
 //! }
 //! ```

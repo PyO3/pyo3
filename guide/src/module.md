@@ -13,7 +13,7 @@ fn double(x: usize) -> usize {
 /// This module is implemented in Rust.
 #[pymodule]
 fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(double, m)?)
+    PyModule::add_function(m, wrap_pyfunction!(double, m)?)
 }
 ```
 
@@ -33,7 +33,7 @@ fn double(x: usize) -> usize {
 
 #[pymodule(name = "custom_name")]
 fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(double, m)?)
+    PyModule::add_function(m, wrap_pyfunction!(double, m)?)
 }
 ```
 
@@ -62,7 +62,7 @@ print(my_extension.__doc__)
 ## Python submodules
 
 You can create a module hierarchy within a single extension module by using
-[`Bound<'_, PyModule>::add_submodule()`]({{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyModuleMethods.html#tymethod.add_submodule).
+[`Bound<'_, PyModule>::add_submodule()`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#tymethod.add_submodule).
 For example, you could define the modules `parent_module` and `parent_module.child_module`.
 
 ```rust
@@ -76,8 +76,8 @@ fn parent_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 fn register_child_module(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let child_module = PyModule::new(parent_module.py(), "child_module")?;
-    child_module.add_function(wrap_pyfunction!(func, &child_module)?)?;
-    parent_module.add_submodule(&child_module)
+    PyModule::add_function(&child_module, wrap_pyfunction!(func, &child_module)?)?;
+    PyModule::add_submodule(parent_module, &child_module)
 }
 
 #[pyfunction]
@@ -140,7 +140,7 @@ mod my_extension {
     #[pymodule_init]
     fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
         // Arbitrary code to run at the module initialization
-        m.add("double2", m.getattr("double")?)
+        PyModule::add(m, "double2", m.getattr("double")?)
     }
 }
 # }

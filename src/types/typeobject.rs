@@ -12,25 +12,22 @@ use super::PyString;
 ///
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyType>`][crate::Py] or [`Bound<'py, PyType>`][Bound].
-///
-/// For APIs available on `type` objects, see the [`PyTypeMethods`] trait which is implemented for
-/// [`Bound<'py, PyType>`][Bound].
 #[repr(transparent)]
 pub struct PyType(PyAny);
 
 pyobject_native_type_core!(PyType, pyobject_native_static_type_object!(ffi::PyType_Type), #checkfunction=ffi::PyType_Check);
 
-impl PyType {
+impl<'py> PyType {
     /// Creates a new type object.
     #[inline]
-    pub fn new<T: PyTypeInfo>(py: Python<'_>) -> Bound<'_, PyType> {
+    pub fn new<T: PyTypeInfo>(py: Python<'py>) -> Bound<'py, PyType> {
         T::type_object(py)
     }
 
     /// Deprecated name for [`PyType::new`].
     #[deprecated(since = "0.23.0", note = "renamed to `PyType::new`")]
     #[inline]
-    pub fn new_bound<T: PyTypeInfo>(py: Python<'_>) -> Bound<'_, PyType> {
+    pub fn new_bound<T: PyTypeInfo>(py: Python<'py>) -> Bound<'py, PyType> {
         Self::new::<T>(py)
     }
 
@@ -43,71 +40,21 @@ impl PyType {
     /// - The pointer must be a valid non-null reference to a `PyTypeObject`
     #[inline]
     pub unsafe fn from_borrowed_type_ptr(
-        py: Python<'_>,
+        py: Python<'py>,
         p: *mut ffi::PyTypeObject,
-    ) -> Bound<'_, PyType> {
+    ) -> Bound<'py, PyType> {
         Borrowed::from_ptr_unchecked(py, p.cast())
             .downcast_unchecked()
             .to_owned()
     }
-}
-
-/// Implementation of functionality for [`PyType`].
-///
-/// These methods are defined for the `Bound<'py, PyType>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
-#[doc(alias = "PyType")]
-pub trait PyTypeMethods<'py>: crate::sealed::Sealed {
-    /// Retrieves the underlying FFI pointer associated with this Python object.
-    fn as_type_ptr(&self) -> *mut ffi::PyTypeObject;
-
-    /// Gets the name of the `PyType`. Equivalent to `self.__name__` in Python.
-    fn name(&self) -> PyResult<Bound<'py, PyString>>;
-
-    /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
-    /// Equivalent to `self.__qualname__` in Python.
-    fn qualname(&self) -> PyResult<Bound<'py, PyString>>;
-
-    /// Gets the name of the module defining the `PyType`.
-    fn module(&self) -> PyResult<Bound<'py, PyString>>;
-
-    /// Gets the [fully qualified name](https://peps.python.org/pep-0737/#add-pytype-getfullyqualifiedname-function) of the `PyType`.
-    fn fully_qualified_name(&self) -> PyResult<Bound<'py, PyString>>;
-
-    /// Checks whether `self` is a subclass of `other`.
-    ///
-    /// Equivalent to the Python expression `issubclass(self, other)`.
-    fn is_subclass(&self, other: &Bound<'_, PyAny>) -> PyResult<bool>;
-
-    /// Checks whether `self` is a subclass of type `T`.
-    ///
-    /// Equivalent to the Python expression `issubclass(self, T)`, if the type
-    /// `T` is known at compile time.
-    fn is_subclass_of<T>(&self) -> PyResult<bool>
-    where
-        T: PyTypeInfo;
-
-    /// Return the method resolution order for this type.
-    ///
-    /// Equivalent to the Python expression `self.__mro__`.
-    fn mro(&self) -> Bound<'py, PyTuple>;
-
-    /// Return Python bases
-    ///
-    /// Equivalent to the Python expression `self.__bases__`.
-    fn bases(&self) -> Bound<'py, PyTuple>;
-}
-
-impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
     /// Retrieves the underlying FFI pointer associated with this Python object.
     #[inline]
-    fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
+    pub fn as_type_ptr(self: &Bound<'py, Self>) -> *mut ffi::PyTypeObject {
         self.as_ptr() as *mut ffi::PyTypeObject
     }
 
-    /// Gets the name of the `PyType`.
-    fn name(&self) -> PyResult<Bound<'py, PyString>> {
+    /// Gets the name of the `PyType`. Equivalent to `self.__name__` in Python.
+    pub fn name(self: &Bound<'py, Self>) -> PyResult<Bound<'py, PyString>> {
         #[cfg(not(Py_3_11))]
         let name = self
             .getattr(intern!(self.py(), "__name__"))?
@@ -126,7 +73,8 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
     }
 
     /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
-    fn qualname(&self) -> PyResult<Bound<'py, PyString>> {
+    /// Equivalent to `self.__qualname__` in Python.
+    pub fn qualname(self: &Bound<'py, Self>) -> PyResult<Bound<'py, PyString>> {
         #[cfg(not(Py_3_11))]
         let name = self
             .getattr(intern!(self.py(), "__qualname__"))?
@@ -145,7 +93,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
     }
 
     /// Gets the name of the module defining the `PyType`.
-    fn module(&self) -> PyResult<Bound<'py, PyString>> {
+    pub fn module(self: &Bound<'py, Self>) -> PyResult<Bound<'py, PyString>> {
         #[cfg(not(Py_3_13))]
         let name = self.getattr(intern!(self.py(), "__module__"))?;
 
@@ -159,8 +107,8 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
         name.downcast_into().map_err(Into::into)
     }
 
-    /// Gets the [fully qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
-    fn fully_qualified_name(&self) -> PyResult<Bound<'py, PyString>> {
+    /// Gets the [fully qualified name](https://peps.python.org/pep-0737/#add-pytype-getfullyqualifiedname-function) of the `PyType`.
+    pub fn fully_qualified_name(self: &Bound<'py, Self>) -> PyResult<Bound<'py, PyString>> {
         #[cfg(not(Py_3_13))]
         let name = {
             let module = self.getattr(intern!(self.py(), "__module__"))?;
@@ -188,7 +136,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
     /// Checks whether `self` is a subclass of `other`.
     ///
     /// Equivalent to the Python expression `issubclass(self, other)`.
-    fn is_subclass(&self, other: &Bound<'_, PyAny>) -> PyResult<bool> {
+    pub fn is_subclass(self: &Bound<'py, Self>, other: &Bound<'_, PyAny>) -> PyResult<bool> {
         let result = unsafe { ffi::PyObject_IsSubclass(self.as_ptr(), other.as_ptr()) };
         err::error_on_minusone(self.py(), result)?;
         Ok(result == 1)
@@ -198,14 +146,17 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
     ///
     /// Equivalent to the Python expression `issubclass(self, T)`, if the type
     /// `T` is known at compile time.
-    fn is_subclass_of<T>(&self) -> PyResult<bool>
+    pub fn is_subclass_of<T>(self: &Bound<'py, Self>) -> PyResult<bool>
     where
         T: PyTypeInfo,
     {
-        self.is_subclass(&T::type_object(self.py()))
+        self.is_subclass(T::type_object(self.py()).as_any())
     }
 
-    fn mro(&self) -> Bound<'py, PyTuple> {
+    /// Return the method resolution order for this type.
+    ///
+    /// Equivalent to the Python expression `self.__mro__`.
+    pub fn mro(self: &Bound<'py, Self>) -> Bound<'py, PyTuple> {
         #[cfg(any(Py_LIMITED_API, PyPy))]
         let mro = self
             .getattr(intern!(self.py(), "__mro__"))
@@ -226,7 +177,10 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
         mro
     }
 
-    fn bases(&self) -> Bound<'py, PyTuple> {
+    /// Return Python bases
+    ///
+    /// Equivalent to the Python expression `self.__bases__`.
+    pub fn bases(self: &Bound<'py, Self>) -> Bound<'py, PyTuple> {
         #[cfg(any(Py_LIMITED_API, PyPy))]
         let bases = self
             .getattr(intern!(self.py(), "__bases__"))
@@ -251,7 +205,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
 #[cfg(test)]
 mod tests {
     use crate::tests::common::generate_unique_module_name;
-    use crate::types::{PyAnyMethods, PyBool, PyInt, PyModule, PyTuple, PyType, PyTypeMethods};
+    use crate::types::{PyAnyMethods, PyBool, PyInt, PyModule, PyTuple, PyType};
     use crate::PyAny;
     use crate::Python;
     use pyo3_ffi::c_str;
@@ -261,7 +215,7 @@ mod tests {
         Python::with_gil(|py| {
             let bool_type = py.get_type::<PyBool>();
             let long_type = py.get_type::<PyInt>();
-            assert!(bool_type.is_subclass(&long_type).unwrap());
+            assert!(bool_type.is_subclass(long_type.as_any()).unwrap());
         });
     }
 

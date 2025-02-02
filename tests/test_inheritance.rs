@@ -114,17 +114,19 @@ fn mutation_fails() {
 
 #[test]
 fn is_subclass_and_is_instance() {
+    use pyo3::types::PyType;
+
     Python::with_gil(|py| {
         let sub_ty = py.get_type::<SubClass>();
         let base_ty = py.get_type::<BaseClass>();
-        assert!(sub_ty.is_subclass_of::<BaseClass>().unwrap());
-        assert!(sub_ty.is_subclass(&base_ty).unwrap());
+        assert!(PyType::is_subclass_of::<BaseClass>(&sub_ty).unwrap());
+        assert!(PyType::is_subclass(&sub_ty, base_ty.as_any()).unwrap());
 
         let obj = Bound::new(py, SubClass::new()).unwrap().into_any();
         assert!(obj.is_instance_of::<SubClass>());
         assert!(obj.is_instance_of::<BaseClass>());
-        assert!(obj.is_instance(&sub_ty).unwrap());
-        assert!(obj.is_instance(&base_ty).unwrap());
+        assert!(obj.is_instance(sub_ty.as_any()).unwrap());
+        assert!(obj.is_instance(base_ty.as_any()).unwrap());
     });
 }
 

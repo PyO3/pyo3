@@ -1,6 +1,6 @@
 use pyo3::{
     prelude::*,
-    types::{PyDict, PyString},
+    types::{PyDict, PyString, PyType},
 };
 
 #[pyfunction]
@@ -11,7 +11,7 @@ fn issue_219() {
 
 #[pyfunction]
 fn get_type_fully_qualified_name<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyString>> {
-    obj.get_type().fully_qualified_name()
+    PyType::fully_qualified_name(&obj.get_type())
 }
 
 #[pyfunction]
@@ -25,7 +25,7 @@ fn get_item_and_run_callback(dict: Bound<'_, PyDict>, callback: Bound<'_, PyAny>
     // gevent can instigate a context switch. This had problematic interactions
     // with PyO3's removed "GIL Pool".
     // For context, see https://github.com/PyO3/pyo3/issues/3668
-    let item = dict.get_item("key")?.expect("key not found in dict");
+    let item = PyDict::get_item(&dict, "key")?.expect("key not found in dict");
     let string = item.to_string();
     callback.call0()?;
     assert_eq!(item.to_string(), string);
@@ -34,9 +34,9 @@ fn get_item_and_run_callback(dict: Bound<'_, PyDict>, callback: Bound<'_, PyAny>
 
 #[pymodule(gil_used = false)]
 pub fn misc(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(issue_219, m)?)?;
-    m.add_function(wrap_pyfunction!(get_type_fully_qualified_name, m)?)?;
-    m.add_function(wrap_pyfunction!(accepts_bool, m)?)?;
-    m.add_function(wrap_pyfunction!(get_item_and_run_callback, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(issue_219, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(get_type_fully_qualified_name, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(accepts_bool, m)?)?;
+    PyModule::add_function(m, wrap_pyfunction!(get_item_and_run_callback, m)?)?;
     Ok(())
 }

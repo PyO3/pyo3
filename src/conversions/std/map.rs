@@ -5,7 +5,7 @@ use crate::inspect::types::TypeInfo;
 use crate::{
     conversion::IntoPyObject,
     instance::Bound,
-    types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
+    types::{any::PyAnyMethods, PyDict},
     FromPyObject, PyAny, PyErr, PyObject, Python,
 };
 #[allow(deprecated)]

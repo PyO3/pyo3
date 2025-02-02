@@ -21,8 +21,8 @@ impl ExampleClass {
 /// An example module implemented in Rust using PyO3.
 #[pymodule]
 fn maturin_starter(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<ExampleClass>()?;
-    m.add_wrapped(wrap_pymodule!(submodule::submodule))?;
+    PyModule::add_class::<ExampleClass>(m)?;
+    PyModule::add_wrapped(m, wrap_pymodule!(submodule::submodule))?;
 
     // Inserting to sys.modules allows importing submodules nicely from Python
     // e.g. from maturin_starter.submodule import SubmoduleClass

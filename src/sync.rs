@@ -117,7 +117,7 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 ///         .get_or_init(py, || PyList::empty(py).unbind())
 ///         .bind(py)
 /// }
-/// # Python::with_gil(|py| assert_eq!(get_shared_list(py).len(), 0));
+/// # Python::with_gil(|py| assert_eq!(PyList::len(get_shared_list(py)), 0));
 /// ```
 pub struct GILOnceCell<T> {
     once: Once,
@@ -617,7 +617,7 @@ where
 mod tests {
     use super::*;
 
-    use crate::types::{PyDict, PyDictMethods};
+    use crate::types::PyDict;
 
     #[test]
     fn test_intern() {
@@ -710,7 +710,7 @@ mod tests {
             s.spawn(|| {
                 Python::with_gil(|py| {
                     let b = bool_wrapper.bind(py);
-                    with_critical_section(b, || {
+                    with_critical_section(b.as_any(), || {
                         barrier.wait();
                         std::thread::sleep(std::time::Duration::from_millis(10));
                         b.borrow().0.store(true, Ordering::Release);
@@ -722,7 +722,7 @@ mod tests {
                 Python::with_gil(|py| {
                     let b = bool_wrapper.bind(py);
                     // this blocks until the other thread's critical section finishes
-                    with_critical_section(b, || {
+                    with_critical_section(b.as_any(), || {
                         assert!(b.borrow().0.load(Ordering::Acquire));
                     });
                 });

@@ -32,7 +32,7 @@
 //!
 //! #[pymodule]
 //! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-//!     m.add_function(wrap_pyfunction!(add_one, m)?)?;
+//!     PyModule::add_function(m, wrap_pyfunction!(add_one, m)?)?;
 //!     Ok(())
 //! }
 //! ```
@@ -48,7 +48,7 @@
 //! ```
 
 #[cfg(Py_LIMITED_API)]
-use crate::types::{bytes::PyBytesMethods, PyBytes};
+use crate::types::PyBytes;
 use crate::{
     conversion::IntoPyObject,
     ffi,

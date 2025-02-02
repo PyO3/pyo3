@@ -59,6 +59,6 @@ impl PyCounter {
 
 #[pymodule]
 pub fn decorator(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyCounter>()?;
+    PyModule::add_class::<PyCounter>(module)?;
     Ok(())
 }

@@ -19,22 +19,22 @@ pub mod subclassing;
 
 #[pymodule(gil_used = false)]
 fn pyo3_pytests(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_wrapped(wrap_pymodule!(awaitable::awaitable))?;
+    PyModule::add_wrapped(m, wrap_pymodule!(awaitable::awaitable))?;
     #[cfg(not(Py_LIMITED_API))]
-    m.add_wrapped(wrap_pymodule!(buf_and_str::buf_and_str))?;
-    m.add_wrapped(wrap_pymodule!(comparisons::comparisons))?;
+    PyModule::add_wrapped(m, wrap_pymodule!(buf_and_str::buf_and_str))?;
+    PyModule::add_wrapped(m, wrap_pymodule!(comparisons::comparisons))?;
     #[cfg(not(Py_LIMITED_API))]
-    m.add_wrapped(wrap_pymodule!(datetime::datetime))?;
-    m.add_wrapped(wrap_pymodule!(dict_iter::dict_iter))?;
-    m.add_wrapped(wrap_pymodule!(enums::enums))?;
-    m.add_wrapped(wrap_pymodule!(misc::misc))?;
-    m.add_wrapped(wrap_pymodule!(objstore::objstore))?;
-    m.add_wrapped(wrap_pymodule!(othermod::othermod))?;
-    m.add_wrapped(wrap_pymodule!(path::path))?;
-    m.add_wrapped(wrap_pymodule!(pyclasses::pyclasses))?;
-    m.add_wrapped(wrap_pymodule!(pyfunctions::pyfunctions))?;
-    m.add_wrapped(wrap_pymodule!(sequence::sequence))?;
-    m.add_wrapped(wrap_pymodule!(subclassing::subclassing))?;
+    PyModule::add_wrapped(m, wrap_pymodule!(datetime::datetime))?;
+    PyModule::add_wrapped(m, wrap_pymodule!(dict_iter::dict_iter))?;
+    PyModule::add_wrapped(m, wrap_pymodule!(enums::enums))?;
+    PyModule::add_wrapped(m, wrap_pymodule!(misc::misc))?;
+    PyModule::add_wrapped(m, wrap_pymodule!(objstore::objstore))?;
+    PyModule::add_wrapped(m, wrap_pymodule!(othermod::othermod))?;
+    PyModule::add_wrapped(m, wrap_pymodule!(path::path))?;
+    PyModule::add_wrapped(m, wrap_pymodule!(pyclasses::pyclasses))?;
+    PyModule::add_wrapped(m, wrap_pymodule!(pyfunctions::pyfunctions))?;
+    PyModule::add_wrapped(m, wrap_pymodule!(sequence::sequence))?;
+    PyModule::add_wrapped(m, wrap_pymodule!(subclassing::subclassing))?;
 
     // Inserting to sys.modules allows importing submodules nicely from Python
     // e.g. import pyo3_pytests.buf_and_str as bas

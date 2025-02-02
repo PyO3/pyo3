@@ -17,6 +17,6 @@ impl SubmoduleClass {
 
 #[pymodule]
 pub fn submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<SubmoduleClass>()?;
+    PyModule::add_class::<SubmoduleClass>(m)?;
     Ok(())
 }
