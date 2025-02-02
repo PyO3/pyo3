@@ -106,4 +106,36 @@ struct StructTransparentItem {
     foo: String,
 }
 
+#[derive(IntoPyObject)]
+#[pyo3(transparent)]
+struct StructTransparentIntoPyWith {
+    #[pyo3(into_py_with = into)]
+    foo: String,
+}
+
+#[derive(IntoPyObjectRef)]
+#[pyo3(transparent)]
+struct StructTransparentIntoPyWithRef {
+    #[pyo3(into_py_with = into_ref)]
+    foo: String,
+}
+
+#[derive(IntoPyObject)]
+#[pyo3(transparent)]
+struct TupleTransparentIntoPyWith(#[pyo3(into_py_with = into)] String);
+
+#[derive(IntoPyObject)]
+enum EnumTupleIntoPyWith {
+    TransparentTuple(#[pyo3(into_py_with = into)] usize),
+}
+
+#[derive(IntoPyObject)]
+enum EnumStructIntoPyWith {
+    #[pyo3(transparent)]
+    TransparentStruct {
+        #[pyo3(into_py_with = into)]
+        a: usize,
+    },
+}
+
 fn main() {}
