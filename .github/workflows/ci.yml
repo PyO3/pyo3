@@ -585,7 +585,7 @@ jobs:
         with:
           components: rust-src
       # TODO: replace with actions/setup-python when there is support
-      - uses: quansight-labs/setup-python@v5.3.1
+      - uses: quansight-labs/setup-python@v5.4.0
         with:
           python-version: "3.13t"
       - name: Install cargo-llvm-cov
