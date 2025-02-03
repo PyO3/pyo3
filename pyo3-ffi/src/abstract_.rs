@@ -1,8 +1,9 @@
-use crate::object::*;
-use crate::pyport::Py_ssize_t;
+use std::os::raw::{c_char, c_int};
+
 #[cfg(any(Py_3_12, all(Py_3_8, not(Py_LIMITED_API))))]
 use libc::size_t;
-use std::os::raw::{c_char, c_int};
+
+use crate::{object::*, pyport::Py_ssize_t};
 
 #[inline]
 #[cfg(all(not(Py_3_13), not(PyPy)))] // CPython exposed as a function in 3.13, in object.h
@@ -143,7 +144,11 @@ extern "C" {
     pub fn PyIter_Next(arg1: *mut PyObject) -> *mut PyObject;
     #[cfg(all(not(PyPy), Py_3_10))]
     #[cfg_attr(PyPy, link_name = "PyPyIter_Send")]
-    pub fn PyIter_Send(iter: *mut PyObject, arg: *mut PyObject, presult: *mut *mut PyObject);
+    pub fn PyIter_Send(
+        iter: *mut PyObject,
+        arg: *mut PyObject,
+        presult: *mut *mut PyObject,
+    ) -> c_int;
 
     #[cfg_attr(PyPy, link_name = "PyPyNumber_Check")]
     pub fn PyNumber_Check(o: *mut PyObject) -> c_int;

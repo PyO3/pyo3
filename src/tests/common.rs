@@ -175,6 +175,17 @@ mod inner {
         let uuid = Uuid::new_v4().simple().to_string();
         std::ffi::CString::new(format!("{base}_{uuid}")).unwrap()
     }
+
+    // see https://stackoverflow.com/questions/60359157/valueerror-set-wakeup-fd-only-works-in-main-thread-on-windows-on-python-3-8-wit
+    #[cfg(feature = "macros")]
+    pub fn asyncio_windows(test: &str) -> String {
+        let set_event_loop_policy = r#"
+        import asyncio, sys
+        if sys.platform == "win32":
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        "#;
+        pyo3::unindent::unindent(set_event_loop_policy) + &pyo3::unindent::unindent(test)
+    }
 }
 
 #[allow(unused_imports)] // some tests use just the macros and none of the other functionality
