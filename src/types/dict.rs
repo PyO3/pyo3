@@ -535,6 +535,14 @@ impl<'py> Iterator for BoundDictIterator<'py> {
     }
 
     #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
+    }
+
+    #[inline]
     #[cfg(Py_GIL_DISABLED)]
     fn fold<B, F>(mut self, init: B, mut f: F) -> B
     where
@@ -735,6 +743,14 @@ mod borrowed_iter {
         fn size_hint(&self) -> (usize, Option<usize>) {
             let len = self.len();
             (len, Some(len))
+        }
+
+        #[inline]
+        fn count(self) -> usize
+        where
+            Self: Sized,
+        {
+            self.len()
         }
     }
 
