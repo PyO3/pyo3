@@ -1,7 +1,7 @@
 #![warn(missing_docs)]
 #![cfg_attr(
     feature = "nightly",
-    feature(auto_traits, negative_impls, try_trait_v2)
+    feature(auto_traits, negative_impls, try_trait_v2, iter_advance_by)
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 // Deny some lints in doctests.
