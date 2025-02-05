@@ -746,7 +746,7 @@ impl IntoPy<PyObject> for MyPyObjectWrapper {
 ⚠️ Warning: API update in progress 🛠️
 
 PyO3 0.23 has introduced `IntoPyObject` as the new trait for to-python conversions. To migrate
-implement `IntoPyObject` on a referece of your type (`impl<'py> IntoPyObject<'py> for &Type { ... }`).
+implement `IntoPyObject` on a reference of your type (`impl<'py> IntoPyObject<'py> for &Type { ... }`).
 </div>
 
 [`ToPyObject`] is a conversion trait that allows various objects to be
