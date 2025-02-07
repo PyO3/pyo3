@@ -255,6 +255,7 @@ jobs:
             "pypy3.9",
             "pypy3.10",
             "graalpy24.0",
+            "graalpy24.1",
           ]
         platform:
           [
