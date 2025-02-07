@@ -1,3 +1,5 @@
+#[cfg(all(Py_3_10, not(PyPy), not(Py_LIMITED_API)))]
+use crate::frameobject::PyFrameObject;
 use crate::moduleobject::PyModuleDef;
 use crate::object::PyObject;
 use std::os::raw::c_int;
@@ -63,8 +65,13 @@ extern "C" {
 }
 
 // skipped non-limited / 3.9 PyThreadState_GetInterpreter
-// skipped non-limited / 3.9 PyThreadState_GetFrame
 // skipped non-limited / 3.9 PyThreadState_GetID
+
+extern "C" {
+    // PyThreadState_GetFrame
+    #[cfg(all(Py_3_10, not(PyPy), not(Py_LIMITED_API)))]
+    pub fn PyThreadState_GetFrame(arg1: *mut PyThreadState) -> *mut PyFrameObject;
+}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
