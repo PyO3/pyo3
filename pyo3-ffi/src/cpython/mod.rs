@@ -71,7 +71,7 @@ pub use self::object::*;
 pub use self::objimpl::*;
 pub use self::pydebug::*;
 pub use self::pyerrors::*;
-#[cfg(Py_3_11)]
+#[cfg(all(Py_3_11, not(PyPy)))]
 pub use self::pyframe::*;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub use self::pylifecycle::*;
