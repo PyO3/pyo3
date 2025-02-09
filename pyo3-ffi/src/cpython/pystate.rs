@@ -83,7 +83,7 @@ pub type _PyFrameEvalFunction = extern "C" fn(
     c_int,
 ) -> *mut crate::object::PyObject;
 
-#[cfg(Py_3_9)]
+#[cfg(all(Py_3_9, not(PyPy)))]
 extern "C" {
     /// Get the frame evaluation function.
     pub fn _PyInterpreterState_GetEvalFrameFunc(
