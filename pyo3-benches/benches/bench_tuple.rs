@@ -132,10 +132,38 @@ fn tuple_into_pyobject(b: &mut Bencher<'_>) {
     });
 }
 
+fn tuple_nth(b: &mut Bencher<'_>) {
+    Python::with_gil(|py| {
+        const LEN: usize = 50;
+        let list = PyTuple::new(py, 0..LEN).unwrap();
+        let mut sum = 0;
+        b.iter(|| {
+            for i in 0..LEN {
+                sum += list.iter().nth(i).unwrap().extract::<usize>().unwrap();
+            }
+        });
+    });
+}
+
+fn tuple_nth_back(b: &mut Bencher<'_>) {
+    Python::with_gil(|py| {
+        const LEN: usize = 50;
+        let list = PyTuple::new(py, 0..LEN).unwrap();
+        let mut sum = 0;
+        b.iter(|| {
+            for i in 0..LEN {
+                sum += list.iter().nth_back(i).unwrap().extract::<usize>().unwrap();
+            }
+        });
+    });
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("iter_tuple", iter_tuple);
     c.bench_function("tuple_new", tuple_new);
     c.bench_function("tuple_get_item", tuple_get_item);
+    c.bench_function("tuple_nth", tuple_nth);
+    c.bench_function("tuple_nth_back", tuple_nth_back);
     #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     c.bench_function("tuple_get_item_unchecked", tuple_get_item_unchecked);
     c.bench_function("tuple_get_borrowed_item", tuple_get_borrowed_item);
