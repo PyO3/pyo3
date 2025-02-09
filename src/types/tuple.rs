@@ -385,7 +385,10 @@ impl<'py> Iterator for BoundTupleIterator<'py> {
         if target_index < length {
             let item = {
                 {
-                    unsafe { self.tuple.get_item_unchecked(target_index) }
+                    unsafe {
+                        BorrowedTupleIterator::get_item(self.tuple.as_borrowed(), target_index)
+                            .to_owned()
+                    }
                 }
             };
             self.index = target_index + 1;
@@ -443,7 +446,10 @@ impl DoubleEndedIterator for BoundTupleIterator<'_> {
             let target_index = length_size - n - 1;
             let item = {
                 {
-                    unsafe { self.tuple.get_item_unchecked(target_index) }
+                    unsafe {
+                        BorrowedTupleIterator::get_item(self.tuple.as_borrowed(), target_index)
+                            .to_owned()
+                    }
                 }
             };
             self.length = target_index;
