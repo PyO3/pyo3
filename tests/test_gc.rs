@@ -36,6 +36,32 @@ fn class_with_freelist() {
     });
 }
 
+#[pyclass(freelist = 2)]
+struct ClassWithFreelistAndData {
+    data: Option<usize>,
+}
+
+fn spin_freelist(py: Python<'_>, data: usize) {
+    for _ in 0..500 {
+        let inst1 = Py::new(py, ClassWithFreelistAndData { data: Some(data) }).unwrap();
+        let inst2 = Py::new(py, ClassWithFreelistAndData { data: Some(data) }).unwrap();
+        assert_eq!(inst1.borrow(py).data, Some(data));
+        assert_eq!(inst2.borrow(py).data, Some(data));
+    }
+}
+
+#[test]
+fn multithreaded_class_with_freelist() {
+    std::thread::scope(|s| {
+        s.spawn(|| {
+            Python::with_gil(|py| spin_freelist(py, 12));
+        });
+        s.spawn(|| {
+            Python::with_gil(|py| spin_freelist(py, 0x4d3d3d3));
+        });
+    });
+}
+
 /// Helper function to create a pair of objects that can be used to test drops;
 /// the first object is a guard that records when it has been dropped, the second
 /// object is a check that can be used to assert that the guard has been dropped.

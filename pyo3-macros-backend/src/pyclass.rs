@@ -2380,14 +2380,19 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! {
                 impl #pyo3_path::impl_::pyclass::PyClassWithFreeList for #cls {
                     #[inline]
-                    fn get_free_list(py: #pyo3_path::Python<'_>) -> &mut #pyo3_path::impl_::freelist::PyObjectFreeList {
-                        static mut FREELIST: *mut #pyo3_path::impl_::freelist::PyObjectFreeList = 0 as *mut _;
+                    fn get_free_list(py: #pyo3_path::Python<'_>) -> &'static ::std::sync::Mutex<::std::option::Option<#pyo3_path::impl_::freelist::PyObjectFreeList>> {
+                        use #pyo3_path::sync::OnceExt;
+                        static mut FREELIST: ::std::sync::Mutex<::std::option::Option<#pyo3_path::impl_::freelist::PyObjectFreeList>> = ::std::sync::Mutex::new(::std::option::Option::None);
+                        static ONCE: ::std::sync::Once = ::std::sync::Once::new();
                         unsafe {
-                            if FREELIST.is_null() {
-                                FREELIST = ::std::boxed::Box::into_raw(::std::boxed::Box::new(
-                                    #pyo3_path::impl_::freelist::PyObjectFreeList::with_capacity(#freelist)));
-                            }
-                            &mut *FREELIST
+                            ONCE.call_once_py_attached(py, || {
+                                let mut free_list = FREELIST.lock().unwrap();
+                                if free_list.is_none() {
+                                    *free_list = ::std::option::Option::Some(
+                                        #pyo3_path::impl_::freelist::PyObjectFreeList::with_capacity(#freelist));
+                                }
+                            });
+                            &FREELIST
                         }
                     }
                 }
