@@ -1,4 +1,5 @@
 // This is a very fake example of how to check __getitem__ parameter and handle appropriately
+#![feature(arbitrary_self_types)]
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
 use pyo3::types::PySlice;

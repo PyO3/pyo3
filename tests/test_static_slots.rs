@@ -1,4 +1,5 @@
 #![cfg(feature = "macros")]
+#![feature(arbitrary_self_types)]
 
 use pyo3::exceptions::PyIndexError;
 use pyo3::prelude::*;

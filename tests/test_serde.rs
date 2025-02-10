@@ -1,3 +1,4 @@
+#![feature(arbitrary_self_types)]
 #[cfg(feature = "serde")]
 mod test_serde {
     use pyo3::prelude::*;

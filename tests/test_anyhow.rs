@@ -1,4 +1,5 @@
 #![cfg(feature = "anyhow")]
+#![feature(arbitrary_self_types)]
 
 use pyo3::{ffi, wrap_pyfunction};
 
