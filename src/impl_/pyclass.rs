@@ -2,7 +2,7 @@ use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
     ffi,
     impl_::{
-        freelist::FreeList,
+        freelist::PyObjectFreeList,
         pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
         pyclass_init::PyObjectInit,
         pymethods::{PyGetterDef, PyMethodDefType},
@@ -912,7 +912,7 @@ use super::{pycell::PyClassObject, pymethods::BoundRef};
 /// Do not implement this trait manually. Instead, use `#[pyclass(freelist = N)]`
 /// on a Rust struct to implement it.
 pub trait PyClassWithFreeList: PyClass {
-    fn get_free_list(py: Python<'_>) -> &mut FreeList<*mut ffi::PyObject>;
+    fn get_free_list(py: Python<'_>) -> &mut PyObjectFreeList;
 }
 
 /// Implementation of tp_alloc for `freelist` classes.
