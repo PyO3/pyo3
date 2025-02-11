@@ -55,6 +55,7 @@ macro_rules! impl_exception_boilerplate_bound {
 ///
 /// # Examples
 /// ```
+/// #![feature(arbitrary_self_types)]
 /// use pyo3::import_exception;
 /// use pyo3::types::IntoPyDict;
 /// use pyo3::Python;
@@ -155,6 +156,7 @@ macro_rules! import_exception_bound {
 /// # Examples
 ///
 /// ```
+/// #![feature(arbitrary_self_types)]
 /// use pyo3::prelude::*;
 /// use pyo3::create_exception;
 /// use pyo3::exceptions::PyException;

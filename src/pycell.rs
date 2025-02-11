@@ -23,6 +23,7 @@
 //! won't need to use `PyCell` directly:
 //!
 //! ```rust
+//! #![feature(arbitrary_self_types)]
 //! use pyo3::prelude::*;
 //!
 //! #[pyclass]
@@ -42,6 +43,7 @@
 //! using `PyCell` under the hood:
 //!
 //! ```rust,ignore
+//! #![feature(arbitrary_self_types)]
 //! # use pyo3::prelude::*;
 //! # #[pyclass]
 //! # struct Number {
@@ -78,6 +80,7 @@
 //!
 //! However, we *do* need `PyCell` if we want to call its methods from Rust:
 //! ```rust
+//! #![feature(arbitrary_self_types)]
 //! # use pyo3::prelude::*;
 //! #
 //! # #[pyclass]
@@ -118,6 +121,7 @@
 //! It is also necessary to use `PyCell` if you can receive mutable arguments that may overlap.
 //! Suppose the following function that swaps the values of two `Number`s:
 //! ```
+//! #![feature(arbitrary_self_types)]
 //! # use pyo3::prelude::*;
 //! # #[pyclass]
 //! # pub struct Number {
@@ -220,6 +224,7 @@ use impl_::{PyClassBorrowChecker, PyClassObjectLayout};
 /// - you need to access the pointer of the [`Bound`], or
 /// - you want to get a super class.
 /// ```
+/// #![feature(arbitrary_self_types)]
 /// # use pyo3::prelude::*;
 /// #[pyclass(subclass)]
 /// struct Parent {
@@ -331,6 +336,7 @@ where
     ///
     /// # Examples
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::prelude::*;
     /// #[pyclass(subclass)]
     /// struct Base1 {
@@ -386,6 +392,7 @@ where
     ///
     /// # Examples
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::prelude::*;
     /// #[pyclass(subclass)]
     /// struct Base {

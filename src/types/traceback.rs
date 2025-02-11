@@ -26,6 +26,7 @@ impl<'py> PyTraceback {
     /// The following code formats a Python traceback and exception pair from Rust:
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::{Python, PyResult, ffi::c_str};
     /// # let result: PyResult<()> =
     /// Python::with_gil(|py| {

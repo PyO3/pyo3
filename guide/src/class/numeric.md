@@ -45,6 +45,7 @@ fn wrap(obj: &Bound<'_, PyAny>) -> PyResult<i32> {
 We also add documentation, via `///` comments, which are visible to Python users.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # #![allow(dead_code)]
 use pyo3::prelude::*;
 
@@ -71,6 +72,7 @@ impl Number {
 
 With that out of the way, let's implement some operators:
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::exceptions::{PyZeroDivisionError, PyValueError};
 
 # use pyo3::prelude::*;
@@ -125,6 +127,7 @@ impl Number {
 ### Unary arithmetic operations
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #
 # #[pyclass]
@@ -153,6 +156,7 @@ impl Number {
 ### Support for the `complex()`, `int()` and `float()` built-in functions.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #
 # #[pyclass]
@@ -204,6 +208,7 @@ assert hash_djb2('l50_50') == Number(-1152549421)
 ### Final code
 
 ```rust
+#![feature(arbitrary_self_types)]
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 

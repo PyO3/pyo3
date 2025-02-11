@@ -75,6 +75,7 @@ where
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     ///
     /// #[pyclass]
@@ -234,6 +235,7 @@ where
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::prelude::*;
     /// #
     /// #[pyclass]
@@ -270,6 +272,7 @@ where
     /// # Examples
     ///
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::prelude::*;
     /// #
     /// #[pyclass]
@@ -333,6 +336,7 @@ where
     /// # Examples
     ///
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// use std::sync::atomic::{AtomicUsize, Ordering};
     /// # use pyo3::prelude::*;
     ///
@@ -375,6 +379,7 @@ where
     /// # Example: Calling a method defined on the `Bound` base type
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// # fn main() {
     /// use pyo3::prelude::*;
     ///
@@ -427,6 +432,7 @@ where
     /// # Example: Calling a method defined on the `Bound` base type
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// # fn main() {
     /// use pyo3::prelude::*;
     ///
@@ -646,6 +652,7 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
     ///
     /// # Example
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::{prelude::*, types::PyTuple};
     ///
     /// # fn main() -> PyResult<()> {
@@ -883,6 +890,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// For example, this won't compile:
 ///
 /// ```compile_fail
+/// #![feature(arbitrary_self_types)]
 /// # use pyo3::prelude::*;
 /// # use pyo3::types::PyDict;
 /// #
@@ -914,6 +922,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// [`Py`]`<T>` can be used to get around this by converting `dict` into a GIL-independent reference:
 ///
 /// ```rust
+/// #![feature(arbitrary_self_types)]
 /// use pyo3::prelude::*;
 /// use pyo3::types::PyDict;
 ///
@@ -949,6 +958,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 ///
 /// This can also be done with other pyclasses:
 /// ```rust
+/// #![feature(arbitrary_self_types)]
 /// use pyo3::prelude::*;
 ///
 /// #[pyclass]
@@ -1072,6 +1082,7 @@ where
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     ///
     /// #[pyclass]
@@ -1148,6 +1159,7 @@ where
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::prelude::*;
     /// #
     /// #[pyclass]
@@ -1186,6 +1198,7 @@ where
     /// # Examples
     ///
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::prelude::*;
     /// #
     /// #[pyclass]
@@ -1256,6 +1269,7 @@ where
     /// # Examples
     ///
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// use std::sync::atomic::{AtomicUsize, Ordering};
     /// # use pyo3::prelude::*;
     ///
@@ -1934,6 +1948,7 @@ impl PyObject {
     /// might actually be a pyclass.
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// # fn main() -> Result<(), pyo3::PyErr> {
     /// use pyo3::prelude::*;
     ///

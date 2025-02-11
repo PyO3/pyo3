@@ -22,6 +22,7 @@ pub const VERSION: i32 = 4;
 ///
 /// # Examples
 /// ```
+/// #![feature(arbitrary_self_types)]
 /// # use pyo3::{marshal, types::PyDict};
 /// # pyo3::Python::with_gil(|py| {
 /// let dict = PyDict::new(py);

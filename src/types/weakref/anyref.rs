@@ -48,6 +48,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
         all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
         doc = "```rust"
     )]
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakrefReference;
     ///
@@ -128,6 +129,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
         all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
         doc = "```rust"
     )]
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakrefReference;
     ///
@@ -198,6 +200,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
         all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
         doc = "```rust"
     )]
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakrefReference;
     ///
@@ -277,6 +280,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
         all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
         doc = "```rust"
     )]
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakrefReference;
     ///
@@ -338,6 +342,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
         all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
         doc = "```rust"
     )]
+    /// #![feature(arbitrary_self_types)]
     /// #![allow(deprecated)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakrefReference;

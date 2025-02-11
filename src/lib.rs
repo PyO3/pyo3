@@ -186,6 +186,7 @@
 //!
 //! **`src/lib.rs`**
 //! ```rust
+//! #![feature(arbitrary_self_types)]
 //! use pyo3::prelude::*;
 //!
 //! /// Formats the sum of two numbers as string.

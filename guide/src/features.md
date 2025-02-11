@@ -185,6 +185,7 @@ Enables (de)serialization of `Py<T>` objects via [serde](https://serde.rs/).
 This allows to use [`#[derive(Serialize, Deserialize)`](https://serde.rs/derive.html) on structs that hold references to `#[pyclass]` instances
 
 ```rust
+#![feature(arbitrary_self_types)]
 # #[cfg(feature = "serde")]
 # #[allow(dead_code)]
 # mod serde_only {

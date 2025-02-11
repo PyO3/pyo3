@@ -46,6 +46,7 @@ impl<'py> PyByteArray {
     /// # Examples
     ///
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::{prelude::*, types::PyByteArray};
     ///
     /// # fn main() -> PyResult<()> {
@@ -154,6 +155,7 @@ impl<'py> PyByteArray {
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3::exceptions::PyRuntimeError;
     /// use pyo3::types::PyByteArray;
@@ -207,6 +209,7 @@ impl<'py> PyByteArray {
     /// The following `bug` function is unsound ⚠️
     ///
     /// ```rust,no_run
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::prelude::*;
     /// # use pyo3::types::PyByteArray;
     ///
@@ -249,6 +252,7 @@ impl<'py> PyByteArray {
     /// # Examples
     ///
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::prelude::*;
     /// # use pyo3::types::PyByteArray;
     /// # Python::with_gil(|py| {

@@ -573,6 +573,7 @@ impl<'py> Python<'py> {
     ///
     /// # Examples
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::{
     ///     prelude::*,
     ///     types::{PyBytes, PyDict},

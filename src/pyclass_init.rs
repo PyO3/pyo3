@@ -22,6 +22,7 @@ use std::{
 /// # Examples
 ///
 /// ```
+/// #![feature(arbitrary_self_types)]
 /// # use pyo3::prelude::*;
 /// # use pyo3::py_run;
 /// #[pyclass(subclass)]
@@ -93,6 +94,7 @@ impl<T: PyClass> PyClassInitializer<T> {
     ///
     /// # Examples
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     ///
     /// #[pyclass(subclass)]

@@ -18,6 +18,7 @@ use std::os::raw::{c_char, c_int, c_void};
 ///
 /// # Example
 /// ```
+/// #![feature(arbitrary_self_types)]
 /// use pyo3::{prelude::*, types::PyCapsule};
 /// use std::ffi::CString;
 ///
@@ -57,6 +58,7 @@ impl<'py> PyCapsule {
     /// # Example
     ///
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::{prelude::*, types::PyCapsule};
     /// use std::ffi::CString;
     ///
@@ -183,6 +185,7 @@ impl<'py> PyCapsule {
     /// # Example
     ///
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// use std::os::raw::c_void;
     /// use std::sync::mpsc::{channel, Sender};
     /// use pyo3::{prelude::*, types::PyCapsule};

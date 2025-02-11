@@ -57,6 +57,7 @@ def example():
 Using PyO3's API, and in particular `Bound<'py, PyList>`, this code translates into the following Rust code:
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
@@ -73,6 +74,7 @@ fn example<'py>(py: Python<'py>) -> PyResult<()> {
 Or, without the type annotations:
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
@@ -140,6 +142,7 @@ fn add(left: &Bound<'_, PyAny>, right: &Bound<'_, PyAny>) -> PyResult<PyObject> 
 An example where `Borrowed<'a, 'py, T>` is used is in [`PyTuple::get_borrowed_item`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTuple.html#tymethod.get_item):
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 
@@ -258,6 +261,7 @@ let _: Bound<'py, PyTuple> = obj.downcast_into()?;
 Custom [`#[pyclass]`][pyclass] types implement [`PyTypeCheck`], so `.downcast()` also works for these types. The snippet below is the same as the snippet above casting instead to a custom type `MyClass`:
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 
 #[pyclass]

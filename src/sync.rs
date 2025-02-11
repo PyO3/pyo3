@@ -106,6 +106,7 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 /// between threads:
 ///
 /// ```
+/// #![feature(arbitrary_self_types)]
 /// use pyo3::sync::GILOnceCell;
 /// use pyo3::prelude::*;
 /// use pyo3::types::PyList;

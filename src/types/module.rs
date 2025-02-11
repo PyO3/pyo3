@@ -34,6 +34,7 @@ impl<'py> PyModule {
     /// # Examples
     ///
     /// ``` rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     ///
     /// # fn main() -> PyResult<()> {
@@ -127,6 +128,7 @@ impl<'py> PyModule {
     /// # Example: bundle in a file at compile time with [`include_str!`][std::include_str]:
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3::ffi::c_str;
     ///
@@ -145,6 +147,7 @@ impl<'py> PyModule {
     /// # Example: Load a file at runtime with [`std::fs::read_to_string`].
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3::ffi::c_str;
     /// use std::ffi::CString;
@@ -278,6 +281,7 @@ impl<'py> PyModule {
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
@@ -334,6 +338,7 @@ impl<'py> PyModule {
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     ///
     /// #[pyclass]
@@ -403,6 +408,7 @@ impl<'py> PyModule {
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
@@ -442,6 +448,7 @@ impl<'py> PyModule {
     /// to wrap a function annotated with [`#[pyfunction]`][1].
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     ///
     /// #[pyfunction]
@@ -490,6 +497,7 @@ impl<'py> PyModule {
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule(gil_used = false)]

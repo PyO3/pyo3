@@ -60,6 +60,7 @@ Calling `Python::with_gil` is effectively a no-op when the GIL is already held, 
 For example, instead of writing
 
 ```rust
+#![feature(arbitrary_self_types)]
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
@@ -81,6 +82,7 @@ impl PartialEq<Foo> for FooBound<'_> {
 use the more efficient
 
 ```rust
+#![feature(arbitrary_self_types)]
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
@@ -119,6 +121,7 @@ This functionality can be avoided by setting the `pyo3_disable_reference_pool` c
 This limitation is important to keep in mind when this setting is used, especially when embedding Python code into a Rust application as it is quite easy to accidentally drop a `Py<T>` (or types containing it like `PyErr`, `PyBackedStr` or `PyBackedBytes`) returned from `Python::with_gil` without making sure to re-acquire the GIL beforehand. For example, the following code
 
 ```rust,ignore
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
 let numbers: Py<PyList> = Python::with_gil(|py| PyList::empty(py).unbind());
@@ -135,6 +138,7 @@ Python::with_gil(|py| {
 will abort if the list not explicitly disposed via
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
 let numbers: Py<PyList> = Python::with_gil(|py| PyList::empty(py).unbind());

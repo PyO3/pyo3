@@ -3,6 +3,7 @@
 Recall the `Number` class from the previous chapter:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # #![allow(dead_code)]
 use pyo3::prelude::*;
 
@@ -45,6 +46,7 @@ It can't even print an user-readable representation of itself! We can fix that b
 contained inside `Number`.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #
 # #[pyclass]
@@ -73,6 +75,7 @@ impl Number {
 To automatically generate the `__str__` implementation using a `Display` trait implementation, pass the `str` argument to `pyclass`.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use std::fmt::{Display, Formatter};
 # use pyo3::prelude::*;
 #
@@ -101,6 +104,7 @@ For convenience, a shorthand format string can be passed to `str` as `str="<form
 *Note: the pyclass args `name` and `rename_all` are incompatible with the shorthand format string and will raise a compile time error.*
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #
 # #[allow(dead_code)]
@@ -121,6 +125,7 @@ the subclass name. This is typically done in Python code by accessing
 *and* the Rust struct, we need to use a `Bound` as the `self` argument.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 #
@@ -146,6 +151,7 @@ Let's also implement hashing. We'll just hash the `i32`. For that we need a [`Ha
 provided by `std` is [`DefaultHasher`], which uses the [SipHash] algorithm.
 
 ```rust
+#![feature(arbitrary_self_types)]
 use std::collections::hash_map::DefaultHasher;
 
 // Required to call the `.hash` and `.finish` methods, which are defined on traits.
@@ -172,6 +178,7 @@ an `__hash__` implementation for a mutable class, use the manual method from abo
 [Python docs](https://docs.python.org/3/reference/datamodel.html#object.__hash__) "If a class does not define an `__eq__()`
 method it should not define a `__hash__()` operation either"
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #
 # #[allow(dead_code)]
@@ -196,6 +203,7 @@ struct Number(i32);
 > This is the same mechanism as for a pure-Python class. This is done like so:
 >
 > ```rust
+> #![feature(arbitrary_self_types)]
 > # use pyo3::prelude::*;
 > #[pyclass]
 > struct NotHashable {}
@@ -214,6 +222,7 @@ and so on. It is also possible to support all six operations at once with `__ric
 This method will be called with a value of `CompareOp` depending on the operation.
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::class::basic::CompareOp;
 
 # use pyo3::prelude::*;
@@ -241,6 +250,7 @@ If you obtain the result by comparing two Rust values, as in this example, you
 can take a shortcut using `CompareOp::matches`:
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::class::basic::CompareOp;
 
 # use pyo3::prelude::*;
@@ -264,6 +274,7 @@ Alternatively, you can implement just equality using `__eq__`:
 
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #
 # #[pyclass]
@@ -290,6 +301,7 @@ impl Number {
 To implement `__eq__` using the Rust [`PartialEq`] trait implementation, the `eq` option can be used.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #
 # #[allow(dead_code)]
@@ -301,6 +313,7 @@ struct Number(i32);
 To implement `__lt__`, `__le__`, `__gt__`, & `__ge__` using the Rust `PartialOrd` trait implementation, the `ord` option can be used. *Note: Requires `eq`.*
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #
 # #[allow(dead_code)]
@@ -314,6 +327,7 @@ struct Number(i32);
 We'll consider `Number` to be `True` if it is nonzero:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #
 # #[allow(dead_code)]
@@ -331,6 +345,7 @@ impl Number {
 ### Final code
 
 ```rust
+#![feature(arbitrary_self_types)]
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 

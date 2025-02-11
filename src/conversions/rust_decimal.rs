@@ -21,6 +21,7 @@
 //! Rust code to create a function that adds one to a Decimal
 //!
 //! ```rust
+//! #![feature(arbitrary_self_types)]
 //! use rust_decimal::Decimal;
 //! use pyo3::prelude::*;
 //!

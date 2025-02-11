@@ -77,6 +77,7 @@ pub trait PyAnyMethods<'py> {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
@@ -103,6 +104,7 @@ pub trait PyAnyMethods<'py> {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
@@ -129,6 +131,7 @@ pub trait PyAnyMethods<'py> {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
@@ -173,6 +176,7 @@ pub trait PyAnyMethods<'py> {
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyFloat;
     /// use std::cmp::Ordering;
@@ -190,6 +194,7 @@ pub trait PyAnyMethods<'py> {
     /// It will return `PyErr` for values that cannot be compared:
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::{PyFloat, PyString};
     ///
@@ -227,6 +232,7 @@ pub trait PyAnyMethods<'py> {
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::class::basic::CompareOp;
     /// use pyo3::prelude::*;
     ///
@@ -382,6 +388,7 @@ pub trait PyAnyMethods<'py> {
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     ///
     /// # fn main() -> PyResult<()> {
@@ -411,6 +418,7 @@ pub trait PyAnyMethods<'py> {
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyDict;
     /// use pyo3_ffi::c_str;
@@ -469,6 +477,7 @@ pub trait PyAnyMethods<'py> {
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3_ffi::c_str;
     /// use std::ffi::CStr;
@@ -505,6 +514,7 @@ pub trait PyAnyMethods<'py> {
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyDict;
     /// use pyo3_ffi::c_str;
@@ -552,6 +562,7 @@ pub trait PyAnyMethods<'py> {
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3_ffi::c_str;
     /// use std::ffi::CStr;
@@ -589,6 +600,7 @@ pub trait PyAnyMethods<'py> {
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3_ffi::c_str;
     /// use std::ffi::CStr;
@@ -670,6 +682,7 @@ pub trait PyAnyMethods<'py> {
     /// # Example: Checking a Python object for iterability
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::{PyAny, PyNone};
     ///
@@ -711,6 +724,7 @@ pub trait PyAnyMethods<'py> {
     /// # Example: Downcasting to a specific Python object
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::{PyDict, PyList};
     ///
@@ -730,6 +744,7 @@ pub trait PyAnyMethods<'py> {
     /// might actually be a pyclass.
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// # fn main() -> Result<(), pyo3::PyErr> {
     /// use pyo3::prelude::*;
     ///
@@ -763,6 +778,7 @@ pub trait PyAnyMethods<'py> {
     /// # Example
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::{PyDict, PyList};
     ///
@@ -796,6 +812,7 @@ pub trait PyAnyMethods<'py> {
     /// # Example: Downcasting to a specific Python object but not a subtype
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::{PyBool, PyInt};
     ///

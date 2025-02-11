@@ -23,6 +23,7 @@
 /// You can use this macro to test pyfunctions or pyclasses quickly.
 ///
 /// ```
+/// #![feature(arbitrary_self_types)]
 /// use pyo3::{prelude::*, py_run};
 ///
 /// #[pyclass]
@@ -61,6 +62,7 @@
 /// If you need to prepare the `locals` dict by yourself, you can pass it as `*locals`.
 ///
 /// ```
+/// #![feature(arbitrary_self_types)]
 /// use pyo3::prelude::*;
 /// use pyo3::types::IntoPyDict;
 ///

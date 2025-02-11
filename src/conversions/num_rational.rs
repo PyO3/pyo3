@@ -18,6 +18,7 @@
 //! Rust code to create a function that adds five to a fraction:
 //!
 //! ```rust
+//! #![feature(arbitrary_self_types)]
 //! use num_rational::Ratio;
 //! use pyo3::prelude::*;
 //!
