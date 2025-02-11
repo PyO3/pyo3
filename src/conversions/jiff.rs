@@ -1,4 +1,4 @@
-#![cfg(feature = "jiff-01")]
+#![cfg(feature = "jiff-02")]
 
 //! Conversions to and from [jiff](https://docs.rs/jiff/)’s `Span`, `SignedDuration`, `TimeZone`,
 //! `Offset`, `Date`, `Time`, `DateTime`, `Zoned`, and `Timestamp`.
@@ -9,8 +9,8 @@
 //!
 //! ```toml
 //! [dependencies]
-//! jiff = "0.1"
-#![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"jiff-01\"] }")]
+//! jiff = "0.2"
+#![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"jiff-02\"] }")]
 //! ```
 //!
 //! Note that you must use compatible versions of jiff and PyO3.
@@ -21,7 +21,7 @@
 //!
 //! ```rust
 //! # #![cfg_attr(windows, allow(unused_imports))]
-//! # use jiff_01 as jiff;
+//! # use jiff_02 as jiff;
 //! use jiff::{Zoned, SignedDuration, ToSpan};
 //! use pyo3::{Python, PyResult, IntoPyObject, types::PyAnyMethods};
 //!
@@ -65,8 +65,8 @@ use crate::{intern, Bound, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResul
 use jiff::civil::{Date, DateTime, Time};
 use jiff::tz::{Offset, TimeZone};
 use jiff::{SignedDuration, Span, Timestamp, Zoned};
-#[cfg(feature = "jiff-01")]
-use jiff_01 as jiff;
+#[cfg(feature = "jiff-02")]
+use jiff_02 as jiff;
 
 #[cfg(not(Py_LIMITED_API))]
 fn datetime_to_pydatetime<'py>(
@@ -1120,6 +1120,7 @@ mod tests {
         use super::*;
         use crate::types::IntoPyDict;
         use jiff::tz::TimeZoneTransition;
+        use jiff::SpanRelativeTo;
         use proptest::prelude::*;
         use std::ffi::CString;
 
@@ -1191,10 +1192,11 @@ mod tests {
                 // python values of durations (from -999999999 to 999999999 days),
                 Python::with_gil(|py| {
                     if let Ok(span) = Span::new().try_days(days) {
-                        let date = Date::new(2025, 1, 1).unwrap();
-                        let py_delta = span.to_jiff_duration(date).unwrap().into_pyobject(py).unwrap();
+                        let relative_to = SpanRelativeTo::days_are_24_hours();
+                        let jiff_duration = span.to_duration(relative_to).unwrap();
+                        let py_delta = jiff_duration.into_pyobject(py).unwrap();
                         let roundtripped: Span = py_delta.extract().expect("Round trip");
-                        assert_eq!(span.compare(roundtripped).unwrap(), Ordering::Equal);
+                        assert_eq!(span.compare((roundtripped, relative_to)).unwrap(), Ordering::Equal);
                     }
                 })
             }

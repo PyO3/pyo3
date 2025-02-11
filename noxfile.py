@@ -65,9 +65,9 @@ def test_rust(session: nox.Session):
     if not FREE_THREADED_BUILD:
         _run_cargo_test(session, features="abi3")
     if "skip-full" not in session.posargs:
-        _run_cargo_test(session, features="full jiff-01")
+        _run_cargo_test(session, features="full jiff-02")
         if not FREE_THREADED_BUILD:
-            _run_cargo_test(session, features="abi3 full jiff-01")
+            _run_cargo_test(session, features="abi3 full jiff-02")
 
 
 @nox.session(name="test-py", venv_backend="none")
@@ -395,7 +395,7 @@ def docs(session: nox.Session) -> None:
 
     if get_rust_version()[:2] >= (1, 70):
         # jiff needs MSRC 1.70+
-        features += ",jiff-01"
+        features += ",jiff-02"
 
     shutil.rmtree(PYO3_DOCS_TARGET, ignore_errors=True)
     _run_cargo(
@@ -777,8 +777,8 @@ def update_ui_tests(session: nox.Session):
     env["TRYBUILD"] = "overwrite"
     command = ["test", "--test", "test_compile_error"]
     _run_cargo(session, *command, env=env)
-    _run_cargo(session, *command, "--features=full,jiff-01", env=env)
-    _run_cargo(session, *command, "--features=abi3,full,jiff-01", env=env)
+    _run_cargo(session, *command, "--features=full,jiff-02", env=env)
+    _run_cargo(session, *command, "--features=abi3,full,jiff-02", env=env)
 
 
 def _build_docs_for_ffi_check(session: nox.Session) -> None:
@@ -831,7 +831,7 @@ def _get_feature_sets() -> Generator[Tuple[str, ...], None, None]:
 
     if get_rust_version()[:2] >= (1, 70):
         # jiff needs MSRC 1.70+
-        features += ",jiff-01"
+        features += ",jiff-02"
 
     yield (f"--features={features}",)
     yield (f"--features=abi3,{features}",)

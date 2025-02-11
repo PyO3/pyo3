@@ -151,9 +151,9 @@ Adds a dependency on [hashbrown](https://docs.rs/hashbrown) and enables conversi
 
 Adds a dependency on [indexmap](https://docs.rs/indexmap) and enables conversions into its [`IndexMap`](https://docs.rs/indexmap/latest/indexmap/map/struct.IndexMap.html) type.
 
-### `jiff-01`
+### `jiff-02`
 
-Adds a dependency on [jiff@0.1](https://docs.rs/jiff/0.1) and requires MSRV 1.70. Enables a conversion from [jiff](https://docs.rs/jiff)'s types to python:
+Adds a dependency on [jiff@0.2](https://docs.rs/jiff/0.2) and requires MSRV 1.70. Enables a conversion from [jiff](https://docs.rs/jiff)'s types to python:
 - [SignedDuration](https://docs.rs/jiff/0.1/jiff/struct.SignedDuration.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
 - [TimeZone](https://docs.rs/jiff/0.1/jiff/tz/struct.TimeZone.html) -> [`PyTzInfo`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTzInfo.html)
 - [Offset](https://docs.rs/jiff/0.1/jiff/tz/struct.Offset.html) -> [`PyTzInfo`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTzInfo.html)
