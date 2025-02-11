@@ -2,4 +2,4 @@ error: functions inside #[pymethods] do not need to be annotated with #[pyfuncti
   --> tests/ui/invalid_pyfunction_definition.rs:11:9
    |
 11 |         fn bug() {}
-   |         ^^
+   |         ^^^^^^^^

@@ -1,8 +1,9 @@
 error: `#[pymodule_export]` may only be used on `use` statements
  --> tests/ui/invalid_pymodule_trait.rs:5:5
   |
-5 |     #[pymodule_export]
-  |     ^
+5 | /     #[pymodule_export]
+6 | |     trait Foo {}
+  | |________________^
 
 error: cannot find attribute `pymodule_export` in this scope
  --> tests/ui/invalid_pymodule_trait.rs:5:7

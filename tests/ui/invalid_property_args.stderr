@@ -38,7 +38,7 @@ error: `name` may only be specified once
   --> tests/ui/invalid_property_args.rs:37:42
    |
 37 | struct MultipleName(#[pyo3(name = "foo", name = "bar")] i32);
-   |                                          ^^^^
+   |                                          ^^^^^^^^^^^^
 
 error: `name` is useless without `get` or `set`
   --> tests/ui/invalid_property_args.rs:40:33
@@ -50,7 +50,7 @@ error[E0277]: `PhantomData<i32>` cannot be converted to a Python object
   --> tests/ui/invalid_property_args.rs:45:12
    |
 45 |     value: ::std::marker::PhantomData<i32>,
-   |            ^ required by `#[pyo3(get)]` to create a readable property from a field of type `PhantomData<i32>`
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by `#[pyo3(get)]` to create a readable property from a field of type `PhantomData<i32>`
    |
    = help: the trait `IntoPyObject<'_>` is not implemented for `PhantomData<i32>`
    = note: implement `IntoPyObject` for `&PhantomData<i32>` or `IntoPyObject + Clone` for `PhantomData<i32>` to define the conversion

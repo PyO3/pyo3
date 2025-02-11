@@ -8,19 +8,19 @@ error: `#[classattr]` does not take any arguments
   --> tests/ui/invalid_pymethods.rs:14:5
    |
 14 |     #[classattr(foobar)]
-   |     ^
+   |     ^^^^^^^^^^^^^^^^^^^^
 
 error: static method needs #[staticmethod] attribute
   --> tests/ui/invalid_pymethods.rs:20:5
    |
 20 |     fn staticmethod_without_attribute() {}
-   |     ^^
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: unexpected receiver
   --> tests/ui/invalid_pymethods.rs:26:35
    |
 26 |     fn staticmethod_with_receiver(&self) {}
-   |                                   ^
+   |                                   ^^^^^
 
 error: Expected `&Bound<PyType>` or `Py<PyType>` as the first argument to `#[classmethod]`
   --> tests/ui/invalid_pymethods.rs:32:33
@@ -38,19 +38,19 @@ error: expected receiver for `#[getter]`
   --> tests/ui/invalid_pymethods.rs:54:5
    |
 54 |     fn getter_without_receiver() {}
-   |     ^^
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: expected receiver for `#[setter]`
   --> tests/ui/invalid_pymethods.rs:60:5
    |
 60 |     fn setter_without_receiver() {}
-   |     ^^
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: static method needs #[staticmethod] attribute
   --> tests/ui/invalid_pymethods.rs:66:5
    |
 66 |     fn text_signature_on_call() {}
-   |     ^^
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: `text_signature` not allowed with `getter`
   --> tests/ui/invalid_pymethods.rs:72:12
@@ -80,7 +80,7 @@ error: `text_signature` may only be specified once
   --> tests/ui/invalid_pymethods.rs:99:12
    |
 99 |     #[pyo3(text_signature = None)]
-   |            ^^^^^^^^^^^^^^
+   |            ^^^^^^^^^^^^^^^^^^^^^
 
 error: `signature` not allowed with `getter`
    --> tests/ui/invalid_pymethods.rs:106:12
@@ -103,15 +103,21 @@ error: `signature` not allowed with `classattr`
 error: `#[new]` may not be combined with `#[classmethod]` `#[staticmethod]`, `#[classattr]`, `#[getter]`, and `#[setter]`
    --> tests/ui/invalid_pymethods.rs:126:7
     |
-126 |     #[new]
-    |       ^^^
+126 |       #[new]
+    |  _______^
+127 | |     #[classmethod]
+128 | |     #[staticmethod]
+129 | |     #[classattr]
+130 | |     #[getter(x)]
+131 | |     #[setter(x)]
+    | |____________^
 
 error: `#[new]` does not take any arguments
        = help: did you mean `#[new] #[pyo3(signature = ())]`?
    --> tests/ui/invalid_pymethods.rs:137:7
     |
 137 |     #[new(signature = ())]
-    |       ^^^
+    |       ^^^^^^^^^^^^^^^^^^^
 
 error: `#[new]` does not take any arguments
        = note: this was previously accepted and ignored
@@ -125,21 +131,21 @@ error: `#[classmethod]` does not take any arguments
    --> tests/ui/invalid_pymethods.rs:149:7
     |
 149 |     #[classmethod(signature = ())]
-    |       ^^^^^^^^^^^
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: `#[staticmethod]` does not take any arguments
        = help: did you mean `#[staticmethod] #[pyo3(signature = ())]`?
    --> tests/ui/invalid_pymethods.rs:155:7
     |
 155 |     #[staticmethod(signature = ())]
-    |       ^^^^^^^^^^^^
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: `#[classattr]` does not take any arguments
        = help: did you mean `#[classattr] #[pyo3(signature = ())]`?
    --> tests/ui/invalid_pymethods.rs:161:7
     |
 161 |     #[classattr(signature = ())]
-    |       ^^^^^^^^^
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: Python functions cannot have generic type parameters
    --> tests/ui/invalid_pymethods.rs:167:23
@@ -151,13 +157,13 @@ error: Python functions cannot have `impl Trait` arguments
    --> tests/ui/invalid_pymethods.rs:172:49
     |
 172 |     fn impl_trait_method_first_arg(_impl_trait: impl AsRef<PyAny>) {}
-    |                                                 ^^^^
+    |                                                 ^^^^^^^^^^^^^^^^^
 
 error: Python functions cannot have `impl Trait` arguments
    --> tests/ui/invalid_pymethods.rs:177:57
     |
 177 |     fn impl_trait_method_second_arg(&self, _impl_trait: impl AsRef<PyAny>) {}
-    |                                                         ^^^^
+    |                                                         ^^^^^^^^^^^^^^^^^
 
 error: `pass_module` cannot be used on Python methods
    --> tests/ui/invalid_pymethods.rs:182:12
@@ -177,7 +183,7 @@ error: macros cannot be used as items in `#[pymethods]` impl blocks
    --> tests/ui/invalid_pymethods.rs:197:5
     |
 197 |     macro_invocation!();
-    |     ^^^^^^^^^^^^^^^^
+    |     ^^^^^^^^^^^^^^^^^^^^
 
 error[E0277]: the trait bound `i32: From<BoundRef<'_, '_, PyType>>` is not satisfied
   --> tests/ui/invalid_pymethods.rs:46:45

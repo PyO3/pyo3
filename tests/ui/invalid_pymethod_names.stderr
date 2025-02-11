@@ -8,7 +8,7 @@ error: `name` may only be specified once
   --> tests/ui/invalid_pymethod_names.rs:18:12
    |
 18 |     #[pyo3(name = "bar")]
-   |            ^^^^
+   |            ^^^^^^^^^^^^
 
 error: `name` not allowed with `#[new]`
   --> tests/ui/invalid_pymethod_names.rs:24:19

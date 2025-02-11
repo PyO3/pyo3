@@ -8,7 +8,7 @@ error: enums can't extend from other classes
  --> tests/ui/invalid_pyclass_enum.rs:9:11
   |
 9 | #[pyclass(extends = PyList)]
-  |           ^^^^^^^
+  |           ^^^^^^^^^^^^^^^^
 
 error: #[pyclass] can't be used on enums without any variants
   --> tests/ui/invalid_pyclass_enum.rs:16:18
@@ -28,7 +28,7 @@ error: `constructor` can't be used on a simple enum variant
   --> tests/ui/invalid_pyclass_enum.rs:26:12
    |
 26 |     #[pyo3(constructor = (a, b))]
-   |            ^^^^^^^^^^^
+   |            ^^^^^^^^^^^^^^^^^^^^
 
 error: The `eq_int` option requires the `eq` option.
   --> tests/ui/invalid_pyclass_enum.rs:43:11

@@ -8,7 +8,7 @@ error: Python functions cannot have `impl Trait` arguments
  --> tests/ui/invalid_pyfunctions.rs:8:37
   |
 8 | fn impl_trait_function(_impl_trait: impl AsRef<PyAny>) {}
-  |                                     ^^^^
+  |                                     ^^^^^^^^^^^^^^^^^
 
 error: wildcard argument names are not supported
   --> tests/ui/invalid_pyfunctions.rs:11:22
@@ -44,7 +44,7 @@ error[E0277]: the trait bound `&str: From<BoundRef<'_, '_, pyo3::types::PyModule
   --> tests/ui/invalid_pyfunctions.rs:33:14
    |
 33 |     _string: &str,
-   |              ^ the trait `From<BoundRef<'_, '_, pyo3::types::PyModule>>` is not implemented for `&str`
+   |              ^^^^ the trait `From<BoundRef<'_, '_, pyo3::types::PyModule>>` is not implemented for `&str`
    |
    = help: the following other types implement trait `From<T>`:
              `String` implements `From<&String>`

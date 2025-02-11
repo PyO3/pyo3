@@ -93,8 +93,10 @@ error: expected `transparent` or `crate`
 error: #[derive(`IntoPyObject`)] is not supported for unions
   --> tests/ui/invalid_intopy_derive.rs:81:1
    |
-81 | union Union {
-   | ^^^^^
+81 | / union Union {
+82 | |     a: usize,
+83 | | }
+   | |_^
 
 error: cannot derive `IntoPyObject` for empty variants
   --> tests/ui/invalid_intopy_derive.rs:87:5
