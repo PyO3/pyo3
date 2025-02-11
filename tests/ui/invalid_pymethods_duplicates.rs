@@ -1,6 +1,7 @@
 //! These tests are located in a separate file because they cause conflicting implementation
 //! errors, which means other errors such as typechecking errors are not reported.
 
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 
 #[pyclass]

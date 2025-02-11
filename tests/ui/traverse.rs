@@ -1,3 +1,4 @@
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::PyTraverseError;
 use pyo3::PyVisit;

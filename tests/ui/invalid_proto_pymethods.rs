@@ -3,6 +3,7 @@
 //! For convenience use #[pyo3(name = "__some_dunder__")] to create the methods,
 //! so that the function names can describe the edge case to be rejected.
 
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::pyclass::CompareOp;
 
