@@ -436,7 +436,7 @@ extern "C" {
         arg2: *const c_char,
         arg3: *mut PyObject,
     ) -> c_int;
-    #[cfg(any(Py_3_13, PyPy))] // CPython defined in 3.12 as an inline function in abstract.h
+    #[cfg(any(Py_3_13, all(PyPy, not(Py_3_11))))] // CPython defined in 3.12 as an inline function in abstract.h
     #[cfg_attr(PyPy, link_name = "PyPyObject_DelAttrString")]
     pub fn PyObject_DelAttrString(arg1: *mut PyObject, arg2: *const c_char) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyObject_HasAttrString")]
@@ -460,7 +460,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyObject_SetAttr")]
     pub fn PyObject_SetAttr(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject)
         -> c_int;
-    #[cfg(any(Py_3_13, PyPy))] // CPython defined in 3.12 as an inline function in abstract.h
+    #[cfg(any(Py_3_13, all(PyPy, not(Py_3_11))))] // CPython defined in 3.12 as an inline function in abstract.h
     #[cfg_attr(PyPy, link_name = "PyPyObject_DelAttr")]
     pub fn PyObject_DelAttr(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyObject_HasAttr")]
