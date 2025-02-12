@@ -62,6 +62,7 @@ There are many ways to go about this: it is possible to use `cargo` to build the
 PyO3 has some Cargo features to configure projects for building Python extension modules:
  - The `extension-module` feature, which must be enabled when building Python extension modules.
  - The `abi3` feature and its version-specific `abi3-pyXY` companions, which are used to opt-in to the limited Python API in order to support multiple Python versions in a single wheel.
+- The `anyio` feature, making PyO3 coroutines target [*anyio*](https://github.com/agronholm/anyio) instead of *asyncio*; either [*sniffio*](https://github.com/python-trio/sniffio) or *anyio* should be added as dependency of the Python extension.
 
 This section describes each of these packaging tools before describing how to build manually without them. It then proceeds with an explanation of the `extension-module` feature. Finally, there is a section describing PyO3's `abi3` features.
 
