@@ -481,6 +481,7 @@ mod macros;
 
 #[cfg(feature = "experimental-inspect")]
 pub mod inspect;
+mod pyref_map;
 
 // Putting the declaration of prelude at the end seems to help encourage rustc and rustdoc to prefer using
 // other paths to the same items. (e.g. `pyo3::types::PyAnyMethods` instead of `pyo3::prelude::PyAnyMethods`).
