@@ -1,6 +1,6 @@
 #[macro_use]
 pub(crate) mod common {
-    #[cfg(not(Py_GIL_DISABLED))]
+    #[allow(unused_imports)]
     use crate as pyo3;
     include!("./common.rs");
 }
