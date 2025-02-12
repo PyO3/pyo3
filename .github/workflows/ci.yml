@@ -254,6 +254,7 @@ jobs:
             "3.13",
             "pypy3.9",
             "pypy3.10",
+            "pypy3.11",
             "graalpy24.0",
             "graalpy24.1",
           ]

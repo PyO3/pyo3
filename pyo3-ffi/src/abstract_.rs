@@ -5,13 +5,19 @@ use libc::size_t;
 use std::os::raw::{c_char, c_int};
 
 #[inline]
-#[cfg(all(not(Py_3_13), not(PyPy)))] // CPython exposed as a function in 3.13, in object.h
+#[cfg(all(
+    not(Py_3_13), // CPython exposed as a function in 3.13, in object.h 
+    not(all(PyPy, not(Py_3_11))) // PyPy exposed as a function until PyPy 3.10, macro in 3.11+
+))]
 pub unsafe fn PyObject_DelAttrString(o: *mut PyObject, attr_name: *const c_char) -> c_int {
     PyObject_SetAttrString(o, attr_name, std::ptr::null_mut())
 }
 
 #[inline]
-#[cfg(all(not(Py_3_13), not(PyPy)))] // CPython exposed as a function in 3.13, in object.h
+#[cfg(all(
+    not(Py_3_13), // CPython exposed as a function in 3.13, in object.h 
+    not(all(PyPy, not(Py_3_11))) // PyPy exposed as a function until PyPy 3.10, macro in 3.11+
+))]
 pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_int {
     PyObject_SetAttr(o, attr_name, std::ptr::null_mut())
 }
