@@ -1,4 +1,4 @@
-use crate::attributes::{self, get_pyo3_options, CrateAttribute};
+use crate::attributes::{self, get_pyo3_options, CrateAttribute, IntoPyWithAttribute};
 use crate::utils::Ctx;
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned};
@@ -89,6 +89,7 @@ impl ItemOption {
 
 enum FieldAttribute {
     Item(ItemOption),
+    IntoPyWith(IntoPyWithAttribute),
 }
 
 impl Parse for FieldAttribute {
@@ -118,6 +119,8 @@ impl Parse for FieldAttribute {
                     span: attr.span,
                 }))
             }
+        } else if lookahead.peek(attributes::kw::into_py_with) {
+            input.parse().map(FieldAttribute::IntoPyWith)
         } else {
             Err(lookahead.error())
         }
@@ -127,6 +130,7 @@ impl Parse for FieldAttribute {
 #[derive(Clone, Debug, Default)]
 struct FieldAttributes {
     item: Option<ItemOption>,
+    into_py_with: Option<IntoPyWithAttribute>,
 }
 
 impl FieldAttributes {
@@ -159,6 +163,7 @@ impl FieldAttributes {
 
         match option {
             FieldAttribute::Item(item) => set_option!(item),
+            FieldAttribute::IntoPyWith(into_py_with) => set_option!(into_py_with),
         }
         Ok(())
     }
@@ -182,10 +187,12 @@ struct NamedStructField<'a> {
     ident: &'a syn::Ident,
     field: &'a syn::Field,
     item: Option<ItemOption>,
+    into_py_with: Option<IntoPyWithAttribute>,
 }
 
 struct TupleStructField<'a> {
     field: &'a syn::Field,
+    into_py_with: Option<IntoPyWithAttribute>,
 }
 
 /// Container Style
@@ -214,14 +221,14 @@ enum ContainerType<'a> {
 /// Data container
 ///
 /// Either describes a struct or an enum variant.
-struct Container<'a> {
+struct Container<'a, const REF: bool> {
     path: syn::Path,
     receiver: Option<Ident>,
     ty: ContainerType<'a>,
 }
 
 /// Construct a container based on fields, identifier and attributes.
-impl<'a> Container<'a> {
+impl<'a, const REF: bool> Container<'a, REF> {
     ///
     /// Fails if the variant has no fields or incompatible attributes.
     fn new(
@@ -241,13 +248,23 @@ impl<'a> Container<'a> {
                             attrs.item.is_none(),
                             attrs.item.unwrap().span() => "`item` is not permitted on tuple struct elements."
                         );
-                        Ok(TupleStructField { field })
+                        Ok(TupleStructField {
+                            field,
+                            into_py_with: attrs.into_py_with,
+                        })
                     })
                     .collect::<Result<Vec<_>>>()?;
                 if tuple_fields.len() == 1 {
                     // Always treat a 1-length tuple struct as "transparent", even without the
                     // explicit annotation.
-                    let TupleStructField { field } = tuple_fields.pop().unwrap();
+                    let TupleStructField {
+                        field,
+                        into_py_with,
+                    } = tuple_fields.pop().unwrap();
+                    ensure_spanned!(
+                        into_py_with.is_none(),
+                        into_py_with.span() => "`into_py_with` is not permitted on `transparent` structs"
+                    );
                     ContainerType::TupleNewtype(field)
                 } else if options.transparent.is_some() {
                     bail_spanned!(
@@ -270,6 +287,10 @@ impl<'a> Container<'a> {
                         attrs.item.is_none(),
                         attrs.item.unwrap().span() => "`transparent` structs may not have `item` for the inner field"
                     );
+                    ensure_spanned!(
+                        attrs.into_py_with.is_none(),
+                        attrs.into_py_with.span() => "`into_py_with` is not permitted on `transparent` structs or variants"
+                    );
                     ContainerType::StructNewtype(field)
                 } else {
                     let struct_fields = named
@@ -287,6 +308,7 @@ impl<'a> Container<'a> {
                                 ident,
                                 field,
                                 item: attrs.item,
+                                into_py_with: attrs.into_py_with,
                             })
                         })
                         .collect::<Result<Vec<_>>>()?;
@@ -389,8 +411,21 @@ impl<'a> Container<'a> {
                     .map(|item| item.value())
                     .unwrap_or_else(|| f.ident.unraw().to_string());
                 let value = Ident::new(&format!("arg{i}"), f.field.ty.span());
-                quote! {
-                    #pyo3_path::types::PyDictMethods::set_item(&dict, #key, #value)?;
+
+                if let Some(expr_path) = f.into_py_with.as_ref().map(|i|&i.value) {
+                    let cow = if REF {
+                        quote!(::std::borrow::Cow::Borrowed(#value))
+                    } else {
+                        quote!(::std::borrow::Cow::Owned(#value))
+                    };
+                    quote! {
+                        let into_py_with: fn(::std::borrow::Cow<'_, _>, #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::PyAny>> = #expr_path;
+                        #pyo3_path::types::PyDictMethods::set_item(&dict, #key, into_py_with(#cow, py)?)?;
+                    }
+                } else {
+                    quote! {
+                        #pyo3_path::types::PyDictMethods::set_item(&dict, #key, #value)?;
+                    }
                 }
             })
             .collect::<TokenStream>();
@@ -426,11 +461,27 @@ impl<'a> Container<'a> {
             .iter()
             .enumerate()
             .map(|(i, f)| {
+                let ty = &f.field.ty;
                 let value = Ident::new(&format!("arg{i}"), f.field.ty.span());
-                quote_spanned! { f.field.ty.span() =>
-                    #pyo3_path::conversion::IntoPyObject::into_pyobject(#value, py)
-                        .map(#pyo3_path::BoundObject::into_any)
-                        .map(#pyo3_path::BoundObject::into_bound)?,
+
+                if let Some(expr_path) = f.into_py_with.as_ref().map(|i|&i.value) {
+                    let cow = if REF {
+                        quote!(::std::borrow::Cow::Borrowed(#value))
+                    } else {
+                        quote!(::std::borrow::Cow::Owned(#value))
+                    };
+                    quote_spanned! { ty.span() =>
+                        {
+                            let into_py_with: fn(::std::borrow::Cow<'_, _>, #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::PyAny>> = #expr_path;
+                            into_py_with(#cow, py)?
+                        },
+                    }
+                } else {
+                    quote_spanned! { ty.span() =>
+                        #pyo3_path::conversion::IntoPyObject::into_pyobject(#value, py)
+                            .map(#pyo3_path::BoundObject::into_any)
+                            .map(#pyo3_path::BoundObject::into_bound)?,
+                    }
                 }
             })
             .collect::<TokenStream>();
@@ -450,11 +501,11 @@ impl<'a> Container<'a> {
 }
 
 /// Describes derivation input of an enum.
-struct Enum<'a> {
-    variants: Vec<Container<'a>>,
+struct Enum<'a, const REF: bool> {
+    variants: Vec<Container<'a, REF>>,
 }
 
-impl<'a> Enum<'a> {
+impl<'a, const REF: bool> Enum<'a, REF> {
     /// Construct a new enum representation.
     ///
     /// `data_enum` is the `syn` representation of the input enum, `ident` is the
@@ -563,12 +614,12 @@ pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Resu
             if options.transparent.is_some() {
                 bail_spanned!(tokens.span() => "`transparent` is not supported at top level for enums");
             }
-            let en = Enum::new(en, &tokens.ident)?;
+            let en = Enum::<REF>::new(en, &tokens.ident)?;
             en.build(ctx)
         }
         syn::Data::Struct(st) => {
             let ident = &tokens.ident;
-            let st = Container::new(
+            let st = Container::<REF>::new(
                 Some(Ident::new("self", Span::call_site())),
                 &st.fields,
                 parse_quote!(#ident),
