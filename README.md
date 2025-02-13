@@ -178,7 +178,7 @@ about this topic.
 - [dict-derive](https://github.com/gperinazzo/dict-derive) _Derive FromPyObject to automatically transform Python dicts into Rust structs_
 - [pyo3-log](https://github.com/vorner/pyo3-log) _Bridge from Rust to Python logging_
 - [pythonize](https://github.com/davidhewitt/pythonize) _Serde serializer for converting Rust objects to JSON-compatible Python objects_
-- [pyo3-asyncio](https://github.com/awestlake87/pyo3-asyncio) _Utilities for working with Python's Asyncio library and async functions_
+- [pyo3-async-runtimes](https://github.com/PyO3/pyo3-async-runtimes) _Utilities for interoperability with Python's Asyncio library and Rust's async runtimes._
 - [rustimport](https://github.com/mityax/rustimport) _Directly import Rust files or crates from Python, without manual compilation step. Provides pyo3 integration by default and generates pyo3 binding code automatically._
 - [pyo3-arrow](https://crates.io/crates/pyo3-arrow) _Lightweight [Apache Arrow](https://arrow.apache.org/) integration for pyo3._
 - [pyo3-bytes](https://crates.io/crates/pyo3-bytes) _Integration between [`bytes`](https://crates.io/crates/bytes) and pyo3._
