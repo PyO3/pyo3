@@ -913,7 +913,7 @@ use super::{pycell::PyClassObject, pymethods::BoundRef};
 /// Do not implement this trait manually. Instead, use `#[pyclass(freelist = N)]`
 /// on a Rust struct to implement it.
 pub trait PyClassWithFreeList: PyClass {
-    fn get_free_list(py: Python<'_>) -> &'static Mutex<Option<PyObjectFreeList>>;
+    fn get_free_list(py: Python<'_>) -> &'static Mutex<PyObjectFreeList>;
 }
 
 /// Implementation of tp_alloc for `freelist` classes.
@@ -935,7 +935,7 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
     // freelist
     if nitems == 0 && subtype == self_type {
         let mut free_list = T::get_free_list(py).lock().unwrap();
-        if let Some(obj) = free_list.as_mut().unwrap().pop() {
+        if let Some(obj) = free_list.pop() {
             ffi::PyObject_Init(obj, subtype);
             return obj as _;
         }
@@ -958,7 +958,7 @@ pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_
     let mut free_list = T::get_free_list(Python::assume_gil_acquired())
         .lock()
         .unwrap();
-    if let Some(obj) = free_list.as_mut().unwrap().insert(obj) {
+    if let Some(obj) = free_list.insert(obj) {
         let ty = ffi::Py_TYPE(obj);
 
         // Deduce appropriate inverse of PyType_GenericAlloc
