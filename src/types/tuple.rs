@@ -383,13 +383,8 @@ impl<'py> Iterator for BoundTupleIterator<'py> {
         let length = self.length.min(self.tuple.len());
         let target_index = self.index + n;
         if target_index < length {
-            let item = {
-                {
-                    unsafe {
-                        BorrowedTupleIterator::get_item(self.tuple.as_borrowed(), target_index)
-                            .to_owned()
-                    }
-                }
+            let item = unsafe {
+                BorrowedTupleIterator::get_item(self.tuple.as_borrowed(), target_index).to_owned()
             };
             self.index = target_index + 1;
             Some(item)
@@ -444,13 +439,8 @@ impl DoubleEndedIterator for BoundTupleIterator<'_> {
         let length_size = self.length.min(self.tuple.len());
         if self.index + n < length_size {
             let target_index = length_size - n - 1;
-            let item = {
-                {
-                    unsafe {
-                        BorrowedTupleIterator::get_item(self.tuple.as_borrowed(), target_index)
-                            .to_owned()
-                    }
-                }
+            let item = unsafe {
+                BorrowedTupleIterator::get_item(self.tuple.as_borrowed(), target_index).to_owned()
             };
             self.length = target_index;
             Some(item)
@@ -477,7 +467,7 @@ impl DoubleEndedIterator for BoundTupleIterator<'_> {
             self.length = max_len - n;
             Ok(())
         } else {
-            self.length = max_len;
+            self.length = currently_at;
             let remainder = n - items_left;
             Err(unsafe { NonZero::new_unchecked(remainder) })
         }
@@ -1700,6 +1690,7 @@ mod tests {
             assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 3);
             assert_eq!(iter.advance_by(0), Ok(()));
             assert_eq!(iter.advance_by(100), Err(NonZero::new(98).unwrap()));
+            assert!(iter.next().is_none());
 
             let mut iter2 = tuple.iter();
             assert_eq!(iter2.advance_by(6), Err(NonZero::new(1).unwrap()));
@@ -1724,6 +1715,7 @@ mod tests {
             assert_eq!(iter.next_back().unwrap().extract::<i32>().unwrap(), 3);
             assert_eq!(iter.advance_back_by(0), Ok(()));
             assert_eq!(iter.advance_back_by(100), Err(NonZero::new(98).unwrap()));
+            assert!(iter.next_back().is_none());
 
             let mut iter2 = tuple.iter();
             assert_eq!(iter2.advance_back_by(6), Err(NonZero::new(1).unwrap()));

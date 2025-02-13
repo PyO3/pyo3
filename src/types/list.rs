@@ -920,7 +920,7 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
                 length.0 = max_len - n;
                 Ok(())
             } else {
-                length.0 = max_len;
+                length.0 = currently_at;
                 let remainder = n - items_left;
                 Err(unsafe { NonZero::new_unchecked(remainder) })
             }
