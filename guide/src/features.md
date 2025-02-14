@@ -151,17 +151,17 @@ Adds a dependency on [hashbrown](https://docs.rs/hashbrown) and enables conversi
 
 Adds a dependency on [indexmap](https://docs.rs/indexmap) and enables conversions into its [`IndexMap`](https://docs.rs/indexmap/latest/indexmap/map/struct.IndexMap.html) type.
 
-### `jiff-01`
+### `jiff-02`
 
-Adds a dependency on [jiff@0.1](https://docs.rs/jiff/0.1) and requires MSRV 1.70. Enables a conversion from [jiff](https://docs.rs/jiff)'s types to python:
-- [SignedDuration](https://docs.rs/jiff/0.1/jiff/struct.SignedDuration.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
-- [TimeZone](https://docs.rs/jiff/0.1/jiff/tz/struct.TimeZone.html) -> [`PyTzInfo`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTzInfo.html)
-- [Offset](https://docs.rs/jiff/0.1/jiff/tz/struct.Offset.html) -> [`PyTzInfo`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTzInfo.html)
-- [Date](https://docs.rs/jiff/0.1/jiff/civil/struct.Date.html) -> [`PyDate`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDate.html)
-- [Time](https://docs.rs/jiff/0.1/jiff/civil/struct.Time.html) -> [`PyTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTime.html)
-- [DateTime](https://docs.rs/jiff/0.1/jiff/civil/struct.DateTime.html) -> [`PyDateTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDateTime.html)
-- [Zoned](https://docs.rs/jiff/0.1/jiff/struct.Zoned.html) -> [`PyDateTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDateTime.html)
-- [Timestamp](https://docs.rs/jiff/0.1/jiff/struct.Timestamp.html) -> [`PyDateTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDateTime.html)
+Adds a dependency on [jiff@0.2](https://docs.rs/jiff/0.2) and requires MSRV 1.70. Enables a conversion from [jiff](https://docs.rs/jiff)'s types to python:
+- [SignedDuration](https://docs.rs/jiff/0.2/jiff/struct.SignedDuration.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
+- [TimeZone](https://docs.rs/jiff/0.2/jiff/tz/struct.TimeZone.html) -> [`PyTzInfo`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTzInfo.html)
+- [Offset](https://docs.rs/jiff/0.2/jiff/tz/struct.Offset.html) -> [`PyTzInfo`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTzInfo.html)
+- [Date](https://docs.rs/jiff/0.2/jiff/civil/struct.Date.html) -> [`PyDate`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDate.html)
+- [Time](https://docs.rs/jiff/0.2/jiff/civil/struct.Time.html) -> [`PyTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTime.html)
+- [DateTime](https://docs.rs/jiff/0.2/jiff/civil/struct.DateTime.html) -> [`PyDateTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDateTime.html)
+- [Zoned](https://docs.rs/jiff/0.2/jiff/struct.Zoned.html) -> [`PyDateTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDateTime.html)
+- [Timestamp](https://docs.rs/jiff/0.2/jiff/struct.Timestamp.html) -> [`PyDateTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDateTime.html)
 
 ### `num-bigint`
 
