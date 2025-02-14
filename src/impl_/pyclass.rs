@@ -2,7 +2,7 @@ use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
     ffi,
     impl_::{
-        freelist::FreeList,
+        freelist::PyObjectFreeList,
         pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
         pyclass_init::PyObjectInit,
         pymethods::{PyGetterDef, PyMethodDefType},
@@ -20,6 +20,7 @@ use std::{
     marker::PhantomData,
     os::raw::{c_int, c_void},
     ptr::NonNull,
+    sync::Mutex,
     thread,
 };
 
@@ -912,7 +913,7 @@ use super::{pycell::PyClassObject, pymethods::BoundRef};
 /// Do not implement this trait manually. Instead, use `#[pyclass(freelist = N)]`
 /// on a Rust struct to implement it.
 pub trait PyClassWithFreeList: PyClass {
-    fn get_free_list(py: Python<'_>) -> &mut FreeList<*mut ffi::PyObject>;
+    fn get_free_list(py: Python<'_>) -> &'static Mutex<PyObjectFreeList>;
 }
 
 /// Implementation of tp_alloc for `freelist` classes.
@@ -933,7 +934,9 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
     // If this type is a variable type or the subtype is not equal to this type, we cannot use the
     // freelist
     if nitems == 0 && subtype == self_type {
-        if let Some(obj) = T::get_free_list(py).pop() {
+        let mut free_list = T::get_free_list(py).lock().unwrap();
+        if let Some(obj) = free_list.pop() {
+            drop(free_list);
             ffi::PyObject_Init(obj, subtype);
             return obj as _;
         }
@@ -953,7 +956,11 @@ pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_
         T::type_object_raw(Python::assume_gil_acquired()),
         ffi::Py_TYPE(obj)
     );
-    if let Some(obj) = T::get_free_list(Python::assume_gil_acquired()).insert(obj) {
+    let mut free_list = T::get_free_list(Python::assume_gil_acquired())
+        .lock()
+        .unwrap();
+    if let Some(obj) = free_list.insert(obj) {
+        drop(free_list);
         let ty = ffi::Py_TYPE(obj);
 
         // Deduce appropriate inverse of PyType_GenericAlloc
