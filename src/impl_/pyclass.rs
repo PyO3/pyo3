@@ -936,6 +936,7 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
     if nitems == 0 && subtype == self_type {
         let mut free_list = T::get_free_list(py).lock().unwrap();
         if let Some(obj) = free_list.pop() {
+            drop(free_list);
             ffi::PyObject_Init(obj, subtype);
             return obj as _;
         }
@@ -959,6 +960,7 @@ pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_
         .lock()
         .unwrap();
     if let Some(obj) = free_list.insert(obj) {
+        drop(free_list);
         let ty = ffi::Py_TYPE(obj);
 
         // Deduce appropriate inverse of PyType_GenericAlloc

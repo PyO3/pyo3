@@ -12,7 +12,7 @@ use crate::ffi;
 use std::mem;
 
 /// Represents a slot of a [`PyObjectFreeList`].
-pub enum PyObjectSlot {
+enum PyObjectSlot {
     /// A free slot.
     Empty,
     /// An allocated slot.
@@ -26,7 +26,7 @@ unsafe impl Send for PyObjectSlot {}
 ///
 /// See [the parent module](crate::impl_::freelist) for more details.
 pub struct PyObjectFreeList {
-    entries: Vec<PyObjectSlot>,
+    entries: Box<[PyObjectSlot]>,
     split: usize,
     capacity: usize,
 }
@@ -36,7 +36,7 @@ impl PyObjectFreeList {
     pub fn with_capacity(capacity: usize) -> PyObjectFreeList {
         let entries = (0..capacity)
             .map(|_| PyObjectSlot::Empty)
-            .collect::<Vec<_>>();
+            .collect::<Box<[_]>>();
 
         PyObjectFreeList {
             entries,
