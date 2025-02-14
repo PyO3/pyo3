@@ -1,3 +1,4 @@
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 
 #[pyclass(subclass)]
@@ -82,15 +83,15 @@ enum ComplexHashOptRequiresEq {
 
 #[pyclass(ord)]
 enum InvalidOrderedComplexEnum {
-    VariantA (i32),
-    VariantB { msg: String }
+    VariantA(i32),
+    VariantB { msg: String },
 }
 
-#[pyclass(eq,ord)]
+#[pyclass(eq, ord)]
 #[derive(PartialEq)]
 enum InvalidOrderedComplexEnum2 {
-    VariantA (i32),
-    VariantB { msg: String }
+    VariantA(i32),
+    VariantB { msg: String },
 }
 
 #[pyclass(eq)]

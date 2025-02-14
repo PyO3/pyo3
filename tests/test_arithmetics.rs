@@ -1,4 +1,5 @@
 #![cfg(feature = "macros")]
+#![feature(arbitrary_self_types)]
 
 use pyo3::class::basic::CompareOp;
 use pyo3::py_run;

@@ -1,4 +1,5 @@
 #![cfg(all(feature = "macros", not(PyPy)))]
+#![feature(arbitrary_self_types)]
 
 use pyo3::prelude::*;
 

@@ -244,6 +244,7 @@ impl PySetterDef {
 /// NB cannot accept `'static` visitor, this is a sanity check below:
 ///
 /// ```rust,compile_fail
+/// #![feature(arbitrary_self_types)]
 /// use pyo3::prelude::*;
 /// use pyo3::pyclass::{PyTraverseError, PyVisit};
 ///
@@ -261,6 +262,7 @@ impl PySetterDef {
 /// Elided lifetime should compile ok:
 ///
 /// ```rust
+/// #![feature(arbitrary_self_types)]
 /// use pyo3::prelude::*;
 /// use pyo3::pyclass::{PyTraverseError, PyVisit};
 ///

@@ -57,6 +57,7 @@ def example():
 Using PyO3's API, and in particular `Bound<'py, PyList>`, this code translates into the following Rust code:
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
@@ -73,6 +74,7 @@ fn example<'py>(py: Python<'py>) -> PyResult<()> {
 Or, without the type annotations:
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
@@ -113,7 +115,7 @@ fn add<'py>(
 }
 # Python::with_gil(|py| {
 #     let s = pyo3::types::PyString::new(py, "s");
-#     assert!(add(&s, &s).unwrap().eq("ss").unwrap());
+#     assert!(add(s.as_any(), s.as_any()).unwrap().eq("ss").unwrap());
 # })
 ```
 
@@ -127,7 +129,7 @@ fn add(left: &Bound<'_, PyAny>, right: &Bound<'_, PyAny>) -> PyResult<PyObject> 
 }
 # Python::with_gil(|py| {
 #     let s = pyo3::types::PyString::new(py, "s");
-#     assert!(add(&s, &s).unwrap().bind(py).eq("ss").unwrap());
+#     assert!(add(s.as_any(), s.as_any()).unwrap().bind(py).eq("ss").unwrap());
 # })
 ```
 
@@ -137,9 +139,10 @@ fn add(left: &Bound<'_, PyAny>, right: &Bound<'_, PyAny>) -> PyResult<PyObject> 
 
 `Borrowed<'a, 'py, T>` dereferences to `Bound<'py, T>`, so all methods on `Bound<'py, T>` are available on `Borrowed<'a, 'py, T>`.
 
-An example where `Borrowed<'a, 'py, T>` is used is in [`PyTupleMethods::get_borrowed_item`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyTupleMethods.html#tymethod.get_item):
+An example where `Borrowed<'a, 'py, T>` is used is in [`PyTuple::get_borrowed_item`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTuple.html#tymethod.get_item):
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 
@@ -215,14 +218,7 @@ The following subsections covers some further detail about how to work with thes
 
 Each concrete Python type such as `PyAny`, `PyTuple` and `PyDict` exposes its API on the corresponding bound smart pointer `Bound<'py, PyAny>`, `Bound<'py, PyTuple>` and `Bound<'py, PyDict>`.
 
-Each type's API is exposed as a trait: [`PyAnyMethods`], [`PyTupleMethods`], [`PyDictMethods`], and so on for all concrete types. Using traits rather than associated methods on the `Bound` smart pointer is done for a couple of reasons:
-- Clarity of documentation: each trait gets its own documentation page in the PyO3 API docs. If all methods were on the `Bound` smart pointer directly, the vast majority of PyO3's API would be on a single, extremely long, documentation page.
-- Consistency: downstream code implementing Rust APIs for existing Python types can also follow this pattern of using a trait. Downstream code would not be allowed to add new associated methods directly on the `Bound` type.
-- Future design: it is hoped that a future Rust with [arbitrary self types](https://github.com/rust-lang/rust/issues/44874) will remove the need for these traits in favour of placing the methods directly on `PyAny`, `PyTuple`, `PyDict`, and so on.
-
-These traits are all included in the `pyo3::prelude` module, so with the glob import `use pyo3::prelude::*` the full PyO3 API is made available to downstream code.
-
-The following function accesses the first item in the input Python list, using the `.get_item()` method from the `PyListMethods` trait:
+The following function accesses the first item in the input Python list, using the `.get_item()` method:
 
 ```rust
 use pyo3::prelude::*;
@@ -265,6 +261,7 @@ let _: Bound<'py, PyTuple> = obj.downcast_into()?;
 Custom [`#[pyclass]`][pyclass] types implement [`PyTypeCheck`], so `.downcast()` also works for these types. The snippet below is the same as the snippet above casting instead to a custom type `MyClass`:
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -317,8 +314,6 @@ for more detail.
 [PyAnyMethods::downcast_into]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.downcast_into
 [`PyTypeCheck`]: {{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PyTypeCheck.html
 [`PyAnyMethods`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html
-[`PyDictMethods`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyDictMethods.html
-[`PyTupleMethods`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyTupleMethods.html
 [pyclass]: class.md
 [Borrowed]: {{#PYO3_DOCS_URL}}/pyo3/struct.Borrowed.html
 [Drop]: https://doc.rust-lang.org/std/ops/trait.Drop.html

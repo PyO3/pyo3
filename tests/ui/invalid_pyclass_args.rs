@@ -1,3 +1,4 @@
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use std::fmt::{Display, Formatter};
 

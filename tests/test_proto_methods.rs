@@ -1,4 +1,5 @@
 #![cfg(feature = "macros")]
+#![feature(arbitrary_self_types)]
 
 use pyo3::exceptions::{PyAttributeError, PyIndexError, PyValueError};
 use pyo3::types::{PyDict, PyList, PyMapping, PySequence, PySlice, PyType};
@@ -192,7 +193,7 @@ impl Mapping {
     }
 
     fn __getitem__<'py>(&self, key: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
-        let any: &Bound<'py, PyAny> = self.values.bind(key.py());
+        let any: &Bound<'py, PyAny> = self.values.bind(key.py()).as_any();
         any.get_item(key)
     }
 

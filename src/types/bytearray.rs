@@ -10,19 +10,16 @@ use std::slice;
 ///
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyByteArray>`][crate::Py] or [`Bound<'py, PyByteArray>`][Bound].
-///
-/// For APIs available on `bytearray` objects, see the [`PyByteArrayMethods`] trait which is implemented for
-/// [`Bound<'py, PyByteArray>`][Bound].
 #[repr(transparent)]
 pub struct PyByteArray(PyAny);
 
 pyobject_native_type_core!(PyByteArray, pyobject_native_static_type_object!(ffi::PyByteArray_Type), #checkfunction=ffi::PyByteArray_Check);
 
-impl PyByteArray {
+impl<'py> PyByteArray {
     /// Creates a new Python bytearray object.
     ///
     /// The byte string is initialized by copying the data from the `&[u8]`.
-    pub fn new<'py>(py: Python<'py>, src: &[u8]) -> Bound<'py, PyByteArray> {
+    pub fn new(py: Python<'py>, src: &[u8]) -> Bound<'py, PyByteArray> {
         let ptr = src.as_ptr().cast();
         let len = src.len() as ffi::Py_ssize_t;
         unsafe {
@@ -35,7 +32,7 @@ impl PyByteArray {
     /// Deprecated name for [`PyByteArray::new`].
     #[deprecated(since = "0.23.0", note = "renamed to `PyByteArray::new`")]
     #[inline]
-    pub fn new_bound<'py>(py: Python<'py>, src: &[u8]) -> Bound<'py, PyByteArray> {
+    pub fn new_bound(py: Python<'py>, src: &[u8]) -> Bound<'py, PyByteArray> {
         Self::new(py, src)
     }
 
@@ -49,6 +46,7 @@ impl PyByteArray {
     /// # Examples
     ///
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::{prelude::*, types::PyByteArray};
     ///
     /// # fn main() -> PyResult<()> {
@@ -100,7 +98,7 @@ impl PyByteArray {
 
     /// Creates a new Python `bytearray` object from another Python object that
     /// implements the buffer protocol.
-    pub fn from<'py>(src: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyByteArray>> {
+    pub fn from(src: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyByteArray>> {
         unsafe {
             ffi::PyByteArray_FromObject(src.as_ptr())
                 .assume_owned_or_err(src.py())
@@ -111,30 +109,30 @@ impl PyByteArray {
     ///Deprecated name for [`PyByteArray::from`].
     #[deprecated(since = "0.23.0", note = "renamed to `PyByteArray::from`")]
     #[inline]
-    pub fn from_bound<'py>(src: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyByteArray>> {
+    pub fn from_bound(src: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyByteArray>> {
         Self::from(src)
     }
-}
 
-/// Implementation of functionality for [`PyByteArray`].
-///
-/// These methods are defined for the `Bound<'py, PyByteArray>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
-#[doc(alias = "PyByteArray")]
-pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// Gets the length of the bytearray.
-    fn len(&self) -> usize;
+    #[inline]
+    pub fn len(self: &Bound<'py, Self>) -> usize {
+        // non-negative Py_ssize_t should always fit into Rust usize
+        unsafe { ffi::PyByteArray_Size(self.as_ptr()) as usize }
+    }
 
     /// Checks if the bytearray is empty.
-    fn is_empty(&self) -> bool;
+    pub fn is_empty(self: &Bound<'py, Self>) -> bool {
+        self.len() == 0
+    }
 
     /// Gets the start of the buffer containing the contents of the bytearray.
     ///
     /// # Safety
     ///
-    /// See the safety requirements of [`PyByteArrayMethods::as_bytes`] and [`PyByteArrayMethods::as_bytes_mut`].
-    fn data(&self) -> *mut u8;
+    /// See the safety requirements of [`PyByteArray::as_bytes`] and [`PyByteArray::as_bytes_mut`].
+    pub fn data(self: &Bound<'py, Self>) -> *mut u8 {
+        self.as_borrowed().data()
+    }
 
     /// Extracts a slice of the `ByteArray`'s entire buffer.
     ///
@@ -144,7 +142,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// undefined.
     ///
     /// These mutations may occur in Python code as well as from Rust:
-    /// - Calling methods like [`PyByteArrayMethods::as_bytes_mut`] and [`PyByteArrayMethods::resize`] will
+    /// - Calling methods like [`PyByteArray::as_bytes_mut`] and [`PyByteArray::resize`] will
     ///   invalidate the slice.
     /// - Actions like dropping objects or raising exceptions can invoke `__del__`methods or signal
     ///   handlers, which may execute arbitrary Python code. This means that if Python code has a
@@ -157,6 +155,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     /// use pyo3::exceptions::PyRuntimeError;
     /// use pyo3::types::PyByteArray;
@@ -210,6 +209,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// The following `bug` function is unsound ⚠️
     ///
     /// ```rust,no_run
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::prelude::*;
     /// # use pyo3::types::PyByteArray;
     ///
@@ -231,23 +231,28 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     ///     println!("{:?}", slice[0]);
     /// }
     /// ```
-    unsafe fn as_bytes(&self) -> &[u8];
+    pub unsafe fn as_bytes(self: &Bound<'py, Self>) -> &[u8] {
+        self.as_borrowed().as_bytes()
+    }
 
     /// Extracts a mutable slice of the `ByteArray`'s entire buffer.
     ///
     /// # Safety
     ///
     /// Any other accesses of the `bytearray`'s buffer invalidate the slice. If it is used
-    /// afterwards, the behavior is undefined. The safety requirements of [`PyByteArrayMethods::as_bytes`]
+    /// afterwards, the behavior is undefined. The safety requirements of [`PyByteArray::as_bytes`]
     /// apply to this function as well.
     #[allow(clippy::mut_from_ref)]
-    unsafe fn as_bytes_mut(&self) -> &mut [u8];
+    pub unsafe fn as_bytes_mut(self: &Bound<'py, Self>) -> &mut [u8] {
+        self.as_borrowed().as_bytes_mut()
+    }
 
     /// Copies the contents of the bytearray to a Rust vector.
     ///
     /// # Examples
     ///
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::prelude::*;
     /// # use pyo3::types::PyByteArray;
     /// # Python::with_gil(|py| {
@@ -261,44 +266,15 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// pyo3::py_run!(py, bytearray, "assert bytearray == b'Hello World.'");
     /// # });
     /// ```
-    fn to_vec(&self) -> Vec<u8>;
-
-    /// Resizes the bytearray object to the new length `len`.
-    ///
-    /// Note that this will invalidate any pointers obtained by [PyByteArrayMethods::data], as well as
-    /// any (unsafe) slices obtained from [PyByteArrayMethods::as_bytes] and [PyByteArrayMethods::as_bytes_mut].
-    fn resize(&self, len: usize) -> PyResult<()>;
-}
-
-impl<'py> PyByteArrayMethods<'py> for Bound<'py, PyByteArray> {
-    #[inline]
-    fn len(&self) -> usize {
-        // non-negative Py_ssize_t should always fit into Rust usize
-        unsafe { ffi::PyByteArray_Size(self.as_ptr()) as usize }
-    }
-
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    fn data(&self) -> *mut u8 {
-        self.as_borrowed().data()
-    }
-
-    unsafe fn as_bytes(&self) -> &[u8] {
-        self.as_borrowed().as_bytes()
-    }
-
-    #[allow(clippy::mut_from_ref)]
-    unsafe fn as_bytes_mut(&self) -> &mut [u8] {
-        self.as_borrowed().as_bytes_mut()
-    }
-
-    fn to_vec(&self) -> Vec<u8> {
+    pub fn to_vec(self: &Bound<'py, Self>) -> Vec<u8> {
         unsafe { self.as_bytes() }.to_vec()
     }
 
-    fn resize(&self, len: usize) -> PyResult<()> {
+    /// Resizes the bytearray object to the new length `len`.
+    ///
+    /// Note that this will invalidate any pointers obtained by [PyByteArray::data], as well as
+    /// any (unsafe) slices obtained from [PyByteArray::as_bytes] and [PyByteArray::as_bytes_mut].
+    pub fn resize(self: &Bound<'py, Self>, len: usize) -> PyResult<()> {
         unsafe {
             let result = ffi::PyByteArray_Resize(self.as_ptr(), len as ffi::Py_ssize_t);
             if result == 0 {
@@ -338,7 +314,7 @@ impl<'py> TryFrom<&Bound<'py, PyAny>> for Bound<'py, PyByteArray> {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods};
+    use crate::types::{PyAnyMethods, PyByteArray};
     use crate::{exceptions, Bound, PyAny, PyObject, Python};
 
     #[test]
@@ -417,7 +393,7 @@ mod tests {
     fn test_try_from() {
         Python::with_gil(|py| {
             let src = b"Hello Python";
-            let bytearray: &Bound<'_, PyAny> = &PyByteArray::new(py, src);
+            let bytearray: &Bound<'_, PyAny> = &PyByteArray::new(py, src).into_any();
             let bytearray: Bound<'_, PyByteArray> = TryInto::try_into(bytearray).unwrap();
 
             assert_eq!(src, unsafe { bytearray.as_bytes() });

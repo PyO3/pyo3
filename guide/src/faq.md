@@ -87,6 +87,7 @@ You can give the Python interpreter a chance to process the signal properly by c
 You may have a nested struct similar to this:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #[pyclass]
 #[derive(Clone)]
@@ -127,6 +128,7 @@ This can be especially confusing if the field is mutable, as getting the field a
 
 If you don't want that cloning to happen, a workaround is to allocate the field on the Python heap and store a reference to that, by using [`Py<...>`]({{#PYO3_DOCS_URL}}/pyo3/struct.Py.html):
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #[pyclass]
 struct Inner {/* fields omitted */}
@@ -180,6 +182,7 @@ on `pyo3`, you need to let the macro code know where to find the crate.  This is
 done with the `crate` attribute:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # pub extern crate pyo3;
 # mod reexported { pub use ::pyo3; }

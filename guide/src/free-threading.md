@@ -73,6 +73,7 @@ thread-safe, then pass `gil_used = false` as a parameter to the
 `PyModule::gil_used` on a `PyModule` instance.  For example:
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 
 /// This module supports free-threaded Python
@@ -86,6 +87,7 @@ fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
 Or for a module that is set up without using the `pymodule` macro:
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 
 # #[allow(dead_code)]
@@ -209,6 +211,7 @@ The most straightforward way to trigger this problem is to use the Python
 example, consider the following implementation:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # fn main() {
 #[pyclass]
@@ -309,6 +312,7 @@ extension traits. Here is an example of how to use [`OnceExt`] to
 enable single-initialization of a runtime cache holding a `Py<PyDict>`.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # fn main() {
 # use pyo3::prelude::*;
 use std::sync::Once;
@@ -347,6 +351,7 @@ be sufficient.
 Before:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # fn main() {
 # #[cfg(not(Py_GIL_DISABLED))] {
 # use pyo3::prelude::*;
@@ -369,6 +374,7 @@ Python::with_gil(|py| {
 After:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # fn main() {
 use pyo3::types::{PyDict, PyNone};

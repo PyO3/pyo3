@@ -17,7 +17,6 @@ pyobject_native_type_core!(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::PyTypeMethods;
     use crate::{PyTypeInfo, Python};
 
     #[test]

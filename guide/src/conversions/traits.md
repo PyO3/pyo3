@@ -263,6 +263,7 @@ extracting fields as attributes but can be configured in the same manner. The `t
 attribute can be applied to single-field-variants.
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3_ffi::c_str;
 

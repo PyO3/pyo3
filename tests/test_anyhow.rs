@@ -1,4 +1,5 @@
 #![cfg(feature = "anyhow")]
+#![feature(arbitrary_self_types)]
 
 use pyo3::{ffi, wrap_pyfunction};
 
@@ -27,7 +28,6 @@ fn test_anyhow_py_function_ok_result() {
 
 #[test]
 fn test_anyhow_py_function_err_result() {
-    use pyo3::prelude::PyDictMethods;
     use pyo3::{pyfunction, types::PyDict, Python};
 
     #[pyfunction]

@@ -55,6 +55,7 @@ macro_rules! impl_exception_boilerplate_bound {
 ///
 /// # Examples
 /// ```
+/// #![feature(arbitrary_self_types)]
 /// use pyo3::import_exception;
 /// use pyo3::types::IntoPyDict;
 /// use pyo3::Python;
@@ -93,7 +94,6 @@ macro_rules! import_exception {
 
         impl $name {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
-                use $crate::types::PyTypeMethods;
                 static TYPE_OBJECT: $crate::impl_::exceptions::ImportedExceptionTypeObject =
                     $crate::impl_::exceptions::ImportedExceptionTypeObject::new(stringify!($module), stringify!($name));
                 TYPE_OBJECT.get(py).as_type_ptr()
@@ -131,7 +131,6 @@ macro_rules! import_exception_bound {
 
         impl $name {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
-                use $crate::types::PyTypeMethods;
                 static TYPE_OBJECT: $crate::impl_::exceptions::ImportedExceptionTypeObject =
                     $crate::impl_::exceptions::ImportedExceptionTypeObject::new(
                         stringify!($module),
@@ -157,6 +156,7 @@ macro_rules! import_exception_bound {
 /// # Examples
 ///
 /// ```
+/// #![feature(arbitrary_self_types)]
 /// use pyo3::prelude::*;
 /// use pyo3::create_exception;
 /// use pyo3::exceptions::PyException;

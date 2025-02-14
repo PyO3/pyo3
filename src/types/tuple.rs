@@ -4,7 +4,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::inspect::types::TypeInfo;
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
-use crate::types::{any::PyAnyMethods, sequence::PySequenceMethods, PyList, PySequence};
+use crate::types::{any::PyAnyMethods, PyList, PySequence};
 use crate::{
     exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyObject,
     PyResult, Python,
@@ -55,15 +55,12 @@ fn try_new_from_iter<'py>(
 ///
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyTuple>`][crate::Py] or [`Bound<'py, PyTuple>`][Bound].
-///
-/// For APIs available on `tuple` objects, see the [`PyTupleMethods`] trait which is implemented for
-/// [`Bound<'py, PyTuple>`][Bound].
 #[repr(transparent)]
 pub struct PyTuple(PyAny);
 
 pyobject_native_type_core!(PyTuple, pyobject_native_static_type_object!(ffi::PyTuple_Type), #checkfunction=ffi::PyTuple_Check);
 
-impl PyTuple {
+impl<'py> PyTuple {
     /// Constructs a new tuple with the given elements.
     ///
     /// If you want to create a [`PyTuple`] with elements of different or unknown types, or from an
@@ -92,7 +89,7 @@ impl PyTuple {
     /// All standard library structures implement this trait correctly, if they do, so calling this
     /// function using [`Vec`]`<T>` or `&[T]` will always succeed.
     #[track_caller]
-    pub fn new<'py, T, U>(
+    pub fn new<T, U>(
         py: Python<'py>,
         elements: impl IntoIterator<Item = T, IntoIter = U>,
     ) -> PyResult<Bound<'py, PyTuple>>
@@ -110,9 +107,9 @@ impl PyTuple {
     #[track_caller]
     #[inline]
     pub fn new_bound<T, U>(
-        py: Python<'_>,
+        py: Python<'py>,
         elements: impl IntoIterator<Item = T, IntoIter = U>,
-    ) -> Bound<'_, PyTuple>
+    ) -> Bound<'py, PyTuple>
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
@@ -121,7 +118,7 @@ impl PyTuple {
     }
 
     /// Constructs an empty tuple (on the Python side, a singleton object).
-    pub fn empty(py: Python<'_>) -> Bound<'_, PyTuple> {
+    pub fn empty(py: Python<'py>) -> Bound<'py, PyTuple> {
         unsafe {
             ffi::PyTuple_New(0)
                 .assume_owned(py)
@@ -132,35 +129,48 @@ impl PyTuple {
     /// Deprecated name for [`PyTuple::empty`].
     #[deprecated(since = "0.23.0", note = "renamed to `PyTuple::empty`")]
     #[inline]
-    pub fn empty_bound(py: Python<'_>) -> Bound<'_, PyTuple> {
+    pub fn empty_bound(py: Python<'py>) -> Bound<'py, PyTuple> {
         PyTuple::empty(py)
     }
-}
 
-/// Implementation of functionality for [`PyTuple`].
-///
-/// These methods are defined for the `Bound<'py, PyTuple>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
-#[doc(alias = "PyTuple")]
-pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// Gets the length of the tuple.
-    fn len(&self) -> usize;
+    pub fn len(self: &Bound<'py, Self>) -> usize {
+        unsafe {
+            #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+            let size = ffi::PyTuple_GET_SIZE(self.as_ptr());
+            #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
+            let size = ffi::PyTuple_Size(self.as_ptr());
+            // non-negative Py_ssize_t should always fit into Rust uint
+            size as usize
+        }
+    }
 
     /// Checks if the tuple is empty.
-    fn is_empty(&self) -> bool;
+    pub fn is_empty(self: &Bound<'py, Self>) -> bool {
+        self.len() == 0
+    }
 
     /// Returns `self` cast as a `PySequence`.
-    fn as_sequence(&self) -> &Bound<'py, PySequence>;
+    pub fn as_sequence(self: &Bound<'py, Self>) -> &Bound<'py, PySequence> {
+        unsafe { self.downcast_unchecked() }
+    }
 
     /// Returns `self` cast as a `PySequence`.
-    fn into_sequence(self) -> Bound<'py, PySequence>;
+    pub fn into_sequence(self: Bound<'py, Self>) -> Bound<'py, PySequence> {
+        unsafe { self.downcast_into_unchecked() }
+    }
 
     /// Takes the slice `self[low:high]` and returns it as a new tuple.
     ///
     /// Indices must be nonnegative, and out-of-range indices are clipped to
     /// `self.len()`.
-    fn get_slice(&self, low: usize, high: usize) -> Bound<'py, PyTuple>;
+    pub fn get_slice(self: &Bound<'py, Self>, low: usize, high: usize) -> Bound<'py, PyTuple> {
+        unsafe {
+            ffi::PyTuple_GetSlice(self.as_ptr(), get_ssize_index(low), get_ssize_index(high))
+                .assume_owned(self.py())
+                .downcast_into_unchecked()
+        }
+    }
 
     /// Gets the tuple item at the specified index.
     /// # Example
@@ -176,11 +186,18 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// })
     /// # }
     /// ```
-    fn get_item(&self, index: usize) -> PyResult<Bound<'py, PyAny>>;
+    pub fn get_item(self: &Bound<'py, Self>, index: usize) -> PyResult<Bound<'py, PyAny>> {
+        self.get_borrowed_item(index).map(Borrowed::to_owned)
+    }
 
-    /// Like [`get_item`][PyTupleMethods::get_item], but returns a borrowed object, which is a slight performance optimization
+    /// Like [`get_item`][PyTuple::get_item], but returns a borrowed object, which is a slight performance optimization
     /// by avoiding a reference count change.
-    fn get_borrowed_item<'a>(&'a self, index: usize) -> PyResult<Borrowed<'a, 'py, PyAny>>;
+    pub fn get_borrowed_item<'a>(
+        self: &'a Bound<'py, Self>,
+        index: usize,
+    ) -> PyResult<Borrowed<'a, 'py, PyAny>> {
+        self.as_borrowed().get_borrowed_item(index)
+    }
 
     /// Gets the tuple item at the specified index. Undefined behavior on bad index. Use with caution.
     ///
@@ -188,131 +205,70 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     ///
     /// Caller must verify that the index is within the bounds of the tuple.
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-    unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny>;
+    pub unsafe fn get_item_unchecked(self: &Bound<'py, Self>, index: usize) -> Bound<'py, PyAny> {
+        self.get_borrowed_item_unchecked(index).to_owned()
+    }
 
-    /// Like [`get_item_unchecked`][PyTupleMethods::get_item_unchecked], but returns a borrowed object,
+    /// Like [`get_item_unchecked`][PyTuple::get_item_unchecked], but returns a borrowed object,
     /// which is a slight performance optimization by avoiding a reference count change.
     ///
     /// # Safety
     ///
     /// Caller must verify that the index is within the bounds of the tuple.
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-    unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny>;
-
-    /// Returns `self` as a slice of objects.
-    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
-    fn as_slice(&self) -> &[Bound<'py, PyAny>];
-
-    /// Determines if self contains `value`.
-    ///
-    /// This is equivalent to the Python expression `value in self`.
-    fn contains<V>(&self, value: V) -> PyResult<bool>
-    where
-        V: IntoPyObject<'py>;
-
-    /// Returns the first index `i` for which `self[i] == value`.
-    ///
-    /// This is equivalent to the Python expression `self.index(value)`.
-    fn index<V>(&self, value: V) -> PyResult<usize>
-    where
-        V: IntoPyObject<'py>;
-
-    /// Returns an iterator over the tuple items.
-    fn iter(&self) -> BoundTupleIterator<'py>;
-
-    /// Like [`iter`][PyTupleMethods::iter], but produces an iterator which returns borrowed objects,
-    /// which is a slight performance optimization by avoiding a reference count change.
-    fn iter_borrowed<'a>(&'a self) -> BorrowedTupleIterator<'a, 'py>;
-
-    /// Return a new list containing the contents of this tuple; equivalent to the Python expression `list(tuple)`.
-    ///
-    /// This method is equivalent to `self.as_sequence().to_list()` and faster than `PyList::new(py, self)`.
-    fn to_list(&self) -> Bound<'py, PyList>;
-}
-
-impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
-    fn len(&self) -> usize {
-        unsafe {
-            #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-            let size = ffi::PyTuple_GET_SIZE(self.as_ptr());
-            #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
-            let size = ffi::PyTuple_Size(self.as_ptr());
-            // non-negative Py_ssize_t should always fit into Rust uint
-            size as usize
-        }
-    }
-
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    fn as_sequence(&self) -> &Bound<'py, PySequence> {
-        unsafe { self.downcast_unchecked() }
-    }
-
-    fn into_sequence(self) -> Bound<'py, PySequence> {
-        unsafe { self.into_any().downcast_into_unchecked() }
-    }
-
-    fn get_slice(&self, low: usize, high: usize) -> Bound<'py, PyTuple> {
-        unsafe {
-            ffi::PyTuple_GetSlice(self.as_ptr(), get_ssize_index(low), get_ssize_index(high))
-                .assume_owned(self.py())
-                .downcast_into_unchecked()
-        }
-    }
-
-    fn get_item(&self, index: usize) -> PyResult<Bound<'py, PyAny>> {
-        self.get_borrowed_item(index).map(Borrowed::to_owned)
-    }
-
-    fn get_borrowed_item<'a>(&'a self, index: usize) -> PyResult<Borrowed<'a, 'py, PyAny>> {
-        self.as_borrowed().get_borrowed_item(index)
-    }
-
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-    unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny> {
-        self.get_borrowed_item_unchecked(index).to_owned()
-    }
-
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-    unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny> {
+    pub unsafe fn get_borrowed_item_unchecked<'a>(
+        self: &'a Bound<'py, Self>,
+        index: usize,
+    ) -> Borrowed<'a, 'py, PyAny> {
         self.as_borrowed().get_borrowed_item_unchecked(index)
     }
 
+    /// Returns `self` as a slice of objects.
     #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
-    fn as_slice(&self) -> &[Bound<'py, PyAny>] {
+    pub fn as_slice(self: &Bound<'py, Self>) -> &[Bound<'py, PyAny>] {
         // SAFETY: self is known to be a tuple object, and tuples are immutable
         let items = unsafe { &(*self.as_ptr().cast::<ffi::PyTupleObject>()).ob_item };
         // SAFETY: Bound<'py, PyAny> has the same memory layout as *mut ffi::PyObject
         unsafe { std::slice::from_raw_parts(items.as_ptr().cast(), self.len()) }
     }
 
+    /// Determines if self contains `value`.
+    ///
+    /// This is equivalent to the Python expression `value in self`.
     #[inline]
-    fn contains<V>(&self, value: V) -> PyResult<bool>
+    pub fn contains<V>(self: &Bound<'py, Self>, value: V) -> PyResult<bool>
     where
         V: IntoPyObject<'py>,
     {
         self.as_sequence().contains(value)
     }
 
+    /// Returns the first index `i` for which `self[i] == value`.
+    ///
+    /// This is equivalent to the Python expression `self.index(value)`.
     #[inline]
-    fn index<V>(&self, value: V) -> PyResult<usize>
+    pub fn index<V>(self: &Bound<'py, Self>, value: V) -> PyResult<usize>
     where
         V: IntoPyObject<'py>,
     {
         self.as_sequence().index(value)
     }
 
-    fn iter(&self) -> BoundTupleIterator<'py> {
+    /// Returns an iterator over the tuple items.
+    pub fn iter(self: &Bound<'py, Self>) -> BoundTupleIterator<'py> {
         BoundTupleIterator::new(self.clone())
     }
 
-    fn iter_borrowed<'a>(&'a self) -> BorrowedTupleIterator<'a, 'py> {
+    /// Like [`iter`][PyTuple::iter], but produces an iterator which returns borrowed objects,
+    /// which is a slight performance optimization by avoiding a reference count change.
+    pub fn iter_borrowed<'a>(self: &'a Bound<'py, Self>) -> BorrowedTupleIterator<'a, 'py> {
         self.as_borrowed().iter_borrowed()
     }
 
-    fn to_list(&self) -> Bound<'py, PyList> {
+    /// Return a new list containing the contents of this tuple; equivalent to the Python expression `list(tuple)`.
+    ///
+    /// This method is equivalent to `self.as_sequence().to_list()` and faster than `PyList::new(py, self)`.
+    pub fn to_list(self: &Bound<'py, Self>) -> Bound<'py, PyList> {
         self.as_sequence()
             .to_list()
             .expect("failed to convert tuple to list")
@@ -1057,7 +1013,7 @@ tuple_conversion!(
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{any::PyAnyMethods, tuple::PyTupleMethods, PyList, PyTuple};
+    use crate::types::{any::PyAnyMethods, PyList, PyTuple};
     use crate::{IntoPyObject, Python};
     use std::collections::HashSet;
     #[cfg(feature = "nightly")]

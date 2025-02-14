@@ -77,6 +77,7 @@ pyo3 = { version = "0.23.3", features = ["extension-module"] }
 **`src/lib.rs`**
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 
 /// Formats the sum of two numbers as string.
@@ -147,6 +148,7 @@ features = ["auto-initialize"]
 Example program displaying the value of `sys.version` and the current user name:
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use pyo3::ffi::c_str;

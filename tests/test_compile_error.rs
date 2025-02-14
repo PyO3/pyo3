@@ -1,4 +1,5 @@
 #![cfg(feature = "macros")]
+#![feature(arbitrary_self_types)]
 
 #[cfg(not(target_arch = "wasm32"))] // Not possible to invoke compiler from wasm
 #[test]

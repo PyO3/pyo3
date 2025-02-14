@@ -1,4 +1,5 @@
 #![cfg(not(Py_LIMITED_API))]
+#![feature(arbitrary_self_types)]
 
 use pyo3::types::{timezone_utc, IntoPyDict, PyDate, PyDateTime, PyTime};
 use pyo3::{ffi, prelude::*};

@@ -22,6 +22,7 @@
 //! Rust code to create a function that parses a UUID string and returns it as a `Uuid`:
 //!
 //! ```rust
+//! #![feature(arbitrary_self_types)]
 //! use pyo3::prelude::*;
 //! use pyo3::exceptions::PyValueError;
 //! use uuid::Uuid;
@@ -83,7 +84,7 @@ impl FromPyObject<'_> for Uuid {
         let py = obj.py();
         let uuid_cls = get_uuid_cls(py)?;
 
-        if obj.is_instance(uuid_cls)? {
+        if obj.is_instance(uuid_cls.as_any())? {
             let uuid_int: u128 = obj.getattr(intern!(py, "int"))?.extract()?;
             Ok(Uuid::from_u128(uuid_int.to_le()))
         } else {
@@ -117,7 +118,6 @@ impl<'py> IntoPyObject<'py> for &Uuid {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::dict::PyDictMethods;
     use crate::types::PyDict;
     use std::ffi::CString;
     use uuid::Uuid;

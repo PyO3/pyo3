@@ -22,6 +22,7 @@
         non_local_definitions,
     )
 )))]
+#![feature(arbitrary_self_types)]
 
 //! Rust bindings to the Python interpreter.
 //!
@@ -185,6 +186,7 @@
 //!
 //! **`src/lib.rs`**
 //! ```rust
+//! #![feature(arbitrary_self_types)]
 //! use pyo3::prelude::*;
 //!
 //! /// Formats the sum of two numbers as string.

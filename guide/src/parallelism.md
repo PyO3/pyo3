@@ -137,6 +137,7 @@ In the example below, we share a `Vec` of User ID objects defined using the
 of booleans based on a predicate using a rayon parallel iterator:
 
 ```rust,no_run
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 
 // These traits let us use int_par_iter and map

@@ -44,7 +44,7 @@ unsafe impl PyTypeInfo for PyEllipsis {
 
     #[inline]
     fn is_exact_type_of(object: &Bound<'_, PyAny>) -> bool {
-        object.is(&**Self::get(object.py()))
+        object.is(&*Self::get(object.py()))
     }
 }
 

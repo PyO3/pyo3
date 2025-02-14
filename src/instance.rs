@@ -4,8 +4,8 @@ use crate::impl_::pycell::PyClassObject;
 use crate::internal_tricks::ptr_from_ref;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
-use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
-use crate::types::{DerefToPyAny, PyDict, PyString, PyTuple};
+use crate::types::any::PyAnyMethods;
+use crate::types::{PyDict, PyString, PyTuple};
 use crate::{
     ffi, AsPyPointer, DowncastError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef,
     PyRefMut, PyTypeInfo, Python,
@@ -75,6 +75,7 @@ where
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     ///
     /// #[pyclass]
@@ -234,6 +235,7 @@ where
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::prelude::*;
     /// #
     /// #[pyclass]
@@ -270,6 +272,7 @@ where
     /// # Examples
     ///
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::prelude::*;
     /// #
     /// #[pyclass]
@@ -333,6 +336,7 @@ where
     /// # Examples
     ///
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// use std::sync::atomic::{AtomicUsize, Ordering};
     /// # use pyo3::prelude::*;
     ///
@@ -375,6 +379,7 @@ where
     /// # Example: Calling a method defined on the `Bound` base type
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// # fn main() {
     /// use pyo3::prelude::*;
     ///
@@ -427,6 +432,7 @@ where
     /// # Example: Calling a method defined on the `Bound` base type
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// # fn main() {
     /// use pyo3::prelude::*;
     ///
@@ -497,19 +503,8 @@ fn python_format(
     }
 }
 
-// The trait bound is needed to avoid running into the auto-deref recursion
-// limit (error[E0055]), because `Bound<PyAny>` would deref into itself. See:
-// https://github.com/rust-lang/rust/issues/19509
-impl<'py, T> Deref for Bound<'py, T>
-where
-    T: DerefToPyAny,
-{
-    type Target = Bound<'py, PyAny>;
-
-    #[inline]
-    fn deref(&self) -> &Bound<'py, PyAny> {
-        self.as_any()
-    }
+impl<T> std::ops::Receiver for Bound<'_, T> {
+    type Target = T;
 }
 
 impl<'py, T> AsRef<Bound<'py, PyAny>> for Bound<'py, T> {
@@ -657,6 +652,7 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
     ///
     /// # Example
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::{prelude::*, types::PyTuple};
     ///
     /// # fn main() -> PyResult<()> {
@@ -894,6 +890,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// For example, this won't compile:
 ///
 /// ```compile_fail
+/// #![feature(arbitrary_self_types)]
 /// # use pyo3::prelude::*;
 /// # use pyo3::types::PyDict;
 /// #
@@ -925,6 +922,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// [`Py`]`<T>` can be used to get around this by converting `dict` into a GIL-independent reference:
 ///
 /// ```rust
+/// #![feature(arbitrary_self_types)]
 /// use pyo3::prelude::*;
 /// use pyo3::types::PyDict;
 ///
@@ -960,6 +958,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 ///
 /// This can also be done with other pyclasses:
 /// ```rust
+/// #![feature(arbitrary_self_types)]
 /// use pyo3::prelude::*;
 ///
 /// #[pyclass]
@@ -1083,6 +1082,7 @@ where
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::prelude::*;
     ///
     /// #[pyclass]
@@ -1159,6 +1159,7 @@ where
     /// # Examples
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::prelude::*;
     /// #
     /// #[pyclass]
@@ -1197,6 +1198,7 @@ where
     /// # Examples
     ///
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::prelude::*;
     /// #
     /// #[pyclass]
@@ -1267,6 +1269,7 @@ where
     /// # Examples
     ///
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// use std::sync::atomic::{AtomicUsize, Ordering};
     /// # use pyo3::prelude::*;
     ///
@@ -1945,6 +1948,7 @@ impl PyObject {
     /// might actually be a pyclass.
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// # fn main() -> Result<(), pyo3::PyErr> {
     /// use pyo3::prelude::*;
     ///
@@ -2023,7 +2027,6 @@ mod tests {
     #[test]
     fn test_call_tuple_ref() {
         let assert_repr = |obj: &Bound<'_, PyAny>, expected: &str| {
-            use crate::prelude::PyStringMethods;
             assert_eq!(
                 obj.repr()
                     .unwrap()

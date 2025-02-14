@@ -1,4 +1,5 @@
 #![cfg(feature = "macros")]
+#![feature(arbitrary_self_types)]
 
 //! Ensure that pyo3 macros can be used inside macro_rules!
 

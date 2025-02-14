@@ -1,5 +1,6 @@
 #![cfg(feature = "macros")]
 #![cfg(any(not(Py_LIMITED_API), Py_3_11))]
+#![feature(arbitrary_self_types)]
 
 use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::PyBufferError;
@@ -78,7 +79,7 @@ fn test_buffer_referenced() {
             .into_pyobject(py)
             .unwrap();
 
-            let buf = PyBuffer::<u8>::get(&instance).unwrap();
+            let buf = PyBuffer::<u8>::get(instance.as_any()).unwrap();
             assert_eq!(buf.to_vec(py).unwrap(), input);
             drop(instance);
             buf
