@@ -1,4 +1,3 @@
-#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::{ffi, types::any::PyAnyMethods, Bound, PyAny, Python};
 
