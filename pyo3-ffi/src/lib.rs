@@ -410,6 +410,8 @@ pub use self::enumobject::*;
 pub use self::fileobject::*;
 pub use self::fileutils::*;
 pub use self::floatobject::*;
+#[cfg(Py_3_9)]
+pub use self::genericaliasobject::*;
 pub use self::import::*;
 pub use self::intrcheck::*;
 pub use self::iterobject::*;
@@ -479,7 +481,7 @@ mod fileobject;
 mod fileutils;
 mod floatobject;
 // skipped empty frameobject.h
-// skipped genericaliasobject.h
+mod genericaliasobject;
 mod import;
 // skipped interpreteridobject.h
 mod intrcheck;
