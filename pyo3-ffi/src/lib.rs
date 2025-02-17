@@ -481,7 +481,6 @@ mod fileobject;
 mod fileutils;
 mod floatobject;
 // skipped empty frameobject.h
-#[cfg(Py_3_9)]
 mod genericaliasobject;
 mod import;
 // skipped interpreteridobject.h
