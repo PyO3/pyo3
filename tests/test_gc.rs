@@ -632,18 +632,7 @@ fn test_traverse_subclass() {
             check.assert_not_dropped();
         }
 
-        #[cfg(not(Py_GIL_DISABLED))]
-        {
-            // FIXME: seems like a bug that this is flaky on the free-threaded build
-            // https://github.com/PyO3/pyo3/issues/4627
-            check.assert_drops_with_gc(ptr);
-        }
-
-        #[cfg(Py_GIL_DISABLED)]
-        {
-            // silence unused ptr warning
-            let _ = ptr;
-        }
+        check.assert_drops_with_gc(ptr);
     });
 }
 
@@ -690,18 +679,7 @@ fn test_traverse_subclass_override_clear() {
             check.assert_not_dropped();
         }
 
-        #[cfg(not(Py_GIL_DISABLED))]
-        {
-            // FIXME: seems like a bug that this is flaky on the free-threaded build
-            // https://github.com/PyO3/pyo3/issues/4627
-            check.assert_drops_with_gc(ptr);
-        }
-
-        #[cfg(Py_GIL_DISABLED)]
-        {
-            // silence unused ptr warning
-            let _ = ptr;
-        }
+        check.assert_drops_with_gc(ptr);
     });
 }
 
