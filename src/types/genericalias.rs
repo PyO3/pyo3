@@ -5,14 +5,17 @@ use crate::{ffi, types::any::PyAnyMethods, Bound, PyAny, Python};
 ///
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyGenericAlias>`][crate::Py] or [`Bound<'py, PyGenericAlias>`][Bound].
+///
+/// This type is particularly convenient for users implementing
+/// [`__class_getitem__`](https://docs.python.org/3/reference/datamodel.html#object.__class_getitem__)
+/// for PyO3 classes to allow runtime parameterization.
 #[repr(transparent)]
 pub struct PyGenericAlias(PyAny);
 
 pyobject_native_type!(
     PyGenericAlias,
     ffi::PyDictObject,
-    pyobject_native_static_type_object!(ffi::Py_GenericAliasType),
-    #checkfunction=ffi::PyGenericAlias_Check
+    pyobject_native_static_type_object!(ffi::Py_GenericAliasType)
 );
 
 impl PyGenericAlias {
