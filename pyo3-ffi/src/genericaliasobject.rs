@@ -1,3 +1,4 @@
+#[cfg(Py_3_9)]
 use crate::object::{PyObject, PyTypeObject};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
