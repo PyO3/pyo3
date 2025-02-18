@@ -458,6 +458,20 @@ pub fn with_critical_section<F, R>(object: &Bound<'_, PyAny>, f: F) -> R
 where
     F: FnOnce() -> R,
 {
+    unsafe { with_critical_section_ptr(object.as_ptr(), f) }
+}
+
+/// like with_critical_section, but accepts a raw FFI pointer.
+///
+/// See the docs for with_critical_section for more details
+///
+/// # Safety
+/// object must be a valid non-null pointer to an object
+#[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
+pub unsafe fn with_critical_section_ptr<F, R>(object: *mut crate::ffi::PyObject, f: F) -> R
+where
+    F: FnOnce() -> R,
+{
     #[cfg(Py_GIL_DISABLED)]
     {
         struct Guard(crate::ffi::PyCriticalSection);
@@ -471,7 +485,7 @@ where
         }
 
         let mut guard = Guard(unsafe { std::mem::zeroed() });
-        unsafe { crate::ffi::PyCriticalSection_Begin(&mut guard.0, object.as_ptr()) };
+        unsafe { crate::ffi::PyCriticalSection_Begin(&mut guard.0, object) };
         f()
     }
     #[cfg(not(Py_GIL_DISABLED))]
