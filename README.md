@@ -226,6 +226,7 @@ about this topic.
 - [river](https://github.com/online-ml/river) _Online machine learning in python, the computationally heavy statistics algorithms are implemented in Rust._
 - [robyn](https://github.com/sparckles/Robyn) A Super Fast Async Python Web Framework with a Rust runtime.
 - [rust-python-coverage](https://github.com/cjermain/rust-python-coverage) _Example PyO3 project with automated test coverage for Rust and Python._
+- [rnet](https://github.com/0x676e67/rnet) Asynchronous Python HTTP Client with Black Magic
 - [sail](https://github.com/lakehq/sail) _Unifying stream, batch, and AI workloads with Apache Spark compatibility._
 - [tiktoken](https://github.com/openai/tiktoken) _A fast BPE tokeniser for use with OpenAI's models._
 - [tokenizers](https://github.com/huggingface/tokenizers/tree/main/bindings/python) _Python bindings to the Hugging Face tokenizers (NLP) written in Rust._
