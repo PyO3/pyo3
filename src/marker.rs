@@ -1018,4 +1018,46 @@ mod tests {
             assert!(matches!(namespace.get_item("__builtins__"), Ok(Some(..))));
         })
     }
+
+    #[cfg(feature = "macros")]
+    #[test]
+    fn test_py_run_inserts_globals_2() {
+        #[crate::pyclass(crate = "crate")]
+        #[derive(Clone)]
+        struct CodeRunner {
+            code: CString,
+        }
+
+        impl CodeRunner {
+            fn reproducer(&mut self, py: Python<'_>) -> PyResult<()> {
+                let variables = PyDict::new(py);
+                variables.set_item("cls", Py::new(py, self.clone())?)?;
+
+                py.run(self.code.as_c_str(), Some(&variables), None)?;
+                Ok(())
+            }
+        }
+
+        #[crate::pymethods(crate = "crate")]
+        impl CodeRunner {
+            fn func(&mut self, py: Python<'_>) -> PyResult<()> {
+                py.import("math")?;
+                Ok(())
+            }
+        }
+
+        let mut runner = CodeRunner {
+            code: CString::new(
+                r#"
+cls.func()
+"#
+                .to_string(),
+            )
+            .unwrap(),
+        };
+
+        Python::with_gil(|py| {
+            runner.reproducer(py).unwrap();
+        });
+    }
 }
