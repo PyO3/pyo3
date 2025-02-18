@@ -30,6 +30,7 @@
 //! about a list of numbers. Because of the insertion order guarantees, the Python code will
 //! always print the same result, matching users' expectations about Python's dict.
 //! ```rust
+//! #![feature(arbitrary_self_types)]
 //! use indexmap::{indexmap, IndexMap};
 //! use pyo3::prelude::*;
 //!

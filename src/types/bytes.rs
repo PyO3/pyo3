@@ -13,9 +13,6 @@ use std::str;
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyBytes>`][crate::Py] or [`Bound<'py, PyBytes>`][Bound].
 ///
-/// For APIs available on `bytes` objects, see the [`PyBytesMethods`] trait which is implemented for
-/// [`Bound<'py, PyBytes>`][Bound].
-///
 /// # Equality
 ///
 /// For convenience, [`Bound<'py, PyBytes>`][Bound] implements [`PartialEq<[u8]>`][PartialEq] to allow comparing the
@@ -49,12 +46,12 @@ pub struct PyBytes(PyAny);
 
 pyobject_native_type_core!(PyBytes, pyobject_native_static_type_object!(ffi::PyBytes_Type), #checkfunction=ffi::PyBytes_Check);
 
-impl PyBytes {
+impl<'py> PyBytes {
     /// Creates a new Python bytestring object.
     /// The bytestring is initialized by copying the data from the `&[u8]`.
     ///
     /// Panics if out of memory.
-    pub fn new<'p>(py: Python<'p>, s: &[u8]) -> Bound<'p, PyBytes> {
+    pub fn new(py: Python<'py>, s: &[u8]) -> Bound<'py, PyBytes> {
         let ptr = s.as_ptr().cast();
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
@@ -67,7 +64,7 @@ impl PyBytes {
     /// Deprecated name for [`PyBytes::new`].
     #[deprecated(since = "0.23.0", note = "renamed to `PyBytes::new`")]
     #[inline]
-    pub fn new_bound<'p>(py: Python<'p>, s: &[u8]) -> Bound<'p, PyBytes> {
+    pub fn new_bound(py: Python<'py>, s: &[u8]) -> Bound<'py, PyBytes> {
         Self::new(py, s)
     }
 
@@ -153,22 +150,10 @@ impl PyBytes {
     pub unsafe fn bound_from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> Bound<'_, PyBytes> {
         Self::from_ptr(py, ptr, len)
     }
-}
 
-/// Implementation of functionality for [`PyBytes`].
-///
-/// These methods are defined for the `Bound<'py, PyBytes>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
-#[doc(alias = "PyBytes")]
-pub trait PyBytesMethods<'py>: crate::sealed::Sealed {
-    /// Gets the Python string as a byte slice.
-    fn as_bytes(&self) -> &[u8];
-}
-
-impl<'py> PyBytesMethods<'py> for Bound<'py, PyBytes> {
     #[inline]
-    fn as_bytes(&self) -> &[u8] {
+    /// Gets the Python string as a byte slice.
+    pub fn as_bytes(self: &Bound<'py, Self>) -> &[u8] {
         self.as_borrowed().as_bytes()
     }
 }

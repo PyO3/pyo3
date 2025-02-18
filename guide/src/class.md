@@ -23,6 +23,7 @@ This chapter will discuss the functionality and configuration these attributes o
 
 To define a custom Python class, add the `#[pyclass]` attribute to a Rust struct or enum.
 ```rust
+#![feature(arbitrary_self_types)]
 # #![allow(dead_code)]
 use pyo3::prelude::*;
 
@@ -90,6 +91,7 @@ A Rust `struct Foo<T>` with a generic parameter `T` generates new compiled imple
 Currently, the best alternative is to write a macro which expands to a new `#[pyclass]` for each instantiation you want:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # #![allow(dead_code)]
 use pyo3::prelude::*;
 
@@ -134,6 +136,7 @@ To declare a constructor, you need to define a method and annotate it with the `
 attribute. Only Python's `__new__` method can be specified, `__init__` is not available.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # #[pyclass]
@@ -151,6 +154,7 @@ impl Number {
 Alternatively, if your `new` method may fail you can return `PyResult<Self>`.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use pyo3::exceptions::PyValueError;
@@ -186,6 +190,7 @@ For arguments, see the [`Method arguments`](#method-arguments) section below.
 The next step is to create the module initializer and add our class to it:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # #[pyclass]
@@ -215,6 +220,7 @@ For users who are not very familiar with `RefCell<T>`, here is a reminder of Rus
 `Py<T>` and `Bound<'py, T>`, like `RefCell<T>`, ensure these borrowing rules by tracking references at runtime.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #[pyclass]
 struct MyClass {
@@ -246,6 +252,7 @@ A `Bound<'py, T>` is restricted to the GIL lifetime `'py`. To make the object lo
 Rust side), use `Py<T>`. `Py<T>` needs a `Python<'_>` token to allow access:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #[pyclass]
 struct MyClass {
@@ -272,6 +279,7 @@ As detailed above, runtime borrow checking is currently enabled by default. But 
 Classes which are `frozen` and also `Sync`, e.g. they do use `Mutex` but not `RefCell`, can be accessed without needing the Python GIL via the `Bound::get` and `Py::get` methods:
 
 ```rust
+#![feature(arbitrary_self_types)]
 use std::sync::atomic::{AtomicUsize, Ordering};
 # use pyo3::prelude::*;
 
@@ -339,6 +347,7 @@ inheritance hierarchy, for which you would need to chain multiple `as_super` or
 `into_super` calls.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 
 #[pyclass(subclass)]
@@ -449,6 +458,7 @@ To convert between the Rust type and its native base class, you can take
 `slf.borrow_mut()`, and to access the base class use `slf.downcast::<BaseClass>()`.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # #[cfg(not(Py_LIMITED_API))] {
 # use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -482,6 +492,7 @@ impl DictWithCounter {
 
 If `SubClass` does not provide a base class initialization, the compilation fails.
 ```rust,compile_fail
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 
 #[pyclass]
@@ -509,6 +520,7 @@ creating a new instance from Python.  Be sure to accept arguments in the
 in that `fn`:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # #[allow(dead_code)]
 # #[cfg(not(Py_LIMITED_API))] {
 # use pyo3::prelude::*;
@@ -552,6 +564,7 @@ We'll cover each of these in the following sections.
 For simple cases where a member variable is just read and written with no side effects, you can declare getters and setters in your `#[pyclass]` field definition using the `pyo3` attribute, like in the example below:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
 #[pyclass]
@@ -578,6 +591,7 @@ For cases which don't satisfy the `#[pyo3(get, set)]` trait requirements, or nee
 This is done using the `#[getter]` and `#[setter]` attributes, like in the example below:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #[pyclass]
 struct MyClass {
@@ -603,6 +617,7 @@ Rust keywords like `type`
 can be used since Rust 2018).
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -629,6 +644,7 @@ Both the `#[getter]` and `#[setter]` attributes accept one parameter.
 If this parameter is specified, it is used as the property name, i.e.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -666,6 +682,7 @@ between those accessible to Python (and Rust) and those accessible only to Rust.
 `#[pymethods]`-annotated `impl` blocks for the same struct you must enable the [`multiple-pymethods`] feature of PyO3.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -692,6 +709,7 @@ A `Python` parameter can be specified as part of method signature, in this case 
 gets injected by the method wrapper, e.g.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -715,6 +733,7 @@ with the `#[classmethod]` attribute.
 This is the equivalent of the Python decorator `@classmethod`.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyType;
 # #[pyclass]
@@ -743,6 +762,7 @@ Declares a class method callable from Python.
 
 To create a constructor which takes a positional class argument, you can combine the `#[classmethod]` and `#[new]` modifiers:
 ```rust
+#![feature(arbitrary_self_types)]
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyType;
@@ -768,6 +788,7 @@ To create a static method for a custom class, the method needs to be annotated w
 `IntoPy<PyObject>`.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -789,6 +810,7 @@ To create a class attribute (also called [class variable][classattr]), a method 
 any arguments can be annotated with the `#[classattr]` attribute.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {}
@@ -813,6 +835,7 @@ If the class attribute is defined with `const` code only, one can also annotate 
 constants:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {}
@@ -828,6 +851,7 @@ impl MyClass {
 Free functions defined using `#[pyfunction]` interact with classes through the same mechanisms as the self parameters of instance methods, i.e. they can take GIL-bound references, GIL-bound reference wrappers or GIL-indepedent references:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 #[pyclass]
@@ -867,6 +891,7 @@ fn print_refcnt(my_class: Py<MyClass>, py: Python<'_>) {
 Classes can also be passed by value if they can be cloned, i.e. they automatically implement `FromPyObject` if they implement `Clone`, e.g. via `#[derive(Clone)]`:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 #[pyclass]
@@ -891,6 +916,7 @@ Similar to `#[pyfunction]`, the `#[pyo3(signature = (...))]` attribute can be us
 The following example defines a class `MyClass` with a method `method`. This method has a signature that sets default values for `num` and `name`, and indicates that `py_args` should collect all extra positional arguments and `py_kwargs` all extra keyword arguments:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 #
@@ -938,6 +964,7 @@ py_args=(), py_kwargs=None, name=World, num=-1, num_before=44
 The [`#[pyo3(text_signature = "...")`](./function/signature.md#overriding-the-generated-signature) option for `#[pyfunction]` also works for `#[pymethods]`.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # #![allow(dead_code)]
 use pyo3::prelude::*;
 use pyo3::types::PyType;
@@ -1086,6 +1113,7 @@ A simple enum (a.k.a. C-like enum) has only unit variants.
 PyO3 adds a class attribute for each variant, so you can access them in Python without defining `#[new]`. PyO3 also provides default implementations of `__richcmp__` and `__int__`, so they can be compared using `==`:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #[pyclass(eq, eq_int)]
 #[derive(PartialEq)]
@@ -1109,6 +1137,7 @@ Python::with_gil(|py| {
 You can also convert your simple enums into `int`:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #[pyclass(eq, eq_int)]
 #[derive(PartialEq)]
@@ -1130,6 +1159,7 @@ Python::with_gil(|py| {
 PyO3 also provides `__repr__` for enums:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #[pyclass(eq, eq_int)]
 #[derive(PartialEq)]
@@ -1151,6 +1181,7 @@ Python::with_gil(|py| {
 All methods defined by PyO3 can be overridden. For example here's how you override `__repr__`:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #[pyclass(eq, eq_int)]
 #[derive(PartialEq)]
@@ -1174,6 +1205,7 @@ Python::with_gil(|py| {
 Enums and their variants can also be renamed using `#[pyo3(name)]`.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #[pyclass(eq, eq_int, name = "RenamedEnum")]
 #[derive(PartialEq)]
@@ -1196,6 +1228,7 @@ Ordering of enum variants is optionally added using `#[pyo3(ord)]`.
 *Note: Implementation of the `PartialOrd` trait is required when passing the `ord` argument.  If not implemented, a compile time error is raised.*
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #[pyclass(eq, ord)]
 #[derive(PartialEq, PartialOrd)]
@@ -1221,6 +1254,7 @@ Python::with_gil(|py| {
 You may not use enums as a base class or let enums inherit from other classes.
 
 ```rust,compile_fail
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #[pyclass(subclass)]
 enum BadBase {
@@ -1229,6 +1263,7 @@ enum BadBase {
 ```
 
 ```rust,compile_fail
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 
 #[pyclass(subclass)]
@@ -1251,6 +1286,7 @@ PyO3 supports only struct and tuple variants in a complex enum. Unit variants ar
 PyO3 adds a class attribute for each variant, which may be used to construct values and in match patterns. PyO3 also provides getter methods for all fields of each variant.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #[pyclass]
 enum Shape {
@@ -1297,6 +1333,7 @@ Python::with_gil(|py| {
 WARNING: `Py::new` and `.into_pyobject` are currently inconsistent. Note how the constructed value is _not_ an instance of the specific variant. For this reason, constructing values is only recommended using `.into_pyobject`.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #[pyclass]
 enum MyEnum {
@@ -1317,6 +1354,7 @@ The constructor of each generated class can be customized using the `#[pyo3(cons
 attribute on function and methods and supports the same options. To apply this attribute simply place it on top of a variant in a `#[pyclass]` complex enum as shown below:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #[pyclass]
 enum Shape {
@@ -1364,6 +1402,7 @@ This simple technique works for the case when there is zero or one implementatio
 The `#[pyclass]` macro expands to roughly the code seen below. The `PyClassImplCollector` is the type used internally by PyO3 for dtolnay specialization:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # #[cfg(not(feature = "multiple-pymethods"))] {
 # use pyo3::prelude::*;
 // Note: the implementation differs slightly with the `multiple-pymethods` feature enabled.

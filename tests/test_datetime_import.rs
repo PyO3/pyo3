@@ -1,4 +1,5 @@
 #![cfg(not(Py_LIMITED_API))]
+#![feature(arbitrary_self_types)]
 
 use pyo3::{prelude::*, types::PyDate};
 use tempfile::Builder;

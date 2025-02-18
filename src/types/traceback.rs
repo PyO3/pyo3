@@ -1,14 +1,11 @@
 use crate::err::{error_on_minusone, PyResult};
-use crate::types::{any::PyAnyMethods, string::PyStringMethods, PyString};
+use crate::types::{any::PyAnyMethods, PyString};
 use crate::{ffi, Bound, PyAny};
 
 /// Represents a Python traceback.
 ///
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyTraceback>`][crate::Py] or [`Bound<'py, PyTraceback>`][Bound].
-///
-/// For APIs available on traceback objects, see the [`PyTracebackMethods`] trait which is implemented for
-/// [`Bound<'py, PyTraceback>`][Bound].
 #[repr(transparent)]
 pub struct PyTraceback(PyAny);
 
@@ -18,13 +15,7 @@ pyobject_native_type_core!(
     #checkfunction=ffi::PyTraceBack_Check
 );
 
-/// Implementation of functionality for [`PyTraceback`].
-///
-/// These methods are defined for the `Bound<'py, PyTraceback>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
-#[doc(alias = "PyTraceback")]
-pub trait PyTracebackMethods<'py>: crate::sealed::Sealed {
+impl<'py> PyTraceback {
     /// Formats the traceback as a string.
     ///
     /// This does not include the exception type and value. The exception type and value can be
@@ -35,7 +26,8 @@ pub trait PyTracebackMethods<'py>: crate::sealed::Sealed {
     /// The following code formats a Python traceback and exception pair from Rust:
     ///
     /// ```rust
-    /// # use pyo3::{Python, PyResult, prelude::PyTracebackMethods, ffi::c_str};
+    /// #![feature(arbitrary_self_types)]
+    /// # use pyo3::{Python, PyResult, ffi::c_str};
     /// # let result: PyResult<()> =
     /// Python::with_gil(|py| {
     ///     let err = py
@@ -56,11 +48,7 @@ pub trait PyTracebackMethods<'py>: crate::sealed::Sealed {
     /// # ;
     /// # result.expect("example failed");
     /// ```
-    fn format(&self) -> PyResult<String>;
-}
-
-impl<'py> PyTracebackMethods<'py> for Bound<'py, PyTraceback> {
-    fn format(&self) -> PyResult<String> {
+    pub fn format(self: &Bound<'py, Self>) -> PyResult<String> {
         let py = self.py();
         let string_io = py
             .import(intern!(py, "io"))?
@@ -83,7 +71,7 @@ mod tests {
     use crate::IntoPyObject;
     use crate::{
         ffi,
-        types::{any::PyAnyMethods, dict::PyDictMethods, traceback::PyTracebackMethods, PyDict},
+        types::{any::PyAnyMethods, PyDict},
         PyErr, Python,
     };
 

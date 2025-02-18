@@ -16,9 +16,6 @@ use std::os::raw::c_double;
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyFloat>`][crate::Py] or [`Bound<'py, PyFloat>`][Bound].
 ///
-/// For APIs available on `float` objects, see the [`PyFloatMethods`] trait which is implemented for
-/// [`Bound<'py, PyFloat>`][Bound].
-///
 /// You can usually avoid directly working with this type
 /// by using [`ToPyObject`] and [`extract`][PyAnyMethods::extract]
 /// with [`f32`]/[`f64`].
@@ -34,9 +31,9 @@ pyobject_native_type!(
     #checkfunction=ffi::PyFloat_Check
 );
 
-impl PyFloat {
+impl<'py> PyFloat {
     /// Creates a new Python `float` object.
-    pub fn new(py: Python<'_>, val: c_double) -> Bound<'_, PyFloat> {
+    pub fn new(py: Python<'py>, val: c_double) -> Bound<'py, PyFloat> {
         unsafe {
             ffi::PyFloat_FromDouble(val)
                 .assume_owned(py)
@@ -47,24 +44,12 @@ impl PyFloat {
     /// Deprecated name for [`PyFloat::new`].
     #[deprecated(since = "0.23.0", note = "renamed to `PyFloat::new`")]
     #[inline]
-    pub fn new_bound(py: Python<'_>, val: c_double) -> Bound<'_, PyFloat> {
+    pub fn new_bound(py: Python<'py>, val: c_double) -> Bound<'py, PyFloat> {
         Self::new(py, val)
     }
-}
 
-/// Implementation of functionality for [`PyFloat`].
-///
-/// These methods are defined for the `Bound<'py, PyFloat>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
-#[doc(alias = "PyFloat")]
-pub trait PyFloatMethods<'py>: crate::sealed::Sealed {
     /// Gets the value of this float.
-    fn value(&self) -> c_double;
-}
-
-impl<'py> PyFloatMethods<'py> for Bound<'py, PyFloat> {
-    fn value(&self) -> c_double {
+    pub fn value(self: &Bound<'py, Self>) -> c_double {
         #[cfg(not(Py_LIMITED_API))]
         unsafe {
             // Safety: self is PyFloat object
@@ -296,7 +281,7 @@ impl_partial_eq_for_float!(f32);
 mod tests {
     use crate::{
         conversion::IntoPyObject,
-        types::{PyAnyMethods, PyFloat, PyFloatMethods},
+        types::{PyAnyMethods, PyFloat},
         Python,
     };
 

@@ -26,4 +26,4 @@ error: `from_py_with` may only be specified once per argument
   --> tests/ui/invalid_argument_attributes.rs:16:56
    |
 16 | fn from_py_with_repeated(#[pyo3(from_py_with = "func", from_py_with = "func")] _param: String) {}
-   |                                                        ^^^^^^^^^^^^
+   |                                                        ^^^^^^^^^^^^^^^^^^^^^

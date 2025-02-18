@@ -573,6 +573,7 @@ impl<'py> Python<'py> {
     ///
     /// # Examples
     /// ```
+    /// #![feature(arbitrary_self_types)]
     /// use pyo3::{
     ///     prelude::*,
     ///     types::{PyBytes, PyDict},
@@ -1001,8 +1002,6 @@ mod tests {
 
     #[test]
     fn test_py_run_inserts_globals() {
-        use crate::types::dict::PyDictMethods;
-
         Python::with_gil(|py| {
             let namespace = PyDict::new(py);
             py.run(

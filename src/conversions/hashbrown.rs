@@ -20,9 +20,7 @@ use crate::{
     conversion::IntoPyObject,
     types::{
         any::PyAnyMethods,
-        dict::PyDictMethods,
-        frozenset::PyFrozenSetMethods,
-        set::{new_from_iter, try_new_from_iter, PySetMethods},
+        set::{new_from_iter, try_new_from_iter},
         PyDict, PyFrozenSet, PySet,
     },
     Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python,

@@ -108,8 +108,6 @@ impl FromPyObject<'_> for OsString {
 
         #[cfg(windows)]
         {
-            use crate::types::string::PyStringMethods;
-
             // Take the quick and easy shortcut if UTF-8
             if let Ok(utf8_string) = pystring.to_cow() {
                 return Ok(utf8_string.into_owned().into());
@@ -228,7 +226,7 @@ impl<'py> IntoPyObject<'py> for &OsString {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{PyAnyMethods, PyString, PyStringMethods};
+    use crate::types::{PyAnyMethods, PyString};
     use crate::{BoundObject, IntoPyObject, Python};
     use std::fmt::Debug;
     use std::{

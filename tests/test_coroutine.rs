@@ -1,5 +1,6 @@
 #![cfg(feature = "experimental-async")]
 #![cfg(not(target_arch = "wasm32"))]
+#![feature(arbitrary_self_types)]
 use std::{ffi::CString, task::Poll, thread, time::Duration};
 
 use futures::{channel::oneshot, future::poll_fn, FutureExt};

@@ -88,6 +88,7 @@ pub trait ToPyObject {
 /// by annotating it with [`#[pyclass]`](crate::prelude::pyclass).
 ///
 /// ```rust
+/// #![feature(arbitrary_self_types)]
 /// use pyo3::prelude::*;
 ///
 /// # #[allow(dead_code)]

@@ -15,9 +15,6 @@ use std::ptr;
 ///
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PySet>`][crate::Py] or [`Bound<'py, PySet>`][Bound].
-///
-/// For APIs available on `set` objects, see the [`PySetMethods`] trait which is implemented for
-/// [`Bound<'py, PySet>`][Bound].
 #[repr(transparent)]
 pub struct PySet(PyAny);
 
@@ -39,12 +36,12 @@ pyobject_native_type_core!(
     #checkfunction=ffi::PySet_Check
 );
 
-impl PySet {
+impl<'py> PySet {
     /// Creates a new set with elements from the given slice.
     ///
     /// Returns an error if some element is not hashable.
     #[inline]
-    pub fn new<'py, T>(
+    pub fn new<T>(
         py: Python<'py>,
         elements: impl IntoIterator<Item = T>,
     ) -> PyResult<Bound<'py, PySet>>
@@ -58,15 +55,15 @@ impl PySet {
     #[deprecated(since = "0.23.0", note = "renamed to `PySet::new`")]
     #[allow(deprecated)]
     #[inline]
-    pub fn new_bound<'a, 'p, T: ToPyObject + 'a>(
-        py: Python<'p>,
+    pub fn new_bound<'a, T: ToPyObject + 'a>(
+        py: Python<'py>,
         elements: impl IntoIterator<Item = &'a T>,
-    ) -> PyResult<Bound<'p, PySet>> {
+    ) -> PyResult<Bound<'py, PySet>> {
         Self::new(py, elements.into_iter().map(|e| e.to_object(py)))
     }
 
     /// Creates a new empty set.
-    pub fn empty(py: Python<'_>) -> PyResult<Bound<'_, PySet>> {
+    pub fn empty(py: Python<'py>) -> PyResult<Bound<'py, PySet>> {
         unsafe {
             ffi::PySet_New(ptr::null_mut())
                 .assume_owned_or_err(py)
@@ -77,75 +74,35 @@ impl PySet {
     /// Deprecated name for [`PySet::empty`].
     #[deprecated(since = "0.23.0", note = "renamed to `PySet::empty`")]
     #[inline]
-    pub fn empty_bound(py: Python<'_>) -> PyResult<Bound<'_, PySet>> {
+    pub fn empty_bound(py: Python<'py>) -> PyResult<Bound<'py, PySet>> {
         Self::empty(py)
     }
-}
 
-/// Implementation of functionality for [`PySet`].
-///
-/// These methods are defined for the `Bound<'py, PySet>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
-#[doc(alias = "PySet")]
-pub trait PySetMethods<'py>: crate::sealed::Sealed {
     /// Removes all elements from the set.
-    fn clear(&self);
+    #[inline]
+    pub fn clear(self: &Bound<'py, Self>) {
+        unsafe {
+            ffi::PySet_Clear(self.as_ptr());
+        }
+    }
 
     /// Returns the number of items in the set.
     ///
     /// This is equivalent to the Python expression `len(self)`.
-    fn len(&self) -> usize;
+    #[inline]
+    pub fn len(self: &Bound<'py, Self>) -> usize {
+        unsafe { ffi::PySet_Size(self.as_ptr()) as usize }
+    }
 
     /// Checks if set is empty.
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(self: &Bound<'py, Self>) -> bool {
         self.len() == 0
     }
 
     /// Determines if the set contains the specified key.
     ///
     /// This is equivalent to the Python expression `key in self`.
-    fn contains<K>(&self, key: K) -> PyResult<bool>
-    where
-        K: IntoPyObject<'py>;
-
-    /// Removes the element from the set if it is present.
-    ///
-    /// Returns `true` if the element was present in the set.
-    fn discard<K>(&self, key: K) -> PyResult<bool>
-    where
-        K: IntoPyObject<'py>;
-
-    /// Adds an element to the set.
-    fn add<K>(&self, key: K) -> PyResult<()>
-    where
-        K: IntoPyObject<'py>;
-
-    /// Removes and returns an arbitrary element from the set.
-    fn pop(&self) -> Option<Bound<'py, PyAny>>;
-
-    /// Returns an iterator of values in this set.
-    ///
-    /// # Panics
-    ///
-    /// If PyO3 detects that the set is mutated during iteration, it will panic.
-    fn iter(&self) -> BoundSetIterator<'py>;
-}
-
-impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
-    #[inline]
-    fn clear(&self) {
-        unsafe {
-            ffi::PySet_Clear(self.as_ptr());
-        }
-    }
-
-    #[inline]
-    fn len(&self) -> usize {
-        unsafe { ffi::PySet_Size(self.as_ptr()) as usize }
-    }
-
-    fn contains<K>(&self, key: K) -> PyResult<bool>
+    pub fn contains<K>(self: &Bound<'py, Self>, key: K) -> PyResult<bool>
     where
         K: IntoPyObject<'py>,
     {
@@ -164,7 +121,10 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
         )
     }
 
-    fn discard<K>(&self, key: K) -> PyResult<bool>
+    /// Removes the element from the set if it is present.
+    ///
+    /// Returns `true` if the element was present in the set.
+    pub fn discard<K>(self: &Bound<'py, Self>, key: K) -> PyResult<bool>
     where
         K: IntoPyObject<'py>,
     {
@@ -183,7 +143,8 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
         )
     }
 
-    fn add<K>(&self, key: K) -> PyResult<()>
+    /// Adds an element to the set.
+    pub fn add<K>(self: &Bound<'py, Self>, key: K) -> PyResult<()>
     where
         K: IntoPyObject<'py>,
     {
@@ -200,12 +161,18 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
         )
     }
 
-    fn pop(&self) -> Option<Bound<'py, PyAny>> {
+    /// Removes and returns an arbitrary element from the set.
+    pub fn pop(self: &Bound<'py, Self>) -> Option<Bound<'py, PyAny>> {
         let element = unsafe { ffi::PySet_Pop(self.as_ptr()).assume_owned_or_err(self.py()) };
         element.ok()
     }
 
-    fn iter(&self) -> BoundSetIterator<'py> {
+    /// Returns an iterator of values in this set.
+    ///
+    /// # Panics
+    ///
+    /// If PyO3 detects that the set is mutated during iteration, it will panic.
+    pub fn iter(self: &Bound<'py, Self>) -> BoundSetIterator<'py> {
         BoundSetIterator::new(self.clone())
     }
 }
@@ -249,7 +216,7 @@ pub struct BoundSetIterator<'p> {
 impl<'py> BoundSetIterator<'py> {
     pub(super) fn new(set: Bound<'py, PySet>) -> Self {
         Self {
-            it: PyIterator::from_object(&set).unwrap(),
+            it: PyIterator::from_object(set.as_any()).unwrap(),
             remaining: set.len(),
         }
     }
@@ -313,12 +280,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::PySet;
-    use crate::{
-        conversion::IntoPyObject,
-        ffi,
-        types::{PyAnyMethods, PySetMethods},
-        Python,
-    };
+    use crate::{conversion::IntoPyObject, ffi, types::PyAnyMethods, Python};
     use std::collections::HashSet;
 
     #[test]

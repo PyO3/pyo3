@@ -1,7 +1,7 @@
 error[E0277]: pyclass `PyDict` cannot be subclassed
- --> tests/ui/abi3_nativetype_inheritance.rs:5:19
+ --> tests/ui/abi3_nativetype_inheritance.rs:6:19
   |
-5 | #[pyclass(extends=PyDict)]
+6 | #[pyclass(extends=PyDict)]
   |                   ^^^^^^ required for `#[pyclass(extends=PyDict)]`
   |
   = help: the trait `PyClassBaseType` is not implemented for `PyDict`
@@ -15,9 +15,9 @@ note: required by a bound in `PyClassImpl::BaseType`
   |                                 ^^^^^^^^^^^^^^^ required by this bound in `PyClassImpl::BaseType`
 
 error[E0277]: pyclass `PyDict` cannot be subclassed
- --> tests/ui/abi3_nativetype_inheritance.rs:5:1
+ --> tests/ui/abi3_nativetype_inheritance.rs:6:1
   |
-5 | #[pyclass(extends=PyDict)]
+6 | #[pyclass(extends=PyDict)]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ required for `#[pyclass(extends=PyDict)]`
   |
   = help: the trait `PyClassBaseType` is not implemented for `PyDict`

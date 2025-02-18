@@ -1,233 +1,233 @@
 error: enums can't be inherited by other classes
- --> tests/ui/invalid_pyclass_enum.rs:3:11
+ --> tests/ui/invalid_pyclass_enum.rs:4:11
   |
-3 | #[pyclass(subclass)]
+4 | #[pyclass(subclass)]
   |           ^^^^^^^^
 
 error: enums can't extend from other classes
- --> tests/ui/invalid_pyclass_enum.rs:9:11
-  |
-9 | #[pyclass(extends = PyList)]
-  |           ^^^^^^^
+  --> tests/ui/invalid_pyclass_enum.rs:10:11
+   |
+10 | #[pyclass(extends = PyList)]
+   |           ^^^^^^^^^^^^^^^^
 
 error: #[pyclass] can't be used on enums without any variants
-  --> tests/ui/invalid_pyclass_enum.rs:16:18
+  --> tests/ui/invalid_pyclass_enum.rs:17:18
    |
-16 | enum NoEmptyEnum {}
+17 | enum NoEmptyEnum {}
    |                  ^^
 
 error: Unit variant `UnitVariant` is not yet supported in a complex enum
        = help: change to an empty tuple variant instead: `UnitVariant()`
        = note: the enum is complex because of non-unit variant `StructVariant`
-  --> tests/ui/invalid_pyclass_enum.rs:21:5
+  --> tests/ui/invalid_pyclass_enum.rs:22:5
    |
-21 |     UnitVariant,
+22 |     UnitVariant,
    |     ^^^^^^^^^^^
 
 error: `constructor` can't be used on a simple enum variant
-  --> tests/ui/invalid_pyclass_enum.rs:26:12
+  --> tests/ui/invalid_pyclass_enum.rs:27:12
    |
-26 |     #[pyo3(constructor = (a, b))]
-   |            ^^^^^^^^^^^
+27 |     #[pyo3(constructor = (a, b))]
+   |            ^^^^^^^^^^^^^^^^^^^^
 
 error: The `eq_int` option requires the `eq` option.
-  --> tests/ui/invalid_pyclass_enum.rs:43:11
+  --> tests/ui/invalid_pyclass_enum.rs:44:11
    |
-43 | #[pyclass(eq_int)]
+44 | #[pyclass(eq_int)]
    |           ^^^^^^
 
 error: `eq_int` can only be used on simple enums.
-  --> tests/ui/invalid_pyclass_enum.rs:49:11
+  --> tests/ui/invalid_pyclass_enum.rs:50:11
    |
-49 | #[pyclass(eq_int)]
+50 | #[pyclass(eq_int)]
    |           ^^^^^^
 
 error: The `hash` option requires the `frozen` option.
-  --> tests/ui/invalid_pyclass_enum.rs:69:11
+  --> tests/ui/invalid_pyclass_enum.rs:70:11
    |
-69 | #[pyclass(hash)]
+70 | #[pyclass(hash)]
    |           ^^^^
 
 error: The `hash` option requires the `eq` option.
-  --> tests/ui/invalid_pyclass_enum.rs:69:11
+  --> tests/ui/invalid_pyclass_enum.rs:70:11
    |
-69 | #[pyclass(hash)]
+70 | #[pyclass(hash)]
    |           ^^^^
 
 error: The `hash` option requires the `eq` option.
-  --> tests/ui/invalid_pyclass_enum.rs:76:11
+  --> tests/ui/invalid_pyclass_enum.rs:77:11
    |
-76 | #[pyclass(hash)]
+77 | #[pyclass(hash)]
    |           ^^^^
 
 error: The `ord` option requires the `eq` option.
-  --> tests/ui/invalid_pyclass_enum.rs:83:11
+  --> tests/ui/invalid_pyclass_enum.rs:84:11
    |
-83 | #[pyclass(ord)]
+84 | #[pyclass(ord)]
    |           ^^^
 
 error: #[pyclass] can't be used on enums without any variants - all variants of enum `AllEnumVariantsDisabled` have been configured out by cfg attributes
-  --> tests/ui/invalid_pyclass_enum.rs:98:6
+  --> tests/ui/invalid_pyclass_enum.rs:99:6
    |
-98 | enum AllEnumVariantsDisabled {
+99 | enum AllEnumVariantsDisabled {
    |      ^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0369]: binary operation `==` cannot be applied to type `&SimpleEqOptRequiresPartialEq`
-  --> tests/ui/invalid_pyclass_enum.rs:31:11
+  --> tests/ui/invalid_pyclass_enum.rs:32:11
    |
-31 | #[pyclass(eq, eq_int)]
+32 | #[pyclass(eq, eq_int)]
    |           ^^
    |
 note: an implementation of `PartialEq` might be missing for `SimpleEqOptRequiresPartialEq`
-  --> tests/ui/invalid_pyclass_enum.rs:32:1
+  --> tests/ui/invalid_pyclass_enum.rs:33:1
    |
-32 | enum SimpleEqOptRequiresPartialEq {
+33 | enum SimpleEqOptRequiresPartialEq {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
 help: consider annotating `SimpleEqOptRequiresPartialEq` with `#[derive(PartialEq)]`
    |
-32 + #[derive(PartialEq)]
-33 | enum SimpleEqOptRequiresPartialEq {
+33 + #[derive(PartialEq)]
+34 | enum SimpleEqOptRequiresPartialEq {
    |
 
 error[E0369]: binary operation `!=` cannot be applied to type `&SimpleEqOptRequiresPartialEq`
-  --> tests/ui/invalid_pyclass_enum.rs:31:11
+  --> tests/ui/invalid_pyclass_enum.rs:32:11
    |
-31 | #[pyclass(eq, eq_int)]
+32 | #[pyclass(eq, eq_int)]
    |           ^^
    |
 note: an implementation of `PartialEq` might be missing for `SimpleEqOptRequiresPartialEq`
-  --> tests/ui/invalid_pyclass_enum.rs:32:1
+  --> tests/ui/invalid_pyclass_enum.rs:33:1
    |
-32 | enum SimpleEqOptRequiresPartialEq {
+33 | enum SimpleEqOptRequiresPartialEq {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
 help: consider annotating `SimpleEqOptRequiresPartialEq` with `#[derive(PartialEq)]`
    |
-32 + #[derive(PartialEq)]
-33 | enum SimpleEqOptRequiresPartialEq {
+33 + #[derive(PartialEq)]
+34 | enum SimpleEqOptRequiresPartialEq {
    |
 
 error[E0369]: binary operation `==` cannot be applied to type `&ComplexEqOptRequiresPartialEq`
-  --> tests/ui/invalid_pyclass_enum.rs:37:11
+  --> tests/ui/invalid_pyclass_enum.rs:38:11
    |
-37 | #[pyclass(eq)]
+38 | #[pyclass(eq)]
    |           ^^
    |
 note: an implementation of `PartialEq` might be missing for `ComplexEqOptRequiresPartialEq`
-  --> tests/ui/invalid_pyclass_enum.rs:38:1
+  --> tests/ui/invalid_pyclass_enum.rs:39:1
    |
-38 | enum ComplexEqOptRequiresPartialEq {
+39 | enum ComplexEqOptRequiresPartialEq {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
 help: consider annotating `ComplexEqOptRequiresPartialEq` with `#[derive(PartialEq)]`
    |
-38 + #[derive(PartialEq)]
-39 | enum ComplexEqOptRequiresPartialEq {
+39 + #[derive(PartialEq)]
+40 | enum ComplexEqOptRequiresPartialEq {
    |
 
 error[E0369]: binary operation `!=` cannot be applied to type `&ComplexEqOptRequiresPartialEq`
-  --> tests/ui/invalid_pyclass_enum.rs:37:11
+  --> tests/ui/invalid_pyclass_enum.rs:38:11
    |
-37 | #[pyclass(eq)]
+38 | #[pyclass(eq)]
    |           ^^
    |
 note: an implementation of `PartialEq` might be missing for `ComplexEqOptRequiresPartialEq`
-  --> tests/ui/invalid_pyclass_enum.rs:38:1
+  --> tests/ui/invalid_pyclass_enum.rs:39:1
    |
-38 | enum ComplexEqOptRequiresPartialEq {
+39 | enum ComplexEqOptRequiresPartialEq {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
 help: consider annotating `ComplexEqOptRequiresPartialEq` with `#[derive(PartialEq)]`
    |
-38 + #[derive(PartialEq)]
-39 | enum ComplexEqOptRequiresPartialEq {
+39 + #[derive(PartialEq)]
+40 | enum ComplexEqOptRequiresPartialEq {
    |
 
 error[E0277]: the trait bound `SimpleHashOptRequiresHash: Hash` is not satisfied
-  --> tests/ui/invalid_pyclass_enum.rs:55:31
+  --> tests/ui/invalid_pyclass_enum.rs:56:31
    |
-55 | #[pyclass(frozen, eq, eq_int, hash)]
+56 | #[pyclass(frozen, eq, eq_int, hash)]
    |                               ^^^^ the trait `Hash` is not implemented for `SimpleHashOptRequiresHash`
    |
 help: consider annotating `SimpleHashOptRequiresHash` with `#[derive(Hash)]`
    |
-57 + #[derive(Hash)]
-58 | enum SimpleHashOptRequiresHash {
+58 + #[derive(Hash)]
+59 | enum SimpleHashOptRequiresHash {
    |
 
 error[E0277]: the trait bound `ComplexHashOptRequiresHash: Hash` is not satisfied
-  --> tests/ui/invalid_pyclass_enum.rs:62:23
+  --> tests/ui/invalid_pyclass_enum.rs:63:23
    |
-62 | #[pyclass(frozen, eq, hash)]
+63 | #[pyclass(frozen, eq, hash)]
    |                       ^^^^ the trait `Hash` is not implemented for `ComplexHashOptRequiresHash`
    |
 help: consider annotating `ComplexHashOptRequiresHash` with `#[derive(Hash)]`
    |
-64 + #[derive(Hash)]
-65 | enum ComplexHashOptRequiresHash {
+65 + #[derive(Hash)]
+66 | enum ComplexHashOptRequiresHash {
    |
 
 error[E0369]: binary operation `>` cannot be applied to type `&InvalidOrderedComplexEnum2`
-  --> tests/ui/invalid_pyclass_enum.rs:89:14
+  --> tests/ui/invalid_pyclass_enum.rs:90:15
    |
-89 | #[pyclass(eq,ord)]
-   |              ^^^
+90 | #[pyclass(eq, ord)]
+   |               ^^^
    |
 note: an implementation of `PartialOrd` might be missing for `InvalidOrderedComplexEnum2`
-  --> tests/ui/invalid_pyclass_enum.rs:91:1
+  --> tests/ui/invalid_pyclass_enum.rs:92:1
    |
-91 | enum InvalidOrderedComplexEnum2 {
+92 | enum InvalidOrderedComplexEnum2 {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialOrd`
 help: consider annotating `InvalidOrderedComplexEnum2` with `#[derive(PartialEq, PartialOrd)]`
    |
-91 + #[derive(PartialEq, PartialOrd)]
-92 | enum InvalidOrderedComplexEnum2 {
+92 + #[derive(PartialEq, PartialOrd)]
+93 | enum InvalidOrderedComplexEnum2 {
    |
 
 error[E0369]: binary operation `<` cannot be applied to type `&InvalidOrderedComplexEnum2`
-  --> tests/ui/invalid_pyclass_enum.rs:89:14
+  --> tests/ui/invalid_pyclass_enum.rs:90:15
    |
-89 | #[pyclass(eq,ord)]
-   |              ^^^
+90 | #[pyclass(eq, ord)]
+   |               ^^^
    |
 note: an implementation of `PartialOrd` might be missing for `InvalidOrderedComplexEnum2`
-  --> tests/ui/invalid_pyclass_enum.rs:91:1
+  --> tests/ui/invalid_pyclass_enum.rs:92:1
    |
-91 | enum InvalidOrderedComplexEnum2 {
+92 | enum InvalidOrderedComplexEnum2 {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialOrd`
 help: consider annotating `InvalidOrderedComplexEnum2` with `#[derive(PartialEq, PartialOrd)]`
    |
-91 + #[derive(PartialEq, PartialOrd)]
-92 | enum InvalidOrderedComplexEnum2 {
+92 + #[derive(PartialEq, PartialOrd)]
+93 | enum InvalidOrderedComplexEnum2 {
    |
 
 error[E0369]: binary operation `<=` cannot be applied to type `&InvalidOrderedComplexEnum2`
-  --> tests/ui/invalid_pyclass_enum.rs:89:14
+  --> tests/ui/invalid_pyclass_enum.rs:90:15
    |
-89 | #[pyclass(eq,ord)]
-   |              ^^^
+90 | #[pyclass(eq, ord)]
+   |               ^^^
    |
 note: an implementation of `PartialOrd` might be missing for `InvalidOrderedComplexEnum2`
-  --> tests/ui/invalid_pyclass_enum.rs:91:1
+  --> tests/ui/invalid_pyclass_enum.rs:92:1
    |
-91 | enum InvalidOrderedComplexEnum2 {
+92 | enum InvalidOrderedComplexEnum2 {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialOrd`
 help: consider annotating `InvalidOrderedComplexEnum2` with `#[derive(PartialEq, PartialOrd)]`
    |
-91 + #[derive(PartialEq, PartialOrd)]
-92 | enum InvalidOrderedComplexEnum2 {
+92 + #[derive(PartialEq, PartialOrd)]
+93 | enum InvalidOrderedComplexEnum2 {
    |
 
 error[E0369]: binary operation `>=` cannot be applied to type `&InvalidOrderedComplexEnum2`
-  --> tests/ui/invalid_pyclass_enum.rs:89:14
+  --> tests/ui/invalid_pyclass_enum.rs:90:15
    |
-89 | #[pyclass(eq,ord)]
-   |              ^^^
+90 | #[pyclass(eq, ord)]
+   |               ^^^
    |
 note: an implementation of `PartialOrd` might be missing for `InvalidOrderedComplexEnum2`
-  --> tests/ui/invalid_pyclass_enum.rs:91:1
+  --> tests/ui/invalid_pyclass_enum.rs:92:1
    |
-91 | enum InvalidOrderedComplexEnum2 {
+92 | enum InvalidOrderedComplexEnum2 {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialOrd`
 help: consider annotating `InvalidOrderedComplexEnum2` with `#[derive(PartialEq, PartialOrd)]`
    |
-91 + #[derive(PartialEq, PartialOrd)]
-92 | enum InvalidOrderedComplexEnum2 {
+92 + #[derive(PartialEq, PartialOrd)]
+93 | enum InvalidOrderedComplexEnum2 {
    |

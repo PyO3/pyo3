@@ -14,7 +14,7 @@ use crate::{
     coroutine::{cancel::ThrowCallback, waker::AsyncioWaker},
     exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
     panic::PanicException,
-    types::{string::PyStringMethods, PyIterator, PyString},
+    types::{PyIterator, PyString},
     Bound, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyObject, PyResult, Python,
 };
 

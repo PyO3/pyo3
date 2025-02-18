@@ -2,7 +2,7 @@ use crate::instance::Bound;
 use crate::panic::PanicException;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
-use crate::types::{string::PyStringMethods, typeobject::PyTypeMethods, PyTraceback, PyType};
+use crate::types::{PyTraceback, PyType};
 use crate::{
     exceptions::{self, PyBaseException},
     ffi,
@@ -539,7 +539,7 @@ impl PyErr {
     where
         T: PyTypeInfo,
     {
-        self.is_instance(py, &T::type_object(py))
+        self.is_instance(py, T::type_object(py).as_any())
     }
 
     /// Writes the error back to the Python interpreter's global state.
@@ -607,7 +607,7 @@ impl PyErr {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let user_warning = py.get_type::<pyo3::exceptions::PyUserWarning>();
-    ///     PyErr::warn(py, &user_warning, c_str!("I am warning you"), 0)?;
+    ///     PyErr::warn(py, user_warning.as_any(), c_str!("I am warning you"), 0)?;
     ///     Ok(())
     /// })
     /// # }
@@ -1176,7 +1176,7 @@ mod tests {
             #[cfg(not(Py_GIL_DISABLED))]
             assert_warnings!(
                 py,
-                { PyErr::warn(py, &cls, ffi::c_str!("I am warning you"), 0).unwrap() },
+                { PyErr::warn(py, cls.as_any(), ffi::c_str!("I am warning you"), 0).unwrap() },
                 [(exceptions::PyUserWarning, "I am warning you")]
             );
 
@@ -1184,7 +1184,7 @@ mod tests {
             warnings
                 .call_method1("simplefilter", ("error", &cls))
                 .unwrap();
-            PyErr::warn(py, &cls, ffi::c_str!("I am warning you"), 0).unwrap_err();
+            PyErr::warn(py, cls.as_any(), ffi::c_str!("I am warning you"), 0).unwrap_err();
 
             // Test with error for an explicit module
             warnings.call_method0("resetwarnings").unwrap();
@@ -1196,13 +1196,13 @@ mod tests {
             #[cfg(not(Py_GIL_DISABLED))]
             assert_warnings!(
                 py,
-                { PyErr::warn(py, &cls, ffi::c_str!("I am warning you"), 0).unwrap() },
+                { PyErr::warn(py, cls.as_any(), ffi::c_str!("I am warning you"), 0).unwrap() },
                 [(exceptions::PyUserWarning, "I am warning you")]
             );
 
             let err = PyErr::warn_explicit(
                 py,
-                &cls,
+                cls.as_any(),
                 ffi::c_str!("I am warning you"),
                 ffi::c_str!("pyo3test.py"),
                 427,

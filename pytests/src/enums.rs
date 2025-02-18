@@ -1,8 +1,4 @@
-use pyo3::{
-    pyclass, pyfunction, pymodule,
-    types::{PyModule, PyModuleMethods},
-    wrap_pyfunction, Bound, PyResult,
-};
+use pyo3::{pyclass, pyfunction, pymodule, types::PyModule, wrap_pyfunction, Bound, PyResult};
 
 #[pymodule(gil_used = false)]
 pub fn enums(m: &Bound<'_, PyModule>) -> PyResult<()> {

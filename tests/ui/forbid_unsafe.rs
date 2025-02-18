@@ -1,3 +1,4 @@
+#![feature(arbitrary_self_types)]
 #![forbid(unsafe_code)]
 #![forbid(unsafe_op_in_unsafe_fn)]
 

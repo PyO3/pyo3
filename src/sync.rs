@@ -106,6 +106,7 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 /// between threads:
 ///
 /// ```
+/// #![feature(arbitrary_self_types)]
 /// use pyo3::sync::GILOnceCell;
 /// use pyo3::prelude::*;
 /// use pyo3::types::PyList;
@@ -617,7 +618,7 @@ where
 mod tests {
     use super::*;
 
-    use crate::types::{PyDict, PyDictMethods};
+    use crate::types::PyDict;
 
     #[test]
     fn test_intern() {
@@ -710,7 +711,7 @@ mod tests {
             s.spawn(|| {
                 Python::with_gil(|py| {
                     let b = bool_wrapper.bind(py);
-                    with_critical_section(b, || {
+                    with_critical_section(b.as_any(), || {
                         barrier.wait();
                         std::thread::sleep(std::time::Duration::from_millis(10));
                         b.borrow().0.store(true, Ordering::Release);
@@ -722,7 +723,7 @@ mod tests {
                 Python::with_gil(|py| {
                     let b = bool_wrapper.bind(py);
                     // this blocks until the other thread's critical section finishes
-                    with_critical_section(b, || {
+                    with_critical_section(b.as_any(), || {
                         assert!(b.borrow().0.load(Ordering::Acquire));
                     });
                 });

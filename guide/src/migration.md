@@ -327,6 +327,7 @@ To migrate, place a `#[pyo3(eq, eq_int)]` attribute on simple enum classes.
 Before:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # #![allow(deprecated, dead_code)]
 # use pyo3::prelude::*;
 #[pyclass]
@@ -339,6 +340,7 @@ enum SimpleEnum {
 After:
 
 ```rust
+#![feature(arbitrary_self_types)]
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 #[pyclass(eq, eq_int)]
@@ -505,6 +507,7 @@ The `__next__` and `__anext__` magic methods can now return any type convertible
 Starting with an implementation of a Python iterator using `IterNextOutput`, e.g.
 
 ```rust,ignore
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::iter::IterNextOutput;
 
@@ -529,6 +532,7 @@ impl PyClassIter {
 If returning `"done"` via `StopIteration` is not really required, this should be written as
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -554,6 +558,7 @@ This form also has additional benefits: It has already worked in previous PyO3 v
 Alternatively, the implementation can also be done as it would in Python itself, i.e. by "raising" a `StopIteration` exception
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::exceptions::PyStopIteration;
 
@@ -578,6 +583,7 @@ impl PyClassIter {
 Finally, an asynchronous iterator can directly return an awaitable without confusing wrapping
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -955,6 +961,7 @@ Previous versions of PyO3 would allow access to `Python` (e.g. via `Python::with
 Attempts to acquire the GIL will now panic. See [#3165](https://github.com/PyO3/pyo3/issues/3165) for more detail.
 
 ```rust,ignore
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 
 #[pyclass]
@@ -1017,6 +1024,7 @@ However, if the `anyhow::Error` or `eyre::Report` has a source, then the origina
 While the API provided by [`Python::acquire_gil`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html#method.acquire_gil) seems convenient, it is somewhat brittle as the design of the GIL token [`Python`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html) relies on proper nesting and panics if not used correctly, e.g.
 
 ```rust,ignore
+#![feature(arbitrary_self_types)]
 # #![allow(dead_code, deprecated)]
 # use pyo3::prelude::*;
 
@@ -1047,6 +1055,7 @@ drop(second);
 The replacement is [`Python::with_gil`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html#method.with_gil) which is more cumbersome but enforces the proper nesting by design, e.g.
 
 ```rust,ignore
+#![feature(arbitrary_self_types)]
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 
@@ -1181,6 +1190,7 @@ calling `collections.abc.Mapping.register(MappingPyClass)` or
 
 For example, for a mapping class defined in Rust:
 ```rust,compile_fail
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use std::collections::HashMap;
 
@@ -1326,6 +1336,7 @@ Migration from `#[pyproto]` to `#[pymethods]` is straightforward; copying the ex
 Before:
 
 ```rust,compile_fail
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::class::{PyObjectProtocol, PyIterProtocol};
 use pyo3::types::PyString;
@@ -1351,6 +1362,7 @@ impl PyIterProtocol for MyClass {
 After
 
 ```rust,compile_fail
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::types::PyString;
 
@@ -1537,6 +1549,7 @@ To migrate just move the affected methods from a `#[pyproto]` to a `#[pymethods]
 Before:
 
 ```rust,compile_fail
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::class::basic::PyObjectProtocol;
 
@@ -1554,6 +1567,7 @@ impl PyObjectProtocol for MyClass {
 After:
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -1809,6 +1823,7 @@ There can be two fixes:
 
    Before:
    ```rust,compile_fail
+   #![feature(arbitrary_self_types)]
    use pyo3::prelude::*;
    use std::rc::Rc;
    use std::cell::RefCell;
@@ -1822,6 +1837,7 @@ There can be two fixes:
 
    After:
    ```rust,ignore
+   #![feature(arbitrary_self_types)]
    # #![allow(dead_code)]
    use pyo3::prelude::*;
    use std::sync::{Arc, Mutex};
@@ -1844,6 +1860,7 @@ There can be two fixes:
 
    Before:
    ```rust,compile_fail
+   #![feature(arbitrary_self_types)]
    use pyo3::prelude::*;
 
    #[pyclass]
@@ -1854,6 +1871,7 @@ There can be two fixes:
 
    After:
    ```rust
+   #![feature(arbitrary_self_types)]
    # #![allow(dead_code)]
    use pyo3::prelude::*;
 
@@ -1938,6 +1956,7 @@ is now removed and our syntax for constructors has changed.
 
 Before:
 ```rust,compile_fail
+#![feature(arbitrary_self_types)]
 #[pyclass]
 struct MyClass {}
 
@@ -1952,6 +1971,7 @@ impl MyClass {
 
 After:
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 #[pyclass]
 struct MyClass {}
@@ -1984,6 +2004,7 @@ rules of references.
 
 Here is an example.
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 
 #[pyclass]
@@ -2028,6 +2049,7 @@ on the newly-created `PyCell`.
 
 Before:
 ```rust,compile_fail
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {}
@@ -2038,6 +2060,7 @@ let obj_ref = PyRef::new(py, MyClass {}).unwrap();
 
 After:
 ```rust,ignore
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {}
@@ -2062,6 +2085,7 @@ let obj_ref_mut: &mut MyClass = obj.extract().unwrap();
 
 After:
 ```rust,ignore
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # use pyo3::types::IntoPyDict;
 # #[pyclass] #[derive(Clone)] struct MyClass {}
@@ -2090,6 +2114,7 @@ please use [`PyRef`] or [`PyRefMut`] instead.
 
 Before:
 ```rust,compile_fail
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # use pyo3::class::PySequenceProtocol;
 #[pyclass]
@@ -2108,6 +2133,7 @@ impl PySequenceProtocol for ByteSequence {
 
 After:
 ```rust,compile_fail
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 # use pyo3::class::PySequenceProtocol;
 #[pyclass]

@@ -698,9 +698,6 @@ mod test_128bit_integers {
     use crate::types::PyDict;
 
     #[cfg(not(target_arch = "wasm32"))]
-    use crate::types::dict::PyDictMethods;
-
-    #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;
 
     #[cfg(not(target_arch = "wasm32"))]

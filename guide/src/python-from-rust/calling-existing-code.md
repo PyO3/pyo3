@@ -63,6 +63,7 @@ quickly testing your Python extensions.
 [`Python::run`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.run
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::py_run;
 
@@ -156,6 +157,7 @@ Python interpreter. The macro **must** be invoked _before_ initializing Python.
 As an example, the below adds the module `foo` to the embedded interpreter:
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::ffi::c_str;
 
@@ -181,6 +183,7 @@ an alternative is to create a module using [`PyModule::new`]
 and insert it manually into `sys.modules`:
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::ffi::c_str;
@@ -289,6 +292,7 @@ that directory is `/usr/share/python_app`).
 
 `src/main.rs`:
 ```rust,no_run
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use pyo3_ffi::c_str;

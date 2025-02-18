@@ -11,6 +11,7 @@ This section of the guide goes into detail about use of the `#[pyo3(signature = 
 For example, below is a function that accepts arbitrary keyword arguments (`**kwargs` in Python syntax) and returns the number that was passed:
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
@@ -39,6 +40,7 @@ Just like in Python, the following constructs can be part of the signature::
 
 Example:
 ```rust
+#![feature(arbitrary_self_types)]
 # use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 #

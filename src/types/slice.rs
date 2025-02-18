@@ -12,9 +12,6 @@ use std::convert::Infallible;
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PySlice>`][crate::Py] or [`Bound<'py, PySlice>`][Bound].
 ///
-/// For APIs available on `slice` objects, see the [`PySliceMethods`] trait which is implemented for
-/// [`Bound<'py, PySlice>`][Bound].
-///
 /// Only `isize` indices supported at the moment by the `PySlice` object.
 #[repr(transparent)]
 pub struct PySlice(PyAny);
@@ -26,7 +23,7 @@ pyobject_native_type!(
     #checkfunction=ffi::PySlice_Check
 );
 
-/// Return value from [`PySliceMethods::indices`].
+/// Return value from [`PySlice::indices`].
 #[derive(Debug, Eq, PartialEq)]
 pub struct PySliceIndices {
     /// Start of the slice
@@ -55,9 +52,9 @@ impl PySliceIndices {
     }
 }
 
-impl PySlice {
+impl<'py> PySlice {
     /// Constructs a new slice with the given elements.
-    pub fn new(py: Python<'_>, start: isize, stop: isize, step: isize) -> Bound<'_, PySlice> {
+    pub fn new(py: Python<'py>, start: isize, stop: isize, step: isize) -> Bound<'py, PySlice> {
         unsafe {
             ffi::PySlice_New(
                 ffi::PyLong_FromSsize_t(start),
@@ -72,12 +69,17 @@ impl PySlice {
     /// Deprecated name for [`PySlice::new`].
     #[deprecated(since = "0.23.0", note = "renamed to `PySlice::new`")]
     #[inline]
-    pub fn new_bound(py: Python<'_>, start: isize, stop: isize, step: isize) -> Bound<'_, PySlice> {
+    pub fn new_bound(
+        py: Python<'py>,
+        start: isize,
+        stop: isize,
+        step: isize,
+    ) -> Bound<'py, PySlice> {
         Self::new(py, start, stop, step)
     }
 
     /// Constructs a new full slice that is equivalent to `::`.
-    pub fn full(py: Python<'_>) -> Bound<'_, PySlice> {
+    pub fn full(py: Python<'py>) -> Bound<'py, PySlice> {
         unsafe {
             ffi::PySlice_New(ffi::Py_None(), ffi::Py_None(), ffi::Py_None())
                 .assume_owned(py)
@@ -88,26 +90,13 @@ impl PySlice {
     /// Deprecated name for [`PySlice::full`].
     #[deprecated(since = "0.23.0", note = "renamed to `PySlice::full`")]
     #[inline]
-    pub fn full_bound(py: Python<'_>) -> Bound<'_, PySlice> {
+    pub fn full_bound(py: Python<'py>) -> Bound<'py, PySlice> {
         Self::full(py)
     }
-}
-
-/// Implementation of functionality for [`PySlice`].
-///
-/// These methods are defined for the `Bound<'py, PyTuple>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
-#[doc(alias = "PySlice")]
-pub trait PySliceMethods<'py>: crate::sealed::Sealed {
     /// Retrieves the start, stop, and step indices from the slice object,
     /// assuming a sequence of length `length`, and stores the length of the
     /// slice in its `slicelength` member.
-    fn indices(&self, length: isize) -> PyResult<PySliceIndices>;
-}
-
-impl<'py> PySliceMethods<'py> for Bound<'py, PySlice> {
-    fn indices(&self, length: isize) -> PyResult<PySliceIndices> {
+    pub fn indices(self: &Bound<'py, Self>, length: isize) -> PyResult<PySliceIndices> {
         unsafe {
             let mut slicelength: isize = 0;
             let mut start: isize = 0;

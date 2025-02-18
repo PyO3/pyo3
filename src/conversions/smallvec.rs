@@ -140,7 +140,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{PyBytes, PyBytesMethods, PyDict, PyList};
+    use crate::types::{PyBytes, PyDict, PyList};
 
     #[test]
     #[allow(deprecated)]

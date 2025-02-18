@@ -152,7 +152,6 @@ mod inner {
     macro_rules! assert_warnings {
         ($py:expr, $body:expr, [$(($category:ty, $message:literal)),+] $(,)? ) => {{
             $crate::tests::common::CatchWarnings::enter($py, |w| {
-                use $crate::types::{PyListMethods, PyStringMethods};
                 $body;
                 let expected_warnings = [$((<$category as $crate::type_object::PyTypeInfo>::type_object($py), $message)),+];
                 assert_eq!(w.len(), expected_warnings.len());

@@ -10,9 +10,6 @@ use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
 ///
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyDict>`][crate::Py] or [`Bound<'py, PyDict>`][Bound].
-///
-/// For APIs available on `dict` objects, see the [`PyDictMethods`] trait which is implemented for
-/// [`Bound<'py, PyDict>`][Bound].
 #[repr(transparent)]
 pub struct PyDict(PyAny);
 
@@ -61,16 +58,16 @@ pyobject_native_type_core!(
     #checkfunction=ffi::PyDictItems_Check
 );
 
-impl PyDict {
+impl<'py> PyDict {
     /// Creates a new empty dictionary.
-    pub fn new(py: Python<'_>) -> Bound<'_, PyDict> {
+    pub fn new(py: Python<'py>) -> Bound<'py, PyDict> {
         unsafe { ffi::PyDict_New().assume_owned(py).downcast_into_unchecked() }
     }
 
     /// Deprecated name for [`PyDict::new`].
     #[deprecated(since = "0.23.0", note = "renamed to `PyDict::new`")]
     #[inline]
-    pub fn new_bound(py: Python<'_>) -> Bound<'_, PyDict> {
+    pub fn new_bound(py: Python<'py>) -> Bound<'py, PyDict> {
         Self::new(py)
     }
 
@@ -82,7 +79,7 @@ impl PyDict {
     /// Returns an error on invalid input. In the case of key collisions,
     /// this keeps the last entry seen.
     #[cfg(not(any(PyPy, GraalPy)))]
-    pub fn from_sequence<'py>(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
+    pub fn from_sequence(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
         let py = seq.py();
         let dict = Self::new(py);
         err::error_on_minusone(py, unsafe {
@@ -95,128 +92,14 @@ impl PyDict {
     #[cfg(not(any(PyPy, GraalPy)))]
     #[deprecated(since = "0.23.0", note = "renamed to `PyDict::from_sequence`")]
     #[inline]
-    pub fn from_sequence_bound<'py>(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
+    pub fn from_sequence_bound(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
         Self::from_sequence(seq)
     }
-}
 
-/// Implementation of functionality for [`PyDict`].
-///
-/// These methods are defined for the `Bound<'py, PyDict>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
-#[doc(alias = "PyDict")]
-pub trait PyDictMethods<'py>: crate::sealed::Sealed {
     /// Returns a new dictionary that contains the same key-value pairs as self.
     ///
     /// This is equivalent to the Python expression `self.copy()`.
-    fn copy(&self) -> PyResult<Bound<'py, PyDict>>;
-
-    /// Empties an existing dictionary of all key-value pairs.
-    fn clear(&self);
-
-    /// Return the number of items in the dictionary.
-    ///
-    /// This is equivalent to the Python expression `len(self)`.
-    fn len(&self) -> usize;
-
-    /// Checks if the dict is empty, i.e. `len(self) == 0`.
-    fn is_empty(&self) -> bool;
-
-    /// Determines if the dictionary contains the specified key.
-    ///
-    /// This is equivalent to the Python expression `key in self`.
-    fn contains<K>(&self, key: K) -> PyResult<bool>
-    where
-        K: IntoPyObject<'py>;
-
-    /// Gets an item from the dictionary.
-    ///
-    /// Returns `None` if the item is not present, or if an error occurs.
-    ///
-    /// To get a `KeyError` for non-existing keys, use `PyAny::get_item`.
-    fn get_item<K>(&self, key: K) -> PyResult<Option<Bound<'py, PyAny>>>
-    where
-        K: IntoPyObject<'py>;
-
-    /// Sets an item value.
-    ///
-    /// This is equivalent to the Python statement `self[key] = value`.
-    fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
-    where
-        K: IntoPyObject<'py>,
-        V: IntoPyObject<'py>;
-
-    /// Deletes an item.
-    ///
-    /// This is equivalent to the Python statement `del self[key]`.
-    fn del_item<K>(&self, key: K) -> PyResult<()>
-    where
-        K: IntoPyObject<'py>;
-
-    /// Returns a list of dict keys.
-    ///
-    /// This is equivalent to the Python expression `list(dict.keys())`.
-    fn keys(&self) -> Bound<'py, PyList>;
-
-    /// Returns a list of dict values.
-    ///
-    /// This is equivalent to the Python expression `list(dict.values())`.
-    fn values(&self) -> Bound<'py, PyList>;
-
-    /// Returns a list of dict items.
-    ///
-    /// This is equivalent to the Python expression `list(dict.items())`.
-    fn items(&self) -> Bound<'py, PyList>;
-
-    /// Returns an iterator of `(key, value)` pairs in this dictionary.
-    ///
-    /// # Panics
-    ///
-    /// If PyO3 detects that the dictionary is mutated during iteration, it will panic.
-    /// It is allowed to modify values as you iterate over the dictionary, but only
-    /// so long as the set of keys does not change.
-    fn iter(&self) -> BoundDictIterator<'py>;
-
-    /// Iterates over the contents of this dictionary while holding a critical section on the dict.
-    /// This is useful when the GIL is disabled and the dictionary is shared between threads.
-    /// It is not guaranteed that the dictionary will not be modified during iteration when the
-    /// closure calls arbitrary Python code that releases the critical section held by the
-    /// iterator. Otherwise, the dictionary will not be modified during iteration.
-    ///
-    /// This method is a small performance optimization over `.iter().try_for_each()` when the
-    /// nightly feature is not enabled because we cannot implement an optimised version of
-    /// `iter().try_fold()` on stable yet. If your iteration is infallible then this method has the
-    /// same performance as `.iter().for_each()`.
-    fn locked_for_each<F>(&self, closure: F) -> PyResult<()>
-    where
-        F: Fn(Bound<'py, PyAny>, Bound<'py, PyAny>) -> PyResult<()>;
-
-    /// Returns `self` cast as a `PyMapping`.
-    fn as_mapping(&self) -> &Bound<'py, PyMapping>;
-
-    /// Returns `self` cast as a `PyMapping`.
-    fn into_mapping(self) -> Bound<'py, PyMapping>;
-
-    /// Update this dictionary with the key/value pairs from another.
-    ///
-    /// This is equivalent to the Python expression `self.update(other)`. If `other` is a `PyDict`, you may want
-    /// to use `self.update(other.as_mapping())`, note: `PyDict::as_mapping` is a zero-cost conversion.
-    fn update(&self, other: &Bound<'_, PyMapping>) -> PyResult<()>;
-
-    /// Add key/value pairs from another dictionary to this one only when they do not exist in this.
-    ///
-    /// This is equivalent to the Python expression `self.update({k: v for k, v in other.items() if k not in self})`.
-    /// If `other` is a `PyDict`, you may want to use `self.update_if_missing(other.as_mapping())`,
-    /// note: `PyDict::as_mapping` is a zero-cost conversion.
-    ///
-    /// This method uses [`PyDict_Merge`](https://docs.python.org/3/c-api/dict.html#c.PyDict_Merge) internally,
-    /// so should have the same performance as `update`.
-    fn update_if_missing(&self, other: &Bound<'_, PyMapping>) -> PyResult<()>;
-}
-
-impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
-    fn copy(&self) -> PyResult<Bound<'py, PyDict>> {
+    pub fn copy(self: &Bound<'py, Self>) -> PyResult<Bound<'py, PyDict>> {
         unsafe {
             ffi::PyDict_Copy(self.as_ptr())
                 .assume_owned_or_err(self.py())
@@ -224,19 +107,27 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         }
     }
 
-    fn clear(&self) {
+    /// Empties an existing dictionary of all key-value pairs.
+    pub fn clear(self: &Bound<'py, Self>) {
         unsafe { ffi::PyDict_Clear(self.as_ptr()) }
     }
 
-    fn len(&self) -> usize {
+    /// Return the number of items in the dictionary.
+    ///
+    /// This is equivalent to the Python expression `len(self)`.
+    pub fn len(self: &Bound<'py, Self>) -> usize {
         dict_len(self) as usize
     }
 
-    fn is_empty(&self) -> bool {
+    /// Checks if the dict is empty, i.e. `len(self) == 0`.
+    pub fn is_empty(self: &Bound<'py, Self>) -> bool {
         self.len() == 0
     }
 
-    fn contains<K>(&self, key: K) -> PyResult<bool>
+    /// Determines if the dictionary contains the specified key.
+    ///
+    /// This is equivalent to the Python expression `key in self`.
+    pub fn contains<K>(self: &Bound<'py, Self>, key: K) -> PyResult<bool>
     where
         K: IntoPyObject<'py>,
     {
@@ -255,7 +146,12 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         )
     }
 
-    fn get_item<K>(&self, key: K) -> PyResult<Option<Bound<'py, PyAny>>>
+    /// Gets an item from the dictionary.
+    ///
+    /// Returns `None` if the item is not present, or if an error occurs.
+    ///
+    /// To get a `KeyError` for non-existing keys, use `PyAny::get_item`.
+    pub fn get_item<K>(self: &Bound<'py, Self>, key: K) -> PyResult<Option<Bound<'py, PyAny>>>
     where
         K: IntoPyObject<'py>,
     {
@@ -285,7 +181,10 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         )
     }
 
-    fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
+    /// Sets an item value.
+    ///
+    /// This is equivalent to the Python statement `self[key] = value`.
+    pub fn set_item<K, V>(self: &Bound<'py, Self>, key: K, value: V) -> PyResult<()>
     where
         K: IntoPyObject<'py>,
         V: IntoPyObject<'py>,
@@ -308,7 +207,10 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         )
     }
 
-    fn del_item<K>(&self, key: K) -> PyResult<()>
+    /// Deletes an item.
+    ///
+    /// This is equivalent to the Python statement `del self[key]`.
+    pub fn del_item<K>(self: &Bound<'py, Self>, key: K) -> PyResult<()>
     where
         K: IntoPyObject<'py>,
     {
@@ -325,7 +227,10 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         )
     }
 
-    fn keys(&self) -> Bound<'py, PyList> {
+    /// Returns a list of dict keys.
+    ///
+    /// This is equivalent to the Python expression `list(dict.keys())`.
+    pub fn keys(self: &Bound<'py, Self>) -> Bound<'py, PyList> {
         unsafe {
             ffi::PyDict_Keys(self.as_ptr())
                 .assume_owned(self.py())
@@ -333,7 +238,10 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         }
     }
 
-    fn values(&self) -> Bound<'py, PyList> {
+    /// Returns a list of dict values.
+    ///
+    /// This is equivalent to the Python expression `list(dict.values())`.
+    pub fn values(self: &Bound<'py, Self>) -> Bound<'py, PyList> {
         unsafe {
             ffi::PyDict_Values(self.as_ptr())
                 .assume_owned(self.py())
@@ -341,7 +249,10 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         }
     }
 
-    fn items(&self) -> Bound<'py, PyList> {
+    /// Returns a list of dict items.
+    ///
+    /// This is equivalent to the Python expression `list(dict.items())`.
+    pub fn items(self: &Bound<'py, Self>) -> Bound<'py, PyList> {
         unsafe {
             ffi::PyDict_Items(self.as_ptr())
                 .assume_owned(self.py())
@@ -349,11 +260,28 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         }
     }
 
-    fn iter(&self) -> BoundDictIterator<'py> {
+    /// Returns an iterator of `(key, value)` pairs in this dictionary.
+    ///
+    /// # Panics
+    ///
+    /// If PyO3 detects that the dictionary is mutated during iteration, it will panic.
+    /// It is allowed to modify values as you iterate over the dictionary, but only
+    /// so long as the set of keys does not change.
+    pub fn iter(self: &Bound<'py, Self>) -> BoundDictIterator<'py> {
         BoundDictIterator::new(self.clone())
     }
 
-    fn locked_for_each<F>(&self, f: F) -> PyResult<()>
+    /// Iterates over the contents of this dictionary while holding a critical section on the dict.
+    /// This is useful when the GIL is disabled and the dictionary is shared between threads.
+    /// It is not guaranteed that the dictionary will not be modified during iteration when the
+    /// closure calls arbitrary Python code that releases the critical section held by the
+    /// iterator. Otherwise, the dictionary will not be modified during iteration.
+    ///
+    /// This method is a small performance optimization over `.iter().try_for_each()` when the
+    /// nightly feature is not enabled because we cannot implement an optimised version of
+    /// `iter().try_fold()` on stable yet. If your iteration is infallible then this method has the
+    /// same performance as `.iter().for_each()`.
+    pub fn locked_for_each<F>(self: &Bound<'py, Self>, f: F) -> PyResult<()>
     where
         F: Fn(Bound<'py, PyAny>, Bound<'py, PyAny>) -> PyResult<()>,
     {
@@ -366,27 +294,44 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
 
         #[cfg(not(feature = "nightly"))]
         {
-            crate::sync::with_critical_section(self, || {
+            crate::sync::with_critical_section(self.as_any(), || {
                 self.iter().try_for_each(|(key, value)| f(key, value))
             })
         }
     }
 
-    fn as_mapping(&self) -> &Bound<'py, PyMapping> {
+    /// Returns `self` cast as a `PyMapping`.
+    pub fn as_mapping(self: &Bound<'py, Self>) -> &Bound<'py, PyMapping> {
         unsafe { self.downcast_unchecked() }
     }
 
-    fn into_mapping(self) -> Bound<'py, PyMapping> {
-        unsafe { self.into_any().downcast_into_unchecked() }
+    /// Returns `self` cast as a `PyMapping`.
+    pub fn into_mapping(self: Bound<'py, Self>) -> Bound<'py, PyMapping> {
+        unsafe { self.downcast_into_unchecked() }
     }
 
-    fn update(&self, other: &Bound<'_, PyMapping>) -> PyResult<()> {
+    /// Update this dictionary with the key/value pairs from another.
+    ///
+    /// This is equivalent to the Python expression `self.update(other)`. If `other` is a `PyDict`, you may want
+    /// to use `self.update(other.as_mapping())`, note: `PyDict::as_mapping` is a zero-cost conversion.
+    pub fn update(self: &Bound<'py, Self>, other: &Bound<'_, PyMapping>) -> PyResult<()> {
         err::error_on_minusone(self.py(), unsafe {
             ffi::PyDict_Update(self.as_ptr(), other.as_ptr())
         })
     }
 
-    fn update_if_missing(&self, other: &Bound<'_, PyMapping>) -> PyResult<()> {
+    /// Add key/value pairs from another dictionary to this one only when they do not exist in this.
+    ///
+    /// This is equivalent to the Python expression `self.update({k: v for k, v in other.items() if k not in self})`.
+    /// If `other` is a `PyDict`, you may want to use `self.update_if_missing(other.as_mapping())`,
+    /// note: `PyDict::as_mapping` is a zero-cost conversion.
+    ///
+    /// This method uses [`PyDict_Merge`](https://docs.python.org/3/c-api/dict.html#c.PyDict_Merge) internally,
+    /// so should have the same performance as `update`.
+    pub fn update_if_missing(
+        self: &Bound<'py, Self>,
+        other: &Bound<'_, PyMapping>,
+    ) -> PyResult<()> {
         err::error_on_minusone(self.py(), unsafe {
             ffi::PyDict_Merge(self.as_ptr(), other.as_ptr(), 0)
         })
@@ -848,7 +793,7 @@ mod tests {
     fn test_from_sequence() {
         Python::with_gil(|py| {
             let items = PyList::new(py, vec![("a", 1), ("b", 2)]).unwrap();
-            let dict = PyDict::from_sequence(&items).unwrap();
+            let dict = PyDict::from_sequence(items.as_any()).unwrap();
             assert_eq!(
                 1,
                 dict.get_item("a")
@@ -879,7 +824,7 @@ mod tests {
     fn test_from_sequence_err() {
         Python::with_gil(|py| {
             let items = PyList::new(py, vec!["a", "b"]).unwrap();
-            assert!(PyDict::from_sequence(&items).is_err());
+            assert!(PyDict::from_sequence(items.as_any()).is_err());
         });
     }
 
@@ -1389,7 +1334,9 @@ mod tests {
         Python::with_gil(|py| {
             let dict = abc_dict(py);
             let keys = dict.call_method0("keys").unwrap();
-            assert!(keys.is_instance(&py.get_type::<PyDictKeys>()).unwrap());
+            assert!(keys
+                .is_instance(py.get_type::<PyDictKeys>().as_any())
+                .unwrap());
         })
     }
 
@@ -1399,7 +1346,9 @@ mod tests {
         Python::with_gil(|py| {
             let dict = abc_dict(py);
             let values = dict.call_method0("values").unwrap();
-            assert!(values.is_instance(&py.get_type::<PyDictValues>()).unwrap());
+            assert!(values
+                .is_instance(py.get_type::<PyDictValues>().as_any())
+                .unwrap());
         })
     }
 
@@ -1409,7 +1358,9 @@ mod tests {
         Python::with_gil(|py| {
             let dict = abc_dict(py);
             let items = dict.call_method0("items").unwrap();
-            assert!(items.is_instance(&py.get_type::<PyDictItems>()).unwrap());
+            assert!(items
+                .is_instance(py.get_type::<PyDictItems>().as_any())
+                .unwrap());
         })
     }
 

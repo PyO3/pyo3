@@ -649,7 +649,6 @@ mod tests {
     fn test_zoneinfo_is_not_fixed_offset() {
         use crate::ffi;
         use crate::types::any::PyAnyMethods;
-        use crate::types::dict::PyDictMethods;
 
         Python::with_gil(|py| {
             let locals = crate::types::PyDict::new(py);

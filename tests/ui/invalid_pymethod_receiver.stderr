@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `i32: TryFrom<BoundRef<'_, '_, MyClass>>` is not satisfied
- --> tests/ui/invalid_pymethod_receiver.rs:8:44
+ --> tests/ui/invalid_pymethod_receiver.rs:9:44
   |
-8 |     fn method_with_invalid_self_type(_slf: i32, _py: Python<'_>, _index: u32) {}
+9 |     fn method_with_invalid_self_type(_slf: i32, _py: Python<'_>, _index: u32) {}
   |                                            ^^^ the trait `From<BoundRef<'_, '_, MyClass>>` is not implemented for `i32`
   |
   = help: the following other types implement trait `From<T>`:

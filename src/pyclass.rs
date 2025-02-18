@@ -56,6 +56,7 @@ impl CompareOp {
     /// Usage example:
     ///
     /// ```rust
+    /// #![feature(arbitrary_self_types)]
     /// # use pyo3::prelude::*;
     /// # use pyo3::class::basic::CompareOp;
     ///

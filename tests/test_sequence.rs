@@ -1,4 +1,5 @@
 #![cfg(feature = "macros")]
+#![feature(arbitrary_self_types)]
 
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::types::{IntoPyDict, PyList, PyMapping, PySequence};

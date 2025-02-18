@@ -198,7 +198,7 @@ fn impl_arg_param(
             let name_str = arg.name.to_string();
             quote_spanned! { arg.name.span() =>
                 #pyo3_path::impl_::extract_argument::extract_argument(
-                    &_args,
+                    _args.as_any(),
                     &mut #holder,
                     #name_str
                 )?
@@ -209,7 +209,7 @@ fn impl_arg_param(
             let name_str = arg.name.to_string();
             quote_spanned! { arg.name.span() =>
                 #pyo3_path::impl_::extract_argument::extract_optional_argument(
-                    _kwargs.as_deref(),
+                    _kwargs.as_ref().map(|o| o.as_any()),
                     &mut #holder,
                     #name_str,
                     || ::std::option::Option::None

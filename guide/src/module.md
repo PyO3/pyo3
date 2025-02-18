@@ -3,6 +3,7 @@
 You can create a module using `#[pymodule]`:
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 
 #[pyfunction]
@@ -24,6 +25,7 @@ The module's name defaults to the name of the Rust function. You can override th
 using `#[pyo3(name = "custom_name")]`:
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 
 #[pyfunction]
@@ -62,10 +64,11 @@ print(my_extension.__doc__)
 ## Python submodules
 
 You can create a module hierarchy within a single extension module by using
-[`Bound<'_, PyModule>::add_submodule()`]({{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyModuleMethods.html#tymethod.add_submodule).
+[`Bound<'_, PyModule>::add_submodule()`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#tymethod.add_submodule).
 For example, you could define the modules `parent_module` and `parent_module.child_module`.
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 
 #[pymodule]
@@ -109,6 +112,7 @@ Another syntax based on Rust inline modules is also available to declare modules
 
 For example:
 ```rust
+#![feature(arbitrary_self_types)]
 # mod declarative_module_test {
 use pyo3::prelude::*;
 
@@ -152,6 +156,7 @@ In the following example, the `Unit` class will have for `module` `my_extension.
 but the `Ext` class will have for `module` the default `builtins` because it not nested.
 
 ```rust
+#![feature(arbitrary_self_types)]
 # mod declarative_module_module_attr_test {
 use pyo3::prelude::*;
 

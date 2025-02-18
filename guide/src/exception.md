@@ -41,6 +41,7 @@ When using PyO3 to create an extension module, you can add the new exception to
 the module like this, so that it is importable from Python:
 
 ```rust
+#![feature(arbitrary_self_types)]
 use pyo3::prelude::*;
 use pyo3::exceptions::PyException;
 
@@ -110,6 +111,7 @@ The `import_exception!` macro allows importing a specific exception class and de
 for that exception.
 
 ```rust
+#![feature(arbitrary_self_types)]
 #![allow(dead_code)]
 use pyo3::prelude::*;
 
