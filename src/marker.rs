@@ -655,30 +655,24 @@ impl<'py> Python<'py> {
         // See also:
         // - https://github.com/python/cpython/pull/24564 (the same fix in CPython 3.10)
         // - https://github.com/PyO3/pyo3/issues/3370
-        let builtins_s = crate::intern!(self, "__builtins__").as_ptr();
-        let has_builtins = unsafe { ffi::PyDict_Contains(globals.as_ptr(), builtins_s) };
-        if has_builtins == -1 {
-            return Err(PyErr::fetch(self));
-        }
-        if has_builtins == 0 {
+        let builtins_s = crate::intern!(self, "__builtins__");
+        let has_builtins = globals.contains(builtins_s)?;
+        if !has_builtins {
             crate::sync::with_critical_section(globals, || {
                 // check if another thread set __builtins__ while this thread was blocked on the critical section
-                let has_builtins: i32 =
-                    unsafe { ffi::PyDict_Contains(globals.as_ptr(), builtins_s) };
-                if has_builtins == -1 {
-                    return Err(PyErr::fetch(self));
-                }
-                if has_builtins == 0 {
+                let has_builtins = globals.contains(builtins_s)?;
+                if !has_builtins {
                     // Inherit current builtins.
                     let builtins = unsafe { ffi::PyEval_GetBuiltins() };
 
                     // `PyDict_SetItem` doesn't take ownership of `builtins`, but `PyEval_GetBuiltins`
                     // seems to return a borrowed reference, so no leak here.
-                    if unsafe { ffi::PyDict_SetItem(globals.as_ptr(), builtins_s, builtins) } == -1
+                    if unsafe {
+                        ffi::PyDict_SetItem(globals.as_ptr(), builtins_s.as_ptr(), builtins)
+                    } == -1
                     {
                         return Err(PyErr::fetch(self));
                     }
-                    return Ok(());
                 }
                 Ok(())
             })?;
