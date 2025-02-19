@@ -69,21 +69,21 @@ extern "C" {
     pub fn PyThreadState_DeleteCurrent();
 }
 
-#[cfg(all(Py_3_9, not(Py_3_11)))]
+#[cfg(all(Py_3_9, not(any(Py_3_11, PyPy))))]
 pub type _PyFrameEvalFunction = extern "C" fn(
     *mut crate::PyThreadState,
     *mut crate::PyFrameObject,
     c_int,
 ) -> *mut crate::object::PyObject;
 
-#[cfg(Py_3_11)]
+#[cfg(all(Py_3_11, not(PyPy)))]
 pub type _PyFrameEvalFunction = extern "C" fn(
     *mut crate::PyThreadState,
     *mut crate::_PyInterpreterFrame,
     c_int,
 ) -> *mut crate::object::PyObject;
 
-#[cfg(Py_3_9)]
+#[cfg(all(Py_3_9, not(PyPy)))]
 extern "C" {
     /// Get the frame evaluation function.
     pub fn _PyInterpreterState_GetEvalFrameFunc(

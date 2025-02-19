@@ -1,4 +1,4 @@
-#[cfg(not(PyPy))]
+#[cfg(any(Py_3_11, not(PyPy)))]
 use crate::Py_hash_t;
 use crate::{PyObject, Py_UCS1, Py_UCS2, Py_UCS4, Py_ssize_t};
 use libc::wchar_t;
@@ -251,7 +251,7 @@ impl From<PyASCIIObjectState> for u32 {
 pub struct PyASCIIObject {
     pub ob_base: PyObject,
     pub length: Py_ssize_t,
-    #[cfg(not(PyPy))]
+    #[cfg(any(Py_3_11, not(PyPy)))]
     pub hash: Py_hash_t,
     /// A bit field with various properties.
     ///
