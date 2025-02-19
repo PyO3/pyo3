@@ -1,3 +1,4 @@
+use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::{ffi, types::any::PyAnyMethods, Bound, PyAny, Python};
 
@@ -27,11 +28,11 @@ impl PyGenericAlias {
         py: Python<'py>,
         origin: &Bound<'py, PyAny>,
         args: &Bound<'py, PyAny>,
-    ) -> Bound<'py, PyGenericAlias> {
+    ) -> PyResult<Bound<'py, PyGenericAlias>> {
         unsafe {
-            ffi::Py_GenericAlias(origin.as_ptr(), args.as_ptr())
-                .assume_owned(py)
-                .downcast_into_unchecked()
+            Ok(ffi::Py_GenericAlias(origin.as_ptr(), args.as_ptr())
+                .assume_owned_or_err(py)?
+                .downcast_into_unchecked())
         }
     }
 }
@@ -62,7 +63,7 @@ mod tests {
                 .eval(ffi::c_str!("(int,)"), None, None)
                 .unwrap()
                 .into_bound();
-            let generic_alias = PyGenericAlias::new(py, &cls, &key);
+            let generic_alias = PyGenericAlias::new(py, &cls, &key).unwrap();
 
             assert!(generic_alias.eq(list_int).unwrap());
         })
