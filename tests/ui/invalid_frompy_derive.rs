@@ -160,7 +160,7 @@ struct InvalidFromPyWith {
 }
 
 #[derive(FromPyObject)]
-struct InvalidFromPyWithLiteral {
+struct InvalidFromPyWithNotFound {
     #[pyo3(from_py_with = func)]
     field: String,
 }

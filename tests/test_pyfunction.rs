@@ -143,7 +143,7 @@ fn datetime_to_timestamp(dt: &Bound<'_, PyAny>) -> PyResult<i64> {
 #[cfg(not(Py_LIMITED_API))]
 #[pyfunction]
 fn function_with_custom_conversion(
-    #[pyo3(from_py_with = "datetime_to_timestamp")] timestamp: i64,
+    #[pyo3(from_py_with = datetime_to_timestamp)] timestamp: i64,
 ) -> i64 {
     timestamp
 }
@@ -196,13 +196,13 @@ fn test_from_py_with_defaults() {
     // issue 2280 combination of from_py_with and Option<T> did not compile
     #[pyfunction]
     #[pyo3(signature = (int=None))]
-    fn from_py_with_option(#[pyo3(from_py_with = "optional_int")] int: Option<i32>) -> i32 {
+    fn from_py_with_option(#[pyo3(from_py_with = optional_int)] int: Option<i32>) -> i32 {
         int.unwrap_or(0)
     }
 
     #[pyfunction(signature = (len=0))]
     fn from_py_with_default(
-        #[pyo3(from_py_with = "<Bound<'_, _> as PyAnyMethods>::len")] len: usize,
+        #[pyo3(from_py_with = <Bound<'_, _> as PyAnyMethods>::len)] len: usize,
     ) -> usize {
         len
     }
