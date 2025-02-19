@@ -66,6 +66,7 @@ use chrono::{
     DateTime, Datelike, Duration, LocalResult, NaiveDate, NaiveDateTime, NaiveTime, Offset,
     TimeZone, Timelike,
 };
+use std::any::Any;
 
 #[allow(deprecated)]
 impl ToPyObject for Duration {
@@ -425,10 +426,7 @@ impl<Tz: TimeZone> IntoPy<PyObject> for DateTime<Tz> {
     }
 }
 
-impl<'py, Tz: TimeZone> IntoPyObject<'py> for DateTime<Tz>
-where
-    Tz: IntoPyObject<'py>,
-{
+impl<'py, Tz: TimeZone + Any> IntoPyObject<'py> for DateTime<Tz> {
     #[cfg(Py_LIMITED_API)]
     type Target = PyAny;
     #[cfg(not(Py_LIMITED_API))]
@@ -442,10 +440,7 @@ where
     }
 }
 
-impl<'py, Tz: TimeZone> IntoPyObject<'py> for &DateTime<Tz>
-where
-    Tz: IntoPyObject<'py>,
-{
+impl<'py, Tz: TimeZone + Any> IntoPyObject<'py> for &DateTime<Tz> {
     #[cfg(Py_LIMITED_API)]
     type Target = PyAny;
     #[cfg(not(Py_LIMITED_API))]
@@ -454,7 +449,21 @@ where
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let tz = self.timezone().into_bound_py_any(py)?;
+        #[cfg_attr(not(all(Py_3_9, feature = "chrono-tz")), allow(unused_variables))]
+        fn convert_timezone<'py, T: Offset>(
+            py: Python<'py>,
+            tz: &dyn Any,
+            offset: &T,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            #[cfg(all(Py_3_9, feature = "chrono-tz"))]
+            if let Some(tz) = tz.downcast_ref::<chrono_tz::Tz>() {
+                return tz.into_bound_py_any(py);
+            }
+
+            offset.fix().into_bound_py_any(py)
+        }
+
+        let tz = convert_timezone(py, &self.timezone(), self.offset())?;
 
         #[cfg(not(Py_LIMITED_API))]
         let tz = tz.downcast()?;
