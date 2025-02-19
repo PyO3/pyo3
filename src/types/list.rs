@@ -696,6 +696,22 @@ impl<'py> Iterator for BoundListIterator<'py> {
     }
 
     #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
+    }
+
+    #[inline]
+    fn last(mut self) -> Option<Self::Item>
+    where
+        Self: Sized,
+    {
+        self.next_back()
+    }
+
+    #[inline]
     #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
     fn fold<B, F>(mut self, init: B, mut f: F) -> B
     where
@@ -1776,6 +1792,23 @@ mod tests {
             let mut iter4 = list.iter();
             assert_eq!(iter4.advance_back_by(0), Ok(()));
             assert_eq!(iter4.next_back().unwrap().extract::<i32>().unwrap(), 5);
+        })
+    }
+
+    #[test]
+    fn test_iter_last() {
+        Python::with_gil(|py| {
+            let list = PyList::new(py, vec![1, 2, 3]).unwrap();
+            let last = list.iter().last();
+            assert_eq!(last.unwrap().extract::<i32>().unwrap(), 3);
+        })
+    }
+
+    #[test]
+    fn test_iter_count() {
+        Python::with_gil(|py| {
+            let list = PyList::new(py, vec![1, 2, 3]).unwrap();
+            assert_eq!(list.iter().count(), 3);
         })
     }
 }
