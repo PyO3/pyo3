@@ -37,10 +37,12 @@ fn class_with_freelist() {
 }
 
 #[pyclass(freelist = 2)]
+#[cfg(not(target_arch = "wasm32"))]
 struct ClassWithFreelistAndData {
     data: Option<usize>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn spin_freelist(py: Python<'_>, data: usize) {
     for _ in 0..500 {
         let inst1 = Py::new(py, ClassWithFreelistAndData { data: Some(data) }).unwrap();
@@ -51,6 +53,7 @@ fn spin_freelist(py: Python<'_>, data: usize) {
 }
 
 #[test]
+#[cfg(not(target_arch = "wasm32"))]
 fn multithreaded_class_with_freelist() {
     std::thread::scope(|s| {
         s.spawn(|| {
