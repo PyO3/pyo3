@@ -2380,15 +2380,13 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! {
                 impl #pyo3_path::impl_::pyclass::PyClassWithFreeList for #cls {
                     #[inline]
-                    fn get_free_list(py: #pyo3_path::Python<'_>) -> &mut #pyo3_path::impl_::freelist::FreeList<*mut #pyo3_path::ffi::PyObject> {
-                        static mut FREELIST: *mut #pyo3_path::impl_::freelist::FreeList<*mut #pyo3_path::ffi::PyObject> = 0 as *mut _;
-                        unsafe {
-                            if FREELIST.is_null() {
-                                FREELIST = ::std::boxed::Box::into_raw(::std::boxed::Box::new(
-                                    #pyo3_path::impl_::freelist::FreeList::with_capacity(#freelist)));
-                            }
-                            &mut *FREELIST
-                        }
+                    fn get_free_list(py: #pyo3_path::Python<'_>) -> &'static ::std::sync::Mutex<#pyo3_path::impl_::freelist::PyObjectFreeList> {
+                        static FREELIST: #pyo3_path::sync::GILOnceCell<::std::sync::Mutex<#pyo3_path::impl_::freelist::PyObjectFreeList>> = #pyo3_path::sync::GILOnceCell::new();
+                        // If there's a race to fill the cell, the object created
+                        // by the losing thread will be deallocated via RAII
+                        &FREELIST.get_or_init(py, || {
+                            ::std::sync::Mutex::new(#pyo3_path::impl_::freelist::PyObjectFreeList::with_capacity(#freelist))
+                        })
                     }
                 }
             }
