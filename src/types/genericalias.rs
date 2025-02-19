@@ -1,6 +1,7 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::{ffi, types::any::PyAnyMethods, Bound, PyAny, Python};
+use crate::py_result_ext::PyResultExt;
+use crate::{ffi, Bound, PyAny, Python};
 
 /// Represents a Python [`types.GenericAlias`](https://docs.python.org/3/library/types.html#types.GenericAlias) object.
 ///
@@ -30,9 +31,9 @@ impl PyGenericAlias {
         args: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyGenericAlias>> {
         unsafe {
-            Ok(ffi::Py_GenericAlias(origin.as_ptr(), args.as_ptr())
-                .assume_owned_or_err(py)?
-                .downcast_into_unchecked())
+            ffi::Py_GenericAlias(origin.as_ptr(), args.as_ptr())
+                .assume_owned_or_err(py)
+                .downcast_into_unchecked()
         }
     }
 }
