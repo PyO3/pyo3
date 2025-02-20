@@ -41,7 +41,7 @@ PYO3_TARGET = Path(os.environ.get("CARGO_TARGET_DIR", PYO3_DIR / "target")).abso
 PYO3_GUIDE_SRC = PYO3_DIR / "guide" / "src"
 PYO3_GUIDE_TARGET = PYO3_TARGET / "guide"
 PYO3_DOCS_TARGET = PYO3_TARGET / "doc"
-PY_VERSIONS = ("3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13")
+PY_VERSIONS = ("3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14")
 PYPY_VERSIONS = ("3.9", "3.10", "3.11")
 FREE_THREADED_BUILD = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
 
@@ -677,8 +677,8 @@ def test_version_limits(session: nox.Session):
         config_file.set("CPython", "3.6")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        assert "3.14" not in PY_VERSIONS
-        config_file.set("CPython", "3.14")
+        assert "3.15" not in PY_VERSIONS
+        config_file.set("CPython", "3.15")
         _run_cargo(session, "check", env=env, expect_error=True)
 
         # 3.14 CPython should build with forward compatibility
