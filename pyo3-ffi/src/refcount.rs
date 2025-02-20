@@ -123,7 +123,7 @@ unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
 
     #[cfg(Py_GIL_DISABLED)]
     {
-        ((*op).ob_ref_local.load(Relaxed) == (_Py_IMMORTAL_REFCNT_LOCAL as u32)) as c_int
+        ((*op).ob_ref_local.load(Relaxed) == _Py_IMMORTAL_REFCNT_LOCAL) as c_int
     }
 }
 
