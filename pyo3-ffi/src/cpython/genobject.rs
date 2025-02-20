@@ -1,13 +1,13 @@
 use crate::object::*;
 use crate::PyFrameObject;
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, Py_3_14)))]
 use crate::_PyErr_StackItem;
-#[cfg(all(Py_3_11, not(any(PyPy, GraalPy))))]
+#[cfg(all(Py_3_11, not(any(PyPy, GraalPy, Py_3_14))))]
 use std::os::raw::c_char;
 use std::os::raw::c_int;
 use std::ptr::addr_of_mut;
 
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, Py_3_14)))]
 #[repr(C)]
 pub struct PyGenObject {
     pub ob_base: PyObject,
@@ -34,6 +34,9 @@ pub struct PyGenObject {
     #[cfg(Py_3_11)]
     pub gi_iframe: [*mut PyObject; 1],
 }
+
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
+opaque_struct!(PyGenObject);
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
