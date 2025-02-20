@@ -88,6 +88,7 @@ pub struct _PyCoMonitoringData {
     pub local_monitors: _Py_LocalMonitors,
     pub active_monitors: _Py_LocalMonitors,
     pub tools: *mut u8,
+    #[cfg(Py_3_14)]
     pub tool_versions: [uintptr_t; _PY_MONITORING_TOOL_IDS],
     pub lines: *mut _PyCoLineInstrumentationData,
     pub line_tools: *mut u8,
