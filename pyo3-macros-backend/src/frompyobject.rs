@@ -3,7 +3,7 @@ use crate::attributes::{
 };
 use crate::utils::Ctx;
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{
     ext::IdentExt,
     parenthesized,
@@ -276,31 +276,40 @@ impl<'a> Container<'a> {
         let struct_name = self.name();
         if let Some(ident) = field_ident {
             let field_name = ident.to_string();
-            match from_py_with {
-                None => quote! {
+            if let Some(FromPyWithAttribute {
+                kw,
+                value: expr_path,
+            }) = from_py_with
+            {
+                let extractor = quote_spanned! { kw.span =>
+                    { let from_py_with: fn(_) -> _ = #expr_path; from_py_with }
+                };
+                quote! {
+                    Ok(#self_ty {
+                        #ident: #pyo3_path::impl_::frompyobject::extract_struct_field_with(#extractor, obj, #struct_name, #field_name)?
+                    })
+                }
+            } else {
+                quote! {
                     Ok(#self_ty {
                         #ident: #pyo3_path::impl_::frompyobject::extract_struct_field(obj, #struct_name, #field_name)?
                     })
-                },
-                Some(FromPyWithAttribute {
-                    value: expr_path, ..
-                }) => quote! {
-                    Ok(#self_ty {
-                        #ident: #pyo3_path::impl_::frompyobject::extract_struct_field_with(#expr_path as fn(_) -> _, obj, #struct_name, #field_name)?
-                    })
-                },
+                }
+            }
+        } else if let Some(FromPyWithAttribute {
+            kw,
+            value: expr_path,
+        }) = from_py_with
+        {
+            let extractor = quote_spanned! { kw.span =>
+                { let from_py_with: fn(_) -> _ = #expr_path; from_py_with }
+            };
+            quote! {
+                #pyo3_path::impl_::frompyobject::extract_tuple_struct_field_with(#extractor, obj, #struct_name, 0).map(#self_ty)
             }
         } else {
-            match from_py_with {
-                None => quote! {
-                    #pyo3_path::impl_::frompyobject::extract_tuple_struct_field(obj, #struct_name, 0).map(#self_ty)
-                },
-
-                Some(FromPyWithAttribute {
-                    value: expr_path, ..
-                }) => quote! {
-                    #pyo3_path::impl_::frompyobject::extract_tuple_struct_field_with(#expr_path as fn(_) -> _, obj, #struct_name, 0).map(#self_ty)
-                },
+            quote! {
+                #pyo3_path::impl_::frompyobject::extract_tuple_struct_field(obj, #struct_name, 0).map(#self_ty)
             }
         }
     }
@@ -313,16 +322,20 @@ impl<'a> Container<'a> {
             .map(|i| format_ident!("arg{}", i))
             .collect();
         let fields = struct_fields.iter().zip(&field_idents).enumerate().map(|(index, (field, ident))| {
-            match &field.from_py_with {
-                None => quote!(
+            if let Some(FromPyWithAttribute {
+                kw,
+                value: expr_path, ..
+            }) = &field.from_py_with {
+                let extractor = quote_spanned! { kw.span =>
+                    { let from_py_with: fn(_) -> _ = #expr_path; from_py_with }
+                };
+               quote! {
+                    #pyo3_path::impl_::frompyobject::extract_tuple_struct_field_with(#extractor, &#ident, #struct_name, #index)?
+               }
+            } else {
+                quote!{
                     #pyo3_path::impl_::frompyobject::extract_tuple_struct_field(&#ident, #struct_name, #index)?
-                ),
-                Some(FromPyWithAttribute {
-                    value: expr_path, ..
-                }) => quote! (
-                    #pyo3_path::impl_::frompyobject::extract_tuple_struct_field_with(#expr_path as fn(_) -> _, &#ident, #struct_name, #index)?
-                ),
-            }
+            }}
         });
 
         quote!(
@@ -359,10 +372,14 @@ impl<'a> Container<'a> {
                 }
             };
             let extractor = if let Some(FromPyWithAttribute {
-                value: expr_path, ..
+                kw,
+                value: expr_path,
             }) = &field.from_py_with
             {
-                quote!(#pyo3_path::impl_::frompyobject::extract_struct_field_with(#expr_path as fn(_) -> _, &value, #struct_name, #field_name)?)
+                let extractor = quote_spanned! { kw.span =>
+                    { let from_py_with: fn(_) -> _ = #expr_path; from_py_with }
+                };
+                quote! (#pyo3_path::impl_::frompyobject::extract_struct_field_with(#extractor, &#getter?, #struct_name, #field_name)?)
             } else {
                 quote!(#pyo3_path::impl_::frompyobject::extract_struct_field(&value, #struct_name, #field_name)?)
             };
