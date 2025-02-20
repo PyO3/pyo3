@@ -1,6 +1,10 @@
 use crate::pyport::Py_ssize_t;
 use crate::PyObject;
-use std::os::raw::{c_int, c_long, c_uint, c_ulong};
+#[cfg(Py_GIL_DISABLED)]
+use std::os::raw::c_uint;
+#[cfg(not(Py_GIL_DISABLED))]
+use std::os::raw::c_ulong;
+use std::os::raw::{c_int, c_long};
 use std::ptr;
 #[cfg(Py_GIL_DISABLED)]
 use std::sync::atomic::Ordering::Relaxed;
@@ -23,9 +27,9 @@ const _Py_IMMORTAL_REFCNT: Py_ssize_t = {
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
 const _Py_IMMORTAL_INITIAL_REFCNT: Py_ssize_t = {
     if cfg!(target_pointer_width = "64") {
-        ((3 as c_ulong) << (30 as c_ulong)) as Py_ssize_t;
+        ((3 as c_ulong) << (30 as c_ulong)) as Py_ssize_t
     } else {
-        ((5 as c_long) << (28 as c_long)) as Py_ssize_t;
+        ((5 as c_long) << (28 as c_long)) as Py_ssize_t
     }
 };
 
@@ -35,7 +39,7 @@ const _Py_STATIC_IMMORTAL_INITIAL_REFCNT: Py_ssize_t = {
         _Py_IMMORTAL_INITIAL_REFCNT
             | ((_Py_STATICALLY_ALLOCATED_FLAG as Py_ssize_t) << (32 as Py_ssize_t))
     } else {
-        ((7 as c_long) << (28 as c_long)) as Py_ssize_t;
+        ((7 as c_long) << (28 as c_long)) as Py_ssize_t
     }
 };
 
@@ -65,34 +69,16 @@ pub const _Py_REF_SHARED_SHIFT: isize = 2;
 
 // skipped private _Py_REF_SHARED
 
-#[repr(C)]
-#[derive(Copy, Clone)]
-#[cfg(all(Py_3_12, not(Py_GIL_DISABLED), not(Py_3_14)))]
-/// This union is anonymous in CPython, so the name was given by PyO3 because
-/// Rust unions need a name.
-pub union PyObjectObRefcnt {
-    pub ob_refcnt: Py_ssize_t,
-    #[cfg(target_pointer_width = "64")]
-    pub ob_refcnt_split: [crate::PY_UINT32_T; 2],
-}
-
-#[cfg(all(Py_3_12, not(Py_GIL_DISABLED), not(Py_3_14)))]
-impl std::fmt::Debug for PyObjectObRefcnt {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", unsafe { self.ob_refcnt })
-    }
-}
-
-#[cfg(all(not(Py_3_12), not(Py_GIL_DISABLED)))]
-pub type PyObjectObRefcnt = Py_ssize_t;
-
 #[inline]
 pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
     #[cfg(Py_GIL_DISABLED)]
     {
         let local = (*ob).ob_ref_local.load(Relaxed);
         if local == _Py_IMMORTAL_REFCNT_LOCAL {
+            #[cfg(not(Py_3_14))]
             return _Py_IMMORTAL_REFCNT;
+            #[cfg(Py_3_14)]
+            return _Py_IMMORTAL_INITIAL_REFCNT;
         }
         let shared = (*ob).ob_ref_shared.load(Relaxed);
         local as Py_ssize_t + Py_ssize_t::from(shared >> _Py_REF_SHARED_SHIFT)
@@ -131,7 +117,7 @@ unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
 
         #[cfg(Py_3_14)]
         {
-            ((*op).ob_refcnt >= _Py_IMMOIRTAL_MINIMUM_REFCNT) as c_int
+            ((*op).ob_refcnt >= _Py_IMMORTAL_MINIMUM_REFCNT) as c_int
         }
     }
 
@@ -142,6 +128,8 @@ unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
 }
 
 // skipped _Py_IsStaticImmortal
+
+// TODO: Py_SET_REFCNT
 
 extern "C" {
     #[cfg(all(py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API)))]
@@ -243,6 +231,10 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
         // or submit a PR supporting Py_STATS build option and pystats.h
     }
 }
+
+// skipped _Py_DecRefShared
+// skipped _Py_DecRefSharedDebug
+// skipped _Py_MergeZeroLocalRefcount
 
 #[inline(always)]
 #[cfg_attr(
