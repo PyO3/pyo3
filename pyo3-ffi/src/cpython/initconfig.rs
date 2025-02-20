@@ -147,6 +147,8 @@ pub struct PyConfig {
     pub cpu_count: c_int,
     #[cfg(Py_GIL_DISABLED)]
     pub enable_gil: c_int,
+    #[cfg(Py_GIL_DISABLED)]
+    pub tlbc_enabled: c_int,
     pub pathconfig_warnings: c_int,
     #[cfg(Py_3_10)]
     pub program_name: *mut wchar_t,

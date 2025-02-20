@@ -1,4 +1,5 @@
 use crate::pyport::{Py_hash_t, Py_ssize_t};
+#[cfg(Py_GIL_DISABLED)]
 use crate::refcount;
 #[cfg(Py_GIL_DISABLED)]
 use crate::PyMutex;
@@ -18,7 +19,53 @@ pub use crate::cpython::object::PyTypeObject;
 
 // skip PyObject_HEAD
 
+#[repr(C)]
+#[derive(Copy, Clone)]
+#[cfg(all(Py_3_14, not(Py_GIL_DISABLED), target_endian = "big"))]
+/// This struct is anonymous in CPython, so the name was given by PyO3 because
+/// Rust structs need a name.
+pub struct PyObjectObFlagsAndRefcnt {
+    pub ob_flags: crate::PY_UINT32_T,
+    pub ob_refcnt: crate::PY_UINT32_T,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+#[cfg(all(Py_3_14, not(Py_GIL_DISABLED), target_endian = "little"))]
+/// This struct is anonymous in CPython, so the name was given by PyO3 because
+/// Rust structs need a name.
+pub struct PyObjectObFlagsAndRefcnt {
+    pub ob_refcnt: crate::PY_UINT32_T,
+    pub ob_flags: crate::PY_UINT32_T,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+#[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
+/// This union is anonymous in CPython, so the name was given by PyO3 because
+/// Rust union need a name.
+pub union PyObjectObRefcnt {
+    #[cfg(all(target_pointer_width = "64", Py_3_14))]
+    pub ob_refcnt_full: crate::PY_INT64_T,
+    #[cfg(Py_3_14)]
+    pub refcnt_and_flags: PyObjectObFlagsAndRefcnt,
+    pub ob_refcnt: Py_ssize_t,
+    #[cfg(all(target_pointer_width = "64", not(Py_3_14)))]
+    pub ob_refcnt_split: [crate::PY_UINT32_T; 2],
+}
+
+#[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
+impl std::fmt::Debug for PyObjectObRefcnt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", unsafe { self.ob_refcnt })
+    }
+}
+
+#[cfg(all(not(Py_3_12), not(Py_GIL_DISABLED)))]
+pub type PyObjectObRefcnt = Py_ssize_t;
+
 // PyObject_HEAD_INIT comes before the PyObject definition in object.h
+// but we put it after PyObject because HEAD_INIT uses PyObject
 
 #[repr(C)]
 #[derive(Debug)]
