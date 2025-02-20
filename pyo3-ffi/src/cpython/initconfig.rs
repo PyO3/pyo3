@@ -141,7 +141,7 @@ pub struct PyConfig {
     pub safe_path: c_int,
     #[cfg(Py_3_12)]
     pub int_max_str_digits: c_int,
-    #[cfg(target_os = "macos")]
+    #[cfg(all(Py_3_14, target_os = "macos"))]
     pub use_system_logger: c_int,
     #[cfg(Py_3_13)]
     pub cpu_count: c_int,
