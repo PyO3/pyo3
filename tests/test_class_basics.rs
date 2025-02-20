@@ -714,3 +714,8 @@ fn test_unsendable_dict_with_weakref() {
         );
     });
 }
+
+#[pyclass(generic)]
+struct ClassWithRuntimeParametrization {
+    value: usize,
+}

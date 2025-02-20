@@ -80,6 +80,7 @@ pub struct PyClassPyO3Options {
     pub subclass: Option<kw::subclass>,
     pub unsendable: Option<kw::unsendable>,
     pub weakref: Option<kw::weakref>,
+    pub generic: Option<kw::generic>,
 }
 
 pub enum PyClassPyO3Option {
@@ -103,6 +104,7 @@ pub enum PyClassPyO3Option {
     Subclass(kw::subclass),
     Unsendable(kw::unsendable),
     Weakref(kw::weakref),
+    Generic(kw::generic),
 }
 
 impl Parse for PyClassPyO3Option {
@@ -148,6 +150,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Unsendable)
         } else if lookahead.peek(attributes::kw::weakref) {
             input.parse().map(PyClassPyO3Option::Weakref)
+        } else if lookahead.peek(attributes::kw::generic) {
+            input.parse().map(PyClassPyO3Option::Generic)
         } else {
             Err(lookahead.error())
         }
@@ -219,6 +223,7 @@ impl PyClassPyO3Options {
                 );
                 set_option!(weakref);
             }
+            PyClassPyO3Option::Generic(generic) => set_option!(generic),
         }
         Ok(())
     }
@@ -416,6 +421,20 @@ fn impl_class(
         }
     }
 
+    let mut default_methods = descriptors_to_items(
+        cls,
+        args.options.rename_all.as_ref(),
+        args.options.frozen,
+        field_options,
+        ctx,
+    )?;
+
+    if let Some(default_class_geitem) =
+        pyclass_class_geitem(&args.options, &syn::parse_quote!(#cls), ctx)?
+    {
+        default_methods.push(default_class_geitem);
+    }
+
     let (default_str, default_str_slot) =
         implement_pyclass_str(&args.options, &syn::parse_quote!(#cls), ctx);
 
@@ -430,21 +449,9 @@ fn impl_class(
     slots.extend(default_hash_slot);
     slots.extend(default_str_slot);
 
-    let py_class_impl = PyClassImplsBuilder::new(
-        cls,
-        args,
-        methods_type,
-        descriptors_to_items(
-            cls,
-            args.options.rename_all.as_ref(),
-            args.options.frozen,
-            field_options,
-            ctx,
-        )?,
-        slots,
-    )
-    .doc(doc)
-    .impl_all(ctx)?;
+    let py_class_impl = PyClassImplsBuilder::new(cls, args, methods_type, default_methods, slots)
+        .doc(doc)
+        .impl_all(ctx)?;
 
     Ok(quote! {
         impl #pyo3_path::types::DerefToPyAny for #cls {}
@@ -2020,6 +2027,45 @@ fn pyclass_hash(
             Ok((Some(hash_impl), Some(hash_slot)))
         }
         None => Ok((None, None)),
+    }
+}
+
+fn pyclass_class_geitem(
+    options: &PyClassPyO3Options,
+    cls: &syn::Type,
+    ctx: &Ctx,
+) -> Result<Option<MethodAndMethodDef>> {
+    let Ctx { pyo3_path, .. } = ctx;
+    match options.generic {
+        Some(_) => {
+            let ident = format_ident!("__class_getitem__");
+            let mut match_args_impl: syn::ImplItemFn = {
+                parse_quote! {
+                    #[classmethod]
+                    fn #ident(
+                        py: #pyo3_path::Python<'_>, cls: #pyo3_path::Bound<'_, #pyo3_path::types::PyAny>, key: #pyo3_path::Bound<'_, #pyo3_path::types::PyAny>
+                    ) -> #pyo3_path::PyResult<#pyo3_path::Bound<'_, #pyo3_path::types::PyGenericAlias>> {
+                        #pyo3_path::types::PyGenericAlias::new(py, cls, key)
+                    }
+                }
+            };
+
+            let spec = FnSpec::parse(
+                &mut match_args_impl.sig,
+                &mut match_args_impl.attrs,
+                Default::default(),
+            )?;
+
+            let class_geitem_method = crate::pymethod::impl_py_method_def(
+                cls,
+                &spec,
+                &spec.get_doc(&match_args_impl.attrs, ctx),
+                Some(quote!(#pyo3_path::ffi::METH_CLASS)),
+                ctx,
+            )?;
+            Ok(Some(class_geitem_method))
+        }
+        None => Ok(None),
     }
 }
 
