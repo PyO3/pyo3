@@ -1,13 +1,14 @@
 use crate::pyport::{Py_hash_t, Py_ssize_t};
+use crate::refcount;
 #[cfg(Py_GIL_DISABLED)]
 use crate::PyMutex;
+use std::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 #[cfg(Py_GIL_DISABLED)]
 use std::marker::PhantomPinned;
 use std::mem;
-use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::ptr;
 #[cfg(Py_GIL_DISABLED)]
-use std::sync::atomic::{AtomicIsize, AtomicU32, AtomicU8, Ordering::Relaxed};
+use std::sync::atomic::{AtomicIsize, AtomicU32, AtomicU8};
 
 #[cfg(Py_LIMITED_API)]
 opaque_struct!(PyTypeObject);
@@ -15,85 +16,9 @@ opaque_struct!(PyTypeObject);
 #[cfg(not(Py_LIMITED_API))]
 pub use crate::cpython::object::PyTypeObject;
 
-#[cfg(Py_3_12)]
-const _Py_IMMORTAL_REFCNT: Py_ssize_t = {
-    if cfg!(target_pointer_width = "64") {
-        c_uint::MAX as Py_ssize_t
-    } else {
-        // for 32-bit systems, use the lower 30 bits (see comment in CPython's object.h)
-        (c_uint::MAX >> 2) as Py_ssize_t
-    }
-};
+// skip PyObject_HEAD
 
-#[cfg(Py_GIL_DISABLED)]
-const _Py_IMMORTAL_REFCNT_LOCAL: u32 = u32::MAX;
-
-#[allow(clippy::declare_interior_mutable_const)]
-pub const PyObject_HEAD_INIT: PyObject = PyObject {
-    #[cfg(py_sys_config = "Py_TRACE_REFS")]
-    _ob_next: std::ptr::null_mut(),
-    #[cfg(py_sys_config = "Py_TRACE_REFS")]
-    _ob_prev: std::ptr::null_mut(),
-    #[cfg(Py_GIL_DISABLED)]
-    ob_tid: 0,
-    #[cfg(Py_GIL_DISABLED)]
-    _padding: 0,
-    #[cfg(Py_GIL_DISABLED)]
-    ob_mutex: PyMutex {
-        _bits: AtomicU8::new(0),
-        _pin: PhantomPinned,
-    },
-    #[cfg(Py_GIL_DISABLED)]
-    ob_gc_bits: 0,
-    #[cfg(Py_GIL_DISABLED)]
-    ob_ref_local: AtomicU32::new(_Py_IMMORTAL_REFCNT_LOCAL),
-    #[cfg(Py_GIL_DISABLED)]
-    ob_ref_shared: AtomicIsize::new(0),
-    #[cfg(all(not(Py_GIL_DISABLED), Py_3_12))]
-    ob_refcnt: PyObjectObRefcnt { ob_refcnt: 1 },
-    #[cfg(not(Py_3_12))]
-    ob_refcnt: 1,
-    #[cfg(PyPy)]
-    ob_pypy_link: 0,
-    ob_type: std::ptr::null_mut(),
-};
-
-// skipped PyObject_VAR_HEAD
-// skipped Py_INVALID_SIZE
-
-// skipped private _Py_UNOWNED_TID
-
-#[cfg(Py_GIL_DISABLED)]
-const _Py_REF_SHARED_SHIFT: isize = 2;
-// skipped private _Py_REF_SHARED_FLAG_MASK
-
-// skipped private _Py_REF_SHARED_INIT
-// skipped private _Py_REF_MAYBE_WEAKREF
-// skipped private _Py_REF_QUEUED
-// skipped private _Py_REF_MERGED
-
-// skipped private _Py_REF_SHARED
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-#[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
-/// This union is anonymous in CPython, so the name was given by PyO3 because
-/// Rust unions need a name.
-pub union PyObjectObRefcnt {
-    pub ob_refcnt: Py_ssize_t,
-    #[cfg(target_pointer_width = "64")]
-    pub ob_refcnt_split: [crate::PY_UINT32_T; 2],
-}
-
-#[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
-impl std::fmt::Debug for PyObjectObRefcnt {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", unsafe { self.ob_refcnt })
-    }
-}
-
-#[cfg(all(not(Py_3_12), not(Py_GIL_DISABLED)))]
-pub type PyObjectObRefcnt = Py_ssize_t;
+// PyObject_HEAD_INIT comes before the PyObject definition in object.h
 
 #[repr(C)]
 #[derive(Debug)]
@@ -104,8 +29,10 @@ pub struct PyObject {
     pub _ob_prev: *mut PyObject,
     #[cfg(Py_GIL_DISABLED)]
     pub ob_tid: libc::uintptr_t,
-    #[cfg(Py_GIL_DISABLED)]
+    #[cfg(all(Py_GIL_DISABLED, not(Py_3_14)))]
     pub _padding: u16,
+    #[cfg(Py_GIL_DISABLED)]
+    pub ob_flags: u16,
     #[cfg(Py_GIL_DISABLED)]
     pub ob_mutex: PyMutex, // per-object lock
     #[cfg(Py_GIL_DISABLED)]
@@ -121,7 +48,41 @@ pub struct PyObject {
     pub ob_type: *mut PyTypeObject,
 }
 
-// skipped private _PyObject_CAST
+#[allow(clippy::declare_interior_mutable_const)]
+pub const PyObject_HEAD_INIT: PyObject = PyObject {
+    #[cfg(py_sys_config = "Py_TRACE_REFS")]
+    _ob_next: std::ptr::null_mut(),
+    #[cfg(py_sys_config = "Py_TRACE_REFS")]
+    _ob_prev: std::ptr::null_mut(),
+    #[cfg(Py_GIL_DISABLED)]
+    ob_tid: 0,
+    #[cfg(Py_GIL_DISABLED)]
+    ob_flags: 0,
+    #[cfg(all(Py_GIL_DISABLED, not(Py_3_14)))]
+    _padding: 0,
+    #[cfg(Py_GIL_DISABLED)]
+    ob_mutex: PyMutex {
+        _bits: AtomicU8::new(0),
+        _pin: PhantomPinned,
+    },
+    #[cfg(Py_GIL_DISABLED)]
+    ob_gc_bits: 0,
+    #[cfg(Py_GIL_DISABLED)]
+    ob_ref_local: AtomicU32::new(refcount::_Py_IMMORTAL_REFCNT_LOCAL),
+    #[cfg(Py_GIL_DISABLED)]
+    ob_ref_shared: AtomicIsize::new(0),
+    #[cfg(all(not(Py_GIL_DISABLED), Py_3_12))]
+    ob_refcnt: PyObjectObRefcnt { ob_refcnt: 1 },
+    #[cfg(not(Py_3_12))]
+    ob_refcnt: 1,
+    #[cfg(PyPy)]
+    ob_pypy_link: 0,
+    ob_type: std::ptr::null_mut(),
+};
+
+// skipped _Py_UNOWNED_TID
+
+// skipped _PyObject_CAST
 
 #[repr(C)]
 #[derive(Debug)]
@@ -150,47 +111,29 @@ extern "C" {
     pub fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int;
 }
 
-// skipped private _Py_GetThreadLocal_Addr
+// skipped _Py_GetThreadLocal_Addr
 
-// skipped private _Py_ThreadId
+// skipped _Py_ThreadID
 
-// skipped private _Py_IsOwnedByCurrentThread
-
-#[inline]
-pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
-    #[cfg(Py_GIL_DISABLED)]
-    {
-        let local = (*ob).ob_ref_local.load(Relaxed);
-        if local == _Py_IMMORTAL_REFCNT_LOCAL {
-            return _Py_IMMORTAL_REFCNT;
-        }
-        let shared = (*ob).ob_ref_shared.load(Relaxed);
-        local as Py_ssize_t + Py_ssize_t::from(shared >> _Py_REF_SHARED_SHIFT)
-    }
-
-    #[cfg(all(not(Py_GIL_DISABLED), Py_3_12))]
-    {
-        (*ob).ob_refcnt.ob_refcnt
-    }
-
-    #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), not(GraalPy)))]
-    {
-        (*ob).ob_refcnt
-    }
-
-    #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), GraalPy))]
-    {
-        _Py_REFCNT(ob)
-    }
-}
+// skipped _Py_IsOwnedByCurrentThread
 
 #[inline]
+#[cfg(not(Py_3_14))]
 pub unsafe fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject {
     #[cfg(not(GraalPy))]
     return (*ob).ob_type;
     #[cfg(GraalPy)]
     return _Py_TYPE(ob);
 }
+
+#[cfg_attr(windows, link(name = "pythonXY"))]
+#[cfg(Py_3_14)]
+extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPy_TYPE")]
+    pub fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject;
+}
+
+// skip _Py_TYPE compat shim
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
@@ -212,28 +155,10 @@ pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
     _Py_SIZE(ob)
 }
 
-#[inline(always)]
-#[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
-unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
-    #[cfg(target_pointer_width = "64")]
-    {
-        (((*op).ob_refcnt.ob_refcnt as crate::PY_INT32_T) < 0) as c_int
-    }
-
-    #[cfg(target_pointer_width = "32")]
-    {
-        ((*op).ob_refcnt.ob_refcnt == _Py_IMMORTAL_REFCNT) as c_int
-    }
-}
-
 #[inline]
 pub unsafe fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
     (Py_TYPE(ob) == tp) as c_int
 }
-
-// skipped _Py_SetRefCnt
-
-// skipped Py_SET_REFCNT
 
 // skipped Py_SET_TYPE
 
@@ -586,231 +511,6 @@ pub const Py_TPFLAGS_DEFAULT: c_ulong = if cfg!(Py_3_10) {
 pub const Py_TPFLAGS_HAVE_FINALIZE: c_ulong = 1;
 pub const Py_TPFLAGS_HAVE_VERSION_TAG: c_ulong = 1 << 18;
 
-extern "C" {
-    #[cfg(all(py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API)))]
-    fn _Py_NegativeRefcount(filename: *const c_char, lineno: c_int, op: *mut PyObject);
-    #[cfg(all(Py_3_12, py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API)))]
-    fn _Py_INCREF_IncRefTotal();
-    #[cfg(all(Py_3_12, py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API)))]
-    fn _Py_DECREF_DecRefTotal();
-
-    #[cfg_attr(PyPy, link_name = "_PyPy_Dealloc")]
-    fn _Py_Dealloc(arg1: *mut PyObject);
-
-    #[cfg_attr(PyPy, link_name = "PyPy_IncRef")]
-    #[cfg_attr(GraalPy, link_name = "_Py_IncRef")]
-    pub fn Py_IncRef(o: *mut PyObject);
-    #[cfg_attr(PyPy, link_name = "PyPy_DecRef")]
-    #[cfg_attr(GraalPy, link_name = "_Py_DecRef")]
-    pub fn Py_DecRef(o: *mut PyObject);
-
-    #[cfg(all(Py_3_10, not(PyPy)))]
-    fn _Py_IncRef(o: *mut PyObject);
-    #[cfg(all(Py_3_10, not(PyPy)))]
-    fn _Py_DecRef(o: *mut PyObject);
-
-    #[cfg(GraalPy)]
-    fn _Py_REFCNT(arg1: *const PyObject) -> Py_ssize_t;
-
-    #[cfg(GraalPy)]
-    fn _Py_TYPE(arg1: *const PyObject) -> *mut PyTypeObject;
-
-    #[cfg(GraalPy)]
-    fn _Py_SIZE(arg1: *const PyObject) -> Py_ssize_t;
-}
-
-#[inline(always)]
-pub unsafe fn Py_INCREF(op: *mut PyObject) {
-    // On limited API, the free-threaded build, or with refcount debugging, let the interpreter do refcounting
-    // TODO: reimplement the logic in the header in the free-threaded build, for a little bit of performance.
-    #[cfg(any(
-        Py_GIL_DISABLED,
-        Py_LIMITED_API,
-        py_sys_config = "Py_REF_DEBUG",
-        GraalPy
-    ))]
-    {
-        // _Py_IncRef was added to the ABI in 3.10; skips null checks
-        #[cfg(all(Py_3_10, not(PyPy)))]
-        {
-            _Py_IncRef(op);
-        }
-
-        #[cfg(any(not(Py_3_10), PyPy))]
-        {
-            Py_IncRef(op);
-        }
-    }
-
-    // version-specific builds are allowed to directly manipulate the reference count
-    #[cfg(not(any(
-        Py_GIL_DISABLED,
-        Py_LIMITED_API,
-        py_sys_config = "Py_REF_DEBUG",
-        GraalPy
-    )))]
-    {
-        #[cfg(all(Py_3_14, target_pointer_width = "64"))]
-        {
-            let cur_refcnt = (*op).ob_refcnt.ob_refcnt;
-            if (cur_refcnt as i32) < 0 {
-                return;
-            }
-            (*op).ob_refcnt.ob_refcnt = cur_refcnt.wrapping_add(1);
-        }
-
-        #[cfg(all(Py_3_12, not(Py_3_14), target_pointer_width = "64"))]
-        {
-            let cur_refcnt = (*op).ob_refcnt.ob_refcnt_split[crate::PY_BIG_ENDIAN];
-            let new_refcnt = cur_refcnt.wrapping_add(1);
-            if new_refcnt == 0 {
-                return;
-            }
-            (*op).ob_refcnt.ob_refcnt_split[crate::PY_BIG_ENDIAN] = new_refcnt;
-        }
-
-        #[cfg(all(Py_3_12, target_pointer_width = "32"))]
-        {
-            if _Py_IsImmortal(op) != 0 {
-                return;
-            }
-            (*op).ob_refcnt.ob_refcnt += 1
-        }
-
-        #[cfg(not(Py_3_12))]
-        {
-            (*op).ob_refcnt += 1
-        }
-
-        // Skipped _Py_INCREF_STAT_INC - if anyone wants this, please file an issue
-        // or submit a PR supporting Py_STATS build option and pystats.h
-    }
-}
-
-#[inline(always)]
-#[cfg_attr(
-    all(py_sys_config = "Py_REF_DEBUG", Py_3_12, not(Py_LIMITED_API)),
-    track_caller
-)]
-pub unsafe fn Py_DECREF(op: *mut PyObject) {
-    // On limited API, the free-threaded build, or with refcount debugging, let the interpreter do refcounting
-    // On 3.12+ we implement refcount debugging to get better assertion locations on negative refcounts
-    // TODO: reimplement the logic in the header in the free-threaded build, for a little bit of performance.
-    #[cfg(any(
-        Py_GIL_DISABLED,
-        Py_LIMITED_API,
-        all(py_sys_config = "Py_REF_DEBUG", not(Py_3_12)),
-        GraalPy
-    ))]
-    {
-        // _Py_DecRef was added to the ABI in 3.10; skips null checks
-        #[cfg(all(Py_3_10, not(PyPy)))]
-        {
-            _Py_DecRef(op);
-        }
-
-        #[cfg(any(not(Py_3_10), PyPy))]
-        {
-            Py_DecRef(op);
-        }
-    }
-
-    #[cfg(not(any(
-        Py_GIL_DISABLED,
-        Py_LIMITED_API,
-        all(py_sys_config = "Py_REF_DEBUG", not(Py_3_12)),
-        GraalPy
-    )))]
-    {
-        #[cfg(Py_3_12)]
-        if _Py_IsImmortal(op) != 0 {
-            return;
-        }
-
-        // Skipped _Py_DECREF_STAT_INC - if anyone needs this, please file an issue
-        // or submit a PR supporting Py_STATS build option and pystats.h
-
-        #[cfg(py_sys_config = "Py_REF_DEBUG")]
-        _Py_DECREF_DecRefTotal();
-
-        #[cfg(Py_3_12)]
-        {
-            (*op).ob_refcnt.ob_refcnt -= 1;
-
-            #[cfg(py_sys_config = "Py_REF_DEBUG")]
-            if (*op).ob_refcnt.ob_refcnt < 0 {
-                let location = std::panic::Location::caller();
-                let filename = std::ffi::CString::new(location.file()).unwrap();
-                _Py_NegativeRefcount(filename.as_ptr(), location.line() as i32, op);
-            }
-
-            if (*op).ob_refcnt.ob_refcnt == 0 {
-                _Py_Dealloc(op);
-            }
-        }
-
-        #[cfg(not(Py_3_12))]
-        {
-            (*op).ob_refcnt -= 1;
-
-            if (*op).ob_refcnt == 0 {
-                _Py_Dealloc(op);
-            }
-        }
-    }
-}
-
-#[inline]
-pub unsafe fn Py_CLEAR(op: *mut *mut PyObject) {
-    let tmp = *op;
-    if !tmp.is_null() {
-        *op = ptr::null_mut();
-        Py_DECREF(tmp);
-    }
-}
-
-#[inline]
-pub unsafe fn Py_XINCREF(op: *mut PyObject) {
-    if !op.is_null() {
-        Py_INCREF(op)
-    }
-}
-
-#[inline]
-pub unsafe fn Py_XDECREF(op: *mut PyObject) {
-    if !op.is_null() {
-        Py_DECREF(op)
-    }
-}
-
-extern "C" {
-    #[cfg(all(Py_3_10, Py_LIMITED_API, not(PyPy)))]
-    #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
-    pub fn Py_NewRef(obj: *mut PyObject) -> *mut PyObject;
-    #[cfg(all(Py_3_10, Py_LIMITED_API, not(PyPy)))]
-    #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
-    pub fn Py_XNewRef(obj: *mut PyObject) -> *mut PyObject;
-}
-
-// macro _Py_NewRef not public; reimplemented directly inside Py_NewRef here
-// macro _Py_XNewRef not public; reimplemented directly inside Py_XNewRef here
-
-#[cfg(all(Py_3_10, any(not(Py_LIMITED_API), PyPy)))]
-#[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
-#[inline]
-pub unsafe fn Py_NewRef(obj: *mut PyObject) -> *mut PyObject {
-    Py_INCREF(obj);
-    obj
-}
-
-#[cfg(all(Py_3_10, any(not(Py_LIMITED_API), PyPy)))]
-#[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
-#[inline]
-pub unsafe fn Py_XNewRef(obj: *mut PyObject) -> *mut PyObject {
-    Py_XINCREF(obj);
-    obj
-}
-
 #[cfg(Py_3_13)]
 pub const Py_CONSTANT_NONE: c_uint = 0;
 #[cfg(Py_3_13)]
@@ -951,4 +651,7 @@ extern "C" {
         arg1: *mut crate::PyTypeObject,
         arg2: *mut crate::PyModuleDef,
     ) -> *mut PyObject;
+
+    #[cfg(Py_3_14)]
+    pub fn PyType_Freeze(tp: *mut crate::PyTypeObject) -> c_int;
 }
