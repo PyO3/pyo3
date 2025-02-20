@@ -96,6 +96,13 @@ pub struct _PyCoMonitoringData {
     pub per_instruction_tools: *mut u8,
 }
 
+#[repr(C)]
+#[cfg(all(Py_GIL_DISABLED, Py_3_14))]
+pub struct _PyCodeArray {
+    size: Py_ssize_t,
+    entries: [c_char; 1],
+}
+
 #[cfg(all(not(any(PyPy, GraalPy)), not(Py_3_7)))]
 opaque_struct!(PyCodeObject);
 
@@ -211,6 +218,8 @@ pub struct PyCodeObject {
     pub _co_unique_id: Py_ssize_t,
     pub _co_firsttraceable: c_int,
     pub co_extra: *mut c_void,
+    #[cfg(all(Py_GIL_DISABLED, Py_3_14))]
+    pub co_tlbc: *mut _PyCodeArray,
     pub co_code_adaptive: [c_char; 1],
 }
 
