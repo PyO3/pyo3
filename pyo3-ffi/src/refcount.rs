@@ -1,10 +1,13 @@
 use crate::pyport::Py_ssize_t;
 use crate::PyObject;
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(Py_3_12)]
+use std::os::raw::c_int;
+#[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
+use std::os::raw::c_long;
+#[cfg(any(Py_GIL_DISABLED, all(Py_3_12, not(Py_3_14))))]
 use std::os::raw::c_uint;
-#[cfg(not(Py_GIL_DISABLED))]
+#[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
 use std::os::raw::c_ulong;
-use std::os::raw::{c_int, c_long};
 use std::ptr;
 #[cfg(Py_GIL_DISABLED)]
 use std::sync::atomic::Ordering::Relaxed;
@@ -52,8 +55,6 @@ const _Py_STATIC_IMMORTAL_MINIMUM_REFCNT: Py_ssize_t =
 
 #[cfg(all(Py_3_14, Py_GIL_DISABLED))]
 pub const _Py_IMMORTAL_INITIAL_REFCNT: Py_ssize_t = c_uint::MAX as Py_ssize_t;
-
-pub const _Py_IMMORTAL_REFCNT: Py_ssize_t = ((5 as c_long) << (28 as c_long)) as Py_ssize_t;
 
 #[cfg(Py_GIL_DISABLED)]
 pub const _Py_IMMORTAL_REFCNT_LOCAL: u32 = u32::MAX;
