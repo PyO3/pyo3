@@ -1,5 +1,6 @@
 use crate::utils::Ctx;
 use crate::{
+    attributes::FromPyWithAttribute,
     method::{FnArg, FnSpec, RegularArg},
     pyfunction::FunctionSignature,
     quotes::some_wrap,
@@ -248,13 +249,16 @@ pub(crate) fn impl_regular_arg_param(
         default = default.map(|tokens| some_wrap(tokens, ctx));
     }
 
-    if arg.from_py_with.is_some() {
+    if let Some(FromPyWithAttribute { kw, .. }) = arg.from_py_with {
+        let extractor = quote_spanned! { kw.span =>
+            { let from_py_with: fn(_) -> _ = #from_py_with; from_py_with }
+        };
         if let Some(default) = default {
             quote_arg_span! {
                 #pyo3_path::impl_::extract_argument::from_py_with_with_default(
                     #arg_value,
                     #name_str,
-                    #from_py_with as fn(_) -> _,
+                    #extractor,
                     #[allow(clippy::redundant_closure)]
                     {
                         || #default
@@ -267,7 +271,7 @@ pub(crate) fn impl_regular_arg_param(
                 #pyo3_path::impl_::extract_argument::from_py_with(
                     #unwrap,
                     #name_str,
-                    #from_py_with as fn(_) -> _,
+                    #extractor,
                 )?
             }
         }
