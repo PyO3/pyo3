@@ -2,6 +2,8 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 
 #[allow(unused_imports)]
+use libc::uintptr_t;
+#[allow(unused_imports)]
 use std::os::raw::{c_char, c_int, c_short, c_uchar, c_void};
 #[cfg(not(any(PyPy, GraalPy)))]
 use std::ptr::addr_of_mut;
@@ -9,12 +11,20 @@ use std::ptr::addr_of_mut;
 #[cfg(all(Py_3_8, not(any(PyPy, GraalPy)), not(Py_3_11)))]
 opaque_struct!(_PyOpcache);
 
-#[cfg(Py_3_12)]
+#[cfg(Py_3_14)]
+pub const _PY_MONITORING_TOOL_IDS: usize = 8;
+#[cfg(Py_3_14)]
+pub const _PY_MONITORING_LOCAL_EVENTS: usize = 11;
+#[cfg(all(Py_3_12, not(Py_3_14)))]
 pub const _PY_MONITORING_LOCAL_EVENTS: usize = 10;
-#[cfg(Py_3_12)]
+#[cfg(Py_3_14)]
+pub const _PY_MONITORING_UNGROUPED_EVENTS: usize = 16;
+#[cfg(all(Py_3_12, not(Py_3_14)))]
 pub const _PY_MONITORING_UNGROUPED_EVENTS: usize = 15;
-#[cfg(Py_3_12)]
+#[cfg(Py_3_14)]
 pub const _PY_MONITORING_EVENTS: usize = 17;
+#[cfg(all(Py_3_12, not(Py_3_14)))]
+pub const _PY_MONITORING_EVENTS: usize = 19;
 
 #[cfg(Py_3_12)]
 #[repr(C)]
@@ -56,12 +66,19 @@ pub struct _PyCoCached {
     pub _co_freevars: *mut PyObject,
 }
 
-#[cfg(Py_3_12)]
+#[cfg(all(Py_3_12, not(Py_3_14)))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct _PyCoLineInstrumentationData {
     pub original_opcode: u8,
     pub line_delta: i8,
+}
+
+#[cfg(Py_3_14)]
+#[repr(C)]
+pub struct _PyCoLineInstrumentationData {
+    pub bytes_per_entry: u8,
+    pub data: [i8; 1],
 }
 
 #[cfg(Py_3_12)]
@@ -71,6 +88,7 @@ pub struct _PyCoMonitoringData {
     pub local_monitors: _Py_LocalMonitors,
     pub active_monitors: _Py_LocalMonitors,
     pub tools: *mut u8,
+    pub tool_versions: [uintptr_t; _PY_MONITORING_TOOL_IDS],
     pub lines: *mut _PyCoLineInstrumentationData,
     pub line_tools: *mut u8,
     pub per_instruction_opcodes: *mut u8,
@@ -188,6 +206,8 @@ pub struct PyCodeObject {
     pub _co_instrumentation_version: u64,
     #[cfg(Py_3_12)]
     pub _co_monitoring: *mut _PyCoMonitoringData,
+    #[cfg(Py_3_14)]
+    pub _co_unique_id: Py_ssize_t,
     pub _co_firsttraceable: c_int,
     pub co_extra: *mut c_void,
     pub co_code_adaptive: [c_char; 1],

@@ -312,6 +312,8 @@ pub struct PyHeapTypeObject {
     pub ht_module: *mut object::PyObject,
     #[cfg(all(Py_3_11, not(PyPy)))]
     _ht_tpname: *mut c_char,
+    #[cfg(Py_3_14)]
+    ht_token: *mut c_void,
     #[cfg(all(Py_3_11, not(PyPy)))]
     _spec_cache: _specialization_cache,
 }
