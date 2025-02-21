@@ -316,7 +316,7 @@ pub struct PyHeapTypeObject {
     ht_token: *mut c_void,
     #[cfg(all(Py_3_11, not(PyPy)))]
     _spec_cache: _specialization_cache,
-    #[cfg(Py_GIL_DISABLED)]
+    #[cfg(all(Py_GIL_DISABLED, Py_3_14))]
     unique_id: Py_ssize_t,
 }
 

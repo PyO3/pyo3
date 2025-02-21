@@ -78,7 +78,7 @@ pub struct PyObject {
     pub ob_tid: libc::uintptr_t,
     #[cfg(all(Py_GIL_DISABLED, not(Py_3_14)))]
     pub _padding: u16,
-    #[cfg(Py_GIL_DISABLED)]
+    #[cfg(all(Py_GIL_DISABLED, Py_3_14))]
     pub ob_flags: u16,
     #[cfg(Py_GIL_DISABLED)]
     pub ob_mutex: PyMutex, // per-object lock
@@ -103,7 +103,7 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     _ob_prev: std::ptr::null_mut(),
     #[cfg(Py_GIL_DISABLED)]
     ob_tid: 0,
-    #[cfg(Py_GIL_DISABLED)]
+    #[cfg(all(Py_GIL_DISABLED, Py_3_14))]
     ob_flags: 0,
     #[cfg(all(Py_GIL_DISABLED, not(Py_3_14)))]
     _padding: 0,
