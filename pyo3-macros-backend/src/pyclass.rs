@@ -2045,11 +2045,10 @@ fn pyclass_class_geitem(
                 parse_quote! {
                     #[classmethod]
                     fn #ident<'py>(
-                        py: #pyo3_path::Python<'py>,
                         cls: &#pyo3_path::Bound<'py, #pyo3_path::types::PyType>,
                         key: &#pyo3_path::Bound<'py, #pyo3_path::types::PyAny>
                     ) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::types::PyGenericAlias>> {
-                        #pyo3_path::types::PyGenericAlias::new(py, cls.as_any(), key)
+                        #pyo3_path::types::PyGenericAlias::new(cls.py(), cls.as_any(), key)
                     }
                 }
             };
