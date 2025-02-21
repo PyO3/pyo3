@@ -3,10 +3,10 @@ use crate::pyport::{Py_hash_t, Py_ssize_t};
 use crate::refcount;
 #[cfg(Py_GIL_DISABLED)]
 use crate::PyMutex;
-use std::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 #[cfg(Py_GIL_DISABLED)]
 use std::marker::PhantomPinned;
 use std::mem;
+use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::ptr;
 #[cfg(Py_GIL_DISABLED)]
 use std::sync::atomic::{AtomicIsize, AtomicU32, AtomicU8};
