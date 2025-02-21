@@ -429,10 +429,11 @@ fn impl_class(
         ctx,
     )?;
 
-    if let Some(default_class_geitem) =
-        pyclass_class_geitem(&args.options, &syn::parse_quote!(#cls), ctx)?
-    {
-        default_methods.push(default_class_geitem);
+    let (default_class_geitem, default_class_geitem_method) =
+        pyclass_class_geitem(&args.options, &syn::parse_quote!(#cls), ctx)?;
+
+    if let Some(default_class_geitem_method) = default_class_geitem_method {
+        default_methods.push(default_class_geitem_method);
     }
 
     let (default_str, default_str_slot) =
@@ -466,6 +467,7 @@ fn impl_class(
             #default_richcmp
             #default_hash
             #default_str
+            #default_class_geitem
         }
     })
 }
@@ -2034,38 +2036,38 @@ fn pyclass_class_geitem(
     options: &PyClassPyO3Options,
     cls: &syn::Type,
     ctx: &Ctx,
-) -> Result<Option<MethodAndMethodDef>> {
+) -> Result<(Option<syn::ImplItemFn>, Option<MethodAndMethodDef>)> {
     let Ctx { pyo3_path, .. } = ctx;
     match options.generic {
         Some(_) => {
             let ident = format_ident!("__class_getitem__");
-            let mut match_args_impl: syn::ImplItemFn = {
+            let mut class_geitem_impl: syn::ImplItemFn = {
                 parse_quote! {
                     #[classmethod]
-                    fn #ident(
-                        py: #pyo3_path::Python<'_>, cls: #pyo3_path::Bound<'_, #pyo3_path::types::PyAny>, key: #pyo3_path::Bound<'_, #pyo3_path::types::PyAny>
-                    ) -> #pyo3_path::PyResult<#pyo3_path::Bound<'_, #pyo3_path::types::PyGenericAlias>> {
+                    fn #ident<'py>(
+                        py: #pyo3_path::Python<'py>, cls: #pyo3_path::Bound<'py, #pyo3_path::types::PyAny>, key: #pyo3_path::Bound<'py, #pyo3_path::types::PyAny>
+                    ) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::types::PyGenericAlias>> {
                         #pyo3_path::types::PyGenericAlias::new(py, cls, key)
                     }
                 }
             };
 
             let spec = FnSpec::parse(
-                &mut match_args_impl.sig,
-                &mut match_args_impl.attrs,
+                &mut class_geitem_impl.sig,
+                &mut class_geitem_impl.attrs,
                 Default::default(),
             )?;
 
             let class_geitem_method = crate::pymethod::impl_py_method_def(
                 cls,
                 &spec,
-                &spec.get_doc(&match_args_impl.attrs, ctx),
+                &spec.get_doc(&class_geitem_impl.attrs, ctx),
                 Some(quote!(#pyo3_path::ffi::METH_CLASS)),
                 ctx,
             )?;
-            Ok(Some(class_geitem_method))
+            Ok((Some(class_geitem_impl), Some(class_geitem_method)))
         }
-        None => Ok(None),
+        None => Ok((None, None)),
     }
 }
 
