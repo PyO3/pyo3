@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::exceptions::{PyIndexError, PyValueError};
-use pyo3::types::{IntoPyDict, PyInt, PyList, PyMapping, PySequence};
+use pyo3::types::{IntoPyDict, PyList, PyMapping, PySequence};
 use pyo3::{ffi, prelude::*};
 
 use pyo3::py_run;
