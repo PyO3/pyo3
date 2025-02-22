@@ -212,7 +212,7 @@ can make Python call magic methods that are not defined.
 
 To overcome this limitation, implementers can pass the `generic` parameter to `pyclass` in Rust:
 
-```rust
+```rust ignore
 #[pyclass(generic)]
 ```
 
@@ -223,7 +223,7 @@ any generic argument. Advanced users can opt to manually implement
 [`__class_geitem__`](https://docs.python.org/3/reference/datamodel.html#emulating-generic-types)
 for the generic class to have more control.
 
-```rust
+```rust ignore
 impl MyClass {
     #[classmethod]
     #[pyo3(signature = (key, /))]
