@@ -416,7 +416,7 @@ fn test_generic_both_subscriptions_types() {
             ty,
             "import types;
             import typing;
-            IntOrNone: typing.Alias = typing.Union[int, None];
+            IntOrNone: typing.TypeAlias = typing.Union[int, None];
             assert ty[IntOrNone] == types.GenericAlias(ty, (IntOrNone,))"
         );
         py_assert!(py, l, "list(reversed(l)) == [3, 2, 1]");
