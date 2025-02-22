@@ -400,13 +400,13 @@ fn test_generic_both_subscriptions_types() {
         let l = Bound::new(
             py,
             GenericList {
-                items: vec![1, 2, 3]
+                items: [1, 2, 3]
                     .iter()
                     .map(|x| -> PyObject {
                         let x: Result<Bound<'_, PyInt>, Infallible> = x.into_pyobject(py);
-                        return x.unwrap().into_any().unbind();
+                        x.unwrap().into_any().unbind()
                     })
-                    .chain(vec![py.None()])
+                    .chain([py.None()])
                     .collect(),
             },
         )
