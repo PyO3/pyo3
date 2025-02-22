@@ -510,6 +510,10 @@ pub fn build_py_enum(
         bail_spanned!(enum_.brace_token.span.join() => "#[pyclass] can't be used on enums without any variants");
     }
 
+    if let Some(generic) = &args.options.generic {
+        bail_spanned!(generic.span() => "enums do not support #[pyclass(generic)]");
+    }
+
     let doc = utils::get_doc(&enum_.attrs, None, ctx);
     let enum_ = PyClassEnum::new(enum_)?;
     impl_enum(enum_, &args, doc, method_type, ctx)

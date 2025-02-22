@@ -12,6 +12,8 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pyclass_item.rs");
     #[cfg(Py_3_9)]
     t.compile_fail("tests/ui/invalid_pyclass_generic.rs");
+    #[cfg(Py_3_9)]
+    t.compile_fail("tests/ui/pyclass_generic_enum.rs");
     t.compile_fail("tests/ui/invalid_pyfunction_signatures.rs");
     t.compile_fail("tests/ui/invalid_pyfunction_definition.rs");
     #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
