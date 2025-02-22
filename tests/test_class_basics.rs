@@ -740,7 +740,8 @@ fn test_runtime_parametrization() {
         py_run!(
             py,
             ty,
-            "import types; assert ty.__class_getitem__((int,)) == types.GenericAlias(ty, (int,))"
+            "import types;
+            assert ty.__class_getitem__((int,)) == types.GenericAlias(ty, (int,))"
         );
     });
 }

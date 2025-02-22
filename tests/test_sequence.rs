@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::exceptions::{PyIndexError, PyValueError};
-use pyo3::types::{IntoPyDict, PyList, PyMapping, PySequence};
+use pyo3::types::{IntoPyDict, PyInt, PyList, PyMapping, PySequence};
 use pyo3::{ffi, prelude::*};
 
 use pyo3::py_run;
@@ -255,15 +255,15 @@ fn test_inplace_repeat() {
 // Check that #[pyo3(get, set)] works correctly for Vec<PyObject>
 
 #[pyclass]
-struct GenericList {
+struct AnyObjectList {
     #[pyo3(get, set)]
     items: Vec<PyObject>,
 }
 
 #[test]
-fn test_generic_list_get() {
+fn test_any_object_list_get() {
     Python::with_gil(|py| {
-        let list = GenericList {
+        let list = AnyObjectList {
             items: [1i32, 2, 3]
                 .iter()
                 .map(|i| i.into_pyobject(py).unwrap().into_any().unbind())
@@ -277,9 +277,9 @@ fn test_generic_list_get() {
 }
 
 #[test]
-fn test_generic_list_set() {
+fn test_any_object_list_set() {
     Python::with_gil(|py| {
-        let list = Bound::new(py, GenericList { items: vec![] }).unwrap();
+        let list = Bound::new(py, AnyObjectList { items: vec![] }).unwrap();
 
         py_run!(py, list, "list.items = [1, 2, 3]");
         assert!(list
@@ -366,4 +366,59 @@ fn sequence_length() {
         assert_eq!(unsafe { ffi::PyMapping_Length(list.as_ptr()) }, -1);
         unsafe { ffi::PyErr_Clear() };
     })
+}
+
+#[cfg(Py_3_9)]
+#[pyclass(generic, sequence)]
+struct GenericList {
+    #[pyo3(get, set)]
+    items: Vec<PyObject>,
+}
+
+#[cfg(Py_3_9)]
+#[pymethods]
+impl GenericList {
+    fn __len__(&self) -> usize {
+        self.items.len()
+    }
+
+    fn __getitem__(&self, idx: isize) -> PyResult<PyObject> {
+        match self.items.get(idx as usize) {
+            Some(x) => pyo3::Python::with_gil(|py| Ok(x.clone_ref(py))),
+            None => Err(PyIndexError::new_err("Index out of bounds")),
+        }
+    }
+}
+
+#[cfg(Py_3_9)]
+#[test]
+fn test_generic_both_subscriptions_types() {
+    use std::convert::Infallible;
+
+    Python::with_gil(|py| {
+        let l = Bound::new(
+            py,
+            GenericList {
+                items: vec![1, 2, 3]
+                    .iter()
+                    .map(|x| -> PyObject {
+                        let x: Result<Bound<'_, PyInt>, Infallible> = x.into_pyobject(py);
+                        return x.unwrap().into_any().unbind();
+                    })
+                    .collect(),
+            },
+        )
+        .unwrap();
+        let ty = py.get_type::<GenericList>();
+        py_assert!(py, l, "l[0] == 1");
+        py_run!(
+            py,
+            ty,
+            "import types;
+            import typing;
+            IntOrNone: typing.Alias = typing.Union[int, None];
+            assert ty[IntOrNone] == types.GenericAlias(ty, (IntOrNone,))"
+        );
+        py_assert!(py, l, "list(reversed(l)) == [3, 2, 1]");
+    });
 }
