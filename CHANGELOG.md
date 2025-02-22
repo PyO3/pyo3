@@ -10,6 +10,16 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.23.5] - 2025-02-22
+### Packaging
+
+- add support for PyPy3.11 [#4760](https://github.com/PyO3/pyo3/pull/4760)
+
+### Fixed
+
+- * Fixed thread-unsafe implementation of freelist pyclasses on the free-threaded build. [#4902](https://github.com/PyO3/pyo3/pull/4902)
+- * Reenabled a workaround for situations where CPython incorrectly does not add `__builtins__` to `__globals__` in code executed by `Python::py_run`. [#4921](https://github.com/PyO3/pyo3/pull/4921)
+
 ## [0.23.4] - 2025-01-10
 
 ### Added
@@ -2054,7 +2064,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.23.4...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.23.5...HEAD
+[0.23.4]: https://github.com/pyo3/pyo3/compare/v0.23.4...v0.23.5
 [0.23.4]: https://github.com/pyo3/pyo3/compare/v0.23.3...v0.23.4
 [0.23.3]: https://github.com/pyo3/pyo3/compare/v0.23.2...v0.23.3
 [0.23.2]: https://github.com/pyo3/pyo3/compare/v0.23.1...v0.23.2
