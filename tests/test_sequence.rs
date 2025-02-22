@@ -393,6 +393,7 @@ impl GenericList {
 #[cfg(Py_3_9)]
 #[test]
 fn test_generic_both_subscriptions_types() {
+    use pyo3::types::PyInt;
     use std::convert::Infallible;
 
     Python::with_gil(|py| {
