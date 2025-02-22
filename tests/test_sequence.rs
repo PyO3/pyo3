@@ -405,6 +405,7 @@ fn test_generic_both_subscriptions_types() {
                         let x: Result<Bound<'_, PyInt>, Infallible> = x.into_pyobject(py);
                         return x.unwrap().into_any().unbind();
                     })
+                    .chain(vec![py.None()])
                     .collect(),
             },
         )
@@ -419,6 +420,6 @@ fn test_generic_both_subscriptions_types() {
             IntOrNone: typing.TypeAlias = typing.Union[int, None];
             assert ty[IntOrNone] == types.GenericAlias(ty, (IntOrNone,))"
         );
-        py_assert!(py, l, "list(reversed(l)) == [3, 2, 1]");
+        py_assert!(py, l, "list(reversed(l)) == [None, 3, 2, 1]");
     });
 }
