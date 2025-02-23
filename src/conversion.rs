@@ -3,7 +3,6 @@ use crate::err::PyResult;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
-use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
 use crate::{
     ffi, Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyErr, PyObject, PyRef, PyRefMut, Python,
@@ -403,7 +402,8 @@ impl<'py, T> IntoPyObjectExt<'py> for T where T: IntoPyObject<'py> {}
 /// Extract a type from a Python object.
 ///
 ///
-/// Normal usage is through the `extract` methods on [`Bound`] and [`Py`], which forward to this trait.
+/// Normal usage is through the `extract` methods on [`Bound`], [`Borrowed`] and [`Py`], which
+/// forward to this trait.
 ///
 /// # Examples
 ///
@@ -427,91 +427,38 @@ impl<'py, T> IntoPyObjectExt<'py> for T where T: IntoPyObject<'py> {}
 /// # }
 /// ```
 ///
-// /// FIXME: until `FromPyObject` can pick up a second lifetime, the below commentary is no longer
-// /// true. Update and restore this documentation at that time.
-// ///
-// /// Note: depending on the implementation, the lifetime of the extracted result may
-// /// depend on the lifetime of the `obj` or the `prepared` variable.
-// ///
-// /// For example, when extracting `&str` from a Python byte string, the resulting string slice will
-// /// point to the existing string data (lifetime: `'py`).
-// /// On the other hand, when extracting `&str` from a Python Unicode string, the preparation step
-// /// will convert the string to UTF-8, and the resulting string slice will have lifetime `'prepared`.
-// /// Since which case applies depends on the runtime type of the Python object,
-// /// both the `obj` and `prepared` variables must outlive the resulting string slice.
+/// Note: Depending on the Python version and implementation, some [`FromPyObject`] implementations
+/// may produce a result that borrows into the Python type. This is described by the input lifetime
+/// `'a` of `obj`.
 ///
-/// During the migration of PyO3 from the "GIL Refs" API to the `Bound<T>` smart pointer, this trait
-/// has two methods `extract` and `extract_bound` which are defaulted to call each other. To avoid
-/// infinite recursion, implementors must implement at least one of these methods. The recommendation
-/// is to implement `extract_bound` and leave `extract` as the default implementation.
-pub trait FromPyObject<'py>: Sized {
-    /// Extracts `Self` from the bound smart pointer `obj`.
-    ///
-    /// Implementors are encouraged to implement this method and leave `extract` defaulted, as
-    /// this will be most compatible with PyO3's future API.
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self>;
-
-    /// Extracts the type hint information for this type when it appears as an argument.
-    ///
-    /// For example, `Vec<u32>` would return `Sequence[int]`.
-    /// The default implementation returns `Any`, which is correct for any type.
-    ///
-    /// For most types, the return value for this method will be identical to that of
-    /// [`IntoPyObject::type_output`]. It may be different for some types, such as `Dict`,
-    /// to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
-    #[cfg(feature = "experimental-inspect")]
-    fn type_input() -> TypeInfo {
-        TypeInfo::Any
-    }
-}
-
-mod from_py_object_bound_sealed {
-    /// Private seal for the `FromPyObjectBound` trait.
-    ///
-    /// This prevents downstream types from implementing the trait before
-    /// PyO3 is ready to declare the trait as public API.
-    pub trait Sealed {}
-
-    // This generic implementation is why the seal is separate from
-    // `crate::sealed::Sealed`.
-    impl<'py, T> Sealed for T where T: super::FromPyObject<'py> {}
-    impl Sealed for &'_ str {}
-    impl Sealed for std::borrow::Cow<'_, str> {}
-    impl Sealed for &'_ [u8] {}
-    impl Sealed for std::borrow::Cow<'_, [u8]> {}
-}
-
-/// Expected form of [`FromPyObject`] to be used in a future PyO3 release.
+/// Types that must not borrow from the input can use [`FromPyObjectOwned`] as a restriction. This
+/// is most often the case for collection types. See its documentation for more details.
 ///
-/// The difference between this and `FromPyObject` is that this trait takes an
-/// additional lifetime `'a`, which is the lifetime of the input `Bound`.
+/// # Details
+/// [`Cow<'a, str>`] is an example of an output type that may or may not borrow from the input
+/// lifetime `'a`. Which variant will be produced depends on the runtime type of the Python object.
+/// For a Python byte string, the existing string data can be borrowed for `'a` into a
+/// [`Cow::Borrowed`]. For a Python Unicode string, the data may have to be reencoded to UTF-8, and
+/// copied into a [`Cow::Owned`]. It does _not_ depend on the Python lifetime `'py`.
 ///
-/// This allows implementations for `&'a str` and `&'a [u8]`, which could not
-/// be expressed by the existing `FromPyObject` trait once the GIL Refs API was
-/// removed.
+/// The output type may also depend on the Python lifetime `'py`. This allows the output type to
+/// keep interacting with the Python interpreter. See also [`Bound<'py, T>`].
 ///
-/// # Usage
-///
-/// Users are prevented from implementing this trait, instead they should implement
-/// the normal `FromPyObject` trait. This trait has a blanket implementation
-/// for `T: FromPyObject`.
-///
-/// The only case where this trait may have a use case to be implemented is when the
-/// lifetime of the extracted value is tied to the lifetime `'a` of the input `Bound`
-/// instead of the GIL lifetime `py`, as is the case for the `&'a str` implementation.
-///
-/// Please contact the PyO3 maintainers if you believe you have a use case for implementing
-/// this trait before PyO3 is ready to change the main `FromPyObject` trait to take an
-/// additional lifetime.
-///
-/// Similarly, users should typically not call these trait methods and should instead
-/// use this via the `extract` method on `Bound` and `Py`.
-pub trait FromPyObjectBound<'a, 'py>: Sized + from_py_object_bound_sealed::Sealed {
+/// [`Cow<'a, str>`]: std::borrow::Cow
+/// [`Cow::Borrowed`]: std::borrow::Cow::Borrowed
+/// [`Cow::Owned`]: std::borrow::Cow::Owned
+pub trait FromPyObject<'a, 'py>: Sized {
     /// Extracts `Self` from the bound smart pointer `obj`.
     ///
     /// Users are advised against calling this method directly: instead, use this via
     /// [`Bound<'_, PyAny>::extract`] or [`Py::extract`].
-    fn from_py_object_bound(ob: Borrowed<'a, 'py, PyAny>) -> PyResult<Self>;
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self>;
+
+    /// Deprecated name for [`FromPyObject::extract`]
+    #[deprecated(since = "0.23.0", note = "replaced by `FromPyObject::extract`")]
+    fn extract_bound(ob: &'a Bound<'py, PyAny>) -> PyResult<Self> {
+        Self::extract(ob.as_borrowed())
+    }
 
     /// Extracts the type hint information for this type when it appears as an argument.
     ///
@@ -527,19 +474,52 @@ pub trait FromPyObjectBound<'a, 'py>: Sized + from_py_object_bound_sealed::Seale
     }
 }
 
-impl<'py, T> FromPyObjectBound<'_, 'py> for T
-where
-    T: FromPyObject<'py>,
-{
-    fn from_py_object_bound(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
-        Self::extract_bound(&ob)
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_input() -> TypeInfo {
-        <T as FromPyObject>::type_input()
-    }
-}
+/// A data structure that can be extracted without borrowing any data from the input.
+///
+/// This is primarily useful for trait bounds. For example a [`FromPyObject`] implementation of a
+/// wrapper type may be able to borrow data from the input, but a [`FromPyObject`] implementation of
+/// a collection type may only extract owned data.
+///
+/// For example [`PyList`] will not hand out references tied to its own lifetime, but "owned"
+/// references independent of it. (Similar to [`Vec<Arc<T>>`] where you clone the [`Arc<T>`] out).
+/// This makes it impossible to collect borrowed types in a collection, since they would not borrow
+/// from the original [`PyList`], but the much shorter lived element reference. See the example
+/// below.
+///
+/// ```
+/// # use pyo3::prelude::*;
+/// pub struct MyWrapper<T>(T);
+///
+/// impl<'a, 'py, T> FromPyObject<'a, 'py> for MyWrapper<T>
+/// where
+///     T: FromPyObject<'a, 'py>
+/// {
+///     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
+///         obj.extract().map(MyWrapper)
+///     }
+/// }
+///
+/// pub struct MyVec<T>(Vec<T>);
+///
+/// impl<'py, T> FromPyObject<'_, 'py> for MyVec<T>
+/// where
+///     T: FromPyObjectOwned<'py> // 👈 can only extract owned values, because each `item` below
+///                               //    is a temporary short lived owned reference
+/// {
+///     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+///         let mut v = MyVec(Vec::new());
+///         for item in obj.try_iter()? {
+///             v.0.push(item?.extract::<T>()?);
+///         }
+///         Ok(v)
+///     }
+/// }
+/// ```
+///
+/// [`PyList`]: crate::types::PyList
+/// [`Arc<T>`]: std::sync::Arc
+pub trait FromPyObjectOwned<'py>: for<'a> FromPyObject<'a, 'py> {}
+impl<'py, T> FromPyObjectOwned<'py> for T where T: for<'a> FromPyObject<'a, 'py> {}
 
 /// Identity conversion: allows using existing `PyObject` instances where
 /// `T: ToPyObject` is expected.
@@ -551,30 +531,30 @@ impl<T: ?Sized + ToPyObject> ToPyObject for &'_ T {
     }
 }
 
-impl<T> FromPyObject<'_> for T
+impl<T> FromPyObject<'_, '_> for T
 where
     T: PyClass + Clone,
 {
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
         let bound = obj.downcast::<Self>()?;
         Ok(bound.try_borrow()?.clone())
     }
 }
 
-impl<'py, T> FromPyObject<'py> for PyRef<'py, T>
+impl<'a, 'py, T> FromPyObject<'a, 'py> for PyRef<'a, 'py, T>
 where
     T: PyClass,
 {
-    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
         obj.downcast::<T>()?.try_borrow().map_err(Into::into)
     }
 }
 
-impl<'py, T> FromPyObject<'py> for PyRefMut<'py, T>
+impl<'a, 'py, T> FromPyObject<'a, 'py> for PyRefMut<'a, 'py, T>
 where
     T: PyClass<Frozen = False>,
 {
-    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
         obj.downcast::<T>()?.try_borrow_mut().map_err(Into::into)
     }
 }

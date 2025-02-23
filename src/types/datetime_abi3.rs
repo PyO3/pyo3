@@ -1,6 +1,6 @@
 use crate::sync::GILOnceCell;
 use crate::types::PyAnyMethods;
-use crate::{Bound, DowncastError, PyAny, PyErr, PyObject, PyResult, Python};
+use crate::{Borrowed, Bound, DowncastError, PyAny, PyErr, PyObject, PyResult, Python};
 
 pub(crate) struct DatetimeTypes {
     pub(crate) date: PyObject,
@@ -40,12 +40,12 @@ pub(crate) fn timezone_utc(py: Python<'_>) -> Bound<'_, PyAny> {
 }
 
 pub(crate) fn check_type(
-    value: &Bound<'_, PyAny>,
+    value: Borrowed<'_, '_, PyAny>,
     t: &PyObject,
     type_name: &'static str,
 ) -> PyResult<()> {
     if !value.is_instance(t.bind(value.py()))? {
-        return Err(DowncastError::new(value, type_name).into());
+        return Err(DowncastError::new_from_borrowed(value, type_name).into());
     }
     Ok(())
 }
