@@ -10,11 +10,6 @@ Rust and was designed with first-class support for popular Rust runtimes such as
 code runs on the default `asyncio` event loop, so `pyo3-async-runtimes` should work just fine with existing
 Python libraries.
 
-In the following sections, we'll give a general overview of `pyo3-async-runtimes` explaining how to call
-async Python functions with PyO3, how to call async Rust functions from Python, and how to configure
-your codebase to manage the runtimes of both.
-
-
 ## Additional Information
-- Managing event loop references can be tricky with `pyo3-async-runtimes`. See [Event Loop References](https://docs.rs/pyo3-async-runtimes/#event-loop-references) in the API docs to get a better intuition for how event loop references are managed in this library.
+- Managing event loop references can be tricky with `pyo3-async-runtimes`. See [Event Loop References](https://docs.rs/pyo3-async-runtimes/#event-loop-references-and-contextvars) in the API docs to get a better intuition for how event loop references are managed in this library.
 - Testing `pyo3-async-runtimes` libraries and applications requires a custom test harness since Python requires control over the main thread. You can find a testing guide in the [API docs for the `testing` module](https://docs.rs/pyo3-async-runtimes/latest/pyo3_async_runtimes/testing)
