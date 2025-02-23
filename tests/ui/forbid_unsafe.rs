@@ -37,7 +37,7 @@ mod from_py_with {
     }
 
     #[pyfunction]
-    fn f(#[pyo3(from_py_with = "bytes_from_py")] _bytes: Vec<u8>) {}
+    fn f(#[pyo3(from_py_with = bytes_from_py)] _bytes: Vec<u8>) {}
 }
 
 fn main() {}

@@ -62,7 +62,17 @@ pub fn impl_arg_params(
         .filter_map(|(i, arg)| {
             let from_py_with = &arg.from_py_with()?.value;
             let from_py_with_holder = format_ident!("from_py_with_{}", i);
+            let d = from_py_with
+                .from_lit_str
+                .then(|| quote_spanned! { from_py_with.span() =>
+                    #[deprecated(since = "0.24.0", note = "`from_py_with` string literals is deprecated. Use the function path instead.")]
+                    #[allow(dead_code)]
+                    const LIT_STR_DEPRECATION: () = ();
+                    let _: () = LIT_STR_DEPRECATION;
+                })
+                .unwrap_or_default();
             Some(quote_spanned! { from_py_with.span() =>
+                #d
                 let #from_py_with_holder = #from_py_with;
             })
         })
