@@ -13,12 +13,12 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 ## [0.23.5] - 2025-02-22
 ### Packaging
 
-- add support for PyPy3.11 [#4760](https://github.com/PyO3/pyo3/pull/4760)
+- Add support for PyPy3.11 [#4760](https://github.com/PyO3/pyo3/pull/4760)
 
 ### Fixed
 
-- * Fixed thread-unsafe implementation of freelist pyclasses on the free-threaded build. [#4902](https://github.com/PyO3/pyo3/pull/4902)
-- * Reenabled a workaround for situations where CPython incorrectly does not add `__builtins__` to `__globals__` in code executed by `Python::py_run`. [#4921](https://github.com/PyO3/pyo3/pull/4921)
+- Fix thread-unsafe implementation of freelist pyclasses on the free-threaded build. [#4902](https://github.com/PyO3/pyo3/pull/4902)
+- Re-enable a workaround for situations where CPython incorrectly does not add `__builtins__` to `__globals__` in code executed by `Python::py_run` (was removed in PyO3 0.23.0). [#4921](https://github.com/PyO3/pyo3/pull/4921)
 
 ## [0.23.4] - 2025-01-10
 
