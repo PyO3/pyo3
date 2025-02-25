@@ -3,7 +3,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
-use crate::{ffi, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python};
+use crate::{ffi, FromPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, PyResult, Python};
 #[allow(deprecated)]
 use crate::{IntoPy, ToPyObject};
 use std::borrow::Cow;
@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 impl ToPyObject for Path {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
+        self.as_os_str().into_py_any(py).unwrap()
     }
 }
 
@@ -32,7 +32,7 @@ impl FromPyObject<'_> for PathBuf {
 impl IntoPy<PyObject> for &Path {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
+        self.to_object(py)
     }
 }
 
@@ -65,7 +65,7 @@ impl<'py> IntoPyObject<'py> for &&Path {
 impl ToPyObject for Cow<'_, Path> {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
+        (**self).to_object(py)
     }
 }
 
@@ -73,7 +73,7 @@ impl ToPyObject for Cow<'_, Path> {
 impl IntoPy<PyObject> for Cow<'_, Path> {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
+        (*self).to_object(py)
     }
 }
 
@@ -103,7 +103,7 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, Path> {
 impl ToPyObject for PathBuf {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
+        (**self).to_object(py)
     }
 }
 
@@ -111,7 +111,7 @@ impl ToPyObject for PathBuf {
 impl IntoPy<PyObject> for PathBuf {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
+        (*self).to_object(py)
     }
 }
 
@@ -130,7 +130,7 @@ impl<'py> IntoPyObject<'py> for PathBuf {
 impl IntoPy<PyObject> for &PathBuf {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
+        (**self).to_object(py)
     }
 }
 
@@ -149,7 +149,7 @@ impl<'py> IntoPyObject<'py> for &PathBuf {
 mod tests {
     use crate::ffi_ptr_ext::FfiPtrExt;
     use crate::types::{PyAnyMethods, PyString, PyStringMethods};
-    use crate::{ffi, IntoPyObject, IntoPyObjectExt, Python};
+    use crate::{ffi, IntoPyObject, IntoPyObjectExt, PyObject, Python};
     use std::borrow::Cow;
     use std::fmt::Debug;
     use std::path::{Path, PathBuf};
@@ -191,6 +191,30 @@ mod tests {
                         .downcast_into::<PyString>()
                         .unwrap()
                 };
+                assert_eq!(pystring.to_string_lossy(), obj.as_ref().to_string_lossy());
+                let roundtripped_obj: PathBuf = pyobject.extract().unwrap();
+                assert_eq!(obj.as_ref(), roundtripped_obj.as_path());
+            }
+            let path = Path::new("Hello\0\n🐍");
+            test_roundtrip::<&Path>(py, path);
+            test_roundtrip::<Cow<'_, Path>>(py, Cow::Borrowed(path));
+            test_roundtrip::<Cow<'_, Path>>(py, Cow::Owned(path.to_path_buf()));
+            test_roundtrip::<PathBuf>(py, path.to_path_buf());
+        });
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn test_intopy_string() {
+        use crate::IntoPy;
+
+        Python::with_gil(|py| {
+            fn test_roundtrip<T>(py: Python<'_>, obj: T)
+            where
+                T: IntoPy<PyObject> + AsRef<Path> + Debug + Clone,
+            {
+                let pyobject = obj.clone().into_py(py).into_bound(py);
+                let pystring = pyobject.downcast_exact::<PyString>().unwrap();
                 assert_eq!(pystring.to_string_lossy(), obj.as_ref().to_string_lossy());
                 let roundtripped_obj: PathBuf = pyobject.extract().unwrap();
                 assert_eq!(obj.as_ref(), roundtripped_obj.as_path());
