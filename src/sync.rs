@@ -516,7 +516,7 @@ pub trait OnceLockExt<T>: once_lock_ext_sealed::Sealed {
         F: FnOnce() -> T;
 }
 
-/// Extension trat for [`std::sync::Mutex`] which helps avoid deadlocks between
+/// Extension trait for [`std::sync::Mutex`] which helps avoid deadlocks between
 /// the Python interpreter and acquiring the `Mutex`.
 pub trait MutexExt<T>: Sealed {
     /// Lock this `Mutex` in a manner that cannot deadlock with the Python interpreter.
@@ -532,6 +532,11 @@ pub trait MutexExt<T>: Sealed {
     ) -> std::sync::LockResult<std::sync::MutexGuard<'_, T>>;
 }
 
+/// A guard that, while in scope, signifies that the current thread state
+/// is suspended and the owning thread is detached from the runtime
+///
+/// # Safety
+/// It is UB to call into the python runtime while a ThreadStateGuard is alive
 struct ThreadStateGuard(*mut crate::ffi::PyThreadState);
 
 impl Drop for ThreadStateGuard {
@@ -541,7 +546,8 @@ impl Drop for ThreadStateGuard {
 }
 
 impl ThreadStateGuard {
-    fn new() -> ThreadStateGuard {
+    // Safety: accepting a py token means we are attached to the runtime
+    fn new(_py: Python<'_>) -> ThreadStateGuard {
         ThreadStateGuard(unsafe { crate::ffi::PyEval_SaveThread() })
     }
 }
@@ -582,9 +588,9 @@ impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
 impl<T> MutexExt<T> for std::sync::Mutex<T> {
     fn lock_py_attached(
         &self,
-        _py: Python<'_>,
+        py: Python<'_>,
     ) -> std::sync::LockResult<std::sync::MutexGuard<'_, T>> {
-        let ts_guard = ThreadStateGuard::new();
+        let ts_guard = ThreadStateGuard::new(py);
         let res = self.lock();
         drop(ts_guard);
         res
@@ -592,13 +598,13 @@ impl<T> MutexExt<T> for std::sync::Mutex<T> {
 }
 
 #[cold]
-fn init_once_py_attached<F, T>(once: &Once, _py: Python<'_>, f: F)
+fn init_once_py_attached<F, T>(once: &Once, py: Python<'_>, f: F)
 where
     F: FnOnce() -> T,
 {
     // Safety: we are currently attached to the GIL, and we expect to block. We will save
     // the current thread state and restore it as soon as we are done blocking.
-    let ts_guard = ThreadStateGuard::new();
+    let ts_guard = ThreadStateGuard::new(py);
 
     once.call_once(move || {
         drop(ts_guard);
@@ -607,13 +613,13 @@ where
 }
 
 #[cold]
-fn init_once_force_py_attached<F, T>(once: &Once, _py: Python<'_>, f: F)
+fn init_once_force_py_attached<F, T>(once: &Once, py: Python<'_>, f: F)
 where
     F: FnOnce(&OnceState) -> T,
 {
     // Safety: we are currently attached to the GIL, and we expect to block. We will save
     // the current thread state and restore it as soon as we are done blocking.
-    let ts_guard = ThreadStateGuard::new();
+    let ts_guard = ThreadStateGuard::new(py);
 
     once.call_once_force(move |state| {
         drop(ts_guard);
@@ -625,14 +631,14 @@ where
 #[cold]
 fn init_once_lock_py_attached<'a, F, T>(
     lock: &'a std::sync::OnceLock<T>,
-    _py: Python<'_>,
+    py: Python<'_>,
     f: F,
 ) -> &'a T
 where
     F: FnOnce() -> T,
 {
     // SAFETY: we are currently attached to a Python thread
-    let ts_guard = ThreadStateGuard::new();
+    let ts_guard = ThreadStateGuard::new(py);
 
     // this trait is guarded by a rustc version config
     // so clippy's MSRV check is wrong
