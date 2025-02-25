@@ -101,6 +101,8 @@ impl MyClass {
 }
 ```
 
+If you need to lock around state stored in the Python interpreter or otherwise call into the Python C API while a lock is held, you might find the `MutexExt` trait useful. It provides a `lock_py_attached` method for `std::sync::Mutex` that avoids deadlocks with the GIL or other global synchronization events in the interpreter.
+
 ### Wrapping unsynchronized data
 
 In some cases, the data structures stored within a `#[pyclass]` may themselves not be thread-safe. Rust will therefore not implement `Send` and `Sync` on the `#[pyclass]` type.
