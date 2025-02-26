@@ -476,6 +476,9 @@ If the input is neither a string nor an integer, the error message will be:
     - changes the name of the failed variant in the generated error message in case of failure.
     - e.g. `pyo3("int")` reports the variant's type as `int`.
     - only supported for enum variants
+- `pyo3(rename_all = "...")`
+    - renames all attributes/item keys according to the specified renaming rule
+    - fields with an explicit renaming via `attribute(...)`/`item(...)` are not affected
 
 #### `#[derive(FromPyObject)]` Field Attributes
 - `pyo3(attribute)`, `pyo3(attribute("name"))`
