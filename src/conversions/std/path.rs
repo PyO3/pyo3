@@ -147,9 +147,8 @@ impl<'py> IntoPyObject<'py> for &PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use crate::ffi_ptr_ext::FfiPtrExt;
     use crate::types::{PyAnyMethods, PyString, PyStringMethods};
-    use crate::{ffi, IntoPyObject, IntoPyObjectExt, PyObject, Python};
+    use crate::{IntoPyObject, IntoPyObjectExt, PyObject, Python};
     use std::borrow::Cow;
     use std::fmt::Debug;
     use std::path::{Path, PathBuf};
@@ -184,14 +183,6 @@ mod tests {
                 T::Error: Debug,
             {
                 let pyobject = obj.clone().into_bound_py_any(py).unwrap();
-                let pystring = unsafe {
-                    ffi::PyOS_FSPath(pyobject.as_ptr())
-                        .assume_owned_or_err(py)
-                        .unwrap()
-                        .downcast_into::<PyString>()
-                        .unwrap()
-                };
-                assert_eq!(pystring.to_string_lossy(), obj.as_ref().to_string_lossy());
                 let roundtripped_obj: PathBuf = pyobject.extract().unwrap();
                 assert_eq!(obj.as_ref(), roundtripped_obj.as_path());
             }
@@ -200,6 +191,16 @@ mod tests {
             test_roundtrip::<Cow<'_, Path>>(py, Cow::Borrowed(path));
             test_roundtrip::<Cow<'_, Path>>(py, Cow::Owned(path.to_path_buf()));
             test_roundtrip::<PathBuf>(py, path.to_path_buf());
+        });
+    }
+
+    #[test]
+    fn test_from_pystring() {
+        Python::with_gil(|py| {
+            let path = "Hello\0\n🐍";
+            let pystring = PyString::new(py, path);
+            let roundtrip: PathBuf = pystring.extract().unwrap();
+            assert_eq!(roundtrip, Path::new(path));
         });
     }
 
