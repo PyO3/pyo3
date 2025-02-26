@@ -570,6 +570,19 @@ impl<T> MutexExt<T> for std::sync::Mutex<T> {
         &self,
         _py: Python<'_>,
     ) -> std::sync::LockResult<std::sync::MutexGuard<'_, T>> {
+        // If try_lock is successful or returns a poisoned mutex, return them so
+        // the caller can deal with them. Otherwise we need to use blocking
+        // lock, which requires detaching from the Python runtime to avoid
+        // possible deadlocks.
+        match self.try_lock() {
+            Ok(inner) => return Ok(inner),
+            Err(err_val) => match err_val {
+                std::sync::TryLockError::Poisoned(inner) => {
+                    return std::sync::LockResult::Err(inner)
+                }
+                std::sync::TryLockError::WouldBlock => {}
+            },
+        }
         // SAFETY: detach from the runtime right before a possibly blocking call
         // then reattach when the blocking call completes and before calling
         // into the C API.
