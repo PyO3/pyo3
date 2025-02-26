@@ -1,7 +1,8 @@
 use crate::attributes::{
     self, get_pyo3_options, CrateAttribute, DefaultAttribute, FromPyWithAttribute,
+    RenameAllAttribute, RenamingRule,
 };
-use crate::utils::Ctx;
+use crate::utils::{self, Ctx};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{
@@ -25,7 +26,7 @@ impl<'a> Enum<'a> {
     ///
     /// `data_enum` is the `syn` representation of the input enum, `ident` is the
     /// `Identifier` of the enum.
-    fn new(data_enum: &'a DataEnum, ident: &'a Ident) -> Result<Self> {
+    fn new(data_enum: &'a DataEnum, ident: &'a Ident, options: ContainerOptions) -> Result<Self> {
         ensure_spanned!(
             !data_enum.variants.is_empty(),
             ident.span() => "cannot derive FromPyObject for empty enum"
@@ -34,9 +35,21 @@ impl<'a> Enum<'a> {
             .variants
             .iter()
             .map(|variant| {
-                let attrs = ContainerOptions::from_attrs(&variant.attrs)?;
+                let mut variant_options = ContainerOptions::from_attrs(&variant.attrs)?;
+                if let Some(rename_all) = &options.rename_all {
+                    ensure_spanned!(
+                        variant_options.rename_all.is_none(),
+                        variant_options.rename_all.span() => "Useless variant `rename_all` - enum is already annotated with `rename_all"
+                    );
+                    variant_options.rename_all = Some(rename_all.clone());
+
+                }
                 let var_ident = &variant.ident;
-                Container::new(&variant.fields, parse_quote!(#ident::#var_ident), attrs)
+                Container::new(
+                    &variant.fields,
+                    parse_quote!(#ident::#var_ident),
+                    variant_options,
+                )
             })
             .collect::<Result<Vec<_>>>()?;
 
@@ -129,6 +142,7 @@ struct Container<'a> {
     path: syn::Path,
     ty: ContainerType<'a>,
     err_name: String,
+    rename_rule: Option<RenamingRule>,
 }
 
 impl<'a> Container<'a> {
@@ -138,6 +152,10 @@ impl<'a> Container<'a> {
     fn new(fields: &'a Fields, path: syn::Path, options: ContainerOptions) -> Result<Self> {
         let style = match fields {
             Fields::Unnamed(unnamed) if !unnamed.unnamed.is_empty() => {
+                ensure_spanned!(
+                    options.rename_all.is_none(),
+                    options.rename_all.span() => "`rename_all` is useless on tuple structs and variants."
+                );
                 let mut tuple_fields = unnamed
                     .unnamed
                     .iter()
@@ -213,6 +231,10 @@ impl<'a> Container<'a> {
                         struct_fields.len() == 1,
                         fields.span() => "transparent structs and variants can only have 1 field"
                     );
+                    ensure_spanned!(
+                        options.rename_all.is_none(),
+                        options.rename_all.span() => "`rename_all` is not permitted on `transparent` structs and variants"
+                    );
                     let field = struct_fields.pop().unwrap();
                     ensure_spanned!(
                         field.getter.is_none(),
@@ -236,6 +258,7 @@ impl<'a> Container<'a> {
             path,
             ty: style,
             err_name,
+            rename_rule: options.rename_all.map(|v| v.value.rule),
         };
         Ok(v)
     }
@@ -359,7 +382,11 @@ impl<'a> Container<'a> {
                     quote!(#pyo3_path::types::PyAnyMethods::getattr(obj, #pyo3_path::intern!(obj.py(), #name)))
                 }
                 FieldGetter::GetAttr(None) => {
-                    quote!(#pyo3_path::types::PyAnyMethods::getattr(obj, #pyo3_path::intern!(obj.py(), #field_name)))
+                    let name = self
+                        .rename_rule
+                        .map(|rule| utils::apply_renaming_rule(rule, &field_name));
+                    let name = name.as_deref().unwrap_or(&field_name);
+                    quote!(#pyo3_path::types::PyAnyMethods::getattr(obj, #pyo3_path::intern!(obj.py(), #name)))
                 }
                 FieldGetter::GetItem(Some(syn::Lit::Str(key))) => {
                     quote!(#pyo3_path::types::PyAnyMethods::get_item(obj, #pyo3_path::intern!(obj.py(), #key)))
@@ -368,7 +395,11 @@ impl<'a> Container<'a> {
                     quote!(#pyo3_path::types::PyAnyMethods::get_item(obj, #key))
                 }
                 FieldGetter::GetItem(None) => {
-                    quote!(#pyo3_path::types::PyAnyMethods::get_item(obj, #pyo3_path::intern!(obj.py(), #field_name)))
+                    let name = self
+                        .rename_rule
+                        .map(|rule| utils::apply_renaming_rule(rule, &field_name));
+                    let name = name.as_deref().unwrap_or(&field_name);
+                    quote!(#pyo3_path::types::PyAnyMethods::get_item(obj, #pyo3_path::intern!(obj.py(), #name)))
                 }
             };
             let extractor = if let Some(FromPyWithAttribute {
@@ -418,6 +449,8 @@ struct ContainerOptions {
     annotation: Option<syn::LitStr>,
     /// Change the path for the pyo3 crate
     krate: Option<CrateAttribute>,
+    /// Converts the field idents according to the [RenamingRule] before extraction
+    rename_all: Option<RenameAllAttribute>,
 }
 
 /// Attributes for deriving FromPyObject scoped on containers.
@@ -430,6 +463,8 @@ enum ContainerPyO3Attribute {
     ErrorAnnotation(LitStr),
     /// Change the path for the pyo3 crate
     Crate(CrateAttribute),
+    /// Converts the field idents according to the [RenamingRule] before extraction
+    RenameAll(RenameAllAttribute),
 }
 
 impl Parse for ContainerPyO3Attribute {
@@ -447,6 +482,8 @@ impl Parse for ContainerPyO3Attribute {
             input.parse().map(ContainerPyO3Attribute::ErrorAnnotation)
         } else if lookahead.peek(Token![crate]) {
             input.parse().map(ContainerPyO3Attribute::Crate)
+        } else if lookahead.peek(attributes::kw::rename_all) {
+            input.parse().map(ContainerPyO3Attribute::RenameAll)
         } else {
             Err(lookahead.error())
         }
@@ -488,6 +525,13 @@ impl ContainerOptions {
                                 path.span() => "`crate` may only be provided once"
                             );
                             options.krate = Some(path);
+                        }
+                        ContainerPyO3Attribute::RenameAll(rename_all) => {
+                            ensure_spanned!(
+                                options.rename_all.is_none(),
+                                rename_all.span() => "`rename_all` may only be provided once"
+                            );
+                            options.rename_all = Some(rename_all);
                         }
                     }
                 }
@@ -658,7 +702,7 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
                 bail_spanned!(tokens.span() => "`transparent` or `annotation` is not supported \
                                                 at top level for enums");
             }
-            let en = Enum::new(en, &tokens.ident)?;
+            let en = Enum::new(en, &tokens.ident, options)?;
             en.build(ctx)
         }
         syn::Data::Struct(st) => {

@@ -331,6 +331,91 @@ fn test_transparent_tuple_error_message() {
     });
 }
 
+#[pyclass]
+struct RenameAllCls {}
+
+#[pymethods]
+impl RenameAllCls {
+    #[getter]
+    #[pyo3(name = "someField")]
+    fn some_field(&self) -> &'static str {
+        "Foo"
+    }
+
+    #[getter]
+    #[pyo3(name = "customNumber")]
+    fn custom_number(&self) -> i32 {
+        42
+    }
+
+    fn __getitem__(&self, key: &str) -> PyResult<f32> {
+        match key {
+            "otherField" => Ok(42.0),
+            _ => Err(pyo3::exceptions::PyKeyError::new_err("foo")),
+        }
+    }
+}
+
+#[test]
+fn test_struct_rename_all() {
+    #[derive(FromPyObject)]
+    #[pyo3(rename_all = "camelCase")]
+    struct RenameAll {
+        some_field: String,
+        #[pyo3(item)]
+        other_field: f32,
+        #[pyo3(attribute("customNumber"))]
+        custom_name: i32,
+    }
+
+    Python::with_gil(|py| {
+        let RenameAll {
+            some_field,
+            other_field,
+            custom_name,
+        } = RenameAllCls {}
+            .into_pyobject(py)
+            .unwrap()
+            .extract()
+            .unwrap();
+
+        assert_eq!(some_field, "Foo");
+        assert_eq!(other_field, 42.0);
+        assert_eq!(custom_name, 42);
+    });
+}
+
+#[test]
+fn test_enum_rename_all() {
+    #[derive(FromPyObject)]
+    #[pyo3(rename_all = "camelCase")]
+    enum RenameAll {
+        Foo {
+            some_field: String,
+            #[pyo3(item)]
+            other_field: f32,
+            #[pyo3(attribute("customNumber"))]
+            custom_name: i32,
+        },
+    }
+
+    Python::with_gil(|py| {
+        let RenameAll::Foo {
+            some_field,
+            other_field,
+            custom_name,
+        } = RenameAllCls {}
+            .into_pyobject(py)
+            .unwrap()
+            .extract()
+            .unwrap();
+
+        assert_eq!(some_field, "Foo");
+        assert_eq!(other_field, 42.0);
+        assert_eq!(custom_name, 42);
+    });
+}
+
 #[derive(Debug, FromPyObject)]
 pub enum Foo<'py> {
     TupleVar(usize, String),

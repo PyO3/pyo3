@@ -132,7 +132,7 @@ error: only one of `attribute` or `item` can be provided
 118 |     #[pyo3(item, attribute)]
     |     ^
 
-error: expected one of: `transparent`, `from_item_all`, `annotation`, `crate`
+error: expected one of: `transparent`, `from_item_all`, `annotation`, `crate`, `rename_all`
    --> tests/ui/invalid_frompy_derive.rs:123:8
     |
 123 | #[pyo3(unknown = "should not work")]
@@ -249,3 +249,33 @@ error: `default` is not permitted on tuple struct elements.
     |
 231 | struct NamedTuplesWithDefaultValues(#[pyo3(default)] String);
     |                                     ^
+
+error: `rename_all` may only be provided once
+   --> tests/ui/invalid_frompy_derive.rs:234:34
+    |
+234 | #[pyo3(rename_all = "camelCase", rename_all = "kebab-case")]
+    |                                  ^^^^^^^^^^
+
+error: `rename_all` is useless on tuple structs and variants.
+   --> tests/ui/invalid_frompy_derive.rs:240:8
+    |
+240 | #[pyo3(rename_all = "camelCase")]
+    |        ^^^^^^^^^^
+
+error: `rename_all` is useless on tuple structs and variants.
+   --> tests/ui/invalid_frompy_derive.rs:245:12
+    |
+245 |     #[pyo3(rename_all = "camelCase")]
+    |            ^^^^^^^^^^
+
+error: `rename_all` is not permitted on `transparent` structs and variants
+   --> tests/ui/invalid_frompy_derive.rs:250:21
+    |
+250 | #[pyo3(transparent, rename_all = "camelCase")]
+    |                     ^^^^^^^^^^
+
+error: Useless variant `rename_all` - enum is already annotated with `rename_all
+   --> tests/ui/invalid_frompy_derive.rs:258:12
+    |
+258 |     #[pyo3(rename_all = "camelCase")]
+    |            ^^^^^^^^^^
