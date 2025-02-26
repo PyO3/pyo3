@@ -281,10 +281,20 @@ impl<'a> Container<'a> {
                 value: expr_path,
             }) = from_py_with
             {
+                let deprecation = expr_path.from_lit_str.then(|| {
+                    quote_spanned! { expr_path.span() =>
+                        #[deprecated(since = "0.24.0", note = "`from_py_with` string literals are deprecated. Use the function path instead.")]
+                        #[allow(dead_code)]
+                        const LIT_STR_DEPRECATION: () = ();
+                        let _: () = LIT_STR_DEPRECATION;
+                    }
+                }).unwrap_or_default();
+
                 let extractor = quote_spanned! { kw.span =>
                     { let from_py_with: fn(_) -> _ = #expr_path; from_py_with }
                 };
                 quote! {
+                    #deprecation
                     Ok(#self_ty {
                         #ident: #pyo3_path::impl_::frompyobject::extract_struct_field_with(#extractor, obj, #struct_name, #field_name)?
                     })
@@ -301,10 +311,20 @@ impl<'a> Container<'a> {
             value: expr_path,
         }) = from_py_with
         {
+            let deprecation = expr_path.from_lit_str.then(|| {
+                quote_spanned! { expr_path.span() =>
+                    #[deprecated(since = "0.24.0", note = "`from_py_with` string literals are deprecated. Use the function path instead.")]
+                    #[allow(dead_code)]
+                    const LIT_STR_DEPRECATION: () = ();
+                    let _: () = LIT_STR_DEPRECATION;
+                }
+            }).unwrap_or_default();
+
             let extractor = quote_spanned! { kw.span =>
                 { let from_py_with: fn(_) -> _ = #expr_path; from_py_with }
             };
             quote! {
+                #deprecation
                 #pyo3_path::impl_::frompyobject::extract_tuple_struct_field_with(#extractor, obj, #struct_name, 0).map(#self_ty)
             }
         } else {
@@ -338,7 +358,21 @@ impl<'a> Container<'a> {
             }}
         });
 
+        let deprecations = struct_fields
+            .iter()
+            .filter_map(|fields| fields.from_py_with.as_ref()).filter(|f|f.value.from_lit_str)
+            .map(|f| {
+                quote_spanned! { f.value.span() => {
+                    #[deprecated(since = "0.24.0", note = "`from_py_with` string literals are deprecated. Use the function path instead.")]
+                    #[allow(dead_code)]
+                    const LIT_STR_DEPRECATION: () = ();
+                    let _: () = LIT_STR_DEPRECATION;
+                }}
+            })
+            .collect::<TokenStream>();
+
         quote!(
+            #deprecations
             match #pyo3_path::types::PyAnyMethods::extract(obj) {
                 ::std::result::Result::Ok((#(#field_idents),*)) => ::std::result::Result::Ok(#self_ty(#(#fields),*)),
                 ::std::result::Result::Err(err) => ::std::result::Result::Err(err),
@@ -404,7 +438,18 @@ impl<'a> Container<'a> {
             fields.push(quote!(#ident: #extracted));
         }
 
-        quote!(::std::result::Result::Ok(#self_ty{#fields}))
+        let d = struct_fields
+            .iter()
+            .filter_map(|field| field.from_py_with.as_ref())
+            .filter(|f| f.value.from_lit_str)
+            .map(|f| quote_spanned! { f.value.span() => {
+                #[deprecated(since = "0.24.0", note = "`from_py_with` string literals are deprecated. Use the function path instead.")]
+                #[allow(dead_code)]
+                const LIT_STR_DEPRECATION: () = ();
+                let _: () = LIT_STR_DEPRECATION;
+            }}).collect::<TokenStream>();
+
+        quote!(#d ::std::result::Result::Ok(#self_ty{#fields}))
     }
 }
 

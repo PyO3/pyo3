@@ -657,18 +657,26 @@ pub fn impl_py_setter_def(
         PropertyType::Function { spec, .. } => {
             let (_, args) = split_off_python_arg(&spec.signature.arguments);
             let value_arg = &args[0];
-            let (from_py_with, ident) =
-                if let Some(from_py_with) = &value_arg.from_py_with().as_ref().map(|f| &f.value) {
-                    let ident = syn::Ident::new("from_py_with", from_py_with.span());
-                    (
-                        quote_spanned! { from_py_with.span() =>
-                            let #ident = #from_py_with;
-                        },
-                        ident,
-                    )
-                } else {
-                    (quote!(), syn::Ident::new("dummy", Span::call_site()))
-                };
+            let (from_py_with, ident) = if let Some(from_py_with) =
+                &value_arg.from_py_with().as_ref().map(|f| &f.value)
+            {
+                let ident = syn::Ident::new("from_py_with", from_py_with.span());
+                let d = from_py_with.from_lit_str.then(|| quote_spanned! { from_py_with.span() =>
+                        #[deprecated(since = "0.24.0", note = "`from_py_with` string literals is deprecated. Use the function path instead.")]
+                        #[allow(dead_code)]
+                        const LIT_STR_DEPRECATION: () = ();
+                        let _: () = LIT_STR_DEPRECATION;
+                    }).unwrap_or_default();
+                (
+                    quote_spanned! { from_py_with.span() =>
+                        #d
+                        let #ident = #from_py_with;
+                    },
+                    ident,
+                )
+            } else {
+                (quote!(), syn::Ident::new("dummy", Span::call_site()))
+            };
 
             let arg = if let FnArg::Regular(arg) = &value_arg {
                 arg
