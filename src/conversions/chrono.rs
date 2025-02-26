@@ -41,7 +41,7 @@
 //! }
 //! ```
 
-use crate::conversion::IntoPyObject;
+use crate::conversion::{FromPyObjectOwned, IntoPyObject};
 use crate::exceptions::{PyTypeError, PyUserWarning, PyValueError};
 #[cfg(Py_LIMITED_API)]
 use crate::intern;
@@ -58,7 +58,9 @@ use crate::types::{
     timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
     PyTzInfo, PyTzInfoAccess,
 };
-use crate::{ffi, Bound, FromPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, PyResult, Python};
+use crate::{
+    ffi, Borrowed, Bound, FromPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, PyResult, Python,
+};
 #[allow(deprecated)]
 use crate::{IntoPy, ToPyObject};
 use chrono::offset::{FixedOffset, Utc};
@@ -142,8 +144,8 @@ impl<'py> IntoPyObject<'py> for &Duration {
     }
 }
 
-impl FromPyObject<'_> for Duration {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Duration> {
+impl FromPyObject<'_, '_> for Duration {
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Duration> {
         // Python size are much lower than rust size so we do not need bound checks.
         // 0 <= microseconds < 1000000
         // 0 <= seconds < 3600*24
@@ -226,8 +228,8 @@ impl<'py> IntoPyObject<'py> for &NaiveDate {
     }
 }
 
-impl FromPyObject<'_> for NaiveDate {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<NaiveDate> {
+impl FromPyObject<'_, '_> for NaiveDate {
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<NaiveDate> {
         #[cfg(not(Py_LIMITED_API))]
         {
             let date = ob.downcast::<PyDate>()?;
@@ -303,8 +305,8 @@ impl<'py> IntoPyObject<'py> for &NaiveTime {
     }
 }
 
-impl FromPyObject<'_> for NaiveTime {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<NaiveTime> {
+impl FromPyObject<'_, '_> for NaiveTime {
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<NaiveTime> {
         #[cfg(not(Py_LIMITED_API))]
         {
             let time = ob.downcast::<PyTime>()?;
@@ -384,8 +386,8 @@ impl<'py> IntoPyObject<'py> for &NaiveDateTime {
     }
 }
 
-impl FromPyObject<'_> for NaiveDateTime {
-    fn extract_bound(dt: &Bound<'_, PyAny>) -> PyResult<NaiveDateTime> {
+impl FromPyObject<'_, '_> for NaiveDateTime {
+    fn extract(dt: Borrowed<'_, '_, PyAny>) -> PyResult<NaiveDateTime> {
         #[cfg(not(Py_LIMITED_API))]
         let dt = dt.downcast::<PyDateTime>()?;
         #[cfg(Py_LIMITED_API)]
@@ -493,8 +495,11 @@ where
     }
 }
 
-impl<Tz: TimeZone + for<'py> FromPyObject<'py>> FromPyObject<'_> for DateTime<Tz> {
-    fn extract_bound(dt: &Bound<'_, PyAny>) -> PyResult<DateTime<Tz>> {
+impl<'py, Tz> FromPyObject<'_, 'py> for DateTime<Tz>
+where
+    Tz: TimeZone + FromPyObjectOwned<'py>,
+{
+    fn extract(dt: Borrowed<'_, 'py, PyAny>) -> PyResult<DateTime<Tz>> {
         #[cfg(not(Py_LIMITED_API))]
         let dt = dt.downcast::<PyDateTime>()?;
         #[cfg(Py_LIMITED_API)]
@@ -590,12 +595,12 @@ impl<'py> IntoPyObject<'py> for &FixedOffset {
     }
 }
 
-impl FromPyObject<'_> for FixedOffset {
+impl FromPyObject<'_, '_> for FixedOffset {
     /// Convert python tzinfo to rust [`FixedOffset`].
     ///
     /// Note that the conversion will result in precision lost in microseconds as chrono offset
     /// does not supports microseconds.
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<FixedOffset> {
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<FixedOffset> {
         #[cfg(not(Py_LIMITED_API))]
         let ob = ob.downcast::<PyTzInfo>()?;
         #[cfg(Py_LIMITED_API)]
@@ -671,8 +676,8 @@ impl<'py> IntoPyObject<'py> for &Utc {
     }
 }
 
-impl FromPyObject<'_> for Utc {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Utc> {
+impl FromPyObject<'_, '_> for Utc {
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Utc> {
         let py_utc = timezone_utc(ob.py());
         if ob.eq(py_utc)? {
             Ok(Utc)
@@ -764,7 +769,9 @@ fn warn_truncated_leap_second(obj: &Bound<'_, PyAny>) {
 }
 
 #[cfg(not(Py_LIMITED_API))]
-fn py_date_to_naive_date(py_date: &impl PyDateAccess) -> PyResult<NaiveDate> {
+fn py_date_to_naive_date(
+    py_date: impl std::ops::Deref<Target = impl PyDateAccess>,
+) -> PyResult<NaiveDate> {
     NaiveDate::from_ymd_opt(
         py_date.get_year(),
         py_date.get_month().into(),
@@ -774,7 +781,7 @@ fn py_date_to_naive_date(py_date: &impl PyDateAccess) -> PyResult<NaiveDate> {
 }
 
 #[cfg(Py_LIMITED_API)]
-fn py_date_to_naive_date(py_date: &Bound<'_, PyAny>) -> PyResult<NaiveDate> {
+fn py_date_to_naive_date(py_date: Borrowed<'_, '_, PyAny>) -> PyResult<NaiveDate> {
     NaiveDate::from_ymd_opt(
         py_date.getattr(intern!(py_date.py(), "year"))?.extract()?,
         py_date.getattr(intern!(py_date.py(), "month"))?.extract()?,
@@ -784,7 +791,9 @@ fn py_date_to_naive_date(py_date: &Bound<'_, PyAny>) -> PyResult<NaiveDate> {
 }
 
 #[cfg(not(Py_LIMITED_API))]
-fn py_time_to_naive_time(py_time: &impl PyTimeAccess) -> PyResult<NaiveTime> {
+fn py_time_to_naive_time(
+    py_time: impl std::ops::Deref<Target = impl PyTimeAccess>,
+) -> PyResult<NaiveTime> {
     NaiveTime::from_hms_micro_opt(
         py_time.get_hour().into(),
         py_time.get_minute().into(),
@@ -795,7 +804,7 @@ fn py_time_to_naive_time(py_time: &impl PyTimeAccess) -> PyResult<NaiveTime> {
 }
 
 #[cfg(Py_LIMITED_API)]
-fn py_time_to_naive_time(py_time: &Bound<'_, PyAny>) -> PyResult<NaiveTime> {
+fn py_time_to_naive_time(py_time: Borrowed<'_, '_, PyAny>) -> PyResult<NaiveTime> {
     NaiveTime::from_hms_micro_opt(
         py_time.getattr(intern!(py_time.py(), "hour"))?.extract()?,
         py_time
