@@ -387,18 +387,15 @@ Python::with_gil(|py| {
 # }
 ```
 
-If you are executing arbitrary Python code while holding the lock, then you will
-need to use conditional compilation to use [`GILProtected`] on GIL-enabled Python
-builds and mutexes otherwise. If your use of [`GILProtected`] does not guard the
-execution of arbitrary Python code or use of the CPython C API, then conditional
-compilation is likely unnecessary since [`GILProtected`] was not needed in the
-first place and instead Rust mutexes or atomics should be preferred. Python 3.13
-introduces [`PyMutex`](https://docs.python.org/3/c-api/init.html#c.PyMutex),
-which releases the GIL while the waiting for the lock, so that is another option
-if you only need to support newer Python versions.
+If you are executing arbitrary Python code while holding the lock, then you
+should import the [`MutexExt`] trait and use the `lock_py_attached` method
+instead of `lock`. This ensures that global synchronization events started by
+the Python runtime can proceed, avoiding possible deadlocks with the
+interpreter.
 
 [`GILOnceCell`]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html
 [`GILProtected`]: https://docs.rs/pyo3/0.22/pyo3/sync/struct.GILProtected.html
+[`MutexExt`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.MutexExt.html
 [`Once`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html
 [`Once::call_once`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html#tymethod.call_once
 [`Once::call_once_force`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html#tymethod.call_once_force
