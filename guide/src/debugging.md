@@ -48,7 +48,9 @@ The best start to investigate a crash such as an segmentation fault is a backtra
 
 ## Setting breakpoints in your Rust code
 
-One of the preferred ways by developers to debug their code is by setting breakpoints. This can be achieved in PyO3 by using a debugger like `rust-gdb` or `lldb` with your Python interpreter.
+One of the preferred ways by developers to debug their code is by setting breakpoints. This can be achieved in PyO3 by using a debugger like `rust-gdb` or `rust-lldb` with your Python interpreter.
+
+For more information about how to use both `lldb` and `gdb` you can read the [gdb to lldb command map](https://lldb.llvm.org/use/map.html) from the lldb documentation.
 ### Using rust-gdb
 
 1. Compile your extension with debug symbols:
