@@ -576,12 +576,10 @@ impl<T> MutexExt<T> for std::sync::Mutex<T> {
         // possible deadlocks.
         match self.try_lock() {
             Ok(inner) => return Ok(inner),
-            Err(err_val) => match err_val {
-                std::sync::TryLockError::Poisoned(inner) => {
-                    return std::sync::LockResult::Err(inner)
-                }
-                std::sync::TryLockError::WouldBlock => {}
-            },
+            Err(std::sync::TryLockError::Poisoned(inner)) => {
+                return std::sync::LockResult::Err(inner)
+            }
+            Err(std::sync::TryLockError::WouldBlock) => {}
         }
         // SAFETY: detach from the runtime right before a possibly blocking call
         // then reattach when the blocking call completes and before calling
