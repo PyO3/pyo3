@@ -60,6 +60,7 @@ impl BorrowFlag {
     pub(crate) const UNUSED: usize = 0;
     const HAS_MUTABLE_BORROW: usize = usize::MAX;
     fn increment(&self) -> Result<(), PyBorrowError> {
+        // relaxed is OK because we will read the value again in the compare_exchange
         let mut value = self.0.load(Ordering::Relaxed);
         loop {
             if value == BorrowFlag::HAS_MUTABLE_BORROW {
@@ -70,13 +71,13 @@ impl BorrowFlag {
                 // last atomic load
                 value,
                 value + 1,
-                Ordering::Relaxed,
+                // reading the value is happens-after a previous write
+                // writing the new value is happens-after the previous read
+                Ordering::AcqRel,
+                // relaxed is OK here because we're going to try to read again
                 Ordering::Relaxed,
             ) {
                 Ok(..) => {
-                    // value has been successfully incremented, we need an acquire fence
-                    // so that data this borrow flag protects can be read safely in this thread
-                    std::sync::atomic::fence(Ordering::Acquire);
                     break Ok(());
                 }
                 Err(changed_value) => {
@@ -87,10 +88,8 @@ impl BorrowFlag {
         }
     }
     fn decrement(&self) {
-        // impossible to get into a bad state from here so relaxed
-        // ordering is fine, the decrement only needs to eventually
-        // be visible
-        self.0.fetch_sub(1, Ordering::Relaxed);
+        // relaxed load is OK but decrements must happen-before the next read
+        self.0.fetch_sub(1, Ordering::Release);
     }
 }
 
