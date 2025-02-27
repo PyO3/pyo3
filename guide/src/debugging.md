@@ -62,12 +62,12 @@ One of the preferred ways by developers to debug their code is by setting breakp
    ```
 
 3. Once in gdb, set a breakpoint in your Rust code:
-   ```
+   ```bash
    (gdb) break your_module.rs:42
    ```
 
 4. Run your Python script that imports and uses your Rust extension:
-   ```
+   ```bash
    (gdb) run -c "import your_module; your_module.your_function()"
    ```
 
@@ -94,12 +94,12 @@ On macOS, LLDB is the preferred debugger:
    ```
 
 3. Set breakpoints in your Rust code:
-   ```
+   ```bash
    (lldb) breakpoint set --file your_module.rs --line 42
    ```
 
 4. Run your Python script:
-   ```
+   ```bash
    (lldb) run -c "import your_module; your_module.your_function()"
    ```
 
