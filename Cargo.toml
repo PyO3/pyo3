@@ -159,7 +159,7 @@ max-version = "3.13"  # inclusive
 
 [package.metadata.pypy]
 min-version = "3.9"
-max-version = "3.10"  # inclusive
+max-version = "3.11"  # inclusive
 
 [workspace.lints.clippy]
 checked_conversions = "warn"
