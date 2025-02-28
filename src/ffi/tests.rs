@@ -121,7 +121,7 @@ fn ascii_object_bitfield() {
     let mut o = PyASCIIObject {
         ob_base,
         length: 0,
-        #[cfg(not(PyPy))]
+        #[cfg(any(Py_3_11, not(PyPy)))]
         hash: 0,
         state: 0u32,
         #[cfg(not(Py_3_12))]

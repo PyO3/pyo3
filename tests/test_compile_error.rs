@@ -20,6 +20,7 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pymethod_enum.rs");
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
     t.compile_fail("tests/ui/invalid_pymodule_args.rs");
+    t.compile_fail("tests/ui/invalid_pycallargs.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
     t.compile_fail("tests/ui/invalid_closure.rs");
     t.compile_fail("tests/ui/pyclass_send.rs");
@@ -28,6 +29,7 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_frompy_derive.rs");
     t.compile_fail("tests/ui/static_ref.rs");
     t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
+    #[cfg(not(any(feature = "uuid")))]
     t.compile_fail("tests/ui/invalid_pyfunctions.rs");
     #[cfg(not(any(feature = "hashbrown", feature = "indexmap")))]
     t.compile_fail("tests/ui/invalid_pymethods.rs");
@@ -67,4 +69,5 @@ fn test_compile_errors() {
     #[cfg(all(not(Py_LIMITED_API), Py_3_11))]
     t.compile_fail("tests/ui/invalid_base_class.rs");
     t.pass("tests/ui/ambiguous_associated_items.rs");
+    t.pass("tests/ui/pyclass_probe.rs");
 }

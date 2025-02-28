@@ -19,8 +19,9 @@ use crate::method::{FnArg, FnSpec, PyArg, RegularArg};
 use crate::pyfunction::ConstructorAttribute;
 use crate::pyimpl::{gen_py_const, get_cfg_attributes, PyClassMethodsType};
 use crate::pymethod::{
-    impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
-    SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __REPR__, __RICHCMP__, __STR__,
+    impl_py_class_attribute, impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef,
+    MethodAndSlotDef, PropertyType, SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __REPR__,
+    __RICHCMP__, __STR__,
 };
 use crate::pyversions::is_abi3_before;
 use crate::utils::{self, apply_renaming_rule, Ctx, LitCStr, PythonDoc};
@@ -1185,34 +1186,30 @@ fn impl_complex_enum_variant_cls(
 }
 
 fn impl_complex_enum_variant_match_args(
-    ctx: &Ctx,
+    ctx @ Ctx { pyo3_path, .. }: &Ctx,
     variant_cls_type: &syn::Type,
     field_names: &mut Vec<Ident>,
-) -> (MethodAndMethodDef, syn::ImplItemConst) {
+) -> syn::Result<(MethodAndMethodDef, syn::ImplItemFn)> {
     let ident = format_ident!("__match_args__");
-    let match_args_const_impl: syn::ImplItemConst = {
-        let args_tp = field_names.iter().map(|_| {
-            quote! { &'static str }
-        });
+    let mut match_args_impl: syn::ImplItemFn = {
         parse_quote! {
-            #[allow(non_upper_case_globals)]
-            const #ident: ( #(#args_tp,)* ) = (
-                #(stringify!(#field_names),)*
-            );
+            #[classattr]
+            fn #ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'_, #pyo3_path::types::PyTuple>> {
+                #pyo3_path::types::PyTuple::new::<&str, _>(py, [
+                    #(stringify!(#field_names),)*
+                ])
+            }
         }
     };
 
-    let spec = ConstSpec {
-        rust_ident: ident,
-        attributes: ConstAttributes {
-            is_class_attr: true,
-            name: None,
-        },
-    };
+    let spec = FnSpec::parse(
+        &mut match_args_impl.sig,
+        &mut match_args_impl.attrs,
+        Default::default(),
+    )?;
+    let variant_match_args = impl_py_class_attribute(variant_cls_type, &spec, ctx)?;
 
-    let variant_match_args = gen_py_const(variant_cls_type, &spec, ctx);
-
-    (variant_match_args, match_args_const_impl)
+    Ok((variant_match_args, match_args_impl))
 }
 
 fn impl_complex_enum_struct_variant_cls(
@@ -1260,7 +1257,7 @@ fn impl_complex_enum_struct_variant_cls(
     }
 
     let (variant_match_args, match_args_const_impl) =
-        impl_complex_enum_variant_match_args(ctx, &variant_cls_type, &mut field_names);
+        impl_complex_enum_variant_match_args(ctx, &variant_cls_type, &mut field_names)?;
 
     field_getters.push(variant_match_args);
 
@@ -1268,6 +1265,7 @@ fn impl_complex_enum_struct_variant_cls(
         #[doc(hidden)]
         #[allow(non_snake_case)]
         impl #variant_cls {
+            #[allow(clippy::too_many_arguments)]
             fn __pymethod_constructor__(py: #pyo3_path::Python<'_>, #(#fields_with_types,)*) -> #pyo3_path::PyClassInitializer<#variant_cls> {
                 let base_value = #enum_name::#variant_ident { #(#field_names,)* };
                 <#pyo3_path::PyClassInitializer<#enum_name> as ::std::convert::From<#enum_name>>::from(base_value).add_subclass(#variant_cls)
@@ -1434,7 +1432,7 @@ fn impl_complex_enum_tuple_variant_cls(
     slots.push(variant_getitem);
 
     let (variant_match_args, match_args_method_impl) =
-        impl_complex_enum_variant_match_args(ctx, &variant_cls_type, &mut field_names);
+        impl_complex_enum_variant_match_args(ctx, &variant_cls_type, &mut field_names)?;
 
     field_getters.push(variant_match_args);
 
@@ -1442,6 +1440,7 @@ fn impl_complex_enum_tuple_variant_cls(
         #[doc(hidden)]
         #[allow(non_snake_case)]
         impl #variant_cls {
+            #[allow(clippy::too_many_arguments)]
             fn __pymethod_constructor__(py: #pyo3_path::Python<'_>, #(#field_names : #field_types,)*) -> #pyo3_path::PyClassInitializer<#variant_cls> {
                 let base_value = #enum_name::#variant_ident ( #(#field_names,)* );
                 <#pyo3_path::PyClassInitializer<#enum_name> as ::std::convert::From<#enum_name>>::from(base_value).add_subclass(#variant_cls)
@@ -2294,10 +2293,9 @@ impl<'a> PyClassImplsBuilder<'a> {
         let assertions = if attr.options.unsendable.is_some() {
             TokenStream::new()
         } else {
-            let assert = quote_spanned! { cls.span() => assert_pyclass_sync::<#cls>(); };
+            let assert = quote_spanned! { cls.span() => #pyo3_path::impl_::pyclass::assert_pyclass_sync::<#cls>(); };
             quote! {
                 const _: () = {
-                    use #pyo3_path::impl_::pyclass::*;
                     #assert
                 };
             }
@@ -2337,7 +2335,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                     static DOC: #pyo3_path::sync::GILOnceCell<::std::borrow::Cow<'static, ::std::ffi::CStr>> = #pyo3_path::sync::GILOnceCell::new();
                     DOC.get_or_try_init(py, || {
                         let collector = PyClassImplCollector::<Self>::new();
-                        build_pyclass_doc(<#cls as #pyo3_path::PyTypeInfo>::NAME, #doc, collector.new_text_signature())
+                        build_pyclass_doc(<Self as #pyo3_path::PyTypeInfo>::NAME, #doc, collector.new_text_signature())
                     }).map(::std::ops::Deref::deref)
                 }
 
@@ -2382,15 +2380,13 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! {
                 impl #pyo3_path::impl_::pyclass::PyClassWithFreeList for #cls {
                     #[inline]
-                    fn get_free_list(py: #pyo3_path::Python<'_>) -> &mut #pyo3_path::impl_::freelist::FreeList<*mut #pyo3_path::ffi::PyObject> {
-                        static mut FREELIST: *mut #pyo3_path::impl_::freelist::FreeList<*mut #pyo3_path::ffi::PyObject> = 0 as *mut _;
-                        unsafe {
-                            if FREELIST.is_null() {
-                                FREELIST = ::std::boxed::Box::into_raw(::std::boxed::Box::new(
-                                    #pyo3_path::impl_::freelist::FreeList::with_capacity(#freelist)));
-                            }
-                            &mut *FREELIST
-                        }
+                    fn get_free_list(py: #pyo3_path::Python<'_>) -> &'static ::std::sync::Mutex<#pyo3_path::impl_::freelist::PyObjectFreeList> {
+                        static FREELIST: #pyo3_path::sync::GILOnceCell<::std::sync::Mutex<#pyo3_path::impl_::freelist::PyObjectFreeList>> = #pyo3_path::sync::GILOnceCell::new();
+                        // If there's a race to fill the cell, the object created
+                        // by the losing thread will be deallocated via RAII
+                        &FREELIST.get_or_init(py, || {
+                            ::std::sync::Mutex::new(#pyo3_path::impl_::freelist::PyObjectFreeList::with_capacity(#freelist))
+                        })
                     }
                 }
             }

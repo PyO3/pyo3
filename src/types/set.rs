@@ -202,10 +202,7 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
 
     fn pop(&self) -> Option<Bound<'py, PyAny>> {
         let element = unsafe { ffi::PySet_Pop(self.as_ptr()).assume_owned_or_err(self.py()) };
-        match element {
-            Ok(e) => Some(e),
-            Err(_) => None,
-        }
+        element.ok()
     }
 
     fn iter(&self) -> BoundSetIterator<'py> {
@@ -269,6 +266,14 @@ impl<'py> Iterator for BoundSetIterator<'py> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.remaining, Some(self.remaining))
+    }
+
+    #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
     }
 }
 
@@ -481,5 +486,13 @@ mod tests {
             assert_eq!(iter.len(), 0);
             assert_eq!(iter.size_hint(), (0, Some(0)));
         });
+    }
+
+    #[test]
+    fn test_iter_count() {
+        Python::with_gil(|py| {
+            let set = PySet::new(py, vec![1, 2, 3]).unwrap();
+            assert_eq!(set.iter().count(), 3);
+        })
     }
 }

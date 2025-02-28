@@ -2,7 +2,10 @@ use crate::instance::Bound;
 use crate::panic::PanicException;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
-use crate::types::{string::PyStringMethods, typeobject::PyTypeMethods, PyTraceback, PyType};
+use crate::types::{
+    string::PyStringMethods, traceback::PyTracebackMethods, typeobject::PyTypeMethods, PyTraceback,
+    PyType,
+};
 use crate::{
     exceptions::{self, PyBaseException},
     ffi,
@@ -770,7 +773,20 @@ impl std::fmt::Debug for PyErr {
             f.debug_struct("PyErr")
                 .field("type", &self.get_type(py))
                 .field("value", self.value(py))
-                .field("traceback", &self.traceback(py))
+                .field(
+                    "traceback",
+                    &self.traceback(py).map(|tb| match tb.format() {
+                        Ok(s) => s,
+                        Err(err) => {
+                            err.write_unraisable(py, Some(&tb));
+                            // It would be nice to format what we can of the
+                            // error, but we can't guarantee that the error
+                            // won't have another unformattable traceback inside
+                            // it and we want to avoid an infinite recursion.
+                            format!("<unformattable {:?}>", tb)
+                        }
+                    }),
+                )
                 .finish()
         })
     }
@@ -1058,7 +1074,7 @@ mod tests {
         // PyErr {
         //     type: <class 'Exception'>,
         //     value: Exception('banana'),
-        //     traceback: Some(<traceback object at 0x..)"
+        //     traceback:  Some(\"Traceback (most recent call last):\\n  File \\\"<string>\\\", line 1, in <module>\\n\")
         // }
 
         Python::with_gil(|py| {
@@ -1070,15 +1086,16 @@ mod tests {
             assert!(debug_str.starts_with("PyErr { "));
             assert!(debug_str.ends_with(" }"));
 
-            // strip "PyErr { " and " }"
-            let mut fields = debug_str["PyErr { ".len()..debug_str.len() - 2].split(", ");
+            // Strip "PyErr { " and " }". Split into 3 substrings to separate type,
+            // value, and traceback while not splitting the string within traceback.
+            let mut fields = debug_str["PyErr { ".len()..debug_str.len() - 2].splitn(3, ", ");
 
             assert_eq!(fields.next().unwrap(), "type: <class 'Exception'>");
             assert_eq!(fields.next().unwrap(), "value: Exception('banana')");
-
-            let traceback = fields.next().unwrap();
-            assert!(traceback.starts_with("traceback: Some(<traceback object at 0x"));
-            assert!(traceback.ends_with(">)"));
+            assert_eq!(
+                fields.next().unwrap(),
+                "traceback: Some(\"Traceback (most recent call last):\\n  File \\\"<string>\\\", line 1, in <module>\\n\")"
+            );
 
             assert!(fields.next().is_none());
         });

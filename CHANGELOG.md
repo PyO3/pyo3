@@ -10,6 +10,44 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.23.5] - 2025-02-22
+### Packaging
+
+- Add support for PyPy3.11 [#4760](https://github.com/PyO3/pyo3/pull/4760)
+
+### Fixed
+
+- Fix thread-unsafe implementation of freelist pyclasses on the free-threaded build. [#4902](https://github.com/PyO3/pyo3/pull/4902)
+- Re-enable a workaround for situations where CPython incorrectly does not add `__builtins__` to `__globals__` in code executed by `Python::py_run` (was removed in PyO3 0.23.0). [#4921](https://github.com/PyO3/pyo3/pull/4921)
+
+## [0.23.4] - 2025-01-10
+
+### Added
+
+- Add `PyList::locked_for_each`, which uses a critical section to lock the list on the free-threaded build. [#4789](https://github.com/PyO3/pyo3/pull/4789)
+- Add `pyo3_build_config::add_python_framework_link_args` build script API to set rpath when using macOS system Python. [#4833](https://github.com/PyO3/pyo3/pull/4833)
+
+### Changed
+
+- Use `datetime.fold` to distinguish ambiguous datetimes when converting to and from `chrono::DateTime<Tz>` (rather than erroring). [#4791](https://github.com/PyO3/pyo3/pull/4791)
+- Optimize PyList iteration on the free-threaded build. [#4789](https://github.com/PyO3/pyo3/pull/4789)
+
+### Fixed
+
+- Fix unnecessary internal `py.allow_threads` GIL-switch when attempting to access contents of a `PyErr` which originated from Python (could lead to unintended deadlocks). [#4766](https://github.com/PyO3/pyo3/pull/4766)
+- Fix thread-unsafe access of dict internals in `BoundDictIterator` on the free-threaded build. [#4788](https://github.com/PyO3/pyo3/pull/4788)
+* Fix unnecessary critical sections in `BoundDictIterator` on the free-threaded build. [#4788](https://github.com/PyO3/pyo3/pull/4788)
+- Fix time-of-check to time-of-use issues with list iteration on the free-threaded build. [#4789](https://github.com/PyO3/pyo3/pull/4789)
+- Fix `chrono::DateTime<Tz>` to-Python conversion when `Tz` is `chrono_tz::Tz`. [#4790](https://github.com/PyO3/pyo3/pull/4790)
+- Fix `#[pyclass]` not being able to be named `Probe`. [#4794](https://github.com/PyO3/pyo3/pull/4794)
+- Fix not treating cross-compilation from x64 to aarch64 on Windows as a cross-compile. [#4800](https://github.com/PyO3/pyo3/pull/4800)
+- Fix missing struct fields on GraalPy when subclassing builtin classes. [#4802](https://github.com/PyO3/pyo3/pull/4802)
+- Fix generating import lib for PyPy when `abi3` feature is enabled. [#4806](https://github.com/PyO3/pyo3/pull/4806)
+- Fix generating import lib for python3.13t when `abi3` feature is enabled. [#4808](https://github.com/PyO3/pyo3/pull/4808)
+- Fix compile failure for raw identifiers like `r#box` in `derive(FromPyObject)`. [#4814](https://github.com/PyO3/pyo3/pull/4814)
+- Fix compile failure for `#[pyclass]` enum variants with more than 12 fields. [#4832](https://github.com/PyO3/pyo3/pull/4832)
+
+
 ## [0.23.3] - 2024-12-03
 
 ### Packaging
@@ -2026,7 +2064,9 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.23.3...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.23.5...HEAD
+[0.23.5]: https://github.com/pyo3/pyo3/compare/v0.23.4...v0.23.5
+[0.23.4]: https://github.com/pyo3/pyo3/compare/v0.23.3...v0.23.4
 [0.23.3]: https://github.com/pyo3/pyo3/compare/v0.23.2...v0.23.3
 [0.23.2]: https://github.com/pyo3/pyo3/compare/v0.23.1...v0.23.2
 [0.23.1]: https://github.com/pyo3/pyo3/compare/v0.23.0...v0.23.1

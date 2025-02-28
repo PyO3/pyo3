@@ -117,7 +117,6 @@
 //! [`Rc`]: std::rc::Rc
 //! [`Py`]: crate::Py
 use crate::conversion::IntoPyObject;
-#[cfg(any(doc, not(Py_3_10)))]
 use crate::err::PyErr;
 use crate::err::{self, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -649,30 +648,34 @@ impl<'py> Python<'py> {
         };
         let locals = locals.unwrap_or(globals);
 
-        #[cfg(not(Py_3_10))]
-        {
-            // If `globals` don't provide `__builtins__`, most of the code will fail if Python
-            // version is <3.10. That's probably not what user intended, so insert `__builtins__`
-            // for them.
-            //
-            // See also:
-            // - https://github.com/python/cpython/pull/24564 (the same fix in CPython 3.10)
-            // - https://github.com/PyO3/pyo3/issues/3370
-            let builtins_s = crate::intern!(self, "__builtins__").as_ptr();
-            let has_builtins = unsafe { ffi::PyDict_Contains(globals.as_ptr(), builtins_s) };
-            if has_builtins == -1 {
-                return Err(PyErr::fetch(self));
-            }
-            if has_builtins == 0 {
-                // Inherit current builtins.
-                let builtins = unsafe { ffi::PyEval_GetBuiltins() };
+        // If `globals` don't provide `__builtins__`, most of the code will fail if Python
+        // version is <3.10. That's probably not what user intended, so insert `__builtins__`
+        // for them.
+        //
+        // See also:
+        // - https://github.com/python/cpython/pull/24564 (the same fix in CPython 3.10)
+        // - https://github.com/PyO3/pyo3/issues/3370
+        let builtins_s = crate::intern!(self, "__builtins__");
+        let has_builtins = globals.contains(builtins_s)?;
+        if !has_builtins {
+            crate::sync::with_critical_section(globals, || {
+                // check if another thread set __builtins__ while this thread was blocked on the critical section
+                let has_builtins = globals.contains(builtins_s)?;
+                if !has_builtins {
+                    // Inherit current builtins.
+                    let builtins = unsafe { ffi::PyEval_GetBuiltins() };
 
-                // `PyDict_SetItem` doesn't take ownership of `builtins`, but `PyEval_GetBuiltins`
-                // seems to return a borrowed reference, so no leak here.
-                if unsafe { ffi::PyDict_SetItem(globals.as_ptr(), builtins_s, builtins) } == -1 {
-                    return Err(PyErr::fetch(self));
+                    // `PyDict_SetItem` doesn't take ownership of `builtins`, but `PyEval_GetBuiltins`
+                    // seems to return a borrowed reference, so no leak here.
+                    if unsafe {
+                        ffi::PyDict_SetItem(globals.as_ptr(), builtins_s.as_ptr(), builtins)
+                    } == -1
+                    {
+                        return Err(PyErr::fetch(self));
+                    }
                 }
-            }
+                Ok(())
+            })?;
         }
 
         let code_obj = unsafe {
@@ -1017,5 +1020,47 @@ mod tests {
             #[cfg(not(Py_3_10))]
             assert!(matches!(namespace.get_item("__builtins__"), Ok(Some(..))));
         })
+    }
+
+    #[cfg(feature = "macros")]
+    #[test]
+    fn test_py_run_inserts_globals_2() {
+        #[crate::pyclass(crate = "crate")]
+        #[derive(Clone)]
+        struct CodeRunner {
+            code: CString,
+        }
+
+        impl CodeRunner {
+            fn reproducer(&mut self, py: Python<'_>) -> PyResult<()> {
+                let variables = PyDict::new(py);
+                variables.set_item("cls", Py::new(py, self.clone())?)?;
+
+                py.run(self.code.as_c_str(), Some(&variables), None)?;
+                Ok(())
+            }
+        }
+
+        #[crate::pymethods(crate = "crate")]
+        impl CodeRunner {
+            fn func(&mut self, py: Python<'_>) -> PyResult<()> {
+                py.import("math")?;
+                Ok(())
+            }
+        }
+
+        let mut runner = CodeRunner {
+            code: CString::new(
+                r#"
+cls.func()
+"#
+                .to_string(),
+            )
+            .unwrap(),
+        };
+
+        Python::with_gil(|py| {
+            runner.reproducer(py).unwrap();
+        });
     }
 }

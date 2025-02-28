@@ -237,6 +237,14 @@ impl<'py> Iterator for BoundFrozenSetIterator<'py> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.remaining, Some(self.remaining))
     }
+
+    #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
+    }
 }
 
 impl ExactSizeIterator for BoundFrozenSetIterator<'_> {
@@ -357,5 +365,13 @@ mod tests {
             assert!(set.contains(2).unwrap());
             assert!(!set.contains(3).unwrap());
         });
+    }
+
+    #[test]
+    fn test_iter_count() {
+        Python::with_gil(|py| {
+            let set = PyFrozenSet::new(py, vec![1, 2, 3]).unwrap();
+            assert_eq!(set.iter().count(), 3);
+        })
     }
 }

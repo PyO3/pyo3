@@ -103,6 +103,11 @@ jobs:
               rust-target: "x86_64-unknown-linux-gnu",
             },
             {
+              os: "ubuntu-22.04-arm",
+              python-architecture: "arm64",
+              rust-target: "aarch64-unknown-linux-gnu",
+            },
+            {
               os: "ubuntu-latest",
               python-architecture: "x64",
               rust-target: "powerpc64le-unknown-linux-gnu",
@@ -115,7 +120,7 @@ jobs:
             {
               os: "ubuntu-latest",
               python-architecture: "x64",
-              rust-target: "wasm32-wasi",
+              rust-target: "wasm32-wasip1",
             },
             {
               os: "windows-latest",
@@ -194,6 +199,11 @@ jobs:
               rust-target: "x86_64-unknown-linux-gnu",
             },
             {
+              os: "ubuntu-22.04-arm",
+              python-architecture: "arm64",
+              rust-target: "aarch64-unknown-linux-gnu",
+            },
+            {
               os: "windows-latest",
               python-architecture: "x64",
               rust-target: "x86_64-pc-windows-msvc",
@@ -244,7 +254,9 @@ jobs:
             "3.13",
             "pypy3.9",
             "pypy3.10",
+            "pypy3.11",
             "graalpy24.0",
+            "graalpy24.1",
           ]
         platform:
           [
@@ -348,6 +360,15 @@ jobs:
                 python-architecture: "x64",
                 rust-target: "x86_64-apple-darwin",
               }
+          # arm64 Linux runner is in public preview, so test 3.13 on it
+          - rust: stable
+            python-version: "3.13"
+            platform:
+              {
+                os: "ubuntu-22.04-arm",
+                python-architecture: "arm64",
+                rust-target: "aarch64-unknown-linux-gnu",
+              }
 
         exclude:
           # ubuntu-latest (24.04) no longer supports 3.7
@@ -439,7 +460,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rust-src
-      - run: cargo rustdoc --lib --no-default-features --features full -Zunstable-options --config "build.rustdocflags=[\"--cfg\", \"docsrs\"]"
+      - run: cargo rustdoc --lib --no-default-features --features full,jiff-02 -Zunstable-options --config "build.rustdocflags=[\"--cfg\", \"docsrs\"]"
 
   coverage:
     if: ${{ github.event_name != 'merge_group' }}
@@ -489,7 +510,7 @@ jobs:
           components: rust-src
       - uses: actions/setup-node@v4
         with:
-          node-version: 14
+          node-version: 18
       - run: python -m pip install --upgrade pip && pip install nox
       - uses: actions/cache@v4
         id: cache
@@ -566,7 +587,7 @@ jobs:
         with:
           components: rust-src
       # TODO: replace with actions/setup-python when there is support
-      - uses: quansight-labs/setup-python@v5.3.1
+      - uses: quansight-labs/setup-python@v5.4.0
         with:
           python-version: "3.13t"
       - name: Install cargo-llvm-cov
@@ -656,14 +677,17 @@ jobs:
           # ubuntu x86_64 -> windows x86_64
           - os: "ubuntu-latest"
             target: "x86_64-pc-windows-gnu"
-            flags: "-i python3.12 --features abi3 --features generate-import-lib"
-            manylinux: off
+            flags: "-i python3.12 --features generate-import-lib"
           # macos x86_64 -> aarch64
           - os: "macos-13" # last x86_64 macos runners
             target: "aarch64-apple-darwin"
           # macos aarch64 -> x86_64
           - os: "macos-latest"
             target: "x86_64-apple-darwin"
+          # windows x86_64 -> aarch64
+          - os: "windows-latest"
+            target: "aarch64-pc-windows-msvc"
+            flags: "-i python3.12 --features generate-import-lib"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -677,11 +701,18 @@ jobs:
       - name: Setup cross-compiler
         if: ${{ matrix.target == 'x86_64-pc-windows-gnu' }}
         run: sudo apt-get install -y mingw-w64 llvm
-      - uses: PyO3/maturin-action@v1
+      - name: Compile version-specific library
+        uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
           args: --release -m examples/maturin-starter/Cargo.toml ${{ matrix.flags }}
+      - name: Compile abi3 library
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          args: --release -m examples/maturin-starter/Cargo.toml --features abi3 ${{ matrix.flags }}
 
   test-cross-compilation-windows:
     needs: [fmt]
