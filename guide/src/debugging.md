@@ -66,7 +66,12 @@ For more information about how to use both `lldb` and `gdb` you can read the [gd
 
    > **Note**: When using debuggers, make sure that `python` resolves to an actual Python binary or symlink and not a shim script. Some tools like pyenv use shim scripts which can interfere with debugging.
 
-### Using rust-gdb
+### Debugger specific setup
+
+Depeding on your OS and your preferences you can use two different debuggers, `rust-gdb` or `rust-lldb`.
+
+{{#tabs }}
+{{#tab name="Using rust-gdb" }}
 
 1. Launch rust-gdb with the Python interpreter:
 
@@ -93,9 +98,8 @@ For more information about how to use both `lldb` and `gdb` you can read the [gd
    (gdb) run -m pytest tests/test_something.py::TestName
    ```
 
-### Using rust-lldb (for macOS users)
-
-On macOS, LLDB is the preferred debugger:
+{{#endtab }}
+{{#tab name="Using rust-lldb (for macOS users)" }}
 
 1. Start rust-lldb with Python:
 
@@ -121,6 +125,9 @@ On macOS, LLDB is the preferred debugger:
    # Option 3: Run pytest tests
    (lldb) run -m pytest tests/test_something.py::TestName
    ```
+
+{{#endtab }}
+{{#endtabs }}
 
 ### Using VS Code
 

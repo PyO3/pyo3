@@ -30,7 +30,7 @@ jobs:
       - name: Setup mdBook
         uses: taiki-e/install-action@v2
         with:
-          tool: mdbook,lychee
+          tool: mdbook,mdbook-tabs,lychee
 
       - name: Prepare tag
         id: prepare_tag
