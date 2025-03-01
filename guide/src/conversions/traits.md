@@ -611,6 +611,8 @@ Additionally `IntoPyObject` can be derived for a reference to a struct or enum u
     - apply a custom function to convert the field from Rust into Python.
     - the argument must be the function indentifier
     - the function signature must be `fn(Cow<'_, T>, Python<'py>) -> PyResult<Bound<'py, PyAny>>` where `T` is the Rust type of the argument.
+      - `#[derive(IntoPyObject)]` will invoke the function with `Cow::Owned`
+      - `#[derive(IntoPyObjectRef)]` will invoke the function with `Cow::Borrowed`
 
     ```rust
     # use pyo3::prelude::*;
