@@ -204,6 +204,8 @@ pub enum FnType {
     FnNew,
     /// Represents a pymethod annotated with both `#[new]` and `#[classmethod]` (in either order)
     FnNewClass(Span),
+    /// Represents a pymethod annotated with `#[init]`, i.e. the `__init__` dunder.
+    FnInit(SelfType),
     /// Represents a pymethod annotated with `#[classmethod]`, like a `@classmethod`
     FnClass(Span),
     /// Represents a pyfunction or a pymethod annotated with `#[staticmethod]`, like a `@staticmethod`
@@ -220,6 +222,7 @@ impl FnType {
             FnType::Getter(_)
             | FnType::Setter(_)
             | FnType::Fn(_)
+            | FnType::FnInit(_)
             | FnType::FnClass(_)
             | FnType::FnNewClass(_)
             | FnType::FnModule(_) => true,
@@ -231,6 +234,7 @@ impl FnType {
         match self {
             FnType::Fn(_)
             | FnType::FnNew
+            | FnType::FnInit(_)
             | FnType::FnStatic
             | FnType::FnClass(_)
             | FnType::FnNewClass(_)
@@ -250,7 +254,7 @@ impl FnType {
     ) -> Option<TokenStream> {
         let Ctx { pyo3_path, .. } = ctx;
         match self {
-            FnType::Getter(st) | FnType::Setter(st) | FnType::Fn(st) => {
+            FnType::Getter(st) | FnType::Setter(st) | FnType::Fn(st) | FnType::FnInit(st) => {
                 let mut receiver = st.receiver(
                     cls.expect("no class given for Fn with a \"self\" receiver"),
                     error_mode,
@@ -378,6 +382,7 @@ pub enum CallingConvention {
     Varargs,  // METH_VARARGS | METH_KEYWORDS
     Fastcall, // METH_FASTCALL | METH_KEYWORDS (not compatible with `abi3` feature before 3.10)
     TpNew,    // special convention for tp_new
+    TpInit,   // special convention for tp_init
 }
 
 impl CallingConvention {
@@ -476,10 +481,10 @@ impl<'a> FnSpec<'a> {
             FunctionSignature::from_arguments(arguments)
         };
 
-        let convention = if matches!(fn_type, FnType::FnNew | FnType::FnNewClass(_)) {
-            CallingConvention::TpNew
-        } else {
-            CallingConvention::from_signature(&signature)
+        let convention = match fn_type {
+            FnType::FnNew | FnType::FnNewClass(_) => CallingConvention::TpNew,
+            FnType::FnInit(_) => CallingConvention::TpInit,
+            _ => CallingConvention::from_signature(&signature),
         };
 
         Ok(FnSpec {
@@ -524,11 +529,14 @@ impl<'a> FnSpec<'a> {
                 .map(|stripped| syn::Ident::new(stripped, name.span()))
         };
 
-        let mut set_name_to_new = || {
-            if let Some(name) = &python_name {
-                bail_spanned!(name.span() => "`name` not allowed with `#[new]`");
+        let mut set_fn_name = |name| {
+            if let Some(ident) = python_name {
+                bail_spanned!(ident.span() => format!("`name` not allowed with `#[{name}]`"));
             }
-            *python_name = Some(syn::Ident::new("__new__", Span::call_site()));
+            *python_name = Some(syn::Ident::new(
+                format!("__{name}__").as_str(),
+                Span::call_site(),
+            ));
             Ok(())
         };
 
@@ -539,13 +547,17 @@ impl<'a> FnSpec<'a> {
             [MethodTypeAttribute::StaticMethod(_)] => FnType::FnStatic,
             [MethodTypeAttribute::ClassAttribute(_)] => FnType::ClassAttribute,
             [MethodTypeAttribute::New(_)] => {
-                set_name_to_new()?;
+                set_fn_name("new")?;
                 FnType::FnNew
             }
             [MethodTypeAttribute::New(_), MethodTypeAttribute::ClassMethod(span)]
             | [MethodTypeAttribute::ClassMethod(span), MethodTypeAttribute::New(_)] => {
-                set_name_to_new()?;
+                set_fn_name("new")?;
                 FnType::FnNewClass(*span)
+            }
+            [MethodTypeAttribute::Init(_)] => {
+                set_fn_name("init")?;
+                FnType::FnInit(parse_receiver("expected receiver for `#[init]`")?)
             }
             [MethodTypeAttribute::ClassMethod(_)] => {
                 // Add a helpful hint if the classmethod doesn't look like a classmethod
@@ -830,12 +842,34 @@ impl<'a> FnSpec<'a> {
                         _kwargs: *mut #pyo3_path::ffi::PyObject
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                         use #pyo3_path::impl_::callback::IntoPyCallbackOutput;
-                        let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #init_holders
                         let result = #call;
                         let initializer: #pyo3_path::PyClassInitializer::<#cls> = result.convert(py)?;
                         #pyo3_path::impl_::pymethods::tp_new_impl(py, initializer, _slf)
+                    }
+                }
+            }
+            CallingConvention::TpInit => {
+                let mut holders = Holders::new();
+                let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx);
+                let self_arg = self
+                    .tp
+                    .self_arg(cls, ExtractErrorMode::Raise, &mut holders, ctx);
+                let call = quote_spanned! {*output_span=> #rust_name(#self_arg #(#args),*) };
+                let init_holders = holders.init_holders(ctx);
+                quote! {
+                    unsafe fn #ident(
+                        py: #pyo3_path::Python<'_>,
+                        _slf: *mut #pyo3_path::ffi::PyObject,
+                        _args: *mut #pyo3_path::ffi::PyObject,
+                        _kwargs: *mut #pyo3_path::ffi::PyObject
+                    ) -> #pyo3_path::PyResult<::std::os::raw::c_int> {
+                        use #pyo3_path::impl_::callback::IntoPyCallbackOutput;
+                        #arg_convert
+                        #init_holders
+                        #call?;
+                        Ok(0)
                     }
                 }
             }
@@ -917,6 +951,7 @@ impl<'a> FnSpec<'a> {
                 )
             },
             CallingConvention::TpNew => unreachable!("tp_new cannot get a methoddef"),
+            CallingConvention::TpInit => unreachable!("tp_init cannot get a methoddef"),
         }
     }
 
@@ -934,7 +969,7 @@ impl<'a> FnSpec<'a> {
         let self_argument = match &self.tp {
             // Getters / Setters / ClassAttribute are not callables on the Python side
             FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => return None,
-            FnType::Fn(_) => Some("self"),
+            FnType::Fn(_) | FnType::FnInit(_) => Some("self"),
             FnType::FnModule(_) => Some("module"),
             FnType::FnClass(_) | FnType::FnNewClass(_) => Some("cls"),
             FnType::FnStatic | FnType::FnNew => None,
@@ -950,6 +985,7 @@ impl<'a> FnSpec<'a> {
 
 enum MethodTypeAttribute {
     New(Span),
+    Init(Span),
     ClassMethod(Span),
     StaticMethod(Span),
     Getter(Span, Option<Ident>),
@@ -961,6 +997,7 @@ impl MethodTypeAttribute {
     fn span(&self) -> Span {
         match self {
             MethodTypeAttribute::New(span)
+            | MethodTypeAttribute::Init(span)
             | MethodTypeAttribute::ClassMethod(span)
             | MethodTypeAttribute::StaticMethod(span)
             | MethodTypeAttribute::Getter(span, _)
@@ -1018,6 +1055,9 @@ impl MethodTypeAttribute {
         if path.is_ident("new") {
             ensure_no_arguments(meta, "new")?;
             Ok(Some(MethodTypeAttribute::New(path.span())))
+        } else if path.is_ident("init") {
+            ensure_no_arguments(meta, "init")?;
+            Ok(Some(MethodTypeAttribute::Init(path.span())))
         } else if path.is_ident("classmethod") {
             ensure_no_arguments(meta, "classmethod")?;
             Ok(Some(MethodTypeAttribute::ClassMethod(path.span())))
@@ -1043,6 +1083,7 @@ impl Display for MethodTypeAttribute {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             MethodTypeAttribute::New(_) => "#[new]".fmt(f),
+            MethodTypeAttribute::Init(_) => "#[init]".fmt(f),
             MethodTypeAttribute::ClassMethod(_) => "#[classmethod]".fmt(f),
             MethodTypeAttribute::StaticMethod(_) => "#[staticmethod]".fmt(f),
             MethodTypeAttribute::Getter(_, _) => "#[getter]".fmt(f),

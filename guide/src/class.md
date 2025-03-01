@@ -10,6 +10,7 @@ This chapter will discuss the functionality and configuration these attributes o
   - [`#[pyo3(get, set)]`](#object-properties-using-pyo3get-set)
 - [`#[pymethods]`](#instance-methods)
   - [`#[new]`](#constructor)
+  - [`#[init]`](#initializer)
   - [`#[getter]`](#object-properties-using-getter-and-setter)
   - [`#[setter]`](#object-properties-using-getter-and-setter)
   - [`#[staticmethod]`](#static-methods)
@@ -131,7 +132,7 @@ For now, don't worry about these requirements; simple classes will already be th
 
 By default, it is not possible to create an instance of a custom class from Python code.
 To declare a constructor, you need to define a method and annotate it with the `#[new]`
-attribute. Only Python's `__new__` method can be specified, `__init__` is not available.
+attribute. A constructor is accessible as Python's `__new__` method.
 
 ```rust
 # #![allow(dead_code)]
@@ -180,6 +181,59 @@ If no method marked with `#[new]` is declared, object instances can only be
 created from Rust, but not from Python.
 
 For arguments, see the [`Method arguments`](#method-arguments) section below.
+
+## Initializer
+
+An initializer implements Python's `__init__` method.
+
+It may be required when it's needed to control an object initalization flow on the Rust code.
+For example, you define a class that extends `PyDict` and don't want that the original
+`__init__` method of `PyDict` been called. In this case by defining an own `init` method
+it's possible to stop initialization flow.
+
+If you declare an own `init` method you may need to call a super class `__init__` method
+explicitly like that happens in a regular Python code.
+
+To declare an initializer, you need to define a method and annotate it with the `#[init]`
+attribute. An `init` method must have the same input paretemeters signature like
+in the constructor method.
+
+Like in the constructor case the Rust method name isn't important.
+
+```rust,ignore
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyTuple};
+
+#[pyclass(extends = PyDict)]
+struct MyDict;
+
+#[pymethods]
+impl MyDict {
+    #[new]
+#     #[allow(unused_variables)]
+    #[pyo3(signature = (*args, **kwargs))]
+    fn __new__(
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<Self> {
+        Ok(Self)
+    }
+
+    #[init]
+    #[pyo3(signature = (*args, **kwargs))]
+    fn __init__(
+        self_: &Bound<'_, Self>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<()> {
+        self_
+            .py_super()?
+            .call_method("__init__", args.to_owned(), kwargs)?;
+        Ok(())
+    }
+}
+```
 
 ## Adding the class to a module
 
