@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use syn::Ident;
+use syn::{Attribute, Ident};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
 
@@ -21,6 +21,7 @@ pub fn module_introspection_code<'a>(
     pyo3_crate_path: &PyO3CratePath,
     name: &str,
     members: impl IntoIterator<Item = &'a Ident>,
+    members_cfg_attrs: impl IntoIterator<Item = &'a Vec<Attribute>>,
 ) -> TokenStream {
     let stub = IntrospectionNode::Map(
         [
@@ -32,7 +33,14 @@ pub fn module_introspection_code<'a>(
                 IntrospectionNode::List(
                     members
                         .into_iter()
-                        .map(|member| IntrospectionNode::IntrospectionId(Some(member)))
+                        .zip(members_cfg_attrs)
+                        .filter_map(|(member, attributes)| {
+                            if attributes.is_empty() {
+                                Some(IntrospectionNode::IntrospectionId(Some(member)))
+                            } else {
+                                None // TODO: properly interpret cfg attributes
+                            }
+                        })
                         .collect(),
                 ),
             ),

@@ -788,6 +788,7 @@ jobs:
           components: rust-src
       - uses: actions/setup-python@v5
         with:
+          python-version: "3.12"
           architecture: ${{ matrix.platform.python-architecture }}
       - uses: Swatinem/rust-cache@v2
         with:
