@@ -89,6 +89,14 @@ if [ "${INSTALLED_MDBOOK_LINKCHECK_VERSION}" != "mdbook v${MDBOOK_LINKCHECK_VERS
     cargo install mdbook-linkcheck@${MDBOOK_LINKCHECK_VERSION} --force
 fi
 
+# Install latest mdbook-tabs. Netlify will cache the cargo bin dir, so this will
+# only build mdbook-tabs if needed.
+MDBOOK_TABS_VERSION=$(cargo search mdbook-tabs --limit 1 | head -1 | tr -s ' ' | cut -d ' ' -f 3 | tr -d '"')
+INSTALLED_MDBOOK_TABS_VERSION=$(mdbook-tabs --version || echo "none")
+if [ "${INSTALLED_MDBOOK_TABS_VERSION}" != "mdbook-tabs v${MDBOOK_TABS_VERSION}" ]; then
+    cargo install mdbook-tabs@${MDBOOK_TABS_VERSION} --force
+fi
+
 pip install nox
 nox -s build-guide
 mv target/guide/ netlify_build/main/

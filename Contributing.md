@@ -60,7 +60,7 @@ https://doc.rust-lang.org/rustdoc/documentation-tests.html for a guide on doctes
 
 You can preview the user guide by building it locally with `mdbook`.
 
-First, install [`mdbook`][mdbook] and [`nox`][nox]. Then, run
+First, install [`mdbook`][mdbook], the [`mdbook-tabs`][mdbook-tabs] plugin and [`nox`][nox]. Then, run
 
 ```shell
 nox -s build-guide -- --open
@@ -235,5 +235,6 @@ In the meanwhile, some of our maintainers have personal GitHub sponsorship pages
 - [messense](https://github.com/sponsors/messense)
 
 [mdbook]: https://rust-lang.github.io/mdBook/cli/index.html
+[mdbook-tabs]: https://mdbook-plugins.rustforweb.org/tabs.html
 [lychee]: https://github.com/lycheeverse/lychee
 [nox]: https://github.com/theacodes/nox
