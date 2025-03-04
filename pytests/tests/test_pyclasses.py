@@ -121,3 +121,16 @@ def test_dict():
 
     d.foo = 42
     assert d.__dict__ == {"foo": 42}
+
+
+def test_class_init_method():
+    try:
+        SubClassWithInit = pyclasses.SubClassWithInit
+    except AttributeError:
+        pytest.skip("not defined using Python < 3.8")
+
+    d = SubClassWithInit()
+    assert d == {"__init__": True}
+
+    d = SubClassWithInit({"a": 1}, b=2)
+    assert d == {"__init__": True, "a": 1, "b": 2}
