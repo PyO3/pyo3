@@ -17,7 +17,7 @@ pub mod pyfunctions;
 pub mod sequence;
 pub mod subclassing;
 
-#[pymodule]
+#[pymodule(gil_used = false)]
 mod pyo3_pytests {
     use super::*;
 

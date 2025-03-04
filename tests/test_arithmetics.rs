@@ -1,8 +1,8 @@
 #![cfg(feature = "macros")]
 
 use pyo3::class::basic::CompareOp;
-use pyo3::prelude::*;
 use pyo3::py_run;
+use pyo3::{prelude::*, BoundObject};
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -527,11 +527,19 @@ impl RichComparisons2 {
         "RC2"
     }
 
-    fn __richcmp__(&self, other: &Bound<'_, PyAny>, op: CompareOp) -> PyObject {
+    fn __richcmp__(&self, other: &Bound<'_, PyAny>, op: CompareOp) -> PyResult<PyObject> {
         match op {
-            CompareOp::Eq => true.into_py(other.py()),
-            CompareOp::Ne => false.into_py(other.py()),
-            _ => other.py().NotImplemented(),
+            CompareOp::Eq => true
+                .into_pyobject(other.py())
+                .map_err(Into::into)
+                .map(BoundObject::into_any)
+                .map(BoundObject::unbind),
+            CompareOp::Ne => false
+                .into_pyobject(other.py())
+                .map_err(Into::into)
+                .map(BoundObject::into_any)
+                .map(BoundObject::unbind),
+            _ => Ok(other.py().NotImplemented()),
         }
     }
 }

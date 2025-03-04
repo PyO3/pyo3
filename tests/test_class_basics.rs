@@ -247,9 +247,10 @@ fn class_with_hash() {
 
         let env = [
             ("obj", Py::new(py, class).unwrap().into_any()),
-            ("hsh", hash.into_py(py)),
+            ("hsh", hash.into_pyobject(py).unwrap().into_any().unbind()),
         ]
-        .into_py_dict(py);
+        .into_py_dict(py)
+        .unwrap();
 
         py_assert!(py, *env, "hash(obj) == hsh");
     });
@@ -356,23 +357,23 @@ struct ClassWithFromPyWithMethods {}
 
 #[pymethods]
 impl ClassWithFromPyWithMethods {
-    fn instance_method(&self, #[pyo3(from_py_with = "get_length")] argument: usize) -> usize {
+    fn instance_method(&self, #[pyo3(from_py_with = get_length)] argument: usize) -> usize {
         argument
     }
     #[classmethod]
     fn classmethod(
         _cls: &Bound<'_, PyType>,
-        #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")] argument: usize,
+        #[pyo3(from_py_with = Bound::<'_, PyAny>::len)] argument: usize,
     ) -> usize {
         argument
     }
 
     #[staticmethod]
-    fn staticmethod(#[pyo3(from_py_with = "get_length")] argument: usize) -> usize {
+    fn staticmethod(#[pyo3(from_py_with = get_length)] argument: usize) -> usize {
         argument
     }
 
-    fn __contains__(&self, #[pyo3(from_py_with = "is_even")] obj: bool) -> bool {
+    fn __contains__(&self, #[pyo3(from_py_with = is_even)] obj: bool) -> bool {
         obj
     }
 }
@@ -615,7 +616,7 @@ fn access_frozen_class_without_gil() {
 }
 
 #[test]
-#[cfg(Py_3_8)] // sys.unraisablehook not available until Python 3.8
+#[cfg(all(Py_3_8, not(Py_GIL_DISABLED)))] // sys.unraisablehook not available until Python 3.8
 #[cfg_attr(target_arch = "wasm32", ignore)]
 fn drop_unsendable_elsewhere() {
     use common::UnraisableCapture;

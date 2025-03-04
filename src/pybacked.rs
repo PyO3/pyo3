@@ -1,14 +1,16 @@
 //! Contains types for working with Python objects that own the underlying data.
 
-use std::{ops::Deref, ptr::NonNull, sync::Arc};
+use std::{convert::Infallible, ops::Deref, ptr::NonNull, sync::Arc};
 
 use crate::{
     types::{
         any::PyAnyMethods, bytearray::PyByteArrayMethods, bytes::PyBytesMethods,
         string::PyStringMethods, PyByteArray, PyBytes, PyString,
     },
-    Bound, DowncastError, FromPyObject, IntoPy, Py, PyAny, PyErr, PyResult, Python, ToPyObject,
+    Bound, DowncastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python,
 };
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 
 /// A wrapper around `str` where the storage is owned by a Python `bytes` or `str` object.
 ///
@@ -61,7 +63,7 @@ impl TryFrom<Bound<'_, PyString>> for PyBackedStr {
             let s = py_string.to_str()?;
             let data = NonNull::from(s);
             Ok(Self {
-                storage: py_string.as_any().to_owned().unbind(),
+                storage: py_string.into_any().unbind(),
                 data,
             })
         }
@@ -85,10 +87,11 @@ impl FromPyObject<'_> for PyBackedStr {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for PyBackedStr {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
-        self.storage.clone_ref(py)
+        self.storage.as_any().clone_ref(py)
     }
     #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
     fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
@@ -96,14 +99,47 @@ impl ToPyObject for PyBackedStr {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<Py<PyAny>> for PyBackedStr {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     fn into_py(self, _py: Python<'_>) -> Py<PyAny> {
-        self.storage
+        self.storage.into_any()
     }
     #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
     fn into_py(self, py: Python<'_>) -> Py<PyAny> {
         PyString::new(py, &self).into_any().unbind()
+    }
+}
+
+impl<'py> IntoPyObject<'py> for PyBackedStr {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self.storage.into_bound(py))
+    }
+
+    #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PyString::new(py, &self).into_any())
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &PyBackedStr {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self.storage.bind(py).to_owned())
+    }
+
+    #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PyString::new(py, self).into_any())
     }
 }
 
@@ -203,6 +239,7 @@ impl FromPyObject<'_> for PyBackedBytes {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for PyBackedBytes {
     fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
         match &self.storage {
@@ -212,11 +249,38 @@ impl ToPyObject for PyBackedBytes {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<Py<PyAny>> for PyBackedBytes {
     fn into_py(self, py: Python<'_>) -> Py<PyAny> {
         match self.storage {
             PyBackedBytesStorage::Python(bytes) => bytes.into_any(),
             PyBackedBytesStorage::Rust(bytes) => PyBytes::new(py, &bytes).into_any().unbind(),
+        }
+    }
+}
+
+impl<'py> IntoPyObject<'py> for PyBackedBytes {
+    type Target = PyBytes;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        match self.storage {
+            PyBackedBytesStorage::Python(bytes) => Ok(bytes.into_bound(py)),
+            PyBackedBytesStorage::Rust(bytes) => Ok(PyBytes::new(py, &bytes)),
+        }
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &PyBackedBytes {
+    type Target = PyBytes;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        match &self.storage {
+            PyBackedBytesStorage::Python(bytes) => Ok(bytes.bind(py).clone()),
+            PyBackedBytesStorage::Rust(bytes) => Ok(PyBytes::new(py, bytes)),
         }
     }
 }
@@ -297,7 +361,7 @@ use impl_traits;
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::Python;
+    use crate::{IntoPyObject, Python};
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
 
@@ -329,18 +393,19 @@ mod test {
     }
 
     #[test]
-    fn py_backed_str_to_object() {
+    fn py_backed_str_into_pyobject() {
         Python::with_gil(|py| {
             let orig_str = PyString::new(py, "hello");
             let py_backed_str = orig_str.extract::<PyBackedStr>().unwrap();
-            let new_str = py_backed_str.to_object(py);
-            assert_eq!(new_str.extract::<PyBackedStr>(py).unwrap(), "hello");
+            let new_str = py_backed_str.into_pyobject(py).unwrap();
+            assert_eq!(new_str.extract::<PyBackedStr>().unwrap(), "hello");
             #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
             assert!(new_str.is(&orig_str));
         });
     }
 
     #[test]
+    #[allow(deprecated)]
     fn py_backed_str_into_py() {
         Python::with_gil(|py| {
             let orig_str = PyString::new(py, "hello");
@@ -389,17 +454,22 @@ mod test {
     }
 
     #[test]
-    fn py_backed_bytes_into_py() {
+    #[allow(deprecated)]
+    fn py_backed_bytes_into_pyobject() {
         Python::with_gil(|py| {
             let orig_bytes = PyBytes::new(py, b"abcde");
             let py_backed_bytes = PyBackedBytes::from(orig_bytes.clone());
-            assert!(py_backed_bytes.to_object(py).is(&orig_bytes));
+            assert!((&py_backed_bytes)
+                .into_pyobject(py)
+                .unwrap()
+                .is(&orig_bytes));
             assert!(py_backed_bytes.into_py(py).is(&orig_bytes));
         });
     }
 
     #[test]
-    fn rust_backed_bytes_into_py() {
+    #[allow(deprecated)]
+    fn rust_backed_bytes_into_pyobject() {
         Python::with_gil(|py| {
             let orig_bytes = PyByteArray::new(py, b"abcde");
             let rust_backed_bytes = PyBackedBytes::from(orig_bytes);
@@ -407,7 +477,7 @@ mod test {
                 rust_backed_bytes.storage,
                 PyBackedBytesStorage::Rust(_)
             ));
-            let to_object = rust_backed_bytes.to_object(py).into_bound(py);
+            let to_object = (&rust_backed_bytes).into_pyobject(py).unwrap();
             assert!(&to_object.is_exact_instance_of::<PyBytes>());
             assert_eq!(&to_object.extract::<PyBackedBytes>().unwrap(), b"abcde");
             let into_py = rust_backed_bytes.into_py(py).into_bound(py);

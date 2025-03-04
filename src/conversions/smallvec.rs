@@ -23,12 +23,12 @@ use crate::types::any::PyAnyMethods;
 use crate::types::list::new_from_iter;
 use crate::types::{PySequence, PyString};
 use crate::PyErr;
-use crate::{
-    err::DowncastError, ffi, Bound, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python,
-    ToPyObject,
-};
+use crate::{err::DowncastError, ffi, Bound, FromPyObject, PyAny, PyObject, PyResult, Python};
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 use smallvec::{Array, SmallVec};
 
+#[allow(deprecated)]
 impl<A> ToPyObject for SmallVec<A>
 where
     A: Array,
@@ -39,6 +39,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<A> IntoPy<PyObject> for SmallVec<A>
 where
     A: Array,
@@ -49,18 +50,12 @@ where
         let list = new_from_iter(py, &mut iter);
         list.into()
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::list_of(A::Item::type_output())
-    }
 }
 
 impl<'py, A> IntoPyObject<'py> for SmallVec<A>
 where
     A: Array,
     A::Item: IntoPyObject<'py>,
-    PyErr: From<<A::Item as IntoPyObject<'py>>::Error>,
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -74,13 +69,18 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         <A::Item>::owned_sequence_into_pyobject(self, py, crate::conversion::private::Token)
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::list_of(A::Item::type_output())
+    }
 }
 
 impl<'a, 'py, A> IntoPyObject<'py> for &'a SmallVec<A>
 where
     A: Array,
     &'a A::Item: IntoPyObject<'py>,
-    PyErr: From<<&'a A::Item as IntoPyObject<'py>>::Error>,
+    A::Item: 'a, // MSRV
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -89,6 +89,11 @@ where
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.as_slice().into_pyobject(py)
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::list_of(<&A::Item>::type_output())
     }
 }
 
@@ -126,7 +131,7 @@ where
     };
 
     let mut sv = SmallVec::with_capacity(seq.len().unwrap_or(0));
-    for item in seq.iter()? {
+    for item in seq.try_iter()? {
         sv.push(item?.extract::<A::Item>()?);
     }
     Ok(sv)
@@ -138,11 +143,12 @@ mod tests {
     use crate::types::{PyBytes, PyBytesMethods, PyDict, PyList};
 
     #[test]
+    #[allow(deprecated)]
     fn test_smallvec_into_py() {
         Python::with_gil(|py| {
             let sv: SmallVec<[u64; 8]> = [1, 2, 3, 4, 5].iter().cloned().collect();
             let hso: PyObject = sv.clone().into_py(py);
-            let l = PyList::new(py, [1, 2, 3, 4, 5]);
+            let l = PyList::new(py, [1, 2, 3, 4, 5]).unwrap();
             assert!(l.eq(hso).unwrap());
         });
     }
@@ -150,7 +156,7 @@ mod tests {
     #[test]
     fn test_smallvec_from_py_object() {
         Python::with_gil(|py| {
-            let l = PyList::new(py, [1, 2, 3, 4, 5]);
+            let l = PyList::new(py, [1, 2, 3, 4, 5]).unwrap();
             let sv: SmallVec<[u64; 8]> = l.extract().unwrap();
             assert_eq!(sv.as_slice(), [1, 2, 3, 4, 5]);
         });
@@ -169,11 +175,11 @@ mod tests {
     }
 
     #[test]
-    fn test_smallvec_to_object() {
+    fn test_smallvec_into_pyobject() {
         Python::with_gil(|py| {
             let sv: SmallVec<[u64; 8]> = [1, 2, 3, 4, 5].iter().cloned().collect();
-            let hso: PyObject = sv.to_object(py);
-            let l = PyList::new(py, [1, 2, 3, 4, 5]);
+            let hso = sv.into_pyobject(py).unwrap();
+            let l = PyList::new(py, [1, 2, 3, 4, 5]).unwrap();
             assert!(l.eq(hso).unwrap());
         });
     }

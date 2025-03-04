@@ -11,7 +11,7 @@ use std::{
 
 use crate::gil::GILGuard;
 use crate::{
-    callback::PyCallbackOutput, ffi, ffi_ptr_ext::FfiPtrExt, impl_::panic::PanicTrap,
+    ffi, ffi_ptr_ext::FfiPtrExt, impl_::callback::PyCallbackOutput, impl_::panic::PanicTrap,
     impl_::pymethods::IPowModulo, panic::PanicException, types::PyModule, Py, PyResult, Python,
 };
 
@@ -235,7 +235,7 @@ where
     if let Err(py_err) = panic::catch_unwind(move || body(py))
         .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(payload)))
     {
-        py_err.write_unraisable_bound(py, ctx.assume_borrowed_or_opt(py).as_deref());
+        py_err.write_unraisable(py, ctx.assume_borrowed_or_opt(py).as_deref());
     }
     trap.disarm();
 }

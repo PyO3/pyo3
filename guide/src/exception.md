@@ -23,15 +23,18 @@ use pyo3::exceptions::PyException;
 
 create_exception!(mymodule, CustomError, PyException);
 
+# fn main() -> PyResult<()> {
 Python::with_gil(|py| {
-    let ctx = [("CustomError", py.get_type::<CustomError>())].into_py_dict(py);
+    let ctx = [("CustomError", py.get_type::<CustomError>())].into_py_dict(py)?;
     pyo3::py_run!(
         py,
         *ctx,
         "assert str(CustomError) == \"<class 'mymodule.CustomError'>\""
     );
     pyo3::py_run!(py, *ctx, "assert CustomError('oops').args == ('oops',)");
-});
+#   Ok(())
+})
+# }
 ```
 
 When using PyO3 to create an extension module, you can add the new exception to
@@ -78,12 +81,15 @@ In PyO3 every object has the [`PyAny::is_instance`] and [`PyAny::is_instance_of`
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyList};
 
+# fn main() -> PyResult<()> {
 Python::with_gil(|py| {
     assert!(PyBool::new(py, true).is_instance_of::<PyBool>());
-    let list = PyList::new(py, &[1, 2, 3, 4]);
+    let list = PyList::new(py, &[1, 2, 3, 4])?;
     assert!(!list.is_instance_of::<PyBool>());
     assert!(list.is_instance_of::<PyList>());
-});
+# Ok(())
+})
+# }
 ```
 
 To check the type of an exception, you can similarly do:

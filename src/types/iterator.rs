@@ -18,7 +18,7 @@ use crate::{ffi, Bound, PyAny, PyErr, PyResult, PyTypeCheck};
 /// Python::with_gil(|py| -> PyResult<()> {
 ///     let list = py.eval(c_str!("iter([1, 2, 3, 4])"), None, None)?;
 ///     let numbers: PyResult<Vec<usize>> = list
-///         .iter()?
+///         .try_iter()?
 ///         .map(|i| i.and_then(|i|i.extract::<usize>()))
 ///         .collect();
 ///     let sum: usize = numbers?.iter().sum();
@@ -108,14 +108,13 @@ mod tests {
     use super::PyIterator;
     use crate::exceptions::PyTypeError;
     use crate::types::{PyAnyMethods, PyDict, PyList, PyListMethods};
-    use crate::{ffi, Python, ToPyObject};
+    use crate::{ffi, IntoPyObject, Python};
 
     #[test]
     fn vec_iter() {
         Python::with_gil(|py| {
-            let obj = vec![10, 20].to_object(py);
-            let inst = obj.bind(py);
-            let mut it = inst.iter().unwrap();
+            let inst = vec![10, 20].into_pyobject(py).unwrap();
+            let mut it = inst.try_iter().unwrap();
             assert_eq!(
                 10_i32,
                 it.next().unwrap().unwrap().extract::<'_, i32>().unwrap()
@@ -131,14 +130,14 @@ mod tests {
     #[test]
     fn iter_refcnt() {
         let (obj, count) = Python::with_gil(|py| {
-            let obj = vec![10, 20].to_object(py);
-            let count = obj.get_refcnt(py);
-            (obj, count)
+            let obj = vec![10, 20].into_pyobject(py).unwrap();
+            let count = obj.get_refcnt();
+            (obj.unbind(), count)
         });
 
         Python::with_gil(|py| {
             let inst = obj.bind(py);
-            let mut it = inst.iter().unwrap();
+            let mut it = inst.try_iter().unwrap();
 
             assert_eq!(
                 10_i32,
@@ -161,18 +160,14 @@ mod tests {
                 list.append(10).unwrap();
                 list.append(&obj).unwrap();
                 count = obj.get_refcnt();
-                list.to_object(py)
+                list
             };
 
             {
-                let inst = list.bind(py);
-                let mut it = inst.iter().unwrap();
+                let mut it = list.iter();
 
-                assert_eq!(
-                    10_i32,
-                    it.next().unwrap().unwrap().extract::<'_, i32>().unwrap()
-                );
-                assert!(it.next().unwrap().unwrap().is(&obj));
+                assert_eq!(10_i32, it.next().unwrap().extract::<'_, i32>().unwrap());
+                assert!(it.next().unwrap().is(&obj));
                 assert!(it.next().is_none());
             }
             assert_eq!(count, obj.get_refcnt());
@@ -199,7 +194,7 @@ def fibonacci(target):
             let generator = py
                 .eval(ffi::c_str!("fibonacci(5)"), None, Some(&context))
                 .unwrap();
-            for (actual, expected) in generator.iter().unwrap().zip(&[1, 1, 2, 3, 5]) {
+            for (actual, expected) in generator.try_iter().unwrap().zip(&[1, 1, 2, 3, 5]) {
                 let actual = actual.unwrap().extract::<usize>().unwrap();
                 assert_eq!(actual, *expected)
             }
@@ -243,8 +238,8 @@ def fibonacci(target):
     #[test]
     fn int_not_iterable() {
         Python::with_gil(|py| {
-            let x = 5.to_object(py);
-            let err = PyIterator::from_object(x.bind(py)).unwrap_err();
+            let x = 5i32.into_pyobject(py).unwrap();
+            let err = PyIterator::from_object(&x).unwrap_err();
 
             assert!(err.is_instance_of::<PyTypeError>(py));
         });
@@ -327,7 +322,7 @@ def fibonacci(target):
     fn length_hint_becomes_size_hint_lower_bound() {
         Python::with_gil(|py| {
             let list = py.eval(ffi::c_str!("[1, 2, 3]"), None, None).unwrap();
-            let iter = list.iter().unwrap();
+            let iter = list.try_iter().unwrap();
             let hint = iter.size_hint();
             assert_eq!(hint, (3, None));
         });

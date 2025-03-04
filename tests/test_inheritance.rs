@@ -21,7 +21,9 @@ struct SubclassAble {}
 #[test]
 fn subclass() {
     Python::with_gil(|py| {
-        let d = [("SubclassAble", py.get_type::<SubclassAble>())].into_py_dict(py);
+        let d = [("SubclassAble", py.get_type::<SubclassAble>())]
+            .into_py_dict(py)
+            .unwrap();
 
         py.run(
             ffi::c_str!("class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)"),
@@ -98,7 +100,7 @@ fn call_base_and_sub_methods() {
 fn mutation_fails() {
     Python::with_gil(|py| {
         let obj = Py::new(py, SubClass::new()).unwrap();
-        let global = [("obj", obj)].into_py_dict(py);
+        let global = [("obj", obj)].into_py_dict(py).unwrap();
         let e = py
             .run(
                 ffi::c_str!("obj.base_set(lambda: obj.sub_set_and_ret(1))"),
@@ -276,14 +278,14 @@ mod inheriting_native_type {
     fn custom_exception() {
         Python::with_gil(|py| {
             let cls = py.get_type::<CustomException>();
-            let dict = [("cls", &cls)].into_py_dict(py);
+            let dict = [("cls", &cls)].into_py_dict(py).unwrap();
             let res = py.run(
             ffi::c_str!("e = cls('hello'); assert str(e) == 'hello'; assert e.context == 'Hello :)'; raise e"),
             None,
             Some(&dict)
             );
             let err = res.unwrap_err();
-            assert!(err.matches(py, &cls), "{}", err);
+            assert!(err.matches(py, &cls).unwrap(), "{}", err);
 
             // catching the exception in Python also works:
             py_run!(
@@ -342,29 +344,6 @@ fn test_subclass_ref_counts() {
             # (With issue #1363 the count will be decreased.)
             assert after == count or (after == count + 1000), f"{after} vs {count}"
             "#
-        );
-    })
-}
-
-#[test]
-#[cfg(not(Py_LIMITED_API))]
-fn module_add_class_inherit_bool_fails() {
-    use pyo3::types::PyBool;
-
-    #[pyclass(extends = PyBool)]
-    struct ExtendsBool;
-
-    Python::with_gil(|py| {
-        let m = PyModule::new(py, "test_module").unwrap();
-
-        let err = m.add_class::<ExtendsBool>().unwrap_err();
-        assert_eq!(
-            err.to_string(),
-            "RuntimeError: An error occurred while initializing class ExtendsBool"
-        );
-        assert_eq!(
-            err.cause(py).unwrap().to_string(),
-            "TypeError: type 'bool' is not an acceptable base type"
         );
     })
 }

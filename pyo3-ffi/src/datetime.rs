@@ -3,23 +3,18 @@
 //! This is the unsafe thin  wrapper around the [CPython C API](https://docs.python.org/3/c-api/datetime.html),
 //! and covers the various date and time related objects in the Python `datetime`
 //! standard library module.
-//!
-//! A note regarding PyPy (cpyext) support:
-//!
-//! Support for `PyDateTime_CAPI` is limited as of PyPy 7.0.0.
-//! `DateTime_FromTimestamp` and `Date_FromTimestamp` are currently not supported.
 
+#[cfg(not(PyPy))]
+use crate::PyCapsule_Import;
 #[cfg(GraalPy)]
 use crate::{PyLong_AsLong, PyLong_Check, PyObject_GetAttrString, Py_DecRef};
 use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_TYPE};
-use std::cell::UnsafeCell;
-#[cfg(not(GraalPy))]
 use std::os::raw::c_char;
 use std::os::raw::c_int;
 use std::ptr;
+use std::sync::Once;
+use std::{cell::UnsafeCell, ffi::CStr};
 #[cfg(not(PyPy))]
-use {crate::PyCapsule_Import, std::ffi::CString};
-#[cfg(not(any(PyPy, GraalPy)))]
 use {crate::Py_hash_t, std::os::raw::c_uchar};
 // Type struct wrappers
 const _PyDateTime_DATE_DATASIZE: usize = 4;
@@ -31,13 +26,10 @@ const _PyDateTime_DATETIME_DATASIZE: usize = 10;
 /// Structure representing a `datetime.timedelta`.
 pub struct PyDateTime_Delta {
     pub ob_base: PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub hashcode: Py_hash_t,
-    #[cfg(not(GraalPy))]
     pub days: c_int,
-    #[cfg(not(GraalPy))]
     pub seconds: c_int,
-    #[cfg(not(GraalPy))]
     pub microseconds: c_int,
 }
 
@@ -60,19 +52,17 @@ pub struct _PyDateTime_BaseTime {
 /// Structure representing a `datetime.time`.
 pub struct PyDateTime_Time {
     pub ob_base: PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub hashcode: Py_hash_t,
-    #[cfg(not(GraalPy))]
     pub hastzinfo: c_char,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub data: [c_uchar; _PyDateTime_TIME_DATASIZE],
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub fold: c_uchar,
     /// # Safety
     ///
     /// Care should be taken when reading this field. If the time does not have a
     /// tzinfo then CPython may allocate as a `_PyDateTime_BaseTime` without this field.
-    #[cfg(not(GraalPy))]
     pub tzinfo: *mut PyObject,
 }
 
@@ -81,11 +71,11 @@ pub struct PyDateTime_Time {
 /// Structure representing a `datetime.date`
 pub struct PyDateTime_Date {
     pub ob_base: PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub hashcode: Py_hash_t,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub hastzinfo: c_char,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub data: [c_uchar; _PyDateTime_DATE_DATASIZE],
 }
 
@@ -105,19 +95,17 @@ pub struct _PyDateTime_BaseDateTime {
 /// Structure representing a `datetime.datetime`.
 pub struct PyDateTime_DateTime {
     pub ob_base: PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub hashcode: Py_hash_t,
-    #[cfg(not(GraalPy))]
     pub hastzinfo: c_char,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub data: [c_uchar; _PyDateTime_DATETIME_DATASIZE],
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub fold: c_uchar,
     /// # Safety
     ///
     /// Care should be taken when reading this field. If the time does not have a
     /// tzinfo then CPython may allocate as a `_PyDateTime_BaseDateTime` without this field.
-    #[cfg(not(GraalPy))]
     pub tzinfo: *mut PyObject,
 }
 
@@ -131,7 +119,7 @@ pub struct PyDateTime_DateTime {
 pub unsafe fn PyDateTime_GET_YEAR(o: *mut PyObject) -> c_int {
     // This should work for Date or DateTime
     let data = (*(o as *mut PyDateTime_Date)).data;
-    c_int::from(data[0]) << 8 | c_int::from(data[1])
+    (c_int::from(data[0]) << 8) | c_int::from(data[1])
 }
 
 #[inline]
@@ -598,6 +586,8 @@ pub struct PyDateTime_CAPI {
 // Python already shares this object between threads, so it's no more evil for us to do it too!
 unsafe impl Sync for PyDateTime_CAPI {}
 
+pub const PyDateTime_CAPSULE_NAME: &CStr = c_str!("datetime.datetime_CAPI");
+
 /// Returns a pointer to a `PyDateTime_CAPI` instance
 ///
 /// # Note
@@ -605,33 +595,38 @@ unsafe impl Sync for PyDateTime_CAPI {}
 /// `PyDateTime_IMPORT` is called
 #[inline]
 pub unsafe fn PyDateTimeAPI() -> *mut PyDateTime_CAPI {
-    *PyDateTimeAPI_impl.0.get()
+    *PyDateTimeAPI_impl.ptr.get()
+}
+
+/// Populates the `PyDateTimeAPI` object
+pub unsafe fn PyDateTime_IMPORT() {
+    if !PyDateTimeAPI_impl.once.is_completed() {
+        // PyPy expects the C-API to be initialized via PyDateTime_Import, so trying to use
+        // `PyCapsule_Import` will behave unexpectedly in pypy.
+        #[cfg(PyPy)]
+        let py_datetime_c_api = PyDateTime_Import();
+
+        #[cfg(not(PyPy))]
+        let py_datetime_c_api =
+            PyCapsule_Import(PyDateTime_CAPSULE_NAME.as_ptr(), 1) as *mut PyDateTime_CAPI;
+
+        if py_datetime_c_api.is_null() {
+            return;
+        }
+
+        // Protect against race conditions when the datetime API is concurrently
+        // initialized in multiple threads. UnsafeCell.get() cannot panic so this
+        // won't panic either.
+        PyDateTimeAPI_impl.once.call_once(|| {
+            *PyDateTimeAPI_impl.ptr.get() = py_datetime_c_api;
+        });
+    }
 }
 
 #[inline]
 pub unsafe fn PyDateTime_TimeZone_UTC() -> *mut PyObject {
     (*PyDateTimeAPI()).TimeZone_UTC
 }
-
-/// Populates the `PyDateTimeAPI` object
-pub unsafe fn PyDateTime_IMPORT() {
-    // PyPy expects the C-API to be initialized via PyDateTime_Import, so trying to use
-    // `PyCapsule_Import` will behave unexpectedly in pypy.
-    #[cfg(PyPy)]
-    let py_datetime_c_api = PyDateTime_Import();
-
-    #[cfg(not(PyPy))]
-    let py_datetime_c_api = {
-        // PyDateTime_CAPSULE_NAME is a macro in C
-        let PyDateTime_CAPSULE_NAME = CString::new("datetime.datetime_CAPI").unwrap();
-
-        PyCapsule_Import(PyDateTime_CAPSULE_NAME.as_ptr(), 1) as *mut PyDateTime_CAPI
-    };
-
-    *PyDateTimeAPI_impl.0.get() = py_datetime_c_api;
-}
-
-// skipped non-limited PyDateTime_TimeZone_UTC
 
 /// Type Check macros
 ///
@@ -744,8 +739,13 @@ extern "C" {
 
 // Rust specific implementation details
 
-struct PyDateTimeAPISingleton(UnsafeCell<*mut PyDateTime_CAPI>);
+struct PyDateTimeAPISingleton {
+    once: Once,
+    ptr: UnsafeCell<*mut PyDateTime_CAPI>,
+}
 unsafe impl Sync for PyDateTimeAPISingleton {}
 
-static PyDateTimeAPI_impl: PyDateTimeAPISingleton =
-    PyDateTimeAPISingleton(UnsafeCell::new(ptr::null_mut()));
+static PyDateTimeAPI_impl: PyDateTimeAPISingleton = PyDateTimeAPISingleton {
+    once: Once::new(),
+    ptr: UnsafeCell::new(ptr::null_mut()),
+};

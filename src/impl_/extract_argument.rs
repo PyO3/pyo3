@@ -200,12 +200,9 @@ pub fn from_py_with_with_default<'a, 'py, T>(
 #[doc(hidden)]
 #[cold]
 pub fn argument_extraction_error(py: Python<'_>, arg_name: &str, error: PyErr) -> PyErr {
-    if error.get_type_bound(py).is(&py.get_type::<PyTypeError>()) {
-        let remapped_error = PyTypeError::new_err(format!(
-            "argument '{}': {}",
-            arg_name,
-            error.value_bound(py)
-        ));
+    if error.get_type(py).is(&py.get_type::<PyTypeError>()) {
+        let remapped_error =
+            PyTypeError::new_err(format!("argument '{}': {}", arg_name, error.value(py)));
         remapped_error.set_cause(py, error.cause(py));
         remapped_error
     } else {
@@ -706,7 +703,7 @@ impl<'py> VarargsHandler<'py> for TupleVarargs {
         varargs: &[Option<PyArg<'py>>],
         _function_description: &FunctionDescription,
     ) -> PyResult<Self::Varargs> {
-        Ok(PyTuple::new(py, varargs))
+        PyTuple::new(py, varargs)
     }
 
     #[inline]
@@ -805,7 +802,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let args = PyTuple::empty(py);
-            let kwargs = [("foo", 0u8)].into_py_dict(py);
+            let kwargs = [("foo", 0u8)].into_py_dict(py).unwrap();
             let err = unsafe {
                 function_description
                     .extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(
@@ -836,7 +833,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let args = PyTuple::empty(py);
-            let kwargs = [(1u8, 1u8)].into_py_dict(py);
+            let kwargs = [(1u8, 1u8)].into_py_dict(py).unwrap();
             let err = unsafe {
                 function_description
                     .extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(

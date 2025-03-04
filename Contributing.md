@@ -53,7 +53,7 @@ nox -s docs -- open
 #### Doctests
 
 We use lots of code blocks in our docs. Run `cargo test --doc` when making changes to check that
-the doctests still work, or `cargo test` to run all the tests including doctests. See
+the doctests still work, or `cargo test` to run all the Rust tests including doctests. See
 https://doc.rust-lang.org/rustdoc/documentation-tests.html for a guide on doctests.
 
 #### Building the guide
@@ -86,7 +86,7 @@ Everybody is welcome to submit comments on open PRs. Please help ensure new PyO3
 
 Here are a few things to note when you are writing PRs.
 
-### Continuous Integration
+### Testing and Continuous Integration
 
 The PyO3 repo uses GitHub Actions. PRs are blocked from merging if CI is not successful. Formatting, linting and tests are checked for all Rust and Python code. In addition, all warnings in Rust code are disallowed (using `RUSTFLAGS="-D warnings"`).
 
@@ -94,8 +94,7 @@ Tests run with all supported Python versions with the latest stable Rust compile
 
 If you are adding a new feature, you should add it to the `full` feature in our *Cargo.toml** so that it is tested in CI.
 
-You can run these tests yourself with
-`nox`. Use  `nox -l` to list the full set of subcommands you can run.
+You can run these checks yourself with `nox`. Use  `nox -l` to list the full set of subcommands you can run.
 
 #### Linting Python code
 `nox -s ruff`
@@ -110,7 +109,7 @@ You can run these tests yourself with
 `nox -s clippy-all`
 
 #### Tests
-`cargo test --features full`
+`nox -s test` or `cargo test` for Rust tests only, `nox -f pytests/noxfile.py -s test` for Python tests only
 
 #### Check all conditional compilation
 `nox -s check-feature-powerset`

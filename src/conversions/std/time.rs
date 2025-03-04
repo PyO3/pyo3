@@ -5,12 +5,12 @@ use crate::types::any::PyAnyMethods;
 #[cfg(Py_LIMITED_API)]
 use crate::types::PyType;
 #[cfg(not(Py_LIMITED_API))]
-use crate::types::{timezone_utc_bound, PyDateTime, PyDelta, PyDeltaAccess};
+use crate::types::{timezone_utc, PyDateTime, PyDelta, PyDeltaAccess};
 #[cfg(Py_LIMITED_API)]
 use crate::Py;
-use crate::{
-    intern, Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
-};
+use crate::{intern, Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python};
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
@@ -52,6 +52,7 @@ impl FromPyObject<'_> for Duration {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for Duration {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -59,6 +60,7 @@ impl ToPyObject for Duration {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for Duration {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -81,7 +83,7 @@ impl<'py> IntoPyObject<'py> for Duration {
 
         #[cfg(not(Py_LIMITED_API))]
         {
-            PyDelta::new_bound(
+            PyDelta::new(
                 py,
                 days.try_into()?,
                 seconds.try_into().unwrap(),
@@ -93,7 +95,7 @@ impl<'py> IntoPyObject<'py> for Duration {
         {
             static TIMEDELTA: GILOnceCell<Py<PyType>> = GILOnceCell::new();
             TIMEDELTA
-                .get_or_try_init_type_ref(py, "datetime", "timedelta")?
+                .import(py, "datetime", "timedelta")?
                 .call1((days, seconds, microseconds))
         }
     }
@@ -132,6 +134,7 @@ impl FromPyObject<'_> for SystemTime {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for SystemTime {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -139,6 +142,7 @@ impl ToPyObject for SystemTime {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for SystemTime {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -177,8 +181,7 @@ fn unix_epoch_py(py: Python<'_>) -> PyResult<&PyObject> {
         #[cfg(not(Py_LIMITED_API))]
         {
             Ok::<_, PyErr>(
-                PyDateTime::new_bound(py, 1970, 1, 1, 0, 0, 0, 0, Some(&timezone_utc_bound(py)))?
-                    .into(),
+                PyDateTime::new(py, 1970, 1, 1, 0, 0, 0, 0, Some(&timezone_utc(py)))?.into(),
             )
         }
         #[cfg(Py_LIMITED_API)]
@@ -200,7 +203,6 @@ fn unix_epoch_py(py: Python<'_>) -> PyResult<&PyObject> {
 mod tests {
     use super::*;
     use crate::types::PyDict;
-    use std::panic;
 
     #[test]
     fn test_duration_frompyobject() {
@@ -250,47 +252,59 @@ mod tests {
     }
 
     #[test]
-    fn test_duration_topyobject() {
+    fn test_duration_into_pyobject() {
         Python::with_gil(|py| {
-            let assert_eq = |l: PyObject, r: Bound<'_, PyAny>| {
-                assert!(l.bind(py).eq(r).unwrap());
+            let assert_eq = |l: Bound<'_, PyAny>, r: Bound<'_, PyAny>| {
+                assert!(l.eq(r).unwrap());
             };
 
             assert_eq(
-                Duration::new(0, 0).to_object(py),
+                Duration::new(0, 0).into_pyobject(py).unwrap().into_any(),
                 new_timedelta(py, 0, 0, 0),
             );
             assert_eq(
-                Duration::new(86400, 0).to_object(py),
+                Duration::new(86400, 0)
+                    .into_pyobject(py)
+                    .unwrap()
+                    .into_any(),
                 new_timedelta(py, 1, 0, 0),
             );
             assert_eq(
-                Duration::new(1, 0).to_object(py),
+                Duration::new(1, 0).into_pyobject(py).unwrap().into_any(),
                 new_timedelta(py, 0, 1, 0),
             );
             assert_eq(
-                Duration::new(0, 1_000).to_object(py),
+                Duration::new(0, 1_000)
+                    .into_pyobject(py)
+                    .unwrap()
+                    .into_any(),
                 new_timedelta(py, 0, 0, 1),
             );
             assert_eq(
-                Duration::new(0, 1).to_object(py),
+                Duration::new(0, 1).into_pyobject(py).unwrap().into_any(),
                 new_timedelta(py, 0, 0, 0),
             );
             assert_eq(
-                Duration::new(86401, 1_000).to_object(py),
+                Duration::new(86401, 1_000)
+                    .into_pyobject(py)
+                    .unwrap()
+                    .into_any(),
                 new_timedelta(py, 1, 1, 1),
             );
             assert_eq(
-                Duration::new(86399999999999, 999999000).to_object(py),
+                Duration::new(86399999999999, 999999000)
+                    .into_pyobject(py)
+                    .unwrap()
+                    .into_any(),
                 timedelta_class(py).getattr("max").unwrap(),
             );
         });
     }
 
     #[test]
-    fn test_duration_topyobject_overflow() {
+    fn test_duration_into_pyobject_overflow() {
         Python::with_gil(|py| {
-            assert!(panic::catch_unwind(|| Duration::MAX.to_object(py)).is_err());
+            assert!(Duration::MAX.into_pyobject(py).is_err());
         })
     }
 
@@ -334,24 +348,26 @@ mod tests {
     }
 
     #[test]
-    fn test_time_topyobject() {
+    fn test_time_intopyobject() {
         Python::with_gil(|py| {
-            let assert_eq = |l: PyObject, r: Bound<'_, PyAny>| {
-                assert!(l.bind(py).eq(r).unwrap());
+            let assert_eq = |l: Bound<'_, PyAny>, r: Bound<'_, PyAny>| {
+                assert!(l.eq(r).unwrap());
             };
 
             assert_eq(
                 UNIX_EPOCH
                     .checked_add(Duration::new(1580702706, 7123))
                     .unwrap()
-                    .into_py(py),
+                    .into_pyobject(py)
+                    .unwrap(),
                 new_datetime(py, 2020, 2, 3, 4, 5, 6, 7),
             );
             assert_eq(
                 UNIX_EPOCH
                     .checked_add(Duration::new(253402300799, 999999000))
                     .unwrap()
-                    .into_py(py),
+                    .into_pyobject(py)
+                    .unwrap(),
                 max_datetime(py),
             );
         });
@@ -390,12 +406,12 @@ mod tests {
     }
 
     #[test]
-    fn test_time_topyobject_overflow() {
+    fn test_time_intopyobject_overflow() {
         let big_system_time = UNIX_EPOCH
             .checked_add(Duration::new(300000000000, 0))
             .unwrap();
         Python::with_gil(|py| {
-            assert!(panic::catch_unwind(|| big_system_time.into_py(py)).is_err());
+            assert!(big_system_time.into_pyobject(py).is_err());
         })
     }
 

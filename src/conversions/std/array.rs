@@ -2,12 +2,12 @@ use crate::conversion::IntoPyObject;
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
 use crate::types::PySequence;
-use crate::{
-    err::DowncastError, ffi, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python,
-    ToPyObject,
-};
+use crate::{err::DowncastError, ffi, FromPyObject, Py, PyAny, PyObject, PyResult, Python};
 use crate::{exceptions, PyErr};
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 
+#[allow(deprecated)]
 impl<T, const N: usize> IntoPy<PyObject> for [T; N]
 where
     T: IntoPy<PyObject>,
@@ -40,7 +40,6 @@ where
 impl<'py, T, const N: usize> IntoPyObject<'py> for [T; N]
 where
     T: IntoPyObject<'py>,
-    PyErr: From<T::Error>,
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -59,7 +58,6 @@ where
 impl<'a, 'py, T, const N: usize> IntoPyObject<'py> for &'a [T; N]
 where
     &'a T: IntoPyObject<'py>,
-    PyErr: From<<&'a T as IntoPyObject<'py>>::Error>,
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -71,6 +69,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<T, const N: usize> ToPyObject for [T; N]
 where
     T: ToPyObject,
@@ -170,7 +169,7 @@ mod tests {
         ffi,
         types::{any::PyAnyMethods, PyBytes, PyBytesMethods},
     };
-    use crate::{types::PyList, IntoPy, PyResult, Python, ToPyObject};
+    use crate::{types::PyList, PyResult, Python};
 
     #[test]
     fn array_try_from_fn() {
@@ -221,11 +220,11 @@ mod tests {
         });
     }
     #[test]
-    fn test_topyobject_array_conversion() {
+    fn test_into_pyobject_array_conversion() {
         Python::with_gil(|py| {
             let array: [f32; 4] = [0.0, -16.0, 16.0, 42.0];
-            let pyobject = array.to_object(py);
-            let pylist = pyobject.downcast_bound::<PyList>(py).unwrap();
+            let pyobject = array.into_pyobject(py).unwrap();
+            let pylist = pyobject.downcast::<PyList>().unwrap();
             assert_eq!(pylist.get_item(0).unwrap().extract::<f32>().unwrap(), 0.0);
             assert_eq!(pylist.get_item(1).unwrap().extract::<f32>().unwrap(), -16.0);
             assert_eq!(pylist.get_item(2).unwrap().extract::<f32>().unwrap(), 16.0);
@@ -248,11 +247,15 @@ mod tests {
     }
 
     #[test]
-    fn test_intopy_array_conversion() {
+    fn test_intopyobject_array_conversion() {
         Python::with_gil(|py| {
             let array: [f32; 4] = [0.0, -16.0, 16.0, 42.0];
-            let pyobject = array.into_py(py);
-            let pylist = pyobject.downcast_bound::<PyList>(py).unwrap();
+            let pylist = array
+                .into_pyobject(py)
+                .unwrap()
+                .downcast_into::<PyList>()
+                .unwrap();
+
             assert_eq!(pylist.get_item(0).unwrap().extract::<f32>().unwrap(), 0.0);
             assert_eq!(pylist.get_item(1).unwrap().extract::<f32>().unwrap(), -16.0);
             assert_eq!(pylist.get_item(2).unwrap().extract::<f32>().unwrap(), 16.0);
@@ -292,8 +295,11 @@ mod tests {
 
         Python::with_gil(|py| {
             let array: [Foo; 8] = [Foo, Foo, Foo, Foo, Foo, Foo, Foo, Foo];
-            let pyobject = array.into_py(py);
-            let list = pyobject.downcast_bound::<PyList>(py).unwrap();
+            let list = array
+                .into_pyobject(py)
+                .unwrap()
+                .downcast_into::<PyList>()
+                .unwrap();
             let _bound = list.get_item(4).unwrap().downcast::<Foo>().unwrap();
         });
     }

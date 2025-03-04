@@ -40,13 +40,13 @@ unsafe impl PyTypeInfo for PyNotImplemented {
     }
 
     #[inline]
-    fn is_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
+    fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
         // NotImplementedType is not usable as a base type
-        Self::is_exact_type_of_bound(object)
+        Self::is_exact_type_of(object)
     }
 
     #[inline]
-    fn is_exact_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
+    fn is_exact_type_of(object: &Bound<'_, PyAny>) -> bool {
         object.is(&**Self::get(object.py()))
     }
 }
@@ -70,7 +70,7 @@ mod tests {
         Python::with_gil(|py| {
             assert!(PyNotImplemented::get(py)
                 .get_type()
-                .is(&PyNotImplemented::type_object_bound(py)));
+                .is(&PyNotImplemented::type_object(py)));
         })
     }
 

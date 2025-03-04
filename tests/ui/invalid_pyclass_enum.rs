@@ -93,4 +93,13 @@ enum InvalidOrderedComplexEnum2 {
     VariantB { msg: String }
 }
 
+#[pyclass(eq)]
+#[derive(PartialEq)]
+enum AllEnumVariantsDisabled {
+    #[cfg(any())]
+    DisabledA,
+    #[cfg(not(all()))]
+    DisabledB,
+}
+
 fn main() {}

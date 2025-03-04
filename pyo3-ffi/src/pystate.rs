@@ -1,4 +1,5 @@
-#[cfg(any(not(PyPy), Py_3_9))]
+#[cfg(all(Py_3_10, not(PyPy), not(Py_LIMITED_API)))]
+use crate::frameobject::PyFrameObject;
 use crate::moduleobject::PyModuleDef;
 use crate::object::PyObject;
 use std::os::raw::c_int;
@@ -28,15 +29,12 @@ extern "C" {
     #[cfg(not(PyPy))]
     pub fn PyInterpreterState_GetID(arg1: *mut PyInterpreterState) -> i64;
 
-    #[cfg(any(not(PyPy), Py_3_9))] // only on PyPy since 3.9
     #[cfg_attr(PyPy, link_name = "PyPyState_AddModule")]
     pub fn PyState_AddModule(arg1: *mut PyObject, arg2: *mut PyModuleDef) -> c_int;
 
-    #[cfg(any(not(PyPy), Py_3_9))] // only on PyPy since 3.9
     #[cfg_attr(PyPy, link_name = "PyPyState_RemoveModule")]
     pub fn PyState_RemoveModule(arg1: *mut PyModuleDef) -> c_int;
 
-    #[cfg(any(not(PyPy), Py_3_9))] // only on PyPy since 3.9
     // only has PyPy prefix since 3.10
     #[cfg_attr(all(PyPy, Py_3_10), link_name = "PyPyState_FindModule")]
     pub fn PyState_FindModule(arg1: *mut PyModuleDef) -> *mut PyObject;
@@ -67,8 +65,13 @@ extern "C" {
 }
 
 // skipped non-limited / 3.9 PyThreadState_GetInterpreter
-// skipped non-limited / 3.9 PyThreadState_GetFrame
 // skipped non-limited / 3.9 PyThreadState_GetID
+
+extern "C" {
+    // PyThreadState_GetFrame
+    #[cfg(all(Py_3_10, not(PyPy), not(Py_LIMITED_API)))]
+    pub fn PyThreadState_GetFrame(arg1: *mut PyThreadState) -> *mut PyFrameObject;
+}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

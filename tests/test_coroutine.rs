@@ -69,13 +69,11 @@ fn test_coroutine_qualname() {
             assert coro.__name__ == name and coro.__qualname__ == qualname
         "#;
         let locals = [
-            (
-                "my_fn",
-                wrap_pyfunction!(my_fn, gil).unwrap().as_borrowed().as_any(),
-            ),
+            ("my_fn", wrap_pyfunction!(my_fn, gil).unwrap().as_any()),
             ("MyClass", gil.get_type::<MyClass>().as_any()),
         ]
-        .into_py_dict(gil);
+        .into_py_dict(gil)
+        .unwrap();
         py_run!(gil, *locals, &handle_windows(test));
     })
 }
@@ -158,7 +156,7 @@ fn cancelled_coroutine() {
             )
             .unwrap_err();
         assert_eq!(
-            err.value_bound(gil).get_type().qualname().unwrap(),
+            err.value(gil).get_type().qualname().unwrap(),
             "CancelledError"
         );
     })
@@ -316,7 +314,9 @@ fn test_async_method_receiver() {
             assert False
         assert asyncio.run(coro3) == 1
         "#;
-        let locals = [("Counter", gil.get_type::<Counter>())].into_py_dict(gil);
+        let locals = [("Counter", gil.get_type::<Counter>())]
+            .into_py_dict(gil)
+            .unwrap();
         py_run!(gil, *locals, test);
     });
 
@@ -351,7 +351,9 @@ fn test_async_method_receiver_with_other_args() {
         assert asyncio.run(v.set_value(10)) == 10
         assert asyncio.run(v.get_value_plus_with(1, 1)) == 12
         "#;
-        let locals = [("Value", gil.get_type::<Value>())].into_py_dict(gil);
+        let locals = [("Value", gil.get_type::<Value>())]
+            .into_py_dict(gil)
+            .unwrap();
         py_run!(gil, *locals, test);
     });
 }

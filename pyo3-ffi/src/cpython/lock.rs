@@ -10,5 +10,5 @@ pub struct PyMutex {
 
 extern "C" {
     pub fn PyMutex_Lock(m: *mut PyMutex);
-    pub fn PyMutex_UnLock(m: *mut PyMutex);
+    pub fn PyMutex_Unlock(m: *mut PyMutex);
 }

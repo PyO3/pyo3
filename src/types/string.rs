@@ -6,7 +6,9 @@ use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::bytes::PyBytesMethods;
 use crate::types::PyBytes;
-use crate::{ffi, Bound, IntoPy, Py, PyAny, PyResult, Python};
+#[allow(deprecated)]
+use crate::IntoPy;
+use crate::{ffi, Bound, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
 use std::str;
 
@@ -70,7 +72,7 @@ impl<'a> PyStringData<'a> {
         match self {
             Self::Ucs1(data) => match str::from_utf8(data) {
                 Ok(s) => Ok(Cow::Borrowed(s)),
-                Err(e) => Err(PyUnicodeDecodeError::new_utf8_bound(py, data, e)?.into()),
+                Err(e) => Err(PyUnicodeDecodeError::new_utf8(py, data, e)?.into()),
             },
             Self::Ucs2(data) => match String::from_utf16(data) {
                 Ok(s) => Ok(Cow::Owned(s)),
@@ -78,7 +80,7 @@ impl<'a> PyStringData<'a> {
                     let mut message = e.to_string().as_bytes().to_vec();
                     message.push(0);
 
-                    Err(PyUnicodeDecodeError::new_bound(
+                    Err(PyUnicodeDecodeError::new(
                         py,
                         ffi::c_str!("utf-16"),
                         self.as_bytes(),
@@ -90,7 +92,7 @@ impl<'a> PyStringData<'a> {
             },
             Self::Ucs4(data) => match data.iter().map(|&c| std::char::from_u32(c)).collect() {
                 Some(s) => Ok(Cow::Owned(s)),
-                None => Err(PyUnicodeDecodeError::new_bound(
+                None => Err(PyUnicodeDecodeError::new(
                     py,
                     ffi::c_str!("utf-32"),
                     self.as_bytes(),
@@ -444,18 +446,21 @@ impl Py<PyString> {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<Py<PyString>> for Bound<'_, PyString> {
     fn into_py(self, _py: Python<'_>) -> Py<PyString> {
         self.unbind()
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<Py<PyString>> for &Bound<'_, PyString> {
     fn into_py(self, _py: Python<'_>) -> Py<PyString> {
         self.clone().unbind()
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<Py<PyString>> for &'_ Py<PyString> {
     fn into_py(self, py: Python<'_>) -> Py<PyString> {
         self.clone_ref(py)
@@ -577,7 +582,7 @@ impl PartialEq<Borrowed<'_, '_, PyString>> for &'_ str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{PyObject, ToPyObject};
+    use crate::{IntoPyObject, PyObject};
 
     #[test]
     fn test_to_cow_utf8() {
@@ -650,8 +655,7 @@ mod tests {
     #[test]
     fn test_debug_string() {
         Python::with_gil(|py| {
-            let v = "Hello\n".to_object(py);
-            let s = v.downcast_bound::<PyString>(py).unwrap();
+            let s = "Hello\n".into_pyobject(py).unwrap();
             assert_eq!(format!("{:?}", s), "'Hello\\n'");
         })
     }
@@ -659,8 +663,7 @@ mod tests {
     #[test]
     fn test_display_string() {
         Python::with_gil(|py| {
-            let v = "Hello\n".to_object(py);
-            let s = v.downcast_bound::<PyString>(py).unwrap();
+            let s = "Hello\n".into_pyobject(py).unwrap();
             assert_eq!(format!("{}", s), "Hello\n");
         })
     }
@@ -696,9 +699,7 @@ mod tests {
             let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs1(b"f\xfe"));
             let err = data.to_string(py).unwrap_err();
-            assert!(err
-                .get_type_bound(py)
-                .is(&py.get_type::<PyUnicodeDecodeError>()));
+            assert!(err.get_type(py).is(&py.get_type::<PyUnicodeDecodeError>()));
             assert!(err
                 .to_string()
                 .contains("'utf-8' codec can't decode byte 0xfe in position 1"));
@@ -740,9 +741,7 @@ mod tests {
             let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs2(&[0xff22, 0xd800]));
             let err = data.to_string(py).unwrap_err();
-            assert!(err
-                .get_type_bound(py)
-                .is(&py.get_type::<PyUnicodeDecodeError>()));
+            assert!(err.get_type(py).is(&py.get_type::<PyUnicodeDecodeError>()));
             assert!(err
                 .to_string()
                 .contains("'utf-16' codec can't decode bytes in position 0-3"));
@@ -781,9 +780,7 @@ mod tests {
             let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs4(&[0x20000, 0xd800]));
             let err = data.to_string(py).unwrap_err();
-            assert!(err
-                .get_type_bound(py)
-                .is(&py.get_type::<PyUnicodeDecodeError>()));
+            assert!(err.get_type(py).is(&py.get_type::<PyUnicodeDecodeError>()));
             assert!(err
                 .to_string()
                 .contains("'utf-32' codec can't decode bytes in position 0-7"));
@@ -813,7 +810,7 @@ mod tests {
     fn test_py_to_str_utf8() {
         Python::with_gil(|py| {
             let s = "ascii 🐈";
-            let py_string: Py<PyString> = PyString::new(py, s).into_py(py);
+            let py_string = PyString::new(py, s).unbind();
 
             #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
             assert_eq!(s, py_string.to_str(py).unwrap());

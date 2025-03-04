@@ -3,15 +3,20 @@
 
 /// Common macros and helpers for tests
 #[allow(dead_code)] // many tests do not use the complete set of functionality offered here
+#[allow(missing_docs)] // only used in tests
 #[macro_use]
 mod inner {
 
     #[allow(unused_imports)] // pulls in `use crate as pyo3` in `test_utils.rs`
     use super::*;
 
+    #[cfg(not(Py_GIL_DISABLED))]
     use pyo3::prelude::*;
 
+    #[cfg(not(Py_GIL_DISABLED))]
     use pyo3::types::{IntoPyDict, PyList};
+
+    use uuid::Uuid;
 
     #[macro_export]
     macro_rules! py_assert {
@@ -35,14 +40,15 @@ mod inner {
         // Case1: idents & no err_msg
         ($py:expr, $($val:ident)+, $code:expr, $err:ident) => {{
             use pyo3::types::IntoPyDict;
-            let d = [$((stringify!($val), $val.to_object($py)),)+].into_py_dict($py);
+            use pyo3::BoundObject;
+            let d = [$((stringify!($val), (&$val).into_pyobject($py).unwrap().into_any().into_bound()),)+].into_py_dict($py).unwrap();
             py_expect_exception!($py, *d, $code, $err)
         }};
         // Case2: dict & no err_msg
         ($py:expr, *$dict:expr, $code:expr, $err:ident) => {{
             let res = $py.run(&std::ffi::CString::new($code).unwrap(), None, Some(&$dict.as_borrowed()));
             let err = res.expect_err(&format!("Did not raise {}", stringify!($err)));
-            if !err.matches($py, $py.get_type::<pyo3::exceptions::$err>()) {
+            if !err.matches($py, $py.get_type::<pyo3::exceptions::$err>()).unwrap() {
                 panic!("Expected {} but got {:?}", stringify!($err), err)
             }
             err
@@ -63,24 +69,24 @@ mod inner {
     }
 
     // sys.unraisablehook not available until Python 3.8
-    #[cfg(all(feature = "macros", Py_3_8))]
+    #[cfg(all(feature = "macros", Py_3_8, not(Py_GIL_DISABLED)))]
     #[pyclass(crate = "pyo3")]
     pub struct UnraisableCapture {
         pub capture: Option<(PyErr, PyObject)>,
         old_hook: Option<PyObject>,
     }
 
-    #[cfg(all(feature = "macros", Py_3_8))]
+    #[cfg(all(feature = "macros", Py_3_8, not(Py_GIL_DISABLED)))]
     #[pymethods(crate = "pyo3")]
     impl UnraisableCapture {
         pub fn hook(&mut self, unraisable: Bound<'_, PyAny>) {
-            let err = PyErr::from_value_bound(unraisable.getattr("exc_value").unwrap());
+            let err = PyErr::from_value(unraisable.getattr("exc_value").unwrap());
             let instance = unraisable.getattr("object").unwrap();
             self.capture = Some((err, instance.into()));
         }
     }
 
-    #[cfg(all(feature = "macros", Py_3_8))]
+    #[cfg(all(feature = "macros", Py_3_8, not(Py_GIL_DISABLED)))]
     impl UnraisableCapture {
         pub fn install(py: Python<'_>) -> Py<Self> {
             let sys = py.import("sys").unwrap();
@@ -109,17 +115,19 @@ mod inner {
         }
     }
 
+    #[cfg(not(Py_GIL_DISABLED))]
     pub struct CatchWarnings<'py> {
         catch_warnings: Bound<'py, PyAny>,
     }
 
+    #[cfg(not(Py_GIL_DISABLED))]
     impl<'py> CatchWarnings<'py> {
         pub fn enter<R>(
             py: Python<'py>,
             f: impl FnOnce(&Bound<'py, PyList>) -> PyResult<R>,
         ) -> PyResult<R> {
             let warnings = py.import("warnings")?;
-            let kwargs = [("record", true)].into_py_dict(py);
+            let kwargs = [("record", true)].into_py_dict(py)?;
             let catch_warnings = warnings
                 .getattr("catch_warnings")?
                 .call((), Some(&kwargs))?;
@@ -129,6 +137,7 @@ mod inner {
         }
     }
 
+    #[cfg(not(Py_GIL_DISABLED))]
     impl Drop for CatchWarnings<'_> {
         fn drop(&mut self) {
             let py = self.catch_warnings.py();
@@ -138,13 +147,14 @@ mod inner {
         }
     }
 
+    #[cfg(not(Py_GIL_DISABLED))]
     #[macro_export]
     macro_rules! assert_warnings {
         ($py:expr, $body:expr, [$(($category:ty, $message:literal)),+] $(,)? ) => {{
             $crate::tests::common::CatchWarnings::enter($py, |w| {
                 use $crate::types::{PyListMethods, PyStringMethods};
                 $body;
-                let expected_warnings = [$((<$category as $crate::type_object::PyTypeInfo>::type_object_bound($py), $message)),+];
+                let expected_warnings = [$((<$category as $crate::type_object::PyTypeInfo>::type_object($py), $message)),+];
                 assert_eq!(w.len(), expected_warnings.len());
                 for (warning, (category, message)) in w.iter().zip(expected_warnings) {
 
@@ -159,6 +169,11 @@ mod inner {
             })
             .unwrap();
         }};
+    }
+
+    pub fn generate_unique_module_name(base: &str) -> std::ffi::CString {
+        let uuid = Uuid::new_v4().simple().to_string();
+        std::ffi::CString::new(format!("{base}_{uuid}")).unwrap()
     }
 }
 

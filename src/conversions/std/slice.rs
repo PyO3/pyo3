@@ -5,24 +5,22 @@ use crate::inspect::types::TypeInfo;
 use crate::{
     conversion::IntoPyObject,
     types::{PyByteArray, PyByteArrayMethods, PyBytes},
-    Bound, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    Bound, Py, PyAny, PyErr, PyObject, PyResult, Python,
 };
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 
-impl<'a> IntoPy<PyObject> for &'a [u8] {
+#[allow(deprecated)]
+impl IntoPy<PyObject> for &[u8] {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyBytes::new(py, self).unbind().into()
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::builtin("bytes")
     }
 }
 
 impl<'a, 'py, T> IntoPyObject<'py> for &'a [T]
 where
     &'a T: IntoPyObject<'py>,
-    PyErr: From<<&'a T as IntoPyObject<'py>>::Error>,
+    T: 'a, // MSRV
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -36,6 +34,14 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         <&T>::borrowed_sequence_into_pyobject(self, py, crate::conversion::private::Token)
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::union_of(&[
+            TypeInfo::builtin("bytes"),
+            TypeInfo::list_of(<&T>::type_output()),
+        ])
+    }
 }
 
 impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a [u8] {
@@ -45,7 +51,7 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a [u8] {
 
     #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
-        Self::type_output()
+        TypeInfo::builtin("bytes")
     }
 }
 
@@ -70,15 +76,17 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, [u8]> {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for Cow<'_, [u8]> {
     fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
         PyBytes::new(py, self.as_ref()).into()
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<Py<PyAny>> for Cow<'_, [u8]> {
     fn into_py(self, py: Python<'_>) -> Py<PyAny> {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -86,7 +94,6 @@ impl<'py, T> IntoPyObject<'py> for Cow<'_, [T]>
 where
     T: Clone,
     for<'a> &'a T: IntoPyObject<'py>,
-    for<'a> PyErr: From<<&'a T as IntoPyObject<'py>>::Error>,
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -110,7 +117,7 @@ mod tests {
         conversion::IntoPyObject,
         ffi,
         types::{any::PyAnyMethods, PyBytes, PyBytesMethods, PyList},
-        Python, ToPyObject,
+        Python,
     };
 
     #[test]
@@ -140,11 +147,13 @@ mod tests {
                 .extract::<Cow<'_, [u8]>>()
                 .unwrap_err();
 
-            let cow = Cow::<[u8]>::Borrowed(b"foobar").to_object(py);
-            assert!(cow.bind(py).is_instance_of::<PyBytes>());
+            let cow = Cow::<[u8]>::Borrowed(b"foobar").into_pyobject(py).unwrap();
+            assert!(cow.is_instance_of::<PyBytes>());
 
-            let cow = Cow::<[u8]>::Owned(b"foobar".to_vec()).to_object(py);
-            assert!(cow.bind(py).is_instance_of::<PyBytes>());
+            let cow = Cow::<[u8]>::Owned(b"foobar".to_vec())
+                .into_pyobject(py)
+                .unwrap();
+            assert!(cow.is_instance_of::<PyBytes>());
         });
     }
 

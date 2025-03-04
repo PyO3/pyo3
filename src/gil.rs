@@ -447,7 +447,9 @@ mod tests {
             .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
     }
 
-    #[cfg(not(pyo3_disable_reference_pool))]
+    // with no GIL, threads can empty the POOL at any time, so this
+    // function does not test anything meaningful
+    #[cfg(not(any(pyo3_disable_reference_pool, Py_GIL_DISABLED)))]
     fn pool_dec_refs_contains(obj: &PyObject) -> bool {
         POOL.pending_decrefs
             .lock()
@@ -471,7 +473,7 @@ mod tests {
             drop(reference);
 
             assert_eq!(obj.get_refcnt(py), 1);
-            #[cfg(not(pyo3_disable_reference_pool))]
+            #[cfg(not(any(pyo3_disable_reference_pool)))]
             assert!(pool_dec_refs_does_not_contain(&obj));
         });
     }
@@ -493,12 +495,18 @@ mod tests {
             // The reference count should not have changed (the GIL has always
             // been held by this thread), it is remembered to release later.
             assert_eq!(obj.get_refcnt(py), 2);
+            #[cfg(not(Py_GIL_DISABLED))]
             assert!(pool_dec_refs_contains(&obj));
             obj
         });
 
         // Next time the GIL is acquired, the reference is released
+        #[allow(unused)]
         Python::with_gil(|py| {
+            // with no GIL, another thread could still be processing
+            // DECREFs after releasing the lock on the POOL, so the
+            // refcnt could still be 2 when this assert happens
+            #[cfg(not(Py_GIL_DISABLED))]
             assert_eq!(obj.get_refcnt(py), 1);
             assert!(pool_dec_refs_does_not_contain(&obj));
         });
@@ -641,6 +649,7 @@ mod tests {
             // For GILGuard::acquire
 
             POOL.register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap());
+            #[cfg(not(Py_GIL_DISABLED))]
             assert!(pool_dec_refs_contains(&obj));
             let _guard = GILGuard::acquire();
             assert!(pool_dec_refs_does_not_contain(&obj));
@@ -648,6 +657,7 @@ mod tests {
             // For GILGuard::assume
 
             POOL.register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap());
+            #[cfg(not(Py_GIL_DISABLED))]
             assert!(pool_dec_refs_contains(&obj));
             let _guard2 = unsafe { GILGuard::assume() };
             assert!(pool_dec_refs_does_not_contain(&obj));

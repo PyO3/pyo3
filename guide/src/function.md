@@ -101,7 +101,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
 
 The `#[pyo3]` attribute can be used on individual arguments to modify properties of them in the generated function. It can take any combination of the following options:
 
-  - <a id="from_py_with"></a> `#[pyo3(from_py_with = "...")]`
+  - <a id="from_py_with"></a> `#[pyo3(from_py_with = ...)]`
 
     Set this on an option to specify a custom function to convert the function argument from Python to the desired Rust type, instead of using the default `FromPyObject` extraction. The function signature must be `fn(&Bound<'_, PyAny>) -> PyResult<T>` where `T` is the Rust type of the argument.
 
@@ -115,7 +115,7 @@ The `#[pyo3]` attribute can be used on individual arguments to modify properties
     }
 
     #[pyfunction]
-    fn object_length(#[pyo3(from_py_with = "get_length")] argument: usize) -> usize {
+    fn object_length(#[pyo3(from_py_with = get_length)] argument: usize) -> usize {
         argument
     }
 

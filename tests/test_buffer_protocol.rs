@@ -57,7 +57,7 @@ fn test_buffer() {
             },
         )
         .unwrap();
-        let env = [("ob", instance)].into_py_dict(py);
+        let env = [("ob", instance)].into_py_dict(py).unwrap();
         py_assert!(py, *env, "bytes(ob) == b' 23'");
     });
 
@@ -71,13 +71,14 @@ fn test_buffer_referenced() {
     let buf = {
         let input = vec![b' ', b'2', b'3'];
         Python::with_gil(|py| {
-            let instance: PyObject = TestBufferClass {
+            let instance = TestBufferClass {
                 vec: input.clone(),
                 drop_called: drop_called.clone(),
             }
-            .into_py(py);
+            .into_pyobject(py)
+            .unwrap();
 
-            let buf = PyBuffer::<u8>::get_bound(instance.bind(py)).unwrap();
+            let buf = PyBuffer::<u8>::get(&instance).unwrap();
             assert_eq!(buf.to_vec(py).unwrap(), input);
             drop(instance);
             buf
@@ -94,7 +95,7 @@ fn test_buffer_referenced() {
 }
 
 #[test]
-#[cfg(Py_3_8)] // sys.unraisablehook not available until Python 3.8
+#[cfg(all(Py_3_8, not(Py_GIL_DISABLED)))] // sys.unraisablehook not available until Python 3.8
 fn test_releasebuffer_unraisable_error() {
     use common::UnraisableCapture;
     use pyo3::exceptions::PyValueError;
@@ -122,7 +123,7 @@ fn test_releasebuffer_unraisable_error() {
         let capture = UnraisableCapture::install(py);
 
         let instance = Py::new(py, ReleaseBufferError {}).unwrap();
-        let env = [("ob", instance.clone_ref(py))].into_py_dict(py);
+        let env = [("ob", instance.clone_ref(py))].into_py_dict(py).unwrap();
 
         assert!(capture.borrow(py).capture.is_none());
 

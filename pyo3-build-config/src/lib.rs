@@ -65,12 +65,50 @@ pub fn add_extension_module_link_args() {
 }
 
 fn _add_extension_module_link_args(triple: &Triple, mut writer: impl std::io::Write) {
-    if triple.operating_system == OperatingSystem::Darwin {
+    if matches!(triple.operating_system, OperatingSystem::Darwin(_)) {
         writeln!(writer, "cargo:rustc-cdylib-link-arg=-undefined").unwrap();
         writeln!(writer, "cargo:rustc-cdylib-link-arg=dynamic_lookup").unwrap();
     } else if triple == &Triple::from_str("wasm32-unknown-emscripten").unwrap() {
         writeln!(writer, "cargo:rustc-cdylib-link-arg=-sSIDE_MODULE=2").unwrap();
         writeln!(writer, "cargo:rustc-cdylib-link-arg=-sWASM_BIGINT").unwrap();
+    }
+}
+
+/// Adds linker arguments suitable for linking against the Python framework on macOS.
+///
+/// This should be called from a build script.
+///
+/// The following link flags are added:
+/// - macOS: `-Wl,-rpath,<framework_prefix>`
+///
+/// All other platforms currently are no-ops.
+#[cfg(feature = "resolve-config")]
+pub fn add_python_framework_link_args() {
+    let interpreter_config = pyo3_build_script_impl::resolve_interpreter_config().unwrap();
+    _add_python_framework_link_args(
+        &interpreter_config,
+        &impl_::target_triple_from_env(),
+        impl_::is_linking_libpython(),
+        std::io::stdout(),
+    )
+}
+
+#[cfg(feature = "resolve-config")]
+fn _add_python_framework_link_args(
+    interpreter_config: &InterpreterConfig,
+    triple: &Triple,
+    link_libpython: bool,
+    mut writer: impl std::io::Write,
+) {
+    if matches!(triple.operating_system, OperatingSystem::Darwin(_)) && link_libpython {
+        if let Some(framework_prefix) = interpreter_config.python_framework_prefix.as_ref() {
+            writeln!(
+                writer,
+                "cargo:rustc-link-arg=-Wl,-rpath,{}",
+                framework_prefix
+            )
+            .unwrap();
+        }
     }
 }
 
@@ -138,6 +176,10 @@ fn resolve_cross_compile_config_path() -> Option<PathBuf> {
 pub fn print_feature_cfgs() {
     let rustc_minor_version = rustc_minor_version().unwrap_or(0);
 
+    if rustc_minor_version >= 70 {
+        println!("cargo:rustc-cfg=rustc_has_once_lock");
+    }
+
     // invalid_from_utf8 lint was added in Rust 1.74
     if rustc_minor_version >= 74 {
         println!("cargo:rustc-cfg=invalid_from_utf8_lint");
@@ -151,6 +193,14 @@ pub fn print_feature_cfgs() {
     // https://github.com/rust-lang/rust/issues/124651 just in case
     if rustc_minor_version >= 79 {
         println!("cargo:rustc-cfg=diagnostic_namespace");
+    }
+
+    if rustc_minor_version >= 83 {
+        println!("cargo:rustc-cfg=io_error_more");
+    }
+
+    if rustc_minor_version >= 85 {
+        println!("cargo:rustc-cfg=fn_ptr_eq");
     }
 }
 
@@ -175,6 +225,9 @@ pub fn print_expected_cfgs() {
     println!("cargo:rustc-check-cfg=cfg(pyo3_leak_on_drop_without_reference_pool)");
     println!("cargo:rustc-check-cfg=cfg(diagnostic_namespace)");
     println!("cargo:rustc-check-cfg=cfg(c_str_lit)");
+    println!("cargo:rustc-check-cfg=cfg(rustc_has_once_lock)");
+    println!("cargo:rustc-check-cfg=cfg(io_error_more)");
+    println!("cargo:rustc-check-cfg=cfg(fn_ptr_eq)");
 
     // allow `Py_3_*` cfgs from the minimum supported version up to the
     // maximum minor version (+1 for development for the next)
@@ -289,6 +342,51 @@ mod tests {
             std::str::from_utf8(&buf).unwrap(),
             "cargo:rustc-cdylib-link-arg=-sSIDE_MODULE=2\n\
              cargo:rustc-cdylib-link-arg=-sWASM_BIGINT\n"
+        );
+    }
+
+    #[cfg(feature = "resolve-config")]
+    #[test]
+    fn python_framework_link_args() {
+        let mut buf = Vec::new();
+
+        let interpreter_config = InterpreterConfig {
+            implementation: PythonImplementation::CPython,
+            version: PythonVersion {
+                major: 3,
+                minor: 13,
+            },
+            shared: true,
+            abi3: false,
+            lib_name: None,
+            lib_dir: None,
+            executable: None,
+            pointer_width: None,
+            build_flags: BuildFlags::default(),
+            suppress_build_script_link_lines: false,
+            extra_build_script_lines: vec![],
+            python_framework_prefix: Some(
+                "/Applications/Xcode.app/Contents/Developer/Library/Frameworks".to_string(),
+            ),
+        };
+        // Does nothing on non-mac
+        _add_python_framework_link_args(
+            &interpreter_config,
+            &Triple::from_str("x86_64-pc-windows-msvc").unwrap(),
+            true,
+            &mut buf,
+        );
+        assert_eq!(buf, Vec::new());
+
+        _add_python_framework_link_args(
+            &interpreter_config,
+            &Triple::from_str("x86_64-apple-darwin").unwrap(),
+            true,
+            &mut buf,
+        );
+        assert_eq!(
+            std::str::from_utf8(&buf).unwrap(),
+            "cargo:rustc-link-arg=-Wl,-rpath,/Applications/Xcode.app/Contents/Developer/Library/Frameworks\n"
         );
     }
 }

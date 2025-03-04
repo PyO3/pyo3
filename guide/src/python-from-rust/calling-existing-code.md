@@ -4,8 +4,7 @@ If you already have some existing Python code that you need to execute from Rust
 
 ## Want to access Python APIs? Then use `PyModule::import`.
 
-[`PyModule::import`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.import) can
-be used to get handle to a Python module from Rust. You can use this to import and use any Python
+[`PyModule::import`] can be used to get handle to a Python module from Rust. You can use this to import and use any Python
 module available in your environment.
 
 ```rust
@@ -24,10 +23,12 @@ fn main() -> PyResult<()> {
 }
 ```
 
-## Want to run just an expression? Then use `eval_bound`.
+[`PyModule::import`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.import
 
-[`Python::eval_bound`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval_bound) is
-a method to execute a [Python expression](https://docs.python.org/3.7/reference/expressions.html)
+## Want to run just an expression? Then use `eval`.
+
+[`Python::eval`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval) is
+a method to execute a [Python expression](https://docs.python.org/3/reference/expressions.html)
 and return the evaluated value as a `Bound<'py, PyAny>` object.
 
 ```rust
@@ -48,16 +49,18 @@ Python::with_gil(|py| {
 # }
 ```
 
-## Want to run statements? Then use `run_bound`.
+## Want to run statements? Then use `run`.
 
-[`Python::run_bound`] is a method to execute one or more
-[Python statements](https://docs.python.org/3.7/reference/simple_stmts.html).
+[`Python::run`] is a method to execute one or more
+[Python statements](https://docs.python.org/3/reference/simple_stmts.html).
 This method returns nothing (like any Python statement), but you can get
 access to manipulated objects via the `locals` dict.
 
-You can also use the [`py_run!`] macro, which is a shorthand for [`Python::run_bound`].
+You can also use the [`py_run!`] macro, which is a shorthand for [`Python::run`].
 Since [`py_run!`] panics on exceptions, we recommend you use this macro only for
 quickly testing your Python extensions.
+
+[`Python::run`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.run
 
 ```rust
 use pyo3::prelude::*;
@@ -128,7 +131,7 @@ def leaky_relu(x, slope=0.01):
     let relu_result: f64 = activators.getattr("relu")?.call1((-1.0,))?.extract()?;
     assert_eq!(relu_result, 0.0);
 
-    let kwargs = [("slope", 0.2)].into_py_dict(py);
+    let kwargs = [("slope", 0.2)].into_py_dict(py)?;
     let lrelu_result: f64 = activators
         .getattr("leaky_relu")?
         .call((-1.0,), Some(&kwargs))?
@@ -301,7 +304,7 @@ fn main() -> PyResult<()> {
             .import("sys")?
             .getattr("path")?
             .downcast_into::<PyList>()?;
-        syspath.insert(0, &path)?;
+        syspath.insert(0, path)?;
         let app: Py<PyAny> = PyModule::from_code(py, py_app.as_c_str(), c_str!(""), c_str!(""))?
             .getattr("run")?
             .into();
@@ -368,9 +371,9 @@ class House(object):
                     .call_method1(
                         "__exit__",
                         (
-                            e.get_type_bound(py),
-                            e.value_bound(py),
-                            e.traceback_bound(py),
+                            e.get_type(py),
+                            e.value(py),
+                            e.traceback(py),
                         ),
                     )
                     .unwrap();

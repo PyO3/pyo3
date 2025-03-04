@@ -25,9 +25,9 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
-use crate::{Bound, IntoPy, Py, PyAny, PyErr, Python};
+use crate::{Bound, IntoPyObject, PyAny, PyErr, Python};
 use std::os::raw::c_int;
-#[cfg(feature = "chrono")]
+#[cfg(any(feature = "chrono", feature = "jiff-02"))]
 use std::ptr;
 
 fn ensure_datetime_api(py: Python<'_>) -> PyResult<&'static PyDateTime_CAPI> {
@@ -176,7 +176,14 @@ pub trait PyTzInfoAccess<'py> {
     /// Implementations should conform to the upstream documentation:
     /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DATE_GET_TZINFO>
     /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_TIME_GET_TZINFO>
-    fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>>;
+    fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>>;
+
+    /// Deprecated name for [`PyTzInfoAccess::get_tzinfo`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyTzInfoAccess::get_tzinfo`")]
+    #[inline]
+    fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
+        self.get_tzinfo()
+    }
 }
 
 /// Bindings around `datetime.date`.
@@ -192,10 +199,11 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyDate_Check
 );
+pyobject_subclassable_native_type!(PyDate, crate::ffi::PyDateTime_Date);
 
 impl PyDate {
     /// Creates a new `datetime.date`.
-    pub fn new_bound(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<Bound<'_, PyDate>> {
+    pub fn new(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<Bound<'_, PyDate>> {
         let api = ensure_datetime_api(py)?;
         unsafe {
             (api.Date_FromDate)(year, c_int::from(month), c_int::from(day), api.DateType)
@@ -204,11 +212,18 @@ impl PyDate {
         }
     }
 
+    /// Deprecated name for [`PyDate::new`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyDate::new`")]
+    #[inline]
+    pub fn new_bound(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<Bound<'_, PyDate>> {
+        Self::new(py, year, month, day)
+    }
+
     /// Construct a `datetime.date` from a POSIX timestamp
     ///
     /// This is equivalent to `datetime.date.fromtimestamp`
-    pub fn from_timestamp_bound(py: Python<'_>, timestamp: i64) -> PyResult<Bound<'_, PyDate>> {
-        let time_tuple = PyTuple::new(py, [timestamp]);
+    pub fn from_timestamp(py: Python<'_>, timestamp: i64) -> PyResult<Bound<'_, PyDate>> {
+        let time_tuple = PyTuple::new(py, [timestamp])?;
 
         // safety ensure that the API is loaded
         let _api = ensure_datetime_api(py)?;
@@ -218,6 +233,13 @@ impl PyDate {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated name for [`PyDate::from_timestamp`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyDate::from_timestamp`")]
+    #[inline]
+    pub fn from_timestamp_bound(py: Python<'_>, timestamp: i64) -> PyResult<Bound<'_, PyDate>> {
+        Self::from_timestamp(py, timestamp)
     }
 }
 
@@ -248,11 +270,12 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyDateTime_Check
 );
+pyobject_subclassable_native_type!(PyDateTime, crate::ffi::PyDateTime_DateTime);
 
 impl PyDateTime {
     /// Creates a new `datetime.datetime` object.
     #[allow(clippy::too_many_arguments)]
-    pub fn new_bound<'py>(
+    pub fn new<'py>(
         py: Python<'py>,
         year: i32,
         month: u8,
@@ -281,6 +304,34 @@ impl PyDateTime {
         }
     }
 
+    /// Deprecated name for [`PyDateTime::new`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyDateTime::new`")]
+    #[inline]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_bound<'py>(
+        py: Python<'py>,
+        year: i32,
+        month: u8,
+        day: u8,
+        hour: u8,
+        minute: u8,
+        second: u8,
+        microsecond: u32,
+        tzinfo: Option<&Bound<'py, PyTzInfo>>,
+    ) -> PyResult<Bound<'py, PyDateTime>> {
+        Self::new(
+            py,
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            microsecond,
+            tzinfo,
+        )
+    }
+
     /// Alternate constructor that takes a `fold` parameter. A `true` value for this parameter
     /// signifies this this datetime is the later of two moments with the same representation,
     /// during a repeated interval.
@@ -289,7 +340,7 @@ impl PyDateTime {
     /// represented time is ambiguous.
     /// See [PEP 495](https://www.python.org/dev/peps/pep-0495/) for more detail.
     #[allow(clippy::too_many_arguments)]
-    pub fn new_bound_with_fold<'py>(
+    pub fn new_with_fold<'py>(
         py: Python<'py>,
         year: i32,
         month: u8,
@@ -320,15 +371,45 @@ impl PyDateTime {
         }
     }
 
+    /// Deprecated name for [`PyDateTime::new_with_fold`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyDateTime::new_with_fold`")]
+    #[inline]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_bound_with_fold<'py>(
+        py: Python<'py>,
+        year: i32,
+        month: u8,
+        day: u8,
+        hour: u8,
+        minute: u8,
+        second: u8,
+        microsecond: u32,
+        tzinfo: Option<&Bound<'py, PyTzInfo>>,
+        fold: bool,
+    ) -> PyResult<Bound<'py, PyDateTime>> {
+        Self::new_with_fold(
+            py,
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            microsecond,
+            tzinfo,
+            fold,
+        )
+    }
+
     /// Construct a `datetime` object from a POSIX timestamp
     ///
     /// This is equivalent to `datetime.datetime.fromtimestamp`
-    pub fn from_timestamp_bound<'py>(
+    pub fn from_timestamp<'py>(
         py: Python<'py>,
         timestamp: f64,
         tzinfo: Option<&Bound<'py, PyTzInfo>>,
     ) -> PyResult<Bound<'py, PyDateTime>> {
-        let args = IntoPy::<Py<PyTuple>>::into_py((timestamp, tzinfo), py).into_bound(py);
+        let args = (timestamp, tzinfo).into_pyobject(py)?;
 
         // safety ensure API is loaded
         let _api = ensure_datetime_api(py)?;
@@ -338,6 +419,17 @@ impl PyDateTime {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated name for [`PyDateTime::from_timestamp`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyDateTime::from_timestamp`")]
+    #[inline]
+    pub fn from_timestamp_bound<'py>(
+        py: Python<'py>,
+        timestamp: f64,
+        tzinfo: Option<&Bound<'py, PyTzInfo>>,
+    ) -> PyResult<Bound<'py, PyDateTime>> {
+        Self::from_timestamp(py, timestamp, tzinfo)
     }
 }
 
@@ -378,7 +470,7 @@ impl PyTimeAccess for Bound<'_, PyDateTime> {
 }
 
 impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyDateTime> {
-    fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
+    fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>> {
         let ptr = self.as_ptr() as *mut ffi::PyDateTime_DateTime;
         #[cfg(not(GraalPy))]
         unsafe {
@@ -424,10 +516,11 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyTime_Check
 );
+pyobject_subclassable_native_type!(PyTime, crate::ffi::PyDateTime_Time);
 
 impl PyTime {
     /// Creates a new `datetime.time` object.
-    pub fn new_bound<'py>(
+    pub fn new<'py>(
         py: Python<'py>,
         hour: u8,
         minute: u8,
@@ -450,8 +543,22 @@ impl PyTime {
         }
     }
 
+    /// Deprecated name for [`PyTime::new`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyTime::new`")]
+    #[inline]
+    pub fn new_bound<'py>(
+        py: Python<'py>,
+        hour: u8,
+        minute: u8,
+        second: u8,
+        microsecond: u32,
+        tzinfo: Option<&Bound<'py, PyTzInfo>>,
+    ) -> PyResult<Bound<'py, PyTime>> {
+        Self::new(py, hour, minute, second, microsecond, tzinfo)
+    }
+
     /// Alternate constructor that takes a `fold` argument. See [`PyDateTime::new_bound_with_fold`].
-    pub fn new_bound_with_fold<'py>(
+    pub fn new_with_fold<'py>(
         py: Python<'py>,
         hour: u8,
         minute: u8,
@@ -474,6 +581,21 @@ impl PyTime {
             .assume_owned_or_err(py)
             .downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated name for [`PyTime::new_with_fold`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyTime::new_with_fold`")]
+    #[inline]
+    pub fn new_bound_with_fold<'py>(
+        py: Python<'py>,
+        hour: u8,
+        minute: u8,
+        second: u8,
+        microsecond: u32,
+        tzinfo: Option<&Bound<'py, PyTzInfo>>,
+        fold: bool,
+    ) -> PyResult<Bound<'py, PyTime>> {
+        Self::new_with_fold(py, hour, minute, second, microsecond, tzinfo, fold)
     }
 }
 
@@ -500,7 +622,7 @@ impl PyTimeAccess for Bound<'_, PyTime> {
 }
 
 impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
-    fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
+    fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>> {
         let ptr = self.as_ptr() as *mut ffi::PyDateTime_Time;
         #[cfg(not(GraalPy))]
         unsafe {
@@ -550,9 +672,10 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyTZInfo_Check
 );
+pyobject_subclassable_native_type!(PyTzInfo, crate::ffi::PyObject);
 
 /// Equivalent to `datetime.timezone.utc`
-pub fn timezone_utc_bound(py: Python<'_>) -> Bound<'_, PyTzInfo> {
+pub fn timezone_utc(py: Python<'_>) -> Bound<'_, PyTzInfo> {
     // TODO: this _could_ have a borrowed form `timezone_utc_borrowed`, but that seems
     // like an edge case optimization and we'd prefer in PyO3 0.21 to use `Bound` as
     // much as possible
@@ -565,10 +688,17 @@ pub fn timezone_utc_bound(py: Python<'_>) -> Bound<'_, PyTzInfo> {
     }
 }
 
+/// Deprecated name for [`timezone_utc`].
+#[deprecated(since = "0.23.0", note = "renamed to `timezone_utc`")]
+#[inline]
+pub fn timezone_utc_bound(py: Python<'_>) -> Bound<'_, PyTzInfo> {
+    timezone_utc(py)
+}
+
 /// Equivalent to `datetime.timezone` constructor
 ///
 /// Only used internally
-#[cfg(feature = "chrono")]
+#[cfg(any(feature = "chrono", feature = "jiff-02"))]
 pub(crate) fn timezone_from_offset<'py>(
     offset: &Bound<'py, PyDelta>,
 ) -> PyResult<Bound<'py, PyTzInfo>> {
@@ -594,10 +724,11 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyDelta_Check
 );
+pyobject_subclassable_native_type!(PyDelta, crate::ffi::PyDateTime_Delta);
 
 impl PyDelta {
     /// Creates a new `timedelta`.
-    pub fn new_bound(
+    pub fn new(
         py: Python<'_>,
         days: i32,
         seconds: i32,
@@ -616,6 +747,19 @@ impl PyDelta {
             .assume_owned_or_err(py)
             .downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated name for [`PyDelta::new`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyDelta::new`")]
+    #[inline]
+    pub fn new_bound(
+        py: Python<'_>,
+        days: i32,
+        seconds: i32,
+        microseconds: i32,
+        normalize: bool,
+    ) -> PyResult<Bound<'_, PyDelta>> {
+        Self::new(py, days, seconds, microseconds, normalize)
     }
 }
 
@@ -653,15 +797,14 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_datetime_fromtimestamp() {
         Python::with_gil(|py| {
-            let dt = PyDateTime::from_timestamp_bound(py, 100.0, None).unwrap();
+            let dt = PyDateTime::from_timestamp(py, 100.0, None).unwrap();
             py_run!(
                 py,
                 dt,
                 "import datetime; assert dt == datetime.datetime.fromtimestamp(100)"
             );
 
-            let dt =
-                PyDateTime::from_timestamp_bound(py, 100.0, Some(&timezone_utc_bound(py))).unwrap();
+            let dt = PyDateTime::from_timestamp(py, 100.0, Some(&timezone_utc(py))).unwrap();
             py_run!(
                 py,
                 dt,
@@ -675,7 +818,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_date_fromtimestamp() {
         Python::with_gil(|py| {
-            let dt = PyDate::from_timestamp_bound(py, 100).unwrap();
+            let dt = PyDate::from_timestamp(py, 100).unwrap();
             py_run!(
                 py,
                 dt,
@@ -688,10 +831,8 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_new_with_fold() {
         Python::with_gil(|py| {
-            let a =
-                PyDateTime::new_bound_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, false);
-            let b =
-                PyDateTime::new_bound_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, true);
+            let a = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, false);
+            let b = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, true);
 
             assert!(!a.unwrap().get_fold());
             assert!(b.unwrap().get_fold());
@@ -702,23 +843,23 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_get_tzinfo() {
         crate::Python::with_gil(|py| {
-            let utc = timezone_utc_bound(py);
+            let utc = timezone_utc(py);
 
-            let dt = PyDateTime::new_bound(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
+            let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
 
-            assert!(dt.get_tzinfo_bound().unwrap().eq(&utc).unwrap());
+            assert!(dt.get_tzinfo().unwrap().eq(&utc).unwrap());
 
-            let dt = PyDateTime::new_bound(py, 2018, 1, 1, 0, 0, 0, 0, None).unwrap();
+            let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, None).unwrap();
 
-            assert!(dt.get_tzinfo_bound().is_none());
+            assert!(dt.get_tzinfo().is_none());
 
-            let t = PyTime::new_bound(py, 0, 0, 0, 0, Some(&utc)).unwrap();
+            let t = PyTime::new(py, 0, 0, 0, 0, Some(&utc)).unwrap();
 
-            assert!(t.get_tzinfo_bound().unwrap().eq(utc).unwrap());
+            assert!(t.get_tzinfo().unwrap().eq(utc).unwrap());
 
-            let t = PyTime::new_bound(py, 0, 0, 0, 0, None).unwrap();
+            let t = PyTime::new(py, 0, 0, 0, 0, None).unwrap();
 
-            assert!(t.get_tzinfo_bound().is_none());
+            assert!(t.get_tzinfo().is_none());
         });
     }
 
@@ -726,30 +867,32 @@ mod tests {
     #[cfg(all(feature = "macros", feature = "chrono"))]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_timezone_from_offset() {
+        use crate::types::PyNone;
+
         Python::with_gil(|py| {
             assert!(
-                timezone_from_offset(&PyDelta::new_bound(py, 0, -3600, 0, true).unwrap())
+                timezone_from_offset(&PyDelta::new(py, 0, -3600, 0, true).unwrap())
                     .unwrap()
-                    .call_method1("utcoffset", ((),))
+                    .call_method1("utcoffset", (PyNone::get(py),))
                     .unwrap()
                     .downcast_into::<PyDelta>()
                     .unwrap()
-                    .eq(PyDelta::new_bound(py, 0, -3600, 0, true).unwrap())
+                    .eq(PyDelta::new(py, 0, -3600, 0, true).unwrap())
                     .unwrap()
             );
 
             assert!(
-                timezone_from_offset(&PyDelta::new_bound(py, 0, 3600, 0, true).unwrap())
+                timezone_from_offset(&PyDelta::new(py, 0, 3600, 0, true).unwrap())
                     .unwrap()
-                    .call_method1("utcoffset", ((),))
+                    .call_method1("utcoffset", (PyNone::get(py),))
                     .unwrap()
                     .downcast_into::<PyDelta>()
                     .unwrap()
-                    .eq(PyDelta::new_bound(py, 0, 3600, 0, true).unwrap())
+                    .eq(PyDelta::new(py, 0, 3600, 0, true).unwrap())
                     .unwrap()
             );
 
-            timezone_from_offset(&PyDelta::new_bound(py, 1, 0, 0, true).unwrap()).unwrap_err();
+            timezone_from_offset(&PyDelta::new(py, 1, 0, 0, true).unwrap()).unwrap_err();
         })
     }
 }

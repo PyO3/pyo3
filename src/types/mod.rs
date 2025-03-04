@@ -9,9 +9,10 @@ pub use self::capsule::{PyCapsule, PyCapsuleMethods};
 pub use self::code::PyCode;
 pub use self::complex::{PyComplex, PyComplexMethods};
 #[cfg(not(Py_LIMITED_API))]
+#[allow(deprecated)]
 pub use self::datetime::{
-    timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime,
-    PyTimeAccess, PyTzInfo, PyTzInfoAccess,
+    timezone_utc, timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess,
+    PyTime, PyTimeAccess, PyTzInfo, PyTzInfoAccess,
 };
 pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -22,11 +23,14 @@ pub use self::float::{PyFloat, PyFloatMethods};
 pub use self::frame::PyFrame;
 pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
 pub use self::function::PyCFunction;
-#[cfg(all(not(Py_LIMITED_API), not(all(PyPy, not(Py_3_8))), not(GraalPy)))]
+#[cfg(all(not(Py_LIMITED_API), not(all(PyPy, not(Py_3_8)))))]
 pub use self::function::PyFunction;
+#[cfg(Py_3_9)]
+pub use self::genericalias::PyGenericAlias;
 pub use self::iterator::PyIterator;
 pub use self::list::{PyList, PyListMethods};
 pub use self::mapping::{PyMapping, PyMappingMethods};
+pub use self::mappingproxy::PyMappingProxy;
 pub use self::memoryview::PyMemoryView;
 pub use self::module::{PyModule, PyModuleMethods};
 pub use self::none::PyNone;
@@ -152,7 +156,6 @@ macro_rules! pyobject_native_static_type_object(
 #[macro_export]
 macro_rules! pyobject_native_type_info(
     ($name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        #[allow(unsafe_code)]
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
             const NAME: &'static str = stringify!($name);
             const MODULE: ::std::option::Option<&'static str> = $module;
@@ -198,17 +201,25 @@ macro_rules! pyobject_native_type_core {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! pyobject_subclassable_native_type {
+    ($name:ty, $layout:path $(;$generics:ident)*) => {
+        #[cfg(not(Py_LIMITED_API))]
+        impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
+            type LayoutAsBase = $crate::impl_::pycell::PyClassObjectBase<$layout>;
+            type BaseNativeType = $name;
+            type Initializer = $crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
+            type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
+        }
+    }
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! pyobject_native_type_sized {
     ($name:ty, $layout:path $(;$generics:ident)*) => {
         unsafe impl $crate::type_object::PyLayout<$name> for $layout {}
         impl $crate::type_object::PySizedLayout<$name> for $layout {}
-        impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
-            type LayoutAsBase = $crate::impl_::pycell::PyClassObjectBase<$layout>;
-            type BaseNativeType = $name;
-            type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
-            type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
-        }
-    }
+    };
 }
 
 /// Declares all of the boilerplate for Python types which can be inherited from (because the exact
@@ -234,6 +245,8 @@ mod code;
 pub(crate) mod complex;
 #[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
+#[cfg(all(Py_LIMITED_API, any(feature = "chrono", feature = "jiff-02")))]
+pub(crate) mod datetime_abi3;
 pub(crate) mod dict;
 mod ellipsis;
 pub(crate) mod float;
@@ -241,9 +254,12 @@ pub(crate) mod float;
 mod frame;
 pub(crate) mod frozenset;
 mod function;
+#[cfg(Py_3_9)]
+pub(crate) mod genericalias;
 pub(crate) mod iterator;
 pub(crate) mod list;
 pub(crate) mod mapping;
+pub(crate) mod mappingproxy;
 mod memoryview;
 pub(crate) mod module;
 mod none;
