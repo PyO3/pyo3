@@ -8,6 +8,8 @@ use std::os::raw::c_long;
 use std::os::raw::c_uint;
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
 use std::os::raw::c_ulong;
+#[cfg(all(py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API)))]
+use std::os::raw::c_char;
 use std::ptr;
 #[cfg(Py_GIL_DISABLED)]
 use std::sync::atomic::Ordering::Relaxed;
