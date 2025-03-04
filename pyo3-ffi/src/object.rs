@@ -24,7 +24,7 @@ pub use crate::cpython::object::PyTypeObject;
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED), target_endian = "big"))]
 /// This struct is anonymous in CPython, so the name was given by PyO3 because
 /// Rust structs need a name.
-pub struct PyObjectObFlagsAndRefcnt {
+struct PyObjectObFlagsAndRefcnt {
     pub ob_flags: crate::PY_UINT32_T,
     pub ob_refcnt: crate::PY_UINT32_T,
 }
@@ -34,7 +34,7 @@ pub struct PyObjectObFlagsAndRefcnt {
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED), target_endian = "little"))]
 /// This struct is anonymous in CPython, so the name was given by PyO3 because
 /// Rust structs need a name.
-pub struct PyObjectObFlagsAndRefcnt {
+struct PyObjectObFlagsAndRefcnt {
     pub ob_refcnt: crate::PY_UINT32_T,
     pub ob_flags: crate::PY_UINT32_T,
 }
