@@ -46,3 +46,11 @@ pyo3-build-config = { path = "../pyo3-build-config", version = "=0.23.5", featur
 
 [lints]
 workspace = true
+
+[package.metadata.cpython]
+min-version = "3.7"
+max-version = "3.13"  # inclusive
+
+[package.metadata.pypy]
+min-version = "3.9"
+max-version = "3.11"  # inclusive

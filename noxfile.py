@@ -17,6 +17,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Literal,
     Optional,
     Tuple,
     Generator,
@@ -41,9 +42,41 @@ PYO3_TARGET = Path(os.environ.get("CARGO_TARGET_DIR", PYO3_DIR / "target")).abso
 PYO3_GUIDE_SRC = PYO3_DIR / "guide" / "src"
 PYO3_GUIDE_TARGET = PYO3_TARGET / "guide"
 PYO3_DOCS_TARGET = PYO3_TARGET / "doc"
-PY_VERSIONS = ("3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13")
-PYPY_VERSIONS = ("3.9", "3.10", "3.11")
 FREE_THREADED_BUILD = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+
+
+def _get_output(*args: str) -> str:
+    return subprocess.run(args, capture_output=True, text=True, check=True).stdout
+
+
+def _parse_supported_interpreter_version(
+    python_impl: Literal["cpython", "pypy"],
+) -> Tuple[str, str]:
+    output = _get_output("cargo", "metadata", "--format-version=1", "--no-deps")
+    cargo_packages = json.loads(output)["packages"]
+    # Check Python interpreter version support in package metadata
+    package = "pyo3-ffi"
+    metadata = next(pkg["metadata"] for pkg in cargo_packages if pkg["name"] == package)
+    version_info = metadata[python_impl]
+    assert "min-version" in version_info, f"missing min-version for {python_impl}"
+    assert "max-version" in version_info, f"missing max-version for {python_impl}"
+    return version_info["min-version"], version_info["max-version"]
+
+
+def _supported_interpreter_versions(
+    python_impl: Literal["cpython", "pypy"],
+) -> List[str]:
+    min_version, max_version = _parse_supported_interpreter_version(python_impl)
+    major = int(min_version.split(".")[0])
+    assert major == 3, f"unsupported Python major version {major}"
+    min_minor = int(min_version.split(".")[1])
+    max_minor = int(max_version.split(".")[1])
+    versions = [f"{major}.{minor}" for minor in range(min_minor, max_minor + 1)]
+    return versions
+
+
+PY_VERSIONS = _supported_interpreter_versions("cpython")
+PYPY_VERSIONS = _supported_interpreter_versions("pypy")
 
 
 @nox.session(venv_backend="none")
@@ -929,10 +962,6 @@ def _run_cargo_set_package_version(
     if project:
         command.append(f"--manifest-path={project}/Cargo.toml")
     _run(session, *command, external=True)
-
-
-def _get_output(*args: str) -> str:
-    return subprocess.run(args, capture_output=True, text=True, check=True).stdout
 
 
 def _for_all_version_configs(

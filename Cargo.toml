@@ -42,7 +42,7 @@ indexmap = { version = ">= 2.5.0, < 3", optional = true }
 jiff-02 = { package = "jiff", version = "0.2", optional = true }
 num-bigint = { version = "0.4.2", optional = true }
 num-complex = { version = ">= 0.4.6, < 0.5", optional = true }
-num-rational = {version = "0.4.1", optional = true }
+num-rational = { version = "0.4.1", optional = true }
 rust_decimal = { version = "1.15", default-features = false, optional = true }
 serde = { version = "1.0", optional = true }
 smallvec = { version = "1.0", optional = true }
@@ -65,7 +65,7 @@ rayon = "1.6.1"
 futures = "0.3.28"
 tempfile = "3.12.0"
 static_assertions = "1.1.0"
-uuid = {version = "1.10.0", features = ["v4"] }
+uuid = { version = "1.10.0", features = ["v4"] }
 
 [build-dependencies]
 pyo3-build-config = { path = "pyo3-build-config", version = "=0.23.5", features = ["resolve-config"] }
