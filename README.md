@@ -71,7 +71,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.23.5", features = ["extension-module"] }
+pyo3 = { version = "0.24.0", features = ["extension-module"] }
 ```
 
 **`src/lib.rs`**
@@ -140,7 +140,7 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.23.5"
+version = "0.24.0"
 features = ["auto-initialize"]
 ```
 
