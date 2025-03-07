@@ -5,7 +5,7 @@ use crate::types::{
     any::{PyAny, PyAnyMethods},
     PyNone,
 };
-use crate::{ffi, Bound};
+use crate::{ffi, Bound, Python};
 
 /// Represents any Python `weakref` reference.
 ///
@@ -33,7 +33,7 @@ impl PyTypeCheck for PyWeakref {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyWeakref")]
-pub trait PyWeakrefMethods<'py> {
+pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// Upgrade the weakref to a direct Bound object reference.
     ///
     /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
@@ -315,20 +315,12 @@ pub trait PyWeakrefMethods<'py> {
     ///
     /// # Panics
     /// This function panics is the current object is invalid.
-    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    /// If used properly this is never the case. (NonNull and actually a weakref type)
     ///
     /// [`PyWeakref_GetRef`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetRef
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
-    fn upgrade(&self) -> Option<Bound<'py, PyAny>> {
-        let object = self.get_object();
-
-        if object.is_none() {
-            None
-        } else {
-            Some(object)
-        }
-    }
+    fn upgrade(&self) -> Option<Bound<'py, PyAny>>;
 
     /// Retrieve to a Bound object pointed to by the weakref.
     ///
@@ -346,6 +338,7 @@ pub trait PyWeakrefMethods<'py> {
         all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
         doc = "```rust"
     )]
+    /// #![allow(deprecated)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakrefReference;
     ///
@@ -386,16 +379,25 @@ pub trait PyWeakrefMethods<'py> {
     /// [`PyWeakref_GetRef`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetRef
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
-    fn get_object(&self) -> Bound<'py, PyAny>;
+    #[deprecated(since = "0.23.0", note = "Use `upgrade` instead")]
+    fn get_object(&self) -> Bound<'py, PyAny> {
+        self.upgrade().unwrap_or_else(|| {
+            // Safety: upgrade() returns `Bound<'py, PyAny>` with a lifetime `'py` if it exists, we
+            // can safely assume the same lifetime here.
+            PyNone::get(unsafe { Python::assume_gil_acquired() })
+                .to_owned()
+                .into_any()
+        })
+    }
 }
 
 impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakref> {
-    fn get_object(&self) -> Bound<'py, PyAny> {
+    fn upgrade(&self) -> Option<Bound<'py, PyAny>> {
         let mut obj: *mut ffi::PyObject = std::ptr::null_mut();
         match unsafe { ffi::compat::PyWeakref_GetRef(self.as_ptr(), &mut obj) } {
             std::os::raw::c_int::MIN..=-1 => panic!("The 'weakref' weak reference instance should be valid (non-null and actually a weakref reference)"),
-            0 => PyNone::get(self.py()).to_owned().into_any(),
-            1..=std::os::raw::c_int::MAX => unsafe { obj.assume_owned(self.py()) },
+            0 => None,
+            1..=std::os::raw::c_int::MAX => Some(unsafe { obj.assume_owned_unchecked(self.py()) }),
         }
     }
 }
@@ -545,6 +547,7 @@ mod tests {
         }
 
         #[test]
+        #[allow(deprecated)]
         fn test_weakref_get_object() -> PyResult<()> {
             fn inner(
                 create_reference: impl for<'py> FnOnce(
@@ -696,6 +699,7 @@ mod tests {
         }
 
         #[test]
+        #[allow(deprecated)]
         fn test_weakref_get_object() -> PyResult<()> {
             fn inner(
                 create_reference: impl for<'py> FnOnce(

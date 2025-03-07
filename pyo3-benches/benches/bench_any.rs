@@ -77,7 +77,7 @@ fn bench_collect_generic_iterator(b: &mut Bencher<'_>) {
 
         b.iter(|| {
             collection
-                .iter()
+                .try_iter()
                 .unwrap()
                 .collect::<PyResult<Vec<_>>>()
                 .unwrap()

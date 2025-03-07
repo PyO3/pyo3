@@ -60,8 +60,7 @@ int_compare!(usize);
 
 #[cfg(test)]
 mod tests {
-    use super::PyInt;
-    use crate::{types::PyAnyMethods, IntoPy, Python};
+    use crate::{IntoPyObject, Python};
 
     #[test]
     fn test_partial_eq() {
@@ -78,7 +77,7 @@ mod tests {
             let v_u128 = 123u128;
             let v_isize = 123isize;
             let v_usize = 123usize;
-            let obj = 123_i64.into_py(py).downcast_bound(py).unwrap().clone();
+            let obj = 123_i64.into_pyobject(py).unwrap();
             assert_eq!(v_i8, obj);
             assert_eq!(obj, v_i8);
 
@@ -116,11 +115,7 @@ mod tests {
             assert_eq!(obj, v_usize);
 
             let big_num = (u8::MAX as u16) + 1;
-            let big_obj = big_num
-                .into_py(py)
-                .into_bound(py)
-                .downcast_into::<PyInt>()
-                .unwrap();
+            let big_obj = big_num.into_pyobject(py).unwrap();
 
             for x in 0u8..=u8::MAX {
                 assert_ne!(x, big_obj);

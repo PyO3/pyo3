@@ -144,23 +144,23 @@ rustflags = [
 ]
 ```
 
-Using the MacOS system python3 (`/usr/bin/python3`, as opposed to python installed via homebrew, pyenv, nix, etc.) may result in runtime errors such as `Library not loaded: @rpath/Python3.framework/Versions/3.8/Python3`. These can be resolved with another addition to `.cargo/config.toml`:
+Using the MacOS system python3 (`/usr/bin/python3`, as opposed to python installed via homebrew, pyenv, nix, etc.) may result in runtime errors such as `Library not loaded: @rpath/Python3.framework/Versions/3.8/Python3`.
+
+The easiest way to set the correct linker arguments is to add a `build.rs` with the following content:
+
+```rust,ignore
+fn main() {
+    pyo3_build_config::add_python_framework_link_args();
+}
+```
+
+Alternatively it can be resolved with another addition to `.cargo/config.toml`:
 
 ```toml
 [build]
 rustflags = [
   "-C", "link-args=-Wl,-rpath,/Library/Developer/CommandLineTools/Library/Frameworks",
 ]
-```
-
-Alternatively, one can include in `build.rs`:
-
-```rust
-fn main() {
-    println!(
-        "cargo:rustc-link-arg=-Wl,-rpath,/Library/Developer/CommandLineTools/Library/Frameworks"
-    );
-}
 ```
 
 For more discussion on and workarounds for MacOS linking problems [see this issue](https://github.com/PyO3/pyo3/issues/1800#issuecomment-906786649).

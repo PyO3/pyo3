@@ -25,10 +25,13 @@ use crate::{
         set::{new_from_iter, try_new_from_iter, PySetMethods},
         PyDict, PyFrozenSet, PySet,
     },
-    Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python,
 };
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 use std::{cmp, hash};
 
+#[allow(deprecated)]
 impl<K, V, H> ToPyObject for hashbrown::HashMap<K, V, H>
 where
     K: hash::Hash + cmp::Eq + ToPyObject,
@@ -44,6 +47,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<K, V, H> IntoPy<PyObject> for hashbrown::HashMap<K, V, H>
 where
     K: hash::Hash + cmp::Eq + IntoPy<PyObject>,
@@ -113,6 +117,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<T> ToPyObject for hashbrown::HashSet<T>
 where
     T: hash::Hash + Eq + ToPyObject,
@@ -124,6 +129,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<K, S> IntoPy<PyObject> for hashbrown::HashSet<K, S>
 where
     K: IntoPy<PyObject> + Eq + hash::Hash,
@@ -189,13 +195,12 @@ mod tests {
     use crate::types::IntoPyDict;
 
     #[test]
-    fn test_hashbrown_hashmap_to_python() {
+    fn test_hashbrown_hashmap_into_pyobject() {
         Python::with_gil(|py| {
             let mut map = hashbrown::HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let m = map.to_object(py);
-            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
+            let py_map = (&map).into_pyobject(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(
@@ -208,27 +213,6 @@ mod tests {
                     == 1
             );
             assert_eq!(map, py_map.extract().unwrap());
-        });
-    }
-    #[test]
-    fn test_hashbrown_hashmap_into_python() {
-        Python::with_gil(|py| {
-            let mut map = hashbrown::HashMap::<i32, i32>::new();
-            map.insert(1, 1);
-
-            let m: PyObject = map.into_py(py);
-            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
-
-            assert!(py_map.len() == 1);
-            assert!(
-                py_map
-                    .get_item(1)
-                    .unwrap()
-                    .unwrap()
-                    .extract::<i32>()
-                    .unwrap()
-                    == 1
-            );
         });
     }
 
@@ -267,13 +251,13 @@ mod tests {
     }
 
     #[test]
-    fn test_hashbrown_hashset_into_py() {
+    fn test_hashbrown_hashset_into_pyobject() {
         Python::with_gil(|py| {
             let hs: hashbrown::HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
 
-            let hso: PyObject = hs.clone().into_py(py);
+            let hso = hs.clone().into_pyobject(py).unwrap();
 
-            assert_eq!(hs, hso.extract(py).unwrap());
+            assert_eq!(hs, hso.extract().unwrap());
         });
     }
 }

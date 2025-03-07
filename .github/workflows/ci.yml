@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - run: python -m pip install --upgrade pip && pip install nox
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -41,11 +41,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - name: resolve MSRV
         id: resolve-msrv
-        run:
-          echo MSRV=`python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["rust-version"])'` >> $GITHUB_OUTPUT
+        run: echo MSRV=`python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["rust-version"])'` >> $GITHUB_OUTPUT
 
   semver-checks:
     if: github.ref != 'refs/heads/main'
@@ -55,7 +54,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - uses: obi1kenobi/cargo-semver-checks-action@v2
 
   check-msrv:
@@ -69,7 +68,7 @@ jobs:
           components: rust-src
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.event_name != 'merge_group' }}
@@ -91,43 +90,49 @@ jobs:
       fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
         rust: [stable]
-        platform: [
-          {
-            os: "macos-14",  # first available arm macos runner
-            python-architecture: "arm64",
-            rust-target: "aarch64-apple-darwin",
-          },
-          {
-            os: "ubuntu-latest",
-            python-architecture: "x64",
-            rust-target: "x86_64-unknown-linux-gnu",
-          },
-          {
-            os: "ubuntu-latest",
-            python-architecture: "x64",
-            rust-target: "powerpc64le-unknown-linux-gnu",
-          },
-          {
-            os: "ubuntu-latest",
-            python-architecture: "x64",
-            rust-target: "s390x-unknown-linux-gnu",
-          },
-          {
-            os: "ubuntu-latest",
-            python-architecture: "x64",
-            rust-target: "wasm32-wasi",
-          },
-          {
-            os: "windows-latest",
-            python-architecture: "x64",
-            rust-target: "x86_64-pc-windows-msvc",
-          },
-          {
-            os: "windows-latest",
-            python-architecture: "x86",
-            rust-target: "i686-pc-windows-msvc",
-          },
-        ]
+        platform:
+          [
+            {
+              os: "macos-latest",
+              python-architecture: "arm64",
+              rust-target: "aarch64-apple-darwin",
+            },
+            {
+              os: "ubuntu-latest",
+              python-architecture: "x64",
+              rust-target: "x86_64-unknown-linux-gnu",
+            },
+            {
+              os: "ubuntu-22.04-arm",
+              python-architecture: "arm64",
+              rust-target: "aarch64-unknown-linux-gnu",
+            },
+            {
+              os: "ubuntu-latest",
+              python-architecture: "x64",
+              rust-target: "powerpc64le-unknown-linux-gnu",
+            },
+            {
+              os: "ubuntu-latest",
+              python-architecture: "x64",
+              rust-target: "s390x-unknown-linux-gnu",
+            },
+            {
+              os: "ubuntu-latest",
+              python-architecture: "x64",
+              rust-target: "wasm32-wasip1",
+            },
+            {
+              os: "windows-latest",
+              python-architecture: "x64",
+              rust-target: "x86_64-pc-windows-msvc",
+            },
+            {
+              os: "windows-latest",
+              python-architecture: "x86",
+              rust-target: "i686-pc-windows-msvc",
+            },
+          ]
         include:
           # Run beta clippy as a way to detect any incoming lints which may affect downstream users
           - rust: beta
@@ -148,7 +153,7 @@ jobs:
           components: clippy,rust-src
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
           architecture: ${{ matrix.platform.python-architecture }}
       - uses: Swatinem/rust-cache@v2
         with:
@@ -177,15 +182,14 @@ jobs:
       matrix:
         rust: [stable]
         python-version: ["3.12"]
-        platform:
-          [
+        platform: [
             {
-              os: "macos-14",  # first available arm macos runner
+              os: "macos-latest", # first available arm macos runner
               python-architecture: "arm64",
               rust-target: "aarch64-apple-darwin",
             },
             {
-              os: "macos-13",  # last available x86_64 macos runner
+              os: "macos-13", # last available x86_64 macos runner
               python-architecture: "x64",
               rust-target: "x86_64-apple-darwin",
             },
@@ -193,6 +197,11 @@ jobs:
               os: "ubuntu-latest",
               python-architecture: "x64",
               rust-target: "x86_64-unknown-linux-gnu",
+            },
+            {
+              os: "ubuntu-22.04-arm",
+              python-architecture: "arm64",
+              rust-target: "aarch64-unknown-linux-gnu",
             },
             {
               os: "windows-latest",
@@ -234,29 +243,27 @@ jobs:
       fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
         rust: [stable]
-        python-version: [
-          "3.7",
-          "3.8",
-          "3.9",
-          "3.10",
-          "3.11",
-          "3.12",
-          "3.13-dev",
-          "pypy3.9",
-          "pypy3.10",
-          "graalpy24.0",
-        ]
+        python-version:
+          [
+            "3.7",
+            "3.8",
+            "3.9",
+            "3.10",
+            "3.11",
+            "3.12",
+            "3.13",
+            "pypy3.9",
+            "pypy3.10",
+            "pypy3.11",
+            "graalpy24.0",
+            "graalpy24.1",
+          ]
         platform:
           [
-            # for the full matrix, use x86_64 macos runners because not all Python versions
-            # PyO3 supports are available for arm on GitHub Actions. (Availability starts
-            # around Python 3.10, can switch the full matrix to arm once earlier versions
-            # are dropped.)
-            # NB: if this switches to arm, switch the arm job below in the `include` to x86_64
             {
-              os: "macos-13",
-              python-architecture: "x64",
-              rust-target: "x86_64-apple-darwin",
+              os: "macos-latest",
+              python-architecture: "arm64",
+              rust-target: "aarch64-apple-darwin",
             },
             {
               os: "ubuntu-latest",
@@ -300,7 +307,7 @@ jobs:
                 rust-target: "x86_64-unknown-linux-gnu",
               }
 
-          # Test 32-bit Windows only with the latest Python version
+          # Test 32-bit Windows and x64 macOS only with the latest Python version
           - rust: stable
             python-version: "3.12"
             platform:
@@ -309,14 +316,86 @@ jobs:
                 python-architecture: "x86",
                 rust-target: "i686-pc-windows-msvc",
               }
-
-          # test arm macos runner with the latest Python version
-          # NB: if the full matrix switchess to arm, switch to x86_64 here
           - rust: stable
             python-version: "3.12"
             platform:
               {
-                os: "macos-14",
+                os: "macos-13",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
+          # ubuntu-latest (24.04) no longer supports 3.7, so run on 22.04
+          - rust: stable
+            python-version: "3.7"
+            platform:
+              {
+                os: "ubuntu-22.04",
+                python-architecture: "x64",
+                rust-target: "x86_64-unknown-linux-gnu",
+              }
+
+          # arm64 macOS Python not available on GitHub Actions until 3.10
+          # so backfill 3.7-3.9 with x64 macOS runners
+          - rust: stable
+            python-version: "3.7"
+            platform:
+              {
+                os: "macos-13",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
+          - rust: stable
+            python-version: "3.8"
+            platform:
+              {
+                os: "macos-13",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
+          - rust: stable
+            python-version: "3.9"
+            platform:
+              {
+                os: "macos-13",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
+          # arm64 Linux runner is in public preview, so test 3.13 on it
+          - rust: stable
+            python-version: "3.13"
+            platform:
+              {
+                os: "ubuntu-22.04-arm",
+                python-architecture: "arm64",
+                rust-target: "aarch64-unknown-linux-gnu",
+              }
+
+        exclude:
+          # ubuntu-latest (24.04) no longer supports 3.7
+          - python-version: "3.7"
+            platform: { os: "ubuntu-latest" }
+          # arm64 macOS Python not available on GitHub Actions until 3.10
+          - rust: stable
+            python-version: "3.7"
+            platform:
+              {
+                os: "macos-latest",
+                python-architecture: "arm64",
+                rust-target: "aarch64-apple-darwin",
+              }
+          - rust: stable
+            python-version: "3.8"
+            platform:
+              {
+                os: "macos-latest",
+                python-architecture: "arm64",
+                rust-target: "aarch64-apple-darwin",
+              }
+          - rust: stable
+            python-version: "3.9"
+            platform:
+              {
+                os: "macos-latest",
                 python-architecture: "arm64",
                 rust-target: "aarch64-apple-darwin",
               }
@@ -331,7 +410,7 @@ jobs:
         with:
           # FIXME valgrind detects an issue with Python 3.12.5, needs investigation
           # whether it's a PyO3 issue or upstream CPython.
-          python-version: '3.12.4'
+          python-version: "3.12.4"
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.event_name != 'merge_group' }}
@@ -352,7 +431,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.event_name != 'merge_group' }}
@@ -374,32 +453,28 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.event_name != 'merge_group' }}
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rust-src
-      - run: cargo rustdoc --lib --no-default-features --features full -Zunstable-options --config "build.rustdocflags=[\"--cfg\", \"docsrs\"]"
+      - run: cargo rustdoc --lib --no-default-features --features full,jiff-02 -Zunstable-options --config "build.rustdocflags=[\"--cfg\", \"docsrs\"]"
 
   coverage:
-    if : ${{ github.event_name != 'merge_group' }}
+    if: ${{ github.event_name != 'merge_group' }}
     needs: [fmt]
     name: coverage ${{ matrix.os }}
     strategy:
       matrix:
-        os: ["windows-latest", "macos-14", "ubuntu-latest"]  # first available arm macos runner
+        os: ["windows-latest", "macos-latest", "ubuntu-latest"]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          # Use the PR head, not the merge commit, because the head commit (and the base)
-          # is what codecov uses to calculate diffs.
-          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.event_name != 'merge_group' }}
@@ -410,9 +485,9 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
       - run: python -m pip install --upgrade pip && pip install nox
       - run: nox -s coverage
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v5
         with:
-          file: coverage.json
+          files: coverage.json
           name: ${{ matrix.os }}
           token: ${{ secrets.CODECOV_TOKEN }}
 
@@ -435,7 +510,7 @@ jobs:
           components: rust-src
       - uses: actions/setup-node@v4
         with:
-          node-version: 14
+          node-version: 18
       - run: python -m pip install --upgrade pip && pip install nox
       - uses: actions/cache@v4
         id: cache
@@ -466,8 +541,8 @@ jobs:
           components: rust-src
       - name: Install python3 standalone debug build with nox
         run: |
-          PBS_RELEASE="20231002"
-          PBS_PYTHON_VERSION="3.12.0"
+          PBS_RELEASE="20241016"
+          PBS_PYTHON_VERSION="3.13.0"
           PBS_ARCHIVE="cpython-${PBS_PYTHON_VERSION}+${PBS_RELEASE}-x86_64-unknown-linux-gnu-debug-full.tar.zst"
           wget "https://github.com/indygreg/python-build-standalone/releases/download/${PBS_RELEASE}/${PBS_ARCHIVE}"
           tar -I zstd -xf "${PBS_ARCHIVE}"
@@ -483,10 +558,10 @@ jobs:
           PYO3_CONFIG_FILE=$(mktemp)
           cat > $PYO3_CONFIG_FILE << EOF
           implementation=CPython
-          version=3.12
+          version=3.13
           shared=true
           abi3=false
-          lib_name=python3.12d
+          lib_name=python3.13d
           lib_dir=${{ github.workspace }}/python/install/lib
           executable=${{ github.workspace }}/python/install/bin/python3
           pointer_width=64
@@ -497,11 +572,12 @@ jobs:
       - run: python3 -m nox -s test
 
   test-free-threaded:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     needs: [fmt]
-    runs-on: ubuntu-latest
-    env:
-      UNSAFE_PYO3_BUILD_FREE_THREADED: 1
+    name: Free threaded tests - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -510,15 +586,28 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-src
-      # TODO: replace with setup-python when there is support
-      - uses: deadsnakes/action@v3.2.0
+      # TODO: replace with actions/setup-python when there is support
+      - uses: quansight-labs/setup-python@v5.4.0
         with:
-          python-version: '3.13-dev'
-          nogil: true
+          python-version: "3.13t"
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
       - run: python3 -m sysconfig
       - run: python3 -m pip install --upgrade pip && pip install nox
+      - name: Prepare coverage environment
+        run: |
+          cargo llvm-cov clean --workspace --profraw-only
+          nox -s set-coverage-env
       - run: nox -s ffi-check
       - run: nox
+      - name: Generate coverage report
+        run: nox -s generate-coverage-report
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.json
+          name: ${{ matrix.os }}-test-free-threaded
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   test-version-limits:
     needs: [fmt]
@@ -526,6 +615,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.event_name != 'merge_group' }}
@@ -549,7 +641,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.event_name != 'merge_group' }}
@@ -585,30 +677,42 @@ jobs:
           # ubuntu x86_64 -> windows x86_64
           - os: "ubuntu-latest"
             target: "x86_64-pc-windows-gnu"
-            flags: "-i python3.12 --features abi3 --features generate-import-lib"
-            manylinux: off
+            flags: "-i python3.12 --features generate-import-lib"
           # macos x86_64 -> aarch64
-          - os: "macos-13"  # last x86_64 macos runners
+          - os: "macos-13" # last x86_64 macos runners
             target: "aarch64-apple-darwin"
           # macos aarch64 -> x86_64
-          - os: "macos-14"  # aarch64 macos runners
+          - os: "macos-latest"
             target: "x86_64-apple-darwin"
+          # windows x86_64 -> aarch64
+          - os: "windows-latest"
+            target: "aarch64-pc-windows-msvc"
+            flags: "-i python3.12 --features generate-import-lib"
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces:
-            examples/maturin-starter
+          workspaces: examples/maturin-starter
           save-if: ${{ github.event_name != 'merge_group' }}
           key: ${{ matrix.target }}
       - name: Setup cross-compiler
         if: ${{ matrix.target == 'x86_64-pc-windows-gnu' }}
         run: sudo apt-get install -y mingw-w64 llvm
-      - uses: PyO3/maturin-action@v1
+      - name: Compile version-specific library
+        uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
           args: --release -m examples/maturin-starter/Cargo.toml ${{ matrix.flags }}
+      - name: Compile abi3 library
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          args: --release -m examples/maturin-starter/Cargo.toml --features abi3 ${{ matrix.flags }}
 
   test-cross-compilation-windows:
     needs: [fmt]
@@ -618,11 +722,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces:
-            examples/maturin-starter
+          workspaces: examples/maturin-starter
           save-if: ${{ github.event_name != 'merge_group' }}
       - uses: actions/cache/restore@v4
         with:

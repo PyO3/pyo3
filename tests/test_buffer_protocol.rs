@@ -71,13 +71,14 @@ fn test_buffer_referenced() {
     let buf = {
         let input = vec![b' ', b'2', b'3'];
         Python::with_gil(|py| {
-            let instance: PyObject = TestBufferClass {
+            let instance = TestBufferClass {
                 vec: input.clone(),
                 drop_called: drop_called.clone(),
             }
-            .into_py(py);
+            .into_pyobject(py)
+            .unwrap();
 
-            let buf = PyBuffer::<u8>::get(instance.bind(py)).unwrap();
+            let buf = PyBuffer::<u8>::get(&instance).unwrap();
             assert_eq!(buf.to_vec(py).unwrap(), input);
             drop(instance);
             buf

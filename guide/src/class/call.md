@@ -66,7 +66,7 @@ def Counter(wraps):
     return call
 ```
 
-### What is the `Cell` for?
+### What is the `AtomicU64` for?
 
 A [previous implementation] used a normal `u64`, which meant it required a `&mut self` receiver to update the count:
 
@@ -108,14 +108,15 @@ say_hello()
 # RuntimeError: Already borrowed
 ```
 
-The implementation in this chapter fixes that by never borrowing exclusively; all the methods take `&self` as receivers, of which multiple may exist simultaneously. This requires a shared counter and the easiest way to do that is to use [`Cell`], so that's what is used here.
+The implementation in this chapter fixes that by never borrowing exclusively; all the methods take `&self` as receivers, of which multiple may exist simultaneously. This requires a shared counter and the most straightforward way to implement thread-safe interior mutability (e.g. the type does not need to accept `&mut self` to modify the "interior" state) for a `u64` is to use [`AtomicU64`], so that's what is used here.
 
 This shows the dangers of running arbitrary Python code - note that "running arbitrary Python code" can be far more subtle than the example above:
 - Python's asynchronous executor may park the current thread in the middle of Python code, even in Python code that *you* control, and let other Python code run.
 - Dropping arbitrary Python objects may invoke destructors defined in Python (`__del__` methods).
 - Calling Python's C-api (most PyO3 apis call C-api functions internally) may raise exceptions, which may allow Python code in signal handlers to run.
+- On the free-threaded build, users might use Python's `threading` module to work with your types simultaneously from multiple OS threads.
 
 This is especially important if you are writing unsafe code; Python code must never be able to cause undefined behavior. You must ensure that your Rust code is in a consistent state before doing any of the above things.
 
 [previous implementation]: https://github.com/PyO3/pyo3/discussions/2598 "Thread Safe Decorator <Help Wanted> · Discussion #2598 · PyO3/pyo3"
-[`Cell`]: https://doc.rust-lang.org/std/cell/struct.Cell.html "Cell in std::cell - Rust"
+[`AtomicU64`]: https://doc.rust-lang.org/std/sync/atomic/struct.AtomicU64.html "AtomicU64 in std::sync::atomic - Rust"

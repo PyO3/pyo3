@@ -1,12 +1,14 @@
-use crate::callback::IntoPyCallbackOutput;
 use crate::exceptions::PyStopAsyncIteration;
 use crate::gil::LockGIL;
+use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::panic::PanicTrap;
 use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout};
+use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
 use crate::pycell::impl_::PyClassBorrowChecker as _;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
+use crate::types::PyType;
 use crate::{
     ffi, Bound, DowncastError, Py, PyAny, PyClass, PyClassInitializer, PyErr, PyObject, PyRef,
     PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
@@ -17,6 +19,9 @@ use std::marker::PhantomData;
 use std::os::raw::{c_int, c_void};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr::null_mut;
+
+use super::trampoline;
+use crate::internal_tricks::{clear_eq, traverse_eq};
 
 /// Python 3.8 and up - __ipow__ has modulo argument correctly populated.
 #[cfg(Py_3_8)]
@@ -275,6 +280,7 @@ pub unsafe fn _call_traverse<T>(
     impl_: fn(&T, PyVisit<'_>) -> Result<(), PyTraverseError>,
     visit: ffi::visitproc,
     arg: *mut c_void,
+    current_traverse: ffi::traverseproc,
 ) -> c_int
 where
     T: PyClass,
@@ -289,6 +295,11 @@ where
     let trap = PanicTrap::new("uncaught panic inside __traverse__ handler");
     let lock = LockGIL::during_traverse();
 
+    let super_retval = call_super_traverse(slf, visit, arg, current_traverse);
+    if super_retval != 0 {
+        return super_retval;
+    }
+
     // SAFETY: `slf` is a valid Python object pointer to a class object of type T, and
     // traversal is running so no mutations can occur.
     let class_object: &PyClassObject<T> = &*slf.cast();
@@ -300,7 +311,7 @@ where
     // ... and we cannot traverse a type which might be being mutated by a Rust thread
     && class_object.borrow_checker().try_borrow().is_ok() {
         struct TraverseGuard<'a, T: PyClass>(&'a PyClassObject<T>);
-        impl<'a, T: PyClass> Drop for TraverseGuard<'a,  T> {
+        impl<T: PyClass> Drop for TraverseGuard<'_,  T> {
             fn drop(&mut self) {
                 self.0.borrow_checker().release_borrow()
             }
@@ -328,15 +339,136 @@ where
     retval
 }
 
+/// Call super-type traverse method, if necessary.
+///
+/// Adapted from <https://github.com/cython/cython/blob/7acfb375fb54a033f021b0982a3cd40c34fb22ac/Cython/Utility/ExtensionTypes.c#L386>
+///
+/// TODO: There are possible optimizations over looking up the base type in this way
+/// - if the base type is known in this module, can potentially look it up directly in module state
+///   (when we have it)
+/// - if the base type is a Python builtin, can jut call the C function directly
+/// - if the base type is a PyO3 type defined in the same module, can potentially do similar to
+///   tp_alloc where we solve this at compile time
+unsafe fn call_super_traverse(
+    obj: *mut ffi::PyObject,
+    visit: ffi::visitproc,
+    arg: *mut c_void,
+    current_traverse: ffi::traverseproc,
+) -> c_int {
+    // SAFETY: in this function here it's ok to work with raw type objects `ffi::Py_TYPE`
+    // because the GC is running and so
+    // - (a) we cannot do refcounting and
+    // - (b) the type of the object cannot change.
+    let mut ty = ffi::Py_TYPE(obj);
+    let mut traverse: Option<ffi::traverseproc>;
+
+    // First find the current type by the current_traverse function
+    loop {
+        traverse = get_slot(ty, TP_TRAVERSE);
+        if traverse_eq(traverse, current_traverse) {
+            break;
+        }
+        ty = get_slot(ty, TP_BASE);
+        if ty.is_null() {
+            // FIXME: return an error if current type not in the MRO? Should be impossible.
+            return 0;
+        }
+    }
+
+    // Get first base which has a different traverse function
+    while traverse_eq(traverse, current_traverse) {
+        ty = get_slot(ty, TP_BASE);
+        if ty.is_null() {
+            break;
+        }
+        traverse = get_slot(ty, TP_TRAVERSE);
+    }
+
+    // If we found a type with a different traverse function, call it
+    if let Some(traverse) = traverse {
+        return traverse(obj, visit, arg);
+    }
+
+    // FIXME same question as cython: what if the current type is not in the MRO?
+    0
+}
+
+/// Calls an implementation of __clear__ for tp_clear
+pub unsafe fn _call_clear(
+    slf: *mut ffi::PyObject,
+    impl_: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<()>,
+    current_clear: ffi::inquiry,
+) -> c_int {
+    trampoline::trampoline(move |py| {
+        let super_retval = call_super_clear(py, slf, current_clear);
+        if super_retval != 0 {
+            return Err(PyErr::fetch(py));
+        }
+        impl_(py, slf)?;
+        Ok(0)
+    })
+}
+
+/// Call super-type traverse method, if necessary.
+///
+/// Adapted from <https://github.com/cython/cython/blob/7acfb375fb54a033f021b0982a3cd40c34fb22ac/Cython/Utility/ExtensionTypes.c#L386>
+///
+/// TODO: There are possible optimizations over looking up the base type in this way
+/// - if the base type is known in this module, can potentially look it up directly in module state
+///   (when we have it)
+/// - if the base type is a Python builtin, can jut call the C function directly
+/// - if the base type is a PyO3 type defined in the same module, can potentially do similar to
+///   tp_alloc where we solve this at compile time
+unsafe fn call_super_clear(
+    py: Python<'_>,
+    obj: *mut ffi::PyObject,
+    current_clear: ffi::inquiry,
+) -> c_int {
+    let mut ty = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(obj));
+    let mut clear: Option<ffi::inquiry>;
+
+    // First find the current type by the current_clear function
+    loop {
+        clear = ty.get_slot(TP_CLEAR);
+        if clear_eq(clear, current_clear) {
+            break;
+        }
+        let base = ty.get_slot(TP_BASE);
+        if base.is_null() {
+            // FIXME: return an error if current type not in the MRO? Should be impossible.
+            return 0;
+        }
+        ty = PyType::from_borrowed_type_ptr(py, base);
+    }
+
+    // Get first base which has a different clear function
+    while clear_eq(clear, current_clear) {
+        let base = ty.get_slot(TP_BASE);
+        if base.is_null() {
+            break;
+        }
+        ty = PyType::from_borrowed_type_ptr(py, base);
+        clear = ty.get_slot(TP_CLEAR);
+    }
+
+    // If we found a type with a different clear function, call it
+    if let Some(clear) = clear {
+        return clear(obj);
+    }
+
+    // FIXME same question as cython: what if the current type is not in the MRO?
+    0
+}
+
 // Autoref-based specialization for handling `__next__` returning `Option`
 
 pub struct IterBaseTag;
 
 impl IterBaseTag {
     #[inline]
-    pub fn convert<Value, Target>(self, py: Python<'_>, value: Value) -> PyResult<Target>
+    pub fn convert<'py, Value, Target>(self, py: Python<'py>, value: Value) -> PyResult<Target>
     where
-        Value: IntoPyCallbackOutput<Target>,
+        Value: IntoPyCallbackOutput<'py, Target>,
     {
         value.convert(py)
     }
@@ -355,13 +487,13 @@ pub struct IterOptionTag;
 
 impl IterOptionTag {
     #[inline]
-    pub fn convert<Value>(
+    pub fn convert<'py, Value>(
         self,
-        py: Python<'_>,
+        py: Python<'py>,
         value: Option<Value>,
     ) -> PyResult<*mut ffi::PyObject>
     where
-        Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+        Value: IntoPyCallbackOutput<'py, *mut ffi::PyObject>,
     {
         match value {
             Some(value) => value.convert(py),
@@ -383,13 +515,13 @@ pub struct IterResultOptionTag;
 
 impl IterResultOptionTag {
     #[inline]
-    pub fn convert<Value, Error>(
+    pub fn convert<'py, Value, Error>(
         self,
-        py: Python<'_>,
+        py: Python<'py>,
         value: Result<Option<Value>, Error>,
     ) -> PyResult<*mut ffi::PyObject>
     where
-        Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+        Value: IntoPyCallbackOutput<'py, *mut ffi::PyObject>,
         Error: Into<PyErr>,
     {
         match value {
@@ -415,9 +547,9 @@ pub struct AsyncIterBaseTag;
 
 impl AsyncIterBaseTag {
     #[inline]
-    pub fn convert<Value, Target>(self, py: Python<'_>, value: Value) -> PyResult<Target>
+    pub fn convert<'py, Value, Target>(self, py: Python<'py>, value: Value) -> PyResult<Target>
     where
-        Value: IntoPyCallbackOutput<Target>,
+        Value: IntoPyCallbackOutput<'py, Target>,
     {
         value.convert(py)
     }
@@ -436,13 +568,13 @@ pub struct AsyncIterOptionTag;
 
 impl AsyncIterOptionTag {
     #[inline]
-    pub fn convert<Value>(
+    pub fn convert<'py, Value>(
         self,
-        py: Python<'_>,
+        py: Python<'py>,
         value: Option<Value>,
     ) -> PyResult<*mut ffi::PyObject>
     where
-        Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+        Value: IntoPyCallbackOutput<'py, *mut ffi::PyObject>,
     {
         match value {
             Some(value) => value.convert(py),
@@ -464,13 +596,13 @@ pub struct AsyncIterResultOptionTag;
 
 impl AsyncIterResultOptionTag {
     #[inline]
-    pub fn convert<Value, Error>(
+    pub fn convert<'py, Value, Error>(
         self,
-        py: Python<'_>,
+        py: Python<'py>,
         value: Result<Option<Value>, Error>,
     ) -> PyResult<*mut ffi::PyObject>
     where
-        Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+        Value: IntoPyCallbackOutput<'py, *mut ffi::PyObject>,
         Error: Into<PyErr>,
     {
         match value {

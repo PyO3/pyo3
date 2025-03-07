@@ -4,6 +4,7 @@ use std::cell::Cell;
 
 use pyo3::prelude::*;
 use pyo3::py_run;
+use pyo3::types::PyString;
 use pyo3::types::{IntoPyDict, PyList};
 
 #[path = "../src/tests/common.rs"]
@@ -42,7 +43,7 @@ impl ClassWithProperties {
     }
 
     #[setter]
-    fn set_from_len(&mut self, #[pyo3(from_py_with = "extract_len")] value: i32) {
+    fn set_from_len(&mut self, #[pyo3(from_py_with = extract_len)] value: i32) {
         self.num = value;
     }
 
@@ -216,7 +217,7 @@ fn get_all_and_set() {
     });
 }
 
-#[pyclass]
+#[pyclass(unsendable)]
 struct CellGetterSetter {
     #[pyo3(get, set)]
     cell_inner: Cell<i32>,
@@ -228,8 +229,8 @@ fn cell_getter_setter() {
         cell_inner: Cell::new(10),
     };
     Python::with_gil(|py| {
-        let inst = Py::new(py, c).unwrap().to_object(py);
-        let cell = Cell::new(20).to_object(py);
+        let inst = Py::new(py, c).unwrap();
+        let cell = Cell::new(20i32).into_pyobject(py).unwrap();
 
         py_run!(py, cell, "assert cell == 20");
         py_run!(py, inst, "assert inst.cell_inner == 10");
@@ -255,7 +256,7 @@ fn borrowed_value_with_lifetime_of_self() {
     }
 
     Python::with_gil(|py| {
-        let inst = Py::new(py, BorrowedValue {}).unwrap().to_object(py);
+        let inst = Py::new(py, BorrowedValue {}).unwrap();
 
         py_run!(py, inst, "assert inst.value == 'value'");
     });
@@ -266,18 +267,17 @@ fn frozen_py_field_get() {
     #[pyclass(frozen)]
     struct FrozenPyField {
         #[pyo3(get)]
-        value: Py<PyAny>,
+        value: Py<PyString>,
     }
 
     Python::with_gil(|py| {
         let inst = Py::new(
             py,
             FrozenPyField {
-                value: "value".into_py(py),
+                value: "value".into_pyobject(py).unwrap().unbind(),
             },
         )
-        .unwrap()
-        .to_object(py);
+        .unwrap();
 
         py_run!(py, inst, "assert inst.value == 'value'");
     });

@@ -415,10 +415,38 @@ impl Dummy {
     // Buffer protocol?
 }
 
+#[crate::pyclass(crate = "crate")]
+struct Clear;
+
+#[crate::pymethods(crate = "crate")]
+impl Clear {
+    pub fn __traverse__(
+        &self,
+        visit: crate::PyVisit<'_>,
+    ) -> ::std::result::Result<(), crate::PyTraverseError> {
+        ::std::result::Result::Ok(())
+    }
+
+    pub fn __clear__(&self) {}
+
+    #[pyo3(signature=(*, reuse=false))]
+    pub fn clear(&self, reuse: bool) {}
+}
+
 // Ensure that crate argument is also accepted inline
 
 #[crate::pyclass(crate = "crate")]
 struct Dummy2;
 
 #[crate::pymethods(crate = "crate")]
-impl Dummy2 {}
+impl Dummy2 {
+    #[classmethod]
+    fn __len__(cls: &crate::Bound<'_, crate::types::PyType>) -> crate::PyResult<usize> {
+        ::std::result::Result::Ok(0)
+    }
+
+    #[staticmethod]
+    fn __repr__() -> &'static str {
+        "Dummy"
+    }
+}

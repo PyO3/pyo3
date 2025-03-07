@@ -4,9 +4,8 @@ use pyo3_build_config::{
         cargo_env_var, env_var, errors::Result, is_linking_libpython, resolve_interpreter_config,
         InterpreterConfig, PythonVersion,
     },
-    warn, BuildFlag, PythonImplementation,
+    warn, PythonImplementation,
 };
-use std::ops::Not;
 
 /// Minimum Python version PyO3 supports.
 struct SupportedVersions {
@@ -26,7 +25,7 @@ const SUPPORTED_VERSIONS_PYPY: SupportedVersions = SupportedVersions {
     min: PythonVersion { major: 3, minor: 9 },
     max: PythonVersion {
         major: 3,
-        minor: 10,
+        minor: 11,
     },
 };
 
@@ -57,15 +56,22 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 interpreter_config.version,
                 versions.min,
             );
-            ensure!(
-                interpreter_config.version <= versions.max || env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").map_or(false, |os_str| os_str == "1"),
-                "the configured Python interpreter version ({}) is newer than PyO3's maximum supported version ({})\n\
-                 = help: please check if an updated version of PyO3 is available. Current version: {}\n\
-                 = help: set PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 to suppress this check and build anyway using the stable ABI",
-                interpreter_config.version,
-                versions.max,
-                std::env::var("CARGO_PKG_VERSION").unwrap(),
-            );
+            if interpreter_config.version > versions.max {
+                ensure!(!interpreter_config.is_free_threaded(),
+                        "The configured Python interpreter version ({}) is newer than PyO3's maximum supported version ({})\n\
+                         = help: please check if an updated version of PyO3 is available. Current version: {}\n\
+                         = help: The free-threaded build of CPython does not support the limited API so this check cannot be suppressed.",
+                        interpreter_config.version, versions.max, std::env::var("CARGO_PKG_VERSION").unwrap()
+                );
+                ensure!(env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").map_or(false, |os_str| os_str == "1"),
+                        "the configured Python interpreter version ({}) is newer than PyO3's maximum supported version ({})\n\
+                         = help: please check if an updated version of PyO3 is available. Current version: {}\n\
+                         = help: set PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 to suppress this check and build anyway using the stable ABI",
+                        interpreter_config.version,
+                        versions.max,
+                        std::env::var("CARGO_PKG_VERSION").unwrap(),
+                );
+            }
         }
         PythonImplementation::PyPy => {
             let versions = SUPPORTED_VERSIONS_PYPY;
@@ -107,7 +113,13 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
 
     if interpreter_config.abi3 {
         match interpreter_config.implementation {
-            PythonImplementation::CPython => {}
+            PythonImplementation::CPython => {
+                if interpreter_config.is_free_threaded() {
+                    warn!(
+                            "The free-threaded build of CPython does not yet support abi3 so the build artifacts will be version-specific."
+                    )
+                }
+            }
             PythonImplementation::PyPy => warn!(
                 "PyPy does not yet support abi3 so the build artifacts will be version-specific. \
                 See https://github.com/pypy/pypy/issues/3397 for more information."
@@ -116,29 +128,6 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 "GraalPy does not support abi3 so the build artifacts will be version-specific."
             ),
         }
-    }
-
-    Ok(())
-}
-
-fn ensure_gil_enabled(interpreter_config: &InterpreterConfig) -> Result<()> {
-    let gil_enabled = interpreter_config
-        .build_flags
-        .0
-        .contains(&BuildFlag::Py_GIL_DISABLED)
-        .not();
-    ensure!(
-        gil_enabled || std::env::var("UNSAFE_PYO3_BUILD_FREE_THREADED").map_or(false, |os_str| os_str == "1"),
-        "the Python interpreter was built with the GIL disabled, which is not yet supported by PyO3\n\
-        = help: see https://github.com/PyO3/pyo3/issues/4265 for more information\n\
-        = help: please check if an updated version of PyO3 is available. Current version: {}\n\
-        = help: set UNSAFE_PYO3_BUILD_FREE_THREADED=1 to suppress this check and build anyway for free-threaded Python",
-        std::env::var("CARGO_PKG_VERSION").unwrap()
-    );
-    if !gil_enabled && interpreter_config.abi3 {
-        warn!(
-            "The free-threaded build of CPython does not yet support abi3 so the build artifacts will be version-specific."
-        )
     }
 
     Ok(())
@@ -209,7 +198,6 @@ fn configure_pyo3() -> Result<()> {
 
     ensure_python_version(&interpreter_config)?;
     ensure_target_pointer_width(&interpreter_config)?;
-    ensure_gil_enabled(&interpreter_config)?;
 
     // Serialize the whole interpreter config into DEP_PYTHON_PYO3_CONFIG env var.
     interpreter_config.to_cargo_dep_env()?;

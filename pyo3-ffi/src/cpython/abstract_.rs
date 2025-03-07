@@ -1,5 +1,7 @@
 use crate::{PyObject, Py_ssize_t};
-use std::os::raw::{c_char, c_int};
+#[cfg(any(all(Py_3_8, not(any(PyPy, GraalPy))), not(Py_3_11)))]
+use std::os::raw::c_char;
+use std::os::raw::c_int;
 
 #[cfg(not(Py_3_11))]
 use crate::Py_buffer;
@@ -39,8 +41,8 @@ extern "C" {
     ) -> *mut PyObject;
 }
 
-#[cfg(Py_3_8)]
-pub const PY_VECTORCALL_ARGUMENTS_OFFSET: size_t =
+#[cfg(Py_3_8)] // NB exported as public in abstract.rs from 3.12
+const PY_VECTORCALL_ARGUMENTS_OFFSET: size_t =
     1 << (8 * std::mem::size_of::<size_t>() as size_t - 1);
 
 #[cfg(Py_3_8)]
@@ -89,7 +91,7 @@ pub unsafe fn _PyObject_VectorcallTstate(
     }
 }
 
-#[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
+#[cfg(all(Py_3_8, not(any(PyPy, GraalPy, Py_3_11))))] // exported as a function from 3.11, see abstract.rs
 #[inline(always)]
 pub unsafe fn PyObject_Vectorcall(
     callable: *mut PyObject,
@@ -101,16 +103,6 @@ pub unsafe fn PyObject_Vectorcall(
 }
 
 extern "C" {
-    #[cfg(all(PyPy, Py_3_8))]
-    #[cfg_attr(not(Py_3_9), link_name = "_PyPyObject_Vectorcall")]
-    #[cfg_attr(Py_3_9, link_name = "PyPyObject_Vectorcall")]
-    pub fn PyObject_Vectorcall(
-        callable: *mut PyObject,
-        args: *const *mut PyObject,
-        nargsf: size_t,
-        kwnames: *mut PyObject,
-    ) -> *mut PyObject;
-
     #[cfg(Py_3_8)]
     #[cfg_attr(
         all(not(any(PyPy, GraalPy)), not(Py_3_9)),
@@ -185,23 +177,13 @@ pub unsafe fn PyObject_CallOneArg(func: *mut PyObject, arg: *mut PyObject) -> *m
     _PyObject_VectorcallTstate(tstate, func, args, nargsf, std::ptr::null_mut())
 }
 
-extern "C" {
-    #[cfg(all(Py_3_9, not(any(PyPy, GraalPy))))]
-    pub fn PyObject_VectorcallMethod(
-        name: *mut PyObject,
-        args: *const *mut PyObject,
-        nargsf: size_t,
-        kwnames: *mut PyObject,
-    ) -> *mut PyObject;
-}
-
 #[cfg(all(Py_3_9, not(any(PyPy, GraalPy))))]
 #[inline(always)]
 pub unsafe fn PyObject_CallMethodNoArgs(
     self_: *mut PyObject,
     name: *mut PyObject,
 ) -> *mut PyObject {
-    PyObject_VectorcallMethod(
+    crate::PyObject_VectorcallMethod(
         name,
         &self_,
         1 | PY_VECTORCALL_ARGUMENTS_OFFSET,
@@ -218,7 +200,7 @@ pub unsafe fn PyObject_CallMethodOneArg(
 ) -> *mut PyObject {
     let args = [self_, arg];
     assert!(!arg.is_null());
-    PyObject_VectorcallMethod(
+    crate::PyObject_VectorcallMethod(
         name,
         args.as_ptr(),
         2 | PY_VECTORCALL_ARGUMENTS_OFFSET,

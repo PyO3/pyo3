@@ -26,7 +26,7 @@ fn extract_str_extract_fail(bench: &mut Bencher<'_>) {
     });
 }
 
-#[cfg(any(Py_3_10))]
+#[cfg(Py_3_10)]
 fn extract_str_downcast_success(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let s = PyString::new(py, "Hello, World!").into_any();
@@ -51,7 +51,7 @@ fn extract_str_downcast_fail(bench: &mut Bencher<'_>) {
 
 fn extract_int_extract_success(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let int = 123.to_object(py).into_bound(py);
+        let int = 123i32.into_pyobject(py).unwrap();
 
         bench.iter(|| black_box(&int).extract::<i64>().unwrap());
     });
@@ -70,7 +70,7 @@ fn extract_int_extract_fail(bench: &mut Bencher<'_>) {
 
 fn extract_int_downcast_success(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let int = 123.to_object(py).into_bound(py);
+        let int = 123i32.into_pyobject(py).unwrap();
 
         bench.iter(|| {
             let py_int = black_box(&int).downcast::<PyInt>().unwrap();
@@ -92,7 +92,7 @@ fn extract_int_downcast_fail(bench: &mut Bencher<'_>) {
 
 fn extract_float_extract_success(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let float = 23.42.to_object(py).into_bound(py);
+        let float = 23.42f64.into_pyobject(py).unwrap();
 
         bench.iter(|| black_box(&float).extract::<f64>().unwrap());
     });
@@ -111,7 +111,7 @@ fn extract_float_extract_fail(bench: &mut Bencher<'_>) {
 
 fn extract_float_downcast_success(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let float = 23.42.to_object(py).into_bound(py);
+        let float = 23.42f64.into_pyobject(py).unwrap();
 
         bench.iter(|| {
             let py_float = black_box(&float).downcast::<PyFloat>().unwrap();

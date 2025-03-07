@@ -25,9 +25,9 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
-use crate::{Bound, IntoPy, Py, PyAny, PyErr, Python};
+use crate::{Bound, IntoPyObject, PyAny, PyErr, Python};
 use std::os::raw::c_int;
-#[cfg(feature = "chrono")]
+#[cfg(any(feature = "chrono", feature = "jiff-02"))]
 use std::ptr;
 
 fn ensure_datetime_api(py: Python<'_>) -> PyResult<&'static PyDateTime_CAPI> {
@@ -409,7 +409,7 @@ impl PyDateTime {
         timestamp: f64,
         tzinfo: Option<&Bound<'py, PyTzInfo>>,
     ) -> PyResult<Bound<'py, PyDateTime>> {
-        let args = IntoPy::<Py<PyTuple>>::into_py((timestamp, tzinfo), py).into_bound(py);
+        let args = (timestamp, tzinfo).into_pyobject(py)?;
 
         // safety ensure API is loaded
         let _api = ensure_datetime_api(py)?;
@@ -698,7 +698,7 @@ pub fn timezone_utc_bound(py: Python<'_>) -> Bound<'_, PyTzInfo> {
 /// Equivalent to `datetime.timezone` constructor
 ///
 /// Only used internally
-#[cfg(feature = "chrono")]
+#[cfg(any(feature = "chrono", feature = "jiff-02"))]
 pub(crate) fn timezone_from_offset<'py>(
     offset: &Bound<'py, PyDelta>,
 ) -> PyResult<Bound<'py, PyTzInfo>> {

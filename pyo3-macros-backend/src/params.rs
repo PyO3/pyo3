@@ -1,5 +1,6 @@
-use crate::utils::Ctx;
+use crate::utils::{deprecated_from_py_with, Ctx};
 use crate::{
+    attributes::FromPyWithAttribute,
     method::{FnArg, FnSpec, RegularArg},
     pyfunction::FunctionSignature,
     quotes::some_wrap,
@@ -61,7 +62,9 @@ pub fn impl_arg_params(
         .filter_map(|(i, arg)| {
             let from_py_with = &arg.from_py_with()?.value;
             let from_py_with_holder = format_ident!("from_py_with_{}", i);
+            let d = deprecated_from_py_with(from_py_with).unwrap_or_default();
             Some(quote_spanned! { from_py_with.span() =>
+                #d
                 let #from_py_with_holder = #from_py_with;
             })
         })
@@ -79,7 +82,7 @@ pub fn impl_arg_params(
             .collect();
         return (
             quote! {
-                let _args = #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_args);
+                let _args = unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_args) };
                 let _kwargs = #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr_or_opt(py, &_kwargs);
                 #from_py_with
             },
@@ -245,19 +248,43 @@ pub(crate) fn impl_regular_arg_param(
     // Option<T> arguments have special treatment: the default should be specified _without_ the
     // Some() wrapper. Maybe this should be changed in future?!
     if arg.option_wrapped_type.is_some() {
-        default = Some(default.map_or_else(
-            || quote!(::std::option::Option::None),
-            |tokens| some_wrap(tokens, ctx),
-        ));
+        default = default.map(|tokens| some_wrap(tokens, ctx));
     }
 
-    if arg.from_py_with.is_some() {
+    if let Some(FromPyWithAttribute { kw, .. }) = arg.from_py_with {
+        let extractor = quote_spanned! { kw.span =>
+            { let from_py_with: fn(_) -> _ = #from_py_with; from_py_with }
+        };
         if let Some(default) = default {
             quote_arg_span! {
                 #pyo3_path::impl_::extract_argument::from_py_with_with_default(
                     #arg_value,
                     #name_str,
-                    #from_py_with as fn(_) -> _,
+                    #extractor,
+                    #[allow(clippy::redundant_closure)]
+                    {
+                        || #default
+                    }
+                )?
+            }
+        } else {
+            let unwrap = quote! {unsafe { #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value) }};
+            quote_arg_span! {
+                #pyo3_path::impl_::extract_argument::from_py_with(
+                    #unwrap,
+                    #name_str,
+                    #extractor,
+                )?
+            }
+        }
+    } else if let Some(default) = default {
+        let holder = holders.push_holder(arg.name.span());
+        if arg.option_wrapped_type.is_some() {
+            quote_arg_span! {
+                #pyo3_path::impl_::extract_argument::extract_optional_argument(
+                    #arg_value,
+                    &mut #holder,
+                    #name_str,
                     #[allow(clippy::redundant_closure)]
                     {
                         || #default
@@ -266,44 +293,23 @@ pub(crate) fn impl_regular_arg_param(
             }
         } else {
             quote_arg_span! {
-                #pyo3_path::impl_::extract_argument::from_py_with(
-                    #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value),
-                    #name_str,
-                    #from_py_with as fn(_) -> _,
-                )?
+                    #pyo3_path::impl_::extract_argument::extract_argument_with_default(
+                        #arg_value,
+                        &mut #holder,
+                        #name_str,
+                        #[allow(clippy::redundant_closure)]
+                        {
+                            || #default
+                        }
+                    )?
             }
-        }
-    } else if arg.option_wrapped_type.is_some() {
-        let holder = holders.push_holder(arg.name.span());
-        quote_arg_span! {
-            #pyo3_path::impl_::extract_argument::extract_optional_argument(
-                #arg_value,
-                &mut #holder,
-                #name_str,
-                #[allow(clippy::redundant_closure)]
-                {
-                    || #default
-                }
-            )?
-        }
-    } else if let Some(default) = default {
-        let holder = holders.push_holder(arg.name.span());
-        quote_arg_span! {
-            #pyo3_path::impl_::extract_argument::extract_argument_with_default(
-                #arg_value,
-                &mut #holder,
-                #name_str,
-                #[allow(clippy::redundant_closure)]
-                {
-                    || #default
-                }
-            )?
         }
     } else {
         let holder = holders.push_holder(arg.name.span());
+        let unwrap = quote! {unsafe { #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value) }};
         quote_arg_span! {
             #pyo3_path::impl_::extract_argument::extract_argument(
-                #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value),
+                #unwrap,
                 &mut #holder,
                 #name_str
             )?

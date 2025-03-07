@@ -7,7 +7,7 @@ use crate::{
     impl_::pymethods::{self, PyMethodDef},
     types::{PyCapsule, PyDict, PyModule, PyString, PyTuple},
 };
-use crate::{Bound, IntoPy, Py, PyAny, PyResult, Python};
+use crate::{Bound, Py, PyAny, PyResult, Python};
 use std::cell::UnsafeCell;
 use std::ffi::CStr;
 
@@ -104,7 +104,7 @@ impl PyCFunction {
     ) -> PyResult<Bound<'py, Self>>
     where
         F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
-        R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
+        for<'p> R: crate::impl_::callback::IntoPyCallbackOutput<'p, *mut ffi::PyObject>,
     {
         let name = name.unwrap_or(ffi::c_str!("pyo3-closure"));
         let doc = doc.unwrap_or(ffi::c_str!(""));
@@ -142,7 +142,7 @@ impl PyCFunction {
     ) -> PyResult<Bound<'py, Self>>
     where
         F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
-        R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
+        for<'p> R: crate::impl_::callback::IntoPyCallbackOutput<'p, *mut ffi::PyObject>,
     {
         Self::new_closure(py, name, doc, closure)
     }
@@ -155,7 +155,7 @@ impl PyCFunction {
     ) -> PyResult<Bound<'py, Self>> {
         let (mod_ptr, module_name): (_, Option<Py<PyString>>) = if let Some(m) = module {
             let mod_ptr = m.as_ptr();
-            (mod_ptr, Some(m.name()?.into_py(py)))
+            (mod_ptr, Some(m.name()?.unbind()))
         } else {
             (std::ptr::null_mut(), None)
         };
@@ -185,7 +185,7 @@ unsafe extern "C" fn run_closure<F, R>(
 ) -> *mut ffi::PyObject
 where
     F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
-    R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
+    for<'py> R: crate::impl_::callback::IntoPyCallbackOutput<'py, *mut ffi::PyObject>,
 {
     use crate::types::any::PyAnyMethods;
 
@@ -202,7 +202,7 @@ where
                 .as_ref()
                 .map(|b| b.downcast_unchecked::<PyDict>());
             let result = (boxed_fn.closure)(args, kwargs);
-            crate::callback::convert(py, result)
+            crate::impl_::callback::convert(py, result)
         },
     )
 }

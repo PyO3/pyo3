@@ -1,4 +1,3 @@
-use crate::conversion::IntoPyObject;
 use crate::types::PyIterator;
 use crate::{
     err::{self, PyErr, PyResult},
@@ -6,9 +5,9 @@ use crate::{
     ffi_ptr_ext::FfiPtrExt,
     py_result_ext::PyResultExt,
     types::any::PyAnyMethods,
-    Bound, PyAny, Python, ToPyObject,
+    Bound, PyAny, Python,
 };
-use crate::{Borrowed, BoundObject};
+use crate::{Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt};
 use std::ptr;
 
 /// Allows building a Python `frozenset` one item at a time
@@ -103,8 +102,9 @@ impl PyFrozenSet {
 
     /// Deprecated name for [`PyFrozenSet::new`].
     #[deprecated(since = "0.23.0", note = "renamed to `PyFrozenSet::new`")]
+    #[allow(deprecated)]
     #[inline]
-    pub fn new_bound<'a, 'p, T: ToPyObject + 'a>(
+    pub fn new_bound<'a, 'p, T: crate::ToPyObject + 'a>(
         py: Python<'p>,
         elements: impl IntoIterator<Item = &'a T>,
     ) -> PyResult<Bound<'p, PyFrozenSet>> {
@@ -180,10 +180,7 @@ impl<'py> PyFrozenSetMethods<'py> for Bound<'py, PyFrozenSet> {
         let py = self.py();
         inner(
             self,
-            key.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -240,9 +237,17 @@ impl<'py> Iterator for BoundFrozenSetIterator<'py> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.remaining, Some(self.remaining))
     }
+
+    #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
+    }
 }
 
-impl<'py> ExactSizeIterator for BoundFrozenSetIterator<'py> {
+impl ExactSizeIterator for BoundFrozenSetIterator<'_> {
     fn len(&self) -> usize {
         self.remaining
     }
@@ -265,7 +270,7 @@ where
     let ptr = set.as_ptr();
 
     for e in elements {
-        let obj = e.into_pyobject(py).map_err(Into::into)?;
+        let obj = e.into_pyobject_or_pyerr(py)?;
         err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj.as_ptr()) })?;
     }
 
@@ -360,5 +365,13 @@ mod tests {
             assert!(set.contains(2).unwrap());
             assert!(!set.contains(3).unwrap());
         });
+    }
+
+    #[test]
+    fn test_iter_count() {
+        Python::with_gil(|py| {
+            let set = PyFrozenSet::new(py, vec![1, 2, 3]).unwrap();
+            assert_eq!(set.iter().count(), 3);
+        })
     }
 }

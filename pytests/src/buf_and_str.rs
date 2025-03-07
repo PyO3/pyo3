@@ -47,7 +47,7 @@ fn return_memoryview(py: Python<'_>) -> PyResult<Bound<'_, PyMemoryView>> {
     PyMemoryView::from(&bytes)
 }
 
-#[pymodule]
+#[pymodule(gil_used = false)]
 pub fn buf_and_str(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<BytesExtractor>()?;
     m.add_function(wrap_pyfunction!(return_memoryview, m)?)?;

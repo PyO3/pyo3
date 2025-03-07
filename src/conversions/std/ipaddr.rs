@@ -7,9 +7,9 @@ use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
-use crate::{
-    intern, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
-};
+use crate::{intern, FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python};
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 
 impl FromPyObject<'_> for IpAddr {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
@@ -31,6 +31,7 @@ impl FromPyObject<'_> for IpAddr {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for Ipv4Addr {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -62,6 +63,7 @@ impl<'py> IntoPyObject<'py> for &Ipv4Addr {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for Ipv6Addr {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -93,6 +95,7 @@ impl<'py> IntoPyObject<'py> for &Ipv6Addr {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for IpAddr {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -100,6 +103,7 @@ impl ToPyObject for IpAddr {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for IpAddr {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -150,12 +154,12 @@ mod test_ipaddr {
                     "IPv6Address"
                 };
 
-                let pyobj = ip.into_py(py);
-                let repr = pyobj.bind(py).repr().unwrap();
+                let pyobj = ip.into_pyobject(py).unwrap();
+                let repr = pyobj.repr().unwrap();
                 let repr = repr.to_string_lossy();
                 assert_eq!(repr, format!("{}('{}')", py_cls, ip));
 
-                let ip2: IpAddr = pyobj.extract(py).unwrap();
+                let ip2: IpAddr = pyobj.extract().unwrap();
                 assert_eq!(ip, ip2);
             }
             roundtrip(py, "127.0.0.1");
@@ -168,11 +172,11 @@ mod test_ipaddr {
     fn test_from_pystring() {
         Python::with_gil(|py| {
             let py_str = PyString::new(py, "0:0:0:0:0:0:0:1");
-            let ip: IpAddr = py_str.to_object(py).extract(py).unwrap();
+            let ip: IpAddr = py_str.extract().unwrap();
             assert_eq!(ip, IpAddr::from_str("::1").unwrap());
 
             let py_str = PyString::new(py, "invalid");
-            assert!(py_str.to_object(py).extract::<IpAddr>(py).is_err());
+            assert!(py_str.extract::<IpAddr>().is_err());
         });
     }
 }

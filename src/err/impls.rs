@@ -1,4 +1,5 @@
-use crate::{err::PyErrArguments, exceptions, IntoPy, PyErr, PyObject, Python};
+use crate::IntoPyObject;
+use crate::{err::PyErrArguments, exceptions, PyErr, PyObject, Python};
 use std::io;
 
 /// Convert `PyErr` to `io::Error`
@@ -26,6 +27,15 @@ impl From<PyErr> for io::Error {
             } else if err.is_instance_of::<exceptions::PyTimeoutError>(py) {
                 io::ErrorKind::TimedOut
             } else {
+                #[cfg(io_error_more)]
+                if err.is_instance_of::<exceptions::PyIsADirectoryError>(py) {
+                    io::ErrorKind::IsADirectory
+                } else if err.is_instance_of::<exceptions::PyNotADirectoryError>(py) {
+                    io::ErrorKind::NotADirectory
+                } else {
+                    io::ErrorKind::Other
+                }
+                #[cfg(not(io_error_more))]
                 io::ErrorKind::Other
             }
         });
@@ -53,6 +63,10 @@ impl From<io::Error> for PyErr {
             io::ErrorKind::AlreadyExists => exceptions::PyFileExistsError::new_err(err),
             io::ErrorKind::WouldBlock => exceptions::PyBlockingIOError::new_err(err),
             io::ErrorKind::TimedOut => exceptions::PyTimeoutError::new_err(err),
+            #[cfg(io_error_more)]
+            io::ErrorKind::IsADirectory => exceptions::PyIsADirectoryError::new_err(err),
+            #[cfg(io_error_more)]
+            io::ErrorKind::NotADirectory => exceptions::PyNotADirectoryError::new_err(err),
             _ => exceptions::PyOSError::new_err(err),
         }
     }
@@ -60,7 +74,12 @@ impl From<io::Error> for PyErr {
 
 impl PyErrArguments for io::Error {
     fn arguments(self, py: Python<'_>) -> PyObject {
-        self.to_string().into_py(py)
+        //FIXME(icxolu) remove unwrap
+        self.to_string()
+            .into_pyobject(py)
+            .unwrap()
+            .into_any()
+            .unbind()
     }
 }
 
@@ -86,7 +105,12 @@ macro_rules! impl_to_pyerr {
     ($err: ty, $pyexc: ty) => {
         impl PyErrArguments for $err {
             fn arguments(self, py: Python<'_>) -> PyObject {
-                self.to_string().into_py(py)
+                // FIXME(icxolu) remove unwrap
+                self.to_string()
+                    .into_pyobject(py)
+                    .unwrap()
+                    .into_any()
+                    .unbind()
             }
         }
 
@@ -156,5 +180,9 @@ mod tests {
         check_err(io::ErrorKind::AlreadyExists, "FileExistsError");
         check_err(io::ErrorKind::WouldBlock, "BlockingIOError");
         check_err(io::ErrorKind::TimedOut, "TimeoutError");
+        #[cfg(io_error_more)]
+        check_err(io::ErrorKind::IsADirectory, "IsADirectoryError");
+        #[cfg(io_error_more)]
+        check_err(io::ErrorKind::NotADirectory, "NotADirectoryError");
     }
 }

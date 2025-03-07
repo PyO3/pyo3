@@ -2,9 +2,10 @@
 use crate::inspect::types::TypeInfo;
 use crate::{
     exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
-    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
-    Python, ToPyObject,
+    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, PyObject, PyResult, Python,
 };
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 
 use super::any::PyAnyMethods;
 use crate::conversion::IntoPyObject;
@@ -145,6 +146,7 @@ impl PartialEq<Borrowed<'_, '_, PyBool>> for &'_ bool {
 }
 
 /// Converts a Rust `bool` to a Python `bool`.
+#[allow(deprecated)]
 impl ToPyObject for bool {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -152,15 +154,11 @@ impl ToPyObject for bool {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for bool {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::builtin("bool")
     }
 }
 
@@ -173,6 +171,11 @@ impl<'py> IntoPyObject<'py> for bool {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyBool::new(py, self))
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::builtin("bool")
+    }
 }
 
 impl<'py> IntoPyObject<'py> for &bool {
@@ -183,6 +186,11 @@ impl<'py> IntoPyObject<'py> for &bool {
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::builtin("bool")
     }
 }
 
@@ -254,8 +262,8 @@ mod tests {
     use crate::types::any::PyAnyMethods;
     use crate::types::boolobject::PyBoolMethods;
     use crate::types::PyBool;
+    use crate::IntoPyObject;
     use crate::Python;
-    use crate::ToPyObject;
 
     #[test]
     fn test_true() {
@@ -263,7 +271,7 @@ mod tests {
             assert!(PyBool::new(py, true).is_true());
             let t = PyBool::new(py, true);
             assert!(t.extract::<bool>().unwrap());
-            assert!(true.to_object(py).is(&*PyBool::new(py, true)));
+            assert!(true.into_pyobject(py).unwrap().is(&*PyBool::new(py, true)));
         });
     }
 
@@ -273,7 +281,10 @@ mod tests {
             assert!(!PyBool::new(py, false).is_true());
             let t = PyBool::new(py, false);
             assert!(!t.extract::<bool>().unwrap());
-            assert!(false.to_object(py).is(&*PyBool::new(py, false)));
+            assert!(false
+                .into_pyobject(py)
+                .unwrap()
+                .is(&*PyBool::new(py, false)));
         });
     }
 

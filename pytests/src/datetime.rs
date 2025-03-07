@@ -203,7 +203,7 @@ impl TzClass {
     }
 }
 
-#[pymodule]
+#[pymodule(gil_used = false)]
 pub fn datetime(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(make_date, m)?)?;
     m.add_function(wrap_pyfunction!(get_date_tuple, m)?)?;

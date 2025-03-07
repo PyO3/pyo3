@@ -6,6 +6,7 @@
 //! APIs may may change at any time without documentation in the CHANGELOG and without
 //! breaking semver guarantees.
 
+pub mod callback;
 #[cfg(feature = "experimental-async")]
 pub mod coroutine;
 pub mod exceptions;
@@ -16,6 +17,7 @@ pub(crate) mod not_send;
 pub mod panic;
 pub mod pycell;
 pub mod pyclass;
+pub mod pyclass_init;
 pub mod pyfunction;
 pub mod pymethods;
 pub mod pymodule;

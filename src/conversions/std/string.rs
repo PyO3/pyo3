@@ -6,11 +6,14 @@ use crate::{
     conversion::IntoPyObject,
     instance::Bound,
     types::{any::PyAnyMethods, string::PyStringMethods, PyString},
-    FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
+    FromPyObject, Py, PyAny, PyObject, PyResult, Python,
 };
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 
 /// Converts a Rust `str` to a Python object.
 /// See `PyString::new` for details on the conversion.
+#[allow(deprecated)]
 impl ToPyObject for str {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -18,27 +21,19 @@ impl ToPyObject for str {
     }
 }
 
-impl<'a> IntoPy<PyObject> for &'a str {
+#[allow(deprecated)]
+impl IntoPy<PyObject> for &str {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        <String>::type_output()
-    }
 }
 
-impl<'a> IntoPy<Py<PyString>> for &'a str {
+#[allow(deprecated)]
+impl IntoPy<Py<PyString>> for &str {
     #[inline]
     fn into_py(self, py: Python<'_>) -> Py<PyString> {
         self.into_pyobject(py).unwrap().unbind()
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        <String>::type_output()
     }
 }
 
@@ -51,6 +46,11 @@ impl<'py> IntoPyObject<'py> for &str {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyString::new(py, self))
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
+    }
 }
 
 impl<'py> IntoPyObject<'py> for &&str {
@@ -62,10 +62,16 @@ impl<'py> IntoPyObject<'py> for &&str {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
+    }
 }
 
 /// Converts a Rust `Cow<'_, str>` to a Python object.
 /// See `PyString::new` for details on the conversion.
+#[allow(deprecated)]
 impl ToPyObject for Cow<'_, str> {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -73,15 +79,11 @@ impl ToPyObject for Cow<'_, str> {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for Cow<'_, str> {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        <String>::type_output()
     }
 }
 
@@ -94,6 +96,11 @@ impl<'py> IntoPyObject<'py> for Cow<'_, str> {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
+    }
 }
 
 impl<'py> IntoPyObject<'py> for &Cow<'_, str> {
@@ -105,10 +112,16 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, str> {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (&**self).into_pyobject(py)
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
+    }
 }
 
 /// Converts a Rust `String` to a Python object.
 /// See `PyString::new` for details on the conversion.
+#[allow(deprecated)]
 impl ToPyObject for String {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -116,6 +129,7 @@ impl ToPyObject for String {
     }
 }
 
+#[allow(deprecated)]
 impl ToPyObject for char {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -123,15 +137,11 @@ impl ToPyObject for char {
     }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for char {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        <String>::type_output()
     }
 }
 
@@ -144,6 +154,11 @@ impl<'py> IntoPyObject<'py> for char {
         let mut bytes = [0u8; 4];
         Ok(PyString::new(py, self.encode_utf8(&mut bytes)))
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
+    }
 }
 
 impl<'py> IntoPyObject<'py> for &char {
@@ -155,17 +170,18 @@ impl<'py> IntoPyObject<'py> for &char {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
+    }
 }
 
+#[allow(deprecated)]
 impl IntoPy<PyObject> for String {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::builtin("str")
     }
 }
 
@@ -177,17 +193,18 @@ impl<'py> IntoPyObject<'py> for String {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyString::new(py, &self))
     }
-}
-
-impl<'a> IntoPy<PyObject> for &'a String {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
 
     #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
-        <String>::type_output()
+        TypeInfo::builtin("str")
+    }
+}
+
+#[allow(deprecated)]
+impl IntoPy<PyObject> for &String {
+    #[inline]
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -199,6 +216,11 @@ impl<'py> IntoPyObject<'py> for &String {
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyString::new(py, self))
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
     }
 }
 
@@ -260,12 +282,13 @@ impl FromPyObject<'_> for char {
 #[cfg(test)]
 mod tests {
     use crate::types::any::PyAnyMethods;
-    use crate::Python;
-    use crate::{IntoPy, PyObject, ToPyObject};
+    use crate::{IntoPyObject, PyObject, Python};
     use std::borrow::Cow;
 
     #[test]
+    #[allow(deprecated)]
     fn test_cow_into_py() {
+        use crate::IntoPy;
         Python::with_gil(|py| {
             let s = "Hello Python";
             let py_string: PyObject = Cow::Borrowed(s).into_py(py);
@@ -276,13 +299,13 @@ mod tests {
     }
 
     #[test]
-    fn test_cow_to_object() {
+    fn test_cow_into_pyobject() {
         Python::with_gil(|py| {
             let s = "Hello Python";
-            let py_string = Cow::Borrowed(s).to_object(py);
-            assert_eq!(s, py_string.extract::<Cow<'_, str>>(py).unwrap());
-            let py_string = Cow::<str>::Owned(s.into()).to_object(py);
-            assert_eq!(s, py_string.extract::<Cow<'_, str>>(py).unwrap());
+            let py_string = Cow::Borrowed(s).into_pyobject(py).unwrap();
+            assert_eq!(s, py_string.extract::<Cow<'_, str>>().unwrap());
+            let py_string = Cow::<str>::Owned(s.into()).into_pyobject(py).unwrap();
+            assert_eq!(s, py_string.extract::<Cow<'_, str>>().unwrap());
         })
     }
 
@@ -290,8 +313,8 @@ mod tests {
     fn test_non_bmp() {
         Python::with_gil(|py| {
             let s = "\u{1F30F}";
-            let py_string = s.to_object(py);
-            assert_eq!(s, py_string.extract::<String>(py).unwrap());
+            let py_string = s.into_pyobject(py).unwrap();
+            assert_eq!(s, py_string.extract::<String>().unwrap());
         })
     }
 
@@ -299,9 +322,9 @@ mod tests {
     fn test_extract_str() {
         Python::with_gil(|py| {
             let s = "Hello Python";
-            let py_string = s.to_object(py);
+            let py_string = s.into_pyobject(py).unwrap();
 
-            let s2: Cow<'_, str> = py_string.bind(py).extract().unwrap();
+            let s2: Cow<'_, str> = py_string.extract().unwrap();
             assert_eq!(s, s2);
         })
     }
@@ -310,8 +333,8 @@ mod tests {
     fn test_extract_char() {
         Python::with_gil(|py| {
             let ch = '😃';
-            let py_string = ch.to_object(py);
-            let ch2: char = py_string.bind(py).extract().unwrap();
+            let py_string = ch.into_pyobject(py).unwrap();
+            let ch2: char = py_string.extract().unwrap();
             assert_eq!(ch, ch2);
         })
     }
@@ -320,8 +343,8 @@ mod tests {
     fn test_extract_char_err() {
         Python::with_gil(|py| {
             let s = "Hello Python";
-            let py_string = s.to_object(py);
-            let err: crate::PyResult<char> = py_string.bind(py).extract();
+            let py_string = s.into_pyobject(py).unwrap();
+            let err: crate::PyResult<char> = py_string.extract();
             assert!(err
                 .unwrap_err()
                 .to_string()
@@ -330,27 +353,30 @@ mod tests {
     }
 
     #[test]
-    fn test_string_into_py() {
+    fn test_string_into_pyobject() {
         Python::with_gil(|py| {
             let s = "Hello Python";
             let s2 = s.to_owned();
             let s3 = &s2;
             assert_eq!(
                 s,
-                IntoPy::<PyObject>::into_py(s3, py)
-                    .extract::<Cow<'_, str>>(py)
+                s3.into_pyobject(py)
+                    .unwrap()
+                    .extract::<Cow<'_, str>>()
                     .unwrap()
             );
             assert_eq!(
                 s,
-                IntoPy::<PyObject>::into_py(s2, py)
-                    .extract::<Cow<'_, str>>(py)
+                s2.into_pyobject(py)
+                    .unwrap()
+                    .extract::<Cow<'_, str>>()
                     .unwrap()
             );
             assert_eq!(
                 s,
-                IntoPy::<PyObject>::into_py(s, py)
-                    .extract::<Cow<'_, str>>(py)
+                s.into_pyobject(py)
+                    .unwrap()
+                    .extract::<Cow<'_, str>>()
                     .unwrap()
             );
         })

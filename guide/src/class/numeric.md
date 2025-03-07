@@ -27,7 +27,7 @@ OverflowError: Python int too large to convert to C long
 ```
 
 Instead of relying on the default [`FromPyObject`] extraction to parse arguments, we can specify our
-own extraction function, using the `#[pyo3(from_py_with = "...")]` attribute. Unfortunately PyO3
+own extraction function, using the `#[pyo3(from_py_with = ...)]` attribute. Unfortunately PyO3
 doesn't provide a way to wrap Python integers out of the box, but we can do a Python call to mask it
 and cast it to an `i32`.
 
@@ -62,7 +62,7 @@ struct Number(i32);
 #[pymethods]
 impl Number {
     #[new]
-    fn new(#[pyo3(from_py_with = "wrap")] value: i32) -> Self {
+    fn new(#[pyo3(from_py_with = wrap)] value: i32) -> Self {
         Self(value)
     }
 }
@@ -225,7 +225,7 @@ struct Number(i32);
 #[pymethods]
 impl Number {
     #[new]
-    fn new(#[pyo3(from_py_with = "wrap")] value: i32) -> Self {
+    fn new(#[pyo3(from_py_with = wrap)] value: i32) -> Self {
         Self(value)
     }
 

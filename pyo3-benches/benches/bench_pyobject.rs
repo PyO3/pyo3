@@ -22,13 +22,7 @@ fn drop_many_objects(b: &mut Bencher<'_>) {
 
 fn drop_many_objects_without_gil(b: &mut Bencher<'_>) {
     b.iter_batched(
-        || {
-            Python::with_gil(|py| {
-                (0..1000)
-                    .map(|_| py.None().into_py(py))
-                    .collect::<Vec<PyObject>>()
-            })
-        },
+        || Python::with_gil(|py| (0..1000).map(|_| py.None()).collect::<Vec<PyObject>>()),
         |objs| {
             drop(objs);
 
@@ -76,7 +70,7 @@ fn drop_many_objects_multiple_threads(b: &mut Bencher<'_>) {
             for sender in &sender {
                 let objs = Python::with_gil(|py| {
                     (0..1000 / THREADS)
-                        .map(|_| py.None().into_py(py))
+                        .map(|_| py.None())
                         .collect::<Vec<PyObject>>()
                 });
 

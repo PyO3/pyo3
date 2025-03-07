@@ -23,11 +23,14 @@ pub use self::float::{PyFloat, PyFloatMethods};
 pub use self::frame::PyFrame;
 pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
 pub use self::function::PyCFunction;
-#[cfg(all(not(Py_LIMITED_API), not(all(PyPy, not(Py_3_8))), not(GraalPy)))]
+#[cfg(all(not(Py_LIMITED_API), not(all(PyPy, not(Py_3_8)))))]
 pub use self::function::PyFunction;
+#[cfg(Py_3_9)]
+pub use self::genericalias::PyGenericAlias;
 pub use self::iterator::PyIterator;
 pub use self::list::{PyList, PyListMethods};
 pub use self::mapping::{PyMapping, PyMappingMethods};
+pub use self::mappingproxy::PyMappingProxy;
 pub use self::memoryview::PyMemoryView;
 pub use self::module::{PyModule, PyModuleMethods};
 pub use self::none::PyNone;
@@ -184,7 +187,7 @@ macro_rules! pyobject_subclassable_native_type {
         impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
             type LayoutAsBase = $crate::impl_::pycell::PyClassObjectBase<$layout>;
             type BaseNativeType = $name;
-            type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
+            type Initializer = $crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
             type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
         }
     }
@@ -222,6 +225,8 @@ mod code;
 pub(crate) mod complex;
 #[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
+#[cfg(all(Py_LIMITED_API, any(feature = "chrono", feature = "jiff-02")))]
+pub(crate) mod datetime_abi3;
 pub(crate) mod dict;
 mod ellipsis;
 pub(crate) mod float;
@@ -229,9 +234,12 @@ pub(crate) mod float;
 mod frame;
 pub(crate) mod frozenset;
 mod function;
+#[cfg(Py_3_9)]
+pub(crate) mod genericalias;
 pub(crate) mod iterator;
 pub(crate) mod list;
 pub(crate) mod mapping;
+pub(crate) mod mappingproxy;
 mod memoryview;
 pub(crate) mod module;
 mod none;

@@ -2,8 +2,11 @@ use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::types::list::new_from_iter;
-use crate::{Bound, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject};
+use crate::{Bound, PyAny, PyErr, PyObject, Python};
+#[allow(deprecated)]
+use crate::{IntoPy, ToPyObject};
 
+#[allow(deprecated)]
 impl<T> ToPyObject for [T]
 where
     T: ToPyObject,
@@ -15,6 +18,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<T> ToPyObject for Vec<T>
 where
     T: ToPyObject,
@@ -24,6 +28,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<T> IntoPy<PyObject> for Vec<T>
 where
     T: IntoPy<PyObject>,
@@ -32,11 +37,6 @@ where
         let mut iter = self.into_iter().map(|e| e.into_py(py));
         let list = new_from_iter(py, &mut iter);
         list.into()
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::list_of(T::type_output())
     }
 }
 
@@ -56,11 +56,17 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         T::owned_sequence_into_pyobject(self, py, crate::conversion::private::Token)
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::list_of(T::type_output())
+    }
 }
 
 impl<'a, 'py, T> IntoPyObject<'py> for &'a Vec<T>
 where
     &'a T: IntoPyObject<'py>,
+    T: 'a, // MSRV
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -72,6 +78,11 @@ where
         // `&Vec<u8>`, but that'd be inconsistent with the `IntoPyObject` impl
         // above which always returns a `PyAny` for `Vec<T>`.
         self.as_slice().into_pyobject(py).map(Bound::into_any)
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::list_of(<&T>::type_output())
     }
 }
 

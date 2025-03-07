@@ -61,11 +61,16 @@ impl Mapping {
     }
 
     #[pyo3(signature=(key, default=None))]
-    fn get(&self, py: Python<'_>, key: &str, default: Option<PyObject>) -> Option<PyObject> {
-        self.index
-            .get(key)
-            .map(|value| value.into_py(py))
-            .or(default)
+    fn get(
+        &self,
+        py: Python<'_>,
+        key: &str,
+        default: Option<PyObject>,
+    ) -> PyResult<Option<PyObject>> {
+        match self.index.get(key) {
+            Some(value) => Ok(Some(value.into_pyobject(py)?.into_any().unbind())),
+            None => Ok(default),
+        }
     }
 }
 

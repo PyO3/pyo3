@@ -73,7 +73,7 @@ The above example generates implementations for [`PyTypeInfo`] and [`PyClass`] f
 
 ### Restrictions
 
-To integrate Rust types with Python, PyO3 needs to place some restrictions on the types which can be annotated with `#[pyclass]`. In particular, they must have no lifetime parameters, no generic parameters, and must implement `Send`. The reason for each of these is explained below.
+To integrate Rust types with Python, PyO3 needs to place some restrictions on the types which can be annotated with `#[pyclass]`. In particular, they must have no lifetime parameters, no generic parameters, and must be thread-safe. The reason for each of these is explained below.
 
 #### No lifetime parameters
 
@@ -119,9 +119,13 @@ create_interface!(IntClass, i64);
 create_interface!(FloatClass, String);
 ```
 
-#### Must be Send
+#### Must be thread-safe
 
-Because Python objects are freely shared between threads by the Python interpreter, there is no guarantee which thread will eventually drop the object. Therefore all types annotated with `#[pyclass]` must implement `Send` (unless annotated with [`#[pyclass(unsendable)]`](#customizing-the-class)).
+Python objects are freely shared between threads by the Python interpreter. This means that:
+- Python objects may be created and destroyed by different Python threads; therefore `#[pyclass]` objects must be `Send`.
+- Python objects may be accessed by multiple Python threads simultaneously; therefore `#[pyclass]` objects must be `Sync`.
+
+For now, don't worry about these requirements; simple classes will already be thread-safe. There is a [detailed discussion on thread-safety](./class/thread-safety.md) later in the guide.
 
 ## Constructor
 
@@ -196,7 +200,7 @@ fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 ## Bound<T> and interior mutability
 
-Often is useful to turn a `#[pyclass]` type `T` into a Python object and access it from Rust code. The [`Py<T>`] and [`Bound<'py, T>`] smart pointers are the ways to represent a Python object in PyO3's API. More detail can be found about them [in the Python objects](./types.md#pyo3s-smart-pointers) section of the guide.
+It is often useful to turn a `#[pyclass]` type `T` into a Python object and access it from Rust code. The [`Py<T>`] and [`Bound<'py, T>`] smart pointers are the ways to represent a Python object in PyO3's API. More detail can be found about them [in the Python objects](./types.md#pyo3s-smart-pointers) section of the guide.
 
 Most Python objects do not offer exclusive (`&mut`) access (see the [section on Python's memory model](./python-from-rust.md#pythons-memory-model)). However, Rust structs wrapped as Python objects (called `pyclass` types) often *do* need `&mut` access. Due to the GIL, PyO3 *can* guarantee exclusive access to them.
 
@@ -412,10 +416,10 @@ impl SubSubClass {
         let base = PyClassInitializer::from(BaseClass::new());
         let sub = base.add_subclass(SubClass { val2: val });
         if val % 2 == 0 {
-            Ok(Py::new(py, sub)?.to_object(py))
+            Ok(Py::new(py, sub)?.into_any())
         } else {
             let sub_sub = sub.add_subclass(SubSubClass { val3: val });
-            Ok(Py::new(py, sub_sub)?.to_object(py))
+            Ok(Py::new(py, sub_sub)?.into_any())
         }
     }
 }
@@ -1258,8 +1262,8 @@ enum Shape {
 
 # #[cfg(Py_3_10)]
 Python::with_gil(|py| {
-    let circle = Shape::Circle { radius: 10.0 }.into_py(py);
-    let square = Shape::RegularPolygon(4, 10.0).into_py(py);
+    let circle = Shape::Circle { radius: 10.0 }.into_pyobject(py)?;
+    let square = Shape::RegularPolygon(4, 10.0).into_pyobject(py)?;
     let cls = py.get_type::<Shape>();
     pyo3::py_run!(py, circle square cls, r#"
         assert isinstance(circle, cls)
@@ -1284,11 +1288,13 @@ Python::with_gil(|py| {
 
         assert count_vertices(cls, circle) == 0
         assert count_vertices(cls, square) == 4
-    "#)
+    "#);
+#   Ok::<_, PyErr>(())
 })
+# .unwrap();
 ```
 
-WARNING: `Py::new` and `.into_py` are currently inconsistent. Note how the constructed value is _not_ an instance of the specific variant. For this reason, constructing values is only recommended using `.into_py`.
+WARNING: `Py::new` and `.into_pyobject` are currently inconsistent. Note how the constructed value is _not_ an instance of the specific variant. For this reason, constructing values is only recommended using `.into_pyobject`.
 
 ```rust
 # use pyo3::prelude::*;
@@ -1404,6 +1410,7 @@ impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a
     }
 }
 
+#[allow(deprecated)]
 impl pyo3::IntoPy<PyObject> for MyClass {
     fn into_py(self, py: pyo3::Python<'_>) -> pyo3::PyObject {
         pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)

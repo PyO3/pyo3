@@ -1,5 +1,6 @@
-use crate::conversion::IntoPyObject;
 use crate::types::PyIterator;
+#[allow(deprecated)]
+use crate::ToPyObject;
 use crate::{
     err::{self, PyErr, PyResult},
     ffi_ptr_ext::FfiPtrExt,
@@ -7,7 +8,7 @@ use crate::{
     py_result_ext::PyResultExt,
     types::any::PyAnyMethods,
 };
-use crate::{ffi, Borrowed, BoundObject, PyAny, Python, ToPyObject};
+use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, Python};
 use std::ptr;
 
 /// Represents a Python `set`.
@@ -55,6 +56,7 @@ impl PySet {
 
     /// Deprecated name for [`PySet::new`].
     #[deprecated(since = "0.23.0", note = "renamed to `PySet::new`")]
+    #[allow(deprecated)]
     #[inline]
     pub fn new_bound<'a, 'p, T: ToPyObject + 'a>(
         py: Python<'p>,
@@ -158,10 +160,7 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
         let py = self.py();
         inner(
             self,
-            key.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -180,10 +179,7 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
         let py = self.py();
         inner(
             self,
-            key.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -200,19 +196,13 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
         let py = self.py();
         inner(
             self,
-            key.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
     fn pop(&self) -> Option<Bound<'py, PyAny>> {
         let element = unsafe { ffi::PySet_Pop(self.as_ptr()).assume_owned_or_err(self.py()) };
-        match element {
-            Ok(e) => Some(e),
-            Err(_) => None,
-        }
+        element.ok()
     }
 
     fn iter(&self) -> BoundSetIterator<'py> {
@@ -277,14 +267,23 @@ impl<'py> Iterator for BoundSetIterator<'py> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.remaining, Some(self.remaining))
     }
+
+    #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
+    }
 }
 
-impl<'py> ExactSizeIterator for BoundSetIterator<'py> {
+impl ExactSizeIterator for BoundSetIterator<'_> {
     fn len(&self) -> usize {
         self.remaining
     }
 }
 
+#[allow(deprecated)]
 #[inline]
 pub(crate) fn new_from_iter<T: ToPyObject>(
     py: Python<'_>,
@@ -311,10 +310,10 @@ where
     };
     let ptr = set.as_ptr();
 
-    for e in elements {
-        let obj = e.into_pyobject(py).map_err(Into::into)?;
-        err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj.as_ptr()) })?;
-    }
+    elements.into_iter().try_for_each(|element| {
+        let obj = element.into_pyobject_or_pyerr(py)?;
+        err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj.as_ptr()) })
+    })?;
 
     Ok(set)
 }
@@ -487,5 +486,13 @@ mod tests {
             assert_eq!(iter.len(), 0);
             assert_eq!(iter.size_hint(), (0, Some(0)));
         });
+    }
+
+    #[test]
+    fn test_iter_count() {
+        Python::with_gil(|py| {
+            let set = PySet::new(py, vec![1, 2, 3]).unwrap();
+            assert_eq!(set.iter().count(), 3);
+        })
     }
 }

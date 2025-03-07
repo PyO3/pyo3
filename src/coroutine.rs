@@ -15,7 +15,7 @@ use crate::{
     exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
     panic::PanicException,
     types::{string::PyStringMethods, PyIterator, PyString},
-    Bound, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    Bound, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyObject, PyResult, Python,
 };
 
 pub(crate) mod cancel;
@@ -35,6 +35,10 @@ pub struct Coroutine {
     waker: Option<Arc<AsyncioWaker>>,
 }
 
+// Safety: `Coroutine` is allowed to be `Sync` even though the future is not,
+// because the future is polled with `&mut self` receiver
+unsafe impl Sync for Coroutine {}
+
 impl Coroutine {
     ///  Wrap a future into a Python coroutine.
     ///
@@ -42,24 +46,24 @@ impl Coroutine {
     /// (should always be `None` anyway).
     ///
     /// `Coroutine `throw` drop the wrapped future and reraise the exception passed
-    pub(crate) fn new<F, T, E>(
-        name: Option<Py<PyString>>,
+    pub(crate) fn new<'py, F, T, E>(
+        name: Option<Bound<'py, PyString>>,
         qualname_prefix: Option<&'static str>,
         throw_callback: Option<ThrowCallback>,
         future: F,
     ) -> Self
     where
         F: Future<Output = Result<T, E>> + Send + 'static,
-        T: IntoPy<PyObject>,
+        T: IntoPyObject<'py>,
         E: Into<PyErr>,
     {
         let wrap = async move {
             let obj = future.await.map_err(Into::into)?;
             // SAFETY: GIL is acquired when future is polled (see `Coroutine::poll`)
-            Ok(obj.into_py(unsafe { Python::assume_gil_acquired() }))
+            obj.into_py_any(unsafe { Python::assume_gil_acquired() })
         };
         Self {
-            name,
+            name: name.map(Bound::unbind),
             qualname_prefix,
             throw_callback,
             future: Some(Box::pin(wrap)),
@@ -115,7 +119,7 @@ impl Coroutine {
         }
         // if waker has been waken during future polling, this is roughly equivalent to
         // `await asyncio.sleep(0)`, so just yield `None`.
-        Ok(py.None().into_py(py))
+        Ok(py.None())
     }
 }
 
@@ -130,12 +134,13 @@ impl Coroutine {
     }
 
     #[getter]
-    fn __qualname__(&self, py: Python<'_>) -> PyResult<Py<PyString>> {
+    fn __qualname__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyString>> {
         match (&self.name, &self.qualname_prefix) {
-            (Some(name), Some(prefix)) => Ok(format!("{}.{}", prefix, name.bind(py).to_cow()?)
-                .as_str()
-                .into_py(py)),
-            (Some(name), None) => Ok(name.clone_ref(py)),
+            (Some(name), Some(prefix)) => Ok(PyString::new(
+                py,
+                &format!("{}.{}", prefix, name.bind(py).to_cow()?),
+            )),
+            (Some(name), None) => Ok(name.bind(py).clone()),
             (None, _) => Err(PyAttributeError::new_err("__qualname__")),
         }
     }
