@@ -274,6 +274,7 @@ macro_rules! create_exception_type_object {
 macro_rules! impl_native_exception (
     ($name:ident, $exc_name:ident, $doc:expr, $layout:path $(, #checkfunction=$checkfunction:path)?) => (
         #[doc = $doc]
+        #[repr(transparent)]
         #[allow(clippy::upper_case_acronyms)]
         pub struct $name($crate::PyAny);
 
@@ -291,6 +292,7 @@ macro_rules! impl_windows_native_exception (
     ($name:ident, $exc_name:ident, $doc:expr, $layout:path) => (
         #[cfg(windows)]
         #[doc = $doc]
+        #[repr(transparent)]
         #[allow(clippy::upper_case_acronyms)]
         pub struct $name($crate::PyAny);
 

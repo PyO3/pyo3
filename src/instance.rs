@@ -1798,7 +1798,7 @@ unsafe impl<T> crate::AsPyPointer for Py<T> {
 
 impl<T> std::convert::From<Py<T>> for PyObject
 where
-    T: AsRef<PyAny>,
+    T: DerefToPyAny,
 {
     #[inline]
     fn from(other: Py<T>) -> Self {
@@ -1808,7 +1808,7 @@ where
 
 impl<T> std::convert::From<Bound<'_, T>> for PyObject
 where
-    T: AsRef<PyAny>,
+    T: DerefToPyAny,
 {
     #[inline]
     fn from(other: Bound<'_, T>) -> Self {
