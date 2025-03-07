@@ -9,6 +9,11 @@ const PY_3_12: PythonVersion = PythonVersion {
     minor: 12,
 };
 
+const PY_3_13: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 13,
+};
+
 /// Macro which expands to multiple macro calls, one per pyo3-ffi struct.
 #[proc_macro]
 pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
