@@ -34,14 +34,303 @@ Run Valgrind with `valgrind --suppressions=valgrind-python.supp ./my-command --w
 
 The best start to investigate a crash such as an segmentation fault is a backtrace. You can set `RUST_BACKTRACE=1` as an environment variable to get the stack trace on a `panic!`. Alternatively you can use a debugger such as `gdb` to explore the issue. Rust provides a wrapper, `rust-gdb`, which has pretty-printers for inspecting Rust variables. Since PyO3 uses `cdylib` for Python shared objects, it does not receive the pretty-print debug hooks in `rust-gdb` ([rust-lang/rust#96365](https://github.com/rust-lang/rust/issues/96365)). The mentioned issue contains a workaround for enabling pretty-printers in this case.
 
- * Link against a debug build of python as described in the previous chapter
- * Run `rust-gdb <my-binary>`
- * Set a breakpoint (`b`) on `rust_panic` if you are investigating a `panic!`
- * Enter `r` to run
- * After the crash occurred, enter `bt` or `bt full` to print the stacktrace
+* Link against a debug build of python as described in the previous chapter
+* Run `rust-gdb <my-binary>`
+* Set a breakpoint (`b`) on `rust_panic` if you are investigating a `panic!`
+* Enter `r` to run
+* After the crash occurred, enter `bt` or `bt full` to print the stacktrace
 
  Often it is helpful to run a small piece of Python code to exercise a section of Rust.
 
  ```console
  rust-gdb --args python -c "import my_package; my_package.sum_to_string(1, 2)"
  ```
+
+## Setting breakpoints in your Rust code
+
+One of the preferred ways by developers to debug their code is by setting breakpoints. This can be achieved in PyO3 by using a debugger like `rust-gdb` or `rust-lldb` with your Python interpreter.
+
+For more information about how to use both `lldb` and `gdb` you can read the [gdb to lldb command map](https://lldb.llvm.org/use/map.html) from the lldb documentation.
+
+### Common setup
+
+1. Compile your extension with debug symbols:
+
+   ```bash
+   # Debug is the default for maturin, but you can explicitly ensure debug symbols with:
+   RUSTFLAGS="-g" maturin develop
+   
+   # For setuptools-rust users:
+   pip install -e .
+   ```
+
+   > **Note**: When using debuggers, make sure that `python` resolves to an actual Python binary or symlink and not a shim script. Some tools like pyenv use shim scripts which can interfere with debugging.
+
+### Debugger specific setup
+
+Depeding on your OS and your preferences you can use two different debuggers, `rust-gdb` or `rust-lldb`.
+
+{{#tabs }}
+{{#tab name="Using rust-gdb" }}
+
+1. Launch rust-gdb with the Python interpreter:
+
+   ```bash
+   rust-gdb --args python
+   ```
+
+2. Once in gdb, set a breakpoint in your Rust code:
+
+   ```bash
+   (gdb) break your_module.rs:42
+   ```
+
+3. Run your Python script that imports and uses your Rust extension:
+
+   ```bash
+   # Option 1: Run an inline Python command
+   (gdb) run -c "import your_module; your_module.your_function()"
+   
+   # Option 2: Run a Python script
+   (gdb) run your_script.py
+   
+   # Option 3: Run pytest tests
+   (gdb) run -m pytest tests/test_something.py::TestName
+   ```
+
+{{#endtab }}
+{{#tab name="Using rust-lldb (for macOS users)" }}
+
+1. Start rust-lldb with Python:
+
+   ```bash
+   rust-lldb -- python
+   ```
+
+2. Set breakpoints in your Rust code:
+
+   ```bash
+   (lldb) breakpoint set --file your_module.rs --line 42
+   ```
+
+3. Run your Python script:
+
+   ```bash
+   # Option 1: Run an inline Python command
+   (lldb) run -c "import your_module; your_module.your_function()"
+   
+   # Option 2: Run a Python script
+   (lldb) run your_script.py
+   
+   # Option 3: Run pytest tests
+   (lldb) run -m pytest tests/test_something.py::TestName
+   ```
+
+{{#endtab }}
+{{#endtabs }}
+
+### Using VS Code
+
+VS Code with the Rust and Python extensions provides an integrated debugging experience:
+
+1. First, install the necessary VS Code extensions:
+   * [Rust Analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+   * [CodeLLDB](https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb)
+   * [Python](https://marketplace.visualstudio.com/items?itemName=ms-python.python)
+
+2. Create a `.vscode/launch.json` file with a configuration that uses the LLDB Debug Launcher:
+
+    ```json
+    {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "name": "Debug PyO3",
+                "type": "lldb",
+                "request": "attach",
+                "program": "${workspaceFolder}/.venv/bin/python",
+                "pid": "${command:pickProcess}",
+                "sourceLanguages": [
+                    "rust"
+                ]
+            },
+            {
+                "name": "Launch Python with PyO3",
+                "type": "lldb",
+                "request": "launch",
+                "program": "${workspaceFolder}/.venv/bin/python",
+                "args": ["${file}"],
+                "cwd": "${workspaceFolder}",
+                "sourceLanguages": ["rust"]
+            },
+            {
+                "name": "Debug PyO3 with Args",
+                "type": "lldb",
+                "request": "launch",
+                "program": "${workspaceFolder}/.venv/bin/python",
+                "args": ["path/to/your/script.py", "arg1", "arg2"],
+                "cwd": "${workspaceFolder}",
+                "sourceLanguages": ["rust"]
+            },
+            {
+                "name": "Debug PyO3 Tests",
+                "type": "lldb",
+                "request": "launch",
+                "program": "${workspaceFolder}/.venv/bin/python",
+                "args": ["-m", "pytest", "tests/your_test.py::test_function", "-v"],
+                "cwd": "${workspaceFolder}",
+                "sourceLanguages": ["rust"]
+            }
+        ]
+    }
+    ```
+
+    This configuration supports multiple debugging scenarios:
+    * Attaching to a running Python process
+    * Launching the currently open Python file
+    * Running a specific script with command-line arguments
+    * Running pytest tests
+
+3. Set breakpoints in your Rust code by clicking in the gutter next to line numbers.
+
+4. Start debugging:
+   * For attaching to a running Python process: First start the process, then select the "Debug PyO3" configuration and click Start Debugging (F5). You'll be prompted to select the Python process to attach to.
+   * For launching a Python script: Open your Python script, select the "Launch Python with PyO3" configuration and click Start Debugging (F5).
+   * For running with arguments: Select "Debug PyO3 with Args" (remember to edit the configuration with your actual script path and arguments).
+   * For running tests: Select "Debug PyO3 Tests" (edit the test path as needed).
+
+5. When debugging PyO3 code:
+   * You can inspect Rust variables and data structures
+   * Use the debug console to evaluate expressions
+   * Step through Rust code line by line using the step controls
+   * Set conditional breakpoints for more complex debugging scenarios
+
+### Advanced Debugging Configurations
+
+For advanced debugging scenarios, you might want to add environment variables or enable specific Rust debug flags:
+
+```json
+{
+    "name": "Debug PyO3 with Environment",
+    "type": "lldb",
+    "request": "launch",
+    "program": "${workspaceFolder}/.venv/bin/python",
+    "args": ["${file}"],
+    "env": {
+        "RUST_BACKTRACE": "1",
+        "PYTHONPATH": "${workspaceFolder}"
+    },
+    "sourceLanguages": ["rust"]
+}
+```
+
+### Debugging from Jupyter Notebooks
+
+For Jupyter Notebooks run from VS Code, you can use the following helper functions to automate the launch configuration:
+
+```python
+from pathlib import Path
+import os
+import json
+import sys
+
+
+def update_launch_json(vscode_config_file_path=None):
+    """Update VSCode launch.json with the correct Jupyter kernel PID.
+    
+    Args:
+        vscode_config_file_path (str, optional): Path to the .vscode/launch.json file.
+            If not provided, will use the current working directory.
+    """
+    pid = get_jupyter_kernel_pid()
+    if not pid:
+        print("Could not determine Jupyter kernel PID.")
+        return
+        
+    # Determine launch.json path
+    if vscode_config_file_path:
+        launch_json_path = vscode_config_file_path
+    else:
+        launch_json_path = os.path.join(Path(os.getcwd()), ".vscode", "launch.json")
+
+    # Get Python interpreter path
+    python_path = sys.executable
+    
+    # Default debugger config
+    debug_config = {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "name": "Debug PyO3 (Jupyter)",
+                "type": "lldb",
+                "request": "attach",
+                "program": python_path,
+                "pid": pid,
+                "sourceLanguages": ["rust"],
+            },
+            {
+                "name": "Launch Python with PyO3",
+                "type": "lldb", 
+                "request": "launch",
+                "program": python_path,
+                "args": ["${file}"],
+                "cwd": "${workspaceFolder}",
+                "sourceLanguages": ["rust"]
+            }
+        ],
+    }
+
+    # Create .vscode directory if it doesn't exist
+    try:
+        os.makedirs(os.path.dirname(launch_json_path), exist_ok=True)
+        
+        # If launch.json already exists, try to update it instead of overwriting
+        if os.path.exists(launch_json_path):
+            try:
+                with open(launch_json_path, "r") as f:
+                    existing_config = json.load(f)
+                
+                # Check if our configuration already exists
+                config_exists = False
+                for config in existing_config.get("configurations", []):
+                    if config.get("name") == "Debug PyO3 (Jupyter)":
+                        config["pid"] = pid
+                        config["program"] = python_path
+                        config_exists = True
+                
+                if not config_exists:
+                    existing_config.setdefault("configurations", []).append(debug_config["configurations"][0])
+                
+                debug_config = existing_config
+            except Exception:
+                # If reading fails, we'll just overwrite with our new configuration
+                pass
+        
+        with open(launch_json_path, "w") as f:
+            json.dump(debug_config, f, indent=4)
+        print(f"Updated launch.json with PID: {pid} at {launch_json_path}")
+    except Exception as e:
+        print(f"Error updating launch.json: {e}")
+
+
+def get_jupyter_kernel_pid():
+    """Find the process ID (PID) of the running Jupyter kernel.
+    
+    Returns:
+        int: The process ID of the Jupyter kernel, or None if not found.
+    """
+    # Check if we're running in a Jupyter environment
+    if 'ipykernel' in sys.modules:
+        pid = os.getpid()
+        print(f"Jupyter kernel PID: {pid}")
+        return pid
+    else:
+        print("Not running in a Jupyter environment.")
+        return None
+```
+
+To use these functions:
+
+1. Run the cell containing these functions in your Jupyter notebook
+2. Run `update_launch_json()` in a cell
+3. In VS Code, select the "Debug PyO3 (Jupyter)" configuration and start debugging
