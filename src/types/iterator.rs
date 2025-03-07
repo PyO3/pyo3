@@ -52,6 +52,35 @@ impl PyIterator {
     }
 }
 
+#[derive(Debug)]
+#[cfg(all(not(PyPy), Py_3_10))]
+pub enum PySendResult<'py> {
+    Next(Bound<'py, PyAny>),
+    Return(Bound<'py, PyAny>),
+}
+
+#[cfg(all(not(PyPy), Py_3_10))]
+impl<'py> Bound<'py, PyIterator> {
+    /// Sends a value into a python generator. This is the equivalent of calling `generator.send(value)` in Python.
+    /// This resumes the generator and continues its execution until the next `yield` or `return` statement.
+    /// If the generator exits without returning a value, this function returns a `StopException`.
+    /// The first call to `send` must be made with `None` as the argument to start the generator, failing to do so will raise a `TypeError`.
+    #[inline]
+    pub fn send(&self, value: &Bound<'py, PyAny>) -> PyResult<PySendResult<'py>> {
+        let py = self.py();
+        let mut result = std::ptr::null_mut();
+        match unsafe { ffi::PyIter_Send(self.as_ptr(), value.as_ptr(), &mut result) } {
+            ffi::PySendResult::PYGEN_ERROR => Err(PyErr::fetch(py)),
+            ffi::PySendResult::PYGEN_RETURN => Ok(PySendResult::Return(unsafe {
+                result.assume_owned_unchecked(py)
+            })),
+            ffi::PySendResult::PYGEN_NEXT => Ok(PySendResult::Next(unsafe {
+                result.assume_owned_unchecked(py)
+            })),
+        }
+    }
+}
+
 impl<'py> Iterator for Bound<'py, PyIterator> {
     type Item = PyResult<Bound<'py, PyAny>>;
 
@@ -106,7 +135,11 @@ impl PyTypeCheck for PyIterator {
 #[cfg(test)]
 mod tests {
     use super::PyIterator;
+    #[cfg(all(not(PyPy), Py_3_10))]
+    use super::PySendResult;
     use crate::exceptions::PyTypeError;
+    #[cfg(all(not(PyPy), Py_3_10))]
+    use crate::types::PyNone;
     use crate::types::{PyAnyMethods, PyDict, PyList, PyListMethods};
     use crate::{ffi, IntoPyObject, Python};
 
@@ -198,6 +231,42 @@ def fibonacci(target):
                 let actual = actual.unwrap().extract::<usize>().unwrap();
                 assert_eq!(actual, *expected)
             }
+        });
+    }
+
+    #[test]
+    #[cfg(all(not(PyPy), Py_3_10))]
+    fn send_generator() {
+        let generator = ffi::c_str!(
+            r#"
+def gen():
+    value = None
+    while(True):
+        value = yield value
+        if value is None:
+            return
+"#
+        );
+
+        Python::with_gil(|py| {
+            let context = PyDict::new(py);
+            py.run(generator, None, Some(&context)).unwrap();
+
+            let generator = py.eval(ffi::c_str!("gen()"), None, Some(&context)).unwrap();
+
+            let one = 1i32.into_pyobject(py).unwrap();
+            assert!(matches!(
+                generator.try_iter().unwrap().send(&PyNone::get(py)).unwrap(),
+                PySendResult::Next(value) if value.is_none()
+            ));
+            assert!(matches!(
+                generator.try_iter().unwrap().send(&one).unwrap(),
+                PySendResult::Next(value) if value.is(&one)
+            ));
+            assert!(matches!(
+                generator.try_iter().unwrap().send(&PyNone::get(py)).unwrap(),
+                PySendResult::Return(value) if value.is_none()
+            ));
         });
     }
 
