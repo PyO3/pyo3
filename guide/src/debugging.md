@@ -351,7 +351,12 @@ thread safety bugs or incorrect use of thread-unsafe data structures.
 
 To use `ThreadSanitizer` with a library that depends on PyO3, you will need to
 install a nightly Rust toolchain, along with the `rust-src` component, since you
-will need to the Rust standard library.
+will need to compile the Rust standard library:
+
+```bash
+rustup install nightly
+rustup override set nighty
+rustup component add rust-src
 
 You will also need a version of CPython compiled using LLVM/Clang with the same
 major version of LLVM as is currently used to compile nightly Rust. As of March
