@@ -357,6 +357,7 @@ will need to compile the Rust standard library:
 rustup install nightly
 rustup override set nighty
 rustup component add rust-src
+```
 
 You will also need a version of CPython compiled using LLVM/Clang with the same
 major version of LLVM as is currently used to compile nightly Rust. As of March
