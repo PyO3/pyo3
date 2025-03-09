@@ -341,13 +341,16 @@ To use these functions:
 PyO3 attempts to match the Rust language-level guarantees for thread safety, but
 that does not preclude other code outside of the control of PyO3 or buggy code
 managed by a PyO3 extension from creating a thread safety issue. Analyzing
-whether or not a piece of Rust code that uses the CPython C API (e.g. more or
-less any code using PyO3) can be quite complicated and automated ways to
-discover thread safety issues can often be more fruitful than code analysis.
+whether or not a piece of Rust code that uses the CPython C API is thread safe
+can be quite complicated, since many Python operations can lead to arbitrary
+Python code execution. Automated ways to discover thread safety issues can often
+be more fruitful than code analysis.
 
 [ThreadSanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html) is a thread
 safety checking runtime that can be used to detect data races triggered by
-thread safety bugs or incorrect use of thread-unsafe data structures.
+thread safety bugs or incorrect use of thread-unsafe data structures. While it
+can only detect data races triggered by code at runtime, if it does detect
+something the reports often point to exactly where the problem is happening.
 
 To use `ThreadSanitizer` with a library that depends on PyO3, you will need to
 install a nightly Rust toolchain, along with the `rust-src` component, since you
