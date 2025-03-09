@@ -17,11 +17,11 @@ from typing import (
     Iterable,
     Iterator,
     List,
-    Literal,
     Optional,
     Tuple,
     Generator,
 )
+
 
 import nox
 import nox.command
@@ -50,7 +50,7 @@ def _get_output(*args: str) -> str:
 
 
 def _parse_supported_interpreter_version(
-    python_impl: Literal["cpython", "pypy"],
+    python_impl: str,  # Literal["cpython", "pypy"], TODO update after 3.7 dropped
 ) -> Tuple[str, str]:
     output = _get_output("cargo", "metadata", "--format-version=1", "--no-deps")
     cargo_packages = json.loads(output)["packages"]
@@ -64,7 +64,7 @@ def _parse_supported_interpreter_version(
 
 
 def _supported_interpreter_versions(
-    python_impl: Literal["cpython", "pypy"],
+    python_impl: str,  # Literal["cpython", "pypy"], TODO update after 3.7 dropped
 ) -> List[str]:
     min_version, max_version = _parse_supported_interpreter_version(python_impl)
     major = int(min_version.split(".")[0])
