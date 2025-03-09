@@ -1,3 +1,7 @@
+import sysconfig
+
+import pytest
+
 from pyo3_pytests import misc
 
 
@@ -16,5 +20,9 @@ def make_loop():
 loopy = [make_loop()]
 
 
+@pytest.mark.skipif(
+    sysconfig.get_config_var("Py_DEBUG"),
+    reason="causes a crash on debug builds, see discussion in https://github.com/PyO3/pyo3/pull/4874",
+)
 def test_hammer_gil():
     loopy.append(misc.hammer_gil_in_thread())
