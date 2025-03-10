@@ -1042,6 +1042,18 @@ impl<T> PyClassNewTextSignature<T> for &'_ PyClassImplCollector<T> {
     }
 }
 
+// Text signature for __init__
+pub trait PyClassInitTextSignature<T> {
+    fn init_text_signature(self) -> Option<&'static str>;
+}
+
+impl<T> PyClassInitTextSignature<T> for &'_ PyClassImplCollector<T> {
+    #[inline]
+    fn init_text_signature(self) -> Option<&'static str> {
+        None
+    }
+}
+
 // Thread checkers
 
 #[doc(hidden)]

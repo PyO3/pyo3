@@ -252,6 +252,9 @@ pub fn gen_py_method(
         (_, FnType::FnNew) | (_, FnType::FnNewClass(_)) => {
             GeneratedPyMethod::Proto(impl_py_method_def_new(cls, spec, ctx)?)
         }
+        (_, FnType::FnInit(_)) => {
+            GeneratedPyMethod::Proto(impl_py_method_def_init(cls, spec, ctx)?)
+        }
 
         (_, FnType::Getter(self_type)) => GeneratedPyMethod::Method(impl_py_getter_def(
             cls,
@@ -385,6 +388,56 @@ pub fn impl_py_method_def_new(
                 }
                 trampoline
             } as #pyo3_path::ffi::newfunc as _
+        }
+    };
+    Ok(MethodAndSlotDef {
+        associated_method,
+        slot_def,
+    })
+}
+
+pub fn impl_py_method_def_init(
+    cls: &syn::Type,
+    spec: &FnSpec<'_>,
+    ctx: &Ctx,
+) -> Result<MethodAndSlotDef> {
+    let Ctx { pyo3_path, .. } = ctx;
+    let wrapper_ident = syn::Ident::new("__pymethod___init____", Span::call_site());
+    let associated_method = spec.get_wrapper_function(&wrapper_ident, Some(cls), ctx)?;
+    // Use just the text_signature_call_signature() because the class' Python name
+    // isn't known to `#[pymethods]` - that has to be attached at runtime from the PyClassImpl
+    // trait implementation created by `#[pyclass]`.
+    let text_signature_body = spec.text_signature_call_signature().map_or_else(
+        || quote!(::std::option::Option::None),
+        |text_signature| quote!(::std::option::Option::Some(#text_signature)),
+    );
+    let slot_def = quote! {
+        #pyo3_path::ffi::PyType_Slot {
+            slot: #pyo3_path::ffi::Py_tp_init,
+            pfunc: {
+                unsafe extern "C" fn trampoline(
+                    slf: *mut #pyo3_path::ffi::PyObject,
+                    args: *mut #pyo3_path::ffi::PyObject,
+                    kwargs: *mut #pyo3_path::ffi::PyObject,
+                ) -> ::std::os::raw::c_int {
+                    use #pyo3_path::impl_::pyclass::*;
+                    #[allow(unknown_lints, non_local_definitions)]
+                    impl PyClassInitTextSignature<#cls> for PyClassImplCollector<#cls> {
+                        #[inline]
+                        fn init_text_signature(self) -> ::std::option::Option<&'static str> {
+                            #text_signature_body
+                        }
+                    }
+
+                    #pyo3_path::impl_::trampoline::initproc(
+                        slf,
+                        args,
+                        kwargs,
+                        #cls::#wrapper_ident
+                    )
+                }
+                trampoline
+            } as #pyo3_path::ffi::initproc as _
         }
     };
     Ok(MethodAndSlotDef {

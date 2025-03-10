@@ -112,12 +112,7 @@ pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
 #[doc = concat!("[11]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#object-properties-using-pyo3get-set")]
 #[proc_macro_attribute]
 pub fn pymethods(attr: TokenStream, input: TokenStream) -> TokenStream {
-    let methods_type = if cfg!(feature = "multiple-pymethods") {
-        PyClassMethodsType::Inventory
-    } else {
-        PyClassMethodsType::Specialization
-    };
-    pymethods_impl(attr, input, methods_type)
+    pymethods_impl(attr, input, methods_type())
 }
 
 /// A proc macro used to expose Rust functions to Python.
