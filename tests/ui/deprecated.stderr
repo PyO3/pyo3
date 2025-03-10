@@ -31,3 +31,44 @@ error: use of deprecated constant `<FromPyWithTuple as pyo3::FromPyObject<'py>>:
    |
 33 |     #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")] usize,
    |                           ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `from_py_with_in_function` is never used
+ --> tests/ui/deprecated.rs:5:4
+  |
+5 | fn from_py_with_in_function(
+  |    ^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` on by default
+
+warning: field `0` is never read
+  --> tests/ui/deprecated.rs:12:15
+   |
+12 | struct Number(usize);
+   |        ------ ^^^^^
+   |        |
+   |        field in this struct
+   |
+   = help: consider removing this field
+
+warning: fields `len` and `other` are never read
+  --> tests/ui/deprecated.rs:27:5
+   |
+25 | struct FromPyWithStruct {
+   |        ---------------- fields in this struct
+26 |     #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")]
+27 |     len: usize,
+   |     ^^^
+28 |     other: usize,
+   |     ^^^^^
+
+warning: fields `0` and `1` are never read
+  --> tests/ui/deprecated.rs:33:55
+   |
+32 | struct FromPyWithTuple(
+   |        --------------- fields in this struct
+33 |     #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")] usize,
+   |                                                       ^^^^^
+34 |     usize,
+   |     ^^^^^
+   |
+   = help: consider removing these fields

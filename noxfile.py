@@ -637,7 +637,6 @@ def set_msrv_package_versions(session: nox.Session):
     min_pkg_versions = {
         "regex": "1.9.6",
         "proptest": "1.2.0",
-        "trybuild": "1.0.89",
         "eyre": "0.6.8",
         "allocator-api2": "0.2.10",
         "indexmap": "2.5.0",  # to be compatible with hashbrown 0.14
