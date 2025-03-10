@@ -334,3 +334,62 @@ To use these functions:
 1. Run the cell containing these functions in your Jupyter notebook
 2. Run `update_launch_json()` in a cell
 3. In VS Code, select the "Debug PyO3 (Jupyter)" configuration and start debugging
+
+
+## Thread Safety and Compiler Sanitizers
+
+PyO3 attempts to match the Rust language-level guarantees for thread safety, but
+that does not preclude other code outside of the control of PyO3 or buggy code
+managed by a PyO3 extension from creating a thread safety issue. Analyzing
+whether or not a piece of Rust code that uses the CPython C API is thread safe
+can be quite complicated, since many Python operations can lead to arbitrary
+Python code execution. Automated ways to discover thread safety issues can often
+be more fruitful than code analysis.
+
+[ThreadSanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html) is a thread
+safety checking runtime that can be used to detect data races triggered by
+thread safety bugs or incorrect use of thread-unsafe data structures. While it
+can only detect data races triggered by code at runtime, if it does detect
+something the reports often point to exactly where the problem is happening.
+
+To use `ThreadSanitizer` with a library that depends on PyO3, you will need to
+install a nightly Rust toolchain, along with the `rust-src` component, since you
+will need to compile the Rust standard library:
+
+```bash
+rustup install nightly
+rustup override set nighty
+rustup component add rust-src
+```
+
+You will also need a version of CPython compiled using LLVM/Clang with the same
+major version of LLVM as is currently used to compile nightly Rust. As of March
+2025, Rust nightly uses LLVM 20.
+
+The [cpython_sanity docker images](https://github.com/nascheme/cpython_sanity)
+contain a development environment with a pre-compiled version of CPython 3.13 or
+3.14 as well as optionally NumPy and SciPy, all compiled using LLVM 20 and
+ThreadSanitizer.
+
+After activating a nightly Rust toolchain, you can build your project using
+`ThreadSanitizer` with the following command:
+
+```bash
+RUSTFLAGS="-Zsanitizer=thread" maturin develop -Zbuild-std --target x86_64-unknown-linux-gnu
+```
+
+If you are not running on an x86_64 Linux machine, you should replace
+`x86_64-unknown-linux-gnu` with the [target
+triple](https://doc.rust-lang.org/rustc/platform-support.html#tier-1-with-host-tools)
+that is appropriate for your system. You can also replace `maturin develop` with
+`cargo test` to run `cargo` tests. Note that `cargo` runs tests in a thread
+pool, so `cargo` tests can be a good way to find thread safety issues.
+
+You can also replace `-Zsanitizer=thread` with `-Zsanitizer=address` or any of
+the other sanitizers that are [supported by
+Rust](https://doc.rust-lang.org/beta/unstable-book/compiler-flags/sanitizer.html). Note
+that you'll need to build CPython from source with the appropriate [configure
+script
+flags](https://docs.python.org/3/using/configure.html#cmdoption-with-address-sanitizer)
+to use the same sanitizer environment as you want to use for your Rust
+code.
