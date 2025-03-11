@@ -17,11 +17,14 @@ use crate::ffi::{
 #[cfg(all(GraalPy, not(Py_LIMITED_API)))]
 use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNone};
 use crate::types::any::PyAnyMethods;
+use crate::types::PyString;
 #[cfg(not(Py_LIMITED_API))]
-use crate::{ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, types::PyTuple, IntoPyObject};
+use crate::{ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, types::PyTuple};
+use crate::{
+    sync::GILOnceCell, types::PyType, Borrowed, Bound, IntoPyObject, Py, PyAny, PyErr, Python,
+};
 #[cfg(Py_LIMITED_API)]
-use crate::{sync::GILOnceCell, types::IntoPyDict, PyObject, PyTypeCheck};
-use crate::{Bound, PyAny, PyErr, Python};
+use crate::{types::IntoPyDict, PyTypeCheck};
 #[cfg(not(Py_LIMITED_API))]
 use std::os::raw::c_int;
 
@@ -45,14 +48,12 @@ fn expect_datetime_api(py: Python<'_>) -> &'static PyDateTime_CAPI {
 
 #[cfg(Py_LIMITED_API)]
 pub(crate) struct DatetimeTypes {
-    pub(crate) date: PyObject,
-    pub(crate) datetime: PyObject,
-    pub(crate) time: PyObject,
-    pub(crate) timedelta: PyObject,
-    #[cfg(any(feature = "chrono", feature = "jiff-02"))]
-    pub(crate) timezone: PyObject,
-    pub(crate) timezone_utc: PyObject,
-    pub(crate) tzinfo: PyObject,
+    pub(crate) date: Py<PyType>,
+    pub(crate) datetime: Py<PyType>,
+    pub(crate) time: Py<PyType>,
+    pub(crate) timedelta: Py<PyType>,
+    pub(crate) timezone: Py<PyType>,
+    pub(crate) tzinfo: Py<PyType>,
 }
 
 #[cfg(Py_LIMITED_API)]
@@ -65,16 +66,13 @@ impl DatetimeTypes {
         static TYPES: GILOnceCell<DatetimeTypes> = GILOnceCell::new();
         TYPES.get_or_try_init(py, || {
             let datetime = py.import("datetime")?;
-            let timezone = datetime.getattr("timezone")?;
             Ok::<_, PyErr>(Self {
-                date: datetime.getattr("date")?.into(),
-                datetime: datetime.getattr("datetime")?.into(),
-                time: datetime.getattr("time")?.into(),
-                timedelta: datetime.getattr("timedelta")?.into(),
-                timezone_utc: timezone.getattr("utc")?.into(),
-                #[cfg(any(feature = "chrono", feature = "jiff-02"))]
-                timezone: timezone.into(),
-                tzinfo: datetime.getattr("tzinfo")?.into(),
+                date: datetime.getattr("date")?.downcast_into()?.into(),
+                datetime: datetime.getattr("datetime")?.downcast_into()?.into(),
+                time: datetime.getattr("time")?.downcast_into()?.into(),
+                timedelta: datetime.getattr("timedelta")?.downcast_into()?.into(),
+                timezone: datetime.getattr("timezone")?.downcast_into()?.into(),
+                tzinfo: datetime.getattr("tzinfo")?.downcast_into()?.into(),
             })
         })
     }
@@ -905,28 +903,75 @@ impl PyTypeCheck for PyTzInfo {
     }
 }
 
-/// Equivalent to `datetime.timezone.utc`
-pub fn timezone_utc(py: Python<'_>) -> Bound<'_, PyTzInfo> {
-    // TODO: this _could_ have a borrowed form `timezone_utc_borrowed`, but that seems
-    // like an edge case optimization and we'd prefer in PyO3 0.21 to use `Bound` as
-    // much as possible
-    #[cfg(not(Py_LIMITED_API))]
-    unsafe {
-        expect_datetime_api(py)
-            .TimeZone_UTC
-            .assume_borrowed(py)
-            .to_owned()
-            .downcast_into_unchecked()
+impl PyTzInfo {
+    /// Equivalent to `datetime.timezone.utc`
+    pub fn utc(py: Python<'_>) -> Borrowed<'static, '_, PyTzInfo> {
+        #[cfg(not(Py_LIMITED_API))]
+        unsafe {
+            expect_datetime_api(py)
+                .TimeZone_UTC
+                .assume_borrowed(py)
+                .downcast_unchecked()
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        {
+            static UTC: GILOnceCell<Py<PyTzInfo>> = GILOnceCell::new();
+            UTC.get_or_init(py, || {
+                DatetimeTypes::get(py)
+                    .timezone
+                    .bind(py)
+                    .getattr("utc")
+                    .expect("failed to import datetime.timezone.utc")
+                    .downcast_into()
+                    .unwrap()
+                    .unbind()
+            })
+            .bind_borrowed(py)
+        }
     }
 
-    #[cfg(Py_LIMITED_API)]
-    unsafe {
-        DatetimeTypes::get(py)
-            .timezone_utc
-            .bind(py)
-            .to_owned()
-            .downcast_into_unchecked()
+    /// Equivalent to `zoneinfo.ZoneInfo` constructor
+    pub fn timezone<'py, T>(py: Python<'py>, iana_name: T) -> PyResult<Bound<'py, PyTzInfo>>
+    where
+        T: IntoPyObject<'py, Target = PyString>,
+    {
+        static ZONE_INFO: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+        ZONE_INFO
+            .import(py, "zoneinfo", "ZoneInfo")?
+            .call1((iana_name,))?
+            .downcast_into()
+            .map_err(Into::into)
     }
+
+    /// Equivalent to `datetime.timezone` constructor
+    pub fn from_offset<'py>(offset: &Bound<'py, PyDelta>) -> PyResult<Bound<'py, PyTzInfo>> {
+        let py = offset.py();
+
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            let api = ensure_datetime_api(py)?;
+            unsafe {
+                (api.TimeZone_FromTimeZone)(offset.as_ptr(), std::ptr::null_mut())
+                    .assume_owned_or_err(py)
+                    .downcast_into_unchecked()
+            }
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        unsafe {
+            Ok(DatetimeTypes::try_get(py)?
+                .timezone
+                .bind(py)
+                .call1((offset,))?
+                .downcast_into_unchecked())
+        }
+    }
+}
+
+/// Equivalent to `datetime.timezone.utc`
+pub fn timezone_utc(py: Python<'_>) -> Bound<'_, PyTzInfo> {
+    PyTzInfo::utc(py).to_owned()
 }
 
 /// Deprecated name for [`timezone_utc`].
@@ -934,35 +979,6 @@ pub fn timezone_utc(py: Python<'_>) -> Bound<'_, PyTzInfo> {
 #[inline]
 pub fn timezone_utc_bound(py: Python<'_>) -> Bound<'_, PyTzInfo> {
     timezone_utc(py)
-}
-
-/// Equivalent to `datetime.timezone` constructor
-///
-/// Only used internally
-#[cfg(any(feature = "chrono", feature = "jiff-02"))]
-pub(crate) fn timezone_from_offset<'py>(
-    offset: &Bound<'py, PyDelta>,
-) -> PyResult<Bound<'py, PyTzInfo>> {
-    let py = offset.py();
-
-    #[cfg(not(Py_LIMITED_API))]
-    {
-        let api = ensure_datetime_api(py)?;
-        unsafe {
-            (api.TimeZone_FromTimeZone)(offset.as_ptr(), std::ptr::null_mut())
-                .assume_owned_or_err(py)
-                .downcast_into_unchecked()
-        }
-    }
-
-    #[cfg(Py_LIMITED_API)]
-    unsafe {
-        Ok(DatetimeTypes::try_get(py)?
-            .timezone
-            .bind(py)
-            .call1((offset,))?
-            .downcast_into_unchecked())
-    }
 }
 
 /// Bindings for `datetime.timedelta`.
@@ -1159,7 +1175,7 @@ mod tests {
 
         Python::with_gil(|py| {
             assert!(
-                timezone_from_offset(&PyDelta::new(py, 0, -3600, 0, true).unwrap())
+                PyTzInfo::from_offset(&PyDelta::new(py, 0, -3600, 0, true).unwrap())
                     .unwrap()
                     .call_method1("utcoffset", (PyNone::get(py),))
                     .unwrap()
@@ -1170,7 +1186,7 @@ mod tests {
             );
 
             assert!(
-                timezone_from_offset(&PyDelta::new(py, 0, 3600, 0, true).unwrap())
+                PyTzInfo::from_offset(&PyDelta::new(py, 0, 3600, 0, true).unwrap())
                     .unwrap()
                     .call_method1("utcoffset", (PyNone::get(py),))
                     .unwrap()
@@ -1180,7 +1196,7 @@ mod tests {
                     .unwrap()
             );
 
-            timezone_from_offset(&PyDelta::new(py, 1, 0, 0, true).unwrap()).unwrap_err();
+            PyTzInfo::from_offset(&PyDelta::new(py, 1, 0, 0, true).unwrap()).unwrap_err();
         })
     }
 }
