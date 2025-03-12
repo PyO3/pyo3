@@ -648,7 +648,13 @@ def set_msrv_package_versions(session: nox.Session):
     # possible version, so that this matches what CI will resolve to.
     for project in projects:
         if project is None:
-            _run_cargo(session, "update")
+            _run_cargo(
+                session,
+                "+stable",
+                "update",
+                env=os.environ.copy()
+                | {"CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS": "fallback"},
+            )
         else:
             _run_cargo(session, "update", f"--manifest-path={project}/Cargo.toml")
 
