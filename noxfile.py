@@ -652,11 +652,18 @@ def set_msrv_package_versions(session: nox.Session):
                 session,
                 "+stable",
                 "update",
-                env=os.environ.copy()
+                env=os.environ
                 | {"CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS": "fallback"},
             )
         else:
-            _run_cargo(session, "update", f"--manifest-path={project}/Cargo.toml")
+            _run_cargo(
+                session,
+                "+stable",
+                "update",
+                f"--manifest-path={project}/Cargo.toml",
+                env=os.environ
+                | {"CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS": "fallback"},
+            )
 
     for project in projects:
         lock_file = Path(project or "") / "Cargo.lock"
