@@ -622,10 +622,8 @@ def check_changelog(session: nox.Session):
 
 @nox.session(name="set-msrv-package-versions", venv_backend="none")
 def set_msrv_package_versions(session: nox.Session):
+    import toml
     from collections import defaultdict
-
-    if toml is None:
-        session.error("requires Python 3.11 or `toml` to be installed")
 
     projects = (
         None,
@@ -646,6 +644,7 @@ def set_msrv_package_versions(session: nox.Session):
 
     # run cargo update first to ensure that everything is at highest
     # possible version, so that this matches what CI will resolve to.
+    msrv = ".".join(map(str, get_rust_version()[:2]))
     for project in projects:
         if project is None:
             _run_cargo(
@@ -656,6 +655,13 @@ def set_msrv_package_versions(session: nox.Session):
                 | {"CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS": "fallback"},
             )
         else:
+            # Set the rust-version in the Cargo.toml the generate a compatible lockfile
+            with open(f"{project}/Cargo.toml", "r") as f:
+                cargo_toml = toml.load(f)
+                cargo_toml["package"]["rust-version"] = msrv
+            with open(f"{project}/Cargo.toml", "w") as f:
+                toml.dump(cargo_toml, f)
+
             _run_cargo(
                 session,
                 "+stable",
