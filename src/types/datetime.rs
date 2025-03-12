@@ -47,22 +47,22 @@ fn expect_datetime_api(py: Python<'_>) -> &'static PyDateTime_CAPI {
 }
 
 #[cfg(Py_LIMITED_API)]
-pub(crate) struct DatetimeTypes {
-    pub(crate) date: Py<PyType>,
-    pub(crate) datetime: Py<PyType>,
-    pub(crate) time: Py<PyType>,
-    pub(crate) timedelta: Py<PyType>,
-    pub(crate) timezone: Py<PyType>,
-    pub(crate) tzinfo: Py<PyType>,
+struct DatetimeTypes {
+    date: Py<PyType>,
+    datetime: Py<PyType>,
+    time: Py<PyType>,
+    timedelta: Py<PyType>,
+    timezone: Py<PyType>,
+    tzinfo: Py<PyType>,
 }
 
 #[cfg(Py_LIMITED_API)]
 impl DatetimeTypes {
-    pub(crate) fn get(py: Python<'_>) -> &Self {
+    fn get(py: Python<'_>) -> &Self {
         Self::try_get(py).expect("failed to load datetime module")
     }
 
-    pub(crate) fn try_get(py: Python<'_>) -> PyResult<&Self> {
+    fn try_get(py: Python<'_>) -> PyResult<&Self> {
         static TYPES: GILOnceCell<DatetimeTypes> = GILOnceCell::new();
         TYPES.get_or_try_init(py, || {
             let datetime = py.import("datetime")?;
