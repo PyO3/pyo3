@@ -72,7 +72,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.event_name != 'merge_group' }}
-      - run: python -m pip install --upgrade pip && pip install nox toml
+      - run: python -m pip install --upgrade pip && pip install nox
       # This is a smoke test to confirm that CI will run on MSRV (including dev dependencies)
       - name: Check with MSRV package versions
         run: |
