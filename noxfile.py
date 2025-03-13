@@ -622,21 +622,14 @@ def check_changelog(session: nox.Session):
 
 @nox.session(name="set-msrv-package-versions", venv_backend="none")
 def set_msrv_package_versions(session: nox.Session):
-    import toml
     from collections import defaultdict
 
     projects = (
-        None,
-        "examples/decorator",
-        "examples/maturin-starter",
-        "examples/setuptools-rust-starter",
-        "examples/word-count",
+        PYO3_DIR,
+        *(Path(p).parent for p in glob("examples/*/Cargo.toml")),
     )
     min_pkg_versions = {
-        "regex": "1.9.6",
-        "proptest": "1.2.0",
         "trybuild": "1.0.89",
-        "eyre": "0.6.8",
         "allocator-api2": "0.2.10",
         "indexmap": "2.5.0",  # to be compatible with hashbrown 0.14
         "hashbrown": "0.14.5",  # https://github.com/rust-lang/hashbrown/issues/574
@@ -644,35 +637,16 @@ def set_msrv_package_versions(session: nox.Session):
 
     # run cargo update first to ensure that everything is at highest
     # possible version, so that this matches what CI will resolve to.
-    msrv = ".".join(map(str, get_rust_version()[:2]))
     for project in projects:
-        if project is None:
-            _run_cargo(
-                session,
-                "+stable",
-                "update",
-                env=os.environ
-                | {"CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS": "fallback"},
-            )
-        else:
-            # Set the rust-version in the Cargo.toml the generate a compatible lockfile
-            with open(f"{project}/Cargo.toml", "r") as f:
-                cargo_toml = toml.load(f)
-                cargo_toml["package"]["rust-version"] = msrv
-            with open(f"{project}/Cargo.toml", "w") as f:
-                toml.dump(cargo_toml, f)
+        _run_cargo(
+            session,
+            "+stable",
+            "update",
+            f"--manifest-path={project}/Cargo.toml",
+            env=os.environ | {"CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS": "fallback"},
+        )
 
-            _run_cargo(
-                session,
-                "+stable",
-                "update",
-                f"--manifest-path={project}/Cargo.toml",
-                env=os.environ
-                | {"CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS": "fallback"},
-            )
-
-    for project in projects:
-        lock_file = Path(project or "") / "Cargo.lock"
+        lock_file = project / "Cargo.lock"
 
         def load_pkg_versions():
             cargo_lock = toml.loads(lock_file.read_text())
@@ -698,19 +672,15 @@ def set_msrv_package_versions(session: nox.Session):
                     # and re-read `Cargo.lock`
                     pkg_versions = load_pkg_versions()
 
-    # As a smoke test, cargo metadata solves all dependencies, so
-    # will break if any crates rely on cargo features not
-    # supported on MSRV
-    for project in projects:
-        if project is None:
-            _run_cargo(session, "metadata", silent=True)
-        else:
-            _run_cargo(
-                session,
-                "metadata",
-                f"--manifest-path={project}/Cargo.toml",
-                silent=True,
-            )
+        # As a smoke test, cargo metadata solves all dependencies, so
+        # will break if any crates rely on cargo features not
+        # supported on MSRV
+        _run_cargo(
+            session,
+            "metadata",
+            f"--manifest-path={project}/Cargo.toml",
+            silent=True,
+        )
 
 
 @nox.session(name="ffi-check")
