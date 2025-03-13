@@ -29,12 +29,12 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyByteArray_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyByteArray_Type))
+    unsafe { PyObject_TypeCheck(op, addr_of_mut!(PyByteArray_Type)) }
 }
 
 #[inline]
 pub unsafe fn PyByteArray_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyByteArray_Type)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(PyByteArray_Type)) as c_int }
 }
 
 extern "C" {

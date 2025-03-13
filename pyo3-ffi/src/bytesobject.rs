@@ -12,12 +12,12 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyBytes_Check(op: *mut PyObject) -> c_int {
-    PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_BYTES_SUBCLASS)
+    unsafe { PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_BYTES_SUBCLASS) }
 }
 
 #[inline]
 pub unsafe fn PyBytes_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyBytes_Type)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(PyBytes_Type)) as c_int }
 }
 
 extern "C" {

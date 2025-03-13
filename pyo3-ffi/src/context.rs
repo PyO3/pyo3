@@ -13,17 +13,17 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyContext_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyContext_Type)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(PyContext_Type)) as c_int }
 }
 
 #[inline]
 pub unsafe fn PyContextVar_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyContextVar_Type)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(PyContextVar_Type)) as c_int }
 }
 
 #[inline]
 pub unsafe fn PyContextToken_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyContextToken_Type)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(PyContextToken_Type)) as c_int }
 }
 
 extern "C" {

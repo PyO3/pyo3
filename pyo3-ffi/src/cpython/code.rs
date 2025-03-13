@@ -244,7 +244,7 @@ extern "C" {
 #[inline]
 #[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyCode_Type)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(PyCode_Type)) as c_int }
 }
 
 #[inline]

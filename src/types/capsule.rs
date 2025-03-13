@@ -163,11 +163,11 @@ impl PyCapsule {
     ///
     /// It must be known that the capsule imported by `name` contains an item of type `T`.
     pub unsafe fn import<'py, T>(py: Python<'py>, name: &CStr) -> PyResult<&'py T> {
-        let ptr = ffi::PyCapsule_Import(name.as_ptr(), false as c_int);
+        let ptr = unsafe { ffi::PyCapsule_Import(name.as_ptr(), false as c_int) };
         if ptr.is_null() {
             Err(PyErr::fetch(py))
         } else {
-            Ok(&*ptr.cast::<T>())
+            Ok(unsafe { &*ptr.cast::<T>() })
         }
     }
 }
@@ -267,7 +267,7 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
     }
 
     unsafe fn reference<T>(&self) -> &'py T {
-        &*self.pointer().cast()
+        unsafe { &*self.pointer().cast() }
     }
 
     fn pointer(&self) -> *mut c_void {
@@ -316,12 +316,14 @@ struct CapsuleContents<T: 'static + Send, D: FnOnce(T, *mut c_void) + Send> {
 unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_void) + Send>(
     capsule: *mut ffi::PyObject,
 ) {
-    let ptr = ffi::PyCapsule_GetPointer(capsule, ffi::PyCapsule_GetName(capsule));
-    let ctx = ffi::PyCapsule_GetContext(capsule);
-    let CapsuleContents {
-        value, destructor, ..
-    } = *Box::from_raw(ptr.cast::<CapsuleContents<T, F>>());
-    destructor(value, ctx)
+    unsafe {
+        let ptr = ffi::PyCapsule_GetPointer(capsule, ffi::PyCapsule_GetName(capsule));
+        let ctx = ffi::PyCapsule_GetContext(capsule);
+        let CapsuleContents {
+            value, destructor, ..
+        } = *Box::from_raw(ptr.cast::<CapsuleContents<T, F>>());
+        destructor(value, ctx)
+    }
 }
 
 /// Guarantee `T` is not zero sized at compile time.

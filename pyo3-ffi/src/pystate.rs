@@ -52,7 +52,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyThreadState_GET() -> *mut PyThreadState {
-    PyThreadState_Get()
+    unsafe { PyThreadState_Get() }
 }
 
 extern "C" {
@@ -67,7 +67,7 @@ extern "C" {
 // skipped non-limited / 3.9 PyThreadState_GetInterpreter
 // skipped non-limited / 3.9 PyThreadState_GetID
 
-extern "C" {
+unsafe extern "C" {
     // PyThreadState_GetFrame
     #[cfg(all(Py_3_10, not(PyPy), not(Py_LIMITED_API)))]
     pub fn PyThreadState_GetFrame(arg1: *mut PyThreadState) -> *mut PyFrameObject;
@@ -105,7 +105,7 @@ impl Drop for HangThread {
 // pthread_exit from PyGILState_Ensure (https://github.com/python/cpython/issues/87135).
 mod raw {
     #[cfg(all(not(Py_3_14), rustc_has_extern_c_unwind))]
-    extern "C-unwind" {
+    unsafe extern "C-unwind" {
         #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure")]
         pub fn PyGILState_Ensure() -> super::PyGILState_STATE;
     }
@@ -138,7 +138,7 @@ pub unsafe extern "C" fn PyGILState_Ensure() -> PyGILState_STATE {
     // and therefore will cause unsafety if there are pinned objects on the stack. AFAICT there's
     // nothing we can do it other than waiting for Python 3.14 or not using Windows. At least,
     // if there is nothing pinned on the stack, it won't cause the process to crash.
-    let ret: PyGILState_STATE = raw::PyGILState_Ensure();
+    let ret: PyGILState_STATE = unsafe { raw::PyGILState_Ensure() };
     std::mem::forget(guard);
     ret
 }

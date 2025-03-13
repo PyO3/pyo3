@@ -11,12 +11,12 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyDict_Check(op: *mut PyObject) -> c_int {
-    PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_DICT_SUBCLASS)
+    unsafe { PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_DICT_SUBCLASS) }
 }
 
 #[inline]
 pub unsafe fn PyDict_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyDict_Type)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(PyDict_Type)) as c_int }
 }
 
 extern "C" {
@@ -85,22 +85,22 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyDictKeys_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyDictKeys_Type)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(PyDictKeys_Type)) as c_int }
 }
 
 #[inline]
 pub unsafe fn PyDictValues_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyDictValues_Type)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(PyDictValues_Type)) as c_int }
 }
 
 #[inline]
 pub unsafe fn PyDictItems_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyDictItems_Type)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(PyDictItems_Type)) as c_int }
 }
 
 #[inline]
 pub unsafe fn PyDictViewSet_Check(op: *mut PyObject) -> c_int {
-    (PyDictKeys_Check(op) != 0 || PyDictItems_Check(op) != 0) as c_int
+    unsafe { (PyDictKeys_Check(op) != 0 || PyDictItems_Check(op) != 0) as c_int }
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

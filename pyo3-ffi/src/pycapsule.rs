@@ -12,7 +12,7 @@ pub type PyCapsule_Destructor = unsafe extern "C" fn(o: *mut PyObject);
 
 #[inline]
 pub unsafe fn PyCapsule_CheckExact(ob: *mut PyObject) -> c_int {
-    (Py_TYPE(ob) == addr_of_mut!(PyCapsule_Type)) as c_int
+    unsafe { (Py_TYPE(ob) == addr_of_mut!(PyCapsule_Type)) as c_int }
 }
 
 extern "C" {

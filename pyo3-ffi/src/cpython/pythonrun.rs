@@ -137,7 +137,7 @@ extern "C" {
 #[inline]
 #[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int) -> *mut PyObject {
-    Py_CompileStringExFlags(string, p, s, std::ptr::null_mut(), -1)
+    unsafe { Py_CompileStringExFlags(string, p, s, std::ptr::null_mut(), -1) }
 }
 
 #[inline]
@@ -148,7 +148,7 @@ pub unsafe fn Py_CompileStringFlags(
     s: c_int,
     f: *mut PyCompilerFlags,
 ) -> *mut PyObject {
-    Py_CompileStringExFlags(string, p, s, f, -1)
+    unsafe { Py_CompileStringExFlags(string, p, s, f, -1) }
 }
 
 // skipped _Py_SourceAsString

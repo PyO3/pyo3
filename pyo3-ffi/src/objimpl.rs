@@ -61,7 +61,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyType_IS_GC(t: *mut PyTypeObject) -> c_int {
-    PyType_HasFeature(t, Py_TPFLAGS_HAVE_GC)
+    unsafe { PyType_HasFeature(t, Py_TPFLAGS_HAVE_GC) }
 }
 
 extern "C" {

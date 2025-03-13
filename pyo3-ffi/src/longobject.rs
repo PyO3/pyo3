@@ -8,12 +8,12 @@ opaque_struct!(PyLongObject);
 
 #[inline]
 pub unsafe fn PyLong_Check(op: *mut PyObject) -> c_int {
-    PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_LONG_SUBCLASS)
+    unsafe { PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_LONG_SUBCLASS) }
 }
 
 #[inline]
 pub unsafe fn PyLong_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyLong_Type)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(PyLong_Type)) as c_int }
 }
 
 extern "C" {

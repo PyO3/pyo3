@@ -120,25 +120,29 @@ pub unsafe fn PyModule_FromDefAndSpec2(
 
 #[inline]
 pub unsafe fn PyModule_Create(module: *mut PyModuleDef) -> *mut PyObject {
-    PyModule_Create2(
-        module,
-        if cfg!(Py_LIMITED_API) {
-            PYTHON_ABI_VERSION
-        } else {
-            PYTHON_API_VERSION
-        },
-    )
+    unsafe {
+        PyModule_Create2(
+            module,
+            if cfg!(Py_LIMITED_API) {
+                PYTHON_ABI_VERSION
+            } else {
+                PYTHON_API_VERSION
+            },
+        )
+    }
 }
 
 #[inline]
 pub unsafe fn PyModule_FromDefAndSpec(def: *mut PyModuleDef, spec: *mut PyObject) -> *mut PyObject {
-    PyModule_FromDefAndSpec2(
-        def,
-        spec,
-        if cfg!(Py_LIMITED_API) {
-            PYTHON_ABI_VERSION
-        } else {
-            PYTHON_API_VERSION
-        },
-    )
+    unsafe {
+        PyModule_FromDefAndSpec2(
+            def,
+            spec,
+            if cfg!(Py_LIMITED_API) {
+                PYTHON_ABI_VERSION
+            } else {
+                PYTHON_API_VERSION
+            },
+        )
+    }
 }
