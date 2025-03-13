@@ -17,7 +17,7 @@ pub type Py_UCS2 = u16;
 pub type Py_UCS1 = u8;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_Type")]
     pub static mut PyUnicode_Type: PyTypeObject;
     pub static mut PyUnicodeIter_Type: PyTypeObject;
@@ -34,18 +34,18 @@ extern "C" {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyUnicode_Check(op: *mut PyObject) -> c_int {
-    PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_UNICODE_SUBCLASS)
+    unsafe { PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_UNICODE_SUBCLASS) }
 }
 
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyUnicode_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyUnicode_Type)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(PyUnicode_Type)) as c_int }
 }
 
 pub const Py_UNICODE_REPLACEMENT_CHARACTER: Py_UCS4 = 0xFFFD;
 
-extern "C" {
+unsafe extern "C" {
 
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_FromStringAndSize")]
     pub fn PyUnicode_FromStringAndSize(u: *const c_char, size: Py_ssize_t) -> *mut PyObject;

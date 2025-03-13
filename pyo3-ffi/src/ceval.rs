@@ -2,7 +2,7 @@ use crate::object::PyObject;
 use crate::pystate::PyThreadState;
 use std::os::raw::{c_char, c_int, c_void};
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyEval_EvalCode")]
     pub fn PyEval_EvalCode(
         arg1: *mut PyObject,
@@ -42,7 +42,7 @@ pub unsafe fn PyEval_CallObject(func: *mut PyObject, arg: *mut PyObject) -> *mut
     PyEval_CallObjectWithKeywords(func, arg, std::ptr::null_mut())
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(Py_3_13))]
     #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
     #[cfg_attr(PyPy, link_name = "PyPyEval_CallFunction")]
@@ -65,7 +65,7 @@ extern "C" {
     pub fn PyEval_GetFrame() -> *mut crate::PyFrameObject;
     #[cfg_attr(PyPy, link_name = "PyPy_AddPendingCall")]
     pub fn Py_AddPendingCall(
-        func: Option<extern "C" fn(arg1: *mut c_void) -> c_int>,
+        func: Option<unsafe extern "C" fn(arg1: *mut c_void) -> c_int>,
         arg: *mut c_void,
     ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPy_MakePendingCalls")]
@@ -77,7 +77,7 @@ extern "C" {
     fn _Py_CheckRecursiveCall(_where: *mut c_char) -> c_int;
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(Py_3_9)]
     #[cfg_attr(PyPy, link_name = "PyPy_EnterRecursiveCall")]
     pub fn Py_EnterRecursiveCall(arg1: *const c_char) -> c_int;
@@ -86,7 +86,7 @@ extern "C" {
     pub fn Py_LeaveRecursiveCall();
 }
 
-extern "C" {
+unsafe extern "C" {
     pub fn PyEval_GetFuncName(arg1: *mut PyObject) -> *const c_char;
     pub fn PyEval_GetFuncDesc(arg1: *mut PyObject) -> *const c_char;
     pub fn PyEval_GetCallStats(arg1: *mut PyObject) -> *mut PyObject;
@@ -98,7 +98,7 @@ extern "C" {
     pub fn PyEval_RestoreThread(arg1: *mut PyThreadState);
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(Py_3_13))]
     #[cfg_attr(PyPy, link_name = "PyPyEval_ThreadsInitialized")]
     #[cfg_attr(

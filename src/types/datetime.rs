@@ -68,8 +68,8 @@ macro_rules! ffi_fun_with_autoinit {
             /// Must only be called while the GIL is held
             unsafe fn $name($arg: *mut crate::ffi::PyObject) -> $ret {
 
-                let _ = ensure_datetime_api(Python::assume_gil_acquired());
-                crate::ffi::$name($arg)
+                let _ = ensure_datetime_api(unsafe { Python::assume_gil_acquired() });
+                unsafe { crate::ffi::$name($arg) }
             }
         )*
 

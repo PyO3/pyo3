@@ -4,7 +4,7 @@ use std::os::raw::{c_char, c_int};
 use std::ptr::addr_of_mut;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyBytes_Type")]
     pub static mut PyBytes_Type: PyTypeObject;
     pub static mut PyBytesIter_Type: PyTypeObject;
@@ -12,15 +12,15 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyBytes_Check(op: *mut PyObject) -> c_int {
-    PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_BYTES_SUBCLASS)
+    unsafe { PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_BYTES_SUBCLASS) }
 }
 
 #[inline]
 pub unsafe fn PyBytes_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyBytes_Type)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(PyBytes_Type)) as c_int }
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyBytes_FromStringAndSize")]
     pub fn PyBytes_FromStringAndSize(arg1: *const c_char, arg2: Py_ssize_t) -> *mut PyObject;
     pub fn PyBytes_FromString(arg1: *const c_char) -> *mut PyObject;

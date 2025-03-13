@@ -36,21 +36,21 @@ pub struct PyGenObject {
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     pub static mut PyGen_Type: PyTypeObject;
 }
 
 #[inline]
 pub unsafe fn PyGen_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyGen_Type))
+    unsafe { PyObject_TypeCheck(op, addr_of_mut!(PyGen_Type)) }
 }
 
 #[inline]
 pub unsafe fn PyGen_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyGen_Type)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(PyGen_Type)) as c_int }
 }
 
-extern "C" {
+unsafe extern "C" {
     pub fn PyGen_New(frame: *mut PyFrameObject) -> *mut PyObject;
     // skipped PyGen_NewWithQualName
     // skipped _PyGen_SetStopIterationValue
@@ -65,14 +65,14 @@ extern "C" {
 // skipped PyCoroObject
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     pub static mut PyCoro_Type: PyTypeObject;
     pub static mut _PyCoroWrapper_Type: PyTypeObject;
 }
 
 #[inline]
 pub unsafe fn PyCoro_CheckExact(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyCoro_Type))
+    unsafe { PyObject_TypeCheck(op, addr_of_mut!(PyCoro_Type)) }
 }
 
 // skipped _PyCoro_GetAwaitableIter
@@ -81,7 +81,7 @@ pub unsafe fn PyCoro_CheckExact(op: *mut PyObject) -> c_int {
 // skipped PyAsyncGenObject
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     pub static mut PyAsyncGen_Type: PyTypeObject;
     // skipped _PyAsyncGenASend_Type
     // skipped _PyAsyncGenWrappedValue_Type
@@ -92,7 +92,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyAsyncGen_CheckExact(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyAsyncGen_Type))
+    unsafe { PyObject_TypeCheck(op, addr_of_mut!(PyAsyncGen_Type)) }
 }
 
 // skipped _PyAsyncGenValueWrapperNew

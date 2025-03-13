@@ -2,7 +2,7 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetNone")]
     pub fn PyErr_SetNone(arg1: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetObject")]
@@ -73,20 +73,22 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyExceptionClass_Check(x: *mut PyObject) -> c_int {
-    (PyType_Check(x) != 0
-        && PyType_FastSubclass(x as *mut PyTypeObject, Py_TPFLAGS_BASE_EXC_SUBCLASS) != 0)
-        as c_int
+    unsafe {
+        (PyType_Check(x) != 0
+            && PyType_FastSubclass(x as *mut PyTypeObject, Py_TPFLAGS_BASE_EXC_SUBCLASS) != 0)
+            as c_int
+    }
 }
 
 #[inline]
 pub unsafe fn PyExceptionInstance_Check(x: *mut PyObject) -> c_int {
-    PyType_FastSubclass(Py_TYPE(x), Py_TPFLAGS_BASE_EXC_SUBCLASS)
+    unsafe { PyType_FastSubclass(Py_TYPE(x), Py_TPFLAGS_BASE_EXC_SUBCLASS) }
 }
 
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject {
-    Py_TYPE(x) as *mut PyObject
+    unsafe { Py_TYPE(x) as *mut PyObject }
 }
 
 // ported from cpython exception.c (line 2096)
@@ -112,7 +114,7 @@ pub unsafe fn PyUnicodeDecodeError_Create(
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyExc_BaseException")]
     pub static mut PyExc_BaseException: *mut PyObject;
     #[cfg(Py_3_11)]
@@ -264,7 +266,7 @@ extern "C" {
     pub static mut PyExc_EncodingWarning: *mut PyObject;
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyErr_BadArgument")]
     pub fn PyErr_BadArgument() -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyErr_NoMemory")]

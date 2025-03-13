@@ -46,9 +46,11 @@ impl PyType {
         py: Python<'_>,
         p: *mut ffi::PyTypeObject,
     ) -> Bound<'_, PyType> {
-        Borrowed::from_ptr_unchecked(py, p.cast())
-            .downcast_unchecked()
-            .to_owned()
+        unsafe {
+            Borrowed::from_ptr_unchecked(py, p.cast())
+                .downcast_unchecked()
+                .to_owned()
+        }
     }
 }
 

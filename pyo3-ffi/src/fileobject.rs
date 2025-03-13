@@ -3,7 +3,7 @@ use std::os::raw::{c_char, c_int};
 
 pub const PY_STDIOTEXTMODE: &str = "b";
 
-extern "C" {
+unsafe extern "C" {
     pub fn PyFile_FromFd(
         arg1: c_int,
         arg2: *const c_char,
@@ -25,7 +25,7 @@ extern "C" {
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     #[deprecated(note = "Python 3.12")]
     pub static mut Py_FileSystemDefaultEncoding: *const c_char;
     #[deprecated(note = "Python 3.12")]

@@ -240,9 +240,11 @@ impl PyErrStateNormalized {
         ptraceback: *mut ffi::PyObject,
     ) -> Self {
         PyErrStateNormalized {
-            ptype: Py::from_owned_ptr_or_opt(py, ptype).expect("Exception type missing"),
-            pvalue: Py::from_owned_ptr_or_opt(py, pvalue).expect("Exception value missing"),
-            ptraceback: Py::from_owned_ptr_or_opt(py, ptraceback),
+            ptype: unsafe { Py::from_owned_ptr_or_opt(py, ptype).expect("Exception type missing") },
+            pvalue: unsafe {
+                Py::from_owned_ptr_or_opt(py, pvalue).expect("Exception value missing")
+            },
+            ptraceback: unsafe { Py::from_owned_ptr_or_opt(py, ptraceback) },
         }
     }
 

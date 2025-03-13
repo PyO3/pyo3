@@ -720,7 +720,7 @@ fn test_traverse_subclass_override_clear() {
 // Manual traversal utilities
 
 unsafe fn get_type_traverse(tp: *mut pyo3::ffi::PyTypeObject) -> Option<pyo3::ffi::traverseproc> {
-    std::mem::transmute(pyo3::ffi::PyType_GetSlot(tp, pyo3::ffi::Py_tp_traverse))
+    unsafe { std::mem::transmute(pyo3::ffi::PyType_GetSlot(tp, pyo3::ffi::Py_tp_traverse)) }
 }
 
 // a dummy visitor function

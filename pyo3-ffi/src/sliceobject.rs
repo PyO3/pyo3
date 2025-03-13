@@ -4,7 +4,7 @@ use std::os::raw::c_int;
 use std::ptr::addr_of_mut;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(GraalPy))]
     #[cfg_attr(PyPy, link_name = "_PyPy_EllipsisObject")]
     static mut _Py_EllipsisObject: PyObject;
@@ -34,7 +34,7 @@ pub struct PySliceObject {
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPySlice_Type")]
     pub static mut PySlice_Type: PyTypeObject;
     pub static mut PyEllipsis_Type: PyTypeObject;
@@ -42,10 +42,10 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PySlice_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PySlice_Type)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(PySlice_Type)) as c_int }
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPySlice_New")]
     pub fn PySlice_New(
         start: *mut PyObject,
@@ -75,16 +75,18 @@ pub unsafe fn PySlice_GetIndicesEx(
     step: *mut Py_ssize_t,
     slicelength: *mut Py_ssize_t,
 ) -> c_int {
-    if PySlice_Unpack(slice, start, stop, step) < 0 {
-        *slicelength = 0;
-        -1
-    } else {
-        *slicelength = PySlice_AdjustIndices(length, start, stop, *step);
-        0
+    unsafe {
+        if PySlice_Unpack(slice, start, stop, step) < 0 {
+            *slicelength = 0;
+            -1
+        } else {
+            *slicelength = PySlice_AdjustIndices(length, start, stop, *step);
+            0
+        }
     }
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPySlice_Unpack")]
     pub fn PySlice_Unpack(
         slice: *mut PyObject,

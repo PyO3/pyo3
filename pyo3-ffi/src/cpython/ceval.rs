@@ -2,7 +2,7 @@ use crate::cpython::pystate::Py_tracefunc;
 use crate::object::{freefunc, PyObject};
 use std::os::raw::c_int;
 
-extern "C" {
+unsafe extern "C" {
     // skipped non-limited _PyEval_CallTracing
 
     #[cfg(not(Py_3_11))]

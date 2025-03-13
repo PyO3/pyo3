@@ -4,7 +4,7 @@ use crate::object::PyObject;
 use crate::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int, c_long};
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyArg_Parse")]
     pub fn PyArg_Parse(arg1: *mut PyObject, arg2: *const c_char, ...) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyArg_ParseTuple")]
@@ -79,7 +79,7 @@ pub const Py_CLEANUP_SUPPORTED: i32 = 0x2_0000;
 pub const PYTHON_API_VERSION: i32 = 1013;
 pub const PYTHON_ABI_VERSION: i32 = 3;
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
     #[cfg_attr(PyPy, link_name = "PyPyModule_Create2")]
     pub fn PyModule_Create2(module: *mut PyModuleDef, apiver: c_int) -> *mut PyObject;
@@ -120,25 +120,29 @@ pub unsafe fn PyModule_FromDefAndSpec2(
 
 #[inline]
 pub unsafe fn PyModule_Create(module: *mut PyModuleDef) -> *mut PyObject {
-    PyModule_Create2(
-        module,
-        if cfg!(Py_LIMITED_API) {
-            PYTHON_ABI_VERSION
-        } else {
-            PYTHON_API_VERSION
-        },
-    )
+    unsafe {
+        PyModule_Create2(
+            module,
+            if cfg!(Py_LIMITED_API) {
+                PYTHON_ABI_VERSION
+            } else {
+                PYTHON_API_VERSION
+            },
+        )
+    }
 }
 
 #[inline]
 pub unsafe fn PyModule_FromDefAndSpec(def: *mut PyModuleDef, spec: *mut PyObject) -> *mut PyObject {
-    PyModule_FromDefAndSpec2(
-        def,
-        spec,
-        if cfg!(Py_LIMITED_API) {
-            PYTHON_ABI_VERSION
-        } else {
-            PYTHON_API_VERSION
-        },
-    )
+    unsafe {
+        PyModule_FromDefAndSpec2(
+            def,
+            spec,
+            if cfg!(Py_LIMITED_API) {
+                PYTHON_ABI_VERSION
+            } else {
+                PYTHON_API_VERSION
+            },
+        )
+    }
 }

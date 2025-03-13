@@ -10,7 +10,7 @@ opaque_struct!(PyWeakReference);
 pub use crate::_PyWeakReference as PyWeakReference;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     pub static mut _PyWeakref_RefType: PyTypeObject;
     pub static mut _PyWeakref_ProxyType: PyTypeObject;
     pub static mut _PyWeakref_CallableProxyType: PyTypeObject;
@@ -31,28 +31,30 @@ extern "C" {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(_PyWeakref_RefType))
+    unsafe { PyObject_TypeCheck(op, addr_of_mut!(_PyWeakref_RefType)) }
 }
 
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyWeakref_CheckRefExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(_PyWeakref_RefType)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(_PyWeakref_RefType)) as c_int }
 }
 
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyWeakref_CheckProxy(op: *mut PyObject) -> c_int {
-    ((Py_TYPE(op) == addr_of_mut!(_PyWeakref_ProxyType))
-        || (Py_TYPE(op) == addr_of_mut!(_PyWeakref_CallableProxyType))) as c_int
+    unsafe {
+        ((Py_TYPE(op) == addr_of_mut!(_PyWeakref_ProxyType))
+            || (Py_TYPE(op) == addr_of_mut!(_PyWeakref_CallableProxyType))) as c_int
+    }
 }
 
 #[inline]
 pub unsafe fn PyWeakref_Check(op: *mut PyObject) -> c_int {
-    (PyWeakref_CheckRef(op) != 0 || PyWeakref_CheckProxy(op) != 0) as c_int
+    unsafe { (PyWeakref_CheckRef(op) != 0 || PyWeakref_CheckProxy(op) != 0) as c_int }
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyWeakref_NewRef")]
     pub fn PyWeakref_NewRef(ob: *mut PyObject, callback: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyWeakref_NewProxy")]

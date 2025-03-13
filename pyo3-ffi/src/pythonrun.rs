@@ -5,7 +5,7 @@ use libc::FILE;
 use std::os::raw::c_char;
 use std::os::raw::c_int;
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(any(all(Py_LIMITED_API, not(PyPy)), GraalPy))]
     pub fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int) -> *mut PyObject;
 
@@ -27,7 +27,7 @@ pub unsafe fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int
     // is only available in the non-limited API and has a real definition for all versions in
     // the cpython/ subdirectory.
     #[cfg(Py_LIMITED_API)]
-    extern "C" {
+    unsafe extern "C" {
         #[link_name = "PyPy_CompileStringFlags"]
         pub fn Py_CompileStringFlags(
             string: *const c_char,
@@ -72,7 +72,7 @@ pub unsafe fn PyParser_SimpleParseFile(fp: *mut FILE, s: *const c_char, b: c_int
     crate::PyParser_SimpleParseFileFlags(fp, s, b, 0)
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(any(PyPy, Py_3_10)))]
     pub fn Py_SymtableString(
         str: *const c_char,

@@ -5,7 +5,7 @@ use std::os::raw::{c_char, c_int};
 
 // skipped PyInit__imp
 
-extern "C" {
+unsafe extern "C" {
     pub fn _PyImport_IsInitialized(state: *mut PyInterpreterState) -> c_int;
     // skipped _PyImport_GetModuleId
     pub fn _PyImport_SetModule(name: *mut PyObject, module: *mut PyObject) -> c_int;
@@ -38,12 +38,12 @@ pub struct _inittab {
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(PyPy))]
     pub static mut PyImport_Inittab: *mut _inittab;
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(PyPy))]
     pub fn PyImport_ExtendInittab(newtab: *mut _inittab) -> c_int;
 }
@@ -62,7 +62,7 @@ pub struct _frozen {
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(PyPy))]
     pub static mut PyImport_FrozenModules: *const _frozen;
     #[cfg(all(not(PyPy), Py_3_11))]

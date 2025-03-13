@@ -272,12 +272,12 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
 
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny> {
-        self.get_borrowed_item_unchecked(index).to_owned()
+        unsafe { self.get_borrowed_item_unchecked(index).to_owned() }
     }
 
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny> {
-        self.as_borrowed().get_borrowed_item_unchecked(index)
+        unsafe { self.as_borrowed().get_borrowed_item_unchecked(index) }
     }
 
     #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
@@ -329,7 +329,9 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
 
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked(self, index: usize) -> Borrowed<'a, 'py, PyAny> {
-        ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t).assume_borrowed(self.py())
+        unsafe {
+            ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t).assume_borrowed(self.py())
+        }
     }
 
     pub(crate) fn iter_borrowed(self) -> BorrowedTupleIterator<'a, 'py> {
@@ -540,7 +542,7 @@ impl<'a, 'py> BorrowedTupleIterator<'a, 'py> {
         #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
         let item = tuple.get_borrowed_item(index).expect("tuple.get failed");
         #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-        let item = tuple.get_borrowed_item_unchecked(index);
+        let item = unsafe { tuple.get_borrowed_item_unchecked(index) };
         item
     }
 }

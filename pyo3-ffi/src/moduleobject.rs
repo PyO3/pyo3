@@ -5,22 +5,22 @@ use std::os::raw::{c_char, c_int, c_void};
 use std::ptr::addr_of_mut;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyModule_Type")]
     pub static mut PyModule_Type: PyTypeObject;
 }
 
 #[inline]
 pub unsafe fn PyModule_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyModule_Type))
+    unsafe { PyObject_TypeCheck(op, addr_of_mut!(PyModule_Type)) }
 }
 
 #[inline]
 pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyModule_Type)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(PyModule_Type)) as c_int }
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyModule_NewObject")]
     pub fn PyModule_NewObject(name: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyModule_New")]
@@ -48,14 +48,14 @@ extern "C" {
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     pub static mut PyModuleDef_Type: PyTypeObject;
 }
 
 #[repr(C)]
 pub struct PyModuleDef_Base {
     pub ob_base: PyObject,
-    pub m_init: Option<extern "C" fn() -> *mut PyObject>,
+    pub m_init: Option<unsafe extern "C" fn() -> *mut PyObject>,
     pub m_index: Py_ssize_t,
     pub m_copy: *mut PyObject,
 }

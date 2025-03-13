@@ -7,7 +7,7 @@ use std::os::raw::c_void;
 
 use std::os::raw::{c_int, c_ulong};
 
-extern "C" {
+unsafe extern "C" {
     // skipped non-limited _Py_HashDouble
     // skipped non-limited _Py_HashPointer
     // skipped non-limited _Py_HashPointerRaw
@@ -26,7 +26,7 @@ pub const _PyHASH_MULTIPLIER: c_ulong = 1000003;
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyHash_FuncDef {
-    pub hash: Option<extern "C" fn(arg1: *const c_void, arg2: Py_ssize_t) -> Py_hash_t>,
+    pub hash: Option<unsafe extern "C" fn(arg1: *const c_void, arg2: Py_ssize_t) -> Py_hash_t>,
     pub name: *const c_char,
     pub hash_bits: c_int,
     pub seed_bits: c_int,
@@ -40,7 +40,7 @@ impl Default for PyHash_FuncDef {
     }
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     pub fn PyHash_GetFuncDef() -> *mut PyHash_FuncDef;
 }

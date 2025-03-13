@@ -237,14 +237,14 @@ pub const CO_MAXBLOCKS: usize = 20;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     pub static mut PyCode_Type: PyTypeObject;
 }
 
 #[inline]
 #[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyCode_Type)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(PyCode_Type)) as c_int }
 }
 
 #[inline]
@@ -259,7 +259,7 @@ pub unsafe fn PyCode_GetNumFree(op: *mut PyCodeObject) -> c_int {
     (*op).co_nfreevars
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(PyPy)]
     #[link_name = "PyPyCode_Check"]
     pub fn PyCode_Check(op: *mut PyObject) -> c_int;
@@ -269,7 +269,7 @@ extern "C" {
     pub fn PyCode_GetNumFree(op: *mut PyCodeObject) -> Py_ssize_t;
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(GraalPy))]
     #[cfg_attr(PyPy, link_name = "PyPyCode_New")]
     pub fn PyCode_New(

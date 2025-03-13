@@ -4,7 +4,7 @@ use std::os::raw::c_int;
 use std::ptr::addr_of_mut;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyTuple_Type")]
     pub static mut PyTuple_Type: PyTypeObject;
     pub static mut PyTupleIter_Type: PyTypeObject;
@@ -12,15 +12,15 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyTuple_Check(op: *mut PyObject) -> c_int {
-    PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_TUPLE_SUBCLASS)
+    unsafe { PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_TUPLE_SUBCLASS) }
 }
 
 #[inline]
 pub unsafe fn PyTuple_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyTuple_Type)) as c_int
+    unsafe { (Py_TYPE(op) == addr_of_mut!(PyTuple_Type)) as c_int }
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyTuple_New")]
     pub fn PyTuple_New(size: Py_ssize_t) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyTuple_Size")]
