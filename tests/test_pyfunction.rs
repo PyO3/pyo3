@@ -339,7 +339,7 @@ fn test_pycfunction_new() {
             _self: *mut ffi::PyObject,
             _args: *mut ffi::PyObject,
         ) -> *mut ffi::PyObject {
-            ffi::PyLong_FromLong(4200)
+            unsafe { ffi::PyLong_FromLong(4200) }
         }
 
         let py_fn = PyCFunction::new(
@@ -389,24 +389,26 @@ fn test_pycfunction_new_with_keywords() {
                 ptr::null_mut(),
             ];
 
-            ffi::PyArg_ParseTupleAndKeywords(
-                args,
-                kwds,
-                c_str!("l|l").as_ptr(),
-                #[cfg(Py_3_13)]
-                args_names.as_ptr(),
-                #[cfg(not(Py_3_13))]
-                args_names.as_mut_ptr(),
-                &mut foo,
-                &mut bar,
-            );
+            unsafe {
+                ffi::PyArg_ParseTupleAndKeywords(
+                    args,
+                    kwds,
+                    c_str!("l|l").as_ptr(),
+                    #[cfg(Py_3_13)]
+                    args_names.as_ptr(),
+                    #[cfg(not(Py_3_13))]
+                    args_names.as_mut_ptr(),
+                    &mut foo,
+                    &mut bar,
+                )
+            };
 
             #[cfg(not(Py_3_13))]
-            drop(std::ffi::CString::from_raw(args_names[0]));
+            drop(unsafe { std::ffi::CString::from_raw(args_names[0]) });
             #[cfg(not(Py_3_13))]
-            drop(std::ffi::CString::from_raw(args_names[1]));
+            drop(unsafe { std::ffi::CString::from_raw(args_names[1]) });
 
-            ffi::PyLong_FromLong(foo * bar)
+            unsafe { ffi::PyLong_FromLong(foo * bar) }
         }
 
         let py_fn = PyCFunction::new_with_keywords(
