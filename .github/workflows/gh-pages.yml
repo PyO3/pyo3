@@ -35,19 +35,20 @@ jobs:
       - name: Prepare tag
         id: prepare_tag
         run: |
-          TAG_NAME="${GITHUB_REF##*/}"
+          # TAG_NAME="${GITHUB_REF##*/}"
+          TAG_NAME="v0.24.0"
           echo "::set-output name=tag_name::${TAG_NAME}"
 
       # This builds the book in target/guide/.
       - name: Build the guide
         run: |
           python -m pip install --upgrade pip && pip install nox
-          nox -s check-guide
+          nox -s build-guide
         env:
           PYO3_VERSION_TAG: ${{ steps.prepare_tag.outputs.tag_name }}
 
       - name: Deploy docs and the guide
-        if: ${{ github.event_name == 'release' }}
+        # if: ${{ github.event_name == 'release' }}
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
