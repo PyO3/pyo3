@@ -335,7 +335,7 @@ pub unsafe fn PyHeapType_GET_MEMBERS(etype: *mut PyHeapTypeObject) -> *mut PyMem
 // skipped private _PyType_Lookup
 // skipped private _PyType_LookupRef
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(Py_3_12)]
     pub fn PyType_GetDict(o: *mut PyTypeObject) -> *mut PyObject;
 

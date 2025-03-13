@@ -1,7 +1,7 @@
 use libc::size_t;
 use std::os::raw::c_void;
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyMem_RawMalloc")]
     pub fn PyMem_RawMalloc(size: size_t) -> *mut c_void;
     #[cfg_attr(PyPy, link_name = "PyPyMem_RawCalloc")]
@@ -31,15 +31,15 @@ pub enum PyMemAllocatorDomain {
 #[derive(Copy, Clone)]
 pub struct PyMemAllocatorEx {
     pub ctx: *mut c_void,
-    pub malloc: Option<extern "C" fn(ctx: *mut c_void, size: size_t) -> *mut c_void>,
+    pub malloc: Option<unsafe extern "C" fn(ctx: *mut c_void, size: size_t) -> *mut c_void>,
     pub calloc:
-        Option<extern "C" fn(ctx: *mut c_void, nelem: size_t, elsize: size_t) -> *mut c_void>,
+        Option<unsafe extern "C" fn(ctx: *mut c_void, nelem: size_t, elsize: size_t) -> *mut c_void>,
     pub realloc:
-        Option<extern "C" fn(ctx: *mut c_void, ptr: *mut c_void, new_size: size_t) -> *mut c_void>,
-    pub free: Option<extern "C" fn(ctx: *mut c_void, ptr: *mut c_void)>,
+        Option<unsafe extern "C" fn(ctx: *mut c_void, ptr: *mut c_void, new_size: size_t) -> *mut c_void>,
+    pub free: Option<unsafe extern "C" fn(ctx: *mut c_void, ptr: *mut c_void)>,
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(any(PyPy, GraalPy)))]
     pub fn PyMem_GetAllocator(domain: PyMemAllocatorDomain, allocator: *mut PyMemAllocatorEx);
     #[cfg(not(any(PyPy, GraalPy)))]

@@ -397,7 +397,7 @@ pub struct PyUnicodeObject {
     pub data: PyUnicodeObjectData,
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(any(PyPy, GraalPy)))]
     pub fn _PyUnicode_CheckConsistency(op: *mut PyObject, check_content: c_int) -> c_int;
 }
@@ -550,7 +550,7 @@ pub unsafe fn PyUnicode_READY(op: *mut PyObject) -> c_int {
 // skipped _PyUnicode_get_wstr_length
 // skipped PyUnicode_WSTR_LENGTH
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_New")]
     pub fn PyUnicode_New(size: Py_ssize_t, maxchar: Py_UCS4) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "_PyPyUnicode_Ready")]
@@ -627,7 +627,7 @@ extern "C" {
 // skipped _PyUnicodeWriter_Dealloc
 // skipped _PyUnicode_FormatAdvancedWriter
 
-extern "C" {
+unsafe extern "C" {
     // skipped _PyUnicode_AsStringAndSize
 
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_AsUTF8")]

@@ -7,7 +7,7 @@ use std::ptr::addr_of_mut;
 opaque_struct!(PyFloatObject);
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyFloat_Type")]
     pub static mut PyFloat_Type: PyTypeObject;
 }
@@ -25,7 +25,7 @@ pub unsafe fn PyFloat_CheckExact(op: *mut PyObject) -> c_int {
 // skipped Py_RETURN_NAN
 // skipped Py_RETURN_INF
 
-extern "C" {
+unsafe extern "C" {
     pub fn PyFloat_GetMax() -> c_double;
     pub fn PyFloat_GetMin() -> c_double;
     pub fn PyFloat_GetInfo() -> *mut PyObject;

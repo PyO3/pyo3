@@ -70,7 +70,7 @@ pub struct PyWrapperDescrObject {
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     pub static mut _PyMethodWrapper_Type: PyTypeObject;
 }
 

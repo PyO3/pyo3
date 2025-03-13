@@ -5,7 +5,7 @@ use std::os::raw::{c_char, c_int};
 // skipped PyMarshal_WriteLongToFile
 // skipped PyMarshal_WriteObjectToFile
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyMarshal_WriteObjectToString")]
     pub fn PyMarshal_WriteObjectToString(object: *mut PyObject, version: c_int) -> *mut PyObject;
 

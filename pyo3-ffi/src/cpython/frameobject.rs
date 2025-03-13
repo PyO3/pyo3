@@ -60,7 +60,7 @@ opaque_struct!(PyFrameObject);
 // skipped _PyFrameHasCompleted
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     pub static mut PyFrame_Type: PyTypeObject;
 }
 
@@ -69,7 +69,7 @@ pub unsafe fn PyFrame_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == addr_of_mut!(PyFrame_Type)) as c_int
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(GraalPy))]
     #[cfg_attr(PyPy, link_name = "PyPyFrame_New")]
     pub fn PyFrame_New(

@@ -3,7 +3,7 @@ use libc::wchar_t;
 use std::os::raw::{c_char, c_int};
 
 // "private" functions in cpython/pylifecycle.h accepted in PEP 587
-extern "C" {
+unsafe extern "C" {
     // skipped _Py_SetStandardStreamEncoding;
     pub fn Py_PreInitialize(src_config: *const PyPreConfig) -> PyStatus;
     pub fn Py_PreInitializeFromBytesArgs(
@@ -87,7 +87,7 @@ pub const _PyInterpreterConfig_LEGACY_INIT: PyInterpreterConfig = PyInterpreterC
     gil: PyInterpreterConfig_SHARED_GIL,
 };
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(Py_3_12)]
     pub fn Py_NewInterpreterFromConfig(
         tstate_p: *mut *mut crate::PyThreadState,

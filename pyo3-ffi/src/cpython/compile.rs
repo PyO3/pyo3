@@ -64,7 +64,7 @@ pub const FUTURE_BARRY_AS_BDFL: &str = "barry_as_FLUFL";
 pub const FUTURE_GENERATOR_STOP: &str = "generator_stop";
 // skipped non-limited FUTURE_ANNOTATIONS
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(any(PyPy, Py_3_10)))]
     pub fn PyNode_Compile(arg1: *mut _node, arg2: *const c_char) -> *mut PyCodeObject;
 

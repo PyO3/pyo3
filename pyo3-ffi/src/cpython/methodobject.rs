@@ -11,7 +11,7 @@ pub struct PyCMethodObject {
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     pub static mut PyCMethod_Type: PyTypeObject;
 }
 

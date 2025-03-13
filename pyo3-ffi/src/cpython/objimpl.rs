@@ -11,7 +11,7 @@ use crate::object::*;
 // skipped _PyObject_VAR_SIZE
 
 #[cfg(not(Py_3_11))]
-extern "C" {
+unsafe extern "C" {
     pub fn _Py_GetAllocatedBlocks() -> crate::Py_ssize_t;
 }
 
@@ -20,8 +20,8 @@ extern "C" {
 #[derive(Copy, Clone)]
 pub struct PyObjectArenaAllocator {
     pub ctx: *mut c_void,
-    pub alloc: Option<extern "C" fn(ctx: *mut c_void, size: size_t) -> *mut c_void>,
-    pub free: Option<extern "C" fn(ctx: *mut c_void, ptr: *mut c_void, size: size_t)>,
+    pub alloc: Option<unsafe extern "C" fn(ctx: *mut c_void, size: size_t) -> *mut c_void>,
+    pub free: Option<unsafe extern "C" fn(ctx: *mut c_void, ptr: *mut c_void, size: size_t)>,
 }
 
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -32,7 +32,7 @@ impl Default for PyObjectArenaAllocator {
     }
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(any(PyPy, GraalPy)))]
     pub fn PyObject_GetArenaAllocator(allocator: *mut PyObjectArenaAllocator);
     #[cfg(not(any(PyPy, GraalPy)))]
@@ -53,7 +53,7 @@ pub unsafe fn PyObject_IS_GC(o: *mut PyObject) -> c_int {
 }
 
 #[cfg(not(Py_3_11))]
-extern "C" {
+unsafe extern "C" {
     pub fn _PyObject_GC_Malloc(size: size_t) -> *mut PyObject;
     pub fn _PyObject_GC_Calloc(size: size_t) -> *mut PyObject;
 }

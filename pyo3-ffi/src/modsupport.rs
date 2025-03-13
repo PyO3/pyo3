@@ -4,7 +4,7 @@ use crate::object::PyObject;
 use crate::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int, c_long};
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyArg_Parse")]
     pub fn PyArg_Parse(arg1: *mut PyObject, arg2: *const c_char, ...) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyArg_ParseTuple")]
@@ -79,7 +79,7 @@ pub const Py_CLEANUP_SUPPORTED: i32 = 0x2_0000;
 pub const PYTHON_API_VERSION: i32 = 1013;
 pub const PYTHON_ABI_VERSION: i32 = 3;
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
     #[cfg_attr(PyPy, link_name = "PyPyModule_Create2")]
     pub fn PyModule_Create2(module: *mut PyModuleDef, apiver: c_int) -> *mut PyObject;

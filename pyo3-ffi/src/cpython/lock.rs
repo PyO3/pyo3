@@ -8,7 +8,7 @@ pub struct PyMutex {
     pub(crate) _pin: PhantomPinned,
 }
 
-extern "C" {
+unsafe extern "C" {
     pub fn PyMutex_Lock(m: *mut PyMutex);
     pub fn PyMutex_Unlock(m: *mut PyMutex);
 }

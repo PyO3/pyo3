@@ -4,7 +4,7 @@ use std::os::raw::{c_char, c_int};
 use std::ptr::addr_of_mut;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyDict_Type")]
     pub static mut PyDict_Type: PyTypeObject;
 }
@@ -19,7 +19,7 @@ pub unsafe fn PyDict_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == addr_of_mut!(PyDict_Type)) as c_int
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyDict_New")]
     pub fn PyDict_New() -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyDict_GetItem")]
@@ -77,7 +77,7 @@ extern "C" {
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     pub static mut PyDictKeys_Type: PyTypeObject;
     pub static mut PyDictValues_Type: PyTypeObject;
     pub static mut PyDictItems_Type: PyTypeObject;
@@ -104,7 +104,7 @@ pub unsafe fn PyDictViewSet_Check(op: *mut PyObject) -> c_int {
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     pub static mut PyDictIterKey_Type: PyTypeObject;
     pub static mut PyDictIterValue_Type: PyTypeObject;
     pub static mut PyDictIterItem_Type: PyTypeObject;

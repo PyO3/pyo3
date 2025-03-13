@@ -25,7 +25,7 @@ pub struct PyDictObject {
     pub ma_values: *mut PyDictValues,
 }
 
-extern "C" {
+unsafe extern "C" {
     // skipped _PyDict_GetItem_KnownHash
     // skipped _PyDict_GetItemIdWithError
     // skipped _PyDict_GetItemStringWithError

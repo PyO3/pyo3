@@ -12,7 +12,7 @@ pub const MAX_CO_EXTRA_USERS: c_int = 255;
 opaque_struct!(PyThreadState);
 opaque_struct!(PyInterpreterState);
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(PyPy))]
     pub fn PyInterpreterState_New() -> *mut PyInterpreterState;
     #[cfg(not(PyPy))]
@@ -55,7 +55,7 @@ pub unsafe fn PyThreadState_GET() -> *mut PyThreadState {
     PyThreadState_Get()
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyThreadState_Swap")]
     pub fn PyThreadState_Swap(arg1: *mut PyThreadState) -> *mut PyThreadState;
     #[cfg_attr(PyPy, link_name = "PyPyThreadState_GetDict")]
@@ -146,7 +146,7 @@ pub unsafe extern "C" fn PyGILState_Ensure() -> PyGILState_STATE {
 #[cfg(Py_3_14)]
 pub use self::raw::PyGILState_Ensure;
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyGILState_Release")]
     pub fn PyGILState_Release(arg1: PyGILState_STATE);
     #[cfg(not(PyPy))]

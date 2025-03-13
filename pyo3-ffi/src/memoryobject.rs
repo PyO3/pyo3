@@ -4,7 +4,7 @@ use std::os::raw::{c_char, c_int};
 use std::ptr::addr_of_mut;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(Py_LIMITED_API))]
     pub static mut _PyManagedBuffer_Type: PyTypeObject;
 
@@ -20,7 +20,7 @@ pub unsafe fn PyMemoryView_Check(op: *mut PyObject) -> c_int {
 // skipped non-limited PyMemoryView_GET_BUFFER
 // skipped non-limited PyMemeryView_GET_BASE
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyMemoryView_FromObject")]
     pub fn PyMemoryView_FromObject(base: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyMemoryView_FromMemory")]

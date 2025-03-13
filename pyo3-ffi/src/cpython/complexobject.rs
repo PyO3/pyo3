@@ -22,7 +22,7 @@ pub struct PyComplexObject {
     pub cval: Py_complex,
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyComplex_FromCComplex")]
     pub fn PyComplex_FromCComplex(v: Py_complex) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyComplex_AsCComplex")]

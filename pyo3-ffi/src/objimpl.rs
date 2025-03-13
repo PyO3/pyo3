@@ -4,7 +4,7 @@ use std::os::raw::{c_int, c_void};
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyObject_Malloc")]
     pub fn PyObject_Malloc(size: size_t) -> *mut c_void;
     #[cfg_attr(PyPy, link_name = "PyPyObject_Calloc")]
@@ -64,7 +64,7 @@ pub unsafe fn PyType_IS_GC(t: *mut PyTypeObject) -> c_int {
     PyType_HasFeature(t, Py_TPFLAGS_HAVE_GC)
 }
 
-extern "C" {
+unsafe extern "C" {
     pub fn _PyObject_GC_Resize(arg1: *mut PyVarObject, arg2: Py_ssize_t) -> *mut PyVarObject;
 
     // skipped PyObject_GC_Resize

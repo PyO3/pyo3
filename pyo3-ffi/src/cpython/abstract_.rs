@@ -14,7 +14,7 @@ use crate::{
 #[cfg(Py_3_8)]
 use libc::size_t;
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
     pub fn _PyStack_AsDict(values: *const *mut PyObject, kwnames: *mut PyObject) -> *mut PyObject;
 }
@@ -22,7 +22,7 @@ extern "C" {
 #[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
 const _PY_FASTCALL_SMALL_STACK: size_t = 5;
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
     pub fn _Py_CheckFunctionResult(
         tstate: *mut PyThreadState,
@@ -102,7 +102,7 @@ pub unsafe fn PyObject_Vectorcall(
     _PyObject_VectorcallTstate(PyThreadState_GET(), callable, args, nargsf, kwnames)
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(Py_3_8)]
     #[cfg_attr(
         all(not(any(PyPy, GraalPy)), not(Py_3_9)),
@@ -160,7 +160,7 @@ pub unsafe fn _PyObject_CallNoArg(func: *mut PyObject) -> *mut PyObject {
     )
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(PyPy)]
     #[link_name = "_PyPyObject_CallNoArg"]
     pub fn _PyObject_CallNoArg(func: *mut PyObject) -> *mut PyObject;
@@ -214,7 +214,7 @@ pub unsafe fn PyObject_CallMethodOneArg(
 
 // skipped _PyObject_HasLen
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyObject_LengthHint")]
     pub fn PyObject_LengthHint(o: *mut PyObject, arg1: Py_ssize_t) -> Py_ssize_t;
 
@@ -231,7 +231,7 @@ pub unsafe fn PyObject_CheckBuffer(o: *mut PyObject) -> c_int {
 }
 
 #[cfg(not(Py_3_11))] // moved to src/buffer.rs from 3.11
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyObject_GetBuffer")]
     pub fn PyObject_GetBuffer(obj: *mut PyObject, view: *mut Py_buffer, flags: c_int) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_GetPointer")]
@@ -290,7 +290,7 @@ pub const PY_ITERSEARCH_COUNT: c_int = 1;
 pub const PY_ITERSEARCH_INDEX: c_int = 2;
 pub const PY_ITERSEARCH_CONTAINS: c_int = 3;
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(not(any(PyPy, GraalPy)))]
     pub fn _PySequence_IterSearch(
         seq: *mut PyObject,

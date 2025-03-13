@@ -8,7 +8,7 @@ use std::os::raw::c_void;
 use std::os::raw::{c_int, c_uchar};
 
 #[cfg(Py_3_13)]
-extern "C" {
+unsafe extern "C" {
     pub fn PyLong_FromUnicodeObject(u: *mut PyObject, base: c_int) -> *mut PyObject;
 }
 
@@ -25,7 +25,7 @@ pub const Py_ASNATIVEBYTES_UNSIGNED_BUFFER: c_int = 4;
 #[cfg(Py_3_13)]
 pub const Py_ASNATIVEBYTES_REJECT_NEGATIVE: c_int = 8;
 
-extern "C" {
+unsafe extern "C" {
     // skipped _PyLong_Sign
 
     #[cfg(Py_3_13)]

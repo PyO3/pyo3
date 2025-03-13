@@ -1,7 +1,7 @@
 use crate::object::PyObject;
 use std::os::raw::{c_char, c_int};
 
-extern "C" {
+unsafe extern "C" {
     pub fn PyCodec_Register(search_function: *mut PyObject) -> c_int;
     #[cfg(Py_3_10)]
     #[cfg(not(PyPy))]

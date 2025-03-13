@@ -1,7 +1,7 @@
 use crate::object::PyObject;
 use std::os::raw::{c_char, c_double, c_int};
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyOS_string_to_double")]
     pub fn PyOS_string_to_double(
         str: *const c_char,

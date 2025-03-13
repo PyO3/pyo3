@@ -145,7 +145,7 @@ pub unsafe fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int {
 
 #[cfg(all(PyPy, Py_3_10))]
 #[cfg_attr(docsrs, doc(cfg(all())))]
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPy_Is")]
     pub fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int;
 }
@@ -193,7 +193,7 @@ pub unsafe fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject {
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyLong_Type")]
     pub static mut PyLong_Type: PyTypeObject;
     #[cfg_attr(PyPy, link_name = "PyPyBool_Type")]
@@ -314,7 +314,7 @@ impl Default for PyType_Spec {
     }
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyType_FromSpec")]
     pub fn PyType_FromSpec(arg1: *mut PyType_Spec) -> *mut PyObject;
 
@@ -383,7 +383,7 @@ pub unsafe fn PyObject_TypeCheck(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     /// built-in 'type'
     #[cfg_attr(PyPy, link_name = "PyPyType_Type")]
     pub static mut PyType_Type: PyTypeObject;
@@ -394,7 +394,7 @@ extern "C" {
     pub static mut PySuper_Type: PyTypeObject;
 }
 
-extern "C" {
+unsafe extern "C" {
     pub fn PyType_GetFlags(arg1: *mut PyTypeObject) -> c_ulong;
 
     #[cfg_attr(PyPy, link_name = "PyPyType_Ready")]
@@ -586,7 +586,7 @@ pub const Py_TPFLAGS_DEFAULT: c_ulong = if cfg!(Py_3_10) {
 pub const Py_TPFLAGS_HAVE_FINALIZE: c_ulong = 1;
 pub const Py_TPFLAGS_HAVE_VERSION_TAG: c_ulong = 1 << 18;
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(all(py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API)))]
     fn _Py_NegativeRefcount(filename: *const c_char, lineno: c_int, op: *mut PyObject);
     #[cfg(all(Py_3_12, py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API)))]
@@ -774,7 +774,7 @@ pub unsafe fn Py_XDECREF(op: *mut PyObject) {
     }
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(all(Py_3_10, Py_LIMITED_API, not(PyPy)))]
     #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
     pub fn Py_NewRef(obj: *mut PyObject) -> *mut PyObject;
@@ -823,7 +823,7 @@ pub const Py_CONSTANT_EMPTY_BYTES: c_uint = 8;
 #[cfg(Py_3_13)]
 pub const Py_CONSTANT_EMPTY_TUPLE: c_uint = 9;
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(Py_3_13)]
     #[cfg_attr(PyPy, link_name = "PyPy_GetConstant")]
     pub fn Py_GetConstant(constant_id: c_uint) -> *mut PyObject;
@@ -833,7 +833,7 @@ extern "C" {
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
     #[cfg_attr(PyPy, link_name = "_PyPy_NoneStruct")]
     static mut _Py_NoneStruct: PyObject;
@@ -862,7 +862,7 @@ pub unsafe fn Py_IsNone(x: *mut PyObject) -> c_int {
 // skipped Py_RETURN_NONE
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+unsafe extern "C" {
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
     #[cfg_attr(PyPy, link_name = "_PyPy_NotImplementedStruct")]
     static mut _Py_NotImplementedStruct: PyObject;
@@ -935,7 +935,7 @@ pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, ptr::addr_of_mut!(PyType_Type))
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(any(Py_3_13, all(Py_3_11, not(Py_LIMITED_API))))]
     #[cfg_attr(PyPy, link_name = "PyPyType_GetModuleByDef")]
     pub fn PyType_GetModuleByDef(

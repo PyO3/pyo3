@@ -22,7 +22,7 @@ opaque_struct!(PyCriticalSection);
 #[cfg(not(Py_GIL_DISABLED))]
 opaque_struct!(PyCriticalSection2);
 
-extern "C" {
+unsafe extern "C" {
     pub fn PyCriticalSection_Begin(c: *mut PyCriticalSection, op: *mut PyObject);
     pub fn PyCriticalSection_End(c: *mut PyCriticalSection);
     pub fn PyCriticalSection2_Begin(c: *mut PyCriticalSection2, a: *mut PyObject, b: *mut PyObject);

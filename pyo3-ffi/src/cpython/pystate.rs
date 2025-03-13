@@ -42,7 +42,7 @@ pub struct _PyErr_StackItem {
 // skipped _PyStackChunk
 // skipped _ts (aka PyThreadState)
 
-extern "C" {
+unsafe extern "C" {
     // skipped _PyThreadState_Prealloc
     // skipped _PyThreadState_UncheckedGet
     // skipped _PyThreadState_GetDict
@@ -84,7 +84,7 @@ pub type _PyFrameEvalFunction = extern "C" fn(
 ) -> *mut crate::object::PyObject;
 
 #[cfg(all(Py_3_9, not(PyPy)))]
-extern "C" {
+unsafe extern "C" {
     /// Get the frame evaluation function.
     pub fn _PyInterpreterState_GetEvalFrameFunc(
         interp: *mut PyInterpreterState,
