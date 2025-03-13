@@ -627,6 +627,7 @@ def set_msrv_package_versions(session: nox.Session):
     projects = (
         PYO3_DIR,
         *(Path(p).parent for p in glob("examples/*/Cargo.toml")),
+        *(Path(p).parent for p in glob("pyo3-ffi/examples/*/Cargo.toml")),
     )
     min_pkg_versions = {
         "trybuild": "1.0.89",
