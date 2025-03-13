@@ -167,6 +167,8 @@ todo = "warn"
 unnecessary_wraps = "warn"
 useless_transmute = "warn"
 used_underscore_binding = "warn"
+missing_unsafe_on_extern = "warn"
+unsafe_op_in_unsafe_fn = "warn"
 
 [workspace.lints.rust]
 elided_lifetimes_in_paths = "warn"
