@@ -296,9 +296,10 @@ impl FunctionDescription {
             // the rest are varargs.
             let positional_args_to_consume =
                 num_positional_parameters.min(positional_args_provided);
-            let (positional_parameters, remaining) =
+            let (positional_parameters, remaining) = unsafe {
                 std::slice::from_raw_parts(args, positional_args_provided)
-                    .split_at(positional_args_to_consume);
+                    .split_at(positional_args_to_consume)
+            };
             output[..positional_args_to_consume].copy_from_slice(positional_parameters);
             remaining
         };
@@ -309,14 +310,17 @@ impl FunctionDescription {
 
         // Safety: kwnames is known to be a pointer to a tuple, or null
         //  - we both have the GIL and can borrow this input reference for the `'py` lifetime.
-        let kwnames: Option<Borrowed<'_, '_, PyTuple>> =
-            Borrowed::from_ptr_or_opt(py, kwnames).map(|kwnames| kwnames.downcast_unchecked());
+        let kwnames: Option<Borrowed<'_, '_, PyTuple>> = unsafe {
+            Borrowed::from_ptr_or_opt(py, kwnames).map(|kwnames| kwnames.downcast_unchecked())
+        };
         if let Some(kwnames) = kwnames {
-            let kwargs = ::std::slice::from_raw_parts(
-                // Safety: PyArg has the same memory layout as `*mut ffi::PyObject`
-                args.offset(nargs).cast::<PyArg<'py>>(),
-                kwnames.len(),
-            );
+            let kwargs = unsafe {
+                ::std::slice::from_raw_parts(
+                    // Safety: PyArg has the same memory layout as `*mut ffi::PyObject`
+                    args.offset(nargs).cast::<PyArg<'py>>(),
+                    kwnames.len(),
+                )
+            };
 
             self.handle_kwargs::<K, _>(
                 kwnames.iter_borrowed().zip(kwargs.iter().copied()),
@@ -362,9 +366,10 @@ impl FunctionDescription {
         //  - `kwargs` is known to be a dict or null
         //  - we both have the GIL and can borrow these input references for the `'py` lifetime.
         let args: Borrowed<'py, 'py, PyTuple> =
-            Borrowed::from_ptr(py, args).downcast_unchecked::<PyTuple>();
-        let kwargs: Option<Borrowed<'py, 'py, PyDict>> =
-            Borrowed::from_ptr_or_opt(py, kwargs).map(|kwargs| kwargs.downcast_unchecked());
+            unsafe { Borrowed::from_ptr(py, args).downcast_unchecked::<PyTuple>() };
+        let kwargs: Option<Borrowed<'py, 'py, PyDict>> = unsafe {
+            Borrowed::from_ptr_or_opt(py, kwargs).map(|kwargs| kwargs.downcast_unchecked())
+        };
 
         let num_positional_parameters = self.positional_parameter_names.len();
 
@@ -391,7 +396,7 @@ impl FunctionDescription {
         let mut varkeywords = K::Varkeywords::default();
         if let Some(kwargs) = kwargs {
             self.handle_kwargs::<K, _>(
-                kwargs.iter_borrowed(),
+                unsafe { kwargs.iter_borrowed() },
                 &mut varkeywords,
                 num_positional_parameters,
                 output,

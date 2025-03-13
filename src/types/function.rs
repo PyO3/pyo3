@@ -189,22 +189,24 @@ where
 {
     use crate::types::any::PyAnyMethods;
 
-    crate::impl_::trampoline::cfunction_with_keywords(
-        capsule_ptr,
-        args,
-        kwargs,
-        |py, capsule_ptr, args, kwargs| {
-            let boxed_fn: &ClosureDestructor<F> =
-                &*(ffi::PyCapsule_GetPointer(capsule_ptr, CLOSURE_CAPSULE_NAME.as_ptr())
-                    as *mut ClosureDestructor<F>);
-            let args = Bound::ref_from_ptr(py, &args).downcast_unchecked::<PyTuple>();
-            let kwargs = Bound::ref_from_ptr_or_opt(py, &kwargs)
-                .as_ref()
-                .map(|b| b.downcast_unchecked::<PyDict>());
-            let result = (boxed_fn.closure)(args, kwargs);
-            crate::impl_::callback::convert(py, result)
-        },
-    )
+    unsafe {
+        crate::impl_::trampoline::cfunction_with_keywords(
+            capsule_ptr,
+            args,
+            kwargs,
+            |py, capsule_ptr, args, kwargs| {
+                let boxed_fn: &ClosureDestructor<F> =
+                    &*(ffi::PyCapsule_GetPointer(capsule_ptr, CLOSURE_CAPSULE_NAME.as_ptr())
+                        as *mut ClosureDestructor<F>);
+                let args = Bound::ref_from_ptr(py, &args).downcast_unchecked::<PyTuple>();
+                let kwargs = Bound::ref_from_ptr_or_opt(py, &kwargs)
+                    .as_ref()
+                    .map(|b| b.downcast_unchecked::<PyDict>());
+                let result = (boxed_fn.closure)(args, kwargs);
+                crate::impl_::callback::convert(py, result)
+            },
+        )
+    }
 }
 
 struct ClosureDestructor<F> {

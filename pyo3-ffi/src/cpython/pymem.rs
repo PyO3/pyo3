@@ -32,10 +32,12 @@ pub enum PyMemAllocatorDomain {
 pub struct PyMemAllocatorEx {
     pub ctx: *mut c_void,
     pub malloc: Option<unsafe extern "C" fn(ctx: *mut c_void, size: size_t) -> *mut c_void>,
-    pub calloc:
-        Option<unsafe extern "C" fn(ctx: *mut c_void, nelem: size_t, elsize: size_t) -> *mut c_void>,
-    pub realloc:
-        Option<unsafe extern "C" fn(ctx: *mut c_void, ptr: *mut c_void, new_size: size_t) -> *mut c_void>,
+    pub calloc: Option<
+        unsafe extern "C" fn(ctx: *mut c_void, nelem: size_t, elsize: size_t) -> *mut c_void,
+    >,
+    pub realloc: Option<
+        unsafe extern "C" fn(ctx: *mut c_void, ptr: *mut c_void, new_size: size_t) -> *mut c_void,
+    >,
     pub free: Option<unsafe extern "C" fn(ctx: *mut c_void, ptr: *mut c_void)>,
 }
 

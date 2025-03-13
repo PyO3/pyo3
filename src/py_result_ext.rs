@@ -13,6 +13,6 @@ impl<'py> PyResultExt<'py> for PyResult<Bound<'py, PyAny>> {
 
     #[inline]
     unsafe fn downcast_into_unchecked<T>(self) -> PyResult<Bound<'py, T>> {
-        self.map(|instance| instance.downcast_into_unchecked())
+        self.map(|instance| unsafe { instance.downcast_into_unchecked() })
     }
 }
