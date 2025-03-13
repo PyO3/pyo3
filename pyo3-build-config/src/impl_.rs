@@ -40,7 +40,7 @@ const MINIMUM_SUPPORTED_VERSION_GRAALPY: PythonVersion = PythonVersion {
 };
 
 /// Maximum Python version that can be used as minimum required Python version with abi3.
-pub(crate) const ABI3_MAX_MINOR: u8 = 12;
+pub(crate) const ABI3_MAX_MINOR: u8 = 13;
 
 #[cfg(test)]
 thread_local! {
