@@ -34,7 +34,7 @@ pyobject_native_type_named!(PyIterator);
 impl PyIterator {
     /// Builds an iterator for an iterable Python object; the equivalent of calling `iter(obj)` in Python.
     ///
-    /// Usually it is more convenient to write [`obj.iter()`][crate::types::any::PyAnyMethods::iter],
+    /// Usually it is more convenient to write [`obj.try_iter()`][crate::types::any::PyAnyMethods::try_iter],
     /// which is a more concise way of calling this function.
     pub fn from_object<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyIterator>> {
         unsafe {
@@ -42,13 +42,6 @@ impl PyIterator {
                 .assume_owned_or_err(obj.py())
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyIterator::from_object`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyIterator::from_object`")]
-    #[inline]
-    pub fn from_bound_object<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyIterator>> {
-        Self::from_object(obj)
     }
 }
 

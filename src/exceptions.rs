@@ -653,19 +653,6 @@ impl PyUnicodeDecodeError {
         .downcast_into()
     }
 
-    /// Deprecated name for [`PyUnicodeDecodeError::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyUnicodeDecodeError::new`")]
-    #[inline]
-    pub fn new_bound<'py>(
-        py: Python<'py>,
-        encoding: &CStr,
-        input: &[u8],
-        range: ops::Range<usize>,
-        reason: &CStr,
-    ) -> PyResult<Bound<'py, PyUnicodeDecodeError>> {
-        Self::new(py, encoding, input, range, reason)
-    }
-
     /// Creates a Python `UnicodeDecodeError` from a Rust UTF-8 decoding error.
     ///
     /// # Examples
@@ -700,17 +687,6 @@ impl PyUnicodeDecodeError {
             pos..(pos + 1),
             ffi::c_str!("invalid utf-8"),
         )
-    }
-
-    /// Deprecated name for [`PyUnicodeDecodeError::new_utf8`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyUnicodeDecodeError::new_utf8`")]
-    #[inline]
-    pub fn new_utf8_bound<'py>(
-        py: Python<'py>,
-        input: &[u8],
-        err: std::str::Utf8Error,
-    ) -> PyResult<Bound<'py, PyUnicodeDecodeError>> {
-        Self::new_utf8(py, input, err)
     }
 }
 

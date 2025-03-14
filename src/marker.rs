@@ -128,10 +128,8 @@ use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
 };
 use crate::version::PythonVersionInfo;
-#[allow(deprecated)]
-use crate::IntoPy;
-use crate::{ffi, Bound, Py, PyObject, PyTypeInfo};
-use std::ffi::{CStr, CString};
+use crate::{ffi, Bound, PyObject, PyTypeInfo};
+use std::ffi::CStr;
 use std::marker::PhantomData;
 use std::os::raw::c_int;
 
@@ -217,7 +215,7 @@ mod nightly {
         /// # use pyo3::prelude::*;
         /// # use pyo3::types::PyString;
         /// Python::with_gil(|py| {
-        ///     let string = PyString::new_bound(py, "foo");
+        ///     let string = PyString::new(py, "foo");
         ///
         ///     py.allow_threads(|| {
         ///         println!("{:?}", string);
@@ -245,7 +243,7 @@ mod nightly {
         /// use send_wrapper::SendWrapper;
         ///
         /// Python::with_gil(|py| {
-        ///     let string = PyString::new_bound(py, "foo");
+        ///     let string = PyString::new(py, "foo");
         ///
         ///     let wrapped = SendWrapper::new(string);
         ///
@@ -304,9 +302,9 @@ pub use nightly::Ungil;
 /// A marker token that represents holding the GIL.
 ///
 /// It serves three main purposes:
-/// - It provides a global API for the Python interpreter, such as [`Python::eval_bound`].
+/// - It provides a global API for the Python interpreter, such as [`Python::eval`].
 /// - It can be passed to functions that require a proof of holding the GIL, such as
-///   [`Py::clone_ref`].
+///   [`Py::clone_ref`][crate::Py::clone_ref].
 /// - Its lifetime represents the scope of holding the GIL which can be used to create Rust
 ///   references that are bound to it, such as [`Bound<'py, PyAny>`].
 ///
@@ -354,7 +352,7 @@ pub use nightly::Ungil;
 /// # Releasing and freeing memory
 ///
 /// The [`Python<'py>`] type can be used to create references to variables owned by the Python
-/// interpreter, using functions such as [`Python::eval_bound`] and [`PyModule::import`].
+/// interpreter, using functions such as [`Python::eval`] and [`PyModule::import`].
 #[derive(Copy, Clone)]
 pub struct Python<'py>(PhantomData<(&'py GILGuard, NotSend)>);
 
@@ -496,7 +494,7 @@ impl<'py> Python<'py> {
     /// use pyo3::types::PyString;
     ///
     /// fn parallel_print(py: Python<'_>) {
-    ///     let s = PyString::new_bound(py, "This object cannot be accessed without holding the GIL >_<");
+    ///     let s = PyString::new(py, "This object cannot be accessed without holding the GIL >_<");
     ///     py.allow_threads(move || {
     ///         println!("{:?}", s); // This causes a compile error.
     ///     });
@@ -548,20 +546,6 @@ impl<'py> Python<'py> {
         self.run_code(code, ffi::Py_eval_input, globals, locals)
     }
 
-    /// Deprecated name for [`Python::eval`].
-    #[deprecated(since = "0.23.0", note = "renamed to `Python::eval`")]
-    #[track_caller]
-    #[inline]
-    pub fn eval_bound(
-        self,
-        code: &str,
-        globals: Option<&Bound<'py, PyDict>>,
-        locals: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        let code = CString::new(code)?;
-        self.eval(&code, globals, locals)
-    }
-
     /// Executes one or more Python statements in the given context.
     ///
     /// If `globals` is `None`, it defaults to Python module `__main__`.
@@ -607,20 +591,6 @@ impl<'py> Python<'py> {
         res.map(|obj| {
             debug_assert!(obj.is_none());
         })
-    }
-
-    /// Deprecated name for [`Python::run`].
-    #[deprecated(since = "0.23.0", note = "renamed to `Python::run`")]
-    #[track_caller]
-    #[inline]
-    pub fn run_bound(
-        self,
-        code: &str,
-        globals: Option<&Bound<'py, PyDict>>,
-        locals: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<()> {
-        let code = CString::new(code)?;
-        self.run(&code, globals, locals)
     }
 
     /// Runs code in the given context.
@@ -699,35 +669,12 @@ impl<'py> Python<'py> {
         T::type_object(self)
     }
 
-    /// Deprecated name for [`Python::get_type`].
-    #[deprecated(since = "0.23.0", note = "renamed to `Python::get_type`")]
-    #[track_caller]
-    #[inline]
-    pub fn get_type_bound<T>(self) -> Bound<'py, PyType>
-    where
-        T: PyTypeInfo,
-    {
-        self.get_type::<T>()
-    }
-
     /// Imports the Python module with the specified name.
     pub fn import<N>(self, name: N) -> PyResult<Bound<'py, PyModule>>
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
         PyModule::import(self, name)
-    }
-
-    /// Deprecated name for [`Python::import`].
-    #[deprecated(since = "0.23.0", note = "renamed to `Python::import`")]
-    #[allow(deprecated)]
-    #[track_caller]
-    #[inline]
-    pub fn import_bound<N>(self, name: N) -> PyResult<Bound<'py, PyModule>>
-    where
-        N: IntoPy<Py<PyString>>,
-    {
-        self.import(name.into_py(self))
     }
 
     /// Gets the Python builtin value `None`.
@@ -1025,6 +972,10 @@ mod tests {
     #[cfg(feature = "macros")]
     #[test]
     fn test_py_run_inserts_globals_2() {
+        use std::ffi::CString;
+
+        use crate::Py;
+
         #[crate::pyclass(crate = "crate")]
         #[derive(Clone)]
         struct CodeRunner {

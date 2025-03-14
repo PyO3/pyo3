@@ -18,13 +18,6 @@ impl PyNone {
     pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyNone> {
         unsafe { ffi::Py_None().assume_borrowed(py).downcast_unchecked() }
     }
-
-    /// Deprecated name for [`PyNone::get`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyNone::get`")]
-    #[inline]
-    pub fn get_bound(py: Python<'_>) -> Borrowed<'_, '_, PyNone> {
-        Self::get(py)
-    }
 }
 
 unsafe impl PyTypeInfo for PyNone {

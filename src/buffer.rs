@@ -224,13 +224,6 @@ impl<T: Element> PyBuffer<T> {
         }
     }
 
-    /// Deprecated name for [`PyBuffer::get`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyBuffer::get`")]
-    #[inline]
-    pub fn get_bound(obj: &Bound<'_, PyAny>) -> PyResult<PyBuffer<T>> {
-        Self::get(obj)
-    }
-
     /// Gets the pointer to the start of the buffer memory.
     ///
     /// Warning: the buffer memory might be mutated by other Python functions,

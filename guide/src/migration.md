@@ -179,7 +179,7 @@ With the removal of the old API, many "Bound" API functions which had been intro
 
 Before:
 
-```rust
+```rust,ignore
 # #![allow(deprecated)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyTuple;

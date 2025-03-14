@@ -38,17 +38,6 @@ impl PyComplex {
                 .downcast_into_unchecked()
         }
     }
-
-    /// Deprecated name for [`PyComplex::from_doubles`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyComplex::from_doubles`")]
-    #[inline]
-    pub fn from_doubles_bound(
-        py: Python<'_>,
-        real: c_double,
-        imag: c_double,
-    ) -> Bound<'_, PyComplex> {
-        Self::from_doubles(py, real, imag)
-    }
 }
 
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
