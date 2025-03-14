@@ -27,13 +27,6 @@ impl PyType {
         T::type_object(py)
     }
 
-    /// Deprecated name for [`PyType::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyType::new`")]
-    #[inline]
-    pub fn new_bound<T: PyTypeInfo>(py: Python<'_>) -> Bound<'_, PyType> {
-        Self::new::<T>(py)
-    }
-
     /// Converts the given FFI pointer into `Bound<PyType>`, to use in safe code.
     ///
     /// The function creates a new reference from the given pointer, and returns

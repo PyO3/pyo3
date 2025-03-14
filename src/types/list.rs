@@ -110,22 +110,6 @@ impl PyList {
         try_new_from_iter(py, iter)
     }
 
-    /// Deprecated name for [`PyList::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyList::new`")]
-    #[allow(deprecated)]
-    #[inline]
-    #[track_caller]
-    pub fn new_bound<T, U>(
-        py: Python<'_>,
-        elements: impl IntoIterator<Item = T, IntoIter = U>,
-    ) -> Bound<'_, PyList>
-    where
-        T: crate::ToPyObject,
-        U: ExactSizeIterator<Item = T>,
-    {
-        Self::new(py, elements.into_iter().map(|e| e.to_object(py))).unwrap()
-    }
-
     /// Constructs a new empty list.
     pub fn empty(py: Python<'_>) -> Bound<'_, PyList> {
         unsafe {
@@ -133,13 +117,6 @@ impl PyList {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyList::empty`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyList::empty`")]
-    #[inline]
-    pub fn empty_bound(py: Python<'_>) -> Bound<'_, PyList> {
-        Self::empty(py)
     }
 }
 

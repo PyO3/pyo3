@@ -104,22 +104,6 @@ impl PyTuple {
         try_new_from_iter(py, elements)
     }
 
-    /// Deprecated name for [`PyTuple::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyTuple::new`")]
-    #[allow(deprecated)]
-    #[track_caller]
-    #[inline]
-    pub fn new_bound<T, U>(
-        py: Python<'_>,
-        elements: impl IntoIterator<Item = T, IntoIter = U>,
-    ) -> Bound<'_, PyTuple>
-    where
-        T: ToPyObject,
-        U: ExactSizeIterator<Item = T>,
-    {
-        PyTuple::new(py, elements.into_iter().map(|e| e.to_object(py))).unwrap()
-    }
-
     /// Constructs an empty tuple (on the Python side, a singleton object).
     pub fn empty(py: Python<'_>) -> Bound<'_, PyTuple> {
         unsafe {
@@ -127,13 +111,6 @@ impl PyTuple {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyTuple::empty`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyTuple::empty`")]
-    #[inline]
-    pub fn empty_bound(py: Python<'_>) -> Bound<'_, PyTuple> {
-        PyTuple::empty(py)
     }
 }
 

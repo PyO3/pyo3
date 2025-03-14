@@ -177,13 +177,6 @@ pub trait PyTzInfoAccess<'py> {
     /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DATE_GET_TZINFO>
     /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_TIME_GET_TZINFO>
     fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>>;
-
-    /// Deprecated name for [`PyTzInfoAccess::get_tzinfo`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyTzInfoAccess::get_tzinfo`")]
-    #[inline]
-    fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
-        self.get_tzinfo()
-    }
 }
 
 /// Bindings around `datetime.date`.
@@ -212,13 +205,6 @@ impl PyDate {
         }
     }
 
-    /// Deprecated name for [`PyDate::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyDate::new`")]
-    #[inline]
-    pub fn new_bound(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<Bound<'_, PyDate>> {
-        Self::new(py, year, month, day)
-    }
-
     /// Construct a `datetime.date` from a POSIX timestamp
     ///
     /// This is equivalent to `datetime.date.fromtimestamp`
@@ -233,13 +219,6 @@ impl PyDate {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyDate::from_timestamp`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyDate::from_timestamp`")]
-    #[inline]
-    pub fn from_timestamp_bound(py: Python<'_>, timestamp: i64) -> PyResult<Bound<'_, PyDate>> {
-        Self::from_timestamp(py, timestamp)
     }
 }
 
@@ -304,34 +283,6 @@ impl PyDateTime {
         }
     }
 
-    /// Deprecated name for [`PyDateTime::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyDateTime::new`")]
-    #[inline]
-    #[allow(clippy::too_many_arguments)]
-    pub fn new_bound<'py>(
-        py: Python<'py>,
-        year: i32,
-        month: u8,
-        day: u8,
-        hour: u8,
-        minute: u8,
-        second: u8,
-        microsecond: u32,
-        tzinfo: Option<&Bound<'py, PyTzInfo>>,
-    ) -> PyResult<Bound<'py, PyDateTime>> {
-        Self::new(
-            py,
-            year,
-            month,
-            day,
-            hour,
-            minute,
-            second,
-            microsecond,
-            tzinfo,
-        )
-    }
-
     /// Alternate constructor that takes a `fold` parameter. A `true` value for this parameter
     /// signifies this this datetime is the later of two moments with the same representation,
     /// during a repeated interval.
@@ -371,36 +322,6 @@ impl PyDateTime {
         }
     }
 
-    /// Deprecated name for [`PyDateTime::new_with_fold`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyDateTime::new_with_fold`")]
-    #[inline]
-    #[allow(clippy::too_many_arguments)]
-    pub fn new_bound_with_fold<'py>(
-        py: Python<'py>,
-        year: i32,
-        month: u8,
-        day: u8,
-        hour: u8,
-        minute: u8,
-        second: u8,
-        microsecond: u32,
-        tzinfo: Option<&Bound<'py, PyTzInfo>>,
-        fold: bool,
-    ) -> PyResult<Bound<'py, PyDateTime>> {
-        Self::new_with_fold(
-            py,
-            year,
-            month,
-            day,
-            hour,
-            minute,
-            second,
-            microsecond,
-            tzinfo,
-            fold,
-        )
-    }
-
     /// Construct a `datetime` object from a POSIX timestamp
     ///
     /// This is equivalent to `datetime.datetime.fromtimestamp`
@@ -419,17 +340,6 @@ impl PyDateTime {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyDateTime::from_timestamp`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyDateTime::from_timestamp`")]
-    #[inline]
-    pub fn from_timestamp_bound<'py>(
-        py: Python<'py>,
-        timestamp: f64,
-        tzinfo: Option<&Bound<'py, PyTzInfo>>,
-    ) -> PyResult<Bound<'py, PyDateTime>> {
-        Self::from_timestamp(py, timestamp, tzinfo)
     }
 }
 
@@ -543,21 +453,7 @@ impl PyTime {
         }
     }
 
-    /// Deprecated name for [`PyTime::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyTime::new`")]
-    #[inline]
-    pub fn new_bound<'py>(
-        py: Python<'py>,
-        hour: u8,
-        minute: u8,
-        second: u8,
-        microsecond: u32,
-        tzinfo: Option<&Bound<'py, PyTzInfo>>,
-    ) -> PyResult<Bound<'py, PyTime>> {
-        Self::new(py, hour, minute, second, microsecond, tzinfo)
-    }
-
-    /// Alternate constructor that takes a `fold` argument. See [`PyDateTime::new_bound_with_fold`].
+    /// Alternate constructor that takes a `fold` argument. See [`PyDateTime::new_with_fold`].
     pub fn new_with_fold<'py>(
         py: Python<'py>,
         hour: u8,
@@ -581,21 +477,6 @@ impl PyTime {
             .assume_owned_or_err(py)
             .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyTime::new_with_fold`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyTime::new_with_fold`")]
-    #[inline]
-    pub fn new_bound_with_fold<'py>(
-        py: Python<'py>,
-        hour: u8,
-        minute: u8,
-        second: u8,
-        microsecond: u32,
-        tzinfo: Option<&Bound<'py, PyTzInfo>>,
-        fold: bool,
-    ) -> PyResult<Bound<'py, PyTime>> {
-        Self::new_with_fold(py, hour, minute, second, microsecond, tzinfo, fold)
     }
 }
 
@@ -661,7 +542,7 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
 /// [`Py<PyTzInfo>`][crate::Py] or [`Bound<'py, PyTzInfo>`][Bound].
 ///
 /// This is an abstract base class and cannot be constructed directly.
-/// For concrete time zone implementations, see [`timezone_utc_bound`] and
+/// For concrete time zone implementations, see [`timezone_utc`] and
 /// the [`zoneinfo` module](https://docs.python.org/3/library/zoneinfo.html).
 #[repr(transparent)]
 pub struct PyTzInfo(PyAny);
@@ -686,13 +567,6 @@ pub fn timezone_utc(py: Python<'_>) -> Bound<'_, PyTzInfo> {
             .to_owned()
             .downcast_into_unchecked()
     }
-}
-
-/// Deprecated name for [`timezone_utc`].
-#[deprecated(since = "0.23.0", note = "renamed to `timezone_utc`")]
-#[inline]
-pub fn timezone_utc_bound(py: Python<'_>) -> Bound<'_, PyTzInfo> {
-    timezone_utc(py)
 }
 
 /// Equivalent to `datetime.timezone` constructor
@@ -747,19 +621,6 @@ impl PyDelta {
             .assume_owned_or_err(py)
             .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyDelta::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyDelta::new`")]
-    #[inline]
-    pub fn new_bound(
-        py: Python<'_>,
-        days: i32,
-        seconds: i32,
-        microseconds: i32,
-        normalize: bool,
-    ) -> PyResult<Bound<'_, PyDelta>> {
-        Self::new(py, days, seconds, microseconds, normalize)
     }
 }
 

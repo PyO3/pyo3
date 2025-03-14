@@ -89,17 +89,6 @@ impl PyCapsule {
         Self::new_with_destructor(py, value, name, |_, _| {})
     }
 
-    /// Deprecated name for [`PyCapsule::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyCapsule::new`")]
-    #[inline]
-    pub fn new_bound<T: 'static + Send + AssertNotZeroSized>(
-        py: Python<'_>,
-        value: T,
-        name: Option<CString>,
-    ) -> PyResult<Bound<'_, Self>> {
-        Self::new(py, value, name)
-    }
-
     /// Constructs a new capsule whose contents are `value`, associated with `name`.
     ///
     /// Also provides a destructor: when the `PyCapsule` is destroyed, it will be passed the original object,
@@ -137,21 +126,6 @@ impl PyCapsule {
             .assume_owned_or_err(py)
             .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyCapsule::new_with_destructor`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyCapsule::new_with_destructor`")]
-    #[inline]
-    pub fn new_bound_with_destructor<
-        T: 'static + Send + AssertNotZeroSized,
-        F: FnOnce(T, *mut c_void) + Send,
-    >(
-        py: Python<'_>,
-        value: T,
-        name: Option<CString>,
-        destructor: F,
-    ) -> PyResult<Bound<'_, Self>> {
-        Self::new_with_destructor(py, value, name, destructor)
     }
 
     /// Imports an existing capsule.

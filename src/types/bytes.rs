@@ -64,13 +64,6 @@ impl PyBytes {
         }
     }
 
-    /// Deprecated name for [`PyBytes::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyBytes::new`")]
-    #[inline]
-    pub fn new_bound<'p>(py: Python<'p>, s: &[u8]) -> Bound<'p, PyBytes> {
-        Self::new(py, s)
-    }
-
     /// Creates a new Python `bytes` object with an `init` closure to write its contents.
     /// Before calling `init` the bytes' contents are zero-initialised.
     /// * If Python raises a MemoryError on the allocation, `new_with` will return
@@ -114,16 +107,6 @@ impl PyBytes {
         }
     }
 
-    /// Deprecated name for [`PyBytes::new_with`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyBytes::new_with`")]
-    #[inline]
-    pub fn new_bound_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<Bound<'_, PyBytes>>
-    where
-        F: FnOnce(&mut [u8]) -> PyResult<()>,
-    {
-        Self::new_with(py, len, init)
-    }
-
     /// Creates a new Python byte string object from a raw pointer and length.
     ///
     /// Panics if out of memory.
@@ -140,20 +123,6 @@ impl PyBytes {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyBytes::from_ptr`].
-    ///
-    /// # Safety
-    ///
-    /// This function dereferences the raw pointer `ptr` as the
-    /// leading pointer of a slice of length `len`. [As with
-    /// `std::slice::from_raw_parts`, this is
-    /// unsafe](https://doc.rust-lang.org/std/slice/fn.from_raw_parts.html#safety).
-    #[deprecated(since = "0.23.0", note = "renamed to `PyBytes::from_ptr`")]
-    #[inline]
-    pub unsafe fn bound_from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> Bound<'_, PyBytes> {
-        unsafe { Self::from_ptr(py, ptr, len) }
     }
 }
 

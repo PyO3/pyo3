@@ -1,11 +1,8 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
-use crate::types::{
-    any::{PyAny, PyAnyMethods},
-    PyNone,
-};
-use crate::{ffi, Bound, Python};
+use crate::types::any::{PyAny, PyAnyMethods};
+use crate::{ffi, Bound};
 
 /// Represents any Python `weakref` reference.
 ///
@@ -321,74 +318,6 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
     fn upgrade(&self) -> Option<Bound<'py, PyAny>>;
-
-    /// Retrieve to a Bound object pointed to by the weakref.
-    ///
-    /// This function returns `Bound<'py, PyAny>`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::PyNone).
-    ///
-    /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
-    /// It produces similar results to using [`PyWeakref_GetRef`] in the C api.
-    ///
-    /// # Example
-    #[cfg_attr(
-        not(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9))))),
-        doc = "```rust,ignore"
-    )]
-    #[cfg_attr(
-        all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
-        doc = "```rust"
-    )]
-    /// #![allow(deprecated)]
-    /// use pyo3::prelude::*;
-    /// use pyo3::types::PyWeakrefReference;
-    ///
-    /// #[pyclass(weakref)]
-    /// struct Foo { /* fields omitted */ }
-    ///
-    /// fn get_class(reference: Borrowed<'_, '_, PyWeakrefReference>) -> PyResult<String> {
-    ///     reference
-    ///         .get_object()
-    ///         .getattr("__class__")?
-    ///         .repr()
-    ///         .map(|repr| repr.to_string())
-    /// }
-    ///
-    /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| {
-    ///     let object = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakrefReference::new(&object)?;
-    ///
-    ///     assert_eq!(
-    ///         get_class(reference.as_borrowed())?,
-    ///         "<class 'builtins.Foo'>"
-    ///     );
-    ///
-    ///     drop(object);
-    ///
-    ///     assert_eq!(get_class(reference.as_borrowed())?, "<class 'NoneType'>");
-    ///
-    ///     Ok(())
-    /// })
-    /// # }
-    /// ```
-    ///
-    /// # Panics
-    /// This function panics is the current object is invalid.
-    /// If used propperly this is never the case. (NonNull and actually a weakref type)
-    ///
-    /// [`PyWeakref_GetRef`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetRef
-    /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
-    /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
-    #[deprecated(since = "0.23.0", note = "Use `upgrade` instead")]
-    fn get_object(&self) -> Bound<'py, PyAny> {
-        self.upgrade().unwrap_or_else(|| {
-            // Safety: upgrade() returns `Bound<'py, PyAny>` with a lifetime `'py` if it exists, we
-            // can safely assume the same lifetime here.
-            PyNone::get(unsafe { Python::assume_gil_acquired() })
-                .to_owned()
-                .into_any()
-        })
-    }
 }
 
 impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakref> {
@@ -545,40 +474,6 @@ mod tests {
             inner(new_reference, true)?;
             inner(new_proxy, false)
         }
-
-        #[test]
-        #[allow(deprecated)]
-        fn test_weakref_get_object() -> PyResult<()> {
-            fn inner(
-                create_reference: impl for<'py> FnOnce(
-                    &Bound<'py, PyAny>,
-                )
-                    -> PyResult<Bound<'py, PyWeakref>>,
-                call_retrievable: bool,
-            ) -> PyResult<()> {
-                let not_call_retrievable = !call_retrievable;
-
-                Python::with_gil(|py| {
-                    let class = get_type(py)?;
-                    let object = class.call0()?;
-                    let reference = create_reference(&object)?;
-
-                    assert!(not_call_retrievable || reference.call0()?.is(&object));
-                    assert!(reference.get_object().is(&object));
-
-                    drop(object);
-
-                    assert!(not_call_retrievable || reference.call0()?.is(&reference.get_object()));
-                    assert!(not_call_retrievable || reference.call0()?.is_none());
-                    assert!(reference.get_object().is_none());
-
-                    Ok(())
-                })
-            }
-
-            inner(new_reference, true)?;
-            inner(new_proxy, false)
-        }
     }
 
     // under 'abi3-py37' and 'abi3-py38' PyClass cannot be weakreferencable.
@@ -689,39 +584,6 @@ mod tests {
 
                     assert!(not_call_retrievable || reference.call0()?.is_none());
                     assert!(reference.upgrade().is_none());
-
-                    Ok(())
-                })
-            }
-
-            inner(new_reference, true)?;
-            inner(new_proxy, false)
-        }
-
-        #[test]
-        #[allow(deprecated)]
-        fn test_weakref_get_object() -> PyResult<()> {
-            fn inner(
-                create_reference: impl for<'py> FnOnce(
-                    &Bound<'py, PyAny>,
-                )
-                    -> PyResult<Bound<'py, PyWeakref>>,
-                call_retrievable: bool,
-            ) -> PyResult<()> {
-                let not_call_retrievable = !call_retrievable;
-
-                Python::with_gil(|py| {
-                    let object = Py::new(py, WeakrefablePyClass {})?;
-                    let reference = create_reference(object.bind(py))?;
-
-                    assert!(not_call_retrievable || reference.call0()?.is(&object));
-                    assert!(reference.get_object().is(&object));
-
-                    drop(object);
-
-                    assert!(not_call_retrievable || reference.call0()?.is(&reference.get_object()));
-                    assert!(not_call_retrievable || reference.call0()?.is_none());
-                    assert!(reference.get_object().is_none());
 
                     Ok(())
                 })
