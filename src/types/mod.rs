@@ -8,12 +8,12 @@ pub use self::capsule::{PyCapsule, PyCapsuleMethods};
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 pub use self::code::PyCode;
 pub use self::complex::{PyComplex, PyComplexMethods};
-#[cfg(not(Py_LIMITED_API))]
 #[allow(deprecated)]
 pub use self::datetime::{
-    timezone_utc, timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess,
-    PyTime, PyTimeAccess, PyTzInfo, PyTzInfoAccess,
+    timezone_utc, timezone_utc_bound, PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess,
 };
+#[cfg(not(Py_LIMITED_API))]
+pub use self::datetime::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
 pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::dict::{PyDictItems, PyDictKeys, PyDictValues};
@@ -223,10 +223,7 @@ pub(crate) mod capsule;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 mod code;
 pub(crate) mod complex;
-#[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
-#[cfg(all(Py_LIMITED_API, any(feature = "chrono", feature = "jiff-02")))]
-pub(crate) mod datetime_abi3;
 pub(crate) mod dict;
 mod ellipsis;
 pub(crate) mod float;

@@ -34,12 +34,11 @@
 //!     })
 //! }
 //! ```
-use crate::conversion::IntoPyObject;
+use crate::conversion::{IntoPyObject, IntoPyObjectExt};
 use crate::exceptions::PyValueError;
 use crate::pybacked::PyBackedStr;
-use crate::sync::GILOnceCell;
-use crate::types::{any::PyAnyMethods, PyType};
-use crate::{intern, Bound, FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python};
+use crate::types::{any::PyAnyMethods, PyTzInfo};
+use crate::{intern, Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python};
 #[allow(deprecated)]
 use crate::{IntoPy, ToPyObject};
 use chrono_tz::Tz;
@@ -49,7 +48,7 @@ use std::str::FromStr;
 impl ToPyObject for Tz {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().unbind()
+        self.into_py_any(py).unwrap()
     }
 }
 
@@ -57,25 +56,22 @@ impl ToPyObject for Tz {
 impl IntoPy<PyObject> for Tz {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().unbind()
+        self.into_py_any(py).unwrap()
     }
 }
 
 impl<'py> IntoPyObject<'py> for Tz {
-    type Target = PyAny;
+    type Target = PyTzInfo;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        static ZONE_INFO: GILOnceCell<Py<PyType>> = GILOnceCell::new();
-        ZONE_INFO
-            .import(py, "zoneinfo", "ZoneInfo")
-            .and_then(|obj| obj.call1((self.name(),)))
+        PyTzInfo::timezone(py, self.name())
     }
 }
 
 impl<'py> IntoPyObject<'py> for &Tz {
-    type Target = PyAny;
+    type Target = PyTzInfo;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
@@ -170,7 +166,7 @@ mod tests {
     #[cfg(not(Py_GIL_DISABLED))] // https://github.com/python/cpython/issues/116738#issuecomment-2404360445
     fn test_into_pyobject() {
         Python::with_gil(|py| {
-            let assert_eq = |l: Bound<'_, PyAny>, r: Bound<'_, PyAny>| {
+            let assert_eq = |l: Bound<'_, PyTzInfo>, r: Bound<'_, PyTzInfo>| {
                 assert!(l.eq(&r).unwrap(), "{:?} != {:?}", l, r);
             };
 
@@ -186,11 +182,7 @@ mod tests {
         });
     }
 
-    fn new_zoneinfo<'py>(py: Python<'py>, name: &str) -> Bound<'py, PyAny> {
-        zoneinfo_class(py).call1((name,)).unwrap()
-    }
-
-    fn zoneinfo_class(py: Python<'_>) -> Bound<'_, PyAny> {
-        py.import("zoneinfo").unwrap().getattr("ZoneInfo").unwrap()
+    fn new_zoneinfo<'py>(py: Python<'py>, name: &str) -> Bound<'py, PyTzInfo> {
+        PyTzInfo::timezone(py, name).unwrap()
     }
 }
