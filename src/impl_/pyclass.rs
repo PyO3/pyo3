@@ -1433,10 +1433,10 @@ impl<ClassT: PyClass, FieldT, Offset: OffsetCalculator<ClassT, FieldT>>
 
 /// ensures `obj` is not mutably aliased
 #[inline]
-unsafe fn ensure_no_mutable_alias<'py, ClassT: PyClass>(
+unsafe fn ensure_no_mutable_alias<'a, 'py: 'a, ClassT: PyClass>(
     py: Python<'py>,
-    obj: &*mut ffi::PyObject,
-) -> Result<PyRef<'py, ClassT>, PyBorrowError> {
+    obj: &'a *mut ffi::PyObject,
+) -> Result<PyRef<'a, 'py, ClassT>, PyBorrowError> {
     BoundRef::ref_from_ptr(py, obj)
         .downcast_unchecked::<ClassT>()
         .try_borrow()

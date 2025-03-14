@@ -259,8 +259,8 @@ where
     /// [`try_borrow`](#method.try_borrow).
     #[inline]
     #[track_caller]
-    pub fn borrow(&self) -> PyRef<'py, T> {
-        PyRef::borrow(self)
+    pub fn borrow<'a>(&'a self) -> PyRef<'a, 'py, T> {
+        PyRef::borrow(self.as_borrowed())
     }
 
     /// Mutably borrows the value `T`.
@@ -294,11 +294,11 @@ where
     /// [`try_borrow_mut`](#method.try_borrow_mut).
     #[inline]
     #[track_caller]
-    pub fn borrow_mut(&self) -> PyRefMut<'py, T>
+    pub fn borrow_mut<'a>(&'a self) -> PyRefMut<'a, 'py, T>
     where
         T: PyClass<Frozen = False>,
     {
-        PyRefMut::borrow(self)
+        PyRefMut::borrow(self.as_borrowed())
     }
 
     /// Attempts to immutably borrow the value `T`, returning an error if the value is currently mutably borrowed.
@@ -309,8 +309,8 @@ where
     ///
     /// For frozen classes, the simpler [`get`][Self::get] is available.
     #[inline]
-    pub fn try_borrow(&self) -> Result<PyRef<'py, T>, PyBorrowError> {
-        PyRef::try_borrow(self)
+    pub fn try_borrow<'a>(&'a self) -> Result<PyRef<'a, 'py, T>, PyBorrowError> {
+        self.as_borrowed().try_borrow()
     }
 
     /// Attempts to mutably borrow the value `T`, returning an error if the value is currently borrowed.
@@ -319,11 +319,11 @@ where
     ///
     /// This is the non-panicking variant of [`borrow_mut`](#method.borrow_mut).
     #[inline]
-    pub fn try_borrow_mut(&self) -> Result<PyRefMut<'py, T>, PyBorrowMutError>
+    pub fn try_borrow_mut<'a>(&'a self) -> Result<PyRefMut<'a, 'py, T>, PyBorrowMutError>
     where
         T: PyClass<Frozen = False>,
     {
-        PyRefMut::try_borrow(self)
+        PyRefMut::try_borrow(self.as_borrowed())
     }
 
     /// Provide an immutable borrow of the value `T` without acquiring the GIL.
@@ -695,6 +695,32 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
 
     pub(crate) fn to_any(self) -> Borrowed<'a, 'py, PyAny> {
         Borrowed(self.0, PhantomData, self.2)
+    }
+
+    /// Extracts some type from the Python object.
+    ///
+    /// This is a wrapper function around [`FromPyObject::extract()`](crate::FromPyObject::extract).
+    pub fn extract<O>(self) -> PyResult<O>
+    where
+        O: FromPyObject<'a, 'py>,
+    {
+        FromPyObject::extract(self.to_any())
+    }
+
+    #[inline]
+    pub(crate) fn try_borrow(self) -> Result<PyRef<'a, 'py, T>, PyBorrowError>
+    where
+        T: PyClass,
+    {
+        PyRef::try_borrow(self)
+    }
+
+    #[inline]
+    pub(crate) fn try_borrow_mut(self) -> Result<PyRefMut<'a, 'py, T>, PyBorrowMutError>
+    where
+        T: PyClass<Frozen = False>,
+    {
+        PyRefMut::try_borrow(self)
     }
 }
 
@@ -1184,8 +1210,8 @@ where
     /// [`try_borrow`](#method.try_borrow).
     #[inline]
     #[track_caller]
-    pub fn borrow<'py>(&'py self, py: Python<'py>) -> PyRef<'py, T> {
-        self.bind(py).borrow()
+    pub fn borrow<'a, 'py>(&'a self, py: Python<'py>) -> PyRef<'a, 'py, T> {
+        PyRef::borrow(self.bind_borrowed(py))
     }
 
     /// Mutably borrows the value `T`.
@@ -1221,11 +1247,11 @@ where
     /// [`try_borrow_mut`](#method.try_borrow_mut).
     #[inline]
     #[track_caller]
-    pub fn borrow_mut<'py>(&'py self, py: Python<'py>) -> PyRefMut<'py, T>
+    pub fn borrow_mut<'a, 'py>(&'a self, py: Python<'py>) -> PyRefMut<'a, 'py, T>
     where
         T: PyClass<Frozen = False>,
     {
-        self.bind(py).borrow_mut()
+        PyRefMut::borrow(self.bind_borrowed(py))
     }
 
     /// Attempts to immutably borrow the value `T`, returning an error if the value is currently mutably borrowed.
@@ -1238,8 +1264,11 @@ where
     ///
     /// Equivalent to `self.bind(py).try_borrow()` - see [`Bound::try_borrow`].
     #[inline]
-    pub fn try_borrow<'py>(&'py self, py: Python<'py>) -> Result<PyRef<'py, T>, PyBorrowError> {
-        self.bind(py).try_borrow()
+    pub fn try_borrow<'a, 'py>(
+        &'a self,
+        py: Python<'py>,
+    ) -> Result<PyRef<'a, 'py, T>, PyBorrowError> {
+        self.bind_borrowed(py).try_borrow()
     }
 
     /// Attempts to mutably borrow the value `T`, returning an error if the value is currently borrowed.
@@ -1250,14 +1279,14 @@ where
     ///
     /// Equivalent to `self.bind(py).try_borrow_mut()` - see [`Bound::try_borrow_mut`].
     #[inline]
-    pub fn try_borrow_mut<'py>(
-        &'py self,
+    pub fn try_borrow_mut<'a, 'py>(
+        &'a self,
         py: Python<'py>,
-    ) -> Result<PyRefMut<'py, T>, PyBorrowMutError>
+    ) -> Result<PyRefMut<'a, 'py, T>, PyBorrowMutError>
     where
         T: PyClass<Frozen = False>,
     {
-        self.bind(py).try_borrow_mut()
+        self.bind_borrowed(py).try_borrow_mut()
     }
 
     /// Provide an immutable borrow of the value `T` without acquiring the GIL.
@@ -1418,7 +1447,7 @@ impl<T> Py<T> {
     /// This is a wrapper function around `FromPyObject::extract()`.
     pub fn extract<'a, 'py, D>(&'a self, py: Python<'py>) -> PyResult<D>
     where
-        D: crate::conversion::FromPyObjectBound<'a, 'py>,
+        D: crate::conversion::FromPyObject<'a, 'py>,
         // TODO it might be possible to relax this bound in future, to allow
         // e.g. `.extract::<&str>(py)` where `py` is short-lived.
         'py: 'a,
@@ -1823,20 +1852,20 @@ impl<T> std::convert::From<Bound<'_, T>> for Py<T> {
     }
 }
 
-impl<'a, T> std::convert::From<PyRef<'a, T>> for Py<T>
+impl<'py, T> std::convert::From<PyRef<'_, 'py, T>> for Py<T>
 where
     T: PyClass,
 {
-    fn from(pyref: PyRef<'a, T>) -> Self {
+    fn from(pyref: PyRef<'_, 'py, T>) -> Self {
         unsafe { Py::from_borrowed_ptr(pyref.py(), pyref.as_ptr()) }
     }
 }
 
-impl<'a, T> std::convert::From<PyRefMut<'a, T>> for Py<T>
+impl<'py, T> std::convert::From<PyRefMut<'_, 'py, T>> for Py<T>
 where
     T: PyClass<Frozen = False>,
 {
-    fn from(pyref: PyRefMut<'a, T>) -> Self {
+    fn from(pyref: PyRefMut<'_, 'py, T>) -> Self {
         unsafe { Py::from_borrowed_ptr(pyref.py(), pyref.as_ptr()) }
     }
 }
@@ -1873,23 +1902,23 @@ impl<T> Drop for Py<T> {
     }
 }
 
-impl<T> FromPyObject<'_> for Py<T>
+impl<T> FromPyObject<'_, '_> for Py<T>
 where
     T: PyTypeCheck,
 {
     /// Extracts `Self` from the source `PyObject`.
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
         ob.extract::<Bound<'_, T>>().map(Bound::unbind)
     }
 }
 
-impl<'py, T> FromPyObject<'py> for Bound<'py, T>
+impl<'py, T> FromPyObject<'_, 'py> for Bound<'py, T>
 where
     T: PyTypeCheck,
 {
     /// Extracts `Self` from the source `PyObject`.
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        ob.downcast().cloned().map_err(Into::into)
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        ob.downcast().map(Borrowed::to_owned).map_err(Into::into)
     }
 }
 
@@ -1961,7 +1990,7 @@ impl PyObject {
     ///     class_bound.borrow_mut().i += 1;
     ///
     ///     // Alternatively you can get a `PyRefMut` directly
-    ///     let class_ref: PyRefMut<'_, Class> = class.extract(py)?;
+    ///     let class_ref: PyRefMut<'_, '_, Class> = class.extract(py)?;
     ///     assert_eq!(class_ref.i, 1);
     ///     Ok(())
     /// })

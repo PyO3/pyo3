@@ -8,7 +8,7 @@
 //! use pyo3::prelude::*;
 //! ```
 
-pub use crate::conversion::{FromPyObject, IntoPyObject};
+pub use crate::conversion::{FromPyObject, FromPyObjectOwned, IntoPyObject};
 #[allow(deprecated)]
 pub use crate::conversion::{IntoPy, ToPyObject};
 pub use crate::err::{PyErr, PyResult};
