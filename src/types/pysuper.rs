@@ -66,14 +66,4 @@ impl PySuper {
             unsafe { any.downcast_into_unchecked() }
         })
     }
-
-    /// Deprecated name for [`PySuper::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PySuper::new`")]
-    #[inline]
-    pub fn new_bound<'py>(
-        ty: &Bound<'py, PyType>,
-        obj: &Bound<'py, PyAny>,
-    ) -> PyResult<Bound<'py, PySuper>> {
-        Self::new(ty, obj)
-    }
 }

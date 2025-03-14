@@ -80,13 +80,6 @@ impl PyWeakrefProxy {
         }
     }
 
-    /// Deprecated name for [`PyWeakrefProxy::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyWeakrefProxy::new`")]
-    #[inline]
-    pub fn new_bound<'py>(object: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyWeakrefProxy>> {
-        Self::new(object)
-    }
-
     /// Constructs a new Weak Reference (`weakref.proxy`/`weakref.ProxyType`/`weakref.CallableProxyType`) for the given object with a callback.
     ///
     /// Returns a `TypeError` if `object` is not weak referenceable (Most native types and PyClasses without `weakref` flag) or if the `callback` is not callable or None.
@@ -171,20 +164,6 @@ impl PyWeakrefProxy {
                 .into_any()
                 .as_borrowed(),
         )
-    }
-
-    /// Deprecated name for [`PyWeakrefProxy::new_with`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyWeakrefProxy::new_with`")]
-    #[allow(deprecated)]
-    #[inline]
-    pub fn new_bound_with<'py, C>(
-        object: &Bound<'py, PyAny>,
-        callback: C,
-    ) -> PyResult<Bound<'py, PyWeakrefProxy>>
-    where
-        C: crate::ToPyObject,
-    {
-        Self::new_with(object, callback.to_object(object.py()))
     }
 }
 
@@ -579,23 +558,6 @@ mod tests {
                     Ok(())
                 })
             }
-
-            #[test]
-            #[allow(deprecated)]
-            fn test_weakref_get_object() -> PyResult<()> {
-                Python::with_gil(|py| {
-                    let object = Py::new(py, WeakrefablePyClass {})?;
-                    let reference = PyWeakrefProxy::new(object.bind(py))?;
-
-                    assert!(reference.get_object().is(&object));
-
-                    drop(object);
-
-                    assert!(reference.get_object().is_none());
-
-                    Ok(())
-                })
-            }
         }
     }
 
@@ -753,24 +715,6 @@ mod tests {
                     Ok(())
                 })
             }
-
-            #[test]
-            #[allow(deprecated)]
-            fn test_weakref_get_object() -> PyResult<()> {
-                Python::with_gil(|py| {
-                    let class = get_type(py)?;
-                    let object = class.call0()?;
-                    let reference = PyWeakrefProxy::new(&object)?;
-
-                    assert!(reference.get_object().is(&object));
-
-                    drop(object);
-
-                    assert!(reference.get_object().is_none());
-
-                    Ok(())
-                })
-            }
         }
 
         // under 'abi3-py37' and 'abi3-py38' PyClass cannot be weakreferencable.
@@ -909,23 +853,6 @@ mod tests {
                     drop(object);
 
                     assert!(reference.upgrade().is_none());
-
-                    Ok(())
-                })
-            }
-
-            #[test]
-            #[allow(deprecated)]
-            fn test_weakref_get_object() -> PyResult<()> {
-                Python::with_gil(|py| {
-                    let object = Py::new(py, WeakrefablePyClass {})?;
-                    let reference = PyWeakrefProxy::new(object.bind(py))?;
-
-                    assert!(reference.get_object().is(&object));
-
-                    drop(object);
-
-                    assert!(reference.get_object().is_none());
 
                     Ok(())
                 })
