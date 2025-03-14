@@ -142,7 +142,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import_bound("sys").unwrap();
+    /// #    let sys = py.import("sys").unwrap();
     /// #    let version = get_version_if_exists(&sys).unwrap();
     /// #    assert!(version.is_some());
     /// # });
@@ -1754,8 +1754,7 @@ class Test:
     def class_method(cls):
         return "class_method_str"
 
-    @property
-    def error(self):
+    def error():
         raise ValueError("This is an intentional error")
 
     def __init__(self):
@@ -1798,9 +1797,11 @@ class Test:
             assert!(do_not_exist.is_none());
 
             // Test error attribute
-            let error = class_test.call0().unwrap().getattr_opt("error");
-            assert!(error.is_err());
+            let error = class_test.getattr_opt("error").unwrap();
+            assert!(error.is_some());
             assert!(error
+                .unwrap()
+                .call0()
                 .unwrap_err()
                 .to_string()
                 .contains("This is an intentional error"));
