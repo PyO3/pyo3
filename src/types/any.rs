@@ -118,6 +118,39 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     where
         N: IntoPyObject<'py, Target = PyString>;
 
+    /// Retrieves an attribute value optionally.
+    ///
+    /// This is equivalent to the Python expression `getattr(self, attr_name, None)`, but uses
+    /// the Python 3.13+ `PyObject_GetOptionalAttr` API for efficiency. Unlike `getattr`, it
+    /// returns `None` if the attribute is not found instead of raising `AttributeError`.
+    /// Other exceptions (e.g., `ValueError` from descriptors) are propagated as errors.
+    ///
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
+    /// to intern `attr_name`.
+    ///
+    /// # Errors
+    /// Returns `Err` if an exception other than `AttributeError` is raised during attribute lookup,
+    /// such as a `ValueError` from a property or descriptor.
+    ///
+    /// # Example: Retrieving an optional attribute
+    /// ```
+    /// # use pyo3::{prelude::*, intern};
+    /// #
+    /// #[pyfunction]
+    /// fn get_version_if_exists<'py>(sys: &Bound<'py, PyModule>) -> PyResult<Option<Bound<'py, PyAny>>> {
+    ///     sys.getattr_opt(intern!(sys.py(), "version"))
+    /// }
+    /// #
+    /// # Python::with_gil(|py| {
+    /// #    let sys = py.import_bound("sys").unwrap();
+    /// #    let version = get_version_if_exists(&sys).unwrap();
+    /// #    assert!(version.is_some());
+    /// # });
+    /// ```
+    fn getattr_opt<N>(&self, attr_name: N) -> PyResult<Option<Bound<'py, PyAny>>>
+    where
+        N: IntoPyObject<'py, Target = PyString>;
+
     /// Sets an attribute value.
     ///
     /// This is equivalent to the Python expression `self.attr_name = value`.
@@ -975,6 +1008,54 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         )
     }
 
+    fn getattr_opt<N>(&self, attr_name: N) -> PyResult<Option<Bound<'py, PyAny>>>
+    where
+        N: IntoPyObject<'py, Target = PyString>,
+    {
+        fn inner<'py>(
+            any: &Bound<'py, PyAny>,
+            attr_name: Borrowed<'_, '_, PyString>,
+        ) -> PyResult<Option<Bound<'py, PyAny>>> {
+            #[cfg(Py_3_13)]
+            {
+                let mut resp_ptr: *mut ffi::PyObject = std::ptr::null_mut();
+                match unsafe {
+                    ffi::PyObject_GetOptionalAttr(any.as_ptr(), attr_name.as_ptr(), &mut resp_ptr)
+                } {
+                    // Attribute found, result is a new strong reference
+                    1 => {
+                        let bound = unsafe { Bound::from_owned_ptr(any.py(), resp_ptr) };
+                        Ok(Some(bound))
+                    }
+                    // Attribute not found, result is NULL
+                    0 => Ok(None),
+
+                    // An error occurred (other than AttributeError)
+                    _ => Err(PyErr::fetch(any.py())),
+                }
+            }
+
+            #[cfg(not(Py_3_13))]
+            {
+                let resp = unsafe { ffi::PyObject_GetAttr(any.as_ptr(), attr_name.as_ptr()) };
+                match resp.is_null() {
+                    // When ptr is NULL, the attribute does not exist
+                    true => Ok(None),
+                    false => {
+                        let resp_obj = unsafe { resp.assume_owned_or_err(any.py()) };
+                        match resp_obj {
+                            Ok(obj) => Ok(Some(obj)),
+                            Err(err) => Err(err),
+                        }
+                    }
+                }
+            }
+        }
+
+        let py = self.py();
+        inner(self, attr_name.into_pyobject_or_pyerr(py)?.as_borrowed())
+    }
+
     fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
     where
         N: IntoPyObject<'py, Target = PyString>,
@@ -1654,6 +1735,85 @@ class NonHeapNonDescriptorInt:
                 .unwrap();
             assert_eq!(eval_int(nonheap_nondescriptor).unwrap(), 0);
         })
+    }
+
+    #[test]
+    fn test_getattr_opt() {
+        Python::with_gil(|py| {
+            let module = PyModule::from_code(
+                py,
+                c_str!(
+                    r#"
+class Test:
+    class_str_attribute = "class_string"
+
+    def static_method():
+        return "static_method_str"
+
+    @classmethod
+    def class_method(cls):
+        return "class_method_str"
+
+    @property
+    def error(self):
+        raise ValueError("This is an intentional error")
+
+    def __init__(self):
+        self.num = 3
+                "#
+                ),
+                c_str!("test.py"),
+                &generate_unique_module_name("test"),
+            )
+            .unwrap();
+
+            // Get the class A
+            let class_test = module.getattr_opt("Test").unwrap().unwrap();
+
+            // Test class attributes
+            let cls_attr_str = class_test
+                .getattr_opt("class_str_attribute")
+                .unwrap()
+                .unwrap();
+            assert_eq!(cls_attr_str.extract::<String>().unwrap(), "class_string");
+
+            // Test class method
+            let class_method = class_test.getattr_opt("class_method").unwrap().unwrap();
+            assert!(class_method.is_callable());
+            assert_eq!(
+                class_method.call0().unwrap().extract::<String>().unwrap(),
+                "class_method_str"
+            );
+
+            // Test static method
+            let static_method = class_test.getattr_opt("static_method").unwrap().unwrap();
+            assert!(static_method.is_callable());
+            assert_eq!(
+                static_method.call0().unwrap().extract::<String>().unwrap(),
+                "static_method_str"
+            );
+
+            // Test non-existent attribute
+            let do_not_exist = class_test.getattr_opt("doNotExist").unwrap();
+            assert!(do_not_exist.is_none());
+
+            // Test error attribute
+            let error = class_test.call0().unwrap().getattr_opt("error");
+            assert!(error.is_err());
+            assert!(error
+                .unwrap_err()
+                .to_string()
+                .contains("This is an intentional error"));
+
+            // Create an instance to call the method
+            let instance = class_test.call0().unwrap();
+            let num = instance.getattr_opt("num").unwrap();
+            assert!(num.is_some());
+            assert_eq!(num.unwrap().extract::<i32>().unwrap(), 3);
+
+            let non_exist_num = instance.getattr_opt("num2").unwrap();
+            assert!(non_exist_num.is_none());
+        });
     }
 
     #[test]
