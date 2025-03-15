@@ -55,6 +55,7 @@ macro_rules! int_from {
 }
 
 /// Macro to invoke the corresponding PyLong_From variant, upcasting the value if required.
+#[cfg(not(target_family = "windows"))]
 macro_rules! int_from_upcasting {
     ($rust_type: ty, $from_function: ident) => {
         impl crate::types::num::ToPyInt for $rust_type {
