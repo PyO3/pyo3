@@ -1,6 +1,6 @@
 use super::any::PyAnyMethods;
 
-use crate::{ffi, instance::Bound, PyAny};
+use crate::{ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, PyAny, Python};
 
 /// Represents a Python `int` object.
 ///
@@ -19,6 +19,47 @@ pyobject_native_type_core!(PyInt, pyobject_native_static_type_object!(ffi::PyLon
 /// Deprecated alias for [`PyInt`].
 #[deprecated(since = "0.23.0", note = "use `PyInt` instead")]
 pub type PyLong = PyInt;
+
+impl PyInt {}
+
+impl PyInt {
+    /// Creates a new Python int object.
+    ///
+    /// Panics if out of memory.
+    pub fn new<T: ToPyInt>(py: Python<'_>, i: T) -> Bound<'_, PyInt> {
+        T::to_pyint(py, i)
+    }
+}
+
+/// Trait for the conversion to [`PyInt`]`.
+pub trait ToPyInt {
+    /// Creates a new Python int object.
+    ///
+    /// Panics if out of memory.
+    fn to_pyint(py: Python<'_>, i: Self) -> Bound<'_, PyInt>;
+}
+
+macro_rules! int_from {
+    ($rust_type: ty, $from_function: ident) => {
+        impl ToPyInt for $rust_type {
+            fn to_pyint(py: Python<'_>, i: Self) -> Bound<'_, PyInt> {
+                unsafe {
+                    ffi::$from_function(i)
+                        .assume_owned(py)
+                        .downcast_into_unchecked()
+                }
+            }
+        }
+    };
+}
+
+int_from!(i32, PyLong_FromLong);
+int_from!(u32, PyLong_FromUnsignedLong);
+int_from!(i64, PyLong_FromLongLong);
+int_from!(u64, PyLong_FromUnsignedLongLong);
+int_from!(isize, PyLong_FromSsize_t);
+int_from!(usize, PyLong_FromSize_t);
+int_from!(f64, PyLong_FromDouble);
 
 macro_rules! int_compare {
     ($rust_type: ty) => {
@@ -60,6 +101,7 @@ int_compare!(usize);
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::{IntoPyObject, Python};
 
     #[test]
@@ -122,5 +164,16 @@ mod tests {
                 assert_ne!(big_obj, x);
             }
         });
+    }
+
+    #[test]
+    fn test_display_int() {
+        Python::with_gil(|py| {
+            let s = PyInt::new(py, 42);
+            assert_eq!(format!("{}", s), "42");
+
+            let s = PyInt::new(py, 3.14);
+            assert_eq!(format!("{}", s), "3");
+        })
     }
 }

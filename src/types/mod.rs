@@ -36,7 +36,7 @@ pub use self::module::{PyModule, PyModuleMethods};
 pub use self::none::PyNone;
 pub use self::notimplemented::PyNotImplemented;
 #[allow(deprecated)]
-pub use self::num::{PyInt, PyLong};
+pub use self::num::{PyInt, PyLong, ToPyInt};
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::pysuper::PySuper;
 pub use self::sequence::{PySequence, PySequenceMethods};
