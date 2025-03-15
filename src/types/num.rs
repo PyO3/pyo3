@@ -202,8 +202,8 @@ mod tests {
             let s = PyInt::new(py, 42);
             assert_eq!(format!("{}", s), "42");
 
-            let s = PyInt::new(py, 3.14);
-            assert_eq!(format!("{}", s), "3");
+            let s = PyInt::new(py, 69.420);
+            assert_eq!(format!("{}", s), "69");
         })
     }
 }
