@@ -1,6 +1,6 @@
 use super::any::PyAnyMethods;
 
-use crate::{ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, PyAny, Python};
+use crate::{ffi, instance::Bound, PyAny, Python};
 
 /// Represents a Python `int` object.
 ///
@@ -41,25 +41,38 @@ pub trait ToPyInt {
 
 macro_rules! int_from {
     ($rust_type: ty, $from_function: ident) => {
-        impl ToPyInt for $rust_type {
-            fn to_pyint(py: Python<'_>, i: Self) -> Bound<'_, PyInt> {
+        impl crate::types::num::ToPyInt for $rust_type {
+            fn to_pyint(py: crate::Python<'_>, i: Self) -> crate::Bound<'_, crate::types::PyInt> {
                 unsafe {
-                    ffi::$from_function(i)
-                        .assume_owned(py)
-                        .downcast_into_unchecked()
+                    let t = crate::ffi::$from_function(i);
+                    let owned = crate::ffi_ptr_ext::FfiPtrExt::assume_owned(t, py);
+                    crate::types::any::PyAnyMethods::downcast_into_unchecked(owned)
                 }
             }
         }
     };
 }
 
-int_from!(i32, PyLong_FromLong);
-int_from!(u32, PyLong_FromUnsignedLong);
-int_from!(i64, PyLong_FromLongLong);
-int_from!(u64, PyLong_FromUnsignedLongLong);
-int_from!(isize, PyLong_FromSsize_t);
-int_from!(usize, PyLong_FromSize_t);
-int_from!(f64, PyLong_FromDouble);
+#[cfg(target_family = "windows")]
+mod windows {
+    int_from!(i32, PyLong_FromLong);
+    int_from!(u32, PyLong_FromUnsignedLong);
+    int_from!(i64, PyLong_FromLongLong);
+    int_from!(u64, PyLong_FromUnsignedLongLong);
+    int_from!(isize, PyLong_FromSsize_t);
+    int_from!(usize, PyLong_FromSize_t);
+    int_from!(f64, PyLong_FromDouble);
+}
+#[cfg(not(target_family = "windows"))]
+mod linux {
+    int_from!(i32, PyLong_FromLongLong);
+    int_from!(u32, PyLong_FromUnsignedLongLong);
+    int_from!(i64, PyLong_FromLongLong);
+    int_from!(u64, PyLong_FromUnsignedLongLong);
+    int_from!(isize, PyLong_FromSsize_t);
+    int_from!(usize, PyLong_FromSize_t);
+    int_from!(f64, PyLong_FromDouble);
+}
 
 macro_rules! int_compare {
     ($rust_type: ty) => {
