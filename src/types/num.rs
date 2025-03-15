@@ -39,12 +39,28 @@ pub trait ToPyInt {
     fn to_pyint(py: Python<'_>, i: Self) -> Bound<'_, PyInt>;
 }
 
+/// Macro to invoke the corresponding PyLong_From variant.
 macro_rules! int_from {
     ($rust_type: ty, $from_function: ident) => {
         impl crate::types::num::ToPyInt for $rust_type {
             fn to_pyint(py: crate::Python<'_>, i: Self) -> crate::Bound<'_, crate::types::PyInt> {
                 unsafe {
                     let t = crate::ffi::$from_function(i);
+                    let owned = crate::ffi_ptr_ext::FfiPtrExt::assume_owned(t, py);
+                    crate::types::any::PyAnyMethods::downcast_into_unchecked(owned)
+                }
+            }
+        }
+    };
+}
+
+/// Macro to invoke the corresponding PyLong_From variant, upcasting the value if required.
+macro_rules! int_from_upcasting {
+    ($rust_type: ty, $from_function: ident) => {
+        impl crate::types::num::ToPyInt for $rust_type {
+            fn to_pyint(py: crate::Python<'_>, i: Self) -> crate::Bound<'_, crate::types::PyInt> {
+                unsafe {
+                    let t = crate::ffi::$from_function(i.into());
                     let owned = crate::ffi_ptr_ext::FfiPtrExt::assume_owned(t, py);
                     crate::types::any::PyAnyMethods::downcast_into_unchecked(owned)
                 }
@@ -65,8 +81,8 @@ mod windows {
 }
 #[cfg(not(target_family = "windows"))]
 mod linux {
-    int_from!(i32, PyLong_FromLongLong);
-    int_from!(u32, PyLong_FromUnsignedLongLong);
+    int_from_upcasting!(i32, PyLong_FromLong);
+    int_from_upcasting!(u32, PyLong_FromUnsignedLong);
     int_from!(i64, PyLong_FromLongLong);
     int_from!(u64, PyLong_FromUnsignedLongLong);
     int_from!(isize, PyLong_FromSsize_t);
