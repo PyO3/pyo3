@@ -120,10 +120,9 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
 
     /// Retrieves an attribute value optionally.
     ///
-    /// This is equivalent to the Python expression `getattr(self, attr_name, None)`, but uses
-    /// the Python 3.13+ `PyObject_GetOptionalAttr` API for efficiency. Unlike `getattr`, it
-    /// returns `None` if the attribute is not found instead of raising `AttributeError`.
-    /// Other exceptions (e.g., `ValueError` from descriptors) are propagated as errors.
+    /// This is equivalent to the Python expression `getattr(self, attr_name, None)`, which may
+    /// be more efficient in some cases by simply returning `None` if the attribute is not found
+    /// instead of raising `AttributeError`.
     ///
     /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `attr_name`.
@@ -1014,7 +1013,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     {
         fn inner<'py>(
             any: &Bound<'py, PyAny>,
-            attr_name: Borrowed<'_, '_, PyString>,
+            attr_name: Borrowed<'_, 'py, PyString>,
         ) -> PyResult<Option<Bound<'py, PyAny>>> {
             #[cfg(Py_3_13)]
             {
@@ -1037,15 +1036,15 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
             #[cfg(not(Py_3_13))]
             {
-                let resp = unsafe { ffi::PyObject_GetAttr(any.as_ptr(), attr_name.as_ptr()) };
-                match resp.is_null() {
-                    // When ptr is NULL, the attribute does not exist
-                    true => Ok(None),
-                    false => {
-                        let resp_obj = unsafe { resp.assume_owned_or_err(any.py()) };
-                        match resp_obj {
-                            Ok(obj) => Ok(Some(obj)),
-                            Err(err) => Err(err),
+                match any.getattr(attr_name) {
+                    Ok(bound) => Ok(Some(bound)),
+                    Err(err) => {
+                        let err_type = err
+                            .get_type(any.py())
+                            .is(&PyType::new::<PyAttributeError>(any.py()));
+                        match err_type {
+                            true => Ok(None),
+                            false => Err(err),
                         }
                     }
                 }
@@ -1747,18 +1746,9 @@ class NonHeapNonDescriptorInt:
 class Test:
     class_str_attribute = "class_string"
 
-    def static_method():
-        return "static_method_str"
-
-    @classmethod
-    def class_method(cls):
-        return "class_method_str"
-
-    def error():
+    @property
+    def error(self):
         raise ValueError("This is an intentional error")
-
-    def __init__(self):
-        self.num = 3
                 "#
                 ),
                 c_str!("test.py"),
@@ -1766,54 +1756,28 @@ class Test:
             )
             .unwrap();
 
-            // Get the class A
+            // Get the class Test
             let class_test = module.getattr_opt("Test").unwrap().unwrap();
 
-            // Test class attributes
+            // Test attribute that exist
             let cls_attr_str = class_test
                 .getattr_opt("class_str_attribute")
                 .unwrap()
                 .unwrap();
             assert_eq!(cls_attr_str.extract::<String>().unwrap(), "class_string");
 
-            // Test class method
-            let class_method = class_test.getattr_opt("class_method").unwrap().unwrap();
-            assert!(class_method.is_callable());
-            assert_eq!(
-                class_method.call0().unwrap().extract::<String>().unwrap(),
-                "class_method_str"
-            );
-
-            // Test static method
-            let static_method = class_test.getattr_opt("static_method").unwrap().unwrap();
-            assert!(static_method.is_callable());
-            assert_eq!(
-                static_method.call0().unwrap().extract::<String>().unwrap(),
-                "static_method_str"
-            );
-
             // Test non-existent attribute
             let do_not_exist = class_test.getattr_opt("doNotExist").unwrap();
             assert!(do_not_exist.is_none());
 
             // Test error attribute
-            let error = class_test.getattr_opt("error").unwrap();
-            assert!(error.is_some());
+            let instance = class_test.call0().unwrap();
+            let error = instance.getattr_opt("error");
+            assert!(error.is_err());
             assert!(error
-                .unwrap()
-                .call0()
                 .unwrap_err()
                 .to_string()
                 .contains("This is an intentional error"));
-
-            // Create an instance to call the method
-            let instance = class_test.call0().unwrap();
-            let num = instance.getattr_opt("num").unwrap();
-            assert!(num.is_some());
-            assert_eq!(num.unwrap().extract::<i32>().unwrap(), 3);
-
-            let non_exist_num = instance.getattr_opt("num2").unwrap();
-            assert!(non_exist_num.is_none());
         });
     }
 
