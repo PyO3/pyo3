@@ -7,10 +7,9 @@ use crate::types::{
     any::PyAnyMethods, list::PyListMethods, PyAny, PyCFunction, PyDict, PyList, PyString,
 };
 use crate::{
-    exceptions, ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, PyObject,
-    Python,
+    exceptions, ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyObject, Python,
 };
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
 use std::os::raw::c_int;
 use std::str;
@@ -59,13 +58,6 @@ impl PyModule {
         }
     }
 
-    /// Deprecated name for [`PyModule::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyModule::new`")]
-    #[inline]
-    pub fn new_bound<'py>(py: Python<'py>, name: &str) -> PyResult<Bound<'py, PyModule>> {
-        Self::new(py, name)
-    }
-
     /// Imports the Python module with the specified name.
     ///
     /// # Examples
@@ -99,17 +91,6 @@ impl PyModule {
         }
     }
 
-    /// Deprecated name for [`PyModule::import`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyModule::import`")]
-    #[allow(deprecated)]
-    #[inline]
-    pub fn import_bound<N>(py: Python<'_>, name: N) -> PyResult<Bound<'_, PyModule>>
-    where
-        N: crate::IntoPy<Py<PyString>>,
-    {
-        Self::import(py, name.into_py(py))
-    }
-
     /// Creates and loads a module named `module_name`,
     /// containing the Python code passed to `code`
     /// and pretending to live at `file_name`.
@@ -127,7 +108,7 @@ impl PyModule {
     /// Returns `PyErr` if:
     /// - `code` is not syntactically correct Python.
     /// - Any Python exceptions are raised while initializing the module.
-    /// - Any of the arguments cannot be converted to [`CString`]s.
+    /// - Any of the arguments cannot be converted to [`CString`][std::ffi::CString]s.
     ///
     /// # Example: bundle in a file at compile time with [`include_str!`][std::include_str]:
     ///
@@ -181,22 +162,6 @@ impl PyModule {
                 .assume_owned_or_err(py)
                 .downcast_into()
         }
-    }
-
-    /// Deprecated name for [`PyModule::from_code`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyModule::from_code`")]
-    #[inline]
-    pub fn from_code_bound<'py>(
-        py: Python<'py>,
-        code: &str,
-        file_name: &str,
-        module_name: &str,
-    ) -> PyResult<Bound<'py, PyModule>> {
-        let data = CString::new(code)?;
-        let filename = CString::new(file_name)?;
-        let module = CString::new(module_name)?;
-
-        Self::from_code(py, data.as_c_str(), filename.as_c_str(), module.as_c_str())
     }
 }
 

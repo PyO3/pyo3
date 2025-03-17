@@ -32,13 +32,6 @@ impl PyByteArray {
         }
     }
 
-    /// Deprecated name for [`PyByteArray::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyByteArray::new`")]
-    #[inline]
-    pub fn new_bound<'py>(py: Python<'py>, src: &[u8]) -> Bound<'py, PyByteArray> {
-        Self::new(py, src)
-    }
-
     /// Creates a new Python `bytearray` object with an `init` closure to write its contents.
     /// Before calling `init` the bytearray is zero-initialised.
     /// * If Python raises a MemoryError on the allocation, `new_with` will return
@@ -84,20 +77,6 @@ impl PyByteArray {
         }
     }
 
-    /// Deprecated name for [`PyByteArray::new_with`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyByteArray::new_with`")]
-    #[inline]
-    pub fn new_bound_with<F>(
-        py: Python<'_>,
-        len: usize,
-        init: F,
-    ) -> PyResult<Bound<'_, PyByteArray>>
-    where
-        F: FnOnce(&mut [u8]) -> PyResult<()>,
-    {
-        Self::new_with(py, len, init)
-    }
-
     /// Creates a new Python `bytearray` object from another Python object that
     /// implements the buffer protocol.
     pub fn from<'py>(src: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyByteArray>> {
@@ -106,13 +85,6 @@ impl PyByteArray {
                 .assume_owned_or_err(src.py())
                 .downcast_into_unchecked()
         }
-    }
-
-    ///Deprecated name for [`PyByteArray::from`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyByteArray::from`")]
-    #[inline]
-    pub fn from_bound<'py>(src: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyByteArray>> {
-        Self::from(src)
     }
 }
 

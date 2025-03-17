@@ -2,10 +2,10 @@
 ///
 /// # Panics
 ///
-/// This macro internally calls [`Python::run_bound`](crate::Python::run_bound) and panics
+/// This macro internally calls [`Python::run`](crate::Python::run) and panics
 /// if it returns `Err`, after printing the error to stdout.
 ///
-/// If you need to handle failures, please use [`Python::run_bound`](crate::marker::Python::run_bound) instead.
+/// If you need to handle failures, please use [`Python::run`](crate::marker::Python::run) instead.
 ///
 /// # Examples
 /// ```
@@ -147,22 +147,6 @@ macro_rules! wrap_pyfunction {
             &wrapped_pyfunction::_PYO3_DEF,
         )
     }};
-}
-
-/// Wraps a Rust function annotated with [`#[pyfunction]`](macro@crate::pyfunction).
-///
-/// This can be used with [`PyModule::add_function`](crate::types::PyModuleMethods::add_function) to
-/// add free functions to a [`PyModule`](crate::types::PyModule) - see its documentation for more
-/// information.
-#[deprecated(since = "0.23.0", note = "renamed to `wrap_pyfunction!`")]
-#[macro_export]
-macro_rules! wrap_pyfunction_bound {
-    ($function:path) => {
-        $crate::wrap_pyfunction!($function)
-    };
-    ($function:path, $py_or_module:expr) => {
-        $crate::wrap_pyfunction!($function, $py_or_module)
-    };
 }
 
 /// Returns a function that takes a [`Python`](crate::Python) instance and returns a

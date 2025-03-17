@@ -11,8 +11,8 @@ pub use self::complex::{PyComplex, PyComplexMethods};
 #[cfg(not(Py_LIMITED_API))]
 #[allow(deprecated)]
 pub use self::datetime::{
-    timezone_utc, timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess,
-    PyTime, PyTimeAccess, PyTzInfo, PyTzInfoAccess,
+    timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
+    PyTzInfo, PyTzInfoAccess,
 };
 pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -35,8 +35,7 @@ pub use self::memoryview::PyMemoryView;
 pub use self::module::{PyModule, PyModuleMethods};
 pub use self::none::PyNone;
 pub use self::notimplemented::PyNotImplemented;
-#[allow(deprecated)]
-pub use self::num::{PyInt, PyLong};
+pub use self::num::PyInt;
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::pysuper::PySuper;
 pub use self::sequence::{PySequence, PySequenceMethods};
@@ -44,8 +43,7 @@ pub use self::set::{PySet, PySetMethods};
 pub use self::slice::{PySlice, PySliceIndices, PySliceMethods};
 #[cfg(not(Py_LIMITED_API))]
 pub use self::string::PyStringData;
-#[allow(deprecated)]
-pub use self::string::{PyString, PyStringMethods, PyUnicode};
+pub use self::string::{PyString, PyStringMethods};
 pub use self::traceback::{PyTraceback, PyTracebackMethods};
 pub use self::tuple::{PyTuple, PyTupleMethods};
 pub use self::typeobject::{PyType, PyTypeMethods};

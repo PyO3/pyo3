@@ -22,13 +22,6 @@ impl PyMemoryView {
                 .downcast_into_unchecked()
         }
     }
-
-    /// Deprecated name for [`PyMemoryView::from`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyMemoryView::from`")]
-    #[inline]
-    pub fn from_bound<'py>(src: &Bound<'py, PyAny>) -> PyResult<Bound<'py, Self>> {
-        Self::from(src)
-    }
 }
 
 impl<'py> TryFrom<&Bound<'py, PyAny>> for Bound<'py, PyMemoryView> {
