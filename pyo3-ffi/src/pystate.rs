@@ -67,7 +67,7 @@ extern "C" {
 // skipped non-limited / 3.9 PyThreadState_GetInterpreter
 // skipped non-limited / 3.9 PyThreadState_GetID
 
-unsafe extern "C" {
+extern "C" {
     // PyThreadState_GetFrame
     #[cfg(all(Py_3_10, not(PyPy), not(Py_LIMITED_API)))]
     pub fn PyThreadState_GetFrame(arg1: *mut PyThreadState) -> *mut PyFrameObject;

@@ -83,7 +83,7 @@ extern "C" {
 pub const PY_VECTORCALL_ARGUMENTS_OFFSET: size_t =
     1 << (8 * std::mem::size_of::<size_t>() as size_t - 1);
 
-unsafe extern "C" {
+extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyObject_Vectorcall")]
     #[cfg(any(Py_3_12, all(Py_3_11, not(Py_LIMITED_API))))]
     pub fn PyObject_Vectorcall(
