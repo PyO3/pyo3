@@ -2077,10 +2077,9 @@ mod tests {
         Python::with_gil(|py| {
             let obj: PyObject = PyDict::new(py).into();
             assert!(obj.call_method0(py, "asdf").is_err());
-            assert!(
-                obj.call_method(py, "nonexistent_method", (1,), None)
-                    .is_err()
-            );
+            assert!(obj
+                .call_method(py, "nonexistent_method", (1,), None)
+                .is_err());
             assert!(obj.call_method0(py, "nonexistent_method").is_err());
             assert!(obj.call_method1(py, "nonexistent_method", (1,)).is_err());
         });
@@ -2128,12 +2127,10 @@ a = A()
 
             instance.setattr(py, "foo", "bar")?;
 
-            assert!(
-                instance
-                    .getattr(py, "foo")?
-                    .bind(py)
-                    .eq(PyString::new(py, "bar"))?
-            );
+            assert!(instance
+                .getattr(py, "foo")?
+                .bind(py)
+                .eq(PyString::new(py, "bar"))?);
 
             instance.getattr(py, "foo")?;
             Ok(())
