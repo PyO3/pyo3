@@ -318,3 +318,24 @@ fn test_optional_setter() {
         );
     })
 }
+
+#[pyclass(get_all)]
+struct ArcGetterSetter {
+    #[pyo3(set)]
+    foo: std::sync::Arc<i32>,
+}
+
+#[test]
+fn test_arc_getter_setter() {
+    Python::with_gil(|py| {
+        let instance = Py::new(
+            py,
+            ArcGetterSetter {
+                foo: std::sync::Arc::new(42),
+            },
+        )
+        .unwrap();
+        py_run!(py, instance, "assert instance.foo == 42");
+        py_run!(py, instance, "instance.foo = 43; assert instance.foo == 43");
+    })
+}
