@@ -20,8 +20,6 @@ pyobject_native_type_core!(PyInt, pyobject_native_static_type_object!(ffi::PyLon
 #[deprecated(since = "0.23.0", note = "use `PyInt` instead")]
 pub type PyLong = PyInt;
 
-impl PyInt {}
-
 impl PyInt {
     /// Creates a new Python int object.
     ///
