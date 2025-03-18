@@ -149,7 +149,7 @@ mod tests {
         Python::with_gil(|py| {
             let s = PyInt::new(py, 42u8);
             assert_eq!(format!("{}", s), "42");
-            
+
             let s = PyInt::new(py, 43i32);
             assert_eq!(format!("{}", s), "43");
 
