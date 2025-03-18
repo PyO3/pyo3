@@ -724,6 +724,8 @@ def check_feature_powerset(session: nox.Session):
 
     cargo_toml = toml.loads((PYO3_DIR / "Cargo.toml").read_text())
 
+    EXPECTED_ABI3_FEATURES = {f"abi3-py3{ver.split('.')[1]}" for ver in PY_VERSIONS}
+
     EXCLUDED_FROM_FULL = {
         "nightly",
         "extension-module",
@@ -739,6 +741,16 @@ def check_feature_powerset(session: nox.Session):
     full_feature = set(features["full"])
     abi3_features = {feature for feature in features if feature.startswith("abi3")}
     abi3_version_features = abi3_features - {"abi3"}
+
+    unexpected_abi3_features = abi3_version_features - EXPECTED_ABI3_FEATURES
+    if unexpected_abi3_features:
+        session.error(
+            f"unexpected `abi3` features found in Cargo.toml: {unexpected_abi3_features}"
+        )
+
+    missing_abi3_features = EXPECTED_ABI3_FEATURES - abi3_version_features
+    if missing_abi3_features:
+        session.error(f"missing `abi3` features in Cargo.toml: {missing_abi3_features}")
 
     expected_full_feature = features.keys() - EXCLUDED_FROM_FULL - abi3_features
 
