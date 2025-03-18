@@ -1,8 +1,6 @@
-use std::convert::Infallible;
-
 use super::any::PyAnyMethods;
-
 use crate::{ffi, instance::Bound, IntoPyObject, PyAny, Python};
+use std::convert::Infallible;
 
 /// Represents a Python `int` object.
 ///
