@@ -24,14 +24,14 @@ impl PyInt {
     /// Creates a new Python int object.
     ///
     /// Panics if out of memory.
-    pub fn new<
-        'a,
+    pub fn new<'a, T>(py: Python<'a>, i: T) -> Bound<'a, PyInt>
+    where
         T: IntoPyObject<'a, Target = PyInt, Output = Bound<'a, PyInt>, Error = Infallible>,
-    >(
-        py: Python<'a>,
-        i: T,
-    ) -> Bound<'a, PyInt> {
-        T::into_pyobject(i, py).unwrap()
+    {
+        match T::into_pyobject(i, py) {
+            Ok(v) => v,
+            Err(never) => match never {},
+        }
     }
 }
 
