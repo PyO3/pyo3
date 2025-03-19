@@ -618,7 +618,7 @@ impl IntoPy<Py<PyTuple>> for &'_ Bound<'_, PyTuple> {
 }
 
 #[cold]
-fn wrong_tuple_length(t: &Bound<'_, PyTuple>, expected_length: usize) -> PyErr {
+fn wrong_tuple_length(t: Borrowed<'_, '_, PyTuple>, expected_length: usize) -> PyErr {
     let msg = format!(
         "expected tuple of length {}, but got tuple of length {}",
         expected_length,
@@ -944,8 +944,8 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
-    impl<'py, $($T: FromPyObject<'py>),+> FromPyObject<'py> for ($($T,)+) {
-        fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self>
+    impl<'a, 'py, $($T: FromPyObject<'a, 'py>),+> FromPyObject<'a, 'py> for ($($T,)+) {
+        fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self>
         {
             let t = obj.downcast::<PyTuple>()?;
             if t.len() == $length {
