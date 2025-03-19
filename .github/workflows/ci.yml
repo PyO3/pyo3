@@ -512,12 +512,12 @@ jobs:
         with:
           node-version: 18
       - run: python -m pip install --upgrade pip && pip install nox
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
         id: cache
         with:
           path: |
             .nox/emscripten
-          key: ${{ hashFiles('emscripten/*') }} - ${{ hashFiles('noxfile.py') }} - ${{ steps.setup-python.outputs.python-path }}
+          key: emscripten-${{ hashFiles('emscripten/*') }}-${{ hashFiles('noxfile.py') }}-${{ steps.setup-python.outputs.python-path }}
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.event_name != 'merge_group' }}
@@ -526,6 +526,12 @@ jobs:
         run: nox -s build-emscripten
       - name: Test
         run: nox -s test-emscripten
+      - uses: actions/cache/save@v4
+        if: ${{ github.event_name != 'merge_group' }}
+        with:
+          path: |
+            .nox/emscripten
+          key: emscripten-${{ hashFiles('emscripten/*') }}-${{ hashFiles('noxfile.py') }}-${{ steps.setup-python.outputs.python-path }}
 
   test-debug:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
