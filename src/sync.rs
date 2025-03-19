@@ -717,6 +717,11 @@ mod tests {
     #[crate::pyclass(crate = "crate")]
     struct BoolWrapper(AtomicBool);
 
+    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "macros")]
+    #[crate::pyclass(crate = "crate")]
+    struct VecWrapper(Vec<isize>);
+
     #[test]
     fn test_intern() {
         Python::with_gil(|py| {
@@ -817,6 +822,57 @@ mod tests {
                     });
                 });
             });
+        });
+    }
+
+    #[cfg(feature = "macros")]
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[test]
+    fn test_critical_section2() {
+        let vec1 = Python::with_gil(|py| Py::new(py, VecWrapper(vec![1, 2, 3])).unwrap());
+        let vec2 = Python::with_gil(|py| Py::new(py, VecWrapper(vec![4, 5])).unwrap());
+
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                Python::with_gil(|py| {
+                    let v1 = vec1.bind(py);
+                    let v2 = vec2.bind(py);
+                    with_critical_section2(v1.as_any(), v2.as_any(), || {
+                        // v2.extend(v1)
+                        v2.borrow_mut().0.extend(v1.borrow().0.iter());
+                    })
+                });
+            });
+            s.spawn(|| {
+                Python::with_gil(|py| {
+                    let v1 = vec1.bind(py);
+                    let v2 = vec2.bind(py);
+                    with_critical_section2(v1.as_any(), v2.as_any(), || {
+                        // v1.extend(v2)
+                        v1.borrow_mut().0.extend(v2.borrow().0.iter());
+                    })
+                });
+            });
+        });
+
+        Python::with_gil(|py| {
+            let v1 = vec1.bind(py);
+            let v2 = vec2.bind(py);
+            // execution order is not guaranteed, so we need to check both
+            // NB: extend should be atomic
+            // v1.extend(v2)
+            // v2.extend(v1)
+            let expected1_vec1 = vec![1, 2, 3, 4, 5];
+            let expected1_vec2 = vec![4, 5, 1, 2, 3, 4, 5];
+            // v2.extend(v1)
+            // v1.extend(v2)
+            let expected2_vec1 = vec![1, 2, 3, 4, 5, 1, 2, 3];
+            let expected2_vec2 = vec![4, 5, 1, 2, 3];
+
+            assert!(
+                (v1.borrow().0.eq(&expected1_vec1) && v2.borrow().0.eq(&expected1_vec2))
+                    || (v1.borrow().0.eq(&expected2_vec1) && v2.borrow().0.eq(&expected2_vec2))
+            );
         });
     }
 
