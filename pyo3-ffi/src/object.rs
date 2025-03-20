@@ -654,7 +654,7 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
         )))]
         {
             #[cfg(all(Py_3_12, target_pointer_width = "64"))]
-            unsafe {
+            {
                 let cur_refcnt = (*op).ob_refcnt.ob_refcnt_split[crate::PY_BIG_ENDIAN];
                 let new_refcnt = cur_refcnt.wrapping_add(1);
                 if new_refcnt == 0 {
