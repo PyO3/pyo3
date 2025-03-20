@@ -157,7 +157,7 @@ extern "C" {
 // skipped private _Py_IsOwnedByCurrentThread
 
 #[inline]
-pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
+pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t { unsafe {
     #[cfg(Py_GIL_DISABLED)]
     {
         let local = (*ob).ob_ref_local.load(Relaxed);
@@ -182,7 +182,7 @@ pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
     {
         unsafe { _Py_REFCNT(ob) }
     }
-}
+}}
 
 #[inline]
 pub unsafe fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject {
@@ -622,7 +622,7 @@ extern "C" {
 }
 
 #[inline(always)]
-pub unsafe fn Py_INCREF(op: *mut PyObject) {
+pub unsafe fn Py_INCREF(op: *mut PyObject) { unsafe {
     // On limited API, the free-threaded build, or with refcount debugging, let the interpreter do refcounting
     // TODO: reimplement the logic in the header in the free-threaded build, for a little bit of performance.
     #[cfg(any(
@@ -678,7 +678,7 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
         // Skipped _Py_INCREF_STAT_INC - if anyone wants this, please file an issue
         // or submit a PR supporting Py_STATS build option and pystats.h
     }
-}
+}}
 
 #[inline(always)]
 #[cfg_attr(
@@ -909,7 +909,7 @@ pub enum PySendResult {
 // skipped Py_RETURN_RICHCOMPARE
 
 #[inline]
-pub unsafe fn PyType_HasFeature(ty: *mut PyTypeObject, feature: c_ulong) -> c_int {
+pub unsafe fn PyType_HasFeature(ty: *mut PyTypeObject, feature: c_ulong) -> c_int { unsafe {
     #[cfg(Py_LIMITED_API)]
     let flags = PyType_GetFlags(ty);
 
@@ -920,7 +920,7 @@ pub unsafe fn PyType_HasFeature(ty: *mut PyTypeObject, feature: c_ulong) -> c_in
     let flags = (*ty).tp_flags;
 
     ((flags & feature) != 0) as c_int
-}
+}}
 
 #[inline]
 pub unsafe fn PyType_FastSubclass(t: *mut PyTypeObject, f: c_ulong) -> c_int {
