@@ -1,4 +1,5 @@
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![cfg_attr(not(cargo_toml_lints), warn(unsafe_op_in_unsafe_fn))] // necessary for MSRV 1.63 to build
 //! Raw FFI declarations for Python's C API.
 //!
 //! PyO3 can be used to write native Python modules or run Python code and modules from Rust.
