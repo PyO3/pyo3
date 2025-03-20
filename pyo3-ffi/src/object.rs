@@ -157,32 +157,34 @@ extern "C" {
 // skipped private _Py_IsOwnedByCurrentThread
 
 #[inline]
-pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t { unsafe {
-    #[cfg(Py_GIL_DISABLED)]
-    {
-        let local = (*ob).ob_ref_local.load(Relaxed);
-        if local == _Py_IMMORTAL_REFCNT_LOCAL {
-            return _Py_IMMORTAL_REFCNT;
+pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
+    unsafe {
+        #[cfg(Py_GIL_DISABLED)]
+        {
+            let local = (*ob).ob_ref_local.load(Relaxed);
+            if local == _Py_IMMORTAL_REFCNT_LOCAL {
+                return _Py_IMMORTAL_REFCNT;
+            }
+            let shared = (*ob).ob_ref_shared.load(Relaxed);
+            local as Py_ssize_t + Py_ssize_t::from(shared >> _Py_REF_SHARED_SHIFT)
         }
-        let shared = (*ob).ob_ref_shared.load(Relaxed);
-        local as Py_ssize_t + Py_ssize_t::from(shared >> _Py_REF_SHARED_SHIFT)
-    }
 
-    #[cfg(all(not(Py_GIL_DISABLED), Py_3_12))]
-    {
-        unsafe { (*ob).ob_refcnt.ob_refcnt }
-    }
+        #[cfg(all(not(Py_GIL_DISABLED), Py_3_12))]
+        {
+            unsafe { (*ob).ob_refcnt.ob_refcnt }
+        }
 
-    #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), not(GraalPy)))]
-    {
-        unsafe { (*ob).ob_refcnt }
-    }
+        #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), not(GraalPy)))]
+        {
+            unsafe { (*ob).ob_refcnt }
+        }
 
-    #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), GraalPy))]
-    {
-        unsafe { _Py_REFCNT(ob) }
+        #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), GraalPy))]
+        {
+            unsafe { _Py_REFCNT(ob) }
+        }
     }
-}}
+}
 
 #[inline]
 pub unsafe fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject {
@@ -622,63 +624,65 @@ extern "C" {
 }
 
 #[inline(always)]
-pub unsafe fn Py_INCREF(op: *mut PyObject) { unsafe {
-    // On limited API, the free-threaded build, or with refcount debugging, let the interpreter do refcounting
-    // TODO: reimplement the logic in the header in the free-threaded build, for a little bit of performance.
-    #[cfg(any(
-        Py_GIL_DISABLED,
-        Py_LIMITED_API,
-        py_sys_config = "Py_REF_DEBUG",
-        GraalPy
-    ))]
-    {
-        // _Py_IncRef was added to the ABI in 3.10; skips null checks
-        #[cfg(all(Py_3_10, not(PyPy)))]
+pub unsafe fn Py_INCREF(op: *mut PyObject) {
+    unsafe {
+        // On limited API, the free-threaded build, or with refcount debugging, let the interpreter do refcounting
+        // TODO: reimplement the logic in the header in the free-threaded build, for a little bit of performance.
+        #[cfg(any(
+            Py_GIL_DISABLED,
+            Py_LIMITED_API,
+            py_sys_config = "Py_REF_DEBUG",
+            GraalPy
+        ))]
         {
-            _Py_IncRef(op);
+            // _Py_IncRef was added to the ABI in 3.10; skips null checks
+            #[cfg(all(Py_3_10, not(PyPy)))]
+            {
+                _Py_IncRef(op);
+            }
+
+            #[cfg(any(not(Py_3_10), PyPy))]
+            {
+                Py_IncRef(op);
+            }
         }
 
-        #[cfg(any(not(Py_3_10), PyPy))]
+        // version-specific builds are allowed to directly manipulate the reference count
+        #[cfg(not(any(
+            Py_GIL_DISABLED,
+            Py_LIMITED_API,
+            py_sys_config = "Py_REF_DEBUG",
+            GraalPy
+        )))]
         {
-            Py_IncRef(op);
+            #[cfg(all(Py_3_12, target_pointer_width = "64"))]
+            unsafe {
+                let cur_refcnt = (*op).ob_refcnt.ob_refcnt_split[crate::PY_BIG_ENDIAN];
+                let new_refcnt = cur_refcnt.wrapping_add(1);
+                if new_refcnt == 0 {
+                    return;
+                }
+                (*op).ob_refcnt.ob_refcnt_split[crate::PY_BIG_ENDIAN] = new_refcnt;
+            }
+
+            #[cfg(all(Py_3_12, target_pointer_width = "32"))]
+            {
+                if _Py_IsImmortal(op) != 0 {
+                    return;
+                }
+                (*op).ob_refcnt.ob_refcnt += 1
+            }
+
+            #[cfg(not(Py_3_12))]
+            {
+                (*op).ob_refcnt += 1
+            }
+
+            // Skipped _Py_INCREF_STAT_INC - if anyone wants this, please file an issue
+            // or submit a PR supporting Py_STATS build option and pystats.h
         }
     }
-
-    // version-specific builds are allowed to directly manipulate the reference count
-    #[cfg(not(any(
-        Py_GIL_DISABLED,
-        Py_LIMITED_API,
-        py_sys_config = "Py_REF_DEBUG",
-        GraalPy
-    )))]
-    {
-        #[cfg(all(Py_3_12, target_pointer_width = "64"))]
-        unsafe {
-            let cur_refcnt = (*op).ob_refcnt.ob_refcnt_split[crate::PY_BIG_ENDIAN];
-            let new_refcnt = cur_refcnt.wrapping_add(1);
-            if new_refcnt == 0 {
-                return;
-            }
-            (*op).ob_refcnt.ob_refcnt_split[crate::PY_BIG_ENDIAN] = new_refcnt;
-        }
-
-        #[cfg(all(Py_3_12, target_pointer_width = "32"))]
-        {
-            if _Py_IsImmortal(op) != 0 {
-                return;
-            }
-            (*op).ob_refcnt.ob_refcnt += 1
-        }
-
-        #[cfg(not(Py_3_12))]
-        {
-            (*op).ob_refcnt += 1
-        }
-
-        // Skipped _Py_INCREF_STAT_INC - if anyone wants this, please file an issue
-        // or submit a PR supporting Py_STATS build option and pystats.h
-    }
-}}
+}
 
 #[inline(always)]
 #[cfg_attr(
@@ -909,18 +913,20 @@ pub enum PySendResult {
 // skipped Py_RETURN_RICHCOMPARE
 
 #[inline]
-pub unsafe fn PyType_HasFeature(ty: *mut PyTypeObject, feature: c_ulong) -> c_int { unsafe {
-    #[cfg(Py_LIMITED_API)]
-    let flags = PyType_GetFlags(ty);
+pub unsafe fn PyType_HasFeature(ty: *mut PyTypeObject, feature: c_ulong) -> c_int {
+    unsafe {
+        #[cfg(Py_LIMITED_API)]
+        let flags = PyType_GetFlags(ty);
 
-    #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
-    let flags = (*ty).tp_flags.load(std::sync::atomic::Ordering::Relaxed);
+        #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
+        let flags = (*ty).tp_flags.load(std::sync::atomic::Ordering::Relaxed);
 
-    #[cfg(all(not(Py_LIMITED_API), not(Py_GIL_DISABLED)))]
-    let flags = (*ty).tp_flags;
+        #[cfg(all(not(Py_LIMITED_API), not(Py_GIL_DISABLED)))]
+        let flags = (*ty).tp_flags;
 
-    ((flags & feature) != 0) as c_int
-}}
+        ((flags & feature) != 0) as c_int
+    }
+}
 
 #[inline]
 pub unsafe fn PyType_FastSubclass(t: *mut PyTypeObject, f: c_ulong) -> c_int {
