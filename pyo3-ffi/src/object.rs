@@ -159,7 +159,7 @@ extern "C" {
 #[inline]
 pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
     #[cfg(Py_GIL_DISABLED)]
-    unsafe {
+    {
         let local = (*ob).ob_ref_local.load(Relaxed);
         if local == _Py_IMMORTAL_REFCNT_LOCAL {
             return _Py_IMMORTAL_REFCNT;
@@ -170,26 +170,26 @@ pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
 
     #[cfg(all(not(Py_GIL_DISABLED), Py_3_12))]
     {
-        unsafe { (*ob).ob_refcnt.ob_refcnt }
+        (*ob).ob_refcnt.ob_refcnt
     }
 
     #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), not(GraalPy)))]
     {
-        unsafe { (*ob).ob_refcnt }
+        (*ob).ob_refcnt
     }
 
     #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), GraalPy))]
     {
-        unsafe { _Py_REFCNT(ob) }
+        _Py_REFCNT(ob)
     }
 }
 
 #[inline]
 pub unsafe fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject {
     #[cfg(not(GraalPy))]
-    return unsafe { (*ob).ob_type };
+    return (*ob).ob_type;
     #[cfg(GraalPy)]
-    return unsafe { _Py_TYPE(ob) };
+    return _Py_TYPE(ob);
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -203,34 +203,32 @@ extern "C" {
 #[inline]
 pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
     #[cfg(not(GraalPy))]
-    unsafe {
+    {
         debug_assert_ne!((*ob).ob_type, std::ptr::addr_of_mut!(crate::PyLong_Type));
         debug_assert_ne!((*ob).ob_type, std::ptr::addr_of_mut!(crate::PyBool_Type));
         (*ob.cast::<PyVarObject>()).ob_size
     }
     #[cfg(GraalPy)]
-    unsafe {
-        _Py_SIZE(ob)
-    }
+    _Py_SIZE(ob)
 }
 
 #[inline(always)]
 #[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
 unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
     #[cfg(target_pointer_width = "64")]
-    unsafe {
+    {
         (((*op).ob_refcnt.ob_refcnt as crate::PY_INT32_T) < 0) as c_int
     }
 
     #[cfg(target_pointer_width = "32")]
-    unsafe {
+    {
         ((*op).ob_refcnt.ob_refcnt == _Py_IMMORTAL_REFCNT) as c_int
     }
 }
 
 #[inline]
 pub unsafe fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
-    unsafe { (Py_TYPE(ob) == tp) as c_int }
+    (Py_TYPE(ob) == tp) as c_int
 }
 
 // skipped _Py_SetRefCnt
@@ -381,7 +379,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyObject_TypeCheck(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
-    unsafe { (Py_IS_TYPE(ob, tp) != 0 || PyType_IsSubtype(Py_TYPE(ob), tp) != 0) as c_int }
+    (Py_IS_TYPE(ob, tp) != 0 || PyType_IsSubtype(Py_TYPE(ob), tp) != 0) as c_int
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -623,62 +621,60 @@ extern "C" {
 
 #[inline(always)]
 pub unsafe fn Py_INCREF(op: *mut PyObject) {
-    unsafe {
-        // On limited API, the free-threaded build, or with refcount debugging, let the interpreter do refcounting
-        // TODO: reimplement the logic in the header in the free-threaded build, for a little bit of performance.
-        #[cfg(any(
-            Py_GIL_DISABLED,
-            Py_LIMITED_API,
-            py_sys_config = "Py_REF_DEBUG",
-            GraalPy
-        ))]
+    // On limited API, the free-threaded build, or with refcount debugging, let the interpreter do refcounting
+    // TODO: reimplement the logic in the header in the free-threaded build, for a little bit of performance.
+    #[cfg(any(
+        Py_GIL_DISABLED,
+        Py_LIMITED_API,
+        py_sys_config = "Py_REF_DEBUG",
+        GraalPy
+    ))]
+    {
+        // _Py_IncRef was added to the ABI in 3.10; skips null checks
+        #[cfg(all(Py_3_10, not(PyPy)))]
         {
-            // _Py_IncRef was added to the ABI in 3.10; skips null checks
-            #[cfg(all(Py_3_10, not(PyPy)))]
-            {
-                _Py_IncRef(op);
-            }
-
-            #[cfg(any(not(Py_3_10), PyPy))]
-            {
-                Py_IncRef(op);
-            }
+            _Py_IncRef(op);
         }
 
-        // version-specific builds are allowed to directly manipulate the reference count
-        #[cfg(not(any(
-            Py_GIL_DISABLED,
-            Py_LIMITED_API,
-            py_sys_config = "Py_REF_DEBUG",
-            GraalPy
-        )))]
+        #[cfg(any(not(Py_3_10), PyPy))]
         {
-            #[cfg(all(Py_3_12, target_pointer_width = "64"))]
-            {
-                let cur_refcnt = (*op).ob_refcnt.ob_refcnt_split[crate::PY_BIG_ENDIAN];
-                let new_refcnt = cur_refcnt.wrapping_add(1);
-                if new_refcnt == 0 {
-                    return;
-                }
-                (*op).ob_refcnt.ob_refcnt_split[crate::PY_BIG_ENDIAN] = new_refcnt;
-            }
-
-            #[cfg(all(Py_3_12, target_pointer_width = "32"))]
-            {
-                if _Py_IsImmortal(op) != 0 {
-                    return;
-                }
-                (*op).ob_refcnt.ob_refcnt += 1
-            }
-
-            #[cfg(not(Py_3_12))]
-            {
-                (*op).ob_refcnt += 1
-            }
-
-            // Skipped _Py_INCREF_STAT_INC - if anyone wants this, please file an issue
-            // or submit a PR supporting Py_STATS build option and pystats.h
+            Py_IncRef(op);
         }
+    }
+
+    // version-specific builds are allowed to directly manipulate the reference count
+    #[cfg(not(any(
+        Py_GIL_DISABLED,
+        Py_LIMITED_API,
+        py_sys_config = "Py_REF_DEBUG",
+        GraalPy
+    )))]
+    {
+        #[cfg(all(Py_3_12, target_pointer_width = "64"))]
+        {
+            let cur_refcnt = (*op).ob_refcnt.ob_refcnt_split[crate::PY_BIG_ENDIAN];
+            let new_refcnt = cur_refcnt.wrapping_add(1);
+            if new_refcnt == 0 {
+                return;
+            }
+            (*op).ob_refcnt.ob_refcnt_split[crate::PY_BIG_ENDIAN] = new_refcnt;
+        }
+
+        #[cfg(all(Py_3_12, target_pointer_width = "32"))]
+        {
+            if _Py_IsImmortal(op) != 0 {
+                return;
+            }
+            (*op).ob_refcnt.ob_refcnt += 1
+        }
+
+        #[cfg(not(Py_3_12))]
+        {
+            (*op).ob_refcnt += 1
+        }
+
+        // Skipped _Py_INCREF_STAT_INC - if anyone wants this, please file an issue
+        // or submit a PR supporting Py_STATS build option and pystats.h
     }
 }
 
@@ -697,7 +693,7 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
         all(py_sys_config = "Py_REF_DEBUG", not(Py_3_12)),
         GraalPy
     ))]
-    unsafe {
+    {
         // _Py_DecRef was added to the ABI in 3.10; skips null checks
         #[cfg(all(Py_3_10, not(PyPy)))]
         {
@@ -716,7 +712,7 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
         all(py_sys_config = "Py_REF_DEBUG", not(Py_3_12)),
         GraalPy
     )))]
-    unsafe {
+    {
         #[cfg(Py_3_12)]
         if _Py_IsImmortal(op) != 0 {
             return;
@@ -757,26 +753,24 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
 
 #[inline]
 pub unsafe fn Py_CLEAR(op: *mut *mut PyObject) {
-    unsafe {
-        let tmp = *op;
-        if !tmp.is_null() {
-            *op = ptr::null_mut();
-            Py_DECREF(tmp)
-        };
+    let tmp = *op;
+    if !tmp.is_null() {
+        *op = ptr::null_mut();
+        Py_DECREF(tmp);
     }
 }
 
 #[inline]
 pub unsafe fn Py_XINCREF(op: *mut PyObject) {
     if !op.is_null() {
-        unsafe { Py_INCREF(op) }
+        Py_INCREF(op)
     }
 }
 
 #[inline]
 pub unsafe fn Py_XDECREF(op: *mut PyObject) {
     if !op.is_null() {
-        unsafe { Py_DECREF(op) }
+        Py_DECREF(op)
     }
 }
 
@@ -796,7 +790,7 @@ extern "C" {
 #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
 #[inline]
 pub unsafe fn Py_NewRef(obj: *mut PyObject) -> *mut PyObject {
-    unsafe { Py_INCREF(obj) };
+    Py_INCREF(obj);
     obj
 }
 
@@ -804,7 +798,7 @@ pub unsafe fn Py_NewRef(obj: *mut PyObject) -> *mut PyObject {
 #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
 #[inline]
 pub unsafe fn Py_XNewRef(obj: *mut PyObject) -> *mut PyObject {
-    unsafe { Py_XINCREF(obj) };
+    Py_XINCREF(obj);
     obj
 }
 
@@ -862,7 +856,7 @@ pub unsafe fn Py_None() -> *mut PyObject {
 
 #[inline]
 pub unsafe fn Py_IsNone(x: *mut PyObject) -> c_int {
-    unsafe { Py_Is(x, Py_None()) }
+    Py_Is(x, Py_None())
 }
 
 // skipped Py_RETURN_NONE
@@ -880,13 +874,13 @@ extern "C" {
 #[inline]
 pub unsafe fn Py_NotImplemented() -> *mut PyObject {
     #[cfg(all(not(GraalPy), all(Py_3_13, Py_LIMITED_API)))]
-    return unsafe { Py_GetConstantBorrowed(Py_CONSTANT_NOT_IMPLEMENTED) };
+    return Py_GetConstantBorrowed(Py_CONSTANT_NOT_IMPLEMENTED);
 
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
     return ptr::addr_of_mut!(_Py_NotImplementedStruct);
 
     #[cfg(GraalPy)]
-    return unsafe { _Py_NotImplementedStructReference };
+    return _Py_NotImplementedStructReference;
 }
 
 // skipped Py_RETURN_NOTIMPLEMENTED
@@ -912,35 +906,33 @@ pub enum PySendResult {
 
 #[inline]
 pub unsafe fn PyType_HasFeature(ty: *mut PyTypeObject, feature: c_ulong) -> c_int {
-    unsafe {
-        #[cfg(Py_LIMITED_API)]
-        let flags = PyType_GetFlags(ty);
+    #[cfg(Py_LIMITED_API)]
+    let flags = PyType_GetFlags(ty);
 
-        #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
-        let flags = (*ty).tp_flags.load(std::sync::atomic::Ordering::Relaxed);
+    #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
+    let flags = (*ty).tp_flags.load(std::sync::atomic::Ordering::Relaxed);
 
-        #[cfg(all(not(Py_LIMITED_API), not(Py_GIL_DISABLED)))]
-        let flags = (*ty).tp_flags;
+    #[cfg(all(not(Py_LIMITED_API), not(Py_GIL_DISABLED)))]
+    let flags = (*ty).tp_flags;
 
-        ((flags & feature) != 0) as c_int
-    }
+    ((flags & feature) != 0) as c_int
 }
 
 #[inline]
 pub unsafe fn PyType_FastSubclass(t: *mut PyTypeObject, f: c_ulong) -> c_int {
-    unsafe { PyType_HasFeature(t, f) }
+    PyType_HasFeature(t, f)
 }
 
 #[inline]
 pub unsafe fn PyType_Check(op: *mut PyObject) -> c_int {
-    unsafe { PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_TYPE_SUBCLASS) }
+    PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_TYPE_SUBCLASS)
 }
 
 // skipped _PyType_CAST
 
 #[inline]
 pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
-    unsafe { Py_IS_TYPE(op, ptr::addr_of_mut!(PyType_Type)) }
+    Py_IS_TYPE(op, ptr::addr_of_mut!(PyType_Type))
 }
 
 extern "C" {

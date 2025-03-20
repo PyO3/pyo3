@@ -10,12 +10,12 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyComplex_Check(op: *mut PyObject) -> c_int {
-    unsafe { PyObject_TypeCheck(op, addr_of_mut!(PyComplex_Type)) }
+    PyObject_TypeCheck(op, addr_of_mut!(PyComplex_Type))
 }
 
 #[inline]
 pub unsafe fn PyComplex_CheckExact(op: *mut PyObject) -> c_int {
-    unsafe { Py_IS_TYPE(op, addr_of_mut!(PyComplex_Type)) }
+    Py_IS_TYPE(op, addr_of_mut!(PyComplex_Type))
 }
 
 extern "C" {

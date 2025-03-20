@@ -42,12 +42,12 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyGen_Check(op: *mut PyObject) -> c_int {
-    unsafe { PyObject_TypeCheck(op, addr_of_mut!(PyGen_Type)) }
+    PyObject_TypeCheck(op, addr_of_mut!(PyGen_Type))
 }
 
 #[inline]
 pub unsafe fn PyGen_CheckExact(op: *mut PyObject) -> c_int {
-    unsafe { (Py_TYPE(op) == addr_of_mut!(PyGen_Type)) as c_int }
+    (Py_TYPE(op) == addr_of_mut!(PyGen_Type)) as c_int
 }
 
 extern "C" {
@@ -72,7 +72,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyCoro_CheckExact(op: *mut PyObject) -> c_int {
-    unsafe { PyObject_TypeCheck(op, addr_of_mut!(PyCoro_Type)) }
+    PyObject_TypeCheck(op, addr_of_mut!(PyCoro_Type))
 }
 
 // skipped _PyCoro_GetAwaitableIter
@@ -92,7 +92,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyAsyncGen_CheckExact(op: *mut PyObject) -> c_int {
-    unsafe { PyObject_TypeCheck(op, addr_of_mut!(PyAsyncGen_Type)) }
+    PyObject_TypeCheck(op, addr_of_mut!(PyAsyncGen_Type))
 }
 
 // skipped _PyAsyncGenValueWrapperNew

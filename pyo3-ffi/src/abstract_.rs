@@ -6,20 +6,20 @@ use std::os::raw::{c_char, c_int};
 
 #[inline]
 #[cfg(all(
-    not(Py_3_13), // CPython exposed as a function in 3.13, in object.h
+    not(Py_3_13), // CPython exposed as a function in 3.13, in object.h 
     not(all(PyPy, not(Py_3_11))) // PyPy exposed as a function until PyPy 3.10, macro in 3.11+
 ))]
 pub unsafe fn PyObject_DelAttrString(o: *mut PyObject, attr_name: *const c_char) -> c_int {
-    unsafe { PyObject_SetAttrString(o, attr_name, std::ptr::null_mut()) }
+    PyObject_SetAttrString(o, attr_name, std::ptr::null_mut())
 }
 
 #[inline]
 #[cfg(all(
-    not(Py_3_13), // CPython exposed as a function in 3.13, in object.h
+    not(Py_3_13), // CPython exposed as a function in 3.13, in object.h 
     not(all(PyPy, not(Py_3_11))) // PyPy exposed as a function until PyPy 3.10, macro in 3.11+
 ))]
 pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_int {
-    unsafe { PyObject_SetAttr(o, attr_name, std::ptr::null_mut()) }
+    PyObject_SetAttr(o, attr_name, std::ptr::null_mut())
 }
 
 extern "C" {
@@ -108,7 +108,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyObject_Length(o: *mut PyObject) -> Py_ssize_t {
-    unsafe { PyObject_Size(o) }
+    PyObject_Size(o)
 }
 
 extern "C" {
@@ -137,7 +137,7 @@ extern "C" {
 #[cfg(not(any(Py_3_8, PyPy)))]
 #[inline]
 pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
-    unsafe { crate::PyObject_HasAttrString(crate::Py_TYPE(o).cast(), c_str!("__next__").as_ptr()) }
+    crate::PyObject_HasAttrString(crate::Py_TYPE(o).cast(), c_str!("__next__").as_ptr())
 }
 
 extern "C" {
@@ -201,8 +201,8 @@ extern "C" {
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
 #[inline]
 pub unsafe fn PyIndex_Check(o: *mut PyObject) -> c_int {
-    let tp_as_number = unsafe { (*Py_TYPE(o)).tp_as_number };
-    (!tp_as_number.is_null() && unsafe { (*tp_as_number).nb_index }.is_some()) as c_int
+    let tp_as_number = (*Py_TYPE(o)).tp_as_number;
+    (!tp_as_number.is_null() && (*tp_as_number).nb_index.is_some()) as c_int
 }
 
 extern "C" {
@@ -263,7 +263,7 @@ extern "C" {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PySequence_Length(o: *mut PyObject) -> Py_ssize_t {
-    unsafe { PySequence_Size(o) }
+    PySequence_Size(o)
 }
 
 extern "C" {
@@ -304,7 +304,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PySequence_In(o: *mut PyObject, value: *mut PyObject) -> c_int {
-    unsafe { PySequence_Contains(o, value) }
+    PySequence_Contains(o, value)
 }
 
 extern "C" {
@@ -327,17 +327,17 @@ extern "C" {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyMapping_Length(o: *mut PyObject) -> Py_ssize_t {
-    unsafe { PyMapping_Size(o) }
+    PyMapping_Size(o)
 }
 
 #[inline]
 pub unsafe fn PyMapping_DelItemString(o: *mut PyObject, key: *mut c_char) -> c_int {
-    unsafe { PyObject_DelItemString(o, key) }
+    PyObject_DelItemString(o, key)
 }
 
 #[inline]
 pub unsafe fn PyMapping_DelItem(o: *mut PyObject, key: *mut PyObject) -> c_int {
-    unsafe { PyObject_DelItem(o, key) }
+    PyObject_DelItem(o, key)
 }
 
 extern "C" {

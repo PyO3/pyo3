@@ -326,11 +326,9 @@ impl Default for PyHeapTypeObject {
 #[inline]
 #[cfg(not(Py_3_11))]
 pub unsafe fn PyHeapType_GET_MEMBERS(etype: *mut PyHeapTypeObject) -> *mut PyMemberDef {
-    unsafe {
-        let py_type = object::Py_TYPE(etype as *mut object::PyObject);
-        let ptr = etype.offset((*py_type).tp_basicsize);
-        ptr as *mut PyMemberDef
-    }
+    let py_type = object::Py_TYPE(etype as *mut object::PyObject);
+    let ptr = etype.offset((*py_type).tp_basicsize);
+    ptr as *mut PyMemberDef
 }
 
 // skipped private _PyType_Name

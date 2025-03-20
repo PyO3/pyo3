@@ -6,7 +6,7 @@ compat_function!(
         dp: *mut crate::PyObject,
         key: *mut crate::PyObject,
         result: *mut *mut crate::PyObject,
-    ) -> std::os::raw::c_int { unsafe {
+    ) -> std::os::raw::c_int {
         use crate::{compat::Py_NewRef, PyDict_GetItemWithError, PyErr_Occurred};
 
         let item = PyDict_GetItemWithError(dp, key);
@@ -19,7 +19,7 @@ compat_function!(
             return 0; // not found
         }
         -1
-    }}
+    }
 );
 
 compat_function!(
@@ -29,13 +29,13 @@ compat_function!(
     pub unsafe fn PyList_GetItemRef(
         arg1: *mut crate::PyObject,
         arg2: crate::Py_ssize_t,
-    ) -> *mut crate::PyObject { unsafe {
+    ) -> *mut crate::PyObject {
         use crate::{PyList_GetItem, Py_XINCREF};
 
         let item = PyList_GetItem(arg1, arg2);
         Py_XINCREF(item);
         item
-    }}
+    }
 );
 
 compat_function!(
@@ -44,11 +44,11 @@ compat_function!(
     #[inline]
     pub unsafe fn PyImport_AddModuleRef(
         name: *const std::os::raw::c_char,
-    ) -> *mut crate::PyObject { unsafe {
+    ) -> *mut crate::PyObject {
         use crate::{compat::Py_XNewRef, PyImport_AddModule};
 
         Py_XNewRef(PyImport_AddModule(name))
-    }}
+    }
 );
 
 compat_function!(
@@ -58,7 +58,7 @@ compat_function!(
     pub unsafe fn PyWeakref_GetRef(
         reference: *mut crate::PyObject,
         pobj: *mut *mut crate::PyObject,
-    ) -> std::os::raw::c_int { unsafe {
+    ) -> std::os::raw::c_int {
         use crate::{
             compat::Py_NewRef, PyErr_SetString, PyExc_TypeError, PyWeakref_Check,
             PyWeakref_GetObject, Py_None,
@@ -81,7 +81,7 @@ compat_function!(
         }
         *pobj = Py_NewRef(obj);
         1
-    }}
+    }
 );
 
 compat_function!(
@@ -91,16 +91,16 @@ compat_function!(
     pub unsafe fn PyList_Extend(
         list: *mut crate::PyObject,
         iterable: *mut crate::PyObject,
-    ) -> std::os::raw::c_int { unsafe {
+    ) -> std::os::raw::c_int {
         crate::PyList_SetSlice(list, crate::PY_SSIZE_T_MAX, crate::PY_SSIZE_T_MAX, iterable)
-    }}
+    }
 );
 
 compat_function!(
     originally_defined_for(Py_3_13);
 
     #[inline]
-    pub unsafe fn PyList_Clear(list: *mut crate::PyObject) -> std::os::raw::c_int { unsafe {
+    pub unsafe fn PyList_Clear(list: *mut crate::PyObject) -> std::os::raw::c_int {
         crate::PyList_SetSlice(list, 0, crate::PY_SSIZE_T_MAX, std::ptr::null_mut())
-    }}
+    }
 );

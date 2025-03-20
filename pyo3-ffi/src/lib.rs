@@ -1,5 +1,4 @@
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
-#![cfg_attr(not(cargo_toml_lints), warn(unsafe_op_in_unsafe_fn))] // necessary for MSRV 1.63 to build
 //! Raw FFI declarations for Python's C API.
 //!
 //! PyO3 can be used to write native Python modules or run Python code and modules from Rust.
@@ -331,6 +330,11 @@
     clippy::missing_safety_doc
 )]
 #![warn(elided_lifetimes_in_paths, unused_lifetimes)]
+// This crate is a hand-maintained translation of CPython's headers, so requiring "unsafe"
+// blocks within those translations increases maintenance burden without providing any
+// additional safety. The safety of the functions in this crate is determined by the
+// original CPython headers
+#![allow(unsafe_op_in_unsafe_fn)]
 
 // Until `extern type` is stabilized, use the recommended approach to
 // model opaque types:

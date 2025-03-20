@@ -11,14 +11,14 @@ pub struct PyFloatObject {
 
 #[inline]
 pub unsafe fn _PyFloat_CAST(op: *mut PyObject) -> *mut PyFloatObject {
-    debug_assert_eq!(unsafe { PyFloat_Check(op) }, 1);
+    debug_assert_eq!(PyFloat_Check(op), 1);
     op.cast()
 }
 
 #[inline]
 pub unsafe fn PyFloat_AS_DOUBLE(op: *mut PyObject) -> c_double {
     #[cfg(not(GraalPy))]
-    return unsafe { (*_PyFloat_CAST(op)).ob_fval };
+    return (*_PyFloat_CAST(op)).ob_fval;
     #[cfg(GraalPy)]
     return PyFloat_AsDouble(op);
 }

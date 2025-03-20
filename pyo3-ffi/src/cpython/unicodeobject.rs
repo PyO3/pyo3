@@ -166,57 +166,51 @@ struct PyASCIIObjectState {
 impl PyASCIIObjectState {
     #[inline]
     unsafe fn interned(&self) -> c_uint {
-        unsafe {
-            std::mem::transmute(
-                self.bitfield
-                    .get(STATE_INTERNED_INDEX, STATE_INTERNED_WIDTH) as u32,
-            )
-        }
+        std::mem::transmute(
+            self.bitfield
+                .get(STATE_INTERNED_INDEX, STATE_INTERNED_WIDTH) as u32,
+        )
     }
 
     #[inline]
     unsafe fn set_interned(&mut self, val: c_uint) {
-        let val: u32 = unsafe { std::mem::transmute(val) };
+        let val: u32 = std::mem::transmute(val);
         self.bitfield
             .set(STATE_INTERNED_INDEX, STATE_INTERNED_WIDTH, val as u64)
     }
 
     #[inline]
     unsafe fn kind(&self) -> c_uint {
-        unsafe { std::mem::transmute(self.bitfield.get(STATE_KIND_INDEX, STATE_KIND_WIDTH) as u32) }
+        std::mem::transmute(self.bitfield.get(STATE_KIND_INDEX, STATE_KIND_WIDTH) as u32)
     }
 
     #[inline]
     unsafe fn set_kind(&mut self, val: c_uint) {
-        let val: u32 = unsafe { std::mem::transmute(val) };
+        let val: u32 = std::mem::transmute(val);
         self.bitfield
             .set(STATE_KIND_INDEX, STATE_KIND_WIDTH, val as u64)
     }
 
     #[inline]
     unsafe fn compact(&self) -> c_uint {
-        unsafe {
-            std::mem::transmute(self.bitfield.get(STATE_COMPACT_INDEX, STATE_COMPACT_WIDTH) as u32)
-        }
+        std::mem::transmute(self.bitfield.get(STATE_COMPACT_INDEX, STATE_COMPACT_WIDTH) as u32)
     }
 
     #[inline]
     unsafe fn set_compact(&mut self, val: c_uint) {
-        let val: u32 = unsafe { std::mem::transmute(val) };
+        let val: u32 = std::mem::transmute(val);
         self.bitfield
             .set(STATE_COMPACT_INDEX, STATE_COMPACT_WIDTH, val as u64)
     }
 
     #[inline]
     unsafe fn ascii(&self) -> c_uint {
-        unsafe {
-            std::mem::transmute(self.bitfield.get(STATE_ASCII_INDEX, STATE_ASCII_WIDTH) as u32)
-        }
+        std::mem::transmute(self.bitfield.get(STATE_ASCII_INDEX, STATE_ASCII_WIDTH) as u32)
     }
 
     #[inline]
     unsafe fn set_ascii(&mut self, val: c_uint) {
-        let val: u32 = unsafe { std::mem::transmute(val) };
+        let val: u32 = std::mem::transmute(val);
         self.bitfield
             .set(STATE_ASCII_INDEX, STATE_ASCII_WIDTH, val as u64)
     }
@@ -224,19 +218,15 @@ impl PyASCIIObjectState {
     #[cfg(not(Py_3_12))]
     #[inline]
     unsafe fn ready(&self) -> c_uint {
-        unsafe {
-            std::mem::transmute(self.bitfield.get(STATE_READY_INDEX, STATE_READY_WIDTH) as u32)
-        }
+        std::mem::transmute(self.bitfield.get(STATE_READY_INDEX, STATE_READY_WIDTH) as u32)
     }
 
     #[cfg(not(Py_3_12))]
     #[inline]
     unsafe fn set_ready(&mut self, val: c_uint) {
-        unsafe {
-            let val: u32 = std::mem::transmute(val);
-            self.bitfield
-                .set(STATE_READY_INDEX, STATE_READY_WIDTH, val as u64)
-        }
+        let val: u32 = std::mem::transmute(val);
+        self.bitfield
+            .set(STATE_READY_INDEX, STATE_READY_WIDTH, val as u64)
     }
 }
 
@@ -289,7 +279,7 @@ impl PyASCIIObject {
     /// [`SSTATE_INTERNED_IMMORTAL`], or [`SSTATE_INTERNED_IMMORTAL_STATIC`].
     #[inline]
     pub unsafe fn interned(&self) -> c_uint {
-        unsafe { PyASCIIObjectState::from(self.state).interned() }
+        PyASCIIObjectState::from(self.state).interned()
     }
 
     #[cfg_attr(not(Py_3_12), allow(rustdoc::broken_intra_doc_links))] // SSTATE_INTERNED_IMMORTAL_STATIC requires 3.12
@@ -301,7 +291,7 @@ impl PyASCIIObject {
     #[inline]
     pub unsafe fn set_interned(&mut self, val: c_uint) {
         let mut state = PyASCIIObjectState::from(self.state);
-        unsafe { state.set_interned(val) };
+        state.set_interned(val);
         self.state = u32::from(state);
     }
 
@@ -312,7 +302,7 @@ impl PyASCIIObject {
     /// [`PyUnicode_1BYTE_KIND`], [`PyUnicode_2BYTE_KIND`], or [`PyUnicode_4BYTE_KIND`].
     #[inline]
     pub unsafe fn kind(&self) -> c_uint {
-        unsafe { PyASCIIObjectState::from(self.state).kind() }
+        PyASCIIObjectState::from(self.state).kind()
     }
 
     /// Set the `kind` field of the [`PyASCIIObject`] state bitfield.
@@ -323,7 +313,7 @@ impl PyASCIIObject {
     #[inline]
     pub unsafe fn set_kind(&mut self, val: c_uint) {
         let mut state = PyASCIIObjectState::from(self.state);
-        unsafe { state.set_kind(val) };
+        state.set_kind(val);
         self.state = u32::from(state);
     }
 
@@ -332,7 +322,7 @@ impl PyASCIIObject {
     /// Returns either `0` or `1`.
     #[inline]
     pub unsafe fn compact(&self) -> c_uint {
-        unsafe { PyASCIIObjectState::from(self.state).compact() }
+        PyASCIIObjectState::from(self.state).compact()
     }
 
     /// Set the `compact` flag of the [`PyASCIIObject`] state bitfield.
@@ -341,7 +331,7 @@ impl PyASCIIObject {
     #[inline]
     pub unsafe fn set_compact(&mut self, val: c_uint) {
         let mut state = PyASCIIObjectState::from(self.state);
-        unsafe { state.set_compact(val) };
+        state.set_compact(val);
         self.state = u32::from(state);
     }
 
@@ -350,7 +340,7 @@ impl PyASCIIObject {
     /// Returns either `0` or `1`.
     #[inline]
     pub unsafe fn ascii(&self) -> c_uint {
-        unsafe { PyASCIIObjectState::from(self.state).ascii() }
+        PyASCIIObjectState::from(self.state).ascii()
     }
 
     /// Set the `ascii` flag of the [`PyASCIIObject`] state bitfield.
@@ -359,7 +349,7 @@ impl PyASCIIObject {
     #[inline]
     pub unsafe fn set_ascii(&mut self, val: c_uint) {
         let mut state = PyASCIIObjectState::from(self.state);
-        unsafe { state.set_ascii(val) };
+        state.set_ascii(val);
         self.state = u32::from(state);
     }
 
@@ -369,7 +359,7 @@ impl PyASCIIObject {
     #[cfg(not(Py_3_12))]
     #[inline]
     pub unsafe fn ready(&self) -> c_uint {
-        unsafe { PyASCIIObjectState::from(self.state).ready() }
+        PyASCIIObjectState::from(self.state).ready()
     }
 
     /// Set the `ready` flag of the [`PyASCIIObject`] state bitfield.
@@ -378,11 +368,9 @@ impl PyASCIIObject {
     #[cfg(not(Py_3_12))]
     #[inline]
     pub unsafe fn set_ready(&mut self, val: c_uint) {
-        unsafe {
-            let mut state = PyASCIIObjectState::from(self.state);
-            state.set_ready(val);
-            self.state = u32::from(state);
-        }
+        let mut state = PyASCIIObjectState::from(self.state);
+        state.set_ready(val);
+        self.state = u32::from(state);
     }
 }
 
@@ -428,27 +416,23 @@ pub const SSTATE_INTERNED_IMMORTAL_STATIC: c_uint = 3;
 #[cfg(not(GraalPy))]
 #[inline]
 pub unsafe fn PyUnicode_IS_ASCII(op: *mut PyObject) -> c_uint {
-    unsafe {
-        debug_assert!(crate::PyUnicode_Check(op) != 0);
-        #[cfg(not(Py_3_12))]
-        debug_assert!(PyUnicode_IS_READY(op) != 0);
+    debug_assert!(crate::PyUnicode_Check(op) != 0);
+    #[cfg(not(Py_3_12))]
+    debug_assert!(PyUnicode_IS_READY(op) != 0);
 
-        (*(op as *mut PyASCIIObject)).ascii()
-    }
+    (*(op as *mut PyASCIIObject)).ascii()
 }
 
 #[cfg(not(GraalPy))]
 #[inline]
 pub unsafe fn PyUnicode_IS_COMPACT(op: *mut PyObject) -> c_uint {
-    unsafe { (*(op as *mut PyASCIIObject)).compact() }
+    (*(op as *mut PyASCIIObject)).compact()
 }
 
 #[cfg(not(GraalPy))]
 #[inline]
 pub unsafe fn PyUnicode_IS_COMPACT_ASCII(op: *mut PyObject) -> c_uint {
-    (unsafe { (*(op as *mut PyASCIIObject)).ascii() != 0 }
-        && unsafe { PyUnicode_IS_COMPACT(op) != 0 })
-    .into()
+    ((*(op as *mut PyASCIIObject)).ascii() != 0 && PyUnicode_IS_COMPACT(op) != 0).into()
 }
 
 #[cfg(not(Py_3_12))]
@@ -462,64 +446,58 @@ pub const PyUnicode_4BYTE_KIND: c_uint = 4;
 #[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
 pub unsafe fn PyUnicode_1BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS1 {
-    unsafe { PyUnicode_DATA(op) as *mut Py_UCS1 }
+    PyUnicode_DATA(op) as *mut Py_UCS1
 }
 
 #[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
 pub unsafe fn PyUnicode_2BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS2 {
-    unsafe { PyUnicode_DATA(op) as *mut Py_UCS2 }
+    PyUnicode_DATA(op) as *mut Py_UCS2
 }
 
 #[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
 pub unsafe fn PyUnicode_4BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS4 {
-    unsafe { PyUnicode_DATA(op) as *mut Py_UCS4 }
+    PyUnicode_DATA(op) as *mut Py_UCS4
 }
 
 #[cfg(not(GraalPy))]
 #[inline]
 pub unsafe fn PyUnicode_KIND(op: *mut PyObject) -> c_uint {
-    debug_assert!(unsafe { crate::PyUnicode_Check(op) } != 0);
+    debug_assert!(crate::PyUnicode_Check(op) != 0);
     #[cfg(not(Py_3_12))]
-    debug_assert!(unsafe { PyUnicode_IS_READY(op) } != 0);
+    debug_assert!(PyUnicode_IS_READY(op) != 0);
 
-    unsafe { (*(op as *mut PyASCIIObject)).kind() }
+    (*(op as *mut PyASCIIObject)).kind()
 }
 
 #[cfg(not(GraalPy))]
 #[inline]
 pub unsafe fn _PyUnicode_COMPACT_DATA(op: *mut PyObject) -> *mut c_void {
-    unsafe {
-        if PyUnicode_IS_ASCII(op) != 0 {
-            (op as *mut PyASCIIObject).offset(1) as *mut c_void
-        } else {
-            (op as *mut PyCompactUnicodeObject).offset(1) as *mut c_void
-        }
+    if PyUnicode_IS_ASCII(op) != 0 {
+        (op as *mut PyASCIIObject).offset(1) as *mut c_void
+    } else {
+        (op as *mut PyCompactUnicodeObject).offset(1) as *mut c_void
     }
 }
 
 #[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
 pub unsafe fn _PyUnicode_NONCOMPACT_DATA(op: *mut PyObject) -> *mut c_void {
-    unsafe {
-        debug_assert!(!(*(op as *mut PyUnicodeObject)).data.any.is_null());
+    debug_assert!(!(*(op as *mut PyUnicodeObject)).data.any.is_null());
 
-        (*(op as *mut PyUnicodeObject)).data.any
-    }
+    (*(op as *mut PyUnicodeObject)).data.any
 }
 
 #[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
 pub unsafe fn PyUnicode_DATA(op: *mut PyObject) -> *mut c_void {
-    unsafe {
-        debug_assert!(crate::PyUnicode_Check(op) != 0);
+    debug_assert!(crate::PyUnicode_Check(op) != 0);
 
-        if PyUnicode_IS_COMPACT(op) != 0 {
-            _PyUnicode_COMPACT_DATA(op)
-        } else {
-            _PyUnicode_NONCOMPACT_DATA(op)
-        }
+    if PyUnicode_IS_COMPACT(op) != 0 {
+        _PyUnicode_COMPACT_DATA(op)
+    } else {
+        _PyUnicode_NONCOMPACT_DATA(op)
     }
 }
 
@@ -530,11 +508,11 @@ pub unsafe fn PyUnicode_DATA(op: *mut PyObject) -> *mut c_void {
 #[cfg(not(GraalPy))]
 #[inline]
 pub unsafe fn PyUnicode_GET_LENGTH(op: *mut PyObject) -> Py_ssize_t {
-    debug_assert!(unsafe { crate::PyUnicode_Check(op) } != 0);
+    debug_assert!(crate::PyUnicode_Check(op) != 0);
     #[cfg(not(Py_3_12))]
-    debug_assert!(unsafe { PyUnicode_IS_READY(op) } != 0);
+    debug_assert!(PyUnicode_IS_READY(op) != 0);
 
-    unsafe { (*(op as *mut PyASCIIObject)).length }
+    (*(op as *mut PyASCIIObject)).length
 }
 
 #[cfg(any(Py_3_12, GraalPy))]
@@ -547,7 +525,7 @@ pub unsafe fn PyUnicode_IS_READY(_op: *mut PyObject) -> c_uint {
 #[cfg(not(any(GraalPy, Py_3_12)))]
 #[inline]
 pub unsafe fn PyUnicode_IS_READY(op: *mut PyObject) -> c_uint {
-    unsafe { (*(op as *mut PyASCIIObject)).ready() }
+    (*(op as *mut PyASCIIObject)).ready()
 }
 
 #[cfg(any(Py_3_12, GraalPy))]
@@ -559,14 +537,12 @@ pub unsafe fn PyUnicode_READY(_op: *mut PyObject) -> c_int {
 #[cfg(not(any(Py_3_12, GraalPy)))]
 #[inline]
 pub unsafe fn PyUnicode_READY(op: *mut PyObject) -> c_int {
-    unsafe {
-        debug_assert!(crate::PyUnicode_Check(op) != 0);
+    debug_assert!(crate::PyUnicode_Check(op) != 0);
 
-        if PyUnicode_IS_READY(op) != 0 {
-            0
-        } else {
-            _PyUnicode_Ready(op)
-        }
+    if PyUnicode_IS_READY(op) != 0 {
+        0
+    } else {
+        _PyUnicode_Ready(op)
     }
 }
 

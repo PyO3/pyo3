@@ -24,19 +24,19 @@ extern "C" {
 #[cfg(Py_3_9)]
 #[inline]
 pub unsafe fn PyCFunction_CheckExact(op: *mut PyObject) -> c_int {
-    unsafe { (Py_TYPE(op) == ptr::addr_of_mut!(PyCFunction_Type)) as c_int }
+    (Py_TYPE(op) == ptr::addr_of_mut!(PyCFunction_Type)) as c_int
 }
 
 #[cfg(Py_3_9)]
 #[inline]
 pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
-    unsafe { PyObject_TypeCheck(op, ptr::addr_of_mut!(PyCFunction_Type)) }
+    PyObject_TypeCheck(op, ptr::addr_of_mut!(PyCFunction_Type))
 }
 
 #[cfg(not(Py_3_9))]
 #[inline]
 pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
-    unsafe { (Py_TYPE(op) == ptr::addr_of_mut!(PyCFunction_Type)) as c_int }
+    (Py_TYPE(op) == ptr::addr_of_mut!(PyCFunction_Type)) as c_int
 }
 
 pub type PyCFunction =
@@ -224,7 +224,7 @@ extern "C" {
 #[cfg(Py_3_9)]
 #[inline]
 pub unsafe fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject {
-    unsafe { PyCFunction_NewEx(ml, slf, std::ptr::null_mut()) }
+    PyCFunction_NewEx(ml, slf, std::ptr::null_mut())
 }
 
 #[cfg(Py_3_9)]
@@ -234,7 +234,7 @@ pub unsafe fn PyCFunction_NewEx(
     slf: *mut PyObject,
     module: *mut PyObject,
 ) -> *mut PyObject {
-    unsafe { PyCMethod_New(ml, slf, module, std::ptr::null_mut()) }
+    PyCMethod_New(ml, slf, module, std::ptr::null_mut())
 }
 
 #[cfg(Py_3_9)]

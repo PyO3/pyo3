@@ -42,7 +42,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PySlice_Check(op: *mut PyObject) -> c_int {
-    unsafe { (Py_TYPE(op) == addr_of_mut!(PySlice_Type)) as c_int }
+    (Py_TYPE(op) == addr_of_mut!(PySlice_Type)) as c_int
 }
 
 extern "C" {
@@ -75,14 +75,12 @@ pub unsafe fn PySlice_GetIndicesEx(
     step: *mut Py_ssize_t,
     slicelength: *mut Py_ssize_t,
 ) -> c_int {
-    unsafe {
-        if PySlice_Unpack(slice, start, stop, step) < 0 {
-            *slicelength = 0;
-            -1
-        } else {
-            *slicelength = PySlice_AdjustIndices(length, start, stop, *step);
-            0
-        }
+    if PySlice_Unpack(slice, start, stop, step) < 0 {
+        *slicelength = 0;
+        -1
+    } else {
+        *slicelength = PySlice_AdjustIndices(length, start, stop, *step);
+        0
     }
 }
 

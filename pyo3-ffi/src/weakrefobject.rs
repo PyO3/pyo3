@@ -31,27 +31,25 @@ extern "C" {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int {
-    unsafe { PyObject_TypeCheck(op, addr_of_mut!(_PyWeakref_RefType)) }
+    PyObject_TypeCheck(op, addr_of_mut!(_PyWeakref_RefType))
 }
 
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyWeakref_CheckRefExact(op: *mut PyObject) -> c_int {
-    unsafe { (Py_TYPE(op) == addr_of_mut!(_PyWeakref_RefType)) as c_int }
+    (Py_TYPE(op) == addr_of_mut!(_PyWeakref_RefType)) as c_int
 }
 
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyWeakref_CheckProxy(op: *mut PyObject) -> c_int {
-    unsafe {
-        ((Py_TYPE(op) == addr_of_mut!(_PyWeakref_ProxyType))
-            || (Py_TYPE(op) == addr_of_mut!(_PyWeakref_CallableProxyType))) as c_int
-    }
+    ((Py_TYPE(op) == addr_of_mut!(_PyWeakref_ProxyType))
+        || (Py_TYPE(op) == addr_of_mut!(_PyWeakref_CallableProxyType))) as c_int
 }
 
 #[inline]
 pub unsafe fn PyWeakref_Check(op: *mut PyObject) -> c_int {
-    unsafe { (PyWeakref_CheckRef(op) != 0 || PyWeakref_CheckProxy(op) != 0) as c_int }
+    (PyWeakref_CheckRef(op) != 0 || PyWeakref_CheckProxy(op) != 0) as c_int
 }
 
 extern "C" {

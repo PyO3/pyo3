@@ -12,12 +12,12 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyTuple_Check(op: *mut PyObject) -> c_int {
-    unsafe { PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_TUPLE_SUBCLASS) }
+    PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_TUPLE_SUBCLASS)
 }
 
 #[inline]
 pub unsafe fn PyTuple_CheckExact(op: *mut PyObject) -> c_int {
-    unsafe { (Py_TYPE(op) == addr_of_mut!(PyTuple_Type)) as c_int }
+    (Py_TYPE(op) == addr_of_mut!(PyTuple_Type)) as c_int
 }
 
 extern "C" {

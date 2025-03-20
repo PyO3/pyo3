@@ -62,7 +62,7 @@ pub unsafe fn PyImport_ImportModuleEx(
     locals: *mut PyObject,
     fromlist: *mut PyObject,
 ) -> *mut PyObject {
-    unsafe { PyImport_ImportModuleLevel(name, globals, locals, fromlist, 0) }
+    PyImport_ImportModuleLevel(name, globals, locals, fromlist, 0)
 }
 
 extern "C" {

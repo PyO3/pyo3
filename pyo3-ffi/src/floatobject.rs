@@ -14,12 +14,12 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyFloat_Check(op: *mut PyObject) -> c_int {
-    unsafe { PyObject_TypeCheck(op, addr_of_mut!(PyFloat_Type)) }
+    PyObject_TypeCheck(op, addr_of_mut!(PyFloat_Type))
 }
 
 #[inline]
 pub unsafe fn PyFloat_CheckExact(op: *mut PyObject) -> c_int {
-    unsafe { (Py_TYPE(op) == addr_of_mut!(PyFloat_Type)) as c_int }
+    (Py_TYPE(op) == addr_of_mut!(PyFloat_Type)) as c_int
 }
 
 // skipped Py_RETURN_NAN

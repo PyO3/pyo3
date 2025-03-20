@@ -34,11 +34,9 @@ pub struct PySetObject {
 #[inline]
 #[cfg(all(not(any(PyPy, GraalPy)), not(Py_LIMITED_API)))]
 pub unsafe fn PySet_GET_SIZE(so: *mut PyObject) -> Py_ssize_t {
-    unsafe {
-        debug_assert_eq!(PyAnySet_Check(so), 1);
-        let so = so.cast::<PySetObject>();
-        (*so).used
-    }
+    debug_assert_eq!(PyAnySet_Check(so), 1);
+    let so = so.cast::<PySetObject>();
+    (*so).used
 }
 
 #[cfg(not(Py_LIMITED_API))]
@@ -96,7 +94,7 @@ extern "C" {
 #[inline]
 #[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn PyFrozenSet_CheckExact(ob: *mut PyObject) -> c_int {
-    unsafe { (Py_TYPE(ob) == addr_of_mut!(PyFrozenSet_Type)) as c_int }
+    (Py_TYPE(ob) == addr_of_mut!(PyFrozenSet_Type)) as c_int
 }
 
 extern "C" {
@@ -108,10 +106,8 @@ extern "C" {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyFrozenSet_Check(ob: *mut PyObject) -> c_int {
-    unsafe {
-        (Py_TYPE(ob) == addr_of_mut!(PyFrozenSet_Type)
-            || PyType_IsSubtype(Py_TYPE(ob), addr_of_mut!(PyFrozenSet_Type)) != 0) as c_int
-    }
+    (Py_TYPE(ob) == addr_of_mut!(PyFrozenSet_Type)
+        || PyType_IsSubtype(Py_TYPE(ob), addr_of_mut!(PyFrozenSet_Type)) != 0) as c_int
 }
 
 extern "C" {
@@ -123,25 +119,21 @@ extern "C" {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyAnySet_CheckExact(ob: *mut PyObject) -> c_int {
-    unsafe {
-        (Py_TYPE(ob) == addr_of_mut!(PySet_Type) || Py_TYPE(ob) == addr_of_mut!(PyFrozenSet_Type))
-            as c_int
-    }
+    (Py_TYPE(ob) == addr_of_mut!(PySet_Type) || Py_TYPE(ob) == addr_of_mut!(PyFrozenSet_Type))
+        as c_int
 }
 
 #[inline]
 pub unsafe fn PyAnySet_Check(ob: *mut PyObject) -> c_int {
-    unsafe {
-        (PyAnySet_CheckExact(ob) != 0
-            || PyType_IsSubtype(Py_TYPE(ob), addr_of_mut!(PySet_Type)) != 0
-            || PyType_IsSubtype(Py_TYPE(ob), addr_of_mut!(PyFrozenSet_Type)) != 0) as c_int
-    }
+    (PyAnySet_CheckExact(ob) != 0
+        || PyType_IsSubtype(Py_TYPE(ob), addr_of_mut!(PySet_Type)) != 0
+        || PyType_IsSubtype(Py_TYPE(ob), addr_of_mut!(PyFrozenSet_Type)) != 0) as c_int
 }
 
 #[inline]
 #[cfg(Py_3_10)]
 pub unsafe fn PySet_CheckExact(op: *mut PyObject) -> c_int {
-    unsafe { crate::Py_IS_TYPE(op, addr_of_mut!(PySet_Type)) }
+    crate::Py_IS_TYPE(op, addr_of_mut!(PySet_Type))
 }
 
 extern "C" {
@@ -153,8 +145,6 @@ extern "C" {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PySet_Check(ob: *mut PyObject) -> c_int {
-    unsafe {
-        (Py_TYPE(ob) == addr_of_mut!(PySet_Type)
-            || PyType_IsSubtype(Py_TYPE(ob), addr_of_mut!(PySet_Type)) != 0) as c_int
-    }
+    (Py_TYPE(ob) == addr_of_mut!(PySet_Type)
+        || PyType_IsSubtype(Py_TYPE(ob), addr_of_mut!(PySet_Type)) != 0) as c_int
 }

@@ -73,22 +73,20 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyExceptionClass_Check(x: *mut PyObject) -> c_int {
-    unsafe {
-        (PyType_Check(x) != 0
-            && PyType_FastSubclass(x as *mut PyTypeObject, Py_TPFLAGS_BASE_EXC_SUBCLASS) != 0)
-            as c_int
-    }
+    (PyType_Check(x) != 0
+        && PyType_FastSubclass(x as *mut PyTypeObject, Py_TPFLAGS_BASE_EXC_SUBCLASS) != 0)
+        as c_int
 }
 
 #[inline]
 pub unsafe fn PyExceptionInstance_Check(x: *mut PyObject) -> c_int {
-    unsafe { PyType_FastSubclass(Py_TYPE(x), Py_TPFLAGS_BASE_EXC_SUBCLASS) }
+    PyType_FastSubclass(Py_TYPE(x), Py_TPFLAGS_BASE_EXC_SUBCLASS)
 }
 
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject {
-    unsafe { Py_TYPE(x) as *mut PyObject }
+    Py_TYPE(x) as *mut PyObject
 }
 
 // ported from cpython exception.c (line 2096)
