@@ -733,7 +733,7 @@ jobs:
         with:
           workspaces: examples/maturin-starter
           save-if: ${{ github.event_name != 'merge_group' }}
-      - uses: actions/cache/restore@v4
+      - uses: buildjet/cache/restore@v4
         with:
           # https://github.com/PyO3/maturin/discussions/1953
           path: ~/.cache/cargo-xwin
@@ -754,7 +754,7 @@ jobs:
           cargo build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-gnu
           cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-msvc
       - if: ${{ github.ref == 'refs/heads/main' }}
-        uses: actions/cache/save@v4
+        uses: buildjet/cache/save@v4
         with:
           path: ~/.cache/cargo-xwin
           key: cargo-xwin-cache
