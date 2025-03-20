@@ -63,10 +63,12 @@ extern "C" {
 #[cfg(not(Py_3_11))]
 #[inline(always)]
 pub unsafe fn Py_GETENV(name: *const c_char) -> *mut c_char {
-    #[allow(deprecated)]
-    if Py_IgnoreEnvironmentFlag != 0 {
-        std::ptr::null_mut()
-    } else {
-        libc::getenv(name)
+    unsafe {
+        #[allow(deprecated)]
+        if Py_IgnoreEnvironmentFlag != 0 {
+            std::ptr::null_mut()
+        } else {
+            libc::getenv(name)
+        }
     }
 }

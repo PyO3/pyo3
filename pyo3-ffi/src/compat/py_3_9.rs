@@ -6,16 +6,16 @@ compat_function!(
     ));
 
     #[inline]
-    pub unsafe fn PyObject_CallNoArgs(obj: *mut crate::PyObject) -> *mut crate::PyObject {
+    pub unsafe fn PyObject_CallNoArgs(obj: *mut crate::PyObject) -> *mut crate::PyObject { unsafe {
         crate::PyObject_CallObject(obj, std::ptr::null_mut())
-    }
+    }}
 );
 
 compat_function!(
     originally_defined_for(all(Py_3_9, not(any(Py_LIMITED_API, PyPy, GraalPy))));
 
     #[inline]
-    pub unsafe fn PyObject_CallMethodNoArgs(obj: *mut crate::PyObject, name: *mut crate::PyObject) -> *mut crate::PyObject {
+    pub unsafe fn PyObject_CallMethodNoArgs(obj: *mut crate::PyObject, name: *mut crate::PyObject) -> *mut crate::PyObject { unsafe {
         crate::PyObject_CallMethodObjArgs(obj, name, std::ptr::null_mut::<crate::PyObject>())
-    }
+    }}
 );

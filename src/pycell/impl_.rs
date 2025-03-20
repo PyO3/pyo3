@@ -233,44 +233,44 @@ where
         Ok(())
     }
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
-        // FIXME: there is potentially subtle issues here if the base is overwritten
-        // at runtime? To be investigated.
-        let type_obj = T::type_object(py);
-        let type_ptr = type_obj.as_type_ptr();
-        let actual_type = unsafe { PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(slf)) };
+        unsafe {
+            // FIXME: there is potentially subtle issues here if the base is overwritten
+            // at runtime? To be investigated.
+            let type_obj = T::type_object(py);
+            let type_ptr = type_obj.as_type_ptr();
+            let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(slf));
 
-        // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
-        if type_ptr == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type) {
-            let tp_free = actual_type
-                .get_slot(TP_FREE)
-                .expect("PyBaseObject_Type should have tp_free");
-            return unsafe { tp_free(slf.cast()) };
-        }
+            // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
+            if type_ptr == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type) {
+                let tp_free = actual_type
+                    .get_slot(TP_FREE)
+                    .expect("PyBaseObject_Type should have tp_free");
+                return tp_free(slf.cast());
+            }
 
-        // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            // FIXME: should this be using actual_type.tp_dealloc?
-            if let Some(dealloc) = unsafe { (*type_ptr).tp_dealloc } {
-                // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
-                // assumes the exception is currently GC tracked, so we have to re-track
-                // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
-                #[cfg(not(any(Py_3_11, PyPy)))]
-                if ffi::PyType_FastSubclass(type_ptr, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
-                    ffi::PyObject_GC_Track(slf.cast());
-                }
-                unsafe { dealloc(slf) };
-            } else {
-                unsafe {
+            // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
+            #[cfg(not(Py_LIMITED_API))]
+            {
+                // FIXME: should this be using actual_type.tp_dealloc?
+                if let Some(dealloc) = (*type_ptr).tp_dealloc {
+                    // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
+                    // assumes the exception is currently GC tracked, so we have to re-track
+                    // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
+                    #[cfg(not(any(Py_3_11, PyPy)))]
+                    if ffi::PyType_FastSubclass(type_ptr, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
+                        ffi::PyObject_GC_Track(slf.cast());
+                    }
+                    dealloc(slf);
+                } else {
                     (*actual_type.as_type_ptr())
                         .tp_free
-                        .expect("type missing tp_free")(slf.cast())
-                };
+                        .expect("type missing tp_free")(slf.cast());
+                }
             }
-        }
 
-        #[cfg(Py_LIMITED_API)]
-        unreachable!("subclassing native types is not possible with the `abi3` feature");
+            #[cfg(Py_LIMITED_API)]
+            unreachable!("subclassing native types is not possible with the `abi3` feature");
+        }
     }
 }
 

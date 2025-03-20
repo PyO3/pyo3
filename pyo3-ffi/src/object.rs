@@ -158,31 +158,29 @@ extern "C" {
 
 #[inline]
 pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
+    #[cfg(Py_GIL_DISABLED)]
     unsafe {
-        #[cfg(Py_GIL_DISABLED)]
-        {
-            let local = (*ob).ob_ref_local.load(Relaxed);
-            if local == _Py_IMMORTAL_REFCNT_LOCAL {
-                return _Py_IMMORTAL_REFCNT;
-            }
-            let shared = (*ob).ob_ref_shared.load(Relaxed);
-            local as Py_ssize_t + Py_ssize_t::from(shared >> _Py_REF_SHARED_SHIFT)
+        let local = (*ob).ob_ref_local.load(Relaxed);
+        if local == _Py_IMMORTAL_REFCNT_LOCAL {
+            return _Py_IMMORTAL_REFCNT;
         }
+        let shared = (*ob).ob_ref_shared.load(Relaxed);
+        local as Py_ssize_t + Py_ssize_t::from(shared >> _Py_REF_SHARED_SHIFT)
+    }
 
-        #[cfg(all(not(Py_GIL_DISABLED), Py_3_12))]
-        {
-            unsafe { (*ob).ob_refcnt.ob_refcnt }
-        }
+    #[cfg(all(not(Py_GIL_DISABLED), Py_3_12))]
+    {
+        unsafe { (*ob).ob_refcnt.ob_refcnt }
+    }
 
-        #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), not(GraalPy)))]
-        {
-            unsafe { (*ob).ob_refcnt }
-        }
+    #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), not(GraalPy)))]
+    {
+        unsafe { (*ob).ob_refcnt }
+    }
 
-        #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), GraalPy))]
-        {
-            unsafe { _Py_REFCNT(ob) }
-        }
+    #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), GraalPy))]
+    {
+        unsafe { _Py_REFCNT(ob) }
     }
 }
 

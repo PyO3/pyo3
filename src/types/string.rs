@@ -373,22 +373,22 @@ impl<'a> Borrowed<'a, '_, PyString> {
 
     #[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy)))]
     unsafe fn data(self) -> PyResult<PyStringData<'a>> {
-        let ptr = self.as_ptr();
-
-        #[cfg(not(Py_3_12))]
-        #[allow(deprecated)]
-        {
-            let ready = ffi::PyUnicode_READY(ptr);
-            if ready != 0 {
-                // Exception was created on failure.
-                return Err(crate::PyErr::fetch(self.py()));
-            }
-        }
-
-        // The string should be in its canonical form after calling `PyUnicode_READY()`.
-        // And non-canonical form not possible after Python 3.12. So it should be safe
-        // to call these APIs.
         unsafe {
+            let ptr = self.as_ptr();
+
+            #[cfg(not(Py_3_12))]
+            #[allow(deprecated)]
+            {
+                let ready = ffi::PyUnicode_READY(ptr);
+                if ready != 0 {
+                    // Exception was created on failure.
+                    return Err(crate::PyErr::fetch(self.py()));
+                }
+            }
+
+            // The string should be in its canonical form after calling `PyUnicode_READY()`.
+            // And non-canonical form not possible after Python 3.12. So it should be safe
+            // to call these APIs.
             let length = ffi::PyUnicode_GET_LENGTH(ptr) as usize;
             let raw_data = ffi::PyUnicode_DATA(ptr);
             let kind = ffi::PyUnicode_KIND(ptr);

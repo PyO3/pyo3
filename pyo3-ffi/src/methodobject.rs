@@ -36,7 +36,7 @@ pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
 #[cfg(not(Py_3_9))]
 #[inline]
 pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == ptr::addr_of_mut!(PyCFunction_Type)) as c_int
+    unsafe { (Py_TYPE(op) == ptr::addr_of_mut!(PyCFunction_Type)) as c_int }
 }
 
 pub type PyCFunction =

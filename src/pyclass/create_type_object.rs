@@ -147,13 +147,13 @@ impl PyTypeBuilder {
             ffi::Py_bf_getbuffer => {
                 // Safety: slot.pfunc is a valid function pointer
                 self.buffer_procs.bf_getbuffer =
-                    Some(std::mem::transmute::<*mut T, ffi::getbufferproc>(pfunc));
+                    Some(unsafe { std::mem::transmute::<*mut T, ffi::getbufferproc>(pfunc) });
             }
             #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
             ffi::Py_bf_releasebuffer => {
                 // Safety: slot.pfunc is a valid function pointer
                 self.buffer_procs.bf_releasebuffer =
-                    Some(std::mem::transmute::<*mut T, ffi::releasebufferproc>(pfunc));
+                    Some(unsafe { std::mem::transmute::<*mut T, ffi::releasebufferproc>(pfunc) });
             }
             _ => {}
         }

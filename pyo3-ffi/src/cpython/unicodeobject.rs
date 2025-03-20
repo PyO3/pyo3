@@ -224,15 +224,19 @@ impl PyASCIIObjectState {
     #[cfg(not(Py_3_12))]
     #[inline]
     unsafe fn ready(&self) -> c_uint {
-        std::mem::transmute(self.bitfield.get(STATE_READY_INDEX, STATE_READY_WIDTH) as u32)
+        unsafe {
+            std::mem::transmute(self.bitfield.get(STATE_READY_INDEX, STATE_READY_WIDTH) as u32)
+        }
     }
 
     #[cfg(not(Py_3_12))]
     #[inline]
     unsafe fn set_ready(&mut self, val: c_uint) {
-        let val: u32 = std::mem::transmute(val);
-        self.bitfield
-            .set(STATE_READY_INDEX, STATE_READY_WIDTH, val as u64)
+        unsafe {
+            let val: u32 = std::mem::transmute(val);
+            self.bitfield
+                .set(STATE_READY_INDEX, STATE_READY_WIDTH, val as u64)
+        }
     }
 }
 
@@ -365,7 +369,7 @@ impl PyASCIIObject {
     #[cfg(not(Py_3_12))]
     #[inline]
     pub unsafe fn ready(&self) -> c_uint {
-        PyASCIIObjectState::from(self.state).ready()
+        unsafe { PyASCIIObjectState::from(self.state).ready() }
     }
 
     /// Set the `ready` flag of the [`PyASCIIObject`] state bitfield.
@@ -374,9 +378,11 @@ impl PyASCIIObject {
     #[cfg(not(Py_3_12))]
     #[inline]
     pub unsafe fn set_ready(&mut self, val: c_uint) {
-        let mut state = PyASCIIObjectState::from(self.state);
-        state.set_ready(val);
-        self.state = u32::from(state);
+        unsafe {
+            let mut state = PyASCIIObjectState::from(self.state);
+            state.set_ready(val);
+            self.state = u32::from(state);
+        }
     }
 }
 
@@ -526,7 +532,7 @@ pub unsafe fn PyUnicode_DATA(op: *mut PyObject) -> *mut c_void {
 pub unsafe fn PyUnicode_GET_LENGTH(op: *mut PyObject) -> Py_ssize_t {
     debug_assert!(unsafe { crate::PyUnicode_Check(op) } != 0);
     #[cfg(not(Py_3_12))]
-    debug_assert!(PyUnicode_IS_READY(op) != 0);
+    debug_assert!(unsafe { PyUnicode_IS_READY(op) } != 0);
 
     unsafe { (*(op as *mut PyASCIIObject)).length }
 }
@@ -541,7 +547,7 @@ pub unsafe fn PyUnicode_IS_READY(_op: *mut PyObject) -> c_uint {
 #[cfg(not(any(GraalPy, Py_3_12)))]
 #[inline]
 pub unsafe fn PyUnicode_IS_READY(op: *mut PyObject) -> c_uint {
-    (*(op as *mut PyASCIIObject)).ready()
+    unsafe { (*(op as *mut PyASCIIObject)).ready() }
 }
 
 #[cfg(any(Py_3_12, GraalPy))]
@@ -553,12 +559,14 @@ pub unsafe fn PyUnicode_READY(_op: *mut PyObject) -> c_int {
 #[cfg(not(any(Py_3_12, GraalPy)))]
 #[inline]
 pub unsafe fn PyUnicode_READY(op: *mut PyObject) -> c_int {
-    debug_assert!(crate::PyUnicode_Check(op) != 0);
+    unsafe {
+        debug_assert!(crate::PyUnicode_Check(op) != 0);
 
-    if PyUnicode_IS_READY(op) != 0 {
-        0
-    } else {
-        _PyUnicode_Ready(op)
+        if PyUnicode_IS_READY(op) != 0 {
+            0
+        } else {
+            _PyUnicode_Ready(op)
+        }
     }
 }
 

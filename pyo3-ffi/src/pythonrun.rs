@@ -60,16 +60,20 @@ opaque_struct!(_node);
 #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
 #[inline]
 pub unsafe fn PyParser_SimpleParseString(s: *const c_char, b: c_int) -> *mut _node {
-    #[allow(deprecated)]
-    crate::PyParser_SimpleParseStringFlags(s, b, 0)
+    unsafe {
+        #[allow(deprecated)]
+        crate::PyParser_SimpleParseStringFlags(s, b, 0)
+    }
 }
 
 #[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
 #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
 #[inline]
 pub unsafe fn PyParser_SimpleParseFile(fp: *mut FILE, s: *const c_char, b: c_int) -> *mut _node {
-    #[allow(deprecated)]
-    crate::PyParser_SimpleParseFileFlags(fp, s, b, 0)
+    unsafe {
+        #[allow(deprecated)]
+        crate::PyParser_SimpleParseFileFlags(fp, s, b, 0)
+    }
 }
 
 extern "C" {

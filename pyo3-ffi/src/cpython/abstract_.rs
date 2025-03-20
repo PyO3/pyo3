@@ -236,8 +236,10 @@ extern "C" {
 #[cfg(not(any(Py_3_9, PyPy)))]
 #[inline]
 pub unsafe fn PyObject_CheckBuffer(o: *mut PyObject) -> c_int {
-    let tp_as_buffer = (*crate::Py_TYPE(o)).tp_as_buffer;
-    (!tp_as_buffer.is_null() && (*tp_as_buffer).bf_getbuffer.is_some()) as c_int
+    unsafe {
+        let tp_as_buffer = (*crate::Py_TYPE(o)).tp_as_buffer;
+        (!tp_as_buffer.is_null() && (*tp_as_buffer).bf_getbuffer.is_some()) as c_int
+    }
 }
 
 #[cfg(not(Py_3_11))] // moved to src/buffer.rs from 3.11
