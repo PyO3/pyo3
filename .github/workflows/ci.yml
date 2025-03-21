@@ -748,11 +748,11 @@ jobs:
           pip install cargo-xwin
           # abi3
           cargo build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-gnu
-          cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-msvc
+          cargo xwin build --cross-compiler clang --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-msvc
           # non-abi3
           export PYO3_CROSS_PYTHON_VERSION=3.12
           cargo build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-gnu
-          cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-msvc
+          cargo xwin build --cross-compiler clang --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-msvc
       - if: ${{ github.ref == 'refs/heads/main' }}
         uses: actions/cache/save@v4
         with:
