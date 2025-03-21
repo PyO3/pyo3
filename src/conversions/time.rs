@@ -53,7 +53,6 @@
 use crate::exceptions::{PyTypeError, PyValueError};
 #[cfg(Py_LIMITED_API)]
 use crate::intern;
-use crate::types::datetime::timezone_from_offset;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::datetime::{PyDateAccess, PyDeltaAccess};
 use crate::types::{
@@ -359,7 +358,7 @@ impl<'py> IntoPyObject<'py> for UtcOffset {
         // Get offset in seconds
         let seconds_offset = self.whole_seconds();
         let td = PyDelta::new(py, 0, seconds_offset, 0, true)?;
-        timezone_from_offset(&td)
+        PyTzInfo::fixed_offset(py, td)
     }
 }
 
