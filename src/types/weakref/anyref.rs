@@ -181,7 +181,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
     unsafe fn upgrade_as_unchecked<T>(&self) -> Option<Bound<'py, T>> {
-        Some(self.upgrade()?.downcast_into_unchecked())
+        Some(unsafe { self.upgrade()?.downcast_into_unchecked() })
     }
 
     /// Upgrade the weakref to a exact direct Bound object reference.

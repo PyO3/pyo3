@@ -318,9 +318,11 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     #[cfg(not(Py_LIMITED_API))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny> {
         // PyList_GET_ITEM return borrowed ptr; must make owned for safety (see #890).
-        ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
-            .assume_borrowed(self.py())
-            .to_owned()
+        unsafe {
+            ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
+                .assume_borrowed(self.py())
+                .to_owned()
+        }
     }
 
     /// Takes the slice `self[low:high]` and returns it as a new list.

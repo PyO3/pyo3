@@ -1510,12 +1510,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[inline]
     unsafe fn downcast_unchecked<T>(&self) -> &Bound<'py, T> {
-        &*ptr_from_ref(self).cast()
+        unsafe { &*ptr_from_ref(self).cast() }
     }
 
     #[inline]
     unsafe fn downcast_into_unchecked<T>(self) -> Bound<'py, T> {
-        std::mem::transmute(self)
+        unsafe { std::mem::transmute(self) }
     }
 
     fn extract<'a, T>(&'a self) -> PyResult<T>

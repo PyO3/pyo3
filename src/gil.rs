@@ -111,15 +111,15 @@ where
     F: for<'p> FnOnce(Python<'p>) -> R,
 {
     assert_eq!(
-        ffi::Py_IsInitialized(),
+        unsafe { ffi::Py_IsInitialized() },
         0,
         "called `with_embedded_python_interpreter` but a Python interpreter is already running."
     );
 
-    ffi::Py_InitializeEx(0);
+    unsafe { ffi::Py_InitializeEx(0) };
 
     let result = {
-        let guard = GILGuard::assume();
+        let guard = unsafe { GILGuard::assume() };
         let py = guard.python();
         // Import the threading module - this ensures that it will associate this thread as the "main"
         // thread, which is important to avoid an `AssertionError` at finalization.
@@ -130,7 +130,7 @@ where
     };
 
     // Finalize the Python interpreter.
-    ffi::Py_Finalize();
+    unsafe { ffi::Py_Finalize() };
 
     result
 }
@@ -201,15 +201,15 @@ impl GILGuard {
     /// as part of multi-phase interpreter initialization.
     pub(crate) unsafe fn acquire_unchecked() -> Self {
         if gil_is_acquired() {
-            return Self::assume();
+            return unsafe { Self::assume() };
         }
 
-        let gstate = ffi::PyGILState_Ensure(); // acquire GIL
+        let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
         increment_gil_count();
 
         #[cfg(not(pyo3_disable_reference_pool))]
         if let Some(pool) = Lazy::get(&POOL) {
-            pool.update_counts(Python::assume_gil_acquired());
+            pool.update_counts(unsafe { Python::assume_gil_acquired() });
         }
         GILGuard::Ensured { gstate }
     }
@@ -300,7 +300,7 @@ pub(crate) struct SuspendGIL {
 impl SuspendGIL {
     pub(crate) unsafe fn new() -> Self {
         let count = GIL_COUNT.with(|c| c.replace(0));
-        let tstate = ffi::PyEval_SaveThread();
+        let tstate = unsafe { ffi::PyEval_SaveThread() };
 
         Self { count, tstate }
     }
@@ -364,7 +364,7 @@ impl Drop for LockGIL {
 #[track_caller]
 pub unsafe fn register_incref(obj: NonNull<ffi::PyObject>) {
     if gil_is_acquired() {
-        ffi::Py_INCREF(obj.as_ptr())
+        unsafe { ffi::Py_INCREF(obj.as_ptr()) }
     } else {
         panic!("Cannot clone pointer into Python heap without the GIL being held.");
     }
@@ -381,7 +381,7 @@ pub unsafe fn register_incref(obj: NonNull<ffi::PyObject>) {
 #[track_caller]
 pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
     if gil_is_acquired() {
-        ffi::Py_DECREF(obj.as_ptr())
+        unsafe { ffi::Py_DECREF(obj.as_ptr()) }
     } else {
         #[cfg(not(pyo3_disable_reference_pool))]
         POOL.register_decref(obj);
@@ -617,13 +617,15 @@ mod tests {
             unsafe extern "C" fn capsule_drop(capsule: *mut ffi::PyObject) {
                 // This line will implicitly call update_counts
                 // -> and so cause deadlock if update_counts is not handling recursion correctly.
-                let pool = GILGuard::assume();
+                let pool = unsafe { GILGuard::assume() };
 
                 // Rebuild obj so that it can be dropped
-                PyObject::from_owned_ptr(
-                    pool.python(),
-                    ffi::PyCapsule_GetPointer(capsule, std::ptr::null()) as _,
-                );
+                unsafe {
+                    PyObject::from_owned_ptr(
+                        pool.python(),
+                        ffi::PyCapsule_GetPointer(capsule, std::ptr::null()) as _,
+                    )
+                };
             }
 
             let ptr = obj.into_ptr();

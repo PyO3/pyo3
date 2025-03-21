@@ -310,7 +310,7 @@ impl<'py> PyStringMethods<'py> for Bound<'py, PyString> {
 
     #[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy)))]
     unsafe fn data(&self) -> PyResult<PyStringData<'_>> {
-        self.as_borrowed().data()
+        unsafe { self.as_borrowed().data() }
     }
 }
 
@@ -373,39 +373,41 @@ impl<'a> Borrowed<'a, '_, PyString> {
 
     #[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy)))]
     unsafe fn data(self) -> PyResult<PyStringData<'a>> {
-        let ptr = self.as_ptr();
+        unsafe {
+            let ptr = self.as_ptr();
 
-        #[cfg(not(Py_3_12))]
-        #[allow(deprecated)]
-        {
-            let ready = ffi::PyUnicode_READY(ptr);
-            if ready != 0 {
-                // Exception was created on failure.
-                return Err(crate::PyErr::fetch(self.py()));
+            #[cfg(not(Py_3_12))]
+            #[allow(deprecated)]
+            {
+                let ready = ffi::PyUnicode_READY(ptr);
+                if ready != 0 {
+                    // Exception was created on failure.
+                    return Err(crate::PyErr::fetch(self.py()));
+                }
             }
-        }
 
-        // The string should be in its canonical form after calling `PyUnicode_READY()`.
-        // And non-canonical form not possible after Python 3.12. So it should be safe
-        // to call these APIs.
-        let length = ffi::PyUnicode_GET_LENGTH(ptr) as usize;
-        let raw_data = ffi::PyUnicode_DATA(ptr);
-        let kind = ffi::PyUnicode_KIND(ptr);
+            // The string should be in its canonical form after calling `PyUnicode_READY()`.
+            // And non-canonical form not possible after Python 3.12. So it should be safe
+            // to call these APIs.
+            let length = ffi::PyUnicode_GET_LENGTH(ptr) as usize;
+            let raw_data = ffi::PyUnicode_DATA(ptr);
+            let kind = ffi::PyUnicode_KIND(ptr);
 
-        match kind {
-            ffi::PyUnicode_1BYTE_KIND => Ok(PyStringData::Ucs1(std::slice::from_raw_parts(
-                raw_data as *const u8,
-                length,
-            ))),
-            ffi::PyUnicode_2BYTE_KIND => Ok(PyStringData::Ucs2(std::slice::from_raw_parts(
-                raw_data as *const u16,
-                length,
-            ))),
-            ffi::PyUnicode_4BYTE_KIND => Ok(PyStringData::Ucs4(std::slice::from_raw_parts(
-                raw_data as *const u32,
-                length,
-            ))),
-            _ => unreachable!(),
+            match kind {
+                ffi::PyUnicode_1BYTE_KIND => Ok(PyStringData::Ucs1(std::slice::from_raw_parts(
+                    raw_data as *const u8,
+                    length,
+                ))),
+                ffi::PyUnicode_2BYTE_KIND => Ok(PyStringData::Ucs2(std::slice::from_raw_parts(
+                    raw_data as *const u16,
+                    length,
+                ))),
+                ffi::PyUnicode_4BYTE_KIND => Ok(PyStringData::Ucs4(std::slice::from_raw_parts(
+                    raw_data as *const u32,
+                    length,
+                ))),
+                _ => unreachable!(),
+            }
         }
     }
 }

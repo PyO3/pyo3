@@ -286,12 +286,12 @@ impl<'py> PyByteArrayMethods<'py> for Bound<'py, PyByteArray> {
     }
 
     unsafe fn as_bytes(&self) -> &[u8] {
-        self.as_borrowed().as_bytes()
+        unsafe { self.as_borrowed().as_bytes() }
     }
 
     #[allow(clippy::mut_from_ref)]
     unsafe fn as_bytes_mut(&self) -> &mut [u8] {
-        self.as_borrowed().as_bytes_mut()
+        unsafe { self.as_borrowed().as_bytes_mut() }
     }
 
     fn to_vec(&self) -> Vec<u8> {
@@ -317,12 +317,12 @@ impl<'a> Borrowed<'a, '_, PyByteArray> {
 
     #[allow(clippy::wrong_self_convention)]
     unsafe fn as_bytes(self) -> &'a [u8] {
-        slice::from_raw_parts(self.data(), self.len())
+        unsafe { slice::from_raw_parts(self.data(), self.len()) }
     }
 
     #[allow(clippy::wrong_self_convention)]
     unsafe fn as_bytes_mut(self) -> &'a mut [u8] {
-        slice::from_raw_parts_mut(self.data(), self.len())
+        unsafe { slice::from_raw_parts_mut(self.data(), self.len()) }
     }
 }
 
