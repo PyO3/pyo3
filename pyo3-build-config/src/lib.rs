@@ -168,44 +168,36 @@ fn resolve_cross_compile_config_path() -> Option<PathBuf> {
     })
 }
 
+/// Helper to print a feature cfg with a minimum rust version required.
+fn print_feature_cfg(minor_version_required: u32, cfg: &str) {
+    let minor_version = rustc_minor_version().unwrap_or(0);
+
+    if minor_version >= minor_version_required {
+        println!("cargo:rustc-cfg={}", cfg);
+    }
+
+    // rustc 1.80.0 stabilized `rustc-check-cfg` feature, don't emit before
+    if minor_version >= 80 {
+        println!("cargo:rustc-check-cfg=cfg({})", cfg);
+    }
+}
+
 /// Use certain features if we detect the compiler being used supports them.
 ///
 /// Features may be removed or added as MSRV gets bumped or new features become available,
 /// so this function is unstable.
 #[doc(hidden)]
 pub fn print_feature_cfgs() {
-    let rustc_minor_version = rustc_minor_version().unwrap_or(0);
-
-    if rustc_minor_version >= 70 {
-        println!("cargo:rustc-cfg=rustc_has_once_lock");
-    }
-
-    if rustc_minor_version >= 71 {
-        println!("cargo:rustc-cfg=rustc_has_extern_c_unwind");
-    }
-
-    // invalid_from_utf8 lint was added in Rust 1.74
-    if rustc_minor_version >= 74 {
-        println!("cargo:rustc-cfg=invalid_from_utf8_lint");
-    }
-
-    if rustc_minor_version >= 79 {
-        println!("cargo:rustc-cfg=c_str_lit");
-    }
-
+    print_feature_cfg(70, "rustc_has_once_lock");
+    print_feature_cfg(70, "cargo_toml_lints");
+    print_feature_cfg(71, "rustc_has_extern_c_unwind");
+    print_feature_cfg(74, "invalid_from_utf8_lint");
+    print_feature_cfg(79, "c_str_lit");
     // Actually this is available on 1.78, but we should avoid
     // https://github.com/rust-lang/rust/issues/124651 just in case
-    if rustc_minor_version >= 79 {
-        println!("cargo:rustc-cfg=diagnostic_namespace");
-    }
-
-    if rustc_minor_version >= 83 {
-        println!("cargo:rustc-cfg=io_error_more");
-    }
-
-    if rustc_minor_version >= 85 {
-        println!("cargo:rustc-cfg=fn_ptr_eq");
-    }
+    print_feature_cfg(79, "diagnostic_namespace");
+    print_feature_cfg(83, "io_error_more");
+    print_feature_cfg(85, "fn_ptr_eq");
 }
 
 /// Registers `pyo3`s config names as reachable cfg expressions
@@ -224,15 +216,8 @@ pub fn print_expected_cfgs() {
     println!("cargo:rustc-check-cfg=cfg(PyPy)");
     println!("cargo:rustc-check-cfg=cfg(GraalPy)");
     println!("cargo:rustc-check-cfg=cfg(py_sys_config, values(\"Py_DEBUG\", \"Py_REF_DEBUG\", \"Py_TRACE_REFS\", \"COUNT_ALLOCS\"))");
-    println!("cargo:rustc-check-cfg=cfg(invalid_from_utf8_lint)");
     println!("cargo:rustc-check-cfg=cfg(pyo3_disable_reference_pool)");
     println!("cargo:rustc-check-cfg=cfg(pyo3_leak_on_drop_without_reference_pool)");
-    println!("cargo:rustc-check-cfg=cfg(diagnostic_namespace)");
-    println!("cargo:rustc-check-cfg=cfg(c_str_lit)");
-    println!("cargo:rustc-check-cfg=cfg(rustc_has_once_lock)");
-    println!("cargo:rustc-check-cfg=cfg(rustc_has_extern_c_unwind)");
-    println!("cargo:rustc-check-cfg=cfg(io_error_more)");
-    println!("cargo:rustc-check-cfg=cfg(fn_ptr_eq)");
 
     // allow `Py_3_*` cfgs from the minimum supported version up to the
     // maximum minor version (+1 for development for the next)

@@ -439,7 +439,7 @@ impl Python<'_> {
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        let guard = GILGuard::acquire_unchecked();
+        let guard = unsafe { GILGuard::acquire_unchecked() };
 
         f(guard.python())
     }

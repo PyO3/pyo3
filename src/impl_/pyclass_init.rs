@@ -39,17 +39,19 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
         ) -> PyResult<*mut ffi::PyObject> {
             // HACK (due to FIXME below): PyBaseObject_Type's tp_new isn't happy with NULL arguments
             let is_base_object = type_object == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type);
-            let subtype_borrowed: Borrowed<'_, '_, PyType> = subtype
-                .cast::<ffi::PyObject>()
-                .assume_borrowed_unchecked(py)
-                .downcast_unchecked();
+            let subtype_borrowed: Borrowed<'_, '_, PyType> = unsafe {
+                subtype
+                    .cast::<ffi::PyObject>()
+                    .assume_borrowed_unchecked(py)
+                    .downcast_unchecked()
+            };
 
             if is_base_object {
                 let alloc = subtype_borrowed
                     .get_slot(TP_ALLOC)
                     .unwrap_or(ffi::PyType_GenericAlloc);
 
-                let obj = alloc(subtype, 0);
+                let obj = unsafe { alloc(subtype, 0) };
                 return if obj.is_null() {
                     Err(PyErr::fetch(py))
                 } else {
@@ -62,10 +64,11 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
 
             #[cfg(not(Py_LIMITED_API))]
             {
-                match (*type_object).tp_new {
+                match unsafe { (*type_object).tp_new } {
                     // FIXME: Call __new__ with actual arguments
                     Some(newfunc) => {
-                        let obj = newfunc(subtype, std::ptr::null_mut(), std::ptr::null_mut());
+                        let obj =
+                            unsafe { newfunc(subtype, std::ptr::null_mut(), std::ptr::null_mut()) };
                         if obj.is_null() {
                             Err(PyErr::fetch(py))
                         } else {
@@ -79,7 +82,7 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
             }
         }
         let type_object = T::type_object_raw(py);
-        inner(py, type_object, subtype)
+        unsafe { inner(py, type_object, subtype) }
     }
 
     #[inline]

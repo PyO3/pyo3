@@ -107,7 +107,10 @@ impl<'py> Bound<'py, PyAny> {
     #[inline]
     #[track_caller]
     pub unsafe fn from_owned_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
-        Self(py, ManuallyDrop::new(Py::from_owned_ptr(py, ptr)))
+        Self(
+            py,
+            ManuallyDrop::new(unsafe { Py::from_owned_ptr(py, ptr) }),
+        )
     }
 
     /// Constructs a new `Bound<'py, PyAny>` from a pointer. Returns `None` if `ptr` is null.
@@ -118,7 +121,7 @@ impl<'py> Bound<'py, PyAny> {
     /// - `ptr` must be an owned Python reference, as the `Bound<'py, PyAny>` will assume ownership
     #[inline]
     pub unsafe fn from_owned_ptr_or_opt(py: Python<'py>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        Py::from_owned_ptr_or_opt(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
+        unsafe { Py::from_owned_ptr_or_opt(py, ptr) }.map(|obj| Self(py, ManuallyDrop::new(obj)))
     }
 
     /// Constructs a new `Bound<'py, PyAny>` from a pointer. Returns an `Err` by calling `PyErr::fetch`
@@ -133,7 +136,7 @@ impl<'py> Bound<'py, PyAny> {
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
     ) -> PyResult<Self> {
-        Py::from_owned_ptr_or_err(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
+        unsafe { Py::from_owned_ptr_or_err(py, ptr) }.map(|obj| Self(py, ManuallyDrop::new(obj)))
     }
 
     /// Constructs a new `Bound<'py, PyAny>` from a pointer without checking for null.
@@ -146,7 +149,10 @@ impl<'py> Bound<'py, PyAny> {
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
     ) -> Self {
-        Self(py, ManuallyDrop::new(Py::from_owned_ptr_unchecked(ptr)))
+        Self(
+            py,
+            ManuallyDrop::new(unsafe { Py::from_owned_ptr_unchecked(ptr) }),
+        )
     }
 
     /// Constructs a new `Bound<'py, PyAny>` from a pointer by creating a new Python reference.
@@ -158,7 +164,7 @@ impl<'py> Bound<'py, PyAny> {
     #[inline]
     #[track_caller]
     pub unsafe fn from_borrowed_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
-        Self(py, ManuallyDrop::new(Py::from_borrowed_ptr(py, ptr)))
+        unsafe { Self(py, ManuallyDrop::new(Py::from_borrowed_ptr(py, ptr))) }
     }
 
     /// Constructs a new `Bound<'py, PyAny>` from a pointer by creating a new Python reference.
@@ -172,7 +178,7 @@ impl<'py> Bound<'py, PyAny> {
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
     ) -> Option<Self> {
-        Py::from_borrowed_ptr_or_opt(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
+        unsafe { Py::from_borrowed_ptr_or_opt(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj))) }
     }
 
     /// Constructs a new `Bound<'py, PyAny>` from a pointer by creating a new Python reference.
@@ -186,7 +192,7 @@ impl<'py> Bound<'py, PyAny> {
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
     ) -> PyResult<Self> {
-        Py::from_borrowed_ptr_or_err(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
+        unsafe { Py::from_borrowed_ptr_or_err(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj))) }
     }
 
     /// This slightly strange method is used to obtain `&Bound<PyAny>` from a pointer in macro code
@@ -204,7 +210,7 @@ impl<'py> Bound<'py, PyAny> {
         _py: Python<'py>,
         ptr: &'a *mut ffi::PyObject,
     ) -> &'a Self {
-        &*ptr_from_ref(ptr).cast::<Bound<'py, PyAny>>()
+        unsafe { &*ptr_from_ref(ptr).cast::<Bound<'py, PyAny>>() }
     }
 
     /// Variant of the above which returns `None` for null pointers.
@@ -216,7 +222,7 @@ impl<'py> Bound<'py, PyAny> {
         _py: Python<'py>,
         ptr: &'a *mut ffi::PyObject,
     ) -> &'a Option<Self> {
-        &*ptr_from_ref(ptr).cast::<Option<Bound<'py, PyAny>>>()
+        unsafe { &*ptr_from_ref(ptr).cast::<Option<Bound<'py, PyAny>>>() }
     }
 }
 
@@ -762,7 +768,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// derived from is valid for the lifetime `'a`.
     #[inline]
     pub(crate) unsafe fn from_ptr_unchecked(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
-        Self(NonNull::new_unchecked(ptr), PhantomData, py)
+        Self(unsafe { NonNull::new_unchecked(ptr) }, PhantomData, py)
     }
 
     #[inline]
@@ -1675,7 +1681,7 @@ impl<T> Py<T> {
     ///
     /// - `ptr` must be a non-null pointer to a Python object or type `T`.
     pub(crate) unsafe fn from_owned_ptr_unchecked(ptr: *mut ffi::PyObject) -> Self {
-        Py(NonNull::new_unchecked(ptr), PhantomData)
+        Py(unsafe { NonNull::new_unchecked(ptr) }, PhantomData)
     }
 
     /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.
@@ -1688,7 +1694,7 @@ impl<T> Py<T> {
     #[inline]
     #[track_caller]
     pub unsafe fn from_borrowed_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<T> {
-        match Self::from_borrowed_ptr_or_opt(py, ptr) {
+        match unsafe { Self::from_borrowed_ptr_or_opt(py, ptr) } {
             Some(slf) => slf,
             None => crate::err::panic_after_error(py),
         }
@@ -1705,7 +1711,7 @@ impl<T> Py<T> {
         py: Python<'_>,
         ptr: *mut ffi::PyObject,
     ) -> PyResult<Self> {
-        Self::from_borrowed_ptr_or_opt(py, ptr).ok_or_else(|| PyErr::fetch(py))
+        unsafe { Self::from_borrowed_ptr_or_opt(py, ptr).ok_or_else(|| PyErr::fetch(py)) }
     }
 
     /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.
@@ -1719,10 +1725,12 @@ impl<T> Py<T> {
         _py: Python<'_>,
         ptr: *mut ffi::PyObject,
     ) -> Option<Self> {
-        NonNull::new(ptr).map(|nonnull_ptr| {
-            ffi::Py_INCREF(ptr);
-            Py(nonnull_ptr, PhantomData)
-        })
+        unsafe {
+            NonNull::new(ptr).map(|nonnull_ptr| {
+                ffi::Py_INCREF(ptr);
+                Py(nonnull_ptr, PhantomData)
+            })
+        }
     }
 
     /// For internal conversions.
@@ -1985,7 +1993,7 @@ impl PyObject {
     /// Callers must ensure that the type is valid or risk type confusion.
     #[inline]
     pub unsafe fn downcast_bound_unchecked<'py, T>(&self, py: Python<'py>) -> &Bound<'py, T> {
-        self.bind(py).downcast_unchecked()
+        unsafe { self.bind(py).downcast_unchecked() }
     }
 }
 
