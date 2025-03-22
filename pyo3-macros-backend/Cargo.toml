@@ -33,3 +33,4 @@ workspace = true
 
 [features]
 experimental-async = []
+experimental-inspect = []
