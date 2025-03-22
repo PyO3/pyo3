@@ -41,7 +41,7 @@ As we can see, those are not full definitions containing implementation, but jus
 
 ### What do the PEPs say?
 
-At the time of writing this documentation, the `pyi` files are referenced in three PEPs.
+At the time of writing this documentation, the `pyi` files are referenced in four PEPs.
 
 [PEP8 - Style Guide for Python Code - #Function Annotations](https://www.python.org/dev/peps/pep-0008/#function-annotations) (last point) recommends all third party library creators to provide stub files as the source of knowledge about the package for type checker tools.
 
@@ -54,6 +54,8 @@ At the time of writing this documentation, the `pyi` files are referenced in thr
 It contains a specification for them (highly recommended reading, since it contains at least one thing that is not used in normal Python code) and also some general information about where to store the stub files.
 
 [PEP561 - Distributing and Packaging Type Information](https://www.python.org/dev/peps/pep-0561/) describes in detail how to build packages that will enable type checking. In particular it contains information about how the stub files must be distributed in order for type checkers to use them.
+
+[PEP560 - Core support for typing module and generic types](https://www.python.org/dev/peps/pep-0560/) describes the details on how Python's type system internally supports generics, including both runtime behavior and integration with static type checkers.
 
 ## How to do it?
 
@@ -165,3 +167,77 @@ class Car:
         :return: the name of the color our great algorithm thinks is the best for this car
         """
 ```
+
+### Supporting Generics
+
+Type annotations can also be made generic in Python. They are useful for working
+with different types while maintaining type safety. Usually, generic classes
+inherit from the `typing.Generic` metaclass.
+
+Take for example the following `.pyi` file that specifies a `Car` that can
+accept multiple types of wheels:
+
+```python
+from typing import Generic, TypeVar
+
+W = TypeVar('W')
+
+class Car(Generic[W]):
+    def __init__(self, wheels: list[W]) -> None: ...
+
+    def get_wheels(self) -> list[W]: ...
+
+    def change_wheel(self, wheel_number: int, wheel: W) -> None: ...
+```
+
+This way, the end-user can specify the type with variables such as `truck: Car[SteelWheel] = ...`
+and `f1_car: Car[AlloyWheel] = ...`.
+
+There is also a special syntax for specifying generic types in Python 3.12+:
+
+```python
+class Car[W]:
+    def __init__(self, wheels: list[W]) -> None: ...
+
+    def get_wheels(self) -> list[W]: ...
+```
+
+#### Runtime Behaviour
+
+Stub files (`pyi`) are only useful for static type checkers and ignored at runtime. Therefore,
+PyO3 classes do not inherit from `typing.Generic` even if specified in the stub files.
+
+This can cause some runtime issues, as annotating a variable like `f1_car: Car[AlloyWheel] = ...`
+can make Python call magic methods that are not defined. 
+
+To overcome this limitation, implementers can pass the `generic` parameter to `pyclass` in Rust:
+
+```rust ignore
+#[pyclass(generic)]
+```
+
+#### Advanced Users
+
+`#[pyclass(generic)]` implements a very simple runtime behavior that accepts
+any generic argument. Advanced users can opt to manually implement
+[`__class_geitem__`](https://docs.python.org/3/reference/datamodel.html#emulating-generic-types)
+for the generic class to have more control.
+
+```rust ignore
+impl MyClass {
+    #[classmethod]
+    #[pyo3(signature = (key, /))]
+    pub fn __class_getitem__(
+        cls: &Bound<'_, PyType>,
+        key: &Bound<'_, PyAny>,
+    ) -> PyResult<PyObject> {
+        /* implementation details */
+    }
+}
+```
+
+Note that [`pyo3::types::PyGenericAlias`][pygenericalias] can be helfpul when implementing
+`__class_geitem__` as it can create [`types.GenericAlias`][genericalias] objects from Rust.
+
+[pygenericalias]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.pygenericalias
+[genericalias]: https://docs.python.org/3/library/types.html#types.GenericAlias
