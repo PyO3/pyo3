@@ -1,8 +1,8 @@
-use std::marker::PhantomData;
-
 use crate::{conversion::IntoPyObject, Py};
 #[allow(deprecated)]
 use crate::{IntoPy, ToPyObject};
+use std::marker::PhantomData;
+use std::sync::Arc;
 
 /// Trait used to combine with zero-sized types to calculate at compile time
 /// some property of a type.
@@ -68,5 +68,21 @@ where
 probe!(IsSync);
 
 impl<T: Sync> IsSync<T> {
+    pub const VALUE: bool = true;
+}
+
+probe!(IsDerefIntoPyObject);
+
+impl<T> IsDerefIntoPyObject<Arc<T>>
+where
+    for<'a, 'py> &'a T: IntoPyObject<'py>,
+{
+    pub const VALUE: bool = true;
+}
+
+impl<T> IsDerefIntoPyObject<Box<T>>
+where
+    for<'a, 'py> &'a T: IntoPyObject<'py>,
+{
     pub const VALUE: bool = true;
 }

@@ -844,6 +844,7 @@ pub fn impl_py_getter_def(
                         { #pyo3_path::impl_::pyclass::IsIntoPy::<#ty>::VALUE },
                         { #pyo3_path::impl_::pyclass::IsIntoPyObjectRef::<#ty>::VALUE },
                         { #pyo3_path::impl_::pyclass::IsIntoPyObject::<#ty>::VALUE },
+                        { #pyo3_path::impl_::pyclass::IsDerefIntoPyObject::<#ty>::VALUE },
                     > = unsafe { #pyo3_path::impl_::pyclass::PyClassGetterGenerator::new() };
                     #generator
                 }

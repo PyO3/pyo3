@@ -14,6 +14,7 @@ use crate::{
 };
 #[allow(deprecated)]
 use crate::{IntoPy, ToPyObject};
+use std::ops::Deref;
 use std::{
     borrow::Cow,
     ffi::{CStr, CString},
@@ -1251,6 +1252,7 @@ pub struct PyClassGetterGenerator<
     const IMPLEMENTS_INTOPY: bool,
     const IMPLEMENTS_INTOPYOBJECT_REF: bool,
     const IMPLEMENTS_INTOPYOBJECT: bool,
+    const IMPLEMENTS_DEREF: bool,
 >(PhantomData<(ClassT, FieldT, Offset)>);
 
 impl<
@@ -1262,6 +1264,7 @@ impl<
         const IMPLEMENTS_INTOPY: bool,
         const IMPLEMENTS_INTOPYOBJECT_REF: bool,
         const IMPLEMENTS_INTOPYOBJECT: bool,
+        const IMPLEMENTS_DEREF: bool,
     >
     PyClassGetterGenerator<
         ClassT,
@@ -1272,6 +1275,7 @@ impl<
         IMPLEMENTS_INTOPY,
         IMPLEMENTS_INTOPYOBJECT_REF,
         IMPLEMENTS_INTOPYOBJECT,
+        IMPLEMENTS_DEREF,
     >
 {
     /// Safety: constructing this type requires that there exists a value of type FieldT
@@ -1289,6 +1293,7 @@ impl<
         const IMPLEMENTS_INTOPY: bool,
         const IMPLEMENTS_INTOPYOBJECT_REF: bool,
         const IMPLEMENTS_INTOPYOBJECT: bool,
+        const IMPLEMENTS_DEREF: bool,
     >
     PyClassGetterGenerator<
         ClassT,
@@ -1299,6 +1304,7 @@ impl<
         IMPLEMENTS_INTOPY,
         IMPLEMENTS_INTOPYOBJECT_REF,
         IMPLEMENTS_INTOPYOBJECT,
+        IMPLEMENTS_DEREF,
     >
 {
     /// `Py<T>` fields have a potential optimization to use Python's "struct members" to read
@@ -1334,7 +1340,19 @@ impl<
         FieldT: ToPyObject,
         Offset: OffsetCalculator<ClassT, FieldT>,
         const IMPLEMENTS_INTOPY: bool,
-    > PyClassGetterGenerator<ClassT, FieldT, Offset, false, true, IMPLEMENTS_INTOPY, false, false>
+        const IMPLEMENTS_DEREF: bool,
+    >
+    PyClassGetterGenerator<
+        ClassT,
+        FieldT,
+        Offset,
+        false,
+        true,
+        IMPLEMENTS_INTOPY,
+        false,
+        false,
+        IMPLEMENTS_DEREF,
+    >
 {
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         PyMethodDefType::Getter(PyGetterDef {
@@ -1354,6 +1372,7 @@ impl<
         const IMPLEMENTS_TOPYOBJECT: bool,
         const IMPLEMENTS_INTOPY: bool,
         const IMPLEMENTS_INTOPYOBJECT: bool,
+        const IMPLEMENTS_DEREF: bool,
     >
     PyClassGetterGenerator<
         ClassT,
@@ -1364,6 +1383,7 @@ impl<
         IMPLEMENTS_INTOPY,
         true,
         IMPLEMENTS_INTOPYOBJECT,
+        IMPLEMENTS_DEREF,
     >
 where
     ClassT: PyClass,
@@ -1379,9 +1399,34 @@ where
     }
 }
 
+/// If Field does not implement `IntoPyObject` but Deref::Target does, use that instead
+impl<ClassT, FieldT, Offset>
+    PyClassGetterGenerator<ClassT, FieldT, Offset, false, false, false, false, false, true>
+where
+    ClassT: PyClass,
+    FieldT: Deref,
+    for<'a, 'py> &'a FieldT::Target: IntoPyObject<'py>,
+    Offset: OffsetCalculator<ClassT, FieldT>,
+{
+    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
+        PyMethodDefType::Getter(PyGetterDef {
+            name,
+            meth: pyo3_get_value_into_pyobject_deref::<ClassT, FieldT, Offset>,
+            doc,
+        })
+    }
+}
+
 /// Temporary case to prefer `IntoPyObject + Clone` over `IntoPy + Clone`, while still showing the
 /// `IntoPyObject` suggestion if neither is implemented;
-impl<ClassT, FieldT, Offset, const IMPLEMENTS_TOPYOBJECT: bool, const IMPLEMENTS_INTOPY: bool>
+impl<
+        ClassT,
+        FieldT,
+        Offset,
+        const IMPLEMENTS_TOPYOBJECT: bool,
+        const IMPLEMENTS_INTOPY: bool,
+        const IMPLEMENTS_DEREF: bool,
+    >
     PyClassGetterGenerator<
         ClassT,
         FieldT,
@@ -1391,6 +1436,7 @@ impl<ClassT, FieldT, Offset, const IMPLEMENTS_TOPYOBJECT: bool, const IMPLEMENTS
         IMPLEMENTS_INTOPY,
         false,
         true,
+        IMPLEMENTS_DEREF,
     >
 where
     ClassT: PyClass,
@@ -1408,8 +1454,18 @@ where
 
 /// IntoPy + Clone fallback case, which was the only behaviour before PyO3 0.22.
 #[allow(deprecated)]
-impl<ClassT, FieldT, Offset>
-    PyClassGetterGenerator<ClassT, FieldT, Offset, false, false, true, false, false>
+impl<ClassT, FieldT, Offset, const IMPLEMENTS_DEREF: bool>
+    PyClassGetterGenerator<
+        ClassT,
+        FieldT,
+        Offset,
+        false,
+        false,
+        true,
+        false,
+        false,
+        IMPLEMENTS_DEREF,
+    >
 where
     ClassT: PyClass,
     Offset: OffsetCalculator<ClassT, FieldT>,
@@ -1437,7 +1493,7 @@ impl<'py, T> PyO3GetField<'py> for T where T: IntoPyObject<'py> + Clone {}
 
 /// Base case attempts to use IntoPyObject + Clone
 impl<ClassT: PyClass, FieldT, Offset: OffsetCalculator<ClassT, FieldT>>
-    PyClassGetterGenerator<ClassT, FieldT, Offset, false, false, false, false, false>
+    PyClassGetterGenerator<ClassT, FieldT, Offset, false, false, false, false, false, false>
 {
     pub const fn generate(&self, _name: &'static CStr, _doc: &'static CStr) -> PyMethodDefType
     // The bound goes here rather than on the block so that this impl is always available
@@ -1508,6 +1564,28 @@ where
     // SAFETY: Offset is known to describe the location of the value, and
     // _holder is preventing mutable aliasing
     Ok((unsafe { &*value })
+        .into_pyobject(py)
+        .map_err(Into::into)?
+        .into_ptr())
+}
+
+fn pyo3_get_value_into_pyobject_deref<ClassT, FieldT, Offset>(
+    py: Python<'_>,
+    obj: *mut ffi::PyObject,
+) -> PyResult<*mut ffi::PyObject>
+where
+    ClassT: PyClass,
+    FieldT: Deref,
+    for<'a, 'py> &'a FieldT::Target: IntoPyObject<'py>,
+    Offset: OffsetCalculator<ClassT, FieldT>,
+{
+    let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
+    let value = field_from_object::<ClassT, FieldT, Offset>(obj);
+
+    // SAFETY: Offset is known to describe the location of the value, and
+    // _holder is preventing mutable aliasing
+    Ok((unsafe { &*value })
+        .deref()
         .into_pyobject(py)
         .map_err(Into::into)?
         .into_ptr())
