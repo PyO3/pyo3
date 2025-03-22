@@ -265,26 +265,20 @@ impl FnType {
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let ret = quote_spanned! { *span =>
-                    #[allow(clippy::useless_conversion)]
-                    ::std::convert::Into::into(
-                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
-                            .downcast_unchecked::<#pyo3_path::types::PyType>()
-                    )
+                    #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
+                        .downcast_unchecked::<#pyo3_path::types::PyType>()
                 };
-                Some(quote! { unsafe { #ret }, })
+                Some(quote! { unsafe { ::std::convert::Into::into(#ret) }, })
             }
             FnType::FnModule(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let ret = quote_spanned! { *span =>
-                    #[allow(clippy::useless_conversion)]
-                    ::std::convert::Into::into(
-                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
-                            .downcast_unchecked::<#pyo3_path::types::PyModule>()
-                    )
+                    #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
+                        .downcast_unchecked::<#pyo3_path::types::PyModule>()
                 };
-                Some(quote! { unsafe { #ret }, })
+                Some(quote! { unsafe { ::std::convert::Into::into(#ret) }, })
             }
             FnType::FnNew | FnType::FnStatic | FnType::ClassAttribute => None,
         }
