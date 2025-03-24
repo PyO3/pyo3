@@ -1,3 +1,5 @@
+use std::{marker::PhantomData, ops::Deref};
+
 use crate::{
     conversion::FromPyObjectBound,
     exceptions::PyTypeError,
@@ -11,6 +13,61 @@ use crate::{
 ///
 /// (Function argument extraction borrows input arguments.)
 type PyArg<'py> = Borrowed<'py, 'py, PyAny>;
+
+struct ArgExtractor<T>(FallbackToPyFunctionArgument<T>);
+struct FallbackToPyFunctionArgument<T>(PhantomData<T>);
+
+impl<T> ArgExtractor<T> {
+    /// Build an argument extractor with unresolved type
+    const fn new() -> Self {
+        Self(FallbackToPyFunctionArgument(PhantomData))
+    }
+
+    /// Resolve the type of the argument extractor, use inside a
+    /// branch which is never executed
+    fn resolve(&self) -> T {
+        unreachable!("just for type analysis")
+    }
+}
+
+/// Specialized argument extractor for `Option<T>` arguments.
+///
+/// This is necessary because `Option<T>` only implements `PyFunctionArgument`
+/// if `T` implements `FromPyObject` (due to `Option<T>` blanket impl of `FromPyObject`).
+impl<'a, 'py, T: PyFunctionArgument<'a, 'py>> ArgExtractor<Option<T>> {
+    fn extract_argument(
+        &self,
+        obj: &'a Bound<'py, PyAny>,
+        holder: &'a mut T::Holder,
+        arg_name: &str,
+    ) -> PyResult<Option<T>> {
+        if obj.is_none() {
+            Ok(None)
+        } else {
+            extract_argument(obj, holder, arg_name).map(Some)
+        }
+    }
+}
+
+impl<T> Deref for ArgExtractor<T> {
+    type Target = FallbackToPyFunctionArgument<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// Base case: if we know how to extract as a function argument, just use that.
+impl<'a, 'py, T: PyFunctionArgument<'a, 'py>> FallbackToPyFunctionArgument<T> {
+    fn extract_argument(
+        &self,
+        obj: &'a Bound<'py, PyAny>,
+        holder: &'a mut T::Holder,
+        arg_name: &str,
+    ) -> PyResult<T> {
+        extract_argument(obj, holder, arg_name)
+    }
+}
 
 /// A trait which is used to help PyO3 macros extract function arguments.
 ///
@@ -789,10 +846,10 @@ fn push_parameter_list(msg: &mut String, parameter_names: &[&str]) {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{IntoPyDict, PyTuple};
-    use crate::Python;
+    use crate::types::{IntoPyDict, PyNone, PyTuple};
+    use crate::{IntoPyObject, PyResult, Python};
 
-    use super::{push_parameter_list, FunctionDescription, NoVarargs, NoVarkeywords};
+    use super::{push_parameter_list, ArgExtractor, FunctionDescription, NoVarargs, NoVarkeywords};
 
     #[test]
     fn unexpected_keyword_argument() {
@@ -919,5 +976,46 @@ mod tests {
         let mut s = String::new();
         push_parameter_list(&mut s, &["a", "b", "c", "d"]);
         assert_eq!(&s, "'a', 'b', 'c', and 'd'");
+    }
+
+    #[test]
+    fn test_arg_extractor() {
+        fn example_method(arg1: &str, arg2: Option<&str>, arg3: Option<&str>) -> PyResult<()> {
+            assert_eq!(arg1, "arg1");
+            assert_eq!(arg2, Some("arg2"));
+            assert_eq!(arg3, None);
+            Ok(())
+        }
+
+        // set up extractors
+        let extractor1 = ArgExtractor::new();
+        let extractor2 = ArgExtractor::new();
+        let extractor3 = ArgExtractor::new();
+
+        // resolve types eagerly by using branch never taken
+        if false {
+            let _ = example_method(
+                extractor1.resolve(),
+                extractor2.resolve(),
+                extractor3.resolve(),
+            );
+        }
+
+        Python::with_gil(|py| {
+            example_method(
+                extractor1.extract_argument(
+                    &("arg1".into_pyobject(py).unwrap()),
+                    &mut (),
+                    "arg1",
+                )?,
+                extractor2.extract_argument(
+                    &(Some("arg2").into_pyobject(py).unwrap()),
+                    &mut (),
+                    "arg2",
+                )?,
+                extractor3.extract_argument(&PyNone::get(py), &mut (), "arg3")?,
+            )
+        })
+        .unwrap();
     }
 }
