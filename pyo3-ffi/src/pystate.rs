@@ -80,7 +80,7 @@ pub enum PyGILState_STATE {
     PyGILState_UNLOCKED,
 }
 
-struct HangThread;
+pub struct HangThread;
 
 impl Drop for HangThread {
     fn drop(&mut self) {

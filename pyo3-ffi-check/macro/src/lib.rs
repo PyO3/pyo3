@@ -75,7 +75,8 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
         if pyo3_build_config::get().version >= PY_3_14
             // && pyo3_build_config::is_free_threaded()
             && (struct_name == "PyObject" || struct_name == "PyConfig" || struct_name == "PyCodeObject"
-            || struct_name == "_PyWeakReference" || struct_name == "_PyCodeArray")
+            || struct_name == "_PyWeakReference" || struct_name == "_PyCodeArray" || struct_name == "HangThread"
+            || struct_name == "PyObjectObFlagsAndRefcnt")
         {
             continue;
         }
