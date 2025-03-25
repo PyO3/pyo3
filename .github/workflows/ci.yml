@@ -592,8 +592,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-src
-      # TODO: replace with actions/setup-python when there is support
-      - uses: quansight-labs/setup-python@v5.4.0
+      - uses: actions/setup-python@v5.5.0
         with:
           python-version: "3.13t"
       - name: Install cargo-llvm-cov
