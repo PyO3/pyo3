@@ -72,7 +72,9 @@ uuid = { version = "1.10.0", features = ["v4"] }
 pyo3-build-config = { path = "pyo3-build-config", version = "=0.24.0", features = ["resolve-config"] }
 
 [features]
-default = ["macros"]
+default = ["macros", "bigdecimal"]
+
+bigdecimal = ["dep:bigdecimal"]
 
 # Enables support for `async fn` for `#[pyfunction]` and `#[pymethods]`.
 experimental-async = ["macros", "pyo3-macros/experimental-async"]
