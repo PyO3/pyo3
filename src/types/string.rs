@@ -6,8 +6,6 @@ use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::bytes::PyBytesMethods;
 use crate::types::PyBytes;
-#[allow(deprecated)]
-use crate::IntoPy;
 use crate::{ffi, Bound, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
 use std::ffi::CString;
@@ -419,27 +417,6 @@ impl Py<PyString> {
     /// the GIL lifetime.
     pub fn to_string_lossy<'a>(&'a self, py: Python<'_>) -> Cow<'a, str> {
         self.bind_borrowed(py).to_string_lossy()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<Py<PyString>> for Bound<'_, PyString> {
-    fn into_py(self, _py: Python<'_>) -> Py<PyString> {
-        self.unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<Py<PyString>> for &Bound<'_, PyString> {
-    fn into_py(self, _py: Python<'_>) -> Py<PyString> {
-        self.clone().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<Py<PyString>> for &'_ Py<PyString> {
-    fn into_py(self, py: Python<'_>) -> Py<PyString> {
-        self.clone_ref(py)
     }
 }
 

@@ -89,42 +89,8 @@
 
 use crate::conversion::IntoPyObject;
 use crate::types::*;
-use crate::{Bound, FromPyObject, PyErr, PyObject, Python};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
+use crate::{Bound, FromPyObject, PyErr, Python};
 use std::{cmp, hash};
-
-#[allow(deprecated)]
-impl<K, V, H> ToPyObject for indexmap::IndexMap<K, V, H>
-where
-    K: hash::Hash + cmp::Eq + ToPyObject,
-    V: ToPyObject,
-    H: hash::BuildHasher,
-{
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new(py);
-        for (k, v) in self {
-            dict.set_item(k.to_object(py), v.to_object(py)).unwrap();
-        }
-        dict.into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl<K, V, H> IntoPy<PyObject> for indexmap::IndexMap<K, V, H>
-where
-    K: hash::Hash + cmp::Eq + IntoPy<PyObject>,
-    V: IntoPy<PyObject>,
-    H: hash::BuildHasher,
-{
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new(py);
-        for (k, v) in self {
-            dict.set_item(k.into_py(py), v.into_py(py)).unwrap();
-        }
-        dict.into_any().unbind()
-    }
-}
 
 impl<'py, K, V, H> IntoPyObject<'py> for indexmap::IndexMap<K, V, H>
 where

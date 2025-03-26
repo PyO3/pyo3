@@ -12,8 +12,6 @@ use crate::{
     Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyErr, PyRef,
     PyResult, PyTypeInfo, Python,
 };
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
 use std::{
     borrow::Cow,
     ffi::{CStr, CString},
@@ -1247,8 +1245,6 @@ pub struct PyClassGetterGenerator<
     // additional metadata about the field which is used to switch between different implementations
     // at compile time
     const IS_PY_T: bool,
-    const IMPLEMENTS_TOPYOBJECT: bool,
-    const IMPLEMENTS_INTOPY: bool,
     const IMPLEMENTS_INTOPYOBJECT_REF: bool,
     const IMPLEMENTS_INTOPYOBJECT: bool,
 >(PhantomData<(ClassT, FieldT, Offset)>);
@@ -1258,8 +1254,6 @@ impl<
         FieldT,
         Offset: OffsetCalculator<ClassT, FieldT>,
         const IS_PY_T: bool,
-        const IMPLEMENTS_TOPYOBJECT: bool,
-        const IMPLEMENTS_INTOPY: bool,
         const IMPLEMENTS_INTOPYOBJECT_REF: bool,
         const IMPLEMENTS_INTOPYOBJECT: bool,
     >
@@ -1268,8 +1262,6 @@ impl<
         FieldT,
         Offset,
         IS_PY_T,
-        IMPLEMENTS_TOPYOBJECT,
-        IMPLEMENTS_INTOPY,
         IMPLEMENTS_INTOPYOBJECT_REF,
         IMPLEMENTS_INTOPYOBJECT,
     >
@@ -1285,8 +1277,6 @@ impl<
         ClassT: PyClass,
         U,
         Offset: OffsetCalculator<ClassT, Py<U>>,
-        const IMPLEMENTS_TOPYOBJECT: bool,
-        const IMPLEMENTS_INTOPY: bool,
         const IMPLEMENTS_INTOPYOBJECT_REF: bool,
         const IMPLEMENTS_INTOPYOBJECT: bool,
     >
@@ -1295,8 +1285,6 @@ impl<
         Py<U>,
         Offset,
         true,
-        IMPLEMENTS_TOPYOBJECT,
-        IMPLEMENTS_INTOPY,
         IMPLEMENTS_INTOPYOBJECT_REF,
         IMPLEMENTS_INTOPYOBJECT,
     >
@@ -1319,52 +1307,17 @@ impl<
         } else {
             PyMethodDefType::Getter(PyGetterDef {
                 name,
-                meth: pyo3_get_value_topyobject::<ClassT, Py<U>, Offset>,
+                meth: pyo3_get_value_into_pyobject_ref::<ClassT, Py<U>, Offset>,
                 doc,
             })
         }
     }
 }
 
-/// Fallback case; Field is not `Py<T>`; try to use `ToPyObject` to avoid potentially expensive
-/// clones of containers like `Vec`
-#[allow(deprecated)]
-impl<
-        ClassT: PyClass,
-        FieldT: ToPyObject,
-        Offset: OffsetCalculator<ClassT, FieldT>,
-        const IMPLEMENTS_INTOPY: bool,
-    > PyClassGetterGenerator<ClassT, FieldT, Offset, false, true, IMPLEMENTS_INTOPY, false, false>
-{
-    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
-        PyMethodDefType::Getter(PyGetterDef {
-            name,
-            meth: pyo3_get_value_topyobject::<ClassT, FieldT, Offset>,
-            doc,
-        })
-    }
-}
-
 /// Field is not `Py<T>`; try to use `IntoPyObject` for `&T` (prefered over `ToPyObject`) to avoid
 /// potentially expensive clones of containers like `Vec`
-impl<
-        ClassT,
-        FieldT,
-        Offset,
-        const IMPLEMENTS_TOPYOBJECT: bool,
-        const IMPLEMENTS_INTOPY: bool,
-        const IMPLEMENTS_INTOPYOBJECT: bool,
-    >
-    PyClassGetterGenerator<
-        ClassT,
-        FieldT,
-        Offset,
-        false,
-        IMPLEMENTS_TOPYOBJECT,
-        IMPLEMENTS_INTOPY,
-        true,
-        IMPLEMENTS_INTOPYOBJECT,
-    >
+impl<ClassT, FieldT, Offset, const IMPLEMENTS_INTOPYOBJECT: bool>
+    PyClassGetterGenerator<ClassT, FieldT, Offset, false, true, IMPLEMENTS_INTOPYOBJECT>
 where
     ClassT: PyClass,
     for<'a, 'py> &'a FieldT: IntoPyObject<'py>,
@@ -1374,51 +1327,6 @@ where
         PyMethodDefType::Getter(PyGetterDef {
             name,
             meth: pyo3_get_value_into_pyobject_ref::<ClassT, FieldT, Offset>,
-            doc,
-        })
-    }
-}
-
-/// Temporary case to prefer `IntoPyObject + Clone` over `IntoPy + Clone`, while still showing the
-/// `IntoPyObject` suggestion if neither is implemented;
-impl<ClassT, FieldT, Offset, const IMPLEMENTS_TOPYOBJECT: bool, const IMPLEMENTS_INTOPY: bool>
-    PyClassGetterGenerator<
-        ClassT,
-        FieldT,
-        Offset,
-        false,
-        IMPLEMENTS_TOPYOBJECT,
-        IMPLEMENTS_INTOPY,
-        false,
-        true,
-    >
-where
-    ClassT: PyClass,
-    Offset: OffsetCalculator<ClassT, FieldT>,
-    for<'py> FieldT: IntoPyObject<'py> + Clone,
-{
-    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
-        PyMethodDefType::Getter(PyGetterDef {
-            name,
-            meth: pyo3_get_value_into_pyobject::<ClassT, FieldT, Offset>,
-            doc,
-        })
-    }
-}
-
-/// IntoPy + Clone fallback case, which was the only behaviour before PyO3 0.22.
-#[allow(deprecated)]
-impl<ClassT, FieldT, Offset>
-    PyClassGetterGenerator<ClassT, FieldT, Offset, false, false, true, false, false>
-where
-    ClassT: PyClass,
-    Offset: OffsetCalculator<ClassT, FieldT>,
-    FieldT: IntoPy<Py<PyAny>> + Clone,
-{
-    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
-        PyMethodDefType::Getter(PyGetterDef {
-            name,
-            meth: pyo3_get_value::<ClassT, FieldT, Offset>,
             doc,
         })
     }
@@ -1436,20 +1344,24 @@ pub trait PyO3GetField<'py>: IntoPyObject<'py> + Clone {}
 impl<'py, T> PyO3GetField<'py> for T where T: IntoPyObject<'py> + Clone {}
 
 /// Base case attempts to use IntoPyObject + Clone
-impl<ClassT: PyClass, FieldT, Offset: OffsetCalculator<ClassT, FieldT>>
-    PyClassGetterGenerator<ClassT, FieldT, Offset, false, false, false, false, false>
+impl<
+        ClassT: PyClass,
+        FieldT,
+        Offset: OffsetCalculator<ClassT, FieldT>,
+        const IMPLEMENTS_INTOPYOBJECT: bool,
+    > PyClassGetterGenerator<ClassT, FieldT, Offset, false, false, IMPLEMENTS_INTOPYOBJECT>
 {
-    pub const fn generate(&self, _name: &'static CStr, _doc: &'static CStr) -> PyMethodDefType
+    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType
     // The bound goes here rather than on the block so that this impl is always available
     // if no specialization is used instead
     where
         for<'py> FieldT: PyO3GetField<'py>,
     {
-        // unreachable not allowed in const
-        panic!(
-            "exists purely to emit diagnostics on unimplemented traits. When `ToPyObject` \
-             and `IntoPy` are fully removed this will be replaced by the temporary `IntoPyObject` case above."
-        )
+        PyMethodDefType::Getter(PyGetterDef {
+            name,
+            meth: pyo3_get_value_into_pyobject::<ClassT, FieldT, Offset>,
+            doc,
+        })
     }
 }
 
@@ -1474,23 +1386,6 @@ where
     Offset: OffsetCalculator<ClassT, FieldT>,
 {
     unsafe { obj.cast::<u8>().add(Offset::offset()).cast::<FieldT>() }
-}
-
-#[allow(deprecated)]
-fn pyo3_get_value_topyobject<
-    ClassT: PyClass,
-    FieldT: ToPyObject,
-    Offset: OffsetCalculator<ClassT, FieldT>,
->(
-    py: Python<'_>,
-    obj: *mut ffi::PyObject,
-) -> PyResult<*mut ffi::PyObject> {
-    let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
-    let value = field_from_object::<ClassT, FieldT, Offset>(obj);
-
-    // SAFETY: Offset is known to describe the location of the value, and
-    // _holder is preventing mutable aliasing
-    Ok((unsafe { &*value }).to_object(py).into_ptr())
 }
 
 fn pyo3_get_value_into_pyobject_ref<ClassT, FieldT, Offset>(
@@ -1532,23 +1427,6 @@ where
         .into_pyobject(py)
         .map_err(Into::into)?
         .into_ptr())
-}
-
-#[allow(deprecated)]
-fn pyo3_get_value<
-    ClassT: PyClass,
-    FieldT: IntoPy<Py<PyAny>> + Clone,
-    Offset: OffsetCalculator<ClassT, FieldT>,
->(
-    py: Python<'_>,
-    obj: *mut ffi::PyObject,
-) -> PyResult<*mut ffi::PyObject> {
-    let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
-    let value = field_from_object::<ClassT, FieldT, Offset>(obj);
-
-    // SAFETY: Offset is known to describe the location of the value, and
-    // _holder is preventing mutable aliasing
-    Ok((unsafe { &*value }).clone().into_py(py).into_ptr())
 }
 
 pub struct ConvertField<

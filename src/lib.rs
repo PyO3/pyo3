@@ -339,8 +339,6 @@
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
 pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPyObject, IntoPyObjectExt};
-#[allow(deprecated)]
-pub use crate::conversion::{IntoPy, ToPyObject};
 pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};

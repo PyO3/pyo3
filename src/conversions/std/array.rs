@@ -2,40 +2,8 @@ use crate::conversion::IntoPyObject;
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
 use crate::types::PySequence;
-use crate::{err::DowncastError, ffi, FromPyObject, Py, PyAny, PyObject, PyResult, Python};
+use crate::{err::DowncastError, ffi, FromPyObject, PyAny, PyResult, Python};
 use crate::{exceptions, PyErr};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
-
-#[allow(deprecated)]
-impl<T, const N: usize> IntoPy<PyObject> for [T; N]
-where
-    T: IntoPy<PyObject>,
-{
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        unsafe {
-            let len = N as ffi::Py_ssize_t;
-
-            let ptr = ffi::PyList_New(len);
-
-            // We create the  `Py` pointer here for two reasons:
-            // - panics if the ptr is null
-            // - its Drop cleans up the list if user code panics.
-            let list: Py<PyAny> = Py::from_owned_ptr(py, ptr);
-
-            for (i, obj) in (0..len).zip(self) {
-                let obj = obj.into_py(py).into_ptr();
-
-                #[cfg(not(Py_LIMITED_API))]
-                ffi::PyList_SET_ITEM(ptr, i, obj);
-                #[cfg(Py_LIMITED_API)]
-                ffi::PyList_SetItem(ptr, i, obj);
-            }
-
-            list
-        }
-    }
-}
 
 impl<'py, T, const N: usize> IntoPyObject<'py> for [T; N]
 where
@@ -66,16 +34,6 @@ where
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.as_slice().into_pyobject(py)
-    }
-}
-
-#[allow(deprecated)]
-impl<T, const N: usize> ToPyObject for [T; N]
-where
-    T: ToPyObject,
-{
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.as_ref().to_object(py)
     }
 }
 

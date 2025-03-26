@@ -1410,13 +1410,6 @@ impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py, false> 
     }
 }
 
-#[allow(deprecated)]
-impl pyo3::IntoPy<PyObject> for MyClass {
-    fn into_py(self, py: pyo3::Python<'_>) -> pyo3::PyObject {
-        pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)
-    }
-}
-
 impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     const IS_BASETYPE: bool = false;
     const IS_SUBCLASS: bool = false;

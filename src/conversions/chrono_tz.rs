@@ -39,27 +39,9 @@ use crate::exceptions::PyValueError;
 use crate::pybacked::PyBackedStr;
 use crate::sync::GILOnceCell;
 use crate::types::{any::PyAnyMethods, PyType};
-use crate::{intern, Bound, FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
+use crate::{intern, Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
 use chrono_tz::Tz;
 use std::str::FromStr;
-
-#[allow(deprecated)]
-impl ToPyObject for Tz {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for Tz {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().unbind()
-    }
-}
 
 impl<'py> IntoPyObject<'py> for Tz {
     type Target = PyAny;

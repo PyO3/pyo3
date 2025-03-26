@@ -11,8 +11,6 @@ use crate::{
     ffi,
 };
 use crate::{Borrowed, BoundObject, Py, PyAny, PyObject, Python};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
 use std::borrow::Cow;
 use std::ffi::CStr;
 
@@ -694,30 +692,6 @@ impl std::fmt::Display for PyErr {
 }
 
 impl std::error::Error for PyErr {}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for PyErr {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for PyErr {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for &PyErr {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
 
 impl<'py> IntoPyObject<'py> for PyErr {
     type Target = PyBaseException;

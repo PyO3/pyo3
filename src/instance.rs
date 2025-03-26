@@ -11,8 +11,6 @@ use crate::{
     PyRefMut, PyTypeInfo, Python,
 };
 use crate::{gil, PyTypeCheck};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::ops::Deref;
@@ -826,24 +824,6 @@ impl<T> Clone for Borrowed<'_, '_, T> {
 }
 
 impl<T> Copy for Borrowed<'_, '_, T> {}
-
-#[allow(deprecated)]
-impl<T> ToPyObject for Borrowed<'_, '_, T> {
-    /// Converts `Py` instance -> PyObject.
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        (*self).into_py(py)
-    }
-}
-
-#[allow(deprecated)]
-impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
-    /// Converts `Py` instance -> PyObject.
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_owned().into_py(py)
-    }
-}
 
 impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
     type Any = Borrowed<'a, 'py, PyAny>;
@@ -1708,60 +1688,6 @@ impl<T> Py<T> {
     /// `ptr` must point to a Python object of type T.
     unsafe fn from_non_null(ptr: NonNull<ffi::PyObject>) -> Self {
         Self(ptr, PhantomData)
-    }
-}
-
-#[allow(deprecated)]
-impl<T> ToPyObject for Py<T> {
-    /// Converts `Py` instance -> PyObject.
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.clone_ref(py).into_any()
-    }
-}
-
-#[allow(deprecated)]
-impl<T> IntoPy<PyObject> for Py<T> {
-    /// Converts a `Py` instance to `PyObject`.
-    /// Consumes `self` without calling `Py_DECREF()`.
-    #[inline]
-    fn into_py(self, _py: Python<'_>) -> PyObject {
-        self.into_any()
-    }
-}
-
-#[allow(deprecated)]
-impl<T> IntoPy<PyObject> for &'_ Py<T> {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl<T> ToPyObject for Bound<'_, T> {
-    /// Converts `&Bound` instance -> PyObject, increasing the reference count.
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.clone().into_py(py)
-    }
-}
-
-#[allow(deprecated)]
-impl<T> IntoPy<PyObject> for Bound<'_, T> {
-    /// Converts a `Bound` instance to `PyObject`.
-    #[inline]
-    fn into_py(self, _py: Python<'_>) -> PyObject {
-        self.into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl<T> IntoPy<PyObject> for &Bound<'_, T> {
-    /// Converts `&Bound` instance -> PyObject, increasing the reference count.
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
