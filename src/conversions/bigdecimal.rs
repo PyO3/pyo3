@@ -10,7 +10,7 @@
 //! ```toml
 //! [dependencies]
 #![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"bigdecimal\"] }")]
-//! bigdecimal = "4.0"
+//! bigdecimal = "0.4"
 //! ```
 //!
 //! Note that you must use a compatible version of bigdecimal and PyO3.
@@ -96,5 +96,127 @@ impl<'py> IntoPyObject<'py> for BigDecimalRef<'_> {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let cls = get_decimal_cls(py)?;
         cls.call1((self.to_string(),))
+    }
+}
+
+#[cfg(test)]
+mod test_bigdecimal {
+    use super::*;
+    use crate::types::dict::PyDictMethods;
+    use crate::types::PyDict;
+    use std::ffi::CString;
+
+    use crate::ffi;
+    use bigdecimal::{One, Zero};
+    #[cfg(not(target_arch = "wasm32"))]
+    use proptest::prelude::*;
+
+    macro_rules! convert_constants {
+        ($name:ident, $rs:expr, $py:literal) => {
+            #[test]
+            fn $name() {
+                Python::with_gil(|py| {
+                    let rs_orig = $rs;
+                    let rs_dec = rs_orig.clone().into_pyobject(py).unwrap();
+                    let locals = PyDict::new(py);
+                    locals.set_item("rs_dec", &rs_dec).unwrap();
+                    // Checks if BigDecimal -> Python Decimal conversion is correct
+                    py.run(
+                        &CString::new(format!(
+                            "import decimal\npy_dec = decimal.Decimal({})\nassert py_dec == rs_dec",
+                            $py
+                        ))
+                        .unwrap(),
+                        None,
+                        Some(&locals),
+                    )
+                    .unwrap();
+                    // Checks if Python Decimal -> BigDecimal conversion is correct
+                    let py_dec = locals.get_item("py_dec").unwrap().unwrap();
+                    let py_result: BigDecimal = py_dec.extract().unwrap();
+                    assert_eq!(rs_orig, py_result);
+                })
+            }
+        };
+    }
+
+    convert_constants!(convert_zero, BigDecimal::zero(), "0");
+    convert_constants!(convert_one, BigDecimal::one(), "1");
+    convert_constants!(convert_neg_one, -BigDecimal::one(), "-1");
+    convert_constants!(convert_two, BigDecimal::from(2), "2");
+    convert_constants!(convert_ten, BigDecimal::from_str("10").unwrap(), "10");
+    convert_constants!(
+        convert_one_hundred,
+        BigDecimal::from_str("100").unwrap(),
+        "100"
+    );
+    convert_constants!(
+        convert_one_thousand,
+        BigDecimal::from_str("1000").unwrap(),
+        "1000"
+    );
+
+    #[cfg(not(target_arch = "wasm32"))]
+    proptest! {
+        #[test]
+        fn test_roundtrip(
+            number in 0..28u32
+        ) {
+            let num = BigDecimal::from(number);
+            Python::with_gil(|py| {
+                let rs_dec = num.clone().into_pyobject(py).unwrap();
+                let locals = PyDict::new(py);
+                locals.set_item("rs_dec", &rs_dec).unwrap();
+                py.run(
+                    &CString::new(format!(
+                       "import decimal\npy_dec = decimal.Decimal(\"{}\")\nassert py_dec == rs_dec",
+                     num)).unwrap(),
+                None, Some(&locals)).unwrap();
+                let roundtripped: BigDecimal = rs_dec.extract().unwrap();
+                assert_eq!(num, roundtripped);
+            })
+        }
+
+        #[test]
+        fn test_integers(num in any::<i64>()) {
+            Python::with_gil(|py| {
+                let py_num = num.into_pyobject(py).unwrap();
+                let roundtripped: BigDecimal = py_num.extract().unwrap();
+                let rs_dec = BigDecimal::from(num);
+                assert_eq!(rs_dec, roundtripped);
+            })
+        }
+    }
+
+    #[test]
+    fn test_nan() {
+        Python::with_gil(|py| {
+            let locals = PyDict::new(py);
+            py.run(
+                ffi::c_str!("import decimal\npy_dec = decimal.Decimal(\"NaN\")"),
+                None,
+                Some(&locals),
+            )
+            .unwrap();
+            let py_dec = locals.get_item("py_dec").unwrap().unwrap();
+            let roundtripped: Result<BigDecimal, PyErr> = py_dec.extract();
+            assert!(roundtripped.is_err());
+        })
+    }
+
+    #[test]
+    fn test_infinity() {
+        Python::with_gil(|py| {
+            let locals = PyDict::new(py);
+            py.run(
+                ffi::c_str!("import decimal\npy_dec = decimal.Decimal(\"Infinity\")"),
+                None,
+                Some(&locals),
+            )
+            .unwrap();
+            let py_dec = locals.get_item("py_dec").unwrap().unwrap();
+            let roundtripped: Result<BigDecimal, PyErr> = py_dec.extract();
+            assert!(roundtripped.is_err());
+        })
     }
 }
