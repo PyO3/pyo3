@@ -37,7 +37,6 @@ The table below contains the Python type and the corresponding function argument
 | `datetime.timedelta` | `Duration`, `chrono::Duration`[^5] | `PyDelta`           |
 | `decimal.Decimal` | `rust_decimal::Decimal`[^7] | -                    |
 | `decimal.Decimal` | `bigdecimal::BigDecimal`[^9] | -                   |
-| `decimal.Decimal` | `bigdecimal::BigDecimalRef`[^9] | -                   |
 | `ipaddress.IPv4Address` | `std::net::IpAddr`, `std::net::IpV4Addr` | - |
 | `ipaddress.IPv6Address` | `std::net::IpAddr`, `std::net::IpV6Addr` | - |
 | `os.PathLike ` | `PathBuf`, `Path`              | `PyString` |

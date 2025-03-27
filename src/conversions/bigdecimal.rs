@@ -57,7 +57,7 @@ use crate::{
     types::{PyAnyMethods, PyStringMethods, PyType},
     Bound, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python,
 };
-use bigdecimal::{BigDecimal, BigDecimalRef};
+use bigdecimal::BigDecimal;
 
 static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
 
@@ -74,19 +74,6 @@ impl FromPyObject<'_> for BigDecimal {
 }
 
 impl<'py> IntoPyObject<'py> for BigDecimal {
-    type Target = PyAny;
-
-    type Output = Bound<'py, Self::Target>;
-
-    type Error = PyErr;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let cls = get_decimal_cls(py)?;
-        cls.call1((self.to_string(),))
-    }
-}
-
-impl<'py> IntoPyObject<'py> for BigDecimalRef<'_> {
     type Target = PyAny;
 
     type Output = Bound<'py, Self::Target>;
