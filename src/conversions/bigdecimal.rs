@@ -123,7 +123,7 @@ mod test_bigdecimal {
                     // Checks if BigDecimal -> Python Decimal conversion is correct
                     py.run(
                         &CString::new(format!(
-                            "import decimal\npy_dec = decimal.Decimal({})\nassert py_dec == rs_dec",
+                            "import decimal\npy_dec = decimal.Decimal(\"{}\")\nassert py_dec == rs_dec",
                             $py
                         ))
                         .unwrap(),
@@ -146,9 +146,9 @@ mod test_bigdecimal {
     convert_constants!(convert_two, BigDecimal::from(2), "2");
     convert_constants!(convert_ten, BigDecimal::from_str("10").unwrap(), "10");
     convert_constants!(
-        convert_one_hundred,
-        BigDecimal::from_str("100").unwrap(),
-        "100"
+        convert_one_hundred_point_one,
+        BigDecimal::from_str("100.1").unwrap(),
+        "100.1"
     );
     convert_constants!(
         convert_one_thousand,
