@@ -1,5 +1,5 @@
 #![cfg(feature = "bigdecimal")]
-//! Conversions to and from [bigdecimal](https://docs.rs/bigdecimal)'s [`Decimal`] type.
+//! Conversions to and from [bigdecimal](https://docs.rs/bigdecimal)'s [`BigDecimal`] type.
 //!
 //! This is useful for converting Python's decimal.Decimal into and from a native Rust type.
 //!
@@ -10,7 +10,7 @@
 //! ```toml
 //! [dependencies]
 #![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"bigdecimal\"] }")]
-//! rust_decimal = "1.0"
+//! bigdecimal = "4.0"
 //! ```
 //!
 //! Note that you must use a compatible version of bigdecimal and PyO3.
@@ -18,15 +18,15 @@
 //!
 //! # Example
 //!
-//! Rust code to create a function that adds one to a Decimal
+//! Rust code to create a function that adds one to a BigDecimal
 //!
 //! ```rust
-//! use rust_decimal::Decimal;
+//! use bigdecimal::BigDecimal;
 //! use pyo3::prelude::*;
 //!
 //! #[pyfunction]
-//! fn add_one(d: Decimal) -> Decimal {
-//!     d + Decimal::ONE
+//! fn add_one(d: BigDecimal) -> BigDecimal {
+//!     d + 1
 //! }
 //!
 //! #[pymodule]
@@ -49,15 +49,27 @@
 //! assert d + 1 == value
 //! ```
 
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
+use std::str::FromStr;
 
-use crate::{Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyObject, PyResult, Python};
+use crate::{
+    exceptions::PyValueError,
+    sync::GILOnceCell,
+    types::{PyAnyMethods, PyStringMethods, PyType},
+    Bound, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python,
+};
 use bigdecimal::{BigDecimal, BigDecimalRef};
+
+static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+
+fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
+    DECIMAL_CLS.import(py, "decimal", "Decimal")
+}
 
 impl FromPyObject<'_> for BigDecimal {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
-        todo!()
+        let py_str = &obj.str()?;
+        let rs_str = &py_str.to_cow()?;
+        BigDecimal::from_str(rs_str).map_err(|e| PyValueError::new_err(e.to_string()))
     }
 }
 
@@ -69,27 +81,7 @@ impl<'py> IntoPyObject<'py> for BigDecimal {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        todo!()
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for BigDecimal {
-    fn to_object(&self, py: Python<'_>) -> crate::PyObject {
-        todo!()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for BigDecimal {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        todo!()
-    }
-}
-
-impl FromPyObject<'_> for BigDecimalRef<'_> {
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
-        todo!()
+        self.to_ref().into_pyobject(py)
     }
 }
 
@@ -101,20 +93,7 @@ impl<'py> IntoPyObject<'py> for BigDecimalRef<'_> {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        todo!()
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for BigDecimalRef<'_> {
-    fn to_object(&self, py: Python<'_>) -> crate::PyObject {
-        todo!()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for BigDecimalRef<'_> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        todo!()
+        let cls = get_decimal_cls(py)?;
+        cls.call1((self.to_string(),))
     }
 }
