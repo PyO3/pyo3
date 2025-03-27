@@ -81,7 +81,8 @@ impl<'py> IntoPyObject<'py> for BigDecimal {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        self.to_ref().into_pyobject(py)
+        let cls = get_decimal_cls(py)?;
+        cls.call1((self.to_string(),))
     }
 }
 
