@@ -9,8 +9,6 @@
 //! ```
 
 pub use crate::conversion::{FromPyObject, IntoPyObject};
-#[allow(deprecated)]
-pub use crate::conversion::{IntoPy, ToPyObject};
 pub use crate::err::{PyErr, PyResult};
 pub use crate::instance::{Borrowed, Bound, Py, PyObject};
 pub use crate::marker::Python;

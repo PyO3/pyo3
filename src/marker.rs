@@ -304,7 +304,7 @@ pub use nightly::Ungil;
 /// It serves three main purposes:
 /// - It provides a global API for the Python interpreter, such as [`Python::eval`].
 /// - It can be passed to functions that require a proof of holding the GIL, such as
-///   [`Py::clone_ref`][crate::Py::clone_ref].
+///   [`Py::clone_ref`](crate::Py::clone_ref).
 /// - Its lifetime represents the scope of holding the GIL which can be used to create Rust
 ///   references that are bound to it, such as [`Bound<'py, PyAny>`].
 ///
@@ -974,8 +974,6 @@ mod tests {
     fn test_py_run_inserts_globals_2() {
         use std::ffi::CString;
 
-        use crate::Py;
-
         #[crate::pyclass(crate = "crate")]
         #[derive(Clone)]
         struct CodeRunner {
@@ -985,7 +983,7 @@ mod tests {
         impl CodeRunner {
             fn reproducer(&mut self, py: Python<'_>) -> PyResult<()> {
                 let variables = PyDict::new(py);
-                variables.set_item("cls", Py::new(py, self.clone())?)?;
+                variables.set_item("cls", crate::Py::new(py, self.clone())?)?;
 
                 py.run(self.code.as_c_str(), Some(&variables), None)?;
                 Ok(())

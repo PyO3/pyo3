@@ -5,9 +5,7 @@ use crate::internal_tricks::get_ssize_index;
 use crate::types::any::PyAnyMethods;
 use crate::types::sequence::PySequenceMethods;
 use crate::types::{PySequence, PyTuple};
-use crate::{
-    Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, Python,
-};
+use crate::{Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, Python};
 use std::iter::FusedIterator;
 #[cfg(feature = "nightly")]
 use std::num::NonZero;
@@ -23,15 +21,6 @@ use std::num::NonZero;
 pub struct PyList(PyAny);
 
 pyobject_native_type_core!(PyList, pyobject_native_static_type_object!(ffi::PyList_Type), #checkfunction=ffi::PyList_Check);
-
-#[inline]
-#[track_caller]
-pub(crate) fn new_from_iter(
-    py: Python<'_>,
-    elements: impl ExactSizeIterator<Item = PyObject>,
-) -> Bound<'_, PyList> {
-    try_new_from_iter(py, elements.map(|e| e.into_bound(py)).map(Ok)).unwrap()
-}
 
 #[inline]
 #[track_caller]

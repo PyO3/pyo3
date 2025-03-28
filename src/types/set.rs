@@ -1,6 +1,4 @@
 use crate::types::PyIterator;
-#[allow(deprecated)]
-use crate::ToPyObject;
 use crate::{
     err::{self, PyErr, PyResult},
     ffi_ptr_ext::FfiPtrExt,
@@ -263,16 +261,6 @@ impl ExactSizeIterator for BoundSetIterator<'_> {
     fn len(&self) -> usize {
         self.remaining
     }
-}
-
-#[allow(deprecated)]
-#[inline]
-pub(crate) fn new_from_iter<T: ToPyObject>(
-    py: Python<'_>,
-    elements: impl IntoIterator<Item = T>,
-) -> PyResult<Bound<'_, PySet>> {
-    let mut iter = elements.into_iter().map(|e| e.to_object(py));
-    try_new_from_iter(py, &mut iter)
 }
 
 #[inline]

@@ -6,11 +6,8 @@ use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{any::PyAnyMethods, sequence::PySequenceMethods, PyList, PySequence};
 use crate::{
-    exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyObject,
-    PyResult, Python,
+    exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
 };
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
 use std::iter::FusedIterator;
 #[cfg(feature = "nightly")]
 use std::num::NonZero;
@@ -582,20 +579,6 @@ impl ExactSizeIterator for BorrowedTupleIterator<'_, '_> {
 
 impl FusedIterator for BorrowedTupleIterator<'_, '_> {}
 
-#[allow(deprecated)]
-impl IntoPy<Py<PyTuple>> for Bound<'_, PyTuple> {
-    fn into_py(self, _: Python<'_>) -> Py<PyTuple> {
-        self.unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<Py<PyTuple>> for &'_ Bound<'_, PyTuple> {
-    fn into_py(self, _: Python<'_>) -> Py<PyTuple> {
-        self.clone().unbind()
-    }
-}
-
 #[cold]
 fn wrong_tuple_length(t: &Bound<'_, PyTuple>, expected_length: usize) -> PyErr {
     let msg = format!(
@@ -607,20 +590,6 @@ fn wrong_tuple_length(t: &Bound<'_, PyTuple>, expected_length: usize) -> PyErr {
 }
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
-    #[allow(deprecated)]
-    impl <$($T: ToPyObject),+> ToPyObject for ($($T,)+) {
-        fn to_object(&self, py: Python<'_>) -> PyObject {
-            array_into_tuple(py, [$(self.$n.to_object(py).into_bound(py)),+]).into()
-        }
-    }
-
-    #[allow(deprecated)]
-    impl <$($T: IntoPy<PyObject>),+> IntoPy<PyObject> for ($($T,)+) {
-        fn into_py(self, py: Python<'_>) -> PyObject {
-            array_into_tuple(py, [$(self.$n.into_py(py).into_bound(py)),+]).into()
-        }
-    }
-
     impl <'py, $($T),+> IntoPyObject<'py> for ($($T,)+)
     where
         $($T: IntoPyObject<'py>,)+
@@ -913,13 +882,6 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             token: crate::call::private::Token,
         ) -> PyResult<Bound<'py, PyAny>> {
             self.into_pyobject_or_pyerr(object.py())?.call_method_positional(object, method_name, token)
-        }
-    }
-
-    #[allow(deprecated)]
-    impl <$($T: IntoPy<PyObject>),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
-        fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
-            array_into_tuple(py, [$(self.$n.into_py(py).into_bound(py)),+]).unbind()
         }
     }
 

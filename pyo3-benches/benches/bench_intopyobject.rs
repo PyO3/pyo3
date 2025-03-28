@@ -46,27 +46,10 @@ fn byte_slice_into_pyobject_large(b: &mut Bencher<'_>) {
     bench_bytes_into_pyobject(b, &data);
 }
 
-#[allow(deprecated)]
-fn byte_slice_into_py(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
-        let data = (0..u8::MAX).collect::<Vec<u8>>();
-        let bytes = data.as_slice();
-        b.iter_with_large_drop(|| black_box(bytes).into_py(py));
-    });
-}
-
 fn vec_into_pyobject(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let bytes = (0..u8::MAX).collect::<Vec<u8>>();
         b.iter_with_large_drop(|| black_box(&bytes).clone().into_pyobject(py));
-    });
-}
-
-#[allow(deprecated)]
-fn vec_into_py(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
-        let bytes = (0..u8::MAX).collect::<Vec<u8>>();
-        b.iter_with_large_drop(|| black_box(&bytes).clone().into_py(py));
     });
 }
 
@@ -86,9 +69,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         "byte_slice_into_pyobject_large",
         byte_slice_into_pyobject_large,
     );
-    c.bench_function("byte_slice_into_py", byte_slice_into_py);
     c.bench_function("vec_into_pyobject", vec_into_pyobject);
-    c.bench_function("vec_into_py", vec_into_py);
 }
 
 criterion_group!(benches, criterion_benchmark);

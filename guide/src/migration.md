@@ -1237,7 +1237,7 @@ Python::with_gil(|py| {
 
 After, some type annotations may be necessary:
 
-```rust
+```rust,ignore
 # #![allow(deprecated)]
 # use pyo3::prelude::*;
 #
@@ -1712,7 +1712,7 @@ impl FromPy<MyPyObjectWrapper> for PyObject {
 ```
 
 After
-```rust,no_run
+```rust,ignore
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
 struct MyPyObjectWrapper(PyObject);
@@ -1736,7 +1736,7 @@ let obj = PyObject::from_py(1.234, py);
 ```
 
 After:
-```rust,no_run
+```rust,ignore
 # #![allow(deprecated)]
 # use pyo3::prelude::*;
 # Python::with_gil(|py| {

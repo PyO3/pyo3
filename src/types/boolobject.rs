@@ -2,14 +2,11 @@
 use crate::inspect::types::TypeInfo;
 use crate::{
     exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
-    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, PyObject, PyResult, Python,
+    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, PyResult, Python,
 };
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
 
 use super::any::PyAnyMethods;
 use crate::conversion::IntoPyObject;
-use crate::BoundObject;
 use std::convert::Infallible;
 
 /// Represents a Python `bool`.
@@ -135,23 +132,6 @@ impl PartialEq<Borrowed<'_, '_, PyBool>> for &'_ bool {
     #[inline]
     fn eq(&self, other: &Borrowed<'_, '_, PyBool>) -> bool {
         **self == other.is_true()
-    }
-}
-
-/// Converts a Rust `bool` to a Python `bool`.
-#[allow(deprecated)]
-impl ToPyObject for bool {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for bool {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 

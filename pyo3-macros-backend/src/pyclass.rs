@@ -1029,35 +1029,6 @@ fn impl_complex_enum(
     )
     .doc(doc);
 
-    // Need to customize the into_py impl so that it returns the variant PyClass
-    let enum_into_py_impl = {
-        let match_arms: Vec<TokenStream> = variants
-            .iter()
-            .map(|variant| {
-                let variant_ident = variant.get_ident();
-                let variant_cls = gen_complex_enum_variant_class_ident(cls, variant.get_ident());
-                quote! {
-                    #cls::#variant_ident { .. } => {
-                        let pyclass_init = <#pyo3_path::PyClassInitializer<Self> as ::std::convert::From<Self>>::from(self).add_subclass(#variant_cls);
-                        let variant_value = #pyo3_path::Py::new(py, pyclass_init).unwrap();
-                        #pyo3_path::IntoPy::into_py(variant_value, py)
-                    }
-                }
-            })
-            .collect();
-
-        quote! {
-            #[allow(deprecated)]
-            impl #pyo3_path::IntoPy<#pyo3_path::PyObject> for #cls {
-                fn into_py(self, py: #pyo3_path::Python) -> #pyo3_path::PyObject {
-                    match self {
-                        #(#match_arms)*
-                    }
-                }
-            }
-        }
-    };
-
     let enum_into_pyobject_impl = {
         let match_arms = variants
             .iter()
@@ -1093,7 +1064,6 @@ fn impl_complex_enum(
     let pyclass_impls: TokenStream = [
         impl_builder.impl_pyclass(ctx),
         impl_builder.impl_extractext(ctx),
-        enum_into_py_impl,
         enum_into_pyobject_impl,
         impl_builder.impl_pyclassimpl(ctx)?,
         impl_builder.impl_add_to_module(ctx),
@@ -2142,13 +2112,6 @@ impl<'a> PyClassImplsBuilder<'a> {
         // If #cls is not extended type, we allow Self->PyObject conversion
         if attr.options.extends.is_none() {
             quote! {
-                #[allow(deprecated)]
-                impl #pyo3_path::IntoPy<#pyo3_path::PyObject> for #cls {
-                    fn into_py(self, py: #pyo3_path::Python<'_>) -> #pyo3_path::PyObject {
-                        #pyo3_path::IntoPy::into_py(#pyo3_path::Py::new(py, self).unwrap(), py)
-                    }
-                }
-
                 impl<'py> #pyo3_path::conversion::IntoPyObject<'py> for #cls {
                     type Target = Self;
                     type Output = #pyo3_path::Bound<'py, <Self as #pyo3_path::conversion::IntoPyObject<'py>>::Target>;

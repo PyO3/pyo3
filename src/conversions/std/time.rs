@@ -9,8 +9,6 @@ use crate::types::{timezone_utc, PyDateTime, PyDelta, PyDeltaAccess};
 #[cfg(Py_LIMITED_API)]
 use crate::Py;
 use crate::{intern, Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
@@ -49,22 +47,6 @@ impl FromPyObject<'_> for Duration {
         let nanoseconds = microseconds.checked_mul(1_000).unwrap(); // 0 <= microseconds < 1000000
 
         Ok(Duration::new(total_seconds, nanoseconds))
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for Duration {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for Duration {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -131,22 +113,6 @@ impl FromPyObject<'_> for SystemTime {
             .ok_or_else(|| {
                 PyOverflowError::new_err("Overflow error when converting the time to Rust")
             })
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for SystemTime {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for SystemTime {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 

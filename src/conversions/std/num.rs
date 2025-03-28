@@ -5,9 +5,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::inspect::types::TypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyBytes, PyInt};
-use crate::{exceptions, ffi, Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
+use crate::{exceptions, ffi, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
 use std::convert::Infallible;
 use std::num::{
     NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize, NonZeroU128,
@@ -17,21 +15,6 @@ use std::os::raw::c_long;
 
 macro_rules! int_fits_larger_int {
     ($rust_type:ty, $larger_type:ty) => {
-        #[allow(deprecated)]
-        impl ToPyObject for $rust_type {
-            #[inline]
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-        #[allow(deprecated)]
-        impl IntoPy<PyObject> for $rust_type {
-            #[inline]
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-
         impl<'py> IntoPyObject<'py> for $rust_type {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;
@@ -104,20 +87,6 @@ macro_rules! extract_int {
 
 macro_rules! int_convert_u64_or_i64 {
     ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ll_or_ull:expr, $force_index_call:literal) => {
-        #[allow(deprecated)]
-        impl ToPyObject for $rust_type {
-            #[inline]
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-        #[allow(deprecated)]
-        impl IntoPy<PyObject> for $rust_type {
-            #[inline]
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
         impl<'py> IntoPyObject<'py> for $rust_type {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;
@@ -166,21 +135,6 @@ macro_rules! int_convert_u64_or_i64 {
 
 macro_rules! int_fits_c_long {
     ($rust_type:ty) => {
-        #[allow(deprecated)]
-        impl ToPyObject for $rust_type {
-            #[inline]
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-        #[allow(deprecated)]
-        impl IntoPy<PyObject> for $rust_type {
-            #[inline]
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-
         impl<'py> IntoPyObject<'py> for $rust_type {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;
@@ -231,20 +185,6 @@ macro_rules! int_fits_c_long {
     };
 }
 
-#[allow(deprecated)]
-impl ToPyObject for u8 {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-#[allow(deprecated)]
-impl IntoPy<PyObject> for u8 {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
 impl<'py> IntoPyObject<'py> for u8 {
     type Target = PyInt;
     type Output = Bound<'py, Self::Target>;
@@ -356,22 +296,6 @@ mod fast_128bit_int_conversion {
     // for 128bit Integers
     macro_rules! int_convert_128 {
         ($rust_type: ty, $is_signed: literal) => {
-            #[allow(deprecated)]
-            impl ToPyObject for $rust_type {
-                #[inline]
-                fn to_object(&self, py: Python<'_>) -> PyObject {
-                    self.into_pyobject(py).unwrap().into_any().unbind()
-                }
-            }
-
-            #[allow(deprecated)]
-            impl IntoPy<PyObject> for $rust_type {
-                #[inline]
-                fn into_py(self, py: Python<'_>) -> PyObject {
-                    self.into_pyobject(py).unwrap().into_any().unbind()
-                }
-            }
-
             impl<'py> IntoPyObject<'py> for $rust_type {
                 type Target = PyInt;
                 type Output = Bound<'py, Self::Target>;
@@ -510,22 +434,6 @@ mod slow_128bit_int_conversion {
     // for 128bit Integers
     macro_rules! int_convert_128 {
         ($rust_type: ty, $half_type: ty) => {
-            #[allow(deprecated)]
-            impl ToPyObject for $rust_type {
-                #[inline]
-                fn to_object(&self, py: Python<'_>) -> PyObject {
-                    self.into_pyobject(py).unwrap().into_any().unbind()
-                }
-            }
-
-            #[allow(deprecated)]
-            impl IntoPy<PyObject> for $rust_type {
-                #[inline]
-                fn into_py(self, py: Python<'_>) -> PyObject {
-                    self.into_pyobject(py).unwrap().into_any().unbind()
-                }
-            }
-
             impl<'py> IntoPyObject<'py> for $rust_type {
                 type Target = PyInt;
                 type Output = Bound<'py, Self::Target>;
@@ -577,11 +485,11 @@ mod slow_128bit_int_conversion {
                             ffi::PyLong_AsUnsignedLongLongMask(ob.as_ptr()),
                         )? as $rust_type;
                         let shift = SHIFT.into_pyobject(py)?;
-                        let shifted = PyObject::from_owned_ptr_or_err(
+                        let shifted = Bound::from_owned_ptr_or_err(
                             py,
                             ffi::PyNumber_Rshift(ob.as_ptr(), shift.as_ptr()),
                         )?;
-                        let upper: $half_type = shifted.extract(py)?;
+                        let upper: $half_type = shifted.extract()?;
                         Ok((<$rust_type>::from(upper) << SHIFT) | lower)
                     }
                 }
@@ -614,22 +522,6 @@ fn err_if_invalid_value<T: PartialEq>(
 
 macro_rules! nonzero_int_impl {
     ($nonzero_type:ty, $primitive_type:ty) => {
-        #[allow(deprecated)]
-        impl ToPyObject for $nonzero_type {
-            #[inline]
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-
-        #[allow(deprecated)]
-        impl IntoPy<PyObject> for $nonzero_type {
-            #[inline]
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-
         impl<'py> IntoPyObject<'py> for $nonzero_type {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;

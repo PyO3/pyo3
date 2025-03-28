@@ -6,57 +6,8 @@ use crate::{
     conversion::IntoPyObject,
     instance::Bound,
     types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
-    FromPyObject, PyAny, PyErr, PyObject, Python,
+    FromPyObject, PyAny, PyErr, Python,
 };
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
-
-#[allow(deprecated)]
-impl<K, V, H> ToPyObject for collections::HashMap<K, V, H>
-where
-    K: hash::Hash + cmp::Eq + ToPyObject,
-    V: ToPyObject,
-    H: hash::BuildHasher,
-{
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new(py);
-        for (k, v) in self {
-            dict.set_item(k.to_object(py), v.to_object(py)).unwrap();
-        }
-        dict.into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl<K, V> ToPyObject for collections::BTreeMap<K, V>
-where
-    K: cmp::Eq + ToPyObject,
-    V: ToPyObject,
-{
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new(py);
-        for (k, v) in self {
-            dict.set_item(k.to_object(py), v.to_object(py)).unwrap();
-        }
-        dict.into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl<K, V, H> IntoPy<PyObject> for collections::HashMap<K, V, H>
-where
-    K: hash::Hash + cmp::Eq + IntoPy<PyObject>,
-    V: IntoPy<PyObject>,
-    H: hash::BuildHasher,
-{
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new(py);
-        for (k, v) in self {
-            dict.set_item(k.into_py(py), v.into_py(py)).unwrap();
-        }
-        dict.into_any().unbind()
-    }
-}
 
 impl<'py, K, V, H> IntoPyObject<'py> for collections::HashMap<K, V, H>
 where
@@ -105,21 +56,6 @@ where
     #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::dict_of(<&K>::type_output(), <&V>::type_output())
-    }
-}
-
-#[allow(deprecated)]
-impl<K, V> IntoPy<PyObject> for collections::BTreeMap<K, V>
-where
-    K: cmp::Eq + IntoPy<PyObject>,
-    V: IntoPy<PyObject>,
-{
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new(py);
-        for (k, v) in self {
-            dict.set_item(k.into_py(py), v.into_py(py)).unwrap();
-        }
-        dict.into_any().unbind()
     }
 }
 

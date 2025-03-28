@@ -3,11 +3,9 @@ use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, PyAny, PyErr, PyObject,
-    PyResult, Python,
+    ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, PyAny, PyErr, PyResult,
+    Python,
 };
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
 use std::convert::Infallible;
 use std::os::raw::c_double;
 
@@ -20,7 +18,7 @@ use std::os::raw::c_double;
 /// [`Bound<'py, PyFloat>`][Bound].
 ///
 /// You can usually avoid directly working with this type
-/// by using [`ToPyObject`] and [`extract`][PyAnyMethods::extract]
+/// by using [`IntoPyObject`] and [`extract`][PyAnyMethods::extract]
 /// with [`f32`]/[`f64`].
 #[repr(transparent)]
 pub struct PyFloat(PyAny);
@@ -68,22 +66,6 @@ impl<'py> PyFloatMethods<'py> for Bound<'py, PyFloat> {
         unsafe {
             ffi::PyFloat_AsDouble(self.as_ptr())
         }
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for f64 {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for f64 {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -146,22 +128,6 @@ impl<'py> FromPyObject<'py> for f64 {
     #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         Self::type_output()
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for f32 {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for f32 {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
