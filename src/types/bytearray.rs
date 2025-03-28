@@ -2,6 +2,7 @@ use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
+use crate::sync::with_critical_section;
 use crate::types::any::PyAnyMethods;
 use crate::{ffi, PyAny, Python};
 use std::slice;
@@ -152,7 +153,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     ///   using the slice.
     ///
     /// As a result, this slice should only be used for short-lived operations without executing any
-    /// Python code, such as copying into a Vec.
+    /// Python code, such as copying into a Vec. For free-threaded Python support see also [`with_critical_section`].
     ///
     /// # Examples
     ///
@@ -295,7 +296,7 @@ impl<'py> PyByteArrayMethods<'py> for Bound<'py, PyByteArray> {
     }
 
     fn to_vec(&self) -> Vec<u8> {
-        unsafe { self.as_bytes() }.to_vec()
+        with_critical_section(self, || unsafe { self.as_bytes() }.to_vec())
     }
 
     fn resize(&self, len: usize) -> PyResult<()> {
