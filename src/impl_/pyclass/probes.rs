@@ -70,3 +70,9 @@ probe!(IsSync);
 impl<T: Sync> IsSync<T> {
     pub const VALUE: bool = true;
 }
+
+probe!(IsOption);
+
+impl<T> IsOption<Option<T>> {
+    pub const VALUE: bool = true;
+}

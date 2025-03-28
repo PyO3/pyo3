@@ -46,6 +46,45 @@ fn test_optional_bool() {
     });
 }
 
+#[pyfunction]
+#[pyo3(signature=(arg))]
+fn required_optional_str(arg: Option<&str>) -> &str {
+    arg.unwrap_or("")
+}
+
+#[test]
+fn test_optional_str() {
+    // Regression test for issue #4965
+    Python::with_gil(|py| {
+        let f = wrap_pyfunction!(required_optional_str)(py).unwrap();
+
+        py_assert!(py, f, "f('') == ''");
+        py_assert!(py, f, "f('foo') == 'foo'");
+        py_assert!(py, f, "f(None) == ''");
+    });
+}
+
+#[pyclass]
+struct MyClass();
+
+#[pyfunction]
+#[pyo3(signature=(arg))]
+fn required_optional_class(arg: Option<&MyClass>) {
+    let _ = arg;
+}
+
+#[test]
+fn test_required_optional_class() {
+    // Regression test for issue #4965
+    Python::with_gil(|py| {
+        let f = wrap_pyfunction!(required_optional_class)(py).unwrap();
+        let val = Bound::new(py, MyClass()).unwrap();
+
+        py_assert!(py, f val, "f(val) is None");
+        py_assert!(py, f, "f(None) is None");
+    });
+}
+
 #[cfg(not(Py_LIMITED_API))]
 #[pyfunction]
 fn buffer_inplace_add(py: Python<'_>, x: PyBuffer<i32>, y: PyBuffer<i32>) {

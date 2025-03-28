@@ -1,4 +1,4 @@
-use crate::utils::{deprecated_from_py_with, Ctx};
+use crate::utils::{deprecated_from_py_with, Ctx, TypeExt as _};
 use crate::{
     attributes::FromPyWithAttribute,
     method::{FnArg, FnSpec, RegularArg},
@@ -200,7 +200,7 @@ fn impl_arg_param(
             let holder = holders.push_holder(arg.name.span());
             let name_str = arg.name.to_string();
             quote_spanned! { arg.name.span() =>
-                #pyo3_path::impl_::extract_argument::extract_argument(
+                #pyo3_path::impl_::extract_argument::extract_argument::<_, false>(
                     &_args,
                     &mut #holder,
                     #name_str
@@ -211,7 +211,7 @@ fn impl_arg_param(
             let holder = holders.push_holder(arg.name.span());
             let name_str = arg.name.to_string();
             quote_spanned! { arg.name.span() =>
-                #pyo3_path::impl_::extract_argument::extract_optional_argument(
+                #pyo3_path::impl_::extract_argument::extract_optional_argument::<_, false>(
                     _kwargs.as_deref(),
                     &mut #holder,
                     #name_str,
@@ -238,8 +238,9 @@ pub(crate) fn impl_regular_arg_param(
 
     // Use this macro inside this function, to ensure that all code generated here is associated
     // with the function argument
+    let use_probe = quote!(use #pyo3_path::impl_::pyclass::Probe as _;);
     macro_rules! quote_arg_span {
-        ($($tokens:tt)*) => { quote_spanned!(arg.ty.span() => $($tokens)*) }
+        ($($tokens:tt)*) => { quote_spanned!(arg.ty.span() => { #use_probe $($tokens)* }) }
     }
 
     let name_str = arg.name.to_string();
@@ -251,6 +252,7 @@ pub(crate) fn impl_regular_arg_param(
         default = default.map(|tokens| some_wrap(tokens, ctx));
     }
 
+    let arg_ty = arg.ty.clone().elide_lifetimes();
     if let Some(FromPyWithAttribute { kw, .. }) = arg.from_py_with {
         let extractor = quote_spanned! { kw.span =>
             { let from_py_with: fn(_) -> _ = #from_py_with; from_py_with }
@@ -279,9 +281,13 @@ pub(crate) fn impl_regular_arg_param(
         }
     } else if let Some(default) = default {
         let holder = holders.push_holder(arg.name.span());
-        if arg.option_wrapped_type.is_some() {
+        if let Some(arg_ty) = arg.option_wrapped_type {
+            let arg_ty = arg_ty.clone().elide_lifetimes();
             quote_arg_span! {
-                #pyo3_path::impl_::extract_argument::extract_optional_argument(
+                #pyo3_path::impl_::extract_argument::extract_optional_argument::<
+                    _,
+                    { #pyo3_path::impl_::pyclass::IsOption::<#arg_ty>::VALUE }
+                >(
                     #arg_value,
                     &mut #holder,
                     #name_str,
@@ -293,22 +299,28 @@ pub(crate) fn impl_regular_arg_param(
             }
         } else {
             quote_arg_span! {
-                    #pyo3_path::impl_::extract_argument::extract_argument_with_default(
-                        #arg_value,
-                        &mut #holder,
-                        #name_str,
-                        #[allow(clippy::redundant_closure)]
-                        {
-                            || #default
-                        }
-                    )?
+                #pyo3_path::impl_::extract_argument::extract_argument_with_default::<
+                    _,
+                    { #pyo3_path::impl_::pyclass::IsOption::<#arg_ty>::VALUE }
+                >(
+                    #arg_value,
+                    &mut #holder,
+                    #name_str,
+                    #[allow(clippy::redundant_closure)]
+                    {
+                        || #default
+                    }
+                )?
             }
         }
     } else {
         let holder = holders.push_holder(arg.name.span());
         let unwrap = quote! {unsafe { #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value) }};
         quote_arg_span! {
-            #pyo3_path::impl_::extract_argument::extract_argument(
+            #pyo3_path::impl_::extract_argument::extract_argument::<
+                _,
+                { #pyo3_path::impl_::pyclass::IsOption::<#arg_ty>::VALUE }
+            >(
                 #unwrap,
                 &mut #holder,
                 #name_str

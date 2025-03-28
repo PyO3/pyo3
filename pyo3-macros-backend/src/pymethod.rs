@@ -4,7 +4,7 @@ use std::ffi::CString;
 use crate::attributes::{FromPyWithAttribute, NameAttribute, RenamingRule};
 use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
 use crate::params::{impl_regular_arg_param, Holders};
-use crate::utils::{deprecated_from_py_with, PythonDoc};
+use crate::utils::{deprecated_from_py_with, PythonDoc, TypeExt as _};
 use crate::utils::{Ctx, LitCStr};
 use crate::{
     method::{FnArg, FnSpec, FnType, SelfType},
@@ -699,8 +699,13 @@ pub fn impl_py_setter_def(
                 .unwrap_or_default();
 
             let holder = holders.push_holder(span);
+            let ty = field.ty.clone().elide_lifetimes();
             quote! {
-                let _val = #pyo3_path::impl_::extract_argument::extract_argument(_value.into(), &mut #holder, #name)?;
+                use #pyo3_path::impl_::pyclass::Probe as _;
+                let _val = #pyo3_path::impl_::extract_argument::extract_argument::<
+                    _,
+                    { #pyo3_path::impl_::pyclass::IsOption::<#ty>::VALUE }
+                >(_value.into(), &mut #holder, #name)?;
             }
         }
     };
@@ -1198,13 +1203,18 @@ fn extract_object(
         }
     } else {
         let holder = holders.push_holder(Span::call_site());
-        quote! {
-            #pyo3_path::impl_::extract_argument::extract_argument(
+        let ty = arg.ty().clone().elide_lifetimes();
+        quote! {{
+            use #pyo3_path::impl_::pyclass::Probe as _;
+            #pyo3_path::impl_::extract_argument::extract_argument::<
+                _,
+                { #pyo3_path::impl_::pyclass::IsOption::<#ty>::VALUE }
+            >(
                 unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0 },
                 &mut #holder,
                 #name
             )
-        }
+        }}
     };
 
     let extracted = extract_error_mode.handle_error(extract, ctx);
