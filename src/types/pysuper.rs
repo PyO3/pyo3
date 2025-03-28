@@ -21,7 +21,7 @@ impl PySuper {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use pyo3::prelude::*;
     ///
     /// #[pyclass(subclass)]

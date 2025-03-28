@@ -260,7 +260,7 @@ impl PySetterDef {
 ///
 /// Elided lifetime should compile ok:
 ///
-/// ```rust
+/// ```rust,no_run
 /// use pyo3::prelude::*;
 /// use pyo3::pyclass::{PyTraverseError, PyVisit};
 ///

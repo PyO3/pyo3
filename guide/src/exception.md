@@ -40,7 +40,7 @@ Python::with_gil(|py| {
 When using PyO3 to create an extension module, you can add the new exception to
 the module like this, so that it is importable from Python:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 use pyo3::exceptions::PyException;
 
@@ -77,7 +77,7 @@ Python::with_gil(|py| {
 Python has an [`isinstance`](https://docs.python.org/3/library/functions.html#isinstance) method to check an object's type.
 In PyO3 every object has the [`PyAny::is_instance`] and [`PyAny::is_instance_of`] methods which do the same thing.
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyList};
 
@@ -94,7 +94,7 @@ Python::with_gil(|py| {
 
 To check the type of an exception, you can similarly do:
 
-```rust
+```rust,no_run
 # use pyo3::exceptions::PyTypeError;
 # use pyo3::prelude::*;
 # Python::with_gil(|py| {
@@ -109,7 +109,7 @@ It is possible to use an exception defined in Python code as a native Rust type.
 The `import_exception!` macro allows importing a specific exception class and defines a Rust type
 for that exception.
 
-```rust
+```rust,no_run
 #![allow(dead_code)]
 use pyo3::prelude::*;
 

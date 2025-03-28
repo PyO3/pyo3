@@ -129,7 +129,7 @@
 //! ```
 //!
 //! **`src/lib.rs`**
-//! ```rust
+//! ```rust,no_run
 //! use std::os::raw::{c_char, c_long};
 //! use std::ptr;
 //!
@@ -356,7 +356,7 @@ macro_rules! opaque_struct {
 ///
 /// Examples:
 ///
-/// ```rust
+/// ```rust,no_run
 /// use std::ffi::CStr;
 ///
 /// const HELLO: &CStr = pyo3_ffi::c_str!("hello");

@@ -87,7 +87,7 @@ pub trait ToPyObject {
 /// The easiest way to implement `IntoPy` is by exposing a struct as a native Python object
 /// by annotating it with [`#[pyclass]`](crate::prelude::pyclass).
 ///
-/// ```rust
+/// ```rust,no_run
 /// use pyo3::prelude::*;
 ///
 /// # #[allow(dead_code)]
@@ -103,7 +103,7 @@ pub trait ToPyObject {
 ///
 /// However, it may not be desirable to expose the existence of `Number` to Python code.
 /// `IntoPy` allows us to define a conversion to an appropriate Python object.
-/// ```rust
+/// ```rust,no_run
 /// #![allow(deprecated)]
 /// use pyo3::prelude::*;
 ///

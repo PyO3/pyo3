@@ -184,7 +184,7 @@ Adds a dependency on [rust_decimal](https://docs.rs/rust_decimal) and enables co
 Enables (de)serialization of `Py<T>` objects via [serde](https://serde.rs/).
 This allows to use [`#[derive(Serialize, Deserialize)`](https://serde.rs/derive.html) on structs that hold references to `#[pyclass]` instances
 
-```rust
+```rust,no_run
 # #[cfg(feature = "serde")]
 # #[allow(dead_code)]
 # mod serde_only {

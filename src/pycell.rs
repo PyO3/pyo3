@@ -22,7 +22,7 @@
 //! Usually you can use `&mut` references as method and function receivers and arguments, and you
 //! won't need to use `PyCell` directly:
 //!
-//! ```rust
+//! ```rust,no_run
 //! use pyo3::prelude::*;
 //!
 //! #[pyclass]

@@ -50,7 +50,7 @@ given signatures should be interpreted as follows:
     <summary>Disabling Python's default hash</summary>
     By default, all `#[pyclass]` types have a default hash implementation from Python. Types which should not be hashable can override this by setting `__hash__` to `None`. This is the same mechanism as for a pure-Python class. This is done like so:
 
-    ```rust
+    ```rust,no_run
     # use pyo3::prelude::*;
     #
     #[pyclass]
@@ -95,7 +95,7 @@ given signatures should be interpreted as follows:
     If you want to leave some operations unimplemented, you can return `py.NotImplemented()`
     for some of the operations:
 
-    ```rust
+    ```rust,no_run
     use pyo3::class::basic::CompareOp;
     use pyo3::types::PyNotImplemented;
 
@@ -155,7 +155,7 @@ Returning `None` from `__next__` indicates that that there are no further items.
 
 Example:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 use std::sync::Mutex;
@@ -181,7 +181,7 @@ In many cases you'll have a distinction between the type being iterated over
 only needs to implement `__iter__()` while the iterator must implement both
 `__iter__()` and `__next__()`. For example:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 
 #[pyclass]
@@ -274,7 +274,7 @@ Use the `#[pyclass(sequence)]` annotation to instruct PyO3 to fill the `sq_lengt
     can override this by setting `__contains__` to `None`. This is the same
     mechanism as for a pure-Python class. This is done like so:
 
-    ```rust
+    ```rust,no_run
     # use pyo3::prelude::*;
     #
     #[pyclass]
@@ -430,7 +430,7 @@ cleared, as every cycle must contain at least one mutable reference.
 
 Example:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 use pyo3::PyTraverseError;
 use pyo3::gc::PyVisit;

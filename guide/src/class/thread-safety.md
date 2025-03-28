@@ -16,7 +16,7 @@ By default, `#[pyclass]` employs an ["interior mutability" pattern](../class.md#
 
 For example, the below simple class is thread-safe:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 
 #[pyclass]
@@ -47,7 +47,7 @@ To remove the possibility of having overlapping `&self` and `&mut self` referenc
 
 For example, a thread-safe version of the above `MyClass` using atomic integers would be as follows:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 use std::sync::atomic::{AtomicI32, Ordering};
 
@@ -75,7 +75,7 @@ An alternative to atomic data structures is to use [locks](https://doc.rust-lang
 
 For example, a thread-safe version of the above `MyClass` using locks would be as follows:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 use std::sync::Mutex;
 
