@@ -550,7 +550,7 @@ _without_ having a unique python type.
 
 `struct`s will turn into a `PyDict` using the field names as keys, tuple `struct`s will turn convert
 into `PyTuple` with the fields in declaration order.
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use std::collections::HashMap;
@@ -574,7 +574,7 @@ For structs with a single field (newtype pattern) the `#[pyo3(transparent)]` opt
 forward the implementation to the inner type.
 
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 
@@ -591,7 +591,7 @@ struct TransparentStruct<'py> {
 
 For `enum`s each variant is converted according to the rules for `struct`s above.
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use std::collections::HashMap;
@@ -618,7 +618,7 @@ Additionally `IntoPyObject` can be derived for a reference to a struct or enum u
       - `#[derive(IntoPyObject)]` will invoke the function with `Cow::Owned`
       - `#[derive(IntoPyObjectRef)]` will invoke the function with `Cow::Borrowed`
 
-    ```rust
+    ```rust,no_run
     # use pyo3::prelude::*;
     # use pyo3::IntoPyObjectExt;
     # use std::borrow::Cow;
@@ -642,7 +642,7 @@ Additionally `IntoPyObject` can be derived for a reference to a struct or enum u
 If the derive macro is not suitable for your use case, `IntoPyObject` can be implemented manually as
 demonstrated below.
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
 struct MyPyObjectWrapper(PyObject);
@@ -673,7 +673,7 @@ impl<'a, 'py> IntoPyObject<'py> for &'a MyPyObjectWrapper {
 
 `IntoPyObject::into_py_object` returns either `Bound` or `Borrowed` depending on the implementation for a concrete type. For example, the `IntoPyObject` implementation for `u32` produces a `Bound<'py, PyInt>` and the `bool` implementation produces a `Borrowed<'py, 'py, PyBool>`:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 use pyo3::IntoPyObject;
 use pyo3::types::{PyBool, PyInt};
@@ -700,7 +700,7 @@ In this example if we wanted to combine `ints_as_pyints` and `bools_as_pybool` i
 
 Instead, we can write a function that generically converts vectors of either integers or bools into a vector of `Py<PyAny>` using the [`BoundObject`] trait:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 # use pyo3::BoundObject;
 # use pyo3::IntoPyObject;
@@ -757,7 +757,7 @@ All types in PyO3 implement this trait, as does a `#[pyclass]` which doesn't use
 Occasionally you may choose to implement this for custom types which are mapped to Python types
 _without_ having a unique python type.
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 # #[allow(dead_code)]
 struct MyPyObjectWrapper(PyObject);

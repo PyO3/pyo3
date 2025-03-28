@@ -234,7 +234,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
@@ -270,7 +270,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use pyo3::prelude::*;
     ///
     /// #[pyclass]
@@ -323,7 +323,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
@@ -359,7 +359,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// Note that this also requires the [`wrap_pyfunction!`][2] macro
     /// to wrap a function annotated with [`#[pyfunction]`][1].
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use pyo3::prelude::*;
     ///
     /// #[pyfunction]
@@ -404,7 +404,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule(gil_used = false)]

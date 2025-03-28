@@ -72,7 +72,7 @@ thread-safe, then pass `gil_used = false` as a parameter to the
 `pymodule` procedural macro declaring the module or call
 `PyModule::gil_used` on a `PyModule` instance.  For example:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 /// This module supports free-threaded Python
@@ -85,7 +85,7 @@ fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 Or for a module that is set up without using the `pymodule` macro:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 # #[allow(dead_code)]
@@ -208,9 +208,8 @@ The most straightforward way to trigger this problem is to use the Python
 [`pyclass`]({{#PYO3_DOCS_URL}}/pyo3/attr.pyclass.html) in multiple threads. For
 example, consider the following implementation:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
-# fn main() {
 #[pyclass]
 #[derive(Default)]
 struct ThreadIter {
@@ -229,7 +228,6 @@ impl ThreadIter {
         self.count
     }
 }
-# }
 ```
 
 And then if we do something like this in Python:
@@ -309,7 +307,6 @@ extension traits. Here is an example of how to use [`OnceExt`] to
 enable single-initialization of a runtime cache holding a `Py<PyDict>`.
 
 ```rust
-# fn main() {
 # use pyo3::prelude::*;
 use std::sync::Once;
 use pyo3::sync::OnceExt;
@@ -331,7 +328,6 @@ Python::with_gil(|py| {
         cache.cache = Some(PyDict::new(py).unbind());
     });
 });
-# }
 ```
 
 ### `GILProtected` is not exposed

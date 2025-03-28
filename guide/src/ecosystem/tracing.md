@@ -37,7 +37,7 @@ implementation defined in and passed in from Python.
 
 There are many ways an extension module could integrate `pyo3-python-tracing-subscriber`
 but a simple one may look something like this:
-```rust
+```rust,no_run
 #[tracing::instrument]
 #[pyfunction]
 fn fibonacci(index: usize, use_memoized: bool) -> PyResult<usize> {

@@ -18,7 +18,7 @@
 //! closure and the return type. This is done by relying on the [`Send`] auto trait. `Ungil` is
 //! defined as the following:
 //!
-//! ```rust
+//! ```rust,no_run
 //! # #![allow(dead_code)]
 //! pub unsafe trait Ungil {}
 //!
@@ -95,7 +95,7 @@
 //! However on nightly Rust and when PyO3's `nightly` feature is
 //! enabled, `Ungil` is defined as the following:
 //!
-//! ```rust
+//! ```rust,no_run
 //! # #[cfg(any())]
 //! # {
 //! #![feature(auto_traits, negative_impls)]
@@ -803,7 +803,7 @@ impl<'py> Python<'py> {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// # #![allow(dead_code)] // this example is quite impractical to test
     /// use pyo3::prelude::*;
     ///

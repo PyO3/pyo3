@@ -31,7 +31,7 @@ own extraction function, using the `#[pyo3(from_py_with = ...)]` attribute. Unfo
 doesn't provide a way to wrap Python integers out of the box, but we can do a Python call to mask it
 and cast it to an `i32`.
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 use pyo3::prelude::*;
 
@@ -44,7 +44,7 @@ fn wrap(obj: &Bound<'_, PyAny>) -> PyResult<i32> {
 ```
 We also add documentation, via `///` comments, which are visible to Python users.
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 use pyo3::prelude::*;
 
@@ -70,7 +70,7 @@ impl Number {
 
 
 With that out of the way, let's implement some operators:
-```rust
+```rust,no_run
 use pyo3::exceptions::{PyZeroDivisionError, PyValueError};
 
 # use pyo3::prelude::*;
@@ -124,7 +124,7 @@ impl Number {
 
 ### Unary arithmetic operations
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 #
 # #[pyclass]
@@ -152,7 +152,7 @@ impl Number {
 
 ### Support for the `complex()`, `int()` and `float()` built-in functions.
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 #
 # #[pyclass]
@@ -415,7 +415,7 @@ Let's create that helper function. The signature has to be `fn(&Bound<'_, PyAny>
 - `&Bound<'_, PyAny>` represents a checked borrowed reference, so the pointer derived from it is valid (and not null).
 - Whenever we have borrowed references to Python objects in scope, it is guaranteed that the GIL is held. This reference is also where we can get a [`Python`] token to use in our call to [`PyErr::take`].
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 use std::os::raw::c_ulong;
 use pyo3::prelude::*;

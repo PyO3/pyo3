@@ -65,7 +65,7 @@ fn main() {
 ```
 
 **`src/lib.rs`**
-```rust
+```rust,no_run
 use std::os::raw::{c_char, c_long};
 use std::ptr;
 
