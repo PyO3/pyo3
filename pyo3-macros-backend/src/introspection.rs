@@ -4,16 +4,20 @@
 //!
 //! These JSON blobs can refer to each others via the _PYO3_INTROSPECTION_ID constants
 //! providing unique ids for each element.
+//!
+//! The JSON blobs format must be synchronized with the `pyo3_introspection::introspection.rs::Chunk`
+//! type that is used to parse them.
 
 use crate::utils::PyO3CratePath;
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use syn::{Attribute, Ident};
+use syn::punctuated::Punctuated;
+use syn::{Attribute, Ident, Path, PathSegment};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
 
@@ -126,10 +130,16 @@ impl IntrospectionNode<'_> {
             }
             Self::IntrospectionId(ident) => {
                 content.push_str("\"");
-                content.push_token(if let Some(ident) = ident {
-                    quote! { #ident::_PYO3_INTROSPECTION_ID}
+                content.push_path(if let Some(ident) = *ident {
+                    Path {
+                        leading_colon: None,
+                        segments: Punctuated::from_iter([
+                            PathSegment::from(ident.clone()),
+                            Ident::new("_PYO3_INTROSPECTION_ID", Span::call_site()).into(),
+                        ]),
+                    }
                 } else {
-                    quote! { _PYO3_INTROSPECTION_ID }
+                    Ident::new("_PYO3_INTROSPECTION_ID", Span::call_site()).into()
                 });
                 content.push_str("\"");
             }
@@ -161,17 +171,18 @@ impl IntrospectionNode<'_> {
 
 #[derive(Default)]
 struct ConcatenationBuilder {
-    elements: Vec<TokenStream>,
+    elements: Vec<ConcatenationBuilderElement>,
     current_string: String,
 }
 
 impl ConcatenationBuilder {
-    fn push_token(&mut self, token: TokenStream) {
+    fn push_path(&mut self, path: Path) {
         if !self.current_string.is_empty() {
-            let str = take(&mut self.current_string);
-            self.elements.push(quote! { #str });
+            self.elements.push(ConcatenationBuilderElement::String(take(
+                &mut self.current_string,
+            )));
         }
-        self.elements.push(token);
+        self.elements.push(ConcatenationBuilderElement::Path(path));
     }
 
     fn push_str(&mut self, value: &str) {
@@ -199,12 +210,30 @@ impl ConcatenationBuilder {
     fn into_token_stream(self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
         let mut elements = self.elements;
         if !self.current_string.is_empty() {
-            let str = self.current_string;
-            elements.push(quote! { #str });
+            elements.push(ConcatenationBuilderElement::String(self.current_string));
+        }
+
+        if let [ConcatenationBuilderElement::String(string)] = elements.as_slice() {
+            // We avoid the const_concat! macro if there is only a single string
+            return string.to_token_stream();
         }
 
         quote! {
             #pyo3_crate_path::impl_::concat::const_concat!(#(#elements , )*)
+        }
+    }
+}
+
+enum ConcatenationBuilderElement {
+    String(String),
+    Path(Path),
+}
+
+impl ToTokens for ConcatenationBuilderElement {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::String(s) => s.to_tokens(tokens),
+            Self::Path(ts) => ts.to_tokens(tokens),
         }
     }
 }
