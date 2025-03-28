@@ -107,18 +107,18 @@ impl<'py> PyCallArgs<'py> for Bound<'py, PyTuple> {
         self,
         function: Borrowed<'_, 'py, PyAny>,
         kwargs: Borrowed<'_, 'py, PyDict>,
-        _: private::Token,
+        token: private::Token,
     ) -> PyResult<Bound<'py, PyAny>> {
-        self.as_borrowed().call(function, kwargs, private::Token)
+        self.as_borrowed().call(function, kwargs, token)
     }
 
     #[inline]
     fn call_positional(
         self,
         function: Borrowed<'_, 'py, PyAny>,
-        _: private::Token,
+        token: private::Token,
     ) -> PyResult<Bound<'py, PyAny>> {
-        self.as_borrowed().call_positional(function, private::Token)
+        self.as_borrowed().call_positional(function, token)
     }
 }
 
@@ -128,18 +128,18 @@ impl<'py> PyCallArgs<'py> for &'_ Bound<'py, PyTuple> {
         self,
         function: Borrowed<'_, 'py, PyAny>,
         kwargs: Borrowed<'_, 'py, PyDict>,
-        _: private::Token,
+        token: private::Token,
     ) -> PyResult<Bound<'py, PyAny>> {
-        self.as_borrowed().call(function, kwargs, private::Token)
+        self.as_borrowed().call(function, kwargs, token)
     }
 
     #[inline]
     fn call_positional(
         self,
         function: Borrowed<'_, 'py, PyAny>,
-        _: private::Token,
+        token: private::Token,
     ) -> PyResult<Bound<'py, PyAny>> {
-        self.as_borrowed().call_positional(function, private::Token)
+        self.as_borrowed().call_positional(function, token)
     }
 }
 
@@ -149,20 +149,20 @@ impl<'py> PyCallArgs<'py> for Py<PyTuple> {
         self,
         function: Borrowed<'_, 'py, PyAny>,
         kwargs: Borrowed<'_, 'py, PyDict>,
-        _: private::Token,
+        token: private::Token,
     ) -> PyResult<Bound<'py, PyAny>> {
         self.bind_borrowed(function.py())
-            .call(function, kwargs, private::Token)
+            .call(function, kwargs, token)
     }
 
     #[inline]
     fn call_positional(
         self,
         function: Borrowed<'_, 'py, PyAny>,
-        _: private::Token,
+        token: private::Token,
     ) -> PyResult<Bound<'py, PyAny>> {
         self.bind_borrowed(function.py())
-            .call_positional(function, private::Token)
+            .call_positional(function, token)
     }
 }
 
@@ -172,20 +172,20 @@ impl<'py> PyCallArgs<'py> for &'_ Py<PyTuple> {
         self,
         function: Borrowed<'_, 'py, PyAny>,
         kwargs: Borrowed<'_, 'py, PyDict>,
-        _: private::Token,
+        token: private::Token,
     ) -> PyResult<Bound<'py, PyAny>> {
         self.bind_borrowed(function.py())
-            .call(function, kwargs, private::Token)
+            .call(function, kwargs, token)
     }
 
     #[inline]
     fn call_positional(
         self,
         function: Borrowed<'_, 'py, PyAny>,
-        _: private::Token,
+        token: private::Token,
     ) -> PyResult<Bound<'py, PyAny>> {
         self.bind_borrowed(function.py())
-            .call_positional(function, private::Token)
+            .call_positional(function, token)
     }
 }
 
@@ -306,7 +306,7 @@ mod tests {
             check_call!(args.clone().unbind(), kwargs);
 
             // &Py<PyTuple>
-            check_call!(&args.as_unbound(), kwargs);
+            check_call!(args.as_unbound(), kwargs);
 
             // Borrowed<'_, '_, PyTuple>
             check_call!(args.as_borrowed(), kwargs);
