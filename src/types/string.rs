@@ -10,7 +10,7 @@ use crate::types::PyBytes;
 use crate::IntoPy;
 use crate::{ffi, Bound, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::str;
 
 /// Deprecated alias for [`PyString`].
@@ -212,6 +212,26 @@ impl PyString {
     /// Attempts to create a Python string from a Python [bytes-like object].
     ///
     /// [bytes-like object]: (https://docs.python.org/3/glossary.html#term-bytes-like-object).
+    pub fn from_encoded_object<'py>(
+        src: &Bound<'py, PyAny>,
+        encoding: &CStr,
+        errors: &CStr,
+    ) -> PyResult<Bound<'py, PyString>> {
+        unsafe {
+            ffi::PyUnicode_FromEncodedObject(src.as_ptr(), encoding.as_ptr(), errors.as_ptr())
+                .assume_owned_or_err(src.py())
+                .downcast_into_unchecked()
+        }
+    }
+
+    /// Deprecated form of `PyString::from_encoded_object`.
+    ///
+    /// This version took `&str` arguments for `encoding` and `errors`, which required a runtime
+    /// conversion to `CString` internally.
+    #[deprecated(
+        since = "0.25.0",
+        note = "replaced with to `PyString::from_encoded_object`"
+    )]
     pub fn from_object<'py>(
         src: &Bound<'py, PyAny>,
         encoding: &str,
@@ -219,25 +239,21 @@ impl PyString {
     ) -> PyResult<Bound<'py, PyString>> {
         let encoding = CString::new(encoding)?;
         let errors = CString::new(errors)?;
-        unsafe {
-            ffi::PyUnicode_FromEncodedObject(
-                src.as_ptr(),
-                encoding.as_ptr().cast(),
-                errors.as_ptr().cast(),
-            )
-            .assume_owned_or_err(src.py())
-            .downcast_into_unchecked()
-        }
+        PyString::from_encoded_object(src, &encoding, &errors)
     }
 
     /// Deprecated name for [`PyString::from_object`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyString::from_object`")]
+    #[deprecated(
+        since = "0.23.0",
+        note = "replcaed with `PyString::from_encoded_object`"
+    )]
     #[inline]
     pub fn from_object_bound<'py>(
         src: &Bound<'py, PyAny>,
         encoding: &str,
         errors: &str,
     ) -> PyResult<Bound<'py, PyString>> {
+        #[allow(deprecated)]
         Self::from_object(src, encoding, errors)
     }
 }
@@ -586,6 +602,8 @@ impl PartialEq<Borrowed<'_, '_, PyString>> for &'_ str {
 
 #[cfg(test)]
 mod tests {
+    use pyo3_ffi::c_str;
+
     use super::*;
     use crate::{IntoPyObject, PyObject};
 
@@ -678,6 +696,14 @@ mod tests {
         Python::with_gil(|py| {
             let py_bytes = PyBytes::new(py, b"ab\xFFcd");
 
+            let py_string =
+                PyString::from_encoded_object(&py_bytes, c_str!("utf-8"), c_str!("ignore"))
+                    .unwrap();
+
+            let result = py_string.to_cow().unwrap();
+            assert_eq!(result, "abcd");
+
+            #[allow(deprecated)]
             let py_string = PyString::from_object(&py_bytes, "utf-8", "ignore").unwrap();
 
             let result = py_string.to_cow().unwrap();
@@ -686,13 +712,18 @@ mod tests {
     }
 
     #[test]
-    fn test_string_from_obect_with_invalid_encoding_errors() {
+    fn test_string_from_object_with_invalid_encoding_errors() {
         Python::with_gil(|py| {
             let py_bytes = PyBytes::new(py, b"abcd");
 
+            let result = PyString::from_encoded_object(&py_bytes, c_str!("wat"), c_str!("ignore"));
+            assert!(result.is_err());
+
+            #[allow(deprecated)]
             let result = PyString::from_object(&py_bytes, "utf\0-8", "ignore");
             assert!(result.is_err());
 
+            #[allow(deprecated)]
             let result = PyString::from_object(&py_bytes, "utf-8", "ign\0ore");
             assert!(result.is_err());
         });
