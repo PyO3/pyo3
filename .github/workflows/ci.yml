@@ -71,7 +71,7 @@ jobs:
           python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: python -m pip install --upgrade pip && pip install nox
       # This is a smoke test to confirm that CI will run on MSRV (including dev dependencies)
       - name: Check with MSRV package versions
@@ -157,7 +157,7 @@ jobs:
           architecture: ${{ matrix.platform.python-architecture }}
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: python -m pip install --upgrade pip && pip install nox
       - run: nox -s clippy-all
     env:
@@ -413,7 +413,7 @@ jobs:
           python-version: "3.12.4"
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@valgrind
       - run: python -m pip install --upgrade pip && pip install nox
@@ -434,7 +434,7 @@ jobs:
           python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rust-src
@@ -456,7 +456,7 @@ jobs:
           python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rust-src
@@ -477,7 +477,7 @@ jobs:
           python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview,rust-src
@@ -520,14 +520,14 @@ jobs:
           key: emscripten-${{ hashFiles('emscripten/*') }}-${{ hashFiles('noxfile.py') }}-${{ steps.setup-python.outputs.python-path }}
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - name: Build
         if: steps.cache.outputs.cache-hit != 'true'
         run: nox -s build-emscripten
       - name: Test
         run: nox -s test-emscripten
       - uses: actions/cache/save@v4
-        if: ${{ github.event_name != 'merge_group' }}
+        if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
         with:
           path: |
             .nox/emscripten
@@ -541,7 +541,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-src
@@ -588,7 +588,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-src
@@ -625,7 +625,7 @@ jobs:
           python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@stable
       - run: python3 -m pip install --upgrade pip && pip install nox
       - run: python3 -m nox -s test-version-limits
@@ -649,7 +649,7 @@ jobs:
           python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
@@ -701,7 +701,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: examples/maturin-starter
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
           key: ${{ matrix.target }}
       - name: Setup cross-compiler
         if: ${{ matrix.target == 'x86_64-pc-windows-gnu' }}
@@ -731,7 +731,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: examples/maturin-starter
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: actions/cache/restore@v4
         with:
           # https://github.com/PyO3/maturin/discussions/1953
