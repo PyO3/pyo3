@@ -259,4 +259,4 @@ pub(crate) mod traceback;
 pub(crate) mod tuple;
 pub(crate) mod typeobject;
 pub(crate) mod weakref;
-mod context;
+pub(crate) mod context;
