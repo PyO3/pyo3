@@ -48,8 +48,8 @@ fn test_optional_bool() {
 
 #[pyfunction]
 #[pyo3(signature=(arg))]
-fn required_optional_str(arg: Option<&str>) -> PyResult<&str> {
-    Ok(arg.unwrap_or(""))
+fn required_optional_str(arg: Option<&str>) -> &str {
+    arg.unwrap_or("")
 }
 
 #[test]
