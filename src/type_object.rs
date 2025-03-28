@@ -62,37 +62,16 @@ pub unsafe trait PyTypeInfo: Sized {
         }
     }
 
-    /// Deprecated name for [`PyTypeInfo::type_object`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyTypeInfo::type_object`")]
-    #[inline]
-    fn type_object_bound(py: Python<'_>) -> Bound<'_, PyType> {
-        Self::type_object(py)
-    }
-
     /// Checks if `object` is an instance of this type or a subclass of this type.
     #[inline]
     fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object_raw(object.py())) != 0 }
     }
 
-    /// Deprecated name for [`PyTypeInfo::is_type_of`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyTypeInfo::is_type_of`")]
-    #[inline]
-    fn is_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
-        Self::is_type_of(object)
-    }
-
     /// Checks if `object` is an instance of this type.
     #[inline]
     fn is_exact_type_of(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::Py_TYPE(object.as_ptr()) == Self::type_object_raw(object.py()) }
-    }
-
-    /// Deprecated name for [`PyTypeInfo::is_exact_type_of`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyTypeInfo::is_exact_type_of`")]
-    #[inline]
-    fn is_exact_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
-        Self::is_exact_type_of(object)
     }
 }
 

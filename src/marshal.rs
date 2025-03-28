@@ -40,19 +40,6 @@ pub fn dumps<'py>(object: &Bound<'py, PyAny>, version: i32) -> PyResult<Bound<'p
     }
 }
 
-/// Deprecated form of [`dumps`].
-#[deprecated(since = "0.23.0", note = "use `dumps` instead")]
-pub fn dumps_bound<'py>(
-    py: Python<'py>,
-    object: &impl crate::AsPyPointer,
-    version: i32,
-) -> PyResult<Bound<'py, PyBytes>> {
-    dumps(
-        unsafe { object.as_ptr().assume_borrowed(py) }.as_any(),
-        version,
-    )
-}
-
 /// Deserialize an object from bytes using the Python built-in marshal module.
 pub fn loads<'py, B>(py: Python<'py>, data: &B) -> PyResult<Bound<'py, PyAny>>
 where
@@ -63,12 +50,6 @@ where
         ffi::PyMarshal_ReadObjectFromString(data.as_ptr().cast(), data.len() as isize)
             .assume_owned_or_err(py)
     }
-}
-
-/// Deprecated form of [`loads`].
-#[deprecated(since = "0.23.0", note = "renamed to `loads`")]
-pub fn loads_bound<'py>(py: Python<'py>, data: &[u8]) -> PyResult<Bound<'py, PyAny>> {
-    loads(py, data)
 }
 
 #[cfg(test)]

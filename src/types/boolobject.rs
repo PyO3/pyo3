@@ -38,13 +38,6 @@ impl PyBool {
                 .downcast_unchecked()
         }
     }
-
-    /// Deprecated name for [`PyBool::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyBool::new`")]
-    #[inline]
-    pub fn new_bound(py: Python<'_>, val: bool) -> Borrowed<'_, '_, Self> {
-        Self::new(py, val)
-    }
 }
 
 /// Implementation of functionality for [`PyBool`].

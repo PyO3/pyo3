@@ -659,12 +659,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// This is equivalent to the Python expression `self is None`.
     fn is_none(&self) -> bool;
 
-    /// Returns whether the object is Ellipsis, e.g. `...`.
-    ///
-    /// This is equivalent to the Python expression `self is ...`.
-    #[deprecated(since = "0.23.0", note = "use `.is(py.Ellipsis())` instead")]
-    fn is_ellipsis(&self) -> bool;
-
     /// Returns true if the sequence or mapping has a length of 0.
     ///
     /// This is equivalent to the Python expression `len(self) == 0`.
@@ -717,13 +711,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// });
     /// ```
     fn try_iter(&self) -> PyResult<Bound<'py, PyIterator>>;
-
-    /// Takes an object and returns an iterator for it.
-    ///
-    /// This is typically a new iterator but if the argument is an iterator,
-    /// this returns itself.
-    #[deprecated(since = "0.23.0", note = "use `try_iter` instead")]
-    fn iter(&self) -> PyResult<Bound<'py, PyIterator>>;
 
     /// Returns the Python type object for this object's type.
     fn get_type(&self) -> Bound<'py, PyType>;
@@ -1371,10 +1358,6 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         unsafe { ffi::Py_None() == self.as_ptr() }
     }
 
-    fn is_ellipsis(&self) -> bool {
-        unsafe { ffi::Py_Ellipsis() == self.as_ptr() }
-    }
-
     fn is_empty(&self) -> PyResult<bool> {
         self.len().map(|l| l == 0)
     }
@@ -1441,10 +1424,6 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     fn try_iter(&self) -> PyResult<Bound<'py, PyIterator>> {
         PyIterator::from_object(self)
-    }
-
-    fn iter(&self) -> PyResult<Bound<'py, PyIterator>> {
-        self.try_iter()
     }
 
     fn get_type(&self) -> Bound<'py, PyType> {
@@ -2084,22 +2063,6 @@ class SimpleClass:
                 .is_truthy()
                 .unwrap());
         })
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn test_is_ellipsis() {
-        Python::with_gil(|py| {
-            let v = py
-                .eval(ffi::c_str!("..."), None, None)
-                .map_err(|e| e.display(py))
-                .unwrap();
-
-            assert!(v.is_ellipsis());
-
-            let not_ellipsis = 5i32.into_pyobject(py).unwrap();
-            assert!(!not_ellipsis.is_ellipsis());
-        });
     }
 
     #[test]

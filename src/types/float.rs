@@ -43,13 +43,6 @@ impl PyFloat {
                 .downcast_into_unchecked()
         }
     }
-
-    /// Deprecated name for [`PyFloat::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyFloat::new`")]
-    #[inline]
-    pub fn new_bound(py: Python<'_>, val: c_double) -> Bound<'_, PyFloat> {
-        Self::new(py, val)
-    }
 }
 
 /// Implementation of functionality for [`PyFloat`].
