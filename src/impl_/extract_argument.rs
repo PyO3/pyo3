@@ -41,10 +41,10 @@ impl<'a, 'py, T: 'py> PyFunctionArgument<'a, 'py> for &'a Bound<'py, T>
 where
     T: PyTypeCheck,
 {
-    type Holder = Option<()>;
+    type Holder = ();
 
     #[inline]
-    fn extract(obj: &'a Bound<'py, PyAny>, _: &'a mut Option<()>) -> PyResult<Self> {
+    fn extract(obj: &'a Bound<'py, PyAny>, _: &'a mut ()) -> PyResult<Self> {
         obj.downcast().map_err(Into::into)
     }
 }
