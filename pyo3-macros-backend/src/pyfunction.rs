@@ -94,9 +94,8 @@ impl Parse for PyFunctionOptions {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         let mut options = PyFunctionOptions::default();
 
-        for option in Punctuated::<PyFunctionOption, syn::Token![,]>::parse_terminated(input)? {
-            options.add_attributes([option])?;
-        }
+        let attrs = Punctuated::<PyFunctionOption, syn::Token![,]>::parse_terminated(input)?;
+        options.add_attributes(attrs)?;
 
         Ok(options)
     }
