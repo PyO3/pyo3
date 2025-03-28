@@ -142,6 +142,11 @@ mod test_bigdecimal {
         BigDecimal::from_str("1000").unwrap(),
         "1000"
     );
+    convert_constants!(
+        convert_scientific,
+        BigDecimal::from_str("1e10").unwrap(),
+        "1e10"
+    );
 
     #[cfg(not(target_arch = "wasm32"))]
     proptest! {
