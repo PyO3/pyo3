@@ -16,7 +16,7 @@ pub struct PyMappingProxy(PyAny);
 
 #[inline]
 unsafe fn dict_proxy_check(op: *mut ffi::PyObject) -> c_int {
-    ffi::Py_IS_TYPE(op, std::ptr::addr_of_mut!(ffi::PyDictProxy_Type))
+    unsafe { ffi::Py_IS_TYPE(op, std::ptr::addr_of_mut!(ffi::PyDictProxy_Type)) }
 }
 
 pyobject_native_type_core!(

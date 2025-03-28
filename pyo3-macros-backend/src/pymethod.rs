@@ -367,9 +367,8 @@ pub fn impl_py_method_def_new(
                     args: *mut #pyo3_path::ffi::PyObject,
                     kwargs: *mut #pyo3_path::ffi::PyObject,
                 ) -> *mut #pyo3_path::ffi::PyObject {
-                    use #pyo3_path::impl_::pyclass::*;
                     #[allow(unknown_lints, non_local_definitions)]
-                    impl PyClassNewTextSignature<#cls> for PyClassImplCollector<#cls> {
+                    impl #pyo3_path::impl_::pyclass::PyClassNewTextSignature<#cls> for #pyo3_path::impl_::pyclass::PyClassImplCollector<#cls> {
                         #[inline]
                         fn new_text_signature(self) -> ::std::option::Option<&'static str> {
                             #text_signature_body

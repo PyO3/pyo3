@@ -135,9 +135,11 @@ impl PyBytes {
     /// `std::slice::from_raw_parts`, this is
     /// unsafe](https://doc.rust-lang.org/std/slice/fn.from_raw_parts.html#safety).
     pub unsafe fn from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> Bound<'_, PyBytes> {
-        ffi::PyBytes_FromStringAndSize(ptr.cast(), len as isize)
-            .assume_owned(py)
-            .downcast_into_unchecked()
+        unsafe {
+            ffi::PyBytes_FromStringAndSize(ptr.cast(), len as isize)
+                .assume_owned(py)
+                .downcast_into_unchecked()
+        }
     }
 
     /// Deprecated name for [`PyBytes::from_ptr`].
@@ -151,7 +153,7 @@ impl PyBytes {
     #[deprecated(since = "0.23.0", note = "renamed to `PyBytes::from_ptr`")]
     #[inline]
     pub unsafe fn bound_from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> Bound<'_, PyBytes> {
-        Self::from_ptr(py, ptr, len)
+        unsafe { Self::from_ptr(py, ptr, len) }
     }
 }
 

@@ -480,6 +480,53 @@ where
     }
 }
 
+/// Executes a closure with a Python critical section held on two objects.
+///
+/// Acquires the per-object lock for the objects `a` and `b` that are held
+/// until the closure `f` is finished.
+///
+/// This is structurally equivalent to the use of the paired
+/// Py_BEGIN_CRITICAL_SECTION2 and Py_END_CRITICAL_SECTION2 C-API macros.
+///
+/// A no-op on GIL-enabled builds, where the critical section API is exposed as
+/// a no-op by the Python C API.
+///
+/// Provides weaker locking guarantees than traditional locks, but can in some
+/// cases be used to provide guarantees similar to the GIL without the risk of
+/// deadlocks associated with traditional locks.
+///
+/// Many CPython C API functions do not acquire the per-object lock on objects
+/// passed to Python. You should not expect critical sections applied to
+/// built-in types to prevent concurrent modification. This API is most useful
+/// for user-defined types with full control over how the internal state for the
+/// type is managed.
+#[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
+pub fn with_critical_section2<F, R>(a: &Bound<'_, PyAny>, b: &Bound<'_, PyAny>, f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    #[cfg(Py_GIL_DISABLED)]
+    {
+        struct Guard(crate::ffi::PyCriticalSection2);
+
+        impl Drop for Guard {
+            fn drop(&mut self) {
+                unsafe {
+                    crate::ffi::PyCriticalSection2_End(&mut self.0);
+                }
+            }
+        }
+
+        let mut guard = Guard(unsafe { std::mem::zeroed() });
+        unsafe { crate::ffi::PyCriticalSection2_Begin(&mut guard.0, a.as_ptr(), b.as_ptr()) };
+        f()
+    }
+    #[cfg(not(Py_GIL_DISABLED))]
+    {
+        f()
+    }
+}
+
 #[cfg(rustc_has_once_lock)]
 mod once_lock_ext_sealed {
     pub trait Sealed {}
@@ -670,6 +717,11 @@ mod tests {
     #[crate::pyclass(crate = "crate")]
     struct BoolWrapper(AtomicBool);
 
+    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "macros")]
+    #[crate::pyclass(crate = "crate")]
+    struct VecWrapper(Vec<isize>);
+
     #[test]
     fn test_intern() {
         Python::with_gil(|py| {
@@ -770,6 +822,144 @@ mod tests {
                     });
                 });
             });
+        });
+    }
+
+    #[cfg(feature = "macros")]
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[test]
+    fn test_critical_section2() {
+        let barrier = Barrier::new(3);
+
+        let (bool_wrapper1, bool_wrapper2) = Python::with_gil(|py| {
+            (
+                Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap(),
+                Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap(),
+            )
+        });
+
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                Python::with_gil(|py| {
+                    let b1 = bool_wrapper1.bind(py);
+                    let b2 = bool_wrapper2.bind(py);
+                    with_critical_section2(b1, b2, || {
+                        barrier.wait();
+                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        b1.borrow().0.store(true, Ordering::Release);
+                        b2.borrow().0.store(true, Ordering::Release);
+                    })
+                });
+            });
+            s.spawn(|| {
+                barrier.wait();
+                Python::with_gil(|py| {
+                    let b1 = bool_wrapper1.bind(py);
+                    // this blocks until the other thread's critical section finishes
+                    with_critical_section(b1, || {
+                        assert!(b1.borrow().0.load(Ordering::Acquire));
+                    });
+                });
+            });
+            s.spawn(|| {
+                barrier.wait();
+                Python::with_gil(|py| {
+                    let b2 = bool_wrapper2.bind(py);
+                    // this blocks until the other thread's critical section finishes
+                    with_critical_section(b2, || {
+                        assert!(b2.borrow().0.load(Ordering::Acquire));
+                    });
+                });
+            });
+        });
+    }
+
+    #[cfg(feature = "macros")]
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[test]
+    fn test_critical_section2_same_object_no_deadlock() {
+        let barrier = Barrier::new(2);
+
+        let bool_wrapper = Python::with_gil(|py| -> Py<BoolWrapper> {
+            Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap()
+        });
+
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                Python::with_gil(|py| {
+                    let b = bool_wrapper.bind(py);
+                    with_critical_section2(b, b, || {
+                        barrier.wait();
+                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        b.borrow().0.store(true, Ordering::Release);
+                    })
+                });
+            });
+            s.spawn(|| {
+                barrier.wait();
+                Python::with_gil(|py| {
+                    let b = bool_wrapper.bind(py);
+                    // this blocks until the other thread's critical section finishes
+                    with_critical_section(b, || {
+                        assert!(b.borrow().0.load(Ordering::Acquire));
+                    });
+                });
+            });
+        });
+    }
+
+    #[cfg(feature = "macros")]
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[test]
+    fn test_critical_section2_two_containers() {
+        let (vec1, vec2) = Python::with_gil(|py| {
+            (
+                Py::new(py, VecWrapper(vec![1, 2, 3])).unwrap(),
+                Py::new(py, VecWrapper(vec![4, 5])).unwrap(),
+            )
+        });
+
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                Python::with_gil(|py| {
+                    let v1 = vec1.bind(py);
+                    let v2 = vec2.bind(py);
+                    with_critical_section2(v1, v2, || {
+                        // v2.extend(v1)
+                        v2.borrow_mut().0.extend(v1.borrow().0.iter());
+                    })
+                });
+            });
+            s.spawn(|| {
+                Python::with_gil(|py| {
+                    let v1 = vec1.bind(py);
+                    let v2 = vec2.bind(py);
+                    with_critical_section2(v1, v2, || {
+                        // v1.extend(v2)
+                        v1.borrow_mut().0.extend(v2.borrow().0.iter());
+                    })
+                });
+            });
+        });
+
+        Python::with_gil(|py| {
+            let v1 = vec1.bind(py);
+            let v2 = vec2.bind(py);
+            // execution order is not guaranteed, so we need to check both
+            // NB: extend should be atomic, items must not be interleaved
+            // v1.extend(v2)
+            // v2.extend(v1)
+            let expected1_vec1 = vec![1, 2, 3, 4, 5];
+            let expected1_vec2 = vec![4, 5, 1, 2, 3, 4, 5];
+            // v2.extend(v1)
+            // v1.extend(v2)
+            let expected2_vec1 = vec![1, 2, 3, 4, 5, 1, 2, 3];
+            let expected2_vec2 = vec![4, 5, 1, 2, 3];
+
+            assert!(
+                (v1.borrow().0.eq(&expected1_vec1) && v2.borrow().0.eq(&expected1_vec2))
+                    || (v1.borrow().0.eq(&expected2_vec1) && v2.borrow().0.eq(&expected2_vec2))
+            );
         });
     }
 

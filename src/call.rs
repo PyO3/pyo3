@@ -11,8 +11,10 @@ pub(crate) mod private {
 
     impl Sealed for () {}
     impl Sealed for Bound<'_, PyTuple> {}
+    impl Sealed for &'_ Bound<'_, PyTuple> {}
     impl Sealed for Py<PyTuple> {}
-
+    impl Sealed for &'_ Py<PyTuple> {}
+    impl Sealed for Borrowed<'_, '_, PyTuple> {}
     pub struct Token;
 }
 
@@ -100,10 +102,99 @@ impl<'py> PyCallArgs<'py> for () {
 }
 
 impl<'py> PyCallArgs<'py> for Bound<'py, PyTuple> {
+    #[inline]
     fn call(
         self,
         function: Borrowed<'_, 'py, PyAny>,
-        kwargs: Borrowed<'_, '_, PyDict>,
+        kwargs: Borrowed<'_, 'py, PyDict>,
+        token: private::Token,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        self.as_borrowed().call(function, kwargs, token)
+    }
+
+    #[inline]
+    fn call_positional(
+        self,
+        function: Borrowed<'_, 'py, PyAny>,
+        token: private::Token,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        self.as_borrowed().call_positional(function, token)
+    }
+}
+
+impl<'py> PyCallArgs<'py> for &'_ Bound<'py, PyTuple> {
+    #[inline]
+    fn call(
+        self,
+        function: Borrowed<'_, 'py, PyAny>,
+        kwargs: Borrowed<'_, 'py, PyDict>,
+        token: private::Token,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        self.as_borrowed().call(function, kwargs, token)
+    }
+
+    #[inline]
+    fn call_positional(
+        self,
+        function: Borrowed<'_, 'py, PyAny>,
+        token: private::Token,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        self.as_borrowed().call_positional(function, token)
+    }
+}
+
+impl<'py> PyCallArgs<'py> for Py<PyTuple> {
+    #[inline]
+    fn call(
+        self,
+        function: Borrowed<'_, 'py, PyAny>,
+        kwargs: Borrowed<'_, 'py, PyDict>,
+        token: private::Token,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        self.bind_borrowed(function.py())
+            .call(function, kwargs, token)
+    }
+
+    #[inline]
+    fn call_positional(
+        self,
+        function: Borrowed<'_, 'py, PyAny>,
+        token: private::Token,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        self.bind_borrowed(function.py())
+            .call_positional(function, token)
+    }
+}
+
+impl<'py> PyCallArgs<'py> for &'_ Py<PyTuple> {
+    #[inline]
+    fn call(
+        self,
+        function: Borrowed<'_, 'py, PyAny>,
+        kwargs: Borrowed<'_, 'py, PyDict>,
+        token: private::Token,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        self.bind_borrowed(function.py())
+            .call(function, kwargs, token)
+    }
+
+    #[inline]
+    fn call_positional(
+        self,
+        function: Borrowed<'_, 'py, PyAny>,
+        token: private::Token,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        self.bind_borrowed(function.py())
+            .call_positional(function, token)
+    }
+}
+
+impl<'py> PyCallArgs<'py> for Borrowed<'_, 'py, PyTuple> {
+    #[inline]
+    fn call(
+        self,
+        function: Borrowed<'_, 'py, PyAny>,
+        kwargs: Borrowed<'_, 'py, PyDict>,
         _: private::Token,
     ) -> PyResult<Bound<'py, PyAny>> {
         unsafe {
@@ -112,6 +203,7 @@ impl<'py> PyCallArgs<'py> for Bound<'py, PyTuple> {
         }
     }
 
+    #[inline]
     fn call_positional(
         self,
         function: Borrowed<'_, 'py, PyAny>,
@@ -124,27 +216,100 @@ impl<'py> PyCallArgs<'py> for Bound<'py, PyTuple> {
     }
 }
 
-impl<'py> PyCallArgs<'py> for Py<PyTuple> {
-    fn call(
-        self,
-        function: Borrowed<'_, 'py, PyAny>,
-        kwargs: Borrowed<'_, '_, PyDict>,
-        _: private::Token,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        unsafe {
-            ffi::PyObject_Call(function.as_ptr(), self.as_ptr(), kwargs.as_ptr())
-                .assume_owned_or_err(function.py())
-        }
+#[cfg(test)]
+#[cfg(feature = "macros")]
+mod tests {
+    use crate::{
+        pyfunction,
+        types::{PyDict, PyTuple},
+        Py,
+    };
+
+    #[pyfunction(signature = (*args, **kwargs), crate = "crate")]
+    fn args_kwargs(
+        args: Py<PyTuple>,
+        kwargs: Option<Py<PyDict>>,
+    ) -> (Py<PyTuple>, Option<Py<PyDict>>) {
+        (args, kwargs)
     }
 
-    fn call_positional(
-        self,
-        function: Borrowed<'_, 'py, PyAny>,
-        _: private::Token,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        unsafe {
-            ffi::PyObject_Call(function.as_ptr(), self.as_ptr(), std::ptr::null_mut())
-                .assume_owned_or_err(function.py())
-        }
+    #[test]
+    fn test_call() {
+        use crate::{
+            types::{IntoPyDict, PyAnyMethods, PyDict, PyTuple},
+            wrap_pyfunction, Py, Python,
+        };
+
+        Python::with_gil(|py| {
+            let f = wrap_pyfunction!(args_kwargs, py).unwrap();
+
+            let args = PyTuple::new(py, [1, 2, 3]).unwrap();
+            let kwargs = &[("foo", 1), ("bar", 2)].into_py_dict(py).unwrap();
+
+            macro_rules! check_call {
+                ($args:expr, $kwargs:expr) => {
+                    let (a, k): (Py<PyTuple>, Py<PyDict>) = f
+                        .call(args.clone(), Some(kwargs))
+                        .unwrap()
+                        .extract()
+                        .unwrap();
+                    assert!(a.is(&args));
+                    assert!(k.is(kwargs));
+                };
+            }
+
+            // Bound<'py, PyTuple>
+            check_call!(args.clone(), kwargs);
+
+            // &Bound<'py, PyTuple>
+            check_call!(&args, kwargs);
+
+            // Py<PyTuple>
+            check_call!(args.clone().unbind(), kwargs);
+
+            // &Py<PyTuple>
+            check_call!(&args.as_unbound(), kwargs);
+
+            // Borrowed<'_, '_, PyTuple>
+            check_call!(args.as_borrowed(), kwargs);
+        })
+    }
+
+    #[test]
+    fn test_call_positional() {
+        use crate::{
+            types::{PyAnyMethods, PyNone, PyTuple},
+            wrap_pyfunction, Py, Python,
+        };
+
+        Python::with_gil(|py| {
+            let f = wrap_pyfunction!(args_kwargs, py).unwrap();
+
+            let args = PyTuple::new(py, [1, 2, 3]).unwrap();
+
+            macro_rules! check_call {
+                ($args:expr, $kwargs:expr) => {
+                    let (a, k): (Py<PyTuple>, Py<PyNone>) =
+                        f.call1(args.clone()).unwrap().extract().unwrap();
+                    assert!(a.is(&args));
+                    assert!(k.is_none(py));
+                };
+            }
+
+            // Bound<'py, PyTuple>
+            check_call!(args.clone(), kwargs);
+
+            // &Bound<'py, PyTuple>
+            check_call!(&args, kwargs);
+
+            // Py<PyTuple>
+            check_call!(args.clone().unbind(), kwargs);
+
+            // &Py<PyTuple>
+            check_call!(args.as_unbound(), kwargs);
+
+            // Borrowed<'_, '_, PyTuple>
+            check_call!(args.as_borrowed(), kwargs);
+        })
     }
 }

@@ -17,11 +17,11 @@ from typing import (
     Iterable,
     Iterator,
     List,
-    Literal,
     Optional,
     Tuple,
     Generator,
 )
+
 
 import nox
 import nox.command
@@ -50,7 +50,7 @@ def _get_output(*args: str) -> str:
 
 
 def _parse_supported_interpreter_version(
-    python_impl: Literal["cpython", "pypy"],
+    python_impl: str,  # Literal["cpython", "pypy"], TODO update after 3.7 dropped
 ) -> Tuple[str, str]:
     output = _get_output("cargo", "metadata", "--format-version=1", "--no-deps")
     cargo_packages = json.loads(output)["packages"]
@@ -64,7 +64,7 @@ def _parse_supported_interpreter_version(
 
 
 def _supported_interpreter_versions(
-    python_impl: Literal["cpython", "pypy"],
+    python_impl: str,  # Literal["cpython", "pypy"], TODO update after 3.7 dropped
 ) -> List[str]:
     min_version, max_version = _parse_supported_interpreter_version(python_impl)
     major = int(min_version.split(".")[0])
@@ -624,21 +624,13 @@ def check_changelog(session: nox.Session):
 def set_msrv_package_versions(session: nox.Session):
     from collections import defaultdict
 
-    if toml is None:
-        session.error("requires Python 3.11 or `toml` to be installed")
-
     projects = (
-        None,
-        "examples/decorator",
-        "examples/maturin-starter",
-        "examples/setuptools-rust-starter",
-        "examples/word-count",
+        PYO3_DIR,
+        *(Path(p).parent for p in glob("examples/*/Cargo.toml")),
+        *(Path(p).parent for p in glob("pyo3-ffi/examples/*/Cargo.toml")),
     )
     min_pkg_versions = {
-        "regex": "1.9.6",
-        "proptest": "1.2.0",
         "trybuild": "1.0.89",
-        "eyre": "0.6.8",
         "allocator-api2": "0.2.10",
         "indexmap": "2.5.0",  # to be compatible with hashbrown 0.14
         "hashbrown": "0.14.5",  # https://github.com/rust-lang/hashbrown/issues/574
@@ -647,13 +639,15 @@ def set_msrv_package_versions(session: nox.Session):
     # run cargo update first to ensure that everything is at highest
     # possible version, so that this matches what CI will resolve to.
     for project in projects:
-        if project is None:
-            _run_cargo(session, "update")
-        else:
-            _run_cargo(session, "update", f"--manifest-path={project}/Cargo.toml")
+        _run_cargo(
+            session,
+            "+stable",
+            "update",
+            f"--manifest-path={project}/Cargo.toml",
+            env=os.environ | {"CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS": "fallback"},
+        )
 
-    for project in projects:
-        lock_file = Path(project or "") / "Cargo.lock"
+        lock_file = project / "Cargo.lock"
 
         def load_pkg_versions():
             cargo_lock = toml.loads(lock_file.read_text())
@@ -679,19 +673,15 @@ def set_msrv_package_versions(session: nox.Session):
                     # and re-read `Cargo.lock`
                     pkg_versions = load_pkg_versions()
 
-    # As a smoke test, cargo metadata solves all dependencies, so
-    # will break if any crates rely on cargo features not
-    # supported on MSRV
-    for project in projects:
-        if project is None:
-            _run_cargo(session, "metadata", silent=True)
-        else:
-            _run_cargo(
-                session,
-                "metadata",
-                f"--manifest-path={project}/Cargo.toml",
-                silent=True,
-            )
+        # As a smoke test, cargo metadata solves all dependencies, so
+        # will break if any crates rely on cargo features not
+        # supported on MSRV
+        _run_cargo(
+            session,
+            "metadata",
+            f"--manifest-path={project}/Cargo.toml",
+            silent=True,
+        )
 
 
 @nox.session(name="ffi-check")
@@ -734,6 +724,8 @@ def check_feature_powerset(session: nox.Session):
 
     cargo_toml = toml.loads((PYO3_DIR / "Cargo.toml").read_text())
 
+    EXPECTED_ABI3_FEATURES = {f"abi3-py3{ver.split('.')[1]}" for ver in PY_VERSIONS}
+
     EXCLUDED_FROM_FULL = {
         "nightly",
         "extension-module",
@@ -749,6 +741,16 @@ def check_feature_powerset(session: nox.Session):
     full_feature = set(features["full"])
     abi3_features = {feature for feature in features if feature.startswith("abi3")}
     abi3_version_features = abi3_features - {"abi3"}
+
+    unexpected_abi3_features = abi3_version_features - EXPECTED_ABI3_FEATURES
+    if unexpected_abi3_features:
+        session.error(
+            f"unexpected `abi3` features found in Cargo.toml: {unexpected_abi3_features}"
+        )
+
+    missing_abi3_features = EXPECTED_ABI3_FEATURES - abi3_version_features
+    if missing_abi3_features:
+        session.error(f"missing `abi3` features in Cargo.toml: {missing_abi3_features}")
 
     expected_full_feature = features.keys() - EXCLUDED_FROM_FULL - abi3_features
 

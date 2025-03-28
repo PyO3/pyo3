@@ -121,22 +121,6 @@ pub trait DerefToPyAny {
 #[macro_export]
 macro_rules! pyobject_native_type_named (
     ($name:ty $(;$generics:ident)*) => {
-        impl<$($generics,)*> ::std::convert::AsRef<$crate::PyAny> for $name {
-            #[inline]
-            fn as_ref(&self) -> &$crate::PyAny {
-                &self.0
-            }
-        }
-
-        impl<$($generics,)*> ::std::ops::Deref for $name {
-            type Target = $crate::PyAny;
-
-            #[inline]
-            fn deref(&self) -> &$crate::PyAny {
-                &self.0
-            }
-        }
-
         impl $crate::types::DerefToPyAny for $name {}
     };
 );
@@ -168,7 +152,7 @@ macro_rules! pyobject_native_type_info(
 
             $(
                 #[inline]
-                fn is_type_of_bound(obj: &$crate::Bound<'_, $crate::PyAny>) -> bool {
+                fn is_type_of(obj: &$crate::Bound<'_, $crate::PyAny>) -> bool {
                     #[allow(unused_unsafe)]
                     unsafe { $checkfunction(obj.as_ptr()) > 0 }
                 }
