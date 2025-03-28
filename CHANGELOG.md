@@ -10,6 +10,24 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.24.1] - 2025-03-30
+
+### Added
+
+- Add `abi3-py313` feature. [#4969](https://github.com/PyO3/pyo3/pull/4969)
+- Add `PyAnyMethods::getattr_opt`. [#4978](https://github.com/PyO3/pyo3/pull/4978)
+- Add `PyInt::new` constructor for all supported number types (i32, u32, i64, u64, isize, usize). [#4984](https://github.com/PyO3/pyo3/pull/4984)
+- Add `pyo3::sync::with_critical_section2`. [#4992](https://github.com/PyO3/pyo3/pull/4992)
+- Implement `PyCallArgs` for `Borrowed<'_, 'py, PyTuple>`, `&Bound<'py, PyTuple>`, and `&Py<PyTuple>`. [#5013](https://github.com/PyO3/pyo3/pull/5013)
+
+### Fixed
+
+- Fix `is_type_of` for native types not using same specialized check as `is_type_of_bound`. [#4981](https://github.com/PyO3/pyo3/pull/4981)
+- Fix `Probe` class naming issue with `#[pymethods]`. [#4988](https://github.com/PyO3/pyo3/pull/4988)
+- Fix compile failure with required `#[pyfunction]` arguments taking `Option<&str>` and `Option<&T>` (for `#[pyclass]` types). [#5002](https://github.com/PyO3/pyo3/pull/5002)
+- Fix `PyString::from_object` causing of bounds reads whith `encoding` and `errors` parameters which are not nul-terminated. [#5008](https://github.com/PyO3/pyo3/pull/5008)
+- Fix compile error when additional options follow after `crate` for `#[pyfunction]`. [#5015](https://github.com/PyO3/pyo3/pull/5015)
+
 ## [0.24.0] - 2025-03-09
 
 ### Packaging
@@ -17,6 +35,7 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 - Add supported CPython/PyPy versions to cargo package metadata. [#4756](https://github.com/PyO3/pyo3/pull/4756)
 - Bump `target-lexicon` dependency to 0.13. [#4822](https://github.com/PyO3/pyo3/pull/4822)
 - Add optional `jiff` dependency to add conversions for `jiff` datetime types. [#4823](https://github.com/PyO3/pyo3/pull/4823)
+- Add optional `uuid` dependency to add conversions for `uuid::Uuid`. [#4864](https://github.com/PyO3/pyo3/pull/4864)
 - Bump minimum supported `inventory` version to 0.3.5. [#4954](https://github.com/PyO3/pyo3/pull/4954)
 
 ### Added
@@ -25,7 +44,6 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 - Add `PyCallArgs` trait for passing arguments into the Python calling protocol. This enabled using a faster calling convention for certain types, improving performance. [#4768](https://github.com/PyO3/pyo3/pull/4768)
 - Add `#[pyo3(default = ...']` option for `#[derive(FromPyObject)]` to set a default value for extracted fields of named structs. [#4829](https://github.com/PyO3/pyo3/pull/4829)
 - Add `#[pyo3(into_py_with = ...)]` option for `#[derive(IntoPyObject, IntoPyObjectRef)]`. [#4850](https://github.com/PyO3/pyo3/pull/4850)
-- Add uuid to/from python conversions. [#4864](https://github.com/PyO3/pyo3/pull/4864)
 - Add FFI definitions `PyThreadState_GetFrame` and `PyFrame_GetBack`. [#4866](https://github.com/PyO3/pyo3/pull/4866)
 - Optimize `last` for `BoundListIterator`, `BoundTupleIterator` and `BorrowedTupleIterator`. [#4878](https://github.com/PyO3/pyo3/pull/4878)
 - Optimize `Iterator::count()` for `PyDict`, `PyList`, `PyTuple` & `PySet`. [#4878](https://github.com/PyO3/pyo3/pull/4878)
@@ -60,6 +78,7 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 
 ## [0.23.5] - 2025-02-22
+
 ### Packaging
 
 - Add support for PyPy3.11 [#4760](https://github.com/PyO3/pyo3/pull/4760)
@@ -108,7 +127,6 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 - Fix unresolved symbol link failures on Windows when compiling for Python 3.13t with `abi3` features enabled. [#4733](https://github.com/PyO3/pyo3/pull/4733)
 - Fix unresolved symbol link failures on Windows when compiling for Python 3.13t using the `generate-import-lib` feature. [#4749](https://github.com/PyO3/pyo3/pull/4749)
 - Fix compile-time regression in PyO3 0.23.0 where changing `PYO3_CONFIG_FILE` would not reconfigure PyO3 for the new interpreter. [#4758](https://github.com/PyO3/pyo3/pull/4758)
-
 
 ## [0.23.2] - 2024-11-25
 
@@ -2113,7 +2131,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.24.1...HEAD
+[0.24.1]: https://github.com/pyo3/pyo3/compare/v0.24.0...v0.24.1
 [0.24.0]: https://github.com/pyo3/pyo3/compare/v0.23.5...v0.24.0
 [0.23.5]: https://github.com/pyo3/pyo3/compare/v0.23.4...v0.23.5
 [0.23.4]: https://github.com/pyo3/pyo3/compare/v0.23.3...v0.23.4
