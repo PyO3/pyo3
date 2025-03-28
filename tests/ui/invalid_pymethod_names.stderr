@@ -16,14 +16,20 @@ error: `name` not allowed with `#[new]`
 24 |     #[pyo3(name = "makenew")]
    |                   ^^^^^^^^^
 
-error: expected ident or string literal for property name
-  --> tests/ui/invalid_pymethod_names.rs:31:14
+error: `name` not allowed with `#[init]`
+  --> tests/ui/invalid_pymethod_names.rs:31:19
    |
-31 |     #[getter(1)]
+31 |     #[pyo3(name = "makeinit")]
+   |                   ^^^^^^^^^^
+
+error: expected ident or string literal for property name
+  --> tests/ui/invalid_pymethod_names.rs:38:14
+   |
+38 |     #[getter(1)]
    |              ^
 
 error: expected `#[getter(name)]` to set the name
-  --> tests/ui/invalid_pymethod_names.rs:37:14
+  --> tests/ui/invalid_pymethod_names.rs:44:14
    |
-37 |     #[getter = 1]
+44 |     #[getter = 1]
    |              ^
