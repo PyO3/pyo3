@@ -243,7 +243,7 @@ mod tests {
         Python::with_gil(|py| {
             let f = wrap_pyfunction!(args_kwargs, py).unwrap();
 
-            let args = PyTuple::new(py, &[1, 2, 3]).unwrap();
+            let args = PyTuple::new(py, [1, 2, 3]).unwrap();
             let kwargs = &[("foo", 1), ("bar", 2)].into_py_dict(py).unwrap();
 
             macro_rules! check_call {
@@ -285,7 +285,7 @@ mod tests {
         Python::with_gil(|py| {
             let f = wrap_pyfunction!(args_kwargs, py).unwrap();
 
-            let args = PyTuple::new(py, &[1, 2, 3]).unwrap();
+            let args = PyTuple::new(py, [1, 2, 3]).unwrap();
 
             macro_rules! check_call {
                 ($args:expr, $kwargs:expr) => {
