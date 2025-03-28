@@ -9,11 +9,9 @@ use crate::{
 };
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
+use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
 use syn::{ext::IdentExt, spanned::Spanned, Result};
-use syn::{
-    parse::{Parse, ParseStream},
-    token::Comma,
-};
 
 mod signature;
 
@@ -96,24 +94,8 @@ impl Parse for PyFunctionOptions {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         let mut options = PyFunctionOptions::default();
 
-        while !input.is_empty() {
-            let lookahead = input.lookahead1();
-            if lookahead.peek(attributes::kw::name)
-                || lookahead.peek(attributes::kw::pass_module)
-                || lookahead.peek(attributes::kw::signature)
-                || lookahead.peek(attributes::kw::text_signature)
-            {
-                options.add_attributes(std::iter::once(input.parse()?))?;
-                if !input.is_empty() {
-                    let _: Comma = input.parse()?;
-                }
-            } else if lookahead.peek(syn::Token![crate]) {
-                // TODO needs duplicate check?
-                options.krate = Some(input.parse()?);
-            } else {
-                return Err(lookahead.error());
-            }
-        }
+        let attrs = Punctuated::<PyFunctionOption, syn::Token![,]>::parse_terminated(input)?;
+        options.add_attributes(attrs)?;
 
         Ok(options)
     }
