@@ -16,8 +16,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use syn::punctuated::Punctuated;
-use syn::{Attribute, Ident, Path, PathSegment};
+use syn::{Attribute, Ident};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
 
@@ -107,7 +106,7 @@ enum IntrospectionNode<'a> {
 }
 
 impl IntrospectionNode<'_> {
-    fn emit(&self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
+    fn emit(self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
         let mut content = ConcatenationBuilder::default();
         self.add_to_serialization(&mut content);
         let content = content.into_token_stream(pyo3_crate_path);
@@ -123,29 +122,23 @@ impl IntrospectionNode<'_> {
         }
     }
 
-    fn add_to_serialization(&self, content: &mut ConcatenationBuilder) {
+    fn add_to_serialization(self, content: &mut ConcatenationBuilder) {
         match self {
             Self::String(string) => {
                 content.push_str_to_escape(string);
             }
             Self::IntrospectionId(ident) => {
                 content.push_str("\"");
-                content.push_path(if let Some(ident) = *ident {
-                    Path {
-                        leading_colon: None,
-                        segments: Punctuated::from_iter([
-                            PathSegment::from(ident.clone()),
-                            Ident::new("_PYO3_INTROSPECTION_ID", Span::call_site()).into(),
-                        ]),
-                    }
+                content.push_tokens(if let Some(ident) = ident {
+                    quote! { #ident::_PYO3_INTROSPECTION_ID }
                 } else {
-                    Ident::new("_PYO3_INTROSPECTION_ID", Span::call_site()).into()
+                    Ident::new("_PYO3_INTROSPECTION_ID", Span::call_site()).into_token_stream()
                 });
                 content.push_str("\"");
             }
             Self::Map(map) => {
                 content.push_str("{");
-                for (i, (key, value)) in map.iter().enumerate() {
+                for (i, (key, value)) in map.into_iter().enumerate() {
                     if i > 0 {
                         content.push_str(",");
                     }
@@ -157,7 +150,7 @@ impl IntrospectionNode<'_> {
             }
             Self::List(list) => {
                 content.push_str("[");
-                for (i, value) in list.iter().enumerate() {
+                for (i, value) in list.into_iter().enumerate() {
                     if i > 0 {
                         content.push_str(",");
                     }
@@ -176,13 +169,14 @@ struct ConcatenationBuilder {
 }
 
 impl ConcatenationBuilder {
-    fn push_path(&mut self, path: Path) {
+    fn push_tokens(&mut self, token_stream: TokenStream) {
         if !self.current_string.is_empty() {
             self.elements.push(ConcatenationBuilderElement::String(take(
                 &mut self.current_string,
             )));
         }
-        self.elements.push(ConcatenationBuilderElement::Path(path));
+        self.elements
+            .push(ConcatenationBuilderElement::TokenStream(token_stream));
     }
 
     fn push_str(&mut self, value: &str) {
@@ -226,14 +220,14 @@ impl ConcatenationBuilder {
 
 enum ConcatenationBuilderElement {
     String(String),
-    Path(Path),
+    TokenStream(TokenStream),
 }
 
 impl ToTokens for ConcatenationBuilderElement {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Self::String(s) => s.to_tokens(tokens),
-            Self::Path(ts) => ts.to_tokens(tokens),
+            Self::TokenStream(ts) => ts.to_tokens(tokens),
         }
     }
 }
