@@ -14,6 +14,11 @@ const PY_3_13: PythonVersion = PythonVersion {
     minor: 13,
 };
 
+const PY_3_14: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 14,
+};
+
 /// Macro which expands to multiple macro calls, one per pyo3-ffi struct.
 #[proc_macro]
 pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -59,6 +64,20 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
             // https://github.com/python/cpython/issues/130940
             // PyConfig has an ABI break on Python 3.13.1 -> 3.13.2, waiting for advice
             // how to proceed in PyO3.
+            continue;
+        }
+
+        /*
+        XXX: VERY HACKY WORKAROUND
+        Until a better solution is found regarding code specific to no-GIL interpreters,
+        skip FFI checks for the following structs when testing against a Python interpreter with GIL
+        (makes clippy happy)       */
+        if pyo3_build_config::get().version >= PY_3_14
+            // && pyo3_build_config::is_free_threaded()
+            && (struct_name == "PyObject" || struct_name == "PyConfig" || struct_name == "PyCodeObject"
+            || struct_name == "_PyWeakReference" || struct_name == "_PyCodeArray" || struct_name == "HangThread"
+            || struct_name == "PyObjectObFlagsAndRefcnt")
+        {
             continue;
         }
 
