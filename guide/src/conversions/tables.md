@@ -36,6 +36,7 @@ The table below contains the Python type and the corresponding function argument
 | `datetime.tzinfo` | `chrono::FixedOffset`[^5], `chrono::Utc`[^5], `chrono_tz::TimeZone`[^6] | `PyTzInfo`          |
 | `datetime.timedelta` | `Duration`, `chrono::Duration`[^5] | `PyDelta`           |
 | `decimal.Decimal` | `rust_decimal::Decimal`[^7] | -                    |
+| `decimal.Decimal` | `bigdecimal::BigDecimal`[^9] | -                   |
 | `ipaddress.IPv4Address` | `std::net::IpAddr`, `std::net::IpV4Addr` | - |
 | `ipaddress.IPv6Address` | `std::net::IpAddr`, `std::net::IpV6Addr` | - |
 | `os.PathLike ` | `PathBuf`, `Path`              | `PyString` |
@@ -116,3 +117,5 @@ Finally, the following Rust types are also able to convert to Python as return v
 [^7]: Requires the `rust_decimal` optional feature.
 
 [^8]: Requires the `num-rational` optional feature.
+
+[^9]: Requires the `bigdecimal` optional feature.

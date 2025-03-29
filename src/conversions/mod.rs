@@ -1,6 +1,7 @@
 //! This module contains conversions between various Rust object and their representation in Python.
 
 pub mod anyhow;
+pub mod bigdecimal;
 pub mod chrono;
 pub mod chrono_tz;
 pub mod either;

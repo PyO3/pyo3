@@ -33,6 +33,7 @@ inventory = { version = "0.3.5", optional = true }
 
 # crate integrations that can be added using the eponymous features
 anyhow = { version = "1.0.1", optional = true }
+bigdecimal = {version = "0.4", optional = true }
 chrono = { version = "0.4.25", default-features = false, optional = true }
 chrono-tz = { version = ">= 0.10, < 0.11", default-features = false, optional = true }
 either = { version = "1.9", optional = true }
@@ -121,6 +122,7 @@ full = [
     "macros",
     # "multiple-pymethods", # Not supported by wasm
     "anyhow",
+    "bigdecimal",
     "chrono",
     "chrono-tz",
     "either",
