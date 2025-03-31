@@ -1,7 +1,7 @@
 //! Code generation for the function that initializes a python module and adds classes and function.
 
 #[cfg(feature = "experimental-inspect")]
-use crate::introspection::module_introspection_code;
+use crate::introspection::{introspection_id_const, module_introspection_code};
 use crate::{
     attributes::{
         self, kw, take_attributes, take_pyo3_options, CrateAttribute, GILUsedAttribute,
@@ -348,6 +348,10 @@ pub fn pymodule_module_impl(
     );
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection = quote! {};
+    #[cfg(feature = "experimental-inspect")]
+    let introspection_id = introspection_id_const();
+    #[cfg(not(feature = "experimental-inspect"))]
+    let introspection_id = quote! {};
 
     let module_def = quote! {{
         use #pyo3_path::impl_::pymodule as impl_;
@@ -375,6 +379,7 @@ pub fn pymodule_module_impl(
 
             #initialization
             #introspection
+            #introspection_id
 
             fn __pyo3_pymodule(module: &#pyo3_path::Bound<'_, #pyo3_path::types::PyModule>) -> #pyo3_path::PyResult<()> {
                 use #pyo3_path::impl_::pymodule::PyAddToModule;
@@ -418,6 +423,10 @@ pub fn pymodule_function_impl(
     let introspection = module_introspection_code(pyo3_path, &name.to_string(), &[], &[]);
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection = quote! {};
+    #[cfg(feature = "experimental-inspect")]
+    let introspection_id = introspection_id_const();
+    #[cfg(not(feature = "experimental-inspect"))]
+    let introspection_id = quote! {};
 
     // Module function called with optional Python<'_> marker as first arg, followed by the module.
     let mut module_args = Vec::new();
@@ -432,6 +441,7 @@ pub fn pymodule_function_impl(
         #vis mod #ident {
             #initialization
             #introspection
+            #introspection_id
         }
 
         // Generate the definition inside an anonymous function in the same scope as the original function -
