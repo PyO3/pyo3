@@ -1,4 +1,4 @@
-use crate::model::{Class, Function, Module};
+use crate::model::{Argument, Class, Function, Module, ParameterKind};
 use anyhow::{bail, ensure, Context, Result};
 use goblin::elf::Elf;
 use goblin::mach::load_command::CommandVariant;
@@ -69,7 +69,29 @@ fn parse_module(
                     modules.push(parse_module(name, members, chunks_by_id)?);
                 }
                 Chunk::Class { name, id: _ } => classes.push(Class { name: name.into() }),
-                Chunk::Function { name, id: _ } => functions.push(Function { name: name.into() }),
+                Chunk::Function {
+                    name,
+                    id: _,
+                    arguments,
+                } => functions.push(Function {
+                    name: name.into(),
+                    arguments: arguments
+                        .iter()
+                        .map(|arg| Argument {
+                            name: arg.name.clone(),
+                            kind: match arg.kind {
+                                ChunkArgumentKind::PositionalOnly => ParameterKind::PositionalOnly,
+                                ChunkArgumentKind::PositionalOrKeyword => {
+                                    ParameterKind::PositionalOrKeyword
+                                }
+                                ChunkArgumentKind::VarPositional => ParameterKind::VarPositional,
+                                ChunkArgumentKind::KeywordOnly => ParameterKind::KeywordOnly,
+                                ChunkArgumentKind::VarKeyword => ParameterKind::VarKeyword,
+                            },
+                            default_value: arg.default_value.clone(),
+                        })
+                        .collect(),
+                }),
             }
         }
     }
@@ -252,5 +274,24 @@ enum Chunk {
     Function {
         id: String,
         name: String,
+        arguments: Vec<ChunkArgument>,
     },
+}
+
+#[derive(Deserialize)]
+struct ChunkArgument {
+    name: String,
+    kind: ChunkArgumentKind,
+    #[serde(default)]
+    default_value: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+enum ChunkArgumentKind {
+    PositionalOnly,
+    PositionalOrKeyword,
+    VarPositional,
+    KeywordOnly,
+    VarKeyword,
 }
