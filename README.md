@@ -187,6 +187,8 @@ about this topic.
 
 - [bed-reader](https://github.com/fastlmm/bed-reader) _Read and write the PLINK BED format, simply and efficiently._
     - Shows Rayon/ndarray::parallel (including capturing errors, controlling thread num), Python types to Rust generics, Github Actions
+- [blake3-py](https://github.com/oconnor663/blake3-py) _Python bindings for the [BLAKE3](https://github.com/BLAKE3-team/BLAKE3) cryptographic hash function._
+    - Parallelized [builds](https://github.com/oconnor663/blake3-py/blob/master/.github/workflows/dists.yml) on GitHub Actions for MacOS, Linux, Windows, including free-threaded 3.13t wheels.
 - [cellular_raza](https://cellular-raza.com) _A cellular agent-based simulation framework for building complex models from a clean slate._
 - [connector-x](https://github.com/sfu-db/connector-x/tree/main/connectorx-python) _Fastest library to load data from DB to DataFrames in Rust and Python._
 - [cryptography](https://github.com/pyca/cryptography/tree/main/src/rust) _Python cryptography library with some functionality in Rust._
