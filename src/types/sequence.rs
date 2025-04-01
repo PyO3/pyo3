@@ -367,11 +367,7 @@ impl<'py> Iterator for BoundSequenceIterator<'py> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let length = self
-            .length
-            .min(self.sequence.len().expect("failed to get sequence length"));
-
-        if self.index < length {
+        if self.index < self.length {
             let item = { self.get_item(self.index) };
             self.index += 1;
             Some(item)
@@ -390,13 +386,9 @@ impl<'py> Iterator for BoundSequenceIterator<'py> {
 impl DoubleEndedIterator for BoundSequenceIterator<'_> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
-        let length = self
-            .length
-            .min(self.sequence.len().expect("failed to get sequence length"));
-
-        if self.index < length {
-            let item = { self.get_item(length - 1) };
-            self.length = length - 1;
+        if self.index < self.length {
+            let item = { self.get_item(self.length - 1) };
+            self.length -= 1;
             Some(item)
         } else {
             None
