@@ -182,6 +182,9 @@ error: macros cannot be used as items in `#[pymethods]` impl blocks
 error[E0277]: the trait bound `i32: From<BoundRef<'_, '_, PyType>>` is not satisfied
   --> tests/ui/invalid_pymethods.rs:46:45
    |
+43 | #[pymethods]
+   | ------------ required by a bound introduced by this call
+...
 46 |     fn classmethod_wrong_first_argument(_x: i32) -> Self {
    |                                             ^^^ the trait `From<BoundRef<'_, '_, PyType>>` is not implemented for `i32`
    |
