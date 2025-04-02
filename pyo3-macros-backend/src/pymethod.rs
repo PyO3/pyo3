@@ -701,6 +701,7 @@ pub fn impl_py_setter_def(
             let holder = holders.push_holder(span);
             let ty = field.ty.clone().elide_lifetimes();
             quote! {
+                #[allow(unused_imports)]
                 use #pyo3_path::impl_::pyclass::Probe as _;
                 let _val = #pyo3_path::impl_::extract_argument::extract_argument::<
                     _,
@@ -1203,6 +1204,7 @@ fn extract_object(
         let holder = holders.push_holder(Span::call_site());
         let ty = arg.ty().clone().elide_lifetimes();
         quote! {{
+            #[allow(unused_imports)]
             use #pyo3_path::impl_::pyclass::Probe as _;
             #pyo3_path::impl_::extract_argument::extract_argument::<
                 _,
