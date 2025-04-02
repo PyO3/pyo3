@@ -21,9 +21,8 @@ impl PyEllipsis {
 }
 
 unsafe impl PyTypeInfo for PyEllipsis {
-    const NAME: &'static str = "ellipsis";
-
-    const MODULE: Option<&'static str> = None;
+    const NAME: &'static str = "EllipsisType";
+    const MODULE: Option<&'static str> = Some("types");
 
     fn type_object_raw(_py: Python<'_>) -> *mut ffi::PyTypeObject {
         unsafe { ffi::Py_TYPE(ffi::Py_Ellipsis()) }

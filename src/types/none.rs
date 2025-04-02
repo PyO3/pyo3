@@ -20,8 +20,7 @@ impl PyNone {
 
 unsafe impl PyTypeInfo for PyNone {
     const NAME: &'static str = "NoneType";
-
-    const MODULE: Option<&'static str> = None;
+    const MODULE: Option<&'static str> = Some("types");
 
     fn type_object_raw(_py: Python<'_>) -> *mut ffi::PyTypeObject {
         unsafe { ffi::Py_TYPE(ffi::Py_None()) }
