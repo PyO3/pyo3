@@ -8,6 +8,10 @@ pub use self::capsule::{PyCapsule, PyCapsuleMethods};
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 pub use self::code::PyCode;
 pub use self::complex::{PyComplex, PyComplexMethods};
+pub use self::context::{
+    PyContext, PyContextVar, PyContextToken,
+    PyContextMethods, PyContextVarMethods, PyContextTokenMethods,
+};
 #[cfg(not(Py_LIMITED_API))]
 #[allow(deprecated)]
 pub use self::datetime::{
@@ -257,3 +261,4 @@ pub(crate) mod traceback;
 pub(crate) mod tuple;
 pub(crate) mod typeobject;
 pub(crate) mod weakref;
+pub(crate) mod context;
