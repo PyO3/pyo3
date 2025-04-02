@@ -1,7 +1,8 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::os::raw::c_int;
-use std::ptr::addr_of_mut;
+use std::ptr;
+use std::ptr::addr_of;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
@@ -18,7 +19,7 @@ pub unsafe fn PyList_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyList_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyList_Type)) as c_int
+    ptr::eq(Py_TYPE(op), addr_of!(PyList_Type)).into()
 }
 
 extern "C" {

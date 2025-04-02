@@ -1,6 +1,7 @@
 use crate::object::*;
 use std::os::raw::{c_double, c_int};
-use std::ptr::addr_of_mut;
+use std::ptr;
+use std::ptr::{addr_of, addr_of_mut};
 
 #[cfg(Py_LIMITED_API)]
 // TODO: remove (see https://github.com/PyO3/pyo3/pull/1341#issuecomment-751515985)
@@ -19,7 +20,7 @@ pub unsafe fn PyFloat_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyFloat_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyFloat_Type)) as c_int
+    ptr::eq(Py_TYPE(op), addr_of!(PyFloat_Type)).into()
 }
 
 // skipped Py_RETURN_NAN

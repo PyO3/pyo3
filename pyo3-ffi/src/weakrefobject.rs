@@ -1,7 +1,9 @@
 use crate::object::*;
 use std::os::raw::c_int;
 #[cfg(not(PyPy))]
-use std::ptr::addr_of_mut;
+use std::ptr;
+#[cfg(not(PyPy))]
+use std::ptr::{addr_of, addr_of_mut};
 
 #[cfg(all(not(PyPy), Py_LIMITED_API, not(GraalPy)))]
 opaque_struct!(PyWeakReference);
@@ -37,19 +39,20 @@ pub unsafe fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyWeakref_CheckRefExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(_PyWeakref_RefType)) as c_int
+    ptr::eq(Py_TYPE(op), addr_of!(_PyWeakref_RefType)).into()
 }
 
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyWeakref_CheckProxy(op: *mut PyObject) -> c_int {
-    ((Py_TYPE(op) == addr_of_mut!(_PyWeakref_ProxyType))
-        || (Py_TYPE(op) == addr_of_mut!(_PyWeakref_CallableProxyType))) as c_int
+    (ptr::eq(Py_TYPE(op), addr_of!(_PyWeakref_ProxyType))
+        || ptr::eq(Py_TYPE(op), addr_of!(_PyWeakref_CallableProxyType)))
+    .into()
 }
 
 #[inline]
 pub unsafe fn PyWeakref_Check(op: *mut PyObject) -> c_int {
-    (PyWeakref_CheckRef(op) != 0 || PyWeakref_CheckProxy(op) != 0) as c_int
+    (PyWeakref_CheckRef(op) != 0 || PyWeakref_CheckProxy(op) != 0).into()
 }
 
 extern "C" {

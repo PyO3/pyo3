@@ -1,7 +1,9 @@
 use crate::object::*;
 use std::os::raw::c_int;
 #[cfg(not(PyPy))]
-use std::ptr::addr_of_mut;
+use std::ptr;
+#[cfg(not(PyPy))]
+use std::ptr::addr_of;
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyTraceBack_Here")]
@@ -23,5 +25,5 @@ extern "C" {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyTraceBack_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyTraceBack_Type)) as c_int
+    ptr::eq(Py_TYPE(op), addr_of!(PyTraceBack_Type)).into()
 }

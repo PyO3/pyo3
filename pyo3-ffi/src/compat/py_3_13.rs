@@ -75,7 +75,7 @@ compat_function!(
             *pobj = std::ptr::null_mut();
             return -1;
         }
-        if obj == Py_None() {
+        if std::ptr::eq(obj, Py_None()) {
             *pobj = std::ptr::null_mut();
             return 0;
         }

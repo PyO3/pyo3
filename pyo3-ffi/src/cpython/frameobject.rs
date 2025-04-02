@@ -6,7 +6,8 @@ use crate::pystate::PyThreadState;
 #[cfg(not(any(PyPy, GraalPy, Py_3_11)))]
 use std::os::raw::c_char;
 use std::os::raw::c_int;
-use std::ptr::addr_of_mut;
+use std::ptr;
+use std::ptr::addr_of;
 
 #[cfg(not(any(PyPy, GraalPy, Py_3_11)))]
 pub type PyFrameState = c_char;
@@ -66,7 +67,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyFrame_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyFrame_Type)) as c_int
+    ptr::eq(Py_TYPE(op), addr_of!(PyFrame_Type)).into()
 }
 
 extern "C" {

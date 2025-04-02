@@ -1,7 +1,8 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
-use std::ptr::addr_of_mut;
+use std::ptr;
+use std::ptr::{addr_of, addr_of_mut};
 
 #[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
 #[repr(C)]
@@ -34,7 +35,7 @@ pub unsafe fn PyByteArray_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyByteArray_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyByteArray_Type)) as c_int
+    ptr::eq(Py_TYPE(op), addr_of!(PyByteArray_Type)).into()
 }
 
 extern "C" {

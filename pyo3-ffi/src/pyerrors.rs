@@ -75,7 +75,7 @@ extern "C" {
 pub unsafe fn PyExceptionClass_Check(x: *mut PyObject) -> c_int {
     (PyType_Check(x) != 0
         && PyType_FastSubclass(x as *mut PyTypeObject, Py_TPFLAGS_BASE_EXC_SUBCLASS) != 0)
-        as c_int
+        .into()
 }
 
 #[inline]

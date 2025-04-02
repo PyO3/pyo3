@@ -1,10 +1,11 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-
 #[allow(unused_imports)]
 use std::os::raw::{c_char, c_int, c_short, c_uchar, c_void};
 #[cfg(not(any(PyPy, GraalPy)))]
-use std::ptr::addr_of_mut;
+use std::ptr;
+#[cfg(not(any(PyPy, GraalPy)))]
+use std::ptr::addr_of;
 
 #[cfg(all(Py_3_8, not(any(PyPy, GraalPy)), not(Py_3_11)))]
 opaque_struct!(_PyOpcache);
@@ -244,7 +245,7 @@ extern "C" {
 #[inline]
 #[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyCode_Type)) as c_int
+    ptr::eq(Py_TYPE(op), addr_of!(PyCode_Type)).into()
 }
 
 #[inline]

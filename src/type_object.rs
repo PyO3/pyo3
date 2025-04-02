@@ -4,6 +4,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyType};
 use crate::{ffi, Bound, Python};
+use std::ptr;
 
 /// `T: PyLayout<U>` represents that `T` is a concrete representation of `U` in the Python heap.
 /// E.g., `PyClassObject` is a concrete representation of all `pyclass`es, and `ffi::PyObject`
@@ -71,7 +72,12 @@ pub unsafe trait PyTypeInfo: Sized {
     /// Checks if `object` is an instance of this type.
     #[inline]
     fn is_exact_type_of(object: &Bound<'_, PyAny>) -> bool {
-        unsafe { ffi::Py_TYPE(object.as_ptr()) == Self::type_object_raw(object.py()) }
+        unsafe {
+            ptr::eq(
+                ffi::Py_TYPE(object.as_ptr()),
+                Self::type_object_raw(object.py()),
+            )
+        }
     }
 }
 

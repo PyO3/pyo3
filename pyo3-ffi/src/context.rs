@@ -1,6 +1,7 @@
 use crate::object::{PyObject, PyTypeObject, Py_TYPE};
 use std::os::raw::{c_char, c_int};
-use std::ptr::addr_of_mut;
+use std::ptr;
+use std::ptr::addr_of;
 
 extern "C" {
     pub static mut PyContext_Type: PyTypeObject;
@@ -13,17 +14,17 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyContext_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyContext_Type)) as c_int
+    ptr::eq(Py_TYPE(op), addr_of!(PyContext_Type)).into()
 }
 
 #[inline]
 pub unsafe fn PyContextVar_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyContextVar_Type)) as c_int
+    ptr::eq(Py_TYPE(op), addr_of!(PyContextVar_Type)).into()
 }
 
 #[inline]
 pub unsafe fn PyContextToken_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyContextToken_Type)) as c_int
+    ptr::eq(Py_TYPE(op), addr_of!(PyContextToken_Type)).into()
 }
 
 extern "C" {

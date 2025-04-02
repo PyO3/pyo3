@@ -1,7 +1,8 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
-use std::ptr::addr_of_mut;
+use std::ptr;
+use std::ptr::addr_of;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
@@ -16,7 +17,7 @@ pub unsafe fn PyDict_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyDict_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyDict_Type)) as c_int
+    ptr::eq(Py_TYPE(op), addr_of!(PyDict_Type)).into()
 }
 
 extern "C" {
@@ -85,22 +86,22 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyDictKeys_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyDictKeys_Type)) as c_int
+    ptr::eq(Py_TYPE(op), addr_of!(PyDictKeys_Type)).into()
 }
 
 #[inline]
 pub unsafe fn PyDictValues_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyDictValues_Type)) as c_int
+    ptr::eq(Py_TYPE(op), addr_of!(PyDictValues_Type)).into()
 }
 
 #[inline]
 pub unsafe fn PyDictItems_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyDictItems_Type)) as c_int
+    ptr::eq(Py_TYPE(op), addr_of!(PyDictItems_Type)).into()
 }
 
 #[inline]
 pub unsafe fn PyDictViewSet_Check(op: *mut PyObject) -> c_int {
-    (PyDictKeys_Check(op) != 0 || PyDictItems_Check(op) != 0) as c_int
+    (PyDictKeys_Check(op) != 0 || PyDictItems_Check(op) != 0).into()
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
