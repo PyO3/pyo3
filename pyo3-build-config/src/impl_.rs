@@ -1306,6 +1306,10 @@ pub fn parse_sysconfigdata(sysconfigdata_path: impl AsRef<Path>) -> Result<Sysco
     })?;
     script += r#"
 for key, val in build_time_vars.items():
+    # (ana)conda(-forge) built Pythons are statically linked but ship the shared library with them.
+    # We detect them based on the magic prefix directory they have encoded in their builds.
+    if key == "Py_ENABLE_SHARED" and "_h_env_placehold" in build_time_vars.get("prefix"):
+        val = 1
     print(key, val)
 "#;
 
