@@ -53,7 +53,7 @@ pub struct PyArg<'a> {
     pub ty: &'a syn::Type,
 }
 
-#[allow(clippy::large_enum_variant)]
+#[allow(clippy::large_enum_variant)] // See #5039
 #[derive(Clone, Debug)]
 pub enum FnArg<'a> {
     Regular(RegularArg<'a>),
