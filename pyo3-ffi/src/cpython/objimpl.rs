@@ -49,8 +49,7 @@ pub unsafe fn PyObject_IS_GC(o: *mut PyObject) -> c_int {
         && match (*Py_TYPE(o)).tp_is_gc {
             Some(tp_is_gc) => tp_is_gc(o) != 0,
             None => true,
-        })
-    .into()
+        }) as c_int
 }
 
 #[cfg(not(Py_3_11))]
@@ -61,7 +60,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyType_SUPPORTS_WEAKREFS(t: *mut PyTypeObject) -> c_int {
-    ((*t).tp_weaklistoffset > 0).into()
+    ((*t).tp_weaklistoffset > 0) as c_int
 }
 
 #[inline]

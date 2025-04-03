@@ -140,7 +140,7 @@ pub struct PyVarObject {
 #[cfg(not(all(PyPy, Py_3_10)))]
 #[cfg_attr(docsrs, doc(cfg(all())))]
 pub unsafe fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int {
-    ptr::eq(x, y).into()
+    (x == y).into()
 }
 
 #[cfg(all(PyPy, Py_3_10))]
@@ -217,18 +217,18 @@ pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
 unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
     #[cfg(target_pointer_width = "64")]
     {
-        (((*op).ob_refcnt.ob_refcnt as crate::PY_INT32_T) < 0).into()
+        (((*op).ob_refcnt.ob_refcnt as crate::PY_INT32_T) < 0) as c_int
     }
 
     #[cfg(target_pointer_width = "32")]
     {
-        ((*op).ob_refcnt.ob_refcnt == _Py_IMMORTAL_REFCNT).into()
+        ((*op).ob_refcnt.ob_refcnt == _Py_IMMORTAL_REFCNT) as c_int
     }
 }
 
 #[inline]
 pub unsafe fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
-    ptr::eq(Py_TYPE(ob), tp).into()
+    (Py_TYPE(ob) == tp) as c_int
 }
 
 // skipped _Py_SetRefCnt
@@ -379,7 +379,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyObject_TypeCheck(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
-    (Py_IS_TYPE(ob, tp) != 0 || PyType_IsSubtype(Py_TYPE(ob), tp) != 0).into()
+    (Py_IS_TYPE(ob, tp) != 0 || PyType_IsSubtype(Py_TYPE(ob), tp) != 0) as c_int
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -915,7 +915,7 @@ pub unsafe fn PyType_HasFeature(ty: *mut PyTypeObject, feature: c_ulong) -> c_in
     #[cfg(all(not(Py_LIMITED_API), not(Py_GIL_DISABLED)))]
     let flags = (*ty).tp_flags;
 
-    ((flags & feature) != 0).into()
+    ((flags & feature) != 0) as c_int
 }
 
 #[inline]

@@ -202,7 +202,7 @@ extern "C" {
 #[inline]
 pub unsafe fn PyIndex_Check(o: *mut PyObject) -> c_int {
     let tp_as_number = (*Py_TYPE(o)).tp_as_number;
-    (!tp_as_number.is_null() && (*tp_as_number).nb_index.is_some()).into()
+    (!tp_as_number.is_null() && (*tp_as_number).nb_index.is_some()) as c_int
 }
 
 extern "C" {

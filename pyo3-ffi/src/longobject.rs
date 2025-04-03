@@ -2,8 +2,7 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use libc::size_t;
 use std::os::raw::{c_char, c_double, c_int, c_long, c_longlong, c_ulong, c_ulonglong, c_void};
-use std::ptr;
-use std::ptr::addr_of;
+use std::ptr::addr_of_mut;
 
 opaque_struct!(PyLongObject);
 
@@ -14,7 +13,7 @@ pub unsafe fn PyLong_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyLong_CheckExact(op: *mut PyObject) -> c_int {
-    ptr::eq(Py_TYPE(op), addr_of!(PyLong_Type)).into()
+    (Py_TYPE(op) == addr_of_mut!(PyLong_Type)) as c_int
 }
 
 extern "C" {

@@ -349,7 +349,7 @@ pub unsafe fn _get_attr(obj: *mut PyObject, field: &std::ffi::CStr) -> c_int {
     let result = PyObject_GetAttrString(obj, field.as_ptr());
     Py_DecRef(result); // the original macros are borrowing
     if PyLong_Check(result) == 1 {
-        PyLong_AsLong(result).into()
+        PyLong_AsLong(result) as c_int
     } else {
         0
     }
@@ -636,61 +636,61 @@ pub unsafe fn PyDateTime_TimeZone_UTC() -> *mut PyObject {
 #[inline]
 /// Check if `op` is a `PyDateTimeAPI.DateType` or subtype.
 pub unsafe fn PyDate_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, (*PyDateTimeAPI()).DateType)
+    PyObject_TypeCheck(op, (*PyDateTimeAPI()).DateType) as c_int
 }
 
 #[inline]
 /// Check if `op`'s type is exactly `PyDateTimeAPI.DateType`.
 pub unsafe fn PyDate_CheckExact(op: *mut PyObject) -> c_int {
-    ptr::eq(Py_TYPE(op), (*PyDateTimeAPI()).DateType).into()
+    (Py_TYPE(op) == (*PyDateTimeAPI()).DateType) as c_int
 }
 
 #[inline]
 /// Check if `op` is a `PyDateTimeAPI.DateTimeType` or subtype.
 pub unsafe fn PyDateTime_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, (*PyDateTimeAPI()).DateTimeType)
+    PyObject_TypeCheck(op, (*PyDateTimeAPI()).DateTimeType) as c_int
 }
 
 #[inline]
 /// Check if `op`'s type is exactly `PyDateTimeAPI.DateTimeType`.
 pub unsafe fn PyDateTime_CheckExact(op: *mut PyObject) -> c_int {
-    ptr::eq(Py_TYPE(op), (*PyDateTimeAPI()).DateTimeType).into()
+    (Py_TYPE(op) == (*PyDateTimeAPI()).DateTimeType) as c_int
 }
 
 #[inline]
 /// Check if `op` is a `PyDateTimeAPI.TimeType` or subtype.
 pub unsafe fn PyTime_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, (*PyDateTimeAPI()).TimeType)
+    PyObject_TypeCheck(op, (*PyDateTimeAPI()).TimeType) as c_int
 }
 
 #[inline]
 /// Check if `op`'s type is exactly `PyDateTimeAPI.TimeType`.
 pub unsafe fn PyTime_CheckExact(op: *mut PyObject) -> c_int {
-    ptr::eq(Py_TYPE(op), (*PyDateTimeAPI()).TimeType).into()
+    (Py_TYPE(op) == (*PyDateTimeAPI()).TimeType) as c_int
 }
 
 #[inline]
 /// Check if `op` is a `PyDateTimeAPI.DetaType` or subtype.
 pub unsafe fn PyDelta_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, (*PyDateTimeAPI()).DeltaType)
+    PyObject_TypeCheck(op, (*PyDateTimeAPI()).DeltaType) as c_int
 }
 
 #[inline]
 /// Check if `op`'s type is exactly `PyDateTimeAPI.DeltaType`.
 pub unsafe fn PyDelta_CheckExact(op: *mut PyObject) -> c_int {
-    ptr::eq(Py_TYPE(op), (*PyDateTimeAPI()).DeltaType).into()
+    (Py_TYPE(op) == (*PyDateTimeAPI()).DeltaType) as c_int
 }
 
 #[inline]
 /// Check if `op` is a `PyDateTimeAPI.TZInfoType` or subtype.
 pub unsafe fn PyTZInfo_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, (*PyDateTimeAPI()).TZInfoType)
+    PyObject_TypeCheck(op, (*PyDateTimeAPI()).TZInfoType) as c_int
 }
 
 #[inline]
 /// Check if `op`'s type is exactly `PyDateTimeAPI.TZInfoType`.
 pub unsafe fn PyTZInfo_CheckExact(op: *mut PyObject) -> c_int {
-    ptr::eq(Py_TYPE(op), (*PyDateTimeAPI()).TZInfoType).into()
+    (Py_TYPE(op) == (*PyDateTimeAPI()).TZInfoType) as c_int
 }
 
 // skipped non-limited PyDate_FromDate

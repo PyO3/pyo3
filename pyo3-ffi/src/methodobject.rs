@@ -24,7 +24,7 @@ extern "C" {
 #[cfg(Py_3_9)]
 #[inline]
 pub unsafe fn PyCFunction_CheckExact(op: *mut PyObject) -> c_int {
-    ptr::eq(Py_TYPE(op), ptr::addr_of_mut!(PyCFunction_Type)).into()
+    (Py_TYPE(op) == ptr::addr_of_mut!(PyCFunction_Type)) as c_int
 }
 
 #[cfg(Py_3_9)]
@@ -36,7 +36,7 @@ pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
 #[cfg(not(Py_3_9))]
 #[inline]
 pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
-    ptr::eq(Py_TYPE(op), ptr::addr_of!(PyCFunction_Type)).into()
+    (Py_TYPE(op) == ptr::addr_of_mut!(PyCFunction_Type)) as c_int
 }
 
 pub type PyCFunction =
@@ -194,7 +194,7 @@ impl PyMethodDefPointer {
 
 impl PartialEq for PyMethodDefPointer {
     fn eq(&self, other: &Self) -> bool {
-        unsafe { ptr::eq(self.Void, other.Void) }
+        unsafe { self.Void == other.Void }
     }
 }
 
