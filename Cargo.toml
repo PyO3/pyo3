@@ -116,6 +116,7 @@ auto-initialize = []
 py-clone = []
 
 parking_lot = ["dep:parking_lot", "lock_api"]
+arc_lock = ["lock_api", "lock_api/arc_lock", "parking_lot?/arc_lock"]
 
 # Optimizes PyObject to Vec conversion and so on.
 nightly = []
