@@ -1,4 +1,4 @@
-use crate::model::{Class, Function, Module, ParameterKind};
+use crate::model::{Argument, Class, Function, Module};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -49,33 +49,35 @@ fn class_stubs(class: &Class) -> String {
 
 fn function_stubs(function: &Function) -> String {
     // Signature
-    let mut positional_only = true;
-    let mut keyword_only = false;
     let mut parameters = Vec::new();
-    for argument in &function.arguments {
-        if positional_only && !matches!(argument.kind, ParameterKind::PositionalOnly) {
-            if !parameters.is_empty() {
-                parameters.push("/".into());
-            }
-            positional_only = false;
-        }
-        if !keyword_only && matches!(argument.kind, ParameterKind::KeywordOnly) {
-            parameters.push("*".into());
-            keyword_only = true;
-        }
-        let mut parameter_str = match argument.kind {
-            ParameterKind::VarPositional => {
-                keyword_only = true;
-                format!("*{}", argument.name)
-            }
-            ParameterKind::VarKeyword => format!("**{}", argument.name),
-            _ => argument.name.clone(),
-        };
-        if let Some(default_value) = &argument.default_value {
-            parameter_str.push('=');
-            parameter_str.push_str(default_value);
-        }
-        parameters.push(parameter_str);
+    for argument in &function.arguments.positional_only_arguments {
+        parameters.push(argument_stub(argument));
+    }
+    if !function.arguments.positional_only_arguments.is_empty() {
+        parameters.push("/".into());
+    }
+    for argument in &function.arguments.arguments {
+        parameters.push(argument_stub(argument));
+    }
+    if let Some(argument) = &function.arguments.vararg {
+        parameters.push(format!("*{}", argument_stub(argument)));
+    } else if !function.arguments.keyword_only_arguments.is_empty() {
+        parameters.push("*".into());
+    }
+    for argument in &function.arguments.keyword_only_arguments {
+        parameters.push(argument_stub(argument));
+    }
+    if let Some(argument) = &function.arguments.kwarg {
+        parameters.push(format!("**{}", argument_stub(argument)));
     }
     format!("def {}({}): ...", function.name, parameters.join(", "))
+}
+
+fn argument_stub(argument: &Argument) -> String {
+    let mut output = argument.name.clone();
+    if let Some(default_value) = &argument.default_value {
+        output.push('=');
+        output.push_str(default_value);
+    }
+    output
 }
