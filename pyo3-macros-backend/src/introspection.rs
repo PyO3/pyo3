@@ -13,6 +13,7 @@ use crate::pyfunction::FunctionSignature;
 use crate::utils::PyO3CratePath;
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
+use std::borrow::Cow;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -30,9 +31,9 @@ pub fn module_introspection_code<'a>(
 ) -> TokenStream {
     IntrospectionNode::Map(
         [
-            ("type", IntrospectionNode::String("module")),
+            ("type", IntrospectionNode::String("module".into())),
             ("id", IntrospectionNode::IntrospectionId(None)),
-            ("name", IntrospectionNode::String(name)),
+            ("name", IntrospectionNode::String(name.into())),
             (
                 "members",
                 IntrospectionNode::List(
@@ -62,9 +63,9 @@ pub fn class_introspection_code(
 ) -> TokenStream {
     IntrospectionNode::Map(
         [
-            ("type", IntrospectionNode::String("class")),
+            ("type", IntrospectionNode::String("class".into())),
             ("id", IntrospectionNode::IntrospectionId(Some(ident))),
-            ("name", IntrospectionNode::String(name)),
+            ("name", IntrospectionNode::String(name.into())),
         ]
         .into(),
     )
@@ -79,9 +80,9 @@ pub fn function_introspection_code(
 ) -> TokenStream {
     IntrospectionNode::Map(
         [
-            ("type", IntrospectionNode::String("function")),
+            ("type", IntrospectionNode::String("function".into())),
             ("id", IntrospectionNode::IntrospectionId(Some(ident))),
-            ("name", IntrospectionNode::String(name)),
+            ("name", IntrospectionNode::String(name.into())),
             ("arguments", arguments_introspection_data(signature)),
         ]
         .into(),
@@ -125,8 +126,8 @@ fn arguments_introspection_data<'a>(signature: &'a FunctionSignature<'a>) -> Int
     if let Some(param) = &signature.python_signature.varargs {
         arguments.push(IntrospectionNode::Map(
             [
-                ("name", IntrospectionNode::String(param)),
-                ("kind", IntrospectionNode::String("VAR_POSITIONAL")),
+                ("name", IntrospectionNode::String(param.into())),
+                ("kind", IntrospectionNode::String("VAR_POSITIONAL".into())),
             ]
             .into(),
         ));
@@ -144,8 +145,8 @@ fn arguments_introspection_data<'a>(signature: &'a FunctionSignature<'a>) -> Int
     if let Some(param) = &signature.python_signature.kwargs {
         arguments.push(IntrospectionNode::Map(
             [
-                ("name", IntrospectionNode::String(param)),
-                ("kind", IntrospectionNode::String("VAR_KEYWORD")),
+                ("name", IntrospectionNode::String(param.into())),
+                ("kind", IntrospectionNode::String("VAR_KEYWORD".into())),
             ]
             .into(),
         ));
@@ -160,19 +161,21 @@ fn argument_introspection_data<'a>(
     desc: &'a RegularArg<'_>,
 ) -> IntrospectionNode<'a> {
     let mut params: HashMap<_, _> = [
-        ("name", IntrospectionNode::String(name)),
-        ("kind", IntrospectionNode::String(kind)),
+        ("name", IntrospectionNode::String(name.into())),
+        ("kind", IntrospectionNode::String(kind.into())),
     ]
     .into();
     if desc.default_value.is_some() {
-        // TODO: generate a nice default values for literals (None, false, 0, ""...)
-        params.insert("default_value", IntrospectionNode::String("..."));
+        params.insert(
+            "default_value",
+            IntrospectionNode::String(desc.default_value().into()),
+        );
     }
     IntrospectionNode::Map(params)
 }
 
 enum IntrospectionNode<'a> {
-    String(&'a str),
+    String(Cow<'a, str>),
     IntrospectionId(Option<&'a Ident>),
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<IntrospectionNode<'a>>),
@@ -198,7 +201,7 @@ impl IntrospectionNode<'_> {
     fn add_to_serialization(self, content: &mut ConcatenationBuilder) {
         match self {
             Self::String(string) => {
-                content.push_str_to_escape(string);
+                content.push_str_to_escape(&string);
             }
             Self::IntrospectionId(ident) => {
                 content.push_str("\"");
