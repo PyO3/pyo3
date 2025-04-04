@@ -48,6 +48,8 @@ rust_decimal = { version = "1.15", default-features = false, optional = true }
 serde = { version = "1.0", optional = true }
 smallvec = { version = "1.0", optional = true }
 uuid = { version = "1.11.0", optional = true  }
+lock_api = { version = "0.4", optional = true }
+parking_lot = { version = "0.12", optional = true}
 
 [target.'cfg(not(target_has_atomic = "64"))'.dependencies]
 portable-atomic = "1.0"
@@ -112,6 +114,8 @@ auto-initialize = []
 
 # Enables `Clone`ing references to Python objects `Py<T>` which panics if the GIL is not held.
 py-clone = []
+
+parking_lot = ["dep:parking_lot", "lock_api"]
 
 # Optimizes PyObject to Vec conversion and so on.
 nightly = []

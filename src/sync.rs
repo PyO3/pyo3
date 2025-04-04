@@ -536,13 +536,15 @@ mod once_lock_ext_sealed {
 /// Helper trait for `Once` to help avoid deadlocking when using a `Once` when attached to a
 /// Python thread.
 pub trait OnceExt: Sealed {
+    ///The state of `Once`
+    type OnceState<'a>;
     /// Similar to [`call_once`][Once::call_once], but releases the Python GIL temporarily
     /// if blocking on another thread currently calling this `Once`.
     fn call_once_py_attached(&self, py: Python<'_>, f: impl FnOnce());
 
     /// Similar to [`call_once_force`][Once::call_once_force], but releases the Python GIL
     /// temporarily if blocking on another thread currently calling this `Once`.
-    fn call_once_force_py_attached(&self, py: Python<'_>, f: impl FnOnce(&OnceState));
+    fn call_once_force_py_attached(&self, py: Python<'_>, f: impl FnOnce(Self::OnceState<'_>));
 }
 
 /// Extension trait for [`std::sync::OnceLock`] which helps avoid deadlocks between the Python
@@ -566,6 +568,10 @@ pub trait OnceLockExt<T>: once_lock_ext_sealed::Sealed {
 /// Extension trait for [`std::sync::Mutex`] which helps avoid deadlocks between
 /// the Python interpreter and acquiring the `Mutex`.
 pub trait MutexExt<T>: Sealed {
+    /// The result of locking the mutex.
+    type LockResult<'a>
+    where
+        Self: 'a;
     /// Lock this `Mutex` in a manner that cannot deadlock with the Python interpreter.
     ///
     /// Before attempting to lock the mutex, this function detaches from the
@@ -573,13 +579,15 @@ pub trait MutexExt<T>: Sealed {
     /// runtime before returning the `LockResult`. This avoids deadlocks between
     /// the GIL and other global synchronization events triggered by the Python
     /// interpreter.
-    fn lock_py_attached(
-        &self,
-        py: Python<'_>,
-    ) -> std::sync::LockResult<std::sync::MutexGuard<'_, T>>;
+    fn lock_py_attached(&self, py: Python<'_>) -> Self::LockResult<'_>;
 }
 
 impl OnceExt for Once {
+    type OnceState<'a>
+        = &'a OnceState
+    where
+        Self: 'a;
+
     fn call_once_py_attached(&self, py: Python<'_>, f: impl FnOnce()) {
         if self.is_completed() {
             return;
@@ -594,6 +602,37 @@ impl OnceExt for Once {
         }
 
         init_once_force_py_attached(self, py, f);
+    }
+}
+
+#[cfg(feature = "parking_lot")]
+impl OnceExt for parking_lot::Once {
+    type OnceState<'a> = parking_lot::OnceState;
+
+    fn call_once_py_attached(&self, _py: Python<'_>, f: impl FnOnce()) {
+        if self.state().done() {
+            return;
+        }
+
+        let ts_guard = unsafe { SuspendGIL::new() };
+
+        self.call_once(move || {
+            drop(ts_guard);
+            f();
+        });
+    }
+
+    fn call_once_force_py_attached(&self, _py: Python<'_>, f: impl FnOnce(Self::OnceState<'_>)) {
+        if self.state().done() {
+            return;
+        }
+
+        let ts_guard = unsafe { SuspendGIL::new() };
+
+        self.call_once_force(move |state| {
+            drop(ts_guard);
+            f(state);
+        });
     }
 }
 
@@ -613,10 +652,11 @@ impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
 }
 
 impl<T> MutexExt<T> for std::sync::Mutex<T> {
-    fn lock_py_attached(
-        &self,
-        _py: Python<'_>,
-    ) -> std::sync::LockResult<std::sync::MutexGuard<'_, T>> {
+    type LockResult<'a>
+        = std::sync::LockResult<std::sync::MutexGuard<'a, T>>
+    where
+        Self: 'a;
+    fn lock_py_attached(&self, _py: Python<'_>) -> Self::LockResult<'_> {
         // If try_lock is successful or returns a poisoned mutex, return them so
         // the caller can deal with them. Otherwise we need to use blocking
         // lock, which requires detaching from the Python runtime to avoid
@@ -631,6 +671,25 @@ impl<T> MutexExt<T> for std::sync::Mutex<T> {
         // SAFETY: detach from the runtime right before a possibly blocking call
         // then reattach when the blocking call completes and before calling
         // into the C API.
+        let ts_guard = unsafe { SuspendGIL::new() };
+        let res = self.lock();
+        drop(ts_guard);
+        res
+    }
+}
+
+#[cfg(feature = "lock_api")]
+impl<R: lock_api::RawMutex, T> MutexExt<T> for lock_api::Mutex<R, T> {
+    type LockResult<'a>
+        = lock_api::MutexGuard<'a, R, T>
+    where
+        Self: 'a;
+
+    fn lock_py_attached(&self, _py: Python<'_>) -> Self::LockResult<'_> {
+        if let Some(guard) = self.try_lock() {
+            return guard;
+        }
+
         let ts_guard = unsafe { SuspendGIL::new() };
         let res = self.lock();
         drop(ts_guard);

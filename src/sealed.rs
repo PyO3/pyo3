@@ -56,3 +56,7 @@ impl<T: crate::pyclass::PyClass> Sealed for PyClassInitializer<T> {}
 
 impl Sealed for std::sync::Once {}
 impl<T> Sealed for std::sync::Mutex<T> {}
+#[cfg(feature = "lock_api")]
+impl<R, T> Sealed for lock_api::Mutex<R, T> {}
+#[cfg(feature = "parking_lot")]
+impl Sealed for parking_lot::Once {}
