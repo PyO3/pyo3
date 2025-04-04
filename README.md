@@ -187,6 +187,8 @@ about this topic.
 
 - [bed-reader](https://github.com/fastlmm/bed-reader) _Read and write the PLINK BED format, simply and efficiently._
     - Shows Rayon/ndarray::parallel (including capturing errors, controlling thread num), Python types to Rust generics, Github Actions
+- [blake3-py](https://github.com/oconnor663/blake3-py) _Python bindings for the [BLAKE3](https://github.com/BLAKE3-team/BLAKE3) cryptographic hash function._
+    - Parallelized [builds](https://github.com/oconnor663/blake3-py/blob/master/.github/workflows/dists.yml) on GitHub Actions for MacOS, Linux, Windows, including free-threaded 3.13t wheels.
 - [cellular_raza](https://cellular-raza.com) _A cellular agent-based simulation framework for building complex models from a clean slate._
 - [connector-x](https://github.com/sfu-db/connector-x/tree/main/connectorx-python) _Fastest library to load data from DB to DataFrames in Rust and Python._
 - [cryptography](https://github.com/pyca/cryptography/tree/main/src/rust) _Python cryptography library with some functionality in Rust._
@@ -209,6 +211,7 @@ about this topic.
 - [orjson](https://github.com/ijl/orjson) _Fast Python JSON library._
 - [ormsgpack](https://github.com/aviramha/ormsgpack) _Fast Python msgpack library._
 - [polars](https://github.com/pola-rs/polars) _Fast multi-threaded DataFrame library in Rust | Python | Node.js._
+- [pycrdt](https://github.com/jupyter-server/pycrdt) _Python bindings for the Rust CRDT implementation [Yrs](https://github.com/y-crdt/y-crdt)._
 - [pydantic-core](https://github.com/pydantic/pydantic-core) _Core validation logic for pydantic written in Rust._
 - [primp](https://github.com/deedy5/primp) _The fastest python HTTP client that can impersonate web browsers by mimicking their headers and TLS/JA3/JA4/HTTP2 fingerprints._
 - [rateslib](https://github.com/attack68/rateslib) _A fixed income library for Python using Rust extensions._

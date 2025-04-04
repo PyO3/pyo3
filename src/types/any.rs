@@ -16,6 +16,7 @@ use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
+use std::ptr;
 
 /// Represents any Python object.
 ///
@@ -951,7 +952,7 @@ macro_rules! implement_binop {
 impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     #[inline]
     fn is<T: AsPyPointer>(&self, other: &T) -> bool {
-        self.as_ptr() == other.as_ptr()
+        ptr::eq(self.as_ptr(), other.as_ptr())
     }
 
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
@@ -1355,7 +1356,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[inline]
     fn is_none(&self) -> bool {
-        unsafe { ffi::Py_None() == self.as_ptr() }
+        unsafe { ptr::eq(ffi::Py_None(), self.as_ptr()) }
     }
 
     fn is_empty(&self) -> PyResult<bool> {

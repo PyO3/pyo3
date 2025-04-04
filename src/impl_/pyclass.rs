@@ -17,6 +17,7 @@ use std::{
     ffi::{CStr, CString},
     marker::PhantomData,
     os::raw::{c_int, c_void},
+    ptr,
     ptr::NonNull,
     sync::Mutex,
     thread,
@@ -948,7 +949,7 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
     let self_type = T::type_object_raw(py);
     // If this type is a variable type or the subtype is not equal to this type, we cannot use the
     // freelist
-    if nitems == 0 && subtype == self_type {
+    if nitems == 0 && ptr::eq(subtype, self_type) {
         let mut free_list = T::get_free_list(py).lock().unwrap();
         if let Some(obj) = free_list.pop() {
             drop(free_list);
@@ -1141,7 +1142,6 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
 }
 
 /// Trait denoting that this class is suitable to be used as a base type for PyClass.
-
 #[cfg_attr(
     all(diagnostic_namespace, Py_LIMITED_API),
     diagnostic::on_unimplemented(
