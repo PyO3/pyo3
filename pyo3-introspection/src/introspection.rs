@@ -137,7 +137,7 @@ fn find_introspection_chunks_in_macho(
         !macho.load_commands.iter().any(|command| {
             matches!(command.command, CommandVariant::DyldChainedFixups(_))
         }),
-        "Macho-o binaries with fixup chains are not supported yet, to avoid using fixup chains, use --codegen=link-arg=-no_fixup_chains option"
+        "Mach-O binaries with fixup chains are not supported yet, to avoid using fixup chains, use `--codegen=link-arg=-no_fixup_chains` option."
     );
 
     let sections = macho
