@@ -1373,7 +1373,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     fn is_ellipsis(&self) -> bool {
-        unsafe { ffi::Py_Ellipsis() == self.as_ptr() }
+        unsafe { ptr::eq(ffi::Py_Ellipsis(), self.as_ptr()) }
     }
 
     fn is_empty(&self) -> PyResult<bool> {
