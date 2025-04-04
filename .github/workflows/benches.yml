@@ -30,7 +30,7 @@ jobs:
           workspaces: |
             .
             pyo3-benches
-        continue-on-error: true
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
       - uses: taiki-e/install-action@v2
         with:
