@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - run: python -m pip install --upgrade pip && pip install nox
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - name: resolve MSRV
         id: resolve-msrv
         run: echo MSRV=`python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["rust-version"])'` >> $GITHUB_OUTPUT
@@ -54,7 +54,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - uses: obi1kenobi/cargo-semver-checks-action@v2
 
   check-msrv:
@@ -68,7 +68,7 @@ jobs:
           components: rust-src
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -153,7 +153,7 @@ jobs:
           components: clippy,rust-src
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
           architecture: ${{ matrix.platform.python-architecture }}
       - uses: Swatinem/rust-cache@v2
         with:
@@ -181,7 +181,7 @@ jobs:
       fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
         rust: [stable]
-        python-version: ["3.12"]
+        python-version: ["3.13"]
         platform: [
             {
               os: "macos-latest", # first available arm macos runner
@@ -218,7 +218,7 @@ jobs:
           # Test nightly Rust on PRs so that PR authors have a chance to fix nightly
           # failures, as nightly does not block merge.
           - rust: nightly
-            python-version: "3.12"
+            python-version: "3.13"
             platform:
               {
                 os: "ubuntu-latest",
@@ -279,7 +279,7 @@ jobs:
         include:
           # Test minimal supported Rust version
           - rust: ${{ needs.resolve.outputs.MSRV }}
-            python-version: "3.12"
+            python-version: "3.13"
             platform:
               {
                 os: "ubuntu-latest",
@@ -289,7 +289,7 @@ jobs:
 
           # Test the `nightly` feature
           - rust: nightly
-            python-version: "3.12"
+            python-version: "3.13"
             platform:
               {
                 os: "ubuntu-latest",
@@ -299,7 +299,7 @@ jobs:
 
           # Run rust beta to help catch toolchain regressions
           - rust: beta
-            python-version: "3.12"
+            python-version: "3.13"
             platform:
               {
                 os: "ubuntu-latest",
@@ -309,7 +309,7 @@ jobs:
 
           # Test 32-bit Windows and x64 macOS only with the latest Python version
           - rust: stable
-            python-version: "3.12"
+            python-version: "3.13"
             platform:
               {
                 os: "windows-latest",
@@ -317,7 +317,7 @@ jobs:
                 rust-target: "i686-pc-windows-msvc",
               }
           - rust: stable
-            python-version: "3.12"
+            python-version: "3.13"
             platform:
               {
                 os: "macos-13",
@@ -408,9 +408,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          # FIXME valgrind detects an issue with Python 3.12.5, needs investigation
-          # whether it's a PyO3 issue or upstream CPython.
-          python-version: "3.12.4"
+          python-version: "3.13"
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -431,7 +429,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -453,7 +451,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -474,7 +472,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -500,7 +498,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          # TODO bump emscripten builds to test on 3.12
+          # TODO bump emscripten builds to test on 3.13
           python-version: 3.11
         id: setup-python
       - name: Install Rust toolchain
@@ -622,7 +620,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -646,7 +644,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -672,17 +670,17 @@ jobs:
           # ubuntu "cross compile" to itself
           - os: "ubuntu-latest"
             target: "x86_64-unknown-linux-gnu"
-            flags: "-i python3.12"
+            flags: "-i python3.13"
             manylinux: auto
           # ubuntu x86_64 -> aarch64
           - os: "ubuntu-latest"
             target: "aarch64-unknown-linux-gnu"
-            flags: "-i python3.12"
+            flags: "-i python3.13"
             manylinux: auto
           # ubuntu x86_64 -> windows x86_64
           - os: "ubuntu-latest"
             target: "x86_64-pc-windows-gnu"
-            flags: "-i python3.12 --features generate-import-lib"
+            flags: "-i python3.13 --features generate-import-lib"
           # macos x86_64 -> aarch64
           - os: "macos-13" # last x86_64 macos runners
             target: "aarch64-apple-darwin"
@@ -692,12 +690,12 @@ jobs:
           # windows x86_64 -> aarch64
           - os: "windows-latest"
             target: "aarch64-pc-windows-msvc"
-            flags: "-i python3.12 --features generate-import-lib"
+            flags: "-i python3.13 --features generate-import-lib"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: examples/maturin-starter
@@ -727,7 +725,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: examples/maturin-starter
@@ -749,7 +747,7 @@ jobs:
           cargo build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-gnu
           cargo xwin build --cross-compiler clang --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-msvc
           # non-abi3
-          export PYO3_CROSS_PYTHON_VERSION=3.12
+          export PYO3_CROSS_PYTHON_VERSION=3.13
           cargo build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-gnu
           cargo xwin build --cross-compiler clang --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-msvc
       - if: ${{ github.ref == 'refs/heads/main' }}
@@ -793,7 +791,7 @@ jobs:
           components: rust-src
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
           architecture: ${{ matrix.platform.python-architecture }}
       - uses: Swatinem/rust-cache@v2
         with:
