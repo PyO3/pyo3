@@ -103,6 +103,7 @@ fn test_exception_nosegfault() {
 fn test_write_unraisable() {
     use common::UnraisableCapture;
     use pyo3::{exceptions::PyRuntimeError, ffi, types::PyNotImplemented};
+    use std::ptr;
 
     Python::with_gil(|py| {
         let capture = UnraisableCapture::install(py);
@@ -121,7 +122,7 @@ fn test_write_unraisable() {
 
         let (err, object) = capture.borrow_mut(py).capture.take().unwrap();
         assert_eq!(err.to_string(), "RuntimeError: bar");
-        assert!(object.as_ptr() == unsafe { ffi::Py_NotImplemented() });
+        assert!(unsafe { ptr::eq(object.as_ptr(), ffi::Py_NotImplemented()) });
 
         capture.borrow_mut(py).uninstall(py);
     });

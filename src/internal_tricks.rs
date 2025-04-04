@@ -34,6 +34,7 @@ pub(crate) fn ptr_from_mut<T>(t: &mut T) -> *mut T {
 // TODO: use ptr::fn_addr_eq on MSRV 1.85
 pub(crate) fn clear_eq(f: Option<ffi::inquiry>, g: ffi::inquiry) -> bool {
     #[cfg(fn_ptr_eq)]
+    #[allow(clippy::incompatible_msrv)]
     {
         let Some(f) = f else { return false };
         std::ptr::fn_addr_eq(f, g)
@@ -48,6 +49,7 @@ pub(crate) fn clear_eq(f: Option<ffi::inquiry>, g: ffi::inquiry) -> bool {
 // TODO: use ptr::fn_addr_eq on MSRV 1.85
 pub(crate) fn traverse_eq(f: Option<ffi::traverseproc>, g: ffi::traverseproc) -> bool {
     #[cfg(fn_ptr_eq)]
+    #[allow(clippy::incompatible_msrv)]
     {
         let Some(f) = f else { return false };
         std::ptr::fn_addr_eq(f, g)

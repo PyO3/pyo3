@@ -1,11 +1,13 @@
-error: lifetime may not live long enough
+error[E0521]: borrowed data escapes outside of function
  --> tests/ui/static_ref.rs:4:1
   |
 4 | #[pyfunction]
   | ^^^^^^^^^^^^^
   | |
+  | `py` is a reference that is only valid in the function body
+  | `py` escapes the function body here
   | lifetime `'py` defined here
-  | coercion requires that `'py` must outlive `'static`
+  | argument requires that `'py` must outlive `'static`
   |
   = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
 
@@ -29,19 +31,19 @@ error[E0597]: `holder_0` does not live long enough
   | |           |
   | |           `holder_0` dropped here while still borrowed
   | binding `holder_0` declared here
+  | argument requires that `holder_0` is borrowed for `'static`
 5 | fn static_ref(list: &'static Bound<'_, PyList>) -> usize {
-  |               ^^^^^^-
-  |               |     |
-  |               |     argument requires that `holder_0` is borrowed for `'static`
-  |               borrowed value does not live long enough
+  |               ^^^^^^^ borrowed value does not live long enough
 
-error: lifetime may not live long enough
+error[E0521]: borrowed data escapes outside of function
  --> tests/ui/static_ref.rs:9:1
   |
 9 | #[pyfunction]
   | ^^^^^^^^^^^^^
   | |
+  | `py` is a reference that is only valid in the function body
+  | `py` escapes the function body here
   | lifetime `'py` defined here
-  | coercion requires that `'py` must outlive `'static`
+  | argument requires that `'py` must outlive `'static`
   |
   = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -33,7 +33,7 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
           architecture: ${{ inputs.python-architecture }}
-          check-latest: ${{ startsWith(inputs.python-version, 'pypy') }}  # PyPy can have FFI changes within Python versions, which creates pain in CI
+          check-latest: ${{ startsWith(inputs.python-version, 'pypy') }} # PyPy can have FFI changes within Python versions, which creates pain in CI
 
       - name: Install nox
         run: python -m pip install --upgrade pip && pip install nox
@@ -52,7 +52,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
       - if: inputs.os == 'ubuntu-latest'
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)

@@ -16,6 +16,7 @@ use crate::{IntoPy, ToPyObject};
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::ops::Deref;
+use std::ptr;
 use std::ptr::NonNull;
 
 /// Owned or borrowed gil-bound Python smart pointer
@@ -1335,7 +1336,7 @@ impl<T> Py<T> {
     /// This is equivalent to the Python expression `self is other`.
     #[inline]
     pub fn is<U: AsPyPointer>(&self, o: &U) -> bool {
-        self.as_ptr() == o.as_ptr()
+        ptr::eq(self.as_ptr(), o.as_ptr())
     }
 
     /// Gets the reference count of the `ffi::PyObject` pointer.
@@ -1407,7 +1408,7 @@ impl<T> Py<T> {
     ///
     /// This is equivalent to the Python expression `self is None`.
     pub fn is_none(&self, _py: Python<'_>) -> bool {
-        unsafe { ffi::Py_None() == self.as_ptr() }
+        unsafe { ptr::eq(ffi::Py_None(), self.as_ptr()) }
     }
 
     /// Returns whether the object is considered to be true.

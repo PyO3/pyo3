@@ -238,7 +238,10 @@ pub(crate) fn impl_regular_arg_param(
 
     // Use this macro inside this function, to ensure that all code generated here is associated
     // with the function argument
-    let use_probe = quote!(use #pyo3_path::impl_::pyclass::Probe as _;);
+    let use_probe = quote! {
+        #[allow(unused_imports)]
+        use #pyo3_path::impl_::pyclass::Probe as _;
+    };
     macro_rules! quote_arg_span {
         ($($tokens:tt)*) => { quote_spanned!(arg.ty.span() => { #use_probe $($tokens)* }) }
     }
