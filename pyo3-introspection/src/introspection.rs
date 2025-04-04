@@ -1,7 +1,8 @@
 use crate::model::{Class, Function, Module};
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use goblin::elf::Elf;
-use goblin::mach::symbols::N_SECT;
+use goblin::mach::load_command::CommandVariant;
+use goblin::mach::symbols::{NO_SECT, N_SECT};
 use goblin::mach::{Mach, MachO, SingleArch};
 use goblin::pe::PE;
 use goblin::Object;
@@ -132,6 +133,12 @@ fn find_introspection_chunks_in_macho(
     if !macho.little_endian {
         bail!("Only little endian Mach-o binaries are supported");
     }
+    ensure!(
+        !macho.load_commands.iter().any(|command| {
+            matches!(command.command, CommandVariant::DyldChainedFixups(_))
+        }),
+        "Mach-O binaries with fixup chains are not supported yet, to avoid using fixup chains, use `--codegen=link-arg=-no_fixup_chains` option."
+    );
 
     let sections = macho
         .segments
@@ -140,9 +147,14 @@ fn find_introspection_chunks_in_macho(
         .map(|t| t.map(|s| s.0))
         .collect::<Result<Vec<_>, _>>()?;
     let mut chunks = Vec::new();
-    for (name, nlist) in macho.symbols().flatten() {
-        if nlist.is_global() && nlist.get_type() == N_SECT && is_introspection_symbol(name) {
-            let section = &sections[nlist.n_sect];
+    for symbol in macho.symbols() {
+        let (name, nlist) = symbol?;
+        if nlist.is_global()
+            && nlist.get_type() == N_SECT
+            && nlist.n_sect != NO_SECT as usize
+            && is_introspection_symbol(name)
+        {
+            let section = &sections[nlist.n_sect - 1]; // Sections are counted from 1
             let data_offset = nlist.n_value + u64::from(section.offset) - section.addr;
             chunks.push(read_symbol_value_with_ptr_and_len(
                 &library_content[usize::try_from(data_offset).context("File offset overflow")?..],
