@@ -241,7 +241,7 @@ where
             let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(slf));
 
             // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
-            if type_ptr == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type) {
+            if std::ptr::eq(type_ptr, std::ptr::addr_of!(ffi::PyBaseObject_Type)) {
                 let tp_free = actual_type
                     .get_slot(TP_FREE)
                     .expect("PyBaseObject_Type should have tp_free");
