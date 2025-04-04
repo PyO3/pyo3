@@ -209,6 +209,7 @@ about this topic.
 - [orjson](https://github.com/ijl/orjson) _Fast Python JSON library._
 - [ormsgpack](https://github.com/aviramha/ormsgpack) _Fast Python msgpack library._
 - [polars](https://github.com/pola-rs/polars) _Fast multi-threaded DataFrame library in Rust | Python | Node.js._
+- [pycrdt](https://github.com/jupyter-server/pycrdt) _Python bindings for the Rust CRDT implementation [Yrs](https://github.com/y-crdt/y-crdt)._
 - [pydantic-core](https://github.com/pydantic/pydantic-core) _Core validation logic for pydantic written in Rust._
 - [primp](https://github.com/deedy5/primp) _The fastest python HTTP client that can impersonate web browsers by mimicking their headers and TLS/JA3/JA4/HTTP2 fingerprints._
 - [rateslib](https://github.com/attack68/rateslib) _A fixed income library for Python using Rust extensions._
