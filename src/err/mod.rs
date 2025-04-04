@@ -20,6 +20,7 @@ mod impls;
 use crate::conversion::IntoPyObject;
 use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
 use std::convert::Infallible;
+use std::ptr;
 
 /// Represents a Python exception.
 ///
@@ -324,7 +325,10 @@ impl PyErr {
     pub fn take(py: Python<'_>) -> Option<PyErr> {
         let state = PyErrStateNormalized::take(py)?;
         let pvalue = state.pvalue.bind(py);
-        if pvalue.get_type().as_ptr() == PanicException::type_object_raw(py).cast() {
+        if ptr::eq(
+            pvalue.get_type().as_ptr(),
+            PanicException::type_object_raw(py).cast(),
+        ) {
             let msg: String = pvalue
                 .str()
                 .map(|py_str| py_str.to_string_lossy().into())
