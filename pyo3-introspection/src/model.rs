@@ -14,4 +14,26 @@ pub struct Class {
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct Function {
     pub name: String,
+    pub arguments: Arguments,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+pub struct Arguments {
+    /// Arguments before /
+    pub positional_only_arguments: Vec<Argument>,
+    /// Regular arguments (between / and *)
+    pub arguments: Vec<Argument>,
+    /// *vararg
+    pub vararg: Option<Argument>,
+    /// Arguments after *
+    pub keyword_only_arguments: Vec<Argument>,
+    /// **kwarg
+    pub kwarg: Option<Argument>,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+pub struct Argument {
+    pub name: String,
+    /// Default value as a Python expression
+    pub default_value: Option<String>,
 }
