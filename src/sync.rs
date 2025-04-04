@@ -697,6 +697,25 @@ impl<R: lock_api::RawMutex, T> MutexExt<T> for lock_api::Mutex<R, T> {
     }
 }
 
+#[cfg(feature = "arc_lock")]
+impl<R: lock_api::RawMutex, T> MutexExt<T> for std::sync::Arc<lock_api::Mutex<R, T>> {
+    type LockResult<'a>
+        = lock_api::ArcMutexGuard<R, T>
+    where
+        Self: 'a;
+
+    fn lock_py_attached(&self, _py: Python<'_>) -> Self::LockResult<'_> {
+        if let Some(guard) = self.try_lock_arc() {
+            return guard;
+        }
+
+        let ts_guard = unsafe { SuspendGIL::new() };
+        let res = self.lock_arc();
+        drop(ts_guard);
+        res
+    }
+}
+
 #[cold]
 fn init_once_py_attached<F, T>(once: &Once, _py: Python<'_>, f: F)
 where
