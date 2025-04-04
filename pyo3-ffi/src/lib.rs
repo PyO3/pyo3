@@ -327,7 +327,8 @@
     non_snake_case,
     non_upper_case_globals,
     clippy::upper_case_acronyms,
-    clippy::missing_safety_doc
+    clippy::missing_safety_doc,
+    clippy::ptr_eq
 )]
 #![warn(elided_lifetimes_in_paths, unused_lifetimes)]
 // This crate is a hand-maintained translation of CPython's headers, so requiring "unsafe"
