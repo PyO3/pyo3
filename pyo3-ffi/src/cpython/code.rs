@@ -184,8 +184,10 @@ pub struct PyCodeObject {
     pub co_executors: *mut _PyExecutorArray,
     #[cfg(Py_3_12)]
     pub _co_cached: *mut _PyCoCached,
-    #[cfg(Py_3_12)]
+    #[cfg(all(Py_3_12, not(Py_3_13)))]
     pub _co_instrumentation_version: u64,
+    #[cfg(Py_3_13)]
+    pub _co_instrumentation_version: libc::uintptr_t,
     #[cfg(Py_3_12)]
     pub _co_monitoring: *mut _PyCoMonitoringData,
     pub _co_firsttraceable: c_int,
