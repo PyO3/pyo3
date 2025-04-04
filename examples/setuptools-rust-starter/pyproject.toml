@@ -17,6 +17,9 @@ classifiers = [
 [project.optional-dependencies]
 dev = ["pytest"]
 
+[tool.setuptools.packages.find]
+include = ["setuptools_rust_starter"]
+
 [[tool.setuptools-rust.ext-modules]]
 target = "setuptools_rust_starter._setuptools_rust_starter"
 path = "Cargo.toml"
