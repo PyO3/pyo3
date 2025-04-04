@@ -99,7 +99,11 @@ fn arguments_introspection_data<'a>(signature: &'a FunctionSignature<'a>) -> Int
         }
     });
 
-    let mut arguments = Vec::new();
+    let mut posonlyargs = Vec::new();
+    let mut args = Vec::new();
+    let mut vararg = None;
+    let mut kwonlyargs = Vec::new();
+    let mut kwarg = None;
 
     for (i, param) in signature
         .python_signature
@@ -112,24 +116,17 @@ fn arguments_introspection_data<'a>(signature: &'a FunctionSignature<'a>) -> Int
         } else {
             panic!("Less arguments than in python signature");
         };
-        arguments.push(argument_introspection_data(
-            param,
-            if i < signature.python_signature.positional_only_parameters {
-                "POSITIONAL_ONLY"
-            } else {
-                "POSITIONAL_OR_KEYWORD"
-            },
-            arg_desc,
-        ));
+        let arg = argument_introspection_data(param, arg_desc);
+        if i < signature.python_signature.positional_only_parameters {
+            posonlyargs.push(arg);
+        } else {
+            args.push(arg)
+        }
     }
 
     if let Some(param) = &signature.python_signature.varargs {
-        arguments.push(IntrospectionNode::Map(
-            [
-                ("name", IntrospectionNode::String(param.into())),
-                ("kind", IntrospectionNode::String("VAR_POSITIONAL".into())),
-            ]
-            .into(),
+        vararg = Some(IntrospectionNode::Map(
+            [("name", IntrospectionNode::String(param.into()))].into(),
         ));
     }
 
@@ -139,11 +136,11 @@ fn arguments_introspection_data<'a>(signature: &'a FunctionSignature<'a>) -> Int
         } else {
             panic!("Less arguments than in python signature");
         };
-        arguments.push(argument_introspection_data(param, "KEYWORD_ONLY", arg_desc));
+        kwonlyargs.push(argument_introspection_data(param, arg_desc));
     }
 
     if let Some(param) = &signature.python_signature.kwargs {
-        arguments.push(IntrospectionNode::Map(
+        kwarg = Some(IntrospectionNode::Map(
             [
                 ("name", IntrospectionNode::String(param.into())),
                 ("kind", IntrospectionNode::String("VAR_KEYWORD".into())),
@@ -152,22 +149,33 @@ fn arguments_introspection_data<'a>(signature: &'a FunctionSignature<'a>) -> Int
         ));
     }
 
-    IntrospectionNode::List(arguments)
+    let mut map = HashMap::new();
+    if !posonlyargs.is_empty() {
+        map.insert("posonlyargs", IntrospectionNode::List(posonlyargs));
+    }
+    if !args.is_empty() {
+        map.insert("args", IntrospectionNode::List(args));
+    }
+    if let Some(vararg) = vararg {
+        map.insert("vararg", vararg);
+    }
+    if !kwonlyargs.is_empty() {
+        map.insert("kwonlyargs", IntrospectionNode::List(kwonlyargs));
+    }
+    if let Some(kwarg) = kwarg {
+        map.insert("kwarg", kwarg);
+    }
+    IntrospectionNode::Map(map)
 }
 
 fn argument_introspection_data<'a>(
     name: &'a str,
-    kind: &'a str,
     desc: &'a RegularArg<'_>,
 ) -> IntrospectionNode<'a> {
-    let mut params: HashMap<_, _> = [
-        ("name", IntrospectionNode::String(name.into())),
-        ("kind", IntrospectionNode::String(kind.into())),
-    ]
-    .into();
+    let mut params: HashMap<_, _> = [("name", IntrospectionNode::String(name.into()))].into();
     if desc.default_value.is_some() {
         params.insert(
-            "default_value",
+            "default",
             IntrospectionNode::String(desc.default_value().into()),
         );
     }
