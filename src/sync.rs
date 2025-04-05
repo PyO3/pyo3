@@ -567,11 +567,10 @@ pub trait OnceLockExt<T>: once_lock_ext_sealed::Sealed {
 
 /// Extension trait for [`std::sync::Mutex`] which helps avoid deadlocks between
 /// the Python interpreter and acquiring the `Mutex`.
-pub trait MutexExt<T>: Sealed {
-    /// The result of locking the mutex.
-    type LockResult<'a>
-    where
-        Self: 'a;
+pub trait MutexExt<'a, T, R>: Sealed
+where
+    Self: 'a,
+{
     /// Lock this `Mutex` in a manner that cannot deadlock with the Python interpreter.
     ///
     /// Before attempting to lock the mutex, this function detaches from the
@@ -579,7 +578,7 @@ pub trait MutexExt<T>: Sealed {
     /// runtime before returning the `LockResult`. This avoids deadlocks between
     /// the GIL and other global synchronization events triggered by the Python
     /// interpreter.
-    fn lock_py_attached(&self, py: Python<'_>) -> Self::LockResult<'_>;
+    fn lock_py_attached(&'a self, py: Python<'_>) -> R;
 }
 
 impl OnceExt for Once {
@@ -651,12 +650,13 @@ impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
     }
 }
 
-impl<T> MutexExt<T> for std::sync::Mutex<T> {
-    type LockResult<'a>
-        = std::sync::LockResult<std::sync::MutexGuard<'a, T>>
-    where
-        Self: 'a;
-    fn lock_py_attached(&self, _py: Python<'_>) -> Self::LockResult<'_> {
+impl<'a, T> MutexExt<'a, T, std::sync::LockResult<std::sync::MutexGuard<'a, T>>>
+    for std::sync::Mutex<T>
+{
+    fn lock_py_attached(
+        &'a self,
+        _py: Python<'_>,
+    ) -> std::sync::LockResult<std::sync::MutexGuard<'a, T>> {
         // If try_lock is successful or returns a poisoned mutex, return them so
         // the caller can deal with them. Otherwise we need to use blocking
         // lock, which requires detaching from the Python runtime to avoid
@@ -679,13 +679,10 @@ impl<T> MutexExt<T> for std::sync::Mutex<T> {
 }
 
 #[cfg(feature = "lock_api")]
-impl<R: lock_api::RawMutex, T> MutexExt<T> for lock_api::Mutex<R, T> {
-    type LockResult<'a>
-        = lock_api::MutexGuard<'a, R, T>
-    where
-        Self: 'a;
-
-    fn lock_py_attached(&self, _py: Python<'_>) -> Self::LockResult<'_> {
+impl<'a, R: lock_api::RawMutex, T> MutexExt<'a, T, lock_api::MutexGuard<'a, R, T>>
+    for lock_api::Mutex<R, T>
+{
+    fn lock_py_attached(&'a self, _py: Python<'_>) -> lock_api::MutexGuard<'a, R, T> {
         if let Some(guard) = self.try_lock() {
             return guard;
         }
@@ -698,13 +695,13 @@ impl<R: lock_api::RawMutex, T> MutexExt<T> for lock_api::Mutex<R, T> {
 }
 
 #[cfg(feature = "arc_lock")]
-impl<R: lock_api::RawMutex, T> MutexExt<T> for std::sync::Arc<lock_api::Mutex<R, T>> {
-    type LockResult<'a>
-        = lock_api::ArcMutexGuard<R, T>
-    where
-        Self: 'a;
-
-    fn lock_py_attached(&self, _py: Python<'_>) -> Self::LockResult<'_> {
+impl<'a, R, T> MutexExt<'a, T, lock_api::ArcMutexGuard<R, T>>
+    for std::sync::Arc<lock_api::Mutex<R, T>>
+where
+    R: lock_api::RawMutex,
+    Self: 'a,
+{
+    fn lock_py_attached(&self, _py: Python<'_>) -> lock_api::ArcMutexGuard<R, T> {
         if let Some(guard) = self.try_lock_arc() {
             return guard;
         }
