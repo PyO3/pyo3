@@ -1,2 +1,25 @@
 [build-system]
-requires = ["setuptools>=41.0.0", "wheel", "setuptools_rust>=1.0.0"]
+requires = ["setuptools>=62.4", "setuptools_rust>=1.11"]
+
+[project]
+name = "setuptools-rust-starter"
+version = "0.1.0"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Rust",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS :: MacOS X",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["setuptools_rust_starter"]
+
+[[tool.setuptools-rust.ext-modules]]
+target = "setuptools_rust_starter._setuptools_rust_starter"
+path = "Cargo.toml"
