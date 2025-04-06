@@ -329,11 +329,13 @@ impl<'py> IntoPyObject<'py> for PrimitiveDateTime {
 impl FromPyObject<'_> for PrimitiveDateTime {
     fn extract_bound(dt: &Bound<'_, PyAny>) -> PyResult<PrimitiveDateTime> {
         let has_tzinfo = {
-            #[cfg(not(Py_LIMITED_API))]{
+            #[cfg(not(Py_LIMITED_API))]
+            {
                 let dt = dt.downcast::<PyDateTime>()?;
                 dt.get_tzinfo().is_some()
             }
-            #[cfg(Py_LIMITED_API)] {
+            #[cfg(Py_LIMITED_API)]
+            {
                 !dt.getattr(intern!(dt.py(), "tzinfo"))?.is_none()
             }
         };
@@ -343,14 +345,15 @@ impl FromPyObject<'_> for PrimitiveDateTime {
         }
 
         let (date, time) = {
-            #[cfg(not(Py_LIMITED_API))] {
+            #[cfg(not(Py_LIMITED_API))]
+            {
                 let dt = dt.downcast::<PyDateTime>()?;
                 let date = Date::from_calendar_date(
                     dt.get_year(),
                     month_from_number!(dt.get_month()),
                     dt.get_day(),
                 )
-                    .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
+                .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
 
                 let time = Time::from_hms_micro(
                     dt.get_hour(),
@@ -358,23 +361,24 @@ impl FromPyObject<'_> for PrimitiveDateTime {
                     dt.get_second(),
                     dt.get_microsecond(),
                 )
-                    .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
+                .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
                 (date, time)
             }
-            #[cfg(Py_LIMITED_API)] {
+            #[cfg(Py_LIMITED_API)]
+            {
                 let date = Date::from_calendar_date(
                     dt.getattr(intern!(dt.py(), "year"))?.extract()?,
                     month_from_number!(dt.getattr(intern!(dt.py(), "month"))?.extract::<u8>()?),
                     dt.getattr(intern!(dt.py(), "day"))?.extract()?,
                 )
-                    .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
+                .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
                 let time = Time::from_hms_micro(
                     dt.getattr(intern!(dt.py(), "hour"))?.extract()?,
                     dt.getattr(intern!(dt.py(), "minute"))?.extract()?,
                     dt.getattr(intern!(dt.py(), "second"))?.extract()?,
                     dt.getattr(intern!(dt.py(), "microsecond"))?.extract()?,
                 )
-                    .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
+                .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
                 (date, time)
             }
         };
@@ -493,67 +497,69 @@ impl<'py> IntoPyObject<'py> for OffsetDateTime {
 
 impl FromPyObject<'_> for OffsetDateTime {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<OffsetDateTime> {
-        #[cfg(not(Py_LIMITED_API))]
-        let dt = ob.downcast::<PyDateTime>()?;
+        let offset: UtcOffset = {
+            #[cfg(not(Py_LIMITED_API))]
+            {
+                let dt = ob.downcast::<PyDateTime>()?;
+                let tzinfo = dt.get_tzinfo().ok_or_else(|| {
+                    PyTypeError::new_err("expected a datetime with non-None tzinfo")
+                })?;
+                tzinfo.extract()?
+            }
+            #[cfg(Py_LIMITED_API)]
+            {
+                let tzinfo = ob.getattr(intern!(ob.py(), "tzinfo"))?;
+                if tzinfo.is_none() {
+                    return Err(PyTypeError::new_err(
+                        "expected a datetime with non-None tzinfo",
+                    ));
+                }
+                tzinfo.extract()?
+            }
+        };
 
-        // Extract the tzinfo and make sure it's not None
-        #[cfg(not(Py_LIMITED_API))]
-        let tzinfo = dt
-            .get_tzinfo()
-            .ok_or_else(|| PyTypeError::new_err("expected a datetime with non-None tzinfo"))?;
+        let (date, time) = {
+            #[cfg(not(Py_LIMITED_API))]
+            {
+                let dt = ob.downcast::<PyDateTime>()?;
+                let date = Date::from_calendar_date(
+                    dt.get_year(),
+                    month_from_number!(dt.get_month()),
+                    dt.get_day(),
+                )
+                .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
 
-        #[cfg(Py_LIMITED_API)]
-        let tzinfo = ob.getattr(intern!(ob.py(), "tzinfo"))?;
-        #[cfg(Py_LIMITED_API)]
-        if tzinfo.is_none() {
-            return Err(PyTypeError::new_err(
-                "expected a datetime with non-None tzinfo",
-            ));
-        }
+                let time = Time::from_hms_micro(
+                    dt.get_hour(),
+                    dt.get_minute(),
+                    dt.get_second(),
+                    dt.get_microsecond(),
+                )
+                .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
+                (date, time)
+            }
+            #[cfg(Py_LIMITED_API)]
+            {
+                let date = Date::from_calendar_date(
+                    ob.getattr(intern!(ob.py(), "year"))?.extract()?,
+                    month_from_number!(ob.getattr(intern!(ob.py(), "month"))?.extract::<u8>()?),
+                    ob.getattr(intern!(ob.py(), "day"))?.extract()?,
+                )
+                .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
 
-        // Convert tzinfo to UtcOffset
-        let offset: UtcOffset = tzinfo.extract()?;
+                #[cfg(Py_LIMITED_API)]
+                let time = Time::from_hms_micro(
+                    ob.getattr(intern!(ob.py(), "hour"))?.extract()?,
+                    ob.getattr(intern!(ob.py(), "minute"))?.extract()?,
+                    ob.getattr(intern!(ob.py(), "second"))?.extract()?,
+                    ob.getattr(intern!(ob.py(), "microsecond"))?.extract()?,
+                )
+                .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
+                (date, time)
+            }
+        };
 
-        // Extract the date and time parts
-        #[cfg(not(Py_LIMITED_API))]
-        let date = Date::from_calendar_date(
-            dt.get_year(),
-            month_from_number!(dt.get_month()),
-            dt.get_day(),
-        )
-        .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
-
-        // Extract time
-        #[cfg(not(Py_LIMITED_API))]
-        let time = Time::from_hms_micro(
-            dt.get_hour(),
-            dt.get_minute(),
-            dt.get_second(),
-            dt.get_microsecond(),
-        )
-        .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
-
-        #[cfg(Py_LIMITED_API)]
-        let date = Date::from_calendar_date(
-            ob.getattr(intern!(ob.py(), "year"))?.extract()?,
-            month_from_number!(ob.getattr(intern!(ob.py(), "month"))?.extract::<u8>()?),
-            ob.getattr(intern!(ob.py(), "day"))?.extract()?,
-        )
-        .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
-
-        #[cfg(Py_LIMITED_API)]
-        let time = Time::from_hms_micro(
-            ob.getattr(intern!(ob.py(), "hour"))?.extract()?,
-            ob.getattr(intern!(ob.py(), "minute"))?.extract()?,
-            ob.getattr(intern!(ob.py(), "second"))?.extract()?,
-            ob.getattr(intern!(ob.py(), "microsecond"))?.extract()?,
-        )
-        .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
-
-        // Create the PrimitiveDateTime first
         let primitive_dt = PrimitiveDateTime::new(date, time);
-
-        // Then attach the offset
         Ok(primitive_dt.assume_offset(offset))
     }
 }
@@ -626,23 +632,26 @@ impl<'py> IntoPyObject<'py> for UtcDateTime {
 
 impl FromPyObject<'_> for UtcDateTime {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<UtcDateTime> {
-        #[cfg(not(Py_LIMITED_API))]
-        let dt = ob.downcast::<PyDateTime>()?;
+        let tzinfo = {
+            #[cfg(not(Py_LIMITED_API))]
+            {
+                let dt = ob.downcast::<PyDateTime>()?;
+                dt.get_tzinfo().ok_or_else(|| {
+                    PyTypeError::new_err("expected a datetime with non-None tzinfo")
+                })?
+            }
 
-        // Extract tzinfo and ensure it's not None
-        #[cfg(not(Py_LIMITED_API))]
-        let tzinfo = dt
-            .get_tzinfo()
-            .ok_or_else(|| PyTypeError::new_err("expected a datetime with non-None tzinfo"))?;
-
-        #[cfg(Py_LIMITED_API)]
-        let tzinfo = ob.getattr(intern!(ob.py(), "tzinfo"))?;
-        #[cfg(Py_LIMITED_API)]
-        if tzinfo.is_none() {
-            return Err(PyTypeError::new_err(
-                "expected a datetime with non-None tzinfo",
-            ));
-        }
+            #[cfg(Py_LIMITED_API)]
+            {
+                let tzinfo = ob.getattr(intern!(ob.py(), "tzinfo"))?;
+                if tzinfo.is_none() {
+                    return Err(PyTypeError::new_err(
+                        "expected a datetime with non-None tzinfo",
+                    ));
+                }
+                tzinfo
+            }
+        };
 
         // Verify that the tzinfo is UTC
         let is_utc = tzinfo
@@ -661,46 +670,48 @@ impl FromPyObject<'_> for UtcDateTime {
             ));
         }
 
-        // Extract date and time components
-        #[cfg(not(Py_LIMITED_API))]
-        let date = Date::from_calendar_date(
-            dt.get_year(),
-            month_from_number!(dt.get_month()),
-            dt.get_day(),
-        )
-        .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
+        let (date, time) = {
+            #[cfg(not(Py_LIMITED_API))]
+            {
+                let dt = ob.downcast::<PyDateTime>()?;
+                let date = Date::from_calendar_date(
+                    dt.get_year(),
+                    month_from_number!(dt.get_month()),
+                    dt.get_day(),
+                )
+                .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
 
-        // Extract time
-        #[cfg(not(Py_LIMITED_API))]
-        let time = Time::from_hms_micro(
-            dt.get_hour(),
-            dt.get_minute(),
-            dt.get_second(),
-            dt.get_microsecond(),
-        )
-        .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
+                let time = Time::from_hms_micro(
+                    dt.get_hour(),
+                    dt.get_minute(),
+                    dt.get_second(),
+                    dt.get_microsecond(),
+                )
+                .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
 
-        #[cfg(Py_LIMITED_API)]
-        let date = Date::from_calendar_date(
-            ob.getattr(intern!(ob.py(), "year"))?.extract()?,
-            month_from_number!(ob.getattr(intern!(ob.py(), "month"))?.extract::<u8>()?),
-            ob.getattr(intern!(ob.py(), "day"))?.extract()?,
-        )
-        .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
+                (date, time)
+            }
+            #[cfg(Py_LIMITED_API)]
+            {
+                let date = Date::from_calendar_date(
+                    ob.getattr(intern!(ob.py(), "year"))?.extract()?,
+                    month_from_number!(ob.getattr(intern!(ob.py(), "month"))?.extract::<u8>()?),
+                    ob.getattr(intern!(ob.py(), "day"))?.extract()?,
+                )
+                .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
 
-        #[cfg(Py_LIMITED_API)]
-        let time = Time::from_hms_micro(
-            ob.getattr(intern!(ob.py(), "hour"))?.extract()?,
-            ob.getattr(intern!(ob.py(), "minute"))?.extract()?,
-            ob.getattr(intern!(ob.py(), "second"))?.extract()?,
-            ob.getattr(intern!(ob.py(), "microsecond"))?.extract()?,
-        )
-        .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
+                let time = Time::from_hms_micro(
+                    ob.getattr(intern!(ob.py(), "hour"))?.extract()?,
+                    ob.getattr(intern!(ob.py(), "minute"))?.extract()?,
+                    ob.getattr(intern!(ob.py(), "second"))?.extract()?,
+                    ob.getattr(intern!(ob.py(), "microsecond"))?.extract()?,
+                )
+                .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
 
-        // Create the PrimitiveDateTime first
+                (date, time)
+            }
+        };
         let primitive_dt = PrimitiveDateTime::new(date, time);
-
-        // Then convert to UTC
         Ok(primitive_dt.assume_utc().into())
     }
 }
