@@ -1161,7 +1161,7 @@ fn impl_complex_enum_variant_cls(
 fn impl_complex_enum_variant_match_args(
     ctx @ Ctx { pyo3_path, .. }: &Ctx,
     variant_cls_type: &syn::Type,
-    field_names: &mut Vec<Ident>,
+    field_names: &[Ident],
 ) -> syn::Result<(MethodAndMethodDef, syn::ImplItemFn)> {
     let ident = format_ident!("__match_args__");
     let field_names_unraw: Vec<_> = field_names.iter().map(|name| name.unraw()).collect();
@@ -1231,7 +1231,7 @@ fn impl_complex_enum_struct_variant_cls(
     }
 
     let (variant_match_args, match_args_const_impl) =
-        impl_complex_enum_variant_match_args(ctx, &variant_cls_type, &mut field_names)?;
+        impl_complex_enum_variant_match_args(ctx, &variant_cls_type, &field_names)?;
 
     field_getters.push(variant_match_args);
 
@@ -1406,7 +1406,7 @@ fn impl_complex_enum_tuple_variant_cls(
     slots.push(variant_getitem);
 
     let (variant_match_args, match_args_method_impl) =
-        impl_complex_enum_variant_match_args(ctx, &variant_cls_type, &mut field_names)?;
+        impl_complex_enum_variant_match_args(ctx, &variant_cls_type, &field_names)?;
 
     field_getters.push(variant_match_args);
 
