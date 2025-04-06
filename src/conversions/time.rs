@@ -104,7 +104,7 @@ fn extract_date_time(dt: &Bound<'_, PyAny>) -> PyResult<(Date, Time)> {
             month_from_number!(dt.get_month()),
             dt.get_day(),
         )
-            .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
+        .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
 
         let time = Time::from_hms_micro(
             dt.get_hour(),
@@ -112,7 +112,7 @@ fn extract_date_time(dt: &Bound<'_, PyAny>) -> PyResult<(Date, Time)> {
             dt.get_second(),
             dt.get_microsecond(),
         )
-            .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
+        .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
         Ok((date, time))
     }
 
@@ -123,7 +123,7 @@ fn extract_date_time(dt: &Bound<'_, PyAny>) -> PyResult<(Date, Time)> {
             month_from_number!(dt.getattr(intern!(dt.py(), "month"))?.extract::<u8>()?),
             dt.getattr(intern!(dt.py(), "day"))?.extract()?,
         )
-            .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
+        .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
 
         let time = Time::from_hms_micro(
             dt.getattr(intern!(dt.py(), "hour"))?.extract()?,
@@ -131,7 +131,7 @@ fn extract_date_time(dt: &Bound<'_, PyAny>) -> PyResult<(Date, Time)> {
             dt.getattr(intern!(dt.py(), "second"))?.extract()?,
             dt.getattr(intern!(dt.py(), "microsecond"))?.extract()?,
         )
-            .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
+        .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
 
         Ok((date, time))
     }
@@ -862,30 +862,6 @@ mod tests {
         });
     }
 
-    proptest! {
-        #[test]
-        fn test_time_duration_roundtrip(days in -9999i64..=9999i64, seconds in -86399i64..=86399i64, microseconds in -999999i64..=999999i64) {
-            // Generate a valid duration that should roundtrip successfully
-            Python::with_gil(|py| {
-                let duration = Duration::days(days) + Duration::seconds(seconds) + Duration::microseconds(microseconds);
-
-                // Skip if outside Python's timedelta bounds
-                let max_seconds = 86_399_999_913_600;
-                if duration.whole_seconds() <= max_seconds && duration.whole_seconds() >= -max_seconds {
-                    let py_delta = duration.into_pyobject(py).unwrap();
-
-                    // You could add FromPyObject for Duration to fully test the roundtrip
-                    // For now we'll just check that the Python object has the expected properties
-                    let total_seconds = py_delta.call_method0(intern!(py, "total_seconds")).unwrap().extract::<f64>().unwrap();
-                    let expected_seconds = duration.whole_seconds() as f64 + (duration.subsec_nanoseconds() as f64 / 1_000_000_000.0);
-
-                    // Allow small floating point differences
-                    assert_eq!(total_seconds, expected_seconds);
-                }
-            })
-        }
-    }
-
     #[test]
     fn test_time_date_conversion() {
         Python::with_gil(|py| {
@@ -1027,47 +1003,6 @@ mod tests {
             let mock_date = date_type.call1((2023, 13, 1));
             assert!(mock_date.is_err());
         });
-    }
-
-    proptest! {
-        #[test]
-        fn test_all_valid_dates(
-            year in 1i32..=9999,
-            month_num in 1u8..=12,
-        ) {
-            Python::with_gil(|py| {
-                let month = match month_num {
-                    1 => (Month::January, 31),
-                    2 => {
-                        // Handle leap years
-                        if (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0) {
-                            (Month::February, 29)
-                        } else {
-                            (Month::February, 28)
-                        }
-                    },
-                    3 => (Month::March, 31),
-                    4 => (Month::April, 30),
-                    5 => (Month::May, 31),
-                    6 => (Month::June, 30),
-                    7 => (Month::July, 31),
-                    8 => (Month::August, 31),
-                    9 => (Month::September, 30),
-                    10 => (Month::October, 31),
-                    11 => (Month::November, 30),
-                    12 => (Month::December, 31),
-                    _ => unreachable!(),
-                };
-
-                // Test the entire month
-                for day in 1..=month.1 {
-                    let date = Date::from_calendar_date(year, month.0, day).unwrap();
-                    let py_date = date.into_pyobject(py).unwrap();
-                    let roundtripped: Date = py_date.extract().unwrap();
-                    assert_eq!(date, roundtripped);
-                }
-            });
-        }
     }
 
     #[test]
@@ -1233,23 +1168,6 @@ mod tests {
             let result = time_type.call1((12, 30, 30, 1000000));
             assert!(result.is_err());
         });
-    }
-
-    proptest! {
-        #[test]
-        fn test_time_time_roundtrip_random(
-            hour in 0u8..=23u8,
-            minute in 0u8..=59u8,
-            second in 0u8..=59u8,
-            microsecond in 0u32..=999999u32
-        ) {
-            Python::with_gil(|py| {
-                let time = Time::from_hms_micro(hour, minute, second, microsecond).unwrap();
-                let py_time = time.into_pyobject(py).unwrap();
-                let roundtripped: Time = py_time.extract().unwrap();
-                assert_eq!(time, roundtripped);
-            });
-        }
     }
 
     #[test]
@@ -1465,31 +1383,6 @@ mod tests {
         });
     }
 
-    // proptest! {
-    //     #[test]
-    //     fn test_time_primitive_datetime_roundtrip_random(
-    //         year in 1i32..=9999i32,
-    //         month in 1u8..=12u8,
-    //         day in 1u8..=28u8, // Use only valid days for all months
-    //         hour in 0u8..=23u8,
-    //         minute in 0u8..=59u8,
-    //         second in 0u8..=59u8,
-    //         microsecond in 0u32..=999999u32
-    //     ) {
-    //         Python::with_gil(|py| {
-    //             let month = month_from_number!(month);
-    //
-    //             let date = Date::from_calendar_date(year, month, day).unwrap();
-    //             let time = Time::from_hms_micro(hour, minute, second, microsecond).unwrap();
-    //             let dt = PrimitiveDateTime::new(date, time);
-    //
-    //             let py_dt = dt.into_pyobject(py).unwrap();
-    //             let roundtripped: PrimitiveDateTime = py_dt.extract().unwrap();
-    //             assert_eq!(dt, roundtripped);
-    //         });
-    //     }
-    // }
-
     #[test]
     fn test_time_primitive_datetime_leap_years() {
         Python::with_gil(|py| {
@@ -1589,28 +1482,6 @@ mod tests {
             assert_eq!(neg_roundtripped.whole_hours(), -11);
             assert_eq!(neg_roundtripped.minutes_past_hour(), -30);
         });
-    }
-
-    proptest! {
-        #[test]
-        fn test_time_utc_offset_roundtrip_random(
-            hours in -23i8..=23i8,
-            minutes in -59i8..=59i8
-        ) {
-            // Skip invalid combinations where hour and minute signs don't match
-            if (hours < 0 && minutes > 0) || (hours > 0 && minutes < 0) {
-                return Ok(());
-            }
-
-            Python::with_gil(|py| {
-                if let Ok(offset) = UtcOffset::from_hms(hours, minutes, 0) {
-                    let py_tz = offset.into_pyobject(py).unwrap();
-                    let roundtripped: UtcOffset = py_tz.extract().unwrap();
-                    assert_eq!(roundtripped.whole_hours(), hours);
-                    assert_eq!(roundtripped.minutes_past_hour(), minutes);
-                }
-            });
-        }
     }
 
     #[test]
@@ -1752,47 +1623,6 @@ mod tests {
             // so we don't test for seconds_past_minute
         });
     }
-
-    // proptest! {
-    //     #[test]
-    //     fn test_time_offset_datetime_roundtrip_random(
-    //         year in 1i32..=9999i32,
-    //         month in 1u8..=12u8,
-    //         day in 1u8..=28u8, // Use only valid days for all months
-    //         hour in 0u8..=23u8,
-    //         minute in 0u8..=59u8,
-    //         second in 0u8..=59u8,
-    //         microsecond in 0u32..=999999u32,
-    //         tz_hour in -23i8..=23i8,
-    //         tz_minute in 0i8..=59i8
-    //     ) {
-    //         Python::with_gil(|py| {
-    //             let month = month_from_number!(month);
-    //
-    //             let date = Date::from_calendar_date(year, month, day).unwrap();
-    //             let time = Time::from_hms_micro(hour, minute, second, microsecond).unwrap();
-    //
-    //             // Handle timezone sign correctly
-    //             let tz_minute = if tz_hour < 0 { -tz_minute } else { tz_minute };
-    //
-    //             if let Ok(offset) = UtcOffset::from_hms(tz_hour, tz_minute, 0) {
-    //                 let dt = PrimitiveDateTime::new(date, time).assume_offset(offset);
-    //                 let py_dt = dt.into_pyobject(py).unwrap();
-    //                 let roundtripped: OffsetDateTime = py_dt.extract().unwrap();
-    //
-    //                 assert_eq!(dt.year(), roundtripped.year());
-    //                 assert_eq!(dt.month(), roundtripped.month());
-    //                 assert_eq!(dt.day(), roundtripped.day());
-    //                 assert_eq!(dt.hour(), roundtripped.hour());
-    //                 assert_eq!(dt.minute(), roundtripped.minute());
-    //                 assert_eq!(dt.second(), roundtripped.second());
-    //                 assert_eq!(dt.microsecond(), roundtripped.microsecond());
-    //                 assert_eq!(dt.offset().whole_hours(), roundtripped.offset().whole_hours());
-    //                 assert_eq!(dt.offset().minutes_past_hour(), roundtripped.offset().minutes_past_hour());
-    //             }
-    //         });
-    //     }
-    // }
 
     #[test]
     fn test_time_utc_datetime_conversion() {
@@ -1951,35 +1781,247 @@ mod tests {
         });
     }
 
-    // proptest! {
-    // #[test]
-    // fn test_time_utc_datetime_roundtrip_random(
-    //     year in 1i32..=9999i32,
-    //     month in 1u8..=12u8,
-    //     day in 1u8..=28u8, // Use only valid days for all months
-    //     hour in 0u8..=23u8,
-    //     minute in 0u8..=59u8,
-    //     second in 0u8..=59u8,
-    //     microsecond in 0u32..=999999u32
-    // ) {
-    //     Python::with_gil(|py| {
-    //         let month = month_from_number!(month);
-    //
-    //         let date = Date::from_calendar_date(year, month, day).unwrap();
-    //         let time = Time::from_hms_micro(hour, minute, second, microsecond).unwrap();
-    //         let primitive_dt = PrimitiveDateTime::new(date, time);
-    //         let dt: UtcDateTime = primitive_dt.assume_utc().into();
-    //
-    //         let py_dt = dt.into_pyobject(py).unwrap();
-    //         let roundtripped: UtcDateTime = py_dt.extract().unwrap();
-    //
-    //         assert_eq!(dt.year(), roundtripped.year());
-    //         assert_eq!(dt.month(), roundtripped.month());
-    //         assert_eq!(dt.day(), roundtripped.day());
-    //         assert_eq!(dt.hour(), roundtripped.hour());
-    //         assert_eq!(dt.minute(), roundtripped.minute());
-    //         assert_eq!(dt.second(), roundtripped.second());
-    //         assert_eq!(dt.microsecond(), roundtripped.microsecond());
-    //     });
-    // }
+    proptest! {
+    #[test]
+    fn test_time_utc_datetime_roundtrip_random(
+        year in 1i32..=9999i32,
+        month in 1u8..=12u8,
+        day in 1u8..=28u8, // Use only valid days for all months
+        hour in 0u8..=23u8,
+        minute in 0u8..=59u8,
+        second in 0u8..=59u8,
+        microsecond in 0u32..=999999u32
+    ) {
+        Python::with_gil(|py| {
+            let month = match month {
+                1 => Month::January,
+                2 => Month::February,
+                3 => Month::March,
+                4 => Month::April,
+                5 => Month::May,
+                6 => Month::June,
+                7 => Month::July,
+                8 => Month::August,
+                9 => Month::September,
+                10 => Month::October,
+                11 => Month::November,
+                12 => Month::December,
+                _ => unreachable!(),
+            };
+
+            let date = Date::from_calendar_date(year, month, day).unwrap();
+            let time = Time::from_hms_micro(hour, minute, second, microsecond).unwrap();
+            let primitive_dt = PrimitiveDateTime::new(date, time);
+            let dt: UtcDateTime = primitive_dt.assume_utc().into();
+
+            let py_dt = dt.into_pyobject(py).unwrap();
+            let roundtripped: UtcDateTime = py_dt.extract().unwrap();
+
+            assert_eq!(dt.year(), roundtripped.year());
+            assert_eq!(dt.month(), roundtripped.month());
+            assert_eq!(dt.day(), roundtripped.day());
+            assert_eq!(dt.hour(), roundtripped.hour());
+            assert_eq!(dt.minute(), roundtripped.minute());
+            assert_eq!(dt.second(), roundtripped.second());
+            assert_eq!(dt.microsecond(), roundtripped.microsecond());
+        })}
+    }
+
+    proptest! {
+        #[test]
+        fn test_time_duration_roundtrip(days in -9999i64..=9999i64, seconds in -86399i64..=86399i64, microseconds in -999999i64..=999999i64) {
+            // Generate a valid duration that should roundtrip successfully
+            Python::with_gil(|py| {
+                let duration = Duration::days(days) + Duration::seconds(seconds) + Duration::microseconds(microseconds);
+
+                // Skip if outside Python's timedelta bounds
+                let max_seconds = 86_399_999_913_600;
+                if duration.whole_seconds() <= max_seconds && duration.whole_seconds() >= -max_seconds {
+                    let py_delta = duration.into_pyobject(py).unwrap();
+
+                    // You could add FromPyObject for Duration to fully test the roundtrip
+                    // For now we'll just check that the Python object has the expected properties
+                    let total_seconds = py_delta.call_method0(intern!(py, "total_seconds")).unwrap().extract::<f64>().unwrap();
+                    let expected_seconds = duration.whole_seconds() as f64 + (duration.subsec_nanoseconds() as f64 / 1_000_000_000.0);
+
+                    // Allow small floating point differences
+                    assert_eq!(total_seconds, expected_seconds);
+                }
+            })
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_all_valid_dates(
+            year in 1i32..=9999,
+            month_num in 1u8..=12,
+        ) {
+            Python::with_gil(|py| {
+                let month = match month_num {
+                    1 => (Month::January, 31),
+                    2 => {
+                        // Handle leap years
+                        if (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0) {
+                            (Month::February, 29)
+                        } else {
+                            (Month::February, 28)
+                        }
+                    },
+                    3 => (Month::March, 31),
+                    4 => (Month::April, 30),
+                    5 => (Month::May, 31),
+                    6 => (Month::June, 30),
+                    7 => (Month::July, 31),
+                    8 => (Month::August, 31),
+                    9 => (Month::September, 30),
+                    10 => (Month::October, 31),
+                    11 => (Month::November, 30),
+                    12 => (Month::December, 31),
+                    _ => unreachable!(),
+                };
+
+                // Test the entire month
+                for day in 1..=month.1 {
+                    let date = Date::from_calendar_date(year, month.0, day).unwrap();
+                    let py_date = date.into_pyobject(py).unwrap();
+                    let roundtripped: Date = py_date.extract().unwrap();
+                    assert_eq!(date, roundtripped);
+                }
+            });
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_time_time_roundtrip_random(
+            hour in 0u8..=23u8,
+            minute in 0u8..=59u8,
+            second in 0u8..=59u8,
+            microsecond in 0u32..=999999u32
+        ) {
+            Python::with_gil(|py| {
+                let time = Time::from_hms_micro(hour, minute, second, microsecond).unwrap();
+                let py_time = time.into_pyobject(py).unwrap();
+                let roundtripped: Time = py_time.extract().unwrap();
+                assert_eq!(time, roundtripped);
+            });
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_time_primitive_datetime_roundtrip_random(
+            year in 1i32..=9999i32,
+            month in 1u8..=12u8,
+            day in 1u8..=28u8, // Use only valid days for all months
+            hour in 0u8..=23u8,
+            minute in 0u8..=59u8,
+            second in 0u8..=59u8,
+            microsecond in 0u32..=999999u32
+        ) {
+            Python::with_gil(|py| {
+                let month = match month {
+                    1 => Month::January,
+                    2 => Month::February,
+                    3 => Month::March,
+                    4 => Month::April,
+                    5 => Month::May,
+                    6 => Month::June,
+                    7 => Month::July,
+                    8 => Month::August,
+                    9 => Month::September,
+                    10 => Month::October,
+                    11 => Month::November,
+                    12 => Month::December,
+                    _ => unreachable!(),
+                };
+
+                let date = Date::from_calendar_date(year, month, day).unwrap();
+                let time = Time::from_hms_micro(hour, minute, second, microsecond).unwrap();
+                let dt = PrimitiveDateTime::new(date, time);
+
+                let py_dt = dt.into_pyobject(py).unwrap();
+                let roundtripped: PrimitiveDateTime = py_dt.extract().unwrap();
+                assert_eq!(dt, roundtripped);
+            });
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_time_utc_offset_roundtrip_random(
+            hours in -23i8..=23i8,
+            minutes in -59i8..=59i8
+        ) {
+            // Skip invalid combinations where hour and minute signs don't match
+            if (hours < 0 && minutes > 0) || (hours > 0 && minutes < 0) {
+                return Ok(());
+            }
+
+            Python::with_gil(|py| {
+                if let Ok(offset) = UtcOffset::from_hms(hours, minutes, 0) {
+                    let py_tz = offset.into_pyobject(py).unwrap();
+                    let roundtripped: UtcOffset = py_tz.extract().unwrap();
+                    assert_eq!(roundtripped.whole_hours(), hours);
+                    assert_eq!(roundtripped.minutes_past_hour(), minutes);
+                }
+            });
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_time_offset_datetime_roundtrip_random(
+            year in 1i32..=9999i32,
+            month in 1u8..=12u8,
+            day in 1u8..=28u8, // Use only valid days for all months
+            hour in 0u8..=23u8,
+            minute in 0u8..=59u8,
+            second in 0u8..=59u8,
+            microsecond in 0u32..=999999u32,
+            tz_hour in -23i8..=23i8,
+            tz_minute in 0i8..=59i8
+        ) {
+            Python::with_gil(|py| {
+                let month = match month {
+                    1 => Month::January,
+                    2 => Month::February,
+                    3 => Month::March,
+                    4 => Month::April,
+                    5 => Month::May,
+                    6 => Month::June,
+                    7 => Month::July,
+                    8 => Month::August,
+                    9 => Month::September,
+                    10 => Month::October,
+                    11 => Month::November,
+                    12 => Month::December,
+                    _ => unreachable!(),
+                };
+
+                let date = Date::from_calendar_date(year, month, day).unwrap();
+                let time = Time::from_hms_micro(hour, minute, second, microsecond).unwrap();
+
+                // Handle timezone sign correctly
+                let tz_minute = if tz_hour < 0 { -tz_minute } else { tz_minute };
+
+                if let Ok(offset) = UtcOffset::from_hms(tz_hour, tz_minute, 0) {
+                    let dt = PrimitiveDateTime::new(date, time).assume_offset(offset);
+                    let py_dt = dt.into_pyobject(py).unwrap();
+                    let roundtripped: OffsetDateTime = py_dt.extract().unwrap();
+
+                    assert_eq!(dt.year(), roundtripped.year());
+                    assert_eq!(dt.month(), roundtripped.month());
+                    assert_eq!(dt.day(), roundtripped.day());
+                    assert_eq!(dt.hour(), roundtripped.hour());
+                    assert_eq!(dt.minute(), roundtripped.minute());
+                    assert_eq!(dt.second(), roundtripped.second());
+                    assert_eq!(dt.microsecond(), roundtripped.microsecond());
+                    assert_eq!(dt.offset().whole_hours(), roundtripped.offset().whole_hours());
+                    assert_eq!(dt.offset().minutes_past_hour(), roundtripped.offset().minutes_past_hour());
+                }
+            });
+        }
+    }
 }
