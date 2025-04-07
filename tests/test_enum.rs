@@ -369,3 +369,28 @@ fn custom_eq() {
         assert!(b.as_any().ne("A").unwrap());
     })
 }
+
+#[test]
+fn complex_enum_with_raw() {
+    #[pyclass]
+    #[derive(Clone, Copy)]
+    pub enum ComplexEnumWithRaw {
+        Raw { r#type: i32 },
+    }
+    Python::with_gil(|py| {
+        let complex = ComplexEnumWithRaw::Raw { r#type: 314159 };
+        let cls = py.get_type::<ComplexEnumWithRaw>();
+
+        // Cover simple field lookups
+        py_assert!(py, complex, "complex.type == 314159");
+
+        // Cover destructuring by pattern matching
+        py_run!(py, cls complex, r#"
+        match complex:
+            case cls.Raw(type=ty):
+                assert ty == 314159
+            case _:
+                assert False, "no matching variant found"
+        "#);
+    });
+}
