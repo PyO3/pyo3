@@ -537,14 +537,15 @@ mod once_lock_ext_sealed {
 /// Python thread.
 pub trait OnceExt: Sealed {
     ///The state of `Once`
-    type OnceState<'a>;
+    type OnceState;
+
     /// Similar to [`call_once`][Once::call_once], but releases the Python GIL temporarily
     /// if blocking on another thread currently calling this `Once`.
     fn call_once_py_attached(&self, py: Python<'_>, f: impl FnOnce());
 
     /// Similar to [`call_once_force`][Once::call_once_force], but releases the Python GIL
     /// temporarily if blocking on another thread currently calling this `Once`.
-    fn call_once_force_py_attached(&self, py: Python<'_>, f: impl FnOnce(Self::OnceState<'_>));
+    fn call_once_force_py_attached(&self, py: Python<'_>, f: impl FnOnce(&Self::OnceState));
 }
 
 /// Extension trait for [`std::sync::OnceLock`] which helps avoid deadlocks between the Python
@@ -582,10 +583,7 @@ where
 }
 
 impl OnceExt for Once {
-    type OnceState<'a>
-        = &'a OnceState
-    where
-        Self: 'a;
+    type OnceState = OnceState;
 
     fn call_once_py_attached(&self, py: Python<'_>, f: impl FnOnce()) {
         if self.is_completed() {
@@ -606,7 +604,7 @@ impl OnceExt for Once {
 
 #[cfg(feature = "parking_lot")]
 impl OnceExt for parking_lot::Once {
-    type OnceState<'a> = parking_lot::OnceState;
+    type OnceState = parking_lot::OnceState;
 
     fn call_once_py_attached(&self, _py: Python<'_>, f: impl FnOnce()) {
         if self.state().done() {
@@ -621,7 +619,11 @@ impl OnceExt for parking_lot::Once {
         });
     }
 
-    fn call_once_force_py_attached(&self, _py: Python<'_>, f: impl FnOnce(Self::OnceState<'_>)) {
+    fn call_once_force_py_attached(
+        &self,
+        _py: Python<'_>,
+        f: impl FnOnce(&parking_lot::OnceState),
+    ) {
         if self.state().done() {
             return;
         }
@@ -630,7 +632,7 @@ impl OnceExt for parking_lot::Once {
 
         self.call_once_force(move |state| {
             drop(ts_guard);
-            f(state);
+            f(&state);
         });
     }
 }
