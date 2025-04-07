@@ -1727,6 +1727,12 @@ impl<T> std::convert::From<Bound<'_, T>> for Py<T> {
     }
 }
 
+impl<T> std::convert::From<Borrowed<'_, '_, T>> for Py<T> {
+    fn from(value: Borrowed<'_, '_, T>) -> Self {
+        value.unbind()
+    }
+}
+
 impl<'a, T> std::convert::From<PyRef<'a, T>> for Py<T>
 where
     T: PyClass,
