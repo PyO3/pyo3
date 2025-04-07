@@ -1164,7 +1164,7 @@ fn impl_complex_enum_variant_match_args(
     field_names: &[Ident],
 ) -> syn::Result<(MethodAndMethodDef, syn::ImplItemFn)> {
     let ident = format_ident!("__match_args__");
-    let field_names_unraw: Vec<_> = field_names.iter().map(|name| name.unraw()).collect();
+    let field_names_unraw = field_names.iter().map(|name| name.unraw());
     let mut match_args_impl: syn::ImplItemFn = {
         parse_quote! {
             #[classattr]
