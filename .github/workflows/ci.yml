@@ -704,6 +704,7 @@ jobs:
 
   test-introspection:
     needs: [fmt]
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-test-introspection') || contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     strategy:
       matrix:
         platform:
