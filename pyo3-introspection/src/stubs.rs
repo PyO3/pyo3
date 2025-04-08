@@ -1,4 +1,4 @@
-use crate::model::{Argument, Class, Function, Module};
+use crate::model::{Argument, Class, Function, Module, VariableLengthArgument};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -60,7 +60,7 @@ fn function_stubs(function: &Function) -> String {
         parameters.push(argument_stub(argument));
     }
     if let Some(argument) = &function.arguments.vararg {
-        parameters.push(format!("*{}", argument_stub(argument)));
+        parameters.push(format!("*{}", variable_length_argument_stub(argument)));
     } else if !function.arguments.keyword_only_arguments.is_empty() {
         parameters.push("*".into());
     }
@@ -68,7 +68,7 @@ fn function_stubs(function: &Function) -> String {
         parameters.push(argument_stub(argument));
     }
     if let Some(argument) = &function.arguments.kwarg {
-        parameters.push(format!("**{}", argument_stub(argument)));
+        parameters.push(format!("**{}", variable_length_argument_stub(argument)));
     }
     format!("def {}({}): ...", function.name, parameters.join(", "))
 }
@@ -80,4 +80,8 @@ fn argument_stub(argument: &Argument) -> String {
         output.push_str(default_value);
     }
     output
+}
+
+fn variable_length_argument_stub(argument: &VariableLengthArgument) -> String {
+    argument.name.clone()
 }

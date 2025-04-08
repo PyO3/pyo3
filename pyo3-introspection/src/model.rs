@@ -24,11 +24,11 @@ pub struct Arguments {
     /// Regular arguments (between / and *)
     pub arguments: Vec<Argument>,
     /// *vararg
-    pub vararg: Option<Argument>,
+    pub vararg: Option<VariableLengthArgument>,
     /// Arguments after *
     pub keyword_only_arguments: Vec<Argument>,
     /// **kwarg
-    pub kwarg: Option<Argument>,
+    pub kwarg: Option<VariableLengthArgument>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
@@ -36,4 +36,10 @@ pub struct Argument {
     pub name: String,
     /// Default value as a Python expression
     pub default_value: Option<String>,
+}
+
+/// A variable length argument ie. *vararg or **kwarg
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+pub struct VariableLengthArgument {
+    pub name: String,
 }

@@ -1,4 +1,4 @@
-use crate::model::{Argument, Arguments, Class, Function, Module};
+use crate::model::{Argument, Arguments, Class, Function, Module, VariableLengthArgument};
 use anyhow::{bail, ensure, Context, Result};
 use goblin::elf::Elf;
 use goblin::mach::load_command::CommandVariant;
@@ -82,13 +82,19 @@ fn convert_module(
                             .map(convert_argument)
                             .collect(),
                         arguments: arguments.args.iter().map(convert_argument).collect(),
-                        vararg: arguments.vararg.as_ref().map(convert_argument),
+                        vararg: arguments
+                            .vararg
+                            .as_ref()
+                            .map(convert_variable_length_argument),
                         keyword_only_arguments: arguments
                             .kwonlyargs
                             .iter()
                             .map(convert_argument)
                             .collect(),
-                        kwarg: arguments.kwarg.as_ref().map(convert_argument),
+                        kwarg: arguments
+                            .kwarg
+                            .as_ref()
+                            .map(convert_variable_length_argument),
                     },
                 }),
             }
@@ -106,6 +112,12 @@ fn convert_argument(arg: &ChunkArgument) -> Argument {
     Argument {
         name: arg.name.clone(),
         default_value: arg.default.clone(),
+    }
+}
+
+fn convert_variable_length_argument(arg: &ChunkArgument) -> VariableLengthArgument {
+    VariableLengthArgument {
+        name: arg.name.clone(),
     }
 }
 
