@@ -573,6 +573,7 @@ def address_sanitizer(session: nox.Session):
 _IGNORE_CHANGELOG_PR_CATEGORIES = (
     "release",
     "docs",
+    "ci",
 )
 
 
