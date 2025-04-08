@@ -59,9 +59,7 @@ use crate::types::{PyAnyMethods, PyNone};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyDate, PyDateTime, PyDelta, PyTime, PyTimeAccess, PyTzInfo, PyTzInfoAccess};
 use crate::{Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
-use time::{
-    Date, Duration, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset,
-};
+use time::{Date, Duration, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
 // Macro for reference implementation
 macro_rules! impl_into_py_for_ref {
