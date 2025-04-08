@@ -812,6 +812,7 @@ mod tests {
             (year, month, day, hour, minute, second, microsecond)
         }
 
+        #[allow(clippy::too_many_arguments)]
         pub(crate) fn create_primitive_date_time_from_py(
             py: Python<'_>,
             year: u32,
