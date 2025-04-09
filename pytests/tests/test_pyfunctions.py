@@ -96,7 +96,7 @@ def test_positional_only_py(benchmark):
 
 
 def test_positional_only_rs(benchmark):
-    rust = benchmark(pyfunctions.simple_positional_only, 1, "foo")
+    rust = benchmark(pyfunctions.positional_only, 1, "foo")
     py = positional_only_py(1, "foo")
     assert rust == py
 

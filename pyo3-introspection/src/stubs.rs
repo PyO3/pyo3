@@ -85,3 +85,67 @@ fn argument_stub(argument: &Argument) -> String {
 fn variable_length_argument_stub(argument: &VariableLengthArgument) -> String {
     argument.name.clone()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::Arguments;
+
+    #[test]
+    fn function_stubs_with_variable_length() {
+        let function = Function {
+            name: "func".into(),
+            arguments: Arguments {
+                positional_only_arguments: vec![Argument {
+                    name: "posonly".into(),
+                    default_value: None,
+                }],
+                arguments: vec![Argument {
+                    name: "arg".into(),
+                    default_value: None,
+                }],
+                vararg: Some(VariableLengthArgument {
+                    name: "varargs".into(),
+                }),
+                keyword_only_arguments: vec![Argument {
+                    name: "karg".into(),
+                    default_value: None,
+                }],
+                kwarg: Some(VariableLengthArgument {
+                    name: "kwarg".into(),
+                }),
+            },
+        };
+        assert_eq!(
+            "def func(posonly, /, arg, *varargs, karg, **kwarg): ...",
+            function_stubs(&function)
+        )
+    }
+
+    #[test]
+    fn function_stubs_without_variable_length() {
+        let function = Function {
+            name: "afunc".into(),
+            arguments: Arguments {
+                positional_only_arguments: vec![Argument {
+                    name: "posonly".into(),
+                    default_value: Some("1".into()),
+                }],
+                arguments: vec![Argument {
+                    name: "arg".into(),
+                    default_value: Some("True".into()),
+                }],
+                vararg: None,
+                keyword_only_arguments: vec![Argument {
+                    name: "karg".into(),
+                    default_value: Some("\"foo\"".into()),
+                }],
+                kwarg: None,
+            },
+        };
+        assert_eq!(
+            "def afunc(posonly=1, /, arg=True, *, karg=\"foo\"): ...",
+            function_stubs(&function)
+        )
+    }
+}
