@@ -184,6 +184,17 @@ Adds a dependency on [num-rational](https://docs.rs/num-rational) and enables co
 
 Adds a dependency on [rust_decimal](https://docs.rs/rust_decimal) and enables conversions into its [`Decimal`](https://docs.rs/rust_decimal/latest/rust_decimal/struct.Decimal.html) type.
 
+### `time`
+
+Adds a dependency on [time](https://docs.rs/time) and requires MSRV 1.67.1. Enables conversions between [time](https://docs.rs/time)'s types and Python:
+- [Date](https://docs.rs/time/0.3.38/time/struct.Date.html) -> [`PyDate`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDate.html)
+- [Time](https://docs.rs/time/0.3.38/time/struct.Time.html) -> [`PyTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTime.html)
+- [OffsetDateTime](https://docs.rs/time/0.3.38/time/struct.OffsetDateTime.html) -> [`PyDateTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDateTime.html)
+- [PrimitiveDateTime](https://docs.rs/time/0.3.38/time/struct.PrimitiveDateTime.html) -> [`PyDateTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDateTime.html)
+- [Duration](https://docs.rs/time/0.3.38/time/struct.Duration.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
+- [UtcOffset](https://docs.rs/time/0.3.38/time/struct.UtcOffset.html) -> [`PyTzInfo`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTzInfo.html)
+- [UtcDateTime](https://docs.rs/time/0.3.38/time/struct.UtcDateTime.html) -> [`PyDateTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDateTime.html)
+
 ### `serde`
 
 Enables (de)serialization of `Py<T>` objects via [serde](https://serde.rs/).
