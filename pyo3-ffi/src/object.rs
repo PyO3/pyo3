@@ -25,8 +25,9 @@ pub use crate::cpython::object::PyTypeObject;
 /// This struct is anonymous in CPython, so the name was given by PyO3 because
 /// Rust structs need a name.
 pub struct PyObjectObFlagsAndRefcnt {
-    pub ob_flags: crate::PY_UINT32_T,
-    pub ob_refcnt: crate::PY_UINT32_T,
+    pub ob_flags: u16,
+    pub ob_overflow: u16,
+    pub ob_refcnt: u32,
 }
 
 #[repr(C)]
@@ -35,8 +36,9 @@ pub struct PyObjectObFlagsAndRefcnt {
 /// This struct is anonymous in CPython, so the name was given by PyO3 because
 /// Rust structs need a name.
 pub struct PyObjectObFlagsAndRefcnt {
-    pub ob_refcnt: crate::PY_UINT32_T,
-    pub ob_flags: crate::PY_UINT32_T,
+    pub ob_refcnt: u16,
+    pub ob_overflow: u16,
+    pub ob_flags: u32,
 }
 
 #[repr(C)]
