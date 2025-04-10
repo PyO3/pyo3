@@ -26,7 +26,7 @@ pub const _PY_MONITORING_EVENTS: usize = 17;
 #[cfg(all(Py_3_12, not(Py_3_14)))]
 pub const _PY_MONITORING_EVENTS: usize = 19;
 
-#[cfg(Py_3_12)]
+#[cfg(all(Py_3_12, not(Py_3_14)))]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct _Py_LocalMonitors {
@@ -37,7 +37,7 @@ pub struct _Py_LocalMonitors {
     }],
 }
 
-#[cfg(Py_3_12)]
+#[cfg(all(Py_3_12, not(Py_3_14)))]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct _Py_GlobalMonitors {
@@ -74,27 +74,24 @@ pub struct _PyCoLineInstrumentationData {
     pub line_delta: i8,
 }
 
-#[cfg(Py_3_14)]
-#[repr(C)]
-pub struct _PyCoLineInstrumentationData {
-    pub bytes_per_entry: u8,
-    pub data: [i8; 1],
-}
-
-#[cfg(Py_3_12)]
+#[cfg(all(Py_3_12, not(Py_3_14)))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct _PyCoMonitoringData {
     pub local_monitors: _Py_LocalMonitors,
     pub active_monitors: _Py_LocalMonitors,
     pub tools: *mut u8,
-    #[cfg(Py_3_14)]
-    pub tool_versions: [uintptr_t; _PY_MONITORING_TOOL_IDS],
     pub lines: *mut _PyCoLineInstrumentationData,
     pub line_tools: *mut u8,
     pub per_instruction_opcodes: *mut u8,
     pub per_instruction_tools: *mut u8,
 }
+
+#[cfg(Py_3_14)]
+opaque_struct!(_PyCoMonitoringData);
+
+#[cfg(Py_3_13)]
+opaque_struct!(_PyExecutorArray);
 
 #[repr(C)]
 #[cfg(all(Py_GIL_DISABLED, Py_3_14))]
@@ -130,9 +127,6 @@ pub struct PyCodeObject {
     pub co_weakreflist: *mut PyObject,
     pub co_extra: *mut c_void,
 }
-
-#[cfg(Py_3_13)]
-opaque_struct!(_PyExecutorArray);
 
 #[cfg(all(not(any(PyPy, GraalPy)), Py_3_8, not(Py_3_11)))]
 #[repr(C)]

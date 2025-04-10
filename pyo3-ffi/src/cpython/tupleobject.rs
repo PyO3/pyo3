@@ -1,10 +1,11 @@
 use crate::object::*;
 #[cfg(not(PyPy))]
-use crate::pyport::Py_ssize_t;
+use crate::pyport::{Py_hash_t, Py_ssize_t};
 
 #[repr(C)]
 pub struct PyTupleObject {
     pub ob_base: PyVarObject,
+    pub ob_hash: Py_hash_t,
     pub ob_item: [*mut PyObject; 1],
 }
 
