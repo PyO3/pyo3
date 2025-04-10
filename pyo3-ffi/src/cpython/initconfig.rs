@@ -93,6 +93,8 @@ pub struct PyConfig {
     pub tracemalloc: c_int,
     #[cfg(Py_3_12)]
     pub perf_profiling: c_int,
+    #[cfg(Py_3_14)]
+    pub remote_debug: c_int,
     pub import_time: c_int,
     #[cfg(Py_3_11)]
     pub code_debug_ranges: c_int,
@@ -141,6 +143,8 @@ pub struct PyConfig {
     pub safe_path: c_int,
     #[cfg(Py_3_12)]
     pub int_max_str_digits: c_int,
+    pub thread_inherit_context: c_int,
+    pub context_aware_warnings: c_int,
     // FIXME: this was backported to 3.13.2
     #[cfg(all(Py_3_14, target_os = "macos"))]
     pub use_system_logger: c_int,
