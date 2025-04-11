@@ -9,73 +9,32 @@ use std::ptr::addr_of_mut;
 #[cfg(all(Py_3_8, not(any(PyPy, GraalPy)), not(Py_3_11)))]
 opaque_struct!(_PyOpcache);
 
-#[cfg(Py_3_12)]
-pub const _PY_MONITORING_LOCAL_EVENTS: usize = 10;
-#[cfg(Py_3_12)]
-pub const _PY_MONITORING_UNGROUPED_EVENTS: usize = 15;
-#[cfg(Py_3_12)]
-pub const _PY_MONITORING_EVENTS: usize = 17;
+// skipped private _PY_MONITORING_LOCAL_EVENTS
+// skipped private _PY_MONITORING_UNGROUPED_EVENTS
+// skipped private _PY_MONITORING_EVENTS
+
+// skipped private _PyLocalMonitors
+// skipped private _Py_GlobalMonitors
+
+// skipped private _Py_CODEUNIT
+
+// skipped private _Py_OPCODE
+// skipped private _Py_OPARG
+
+// skipped private _py_make_codeunit
+
+// skipped private _py_set_opcode
+
+// skipped private _Py_MAKE_CODEUNIT
+// skipped private _Py_SET_OPCODE
 
 #[cfg(Py_3_12)]
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct _Py_LocalMonitors {
-    pub tools: [u8; if cfg!(Py_3_13) {
-        _PY_MONITORING_LOCAL_EVENTS
-    } else {
-        _PY_MONITORING_UNGROUPED_EVENTS
-    }],
-}
+opaque_struct!(_PyCoCached);
+
+// skipped private _PyCoLineInstrumentationData
 
 #[cfg(Py_3_12)]
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct _Py_GlobalMonitors {
-    pub tools: [u8; _PY_MONITORING_UNGROUPED_EVENTS],
-}
-
-// skipped _Py_CODEUNIT
-
-// skipped _Py_OPCODE
-// skipped _Py_OPARG
-
-// skipped _py_make_codeunit
-
-// skipped _py_set_opcode
-
-// skipped _Py_MAKE_CODEUNIT
-// skipped _Py_SET_OPCODE
-
-#[cfg(Py_3_12)]
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct _PyCoCached {
-    pub _co_code: *mut PyObject,
-    pub _co_varnames: *mut PyObject,
-    pub _co_cellvars: *mut PyObject,
-    pub _co_freevars: *mut PyObject,
-}
-
-#[cfg(Py_3_12)]
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct _PyCoLineInstrumentationData {
-    pub original_opcode: u8,
-    pub line_delta: i8,
-}
-
-#[cfg(Py_3_12)]
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct _PyCoMonitoringData {
-    pub local_monitors: _Py_LocalMonitors,
-    pub active_monitors: _Py_LocalMonitors,
-    pub tools: *mut u8,
-    pub lines: *mut _PyCoLineInstrumentationData,
-    pub line_tools: *mut u8,
-    pub per_instruction_opcodes: *mut u8,
-    pub per_instruction_tools: *mut u8,
-}
+opaque_struct!(_PyCoMonitoringData);
 
 #[cfg(all(not(any(PyPy, GraalPy)), not(Py_3_7)))]
 opaque_struct!(PyCodeObject);
@@ -177,20 +136,24 @@ pub struct PyCodeObject {
     pub co_linetable: *mut PyObject,
     pub co_weakreflist: *mut PyObject,
     #[cfg(not(Py_3_12))]
-    pub _co_code: *mut PyObject,
+    _co_code: *mut PyObject,
     #[cfg(not(Py_3_12))]
-    pub _co_linearray: *mut c_char,
+    _co_linearray: *mut c_char,
     #[cfg(Py_3_13)]
+    #[allow(
+        private_interfaces,
+        reason = "field is public, but the type is opaque and private"
+    )]
     pub co_executors: *mut _PyExecutorArray,
     #[cfg(Py_3_12)]
-    pub _co_cached: *mut _PyCoCached,
+    _co_cached: *mut _PyCoCached,
     #[cfg(all(Py_3_12, not(Py_3_13)))]
-    pub _co_instrumentation_version: u64,
+    _co_instrumentation_version: u64,
     #[cfg(Py_3_13)]
-    pub _co_instrumentation_version: libc::uintptr_t,
+    _co_instrumentation_version: libc::uintptr_t,
     #[cfg(Py_3_12)]
-    pub _co_monitoring: *mut _PyCoMonitoringData,
-    pub _co_firsttraceable: c_int,
+    _co_monitoring: *mut _PyCoMonitoringData,
+    _co_firsttraceable: c_int,
     pub co_extra: *mut c_void,
     pub co_code_adaptive: [c_char; 1],
 }

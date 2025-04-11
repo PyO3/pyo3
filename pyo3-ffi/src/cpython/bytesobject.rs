@@ -17,7 +17,7 @@ pub struct PyBytesObject {
 }
 
 #[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
-opaque_struct!(PyBytesObject);
+opaque_struct!(pub PyBytesObject);
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "_PyPyBytes_Resize")]

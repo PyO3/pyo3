@@ -33,7 +33,7 @@ pub struct PyCompilerFlags {
 #[cfg(all(Py_3_12, not(any(Py_3_13, PyPy, GraalPy))))]
 #[repr(C)]
 #[derive(Copy, Clone)]
-pub struct _PyCompilerSrcLocation {
+struct _PyCompilerSrcLocation {
     pub lineno: c_int,
     pub end_lineno: c_int,
     pub col_offset: c_int,
