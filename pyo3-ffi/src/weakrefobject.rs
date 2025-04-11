@@ -4,7 +4,7 @@ use std::os::raw::c_int;
 use std::ptr::addr_of_mut;
 
 #[cfg(all(not(PyPy), Py_LIMITED_API, not(GraalPy)))]
-opaque_struct!(PyWeakReference);
+opaque_struct!(pub PyWeakReference);
 
 #[cfg(all(not(PyPy), not(Py_LIMITED_API), not(GraalPy)))]
 pub use crate::_PyWeakReference as PyWeakReference;

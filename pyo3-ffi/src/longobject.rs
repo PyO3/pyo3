@@ -4,7 +4,7 @@ use libc::size_t;
 use std::os::raw::{c_char, c_double, c_int, c_long, c_longlong, c_ulong, c_ulonglong, c_void};
 use std::ptr::addr_of_mut;
 
-opaque_struct!(PyLongObject);
+opaque_struct!(pub PyLongObject);
 
 #[inline]
 pub unsafe fn PyLong_Check(op: *mut PyObject) -> c_int {

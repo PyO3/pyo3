@@ -1,7 +1,5 @@
 use crate::object::*;
 use crate::PyFrameObject;
-#[cfg(not(any(PyPy, GraalPy)))]
-use crate::_PyErr_StackItem;
 #[cfg(all(Py_3_11, not(any(PyPy, GraalPy))))]
 use std::os::raw::c_char;
 use std::os::raw::c_int;
@@ -20,7 +18,7 @@ pub struct PyGenObject {
     pub gi_weakreflist: *mut PyObject,
     pub gi_name: *mut PyObject,
     pub gi_qualname: *mut PyObject,
-    pub gi_exc_state: _PyErr_StackItem,
+    pub gi_exc_state: crate::cpython::pystate::_PyErr_StackItem,
     #[cfg(Py_3_11)]
     pub gi_origin_or_finalizer: *mut PyObject,
     #[cfg(Py_3_11)]

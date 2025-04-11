@@ -1,1 +1,1 @@
-opaque_struct!(PyArena);
+opaque_struct!(pub PyArena);
