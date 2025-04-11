@@ -44,9 +44,10 @@ Wait a couple of days in case anyone wants to hold up the release to add bugfixe
 ## 4. Put live
 
 To put live:
-- 1. run `nox -s publish` to put live on crates.io
-- 2. publish the release on Github
-- 3. merge the release PR
+- 1. merge the release PR
+- 2. publish a release on GitHub targeting the release branch
+
+CI will automatically push to `crates.io`.
 
 ## 5. Tidy the main branch
 
