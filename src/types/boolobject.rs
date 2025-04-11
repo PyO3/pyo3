@@ -11,6 +11,7 @@ use super::any::PyAnyMethods;
 use crate::conversion::IntoPyObject;
 use crate::BoundObject;
 use std::convert::Infallible;
+use std::ptr;
 
 /// Represents a Python `bool`.
 ///
@@ -61,7 +62,7 @@ pub trait PyBoolMethods<'py>: crate::sealed::Sealed {
 impl<'py> PyBoolMethods<'py> for Bound<'py, PyBool> {
     #[inline]
     fn is_true(&self) -> bool {
-        self.as_ptr() == unsafe { crate::ffi::Py_True() }
+        unsafe { ptr::eq(self.as_ptr(), ffi::Py_True()) }
     }
 }
 

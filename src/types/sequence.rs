@@ -397,6 +397,7 @@ impl PyTypeCheck for PySequence {
 mod tests {
     use crate::types::{PyAnyMethods, PyList, PySequence, PySequenceMethods, PyTuple};
     use crate::{ffi, IntoPyObject, PyObject, Python};
+    use std::ptr;
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object
@@ -548,7 +549,7 @@ mod tests {
             let ob = v.into_pyobject(py).unwrap();
             let seq = ob.downcast::<PySequence>().unwrap();
             assert!(seq.set_item(1, &obj).is_ok());
-            assert!(seq.get_item(1).unwrap().as_ptr() == obj.as_ptr());
+            assert!(ptr::eq(seq.get_item(1).unwrap().as_ptr(), obj.as_ptr()));
         });
 
         Python::with_gil(move |py| {

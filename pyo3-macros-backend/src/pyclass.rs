@@ -1188,15 +1188,16 @@ fn impl_complex_enum_variant_cls(
 fn impl_complex_enum_variant_match_args(
     ctx @ Ctx { pyo3_path, .. }: &Ctx,
     variant_cls_type: &syn::Type,
-    field_names: &mut Vec<Ident>,
+    field_names: &[Ident],
 ) -> syn::Result<(MethodAndMethodDef, syn::ImplItemFn)> {
     let ident = format_ident!("__match_args__");
+    let field_names_unraw = field_names.iter().map(|name| name.unraw());
     let mut match_args_impl: syn::ImplItemFn = {
         parse_quote! {
             #[classattr]
             fn #ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'_, #pyo3_path::types::PyTuple>> {
                 #pyo3_path::types::PyTuple::new::<&str, _>(py, [
-                    #(stringify!(#field_names),)*
+                    #(stringify!(#field_names_unraw),)*
                 ])
             }
         }
@@ -1257,7 +1258,7 @@ fn impl_complex_enum_struct_variant_cls(
     }
 
     let (variant_match_args, match_args_const_impl) =
-        impl_complex_enum_variant_match_args(ctx, &variant_cls_type, &mut field_names)?;
+        impl_complex_enum_variant_match_args(ctx, &variant_cls_type, &field_names)?;
 
     field_getters.push(variant_match_args);
 
@@ -1432,7 +1433,7 @@ fn impl_complex_enum_tuple_variant_cls(
     slots.push(variant_getitem);
 
     let (variant_match_args, match_args_method_impl) =
-        impl_complex_enum_variant_match_args(ctx, &variant_cls_type, &mut field_names)?;
+        impl_complex_enum_variant_match_args(ctx, &variant_cls_type, &field_names)?;
 
     field_getters.push(variant_match_args);
 
@@ -1743,7 +1744,7 @@ fn complex_enum_variant_field_getter<'a>(
     let spec = FnSpec {
         tp: crate::method::FnType::Getter(self_type.clone()),
         name: field_name,
-        python_name: field_name.clone(),
+        python_name: field_name.unraw(),
         signature,
         convention: crate::method::CallingConvention::Noargs,
         text_signature: None,

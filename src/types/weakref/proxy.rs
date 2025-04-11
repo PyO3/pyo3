@@ -264,6 +264,7 @@ mod tests {
             use super::*;
             use crate::ffi;
             use crate::{py_result_ext::PyResultExt, types::PyDict, types::PyType};
+            use std::ptr;
 
             fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
                 let globals = PyDict::new(py);
@@ -349,8 +350,10 @@ mod tests {
                         let obj = obj.unwrap();
 
                         assert!(obj.is_some());
-                        assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()
-                            && obj.is_exact_instance(&class)));
+                        assert!(
+                            obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())
+                                && obj.is_exact_instance(&class))
+                        );
                     }
 
                     drop(object);
@@ -381,8 +384,10 @@ mod tests {
                         let obj = unsafe { reference.upgrade_as_unchecked::<PyAny>() };
 
                         assert!(obj.is_some());
-                        assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()
-                            && obj.is_exact_instance(&class)));
+                        assert!(
+                            obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())
+                                && obj.is_exact_instance(&class))
+                        );
                     }
 
                     drop(object);
@@ -439,6 +444,7 @@ mod tests {
         mod pyo3_pyclass {
             use super::*;
             use crate::{pyclass, Py};
+            use std::ptr;
 
             #[pyclass(weakref, crate = "crate")]
             struct WeakrefablePyClass {}
@@ -520,7 +526,7 @@ mod tests {
                         let obj = obj.unwrap();
 
                         assert!(obj.is_some());
-                        assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()));
+                        assert!(obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())));
                     }
 
                     drop(object);
@@ -548,7 +554,7 @@ mod tests {
                         let obj = unsafe { reference.upgrade_as_unchecked::<WeakrefablePyClass>() };
 
                         assert!(obj.is_some());
-                        assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()));
+                        assert!(obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())));
                     }
 
                     drop(object);
@@ -611,6 +617,7 @@ mod tests {
             use super::*;
             use crate::ffi;
             use crate::{py_result_ext::PyResultExt, types::PyDict, types::PyType};
+            use std::ptr;
 
             fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
                 let globals = PyDict::new(py);
@@ -687,8 +694,10 @@ mod tests {
                         let obj = obj.unwrap();
 
                         assert!(obj.is_some());
-                        assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()
-                            && obj.is_exact_instance(&class)));
+                        assert!(
+                            obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())
+                                && obj.is_exact_instance(&class))
+                        );
                     }
 
                     drop(object);
@@ -719,8 +728,10 @@ mod tests {
                         let obj = unsafe { reference.upgrade_as_unchecked::<PyAny>() };
 
                         assert!(obj.is_some());
-                        assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()
-                            && obj.is_exact_instance(&class)));
+                        assert!(
+                            obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())
+                                && obj.is_exact_instance(&class))
+                        );
                     }
 
                     drop(object);
@@ -778,6 +789,7 @@ mod tests {
         mod pyo3_pyclass {
             use super::*;
             use crate::{pyclass, pymethods, Py};
+            use std::ptr;
 
             #[pyclass(weakref, crate = "crate")]
             struct WeakrefablePyClass {}
@@ -854,7 +866,7 @@ mod tests {
                         let obj = obj.unwrap();
 
                         assert!(obj.is_some());
-                        assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()));
+                        assert!(obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())));
                     }
 
                     drop(object);
@@ -882,7 +894,7 @@ mod tests {
                         let obj = unsafe { reference.upgrade_as_unchecked::<WeakrefablePyClass>() };
 
                         assert!(obj.is_some());
-                        assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()));
+                        assert!(obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())));
                     }
 
                     drop(object);

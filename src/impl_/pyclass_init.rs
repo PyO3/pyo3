@@ -5,6 +5,7 @@ use crate::types::PyType;
 use crate::{ffi, Borrowed, PyErr, PyResult, Python};
 use crate::{ffi::PyTypeObject, sealed::Sealed, type_object::PyTypeInfo};
 use std::marker::PhantomData;
+use std::ptr;
 
 /// Initializer for Python types.
 ///
@@ -38,7 +39,7 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
             subtype: *mut PyTypeObject,
         ) -> PyResult<*mut ffi::PyObject> {
             // HACK (due to FIXME below): PyBaseObject_Type's tp_new isn't happy with NULL arguments
-            let is_base_object = type_object == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type);
+            let is_base_object = ptr::eq(type_object, ptr::addr_of!(ffi::PyBaseObject_Type));
             let subtype_borrowed: Borrowed<'_, '_, PyType> = unsafe {
                 subtype
                     .cast::<ffi::PyObject>()
