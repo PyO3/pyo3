@@ -72,6 +72,9 @@ def _supported_interpreter_versions(
     min_minor = int(min_version.split(".")[1])
     max_minor = int(max_version.split(".")[1])
     versions = [f"{major}.{minor}" for minor in range(min_minor, max_minor + 1)]
+    # Add free-threaded builds for 3.13+
+    if python_impl == "cpython":
+        versions += [f"{major}.{minor}t" for minor in range(13, max_minor + 1)]
     return versions
 
 
@@ -725,7 +728,10 @@ def check_feature_powerset(session: nox.Session):
 
     cargo_toml = toml.loads((PYO3_DIR / "Cargo.toml").read_text())
 
-    EXPECTED_ABI3_FEATURES = {f"abi3-py3{ver.split('.')[1]}" for ver in PY_VERSIONS}
+    # free-threaded builds do not support ABI3 (yet)
+    EXPECTED_ABI3_FEATURES = {
+        f"abi3-py3{ver.split('.')[1]}" for ver in PY_VERSIONS if not ver.endswith("t")
+    }
 
     EXCLUDED_FROM_FULL = {
         "nightly",
