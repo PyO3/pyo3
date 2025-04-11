@@ -166,6 +166,15 @@ extern "C" {
 
 // skipped _Py_IsOwnedByCurrentThread
 
+#[cfg(GraalPy)]
+extern "C" {
+    #[cfg(GraalPy)]
+    fn _Py_TYPE(arg1: *const PyObject) -> *mut PyTypeObject;
+
+    #[cfg(GraalPy)]
+    fn _Py_SIZE(arg1: *const PyObject) -> Py_ssize_t;
+}
+
 #[inline]
 #[cfg(not(Py_3_14))]
 pub unsafe fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject {

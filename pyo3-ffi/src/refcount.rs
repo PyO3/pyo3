@@ -159,12 +159,6 @@ extern "C" {
 
     #[cfg(GraalPy)]
     fn _Py_REFCNT(arg1: *const PyObject) -> Py_ssize_t;
-
-    #[cfg(GraalPy)]
-    fn _Py_TYPE(arg1: *const PyObject) -> *mut PyTypeObject;
-
-    #[cfg(GraalPy)]
-    fn _Py_SIZE(arg1: *const PyObject) -> Py_ssize_t;
 }
 
 #[inline(always)]
