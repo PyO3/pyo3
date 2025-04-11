@@ -55,10 +55,13 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
             .strip_suffix(".html")
             .unwrap();
 
-        if struct_name == "PyConfig" && pyo3_build_config::get().version == PY_3_13 {
-            // https://github.com/python/cpython/issues/130940
-            // PyConfig has an ABI break on Python 3.13.1 -> 3.13.2, waiting for advice
-            // how to proceed in PyO3.
+        if struct_name == "_PyCoLineInstrumentationData"
+            && pyo3_build_config::get().version == PY_3_13
+        {
+            // private type, fields changed name in 3.13.2 -> 3.13.3
+            //
+            // PyO3 0.25 will remove this struct, ignoring temporarily just to unblock CI
+            // changed, the size stayed the same.
             continue;
         }
 
