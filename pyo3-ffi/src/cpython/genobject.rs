@@ -18,7 +18,8 @@ pub struct PyGenObject {
     pub gi_weakreflist: *mut PyObject,
     pub gi_name: *mut PyObject,
     pub gi_qualname: *mut PyObject,
-    #[allow(private_interfaces, reason = "field is public but type is private")]
+    // field is public but type is private, private_interfaces lint requires MSRV 1.74
+    #[allow(unknown_lints, private_interfaces)]
     pub gi_exc_state: crate::cpython::pystate::_PyErr_StackItem,
     #[cfg(Py_3_11)]
     pub gi_origin_or_finalizer: *mut PyObject,
