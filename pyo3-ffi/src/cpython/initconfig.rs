@@ -143,7 +143,9 @@ pub struct PyConfig {
     pub safe_path: c_int,
     #[cfg(Py_3_12)]
     pub int_max_str_digits: c_int,
+    #[cfg(Py_3_14)]
     pub thread_inherit_context: c_int,
+    #[cfg(Py_3_14)]
     pub context_aware_warnings: c_int,
     // FIXME: this was backported to 3.13.2
     #[cfg(all(Py_3_14, target_os = "macos"))]
