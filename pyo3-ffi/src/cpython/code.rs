@@ -2,6 +2,8 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 
 #[allow(unused_imports)]
+use libc::uintptr_t;
+#[allow(unused_imports)]
 use std::os::raw::{c_char, c_int, c_short, c_uchar, c_void};
 #[cfg(not(any(PyPy, GraalPy)))]
 use std::ptr::addr_of_mut;
@@ -9,14 +11,22 @@ use std::ptr::addr_of_mut;
 #[cfg(all(Py_3_8, not(any(PyPy, GraalPy)), not(Py_3_11)))]
 opaque_struct!(_PyOpcache);
 
-#[cfg(Py_3_12)]
+#[cfg(Py_3_14)]
+pub const _PY_MONITORING_TOOL_IDS: usize = 8;
+#[cfg(Py_3_14)]
+pub const _PY_MONITORING_LOCAL_EVENTS: usize = 11;
+#[cfg(all(Py_3_12, not(Py_3_14)))]
 pub const _PY_MONITORING_LOCAL_EVENTS: usize = 10;
-#[cfg(Py_3_12)]
+#[cfg(Py_3_14)]
+pub const _PY_MONITORING_UNGROUPED_EVENTS: usize = 16;
+#[cfg(all(Py_3_12, not(Py_3_14)))]
 pub const _PY_MONITORING_UNGROUPED_EVENTS: usize = 15;
-#[cfg(Py_3_12)]
+#[cfg(Py_3_14)]
 pub const _PY_MONITORING_EVENTS: usize = 17;
+#[cfg(all(Py_3_12, not(Py_3_14)))]
+pub const _PY_MONITORING_EVENTS: usize = 19;
 
-#[cfg(Py_3_12)]
+#[cfg(all(Py_3_12, not(Py_3_14)))]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct _Py_LocalMonitors {
@@ -27,7 +37,7 @@ pub struct _Py_LocalMonitors {
     }],
 }
 
-#[cfg(Py_3_12)]
+#[cfg(all(Py_3_12, not(Py_3_14)))]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct _Py_GlobalMonitors {
@@ -56,7 +66,7 @@ pub struct _PyCoCached {
     pub _co_freevars: *mut PyObject,
 }
 
-#[cfg(Py_3_12)]
+#[cfg(all(Py_3_12, not(Py_3_14)))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct _PyCoLineInstrumentationData {
@@ -64,7 +74,7 @@ pub struct _PyCoLineInstrumentationData {
     pub line_delta: i8,
 }
 
-#[cfg(Py_3_12)]
+#[cfg(all(Py_3_12, not(Py_3_14)))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct _PyCoMonitoringData {
@@ -75,6 +85,19 @@ pub struct _PyCoMonitoringData {
     pub line_tools: *mut u8,
     pub per_instruction_opcodes: *mut u8,
     pub per_instruction_tools: *mut u8,
+}
+
+#[cfg(Py_3_14)]
+opaque_struct!(_PyCoMonitoringData);
+
+#[cfg(Py_3_13)]
+opaque_struct!(_PyExecutorArray);
+
+#[repr(C)]
+#[cfg(all(Py_GIL_DISABLED, Py_3_14))]
+pub struct _PyCodeArray {
+    size: Py_ssize_t,
+    entries: [c_char; 1],
 }
 
 #[cfg(all(not(any(PyPy, GraalPy)), not(Py_3_7)))]
@@ -104,9 +127,6 @@ pub struct PyCodeObject {
     pub co_weakreflist: *mut PyObject,
     pub co_extra: *mut c_void,
 }
-
-#[cfg(Py_3_13)]
-opaque_struct!(_PyExecutorArray);
 
 #[cfg(all(not(any(PyPy, GraalPy)), Py_3_8, not(Py_3_11)))]
 #[repr(C)]
@@ -190,8 +210,12 @@ pub struct PyCodeObject {
     pub _co_instrumentation_version: libc::uintptr_t,
     #[cfg(Py_3_12)]
     pub _co_monitoring: *mut _PyCoMonitoringData,
+    #[cfg(Py_3_14)]
+    pub _co_unique_id: Py_ssize_t,
     pub _co_firsttraceable: c_int,
     pub co_extra: *mut c_void,
+    #[cfg(all(Py_GIL_DISABLED, Py_3_14))]
+    pub co_tlbc: *mut _PyCodeArray,
     pub co_code_adaptive: [c_char; 1],
 }
 
