@@ -1,4 +1,4 @@
-use crate::model::{Class, Function, Module};
+use crate::model::{Argument, Arguments, Class, Function, Module, VariableLengthArgument};
 use anyhow::{bail, ensure, Context, Result};
 use goblin::elf::Elf;
 use goblin::mach::load_command::CommandVariant;
@@ -43,14 +43,14 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
         } = chunk
         {
             if name == main_module_name {
-                return parse_module(name, members, &chunks_by_id);
+                return convert_module(name, members, &chunks_by_id);
             }
         }
     }
     bail!("No module named {main_module_name} found")
 }
 
-fn parse_module(
+fn convert_module(
     name: &str,
     members: &[String],
     chunks_by_id: &HashMap<&String, &Chunk>,
@@ -66,10 +66,37 @@ fn parse_module(
                     members,
                     id: _,
                 } => {
-                    modules.push(parse_module(name, members, chunks_by_id)?);
+                    modules.push(convert_module(name, members, chunks_by_id)?);
                 }
                 Chunk::Class { name, id: _ } => classes.push(Class { name: name.into() }),
-                Chunk::Function { name, id: _ } => functions.push(Function { name: name.into() }),
+                Chunk::Function {
+                    name,
+                    id: _,
+                    arguments,
+                } => functions.push(Function {
+                    name: name.into(),
+                    arguments: Arguments {
+                        positional_only_arguments: arguments
+                            .posonlyargs
+                            .iter()
+                            .map(convert_argument)
+                            .collect(),
+                        arguments: arguments.args.iter().map(convert_argument).collect(),
+                        vararg: arguments
+                            .vararg
+                            .as_ref()
+                            .map(convert_variable_length_argument),
+                        keyword_only_arguments: arguments
+                            .kwonlyargs
+                            .iter()
+                            .map(convert_argument)
+                            .collect(),
+                        kwarg: arguments
+                            .kwarg
+                            .as_ref()
+                            .map(convert_variable_length_argument),
+                    },
+                }),
             }
         }
     }
@@ -79,6 +106,19 @@ fn parse_module(
         classes,
         functions,
     })
+}
+
+fn convert_argument(arg: &ChunkArgument) -> Argument {
+    Argument {
+        name: arg.name.clone(),
+        default_value: arg.default.clone(),
+    }
+}
+
+fn convert_variable_length_argument(arg: &ChunkArgument) -> VariableLengthArgument {
+    VariableLengthArgument {
+        name: arg.name.clone(),
+    }
 }
 
 fn find_introspection_chunks_in_binary_object(path: &Path) -> Result<Vec<Chunk>> {
@@ -252,5 +292,27 @@ enum Chunk {
     Function {
         id: String,
         name: String,
+        arguments: ChunkArguments,
     },
+}
+
+#[derive(Deserialize)]
+struct ChunkArguments {
+    #[serde(default)]
+    posonlyargs: Vec<ChunkArgument>,
+    #[serde(default)]
+    args: Vec<ChunkArgument>,
+    #[serde(default)]
+    vararg: Option<ChunkArgument>,
+    #[serde(default)]
+    kwonlyargs: Vec<ChunkArgument>,
+    #[serde(default)]
+    kwarg: Option<ChunkArgument>,
+}
+
+#[derive(Deserialize)]
+struct ChunkArgument {
+    name: String,
+    #[serde(default)]
+    default: Option<String>,
 }
