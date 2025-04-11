@@ -80,6 +80,21 @@ pub enum PyGILState_STATE {
     PyGILState_UNLOCKED,
 }
 
+struct HangThread;
+
+impl Drop for HangThread {
+    fn drop(&mut self) {
+        loop {
+            #[cfg(target_family = "unix")]
+            unsafe {
+                libc::pause();
+            }
+            #[cfg(not(target_family = "unix"))]
+            std::thread::sleep(std::time::Duration::from_secs(9_999_999));
+        }
+    }
+}
+
 // The PyGILState_Ensure function will call pthread_exit during interpreter shutdown,
 // which causes undefined behavior. Redirect to the "safe" version that hangs instead,
 // as Python 3.14 does.
