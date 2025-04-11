@@ -341,7 +341,8 @@
 // model opaque types:
 // https://doc.rust-lang.org/nomicon/ffi.html#representing-opaque-structs
 macro_rules! opaque_struct {
-    ($pub:vis $name:ident) => {
+    ($(#[$attrs:meta])* $pub:vis $name:ident) => {
+        $(#[$attrs])*
         #[repr(C)]
         $pub struct $name([u8; 0]);
     };
