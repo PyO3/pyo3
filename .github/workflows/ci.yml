@@ -225,6 +225,17 @@ jobs:
                 python-architecture: "x64",
                 rust-target: "x86_64-unknown-linux-gnu",
               }
+          # Also test free-threaded Python just for latest Python version, on ubuntu
+          # (run for all OSes on build-full)
+          - rust: stable
+            python-version: "3.13t"
+            platform:
+              {
+                os: "ubuntu-latest",
+                python-architecture: "x64",
+                rust-target: "x86_64-unknown-linux-gnu",
+              }
+
   build-full:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
@@ -252,6 +263,7 @@ jobs:
             "3.11",
             "3.12",
             "3.13",
+            "3.13t",
             "pypy3.9",
             "pypy3.10",
             "pypy3.11",
@@ -460,35 +472,6 @@ jobs:
           components: rust-src
       - run: cargo rustdoc --lib --no-default-features --features full,jiff-02 -Zunstable-options --config "build.rustdocflags=[\"--cfg\", \"docsrs\"]"
 
-  coverage:
-    if: ${{ github.event_name != 'merge_group' }}
-    needs: [fmt]
-    name: coverage ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: ["windows-latest", "macos-latest", "ubuntu-latest"]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - uses: Swatinem/rust-cache@v2
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview,rust-src
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - run: python -m pip install --upgrade pip && pip install nox
-      - run: nox -s coverage
-      - uses: codecov/codecov-action@v5
-        with:
-          files: coverage.json
-          name: ${{ matrix.os }}
-          token: ${{ secrets.CODECOV_TOKEN }}
-
   emscripten:
     name: emscripten
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
@@ -574,43 +557,6 @@ jobs:
           EOF
           echo PYO3_CONFIG_FILE=$PYO3_CONFIG_FILE >> $GITHUB_ENV
       - run: python3 -m nox -s test
-
-  test-free-threaded:
-    needs: [fmt]
-    name: Free threaded tests - ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: Swatinem/rust-cache@v2
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rust-src
-      - uses: actions/setup-python@v5.5.0
-        with:
-          python-version: "3.13t"
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - run: python3 -m sysconfig
-      - run: python3 -m pip install --upgrade pip && pip install nox
-      - name: Prepare coverage environment
-        run: |
-          cargo llvm-cov clean --workspace --profraw-only
-          nox -s set-coverage-env
-      - run: nox -s ffi-check
-      - run: nox
-      - name: Generate coverage report
-        run: nox -s generate-coverage-report
-      - name: Upload coverage report
-        uses: codecov/codecov-action@v5
-        with:
-          files: coverage.json
-          name: ${{ matrix.os }}-test-free-threaded
-          token: ${{ secrets.CODECOV_TOKEN }}
 
   test-version-limits:
     needs: [fmt]
@@ -758,30 +704,32 @@ jobs:
 
   test-introspection:
     needs: [fmt]
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-test-introspection') || contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     strategy:
       matrix:
-        platform: [
-          {
-            os: "macos-latest",
-            python-architecture: "arm64",
-            rust-target: "aarch64-apple-darwin",
-          },
-          {
-            os: "ubuntu-latest",
-            python-architecture: "x64",
-            rust-target: "x86_64-unknown-linux-gnu",
-          },
-          {
-            os: "windows-latest",
-            python-architecture: "x64",
-            rust-target: "x86_64-pc-windows-msvc",
-          },
-          {
-            os: "windows-latest",
-            python-architecture: "x86",
-            rust-target: "i686-pc-windows-msvc",
-          },
-        ]
+        platform:
+          [
+            {
+              os: "macos-latest",
+              python-architecture: "arm64",
+              rust-target: "aarch64-apple-darwin",
+            },
+            {
+              os: "ubuntu-latest",
+              python-architecture: "x64",
+              rust-target: "x86_64-unknown-linux-gnu",
+            },
+            {
+              os: "windows-latest",
+              python-architecture: "x64",
+              rust-target: "x86_64-pc-windows-msvc",
+            },
+            {
+              os: "windows-latest",
+              python-architecture: "x86",
+              rust-target: "i686-pc-windows-msvc",
+            },
+          ]
     runs-on: ${{ matrix.platform.os }}
     steps:
       - uses: actions/checkout@v4
@@ -811,10 +759,8 @@ jobs:
       - valgrind
       - careful
       - docsrs
-      - coverage
       - emscripten
       - test-debug
-      - test-free-threaded
       - test-version-limits
       - check-feature-powerset
       - test-cross-compilation
