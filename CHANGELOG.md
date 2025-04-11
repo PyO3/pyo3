@@ -10,6 +10,14 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.24.2] - 2025-04-21
+
+### Fixed
+
+- Fix `unused_imports` lint of `#[pyfunction]` and `#[pymethods]` expanded in `macro_rules` context. [#5030](https://github.com/PyO3/pyo3/pull/5030)
+- Fix size of `PyCodeObject::_co_instrumentation_version` ffi struct member on Python 3.13 for systems where `uintptr_t` is not 64 bits. [#5048](https://github.com/PyO3/pyo3/pull/5048)
+- Fix struct-type complex enum variant fields incorrectly exposing raw identifiers as `r#ident` in Python bindings. [#5050](https://github.com/PyO3/pyo3/pull/5050)
+
 ## [0.24.1] - 2025-03-31
 
 ### Added
@@ -2131,7 +2139,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.24.1...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.24.2...HEAD
+[0.24.2]: https://github.com/pyo3/pyo3/compare/v0.24.1...v0.24.2
 [0.24.1]: https://github.com/pyo3/pyo3/compare/v0.24.0...v0.24.1
 [0.24.0]: https://github.com/pyo3/pyo3/compare/v0.23.5...v0.24.0
 [0.23.5]: https://github.com/pyo3/pyo3/compare/v0.23.4...v0.23.5
