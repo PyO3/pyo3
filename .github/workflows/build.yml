@@ -33,7 +33,9 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
           architecture: ${{ inputs.python-architecture }}
-          check-latest: ${{ startsWith(inputs.python-version, 'pypy') }} # PyPy can have FFI changes within Python versions, which creates pain in CI
+          # PyPy can have FFI changes within Python versions, which creates pain in CI
+          # 3.13.2 also had an ABI break so temporarily add this for 3.13 to ensure that we're using 3.13.3
+          check-latest: ${{ startsWith(inputs.python-version, 'pypy') || startsWith(inputs.python-version, '3.13') }}
 
       - name: Install nox
         run: python -m pip install --upgrade pip && pip install nox
