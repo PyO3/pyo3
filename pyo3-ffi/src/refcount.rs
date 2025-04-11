@@ -1,5 +1,7 @@
 use crate::pyport::Py_ssize_t;
 use crate::PyObject;
+#[cfg(py_sys_config = "Py_REF_DEBUG")]
+use std::os::raw::c_char;
 #[cfg(Py_3_12)]
 use std::os::raw::c_int;
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
