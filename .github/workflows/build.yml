@@ -27,18 +27,29 @@ jobs:
     if: ${{ !(startsWith(inputs.python-version, 'graalpy') && startsWith(inputs.os, 'windows')) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # For PRs, we need to run on the real PR head, not the resultant merge of the PR into the target branch.
+          #
+          # This is necessary for coverage reporting to make sense; we then get exactly the coverage change
+          # between the base branch and the real PR head.
+          #
+          # If it were run on the merge commit the problem is that the coverage potentially does not align
+          # with the commit diff, because the merge may affect line numbers.
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up Python ${{ inputs.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ inputs.python-version }}
           architecture: ${{ inputs.python-architecture }}
-          check-latest: ${{ startsWith(inputs.python-version, 'pypy') }} # PyPy can have FFI changes within Python versions, which creates pain in CI
+          # PyPy can have FFI changes within Python versions, which creates pain in CI
+          # 3.13.2 also had an ABI break so temporarily add this for 3.13 to ensure that we're using 3.13.3
+          check-latest: ${{ startsWith(inputs.python-version, 'pypy') || startsWith(inputs.python-version, '3.13') }}
 
       - name: Install nox
         run: python -m pip install --upgrade pip && pip install nox
 
-      - if: inputs.python-version == 'graalpy24.1'
+      - if: ${{ startsWith(inputs.python-version, 'graalpy24.1') }}
         name: Install GraalPy virtualenv (only GraalPy 24.1)
         run: python -m pip install 'git+https://github.com/oracle/graalpython#egg=graalpy_virtualenv_seeder&subdirectory=graalpy_virtualenv_seeder'
 
@@ -47,8 +58,17 @@ jobs:
         with:
           toolchain: ${{ inputs.rust }}
           targets: ${{ inputs.rust-target }}
-          # needed to correctly format errors, see #1865
-          components: rust-src
+          # rust-src needed to correctly format errors, see #1865
+          components: rust-src,llvm-tools-preview
+
+      # On windows 32 bit, we are running on an x64 host, so we need to specifically set the target
+      # NB we don't do this for *all* jobs because it breaks coverage of proc macros to have an
+      # explicit target set.
+      - name: Set Rust target for Windows 32-bit
+        if: inputs.os == 'windows-latest' && inputs.python-architecture == 'x86'
+        shell: bash
+        run: |
+          echo "CARGO_BUILD_TARGET=i686-pc-windows-msvc" >> $GITHUB_ENV
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -69,6 +89,16 @@ jobs:
       - if: inputs.rust == 'nightly'
         name: Prepare to test on nightly rust
         run: echo "MAYBE_NIGHTLY=nightly" >> "$GITHUB_ENV"
+
+      - if: ${{ github.event_name != 'merge_group' }}
+        name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - if: ${{ github.event_name != 'merge_group' }}
+        name: Prepare coverage environment
+        run: |
+          cargo llvm-cov clean --workspace --profraw-only
+          nox -s set-coverage-env
 
       - name: Build docs
         run: nox -s docs
@@ -152,9 +182,26 @@ jobs:
         if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows'))) }}
         run: nox -s ffi-check
 
+      - if: ${{ github.event_name != 'merge_group' }}
+        name: Generate coverage report
+        run: cargo llvm-cov
+          --package=pyo3
+          --package=pyo3-build-config
+          --package=pyo3-macros-backend
+          --package=pyo3-macros
+          --package=pyo3-ffi
+          report --codecov --output-path coverage.json
+
+      - if: ${{ github.event_name != 'merge_group' }}
+        name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage.json
+          name: ${{ inputs.os }}/${{ inputs.python-version }}/${{ inputs.rust }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+
     env:
       CARGO_TERM_VERBOSE: true
-      CARGO_BUILD_TARGET: ${{ inputs.rust-target }}
       RUST_BACKTRACE: 1
       RUSTFLAGS: "-D warnings"
       RUSTDOCFLAGS: "-D warnings"
