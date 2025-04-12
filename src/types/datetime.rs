@@ -816,7 +816,7 @@ pub fn timezone_utc(py: Python<'_>) -> Bound<'_, PyTzInfo> {
 /// Equivalent to `datetime.timezone` constructor
 ///
 /// Only used internally
-#[cfg(any(feature = "chrono", feature = "jiff-02"))]
+#[cfg(any(feature = "chrono", feature = "jiff-02", feature = "time"))]
 pub(crate) fn timezone_from_offset<'py>(
     offset: &Bound<'py, PyDelta>,
 ) -> PyResult<Bound<'py, PyTzInfo>> {

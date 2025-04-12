@@ -39,7 +39,7 @@
 //!         let py_timedelta = duration.into_pyobject(py)?;
 //!
 //!         // Add the duration to the datetime in Python
-//!         let py_result = py_datetime.call_method1("__add__", (py_timedelta,))?;
+//!         let py_result = py_datetime.add(py_timedelta)?;
 //!
 //!         // Convert the result back to Rust
 //!         let result: OffsetDateTime = py_result.extract()?;
@@ -55,13 +55,17 @@ use crate::intern;
 use crate::types::datetime::timezone_from_offset;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::datetime::{PyDateAccess, PyDeltaAccess};
-use crate::types::{PyAnyMethods, PyDate, PyDateTime, PyDelta, PyNone, PyTime, PyTzInfo};
+use crate::types::{
+    timezone_utc, PyAnyMethods, PyDate, PyDateTime, PyDelta, PyNone, PyTime, PyTzInfo,
+};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyTimeAccess, PyTzInfoAccess};
 use crate::{Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
 use time::{
     Date, Duration, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcDateTime, UtcOffset,
 };
+
+const SECONDS_PER_DAY: i64 = 86_400;
 
 // Macro for reference implementation
 macro_rules! impl_into_py_for_ref {
@@ -153,15 +157,18 @@ impl<'py> IntoPyObject<'py> for Duration {
 
         // For negative durations, Python expects days to be negative and
         // seconds/microseconds to be positive or zero
-        let (days, seconds) = if total_seconds < 0 && total_seconds % 86_400 != 0 {
+        let (days, seconds) = if total_seconds < 0 && total_seconds % SECONDS_PER_DAY != 0 {
             // For negative values, we need to round down (toward more negative)
             // e.g., -10 seconds should be -1 days + 86390 seconds
-            let days = (total_seconds / 86_400) - 1;
-            let seconds = 86_400 + (total_seconds % 86_400);
+            let days = total_seconds.div_euclid(SECONDS_PER_DAY);
+            let seconds = total_seconds.rem_euclid(SECONDS_PER_DAY);
             (days, seconds)
         } else {
             // For positive or exact negative days, use normal division
-            (total_seconds / 86_400, total_seconds % 86_400)
+            (
+                total_seconds / SECONDS_PER_DAY,
+                total_seconds % SECONDS_PER_DAY,
+            )
         };
         // Create the timedelta with days, seconds, microseconds
         // Safe to unwrap as we've verified the values are within bounds
@@ -452,18 +459,7 @@ impl<'py> IntoPyObject<'py> for UtcDateTime {
         let date = self.date();
         let time = self.time();
 
-        // // Get UTC timezone
-        // #[cfg(not(Py_LIMITED_API))]
-        // let py_tzinfo = py
-        //     .import("datetime")?
-        //     .getattr(intern!(py, "timezone"))?
-        //     .getattr(intern!(py, "utc"))?;
-        //
-        // #[cfg(Py_LIMITED_API)]
-        let py_tzinfo = py
-            .import("datetime")?
-            .getattr(intern!(py, "timezone"))?
-            .getattr(intern!(py, "utc"))?;
+        let py_tzinfo = &timezone_utc(py);
 
         let year = date.year();
         let month = date.month() as u8;
@@ -482,7 +478,7 @@ impl<'py> IntoPyObject<'py> for UtcDateTime {
             minute,
             second,
             microsecond,
-            Some(py_tzinfo.downcast()?),
+            Some(py_tzinfo),
         )
     }
 }
@@ -989,10 +985,7 @@ mod tests {
             // Create Python time with timezone (just to ensure we can handle it properly)
             let datetime = py.import("datetime").unwrap();
             let time_type = datetime.getattr(intern!(py, "time")).unwrap();
-            let timezone = datetime.getattr(intern!(py, "timezone")).unwrap();
-
-            // Create timezone object (UTC)
-            let tz_utc = timezone.getattr(intern!(py, "utc")).unwrap();
+            let tz_utc = timezone_utc(py);
 
             // Create time with timezone
             let py_time_with_tz = time_type.call1((12, 30, 45, 0, tz_utc)).unwrap();
@@ -1085,7 +1078,7 @@ mod tests {
             let timedelta = datetime.getattr(intern!(py, "timedelta")).unwrap();
 
             // Test UTC
-            let tz_utc = timezone.getattr(intern!(py, "utc")).unwrap();
+            let tz_utc = timezone_utc(py);
             let utc_offset: UtcOffset = tz_utc.extract().unwrap();
             assert_eq!(utc_offset.whole_hours(), 0);
             assert_eq!(utc_offset.minutes_past_hour(), 0);
@@ -1236,11 +1229,7 @@ mod tests {
             // Create Python UTC datetime
             let datetime = py.import("datetime").unwrap();
             let datetime_type = datetime.getattr(intern!(py, "datetime")).unwrap();
-            let tz_utc = datetime
-                .getattr(intern!(py, "timezone"))
-                .unwrap()
-                .getattr(intern!(py, "utc"))
-                .unwrap();
+            let tz_utc = timezone_utc(py);
 
             // Create datetime with UTC timezone
             let py_dt = datetime_type
