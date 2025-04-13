@@ -2,7 +2,7 @@
 
 You can create a module using `#[pymodule]`:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 #[pyfunction]
@@ -23,7 +23,7 @@ module to Python.
 The module's name defaults to the name of the Rust function. You can override the module name by
 using `#[pyo3(name = "custom_name")]`:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 #[pyfunction]
@@ -108,7 +108,7 @@ It is not necessary to add `#[pymodule]` on nested modules, which is only requir
 Another syntax based on Rust inline modules is also available to declare modules.
 
 For example:
-```rust
+```rust,no_run
 # mod declarative_module_test {
 use pyo3::prelude::*;
 
@@ -151,7 +151,7 @@ For nested modules, the name of the parent module is automatically added.
 In the following example, the `Unit` class will have for `module` `my_extension.submodule` because it is properly nested
 but the `Ext` class will have for `module` the default `builtins` because it not nested.
 
-```rust
+```rust,no_run
 # mod declarative_module_module_attr_test {
 use pyo3::prelude::*;
 

@@ -43,7 +43,7 @@ impl ClassWithProperties {
     }
 
     #[setter]
-    fn set_from_len(&mut self, #[pyo3(from_py_with = "extract_len")] value: i32) {
+    fn set_from_len(&mut self, #[pyo3(from_py_with = extract_len)] value: i32) {
         self.num = value;
     }
 

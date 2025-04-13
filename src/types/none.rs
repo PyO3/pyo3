@@ -1,7 +1,5 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::{ffi, types::any::PyAnyMethods, Borrowed, Bound, PyAny, PyObject, PyTypeInfo, Python};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
+use crate::{ffi, types::any::PyAnyMethods, Borrowed, Bound, PyAny, PyTypeInfo, Python};
 
 /// Represents the Python `None` object.
 ///
@@ -17,13 +15,6 @@ impl PyNone {
     #[inline]
     pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyNone> {
         unsafe { ffi::Py_None().assume_borrowed(py).downcast_unchecked() }
-    }
-
-    /// Deprecated name for [`PyNone::get`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyNone::get`")]
-    #[inline]
-    pub fn get_bound(py: Python<'_>) -> Borrowed<'_, '_, PyNone> {
-        Self::get(py)
     }
 }
 
@@ -48,27 +39,11 @@ unsafe impl PyTypeInfo for PyNone {
     }
 }
 
-/// `()` is converted to Python `None`.
-#[allow(deprecated)]
-impl ToPyObject for () {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyNone::get(py).into_py(py)
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for () {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyNone::get(py).into_py(py)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::types::any::PyAnyMethods;
     use crate::types::{PyDict, PyNone};
-    use crate::{PyObject, PyTypeInfo, Python};
+    use crate::{PyTypeInfo, Python};
 
     #[test]
     fn test_none_is_itself() {
@@ -89,25 +64,6 @@ mod tests {
     fn test_none_is_none() {
         Python::with_gil(|py| {
             assert!(PyNone::get(py).downcast::<PyNone>().unwrap().is_none());
-        })
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn test_unit_to_object_is_none() {
-        use crate::ToPyObject;
-        Python::with_gil(|py| {
-            assert!(().to_object(py).downcast_bound::<PyNone>(py).is_ok());
-        })
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn test_unit_into_py_is_none() {
-        use crate::IntoPy;
-        Python::with_gil(|py| {
-            let obj: PyObject = ().into_py(py);
-            assert!(obj.downcast_bound::<PyNone>(py).is_ok());
         })
     }
 

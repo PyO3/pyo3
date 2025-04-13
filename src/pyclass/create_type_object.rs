@@ -49,33 +49,35 @@ where
         module: Option<&'static str>,
         size_of: usize,
     ) -> PyResult<PyClassTypeObject> {
-        PyTypeBuilder {
-            slots: Vec::new(),
-            method_defs: Vec::new(),
-            member_defs: Vec::new(),
-            getset_builders: HashMap::new(),
-            cleanup: Vec::new(),
-            tp_base: base,
-            tp_dealloc: dealloc,
-            tp_dealloc_with_gc: dealloc_with_gc,
-            is_mapping,
-            is_sequence,
-            has_new: false,
-            has_dealloc: false,
-            has_getitem: false,
-            has_setitem: false,
-            has_traverse: false,
-            has_clear: false,
-            dict_offset: None,
-            class_flags: 0,
-            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
-            buffer_procs: Default::default(),
+        unsafe {
+            PyTypeBuilder {
+                slots: Vec::new(),
+                method_defs: Vec::new(),
+                member_defs: Vec::new(),
+                getset_builders: HashMap::new(),
+                cleanup: Vec::new(),
+                tp_base: base,
+                tp_dealloc: dealloc,
+                tp_dealloc_with_gc: dealloc_with_gc,
+                is_mapping,
+                is_sequence,
+                has_new: false,
+                has_dealloc: false,
+                has_getitem: false,
+                has_setitem: false,
+                has_traverse: false,
+                has_clear: false,
+                dict_offset: None,
+                class_flags: 0,
+                #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+                buffer_procs: Default::default(),
+            }
+            .type_doc(doc)
+            .offsets(dict_offset, weaklist_offset)
+            .set_is_basetype(is_basetype)
+            .class_items(items_iter)
+            .build(py, name, module, size_of)
         }
-        .type_doc(doc)
-        .offsets(dict_offset, weaklist_offset)
-        .set_is_basetype(is_basetype)
-        .class_items(items_iter)
-        .build(py, name, module, size_of)
     }
 
     unsafe {
@@ -145,13 +147,13 @@ impl PyTypeBuilder {
             ffi::Py_bf_getbuffer => {
                 // Safety: slot.pfunc is a valid function pointer
                 self.buffer_procs.bf_getbuffer =
-                    Some(std::mem::transmute::<*mut T, ffi::getbufferproc>(pfunc));
+                    Some(unsafe { std::mem::transmute::<*mut T, ffi::getbufferproc>(pfunc) });
             }
             #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
             ffi::Py_bf_releasebuffer => {
                 // Safety: slot.pfunc is a valid function pointer
                 self.buffer_procs.bf_releasebuffer =
-                    Some(std::mem::transmute::<*mut T, ffi::releasebufferproc>(pfunc));
+                    Some(unsafe { std::mem::transmute::<*mut T, ffi::releasebufferproc>(pfunc) });
             }
             _ => {}
         }
@@ -167,8 +169,10 @@ impl PyTypeBuilder {
     unsafe fn push_raw_vec_slot<T>(&mut self, slot: c_int, mut data: Vec<T>) {
         if !data.is_empty() {
             // Python expects a zeroed entry to mark the end of the defs
-            data.push(std::mem::zeroed());
-            self.push_slot(slot, Box::into_raw(data.into_boxed_slice()) as *mut c_void);
+            unsafe {
+                data.push(std::mem::zeroed());
+                self.push_slot(slot, Box::into_raw(data.into_boxed_slice()) as *mut c_void);
+            }
         }
     }
 
@@ -314,7 +318,7 @@ impl PyTypeBuilder {
     unsafe fn class_items(mut self, iter: PyClassItemsIter) -> Self {
         for items in iter {
             for slot in items.slots {
-                self.push_slot(slot.slot, slot.pfunc);
+                unsafe { self.push_slot(slot.slot, slot.pfunc) };
             }
             for method in items.methods {
                 let built_method;
@@ -545,20 +549,22 @@ unsafe extern "C" fn no_constructor_defined(
     _args: *mut ffi::PyObject,
     _kwds: *mut ffi::PyObject,
 ) -> *mut ffi::PyObject {
-    trampoline(|py| {
-        let tpobj = PyType::from_borrowed_type_ptr(py, subtype);
-        let name = tpobj
-            .name()
-            .map_or_else(|_| "<unknown>".into(), |name| name.to_string());
-        Err(crate::exceptions::PyTypeError::new_err(format!(
-            "No constructor defined for {}",
-            name
-        )))
-    })
+    unsafe {
+        trampoline(|py| {
+            let tpobj = PyType::from_borrowed_type_ptr(py, subtype);
+            let name = tpobj
+                .name()
+                .map_or_else(|_| "<unknown>".into(), |name| name.to_string());
+            Err(crate::exceptions::PyTypeError::new_err(format!(
+                "No constructor defined for {}",
+                name
+            )))
+        })
+    }
 }
 
 unsafe extern "C" fn call_super_clear(slf: *mut ffi::PyObject) -> c_int {
-    _call_clear(slf, |_, _| Ok(()), call_super_clear)
+    unsafe { _call_clear(slf, |_, _| Ok(()), call_super_clear) }
 }
 
 #[derive(Default)]
@@ -643,8 +649,8 @@ impl GetSetDefType {
                         closure: *mut c_void,
                     ) -> *mut ffi::PyObject {
                         // Safety: PyO3 sets the closure when constructing the ffi getter so this cast should always be valid
-                        let getter: Getter = std::mem::transmute(closure);
-                        trampoline(|py| getter(py, slf))
+                        let getter: Getter = unsafe { std::mem::transmute(closure) };
+                        unsafe { trampoline(|py| getter(py, slf)) }
                     }
                     (Some(getter), None, closure as Getter as _)
                 }
@@ -655,8 +661,8 @@ impl GetSetDefType {
                         closure: *mut c_void,
                     ) -> c_int {
                         // Safety: PyO3 sets the closure when constructing the ffi setter so this cast should always be valid
-                        let setter: Setter = std::mem::transmute(closure);
-                        trampoline(|py| setter(py, slf, value))
+                        let setter: Setter = unsafe { std::mem::transmute(closure) };
+                        unsafe { trampoline(|py| setter(py, slf, value)) }
                     }
                     (None, Some(setter), closure as Setter as _)
                 }
@@ -665,8 +671,8 @@ impl GetSetDefType {
                         slf: *mut ffi::PyObject,
                         closure: *mut c_void,
                     ) -> *mut ffi::PyObject {
-                        let getset: &GetterAndSetter = &*closure.cast();
-                        trampoline(|py| (getset.getter)(py, slf))
+                        let getset: &GetterAndSetter = unsafe { &*closure.cast() };
+                        unsafe { trampoline(|py| (getset.getter)(py, slf)) }
                     }
 
                     unsafe extern "C" fn getset_setter(
@@ -674,8 +680,8 @@ impl GetSetDefType {
                         value: *mut ffi::PyObject,
                         closure: *mut c_void,
                     ) -> c_int {
-                        let getset: &GetterAndSetter = &*closure.cast();
-                        trampoline(|py| (getset.setter)(py, slf, value))
+                        let getset: &GetterAndSetter = unsafe { &*closure.cast() };
+                        unsafe { trampoline(|py| (getset.setter)(py, slf, value)) }
                     }
                     (
                         Some(getset_getter),

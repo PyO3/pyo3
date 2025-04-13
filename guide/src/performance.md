@@ -6,7 +6,7 @@ To achieve the best possible performance, it is useful to be aware of several tr
 
 Pythonic API implemented using PyO3 are often polymorphic, i.e. they will accept `&Bound<'_, PyAny>` and try to turn this into multiple more concrete types to which the requested operation is applied. This often leads to chains of calls to `extract`, e.g.
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use pyo3::{exceptions::PyTypeError, types::PyList};
@@ -33,7 +33,7 @@ fn frobnicate<'py>(value: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
 
 This suboptimal as the `FromPyObject<T>` trait requires `extract` to have a `Result<T, PyErr>` return type. For native types like `PyList`, it faster to use `downcast` (which `extract` calls internally) when the error value is ignored. This avoids the costly conversion of a `PyDowncastError` to a `PyErr` required to fulfil the `FromPyObject` contract, i.e.
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use pyo3::{exceptions::PyTypeError, types::PyList};
@@ -59,7 +59,7 @@ Calling `Python::with_gil` is effectively a no-op when the GIL is already held, 
 
 For example, instead of writing
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
@@ -80,7 +80,7 @@ impl PartialEq<Foo> for FooBound<'_> {
 
 use the more efficient
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;

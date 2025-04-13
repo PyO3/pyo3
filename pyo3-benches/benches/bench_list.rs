@@ -42,7 +42,7 @@ fn list_get_item(b: &mut Bencher<'_>) {
 fn list_nth(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50;
-        let list = PyList::new_bound(py, 0..LEN);
+        let list = PyList::new(py, 0..LEN).unwrap();
         let mut sum = 0;
         b.iter(|| {
             for i in 0..LEN {
@@ -55,7 +55,7 @@ fn list_nth(b: &mut Bencher<'_>) {
 fn list_nth_back(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50;
-        let list = PyList::new_bound(py, 0..LEN);
+        let list = PyList::new(py, 0..LEN).unwrap();
         let mut sum = 0;
         b.iter(|| {
             for i in 0..LEN {

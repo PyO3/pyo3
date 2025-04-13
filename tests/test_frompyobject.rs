@@ -331,6 +331,91 @@ fn test_transparent_tuple_error_message() {
     });
 }
 
+#[pyclass]
+struct RenameAllCls {}
+
+#[pymethods]
+impl RenameAllCls {
+    #[getter]
+    #[pyo3(name = "someField")]
+    fn some_field(&self) -> &'static str {
+        "Foo"
+    }
+
+    #[getter]
+    #[pyo3(name = "customNumber")]
+    fn custom_number(&self) -> i32 {
+        42
+    }
+
+    fn __getitem__(&self, key: &str) -> PyResult<f32> {
+        match key {
+            "otherField" => Ok(42.0),
+            _ => Err(pyo3::exceptions::PyKeyError::new_err("foo")),
+        }
+    }
+}
+
+#[test]
+fn test_struct_rename_all() {
+    #[derive(FromPyObject)]
+    #[pyo3(rename_all = "camelCase")]
+    struct RenameAll {
+        some_field: String,
+        #[pyo3(item)]
+        other_field: f32,
+        #[pyo3(attribute("customNumber"))]
+        custom_name: i32,
+    }
+
+    Python::with_gil(|py| {
+        let RenameAll {
+            some_field,
+            other_field,
+            custom_name,
+        } = RenameAllCls {}
+            .into_pyobject(py)
+            .unwrap()
+            .extract()
+            .unwrap();
+
+        assert_eq!(some_field, "Foo");
+        assert_eq!(other_field, 42.0);
+        assert_eq!(custom_name, 42);
+    });
+}
+
+#[test]
+fn test_enum_rename_all() {
+    #[derive(FromPyObject)]
+    #[pyo3(rename_all = "camelCase")]
+    enum RenameAll {
+        Foo {
+            some_field: String,
+            #[pyo3(item)]
+            other_field: f32,
+            #[pyo3(attribute("customNumber"))]
+            custom_name: i32,
+        },
+    }
+
+    Python::with_gil(|py| {
+        let RenameAll::Foo {
+            some_field,
+            other_field,
+            custom_name,
+        } = RenameAllCls {}
+            .into_pyobject(py)
+            .unwrap()
+            .extract()
+            .unwrap();
+
+        assert_eq!(some_field, "Foo");
+        assert_eq!(other_field, 42.0);
+        assert_eq!(custom_name, 42);
+    });
+}
+
 #[derive(Debug, FromPyObject)]
 pub enum Foo<'py> {
     TupleVar(usize, String),
@@ -543,7 +628,7 @@ pub struct Zap {
     #[pyo3(item)]
     name: String,
 
-    #[pyo3(from_py_with = "Bound::<'_, PyAny>::len", item("my_object"))]
+    #[pyo3(from_py_with = Bound::<'_, PyAny>::len, item("my_object"))]
     some_object_length: usize,
 }
 
@@ -568,7 +653,7 @@ fn test_from_py_with() {
 #[derive(Debug, FromPyObject)]
 pub struct ZapTuple(
     String,
-    #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")] usize,
+    #[pyo3(from_py_with = Bound::<'_, PyAny>::len)] usize,
 );
 
 #[test]
@@ -608,10 +693,10 @@ fn test_from_py_with_tuple_struct_error() {
 
 #[derive(Debug, FromPyObject, PartialEq, Eq)]
 pub enum ZapEnum {
-    Zip(#[pyo3(from_py_with = "Bound::<'_, PyAny>::len")] usize),
+    Zip(#[pyo3(from_py_with = Bound::<'_, PyAny>::len)] usize),
     Zap(
         String,
-        #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")] usize,
+        #[pyo3(from_py_with = Bound::<'_, PyAny>::len)] usize,
     ),
 }
 
@@ -632,7 +717,7 @@ fn test_from_py_with_enum() {
 #[derive(Debug, FromPyObject, PartialEq, Eq)]
 #[pyo3(transparent)]
 pub struct TransparentFromPyWith {
-    #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")]
+    #[pyo3(from_py_with = Bound::<'_, PyAny>::len)]
     len: usize,
 }
 
@@ -730,7 +815,7 @@ fn test_with_explicit_default_item() {
 
 #[derive(Debug, FromPyObject, PartialEq, Eq)]
 pub struct WithDefaultItemAndConversionFunction {
-    #[pyo3(item, default, from_py_with = "Bound::<'_, PyAny>::len")]
+    #[pyo3(item, default, from_py_with = Bound::<'_, PyAny>::len)]
     opt: usize,
     #[pyo3(item)]
     value: usize,

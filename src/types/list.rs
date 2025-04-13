@@ -5,9 +5,7 @@ use crate::internal_tricks::get_ssize_index;
 use crate::types::any::PyAnyMethods;
 use crate::types::sequence::PySequenceMethods;
 use crate::types::{PySequence, PyTuple};
-use crate::{
-    Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, Python,
-};
+use crate::{Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, Python};
 use std::iter::FusedIterator;
 #[cfg(feature = "nightly")]
 use std::num::NonZero;
@@ -23,15 +21,6 @@ use std::num::NonZero;
 pub struct PyList(PyAny);
 
 pyobject_native_type_core!(PyList, pyobject_native_static_type_object!(ffi::PyList_Type), #checkfunction=ffi::PyList_Check);
-
-#[inline]
-#[track_caller]
-pub(crate) fn new_from_iter(
-    py: Python<'_>,
-    elements: impl ExactSizeIterator<Item = PyObject>,
-) -> Bound<'_, PyList> {
-    try_new_from_iter(py, elements.map(|e| e.into_bound(py)).map(Ok)).unwrap()
-}
 
 #[inline]
 #[track_caller]
@@ -110,22 +99,6 @@ impl PyList {
         try_new_from_iter(py, iter)
     }
 
-    /// Deprecated name for [`PyList::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyList::new`")]
-    #[allow(deprecated)]
-    #[inline]
-    #[track_caller]
-    pub fn new_bound<T, U>(
-        py: Python<'_>,
-        elements: impl IntoIterator<Item = T, IntoIter = U>,
-    ) -> Bound<'_, PyList>
-    where
-        T: crate::ToPyObject,
-        U: ExactSizeIterator<Item = T>,
-    {
-        Self::new(py, elements.into_iter().map(|e| e.to_object(py))).unwrap()
-    }
-
     /// Constructs a new empty list.
     pub fn empty(py: Python<'_>) -> Bound<'_, PyList> {
         unsafe {
@@ -133,13 +106,6 @@ impl PyList {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyList::empty`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyList::empty`")]
-    #[inline]
-    pub fn empty_bound(py: Python<'_>) -> Bound<'_, PyList> {
-        Self::empty(py)
     }
 }
 
@@ -318,9 +284,11 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     #[cfg(not(Py_LIMITED_API))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny> {
         // PyList_GET_ITEM return borrowed ptr; must make owned for safety (see #890).
-        ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
-            .assume_borrowed(self.py())
-            .to_owned()
+        unsafe {
+            ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
+                .assume_borrowed(self.py())
+                .to_owned()
+        }
     }
 
     /// Takes the slice `self[low:high]` and returns it as a new list.

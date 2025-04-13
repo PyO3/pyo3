@@ -67,13 +67,6 @@ impl PyDict {
         unsafe { ffi::PyDict_New().assume_owned(py).downcast_into_unchecked() }
     }
 
-    /// Deprecated name for [`PyDict::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyDict::new`")]
-    #[inline]
-    pub fn new_bound(py: Python<'_>) -> Bound<'_, PyDict> {
-        Self::new(py)
-    }
-
     /// Creates a new dictionary from the sequence given.
     ///
     /// The sequence must consist of `(PyObject, PyObject)`. This is
@@ -89,14 +82,6 @@ impl PyDict {
             ffi::PyDict_MergeFromSeq2(dict.as_ptr(), seq.as_ptr(), 1)
         })?;
         Ok(dict)
-    }
-
-    /// Deprecated name for [`PyDict::from_sequence`].
-    #[cfg(not(any(PyPy, GraalPy)))]
-    #[deprecated(since = "0.23.0", note = "renamed to `PyDict::from_sequence`")]
-    #[inline]
-    pub fn from_sequence_bound<'py>(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
-        Self::from_sequence(seq)
     }
 }
 
@@ -776,13 +761,6 @@ pub trait IntoPyDict<'py>: Sized {
     /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
     /// depends on implementation.
     fn into_py_dict(self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>>;
-
-    /// Deprecated name for [`IntoPyDict::into_py_dict`].
-    #[deprecated(since = "0.23.0", note = "renamed to `IntoPyDict::into_py_dict`")]
-    #[inline]
-    fn into_py_dict_bound(self, py: Python<'py>) -> Bound<'py, PyDict> {
-        self.into_py_dict(py).unwrap()
-    }
 }
 
 impl<'py, T, I> IntoPyDict<'py> for I

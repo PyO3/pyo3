@@ -1,44 +1,7 @@
 use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
-use crate::types::list::new_from_iter;
-use crate::{Bound, PyAny, PyErr, PyObject, Python};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
-
-#[allow(deprecated)]
-impl<T> ToPyObject for [T]
-where
-    T: ToPyObject,
-{
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        let mut iter = self.iter().map(|e| e.to_object(py));
-        let list = new_from_iter(py, &mut iter);
-        list.into()
-    }
-}
-
-#[allow(deprecated)]
-impl<T> ToPyObject for Vec<T>
-where
-    T: ToPyObject,
-{
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.as_slice().to_object(py)
-    }
-}
-
-#[allow(deprecated)]
-impl<T> IntoPy<PyObject> for Vec<T>
-where
-    T: IntoPy<PyObject>,
-{
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let mut iter = self.into_iter().map(|e| e.into_py(py));
-        let list = new_from_iter(py, &mut iter);
-        list.into()
-    }
-}
+use crate::{Bound, PyAny, PyErr, Python};
 
 impl<'py, T> IntoPyObject<'py> for Vec<T>
 where

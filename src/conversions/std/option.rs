@@ -1,30 +1,7 @@
 use crate::{
     conversion::IntoPyObject, ffi, types::any::PyAnyMethods, AsPyPointer, Bound, BoundObject,
-    FromPyObject, PyAny, PyObject, PyResult, Python,
+    FromPyObject, PyAny, PyResult, Python,
 };
-
-/// `Option::Some<T>` is converted like `T`.
-/// `Option::None` is converted to Python `None`.
-#[allow(deprecated)]
-impl<T> crate::ToPyObject for Option<T>
-where
-    T: crate::ToPyObject,
-{
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.as_ref()
-            .map_or_else(|| py.None(), |val| val.to_object(py))
-    }
-}
-
-#[allow(deprecated)]
-impl<T> crate::IntoPy<PyObject> for Option<T>
-where
-    T: crate::IntoPy<PyObject>,
-{
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.map_or_else(|| py.None(), |val| val.into_py(py))
-    }
-}
 
 impl<'py, T> IntoPyObject<'py> for Option<T>
 where

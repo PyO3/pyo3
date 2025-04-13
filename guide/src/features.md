@@ -59,7 +59,9 @@ The feature has some unfinished refinements and performance improvements. To hel
 
 ### `experimental-inspect`
 
-This feature adds the `pyo3::inspect` module, as well as `IntoPy::type_output` and `FromPyObject::type_input` APIs to produce Python type "annotations" for Rust types.
+This feature adds to the built binaries introspection data that can be then retrieved using the `pyo3-introspection` crate to generate [type stubs](https://typing.readthedocs.io/en/latest/source/stubs.html).
+
+Also, this feature adds the `pyo3::inspect` module, as well as `IntoPy::type_output` and `FromPyObject::type_input` APIs to produce Python type "annotations" for Rust types.
 
 This is a first step towards adding first-class support for generating type annotations automatically in PyO3, however work is needed to finish this off. All feedback and offers of help welcome on [issue #2454](https://github.com/PyO3/pyo3/issues/2454).
 
@@ -118,6 +120,9 @@ These features enable conversions between Python types and types from other Rust
 ### `anyhow`
 
 Adds a dependency on [anyhow](https://docs.rs/anyhow). Enables a conversion from [anyhow](https://docs.rs/anyhow)’s [`Error`](https://docs.rs/anyhow/latest/anyhow/struct.Error.html) type to [`PyErr`]({{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html), for easy error handling.
+
+### `bigdecimal`
+Adds a dependency on [bigdecimal](https://docs.rs/bigdecimal) and enables conversions into its [`BigDecimal`](https://docs.rs/bigdecimal/latest/bigdecimal/struct.BigDecimal.html) type.
 
 ### `chrono`
 
@@ -184,7 +189,7 @@ Adds a dependency on [rust_decimal](https://docs.rs/rust_decimal) and enables co
 Enables (de)serialization of `Py<T>` objects via [serde](https://serde.rs/).
 This allows to use [`#[derive(Serialize, Deserialize)`](https://serde.rs/derive.html) on structs that hold references to `#[pyclass]` instances
 
-```rust
+```rust,no_run
 # #[cfg(feature = "serde")]
 # #[allow(dead_code)]
 # mod serde_only {

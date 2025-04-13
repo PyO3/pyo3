@@ -90,13 +90,6 @@ impl PyWeakrefReference {
         }
     }
 
-    /// Deprecated name for [`PyWeakrefReference::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyWeakrefReference::new`")]
-    #[inline]
-    pub fn new_bound<'py>(object: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyWeakrefReference>> {
-        Self::new(object)
-    }
-
     /// Constructs a new Weak Reference (`weakref.ref`/`weakref.ReferenceType`) for the given object with a callback.
     ///
     /// Returns a `TypeError` if `object` is not weak referenceable (Most native types and PyClasses without `weakref` flag) or if the `callback` is not callable or None.
@@ -181,20 +174,6 @@ impl PyWeakrefReference {
                 .as_borrowed(),
         )
     }
-
-    /// Deprecated name for [`PyWeakrefReference::new_with`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyWeakrefReference::new_with`")]
-    #[allow(deprecated)]
-    #[inline]
-    pub fn new_bound_with<'py, C>(
-        object: &Bound<'py, PyAny>,
-        callback: C,
-    ) -> PyResult<Bound<'py, PyWeakrefReference>>
-    where
-        C: crate::ToPyObject,
-    {
-        Self::new_with(object, callback.to_object(object.py()))
-    }
 }
 
 impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakrefReference> {
@@ -260,6 +239,7 @@ mod tests {
         use super::*;
         use crate::ffi;
         use crate::{py_result_ext::PyResultExt, types::PyType};
+        use std::ptr;
 
         fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
             py.run(ffi::c_str!("class A:\n    pass\n"), None, None)?;
@@ -324,8 +304,10 @@ mod tests {
                     let obj = obj.unwrap();
 
                     assert!(obj.is_some());
-                    assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()
-                        && obj.is_exact_instance(&class)));
+                    assert!(
+                        obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())
+                            && obj.is_exact_instance(&class))
+                    );
                 }
 
                 drop(object);
@@ -356,8 +338,10 @@ mod tests {
                     let obj = unsafe { reference.upgrade_as_unchecked::<PyAny>() };
 
                     assert!(obj.is_some());
-                    assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()
-                        && obj.is_exact_instance(&class)));
+                    assert!(
+                        obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())
+                            && obj.is_exact_instance(&class))
+                    );
                 }
 
                 drop(object);
@@ -392,27 +376,6 @@ mod tests {
                 Ok(())
             })
         }
-
-        #[test]
-        #[allow(deprecated)]
-        fn test_weakref_get_object() -> PyResult<()> {
-            Python::with_gil(|py| {
-                let class = get_type(py)?;
-                let object = class.call0()?;
-                let reference = PyWeakrefReference::new(&object)?;
-
-                assert!(reference.call0()?.is(&object));
-                assert!(reference.get_object().is(&object));
-
-                drop(object);
-
-                assert!(reference.call0()?.is(&reference.get_object()));
-                assert!(reference.call0()?.is_none());
-                assert!(reference.get_object().is_none());
-
-                Ok(())
-            })
-        }
     }
 
     // under 'abi3-py37' and 'abi3-py38' PyClass cannot be weakreferencable.
@@ -420,6 +383,7 @@ mod tests {
     mod pyo3_pyclass {
         use super::*;
         use crate::{pyclass, Py};
+        use std::ptr;
 
         #[pyclass(weakref, crate = "crate")]
         struct WeakrefablePyClass {}
@@ -476,7 +440,7 @@ mod tests {
                     let obj = obj.unwrap();
 
                     assert!(obj.is_some());
-                    assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()));
+                    assert!(obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())));
                 }
 
                 drop(object);
@@ -504,7 +468,7 @@ mod tests {
                     let obj = unsafe { reference.upgrade_as_unchecked::<WeakrefablePyClass>() };
 
                     assert!(obj.is_some());
-                    assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()));
+                    assert!(obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())));
                 }
 
                 drop(object);
@@ -533,26 +497,6 @@ mod tests {
 
                 assert!(reference.call0()?.is_none());
                 assert!(reference.upgrade().is_none());
-
-                Ok(())
-            })
-        }
-
-        #[test]
-        #[allow(deprecated)]
-        fn test_weakref_get_object() -> PyResult<()> {
-            Python::with_gil(|py| {
-                let object = Py::new(py, WeakrefablePyClass {})?;
-                let reference = PyWeakrefReference::new(object.bind(py))?;
-
-                assert!(reference.call0()?.is(&object));
-                assert!(reference.get_object().is(&object));
-
-                drop(object);
-
-                assert!(reference.call0()?.is(&reference.get_object()));
-                assert!(reference.call0()?.is_none());
-                assert!(reference.get_object().is_none());
 
                 Ok(())
             })

@@ -1,9 +1,11 @@
 #![cfg(feature = "macros")]
+#![cfg_attr(not(cargo_toml_lints), warn(unsafe_op_in_unsafe_fn))]
 
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::ffi;
 use pyo3::prelude::*;
+#[cfg(not(Py_GIL_DISABLED))]
 use pyo3::py_run;
 #[cfg(not(target_arch = "wasm32"))]
 use std::cell::Cell;
@@ -182,6 +184,10 @@ fn test_cycle_clear() {
 
         inst.borrow_mut().cycle = Some(inst.clone().into_any().unbind());
 
+        // gc.get_objects can create references to partially initialized objects,
+        // leading to races on the free-threaded build.
+        // see https://github.com/python/cpython/issues/130421#issuecomment-2682924142
+        #[cfg(not(Py_GIL_DISABLED))]
         py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
         check.assert_not_dropped();
         inst.as_ptr()
@@ -715,7 +721,7 @@ fn test_traverse_subclass_override_clear() {
 // Manual traversal utilities
 
 unsafe fn get_type_traverse(tp: *mut pyo3::ffi::PyTypeObject) -> Option<pyo3::ffi::traverseproc> {
-    std::mem::transmute(pyo3::ffi::PyType_GetSlot(tp, pyo3::ffi::Py_tp_traverse))
+    unsafe { std::mem::transmute(pyo3::ffi::PyType_GetSlot(tp, pyo3::ffi::Py_tp_traverse)) }
 }
 
 // a dummy visitor function

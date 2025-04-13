@@ -1,6 +1,6 @@
-use crate::attributes::{CrateAttribute, RenamingRule};
+use crate::attributes::{CrateAttribute, ExprPathWrap, RenamingRule};
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use std::ffi::CString;
 use syn::spanned::Spanned;
 use syn::{punctuated::Punctuated, Token};
@@ -322,4 +322,88 @@ pub(crate) fn has_attribute_with_namespace(
             .iter()
             .eq(attr.path().segments.iter().map(|v| &v.ident))
     })
+}
+
+pub(crate) fn deprecated_from_py_with(expr_path: &ExprPathWrap) -> Option<TokenStream> {
+    let path = quote!(#expr_path).to_string();
+    let msg =
+        format!("remove the quotes from the literal\n= help: use `{path}` instead of `\"{path}\"`");
+    expr_path.from_lit_str.then(|| {
+        quote_spanned! { expr_path.span() =>
+            #[deprecated(since = "0.24.0", note = #msg)]
+            #[allow(dead_code)]
+            const LIT_STR_DEPRECATION: () = ();
+            let _: () = LIT_STR_DEPRECATION;
+        }
+    })
+}
+
+pub(crate) trait TypeExt {
+    /// Replaces all explicit lifetimes in `self` with elided (`'_`) lifetimes
+    ///
+    /// This is useful if `Self` is used in `const` context, where explicit
+    /// lifetimes are not allowed (yet).
+    fn elide_lifetimes(self) -> Self;
+}
+
+impl TypeExt for syn::Type {
+    fn elide_lifetimes(mut self) -> Self {
+        fn elide_lifetimes(ty: &mut syn::Type) {
+            match ty {
+                syn::Type::Path(type_path) => {
+                    if let Some(qself) = &mut type_path.qself {
+                        elide_lifetimes(&mut qself.ty)
+                    }
+                    for seg in &mut type_path.path.segments {
+                        if let syn::PathArguments::AngleBracketed(args) = &mut seg.arguments {
+                            for generic_arg in &mut args.args {
+                                match generic_arg {
+                                    syn::GenericArgument::Lifetime(lt) => {
+                                        *lt = syn::Lifetime::new("'_", lt.span());
+                                    }
+                                    syn::GenericArgument::Type(ty) => elide_lifetimes(ty),
+                                    syn::GenericArgument::AssocType(assoc) => {
+                                        elide_lifetimes(&mut assoc.ty)
+                                    }
+
+                                    syn::GenericArgument::Const(_)
+                                    | syn::GenericArgument::AssocConst(_)
+                                    | syn::GenericArgument::Constraint(_)
+                                    | _ => {}
+                                }
+                            }
+                        }
+                    }
+                }
+                syn::Type::Reference(type_ref) => {
+                    if let Some(lt) = type_ref.lifetime.as_mut() {
+                        *lt = syn::Lifetime::new("'_", lt.span());
+                    }
+                    elide_lifetimes(&mut type_ref.elem);
+                }
+                syn::Type::Tuple(type_tuple) => {
+                    for ty in &mut type_tuple.elems {
+                        elide_lifetimes(ty);
+                    }
+                }
+                syn::Type::Array(type_array) => elide_lifetimes(&mut type_array.elem),
+                syn::Type::Slice(ty) => elide_lifetimes(&mut ty.elem),
+                syn::Type::Group(ty) => elide_lifetimes(&mut ty.elem),
+                syn::Type::Paren(ty) => elide_lifetimes(&mut ty.elem),
+                syn::Type::Ptr(ty) => elide_lifetimes(&mut ty.elem),
+
+                syn::Type::BareFn(_)
+                | syn::Type::ImplTrait(_)
+                | syn::Type::Infer(_)
+                | syn::Type::Macro(_)
+                | syn::Type::Never(_)
+                | syn::Type::TraitObject(_)
+                | syn::Type::Verbatim(_)
+                | _ => {}
+            }
+        }
+
+        elide_lifetimes(&mut self);
+        self
+    }
 }

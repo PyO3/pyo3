@@ -10,7 +10,7 @@ This section of the guide goes into detail about use of the `#[pyo3(signature = 
 
 For example, below is a function that accepts arbitrary keyword arguments (`**kwargs` in Python syntax) and returns the number that was passed:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
@@ -38,7 +38,7 @@ Just like in Python, the following constructs can be part of the signature::
    code unmodified.
 
 Example:
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 #
@@ -79,7 +79,7 @@ impl MyClass {
 
 Arguments of type `Python` must not be part of the signature:
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 #[pyfunction]
@@ -108,7 +108,7 @@ num=-1
 
 > Note: to use keywords like `struct` as a function argument, use "raw identifier" syntax `r#struct` in both the signature and the function definition:
 >
-> ```rust
+> ```rust,no_run
 > # #![allow(dead_code)]
 > # use pyo3::prelude::*;
 > #[pyfunction(signature = (r#struct = "foo"))]
