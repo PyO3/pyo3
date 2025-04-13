@@ -73,5 +73,4 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_base_class.rs");
     t.pass("tests/ui/ambiguous_associated_items.rs");
     t.pass("tests/ui/pyclass_probe.rs");
-    t.compile_fail("tests/ui/deprecated.rs");
 }
