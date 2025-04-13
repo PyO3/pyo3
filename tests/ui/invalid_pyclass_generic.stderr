@@ -68,11 +68,10 @@ error[E0034]: multiple applicable items in scope
 4 | #[pyclass(generic)]
   | ^^^^^^^^^^^^^^^^^^^ multiple `wrap` found
   |
-  = note: candidate #1 is defined in an impl for the type `IntoPyConverter<Result<T, E>>`
-  = note: candidate #2 is defined in an impl for the type `IntoPyConverter<T>`
-  = note: candidate #3 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
-  = note: candidate #4 is defined in an impl for the type `IntoPyObjectConverter<T>`
-  = note: and 2 others
+  = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+  = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+  = note: candidate #3 is defined in an impl for the type `UnknownReturnResultType<Result<T, E>>`
+  = note: candidate #4 is defined in an impl for the type `UnknownReturnType<T>`
   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0308]: mismatched types
@@ -81,7 +80,7 @@ error[E0308]: mismatched types
 19 |     ) -> PyResult<PyObject> {
    |          ------------------ expected `Result<Py<pyo3::PyAny>, PyErr>` because of return type
 20 |         pyo3::types::PyGenericAlias::new(cls.py(), cls.as_any(), key)
-   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Result<Py<PyAny>, PyErr>`, found `Result<Bound<'_, ...>, ...>`
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Result<Py<PyAny>, PyErr>`, found `Result<Bound<'_, PyGenericAlias>, PyErr>`
    |
    = note: expected enum `Result<Py<pyo3::PyAny>, PyErr>`
               found enum `Result<pyo3::Bound<'_, PyGenericAlias>, PyErr>`
@@ -131,8 +130,7 @@ error[E0034]: multiple applicable items in scope
 19 |     ) -> PyResult<PyObject> {
    |          ^^^^^^^^ multiple `wrap` found
    |
-   = note: candidate #1 is defined in an impl for the type `IntoPyConverter<Result<T, E>>`
-   = note: candidate #2 is defined in an impl for the type `IntoPyConverter<T>`
-   = note: candidate #3 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
-   = note: candidate #4 is defined in an impl for the type `IntoPyObjectConverter<T>`
-   = note: and 2 others
+   = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+   = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+   = note: candidate #3 is defined in an impl for the type `UnknownReturnResultType<Result<T, E>>`
+   = note: candidate #4 is defined in an impl for the type `UnknownReturnType<T>`
