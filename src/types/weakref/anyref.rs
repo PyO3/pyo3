@@ -579,8 +579,8 @@ mod tests {
                 let not_call_retrievable = !call_retrievable;
 
                 Python::with_gil(|py| {
-                    let object = Py::new(py, WeakrefablePyClass {})?;
-                    let reference = create_reference(object.bind(py))?;
+                    let object = Bound::new(py, WeakrefablePyClass {})?;
+                    let reference = create_reference(&object)?;
 
                     assert!(not_call_retrievable || reference.call0()?.is(&object));
                     assert!(reference.upgrade().is_some());

@@ -237,7 +237,7 @@ mod tests {
     fn test_call() {
         use crate::{
             types::{IntoPyDict, PyAnyMethods, PyDict, PyTuple},
-            wrap_pyfunction, Py, Python,
+            wrap_pyfunction, Bound, Python,
         };
 
         Python::with_gil(|py| {
@@ -248,7 +248,7 @@ mod tests {
 
             macro_rules! check_call {
                 ($args:expr, $kwargs:expr) => {
-                    let (a, k): (Py<PyTuple>, Py<PyDict>) = f
+                    let (a, k): (Bound<'_, PyTuple>, Bound<'_, PyDict>) = f
                         .call(args.clone(), Some(kwargs))
                         .unwrap()
                         .extract()
@@ -279,7 +279,7 @@ mod tests {
     fn test_call_positional() {
         use crate::{
             types::{PyAnyMethods, PyNone, PyTuple},
-            wrap_pyfunction, Py, Python,
+            wrap_pyfunction, Bound, Python,
         };
 
         Python::with_gil(|py| {
@@ -289,10 +289,10 @@ mod tests {
 
             macro_rules! check_call {
                 ($args:expr, $kwargs:expr) => {
-                    let (a, k): (Py<PyTuple>, Py<PyNone>) =
+                    let (a, k): (Bound<'_, PyTuple>, Bound<'_, PyNone>) =
                         f.call1(args.clone()).unwrap().extract().unwrap();
                     assert!(a.is(&args));
-                    assert!(k.is_none(py));
+                    assert!(k.is_none());
                 };
             }
 

@@ -7,8 +7,8 @@ use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{DerefToPyAny, PyDict, PyString, PyTuple};
 use crate::{
-    ffi, AsPyPointer, DowncastError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef,
-    PyRefMut, PyTypeInfo, Python,
+    ffi, DowncastError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef, PyRefMut,
+    PyTypeInfo, Python,
 };
 use crate::{gil, PyTypeCheck};
 use std::marker::PhantomData;
@@ -609,13 +609,6 @@ impl<'py, T> Bound<'py, T> {
     #[inline]
     pub fn as_unbound(&self) -> &Py<T> {
         &self.1
-    }
-}
-
-unsafe impl<T> AsPyPointer for Bound<'_, T> {
-    #[inline]
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.1.as_ptr()
     }
 }
 
@@ -1315,7 +1308,7 @@ impl<T> Py<T> {
     ///
     /// This is equivalent to the Python expression `self is other`.
     #[inline]
-    pub fn is<U: AsPyPointer>(&self, o: &U) -> bool {
+    pub fn is<U>(&self, o: &Py<U>) -> bool {
         ptr::eq(self.as_ptr(), o.as_ptr())
     }
 
@@ -1689,14 +1682,6 @@ impl<T> Py<T> {
     /// `ptr` must point to a Python object of type T.
     unsafe fn from_non_null(ptr: NonNull<ffi::PyObject>) -> Self {
         Self(ptr, PhantomData)
-    }
-}
-
-unsafe impl<T> crate::AsPyPointer for Py<T> {
-    /// Gets the underlying FFI pointer, returns a borrowed pointer.
-    #[inline]
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.0.as_ptr()
     }
 }
 

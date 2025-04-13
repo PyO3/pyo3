@@ -1,6 +1,6 @@
 use crate::call::PyCallArgs;
 use crate::class::basic::CompareOp;
-use crate::conversion::{AsPyPointer, FromPyObjectBound, IntoPyObject};
+use crate::conversion::{FromPyObjectBound, IntoPyObject};
 use crate::err::{DowncastError, DowncastIntoError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -65,7 +65,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// the equality of two objects (the `==` operator), use [`eq`](PyAnyMethods::eq).
     ///
     /// This is equivalent to the Python expression `self is other`.
-    fn is<T: AsPyPointer>(&self, other: &T) -> bool;
+    fn is<T>(&self, other: &Bound<'py, T>) -> bool;
 
     /// Determines whether this object has the given attribute.
     ///
@@ -951,7 +951,7 @@ macro_rules! implement_binop {
 
 impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     #[inline]
-    fn is<T: AsPyPointer>(&self, other: &T) -> bool {
+    fn is<T>(&self, other: &Bound<'py, T>) -> bool {
         ptr::eq(self.as_ptr(), other.as_ptr())
     }
 
