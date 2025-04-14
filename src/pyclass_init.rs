@@ -166,10 +166,12 @@ impl<T: PyClass> PyClassInitializer<T> {
 
         let obj = unsafe { super_init.into_new_object(py, target_type)? };
 
-        std::ptr::write(
-            PyObjectLayout::get_contents_ptr::<T>(obj, TypeObjectStrategy::lazy(py)),
-            PyClassObjectContents::new(init),
-        );
+        unsafe {
+            std::ptr::write(
+                PyObjectLayout::get_contents_ptr::<T>(obj, TypeObjectStrategy::lazy(py)),
+                PyClassObjectContents::new(init),
+            );
+        }
 
         // Safety: obj is a valid pointer to an object of type `target_type`, which` is a known
         // subclass of `T`

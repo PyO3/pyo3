@@ -433,7 +433,7 @@ where
     }
 }
 
-impl<'py, T: PyClass> Deref for PyRef<'py, T> {
+impl<T: PyClass> Deref for PyRef<'_, T> {
     type Target = T;
 
     #[inline]
@@ -443,7 +443,7 @@ impl<'py, T: PyClass> Deref for PyRef<'py, T> {
     }
 }
 
-impl<'py, T: PyClass> Drop for PyRef<'py, T> {
+impl<T: PyClass> Drop for PyRef<'_, T> {
     fn drop(&mut self) {
         let obj = self.inner.as_raw_ref();
         let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(self.py(), obj) };
@@ -605,7 +605,7 @@ where
     }
 }
 
-impl<'py, T: PyClass<Frozen = False>> Deref for PyRefMut<'py, T> {
+impl<T: PyClass<Frozen = False>> Deref for PyRefMut<'_, T> {
     type Target = T;
 
     #[inline]
@@ -615,7 +615,7 @@ impl<'py, T: PyClass<Frozen = False>> Deref for PyRefMut<'py, T> {
     }
 }
 
-impl<'py, T: PyClass<Frozen = False>> DerefMut for PyRefMut<'py, T> {
+impl<T: PyClass<Frozen = False>> DerefMut for PyRefMut<'_, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
         let obj = self.inner.as_ptr();
@@ -623,7 +623,7 @@ impl<'py, T: PyClass<Frozen = False>> DerefMut for PyRefMut<'py, T> {
     }
 }
 
-impl<'py, T: PyClass<Frozen = False>> Drop for PyRefMut<'py, T> {
+impl<T: PyClass<Frozen = False>> Drop for PyRefMut<'_, T> {
     fn drop(&mut self) {
         let obj = self.inner.get_raw_object();
         let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(self.py(), obj) };

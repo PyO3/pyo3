@@ -19,10 +19,12 @@ pub unsafe fn initialize_with_default<T: PyClass + Default>(
         TypeId::of::<T::BaseNativeType>() == TypeId::of::<T::BaseType>(),
         "initialize_with_default does not currently support multi-level inheritance"
     );
-    std::ptr::write(
-        PyObjectLayout::get_contents_ptr::<T>(obj, TypeObjectStrategy::lazy(py)),
-        PyClassObjectContents::new(T::default()),
-    );
+    unsafe {
+        std::ptr::write(
+            PyObjectLayout::get_contents_ptr::<T>(obj, TypeObjectStrategy::lazy(py)),
+            PyClassObjectContents::new(T::default()),
+        );
+    }
 }
 
 /// Initializer for Python types.

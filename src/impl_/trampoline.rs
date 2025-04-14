@@ -139,10 +139,12 @@ pub unsafe fn initproc(
     ) -> PyResult<*mut ffi::PyObject>,
 ) -> c_int {
     // the map() discards the success value of `f` and converts to the success return value for tp_init (0)
-    trampoline(|py| {
-        initialize(py, slf);
-        f(py, slf, args, kwargs).map(|_| 0)
-    })
+    unsafe {
+        trampoline(|py| {
+            initialize(py, slf);
+            f(py, slf, args, kwargs).map(|_| 0)
+        })
+    }
 }
 
 #[cfg(any(not(Py_LIMITED_API), Py_3_11))]

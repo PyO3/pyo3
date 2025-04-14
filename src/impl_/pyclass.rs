@@ -1187,12 +1187,12 @@ pub trait PyClassBaseType: Sized {
 
 /// Implementation of tp_dealloc for pyclasses without gc
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
-    crate::impl_::trampoline::dealloc(obj, PyObjectLayout::deallocate::<T>)
+    unsafe { crate::impl_::trampoline::dealloc(obj, PyObjectLayout::deallocate::<T>) }
 }
 
 /// Implementation of tp_dealloc for pyclasses with gc
 pub(crate) unsafe extern "C" fn tp_dealloc_with_gc<T: PyClass>(obj: *mut ffi::PyObject) {
-    crate::impl_::trampoline::dealloc(obj, PyObjectLayout::deallocate_with_gc::<T>)
+    unsafe { crate::impl_::trampoline::dealloc(obj, PyObjectLayout::deallocate_with_gc::<T>) }
 }
 
 pub(crate) unsafe extern "C" fn get_sequence_item_from_mapping(

@@ -6,8 +6,6 @@ use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::ptr::addr_of_mut;
 
-use memoffset::offset_of;
-
 use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef, PyObjectOffset,
 };
@@ -55,10 +53,10 @@ impl<T: PyClassImpl> PyClassObjectContents<T> {
 
     unsafe fn dealloc(&mut self, py: Python<'_>, py_object: *mut ffi::PyObject) {
         if self.thread_checker.can_drop(py) {
-            ManuallyDrop::drop(&mut self.value);
+            unsafe { ManuallyDrop::drop(&mut self.value) };
         }
         self.dict.clear_dict(py);
-        self.weakref.clear_weakrefs(py_object, py);
+        unsafe { self.weakref.clear_weakrefs(py_object, py) };
     }
 }
 
@@ -119,10 +117,12 @@ impl<T: PyClassImpl + PyTypeInfo> PyObjectRecursiveOperations for PyClassRecursi
 
     unsafe fn deallocate(py: Python<'_>, obj: *mut ffi::PyObject) {
         // Safety: Python only calls tp_dealloc when no references to the object remain.
-        let contents =
-            &mut *PyObjectLayout::get_contents_ptr::<T>(obj, TypeObjectStrategy::lazy(py));
-        contents.dealloc(py, obj);
-        <T::BaseType as PyClassBaseType>::RecursiveOperations::deallocate(py, obj);
+        unsafe {
+            let contents =
+                &mut *PyObjectLayout::get_contents_ptr::<T>(obj, TypeObjectStrategy::lazy(py));
+            contents.dealloc(py, obj);
+            <T::BaseType as PyClassBaseType>::RecursiveOperations::deallocate(py, obj);
+        }
     }
 }
 
@@ -163,31 +163,35 @@ impl<T: PyNativeType + PyTypeInfo> PyObjectRecursiveOperations
         // FIXME: there is potentially subtle issues here if the base is overwritten at runtime? To be investigated.
 
         // the 'most derived class' of `obj`. i.e. the result of calling `type(obj)`.
-        let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(obj));
+        let actual_type = unsafe { PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(obj)) };
 
         if type_ptr == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type) {
             // the `PyBaseObject_Type` destructor (tp_dealloc) just calls tp_free so we can do this directly
             let tp_free = actual_type
                 .get_slot(TP_FREE)
                 .expect("base type should have tp_free");
-            return tp_free(obj.cast());
+            return unsafe { tp_free(obj.cast()) };
         }
 
         if type_ptr == std::ptr::addr_of_mut!(ffi::PyType_Type) {
-            let tp_dealloc = PyType::from_borrowed_type_ptr(py, type_ptr)
-                .get_slot(TP_DEALLOC)
-                .expect("PyType_Type should have tp_dealloc");
+            let tp_dealloc = unsafe {
+                PyType::from_borrowed_type_ptr(py, type_ptr)
+                    .get_slot(TP_DEALLOC)
+                    .expect("PyType_Type should have tp_dealloc")
+            };
             // `PyType_Type::dealloc` calls `Py_GC_UNTRACK` so we have to re-track before deallocating
             #[cfg(not(PyPy))]
-            ffi::PyObject_GC_Track(obj.cast());
-            return tp_dealloc(obj.cast());
+            unsafe {
+                ffi::PyObject_GC_Track(obj.cast());
+            }
+            return unsafe { tp_dealloc(obj.cast()) };
         }
 
         // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
         #[cfg(not(Py_LIMITED_API))]
         {
             // FIXME: should this be using actual_type.tp_dealloc?
-            if let Some(dealloc) = (*type_ptr).tp_dealloc {
+            if let Some(dealloc) = unsafe { (*type_ptr).tp_dealloc } {
                 // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
                 // assumes the exception is currently GC tracked, so we have to re-track
                 // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
@@ -195,11 +199,13 @@ impl<T: PyNativeType + PyTypeInfo> PyObjectRecursiveOperations
                 if ffi::PyType_FastSubclass(type_ptr, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
                     ffi::PyObject_GC_Track(obj.cast());
                 }
-                dealloc(obj);
+                unsafe { dealloc(obj) };
             } else {
-                (*actual_type.as_type_ptr())
-                    .tp_free
-                    .expect("type missing tp_free")(obj.cast());
+                unsafe {
+                    (*actual_type.as_type_ptr())
+                        .tp_free
+                        .expect("type missing tp_free")(obj.cast())
+                };
             }
         }
 
@@ -357,7 +363,7 @@ impl PyObjectLayout {
         debug_assert!(!obj.is_null(), "get_contents_ptr of null object");
         if T::OPAQUE {
             #[cfg(Py_3_12)]
-            {
+            unsafe {
                 opaque_layout::get_contents_ptr(obj, strategy)
             }
 
@@ -371,7 +377,7 @@ impl PyObjectLayout {
                 static_layout::PyStaticClassLayout::<T>::IS_VALID,
                 "invalid static layout found"
             );
-            addr_of_mut!((*obj).contents)
+            unsafe { addr_of_mut!((*obj).contents) }
         }
     }
 
@@ -383,10 +389,12 @@ impl PyObjectLayout {
         obj: &'a ffi::PyObject,
         strategy: TypeObjectStrategy<'_>,
     ) -> &'a PyClassObjectContents<T> {
-        &*cast_const(PyObjectLayout::get_contents_ptr::<T>(
-            cast_mut(ptr_from_ref(obj)),
-            strategy,
-        ))
+        unsafe {
+            &*cast_const(PyObjectLayout::get_contents_ptr::<T>(
+                cast_mut(ptr_from_ref(obj)),
+                strategy,
+            ))
+        }
     }
 
     /// Obtain a pointer to the portion of `obj` containing the user data for `T`
@@ -397,8 +405,10 @@ impl PyObjectLayout {
         obj: *mut ffi::PyObject,
         strategy: TypeObjectStrategy<'_>,
     ) -> *mut T {
-        let contents = PyObjectLayout::get_contents_ptr::<T>(obj, strategy);
-        (*contents).value.get()
+        unsafe {
+            let contents = PyObjectLayout::get_contents_ptr::<T>(obj, strategy);
+            (*contents).value.get()
+        }
     }
 
     /// Obtain a reference to the portion of `obj` containing the user data for `T`
@@ -409,7 +419,7 @@ impl PyObjectLayout {
         obj: &'a ffi::PyObject,
         strategy: TypeObjectStrategy<'_>,
     ) -> &'a T {
-        &*PyObjectLayout::get_data_ptr::<T>(cast_mut(ptr_from_ref(obj)), strategy)
+        unsafe { &*PyObjectLayout::get_data_ptr::<T>(cast_mut(ptr_from_ref(obj)), strategy) }
     }
 
     /// Obtain a reference to the borrow checker for `obj`
@@ -447,7 +457,7 @@ impl PyObjectLayout {
         py: Python<'_>,
         obj: *mut ffi::PyObject,
     ) {
-        PyClassRecursiveOperations::<T>::deallocate(py, obj);
+        unsafe { PyClassRecursiveOperations::<T>::deallocate(py, obj) };
     }
 
     /// Clean up then free the memory associated with `obj`.
@@ -460,10 +470,10 @@ impl PyObjectLayout {
         obj: *mut ffi::PyObject,
     ) {
         #[cfg(not(PyPy))]
-        {
+        unsafe {
             ffi::PyObject_GC_UnTrack(obj.cast());
         }
-        PyClassRecursiveOperations::<T>::deallocate(py, obj);
+        unsafe { PyClassRecursiveOperations::<T>::deallocate(py, obj) };
     }
 
     /// Used to set `PyType_Spec::basicsize` when creating a `PyTypeObject` for `T`

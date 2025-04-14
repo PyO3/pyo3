@@ -304,12 +304,12 @@ where
 
     // SAFETY: `slf` is a valid Python object pointer to a class object of type T, and
     // traversal is running so no mutations can occur.
-    let raw_obj = &*slf;
+    let raw_obj = unsafe { &*slf };
 
     // SAFETY: type objects for `T` and all ancestors of `T` are created the first time an
     // instance of `T` is created. Since `slf` is an instance of `T` the type objects must
     // have been created.
-    let strategy = TypeObjectStrategy::assume_init();
+    let strategy = unsafe { TypeObjectStrategy::assume_init() };
 
     let retval =
     // `#[pyclass(unsendable)]` types can only be deallocated by their own thread, so
@@ -331,7 +331,7 @@ where
         // `.try_borrow()` above created a borrow, we need to release it when we're done
         // traversing the object. This allows us to read `instance` safely.
         let _guard: TraverseGuard<'_, T> = TraverseGuard(raw_obj, PhantomData);
-        let instance  = PyObjectLayout::get_data::<T>(raw_obj, strategy);
+        let instance  = unsafe { PyObjectLayout::get_data::<T>(raw_obj, strategy) };
 
         let visit = PyVisit { visit, arg, _guard: PhantomData };
 
