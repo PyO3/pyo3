@@ -194,7 +194,7 @@ jobs:
 
       - if: ${{ github.event_name != 'merge_group' }}
         name: Upload coverage report
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           file: coverage.json
           name: ${{ inputs.os }}/${{ inputs.python-version }}/${{ inputs.rust }}
