@@ -101,7 +101,7 @@ impl MyClass {
 }
 ```
 
-If you need to lock around state stored in the Python interpreter or otherwise call into the Python C API while a lock is held, you might find the `MutexExt` trait useful. It provides a `lock_py_attached` method for `std::sync::Mutex` that avoids deadlocks with the GIL or other global synchronization events in the interpreter. Additionally, support for third-party synchronization libraries, such as `parking_lot`, is available behind a Cargo feature.
+If you need to lock around state stored in the Python interpreter or otherwise call into the Python C API while a lock is held, you might find the `MutexExt` trait useful. It provides a `lock_py_attached` method for `std::sync::Mutex` that avoids deadlocks with the GIL or other global synchronization events in the interpreter. Additionally, support for the `parking_lot` and `lock_api` synchronization libraries is gated behind the `parking_lot` and `lock_api` features. You can also enable the `arc_lock` feature if you need the `arc_lock` features of either library.
 
 ### Wrapping unsynchronized data
 
