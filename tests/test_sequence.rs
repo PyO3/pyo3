@@ -368,14 +368,14 @@ fn sequence_length() {
     })
 }
 
-#[cfg(Py_3_9)]
+#[cfg(Py_3_10)]
 #[pyclass(generic, sequence)]
 struct GenericList {
     #[pyo3(get, set)]
     items: Vec<PyObject>,
 }
 
-#[cfg(Py_3_9)]
+#[cfg(Py_3_10)]
 #[pymethods]
 impl GenericList {
     fn __len__(&self) -> usize {
@@ -390,7 +390,7 @@ impl GenericList {
     }
 }
 
-#[cfg(Py_3_9)]
+#[cfg(Py_3_10)]
 #[test]
 fn test_generic_both_subscriptions_types() {
     use pyo3::types::PyInt;
