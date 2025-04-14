@@ -853,6 +853,7 @@ impl PyTzInfo {
 }
 
 /// Equivalent to `datetime.timezone.utc`
+#[deprecated(since = "0.25.0", note = "use `PyTzInfo::utc` instead")]
 pub fn timezone_utc(py: Python<'_>) -> Bound<'_, PyTzInfo> {
     PyTzInfo::utc(py)
         .expect("failed to import datetime.timezone.utc")
@@ -972,7 +973,8 @@ mod tests {
                 "import datetime; assert dt == datetime.datetime.fromtimestamp(100)"
             );
 
-            let dt = PyDateTime::from_timestamp(py, 100.0, Some(&timezone_utc(py))).unwrap();
+            let utc = PyTzInfo::utc(py).unwrap();
+            let dt = PyDateTime::from_timestamp(py, 100.0, Some(&utc)).unwrap();
             py_run!(
                 py,
                 dt,
@@ -1012,11 +1014,11 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_get_tzinfo() {
         crate::Python::with_gil(|py| {
-            let utc = timezone_utc(py);
+            let utc = PyTzInfo::utc(py).unwrap();
 
             let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
 
-            assert!(dt.get_tzinfo().unwrap().eq(&utc).unwrap());
+            assert!(dt.get_tzinfo().unwrap().eq(utc).unwrap());
 
             let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, None).unwrap();
 

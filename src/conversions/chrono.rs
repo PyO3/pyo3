@@ -538,7 +538,7 @@ fn py_time_to_naive_time(py_time: &Bound<'_, PyAny>) -> PyResult<NaiveTime> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{types::timezone_utc, types::PyTuple, BoundObject};
+    use crate::{types::PyTuple, BoundObject};
     use std::{cmp::Ordering, panic};
 
     #[test]
@@ -923,7 +923,7 @@ mod tests {
             let minute = 8;
             let second = 9;
             let micro = 999_999;
-            let tz_utc = timezone_utc(py);
+            let tz_utc = PyTzInfo::utc(py).unwrap();
             let py_datetime = new_py_datetime_ob(
                 py,
                 "datetime",

@@ -48,8 +48,8 @@
 //! ```
 use crate::exceptions::{PyTypeError, PyValueError};
 use crate::pybacked::PyBackedStr;
-use crate::types::{timezone_utc, PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
 use crate::types::{PyAnyMethods, PyNone};
+use crate::types::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
 use crate::{intern, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
@@ -329,7 +329,7 @@ impl<'py> IntoPyObject<'py> for &TimeZone {
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         if self == &TimeZone::UTC {
-            return Ok(timezone_utc(py));
+            return Ok(PyTzInfo::utc(py)?.to_owned());
         }
 
         #[cfg(Py_3_9)]
@@ -361,7 +361,7 @@ impl<'py> IntoPyObject<'py> for &Offset {
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         if self == &Offset::UTC {
-            return Ok(timezone_utc(py));
+            return Ok(PyTzInfo::utc(py)?.to_owned());
         }
 
         PyTzInfo::fixed_offset(py, self.duration_since(Offset::UTC))
@@ -468,8 +468,6 @@ impl From<jiff::Error> for PyErr {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(not(Py_LIMITED_API))]
-    use crate::types::timezone_utc;
     use crate::{types::PyTuple, BoundObject};
     use jiff::tz::Offset;
     use std::cmp::Ordering;
@@ -719,7 +717,7 @@ mod tests {
             let minute = 8;
             let second = 9;
             let micro = 999_999;
-            let tz_utc = timezone_utc(py);
+            let tz_utc = PyTzInfo::utc(py).unwrap();
             let py_datetime = new_py_datetime_ob(
                 py,
                 "datetime",

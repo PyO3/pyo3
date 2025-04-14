@@ -250,12 +250,12 @@ fn ucs4() {
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
 #[cfg(not(PyPy))]
 fn test_get_tzinfo() {
-    use crate::types::timezone_utc;
+    use crate::types::PyTzInfo;
 
     crate::Python::with_gil(|py| {
         use crate::types::{PyDateTime, PyTime};
 
-        let utc = &timezone_utc(py);
+        let utc: &Bound<'_, _> = &PyTzInfo::utc(py).unwrap();
 
         let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(utc)).unwrap();
 
