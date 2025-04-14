@@ -1,3 +1,4 @@
+use crate::call::PyCallArgs;
 use crate::class::basic::CompareOp;
 use crate::conversion::{AsPyPointer, FromPyObjectBound, IntoPyObject};
 use crate::err::{DowncastError, DowncastIntoError, PyErr, PyResult};
@@ -10,11 +11,12 @@ use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::types::PySuper;
-use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
+use crate::types::{PyDict, PyIterator, PyList, PyString, PyType};
 use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
+use std::ptr;
 
 /// Represents any Python object.
 ///
@@ -124,6 +126,38 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// # });
     /// ```
     fn getattr<N>(&self, attr_name: N) -> PyResult<Bound<'py, PyAny>>
+    where
+        N: IntoPyObject<'py, Target = PyString>;
+
+    /// Retrieves an attribute value optionally.
+    ///
+    /// This is equivalent to the Python expression `getattr(self, attr_name, None)`, which may
+    /// be more efficient in some cases by simply returning `None` if the attribute is not found
+    /// instead of raising `AttributeError`.
+    ///
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
+    /// to intern `attr_name`.
+    ///
+    /// # Errors
+    /// Returns `Err` if an exception other than `AttributeError` is raised during attribute lookup,
+    /// such as a `ValueError` from a property or descriptor.
+    ///
+    /// # Example: Retrieving an optional attribute
+    /// ```
+    /// # use pyo3::{prelude::*, intern};
+    /// #
+    /// #[pyfunction]
+    /// fn get_version_if_exists<'py>(sys: &Bound<'py, PyModule>) -> PyResult<Option<Bound<'py, PyAny>>> {
+    ///     sys.getattr_opt(intern!(sys.py(), "version"))
+    /// }
+    /// #
+    /// # Python::with_gil(|py| {
+    /// #    let sys = py.import("sys").unwrap();
+    /// #    let version = get_version_if_exists(&sys).unwrap();
+    /// #    assert!(version.is_some());
+    /// # });
+    /// ```
+    fn getattr_opt<N>(&self, attr_name: N) -> PyResult<Option<Bound<'py, PyAny>>>
     where
         N: IntoPyObject<'py, Target = PyString>;
 
@@ -446,7 +480,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```
     fn call<A>(&self, args: A, kwargs: Option<&Bound<'py, PyDict>>) -> PyResult<Bound<'py, PyAny>>
     where
-        A: IntoPyObject<'py, Target = PyTuple>;
+        A: PyCallArgs<'py>;
 
     /// Calls the object without arguments.
     ///
@@ -501,7 +535,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```
     fn call1<A>(&self, args: A) -> PyResult<Bound<'py, PyAny>>
     where
-        A: IntoPyObject<'py, Target = PyTuple>;
+        A: PyCallArgs<'py>;
 
     /// Calls a method on the object.
     ///
@@ -548,7 +582,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        A: IntoPyObject<'py, Target = PyTuple>;
+        A: PyCallArgs<'py>;
 
     /// Calls a method on the object without arguments.
     ///
@@ -624,7 +658,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     fn call_method1<N, A>(&self, name: N, args: A) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        A: IntoPyObject<'py, Target = PyTuple>;
+        A: PyCallArgs<'py>;
 
     /// Returns whether the object is considered to be true.
     ///
@@ -635,12 +669,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// This is equivalent to the Python expression `self is None`.
     fn is_none(&self) -> bool;
-
-    /// Returns whether the object is Ellipsis, e.g. `...`.
-    ///
-    /// This is equivalent to the Python expression `self is ...`.
-    #[deprecated(since = "0.23.0", note = "use `.is(py.Ellipsis())` instead")]
-    fn is_ellipsis(&self) -> bool;
 
     /// Returns true if the sequence or mapping has a length of 0.
     ///
@@ -694,13 +722,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// });
     /// ```
     fn try_iter(&self) -> PyResult<Bound<'py, PyIterator>>;
-
-    /// Takes an object and returns an iterator for it.
-    ///
-    /// This is typically a new iterator but if the argument is an iterator,
-    /// this returns itself.
-    #[deprecated(since = "0.23.0", note = "use `try_iter` instead")]
-    fn iter(&self) -> PyResult<Bound<'py, PyIterator>>;
 
     /// Returns the Python type object for this object's type.
     fn get_type(&self) -> Bound<'py, PyType>;
@@ -941,7 +962,7 @@ macro_rules! implement_binop {
 impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     #[inline]
     fn is<T: AsPyPointer>(&self, other: &T) -> bool {
-        self.as_ptr() == other.as_ptr()
+        ptr::eq(self.as_ptr(), other.as_ptr())
     }
 
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
@@ -958,7 +979,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
             }
         }
 
-        inner(self.py(), self.getattr(attr_name).map_err(Into::into))
+        inner(self.py(), self.getattr(attr_name))
     }
 
     fn getattr<N>(&self, attr_name: N) -> PyResult<Bound<'py, PyAny>>
@@ -982,6 +1003,54 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
                 .map_err(Into::into)?
                 .as_borrowed(),
         )
+    }
+
+    fn getattr_opt<N>(&self, attr_name: N) -> PyResult<Option<Bound<'py, PyAny>>>
+    where
+        N: IntoPyObject<'py, Target = PyString>,
+    {
+        fn inner<'py>(
+            any: &Bound<'py, PyAny>,
+            attr_name: Borrowed<'_, 'py, PyString>,
+        ) -> PyResult<Option<Bound<'py, PyAny>>> {
+            #[cfg(Py_3_13)]
+            {
+                let mut resp_ptr: *mut ffi::PyObject = std::ptr::null_mut();
+                match unsafe {
+                    ffi::PyObject_GetOptionalAttr(any.as_ptr(), attr_name.as_ptr(), &mut resp_ptr)
+                } {
+                    // Attribute found, result is a new strong reference
+                    1 => {
+                        let bound = unsafe { Bound::from_owned_ptr(any.py(), resp_ptr) };
+                        Ok(Some(bound))
+                    }
+                    // Attribute not found, result is NULL
+                    0 => Ok(None),
+
+                    // An error occurred (other than AttributeError)
+                    _ => Err(PyErr::fetch(any.py())),
+                }
+            }
+
+            #[cfg(not(Py_3_13))]
+            {
+                match any.getattr(attr_name) {
+                    Ok(bound) => Ok(Some(bound)),
+                    Err(err) => {
+                        let err_type = err
+                            .get_type(any.py())
+                            .is(&PyType::new::<PyAttributeError>(any.py()));
+                        match err_type {
+                            true => Ok(None),
+                            false => Err(err),
+                        }
+                    }
+                }
+            }
+        }
+
+        let py = self.py();
+        inner(self, attr_name.into_pyobject_or_pyerr(py)?.as_borrowed())
     }
 
     fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
@@ -1219,25 +1288,17 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     fn call<A>(&self, args: A, kwargs: Option<&Bound<'py, PyDict>>) -> PyResult<Bound<'py, PyAny>>
     where
-        A: IntoPyObject<'py, Target = PyTuple>,
+        A: PyCallArgs<'py>,
     {
-        fn inner<'py>(
-            any: &Bound<'py, PyAny>,
-            args: Borrowed<'_, 'py, PyTuple>,
-            kwargs: Option<&Bound<'py, PyDict>>,
-        ) -> PyResult<Bound<'py, PyAny>> {
-            unsafe {
-                ffi::PyObject_Call(
-                    any.as_ptr(),
-                    args.as_ptr(),
-                    kwargs.map_or(std::ptr::null_mut(), |dict| dict.as_ptr()),
-                )
-                .assume_owned_or_err(any.py())
-            }
+        if let Some(kwargs) = kwargs {
+            args.call(
+                self.as_borrowed(),
+                kwargs.as_borrowed(),
+                crate::call::private::Token,
+            )
+        } else {
+            args.call_positional(self.as_borrowed(), crate::call::private::Token)
         }
-
-        let py = self.py();
-        inner(self, args.into_pyobject_or_pyerr(py)?.as_borrowed(), kwargs)
     }
 
     #[inline]
@@ -1247,9 +1308,9 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     fn call1<A>(&self, args: A) -> PyResult<Bound<'py, PyAny>>
     where
-        A: IntoPyObject<'py, Target = PyTuple>,
+        A: PyCallArgs<'py>,
     {
-        self.call(args, None)
+        args.call_positional(self.as_borrowed(), crate::call::private::Token)
     }
 
     #[inline]
@@ -1261,10 +1322,14 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     ) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        A: IntoPyObject<'py, Target = PyTuple>,
+        A: PyCallArgs<'py>,
     {
-        self.getattr(name)
-            .and_then(|method| method.call(args, kwargs))
+        if kwargs.is_none() {
+            self.call_method1(name, args)
+        } else {
+            self.getattr(name)
+                .and_then(|method| method.call(args, kwargs))
+        }
     }
 
     #[inline]
@@ -1283,9 +1348,14 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     fn call_method1<N, A>(&self, name: N, args: A) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        A: IntoPyObject<'py, Target = PyTuple>,
+        A: PyCallArgs<'py>,
     {
-        self.call_method(name, args, None)
+        let name = name.into_pyobject_or_pyerr(self.py())?;
+        args.call_method_positional(
+            self.as_borrowed(),
+            name.as_borrowed(),
+            crate::call::private::Token,
+        )
     }
 
     fn is_truthy(&self) -> PyResult<bool> {
@@ -1296,11 +1366,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[inline]
     fn is_none(&self) -> bool {
-        unsafe { ffi::Py_None() == self.as_ptr() }
-    }
-
-    fn is_ellipsis(&self) -> bool {
-        unsafe { ffi::Py_Ellipsis() == self.as_ptr() }
+        unsafe { ptr::eq(ffi::Py_None(), self.as_ptr()) }
     }
 
     fn is_empty(&self) -> PyResult<bool> {
@@ -1371,10 +1437,6 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         PyIterator::from_object(self)
     }
 
-    fn iter(&self) -> PyResult<Bound<'py, PyIterator>> {
-        self.try_iter()
-    }
-
     fn get_type(&self) -> Bound<'py, PyType> {
         unsafe { PyType::from_borrowed_type_ptr(self.py(), ffi::Py_TYPE(self.as_ptr())) }
     }
@@ -1438,12 +1500,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[inline]
     unsafe fn downcast_unchecked<T>(&self) -> &Bound<'py, T> {
-        &*ptr_from_ref(self).cast()
+        unsafe { &*ptr_from_ref(self).cast() }
     }
 
     #[inline]
     unsafe fn downcast_into_unchecked<T>(self) -> Bound<'py, T> {
-        std::mem::transmute(self)
+        unsafe { std::mem::transmute(self) }
     }
 
     fn extract<'a, T>(&'a self) -> PyResult<T>
@@ -1662,6 +1724,51 @@ class NonHeapNonDescriptorInt:
                 .unwrap();
             assert_eq!(eval_int(nonheap_nondescriptor).unwrap(), 0);
         })
+    }
+
+    #[test]
+    fn test_getattr_opt() {
+        Python::with_gil(|py| {
+            let module = PyModule::from_code(
+                py,
+                c_str!(
+                    r#"
+class Test:
+    class_str_attribute = "class_string"
+
+    @property
+    def error(self):
+        raise ValueError("This is an intentional error")
+                "#
+                ),
+                c_str!("test.py"),
+                &generate_unique_module_name("test"),
+            )
+            .unwrap();
+
+            // Get the class Test
+            let class_test = module.getattr_opt("Test").unwrap().unwrap();
+
+            // Test attribute that exist
+            let cls_attr_str = class_test
+                .getattr_opt("class_str_attribute")
+                .unwrap()
+                .unwrap();
+            assert_eq!(cls_attr_str.extract::<String>().unwrap(), "class_string");
+
+            // Test non-existent attribute
+            let do_not_exist = class_test.getattr_opt("doNotExist").unwrap();
+            assert!(do_not_exist.is_none());
+
+            // Test error attribute
+            let instance = class_test.call0().unwrap();
+            let error = instance.getattr_opt("error");
+            assert!(error.is_err());
+            assert!(error
+                .unwrap_err()
+                .to_string()
+                .contains("This is an intentional error"));
+        });
     }
 
     #[test]
@@ -1967,22 +2074,6 @@ class SimpleClass:
                 .is_truthy()
                 .unwrap());
         })
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn test_is_ellipsis() {
-        Python::with_gil(|py| {
-            let v = py
-                .eval(ffi::c_str!("..."), None, None)
-                .map_err(|e| e.display(py))
-                .unwrap();
-
-            assert!(v.is_ellipsis());
-
-            let not_ellipsis = 5i32.into_pyobject(py).unwrap();
-            assert!(!not_ellipsis.is_ellipsis());
-        });
     }
 
     #[test]

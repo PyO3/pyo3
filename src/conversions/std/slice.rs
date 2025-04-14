@@ -5,17 +5,8 @@ use crate::inspect::types::TypeInfo;
 use crate::{
     conversion::IntoPyObject,
     types::{PyByteArray, PyByteArrayMethods, PyBytes},
-    Bound, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    Bound, PyAny, PyErr, PyResult, Python,
 };
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for &[u8] {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyBytes::new(py, self).unbind().into()
-    }
-}
 
 impl<'a, 'py, T> IntoPyObject<'py> for &'a [T]
 where
@@ -73,20 +64,6 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, [u8]> {
     #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         Self::type_output()
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for Cow<'_, [u8]> {
-    fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
-        PyBytes::new(py, self.as_ref()).into()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<Py<PyAny>> for Cow<'_, [u8]> {
-    fn into_py(self, py: Python<'_>) -> Py<PyAny> {
-        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 

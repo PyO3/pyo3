@@ -70,7 +70,7 @@ are deprecated and will be removed in a future PyO3 version.
 
 To implement the new trait you may use the new `IntoPyObject` and `IntoPyObjectRef` derive macros as below.
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 #[derive(IntoPyObject, IntoPyObjectRef)]
 struct Struct {
@@ -103,7 +103,7 @@ impl ToPyObject for MyPyObjectWrapper {
 ```
 
 After:
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
 # struct MyPyObjectWrapper(PyObject);
@@ -145,7 +145,7 @@ This change has an effect on functions and methods returning _byte_ collections 
 In their new `IntoPyObject` implementation these will now turn into `PyBytes` rather than a
 `PyList`. All other `T`s are unaffected and still convert into a `PyList`.
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 #[pyfunction]
@@ -179,7 +179,7 @@ With the removal of the old API, many "Bound" API functions which had been intro
 
 Before:
 
-```rust
+```rust,ignore
 # #![allow(deprecated)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyTuple;
@@ -237,7 +237,7 @@ where
 
 After:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 # use pyo3::types::{PyDict, IntoPyDict};
 # use std::collections::HashMap;
@@ -282,7 +282,7 @@ and unnoticed changes in behavior. With 0.24 this restriction will be lifted aga
 
 Before:
 
-```rust
+```rust,no_run
 # #![allow(deprecated, dead_code)]
 # use pyo3::prelude::*;
 #[pyfunction]
@@ -293,7 +293,7 @@ fn increment(x: u64, amount: Option<u64>) -> u64 {
 
 After:
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 #[pyfunction]
@@ -326,7 +326,7 @@ To migrate, place a `#[pyo3(eq, eq_int)]` attribute on simple enum classes.
 
 Before:
 
-```rust
+```rust,no_run
 # #![allow(deprecated, dead_code)]
 # use pyo3::prelude::*;
 #[pyclass]
@@ -338,7 +338,7 @@ enum SimpleEnum {
 
 After:
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 #[pyclass(eq, eq_int)]
@@ -528,7 +528,7 @@ impl PyClassIter {
 
 If returning `"done"` via `StopIteration` is not really required, this should be written as
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -553,7 +553,7 @@ This form also has additional benefits: It has already worked in previous PyO3 v
 
 Alternatively, the implementation can also be done as it would in Python itself, i.e. by "raising" a `StopIteration` exception
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 use pyo3::exceptions::PyStopIteration;
 
@@ -577,7 +577,7 @@ impl PyClassIter {
 
 Finally, an asynchronous iterator can directly return an awaitable without confusing wrapping
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -885,7 +885,7 @@ fn x_or_y(x: Option<u64>, y: u64) -> u64 {
 
 After:
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 
@@ -915,7 +915,7 @@ fn add(a: u64, b: u64) -> u64 {
 
 After:
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 
@@ -1105,7 +1105,7 @@ fn required_argument_after_option(x: Option<i32>, y: i32) {}
 
 After, specify the intended Python signature explicitly:
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 
@@ -1237,7 +1237,7 @@ Python::with_gil(|py| {
 
 After, some type annotations may be necessary:
 
-```rust
+```rust,ignore
 # #![allow(deprecated)]
 # use pyo3::prelude::*;
 #
@@ -1553,7 +1553,7 @@ impl PyObjectProtocol for MyClass {
 
 After:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -1646,7 +1646,7 @@ let result: PyResult<()> = PyErr::new::<TypeError, _>("error message").into();
 ```
 
 After (also using the new reworked exception types; see the following section):
-```rust
+```rust,no_run
 # use pyo3::{PyResult, exceptions::PyTypeError};
 let result: PyResult<()> = Err(PyTypeError::new_err("error message"));
 ```
@@ -1712,7 +1712,7 @@ impl FromPy<MyPyObjectWrapper> for PyObject {
 ```
 
 After
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
 struct MyPyObjectWrapper(PyObject);
@@ -1736,7 +1736,7 @@ let obj = PyObject::from_py(1.234, py);
 ```
 
 After:
-```rust
+```rust,ignore
 # #![allow(deprecated)]
 # use pyo3::prelude::*;
 # Python::with_gil(|py| {
@@ -1853,7 +1853,7 @@ There can be two fixes:
    ```
 
    After:
-   ```rust
+   ```rust,no_run
    # #![allow(dead_code)]
    use pyo3::prelude::*;
 
@@ -1951,7 +1951,7 @@ impl MyClass {
 ```
 
 After:
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 #[pyclass]
 struct MyClass {}

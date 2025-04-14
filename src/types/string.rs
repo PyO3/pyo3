@@ -6,15 +6,10 @@ use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::bytes::PyBytesMethods;
 use crate::types::PyBytes;
-#[allow(deprecated)]
-use crate::IntoPy;
 use crate::{ffi, Bound, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
+use std::ffi::CString;
 use std::str;
-
-/// Deprecated alias for [`PyString`].
-#[deprecated(since = "0.23.0", note = "use `PyString` instead")]
-pub type PyUnicode = PyString;
 
 /// Represents raw data backing a Python `str`.
 ///
@@ -174,19 +169,12 @@ impl PyString {
         }
     }
 
-    /// Deprecated name for [`PyString::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyString::new`")]
-    #[inline]
-    pub fn new_bound<'py>(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
-        Self::new(py, s)
-    }
-
     /// Intern the given string
     ///
     /// This will return a reference to the same Python string object if called repeatedly with the same string.
     ///
-    /// Note that while this is more memory efficient than [`PyString::new_bound`], it unconditionally allocates a
-    /// temporary Python string object and is thereby slower than [`PyString::new_bound`].
+    /// Note that while this is more memory efficient than [`PyString::new`], it unconditionally allocates a
+    /// temporary Python string object and is thereby slower than [`PyString::new`].
     ///
     /// Panics if out of memory.
     pub fn intern<'py>(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
@@ -201,13 +189,6 @@ impl PyString {
         }
     }
 
-    /// Deprecated name for [`PyString::intern`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyString::intern`")]
-    #[inline]
-    pub fn intern_bound<'py>(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
-        Self::intern(py, s)
-    }
-
     /// Attempts to create a Python string from a Python [bytes-like object].
     ///
     /// [bytes-like object]: (https://docs.python.org/3/glossary.html#term-bytes-like-object).
@@ -216,6 +197,8 @@ impl PyString {
         encoding: &str,
         errors: &str,
     ) -> PyResult<Bound<'py, PyString>> {
+        let encoding = CString::new(encoding)?;
+        let errors = CString::new(errors)?;
         unsafe {
             ffi::PyUnicode_FromEncodedObject(
                 src.as_ptr(),
@@ -225,17 +208,6 @@ impl PyString {
             .assume_owned_or_err(src.py())
             .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyString::from_object`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyString::from_object`")]
-    #[inline]
-    pub fn from_object_bound<'py>(
-        src: &Bound<'py, PyAny>,
-        encoding: &str,
-        errors: &str,
-    ) -> PyResult<Bound<'py, PyString>> {
-        Self::from_object(src, encoding, errors)
     }
 }
 
@@ -310,7 +282,7 @@ impl<'py> PyStringMethods<'py> for Bound<'py, PyString> {
 
     #[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy)))]
     unsafe fn data(&self) -> PyResult<PyStringData<'_>> {
-        self.as_borrowed().data()
+        unsafe { self.as_borrowed().data() }
     }
 }
 
@@ -373,39 +345,41 @@ impl<'a> Borrowed<'a, '_, PyString> {
 
     #[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy)))]
     unsafe fn data(self) -> PyResult<PyStringData<'a>> {
-        let ptr = self.as_ptr();
+        unsafe {
+            let ptr = self.as_ptr();
 
-        #[cfg(not(Py_3_12))]
-        #[allow(deprecated)]
-        {
-            let ready = ffi::PyUnicode_READY(ptr);
-            if ready != 0 {
-                // Exception was created on failure.
-                return Err(crate::PyErr::fetch(self.py()));
+            #[cfg(not(Py_3_12))]
+            #[allow(deprecated)]
+            {
+                let ready = ffi::PyUnicode_READY(ptr);
+                if ready != 0 {
+                    // Exception was created on failure.
+                    return Err(crate::PyErr::fetch(self.py()));
+                }
             }
-        }
 
-        // The string should be in its canonical form after calling `PyUnicode_READY()`.
-        // And non-canonical form not possible after Python 3.12. So it should be safe
-        // to call these APIs.
-        let length = ffi::PyUnicode_GET_LENGTH(ptr) as usize;
-        let raw_data = ffi::PyUnicode_DATA(ptr);
-        let kind = ffi::PyUnicode_KIND(ptr);
+            // The string should be in its canonical form after calling `PyUnicode_READY()`.
+            // And non-canonical form not possible after Python 3.12. So it should be safe
+            // to call these APIs.
+            let length = ffi::PyUnicode_GET_LENGTH(ptr) as usize;
+            let raw_data = ffi::PyUnicode_DATA(ptr);
+            let kind = ffi::PyUnicode_KIND(ptr);
 
-        match kind {
-            ffi::PyUnicode_1BYTE_KIND => Ok(PyStringData::Ucs1(std::slice::from_raw_parts(
-                raw_data as *const u8,
-                length,
-            ))),
-            ffi::PyUnicode_2BYTE_KIND => Ok(PyStringData::Ucs2(std::slice::from_raw_parts(
-                raw_data as *const u16,
-                length,
-            ))),
-            ffi::PyUnicode_4BYTE_KIND => Ok(PyStringData::Ucs4(std::slice::from_raw_parts(
-                raw_data as *const u32,
-                length,
-            ))),
-            _ => unreachable!(),
+            match kind {
+                ffi::PyUnicode_1BYTE_KIND => Ok(PyStringData::Ucs1(std::slice::from_raw_parts(
+                    raw_data as *const u8,
+                    length,
+                ))),
+                ffi::PyUnicode_2BYTE_KIND => Ok(PyStringData::Ucs2(std::slice::from_raw_parts(
+                    raw_data as *const u16,
+                    length,
+                ))),
+                ffi::PyUnicode_4BYTE_KIND => Ok(PyStringData::Ucs4(std::slice::from_raw_parts(
+                    raw_data as *const u32,
+                    length,
+                ))),
+                _ => unreachable!(),
+            }
         }
     }
 }
@@ -443,27 +417,6 @@ impl Py<PyString> {
     /// the GIL lifetime.
     pub fn to_string_lossy<'a>(&'a self, py: Python<'_>) -> Cow<'a, str> {
         self.bind_borrowed(py).to_string_lossy()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<Py<PyString>> for Bound<'_, PyString> {
-    fn into_py(self, _py: Python<'_>) -> Py<PyString> {
-        self.unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<Py<PyString>> for &Bound<'_, PyString> {
-    fn into_py(self, _py: Python<'_>) -> Py<PyString> {
-        self.clone().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<Py<PyString>> for &'_ Py<PyString> {
-    fn into_py(self, py: Python<'_>) -> Py<PyString> {
-        self.clone_ref(py)
     }
 }
 
@@ -666,6 +619,31 @@ mod tests {
             let s = "Hello\n".into_pyobject(py).unwrap();
             assert_eq!(format!("{}", s), "Hello\n");
         })
+    }
+
+    #[test]
+    fn test_string_from_object() {
+        Python::with_gil(|py| {
+            let py_bytes = PyBytes::new(py, b"ab\xFFcd");
+
+            let py_string = PyString::from_object(&py_bytes, "utf-8", "ignore").unwrap();
+
+            let result = py_string.to_cow().unwrap();
+            assert_eq!(result, "abcd");
+        });
+    }
+
+    #[test]
+    fn test_string_from_obect_with_invalid_encoding_errors() {
+        Python::with_gil(|py| {
+            let py_bytes = PyBytes::new(py, b"abcd");
+
+            let result = PyString::from_object(&py_bytes, "utf\0-8", "ignore");
+            assert!(result.is_err());
+
+            let result = PyString::from_object(&py_bytes, "utf-8", "ign\0ore");
+            assert!(result.is_err());
+        });
     }
 
     #[test]

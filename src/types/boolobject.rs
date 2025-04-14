@@ -2,15 +2,13 @@
 use crate::inspect::types::TypeInfo;
 use crate::{
     exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
-    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, PyObject, PyResult, Python,
+    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, PyResult, Python,
 };
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
 
 use super::any::PyAnyMethods;
 use crate::conversion::IntoPyObject;
-use crate::BoundObject;
 use std::convert::Infallible;
+use std::ptr;
 
 /// Represents a Python `bool`.
 ///
@@ -38,13 +36,6 @@ impl PyBool {
                 .downcast_unchecked()
         }
     }
-
-    /// Deprecated name for [`PyBool::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyBool::new`")]
-    #[inline]
-    pub fn new_bound(py: Python<'_>, val: bool) -> Borrowed<'_, '_, Self> {
-        Self::new(py, val)
-    }
 }
 
 /// Implementation of functionality for [`PyBool`].
@@ -61,7 +52,7 @@ pub trait PyBoolMethods<'py>: crate::sealed::Sealed {
 impl<'py> PyBoolMethods<'py> for Bound<'py, PyBool> {
     #[inline]
     fn is_true(&self) -> bool {
-        self.as_ptr() == unsafe { crate::ffi::Py_True() }
+        unsafe { ptr::eq(self.as_ptr(), ffi::Py_True()) }
     }
 }
 
@@ -142,23 +133,6 @@ impl PartialEq<Borrowed<'_, '_, PyBool>> for &'_ bool {
     #[inline]
     fn eq(&self, other: &Borrowed<'_, '_, PyBool>) -> bool {
         **self == other.is_true()
-    }
-}
-
-/// Converts a Rust `bool` to a Python `bool`.
-#[allow(deprecated)]
-impl ToPyObject for bool {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for bool {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 

@@ -6,6 +6,7 @@ use crate::types::{PyDict, PyTuple, PyType};
 use crate::{ffi, Bound, PyErr, PyResult, Python};
 use crate::{ffi::PyTypeObject, sealed::Sealed, type_object::PyTypeInfo};
 use std::marker::PhantomData;
+use std::ptr;
 
 use super::pyclass::PyClassBaseType;
 

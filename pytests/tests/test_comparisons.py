@@ -1,5 +1,6 @@
 from typing import Type, Union
 
+import sys
 import pytest
 from pyo3_pytests.comparisons import (
     Eq,
@@ -28,6 +29,11 @@ class PyEq:
             return NotImplemented
 
 
+@pytest.mark.skipif(
+    sys.implementation.name == "graalpy"
+    and __graalpython__.get_graalvm_version().startswith("24.1"),  # noqa: F821
+    reason="Bug in GraalPy 24.1",
+)
 @pytest.mark.parametrize(
     "ty", (Eq, EqDerived, PyEq), ids=("rust", "rust-derived", "python")
 )

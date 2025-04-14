@@ -8,12 +8,12 @@ pub use self::capsule::{PyCapsule, PyCapsuleMethods};
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 pub use self::code::PyCode;
 pub use self::complex::{PyComplex, PyComplexMethods};
-#[cfg(not(Py_LIMITED_API))]
 #[allow(deprecated)]
 pub use self::datetime::{
-    timezone_utc, timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess,
-    PyTime, PyTimeAccess, PyTzInfo, PyTzInfoAccess,
+    timezone_utc, PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess,
 };
+#[cfg(not(Py_LIMITED_API))]
+pub use self::datetime::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
 pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::dict::{PyDictItems, PyDictKeys, PyDictValues};
@@ -23,8 +23,10 @@ pub use self::float::{PyFloat, PyFloatMethods};
 pub use self::frame::PyFrame;
 pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
 pub use self::function::PyCFunction;
-#[cfg(all(not(Py_LIMITED_API), not(all(PyPy, not(Py_3_8))), not(GraalPy)))]
+#[cfg(all(not(Py_LIMITED_API), not(all(PyPy, not(Py_3_8)))))]
 pub use self::function::PyFunction;
+#[cfg(Py_3_9)]
+pub use self::genericalias::PyGenericAlias;
 pub use self::iterator::PyIterator;
 pub use self::list::{PyList, PyListMethods};
 pub use self::mapping::{PyMapping, PyMappingMethods};
@@ -33,8 +35,7 @@ pub use self::memoryview::PyMemoryView;
 pub use self::module::{PyModule, PyModuleMethods};
 pub use self::none::PyNone;
 pub use self::notimplemented::PyNotImplemented;
-#[allow(deprecated)]
-pub use self::num::{PyInt, PyLong};
+pub use self::num::PyInt;
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::pysuper::PySuper;
 pub use self::sequence::{PySequence, PySequenceMethods};
@@ -42,8 +43,7 @@ pub use self::set::{PySet, PySetMethods};
 pub use self::slice::{PySlice, PySliceIndices, PySliceMethods};
 #[cfg(not(Py_LIMITED_API))]
 pub use self::string::PyStringData;
-#[allow(deprecated)]
-pub use self::string::{PyString, PyStringMethods, PyUnicode};
+pub use self::string::{PyString, PyStringMethods};
 pub use self::traceback::{PyTraceback, PyTracebackMethods};
 pub use self::tuple::{PyTuple, PyTupleMethods};
 pub use self::typeobject::{PyType, PyTypeMethods};
@@ -119,22 +119,6 @@ pub trait DerefToPyAny {
 #[macro_export]
 macro_rules! pyobject_native_type_named (
     ($name:ty $(;$generics:ident)*) => {
-        impl<$($generics,)*> ::std::convert::AsRef<$crate::PyAny> for $name {
-            #[inline]
-            fn as_ref(&self) -> &$crate::PyAny {
-                &self.0
-            }
-        }
-
-        impl<$($generics,)*> ::std::ops::Deref for $name {
-            type Target = $crate::PyAny;
-
-            #[inline]
-            fn deref(&self) -> &$crate::PyAny {
-                &self.0
-            }
-        }
-
         impl $crate::types::DerefToPyAny for $name {}
     };
 );
@@ -166,7 +150,7 @@ macro_rules! pyobject_native_type_info(
 
             $(
                 #[inline]
-                fn is_type_of_bound(obj: &$crate::Bound<'_, $crate::PyAny>) -> bool {
+                fn is_type_of(obj: &$crate::Bound<'_, $crate::PyAny>) -> bool {
                     #[allow(unused_unsafe)]
                     unsafe { $checkfunction(obj.as_ptr()) > 0 }
                 }
@@ -176,6 +160,10 @@ macro_rules! pyobject_native_type_info(
         impl $name {
             #[doc(hidden)]
             pub const _PYO3_DEF: $crate::impl_::pymodule::AddTypeToModule<Self> = $crate::impl_::pymodule::AddTypeToModule::new();
+
+            #[allow(dead_code)]
+            #[doc(hidden)]
+            pub const _PYO3_INTROSPECTION_ID: &'static str = concat!(stringify!($module), stringify!($name));
         }
     };
 );
@@ -237,7 +225,6 @@ pub(crate) mod capsule;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 mod code;
 pub(crate) mod complex;
-#[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
 pub(crate) mod dict;
 mod ellipsis;
@@ -246,6 +233,8 @@ pub(crate) mod float;
 mod frame;
 pub(crate) mod frozenset;
 mod function;
+#[cfg(Py_3_9)]
+pub(crate) mod genericalias;
 pub(crate) mod iterator;
 pub(crate) mod list;
 pub(crate) mod mapping;

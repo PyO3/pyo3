@@ -22,46 +22,12 @@ use crate::{
         any::PyAnyMethods,
         dict::PyDictMethods,
         frozenset::PyFrozenSetMethods,
-        set::{new_from_iter, try_new_from_iter, PySetMethods},
+        set::{try_new_from_iter, PySetMethods},
         PyDict, PyFrozenSet, PySet,
     },
-    Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python,
+    Bound, FromPyObject, PyAny, PyErr, PyResult, Python,
 };
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
 use std::{cmp, hash};
-
-#[allow(deprecated)]
-impl<K, V, H> ToPyObject for hashbrown::HashMap<K, V, H>
-where
-    K: hash::Hash + cmp::Eq + ToPyObject,
-    V: ToPyObject,
-    H: hash::BuildHasher,
-{
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new(py);
-        for (k, v) in self {
-            dict.set_item(k.to_object(py), v.to_object(py)).unwrap();
-        }
-        dict.into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl<K, V, H> IntoPy<PyObject> for hashbrown::HashMap<K, V, H>
-where
-    K: hash::Hash + cmp::Eq + IntoPy<PyObject>,
-    V: IntoPy<PyObject>,
-    H: hash::BuildHasher,
-{
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new(py);
-        for (k, v) in self {
-            dict.set_item(k.into_py(py), v.into_py(py)).unwrap();
-        }
-        dict.into_any().unbind()
-    }
-}
 
 impl<'py, K, V, H> IntoPyObject<'py> for hashbrown::HashMap<K, V, H>
 where
@@ -114,31 +80,6 @@ where
             ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)
-    }
-}
-
-#[allow(deprecated)]
-impl<T> ToPyObject for hashbrown::HashSet<T>
-where
-    T: hash::Hash + Eq + ToPyObject,
-{
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        new_from_iter(py, self)
-            .expect("Failed to create Python set from hashbrown::HashSet")
-            .into()
-    }
-}
-
-#[allow(deprecated)]
-impl<K, S> IntoPy<PyObject> for hashbrown::HashSet<K, S>
-where
-    K: IntoPy<PyObject> + Eq + hash::Hash,
-    S: hash::BuildHasher + Default,
-{
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        new_from_iter(py, self.into_iter().map(|item| item.into_py(py)))
-            .expect("Failed to create Python set from hashbrown::HashSet")
-            .into()
     }
 }
 

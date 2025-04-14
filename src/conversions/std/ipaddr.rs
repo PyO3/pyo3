@@ -7,9 +7,7 @@ use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
-use crate::{intern, FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
+use crate::{intern, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
 
 impl FromPyObject<'_> for IpAddr {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
@@ -28,14 +26,6 @@ impl FromPyObject<'_> for IpAddr {
                 obj.str()?.to_cow()?.parse().map_err(PyValueError::new_err)
             }
         }
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for Ipv4Addr {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().unbind()
     }
 }
 
@@ -63,14 +53,6 @@ impl<'py> IntoPyObject<'py> for &Ipv4Addr {
     }
 }
 
-#[allow(deprecated)]
-impl ToPyObject for Ipv6Addr {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().unbind()
-    }
-}
-
 impl<'py> IntoPyObject<'py> for Ipv6Addr {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -92,22 +74,6 @@ impl<'py> IntoPyObject<'py> for &Ipv6Addr {
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for IpAddr {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for IpAddr {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().unbind()
     }
 }
 

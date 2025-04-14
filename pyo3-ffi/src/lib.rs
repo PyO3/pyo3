@@ -129,7 +129,7 @@
 //! ```
 //!
 //! **`src/lib.rs`**
-//! ```rust
+//! ```rust,no_run
 //! use std::os::raw::{c_char, c_long};
 //! use std::ptr;
 //!
@@ -327,9 +327,15 @@
     non_snake_case,
     non_upper_case_globals,
     clippy::upper_case_acronyms,
-    clippy::missing_safety_doc
+    clippy::missing_safety_doc,
+    clippy::ptr_eq
 )]
 #![warn(elided_lifetimes_in_paths, unused_lifetimes)]
+// This crate is a hand-maintained translation of CPython's headers, so requiring "unsafe"
+// blocks within those translations increases maintenance burden without providing any
+// additional safety. The safety of the functions in this crate is determined by the
+// original CPython headers
+#![allow(unsafe_op_in_unsafe_fn)]
 
 // Until `extern type` is stabilized, use the recommended approach to
 // model opaque types:
@@ -351,7 +357,7 @@ macro_rules! opaque_struct {
 ///
 /// Examples:
 ///
-/// ```rust
+/// ```rust,no_run
 /// use std::ffi::CStr;
 ///
 /// const HELLO: &CStr = pyo3_ffi::c_str!("hello");
@@ -410,6 +416,8 @@ pub use self::enumobject::*;
 pub use self::fileobject::*;
 pub use self::fileutils::*;
 pub use self::floatobject::*;
+#[cfg(Py_3_9)]
+pub use self::genericaliasobject::*;
 pub use self::import::*;
 pub use self::intrcheck::*;
 pub use self::iterobject::*;
@@ -479,7 +487,7 @@ mod fileobject;
 mod fileutils;
 mod floatobject;
 // skipped empty frameobject.h
-// skipped genericaliasobject.h
+mod genericaliasobject;
 mod import;
 // skipped interpreteridobject.h
 mod intrcheck;

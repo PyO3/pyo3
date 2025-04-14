@@ -86,7 +86,7 @@ You can give the Python interpreter a chance to process the signal properly by c
 
 You may have a nested struct similar to this:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 #[pyclass]
 #[derive(Clone)]
@@ -126,7 +126,7 @@ b: <builtins.Inner object at 0x00000238FFB9C830>
 This can be especially confusing if the field is mutable, as getting the field and then mutating it won't persist - you'll just get a fresh clone of the original on the next access. Unfortunately Python and Rust don't agree about ownership - if PyO3 gave out references to (possibly) temporary Rust objects to Python code, Python code could then keep that reference alive indefinitely. Therefore returning Rust objects requires cloning.
 
 If you don't want that cloning to happen, a workaround is to allocate the field on the Python heap and store a reference to that, by using [`Py<...>`]({{#PYO3_DOCS_URL}}/pyo3/struct.Py.html):
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 #[pyclass]
 struct Inner {/* fields omitted */}
@@ -179,7 +179,7 @@ However, when the dependency is renamed, or your crate only indirectly depends
 on `pyo3`, you need to let the macro code know where to find the crate.  This is
 done with the `crate` attribute:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 # pub extern crate pyo3;
 # mod reexported { pub use ::pyo3; }

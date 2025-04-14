@@ -125,3 +125,33 @@ error: `transparent` structs may not have `item` for the inner field
     |
 105 |     #[pyo3(item)]
     |            ^^^^
+
+error: `into_py_with` is not permitted on `transparent` structs or variants
+   --> tests/ui/invalid_intopy_derive.rs:112:12
+    |
+112 |     #[pyo3(into_py_with = into)]
+    |            ^^^^^^^^^^^^
+
+error: `into_py_with` is not permitted on `transparent` structs or variants
+   --> tests/ui/invalid_intopy_derive.rs:119:12
+    |
+119 |     #[pyo3(into_py_with = into_ref)]
+    |            ^^^^^^^^^^^^
+
+error: `into_py_with` is not permitted on `transparent` structs
+   --> tests/ui/invalid_intopy_derive.rs:125:42
+    |
+125 | struct TupleTransparentIntoPyWith(#[pyo3(into_py_with = into)] String);
+    |                                          ^^^^^^^^^^^^
+
+error: `into_py_with` is not permitted on `transparent` structs
+   --> tests/ui/invalid_intopy_derive.rs:129:29
+    |
+129 |     TransparentTuple(#[pyo3(into_py_with = into)] usize),
+    |                             ^^^^^^^^^^^^
+
+error: `into_py_with` is not permitted on `transparent` structs or variants
+   --> tests/ui/invalid_intopy_derive.rs:136:16
+    |
+136 |         #[pyo3(into_py_with = into)]
+    |                ^^^^^^^^^^^^

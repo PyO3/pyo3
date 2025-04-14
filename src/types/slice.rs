@@ -2,9 +2,7 @@ use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::types::any::PyAnyMethods;
-#[allow(deprecated)]
-use crate::ToPyObject;
-use crate::{Bound, IntoPyObject, PyAny, PyObject, Python};
+use crate::{Bound, IntoPyObject, PyAny, Python};
 use std::convert::Infallible;
 
 /// Represents a Python `slice`.
@@ -69,13 +67,6 @@ impl PySlice {
         }
     }
 
-    /// Deprecated name for [`PySlice::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PySlice::new`")]
-    #[inline]
-    pub fn new_bound(py: Python<'_>, start: isize, stop: isize, step: isize) -> Bound<'_, PySlice> {
-        Self::new(py, start, stop, step)
-    }
-
     /// Constructs a new full slice that is equivalent to `::`.
     pub fn full(py: Python<'_>) -> Bound<'_, PySlice> {
         unsafe {
@@ -83,13 +74,6 @@ impl PySlice {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PySlice::full`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PySlice::full`")]
-    #[inline]
-    pub fn full_bound(py: Python<'_>) -> Bound<'_, PySlice> {
-        Self::full(py)
     }
 }
 
@@ -133,13 +117,6 @@ impl<'py> PySliceMethods<'py> for Bound<'py, PySlice> {
                 Err(PyErr::fetch(self.py()))
             }
         }
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for PySliceIndices {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        PySlice::new(py, self.start, self.stop, self.step).into()
     }
 }
 

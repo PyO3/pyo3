@@ -1,4 +1,5 @@
 #![cfg(feature = "macros")]
+#![cfg_attr(not(cargo_toml_lints), warn(unsafe_op_in_unsafe_fn))]
 
 use std::collections::HashMap;
 
@@ -42,6 +43,45 @@ fn test_optional_bool() {
         py_assert!(py, f, "f(True) == 'Some(true)'");
         py_assert!(py, f, "f(False) == 'Some(false)'");
         py_assert!(py, f, "f(None) == 'None'");
+    });
+}
+
+#[pyfunction]
+#[pyo3(signature=(arg))]
+fn required_optional_str(arg: Option<&str>) -> &str {
+    arg.unwrap_or("")
+}
+
+#[test]
+fn test_optional_str() {
+    // Regression test for issue #4965
+    Python::with_gil(|py| {
+        let f = wrap_pyfunction!(required_optional_str)(py).unwrap();
+
+        py_assert!(py, f, "f('') == ''");
+        py_assert!(py, f, "f('foo') == 'foo'");
+        py_assert!(py, f, "f(None) == ''");
+    });
+}
+
+#[pyclass]
+struct MyClass();
+
+#[pyfunction]
+#[pyo3(signature=(arg))]
+fn required_optional_class(arg: Option<&MyClass>) {
+    let _ = arg;
+}
+
+#[test]
+fn test_required_optional_class() {
+    // Regression test for issue #4965
+    Python::with_gil(|py| {
+        let f = wrap_pyfunction!(required_optional_class)(py).unwrap();
+        let val = Bound::new(py, MyClass()).unwrap();
+
+        py_assert!(py, f val, "f(val) is None");
+        py_assert!(py, f, "f(None) is None");
     });
 }
 
@@ -143,7 +183,7 @@ fn datetime_to_timestamp(dt: &Bound<'_, PyAny>) -> PyResult<i64> {
 #[cfg(not(Py_LIMITED_API))]
 #[pyfunction]
 fn function_with_custom_conversion(
-    #[pyo3(from_py_with = "datetime_to_timestamp")] timestamp: i64,
+    #[pyo3(from_py_with = datetime_to_timestamp)] timestamp: i64,
 ) -> i64 {
     timestamp
 }
@@ -196,13 +236,13 @@ fn test_from_py_with_defaults() {
     // issue 2280 combination of from_py_with and Option<T> did not compile
     #[pyfunction]
     #[pyo3(signature = (int=None))]
-    fn from_py_with_option(#[pyo3(from_py_with = "optional_int")] int: Option<i32>) -> i32 {
+    fn from_py_with_option(#[pyo3(from_py_with = optional_int)] int: Option<i32>) -> i32 {
         int.unwrap_or(0)
     }
 
     #[pyfunction(signature = (len=0))]
     fn from_py_with_default(
-        #[pyo3(from_py_with = "<Bound<'_, _> as PyAnyMethods>::len")] len: usize,
+        #[pyo3(from_py_with = <Bound<'_, _> as PyAnyMethods>::len)] len: usize,
     ) -> usize {
         len
     }
@@ -339,7 +379,7 @@ fn test_pycfunction_new() {
             _self: *mut ffi::PyObject,
             _args: *mut ffi::PyObject,
         ) -> *mut ffi::PyObject {
-            ffi::PyLong_FromLong(4200)
+            unsafe { ffi::PyLong_FromLong(4200) }
         }
 
         let py_fn = PyCFunction::new(
@@ -389,24 +429,26 @@ fn test_pycfunction_new_with_keywords() {
                 ptr::null_mut(),
             ];
 
-            ffi::PyArg_ParseTupleAndKeywords(
-                args,
-                kwds,
-                c_str!("l|l").as_ptr(),
-                #[cfg(Py_3_13)]
-                args_names.as_ptr(),
-                #[cfg(not(Py_3_13))]
-                args_names.as_mut_ptr(),
-                &mut foo,
-                &mut bar,
-            );
+            unsafe {
+                ffi::PyArg_ParseTupleAndKeywords(
+                    args,
+                    kwds,
+                    c_str!("l|l").as_ptr(),
+                    #[cfg(Py_3_13)]
+                    args_names.as_ptr(),
+                    #[cfg(not(Py_3_13))]
+                    args_names.as_mut_ptr(),
+                    &mut foo,
+                    &mut bar,
+                )
+            };
 
             #[cfg(not(Py_3_13))]
-            drop(std::ffi::CString::from_raw(args_names[0]));
+            drop(unsafe { std::ffi::CString::from_raw(args_names[0]) });
             #[cfg(not(Py_3_13))]
-            drop(std::ffi::CString::from_raw(args_names[1]));
+            drop(unsafe { std::ffi::CString::from_raw(args_names[1]) });
 
-            ffi::PyLong_FromLong(foo * bar)
+            unsafe { ffi::PyLong_FromLong(foo * bar) }
         }
 
         let py_fn = PyCFunction::new_with_keywords(

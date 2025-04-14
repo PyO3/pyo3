@@ -17,7 +17,7 @@ are met. Its lifetime `'py` is a central part of PyO3's API.
 
 The `Python<'py>` token serves three purposes:
 
-* It provides global APIs for the Python interpreter, such as [`py.eval_bound()`][eval] and [`py.import_bound()`][import].
+* It provides global APIs for the Python interpreter, such as [`py.eval()`][eval] and [`py.import()`][import].
 * It can be passed to functions that require a proof of holding the GIL, such as [`Py::clone_ref`][clone_ref].
 * Its lifetime `'py` is used to bind many of PyO3's types to the Python interpreter, such as [`Bound<'py, T>`][Bound].
 
@@ -45,6 +45,6 @@ Because of the lack of exclusive `&mut` references, PyO3's APIs for Python objec
 [obtaining-py]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#obtaining-a-python-token
 [`pyo3::sync`]: {{#PYO3_DOCS_URL}}/pyo3/sync/index.html
 [eval]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval
-[import]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.import_bound
+[import]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.import
 [clone_ref]: {{#PYO3_DOCS_URL}}/pyo3/prelude/struct.Py.html#method.clone_ref
 [Bound]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html

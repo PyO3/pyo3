@@ -1,9 +1,11 @@
 #![warn(missing_docs)]
 #![cfg_attr(
     feature = "nightly",
-    feature(auto_traits, negative_impls, try_trait_v2)
+    feature(auto_traits, negative_impls, try_trait_v2, iter_advance_by)
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![cfg_attr(not(cargo_toml_lints), warn(unsafe_op_in_unsafe_fn))]
+// necessary for MSRV 1.63 to build
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
 #![doc(test(attr(
@@ -184,7 +186,7 @@
 //! ```
 //!
 //! **`src/lib.rs`**
-//! ```rust
+//! ```rust,no_run
 //! use pyo3::prelude::*;
 //!
 //! /// Formats the sum of two numbers as string.
@@ -286,6 +288,7 @@
 //! [`HashMap`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashMap.html
 //! [`HashSet`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html
 //! [`SmallVec`]: https://docs.rs/smallvec/latest/smallvec/struct.SmallVec.html
+//! [`Uuid`]: https://docs.rs/uuid/latest/uuid/struct.Uuid.html
 //! [`IndexMap`]: https://docs.rs/indexmap/latest/indexmap/map/struct.IndexMap.html
 //! [`BigInt`]: https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html
 //! [`BigUint`]: https://docs.rs/num-bigint/latest/num_bigint/struct.BigUint.html
@@ -319,6 +322,7 @@
 //! [global interpreter lock]: https://docs.python.org/3/glossary.html#term-global-interpreter-lock
 //! [hashbrown]: https://docs.rs/hashbrown
 //! [smallvec]: https://docs.rs/smallvec
+//! [uuid]: https://docs.rs/uuid
 //! [indexmap]: https://docs.rs/indexmap
 #![doc = concat!("[manual_builds]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/building-and-distribution.html#manual-builds \"Manual builds - Building and Distribution - PyO3 user guide\"")]
 //! [num-bigint]: https://docs.rs/num-bigint
@@ -335,8 +339,6 @@
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
 pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPyObject, IntoPyObjectExt};
-#[allow(deprecated)]
-pub use crate::conversion::{IntoPy, ToPyObject};
 pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
@@ -362,26 +364,6 @@ pub(crate) mod sealed;
 /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
 pub mod class {
     pub use self::gc::{PyTraverseError, PyVisit};
-
-    pub use self::methods::*;
-
-    #[doc(hidden)]
-    pub mod methods {
-        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
-        pub type IPowModulo = crate::impl_::pymethods::IPowModulo;
-        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
-        pub type PyClassAttributeDef = crate::impl_::pymethods::PyClassAttributeDef;
-        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
-        pub type PyGetterDef = crate::impl_::pymethods::PyGetterDef;
-        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
-        pub type PyMethodDef = crate::impl_::pymethods::PyMethodDef;
-        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
-        pub type PyMethodDefType = crate::impl_::pymethods::PyMethodDefType;
-        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
-        pub type PyMethodType = crate::impl_::pymethods::PyMethodType;
-        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
-        pub type PySetterDef = crate::impl_::pymethods::PySetterDef;
-    }
 
     /// Old module which contained some implementation details of the `#[pyproto]` module.
     ///
@@ -428,6 +410,7 @@ mod internal_tricks;
 mod internal;
 
 pub mod buffer;
+pub mod call;
 pub mod conversion;
 mod conversions;
 #[cfg(feature = "experimental-async")]

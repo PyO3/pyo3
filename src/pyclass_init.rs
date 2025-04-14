@@ -233,23 +233,25 @@ impl<T: PyClass> PyClassInitializer<T> {
             PyClassInitializerImpl::New { init, super_init } => (init, super_init),
         };
 
-        let obj = super_init.into_new_object(py, target_type, args, kwargs)?;
+        let obj = unsafe { super_init.into_new_object(py, target_type, kwargs)? };
 
         let part_init: *mut PartiallyInitializedClassObject<T> = obj.cast();
-        std::ptr::write(
-            (*part_init).contents.as_mut_ptr(),
-            PyClassObjectContents {
-                value: ManuallyDrop::new(UnsafeCell::new(init)),
-                borrow_checker: <T::PyClassMutability as PyClassMutability>::Storage::new(),
-                thread_checker: T::ThreadChecker::new(),
-                dict: T::Dict::INIT,
-                weakref: T::WeakRef::INIT,
-            },
-        );
+        unsafe {
+            std::ptr::write(
+                (*part_init).contents.as_mut_ptr(),
+                PyClassObjectContents {
+                    value: ManuallyDrop::new(UnsafeCell::new(init)),
+                    borrow_checker: <T::PyClassMutability as PyClassMutability>::Storage::new(),
+                    thread_checker: T::ThreadChecker::new(),
+                    dict: T::Dict::INIT,
+                    weakref: T::WeakRef::INIT,
+                },
+            );
+        }
 
         // Safety: obj is a valid pointer to an object of type `target_type`, which` is a known
         // subclass of `T`
-        Ok(obj.assume_owned(py).downcast_into_unchecked())
+        Ok(unsafe { obj.assume_owned(py).downcast_into_unchecked() })
     }
 }
 
@@ -261,8 +263,10 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
         args: &Bound<'_, PyTuple>,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<*mut ffi::PyObject> {
-        self.create_class_object_of_type(py, subtype, args, kwargs)
-            .map(Bound::into_ptr)
+        unsafe {
+            self.create_class_object_of_type(py, subtype, args, kwargs)
+                .map(Bound::into_ptr)
+        }
     }
 
     #[inline]

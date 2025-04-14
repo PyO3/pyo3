@@ -58,3 +58,4 @@ impl<T: crate::type_object::PyTypeInfo + crate::impl_::pyclass::PyClassBaseType>
 impl<T: crate::pyclass::PyClass> Sealed for PyClassInitializer<T> {}
 
 impl Sealed for std::sync::Once {}
+impl<T> Sealed for std::sync::Mutex<T> {}
