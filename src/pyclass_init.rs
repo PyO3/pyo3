@@ -233,7 +233,7 @@ impl<T: PyClass> PyClassInitializer<T> {
             PyClassInitializerImpl::New { init, super_init } => (init, super_init),
         };
 
-        let obj = unsafe { super_init.into_new_object(py, target_type, kwargs)? };
+        let obj = unsafe { super_init.into_new_object(py, target_type, args, kwargs)? };
 
         let part_init: *mut PartiallyInitializedClassObject<T> = obj.cast();
         unsafe {
@@ -410,7 +410,10 @@ mod tests {
 
         unsafe fn get_dict<T: PyClassImpl>(obj: *mut ffi::PyObject) -> *mut *mut ffi::PyObject {
             let dict_offset = T::dict_offset().unwrap();
-            (obj as *mut u8).add(usize::try_from(dict_offset).unwrap()) as *mut *mut ffi::PyObject
+            unsafe {
+                (obj as *mut u8).add(usize::try_from(dict_offset).unwrap())
+                    as *mut *mut ffi::PyObject
+            }
         }
 
         #[pyclass(crate = "crate", dict)]

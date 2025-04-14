@@ -6,7 +6,6 @@ use crate::types::{PyDict, PyTuple, PyType};
 use crate::{ffi, Bound, PyErr, PyResult, Python};
 use crate::{ffi::PyTypeObject, sealed::Sealed, type_object::PyTypeInfo};
 use std::marker::PhantomData;
-use std::ptr;
 
 use super::pyclass::PyClassBaseType;
 
@@ -42,7 +41,7 @@ impl<T: PyTypeInfo + PyClassBaseType> PyObjectInit<T> for PyNativeTypeInitialize
         args: &Bound<'_, PyTuple>,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<*mut ffi::PyObject> {
-        unsafe fn inner(
+        fn inner(
             py: Python<'_>,
             native_base_type: *mut PyTypeObject,
             subtype: *mut PyTypeObject,
@@ -53,23 +52,29 @@ impl<T: PyTypeInfo + PyClassBaseType> PyObjectInit<T> for PyNativeTypeInitialize
             let tp_new = if let Some(tp_new) = override_tp_new {
                 tp_new
             } else {
-                native_base_type
-                    .cast::<ffi::PyObject>()
-                    .assume_borrowed_unchecked(py)
-                    .downcast_unchecked::<PyType>()
-                    .get_slot(TP_NEW)
-                    .ok_or_else(|| {
-                        PyTypeError::new_err("cannot construct type that does not define __new__")
-                    })?
+                unsafe {
+                    native_base_type
+                        .cast::<ffi::PyObject>()
+                        .assume_borrowed_unchecked(py)
+                        .downcast_unchecked::<PyType>()
+                        .get_slot(TP_NEW)
+                        .ok_or_else(|| {
+                            PyTypeError::new_err(
+                                "cannot construct type that does not define __new__",
+                            )
+                        })?
+                }
             };
 
-            let obj = tp_new(
-                subtype,
-                args.as_ptr(),
-                kwargs
-                    .map(|obj| obj.as_ptr())
-                    .unwrap_or(std::ptr::null_mut()),
-            );
+            let obj = unsafe {
+                tp_new(
+                    subtype,
+                    args.as_ptr(),
+                    kwargs
+                        .map(|obj| obj.as_ptr())
+                        .unwrap_or(std::ptr::null_mut()),
+                )
+            };
 
             if obj.is_null() {
                 Err(PyErr::fetch(py))

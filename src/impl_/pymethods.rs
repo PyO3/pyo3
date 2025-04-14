@@ -710,14 +710,16 @@ pub unsafe fn tp_new_impl<'py, T: PyClass>(
     //  - `args` is known to be a tuple
     //  - `kwargs` is known to be a dict or null
     //  - we both have the GIL and can borrow these input references for the `'py` lifetime.
-    let args: Borrowed<'py, 'py, PyTuple> =
-        Borrowed::from_ptr(py, args).downcast_unchecked::<PyTuple>();
-    let kwargs: Option<Borrowed<'py, 'py, PyDict>> =
-        Borrowed::from_ptr_or_opt(py, kwargs).map(|kwargs| kwargs.downcast_unchecked());
+    unsafe {
+        let args: Borrowed<'py, 'py, PyTuple> =
+            Borrowed::from_ptr(py, args).downcast_unchecked::<PyTuple>();
+        let kwargs: Option<Borrowed<'py, 'py, PyDict>> =
+            Borrowed::from_ptr_or_opt(py, kwargs).map(|kwargs| kwargs.downcast_unchecked());
 
-    initializer
-        .create_class_object_of_type(py, most_derived_type, &args, kwargs.as_deref())
-        .map(Bound::into_ptr)
+        initializer
+            .create_class_object_of_type(py, most_derived_type, &args, kwargs.as_deref())
+            .map(Bound::into_ptr)
+    }
 }
 
 #[cfg(test)]
