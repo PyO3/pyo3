@@ -40,19 +40,6 @@ impl PyCFunction {
         )
     }
 
-    /// Deprecated name for [`PyCFunction::new_with_keywords`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyCFunction::new_with_keywords`")]
-    #[inline]
-    pub fn new_with_keywords_bound<'py>(
-        py: Python<'py>,
-        fun: ffi::PyCFunctionWithKeywords,
-        name: &'static CStr,
-        doc: &'static CStr,
-        module: Option<&Bound<'py, PyModule>>,
-    ) -> PyResult<Bound<'py, Self>> {
-        Self::new_with_keywords(py, fun, name, doc, module)
-    }
-
     /// Create a new built-in function which takes no arguments.
     ///
     /// To create `name` and `doc` static strings on Rust versions older than 1.77 (which added c"" literals),
@@ -65,19 +52,6 @@ impl PyCFunction {
         module: Option<&Bound<'py, PyModule>>,
     ) -> PyResult<Bound<'py, Self>> {
         Self::internal_new(py, &PyMethodDef::noargs(name, fun, doc), module)
-    }
-
-    /// Deprecated name for [`PyCFunction::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyCFunction::new`")]
-    #[inline]
-    pub fn new_bound<'py>(
-        py: Python<'py>,
-        fun: ffi::PyCFunction,
-        name: &'static CStr,
-        doc: &'static CStr,
-        module: Option<&Bound<'py, PyModule>>,
-    ) -> PyResult<Bound<'py, Self>> {
-        Self::new(py, fun, name, doc, module)
     }
 
     /// Create a new function from a closure.
@@ -132,22 +106,6 @@ impl PyCFunction {
         }
     }
 
-    /// Deprecated name for [`PyCFunction::new_closure`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyCFunction::new_closure`")]
-    #[inline]
-    pub fn new_closure_bound<'py, F, R>(
-        py: Python<'py>,
-        name: Option<&'static CStr>,
-        doc: Option<&'static CStr>,
-        closure: F,
-    ) -> PyResult<Bound<'py, Self>>
-    where
-        F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
-        for<'p> R: crate::impl_::callback::IntoPyCallbackOutput<'p, *mut ffi::PyObject>,
-    {
-        Self::new_closure(py, name, doc, closure)
-    }
-
     #[doc(hidden)]
     pub fn internal_new<'py>(
         py: Python<'py>,
@@ -190,22 +148,24 @@ where
 {
     use crate::types::any::PyAnyMethods;
 
-    crate::impl_::trampoline::cfunction_with_keywords(
-        capsule_ptr,
-        args,
-        kwargs,
-        |py, capsule_ptr, args, kwargs| {
-            let boxed_fn: &ClosureDestructor<F> =
-                &*(ffi::PyCapsule_GetPointer(capsule_ptr, CLOSURE_CAPSULE_NAME.as_ptr())
-                    as *mut ClosureDestructor<F>);
-            let args = Bound::ref_from_ptr(py, &args).downcast_unchecked::<PyTuple>();
-            let kwargs = Bound::ref_from_ptr_or_opt(py, &kwargs)
-                .as_ref()
-                .map(|b| b.downcast_unchecked::<PyDict>());
-            let result = (boxed_fn.closure)(args, kwargs);
-            crate::impl_::callback::convert(py, result)
-        },
-    )
+    unsafe {
+        crate::impl_::trampoline::cfunction_with_keywords(
+            capsule_ptr,
+            args,
+            kwargs,
+            |py, capsule_ptr, args, kwargs| {
+                let boxed_fn: &ClosureDestructor<F> =
+                    &*(ffi::PyCapsule_GetPointer(capsule_ptr, CLOSURE_CAPSULE_NAME.as_ptr())
+                        as *mut ClosureDestructor<F>);
+                let args = Bound::ref_from_ptr(py, &args).downcast_unchecked::<PyTuple>();
+                let kwargs = Bound::ref_from_ptr_or_opt(py, &kwargs)
+                    .as_ref()
+                    .map(|b| b.downcast_unchecked::<PyDict>());
+                let result = (boxed_fn.closure)(args, kwargs);
+                crate::impl_::callback::convert(py, result)
+            },
+        )
+    }
 }
 
 struct ClosureDestructor<F> {

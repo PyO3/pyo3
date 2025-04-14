@@ -1,8 +1,6 @@
 use std::marker::PhantomData;
 
 use crate::{conversion::IntoPyObject, Py};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
 
 /// Trait used to combine with zero-sized types to calculate at compile time
 /// some property of a type.
@@ -30,20 +28,6 @@ impl<T> IsPyT<Py<T>> {
     pub const VALUE: bool = true;
 }
 
-probe!(IsToPyObject);
-
-#[allow(deprecated)]
-impl<T: ToPyObject> IsToPyObject<T> {
-    pub const VALUE: bool = true;
-}
-
-probe!(IsIntoPy);
-
-#[allow(deprecated)]
-impl<T: IntoPy<crate::PyObject>> IsIntoPy<T> {
-    pub const VALUE: bool = true;
-}
-
 probe!(IsIntoPyObjectRef);
 
 // Possible clippy beta regression,
@@ -68,5 +52,11 @@ where
 probe!(IsSync);
 
 impl<T: Sync> IsSync<T> {
+    pub const VALUE: bool = true;
+}
+
+probe!(IsOption);
+
+impl<T> IsOption<Option<T>> {
     pub const VALUE: bool = true;
 }

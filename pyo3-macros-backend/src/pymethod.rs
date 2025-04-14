@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 use std::ffi::CString;
 
-use crate::attributes::{NameAttribute, RenamingRule};
+use crate::attributes::{FromPyWithAttribute, NameAttribute, RenamingRule};
 use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
 use crate::params::{impl_regular_arg_param, Holders};
-use crate::utils::PythonDoc;
+use crate::utils::{deprecated_from_py_with, PythonDoc, TypeExt as _};
 use crate::utils::{Ctx, LitCStr};
 use crate::{
     method::{FnArg, FnSpec, FnType, SelfType},
@@ -375,9 +375,8 @@ pub fn impl_py_method_def_new(
                     args: *mut #pyo3_path::ffi::PyObject,
                     kwargs: *mut #pyo3_path::ffi::PyObject,
                 ) -> *mut #pyo3_path::ffi::PyObject {
-                    use #pyo3_path::impl_::pyclass::*;
                     #[allow(unknown_lints, non_local_definitions)]
-                    impl PyClassNewTextSignature<#cls> for PyClassImplCollector<#cls> {
+                    impl #pyo3_path::impl_::pyclass::PyClassNewTextSignature<#cls> for #pyo3_path::impl_::pyclass::PyClassImplCollector<#cls> {
                         #[inline]
                         fn new_text_signature(self) -> ::std::option::Option<&'static str> {
                             #text_signature_body
@@ -569,7 +568,7 @@ fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result
     })
 }
 
-fn impl_py_class_attribute(
+pub(crate) fn impl_py_class_attribute(
     cls: &syn::Type,
     spec: &FnSpec<'_>,
     ctx: &Ctx,
@@ -703,8 +702,10 @@ pub fn impl_py_setter_def(
             let (from_py_with, ident) =
                 if let Some(from_py_with) = &value_arg.from_py_with().as_ref().map(|f| &f.value) {
                     let ident = syn::Ident::new("from_py_with", from_py_with.span());
+                    let d = deprecated_from_py_with(from_py_with).unwrap_or_default();
                     (
                         quote_spanned! { from_py_with.span() =>
+                            #d
                             let #ident = #from_py_with;
                         },
                         ident,
@@ -741,8 +742,14 @@ pub fn impl_py_setter_def(
                 .unwrap_or_default();
 
             let holder = holders.push_holder(span);
+            let ty = field.ty.clone().elide_lifetimes();
             quote! {
-                let _val = #pyo3_path::impl_::extract_argument::extract_argument(_value.into(), &mut #holder, #name)?;
+                #[allow(unused_imports)]
+                use #pyo3_path::impl_::pyclass::Probe as _;
+                let _val = #pyo3_path::impl_::extract_argument::extract_argument::<
+                    _,
+                    { #pyo3_path::impl_::pyclass::IsOption::<#ty>::VALUE }
+                >(_value.into(), &mut #holder, #name)?;
             }
         }
     };
@@ -882,8 +889,6 @@ pub fn impl_py_getter_def(
                         #ty,
                         Offset,
                         { #pyo3_path::impl_::pyclass::IsPyT::<#ty>::VALUE },
-                        { #pyo3_path::impl_::pyclass::IsToPyObject::<#ty>::VALUE },
-                        { #pyo3_path::impl_::pyclass::IsIntoPy::<#ty>::VALUE },
                         { #pyo3_path::impl_::pyclass::IsIntoPyObjectRef::<#ty>::VALUE },
                         { #pyo3_path::impl_::pyclass::IsIntoPyObject::<#ty>::VALUE },
                     > = unsafe { #pyo3_path::impl_::pyclass::PyClassGetterGenerator::new() };
@@ -1222,25 +1227,37 @@ fn extract_object(
     let Ctx { pyo3_path, .. } = ctx;
     let name = arg.name().unraw().to_string();
 
-    let extract = if let Some(from_py_with) =
-        arg.from_py_with().map(|from_py_with| &from_py_with.value)
+    let extract = if let Some(FromPyWithAttribute {
+        kw,
+        value: extractor,
+    }) = arg.from_py_with()
     {
+        let extractor = quote_spanned! { kw.span =>
+            { let from_py_with: fn(_) -> _ = #extractor; from_py_with }
+        };
+
         quote! {
             #pyo3_path::impl_::extract_argument::from_py_with(
                 unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0 },
                 #name,
-                #from_py_with as fn(_) -> _,
+                #extractor,
             )
         }
     } else {
         let holder = holders.push_holder(Span::call_site());
-        quote! {
-            #pyo3_path::impl_::extract_argument::extract_argument(
+        let ty = arg.ty().clone().elide_lifetimes();
+        quote! {{
+            #[allow(unused_imports)]
+            use #pyo3_path::impl_::pyclass::Probe as _;
+            #pyo3_path::impl_::extract_argument::extract_argument::<
+                _,
+                { #pyo3_path::impl_::pyclass::IsOption::<#ty>::VALUE }
+            >(
                 unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0 },
                 &mut #holder,
                 #name
             )
-        }
+        }}
     };
 
     let extracted = extract_error_mode.handle_error(extract, ctx);

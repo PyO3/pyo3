@@ -51,12 +51,14 @@ pub(crate) unsafe fn get_slot<const S: c_int>(
 where
     Slot<S>: GetSlotImpl,
 {
-    slot.get_slot(
-        ty,
-        // SAFETY: the Python runtime is initialized
-        #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
-        is_runtime_3_10(crate::Python::assume_gil_acquired()),
-    )
+    unsafe {
+        slot.get_slot(
+            ty,
+            // SAFETY: the Python runtime is initialized
+            #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
+            is_runtime_3_10(crate::Python::assume_gil_acquired()),
+        )
+    }
 }
 
 pub(crate) trait GetSlotImpl {
@@ -93,7 +95,7 @@ macro_rules! impl_slots {
                 ) -> Self::Type {
                     #[cfg(not(Py_LIMITED_API))]
                     {
-                        (*ty).$field
+                        unsafe {(*ty).$field }
                     }
 
                     #[cfg(Py_LIMITED_API)]
@@ -105,14 +107,14 @@ macro_rules! impl_slots {
                             // (3.7, 3.8, 3.9) and then look in the type object anyway. This is only ok
                             // because we know that the interpreter is not going to change the size
                             // of the type objects for these historical versions.
-                            if !is_runtime_3_10 && ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) == 0
+                            if !is_runtime_3_10 && unsafe {ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE)} == 0
                             {
-                                return (*ty.cast::<PyTypeObject39Snapshot>()).$field;
+                                return unsafe {(*ty.cast::<PyTypeObject39Snapshot>()).$field};
                             }
                         }
 
                         // SAFETY: slot type is set carefully to be valid
-                        std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::$slot))
+                        unsafe {std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::$slot))}
                     }
                 }
             }

@@ -1,21 +1,4 @@
-use crate::ffi::{Py_ssize_t, PY_SSIZE_T_MAX};
-pub struct PrivateMarker;
-
-macro_rules! private_decl {
-    () => {
-        /// This trait is private to implement; this method exists to make it
-        /// impossible to implement outside the crate.
-        fn __private__(&self) -> crate::internal_tricks::PrivateMarker;
-    };
-}
-
-macro_rules! private_impl {
-    () => {
-        fn __private__(&self) -> crate::internal_tricks::PrivateMarker {
-            crate::internal_tricks::PrivateMarker
-        }
-    };
-}
+use crate::ffi::{self, Py_ssize_t, PY_SSIZE_T_MAX};
 
 macro_rules! pyo3_exception {
     ($doc: expr, $name: ident, $base: ty) => {
@@ -58,4 +41,34 @@ pub(crate) fn cast_mut<T>(t: *const T) -> *mut T {
 #[inline]
 pub(crate) fn cast_const<T>(t: *mut T) -> *const T {
     t as *const T
+}
+
+// TODO: use ptr::fn_addr_eq on MSRV 1.85
+pub(crate) fn clear_eq(f: Option<ffi::inquiry>, g: ffi::inquiry) -> bool {
+    #[cfg(fn_ptr_eq)]
+    #[allow(clippy::incompatible_msrv)]
+    {
+        let Some(f) = f else { return false };
+        std::ptr::fn_addr_eq(f, g)
+    }
+
+    #[cfg(not(fn_ptr_eq))]
+    {
+        f == Some(g)
+    }
+}
+
+// TODO: use ptr::fn_addr_eq on MSRV 1.85
+pub(crate) fn traverse_eq(f: Option<ffi::traverseproc>, g: ffi::traverseproc) -> bool {
+    #[cfg(fn_ptr_eq)]
+    #[allow(clippy::incompatible_msrv)]
+    {
+        let Some(f) = f else { return false };
+        std::ptr::fn_addr_eq(f, g)
+    }
+
+    #[cfg(not(fn_ptr_eq))]
+    {
+        f == Some(g)
+    }
 }

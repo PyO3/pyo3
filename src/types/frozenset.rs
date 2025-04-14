@@ -49,13 +49,6 @@ impl<'py> PyFrozenSetBuilder<'py> {
     pub fn finalize(self) -> Bound<'py, PyFrozenSet> {
         self.py_frozen_set
     }
-
-    /// Deprecated name for [`PyFrozenSetBuilder::finalize`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyFrozenSetBuilder::finalize`")]
-    #[inline]
-    pub fn finalize_bound(self) -> Bound<'py, PyFrozenSet> {
-        self.finalize()
-    }
 }
 
 /// Represents a  Python `frozenset`.
@@ -92,17 +85,6 @@ impl PyFrozenSet {
         try_new_from_iter(py, elements)
     }
 
-    /// Deprecated name for [`PyFrozenSet::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyFrozenSet::new`")]
-    #[allow(deprecated)]
-    #[inline]
-    pub fn new_bound<'a, 'p, T: crate::ToPyObject + 'a>(
-        py: Python<'p>,
-        elements: impl IntoIterator<Item = &'a T>,
-    ) -> PyResult<Bound<'p, PyFrozenSet>> {
-        Self::new(py, elements.into_iter().map(|e| e.to_object(py)))
-    }
-
     /// Creates a new empty frozen set
     pub fn empty(py: Python<'_>) -> PyResult<Bound<'_, PyFrozenSet>> {
         unsafe {
@@ -110,13 +92,6 @@ impl PyFrozenSet {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyFrozenSet::empty`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyFrozenSet::empty`")]
-    #[inline]
-    pub fn empty_bound(py: Python<'_>) -> PyResult<Bound<'_, PyFrozenSet>> {
-        Self::empty(py)
     }
 }
 
@@ -228,6 +203,14 @@ impl<'py> Iterator for BoundFrozenSetIterator<'py> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.remaining, Some(self.remaining))
+    }
+
+    #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
     }
 }
 
@@ -349,5 +332,13 @@ mod tests {
             assert!(set.contains(2).unwrap());
             assert!(!set.contains(3).unwrap());
         });
+    }
+
+    #[test]
+    fn test_iter_count() {
+        Python::with_gil(|py| {
+            let set = PyFrozenSet::new(py, vec![1, 2, 3]).unwrap();
+            assert_eq!(set.iter().count(), 3);
+        })
     }
 }

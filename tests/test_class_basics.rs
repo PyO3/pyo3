@@ -357,23 +357,23 @@ struct ClassWithFromPyWithMethods {}
 
 #[pymethods]
 impl ClassWithFromPyWithMethods {
-    fn instance_method(&self, #[pyo3(from_py_with = "get_length")] argument: usize) -> usize {
+    fn instance_method(&self, #[pyo3(from_py_with = get_length)] argument: usize) -> usize {
         argument
     }
     #[classmethod]
     fn classmethod(
         _cls: &Bound<'_, PyType>,
-        #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")] argument: usize,
+        #[pyo3(from_py_with = Bound::<'_, PyAny>::len)] argument: usize,
     ) -> usize {
         argument
     }
 
     #[staticmethod]
-    fn staticmethod(#[pyo3(from_py_with = "get_length")] argument: usize) -> usize {
+    fn staticmethod(#[pyo3(from_py_with = get_length)] argument: usize) -> usize {
         argument
     }
 
-    fn __contains__(&self, #[pyo3(from_py_with = "is_even")] obj: bool) -> bool {
+    fn __contains__(&self, #[pyo3(from_py_with = is_even)] obj: bool) -> bool {
         obj
     }
 }

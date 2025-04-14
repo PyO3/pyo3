@@ -2,7 +2,7 @@ error[E0277]: the trait bound `PyErr: From<MyError>` is not satisfied
   --> tests/ui/invalid_result_conversion.rs:22:25
    |
 22 | fn should_not_work() -> Result<(), MyError> {
-   |                         ^^^^^^ the trait `From<MyError>` is not implemented for `PyErr`, which is required by `MyError: Into<PyErr>`
+   |                         ^^^^^^ the trait `From<MyError>` is not implemented for `PyErr`
    |
    = help: the following other types implement trait `From<T>`:
              `PyErr` implements `From<AddrParseError>`

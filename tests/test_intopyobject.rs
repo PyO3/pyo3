@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
-use pyo3::types::{PyDict, PyString};
-use pyo3::{prelude::*, IntoPyObject};
+use pyo3::types::{PyDict, PyList, PyString};
+use pyo3::{prelude::*, py_run, IntoPyObject, IntoPyObjectExt};
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -150,9 +150,20 @@ fn test_transparent_tuple_struct() {
     });
 }
 
-#[derive(Debug, IntoPyObject)]
+fn phantom_into_py<'py, T>(
+    _: std::borrow::Cow<'_, std::marker::PhantomData<T>>,
+    py: Python<'py>,
+) -> PyResult<Bound<'py, PyAny>> {
+    std::any::type_name::<T>().into_bound_py_any(py)
+}
+
+#[derive(Debug, IntoPyObject, IntoPyObjectRef)]
 pub enum Foo<'py> {
-    TupleVar(usize, String),
+    TupleVar(
+        usize,
+        String,
+        #[pyo3(into_py_with = phantom_into_py::<()>)] std::marker::PhantomData<()>,
+    ),
     StructVar {
         test: Bound<'py, PyString>,
     },
@@ -167,10 +178,12 @@ pub enum Foo<'py> {
 #[test]
 fn test_enum() {
     Python::with_gil(|py| {
-        let foo = Foo::TupleVar(1, "test".into()).into_pyobject(py).unwrap();
+        let foo = Foo::TupleVar(1, "test".into(), std::marker::PhantomData)
+            .into_pyobject(py)
+            .unwrap();
         assert_eq!(
-            foo.extract::<(usize, String)>().unwrap(),
-            (1, String::from("test"))
+            foo.extract::<(usize, String, String)>().unwrap(),
+            (1, String::from("test"), String::from("()"))
         );
 
         let foo = Foo::StructVar {
@@ -197,5 +210,45 @@ fn test_enum() {
             .into_pyobject(py)
             .unwrap();
         assert!(foo.is_none());
+    });
+}
+
+#[derive(Debug, IntoPyObject, IntoPyObjectRef)]
+pub struct Zap {
+    #[pyo3(item)]
+    name: String,
+
+    #[pyo3(into_py_with = zap_into_py, item("my_object"))]
+    some_object_length: usize,
+}
+
+fn zap_into_py<'py>(
+    len: std::borrow::Cow<'_, usize>,
+    py: Python<'py>,
+) -> PyResult<Bound<'py, PyAny>> {
+    Ok(PyList::new(py, 1..*len + 1)?.into_any())
+}
+
+#[test]
+fn test_into_py_with() {
+    Python::with_gil(|py| {
+        let zap = Zap {
+            name: "whatever".into(),
+            some_object_length: 3,
+        };
+
+        let py_zap_ref = (&zap).into_pyobject(py).unwrap();
+        let py_zap = zap.into_pyobject(py).unwrap();
+
+        py_run!(
+            py,
+            py_zap_ref,
+            "assert py_zap_ref == {'name': 'whatever', 'my_object': [1, 2, 3]},f'{py_zap_ref}'"
+        );
+        py_run!(
+            py,
+            py_zap,
+            "assert py_zap == {'name': 'whatever', 'my_object': [1, 2, 3]},f'{py_zap}'"
+        );
     });
 }

@@ -1,9 +1,11 @@
 #![cfg(feature = "macros")]
+#![cfg_attr(not(cargo_toml_lints), warn(unsafe_op_in_unsafe_fn))]
 
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::ffi;
 use pyo3::prelude::*;
+#[cfg(not(Py_GIL_DISABLED))]
 use pyo3::py_run;
 #[cfg(not(target_arch = "wasm32"))]
 use std::cell::Cell;
@@ -33,6 +35,35 @@ fn class_with_freelist() {
 
         let inst4 = Py::new(py, ClassWithFreelist {}).unwrap();
         assert_ne!(ptr, inst4.as_ptr())
+    });
+}
+
+#[pyclass(freelist = 2)]
+#[cfg(not(target_arch = "wasm32"))]
+struct ClassWithFreelistAndData {
+    data: Option<usize>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn spin_freelist(py: Python<'_>, data: usize) {
+    for _ in 0..500 {
+        let inst1 = Py::new(py, ClassWithFreelistAndData { data: Some(data) }).unwrap();
+        let inst2 = Py::new(py, ClassWithFreelistAndData { data: Some(data) }).unwrap();
+        assert_eq!(inst1.borrow(py).data, Some(data));
+        assert_eq!(inst2.borrow(py).data, Some(data));
+    }
+}
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
+fn multithreaded_class_with_freelist() {
+    std::thread::scope(|s| {
+        s.spawn(|| {
+            Python::with_gil(|py| spin_freelist(py, 12));
+        });
+        s.spawn(|| {
+            Python::with_gil(|py| spin_freelist(py, 0x4d3d3d3));
+        });
     });
 }
 
@@ -153,6 +184,10 @@ fn test_cycle_clear() {
 
         inst.borrow_mut().cycle = Some(inst.clone().into_any().unbind());
 
+        // gc.get_objects can create references to partially initialized objects,
+        // leading to races on the free-threaded build.
+        // see https://github.com/python/cpython/issues/130421#issuecomment-2682924142
+        #[cfg(not(Py_GIL_DISABLED))]
         py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
         check.assert_not_dropped();
         inst.as_ptr()
@@ -632,18 +667,7 @@ fn test_traverse_subclass() {
             check.assert_not_dropped();
         }
 
-        #[cfg(not(Py_GIL_DISABLED))]
-        {
-            // FIXME: seems like a bug that this is flaky on the free-threaded build
-            // https://github.com/PyO3/pyo3/issues/4627
-            check.assert_drops_with_gc(ptr);
-        }
-
-        #[cfg(Py_GIL_DISABLED)]
-        {
-            // silence unused ptr warning
-            let _ = ptr;
-        }
+        check.assert_drops_with_gc(ptr);
     });
 }
 
@@ -690,25 +714,14 @@ fn test_traverse_subclass_override_clear() {
             check.assert_not_dropped();
         }
 
-        #[cfg(not(Py_GIL_DISABLED))]
-        {
-            // FIXME: seems like a bug that this is flaky on the free-threaded build
-            // https://github.com/PyO3/pyo3/issues/4627
-            check.assert_drops_with_gc(ptr);
-        }
-
-        #[cfg(Py_GIL_DISABLED)]
-        {
-            // silence unused ptr warning
-            let _ = ptr;
-        }
+        check.assert_drops_with_gc(ptr);
     });
 }
 
 // Manual traversal utilities
 
 unsafe fn get_type_traverse(tp: *mut pyo3::ffi::PyTypeObject) -> Option<pyo3::ffi::traverseproc> {
-    std::mem::transmute(pyo3::ffi::PyType_GetSlot(tp, pyo3::ffi::Py_tp_traverse))
+    unsafe { std::mem::transmute(pyo3::ffi::PyType_GetSlot(tp, pyo3::ffi::Py_tp_traverse)) }
 }
 
 // a dummy visitor function

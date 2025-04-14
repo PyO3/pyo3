@@ -1,5 +1,3 @@
-use std::iter::FusedIterator;
-
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
@@ -8,11 +6,11 @@ use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{any::PyAnyMethods, sequence::PySequenceMethods, PyList, PySequence};
 use crate::{
-    exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyObject,
-    PyResult, Python,
+    exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
 };
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
+use std::iter::FusedIterator;
+#[cfg(feature = "nightly")]
+use std::num::NonZero;
 
 #[inline]
 #[track_caller]
@@ -104,22 +102,6 @@ impl PyTuple {
         try_new_from_iter(py, elements)
     }
 
-    /// Deprecated name for [`PyTuple::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyTuple::new`")]
-    #[allow(deprecated)]
-    #[track_caller]
-    #[inline]
-    pub fn new_bound<T, U>(
-        py: Python<'_>,
-        elements: impl IntoIterator<Item = T, IntoIter = U>,
-    ) -> Bound<'_, PyTuple>
-    where
-        T: ToPyObject,
-        U: ExactSizeIterator<Item = T>,
-    {
-        PyTuple::new(py, elements.into_iter().map(|e| e.to_object(py))).unwrap()
-    }
-
     /// Constructs an empty tuple (on the Python side, a singleton object).
     pub fn empty(py: Python<'_>) -> Bound<'_, PyTuple> {
         unsafe {
@@ -127,13 +109,6 @@ impl PyTuple {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyTuple::empty`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyTuple::empty`")]
-    #[inline]
-    pub fn empty_bound(py: Python<'_>) -> Bound<'_, PyTuple> {
-        PyTuple::empty(py)
     }
 }
 
@@ -272,12 +247,12 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
 
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny> {
-        self.get_borrowed_item_unchecked(index).to_owned()
+        unsafe { self.get_borrowed_item_unchecked(index).to_owned() }
     }
 
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny> {
-        self.as_borrowed().get_borrowed_item_unchecked(index)
+        unsafe { self.as_borrowed().get_borrowed_item_unchecked(index) }
     }
 
     #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
@@ -329,7 +304,9 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
 
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked(self, index: usize) -> Borrowed<'a, 'py, PyAny> {
-        ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t).assume_borrowed(self.py())
+        unsafe {
+            ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t).assume_borrowed(self.py())
+        }
     }
 
     pub(crate) fn iter_borrowed(self) -> BorrowedTupleIterator<'a, 'py> {
@@ -376,6 +353,62 @@ impl<'py> Iterator for BoundTupleIterator<'py> {
         let len = self.len();
         (len, Some(len))
     }
+
+    #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
+    }
+
+    #[inline]
+    fn last(mut self) -> Option<Self::Item>
+    where
+        Self: Sized,
+    {
+        self.next_back()
+    }
+
+    #[inline]
+    #[cfg(not(feature = "nightly"))]
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        let length = self.length.min(self.tuple.len());
+        let target_index = self.index + n;
+        if target_index < length {
+            let item = unsafe {
+                BorrowedTupleIterator::get_item(self.tuple.as_borrowed(), target_index).to_owned()
+            };
+            self.index = target_index + 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    #[cfg(feature = "nightly")]
+    fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
+        let max_len = self.length.min(self.tuple.len());
+        let currently_at = self.index;
+        if currently_at >= max_len {
+            if n == 0 {
+                return Ok(());
+            } else {
+                return Err(unsafe { NonZero::new_unchecked(n) });
+            }
+        }
+
+        let items_left = max_len - currently_at;
+        if n <= items_left {
+            self.index += n;
+            Ok(())
+        } else {
+            self.index = max_len;
+            let remainder = n - items_left;
+            Err(unsafe { NonZero::new_unchecked(remainder) })
+        }
+    }
 }
 
 impl DoubleEndedIterator for BoundTupleIterator<'_> {
@@ -390,6 +423,46 @@ impl DoubleEndedIterator for BoundTupleIterator<'_> {
             Some(item)
         } else {
             None
+        }
+    }
+
+    #[inline]
+    #[cfg(not(feature = "nightly"))]
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        let length_size = self.length.min(self.tuple.len());
+        if self.index + n < length_size {
+            let target_index = length_size - n - 1;
+            let item = unsafe {
+                BorrowedTupleIterator::get_item(self.tuple.as_borrowed(), target_index).to_owned()
+            };
+            self.length = target_index;
+            Some(item)
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    #[cfg(feature = "nightly")]
+    fn advance_back_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
+        let max_len = self.length.min(self.tuple.len());
+        let currently_at = self.index;
+        if currently_at >= max_len {
+            if n == 0 {
+                return Ok(());
+            } else {
+                return Err(unsafe { NonZero::new_unchecked(n) });
+            }
+        }
+
+        let items_left = max_len - currently_at;
+        if n <= items_left {
+            self.length = max_len - n;
+            Ok(())
+        } else {
+            self.length = currently_at;
+            let remainder = n - items_left;
+            Err(unsafe { NonZero::new_unchecked(remainder) })
         }
     }
 }
@@ -444,7 +517,7 @@ impl<'a, 'py> BorrowedTupleIterator<'a, 'py> {
         #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
         let item = tuple.get_borrowed_item(index).expect("tuple.get failed");
         #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-        let item = tuple.get_borrowed_item_unchecked(index);
+        let item = unsafe { tuple.get_borrowed_item_unchecked(index) };
         item
     }
 }
@@ -467,6 +540,22 @@ impl<'a, 'py> Iterator for BorrowedTupleIterator<'a, 'py> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = self.len();
         (len, Some(len))
+    }
+
+    #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
+    }
+
+    #[inline]
+    fn last(mut self) -> Option<Self::Item>
+    where
+        Self: Sized,
+    {
+        self.next_back()
     }
 }
 
@@ -491,20 +580,6 @@ impl ExactSizeIterator for BorrowedTupleIterator<'_, '_> {
 
 impl FusedIterator for BorrowedTupleIterator<'_, '_> {}
 
-#[allow(deprecated)]
-impl IntoPy<Py<PyTuple>> for Bound<'_, PyTuple> {
-    fn into_py(self, _: Python<'_>) -> Py<PyTuple> {
-        self.unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<Py<PyTuple>> for &'_ Bound<'_, PyTuple> {
-    fn into_py(self, _: Python<'_>) -> Py<PyTuple> {
-        self.clone().unbind()
-    }
-}
-
 #[cold]
 fn wrong_tuple_length(t: &Bound<'_, PyTuple>, expected_length: usize) -> PyErr {
     let msg = format!(
@@ -516,20 +591,6 @@ fn wrong_tuple_length(t: &Bound<'_, PyTuple>, expected_length: usize) -> PyErr {
 }
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
-    #[allow(deprecated)]
-    impl <$($T: ToPyObject),+> ToPyObject for ($($T,)+) {
-        fn to_object(&self, py: Python<'_>) -> PyObject {
-            array_into_tuple(py, [$(self.$n.to_object(py).into_bound(py)),+]).into()
-        }
-    }
-
-    #[allow(deprecated)]
-    impl <$($T: IntoPy<PyObject>),+> IntoPy<PyObject> for ($($T,)+) {
-        fn into_py(self, py: Python<'_>) -> PyObject {
-            array_into_tuple(py, [$(self.$n.into_py(py).into_bound(py)),+]).into()
-        }
-    }
-
     impl <'py, $($T),+> IntoPyObject<'py> for ($($T,)+)
     where
         $($T: IntoPyObject<'py>,)+
@@ -567,10 +628,261 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
-    #[allow(deprecated)]
-    impl <$($T: IntoPy<PyObject>),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
-        fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
-            array_into_tuple(py, [$(self.$n.into_py(py).into_bound(py)),+]).unbind()
+    impl<'py, $($T),+> crate::call::private::Sealed for ($($T,)+) where $($T: IntoPyObject<'py>,)+ {}
+    impl<'py, $($T),+> crate::call::PyCallArgs<'py> for ($($T,)+)
+    where
+        $($T: IntoPyObject<'py>,)+
+    {
+        #[cfg(all(Py_3_9, not(any(PyPy, GraalPy, Py_LIMITED_API))))]
+        fn call(
+            self,
+            function: Borrowed<'_, 'py, PyAny>,
+            kwargs: Borrowed<'_, '_, crate::types::PyDict>,
+            _: crate::call::private::Token,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            let py = function.py();
+            // We need this to drop the arguments correctly.
+            let args_bound = [$(self.$n.into_bound_py_any(py)?,)*];
+            // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
+            let mut args = [std::ptr::null_mut(), $(args_bound[$n].as_ptr()),*];
+            unsafe {
+                ffi::PyObject_VectorcallDict(
+                    function.as_ptr(),
+                    args.as_mut_ptr().add(1),
+                    $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    kwargs.as_ptr(),
+                )
+                .assume_owned_or_err(py)
+            }
+        }
+
+        #[cfg(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)))]
+        fn call_positional(
+            self,
+            function: Borrowed<'_, 'py, PyAny>,
+            _: crate::call::private::Token,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            let py = function.py();
+            // We need this to drop the arguments correctly.
+            let args_bound = [$(self.$n.into_bound_py_any(py)?,)*];
+
+            #[cfg(not(Py_LIMITED_API))]
+            if $length == 1 {
+                return unsafe {
+                    ffi::PyObject_CallOneArg(
+                       function.as_ptr(),
+                       args_bound[0].as_ptr()
+                    )
+                    .assume_owned_or_err(py)
+                };
+            }
+
+            // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
+            let mut args = [std::ptr::null_mut(), $(args_bound[$n].as_ptr()),*];
+            unsafe {
+                ffi::PyObject_Vectorcall(
+                    function.as_ptr(),
+                    args.as_mut_ptr().add(1),
+                    $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    std::ptr::null_mut(),
+                )
+                .assume_owned_or_err(py)
+            }
+        }
+
+        #[cfg(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)))]
+        fn call_method_positional(
+            self,
+            object: Borrowed<'_, 'py, PyAny>,
+            method_name: Borrowed<'_, 'py, crate::types::PyString>,
+            _: crate::call::private::Token,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            let py = object.py();
+            // We need this to drop the arguments correctly.
+            let args_bound = [$(self.$n.into_bound_py_any(py)?,)*];
+
+            #[cfg(not(Py_LIMITED_API))]
+            if $length == 1 {
+                return unsafe {
+                    ffi::PyObject_CallMethodOneArg(
+                            object.as_ptr(),
+                            method_name.as_ptr(),
+                            args_bound[0].as_ptr(),
+                    )
+                    .assume_owned_or_err(py)
+                };
+            }
+
+            let mut args = [object.as_ptr(), $(args_bound[$n].as_ptr()),*];
+            unsafe {
+                ffi::PyObject_VectorcallMethod(
+                    method_name.as_ptr(),
+                    args.as_mut_ptr(),
+                    // +1 for the receiver.
+                    1 + $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    std::ptr::null_mut(),
+                )
+                .assume_owned_or_err(py)
+            }
+
+        }
+
+        #[cfg(not(all(Py_3_9, not(any(PyPy, GraalPy, Py_LIMITED_API)))))]
+        fn call(
+            self,
+            function: Borrowed<'_, 'py, PyAny>,
+            kwargs: Borrowed<'_, 'py, crate::types::PyDict>,
+            token: crate::call::private::Token,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            self.into_pyobject_or_pyerr(function.py())?.call(function, kwargs, token)
+        }
+
+        #[cfg(not(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12))))]
+        fn call_positional(
+            self,
+            function: Borrowed<'_, 'py, PyAny>,
+            token: crate::call::private::Token,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            self.into_pyobject_or_pyerr(function.py())?.call_positional(function, token)
+        }
+
+        #[cfg(not(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12))))]
+        fn call_method_positional(
+            self,
+            object: Borrowed<'_, 'py, PyAny>,
+            method_name: Borrowed<'_, 'py, crate::types::PyString>,
+            token: crate::call::private::Token,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            self.into_pyobject_or_pyerr(object.py())?.call_method_positional(object, method_name, token)
+        }
+    }
+
+    impl<'a, 'py, $($T),+> crate::call::private::Sealed for &'a ($($T,)+) where $(&'a $T: IntoPyObject<'py>,)+ $($T: 'a,)+ /*MSRV */ {}
+    impl<'a, 'py, $($T),+> crate::call::PyCallArgs<'py> for &'a ($($T,)+)
+    where
+        $(&'a $T: IntoPyObject<'py>,)+
+        $($T: 'a,)+ // MSRV
+    {
+        #[cfg(all(Py_3_9, not(any(PyPy, GraalPy, Py_LIMITED_API))))]
+        fn call(
+            self,
+            function: Borrowed<'_, 'py, PyAny>,
+            kwargs: Borrowed<'_, '_, crate::types::PyDict>,
+            _: crate::call::private::Token,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            let py = function.py();
+            // We need this to drop the arguments correctly.
+            let args_bound = [$(self.$n.into_bound_py_any(py)?,)*];
+            // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
+            let mut args = [std::ptr::null_mut(), $(args_bound[$n].as_ptr()),*];
+            unsafe {
+                ffi::PyObject_VectorcallDict(
+                    function.as_ptr(),
+                    args.as_mut_ptr().add(1),
+                    $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    kwargs.as_ptr(),
+                )
+                .assume_owned_or_err(py)
+            }
+        }
+
+        #[cfg(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)))]
+        fn call_positional(
+            self,
+            function: Borrowed<'_, 'py, PyAny>,
+            _: crate::call::private::Token,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            let py = function.py();
+            // We need this to drop the arguments correctly.
+            let args_bound = [$(self.$n.into_bound_py_any(py)?,)*];
+
+            #[cfg(not(Py_LIMITED_API))]
+            if $length == 1 {
+                return unsafe {
+                    ffi::PyObject_CallOneArg(
+                       function.as_ptr(),
+                       args_bound[0].as_ptr()
+                    )
+                    .assume_owned_or_err(py)
+                };
+            }
+
+            // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
+            let mut args = [std::ptr::null_mut(), $(args_bound[$n].as_ptr()),*];
+            unsafe {
+                ffi::PyObject_Vectorcall(
+                    function.as_ptr(),
+                    args.as_mut_ptr().add(1),
+                    $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    std::ptr::null_mut(),
+                )
+                .assume_owned_or_err(py)
+            }
+        }
+
+        #[cfg(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)))]
+        fn call_method_positional(
+            self,
+            object: Borrowed<'_, 'py, PyAny>,
+            method_name: Borrowed<'_, 'py, crate::types::PyString>,
+            _: crate::call::private::Token,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            let py = object.py();
+            // We need this to drop the arguments correctly.
+            let args_bound = [$(self.$n.into_bound_py_any(py)?,)*];
+
+            #[cfg(not(Py_LIMITED_API))]
+            if $length == 1 {
+                return unsafe {
+                    ffi::PyObject_CallMethodOneArg(
+                            object.as_ptr(),
+                            method_name.as_ptr(),
+                            args_bound[0].as_ptr(),
+                    )
+                    .assume_owned_or_err(py)
+                };
+            }
+
+            let mut args = [object.as_ptr(), $(args_bound[$n].as_ptr()),*];
+            unsafe {
+                ffi::PyObject_VectorcallMethod(
+                    method_name.as_ptr(),
+                    args.as_mut_ptr(),
+                    // +1 for the receiver.
+                    1 + $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    std::ptr::null_mut(),
+                )
+                .assume_owned_or_err(py)
+            }
+        }
+
+        #[cfg(not(all(Py_3_9, not(any(PyPy, GraalPy, Py_LIMITED_API)))))]
+        fn call(
+            self,
+            function: Borrowed<'_, 'py, PyAny>,
+            kwargs: Borrowed<'_, 'py, crate::types::PyDict>,
+            token: crate::call::private::Token,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            self.into_pyobject_or_pyerr(function.py())?.call(function, kwargs, token)
+        }
+
+        #[cfg(not(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12))))]
+        fn call_positional(
+            self,
+            function: Borrowed<'_, 'py, PyAny>,
+            token: crate::call::private::Token,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            self.into_pyobject_or_pyerr(function.py())?.call_positional(function, token)
+        }
+
+        #[cfg(not(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12))))]
+        fn call_method_positional(
+            self,
+            object: Borrowed<'_, 'py, PyAny>,
+            method_name: Borrowed<'_, 'py, crate::types::PyString>,
+            token: crate::call::private::Token,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            self.into_pyobject_or_pyerr(object.py())?.call_method_positional(object, method_name, token)
         }
     }
 
@@ -722,8 +1034,9 @@ mod tests {
     use crate::types::{any::PyAnyMethods, tuple::PyTupleMethods, PyList, PyTuple};
     use crate::{IntoPyObject, Python};
     use std::collections::HashSet;
+    #[cfg(feature = "nightly")]
+    use std::num::NonZero;
     use std::ops::Range;
-
     #[test]
     fn test_new() {
         Python::with_gil(|py| {
@@ -1264,6 +1577,146 @@ mod tests {
                     4
                 );
             }
+        })
+    }
+
+    #[test]
+    fn test_bound_tuple_nth() {
+        Python::with_gil(|py| {
+            let tuple = PyTuple::new(py, vec![1, 2, 3, 4]).unwrap();
+            let mut iter = tuple.iter();
+            assert_eq!(iter.nth(1).unwrap().extract::<i32>().unwrap(), 2);
+            assert_eq!(iter.nth(1).unwrap().extract::<i32>().unwrap(), 4);
+            assert!(iter.nth(1).is_none());
+
+            let tuple = PyTuple::new(py, Vec::<i32>::new()).unwrap();
+            let mut iter = tuple.iter();
+            iter.next();
+            assert!(iter.nth(1).is_none());
+
+            let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
+            let mut iter = tuple.iter();
+            assert!(iter.nth(10).is_none());
+
+            let tuple = PyTuple::new(py, vec![6, 7, 8, 9, 10]).unwrap();
+            let mut iter = tuple.iter();
+            assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 6);
+            assert_eq!(iter.nth(2).unwrap().extract::<i32>().unwrap(), 9);
+            assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 10);
+
+            let mut iter = tuple.iter();
+            assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 9);
+            assert_eq!(iter.nth(2).unwrap().extract::<i32>().unwrap(), 8);
+            assert!(iter.next().is_none());
+        });
+    }
+
+    #[test]
+    fn test_bound_tuple_nth_back() {
+        Python::with_gil(|py| {
+            let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
+            let mut iter = tuple.iter();
+            assert_eq!(iter.nth_back(0).unwrap().extract::<i32>().unwrap(), 5);
+            assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 3);
+            assert!(iter.nth_back(2).is_none());
+
+            let tuple = PyTuple::new(py, Vec::<i32>::new()).unwrap();
+            let mut iter = tuple.iter();
+            assert!(iter.nth_back(0).is_none());
+            assert!(iter.nth_back(1).is_none());
+
+            let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
+            let mut iter = tuple.iter();
+            assert!(iter.nth_back(5).is_none());
+
+            let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
+            let mut iter = tuple.iter();
+            iter.next_back(); // Consume the last element
+            assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 3);
+            assert_eq!(iter.next_back().unwrap().extract::<i32>().unwrap(), 2);
+            assert_eq!(iter.nth_back(0).unwrap().extract::<i32>().unwrap(), 1);
+
+            let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
+            let mut iter = tuple.iter();
+            assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 4);
+            assert_eq!(iter.nth_back(2).unwrap().extract::<i32>().unwrap(), 1);
+
+            let mut iter2 = tuple.iter();
+            iter2.next_back();
+            assert_eq!(iter2.nth_back(1).unwrap().extract::<i32>().unwrap(), 3);
+            assert_eq!(iter2.next_back().unwrap().extract::<i32>().unwrap(), 2);
+
+            let mut iter3 = tuple.iter();
+            iter3.nth(1);
+            assert_eq!(iter3.nth_back(2).unwrap().extract::<i32>().unwrap(), 3);
+            assert!(iter3.nth_back(0).is_none());
+        });
+    }
+
+    #[cfg(feature = "nightly")]
+    #[test]
+    fn test_bound_tuple_advance_by() {
+        Python::with_gil(|py| {
+            let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
+            let mut iter = tuple.iter();
+
+            assert_eq!(iter.advance_by(2), Ok(()));
+            assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 3);
+            assert_eq!(iter.advance_by(0), Ok(()));
+            assert_eq!(iter.advance_by(100), Err(NonZero::new(98).unwrap()));
+            assert!(iter.next().is_none());
+
+            let mut iter2 = tuple.iter();
+            assert_eq!(iter2.advance_by(6), Err(NonZero::new(1).unwrap()));
+
+            let mut iter3 = tuple.iter();
+            assert_eq!(iter3.advance_by(5), Ok(()));
+
+            let mut iter4 = tuple.iter();
+            assert_eq!(iter4.advance_by(0), Ok(()));
+            assert_eq!(iter4.next().unwrap().extract::<i32>().unwrap(), 1);
+        })
+    }
+
+    #[cfg(feature = "nightly")]
+    #[test]
+    fn test_bound_tuple_advance_back_by() {
+        Python::with_gil(|py| {
+            let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
+            let mut iter = tuple.iter();
+
+            assert_eq!(iter.advance_back_by(2), Ok(()));
+            assert_eq!(iter.next_back().unwrap().extract::<i32>().unwrap(), 3);
+            assert_eq!(iter.advance_back_by(0), Ok(()));
+            assert_eq!(iter.advance_back_by(100), Err(NonZero::new(98).unwrap()));
+            assert!(iter.next_back().is_none());
+
+            let mut iter2 = tuple.iter();
+            assert_eq!(iter2.advance_back_by(6), Err(NonZero::new(1).unwrap()));
+
+            let mut iter3 = tuple.iter();
+            assert_eq!(iter3.advance_back_by(5), Ok(()));
+
+            let mut iter4 = tuple.iter();
+            assert_eq!(iter4.advance_back_by(0), Ok(()));
+            assert_eq!(iter4.next_back().unwrap().extract::<i32>().unwrap(), 5);
+        })
+    }
+
+    #[test]
+    fn test_iter_last() {
+        Python::with_gil(|py| {
+            let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
+            let last = tuple.iter().last();
+            assert_eq!(last.unwrap().extract::<i32>().unwrap(), 3);
+        })
+    }
+
+    #[test]
+    fn test_iter_count() {
+        Python::with_gil(|py| {
+            let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
+            assert_eq!(tuple.iter().count(), 3);
         })
     }
 }

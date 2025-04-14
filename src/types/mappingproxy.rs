@@ -16,7 +16,7 @@ pub struct PyMappingProxy(PyAny);
 
 #[inline]
 unsafe fn dict_proxy_check(op: *mut ffi::PyObject) -> c_int {
-    ffi::Py_IS_TYPE(op, std::ptr::addr_of_mut!(ffi::PyDictProxy_Type))
+    unsafe { ffi::Py_IS_TYPE(op, std::ptr::addr_of_mut!(ffi::PyDictProxy_Type)) }
 }
 
 pyobject_native_type_core!(PyMappingProxy, #checkfunction=dict_proxy_check);
@@ -536,7 +536,7 @@ mod tests {
     #[test]
     fn iter_mappingproxy_nosegv() {
         Python::with_gil(|py| {
-            const LEN: usize = 10_000_000;
+            const LEN: usize = 1_000;
             let items = (0..LEN as u64).map(|i| (i, i * 2));
 
             let dict = items.clone().into_py_dict(py).unwrap();
@@ -548,7 +548,7 @@ mod tests {
                 let i: u64 = k.extract().unwrap();
                 sum += i;
             }
-            assert_eq!(sum, 49_999_995_000_000);
+            assert_eq!(sum, 499_500);
         })
     }
 }

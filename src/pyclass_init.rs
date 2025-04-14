@@ -164,7 +164,7 @@ impl<T: PyClass> PyClassInitializer<T> {
             PyClassInitializerImpl::New { init, super_init } => (init, super_init),
         };
 
-        let obj = super_init.into_new_object(py, target_type)?;
+        let obj = unsafe { super_init.into_new_object(py, target_type)? };
 
         std::ptr::write(
             PyObjectLayout::get_contents_ptr::<T>(obj, TypeObjectStrategy::lazy(py)),
@@ -173,7 +173,7 @@ impl<T: PyClass> PyClassInitializer<T> {
 
         // Safety: obj is a valid pointer to an object of type `target_type`, which` is a known
         // subclass of `T`
-        Ok(obj.assume_owned(py).downcast_into_unchecked())
+        Ok(unsafe { obj.assume_owned(py).downcast_into_unchecked() })
     }
 }
 
@@ -183,8 +183,10 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
         py: Python<'_>,
         subtype: *mut PyTypeObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        self.create_class_object_of_type(py, subtype)
-            .map(Bound::into_ptr)
+        unsafe {
+            self.create_class_object_of_type(py, subtype)
+                .map(Bound::into_ptr)
+        }
     }
 
     #[inline]

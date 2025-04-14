@@ -6,7 +6,7 @@ use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
 use crate::{
-    ffi, Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyErr, PyObject, PyRef, PyRefMut, Python,
+    ffi, Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyErr, PyRef, PyRefMut, Python,
 };
 use std::convert::Infallible;
 
@@ -64,116 +64,6 @@ use std::convert::Infallible;
 pub unsafe trait AsPyPointer {
     /// Returns the underlying FFI pointer as a borrowed pointer.
     fn as_ptr(&self) -> *mut ffi::PyObject;
-}
-
-/// Conversion trait that allows various objects to be converted into `PyObject`.
-#[deprecated(
-    since = "0.23.0",
-    note = "`ToPyObject` is going to be replaced by `IntoPyObject`. See the migration guide (https://pyo3.rs/v0.23.0/migration) for more information."
-)]
-pub trait ToPyObject {
-    /// Converts self into a Python object.
-    fn to_object(&self, py: Python<'_>) -> PyObject;
-}
-
-/// Defines a conversion from a Rust type to a Python object.
-///
-/// It functions similarly to std's [`Into`] trait, but requires a [GIL token](Python)
-/// as an argument. Many functions and traits internal to PyO3 require this trait as a bound,
-/// so a lack of this trait can manifest itself in different error messages.
-///
-/// # Examples
-/// ## With `#[pyclass]`
-/// The easiest way to implement `IntoPy` is by exposing a struct as a native Python object
-/// by annotating it with [`#[pyclass]`](crate::prelude::pyclass).
-///
-/// ```rust
-/// use pyo3::prelude::*;
-///
-/// # #[allow(dead_code)]
-/// #[pyclass]
-/// struct Number {
-///     #[pyo3(get, set)]
-///     value: i32,
-/// }
-/// ```
-/// Python code will see this as an instance of the `Number` class with a `value` attribute.
-///
-/// ## Conversion to a Python object
-///
-/// However, it may not be desirable to expose the existence of `Number` to Python code.
-/// `IntoPy` allows us to define a conversion to an appropriate Python object.
-/// ```rust
-/// #![allow(deprecated)]
-/// use pyo3::prelude::*;
-///
-/// # #[allow(dead_code)]
-/// struct Number {
-///     value: i32,
-/// }
-///
-/// impl IntoPy<PyObject> for Number {
-///     fn into_py(self, py: Python<'_>) -> PyObject {
-///         // delegates to i32's IntoPy implementation.
-///         self.value.into_py(py)
-///     }
-/// }
-/// ```
-/// Python code will see this as an `int` object.
-///
-/// ## Dynamic conversion into Python objects.
-/// It is also possible to return a different Python object depending on some condition.
-/// This is useful for types like enums that can carry different types.
-///
-/// ```rust
-/// #![allow(deprecated)]
-/// use pyo3::prelude::*;
-///
-/// enum Value {
-///     Integer(i32),
-///     String(String),
-///     None,
-/// }
-///
-/// impl IntoPy<PyObject> for Value {
-///     fn into_py(self, py: Python<'_>) -> PyObject {
-///         match self {
-///             Self::Integer(val) => val.into_py(py),
-///             Self::String(val) => val.into_py(py),
-///             Self::None => py.None(),
-///         }
-///     }
-/// }
-/// # fn main() {
-/// #     Python::with_gil(|py| {
-/// #         let v = Value::Integer(73).into_py(py);
-/// #         let v = v.extract::<i32>(py).unwrap();
-/// #
-/// #         let v = Value::String("foo".into()).into_py(py);
-/// #         let v = v.extract::<String>(py).unwrap();
-/// #
-/// #         let v = Value::None.into_py(py);
-/// #         let v = v.extract::<Option<Vec<i32>>>(py).unwrap();
-/// #     });
-/// # }
-/// ```
-/// Python code will see this as any of the `int`, `string` or `None` objects.
-#[cfg_attr(
-    diagnostic_namespace,
-    diagnostic::on_unimplemented(
-        message = "`{Self}` cannot be converted to a Python object",
-        note = "`IntoPy` is automatically implemented by the `#[pyclass]` macro",
-        note = "if you do not wish to have a corresponding Python type, implement it manually",
-        note = "if you do not own `{Self}` you can perform a manual conversion to one of the types in `pyo3::types::*`"
-    )
-)]
-#[deprecated(
-    since = "0.23.0",
-    note = "`IntoPy` is going to be replaced by `IntoPyObject`. See the migration guide (https://pyo3.rs/v0.23.0/migration) for more information."
-)]
-pub trait IntoPy<T>: Sized {
-    /// Performs the conversion.
-    fn into_py(self, py: Python<'_>) -> T;
 }
 
 /// Defines a conversion from a Rust type to a Python object, which may fail.
@@ -541,16 +431,6 @@ where
     }
 }
 
-/// Identity conversion: allows using existing `PyObject` instances where
-/// `T: ToPyObject` is expected.
-#[allow(deprecated)]
-impl<T: ?Sized + ToPyObject> ToPyObject for &'_ T {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        <T as ToPyObject>::to_object(*self, py)
-    }
-}
-
 impl<T> FromPyObject<'_> for T
 where
     T: PyClass + Clone,
@@ -576,14 +456,6 @@ where
 {
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         obj.downcast::<T>()?.try_borrow_mut().map_err(Into::into)
-    }
-}
-
-/// Converts `()` to an empty Python tuple.
-#[allow(deprecated)]
-impl IntoPy<Py<PyTuple>> for () {
-    fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
-        PyTuple::empty(py).unbind()
     }
 }
 

@@ -18,13 +18,6 @@ impl PyEllipsis {
     pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyEllipsis> {
         unsafe { ffi::Py_Ellipsis().assume_borrowed(py).downcast_unchecked() }
     }
-
-    /// Deprecated name for [`PyEllipsis::get`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyEllipsis::get`")]
-    #[inline]
-    pub fn get_bound(py: Python<'_>) -> Borrowed<'_, '_, PyEllipsis> {
-        Self::get(py)
-    }
 }
 
 unsafe impl PyTypeInfo for PyEllipsis {

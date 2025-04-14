@@ -41,13 +41,13 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3-ffi]
-version = "0.23.3"
+version = "0.24.0"
 features = ["extension-module"]
 
 [build-dependencies]
 # This is only necessary if you need to configure your build based on
 # the Python version or the compile-time configuration for the interpreter.
-pyo3_build_config = "0.23.3"
+pyo3_build_config = "0.24.0"
 ```
 
 If you need to use conditional compilation based on Python version or how
@@ -65,7 +65,7 @@ fn main() {
 ```
 
 **`src/lib.rs`**
-```rust
+```rust,no_run
 use std::os::raw::{c_char, c_long};
 use std::ptr;
 

@@ -20,7 +20,7 @@
 //!
 //! Rust code to create a function that adds one to a Decimal
 //!
-//! ```rust
+//! ```rust,no_run
 //! use rust_decimal::Decimal;
 //! use pyo3::prelude::*;
 //!
@@ -55,9 +55,7 @@ use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
-use crate::{Bound, FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
+use crate::{Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
 use rust_decimal::Decimal;
 use std::str::FromStr;
 
@@ -80,22 +78,6 @@ static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
 
 fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     DECIMAL_CLS.import(py, "decimal", "Decimal")
-}
-
-#[allow(deprecated)]
-impl ToPyObject for Decimal {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for Decimal {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
 }
 
 impl<'py> IntoPyObject<'py> for Decimal {

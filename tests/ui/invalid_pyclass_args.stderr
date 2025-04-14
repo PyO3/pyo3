@@ -100,21 +100,21 @@ error: expected one of: `get`, `set`, `name`
 85 |     #[pyo3(pop)]
    |            ^^^
 
-error: invalid format string: expected `'}'` but string was terminated
+error: invalid format string: expected `}` but string was terminated
    --> tests/ui/invalid_pyclass_args.rs:105:19
     |
 105 | #[pyclass(str = "{")]
-    |                  -^ expected `'}'` in format string
+    |                  -^ expected `}` in format string
     |                  |
     |                  because of this opening brace
     |
     = note: if you intended to print `{`, you can escape it using `{{`
 
-error: invalid format string: expected `'}'`, found `'$'`
+error: invalid format string: expected `}`, found `$`
    --> tests/ui/invalid_pyclass_args.rs:109:19
     |
 109 | #[pyclass(str = "{$}")]
-    |                  -^ expected `'}'` in format string
+    |                  -^ expected `}` in format string
     |                  |
     |                  because of this opening brace
     |

@@ -200,7 +200,7 @@ fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 ## Bound<T> and interior mutability
 
-Often is useful to turn a `#[pyclass]` type `T` into a Python object and access it from Rust code. The [`Py<T>`] and [`Bound<'py, T>`] smart pointers are the ways to represent a Python object in PyO3's API. More detail can be found about them [in the Python objects](./types.md#pyo3s-smart-pointers) section of the guide.
+It is often useful to turn a `#[pyclass]` type `T` into a Python object and access it from Rust code. The [`Py<T>`] and [`Bound<'py, T>`] smart pointers are the ways to represent a Python object in PyO3's API. More detail can be found about them [in the Python objects](./types.md#pyo3s-smart-pointers) section of the guide.
 
 Most Python objects do not offer exclusive (`&mut`) access (see the [section on Python's memory model](./python-from-rust.md#pythons-memory-model)). However, Rust structs wrapped as Python objects (called `pyclass` types) often *do* need `&mut` access. Due to the GIL, PyO3 *can* guarantee exclusive access to them.
 
@@ -788,7 +788,7 @@ impl MyClass {
 To create a class attribute (also called [class variable][classattr]), a method without
 any arguments can be annotated with the `#[classattr]` attribute.
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {}
@@ -812,7 +812,7 @@ class creation.
 If the class attribute is defined with `const` code only, one can also annotate associated
 constants:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {}
@@ -827,7 +827,7 @@ impl MyClass {
 
 Free functions defined using `#[pyfunction]` interact with classes through the same mechanisms as the self parameters of instance methods, i.e. they can take GIL-bound references, GIL-bound reference wrappers or GIL-indepedent references:
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 #[pyclass]
@@ -866,7 +866,7 @@ fn print_refcnt(my_class: Py<MyClass>, py: Python<'_>) {
 
 Classes can also be passed by value if they can be cloned, i.e. they automatically implement `FromPyObject` if they implement `Clone`, e.g. via `#[derive(Clone)]`:
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 #[pyclass]
@@ -890,7 +890,7 @@ Similar to `#[pyfunction]`, the `#[pyo3(signature = (...))]` attribute can be us
 
 The following example defines a class `MyClass` with a method `method`. This method has a signature that sets default values for `num` and `name`, and indicates that `py_args` should collect all extra positional arguments and `py_kwargs` all extra keyword arguments:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 #
@@ -1398,7 +1398,7 @@ impl pyo3::PyClass for MyClass {
     type Frozen = pyo3::pyclass::boolean_struct::False;
 }
 
-impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a MyClass
+impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py, false> for &'a MyClass
 {
     type Holder = ::std::option::Option<pyo3::PyRef<'py, MyClass>>;
 
@@ -1408,20 +1408,13 @@ impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a
     }
 }
 
-impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a mut MyClass
+impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py, false> for &'a mut MyClass
 {
     type Holder = ::std::option::Option<pyo3::PyRefMut<'py, MyClass>>;
 
     #[inline]
     fn extract(obj: &'a pyo3::Bound<'py, PyAny>, holder: &'a mut Self::Holder) -> pyo3::PyResult<Self> {
         pyo3::impl_::extract_argument::extract_pyclass_ref_mut(obj, holder)
-    }
-}
-
-#[allow(deprecated)]
-impl pyo3::IntoPy<PyObject> for MyClass {
-    fn into_py(self, py: pyo3::Python<'_>) -> pyo3::PyObject {
-        pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)
     }
 }
 
