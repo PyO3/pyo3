@@ -218,7 +218,7 @@ impl PyClassPyO3Options {
                     opaque.span() => "`opaque` requires Python >= 3.12"
                 );
                 set_option!(opaque)
-            },
+            }
             PyClassPyO3Option::RenameAll(rename_all) => set_option!(rename_all),
             PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
             PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
