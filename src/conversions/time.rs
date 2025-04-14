@@ -507,15 +507,7 @@ impl FromPyObject<'_> for UtcDateTime {
         };
 
         // Verify that the tzinfo is UTC
-        let is_utc = tzinfo
-            .call_method1(
-                "__eq__",
-                (ob.py()
-                    .import("datetime")?
-                    .getattr(intern!(ob.py(), "timezone"))?
-                    .getattr(intern!(ob.py(), "utc"))?,),
-            )?
-            .extract::<bool>()?;
+        let is_utc = tzinfo.eq(timezone_utc(ob.py()))?;
 
         if !is_utc {
             return Err(PyValueError::new_err(
