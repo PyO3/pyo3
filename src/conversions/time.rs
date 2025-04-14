@@ -51,6 +51,7 @@
 //! ```
 
 use crate::exceptions::{PyTypeError, PyValueError};
+#[cfg(Py_LIMITED_API)]
 use crate::intern;
 use crate::types::datetime::timezone_from_offset;
 #[cfg(not(Py_LIMITED_API))]
