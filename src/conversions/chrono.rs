@@ -409,7 +409,7 @@ impl<'py> IntoPyObject<'py> for Utc {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(PyTzInfo::utc(py))
+        PyTzInfo::utc(py)
     }
 }
 
@@ -426,7 +426,7 @@ impl<'py> IntoPyObject<'py> for &Utc {
 
 impl FromPyObject<'_> for Utc {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Utc> {
-        let py_utc = PyTzInfo::utc(ob.py());
+        let py_utc = PyTzInfo::utc(ob.py())?;
         if ob.eq(py_utc)? {
             Ok(Utc)
         } else {

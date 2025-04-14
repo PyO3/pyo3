@@ -787,29 +787,27 @@ impl PyTypeCheck for PyTzInfo {
 
 impl PyTzInfo {
     /// Equivalent to `datetime.timezone.utc`
-    pub fn utc(py: Python<'_>) -> Borrowed<'static, '_, PyTzInfo> {
+    pub fn utc(py: Python<'_>) -> PyResult<Borrowed<'static, '_, PyTzInfo>> {
         #[cfg(not(Py_LIMITED_API))]
         unsafe {
-            expect_datetime_api(py)
+            Ok(ensure_datetime_api(py)?
                 .TimeZone_UTC
                 .assume_borrowed(py)
-                .downcast_unchecked()
+                .downcast_unchecked())
         }
 
         #[cfg(Py_LIMITED_API)]
         {
             static UTC: GILOnceCell<Py<PyTzInfo>> = GILOnceCell::new();
-            UTC.get_or_init(py, || {
-                DatetimeTypes::get(py)
+            UTC.get_or_try_init(py, || {
+                Ok(DatetimeTypes::get(py)
                     .timezone
                     .bind(py)
-                    .getattr("utc")
-                    .expect("failed to import datetime.timezone.utc")
-                    .downcast_into()
-                    .unwrap()
-                    .unbind()
+                    .getattr("utc")?
+                    .downcast_into()?
+                    .unbind())
             })
-            .bind_borrowed(py)
+            .map(|utc| utc.bind_borrowed(py))
         }
     }
 
@@ -856,7 +854,9 @@ impl PyTzInfo {
 
 /// Equivalent to `datetime.timezone.utc`
 pub fn timezone_utc(py: Python<'_>) -> Bound<'_, PyTzInfo> {
-    PyTzInfo::utc(py).to_owned()
+    PyTzInfo::utc(py)
+        .expect("failed to import datetime.timezone.utc")
+        .to_owned()
 }
 
 /// Bindings for `datetime.timedelta`.
