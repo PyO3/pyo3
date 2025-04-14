@@ -101,9 +101,9 @@ def test_rust(session: nox.Session):
     if not FREE_THREADED_BUILD:
         _run_cargo_test(session, features="abi3")
     if "skip-full" not in session.posargs:
-        _run_cargo_test(session, features="full jiff-02")
+        _run_cargo_test(session, features="full jiff-02 time")
         if not FREE_THREADED_BUILD:
-            _run_cargo_test(session, features="abi3 full jiff-02")
+            _run_cargo_test(session, features="abi3 full jiff-02 time")
 
 
 @nox.session(name="test-py", venv_backend="none")
@@ -428,6 +428,10 @@ def docs(session: nox.Session) -> None:
     session.env["RUSTDOCFLAGS"] = " ".join(rustdoc_flags)
 
     features = "full"
+
+    if get_rust_version()[:2] >= (1, 67):
+        # time needs MSRC 1.67+
+        features += ",time"
 
     if get_rust_version()[:2] >= (1, 70):
         # jiff needs MSRC 1.70+
@@ -819,8 +823,8 @@ def update_ui_tests(session: nox.Session):
     env["TRYBUILD"] = "overwrite"
     command = ["test", "--test", "test_compile_error"]
     _run_cargo(session, *command, env=env)
-    _run_cargo(session, *command, "--features=full,jiff-02", env=env)
-    _run_cargo(session, *command, "--features=abi3,full,jiff-02", env=env)
+    _run_cargo(session, *command, "--features=full,jiff-02,time", env=env)
+    _run_cargo(session, *command, "--features=abi3,full,jiff-02,time", env=env)
 
 
 @nox.session(name="test-introspection")
@@ -890,6 +894,10 @@ def _get_feature_sets() -> Generator[Tuple[str, ...], None, None]:
     if "wasm32-wasip1" not in cargo_target:
         # multiple-pymethods not supported on wasm
         features += ",multiple-pymethods"
+
+    if get_rust_version()[:2] >= (1, 67):
+        # time needs MSRC 1.67+
+        features += ",time"
 
     if get_rust_version()[:2] >= (1, 70):
         # jiff needs MSRC 1.70+
