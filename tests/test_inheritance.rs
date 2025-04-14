@@ -289,9 +289,9 @@ mod inheriting_type {
     impl MetaclassSubclass {
         #[pyo3(signature = (*_args, **_kwargs))]
         fn __init__(
-            _slf: Bound<'_, MetaclassSubclass>,
-            _args: Bound<'_, PyTuple>,
-            _kwargs: Option<Bound<'_, PyDict>>,
+            _slf: &Bound<'_, MetaclassSubclass>,
+            _args: &Bound<'_, PyTuple>,
+            _kwargs: Option<&Bound<'_, PyDict>>,
         ) {
         }
     }

@@ -440,17 +440,15 @@ impl<'py, T: PyClass> Deref for PyRef<'py, T> {
 
     #[inline]
     fn deref(&self) -> &T {
-        let py: Python<'py> = unsafe { Python::assume_gil_acquired() };
         let obj = self.inner.as_raw_ref();
-        unsafe { PyObjectLayout::get_data::<T>(obj, TypeObjectStrategy::lazy(py)) }
+        unsafe { PyObjectLayout::get_data::<T>(obj, TypeObjectStrategy::lazy(self.py())) }
     }
 }
 
 impl<'py, T: PyClass> Drop for PyRef<'py, T> {
     fn drop(&mut self) {
         let obj = self.inner.as_raw_ref();
-        let py: Python<'py> = unsafe { Python::assume_gil_acquired() };
-        let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(py, obj) };
+        let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(self.py(), obj) };
         borrow_checker.release_borrow();
     }
 }
@@ -628,26 +626,23 @@ impl<'py, T: PyClass<Frozen = False>> Deref for PyRefMut<'py, T> {
 
     #[inline]
     fn deref(&self) -> &T {
-        let py: Python<'py> = unsafe { Python::assume_gil_acquired() };
         let obj = self.inner.as_raw_ref();
-        unsafe { PyObjectLayout::get_data::<T>(obj, TypeObjectStrategy::lazy(py)) }
+        unsafe { PyObjectLayout::get_data::<T>(obj, TypeObjectStrategy::lazy(self.py())) }
     }
 }
 
 impl<'py, T: PyClass<Frozen = False>> DerefMut for PyRefMut<'py, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
-        let py: Python<'py> = unsafe { Python::assume_gil_acquired() };
         let obj = self.inner.as_ptr();
-        unsafe { &mut *PyObjectLayout::get_data_ptr::<T>(obj, TypeObjectStrategy::lazy(py)) }
+        unsafe { &mut *PyObjectLayout::get_data_ptr::<T>(obj, TypeObjectStrategy::lazy(self.py())) }
     }
 }
 
 impl<'py, T: PyClass<Frozen = False>> Drop for PyRefMut<'py, T> {
     fn drop(&mut self) {
         let obj = self.inner.get_raw_object();
-        let py: Python<'py> = unsafe { Python::assume_gil_acquired() };
-        let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(py, obj) };
+        let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(self.py(), obj) };
         borrow_checker.release_borrow_mut();
     }
 }

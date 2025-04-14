@@ -1207,6 +1207,7 @@ pub enum PyObjectOffset {
     /// An offset relative to the start of the subclass-specific data.
     /// Only allowed when basicsize is negative (which is only allowed for python >=3.12).
     /// <https://docs.python.org/3.12/c-api/structures.html#c.Py_RELATIVE_OFFSET>
+    #[cfg(Py_3_12)]
     Relative(ffi::Py_ssize_t),
 }
 
@@ -1217,6 +1218,7 @@ impl std::ops::Add<usize> for PyObjectOffset {
         let rhs = usize_to_py_ssize(rhs);
         match self {
             PyObjectOffset::Absolute(offset) => PyObjectOffset::Absolute(offset + rhs),
+            #[cfg(Py_3_12)]
             PyObjectOffset::Relative(offset) => PyObjectOffset::Relative(offset + rhs),
         }
     }
@@ -1321,10 +1323,6 @@ impl<
                 #[cfg(Py_3_12)]
                 PyObjectOffset::Relative(offset) => {
                     (offset, ffi::Py_READONLY | ffi::Py_RELATIVE_OFFSET)
-                }
-                #[cfg(not(Py_3_12))]
-                PyObjectOffset::Relative(_) => {
-                    panic!("relative offsets not valid before python 3.12");
                 }
             };
             PyMethodDefType::StructMember(ffi::PyMemberDef {
@@ -1484,7 +1482,10 @@ unsafe fn ensure_no_mutable_alias<'py, ClassT: PyClass>(
 
 /// calculates the field pointer from an PyObject pointer
 #[inline]
-fn field_from_object<ClassT, FieldT, Offset>(py: Python<'_>, obj: *mut ffi::PyObject) -> *mut FieldT
+fn field_from_object<ClassT, FieldT, Offset>(
+    #[allow(unused)] py: Python<'_>,
+    obj: *mut ffi::PyObject,
+) -> *mut FieldT
 where
     ClassT: PyClass,
     Offset: OffsetCalculator<ClassT, FieldT>,
@@ -1498,11 +1499,6 @@ where
                 PyObjectLayout::get_contents_ptr::<ClassT>(obj, TypeObjectStrategy::lazy(py))
             };
             (contents.cast::<u8>(), offset)
-        }
-        #[cfg(not(Py_3_12))]
-        PyObjectOffset::Relative(_) => {
-            let _ = py;
-            panic!("relative offsets not valid before python 3.12");
         }
     };
     // Safety: conditions for pointer addition must be met

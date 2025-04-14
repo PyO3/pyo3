@@ -267,6 +267,7 @@ pub(crate) mod static_layout {
         impl_::pyclass::{PyClassBaseType, PyClassImpl},
         type_object::{PyLayout, PySizedLayout},
     };
+    use memoffset::offset_of;
 
     use super::PyClassObjectContents;
 
@@ -275,6 +276,11 @@ pub(crate) mod static_layout {
     pub struct PyStaticClassLayout<T: PyClassImpl> {
         pub(crate) ob_base: <T::BaseType as PyClassBaseType>::StaticLayout,
         pub(crate) contents: PyClassObjectContents<T>,
+    }
+
+    impl<T: PyClassImpl> PyStaticClassLayout<T> {
+        /// A layout is valid if `ob_base` does not have the type [InvalidStaticLayout].
+        pub const IS_VALID: bool = offset_of!(Self, contents) > 0;
     }
 
     unsafe impl<T: PyClassImpl> PyLayout<T> for PyStaticClassLayout<T> {}
@@ -290,7 +296,7 @@ pub(crate) mod static_layout {
     unsafe impl<T, U> PyLayout<T> for PyStaticNativeLayout<U> where U: PySizedLayout<T> {}
 
     /// a struct for use with opaque native types to indicate that they
-    /// cannot be used as part of a static layout.
+    /// cannot be used as part of a static layout (see `PyStaticLayout::IS_VALID`).
     #[repr(C)]
     pub struct InvalidStaticLayout;
 
@@ -346,7 +352,7 @@ impl PyObjectLayout {
     /// `obj` must point to a valid `PyObject` whose type is `T` or a subclass of `T`.
     pub(crate) unsafe fn get_contents_ptr<T: PyClassImpl + PyTypeInfo>(
         obj: *mut ffi::PyObject,
-        strategy: TypeObjectStrategy<'_>,
+        #[allow(unused)] strategy: TypeObjectStrategy<'_>,
     ) -> *mut PyClassObjectContents<T> {
         debug_assert!(!obj.is_null(), "get_contents_ptr of null object");
         if T::OPAQUE {
@@ -357,16 +363,13 @@ impl PyObjectLayout {
 
             #[cfg(not(Py_3_12))]
             {
-                let _ = strategy;
                 opaque_layout::panic_unsupported::<T>();
             }
         } else {
             let obj: *mut static_layout::PyStaticClassLayout<T> = obj.cast();
-            // indicates `ob_base` has type [static_layout::InvalidStaticLayout]
-            debug_assert_ne!(
-                offset_of!(static_layout::PyStaticClassLayout<T>, contents),
-                0,
-                "invalid ob_base found"
+            debug_assert!(
+                static_layout::PyStaticClassLayout::<T>::IS_VALID,
+                "invalid static layout found"
             );
             addr_of_mut!((*obj).contents)
         }

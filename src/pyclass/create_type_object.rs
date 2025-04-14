@@ -379,10 +379,6 @@ impl PyTypeBuilder {
                     PyObjectOffset::Relative(offset) => {
                         (offset, ffi::Py_READONLY | ffi::Py_RELATIVE_OFFSET)
                     }
-                    #[cfg(not(Py_3_12))]
-                    PyObjectOffset::Relative(_) => {
-                        panic!("relative offsets not valid before python 3.12");
-                    }
                 };
                 ffi::PyMemberDef {
                     name: name.as_ptr().cast(),

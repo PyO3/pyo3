@@ -26,8 +26,9 @@ pyobject_native_type_core!(
 pyobject_native_type_object_methods!(PyType, #global=ffi::PyType_Type);
 
 impl crate::impl_::pyclass::PyClassBaseType for PyType {
-    /// [ffi::PyType_Type] has a variable size and private fields even when using the unlimited API, it therefore
-    /// cannot be used with the static layout. Attempts to do so will panic when accessed.
+    /// [ffi::PyType_Type] has a variable size and private fields even when using the unlimited API,
+    /// it therefore cannot be used with the static layout.
+    /// Attempts to do so would panic when accessed (see `PyStaticLayout::IS_VALID`).
     type StaticLayout = crate::impl_::pycell::InvalidStaticLayout;
     type BaseNativeType = PyType;
     type RecursiveOperations = crate::impl_::pycell::PyNativeTypeRecursiveOperations<Self>;

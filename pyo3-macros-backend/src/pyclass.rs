@@ -209,7 +209,13 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Module(module) => set_option!(module),
             PyClassPyO3Option::Name(name) => set_option!(name),
             PyClassPyO3Option::Ord(ord) => set_option!(ord),
-            PyClassPyO3Option::Opaque(opaque) => set_option!(opaque),
+            PyClassPyO3Option::Opaque(opaque) => {
+                ensure_spanned!(
+                    !is_abi3_before(3, 12),
+                    opaque.span() => "`opaque` requires Python >= 3.12"
+                );
+                set_option!(opaque)
+            },
             PyClassPyO3Option::RenameAll(rename_all) => set_option!(rename_all),
             PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
             PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
@@ -1831,9 +1837,6 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
     let opaque = if attr.options.opaque.is_some() {
         quote! {
             const OPAQUE: bool = true;
-
-            #[cfg(not(Py_3_12))]
-            ::core::compile_error!("#[pyclass(opaque)] requires python 3.12 or later");
         }
     } else {
         // if opaque is not supported an error will be raised at construction
