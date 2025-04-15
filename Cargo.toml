@@ -49,6 +49,8 @@ time = { version = "0.3.38", default-features = false, optional = true }
 serde = { version = "1.0", optional = true }
 smallvec = { version = "1.0", optional = true }
 uuid = { version = "1.11.0", optional = true  }
+lock_api = { version = "0.4", optional = true }
+parking_lot = { version = "0.12", optional = true}
 
 [target.'cfg(not(target_has_atomic = "64"))'.dependencies]
 portable-atomic = "1.0"
@@ -114,6 +116,9 @@ auto-initialize = []
 # Enables `Clone`ing references to Python objects `Py<T>` which panics if the GIL is not held.
 py-clone = []
 
+parking_lot = ["dep:parking_lot", "lock_api"]
+arc_lock = ["lock_api", "lock_api/arc_lock", "parking_lot?/arc_lock"]
+
 # Optimizes PyObject to Vec conversion and so on.
 nightly = []
 
@@ -123,6 +128,7 @@ full = [
     "macros",
     # "multiple-pymethods", # Not supported by wasm
     "anyhow",
+    "arc_lock",
     "bigdecimal",
     "chrono",
     "chrono-tz",
@@ -132,9 +138,11 @@ full = [
     "eyre",
     "hashbrown",
     "indexmap",
+    "lock_api",
     "num-bigint",
     "num-complex",
     "num-rational",
+    "parking_lot",
     "py-clone",
     "rust_decimal",
     "serde",
