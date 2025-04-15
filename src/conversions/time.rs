@@ -53,12 +53,9 @@
 use crate::exceptions::{PyTypeError, PyValueError};
 #[cfg(Py_LIMITED_API)]
 use crate::intern;
-use crate::types::datetime::timezone_from_offset;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::datetime::{PyDateAccess, PyDeltaAccess};
-use crate::types::{
-    timezone_utc, PyAnyMethods, PyDate, PyDateTime, PyDelta, PyNone, PyTime, PyTzInfo,
-};
+use crate::types::{PyAnyMethods, PyDate, PyDateTime, PyDelta, PyNone, PyTime, PyTzInfo};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyTimeAccess, PyTzInfoAccess};
 use crate::{Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
@@ -359,7 +356,7 @@ impl<'py> IntoPyObject<'py> for UtcOffset {
         // Get offset in seconds
         let seconds_offset = self.whole_seconds();
         let td = PyDelta::new(py, 0, seconds_offset, 0, true)?;
-        timezone_from_offset(&td)
+        PyTzInfo::fixed_offset(py, td)
     }
 }
 
@@ -460,7 +457,7 @@ impl<'py> IntoPyObject<'py> for UtcDateTime {
         let date = self.date();
         let time = self.time();
 
-        let py_tzinfo = &timezone_utc(py);
+        let py_tzinfo = PyTzInfo::utc(py)?;
 
         let year = date.year();
         let month = date.month() as u8;
@@ -479,7 +476,7 @@ impl<'py> IntoPyObject<'py> for UtcDateTime {
             minute,
             second,
             microsecond,
-            Some(py_tzinfo),
+            Some(&py_tzinfo),
         )
     }
 }
@@ -508,7 +505,7 @@ impl FromPyObject<'_> for UtcDateTime {
         };
 
         // Verify that the tzinfo is UTC
-        let is_utc = tzinfo.eq(timezone_utc(ob.py()))?;
+        let is_utc = tzinfo.eq(PyTzInfo::utc(ob.py())?)?;
 
         if !is_utc {
             return Err(PyValueError::new_err(
@@ -978,7 +975,7 @@ mod tests {
             // Create Python time with timezone (just to ensure we can handle it properly)
             let datetime = py.import("datetime").unwrap();
             let time_type = datetime.getattr(intern!(py, "time")).unwrap();
-            let tz_utc = timezone_utc(py);
+            let tz_utc = PyTzInfo::utc(py).unwrap();
 
             // Create time with timezone
             let py_time_with_tz = time_type.call1((12, 30, 45, 0, tz_utc)).unwrap();
@@ -1071,7 +1068,7 @@ mod tests {
             let timedelta = datetime.getattr(intern!(py, "timedelta")).unwrap();
 
             // Test UTC
-            let tz_utc = timezone_utc(py);
+            let tz_utc = PyTzInfo::utc(py).unwrap();
             let utc_offset: UtcOffset = tz_utc.extract().unwrap();
             assert_eq!(utc_offset.whole_hours(), 0);
             assert_eq!(utc_offset.minutes_past_hour(), 0);
@@ -1222,7 +1219,7 @@ mod tests {
             // Create Python UTC datetime
             let datetime = py.import("datetime").unwrap();
             let datetime_type = datetime.getattr(intern!(py, "datetime")).unwrap();
-            let tz_utc = timezone_utc(py);
+            let tz_utc = PyTzInfo::utc(py).unwrap();
 
             // Create datetime with UTC timezone
             let py_dt = datetime_type

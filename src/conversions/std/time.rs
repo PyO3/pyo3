@@ -6,7 +6,7 @@ use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::PyDeltaAccess;
-use crate::types::{timezone_utc, PyDateTime, PyDelta};
+use crate::types::{PyDateTime, PyDelta, PyTzInfo};
 use crate::{Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -128,9 +128,8 @@ fn unix_epoch_py(py: Python<'_>) -> PyResult<Borrowed<'_, '_, PyDateTime>> {
     static UNIX_EPOCH: GILOnceCell<Py<PyDateTime>> = GILOnceCell::new();
     Ok(UNIX_EPOCH
         .get_or_try_init(py, || {
-            Ok::<_, PyErr>(
-                PyDateTime::new(py, 1970, 1, 1, 0, 0, 0, 0, Some(&timezone_utc(py)))?.into(),
-            )
+            let utc = PyTzInfo::utc(py)?;
+            Ok::<_, PyErr>(PyDateTime::new(py, 1970, 1, 1, 0, 0, 0, 0, Some(&utc))?.into())
         })?
         .bind_borrowed(py))
 }
@@ -138,7 +137,7 @@ fn unix_epoch_py(py: Python<'_>) -> PyResult<Borrowed<'_, '_, PyDateTime>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{timezone_utc, PyDict};
+    use crate::types::PyDict;
 
     #[test]
     fn test_duration_frompyobject() {
@@ -320,6 +319,7 @@ mod tests {
         second: u8,
         microsecond: u32,
     ) -> Bound<'_, PyDateTime> {
+        let utc = PyTzInfo::utc(py).unwrap();
         PyDateTime::new(
             py,
             year,
@@ -329,7 +329,7 @@ mod tests {
             minute,
             second,
             microsecond,
-            Some(&timezone_utc(py)),
+            Some(&utc),
         )
         .unwrap()
     }
@@ -337,7 +337,9 @@ mod tests {
     fn max_datetime(py: Python<'_>) -> Bound<'_, PyDateTime> {
         let naive_max = datetime_class(py).getattr("max").unwrap();
         let kargs = PyDict::new(py);
-        kargs.set_item("tzinfo", timezone_utc(py)).unwrap();
+        kargs
+            .set_item("tzinfo", PyTzInfo::utc(py).unwrap())
+            .unwrap();
         naive_max
             .call_method("replace", (), Some(&kargs))
             .unwrap()
