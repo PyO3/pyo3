@@ -10,7 +10,7 @@ use std::ptr;
 use std::sync::atomic::{AtomicIsize, AtomicU32, AtomicU8, Ordering::Relaxed};
 
 #[cfg(Py_LIMITED_API)]
-opaque_struct!(PyTypeObject);
+opaque_struct!(pub PyTypeObject);
 
 #[cfg(not(Py_LIMITED_API))]
 pub use crate::cpython::object::PyTypeObject;

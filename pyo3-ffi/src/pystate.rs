@@ -9,8 +9,8 @@ use std::os::raw::c_long;
 
 pub const MAX_CO_EXTRA_USERS: c_int = 255;
 
-opaque_struct!(PyThreadState);
-opaque_struct!(PyInterpreterState);
+opaque_struct!(pub PyThreadState);
+opaque_struct!(pub PyInterpreterState);
 
 extern "C" {
     #[cfg(not(PyPy))]
