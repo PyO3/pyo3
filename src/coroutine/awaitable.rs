@@ -18,9 +18,8 @@ const NOT_IN_COROUTINE_CONTEXT: &str = "Python awaitable must be awaited in coro
 
 fn is_awaitable(obj: &Bound<'_, PyAny>) -> PyResult<bool> {
     static IS_AWAITABLE: GILOnceCell<PyObject> = GILOnceCell::new();
-    let import = || PyResult::Ok(obj.py().import("inspect")?.getattr("isawaitable")?.into());
     IS_AWAITABLE
-        .get_or_try_init(obj.py(), import)?
+        .import(ob.py(), "inspect", "isawaitable")?
         .call1(obj.py(), (obj,))?
         .extract(obj.py())
 }
