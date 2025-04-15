@@ -103,7 +103,7 @@ impl Coroutine {
         }
         // create a new waker, or try to reset it in place
         if let Some(waker) = self.waker.as_mut().and_then(Arc::get_mut) {
-            waker.reset(op);
+            *waker = CoroutineWaker::new(op);
         } else {
             self.waker = Some(Arc::new(CoroutineWaker::new(op)));
         }
