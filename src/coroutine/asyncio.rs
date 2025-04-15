@@ -33,7 +33,7 @@ pub(super) struct AsyncioWaker {
 impl AsyncioWaker {
     pub(super) fn new(py: Python<'_>) -> PyResult<Self> {
         let event_loop = get_running_loop(py)?.into_py_any(py)?;
-        let future = event_loop.call_method0(py, "create_future")?;
+        let future = event_loop.call_method0(py, intern!(py, "create_future"))?;
         Ok(Self { event_loop, future })
     }
 
