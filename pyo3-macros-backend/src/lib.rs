@@ -9,6 +9,7 @@
 mod utils;
 
 mod attributes;
+mod derive_attributes;
 mod frompyobject;
 mod intopyobject;
 #[cfg(feature = "experimental-inspect")]
