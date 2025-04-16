@@ -29,7 +29,9 @@ impl TestBufferClass {
         view: *mut ffi::Py_buffer,
         flags: c_int,
     ) -> PyResult<()> {
-        unsafe { fill_view_from_readonly_data(view, flags, &slf.borrow().vec, slf.into_any()) }
+        unsafe {
+            fill_view_from_readonly_data(view, flags, &slf.clone().borrow().vec, slf.into_any())
+        }
     }
 
     unsafe fn __releasebuffer__(&self, view: *mut ffi::Py_buffer) {

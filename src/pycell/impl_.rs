@@ -464,37 +464,39 @@ mod tests {
 
             // Cannot take any other mutable or immutable borrows whilst the object is borrowed mutably
             assert!(mmm_bound
-                .extract::<PyRef<'_, MutableChildOfMutableChildOfMutableBase>>()
+                .extract::<PyRef<'_, '_, MutableChildOfMutableChildOfMutableBase>>()
                 .is_err());
             assert!(mmm_bound
-                .extract::<PyRef<'_, MutableChildOfMutableBase>>()
+                .extract::<PyRef<'_, '_, MutableChildOfMutableBase>>()
                 .is_err());
-            assert!(mmm_bound.extract::<PyRef<'_, MutableBase>>().is_err());
+            assert!(mmm_bound.extract::<PyRef<'_, '_, MutableBase>>().is_err());
             assert!(mmm_bound
-                .extract::<PyRefMut<'_, MutableChildOfMutableChildOfMutableBase>>()
+                .extract::<PyRefMut<'_, '_, MutableChildOfMutableChildOfMutableBase>>()
                 .is_err());
             assert!(mmm_bound
-                .extract::<PyRefMut<'_, MutableChildOfMutableBase>>()
+                .extract::<PyRefMut<'_, '_, MutableChildOfMutableBase>>()
                 .is_err());
-            assert!(mmm_bound.extract::<PyRefMut<'_, MutableBase>>().is_err());
+            assert!(mmm_bound
+                .extract::<PyRefMut<'_, '_, MutableBase>>()
+                .is_err());
 
             // With the borrow dropped, all other borrow attempts will succeed
             drop(mmm_refmut);
 
             assert!(mmm_bound
-                .extract::<PyRef<'_, MutableChildOfMutableChildOfMutableBase>>()
+                .extract::<PyRef<'_, '_, MutableChildOfMutableChildOfMutableBase>>()
                 .is_ok());
             assert!(mmm_bound
-                .extract::<PyRef<'_, MutableChildOfMutableBase>>()
+                .extract::<PyRef<'_, '_, MutableChildOfMutableBase>>()
                 .is_ok());
-            assert!(mmm_bound.extract::<PyRef<'_, MutableBase>>().is_ok());
+            assert!(mmm_bound.extract::<PyRef<'_, '_, MutableBase>>().is_ok());
             assert!(mmm_bound
-                .extract::<PyRefMut<'_, MutableChildOfMutableChildOfMutableBase>>()
+                .extract::<PyRefMut<'_, '_, MutableChildOfMutableChildOfMutableBase>>()
                 .is_ok());
             assert!(mmm_bound
-                .extract::<PyRefMut<'_, MutableChildOfMutableBase>>()
+                .extract::<PyRefMut<'_, '_, MutableChildOfMutableBase>>()
                 .is_ok());
-            assert!(mmm_bound.extract::<PyRefMut<'_, MutableBase>>().is_ok());
+            assert!(mmm_bound.extract::<PyRefMut<'_, '_, MutableBase>>().is_ok());
         })
     }
 
@@ -515,32 +517,34 @@ mod tests {
 
             // Further immutable borrows are ok
             assert!(mmm_bound
-                .extract::<PyRef<'_, MutableChildOfMutableChildOfMutableBase>>()
+                .extract::<PyRef<'_, '_, MutableChildOfMutableChildOfMutableBase>>()
                 .is_ok());
             assert!(mmm_bound
-                .extract::<PyRef<'_, MutableChildOfMutableBase>>()
+                .extract::<PyRef<'_, '_, MutableChildOfMutableBase>>()
                 .is_ok());
-            assert!(mmm_bound.extract::<PyRef<'_, MutableBase>>().is_ok());
+            assert!(mmm_bound.extract::<PyRef<'_, '_, MutableBase>>().is_ok());
 
             // Further mutable borrows are not ok
             assert!(mmm_bound
-                .extract::<PyRefMut<'_, MutableChildOfMutableChildOfMutableBase>>()
+                .extract::<PyRefMut<'_, '_, MutableChildOfMutableChildOfMutableBase>>()
                 .is_err());
             assert!(mmm_bound
-                .extract::<PyRefMut<'_, MutableChildOfMutableBase>>()
+                .extract::<PyRefMut<'_, '_, MutableChildOfMutableBase>>()
                 .is_err());
-            assert!(mmm_bound.extract::<PyRefMut<'_, MutableBase>>().is_err());
+            assert!(mmm_bound
+                .extract::<PyRefMut<'_, '_, MutableBase>>()
+                .is_err());
 
             // With the borrow dropped, all mutable borrow attempts will succeed
             drop(mmm_refmut);
 
             assert!(mmm_bound
-                .extract::<PyRefMut<'_, MutableChildOfMutableChildOfMutableBase>>()
+                .extract::<PyRefMut<'_, '_, MutableChildOfMutableChildOfMutableBase>>()
                 .is_ok());
             assert!(mmm_bound
-                .extract::<PyRefMut<'_, MutableChildOfMutableBase>>()
+                .extract::<PyRefMut<'_, '_, MutableChildOfMutableBase>>()
                 .is_ok());
-            assert!(mmm_bound.extract::<PyRefMut<'_, MutableBase>>().is_ok());
+            assert!(mmm_bound.extract::<PyRefMut<'_, '_, MutableBase>>().is_ok());
         })
     }
 
