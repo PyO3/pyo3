@@ -551,8 +551,8 @@ mod tests {
             #[test]
             fn test_weakref_upgrade() -> PyResult<()> {
                 Python::with_gil(|py| {
-                    let object = Py::new(py, WeakrefablePyClass {})?;
-                    let reference = PyWeakrefProxy::new(object.bind(py))?;
+                    let object = Bound::new(py, WeakrefablePyClass {})?;
+                    let reference = PyWeakrefProxy::new(&object)?;
 
                     assert!(reference.upgrade().is_some());
                     assert!(reference.upgrade().map_or(false, |obj| obj.is(&object)));
@@ -856,8 +856,8 @@ mod tests {
             #[test]
             fn test_weakref_upgrade() -> PyResult<()> {
                 Python::with_gil(|py| {
-                    let object = Py::new(py, WeakrefablePyClass {})?;
-                    let reference = PyWeakrefProxy::new(object.bind(py))?;
+                    let object = Bound::new(py, WeakrefablePyClass {})?;
+                    let reference = PyWeakrefProxy::new(&object)?;
 
                     assert!(reference.upgrade().is_some());
                     assert!(reference.upgrade().map_or(false, |obj| obj.is(&object)));

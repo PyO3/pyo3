@@ -486,8 +486,8 @@ mod tests {
         #[test]
         fn test_weakref_upgrade() -> PyResult<()> {
             Python::with_gil(|py| {
-                let object = Py::new(py, WeakrefablePyClass {})?;
-                let reference = PyWeakrefReference::new(object.bind(py))?;
+                let object = Bound::new(py, WeakrefablePyClass {})?;
+                let reference = PyWeakrefReference::new(&object)?;
 
                 assert!(reference.call0()?.is(&object));
                 assert!(reference.upgrade().is_some());
