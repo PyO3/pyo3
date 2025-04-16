@@ -15,7 +15,7 @@ use crate::attributes::{
     StrFormatterAttribute,
 };
 #[cfg(feature = "experimental-inspect")]
-use crate::introspection::class_introspection_code;
+use crate::introspection::{class_introspection_code, introspection_id_const};
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::{FnArg, FnSpec, PyArg, RegularArg};
 use crate::pyfunction::ConstructorAttribute;
@@ -2388,7 +2388,15 @@ impl<'a> PyClassImplsBuilder<'a> {
     fn impl_introspection(&self, ctx: &Ctx) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
         let name = get_class_python_name(self.cls, self.attr).to_string();
-        class_introspection_code(pyo3_path, self.cls, &name)
+        let ident = self.cls;
+        let static_introspection = class_introspection_code(pyo3_path, ident, &name);
+        let introspection_id = introspection_id_const();
+        quote! {
+            #static_introspection
+            impl #ident {
+                #introspection_id
+            }
+        }
     }
 
     #[cfg(not(feature = "experimental-inspect"))]
