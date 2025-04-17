@@ -1,6 +1,24 @@
 use std::env;
 use std::path::PathBuf;
 
+#[derive(Debug)]
+struct ParseCallbacks;
+
+impl bindgen::callbacks::ParseCallbacks for ParseCallbacks {
+    // these are anonymous fields and structs in CPython that we needed to
+    // invent names for. Bindgen seems to generate stable names, so we remap the
+    // automatically generated names to the names we invented in the FFI
+    fn item_name(&self, _original_item_name: &str) -> Option<String> {
+        if _original_item_name == "_object__bindgen_ty_1__bindgen_ty_1" {
+            Some("PyObjectObFlagsAndRefcnt".into())
+        } else if _original_item_name == "_object__bindgen_ty_1" {
+            Some("PyObjectObRefcnt".into())
+        } else {
+            None
+        }
+    }
+}
+
 fn main() {
     let config = pyo3_build_config::get();
     let python_include_dir = config
@@ -29,6 +47,7 @@ fn main() {
         .header("wrapper.h")
         .clang_args(clang_args)
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+        .parse_callbacks(Box::new(ParseCallbacks))
         // blocklist some values which apparently have conflicting definitions on unix
         .blocklist_item("FP_NORMAL")
         .blocklist_item("FP_SUBNORMAL")
