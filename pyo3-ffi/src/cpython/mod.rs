@@ -13,6 +13,7 @@ pub(crate) mod descrobject;
 pub(crate) mod dictobject;
 // skipped fileobject.h
 // skipped fileutils.h
+pub(crate) mod floatobject;
 pub(crate) mod frameobject;
 pub(crate) mod funcobject;
 pub(crate) mod genobject;
@@ -30,14 +31,14 @@ pub(crate) mod object;
 pub(crate) mod objimpl;
 pub(crate) mod pydebug;
 pub(crate) mod pyerrors;
+pub(crate) mod pyframe;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub(crate) mod pylifecycle;
 pub(crate) mod pymem;
 pub(crate) mod pystate;
 pub(crate) mod pythonrun;
+pub(crate) mod pythread;
 // skipped sysmodule.h
-pub(crate) mod floatobject;
-pub(crate) mod pyframe;
 pub(crate) mod tupleobject;
 pub(crate) mod unicodeobject;
 pub(crate) mod weakrefobject;
@@ -78,6 +79,7 @@ pub use self::pylifecycle::*;
 pub use self::pymem::*;
 pub use self::pystate::*;
 pub use self::pythonrun::*;
+pub use self::pythread::*;
 pub use self::tupleobject::*;
 pub use self::unicodeobject::*;
 #[cfg(not(any(PyPy, GraalPy)))]
