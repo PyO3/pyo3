@@ -21,7 +21,7 @@
 //!
 //! - If `MyClass` defines `__new__` then it must delegate to `super(MyClass, cls).__new__(cls, *args, **kwargs)` to
 //!   allocate the object.
-//!   - is is the responsibility of `MyClass` to call `super().__new__()` with the correct arguments.
+//!   - it is the responsibility of `MyClass` to call `super().__new__()` with the correct arguments.
 //!     `object.__new__()` does not accept any arguments for example.
 //! - If `MyClass` defines `__init__` then it should call `super().__init__()` to recursively initialize
 //!   the base classes. Again, passing arguments is the responsibility of MyClass.
