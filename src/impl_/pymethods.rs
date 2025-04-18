@@ -8,10 +8,10 @@ use crate::pycell::impl_::PyClassBorrowChecker as _;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
-use crate::types::PyType;
+use crate::types::{PyDict, PyTuple, PyType};
 use crate::{
-    ffi, Bound, DowncastError, Py, PyAny, PyClass, PyClassInitializer, PyErr, PyObject, PyRef,
-    PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
+    ffi, Borrowed, Bound, DowncastError, Py, PyAny, PyClass, PyClassInitializer, PyErr, PyObject,
+    PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
 };
 use std::ffi::CStr;
 use std::fmt;
@@ -699,14 +699,25 @@ impl<'py, T> std::ops::Deref for BoundRef<'_, 'py, T> {
     }
 }
 
-pub unsafe fn tp_new_impl<T: PyClass>(
-    py: Python<'_>,
+pub unsafe fn tp_new_impl<'py, T: PyClass>(
+    py: Python<'py>,
     initializer: PyClassInitializer<T>,
-    target_type: *mut ffi::PyTypeObject,
+    most_derived_type: *mut ffi::PyTypeObject,
+    args: *mut ffi::PyObject,
+    kwargs: *mut ffi::PyObject,
 ) -> PyResult<*mut ffi::PyObject> {
+    // Safety:
+    //  - `args` is known to be a tuple
+    //  - `kwargs` is known to be a dict or null
+    //  - we both have the GIL and can borrow these input references for the `'py` lifetime.
     unsafe {
+        let args: Borrowed<'py, 'py, PyTuple> =
+            Borrowed::from_ptr(py, args).downcast_unchecked::<PyTuple>();
+        let kwargs: Option<Borrowed<'py, 'py, PyDict>> =
+            Borrowed::from_ptr_or_opt(py, kwargs).map(|kwargs| kwargs.downcast_unchecked());
+
         initializer
-            .create_class_object_of_type(py, target_type)
+            .create_class_object_of_type(py, most_derived_type, &args, kwargs.as_deref())
             .map(Bound::into_ptr)
     }
 }
