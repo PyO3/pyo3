@@ -165,7 +165,7 @@ impl<T: PyNativeType + PyTypeInfo> PyObjectRecursiveOperations
         // the 'most derived class' of `obj`. i.e. the result of calling `type(obj)`.
         let actual_type = unsafe { PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(obj)) };
 
-        if type_ptr == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type) {
+        if std::ptr::eq(type_ptr, std::ptr::addr_of_mut!(ffi::PyBaseObject_Type)) {
             // the `PyBaseObject_Type` destructor (tp_dealloc) just calls tp_free so we can do this directly
             let tp_free = actual_type
                 .get_slot(TP_FREE)
@@ -173,7 +173,7 @@ impl<T: PyNativeType + PyTypeInfo> PyObjectRecursiveOperations
             return unsafe { tp_free(obj.cast()) };
         }
 
-        if type_ptr == std::ptr::addr_of_mut!(ffi::PyType_Type) {
+        if std::ptr::eq(type_ptr, std::ptr::addr_of_mut!(ffi::PyType_Type)) {
             let tp_dealloc = unsafe {
                 PyType::from_borrowed_type_ptr(py, type_ptr)
                     .get_slot(TP_DEALLOC)
@@ -189,9 +189,9 @@ impl<T: PyNativeType + PyTypeInfo> PyObjectRecursiveOperations
 
         // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
         #[cfg(not(Py_LIMITED_API))]
-        {
+        unsafe {
             // FIXME: should this be using actual_type.tp_dealloc?
-            if let Some(dealloc) = unsafe { (*type_ptr).tp_dealloc } {
+            if let Some(dealloc) = (*type_ptr).tp_dealloc {
                 // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
                 // assumes the exception is currently GC tracked, so we have to re-track
                 // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
@@ -199,13 +199,11 @@ impl<T: PyNativeType + PyTypeInfo> PyObjectRecursiveOperations
                 if ffi::PyType_FastSubclass(type_ptr, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
                     ffi::PyObject_GC_Track(obj.cast());
                 }
-                unsafe { dealloc(obj) };
+                dealloc(obj);
             } else {
-                unsafe {
-                    (*actual_type.as_type_ptr())
-                        .tp_free
-                        .expect("type missing tp_free")(obj.cast())
-                };
+                (*actual_type.as_type_ptr())
+                    .tp_free
+                    .expect("type missing tp_free")(obj.cast());
             }
         }
 
@@ -286,7 +284,9 @@ pub(crate) mod static_layout {
 
     impl<T: PyClassImpl> PyStaticClassLayout<T> {
         /// A layout is valid if `ob_base` does not have the type [InvalidStaticLayout].
-        pub const IS_VALID: bool = offset_of!(Self, contents) > 0;
+        pub fn is_valid() -> bool {
+            offset_of!(Self, contents) > 0
+        }
     }
 
     unsafe impl<T: PyClassImpl> PyLayout<T> for PyStaticClassLayout<T> {}
@@ -302,7 +302,7 @@ pub(crate) mod static_layout {
     unsafe impl<T, U> PyLayout<T> for PyStaticNativeLayout<U> where U: PySizedLayout<T> {}
 
     /// a struct for use with opaque native types to indicate that they
-    /// cannot be used as part of a static layout (see `PyStaticLayout::IS_VALID`).
+    /// cannot be used as part of a static layout (see `PyStaticLayout::is_valid`).
     #[repr(C)]
     pub struct InvalidStaticLayout;
 
@@ -374,7 +374,7 @@ impl PyObjectLayout {
         } else {
             let obj: *mut static_layout::PyStaticClassLayout<T> = obj.cast();
             debug_assert!(
-                static_layout::PyStaticClassLayout::<T>::IS_VALID,
+                static_layout::PyStaticClassLayout::<T>::is_valid(),
                 "invalid static layout found"
             );
             unsafe { addr_of_mut!((*obj).contents) }

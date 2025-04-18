@@ -20,7 +20,7 @@ use crate::types::any::PyAnyMethods;
 #[cfg(not(Py_LIMITED_API))]
 use crate::{ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, types::PyTuple, IntoPyObject};
 #[cfg(Py_LIMITED_API)]
-use crate::{sync::GILOnceCell, types::IntoPyDict, types::PyType, Py, PyTypeCheck};
+use crate::{sync::GILOnceCell, types::IntoPyDict, Py, PyTypeCheck};
 use crate::{Bound, PyAny, PyErr, Python};
 #[cfg(not(Py_LIMITED_API))]
 use std::os::raw::c_int;
@@ -228,6 +228,7 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyDate_Check
 );
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_type_object_methods!(
     PyDate,
     #create=|py| unsafe {
@@ -332,6 +333,7 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyDateTime_Check
 );
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_type_object_methods!(
     PyDateTime,
     #create=|py| unsafe {
@@ -588,6 +590,7 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyTime_Check
 );
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_type_object_methods!(
     PyTime,
     #create=|py| unsafe {
@@ -779,6 +782,7 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyTZInfo_Check
 );
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_type_object_methods!(
     PyTzInfo,
     #create=|py| unsafe {
@@ -878,6 +882,7 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyDelta_Check
 );
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_type_object_methods!(
     PyDelta,
     #create=|py| unsafe {

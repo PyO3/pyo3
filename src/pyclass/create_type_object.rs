@@ -422,17 +422,11 @@ impl PyTypeBuilder {
                         Some(PyObjectOffset::Absolute(offset)) => {
                             (*type_object).tp_dictoffset = offset;
                         }
-                        Some(PyObjectOffset::Relative(_)) => {
-                            panic!("PyObjectOffset::Relative requires >=3.12")
-                        }
                         None => {}
                     }
                     match weaklist_offset {
                         Some(PyObjectOffset::Absolute(offset)) => {
                             (*type_object).tp_weaklistoffset = offset;
-                        }
-                        Some(PyObjectOffset::Relative(_)) => {
-                            panic!("PyObjectOffset::Relative requires >=3.12")
                         }
                         None => {}
                     }

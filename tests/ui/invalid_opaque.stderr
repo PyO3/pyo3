@@ -1,7 +1,5 @@
-error: #[pyclass(opaque)] requires python 3.12 or later
- --> tests/ui/invalid_opaque.rs:3:1
+error: `opaque` requires Python >= 3.12
+ --> tests/ui/invalid_opaque.rs:3:11
   |
 3 | #[pyclass(opaque)]
-  | ^^^^^^^^^^^^^^^^^^
-  |
-  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+  |           ^^^^^^

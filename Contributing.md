@@ -116,13 +116,16 @@ Configuring the python interpreter version (`Py_*` cfg options) when running `ca
 packages which is explained in [the docs](https://pyo3.rs/v0.22.5/building-and-distribution).
 The easiest way to configure the python version is to install with the system package manager or
 [pyenv](https://github.com/pyenv/pyenv) then set `PYO3_PYTHON`.
-[uv python install](https://docs.astral.sh/uv/concepts/python-versions/) cannot currently be used as it sets some
-[incorrect sysconfig values](https://github.com/astral-sh/uv/issues/8429).
+Using interpreters installed with [uv python install](https://docs.astral.sh/uv/concepts/python-versions/) currently
+causes linker errors.
 
-`Py_LIMITED_API` can be controlled with the `abi3` feature of the `pyo3` crate:
+`Py_LIMITED_API` can be controlled with the `abi3` feature of the `pyo3` crate.
 
+For example, testing the limited API for CPython 3.10.0:
 ```
-LD_LIBRARY_PATH=<python_path>/lib PYO3_PYTHON=<python_path>/bin/python \
+pyenv install 3.10.0
+export _TEST_PY_PATH=$(pyenv prefix 3.10.0)
+LD_LIBRARY_PATH=$_TEST_PY_PATH/lib PYO3_PYTHON=$_TEST_PY_PATH/bin/python \
     cargo nextest run --package pyo3 --features abi3 ...
 ```
 
