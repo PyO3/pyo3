@@ -20,6 +20,7 @@ pub mod kw {
     syn::custom_keyword!(eq_int);
     syn::custom_keyword!(extends);
     syn::custom_keyword!(freelist);
+    syn::custom_keyword!(from_item_all);
     syn::custom_keyword!(from_py_with);
     syn::custom_keyword!(frozen);
     syn::custom_keyword!(get);
@@ -27,10 +28,10 @@ pub mod kw {
     syn::custom_keyword!(hash);
     syn::custom_keyword!(into_py_with);
     syn::custom_keyword!(item);
-    syn::custom_keyword!(from_item_all);
     syn::custom_keyword!(mapping);
     syn::custom_keyword!(module);
     syn::custom_keyword!(name);
+    syn::custom_keyword!(opaque);
     syn::custom_keyword!(ord);
     syn::custom_keyword!(pass_module);
     syn::custom_keyword!(rename_all);

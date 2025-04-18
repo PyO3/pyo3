@@ -1,8 +1,8 @@
 use crate::conversion::IntoPyObject;
 use crate::err::{self, PyErr, PyResult};
-use crate::impl_::pycell::PyClassObject;
 use crate::internal_tricks::ptr_from_ref;
-use crate::pycell::{PyBorrowError, PyBorrowMutError};
+use crate::pycell::layout::TypeObjectStrategy;
+use crate::pycell::{layout::PyObjectLayout, PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{DerefToPyAny, PyDict, PyString, PyTuple};
@@ -467,8 +467,8 @@ where
     }
 
     #[inline]
-    pub(crate) fn get_class_object(&self) -> &PyClassObject<T> {
-        self.1.get_class_object()
+    pub(crate) fn get_raw_object(&self) -> &ffi::PyObject {
+        self.1.as_raw_ref()
     }
 }
 
@@ -556,6 +556,17 @@ impl<'py, T> Bound<'py, T> {
     #[inline]
     pub fn as_ptr(&self) -> *mut ffi::PyObject {
         self.1.as_ptr()
+    }
+
+    /// Returns the raw FFI object represented by self.
+    ///
+    /// # Safety
+    ///
+    /// The reference is borrowed; callers should not decrease the reference count
+    /// when they are finished with the object.
+    #[inline]
+    pub fn as_raw_ref(&self) -> &ffi::PyObject {
+        self.1.as_raw_ref()
     }
 
     /// Returns an owned raw FFI pointer represented by self.
@@ -1103,6 +1114,17 @@ impl<T> Py<T> {
         self.0.as_ptr()
     }
 
+    /// Returns the raw FFI object represented by self.
+    ///
+    /// # Safety
+    ///
+    /// The reference is borrowed; callers should not decrease the reference count
+    /// when they are finished with the object.
+    #[inline]
+    pub fn as_raw_ref(&self) -> &ffi::PyObject {
+        unsafe { &*self.0.as_ptr() }
+    }
+
     /// Returns an owned raw FFI pointer represented by self.
     ///
     /// # Safety
@@ -1276,17 +1298,10 @@ where
     where
         T: PyClass<Frozen = True> + Sync,
     {
-        // Safety: The class itself is frozen and `Sync`
-        unsafe { &*self.get_class_object().get_ptr() }
-    }
-
-    /// Get a view on the underlying `PyClass` contents.
-    #[inline]
-    pub(crate) fn get_class_object(&self) -> &PyClassObject<T> {
-        let class_object = self.as_ptr().cast::<PyClassObject<T>>();
-        // Safety: Bound<T: PyClass> is known to contain an object which is laid out in memory as a
-        // PyClassObject<T>.
-        unsafe { &*class_object }
+        // Safety: the PyTypeObject for T will have been created when the first instance of T was created.
+        // Since Py<T> contains an instance of T the type object must have already been created.
+        let strategy = unsafe { TypeObjectStrategy::assume_init() };
+        unsafe { PyObjectLayout::get_data::<T>(self.as_raw_ref(), strategy) }
     }
 }
 
@@ -2292,7 +2307,6 @@ a = A()
                 for i in 0..10 {
                     let instance = Py::new(py, FrozenClass(i)).unwrap();
                     assert_eq!(instance.get().0, i);
-
                     assert_eq!(instance.bind(py).get().0, i);
                 }
             })

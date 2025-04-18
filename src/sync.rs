@@ -179,6 +179,17 @@ impl<T> GILOnceCell<T> {
         }
     }
 
+    /// Get a pointer to the contained value, or `None` if the cell has not yet been written.
+    #[inline]
+    pub fn get_raw(&self) -> Option<*const T> {
+        if self.once.is_completed() {
+            // SAFETY: the cell has been written.
+            Some(unsafe { (*self.data.get()).as_ptr() })
+        } else {
+            None
+        }
+    }
+
     /// Get a reference to the contained value, initializing it if needed using the provided
     /// closure.
     ///

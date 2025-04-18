@@ -75,6 +75,7 @@ pub struct PyClassPyO3Options {
     pub module: Option<ModuleAttribute>,
     pub name: Option<NameAttribute>,
     pub ord: Option<kw::ord>,
+    pub opaque: Option<kw::opaque>,
     pub rename_all: Option<RenameAllAttribute>,
     pub sequence: Option<kw::sequence>,
     pub set_all: Option<kw::set_all>,
@@ -98,6 +99,7 @@ pub enum PyClassPyO3Option {
     Module(ModuleAttribute),
     Name(NameAttribute),
     Ord(kw::ord),
+    Opaque(kw::opaque),
     RenameAll(RenameAllAttribute),
     Sequence(kw::sequence),
     SetAll(kw::set_all),
@@ -136,6 +138,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Name)
         } else if lookahead.peek(attributes::kw::ord) {
             input.parse().map(PyClassPyO3Option::Ord)
+        } else if lookahead.peek(attributes::kw::opaque) {
+            input.parse().map(PyClassPyO3Option::Opaque)
         } else if lookahead.peek(kw::rename_all) {
             input.parse().map(PyClassPyO3Option::RenameAll)
         } else if lookahead.peek(attributes::kw::sequence) {
@@ -208,6 +212,13 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Module(module) => set_option!(module),
             PyClassPyO3Option::Name(name) => set_option!(name),
             PyClassPyO3Option::Ord(ord) => set_option!(ord),
+            PyClassPyO3Option::Opaque(opaque) => {
+                ensure_spanned!(
+                    !is_abi3_before(3, 12),
+                    opaque.span() => "`opaque` requires Python >= 3.12"
+                );
+                set_option!(opaque)
+            }
             PyClassPyO3Option::RenameAll(rename_all) => set_option!(rename_all),
             PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
             PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
@@ -1796,10 +1807,22 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
         quote! { ::core::option::Option::None }
     };
 
+    let opaque = if attr.options.opaque.is_some() {
+        quote! {
+            const OPAQUE: bool = true;
+        }
+    } else {
+        // if opaque is not supported an error will be raised at construction
+        quote! {
+            const OPAQUE: bool = <<#cls as #pyo3_path::impl_::pyclass::PyClassImpl>::BaseType as #pyo3_path::type_object::PyTypeInfo>::OPAQUE;
+        }
+    };
+
     quote! {
         unsafe impl #pyo3_path::type_object::PyTypeInfo for #cls {
             const NAME: &'static str = #cls_name;
             const MODULE: ::std::option::Option<&'static str> = #module;
+            #opaque
 
             #[inline]
             fn type_object_raw(py: #pyo3_path::Python<'_>) -> *mut #pyo3_path::ffi::PyTypeObject {
@@ -1807,6 +1830,12 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
                 <#cls as #pyo3_path::impl_::pyclass::PyClassImpl>::lazy_type_object()
                     .get_or_init(py)
                     .as_type_ptr()
+            }
+
+            #[inline]
+            fn try_get_type_object_raw() -> ::std::option::Option<*mut #pyo3_path::ffi::PyTypeObject> {
+                <#cls as #pyo3_path::impl_::pyclass::PyClassImpl>::lazy_type_object()
+                    .try_get_raw()
             }
         }
     }
@@ -2153,7 +2182,7 @@ impl<'a> PyClassImplsBuilder<'a> {
 
         let dict_offset = if self.attr.options.dict.is_some() {
             quote! {
-                fn dict_offset() -> ::std::option::Option<#pyo3_path::ffi::Py_ssize_t> {
+                fn dict_offset() -> ::std::option::Option<#pyo3_path::impl_::pyclass::PyObjectOffset> {
                     ::std::option::Option::Some(#pyo3_path::impl_::pyclass::dict_offset::<Self>())
                 }
             }
@@ -2161,10 +2190,9 @@ impl<'a> PyClassImplsBuilder<'a> {
             TokenStream::new()
         };
 
-        // insert space for weak ref
         let weaklist_offset = if self.attr.options.weakref.is_some() {
             quote! {
-                fn weaklist_offset() -> ::std::option::Option<#pyo3_path::ffi::Py_ssize_t> {
+                fn weaklist_offset() -> ::std::option::Option<#pyo3_path::impl_::pyclass::PyObjectOffset> {
                     ::std::option::Option::Some(#pyo3_path::impl_::pyclass::weaklist_offset::<Self>())
                 }
             }
@@ -2249,8 +2277,9 @@ impl<'a> PyClassImplsBuilder<'a> {
         let pyclass_base_type_impl = attr.options.subclass.map(|subclass| {
             quote_spanned! { subclass.span() =>
                 impl #pyo3_path::impl_::pyclass::PyClassBaseType for #cls {
-                    type LayoutAsBase = #pyo3_path::impl_::pycell::PyClassObject<Self>;
+                    type StaticLayout = #pyo3_path::impl_::pycell::PyStaticClassLayout<Self>;
                     type BaseNativeType = <Self as #pyo3_path::impl_::pyclass::PyClassImpl>::BaseNativeType;
+                    type RecursiveOperations = #pyo3_path::impl_::pycell::PyClassRecursiveOperations<Self>;
                     type Initializer = #pyo3_path::pyclass_init::PyClassInitializer<Self>;
                     type PyClassMutability = <Self as #pyo3_path::impl_::pyclass::PyClassImpl>::PyClassMutability;
                 }

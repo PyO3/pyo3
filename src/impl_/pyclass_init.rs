@@ -1,11 +1,31 @@
 //! Contains initialization utilities for `#[pyclass]`.
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal::get_slot::TP_ALLOC;
+use crate::pycell::layout::{PyClassObjectContents, PyObjectLayout, TypeObjectStrategy};
 use crate::types::PyType;
-use crate::{ffi, Borrowed, PyErr, PyResult, Python};
+use crate::{ffi, Borrowed, PyClass, PyErr, PyResult, Python};
 use crate::{ffi::PyTypeObject, sealed::Sealed, type_object::PyTypeInfo};
+use std::any::TypeId;
 use std::marker::PhantomData;
 use std::ptr;
+
+pub unsafe fn initialize_with_default<T: PyClass + Default>(
+    py: Python<'_>,
+    obj: *mut ffi::PyObject,
+) {
+    // only sets the PyClassContents of the 'most derived type'
+    // so any parent pyclasses would remain uninitialized.
+    assert!(
+        TypeId::of::<T::BaseNativeType>() == TypeId::of::<T::BaseType>(),
+        "initialize_with_default does not currently support multi-level inheritance"
+    );
+    unsafe {
+        std::ptr::write(
+            PyObjectLayout::get_contents_ptr::<T>(obj, TypeObjectStrategy::lazy(py)),
+            PyClassObjectContents::new(T::default()),
+        );
+    }
+}
 
 /// Initializer for Python types.
 ///
@@ -38,16 +58,19 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
             type_object: *mut PyTypeObject,
             subtype: *mut PyTypeObject,
         ) -> PyResult<*mut ffi::PyObject> {
-            // HACK (due to FIXME below): PyBaseObject_Type's tp_new isn't happy with NULL arguments
-            let is_base_object = ptr::eq(type_object, ptr::addr_of!(ffi::PyBaseObject_Type));
-            let subtype_borrowed: Borrowed<'_, '_, PyType> = unsafe {
-                subtype
-                    .cast::<ffi::PyObject>()
-                    .assume_borrowed_unchecked(py)
-                    .downcast_unchecked()
-            };
+            // HACK (due to FIXME below): PyBaseObject_Type and PyType_Type tp_new aren't happy with NULL arguments
+            let is_base_object =
+                ptr::eq(type_object, std::ptr::addr_of_mut!(ffi::PyBaseObject_Type));
+            let is_metaclass = ptr::eq(type_object, std::ptr::addr_of_mut!(ffi::PyType_Type));
 
-            if is_base_object {
+            if is_base_object || is_metaclass {
+                let subtype_borrowed: Borrowed<'_, '_, PyType> = unsafe {
+                    subtype
+                        .cast::<ffi::PyObject>()
+                        .assume_borrowed_unchecked(py)
+                        .downcast_unchecked()
+                };
+
                 let alloc = subtype_borrowed
                     .get_slot(TP_ALLOC)
                     .unwrap_or(ffi::PyType_GenericAlloc);

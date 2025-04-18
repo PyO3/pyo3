@@ -1,3 +1,4 @@
+use super::PyString;
 use crate::err::{self, PyResult};
 use crate::instance::Borrowed;
 #[cfg(not(Py_3_13))]
@@ -5,8 +6,6 @@ use crate::pybacked::PyBackedStr;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
 use crate::{ffi, Bound, PyAny, PyTypeInfo, Python};
-
-use super::PyString;
 
 /// Represents a reference to a Python `type` object.
 ///
@@ -18,7 +17,24 @@ use super::PyString;
 #[repr(transparent)]
 pub struct PyType(PyAny);
 
-pyobject_native_type_core!(PyType, pyobject_native_static_type_object!(ffi::PyType_Type), #checkfunction=ffi::PyType_Check);
+pyobject_native_type_core!(
+    PyType,
+    #module=Some("builtins"),
+    #opaque=true,
+    #checkfunction=ffi::PyType_Check
+);
+pyobject_native_type_object_methods!(PyType, #global=ffi::PyType_Type);
+
+impl crate::impl_::pyclass::PyClassBaseType for PyType {
+    /// [ffi::PyType_Type] has a variable size and private fields even when using the unlimited API,
+    /// it therefore cannot be used with the static layout.
+    /// Attempts to do so would panic when accessed (see `PyStaticLayout::IS_VALID`).
+    type StaticLayout = crate::impl_::pycell::InvalidStaticLayout;
+    type BaseNativeType = PyType;
+    type RecursiveOperations = crate::impl_::pycell::PyNativeTypeRecursiveOperations<Self>;
+    type Initializer = crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
+    type PyClassMutability = crate::pycell::borrow_checker::ImmutableClass;
+}
 
 impl PyType {
     /// Creates a new type object.

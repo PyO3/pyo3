@@ -153,7 +153,8 @@ impl<'a> PyStringData<'a> {
 #[repr(transparent)]
 pub struct PyString(PyAny);
 
-pyobject_native_type_core!(PyString, pyobject_native_static_type_object!(ffi::PyUnicode_Type), #checkfunction=ffi::PyUnicode_Check);
+pyobject_native_type_core!(PyString, #checkfunction=ffi::PyUnicode_Check);
+pyobject_native_type_object_methods!(PyString, #global=ffi::PyUnicode_Type);
 
 impl PyString {
     /// Creates a new Python string object.

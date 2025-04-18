@@ -22,10 +22,11 @@ pyobject_subclassable_native_type!(PyWeakrefReference, crate::ffi::PyWeakReferen
 pyobject_native_type!(
     PyWeakrefReference,
     ffi::PyWeakReference,
-    pyobject_native_static_type_object!(ffi::_PyWeakref_RefType),
     #module=Some("weakref"),
     #checkfunction=ffi::PyWeakref_CheckRefExact
 );
+#[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
+pyobject_native_type_object_methods!(PyWeakrefReference, #global=ffi::_PyWeakref_RefType);
 
 // When targetting alternative or multiple interpreters, it is better to not use the internal API.
 #[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]

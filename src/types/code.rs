@@ -8,11 +8,8 @@ use crate::PyAny;
 #[repr(transparent)]
 pub struct PyCode(PyAny);
 
-pyobject_native_type_core!(
-    PyCode,
-    pyobject_native_static_type_object!(ffi::PyCode_Type),
-    #checkfunction=ffi::PyCode_Check
-);
+pyobject_native_type_core!(PyCode, #checkfunction=ffi::PyCode_Check);
+pyobject_native_type_object_methods!(PyCode, #global=ffi::PyCode_Type);
 
 #[cfg(test)]
 mod tests {

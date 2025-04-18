@@ -141,6 +141,11 @@ given signatures should be interpreted as follows:
 
     Determines the "truthyness" of an object.
 
+  - `__init__(<self>, ...) -> ()` - the arguments can be defined as for
+    normal `pymethods`. The pyclass struct must implement `Default`.
+    If the class defines `__new__` and `__init__` the values set in
+    `__new__` are overridden by `Default` before `__init__` is called.
+
   - `__call__(<self>, ...) -> object` - here, any argument list can be defined
     as for normal `pymethods`
 

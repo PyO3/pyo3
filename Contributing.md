@@ -109,7 +109,27 @@ You can run these checks yourself with `nox`. Use  `nox -l` to list the full set
 `nox -s clippy-all`
 
 #### Tests
-`nox -s test` or `cargo test` for Rust tests only, `nox -f pytests/noxfile.py -s test` for Python tests only
+`nox -s test` or `cargo test` or `cargo nextest` for Rust tests only, `nox -f pytests/noxfile.py -s test` for
+Python tests only.
+
+Configuring the python interpreter version (`Py_*` cfg options) when running `cargo test` is the same as for regular
+packages which is explained in [the docs](https://pyo3.rs/v0.22.5/building-and-distribution).
+The easiest way to configure the python version is to install with the system package manager or
+[pyenv](https://github.com/pyenv/pyenv) then set `PYO3_PYTHON`.
+Using interpreters installed with [uv python install](https://docs.astral.sh/uv/concepts/python-versions/) currently
+causes linker errors.
+
+`Py_LIMITED_API` can be controlled with the `abi3` feature of the `pyo3` crate.
+
+For example, testing the limited API for CPython 3.10.0:
+```
+pyenv install 3.10.0
+export _TEST_PY_PATH=$(pyenv prefix 3.10.0)
+LD_LIBRARY_PATH=$_TEST_PY_PATH/lib PYO3_PYTHON=$_TEST_PY_PATH/bin/python \
+    cargo nextest run --package pyo3 --features abi3 ...
+```
+
+use the `PYO3_PRINT_CONFIG=1` to check the identified configuration.
 
 #### Check all conditional compilation
 `nox -s check-feature-powerset`
@@ -183,7 +203,11 @@ PyO3 supports all officially supported Python versions, as well as the latest Py
 
 PyO3 aims to make use of up-to-date Rust language features to keep the implementation as efficient as possible.
 
-The minimum Rust version supported will be decided when the release which bumps Python and Rust versions is made. At the time, the minimum Rust version will be set no higher than the lowest Rust version shipped in the current Debian, RHEL and Alpine Linux distributions.
+The minimum Rust version supported will be decided when the release which bumps Python and Rust versions is made.
+At the time, the minimum Rust version will be set no higher than the lowest Rust version shipped in the current
+[Debian](https://packages.debian.org/search?keywords=rustc),
+[RHEL](https://docs.redhat.com/en/documentation/red_hat_developer_tools/1) and
+[Alpine Linux](https://pkgs.alpinelinux.org/package/edge/main/x86/rust) distributions.
 
 CI tests both the most recent stable Rust version and the minimum supported Rust version. Because of Rust's stability guarantees this is sufficient to confirm support for all Rust versions in between.
 

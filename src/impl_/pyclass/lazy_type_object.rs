@@ -4,6 +4,8 @@ use std::{
     thread::{self, ThreadId},
 };
 
+use pyo3_ffi::PyTypeObject;
+
 use crate::{
     exceptions::PyRuntimeError,
     ffi,
@@ -61,6 +63,10 @@ impl<T: PyClass> LazyTypeObject<T> {
         self.0
             .get_or_try_init(py, create_type_object::<T>, T::NAME, T::items_iter())
     }
+
+    pub fn try_get_raw(&self) -> Option<*mut PyTypeObject> {
+        self.0.try_get_raw()
+    }
 }
 
 impl LazyTypeObjectInner {
@@ -90,6 +96,14 @@ impl LazyTypeObjectInner {
                 format!("An error occurred while initializing class {}", name),
             )
         })
+    }
+
+    pub fn try_get_raw(&self) -> Option<*mut ffi::PyTypeObject> {
+        unsafe {
+            self.value
+                .get_raw()
+                .map(|obj| (*obj).type_object.as_ptr().cast::<ffi::PyTypeObject>())
+        }
     }
 
     fn ensure_init(
