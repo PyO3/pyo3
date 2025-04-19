@@ -14,7 +14,7 @@ use crate::ffi::{
     PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE, PyDateTime_TIME_GET_SECOND,
     PyDate_FromTimestamp,
 };
-#[cfg(all(GraalPy, not(Py_LIMITED_API)))]
+#[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
 use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNone};
 use crate::types::any::PyAnyMethods;
 #[cfg(not(Py_LIMITED_API))]
@@ -518,11 +518,9 @@ impl PyTimeAccess for Bound<'_, PyDateTime> {
 
 impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyDateTime> {
     fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>> {
-        #[cfg(not(Py_LIMITED_API))]
-        let ptr = self.as_ptr() as *mut ffi::PyDateTime_DateTime;
-
-        #[cfg(not(any(GraalPy, Py_LIMITED_API)))]
+        #[cfg(all(not(Py_3_10), not(Py_LIMITED_API)))]
         unsafe {
+            let ptr = self.as_ptr() as *mut ffi::PyDateTime_DateTime;
             if (*ptr).hastzinfo != 0 {
                 Some(
                     (*ptr)
@@ -536,9 +534,9 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyDateTime> {
             }
         }
 
-        #[cfg(all(GraalPy, not(Py_LIMITED_API)))]
+        #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
         unsafe {
-            let res = PyDateTime_DATE_GET_TZINFO(ptr as *mut ffi::PyObject);
+            let res = PyDateTime_DATE_GET_TZINFO(self.as_ptr());
             if Py_IsNone(res) == 1 {
                 None
             } else {
@@ -700,11 +698,9 @@ impl PyTimeAccess for Bound<'_, PyTime> {
 
 impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
     fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>> {
-        #[cfg(not(Py_LIMITED_API))]
-        let ptr = self.as_ptr() as *mut ffi::PyDateTime_Time;
-
-        #[cfg(not(any(GraalPy, Py_LIMITED_API)))]
+        #[cfg(all(not(Py_3_10), not(Py_LIMITED_API)))]
         unsafe {
+            let ptr = self.as_ptr() as *mut ffi::PyDateTime_Time;
             if (*ptr).hastzinfo != 0 {
                 Some(
                     (*ptr)
@@ -718,9 +714,9 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
             }
         }
 
-        #[cfg(all(GraalPy, not(Py_LIMITED_API)))]
+        #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
         unsafe {
-            let res = PyDateTime_TIME_GET_TZINFO(ptr as *mut ffi::PyObject);
+            let res = PyDateTime_TIME_GET_TZINFO(self.as_ptr());
             if Py_IsNone(res) == 1 {
                 None
             } else {
