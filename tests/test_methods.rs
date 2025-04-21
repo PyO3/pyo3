@@ -2,7 +2,7 @@
 
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::exceptions::PyWarning;
-use pyo3::exceptions::{PyDeprecationWarning, PyFutureWarning, PyUserWarning};
+use pyo3::exceptions::{PyFutureWarning, PyUserWarning};
 use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::PySequence;
@@ -1422,35 +1422,6 @@ fn test_pymethods_warn() {
 }
 
 #[test]
-fn test_pymethods_deprecated() {
-    #[pyclass]
-    struct DeprecatedMethodContainer {}
-
-    #[pymethods]
-    impl DeprecatedMethodContainer {
-        #[new]
-        fn new() -> Self {
-            Self {}
-        }
-
-        #[pyo3(deprecated = "this method is deprecated")]
-        fn deprecated_method(_slf: PyRef<'_, Self>) {}
-    }
-
-    Python::with_gil(|py| {
-        let typeobj = py.get_type::<DeprecatedMethodContainer>();
-        let obj = typeobj.call0().unwrap();
-
-        py_expect_warning!(
-            py,
-            obj,
-            "obj.deprecated_method()",
-            [("this method is deprecated", PyDeprecationWarning)]
-        );
-    });
-}
-
-#[test]
 fn test_py_methods_multiple_warn() {
     #[pyclass]
     struct MultipleWarnContainer {}
@@ -1463,15 +1434,11 @@ fn test_py_methods_multiple_warn() {
         }
 
         #[pyo3(warn(message = "this method raises warning 1"))]
-        #[pyo3(warn(message = "this method raises warning 2", category = pyo3::exceptions::PyFutureWarning))]
+        #[pyo3(warn(message = "this method raises warning 2", category = PyFutureWarning))]
         fn multiple_warn_method(&self) {}
 
-        #[pyo3(warn(message = "this method raises warning 1"))]
-        #[pyo3(deprecated = "this method is deprecated")]
-        fn multiple_warn_deprecated_method(&self) {}
-
         #[cfg(not(Py_LIMITED_API))]
-        #[pyo3(warn(message = "this method raises FutureWarning", category = pyo3::exceptions::PyFutureWarning))]
+        #[pyo3(warn(message = "this method raises FutureWarning", category = PyFutureWarning))]
         #[pyo3(warn(message = "this method raises UserDefinedWarning", category = UserDefinedWarning))]
         fn multiple_warn_custom_category_method(&self) {}
     }
@@ -1487,16 +1454,6 @@ fn test_py_methods_multiple_warn() {
             [
                 ("this method raises warning 1", PyUserWarning),
                 ("this method raises warning 2", PyFutureWarning)
-            ]
-        );
-
-        py_expect_warning!(
-            py,
-            obj,
-            "obj.multiple_warn_deprecated_method()",
-            [
-                ("this method raises warning 1", PyUserWarning),
-                ("this method is deprecated", PyDeprecationWarning)
             ]
         );
 

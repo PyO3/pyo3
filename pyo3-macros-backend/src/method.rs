@@ -803,7 +803,7 @@ impl<'a> FnSpec<'a> {
             quote!(#func_name)
         };
 
-        let deprecated_warning = self.warnings.build_py_warning(ctx);
+        let warnings = self.warnings.build_py_warning(ctx);
 
         Ok(match self.convention {
             CallingConvention::Noargs => {
@@ -827,7 +827,7 @@ impl<'a> FnSpec<'a> {
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #init_holders
-                        #deprecated_warning
+                        #warnings
                         let result = #call;
                         result
                     }
@@ -850,7 +850,7 @@ impl<'a> FnSpec<'a> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #init_holders
-                        #deprecated_warning
+                        #warnings
                         let result = #call;
                         result
                     }
@@ -872,7 +872,7 @@ impl<'a> FnSpec<'a> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #init_holders
-                        #deprecated_warning
+                        #warnings
                         let result = #call;
                         result
                     }
@@ -897,7 +897,7 @@ impl<'a> FnSpec<'a> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #init_holders
-                        #deprecated_warning
+                        #warnings
                         let result = #call;
                         let initializer: #pyo3_path::PyClassInitializer::<#cls> = result.convert(py)?;
                         #pyo3_path::impl_::pymethods::tp_new_impl(py, initializer, _slf)

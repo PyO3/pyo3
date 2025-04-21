@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use pyo3::buffer::PyBuffer;
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::exceptions::PyWarning;
-use pyo3::exceptions::{PyDeprecationWarning, PyFutureWarning, PyUserWarning};
+use pyo3::exceptions::{PyFutureWarning, PyUserWarning};
 use pyo3::ffi::c_str;
 use pyo3::prelude::*;
 #[cfg(not(Py_LIMITED_API))]
@@ -724,19 +724,6 @@ fn test_pyfunction_warn() {
 }
 
 #[test]
-fn test_pyfunction_deprecated() {
-    #[pyfunction]
-    #[pyo3(deprecated = "this function is deprecated")]
-    fn deprecated_function() {}
-
-    py_expect_warning_for_fn!(
-        deprecated_function,
-        f,
-        [("this function is deprecated", PyDeprecationWarning)]
-    );
-}
-
-#[test]
 fn test_pyfunction_multiple_warnings() {
     #[pyfunction]
     #[pyo3(warn(message = "this function raises warning"))]
@@ -768,20 +755,6 @@ fn test_pyfunction_multiple_warnings() {
                 "this function raises user-defined warning",
                 UserDefinedWarning
             )
-        ]
-    );
-
-    #[pyfunction]
-    #[pyo3(warn(message = "this function raises warning"))]
-    #[pyo3(deprecated = "this function is deprecated")]
-    fn function_with_warning_and_deprecated() {}
-
-    py_expect_warning_for_fn!(
-        function_with_warning_and_deprecated,
-        f,
-        [
-            ("this function raises warning", PyUserWarning),
-            ("this function is deprecated", PyDeprecationWarning)
         ]
     );
 }

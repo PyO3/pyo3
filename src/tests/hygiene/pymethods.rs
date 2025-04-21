@@ -531,10 +531,6 @@ impl WarningDummy {
     #[pyo3(warn(message = "this method raises warning 1"))]
     #[pyo3(warn(message = "this method raises warning 2", category = crate::exceptions::PyFutureWarning))]
     fn multiple_warn_method(&self) {}
-
-    #[pyo3(warn(message = "this method raises warning 1"))]
-    #[pyo3(deprecated = "this method is deprecated")]
-    fn multiple_warn_deprecated_method(&self) {}
 }
 
 #[crate::pyclass(crate = "crate")]

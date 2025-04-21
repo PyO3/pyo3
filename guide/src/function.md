@@ -26,7 +26,6 @@ This chapter of the guide explains full usage of the `#[pyfunction]` attribute. 
   - [`#[pyo3(text_signature = "...")]`](#text_signature)
   - [`#[pyo3(pass_module)]`](#pass_module)
   - [`#[pyo3(warn(message = "...", category = ...))]`](#warn)
-  - [`#[pyo3(deprecated = "...")]`](#deprecated)
 - [Per-argument options](#per-argument-options)
 - [Advanced function patterns](#advanced-function-patterns)
 - [`#[pyfn]` shorthand](#pyfn-shorthand)
@@ -100,7 +99,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     ```
   - <a id="warn"></a> `#[pyo3(warn(message = "...", category = ...))]`
 
-    This option is used to display a warning when the function is used in Python. It is equivalent to [`warnings.warn(message, category)`](https://docs.python.org/3.12/library/warnings.html#warnings.warn). 
+    This option is used to display a warning when the function is used in Python. It is equivalent to [`warnings.warn(message, category)`](https://docs.python.org/3.13/library/warnings.html#warnings.warn). 
     The `message` parameter is a string that will be displayed when the function is called, and the `category` parameter is optional and has to be a subclass of [`Warning`](https://docs.python.org/3.12/library/exceptions.html#Warning). 
     When the `category` parameter is not provided, the warning will be defaulted to [`UserWarning`](https://docs.python.org/3.12/library/exceptions.html#UserWarning).
 
@@ -186,7 +185,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     # });
     ```
 
-    When the functions are called, warnings will be displayed:
+    When the functions are called as the following, warnings will be displayed. 
 
     ```python
     import warnings
@@ -196,23 +195,13 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     function_with_warning_and_custom_category()
     ```
 
-    The output will be:
+    The warning output will be:
 
     ```plaintext
     UserWarning: This is a warning message
     FutureWarning: This function is warning with FutureWarning
     ```
     
-  - <a id="deprecated"></a> `#[pyo3(deprecated = "...")]`
-
-    Set this option to display deprecation warning when the function is called in Python. 
-    This is equivalent to [`#[pyo3(warn(message = "...", category = PyDeprecationWarning))]`](#warn) or [`warnings.warn(message, DeprecationWarning)`](https://docs.python.org/3.12/library/warnings.html#warnings.warn).
-
-    > Note: this attribute does not deprecate the rust function but only raises DeprecationWarning when the function is called from Python. To deprecate the rust function, please add `#[deprecated]` attribute to the function.
-
-    > Note: when used with `#[pymethods]`, this attribute does not work with `#[classattr]` nor `__traverse__` magic method. 
-    
-
 ## Per-argument options
 
 The `#[pyo3]` attribute can be used on individual arguments to modify properties of them in the generated function. It can take any combination of the following options:

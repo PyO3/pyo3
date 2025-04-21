@@ -88,7 +88,6 @@ impl PyFunctionArgPyO3Attributes {
 
 type PyFunctionWarningMessageAttribute = KeywordAttribute<attributes::kw::message, LitStr>;
 type PyFunctionWarningCategoryAttribute = KeywordAttribute<attributes::kw::category, Path>;
-type PyFunctionDeprecatedWarningAttribute = KeywordAttribute<attributes::kw::deprecated, LitStr>;
 
 pub struct PyFunctionWarningAttribute {
     pub message: PyFunctionWarningMessageAttribute,
@@ -123,16 +122,6 @@ impl From<PyFunctionWarningAttribute> for PyFunctionWarning {
     }
 }
 
-impl From<PyFunctionDeprecatedWarningAttribute> for PyFunctionWarning {
-    fn from(value: PyFunctionDeprecatedWarningAttribute) -> Self {
-        Self {
-            span: value.span(),
-            message: value.value,
-            category: PyFunctionWarningCategory::DeprecationWarning,
-        }
-    }
-}
-
 pub trait WarningFactory {
     fn build_py_warning(&self, ctx: &Ctx) -> TokenStream;
     fn span(&self) -> Span;
@@ -157,7 +146,7 @@ impl WarningFactory for PyFunctionWarning {
             }
         };
         quote! {
-            #pyo3_path::PyErr::warn_with_cstr_bound(py, &<#category as #pyo3_path::PyTypeInfo>::type_object(py), #c_message, 1)?;
+            #pyo3_path::PyErr::warn(py, &<#category as #pyo3_path::PyTypeInfo>::type_object(py), #c_message, 1)?;
         }
     }
 
@@ -268,7 +257,6 @@ pub enum PyFunctionOption {
     TextSignature(TextSignatureAttribute),
     Crate(CrateAttribute),
     Warning(PyFunctionWarningAttribute),
-    Deprecated(PyFunctionDeprecatedWarningAttribute),
 }
 
 impl Parse for PyFunctionOption {
@@ -286,8 +274,6 @@ impl Parse for PyFunctionOption {
             input.parse().map(PyFunctionOption::Crate)
         } else if lookahead.peek(attributes::kw::warn) {
             input.parse().map(PyFunctionOption::Warning)
-        } else if lookahead.peek(attributes::kw::deprecated) {
-            input.parse().map(PyFunctionOption::Deprecated)
         } else {
             Err(lookahead.error())
         }
@@ -325,19 +311,6 @@ impl PyFunctionOptions {
                 PyFunctionOption::Crate(krate) => set_option!(krate),
                 PyFunctionOption::Warning(warning) => {
                     self.warnings.push(warning.into());
-                }
-                PyFunctionOption::Deprecated(deprecated) => {
-                    if self
-                        .warnings
-                        .iter()
-                        .filter(|w| w.category == PyFunctionWarningCategory::DeprecationWarning)
-                        .count()
-                        > 0
-                    {
-                        bail_spanned!(deprecated.span() => "only one `deprecated` warning may be specified")
-                    }
-
-                    self.warnings.push(deprecated.into());
                 }
             }
         }

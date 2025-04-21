@@ -76,6 +76,4 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/deprecated.rs");
     t.compile_fail("tests/ui/invalid_pyfunction_warn.rs");
     t.compile_fail("tests/ui/invalid_pymethods_warn.rs");
-    t.compile_fail("tests/ui/invalid_pyfunction_deprecated.rs");
-    t.compile_fail("tests/ui/invalid_pymethods_deprecated.rs");
 }

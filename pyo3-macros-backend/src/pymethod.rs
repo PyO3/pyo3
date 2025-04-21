@@ -459,7 +459,7 @@ fn impl_traverse_slot(
 
     ensure_spanned!(
         spec.warnings.is_empty(),
-        spec.warnings.span() => "__traverse__ cannot be used with #[pyo3(warn)] nor #[pyo3(deprecated)]"
+        spec.warnings.span() => "__traverse__ cannot be used with #[pyo3(warn)]"
     );
 
     let rust_fn_ident = spec.name;
@@ -546,7 +546,7 @@ pub(crate) fn impl_py_class_attribute(
     ensure_spanned!(
         spec.warnings.is_empty(),
         spec.warnings.span()
-        => "#[classattr] cannot be used with #[pyo3(warn)] nor #[pyo3(deprecated)]"
+        => "#[classattr] cannot be used with #[pyo3(warn)]"
     );
 
     let name = &spec.name;
@@ -734,7 +734,7 @@ pub fn impl_py_setter_def(
         }
     }
 
-    let deprecated_warning = if let PropertyType::Function { spec, .. } = &property_type {
+    let warnings = if let PropertyType::Function { spec, .. } = &property_type {
         spec.warnings.build_py_warning(ctx)
     } else {
         quote!()
@@ -755,7 +755,7 @@ pub fn impl_py_setter_def(
                 })?;
             #init_holders
             #extract
-            #deprecated_warning
+            #warnings
             let result = #setter_impl;
             #pyo3_path::impl_::callback::convert(py, result)
         }
@@ -888,7 +888,7 @@ pub fn impl_py_getter_def(
             };
 
             let init_holders = holders.init_holders(ctx);
-            let deprecated_warning = spec.warnings.build_py_warning(ctx);
+            let warnings = spec.warnings.build_py_warning(ctx);
 
             let associated_method = quote! {
                 #cfg_attrs
@@ -897,7 +897,7 @@ pub fn impl_py_getter_def(
                     _slf: *mut #pyo3_path::ffi::PyObject
                 ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                     #init_holders
-                    #deprecated_warning
+                    #warnings
                     let result = #body;
                     result
                 }
@@ -1446,10 +1446,10 @@ fn generate_method_body(
             #pyo3_path::impl_::callback::convert(py, result)
         }
     };
-    let deprecated_warning = spec.warnings.build_py_warning(ctx);
+    let warnings = spec.warnings.build_py_warning(ctx);
 
     Ok(quote! {
-        #deprecated_warning
+        #warnings
         #body
     })
 }
