@@ -134,8 +134,8 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     # use pyo3::PyTypeInfo;
     #
     # fn catch_warning(py: Python<'_>, f: impl FnOnce(&Bound<'_, PyList>) -> ()) -> PyResult<()> {
-    #     let warnings = py.import_bound("warnings")?;
-    #     let kwargs = [("record", true)].into_py_dict(py);
+    #     let warnings = py.import("warnings")?;
+    #     let kwargs = [("record", true)].into_py_dict(py)?;
     #     let catch_warnings = warnings
     #         .getattr("catch_warnings")?
     #         .call((), Some(&kwargs))?;
@@ -152,7 +152,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     #     ($py:expr, $body:expr, [$(($category:ty, $message:literal)),+] $(,)? ) => {
     #         catch_warning($py, |list| {
     #             $body;
-    #             let expected_warnings = [$((<$category as PyTypeInfo>::type_object_bound($py), $message)),+];
+    #             let expected_warnings = [$((<$category as PyTypeInfo>::type_object($py), $message)),+];
     #             assert_eq!(list.len(), expected_warnings.len());
     #             for (warning, (category, message)) in list.iter().zip(expected_warnings) {
     #                 assert!(warning.getattr("category").unwrap().is(&category));

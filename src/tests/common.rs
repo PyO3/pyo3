@@ -72,7 +72,7 @@ mod inner {
     macro_rules! py_expect_warning {
         ($py:expr, $($val:ident)+, $code:expr, [$(($warning_msg:literal, $warning_category:path)),+] $(,)?) => {{
             use pyo3::types::IntoPyDict;
-            let d = [$((stringify!($val), $val.to_object($py)),)+].into_py_dict($py);
+            let d = [$((stringify!($val), $val.as_ref().into_pyobject($py).expect("Failed to create test dict element")),)+].into_py_dict($py).expect("Failed to create test dict");
             py_expect_warning!($py, *d, $code, [$(($warning_msg, $warning_category)),+])
         }};
         ($py:expr, *$dict:expr, $code:expr, [$(($warning_msg:literal, $warning_category:path)),+] $(,)?) => {{
@@ -88,8 +88,8 @@ with warnings.catch_warnings(record=True) as warning_record:
 {}
 "#, indented_code);
 
-            $py.run_bound(wrapped_code.as_str(), None, Some(&$dict.as_borrowed())).expect("Failed to run warning testing code");
-            let expected_warnings = [$(($warning_msg, <$warning_category as pyo3::PyTypeInfo>::type_object_bound($py))),+];
+            $py.run(&std::ffi::CString::new(wrapped_code).unwrap(), None, Some(&$dict.as_borrowed())).expect("Failed to run warning testing code");
+            let expected_warnings = [$(($warning_msg, <$warning_category as pyo3::PyTypeInfo>::type_object($py))),+];
             let warning_record: Bound<'_, pyo3::types::PyList> = $dict.get_item("warning_record").expect("Failed to capture warnings").expect("Failed to downcast to PyList").extract().unwrap();
 
             assert_eq!(warning_record.len(), expected_warnings.len(), "Expecting {} warnings but got {}", expected_warnings.len(), warning_record.len());

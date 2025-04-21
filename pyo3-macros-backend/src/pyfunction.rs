@@ -157,7 +157,7 @@ impl WarningFactory for PyFunctionWarning {
             }
         };
         quote! {
-            #pyo3_path::PyErr::warn_with_cstr_bound(py, &<#category as #pyo3_path::PyTypeInfo>::type_object_bound(py), #c_message, 1)?;
+            #pyo3_path::PyErr::warn_with_cstr_bound(py, &<#category as #pyo3_path::PyTypeInfo>::type_object(py), #c_message, 1)?;
         }
     }
 

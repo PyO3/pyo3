@@ -1288,7 +1288,7 @@ fn test_pymethods_warn() {
     }
 
     Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<WarningMethodContainer>();
+        let typeobj = py.get_type::<WarningMethodContainer>();
         let obj = typeobj.call0().unwrap();
 
         // FnType::Fn
@@ -1406,7 +1406,7 @@ fn test_pymethods_warn() {
     }
 
     Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<WarningMethodContainer2>();
+        let typeobj = py.get_type::<WarningMethodContainer2>();
 
         // #[new], #[classmethod], FnType::FnNewClass
         py_expect_warning!(
@@ -1438,7 +1438,7 @@ fn test_pymethods_deprecated() {
     }
 
     Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<DeprecatedMethodContainer>();
+        let typeobj = py.get_type::<DeprecatedMethodContainer>();
         let obj = typeobj.call0().unwrap();
 
         py_expect_warning!(
@@ -1477,7 +1477,7 @@ fn test_py_methods_multiple_warn() {
     }
 
     Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<MultipleWarnContainer>();
+        let typeobj = py.get_type::<MultipleWarnContainer>();
         let obj = typeobj.call0().unwrap();
 
         py_expect_warning!(

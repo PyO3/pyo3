@@ -12,8 +12,7 @@ use crate::{
 };
 use crate::{Borrowed, BoundObject, Py, PyAny, PyObject, Python};
 use std::borrow::Cow;
-use std::cell::UnsafeCell;
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 
 mod err_state;
 mod impls;
@@ -569,7 +568,7 @@ impl PyErr {
     /// # use pyo3::prelude::*;
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let user_warning = py.get_type_bound::<pyo3::exceptions::PyUserWarning>();
+    ///     let user_warning = py.get_type::<pyo3::exceptions::PyUserWarning>();
     ///     PyErr::warn_with_cstr_bound(py, &user_warning, c"I am warning you", 0)?;
     ///     Ok(())
     /// })
