@@ -1,6 +1,6 @@
 #![cfg(feature = "anyhow")]
 
-use pyo3::wrap_pyfunction;
+use pyo3::{ffi, wrap_pyfunction};
 
 #[test]
 fn test_anyhow_py_function_ok_result() {
@@ -40,10 +40,12 @@ fn test_anyhow_py_function_err_result() {
         let locals = PyDict::new(py);
         locals.set_item("func", func).unwrap();
 
-        py.run_bound(
-            r#"
+        py.run(
+            ffi::c_str!(
+                r#"
             func()
-            "#,
+            "#
+            ),
             None,
             Some(&locals),
         )

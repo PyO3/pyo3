@@ -1,6 +1,6 @@
 //! Fundamental properties of objects tied to the Python interpreter.
 //!
-//! The Python interpreter is not threadsafe. To protect the Python interpreter in multithreaded
+//! The Python interpreter is not thread-safe. To protect the Python interpreter in multithreaded
 //! scenarios there is a global lock, the *global interpreter lock* (hereafter referred to as *GIL*)
 //! that must be held to safely interact with Python objects. This is why in PyO3 when you acquire
 //! the GIL you get a [`Python`] marker token that carries the *lifetime* of holding the GIL and all
@@ -18,7 +18,7 @@
 //! closure and the return type. This is done by relying on the [`Send`] auto trait. `Ungil` is
 //! defined as the following:
 //!
-//! ```rust
+//! ```rust,no_run
 //! # #![allow(dead_code)]
 //! pub unsafe trait Ungil {}
 //!
@@ -73,7 +73,7 @@
 //! use send_wrapper::SendWrapper;
 //!
 //! Python::with_gil(|py| {
-//!     let string = PyString::new_bound(py, "foo");
+//!     let string = PyString::new(py, "foo");
 //!
 //!     let wrapped = SendWrapper::new(string);
 //!
@@ -95,7 +95,7 @@
 //! However on nightly Rust and when PyO3's `nightly` feature is
 //! enabled, `Ungil` is defined as the following:
 //!
-//! ```rust
+//! ```rust,no_run
 //! # #[cfg(any())]
 //! # {
 //! #![feature(auto_traits, negative_impls)]
@@ -116,7 +116,9 @@
 //! [`SendWrapper`]: https://docs.rs/send_wrapper/latest/send_wrapper/struct.SendWrapper.html
 //! [`Rc`]: std::rc::Rc
 //! [`Py`]: crate::Py
-use crate::err::{self, PyErr, PyResult};
+use crate::conversion::IntoPyObject;
+use crate::err::PyErr;
+use crate::err::{self, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::gil::{GILGuard, SuspendGIL};
 use crate::impl_::not_send::NotSend;
@@ -126,8 +128,8 @@ use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
 };
 use crate::version::PythonVersionInfo;
-use crate::{ffi, Bound, IntoPy, Py, PyObject, PyTypeInfo};
-use std::ffi::{CStr, CString};
+use crate::{ffi, Bound, PyObject, PyTypeInfo};
+use std::ffi::CStr;
 use std::marker::PhantomData;
 use std::os::raw::c_int;
 
@@ -167,7 +169,7 @@ use std::os::raw::c_int;
 /// use send_wrapper::SendWrapper;
 ///
 /// Python::with_gil(|py| {
-///     let string = PyString::new_bound(py, "foo");
+///     let string = PyString::new(py, "foo");
 ///
 ///     let wrapped = SendWrapper::new(string);
 ///
@@ -213,7 +215,7 @@ mod nightly {
         /// # use pyo3::prelude::*;
         /// # use pyo3::types::PyString;
         /// Python::with_gil(|py| {
-        ///     let string = PyString::new_bound(py, "foo");
+        ///     let string = PyString::new(py, "foo");
         ///
         ///     py.allow_threads(|| {
         ///         println!("{:?}", string);
@@ -241,7 +243,7 @@ mod nightly {
         /// use send_wrapper::SendWrapper;
         ///
         /// Python::with_gil(|py| {
-        ///     let string = PyString::new_bound(py, "foo");
+        ///     let string = PyString::new(py, "foo");
         ///
         ///     let wrapped = SendWrapper::new(string);
         ///
@@ -300,9 +302,9 @@ pub use nightly::Ungil;
 /// A marker token that represents holding the GIL.
 ///
 /// It serves three main purposes:
-/// - It provides a global API for the Python interpreter, such as [`Python::eval_bound`].
+/// - It provides a global API for the Python interpreter, such as [`Python::eval`].
 /// - It can be passed to functions that require a proof of holding the GIL, such as
-///   [`Py::clone_ref`].
+///   [`Py::clone_ref`](crate::Py::clone_ref).
 /// - Its lifetime represents the scope of holding the GIL which can be used to create Rust
 ///   references that are bound to it, such as [`Bound<'py, PyAny>`].
 ///
@@ -350,7 +352,7 @@ pub use nightly::Ungil;
 /// # Releasing and freeing memory
 ///
 /// The [`Python<'py>`] type can be used to create references to variables owned by the Python
-/// interpreter, using functions such as [`Python::eval_bound`] and [`PyModule::import_bound`].
+/// interpreter, using functions such as [`Python::eval`] and [`PyModule::import`].
 #[derive(Copy, Clone)]
 pub struct Python<'py>(PhantomData<(&'py GILGuard, NotSend)>);
 
@@ -384,10 +386,11 @@ impl Python<'_> {
     ///
     /// ```
     /// use pyo3::prelude::*;
+    /// use pyo3::ffi::c_str;
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let x: i32 = py.eval_bound("5", None, None)?.extract()?;
+    ///     let x: i32 = py.eval(c_str!("5"), None, None)?.extract()?;
     ///     assert_eq!(x, 5);
     ///     Ok(())
     /// })
@@ -434,7 +437,7 @@ impl Python<'_> {
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        let guard = GILGuard::acquire_unchecked();
+        let guard = unsafe { GILGuard::acquire_unchecked() };
 
         f(guard.python())
     }
@@ -491,7 +494,7 @@ impl<'py> Python<'py> {
     /// use pyo3::types::PyString;
     ///
     /// fn parallel_print(py: Python<'_>) {
-    ///     let s = PyString::new_bound(py, "This object cannot be accessed without holding the GIL >_<");
+    ///     let s = PyString::new(py, "This object cannot be accessed without holding the GIL >_<");
     ///     py.allow_threads(move || {
     ///         println!("{:?}", s); // This causes a compile error.
     ///     });
@@ -527,15 +530,16 @@ impl<'py> Python<'py> {
     ///
     /// ```
     /// # use pyo3::prelude::*;
+    /// # use pyo3::ffi::c_str;
     /// # Python::with_gil(|py| {
-    /// let result = py.eval_bound("[i * 10 for i in range(5)]", None, None).unwrap();
+    /// let result = py.eval(c_str!("[i * 10 for i in range(5)]"), None, None).unwrap();
     /// let res: Vec<i64> = result.extract().unwrap();
     /// assert_eq!(res, vec![0, 10, 20, 30, 40])
     /// # });
     /// ```
-    pub fn eval_bound(
+    pub fn eval(
         self,
-        code: &str,
+        code: &CStr,
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
@@ -555,15 +559,16 @@ impl<'py> Python<'py> {
     /// use pyo3::{
     ///     prelude::*,
     ///     types::{PyBytes, PyDict},
+    ///     ffi::c_str,
     /// };
     /// Python::with_gil(|py| {
     ///     let locals = PyDict::new(py);
-    ///     py.run_bound(
+    ///     py.run(c_str!(
     ///         r#"
     /// import base64
     /// s = 'Hello Rust!'
     /// ret = base64.b64encode(s.encode('utf-8'))
-    /// "#,
+    /// "#),
     ///         None,
     ///         Some(&locals),
     ///     )
@@ -576,9 +581,9 @@ impl<'py> Python<'py> {
     ///
     /// You can use [`py_run!`](macro.py_run.html) for a handy alternative of `run`
     /// if you don't need `globals` and unwrapping is OK.
-    pub fn run_bound(
+    pub fn run(
         self,
-        code: &str,
+        code: &CStr,
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
@@ -597,94 +602,100 @@ impl<'py> Python<'py> {
     /// If `locals` is `None`, it defaults to the value of `globals`.
     fn run_code(
         self,
-        code: &str,
+        code: &CStr,
         start: c_int,
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let code = CString::new(code)?;
-        unsafe {
-            let mptr = ffi::PyImport_AddModule(ffi::c_str!("__main__").as_ptr());
-            if mptr.is_null() {
-                return Err(PyErr::fetch(self));
-            }
+        let mptr = unsafe {
+            ffi::compat::PyImport_AddModuleRef(ffi::c_str!("__main__").as_ptr())
+                .assume_owned_or_err(self)?
+        };
+        let attr = mptr.getattr(crate::intern!(self, "__dict__"))?;
+        let globals = match globals {
+            Some(globals) => globals,
+            None => attr.downcast::<PyDict>()?,
+        };
+        let locals = locals.unwrap_or(globals);
 
-            let globals = globals
-                .map(|dict| dict.as_ptr())
-                .unwrap_or_else(|| ffi::PyModule_GetDict(mptr));
-            let locals = locals.map(|dict| dict.as_ptr()).unwrap_or(globals);
+        // If `globals` don't provide `__builtins__`, most of the code will fail if Python
+        // version is <3.10. That's probably not what user intended, so insert `__builtins__`
+        // for them.
+        //
+        // See also:
+        // - https://github.com/python/cpython/pull/24564 (the same fix in CPython 3.10)
+        // - https://github.com/PyO3/pyo3/issues/3370
+        let builtins_s = crate::intern!(self, "__builtins__");
+        let has_builtins = globals.contains(builtins_s)?;
+        if !has_builtins {
+            crate::sync::with_critical_section(globals, || {
+                // check if another thread set __builtins__ while this thread was blocked on the critical section
+                let has_builtins = globals.contains(builtins_s)?;
+                if !has_builtins {
+                    // Inherit current builtins.
+                    let builtins = unsafe { ffi::PyEval_GetBuiltins() };
 
-            // If `globals` don't provide `__builtins__`, most of the code will fail if Python
-            // version is <3.10. That's probably not what user intended, so insert `__builtins__`
-            // for them.
-            //
-            // See also:
-            // - https://github.com/python/cpython/pull/24564 (the same fix in CPython 3.10)
-            // - https://github.com/PyO3/pyo3/issues/3370
-            let builtins_s = crate::intern!(self, "__builtins__").as_ptr();
-            let has_builtins = ffi::PyDict_Contains(globals, builtins_s);
-            if has_builtins == -1 {
-                return Err(PyErr::fetch(self));
-            }
-            if has_builtins == 0 {
-                // Inherit current builtins.
-                let builtins = ffi::PyEval_GetBuiltins();
-
-                // `PyDict_SetItem` doesn't take ownership of `builtins`, but `PyEval_GetBuiltins`
-                // seems to return a borrowed reference, so no leak here.
-                if ffi::PyDict_SetItem(globals, builtins_s, builtins) == -1 {
-                    return Err(PyErr::fetch(self));
+                    // `PyDict_SetItem` doesn't take ownership of `builtins`, but `PyEval_GetBuiltins`
+                    // seems to return a borrowed reference, so no leak here.
+                    if unsafe {
+                        ffi::PyDict_SetItem(globals.as_ptr(), builtins_s.as_ptr(), builtins)
+                    } == -1
+                    {
+                        return Err(PyErr::fetch(self));
+                    }
                 }
-            }
+                Ok(())
+            })?;
+        }
 
-            let code_obj =
-                ffi::Py_CompileString(code.as_ptr(), ffi::c_str!("<string>").as_ptr(), start);
-            if code_obj.is_null() {
-                return Err(PyErr::fetch(self));
-            }
-            let res_ptr = ffi::PyEval_EvalCode(code_obj, globals, locals);
-            ffi::Py_DECREF(code_obj);
+        let code_obj = unsafe {
+            ffi::Py_CompileString(code.as_ptr(), ffi::c_str!("<string>").as_ptr(), start)
+                .assume_owned_or_err(self)?
+        };
 
-            res_ptr.assume_owned_or_err(self).downcast_into_unchecked()
+        unsafe {
+            ffi::PyEval_EvalCode(code_obj.as_ptr(), globals.as_ptr(), locals.as_ptr())
+                .assume_owned_or_err(self)
+                .downcast_into_unchecked()
         }
     }
 
     /// Gets the Python type object for type `T`.
     #[inline]
-    pub fn get_type_bound<T>(self) -> Bound<'py, PyType>
+    pub fn get_type<T>(self) -> Bound<'py, PyType>
     where
         T: PyTypeInfo,
     {
-        T::type_object_bound(self)
+        T::type_object(self)
     }
 
     /// Imports the Python module with the specified name.
-    pub fn import_bound<N>(self, name: N) -> PyResult<Bound<'py, PyModule>>
+    pub fn import<N>(self, name: N) -> PyResult<Bound<'py, PyModule>>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPyObject<'py, Target = PyString>,
     {
-        PyModule::import_bound(self, name)
+        PyModule::import(self, name)
     }
 
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn None(self) -> PyObject {
-        PyNone::get_bound(self).into_py(self)
+        PyNone::get(self).to_owned().into_any().unbind()
     }
 
     /// Gets the Python builtin value `Ellipsis`, or `...`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn Ellipsis(self) -> PyObject {
-        PyEllipsis::get(self).into_py(self)
+        PyEllipsis::get(self).to_owned().into_any().unbind()
     }
 
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn NotImplemented(self) -> PyObject {
-        PyNotImplemented::get_bound(self).into_py(self)
+        PyNotImplemented::get(self).to_owned().into_any().unbind()
     }
 
     /// Gets the running Python interpreter version as a string.
@@ -739,7 +750,7 @@ impl<'py> Python<'py> {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// # #![allow(dead_code)] // this example is quite impractical to test
     /// use pyo3::prelude::*;
     ///
@@ -808,18 +819,18 @@ mod tests {
         Python::with_gil(|py| {
             // Make sure builtin names are accessible
             let v: i32 = py
-                .eval_bound("min(1, 2)", None, None)
+                .eval(ffi::c_str!("min(1, 2)"), None, None)
                 .map_err(|e| e.display(py))
                 .unwrap()
                 .extract()
                 .unwrap();
             assert_eq!(v, 1);
 
-            let d = [("foo", 13)].into_py_dict(py);
+            let d = [("foo", 13)].into_py_dict(py).unwrap();
 
             // Inject our own global namespace
             let v: i32 = py
-                .eval_bound("foo + 29", Some(&d), None)
+                .eval(ffi::c_str!("foo + 29"), Some(&d), None)
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -827,7 +838,7 @@ mod tests {
 
             // Inject our own local namespace
             let v: i32 = py
-                .eval_bound("foo + 29", None, Some(&d))
+                .eval(ffi::c_str!("foo + 29"), None, Some(&d))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -835,7 +846,7 @@ mod tests {
 
             // Make sure builtin names are still accessible when using a local namespace
             let v: i32 = py
-                .eval_bound("min(foo, 2)", None, Some(&d))
+                .eval(ffi::c_str!("min(foo, 2)"), None, Some(&d))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -882,7 +893,7 @@ mod tests {
 
             // If allow_threads is implemented correctly, this thread still owns the GIL here
             // so the following Python calls should not cause crashes.
-            let list = PyList::new(py, [1, 2, 3, 4]);
+            let list = PyList::new(py, [1, 2, 3, 4]).unwrap();
             assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![1, 2, 3, 4]);
         });
     }
@@ -890,7 +901,7 @@ mod tests {
     #[cfg(not(pyo3_disable_reference_pool))]
     #[test]
     fn test_allow_threads_pass_stuff_in() {
-        let list = Python::with_gil(|py| PyList::new(py, vec!["foo", "bar"]).unbind());
+        let list = Python::with_gil(|py| PyList::new(py, vec!["foo", "bar"]).unwrap().unbind());
         let mut v = vec![1, 2, 3];
         let a = std::sync::Arc::new(String::from("foo"));
 
@@ -930,7 +941,7 @@ mod tests {
             assert_eq!(py.Ellipsis().to_string(), "Ellipsis");
 
             let v = py
-                .eval_bound("...", None, None)
+                .eval(ffi::c_str!("..."), None, None)
                 .map_err(|e| e.display(py))
                 .unwrap();
 
@@ -944,10 +955,61 @@ mod tests {
 
         Python::with_gil(|py| {
             let namespace = PyDict::new(py);
-            py.run_bound("class Foo: pass", Some(&namespace), Some(&namespace))
-                .unwrap();
+            py.run(
+                ffi::c_str!("class Foo: pass\na = int(3)"),
+                Some(&namespace),
+                Some(&namespace),
+            )
+            .unwrap();
             assert!(matches!(namespace.get_item("Foo"), Ok(Some(..))));
+            assert!(matches!(namespace.get_item("a"), Ok(Some(..))));
+            // 3.9 and older did not automatically insert __builtins__ if it wasn't inserted "by hand"
+            #[cfg(not(Py_3_10))]
             assert!(matches!(namespace.get_item("__builtins__"), Ok(Some(..))));
         })
+    }
+
+    #[cfg(feature = "macros")]
+    #[test]
+    fn test_py_run_inserts_globals_2() {
+        use std::ffi::CString;
+
+        #[crate::pyclass(crate = "crate")]
+        #[derive(Clone)]
+        struct CodeRunner {
+            code: CString,
+        }
+
+        impl CodeRunner {
+            fn reproducer(&mut self, py: Python<'_>) -> PyResult<()> {
+                let variables = PyDict::new(py);
+                variables.set_item("cls", crate::Py::new(py, self.clone())?)?;
+
+                py.run(self.code.as_c_str(), Some(&variables), None)?;
+                Ok(())
+            }
+        }
+
+        #[crate::pymethods(crate = "crate")]
+        impl CodeRunner {
+            fn func(&mut self, py: Python<'_>) -> PyResult<()> {
+                py.import("math")?;
+                Ok(())
+            }
+        }
+
+        let mut runner = CodeRunner {
+            code: CString::new(
+                r#"
+cls.func()
+"#
+                .to_string(),
+            )
+            .unwrap(),
+        };
+
+        Python::with_gil(|py| {
+            runner.reproducer(py).unwrap();
+        });
     }
 }

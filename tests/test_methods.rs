@@ -7,6 +7,7 @@ use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::PySequence;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
+use pyo3::BoundObject;
 use pyo3_macros::pyclass;
 
 #[path = "../src/tests/common.rs"]
@@ -90,7 +91,9 @@ impl ClassMethod {
 #[test]
 fn class_method() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type_bound::<ClassMethod>())].into_py_dict(py);
+        let d = [("C", py.get_type::<ClassMethod>())]
+            .into_py_dict(py)
+            .unwrap();
         py_assert!(py, *d, "C.method() == 'ClassMethod.method()!'");
         py_assert!(py, *d, "C().method() == 'ClassMethod.method()!'");
         py_assert!(
@@ -117,7 +120,9 @@ impl ClassMethodWithArgs {
 #[test]
 fn class_method_with_args() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type_bound::<ClassMethodWithArgs>())].into_py_dict(py);
+        let d = [("C", py.get_type::<ClassMethodWithArgs>())]
+            .into_py_dict(py)
+            .unwrap();
         py_assert!(
             py,
             *d,
@@ -148,7 +153,9 @@ fn static_method() {
     Python::with_gil(|py| {
         assert_eq!(StaticMethod::method(py), "StaticMethod.method()!");
 
-        let d = [("C", py.get_type_bound::<StaticMethod>())].into_py_dict(py);
+        let d = [("C", py.get_type::<StaticMethod>())]
+            .into_py_dict(py)
+            .unwrap();
         py_assert!(py, *d, "C.method() == 'StaticMethod.method()!'");
         py_assert!(py, *d, "C().method() == 'StaticMethod.method()!'");
         py_assert!(py, *d, "C.method.__doc__ == 'Test static method.'");
@@ -172,7 +179,9 @@ fn static_method_with_args() {
     Python::with_gil(|py| {
         assert_eq!(StaticMethodWithArgs::method(py, 1234), "0x4d2");
 
-        let d = [("C", py.get_type_bound::<StaticMethodWithArgs>())].into_py_dict(py);
+        let d = [("C", py.get_type::<StaticMethodWithArgs>())]
+            .into_py_dict(py)
+            .unwrap();
         py_assert!(py, *d, "C.method(1337) == '0x539'");
     });
 }
@@ -209,24 +218,33 @@ impl MethSignature {
         test
     }
     #[pyo3(signature = (*args, **kwargs))]
-    fn get_kwargs(
+    fn get_kwargs<'py>(
         &self,
-        py: Python<'_>,
-        args: &Bound<'_, PyTuple>,
-        kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyObject {
-        [args.to_object(py), kwargs.to_object(py)].to_object(py)
+        py: Python<'py>,
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        [
+            args.as_any().clone(),
+            kwargs.into_pyobject(py)?.into_any().into_bound(),
+        ]
+        .into_pyobject(py)
     }
 
     #[pyo3(signature = (a, *args, **kwargs))]
-    fn get_pos_arg_kw(
+    fn get_pos_arg_kw<'py>(
         &self,
-        py: Python<'_>,
+        py: Python<'py>,
         a: i32,
-        args: &Bound<'_, PyTuple>,
-        kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyObject {
-        [a.to_object(py), args.to_object(py), kwargs.to_object(py)].to_object(py)
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        [
+            a.into_pyobject(py)?.into_any().into_bound(),
+            args.as_any().clone(),
+            kwargs.into_pyobject(py)?.into_any().into_bound(),
+        ]
+        .into_pyobject(py)
     }
 
     #[pyo3(signature = (a, b, /))]
@@ -270,8 +288,13 @@ impl MethSignature {
         py: Python<'_>,
         a: i32,
         kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyObject {
-        [a.to_object(py), kwargs.to_object(py)].to_object(py)
+    ) -> PyResult<PyObject> {
+        [
+            a.into_pyobject(py)?.into_any().into_bound(),
+            kwargs.into_pyobject(py)?.into_any().into_bound(),
+        ]
+        .into_pyobject(py)
+        .map(Bound::unbind)
     }
 
     #[pyo3(signature = (a=0, /, **kwargs))]
@@ -280,8 +303,13 @@ impl MethSignature {
         py: Python<'_>,
         a: i32,
         kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyObject {
-        [a.to_object(py), kwargs.to_object(py)].to_object(py)
+    ) -> PyResult<PyObject> {
+        [
+            a.into_pyobject(py)?.into_any().into_bound(),
+            kwargs.into_pyobject(py)?.into_any().into_bound(),
+        ]
+        .into_pyobject(py)
+        .map(Bound::unbind)
     }
 
     #[pyo3(signature = (*, a = 2, b = 3))]
@@ -305,8 +333,11 @@ impl MethSignature {
         py: Python<'_>,
         args: &Bound<'_, PyTuple>,
         a: i32,
-    ) -> PyObject {
-        (args, a).to_object(py)
+    ) -> PyResult<PyObject> {
+        (args, a)
+            .into_pyobject(py)
+            .map(BoundObject::into_any)
+            .map(Bound::unbind)
     }
 
     #[pyo3(signature = (a, b = 2, *, c = 3))]
@@ -320,8 +351,18 @@ impl MethSignature {
     }
 
     #[pyo3(signature = (a, **kwargs))]
-    fn get_pos_kw(&self, py: Python<'_>, a: i32, kwargs: Option<&Bound<'_, PyDict>>) -> PyObject {
-        [a.to_object(py), kwargs.to_object(py)].to_object(py)
+    fn get_pos_kw(
+        &self,
+        py: Python<'_>,
+        a: i32,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyObject> {
+        [
+            a.into_pyobject(py)?.into_any().into_bound(),
+            kwargs.into_pyobject(py)?.into_any().into_bound(),
+        ]
+        .into_pyobject(py)
+        .map(Bound::unbind)
     }
 
     // "args" can be anything that can be extracted from PyTuple
@@ -681,7 +722,7 @@ impl MethDocs {
 #[test]
 fn meth_doc() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type_bound::<MethDocs>())].into_py_dict(py);
+        let d = [("C", py.get_type::<MethDocs>())].into_py_dict(py).unwrap();
         py_assert!(py, *d, "C.__doc__ == 'A class with \"documentation\".'");
         py_assert!(
             py,
@@ -707,7 +748,7 @@ impl MethodWithLifeTime {
         for _ in 0..set.len() {
             items.push(set.pop().unwrap());
         }
-        let list = PyList::new(py, items);
+        let list = PyList::new(py, items)?;
         list.sort()?;
         Ok(list)
     }
@@ -768,7 +809,7 @@ fn method_with_pyclassarg() {
     Python::with_gil(|py| {
         let obj1 = Py::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
         let obj2 = Py::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
-        let d = [("obj1", obj1), ("obj2", obj2)].into_py_dict(py);
+        let d = [("obj1", obj1), ("obj2", obj2)].into_py_dict(py).unwrap();
         py_run!(py, *d, "obj = obj1.add(obj2); assert obj.value == 20");
         py_run!(py, *d, "obj = obj1.add_pyref(obj2); assert obj.value == 20");
         py_run!(py, *d, "obj = obj1.optional_add(); assert obj.value == 20");
@@ -872,7 +913,7 @@ impl FromSequence {
 #[test]
 fn test_from_sequence() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<FromSequence>();
+        let typeobj = py.get_type::<FromSequence>();
         py_assert!(py, typeobj, "typeobj(range(0, 4)).numbers == [0, 1, 2, 3]");
     });
 }
@@ -952,7 +993,7 @@ impl r#RawIdents {
 #[test]
 fn test_raw_idents() {
     Python::with_gil(|py| {
-        let raw_idents_type = py.get_type_bound::<r#RawIdents>();
+        let raw_idents_type = py.get_type::<r#RawIdents>();
         assert_eq!(raw_idents_type.qualname().unwrap(), "RawIdents");
         py_run!(
             py,
@@ -1161,7 +1202,7 @@ fn test_issue_2988() {
         _data: Vec<i32>,
         // The from_py_with here looks a little odd, we just need some way
         // to encourage the macro to expand the from_py_with default path too
-        #[pyo3(from_py_with = "<Bound<'_, _> as PyAnyMethods>::extract")] _data2: Vec<i32>,
+        #[pyo3(from_py_with = <Bound<'_, _> as PyAnyMethods>::extract)] _data2: Vec<i32>,
     ) {
     }
 }

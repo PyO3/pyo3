@@ -19,6 +19,8 @@ use std::os::raw::c_double;
 #[repr(transparent)]
 pub struct PyComplex(PyAny);
 
+pyobject_subclassable_native_type!(PyComplex, ffi::PyComplexObject);
+
 pyobject_native_type!(
     PyComplex,
     ffi::PyComplexObject,
@@ -35,17 +37,6 @@ impl PyComplex {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyComplex::from_doubles`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyComplex::from_doubles`")]
-    #[inline]
-    pub fn from_doubles_bound(
-        py: Python<'_>,
-        real: c_double,
-        imag: c_double,
-    ) -> Bound<'_, PyComplex> {
-        Self::from_doubles(py, real, imag)
     }
 }
 

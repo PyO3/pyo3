@@ -1,10 +1,12 @@
 use super::any::PyAnyMethods;
+use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, IntoPy, PyAny, PyErr,
-    PyObject, PyResult, Python, ToPyObject,
+    ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, PyAny, PyErr, PyResult,
+    Python,
 };
+use std::convert::Infallible;
 use std::os::raw::c_double;
 
 /// Represents a Python `float` object.
@@ -16,10 +18,12 @@ use std::os::raw::c_double;
 /// [`Bound<'py, PyFloat>`][Bound].
 ///
 /// You can usually avoid directly working with this type
-/// by using [`ToPyObject`] and [`extract`][PyAnyMethods::extract]
+/// by using [`IntoPyObject`] and [`extract`][PyAnyMethods::extract]
 /// with [`f32`]/[`f64`].
 #[repr(transparent)]
 pub struct PyFloat(PyAny);
+
+pyobject_subclassable_native_type!(PyFloat, crate::ffi::PyFloatObject);
 
 pyobject_native_type!(
     PyFloat,
@@ -36,13 +40,6 @@ impl PyFloat {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyFloat::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyFloat::new`")]
-    #[inline]
-    pub fn new_bound(py: Python<'_>, val: c_double) -> Bound<'_, PyFloat> {
-        Self::new(py, val)
     }
 }
 
@@ -72,15 +69,30 @@ impl<'py> PyFloatMethods<'py> for Bound<'py, PyFloat> {
     }
 }
 
-impl ToPyObject for f64 {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyFloat::new(py, *self).into()
+impl<'py> IntoPyObject<'py> for f64 {
+    type Target = PyFloat;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PyFloat::new(py, self))
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::builtin("float")
     }
 }
 
-impl IntoPy<PyObject> for f64 {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyFloat::new(py, self).into()
+impl<'py> IntoPyObject<'py> for &f64 {
+    type Target = PyFloat;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -119,15 +131,30 @@ impl<'py> FromPyObject<'py> for f64 {
     }
 }
 
-impl ToPyObject for f32 {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyFloat::new(py, f64::from(*self)).into()
+impl<'py> IntoPyObject<'py> for f32 {
+    type Target = PyFloat;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PyFloat::new(py, self.into()))
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::builtin("float")
     }
 }
 
-impl IntoPy<PyObject> for f32 {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyFloat::new(py, f64::from(self)).into()
+impl<'py> IntoPyObject<'py> for &f32 {
+    type Target = PyFloat;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -227,8 +254,9 @@ impl_partial_eq_for_float!(f32);
 #[cfg(test)]
 mod tests {
     use crate::{
-        types::{PyFloat, PyFloatMethods},
-        Python, ToPyObject,
+        conversion::IntoPyObject,
+        types::{PyAnyMethods, PyFloat, PyFloatMethods},
+        Python,
     };
 
     macro_rules! num_to_py_object_and_back (
@@ -240,8 +268,8 @@ mod tests {
                 Python::with_gil(|py| {
 
                 let val = 123 as $t1;
-                let obj = val.to_object(py);
-                assert_approx_eq!(obj.extract::<$t2>(py).unwrap(), val as $t2);
+                let obj = val.into_pyobject(py).unwrap();
+                assert_approx_eq!(obj.extract::<$t2>().unwrap(), val as $t2);
                 });
             }
         )

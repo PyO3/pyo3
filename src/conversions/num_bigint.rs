@@ -21,7 +21,7 @@
 //! Using [`BigInt`] to correctly increment an arbitrary precision integer.
 //! This is not possible with Rust's native integers if the Python integer is too large,
 //! in which case it will fail its conversion and raise `OverflowError`.
-//! ```rust
+//! ```rust,no_run
 //! use num_bigint::BigInt;
 //! use pyo3::prelude::*;
 //!
@@ -47,8 +47,6 @@
 //! assert n + 1 == value
 //! ```
 
-#[cfg(not(Py_LIMITED_API))]
-use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(Py_LIMITED_API)]
 use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
@@ -56,7 +54,7 @@ use crate::{
     ffi,
     instance::Bound,
     types::{any::PyAnyMethods, PyInt},
-    FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    FromPyObject, Py, PyAny, PyErr, PyResult, Python,
 };
 
 use num_bigint::{BigInt, BigUint};
@@ -68,75 +66,19 @@ use num_bigint::Sign;
 macro_rules! bigint_conversion {
     ($rust_ty: ty, $is_signed: literal, $to_bytes: path) => {
         #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
-        impl ToPyObject for $rust_ty {
-            #[cfg(not(Py_LIMITED_API))]
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                let bytes = $to_bytes(self);
-                #[cfg(not(Py_3_13))]
-                {
-                    unsafe {
-                        ffi::_PyLong_FromByteArray(
-                            bytes.as_ptr().cast(),
-                            bytes.len(),
-                            1,
-                            $is_signed.into(),
-                        )
-                        .assume_owned(py)
-                        .unbind()
-                    }
-                }
-                #[cfg(Py_3_13)]
-                {
-                    if $is_signed {
-                        unsafe {
-                            ffi::PyLong_FromNativeBytes(
-                                bytes.as_ptr().cast(),
-                                bytes.len(),
-                                ffi::Py_ASNATIVEBYTES_LITTLE_ENDIAN,
-                            )
-                            .assume_owned(py)
-                        }
-                    } else {
-                        unsafe {
-                            ffi::PyLong_FromUnsignedNativeBytes(
-                                bytes.as_ptr().cast(),
-                                bytes.len(),
-                                ffi::Py_ASNATIVEBYTES_LITTLE_ENDIAN,
-                            )
-                            .assume_owned(py)
-                        }
-                    }
-                    .unbind()
-                }
-            }
-
-            #[cfg(Py_LIMITED_API)]
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                let bytes = $to_bytes(self);
-                let bytes_obj = PyBytes::new(py, &bytes);
-                let kwargs = if $is_signed {
-                    let kwargs = crate::types::PyDict::new(py);
-                    kwargs.set_item(crate::intern!(py, "signed"), true).unwrap();
-                    Some(kwargs)
-                } else {
-                    None
-                };
-                py.get_type_bound::<PyInt>()
-                    .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
-                    .expect("int.from_bytes() failed during to_object()") // FIXME: #1813 or similar
-                    .into()
-            }
-        }
-
-        #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
-        impl IntoPy<PyObject> for $rust_ty {
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.to_object(py)
-            }
-        }
-
-        #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
         impl<'py> IntoPyObject<'py> for $rust_ty {
+            type Target = PyInt;
+            type Output = Bound<'py, Self::Target>;
+            type Error = PyErr;
+
+            #[inline]
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                (&self).into_pyobject(py)
+            }
+        }
+
+        #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
+        impl<'py> IntoPyObject<'py> for &$rust_ty {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;
             type Error = PyErr;
@@ -170,7 +112,7 @@ macro_rules! bigint_conversion {
                     None
                 };
                 unsafe {
-                    py.get_type_bound::<PyInt>()
+                    py.get_type::<PyInt>()
                         .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
                         .downcast_into_unchecked()
                 }
@@ -379,8 +321,10 @@ fn int_n_bits(long: &Bound<'_, PyInt>) -> PyResult<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tests::common::generate_unique_module_name;
     use crate::types::{PyDict, PyModule};
     use indoc::indoc;
+    use pyo3_ffi::c_str;
 
     fn rust_fib<T>() -> impl Iterator<Item = T>
     where
@@ -395,11 +339,11 @@ mod tests {
         })
     }
 
-    fn python_fib(py: Python<'_>) -> impl Iterator<Item = PyObject> + '_ {
-        let mut f0 = 1.to_object(py);
-        let mut f1 = 1.to_object(py);
+    fn python_fib(py: Python<'_>) -> impl Iterator<Item = Bound<'_, PyAny>> + '_ {
+        let mut f0 = 1i32.into_pyobject(py).unwrap().into_any();
+        let mut f1 = 1i32.into_pyobject(py).unwrap().into_any();
         std::iter::from_fn(move || {
-            let f2 = f0.call_method1(py, "__add__", (f1.bind(py),)).unwrap();
+            let f2 = f0.call_method1("__add__", (&f1,)).unwrap();
             Some(std::mem::replace(&mut f0, std::mem::replace(&mut f1, f2)))
         })
     }
@@ -410,9 +354,9 @@ mod tests {
             // check the first 2000 numbers in the fibonacci sequence
             for (py_result, rs_result) in python_fib(py).zip(rust_fib::<BigUint>()).take(2000) {
                 // Python -> Rust
-                assert_eq!(py_result.extract::<BigUint>(py).unwrap(), rs_result);
+                assert_eq!(py_result.extract::<BigUint>().unwrap(), rs_result);
                 // Rust -> Python
-                assert!(py_result.bind(py).eq(rs_result).unwrap());
+                assert!(py_result.eq(rs_result).unwrap());
             }
         });
     }
@@ -423,25 +367,25 @@ mod tests {
             // check the first 2000 numbers in the fibonacci sequence
             for (py_result, rs_result) in python_fib(py).zip(rust_fib::<BigInt>()).take(2000) {
                 // Python -> Rust
-                assert_eq!(py_result.extract::<BigInt>(py).unwrap(), rs_result);
+                assert_eq!(py_result.extract::<BigInt>().unwrap(), rs_result);
                 // Rust -> Python
-                assert!(py_result.bind(py).eq(&rs_result).unwrap());
+                assert!(py_result.eq(&rs_result).unwrap());
 
                 // negate
 
                 let rs_result = rs_result * -1;
-                let py_result = py_result.call_method0(py, "__neg__").unwrap();
+                let py_result = py_result.call_method0("__neg__").unwrap();
 
                 // Python -> Rust
-                assert_eq!(py_result.extract::<BigInt>(py).unwrap(), rs_result);
+                assert_eq!(py_result.extract::<BigInt>().unwrap(), rs_result);
                 // Rust -> Python
-                assert!(py_result.bind(py).eq(rs_result).unwrap());
+                assert!(py_result.eq(rs_result).unwrap());
             }
         });
     }
 
     fn python_index_class(py: Python<'_>) -> Bound<'_, PyModule> {
-        let index_code = indoc!(
+        let index_code = c_str!(indoc!(
             r#"
                 class C:
                     def __init__(self, x):
@@ -449,8 +393,14 @@ mod tests {
                     def __index__(self):
                         return self.x
                 "#
-        );
-        PyModule::from_code_bound(py, index_code, "index.py", "index").unwrap()
+        ));
+        PyModule::from_code(
+            py,
+            index_code,
+            c_str!("index.py"),
+            &generate_unique_module_name("index"),
+        )
+        .unwrap()
     }
 
     #[test]
@@ -459,7 +409,9 @@ mod tests {
             let index = python_index_class(py);
             let locals = PyDict::new(py);
             locals.set_item("index", index).unwrap();
-            let ob = py.eval_bound("index.C(10)", None, Some(&locals)).unwrap();
+            let ob = py
+                .eval(ffi::c_str!("index.C(10)"), None, Some(&locals))
+                .unwrap();
             let _: BigInt = ob.extract().unwrap();
         });
     }
@@ -467,7 +419,7 @@ mod tests {
     #[test]
     fn handle_zero() {
         Python::with_gil(|py| {
-            let zero: BigInt = 0.to_object(py).extract(py).unwrap();
+            let zero: BigInt = 0i32.into_pyobject(py).unwrap().extract().unwrap();
             assert_eq!(zero, BigInt::from(0));
         })
     }
@@ -480,8 +432,8 @@ mod tests {
                 ($T:ty, $value:expr, $py:expr) => {
                     let value = $value;
                     println!("{}: {}", stringify!($T), value);
-                    let python_value = value.clone().into_py(py);
-                    let roundtrip_value = python_value.extract::<$T>(py).unwrap();
+                    let python_value = value.clone().into_pyobject(py).unwrap();
+                    let roundtrip_value = python_value.extract::<$T>().unwrap();
                     assert_eq!(value, roundtrip_value);
                 };
             }

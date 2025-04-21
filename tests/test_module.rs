@@ -5,6 +5,8 @@ use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::PyString;
 use pyo3::types::{IntoPyDict, PyDict, PyTuple};
+use pyo3::BoundObject;
+use pyo3_ffi::c_str;
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -35,7 +37,7 @@ fn double(x: usize) -> usize {
 }
 
 /// This module is implemented in Rust.
-#[pymodule]
+#[pymodule(gil_used = false)]
 fn module_with_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     #[pyfn(m)]
     #[pyo3(name = "no_parameters")]
@@ -75,7 +77,8 @@ fn test_module_with_functions() {
             "module_with_functions",
             wrap_pymodule!(module_with_functions)(py),
         )]
-        .into_py_dict(py);
+        .into_py_dict(py)
+        .unwrap();
 
         py_assert!(
             py,
@@ -132,7 +135,8 @@ fn test_module_with_explicit_py_arg() {
             "module_with_explicit_py_arg",
             wrap_pymodule!(module_with_explicit_py_arg)(py),
         )]
-        .into_py_dict(py);
+        .into_py_dict(py)
+        .unwrap();
 
         py_assert!(py, *d, "module_with_explicit_py_arg.double(3) == 6");
     });
@@ -149,7 +153,9 @@ fn test_module_renaming() {
     use pyo3::wrap_pymodule;
 
     Python::with_gil(|py| {
-        let d = [("different_name", wrap_pymodule!(some_name)(py))].into_py_dict(py);
+        let d = [("different_name", wrap_pymodule!(some_name)(py))]
+            .into_py_dict(py)
+            .unwrap();
 
         py_run!(py, *d, "assert different_name.__name__ == 'other_name'");
     });
@@ -158,24 +164,25 @@ fn test_module_renaming() {
 #[test]
 fn test_module_from_code_bound() {
     Python::with_gil(|py| {
-        let adder_mod = PyModule::from_code_bound(
+        let adder_mod = PyModule::from_code(
             py,
-            "def add(a,b):\n\treturn a+b",
-            "adder_mod.py",
-            "adder_mod",
+            c_str!("def add(a,b):\n\treturn a+b"),
+            c_str!("adder_mod.py"),
+            &common::generate_unique_module_name("adder_mod"),
         )
         .expect("Module code should be loaded");
 
         let add_func = adder_mod
             .getattr("add")
-            .expect("Add function should be in the module")
-            .to_object(py);
+            .expect("Add function should be in the module");
 
         let ret_value: i32 = add_func
-            .call1(py, (1, 2))
+            .call1((1, 2))
             .expect("A value should be returned")
-            .extract(py)
+            .extract()
             .expect("The value should be able to be converted to an i32");
+
+        adder_mod.gil_used(false).expect("Disabling the GIL failed");
 
         assert_eq!(ret_value, 3);
     });
@@ -279,10 +286,10 @@ fn superfunction() -> String {
 #[pymodule]
 fn supermodule(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(superfunction, module)?)?;
-    let module_to_add = PyModule::new_bound(module.py(), "submodule")?;
+    let module_to_add = PyModule::new(module.py(), "submodule")?;
     submodule(&module_to_add)?;
     module.add_submodule(&module_to_add)?;
-    let module_to_add = PyModule::new_bound(module.py(), "submodule_with_init_fn")?;
+    let module_to_add = PyModule::new(module.py(), "submodule_with_init_fn")?;
     submodule_with_init_fn(&module_to_add)?;
     module.add_submodule(&module_to_add)?;
     Ok(())
@@ -316,14 +323,19 @@ fn test_module_nesting() {
 // Test that argument parsing specification works for pyfunctions
 
 #[pyfunction(signature = (a=5, *args))]
-fn ext_vararg_fn(py: Python<'_>, a: i32, args: &Bound<'_, PyTuple>) -> PyObject {
-    [a.to_object(py), args.into_py(py)].to_object(py)
+fn ext_vararg_fn(py: Python<'_>, a: i32, args: &Bound<'_, PyTuple>) -> PyResult<PyObject> {
+    [
+        a.into_pyobject(py)?.into_any().into_bound(),
+        args.as_any().clone(),
+    ]
+    .into_pyobject(py)
+    .map(Bound::unbind)
 }
 
 #[pymodule]
 fn vararg_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     #[pyfn(m, signature = (a=5, *args))]
-    fn int_vararg_fn(py: Python<'_>, a: i32, args: &Bound<'_, PyTuple>) -> PyObject {
+    fn int_vararg_fn(py: Python<'_>, a: i32, args: &Bound<'_, PyTuple>) -> PyResult<PyObject> {
         ext_vararg_fn(py, a, args)
     }
 

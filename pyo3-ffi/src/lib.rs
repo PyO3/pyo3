@@ -43,16 +43,46 @@
 //! PyO3 uses `rustc`'s `--cfg` flags to enable or disable code used for different Python versions.
 //! If you want to do this for your own crate, you can do so with the [`pyo3-build-config`] crate.
 //!
-//! - `Py_3_7`, `Py_3_8`, `Py_3_9`, `Py_3_10`: Marks code that is only enabled when
-//!  compiling for a given minimum Python version.
+//! - `Py_3_7`, `Py_3_8`, `Py_3_9`, `Py_3_10`, `Py_3_11`, `Py_3_12`, `Py_3_13`: Marks code that is
+//!    only enabled when compiling for a given minimum Python version.
 //! - `Py_LIMITED_API`: Marks code enabled when the `abi3` feature flag is enabled.
+//! - `Py_GIL_DISABLED`: Marks code that runs only in the free-threaded build of CPython.
 //! - `PyPy` - Marks code enabled when compiling for PyPy.
+//! - `GraalPy` - Marks code enabled when compiling for GraalPy.
+//!
+//! Additionally, you can query for the values `Py_DEBUG`, `Py_REF_DEBUG`,
+//! `Py_TRACE_REFS`, and `COUNT_ALLOCS` from `py_sys_config` to query for the
+//! corresponding C build-time defines. For example, to conditionally define
+//! debug code using `Py_DEBUG`, you could do:
+//!
+//! ```rust,ignore
+//! #[cfg(py_sys_config = "Py_DEBUG")]
+//! println!("only runs if python was compiled with Py_DEBUG")
+//! ```
+//!
+//! To use these attributes, add [`pyo3-build-config`] as a build dependency in
+//! your `Cargo.toml`:
+//!
+//! ```toml
+//! [build-dependencies]
+#![doc = concat!("pyo3-build-config =\"", env!("CARGO_PKG_VERSION"),  "\"")]
+//! ```
+//!
+//! And then either create a new `build.rs` file in the project root or modify
+//! the existing `build.rs` file to call `use_pyo3_cfgs()`:
+//!
+//! ```rust,ignore
+//! fn main() {
+//!     pyo3_build_config::use_pyo3_cfgs();
+//! }
+//! ```
 //!
 //! # Minimum supported Rust and Python versions
 //!
-//! PyO3 supports the following software versions:
-//!   - Python 3.7 and up (CPython and PyPy)
-//!   - Rust 1.63 and up
+//! `pyo3-ffi` supports the following Python distributions:
+//!   - CPython 3.7 or greater
+//!   - PyPy 7.3 (Python 3.9+)
+//!   - GraalPy 24.0 or greater (Python 3.10+)
 //!
 //! # Example: Building Python Native modules
 //!
@@ -78,11 +108,29 @@
 //! [dependencies.pyo3-ffi]
 #![doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")]
 //! features = ["extension-module"]
+//!
+//! [build-dependencies]
+//! # This is only necessary if you need to configure your build based on
+//! # the Python version or the compile-time configuration for the interpreter.
+#![doc = concat!("pyo3_build_config = \"", env!("CARGO_PKG_VERSION"),  "\"")]
+//! ```
+//!
+//! If you need to use conditional compilation based on Python version or how
+//! Python was compiled, you need to add `pyo3-build-config` as a
+//! `build-dependency` in your `Cargo.toml` as in the example above and either
+//! create a new `build.rs` file or modify an existing one so that
+//! `pyo3_build_config::use_pyo3_cfgs()` gets called at build time:
+//!
+//! **`build.rs`**
+//! ```rust,ignore
+//! fn main() {
+//!     pyo3_build_config::use_pyo3_cfgs()
+//! }
 //! ```
 //!
 //! **`src/lib.rs`**
-//! ```rust
-//! use std::os::raw::c_char;
+//! ```rust,no_run
+//! use std::os::raw::{c_char, c_long};
 //! use std::ptr;
 //!
 //! use pyo3_ffi::*;
@@ -92,31 +140,89 @@
 //!     m_name: c_str!("string_sum").as_ptr(),
 //!     m_doc: c_str!("A Python module written in Rust.").as_ptr(),
 //!     m_size: 0,
-//!     m_methods: unsafe { METHODS.as_mut_ptr().cast() },
+//!     m_methods: unsafe { METHODS as *const [PyMethodDef] as *mut PyMethodDef },
 //!     m_slots: std::ptr::null_mut(),
 //!     m_traverse: None,
 //!     m_clear: None,
 //!     m_free: None,
 //! };
 //!
-//! static mut METHODS: [PyMethodDef; 2] = [
+//! static mut METHODS: &[PyMethodDef] = &[
 //!     PyMethodDef {
 //!         ml_name: c_str!("sum_as_string").as_ptr(),
 //!         ml_meth: PyMethodDefPointer {
-//!             _PyCFunctionFast: sum_as_string,
+//!             PyCFunctionFast: sum_as_string,
 //!         },
 //!         ml_flags: METH_FASTCALL,
 //!         ml_doc: c_str!("returns the sum of two integers as a string").as_ptr(),
 //!     },
 //!     // A zeroed PyMethodDef to mark the end of the array.
-//!     PyMethodDef::zeroed()
+//!     PyMethodDef::zeroed(),
 //! ];
 //!
 //! // The module initialization function, which must be named `PyInit_<your_module>`.
 //! #[allow(non_snake_case)]
 //! #[no_mangle]
 //! pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
-//!     PyModule_Create(ptr::addr_of_mut!(MODULE_DEF))
+//!     let module = PyModule_Create(ptr::addr_of_mut!(MODULE_DEF));
+//!     if module.is_null() {
+//!         return module;
+//!     }
+//!     #[cfg(Py_GIL_DISABLED)]
+//!     {
+//!         if PyUnstable_Module_SetGIL(module, Py_MOD_GIL_NOT_USED) < 0 {
+//!             Py_DECREF(module);
+//!             return std::ptr::null_mut();
+//!         }
+//!     }
+//!     module
+//! }
+//!
+//! /// A helper to parse function arguments
+//! /// If we used PyO3's proc macros they'd handle all of this boilerplate for us :)
+//! unsafe fn parse_arg_as_i32(obj: *mut PyObject, n_arg: usize) -> Option<i32> {
+//!     if PyLong_Check(obj) == 0 {
+//!         let msg = format!(
+//!             "sum_as_string expected an int for positional argument {}\0",
+//!             n_arg
+//!         );
+//!         PyErr_SetString(PyExc_TypeError, msg.as_ptr().cast::<c_char>());
+//!         return None;
+//!     }
+//!
+//!     // Let's keep the behaviour consistent on platforms where `c_long` is bigger than 32 bits.
+//!     // In particular, it is an i32 on Windows but i64 on most Linux systems
+//!     let mut overflow = 0;
+//!     let i_long: c_long = PyLong_AsLongAndOverflow(obj, &mut overflow);
+//!
+//!     #[allow(irrefutable_let_patterns)] // some platforms have c_long equal to i32
+//!     if overflow != 0 {
+//!         raise_overflowerror(obj);
+//!         None
+//!     } else if let Ok(i) = i_long.try_into() {
+//!         Some(i)
+//!     } else {
+//!         raise_overflowerror(obj);
+//!         None
+//!     }
+//! }
+//!
+//! unsafe fn raise_overflowerror(obj: *mut PyObject) {
+//!     let obj_repr = PyObject_Str(obj);
+//!     if !obj_repr.is_null() {
+//!         let mut size = 0;
+//!         let p = PyUnicode_AsUTF8AndSize(obj_repr, &mut size);
+//!         if !p.is_null() {
+//!             let s = std::str::from_utf8_unchecked(std::slice::from_raw_parts(
+//!                 p.cast::<u8>(),
+//!                 size as usize,
+//!             ));
+//!             let msg = format!("cannot fit {} in 32 bits\0", s);
+//!
+//!             PyErr_SetString(PyExc_OverflowError, msg.as_ptr().cast::<c_char>());
+//!         }
+//!         Py_DECREF(obj_repr);
+//!     }
 //! }
 //!
 //! pub unsafe extern "C" fn sum_as_string(
@@ -127,40 +233,23 @@
 //!     if nargs != 2 {
 //!         PyErr_SetString(
 //!             PyExc_TypeError,
-//!             c_str!("sum_as_string() expected 2 positional arguments").as_ptr(),
+//!             c_str!("sum_as_string expected 2 positional arguments").as_ptr(),
 //!         );
 //!         return std::ptr::null_mut();
 //!     }
 //!
-//!     let arg1 = *args;
-//!     if PyLong_Check(arg1) == 0 {
-//!         PyErr_SetString(
-//!             PyExc_TypeError,
-//!             c_str!("sum_as_string() expected an int for positional argument 1").as_ptr(),
-//!         );
-//!         return std::ptr::null_mut();
-//!     }
+//!     let (first, second) = (*args, *args.add(1));
 //!
-//!     let arg1 = PyLong_AsLong(arg1);
-//!     if !PyErr_Occurred().is_null() {
-//!         return ptr::null_mut();
-//!     }
+//!     let first = match parse_arg_as_i32(first, 1) {
+//!         Some(x) => x,
+//!         None => return std::ptr::null_mut(),
+//!     };
+//!     let second = match parse_arg_as_i32(second, 2) {
+//!         Some(x) => x,
+//!         None => return std::ptr::null_mut(),
+//!     };
 //!
-//!     let arg2 = *args.add(1);
-//!     if PyLong_Check(arg2) == 0 {
-//!         PyErr_SetString(
-//!             PyExc_TypeError,
-//!             c_str!("sum_as_string() expected an int for positional argument 2").as_ptr(),
-//!         );
-//!         return std::ptr::null_mut();
-//!     }
-//!
-//!     let arg2 = PyLong_AsLong(arg2);
-//!     if !PyErr_Occurred().is_null() {
-//!         return ptr::null_mut();
-//!     }
-//!
-//!     match arg1.checked_add(arg2) {
+//!     match first.checked_add(second) {
 //!         Some(sum) => {
 //!             let string = sum.to_string();
 //!             PyUnicode_FromStringAndSize(string.as_ptr().cast::<c_char>(), string.len() as isize)
@@ -200,6 +289,12 @@
 //! [manually][manual_builds]. Both offer more flexibility than `maturin` but require further
 //! configuration.
 //!
+//! This example stores the module definition statically and uses the `PyModule_Create` function
+//! in the CPython C API to register the module. This is the "old" style for registering modules
+//! and has the limitation that it cannot support subinterpreters. You can also create a module
+//! using the new multi-phase initialization API that does support subinterpreters. See the
+//! `sequential` project located in the `examples` directory at the root of the `pyo3-ffi` crate
+//! for a worked example of how to this using `pyo3-ffi`.
 //!
 //! # Using Python from Rust
 //!
@@ -225,16 +320,22 @@
 #![doc = concat!("[manual_builds]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/building-and-distribution.html#manual-builds \"Manual builds - Building and Distribution - PyO3 user guide\"")]
 //! [setuptools-rust]: https://github.com/PyO3/setuptools-rust "Setuptools plugin for Rust extensions"
 //! [PEP 384]: https://www.python.org/dev/peps/pep-0384 "PEP 384 -- Defining a Stable ABI"
-#![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features Reference - PyO3 user guide\"")]
+#![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features eference - PyO3 user guide\"")]
 #![allow(
     missing_docs,
     non_camel_case_types,
     non_snake_case,
     non_upper_case_globals,
     clippy::upper_case_acronyms,
-    clippy::missing_safety_doc
+    clippy::missing_safety_doc,
+    clippy::ptr_eq
 )]
 #![warn(elided_lifetimes_in_paths, unused_lifetimes)]
+// This crate is a hand-maintained translation of CPython's headers, so requiring "unsafe"
+// blocks within those translations increases maintenance burden without providing any
+// additional safety. The safety of the functions in this crate is determined by the
+// original CPython headers
+#![allow(unsafe_op_in_unsafe_fn)]
 
 // Until `extern type` is stabilized, use the recommended approach to
 // model opaque types:
@@ -256,7 +357,7 @@ macro_rules! opaque_struct {
 ///
 /// Examples:
 ///
-/// ```rust
+/// ```rust,no_run
 /// use std::ffi::CStr;
 ///
 /// const HELLO: &CStr = pyo3_ffi::c_str!("hello");
@@ -292,6 +393,7 @@ pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &CStr {
 use std::ffi::CStr;
 
 pub mod compat;
+mod impl_;
 
 pub use self::abstract_::*;
 pub use self::bltinmodule::*;
@@ -314,6 +416,8 @@ pub use self::enumobject::*;
 pub use self::fileobject::*;
 pub use self::fileutils::*;
 pub use self::floatobject::*;
+#[cfg(Py_3_9)]
+pub use self::genericaliasobject::*;
 pub use self::import::*;
 pub use self::intrcheck::*;
 pub use self::iterobject::*;
@@ -383,7 +487,7 @@ mod fileobject;
 mod fileutils;
 mod floatobject;
 // skipped empty frameobject.h
-// skipped genericaliasobject.h
+mod genericaliasobject;
 mod import;
 // skipped interpreteridobject.h
 mod intrcheck;

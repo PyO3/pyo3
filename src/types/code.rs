@@ -23,7 +23,7 @@ mod tests {
     #[test]
     fn test_type_object() {
         Python::with_gil(|py| {
-            assert_eq!(PyCode::type_object_bound(py).name().unwrap(), "code");
+            assert_eq!(PyCode::type_object(py).name().unwrap(), "code");
         })
     }
 }

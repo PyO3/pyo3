@@ -1,28 +1,7 @@
 use crate::{
     conversion::IntoPyObject, ffi, types::any::PyAnyMethods, AsPyPointer, Bound, BoundObject,
-    FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
+    FromPyObject, PyAny, PyResult, Python,
 };
-
-/// `Option::Some<T>` is converted like `T`.
-/// `Option::None` is converted to Python `None`.
-impl<T> ToPyObject for Option<T>
-where
-    T: ToPyObject,
-{
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.as_ref()
-            .map_or_else(|| py.None(), |val| val.to_object(py))
-    }
-}
-
-impl<T> IntoPy<PyObject> for Option<T>
-where
-    T: IntoPy<PyObject>,
-{
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.map_or_else(|| py.None(), |val| val.into_py(py))
-    }
-}
 
 impl<'py, T> IntoPyObject<'py> for Option<T>
 where
@@ -41,6 +20,20 @@ where
                     .map(BoundObject::into_bound)
             },
         )
+    }
+}
+
+impl<'a, 'py, T> IntoPyObject<'py> for &'a Option<T>
+where
+    &'a T: IntoPyObject<'py>,
+{
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <&'a T as IntoPyObject<'py>>::Error;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.as_ref().into_pyobject(py)
     }
 }
 

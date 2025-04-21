@@ -8,13 +8,27 @@ fn main() {
             "import sysconfig; print(sysconfig.get_config_var('INCLUDEPY'), end='');",
         )
         .expect("failed to get lib dir");
+    let gil_disabled_on_windows = config
+        .run_python_script(
+            "import sysconfig; import platform; print(sysconfig.get_config_var('Py_GIL_DISABLED') == 1 and platform.system() == 'Windows');",
+        )
+        .expect("failed to get Py_GIL_DISABLED").trim_end() == "True";
+
+    let clang_args = if gil_disabled_on_windows {
+        vec![
+            format!("-I{python_include_dir}"),
+            "-DPy_GIL_DISABLED".to_string(),
+        ]
+    } else {
+        vec![format!("-I{python_include_dir}")]
+    };
 
     println!("cargo:rerun-if-changed=wrapper.h");
 
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")
-        .clang_arg(format!("-I{python_include_dir}"))
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .clang_args(clang_args)
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         // blocklist some values which apparently have conflicting definitions on unix
         .blocklist_item("FP_NORMAL")
         .blocklist_item("FP_SUBNORMAL")

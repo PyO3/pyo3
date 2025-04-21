@@ -11,7 +11,7 @@ fn main() {
                 println!("This is five: {:?}", ref_.len());
                 Ok(())
             };
-        PyCFunction::new_closure_bound(py, None, None, closure_fn)
+        PyCFunction::new_closure(py, None, None, closure_fn)
             .unwrap()
             .into()
     });

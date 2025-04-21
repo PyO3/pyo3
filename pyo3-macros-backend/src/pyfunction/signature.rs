@@ -459,7 +459,7 @@ impl<'a> FunctionSignature<'a> {
     }
 
     /// Without `#[pyo3(signature)]` or `#[args]` - just take the Rust function arguments as positional.
-    pub fn from_arguments(arguments: Vec<FnArg<'a>>) -> syn::Result<Self> {
+    pub fn from_arguments(arguments: Vec<FnArg<'a>>) -> Self {
         let mut python_signature = PythonSignature::default();
         for arg in &arguments {
             // Python<'_> arguments don't show in Python signature
@@ -467,17 +467,11 @@ impl<'a> FunctionSignature<'a> {
                 continue;
             }
 
-            if let FnArg::Regular(RegularArg {
-                ty,
-                option_wrapped_type: None,
-                ..
-            }) = arg
-            {
+            if let FnArg::Regular(RegularArg { .. }) = arg {
                 // This argument is required, all previous arguments must also have been required
-                ensure_spanned!(
-                    python_signature.required_positional_parameters == python_signature.positional_parameters.len(),
-                    ty.span() => "required arguments after an `Option<_>` argument are ambiguous\n\
-                    = help: add a `#[pyo3(signature)]` annotation on this function to unambiguously specify the default values for all optional parameters"
+                assert_eq!(
+                    python_signature.required_positional_parameters,
+                    python_signature.positional_parameters.len(),
                 );
 
                 python_signature.required_positional_parameters =
@@ -489,57 +483,19 @@ impl<'a> FunctionSignature<'a> {
                 .push(arg.name().unraw().to_string());
         }
 
-        Ok(Self {
+        Self {
             arguments,
             python_signature,
             attribute: None,
-        })
+        }
     }
 
     fn default_value_for_parameter(&self, parameter: &str) -> String {
-        let mut default = "...".to_string();
         if let Some(fn_arg) = self.arguments.iter().find(|arg| arg.name() == parameter) {
-            if let FnArg::Regular(RegularArg {
-                default_value: Some(arg_default),
-                ..
-            }) = fn_arg
-            {
-                match arg_default {
-                    // literal values
-                    syn::Expr::Lit(syn::ExprLit { lit, .. }) => match lit {
-                        syn::Lit::Str(s) => default = s.token().to_string(),
-                        syn::Lit::Char(c) => default = c.token().to_string(),
-                        syn::Lit::Int(i) => default = i.base10_digits().to_string(),
-                        syn::Lit::Float(f) => default = f.base10_digits().to_string(),
-                        syn::Lit::Bool(b) => {
-                            default = if b.value() {
-                                "True".to_string()
-                            } else {
-                                "False".to_string()
-                            }
-                        }
-                        _ => {}
-                    },
-                    // None
-                    syn::Expr::Path(syn::ExprPath {
-                        qself: None, path, ..
-                    }) if path.is_ident("None") => {
-                        default = "None".to_string();
-                    }
-                    // others, unsupported yet so defaults to `...`
-                    _ => {}
-                }
-            } else if let FnArg::Regular(RegularArg {
-                option_wrapped_type: Some(..),
-                ..
-            }) = fn_arg
-            {
-                // functions without a `#[pyo3(signature = (...))]` option
-                // will treat trailing `Option<T>` arguments as having a default of `None`
-                default = "None".to_string();
-            }
+            fn_arg.default_value()
+        } else {
+            "...".to_string()
         }
-        default
     }
 
     pub fn text_signature(&self, self_argument: Option<&str>) -> String {

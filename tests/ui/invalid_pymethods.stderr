@@ -183,12 +183,12 @@ error[E0277]: the trait bound `i32: From<BoundRef<'_, '_, PyType>>` is not satis
   --> tests/ui/invalid_pymethods.rs:46:45
    |
 46 |     fn classmethod_wrong_first_argument(_x: i32) -> Self {
-   |                                             ^^^ the trait `From<BoundRef<'_, '_, PyType>>` is not implemented for `i32`, which is required by `BoundRef<'_, '_, PyType>: Into<_>`
+   |                                             ^^^ the trait `From<BoundRef<'_, '_, PyType>>` is not implemented for `i32`
    |
    = help: the following other types implement trait `From<T>`:
-             <i32 as From<bool>>
-             <i32 as From<i16>>
-             <i32 as From<i8>>
-             <i32 as From<u16>>
-             <i32 as From<u8>>
+             `i32` implements `From<bool>`
+             `i32` implements `From<i16>`
+             `i32` implements `From<i8>`
+             `i32` implements `From<u16>`
+             `i32` implements `From<u8>`
    = note: required for `BoundRef<'_, '_, PyType>` to implement `Into<i32>`

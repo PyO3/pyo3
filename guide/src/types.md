@@ -40,7 +40,7 @@ To convert a `Py<T>` into a `Bound<'py, T>`, the `Py::bind` and `Py::into_bound`
 
 [`Bound<'py, T>`][Bound] is the counterpart to `Py<T>` which is also bound to the `'py` lifetime. It can be thought of as equivalent to the Rust tuple `(Python<'py>, Py<T>)`.
 
-By having the binding to the `'py` lifetime, `Bound<'py, T>` can offer the complete PyO3 API at maximum efficiency. This means that in almost all cases where `Py<T>` is not necessary for lifetime reasons, `Bound<'py, T>` should be used.
+By having the binding to the `'py` lifetime, `Bound<'py, T>` can offer the complete PyO3 API at maximum efficiency. This means that `Bound<'py, T>` should usually be used whenever carrying this lifetime is acceptable, and `Py<T>` otherwise.
 
 `Bound<'py, T>` engages in Python reference counting. This means that `Bound<'py, T>` owns a Python object. Rust code which just wants to borrow a Python object should use a shared reference `&Bound<'py, T>`. Just like `std::sync::Arc`, using `.clone()` and `drop()` will cheaply increment and decrement the reference count of the object (just in this case, the reference counting is implemented by the Python interpreter itself).
 
@@ -112,7 +112,7 @@ fn add<'py>(
     left.add(right)
 }
 # Python::with_gil(|py| {
-#     let s = pyo3::types::PyString::new_bound(py, "s");
+#     let s = pyo3::types::PyString::new(py, "s");
 #     assert!(add(&s, &s).unwrap().eq("ss").unwrap());
 # })
 ```
@@ -126,7 +126,7 @@ fn add(left: &Bound<'_, PyAny>, right: &Bound<'_, PyAny>) -> PyResult<PyObject> 
     Ok(output.unbind())
 }
 # Python::with_gil(|py| {
-#     let s = pyo3::types::PyString::new_bound(py, "s");
+#     let s = pyo3::types::PyString::new(py, "s");
 #     assert!(add(&s, &s).unwrap().bind(py).eq("ss").unwrap());
 # })
 ```
@@ -145,7 +145,7 @@ use pyo3::types::PyTuple;
 
 # fn example<'py>(py: Python<'py>) -> PyResult<()> {
 // Create a new tuple with the elements (0, 1, 2)
-let t = PyTuple::new(py, [0, 1, 2]);
+let t = PyTuple::new(py, [0, 1, 2])?;
 for i in 0..=2 {
     let entry: Borrowed<'_, 'py, PyAny> = t.get_borrowed_item(i)?;
     // `PyAnyMethods::extract` is available on `Borrowed`
@@ -232,7 +232,7 @@ fn get_first_item<'py>(list: &Bound<'py, PyList>) -> PyResult<Bound<'py, PyAny>>
     list.get_item(0)
 }
 # Python::with_gil(|py| {
-#     let l = PyList::new(py, ["hello world"]);
+#     let l = PyList::new(py, ["hello world"]).unwrap();
 #     assert!(get_first_item(&l).unwrap().eq("hello world").unwrap());
 # })
 ```
@@ -295,7 +295,7 @@ For example, the following snippet extracts a Rust tuple of integers from a Pyth
 # use pyo3::types::PyTuple;
 # fn example<'py>(py: Python<'py>) -> PyResult<()> {
 // create a new Python `tuple`, and use `.into_any()` to erase the type
-let obj: Bound<'py, PyAny> = PyTuple::new(py, [1, 2, 3]).into_any();
+let obj: Bound<'py, PyAny> = PyTuple::new(py, [1, 2, 3])?.into_any();
 
 // extracting the Python `tuple` to a rust `(i32, i32, i32)` tuple
 let (x, y, z) = obj.extract::<(i32, i32, i32)>()?;

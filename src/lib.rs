@@ -1,6 +1,11 @@
 #![warn(missing_docs)]
-#![cfg_attr(feature = "nightly", feature(auto_traits, negative_impls))]
+#![cfg_attr(
+    feature = "nightly",
+    feature(auto_traits, negative_impls, try_trait_v2, iter_advance_by)
+)]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![cfg_attr(not(cargo_toml_lints), warn(unsafe_op_in_unsafe_fn))]
+// necessary for MSRV 1.63 to build
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
 #![doc(test(attr(
@@ -120,20 +125,34 @@
 //! - `nightly`: Uses  `#![feature(auto_traits, negative_impls)]` to define [`Ungil`] as an auto trait.
 //
 //! ## `rustc` environment flags
-//!
-//! PyO3 uses `rustc`'s `--cfg` flags to enable or disable code used for different Python versions.
-//! If you want to do this for your own crate, you can do so with the [`pyo3-build-config`] crate.
-//!
-//! - `Py_3_7`, `Py_3_8`, `Py_3_9`, `Py_3_10`: Marks code that is only enabled when
-//!  compiling for a given minimum Python version.
+//! - `Py_3_7`, `Py_3_8`, `Py_3_9`, `Py_3_10`, `Py_3_11`, `Py_3_12`, `Py_3_13`: Marks code that is
+//!    only enabled when compiling for a given minimum Python version.
 //! - `Py_LIMITED_API`: Marks code enabled when the `abi3` feature flag is enabled.
+//! - `Py_GIL_DISABLED`: Marks code that runs only in the free-threaded build of CPython.
 //! - `PyPy` - Marks code enabled when compiling for PyPy.
+//! - `GraalPy` - Marks code enabled when compiling for GraalPy.
+//!
+//! Additionally, you can query for the values `Py_DEBUG`, `Py_REF_DEBUG`,
+//! `Py_TRACE_REFS`, and `COUNT_ALLOCS` from `py_sys_config` to query for the
+//! corresponding C build-time defines. For example, to conditionally define
+//! debug code using `Py_DEBUG`, you could do:
+//!
+//! ```rust,ignore
+//! #[cfg(py_sys_config = "Py_DEBUG")]
+//! println!("only runs if python was compiled with Py_DEBUG")
+//! ```
+//! To use these attributes, add [`pyo3-build-config`] as a build dependency in
+//! your `Cargo.toml` and call `pyo3_build_config::use_pyo3_cfgs()` in a
+//! `build.rs` file.
 //!
 //! # Minimum supported Rust and Python versions
 //!
-//! PyO3 supports the following software versions:
-//!   - Python 3.7 and up (CPython and PyPy)
-//!   - Rust 1.63 and up
+//! Requires Rust 1.63 or greater.
+//!
+//! PyO3 supports the following Python distributions:
+//!   - CPython 3.7 or greater
+//!   - PyPy 7.3 (Python 3.9+)
+//!   - GraalPy 24.0 or greater (Python 3.10+)
 //!
 //! # Example: Building a native Python module
 //!
@@ -167,7 +186,7 @@
 //! ```
 //!
 //! **`src/lib.rs`**
-//! ```rust
+//! ```rust,no_run
 //! use pyo3::prelude::*;
 //!
 //! /// Formats the sum of two numbers as string.
@@ -232,15 +251,16 @@
 //! ```rust
 //! use pyo3::prelude::*;
 //! use pyo3::types::IntoPyDict;
+//! use pyo3::ffi::c_str;
 //!
 //! fn main() -> PyResult<()> {
 //!     Python::with_gil(|py| {
-//!         let sys = py.import_bound("sys")?;
+//!         let sys = py.import("sys")?;
 //!         let version: String = sys.getattr("version")?.extract()?;
 //!
-//!         let locals = [("os", py.import_bound("os")?)].into_py_dict(py);
-//!         let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
-//!         let user: String = py.eval_bound(code, None, Some(&locals))?.extract()?;
+//!         let locals = [("os", py.import("os")?)].into_py_dict(py)?;
+//!         let code = c_str!("os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'");
+//!         let user: String = py.eval(code, None, Some(&locals))?.extract()?;
 //!
 //!         println!("Hello {}, I'm Python {}", user, version);
 //!         Ok(())
@@ -268,6 +288,7 @@
 //! [`HashMap`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashMap.html
 //! [`HashSet`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html
 //! [`SmallVec`]: https://docs.rs/smallvec/latest/smallvec/struct.SmallVec.html
+//! [`Uuid`]: https://docs.rs/uuid/latest/uuid/struct.Uuid.html
 //! [`IndexMap`]: https://docs.rs/indexmap/latest/indexmap/map/struct.IndexMap.html
 //! [`BigInt`]: https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html
 //! [`BigUint`]: https://docs.rs/num-bigint/latest/num_bigint/struct.BigUint.html
@@ -301,6 +322,7 @@
 //! [global interpreter lock]: https://docs.python.org/3/glossary.html#term-global-interpreter-lock
 //! [hashbrown]: https://docs.rs/hashbrown
 //! [smallvec]: https://docs.rs/smallvec
+//! [uuid]: https://docs.rs/uuid
 //! [indexmap]: https://docs.rs/indexmap
 #![doc = concat!("[manual_builds]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/building-and-distribution.html#manual-builds \"Manual builds - Building and Distribution - PyO3 user guide\"")]
 //! [num-bigint]: https://docs.rs/num-bigint
@@ -316,7 +338,7 @@
 #![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features Reference - PyO3 user guide\"")]
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
-pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
+pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPyObject, IntoPyObjectExt};
 pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
@@ -342,21 +364,6 @@ pub(crate) mod sealed;
 /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
 pub mod class {
     pub use self::gc::{PyTraverseError, PyVisit};
-
-    #[doc(hidden)]
-    pub use self::methods::{
-        PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType, PyMethodType, PySetterDef,
-    };
-
-    #[doc(hidden)]
-    pub mod methods {
-        // frozen with the contents of the `impl_::pymethods` module in 0.20,
-        // this should probably all be replaced with deprecated type aliases and removed.
-        pub use crate::impl_::pymethods::{
-            IPowModulo, PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType,
-            PyMethodType, PySetterDef,
-        };
-    }
 
     /// Old module which contained some implementation details of the `#[pyproto]` module.
     ///
@@ -400,10 +407,10 @@ mod tests;
 
 #[macro_use]
 mod internal_tricks;
+mod internal;
 
 pub mod buffer;
-#[doc(hidden)]
-pub mod callback;
+pub mod call;
 pub mod conversion;
 mod conversions;
 #[cfg(feature = "experimental-async")]
@@ -433,7 +440,9 @@ mod version;
 pub use crate::conversions::*;
 
 #[cfg(feature = "macros")]
-pub use pyo3_macros::{pyfunction, pymethods, pymodule, FromPyObject};
+pub use pyo3_macros::{
+    pyfunction, pymethods, pymodule, FromPyObject, IntoPyObject, IntoPyObjectRef,
+};
 
 /// A proc macro used to expose Rust structs and fieldless enums as Python objects.
 ///
@@ -480,6 +489,7 @@ pub mod doc_test {
         "guide/src/class/object.md" => guide_class_object,
         "guide/src/class/numeric.md" => guide_class_numeric,
         "guide/src/class/protocols.md" => guide_class_protocols_md,
+        "guide/src/class/thread-safety.md" => guide_class_thread_safety_md,
         "guide/src/conversions.md" => guide_conversions_md,
         "guide/src/conversions/tables.md" => guide_conversions_tables_md,
         "guide/src/conversions/traits.md" => guide_conversions_traits_md,
@@ -491,6 +501,7 @@ pub mod doc_test {
         "guide/src/exception.md" => guide_exception_md,
         "guide/src/faq.md" => guide_faq_md,
         "guide/src/features.md" => guide_features_md,
+        "guide/src/free-threading.md" => guide_free_threading_md,
         "guide/src/function.md" => guide_function_md,
         "guide/src/function/error-handling.md" => guide_function_error_handling_md,
         "guide/src/function/signature.md" => guide_function_signature_md,

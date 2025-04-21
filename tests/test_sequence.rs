@@ -107,7 +107,9 @@ impl ByteSequence {
 
 /// Return a dict with `s = ByteSequence([1, 2, 3])`.
 fn seq_dict(py: Python<'_>) -> Bound<'_, pyo3::types::PyDict> {
-    let d = [("ByteSequence", py.get_type_bound::<ByteSequence>())].into_py_dict(py);
+    let d = [("ByteSequence", py.get_type::<ByteSequence>())]
+        .into_py_dict(py)
+        .unwrap();
     // Though we can construct `s` in Rust, let's test `__new__` works.
     py_run!(py, *d, "s = ByteSequence([1, 2, 3])");
     d
@@ -139,7 +141,9 @@ fn test_setitem() {
 #[test]
 fn test_delitem() {
     Python::with_gil(|py| {
-        let d = [("ByteSequence", py.get_type_bound::<ByteSequence>())].into_py_dict(py);
+        let d = [("ByteSequence", py.get_type::<ByteSequence>())]
+            .into_py_dict(py)
+            .unwrap();
 
         py_run!(
             py,
@@ -235,7 +239,9 @@ fn test_repeat() {
 #[test]
 fn test_inplace_repeat() {
     Python::with_gil(|py| {
-        let d = [("ByteSequence", py.get_type_bound::<ByteSequence>())].into_py_dict(py);
+        let d = [("ByteSequence", py.get_type::<ByteSequence>())]
+            .into_py_dict(py)
+            .unwrap();
 
         py_run!(
             py,
@@ -257,10 +263,14 @@ struct GenericList {
 #[test]
 fn test_generic_list_get() {
     Python::with_gil(|py| {
-        let list: PyObject = GenericList {
-            items: [1, 2, 3].iter().map(|i| i.to_object(py)).collect(),
+        let list = GenericList {
+            items: [1i32, 2, 3]
+                .iter()
+                .map(|i| i.into_pyobject(py).unwrap().into_any().unbind())
+                .collect(),
         }
-        .into_py(py);
+        .into_pyobject(py)
+        .unwrap();
 
         py_assert!(py, list, "list.items == [1, 2, 3]");
     });
@@ -277,7 +287,7 @@ fn test_generic_list_set() {
             .items
             .iter()
             .zip(&[1u32, 2, 3])
-            .all(|(a, b)| a.bind(py).eq(b.into_py(py)).unwrap()));
+            .all(|(a, b)| a.bind(py).eq(b.into_pyobject(py).unwrap()).unwrap()));
     });
 }
 

@@ -55,7 +55,7 @@ fn gil_is_acquired() -> bool {
 ///
 /// # fn main() -> PyResult<()> {
 /// pyo3::prepare_freethreaded_python();
-/// Python::with_gil(|py| py.run_bound("print('Hello World')", None, None))
+/// Python::with_gil(|py| py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None))
 /// # }
 /// ```
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -98,7 +98,7 @@ pub fn prepare_freethreaded_python() {
 /// ```rust
 /// unsafe {
 ///     pyo3::with_embedded_python_interpreter(|py| {
-///         if let Err(e) = py.run_bound("print('Hello World')", None, None) {
+///         if let Err(e) = py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None) {
 ///             // We must make sure to not return a `PyErr`!
 ///             e.print(py);
 ///         }
@@ -111,26 +111,26 @@ where
     F: for<'p> FnOnce(Python<'p>) -> R,
 {
     assert_eq!(
-        ffi::Py_IsInitialized(),
+        unsafe { ffi::Py_IsInitialized() },
         0,
         "called `with_embedded_python_interpreter` but a Python interpreter is already running."
     );
 
-    ffi::Py_InitializeEx(0);
+    unsafe { ffi::Py_InitializeEx(0) };
 
     let result = {
-        let guard = GILGuard::assume();
+        let guard = unsafe { GILGuard::assume() };
         let py = guard.python();
         // Import the threading module - this ensures that it will associate this thread as the "main"
         // thread, which is important to avoid an `AssertionError` at finalization.
-        py.import_bound("threading").unwrap();
+        py.import("threading").unwrap();
 
         // Execute the closure.
         f(py)
     };
 
     // Finalize the Python interpreter.
-    ffi::Py_Finalize();
+    unsafe { ffi::Py_Finalize() };
 
     result
 }
@@ -201,15 +201,15 @@ impl GILGuard {
     /// as part of multi-phase interpreter initialization.
     pub(crate) unsafe fn acquire_unchecked() -> Self {
         if gil_is_acquired() {
-            return Self::assume();
+            return unsafe { Self::assume() };
         }
 
-        let gstate = ffi::PyGILState_Ensure(); // acquire GIL
+        let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
         increment_gil_count();
 
         #[cfg(not(pyo3_disable_reference_pool))]
         if let Some(pool) = Lazy::get(&POOL) {
-            pool.update_counts(Python::assume_gil_acquired());
+            pool.update_counts(unsafe { Python::assume_gil_acquired() });
         }
         GILGuard::Ensured { gstate }
     }
@@ -300,7 +300,7 @@ pub(crate) struct SuspendGIL {
 impl SuspendGIL {
     pub(crate) unsafe fn new() -> Self {
         let count = GIL_COUNT.with(|c| c.replace(0));
-        let tstate = ffi::PyEval_SaveThread();
+        let tstate = unsafe { ffi::PyEval_SaveThread() };
 
         Self { count, tstate }
     }
@@ -364,7 +364,7 @@ impl Drop for LockGIL {
 #[track_caller]
 pub unsafe fn register_incref(obj: NonNull<ffi::PyObject>) {
     if gil_is_acquired() {
-        ffi::Py_INCREF(obj.as_ptr())
+        unsafe { ffi::Py_INCREF(obj.as_ptr()) }
     } else {
         panic!("Cannot clone pointer into Python heap without the GIL being held.");
     }
@@ -381,7 +381,7 @@ pub unsafe fn register_incref(obj: NonNull<ffi::PyObject>) {
 #[track_caller]
 pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
     if gil_is_acquired() {
-        ffi::Py_DECREF(obj.as_ptr())
+        unsafe { ffi::Py_DECREF(obj.as_ptr()) }
     } else {
         #[cfg(not(pyo3_disable_reference_pool))]
         POOL.register_decref(obj);
@@ -428,12 +428,14 @@ mod tests {
     use super::GIL_COUNT;
     #[cfg(not(pyo3_disable_reference_pool))]
     use super::{gil_is_acquired, POOL};
+    use crate::{ffi, PyObject, Python};
     use crate::{gil::GILGuard, types::any::PyAnyMethods};
-    use crate::{PyObject, Python};
     use std::ptr::NonNull;
 
     fn get_object(py: Python<'_>) -> PyObject {
-        py.eval_bound("object()", None, None).unwrap().unbind()
+        py.eval(ffi::c_str!("object()"), None, None)
+            .unwrap()
+            .unbind()
     }
 
     #[cfg(not(pyo3_disable_reference_pool))]
@@ -445,7 +447,9 @@ mod tests {
             .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
     }
 
-    #[cfg(not(pyo3_disable_reference_pool))]
+    // with no GIL, threads can empty the POOL at any time, so this
+    // function does not test anything meaningful
+    #[cfg(not(any(pyo3_disable_reference_pool, Py_GIL_DISABLED)))]
     fn pool_dec_refs_contains(obj: &PyObject) -> bool {
         POOL.pending_decrefs
             .lock()
@@ -469,7 +473,7 @@ mod tests {
             drop(reference);
 
             assert_eq!(obj.get_refcnt(py), 1);
-            #[cfg(not(pyo3_disable_reference_pool))]
+            #[cfg(not(any(pyo3_disable_reference_pool)))]
             assert!(pool_dec_refs_does_not_contain(&obj));
         });
     }
@@ -491,12 +495,18 @@ mod tests {
             // The reference count should not have changed (the GIL has always
             // been held by this thread), it is remembered to release later.
             assert_eq!(obj.get_refcnt(py), 2);
+            #[cfg(not(Py_GIL_DISABLED))]
             assert!(pool_dec_refs_contains(&obj));
             obj
         });
 
         // Next time the GIL is acquired, the reference is released
+        #[allow(unused)]
         Python::with_gil(|py| {
+            // with no GIL, another thread could still be processing
+            // DECREFs after releasing the lock on the POOL, so the
+            // refcnt could still be 2 when this assert happens
+            #[cfg(not(Py_GIL_DISABLED))]
             assert_eq!(obj.get_refcnt(py), 1);
             assert!(pool_dec_refs_does_not_contain(&obj));
         });
@@ -571,7 +581,7 @@ mod tests {
     fn dropping_gil_does_not_invalidate_references() {
         // Acquiring GIL for the second time should be safe - see #864
         Python::with_gil(|py| {
-            let obj = Python::with_gil(|_| py.eval_bound("object()", None, None).unwrap());
+            let obj = Python::with_gil(|_| py.eval(ffi::c_str!("object()"), None, None).unwrap());
 
             // After gil2 drops, obj should still have a reference count of one
             assert_eq!(obj.get_refcnt(), 1);
@@ -607,13 +617,15 @@ mod tests {
             unsafe extern "C" fn capsule_drop(capsule: *mut ffi::PyObject) {
                 // This line will implicitly call update_counts
                 // -> and so cause deadlock if update_counts is not handling recursion correctly.
-                let pool = GILGuard::assume();
+                let pool = unsafe { GILGuard::assume() };
 
                 // Rebuild obj so that it can be dropped
-                PyObject::from_owned_ptr(
-                    pool.python(),
-                    ffi::PyCapsule_GetPointer(capsule, std::ptr::null()) as _,
-                );
+                unsafe {
+                    PyObject::from_owned_ptr(
+                        pool.python(),
+                        ffi::PyCapsule_GetPointer(capsule, std::ptr::null()) as _,
+                    )
+                };
             }
 
             let ptr = obj.into_ptr();
@@ -639,6 +651,7 @@ mod tests {
             // For GILGuard::acquire
 
             POOL.register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap());
+            #[cfg(not(Py_GIL_DISABLED))]
             assert!(pool_dec_refs_contains(&obj));
             let _guard = GILGuard::acquire();
             assert!(pool_dec_refs_does_not_contain(&obj));
@@ -646,6 +659,7 @@ mod tests {
             // For GILGuard::assume
 
             POOL.register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap());
+            #[cfg(not(Py_GIL_DISABLED))]
             assert!(pool_dec_refs_contains(&obj));
             let _guard2 = unsafe { GILGuard::assume() };
             assert!(pool_dec_refs_does_not_contain(&obj));

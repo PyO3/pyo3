@@ -73,7 +73,7 @@
 //!     // could call inside an application...
 //!     // This might return a `PyErr`.
 //!     let res = Python::with_gil(|py| {
-//!         let zlib = PyModule::import_bound(py, "zlib")?;
+//!         let zlib = PyModule::import(py, "zlib")?;
 //!         let decompress = zlib.getattr("decompress")?;
 //!         let bytes = PyBytes::new(py, bytes);
 //!         let value = decompress.call1((bytes,))?;
@@ -126,8 +126,8 @@ impl From<eyre::Report> for PyErr {
 #[cfg(test)]
 mod tests {
     use crate::exceptions::{PyRuntimeError, PyValueError};
-    use crate::prelude::*;
     use crate::types::IntoPyDict;
+    use crate::{ffi, prelude::*};
 
     use eyre::{bail, eyre, Report, Result, WrapErr};
 
@@ -151,9 +151,11 @@ mod tests {
         let pyerr = PyErr::from(err);
 
         Python::with_gil(|py| {
-            let locals = [("err", pyerr)].into_py_dict(py);
-            let pyerr = py.run_bound("raise err", None, Some(&locals)).unwrap_err();
-            assert_eq!(pyerr.value_bound(py).to_string(), expected_contents);
+            let locals = [("err", pyerr)].into_py_dict(py).unwrap();
+            let pyerr = py
+                .run(ffi::c_str!("raise err"), None, Some(&locals))
+                .unwrap_err();
+            assert_eq!(pyerr.value(py).to_string(), expected_contents);
         })
     }
 
@@ -168,9 +170,11 @@ mod tests {
         let pyerr = PyErr::from(err);
 
         Python::with_gil(|py| {
-            let locals = [("err", pyerr)].into_py_dict(py);
-            let pyerr = py.run_bound("raise err", None, Some(&locals)).unwrap_err();
-            assert_eq!(pyerr.value_bound(py).to_string(), expected_contents);
+            let locals = [("err", pyerr)].into_py_dict(py).unwrap();
+            let pyerr = py
+                .run(ffi::c_str!("raise err"), None, Some(&locals))
+                .unwrap_err();
+            assert_eq!(pyerr.value(py).to_string(), expected_contents);
         })
     }
 

@@ -1,4 +1,6 @@
 use crate::attributes::KeywordAttribute;
+#[cfg(feature = "experimental-inspect")]
+use crate::introspection::{function_introspection_code, introspection_id_const};
 use crate::utils::{Ctx, LitCStr};
 use crate::{
     attributes::{
@@ -12,11 +14,9 @@ use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::cmp::PartialEq;
 use std::ffi::CString;
+use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
 use syn::{ext::IdentExt, spanned::Spanned, LitStr, Path, Result, Token};
-use syn::{
-    parse::{Parse, ParseStream},
-    token::Comma,
-};
 
 mod signature;
 
@@ -254,24 +254,8 @@ impl Parse for PyFunctionOptions {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         let mut options = PyFunctionOptions::default();
 
-        while !input.is_empty() {
-            let lookahead = input.lookahead1();
-            if lookahead.peek(attributes::kw::name)
-                || lookahead.peek(attributes::kw::pass_module)
-                || lookahead.peek(attributes::kw::signature)
-                || lookahead.peek(attributes::kw::text_signature)
-            {
-                options.add_attributes(std::iter::once(input.parse()?))?;
-                if !input.is_empty() {
-                    let _: Comma = input.parse()?;
-                }
-            } else if lookahead.peek(syn::Token![crate]) {
-                // TODO needs duplicate check?
-                options.krate = Some(input.parse()?);
-            } else {
-                return Err(lookahead.error());
-            }
-        }
+        let attrs = Punctuated::<PyFunctionOption, syn::Token![,]>::parse_terminated(input)?;
+        options.add_attributes(attrs)?;
 
         Ok(options)
     }
@@ -420,8 +404,20 @@ pub fn impl_wrap_pyfunction(
     let signature = if let Some(signature) = signature {
         FunctionSignature::from_arguments_and_attribute(arguments, signature)?
     } else {
-        FunctionSignature::from_arguments(arguments)?
+        FunctionSignature::from_arguments(arguments)
     };
+
+    let vis = &func.vis;
+    let name = &func.sig.ident;
+
+    #[cfg(feature = "experimental-inspect")]
+    let introspection = function_introspection_code(pyo3_path, name, &name.to_string(), &signature);
+    #[cfg(not(feature = "experimental-inspect"))]
+    let introspection = quote! {};
+    #[cfg(feature = "experimental-inspect")]
+    let introspection_id = introspection_id_const();
+    #[cfg(not(feature = "experimental-inspect"))]
+    let introspection_id = quote! {};
 
     let spec = method::FnSpec {
         tp,
@@ -435,21 +431,18 @@ pub fn impl_wrap_pyfunction(
         warnings,
     };
 
-    let vis = &func.vis;
-    let name = &func.sig.ident;
-
     let wrapper_ident = format_ident!("__pyfunction_{}", spec.name);
     let wrapper = spec.get_wrapper_function(&wrapper_ident, None, ctx)?;
     let methoddef = spec.get_methoddef(wrapper_ident, &spec.get_doc(&func.attrs, ctx), ctx);
 
     let wrapped_pyfunction = quote! {
-
         // Create a module with the same name as the `#[pyfunction]` - this way `use <the function>`
         // will actually bring both the module and the function into scope.
         #[doc(hidden)]
         #vis mod #name {
             pub(crate) struct MakeDef;
             pub const _PYO3_DEF: #pyo3_path::impl_::pymethods::PyMethodDef = MakeDef::_PYO3_DEF;
+            #introspection_id
         }
 
         // Generate the definition inside an anonymous function in the same scope as the original function -
@@ -463,6 +456,8 @@ pub fn impl_wrap_pyfunction(
 
         #[allow(non_snake_case)]
         #wrapper
+
+        #introspection
     };
     Ok(wrapped_pyfunction)
 }

@@ -32,13 +32,6 @@ impl PyByteArray {
         }
     }
 
-    /// Deprecated name for [`PyByteArray::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyByteArray::new`")]
-    #[inline]
-    pub fn new_bound<'py>(py: Python<'py>, src: &[u8]) -> Bound<'py, PyByteArray> {
-        Self::new(py, src)
-    }
-
     /// Creates a new Python `bytearray` object with an `init` closure to write its contents.
     /// Before calling `init` the bytearray is zero-initialised.
     /// * If Python raises a MemoryError on the allocation, `new_with` will return
@@ -84,20 +77,6 @@ impl PyByteArray {
         }
     }
 
-    /// Deprecated name for [`PyByteArray::new_with`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyByteArray::new_with`")]
-    #[inline]
-    pub fn new_bound_with<F>(
-        py: Python<'_>,
-        len: usize,
-        init: F,
-    ) -> PyResult<Bound<'_, PyByteArray>>
-    where
-        F: FnOnce(&mut [u8]) -> PyResult<()>,
-    {
-        Self::new_with(py, len, init)
-    }
-
     /// Creates a new Python `bytearray` object from another Python object that
     /// implements the buffer protocol.
     pub fn from<'py>(src: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyByteArray>> {
@@ -106,13 +85,6 @@ impl PyByteArray {
                 .assume_owned_or_err(src.py())
                 .downcast_into_unchecked()
         }
-    }
-
-    ///Deprecated name for [`PyByteArray::from`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyByteArray::from`")]
-    #[inline]
-    pub fn from_bound<'py>(src: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyByteArray>> {
-        Self::from(src)
     }
 }
 
@@ -188,14 +160,14 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// #         let locals = pyo3::types::PyDict::new(py);
     /// #         locals.set_item("a_valid_function", fun)?;
     /// #
-    /// #         py.run_bound(
+    /// #         py.run(pyo3::ffi::c_str!(
     /// # r#"b = bytearray(b"hello world")
     /// # a_valid_function(b)
     /// #
     /// # try:
     /// #     a_valid_function(bytearray())
     /// # except RuntimeError as e:
-    /// #     assert str(e) == 'input is not long enough'"#,
+    /// #     assert str(e) == 'input is not long enough'"#),
     /// #             None,
     /// #             Some(&locals),
     /// #         )?;
@@ -286,12 +258,12 @@ impl<'py> PyByteArrayMethods<'py> for Bound<'py, PyByteArray> {
     }
 
     unsafe fn as_bytes(&self) -> &[u8] {
-        self.as_borrowed().as_bytes()
+        unsafe { self.as_borrowed().as_bytes() }
     }
 
     #[allow(clippy::mut_from_ref)]
     unsafe fn as_bytes_mut(&self) -> &mut [u8] {
-        self.as_borrowed().as_bytes_mut()
+        unsafe { self.as_borrowed().as_bytes_mut() }
     }
 
     fn to_vec(&self) -> Vec<u8> {
@@ -317,12 +289,12 @@ impl<'a> Borrowed<'a, '_, PyByteArray> {
 
     #[allow(clippy::wrong_self_convention)]
     unsafe fn as_bytes(self) -> &'a [u8] {
-        slice::from_raw_parts(self.data(), self.len())
+        unsafe { slice::from_raw_parts(self.data(), self.len()) }
     }
 
     #[allow(clippy::wrong_self_convention)]
     unsafe fn as_bytes_mut(self) -> &'a mut [u8] {
-        slice::from_raw_parts_mut(self.data(), self.len())
+        unsafe { slice::from_raw_parts_mut(self.data(), self.len()) }
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::ffi::*;
+use crate::ffi::{self, *};
 use crate::types::any::PyAnyMethods;
 use crate::Python;
 
@@ -6,7 +6,7 @@ use crate::Python;
 use crate::types::PyString;
 
 #[cfg(not(Py_LIMITED_API))]
-use crate::{types::PyDict, Bound, IntoPy, Py, PyAny};
+use crate::{types::PyDict, Bound, PyAny};
 #[cfg(not(any(Py_3_12, Py_LIMITED_API)))]
 use libc::wchar_t;
 
@@ -14,16 +14,17 @@ use libc::wchar_t;
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
 #[test]
 fn test_datetime_fromtimestamp() {
+    use crate::IntoPyObject;
     Python::with_gil(|py| {
-        let args: Py<PyAny> = (100,).into_py(py);
+        let args = (100,).into_pyobject(py).unwrap();
         let dt = unsafe {
             PyDateTime_IMPORT();
             Bound::from_owned_ptr(py, PyDateTime_FromTimestamp(args.as_ptr()))
         };
         let locals = PyDict::new(py);
         locals.set_item("dt", dt).unwrap();
-        py.run_bound(
-            "import datetime; assert dt == datetime.datetime.fromtimestamp(100)",
+        py.run(
+            ffi::c_str!("import datetime; assert dt == datetime.datetime.fromtimestamp(100)"),
             None,
             Some(&locals),
         )
@@ -35,16 +36,17 @@ fn test_datetime_fromtimestamp() {
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
 #[test]
 fn test_date_fromtimestamp() {
+    use crate::IntoPyObject;
     Python::with_gil(|py| {
-        let args: Py<PyAny> = (100,).into_py(py);
+        let args = (100,).into_pyobject(py).unwrap();
         let dt = unsafe {
             PyDateTime_IMPORT();
             Bound::from_owned_ptr(py, PyDate_FromTimestamp(args.as_ptr()))
         };
         let locals = PyDict::new(py);
         locals.set_item("dt", dt).unwrap();
-        py.run_bound(
-            "import datetime; assert dt == datetime.date.fromtimestamp(100)",
+        py.run(
+            ffi::c_str!("import datetime; assert dt == datetime.date.fromtimestamp(100)"),
             None,
             Some(&locals),
         )
@@ -63,8 +65,8 @@ fn test_utc_timezone() {
         };
         let locals = PyDict::new(py);
         locals.set_item("utc_timezone", utc_timezone).unwrap();
-        py.run_bound(
-            "import datetime; assert utc_timezone is datetime.timezone.utc",
+        py.run(
+            ffi::c_str!("import datetime; assert utc_timezone is datetime.timezone.utc"),
             None,
             Some(&locals),
         )
@@ -80,7 +82,7 @@ fn test_timezone_from_offset() {
     use crate::{ffi_ptr_ext::FfiPtrExt, types::PyDelta};
 
     Python::with_gil(|py| {
-        let delta = PyDelta::new_bound(py, 0, 100, 0, false).unwrap();
+        let delta = PyDelta::new(py, 0, 100, 0, false).unwrap();
         let tz = unsafe { PyTimeZone_FromOffset(delta.as_ptr()).assume_owned(py) };
         crate::py_run!(
             py,
@@ -98,8 +100,8 @@ fn test_timezone_from_offset_and_name() {
     use crate::{ffi_ptr_ext::FfiPtrExt, types::PyDelta};
 
     Python::with_gil(|py| {
-        let delta = PyDelta::new_bound(py, 0, 100, 0, false).unwrap();
-        let tzname = PyString::new_bound(py, "testtz");
+        let delta = PyDelta::new(py, 0, 100, 0, false).unwrap();
+        let tzname = PyString::new(py, "testtz");
         let tz = unsafe {
             PyTimeZone_FromOffsetAndName(delta.as_ptr(), tzname.as_ptr()).assume_owned(py)
         };
@@ -119,7 +121,7 @@ fn ascii_object_bitfield() {
     let mut o = PyASCIIObject {
         ob_base,
         length: 0,
-        #[cfg(not(PyPy))]
+        #[cfg(any(Py_3_11, not(PyPy)))]
         hash: 0,
         state: 0u32,
         #[cfg(not(Py_3_12))]
@@ -164,7 +166,7 @@ fn ascii_object_bitfield() {
 fn ascii() {
     Python::with_gil(|py| {
         // This test relies on implementation details of PyString.
-        let s = PyString::new_bound(py, "hello, world");
+        let s = PyString::new(py, "hello, world");
         let ptr = s.as_ptr();
 
         unsafe {
@@ -205,7 +207,7 @@ fn ascii() {
 fn ucs4() {
     Python::with_gil(|py| {
         let s = "哈哈🐈";
-        let py_string = PyString::new_bound(py, s);
+        let py_string = PyString::new(py, s);
         let ptr = py_string.as_ptr();
 
         unsafe {
@@ -248,34 +250,34 @@ fn ucs4() {
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
 #[cfg(not(PyPy))]
 fn test_get_tzinfo() {
-    use crate::types::timezone_utc_bound;
+    use crate::types::timezone_utc;
 
     crate::Python::with_gil(|py| {
         use crate::types::{PyDateTime, PyTime};
 
-        let utc = &timezone_utc_bound(py);
+        let utc = &timezone_utc(py);
 
-        let dt = PyDateTime::new_bound(py, 2018, 1, 1, 0, 0, 0, 0, Some(utc)).unwrap();
+        let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(utc)).unwrap();
 
         assert!(
             unsafe { Bound::from_borrowed_ptr(py, PyDateTime_DATE_GET_TZINFO(dt.as_ptr())) }
                 .is(utc)
         );
 
-        let dt = PyDateTime::new_bound(py, 2018, 1, 1, 0, 0, 0, 0, None).unwrap();
+        let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, None).unwrap();
 
         assert!(
             unsafe { Bound::from_borrowed_ptr(py, PyDateTime_DATE_GET_TZINFO(dt.as_ptr())) }
                 .is_none()
         );
 
-        let t = PyTime::new_bound(py, 0, 0, 0, 0, Some(utc)).unwrap();
+        let t = PyTime::new(py, 0, 0, 0, 0, Some(utc)).unwrap();
 
         assert!(
             unsafe { Bound::from_borrowed_ptr(py, PyDateTime_TIME_GET_TZINFO(t.as_ptr())) }.is(utc)
         );
 
-        let t = PyTime::new_bound(py, 0, 0, 0, 0, None).unwrap();
+        let t = PyTime::new(py, 0, 0, 0, 0, None).unwrap();
 
         assert!(
             unsafe { Bound::from_borrowed_ptr(py, PyDateTime_TIME_GET_TZINFO(t.as_ptr())) }
@@ -287,7 +289,7 @@ fn test_get_tzinfo() {
 #[test]
 fn test_inc_dec_ref() {
     Python::with_gil(|py| {
-        let obj = py.eval_bound("object()", None, None).unwrap();
+        let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
 
         let ref_count = obj.get_refcnt();
         let ptr = obj.as_ptr();

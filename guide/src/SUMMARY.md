@@ -15,6 +15,7 @@
       - [Basic object customization](class/object.md)
       - [Emulating numeric types](class/numeric.md)
       - [Emulating callable objects](class/call.md)
+    - [Thread safety](class/thread-safety.md)
 - [Calling Python from Rust](python-from-rust.md)
   - [Python object types](types.md)
   - [Python exceptions](exception.md)
@@ -25,6 +26,7 @@
   - [Conversion traits](conversions/traits.md)
 - [Using `async` and `await`](async-await.md)
 - [Parallelism](parallelism.md)
+- [Supporting Free-Threaded Python](free-threading.md)
 - [Debugging](debugging.md)
 - [Features reference](features.md)
 - [Performance](performance.md)
@@ -33,6 +35,7 @@
   - [Supporting multiple Python versions](building-and-distribution/multiple-python-versions.md)
 - [Useful crates](ecosystem.md)
   - [Logging](ecosystem/logging.md)
+  - [Tracing](ecosystem/tracing.md)
   - [Using `async` and `await`](ecosystem/async-await.md)
 - [FAQ and troubleshooting](faq.md)
 

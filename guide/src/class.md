@@ -73,7 +73,7 @@ The above example generates implementations for [`PyTypeInfo`] and [`PyClass`] f
 
 ### Restrictions
 
-To integrate Rust types with Python, PyO3 needs to place some restrictions on the types which can be annotated with `#[pyclass]`. In particular, they must have no lifetime parameters, no generic parameters, and must implement `Send`. The reason for each of these is explained below.
+To integrate Rust types with Python, PyO3 needs to place some restrictions on the types which can be annotated with `#[pyclass]`. In particular, they must have no lifetime parameters, no generic parameters, and must be thread-safe. The reason for each of these is explained below.
 
 #### No lifetime parameters
 
@@ -119,9 +119,13 @@ create_interface!(IntClass, i64);
 create_interface!(FloatClass, String);
 ```
 
-#### Must be Send
+#### Must be thread-safe
 
-Because Python objects are freely shared between threads by the Python interpreter, there is no guarantee which thread will eventually drop the object. Therefore all types annotated with `#[pyclass]` must implement `Send` (unless annotated with [`#[pyclass(unsendable)]`](#customizing-the-class)).
+Python objects are freely shared between threads by the Python interpreter. This means that:
+- Python objects may be created and destroyed by different Python threads; therefore `#[pyclass]` objects must be `Send`.
+- Python objects may be accessed by multiple Python threads simultaneously; therefore `#[pyclass]` objects must be `Sync`.
+
+For now, don't worry about these requirements; simple classes will already be thread-safe. There is a [detailed discussion on thread-safety](./class/thread-safety.md) later in the guide.
 
 ## Constructor
 
@@ -196,7 +200,7 @@ fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 ## Bound<T> and interior mutability
 
-Often is useful to turn a `#[pyclass]` type `T` into a Python object and access it from Rust code. The [`Py<T>`] and [`Bound<'py, T>`] smart pointers are the ways to represent a Python object in PyO3's API. More detail can be found about them [in the Python objects](./types.md#pyo3s-smart-pointers) section of the guide.
+It is often useful to turn a `#[pyclass]` type `T` into a Python object and access it from Rust code. The [`Py<T>`] and [`Bound<'py, T>`] smart pointers are the ways to represent a Python object in PyO3's API. More detail can be found about them [in the Python objects](./types.md#pyo3s-smart-pointers) section of the guide.
 
 Most Python objects do not offer exclusive (`&mut`) access (see the [section on Python's memory model](./python-from-rust.md#pythons-memory-model)). However, Rust structs wrapped as Python objects (called `pyclass` types) often *do* need `&mut` access. Due to the GIL, PyO3 *can* guarantee exclusive access to them.
 
@@ -330,7 +334,7 @@ or [`PyRefMut`] instead of `&mut self`.
 Then you can access a parent class by `self_.as_super()` as `&PyRef<Self::BaseClass>`,
 or by `self_.into_super()` as `PyRef<Self::BaseClass>` (and similar for the `PyRefMut`
 case). For convenience, `self_.as_ref()` can also be used to get `&Self::BaseClass`
-directly; however, this approach does not let you access base clases higher in the
+directly; however, this approach does not let you access base classes higher in the
 inheritance hierarchy, for which you would need to chain multiple `as_super` or
 `into_super` calls.
 
@@ -412,10 +416,10 @@ impl SubSubClass {
         let base = PyClassInitializer::from(BaseClass::new());
         let sub = base.add_subclass(SubClass { val2: val });
         if val % 2 == 0 {
-            Ok(Py::new(py, sub)?.to_object(py))
+            Ok(Py::new(py, sub)?.into_any())
         } else {
             let sub_sub = sub.add_subclass(SubSubClass { val3: val });
-            Ok(Py::new(py, sub_sub)?.to_object(py))
+            Ok(Py::new(py, sub_sub)?.into_any())
         }
     }
 }
@@ -430,7 +434,7 @@ impl SubSubClass {
 #     pyo3::py_run!(py, subsub, "assert subsub.get_values() == (20, 30, 40)");
 #     let subsub = SubSubClass::factory_method(py, 2).unwrap();
 #     let subsubsub = SubSubClass::factory_method(py, 3).unwrap();
-#     let cls = py.get_type_bound::<SubSubClass>();
+#     let cls = py.get_type::<SubSubClass>();
 #     pyo3::py_run!(py, subsub cls, "assert not isinstance(subsub, cls)");
 #     pyo3::py_run!(py, subsubsub cls, "assert isinstance(subsubsub, cls)");
 # });
@@ -526,7 +530,7 @@ impl MyDict {
     // some custom methods that use `private` here...
 }
 # Python::with_gil(|py| {
-#     let cls = py.get_type_bound::<MyDict>();
+#     let cls = py.get_type::<MyDict>();
 #     pyo3::py_run!(py, cls, "cls(a=1, b=2)")
 # });
 # }
@@ -784,7 +788,7 @@ impl MyClass {
 To create a class attribute (also called [class variable][classattr]), a method without
 any arguments can be annotated with the `#[classattr]` attribute.
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {}
@@ -797,7 +801,7 @@ impl MyClass {
 }
 
 Python::with_gil(|py| {
-    let my_class = py.get_type_bound::<MyClass>();
+    let my_class = py.get_type::<MyClass>();
     pyo3::py_run!(py, my_class, "assert my_class.my_attribute == 'hello'")
 });
 ```
@@ -810,7 +814,7 @@ class creation.
 If the class attribute is defined with `const` code only, one can also annotate associated
 constants:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {}
@@ -825,7 +829,7 @@ impl MyClass {
 
 Free functions defined using `#[pyfunction]` interact with classes through the same mechanisms as the self parameters of instance methods, i.e. they can take GIL-bound references, GIL-bound reference wrappers or GIL-indepedent references:
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 #[pyclass]
@@ -864,7 +868,7 @@ fn print_refcnt(my_class: Py<MyClass>, py: Python<'_>) {
 
 Classes can also be passed by value if they can be cloned, i.e. they automatically implement `FromPyObject` if they implement `Clone`, e.g. via `#[derive(Clone)]`:
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 #[pyclass]
@@ -888,7 +892,7 @@ Similar to `#[pyfunction]`, the `#[pyo3(signature = (...))]` attribute can be us
 
 The following example defines a class `MyClass` with a method `method`. This method has a signature that sets default values for `num` and `name`, and indicates that `py_args` should collect all extra positional arguments and `py_kwargs` all extra keyword arguments:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 #
@@ -970,8 +974,8 @@ impl MyClass {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let inspect = PyModule::import_bound(py, "inspect")?.getattr("signature")?;
-#         let module = PyModule::new_bound(py, "my_module")?;
+#         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
+#         let module = PyModule::new(py, "my_module")?;
 #         module.add_class::<MyClass>()?;
 #         let class = module.getattr("MyClass")?;
 #
@@ -1095,7 +1099,7 @@ enum MyEnum {
 Python::with_gil(|py| {
     let x = Py::new(py, MyEnum::Variant).unwrap();
     let y = Py::new(py, MyEnum::OtherVariant).unwrap();
-    let cls = py.get_type_bound::<MyEnum>();
+    let cls = py.get_type::<MyEnum>();
     pyo3::py_run!(py, x y cls, r#"
         assert x == cls.Variant
         assert y == cls.OtherVariant
@@ -1116,7 +1120,7 @@ enum MyEnum {
 }
 
 Python::with_gil(|py| {
-    let cls = py.get_type_bound::<MyEnum>();
+    let cls = py.get_type::<MyEnum>();
     let x = MyEnum::Variant as i32; // The exact value is assigned by the compiler.
     pyo3::py_run!(py, cls x, r#"
         assert int(cls.Variant) == x
@@ -1137,7 +1141,7 @@ enum MyEnum{
 }
 
 Python::with_gil(|py| {
-    let cls = py.get_type_bound::<MyEnum>();
+    let cls = py.get_type::<MyEnum>();
     let x = Py::new(py, MyEnum::Variant).unwrap();
     pyo3::py_run!(py, cls x, r#"
         assert repr(x) == 'MyEnum.Variant'
@@ -1164,7 +1168,7 @@ impl MyEnum {
 }
 
 Python::with_gil(|py| {
-    let cls = py.get_type_bound::<MyEnum>();
+    let cls = py.get_type::<MyEnum>();
     pyo3::py_run!(py, cls, "assert repr(cls.Answer) == '42'")
 })
 ```
@@ -1182,7 +1186,7 @@ enum MyEnum {
 
 Python::with_gil(|py| {
     let x = Py::new(py, MyEnum::Variant).unwrap();
-    let cls = py.get_type_bound::<MyEnum>();
+    let cls = py.get_type::<MyEnum>();
     pyo3::py_run!(py, x cls, r#"
         assert repr(x) == 'RenamedEnum.UPPERCASE'
         assert x == cls.UPPERCASE
@@ -1204,7 +1208,7 @@ enum MyEnum{
 }
 
 Python::with_gil(|py| {
-    let cls = py.get_type_bound::<MyEnum>();
+    let cls = py.get_type::<MyEnum>();
     let a = Py::new(py, MyEnum::A).unwrap();
     let b = Py::new(py, MyEnum::B).unwrap();
     let c = Py::new(py, MyEnum::C).unwrap();
@@ -1260,9 +1264,9 @@ enum Shape {
 
 # #[cfg(Py_3_10)]
 Python::with_gil(|py| {
-    let circle = Shape::Circle { radius: 10.0 }.into_py(py);
-    let square = Shape::RegularPolygon(4, 10.0).into_py(py);
-    let cls = py.get_type_bound::<Shape>();
+    let circle = Shape::Circle { radius: 10.0 }.into_pyobject(py)?;
+    let square = Shape::RegularPolygon(4, 10.0).into_pyobject(py)?;
+    let cls = py.get_type::<Shape>();
     pyo3::py_run!(py, circle square cls, r#"
         assert isinstance(circle, cls)
         assert isinstance(circle, cls.Circle)
@@ -1286,11 +1290,13 @@ Python::with_gil(|py| {
 
         assert count_vertices(cls, circle) == 0
         assert count_vertices(cls, square) == 4
-    "#)
+    "#);
+#   Ok::<_, PyErr>(())
 })
+# .unwrap();
 ```
 
-WARNING: `Py::new` and `.into_py` are currently inconsistent. Note how the constructed value is _not_ an instance of the specific variant. For this reason, constructing values is only recommended using `.into_py`.
+WARNING: `Py::new` and `.into_pyobject` are currently inconsistent. Note how the constructed value is _not_ an instance of the specific variant. For this reason, constructing values is only recommended using `.into_pyobject`.
 
 ```rust
 # use pyo3::prelude::*;
@@ -1301,7 +1307,7 @@ enum MyEnum {
 
 Python::with_gil(|py| {
     let x = Py::new(py, MyEnum::Variant { i: 42 }).unwrap();
-    let cls = py.get_type_bound::<MyEnum>();
+    let cls = py.get_type::<MyEnum>();
     pyo3::py_run!(py, x cls, r#"
         assert isinstance(x, cls)
         assert not isinstance(x, cls.Variant)
@@ -1327,7 +1333,7 @@ enum Shape {
 
 # #[cfg(Py_3_10)]
 Python::with_gil(|py| {
-    let cls = py.get_type_bound::<Shape>();
+    let cls = py.get_type::<Shape>();
     pyo3::py_run!(py, cls, r#"
         circle = cls.Circle()
         assert isinstance(circle, cls)
@@ -1386,7 +1392,7 @@ impl pyo3::PyClass for MyClass {
     type Frozen = pyo3::pyclass::boolean_struct::False;
 }
 
-impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a MyClass
+impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py, false> for &'a MyClass
 {
     type Holder = ::std::option::Option<pyo3::PyRef<'py, MyClass>>;
 
@@ -1396,19 +1402,13 @@ impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a
     }
 }
 
-impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a mut MyClass
+impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py, false> for &'a mut MyClass
 {
     type Holder = ::std::option::Option<pyo3::PyRefMut<'py, MyClass>>;
 
     #[inline]
     fn extract(obj: &'a pyo3::Bound<'py, PyAny>, holder: &'a mut Self::Holder) -> pyo3::PyResult<Self> {
         pyo3::impl_::extract_argument::extract_pyclass_ref_mut(obj, holder)
-    }
-}
-
-impl pyo3::IntoPy<PyObject> for MyClass {
-    fn into_py(self, py: pyo3::Python<'_>) -> pyo3::PyObject {
-        pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)
     }
 }
 
@@ -1448,7 +1448,7 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
 }
 
 # Python::with_gil(|py| {
-#     let cls = py.get_type_bound::<MyClass>();
+#     let cls = py.get_type::<MyClass>();
 #     pyo3::py_run!(py, cls, "assert cls.__name__ == 'MyClass'")
 # });
 # }

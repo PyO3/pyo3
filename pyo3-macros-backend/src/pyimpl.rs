@@ -213,14 +213,14 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec, ctx: &Ctx) -> MethodAndMe
 
     let associated_method = quote! {
         fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
-            ::std::result::Result::Ok(#pyo3_path::IntoPy::into_py(#cls::#member, py))
+            #pyo3_path::IntoPyObjectExt::into_py_any(#cls::#member, py)
         }
     };
 
     let method_def = quote! {
         #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
-            #pyo3_path::class::PyMethodDefType::ClassAttribute({
-                #pyo3_path::class::PyClassAttributeDef::new(
+            #pyo3_path::impl_::pymethods::PyMethodDefType::ClassAttribute({
+                #pyo3_path::impl_::pymethods::PyClassAttributeDef::new(
                     #python_name,
                     #cls::#wrapper_ident
                 )
@@ -330,7 +330,7 @@ fn submit_methods_inventory(
     }
 }
 
-fn get_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<&syn::Attribute> {
+pub(crate) fn get_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<&syn::Attribute> {
     attrs
         .iter()
         .filter(|attr| attr.path().is_ident("cfg"))

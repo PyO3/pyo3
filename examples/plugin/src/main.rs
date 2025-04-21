@@ -13,13 +13,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //do useful work
     Python::with_gil(|py| {
         //add the current directory to import path of Python (do not use this in production!)
-        let syspath: &PyList = py.import("sys")?.getattr("path")?.extract()?;
+        let syspath: Bound<PyList> = py.import("sys")?.getattr("path")?.extract()?;
         syspath.insert(0, &path)?;
         println!("Import path is: {:?}", syspath);
 
         // Now we can load our python_plugin/gadget_init_plugin.py file.
         // It can in turn import other stuff as it deems appropriate
-        let plugin = PyModule::import_bound(py, "gadget_init_plugin")?;
+        let plugin = PyModule::import(py, "gadget_init_plugin")?;
         // and call start function there, which will return a python reference to Gadget.
         // Gadget here is a "pyclass" object reference
         let gadget = plugin.getattr("start")?.call0()?;

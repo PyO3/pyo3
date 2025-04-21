@@ -5,6 +5,12 @@ fn do_something(x: i32) -> crate::PyResult<i32> {
 }
 
 #[crate::pyfunction]
+#[pyo3(crate = "crate", name = "check5012")]
+fn check_5012(x: i32) -> crate::PyResult<i32> {
+    ::std::result::Result::Ok(x)
+}
+
+#[crate::pyfunction]
 #[pyo3(crate = "crate")]
 #[pyo3(warn(message = "This is a warning message"))]
 fn function_with_warning() {}

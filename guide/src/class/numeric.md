@@ -27,11 +27,11 @@ OverflowError: Python int too large to convert to C long
 ```
 
 Instead of relying on the default [`FromPyObject`] extraction to parse arguments, we can specify our
-own extraction function, using the `#[pyo3(from_py_with = "...")]` attribute. Unfortunately PyO3
+own extraction function, using the `#[pyo3(from_py_with = ...)]` attribute. Unfortunately PyO3
 doesn't provide a way to wrap Python integers out of the box, but we can do a Python call to mask it
 and cast it to an `i32`.
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 use pyo3::prelude::*;
 
@@ -44,7 +44,7 @@ fn wrap(obj: &Bound<'_, PyAny>) -> PyResult<i32> {
 ```
 We also add documentation, via `///` comments, which are visible to Python users.
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 use pyo3::prelude::*;
 
@@ -62,7 +62,7 @@ struct Number(i32);
 #[pymethods]
 impl Number {
     #[new]
-    fn new(#[pyo3(from_py_with = "wrap")] value: i32) -> Self {
+    fn new(#[pyo3(from_py_with = wrap)] value: i32) -> Self {
         Self(value)
     }
 }
@@ -70,7 +70,7 @@ impl Number {
 
 
 With that out of the way, let's implement some operators:
-```rust
+```rust,no_run
 use pyo3::exceptions::{PyZeroDivisionError, PyValueError};
 
 # use pyo3::prelude::*;
@@ -124,7 +124,7 @@ impl Number {
 
 ### Unary arithmetic operations
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 #
 # #[pyclass]
@@ -152,7 +152,7 @@ impl Number {
 
 ### Support for the `complex()`, `int()` and `float()` built-in functions.
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 #
 # #[pyclass]
@@ -225,7 +225,7 @@ struct Number(i32);
 #[pymethods]
 impl Number {
     #[new]
-    fn new(#[pyo3(from_py_with = "wrap")] value: i32) -> Self {
+    fn new(#[pyo3(from_py_with = wrap)] value: i32) -> Self {
         Self(value)
     }
 
@@ -330,7 +330,7 @@ fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Number>()?;
     Ok(())
 }
-# const SCRIPT: &'static str = r#"
+# const SCRIPT: &'static std::ffi::CStr = pyo3::ffi::c_str!(r#"
 # def hash_djb2(s: str):
 #     n = Number(0)
 #     five = Number(5)
@@ -379,17 +379,17 @@ fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 #     pass
 # assert Number(1337).__str__() == '1337'
 # assert Number(1337).__repr__() == 'Number(1337)'
-"#;
+"#);
 
 #
 # use pyo3::PyTypeInfo;
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let globals = PyModule::import_bound(py, "__main__")?.dict();
-#         globals.set_item("Number", Number::type_object_bound(py))?;
+#         let globals = PyModule::import(py, "__main__")?.dict();
+#         globals.set_item("Number", Number::type_object(py))?;
 #
-#         py.run_bound(SCRIPT, Some(&globals), None)?;
+#         py.run(SCRIPT, Some(&globals), None)?;
 #         Ok(())
 #     })
 # }
@@ -415,7 +415,7 @@ Let's create that helper function. The signature has to be `fn(&Bound<'_, PyAny>
 - `&Bound<'_, PyAny>` represents a checked borrowed reference, so the pointer derived from it is valid (and not null).
 - Whenever we have borrowed references to Python objects in scope, it is guaranteed that the GIL is held. This reference is also where we can get a [`Python`] token to use in our call to [`PyErr::take`].
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 use std::os::raw::c_ulong;
 use pyo3::prelude::*;

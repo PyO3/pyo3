@@ -91,7 +91,7 @@ fn intopytuple_pyclass() {
 #[test]
 fn pytuple_primitive_iter() {
     Python::with_gil(|py| {
-        let tup = PyTuple::new(py, [1u32, 2, 3].iter());
+        let tup = PyTuple::new(py, [1u32, 2, 3].iter()).unwrap();
         py_assert!(py, tup, "tup == (1, 2, 3)");
     });
 }
@@ -106,7 +106,8 @@ fn pytuple_pyclass_iter() {
                 Py::new(py, SimplePyClass {}).unwrap(),
             ]
             .iter(),
-        );
+        )
+        .unwrap();
         py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
         py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[0]).__name__");
         py_assert!(py, tup, "tup[0] != tup[1]");
@@ -131,15 +132,15 @@ fn test_pickle() {
         pub fn __reduce__<'py>(
             slf: &Bound<'py, Self>,
             py: Python<'py>,
-        ) -> PyResult<(PyObject, Bound<'py, PyTuple>, PyObject)> {
-            let cls = slf.to_object(py).getattr(py, "__class__")?;
-            let dict = slf.to_object(py).getattr(py, "__dict__")?;
+        ) -> PyResult<(Bound<'py, PyAny>, Bound<'py, PyTuple>, Bound<'py, PyAny>)> {
+            let cls = slf.getattr("__class__")?;
+            let dict = slf.getattr("__dict__")?;
             Ok((cls, PyTuple::empty(py), dict))
         }
     }
 
     fn add_module(module: Bound<'_, PyModule>) -> PyResult<()> {
-        PyModule::import_bound(module.py(), "sys")?
+        PyModule::import(module.py(), "sys")?
             .dict()
             .get_item("modules")
             .unwrap()
@@ -149,7 +150,7 @@ fn test_pickle() {
     }
 
     Python::with_gil(|py| {
-        let module = PyModule::new_bound(py, "test_module").unwrap();
+        let module = PyModule::new(py, "test_module").unwrap();
         module.add_class::<PickleSupport>().unwrap();
         add_module(module).unwrap();
         let inst = Py::new(py, PickleSupport {}).unwrap();

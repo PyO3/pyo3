@@ -12,12 +12,15 @@ def test(session: nox.Session):
 
     def try_install_binary(package: str, constraint: str):
         try:
-            session.install(f"--only-binary={package}", f"{package}{constraint}")
+            session.install("--only-binary=:all:", f"{package}{constraint}")
         except CommandFailed:
             # No binary wheel available on this platform
             pass
 
     try_install_binary("numpy", ">=1.16")
+    # https://github.com/zopefoundation/zope.interface/issues/316
+    # - is a dependency of gevent
+    try_install_binary("zope.interface", "<7")
     try_install_binary("gevent", ">=22.10.2")
     ignored_paths = []
     if sys.version_info < (3, 10):

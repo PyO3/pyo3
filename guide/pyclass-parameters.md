@@ -21,8 +21,7 @@
 | `set_all` | Generates setters for all fields of the pyclass. |
 | `str` | Implements `__str__` using the `Display` implementation of the underlying Rust datatype or by passing an optional format string `str="<format string>"`. *Note: The optional format string is only allowed for structs.  `name` and `rename_all` are incompatible with the optional format string.  Additional details can be found in the discussion on this [PR](https://github.com/PyO3/pyo3/pull/4233).* |
 | `subclass` | Allows other Python classes and `#[pyclass]` to inherit from this class. Enums cannot be subclassed. |
-| <span style="white-space: pre">`text_signature = "(arg1, arg2, ...)"`</span> |  Sets the text signature for the Python class' `__new__` method. |
-| `unsendable` | Required if your struct is not [`Send`][params-3]. Rather than using `unsendable`, consider implementing your struct in a threadsafe way by e.g. substituting [`Rc`][params-4] with [`Arc`][params-5]. By using `unsendable`, your class will panic when accessed by another thread. Also note the Python's GC is multi-threaded and while unsendable classes will not be traversed on foreign threads to avoid UB, this can lead to memory leaks. |
+| `unsendable` | Required if your struct is not [`Send`][params-3]. Rather than using `unsendable`, consider implementing your struct in a thread-safe way by e.g. substituting [`Rc`][params-4] with [`Arc`][params-5]. By using `unsendable`, your class will panic when accessed by another thread. Also note the Python's GC is multi-threaded and while unsendable classes will not be traversed on foreign threads to avoid UB, this can lead to memory leaks. |
 | `weakref` | Allows this class to be [weakly referenceable][params-6]. |
 
 All of these parameters can either be passed directly on the `#[pyclass(...)]` annotation, or as one or

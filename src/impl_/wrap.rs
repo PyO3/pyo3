@@ -1,9 +1,6 @@
 use std::{convert::Infallible, marker::PhantomData, ops::Deref};
 
-use crate::{
-    conversion::IntoPyObject, ffi, types::PyNone, Bound, BoundObject, IntoPy, PyErr, PyObject,
-    PyResult, Python,
-};
+use crate::{ffi, types::PyNone, Bound, IntoPyObject, IntoPyObjectExt, PyObject, PyResult, Python};
 
 /// Used to wrap values in `Option<T>` for default arguments.
 pub trait SomeWrap<T> {
@@ -74,7 +71,7 @@ impl<T> Deref for UnknownReturnResultType<T> {
 impl EmptyTupleConverter<PyResult<()>> {
     #[inline]
     pub fn map_into_ptr(&self, py: Python<'_>, obj: PyResult<()>) -> PyResult<*mut ffi::PyObject> {
-        obj.map(|_| PyNone::get_bound(py).to_owned().into_ptr())
+        obj.map(|_| PyNone::get(py).to_owned().into_ptr())
     }
 }
 
@@ -95,46 +92,17 @@ impl<'py, T: IntoPyObject<'py>, E> IntoPyObjectConverter<Result<T, E>> {
     pub fn map_into_pyobject(&self, py: Python<'py>, obj: PyResult<T>) -> PyResult<PyObject>
     where
         T: IntoPyObject<'py>,
-        PyErr: From<T::Error>,
     {
-        obj.and_then(|obj| obj.into_pyobject(py).map_err(Into::into))
-            .map(BoundObject::into_any)
-            .map(BoundObject::unbind)
+        obj.and_then(|obj| obj.into_py_any(py))
     }
 
     #[inline]
     pub fn map_into_ptr(&self, py: Python<'py>, obj: PyResult<T>) -> PyResult<*mut ffi::PyObject>
     where
         T: IntoPyObject<'py>,
-        PyErr: From<T::Error>,
     {
-        obj.and_then(|obj| obj.into_pyobject(py).map_err(Into::into))
-            .map(BoundObject::into_bound)
+        obj.and_then(|obj| obj.into_bound_py_any(py))
             .map(Bound::into_ptr)
-    }
-}
-
-impl<T: IntoPy<PyObject>> IntoPyConverter<T> {
-    #[inline]
-    pub fn wrap(&self, obj: T) -> Result<T, Infallible> {
-        Ok(obj)
-    }
-}
-
-impl<T: IntoPy<PyObject>, E> IntoPyConverter<Result<T, E>> {
-    #[inline]
-    pub fn wrap(&self, obj: Result<T, E>) -> Result<T, E> {
-        obj
-    }
-
-    #[inline]
-    pub fn map_into_pyobject(&self, py: Python<'_>, obj: PyResult<T>) -> PyResult<PyObject> {
-        obj.map(|obj| obj.into_py(py))
-    }
-
-    #[inline]
-    pub fn map_into_ptr(&self, py: Python<'_>, obj: PyResult<T>) -> PyResult<*mut ffi::PyObject> {
-        obj.map(|obj| obj.into_py(py).into_ptr())
     }
 }
 

@@ -4,6 +4,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyType};
 use crate::{ffi, Bound, Python};
+use std::ptr;
 
 /// `T: PyLayout<U>` represents that `T` is a concrete representation of `U` in the Python heap.
 /// E.g., `PyClassObject` is a concrete representation of all `pyclass`es, and `ffi::PyObject`
@@ -17,7 +18,8 @@ use crate::{ffi, Bound, Python};
 pub unsafe trait PyLayout<T> {}
 
 /// `T: PySizedLayout<U>` represents that `T` is not a instance of
-/// [`PyVarObject`](https://docs.python.org/3.8/c-api/structures.html?highlight=pyvarobject#c.PyVarObject).
+/// [`PyVarObject`](https://docs.python.org/3/c-api/structures.html#c.PyVarObject).
+///
 /// In addition, that `T` is a concrete representation of `U`.
 pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 
@@ -46,7 +48,7 @@ pub unsafe trait PyTypeInfo: Sized {
 
     /// Returns the safe abstraction over the type object.
     #[inline]
-    fn type_object_bound(py: Python<'_>) -> Bound<'_, PyType> {
+    fn type_object(py: Python<'_>) -> Bound<'_, PyType> {
         // Making the borrowed object `Bound` is necessary for soundness reasons. It's an extreme
         // edge case, but arbitrary Python code _could_ change the __class__ of an object and cause
         // the type object to be freed.
@@ -63,14 +65,19 @@ pub unsafe trait PyTypeInfo: Sized {
 
     /// Checks if `object` is an instance of this type or a subclass of this type.
     #[inline]
-    fn is_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
+    fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object_raw(object.py())) != 0 }
     }
 
     /// Checks if `object` is an instance of this type.
     #[inline]
-    fn is_exact_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
-        unsafe { ffi::Py_TYPE(object.as_ptr()) == Self::type_object_raw(object.py()) }
+    fn is_exact_type_of(object: &Bound<'_, PyAny>) -> bool {
+        unsafe {
+            ptr::eq(
+                ffi::Py_TYPE(object.as_ptr()),
+                Self::type_object_raw(object.py()),
+            )
+        }
     }
 }
 
@@ -93,35 +100,6 @@ where
 
     #[inline]
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
-        T::is_type_of_bound(object)
-    }
-}
-
-#[inline]
-pub(crate) unsafe fn get_tp_alloc(tp: *mut ffi::PyTypeObject) -> Option<ffi::allocfunc> {
-    #[cfg(not(Py_LIMITED_API))]
-    {
-        (*tp).tp_alloc
-    }
-
-    #[cfg(Py_LIMITED_API)]
-    {
-        let ptr = ffi::PyType_GetSlot(tp, ffi::Py_tp_alloc);
-        std::mem::transmute(ptr)
-    }
-}
-
-#[inline]
-pub(crate) unsafe fn get_tp_free(tp: *mut ffi::PyTypeObject) -> ffi::freefunc {
-    #[cfg(not(Py_LIMITED_API))]
-    {
-        (*tp).tp_free.unwrap()
-    }
-
-    #[cfg(Py_LIMITED_API)]
-    {
-        let ptr = ffi::PyType_GetSlot(tp, ffi::Py_tp_free);
-        debug_assert_ne!(ptr, std::ptr::null_mut());
-        std::mem::transmute(ptr)
+        T::is_type_of(object)
     }
 }

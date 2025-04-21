@@ -82,7 +82,6 @@ opaque_struct!(PyCodeObject);
 
 #[cfg(all(not(any(PyPy, GraalPy)), Py_3_7, not(Py_3_8)))]
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct PyCodeObject {
     pub ob_base: PyObject,
     pub co_argcount: c_int,
@@ -111,7 +110,6 @@ opaque_struct!(_PyExecutorArray);
 
 #[cfg(all(not(any(PyPy, GraalPy)), Py_3_8, not(Py_3_11)))]
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct PyCodeObject {
     pub ob_base: PyObject,
     pub co_argcount: c_int,
@@ -145,7 +143,6 @@ pub struct PyCodeObject {
 
 #[cfg(all(not(any(PyPy, GraalPy)), Py_3_11))]
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct PyCodeObject {
     pub ob_base: PyVarObject,
     pub co_consts: *mut PyObject,
@@ -187,8 +184,10 @@ pub struct PyCodeObject {
     pub co_executors: *mut _PyExecutorArray,
     #[cfg(Py_3_12)]
     pub _co_cached: *mut _PyCoCached,
-    #[cfg(Py_3_12)]
+    #[cfg(all(Py_3_12, not(Py_3_13)))]
     pub _co_instrumentation_version: u64,
+    #[cfg(Py_3_13)]
+    pub _co_instrumentation_version: libc::uintptr_t,
     #[cfg(Py_3_12)]
     pub _co_monitoring: *mut _PyCoMonitoringData,
     pub _co_firsttraceable: c_int,
@@ -198,7 +197,6 @@ pub struct PyCodeObject {
 
 #[cfg(PyPy)]
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct PyCodeObject {
     pub ob_base: PyObject,
     pub co_name: *mut PyObject,

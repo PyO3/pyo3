@@ -21,7 +21,7 @@ impl PySuper {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use pyo3::prelude::*;
     ///
     /// #[pyclass(subclass)]
@@ -57,15 +57,13 @@ impl PySuper {
     ///     }
     /// }
     /// ```
-    pub fn new_bound<'py>(
+    pub fn new<'py>(
         ty: &Bound<'py, PyType>,
         obj: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PySuper>> {
-        PySuper::type_object_bound(ty.py())
-            .call1((ty, obj))
-            .map(|any| {
-                // Safety: super() always returns instance of super
-                unsafe { any.downcast_into_unchecked() }
-            })
+        PySuper::type_object(ty.py()).call1((ty, obj)).map(|any| {
+            // Safety: super() always returns instance of super
+            unsafe { any.downcast_into_unchecked() }
+        })
     }
 }

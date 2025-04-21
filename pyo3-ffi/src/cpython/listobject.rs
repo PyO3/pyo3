@@ -2,16 +2,15 @@ use crate::object::*;
 #[cfg(not(PyPy))]
 use crate::pyport::Py_ssize_t;
 
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(PyPy))]
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct PyListObject {
     pub ob_base: PyVarObject,
     pub ob_item: *mut *mut PyObject,
     pub allocated: Py_ssize_t,
 }
 
-#[cfg(any(PyPy, GraalPy))]
+#[cfg(PyPy)]
 pub struct PyListObject {
     pub ob_base: PyObject,
 }

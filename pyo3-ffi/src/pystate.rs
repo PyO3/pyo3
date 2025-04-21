@@ -1,4 +1,5 @@
-#[cfg(any(not(PyPy), Py_3_9))]
+#[cfg(all(Py_3_10, not(PyPy), not(Py_LIMITED_API)))]
+use crate::frameobject::PyFrameObject;
 use crate::moduleobject::PyModuleDef;
 use crate::object::PyObject;
 use std::os::raw::c_int;
@@ -28,15 +29,12 @@ extern "C" {
     #[cfg(not(PyPy))]
     pub fn PyInterpreterState_GetID(arg1: *mut PyInterpreterState) -> i64;
 
-    #[cfg(any(not(PyPy), Py_3_9))] // only on PyPy since 3.9
     #[cfg_attr(PyPy, link_name = "PyPyState_AddModule")]
     pub fn PyState_AddModule(arg1: *mut PyObject, arg2: *mut PyModuleDef) -> c_int;
 
-    #[cfg(any(not(PyPy), Py_3_9))] // only on PyPy since 3.9
     #[cfg_attr(PyPy, link_name = "PyPyState_RemoveModule")]
     pub fn PyState_RemoveModule(arg1: *mut PyModuleDef) -> c_int;
 
-    #[cfg(any(not(PyPy), Py_3_9))] // only on PyPy since 3.9
     // only has PyPy prefix since 3.10
     #[cfg_attr(all(PyPy, Py_3_10), link_name = "PyPyState_FindModule")]
     pub fn PyState_FindModule(arg1: *mut PyModuleDef) -> *mut PyObject;
@@ -67,8 +65,13 @@ extern "C" {
 }
 
 // skipped non-limited / 3.9 PyThreadState_GetInterpreter
-// skipped non-limited / 3.9 PyThreadState_GetFrame
 // skipped non-limited / 3.9 PyThreadState_GetID
+
+extern "C" {
+    // PyThreadState_GetFrame
+    #[cfg(all(Py_3_10, not(PyPy), not(Py_LIMITED_API)))]
+    pub fn PyThreadState_GetFrame(arg1: *mut PyThreadState) -> *mut PyFrameObject;
+}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -77,9 +80,73 @@ pub enum PyGILState_STATE {
     PyGILState_UNLOCKED,
 }
 
+struct HangThread;
+
+impl Drop for HangThread {
+    fn drop(&mut self) {
+        loop {
+            #[cfg(target_family = "unix")]
+            unsafe {
+                libc::pause();
+            }
+            #[cfg(not(target_family = "unix"))]
+            std::thread::sleep(std::time::Duration::from_secs(9_999_999));
+        }
+    }
+}
+
+// The PyGILState_Ensure function will call pthread_exit during interpreter shutdown,
+// which causes undefined behavior. Redirect to the "safe" version that hangs instead,
+// as Python 3.14 does.
+//
+// See https://github.com/rust-lang/rust/issues/135929
+
+// C-unwind only supported (and necessary) since 1.71. Python 3.14+ does not do
+// pthread_exit from PyGILState_Ensure (https://github.com/python/cpython/issues/87135).
+mod raw {
+    #[cfg(all(not(Py_3_14), rustc_has_extern_c_unwind))]
+    extern "C-unwind" {
+        #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure")]
+        pub fn PyGILState_Ensure() -> super::PyGILState_STATE;
+    }
+
+    #[cfg(not(all(not(Py_3_14), rustc_has_extern_c_unwind)))]
+    extern "C" {
+        #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure")]
+        pub fn PyGILState_Ensure() -> super::PyGILState_STATE;
+    }
+}
+
+#[cfg(not(Py_3_14))]
+pub unsafe extern "C" fn PyGILState_Ensure() -> PyGILState_STATE {
+    let guard = HangThread;
+    // If `PyGILState_Ensure` calls `pthread_exit`, which it does on Python < 3.14
+    // when the interpreter is shutting down, this will cause a forced unwind.
+    // doing a forced unwind through a function with a Rust destructor is unspecified
+    // behavior.
+    //
+    // However, currently it runs the destructor, which will cause the thread to
+    // hang as it should.
+    //
+    // And if we don't catch the unwinding here, then one of our callers probably has a destructor,
+    // so it's unspecified behavior anyway, and on many configurations causes the process to abort.
+    //
+    // The alternative is for pyo3 to contain custom C or C++ code that catches the `pthread_exit`,
+    // but that's also annoying from a portability point of view.
+    //
+    // On Windows, `PyGILState_Ensure` calls `_endthreadex` instead, which AFAICT can't be caught
+    // and therefore will cause unsafety if there are pinned objects on the stack. AFAICT there's
+    // nothing we can do it other than waiting for Python 3.14 or not using Windows. At least,
+    // if there is nothing pinned on the stack, it won't cause the process to crash.
+    let ret: PyGILState_STATE = raw::PyGILState_Ensure();
+    std::mem::forget(guard);
+    ret
+}
+
+#[cfg(Py_3_14)]
+pub use self::raw::PyGILState_Ensure;
+
 extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure")]
-    pub fn PyGILState_Ensure() -> PyGILState_STATE;
     #[cfg_attr(PyPy, link_name = "PyPyGILState_Release")]
     pub fn PyGILState_Release(arg1: PyGILState_STATE);
     #[cfg(not(PyPy))]

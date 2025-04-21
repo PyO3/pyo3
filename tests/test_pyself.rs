@@ -75,7 +75,7 @@ impl Iter {
                 let res = reader_ref
                     .inner
                     .get(&b)
-                    .map(|s| PyString::new_bound(py, s).into());
+                    .map(|s| PyString::new(py, s).into());
                 Ok(res)
             }
             None => Ok(None),
@@ -93,7 +93,7 @@ fn reader() -> Reader {
 #[test]
 fn test_nested_iter() {
     Python::with_gil(|py| {
-        let reader: PyObject = reader().into_py(py);
+        let reader = reader().into_pyobject(py).unwrap();
         py_assert!(
             py,
             reader,
@@ -105,7 +105,7 @@ fn test_nested_iter() {
 #[test]
 fn test_clone_ref() {
     Python::with_gil(|py| {
-        let reader: PyObject = reader().into_py(py);
+        let reader = reader().into_pyobject(py).unwrap();
         py_assert!(py, reader, "reader == reader.clone_ref()");
         py_assert!(py, reader, "reader == reader.clone_ref_with_py()");
     });

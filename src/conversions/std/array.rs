@@ -1,83 +1,39 @@
 use crate::conversion::IntoPyObject;
-use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
-use crate::types::{PyList, PySequence};
-use crate::{
-    err::DowncastError, ffi, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python,
-    ToPyObject,
-};
+use crate::types::PySequence;
+use crate::{err::DowncastError, ffi, FromPyObject, PyAny, PyResult, Python};
 use crate::{exceptions, PyErr};
-
-impl<T, const N: usize> IntoPy<PyObject> for [T; N]
-where
-    T: IntoPy<PyObject>,
-{
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        unsafe {
-            let len = N as ffi::Py_ssize_t;
-
-            let ptr = ffi::PyList_New(len);
-
-            // We create the  `Py` pointer here for two reasons:
-            // - panics if the ptr is null
-            // - its Drop cleans up the list if user code panics.
-            let list: Py<PyAny> = Py::from_owned_ptr(py, ptr);
-
-            for (i, obj) in (0..len).zip(self) {
-                let obj = obj.into_py(py).into_ptr();
-
-                #[cfg(not(Py_LIMITED_API))]
-                ffi::PyList_SET_ITEM(ptr, i, obj);
-                #[cfg(Py_LIMITED_API)]
-                ffi::PyList_SetItem(ptr, i, obj);
-            }
-
-            list
-        }
-    }
-}
 
 impl<'py, T, const N: usize> IntoPyObject<'py> for [T; N]
 where
     T: IntoPyObject<'py>,
 {
-    type Target = PyList;
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
-    type Error = T::Error;
+    type Error = PyErr;
 
+    /// Turns [`[u8; N]`](std::array) into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
+    ///
+    /// [`PyBytes`]: crate::types::PyBytes
+    /// [`PyList`]: crate::types::PyList
+    #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        use crate::BoundObject;
-        unsafe {
-            let len = N as ffi::Py_ssize_t;
-
-            let ptr = ffi::PyList_New(len);
-
-            // We create the `Bound` pointer here for two reasons:
-            // - panics if the ptr is null
-            // - its Drop cleans up the list if user code errors or panics.
-            let list = ptr.assume_owned(py).downcast_into_unchecked::<PyList>();
-
-            for (i, obj) in (0..len).zip(self) {
-                let obj = obj.into_pyobject(py)?.into_ptr();
-
-                #[cfg(not(Py_LIMITED_API))]
-                ffi::PyList_SET_ITEM(ptr, i, obj);
-                #[cfg(Py_LIMITED_API)]
-                ffi::PyList_SetItem(ptr, i, obj);
-            }
-
-            Ok(list)
-        }
+        T::owned_sequence_into_pyobject(self, py, crate::conversion::private::Token)
     }
 }
 
-impl<T, const N: usize> ToPyObject for [T; N]
+impl<'a, 'py, T, const N: usize> IntoPyObject<'py> for &'a [T; N]
 where
-    T: ToPyObject,
+    &'a T: IntoPyObject<'py>,
 {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.as_ref().to_object(py)
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.as_slice().into_pyobject(py)
     }
 }
 
@@ -166,8 +122,12 @@ mod tests {
         sync::atomic::{AtomicUsize, Ordering},
     };
 
-    use crate::types::any::PyAnyMethods;
-    use crate::{types::PyList, IntoPy, PyResult, Python, ToPyObject};
+    use crate::{
+        conversion::IntoPyObject,
+        ffi,
+        types::{any::PyAnyMethods, PyBytes, PyBytesMethods},
+    };
+    use crate::{types::PyList, PyResult, Python};
 
     #[test]
     fn array_try_from_fn() {
@@ -194,8 +154,8 @@ mod tests {
     fn test_extract_bytearray_to_array() {
         Python::with_gil(|py| {
             let v: [u8; 33] = py
-                .eval_bound(
-                    "bytearray(b'abcabcabcabcabcabcabcabcabcabcabc')",
+                .eval(
+                    ffi::c_str!("bytearray(b'abcabcabcabcabcabcabcabcabcabcabc')"),
                     None,
                     None,
                 )
@@ -210,7 +170,7 @@ mod tests {
     fn test_extract_small_bytearray_to_array() {
         Python::with_gil(|py| {
             let v: [u8; 3] = py
-                .eval_bound("bytearray(b'abc')", None, None)
+                .eval(ffi::c_str!("bytearray(b'abc')"), None, None)
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -218,11 +178,11 @@ mod tests {
         });
     }
     #[test]
-    fn test_topyobject_array_conversion() {
+    fn test_into_pyobject_array_conversion() {
         Python::with_gil(|py| {
             let array: [f32; 4] = [0.0, -16.0, 16.0, 42.0];
-            let pyobject = array.to_object(py);
-            let pylist = pyobject.downcast_bound::<PyList>(py).unwrap();
+            let pyobject = array.into_pyobject(py).unwrap();
+            let pylist = pyobject.downcast::<PyList>().unwrap();
             assert_eq!(pylist.get_item(0).unwrap().extract::<f32>().unwrap(), 0.0);
             assert_eq!(pylist.get_item(1).unwrap().extract::<f32>().unwrap(), -16.0);
             assert_eq!(pylist.get_item(2).unwrap().extract::<f32>().unwrap(), 16.0);
@@ -234,7 +194,7 @@ mod tests {
     fn test_extract_invalid_sequence_length() {
         Python::with_gil(|py| {
             let v: PyResult<[u8; 3]> = py
-                .eval_bound("bytearray(b'abcdefg')", None, None)
+                .eval(ffi::c_str!("bytearray(b'abcdefg')"), None, None)
                 .unwrap()
                 .extract();
             assert_eq!(
@@ -245,11 +205,15 @@ mod tests {
     }
 
     #[test]
-    fn test_intopy_array_conversion() {
+    fn test_intopyobject_array_conversion() {
         Python::with_gil(|py| {
             let array: [f32; 4] = [0.0, -16.0, 16.0, 42.0];
-            let pyobject = array.into_py(py);
-            let pylist = pyobject.downcast_bound::<PyList>(py).unwrap();
+            let pylist = array
+                .into_pyobject(py)
+                .unwrap()
+                .downcast_into::<PyList>()
+                .unwrap();
+
             assert_eq!(pylist.get_item(0).unwrap().extract::<f32>().unwrap(), 0.0);
             assert_eq!(pylist.get_item(1).unwrap().extract::<f32>().unwrap(), -16.0);
             assert_eq!(pylist.get_item(2).unwrap().extract::<f32>().unwrap(), 16.0);
@@ -258,9 +222,24 @@ mod tests {
     }
 
     #[test]
+    fn test_array_intopyobject_impl() {
+        Python::with_gil(|py| {
+            let bytes: [u8; 6] = *b"foobar";
+            let obj = bytes.into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyBytes>());
+            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            assert_eq!(obj.as_bytes(), &bytes);
+
+            let nums: [u16; 4] = [0, 1, 2, 3];
+            let obj = nums.into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyList>());
+        });
+    }
+
+    #[test]
     fn test_extract_non_iterable_to_array() {
         Python::with_gil(|py| {
-            let v = py.eval_bound("42", None, None).unwrap();
+            let v = py.eval(ffi::c_str!("42"), None, None).unwrap();
             v.extract::<i32>().unwrap();
             v.extract::<[i32; 1]>().unwrap_err();
         });
@@ -274,8 +253,11 @@ mod tests {
 
         Python::with_gil(|py| {
             let array: [Foo; 8] = [Foo, Foo, Foo, Foo, Foo, Foo, Foo, Foo];
-            let pyobject = array.into_py(py);
-            let list = pyobject.downcast_bound::<PyList>(py).unwrap();
+            let list = array
+                .into_pyobject(py)
+                .unwrap()
+                .downcast_into::<PyList>()
+                .unwrap();
             let _bound = list.get_item(4).unwrap().downcast::<Foo>().unwrap();
         });
     }

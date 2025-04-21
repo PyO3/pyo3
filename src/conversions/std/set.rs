@@ -8,44 +8,23 @@ use crate::{
     types::{
         any::PyAnyMethods,
         frozenset::PyFrozenSetMethods,
-        set::{new_from_iter, try_new_from_iter, PySetMethods},
+        set::{try_new_from_iter, PySetMethods},
         PyFrozenSet, PySet,
     },
-    BoundObject, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    FromPyObject, PyAny, PyErr, PyResult, Python,
 };
 
-impl<T, S> ToPyObject for collections::HashSet<T, S>
+impl<'py, K, S> IntoPyObject<'py> for collections::HashSet<K, S>
 where
-    T: hash::Hash + Eq + ToPyObject,
+    K: IntoPyObject<'py> + Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        new_from_iter(py, self)
-            .expect("Failed to create Python set from HashSet")
-            .into()
-    }
-}
+    type Target = PySet;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
 
-impl<T> ToPyObject for collections::BTreeSet<T>
-where
-    T: hash::Hash + Eq + ToPyObject,
-{
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        new_from_iter(py, self)
-            .expect("Failed to create Python set from BTreeSet")
-            .into()
-    }
-}
-
-impl<K, S> IntoPy<PyObject> for collections::HashSet<K, S>
-where
-    K: IntoPy<PyObject> + Eq + hash::Hash,
-    S: hash::BuildHasher + Default,
-{
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        new_from_iter(py, self.into_iter().map(|item| item.into_py(py)))
-            .expect("Failed to create Python set from HashSet")
-            .into()
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        try_new_from_iter(py, self)
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -54,26 +33,23 @@ where
     }
 }
 
-impl<'py, K, S> IntoPyObject<'py> for collections::HashSet<K, S>
+impl<'a, 'py, K, H> IntoPyObject<'py> for &'a collections::HashSet<K, H>
 where
-    K: IntoPyObject<'py> + Eq + hash::Hash,
-    S: hash::BuildHasher + Default,
-    PyErr: From<K::Error>,
+    &'a K: IntoPyObject<'py> + Eq + hash::Hash,
+    K: 'a, // MSRV
+    H: hash::BuildHasher,
 {
     type Target = PySet;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        try_new_from_iter(
-            py,
-            self.into_iter().map(|item| {
-                item.into_pyobject(py)
-                    .map(BoundObject::into_any)
-                    .map(BoundObject::unbind)
-                    .map_err(Into::into)
-            }),
-        )
+        try_new_from_iter(py, self.iter())
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::set_of(<&K>::type_output())
     }
 }
 
@@ -101,14 +77,16 @@ where
     }
 }
 
-impl<K> IntoPy<PyObject> for collections::BTreeSet<K>
+impl<'py, K> IntoPyObject<'py> for collections::BTreeSet<K>
 where
-    K: IntoPy<PyObject> + cmp::Ord,
+    K: IntoPyObject<'py> + cmp::Ord,
 {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        new_from_iter(py, self.into_iter().map(|item| item.into_py(py)))
-            .expect("Failed to create Python set from BTreeSet")
-            .into()
+    type Target = PySet;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        try_new_from_iter(py, self)
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -117,25 +95,22 @@ where
     }
 }
 
-impl<'py, K> IntoPyObject<'py> for collections::BTreeSet<K>
+impl<'a, 'py, K> IntoPyObject<'py> for &'a collections::BTreeSet<K>
 where
-    K: IntoPyObject<'py> + Eq + hash::Hash,
-    PyErr: From<K::Error>,
+    &'a K: IntoPyObject<'py> + cmp::Ord,
+    K: 'a,
 {
     type Target = PySet;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        try_new_from_iter(
-            py,
-            self.into_iter().map(|item| {
-                item.into_pyobject(py)
-                    .map(BoundObject::into_any)
-                    .map(BoundObject::unbind)
-                    .map_err(Into::into)
-            }),
-        )
+        try_new_from_iter(py, self.iter())
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::set_of(<&K>::type_output())
     }
 }
 
@@ -165,17 +140,17 @@ where
 #[cfg(test)]
 mod tests {
     use crate::types::{any::PyAnyMethods, PyFrozenSet, PySet};
-    use crate::{IntoPy, PyObject, Python, ToPyObject};
+    use crate::{IntoPyObject, Python};
     use std::collections::{BTreeSet, HashSet};
 
     #[test]
     fn test_extract_hashset() {
         Python::with_gil(|py| {
-            let set = PySet::new_bound(py, &[1, 2, 3, 4, 5]).unwrap();
+            let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
             let hash_set: HashSet<usize> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
 
-            let set = PyFrozenSet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+            let set = PyFrozenSet::new(py, [1, 2, 3, 4, 5]).unwrap();
             let hash_set: HashSet<usize> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
         });
@@ -184,41 +159,27 @@ mod tests {
     #[test]
     fn test_extract_btreeset() {
         Python::with_gil(|py| {
-            let set = PySet::new_bound(py, &[1, 2, 3, 4, 5]).unwrap();
+            let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
             let hash_set: BTreeSet<usize> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
 
-            let set = PyFrozenSet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+            let set = PyFrozenSet::new(py, [1, 2, 3, 4, 5]).unwrap();
             let hash_set: BTreeSet<usize> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
         });
     }
 
     #[test]
-    fn test_set_into_py() {
+    fn test_set_into_pyobject() {
         Python::with_gil(|py| {
             let bt: BTreeSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
             let hs: HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
 
-            let bto: PyObject = bt.clone().into_py(py);
-            let hso: PyObject = hs.clone().into_py(py);
+            let bto = (&bt).into_pyobject(py).unwrap();
+            let hso = (&hs).into_pyobject(py).unwrap();
 
-            assert_eq!(bt, bto.extract(py).unwrap());
-            assert_eq!(hs, hso.extract(py).unwrap());
-        });
-    }
-
-    #[test]
-    fn test_set_to_object() {
-        Python::with_gil(|py| {
-            let bt: BTreeSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
-            let hs: HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
-
-            let bto: PyObject = bt.to_object(py);
-            let hso: PyObject = hs.to_object(py);
-
-            assert_eq!(bt, bto.extract(py).unwrap());
-            assert_eq!(hs, hso.extract(py).unwrap());
+            assert_eq!(bt, bto.extract().unwrap());
+            assert_eq!(hs, hso.extract().unwrap());
         });
     }
 }

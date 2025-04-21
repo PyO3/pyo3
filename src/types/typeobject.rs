@@ -23,8 +23,8 @@ pyobject_native_type_core!(PyType, pyobject_native_static_type_object!(ffi::PyTy
 impl PyType {
     /// Creates a new type object.
     #[inline]
-    pub fn new_bound<T: PyTypeInfo>(py: Python<'_>) -> Bound<'_, PyType> {
-        T::type_object_bound(py)
+    pub fn new<T: PyTypeInfo>(py: Python<'_>) -> Bound<'_, PyType> {
+        T::type_object(py)
     }
 
     /// Converts the given FFI pointer into `Bound<PyType>`, to use in safe code.
@@ -39,9 +39,11 @@ impl PyType {
         py: Python<'_>,
         p: *mut ffi::PyTypeObject,
     ) -> Bound<'_, PyType> {
-        Borrowed::from_ptr_unchecked(py, p.cast())
-            .downcast_unchecked()
-            .to_owned()
+        unsafe {
+            Borrowed::from_ptr_unchecked(py, p.cast())
+                .downcast_unchecked()
+                .to_owned()
+        }
     }
 }
 
@@ -163,7 +165,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
             if module_str == "builtins" || module_str == "__main__" {
                 qualname.downcast_into()?
             } else {
-                PyString::new_bound(self.py(), &format!("{}.{}", module, qualname))
+                PyString::new(self.py(), &format!("{}.{}", module, qualname))
             }
         };
 
@@ -195,7 +197,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
     where
         T: PyTypeInfo,
     {
-        self.is_subclass(&T::type_object_bound(self.py()))
+        self.is_subclass(&T::type_object(self.py()))
     }
 
     fn mro(&self) -> Bound<'py, PyTuple> {
@@ -243,15 +245,17 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
 
 #[cfg(test)]
 mod tests {
+    use crate::tests::common::generate_unique_module_name;
     use crate::types::{PyAnyMethods, PyBool, PyInt, PyModule, PyTuple, PyType, PyTypeMethods};
     use crate::PyAny;
     use crate::Python;
+    use pyo3_ffi::c_str;
 
     #[test]
     fn test_type_is_subclass() {
         Python::with_gil(|py| {
-            let bool_type = py.get_type_bound::<PyBool>();
-            let long_type = py.get_type_bound::<PyInt>();
+            let bool_type = py.get_type::<PyBool>();
+            let long_type = py.get_type::<PyInt>();
             assert!(bool_type.is_subclass(&long_type).unwrap());
         });
     }
@@ -259,10 +263,7 @@ mod tests {
     #[test]
     fn test_type_is_subclass_of() {
         Python::with_gil(|py| {
-            assert!(py
-                .get_type_bound::<PyBool>()
-                .is_subclass_of::<PyInt>()
-                .unwrap());
+            assert!(py.get_type::<PyBool>().is_subclass_of::<PyInt>().unwrap());
         });
     }
 
@@ -270,16 +271,17 @@ mod tests {
     fn test_mro() {
         Python::with_gil(|py| {
             assert!(py
-                .get_type_bound::<PyBool>()
+                .get_type::<PyBool>()
                 .mro()
                 .eq(PyTuple::new(
                     py,
                     [
-                        py.get_type_bound::<PyBool>(),
-                        py.get_type_bound::<PyInt>(),
-                        py.get_type_bound::<PyAny>()
+                        py.get_type::<PyBool>(),
+                        py.get_type::<PyInt>(),
+                        py.get_type::<PyAny>()
                     ]
-                ))
+                )
+                .unwrap())
                 .unwrap());
         });
     }
@@ -288,9 +290,9 @@ mod tests {
     fn test_bases_bool() {
         Python::with_gil(|py| {
             assert!(py
-                .get_type_bound::<PyBool>()
+                .get_type::<PyBool>()
                 .bases()
-                .eq(PyTuple::new(py, [py.get_type_bound::<PyInt>()]))
+                .eq(PyTuple::new(py, [py.get_type::<PyInt>()]).unwrap())
                 .unwrap());
         });
     }
@@ -299,7 +301,7 @@ mod tests {
     fn test_bases_object() {
         Python::with_gil(|py| {
             assert!(py
-                .get_type_bound::<PyAny>()
+                .get_type::<PyAny>()
                 .bases()
                 .eq(PyTuple::empty(py))
                 .unwrap());
@@ -309,14 +311,17 @@ mod tests {
     #[test]
     fn test_type_names_standard() {
         Python::with_gil(|py| {
-            let module = PyModule::from_code_bound(
+            let module_name = generate_unique_module_name("test_module");
+            let module = PyModule::from_code(
                 py,
-                r#"
+                c_str!(
+                    r#"
 class MyClass:
     pass
-"#,
-                file!(),
-                "test_module",
+"#
+                ),
+                c_str!(file!()),
+                &module_name,
             )
             .expect("module create failed");
 
@@ -324,10 +329,12 @@ class MyClass:
             let my_class_type = my_class.downcast_into::<PyType>().unwrap();
             assert_eq!(my_class_type.name().unwrap(), "MyClass");
             assert_eq!(my_class_type.qualname().unwrap(), "MyClass");
-            assert_eq!(my_class_type.module().unwrap(), "test_module");
+            let module_name = module_name.to_str().unwrap();
+            let qualname = format!("{module_name}.MyClass");
+            assert_eq!(my_class_type.module().unwrap(), module_name);
             assert_eq!(
                 my_class_type.fully_qualified_name().unwrap(),
-                "test_module.MyClass"
+                qualname.as_str()
             );
         });
     }
@@ -335,7 +342,7 @@ class MyClass:
     #[test]
     fn test_type_names_builtin() {
         Python::with_gil(|py| {
-            let bool_type = py.get_type_bound::<PyBool>();
+            let bool_type = py.get_type::<PyBool>();
             assert_eq!(bool_type.name().unwrap(), "bool");
             assert_eq!(bool_type.qualname().unwrap(), "bool");
             assert_eq!(bool_type.module().unwrap(), "builtins");
@@ -346,15 +353,18 @@ class MyClass:
     #[test]
     fn test_type_names_nested() {
         Python::with_gil(|py| {
-            let module = PyModule::from_code_bound(
+            let module_name = generate_unique_module_name("test_module");
+            let module = PyModule::from_code(
                 py,
-                r#"
+                c_str!(
+                    r#"
 class OuterClass:
     class InnerClass:
         pass
-"#,
-                file!(),
-                "test_module",
+"#
+                ),
+                c_str!(file!()),
+                &module_name,
             )
             .expect("module create failed");
 
@@ -366,10 +376,12 @@ class OuterClass:
                 inner_class_type.qualname().unwrap(),
                 "OuterClass.InnerClass"
             );
-            assert_eq!(inner_class_type.module().unwrap(), "test_module");
+            let module_name = module_name.to_str().unwrap();
+            let qualname = format!("{module_name}.OuterClass.InnerClass");
+            assert_eq!(inner_class_type.module().unwrap(), module_name);
             assert_eq!(
                 inner_class_type.fully_qualified_name().unwrap(),
-                "test_module.OuterClass.InnerClass"
+                qualname.as_str()
             );
         });
     }

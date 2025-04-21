@@ -60,7 +60,7 @@ impl LoopAndFuture {
     fn new(py: Python<'_>) -> PyResult<Self> {
         static GET_RUNNING_LOOP: GILOnceCell<PyObject> = GILOnceCell::new();
         let import = || -> PyResult<_> {
-            let module = py.import_bound("asyncio")?;
+            let module = py.import("asyncio")?;
             Ok(module.getattr("get_running_loop")?.into())
         };
         let event_loop = GET_RUNNING_LOOP.get_or_try_init(py, import)?.call0(py)?;

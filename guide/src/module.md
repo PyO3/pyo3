@@ -2,7 +2,7 @@
 
 You can create a module using `#[pymodule]`:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 #[pyfunction]
@@ -23,7 +23,7 @@ module to Python.
 The module's name defaults to the name of the Rust function. You can override the module name by
 using `#[pyo3(name = "custom_name")]`:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 #[pyfunction]
@@ -75,7 +75,7 @@ fn parent_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 }
 
 fn register_child_module(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
-    let child_module = PyModule::new_bound(parent_module.py(), "child_module")?;
+    let child_module = PyModule::new(parent_module.py(), "child_module")?;
     child_module.add_function(wrap_pyfunction!(func, &child_module)?)?;
     parent_module.add_submodule(&child_module)
 }
@@ -88,10 +88,11 @@ fn func() -> String {
 # Python::with_gil(|py| {
 #    use pyo3::wrap_pymodule;
 #    use pyo3::types::IntoPyDict;
+#    use pyo3::ffi::c_str;
 #    let parent_module = wrap_pymodule!(parent_module)(py);
-#    let ctx = [("parent_module", parent_module)].into_py_dict(py);
+#    let ctx = [("parent_module", parent_module)].into_py_dict(py).unwrap();
 #
-#    py.run_bound("assert parent_module.child_module.func() == 'func'", None, Some(&ctx)).unwrap();
+#    py.run(c_str!("assert parent_module.child_module.func() == 'func'"), None, Some(&ctx)).unwrap();
 # })
 ```
 
@@ -107,7 +108,7 @@ It is not necessary to add `#[pymodule]` on nested modules, which is only requir
 Another syntax based on Rust inline modules is also available to declare modules.
 
 For example:
-```rust
+```rust,no_run
 # mod declarative_module_test {
 use pyo3::prelude::*;
 
@@ -150,7 +151,7 @@ For nested modules, the name of the parent module is automatically added.
 In the following example, the `Unit` class will have for `module` `my_extension.submodule` because it is properly nested
 but the `Ext` class will have for `module` the default `builtins` because it not nested.
 
-```rust
+```rust,no_run
 # mod declarative_module_module_attr_test {
 use pyo3::prelude::*;
 

@@ -35,7 +35,7 @@ use std::os::raw::{c_char, c_int, c_void};
 ///
 ///     let capsule = PyCapsule::new(py, foo, Some(name.clone()))?;
 ///
-///     let module = PyModule::import_bound(py, "builtins")?;
+///     let module = PyModule::import(py, "builtins")?;
 ///     module.add("capsule", capsule)?;
 ///
 ///     let cap: &Foo = unsafe { PyCapsule::import(py, name.as_ref())? };
@@ -89,17 +89,6 @@ impl PyCapsule {
         Self::new_with_destructor(py, value, name, |_, _| {})
     }
 
-    /// Deprecated name for [`PyCapsule::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyCapsule::new`")]
-    #[inline]
-    pub fn new_bound<T: 'static + Send + AssertNotZeroSized>(
-        py: Python<'_>,
-        value: T,
-        name: Option<CString>,
-    ) -> PyResult<Bound<'_, Self>> {
-        Self::new(py, value, name)
-    }
-
     /// Constructs a new capsule whose contents are `value`, associated with `name`.
     ///
     /// Also provides a destructor: when the `PyCapsule` is destroyed, it will be passed the original object,
@@ -139,21 +128,6 @@ impl PyCapsule {
         }
     }
 
-    /// Deprecated name for [`PyCapsule::new_with_destructor`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyCapsule::new_with_destructor`")]
-    #[inline]
-    pub fn new_bound_with_destructor<
-        T: 'static + Send + AssertNotZeroSized,
-        F: FnOnce(T, *mut c_void) + Send,
-    >(
-        py: Python<'_>,
-        value: T,
-        name: Option<CString>,
-        destructor: F,
-    ) -> PyResult<Bound<'_, Self>> {
-        Self::new_with_destructor(py, value, name, destructor)
-    }
-
     /// Imports an existing capsule.
     ///
     /// The `name` should match the path to the module attribute exactly in the form
@@ -163,11 +137,11 @@ impl PyCapsule {
     ///
     /// It must be known that the capsule imported by `name` contains an item of type `T`.
     pub unsafe fn import<'py, T>(py: Python<'py>, name: &CStr) -> PyResult<&'py T> {
-        let ptr = ffi::PyCapsule_Import(name.as_ptr(), false as c_int);
+        let ptr = unsafe { ffi::PyCapsule_Import(name.as_ptr(), false as c_int) };
         if ptr.is_null() {
             Err(PyErr::fetch(py))
         } else {
-            Ok(&*ptr.cast::<T>())
+            Ok(unsafe { &*ptr.cast::<T>() })
         }
     }
 }
@@ -194,8 +168,8 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     /// # Example
     ///
     /// ```
+    /// use std::os::raw::c_void;
     /// use std::sync::mpsc::{channel, Sender};
-    /// use libc::c_void;
     /// use pyo3::{prelude::*, types::PyCapsule};
     ///
     /// let (tx, rx) = channel::<String>();
@@ -267,7 +241,7 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
     }
 
     unsafe fn reference<T>(&self) -> &'py T {
-        &*self.pointer().cast()
+        unsafe { &*self.pointer().cast() }
     }
 
     fn pointer(&self) -> *mut c_void {
@@ -316,12 +290,14 @@ struct CapsuleContents<T: 'static + Send, D: FnOnce(T, *mut c_void) + Send> {
 unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_void) + Send>(
     capsule: *mut ffi::PyObject,
 ) {
-    let ptr = ffi::PyCapsule_GetPointer(capsule, ffi::PyCapsule_GetName(capsule));
-    let ctx = ffi::PyCapsule_GetContext(capsule);
-    let CapsuleContents {
-        value, destructor, ..
-    } = *Box::from_raw(ptr.cast::<CapsuleContents<T, F>>());
-    destructor(value, ctx)
+    unsafe {
+        let ptr = ffi::PyCapsule_GetPointer(capsule, ffi::PyCapsule_GetName(capsule));
+        let ctx = ffi::PyCapsule_GetContext(capsule);
+        let CapsuleContents {
+            value, destructor, ..
+        } = *Box::from_raw(ptr.cast::<CapsuleContents<T, F>>());
+        destructor(value, ctx)
+    }
 }
 
 /// Guarantee `T` is not zero sized at compile time.
@@ -357,13 +333,12 @@ fn name_ptr_ignore_error(slf: &Bound<'_, PyCapsule>) -> *const c_char {
 
 #[cfg(test)]
 mod tests {
-    use libc::c_void;
-
     use crate::prelude::PyModule;
     use crate::types::capsule::PyCapsuleMethods;
     use crate::types::module::PyModuleMethods;
     use crate::{types::PyCapsule, Py, PyResult, Python};
     use std::ffi::CString;
+    use std::os::raw::c_void;
     use std::sync::mpsc::{channel, Sender};
 
     #[test]
@@ -444,7 +419,7 @@ mod tests {
 
             let capsule = PyCapsule::new(py, foo, Some(name.clone()))?;
 
-            let module = PyModule::import_bound(py, "builtins")?;
+            let module = PyModule::import(py, "builtins")?;
             module.add("capsule", capsule)?;
 
             // check error when wrong named passed for capsule.

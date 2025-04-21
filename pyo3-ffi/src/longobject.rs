@@ -6,12 +6,6 @@ use std::ptr::addr_of_mut;
 
 opaque_struct!(PyLongObject);
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyLong_Type")]
-    pub static mut PyLong_Type: PyTypeObject;
-}
-
 #[inline]
 pub unsafe fn PyLong_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_LONG_SUBCLASS)
@@ -92,7 +86,6 @@ extern "C" {
 #[cfg(not(Py_LIMITED_API))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "_PyPyLong_NumBits")]
-    #[cfg(not(Py_3_13))]
     pub fn _PyLong_NumBits(obj: *mut PyObject) -> size_t;
 }
 

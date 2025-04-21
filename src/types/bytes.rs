@@ -38,10 +38,10 @@ use std::str;
 /// let other = PyBytes::new(py, b"foo".as_slice());
 /// assert!(py_bytes.as_any().eq(other).unwrap());
 ///
-/// // Note that `eq` will convert it's argument to Python using `ToPyObject`,
-/// // so the following does not compare equal since the slice will convert into a
-/// // `list`, not a `bytes` object.
-/// assert!(!py_bytes.as_any().eq(b"foo".as_slice()).unwrap());
+/// // Note that `eq` will convert its argument to Python using `IntoPyObject`.
+/// // Byte collections are specialized, so that the following slice will indeed
+/// // convert into a `bytes` object and not a `list`:
+/// assert!(py_bytes.as_any().eq(b"foo".as_slice()).unwrap());
 /// # });
 /// ```
 #[repr(transparent)]
@@ -62,13 +62,6 @@ impl PyBytes {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyBytes::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyBytes::new`")]
-    #[inline]
-    pub fn new_bound<'p>(py: Python<'p>, s: &[u8]) -> Bound<'p, PyBytes> {
-        Self::new(py, s)
     }
 
     /// Creates a new Python `bytes` object with an `init` closure to write its contents.
@@ -95,6 +88,7 @@ impl PyBytes {
     /// })
     /// # }
     /// ```
+    #[inline]
     pub fn new_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<Bound<'_, PyBytes>>
     where
         F: FnOnce(&mut [u8]) -> PyResult<()>,
@@ -113,16 +107,6 @@ impl PyBytes {
         }
     }
 
-    /// Deprecated name for [`PyBytes::new_with`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyBytes::new_with`")]
-    #[inline]
-    pub fn new_bound_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<Bound<'_, PyBytes>>
-    where
-        F: FnOnce(&mut [u8]) -> PyResult<()>,
-    {
-        Self::new_with(py, len, init)
-    }
-
     /// Creates a new Python byte string object from a raw pointer and length.
     ///
     /// Panics if out of memory.
@@ -134,23 +118,11 @@ impl PyBytes {
     /// `std::slice::from_raw_parts`, this is
     /// unsafe](https://doc.rust-lang.org/std/slice/fn.from_raw_parts.html#safety).
     pub unsafe fn from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> Bound<'_, PyBytes> {
-        ffi::PyBytes_FromStringAndSize(ptr.cast(), len as isize)
-            .assume_owned(py)
-            .downcast_into_unchecked()
-    }
-
-    /// Deprecated name for [`PyBytes::from_ptr`].
-    ///
-    /// # Safety
-    ///
-    /// This function dereferences the raw pointer `ptr` as the
-    /// leading pointer of a slice of length `len`. [As with
-    /// `std::slice::from_raw_parts`, this is
-    /// unsafe](https://doc.rust-lang.org/std/slice/fn.from_raw_parts.html#safety).
-    #[deprecated(since = "0.23.0", note = "renamed to `PyBytes::from_ptr`")]
-    #[inline]
-    pub unsafe fn bound_from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> Bound<'_, PyBytes> {
-        Self::from_ptr(py, ptr, len)
+        unsafe {
+            ffi::PyBytes_FromStringAndSize(ptr.cast(), len as isize)
+                .assume_owned(py)
+                .downcast_into_unchecked()
+        }
     }
 }
 
