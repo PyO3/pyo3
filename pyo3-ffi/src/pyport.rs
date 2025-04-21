@@ -1,3 +1,5 @@
+pub const INT_MAX: std::os::raw::c_int = libc::INT_MAX;
+
 pub type PY_UINT32_T = u32;
 pub type PY_UINT64_T = u64;
 
