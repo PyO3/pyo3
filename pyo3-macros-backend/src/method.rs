@@ -27,6 +27,52 @@ pub struct RegularArg<'a> {
     pub option_wrapped_type: Option<&'a syn::Type>,
 }
 
+impl RegularArg<'_> {
+    pub fn default_value(&self) -> String {
+        if let Self {
+            default_value: Some(arg_default),
+            ..
+        } = self
+        {
+            match arg_default {
+                // literal values
+                syn::Expr::Lit(syn::ExprLit { lit, .. }) => match lit {
+                    syn::Lit::Str(s) => s.token().to_string(),
+                    syn::Lit::Char(c) => c.token().to_string(),
+                    syn::Lit::Int(i) => i.base10_digits().to_string(),
+                    syn::Lit::Float(f) => f.base10_digits().to_string(),
+                    syn::Lit::Bool(b) => {
+                        if b.value() {
+                            "True".to_string()
+                        } else {
+                            "False".to_string()
+                        }
+                    }
+                    _ => "...".to_string(),
+                },
+                // None
+                syn::Expr::Path(syn::ExprPath { qself, path, .. })
+                    if qself.is_none() && path.is_ident("None") =>
+                {
+                    "None".to_string()
+                }
+                // others, unsupported yet so defaults to `...`
+                _ => "...".to_string(),
+            }
+        } else if let RegularArg {
+            option_wrapped_type: Some(..),
+            ..
+        } = self
+        {
+            // functions without a `#[pyo3(signature = (...))]` option
+            // will treat trailing `Option<T>` arguments as having a default of `None`
+            "None".to_string()
+        } else {
+            "...".to_string()
+        }
+    }
+}
+
 /// Pythons *args argument
 #[derive(Clone, Debug)]
 pub struct VarargsArg<'a> {
@@ -175,6 +221,14 @@ impl<'a> FnArg<'a> {
                     option_wrapped_type: utils::option_type_argument(&cap.ty),
                 }))
             }
+        }
+    }
+
+    pub fn default_value(&self) -> String {
+        if let Self::Regular(args) = self {
+            args.default_value()
+        } else {
+            "...".to_string()
         }
     }
 }
