@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from pyo3_pytests import pyfunctions
 
 
@@ -58,7 +60,7 @@ def test_simple_kwargs_rs(benchmark):
 
 
 def simple_args_kwargs_py(a, b=None, *args, c=None, **kwargs):
-    return (a, b, args, c, kwargs)
+    return a, b, args, c, kwargs
 
 
 def test_simple_args_kwargs_py(benchmark):
@@ -72,7 +74,7 @@ def test_simple_args_kwargs_rs(benchmark):
 
 
 def args_kwargs_py(*args, **kwargs):
-    return (args, kwargs)
+    return args, kwargs
 
 
 def test_args_kwargs_py(benchmark):
@@ -82,4 +84,34 @@ def test_args_kwargs_py(benchmark):
 def test_args_kwargs_rs(benchmark):
     rust = benchmark(pyfunctions.args_kwargs, 1, "foo", {1: 2}, bar=4, foo=10)
     py = args_kwargs_py(1, "foo", {1: 2}, bar=4, foo=10)
+    assert rust == py
+
+
+def positional_only_py(a, /, b):
+    return a, b
+
+
+def test_positional_only_py(benchmark):
+    benchmark(positional_only_py, 1, "foo")
+
+
+def test_positional_only_rs(benchmark):
+    rust = benchmark(pyfunctions.positional_only, 1, "foo")
+    py = positional_only_py(1, "foo")
+    assert rust == py
+
+
+def with_typed_args_py(
+    a: bool, b: int, c: float, d: str
+) -> Tuple[bool, int, float, str]:
+    return a, b, c, d
+
+
+def test_with_typed_args_py(benchmark):
+    benchmark(with_typed_args_py, True, 1, 1.2, "foo")
+
+
+def test_with_typed_args_rs(benchmark):
+    rust = benchmark(pyfunctions.with_typed_args, True, 1, 1.2, "foo")
+    py = with_typed_args_py(True, 1, 1.2, "foo")
     assert rust == py

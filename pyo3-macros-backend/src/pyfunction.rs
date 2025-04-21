@@ -1,5 +1,5 @@
 #[cfg(feature = "experimental-inspect")]
-use crate::introspection::function_introspection_code;
+use crate::introspection::{function_introspection_code, introspection_id_const};
 use crate::utils::Ctx;
 use crate::{
     attributes::{
@@ -226,6 +226,18 @@ pub fn impl_wrap_pyfunction(
         FunctionSignature::from_arguments(arguments)
     };
 
+    let vis = &func.vis;
+    let name = &func.sig.ident;
+
+    #[cfg(feature = "experimental-inspect")]
+    let introspection = function_introspection_code(pyo3_path, name, &name.to_string(), &signature);
+    #[cfg(not(feature = "experimental-inspect"))]
+    let introspection = quote! {};
+    #[cfg(feature = "experimental-inspect")]
+    let introspection_id = introspection_id_const();
+    #[cfg(not(feature = "experimental-inspect"))]
+    let introspection_id = quote! {};
+
     let spec = method::FnSpec {
         tp,
         name: &func.sig.ident,
@@ -237,16 +249,9 @@ pub fn impl_wrap_pyfunction(
         unsafety: func.sig.unsafety,
     };
 
-    let vis = &func.vis;
-    let name = &func.sig.ident;
-
     let wrapper_ident = format_ident!("__pyfunction_{}", spec.name);
     let wrapper = spec.get_wrapper_function(&wrapper_ident, None, ctx)?;
     let methoddef = spec.get_methoddef(wrapper_ident, &spec.get_doc(&func.attrs, ctx), ctx);
-    #[cfg(feature = "experimental-inspect")]
-    let introspection = function_introspection_code(pyo3_path, &name.to_string());
-    #[cfg(not(feature = "experimental-inspect"))]
-    let introspection = quote! {};
 
     let wrapped_pyfunction = quote! {
         // Create a module with the same name as the `#[pyfunction]` - this way `use <the function>`
@@ -255,7 +260,7 @@ pub fn impl_wrap_pyfunction(
         #vis mod #name {
             pub(crate) struct MakeDef;
             pub const _PYO3_DEF: #pyo3_path::impl_::pymethods::PyMethodDef = MakeDef::_PYO3_DEF;
-            #introspection
+            #introspection_id
         }
 
         // Generate the definition inside an anonymous function in the same scope as the original function -
@@ -269,6 +274,8 @@ pub fn impl_wrap_pyfunction(
 
         #[allow(non_snake_case)]
         #wrapper
+
+        #introspection
     };
     Ok(wrapped_pyfunction)
 }
