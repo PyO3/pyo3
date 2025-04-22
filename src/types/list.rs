@@ -20,7 +20,8 @@ use std::num::NonZero;
 #[repr(transparent)]
 pub struct PyList(PyAny);
 
-pyobject_native_type_core!(PyList, pyobject_native_static_type_object!(ffi::PyList_Type), #checkfunction=ffi::PyList_Check);
+pyobject_native_type_core!(PyList, #checkfunction=ffi::PyList_Check);
+pyobject_native_type_object_methods!(PyList, #global=ffi::PyList_Type);
 
 #[inline]
 #[track_caller]

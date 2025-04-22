@@ -31,6 +31,18 @@ pub(crate) fn ptr_from_mut<T>(t: &mut T) -> *mut T {
     t as *mut T
 }
 
+// TODO: use ptr::cast_mut on MSRV 1.65
+#[inline]
+pub(crate) fn cast_mut<T>(t: *const T) -> *mut T {
+    t as *mut T
+}
+
+// TODO: use ptr::cast_const on MSRV 1.65
+#[inline]
+pub(crate) fn cast_const<T>(t: *mut T) -> *const T {
+    t as *const T
+}
+
 // TODO: use ptr::fn_addr_eq on MSRV 1.85
 pub(crate) fn clear_eq(f: Option<ffi::inquiry>, g: ffi::inquiry) -> bool {
     #[cfg(fn_ptr_eq)]

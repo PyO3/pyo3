@@ -6,9 +6,18 @@ use crate::types::{PyAny, PyType};
 use crate::{ffi, Bound, Python};
 use std::ptr;
 
+/// `T: PyNativeType` represents that `T` is a struct representing a 'native python class'.
+/// a 'native class' is a wrapper around a [ffi::PyTypeObject] that is defined by the python
+/// API such as `PyDict` for `dict`.
+///
+/// This trait is intended to be used internally.
+///
+/// # Safety
+///
+/// This trait must only be implemented for types which represent native python classes.
+pub unsafe trait PyNativeType {}
+
 /// `T: PyLayout<U>` represents that `T` is a concrete representation of `U` in the Python heap.
-/// E.g., `PyClassObject` is a concrete representation of all `pyclass`es, and `ffi::PyObject`
-/// is of `PyAny`.
 ///
 /// This trait is intended to be used internally.
 ///
@@ -28,14 +37,14 @@ pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 ///
 /// This trait is marked unsafe because:
 ///  - specifying the incorrect layout can lead to memory errors
-///  - the return value of type_object must always point to the same PyTypeObject instance
+///  - the return value of type_object must always point to the same `PyTypeObject` instance
 ///
 /// It is safely implemented by the `pyclass` macro.
 ///
 /// # Safety
 ///
-/// Implementations must provide an implementation for `type_object_raw` which infallibly produces a
-/// non-null pointer to the corresponding Python type object.
+/// Implementations must return the correct non-null `PyTypeObject` pointer corresponding to the type of `Self`
+/// from `type_object_raw` and `try_get_type_object_raw`.
 pub unsafe trait PyTypeInfo: Sized {
     /// Class name.
     const NAME: &'static str;
@@ -43,8 +52,21 @@ pub unsafe trait PyTypeInfo: Sized {
     /// Module name, if any.
     const MODULE: Option<&'static str>;
 
-    /// Returns the PyTypeObject instance for this type.
+    /// Whether classes that extend from this type must use the 'opaque type' extension mechanism
+    /// rather than using the standard mechanism of placing the data for this type at the end
+    /// of a new `repr(C)` struct
+    const OPAQUE: bool;
+
+    /// Returns the [ffi::PyTypeObject] instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;
+
+    /// Returns the [ffi::PyTypeObject] instance for this type if it is known statically or has already
+    /// been initialized (by calling [PyTypeInfo::type_object_raw()]).
+    ///
+    /// # Safety
+    /// - It is valid to always return Some.
+    /// - It is not valid to return None once [PyTypeInfo::type_object_raw()] has been called.
+    fn try_get_type_object_raw() -> Option<*mut ffi::PyTypeObject>;
 
     /// Returns the safe abstraction over the type object.
     #[inline]

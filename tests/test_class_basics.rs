@@ -427,6 +427,52 @@ fn test_tuple_struct_class() {
 }
 
 #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+#[pyclass]
+struct NoDunderDictSupport {
+    _pad: [u8; 32],
+}
+
+#[test]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+#[should_panic(expected = "inst.a = 1")]
+fn no_dunder_dict_support_assignment() {
+    Python::with_gil(|py| {
+        let inst = Py::new(
+            py,
+            NoDunderDictSupport {
+                _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+            },
+        )
+        .unwrap();
+        // should panic as this class has no __dict__
+        py_run!(py, inst, r#"inst.a = 1"#);
+    });
+}
+
+#[test]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+fn no_dunder_dict_support_setattr() {
+    Python::with_gil(|py| {
+        let inst = Py::new(
+            py,
+            NoDunderDictSupport {
+                _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+            },
+        )
+        .unwrap();
+        let err = inst
+            .into_bound(py)
+            .as_any()
+            .setattr("a", 1)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains(
+            "AttributeError: 'builtins.NoDunderDictSupport' object has no attribute 'a'"
+        ));
+    });
+}
+
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[pyclass(dict, subclass)]
 struct DunderDictSupport {
     // Make sure that dict_offset runs with non-zero sized Self

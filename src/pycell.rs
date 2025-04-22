@@ -205,8 +205,10 @@ use std::fmt;
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 
-pub(crate) mod impl_;
-use impl_::{PyClassBorrowChecker, PyClassObjectLayout};
+pub(crate) mod borrow_checker;
+pub(crate) mod layout;
+use borrow_checker::PyClassBorrowChecker;
+use layout::{PyObjectLayout, TypeObjectStrategy};
 
 /// A wrapper type for an immutably borrowed value from a [`Bound<'py, T>`].
 ///
@@ -306,9 +308,11 @@ impl<'py, T: PyClass> PyRef<'py, T> {
     }
 
     pub(crate) fn try_borrow(obj: &Bound<'py, T>) -> Result<Self, PyBorrowError> {
-        let cell = obj.get_class_object();
-        cell.ensure_threadsafe();
-        cell.borrow_checker()
+        let raw_obj = obj.as_raw_ref();
+        let py: Python<'py> = unsafe { Python::assume_gil_acquired() };
+        unsafe { PyObjectLayout::ensure_threadsafe::<T>(py, raw_obj) };
+        let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(py, raw_obj) };
+        borrow_checker
             .try_borrow()
             .map(|_| Self { inner: obj.clone() })
     }
@@ -434,16 +438,16 @@ impl<T: PyClass> Deref for PyRef<'_, T> {
 
     #[inline]
     fn deref(&self) -> &T {
-        unsafe { &*self.inner.get_class_object().get_ptr() }
+        let obj = self.inner.as_raw_ref();
+        unsafe { PyObjectLayout::get_data::<T>(obj, TypeObjectStrategy::lazy(self.py())) }
     }
 }
 
 impl<T: PyClass> Drop for PyRef<'_, T> {
     fn drop(&mut self) {
-        self.inner
-            .get_class_object()
-            .borrow_checker()
-            .release_borrow()
+        let obj = self.inner.as_raw_ref();
+        let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(self.py(), obj) };
+        borrow_checker.release_borrow();
     }
 }
 
@@ -548,16 +552,18 @@ impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
     }
 
     pub(crate) fn try_borrow(obj: &Bound<'py, T>) -> Result<Self, PyBorrowMutError> {
-        let cell = obj.get_class_object();
-        cell.ensure_threadsafe();
-        cell.borrow_checker()
+        let raw_obj = obj.as_raw_ref();
+        let py: Python<'py> = unsafe { Python::assume_gil_acquired() };
+        unsafe { PyObjectLayout::ensure_threadsafe::<T>(py, raw_obj) };
+        let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(py, raw_obj) };
+        borrow_checker
             .try_borrow_mut()
             .map(|_| Self { inner: obj.clone() })
     }
 
-    pub(crate) fn downgrade(slf: &Self) -> &PyRef<'py, T> {
+    pub(crate) fn downgrade(&self) -> &PyRef<'py, T> {
         // `PyRefMut<T>` and `PyRef<T>` have the same layout
-        unsafe { &*ptr_from_ref(slf).cast() }
+        unsafe { &*ptr_from_ref(self).cast() }
     }
 }
 
@@ -604,23 +610,24 @@ impl<T: PyClass<Frozen = False>> Deref for PyRefMut<'_, T> {
 
     #[inline]
     fn deref(&self) -> &T {
-        unsafe { &*self.inner.get_class_object().get_ptr() }
+        let obj = self.inner.as_raw_ref();
+        unsafe { PyObjectLayout::get_data::<T>(obj, TypeObjectStrategy::lazy(self.py())) }
     }
 }
 
 impl<T: PyClass<Frozen = False>> DerefMut for PyRefMut<'_, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
-        unsafe { &mut *self.inner.get_class_object().get_ptr() }
+        let obj = self.inner.as_ptr();
+        unsafe { &mut *PyObjectLayout::get_data_ptr::<T>(obj, TypeObjectStrategy::lazy(self.py())) }
     }
 }
 
 impl<T: PyClass<Frozen = False>> Drop for PyRefMut<'_, T> {
     fn drop(&mut self) {
-        self.inner
-            .get_class_object()
-            .borrow_checker()
-            .release_borrow_mut()
+        let obj = self.inner.get_raw_object();
+        let borrow_checker = unsafe { PyObjectLayout::get_borrow_checker::<T>(self.py(), obj) };
+        borrow_checker.release_borrow_mut();
     }
 }
 

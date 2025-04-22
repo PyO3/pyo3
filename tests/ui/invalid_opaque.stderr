@@ -1,0 +1,5 @@
+error: `opaque` requires Python >= 3.12
+ --> tests/ui/invalid_opaque.rs:3:11
+  |
+3 | #[pyclass(opaque)]
+  |           ^^^^^^

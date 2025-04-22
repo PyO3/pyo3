@@ -1378,11 +1378,19 @@ impl pyo3::types::DerefToPyAny for MyClass {}
 unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
     const NAME: &'static str = "MyClass";
     const MODULE: ::std::option::Option<&'static str> = ::std::option::Option::None;
+    const OPAQUE: bool = false;
+
     #[inline]
     fn type_object_raw(py: pyo3::Python<'_>) -> *mut pyo3::ffi::PyTypeObject {
         <Self as pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()
             .get_or_init(py)
             .as_type_ptr()
+    }
+
+    #[inline]
+    fn try_get_type_object_raw() -> ::std::option::Option<*mut pyo3::ffi::PyTypeObject> {
+        <Self as pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()
+            .try_get_raw()
     }
 }
 

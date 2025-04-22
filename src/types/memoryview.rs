@@ -10,7 +10,8 @@ use crate::{ffi, Bound, PyAny};
 #[repr(transparent)]
 pub struct PyMemoryView(PyAny);
 
-pyobject_native_type_core!(PyMemoryView, pyobject_native_static_type_object!(ffi::PyMemoryView_Type), #checkfunction=ffi::PyMemoryView_Check);
+pyobject_native_type_core!(PyMemoryView, #checkfunction=ffi::PyMemoryView_Check);
+pyobject_native_type_object_methods!(PyMemoryView, #global=ffi::PyMemoryView_Type);
 
 impl PyMemoryView {
     /// Creates a new Python `memoryview` object from another Python object that

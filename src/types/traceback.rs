@@ -12,11 +12,8 @@ use crate::{ffi, Bound, PyAny};
 #[repr(transparent)]
 pub struct PyTraceback(PyAny);
 
-pyobject_native_type_core!(
-    PyTraceback,
-    pyobject_native_static_type_object!(ffi::PyTraceBack_Type),
-    #checkfunction=ffi::PyTraceBack_Check
-);
+pyobject_native_type_core!(PyTraceback, #checkfunction=ffi::PyTraceBack_Check);
+pyobject_native_type_object_methods!(PyTraceback, #global=ffi::PyTraceBack_Type);
 
 /// Implementation of functionality for [`PyTraceback`].
 ///

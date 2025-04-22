@@ -87,18 +87,13 @@ macro_rules! import_exception {
 
         $crate::pyobject_native_type_core!(
             $name,
-            $name::type_object_raw,
             #module=::std::option::Option::Some(stringify!($module))
         );
-
-        impl $name {
-            fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
-                use $crate::types::PyTypeMethods;
-                static TYPE_OBJECT: $crate::impl_::exceptions::ImportedExceptionTypeObject =
-                    $crate::impl_::exceptions::ImportedExceptionTypeObject::new(stringify!($module), stringify!($name));
-                TYPE_OBJECT.get(py).as_type_ptr()
-            }
-        }
+        $crate::pyobject_native_type_object_methods!(
+            $name,
+            #import_module=$module,
+            #import_name=$name
+        );
     };
 }
 
@@ -123,23 +118,16 @@ macro_rules! import_exception_bound {
 
         $crate::pyobject_native_type_info!(
             $name,
-            $name::type_object_raw,
-            ::std::option::Option::Some(stringify!($module))
+            ::std::option::Option::Some(stringify!($module)),
+            false
+        );
+        $crate::pyobject_native_type_object_methods!(
+            $name,
+            #import_module=$module,
+            #import_name=$name
         );
 
         impl $crate::types::DerefToPyAny for $name {}
-
-        impl $name {
-            fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
-                use $crate::types::PyTypeMethods;
-                static TYPE_OBJECT: $crate::impl_::exceptions::ImportedExceptionTypeObject =
-                    $crate::impl_::exceptions::ImportedExceptionTypeObject::new(
-                        stringify!($module),
-                        stringify!($name),
-                    );
-                TYPE_OBJECT.get(py).as_type_ptr()
-            }
-        }
     };
 }
 
@@ -246,28 +234,20 @@ macro_rules! create_exception_type_object {
     ($module: expr, $name: ident, $base: ty, $doc: expr) => {
         $crate::pyobject_native_type_core!(
             $name,
-            $name::type_object_raw,
             #module=::std::option::Option::Some(stringify!($module))
         );
-
-        impl $name {
-            fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
-                use $crate::sync::GILOnceCell;
-                static TYPE_OBJECT: GILOnceCell<$crate::Py<$crate::types::PyType>> =
-                    GILOnceCell::new();
-
-                TYPE_OBJECT
-                    .get_or_init(py, ||
-                        $crate::PyErr::new_type(
-                            py,
-                            $crate::ffi::c_str!(concat!(stringify!($module), ".", stringify!($name))),
-                            $doc,
-                            ::std::option::Option::Some(&py.get_type::<$base>()),
-                            ::std::option::Option::None,
-                        ).expect("Failed to initialize new exception type.")
-                ).as_ptr() as *mut $crate::ffi::PyTypeObject
+        $crate::pyobject_native_type_object_methods!(
+            $name,
+            #create=|py| {
+                $crate::PyErr::new_type(
+                    py,
+                    $crate::ffi::c_str!(concat!(stringify!($module), ".", stringify!($name))),
+                    $doc,
+                    ::std::option::Option::Some(&py.get_type::<$base>()),
+                    ::std::option::Option::None,
+                ).expect("Failed to initialize new exception type.")
             }
-        }
+        );
     };
 }
 
@@ -279,7 +259,8 @@ macro_rules! impl_native_exception (
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
-        $crate::pyobject_native_type!($name, $layout, |_py| unsafe { $crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject } $(, #checkfunction=$checkfunction)?);
+        $crate::pyobject_native_type!($name, $layout $(, #checkfunction=$checkfunction)?);
+        $crate::pyobject_native_type_object_methods!($name, #global_ptr=$crate::ffi::$exc_name);
         $crate::pyobject_subclassable_native_type!($name, $layout);
     );
     ($name:ident, $exc_name:ident, $doc:expr) => (
@@ -297,7 +278,8 @@ macro_rules! impl_windows_native_exception (
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
-        $crate::pyobject_native_type!($name, $layout, |_py| unsafe { $crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject });
+        $crate::pyobject_native_type!($name, $layout);
+        $crate::pyobject_native_type_object_methods!($name, #global_ptr=$crate::ffi::$exc_name);
     );
     ($name:ident, $exc_name:ident, $doc:expr) => (
         impl_windows_native_exception!($name, $exc_name, $doc, $crate::ffi::PyBaseExceptionObject);
@@ -379,6 +361,7 @@ impl_native_exception!(
     ffi::PyBaseExceptionObject,
     #checkfunction=ffi::PyExceptionInstance_Check
 );
+
 impl_native_exception!(PyException, PyExc_Exception, native_doc!("Exception"));
 impl_native_exception!(
     PyStopAsyncIteration,

@@ -23,19 +23,11 @@ pub struct PySet(PyAny);
 pyobject_subclassable_native_type!(PySet, crate::ffi::PySetObject);
 
 #[cfg(not(any(PyPy, GraalPy)))]
-pyobject_native_type!(
-    PySet,
-    ffi::PySetObject,
-    pyobject_native_static_type_object!(ffi::PySet_Type),
-    #checkfunction=ffi::PySet_Check
-);
-
+pyobject_native_type!(PySet, ffi::PySetObject, #checkfunction=ffi::PySet_Check);
 #[cfg(any(PyPy, GraalPy))]
-pyobject_native_type_core!(
-    PySet,
-    pyobject_native_static_type_object!(ffi::PySet_Type),
-    #checkfunction=ffi::PySet_Check
-);
+pyobject_native_type_core!(PySet, #checkfunction=ffi::PySet_Check);
+
+pyobject_native_type_object_methods!(PySet, #global=ffi::PySet_Type);
 
 impl PySet {
     /// Creates a new set with elements from the given slice.

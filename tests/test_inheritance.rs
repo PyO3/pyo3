@@ -175,6 +175,217 @@ except Exception as e:
     });
 }
 
+#[cfg(Py_3_12)]
+mod inheriting_type {
+    use super::*;
+    use pyo3::types::PyType;
+    use pyo3::types::{PyDict, PyTuple};
+
+    #[pyclass(subclass, extends=PyType)]
+    #[derive(Debug)]
+    struct Metaclass {
+        counter: u64,
+    }
+
+    impl Default for Metaclass {
+        fn default() -> Self {
+            Self { counter: 999 }
+        }
+    }
+
+    #[pymethods]
+    impl Metaclass {
+        #[pyo3(signature = (*_args, **_kwargs))]
+        fn __init__(
+            slf: Bound<'_, Metaclass>,
+            _args: Bound<'_, PyTuple>,
+            _kwargs: Option<Bound<'_, PyDict>>,
+        ) {
+            let mut slf = slf.borrow_mut();
+            assert_eq!(slf.counter, 999);
+            slf.counter = 5;
+        }
+
+        fn __getitem__(&self, item: u64) -> u64 {
+            item + 1
+        }
+
+        fn increment_counter(&mut self) {
+            self.counter += 1;
+        }
+
+        fn get_counter(&self) -> u64 {
+            self.counter
+        }
+    }
+
+    #[test]
+    fn test_metaclass() {
+        Python::with_gil(|py| {
+            #[allow(non_snake_case)]
+            let Metaclass = py.get_type::<Metaclass>();
+
+            // check base type
+            py_run!(py, Metaclass, r#"assert Metaclass.__bases__ == (type,)"#);
+
+            // check can be used as a metaclass
+            py_run!(
+                py,
+                Metaclass,
+                r#"
+                class Foo(metaclass=Metaclass):
+                    value = "foo_value"
+                assert type(Foo) is Metaclass
+                assert isinstance(Foo, Metaclass)
+                assert Foo.value == "foo_value"
+                assert Foo[100] == 101
+                FooDynamic = Metaclass("FooDynamic", (), {})
+                assert type(FooDynamic) is Metaclass
+                assert FooDynamic[100] == 101
+                "#
+            );
+
+            // can hold data
+            py_run!(
+                py,
+                Metaclass,
+                r#"
+                class Foo(metaclass=Metaclass):
+                    pass
+
+                assert Foo.get_counter() == 5
+                Foo.increment_counter()
+                assert Foo.get_counter() == 6
+                "#
+            );
+
+            // can be subclassed
+            py_run!(
+                py,
+                Metaclass,
+                r#"
+                class Foo(Metaclass):
+                    value = "foo_value"
+
+                class Bar(metaclass=Foo):
+                    value = "bar_value"
+
+                assert isinstance(Bar, Foo)
+                assert Bar.get_counter() == 5
+                Bar.increment_counter()
+                assert Bar.get_counter() == 6
+                assert Bar.value == "bar_value"
+                assert Bar[100] == 101
+                "#
+            );
+        });
+    }
+
+    #[pyclass(subclass, extends=Metaclass)]
+    #[derive(Debug, Default)]
+    struct MetaclassSubclass {}
+
+    #[pymethods]
+    impl MetaclassSubclass {
+        #[pyo3(signature = (*_args, **_kwargs))]
+        fn __init__(
+            _slf: &Bound<'_, MetaclassSubclass>,
+            _args: &Bound<'_, PyTuple>,
+            _kwargs: Option<&Bound<'_, PyDict>>,
+        ) {
+        }
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "initialize_with_default does not currently support multi-level inheritance"
+    )]
+    fn test_metaclass_subclass() {
+        Python::with_gil(|py| {
+            #[allow(non_snake_case)]
+            let MetaclassSubclass = py.get_type::<MetaclassSubclass>();
+            py_run!(
+                py,
+                MetaclassSubclass,
+                r#"
+                class Foo(metaclass=MetaclassSubclass):
+                    pass
+                "#
+            );
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Metaclasses must specify __init__")]
+    fn inherit_type_missing_init() {
+        use pyo3::types::PyType;
+
+        #[pyclass(subclass, extends=PyType)]
+        #[derive(Debug, Default)]
+        struct MetaclassMissingInit;
+
+        #[pymethods]
+        impl MetaclassMissingInit {}
+
+        Python::with_gil(|py| {
+            #[allow(non_snake_case)]
+            let Metaclass = py.get_type::<MetaclassMissingInit>();
+
+            // panics when used
+            py_run!(
+                py,
+                Metaclass,
+                r#"
+                class Foo(metaclass=Metaclass):
+                    pass
+                "#
+            );
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Metaclasses must not specify __new__ (use __init__ instead)")]
+    fn inherit_type_with_new() {
+        use pyo3::types::PyType;
+
+        #[pyclass(subclass, extends=PyType)]
+        #[derive(Debug, Default)]
+        struct MetaclassWithNew;
+
+        #[pymethods]
+        impl MetaclassWithNew {
+            #[new]
+            #[pyo3(signature = (*_args, **_kwargs))]
+            fn new(_args: Bound<'_, PyTuple>, _kwargs: Option<Bound<'_, PyDict>>) -> Self {
+                MetaclassWithNew {}
+            }
+
+            #[pyo3(signature = (*_args, **_kwargs))]
+            fn __init__(
+                _slf: Bound<'_, MetaclassWithNew>,
+                _args: Bound<'_, PyTuple>,
+                _kwargs: Option<Bound<'_, PyDict>>,
+            ) {
+            }
+        }
+
+        Python::with_gil(|py| {
+            #[allow(non_snake_case)]
+            let Metaclass = py.get_type::<MetaclassWithNew>();
+
+            // panics when used
+            py_run!(
+                py,
+                Metaclass,
+                r#"
+                class Foo(metaclass=Metaclass):
+                    pass
+                "#
+            );
+        });
+    }
+}
+
 // Subclassing builtin types is not allowed in the LIMITED API.
 #[cfg(not(Py_LIMITED_API))]
 mod inheriting_native_type {
