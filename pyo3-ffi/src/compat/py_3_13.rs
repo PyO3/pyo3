@@ -114,7 +114,7 @@ compat_function!(
         name: *const std::os::raw::c_char,
         value: *mut crate::PyObject,
     ) -> std::os::raw::c_int {
-        let result = crate::PyModule_AddObjectRef(module, name, value);
+        let result = crate::compat::PyModule_AddObjectRef(module, name, value);
         crate::Py_XDECREF(value);
         result
     }
