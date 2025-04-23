@@ -83,27 +83,13 @@ pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == addr_of_mut!(PyCode_Type)) as c_int
 }
 
-#[inline]
-#[cfg(all(not(any(PyPy, GraalPy)), Py_3_10, not(Py_3_11)))]
-pub unsafe fn PyCode_GetNumFree(op: *mut PyCodeObject) -> Py_ssize_t {
-    crate::PyTuple_GET_SIZE((*op).co_freevars)
-}
-
-#[inline]
-#[cfg(all(not(Py_3_10), Py_3_11, not(any(PyPy, GraalPy))))]
-pub unsafe fn PyCode_GetNumFree(op: *mut PyCodeObject) -> c_int {
-    (*op).co_nfreevars
-}
-
 extern "C" {
     #[cfg(PyPy)]
     #[link_name = "PyPyCode_Check"]
     pub fn PyCode_Check(op: *mut PyObject) -> c_int;
-
-    #[cfg(PyPy)]
-    #[link_name = "PyPyCode_GetNumFree"]
-    pub fn PyCode_GetNumFree(op: *mut PyCodeObject) -> Py_ssize_t;
 }
+
+// skipped PyCode_GetNumFree (requires knowledge of code object layout)
 
 extern "C" {
     #[cfg(not(GraalPy))]
