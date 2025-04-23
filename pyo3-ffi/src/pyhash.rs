@@ -14,6 +14,9 @@ extern "C" {
 
     #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     pub fn _Py_HashBytes(src: *const c_void, len: Py_ssize_t) -> Py_hash_t;
+
+    #[cfg(Py_3_14)]
+    pub fn Py_HashBuffer(ptr: *const c_void, len: Py_ssize_t) -> Py_hash_t;
 }
 
 pub const _PyHASH_MULTIPLIER: c_ulong = 1000003;
