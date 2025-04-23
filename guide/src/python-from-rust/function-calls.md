@@ -62,7 +62,6 @@ fn main() -> PyResult<()> {
 For the `call` and `call_method` APIs, `kwargs` are `Option<&Bound<'py, PyDict>>`, so can either be `None` or `Some(&dict)`. You can use the [`IntoPyDict`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.IntoPyDict.html) trait to convert other dict-like containers, e.g. `HashMap` or `BTreeMap`, as well as tuples with up to 10 elements and `Vec`s where each element is a two-element tuple. To pass keyword arguments of different types, construct a `PyDict` object.
 
 ```rust
-
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, IntoPyDict};
 use std::collections::HashMap;
