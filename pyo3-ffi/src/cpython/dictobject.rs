@@ -2,10 +2,10 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::os::raw::c_int;
 
-opaque_struct!(PyDictKeysObject);
+opaque_struct!(pub PyDictKeysObject);
 
 #[cfg(Py_3_11)]
-opaque_struct!(PyDictValues);
+opaque_struct!(pub PyDictValues);
 
 #[cfg(not(GraalPy))]
 #[repr(C)]
