@@ -865,6 +865,7 @@ def update_ui_tests(session: nox.Session):
 @nox.session(name="test-introspection")
 def test_introspection(session: nox.Session):
     session.install("maturin")
+    session.install("ruff")
     target = os.environ.get("CARGO_BUILD_TARGET")
     for options in ([], ["--release"]):
         if target is not None:

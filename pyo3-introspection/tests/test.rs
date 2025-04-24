@@ -1,8 +1,11 @@
-use anyhow::Result;
+use anyhow::{ensure, Result};
 use pyo3_introspection::{introspect_cdylib, module_stub_files};
 use std::collections::HashMap;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::{env, fs};
+use tempfile::NamedTempFile;
 
 #[test]
 fn pytests_stubs() -> Result<()> {
@@ -42,9 +45,12 @@ fn pytests_stubs() -> Result<()> {
                 file_name.display()
             )
         });
+
+        let actual_file_content = format_with_ruff(actual_file_content)?;
+
         assert_eq!(
-            &expected_file_content.replace('\r', ""), // Windows compatibility
-            actual_file_content,
+            expected_file_content.as_str(),
+            actual_file_content.as_str(),
             "The content of file {} is different",
             file_name.display()
         )
@@ -74,4 +80,26 @@ fn add_dir_files(
         }
     }
     Ok(())
+}
+
+fn format_with_ruff(code: &str) -> Result<String> {
+    let temp_file = NamedTempFile::with_suffix(".pyi")?;
+    // Write to file
+    {
+        let mut file = temp_file.as_file();
+        file.write_all(code.as_bytes())?;
+        file.flush()?;
+        file.seek(SeekFrom::Start(0))?;
+    }
+    ensure!(
+        Command::new("ruff")
+            .arg("format")
+            .arg(temp_file.path())
+            .status()?
+            .success(),
+        "Failed to run ruff"
+    );
+    let mut content = String::new();
+    temp_file.as_file().read_to_string(&mut content)?;
+    Ok(content)
 }

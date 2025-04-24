@@ -112,6 +112,7 @@ fn convert_argument(arg: &ChunkArgument) -> Argument {
     Argument {
         name: arg.name.clone(),
         default_value: arg.default.clone(),
+        annotation: arg.annotation.clone(),
     }
 }
 
@@ -315,4 +316,6 @@ struct ChunkArgument {
     name: String,
     #[serde(default)]
     default: Option<String>,
+    #[serde(default)]
+    annotation: Option<String>,
 }
