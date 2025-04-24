@@ -119,6 +119,8 @@ impl<'py> IntoIterator for &Bound<'py, PyIterator> {
 
 impl PyTypeCheck for PyIterator {
     const NAME: &'static str = "Iterator";
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "collections.abc.Iterator";
 
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::PyIter_Check(object.as_ptr()) != 0 }
