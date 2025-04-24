@@ -28,7 +28,7 @@ pub struct PyVisit<'a> {
 impl PyVisit<'_> {
     /// Visit `obj`.
     ///
-    /// Note: `obj` accepts a variatity of types, including
+    /// Note: `obj` accepts a variety of types, including
     /// - `&Py<T>`
     /// - `&Option<Py<T>>`
     /// - `Option<&Py<T>>`
