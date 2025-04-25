@@ -87,7 +87,10 @@ def test_args_kwargs_rs(benchmark):
     assert rust == py
 
 
-def positional_only_py(a, /, b):
+# TODO: the second argument should be positional-only
+# but can't be without breaking tests on Python 3.7.
+# See gh-5095.
+def positional_only_py(a, b):
     return a, b
 
 
