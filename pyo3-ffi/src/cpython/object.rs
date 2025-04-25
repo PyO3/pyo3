@@ -313,11 +313,11 @@ pub struct PyHeapTypeObject {
     #[cfg(all(Py_3_11, not(PyPy)))]
     _ht_tpname: *mut c_char,
     #[cfg(Py_3_14)]
-    ht_token: *mut c_void,
+    pub ht_token: *mut c_void,
     #[cfg(all(Py_3_11, not(PyPy)))]
     _spec_cache: _specialization_cache,
     #[cfg(all(Py_GIL_DISABLED, Py_3_14))]
-    unique_id: Py_ssize_t,
+    pub unique_id: Py_ssize_t,
 }
 
 impl Default for PyHeapTypeObject {

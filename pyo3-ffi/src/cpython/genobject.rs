@@ -34,7 +34,7 @@ pub struct PyGenObject {
 }
 
 #[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
-opaque_struct!(PyGenObject);
+opaque_struct!(pub PyGenObject);
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {

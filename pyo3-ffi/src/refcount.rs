@@ -15,7 +15,7 @@ use std::ptr;
 use std::sync::atomic::Ordering::Relaxed;
 
 #[cfg(Py_3_14)]
-pub const _Py_STATICALLY_ALLOCATED_FLAG: c_int = 1 << 7;
+const _Py_STATICALLY_ALLOCATED_FLAG: c_int = 1 << 7;
 
 #[cfg(all(Py_3_12, not(Py_3_14)))]
 const _Py_IMMORTAL_REFCNT: Py_ssize_t = {
@@ -56,13 +56,13 @@ const _Py_STATIC_IMMORTAL_MINIMUM_REFCNT: Py_ssize_t =
     ((6 as c_long) << (28 as c_long)) as Py_ssize_t;
 
 #[cfg(all(Py_3_14, Py_GIL_DISABLED))]
-pub const _Py_IMMORTAL_INITIAL_REFCNT: Py_ssize_t = c_uint::MAX as Py_ssize_t;
+const _Py_IMMORTAL_INITIAL_REFCNT: Py_ssize_t = c_uint::MAX as Py_ssize_t;
 
 #[cfg(Py_GIL_DISABLED)]
-pub const _Py_IMMORTAL_REFCNT_LOCAL: u32 = u32::MAX;
+pub(crate) const _Py_IMMORTAL_REFCNT_LOCAL: u32 = u32::MAX;
 
 #[cfg(Py_GIL_DISABLED)]
-pub const _Py_REF_SHARED_SHIFT: isize = 2;
+const _Py_REF_SHARED_SHIFT: isize = 2;
 // skipped private _Py_REF_SHARED_FLAG_MASK
 
 // skipped private _Py_REF_SHARED_INIT
@@ -72,6 +72,12 @@ pub const _Py_REF_SHARED_SHIFT: isize = 2;
 
 // skipped private _Py_REF_SHARED
 
+extern "C" {
+    #[cfg(all(Py_3_14, Py_LIMITED_API))]
+    fn Py_REFCNT(ob: *mut PyObject);
+}
+
+#[cfg(not(all(Py_3_14, Py_LIMITED_API)))]
 #[inline]
 pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
     #[cfg(Py_GIL_DISABLED)]
@@ -87,7 +93,12 @@ pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
         local as Py_ssize_t + Py_ssize_t::from(shared >> _Py_REF_SHARED_SHIFT)
     }
 
-    #[cfg(all(not(Py_GIL_DISABLED), Py_3_12))]
+    #[cfg(all(Py_LIMITED_API, Py_3_14))]
+    {
+        Py_REFCNT(ob)
+    }
+
+    #[cfg(all(not(Py_GIL_DISABLED), not(all(Py_LIMITED_API, Py_3_14)), Py_3_12))]
     {
         (*ob).ob_refcnt.ob_refcnt
     }

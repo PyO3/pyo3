@@ -147,7 +147,6 @@ pub struct PyConfig {
     pub thread_inherit_context: c_int,
     #[cfg(Py_3_14)]
     pub context_aware_warnings: c_int,
-    // FIXME: this was backported to 3.13.2
     #[cfg(all(Py_3_14, target_os = "macos"))]
     pub use_system_logger: c_int,
     #[cfg(Py_3_13)]
