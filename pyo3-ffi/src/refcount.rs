@@ -4,7 +4,7 @@ use crate::PyObject;
 use std::os::raw::c_char;
 #[cfg(Py_3_12)]
 use std::os::raw::c_int;
-#[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
+#[cfg(all(Py_3_14, any(not(Py_GIL_DISABLED), target_pointer_width = "32")))]
 use std::os::raw::c_long;
 #[cfg(any(Py_GIL_DISABLED, all(Py_3_12, not(Py_3_14))))]
 use std::os::raw::c_uint;
