@@ -131,7 +131,7 @@ unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
 
         #[cfg(Py_3_14)]
         {
-            ((*op).ob_refcnt >= _Py_IMMORTAL_MINIMUM_REFCNT) as c_int
+            ((*op).ob_refcnt.ob_refcnt >= _Py_IMMORTAL_MINIMUM_REFCNT) as c_int
         }
     }
 
