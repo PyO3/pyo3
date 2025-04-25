@@ -53,7 +53,7 @@ pub struct PyFrameObject {
 }
 
 #[cfg(any(PyPy, GraalPy, Py_3_11))]
-opaque_struct!(PyFrameObject);
+opaque_struct!(pub PyFrameObject);
 
 // skipped _PyFrame_IsRunnable
 // skipped _PyFrame_IsExecuting

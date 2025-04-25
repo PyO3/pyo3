@@ -877,34 +877,38 @@ def _get_rust_default_target() -> str:
 
 
 @lru_cache()
-def _get_feature_sets() -> Generator[Tuple[str, ...], None, None]:
+def _get_feature_sets() -> Tuple[str, ...]:
     """Returns feature sets to use for clippy job"""
-    cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
 
-    yield from (
-        ("--no-default-features",),
-        (
-            "--no-default-features",
-            "--features=abi3",
-        ),
-    )
+    def _generate() -> Generator[Tuple[str, ...], None, None]:
+        cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
 
-    features = "full"
+        yield from (
+            ("--no-default-features",),
+            (
+                "--no-default-features",
+                "--features=abi3",
+            ),
+        )
 
-    if "wasm32-wasip1" not in cargo_target:
-        # multiple-pymethods not supported on wasm
-        features += ",multiple-pymethods"
+        features = "full"
 
-    if get_rust_version()[:2] >= (1, 67):
-        # time needs MSRC 1.67+
-        features += ",time"
+        if "wasm32-wasip1" not in cargo_target:
+            # multiple-pymethods not supported on wasm
+            features += ",multiple-pymethods"
 
-    if get_rust_version()[:2] >= (1, 70):
-        # jiff needs MSRC 1.70+
-        features += ",jiff-02"
+        if get_rust_version()[:2] >= (1, 67):
+            # time needs MSRC 1.67+
+            features += ",time"
 
-    yield (f"--features={features}",)
-    yield (f"--features=abi3,{features}",)
+        if get_rust_version()[:2] >= (1, 70):
+            # jiff needs MSRC 1.70+
+            features += ",jiff-02"
+
+        yield (f"--features={features}",)
+        yield (f"--features=abi3,{features}",)
+
+    return tuple(_generate())
 
 
 _RELEASE_LINE_START = "release: "
@@ -1029,6 +1033,11 @@ class _ConfigFile:
         self, implementation: str, version: str, build_flags: Iterable[str] = ()
     ) -> None:
         """Set the contents of this config file to the given implementation and version."""
+        if version.endswith("t"):
+            # Free threaded versions pass the support in config file through a flag
+            version = version[:-1]
+            build_flags = (*build_flags, "Py_GIL_DISABLED")
+
         self._config_file.seek(0)
         self._config_file.truncate(0)
         self._config_file.write(

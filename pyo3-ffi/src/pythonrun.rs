@@ -49,12 +49,12 @@ pub const PYOS_STACK_MARGIN: c_int = 2048;
 // skipped PyOS_CheckStack under Microsoft C
 
 #[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
-opaque_struct!(_mod);
+opaque_struct!(pub _mod);
 
 #[cfg(not(any(PyPy, Py_3_10)))]
-opaque_struct!(symtable);
+opaque_struct!(pub symtable);
 #[cfg(not(any(PyPy, Py_3_10)))]
-opaque_struct!(_node);
+opaque_struct!(pub _node);
 
 #[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
 #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
