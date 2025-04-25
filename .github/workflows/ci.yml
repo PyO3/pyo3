@@ -15,6 +15,12 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # Usually in CI this is disabled (by dtolnay/rust-toolchain) because the assumption is that
+  # workspace artifacts are not cached and never re-used.
+  #
+  # However, in PyO3's case we have lots of cases where we build with different feature sets
+  # and config versions, and incremental builds offer a significant speedup in this instance.
+  CARGO_INCREMENTAL: 1
 
 jobs:
   fmt:
