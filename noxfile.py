@@ -1033,6 +1033,11 @@ class _ConfigFile:
         self, implementation: str, version: str, build_flags: Iterable[str] = ()
     ) -> None:
         """Set the contents of this config file to the given implementation and version."""
+        if version.endswith("t"):
+            # Free threaded versions pass the support in config file through a flag
+            version = version[:-1]
+            build_flags = (*build_flags, "Py_GIL_DISABLED")
+
         self._config_file.seek(0)
         self._config_file.truncate(0)
         self._config_file.write(
