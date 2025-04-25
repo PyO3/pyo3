@@ -87,7 +87,7 @@ def test_args_kwargs_rs(benchmark):
     assert rust == py
 
 
-def positional_only_py(a, /, b):
+def positional_only_py(a, b):
     return a, b
 
 
