@@ -74,7 +74,7 @@ const _Py_REF_SHARED_SHIFT: isize = 2;
 
 extern "C" {
     #[cfg(all(Py_3_14, Py_LIMITED_API))]
-    fn Py_REFCNT(ob: *mut PyObject);
+    pub fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t;
 }
 
 #[cfg(not(all(Py_3_14, Py_LIMITED_API)))]
