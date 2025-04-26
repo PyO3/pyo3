@@ -2,7 +2,7 @@ use crate::attributes::{
     self, get_pyo3_options, CrateAttribute, DefaultAttribute, FromPyWithAttribute,
     RenameAllAttribute, RenamingRule,
 };
-use crate::utils::{self, deprecated_from_py_with, Ctx};
+use crate::utils::{self, Ctx};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{
@@ -304,13 +304,10 @@ impl<'a> Container<'a> {
                 value: expr_path,
             }) = from_py_with
             {
-                let deprecation = deprecated_from_py_with(expr_path).unwrap_or_default();
-
                 let extractor = quote_spanned! { kw.span =>
                     { let from_py_with: fn(_) -> _ = #expr_path; from_py_with }
                 };
                 quote! {
-                    #deprecation
                     Ok(#self_ty {
                         #ident: #pyo3_path::impl_::frompyobject::extract_struct_field_with(#extractor, obj, #struct_name, #field_name)?
                     })
@@ -327,13 +324,10 @@ impl<'a> Container<'a> {
             value: expr_path,
         }) = from_py_with
         {
-            let deprecation = deprecated_from_py_with(expr_path).unwrap_or_default();
-
             let extractor = quote_spanned! { kw.span =>
                 { let from_py_with: fn(_) -> _ = #expr_path; from_py_with }
             };
             quote! {
-                #deprecation
                 #pyo3_path::impl_::frompyobject::extract_tuple_struct_field_with(#extractor, obj, #struct_name, 0).map(#self_ty)
             }
         } else {
@@ -367,14 +361,7 @@ impl<'a> Container<'a> {
             }}
         });
 
-        let deprecations = struct_fields
-            .iter()
-            .filter_map(|fields| fields.from_py_with.as_ref())
-            .filter_map(|kw| deprecated_from_py_with(&kw.value))
-            .collect::<TokenStream>();
-
         quote!(
-            #deprecations
             match #pyo3_path::types::PyAnyMethods::extract(obj) {
                 ::std::result::Result::Ok((#(#field_idents),*)) => ::std::result::Result::Ok(#self_ty(#(#fields),*)),
                 ::std::result::Result::Err(err) => ::std::result::Result::Err(err),
@@ -448,13 +435,7 @@ impl<'a> Container<'a> {
             fields.push(quote!(#ident: #extracted));
         }
 
-        let d = struct_fields
-            .iter()
-            .filter_map(|field| field.from_py_with.as_ref())
-            .filter_map(|kw| deprecated_from_py_with(&kw.value))
-            .collect::<TokenStream>();
-
-        quote!(#d ::std::result::Result::Ok(#self_ty{#fields}))
+        quote!(::std::result::Result::Ok(#self_ty{#fields}))
     }
 }
 
