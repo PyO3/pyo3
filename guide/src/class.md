@@ -2,7 +2,7 @@
 
 PyO3 exposes a group of attributes powered by Rust's proc macro system for defining Python classes as Rust structs.
 
-The main attribute is `#[pyclass]`, which is placed upon a Rust `struct` or `enum` to generate a Python type for it. They will usually also have *one* `#[pymethods]`-annotated `impl` block for the struct, which is used to define Python methods and constants for the generated Python type. (If the [`multiple-pymethods`] feature is enabled, each `#[pyclass]` is allowed to have multiple `#[pymethods]` blocks.) `#[pymethods]` may also have implementations for Python magic methods such as `__str__`.
+The main attribute is `#[pyclass]`, which is placed upon a Rust `struct` or `enum` to generate a Python type for it. They will usually also have _one_ `#[pymethods]`-annotated `impl` block for the struct, which is used to define Python methods and constants for the generated Python type. (If the [`multiple-pymethods`] feature is enabled, each `#[pyclass]` is allowed to have multiple `#[pymethods]` blocks.) `#[pymethods]` may also have implementations for Python magic methods such as `__str__`.
 
 This chapter will discuss the functionality and configuration these attributes offer. Below is a list of links to the relevant section of this chapter for each:
 
@@ -22,6 +22,7 @@ This chapter will discuss the functionality and configuration these attributes o
 ## Defining a new class
 
 To define a custom Python class, add the `#[pyclass]` attribute to a Rust struct or enum.
+
 ```rust
 # #![allow(dead_code)]
 use pyo3::prelude::*;
@@ -202,13 +203,14 @@ fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 It is often useful to turn a `#[pyclass]` type `T` into a Python object and access it from Rust code. The [`Py<T>`] and [`Bound<'py, T>`] smart pointers are the ways to represent a Python object in PyO3's API. More detail can be found about them [in the Python objects](./types.md#pyo3s-smart-pointers) section of the guide.
 
-Most Python objects do not offer exclusive (`&mut`) access (see the [section on Python's memory model](./python-from-rust.md#pythons-memory-model)). However, Rust structs wrapped as Python objects (called `pyclass` types) often *do* need `&mut` access. Due to the GIL, PyO3 *can* guarantee exclusive access to them.
+Most Python objects do not offer exclusive (`&mut`) access (see the [section on Python's memory model](./python-from-rust.md#pythons-memory-model)). However, Rust structs wrapped as Python objects (called `pyclass` types) often _do_ need `&mut` access. Due to the GIL, PyO3 _can_ guarantee exclusive access to them.
 
 The Rust borrow checker cannot reason about `&mut` references once an object's ownership has been passed to the Python interpreter. This means that borrow checking is done at runtime using with a scheme very similar to `std::cell::RefCell<T>`. This is known as [interior mutability](https://doc.rust-lang.org/book/ch15-05-interior-mutability.html).
 
 Users who are familiar with `RefCell<T>` can use `Py<T>` and `Bound<'py, T>` just like `RefCell<T>`.
 
 For users who are not very familiar with `RefCell<T>`, here is a reminder of Rust's rules of borrowing:
+
 - At any given time, you can have either (but not both of) one mutable reference or any number of immutable references.
 - References can never outlast the data they refer to.
 
@@ -309,11 +311,11 @@ Generally, `#[new]` methods have to return `T: Into<PyClassInitializer<Self>>` o
 For constructors that may fail, you should wrap the return type in a PyResult as well.
 Consult the table below to determine which type your constructor should return:
 
-|                             | **Cannot fail**           | **May fail**                      |
-|-----------------------------|---------------------------|-----------------------------------|
-|**No inheritance**           | `T`                       | `PyResult<T>`                     |
-|**Inheritance(T Inherits U)**| `(T, U)`                  | `PyResult<(T, U)>`                |
-|**Inheritance(General Case)**| [`PyClassInitializer<T>`] | `PyResult<PyClassInitializer<T>>` |
+|                               | **Cannot fail**           | **May fail**                      |
+| ----------------------------- | ------------------------- | --------------------------------- |
+| **No inheritance**            | `T`                       | `PyResult<T>`                     |
+| **Inheritance(T Inherits U)** | `(T, U)`                  | `PyResult<(T, U)>`                |
+| **Inheritance(General Case)** | [`PyClassInitializer<T>`] | `PyResult<PyClassInitializer<T>>` |
 
 ## Inheritance
 
@@ -322,7 +324,6 @@ use the `extends` parameter for `pyclass` with the full path to the base class.
 Currently, only classes defined in Rust and builtins provided by PyO3 can be inherited
 from; inheriting from other classes defined in Python is not yet supported
 ([#991](https://github.com/PyO3/pyo3/issues/991)).
-
 
 For convenience, `(T, U)` implements `Into<PyClassInitializer<T>>` where `U` is the
 base class of `T`.
@@ -370,7 +371,7 @@ impl SubClass {
         (SubClass { val2: 15 }, BaseClass::new())
     }
 
-    fn method2(self_: PyRef<'_, Self>) -> PyResult<usize> {
+    fn method2(self_: PyRef<'_, '_, Self>) -> PyResult<usize> {
         let super_ = self_.as_super(); // Get &PyRef<BaseClass>
         super_.method1().map(|x| x * self_.val2)
     }
@@ -388,24 +389,24 @@ impl SubSubClass {
         PyClassInitializer::from(SubClass::new()).add_subclass(SubSubClass { val3: 20 })
     }
 
-    fn method3(self_: PyRef<'_, Self>) -> PyResult<usize> {
+    fn method3(self_: PyRef<'_, '_, Self>) -> PyResult<usize> {
         let base = self_.as_super().as_super(); // Get &PyRef<'_, BaseClass>
         base.method1().map(|x| x * self_.val3)
     }
 
-    fn method4(self_: PyRef<'_, Self>) -> PyResult<usize> {
+    fn method4(self_: PyRef<'_, '_, Self>) -> PyResult<usize> {
         let v = self_.val3;
         let super_ = self_.into_super(); // Get PyRef<'_, SubClass>
         SubClass::method2(super_).map(|x| x * v)
     }
 
-      fn get_values(self_: PyRef<'_, Self>) -> (usize, usize, usize) {
+      fn get_values(self_: PyRef<'_, '_, Self>) -> (usize, usize, usize) {
           let val1 = self_.as_super().as_super().val1;
           let val2 = self_.as_super().val2;
           (val1, val2, self_.val3)
       }
 
-    fn double_values(mut self_: PyRefMut<'_, Self>) {
+    fn double_values(mut self_: PyRefMut<'_, '_, Self>) {
         self_.as_super().as_super().val1 *= 2;
         self_.as_super().val2 *= 2;
         self_.val3 *= 2;
@@ -481,6 +482,7 @@ impl DictWithCounter {
 ```
 
 If `SubClass` does not provide a base class initialization, the compilation fails.
+
 ```rust,compile_fail
 # use pyo3::prelude::*;
 
@@ -504,7 +506,7 @@ impl SubClass {
 ```
 
 The `__new__` constructor of a native base class is called implicitly when
-creating a new instance from Python.  Be sure to accept arguments in the
+creating a new instance from Python. Be sure to accept arguments in the
 `#[new]` method that you want the base class to get, even if they are not used
 in that `fn`:
 
@@ -542,6 +544,7 @@ initial items, such as `MyDict(item_sequence)` or `MyDict(a=1, b=2)`.
 ## Object properties
 
 PyO3 supports two ways to add properties to your `#[pyclass]`:
+
 - For simple struct fields with no side effects, a `#[pyo3(get, set)]` attribute can be added directly to the field definition in the `#[pyclass]`.
 - For properties which require computation you can define `#[getter]` and `#[setter]` functions in the [`#[pymethods]`](#instance-methods) block.
 
@@ -566,6 +569,7 @@ The above would make the `num` field available for reading and writing as a `sel
 Properties can be readonly or writeonly by using just `#[pyo3(get)]` or `#[pyo3(set)]` respectively.
 
 To use these annotations, your field type must implement some conversion traits:
+
 - For `get` the field type must implement both `IntoPy<PyObject>` and `Clone`.
 - For `set` the field type must implement `FromPyObject`.
 
@@ -733,15 +737,16 @@ impl MyClass {
 
 Declares a class method callable from Python.
 
-* The first parameter is the type object of the class on which the method is called.
+- The first parameter is the type object of the class on which the method is called.
   This may be the type object of a derived class.
-* The first parameter implicitly has type `&Bound<'_, PyType>`.
-* For details on `parameter-list`, see the documentation of `Method arguments` section.
-* The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPy<PyObject>`.
+- The first parameter implicitly has type `&Bound<'_, PyType>`.
+- For details on `parameter-list`, see the documentation of `Method arguments` section.
+- The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPy<PyObject>`.
 
 ### Constructors which accept a class argument
 
 To create a constructor which takes a positional class argument, you can combine the `#[classmethod]` and `#[new]` modifiers:
+
 ```rust
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
@@ -807,7 +812,7 @@ Python::with_gil(|py| {
 ```
 
 > Note: if the method has a `Result` return type and returns an `Err`, PyO3 will panic during
-class creation.
+> class creation.
 
 If the class attribute is defined with `const` code only, one can also annotate associated
 constants:
@@ -844,7 +849,7 @@ fn increment_field(my_class: &mut MyClass) {
 // Take a reference wrapper when borrowing should be automatic,
 // but interaction with the underlying `Bound` is desired.
 #[pyfunction]
-fn print_field(my_class: PyRef<'_, MyClass>) {
+fn print_field(my_class: PyRef<'_, '_, MyClass>) {
     println!("{}", my_class.my_field);
 }
 
@@ -1193,7 +1198,7 @@ Python::with_gil(|py| {
 ```
 
 Ordering of enum variants is optionally added using `#[pyo3(ord)]`.
-*Note: Implementation of the `PartialOrd` trait is required when passing the `ord` argument.  If not implemented, a compile time error is raised.*
+_Note: Implementation of the `PartialOrd` trait is required when passing the `ord` argument. If not implemented, a compile time error is raised._
 
 ```rust
 # use pyo3::prelude::*;
@@ -1390,22 +1395,22 @@ impl pyo3::PyClass for MyClass {
     type Frozen = pyo3::pyclass::boolean_struct::False;
 }
 
-impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py, false> for &'a MyClass
+impl<'a, 'holder, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false> for &'holder MyClass
 {
-    type Holder = ::std::option::Option<pyo3::PyRef<'py, MyClass>>;
+    type Holder = ::std::option::Option<pyo3::PyRef<'a, 'py, MyClass>>;
 
     #[inline]
-    fn extract(obj: &'a pyo3::Bound<'py, PyAny>, holder: &'a mut Self::Holder) -> pyo3::PyResult<Self> {
+    fn extract(obj: &'a pyo3::Bound<'py, PyAny>, holder: &'holder mut Self::Holder) -> pyo3::PyResult<Self> {
         pyo3::impl_::extract_argument::extract_pyclass_ref(obj, holder)
     }
 }
 
-impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py, false> for &'a mut MyClass
+impl<'a, 'holder, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false> for &'holder mut MyClass
 {
-    type Holder = ::std::option::Option<pyo3::PyRefMut<'py, MyClass>>;
+    type Holder = ::std::option::Option<pyo3::PyRefMut<'a, 'py, MyClass>>;
 
     #[inline]
-    fn extract(obj: &'a pyo3::Bound<'py, PyAny>, holder: &'a mut Self::Holder) -> pyo3::PyResult<Self> {
+    fn extract(obj: &'a pyo3::Bound<'py, PyAny>, holder: &'holder mut Self::Holder) -> pyo3::PyResult<Self> {
         pyo3::impl_::extract_argument::extract_pyclass_ref_mut(obj, holder)
     }
 }
@@ -1452,22 +1457,16 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
 # }
 ```
 
-
 [`PyTypeInfo`]: {{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PyTypeInfo.html
-
 [`Py`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Py.html
 [`Bound<'_, T>`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html
 [`PyClass`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/trait.PyClass.html
 [`PyRef`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
 [`PyRefMut`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRefMut.html
 [`PyClassInitializer<T>`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass_init/struct.PyClassInitializer.html
-
 [`Arc`]: https://doc.rust-lang.org/std/sync/struct.Arc.html
 [`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
-
 [classattr]: https://docs.python.org/3/tutorial/classes.html#class-and-instance-variables
-
 [`multiple-pymethods`]: features.md#multiple-pymethods
-
 [lifetime-elision]: https://doc.rust-lang.org/reference/lifetime-elision.html
 [compiler-error-e0106]: https://doc.rust-lang.org/error_codes/E0106.html

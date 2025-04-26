@@ -35,7 +35,7 @@ impl Reader {
         }
     }
     fn get_iter_and_reset(
-        mut slf: PyRefMut<'_, Self>,
+        mut slf: PyRefMut<'_, '_, Self>,
         keys: Py<PyBytes>,
         py: Python<'_>,
     ) -> PyResult<Iter> {
@@ -60,11 +60,11 @@ struct Iter {
 #[pymethods]
 impl Iter {
     #[allow(clippy::self_named_constructors)]
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __iter__<'a, 'py>(slf: PyRef<'a, 'py, Self>) -> PyRef<'a, 'py, Self> {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<PyObject>> {
+    fn __next__(mut slf: PyRefMut<'_, '_, Self>) -> PyResult<Option<PyObject>> {
         let bytes = slf.keys.bind(slf.py()).as_bytes();
         match bytes.get(slf.idx) {
             Some(&b) => {

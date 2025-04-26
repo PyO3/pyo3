@@ -58,7 +58,7 @@ use crate::types::datetime::{PyDateAccess, PyDeltaAccess};
 use crate::types::{PyAnyMethods, PyDate, PyDateTime, PyDelta, PyNone, PyTime, PyTzInfo};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyTimeAccess, PyTzInfoAccess};
-use crate::{Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
+use crate::{Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
 use time::{
     Date, Duration, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcDateTime, UtcOffset,
 };
@@ -180,8 +180,8 @@ impl<'py> IntoPyObject<'py> for Duration {
     }
 }
 
-impl FromPyObject<'_> for Duration {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Duration> {
+impl FromPyObject<'_, '_> for Duration {
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Duration> {
         #[cfg(not(Py_LIMITED_API))]
         let (days, seconds, microseconds) = {
             let delta = ob.downcast::<PyDelta>()?;
@@ -223,8 +223,8 @@ impl<'py> IntoPyObject<'py> for Date {
     }
 }
 
-impl FromPyObject<'_> for Date {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Date> {
+impl FromPyObject<'_, '_> for Date {
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Date> {
         let (year, month, day) = {
             #[cfg(not(Py_LIMITED_API))]
             {
@@ -264,8 +264,8 @@ impl<'py> IntoPyObject<'py> for Time {
     }
 }
 
-impl FromPyObject<'_> for Time {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Time> {
+impl FromPyObject<'_, '_> for Time {
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Time> {
         let (hour, minute, second, microsecond) = {
             #[cfg(not(Py_LIMITED_API))]
             {
@@ -323,8 +323,8 @@ impl<'py> IntoPyObject<'py> for PrimitiveDateTime {
     }
 }
 
-impl FromPyObject<'_> for PrimitiveDateTime {
-    fn extract_bound(dt: &Bound<'_, PyAny>) -> PyResult<PrimitiveDateTime> {
+impl FromPyObject<'_, '_> for PrimitiveDateTime {
+    fn extract(dt: Borrowed<'_, '_, PyAny>) -> PyResult<PrimitiveDateTime> {
         let has_tzinfo = {
             #[cfg(not(Py_LIMITED_API))]
             {
@@ -341,7 +341,7 @@ impl FromPyObject<'_> for PrimitiveDateTime {
             return Err(PyTypeError::new_err("expected a datetime without tzinfo"));
         }
 
-        let (date, time) = extract_date_time(dt)?;
+        let (date, time) = extract_date_time(&dt)?;
 
         Ok(PrimitiveDateTime::new(date, time))
     }
@@ -360,8 +360,8 @@ impl<'py> IntoPyObject<'py> for UtcOffset {
     }
 }
 
-impl FromPyObject<'_> for UtcOffset {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<UtcOffset> {
+impl FromPyObject<'_, '_> for UtcOffset {
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<UtcOffset> {
         #[cfg(not(Py_LIMITED_API))]
         let ob = ob.downcast::<PyTzInfo>()?;
 
@@ -418,8 +418,8 @@ impl<'py> IntoPyObject<'py> for OffsetDateTime {
     }
 }
 
-impl FromPyObject<'_> for OffsetDateTime {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<OffsetDateTime> {
+impl FromPyObject<'_, '_> for OffsetDateTime {
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<OffsetDateTime> {
         let offset: UtcOffset = {
             #[cfg(not(Py_LIMITED_API))]
             {
@@ -441,7 +441,7 @@ impl FromPyObject<'_> for OffsetDateTime {
             }
         };
 
-        let (date, time) = extract_date_time(ob)?;
+        let (date, time) = extract_date_time(&ob)?;
 
         let primitive_dt = PrimitiveDateTime::new(date, time);
         Ok(primitive_dt.assume_offset(offset))
@@ -481,8 +481,8 @@ impl<'py> IntoPyObject<'py> for UtcDateTime {
     }
 }
 
-impl FromPyObject<'_> for UtcDateTime {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<UtcDateTime> {
+impl FromPyObject<'_, '_> for UtcDateTime {
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<UtcDateTime> {
         let tzinfo = {
             #[cfg(not(Py_LIMITED_API))]
             {
@@ -513,7 +513,7 @@ impl FromPyObject<'_> for UtcDateTime {
             ));
         }
 
-        let (date, time) = extract_date_time(ob)?;
+        let (date, time) = extract_date_time(&ob)?;
         let primitive_dt = PrimitiveDateTime::new(date, time);
         Ok(primitive_dt.assume_utc().into())
     }
