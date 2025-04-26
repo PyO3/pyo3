@@ -17,7 +17,10 @@ pub struct PyDictObject {
         Py_3_12,
         deprecated(note = "Deprecated in Python 3.12 and will be removed in the future.")
     )]
+    #[cfg(not(Py_3_14))]
     pub ma_version_tag: u64,
+    #[cfg(Py_3_14)]
+    _ma_watcher_tag: u64,
     pub ma_keys: *mut PyDictKeysObject,
     #[cfg(not(Py_3_11))]
     pub ma_values: *mut *mut PyObject,

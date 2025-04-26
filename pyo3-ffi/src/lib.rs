@@ -448,6 +448,7 @@ pub use self::pystate::*;
 pub use self::pystrtod::*;
 pub use self::pythonrun::*;
 pub use self::rangeobject::*;
+pub use self::refcount::*;
 pub use self::setobject::*;
 pub use self::sliceobject::*;
 pub use self::structseq::*;
@@ -540,6 +541,7 @@ mod pystrtod;
 // skipped pythread.h
 // skipped pytime.h
 mod rangeobject;
+mod refcount;
 mod setobject;
 mod sliceobject;
 mod structseq;
