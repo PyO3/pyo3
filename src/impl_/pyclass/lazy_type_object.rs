@@ -100,7 +100,7 @@ impl LazyTypeObjectInner {
     fn ensure_init(
         &self,
         type_object: &Bound<'_, PyType>,
-        is_immutable_type: bool,
+        #[allow(unused_variables)] is_immutable_type: bool,
         name: &str,
         items_iter: PyClassItemsIter,
     ) -> PyResult<()> {
@@ -193,8 +193,22 @@ impl LazyTypeObjectInner {
                 let res = unsafe { ffi::PyType_Freeze(type_object.as_type_ptr()) };
                 error_on_minusone(py, res)?;
             }
-            #[cfg(not(Py_3_14))]
-            debug_assert!(!is_immutable_type);
+            #[cfg(all(Py_3_10, not(Py_LIMITED_API), not(Py_3_14)))]
+            if is_immutable_type {
+                use crate::types::PyTypeMethods as _;
+                #[cfg(not(Py_GIL_DISABLED))]
+                unsafe {
+                    (*type_object.as_type_ptr()).tp_flags |= ffi::Py_TPFLAGS_IMMUTABLETYPE
+                };
+                #[cfg(Py_GIL_DISABLED)]
+                unsafe {
+                    (*type_object.as_type_ptr()).tp_flags.fetch_or(
+                        ffi::Py_TPFLAGS_IMMUTABLETYPE,
+                        std::sync::atomic::Ordering::Relaxed,
+                    )
+                };
+                unsafe { ffi::PyType_Modified(type_object.as_type_ptr()) };
+            }
 
             // Initialization successfully complete, can clear the thread list.
             // (No further calls to get_or_init() will try to init, on any thread.)

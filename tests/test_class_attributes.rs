@@ -93,7 +93,7 @@ fn class_attributes_mutable() {
 }
 
 #[test]
-#[cfg(Py_3_14)]
+#[cfg(any(Py_3_14, all(Py_3_10, not(Py_LIMITED_API))))]
 fn immutable_type_object() {
     #[pyclass(immutable_type)]
     struct ImmutableType {}

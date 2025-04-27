@@ -209,8 +209,8 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::GetAll(get_all) => set_option!(get_all),
             PyClassPyO3Option::ImmutableType(immutable_type) => {
                 ensure_spanned!(
-                    !is_py_before(3, 14),
-                    immutable_type.span() => "`immutable_type` requires Python >= 3.14"
+                    !(is_py_before(3, 10) || is_abi3_before(3, 14)),
+                    immutable_type.span() => "`immutable_type` requires Python >= 3.10 or >= 3.14 (ABI3)"
                 );
                 set_option!(immutable_type)
             }
