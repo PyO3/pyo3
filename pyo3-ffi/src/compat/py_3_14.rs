@@ -1,5 +1,5 @@
 compat_function!(
-    originally_defined_for(Py_3_14);
+    originally_defined_for(all(Py_3_14, not(Py_LIMITED_API)));
 
     #[inline]
     pub unsafe fn Py_HashBuffer(
