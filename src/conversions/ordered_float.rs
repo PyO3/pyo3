@@ -95,13 +95,13 @@ mod test_ordered_float {
     #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;
 
-    macro_rules! ordered_float_roundtrip_tests {
-        ($standard_test:ident, $wasm_test:ident, $infinity_test:ident, $zero_test:ident, $nan_test:ident, $float_type:ty) => {
+    macro_rules! float_roundtrip_tests {
+        ($wrapper:ident, $float_type:ty, $constructor:expr, $standard_test:ident, $wasm_test:ident, $infinity_test:ident, $zero_test:ident) => {
             #[cfg(not(target_arch = "wasm32"))]
             proptest! {
             #[test]
             fn $standard_test(inner_f: $float_type) {
-                let f = OrderedFloat(inner_f);
+                let f = $constructor(inner_f);
 
                 Python::with_gil(|py| {
                     let f_py = f.into_pyobject(py).unwrap();
@@ -121,7 +121,7 @@ mod test_ordered_float {
                     )
                     .unwrap();
 
-                    let roundtripped_f: OrderedFloat<$float_type> = f_py.extract().unwrap();
+                    let roundtripped_f: $wrapper<$float_type> = f_py.extract().unwrap();
 
                     assert_eq!(f, roundtripped_f);
                 })
@@ -131,7 +131,7 @@ mod test_ordered_float {
             #[cfg(target_arch = "wasm32")]
             fn $wasm_test() {
                 let inner_f = 10.0;
-                let f = OrderedFloat(inner_f);
+                let f = $constructor(inner_f);
 
                 Python::with_gil(|py| {
                     let f_py = f.into_pyobject(py).unwrap();
@@ -151,7 +151,7 @@ mod test_ordered_float {
                     )
                     .unwrap();
 
-                    let roundtripped_f: OrderedFloat<$float_type> = f_py.extract().unwrap();
+                    let roundtripped_f: $wrapper<$float_type> = f_py.extract().unwrap();
 
                     assert_eq!(f, roundtripped_f);
                 })
@@ -160,10 +160,10 @@ mod test_ordered_float {
             #[test]
             fn $infinity_test() {
                 let inner_pinf = <$float_type>::INFINITY;
-                let pinf = OrderedFloat(inner_pinf);
+                let pinf = $constructor(inner_pinf);
 
                 let inner_ninf = <$float_type>::NEG_INFINITY;
-                let ninf = OrderedFloat(inner_ninf);
+                let ninf = $constructor(inner_ninf);
 
                 Python::with_gil(|py| {
                     let pinf_py = pinf.into_pyobject(py).unwrap();
@@ -185,8 +185,8 @@ mod test_ordered_float {
                     )
                     .unwrap();
 
-                    let roundtripped_pinf: OrderedFloat<$float_type> = pinf_py.extract().unwrap();
-                    let roundtripped_ninf: OrderedFloat<$float_type> = ninf_py.extract().unwrap();
+                    let roundtripped_pinf: $wrapper<$float_type> = pinf_py.extract().unwrap();
+                    let roundtripped_ninf: $wrapper<$float_type> = ninf_py.extract().unwrap();
 
                     assert_eq!(pinf, roundtripped_pinf);
                     assert_eq!(ninf, roundtripped_ninf);
@@ -196,10 +196,10 @@ mod test_ordered_float {
             #[test]
             fn $zero_test() {
                 let inner_pzero: $float_type = 0.0;
-                let pzero = OrderedFloat(inner_pzero);
+                let pzero = $constructor(inner_pzero);
 
                 let inner_nzero: $float_type = -0.0;
-                let nzero = OrderedFloat(inner_nzero);
+                let nzero = $constructor(inner_nzero);
 
                 Python::with_gil(|py| {
                     let pzero_py = pzero.into_pyobject(py).unwrap();
@@ -221,16 +221,56 @@ mod test_ordered_float {
                     )
                     .unwrap();
 
-                    let roundtripped_pzero: OrderedFloat<$float_type> = pzero_py.extract().unwrap();
-                    let roundtripped_nzero: OrderedFloat<$float_type> = nzero_py.extract().unwrap();
+                    let roundtripped_pzero: $wrapper<$float_type> = pzero_py.extract().unwrap();
+                    let roundtripped_nzero: $wrapper<$float_type> = nzero_py.extract().unwrap();
 
                     assert_eq!(pzero, roundtripped_pzero);
                     assert_eq!(nzero, roundtripped_nzero);
                 })
             }
+        };
+    }
+    float_roundtrip_tests!(
+        OrderedFloat,
+        f32,
+        |val| OrderedFloat(val),
+        ordered_float_f32_standard,
+        ordered_float_f32_wasm,
+        ordered_float_f32_infinity,
+        ordered_float_f32_zero
+    );
+    float_roundtrip_tests!(
+        OrderedFloat,
+        f64,
+        |val| OrderedFloat(val),
+        ordered_float_f64_standard,
+        ordered_float_f64_wasm,
+        ordered_float_f64_infinity,
+        ordered_float_f64_zero
+    );
+    float_roundtrip_tests!(
+        NotNan,
+        f32,
+        |val| NotNan::new(val).unwrap(),
+        not_nan_f32_standard,
+        not_nan_f32_wasm,
+        not_nan_f32_infinity,
+        not_nan_f32_zero
+    );
+    float_roundtrip_tests!(
+        NotNan,
+        f64,
+        |val| NotNan::new(val).unwrap(),
+        not_nan_f64_standard,
+        not_nan_f64_wasm,
+        not_nan_f64_infinity,
+        not_nan_f64_zero
+    );
 
+    macro_rules! ordered_float_pynan_tests {
+        ($test_name:ident, $float_type:ty) => {
             #[test]
-            fn $nan_test() {
+            fn $test_name() {
                 let inner_nan: $float_type = <$float_type>::NAN;
                 let nan = OrderedFloat(inner_nan);
 
@@ -243,8 +283,8 @@ mod test_ordered_float {
                     py.run(
                         &CString::new(
                             "\
-                            import math\n\
-                            assert math.isnan(nan_py)",
+                                import math\n\
+                                assert math.isnan(nan_py)",
                         )
                         .unwrap(),
                         None,
@@ -259,172 +299,8 @@ mod test_ordered_float {
             }
         };
     }
-    ordered_float_roundtrip_tests!(
-        ordered_float_f32_standard,
-        ordered_float_f32_wasm,
-        ordered_float_f32_infinity,
-        ordered_float_f32_zero,
-        ordered_float_f32_nan,
-        f32
-    );
-    ordered_float_roundtrip_tests!(
-        ordered_float_f64_standard,
-        ordered_float_f64_wasm,
-        ordered_float_f64_infinity,
-        ordered_float_f64_zero,
-        ordered_float_f64_nan,
-        f64
-    );
-
-    macro_rules! not_nan_roundtrip_tests {
-        ($standard_test:ident, $wasm_test:ident, $infinity_test:ident, $zero_test:ident, $float_type:ty) => {
-            #[cfg(not(target_arch = "wasm32"))]
-            proptest! {
-            #[test]
-            fn $standard_test(inner_f: $float_type) {
-                let f = NotNan::new(inner_f).unwrap();
-
-                Python::with_gil(|py| {
-                    let f_py = f.into_pyobject(py).unwrap();
-
-                    let locals = PyDict::new(py);
-                    locals.set_item("f_py", &f_py).unwrap();
-
-                    py.run(
-                        &CString::new(format!(
-                            "import math\nassert math.isclose(f_py, {})",
-                             inner_f as f64 // Always interpret the literal rs float value as f64
-                                            // so that it's comparable with the python float
-                        ))
-                        .unwrap(),
-                        None,
-                        Some(&locals),
-                    )
-                    .unwrap();
-
-                    let roundtripped_f: NotNan<$float_type> = f_py.extract().unwrap();
-
-                    assert_eq!(f, roundtripped_f);
-                })
-            }
-            }
-
-            #[cfg(target_arch = "wasm32")]
-            fn $wasm_test() {
-                let inner_f = 10.0;
-                let f = NotNan::new(inner_f).unwrap();
-
-                Python::with_gil(|py| {
-                    let f_py = f.into_pyobject(py).unwrap();
-
-                    let locals = PyDict::new(py);
-                    locals.set_item("f_py", &f_py).unwrap();
-
-                    py.run(
-                        &CString::new(format!(
-                            "import math\nassert math.isclose(f_py, {})",
-                            inner_f as f64 // Always interpret the literal rs float value as f64
-                                           // so that it's comparable with the python float
-                        ))
-                        .unwrap(),
-                        None,
-                        Some(&locals),
-                    )
-                    .unwrap();
-
-                    let roundtripped_f: NotNan<$float_type> = f_py.extract().unwrap();
-
-                    assert_eq!(f, roundtripped_f);
-                })
-            }
-
-            #[test]
-            fn $infinity_test() {
-                let inner_pinf = <$float_type>::INFINITY;
-                let pinf = NotNan::new(inner_pinf).unwrap();
-
-                let inner_ninf = <$float_type>::NEG_INFINITY;
-                let ninf = NotNan::new(inner_ninf).unwrap();
-
-                Python::with_gil(|py| {
-                    let pinf_py = pinf.into_pyobject(py).unwrap();
-                    let ninf_py = ninf.into_pyobject(py).unwrap();
-
-                    let locals = PyDict::new(py);
-                    locals.set_item("pinf_py", &pinf_py).unwrap();
-                    locals.set_item("ninf_py", &ninf_py).unwrap();
-
-                    py.run(
-                        &CString::new(
-                            "\
-                            assert pinf_py == float('inf')\n\
-                            assert ninf_py == float('-inf')",
-                        )
-                        .unwrap(),
-                        None,
-                        Some(&locals),
-                    )
-                    .unwrap();
-
-                    let roundtripped_pinf: NotNan<$float_type> = pinf_py.extract().unwrap();
-                    let roundtripped_ninf: NotNan<$float_type> = ninf_py.extract().unwrap();
-
-                    assert_eq!(pinf, roundtripped_pinf);
-                    assert_eq!(ninf, roundtripped_ninf);
-                })
-            }
-
-            #[test]
-            fn $zero_test() {
-                let inner_pzero: $float_type = 0.0;
-                let pzero = NotNan::new(inner_pzero).unwrap();
-
-                let inner_nzero: $float_type = -0.0;
-                let nzero = NotNan::new(inner_nzero).unwrap();
-
-                Python::with_gil(|py| {
-                    let pzero_py = pzero.into_pyobject(py).unwrap();
-                    let nzero_py = nzero.into_pyobject(py).unwrap();
-
-                    let locals = PyDict::new(py);
-                    locals.set_item("pzero_py", &pzero_py).unwrap();
-                    locals.set_item("nzero_py", &nzero_py).unwrap();
-
-                    py.run(
-                        &CString::new(
-                            "\
-                            assert pzero_py == 0.0\n\
-                            assert nzero_py == -0.0",
-                        )
-                        .unwrap(),
-                        None,
-                        Some(&locals),
-                    )
-                    .unwrap();
-
-                    let roundtripped_pzero: NotNan<$float_type> = pzero_py.extract().unwrap();
-                    let roundtripped_nzero: NotNan<$float_type> = nzero_py.extract().unwrap();
-
-                    assert_eq!(pzero, roundtripped_pzero);
-                    assert_eq!(nzero, roundtripped_nzero);
-                })
-            }
-        };
-    }
-    not_nan_roundtrip_tests!(
-        not_nan_f32_standard,
-        not_nan_f32_wasm,
-        not_nan_f32_infinity,
-        not_nan_f32_zero,
-        f32
-    );
-    not_nan_roundtrip_tests!(
-        not_nan_f64_standard,
-        not_nan_f64_wasm,
-        not_nan_f64_infinity,
-        not_nan_f64_zero,
-        f64
-    );
+    ordered_float_pynan_tests!(test_ordered_float_pynan_f32, f32);
+    ordered_float_pynan_tests!(test_ordered_float_pynan_f64, f64);
 
     macro_rules! not_nan_pynan_tests {
         ($test_name:ident, $float_type:ty) => {
