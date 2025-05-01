@@ -7,16 +7,16 @@ use crate::types::any::PyAnyMethods;
 use crate::{ffi, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
 use ordered_float::{NotNan, OrderedFloat};
 
-macro_rules! ordered_float_conversions {
-    ($float_type:ty) => {
-        impl FromPyObject<'_> for OrderedFloat<$float_type> {
+macro_rules! float_conversions {
+    ($wrapper:ident, $float_type:ty, $constructor:expr) => {
+        impl FromPyObject<'_> for $wrapper<$float_type> {
             fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
                 let val: $float_type = obj.extract()?;
-                Ok(OrderedFloat(val))
+                $constructor(val)
             }
         }
 
-        impl<'py> IntoPyObject<'py> for OrderedFloat<$float_type> {
+        impl<'py> IntoPyObject<'py> for $wrapper<$float_type> {
             type Target = PyAny;
             type Output = Bound<'py, Self::Target>;
             type Error = PyErr;
@@ -31,7 +31,7 @@ macro_rules! ordered_float_conversions {
             }
         }
 
-        impl<'py> IntoPyObject<'py> for &OrderedFloat<$float_type> {
+        impl<'py> IntoPyObject<'py> for &$wrapper<$float_type> {
             type Target = PyAny;
             type Output = Bound<'py, Self::Target>;
             type Error = PyErr;
@@ -43,47 +43,12 @@ macro_rules! ordered_float_conversions {
         }
     };
 }
-ordered_float_conversions!(f32);
-ordered_float_conversions!(f64);
-
-macro_rules! not_nan_conversions {
-    ($float_type:ty) => {
-        impl FromPyObject<'_> for NotNan<$float_type> {
-            fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
-                let val: $float_type = obj.extract()?;
-                NotNan::new(val).map_err(|e| PyValueError::new_err(e.to_string()))
-            }
-        }
-
-        impl<'py> IntoPyObject<'py> for NotNan<$float_type> {
-            type Target = PyAny;
-            type Output = Bound<'py, Self::Target>;
-            type Error = PyErr;
-
-            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-                let float = unsafe {
-                    ffi::PyFloat_FromDouble(self.into_inner() as f64)
-                        .assume_owned(py)
-                        .downcast_into_unchecked()
-                };
-                Ok(float)
-            }
-        }
-
-        impl<'py> IntoPyObject<'py> for &NotNan<$float_type> {
-            type Target = PyAny;
-            type Output = Bound<'py, Self::Target>;
-            type Error = PyErr;
-
-            #[inline]
-            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-                (*self).into_pyobject(py)
-            }
-        }
-    };
-}
-not_nan_conversions!(f32);
-not_nan_conversions!(f64);
+float_conversions!(OrderedFloat, f32, |val| Ok(OrderedFloat(val)));
+float_conversions!(OrderedFloat, f64, |val| Ok(OrderedFloat(val)));
+float_conversions!(NotNan, f32, |val| NotNan::new(val)
+    .map_err(|e| PyValueError::new_err(e.to_string())));
+float_conversions!(NotNan, f64, |val| NotNan::new(val)
+    .map_err(|e| PyValueError::new_err(e.to_string())));
 
 #[cfg(test)]
 mod test_ordered_float {
