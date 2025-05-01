@@ -209,11 +209,16 @@ mod test_ordered_float {
                     locals.set_item("pzero_py", &pzero_py).unwrap();
                     locals.set_item("nzero_py", &nzero_py).unwrap();
 
+                    // This python script verifies that the values are 0.0 in magnitude
+                    // and that the signs are correct(+0.0 vs -0.0)
                     py.run(
                         &CString::new(
                             "\
+                            import math\n\
                             assert pzero_py == 0.0\n\
-                            assert nzero_py == -0.0",
+                            assert math.copysign(1.0, pzero_py) > 0.0\n\
+                            assert nzero_py == 0.0\n\
+                            assert math.copysign(1.0, nzero_py) < 0.0",
                         )
                         .unwrap(),
                         None,
@@ -225,7 +230,9 @@ mod test_ordered_float {
                     let roundtripped_nzero: $wrapper<$float_type> = nzero_py.extract().unwrap();
 
                     assert_eq!(pzero, roundtripped_pzero);
+                    assert_eq!(roundtripped_pzero.signum(), 1.0);
                     assert_eq!(nzero, roundtripped_nzero);
+                    assert_eq!(roundtripped_nzero.signum(), -1.0);
                 })
             }
         };
