@@ -1,0 +1,5 @@
+error: `immutable_type` requires Python >= 3.10 or >= 3.14 (ABI3)
+ --> tests/ui/immutable_type.rs:3:11
+  |
+3 | #[pyclass(immutable_type)]
+  |           ^^^^^^^^^^^^^^

@@ -25,7 +25,7 @@ use crate::pymethod::{
     MethodAndSlotDef, PropertyType, SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __REPR__,
     __RICHCMP__, __STR__,
 };
-use crate::pyversions::is_abi3_before;
+use crate::pyversions::{is_abi3_before, is_py_before};
 use crate::utils::{self, apply_renaming_rule, Ctx, LitCStr, PythonDoc};
 use crate::PyFunctionOptions;
 
@@ -71,6 +71,7 @@ pub struct PyClassPyO3Options {
     pub freelist: Option<FreelistAttribute>,
     pub frozen: Option<kw::frozen>,
     pub hash: Option<kw::hash>,
+    pub immutable_type: Option<kw::immutable_type>,
     pub mapping: Option<kw::mapping>,
     pub module: Option<ModuleAttribute>,
     pub name: Option<NameAttribute>,
@@ -94,6 +95,7 @@ pub enum PyClassPyO3Option {
     Frozen(kw::frozen),
     GetAll(kw::get_all),
     Hash(kw::hash),
+    ImmutableType(kw::immutable_type),
     Mapping(kw::mapping),
     Module(ModuleAttribute),
     Name(NameAttribute),
@@ -128,6 +130,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::GetAll)
         } else if lookahead.peek(attributes::kw::hash) {
             input.parse().map(PyClassPyO3Option::Hash)
+        } else if lookahead.peek(attributes::kw::immutable_type) {
+            input.parse().map(PyClassPyO3Option::ImmutableType)
         } else if lookahead.peek(attributes::kw::mapping) {
             input.parse().map(PyClassPyO3Option::Mapping)
         } else if lookahead.peek(attributes::kw::module) {
@@ -203,6 +207,13 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Freelist(freelist) => set_option!(freelist),
             PyClassPyO3Option::Frozen(frozen) => set_option!(frozen),
             PyClassPyO3Option::GetAll(get_all) => set_option!(get_all),
+            PyClassPyO3Option::ImmutableType(immutable_type) => {
+                ensure_spanned!(
+                    !(is_py_before(3, 10) || is_abi3_before(3, 14)),
+                    immutable_type.span() => "`immutable_type` requires Python >= 3.10 or >= 3.14 (ABI3)"
+                );
+                set_option!(immutable_type)
+            }
             PyClassPyO3Option::Hash(hash) => set_option!(hash),
             PyClassPyO3Option::Mapping(mapping) => set_option!(mapping),
             PyClassPyO3Option::Module(module) => set_option!(module),
@@ -2145,6 +2156,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         let is_subclass = self.attr.options.extends.is_some();
         let is_mapping: bool = self.attr.options.mapping.is_some();
         let is_sequence: bool = self.attr.options.sequence.is_some();
+        let is_immutable_type = self.attr.options.immutable_type.is_some();
 
         ensure_spanned!(
             !(is_mapping && is_sequence),
@@ -2278,6 +2290,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 const IS_SUBCLASS: bool = #is_subclass;
                 const IS_MAPPING: bool = #is_mapping;
                 const IS_SEQUENCE: bool = #is_sequence;
+                const IS_IMMUTABLE_TYPE: bool = #is_immutable_type;
 
                 type BaseType = #base;
                 type ThreadChecker = #thread_checker;
