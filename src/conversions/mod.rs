@@ -12,6 +12,7 @@ pub mod jiff;
 pub mod num_bigint;
 pub mod num_complex;
 pub mod num_rational;
+pub mod ordered_float;
 pub mod rust_decimal;
 pub mod serde;
 pub mod smallvec;
