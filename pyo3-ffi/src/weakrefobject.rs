@@ -11,7 +11,9 @@ pub use crate::_PyWeakReference as PyWeakReference;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
-    static mut _PyWeakref_RefType: PyTypeObject;
+    // TODO: PyO3 is depending on this symbol in `reference.rs`, we should change this and
+    // remove the export as this is a private symbol.
+    pub static mut _PyWeakref_RefType: PyTypeObject;
     static mut _PyWeakref_ProxyType: PyTypeObject;
     static mut _PyWeakref_CallableProxyType: PyTypeObject;
 
