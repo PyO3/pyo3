@@ -68,8 +68,9 @@ extern "C" {
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub static mut PyCoro_Type: PyTypeObject;
-    pub static mut _PyCoroWrapper_Type: PyTypeObject;
 }
+
+// skipped _PyCoroWrapper_Type
 
 #[inline]
 pub unsafe fn PyCoro_CheckExact(op: *mut PyObject) -> c_int {
