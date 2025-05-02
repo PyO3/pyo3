@@ -493,6 +493,7 @@ def check_guide(session: nox.Session):
         "--include-fragments",
         str(PYO3_GUIDE_SRC),
         *remap_args,
+        "--accept=200,429",
         *session.posargs,
     )
     # check external links in the docs
@@ -504,6 +505,7 @@ def check_guide(session: nox.Session):
         *remap_args,
         f"--exclude=file://{PYO3_DOCS_TARGET}",
         "--exclude=http://www.adobe.com/",
+        "--accept=200,429",
         *session.posargs,
     )
 
