@@ -225,6 +225,11 @@ pub enum Foo {
     TransparentStructVar {
         a: Option<String>,
     },
+    #[pyo3(rename_all = "camelCase", from_item_all)]
+    RenameAll {
+        long_field_name: [u16; 2],
+        other_field: Option<String>,
+    },
 }
 
 #[test]
@@ -270,5 +275,15 @@ fn test_enum() {
 
         let foo = transparent_struct_var.clone().into_pyobject(py).unwrap();
         assert_eq!(transparent_struct_var, foo.extract::<Foo>().unwrap());
+
+        let rename_all_struct_var = Foo::RenameAll {
+            long_field_name: [1, 2],
+            other_field: None,
+        };
+        let foo = (&rename_all_struct_var).into_pyobject(py).unwrap();
+        assert_eq!(rename_all_struct_var, foo.extract::<Foo>().unwrap());
+
+        let foo = rename_all_struct_var.clone().into_pyobject(py).unwrap();
+        assert_eq!(rename_all_struct_var, foo.extract::<Foo>().unwrap());
     });
 }
