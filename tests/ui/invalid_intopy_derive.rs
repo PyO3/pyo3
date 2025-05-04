@@ -138,4 +138,33 @@ enum EnumStructIntoPyWith {
     },
 }
 
+#[derive(IntoPyObject, IntoPyObjectRef)]
+#[pyo3(transparent, rename_all = "camelCase")]
+struct StructTransparentRenameAll {
+    foo_bar: String,
+}
+
+#[derive(IntoPyObject, IntoPyObjectRef)]
+#[pyo3(rename_all = "camelCase")]
+struct StructTupleRenameAll(String, usize);
+
+#[derive(IntoPyObject, IntoPyObjectRef)]
+enum EnumTransparentVariantRenameAll {
+    #[pyo3(rename_all = "camelCase")]
+    #[pyo3(transparent)]
+    Variant { foo: String },
+}
+
+#[derive(IntoPyObject, IntoPyObjectRef)]
+enum EnumTupleVariantRenameAll {
+    #[pyo3(rename_all = "camelCase")]
+    Variant(String, usize),
+}
+
+#[derive(IntoPyObject, IntoPyObjectRef)]
+#[pyo3(rename_all = "camelCase")]
+enum EnumTopRenameAll {
+    Variant { foo: String },
+}
+
 fn main() {}

@@ -252,3 +252,38 @@ fn test_into_py_with() {
         );
     });
 }
+
+#[test]
+fn test_struct_into_py_rename_all() {
+    #[derive(IntoPyObject, IntoPyObjectRef)]
+    #[pyo3(rename_all = "camelCase")]
+    struct Foo {
+        foo_bar: String,
+        #[pyo3(item("BAZ"))]
+        baz: usize,
+        #[pyo3(item)]
+        long_field_name: f32,
+    }
+
+    let foo = Foo {
+        foo_bar: "foobar".into(),
+        baz: 42,
+        long_field_name: 0.0,
+    };
+
+    Python::with_gil(|py| {
+        let py_foo_ref = (&foo).into_pyobject(py).unwrap();
+        let py_foo = foo.into_pyobject(py).unwrap();
+
+        py_run!(
+            py,
+            py_foo_ref,
+            "assert py_foo_ref == {'fooBar': 'foobar', 'BAZ': 42, 'longFieldName': 0},f'{py_foo_ref}'"
+        );
+        py_run!(
+            py,
+            py_foo,
+            "assert py_foo == {'fooBar': 'foobar', 'BAZ': 42, 'longFieldName': 0},f'{py_foo}'"
+        );
+    });
+}
