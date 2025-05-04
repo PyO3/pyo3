@@ -126,6 +126,7 @@ full = [
     # "multiple-pymethods", # Not supported by wasm
     "anyhow",
     "bigdecimal",
+    "bytes",
     "chrono",
     "chrono-tz",
     "either",
