@@ -367,9 +367,9 @@ mod test_ordered_float {
                     )
                     .unwrap();
                     let py_64 = locals.get_item("max_float").unwrap().unwrap();
-                    let rs_64 = py_64.extract::<$wrapper<f32>>().unwrap();
+                    let rs_32 = py_64.extract::<$wrapper<f32>>().unwrap();
                     // The python f64 is not representable in a rust f32
-                    assert!(rs_64.is_infinite());
+                    assert!(rs_32.is_infinite());
                 })
             }
         };
