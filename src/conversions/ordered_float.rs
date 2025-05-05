@@ -53,10 +53,10 @@
 
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
-use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::types::any::PyAnyMethods;
-use crate::{ffi, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
+use crate::types::{any::PyAnyMethods, PyFloat};
+use crate::{Bound, FromPyObject, PyAny, PyResult, Python};
 use ordered_float::{NotNan, OrderedFloat};
+use std::convert::Infallible;
 
 macro_rules! float_conversions {
     ($wrapper:ident, $float_type:ty, $constructor:expr) => {
@@ -68,24 +68,19 @@ macro_rules! float_conversions {
         }
 
         impl<'py> IntoPyObject<'py> for $wrapper<$float_type> {
-            type Target = PyAny;
+            type Target = PyFloat;
             type Output = Bound<'py, Self::Target>;
-            type Error = PyErr;
+            type Error = Infallible;
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-                let float = unsafe {
-                    ffi::PyFloat_FromDouble(self.into_inner() as f64)
-                        .assume_owned(py)
-                        .downcast_into_unchecked()
-                };
-                Ok(float)
+                self.into_inner().into_pyobject(py)
             }
         }
 
         impl<'py> IntoPyObject<'py> for &$wrapper<$float_type> {
-            type Target = PyAny;
+            type Target = PyFloat;
             type Output = Bound<'py, Self::Target>;
-            type Error = PyErr;
+            type Error = Infallible;
 
             #[inline]
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
