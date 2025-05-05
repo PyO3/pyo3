@@ -87,12 +87,7 @@ struct HangThread;
 impl Drop for HangThread {
     fn drop(&mut self) {
         loop {
-            #[cfg(target_family = "unix")]
-            unsafe {
-                libc::pause();
-            }
-            #[cfg(not(target_family = "unix"))]
-            std::thread::sleep(std::time::Duration::from_secs(9_999_999));
+            std::thread::park(); // Block forever.
         }
     }
 }
