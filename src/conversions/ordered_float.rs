@@ -256,7 +256,7 @@ mod test_ordered_float {
     float_roundtrip_tests!(
         OrderedFloat,
         f32,
-        |val| OrderedFloat(val),
+        OrderedFloat,
         ordered_float_f32_standard,
         ordered_float_f32_wasm,
         ordered_float_f32_infinity,
@@ -265,7 +265,7 @@ mod test_ordered_float {
     float_roundtrip_tests!(
         OrderedFloat,
         f64,
-        |val| OrderedFloat(val),
+        OrderedFloat,
         ordered_float_f64_standard,
         ordered_float_f64_wasm,
         ordered_float_f64_infinity,
