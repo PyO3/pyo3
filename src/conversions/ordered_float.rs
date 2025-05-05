@@ -99,9 +99,8 @@ float_conversions!(NotNan, f64, |val| NotNan::new(val)
 #[cfg(test)]
 mod test_ordered_float {
     use super::*;
-    use crate::types::dict::PyDictMethods;
-    use crate::types::PyDict;
-    use std::ffi::CString;
+    use crate::ffi::c_str;
+    use crate::py_run;
 
     #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;
@@ -117,20 +116,15 @@ mod test_ordered_float {
                 Python::with_gil(|py| {
                     let f_py = f.into_pyobject(py).unwrap();
 
-                    let locals = PyDict::new(py);
-                    locals.set_item("f_py", &f_py).unwrap();
-
-                    py.run(
-                        &CString::new(format!(
+                    py_run!(
+                        py,
+                        f_py,
+                        &format!(
                             "import math\nassert math.isclose(f_py, {})",
                              inner_f as f64 // Always interpret the literal rs float value as f64
                                             // so that it's comparable with the python float
-                        ))
-                        .unwrap(),
-                        None,
-                        Some(&locals),
-                    )
-                    .unwrap();
+                        )
+                    );
 
                     let roundtripped_f: $wrapper<$float_type> = f_py.extract().unwrap();
 
@@ -147,20 +141,15 @@ mod test_ordered_float {
                 Python::with_gil(|py| {
                     let f_py = f.into_pyobject(py).unwrap();
 
-                    let locals = PyDict::new(py);
-                    locals.set_item("f_py", &f_py).unwrap();
-
-                    py.run(
-                        &CString::new(format!(
+                    py_run!(
+                        py,
+                        f_py,
+                        &format!(
                             "import math\nassert math.isclose(f_py, {})",
                             inner_f as f64 // Always interpret the literal rs float value as f64
                                            // so that it's comparable with the python float
-                        ))
-                        .unwrap(),
-                        None,
-                        Some(&locals),
-                    )
-                    .unwrap();
+                        )
+                    );
 
                     let roundtripped_f: $wrapper<$float_type> = f_py.extract().unwrap();
 
@@ -180,21 +169,13 @@ mod test_ordered_float {
                     let pinf_py = pinf.into_pyobject(py).unwrap();
                     let ninf_py = ninf.into_pyobject(py).unwrap();
 
-                    let locals = PyDict::new(py);
-                    locals.set_item("pinf_py", &pinf_py).unwrap();
-                    locals.set_item("ninf_py", &ninf_py).unwrap();
-
-                    py.run(
-                        &CString::new(
-                            "\
-                            assert pinf_py == float('inf')\n\
-                            assert ninf_py == float('-inf')",
-                        )
-                        .unwrap(),
-                        None,
-                        Some(&locals),
-                    )
-                    .unwrap();
+                    py_run!(
+                        py,
+                        pinf_py ninf_py,
+                        "\
+                        assert pinf_py == float('inf')\n\
+                        assert ninf_py == float('-inf')"
+                    );
 
                     let roundtripped_pinf: $wrapper<$float_type> = pinf_py.extract().unwrap();
                     let roundtripped_ninf: $wrapper<$float_type> = ninf_py.extract().unwrap();
@@ -216,26 +197,18 @@ mod test_ordered_float {
                     let pzero_py = pzero.into_pyobject(py).unwrap();
                     let nzero_py = nzero.into_pyobject(py).unwrap();
 
-                    let locals = PyDict::new(py);
-                    locals.set_item("pzero_py", &pzero_py).unwrap();
-                    locals.set_item("nzero_py", &nzero_py).unwrap();
-
                     // This python script verifies that the values are 0.0 in magnitude
                     // and that the signs are correct(+0.0 vs -0.0)
-                    py.run(
-                        &CString::new(
-                            "\
-                            import math\n\
-                            assert pzero_py == 0.0\n\
-                            assert math.copysign(1.0, pzero_py) > 0.0\n\
-                            assert nzero_py == 0.0\n\
-                            assert math.copysign(1.0, nzero_py) < 0.0",
-                        )
-                        .unwrap(),
-                        None,
-                        Some(&locals),
-                    )
-                    .unwrap();
+                    py_run!(
+                        py,
+                        pzero_py nzero_py,
+                        "\
+                        import math\n\
+                        assert pzero_py == 0.0\n\
+                        assert math.copysign(1.0, pzero_py) > 0.0\n\
+                        assert nzero_py == 0.0\n\
+                        assert math.copysign(1.0, nzero_py) < 0.0"
+                    );
 
                     let roundtripped_pzero: $wrapper<$float_type> = pzero_py.extract().unwrap();
                     let roundtripped_nzero: $wrapper<$float_type> = nzero_py.extract().unwrap();
@@ -295,20 +268,13 @@ mod test_ordered_float {
                 Python::with_gil(|py| {
                     let nan_py = nan.into_pyobject(py).unwrap();
 
-                    let locals = PyDict::new(py);
-                    locals.set_item("nan_py", &nan_py).unwrap();
-
-                    py.run(
-                        &CString::new(
-                            "\
-                                import math\n\
-                                assert math.isnan(nan_py)",
-                        )
-                        .unwrap(),
-                        None,
-                        Some(&locals),
-                    )
-                    .unwrap();
+                    py_run!(
+                        py,
+                        nan_py,
+                        "\
+                        import math\n\
+                        assert math.isnan(nan_py)"
+                    );
 
                     let roundtripped_nan: OrderedFloat<$float_type> = nan_py.extract().unwrap();
 
@@ -325,17 +291,9 @@ mod test_ordered_float {
             #[test]
             fn $test_name() {
                 Python::with_gil(|py| {
-                    let locals = PyDict::new(py);
+                    let nan_py = py.eval(c_str!("float('nan')"), None, None).unwrap();
 
-                    py.run(
-                        &CString::new("nan_py = float('nan')").unwrap(),
-                        None,
-                        Some(&locals),
-                    )
-                    .unwrap();
-
-                    let nan_rs: PyResult<NotNan<$float_type>> =
-                        locals.get_item("nan_py").unwrap().unwrap().extract();
+                    let nan_rs: PyResult<NotNan<$float_type>> = nan_py.extract();
 
                     assert!(nan_rs.is_err());
                 })
@@ -350,18 +308,13 @@ mod test_ordered_float {
             #[test]
             fn $test_name() {
                 Python::with_gil(|py| {
-                    let locals = PyDict::new(py);
-                    py.run(
-                        &CString::new(
-                            "import sys\n\
-                            max_float = sys.float_info.max",
-                        )
-                        .unwrap(),
-                        None,
-                        Some(&locals),
-                    )
-                    .unwrap();
-                    let py_64 = locals.get_item("max_float").unwrap().unwrap();
+                    let py_64 = py
+                        .import("sys")
+                        .unwrap()
+                        .getattr("float_info")
+                        .unwrap()
+                        .getattr("max")
+                        .unwrap();
                     let rs_32 = py_64.extract::<$wrapper<f32>>().unwrap();
                     // The python f64 is not representable in a rust f32
                     assert!(rs_32.is_infinite());
