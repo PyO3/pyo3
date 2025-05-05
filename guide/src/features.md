@@ -180,6 +180,12 @@ Adds a dependency on [num-complex](https://docs.rs/num-complex) and enables conv
 
 Adds a dependency on [num-rational](https://docs.rs/num-rational) and enables conversions into its [`Ratio`](https://docs.rs/num-rational/latest/num_rational/struct.Ratio.html) type.
 
+### `ordered-float`
+
+Adds a dependency on [ordered-float](https://docs.rs/ordered-float) and enables conversions between [ordered-float](https://docs.rs/ordered-float)'s types and Python:
+- [NotNan](https://docs.rs/ordered-float/latest/ordered_float/struct.NotNan.html) -> [`PyFloat`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyFloat.html)
+- [OrderedFloat](https://docs.rs/ordered-float/latest/ordered_float/struct.OrderedFloat.html) -> [`PyFloat`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyFloat.html)
+
 ### `rust_decimal`
 
 Adds a dependency on [rust_decimal](https://docs.rs/rust_decimal) and enables conversions into its [`Decimal`](https://docs.rs/rust_decimal/latest/rust_decimal/struct.Decimal.html) type.

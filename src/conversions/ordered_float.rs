@@ -1,4 +1,55 @@
 #![cfg(feature = "ordered-float")]
+//! Conversions to and from [ordered-float](https://docs.rs/ordered-float) types.
+//! [`NotNan`]`<`[`f32`]`>` and [`NotNan`]`<`[`f64`]`>`.
+//! [`OrderedFloat`]`<`[`f32`]`>` and [`OrderedFloat`]`<`[`f64`]`>`.
+//!
+//! This is useful for converting between Python's float into and from a native Rust type.
+//!
+//! Take care when comparing sorted collections of float types between Python and Rust.
+//! They will likely differ due to the ambiguous sort order of NaNs in Python.
+//
+//!
+//! To use this feature, add to your **`Cargo.toml`**:
+//!
+//! ```toml
+//! [dependencies]
+#![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"ordered-float\"] }")]
+//! ordered-float = "5.0.0"
+//! ```
+//!
+//! # Example
+//!
+//! Rust code to create functions that add ordered floats:
+//!
+//! ```rust,no_run
+//! use ordered_float::{NotNan, OrderedFloat};
+//! use pyo3::prelude::*;
+//!
+//! #[pyfunction]
+//! fn add_not_nans(a: NotNan<f64>, b: NotNan<f64>) -> NotNan<f64> {
+//!     a + b
+//! }
+//!
+//! #[pyfunction]
+//! fn add_ordered_floats(a: OrderedFloat<f64>, b: OrderedFloat<f64>) -> OrderedFloat<f64> {
+//!     a + b
+//! }
+//!
+//! #[pymodule]
+//! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
+//!     m.add_function(wrap_pyfunction!(add_not_nans, m)?)?;
+//!     m.add_function(wrap_pyfunction!(add_ordered_floats, m)?)?;
+//!     Ok(())
+//! }
+//! ```
+//!
+//! Python code that validates the functionality:
+//! ```python
+//! from my_module import add_not_nans, add_ordered_floats
+//!
+//! assert add_not_nans(1.0,2.0) == 3.0
+//! assert add_ordered_floats(1.0,2.0) == 3.0
+//! ```
 
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
