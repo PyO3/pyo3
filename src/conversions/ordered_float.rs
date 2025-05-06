@@ -114,7 +114,7 @@ mod test_ordered_float {
                 let f = $constructor(inner_f);
 
                 Python::with_gil(|py| {
-                    let f_py = f.into_pyobject(py).unwrap();
+                    let f_py: Bound<'_, PyFloat>  = f.into_pyobject(py).unwrap();
 
                     py_run!(
                         py,
@@ -139,7 +139,7 @@ mod test_ordered_float {
                 let f = $constructor(inner_f);
 
                 Python::with_gil(|py| {
-                    let f_py = f.into_pyobject(py).unwrap();
+                    let f_py: Bound<'_, PyFloat>  = f.into_pyobject(py).unwrap();
 
                     py_run!(
                         py,
@@ -166,8 +166,8 @@ mod test_ordered_float {
                 let ninf = $constructor(inner_ninf);
 
                 Python::with_gil(|py| {
-                    let pinf_py = pinf.into_pyobject(py).unwrap();
-                    let ninf_py = ninf.into_pyobject(py).unwrap();
+                    let pinf_py: Bound<'_, PyFloat>  = pinf.into_pyobject(py).unwrap();
+                    let ninf_py: Bound<'_, PyFloat>  = ninf.into_pyobject(py).unwrap();
 
                     py_run!(
                         py,
@@ -194,8 +194,8 @@ mod test_ordered_float {
                 let nzero = $constructor(inner_nzero);
 
                 Python::with_gil(|py| {
-                    let pzero_py = pzero.into_pyobject(py).unwrap();
-                    let nzero_py = nzero.into_pyobject(py).unwrap();
+                    let pzero_py: Bound<'_, PyFloat>  = pzero.into_pyobject(py).unwrap();
+                    let nzero_py: Bound<'_, PyFloat>  = nzero.into_pyobject(py).unwrap();
 
                     // This python script verifies that the values are 0.0 in magnitude
                     // and that the signs are correct(+0.0 vs -0.0)
@@ -266,7 +266,7 @@ mod test_ordered_float {
                 let nan = OrderedFloat(inner_nan);
 
                 Python::with_gil(|py| {
-                    let nan_py = nan.into_pyobject(py).unwrap();
+                    let nan_py: Bound<'_, PyFloat> = nan.into_pyobject(py).unwrap();
 
                     py_run!(
                         py,
