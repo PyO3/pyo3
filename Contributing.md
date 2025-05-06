@@ -189,7 +189,7 @@ If you plan to add support for a pre-release version of CPython, here's a (non-e
    - In `pyo3-build-config/Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease"] and abi3-prerelease to ["abi3"]
    - In `pyo3-ffi/Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease", "pyo3-build-config/abi3-most_current_stable"] and abi3-prerelease to ["abi3", "pyo3-build-config/abi3-prerelease"]
    - In `Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease", "pyo3-ffi/abi3-most_current_stable"] and abi3-prerelease to ["abi3", "pyo3-ffi/abi3-prerelease"]
- - [] Use `#[cfg(Py_prerelease])` and `#[cfg(not(Py_prerelease]))` to indicate changes between the stable branches of CPython and the pre-release
+ - [] Use `#[cfg(Py_prerelease])` (e.g. `#[cfg(Py_3_14)]`) and `#[cfg(not(Py_prerelease]))` to indicate changes between the stable branches of CPython and the pre-release
  - [] Do not add a Rust binding to any function, struct, or global variable prefixed with `_` in CPython's headers
  - [] Ping @ngoldbaum and @davidhewitt for assistance
 
