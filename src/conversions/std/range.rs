@@ -1,8 +1,9 @@
 use crate::exceptions::PyTypeError;
 use crate::prelude::PyAnyMethods;
-use crate::types::{PyInt, PyRange, PyRangeMethods};
+use crate::types::{PyInt, PyRange, PyRangeMethods, PySlice};
 use crate::{Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
-use std::ops::{Range, RangeInclusive};
+use std::convert::Infallible;
+use std::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
 
 impl<'py, T> FromPyObject<'py> for Range<T>
 where
@@ -74,5 +75,109 @@ where
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         PyRange::from_range(py, self)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for RangeFull {
+    type Target = PySlice;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PySlice::full(py))
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &RangeFull {
+    type Target = PySlice;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PySlice::full(py))
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for RangeFrom<T>
+where
+    T: TryInto<isize>,
+    <T as TryInto<isize>>::Error: Into<PyErr>,
+{
+    type Target = PySlice;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <T as TryInto<isize>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PySlice::from(py, self.start.try_into()?))
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for &RangeFrom<T>
+where
+    T: TryInto<isize> + Copy,
+    <T as TryInto<isize>>::Error: Into<PyErr>,
+{
+    type Target = PySlice;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <T as TryInto<isize>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PySlice::from(py, self.start.try_into()?))
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for RangeTo<T>
+where
+    T: TryInto<isize>,
+    <T as TryInto<isize>>::Error: Into<PyErr>,
+{
+    type Target = PySlice;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <T as TryInto<isize>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PySlice::to(py, self.end.try_into()?))
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for &RangeTo<T>
+where
+    T: TryInto<isize> + Copy,
+    <T as TryInto<isize>>::Error: Into<PyErr>,
+{
+    type Target = PySlice;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <T as TryInto<isize>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PySlice::to(py, self.end.try_into()?))
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for RangeToInclusive<T>
+where
+    T: TryInto<isize>,
+    <T as TryInto<isize>>::Error: Into<PyErr>,
+{
+    type Target = PySlice;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <T as TryInto<isize>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PySlice::to(py, self.end.try_into()? + 1))
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for &RangeToInclusive<T>
+where
+    T: TryInto<isize> + Copy,
+    <T as TryInto<isize>>::Error: Into<PyErr>,
+{
+    type Target = PySlice;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <T as TryInto<isize>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PySlice::to(py, self.end.try_into()? + 1))
     }
 }
