@@ -1133,7 +1133,10 @@ mod tests {
     }
 
     #[cfg(feature = "macros")]
-    #[cfg(all(feature = "parking_lot", not(target_arch = "wasm32")))] // We are building wasm Python with pthreads disabled
+    #[cfg(all(
+        any(feature = "parking_lot", feature = "lock_api"),
+        not(target_arch = "wasm32") // We are building wasm Python with pthreads disabled
+    ))]
     #[test]
     fn test_parking_lot_mutex_ext() {
         macro_rules! test_mutex {
