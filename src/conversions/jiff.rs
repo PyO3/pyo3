@@ -275,13 +275,12 @@ impl<'py> IntoPyObject<'py> for &Zoned {
             Some(zoned.timestamp() + (zoned.offset() - prev.offset()) <= start_of_current_offset)
         }
 
-        let tz = if cfg!(Py_3_9) {
-            self.time_zone()
-        } else {
-            &TimeZone::fixed(self.time_zone().to_offset(self.timestamp()))
-        };
-
-        datetime_to_pydatetime(py, &self.datetime(), fold(self).unwrap_or(false), Some(tz))
+        datetime_to_pydatetime(
+            py,
+            &self.datetime(),
+            fold(self).unwrap_or(false),
+            Some(self.time_zone()),
+        )
     }
 }
 
@@ -334,7 +333,6 @@ impl<'py> IntoPyObject<'py> for &TimeZone {
             return Ok(PyTzInfo::utc(py)?.to_owned());
         }
 
-        #[cfg(Py_3_9)]
         if let Some(iana_name) = self.iana_name() {
             return PyTzInfo::timezone(py, iana_name);
         }
@@ -499,17 +497,6 @@ mod tests {
             let msg = res.value(py).repr().unwrap().to_string();
             assert_eq!(msg, "TypeError(\"zoneinfo.ZoneInfo(key='Europe/London') is not a fixed offset timezone\")");
         });
-    }
-
-    #[test]
-    #[cfg(not(Py_3_9))]
-    fn test_zoned_into_python_without_zoneinfo() {
-        Python::with_gil(|py| {
-            let zoned = Zoned::now();
-            let py_datetime: Bound<'_, PyDateTime> = zoned.into_pyobject(py).unwrap();
-            let timezone: TimeZone = py_datetime.get_tzinfo().unwrap().extract().unwrap();
-            assert!(timezone.to_fixed_offset().is_ok())
-        })
     }
 
     #[test]
