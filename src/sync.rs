@@ -1074,6 +1074,9 @@ mod tests {
                         // once any success happens, we stop propagating the poison
                         init.call_once_py_attached(py, || {});
                     });
+
+                    // calling call_once_force should return immediately without calling the closure
+                    Python::with_gil(|py| init.call_once_force_py_attached(py, |_| panic!()));
                 });
             }};
         }
