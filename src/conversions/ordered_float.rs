@@ -134,6 +134,7 @@ mod test_ordered_float {
             }
 
             #[cfg(target_arch = "wasm32")]
+            #[test]
             fn $wasm_test() {
                 let inner_f = 10.0;
                 let f = $constructor(inner_f);
