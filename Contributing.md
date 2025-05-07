@@ -185,7 +185,7 @@ If you plan to add support for a pre-release version of CPython, here's a (non-e
 
  - [] Wait until the last alpha release (usually alpha7), since ABI is not guranteed until the first beta release
  - [] Add prelease_ver-dev (e.g. `3.14-dev`) to `‎.github/workflows/ci.yml`, and bump version in `noxfile.py`, `pyo3-ffi/Cargo.toml` under `max-version` within  `[package.metadata.cpython]`, and `max` within `pyo3-ffi/build.rs`
-- [ ] Add a new abi3-prerelease feature for the version (e.g. `abi3-314`)
+- [ ] Add a new abi3-prerelease feature for the version (e.g. `abi3-py314`)
    - In `pyo3-build-config/Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease"] and abi3-prerelease to ["abi3"]
    - In `pyo3-ffi/Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease", "pyo3-build-config/abi3-most_current_stable"] and abi3-prerelease to ["abi3", "pyo3-build-config/abi3-prerelease"]
    - In `Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease", "pyo3-ffi/abi3-most_current_stable"] and abi3-prerelease to ["abi3", "pyo3-ffi/abi3-prerelease"]
