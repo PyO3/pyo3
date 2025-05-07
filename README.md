@@ -21,7 +21,7 @@ Requires Rust 1.63 or greater.
 PyO3 supports the following Python distributions:
   - CPython 3.7 or greater
   - PyPy 7.3 (Python 3.9+)
-  - GraalPy 24.0 or greater (Python 3.10+)
+  - GraalPy 24.2 or greater (Python 3.11+)
 
 You can use PyO3 to write a native Python module in Rust, or to embed Python in a Rust binary. The following sections explain each of these in turn.
 
