@@ -143,11 +143,10 @@ pub struct PyConfig {
     pub safe_path: c_int,
     #[cfg(Py_3_12)]
     pub int_max_str_digits: c_int,
-    // TODO: uncomment for 3.14.0b1
-    // #[cfg(Py_3_14)]
-    // pub thread_inherit_context: c_int,
-    // #[cfg(Py_3_14)]
-    // pub context_aware_warnings: c_int,
+    #[cfg(Py_3_14)]
+    pub thread_inherit_context: c_int,
+    #[cfg(Py_3_14)]
+    pub context_aware_warnings: c_int,
     #[cfg(all(Py_3_14, target_os = "macos"))]
     pub use_system_logger: c_int,
     #[cfg(Py_3_13)]
