@@ -27,7 +27,6 @@ The table below contains the Python type and the corresponding function argument
 | `frozenset[T]` | `HashSet<T>`, `BTreeSet<T>`, `hashbrown::HashSet<T>`[^3] | `PyFrozenSet` |
 | `bytearray`   | `Vec<u8>`, `Cow<[u8]>`          | `PyByteArray`       |
 | `slice`       | -                               | `PySlice`           |
-| `range`       | `Range<Idx>`                    | `PyRange`           |
 | `type`        | -                               | `PyType`            |
 | `module`      | -                               | `PyModule`          |
 | `collections.abc.Buffer` | -                    | `PyBuffer<T>`        |

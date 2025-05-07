@@ -76,28 +76,6 @@ impl PySlice {
                 .downcast_into_unchecked()
         }
     }
-
-    /// Constructs a new slice with the given start index. Equivalent to `list[start:]`.
-    pub fn from(py: Python<'_>, start: isize) -> Bound<'_, PySlice> {
-        unsafe {
-            ffi::PySlice_New(
-                ffi::PyLong_FromSsize_t(start),
-                ffi::Py_None(),
-                ffi::Py_None(),
-            )
-            .assume_owned(py)
-            .downcast_into_unchecked()
-        }
-    }
-
-    /// Constructs a new slice with the given end index. Equivalent to `list[:end]`.
-    pub fn to(py: Python<'_>, end: isize) -> Bound<'_, PySlice> {
-        unsafe {
-            ffi::PySlice_New(ffi::Py_None(), ffi::PyLong_FromSsize_t(end), ffi::Py_None())
-                .assume_owned(py)
-                .downcast_into_unchecked()
-        }
-    }
 }
 
 /// Implementation of functionality for [`PySlice`].
@@ -179,7 +157,6 @@ impl<'py> TryFrom<Bound<'py, PyRange>> for Bound<'py, PySlice> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pyo3_ffi::c_str;
 
     #[test]
     fn test_py_slice_new() {
@@ -281,24 +258,5 @@ mod tests {
                 slicelength: 0
             }
         );
-    }
-
-    #[test]
-    fn test_range_into_pyslice() {
-        macro_rules! test_slice {
-            ($py_slice:expr, $range:expr) => {
-                Python::with_gil(|py| {
-                    let range = $range;
-                    let slice: Bound<'_, PySlice> = range.into_pyobject(py).unwrap();
-                    let py_slice = py.eval(c_str!($py_slice), None, None).unwrap();
-                    assert!(slice.eq(py_slice).unwrap())
-                });
-            };
-        }
-
-        test_slice!("slice(None, 10)", ..10);
-        test_slice!("slice(None, 11)", ..=10);
-        test_slice!("slice(3, None)", 3..);
-        test_slice!("slice(None, None)", ..);
     }
 }

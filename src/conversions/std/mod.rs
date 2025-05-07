@@ -6,7 +6,6 @@ mod num;
 mod option;
 mod osstr;
 mod path;
-mod range;
 mod set;
 mod slice;
 mod string;
