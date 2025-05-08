@@ -47,13 +47,10 @@ use crate::exceptions::{PyTypeError, PyUserWarning, PyValueError};
 use crate::intern;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyNone;
-use crate::types::{
-    datetime::timezone_from_offset, timezone_utc, PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo,
-    PyTzInfoAccess,
-};
+use crate::types::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
-use crate::{ffi, Bound, FromPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python};
+use crate::{ffi, Borrowed, Bound, FromPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python};
 use chrono::offset::{FixedOffset, Utc};
 use chrono::{
     DateTime, Datelike, Duration, LocalResult, NaiveDate, NaiveDateTime, NaiveTime, Offset,
@@ -363,7 +360,7 @@ impl<'py> IntoPyObject<'py> for FixedOffset {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let seconds_offset = self.local_minus_utc();
         let td = PyDelta::new(py, 0, seconds_offset, 0, true)?;
-        timezone_from_offset(&td)
+        PyTzInfo::fixed_offset(py, td)
     }
 }
 
@@ -408,17 +405,17 @@ impl FromPyObject<'_> for FixedOffset {
 
 impl<'py> IntoPyObject<'py> for Utc {
     type Target = PyTzInfo;
-    type Output = Bound<'py, Self::Target>;
+    type Output = Borrowed<'static, 'py, Self::Target>;
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(timezone_utc(py))
+        PyTzInfo::utc(py)
     }
 }
 
 impl<'py> IntoPyObject<'py> for &Utc {
     type Target = PyTzInfo;
-    type Output = Bound<'py, Self::Target>;
+    type Output = Borrowed<'static, 'py, Self::Target>;
     type Error = PyErr;
 
     #[inline]
@@ -429,7 +426,7 @@ impl<'py> IntoPyObject<'py> for &Utc {
 
 impl FromPyObject<'_> for Utc {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Utc> {
-        let py_utc = timezone_utc(ob.py());
+        let py_utc = PyTzInfo::utc(ob.py())?;
         if ob.eq(py_utc)? {
             Ok(Utc)
         } else {
@@ -926,7 +923,7 @@ mod tests {
             let minute = 8;
             let second = 9;
             let micro = 999_999;
-            let tz_utc = timezone_utc(py);
+            let tz_utc = PyTzInfo::utc(py).unwrap();
             let py_datetime = new_py_datetime_ob(
                 py,
                 "datetime",

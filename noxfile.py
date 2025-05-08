@@ -101,9 +101,9 @@ def test_rust(session: nox.Session):
     if not FREE_THREADED_BUILD:
         _run_cargo_test(session, features="abi3")
     if "skip-full" not in session.posargs:
-        _run_cargo_test(session, features="full jiff-02")
+        _run_cargo_test(session, features="full jiff-02 time")
         if not FREE_THREADED_BUILD:
-            _run_cargo_test(session, features="abi3 full jiff-02")
+            _run_cargo_test(session, features="abi3 full jiff-02 time")
 
 
 @nox.session(name="test-py", venv_backend="none")
@@ -429,6 +429,10 @@ def docs(session: nox.Session) -> None:
 
     features = "full"
 
+    if get_rust_version()[:2] >= (1, 67):
+        # time needs MSRC 1.67+
+        features += ",time"
+
     if get_rust_version()[:2] >= (1, 70):
         # jiff needs MSRC 1.70+
         features += ",jiff-02"
@@ -489,6 +493,7 @@ def check_guide(session: nox.Session):
         "--include-fragments",
         str(PYO3_GUIDE_SRC),
         *remap_args,
+        "--accept=200,429",
         *session.posargs,
     )
     # check external links in the docs
@@ -500,6 +505,7 @@ def check_guide(session: nox.Session):
         *remap_args,
         f"--exclude=file://{PYO3_DOCS_TARGET}",
         "--exclude=http://www.adobe.com/",
+        "--accept=200,429",
         *session.posargs,
     )
 
@@ -704,11 +710,11 @@ def test_version_limits(session: nox.Session):
         config_file.set("CPython", "3.6")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        assert "3.14" not in PY_VERSIONS
-        config_file.set("CPython", "3.14")
+        assert "3.15" not in PY_VERSIONS
+        config_file.set("CPython", "3.15")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        # 3.14 CPython should build with forward compatibility
+        # 3.15 CPython should build with forward compatibility
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
 
@@ -819,8 +825,8 @@ def update_ui_tests(session: nox.Session):
     env["TRYBUILD"] = "overwrite"
     command = ["test", "--test", "test_compile_error"]
     _run_cargo(session, *command, env=env)
-    _run_cargo(session, *command, "--features=full,jiff-02", env=env)
-    _run_cargo(session, *command, "--features=abi3,full,jiff-02", env=env)
+    _run_cargo(session, *command, "--features=full,jiff-02,time", env=env)
+    _run_cargo(session, *command, "--features=abi3,full,jiff-02,time", env=env)
 
 
 @nox.session(name="test-introspection")
@@ -873,30 +879,38 @@ def _get_rust_default_target() -> str:
 
 
 @lru_cache()
-def _get_feature_sets() -> Generator[Tuple[str, ...], None, None]:
+def _get_feature_sets() -> Tuple[str, ...]:
     """Returns feature sets to use for clippy job"""
-    cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
 
-    yield from (
-        ("--no-default-features",),
-        (
-            "--no-default-features",
-            "--features=abi3",
-        ),
-    )
+    def _generate() -> Generator[Tuple[str, ...], None, None]:
+        cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
 
-    features = "full"
+        yield from (
+            ("--no-default-features",),
+            (
+                "--no-default-features",
+                "--features=abi3",
+            ),
+        )
 
-    if "wasm32-wasip1" not in cargo_target:
-        # multiple-pymethods not supported on wasm
-        features += ",multiple-pymethods"
+        features = "full"
 
-    if get_rust_version()[:2] >= (1, 70):
-        # jiff needs MSRC 1.70+
-        features += ",jiff-02"
+        if "wasm32-wasip1" not in cargo_target:
+            # multiple-pymethods not supported on wasm
+            features += ",multiple-pymethods"
 
-    yield (f"--features={features}",)
-    yield (f"--features=abi3,{features}",)
+        if get_rust_version()[:2] >= (1, 67):
+            # time needs MSRC 1.67+
+            features += ",time"
+
+        if get_rust_version()[:2] >= (1, 70):
+            # jiff needs MSRC 1.70+
+            features += ",jiff-02"
+
+        yield (f"--features={features}",)
+        yield (f"--features=abi3,{features}",)
+
+    return tuple(_generate())
 
 
 _RELEASE_LINE_START = "release: "
@@ -1021,6 +1035,11 @@ class _ConfigFile:
         self, implementation: str, version: str, build_flags: Iterable[str] = ()
     ) -> None:
         """Set the contents of this config file to the given implementation and version."""
+        if version.endswith("t"):
+            # Free threaded versions pass the support in config file through a flag
+            version = version[:-1]
+            build_flags = (*build_flags, "Py_GIL_DISABLED")
+
         self._config_file.seek(0)
         self._config_file.truncate(0)
         self._config_file.write(

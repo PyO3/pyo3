@@ -38,6 +38,7 @@ pub(crate) mod pythonrun;
 // skipped sysmodule.h
 pub(crate) mod floatobject;
 pub(crate) mod pyframe;
+pub(crate) mod pyhash;
 pub(crate) mod tupleobject;
 pub(crate) mod unicodeobject;
 pub(crate) mod weakrefobject;
@@ -73,6 +74,7 @@ pub use self::pydebug::*;
 pub use self::pyerrors::*;
 #[cfg(all(Py_3_11, not(PyPy)))]
 pub use self::pyframe::*;
+pub use self::pyhash::*;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub use self::pylifecycle::*;
 pub use self::pymem::*;

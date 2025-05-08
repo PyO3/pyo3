@@ -221,8 +221,7 @@ pub fn print_expected_cfgs() {
 
     // allow `Py_3_*` cfgs from the minimum supported version up to the
     // maximum minor version (+1 for development for the next)
-    // FIXME: support cfg(Py_3_14) as well due to PyGILState_Ensure
-    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=std::cmp::max(14, impl_::ABI3_MAX_MINOR + 1) {
+    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::ABI3_MAX_MINOR + 1 {
         println!("cargo:rustc-check-cfg=cfg(Py_3_{i})");
     }
 }

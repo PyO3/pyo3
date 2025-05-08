@@ -13,6 +13,7 @@
 | `generic` | Implements runtime parametrization for the class following [PEP 560](https://peps.python.org/pep-0560/). |
 | `get_all` | Generates getters for all fields of the pyclass. |
 | `hash` | Implements `__hash__` using the `Hash` implementation of the underlying Rust datatype. |
+| `immutable_type` | Makes the type object immutable. Supported on 3.14+ with the `abi3` feature active, or 3.10+ otherwise. |
 | `mapping` |  Inform PyO3 that this class is a [`Mapping`][params-mapping], and so leave its implementation of sequence C-API slots empty. |
 | <span style="white-space: pre">`module = "module_name"`</span> |  Python code will see the class as being defined in this module. Defaults to `builtins`. |
 | <span style="white-space: pre">`name = "python_name"`</span> | Sets the name that Python sees this class as. Defaults to the name of the Rust struct. |

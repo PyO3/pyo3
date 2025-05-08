@@ -182,12 +182,11 @@ mod inheriting_native_type {
     use pyo3::exceptions::PyException;
     use pyo3::types::PyDict;
 
-    #[cfg(not(PyPy))]
+    #[cfg(not(any(PyPy, GraalPy)))]
     #[test]
     fn inherit_set() {
         use pyo3::types::PySet;
 
-        #[cfg(not(PyPy))]
         #[pyclass(extends=PySet)]
         #[derive(Debug)]
         struct SetWithName {
@@ -195,7 +194,6 @@ mod inheriting_native_type {
             _name: &'static str,
         }
 
-        #[cfg(not(PyPy))]
         #[pymethods]
         impl SetWithName {
             #[new]

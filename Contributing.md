@@ -179,6 +179,20 @@ Below are guidelines on what compatibility all PRs are expected to deliver for e
 
 PyO3 supports all officially supported Python versions, as well as the latest PyPy3 release. All of these versions are tested in CI.
 
+#### Adding support for new CPython versions
+
+If you plan to add support for a pre-release version of CPython, here's a (non-exhaustive) checklist:
+
+ - [] Wait until the last alpha release (usually alpha7), since ABI is not guranteed until the first beta release
+ - [] Add prelease_ver-dev (e.g. `3.14-dev`) to `‎.github/workflows/ci.yml`, and bump version in `noxfile.py`, `pyo3-ffi/Cargo.toml` under `max-version` within  `[package.metadata.cpython]`, and `max` within `pyo3-ffi/build.rs`
+- [ ] Add a new abi3-prerelease feature for the version (e.g. `abi3-py314`)
+   - In `pyo3-build-config/Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease"] and abi3-prerelease to ["abi3"]
+   - In `pyo3-ffi/Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease", "pyo3-build-config/abi3-most_current_stable"] and abi3-prerelease to ["abi3", "pyo3-build-config/abi3-prerelease"]
+   - In `Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease", "pyo3-ffi/abi3-most_current_stable"] and abi3-prerelease to ["abi3", "pyo3-ffi/abi3-prerelease"]
+ - [] Use `#[cfg(Py_prerelease])` (e.g. `#[cfg(Py_3_14)]`) and `#[cfg(not(Py_prerelease]))` to indicate changes between the stable branches of CPython and the pre-release
+ - [] Do not add a Rust binding to any function, struct, or global variable prefixed with `_` in CPython's headers
+ - [] Ping @ngoldbaum and @davidhewitt for assistance
+
 ### Rust
 
 PyO3 aims to make use of up-to-date Rust language features to keep the implementation as efficient as possible.

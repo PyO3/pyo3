@@ -491,49 +491,11 @@ impl<'a> FunctionSignature<'a> {
     }
 
     fn default_value_for_parameter(&self, parameter: &str) -> String {
-        let mut default = "...".to_string();
         if let Some(fn_arg) = self.arguments.iter().find(|arg| arg.name() == parameter) {
-            if let FnArg::Regular(RegularArg {
-                default_value: Some(arg_default),
-                ..
-            }) = fn_arg
-            {
-                match arg_default {
-                    // literal values
-                    syn::Expr::Lit(syn::ExprLit { lit, .. }) => match lit {
-                        syn::Lit::Str(s) => default = s.token().to_string(),
-                        syn::Lit::Char(c) => default = c.token().to_string(),
-                        syn::Lit::Int(i) => default = i.base10_digits().to_string(),
-                        syn::Lit::Float(f) => default = f.base10_digits().to_string(),
-                        syn::Lit::Bool(b) => {
-                            default = if b.value() {
-                                "True".to_string()
-                            } else {
-                                "False".to_string()
-                            }
-                        }
-                        _ => {}
-                    },
-                    // None
-                    syn::Expr::Path(syn::ExprPath {
-                        qself: None, path, ..
-                    }) if path.is_ident("None") => {
-                        default = "None".to_string();
-                    }
-                    // others, unsupported yet so defaults to `...`
-                    _ => {}
-                }
-            } else if let FnArg::Regular(RegularArg {
-                option_wrapped_type: Some(..),
-                ..
-            }) = fn_arg
-            {
-                // functions without a `#[pyo3(signature = (...))]` option
-                // will treat trailing `Option<T>` arguments as having a default of `None`
-                default = "None".to_string();
-            }
+            fn_arg.default_value()
+        } else {
+            "...".to_string()
         }
-        default
     }
 
     pub fn text_signature(&self, self_argument: Option<&str>) -> String {

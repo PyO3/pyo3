@@ -4,7 +4,7 @@ use std::ptr::addr_of_mut;
 
 #[cfg(Py_LIMITED_API)]
 // TODO: remove (see https://github.com/PyO3/pyo3/pull/1341#issuecomment-751515985)
-opaque_struct!(PyFloatObject);
+opaque_struct!(pub PyFloatObject);
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {

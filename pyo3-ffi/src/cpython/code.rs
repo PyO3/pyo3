@@ -1,209 +1,43 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 
-#[allow(unused_imports)]
-use std::os::raw::{c_char, c_int, c_short, c_uchar, c_void};
+#[cfg(not(GraalPy))]
+use std::os::raw::c_char;
+use std::os::raw::{c_int, c_void};
 #[cfg(not(any(PyPy, GraalPy)))]
 use std::ptr::addr_of_mut;
 
-#[cfg(all(Py_3_8, not(any(PyPy, GraalPy)), not(Py_3_11)))]
-opaque_struct!(_PyOpcache);
+// skipped private _PY_MONITORING_LOCAL_EVENTS
+// skipped private _PY_MONITORING_UNGROUPED_EVENTS
+// skipped private _PY_MONITORING_EVENTS
 
-#[cfg(Py_3_12)]
-pub const _PY_MONITORING_LOCAL_EVENTS: usize = 10;
-#[cfg(Py_3_12)]
-pub const _PY_MONITORING_UNGROUPED_EVENTS: usize = 15;
-#[cfg(Py_3_12)]
-pub const _PY_MONITORING_EVENTS: usize = 17;
+// skipped private _PyLocalMonitors
+// skipped private _Py_GlobalMonitors
 
-#[cfg(Py_3_12)]
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct _Py_LocalMonitors {
-    pub tools: [u8; if cfg!(Py_3_13) {
-        _PY_MONITORING_LOCAL_EVENTS
-    } else {
-        _PY_MONITORING_UNGROUPED_EVENTS
-    }],
-}
+// skipped private _Py_CODEUNIT
 
-#[cfg(Py_3_12)]
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct _Py_GlobalMonitors {
-    pub tools: [u8; _PY_MONITORING_UNGROUPED_EVENTS],
-}
+// skipped private _Py_OPCODE
+// skipped private _Py_OPARG
 
-// skipped _Py_CODEUNIT
+// skipped private _py_make_codeunit
 
-// skipped _Py_OPCODE
-// skipped _Py_OPARG
+// skipped private _py_set_opcode
 
-// skipped _py_make_codeunit
+// skipped private _Py_MAKE_CODEUNIT
+// skipped private _Py_SET_OPCODE
 
-// skipped _py_set_opcode
+// skipped private _PyCoCached
+// skipped private _PyCoLineInstrumentationData
+// skipped private _PyCoMontoringData
 
-// skipped _Py_MAKE_CODEUNIT
-// skipped _Py_SET_OPCODE
+// skipped private _PyExecutorArray
 
-#[cfg(Py_3_12)]
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct _PyCoCached {
-    pub _co_code: *mut PyObject,
-    pub _co_varnames: *mut PyObject,
-    pub _co_cellvars: *mut PyObject,
-    pub _co_freevars: *mut PyObject,
-}
-
-#[cfg(Py_3_12)]
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct _PyCoLineInstrumentationData {
-    pub original_opcode: u8,
-    pub line_delta: i8,
-}
-
-#[cfg(Py_3_12)]
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct _PyCoMonitoringData {
-    pub local_monitors: _Py_LocalMonitors,
-    pub active_monitors: _Py_LocalMonitors,
-    pub tools: *mut u8,
-    pub lines: *mut _PyCoLineInstrumentationData,
-    pub line_tools: *mut u8,
-    pub per_instruction_opcodes: *mut u8,
-    pub per_instruction_tools: *mut u8,
-}
-
-#[cfg(all(not(any(PyPy, GraalPy)), not(Py_3_7)))]
-opaque_struct!(PyCodeObject);
-
-#[cfg(all(not(any(PyPy, GraalPy)), Py_3_7, not(Py_3_8)))]
-#[repr(C)]
-pub struct PyCodeObject {
-    pub ob_base: PyObject,
-    pub co_argcount: c_int,
-    pub co_kwonlyargcount: c_int,
-    pub co_nlocals: c_int,
-    pub co_stacksize: c_int,
-    pub co_flags: c_int,
-    pub co_firstlineno: c_int,
-    pub co_code: *mut PyObject,
-    pub co_consts: *mut PyObject,
-    pub co_names: *mut PyObject,
-    pub co_varnames: *mut PyObject,
-    pub co_freevars: *mut PyObject,
-    pub co_cellvars: *mut PyObject,
-    pub co_cell2arg: *mut Py_ssize_t,
-    pub co_filename: *mut PyObject,
-    pub co_name: *mut PyObject,
-    pub co_lnotab: *mut PyObject,
-    pub co_zombieframe: *mut c_void,
-    pub co_weakreflist: *mut PyObject,
-    pub co_extra: *mut c_void,
-}
-
-#[cfg(Py_3_13)]
-opaque_struct!(_PyExecutorArray);
-
-#[cfg(all(not(any(PyPy, GraalPy)), Py_3_8, not(Py_3_11)))]
-#[repr(C)]
-pub struct PyCodeObject {
-    pub ob_base: PyObject,
-    pub co_argcount: c_int,
-    pub co_posonlyargcount: c_int,
-    pub co_kwonlyargcount: c_int,
-    pub co_nlocals: c_int,
-    pub co_stacksize: c_int,
-    pub co_flags: c_int,
-    pub co_firstlineno: c_int,
-    pub co_code: *mut PyObject,
-    pub co_consts: *mut PyObject,
-    pub co_names: *mut PyObject,
-    pub co_varnames: *mut PyObject,
-    pub co_freevars: *mut PyObject,
-    pub co_cellvars: *mut PyObject,
-    pub co_cell2arg: *mut Py_ssize_t,
-    pub co_filename: *mut PyObject,
-    pub co_name: *mut PyObject,
-    #[cfg(not(Py_3_10))]
-    pub co_lnotab: *mut PyObject,
-    #[cfg(Py_3_10)]
-    pub co_linetable: *mut PyObject,
-    pub co_zombieframe: *mut c_void,
-    pub co_weakreflist: *mut PyObject,
-    pub co_extra: *mut c_void,
-    pub co_opcache_map: *mut c_uchar,
-    pub co_opcache: *mut _PyOpcache,
-    pub co_opcache_flag: c_int,
-    pub co_opcache_size: c_uchar,
-}
-
-#[cfg(all(not(any(PyPy, GraalPy)), Py_3_11))]
-#[repr(C)]
-pub struct PyCodeObject {
-    pub ob_base: PyVarObject,
-    pub co_consts: *mut PyObject,
-    pub co_names: *mut PyObject,
-    pub co_exceptiontable: *mut PyObject,
-    pub co_flags: c_int,
-    #[cfg(not(Py_3_12))]
-    pub co_warmup: c_int,
-
-    pub co_argcount: c_int,
-    pub co_posonlyargcount: c_int,
-    pub co_kwonlyargcount: c_int,
-    pub co_stacksize: c_int,
-    pub co_firstlineno: c_int,
-
-    pub co_nlocalsplus: c_int,
-    #[cfg(Py_3_12)]
-    pub co_framesize: c_int,
-    pub co_nlocals: c_int,
-    #[cfg(not(Py_3_12))]
-    pub co_nplaincellvars: c_int,
-    pub co_ncellvars: c_int,
-    pub co_nfreevars: c_int,
-    #[cfg(Py_3_12)]
-    pub co_version: u32,
-
-    pub co_localsplusnames: *mut PyObject,
-    pub co_localspluskinds: *mut PyObject,
-    pub co_filename: *mut PyObject,
-    pub co_name: *mut PyObject,
-    pub co_qualname: *mut PyObject,
-    pub co_linetable: *mut PyObject,
-    pub co_weakreflist: *mut PyObject,
-    #[cfg(not(Py_3_12))]
-    pub _co_code: *mut PyObject,
-    #[cfg(not(Py_3_12))]
-    pub _co_linearray: *mut c_char,
-    #[cfg(Py_3_13)]
-    pub co_executors: *mut _PyExecutorArray,
-    #[cfg(Py_3_12)]
-    pub _co_cached: *mut _PyCoCached,
-    #[cfg(all(Py_3_12, not(Py_3_13)))]
-    pub _co_instrumentation_version: u64,
-    #[cfg(Py_3_13)]
-    pub _co_instrumentation_version: libc::uintptr_t,
-    #[cfg(Py_3_12)]
-    pub _co_monitoring: *mut _PyCoMonitoringData,
-    pub _co_firsttraceable: c_int,
-    pub co_extra: *mut c_void,
-    pub co_code_adaptive: [c_char; 1],
-}
-
-#[cfg(PyPy)]
-#[repr(C)]
-pub struct PyCodeObject {
-    pub ob_base: PyObject,
-    pub co_name: *mut PyObject,
-    pub co_filename: *mut PyObject,
-    pub co_argcount: c_int,
-    pub co_flags: c_int,
-}
+opaque_struct!(
+    #[doc = "A Python code object.\n"]
+    #[doc = "\n"]
+    #[doc = "`pyo3-ffi` does not expose the contents of this struct, as it has no stability guarantees."]
+    pub PyCodeObject
+);
 
 /* Masks for co_flags */
 pub const CO_OPTIMIZED: c_int = 0x0001;
@@ -249,27 +83,13 @@ pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == addr_of_mut!(PyCode_Type)) as c_int
 }
 
-#[inline]
-#[cfg(all(not(any(PyPy, GraalPy)), Py_3_10, not(Py_3_11)))]
-pub unsafe fn PyCode_GetNumFree(op: *mut PyCodeObject) -> Py_ssize_t {
-    crate::PyTuple_GET_SIZE((*op).co_freevars)
-}
-
-#[inline]
-#[cfg(all(not(Py_3_10), Py_3_11, not(any(PyPy, GraalPy))))]
-pub unsafe fn PyCode_GetNumFree(op: *mut PyCodeObject) -> c_int {
-    (*op).co_nfreevars
-}
-
 extern "C" {
     #[cfg(PyPy)]
     #[link_name = "PyPyCode_Check"]
     pub fn PyCode_Check(op: *mut PyObject) -> c_int;
-
-    #[cfg(PyPy)]
-    #[link_name = "PyPyCode_GetNumFree"]
-    pub fn PyCode_GetNumFree(op: *mut PyCodeObject) -> Py_ssize_t;
 }
+
+// skipped PyCode_GetNumFree (requires knowledge of code object layout)
 
 extern "C" {
     #[cfg(not(GraalPy))]

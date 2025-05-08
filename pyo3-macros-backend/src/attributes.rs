@@ -27,6 +27,7 @@ pub mod kw {
     syn::custom_keyword!(hash);
     syn::custom_keyword!(into_py_with);
     syn::custom_keyword!(item);
+    syn::custom_keyword!(immutable_type);
     syn::custom_keyword!(from_item_all);
     syn::custom_keyword!(mapping);
     syn::custom_keyword!(module);
@@ -351,37 +352,7 @@ impl<K: ToTokens, V: ToTokens> ToTokens for OptionalKeywordAttribute<K, V> {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct ExprPathWrap {
-    pub from_lit_str: bool,
-    pub expr_path: ExprPath,
-}
-
-impl Parse for ExprPathWrap {
-    fn parse(input: ParseStream<'_>) -> Result<Self> {
-        match input.parse::<ExprPath>() {
-            Ok(expr_path) => Ok(ExprPathWrap {
-                from_lit_str: false,
-                expr_path,
-            }),
-            Err(e) => match input.parse::<LitStrValue<ExprPath>>() {
-                Ok(LitStrValue(expr_path)) => Ok(ExprPathWrap {
-                    from_lit_str: true,
-                    expr_path,
-                }),
-                Err(_) => Err(e),
-            },
-        }
-    }
-}
-
-impl ToTokens for ExprPathWrap {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.expr_path.to_tokens(tokens)
-    }
-}
-
-pub type FromPyWithAttribute = KeywordAttribute<kw::from_py_with, ExprPathWrap>;
+pub type FromPyWithAttribute = KeywordAttribute<kw::from_py_with, ExprPath>;
 pub type IntoPyWithAttribute = KeywordAttribute<kw::into_py_with, ExprPath>;
 
 pub type DefaultAttribute = OptionalKeywordAttribute<Token![default], Expr>;
