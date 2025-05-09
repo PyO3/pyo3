@@ -26,7 +26,8 @@ pub const Py_ASNATIVEBYTES_UNSIGNED_BUFFER: c_int = 4;
 pub const Py_ASNATIVEBYTES_REJECT_NEGATIVE: c_int = 8;
 
 extern "C" {
-    // skipped _PyLong_Sign
+    #[cfg(not(PyPy))]
+    pub fn _PyLong_Sign(v: *mut PyObject) -> c_int;
 
     #[cfg(Py_3_13)]
     pub fn PyLong_AsNativeBytes(
