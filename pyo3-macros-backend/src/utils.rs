@@ -1,6 +1,6 @@
-use crate::attributes::{CrateAttribute, ExprPathWrap, RenamingRule};
+use crate::attributes::{CrateAttribute, RenamingRule};
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{quote, ToTokens};
 use std::ffi::CString;
 use syn::spanned::Spanned;
 use syn::{punctuated::Punctuated, Token};
@@ -321,20 +321,6 @@ pub(crate) fn has_attribute_with_namespace(
         segments
             .iter()
             .eq(attr.path().segments.iter().map(|v| &v.ident))
-    })
-}
-
-pub(crate) fn deprecated_from_py_with(expr_path: &ExprPathWrap) -> Option<TokenStream> {
-    let path = quote!(#expr_path).to_string();
-    let msg =
-        format!("remove the quotes from the literal\n= help: use `{path}` instead of `\"{path}\"`");
-    expr_path.from_lit_str.then(|| {
-        quote_spanned! { expr_path.span() =>
-            #[deprecated(since = "0.24.0", note = #msg)]
-            #[allow(dead_code)]
-            const LIT_STR_DEPRECATION: () = ();
-            let _: () = LIT_STR_DEPRECATION;
-        }
     })
 }
 

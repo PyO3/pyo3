@@ -4,6 +4,8 @@
 //! documentation](https://docs.python.org/3/library/datetime.html)
 
 use crate::err::PyResult;
+#[cfg(not(Py_3_9))]
+use crate::exceptions::PyImportError;
 #[cfg(not(Py_LIMITED_API))]
 use crate::ffi::{
     self, PyDateTime_CAPI, PyDateTime_DATE_GET_FOLD, PyDateTime_DATE_GET_HOUR,
@@ -14,14 +16,15 @@ use crate::ffi::{
     PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE, PyDateTime_TIME_GET_SECOND,
     PyDate_FromTimestamp,
 };
-#[cfg(all(GraalPy, not(Py_LIMITED_API)))]
+#[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
 use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNone};
-use crate::types::any::PyAnyMethods;
+use crate::types::{any::PyAnyMethods, PyString, PyType};
 #[cfg(not(Py_LIMITED_API))]
-use crate::{ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, types::PyTuple, IntoPyObject};
+use crate::{ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, types::PyTuple, BoundObject};
+use crate::{sync::GILOnceCell, Py};
 #[cfg(Py_LIMITED_API)]
-use crate::{sync::GILOnceCell, types::IntoPyDict, types::PyType, Py, PyTypeCheck};
-use crate::{Bound, PyAny, PyErr, Python};
+use crate::{types::IntoPyDict, PyTypeCheck};
+use crate::{Borrowed, Bound, IntoPyObject, PyAny, PyErr, Python};
 #[cfg(not(Py_LIMITED_API))]
 use std::os::raw::c_int;
 
@@ -518,11 +521,9 @@ impl PyTimeAccess for Bound<'_, PyDateTime> {
 
 impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyDateTime> {
     fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>> {
-        #[cfg(not(Py_LIMITED_API))]
-        let ptr = self.as_ptr() as *mut ffi::PyDateTime_DateTime;
-
-        #[cfg(not(any(GraalPy, Py_LIMITED_API)))]
+        #[cfg(all(not(Py_3_10), not(Py_LIMITED_API)))]
         unsafe {
+            let ptr = self.as_ptr() as *mut ffi::PyDateTime_DateTime;
             if (*ptr).hastzinfo != 0 {
                 Some(
                     (*ptr)
@@ -536,9 +537,9 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyDateTime> {
             }
         }
 
-        #[cfg(all(GraalPy, not(Py_LIMITED_API)))]
+        #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
         unsafe {
-            let res = PyDateTime_DATE_GET_TZINFO(ptr as *mut ffi::PyObject);
+            let res = PyDateTime_DATE_GET_TZINFO(self.as_ptr());
             if Py_IsNone(res) == 1 {
                 None
             } else {
@@ -700,11 +701,9 @@ impl PyTimeAccess for Bound<'_, PyTime> {
 
 impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
     fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>> {
-        #[cfg(not(Py_LIMITED_API))]
-        let ptr = self.as_ptr() as *mut ffi::PyDateTime_Time;
-
-        #[cfg(not(any(GraalPy, Py_LIMITED_API)))]
+        #[cfg(all(not(Py_3_10), not(Py_LIMITED_API)))]
         unsafe {
+            let ptr = self.as_ptr() as *mut ffi::PyDateTime_Time;
             if (*ptr).hastzinfo != 0 {
                 Some(
                     (*ptr)
@@ -718,9 +717,9 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
             }
         }
 
-        #[cfg(all(GraalPy, not(Py_LIMITED_API)))]
+        #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
         unsafe {
-            let res = PyDateTime_TIME_GET_TZINFO(ptr as *mut ffi::PyObject);
+            let res = PyDateTime_TIME_GET_TZINFO(self.as_ptr());
             if Py_IsNone(res) == 1 {
                 None
             } else {
@@ -781,65 +780,85 @@ impl PyTypeCheck for PyTzInfo {
     }
 }
 
-/// Equivalent to `datetime.timezone.utc`
-pub fn timezone_utc(py: Python<'_>) -> Bound<'_, PyTzInfo> {
-    // TODO: this _could_ have a borrowed form `timezone_utc_borrowed`, but that seems
-    // like an edge case optimization and we'd prefer in PyO3 0.21 to use `Bound` as
-    // much as possible
-    #[cfg(not(Py_LIMITED_API))]
-    unsafe {
-        expect_datetime_api(py)
-            .TimeZone_UTC
-            .assume_borrowed(py)
-            .to_owned()
-            .downcast_into_unchecked()
-    }
-
-    #[cfg(Py_LIMITED_API)]
-    {
-        static UTC: GILOnceCell<Py<PyTzInfo>> = GILOnceCell::new();
-        UTC.get_or_init(py, || {
-            DatetimeTypes::get(py)
-                .timezone
-                .bind(py)
-                .getattr("utc")
-                .expect("failed to import datetime.timezone.utc")
-                .downcast_into()
-                .unwrap()
-                .unbind()
-        })
-        .bind(py)
-        .to_owned()
-    }
-}
-
-/// Equivalent to `datetime.timezone` constructor
-///
-/// Only used internally
-#[cfg(any(feature = "chrono", feature = "jiff-02", feature = "time"))]
-pub(crate) fn timezone_from_offset<'py>(
-    offset: &Bound<'py, PyDelta>,
-) -> PyResult<Bound<'py, PyTzInfo>> {
-    let py = offset.py();
-
-    #[cfg(not(Py_LIMITED_API))]
-    {
-        let api = ensure_datetime_api(py)?;
+impl PyTzInfo {
+    /// Equivalent to `datetime.timezone.utc`
+    pub fn utc(py: Python<'_>) -> PyResult<Borrowed<'static, '_, PyTzInfo>> {
+        #[cfg(not(Py_LIMITED_API))]
         unsafe {
-            (api.TimeZone_FromTimeZone)(offset.as_ptr(), std::ptr::null_mut())
-                .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+            Ok(ensure_datetime_api(py)?
+                .TimeZone_UTC
+                .assume_borrowed(py)
+                .downcast_unchecked())
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        {
+            static UTC: GILOnceCell<Py<PyTzInfo>> = GILOnceCell::new();
+            UTC.get_or_try_init(py, || {
+                Ok(DatetimeTypes::get(py)
+                    .timezone
+                    .bind(py)
+                    .getattr("utc")?
+                    .downcast_into()?
+                    .unbind())
+            })
+            .map(|utc| utc.bind_borrowed(py))
         }
     }
 
-    #[cfg(Py_LIMITED_API)]
-    unsafe {
-        Ok(DatetimeTypes::try_get(py)?
-            .timezone
-            .bind(py)
-            .call1((offset,))?
-            .downcast_into_unchecked())
+    /// Equivalent to `zoneinfo.ZoneInfo` constructor
+    pub fn timezone<'py, T>(py: Python<'py>, iana_name: T) -> PyResult<Bound<'py, PyTzInfo>>
+    where
+        T: IntoPyObject<'py, Target = PyString>,
+    {
+        static ZONE_INFO: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+
+        let zoneinfo = ZONE_INFO.import(py, "zoneinfo", "ZoneInfo");
+
+        #[cfg(not(Py_3_9))]
+        let zoneinfo = zoneinfo
+            .or_else(|_| ZONE_INFO.import(py, "backports.zoneinfo", "ZoneInfo"))
+            .map_err(|_| PyImportError::new_err("Could not import \"backports.zoneinfo.ZoneInfo\". ZoneInfo is required when converting timezone-aware DateTime's. Please install \"backports.zoneinfo\" on python < 3.9"));
+
+        zoneinfo?
+            .call1((iana_name,))?
+            .downcast_into()
+            .map_err(Into::into)
     }
+
+    /// Equivalent to `datetime.timezone` constructor
+    pub fn fixed_offset<'py, T>(py: Python<'py>, offset: T) -> PyResult<Bound<'py, PyTzInfo>>
+    where
+        T: IntoPyObject<'py, Target = PyDelta>,
+    {
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            let api = ensure_datetime_api(py)?;
+            let delta = offset.into_pyobject(py).map_err(Into::into)?;
+            unsafe {
+                (api.TimeZone_FromTimeZone)(delta.as_ptr(), std::ptr::null_mut())
+                    .assume_owned_or_err(py)
+                    .downcast_into_unchecked()
+            }
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        unsafe {
+            Ok(DatetimeTypes::try_get(py)?
+                .timezone
+                .bind(py)
+                .call1((offset,))?
+                .downcast_into_unchecked())
+        }
+    }
+}
+
+/// Equivalent to `datetime.timezone.utc`
+#[deprecated(since = "0.25.0", note = "use `PyTzInfo::utc` instead")]
+pub fn timezone_utc(py: Python<'_>) -> Bound<'_, PyTzInfo> {
+    PyTzInfo::utc(py)
+        .expect("failed to import datetime.timezone.utc")
+        .to_owned()
 }
 
 /// Bindings for `datetime.timedelta`.
@@ -955,7 +974,8 @@ mod tests {
                 "import datetime; assert dt == datetime.datetime.fromtimestamp(100)"
             );
 
-            let dt = PyDateTime::from_timestamp(py, 100.0, Some(&timezone_utc(py))).unwrap();
+            let utc = PyTzInfo::utc(py).unwrap();
+            let dt = PyDateTime::from_timestamp(py, 100.0, Some(&utc)).unwrap();
             py_run!(
                 py,
                 dt,
@@ -995,11 +1015,11 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_get_tzinfo() {
         crate::Python::with_gil(|py| {
-            let utc = timezone_utc(py);
+            let utc = PyTzInfo::utc(py).unwrap();
 
             let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
 
-            assert!(dt.get_tzinfo().unwrap().eq(&utc).unwrap());
+            assert!(dt.get_tzinfo().unwrap().eq(utc).unwrap());
 
             let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, None).unwrap();
 
@@ -1023,7 +1043,7 @@ mod tests {
 
         Python::with_gil(|py| {
             assert!(
-                timezone_from_offset(&PyDelta::new(py, 0, -3600, 0, true).unwrap())
+                PyTzInfo::fixed_offset(py, PyDelta::new(py, 0, -3600, 0, true).unwrap())
                     .unwrap()
                     .call_method1("utcoffset", (PyNone::get(py),))
                     .unwrap()
@@ -1034,7 +1054,7 @@ mod tests {
             );
 
             assert!(
-                timezone_from_offset(&PyDelta::new(py, 0, 3600, 0, true).unwrap())
+                PyTzInfo::fixed_offset(py, PyDelta::new(py, 0, 3600, 0, true).unwrap())
                     .unwrap()
                     .call_method1("utcoffset", (PyNone::get(py),))
                     .unwrap()
@@ -1044,7 +1064,7 @@ mod tests {
                     .unwrap()
             );
 
-            timezone_from_offset(&PyDelta::new(py, 1, 0, 0, true).unwrap()).unwrap_err();
+            PyTzInfo::fixed_offset(py, PyDelta::new(py, 1, 0, 0, true).unwrap()).unwrap_err();
         })
     }
 }

@@ -72,7 +72,7 @@ mod inner {
     macro_rules! py_expect_warning {
         ($py:expr, $($val:ident)+, $code:expr, [$(($warning_msg:literal, $warning_category:path)),+] $(,)?) => {{
             use pyo3::types::IntoPyDict;
-            let d = [$((stringify!($val), $val.as_ref().into_pyobject($py).expect("Failed to create test dict element")),)+].into_py_dict($py).expect("Failed to create test dict");
+            let d = [$((stringify!($val), ($val.as_ref() as &Bound<'_, PyAny>).into_pyobject($py).expect("Failed to create test dict element")),)+].into_py_dict($py).expect("Failed to create test dict");
             py_expect_warning!($py, *d, $code, [$(($warning_msg, $warning_category)),+])
         }};
         ($py:expr, *$dict:expr, $code:expr, [$(($warning_msg:literal, $warning_category:path)),+] $(,)?) => {{

@@ -445,9 +445,7 @@ struct ClassWithGCSupport {
 #[pymethods]
 impl ClassWithGCSupport {
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-        if let Some(obj) = &self.obj {
-            visit.call(obj)?
-        }
+        visit.call(&self.obj)?;
         Ok(())
     }
 

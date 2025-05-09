@@ -161,33 +161,34 @@ impl GILGuard {
         //    extension-module feature is not activated - extension modules don't care about
         //    auto-initialize so this avoids breaking existing builds.
         //  - Otherwise, just check the GIL is initialized.
-        cfg_if::cfg_if! {
-            if #[cfg(all(feature = "auto-initialize", not(any(PyPy, GraalPy))))] {
+        #[cfg(all(feature = "auto-initialize", not(any(PyPy, GraalPy))))]
+        {
+            prepare_freethreaded_python();
+        }
+        #[cfg(not(all(feature = "auto-initialize", not(any(PyPy, GraalPy)))))]
+        {
+            // This is a "hack" to make running `cargo test` for PyO3 convenient (i.e. no need
+            // to specify `--features auto-initialize` manually. Tests within the crate itself
+            // all depend on the auto-initialize feature for conciseness but Cargo does not
+            // provide a mechanism to specify required features for tests.
+            #[cfg(not(any(PyPy, GraalPy)))]
+            if option_env!("CARGO_PRIMARY_PACKAGE").is_some() {
                 prepare_freethreaded_python();
-            } else {
-                // This is a "hack" to make running `cargo test` for PyO3 convenient (i.e. no need
-                // to specify `--features auto-initialize` manually. Tests within the crate itself
-                // all depend on the auto-initialize feature for conciseness but Cargo does not
-                // provide a mechanism to specify required features for tests.
-                #[cfg(not(any(PyPy, GraalPy)))]
-                if option_env!("CARGO_PRIMARY_PACKAGE").is_some() {
-                    prepare_freethreaded_python();
-                }
+            }
 
-                START.call_once_force(|_| unsafe {
-                    // Use call_once_force because if there is a panic because the interpreter is
-                    // not initialized, it's fine for the user to initialize the interpreter and
-                    // retry.
-                    assert_ne!(
-                        ffi::Py_IsInitialized(),
-                        0,
-                        "The Python interpreter is not initialized and the `auto-initialize` \
+            START.call_once_force(|_| unsafe {
+                // Use call_once_force because if there is a panic because the interpreter is
+                // not initialized, it's fine for the user to initialize the interpreter and
+                // retry.
+                assert_ne!(
+                    ffi::Py_IsInitialized(),
+                    0,
+                    "The Python interpreter is not initialized and the `auto-initialize` \
                          feature is not enabled.\n\n\
                          Consider calling `pyo3::prepare_freethreaded_python()` before attempting \
                          to use Python APIs."
-                    );
-                });
-            }
+                );
+            });
         }
 
         // SAFETY: We have ensured the Python interpreter is initialized.
