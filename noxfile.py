@@ -19,7 +19,6 @@ from typing import (
     List,
     Optional,
     Tuple,
-    Generator,
 )
 
 
@@ -93,17 +92,49 @@ def test_rust(session: nox.Session):
     _run_cargo_test(session, package="pyo3-build-config")
     _run_cargo_test(session, package="pyo3-macros-backend")
     _run_cargo_test(session, package="pyo3-macros")
-    _run_cargo_test(session, package="pyo3-ffi")
 
-    _run_cargo_test(session)
-    # the free-threaded build ignores abi3, so we skip abi3
-    # tests to avoid unnecessarily running the tests twice
-    if not FREE_THREADED_BUILD:
-        _run_cargo_test(session, features="abi3")
-    if "skip-full" not in session.posargs:
-        _run_cargo_test(session, features="full jiff-02 time")
-        if not FREE_THREADED_BUILD:
-            _run_cargo_test(session, features="abi3 full jiff-02 time")
+    extra_flags = []
+    # pypy and graalpy don't have Py_Initialize APIs, so we can only
+    # build the main tests, not run them
+    if sys.implementation.name in ("pypy", "graalpy"):
+        extra_flags.append("--no-run")
+
+    _run_cargo_test(session, package="pyo3-ffi", extra_flags=extra_flags)
+
+    extra_flags.append("--no-default-features")
+
+    for feature_set in _get_feature_sets():
+        flags = extra_flags.copy()
+        print(feature_set)
+
+        if feature_set is None or "full" not in feature_set:
+            # doctests require at least the macros feature, which is
+            # activated by the full feature set
+            #
+            # using `--all-targets` makes cargo run everything except doctests
+            flags.append("--all-targets")
+
+        # We need to pass the feature set to the test command
+        # so that it can be used in the test code
+        # (e.g. for `#[cfg(feature = "abi3-py37")]`)
+        if feature_set and "abi3" in feature_set and FREE_THREADED_BUILD:
+            # free-threaded builds don't support abi3 yet
+            continue
+
+        _run_cargo_test(session, features=feature_set, extra_flags=flags)
+
+        if (
+            feature_set
+            and "abi3" in feature_set
+            and "full" in feature_set
+            and sys.version_info >= (3, 7)
+        ):
+            # run abi3-py37 tests to check abi3 forward compatibility
+            _run_cargo_test(
+                session,
+                features=feature_set.replace("abi3", "abi3-py37"),
+                extra_flags=flags,
+            )
 
 
 @nox.session(name="test-py", venv_backend="none")
@@ -182,7 +213,8 @@ def _clippy(session: nox.Session, *, env: Dict[str, str] = None) -> bool:
             _run_cargo(
                 session,
                 "clippy",
-                *feature_set,
+                "--no-default-features",
+                *((f"--features={feature_set}",) if feature_set else ()),
                 "--all-targets",
                 "--workspace",
                 "--",
@@ -259,7 +291,8 @@ def check_all(session: nox.Session) -> None:
                 _run_cargo(
                     session,
                     "check",
-                    *feature_set,
+                    "--no-default-features",
+                    *((f"--features={feature_set}",) if feature_set else ()),
                     "--all-targets",
                     "--workspace",
                     env=env,
@@ -872,6 +905,13 @@ def get_rust_version() -> Tuple[int, int, int, List[str]]:
             return (*map(int, version_number.split(".")), extra)
 
 
+def is_rust_nightly() -> bool:
+    for line in _get_rust_info():
+        if line.startswith(_RELEASE_LINE_START):
+            return line.strip().endswith("-nightly")
+    return False
+
+
 def _get_rust_default_target() -> str:
     for line in _get_rust_info():
         if line.startswith(_HOST_LINE_START):
@@ -879,38 +919,28 @@ def _get_rust_default_target() -> str:
 
 
 @lru_cache()
-def _get_feature_sets() -> Tuple[str, ...]:
-    """Returns feature sets to use for clippy job"""
+def _get_feature_sets() -> Tuple[Optional[str], ...]:
+    """Returns feature sets to use for Rust jobs"""
+    cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
 
-    def _generate() -> Generator[Tuple[str, ...], None, None]:
-        cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
+    features = "full"
 
-        yield from (
-            ("--no-default-features",),
-            (
-                "--no-default-features",
-                "--features=abi3",
-            ),
-        )
+    if "wasm32-wasip1" not in cargo_target:
+        # multiple-pymethods not supported on wasm
+        features += ",multiple-pymethods"
 
-        features = "full"
+    if get_rust_version()[:2] >= (1, 67):
+        # time needs MSRC 1.67+
+        features += ",time"
 
-        if "wasm32-wasip1" not in cargo_target:
-            # multiple-pymethods not supported on wasm
-            features += ",multiple-pymethods"
+    if get_rust_version()[:2] >= (1, 70):
+        # jiff needs MSRC 1.70+
+        features += ",jiff-02"
 
-        if get_rust_version()[:2] >= (1, 67):
-            # time needs MSRC 1.67+
-            features += ",time"
+    if is_rust_nightly():
+        features += ",nightly"
 
-        if get_rust_version()[:2] >= (1, 70):
-            # jiff needs MSRC 1.70+
-            features += ",jiff-02"
-
-        yield (f"--features={features}",)
-        yield (f"--features=abi3,{features}",)
-
-    return tuple(_generate())
+    return (None, "abi3", features, f"abi3,{features}")
 
 
 _RELEASE_LINE_START = "release: "
@@ -974,19 +1004,24 @@ def _run_cargo_test(
     package: Optional[str] = None,
     features: Optional[str] = None,
     env: Optional[Dict[str, str]] = None,
+    extra_flags: Optional[List[str]] = None,
 ) -> None:
     command = ["cargo"]
     if "careful" in session.posargs:
         # do explicit setup so failures in setup can be seen
         _run_cargo(session, "careful", "setup")
         command.append("careful")
+
     command.extend(("test", "--no-fail-fast"))
+
     if "release" in session.posargs:
         command.append("--release")
     if package:
         command.append(f"--package={package}")
     if features:
         command.append(f"--features={features}")
+    if extra_flags:
+        command.extend(extra_flags)
 
     _run(session, *command, external=True, env=env or {})
 

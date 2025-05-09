@@ -82,9 +82,23 @@ jobs:
         name: Ignore changed error messages when using trybuild
         run: echo "TRYBUILD=overwrite" >> "$GITHUB_ENV"
 
-      - if: inputs.rust == 'nightly'
-        name: Prepare to test on nightly rust
-        run: echo "MAYBE_NIGHTLY=nightly" >> "$GITHUB_ENV"
+      - uses: dorny/paths-filter@v3
+        if: ${{ inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') }}
+        id: ffi-changes
+        with:
+          base: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+          ref: ${{ github.event.pull_request.head.ref || github.event.merge_group.head_ref }}
+          filters: |
+            changed:
+              - 'pyo3-ffi/**'
+              - 'pyo3-ffi-check/**'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/build.yml'
+
+      - name: Run pyo3-ffi-check
+        # pypy 3.9 on windows is not PEP 3123 compliant, nor is graalpy
+        if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows'))) }}
+        run: nox -s ffi-check
 
       - if: ${{ github.event_name != 'merge_group' }}
         name: Install cargo-llvm-cov
@@ -99,65 +113,8 @@ jobs:
       - name: Build docs
         run: nox -s docs
 
-      - name: Build (no features)
-        if: ${{ !startsWith(inputs.python-version, 'graalpy') }}
-        run: cargo build --lib --tests --no-default-features
-
-      # --no-default-features when used with `cargo build/test -p` doesn't seem to work!
-      - name: Build pyo3-build-config (no features)
-        run: |
-          cd pyo3-build-config
-          cargo build --no-default-features
-
-      # Run tests (except on PyPy, because no embedding API).
-      - if: ${{ !startsWith(inputs.python-version, 'pypy') && !startsWith(inputs.python-version, 'graalpy') }}
-        name: Test (no features)
-        run: cargo test --no-default-features --lib --tests
-
-      # --no-default-features when used with `cargo build/test -p` doesn't seem to work!
-      - name: Test pyo3-build-config (no features)
-        run: |
-          cd pyo3-build-config
-          cargo test --no-default-features
-
-      - name: Build (all additive features)
-        if: ${{ !startsWith(inputs.python-version, 'graalpy') }}
-        run: cargo build --lib --tests --no-default-features --features "multiple-pymethods full $MAYBE_NIGHTLY"
-
-      - if: ${{ startsWith(inputs.python-version, 'pypy') }}
-        name: Build PyPy (abi3-py39)
-        run: cargo build --lib --tests --no-default-features --features "multiple-pymethods abi3-py39 full $MAYBE_NIGHTLY"
-
-      - name: Run pyo3-ffi-check
-        # pypy 3.9 on windows is not PEP 3123 compliant, nor is graalpy
-        if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows'))) }}
-        run: nox -s ffi-check
-
-      # Run tests (except on PyPy, because no embedding API).
-      - if: ${{ !startsWith(inputs.python-version, 'pypy') && !startsWith(inputs.python-version, 'graalpy') }}
-        name: Test
-        run: cargo test --no-default-features --features "full $MAYBE_NIGHTLY"
-
-      # Repeat, with multiple-pymethods feature enabled (it's not entirely additive)
-      - if: ${{ !startsWith(inputs.python-version, 'pypy') && !startsWith(inputs.python-version, 'graalpy') }}
-        name: Test
-        run: cargo test --no-default-features --features "multiple-pymethods full $MAYBE_NIGHTLY"
-
-      # Run tests again, but in abi3 mode
-      - if: ${{ !startsWith(inputs.python-version, 'pypy') && !startsWith(inputs.python-version, 'graalpy') }}
-        name: Test (abi3)
-        run: cargo test --no-default-features --features "multiple-pymethods abi3 full $MAYBE_NIGHTLY"
-
-      # Run tests again, for abi3-py37 (the minimal Python version)
-      - if: ${{ (!startsWith(inputs.python-version, 'pypy') && !startsWith(inputs.python-version, 'graalpy')) && (inputs.python-version != '3.7') }}
-        name: Test (abi3-py37)
-        run: cargo test --no-default-features --features "multiple-pymethods abi3-py37 full $MAYBE_NIGHTLY"
-
-      - name: Test proc-macro code
-        run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml
-
-      - name: Test build config
-        run: cargo test --manifest-path=pyo3-build-config/Cargo.toml
+      - name: Run Rust tests
+        run: nox -s test-rust
 
       - name: Test python examples and tests
         shell: bash
@@ -165,19 +122,6 @@ jobs:
         continue-on-error: ${{ endsWith(inputs.python-version, '-dev') }}
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
-
-      - uses: dorny/paths-filter@v3
-        if: ${{ inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') }}
-        id: ffi-changes
-        with:
-          base: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
-          ref: ${{ github.event.pull_request.head.ref || github.event.merge_group.head_ref }}
-          filters: |
-            changed:
-              - 'pyo3-ffi/**'
-              - 'pyo3-ffi-check/**'
-              - '.github/workflows/ci.yml'
-              - '.github/workflows/build.yml'
 
       - if: ${{ github.event_name != 'merge_group' }}
         name: Generate coverage report
@@ -193,7 +137,7 @@ jobs:
         name: Upload coverage report
         uses: codecov/codecov-action@v5
         with:
-          file: coverage.json
+          files: coverage.json
           name: ${{ inputs.os }}/${{ inputs.python-version }}/${{ inputs.rust }}
           token: ${{ secrets.CODECOV_TOKEN }}
 
