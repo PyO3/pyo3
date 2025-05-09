@@ -274,6 +274,7 @@ impl<'py> IntoPyObject<'py> for &Zoned {
             };
             Some(zoned.timestamp() + (zoned.offset() - prev.offset()) <= start_of_current_offset)
         }
+
         datetime_to_pydatetime(
             py,
             &self.datetime(),
@@ -332,7 +333,6 @@ impl<'py> IntoPyObject<'py> for &TimeZone {
             return Ok(PyTzInfo::utc(py)?.to_owned());
         }
 
-        #[cfg(Py_3_9)]
         if let Some(iana_name) = self.iana_name() {
             return PyTzInfo::timezone(py, iana_name);
         }

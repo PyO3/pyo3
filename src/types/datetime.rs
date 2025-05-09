@@ -4,6 +4,8 @@
 //! documentation](https://docs.python.org/3/library/datetime.html)
 
 use crate::err::PyResult;
+#[cfg(not(Py_3_9))]
+use crate::exceptions::PyImportError;
 #[cfg(not(Py_LIMITED_API))]
 use crate::ffi::{
     self, PyDateTime_CAPI, PyDateTime_DATE_GET_FOLD, PyDateTime_DATE_GET_HOUR,
@@ -16,13 +18,10 @@ use crate::ffi::{
 };
 #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
 use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNone};
-use crate::types::any::PyAnyMethods;
-#[cfg(Py_3_9)]
-use crate::types::PyString;
+use crate::types::{any::PyAnyMethods, PyString, PyType};
 #[cfg(not(Py_LIMITED_API))]
 use crate::{ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, types::PyTuple, BoundObject};
-#[cfg(any(Py_3_9, Py_LIMITED_API))]
-use crate::{sync::GILOnceCell, types::PyType, Py};
+use crate::{sync::GILOnceCell, Py};
 #[cfg(Py_LIMITED_API)]
 use crate::{types::IntoPyDict, PyTypeCheck};
 use crate::{Borrowed, Bound, IntoPyObject, PyAny, PyErr, Python};
@@ -808,14 +807,20 @@ impl PyTzInfo {
     }
 
     /// Equivalent to `zoneinfo.ZoneInfo` constructor
-    #[cfg(Py_3_9)]
     pub fn timezone<'py, T>(py: Python<'py>, iana_name: T) -> PyResult<Bound<'py, PyTzInfo>>
     where
         T: IntoPyObject<'py, Target = PyString>,
     {
         static ZONE_INFO: GILOnceCell<Py<PyType>> = GILOnceCell::new();
-        ZONE_INFO
-            .import(py, "zoneinfo", "ZoneInfo")?
+
+        let zoneinfo = ZONE_INFO.import(py, "zoneinfo", "ZoneInfo");
+
+        #[cfg(not(Py_3_9))]
+        let zoneinfo = zoneinfo
+            .or_else(|_| ZONE_INFO.import(py, "backports.zoneinfo", "ZoneInfo"))
+            .map_err(|_| PyImportError::new_err("Could not import \"backports.zoneinfo.ZoneInfo\". ZoneInfo is required when converting timezone-aware DateTime's. Please install \"backports.zoneinfo\" on python < 3.9"));
+
+        zoneinfo?
             .call1((iana_name,))?
             .downcast_into()
             .map_err(Into::into)
