@@ -536,13 +536,16 @@ mod once_lock_ext_sealed {
 /// Helper trait for `Once` to help avoid deadlocking when using a `Once` when attached to a
 /// Python thread.
 pub trait OnceExt: Sealed {
+    ///The state of `Once`
+    type OnceState;
+
     /// Similar to [`call_once`][Once::call_once], but releases the Python GIL temporarily
     /// if blocking on another thread currently calling this `Once`.
     fn call_once_py_attached(&self, py: Python<'_>, f: impl FnOnce());
 
     /// Similar to [`call_once_force`][Once::call_once_force], but releases the Python GIL
     /// temporarily if blocking on another thread currently calling this `Once`.
-    fn call_once_force_py_attached(&self, py: Python<'_>, f: impl FnOnce(&OnceState));
+    fn call_once_force_py_attached(&self, py: Python<'_>, f: impl FnOnce(&Self::OnceState));
 }
 
 /// Extension trait for [`std::sync::OnceLock`] which helps avoid deadlocks between the Python
@@ -565,7 +568,10 @@ pub trait OnceLockExt<T>: once_lock_ext_sealed::Sealed {
 
 /// Extension trait for [`std::sync::Mutex`] which helps avoid deadlocks between
 /// the Python interpreter and acquiring the `Mutex`.
-pub trait MutexExt<T>: Sealed {
+pub trait MutexExt<'a, T, R>: Sealed
+where
+    Self: 'a,
+{
     /// Lock this `Mutex` in a manner that cannot deadlock with the Python interpreter.
     ///
     /// Before attempting to lock the mutex, this function detaches from the
@@ -573,13 +579,12 @@ pub trait MutexExt<T>: Sealed {
     /// runtime before returning the `LockResult`. This avoids deadlocks between
     /// the GIL and other global synchronization events triggered by the Python
     /// interpreter.
-    fn lock_py_attached(
-        &self,
-        py: Python<'_>,
-    ) -> std::sync::LockResult<std::sync::MutexGuard<'_, T>>;
+    fn lock_py_attached(&'a self, py: Python<'_>) -> R;
 }
 
 impl OnceExt for Once {
+    type OnceState = OnceState;
+
     fn call_once_py_attached(&self, py: Python<'_>, f: impl FnOnce()) {
         if self.is_completed() {
             return;
@@ -594,6 +599,41 @@ impl OnceExt for Once {
         }
 
         init_once_force_py_attached(self, py, f);
+    }
+}
+
+#[cfg(feature = "parking_lot")]
+impl OnceExt for parking_lot::Once {
+    type OnceState = parking_lot::OnceState;
+
+    fn call_once_py_attached(&self, _py: Python<'_>, f: impl FnOnce()) {
+        if self.state().done() {
+            return;
+        }
+
+        let ts_guard = unsafe { SuspendGIL::new() };
+
+        self.call_once(move || {
+            drop(ts_guard);
+            f();
+        });
+    }
+
+    fn call_once_force_py_attached(
+        &self,
+        _py: Python<'_>,
+        f: impl FnOnce(&parking_lot::OnceState),
+    ) {
+        if self.state().done() {
+            return;
+        }
+
+        let ts_guard = unsafe { SuspendGIL::new() };
+
+        self.call_once_force(move |state| {
+            drop(ts_guard);
+            f(&state);
+        });
     }
 }
 
@@ -612,11 +652,13 @@ impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
     }
 }
 
-impl<T> MutexExt<T> for std::sync::Mutex<T> {
+impl<'a, T> MutexExt<'a, T, std::sync::LockResult<std::sync::MutexGuard<'a, T>>>
+    for std::sync::Mutex<T>
+{
     fn lock_py_attached(
-        &self,
+        &'a self,
         _py: Python<'_>,
-    ) -> std::sync::LockResult<std::sync::MutexGuard<'_, T>> {
+    ) -> std::sync::LockResult<std::sync::MutexGuard<'a, T>> {
         // If try_lock is successful or returns a poisoned mutex, return them so
         // the caller can deal with them. Otherwise we need to use blocking
         // lock, which requires detaching from the Python runtime to avoid
@@ -633,6 +675,41 @@ impl<T> MutexExt<T> for std::sync::Mutex<T> {
         // into the C API.
         let ts_guard = unsafe { SuspendGIL::new() };
         let res = self.lock();
+        drop(ts_guard);
+        res
+    }
+}
+
+#[cfg(feature = "lock_api")]
+impl<'a, R: lock_api::RawMutex, T> MutexExt<'a, T, lock_api::MutexGuard<'a, R, T>>
+    for lock_api::Mutex<R, T>
+{
+    fn lock_py_attached(&'a self, _py: Python<'_>) -> lock_api::MutexGuard<'a, R, T> {
+        if let Some(guard) = self.try_lock() {
+            return guard;
+        }
+
+        let ts_guard = unsafe { SuspendGIL::new() };
+        let res = self.lock();
+        drop(ts_guard);
+        res
+    }
+}
+
+#[cfg(feature = "arc_lock")]
+impl<'a, R, T> MutexExt<'a, T, lock_api::ArcMutexGuard<R, T>>
+    for std::sync::Arc<lock_api::Mutex<R, T>>
+where
+    R: lock_api::RawMutex,
+    Self: 'a,
+{
+    fn lock_py_attached(&self, _py: Python<'_>) -> lock_api::ArcMutexGuard<R, T> {
+        if let Some(guard) = self.try_lock_arc() {
+            return guard;
+        }
+
+        let ts_guard = unsafe { SuspendGIL::new() };
+        let res = self.lock_arc();
         drop(ts_guard);
         res
     }
@@ -966,36 +1043,47 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     fn test_once_ext() {
-        // adapted from the example in the docs for Once::try_once_force
-        let init = Once::new();
-        std::thread::scope(|s| {
-            // poison the once
-            let handle = s.spawn(|| {
-                Python::with_gil(|py| {
-                    init.call_once_py_attached(py, || panic!());
-                })
-            });
-            assert!(handle.join().is_err());
+        macro_rules! test_once {
+            ($once:expr, $is_poisoned:expr) => {{
+                // adapted from the example in the docs for Once::try_once_force
+                let init = $once;
+                std::thread::scope(|s| {
+                    // poison the once
+                    let handle = s.spawn(|| {
+                        Python::with_gil(|py| {
+                            init.call_once_py_attached(py, || panic!());
+                        })
+                    });
+                    assert!(handle.join().is_err());
 
-            // poisoning propagates
-            let handle = s.spawn(|| {
-                Python::with_gil(|py| {
-                    init.call_once_py_attached(py, || {});
+                    // poisoning propagates
+                    let handle = s.spawn(|| {
+                        Python::with_gil(|py| {
+                            init.call_once_py_attached(py, || {});
+                        });
+                    });
+
+                    assert!(handle.join().is_err());
+
+                    // call_once_force will still run and reset the poisoned state
+                    Python::with_gil(|py| {
+                        init.call_once_force_py_attached(py, |state| {
+                            assert!($is_poisoned(state.clone()));
+                        });
+
+                        // once any success happens, we stop propagating the poison
+                        init.call_once_py_attached(py, || {});
+                    });
+
+                    // calling call_once_force should return immediately without calling the closure
+                    Python::with_gil(|py| init.call_once_force_py_attached(py, |_| panic!()));
                 });
-            });
+            }};
+        }
 
-            assert!(handle.join().is_err());
-
-            // call_once_force will still run and reset the poisoned state
-            Python::with_gil(|py| {
-                init.call_once_force_py_attached(py, |state| {
-                    assert!(state.is_poisoned());
-                });
-
-                // once any success happens, we stop propagating the poison
-                init.call_once_py_attached(py, || {});
-            });
-        });
+        test_once!(Once::new(), OnceState::is_poisoned);
+        #[cfg(feature = "parking_lot")]
+        test_once!(parking_lot::Once::new(), parking_lot::OnceState::poisoned);
     }
 
     #[cfg(rustc_has_once_lock)]
@@ -1044,6 +1132,54 @@ mod tests {
                     assert!((*b).bind(py).borrow().0.load(Ordering::Acquire));
                 });
             });
+        });
+    }
+
+    #[cfg(feature = "macros")]
+    #[cfg(all(
+        any(feature = "parking_lot", feature = "lock_api"),
+        not(target_arch = "wasm32") // We are building wasm Python with pthreads disabled
+    ))]
+    #[test]
+    fn test_parking_lot_mutex_ext() {
+        macro_rules! test_mutex {
+            ($guard:ty ,$mutex:stmt) => {{
+                let barrier = Barrier::new(2);
+
+                let mutex = Python::with_gil({ $mutex });
+
+                std::thread::scope(|s| {
+                    s.spawn(|| {
+                        Python::with_gil(|py| {
+                            let b: $guard = mutex.lock_py_attached(py);
+                            barrier.wait();
+                            // sleep to ensure the other thread actually blocks
+                            std::thread::sleep(std::time::Duration::from_millis(10));
+                            (*b).bind(py).borrow().0.store(true, Ordering::Release);
+                            drop(b);
+                        });
+                    });
+                    s.spawn(|| {
+                        barrier.wait();
+                        Python::with_gil(|py| {
+                            // blocks until the other thread releases the lock
+                            let b: $guard = mutex.lock_py_attached(py);
+                            assert!((*b).bind(py).borrow().0.load(Ordering::Acquire));
+                        });
+                    });
+                });
+            }};
+        }
+
+        test_mutex!(parking_lot::MutexGuard<'_, _>, |py| {
+            parking_lot::Mutex::new(Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap())
+        });
+
+        #[cfg(feature = "arc_lock")]
+        test_mutex!(parking_lot::ArcMutexGuard<_, _>, |py| {
+            let mutex =
+                parking_lot::Mutex::new(Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap());
+            std::sync::Arc::new(mutex)
         });
     }
 
