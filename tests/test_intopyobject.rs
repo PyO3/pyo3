@@ -252,3 +252,95 @@ fn test_into_py_with() {
         );
     });
 }
+
+#[test]
+fn test_struct_into_py_rename_all() {
+    #[derive(IntoPyObject, IntoPyObjectRef)]
+    #[pyo3(rename_all = "camelCase")]
+    struct Foo {
+        foo_bar: String,
+        #[pyo3(item("BAZ"))]
+        baz: usize,
+        #[pyo3(item)]
+        long_field_name: f32,
+    }
+
+    let foo = Foo {
+        foo_bar: "foobar".into(),
+        baz: 42,
+        long_field_name: 0.0,
+    };
+
+    Python::with_gil(|py| {
+        let py_foo_ref = (&foo).into_pyobject(py).unwrap();
+        let py_foo = foo.into_pyobject(py).unwrap();
+
+        py_run!(
+            py,
+            py_foo_ref,
+            "assert py_foo_ref == {'fooBar': 'foobar', 'BAZ': 42, 'longFieldName': 0},f'{py_foo_ref}'"
+        );
+        py_run!(
+            py,
+            py_foo,
+            "assert py_foo == {'fooBar': 'foobar', 'BAZ': 42, 'longFieldName': 0},f'{py_foo}'"
+        );
+    });
+}
+
+#[test]
+fn test_enum_into_py_rename_all() {
+    #[derive(IntoPyObject, IntoPyObjectRef)]
+    #[pyo3(rename_all = "camelCase")]
+    enum Foo {
+        Variant1 {
+            foo_bar: String,
+            #[pyo3(item)]
+            long_field_name: f32,
+        },
+        Variant2 {
+            #[pyo3(item("BAZ"))]
+            baz: usize,
+            other_field: char,
+        },
+    }
+
+    let var1 = Foo::Variant1 {
+        foo_bar: "foobar".into(),
+        long_field_name: 0.0,
+    };
+    let var2 = Foo::Variant2 {
+        baz: 42,
+        other_field: '!',
+    };
+
+    Python::with_gil(|py| {
+        let py_var1_ref = (&var1).into_pyobject(py).unwrap();
+        let py_var1 = var1.into_pyobject(py).unwrap();
+
+        py_run!(
+            py,
+            py_var1_ref,
+            "assert py_var1_ref == {'fooBar': 'foobar', 'longFieldName': 0},f'{py_var1_ref}'"
+        );
+        py_run!(
+            py,
+            py_var1,
+            "assert py_var1 == {'fooBar': 'foobar', 'longFieldName': 0},f'{py_var1}'"
+        );
+
+        let py_var2_ref = (&var2).into_pyobject(py).unwrap();
+        let py_var2 = var2.into_pyobject(py).unwrap();
+
+        py_run!(
+            py,
+            py_var2_ref,
+            "assert py_var2_ref == {'BAZ': 42, 'otherField': '!'},f'{py_var2_ref}'"
+        );
+        py_run!(
+            py,
+            py_var2,
+            "assert py_var2 == {'BAZ': 42, 'otherField': '!'},f'{py_var2}'"
+        );
+    });
+}

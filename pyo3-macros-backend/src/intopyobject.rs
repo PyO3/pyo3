@@ -1,6 +1,6 @@
-use crate::attributes::IntoPyWithAttribute;
+use crate::attributes::{IntoPyWithAttribute, RenamingRule};
 use crate::derive_attributes::{ContainerAttributes, FieldAttributes};
-use crate::utils::Ctx;
+use crate::utils::{self, Ctx};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::ext::IdentExt;
@@ -65,6 +65,7 @@ struct Container<'a, const REF: bool> {
     path: syn::Path,
     receiver: Option<Ident>,
     ty: ContainerType<'a>,
+    rename_rule: Option<RenamingRule>,
 }
 
 /// Construct a container based on fields, identifier and attributes.
@@ -79,6 +80,10 @@ impl<'a, const REF: bool> Container<'a, REF> {
     ) -> Result<Self> {
         let style = match fields {
             Fields::Unnamed(unnamed) if !unnamed.unnamed.is_empty() => {
+                ensure_spanned!(
+                    options.rename_all.is_none(),
+                    options.rename_all.span() => "`rename_all` is useless on tuple structs and variants."
+                );
                 let mut tuple_fields = unnamed
                     .unnamed
                     .iter()
@@ -128,6 +133,10 @@ impl<'a, const REF: bool> Container<'a, REF> {
                         attrs.getter.unwrap().span() => "`transparent` structs may not have `item` nor `attribute` for the inner field"
                     );
                     ensure_spanned!(
+                        options.rename_all.is_none(),
+                        options.rename_all.span() => "`rename_all` is not permitted on `transparent` structs and variants"
+                    );
+                    ensure_spanned!(
                         attrs.into_py_with.is_none(),
                         attrs.into_py_with.span() => "`into_py_with` is not permitted on `transparent` structs or variants"
                     );
@@ -169,6 +178,7 @@ impl<'a, const REF: bool> Container<'a, REF> {
             path,
             receiver,
             ty: style,
+            rename_rule: options.rename_all.map(|v| v.value.rule),
         };
         Ok(v)
     }
@@ -254,7 +264,10 @@ impl<'a, const REF: bool> Container<'a, REF> {
                     .as_ref()
                     .and_then(|item| item.0.as_ref())
                     .map(|item| item.into_token_stream())
-                    .unwrap_or_else(|| f.ident.unraw().to_string().into_token_stream());
+                    .unwrap_or_else(|| {
+                        let name = f.ident.unraw().to_string();
+                        self.rename_rule.map(|rule| utils::apply_renaming_rule(rule, &name)).unwrap_or(name).into_token_stream()
+                    });
                 let value = Ident::new(&format!("arg{i}"), f.field.ty.span());
 
                 if let Some(expr_path) = f.into_py_with.as_ref().map(|i|&i.value) {
@@ -355,7 +368,11 @@ impl<'a, const REF: bool> Enum<'a, REF> {
     ///
     /// `data_enum` is the `syn` representation of the input enum, `ident` is the
     /// `Identifier` of the enum.
-    fn new(data_enum: &'a DataEnum, ident: &'a Ident) -> Result<Self> {
+    fn new(
+        data_enum: &'a DataEnum,
+        ident: &'a Ident,
+        options: ContainerAttributes,
+    ) -> Result<Self> {
         ensure_spanned!(
             !data_enum.variants.is_empty(),
             ident.span() => "cannot derive `IntoPyObject` for empty enum"
@@ -364,8 +381,15 @@ impl<'a, const REF: bool> Enum<'a, REF> {
             .variants
             .iter()
             .map(|variant| {
-                let attrs = ContainerAttributes::from_attrs(&variant.attrs)?;
+                let mut attrs = ContainerAttributes::from_attrs(&variant.attrs)?;
                 let var_ident = &variant.ident;
+                if options.rename_all.is_some() {
+                    ensure_spanned!(
+                        attrs.rename_all.is_none(),
+                        attrs.rename_all.span() => "redundant `rename_all` - the enum is already annotated with `rename_all`"
+                    );
+                    attrs.rename_all.clone_from(&options.rename_all);
+                }
 
                 ensure_spanned!(
                     !variant.fields.is_empty(),
@@ -459,7 +483,7 @@ pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Resu
             if options.transparent.is_some() {
                 bail_spanned!(tokens.span() => "`transparent` is not supported at top level for enums");
             }
-            let en = Enum::<REF>::new(en, &tokens.ident)?;
+            let en = Enum::<REF>::new(en, &tokens.ident, options)?;
             en.build(ctx)
         }
         syn::Data::Struct(st) => {
