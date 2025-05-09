@@ -104,3 +104,18 @@ compat_function!(
         crate::PyList_SetSlice(list, 0, crate::PY_SSIZE_T_MAX, std::ptr::null_mut())
     }
 );
+
+compat_function!(
+    originally_defined_for(Py_3_13);
+
+    #[inline]
+    pub unsafe fn PyModule_Add(
+        module: *mut crate::PyObject,
+        name: *const std::os::raw::c_char,
+        value: *mut crate::PyObject,
+    ) -> std::os::raw::c_int {
+        let result = crate::compat::PyModule_AddObjectRef(module, name, value);
+        crate::Py_XDECREF(value);
+        result
+    }
+);

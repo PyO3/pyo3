@@ -86,7 +86,7 @@ Once built, symlink (or copy) and rename the shared library from Cargo's `target
 
 You can then open a Python shell in the output directory and you'll be able to run `import your_module`.
 
-If you're packaging your library for redistribution, you should indicated the Python interpreter your library is compiled for by including the [platform tag](#platform-tags) in its name. This prevents incompatible interpreters from trying to import your library. If you're compiling for PyPy you *must* include the platform tag, or PyPy will ignore the module.
+If you're packaging your library for redistribution, you should indicate the Python interpreter your library is compiled for by including the [platform tag](#platform-tags) in its name. This prevents incompatible interpreters from trying to import your library. If you're compiling for PyPy you *must* include the platform tag, or PyPy will ignore the module.
 
 #### Bazel builds
 

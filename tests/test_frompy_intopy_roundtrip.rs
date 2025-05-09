@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::types::{PyDict, PyString};
-use pyo3::{prelude::*, IntoPyObject, IntoPyObjectRef};
+use pyo3::{prelude::*, IntoPyObject, IntoPyObjectExt, IntoPyObjectRef};
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -196,12 +196,28 @@ fn test_transparent_tuple_struct() {
     });
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct IntWrapper(u32);
+
+fn int_wrapper_into_py<'py>(
+    v: std::borrow::Cow<'_, IntWrapper>,
+    py: Python<'py>,
+) -> PyResult<Bound<'py, PyAny>> {
+    v.0.into_bound_py_any(py)
+}
+
+fn int_wrapper_from_py(v: &Bound<'_, PyAny>) -> PyResult<IntWrapper> {
+    v.extract().map(IntWrapper)
+}
+
 #[derive(Debug, Clone, PartialEq, IntoPyObject, IntoPyObjectRef, FromPyObject)]
 pub enum Foo {
     TupleVar(usize, String),
     StructVar {
         #[pyo3(item)]
         test: char,
+        #[pyo3(item, into_py_with=int_wrapper_into_py, from_py_with=int_wrapper_from_py)]
+        int: IntWrapper,
     },
     #[pyo3(transparent)]
     TransparentTuple(usize),
@@ -221,7 +237,10 @@ fn test_enum() {
         let foo = tuple_var.clone().into_pyobject(py).unwrap();
         assert_eq!(tuple_var, foo.extract::<Foo>().unwrap());
 
-        let struct_var = Foo::StructVar { test: 'b' };
+        let struct_var = Foo::StructVar {
+            test: 'b',
+            int: IntWrapper(42),
+        };
         let foo = (&struct_var)
             .into_pyobject(py)
             .unwrap()

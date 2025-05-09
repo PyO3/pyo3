@@ -1,4 +1,4 @@
-use crate::utils::{deprecated_from_py_with, Ctx, TypeExt as _};
+use crate::utils::{Ctx, TypeExt as _};
 use crate::{
     attributes::FromPyWithAttribute,
     method::{FnArg, FnSpec, RegularArg},
@@ -62,9 +62,7 @@ pub fn impl_arg_params(
         .filter_map(|(i, arg)| {
             let from_py_with = &arg.from_py_with()?.value;
             let from_py_with_holder = format_ident!("from_py_with_{}", i);
-            let d = deprecated_from_py_with(from_py_with).unwrap_or_default();
             Some(quote_spanned! { from_py_with.span() =>
-                #d
                 let #from_py_with_holder = #from_py_with;
             })
         })

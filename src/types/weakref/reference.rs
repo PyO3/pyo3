@@ -22,6 +22,7 @@ pyobject_subclassable_native_type!(PyWeakrefReference, crate::ffi::PyWeakReferen
 pyobject_native_type!(
     PyWeakrefReference,
     ffi::PyWeakReference,
+    // TODO: should not be depending on a private symbol here!
     pyobject_native_static_type_object!(ffi::_PyWeakref_RefType),
     #module=Some("weakref"),
     #checkfunction=ffi::PyWeakref_CheckRefExact

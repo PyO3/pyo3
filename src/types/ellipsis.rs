@@ -60,7 +60,7 @@ mod tests {
         Python::with_gil(|py| {
             assert!(PyEllipsis::get(py)
                 .get_type()
-                .is(&PyEllipsis::type_object(py)));
+                .is(PyEllipsis::type_object(py)));
         })
     }
 

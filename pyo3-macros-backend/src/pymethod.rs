@@ -4,8 +4,8 @@ use std::ffi::CString;
 use crate::attributes::{FromPyWithAttribute, NameAttribute, RenamingRule};
 use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
 use crate::params::{impl_regular_arg_param, Holders};
-use crate::utils::{deprecated_from_py_with, PythonDoc, TypeExt as _};
 use crate::utils::{Ctx, LitCStr};
+use crate::utils::{PythonDoc, TypeExt as _};
 use crate::{
     method::{FnArg, FnSpec, FnType, SelfType},
     pyfunction::PyFunctionOptions,
@@ -659,10 +659,8 @@ pub fn impl_py_setter_def(
             let (from_py_with, ident) =
                 if let Some(from_py_with) = &value_arg.from_py_with().as_ref().map(|f| &f.value) {
                     let ident = syn::Ident::new("from_py_with", from_py_with.span());
-                    let d = deprecated_from_py_with(from_py_with).unwrap_or_default();
                     (
                         quote_spanned! { from_py_with.span() =>
-                            #d
                             let #ident = #from_py_with;
                         },
                         ident,

@@ -3,6 +3,17 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.24.* to 0.25
+### `AsPyPointer` removal
+<details open>
+<summary><small>Click to expand</small></summary>
+The `AsPyPointer` trait is mostly a leftover from the now removed gil-refs API. The last remaining uses were the GC API, namely `PyVisit::call`, and identity comparison (`PyAnyMethods::is` and `Py::is`).
+
+`PyVisit::call` has been updated to take `T: Into<Option<&Py<T>>>`, which allows for arguments of type `&Py<T>`, `&Option<Py<T>>` and `Option<&Py<T>>`. It is unlikely any changes are needed here to migrate.
+
+`PyAnyMethods::is`/`Py::is` has been updated to take `T: AsRef<Py<PyAny>>>`. Additionally `AsRef<Py<PyAny>>>` implementations were added for `Py`, `Bound` and `Borrowed`. Because of the existing `AsRef<Bound<PyAny>> for Bound<T>` implementation this may cause inference issues in non-generic code. This can be easily migrated by switching to `as_any` instead of `as_ref` for these calls.
+</details>
+
 ## from 0.22.* to 0.23
 <details open>
 <summary><small>Click to expand</small></summary>

@@ -176,6 +176,9 @@ pub trait PyClassImpl: Sized + 'static {
     /// #[pyclass(sequence)]
     const IS_SEQUENCE: bool = false;
 
+    /// #[pyclass(immutable_type)]
+    const IS_IMMUTABLE_TYPE: bool = false;
+
     /// Base class
     type BaseType: PyTypeInfo + PyClassBaseType;
 

@@ -56,7 +56,7 @@ mod tests {
     #[test]
     fn test_none_type_object_consistent() {
         Python::with_gil(|py| {
-            assert!(PyNone::get(py).get_type().is(&PyNone::type_object(py)));
+            assert!(PyNone::get(py).get_type().is(PyNone::type_object(py)));
         })
     }
 

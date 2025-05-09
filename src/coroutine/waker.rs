@@ -41,10 +41,10 @@ impl Wake for AsyncioWaker {
     }
 
     fn wake_by_ref(self: &Arc<Self>) {
-        Python::with_gil(|gil| {
-            if let Some(loop_and_future) = self.0.get_or_init(gil, || None) {
+        Python::with_gil(|py| {
+            if let Some(loop_and_future) = self.0.get_or_init(py, || None) {
                 loop_and_future
-                    .set_result(gil)
+                    .set_result(py)
                     .expect("unexpected error in coroutine waker");
             }
         });

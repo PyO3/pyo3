@@ -487,7 +487,9 @@ extern "C" {
     pub fn PyDateTime_DATE_GET_MICROSECOND(o: *mut PyObject) -> c_int;
     #[link_name = "PyPyDateTime_GET_FOLD"]
     pub fn PyDateTime_DATE_GET_FOLD(o: *mut PyObject) -> c_int;
-    // skipped PyDateTime_DATE_GET_TZINFO (not in PyPy)
+    #[link_name = "PyPyDateTime_DATE_GET_TZINFO"]
+    #[cfg(Py_3_10)]
+    pub fn PyDateTime_DATE_GET_TZINFO(o: *mut PyObject) -> *mut PyObject;
 
     #[link_name = "PyPyDateTime_TIME_GET_HOUR"]
     pub fn PyDateTime_TIME_GET_HOUR(o: *mut PyObject) -> c_int;
@@ -499,7 +501,9 @@ extern "C" {
     pub fn PyDateTime_TIME_GET_MICROSECOND(o: *mut PyObject) -> c_int;
     #[link_name = "PyPyDateTime_TIME_GET_FOLD"]
     pub fn PyDateTime_TIME_GET_FOLD(o: *mut PyObject) -> c_int;
-    // skipped PyDateTime_TIME_GET_TZINFO (not in PyPy)
+    #[link_name = "PyPyDateTime_TIME_GET_TZINFO"]
+    #[cfg(Py_3_10)]
+    pub fn PyDateTime_TIME_GET_TZINFO(o: *mut PyObject) -> *mut PyObject;
 
     #[link_name = "PyPyDateTime_DELTA_GET_DAYS"]
     pub fn PyDateTime_DELTA_GET_DAYS(o: *mut PyObject) -> c_int;

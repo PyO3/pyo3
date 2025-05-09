@@ -193,7 +193,7 @@
 //! [guide]: https://pyo3.rs/latest/class.html#pycell-and-interior-mutability "PyCell and interior mutability"
 //! [Interior Mutability]: https://doc.rust-lang.org/book/ch15-05-interior-mutability.html "RefCell<T> and the Interior Mutability Pattern - The Rust Programming Language"
 
-use crate::conversion::{AsPyPointer, IntoPyObject};
+use crate::conversion::IntoPyObject;
 use crate::exceptions::PyRuntimeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::{ptr_from_mut, ptr_from_ref};
@@ -464,12 +464,6 @@ impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &'a PyRef<'py, T> {
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.inner.as_borrowed())
-    }
-}
-
-unsafe impl<T: PyClass> AsPyPointer for PyRef<'_, T> {
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.inner.as_ptr()
     }
 }
 

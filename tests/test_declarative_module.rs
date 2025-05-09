@@ -76,6 +76,20 @@ mod declarative_module {
     #[pymodule_export]
     use super::external_submodule;
 
+    #[pymodule_export]
+    const FOO: u32 = 42;
+
+    #[pymodule_export]
+    #[cfg(Py_LIMITED_API)]
+    const BAR: &str = "BAR";
+
+    #[pymodule_export]
+    #[allow(non_upper_case_globals)]
+    const r#type: char = '!';
+
+    #[allow(unused)]
+    const NOT_EXPORTED: &str = "not exported";
+
     #[pymodule]
     mod inner {
         use super::*;
@@ -190,7 +204,14 @@ fn test_declarative_module() {
         py_assert!(py, m, "hasattr(m, 'LocatedClass')");
         py_assert!(py, m, "isinstance(m.inner.Struct(), m.inner.Struct)");
         py_assert!(py, m, "isinstance(m.inner.Enum.A, m.inner.Enum)");
-        py_assert!(py, m, "hasattr(m, 'external_submodule')")
+        py_assert!(py, m, "hasattr(m, 'external_submodule')");
+        py_assert!(py, m, "m.FOO == 42");
+        #[cfg(Py_LIMITED_API)]
+        py_assert!(py, m, "m.BAR == 'BAR'");
+        #[cfg(not(Py_LIMITED_API))]
+        py_assert!(py, m, "not hasattr(m, 'BAR')");
+        py_assert!(py, m, "m.type == '!'");
+        py_assert!(py, m, "not hasattr(m, 'NOT_EXPORTED')");
     })
 }
 

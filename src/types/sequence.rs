@@ -825,7 +825,7 @@ mod tests {
             let v = vec!["foo", "bar"];
             let ob = v.into_pyobject(py).unwrap();
             let seq = ob.downcast::<PySequence>().unwrap();
-            let type_ptr = seq.as_ref();
+            let type_ptr = seq.as_any();
             let seq_from = unsafe { type_ptr.downcast_unchecked::<PySequence>() };
             assert!(seq_from.to_list().is_ok());
         });

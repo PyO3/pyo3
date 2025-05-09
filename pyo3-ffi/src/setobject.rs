@@ -39,11 +39,7 @@ pub unsafe fn PySet_GET_SIZE(so: *mut PyObject) -> Py_ssize_t {
     (*so).used
 }
 
-#[cfg(not(Py_LIMITED_API))]
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
-    pub static mut _PySet_Dummy: *mut PyObject;
-}
+// skipped _PySet_Dummy
 
 extern "C" {
     #[cfg(not(Py_LIMITED_API))]

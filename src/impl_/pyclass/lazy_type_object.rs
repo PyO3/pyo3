@@ -4,6 +4,10 @@ use std::{
     thread::{self, ThreadId},
 };
 
+#[cfg(Py_3_14)]
+use crate::err::error_on_minusone;
+#[cfg(Py_3_14)]
+use crate::types::PyTypeMethods;
 use crate::{
     exceptions::PyRuntimeError,
     ffi,
@@ -75,12 +79,13 @@ impl LazyTypeObjectInner {
         items_iter: PyClassItemsIter,
     ) -> PyResult<&Bound<'py, PyType>> {
         (|| -> PyResult<_> {
-            let type_object = self
-                .value
-                .get_or_try_init(py, || init(py))?
-                .type_object
-                .bind(py);
-            self.ensure_init(type_object, name, items_iter)?;
+            let PyClassTypeObject {
+                type_object,
+                is_immutable_type,
+                ..
+            } = self.value.get_or_try_init(py, || init(py))?;
+            let type_object = type_object.bind(py);
+            self.ensure_init(type_object, *is_immutable_type, name, items_iter)?;
             Ok(type_object)
         })()
         .map_err(|err| {
@@ -95,6 +100,7 @@ impl LazyTypeObjectInner {
     fn ensure_init(
         &self,
         type_object: &Bound<'_, PyType>,
+        #[allow(unused_variables)] is_immutable_type: bool,
         name: &str,
         items_iter: PyClassItemsIter,
     ) -> PyResult<()> {
@@ -181,6 +187,28 @@ impl LazyTypeObjectInner {
         // return from the function.
         let result = self.tp_dict_filled.get_or_try_init(py, move || {
             let result = initialize_tp_dict(py, type_object.as_ptr(), items);
+            #[cfg(Py_3_14)]
+            if is_immutable_type {
+                // freeze immutable types after __dict__ is initialized
+                let res = unsafe { ffi::PyType_Freeze(type_object.as_type_ptr()) };
+                error_on_minusone(py, res)?;
+            }
+            #[cfg(all(Py_3_10, not(Py_LIMITED_API), not(Py_3_14)))]
+            if is_immutable_type {
+                use crate::types::PyTypeMethods as _;
+                #[cfg(not(Py_GIL_DISABLED))]
+                unsafe {
+                    (*type_object.as_type_ptr()).tp_flags |= ffi::Py_TPFLAGS_IMMUTABLETYPE
+                };
+                #[cfg(Py_GIL_DISABLED)]
+                unsafe {
+                    (*type_object.as_type_ptr()).tp_flags.fetch_or(
+                        ffi::Py_TPFLAGS_IMMUTABLETYPE,
+                        std::sync::atomic::Ordering::Relaxed,
+                    )
+                };
+                unsafe { ffi::PyType_Modified(type_object.as_type_ptr()) };
+            }
 
             // Initialization successfully complete, can clear the thread list.
             // (No further calls to get_or_init() will try to init, on any thread.)

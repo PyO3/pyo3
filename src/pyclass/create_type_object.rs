@@ -23,6 +23,7 @@ use std::{
 
 pub(crate) struct PyClassTypeObject {
     pub type_object: Py<PyType>,
+    pub is_immutable_type: bool,
     #[allow(dead_code)] // This is purely a cache that must live as long as the type object
     getset_destructors: Vec<GetSetDefDestructor>,
 }
@@ -40,6 +41,7 @@ where
         dealloc_with_gc: unsafe extern "C" fn(*mut ffi::PyObject),
         is_mapping: bool,
         is_sequence: bool,
+        is_immutable_type: bool,
         doc: &'static CStr,
         dict_offset: Option<ffi::Py_ssize_t>,
         weaklist_offset: Option<ffi::Py_ssize_t>,
@@ -61,6 +63,7 @@ where
                 tp_dealloc_with_gc: dealloc_with_gc,
                 is_mapping,
                 is_sequence,
+                is_immutable_type,
                 has_new: false,
                 has_dealloc: false,
                 has_getitem: false,
@@ -88,6 +91,7 @@ where
             tp_dealloc_with_gc::<T>,
             T::IS_MAPPING,
             T::IS_SEQUENCE,
+            T::IS_IMMUTABLE_TYPE,
             T::doc(py)?,
             T::dict_offset(),
             T::weaklist_offset(),
@@ -116,6 +120,7 @@ struct PyTypeBuilder {
     tp_dealloc_with_gc: ffi::destructor,
     is_mapping: bool,
     is_sequence: bool,
+    is_immutable_type: bool,
     has_new: bool,
     has_dealloc: bool,
     has_getitem: bool,
@@ -505,6 +510,7 @@ impl PyTypeBuilder {
 
         Ok(PyClassTypeObject {
             type_object,
+            is_immutable_type: self.is_immutable_type,
             getset_destructors,
         })
     }

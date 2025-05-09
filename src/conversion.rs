@@ -5,66 +5,8 @@ use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
-use crate::{
-    ffi, Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyErr, PyRef, PyRefMut, Python,
-};
+use crate::{Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyErr, PyRef, PyRefMut, Python};
 use std::convert::Infallible;
-
-/// Returns a borrowed pointer to a Python object.
-///
-/// The returned pointer will be valid for as long as `self` is. It may be null depending on the
-/// implementation.
-///
-/// # Examples
-///
-/// ```rust
-/// use pyo3::prelude::*;
-/// use pyo3::ffi;
-///
-/// Python::with_gil(|py| {
-///     let s = "foo".into_pyobject(py)?;
-///     let ptr = s.as_ptr();
-///
-///     let is_really_a_pystring = unsafe { ffi::PyUnicode_CheckExact(ptr) };
-///     assert_eq!(is_really_a_pystring, 1);
-/// #   Ok::<_, PyErr>(())
-/// })
-/// # .unwrap();
-/// ```
-///
-/// # Safety
-///
-/// For callers, it is your responsibility to make sure that the underlying Python object is not dropped too
-/// early. For example, the following code will cause undefined behavior:
-///
-/// ```rust,no_run
-/// # use pyo3::prelude::*;
-/// # use pyo3::ffi;
-/// #
-/// Python::with_gil(|py| {
-///     // ERROR: calling `.as_ptr()` will throw away the temporary object and leave `ptr` dangling.
-///     let ptr: *mut ffi::PyObject = 0xabad1dea_u32.into_pyobject(py)?.as_ptr();
-///
-///     let isnt_a_pystring = unsafe {
-///         // `ptr` is dangling, this is UB
-///         ffi::PyUnicode_CheckExact(ptr)
-///     };
-/// #   assert_eq!(isnt_a_pystring, 0);
-/// #   Ok::<_, PyErr>(())
-/// })
-/// # .unwrap();
-/// ```
-///
-/// This happens because the pointer returned by `as_ptr` does not carry any lifetime information
-/// and the Python object is dropped immediately after the `0xabad1dea_u32.into_pyobject(py).as_ptr()`
-/// expression is evaluated. To fix the problem, bind Python object to a local variable like earlier
-/// to keep the Python object alive until the end of its scope.
-///
-/// Implementors must ensure this returns a valid pointer to a Python object, which borrows a reference count from `&self`.
-pub unsafe trait AsPyPointer {
-    /// Returns the underlying FFI pointer as a borrowed pointer.
-    fn as_ptr(&self) -> *mut ffi::PyObject;
-}
 
 /// Defines a conversion from a Rust type to a Python object, which may fail.
 ///

@@ -1,6 +1,6 @@
 use crate::call::PyCallArgs;
 use crate::class::basic::CompareOp;
-use crate::conversion::{AsPyPointer, FromPyObjectBound, IntoPyObject};
+use crate::conversion::{FromPyObjectBound, IntoPyObject};
 use crate::err::{DowncastError, DowncastIntoError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -12,7 +12,7 @@ use crate::type_object::{PyTypeCheck, PyTypeInfo};
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyType};
-use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Python};
+use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
@@ -65,7 +65,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// the equality of two objects (the `==` operator), use [`eq`](PyAnyMethods::eq).
     ///
     /// This is equivalent to the Python expression `self is other`.
-    fn is<T: AsPyPointer>(&self, other: &T) -> bool;
+    fn is<T: AsRef<Py<PyAny>>>(&self, other: T) -> bool;
 
     /// Determines whether this object has the given attribute.
     ///
@@ -951,8 +951,8 @@ macro_rules! implement_binop {
 
 impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     #[inline]
-    fn is<T: AsPyPointer>(&self, other: &T) -> bool {
-        ptr::eq(self.as_ptr(), other.as_ptr())
+    fn is<T: AsRef<Py<PyAny>>>(&self, other: T) -> bool {
+        ptr::eq(self.as_ptr(), other.as_ref().as_ptr())
     }
 
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
@@ -1029,7 +1029,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
                     Err(err) => {
                         let err_type = err
                             .get_type(any.py())
-                            .is(&PyType::new::<PyAttributeError>(any.py()));
+                            .is(PyType::new::<PyAttributeError>(any.py()));
                         match err_type {
                             true => Ok(None),
                             false => Err(err),
@@ -1868,7 +1868,7 @@ class SimpleClass:
 
         Python::with_gil(|py| {
             let obj = Py::new(py, GetattrFail).unwrap();
-            let obj = obj.bind(py).as_ref();
+            let obj = obj.bind(py).as_any();
 
             assert!(obj
                 .hasattr("foo")

@@ -63,7 +63,7 @@ mod tests {
         Python::with_gil(|py| {
             assert!(PyNotImplemented::get(py)
                 .get_type()
-                .is(&PyNotImplemented::type_object(py)));
+                .is(PyNotImplemented::type_object(py)));
         })
     }
 

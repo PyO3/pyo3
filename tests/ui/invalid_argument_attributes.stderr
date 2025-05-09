@@ -17,33 +17,19 @@ error: expected `cancel_handle` or `from_py_with`
    |                               ^^^^^^^^^^^^^^
 
 error: `from_py_with` may only be specified once per argument
-  --> tests/ui/invalid_argument_attributes.rs:16:56
+  --> tests/ui/invalid_argument_attributes.rs:16:54
    |
-16 | fn from_py_with_repeated(#[pyo3(from_py_with = "func", from_py_with = "func")] _param: String) {}
-   |                                                        ^^^^^^^^^^^^
+16 | fn from_py_with_repeated(#[pyo3(from_py_with = func, from_py_with = func)] _param: String) {}
+   |                                                      ^^^^^^^^^^^^
+
+error: expected identifier
+  --> tests/ui/invalid_argument_attributes.rs:23:28
+   |
+23 | fn f(#[pyo3(from_py_with = "bytes_from_py")] _bytes: Vec<u8>) {}
+   |                            ^^^^^^^^^^^^^^^
 
 error[E0425]: cannot find value `func` in this scope
   --> tests/ui/invalid_argument_attributes.rs:13:55
    |
 13 | fn from_py_with_value_not_found(#[pyo3(from_py_with = func)] _param: String) {}
    |                                                       ^^^^ not found in this scope
-
-warning: use of deprecated constant `__pyfunction_f::LIT_STR_DEPRECATION`: remove the quotes from the literal
-         = help: use `bytes_from_py` instead of `"bytes_from_py"`
-  --> tests/ui/invalid_argument_attributes.rs:23:28
-   |
-23 | fn f(#[pyo3(from_py_with = "bytes_from_py")] _bytes: Vec<u8>) {}
-   |                            ^^^^^^^^^^^^^^^
-   |
-   = note: `#[warn(deprecated)]` on by default
-
-error[E0308]: mismatched types
-  --> tests/ui/invalid_argument_attributes.rs:23:13
-   |
-22 | #[pyfunction]
-   | ------------- here the type of `from_py_with` is inferred to be `fn(&pyo3::Bound<'_, PyBytes>) -> Vec<u8>`
-23 | fn f(#[pyo3(from_py_with = "bytes_from_py")] _bytes: Vec<u8>) {}
-   |             ^^^^^^^^^^^^ expected `PyAny`, found `PyBytes`
-   |
-   = note: expected fn pointer `fn(&pyo3::Bound<'_, PyAny>) -> Result<_, PyErr>`
-              found fn pointer `fn(&pyo3::Bound<'_, PyBytes>) -> Vec<u8>`

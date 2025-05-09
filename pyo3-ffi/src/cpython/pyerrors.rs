@@ -46,6 +46,8 @@ pub struct PySyntaxErrorObject {
     pub end_offset: *mut PyObject,
     pub text: *mut PyObject,
     pub print_file_and_line: *mut PyObject,
+    #[cfg(Py_3_14)]
+    pub metadata: *mut PyObject,
 }
 
 #[cfg(not(any(PyPy, GraalPy)))]

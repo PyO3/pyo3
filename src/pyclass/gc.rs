@@ -3,7 +3,7 @@ use std::{
     os::raw::{c_int, c_void},
 };
 
-use crate::{ffi, AsPyPointer};
+use crate::{ffi, Py};
 
 /// Error returned by a `__traverse__` visitor implementation.
 #[repr(transparent)]
@@ -27,11 +27,16 @@ pub struct PyVisit<'a> {
 
 impl PyVisit<'_> {
     /// Visit `obj`.
-    pub fn call<T>(&self, obj: &T) -> Result<(), PyTraverseError>
+    ///
+    /// Note: `obj` accepts a variety of types, including
+    /// - `&Py<T>`
+    /// - `&Option<Py<T>>`
+    /// - `Option<&Py<T>>`
+    pub fn call<'a, T, U: 'a>(&self, obj: T) -> Result<(), PyTraverseError>
     where
-        T: AsPyPointer,
+        T: Into<Option<&'a Py<U>>>,
     {
-        let ptr = obj.as_ptr();
+        let ptr = obj.into().map_or_else(std::ptr::null_mut, Py::as_ptr);
         if !ptr.is_null() {
             match NonZeroCInt::new(unsafe { (self.visit)(ptr, self.arg) }) {
                 None => Ok(()),
