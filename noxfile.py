@@ -149,7 +149,7 @@ def test_py(session: nox.Session) -> None:
 @nox.session(venv_backend="none")
 def coverage(session: nox.Session) -> None:
     session.env.update(_get_coverage_env())
-    _run_cargo(session, "llvm-cov", "clean", "--workspace")
+    _run_cargo(session, "llvm-cov", "clean", "--workspace", "--profraw-only")
     test(session)
     generate_coverage_report(session)
 
@@ -166,10 +166,17 @@ def set_coverage_env(session: nox.Session) -> None:
 def generate_coverage_report(session: nox.Session) -> None:
     cov_format = "codecov"
     output_file = "coverage.json"
+    output = None
 
     if "lcov" in session.posargs:
         cov_format = "lcov"
         output_file = "lcov.info"
+
+    if "html" in session.posargs:
+        cov_format = "html"
+        output_flags = ()
+    else:
+        output_flags = (f"--output-path={output_file}",)
 
     _run_cargo(
         session,
@@ -181,8 +188,7 @@ def generate_coverage_report(session: nox.Session) -> None:
         "--package=pyo3-ffi",
         "report",
         f"--{cov_format}",
-        "--output-path",
-        output_file,
+        *output_flags,
     )
 
 
