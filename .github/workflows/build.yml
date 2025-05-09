@@ -82,10 +82,6 @@ jobs:
         name: Ignore changed error messages when using trybuild
         run: echo "TRYBUILD=overwrite" >> "$GITHUB_ENV"
 
-      - if: inputs.rust == 'nightly'
-        name: Prepare to test on nightly rust
-        run: echo "MAYBE_NIGHTLY=nightly" >> "$GITHUB_ENV"
-
       - uses: dorny/paths-filter@v3
         if: ${{ inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') }}
         id: ffi-changes
