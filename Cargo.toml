@@ -69,7 +69,7 @@ futures = "0.3.28"
 tempfile = "3.12.0"
 static_assertions = "1.1.0"
 uuid = { version = "1.10.0", features = ["v4"] }
-parking_lot = { version = "0.12"}
+parking_lot = { version = "0.12.3", features = ["arc_lock"]}
 
 [build-dependencies]
 pyo3-build-config = { path = "pyo3-build-config", version = "=0.25.0-dev", features = ["resolve-config"] }
