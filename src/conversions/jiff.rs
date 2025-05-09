@@ -32,7 +32,7 @@
 //!     pyo3::prepare_freethreaded_python();
 //!     Python::with_gil(|py| {
 //!         // Build some jiff values
-//!         let jiff_zoned = Zoned::now();
+//!         let jiff_zoned = Zoned::now().in_tz("UTC")?;
 //!         let jiff_span = 1.second();
 //!         // Convert them to Python
 //!         let py_datetime = jiff_zoned.into_pyobject(py)?;

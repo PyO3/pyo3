@@ -1,17 +1,24 @@
+#[cfg(Py_3_14)]
+use crate::Py_ssize_t;
 #[cfg(Py_3_13)]
-use crate::PyObject;
-use crate::{Py_hash_t, Py_ssize_t};
-use std::os::raw::{c_char, c_int, c_void};
+use crate::{PyObject, Py_hash_t};
+#[cfg(any(Py_3_13, not(PyPy)))]
+use std::os::raw::c_void;
+#[cfg(not(PyPy))]
+use std::os::raw::{c_char, c_int};
 
+#[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyHash_FuncDef {
-    pub hash: Option<extern "C" fn(arg1: *const c_void, arg2: Py_ssize_t) -> Py_hash_t>,
+    pub hash:
+        Option<extern "C" fn(arg1: *const c_void, arg2: crate::Py_ssize_t) -> crate::Py_hash_t>,
     pub name: *const c_char,
     pub hash_bits: c_int,
     pub seed_bits: c_int,
 }
 
+#[cfg(not(PyPy))]
 impl Default for PyHash_FuncDef {
     #[inline]
     fn default() -> Self {
@@ -20,6 +27,7 @@ impl Default for PyHash_FuncDef {
 }
 
 extern "C" {
+    #[cfg(not(PyPy))]
     pub fn PyHash_GetFuncDef() -> *mut PyHash_FuncDef;
     #[cfg(Py_3_13)]
     pub fn Py_HashPointer(ptr: *const c_void) -> Py_hash_t;
