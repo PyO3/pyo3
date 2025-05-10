@@ -17,7 +17,7 @@ fn _get_subclasses<'py>(
         .into_py_dict(py)
         .unwrap();
 
-    let make_subclass_py = CString::new(format!("class Subklass({}):\n    pass", py_type))?;
+    let make_subclass_py = CString::new(format!("class Subklass({py_type}):\n    pass"))?;
 
     let make_sub_subclass_py = ffi::c_str!("class SubSubklass(Subklass):\n    pass");
 
@@ -26,21 +26,21 @@ fn _get_subclasses<'py>(
 
     // Construct an instance of the base class
     let obj = py.eval(
-        &CString::new(format!("{}({})", py_type, args))?,
+        &CString::new(format!("{py_type}({args})"))?,
         None,
         Some(&locals),
     )?;
 
     // Construct an instance of the subclass
     let sub_obj = py.eval(
-        &CString::new(format!("Subklass({})", args))?,
+        &CString::new(format!("Subklass({args})"))?,
         None,
         Some(&locals),
     )?;
 
     // Construct an instance of the sub-subclass
     let sub_sub_obj = py.eval(
-        &CString::new(format!("SubSubklass({})", args))?,
+        &CString::new(format!("SubSubklass({args})"))?,
         None,
         Some(&locals),
     )?;

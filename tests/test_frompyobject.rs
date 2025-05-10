@@ -467,7 +467,7 @@ fn test_enum() {
                 assert_eq!(test, 1);
                 assert_eq!(test2, "test");
             }
-            _ => panic!("Expected extracting Foo::TupleVar, got {:?}", f),
+            _ => panic!("Expected extracting Foo::TupleVar, got {f:?}"),
         }
 
         let pye = PyE {
@@ -481,7 +481,7 @@ fn test_enum() {
             .expect("Failed to extract Foo from PyE");
         match f {
             Foo::StructVar { test } => assert_eq!(test.to_string_lossy(), "foo"),
-            _ => panic!("Expected extracting Foo::StructVar, got {:?}", f),
+            _ => panic!("Expected extracting Foo::StructVar, got {f:?}"),
         }
 
         let int = 1i32.into_pyobject(py).unwrap();
@@ -490,7 +490,7 @@ fn test_enum() {
             .expect("Failed to extract Foo from int");
         match f {
             Foo::TransparentTuple(test) => assert_eq!(test, 1),
-            _ => panic!("Expected extracting Foo::TransparentTuple, got {:?}", f),
+            _ => panic!("Expected extracting Foo::TransparentTuple, got {f:?}"),
         }
         let none = py.None();
         let f = none
@@ -498,7 +498,7 @@ fn test_enum() {
             .expect("Failed to extract Foo from int");
         match f {
             Foo::TransparentStructVar { a } => assert!(a.is_none()),
-            _ => panic!("Expected extracting Foo::TransparentStructVar, got {:?}", f),
+            _ => panic!("Expected extracting Foo::TransparentStructVar, got {f:?}"),
         }
 
         let pybool = PyBool { bla: true }.into_pyobject(py).unwrap();
@@ -507,7 +507,7 @@ fn test_enum() {
             .expect("Failed to extract Foo from PyBool");
         match f {
             Foo::StructVarGetAttrArg { a } => assert!(a),
-            _ => panic!("Expected extracting Foo::StructVarGetAttrArg, got {:?}", f),
+            _ => panic!("Expected extracting Foo::StructVarGetAttrArg, got {f:?}"),
         }
 
         let dict = PyDict::new(py);
@@ -517,7 +517,7 @@ fn test_enum() {
             .expect("Failed to extract Foo from dict");
         match f {
             Foo::StructWithGetItem { a } => assert_eq!(a, "test"),
-            _ => panic!("Expected extracting Foo::StructWithGetItem, got {:?}", f),
+            _ => panic!("Expected extracting Foo::StructWithGetItem, got {f:?}"),
         }
 
         let dict = PyDict::new(py);
@@ -527,7 +527,7 @@ fn test_enum() {
             .expect("Failed to extract Foo from dict");
         match f {
             Foo::StructWithGetItemArg { a } => assert_eq!(a, "test"),
-            _ => panic!("Expected extracting Foo::StructWithGetItemArg, got {:?}", f),
+            _ => panic!("Expected extracting Foo::StructWithGetItemArg, got {f:?}"),
         }
     });
 }
@@ -588,10 +588,7 @@ fn test_enum_catch_all() {
                 let d = any.extract::<Bound<'_, PyDict>>().expect("Expected pydict");
                 assert!(d.is_empty());
             }
-            _ => panic!(
-                "Expected extracting EnumWithCatchAll::CatchAll, got {:?}",
-                f
-            ),
+            _ => panic!("Expected extracting EnumWithCatchAll::CatchAll, got {f:?}"),
         }
     });
 }

@@ -671,7 +671,7 @@ impl std::fmt::Debug for PyErr {
                             // error, but we can't guarantee that the error
                             // won't have another unformattable traceback inside
                             // it and we want to avoid an infinite recursion.
-                            format!("<unformattable {:?}>", tb)
+                            format!("<unformattable {tb:?}>")
                         }
                     }),
                 )
@@ -685,7 +685,7 @@ impl std::fmt::Display for PyErr {
         Python::with_gil(|py| {
             let value = self.value(py);
             let type_name = value.get_type().qualname().map_err(|_| std::fmt::Error)?;
-            write!(f, "{}", type_name)?;
+            write!(f, "{type_name}")?;
             if let Ok(s) = value.str() {
                 write!(f, ": {}", &s.to_string_lossy())
             } else {
@@ -946,7 +946,7 @@ mod tests {
                 .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error");
 
-            let debug_str = format!("{:?}", err);
+            let debug_str = format!("{err:?}");
             assert!(debug_str.starts_with("PyErr { "));
             assert!(debug_str.ends_with(" }"));
 

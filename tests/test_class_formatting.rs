@@ -16,7 +16,7 @@ pub enum MyEnum2 {
 
 impl Display for MyEnum2 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -34,7 +34,7 @@ impl Display for MyEnum3 {
             MyEnum3::Variant => "AwesomeVariant",
             MyEnum3::OtherVariant => "OtherVariant",
         };
-        write!(f, "MyEnum.{}", variant)
+        write!(f, "MyEnum.{variant}")
     }
 }
 
@@ -97,7 +97,7 @@ enum ComplexEnumWithStr {
 
 impl Display for ComplexEnumWithStr {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 

@@ -92,7 +92,7 @@ impl LazyTypeObjectInner {
             wrap_in_runtime_error(
                 py,
                 err,
-                format!("An error occurred while initializing class {}", name),
+                format!("An error occurred while initializing class {name}"),
             )
         })
     }
@@ -224,7 +224,7 @@ impl LazyTypeObjectInner {
             return Err(wrap_in_runtime_error(
                 py,
                 err.clone_ref(py),
-                format!("An error occurred while initializing `{}.__dict__`", name),
+                format!("An error occurred while initializing `{name}.__dict__`"),
             ));
         }
 

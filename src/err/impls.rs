@@ -155,7 +155,7 @@ mod tests {
                 let rust_err = io::Error::new(kind, "some error msg");
 
                 let py_err: PyErr = rust_err.into();
-                let py_err_msg = format!("{}: some error msg", expected_ty);
+                let py_err_msg = format!("{expected_ty}: some error msg");
                 assert_eq!(py_err.to_string(), py_err_msg);
                 let py_error_clone = py_err.clone_ref(py);
 

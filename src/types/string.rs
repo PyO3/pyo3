@@ -609,7 +609,7 @@ mod tests {
     fn test_debug_string() {
         Python::with_gil(|py| {
             let s = "Hello\n".into_pyobject(py).unwrap();
-            assert_eq!(format!("{:?}", s), "'Hello\\n'");
+            assert_eq!(format!("{s:?}"), "'Hello\\n'");
         })
     }
 
@@ -617,7 +617,7 @@ mod tests {
     fn test_display_string() {
         Python::with_gil(|py| {
             let s = "Hello\n".into_pyobject(py).unwrap();
-            assert_eq!(format!("{}", s), "Hello\n");
+            assert_eq!(format!("{s}"), "Hello\n");
         })
     }
 

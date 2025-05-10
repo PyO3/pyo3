@@ -123,7 +123,7 @@ mod test_ipaddr {
                 let pyobj = ip.into_pyobject(py).unwrap();
                 let repr = pyobj.repr().unwrap();
                 let repr = repr.to_string_lossy();
-                assert_eq!(repr, format!("{}('{}')", py_cls, ip));
+                assert_eq!(repr, format!("{py_cls}('{ip}')"));
 
                 let ip2: IpAddr = pyobj.extract().unwrap();
                 assert_eq!(ip, ip2);

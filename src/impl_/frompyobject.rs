@@ -36,7 +36,7 @@ fn extract_traceback(py: Python<'_>, mut error: PyErr) -> String {
 
     let mut error_msg = error.to_string();
     while let Some(cause) = error.cause(py) {
-        write!(&mut error_msg, ", caused by {}", cause).unwrap();
+        write!(&mut error_msg, ", caused by {cause}").unwrap();
         error = cause
     }
     error_msg
@@ -86,8 +86,7 @@ fn failed_to_extract_struct_field(
     field_name: &str,
 ) -> PyErr {
     let new_err = PyTypeError::new_err(format!(
-        "failed to extract field {}.{}",
-        struct_name, field_name
+        "failed to extract field {struct_name}.{field_name}"
     ));
     new_err.set_cause(py, ::std::option::Option::Some(inner_err));
     new_err
@@ -136,8 +135,7 @@ fn failed_to_extract_tuple_struct_field(
     struct_name: &str,
     index: usize,
 ) -> PyErr {
-    let new_err =
-        PyTypeError::new_err(format!("failed to extract field {}.{}", struct_name, index));
+    let new_err = PyTypeError::new_err(format!("failed to extract field {struct_name}.{index}"));
     new_err.set_cause(py, ::std::option::Option::Some(inner_err));
     new_err
 }

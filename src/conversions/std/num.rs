@@ -606,7 +606,7 @@ mod test_128bit_integers {
                 let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
                 locals.set_item("x_py", &x_py).unwrap();
-                py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
+                py.run(&CString::new(format!("assert x_py == {x}")).unwrap(), None, Some(&locals)).unwrap();
                 let roundtripped: i128 = x_py.extract().unwrap();
                 assert_eq!(x, roundtripped);
             })
@@ -622,7 +622,7 @@ mod test_128bit_integers {
                 let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
                 locals.set_item("x_py", &x_py).unwrap();
-                py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
+                py.run(&CString::new(format!("assert x_py == {x}")).unwrap(), None, Some(&locals)).unwrap();
                 let roundtripped: NonZeroI128 = x_py.extract().unwrap();
                 assert_eq!(x, roundtripped);
             })
@@ -637,7 +637,7 @@ mod test_128bit_integers {
                 let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
                 locals.set_item("x_py", &x_py).unwrap();
-                py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
+                py.run(&CString::new(format!("assert x_py == {x}")).unwrap(), None, Some(&locals)).unwrap();
                 let roundtripped: u128 = x_py.extract().unwrap();
                 assert_eq!(x, roundtripped);
             })
@@ -653,7 +653,7 @@ mod test_128bit_integers {
                 let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
                 locals.set_item("x_py", &x_py).unwrap();
-                py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
+                py.run(&CString::new(format!("assert x_py == {x}")).unwrap(), None, Some(&locals)).unwrap();
                 let roundtripped: NonZeroU128 = x_py.extract().unwrap();
                 assert_eq!(x, roundtripped);
             })
