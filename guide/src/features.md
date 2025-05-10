@@ -124,6 +124,9 @@ Adds a dependency on [anyhow](https://docs.rs/anyhow). Enables a conversion from
 ### `bigdecimal`
 Adds a dependency on [bigdecimal](https://docs.rs/bigdecimal) and enables conversions into its [`BigDecimal`](https://docs.rs/bigdecimal/latest/bigdecimal/struct.BigDecimal.html) type.
 
+### `bytes`
+Adds a dependency on [bytes](https://docs.rs/bytes/latest/bytes) and enables conversions into its [`Bytes`](https://docs.rs/bytes/latest/bytes/struct.Bytes.html) and [`BytesMut`](https://docs.rs/bytes/latest/bytes/struct.BytesMut.html) types.
+
 ### `chrono`
 
 Adds a dependency on [chrono](https://docs.rs/chrono). Enables a conversion from [chrono](https://docs.rs/chrono)'s types to python:
