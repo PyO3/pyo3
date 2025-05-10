@@ -1,0 +1,136 @@
+error[E0592]: duplicate definitions with name `__pymethod___class_getitem____`
+ --> tests/ui/invalid_pyclass_generic.rs:4:1
+  |
+4 | #[pyclass(generic)]
+  | ^^^^^^^^^^^^^^^^^^^ duplicate definitions for `__pymethod___class_getitem____`
+...
+8 | #[pymethods]
+  | ------------ other definition for `__pymethod___class_getitem____`
+  |
+  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `__class_getitem__`
+  --> tests/ui/invalid_pyclass_generic.rs:4:1
+   |
+4  |   #[pyclass(generic)]
+   |   ^^^^^^^^^^^^^^^^^^^ duplicate definitions for `__class_getitem__`
+...
+16 | /     pub fn __class_getitem__(
+17 | |         cls: &Bound<'_, PyType>,
+18 | |         key: &Bound<'_, PyAny>,
+19 | |     ) -> PyResult<PyObject> {
+   | |___________________________- other definition for `__class_getitem__`
+   |
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+ --> tests/ui/invalid_pyclass_generic.rs:4:1
+  |
+4 | #[pyclass(generic)]
+  | ^^^^^^^^^^^^^^^^^^^ multiple `__pymethod___class_getitem____` found
+  |
+note: candidate #1 is defined in an impl for the type `ClassRedefinesClassGetItem`
+ --> tests/ui/invalid_pyclass_generic.rs:4:1
+  |
+4 | #[pyclass(generic)]
+  | ^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `ClassRedefinesClassGetItem`
+ --> tests/ui/invalid_pyclass_generic.rs:8:1
+  |
+8 | #[pymethods]
+  | ^^^^^^^^^^^^
+  = note: this error originates in the attribute macro `pyclass` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+  --> tests/ui/invalid_pyclass_generic.rs:4:1
+   |
+4  | #[pyclass(generic)]
+   | ^^^^^^^^^^^^^^^^^^^ multiple `__class_getitem__` found
+   |
+note: candidate #1 is defined in an impl for the type `ClassRedefinesClassGetItem`
+  --> tests/ui/invalid_pyclass_generic.rs:4:1
+   |
+4  | #[pyclass(generic)]
+   | ^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `ClassRedefinesClassGetItem`
+  --> tests/ui/invalid_pyclass_generic.rs:16:5
+   |
+16 | /     pub fn __class_getitem__(
+17 | |         cls: &Bound<'_, PyType>,
+18 | |         key: &Bound<'_, PyAny>,
+19 | |     ) -> PyResult<PyObject> {
+   | |___________________________^
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+ --> tests/ui/invalid_pyclass_generic.rs:4:1
+  |
+4 | #[pyclass(generic)]
+  | ^^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+  |
+  = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+  = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+  = note: candidate #3 is defined in an impl for the type `UnknownReturnResultType<Result<T, E>>`
+  = note: candidate #4 is defined in an impl for the type `UnknownReturnType<T>`
+  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> tests/ui/invalid_pyclass_generic.rs:20:9
+   |
+19 |     ) -> PyResult<PyObject> {
+   |          ------------------ expected `Result<Py<pyo3::PyAny>, PyErr>` because of return type
+20 |         pyo3::types::PyGenericAlias::new(cls.py(), cls.as_any(), key)
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Result<Py<PyAny>, PyErr>`, found `Result<Bound<'_, PyGenericAlias>, PyErr>`
+   |
+   = note: expected enum `Result<Py<pyo3::PyAny>, PyErr>`
+              found enum `Result<pyo3::Bound<'_, PyGenericAlias>, PyErr>`
+
+error[E0034]: multiple applicable items in scope
+  --> tests/ui/invalid_pyclass_generic.rs:16:12
+   |
+16 |     pub fn __class_getitem__(
+   |            ^^^^^^^^^^^^^^^^^ multiple `__pymethod___class_getitem____` found
+   |
+note: candidate #1 is defined in an impl for the type `ClassRedefinesClassGetItem`
+  --> tests/ui/invalid_pyclass_generic.rs:4:1
+   |
+4  | #[pyclass(generic)]
+   | ^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `ClassRedefinesClassGetItem`
+  --> tests/ui/invalid_pyclass_generic.rs:8:1
+   |
+8  | #[pymethods]
+   | ^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `pyclass` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+  --> tests/ui/invalid_pyclass_generic.rs:16:12
+   |
+16 |     pub fn __class_getitem__(
+   |            ^^^^^^^^^^^^^^^^^ multiple `__class_getitem__` found
+   |
+note: candidate #1 is defined in an impl for the type `ClassRedefinesClassGetItem`
+  --> tests/ui/invalid_pyclass_generic.rs:4:1
+   |
+4  | #[pyclass(generic)]
+   | ^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `ClassRedefinesClassGetItem`
+  --> tests/ui/invalid_pyclass_generic.rs:16:5
+   |
+16 | /     pub fn __class_getitem__(
+17 | |         cls: &Bound<'_, PyType>,
+18 | |         key: &Bound<'_, PyAny>,
+19 | |     ) -> PyResult<PyObject> {
+   | |___________________________^
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+  --> tests/ui/invalid_pyclass_generic.rs:19:10
+   |
+19 |     ) -> PyResult<PyObject> {
+   |          ^^^^^^^^ multiple `wrap` found
+   |
+   = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+   = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+   = note: candidate #3 is defined in an impl for the type `UnknownReturnResultType<Result<T, E>>`
+   = note: candidate #4 is defined in an impl for the type `UnknownReturnType<T>`

@@ -10,6 +10,7 @@
 | <span style="white-space: pre">`extends = BaseType`</span>  | Use a custom baseclass. Defaults to [`PyAny`][params-1] |
 | <span style="white-space: pre">`freelist = N`</span> |  Implements a [free list][params-2] of size N. This can improve performance for types that are often created and deleted in quick succession. Profile your code to see whether `freelist` is right for you.  |
 | <span style="white-space: pre">`frozen`</span> | Declares that your pyclass is immutable. It removes the borrow checker overhead when retrieving a shared reference to the Rust struct, but disables the ability to get a mutable reference. |
+| `generic` | Implements runtime parametrization for the class following [PEP 560](https://peps.python.org/pep-0560/). |
 | `get_all` | Generates getters for all fields of the pyclass. |
 | `hash` | Implements `__hash__` using the `Hash` implementation of the underlying Rust datatype. |
 | `immutable_type` | Makes the type object immutable. Supported on 3.14+ with the `abi3` feature active, or 3.10+ otherwise. |
