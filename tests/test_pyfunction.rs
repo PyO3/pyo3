@@ -30,7 +30,7 @@ fn test_rust_keyword_name() {
 
 #[pyfunction(signature = (arg = true))]
 fn optional_bool(arg: Option<bool>) -> String {
-    format!("{:?}", arg)
+    format!("{arg:?}")
 }
 
 #[test]
@@ -278,10 +278,7 @@ fn conversion_error(
     option_arg: Option<i64>,
     struct_arg: Option<ValueClass>,
 ) {
-    println!(
-        "{:?} {:?} {:?} {:?} {:?}",
-        str_arg, int_arg, tuple_arg, option_arg, struct_arg
-    );
+    println!("{str_arg:?} {int_arg:?} {tuple_arg:?} {option_arg:?} {struct_arg:?}");
 }
 
 #[test]
@@ -488,7 +485,7 @@ fn test_closure() {
                             s.push_str("-py");
                             Ok(s.into_pyobject(py)?.into_any().unbind())
                         } else {
-                            panic!("unexpected argument type for {:?}", elem)
+                            panic!("unexpected argument type for {elem:?}")
                         }
                     })
                     .collect();
