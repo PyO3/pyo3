@@ -118,6 +118,7 @@ fn test_timezone_from_offset_and_name() {
 fn ascii_object_bitfield() {
     let ob_base: PyObject = unsafe { std::mem::zeroed() };
 
+    #[cfg_attr(Py_3_14, allow(unused_mut, unused_variables))]
     let mut o = PyASCIIObject {
         ob_base,
         length: 0,
@@ -128,6 +129,7 @@ fn ascii_object_bitfield() {
         wstr: std::ptr::null_mut() as *mut wchar_t,
     };
 
+    #[cfg(not(Py_3_14))]
     unsafe {
         assert_eq!(o.interned(), 0);
         assert_eq!(o.kind(), 0);
@@ -175,24 +177,28 @@ fn ascii() {
         let ptr = s.as_ptr();
 
         unsafe {
-            let ascii_ptr = ptr as *mut PyASCIIObject;
-            let ascii = ascii_ptr.as_ref().unwrap();
+            #[cfg(not(Py_3_14))]
+            {
+                let ascii_ptr = ptr as *mut PyASCIIObject;
+                let ascii = ascii_ptr.as_ref().unwrap();
 
-            assert_eq!(ascii.interned(), 0);
-            assert_eq!(ascii.kind(), PyUnicode_1BYTE_KIND);
-            assert_eq!(ascii.compact(), 1);
-            assert_eq!(ascii.ascii(), 1);
-            #[cfg(not(Py_3_12))]
-            assert_eq!(ascii.ready(), 1);
+                assert_eq!(ascii.interned(), 0);
+                assert_eq!(ascii.kind(), PyUnicode_1BYTE_KIND);
+                assert_eq!(ascii.compact(), 1);
+                assert_eq!(ascii.ascii(), 1);
+                #[cfg(not(Py_3_12))]
+                assert_eq!(ascii.ready(), 1);
 
-            assert_eq!(PyUnicode_IS_ASCII(ptr), 1);
-            assert_eq!(PyUnicode_IS_COMPACT(ptr), 1);
-            assert_eq!(PyUnicode_IS_COMPACT_ASCII(ptr), 1);
+                assert_eq!(PyUnicode_IS_ASCII(ptr), 1);
+                assert_eq!(PyUnicode_IS_COMPACT(ptr), 1);
+                assert_eq!(PyUnicode_IS_COMPACT_ASCII(ptr), 1);
+            }
 
             assert!(!PyUnicode_1BYTE_DATA(ptr).is_null());
             // 2 and 4 byte macros return nonsense for this string instance.
             assert_eq!(PyUnicode_KIND(ptr), PyUnicode_1BYTE_KIND);
 
+            #[cfg(not(Py_3_14))]
             assert!(!_PyUnicode_COMPACT_DATA(ptr).is_null());
             // _PyUnicode_NONCOMPACT_DATA isn't valid for compact strings.
             assert!(!PyUnicode_DATA(ptr).is_null());
@@ -216,23 +222,26 @@ fn ucs4() {
         let ptr = py_string.as_ptr();
 
         unsafe {
-            let ascii_ptr = ptr as *mut PyASCIIObject;
-            let ascii = ascii_ptr.as_ref().unwrap();
+            #[cfg(not(Py_3_14))]
+            {
+                let ascii_ptr = ptr as *mut PyASCIIObject;
+                let ascii = ascii_ptr.as_ref().unwrap();
 
-            assert_eq!(ascii.interned(), 0);
-            assert_eq!(ascii.kind(), PyUnicode_4BYTE_KIND);
-            assert_eq!(ascii.compact(), 1);
-            assert_eq!(ascii.ascii(), 0);
-            #[cfg(not(Py_3_12))]
-            assert_eq!(ascii.ready(), 1);
+                assert_eq!(ascii.interned(), 0);
+                assert_eq!(ascii.kind(), PyUnicode_4BYTE_KIND);
+                assert_eq!(ascii.compact(), 1);
+                assert_eq!(ascii.ascii(), 0);
+                #[cfg(not(Py_3_12))]
+                assert_eq!(ascii.ready(), 1);
 
-            assert_eq!(PyUnicode_IS_ASCII(ptr), 0);
-            assert_eq!(PyUnicode_IS_COMPACT(ptr), 1);
-            assert_eq!(PyUnicode_IS_COMPACT_ASCII(ptr), 0);
-
+                assert_eq!(PyUnicode_IS_ASCII(ptr), 0);
+                assert_eq!(PyUnicode_IS_COMPACT(ptr), 1);
+                assert_eq!(PyUnicode_IS_COMPACT_ASCII(ptr), 0);
+            }
             assert!(!PyUnicode_4BYTE_DATA(ptr).is_null());
             assert_eq!(PyUnicode_KIND(ptr), PyUnicode_4BYTE_KIND);
 
+            #[cfg(not(Py_3_14))]
             assert!(!_PyUnicode_COMPACT_DATA(ptr).is_null());
             // _PyUnicode_NONCOMPACT_DATA isn't valid for compact strings.
             assert!(!PyUnicode_DATA(ptr).is_null());
