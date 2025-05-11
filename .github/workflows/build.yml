@@ -76,7 +76,11 @@ jobs:
 
       - if: inputs.rust == inputs.MSRV
         name: Prepare MSRV package versions
-        run: nox -s set-msrv-package-versions
+        run: |
+          # FIXME: this is a temporary hack to make MSRV CI work while
+          # using a git branch of trybuild
+          cargo +stable add trybuild@1.0.89 --dev
+          nox -s set-msrv-package-versions
 
       - if: inputs.rust != 'stable'
         name: Ignore changed error messages when using trybuild
