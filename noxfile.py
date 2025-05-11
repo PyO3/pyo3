@@ -166,7 +166,6 @@ def set_coverage_env(session: nox.Session) -> None:
 def generate_coverage_report(session: nox.Session) -> None:
     cov_format = "codecov"
     output_file = "coverage.json"
-    output = None
 
     if "lcov" in session.posargs:
         cov_format = "lcov"
