@@ -58,7 +58,7 @@ pub fn cargo_env_var(var: &str) -> Option<String> {
 /// the variable changes.
 pub fn env_var(var: &str) -> Option<OsString> {
     if cfg!(feature = "resolve-config") {
-        println!("cargo:rerun-if-env-changed={}", var);
+        println!("cargo:rerun-if-env-changed={var}");
     }
     #[cfg(test)]
     {
@@ -180,7 +180,7 @@ impl InterpreterConfig {
         let mut out = vec![];
 
         for i in MINIMUM_SUPPORTED_VERSION.minor..=self.version.minor {
-            out.push(format!("cargo:rustc-cfg=Py_3_{}", i));
+            out.push(format!("cargo:rustc-cfg=Py_3_{i}"));
         }
 
         match self.implementation {
@@ -199,7 +199,7 @@ impl InterpreterConfig {
                 BuildFlag::Py_GIL_DISABLED => {
                     out.push("cargo:rustc-cfg=Py_GIL_DISABLED".to_owned())
                 }
-                flag => out.push(format!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag)),
+                flag => out.push(format!("cargo:rustc-cfg=py_sys_config=\"{flag}\"")),
             }
         }
 
@@ -338,7 +338,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
 
         let lib_dir = if cfg!(windows) {
             map.get("base_prefix")
-                .map(|base_prefix| format!("{}\\libs", base_prefix))
+                .map(|base_prefix| format!("{base_prefix}\\libs"))
         } else {
             map.get("libdir").cloned()
         };
@@ -666,7 +666,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         write_option_line!(python_framework_prefix)?;
         write_line!(suppress_build_script_link_lines)?;
         for line in &self.extra_build_script_lines {
-            writeln!(writer, "extra_build_script_line={}", line)
+            writeln!(writer, "extra_build_script_line={line}")
                 .context("failed to write extra_build_script_line")?;
         }
         Ok(())
@@ -853,7 +853,7 @@ fn is_abi3() -> bool {
 /// Must be called from a PyO3 crate build script.
 pub fn get_abi3_version() -> Option<PythonVersion> {
     let minor_version = (MINIMUM_SUPPORTED_VERSION.minor..=ABI3_MAX_MINOR)
-        .find(|i| cargo_env_var(&format!("CARGO_FEATURE_ABI3_PY3{}", i)).is_some());
+        .find(|i| cargo_env_var(&format!("CARGO_FEATURE_ABI3_PY3{i}")).is_some());
     minor_version.map(|minor| PythonVersion { major: 3, minor })
 }
 
@@ -1121,8 +1121,8 @@ pub enum BuildFlag {
 impl Display for BuildFlag {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BuildFlag::Other(flag) => write!(f, "{}", flag),
-            _ => write!(f, "{:?}", self),
+            BuildFlag::Other(flag) => write!(f, "{flag}"),
+            _ => write!(f, "{self:?}"),
         }
     }
 }
@@ -1202,7 +1202,7 @@ impl BuildFlags {
 
         for k in &BuildFlags::ALL {
             use std::fmt::Write;
-            writeln!(&mut script, "print(config.get('{}', '0'))", k).unwrap();
+            writeln!(&mut script, "print(config.get('{k}', '0'))").unwrap();
         }
 
         let stdout = run_python_script(interpreter.as_ref(), &script)?;
@@ -1240,7 +1240,7 @@ impl Display for BuildFlags {
             } else {
                 write!(f, ",")?;
             }
-            write!(f, "{}", flag)?;
+            write!(f, "{flag}")?;
         }
         Ok(())
     }
@@ -1427,7 +1427,7 @@ pub fn find_all_sysconfigdata(cross: &CrossCompileConfig) -> Result<Vec<PathBuf>
 
 fn is_pypy_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
     let pypy_version_pat = if let Some(v) = v {
-        format!("pypy{}", v)
+        format!("pypy{v}")
     } else {
         "pypy3.".into()
     };
@@ -1436,7 +1436,7 @@ fn is_pypy_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
 
 fn is_graalpy_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
     let graalpy_version_pat = if let Some(v) = v {
-        format!("graalpy{}", v)
+        format!("graalpy{v}")
     } else {
         "graalpy2".into()
     };
@@ -1445,7 +1445,7 @@ fn is_graalpy_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
 
 fn is_cpython_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
     let cpython_version_pat = if let Some(v) = v {
-        format!("python{}", v)
+        format!("python{v}")
     } else {
         "python3.".into()
     };
@@ -1759,7 +1759,7 @@ fn default_lib_name_unix(
 ) -> Result<String> {
     match implementation {
         PythonImplementation::CPython => match ld_version {
-            Some(ld_version) => Ok(format!("python{}", ld_version)),
+            Some(ld_version) => Ok(format!("python{ld_version}")),
             None => {
                 if version > PythonVersion::PY37 {
                     // PEP 3149 ABI version tags are finally gone
@@ -1776,7 +1776,7 @@ fn default_lib_name_unix(
             }
         },
         PythonImplementation::PyPy => match ld_version {
-            Some(ld_version) => Ok(format!("pypy{}-c", ld_version)),
+            Some(ld_version) => Ok(format!("pypy{ld_version}-c")),
             None => Ok(format!("pypy{}.{}-c", version.major, version.minor)),
         },
 

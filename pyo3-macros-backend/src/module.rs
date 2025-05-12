@@ -488,7 +488,7 @@ fn module_initialization(
     gil_used: bool,
 ) -> TokenStream {
     let Ctx { pyo3_path, .. } = ctx;
-    let pyinit_symbol = format!("PyInit_{}", name);
+    let pyinit_symbol = format!("PyInit_{name}");
     let name = name.to_string();
     let pyo3_name = LitCStr::new(CString::new(name).unwrap(), Span::call_site(), ctx);
 

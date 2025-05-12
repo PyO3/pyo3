@@ -165,7 +165,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
             if module_str == "builtins" || module_str == "__main__" {
                 qualname.downcast_into()?
             } else {
-                PyString::new(self.py(), &format!("{}.{}", module, qualname))
+                PyString::new(self.py(), &format!("{module}.{qualname}"))
             }
         };
 

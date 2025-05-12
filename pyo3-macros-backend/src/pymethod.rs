@@ -278,7 +278,7 @@ pub fn gen_py_method(
 }
 
 pub fn check_generic(sig: &syn::Signature) -> syn::Result<()> {
-    let err_msg = |typ| format!("Python functions cannot have generic {} parameters", typ);
+    let err_msg = |typ| format!("Python functions cannot have generic {typ} parameters");
     for param in &sig.generics.params {
         match param {
             syn::GenericParam::Lifetime(_) => {}
@@ -1601,7 +1601,7 @@ fn extract_proto_arguments(
         if let FnArg::Py(..) = arg {
             args.push(quote! { py });
         } else {
-            let ident = syn::Ident::new(&format!("arg{}", non_python_args), Span::call_site());
+            let ident = syn::Ident::new(&format!("arg{non_python_args}"), Span::call_site());
             let conversions = proto_args.get(non_python_args)
                 .ok_or_else(|| err_spanned!(arg.ty().span() => format!("Expected at most {} non-python arguments", proto_args.len())))?
                 .extract(&ident, arg, extract_error_mode, holders, ctx);

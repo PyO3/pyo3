@@ -80,8 +80,7 @@ impl AssertingBaseClass {
     fn new(cls: &Bound<'_, PyType>, expected_type: Bound<'_, PyType>) -> PyResult<Self> {
         if !cls.is(&expected_type) {
             return Err(PyValueError::new_err(format!(
-                "{:?} != {:?}",
-                cls, expected_type
+                "{cls:?} != {expected_type:?}"
             )));
         }
         Ok(Self)
