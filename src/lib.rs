@@ -114,6 +114,7 @@
 //! - [`num-complex`]: Enables conversions between Python objects and [num-complex]'s [`Complex`]
 //!  type.
 //! - [`num-rational`]: Enables conversions between Python's fractions.Fraction and [num-rational]'s types
+//! - [`ordered-float`]: Enables conversions between Python's float and [ordered-float]'s types
 //! - [`rust_decimal`]: Enables conversions between Python's decimal.Decimal and [rust_decimal]'s
 //! [`Decimal`] type.
 //! - [`serde`]: Allows implementing [serde]'s [`Serialize`] and [`Deserialize`] traits for
@@ -311,6 +312,7 @@
 //! [`num-bigint`]: ./num_bigint/index.html "Documentation about the `num-bigint` feature."
 //! [`num-complex`]: ./num_complex/index.html "Documentation about the `num-complex` feature."
 //! [`num-rational`]: ./num_rational/index.html "Documentation about the `num-rational` feature."
+//! [`ordered-float`]: ./ordered_float/index.html "Documentation about the `ordered-float` feature."
 //! [`pyo3-build-config`]: https://docs.rs/pyo3-build-config
 //! [rust_decimal]: https://docs.rs/rust_decimal
 //! [`rust_decimal`]: ./rust_decimal/index.html "Documenation about the `rust_decimal` feature."
@@ -328,6 +330,7 @@
 //! [num-bigint]: https://docs.rs/num-bigint
 //! [num-complex]: https://docs.rs/num-complex
 //! [num-rational]: https://docs.rs/num-rational
+//! [ordered-float]: https://docs.rs/ordered-float
 //! [serde]: https://docs.rs/serde
 //! [setuptools-rust]: https://github.com/PyO3/setuptools-rust "Setuptools plugin for Rust extensions"
 //! [the guide]: https://pyo3.rs "PyO3 user guide"

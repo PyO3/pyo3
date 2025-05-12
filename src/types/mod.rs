@@ -38,6 +38,7 @@ pub use self::notimplemented::PyNotImplemented;
 pub use self::num::PyInt;
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::pysuper::PySuper;
+pub use self::range::{PyRange, PyRangeMethods};
 pub use self::sequence::{PySequence, PySequenceMethods};
 pub use self::set::{PySet, PySetMethods};
 pub use self::slice::{PySlice, PySliceIndices, PySliceMethods};
@@ -246,6 +247,7 @@ mod notimplemented;
 mod num;
 #[cfg(not(any(PyPy, GraalPy)))]
 mod pysuper;
+pub(crate) mod range;
 pub(crate) mod sequence;
 pub(crate) mod set;
 pub(crate) mod slice;
