@@ -102,11 +102,7 @@ fn _add_python_framework_link_args(
 ) {
     if matches!(triple.operating_system, OperatingSystem::Darwin(_)) && link_libpython {
         if let Some(framework_prefix) = interpreter_config.python_framework_prefix.as_ref() {
-            writeln!(
-                writer,
-                "cargo:rustc-link-arg=-Wl,-rpath,{framework_prefix}"
-            )
-            .unwrap();
+            writeln!(writer, "cargo:rustc-link-arg=-Wl,-rpath,{framework_prefix}").unwrap();
         }
     }
 }
