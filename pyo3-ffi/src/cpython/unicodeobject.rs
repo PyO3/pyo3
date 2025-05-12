@@ -303,7 +303,7 @@ pub struct PyASCIIObject {
     /// unsigned int ascii:1;
     /// unsigned int statically_allocated:1;
     /// unsigned int :24;
-    /// 3.14 and higher don't access the internal state
+    /// on 3.14 and higher PyO3 doesn't access the internal state
     pub state: u32,
     #[cfg(not(Py_3_12))]
     pub wstr: *mut wchar_t,
