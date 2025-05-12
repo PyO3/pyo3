@@ -19,6 +19,9 @@ on:
       MSRV:
         required: true
         type: string
+      verbose:
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -66,6 +69,10 @@ jobs:
         run: |
           echo "CARGO_BUILD_TARGET=i686-pc-windows-msvc" >> $GITHUB_ENV
 
+      - name: Install zoneinfo backport for Python 3.7 / 3.8
+        if: contains(fromJSON('["3.7", "3.8"]'), inputs.python-version)
+        run: python -m pip install backports.zoneinfo
+
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -86,8 +93,8 @@ jobs:
         if: ${{ inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') }}
         id: ffi-changes
         with:
-          base: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
-          ref: ${{ github.event.pull_request.head.ref || github.event.merge_group.head_ref }}
+          base: ${{ github.event.merge_group.base_ref }}
+          ref: ${{ github.event.merge_group.head_ref }}
           filters: |
             changed:
               - 'pyo3-ffi/**'
@@ -142,7 +149,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
     env:
-      CARGO_TERM_VERBOSE: true
+      CARGO_TERM_VERBOSE: ${{ inputs.verbose }}
       RUST_BACKTRACE: 1
       RUSTFLAGS: "-D warnings"
       RUSTDOCFLAGS: "-D warnings"
