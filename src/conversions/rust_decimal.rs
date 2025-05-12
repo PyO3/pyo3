@@ -169,8 +169,7 @@ mod test_rust_decimal {
                 locals.set_item("rs_dec", &rs_dec).unwrap();
                 py.run(
                     &CString::new(format!(
-                       "import decimal\npy_dec = decimal.Decimal(\"{}\")\nassert py_dec == rs_dec",
-                     num)).unwrap(),
+                       "import decimal\npy_dec = decimal.Decimal(\"{num}\")\nassert py_dec == rs_dec")).unwrap(),
                 None, Some(&locals)).unwrap();
                 let roundtripped: Decimal = rs_dec.extract().unwrap();
                 assert_eq!(num, roundtripped);

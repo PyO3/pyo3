@@ -369,8 +369,7 @@ impl FromPyObject<'_> for UtcOffset {
         let py_timedelta = ob.call_method1("utcoffset", (PyNone::get(ob.py()),))?;
         if py_timedelta.is_none() {
             return Err(PyTypeError::new_err(format!(
-                "{:?} is not a fixed offset timezone",
-                ob
+                "{ob:?} is not a fixed offset timezone"
             )));
         }
 

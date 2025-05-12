@@ -150,7 +150,7 @@ mod tests {
     fn test_into_pyobject() {
         Python::with_gil(|py| {
             let assert_eq = |l: Bound<'_, PyTzInfo>, r: Bound<'_, PyTzInfo>| {
-                assert!(l.eq(&r).unwrap(), "{:?} != {:?}", l, r);
+                assert!(l.eq(&r).unwrap(), "{l:?} != {r:?}");
             };
 
             assert_eq(

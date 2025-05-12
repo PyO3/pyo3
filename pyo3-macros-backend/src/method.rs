@@ -647,10 +647,10 @@ impl<'a> FnSpec<'a> {
                     .fold(first.span(), |s, next| s.join(next.span()).unwrap_or(s));
                 let span = span.join(last.span()).unwrap_or(span);
                 // List all the attributes in the error message
-                let mut msg = format!("`{}` may not be combined with", first);
+                let mut msg = format!("`{first}` may not be combined with");
                 let mut is_first = true;
                 for attr in &*rest {
-                    msg.push_str(&format!(" `{}`", attr));
+                    msg.push_str(&format!(" `{attr}`"));
                     if is_first {
                         is_first = false;
                     } else {
@@ -660,7 +660,7 @@ impl<'a> FnSpec<'a> {
                 if !rest.is_empty() {
                     msg.push_str(" and");
                 }
-                msg.push_str(&format!(" `{}`", last));
+                msg.push_str(&format!(" `{last}`"));
                 bail_spanned!(span => msg)
             }
         };

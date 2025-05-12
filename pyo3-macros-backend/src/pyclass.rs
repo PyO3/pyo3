@@ -1493,7 +1493,7 @@ fn generate_default_protocol_slot(
     slot.generate_type_slot(
         &syn::parse_quote!(#cls),
         &spec,
-        &format!("__default_{}__", name),
+        &format!("__default_{name}__"),
         ctx,
     )
 }

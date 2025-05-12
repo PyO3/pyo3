@@ -176,7 +176,7 @@ fn emit_link_config(interpreter_config: &InterpreterConfig) -> Result<()> {
     );
 
     if let Some(lib_dir) = &interpreter_config.lib_dir {
-        println!("cargo:rustc-link-search=native={}", lib_dir);
+        println!("cargo:rustc-link-search=native={lib_dir}");
     }
 
     Ok(())
@@ -207,12 +207,12 @@ fn configure_pyo3() -> Result<()> {
     }
 
     for cfg in interpreter_config.build_script_outputs() {
-        println!("{}", cfg)
+        println!("{cfg}")
     }
 
     // Extra lines come last, to support last write wins.
     for line in &interpreter_config.extra_build_script_lines {
-        println!("{}", line);
+        println!("{line}");
     }
 
     // Emit cfgs like `invalid_from_utf8_lint`
