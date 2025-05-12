@@ -386,8 +386,7 @@ impl<'py> FromPyObject<'py> for Offset {
         let py_timedelta = ob.call_method1(intern!(py, "utcoffset"), (PyNone::get(py),))?;
         if py_timedelta.is_none() {
             return Err(PyTypeError::new_err(format!(
-                "{:?} is not a fixed offset timezone",
-                ob
+                "{ob:?} is not a fixed offset timezone"
             )));
         }
 
@@ -576,10 +575,7 @@ mod tests {
                 assert_eq!(
                     date.compare(&py_date).unwrap(),
                     Ordering::Equal,
-                    "{}: {} != {}",
-                    name,
-                    date,
-                    py_date
+                    "{name}: {date} != {py_date}"
                 );
             })
         };
@@ -597,7 +593,7 @@ mod tests {
                 let py_date = new_py_datetime_ob(py, "date", (year, month, day));
                 let py_date: Date = py_date.extract().unwrap();
                 let date = Date::new(year, month, day).unwrap();
-                assert_eq!(py_date, date, "{}: {} != {}", name, date, py_date);
+                assert_eq!(py_date, date, "{name}: {date} != {py_date}");
             })
         };
 
@@ -634,10 +630,7 @@ mod tests {
                     assert_eq!(
                         datetime.compare(&py_datetime).unwrap(),
                         Ordering::Equal,
-                        "{}: {} != {}",
-                        name,
-                        datetime,
-                        py_datetime
+                        "{name}: {datetime} != {py_datetime}"
                     );
                 };
 
@@ -653,7 +646,7 @@ mod tests {
                     let offset = Offset::from_seconds(3600).unwrap();
                     let datetime = DateTime::new(year, month, day, hour, minute, second, ms * 1000)
                         .map_err(|e| {
-                            eprintln!("{}: {}", name, e);
+                            eprintln!("{name}: {e}");
                             e
                         })
                         .unwrap()
@@ -669,10 +662,7 @@ mod tests {
                     assert_eq!(
                         datetime.compare(&py_datetime).unwrap(),
                         Ordering::Equal,
-                        "{}: {} != {}",
-                        name,
-                        datetime,
-                        py_datetime
+                        "{name}: {datetime} != {py_datetime}"
                     );
                 };
 
@@ -883,13 +873,7 @@ mod tests {
                     .into_pyobject(py)
                     .unwrap();
                 let py_time = new_py_datetime_ob(py, "time", (hour, minute, second, py_ms));
-                assert!(
-                    time.eq(&py_time).unwrap(),
-                    "{}: {} != {}",
-                    name,
-                    time,
-                    py_time
-                );
+                assert!(time.eq(&py_time).unwrap(), "{name}: {time} != {py_time}");
             };
 
             check_time("regular", 3, 5, 7, 999_999, 999_999);
@@ -991,7 +975,7 @@ mod tests {
                 Python::with_gil(|py| {
 
                     let globals = [("datetime", py.import("datetime").unwrap())].into_py_dict(py).unwrap();
-                    let code = format!("datetime.datetime.fromtimestamp({}).replace(tzinfo=datetime.timezone(datetime.timedelta(seconds={})))", timestamp, timedelta);
+                    let code = format!("datetime.datetime.fromtimestamp({timestamp}).replace(tzinfo=datetime.timezone(datetime.timedelta(seconds={timedelta})))");
                     let t = py.eval(&CString::new(code).unwrap(), Some(&globals), None).unwrap();
 
                     // Get ISO 8601 string from python
