@@ -33,7 +33,6 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
     #[cfg(not(any(feature = "uuid")))]
     t.compile_fail("tests/ui/invalid_pyfunctions.rs");
-    #[cfg(not(any(feature = "hashbrown", feature = "indexmap")))]
     t.compile_fail("tests/ui/invalid_pymethods.rs");
     // output changes with async feature
     #[cfg(all(Py_LIMITED_API, feature = "experimental-async"))]
