@@ -17,7 +17,7 @@ pub struct PyByteArrayObject {
 }
 
 #[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
-opaque_struct!(PyByteArrayObject);
+opaque_struct!(pub PyByteArrayObject);
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {

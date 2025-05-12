@@ -9,8 +9,8 @@ use std::os::raw::c_long;
 
 pub const MAX_CO_EXTRA_USERS: c_int = 255;
 
-opaque_struct!(PyThreadState);
-opaque_struct!(PyInterpreterState);
+opaque_struct!(pub PyThreadState);
+opaque_struct!(pub PyInterpreterState);
 
 extern "C" {
     #[cfg(not(PyPy))]
@@ -80,17 +80,14 @@ pub enum PyGILState_STATE {
     PyGILState_UNLOCKED,
 }
 
+#[cfg(not(Py_3_14))]
 struct HangThread;
 
+#[cfg(not(Py_3_14))]
 impl Drop for HangThread {
     fn drop(&mut self) {
         loop {
-            #[cfg(target_family = "unix")]
-            unsafe {
-                libc::pause();
-            }
-            #[cfg(not(target_family = "unix"))]
-            std::thread::sleep(std::time::Duration::from_secs(9_999_999));
+            std::thread::park(); // Block forever.
         }
     }
 }

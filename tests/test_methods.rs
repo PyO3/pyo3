@@ -166,7 +166,7 @@ struct StaticMethodWithArgs {}
 impl StaticMethodWithArgs {
     #[staticmethod]
     fn method(_py: Python<'_>, input: i32) -> String {
-        format!("0x{:x}", input)
+        format!("0x{input:x}")
     }
 }
 
@@ -898,7 +898,7 @@ impl FromSequence {
     fn new(seq: Option<&Bound<'_, PySequence>>) -> PyResult<Self> {
         if let Some(seq) = seq {
             Ok(FromSequence {
-                numbers: seq.as_ref().extract::<Vec<_>>()?,
+                numbers: seq.as_any().extract::<Vec<_>>()?,
             })
         } else {
             Ok(FromSequence::default())

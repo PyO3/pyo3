@@ -1,6 +1,6 @@
 #![cfg(not(Py_LIMITED_API))]
 
-use pyo3::types::{timezone_utc, IntoPyDict, PyDate, PyDateTime, PyTime};
+use pyo3::types::{IntoPyDict, PyDate, PyDateTime, PyTime, PyTzInfo};
 use pyo3::{ffi, prelude::*};
 use pyo3_ffi::PyDateTime_IMPORT;
 use std::ffi::CString;
@@ -17,7 +17,7 @@ fn _get_subclasses<'py>(
         .into_py_dict(py)
         .unwrap();
 
-    let make_subclass_py = CString::new(format!("class Subklass({}):\n    pass", py_type))?;
+    let make_subclass_py = CString::new(format!("class Subklass({py_type}):\n    pass"))?;
 
     let make_sub_subclass_py = ffi::c_str!("class SubSubklass(Subklass):\n    pass");
 
@@ -26,21 +26,21 @@ fn _get_subclasses<'py>(
 
     // Construct an instance of the base class
     let obj = py.eval(
-        &CString::new(format!("{}({})", py_type, args))?,
+        &CString::new(format!("{py_type}({args})"))?,
         None,
         Some(&locals),
     )?;
 
     // Construct an instance of the subclass
     let sub_obj = py.eval(
-        &CString::new(format!("Subklass({})", args))?,
+        &CString::new(format!("Subklass({args})"))?,
         None,
         Some(&locals),
     )?;
 
     // Construct an instance of the sub-subclass
     let sub_sub_obj = py.eval(
-        &CString::new(format!("SubSubklass({})", args))?,
+        &CString::new(format!("SubSubklass({args})"))?,
         None,
         Some(&locals),
     )?;
@@ -133,7 +133,7 @@ fn test_datetime_utc() {
     use pyo3::types::PyDateTime;
 
     Python::with_gil(|py| {
-        let utc = timezone_utc(py);
+        let utc = PyTzInfo::utc(py).unwrap();
 
         let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
 

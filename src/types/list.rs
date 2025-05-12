@@ -1330,7 +1330,7 @@ mod tests {
         Python::with_gil(|py| {
             let v = vec![2, 3, 5, 7];
             let list = PyList::new(py, &v).unwrap();
-            let v2 = list.as_ref().extract::<Vec<i32>>().unwrap();
+            let v2 = list.as_any().extract::<Vec<i32>>().unwrap();
             assert_eq!(v, v2);
         });
     }

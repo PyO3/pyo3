@@ -399,6 +399,7 @@ impl Python<'_> {
     ///
     /// [`auto-initialize`]: https://pyo3.rs/main/features.html#auto-initialize
     #[inline]
+    #[track_caller]
     pub fn with_gil<F, R>(f: F) -> R
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
@@ -433,6 +434,7 @@ impl Python<'_> {
     ///
     /// Behavior in other scenarios is not documented.
     #[inline]
+    #[track_caller]
     pub unsafe fn with_gil_unchecked<F, R>(f: F) -> R
     where
         F: for<'py> FnOnce(Python<'py>) -> R,

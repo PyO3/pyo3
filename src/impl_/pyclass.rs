@@ -176,6 +176,9 @@ pub trait PyClassImpl: Sized + 'static {
     /// #[pyclass(sequence)]
     const IS_SEQUENCE: bool = false;
 
+    /// #[pyclass(immutable_type)]
+    const IS_IMMUTABLE_TYPE: bool = false;
+
     /// Base class
     type BaseType: PyTypeInfo + PyClassBaseType;
 
@@ -1103,8 +1106,7 @@ impl ThreadCheckerImpl {
         assert_eq!(
             thread::current().id(),
             self.0,
-            "{} is unsendable, but sent to another thread",
-            type_name
+            "{type_name} is unsendable, but sent to another thread"
         );
     }
 
@@ -1115,8 +1117,7 @@ impl ThreadCheckerImpl {
     fn can_drop(&self, py: Python<'_>, type_name: &'static str) -> bool {
         if thread::current().id() != self.0 {
             PyRuntimeError::new_err(format!(
-                "{} is unsendable, but is being dropped on another thread",
-                type_name
+                "{type_name} is unsendable, but is being dropped on another thread"
             ))
             .write_unraisable(py, None);
             return false;

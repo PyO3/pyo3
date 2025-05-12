@@ -17,7 +17,7 @@ The table below contains the Python type and the corresponding function argument
 | `bytes`       | `Vec<u8>`, `&[u8]`, `Cow<[u8]>` | `PyBytes`           |
 | `bool`        | `bool`                          | `PyBool`            |
 | `int`         | `i8`, `u8`, `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `isize`, `usize`, `num_bigint::BigInt`[^1], `num_bigint::BigUint`[^1] | `PyInt` |
-| `float`       | `f32`, `f64`                    | `PyFloat`           |
+| `float`       | `f32`, `f64`, `ordered_float::NotNan`[^10], `ordered_float::OrderedFloat`[^10]                    | `PyFloat`           |
 | `complex`     | `num_complex::Complex`[^2]      | `PyComplex`         |
 | `fractions.Fraction`| `num_rational::Ratio`[^8] | -         |
 | `list[T]`     | `Vec<T>`                        | `PyList`            |
@@ -37,8 +37,8 @@ The table below contains the Python type and the corresponding function argument
 | `datetime.timedelta` | `Duration`, `chrono::Duration`[^5] | `PyDelta`           |
 | `decimal.Decimal` | `rust_decimal::Decimal`[^7] | -                    |
 | `decimal.Decimal` | `bigdecimal::BigDecimal`[^9] | -                   |
-| `ipaddress.IPv4Address` | `std::net::IpAddr`, `std::net::IpV4Addr` | - |
-| `ipaddress.IPv6Address` | `std::net::IpAddr`, `std::net::IpV6Addr` | - |
+| `ipaddress.IPv4Address` | `std::net::IpAddr`, `std::net::Ipv4Addr` | - |
+| `ipaddress.IPv6Address` | `std::net::IpAddr`, `std::net::Ipv6Addr` | - |
 | `os.PathLike ` | `PathBuf`, `Path`              | `PyString` |
 | `pathlib.Path` | `PathBuf`, `Path`              | `PyString` |
 | `typing.Optional[T]` | `Option<T>`              | -                    |
@@ -119,3 +119,5 @@ Finally, the following Rust types are also able to convert to Python as return v
 [^8]: Requires the `num-rational` optional feature.
 
 [^9]: Requires the `bigdecimal` optional feature.
+
+[^10]: Requires the `ordered-float` optional feature.

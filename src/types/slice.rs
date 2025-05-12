@@ -2,6 +2,7 @@ use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::types::any::PyAnyMethods;
+use crate::types::{PyRange, PyRangeMethods};
 use crate::{Bound, IntoPyObject, PyAny, Python};
 use std::convert::Infallible;
 
@@ -137,6 +138,19 @@ impl<'py> IntoPyObject<'py> for &PySliceIndices {
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PySlice::new(py, self.start, self.stop, self.step))
+    }
+}
+
+impl<'py> TryFrom<Bound<'py, PyRange>> for Bound<'py, PySlice> {
+    type Error = PyErr;
+
+    fn try_from(range: Bound<'py, PyRange>) -> Result<Self, Self::Error> {
+        Ok(PySlice::new(
+            range.py(),
+            range.start()?,
+            range.stop()?,
+            range.step()?,
+        ))
     }
 }
 

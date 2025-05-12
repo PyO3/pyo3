@@ -2,12 +2,12 @@ use crate::ffi::{self, *};
 use crate::types::any::PyAnyMethods;
 use crate::Python;
 
-#[cfg(all(not(Py_LIMITED_API), any(not(PyPy), feature = "macros")))]
+#[cfg(all(not(Py_LIMITED_API), any(not(any(PyPy, GraalPy)), feature = "macros")))]
 use crate::types::PyString;
 
 #[cfg(not(Py_LIMITED_API))]
 use crate::{types::PyDict, Bound, PyAny};
-#[cfg(not(any(Py_3_12, Py_LIMITED_API)))]
+#[cfg(not(any(Py_3_12, Py_LIMITED_API, GraalPy)))]
 use libc::wchar_t;
 
 #[cfg(not(Py_LIMITED_API))]
@@ -114,7 +114,7 @@ fn test_timezone_from_offset_and_name() {
 }
 
 #[test]
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, GraalPy)))]
 fn ascii_object_bitfield() {
     let ob_base: PyObject = unsafe { std::mem::zeroed() };
 
@@ -158,11 +158,16 @@ fn ascii_object_bitfield() {
         o.set_ready(1);
         #[cfg(not(Py_3_12))]
         assert_eq!(o.ready(), 1);
+
+        #[cfg(Py_3_12)]
+        o.set_statically_allocated(1);
+        #[cfg(Py_3_12)]
+        assert_eq!(o.statically_allocated(), 1);
     }
 }
 
 #[test]
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 fn ascii() {
     Python::with_gil(|py| {
         // This test relies on implementation details of PyString.
@@ -203,7 +208,7 @@ fn ascii() {
 }
 
 #[test]
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 fn ucs4() {
     Python::with_gil(|py| {
         let s = "哈哈🐈";
@@ -248,14 +253,14 @@ fn ucs4() {
 #[test]
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
-#[cfg(not(PyPy))]
+#[cfg(not(all(PyPy, not(Py_3_10))))]
 fn test_get_tzinfo() {
-    use crate::types::timezone_utc;
+    use crate::types::PyTzInfo;
 
     crate::Python::with_gil(|py| {
         use crate::types::{PyDateTime, PyTime};
 
-        let utc = &timezone_utc(py);
+        let utc: &Bound<'_, _> = &PyTzInfo::utc(py).unwrap();
 
         let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(utc)).unwrap();
 

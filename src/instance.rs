@@ -7,8 +7,8 @@ use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{DerefToPyAny, PyDict, PyString, PyTuple};
 use crate::{
-    ffi, AsPyPointer, DowncastError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef,
-    PyRefMut, PyTypeInfo, Python,
+    ffi, DowncastError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef, PyRefMut,
+    PyTypeInfo, Python,
 };
 use crate::{gil, PyTypeCheck};
 use std::marker::PhantomData;
@@ -497,7 +497,7 @@ fn python_format(
     }
 
     match any.get_type().name() {
-        Result::Ok(name) => std::write!(f, "<unprintable {} object>", name),
+        Result::Ok(name) => std::write!(f, "<unprintable {name} object>"),
         Result::Err(_err) => f.write_str("<unprintable object>"),
     }
 }
@@ -521,6 +521,13 @@ impl<'py, T> AsRef<Bound<'py, PyAny>> for Bound<'py, T> {
     #[inline]
     fn as_ref(&self) -> &Bound<'py, PyAny> {
         self.as_any()
+    }
+}
+
+impl<T> AsRef<Py<PyAny>> for Bound<'_, T> {
+    #[inline]
+    fn as_ref(&self) -> &Py<PyAny> {
+        self.as_any().as_unbound()
     }
 }
 
@@ -609,13 +616,6 @@ impl<'py, T> Bound<'py, T> {
     #[inline]
     pub fn as_unbound(&self) -> &Py<T> {
         &self.1
-    }
-}
-
-unsafe impl<T> AsPyPointer for Bound<'_, T> {
-    #[inline]
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.1.as_ptr()
     }
 }
 
@@ -798,6 +798,13 @@ impl<'a, 'py, T> From<&'a Bound<'py, T>> for Borrowed<'a, 'py, T> {
     #[inline]
     fn from(instance: &'a Bound<'py, T>) -> Self {
         instance.as_borrowed()
+    }
+}
+
+impl<T> AsRef<Py<PyAny>> for Borrowed<'_, '_, T> {
+    #[inline]
+    fn as_ref(&self) -> &Py<PyAny> {
+        self.as_any().as_unbound()
     }
 }
 
@@ -1315,8 +1322,8 @@ impl<T> Py<T> {
     ///
     /// This is equivalent to the Python expression `self is other`.
     #[inline]
-    pub fn is<U: AsPyPointer>(&self, o: &U) -> bool {
-        ptr::eq(self.as_ptr(), o.as_ptr())
+    pub fn is<U: AsRef<Py<PyAny>>>(&self, o: U) -> bool {
+        ptr::eq(self.as_ptr(), o.as_ref().as_ptr())
     }
 
     /// Gets the reference count of the `ffi::PyObject` pointer.
@@ -1692,11 +1699,10 @@ impl<T> Py<T> {
     }
 }
 
-unsafe impl<T> crate::AsPyPointer for Py<T> {
-    /// Gets the underlying FFI pointer, returns a borrowed pointer.
+impl<T> AsRef<Py<PyAny>> for Py<T> {
     #[inline]
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.0.as_ptr()
+    fn as_ref(&self) -> &Py<PyAny> {
+        self.as_any()
     }
 }
 
@@ -1724,6 +1730,12 @@ impl<T> std::convert::From<Bound<'_, T>> for Py<T> {
     #[inline]
     fn from(other: Bound<'_, T>) -> Self {
         other.unbind()
+    }
+}
+
+impl<T> std::convert::From<Borrowed<'_, '_, T>> for Py<T> {
+    fn from(value: Borrowed<'_, '_, T>) -> Self {
+        value.unbind()
     }
 }
 
@@ -2096,7 +2108,7 @@ a = A()
     fn test_debug_fmt() {
         Python::with_gil(|py| {
             let obj = "hello world".into_pyobject(py).unwrap();
-            assert_eq!(format!("{:?}", obj), "'hello world'");
+            assert_eq!(format!("{obj:?}"), "'hello world'");
         });
     }
 
@@ -2104,7 +2116,7 @@ a = A()
     fn test_display_fmt() {
         Python::with_gil(|py| {
             let obj = "hello world".into_pyobject(py).unwrap();
-            assert_eq!(format!("{}", obj), "hello world");
+            assert_eq!(format!("{obj}"), "hello world");
         });
     }
 
@@ -2137,6 +2149,17 @@ a = A()
             let obj: Bound<'_, PyString> = obj_unbound.into_bound(py);
 
             assert_eq!(obj, "hello world");
+        });
+    }
+
+    #[test]
+    fn test_borrowed_identity() {
+        Python::with_gil(|py| {
+            let yes = true.into_pyobject(py).unwrap();
+            let no = false.into_pyobject(py).unwrap();
+
+            assert!(yes.is(yes));
+            assert!(!yes.is(no));
         });
     }
 

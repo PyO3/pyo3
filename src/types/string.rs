@@ -609,7 +609,7 @@ mod tests {
     fn test_debug_string() {
         Python::with_gil(|py| {
             let s = "Hello\n".into_pyobject(py).unwrap();
-            assert_eq!(format!("{:?}", s), "'Hello\\n'");
+            assert_eq!(format!("{s:?}"), "'Hello\\n'");
         })
     }
 
@@ -617,7 +617,7 @@ mod tests {
     fn test_display_string() {
         Python::with_gil(|py| {
             let s = "Hello\n".into_pyobject(py).unwrap();
-            assert_eq!(format!("{}", s), "Hello\n");
+            assert_eq!(format!("{s}"), "Hello\n");
         })
     }
 
@@ -647,7 +647,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn test_string_data_ucs1() {
         Python::with_gil(|py| {
             let s = PyString::new(py, "hello, world");
@@ -660,7 +660,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn test_string_data_ucs1_invalid() {
         Python::with_gil(|py| {
             // 0xfe is not allowed in UTF-8.
@@ -677,7 +677,7 @@ mod tests {
             let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs1(b"f\xfe"));
             let err = data.to_string(py).unwrap_err();
-            assert!(err.get_type(py).is(&py.get_type::<PyUnicodeDecodeError>()));
+            assert!(err.get_type(py).is(py.get_type::<PyUnicodeDecodeError>()));
             assert!(err
                 .to_string()
                 .contains("'utf-8' codec can't decode byte 0xfe in position 1"));
@@ -686,7 +686,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn test_string_data_ucs2() {
         Python::with_gil(|py| {
             let s = py.eval(ffi::c_str!("'foo\\ud800'"), None, None).unwrap();
@@ -702,7 +702,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(not(any(Py_LIMITED_API, PyPy)), target_endian = "little"))]
+    #[cfg(all(not(any(Py_LIMITED_API, PyPy, GraalPy)), target_endian = "little"))]
     fn test_string_data_ucs2_invalid() {
         Python::with_gil(|py| {
             // U+FF22 (valid) & U+d800 (never valid)
@@ -719,7 +719,7 @@ mod tests {
             let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs2(&[0xff22, 0xd800]));
             let err = data.to_string(py).unwrap_err();
-            assert!(err.get_type(py).is(&py.get_type::<PyUnicodeDecodeError>()));
+            assert!(err.get_type(py).is(py.get_type::<PyUnicodeDecodeError>()));
             assert!(err
                 .to_string()
                 .contains("'utf-16' codec can't decode bytes in position 0-3"));
@@ -728,7 +728,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn test_string_data_ucs4() {
         Python::with_gil(|py| {
             let s = "哈哈🐈";
@@ -741,7 +741,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(not(any(Py_LIMITED_API, PyPy)), target_endian = "little"))]
+    #[cfg(all(not(any(Py_LIMITED_API, PyPy, GraalPy)), target_endian = "little"))]
     fn test_string_data_ucs4_invalid() {
         Python::with_gil(|py| {
             // U+20000 (valid) & U+d800 (never valid)
@@ -758,7 +758,7 @@ mod tests {
             let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs4(&[0x20000, 0xd800]));
             let err = data.to_string(py).unwrap_err();
-            assert!(err.get_type(py).is(&py.get_type::<PyUnicodeDecodeError>()));
+            assert!(err.get_type(py).is(py.get_type::<PyUnicodeDecodeError>()));
             assert!(err
                 .to_string()
                 .contains("'utf-32' codec can't decode bytes in position 0-7"));

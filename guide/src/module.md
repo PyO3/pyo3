@@ -124,6 +124,9 @@ mod my_extension {
     #[pymodule_export]
     use super::double; // Exports the double function as part of the module
 
+    #[pymodule_export]
+    const PI: f64 = std::f64::consts::PI; // Exports PI constant as part of the module
+
     #[pyfunction] // This will be part of the module
     fn triple(x: usize) -> usize {
         x * 3

@@ -3,8 +3,25 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
-## from 0.22.* to 0.23
+## from 0.24.* to 0.25
+### `AsPyPointer` removal
 <details open>
+<summary><small>Click to expand</small></summary>
+The `AsPyPointer` trait is mostly a leftover from the now removed gil-refs API. The last remaining uses were the GC API, namely `PyVisit::call`, and identity comparison (`PyAnyMethods::is` and `Py::is`).
+
+`PyVisit::call` has been updated to take `T: Into<Option<&Py<T>>>`, which allows for arguments of type `&Py<T>`, `&Option<Py<T>>` and `Option<&Py<T>>`. It is unlikely any changes are needed here to migrate.
+
+`PyAnyMethods::is`/`Py::is` has been updated to take `T: AsRef<Py<PyAny>>>`. Additionally `AsRef<Py<PyAny>>>` implementations were added for `Py`, `Bound` and `Borrowed`. Because of the existing `AsRef<Bound<PyAny>> for Bound<T>` implementation this may cause inference issues in non-generic code. This can be easily migrated by switching to `as_any` instead of `as_ref` for these calls.
+</details>
+
+## from 0.23.* to 0.24
+<details>
+<summary><small>Click to expand</small></summary>
+There were no significant changes from 0.23 to 0.24 which required documenting in this guide.
+</details>
+
+## from 0.22.* to 0.23
+<details>
 <summary><small>Click to expand</small></summary>
 
 PyO3 0.23 is a significant rework of PyO3's internals for two major improvements:
@@ -20,7 +37,7 @@ The sections below discuss the rationale and details of each change in more dept
 </details>
 
 ### Free-threaded Python Support
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 PyO3 0.23 introduces initial support for the new free-threaded build of
@@ -43,7 +60,7 @@ See [the guide section on free-threaded Python](free-threading.md) for more deta
 </details>
 
 ### New `IntoPyObject` trait unifies to-Python conversions
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 PyO3 0.23 introduces a new `IntoPyObject` trait to convert Rust types into Python objects which replaces both `IntoPy` and `ToPyObject`.
@@ -132,7 +149,7 @@ impl<'a, 'py> IntoPyObject<'py> for &'a MyPyObjectWrapper {
 </details>
 
 ### To-Python conversions changed for byte collections (`Vec<u8>`, `[u8; N]` and `SmallVec<[u8; N]>`).
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 With the introduction of the `IntoPyObject` trait, PyO3's macros now prefer `IntoPyObject` implementations over `IntoPy<PyObject>` when producing Python values. This applies to `#[pyfunction]` and `#[pymethods]` return values and also fields accessed via `#[pyo3(get)]`.
@@ -170,7 +187,7 @@ This is purely additional and should just extend the possible return types.
 </details>
 
 ### `gil-refs` feature removed
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 PyO3 0.23 completes the removal of the "GIL Refs" API in favour of the new "Bound" API introduced in PyO3 0.21.
