@@ -166,7 +166,7 @@ struct StaticMethodWithArgs {}
 impl StaticMethodWithArgs {
     #[staticmethod]
     fn method(_py: Python<'_>, input: i32) -> String {
-        format!("0x{:x}", input)
+        format!("0x{input:x}")
     }
 }
 

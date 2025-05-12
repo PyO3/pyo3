@@ -38,7 +38,7 @@ fn configure_pyo3() -> Result<()> {
     ensure_auto_initialize_ok(interpreter_config)?;
 
     for cfg in interpreter_config.build_script_outputs() {
-        println!("{}", cfg)
+        println!("{cfg}")
     }
 
     // Emit cfgs like `invalid_from_utf8_lint`

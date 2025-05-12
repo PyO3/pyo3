@@ -497,7 +497,7 @@ fn python_format(
     }
 
     match any.get_type().name() {
-        Result::Ok(name) => std::write!(f, "<unprintable {} object>", name),
+        Result::Ok(name) => std::write!(f, "<unprintable {name} object>"),
         Result::Err(_err) => f.write_str("<unprintable object>"),
     }
 }
@@ -2108,7 +2108,7 @@ a = A()
     fn test_debug_fmt() {
         Python::with_gil(|py| {
             let obj = "hello world".into_pyobject(py).unwrap();
-            assert_eq!(format!("{:?}", obj), "'hello world'");
+            assert_eq!(format!("{obj:?}"), "'hello world'");
         });
     }
 
@@ -2116,7 +2116,7 @@ a = A()
     fn test_display_fmt() {
         Python::with_gil(|py| {
             let obj = "hello world".into_pyobject(py).unwrap();
-            assert_eq!(format!("{}", obj), "hello world");
+            assert_eq!(format!("{obj}"), "hello world");
         });
     }
 

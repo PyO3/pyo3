@@ -451,8 +451,7 @@ impl PyTypeBuilder {
 
         if self.has_clear && !self.has_traverse {
             return Err(PyTypeError::new_err(format!(
-                "`#[pyclass]` {} implements __clear__ without __traverse__",
-                name
+                "`#[pyclass]` {name} implements __clear__ without __traverse__"
             )));
         }
 
@@ -562,8 +561,7 @@ unsafe extern "C" fn no_constructor_defined(
                 .name()
                 .map_or_else(|_| "<unknown>".into(), |name| name.to_string());
             Err(crate::exceptions::PyTypeError::new_err(format!(
-                "No constructor defined for {}",
-                name
+                "No constructor defined for {name}"
             )))
         })
     }
