@@ -117,21 +117,18 @@
 //! [`Rc`]: std::rc::Rc
 //! [`Py`]: crate::Py
 use crate::conversion::IntoPyObject;
-use crate::err::PyErr;
 use crate::err::{self, PyResult};
-use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::gil::{GILGuard, SuspendGIL};
 use crate::impl_::not_send::NotSend;
-use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::{
-    PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
+    PyAny, PyCode, PyCodeMethods, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString,
+    PyType,
 };
 use crate::version::PythonVersionInfo;
 use crate::{ffi, Bound, PyObject, PyTypeInfo};
 use std::ffi::CStr;
 use std::marker::PhantomData;
-use std::os::raw::c_int;
 
 /// Types that are safe to access while the GIL is not held.
 ///
@@ -567,7 +564,13 @@ impl<'py> Python<'py> {
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        self.run_code(code, ffi::Py_eval_input, globals, locals)
+        let code = PyCode::compile(
+            self,
+            code,
+            ffi::c_str!("<string>"),
+            crate::types::PyCodeInput::Eval,
+        )?;
+        code.run(globals, locals)
     }
 
     /// Executes one or more Python statements in the given context.
@@ -611,77 +614,15 @@ impl<'py> Python<'py> {
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
-        let res = self.run_code(code, ffi::Py_file_input, globals, locals);
-        res.map(|obj| {
+        let code = PyCode::compile(
+            self,
+            code,
+            ffi::c_str!("<string>"),
+            crate::types::PyCodeInput::File,
+        )?;
+        code.run(globals, locals).map(|obj| {
             debug_assert!(obj.is_none());
         })
-    }
-
-    /// Runs code in the given context.
-    ///
-    /// `start` indicates the type of input expected: one of `Py_single_input`,
-    /// `Py_file_input`, or `Py_eval_input`.
-    ///
-    /// If `globals` is `None`, it defaults to Python module `__main__`.
-    /// If `locals` is `None`, it defaults to the value of `globals`.
-    fn run_code(
-        self,
-        code: &CStr,
-        start: c_int,
-        globals: Option<&Bound<'py, PyDict>>,
-        locals: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        let mptr = unsafe {
-            ffi::compat::PyImport_AddModuleRef(ffi::c_str!("__main__").as_ptr())
-                .assume_owned_or_err(self)?
-        };
-        let attr = mptr.getattr(crate::intern!(self, "__dict__"))?;
-        let globals = match globals {
-            Some(globals) => globals,
-            None => attr.downcast::<PyDict>()?,
-        };
-        let locals = locals.unwrap_or(globals);
-
-        // If `globals` don't provide `__builtins__`, most of the code will fail if Python
-        // version is <3.10. That's probably not what user intended, so insert `__builtins__`
-        // for them.
-        //
-        // See also:
-        // - https://github.com/python/cpython/pull/24564 (the same fix in CPython 3.10)
-        // - https://github.com/PyO3/pyo3/issues/3370
-        let builtins_s = crate::intern!(self, "__builtins__");
-        let has_builtins = globals.contains(builtins_s)?;
-        if !has_builtins {
-            crate::sync::with_critical_section(globals, || {
-                // check if another thread set __builtins__ while this thread was blocked on the critical section
-                let has_builtins = globals.contains(builtins_s)?;
-                if !has_builtins {
-                    // Inherit current builtins.
-                    let builtins = unsafe { ffi::PyEval_GetBuiltins() };
-
-                    // `PyDict_SetItem` doesn't take ownership of `builtins`, but `PyEval_GetBuiltins`
-                    // seems to return a borrowed reference, so no leak here.
-                    if unsafe {
-                        ffi::PyDict_SetItem(globals.as_ptr(), builtins_s.as_ptr(), builtins)
-                    } == -1
-                    {
-                        return Err(PyErr::fetch(self));
-                    }
-                }
-                Ok(())
-            })?;
-        }
-
-        let code_obj = unsafe {
-            ffi::Py_CompileString(code.as_ptr(), ffi::c_str!("<string>").as_ptr(), start)
-                .assume_owned_or_err(self)?
-        };
-
-        unsafe {
-            ffi::PyEval_EvalCode(code_obj.as_ptr(), globals.as_ptr(), locals.as_ptr())
-                .assume_owned_or_err(self)
-                .downcast_into_unchecked()
-        }
     }
 
     /// Gets the Python type object for type `T`.
@@ -766,7 +707,7 @@ impl<'py> Python<'py> {
     /// Lets the Python interpreter check and handle any pending signals. This will invoke the
     /// corresponding signal handlers registered in Python (if any).
     ///
-    /// Returns `Err(`[`PyErr`]`)` if any signal handler raises an exception.
+    /// Returns `Err(`[`PyErr`](crate::PyErr)`)` if any signal handler raises an exception.
     ///
     /// These signals include `SIGINT` (normally raised by CTRL + C), which by default raises
     /// `KeyboardInterrupt`. For this reason it is good practice to call this function regularly
@@ -939,6 +880,8 @@ mod tests {
     #[test]
     #[cfg(not(Py_LIMITED_API))]
     fn test_acquire_gil() {
+        use std::ffi::c_int;
+
         const GIL_NOT_HELD: c_int = 0;
         const GIL_HELD: c_int = 1;
 
