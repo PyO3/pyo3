@@ -176,7 +176,7 @@ jobs:
       rust: ${{ matrix.rust }}
       rust-target: ${{ matrix.platform.rust-target }}
       MSRV: ${{ needs.resolve.outputs.MSRV }}
-      verbose: ${{ needs.resole.outputs.verbose }}
+      verbose: ${{ needs.resolve.outputs.verbose }}
     secrets: inherit
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
@@ -250,7 +250,7 @@ jobs:
       rust: ${{ matrix.rust }}
       rust-target: ${{ matrix.platform.rust-target }}
       MSRV: ${{ needs.resolve.outputs.MSRV }}
-      verbose: ${{ needs.resole.outputs.verbose }}
+      verbose: ${{ needs.resolve.outputs.verbose }}
     secrets: inherit
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
