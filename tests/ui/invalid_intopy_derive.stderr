@@ -149,3 +149,33 @@ error: `into_py_with` is not permitted on `transparent` structs or variants
     |
 136 |         #[pyo3(into_py_with = into)]
     |                ^^^^^^^^^^^^
+
+error: `rename_all` is not permitted on `transparent` structs and variants
+   --> tests/ui/invalid_intopy_derive.rs:142:21
+    |
+142 | #[pyo3(transparent, rename_all = "camelCase")]
+    |                     ^^^^^^^^^^
+
+error: `rename_all` is useless on tuple structs and variants.
+   --> tests/ui/invalid_intopy_derive.rs:148:8
+    |
+148 | #[pyo3(rename_all = "camelCase")]
+    |        ^^^^^^^^^^
+
+error: `rename_all` is not permitted on `transparent` structs and variants
+   --> tests/ui/invalid_intopy_derive.rs:153:12
+    |
+153 |     #[pyo3(rename_all = "camelCase")]
+    |            ^^^^^^^^^^
+
+error: `rename_all` is useless on tuple structs and variants.
+   --> tests/ui/invalid_intopy_derive.rs:160:12
+    |
+160 |     #[pyo3(rename_all = "camelCase")]
+    |            ^^^^^^^^^^
+
+error: `rename_all` is not supported at top level for enums
+   --> tests/ui/invalid_intopy_derive.rs:165:8
+    |
+165 | #[pyo3(rename_all = "camelCase")]
+    |        ^^^^^^^^^^
