@@ -714,3 +714,34 @@ fn test_unsendable_dict_with_weakref() {
         );
     });
 }
+
+#[cfg(Py_3_9)]
+#[pyclass(generic)]
+struct ClassWithRuntimeParametrization {
+    #[pyo3(get, set)]
+    value: PyObject,
+}
+
+#[cfg(Py_3_9)]
+#[pymethods]
+impl ClassWithRuntimeParametrization {
+    #[new]
+    fn new(value: PyObject) -> ClassWithRuntimeParametrization {
+        Self { value }
+    }
+}
+
+#[test]
+#[cfg(Py_3_9)]
+fn test_runtime_parametrization() {
+    Python::with_gil(|py| {
+        let ty = py.get_type::<ClassWithRuntimeParametrization>();
+        py_assert!(py, ty, "ty[int] == ty.__class_getitem__((int,))");
+        py_run!(
+            py,
+            ty,
+            "import types;
+            assert ty.__class_getitem__((int,)) == types.GenericAlias(ty, (int,))"
+        );
+    });
+}
