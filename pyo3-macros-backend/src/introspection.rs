@@ -110,7 +110,7 @@ pub fn function_introspection_code(
     if let Some(parent) = parent {
         desc.insert(
             "parent",
-            IntrospectionNode::IntrospectionId(Some(parent.clone())),
+            IntrospectionNode::IntrospectionId(Some(Cow::Borrowed(parent))),
         );
     }
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
@@ -219,7 +219,7 @@ fn argument_introspection_data<'a>(
 
 enum IntrospectionNode<'a> {
     String(Cow<'a, str>),
-    IntrospectionId(Option<Type>),
+    IntrospectionId(Option<Cow<'a, Type>>),
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<IntrospectionNode<'a>>),
 }
@@ -369,10 +369,12 @@ fn unique_element_id() -> u64 {
     hasher.finish()
 }
 
-fn ident_to_type(ident: &Ident) -> Type {
-    TypePath {
-        path: ident.clone().into(),
-        qself: None,
-    }
-    .into()
+fn ident_to_type(ident: &Ident) -> Cow<'static, Type> {
+    Cow::Owned(
+        TypePath {
+            path: ident.clone().into(),
+            qself: None,
+        }
+        .into(),
+    )
 }

@@ -165,8 +165,8 @@ impl<'a> PyMethod<'a> {
         meth_attrs: &mut Vec<syn::Attribute>,
         options: PyFunctionOptions,
     ) -> Result<Self> {
-        ensure_function_options_valid(&options)?;
         check_generic(sig)?;
+        ensure_function_options_valid(&options)?;
         let spec = FnSpec::parse(sig, meth_attrs, options)?;
 
         let method_name = spec.python_name.to_string();

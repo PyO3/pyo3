@@ -101,33 +101,7 @@ fn convert_members(
                 )?);
             }
             Chunk::Class { name, id } => {
-                let (_, _, mut methods) = convert_members(
-                    chunks_by_parent
-                        .get(&id.as_str())
-                        .map(Vec::as_slice)
-                        .unwrap_or_default(),
-                    chunks_by_id,
-                    chunks_by_parent,
-                )?;
-                // We sort methods to get a stable output
-                methods.sort_by(|l, r| match l.name.cmp(&r.name) {
-                    Ordering::Equal => {
-                        // We put the getter before the setter
-                        if l.decorators.iter().any(|d| d == "property") {
-                            Ordering::Less
-                        } else if r.decorators.iter().any(|d| d == "property") {
-                            Ordering::Greater
-                        } else {
-                            // We pick an ordering based on decorators
-                            l.decorators.cmp(&r.decorators)
-                        }
-                    }
-                    o => o,
-                });
-                classes.push(Class {
-                    name: name.into(),
-                    methods,
-                })
+                classes.push(convert_class(id, name, chunks_by_id, chunks_by_parent)?)
             }
             Chunk::Function {
                 name,
@@ -135,34 +109,73 @@ fn convert_members(
                 arguments,
                 parent: _,
                 decorators,
-            } => functions.push(Function {
-                name: name.into(),
-                decorators: decorators.clone(),
-                arguments: Arguments {
-                    positional_only_arguments: arguments
-                        .posonlyargs
-                        .iter()
-                        .map(convert_argument)
-                        .collect(),
-                    arguments: arguments.args.iter().map(convert_argument).collect(),
-                    vararg: arguments
-                        .vararg
-                        .as_ref()
-                        .map(convert_variable_length_argument),
-                    keyword_only_arguments: arguments
-                        .kwonlyargs
-                        .iter()
-                        .map(convert_argument)
-                        .collect(),
-                    kwarg: arguments
-                        .kwarg
-                        .as_ref()
-                        .map(convert_variable_length_argument),
-                },
-            }),
+            } => functions.push(convert_function(name, arguments, decorators)),
         }
     }
     Ok((modules, classes, functions))
+}
+
+fn convert_class(
+    id: &str,
+    name: &str,
+    chunks_by_id: &HashMap<&str, &Chunk>,
+    chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
+) -> Result<Class> {
+    let (nested_modules, nested_classes, mut methods) = convert_members(
+        chunks_by_parent
+            .get(&id)
+            .map(Vec::as_slice)
+            .unwrap_or_default(),
+        chunks_by_id,
+        chunks_by_parent,
+    )?;
+    ensure!(
+        nested_modules.is_empty(),
+        "Classes cannot contain nested modules"
+    );
+    ensure!(
+        nested_classes.is_empty(),
+        "Nested classes are not supported yet"
+    );
+    // We sort methods to get a stable output
+    methods.sort_by(|l, r| match l.name.cmp(&r.name) {
+        Ordering::Equal => {
+            // We put the getter before the setter
+            if l.decorators.iter().any(|d| d == "property") {
+                Ordering::Less
+            } else if r.decorators.iter().any(|d| d == "property") {
+                Ordering::Greater
+            } else {
+                // We pick an ordering based on decorators
+                l.decorators.cmp(&r.decorators)
+            }
+        }
+        o => o,
+    });
+    Ok(Class {
+        name: name.into(),
+        methods,
+    })
+}
+
+fn convert_function(name: &str, arguments: &ChunkArguments, decorators: &[String]) -> Function {
+    Function {
+        name: name.into(),
+        decorators: decorators.to_vec(),
+        arguments: Arguments {
+            positional_only_arguments: arguments.posonlyargs.iter().map(convert_argument).collect(),
+            arguments: arguments.args.iter().map(convert_argument).collect(),
+            vararg: arguments
+                .vararg
+                .as_ref()
+                .map(convert_variable_length_argument),
+            keyword_only_arguments: arguments.kwonlyargs.iter().map(convert_argument).collect(),
+            kwarg: arguments
+                .kwarg
+                .as_ref()
+                .map(convert_variable_length_argument),
+        },
+    }
 }
 
 fn convert_argument(arg: &ChunkArgument) -> Argument {
