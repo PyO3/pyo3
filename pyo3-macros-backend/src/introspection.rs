@@ -10,7 +10,7 @@
 
 use crate::method::{FnArg, RegularArg};
 use crate::pyfunction::FunctionSignature;
-use crate::utils::PyO3CratePath;
+use crate::utils::{PyO3CratePath, TypeExt};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::borrow::Cow;
@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use syn::{Attribute, Ident};
+use syn::{Attribute, Ident, Type};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
 
@@ -179,12 +179,36 @@ fn argument_introspection_data<'a>(
             IntrospectionNode::String(desc.default_value().into()),
         );
     }
+    if desc.from_py_with.is_none() {
+        // If from_py_with is set we don't know anything on the input type
+        if let Some(ty) = desc.option_wrapped_type {
+            // Special case to properly generate a `T | None` annotation
+            let ty = ty.clone().elide_lifetimes();
+            params.insert(
+                "annotation",
+                IntrospectionNode::InputType {
+                    rust_type: ty,
+                    nullable: true,
+                },
+            );
+        } else {
+            let ty = desc.ty.clone().elide_lifetimes();
+            params.insert(
+                "annotation",
+                IntrospectionNode::InputType {
+                    rust_type: ty,
+                    nullable: false,
+                },
+            );
+        }
+    }
     IntrospectionNode::Map(params)
 }
 
 enum IntrospectionNode<'a> {
     String(Cow<'a, str>),
     IntrospectionId(Option<&'a Ident>),
+    InputType { rust_type: Type, nullable: bool },
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<IntrospectionNode<'a>>),
 }
@@ -192,7 +216,7 @@ enum IntrospectionNode<'a> {
 impl IntrospectionNode<'_> {
     fn emit(self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
         let mut content = ConcatenationBuilder::default();
-        self.add_to_serialization(&mut content);
+        self.add_to_serialization(&mut content, pyo3_crate_path);
         let content = content.into_token_stream(pyo3_crate_path);
 
         let static_name = format_ident!("PYO3_INTROSPECTION_0_{}", unique_element_id());
@@ -206,7 +230,11 @@ impl IntrospectionNode<'_> {
         }
     }
 
-    fn add_to_serialization(self, content: &mut ConcatenationBuilder) {
+    fn add_to_serialization(
+        self,
+        content: &mut ConcatenationBuilder,
+        pyo3_crate_path: &PyO3CratePath,
+    ) {
         match self {
             Self::String(string) => {
                 content.push_str_to_escape(&string);
@@ -216,8 +244,19 @@ impl IntrospectionNode<'_> {
                 content.push_tokens(if let Some(ident) = ident {
                     quote! { #ident::_PYO3_INTROSPECTION_ID }
                 } else {
-                    Ident::new("_PYO3_INTROSPECTION_ID", Span::call_site()).into_token_stream()
+                    quote! { _PYO3_INTROSPECTION_ID }
                 });
+                content.push_str("\"");
+            }
+            Self::InputType {
+                rust_type,
+                nullable,
+            } => {
+                content.push_str("\"");
+                content.push_tokens(quote! { <#rust_type as #pyo3_crate_path::impl_::extract_argument::PyFunctionArgument<false>>::INPUT_TYPE });
+                if nullable {
+                    content.push_str(" | None");
+                }
                 content.push_str("\"");
             }
             Self::Map(map) => {
@@ -228,7 +267,7 @@ impl IntrospectionNode<'_> {
                     }
                     content.push_str_to_escape(key);
                     content.push_str(":");
-                    value.add_to_serialization(content);
+                    value.add_to_serialization(content, pyo3_crate_path);
                 }
                 content.push_str("}");
             }
@@ -238,7 +277,7 @@ impl IntrospectionNode<'_> {
                     if i > 0 {
                         content.push_str(",");
                     }
-                    value.add_to_serialization(content);
+                    value.add_to_serialization(content, pyo3_crate_path);
                 }
                 content.push_str("]");
             }

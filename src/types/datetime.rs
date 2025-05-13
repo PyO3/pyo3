@@ -239,6 +239,8 @@ pyobject_native_type_named!(PyDate);
 #[cfg(Py_LIMITED_API)]
 impl PyTypeCheck for PyDate {
     const NAME: &'static str = "PyDate";
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "datetime.date";
 
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         let py = object.py();
@@ -338,6 +340,8 @@ pyobject_native_type_named!(PyDateTime);
 #[cfg(Py_LIMITED_API)]
 impl PyTypeCheck for PyDateTime {
     const NAME: &'static str = "PyDateTime";
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "datetime.datetime";
 
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         let py = object.py();
@@ -587,6 +591,8 @@ pyobject_native_type_named!(PyTime);
 #[cfg(Py_LIMITED_API)]
 impl PyTypeCheck for PyTime {
     const NAME: &'static str = "PyTime";
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "datetime.time";
 
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         let py = object.py();
@@ -771,6 +777,8 @@ pyobject_native_type_named!(PyTzInfo);
 #[cfg(Py_LIMITED_API)]
 impl PyTypeCheck for PyTzInfo {
     const NAME: &'static str = "PyTzInfo";
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "datetime.tzinfo";
 
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         let py = object.py();
@@ -885,6 +893,8 @@ pyobject_native_type_named!(PyDelta);
 #[cfg(Py_LIMITED_API)]
 impl PyTypeCheck for PyDelta {
     const NAME: &'static str = "PyDelta";
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "datetime.timedelta";
 
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         let py = object.py();
