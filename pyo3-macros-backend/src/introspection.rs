@@ -10,7 +10,7 @@
 
 use crate::method::{FnArg, RegularArg};
 use crate::pyfunction::FunctionSignature;
-use crate::utils::PyO3CratePath;
+use crate::utils::{PyO3CratePath, TypeExt};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::borrow::Cow;
@@ -19,10 +19,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use syn::{
-    AngleBracketedGenericArguments, Attribute, GenericArgument, Ident, Lifetime, Path,
-    PathArguments, PathSegment, Type, TypeArray, TypePath, TypeReference,
-};
+use syn::{Attribute, Ident, Type};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
 
@@ -186,7 +183,7 @@ fn argument_introspection_data<'a>(
         // If from_py_with is set we don't know anything on the input type
         if let Some(ty) = desc.option_wrapped_type {
             // Special case to properly generate a `T | None` annotation
-            let ty = remove_bound_lifetimes(ty.clone());
+            let ty = ty.clone().elide_lifetimes();
             params.insert(
                 "annotation",
                 IntrospectionNode::InputType {
@@ -195,7 +192,7 @@ fn argument_introspection_data<'a>(
                 },
             );
         } else {
-            let ty = remove_bound_lifetimes(desc.ty.clone());
+            let ty = desc.ty.clone().elide_lifetimes();
             params.insert(
                 "annotation",
                 IntrospectionNode::InputType {
@@ -374,60 +371,4 @@ fn unique_element_id() -> u64 {
         .fetch_add(1, Ordering::Relaxed)
         .hash(&mut hasher); // If there are multiple elements in the same call site
     hasher.finish()
-}
-
-/// Hack function that changes explicit lifetime parameters like 'py into '_ to be able to use the type outside of its position
-fn remove_bound_lifetimes(t: Type) -> Type {
-    match t {
-        Type::Array(t) => Type::Array(TypeArray {
-            bracket_token: t.bracket_token,
-            elem: Box::new(remove_bound_lifetimes(*t.elem)),
-            semi_token: t.semi_token,
-            len: t.len,
-        }),
-        Type::Path(t) => Type::Path(TypePath {
-            qself: t.qself,
-            path: Path {
-                leading_colon: t.path.leading_colon,
-                segments: t
-                    .path
-                    .segments
-                    .into_iter()
-                    .map(|s| PathSegment {
-                        ident: s.ident,
-                        arguments: match s.arguments {
-                            PathArguments::AngleBracketed(a) => {
-                                PathArguments::AngleBracketed(AngleBracketedGenericArguments {
-                                    colon2_token: a.colon2_token,
-                                    lt_token: a.lt_token,
-                                    args: a
-                                        .args
-                                        .into_iter()
-                                        .map(|a| match a {
-                                            GenericArgument::Lifetime(l) => {
-                                                GenericArgument::Lifetime(Lifetime::new(
-                                                    "'_",
-                                                    l.span(),
-                                                ))
-                                            }
-                                            _ => a,
-                                        })
-                                        .collect(),
-                                    gt_token: a.gt_token,
-                                })
-                            }
-                            a => a,
-                        },
-                    })
-                    .collect(),
-            },
-        }),
-        Type::Reference(t) => Type::Reference(TypeReference {
-            and_token: t.and_token,
-            lifetime: None,
-            mutability: t.mutability,
-            elem: Box::new(remove_bound_lifetimes(*t.elem)),
-        }),
-        _ => t, // TODO: support?
-    }
 }
