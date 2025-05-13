@@ -37,6 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       MSRV: ${{ steps.resolve-msrv.outputs.MSRV }}
+      verbose: ${{ runner.debug == '1' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -175,6 +176,7 @@ jobs:
       rust: ${{ matrix.rust }}
       rust-target: ${{ matrix.platform.rust-target }}
       MSRV: ${{ needs.resolve.outputs.MSRV }}
+      verbose: ${{ needs.resolve.outputs.verbose == 'true' }}
     secrets: inherit
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
@@ -248,6 +250,7 @@ jobs:
       rust: ${{ matrix.rust }}
       rust-target: ${{ matrix.platform.rust-target }}
       MSRV: ${{ needs.resolve.outputs.MSRV }}
+      verbose: ${{ needs.resolve.outputs.verbose == 'true' }}
     secrets: inherit
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
