@@ -1,14 +1,19 @@
 use std::collections::HashSet;
 
+#[cfg(feature = "experimental-inspect")]
+use crate::introspection::function_introspection_code;
+#[cfg(feature = "experimental-inspect")]
+use crate::method::{FnSpec, FnType};
 use crate::utils::{has_attribute, has_attribute_with_namespace, Ctx, PyO3CratePath};
 use crate::{
     attributes::{take_pyo3_options, CrateAttribute},
     konst::{ConstAttributes, ConstSpec},
     pyfunction::PyFunctionOptions,
-    pymethod::{self, is_proto_method, MethodAndMethodDef, MethodAndSlotDef},
+    pymethod::{
+        self, is_proto_method, GeneratedPyMethod, MethodAndMethodDef, MethodAndSlotDef, PyMethod,
+    },
 };
 use proc_macro2::TokenStream;
-use pymethod::GeneratedPyMethod;
 use quote::{format_ident, quote};
 use syn::ImplItemFn;
 use syn::{
@@ -110,7 +115,7 @@ pub fn impl_methods(
     methods_type: PyClassMethodsType,
     options: PyImplOptions,
 ) -> syn::Result<TokenStream> {
-    let mut trait_impls = Vec::new();
+    let mut extra_fragments = Vec::new();
     let mut proto_impls = Vec::new();
     let mut methods = Vec::new();
     let mut associated_methods = Vec::new();
@@ -125,9 +130,10 @@ pub fn impl_methods(
                 fun_options.krate = fun_options.krate.or_else(|| options.krate.clone());
 
                 check_pyfunction(&ctx.pyo3_path, meth)?;
-
-                match pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs, fun_options, ctx)?
-                {
+                let method = PyMethod::parse(&mut meth.sig, &mut meth.attrs, fun_options)?;
+                #[cfg(feature = "experimental-inspect")]
+                extra_fragments.push(method_introspection_code(&method.spec, ty, ctx));
+                match pymethod::gen_py_method(ty, method, &meth.attrs, ctx)? {
                     GeneratedPyMethod::Method(MethodAndMethodDef {
                         associated_method,
                         method_def,
@@ -139,7 +145,7 @@ pub fn impl_methods(
                     GeneratedPyMethod::SlotTraitImpl(method_name, token_stream) => {
                         implemented_proto_fragments.insert(method_name);
                         let attrs = get_cfg_attributes(&meth.attrs);
-                        trait_impls.push(quote!(#(#attrs)* #token_stream));
+                        extra_fragments.push(quote!(#(#attrs)* #token_stream));
                     }
                     GeneratedPyMethod::Proto(MethodAndSlotDef {
                         associated_method,
@@ -193,7 +199,7 @@ pub fn impl_methods(
     };
 
     Ok(quote! {
-        #(#trait_impls)*
+        #(#extra_fragments)*
 
         #items
 
@@ -335,4 +341,53 @@ pub(crate) fn get_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<&syn::Attribut
         .iter()
         .filter(|attr| attr.path().is_ident("cfg"))
         .collect()
+}
+
+#[cfg(feature = "experimental-inspect")]
+fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -> TokenStream {
+    let Ctx { pyo3_path, .. } = ctx;
+
+    // We introduce self/cls argument and setup decorators
+    let name = spec.python_name.to_string();
+    let mut first_argument = None;
+    let mut decorators = Vec::new();
+    match &spec.tp {
+        FnType::Getter(_) => {
+            first_argument = Some("self");
+            decorators.push("property".into());
+        }
+        FnType::Setter(_) => {
+            first_argument = Some("self");
+            decorators.push(format!("{name}.setter"));
+        }
+        FnType::Fn(_) => {
+            first_argument = Some("self");
+        }
+        FnType::FnNew | FnType::FnNewClass(_) => {
+            first_argument = Some("cls");
+        }
+        FnType::FnClass(_) => {
+            first_argument = Some("cls");
+            decorators.push("classmethod".into());
+        }
+        FnType::FnStatic => {
+            decorators.push("staticmethod".into());
+        }
+        FnType::FnModule(_) => (), // TODO: not sure this can happen
+        FnType::ClassAttribute => {
+            first_argument = Some("cls");
+            // TODO: this combination only works with Python 3.9-3.11 https://docs.python.org/3.11/library/functions.html#classmethod
+            decorators.push("classmethod".into());
+            decorators.push("property".into());
+        }
+    }
+    function_introspection_code(
+        pyo3_path,
+        None,
+        &name,
+        &spec.signature,
+        first_argument,
+        decorators,
+        Some(parent),
+    )
 }
