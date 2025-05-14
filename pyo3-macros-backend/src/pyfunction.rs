@@ -230,7 +230,15 @@ pub fn impl_wrap_pyfunction(
     let name = &func.sig.ident;
 
     #[cfg(feature = "experimental-inspect")]
-    let introspection = function_introspection_code(pyo3_path, name, &name.to_string(), &signature);
+    let introspection = function_introspection_code(
+        pyo3_path,
+        Some(name),
+        &name.to_string(),
+        &signature,
+        None,
+        [] as [String; 0],
+        None,
+    );
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection = quote! {};
     #[cfg(feature = "experimental-inspect")]

@@ -103,6 +103,45 @@ impl ClassWithDict {
     }
 }
 
+#[pyclass]
+struct ClassWithDecorators {
+    attr: usize,
+}
+
+#[pymethods]
+impl ClassWithDecorators {
+    #[new]
+    #[classmethod]
+    fn new(_cls: Bound<'_, PyType>) -> Self {
+        Self { attr: 0 }
+    }
+
+    #[getter]
+    fn get_attr(&self) -> usize {
+        self.attr
+    }
+
+    #[setter]
+    fn set_attr(&mut self, value: usize) {
+        self.attr = value;
+    }
+
+    #[classmethod]
+    fn cls_method(_cls: &Bound<'_, PyType>) -> usize {
+        1
+    }
+
+    #[staticmethod]
+    fn static_method() -> usize {
+        2
+    }
+
+    #[classattr]
+    fn cls_attribute() -> usize {
+        3
+    }
+}
+
 #[pymodule(gil_used = false)]
 pub mod pyclasses {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
@@ -110,6 +149,7 @@ pub mod pyclasses {
     use super::ClassWithDict;
     #[pymodule_export]
     use super::{
-        AssertingBaseClass, ClassWithoutConstructor, EmptyClass, PyClassIter, PyClassThreadIter,
+        AssertingBaseClass, ClassWithDecorators, ClassWithoutConstructor, EmptyClass, PyClassIter,
+        PyClassThreadIter,
     };
 }

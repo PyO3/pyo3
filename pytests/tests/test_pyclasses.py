@@ -121,3 +121,32 @@ def test_dict():
 
     d.foo = 42
     assert d.__dict__ == {"foo": 42}
+
+
+def test_getter(benchmark):
+    obj = pyclasses.ClassWithDecorators()
+    benchmark(lambda: obj.attr)
+
+
+def test_setter(benchmark):
+    obj = pyclasses.ClassWithDecorators()
+
+    def set_attr():
+        obj.attr = 42
+
+    benchmark(set_attr)
+
+
+def test_class_attribute(benchmark):
+    cls = pyclasses.ClassWithDecorators
+    benchmark(lambda: cls.cls_attribute)
+
+
+def test_class_method(benchmark):
+    cls = pyclasses.ClassWithDecorators
+    benchmark(lambda: cls.cls_method())
+
+
+def test_static_method(benchmark):
+    cls = pyclasses.ClassWithDecorators
+    benchmark(lambda: cls.static_method())
