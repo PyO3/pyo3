@@ -1,0 +1,538 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Supporting Free-Threaded Python - PyO3 user guide</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="PyO3 user guide">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/tabs.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">PyO3 user guide</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/tree/main/guide" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/edit/main/guide/src/free-threading.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="supporting-free-threaded-cpython"><a class="header" href="#supporting-free-threaded-cpython">Supporting Free-Threaded CPython</a></h1>
+<p>CPython 3.13 introduces an experimental "free-threaded" build of CPython that
+does not rely on the <a href="https://docs.python.org/3/glossary.html#term-global-interpreter-lock">global interpreter
+lock</a>
+(often referred to as the GIL) for thread safety. As of version 0.23, PyO3 also
+has preliminary support for building Rust extensions for the free-threaded
+Python build and support for calling into free-threaded Python from Rust.</p>
+<p>If you want more background on free-threaded Python in general, see the <a href="https://docs.python.org/3.13/whatsnew/3.13.html#whatsnew313-free-threaded-cpython">what's
+new</a>
+entry in the CPython docs, the <a href="https://docs.python.org/3.13/howto/free-threading-extensions.html#freethreading-extensions-howto">HOWTO
+guide</a>
+for porting C extensions, and <a href="https://peps.python.org/pep-0703/">PEP 703</a>,
+which provides the technical background for the free-threading implementation in
+CPython.</p>
+<p>In the GIL-enabled build, the global interpreter lock serializes access to the
+Python runtime. The GIL is therefore a fundamental limitation to parallel
+scaling of multithreaded Python workflows, due to <a href="https://en.wikipedia.org/wiki/Amdahl%27s_law">Amdahl's
+law</a>, because any time spent
+executing a parallel processing task on only one execution context fundamentally
+cannot be sped up using parallelism.</p>
+<p>The free-threaded build removes this limit on multithreaded Python scaling. This
+means it's much more straightforward to achieve parallelism using the Python
+<a href="https://docs.python.org/3/library/threading.html"><code>threading</code></a> module. If you
+have ever needed to use
+<a href="https://docs.python.org/3/library/multiprocessing.html"><code>multiprocessing</code></a> to
+achieve a parallel speedup for some Python code, free-threading will likely
+allow the use of Python threads instead for the same workflow.</p>
+<p>PyO3's support for free-threaded Python will enable authoring native Python
+extensions that are thread-safe by construction, with much stronger safety
+guarantees than C extensions. Our goal is to enable <a href="https://doc.rust-lang.org/book/ch16-00-concurrency.html">"fearless
+concurrency"</a> in the
+native Python runtime by building on the Rust <a href="https://doc.rust-lang.org/nomicon/send-and-sync.html"><code>Send</code> and
+<code>Sync</code></a> traits.</p>
+<p>This document provides advice for porting Rust code using PyO3 to run under
+free-threaded Python.</p>
+<h2 id="supporting-free-threaded-python-with-pyo3"><a class="header" href="#supporting-free-threaded-python-with-pyo3">Supporting free-threaded Python with PyO3</a></h2>
+<p>Many simple uses of PyO3, like exposing bindings for a "pure" Rust function
+with no side-effects or defining an immutable Python class, will likely work
+"out of the box" on the free-threaded build. All that will be necessary is to
+annotate Python modules declared by rust code in your project to declare that
+they support free-threaded Python, for example by declaring the module with
+<code>#[pymodule(gil_used = false)]</code>.</p>
+<p>More complicated <code>#[pyclass]</code> types may need to deal with thread-safety directly; there is <a href="./class/thread-safety.html">a dedicated section of the guide</a> to discuss this.</p>
+<p>At a low-level, annotating a module sets the <code>Py_MOD_GIL</code> slot on modules
+defined by an extension to <code>Py_MOD_GIL_NOT_USED</code>, which allows the interpreter
+to see at runtime that the author of the extension thinks the extension is
+thread-safe. You should only do this if you know that your extension is
+thread-safe. Because of Rust's guarantees, this is already true for many
+extensions, however see below for more discussion about how to evaluate the
+thread safety of existing Rust extensions and how to think about the PyO3 API
+using a Python runtime with no GIL.</p>
+<p>If you do not explicitly mark that modules are thread-safe, the Python
+interpreter will re-enable the GIL at runtime while importing your module and
+print a <code>RuntimeWarning</code> with a message containing the name of the module
+causing it to re-enable the GIL. You can force the GIL to remain disabled by
+setting the <code>PYTHON_GIL=0</code> as an environment variable or passing <code>-Xgil=0</code> when
+starting Python (<code>0</code> means the GIL is turned off).</p>
+<p>If you are sure that all data structures exposed in a <code>PyModule</code> are
+thread-safe, then pass <code>gil_used = false</code> as a parameter to the
+<code>pymodule</code> procedural macro declaring the module or call
+<code>PyModule::gil_used</code> on a <code>PyModule</code> instance.  For example:</p>
+<pre><code class="language-rust no_run">use pyo3::prelude::*;
+
+/// This module supports free-threaded Python
+#[pymodule(gil_used = false)]
+fn my_extension(m: &amp;Bound&lt;'_, PyModule&gt;) -&gt; PyResult&lt;()&gt; {
+    // add members to the module that you know are thread-safe
+    Ok(())
+}</code></pre>
+<p>Or for a module that is set up without using the <code>pymodule</code> macro:</p>
+<pre><code class="language-rust no_run">use pyo3::prelude::*;
+
+<span class="boring">#[allow(dead_code)]
+</span>fn register_child_module(parent_module: &amp;Bound&lt;'_, PyModule&gt;) -&gt; PyResult&lt;()&gt; {
+    let child_module = PyModule::new(parent_module.py(), "child_module")?;
+    child_module.gil_used(false)?;
+    parent_module.add_submodule(&amp;child_module)
+}
+</code></pre>
+<p>For now you must explicitly opt in to free-threading support by annotating
+modules defined in your extension. In a future version of <code>PyO3</code>, we plan to
+make <code>gil_used = false</code> the default.</p>
+<p>See the
+<a href="https://github.com/PyO3/pyo3/tree/main/pyo3-ffi/examples/string-sum"><code>string-sum</code></a>
+example for how to declare free-threaded support using raw FFI calls for modules
+using single-phase initialization and the
+<a href="https://github.com/PyO3/pyo3/tree/main/pyo3-ffi/examples/sequential"><code>sequential</code></a>
+example for modules using multi-phase initialization.</p>
+<p>If you would like to use conditional compilation to trigger different code paths
+under the free-threaded build, you can use the <code>Py_GIL_DISABLED</code> attribute once
+you have configured your crate to generate the necessary build configuration
+data. See <a href="./building-and-distribution/multiple-python-versions.html">the guide
+section</a> for more
+details about supporting multiple different Python versions, including the
+free-threaded build.</p>
+<h2 id="special-considerations-for-the-free-threaded-build"><a class="header" href="#special-considerations-for-the-free-threaded-build">Special considerations for the free-threaded build</a></h2>
+<p>The free-threaded interpreter does not have a GIL, and this can make interacting
+with the PyO3 API confusing, since the API was originally designed around strong
+assumptions about the GIL providing locking.  Additionally, since the GIL
+provided locking for operations on Python objects, many existing extensions that
+provide mutable data structures relied on the GIL to make interior mutability
+thread-safe.</p>
+<p>Working with PyO3 under the free-threaded interpreter therefore requires some
+additional care and mental overhead compared with a GIL-enabled interpreter. We
+discuss how to handle this below.</p>
+<h3 id="many-symbols-exposed-by-pyo3-have-gil-in-the-name"><a class="header" href="#many-symbols-exposed-by-pyo3-have-gil-in-the-name">Many symbols exposed by PyO3 have <code>GIL</code> in the name</a></h3>
+<p>We are aware that there are some naming issues in the PyO3 API that make it
+awkward to think about a runtime environment where there is no GIL. We plan to
+change the names of these types to de-emphasize the role of the GIL in future
+versions of PyO3, but for now you should remember that the use of the term <code>GIL</code>
+in functions and types like <a href="https://docs.rs/pyo3/0.25.0/pyo3/marker/struct.Python.html#method.with_gil"><code>Python::with_gil</code></a> and <a href="https://docs.rs/pyo3/0.25.0/pyo3/sync/struct.GILOnceCell.html"><code>GILOnceCell</code></a> is
+historical.</p>
+<p>Instead, you should think about whether or not a Rust thread is attached to a
+Python interpreter runtime. Calling into the CPython C API is only legal when an
+OS thread is explicitly attached to the interpreter runtime. In the GIL-enabled
+build, this happens when the GIL is acquired. In the free-threaded build there
+is no GIL, but the same C macros that release or acquire the GIL in the
+GIL-enabled build instead ask the interpreter to attach the thread to the Python
+runtime, and there can be many threads simultaneously attached. See <a href="https://peps.python.org/pep-0703/#thread-states">PEP
+703</a> for more background about
+how threads can be attached and detached from the interpreter runtime, in a
+manner analagous to releasing and acquiring the GIL in the GIL-enabled build.</p>
+<p>In the GIL-enabled build, PyO3 uses the <a href="https://docs.rs/pyo3/0.25.0/pyo3/marker/struct.Python.html"><code>Python&lt;'py&gt;</code></a> type and the <code>'py</code>
+lifetime to signify that the global interpreter lock is held. In the
+freethreaded build, holding a <code>'py</code> lifetime means only that the thread is
+currently attached to the Python interpreter -- other threads can be
+simultaneously interacting with the interpreter.</p>
+<p>You still need to obtain a <code>'py</code> lifetime is to interact with Python
+objects or call into the CPython C API. If you are not yet attached to the
+Python runtime, you can register a thread using the <a href="https://docs.rs/pyo3/0.25.0/pyo3/marker/struct.Python.html#method.with_gil"><code>Python::with_gil</code></a>
+function. Threads created via the Python <a href="https://docs.python.org/3/library/threading.html"><code>threading</code></a> module do not not need to
+do this, and pyo3 will handle setting up the <a href="https://docs.rs/pyo3/0.25.0/pyo3/marker/struct.Python.html"><code>Python&lt;'py&gt;</code></a> token when CPython
+calls into your extension.</p>
+<h3 id="global-synchronization-events-can-cause-hangs-and-deadlocks"><a class="header" href="#global-synchronization-events-can-cause-hangs-and-deadlocks">Global synchronization events can cause hangs and deadlocks</a></h3>
+<p>The free-threaded build triggers global synchronization events in the following
+situations:</p>
+<ul>
+<li>During garbage collection in order to get a globally consistent view of
+reference counts and references between objects</li>
+<li>In Python 3.13, when the first background thread is started in
+order to mark certain objects as immortal</li>
+<li>When either <code>sys.settrace</code> or <code>sys.setprofile</code> are called in order to
+instrument running code objects and threads</li>
+<li>Before <code>os.fork()</code> is called.</li>
+</ul>
+<p>This is a non-exhaustive list and there may be other situations in future Python
+versions that can trigger global synchronization events.</p>
+<p>This means that you should detach from the interpreter runtime using
+<a href="https://docs.rs/pyo3/0.25.0/pyo3/marker/struct.Python.html#method.allow_threads"><code>Python::allow_threads</code></a> in exactly the same situations as you should detach
+from the runtime in the GIL-enabled build: when doing long-running tasks that do
+not require the CPython runtime or when doing any task that needs to re-attach
+to the runtime (see the <a href="parallelism.html#sharing-python-objects-between-rust-threads">guide
+section</a> that
+covers this). In the former case, you would observe a hang on threads that are
+waiting on the long-running task to complete, and in the latter case you would
+see a deadlock while a thread tries to attach after the runtime triggers a
+global synchronization event, but the spawning thread prevents the
+synchronization event from completing.</p>
+<h3 id="exceptions-and-panics-for-multithreaded-access-of-mutable-pyclass-instances"><a class="header" href="#exceptions-and-panics-for-multithreaded-access-of-mutable-pyclass-instances">Exceptions and panics for multithreaded access of mutable <code>pyclass</code> instances</a></h3>
+<p>Data attached to <code>pyclass</code> instances is protected from concurrent access by a
+<code>RefCell</code>-like pattern of runtime borrow checking. Like a <code>RefCell</code>, PyO3 will
+raise exceptions (or in some cases panic) to enforce exclusive access for
+mutable borrows. It was always possible to generate panics like this in PyO3 in
+code that releases the GIL with <a href="https://docs.rs/pyo3/0.25.0/pyo3/marker/struct.Python.html#method.allow_threads"><code>Python::allow_threads</code></a> or calling a python
+method accepting <code>&amp;self</code> from a <code>&amp;mut self</code> (see <a href="./class.html#bound-and-interior-mutability">the docs on interior
+mutability</a>,) but now in free-threaded
+Python there are more opportunities to trigger these panics from Python because
+there is no GIL to lock concurrent access to mutably borrowed data from Python.</p>
+<p>The most straightforward way to trigger this problem is to use the Python
+<a href="https://docs.python.org/3/library/threading.html"><code>threading</code></a> module to simultaneously call a rust function that mutably borrows a
+<a href="https://docs.rs/pyo3/0.25.0/pyo3/attr.pyclass.html"><code>pyclass</code></a> in multiple threads. For
+example, consider the following implementation:</p>
+<pre><code class="language-rust no_run"><span class="boring">use pyo3::prelude::*;
+</span>#[pyclass]
+#[derive(Default)]
+struct ThreadIter {
+    count: usize,
+}
+
+#[pymethods]
+impl ThreadIter {
+    #[new]
+    pub fn new() -&gt; Self {
+        Default::default()
+    }
+
+    fn __next__(&amp;mut self, py: Python&lt;'_&gt;) -&gt; usize {
+        self.count += 1;
+        self.count
+    }
+}</code></pre>
+<p>And then if we do something like this in Python:</p>
+<pre><code class="language-python">import concurrent.futures
+from my_module import ThreadIter
+
+i = ThreadIter()
+
+def increment():
+    next(i)
+
+with concurrent.futures.ThreadPoolExecutor(max_workers=16) as tpe:
+    futures = [tpe.submit(increment) for _ in range(100)]
+    [f.result() for f in futures]
+</code></pre>
+<p>We will see an exception:</p>
+<pre><code class="language-text">Traceback (most recent call last)
+  File "example.py", line 5, in &lt;module&gt;
+    next(i)
+RuntimeError: Already borrowed
+</code></pre>
+<p>We plan to allow user-selectable semantics for mutable pyclass definitions in
+PyO3 0.24, allowing some form of opt-in locking to emulate the GIL if that is
+needed. For now you should explicitly add locking, possibly using conditional
+compilation or using the critical section API, to avoid creating deadlocks with
+the GIL.</p>
+<h3 id="cannot-build-extensions-using-the-limited-api"><a class="header" href="#cannot-build-extensions-using-the-limited-api">Cannot build extensions using the limited API</a></h3>
+<p>The free-threaded build uses a completely new ABI and there is not yet an
+equivalent to the limited API for the free-threaded ABI. That means if your
+crate depends on PyO3 using the <code>abi3</code> feature or an an <code>abi3-pyxx</code> feature,
+PyO3 will print a warning and ignore that setting when building extensions using
+the free-threaded interpreter.</p>
+<p>This means that if your package makes use of the ABI forward compatibility
+provided by the limited API to upload only one wheel for each release of your
+package, you will need to update your release procedure to also upload a
+version-specific free-threaded wheel.</p>
+<p>See <a href="./building-and-distribution/multiple-python-versions.html">the guide section</a>
+for more details about supporting multiple different Python versions, including
+the free-threaded build.</p>
+<h3 id="thread-safe-single-initialization"><a class="header" href="#thread-safe-single-initialization">Thread-safe single initialization</a></h3>
+<p>Until version 0.23, PyO3 provided only <a href="https://docs.rs/pyo3/0.25.0/pyo3/sync/struct.GILOnceCell.html"><code>GILOnceCell</code></a> to enable deadlock-free
+single initialization of data in contexts that might execute arbitrary Python
+code. While we have updated <a href="https://docs.rs/pyo3/0.25.0/pyo3/sync/struct.GILOnceCell.html"><code>GILOnceCell</code></a> to avoid thread safety issues
+triggered only under the free-threaded build, the design of <a href="https://docs.rs/pyo3/0.25.0/pyo3/sync/struct.GILOnceCell.html"><code>GILOnceCell</code></a> is
+inherently thread-unsafe, in a manner that can be problematic even in the
+GIL-enabled build.</p>
+<p>If, for example, the function executed by <a href="https://docs.rs/pyo3/0.25.0/pyo3/sync/struct.GILOnceCell.html"><code>GILOnceCell</code></a> releases the GIL or
+calls code that releases the GIL, then it is possible for multiple threads to
+race to initialize the cell. While the cell will only ever be intialized
+once, it can be problematic in some contexts that <a href="https://docs.rs/pyo3/0.25.0/pyo3/sync/struct.GILOnceCell.html"><code>GILOnceCell</code></a> does not block
+like the standard library <a href="https://doc.rust-lang.org/stable/std/sync/struct.OnceLock.html"><code>OnceLock</code></a>.</p>
+<p>In cases where the initialization function must run exactly once, you can bring
+the <a href="https://docs.rs/pyo3/0.25.0/pyo3/sync/trait.OnceExt.html"><code>OnceExt</code></a> or <a href="https://docs.rs/pyo3/0.25.0/pyo3/sync/trait.OnceLockExt.html"><code>OnceLockExt</code></a> traits into scope. The <a href="https://docs.rs/pyo3/0.25.0/pyo3/sync/trait.OnceExt.html"><code>OnceExt</code></a> trait adds
+<a href="https://docs.rs/pyo3/0.25.0/pyo3/sync/trait.OnceExt.html#tymethod.call_once_py_attached"><code>OnceExt::call_once_py_attached</code></a> and <a href="https://docs.rs/pyo3/0.25.0/pyo3/sync/trait.OnceExt.html#tymethod.call_once_force_py_attached"><code>OnceExt::call_once_force_py_attached</code></a>
+functions to the api of <code>std::sync::Once</code>, enabling use of <a href="https://doc.rust-lang.org/stable/std/sync/struct.Once.html"><code>Once</code></a> in contexts
+where the GIL is held. Similarly, <a href="https://docs.rs/pyo3/0.25.0/pyo3/sync/trait.OnceLockExt.html"><code>OnceLockExt</code></a> adds
+<a href="https://docs.rs/pyo3/0.25.0/pyo3/sync/trait.OnceLockExt.html#tymethod.get_or_init_py_attached"><code>OnceLockExt::get_or_init_py_attached</code></a>. These functions are analogous to
+<a href="https://doc.rust-lang.org/stable/std/sync/struct.Once.html#tymethod.call_once"><code>Once::call_once</code></a>, <a href="https://doc.rust-lang.org/stable/std/sync/struct.Once.html#tymethod.call_once_force"><code>Once::call_once_force</code></a>, and <a href="https://doc.rust-lang.org/stable/std/sync/struct.OnceLock.html#tymethod.get_or_init"><code>OnceLock::get_or_init</code></a> except
+they accept a <a href="https://docs.rs/pyo3/0.25.0/pyo3/marker/struct.Python.html"><code>Python&lt;'py&gt;</code></a> token in addition to an <code>FnOnce</code>. All of these
+functions release the GIL and re-acquire it before executing the function,
+avoiding deadlocks with the GIL that are possible without using the PyO3
+extension traits. Here is an example of how to use <a href="https://docs.rs/pyo3/0.25.0/pyo3/sync/trait.OnceExt.html"><code>OnceExt</code></a> to
+enable single-initialization of a runtime cache holding a <code>Py&lt;PyDict&gt;</code>.</p>
+<pre><code class="language-rust"><span class="boring">use pyo3::prelude::*;
+</span>use std::sync::Once;
+use pyo3::sync::OnceExt;
+use pyo3::types::PyDict;
+
+struct RuntimeCache {
+    once: Once,
+    cache: Option&lt;Py&lt;PyDict&gt;&gt;
+}
+
+let mut cache = RuntimeCache {
+    once: Once::new(),
+    cache: None
+};
+
+Python::with_gil(|py| {
+    // guaranteed to be called once and only once
+    cache.once.call_once_py_attached(py, || {
+        cache.cache = Some(PyDict::new(py).unbind());
+    });
+});</code></pre>
+<h3 id="gilprotected-is-not-exposed"><a class="header" href="#gilprotected-is-not-exposed"><code>GILProtected</code> is not exposed</a></h3>
+<p><a href="https://docs.rs/pyo3/0.22/pyo3/sync/struct.GILProtected.html"><code>GILProtected</code></a> is a PyO3 type that allows mutable access to static data by
+leveraging the GIL to lock concurrent access from other threads. In
+free-threaded Python there is no GIL, so you will need to replace this type with
+some other form of locking. In many cases, a type from
+<a href="https://doc.rust-lang.org/std/sync/atomic/"><code>std::sync::atomic</code></a> or a
+<a href="https://doc.rust-lang.org/std/sync/struct.Mutex.html"><code>std::sync::Mutex</code></a> will
+be sufficient.</p>
+<p>Before:</p>
+<pre><code class="language-rust"><span class="boring">fn main() {
+</span><span class="boring">#[cfg(not(Py_GIL_DISABLED))] {
+</span><span class="boring">use pyo3::prelude::*;
+</span>use pyo3::sync::GILProtected;
+use pyo3::types::{PyDict, PyNone};
+use std::cell::RefCell;
+
+static OBJECTS: GILProtected&lt;RefCell&lt;Vec&lt;Py&lt;PyDict&gt;&gt;&gt;&gt; =
+    GILProtected::new(RefCell::new(Vec::new()));
+
+Python::with_gil(|py| {
+    // stand-in for something that executes arbitrary Python code
+    let d = PyDict::new(py);
+    d.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
+    OBJECTS.get(py).borrow_mut().push(d.unbind());
+});
+<span class="boring">}}</span></code></pre>
+<p>After:</p>
+<pre><code class="language-rust"><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">fn main() {
+</span>use pyo3::types::{PyDict, PyNone};
+use std::sync::Mutex;
+
+static OBJECTS: Mutex&lt;Vec&lt;Py&lt;PyDict&gt;&gt;&gt; = Mutex::new(Vec::new());
+
+Python::with_gil(|py| {
+    // stand-in for something that executes arbitrary Python code
+    let d = PyDict::new(py);
+    d.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
+    // as with any `Mutex` usage, lock the mutex for as little time as possible
+    // in this case, we do it just while pushing into the `Vec`
+    OBJECTS.lock().unwrap().push(d.unbind());
+});
+<span class="boring">}</span></code></pre>
+<p>If you are executing arbitrary Python code while holding the lock, then you
+should import the <a href="https://docs.rs/pyo3/0.25.0/pyo3/sync/trait.MutexExt.html"><code>MutexExt</code></a> trait and use the <code>lock_py_attached</code> method
+instead of <code>lock</code>. This ensures that global synchronization events started by
+the Python runtime can proceed, avoiding possible deadlocks with the
+interpreter.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="parallelism.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="debugging.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="parallelism.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="debugging.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="theme/tabs.js"></script>
+
+
+    </div>
+    </body>
+</html>
