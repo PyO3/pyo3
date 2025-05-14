@@ -9,11 +9,14 @@ pub struct Module {
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct Class {
     pub name: String,
+    pub methods: Vec<Function>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct Function {
     pub name: String,
+    /// decorator like 'property' or 'staticmethod'
+    pub decorators: Vec<String>,
     pub arguments: Arguments,
 }
 

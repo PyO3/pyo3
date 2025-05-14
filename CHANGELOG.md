@@ -10,6 +10,65 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.25.0] - 2025-05-14
+
+### Packaging
+
+- Support Python 3.14.0b1. [#4811](https://github.com/PyO3/pyo3/pull/4811)
+- Bump supported GraalPy version to 24.2. [#5116](https://github.com/PyO3/pyo3/pull/5116)
+- Add optional `bigdecimal` dependency to add conversions for `bigdecimal::BigDecimal`. [#5011](https://github.com/PyO3/pyo3/pull/5011)
+- Add optional `time` dependency to add conversions for `time` types. [#5057](https://github.com/PyO3/pyo3/pull/5057)
+- Remove `cfg-if` dependency. [#5110](https://github.com/PyO3/pyo3/pull/5110)
+- Add optional `ordered_float` dependency to add conversions for `ordered_float::NotNan` and `ordered_float::OrderedFloat`. [#5114](https://github.com/PyO3/pyo3/pull/5114)
+
+### Added
+
+- Add initial type stub generation to the `experimental-inspect` feature. [#3977](https://github.com/PyO3/pyo3/pull/3977)
+- Add `#[pyclass(generic)]` option to support runtime generic typing. [#4926](https://github.com/PyO3/pyo3/pull/4926)
+- Implement `OnceExt` & `MutexExt` for `parking_lot` & `lock_api`. Use the new extension traits by enabling the `arc_lock`, `lock_api`, or `parking_lot` cargo features. [#5044](https://github.com/PyO3/pyo3/pull/5044)
+- Implement `From`/`Into` for `Borrowed<T>` -> `Py<T>`. [#5054](https://github.com/PyO3/pyo3/pull/5054)
+- Add `PyTzInfo` constructors. [#5055](https://github.com/PyO3/pyo3/pull/5055)
+- Add FFI definition `PY_INVALID_STACK_EFFECT`. [#5064](https://github.com/PyO3/pyo3/pull/5064)
+- Implement `AsRef<Py<PyAny>>` for `Py<T>`, `Bound<T>` and `Borrowed<T>`. [#5071](https://github.com/PyO3/pyo3/pull/5071)
+- Add FFI definition `PyModule_Add` and `compat::PyModule_Add`. [#5085](https://github.com/PyO3/pyo3/pull/5085)
+- Add FFI definitions `Py_HashBuffer`, `Py_HashPointer`, and `PyObject_GenericHash`. [#5086](https://github.com/PyO3/pyo3/pull/5086)
+- Support `#[pymodule_export]` on `const` items in declarative modules. [#5096](https://github.com/PyO3/pyo3/pull/5096)
+- Add `#[pyclass(immutable_type)]` option (on Python 3.14+ with `abi3`, or 3.10+ otherwise) for immutable type objects. [#5101](https://github.com/PyO3/pyo3/pull/5101)
+- Support `#[pyo3(rename_all)]` support on `#[derive(IntoPyObject)]`. [#5112](https://github.com/PyO3/pyo3/pull/5112)
+- Add `PyRange` wrapper. [#5117](https://github.com/PyO3/pyo3/pull/5117)
+
+### Changed
+
+- Enable use of `datetime` types with `abi3` feature enabled. [#4970](https://github.com/PyO3/pyo3/pull/4970)
+- Deprecate `timezone_utc` in favor of `PyTzInfo::utc`. [#5055](https://github.com/PyO3/pyo3/pull/5055)
+- Reduce visibility of some CPython implementation details: [#5064](https://github.com/PyO3/pyo3/pull/5064)
+  - The FFI definition `PyCodeObject` is now an opaque struct on all Python versions.
+  - The FFI definition `PyFutureFeatures` is now only defined up until Python 3.10 (it was present in CPython headers but unused in 3.11 and 3.12).
+- Change `PyAnyMethods::is` to take `other: &Bound<T>`. [#5071](https://github.com/PyO3/pyo3/pull/5071)
+- Change `Py::is` to take `other: &Py<T>`. [#5071](https://github.com/PyO3/pyo3/pull/5071)
+- Change `PyVisit::call` to take `T: Into<Option<&Py<T>>>`. [#5071](https://github.com/PyO3/pyo3/pull/5071)
+- Expose `PyDateTime_DATE_GET_TZINFO` and `PyDateTime_TIME_GET_TZINFO` on PyPy 3.10 and later. [#5079](https://github.com/PyO3/pyo3/pull/5079)
+- Add `#[track_caller]` to `with_gil` and `with_gil_unchecked`. [#5109](https://github.com/PyO3/pyo3/pull/5109)
+- Use `std::thread::park()` instead of `libc::pause()` or `sleep(9999999)`. [#5115](https://github.com/PyO3/pyo3/pull/5115)
+
+### Removed
+
+- Remove all functionality deprecated in PyO3 0.23. [#4982](https://github.com/PyO3/pyo3/pull/4982)
+- Remove deprecated `IntoPy` and `ToPyObject` traits. [#5010](https://github.com/PyO3/pyo3/pull/5010)
+- Remove private types from `pyo3-ffi` (i.e. starting with `_Py`) which are not referenced by public APIs: `_PyLocalMonitors`, `_Py_GlobalMonitors`, `_PyCoCached`, `_PyCoLineInstrumentationData`, `_PyCoMonitoringData`, `_PyCompilerSrcLocation`, `_PyErr_StackItem`. [#5064](https://github.com/PyO3/pyo3/pull/5064)
+- Remove FFI definition `PyCode_GetNumFree` (PyO3 cannot support it due to knowledge of the code object). [#5064](https://github.com/PyO3/pyo3/pull/5064)
+- Remove `AsPyPointer` trait. [#5071](https://github.com/PyO3/pyo3/pull/5071)
+- Remove support for the deprecated string form of `from_py_with`. [#5097](https://github.com/PyO3/pyo3/pull/5097)
+- Remove FFI definitions of private static variables: `_PyMethodWrapper_Type`, `_PyCoroWrapper_Type`, `_PyImport_FrozenBootstrap`, `_PyImport_FrozenStdlib`, `_PyImport_FrozenTest`, `_PyManagedBuffer_Type`, `_PySet_Dummy`, `_PyWeakref_ProxyType`, and `_PyWeakref_CallableProxyType`. [#5105](https://github.com/PyO3/pyo3/pull/5105)
+- Remove FFI definitions `PyASCIIObjectState`, `PyUnicode_IS_ASCII`, `PyUnicode_IS_COMPACT`, and `PyUnicode_IS_COMPACT_ASCII` on Python 3.14 and newer. [#5133](https://github.com/PyO3/pyo3/pull/5133)
+
+### Fixed
+
+- Correctly pick up the shared state for conda-based Python installation when reading information from sysconfigdata. [#5037](https://github.com/PyO3/pyo3/pull/5037)
+- Fix compile failure with `#[derive(IntoPyObject, FromPyObject)]` when using `#[pyo3()]` options recognised by only one of the two derives. [#5070](https://github.com/PyO3/pyo3/pull/5070)
+- Fix various compile errors from missing FFI definitions using certain feature combinations on PyPy and GraalPy. [#5091](https://github.com/PyO3/pyo3/pull/5091)
+- Fallback on `backports.zoneinfo` for python <3.9 when converting timezones into python. [#5120](https://github.com/PyO3/pyo3/pull/5120)
+
 ## [0.24.2] - 2025-04-21
 
 ### Fixed
@@ -2139,7 +2198,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.24.2...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/pyo3/pyo3/compare/v0.24.2...v0.25.0
 [0.24.2]: https://github.com/pyo3/pyo3/compare/v0.24.1...v0.24.2
 [0.24.1]: https://github.com/pyo3/pyo3/compare/v0.24.0...v0.24.1
 [0.24.0]: https://github.com/pyo3/pyo3/compare/v0.23.5...v0.24.0

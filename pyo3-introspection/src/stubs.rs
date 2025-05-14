@@ -35,23 +35,49 @@ fn module_stubs(module: &Module) -> String {
     let mut modules_to_import = BTreeSet::new();
     let mut elements = Vec::new();
     for class in &module.classes {
-        elements.push(class_stubs(class));
+        elements.push(class_stubs(class, &mut modules_to_import));
     }
     for function in &module.functions {
         elements.push(function_stubs(function, &mut modules_to_import));
     }
-    elements.push(String::new()); // last line jump
-
     let mut final_elements = Vec::new();
     for module_to_import in &modules_to_import {
         final_elements.push(format!("import {module_to_import}"));
     }
     final_elements.extend(elements);
-    final_elements.join("\n")
+
+    // We insert two line jumps (i.e. empty strings) only above and below multiple line elements (classes with methods, functions with decorators)
+    let mut output = String::new();
+    for element in final_elements {
+        let is_multiline = element.contains('\n');
+        if is_multiline && !output.is_empty() && !output.ends_with("\n\n") {
+            output.push('\n');
+        }
+        output.push_str(&element);
+        output.push('\n');
+        if is_multiline {
+            output.push('\n');
+        }
+    }
+    // We remove a line jump at the end if they are two
+    if output.ends_with("\n\n") {
+        output.pop();
+    }
+    output
 }
 
-fn class_stubs(class: &Class) -> String {
-    format!("class {}: ...", class.name)
+fn class_stubs(class: &Class, modules_to_import: &mut BTreeSet<String>) -> String {
+    let mut buffer = format!("class {}:", class.name);
+    if class.methods.is_empty() {
+        buffer.push_str(" ...");
+        return buffer;
+    }
+    for method in &class.methods {
+        // We do the indentation
+        buffer.push_str("\n    ");
+        buffer.push_str(&function_stubs(method, modules_to_import).replace('\n', "\n    "));
+    }
+    buffer
 }
 
 fn function_stubs(function: &Function, modules_to_import: &mut BTreeSet<String>) -> String {
@@ -77,7 +103,18 @@ fn function_stubs(function: &Function, modules_to_import: &mut BTreeSet<String>)
     if let Some(argument) = &function.arguments.kwarg {
         parameters.push(format!("**{}", variable_length_argument_stub(argument)));
     }
-    format!("def {}({}): ...", function.name, parameters.join(", "))
+    let output = format!("def {}({}): ...", function.name, parameters.join(", "));
+    if function.decorators.is_empty() {
+        return output;
+    }
+    let mut buffer = String::new();
+    for decorator in &function.decorators {
+        buffer.push('@');
+        buffer.push_str(decorator);
+        buffer.push('\n');
+    }
+    buffer.push_str(&output);
+    buffer
 }
 
 fn argument_stub(argument: &Argument, modules_to_import: &mut BTreeSet<String>) -> String {
@@ -114,6 +151,7 @@ mod tests {
     fn function_stubs_with_variable_length() {
         let function = Function {
             name: "func".into(),
+            decorators: Vec::new(),
             arguments: Arguments {
                 positional_only_arguments: vec![Argument {
                     name: "posonly".into(),
@@ -148,6 +186,7 @@ mod tests {
     fn function_stubs_without_variable_length() {
         let function = Function {
             name: "afunc".into(),
+            decorators: Vec::new(),
             arguments: Arguments {
                 positional_only_arguments: vec![Argument {
                     name: "posonly".into(),

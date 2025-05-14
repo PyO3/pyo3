@@ -40,7 +40,7 @@ pub enum GeneratedPyMethod {
 pub struct PyMethod<'a> {
     kind: PyMethodKind,
     method_name: String,
-    spec: FnSpec<'a>,
+    pub spec: FnSpec<'a>,
 }
 
 enum PyMethodKind {
@@ -160,11 +160,13 @@ enum PyMethodProtoKind {
 }
 
 impl<'a> PyMethod<'a> {
-    fn parse(
+    pub fn parse(
         sig: &'a mut syn::Signature,
         meth_attrs: &mut Vec<syn::Attribute>,
         options: PyFunctionOptions,
     ) -> Result<Self> {
+        check_generic(sig)?;
+        ensure_function_options_valid(&options)?;
         let spec = FnSpec::parse(sig, meth_attrs, options)?;
 
         let method_name = spec.python_name.to_string();
@@ -187,14 +189,10 @@ pub fn is_proto_method(name: &str) -> bool {
 
 pub fn gen_py_method(
     cls: &syn::Type,
-    sig: &mut syn::Signature,
-    meth_attrs: &mut Vec<syn::Attribute>,
-    options: PyFunctionOptions,
+    method: PyMethod<'_>,
+    meth_attrs: &[syn::Attribute],
     ctx: &Ctx,
 ) -> Result<GeneratedPyMethod> {
-    check_generic(sig)?;
-    ensure_function_options_valid(&options)?;
-    let method = PyMethod::parse(sig, meth_attrs, options)?;
     let spec = &method.spec;
     let Ctx { pyo3_path, .. } = ctx;
 

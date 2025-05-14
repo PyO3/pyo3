@@ -48,9 +48,10 @@ fn pytests_stubs() -> Result<()> {
 
         let actual_file_content = format_with_ruff(actual_file_content)?;
 
+        // We normalize line jumps for compatibility with Windows
         assert_eq!(
-            expected_file_content.as_str(),
-            actual_file_content.as_str(),
+            expected_file_content.replace('\r', ""),
+            actual_file_content.replace('\r', ""),
             "The content of file {} is different",
             file_name.display()
         )
