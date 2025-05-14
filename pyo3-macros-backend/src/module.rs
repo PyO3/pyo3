@@ -357,23 +357,28 @@ pub fn pymodule_module_impl(
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection_id = quote! {};
 
+    let gil_used = options.gil_used.map_or(true, |op| op.value.value);
+    let num_slots: usize = 2; // initializer + gil_used
+
     let module_def = quote! {{
         use #pyo3_path::impl_::pymodule as impl_;
-        const INITIALIZER: impl_::ModuleInitializer = impl_::ModuleInitializer(__pyo3_pymodule);
-        unsafe {
-           impl_::ModuleDef::new(
-                __PYO3_NAME,
-                #doc,
-                INITIALIZER
-            )
+
+        unsafe extern "C" fn __pyo3_module_exec(module: *mut #pyo3_path::ffi::PyObject) -> ::std::os::raw::c_int {
+            #pyo3_path::impl_::trampoline::module_exec(module, |m| __pyo3_pymodule(m))
         }
+
+        static SLOTS: impl_::PyModuleSlots<{ #num_slots + 1 }> = impl_::PyModuleSlotsBuilder::new()
+            .with_mod_exec(__pyo3_module_exec)
+            .with_gil_used(#gil_used)
+            .build();
+        impl_::ModuleDef::new(__PYO3_NAME, #doc, &SLOTS)
     }};
     let initialization = module_initialization(
         &name,
         ctx,
         module_def,
         options.submodule.is_some(),
-        options.gil_used.map_or(true, |op| op.value.value),
+        true, // FIXME remove this
     );
 
     let module_consts_names = module_consts.iter().map(|i| i.unraw().to_string());
@@ -423,13 +428,10 @@ pub fn pymodule_function_impl(
     let vis = &function.vis;
     let doc = get_doc(&function.attrs, None, ctx);
 
-    let initialization = module_initialization(
-        &name,
-        ctx,
-        quote! { MakeDef::make_def() },
-        false,
-        options.gil_used.map_or(true, |op| op.value.value),
-    );
+    let gil_used = options.gil_used.map_or(true, |op| op.value.value);
+
+    let initialization =
+        module_initialization(&name, ctx, quote! { MakeDef::make_def() }, false, gil_used);
 
     #[cfg(feature = "experimental-inspect")]
     let introspection = module_introspection_code(pyo3_path, &name.to_string(), &[], &[]);
@@ -463,18 +465,22 @@ pub fn pymodule_function_impl(
         #[allow(unknown_lints, non_local_definitions)]
         impl #ident::MakeDef {
             const fn make_def() -> #pyo3_path::impl_::pymodule::ModuleDef {
-                fn __pyo3_pymodule(module: &#pyo3_path::Bound<'_, #pyo3_path::types::PyModule>) -> #pyo3_path::PyResult<()> {
-                    #ident(#(#module_args),*)
+                use #pyo3_path::impl_::pymodule as impl_;
+
+                unsafe extern "C" fn __pyo3_module_exec(module: *mut #pyo3_path::ffi::PyObject) -> ::std::os::raw::c_int {
+                    #pyo3_path::impl_::trampoline::module_exec(module, |module| #ident(#(#module_args),*))
                 }
 
-                const INITIALIZER: #pyo3_path::impl_::pymodule::ModuleInitializer = #pyo3_path::impl_::pymodule::ModuleInitializer(__pyo3_pymodule);
-                unsafe {
-                    #pyo3_path::impl_::pymodule::ModuleDef::new(
-                        #ident::__PYO3_NAME,
-                        #doc,
-                        INITIALIZER
-                    )
-                }
+                static SLOTS: impl_::PyModuleSlots<4> = impl_::PyModuleSlotsBuilder::new()
+                    .with_mod_exec(__pyo3_module_exec)
+                    .with_gil_used(#gil_used)
+                    .build();
+
+                impl_::ModuleDef::new(
+                    #ident::__PYO3_NAME,
+                    #doc,
+                    &SLOTS
+                )
             }
         }
     })
@@ -510,7 +516,10 @@ fn module_initialization(
             #[doc(hidden)]
             #[export_name = #pyinit_symbol]
             pub unsafe extern "C" fn __pyo3_init() -> *mut #pyo3_path::ffi::PyObject {
-                unsafe { #pyo3_path::impl_::trampoline::module_init(|py| _PYO3_DEF.make_module(py, #gil_used)) }
+                _PYO3_DEF.init_multi_phase(
+                    unsafe { #pyo3_path::Python::assume_gil_acquired() },
+                    #gil_used
+                )
             }
         });
     }
