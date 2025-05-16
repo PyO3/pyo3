@@ -91,7 +91,7 @@ pub fn function_introspection_code(
         ("name", IntrospectionNode::String(name.into())),
         (
             "arguments",
-            arguments_introspection_data(signature, first_argument),
+            arguments_introspection_data(signature, first_argument, parent),
         ),
     ]);
     if let Some(ident) = ident {
@@ -119,6 +119,7 @@ pub fn function_introspection_code(
 fn arguments_introspection_data<'a>(
     signature: &'a FunctionSignature<'a>,
     first_argument: Option<&'a str>,
+    class_type: Option<&Type>,
 ) -> IntrospectionNode<'a> {
     let mut argument_desc = signature.arguments.iter().filter_map(|arg| {
         if let FnArg::Regular(arg) = arg {
@@ -151,7 +152,7 @@ fn arguments_introspection_data<'a>(
         } else {
             panic!("Less arguments than in python signature");
         };
-        let arg = argument_introspection_data(param, arg_desc);
+        let arg = argument_introspection_data(param, arg_desc, class_type);
         if i < signature.python_signature.positional_only_parameters {
             posonlyargs.push(arg);
         } else {
@@ -171,7 +172,7 @@ fn arguments_introspection_data<'a>(
         } else {
             panic!("Less arguments than in python signature");
         };
-        kwonlyargs.push(argument_introspection_data(param, arg_desc));
+        kwonlyargs.push(argument_introspection_data(param, arg_desc, class_type));
     }
 
     if let Some(param) = &signature.python_signature.kwargs {
@@ -206,6 +207,7 @@ fn arguments_introspection_data<'a>(
 fn argument_introspection_data<'a>(
     name: &'a str,
     desc: &'a RegularArg<'_>,
+    class_type: Option<&Type>,
 ) -> IntrospectionNode<'a> {
     let mut params: HashMap<_, _> = [("name", IntrospectionNode::String(name.into()))].into();
     if desc.default_value.is_some() {
@@ -218,7 +220,11 @@ fn argument_introspection_data<'a>(
         // If from_py_with is set we don't know anything on the input type
         if let Some(ty) = desc.option_wrapped_type {
             // Special case to properly generate a `T | None` annotation
-            let ty = ty.clone().elide_lifetimes();
+            let mut ty = ty.clone();
+            if let Some(class_type) = class_type {
+                replace_self(&mut ty, class_type);
+            }
+            ty = ty.elide_lifetimes();
             params.insert(
                 "annotation",
                 IntrospectionNode::InputType {
@@ -227,7 +233,11 @@ fn argument_introspection_data<'a>(
                 },
             );
         } else {
-            let ty = desc.ty.clone().elide_lifetimes();
+            let mut ty = desc.ty.clone();
+            if let Some(class_type) = class_type {
+                replace_self(&mut ty, class_type);
+            }
+            ty = ty.elide_lifetimes();
             params.insert(
                 "annotation",
                 IntrospectionNode::InputType {
@@ -416,4 +426,65 @@ fn ident_to_type(ident: &Ident) -> Cow<'static, Type> {
         }
         .into(),
     )
+}
+
+// Replace Self in types with the given type
+fn replace_self(ty: &mut Type, self_target: &Type) {
+    match ty {
+        syn::Type::Path(type_path) => {
+            if type_path.qself.is_none()
+                && type_path.path.segments.len() == 1
+                && type_path.path.segments[0].ident == "Self"
+                && type_path.path.segments[0].arguments.is_empty()
+            {
+                // It is Self
+                *ty = self_target.clone();
+                return;
+            }
+
+            // We look recursively
+            if let Some(qself) = &mut type_path.qself {
+                replace_self(&mut qself.ty, self_target)
+            }
+            for seg in &mut type_path.path.segments {
+                if let syn::PathArguments::AngleBracketed(args) = &mut seg.arguments {
+                    for generic_arg in &mut args.args {
+                        match generic_arg {
+                            syn::GenericArgument::Type(ty) => replace_self(ty, self_target),
+                            syn::GenericArgument::AssocType(assoc) => {
+                                replace_self(&mut assoc.ty, self_target)
+                            }
+                            syn::GenericArgument::Lifetime(_)
+                            | syn::GenericArgument::Const(_)
+                            | syn::GenericArgument::AssocConst(_)
+                            | syn::GenericArgument::Constraint(_)
+                            | _ => {}
+                        }
+                    }
+                }
+            }
+        }
+        syn::Type::Reference(type_ref) => {
+            replace_self(&mut type_ref.elem, self_target);
+        }
+        syn::Type::Tuple(type_tuple) => {
+            for ty in &mut type_tuple.elems {
+                replace_self(ty, self_target);
+            }
+        }
+        syn::Type::Array(type_array) => replace_self(&mut type_array.elem, self_target),
+        syn::Type::Slice(ty) => replace_self(&mut ty.elem, self_target),
+        syn::Type::Group(ty) => replace_self(&mut ty.elem, self_target),
+        syn::Type::Paren(ty) => replace_self(&mut ty.elem, self_target),
+        syn::Type::Ptr(ty) => replace_self(&mut ty.elem, self_target),
+
+        syn::Type::BareFn(_)
+        | syn::Type::ImplTrait(_)
+        | syn::Type::Infer(_)
+        | syn::Type::Macro(_)
+        | syn::Type::Never(_)
+        | syn::Type::TraitObject(_)
+        | syn::Type::Verbatim(_)
+        | _ => {}
+    }
 }

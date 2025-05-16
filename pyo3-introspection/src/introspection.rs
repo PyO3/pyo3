@@ -364,7 +364,7 @@ enum Chunk {
         #[serde(default)]
         id: Option<String>,
         name: String,
-        arguments: ChunkArguments,
+        arguments: Box<ChunkArguments>,
         #[serde(default)]
         parent: Option<String>,
         #[serde(default)]
