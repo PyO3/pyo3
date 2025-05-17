@@ -48,6 +48,9 @@ pub mod kw {
     syn::custom_keyword!(weakref);
     syn::custom_keyword!(generic);
     syn::custom_keyword!(gil_used);
+    syn::custom_keyword!(warn);
+    syn::custom_keyword!(message);
+    syn::custom_keyword!(category);
 }
 
 fn take_int(read: &mut &str, tracker: &mut usize) -> String {

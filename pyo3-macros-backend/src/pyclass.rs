@@ -1669,6 +1669,7 @@ fn complex_enum_struct_variant_new<'a>(
         text_signature: None,
         asyncness: None,
         unsafety: None,
+        warnings: vec![],
     };
 
     crate::pymethod::impl_py_method_def_new(&variant_cls_type, &spec, ctx)
@@ -1723,6 +1724,7 @@ fn complex_enum_tuple_variant_new<'a>(
         text_signature: None,
         asyncness: None,
         unsafety: None,
+        warnings: vec![],
     };
 
     crate::pymethod::impl_py_method_def_new(&variant_cls_type, &spec, ctx)
@@ -1747,6 +1749,7 @@ fn complex_enum_variant_field_getter<'a>(
         text_signature: None,
         asyncness: None,
         unsafety: None,
+        warnings: vec![],
     };
 
     let property_type = crate::pymethod::PropertyType::Function {

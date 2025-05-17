@@ -6,6 +6,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
+use crate::pyfunction::{PyFunctionWarning, WarningFactory};
 use crate::pyversions::is_abi3_before;
 use crate::utils::{Ctx, LitCStr};
 use crate::{
@@ -467,6 +468,7 @@ pub struct FnSpec<'a> {
     pub text_signature: Option<TextSignatureAttribute>,
     pub asyncness: Option<syn::Token![async]>,
     pub unsafety: Option<syn::Token![unsafe]>,
+    pub warnings: Vec<PyFunctionWarning>,
 }
 
 pub fn parse_method_receiver(arg: &syn::FnArg) -> Result<SelfType> {
@@ -503,6 +505,7 @@ impl<'a> FnSpec<'a> {
             text_signature,
             name,
             signature,
+            warnings,
             ..
         } = options;
 
@@ -546,6 +549,7 @@ impl<'a> FnSpec<'a> {
             text_signature,
             asyncness: sig.asyncness,
             unsafety: sig.unsafety,
+            warnings,
         })
     }
 
@@ -799,6 +803,8 @@ impl<'a> FnSpec<'a> {
             quote!(#func_name)
         };
 
+        let warnings = self.warnings.build_py_warning(ctx);
+
         Ok(match self.convention {
             CallingConvention::Noargs => {
                 let mut holders = Holders::new();
@@ -821,6 +827,7 @@ impl<'a> FnSpec<'a> {
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #init_holders
+                        #warnings
                         let result = #call;
                         result
                     }
@@ -843,6 +850,7 @@ impl<'a> FnSpec<'a> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #init_holders
+                        #warnings
                         let result = #call;
                         result
                     }
@@ -864,6 +872,7 @@ impl<'a> FnSpec<'a> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #init_holders
+                        #warnings
                         let result = #call;
                         result
                     }
@@ -888,6 +897,7 @@ impl<'a> FnSpec<'a> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #init_holders
+                        #warnings
                         let result = #call;
                         let initializer: #pyo3_path::PyClassInitializer::<#cls> = result.convert(py)?;
                         #pyo3_path::impl_::pymethods::tp_new_impl(py, initializer, _slf)
