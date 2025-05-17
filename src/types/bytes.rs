@@ -365,4 +365,19 @@ mod tests {
             assert_eq!(*b, py_string);
         })
     }
+
+    #[test]
+    #[cfg(not(Py_LIMITED_API))]
+    fn test_as_string() {
+        Python::with_gil(|py| {
+            let b = b"hello, world".as_slice();
+            let py_bytes = PyBytes::new(py, b);
+            unsafe {
+                assert_eq!(
+                    ffi::PyBytes_AsString(py_bytes.as_ptr()) as *const std::os::raw::c_char,
+                    ffi::PyBytes_AS_STRING(py_bytes.as_ptr()) as *const std::os::raw::c_char
+                );
+            }
+        })
+    }
 }
