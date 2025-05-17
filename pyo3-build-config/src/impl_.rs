@@ -730,6 +730,9 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             );
 
             self.version = version;
+        } else if is_abi3() && self.version.minor > ABI3_MAX_MINOR {
+            warn!("Automatically falling back to abi3-py3{ABI3_MAX_MINOR} because current Python is higher than the maximum supported");
+            self.version.minor = ABI3_MAX_MINOR;
         }
 
         Ok(())
