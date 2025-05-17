@@ -904,7 +904,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// This is equivalent to the Python expression `isinstance(self, T)`,
     /// if the type `T` is known at compile time.
-    fn is_instance_of<T: PyTypeInfo>(&self) -> bool;
+    fn is_instance_of<T: PyTypeCheck>(&self) -> bool;
 
     /// Checks whether this object is an instance of exactly type `T`.
     ///
@@ -1558,8 +1558,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     #[inline]
-    fn is_instance_of<T: PyTypeInfo>(&self) -> bool {
-        T::is_type_of(self)
+    fn is_instance_of<T: PyTypeCheck>(&self) -> bool {
+        T::type_check(self)
     }
 
     #[inline]
