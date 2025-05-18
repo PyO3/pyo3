@@ -19,6 +19,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use syn::ext::IdentExt;
 use syn::{Attribute, Ident, Type, TypePath};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
@@ -28,6 +29,8 @@ pub fn module_introspection_code<'a>(
     name: &str,
     members: impl IntoIterator<Item = &'a Ident>,
     members_cfg_attrs: impl IntoIterator<Item = &'a Vec<Attribute>>,
+    consts: impl IntoIterator<Item = &'a Ident>,
+    consts_cfg_attrs: impl IntoIterator<Item = &'a Vec<Attribute>>,
 ) -> TokenStream {
     IntrospectionNode::Map(
         [
@@ -45,6 +48,28 @@ pub fn module_introspection_code<'a>(
                                 Some(IntrospectionNode::IntrospectionId(Some(ident_to_type(
                                     member,
                                 ))))
+                            } else {
+                                None // TODO: properly interpret cfg attributes
+                            }
+                        })
+                        .collect(),
+                ),
+            ),
+            (
+                "consts",
+                IntrospectionNode::List(
+                    consts
+                        .into_iter()
+                        .zip(consts_cfg_attrs)
+                        .filter_map(|(konst, attributes)| {
+                            if attributes.is_empty() {
+                                Some(IntrospectionNode::Map(
+                                    [(
+                                        "name",
+                                        IntrospectionNode::String(konst.unraw().to_string().into()),
+                                    )]
+                                    .into(),
+                                ))
                             } else {
                                 None // TODO: properly interpret cfg attributes
                             }

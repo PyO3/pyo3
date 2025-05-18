@@ -349,6 +349,8 @@ pub fn pymodule_module_impl(
         &name.to_string(),
         &module_items,
         &module_items_cfg_attrs,
+        &module_consts,
+        &module_consts_cfg_attrs,
     );
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection = quote! {};
@@ -432,7 +434,7 @@ pub fn pymodule_function_impl(
     );
 
     #[cfg(feature = "experimental-inspect")]
-    let introspection = module_introspection_code(pyo3_path, &name.to_string(), &[], &[]);
+    let introspection = module_introspection_code(pyo3_path, &name.to_string(), &[], &[], &[], &[]);
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection = quote! {};
     #[cfg(feature = "experimental-inspect")]

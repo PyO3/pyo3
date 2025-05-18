@@ -1,4 +1,4 @@
-use crate::model::{Argument, Class, Function, Module, VariableLengthArgument};
+use crate::model::{Argument, Class, Const, Function, Module, VariableLengthArgument};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -38,6 +38,9 @@ fn module_stubs(module: &Module) -> String {
     }
     for function in &module.functions {
         elements.push(function_stubs(function));
+    }
+    for konst in &module.consts {
+        elements.push(const_stubs(konst));
     }
 
     // We insert two line jumps (i.e. empty strings) only above and below multiple line elements (classes with methods, functions with decorators)
@@ -109,6 +112,10 @@ fn function_stubs(function: &Function) -> String {
     }
     buffer.push_str(&output);
     buffer
+}
+
+fn const_stubs(konst: &Const) -> String {
+    format!("{} = ...", konst.name)
 }
 
 fn argument_stub(argument: &Argument) -> String {
