@@ -1,5 +1,5 @@
 use crate::model::{Argument, Class, Const, Function, Module, VariableLengthArgument};
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 
 /// Generates the [type stubs](https://typing.readthedocs.io/en/latest/source/stubs.html) of a given module.
@@ -32,15 +32,23 @@ fn add_module_stub_files(
 
 /// Generates the module stubs to a String, not including submodules
 fn module_stubs(module: &Module) -> String {
-    let mut elements = Vec::new();
+    let mut modules_to_import = BTreeSet::new();
+    let mut elements = VecDeque::new();
     for class in &module.classes {
-        elements.push(class_stubs(class));
+        elements.push_back(class_stubs(class));
     }
     for function in &module.functions {
-        elements.push(function_stubs(function));
+        elements.push_back(function_stubs(function));
     }
     for konst in &module.consts {
-        elements.push(const_stubs(konst));
+        elements.push_back(const_stubs(konst, &mut modules_to_import));
+    }
+
+    if !modules_to_import.is_empty() {
+        elements.push_front("".to_string());
+    }
+    for module_to_import in &modules_to_import {
+        elements.push_front(format!("import {module_to_import}"));
     }
 
     // We insert two line jumps (i.e. empty strings) only above and below multiple line elements (classes with methods, functions with decorators)
@@ -56,6 +64,7 @@ fn module_stubs(module: &Module) -> String {
             output.push('\n');
         }
     }
+
     // We remove a line jump at the end if they are two
     if output.ends_with("\n\n") {
         output.pop();
@@ -114,8 +123,10 @@ fn function_stubs(function: &Function) -> String {
     buffer
 }
 
-fn const_stubs(konst: &Const) -> String {
-    format!("{} = ...", konst.name)
+fn const_stubs(konst: &Const, modules_to_import: &mut BTreeSet<String>) -> String {
+    modules_to_import.insert("typing".to_string());
+    let Const { name, value } = konst;
+    format!("{name}: typing.Final = {value}")
 }
 
 fn argument_stub(argument: &Argument) -> String {

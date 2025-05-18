@@ -30,6 +30,7 @@ pub fn module_introspection_code<'a>(
     members: impl IntoIterator<Item = &'a Ident>,
     members_cfg_attrs: impl IntoIterator<Item = &'a Vec<Attribute>>,
     consts: impl IntoIterator<Item = &'a Ident>,
+    consts_values: impl IntoIterator<Item = &'a String>,
     consts_cfg_attrs: impl IntoIterator<Item = &'a Vec<Attribute>>,
 ) -> TokenStream {
     IntrospectionNode::Map(
@@ -60,16 +61,11 @@ pub fn module_introspection_code<'a>(
                 IntrospectionNode::List(
                     consts
                         .into_iter()
+                        .zip(consts_values)
                         .zip(consts_cfg_attrs)
-                        .filter_map(|(konst, attributes)| {
+                        .filter_map(|((ident, value), attributes)| {
                             if attributes.is_empty() {
-                                Some(IntrospectionNode::Map(
-                                    [(
-                                        "name",
-                                        IntrospectionNode::String(konst.unraw().to_string().into()),
-                                    )]
-                                    .into(),
-                                ))
+                                Some(const_introscpection_code(ident, value))
                             } else {
                                 None // TODO: properly interpret cfg attributes
                             }
@@ -139,6 +135,20 @@ pub fn function_introspection_code(
         );
     }
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
+}
+
+fn const_introscpection_code<'a>(ident: &'a Ident, value: &'a String) -> IntrospectionNode<'a> {
+    IntrospectionNode::Map(
+        [
+            ("type", IntrospectionNode::String("const".into())),
+            (
+                "name",
+                IntrospectionNode::String(ident.unraw().to_string().into()),
+            ),
+            ("value", IntrospectionNode::String(value.into())),
+        ]
+        .into(),
+    )
 }
 
 fn arguments_introspection_data<'a>(

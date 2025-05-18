@@ -59,7 +59,7 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
 fn convert_module(
     name: &str,
     members: &[String],
-    consts: &[ConstChunk],
+    consts: &[Const],
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
 ) -> Result<Module> {
@@ -72,18 +72,12 @@ fn convert_module(
         chunks_by_parent,
     )?;
 
-    let consts = consts
-        .iter()
-        .map(|c| Const {
-            name: c.name.clone(),
-        })
-        .collect();
     Ok(Module {
         name: name.into(),
         modules,
         classes,
         functions,
-        consts,
+        consts: consts.into(),
     })
 }
 
@@ -366,7 +360,7 @@ enum Chunk {
         id: String,
         name: String,
         members: Vec<String>,
-        consts: Vec<ConstChunk>,
+        consts: Vec<Const>,
     },
     Class {
         id: String,
@@ -382,11 +376,6 @@ enum Chunk {
         #[serde(default)]
         decorators: Vec<String>,
     },
-}
-
-#[derive(Deserialize)]
-struct ConstChunk {
-    name: String,
 }
 
 #[derive(Deserialize)]
