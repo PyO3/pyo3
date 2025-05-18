@@ -71,7 +71,7 @@ jobs:
 
       # windows on arm image contains x86-64 libclang
       - name: Install LLVM and Clang
-        if: inputs.os == 'windows-latest' && inputs.python-architecture == 'arm64'
+        if: inputs.os == 'windows-11-arm'
         uses: KyleMayes/install-llvm-action@v2
 
       - name: Install zoneinfo backport for Python 3.7 / 3.8
