@@ -21,7 +21,6 @@ from typing import (
     Tuple,
 )
 
-
 import nox
 import nox.command
 
@@ -34,7 +33,6 @@ except ImportError:
         toml = None
 
 nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "docs"]
-
 
 PYO3_DIR = Path(__file__).parent
 PYO3_TARGET = Path(os.environ.get("CARGO_TARGET_DIR", PYO3_DIR / "target")).absolute()
@@ -675,8 +673,6 @@ def set_msrv_package_versions(session: nox.Session):
     min_pkg_versions = {
         "trybuild": "1.0.89",
         "allocator-api2": "0.2.10",
-        "indexmap": "2.5.0",  # to be compatible with hashbrown 0.14
-        "hashbrown": "0.14.5",  # https://github.com/rust-lang/hashbrown/issues/574
     }
 
     # run cargo update first to ensure that everything is at highest
