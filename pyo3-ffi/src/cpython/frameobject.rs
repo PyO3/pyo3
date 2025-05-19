@@ -3,6 +3,7 @@ use crate::cpython::code::PyCodeObject;
 use crate::object::*;
 #[cfg(not(GraalPy))]
 use crate::pystate::PyThreadState;
+use crate::PyFrameObject;
 #[cfg(not(any(PyPy, GraalPy, Py_3_11)))]
 use std::os::raw::c_char;
 use std::os::raw::c_int;
@@ -18,41 +19,6 @@ pub struct PyTryBlock {
     pub b_handler: c_int,
     pub b_level: c_int,
 }
-
-#[repr(C)]
-#[cfg(not(any(PyPy, GraalPy, Py_3_11)))]
-pub struct PyFrameObject {
-    pub ob_base: PyVarObject,
-    pub f_back: *mut PyFrameObject,
-    pub f_code: *mut PyCodeObject,
-    pub f_builtins: *mut PyObject,
-    pub f_globals: *mut PyObject,
-    pub f_locals: *mut PyObject,
-    pub f_valuestack: *mut *mut PyObject,
-
-    #[cfg(not(Py_3_10))]
-    pub f_stacktop: *mut *mut PyObject,
-    pub f_trace: *mut PyObject,
-    #[cfg(Py_3_10)]
-    pub f_stackdepth: c_int,
-    pub f_trace_lines: c_char,
-    pub f_trace_opcodes: c_char,
-
-    pub f_gen: *mut PyObject,
-
-    pub f_lasti: c_int,
-    pub f_lineno: c_int,
-    pub f_iblock: c_int,
-    #[cfg(not(Py_3_10))]
-    pub f_executing: c_char,
-    #[cfg(Py_3_10)]
-    pub f_state: PyFrameState,
-    pub f_blockstack: [PyTryBlock; crate::CO_MAXBLOCKS],
-    pub f_localsplus: [*mut PyObject; 1],
-}
-
-#[cfg(any(PyPy, GraalPy, Py_3_11))]
-opaque_struct!(pub PyFrameObject);
 
 // skipped _PyFrame_IsRunnable
 // skipped _PyFrame_IsExecuting
