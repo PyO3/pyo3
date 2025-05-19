@@ -134,7 +134,7 @@ where
 mod tests {
     use super::*;
     use crate::types::IntoPyDict;
-    use std::hash::RandomState;
+    use std::collections::hash_map::RandomState;
 
     #[test]
     fn test_hashbrown_hashmap_into_pyobject() {
