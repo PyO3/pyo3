@@ -54,8 +54,13 @@ pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
             unsupported,
             "#[pymodule] only supports modules and functions.",
         )),
-    }
-    .unwrap_or_compile_error();
+    };
+
+    if let Err(e) = expanded.clone() {
+        eprintln!("{}", e);
+    };
+
+    let expanded = expanded.unwrap_or_compile_error();
 
     quote!(
         #ast

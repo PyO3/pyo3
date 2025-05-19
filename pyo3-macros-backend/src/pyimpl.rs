@@ -1,12 +1,11 @@
 use std::collections::HashSet;
 
+use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::function_introspection_code;
 #[cfg(feature = "experimental-inspect")]
 use crate::method::{FnSpec, FnType};
-use crate::utils::{
-    combine_syn_errors, has_attribute, has_attribute_with_namespace, Ctx, PyO3CratePath,
-};
+use crate::utils::{has_attribute, has_attribute_with_namespace, Ctx, PyO3CratePath};
 use crate::{
     attributes::{take_pyo3_options, CrateAttribute},
     konst::{ConstAttributes, ConstSpec},
@@ -124,7 +123,7 @@ pub fn impl_methods(
 
     let mut implemented_proto_fragments = HashSet::new();
 
-    let results: Vec<syn::Result<()>> = impls
+    let _: Vec<()> = impls
         .into_iter()
         .map(|iimpl| {
             match iimpl {
@@ -194,9 +193,8 @@ pub fn impl_methods(
             }
             Ok(())
         })
+        .try_combine_syn_errors()?
         .collect();
-
-    combine_syn_errors(results)?;
 
     let ctx = &Ctx::new(&options.krate, None);
 

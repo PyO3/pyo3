@@ -324,28 +324,6 @@ pub(crate) fn has_attribute_with_namespace(
     })
 }
 
-pub(crate) fn combine_syn_errors<T>(results: Vec<syn::Result<T>>) -> syn::Result<()> {
-    let errors: Vec<syn::Error> = results
-        .into_iter()
-        .filter_map(|res| match res {
-            Ok(_) => None,
-            Err(e) => Some(e),
-        })
-        .collect();
-
-    let mut iter = errors.into_iter();
-    let mut err = match iter.next() {
-        Some(e) => e,
-        None => return Ok(()),
-    };
-
-    for e in iter {
-        err.combine(e);
-    }
-
-    Err(err)
-}
-
 pub(crate) trait TypeExt {
     /// Replaces all explicit lifetimes in `self` with elided (`'_`) lifetimes
     ///

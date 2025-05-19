@@ -7,6 +7,7 @@ use crate::{
         self, kw, take_attributes, take_pyo3_options, CrateAttribute, GILUsedAttribute,
         ModuleAttribute, NameAttribute, SubmoduleAttribute,
     },
+    combine_errors::CombineErrors,
     get_doc,
     pyclass::PyClassPyO3Option,
     pyfunction::{impl_wrap_pyfunction, PyFunctionOptions},
@@ -66,20 +67,26 @@ impl PyModuleOptions {
                 }
             };
         }
-        for attr in attrs {
-            match attr {
-                PyModulePyO3Option::Crate(krate) => set_option!(krate),
-                PyModulePyO3Option::Name(name) => set_option!(name),
-                PyModulePyO3Option::Module(module) => set_option!(module),
-                PyModulePyO3Option::Submodule(submodule) => set_option!(
-                    submodule,
-                    " (it is implicitly always specified for nested modules)"
-                ),
-                PyModulePyO3Option::GILUsed(gil_used) => {
-                    set_option!(gil_used)
+        let _: Vec<()> = attrs
+            .into_iter()
+            .map(|attr| {
+                match attr {
+                    PyModulePyO3Option::Crate(krate) => set_option!(krate),
+                    PyModulePyO3Option::Name(name) => set_option!(name),
+                    PyModulePyO3Option::Module(module) => set_option!(module),
+                    PyModulePyO3Option::Submodule(submodule) => set_option!(
+                        submodule,
+                        " (it is implicitly always specified for nested modules)"
+                    ),
+                    PyModulePyO3Option::GILUsed(gil_used) => {
+                        set_option!(gil_used)
+                    }
                 }
-            }
-        }
+
+                Ok(())
+            })
+            .try_combine_syn_errors()?
+            .collect();
         Ok(())
     }
 }
@@ -152,7 +159,7 @@ pub fn pymodule_module_impl(
     let mut module_consts = Vec::new();
     let mut module_consts_cfg_attrs = Vec::new();
 
-    for item in &mut *items {
+    let _: Vec<()> = (&mut *items).into_iter().map(|item|{
         match item {
             Item::Use(item_use) => {
                 let is_pymodule_export =
@@ -291,7 +298,7 @@ pub fn pymodule_module_impl(
             }
             Item::Const(item) => {
                 if !find_and_remove_attribute(&mut item.attrs, "pymodule_export") {
-                    continue;
+                    return Ok(());
                 }
 
                 module_consts.push(item.ident.clone());
@@ -341,7 +348,8 @@ pub fn pymodule_module_impl(
             }
             _ => (),
         }
-    }
+        Ok(())
+    }).try_combine_syn_errors()?.collect();
 
     #[cfg(feature = "experimental-inspect")]
     let introspection = module_introspection_code(
