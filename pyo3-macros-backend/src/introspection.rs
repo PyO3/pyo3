@@ -19,6 +19,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use syn::ext::IdentExt;
 use syn::{Attribute, Ident, Type, TypePath};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
@@ -28,6 +29,9 @@ pub fn module_introspection_code<'a>(
     name: &str,
     members: impl IntoIterator<Item = &'a Ident>,
     members_cfg_attrs: impl IntoIterator<Item = &'a Vec<Attribute>>,
+    consts: impl IntoIterator<Item = &'a Ident>,
+    consts_values: impl IntoIterator<Item = &'a String>,
+    consts_cfg_attrs: impl IntoIterator<Item = &'a Vec<Attribute>>,
 ) -> TokenStream {
     IntrospectionNode::Map(
         [
@@ -45,6 +49,23 @@ pub fn module_introspection_code<'a>(
                                 Some(IntrospectionNode::IntrospectionId(Some(ident_to_type(
                                     member,
                                 ))))
+                            } else {
+                                None // TODO: properly interpret cfg attributes
+                            }
+                        })
+                        .collect(),
+                ),
+            ),
+            (
+                "consts",
+                IntrospectionNode::List(
+                    consts
+                        .into_iter()
+                        .zip(consts_values)
+                        .zip(consts_cfg_attrs)
+                        .filter_map(|((ident, value), attributes)| {
+                            if attributes.is_empty() {
+                                Some(const_introspection_code(ident, value))
                             } else {
                                 None // TODO: properly interpret cfg attributes
                             }
@@ -114,6 +135,20 @@ pub fn function_introspection_code(
         );
     }
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
+}
+
+fn const_introspection_code<'a>(ident: &'a Ident, value: &'a String) -> IntrospectionNode<'a> {
+    IntrospectionNode::Map(
+        [
+            ("type", IntrospectionNode::String("const".into())),
+            (
+                "name",
+                IntrospectionNode::String(ident.unraw().to_string().into()),
+            ),
+            ("value", IntrospectionNode::String(value.into())),
+        ]
+        .into(),
+    )
 }
 
 fn arguments_introspection_data<'a>(
