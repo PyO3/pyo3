@@ -65,7 +65,7 @@ pub fn module_introspection_code<'a>(
                         .zip(consts_cfg_attrs)
                         .filter_map(|((ident, value), attributes)| {
                             if attributes.is_empty() {
-                                Some(const_introscpection_code(ident, value))
+                                Some(const_introspection_code(ident, value))
                             } else {
                                 None // TODO: properly interpret cfg attributes
                             }
@@ -137,7 +137,7 @@ pub fn function_introspection_code(
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
 
-fn const_introscpection_code<'a>(ident: &'a Ident, value: &'a String) -> IntrospectionNode<'a> {
+fn const_introspection_code<'a>(ident: &'a Ident, value: &'a String) -> IntrospectionNode<'a> {
     IntrospectionNode::Map(
         [
             ("type", IntrospectionNode::String("const".into())),
