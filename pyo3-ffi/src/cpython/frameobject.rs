@@ -6,7 +6,6 @@ use crate::pystate::PyThreadState;
 #[cfg(not(any(PyPy, GraalPy, Py_3_11)))]
 use std::os::raw::c_char;
 use std::os::raw::c_int;
-use std::ptr::addr_of_mut;
 
 #[cfg(not(any(PyPy, GraalPy, Py_3_11)))]
 pub type PyFrameState = c_char;
@@ -58,25 +57,6 @@ opaque_struct!(pub PyFrameObject);
 // skipped _PyFrame_IsRunnable
 // skipped _PyFrame_IsExecuting
 // skipped _PyFrameHasCompleted
-
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
-    pub static mut PyFrame_Type: PyTypeObject;
-
-    #[cfg(Py_3_13)]
-    pub static mut PyFrameLocalsProxy_Type: PyTypeObject;
-}
-
-#[inline]
-pub unsafe fn PyFrame_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyFrame_Type)) as c_int
-}
-
-#[cfg(Py_3_13)]
-#[inline]
-pub unsafe fn PyFrameLocalsProxy_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyFrameLocalsProxy_Type)) as c_int
-}
 
 extern "C" {
     #[cfg(not(GraalPy))]
