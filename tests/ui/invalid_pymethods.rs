@@ -197,4 +197,17 @@ impl MyClass {
     macro_invocation!();
 }
 
+#[pymethods]
+impl MyClass {
+    #[staticmethod]
+    #[classmethod]
+    fn multiple_errors_static_and_class_method() {}
+
+    #[staticmethod]
+    fn multiple_errors_staticmethod_with_receiver(&self) {}
+
+    #[classmethod]
+    fn multiple_errors_classmethod_with_receiver(&self) {}
+}
+
 fn main() {}
