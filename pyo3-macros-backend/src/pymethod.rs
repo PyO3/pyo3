@@ -1599,6 +1599,7 @@ fn extract_proto_arguments(
         if let FnArg::Py(..) = arg {
             args.push(quote! { py });
         } else {
+            // JAKE: do I need to handle this?
             let ident = syn::Ident::new(&format!("arg{non_python_args}"), Span::call_site());
             let conversions = proto_args.get(non_python_args)
                 .ok_or_else(|| err_spanned!(arg.ty().span() => format!("Expected at most {} non-python arguments", proto_args.len())))?

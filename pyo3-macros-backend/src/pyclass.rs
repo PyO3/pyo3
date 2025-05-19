@@ -307,8 +307,6 @@ pub fn build_py_class(
     .try_combine_syn_errors()?
     .collect();
 
-    // all_errors.ensure_empty()?;
-
     if let Some(attr) = args.options.get_all {
         for (_, FieldPyO3Options { get, .. }) in &mut field_options {
             if let Some(old_get) = get.replace(Annotated::Struct(attr)) {
