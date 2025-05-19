@@ -277,6 +277,13 @@ impl<'py, T> IntoPyObjectExt<'py> for T where T: IntoPyObject<'py> {}
 /// infinite recursion, implementors must implement at least one of these methods. The recommendation
 /// is to implement `extract_bound` and leave `extract` as the default implementation.
 pub trait FromPyObject<'py>: Sized {
+    /// Provides the type hint information for this type when it appears as an argument.
+    ///
+    /// For example, `Vec<u32>` would be `collections.abc.Sequence[int]`.
+    /// The default value is `typing.Any`, which is correct for any type.
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "typing.Any";
+
     /// Extracts `Self` from the bound smart pointer `obj`.
     ///
     /// Implementors are encouraged to implement this method and leave `extract` defaulted, as
@@ -339,6 +346,13 @@ mod from_py_object_bound_sealed {
 /// Similarly, users should typically not call these trait methods and should instead
 /// use this via the `extract` method on `Bound` and `Py`.
 pub trait FromPyObjectBound<'a, 'py>: Sized + from_py_object_bound_sealed::Sealed {
+    /// Provides the type hint information for this type when it appears as an argument.
+    ///
+    /// For example, `Vec<u32>` would be `collections.abc.Sequence[int]`.
+    /// The default value is `typing.Any`, which is correct for any type.
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "typing.Any";
+
     /// Extracts `Self` from the bound smart pointer `obj`.
     ///
     /// Users are advised against calling this method directly: instead, use this via
@@ -363,6 +377,9 @@ impl<'py, T> FromPyObjectBound<'_, 'py> for T
 where
     T: FromPyObject<'py>,
 {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = T::INPUT_TYPE;
+
     fn from_py_object_bound(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         Self::extract_bound(&ob)
     }

@@ -10,7 +10,7 @@
 
 use crate::method::{FnArg, RegularArg};
 use crate::pyfunction::FunctionSignature;
-use crate::utils::PyO3CratePath;
+use crate::utils::{PyO3CratePath, TypeExt};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::borrow::Cow;
@@ -91,7 +91,7 @@ pub fn function_introspection_code(
         ("name", IntrospectionNode::String(name.into())),
         (
             "arguments",
-            arguments_introspection_data(signature, first_argument),
+            arguments_introspection_data(signature, first_argument, parent),
         ),
     ]);
     if let Some(ident) = ident {
@@ -119,6 +119,7 @@ pub fn function_introspection_code(
 fn arguments_introspection_data<'a>(
     signature: &'a FunctionSignature<'a>,
     first_argument: Option<&'a str>,
+    class_type: Option<&Type>,
 ) -> IntrospectionNode<'a> {
     let mut argument_desc = signature.arguments.iter().filter_map(|arg| {
         if let FnArg::Regular(arg) = arg {
@@ -151,7 +152,7 @@ fn arguments_introspection_data<'a>(
         } else {
             panic!("Less arguments than in python signature");
         };
-        let arg = argument_introspection_data(param, arg_desc);
+        let arg = argument_introspection_data(param, arg_desc, class_type);
         if i < signature.python_signature.positional_only_parameters {
             posonlyargs.push(arg);
         } else {
@@ -171,7 +172,7 @@ fn arguments_introspection_data<'a>(
         } else {
             panic!("Less arguments than in python signature");
         };
-        kwonlyargs.push(argument_introspection_data(param, arg_desc));
+        kwonlyargs.push(argument_introspection_data(param, arg_desc, class_type));
     }
 
     if let Some(param) = &signature.python_signature.kwargs {
@@ -206,6 +207,7 @@ fn arguments_introspection_data<'a>(
 fn argument_introspection_data<'a>(
     name: &'a str,
     desc: &'a RegularArg<'_>,
+    class_type: Option<&Type>,
 ) -> IntrospectionNode<'a> {
     let mut params: HashMap<_, _> = [("name", IntrospectionNode::String(name.into()))].into();
     if desc.default_value.is_some() {
@@ -214,12 +216,44 @@ fn argument_introspection_data<'a>(
             IntrospectionNode::String(desc.default_value().into()),
         );
     }
+    if desc.from_py_with.is_none() {
+        // If from_py_with is set we don't know anything on the input type
+        if let Some(ty) = desc.option_wrapped_type {
+            // Special case to properly generate a `T | None` annotation
+            let mut ty = ty.clone();
+            if let Some(class_type) = class_type {
+                replace_self(&mut ty, class_type);
+            }
+            ty = ty.elide_lifetimes();
+            params.insert(
+                "annotation",
+                IntrospectionNode::InputType {
+                    rust_type: ty,
+                    nullable: true,
+                },
+            );
+        } else {
+            let mut ty = desc.ty.clone();
+            if let Some(class_type) = class_type {
+                replace_self(&mut ty, class_type);
+            }
+            ty = ty.elide_lifetimes();
+            params.insert(
+                "annotation",
+                IntrospectionNode::InputType {
+                    rust_type: ty,
+                    nullable: false,
+                },
+            );
+        }
+    }
     IntrospectionNode::Map(params)
 }
 
 enum IntrospectionNode<'a> {
     String(Cow<'a, str>),
     IntrospectionId(Option<Cow<'a, Type>>),
+    InputType { rust_type: Type, nullable: bool },
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<IntrospectionNode<'a>>),
 }
@@ -227,7 +261,7 @@ enum IntrospectionNode<'a> {
 impl IntrospectionNode<'_> {
     fn emit(self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
         let mut content = ConcatenationBuilder::default();
-        self.add_to_serialization(&mut content);
+        self.add_to_serialization(&mut content, pyo3_crate_path);
         let content = content.into_token_stream(pyo3_crate_path);
 
         let static_name = format_ident!("PYO3_INTROSPECTION_0_{}", unique_element_id());
@@ -241,7 +275,11 @@ impl IntrospectionNode<'_> {
         }
     }
 
-    fn add_to_serialization(self, content: &mut ConcatenationBuilder) {
+    fn add_to_serialization(
+        self,
+        content: &mut ConcatenationBuilder,
+        pyo3_crate_path: &PyO3CratePath,
+    ) {
         match self {
             Self::String(string) => {
                 content.push_str_to_escape(&string);
@@ -251,8 +289,19 @@ impl IntrospectionNode<'_> {
                 content.push_tokens(if let Some(ident) = ident {
                     quote! { #ident::_PYO3_INTROSPECTION_ID }
                 } else {
-                    Ident::new("_PYO3_INTROSPECTION_ID", Span::call_site()).into_token_stream()
+                    quote! { _PYO3_INTROSPECTION_ID }
                 });
+                content.push_str("\"");
+            }
+            Self::InputType {
+                rust_type,
+                nullable,
+            } => {
+                content.push_str("\"");
+                content.push_tokens(quote! { <#rust_type as #pyo3_crate_path::impl_::extract_argument::PyFunctionArgument<false>>::INPUT_TYPE });
+                if nullable {
+                    content.push_str(" | None");
+                }
                 content.push_str("\"");
             }
             Self::Map(map) => {
@@ -263,7 +312,7 @@ impl IntrospectionNode<'_> {
                     }
                     content.push_str_to_escape(key);
                     content.push_str(":");
-                    value.add_to_serialization(content);
+                    value.add_to_serialization(content, pyo3_crate_path);
                 }
                 content.push_str("}");
             }
@@ -273,7 +322,7 @@ impl IntrospectionNode<'_> {
                     if i > 0 {
                         content.push_str(",");
                     }
-                    value.add_to_serialization(content);
+                    value.add_to_serialization(content, pyo3_crate_path);
                 }
                 content.push_str("]");
             }
@@ -377,4 +426,65 @@ fn ident_to_type(ident: &Ident) -> Cow<'static, Type> {
         }
         .into(),
     )
+}
+
+// Replace Self in types with the given type
+fn replace_self(ty: &mut Type, self_target: &Type) {
+    match ty {
+        syn::Type::Path(type_path) => {
+            if type_path.qself.is_none()
+                && type_path.path.segments.len() == 1
+                && type_path.path.segments[0].ident == "Self"
+                && type_path.path.segments[0].arguments.is_empty()
+            {
+                // It is Self
+                *ty = self_target.clone();
+                return;
+            }
+
+            // We look recursively
+            if let Some(qself) = &mut type_path.qself {
+                replace_self(&mut qself.ty, self_target)
+            }
+            for seg in &mut type_path.path.segments {
+                if let syn::PathArguments::AngleBracketed(args) = &mut seg.arguments {
+                    for generic_arg in &mut args.args {
+                        match generic_arg {
+                            syn::GenericArgument::Type(ty) => replace_self(ty, self_target),
+                            syn::GenericArgument::AssocType(assoc) => {
+                                replace_self(&mut assoc.ty, self_target)
+                            }
+                            syn::GenericArgument::Lifetime(_)
+                            | syn::GenericArgument::Const(_)
+                            | syn::GenericArgument::AssocConst(_)
+                            | syn::GenericArgument::Constraint(_)
+                            | _ => {}
+                        }
+                    }
+                }
+            }
+        }
+        syn::Type::Reference(type_ref) => {
+            replace_self(&mut type_ref.elem, self_target);
+        }
+        syn::Type::Tuple(type_tuple) => {
+            for ty in &mut type_tuple.elems {
+                replace_self(ty, self_target);
+            }
+        }
+        syn::Type::Array(type_array) => replace_self(&mut type_array.elem, self_target),
+        syn::Type::Slice(ty) => replace_self(&mut ty.elem, self_target),
+        syn::Type::Group(ty) => replace_self(&mut ty.elem, self_target),
+        syn::Type::Paren(ty) => replace_self(&mut ty.elem, self_target),
+        syn::Type::Ptr(ty) => replace_self(&mut ty.elem, self_target),
+
+        syn::Type::BareFn(_)
+        | syn::Type::ImplTrait(_)
+        | syn::Type::Infer(_)
+        | syn::Type::Macro(_)
+        | syn::Type::Never(_)
+        | syn::Type::TraitObject(_)
+        | syn::Type::Verbatim(_)
+        | _ => {}
+    }
 }
