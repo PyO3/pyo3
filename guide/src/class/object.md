@@ -77,8 +77,8 @@ To automatically generate the `__str__` implementation using a `Display` trait i
 # use pyo3::prelude::*;
 #
 # #[allow(dead_code)]
-# #[pyclass(str)]
-# struct Coordinate {
+#[pyclass(str)]
+struct Coordinate {
     x: i32,
     y: i32,
     z: i32,
@@ -104,8 +104,8 @@ For convenience, a shorthand format string can be passed to `str` as `str="<form
 # use pyo3::prelude::*;
 #
 # #[allow(dead_code)]
-# #[pyclass(str="({x}, {y}, {z})")]
-# struct Coordinate {
+#[pyclass(str="({x}, {y}, {z})")]
+struct Coordinate {
     x: i32,
     y: i32,
     z: i32,
