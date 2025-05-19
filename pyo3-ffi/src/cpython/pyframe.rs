@@ -26,7 +26,7 @@ pub unsafe fn PyFrameLocalsProxy_Check(op: *mut PyObject) -> c_int {
 }
 
 extern "C" {
-    #[cfg(Py_3_9)]
+    #[cfg(all(Py_3_9, not(PyPy)))]
     pub fn PyFrame_GetBack(frame: *mut PyFrameObject) -> *mut PyFrameObject;
 
     #[cfg(Py_3_11)]

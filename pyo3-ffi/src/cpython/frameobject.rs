@@ -78,8 +78,6 @@ extern "C" {
     pub fn PyFrame_FastToLocals(f: *mut PyFrameObject);
 
     // skipped _PyFrame_DebugMallocStats
-    #[cfg(all(Py_3_9, not(PyPy)))]
-    pub fn PyFrame_GetBack(f: *mut PyFrameObject) -> *mut PyFrameObject;
 
     #[cfg(not(Py_3_9))]
     pub fn PyFrame_ClearFreeList() -> c_int;
