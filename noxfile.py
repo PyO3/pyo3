@@ -47,7 +47,7 @@ def _get_output(*args: str) -> str:
 
 
 def _parse_supported_interpreter_version(
-        python_impl: str,  # Literal["cpython", "pypy"], TODO update after 3.7 dropped
+    python_impl: str,  # Literal["cpython", "pypy"], TODO update after 3.7 dropped
 ) -> Tuple[str, str]:
     output = _get_output("cargo", "metadata", "--format-version=1", "--no-deps")
     cargo_packages = json.loads(output)["packages"]
@@ -61,7 +61,7 @@ def _parse_supported_interpreter_version(
 
 
 def _supported_interpreter_versions(
-        python_impl: str,  # Literal["cpython", "pypy"], TODO update after 3.7 dropped
+    python_impl: str,  # Literal["cpython", "pypy"], TODO update after 3.7 dropped
 ) -> List[str]:
     min_version, max_version = _parse_supported_interpreter_version(python_impl)
     major = int(min_version.split(".")[0])
@@ -122,10 +122,10 @@ def test_rust(session: nox.Session):
         _run_cargo_test(session, features=feature_set, extra_flags=flags)
 
         if (
-                feature_set
-                and "abi3" in feature_set
-                and "full" in feature_set
-                and sys.version_info >= (3, 7)
+            feature_set
+            and "abi3" in feature_set
+            and "full" in feature_set
+            and sys.version_info >= (3, 7)
         ):
             # run abi3-py37 tests to check abi3 forward compatibility
             _run_cargo_test(
@@ -563,7 +563,7 @@ def format_guide(session: nox.Session):
                 for line in lines:
                     if line == prefix + "```\n":
                         break
-                    file.write(("//! " + line[len(prefix):]).rstrip() + "\n")
+                    file.write(("//! " + line[len(prefix) :]).rstrip() + "\n")
                 file.write(fence_line)
 
             # Format it (needs nightly rustfmt for `format_code_in_doc_comments`)
@@ -895,7 +895,7 @@ def _get_rust_info() -> Tuple[str, ...]:
 def get_rust_version() -> Tuple[int, int, int, List[str]]:
     for line in _get_rust_info():
         if line.startswith(_RELEASE_LINE_START):
-            version = line[len(_RELEASE_LINE_START):].strip()
+            version = line[len(_RELEASE_LINE_START) :].strip()
             # e.g. 1.67.0-beta.2
             (version_number, *extra) = version.split("-", maxsplit=1)
             return (*map(int, version_number.split(".")), extra)
@@ -911,7 +911,7 @@ def is_rust_nightly() -> bool:
 def _get_rust_default_target() -> str:
     for line in _get_rust_info():
         if line.startswith(_HOST_LINE_START):
-            return line[len(_HOST_LINE_START):].strip()
+            return line[len(_HOST_LINE_START) :].strip()
 
 
 @lru_cache()
@@ -985,7 +985,7 @@ def _run(session: nox.Session, *args: str, **kwargs: Any) -> None:
 
 
 def _run_cargo(
-        session: nox.Session, *args: str, expect_error: bool = False, **kwargs: Any
+    session: nox.Session, *args: str, expect_error: bool = False, **kwargs: Any
 ) -> None:
     if expect_error:
         if "success_codes" in kwargs:
@@ -995,12 +995,12 @@ def _run_cargo(
 
 
 def _run_cargo_test(
-        session: nox.Session,
-        *,
-        package: Optional[str] = None,
-        features: Optional[str] = None,
-        env: Optional[Dict[str, str]] = None,
-        extra_flags: Optional[List[str]] = None,
+    session: nox.Session,
+    *,
+    package: Optional[str] = None,
+    features: Optional[str] = None,
+    env: Optional[Dict[str, str]] = None,
+    extra_flags: Optional[List[str]] = None,
 ) -> None:
     command = ["cargo"]
     if "careful" in session.posargs:
@@ -1027,11 +1027,11 @@ def _run_cargo_publish(session: nox.Session, *, package: str) -> None:
 
 
 def _run_cargo_set_package_version(
-        session: nox.Session,
-        pkg_id: str,
-        version: str,
-        *,
-        project: Optional[str] = None,
+    session: nox.Session,
+    pkg_id: str,
+    version: str,
+    *,
+    project: Optional[str] = None,
 ) -> None:
     command = ["cargo", "update", "-p", pkg_id, "--precise", version, "--workspace"]
     if project:
@@ -1040,7 +1040,7 @@ def _run_cargo_set_package_version(
 
 
 def _for_all_version_configs(
-        session: nox.Session, job: Callable[[Dict[str, str]], None]
+    session: nox.Session, job: Callable[[Dict[str, str]], None]
 ) -> None:
     env = os.environ.copy()
     with _config_file() as config_file:
@@ -1063,7 +1063,7 @@ class _ConfigFile:
         self._config_file = config_file
 
     def set(
-            self, implementation: str, version: str, build_flags: Iterable[str] = ()
+        self, implementation: str, version: str, build_flags: Iterable[str] = ()
     ) -> None:
         """Set the contents of this config file to the given implementation and version."""
         if version.endswith("t"):
