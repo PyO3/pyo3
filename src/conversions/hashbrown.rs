@@ -185,11 +185,11 @@ mod tests {
     fn test_extract_hashbrown_hashset() {
         Python::with_gil(|py| {
             let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
-            let hash_set: hashbrown::HashSet<usize> = set.extract().unwrap();
+            let hash_set: hashbrown::HashSet<usize, RandomState> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
 
             let set = PyFrozenSet::new(py, [1, 2, 3, 4, 5]).unwrap();
-            let hash_set: hashbrown::HashSet<usize> = set.extract().unwrap();
+            let hash_set: hashbrown::HashSet<usize, RandomState> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
         });
     }
@@ -197,7 +197,8 @@ mod tests {
     #[test]
     fn test_hashbrown_hashset_into_pyobject() {
         Python::with_gil(|py| {
-            let hs: hashbrown::HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
+            let hs: hashbrown::HashSet<u64, RandomState> =
+                [1, 2, 3, 4, 5].iter().cloned().collect();
 
             let hso = hs.clone().into_pyobject(py).unwrap();
 
