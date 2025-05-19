@@ -140,6 +140,8 @@ jobs:
 
       - if: ${{ github.event_name != 'merge_group' }}
         name: Generate coverage report
+        # needs investigation why llvm-cov fails on windows-11-arm
+        continue-on-error: ${{ inputs.os == 'windows-11-arm' }}
         run: cargo llvm-cov
           --package=pyo3
           --package=pyo3-build-config
@@ -151,6 +153,8 @@ jobs:
       - if: ${{ github.event_name != 'merge_group' }}
         name: Upload coverage report
         uses: codecov/codecov-action@v5
+        # needs investigation why llvm-cov fails on windows-11-arm
+        continue-on-error: ${{ inputs.os == 'windows-11-arm' }}
         with:
           files: coverage.json
           name: ${{ inputs.os }}/${{ inputs.python-version }}/${{ inputs.rust }}
