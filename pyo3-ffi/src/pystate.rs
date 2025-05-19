@@ -1,6 +1,3 @@
-#[cfg_attr(PyPy, link_name = "PyPyState_AddModule")]
-#[cfg_attr(PyPy, link_name = "PyPyState_RemoveModule")]
-#[cfg_attr(all(PyPy, Py_3_10), link_name = "PyPyState_FindModule")]
 use crate::moduleobject::PyModuleDef;
 use crate::object::PyObject;
 use std::os::raw::c_int;
