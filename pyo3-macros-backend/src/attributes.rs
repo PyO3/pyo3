@@ -379,8 +379,8 @@ pub fn get_pyo3_options<T: Parse>(attr: &syn::Attribute) -> Result<Option<Punctu
 /// (In `retain`, returning `true` keeps the element, here it removes it.)
 pub fn take_attributes(
     attrs: &mut Vec<Attribute>,
-    mut extractor: impl FnMut(&Attribute) -> syn::Result<bool>,
-) -> syn::Result<()> {
+    mut extractor: impl FnMut(&Attribute) -> Result<bool>,
+) -> Result<()> {
     *attrs = attrs
         .drain(..)
         .filter_map(|attr| {
@@ -392,7 +392,7 @@ pub fn take_attributes(
     Ok(())
 }
 
-pub fn take_pyo3_options<T: Parse>(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Vec<T>> {
+pub fn take_pyo3_options<T: Parse>(attrs: &mut Vec<syn::Attribute>) -> Result<Vec<T>> {
     let mut out = Vec::new();
 
     take_attributes(attrs, |attr| match get_pyo3_options(attr) {

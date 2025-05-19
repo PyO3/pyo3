@@ -1,5 +1,3 @@
-use syn;
-
 pub(crate) trait CombineErrors: Iterator {
     type Ok;
     fn try_combine_syn_errors(self) -> syn::Result<impl Iterator<Item = Self::Ok>>;

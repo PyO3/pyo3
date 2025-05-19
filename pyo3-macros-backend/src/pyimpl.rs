@@ -124,7 +124,7 @@ pub fn impl_methods(
     let mut implemented_proto_fragments = HashSet::new();
 
     let _: Vec<()> = impls
-        .into_iter()
+        .iter_mut()
         .map(|iimpl| {
             match iimpl {
                 syn::ImplItem::Fn(meth) => {
