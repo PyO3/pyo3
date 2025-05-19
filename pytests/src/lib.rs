@@ -5,6 +5,7 @@ use pyo3::wrap_pymodule;
 pub mod awaitable;
 pub mod buf_and_str;
 pub mod comparisons;
+mod consts;
 pub mod datetime;
 pub mod dict_iter;
 pub mod enums;
@@ -22,7 +23,7 @@ mod pyo3_pytests {
     use super::*;
 
     #[pymodule_export]
-    use {pyclasses::pyclasses, pyfunctions::pyfunctions};
+    use {consts::consts, pyclasses::pyclasses, pyfunctions::pyfunctions};
 
     // Inserting to sys.modules allows importing submodules nicely from Python
     // e.g. import pyo3_pytests.buf_and_str as bas

@@ -393,3 +393,31 @@ impl TypeExt for syn::Type {
         self
     }
 }
+
+pub fn expr_to_python(expr: &syn::Expr) -> String {
+    match expr {
+        // literal values
+        syn::Expr::Lit(syn::ExprLit { lit, .. }) => match lit {
+            syn::Lit::Str(s) => s.token().to_string(),
+            syn::Lit::Char(c) => c.token().to_string(),
+            syn::Lit::Int(i) => i.base10_digits().to_string(),
+            syn::Lit::Float(f) => f.base10_digits().to_string(),
+            syn::Lit::Bool(b) => {
+                if b.value() {
+                    "True".to_string()
+                } else {
+                    "False".to_string()
+                }
+            }
+            _ => "...".to_string(),
+        },
+        // None
+        syn::Expr::Path(syn::ExprPath { qself, path, .. })
+            if qself.is_none() && path.is_ident("None") =>
+        {
+            "None".to_string()
+        }
+        // others, unsupported yet so defaults to `...`
+        _ => "...".to_string(),
+    }
+}

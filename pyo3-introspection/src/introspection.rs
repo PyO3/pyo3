@@ -1,4 +1,4 @@
-use crate::model::{Argument, Arguments, Class, Function, Module, VariableLengthArgument};
+use crate::model::{Argument, Arguments, Class, Const, Function, Module, VariableLengthArgument};
 use anyhow::{bail, ensure, Context, Result};
 use goblin::elf::Elf;
 use goblin::mach::load_command::CommandVariant;
@@ -44,11 +44,12 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
         if let Chunk::Module {
             name,
             members,
+            consts,
             id: _,
         } = chunk
         {
             if name == main_module_name {
-                return convert_module(name, members, &chunks_by_id, &chunks_by_parent);
+                return convert_module(name, members, consts, &chunks_by_id, &chunks_by_parent);
             }
         }
     }
@@ -58,6 +59,7 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
 fn convert_module(
     name: &str,
     members: &[String],
+    consts: &[ConstChunk],
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
 ) -> Result<Module> {
@@ -69,11 +71,19 @@ fn convert_module(
         chunks_by_id,
         chunks_by_parent,
     )?;
+
     Ok(Module {
         name: name.into(),
         modules,
         classes,
         functions,
+        consts: consts
+            .iter()
+            .map(|c| Const {
+                name: c.name.clone(),
+                value: c.value.clone(),
+            })
+            .collect(),
     })
 }
 
@@ -91,11 +101,13 @@ fn convert_members(
             Chunk::Module {
                 name,
                 members,
+                consts,
                 id: _,
             } => {
                 modules.push(convert_module(
                     name,
                     members,
+                    consts,
                     chunks_by_id,
                     chunks_by_parent,
                 )?);
@@ -354,6 +366,7 @@ enum Chunk {
         id: String,
         name: String,
         members: Vec<String>,
+        consts: Vec<ConstChunk>,
     },
     Class {
         id: String,
@@ -369,6 +382,12 @@ enum Chunk {
         #[serde(default)]
         decorators: Vec<String>,
     },
+}
+
+#[derive(Deserialize)]
+struct ConstChunk {
+    name: String,
+    value: String,
 }
 
 #[derive(Deserialize)]
