@@ -22,8 +22,7 @@ use portable_atomic::AtomicI64;
     not(all(windows, Py_LIMITED_API, not(Py_3_10))),
     target_has_atomic = "64",
 ))]
-use std::sync::atomic::AtomicI64;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicI64, Ordering};
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
@@ -85,7 +84,9 @@ impl ModuleDef {
         let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
             m_name: name.as_ptr(),
             m_doc: doc.as_ptr(),
-            m_slots: unsafe { (*slots.0.get()).as_mut_ptr() },
+            // TODO: would be slightly nicer to use `[T]::as_mut_ptr()` here,
+            // but that requires mut ptr deref on MSRV.
+            m_slots: slots.0.get() as _,
             ..INIT
         });
 
@@ -235,8 +236,15 @@ pub struct PyModuleSlotsBuilder<const N: usize> {
 impl<const N: usize> PyModuleSlotsBuilder<N> {
     #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
+        // Because the array is c-style, the empty elements should be zeroed.
+        // `std::mem::zeroed()` requires msrv 1.75 for const
+        const ZEROED_SLOT: ffi::PyModuleDef_Slot = ffi::PyModuleDef_Slot {
+            slot: 0,
+            value: std::ptr::null_mut(),
+        };
+
         Self {
-            values: [unsafe { std::mem::zeroed() }; N],
+            values: [ZEROED_SLOT; N],
             len: 0,
         }
     }
@@ -260,6 +268,9 @@ impl<const N: usize> PyModuleSlotsBuilder<N> {
 
         #[cfg(not(Py_3_13))]
         {
+            // Silence unused variable warning
+            let _ = gil_used;
+
             // Py_mod_gil didn't exist before 3.13, can just make
             // this function a noop.
             //
