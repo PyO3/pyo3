@@ -134,11 +134,13 @@ where
 mod tests {
     use super::*;
     use crate::types::IntoPyDict;
+    use std::hash::RandomState;
 
     #[test]
     fn test_hashbrown_hashmap_into_pyobject() {
         Python::with_gil(|py| {
-            let mut map = hashbrown::HashMap::<i32, i32>::new();
+            let mut map =
+                hashbrown::HashMap::<i32, i32, RandomState>::with_hasher(RandomState::new());
             map.insert(1, 1);
 
             let py_map = (&map).into_pyobject(py).unwrap();
@@ -160,7 +162,8 @@ mod tests {
     #[test]
     fn test_hashbrown_hashmap_into_dict() {
         Python::with_gil(|py| {
-            let mut map = hashbrown::HashMap::<i32, i32>::new();
+            let mut map =
+                hashbrown::HashMap::<i32, i32, RandomState>::with_hasher(RandomState::new());
             map.insert(1, 1);
 
             let py_map = map.into_py_dict(py).unwrap();
