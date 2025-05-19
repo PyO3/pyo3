@@ -1,4 +1,6 @@
-use crate::{PyFrameObject, PyObject, PyTypeObject, Py_TYPE};
+#[cfg(all(Py_3_9, not(PyPy)))]
+use crate::PyFrameObject;
+use crate::{PyObject, PyTypeObject, Py_TYPE};
 use std::os::raw::{c_char, c_int};
 use std::ptr::addr_of_mut;
 
