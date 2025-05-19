@@ -1,5 +1,3 @@
-use serde::Deserialize;
-
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct Module {
     pub name: String,
@@ -23,7 +21,7 @@ pub struct Function {
     pub arguments: Arguments,
 }
 
-#[derive(Deserialize, Debug, Eq, PartialEq, Clone, Hash)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct Const {
     pub name: String,
     pub value: String,
