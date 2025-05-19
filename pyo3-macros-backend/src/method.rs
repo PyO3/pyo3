@@ -7,7 +7,7 @@ use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
 use crate::pyversions::is_abi3_before;
-use crate::utils::{Ctx, LitCStr};
+use crate::utils::{expr_to_python, Ctx, LitCStr};
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
     params::{impl_arg_params, Holders},
@@ -34,31 +34,7 @@ impl RegularArg<'_> {
             ..
         } = self
         {
-            match arg_default {
-                // literal values
-                syn::Expr::Lit(syn::ExprLit { lit, .. }) => match lit {
-                    syn::Lit::Str(s) => s.token().to_string(),
-                    syn::Lit::Char(c) => c.token().to_string(),
-                    syn::Lit::Int(i) => i.base10_digits().to_string(),
-                    syn::Lit::Float(f) => f.base10_digits().to_string(),
-                    syn::Lit::Bool(b) => {
-                        if b.value() {
-                            "True".to_string()
-                        } else {
-                            "False".to_string()
-                        }
-                    }
-                    _ => "...".to_string(),
-                },
-                // None
-                syn::Expr::Path(syn::ExprPath { qself, path, .. })
-                    if qself.is_none() && path.is_ident("None") =>
-                {
-                    "None".to_string()
-                }
-                // others, unsupported yet so defaults to `...`
-                _ => "...".to_string(),
-            }
+            expr_to_python(arg_default)
         } else if let RegularArg {
             option_wrapped_type: Some(..),
             ..
