@@ -28,9 +28,6 @@ features = ["derive", "parsing", "printing", "clone-impls", "full", "extra-trait
 [build-dependencies]
 pyo3-build-config = { path = "../pyo3-build-config", version = "=0.25.0" }
 
-[dev-dependencies]
-trybuild = ">=1.0.70"
-
 [lints]
 workspace = true
 

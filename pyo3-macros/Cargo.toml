@@ -25,5 +25,8 @@ quote = "1"
 syn = { version = "2", features = ["full", "extra-traits"] }
 pyo3-macros-backend = { path = "../pyo3-macros-backend", version = "=0.25.0" }
 
+[dev-dependencies]
+trybuild = ">=1.0.70"
+
 [lints]
 workspace = true
