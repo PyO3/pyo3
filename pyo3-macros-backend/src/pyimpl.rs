@@ -4,6 +4,8 @@ use std::collections::HashSet;
 use crate::introspection::function_introspection_code;
 #[cfg(feature = "experimental-inspect")]
 use crate::method::{FnSpec, FnType};
+#[cfg(feature = "experimental-inspect")]
+use crate::pyfunction::FunctionSignature;
 use crate::utils::{has_attribute, has_attribute_with_namespace, Ctx, PyO3CratePath};
 use crate::{
     attributes::{take_pyo3_options, CrateAttribute},
@@ -166,6 +168,8 @@ pub fn impl_methods(
                         attributes,
                     };
                     let attrs = get_cfg_attributes(&konst.attrs);
+                    #[cfg(feature = "experimental-inspect")]
+                    extra_fragments.push(class_const_introspection_code(&spec, ty, ctx));
                     let MethodAndMethodDef {
                         associated_method,
                         method_def,
@@ -388,6 +392,22 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
         &spec.signature,
         first_argument,
         decorators,
+        Some(parent),
+    )
+}
+
+#[cfg(feature = "experimental-inspect")]
+fn class_const_introspection_code(spec: &ConstSpec, parent: &syn::Type, ctx: &Ctx) -> TokenStream {
+    let Ctx { pyo3_path, .. } = ctx;
+
+    let name = spec.python_name().to_string();
+    function_introspection_code(
+        pyo3_path,
+        None,
+        &name,
+        &FunctionSignature::from_arguments(vec![]),
+        Some("cls"),
+        vec!["classmethod".into(), "property".into()], // TODO: this combination only works with Python 3.9-3.11 https://docs.python.org/3.11/library/functions.html#classmethod
         Some(parent),
     )
 }

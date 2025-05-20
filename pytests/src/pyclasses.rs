@@ -9,6 +9,9 @@ struct EmptyClass {}
 
 #[pymethods]
 impl EmptyClass {
+    #[classattr]
+    const CLS_ATTRIBUTE: u32 = 42;
+
     #[new]
     fn new() -> Self {
         EmptyClass {}
