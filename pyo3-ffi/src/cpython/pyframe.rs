@@ -1,4 +1,4 @@
-#[cfg(all(Py_3_9, not(PyPy)))]
+#[cfg(any(Py_3_11, all(Py_3_9, not(PyPy))))]
 use crate::PyFrameObject;
 use crate::{PyObject, PyTypeObject, Py_TYPE};
 #[cfg(Py_3_12)]
