@@ -259,9 +259,9 @@ pub fn impl_wrap_pyfunction(
     let wrapper_ident = format_ident!("__pyfunction_{}", spec.name);
     if spec.asyncness.is_some() {
         ensure_spanned!(
-                cfg!(feature = "experimental-async"),
-                spec.asyncness.span() => "async functions are only supported with the `experimental-async` feature"
-            );
+            cfg!(feature = "experimental-async"),
+            spec.asyncness.span() => "async functions are only supported with the `experimental-async` feature"
+        );
     }
     let wrapper = spec.get_wrapper_function(&wrapper_ident, None, ctx)?;
     let methoddef = spec.get_methoddef(wrapper_ident, &spec.get_doc(&func.attrs, ctx), ctx);
