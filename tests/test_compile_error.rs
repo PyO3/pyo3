@@ -41,6 +41,8 @@ fn test_compile_errors() {
     // output changes with async feature
     #[cfg(all(Py_LIMITED_API, feature = "experimental-async"))]
     t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
+    #[cfg(not(any(feature = "experimental-async")))]
+    t.compile_fail("tests/ui/invalid_async.rs");
     t.compile_fail("tests/ui/invalid_intern_arg.rs");
     t.compile_fail("tests/ui/invalid_frozen_pyclass_borrow.rs");
     #[cfg(not(any(feature = "hashbrown", feature = "indexmap")))]
