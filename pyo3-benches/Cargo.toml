@@ -14,7 +14,7 @@ pyo3-build-config = { path = "../pyo3-build-config" }
 
 [dev-dependencies]
 codspeed-criterion-compat = "2.3"
-criterion = "0.5.1"
+criterion = "0.6.0"
 num-bigint = "0.4.3"
 rust_decimal = { version = "1.0.0", default-features = false }
 hashbrown = "0.15"
