@@ -40,13 +40,10 @@ impl<'a> PythonVersionInfo<'a> {
             }
         }
 
-        let mut parts = version_number_str.split('.');
+        let mut parts = version_number_str.splitn(3, '.');
         let major_str = parts.next().ok_or("Python major version missing")?;
         let minor_str = parts.next().ok_or("Python minor version missing")?;
         let patch_str = parts.next();
-        if parts.next().is_some() {
-            return Err("Python version string has too many parts");
-        };
 
         let major = major_str
             .parse()
@@ -139,5 +136,12 @@ mod test {
         assert!(PythonVersionInfo::from_str("3.5+").unwrap() == (3, 5));
         assert!(PythonVersionInfo::from_str("3.5.2a1+").unwrap() < (3, 6));
         assert!(PythonVersionInfo::from_str("3.5.2a1+").unwrap() > (3, 4));
+        assert!(PythonVersionInfo::from_str("3.11.3+chromium.29").unwrap() >= (3, 11, 3));
+        assert_eq!(
+            PythonVersionInfo::from_str("3.11.3+chromium.29")
+                .unwrap()
+                .suffix,
+            Some("+chromium.29")
+        );
     }
 }

@@ -16,14 +16,20 @@ error: expected `cancel_handle` or `from_py_with`
 10 | fn from_py_with_string(#[pyo3("from_py_with")] _param: String) {}
    |                               ^^^^^^^^^^^^^^
 
-error: expected string literal
-  --> tests/ui/invalid_argument_attributes.rs:13:58
-   |
-13 | fn from_py_with_value_not_a_string(#[pyo3(from_py_with = func)] _param: String) {}
-   |                                                          ^^^^
-
 error: `from_py_with` may only be specified once per argument
-  --> tests/ui/invalid_argument_attributes.rs:16:56
+  --> tests/ui/invalid_argument_attributes.rs:16:54
    |
-16 | fn from_py_with_repeated(#[pyo3(from_py_with = "func", from_py_with = "func")] _param: String) {}
-   |                                                        ^^^^^^^^^^^^
+16 | fn from_py_with_repeated(#[pyo3(from_py_with = func, from_py_with = func)] _param: String) {}
+   |                                                      ^^^^^^^^^^^^
+
+error: expected identifier
+  --> tests/ui/invalid_argument_attributes.rs:23:28
+   |
+23 | fn f(#[pyo3(from_py_with = "bytes_from_py")] _bytes: Vec<u8>) {}
+   |                            ^^^^^^^^^^^^^^^
+
+error[E0425]: cannot find value `func` in this scope
+  --> tests/ui/invalid_argument_attributes.rs:13:55
+   |
+13 | fn from_py_with_value_not_found(#[pyo3(from_py_with = func)] _param: String) {}
+   |                                                       ^^^^ not found in this scope

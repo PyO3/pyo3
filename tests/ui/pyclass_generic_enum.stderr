@@ -1,0 +1,11 @@
+error: enums do not support #[pyclass(generic)]
+ --> tests/ui/pyclass_generic_enum.rs:3:11
+  |
+3 | #[pyclass(generic)]
+  |           ^^^^^^^
+
+error: enums do not support #[pyclass(generic)]
+ --> tests/ui/pyclass_generic_enum.rs:9:11
+  |
+9 | #[pyclass(generic)]
+  |           ^^^^^^^

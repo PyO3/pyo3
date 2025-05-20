@@ -55,7 +55,7 @@ impl CompareOp {
     ///
     /// Usage example:
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// # use pyo3::prelude::*;
     /// # use pyo3::class::basic::CompareOp;
     ///

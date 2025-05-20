@@ -182,59 +182,59 @@ impl BinaryArithmetic {
     }
 
     fn __add__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA + {:?}", rhs)
+        format!("BA + {rhs:?}")
     }
 
     fn __sub__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA - {:?}", rhs)
+        format!("BA - {rhs:?}")
     }
 
     fn __mul__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA * {:?}", rhs)
+        format!("BA * {rhs:?}")
     }
 
     fn __matmul__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA @ {:?}", rhs)
+        format!("BA @ {rhs:?}")
     }
 
     fn __truediv__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA / {:?}", rhs)
+        format!("BA / {rhs:?}")
     }
 
     fn __floordiv__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA // {:?}", rhs)
+        format!("BA // {rhs:?}")
     }
 
     fn __mod__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA % {:?}", rhs)
+        format!("BA % {rhs:?}")
     }
 
     fn __divmod__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("divmod(BA, {:?})", rhs)
+        format!("divmod(BA, {rhs:?})")
     }
 
     fn __lshift__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA << {:?}", rhs)
+        format!("BA << {rhs:?}")
     }
 
     fn __rshift__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA >> {:?}", rhs)
+        format!("BA >> {rhs:?}")
     }
 
     fn __and__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA & {:?}", rhs)
+        format!("BA & {rhs:?}")
     }
 
     fn __xor__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA ^ {:?}", rhs)
+        format!("BA ^ {rhs:?}")
     }
 
     fn __or__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA | {:?}", rhs)
+        format!("BA | {rhs:?}")
     }
 
     fn __pow__(&self, rhs: &Bound<'_, PyAny>, mod_: Option<u32>) -> String {
-        format!("BA ** {:?} (mod: {:?})", rhs, mod_)
+        format!("BA ** {rhs:?} (mod: {mod_:?})")
     }
 }
 
@@ -303,39 +303,39 @@ struct RhsArithmetic {}
 #[pymethods]
 impl RhsArithmetic {
     fn __radd__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} + RA", other)
+        format!("{other:?} + RA")
     }
 
     fn __rsub__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} - RA", other)
+        format!("{other:?} - RA")
     }
 
     fn __rmul__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} * RA", other)
+        format!("{other:?} * RA")
     }
 
     fn __rlshift__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} << RA", other)
+        format!("{other:?} << RA")
     }
 
     fn __rrshift__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} >> RA", other)
+        format!("{other:?} >> RA")
     }
 
     fn __rand__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} & RA", other)
+        format!("{other:?} & RA")
     }
 
     fn __rxor__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} ^ RA", other)
+        format!("{other:?} ^ RA")
     }
 
     fn __ror__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} | RA", other)
+        format!("{other:?} | RA")
     }
 
     fn __rpow__(&self, other: &Bound<'_, PyAny>, _mod: Option<&Bound<'_, PyAny>>) -> String {
-        format!("{:?} ** RA", other)
+        format!("{other:?} ** RA")
     }
 }
 
@@ -380,91 +380,91 @@ impl LhsAndRhs {
     // }
 
     fn __add__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
-        format!("{:?} + {:?}", lhs, rhs)
+        format!("{lhs:?} + {rhs:?}")
     }
 
     fn __sub__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
-        format!("{:?} - {:?}", lhs, rhs)
+        format!("{lhs:?} - {rhs:?}")
     }
 
     fn __mul__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
-        format!("{:?} * {:?}", lhs, rhs)
+        format!("{lhs:?} * {rhs:?}")
     }
 
     fn __lshift__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
-        format!("{:?} << {:?}", lhs, rhs)
+        format!("{lhs:?} << {rhs:?}")
     }
 
     fn __rshift__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
-        format!("{:?} >> {:?}", lhs, rhs)
+        format!("{lhs:?} >> {rhs:?}")
     }
 
     fn __and__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
-        format!("{:?} & {:?}", lhs, rhs)
+        format!("{lhs:?} & {rhs:?}")
     }
 
     fn __xor__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
-        format!("{:?} ^ {:?}", lhs, rhs)
+        format!("{lhs:?} ^ {rhs:?}")
     }
 
     fn __or__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
-        format!("{:?} | {:?}", lhs, rhs)
+        format!("{lhs:?} | {rhs:?}")
     }
 
     fn __pow__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>, _mod: Option<usize>) -> String {
-        format!("{:?} ** {:?}", lhs, rhs)
+        format!("{lhs:?} ** {rhs:?}")
     }
 
     fn __matmul__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
-        format!("{:?} @ {:?}", lhs, rhs)
+        format!("{lhs:?} @ {rhs:?}")
     }
 
     fn __radd__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} + RA", other)
+        format!("{other:?} + RA")
     }
 
     fn __rsub__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} - RA", other)
+        format!("{other:?} - RA")
     }
 
     fn __rmul__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} * RA", other)
+        format!("{other:?} * RA")
     }
 
     fn __rlshift__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} << RA", other)
+        format!("{other:?} << RA")
     }
 
     fn __rrshift__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} >> RA", other)
+        format!("{other:?} >> RA")
     }
 
     fn __rand__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} & RA", other)
+        format!("{other:?} & RA")
     }
 
     fn __rxor__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} ^ RA", other)
+        format!("{other:?} ^ RA")
     }
 
     fn __ror__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} | RA", other)
+        format!("{other:?} | RA")
     }
 
     fn __rpow__(&self, other: &Bound<'_, PyAny>, _mod: Option<&Bound<'_, PyAny>>) -> String {
-        format!("{:?} ** RA", other)
+        format!("{other:?} ** RA")
     }
 
     fn __rmatmul__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} @ RA", other)
+        format!("{other:?} @ RA")
     }
 
     fn __rtruediv__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} / RA", other)
+        format!("{other:?} / RA")
     }
 
     fn __rfloordiv__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} // RA", other)
+        format!("{other:?} // RA")
     }
 }
 
@@ -677,10 +677,7 @@ mod return_not_implemented {
             py_run!(
                 py,
                 c2,
-                &format!(
-                    "class Other: pass\nassert c2.__{}__(Other()) is NotImplemented",
-                    dunder
-                )
+                &format!("class Other: pass\nassert c2.__{dunder}__(Other()) is NotImplemented")
             );
         });
     }

@@ -2,12 +2,12 @@ use crate::ffi::{self, *};
 use crate::types::any::PyAnyMethods;
 use crate::Python;
 
-#[cfg(all(not(Py_LIMITED_API), any(not(PyPy), feature = "macros")))]
+#[cfg(all(not(Py_LIMITED_API), any(not(any(PyPy, GraalPy)), feature = "macros")))]
 use crate::types::PyString;
 
 #[cfg(not(Py_LIMITED_API))]
 use crate::{types::PyDict, Bound, PyAny};
-#[cfg(not(any(Py_3_12, Py_LIMITED_API)))]
+#[cfg(not(any(Py_3_12, Py_LIMITED_API, GraalPy)))]
 use libc::wchar_t;
 
 #[cfg(not(Py_LIMITED_API))]
@@ -114,20 +114,22 @@ fn test_timezone_from_offset_and_name() {
 }
 
 #[test]
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, GraalPy)))]
 fn ascii_object_bitfield() {
     let ob_base: PyObject = unsafe { std::mem::zeroed() };
 
+    #[cfg_attr(Py_3_14, allow(unused_mut, unused_variables))]
     let mut o = PyASCIIObject {
         ob_base,
         length: 0,
-        #[cfg(not(PyPy))]
+        #[cfg(any(Py_3_11, not(PyPy)))]
         hash: 0,
         state: 0u32,
         #[cfg(not(Py_3_12))]
         wstr: std::ptr::null_mut() as *mut wchar_t,
     };
 
+    #[cfg(not(Py_3_14))]
     unsafe {
         assert_eq!(o.interned(), 0);
         assert_eq!(o.kind(), 0);
@@ -158,11 +160,16 @@ fn ascii_object_bitfield() {
         o.set_ready(1);
         #[cfg(not(Py_3_12))]
         assert_eq!(o.ready(), 1);
+
+        #[cfg(Py_3_12)]
+        o.set_statically_allocated(1);
+        #[cfg(Py_3_12)]
+        assert_eq!(o.statically_allocated(), 1);
     }
 }
 
 #[test]
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 fn ascii() {
     Python::with_gil(|py| {
         // This test relies on implementation details of PyString.
@@ -170,24 +177,28 @@ fn ascii() {
         let ptr = s.as_ptr();
 
         unsafe {
-            let ascii_ptr = ptr as *mut PyASCIIObject;
-            let ascii = ascii_ptr.as_ref().unwrap();
+            #[cfg(not(Py_3_14))]
+            {
+                let ascii_ptr = ptr as *mut PyASCIIObject;
+                let ascii = ascii_ptr.as_ref().unwrap();
 
-            assert_eq!(ascii.interned(), 0);
-            assert_eq!(ascii.kind(), PyUnicode_1BYTE_KIND);
-            assert_eq!(ascii.compact(), 1);
-            assert_eq!(ascii.ascii(), 1);
-            #[cfg(not(Py_3_12))]
-            assert_eq!(ascii.ready(), 1);
+                assert_eq!(ascii.interned(), 0);
+                assert_eq!(ascii.kind(), PyUnicode_1BYTE_KIND);
+                assert_eq!(ascii.compact(), 1);
+                assert_eq!(ascii.ascii(), 1);
+                #[cfg(not(Py_3_12))]
+                assert_eq!(ascii.ready(), 1);
 
-            assert_eq!(PyUnicode_IS_ASCII(ptr), 1);
-            assert_eq!(PyUnicode_IS_COMPACT(ptr), 1);
-            assert_eq!(PyUnicode_IS_COMPACT_ASCII(ptr), 1);
+                assert_eq!(PyUnicode_IS_ASCII(ptr), 1);
+                assert_eq!(PyUnicode_IS_COMPACT(ptr), 1);
+                assert_eq!(PyUnicode_IS_COMPACT_ASCII(ptr), 1);
+            }
 
             assert!(!PyUnicode_1BYTE_DATA(ptr).is_null());
             // 2 and 4 byte macros return nonsense for this string instance.
             assert_eq!(PyUnicode_KIND(ptr), PyUnicode_1BYTE_KIND);
 
+            #[cfg(not(Py_3_14))]
             assert!(!_PyUnicode_COMPACT_DATA(ptr).is_null());
             // _PyUnicode_NONCOMPACT_DATA isn't valid for compact strings.
             assert!(!PyUnicode_DATA(ptr).is_null());
@@ -203,7 +214,7 @@ fn ascii() {
 }
 
 #[test]
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 fn ucs4() {
     Python::with_gil(|py| {
         let s = "哈哈🐈";
@@ -211,23 +222,26 @@ fn ucs4() {
         let ptr = py_string.as_ptr();
 
         unsafe {
-            let ascii_ptr = ptr as *mut PyASCIIObject;
-            let ascii = ascii_ptr.as_ref().unwrap();
+            #[cfg(not(Py_3_14))]
+            {
+                let ascii_ptr = ptr as *mut PyASCIIObject;
+                let ascii = ascii_ptr.as_ref().unwrap();
 
-            assert_eq!(ascii.interned(), 0);
-            assert_eq!(ascii.kind(), PyUnicode_4BYTE_KIND);
-            assert_eq!(ascii.compact(), 1);
-            assert_eq!(ascii.ascii(), 0);
-            #[cfg(not(Py_3_12))]
-            assert_eq!(ascii.ready(), 1);
+                assert_eq!(ascii.interned(), 0);
+                assert_eq!(ascii.kind(), PyUnicode_4BYTE_KIND);
+                assert_eq!(ascii.compact(), 1);
+                assert_eq!(ascii.ascii(), 0);
+                #[cfg(not(Py_3_12))]
+                assert_eq!(ascii.ready(), 1);
 
-            assert_eq!(PyUnicode_IS_ASCII(ptr), 0);
-            assert_eq!(PyUnicode_IS_COMPACT(ptr), 1);
-            assert_eq!(PyUnicode_IS_COMPACT_ASCII(ptr), 0);
-
+                assert_eq!(PyUnicode_IS_ASCII(ptr), 0);
+                assert_eq!(PyUnicode_IS_COMPACT(ptr), 1);
+                assert_eq!(PyUnicode_IS_COMPACT_ASCII(ptr), 0);
+            }
             assert!(!PyUnicode_4BYTE_DATA(ptr).is_null());
             assert_eq!(PyUnicode_KIND(ptr), PyUnicode_4BYTE_KIND);
 
+            #[cfg(not(Py_3_14))]
             assert!(!_PyUnicode_COMPACT_DATA(ptr).is_null());
             // _PyUnicode_NONCOMPACT_DATA isn't valid for compact strings.
             assert!(!PyUnicode_DATA(ptr).is_null());
@@ -248,14 +262,14 @@ fn ucs4() {
 #[test]
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
-#[cfg(not(PyPy))]
+#[cfg(not(all(PyPy, not(Py_3_10))))]
 fn test_get_tzinfo() {
-    use crate::types::timezone_utc;
+    use crate::types::PyTzInfo;
 
     crate::Python::with_gil(|py| {
         use crate::types::{PyDateTime, PyTime};
 
-        let utc = &timezone_utc(py);
+        let utc: &Bound<'_, _> = &PyTzInfo::utc(py).unwrap();
 
         let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(utc)).unwrap();
 

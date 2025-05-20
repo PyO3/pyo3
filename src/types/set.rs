@@ -1,6 +1,4 @@
 use crate::types::PyIterator;
-#[allow(deprecated)]
-use crate::ToPyObject;
 use crate::{
     err::{self, PyErr, PyResult},
     ffi_ptr_ext::FfiPtrExt,
@@ -54,17 +52,6 @@ impl PySet {
         try_new_from_iter(py, elements)
     }
 
-    /// Deprecated name for [`PySet::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PySet::new`")]
-    #[allow(deprecated)]
-    #[inline]
-    pub fn new_bound<'a, 'p, T: ToPyObject + 'a>(
-        py: Python<'p>,
-        elements: impl IntoIterator<Item = &'a T>,
-    ) -> PyResult<Bound<'p, PySet>> {
-        Self::new(py, elements.into_iter().map(|e| e.to_object(py)))
-    }
-
     /// Creates a new empty set.
     pub fn empty(py: Python<'_>) -> PyResult<Bound<'_, PySet>> {
         unsafe {
@@ -72,13 +59,6 @@ impl PySet {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PySet::empty`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PySet::empty`")]
-    #[inline]
-    pub fn empty_bound(py: Python<'_>) -> PyResult<Bound<'_, PySet>> {
-        Self::empty(py)
     }
 }
 
@@ -267,22 +247,20 @@ impl<'py> Iterator for BoundSetIterator<'py> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.remaining, Some(self.remaining))
     }
+
+    #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
+    }
 }
 
 impl ExactSizeIterator for BoundSetIterator<'_> {
     fn len(&self) -> usize {
         self.remaining
     }
-}
-
-#[allow(deprecated)]
-#[inline]
-pub(crate) fn new_from_iter<T: ToPyObject>(
-    py: Python<'_>,
-    elements: impl IntoIterator<Item = T>,
-) -> PyResult<Bound<'_, PySet>> {
-    let mut iter = elements.into_iter().map(|e| e.to_object(py));
-    try_new_from_iter(py, &mut iter)
 }
 
 #[inline]
@@ -478,5 +456,13 @@ mod tests {
             assert_eq!(iter.len(), 0);
             assert_eq!(iter.size_hint(), (0, Some(0)));
         });
+    }
+
+    #[test]
+    fn test_iter_count() {
+        Python::with_gil(|py| {
+            let set = PySet::new(py, vec![1, 2, 3]).unwrap();
+            assert_eq!(set.iter().count(), 3);
+        })
     }
 }

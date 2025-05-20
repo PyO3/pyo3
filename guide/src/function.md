@@ -4,7 +4,7 @@ The `#[pyfunction]` attribute is used to define a Python function from a Rust fu
 
 The following example defines a function called `double` in a Python module called `my_extension`:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 #[pyfunction]
@@ -79,7 +79,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
 
     The following example creates a function `pyfunction_with_module` which returns the containing module's name (i.e. `module_with_fn`):
 
-    ```rust
+    ```rust,no_run
     use pyo3::prelude::*;
     use pyo3::types::PyString;
 
@@ -101,7 +101,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
 
 The `#[pyo3]` attribute can be used on individual arguments to modify properties of them in the generated function. It can take any combination of the following options:
 
-  - <a id="from_py_with"></a> `#[pyo3(from_py_with = "...")]`
+  - <a id="from_py_with"></a> `#[pyo3(from_py_with = ...)]`
 
     Set this on an option to specify a custom function to convert the function argument from Python to the desired Rust type, instead of using the default `FromPyObject` extraction. The function signature must be `fn(&Bound<'_, PyAny>) -> PyResult<T>` where `T` is the Rust type of the argument.
 
@@ -115,7 +115,7 @@ The `#[pyo3]` attribute can be used on individual arguments to modify properties
     }
 
     #[pyfunction]
-    fn object_length(#[pyo3(from_py_with = "get_length")] argument: usize) -> usize {
+    fn object_length(#[pyo3(from_py_with = get_length)] argument: usize) -> usize {
         argument
     }
 
@@ -174,7 +174,7 @@ annotated with `#[pyfn]`. To simplify PyO3, it is expected that `#[pyfn]` may be
 
 An example of `#[pyfn]` is below:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 #[pymodule]
@@ -191,7 +191,7 @@ fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
 `#[pyfn(m)]` is just syntactic sugar for `#[pyfunction]`, and takes all the same options
 documented in the rest of this chapter. The code above is expanded to the following:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 #[pymodule]

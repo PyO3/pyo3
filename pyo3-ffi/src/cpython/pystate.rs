@@ -27,16 +27,18 @@ pub const PyTrace_OPCODE: c_int = 7;
 // skipped PyTraceInfo
 // skipped CFrame
 
+/// Private structure used inline in `PyGenObject`
 #[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Clone, Copy)]
+#[doc(hidden)] // TODO should be able to make pub(crate) after MSRV 1.74
 pub struct _PyErr_StackItem {
     #[cfg(not(Py_3_11))]
-    pub exc_type: *mut PyObject,
-    pub exc_value: *mut PyObject,
+    exc_type: *mut PyObject,
+    exc_value: *mut PyObject,
     #[cfg(not(Py_3_11))]
-    pub exc_traceback: *mut PyObject,
-    pub previous_item: *mut _PyErr_StackItem,
+    exc_traceback: *mut PyObject,
+    previous_item: *mut _PyErr_StackItem,
 }
 
 // skipped _PyStackChunk
@@ -69,21 +71,21 @@ extern "C" {
     pub fn PyThreadState_DeleteCurrent();
 }
 
-#[cfg(all(Py_3_9, not(Py_3_11)))]
+#[cfg(all(Py_3_9, not(any(Py_3_11, PyPy))))]
 pub type _PyFrameEvalFunction = extern "C" fn(
     *mut crate::PyThreadState,
     *mut crate::PyFrameObject,
     c_int,
 ) -> *mut crate::object::PyObject;
 
-#[cfg(Py_3_11)]
+#[cfg(all(Py_3_11, not(PyPy)))]
 pub type _PyFrameEvalFunction = extern "C" fn(
     *mut crate::PyThreadState,
     *mut crate::_PyInterpreterFrame,
     c_int,
 ) -> *mut crate::object::PyObject;
 
-#[cfg(Py_3_9)]
+#[cfg(all(Py_3_9, not(PyPy)))]
 extern "C" {
     /// Get the frame evaluation function.
     pub fn _PyInterpreterState_GetEvalFrameFunc(
