@@ -7,7 +7,7 @@ on:
   release:
     types: [published]
 
-oncurrency:
+concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
@@ -28,9 +28,14 @@ jobs:
         with:
           node-version: '20.x'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Install netlify-cli
         run: |
           npm install -g netlify-cli
+
       - uses: dtolnay/rust-toolchain@nightly
+        
+      - name: Use nightly
         run: |
           rustup update nightly
           rustup default nightly
