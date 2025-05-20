@@ -31,6 +31,9 @@ jobs:
         run: |
           npm install -g netlify-cli
       - uses: dtolnay/rust-toolchain@nightly
+        run: |
+          rustup update nightly
+          rustup default nightly
 
       - name: Setup mdBook
         uses: taiki-e/install-action@v2
