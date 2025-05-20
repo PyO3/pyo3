@@ -1,5 +1,6 @@
 #[cfg(not(GraalPy))]
 use crate::cpython::code::PyCodeObject;
+#[cfg(not(GraalPy))]
 use crate::object::*;
 #[cfg(not(GraalPy))]
 use crate::pystate::PyThreadState;
