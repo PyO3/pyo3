@@ -196,6 +196,13 @@ pub fn gen_py_method(
     let spec = &method.spec;
     let Ctx { pyo3_path, .. } = ctx;
 
+    if spec.asyncness.is_some() {
+        ensure_spanned!(
+            cfg!(feature = "experimental-async"),
+            spec.asyncness.span() => "async functions are only supported with the `experimental-async` feature"
+        );
+    }
+
     Ok(match (method.kind, &spec.tp) {
         // Class attributes go before protos so that class attributes can be used to set proto
         // method to None.
