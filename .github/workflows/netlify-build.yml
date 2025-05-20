@@ -43,7 +43,7 @@ jobs:
       - name: Setup mdBook
         uses: taiki-e/install-action@v2
         with:
-          tool: mdbook,mdbook-linkcheck
+          tool: mdbook, lychee, mdbook-linkcheck
 
       - name: Prepare tag
         id: prepare_tag
