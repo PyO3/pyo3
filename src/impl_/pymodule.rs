@@ -31,8 +31,8 @@ use crate::{
     ffi,
     impl_::pyfunction::PyFunctionDef,
     sync::PyOnceLock,
-    types::{PyModule, PyModuleMethods},
-    Bound, Py, PyClass, PyResult, PyTypeInfo, Python,
+    types::{any::PyAnyMethods, dict::PyDictMethods, PyDict, PyModule, PyModuleMethods},
+    Bound, Py, PyAny, PyClass, PyResult, PyTypeInfo, Python,
 };
 use crate::{ffi_ptr_ext::FfiPtrExt, PyErr};
 
@@ -160,19 +160,16 @@ impl ModuleDef {
 
         // Make a dummy spec, needs a `name` attribute and that seems to be sufficient
         // for the loader system
-        //
-        // TODO there's probably a cleaner way to handle this case
 
-        #[crate::pyclass(crate = "crate")]
-        struct ModuleName {
-            #[pyo3(get)]
-            name: String,
-        }
+        static SIMPLE_NAMESPACE: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+        let simple_ns = SIMPLE_NAMESPACE.import(py, "types", "SimpleNamespace")?;
 
         let ffi_def = self.ffi_def.get();
 
         let name = unsafe { CStr::from_ptr((*ffi_def).m_name).to_str()? }.to_string();
-        let spec = Bound::new(py, ModuleName { name })?;
+        let kwargs = PyDict::new(py);
+        kwargs.set_item("name", name)?;
+        let spec = simple_ns.call((), Some(&kwargs))?;
 
         // If the first time writing this ffi def, we can inherit `gil_used` from parent
         // modules.
@@ -187,20 +184,25 @@ impl ModuleDef {
         //   - it is valid for a slot to be zeroed
         //   - we are writing to the slot under the protection of a `Once`.
         #[cfg(Py_3_13)]
-        self.gil_used_once.call_once(|| unsafe {
-            let slots = (*ffi_def).m_slots;
+        self.gil_used_once.call_once(|| {
+            // SAFETY: ffi_def is non-null
+            let slots = unsafe { (*ffi_def).m_slots };
             if !slots.is_null() {
-                let mut slot = slots;
-                while slot != std::mem::zeroed() {
-                    if (*slot).slot == ffi::Py_mod_gil {
-                        (*slot).value = if gil_used {
+                let mut slot_ptr = slots;
+                // SAFETY: non-null slots pointer
+                while unsafe { *slot_ptr != ZEROED_SLOT } {
+                    // SAFETY: no other accessors due to call_once guard
+                    let slot = unsafe { &mut *slot_ptr };
+                    if slot.slot == ffi::Py_mod_gil {
+                        slot.value = if gil_used {
                             ffi::Py_MOD_GIL_USED
                         } else {
                             ffi::Py_MOD_GIL_NOT_USED
                         };
                         break;
                     }
-                    slot = slot.add(1);
+                    // SAFETY: we have guaranteed there is a trailer zeroed slot
+                    slot_ptr = unsafe { slot_ptr.add(1) };
                 }
             }
         });
@@ -237,14 +239,9 @@ pub struct PyModuleSlotsBuilder<const N: usize> {
 impl<const N: usize> PyModuleSlotsBuilder<N> {
     #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
-        // Because the array is c-style, the empty elements should be zeroed.
-        // `std::mem::zeroed()` requires msrv 1.75 for const
-        const ZEROED_SLOT: ffi::PyModuleDef_Slot = ffi::PyModuleDef_Slot {
-            slot: 0,
-            value: std::ptr::null_mut(),
-        };
-
         Self {
+            // Because the array is c-style, the empty elements should be zeroed.
+            // `std::mem::zeroed()` requires msrv 1.75 for const
             values: [ZEROED_SLOT; N],
             len: 0,
         }
@@ -307,6 +304,11 @@ pub struct PyModuleSlots<const N: usize>(UnsafeCell<[ffi::PyModuleDef_Slot; N]>)
 // SAFETY: the inner values are only accessed within a `ModuleDef`,
 // which only uses them to build the `ffi::ModuleDef`.
 unsafe impl<const N: usize> Sync for PyModuleSlots<N> {}
+
+const ZEROED_SLOT: ffi::PyModuleDef_Slot = ffi::PyModuleDef_Slot {
+    slot: 0,
+    value: std::ptr::null_mut(),
+};
 
 /// Trait to add an element (class, function...) to a module.
 ///
