@@ -70,8 +70,26 @@ error: no more arguments are allowed after `**kwargs`
 53 | #[pyfunction(signature = (**kwargs, *, *args, x))]
    |                                               ^
 
-error: cannot find attribute `args` in this scope
-  --> tests/ui/invalid_pyfunction_signatures.rs:65:7
+error: expected argument from function definition `args` but got argument `kwargs`
+  --> tests/ui/invalid_pyfunction_signatures.rs:60:29
    |
-65 |     #[args(x)]
+60 | #[pyfunction(signature = (**kwargs, *, *args, x))]
+   |                             ^^^^^^
+
+error: expected argument from function definition `x` but got argument `args`
+  --> tests/ui/invalid_pyfunction_signatures.rs:60:41
+   |
+60 | #[pyfunction(signature = (**kwargs, *, *args, x))]
+   |                                         ^^^^
+
+error: expected argument from function definition `kwargs` but got argument `x`
+  --> tests/ui/invalid_pyfunction_signatures.rs:60:47
+   |
+60 | #[pyfunction(signature = (**kwargs, *, *args, x))]
+   |                                               ^
+
+error: cannot find attribute `args` in this scope
+  --> tests/ui/invalid_pyfunction_signatures.rs:72:7
+   |
+72 |     #[args(x)]
    |       ^^^^

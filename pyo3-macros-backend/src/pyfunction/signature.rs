@@ -13,7 +13,7 @@ use syn::{
 use crate::{
     attributes::{kw, KeywordAttribute},
     combine_errors::CombineErrors,
-    method::{FnArg, KwargsArg, RegularArg},
+    method::{FnArg, RegularArg},
 };
 
 #[derive(Clone)]
