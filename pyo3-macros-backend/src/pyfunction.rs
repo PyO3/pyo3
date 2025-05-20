@@ -219,8 +219,7 @@ pub fn impl_wrap_pyfunction(
             0
         })
         .map(FnArg::parse)
-        .try_combine_syn_errors()?
-        .collect::<Vec<_>>();
+        .try_combine_syn_errors()?;
 
     let signature = if let Some(signature) = signature {
         FunctionSignature::from_arguments_and_attribute(arguments, signature)?

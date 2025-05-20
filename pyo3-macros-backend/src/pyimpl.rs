@@ -193,8 +193,7 @@ pub fn impl_methods(
             }
             Ok(())
         })
-        .try_combine_syn_errors()?
-        .collect();
+        .try_combine_syn_errors()?;
 
     let ctx = &Ctx::new(&options.krate, None);
 

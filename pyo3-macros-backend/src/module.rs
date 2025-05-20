@@ -67,7 +67,7 @@ impl PyModuleOptions {
                 }
             };
         }
-        let _: Vec<()> = attrs
+        attrs
             .into_iter()
             .map(|attr| {
                 match attr {
@@ -85,8 +85,7 @@ impl PyModuleOptions {
 
                 Ok(())
             })
-            .try_combine_syn_errors()?
-            .collect();
+            .try_combine_syn_errors()?;
         Ok(())
     }
 }
@@ -349,7 +348,7 @@ pub fn pymodule_module_impl(
             _ => (),
         }
         Ok(())
-    }).try_combine_syn_errors()?.collect();
+    }).try_combine_syn_errors()?;
 
     #[cfg(feature = "experimental-inspect")]
     let introspection = module_introspection_code(

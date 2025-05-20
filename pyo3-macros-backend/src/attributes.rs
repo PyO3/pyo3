@@ -410,7 +410,7 @@ pub fn take_pyo3_options<T: Parse>(attrs: &mut Vec<syn::Attribute>) -> Result<Ve
         }
     })?;
 
-    let out: Vec<T> = out.into_iter().try_combine_syn_errors()?.collect();
+    let out: Vec<T> = out.into_iter().try_combine_syn_errors()?;
 
     Ok(out)
 }

@@ -52,8 +52,26 @@ error: arguments of type `Python` must not be part of the signature
 48 | #[pyfunction(signature = (py))]
    |                           ^^
 
-error: cannot find attribute `args` in this scope
-  --> tests/ui/invalid_pyfunction_signatures.rs:58:7
+error: `*` not allowed after `**kwargs`
+  --> tests/ui/invalid_pyfunction_signatures.rs:53:37
    |
-58 |     #[args(x)]
+53 | #[pyfunction(signature = (**kwargs, *, *args, x))]
+   |                                     ^
+
+error: `*args` not allowed after `**kwargs`
+  --> tests/ui/invalid_pyfunction_signatures.rs:53:40
+   |
+53 | #[pyfunction(signature = (**kwargs, *, *args, x))]
+   |                                        ^
+
+error: no more arguments are allowed after `**kwargs`
+  --> tests/ui/invalid_pyfunction_signatures.rs:53:47
+   |
+53 | #[pyfunction(signature = (**kwargs, *, *args, x))]
+   |                                               ^
+
+error: cannot find attribute `args` in this scope
+  --> tests/ui/invalid_pyfunction_signatures.rs:65:7
+   |
+65 |     #[args(x)]
    |       ^^^^

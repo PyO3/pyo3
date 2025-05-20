@@ -304,8 +304,7 @@ pub fn build_py_class(
         }
     }
     .into_iter()
-    .try_combine_syn_errors()?
-    .collect();
+    .try_combine_syn_errors()?;
 
     if let Some(attr) = args.options.get_all {
         for (_, FieldPyO3Options { get, .. }) in &mut field_options {
