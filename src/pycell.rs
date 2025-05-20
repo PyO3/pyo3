@@ -22,7 +22,7 @@
 //! Usually you can use `&mut` references as method and function receivers and arguments, and you
 //! won't need to use `PyCell` directly:
 //!
-//! ```rust
+//! ```rust,no_run
 //! use pyo3::prelude::*;
 //!
 //! #[pyclass]
@@ -193,15 +193,13 @@
 //! [guide]: https://pyo3.rs/latest/class.html#pycell-and-interior-mutability "PyCell and interior mutability"
 //! [Interior Mutability]: https://doc.rust-lang.org/book/ch15-05-interior-mutability.html "RefCell<T> and the Interior Mutability Pattern - The Rust Programming Language"
 
-use crate::conversion::{AsPyPointer, IntoPyObject};
+use crate::conversion::IntoPyObject;
 use crate::exceptions::PyRuntimeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::{ptr_from_mut, ptr_from_ref};
 use crate::pyclass::{boolean_struct::False, PyClass};
 use crate::types::any::PyAnyMethods;
-#[allow(deprecated)]
-use crate::IntoPy;
-use crate::{ffi, Borrowed, Bound, PyErr, PyObject, Python};
+use crate::{ffi, Borrowed, Bound, PyErr, Python};
 use std::convert::Infallible;
 use std::fmt;
 use std::mem::ManuallyDrop;
@@ -449,20 +447,6 @@ impl<T: PyClass> Drop for PyRef<'_, T> {
     }
 }
 
-#[allow(deprecated)]
-impl<T: PyClass> IntoPy<PyObject> for PyRef<'_, T> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
-    }
-}
-
-#[allow(deprecated)]
-impl<T: PyClass> IntoPy<PyObject> for &'_ PyRef<'_, T> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
-    }
-}
-
 impl<'py, T: PyClass> IntoPyObject<'py> for PyRef<'py, T> {
     type Target = T;
     type Output = Bound<'py, T>;
@@ -480,12 +464,6 @@ impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &'a PyRef<'py, T> {
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.inner.as_borrowed())
-    }
-}
-
-unsafe impl<T: PyClass> AsPyPointer for PyRef<'_, T> {
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.inner.as_ptr()
     }
 }
 
@@ -637,20 +615,6 @@ impl<T: PyClass<Frozen = False>> Drop for PyRefMut<'_, T> {
             .get_class_object()
             .borrow_checker()
             .release_borrow_mut()
-    }
-}
-
-#[allow(deprecated)]
-impl<T: PyClass<Frozen = False>> IntoPy<PyObject> for PyRefMut<'_, T> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
-    }
-}
-
-#[allow(deprecated)]
-impl<T: PyClass<Frozen = False>> IntoPy<PyObject> for &'_ PyRefMut<'_, T> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.inner.clone().into_py(py)
     }
 }
 

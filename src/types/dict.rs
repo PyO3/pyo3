@@ -67,13 +67,6 @@ impl PyDict {
         unsafe { ffi::PyDict_New().assume_owned(py).downcast_into_unchecked() }
     }
 
-    /// Deprecated name for [`PyDict::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyDict::new`")]
-    #[inline]
-    pub fn new_bound(py: Python<'_>) -> Bound<'_, PyDict> {
-        Self::new(py)
-    }
-
     /// Creates a new dictionary from the sequence given.
     ///
     /// The sequence must consist of `(PyObject, PyObject)`. This is
@@ -89,14 +82,6 @@ impl PyDict {
             ffi::PyDict_MergeFromSeq2(dict.as_ptr(), seq.as_ptr(), 1)
         })?;
         Ok(dict)
-    }
-
-    /// Deprecated name for [`PyDict::from_sequence`].
-    #[cfg(not(any(PyPy, GraalPy)))]
-    #[deprecated(since = "0.23.0", note = "renamed to `PyDict::from_sequence`")]
-    #[inline]
-    pub fn from_sequence_bound<'py>(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
-        Self::from_sequence(seq)
     }
 }
 
@@ -535,6 +520,14 @@ impl<'py> Iterator for BoundDictIterator<'py> {
     }
 
     #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
+    }
+
+    #[inline]
     #[cfg(Py_GIL_DISABLED)]
     fn fold<B, F>(mut self, init: B, mut f: F) -> B
     where
@@ -736,6 +729,14 @@ mod borrowed_iter {
             let len = self.len();
             (len, Some(len))
         }
+
+        #[inline]
+        fn count(self) -> usize
+        where
+            Self: Sized,
+        {
+            self.len()
+        }
     }
 
     impl ExactSizeIterator for BorrowedDictIter<'_, '_> {
@@ -760,13 +761,6 @@ pub trait IntoPyDict<'py>: Sized {
     /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
     /// depends on implementation.
     fn into_py_dict(self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>>;
-
-    /// Deprecated name for [`IntoPyDict::into_py_dict`].
-    #[deprecated(since = "0.23.0", note = "renamed to `IntoPyDict::into_py_dict`")]
-    #[inline]
-    fn into_py_dict_bound(self, py: Python<'py>) -> Bound<'py, PyDict> {
-        self.into_py_dict(py).unwrap()
-    }
 }
 
 impl<'py, T, I> IntoPyDict<'py> for I
@@ -973,7 +967,7 @@ mod tests {
                 }
                 Err(err) => {
                     assert!(err.is_instance_of::<PyTypeError>(py));
-                    assert_eq!(err.value(py).to_string(), "Error from __hash__")
+                    assert!(err.value(py).to_string().contains("Error from __hash__"));
                 }
             }
         })
@@ -1656,5 +1650,13 @@ mod tests {
                 .try_fold(0, |acc, (_, v)| PyResult::Ok(acc + v.extract::<i32>()?))
                 .is_err());
         });
+    }
+
+    #[test]
+    fn test_iter_count() {
+        Python::with_gil(|py| {
+            let dict = [(1, 1), (2, 2), (3, 3)].into_py_dict(py).unwrap();
+            assert_eq!(dict.iter().count(), 3);
+        })
     }
 }

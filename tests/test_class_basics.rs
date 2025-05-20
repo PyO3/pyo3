@@ -357,23 +357,23 @@ struct ClassWithFromPyWithMethods {}
 
 #[pymethods]
 impl ClassWithFromPyWithMethods {
-    fn instance_method(&self, #[pyo3(from_py_with = "get_length")] argument: usize) -> usize {
+    fn instance_method(&self, #[pyo3(from_py_with = get_length)] argument: usize) -> usize {
         argument
     }
     #[classmethod]
     fn classmethod(
         _cls: &Bound<'_, PyType>,
-        #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")] argument: usize,
+        #[pyo3(from_py_with = Bound::<'_, PyAny>::len)] argument: usize,
     ) -> usize {
         argument
     }
 
     #[staticmethod]
-    fn staticmethod(#[pyo3(from_py_with = "get_length")] argument: usize) -> usize {
+    fn staticmethod(#[pyo3(from_py_with = get_length)] argument: usize) -> usize {
         argument
     }
 
-    fn __contains__(&self, #[pyo3(from_py_with = "is_even")] obj: bool) -> bool {
+    fn __contains__(&self, #[pyo3(from_py_with = is_even)] obj: bool) -> bool {
         obj
     }
 }
@@ -711,6 +711,37 @@ fn test_unsendable_dict_with_weakref() {
             py,
             inst,
             "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1"
+        );
+    });
+}
+
+#[cfg(Py_3_9)]
+#[pyclass(generic)]
+struct ClassWithRuntimeParametrization {
+    #[pyo3(get, set)]
+    value: PyObject,
+}
+
+#[cfg(Py_3_9)]
+#[pymethods]
+impl ClassWithRuntimeParametrization {
+    #[new]
+    fn new(value: PyObject) -> ClassWithRuntimeParametrization {
+        Self { value }
+    }
+}
+
+#[test]
+#[cfg(Py_3_9)]
+fn test_runtime_parametrization() {
+    Python::with_gil(|py| {
+        let ty = py.get_type::<ClassWithRuntimeParametrization>();
+        py_assert!(py, ty, "ty[int] == ty.__class_getitem__((int,))");
+        py_run!(
+            py,
+            ty,
+            "import types;
+            assert ty.__class_getitem__((int,)) == types.GenericAlias(ty, (int,))"
         );
     });
 }

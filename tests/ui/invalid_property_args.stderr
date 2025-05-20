@@ -65,11 +65,11 @@ error[E0277]: `PhantomData<i32>` cannot be converted to a Python object
              &'a (T0, T1, T2, T3, T4)
            and $N others
    = note: required for `PhantomData<i32>` to implement `for<'py> PyO3GetField<'py>`
-note: required by a bound in `PyClassGetterGenerator::<ClassT, FieldT, Offset, false, false, false, false, false>::generate`
+note: required by a bound in `PyClassGetterGenerator::<ClassT, FieldT, Offset, false, false, IMPLEMENTS_INTOPYOBJECT>::generate`
   --> src/impl_/pyclass.rs
    |
-   |     pub const fn generate(&self, _name: &'static CStr, _doc: &'static CStr) -> PyMethodDefType
+   |     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType
    |                  -------- required by a bound in this associated function
 ...
    |         for<'py> FieldT: PyO3GetField<'py>,
-   |                          ^^^^^^^^^^^^^^^^^ required by this bound in `PyClassGetterGenerator::<ClassT, FieldT, Offset, false, false, false, false, false>::generate`
+   |                          ^^^^^^^^^^^^^^^^^ required by this bound in `PyClassGetterGenerator::<ClassT, FieldT, Offset, false, false, IMPLEMENTS_INTOPYOBJECT>::generate`

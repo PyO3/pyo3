@@ -22,13 +22,6 @@ impl PyNotImplemented {
                 .downcast_unchecked()
         }
     }
-
-    /// Deprecated name for [`PyNotImplemented::get`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyNotImplemented::get`")]
-    #[inline]
-    pub fn get_bound(py: Python<'_>) -> Borrowed<'_, '_, PyNotImplemented> {
-        Self::get(py)
-    }
 }
 
 unsafe impl PyTypeInfo for PyNotImplemented {
@@ -70,7 +63,7 @@ mod tests {
         Python::with_gil(|py| {
             assert!(PyNotImplemented::get(py)
                 .get_type()
-                .is(&PyNotImplemented::type_object(py)));
+                .is(PyNotImplemented::type_object(py)));
         })
     }
 

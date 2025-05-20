@@ -853,7 +853,7 @@ impl DefaultedContains {
     fn __iter__(&self, py: Python<'_>) -> PyObject {
         PyList::new(py, ["a", "b", "c"])
             .unwrap()
-            .as_ref()
+            .as_any()
             .try_iter()
             .unwrap()
             .into()
@@ -868,7 +868,7 @@ impl NoContains {
     fn __iter__(&self, py: Python<'_>) -> PyObject {
         PyList::new(py, ["a", "b", "c"])
             .unwrap()
-            .as_ref()
+            .as_any()
             .try_iter()
             .unwrap()
             .into()

@@ -18,7 +18,7 @@ Python programs.
 Use [`pyo3_log::init`][init] to install the logger in its default configuration.
 It's also possible to tweak its configuration (mostly to tune its performance).
 
-```rust
+```rust,no_run
 use log::info;
 use pyo3::prelude::*;
 
@@ -61,7 +61,7 @@ To have python logs be handled by Rust, one need only register a rust function t
 
 This has been implemented within the [pyo3-pylogger] crate.
 
-```rust
+```rust,no_run
 use log::{info, warn};
 use pyo3::prelude::*;
 

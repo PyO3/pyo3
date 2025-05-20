@@ -1,6 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
+use pyo3::py_run;
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -66,14 +67,68 @@ fn class_attributes() {
     });
 }
 
-// Ignored because heap types are not immutable:
-// https://github.com/python/cpython/blob/master/Objects/typeobject.c#L3399-L3409
 #[test]
-#[ignore]
-fn class_attributes_are_immutable() {
+fn class_attributes_mutable() {
+    #[pyclass]
+    struct Foo {}
+
+    #[pymethods]
+    impl Foo {
+        #[classattr]
+        const MY_CONST: &'static str = "foobar";
+
+        #[classattr]
+        fn a() -> i32 {
+            5
+        }
+    }
+
     Python::with_gil(|py| {
-        let foo_obj = py.get_type::<Foo>();
-        py_expect_exception!(py, foo_obj, "foo_obj.a = 6", PyTypeError);
+        let obj = py.get_type::<Foo>();
+        py_run!(py, obj, "obj.MY_CONST = 'BAZ'");
+        py_run!(py, obj, "obj.a = 42");
+        py_assert!(py, obj, "obj.MY_CONST == 'BAZ'");
+        py_assert!(py, obj, "obj.a == 42");
+    });
+}
+
+#[test]
+#[cfg(any(Py_3_14, all(Py_3_10, not(Py_LIMITED_API))))]
+fn immutable_type_object() {
+    #[pyclass(immutable_type)]
+    struct ImmutableType {}
+
+    #[pymethods]
+    impl ImmutableType {
+        #[classattr]
+        const MY_CONST: &'static str = "foobar";
+
+        #[classattr]
+        fn a() -> i32 {
+            5
+        }
+    }
+
+    #[pyclass(immutable_type)]
+    enum SimpleImmutable {
+        Variant = 42,
+    }
+
+    #[pyclass(immutable_type)]
+    enum ComplexImmutable {
+        Variant(u32),
+    }
+
+    Python::with_gil(|py| {
+        let obj = py.get_type::<ImmutableType>();
+        py_expect_exception!(py, obj, "obj.MY_CONST = 'FOOBAR'", PyTypeError);
+        py_expect_exception!(py, obj, "obj.a = 6", PyTypeError);
+
+        let obj = py.get_type::<SimpleImmutable>();
+        py_expect_exception!(py, obj, "obj.Variant = 0", PyTypeError);
+
+        let obj = py.get_type::<ComplexImmutable>();
+        py_expect_exception!(py, obj, "obj.Variant = 0", PyTypeError);
     });
 }
 

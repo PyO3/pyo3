@@ -93,13 +93,11 @@
 //! result = get_eigenvalues(m11,m12,m21,m22)
 //! assert result == [complex(1,-1), complex(-2,0)]
 //! ```
-#[allow(deprecated)]
-use crate::ToPyObject;
 use crate::{
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     types::{any::PyAnyMethods, PyComplex},
-    Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python,
+    Bound, FromPyObject, PyAny, PyErr, PyResult, Python,
 };
 use num_complex::Complex;
 use std::os::raw::c_double;
@@ -120,27 +118,6 @@ impl PyComplex {
 
 macro_rules! complex_conversion {
     ($float: ty) => {
-        #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
-        #[allow(deprecated)]
-        impl ToPyObject for Complex<$float> {
-            #[inline]
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                crate::IntoPy::<PyObject>::into_py(self.to_owned(), py)
-            }
-        }
-
-        #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
-        #[allow(deprecated)]
-        impl crate::IntoPy<PyObject> for Complex<$float> {
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                unsafe {
-                    let raw_obj =
-                        ffi::PyComplex_FromDoubles(self.re as c_double, self.im as c_double);
-                    PyObject::from_owned_ptr(py, raw_obj)
-                }
-            }
-        }
-
         #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
         impl<'py> crate::conversion::IntoPyObject<'py> for Complex<$float> {
             type Target = PyComplex;

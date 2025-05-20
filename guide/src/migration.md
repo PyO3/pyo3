@@ -3,8 +3,25 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
-## from 0.22.* to 0.23
+## from 0.24.* to 0.25
+### `AsPyPointer` removal
 <details open>
+<summary><small>Click to expand</small></summary>
+The `AsPyPointer` trait is mostly a leftover from the now removed gil-refs API. The last remaining uses were the GC API, namely `PyVisit::call`, and identity comparison (`PyAnyMethods::is` and `Py::is`).
+
+`PyVisit::call` has been updated to take `T: Into<Option<&Py<T>>>`, which allows for arguments of type `&Py<T>`, `&Option<Py<T>>` and `Option<&Py<T>>`. It is unlikely any changes are needed here to migrate.
+
+`PyAnyMethods::is`/`Py::is` has been updated to take `T: AsRef<Py<PyAny>>>`. Additionally `AsRef<Py<PyAny>>>` implementations were added for `Py`, `Bound` and `Borrowed`. Because of the existing `AsRef<Bound<PyAny>> for Bound<T>` implementation this may cause inference issues in non-generic code. This can be easily migrated by switching to `as_any` instead of `as_ref` for these calls.
+</details>
+
+## from 0.23.* to 0.24
+<details>
+<summary><small>Click to expand</small></summary>
+There were no significant changes from 0.23 to 0.24 which required documenting in this guide.
+</details>
+
+## from 0.22.* to 0.23
+<details>
 <summary><small>Click to expand</small></summary>
 
 PyO3 0.23 is a significant rework of PyO3's internals for two major improvements:
@@ -20,7 +37,7 @@ The sections below discuss the rationale and details of each change in more dept
 </details>
 
 ### Free-threaded Python Support
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 PyO3 0.23 introduces initial support for the new free-threaded build of
@@ -43,7 +60,7 @@ See [the guide section on free-threaded Python](free-threading.md) for more deta
 </details>
 
 ### New `IntoPyObject` trait unifies to-Python conversions
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 PyO3 0.23 introduces a new `IntoPyObject` trait to convert Rust types into Python objects which replaces both `IntoPy` and `ToPyObject`.
@@ -70,7 +87,7 @@ are deprecated and will be removed in a future PyO3 version.
 
 To implement the new trait you may use the new `IntoPyObject` and `IntoPyObjectRef` derive macros as below.
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 #[derive(IntoPyObject, IntoPyObjectRef)]
 struct Struct {
@@ -103,7 +120,7 @@ impl ToPyObject for MyPyObjectWrapper {
 ```
 
 After:
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
 # struct MyPyObjectWrapper(PyObject);
@@ -132,7 +149,7 @@ impl<'a, 'py> IntoPyObject<'py> for &'a MyPyObjectWrapper {
 </details>
 
 ### To-Python conversions changed for byte collections (`Vec<u8>`, `[u8; N]` and `SmallVec<[u8; N]>`).
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 With the introduction of the `IntoPyObject` trait, PyO3's macros now prefer `IntoPyObject` implementations over `IntoPy<PyObject>` when producing Python values. This applies to `#[pyfunction]` and `#[pymethods]` return values and also fields accessed via `#[pyo3(get)]`.
@@ -145,7 +162,7 @@ This change has an effect on functions and methods returning _byte_ collections 
 In their new `IntoPyObject` implementation these will now turn into `PyBytes` rather than a
 `PyList`. All other `T`s are unaffected and still convert into a `PyList`.
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 #[pyfunction]
@@ -170,7 +187,7 @@ This is purely additional and should just extend the possible return types.
 </details>
 
 ### `gil-refs` feature removed
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 PyO3 0.23 completes the removal of the "GIL Refs" API in favour of the new "Bound" API introduced in PyO3 0.21.
@@ -179,7 +196,7 @@ With the removal of the old API, many "Bound" API functions which had been intro
 
 Before:
 
-```rust
+```rust,ignore
 # #![allow(deprecated)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyTuple;
@@ -237,7 +254,7 @@ where
 
 After:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 # use pyo3::types::{PyDict, IntoPyDict};
 # use std::collections::HashMap;
@@ -282,7 +299,7 @@ and unnoticed changes in behavior. With 0.24 this restriction will be lifted aga
 
 Before:
 
-```rust
+```rust,no_run
 # #![allow(deprecated, dead_code)]
 # use pyo3::prelude::*;
 #[pyfunction]
@@ -293,7 +310,7 @@ fn increment(x: u64, amount: Option<u64>) -> u64 {
 
 After:
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 #[pyfunction]
@@ -326,7 +343,7 @@ To migrate, place a `#[pyo3(eq, eq_int)]` attribute on simple enum classes.
 
 Before:
 
-```rust
+```rust,no_run
 # #![allow(deprecated, dead_code)]
 # use pyo3::prelude::*;
 #[pyclass]
@@ -338,7 +355,7 @@ enum SimpleEnum {
 
 After:
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 #[pyclass(eq, eq_int)]
@@ -528,7 +545,7 @@ impl PyClassIter {
 
 If returning `"done"` via `StopIteration` is not really required, this should be written as
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -553,7 +570,7 @@ This form also has additional benefits: It has already worked in previous PyO3 v
 
 Alternatively, the implementation can also be done as it would in Python itself, i.e. by "raising" a `StopIteration` exception
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 use pyo3::exceptions::PyStopIteration;
 
@@ -577,7 +594,7 @@ impl PyClassIter {
 
 Finally, an asynchronous iterator can directly return an awaitable without confusing wrapping
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -885,7 +902,7 @@ fn x_or_y(x: Option<u64>, y: u64) -> u64 {
 
 After:
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 
@@ -915,7 +932,7 @@ fn add(a: u64, b: u64) -> u64 {
 
 After:
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 
@@ -1105,7 +1122,7 @@ fn required_argument_after_option(x: Option<i32>, y: i32) {}
 
 After, specify the intended Python signature explicitly:
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 
@@ -1237,7 +1254,7 @@ Python::with_gil(|py| {
 
 After, some type annotations may be necessary:
 
-```rust
+```rust,ignore
 # #![allow(deprecated)]
 # use pyo3::prelude::*;
 #
@@ -1553,7 +1570,7 @@ impl PyObjectProtocol for MyClass {
 
 After:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -1646,7 +1663,7 @@ let result: PyResult<()> = PyErr::new::<TypeError, _>("error message").into();
 ```
 
 After (also using the new reworked exception types; see the following section):
-```rust
+```rust,no_run
 # use pyo3::{PyResult, exceptions::PyTypeError};
 let result: PyResult<()> = Err(PyTypeError::new_err("error message"));
 ```
@@ -1712,7 +1729,7 @@ impl FromPy<MyPyObjectWrapper> for PyObject {
 ```
 
 After
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
 struct MyPyObjectWrapper(PyObject);
@@ -1736,7 +1753,7 @@ let obj = PyObject::from_py(1.234, py);
 ```
 
 After:
-```rust
+```rust,ignore
 # #![allow(deprecated)]
 # use pyo3::prelude::*;
 # Python::with_gil(|py| {
@@ -1853,7 +1870,7 @@ There can be two fixes:
    ```
 
    After:
-   ```rust
+   ```rust,no_run
    # #![allow(dead_code)]
    use pyo3::prelude::*;
 
@@ -1951,7 +1968,7 @@ impl MyClass {
 ```
 
 After:
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 #[pyclass]
 struct MyClass {}

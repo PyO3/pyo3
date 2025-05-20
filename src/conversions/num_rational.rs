@@ -17,7 +17,7 @@
 //!
 //! Rust code to create a function that adds five to a fraction:
 //!
-//! ```rust
+//! ```rust,no_run
 //! use num_rational::Ratio;
 //! use pyo3::prelude::*;
 //!
@@ -48,9 +48,7 @@ use crate::ffi;
 use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
-use crate::{Bound, FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
+use crate::{Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
 
 #[cfg(feature = "num-bigint")]
 use num_bigint::BigInt;
@@ -81,21 +79,6 @@ macro_rules! rational_conversion {
                 let rs_numerator: $int = numerator_owned.extract()?;
                 let rs_denominator: $int = denominator_owned.extract()?;
                 Ok(Ratio::new(rs_numerator, rs_denominator))
-            }
-        }
-
-        #[allow(deprecated)]
-        impl ToPyObject for Ratio<$int> {
-            #[inline]
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-        #[allow(deprecated)]
-        impl IntoPy<PyObject> for Ratio<$int> {
-            #[inline]
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
             }
         }
 

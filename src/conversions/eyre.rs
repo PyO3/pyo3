@@ -119,7 +119,7 @@ impl From<eyre::Report> for PyErr {
                 Err(error) => error,
             };
         }
-        PyRuntimeError::new_err(format!("{:?}", error))
+        PyRuntimeError::new_err(format!("{error:?}"))
     }
 }
 
@@ -147,7 +147,7 @@ mod tests {
     #[test]
     fn test_pyo3_exception_contents() {
         let err = h().unwrap_err();
-        let expected_contents = format!("{:?}", err);
+        let expected_contents = format!("{err:?}");
         let pyerr = PyErr::from(err);
 
         Python::with_gil(|py| {
@@ -166,7 +166,7 @@ mod tests {
     #[test]
     fn test_pyo3_exception_contents2() {
         let err = k().unwrap_err();
-        let expected_contents = format!("{:?}", err);
+        let expected_contents = format!("{err:?}");
         let pyerr = PyErr::from(err);
 
         Python::with_gil(|py| {

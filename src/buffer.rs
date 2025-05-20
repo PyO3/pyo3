@@ -224,13 +224,6 @@ impl<T: Element> PyBuffer<T> {
         }
     }
 
-    /// Deprecated name for [`PyBuffer::get`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyBuffer::get`")]
-    #[inline]
-    pub fn get_bound(obj: &Bound<'_, PyAny>) -> PyResult<PyBuffer<T>> {
-        Self::get(obj)
-    }
-
     /// Gets the pointer to the start of the buffer memory.
     ///
     /// Warning: the buffer memory might be mutated by other Python functions,
@@ -709,7 +702,7 @@ mod tests {
                 buffer.0.suboffsets,
                 buffer.0.internal
             );
-            let debug_repr = format!("{:?}", buffer);
+            let debug_repr = format!("{buffer:?}");
             assert_eq!(debug_repr, expected);
         });
     }
@@ -836,8 +829,7 @@ mod tests {
             assert_eq!(
                 ElementType::from_format(cstr),
                 expected,
-                "element from format &Cstr: {:?}",
-                cstr,
+                "element from format &Cstr: {cstr:?}",
             );
         }
     }

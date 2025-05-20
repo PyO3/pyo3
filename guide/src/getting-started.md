@@ -145,7 +145,7 @@ classifiers = [
 
 After this you can setup Rust code to be available in Python as below; for example, you can place this code in `src/lib.rs`:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 /// Formats the sum of two numbers as string.

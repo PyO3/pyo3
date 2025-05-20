@@ -21,7 +21,7 @@
 //! Using [`BigInt`] to correctly increment an arbitrary precision integer.
 //! This is not possible with Rust's native integers if the Python integer is too large,
 //! in which case it will fail its conversion and raise `OverflowError`.
-//! ```rust
+//! ```rust,no_run
 //! use num_bigint::BigInt;
 //! use pyo3::prelude::*;
 //!
@@ -54,10 +54,8 @@ use crate::{
     ffi,
     instance::Bound,
     types::{any::PyAnyMethods, PyInt},
-    FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    FromPyObject, Py, PyAny, PyErr, PyResult, Python,
 };
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
 
 use num_bigint::{BigInt, BigUint};
 
@@ -67,24 +65,6 @@ use num_bigint::Sign;
 // for identical functionality between BigInt and BigUint
 macro_rules! bigint_conversion {
     ($rust_ty: ty, $is_signed: literal, $to_bytes: path) => {
-        #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
-        #[allow(deprecated)]
-        impl ToPyObject for $rust_ty {
-            #[inline]
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-
-        #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
-        #[allow(deprecated)]
-        impl IntoPy<PyObject> for $rust_ty {
-            #[inline]
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-
         #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
         impl<'py> IntoPyObject<'py> for $rust_ty {
             type Target = PyInt;

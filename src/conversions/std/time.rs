@@ -1,25 +1,22 @@
 use crate::conversion::IntoPyObject;
 use crate::exceptions::{PyOverflowError, PyValueError};
+#[cfg(Py_LIMITED_API)]
+use crate::intern;
 use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
-#[cfg(Py_LIMITED_API)]
-use crate::types::PyType;
 #[cfg(not(Py_LIMITED_API))]
-use crate::types::{timezone_utc, PyDateTime, PyDelta, PyDeltaAccess};
-#[cfg(Py_LIMITED_API)]
-use crate::Py;
-use crate::{intern, Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
+use crate::types::PyDeltaAccess;
+use crate::types::{PyDateTime, PyDelta, PyTzInfo};
+use crate::{Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
 
 impl FromPyObject<'_> for Duration {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let delta = obj.downcast::<PyDelta>()?;
         #[cfg(not(Py_LIMITED_API))]
         let (days, seconds, microseconds) = {
-            let delta = obj.downcast::<PyDelta>()?;
             (
                 delta.get_days(),
                 delta.get_seconds(),
@@ -28,10 +25,11 @@ impl FromPyObject<'_> for Duration {
         };
         #[cfg(Py_LIMITED_API)]
         let (days, seconds, microseconds): (i32, i32, i32) = {
+            let py = delta.py();
             (
-                obj.getattr(intern!(obj.py(), "days"))?.extract()?,
-                obj.getattr(intern!(obj.py(), "seconds"))?.extract()?,
-                obj.getattr(intern!(obj.py(), "microseconds"))?.extract()?,
+                delta.getattr(intern!(py, "days"))?.extract()?,
+                delta.getattr(intern!(py, "seconds"))?.extract()?,
+                delta.getattr(intern!(py, "microseconds"))?.extract()?,
             )
         };
 
@@ -52,27 +50,8 @@ impl FromPyObject<'_> for Duration {
     }
 }
 
-#[allow(deprecated)]
-impl ToPyObject for Duration {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for Duration {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
 impl<'py> IntoPyObject<'py> for Duration {
-    #[cfg(not(Py_LIMITED_API))]
     type Target = PyDelta;
-    #[cfg(Py_LIMITED_API)]
-    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
@@ -81,31 +60,18 @@ impl<'py> IntoPyObject<'py> for Duration {
         let seconds = self.as_secs() % SECONDS_PER_DAY;
         let microseconds = self.subsec_micros();
 
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            PyDelta::new(
-                py,
-                days.try_into()?,
-                seconds.try_into().unwrap(),
-                microseconds.try_into().unwrap(),
-                false,
-            )
-        }
-        #[cfg(Py_LIMITED_API)]
-        {
-            static TIMEDELTA: GILOnceCell<Py<PyType>> = GILOnceCell::new();
-            TIMEDELTA
-                .import(py, "datetime", "timedelta")?
-                .call1((days, seconds, microseconds))
-        }
+        PyDelta::new(
+            py,
+            days.try_into()?,
+            seconds.try_into()?,
+            microseconds.try_into()?,
+            false,
+        )
     }
 }
 
 impl<'py> IntoPyObject<'py> for &Duration {
-    #[cfg(not(Py_LIMITED_API))]
     type Target = PyDelta;
-    #[cfg(Py_LIMITED_API)]
-    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
@@ -123,9 +89,7 @@ impl<'py> IntoPyObject<'py> for &Duration {
 
 impl FromPyObject<'_> for SystemTime {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let duration_since_unix_epoch: Duration = obj
-            .call_method1(intern!(obj.py(), "__sub__"), (unix_epoch_py(obj.py())?,))?
-            .extract()?;
+        let duration_since_unix_epoch: Duration = obj.sub(unix_epoch_py(obj.py())?)?.extract()?;
         UNIX_EPOCH
             .checked_add(duration_since_unix_epoch)
             .ok_or_else(|| {
@@ -134,24 +98,8 @@ impl FromPyObject<'_> for SystemTime {
     }
 }
 
-#[allow(deprecated)]
-impl ToPyObject for SystemTime {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for SystemTime {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
 impl<'py> IntoPyObject<'py> for SystemTime {
-    type Target = PyAny;
+    type Target = PyDateTime;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
@@ -159,13 +107,14 @@ impl<'py> IntoPyObject<'py> for SystemTime {
         let duration_since_unix_epoch =
             self.duration_since(UNIX_EPOCH).unwrap().into_pyobject(py)?;
         unix_epoch_py(py)?
-            .bind(py)
-            .call_method1(intern!(py, "__add__"), (duration_since_unix_epoch,))
+            .add(duration_since_unix_epoch)?
+            .downcast_into()
+            .map_err(Into::into)
     }
 }
 
 impl<'py> IntoPyObject<'py> for &SystemTime {
-    type Target = PyAny;
+    type Target = PyDateTime;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
@@ -175,28 +124,14 @@ impl<'py> IntoPyObject<'py> for &SystemTime {
     }
 }
 
-fn unix_epoch_py(py: Python<'_>) -> PyResult<&PyObject> {
-    static UNIX_EPOCH: GILOnceCell<PyObject> = GILOnceCell::new();
-    UNIX_EPOCH.get_or_try_init(py, || {
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            Ok::<_, PyErr>(
-                PyDateTime::new(py, 1970, 1, 1, 0, 0, 0, 0, Some(&timezone_utc(py)))?.into(),
-            )
-        }
-        #[cfg(Py_LIMITED_API)]
-        {
-            let datetime = py.import("datetime")?;
-            let utc = datetime.getattr("timezone")?.getattr("utc")?;
-            Ok::<_, PyErr>(
-                datetime
-                    .getattr("datetime")?
-                    .call1((1970, 1, 1, 0, 0, 0, 0, utc))
-                    .unwrap()
-                    .into(),
-            )
-        }
-    })
+fn unix_epoch_py(py: Python<'_>) -> PyResult<Borrowed<'_, '_, PyDateTime>> {
+    static UNIX_EPOCH: GILOnceCell<Py<PyDateTime>> = GILOnceCell::new();
+    Ok(UNIX_EPOCH
+        .get_or_try_init(py, || {
+            let utc = PyTzInfo::utc(py)?;
+            Ok::<_, PyErr>(PyDateTime::new(py, 1970, 1, 1, 0, 0, 0, 0, Some(&utc))?.into())
+        })?
+        .bind_borrowed(py))
 }
 
 #[cfg(test)]
@@ -350,7 +285,7 @@ mod tests {
     #[test]
     fn test_time_intopyobject() {
         Python::with_gil(|py| {
-            let assert_eq = |l: Bound<'_, PyAny>, r: Bound<'_, PyAny>| {
+            let assert_eq = |l: Bound<'_, PyDateTime>, r: Bound<'_, PyDateTime>| {
                 assert!(l.eq(r).unwrap());
             };
 
@@ -383,26 +318,33 @@ mod tests {
         minute: u8,
         second: u8,
         microsecond: u32,
-    ) -> Bound<'_, PyAny> {
-        datetime_class(py)
-            .call1((
-                year,
-                month,
-                day,
-                hour,
-                minute,
-                second,
-                microsecond,
-                tz_utc(py),
-            ))
-            .unwrap()
+    ) -> Bound<'_, PyDateTime> {
+        let utc = PyTzInfo::utc(py).unwrap();
+        PyDateTime::new(
+            py,
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            microsecond,
+            Some(&utc),
+        )
+        .unwrap()
     }
 
-    fn max_datetime(py: Python<'_>) -> Bound<'_, PyAny> {
+    fn max_datetime(py: Python<'_>) -> Bound<'_, PyDateTime> {
         let naive_max = datetime_class(py).getattr("max").unwrap();
         let kargs = PyDict::new(py);
-        kargs.set_item("tzinfo", tz_utc(py)).unwrap();
-        naive_max.call_method("replace", (), Some(&kargs)).unwrap()
+        kargs
+            .set_item("tzinfo", PyTzInfo::utc(py).unwrap())
+            .unwrap();
+        naive_max
+            .call_method("replace", (), Some(&kargs))
+            .unwrap()
+            .downcast_into()
+            .unwrap()
     }
 
     #[test]
@@ -413,15 +355,6 @@ mod tests {
         Python::with_gil(|py| {
             assert!(big_system_time.into_pyobject(py).is_err());
         })
-    }
-
-    fn tz_utc(py: Python<'_>) -> Bound<'_, PyAny> {
-        py.import("datetime")
-            .unwrap()
-            .getattr("timezone")
-            .unwrap()
-            .getattr("utc")
-            .unwrap()
     }
 
     fn new_timedelta(

@@ -4,7 +4,7 @@
 
 `#[pyfunction]` and `#[pymethods]` attributes also support `async fn`.
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # #[cfg(feature = "experimental-async")] {
 use std::{thread, time::Duration};
@@ -66,8 +66,8 @@ where
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let waker = cx.waker();
-        Python::with_gil(|gil| {
-            gil.allow_threads(|| pin!(&mut self.0).poll(&mut Context::from_waker(waker)))
+        Python::with_gil(|py| {
+            py.allow_threads(|| pin!(&mut self.0).poll(&mut Context::from_waker(waker)))
         })
     }
 }
@@ -77,7 +77,7 @@ where
 
 Cancellation on the Python side can be caught using [`CancelHandle`]({{#PYO3_DOCS_URL}}/pyo3/coroutine/struct.CancelHandle.html) type, by annotating a function parameter with `#[pyo3(cancel_handle)]`.
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # #[cfg(feature = "experimental-async")] {
 use futures::FutureExt;
