@@ -22,7 +22,6 @@ pub mod pyclass;
 pub mod pyclass_init;
 pub mod pyfunction;
 pub mod pymethods;
-#[cfg(feature = "macros")] // depends on #[pyclass]
 pub mod pymodule;
 #[doc(hidden)]
 pub mod trampoline;
