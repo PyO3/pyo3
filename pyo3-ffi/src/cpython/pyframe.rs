@@ -54,9 +54,9 @@ extern "C" {
     #[cfg(Py_3_12)]
     pub fn PyFrame_GetVarString(frame: *mut PyFrameObject, name: *mut c_char) -> *mut PyObject;
 
-    // skipped PyUnstable_InterpreterFrame_GetCode from Include/cpython/pyframe.h
-    // skipped PyUnstable_InterpreterFrame_GetLasti from Include/cpython/pyframe.h
-    // skipped PyUnstable_InterpreterFrame_GetLine from Include/cpython/pyframe.h
-    // skipped PyUnstable_ExecutableKinds from Include/cpython/pyframe.h
+    // skipped PyUnstable_InterpreterFrame_GetCode
+    // skipped PyUnstable_InterpreterFrame_GetLasti
+    // skipped PyUnstable_InterpreterFrame_GetLine
+    // skipped PyUnstable_ExecutableKinds
 
 }
