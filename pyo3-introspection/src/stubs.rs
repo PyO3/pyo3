@@ -1,4 +1,4 @@
-use crate::model::{Argument, Class, Const, Function, Module, VariableLengthArgument};
+use crate::model::{Argument, Arguments, Class, Const, Function, Module, VariableLengthArgument};
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 
@@ -43,6 +43,31 @@ fn module_stubs(module: &Module) -> String {
     for function in &module.functions {
         elements.push(function_stubs(function, &mut modules_to_import));
     }
+
+    // We generate a __getattr__ method to tag incomplete stubs
+    // See https://typing.python.org/en/latest/guides/writing_stubs.html#incomplete-stubs
+    if module.incomplete && !module.functions.iter().any(|f| f.name == "__getattr__") {
+        elements.push(function_stubs(
+            &Function {
+                name: "__getattr__".into(),
+                decorators: Vec::new(),
+                arguments: Arguments {
+                    positional_only_arguments: Vec::new(),
+                    arguments: vec![Argument {
+                        name: "name".to_string(),
+                        default_value: None,
+                        annotation: Some("str".into()),
+                    }],
+                    vararg: None,
+                    keyword_only_arguments: Vec::new(),
+                    kwarg: None,
+                },
+                returns: Some("_typeshed.Incomplete".into()),
+            },
+            &mut modules_to_import,
+        ));
+    }
+
     let mut final_elements = Vec::new();
     for module_to_import in &modules_to_import {
         final_elements.push(format!("import {module_to_import}"));
