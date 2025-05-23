@@ -85,7 +85,7 @@ impl FromPyObject<'_> for Uuid {
 
         if obj.is_instance(uuid_cls)? {
             let uuid_int: u128 = obj.getattr(intern!(py, "int"))?.extract()?;
-            Ok(Uuid::from_u128(uuid_int.to_le()))
+            Ok(Uuid::from_u128(uuid_int))
         } else {
             Err(PyTypeError::new_err("Expected a `uuid.UUID` instance."))
         }
