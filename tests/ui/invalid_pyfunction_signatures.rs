@@ -50,6 +50,20 @@ fn signature_contains_py(py: Python<'_>) {
     let _ = py;
 }
 
+#[pyfunction(signature = (**kwargs, *, *args, x))]
+fn multiple_errors_same_order(kwargs: Option<&PyDict>, args: &PyTuple, x: i32) {
+    let _ = kwargs;
+    let _ = args;
+    let _ = x;
+}
+
+#[pyfunction(signature = (**kwargs, *, *args, x))]
+fn multiple_errors_different_order(args: &PyTuple, x: i32, kwargs: Option<&PyDict>) {
+    let _ = kwargs;
+    let _ = args;
+    let _ = x;
+}
+
 #[pyclass]
 struct MyClass;
 

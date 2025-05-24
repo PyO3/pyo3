@@ -179,6 +179,24 @@ error: macros cannot be used as items in `#[pymethods]` impl blocks
 197 |     macro_invocation!();
     |     ^^^^^^^^^^^^^^^^
 
+error: `#[staticmethod]` may not be combined with `#[classmethod]`
+   --> tests/ui/invalid_pymethods.rs:202:7
+    |
+202 |     #[staticmethod]
+    |       ^^^^^^^^^^^^
+
+error: unexpected receiver
+   --> tests/ui/invalid_pymethods.rs:207:51
+    |
+207 |     fn multiple_errors_staticmethod_with_receiver(&self) {}
+    |                                                   ^
+
+error: Expected `&Bound<PyType>` or `Py<PyType>` as the first argument to `#[classmethod]`
+   --> tests/ui/invalid_pymethods.rs:210:49
+    |
+210 |     fn multiple_errors_classmethod_with_receiver(&self) {}
+    |                                                 ^^^^^^^
+
 error[E0277]: the trait bound `i32: From<BoundRef<'_, '_, PyType>>` is not satisfied
   --> tests/ui/invalid_pymethods.rs:46:45
    |
