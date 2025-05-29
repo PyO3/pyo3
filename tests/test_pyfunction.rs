@@ -5,6 +5,10 @@ use std::collections::HashMap;
 
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::buffer::PyBuffer;
+#[cfg(not(Py_LIMITED_API))]
+use pyo3::exceptions::PyWarning;
+#[cfg(not(Py_GIL_DISABLED))]
+use pyo3::exceptions::{PyFutureWarning, PyUserWarning};
 use pyo3::ffi::c_str;
 use pyo3::prelude::*;
 #[cfg(not(Py_LIMITED_API))]
@@ -12,6 +16,7 @@ use pyo3::types::PyDateTime;
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
 use pyo3::types::PyFunction;
 use pyo3::types::{self, PyCFunction};
+use pyo3_macros::pyclass;
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -646,4 +651,110 @@ fn test_pyfunction_raw_ident() {
         py_assert!(py, m, "m.struct()");
         py_assert!(py, m, "m.enum()");
     })
+}
+
+#[cfg(not(Py_LIMITED_API))]
+#[pyclass(extends=PyWarning)]
+pub struct UserDefinedWarning {}
+
+#[cfg(not(Py_LIMITED_API))]
+#[pymethods]
+impl UserDefinedWarning {
+    #[new]
+    #[pyo3(signature = (*_args, **_kwargs))]
+    fn new(_args: Bound<'_, PyAny>, _kwargs: Option<Bound<'_, PyAny>>) -> Self {
+        Self {}
+    }
+}
+
+#[test]
+#[cfg(not(Py_GIL_DISABLED))] // FIXME: enable once `warnings` is thread-safe
+fn test_pyfunction_warn() {
+    #[pyfunction]
+    #[pyo3(warn(message = "this function raises warning"))]
+    fn function_with_warning() {}
+
+    py_expect_warning_for_fn!(
+        function_with_warning,
+        f,
+        [("this function raises warning", PyUserWarning)]
+    );
+
+    #[pyfunction]
+    #[pyo3(warn(message = "this function raises warning with category", category = PyFutureWarning))]
+    fn function_with_warning_with_category() {}
+
+    py_expect_warning_for_fn!(
+        function_with_warning_with_category,
+        f,
+        [(
+            "this function raises warning with category",
+            PyFutureWarning
+        )]
+    );
+
+    #[pyfunction]
+    #[pyo3(warn(message = "custom deprecated category", category = pyo3::exceptions::PyDeprecationWarning))]
+    fn function_with_warning_with_custom_category() {}
+
+    py_expect_warning_for_fn!(
+        function_with_warning_with_custom_category,
+        f,
+        [(
+            "custom deprecated category",
+            pyo3::exceptions::PyDeprecationWarning
+        )]
+    );
+
+    #[cfg(not(Py_LIMITED_API))]
+    #[pyfunction]
+    #[pyo3(warn(message = "this function raises user-defined warning", category = UserDefinedWarning))]
+    fn function_with_warning_and_user_defined_category() {}
+
+    #[cfg(not(Py_LIMITED_API))]
+    py_expect_warning_for_fn!(
+        function_with_warning_and_user_defined_category,
+        f,
+        [(
+            "this function raises user-defined warning",
+            UserDefinedWarning
+        )]
+    );
+}
+
+#[test]
+#[cfg(not(Py_GIL_DISABLED))] // FIXME: enable once `warnings` is thread-safe
+fn test_pyfunction_multiple_warnings() {
+    #[pyfunction]
+    #[pyo3(warn(message = "this function raises warning"))]
+    #[pyo3(warn(message = "this function raises FutureWarning", category = PyFutureWarning))]
+    fn function_with_multiple_warnings() {}
+
+    py_expect_warning_for_fn!(
+        function_with_multiple_warnings,
+        f,
+        [
+            ("this function raises warning", PyUserWarning),
+            ("this function raises FutureWarning", PyFutureWarning)
+        ]
+    );
+
+    #[cfg(not(Py_LIMITED_API))]
+    #[pyfunction]
+    #[pyo3(warn(message = "this function raises FutureWarning", category = PyFutureWarning))]
+    #[pyo3(warn(message = "this function raises user-defined warning", category = UserDefinedWarning))]
+    fn function_with_multiple_custom_warnings() {}
+
+    #[cfg(not(Py_LIMITED_API))]
+    py_expect_warning_for_fn!(
+        function_with_multiple_custom_warnings,
+        f,
+        [
+            ("this function raises FutureWarning", PyFutureWarning),
+            (
+                "this function raises user-defined warning",
+                UserDefinedWarning
+            )
+        ]
+    );
 }

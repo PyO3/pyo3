@@ -80,4 +80,6 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/immutable_type.rs");
     t.pass("tests/ui/ambiguous_associated_items.rs");
     t.pass("tests/ui/pyclass_probe.rs");
+    t.compile_fail("tests/ui/invalid_pyfunction_warn.rs");
+    t.compile_fail("tests/ui/invalid_pymethods_warn.rs");
 }
