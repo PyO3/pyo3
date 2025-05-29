@@ -4,17 +4,27 @@ pub struct Module {
     pub modules: Vec<Module>,
     pub classes: Vec<Class>,
     pub functions: Vec<Function>,
+    pub consts: Vec<Const>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct Class {
     pub name: String,
+    pub methods: Vec<Function>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct Function {
     pub name: String,
+    /// decorator like 'property' or 'staticmethod'
+    pub decorators: Vec<String>,
     pub arguments: Arguments,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+pub struct Const {
+    pub name: String,
+    pub value: String,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]

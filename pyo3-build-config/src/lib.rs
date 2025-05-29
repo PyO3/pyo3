@@ -46,7 +46,7 @@ use target_lexicon::OperatingSystem;
 pub fn use_pyo3_cfgs() {
     print_expected_cfgs();
     for cargo_command in get().build_script_outputs() {
-        println!("{}", cargo_command)
+        println!("{cargo_command}")
     }
 }
 
@@ -102,12 +102,7 @@ fn _add_python_framework_link_args(
 ) {
     if matches!(triple.operating_system, OperatingSystem::Darwin(_)) && link_libpython {
         if let Some(framework_prefix) = interpreter_config.python_framework_prefix.as_ref() {
-            writeln!(
-                writer,
-                "cargo:rustc-link-arg=-Wl,-rpath,{}",
-                framework_prefix
-            )
-            .unwrap();
+            writeln!(writer, "cargo:rustc-link-arg=-Wl,-rpath,{framework_prefix}").unwrap();
         }
     }
 }
@@ -173,12 +168,12 @@ fn print_feature_cfg(minor_version_required: u32, cfg: &str) {
     let minor_version = rustc_minor_version().unwrap_or(0);
 
     if minor_version >= minor_version_required {
-        println!("cargo:rustc-cfg={}", cfg);
+        println!("cargo:rustc-cfg={cfg}");
     }
 
     // rustc 1.80.0 stabilized `rustc-check-cfg` feature, don't emit before
     if minor_version >= 80 {
-        println!("cargo:rustc-check-cfg=cfg({})", cfg);
+        println!("cargo:rustc-check-cfg=cfg({cfg})");
     }
 }
 

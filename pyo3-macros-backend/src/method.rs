@@ -8,7 +8,7 @@ use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
 use crate::pyfunction::{PyFunctionWarning, WarningFactory};
 use crate::pyversions::is_abi3_before;
-use crate::utils::{Ctx, LitCStr};
+use crate::utils::{expr_to_python, Ctx, LitCStr};
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
     params::{impl_arg_params, Holders},
@@ -35,31 +35,7 @@ impl RegularArg<'_> {
             ..
         } = self
         {
-            match arg_default {
-                // literal values
-                syn::Expr::Lit(syn::ExprLit { lit, .. }) => match lit {
-                    syn::Lit::Str(s) => s.token().to_string(),
-                    syn::Lit::Char(c) => c.token().to_string(),
-                    syn::Lit::Int(i) => i.base10_digits().to_string(),
-                    syn::Lit::Float(f) => f.base10_digits().to_string(),
-                    syn::Lit::Bool(b) => {
-                        if b.value() {
-                            "True".to_string()
-                        } else {
-                            "False".to_string()
-                        }
-                    }
-                    _ => "...".to_string(),
-                },
-                // None
-                syn::Expr::Path(syn::ExprPath { qself, path, .. })
-                    if qself.is_none() && path.is_ident("None") =>
-                {
-                    "None".to_string()
-                }
-                // others, unsupported yet so defaults to `...`
-                _ => "...".to_string(),
-            }
+            expr_to_python(arg_default)
         } else if let RegularArg {
             option_wrapped_type: Some(..),
             ..
@@ -651,10 +627,10 @@ impl<'a> FnSpec<'a> {
                     .fold(first.span(), |s, next| s.join(next.span()).unwrap_or(s));
                 let span = span.join(last.span()).unwrap_or(span);
                 // List all the attributes in the error message
-                let mut msg = format!("`{}` may not be combined with", first);
+                let mut msg = format!("`{first}` may not be combined with");
                 let mut is_first = true;
                 for attr in &*rest {
-                    msg.push_str(&format!(" `{}`", attr));
+                    msg.push_str(&format!(" `{attr}`"));
                     if is_first {
                         is_first = false;
                     } else {
@@ -664,7 +640,7 @@ impl<'a> FnSpec<'a> {
                 if !rest.is_empty() {
                     msg.push_str(" and");
                 }
-                msg.push_str(&format!(" `{}`", last));
+                msg.push_str(&format!(" `{last}`"));
                 bail_spanned!(span => msg)
             }
         };
@@ -695,13 +671,6 @@ impl<'a> FnSpec<'a> {
             {
                 bail_spanned!(name.span() => "`cancel_handle` may only be specified once");
             }
-        }
-
-        if self.asyncness.is_some() {
-            ensure_spanned!(
-                cfg!(feature = "experimental-async"),
-                self.asyncness.span() => "async functions are only supported with the `experimental-async` feature"
-            );
         }
 
         let rust_call = |args: Vec<TokenStream>, holders: &mut Holders| {

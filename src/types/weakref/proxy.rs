@@ -265,7 +265,7 @@ mod tests {
                     #[cfg(not(Py_LIMITED_API))]
                     assert_eq!(
                         reference.get_type().to_string(),
-                        format!("<class {}>", CLASS_NAME)
+                        format!("<class {CLASS_NAME}>")
                     );
 
                     assert_eq!(reference.getattr("__class__")?.to_string(), "<class 'A'>");
@@ -282,7 +282,7 @@ mod tests {
                         #[cfg(not(Py_LIMITED_API))]
                         let result = result
                             & (err.value(py).to_string()
-                                == format!("{} object is not callable", CLASS_NAME));
+                                == format!("{CLASS_NAME} object is not callable"));
                         result
                     }));
 
@@ -306,7 +306,7 @@ mod tests {
                         #[cfg(not(Py_LIMITED_API))]
                         let result = result
                             & (err.value(py).to_string()
-                                == format!("{} object is not callable", CLASS_NAME));
+                                == format!("{CLASS_NAME} object is not callable"));
                         result
                     }));
 
@@ -440,7 +440,7 @@ mod tests {
                     #[cfg(not(Py_LIMITED_API))]
                     assert_eq!(
                         reference.get_type().to_string(),
-                        format!("<class {}>", CLASS_NAME)
+                        format!("<class {CLASS_NAME}>")
                     );
 
                     assert_eq!(
@@ -460,7 +460,7 @@ mod tests {
                         #[cfg(not(Py_LIMITED_API))]
                         let result = result
                             & (err.value(py).to_string()
-                                == format!("{} object is not callable", CLASS_NAME));
+                                == format!("{CLASS_NAME} object is not callable"));
                         result
                     }));
 
@@ -484,7 +484,7 @@ mod tests {
                         #[cfg(not(Py_LIMITED_API))]
                         let result = result
                             & (err.value(py).to_string()
-                                == format!("{} object is not callable", CLASS_NAME));
+                                == format!("{CLASS_NAME} object is not callable"));
                         result
                     }));
 

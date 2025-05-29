@@ -139,13 +139,13 @@ mod tests {
     fn test_display_int() {
         Python::with_gil(|py| {
             let s = PyInt::new(py, 42u8);
-            assert_eq!(format!("{}", s), "42");
+            assert_eq!(format!("{s}"), "42");
 
             let s = PyInt::new(py, 43i32);
-            assert_eq!(format!("{}", s), "43");
+            assert_eq!(format!("{s}"), "43");
 
             let s = PyInt::new(py, 44usize);
-            assert_eq!(format!("{}", s), "44");
+            assert_eq!(format!("{s}"), "44");
         })
     }
 }

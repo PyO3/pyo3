@@ -1,4 +1,4 @@
-use crate::model::{Argument, Arguments, Class, Function, Module, VariableLengthArgument};
+use crate::model::{Argument, Arguments, Class, Const, Function, Module, VariableLengthArgument};
 use anyhow::{bail, ensure, Context, Result};
 use goblin::elf::Elf;
 use goblin::mach::load_command::CommandVariant;
@@ -7,6 +7,7 @@ use goblin::mach::{Mach, MachO, SingleArch};
 use goblin::pe::PE;
 use goblin::Object;
 use serde::Deserialize;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -21,29 +22,34 @@ pub fn introspect_cdylib(library_path: impl AsRef<Path>, main_module_name: &str)
 
 /// Parses the introspection chunks found in the binary
 fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
-    let chunks_by_id = chunks
-        .iter()
-        .map(|c| {
-            (
-                match c {
-                    Chunk::Module { id, .. } => id,
-                    Chunk::Class { id, .. } => id,
-                    Chunk::Function { id, .. } => id,
-                },
-                c,
-            )
-        })
-        .collect::<HashMap<_, _>>();
+    let mut chunks_by_id = HashMap::<&str, &Chunk>::new();
+    let mut chunks_by_parent = HashMap::<&str, Vec<&Chunk>>::new();
+    for chunk in chunks {
+        if let Some(id) = match chunk {
+            Chunk::Module { id, .. } => Some(id),
+            Chunk::Class { id, .. } => Some(id),
+            Chunk::Function { id, .. } => id.as_ref(),
+        } {
+            chunks_by_id.insert(id, chunk);
+        }
+        if let Some(parent) = match chunk {
+            Chunk::Module { .. } | Chunk::Class { .. } => None,
+            Chunk::Function { parent, .. } => parent.as_ref(),
+        } {
+            chunks_by_parent.entry(parent).or_default().push(chunk);
+        }
+    }
     // We look for the root chunk
     for chunk in chunks {
         if let Chunk::Module {
             name,
             members,
+            consts,
             id: _,
         } = chunk
         {
             if name == main_module_name {
-                return convert_module(name, members, &chunks_by_id);
+                return convert_module(name, members, consts, &chunks_by_id, &chunks_by_parent);
             }
         }
     }
@@ -53,59 +59,135 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
 fn convert_module(
     name: &str,
     members: &[String],
-    chunks_by_id: &HashMap<&String, &Chunk>,
+    consts: &[ConstChunk],
+    chunks_by_id: &HashMap<&str, &Chunk>,
+    chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
 ) -> Result<Module> {
-    let mut modules = Vec::new();
-    let mut classes = Vec::new();
-    let mut functions = Vec::new();
-    for member in members {
-        if let Some(chunk) = chunks_by_id.get(member) {
-            match chunk {
-                Chunk::Module {
-                    name,
-                    members,
-                    id: _,
-                } => {
-                    modules.push(convert_module(name, members, chunks_by_id)?);
-                }
-                Chunk::Class { name, id: _ } => classes.push(Class { name: name.into() }),
-                Chunk::Function {
-                    name,
-                    id: _,
-                    arguments,
-                } => functions.push(Function {
-                    name: name.into(),
-                    arguments: Arguments {
-                        positional_only_arguments: arguments
-                            .posonlyargs
-                            .iter()
-                            .map(convert_argument)
-                            .collect(),
-                        arguments: arguments.args.iter().map(convert_argument).collect(),
-                        vararg: arguments
-                            .vararg
-                            .as_ref()
-                            .map(convert_variable_length_argument),
-                        keyword_only_arguments: arguments
-                            .kwonlyargs
-                            .iter()
-                            .map(convert_argument)
-                            .collect(),
-                        kwarg: arguments
-                            .kwarg
-                            .as_ref()
-                            .map(convert_variable_length_argument),
-                    },
-                }),
-            }
-        }
-    }
+    let (modules, classes, functions) = convert_members(
+        &members
+            .iter()
+            .filter_map(|id| chunks_by_id.get(id.as_str()).copied())
+            .collect::<Vec<_>>(),
+        chunks_by_id,
+        chunks_by_parent,
+    )?;
+
     Ok(Module {
         name: name.into(),
         modules,
         classes,
         functions,
+        consts: consts
+            .iter()
+            .map(|c| Const {
+                name: c.name.clone(),
+                value: c.value.clone(),
+            })
+            .collect(),
     })
+}
+
+/// Convert a list of members of a module or a class
+fn convert_members(
+    chunks: &[&Chunk],
+    chunks_by_id: &HashMap<&str, &Chunk>,
+    chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
+) -> Result<(Vec<Module>, Vec<Class>, Vec<Function>)> {
+    let mut modules = Vec::new();
+    let mut classes = Vec::new();
+    let mut functions = Vec::new();
+    for chunk in chunks {
+        match chunk {
+            Chunk::Module {
+                name,
+                members,
+                consts,
+                id: _,
+            } => {
+                modules.push(convert_module(
+                    name,
+                    members,
+                    consts,
+                    chunks_by_id,
+                    chunks_by_parent,
+                )?);
+            }
+            Chunk::Class { name, id } => {
+                classes.push(convert_class(id, name, chunks_by_id, chunks_by_parent)?)
+            }
+            Chunk::Function {
+                name,
+                id: _,
+                arguments,
+                parent: _,
+                decorators,
+            } => functions.push(convert_function(name, arguments, decorators)),
+        }
+    }
+    Ok((modules, classes, functions))
+}
+
+fn convert_class(
+    id: &str,
+    name: &str,
+    chunks_by_id: &HashMap<&str, &Chunk>,
+    chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
+) -> Result<Class> {
+    let (nested_modules, nested_classes, mut methods) = convert_members(
+        chunks_by_parent
+            .get(&id)
+            .map(Vec::as_slice)
+            .unwrap_or_default(),
+        chunks_by_id,
+        chunks_by_parent,
+    )?;
+    ensure!(
+        nested_modules.is_empty(),
+        "Classes cannot contain nested modules"
+    );
+    ensure!(
+        nested_classes.is_empty(),
+        "Nested classes are not supported yet"
+    );
+    // We sort methods to get a stable output
+    methods.sort_by(|l, r| match l.name.cmp(&r.name) {
+        Ordering::Equal => {
+            // We put the getter before the setter
+            if l.decorators.iter().any(|d| d == "property") {
+                Ordering::Less
+            } else if r.decorators.iter().any(|d| d == "property") {
+                Ordering::Greater
+            } else {
+                // We pick an ordering based on decorators
+                l.decorators.cmp(&r.decorators)
+            }
+        }
+        o => o,
+    });
+    Ok(Class {
+        name: name.into(),
+        methods,
+    })
+}
+
+fn convert_function(name: &str, arguments: &ChunkArguments, decorators: &[String]) -> Function {
+    Function {
+        name: name.into(),
+        decorators: decorators.to_vec(),
+        arguments: Arguments {
+            positional_only_arguments: arguments.posonlyargs.iter().map(convert_argument).collect(),
+            arguments: arguments.args.iter().map(convert_argument).collect(),
+            vararg: arguments
+                .vararg
+                .as_ref()
+                .map(convert_variable_length_argument),
+            keyword_only_arguments: arguments.kwonlyargs.iter().map(convert_argument).collect(),
+            kwarg: arguments
+                .kwarg
+                .as_ref()
+                .map(convert_variable_length_argument),
+        },
+    }
 }
 
 fn convert_argument(arg: &ChunkArgument) -> Argument {
@@ -284,16 +366,28 @@ enum Chunk {
         id: String,
         name: String,
         members: Vec<String>,
+        consts: Vec<ConstChunk>,
     },
     Class {
         id: String,
         name: String,
     },
     Function {
-        id: String,
+        #[serde(default)]
+        id: Option<String>,
         name: String,
         arguments: ChunkArguments,
+        #[serde(default)]
+        parent: Option<String>,
+        #[serde(default)]
+        decorators: Vec<String>,
     },
+}
+
+#[derive(Deserialize)]
+struct ConstChunk {
+    name: String,
+    value: String,
 }
 
 #[derive(Deserialize)]

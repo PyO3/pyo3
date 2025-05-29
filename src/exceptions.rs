@@ -996,7 +996,7 @@ mod tests {
                 .into_value(py)
                 .into_bound(py);
             assert_eq!(
-                format!("{:?}", exc),
+                format!("{exc:?}"),
                 exc.repr().unwrap().extract::<String>().unwrap()
             );
         });
@@ -1025,7 +1025,7 @@ mod tests {
         Python::with_gil(|py| {
             let decode_err = PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap();
             assert_eq!(
-                format!("{:?}", decode_err),
+                format!("{decode_err:?}"),
                 "UnicodeDecodeError('utf-8', b'fo\\xd8o', 2, 3, 'invalid utf-8')"
             );
 

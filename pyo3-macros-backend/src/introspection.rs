@@ -19,7 +19,8 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use syn::{Attribute, Ident};
+use syn::ext::IdentExt;
+use syn::{Attribute, Ident, Type, TypePath};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
 
@@ -28,6 +29,9 @@ pub fn module_introspection_code<'a>(
     name: &str,
     members: impl IntoIterator<Item = &'a Ident>,
     members_cfg_attrs: impl IntoIterator<Item = &'a Vec<Attribute>>,
+    consts: impl IntoIterator<Item = &'a Ident>,
+    consts_values: impl IntoIterator<Item = &'a String>,
+    consts_cfg_attrs: impl IntoIterator<Item = &'a Vec<Attribute>>,
 ) -> TokenStream {
     IntrospectionNode::Map(
         [
@@ -42,7 +46,26 @@ pub fn module_introspection_code<'a>(
                         .zip(members_cfg_attrs)
                         .filter_map(|(member, attributes)| {
                             if attributes.is_empty() {
-                                Some(IntrospectionNode::IntrospectionId(Some(member)))
+                                Some(IntrospectionNode::IntrospectionId(Some(ident_to_type(
+                                    member,
+                                ))))
+                            } else {
+                                None // TODO: properly interpret cfg attributes
+                            }
+                        })
+                        .collect(),
+                ),
+            ),
+            (
+                "consts",
+                IntrospectionNode::List(
+                    consts
+                        .into_iter()
+                        .zip(consts_values)
+                        .zip(consts_cfg_attrs)
+                        .filter_map(|((ident, value), attributes)| {
+                            if attributes.is_empty() {
+                                Some(const_introspection_code(ident, value))
                             } else {
                                 None // TODO: properly interpret cfg attributes
                             }
@@ -64,7 +87,10 @@ pub fn class_introspection_code(
     IntrospectionNode::Map(
         [
             ("type", IntrospectionNode::String("class".into())),
-            ("id", IntrospectionNode::IntrospectionId(Some(ident))),
+            (
+                "id",
+                IntrospectionNode::IntrospectionId(Some(ident_to_type(ident))),
+            ),
             ("name", IntrospectionNode::String(name.into())),
         ]
         .into(),
@@ -74,23 +100,61 @@ pub fn class_introspection_code(
 
 pub fn function_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
-    ident: &Ident,
+    ident: Option<&Ident>,
     name: &str,
     signature: &FunctionSignature<'_>,
+    first_argument: Option<&'static str>,
+    decorators: impl IntoIterator<Item = String>,
+    parent: Option<&Type>,
 ) -> TokenStream {
+    let mut desc = HashMap::from([
+        ("type", IntrospectionNode::String("function".into())),
+        ("name", IntrospectionNode::String(name.into())),
+        (
+            "arguments",
+            arguments_introspection_data(signature, first_argument),
+        ),
+    ]);
+    if let Some(ident) = ident {
+        desc.insert(
+            "id",
+            IntrospectionNode::IntrospectionId(Some(ident_to_type(ident))),
+        );
+    }
+    let decorators = decorators
+        .into_iter()
+        .map(|d| IntrospectionNode::String(d.into()))
+        .collect::<Vec<_>>();
+    if !decorators.is_empty() {
+        desc.insert("decorators", IntrospectionNode::List(decorators));
+    }
+    if let Some(parent) = parent {
+        desc.insert(
+            "parent",
+            IntrospectionNode::IntrospectionId(Some(Cow::Borrowed(parent))),
+        );
+    }
+    IntrospectionNode::Map(desc).emit(pyo3_crate_path)
+}
+
+fn const_introspection_code<'a>(ident: &'a Ident, value: &'a String) -> IntrospectionNode<'a> {
     IntrospectionNode::Map(
         [
-            ("type", IntrospectionNode::String("function".into())),
-            ("id", IntrospectionNode::IntrospectionId(Some(ident))),
-            ("name", IntrospectionNode::String(name.into())),
-            ("arguments", arguments_introspection_data(signature)),
+            ("type", IntrospectionNode::String("const".into())),
+            (
+                "name",
+                IntrospectionNode::String(ident.unraw().to_string().into()),
+            ),
+            ("value", IntrospectionNode::String(value.into())),
         ]
         .into(),
     )
-    .emit(pyo3_crate_path)
 }
 
-fn arguments_introspection_data<'a>(signature: &'a FunctionSignature<'a>) -> IntrospectionNode<'a> {
+fn arguments_introspection_data<'a>(
+    signature: &'a FunctionSignature<'a>,
+    first_argument: Option<&'a str>,
+) -> IntrospectionNode<'a> {
     let mut argument_desc = signature.arguments.iter().filter_map(|arg| {
         if let FnArg::Regular(arg) = arg {
             Some(arg)
@@ -104,6 +168,12 @@ fn arguments_introspection_data<'a>(signature: &'a FunctionSignature<'a>) -> Int
     let mut vararg = None;
     let mut kwonlyargs = Vec::new();
     let mut kwarg = None;
+
+    if let Some(first_argument) = first_argument {
+        posonlyargs.push(IntrospectionNode::Map(
+            [("name", IntrospectionNode::String(first_argument.into()))].into(),
+        ));
+    }
 
     for (i, param) in signature
         .python_signature
@@ -184,7 +254,7 @@ fn argument_introspection_data<'a>(
 
 enum IntrospectionNode<'a> {
     String(Cow<'a, str>),
-    IntrospectionId(Option<&'a Ident>),
+    IntrospectionId(Option<Cow<'a, Type>>),
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<IntrospectionNode<'a>>),
 }
@@ -332,4 +402,14 @@ fn unique_element_id() -> u64 {
         .fetch_add(1, Ordering::Relaxed)
         .hash(&mut hasher); // If there are multiple elements in the same call site
     hasher.finish()
+}
+
+fn ident_to_type(ident: &Ident) -> Cow<'static, Type> {
+    Cow::Owned(
+        TypePath {
+            path: ident.clone().into(),
+            qself: None,
+        }
+        .into(),
+    )
 }

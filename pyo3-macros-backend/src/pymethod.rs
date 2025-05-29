@@ -41,7 +41,7 @@ pub enum GeneratedPyMethod {
 pub struct PyMethod<'a> {
     kind: PyMethodKind,
     method_name: String,
-    spec: FnSpec<'a>,
+    pub spec: FnSpec<'a>,
 }
 
 enum PyMethodKind {
@@ -161,11 +161,13 @@ enum PyMethodProtoKind {
 }
 
 impl<'a> PyMethod<'a> {
-    fn parse(
+    pub fn parse(
         sig: &'a mut syn::Signature,
         meth_attrs: &mut Vec<syn::Attribute>,
         options: PyFunctionOptions,
     ) -> Result<Self> {
+        check_generic(sig)?;
+        ensure_function_options_valid(&options)?;
         let spec = FnSpec::parse(sig, meth_attrs, options)?;
 
         let method_name = spec.python_name.to_string();
@@ -188,16 +190,19 @@ pub fn is_proto_method(name: &str) -> bool {
 
 pub fn gen_py_method(
     cls: &syn::Type,
-    sig: &mut syn::Signature,
-    meth_attrs: &mut Vec<syn::Attribute>,
-    options: PyFunctionOptions,
+    method: PyMethod<'_>,
+    meth_attrs: &[syn::Attribute],
     ctx: &Ctx,
 ) -> Result<GeneratedPyMethod> {
-    check_generic(sig)?;
-    ensure_function_options_valid(&options)?;
-    let method = PyMethod::parse(sig, meth_attrs, options)?;
     let spec = &method.spec;
     let Ctx { pyo3_path, .. } = ctx;
+
+    if spec.asyncness.is_some() {
+        ensure_spanned!(
+            cfg!(feature = "experimental-async"),
+            spec.asyncness.span() => "async functions are only supported with the `experimental-async` feature"
+        );
+    }
 
     Ok(match (method.kind, &spec.tp) {
         // Class attributes go before protos so that class attributes can be used to set proto
@@ -279,7 +284,7 @@ pub fn gen_py_method(
 }
 
 pub fn check_generic(sig: &syn::Signature) -> syn::Result<()> {
-    let err_msg = |typ| format!("Python functions cannot have generic {} parameters", typ);
+    let err_msg = |typ| format!("Python functions cannot have generic {typ} parameters");
     for param in &sig.generics.params {
         match param {
             syn::GenericParam::Lifetime(_) => {}
@@ -1629,7 +1634,7 @@ fn extract_proto_arguments(
         if let FnArg::Py(..) = arg {
             args.push(quote! { py });
         } else {
-            let ident = syn::Ident::new(&format!("arg{}", non_python_args), Span::call_site());
+            let ident = syn::Ident::new(&format!("arg{non_python_args}"), Span::call_site());
             let conversions = proto_args.get(non_python_args)
                 .ok_or_else(|| err_spanned!(arg.ty().span() => format!("Expected at most {} non-python arguments", proto_args.len())))?
                 .extract(&ident, arg, extract_error_mode, holders, ctx);

@@ -2,6 +2,7 @@
 
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::exceptions::PyWarning;
+#[cfg(not(Py_GIL_DISABLED))]
 use pyo3::exceptions::{PyFutureWarning, PyUserWarning};
 use pyo3::prelude::*;
 use pyo3::py_run;
@@ -170,7 +171,7 @@ struct StaticMethodWithArgs {}
 impl StaticMethodWithArgs {
     #[staticmethod]
     fn method(_py: Python<'_>, input: i32) -> String {
-        format!("0x{:x}", input)
+        format!("0x{input:x}")
     }
 }
 
@@ -1222,6 +1223,7 @@ impl UserDefinedWarning {
 }
 
 #[test]
+#[cfg(not(Py_GIL_DISABLED))] // FIXME: enable once `warnings` is thread-safe
 fn test_pymethods_warn() {
     // We do not test #[classattr] nor __traverse__
     // because it doesn't make sense to implement deprecated methods for them.
@@ -1422,6 +1424,7 @@ fn test_pymethods_warn() {
 }
 
 #[test]
+#[cfg(not(Py_GIL_DISABLED))] // FIXME: enable once `warnings` is thread-safe
 fn test_py_methods_multiple_warn() {
     #[pyclass]
     struct MultipleWarnContainer {}

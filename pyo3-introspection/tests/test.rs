@@ -42,9 +42,10 @@ fn pytests_stubs() -> Result<()> {
                 file_name.display()
             )
         });
+        // We normalize line jumps for compatibility with Windows
         assert_eq!(
-            &expected_file_content.replace('\r', ""), // Windows compatibility
-            actual_file_content,
+            expected_file_content.replace('\r', ""),
+            actual_file_content.replace('\r', ""),
             "The content of file {} is different",
             file_name.display()
         )

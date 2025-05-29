@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use pyo3::buffer::PyBuffer;
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::exceptions::PyWarning;
+#[cfg(not(Py_GIL_DISABLED))]
 use pyo3::exceptions::{PyFutureWarning, PyUserWarning};
 use pyo3::ffi::c_str;
 use pyo3::prelude::*;
@@ -34,7 +35,7 @@ fn test_rust_keyword_name() {
 
 #[pyfunction(signature = (arg = true))]
 fn optional_bool(arg: Option<bool>) -> String {
-    format!("{:?}", arg)
+    format!("{arg:?}")
 }
 
 #[test]
@@ -282,10 +283,7 @@ fn conversion_error(
     option_arg: Option<i64>,
     struct_arg: Option<ValueClass>,
 ) {
-    println!(
-        "{:?} {:?} {:?} {:?} {:?}",
-        str_arg, int_arg, tuple_arg, option_arg, struct_arg
-    );
+    println!("{str_arg:?} {int_arg:?} {tuple_arg:?} {option_arg:?} {struct_arg:?}");
 }
 
 #[test]
@@ -492,7 +490,7 @@ fn test_closure() {
                             s.push_str("-py");
                             Ok(s.into_pyobject(py)?.into_any().unbind())
                         } else {
-                            panic!("unexpected argument type for {:?}", elem)
+                            panic!("unexpected argument type for {elem:?}")
                         }
                     })
                     .collect();
@@ -670,6 +668,7 @@ impl UserDefinedWarning {
 }
 
 #[test]
+#[cfg(not(Py_GIL_DISABLED))] // FIXME: enable once `warnings` is thread-safe
 fn test_pyfunction_warn() {
     #[pyfunction]
     #[pyo3(warn(message = "this function raises warning"))]
@@ -724,6 +723,7 @@ fn test_pyfunction_warn() {
 }
 
 #[test]
+#[cfg(not(Py_GIL_DISABLED))] // FIXME: enable once `warnings` is thread-safe
 fn test_pyfunction_multiple_warnings() {
     #[pyfunction]
     #[pyo3(warn(message = "this function raises warning"))]

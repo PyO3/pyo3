@@ -702,7 +702,7 @@ mod tests {
                 buffer.0.suboffsets,
                 buffer.0.internal
             );
-            let debug_repr = format!("{:?}", buffer);
+            let debug_repr = format!("{buffer:?}");
             assert_eq!(debug_repr, expected);
         });
     }
@@ -829,8 +829,7 @@ mod tests {
             assert_eq!(
                 ElementType::from_format(cstr),
                 expected,
-                "element from format &Cstr: {:?}",
-                cstr,
+                "element from format &Cstr: {cstr:?}",
             );
         }
     }

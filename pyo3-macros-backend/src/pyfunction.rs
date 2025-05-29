@@ -99,7 +99,7 @@ pub struct PyFunctionWarningAttribute {
 pub enum PyFunctionWarningCategory {
     Path(Path),
     UserWarning,
-    DeprecationWarning,
+    DeprecationWarning, // TODO: unused for now, intended for pyo3(deprecated) special-case
 }
 
 pub struct PyFunctionWarning {
@@ -384,7 +384,15 @@ pub fn impl_wrap_pyfunction(
     let name = &func.sig.ident;
 
     #[cfg(feature = "experimental-inspect")]
-    let introspection = function_introspection_code(pyo3_path, name, &name.to_string(), &signature);
+    let introspection = function_introspection_code(
+        pyo3_path,
+        Some(name),
+        &name.to_string(),
+        &signature,
+        None,
+        [] as [String; 0],
+        None,
+    );
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection = quote! {};
     #[cfg(feature = "experimental-inspect")]
@@ -405,6 +413,12 @@ pub fn impl_wrap_pyfunction(
     };
 
     let wrapper_ident = format_ident!("__pyfunction_{}", spec.name);
+    if spec.asyncness.is_some() {
+        ensure_spanned!(
+            cfg!(feature = "experimental-async"),
+            spec.asyncness.span() => "async functions are only supported with the `experimental-async` feature"
+        );
+    }
     let wrapper = spec.get_wrapper_function(&wrapper_ident, None, ctx)?;
     let methoddef = spec.get_methoddef(wrapper_ident, &spec.get_doc(&func.attrs, ctx), ctx);
 
