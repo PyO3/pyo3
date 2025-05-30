@@ -527,7 +527,6 @@ where
     }
 }
 
-#[cfg(rustc_has_once_lock)]
 mod once_lock_ext_sealed {
     pub trait Sealed {}
     impl<T> Sealed for std::sync::OnceLock<T> {}
@@ -550,7 +549,6 @@ pub trait OnceExt: Sealed {
 
 /// Extension trait for [`std::sync::OnceLock`] which helps avoid deadlocks between the Python
 /// interpreter and initialization with the `OnceLock`.
-#[cfg(rustc_has_once_lock)]
 pub trait OnceLockExt<T>: once_lock_ext_sealed::Sealed {
     /// Initializes this `OnceLock` with the given closure if it has not been initialized yet.
     ///
@@ -637,15 +635,11 @@ impl OnceExt for parking_lot::Once {
     }
 }
 
-#[cfg(rustc_has_once_lock)]
 impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
     fn get_or_init_py_attached<F>(&self, py: Python<'_>, f: F) -> &T
     where
         F: FnOnce() -> T,
     {
-        // this trait is guarded by a rustc version config
-        // so clippy's MSRV check is wrong
-        #[allow(clippy::incompatible_msrv)]
         // Use self.get() first to create a fast path when initialized
         self.get()
             .unwrap_or_else(|| init_once_lock_py_attached(self, py, f))
@@ -747,7 +741,6 @@ where
     });
 }
 
-#[cfg(rustc_has_once_lock)]
 #[cold]
 fn init_once_lock_py_attached<'a, F, T>(
     lock: &'a std::sync::OnceLock<T>,
@@ -1086,7 +1079,6 @@ mod tests {
         test_once!(parking_lot::Once::new(), parking_lot::OnceState::poisoned);
     }
 
-    #[cfg(rustc_has_once_lock)]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_once_lock_ext() {

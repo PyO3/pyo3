@@ -183,10 +183,6 @@ fn print_feature_cfg(minor_version_required: u32, cfg: &str) {
 /// so this function is unstable.
 #[doc(hidden)]
 pub fn print_feature_cfgs() {
-    print_feature_cfg(70, "rustc_has_once_lock");
-    print_feature_cfg(70, "cargo_toml_lints");
-    print_feature_cfg(71, "rustc_has_extern_c_unwind");
-    print_feature_cfg(74, "invalid_from_utf8_lint");
     print_feature_cfg(79, "c_str_lit");
     // Actually this is available on 1.78, but we should avoid
     // https://github.com/rust-lang/rust/issues/124651 just in case

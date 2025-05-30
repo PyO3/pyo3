@@ -2006,7 +2006,6 @@ fn pyclass_hash(
             options.eq.is_some(), options.hash.span() => "The `hash` option requires the `eq` option.";
         );
     }
-    // FIXME: Use hash.map(...).unzip() on MSRV >= 1.66
     match options.hash {
         Some(opt) => {
             let mut hash_impl = parse_quote_spanned! { opt.span() =>

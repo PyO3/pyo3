@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 import json
 import os
 import re
@@ -7,6 +6,7 @@ import subprocess
 import sys
 import sysconfig
 import tempfile
+from contextlib import contextmanager
 from functools import lru_cache
 from glob import glob
 from pathlib import Path
@@ -20,8 +20,6 @@ from typing import (
     Optional,
     Tuple,
 )
-
-import nox
 import nox.command
 
 try:
@@ -670,10 +668,7 @@ def set_msrv_package_versions(session: nox.Session):
         *(Path(p).parent for p in glob("examples/*/Cargo.toml")),
         *(Path(p).parent for p in glob("pyo3-ffi/examples/*/Cargo.toml")),
     )
-    min_pkg_versions = {
-        "trybuild": "1.0.89",
-        "allocator-api2": "0.2.10",
-    }
+    min_pkg_versions = { }
 
     # run cargo update first to ensure that everything is at highest
     # possible version, so that this matches what CI will resolve to.

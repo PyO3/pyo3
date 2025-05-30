@@ -10,9 +10,19 @@ repository = "https://github.com/pyo3/pyo3"
 documentation = "https://docs.rs/crate/pyo3/"
 categories = ["api-bindings", "development-tools::ffi"]
 license = "MIT OR Apache-2.0"
-exclude = ["/.gitignore", ".cargo/config", "/codecov.yml", "/Makefile", "/pyproject.toml", "/noxfile.py", "/.github", "/tests/test_compile_error.rs", "/tests/ui"]
+exclude = [
+    "/.gitignore",
+    ".cargo/config",
+    "/codecov.yml",
+    "/Makefile",
+    "/pyproject.toml",
+    "/noxfile.py",
+    "/.github",
+    "/tests/test_compile_error.rs",
+    "/tests/ui",
+]
 edition = "2021"
-rust-version = "1.63"
+rust-version.workspace = true
 
 [dependencies]
 libc = "0.2.62"
@@ -163,6 +173,7 @@ members = [
     "pytests",
     "examples",
 ]
+package.rust-version = "1.74"
 
 [package.metadata.docs.rs]
 no-default-features = true
