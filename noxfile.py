@@ -743,6 +743,9 @@ def test_version_limits(session: nox.Session):
         config_file.set("CPython", "3.15")
         _run_cargo(session, "check", env=env, expect_error=True)
 
+        # 3.15 CPython should build if abi3 is explicitly requested
+        _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
+
         # 3.15 CPython should build with forward compatibility
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
