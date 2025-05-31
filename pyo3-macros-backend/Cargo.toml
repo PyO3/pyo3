@@ -21,7 +21,8 @@ pyo3-build-config = { path = "../pyo3-build-config", version = "=0.25.0", featur
 quote = { version = "1", default-features = false }
 
 [dependencies.syn]
-version = "2.0.59"                                                                  # for `LitCStr`
+# 2.0.59 for `LitCStr`
+version = "2.0.59"
 default-features = false
 features = ["derive", "parsing", "printing", "clone-impls", "full", "extra-traits"]
 
