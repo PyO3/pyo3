@@ -305,10 +305,8 @@ mod tests {
                     let obj = obj.unwrap();
 
                     assert!(obj.is_some());
-                    assert!(
-                        obj.is_some_and(|obj| ptr::eq(obj.as_ptr(), object.as_ptr())
-                            && obj.is_exact_instance(&class))
-                    );
+                    assert!(obj.is_some_and(|obj| ptr::eq(obj.as_ptr(), object.as_ptr())
+                        && obj.is_exact_instance(&class)));
                 }
 
                 drop(object);
@@ -339,10 +337,8 @@ mod tests {
                     let obj = unsafe { reference.upgrade_as_unchecked::<PyAny>() };
 
                     assert!(obj.is_some());
-                    assert!(
-                        obj.is_some_and(|obj| ptr::eq(obj.as_ptr(), object.as_ptr())
-                            && obj.is_exact_instance(&class))
-                    );
+                    assert!(obj.is_some_and(|obj| ptr::eq(obj.as_ptr(), object.as_ptr())
+                        && obj.is_exact_instance(&class)));
                 }
 
                 drop(object);
