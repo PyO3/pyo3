@@ -45,7 +45,7 @@ jobs:
           python-version: "3.13"
       - name: resolve MSRV
         id: resolve-msrv
-        run: echo MSRV=`python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["rust-version"])'` >> $GITHUB_OUTPUT
+        run: echo MSRV=`python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["rust-version"])'` >> $GITHUB_OUTPUT
 
   semver-checks:
     if: github.ref != 'refs/heads/main'

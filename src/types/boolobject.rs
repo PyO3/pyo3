@@ -180,10 +180,10 @@ impl FromPyObject<'_> for bool {
 
         let is_numpy_bool = {
             let ty = obj.get_type();
-            ty.module().map_or(false, |module| module == "numpy")
+            ty.module().is_ok_and(|module| module == "numpy")
                 && ty
                     .name()
-                    .map_or(false, |name| name == "bool_" || name == "bool")
+                    .is_ok_and(|name| name == "bool_" || name == "bool")
         };
 
         if is_numpy_bool {

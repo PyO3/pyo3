@@ -1,6 +1,6 @@
 #![cfg(feature = "macros")]
 #![cfg(any(not(Py_LIMITED_API), Py_3_11))]
-#![cfg_attr(not(cargo_toml_lints), warn(unsafe_op_in_unsafe_fn))]
+#![warn(unsafe_op_in_unsafe_fn)]
 
 use pyo3::{buffer::PyBuffer, exceptions::PyBufferError, ffi, prelude::*};
 use std::{

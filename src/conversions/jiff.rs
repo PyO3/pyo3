@@ -14,8 +14,7 @@
 //! ```
 //!
 //! Note that you must use compatible versions of jiff and PyO3.
-//! The required jiff version may vary based on the version of PyO3. Jiff also requires a MSRV
-//! of 1.70.
+//! The required jiff version may vary based on the version of PyO3.
 //!
 //! # Example: Convert a `datetime.datetime` to jiff `Zoned`
 //!
