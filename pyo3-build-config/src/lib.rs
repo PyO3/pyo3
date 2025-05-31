@@ -16,9 +16,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use std::{env, process::Command, str::FromStr};
-
-use once_cell::sync::OnceCell;
+use std::{env, process::Command, str::FromStr, sync::OnceLock};
 
 pub use impl_::{
     cross_compiling_from_to, find_all_sysconfigdata, parse_sysconfigdata, BuildFlag, BuildFlags,
@@ -109,10 +107,10 @@ fn _add_python_framework_link_args(
 
 /// Loads the configuration determined from the build environment.
 ///
-/// Because this will never change in a given compilation run, this is cached in a `once_cell`.
+/// Because this will never change in a given compilation run, this is cached in a `OnceLock`.
 #[cfg(feature = "resolve-config")]
 pub fn get() -> &'static InterpreterConfig {
-    static CONFIG: OnceCell<InterpreterConfig> = OnceCell::new();
+    static CONFIG: OnceLock<InterpreterConfig> = OnceLock::new();
     CONFIG.get_or_init(|| {
         // Check if we are in a build script and cross compiling to a different target.
         let cross_compile_config_path = resolve_cross_compile_config_path();
@@ -276,7 +274,7 @@ pub mod pyo3_build_script_impl {
 }
 
 fn rustc_minor_version() -> Option<u32> {
-    static RUSTC_MINOR_VERSION: OnceCell<Option<u32>> = OnceCell::new();
+    static RUSTC_MINOR_VERSION: OnceLock<Option<u32>> = OnceLock::new();
     *RUSTC_MINOR_VERSION.get_or_init(|| {
         let rustc = env::var_os("RUSTC")?;
         let output = Command::new(rustc).arg("--version").output().ok()?;

@@ -20,6 +20,7 @@ from typing import (
     Optional,
     Tuple,
 )
+
 import nox.command
 
 try:
@@ -458,14 +459,6 @@ def docs(session: nox.Session) -> None:
 
     features = "full"
 
-    if get_rust_version()[:2] >= (1, 67):
-        # time needs MSRC 1.67+
-        features += ",time"
-
-    if get_rust_version()[:2] >= (1, 70):
-        # jiff needs MSRC 1.70+
-        features += ",jiff-02"
-
     shutil.rmtree(PYO3_DOCS_TARGET, ignore_errors=True)
     _run_cargo(
         session,
@@ -849,8 +842,8 @@ def update_ui_tests(session: nox.Session):
     env["TRYBUILD"] = "overwrite"
     command = ["test", "--test", "test_compile_error"]
     _run_cargo(session, *command, env=env)
-    _run_cargo(session, *command, "--features=full,jiff-02,time", env=env)
-    _run_cargo(session, *command, "--features=abi3,full,jiff-02,time", env=env)
+    _run_cargo(session, *command, "--features=full", env=env)
+    _run_cargo(session, *command, "--features=abi3,full", env=env)
 
 
 @nox.session(name="test-introspection")
@@ -919,14 +912,6 @@ def _get_feature_sets() -> Tuple[Optional[str], ...]:
     if "wasm32-wasip1" not in cargo_target:
         # multiple-pymethods not supported on wasm
         features += ",multiple-pymethods"
-
-    if get_rust_version()[:2] >= (1, 67):
-        # time needs MSRC 1.67+
-        features += ",time"
-
-    if get_rust_version()[:2] >= (1, 70):
-        # jiff needs MSRC 1.70+
-        features += ",jiff-02"
 
     if is_rust_nightly():
         features += ",nightly"

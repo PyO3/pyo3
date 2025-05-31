@@ -1,11 +1,11 @@
 #![cfg(feature = "macros")]
 
-use std::sync::{Once, OnceLock};
+use std::sync::OnceLock;
 
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
-use pyo3::sync::{GILOnceCell, OnceExt, OnceLockExt};
+use pyo3::sync::OnceLockExt;
 
 #[path = "../src/tests/common.rs"]
 mod common;
