@@ -55,8 +55,7 @@ impl PyWeakrefProxy {
     ///     let weakref = PyWeakrefProxy::new(&foo)?;
     ///     assert!(
     ///         // In normal situations where a direct `Bound<'py, Foo>` is required use `upgrade::<Foo>`
-    ///         weakref.upgrade()
-    ///             .map_or(false, |obj| obj.is(&foo))
+    ///         weakref.upgrade().is_some_and(|obj| obj.is(&foo))
     ///     );
     ///
     ///     let weakref2 = PyWeakrefProxy::new(&foo)?;
@@ -118,8 +117,7 @@ impl PyWeakrefProxy {
     ///     assert!(weakref.upgrade_as::<Foo>()?.is_some());
     ///     assert!(
     ///         // In normal situations where a direct `Bound<'py, Foo>` is required use `upgrade::<Foo>`
-    ///         weakref.upgrade()
-    ///             .map_or(false, |obj| obj.is(&foo))
+    ///         weakref.upgrade().is_some_and(|obj| obj.is(&foo))
     ///     );
     ///     assert_eq!(py.eval(c_str!("counter"), None, None)?.extract::<u32>()?, 0);
     ///

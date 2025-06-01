@@ -139,7 +139,7 @@ impl<'py> FromPyObject<'py> for BigInt {
         #[cfg(not(Py_LIMITED_API))]
         {
             let mut buffer = int_to_u32_vec::<true>(num)?;
-            let sign = if buffer.last().copied().map_or(false, |last| last >> 31 != 0) {
+            let sign = if buffer.last().copied().is_some_and(|last| last >> 31 != 0) {
                 // BigInt::new takes an unsigned array, so need to convert from two's complement
                 // flip all bits, 'subtract' 1 (by adding one to the unsigned array)
                 let mut elements = buffer.iter_mut();
@@ -212,7 +212,7 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
     let n_digits = if SIGNED {
         (n_bits + 32) / 32
     } else {
-        (n_bits + 31) / 32
+        n_bits.div_ceil(32)
     };
     buffer.reserve_exact(n_digits);
     unsafe {
