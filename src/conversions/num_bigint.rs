@@ -195,7 +195,7 @@ impl<'py> FromPyObject<'py> for BigUint {
             if n_bits == 0 {
                 return Ok(BigUint::from(0usize));
             }
-            let bytes = int_to_py_bytes(num, (n_bits + 7) / 8, false)?;
+            let bytes = int_to_py_bytes(num, n_bits.div_ceil(8), false)?;
             Ok(BigUint::from_bytes_le(bytes.as_bytes()))
         }
     }
