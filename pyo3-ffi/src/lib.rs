@@ -367,11 +367,17 @@ macro_rules! opaque_struct {
 #[macro_export]
 macro_rules! c_str {
     ($s:expr) => {
-        match ::std::ffi::CStr::from_bytes_with_nul(concat!($s, '\0').as_bytes()) {
-            ::std::result::Result::Ok(cstr) => cstr,
-            ::std::result::Result::Err(_) => ::std::panic!("string contains null bytes"),
-        }
+        $crate::_cstr_from_utf8_with_nul_checked(concat!($s, "\0"))
     };
+}
+
+/// Private helper for `c_str!` macro.
+#[doc(hidden)]
+pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &std::ffi::CStr {
+    match std::ffi::CStr::from_bytes_with_nul(s.as_bytes()) {
+        Ok(cstr) => cstr,
+        Err(_) => panic!("string contains nul bytes"),
+    }
 }
 
 pub mod compat;
