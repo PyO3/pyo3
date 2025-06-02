@@ -21,7 +21,6 @@ from typing import (
     Tuple,
 )
 
-
 import nox
 import nox.command
 
@@ -34,7 +33,6 @@ except ImportError:
         toml = None
 
 nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "docs"]
-
 
 PYO3_DIR = Path(__file__).parent
 PYO3_TARGET = Path(os.environ.get("CARGO_TARGET_DIR", PYO3_DIR / "target")).absolute()
@@ -675,8 +673,6 @@ def set_msrv_package_versions(session: nox.Session):
     min_pkg_versions = {
         "trybuild": "1.0.89",
         "allocator-api2": "0.2.10",
-        "indexmap": "2.5.0",  # to be compatible with hashbrown 0.14
-        "hashbrown": "0.14.5",  # https://github.com/rust-lang/hashbrown/issues/574
     }
 
     # run cargo update first to ensure that everything is at highest
@@ -746,6 +742,9 @@ def test_version_limits(session: nox.Session):
         assert "3.15" not in PY_VERSIONS
         config_file.set("CPython", "3.15")
         _run_cargo(session, "check", env=env, expect_error=True)
+
+        # 3.15 CPython should build if abi3 is explicitly requested
+        _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
 
         # 3.15 CPython should build with forward compatibility
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"

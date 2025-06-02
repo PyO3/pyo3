@@ -1,4 +1,4 @@
-use crate::model::{Argument, Class, Function, Module, VariableLengthArgument};
+use crate::model::{Argument, Class, Const, Function, Module, VariableLengthArgument};
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 
@@ -34,6 +34,9 @@ fn add_module_stub_files(
 fn module_stubs(module: &Module) -> String {
     let mut modules_to_import = BTreeSet::new();
     let mut elements = Vec::new();
+    for konst in &module.consts {
+        elements.push(const_stubs(konst, &mut modules_to_import));
+    }
     for class in &module.classes {
         elements.push(class_stubs(class, &mut modules_to_import));
     }
@@ -46,8 +49,9 @@ fn module_stubs(module: &Module) -> String {
     }
     final_elements.extend(elements);
 
-    // We insert two line jumps (i.e. empty strings) only above and below multiple line elements (classes with methods, functions with decorators)
     let mut output = String::new();
+
+    // We insert two line jumps (i.e. empty strings) only above and below multiple line elements (classes with methods, functions with decorators)
     for element in final_elements {
         let is_multiline = element.contains('\n');
         if is_multiline && !output.is_empty() && !output.ends_with("\n\n") {
@@ -59,6 +63,7 @@ fn module_stubs(module: &Module) -> String {
             output.push('\n');
         }
     }
+
     // We remove a line jump at the end if they are two
     if output.ends_with("\n\n") {
         output.pop();
@@ -115,6 +120,12 @@ fn function_stubs(function: &Function, modules_to_import: &mut BTreeSet<String>)
     }
     buffer.push_str(&output);
     buffer
+}
+
+fn const_stubs(konst: &Const, modules_to_import: &mut BTreeSet<String>) -> String {
+    modules_to_import.insert("typing".to_string());
+    let Const { name, value } = konst;
+    format!("{name}: typing.Final = {value}")
 }
 
 fn argument_stub(argument: &Argument, modules_to_import: &mut BTreeSet<String>) -> String {

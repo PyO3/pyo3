@@ -447,6 +447,7 @@ pub use self::pyport::*;
 pub use self::pystate::*;
 pub use self::pystrtod::*;
 pub use self::pythonrun::*;
+pub use self::pytypedefs::*;
 pub use self::rangeobject::*;
 pub use self::refcount::*;
 pub use self::setobject::*;
@@ -540,6 +541,7 @@ mod pythonrun;
 mod pystrtod;
 // skipped pythread.h
 // skipped pytime.h
+mod pytypedefs;
 mod rangeobject;
 mod refcount;
 mod setobject;

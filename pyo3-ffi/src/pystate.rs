@@ -1,8 +1,9 @@
-#[cfg(all(Py_3_10, not(PyPy), not(Py_LIMITED_API)))]
-use crate::frameobject::PyFrameObject;
 use crate::moduleobject::PyModuleDef;
 use crate::object::PyObject;
 use std::os::raw::c_int;
+
+#[cfg(all(Py_3_10, not(PyPy), not(Py_LIMITED_API)))]
+use crate::PyFrameObject;
 
 #[cfg(not(PyPy))]
 use std::os::raw::c_long;
