@@ -43,15 +43,23 @@
 
 use crate::conversion::IntoPyObject;
 use crate::exceptions::{PyTypeError, PyUserWarning, PyValueError};
-#[cfg(Py_LIMITED_API)]
 use crate::intern;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyNone;
 use crate::types::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
+#[cfg(feature = "chrono-local")]
+use crate::{
+    exceptions::PyRuntimeError,
+    sync::GILOnceCell,
+    types::{PyString, PyStringMethods},
+    Py,
+};
 use crate::{ffi, Borrowed, Bound, FromPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python};
 use chrono::offset::{FixedOffset, Utc};
+#[cfg(feature = "chrono-local")]
+use chrono::Local;
 use chrono::{
     DateTime, Datelike, Duration, LocalResult, NaiveDate, NaiveDateTime, NaiveTime, Offset,
     TimeZone, Timelike,
@@ -387,7 +395,8 @@ impl FromPyObject<'_> for FixedOffset {
         // Any other timezone would require a datetime as the parameter, and return
         // None if the datetime is not provided.
         // Trying to convert None to a PyDelta in the next line will then fail.
-        let py_timedelta = ob.call_method1("utcoffset", (PyNone::get(ob.py()),))?;
+        let py_timedelta =
+            ob.call_method1(intern!(ob.py(), "utcoffset"), (PyNone::get(ob.py()),))?;
         if py_timedelta.is_none() {
             return Err(PyTypeError::new_err(format!(
                 "{ob:?} is not a fixed offset timezone"
@@ -429,6 +438,54 @@ impl FromPyObject<'_> for Utc {
             Ok(Utc)
         } else {
             Err(PyValueError::new_err("expected datetime.timezone.utc"))
+        }
+    }
+}
+
+#[cfg(feature = "chrono-local")]
+impl<'py> IntoPyObject<'py> for Local {
+    type Target = PyTzInfo;
+    type Output = Borrowed<'static, 'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        static LOCAL_TZ: GILOnceCell<Py<PyTzInfo>> = GILOnceCell::new();
+        let tz = LOCAL_TZ
+            .get_or_try_init(py, || {
+                let iana_name = iana_time_zone::get_timezone().map_err(|e| {
+                    PyRuntimeError::new_err(format!("Could not get local timezone: {e}"))
+                })?;
+                PyTzInfo::timezone(py, iana_name).map(Bound::unbind)
+            })?
+            .bind_borrowed(py);
+        Ok(tz)
+    }
+}
+
+#[cfg(feature = "chrono-local")]
+impl<'py> IntoPyObject<'py> for &Local {
+    type Target = PyTzInfo;
+    type Output = Borrowed<'static, 'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
+#[cfg(feature = "chrono-local")]
+impl FromPyObject<'_> for Local {
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Local> {
+        let local_tz = Local.into_pyobject(ob.py())?;
+        if ob.eq(local_tz)? {
+            Ok(Local)
+        } else {
+            let name = local_tz.getattr("key")?.downcast_into::<PyString>()?;
+            Err(PyValueError::new_err(format!(
+                "expected local timezone {}",
+                name.to_cow()?
+            )))
         }
     }
 }
@@ -1278,6 +1335,43 @@ mod tests {
                         let expected_roundtrip_time = micro.checked_sub(1_000_000).map(|micro| NaiveTime::from_hms_micro_opt(hour, min, sec, micro).unwrap()).unwrap_or(time);
                         let expected_roundtrip_dt: DateTime<FixedOffset> = NaiveDateTime::new(date, expected_roundtrip_time).and_local_timezone(offset).unwrap();
                         assert_eq!(expected_roundtrip_dt, roundtripped);
+                    }
+                })
+            }
+
+            #[test]
+            #[cfg(all(feature = "chrono-local", not(target_os = "windows")))]
+            fn test_local_datetime_roundtrip(
+                year in 1i32..=9999i32,
+                month in 1u32..=12u32,
+                day in 1u32..=31u32,
+                hour in 0u32..=23u32,
+                min in 0u32..=59u32,
+                sec in 0u32..=59u32,
+                micro in 0u32..=1_999_999u32,
+            ) {
+                Python::with_gil(|py| {
+                    let date_opt = NaiveDate::from_ymd_opt(year, month, day);
+                    let time_opt = NaiveTime::from_hms_micro_opt(hour, min, sec, micro);
+                    if let (Some(date), Some(time)) = (date_opt, time_opt) {
+                        let dts = match NaiveDateTime::new(date, time).and_local_timezone(Local) {
+                            LocalResult::None => return,
+                            LocalResult::Single(dt) => [Some((dt, false)), None],
+                            LocalResult::Ambiguous(dt1, dt2) => [Some((dt1, false)), Some((dt2, true))],
+                        };
+                        for (dt, fold) in dts.iter().filter_map(|input| *input) {
+                            // Wrap in CatchWarnings to avoid into_py firing warning for truncated leap second
+                            let py_dt = CatchWarnings::enter(py, |_| dt.into_pyobject(py)).unwrap();
+                            let roundtripped: DateTime<Local> = py_dt.extract().expect("Round trip");
+                            // Leap seconds are not roundtripped
+                            let expected_roundtrip_time = micro.checked_sub(1_000_000).map(|micro| NaiveTime::from_hms_micro_opt(hour, min, sec, micro).unwrap()).unwrap_or(time);
+                            let expected_roundtrip_dt: DateTime<Local> = if fold {
+                                NaiveDateTime::new(date, expected_roundtrip_time).and_local_timezone(Local).latest()
+                            } else {
+                                NaiveDateTime::new(date, expected_roundtrip_time).and_local_timezone(Local).earliest()
+                            }.unwrap();
+                            assert_eq!(expected_roundtrip_dt, roundtripped);
+                        }
                     }
                 })
             }
