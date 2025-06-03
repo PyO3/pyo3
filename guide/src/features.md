@@ -138,6 +138,10 @@ Adds a dependency on [chrono](https://docs.rs/chrono). Enables a conversion from
 - [NaiveTime](https://docs.rs/chrono/latest/chrono/naive/struct.NaiveTime.html) -> [`PyTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTime.html)
 - [DateTime](https://docs.rs/chrono/latest/chrono/struct.DateTime.html) -> [`PyDateTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDateTime.html)
 
+### `chrono-local`
+
+Enables conversion from and to [Local](https://docs.rs/chrono/latest/chrono/struct.Local.html) timezones.
+
 ### `chrono-tz`
 
 Adds a dependency on [chrono-tz](https://docs.rs/chrono-tz).
