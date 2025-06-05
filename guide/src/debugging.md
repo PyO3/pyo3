@@ -68,7 +68,7 @@ For more information about how to use both `lldb` and `gdb` you can read the [gd
 
 ### Debugger specific setup
 
-Depeding on your OS and your preferences you can use two different debuggers, `rust-gdb` or `rust-lldb`.
+Depending on your OS and your preferences you can use two different debuggers, `rust-gdb` or `rust-lldb`.
 
 {{#tabs }}
 {{#tab name="Using rust-gdb" }}
