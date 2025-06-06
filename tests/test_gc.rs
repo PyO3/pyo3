@@ -1,5 +1,5 @@
 #![cfg(feature = "macros")]
-#![cfg_attr(not(cargo_toml_lints), warn(unsafe_op_in_unsafe_fn))]
+#![warn(unsafe_op_in_unsafe_fn)]
 
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;

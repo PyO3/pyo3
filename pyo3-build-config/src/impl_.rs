@@ -848,7 +848,7 @@ fn have_python_interpreter() -> bool {
 /// Must be called from a PyO3 crate build script.
 fn is_abi3() -> bool {
     cargo_env_var("CARGO_FEATURE_ABI3").is_some()
-        || env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").map_or(false, |os_str| os_str == "1")
+        || env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").is_some_and(|os_str| os_str == "1")
 }
 
 /// Gets the minimum supported Python version from PyO3 `abi3-py*` features.
@@ -1467,7 +1467,7 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Result<
         sysconfig_paths.extend(match &f {
             // Python 3.7+ sysconfigdata with platform specifics
             Ok(f) if starts_with(f, "_sysconfigdata_") && ends_with(f, "py") => vec![f.path()],
-            Ok(f) if f.metadata().map_or(false, |metadata| metadata.is_dir()) => {
+            Ok(f) if f.metadata().is_ok_and(|metadata| metadata.is_dir()) => {
                 let file_name = f.file_name();
                 let file_name = file_name.to_string_lossy();
                 if file_name == "build" || file_name == "lib" {

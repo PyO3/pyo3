@@ -488,7 +488,7 @@ impl PartialEq<str> for Borrowed<'_, '_, PyString> {
     fn eq(&self, other: &str) -> bool {
         #[cfg(not(Py_3_13))]
         {
-            self.to_cow().map_or(false, |s| s == other)
+            self.to_cow().is_ok_and(|s| s == other)
         }
 
         #[cfg(Py_3_13)]

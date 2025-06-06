@@ -10,7 +10,7 @@ categories = ["api-bindings", "development-tools::ffi"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
 links = "python"
-rust-version = "1.63"
+rust-version.workspace = true
 
 [dependencies]
 libc = "0.2.62"
@@ -51,8 +51,8 @@ workspace = true
 
 [package.metadata.cpython]
 min-version = "3.7"
-max-version = "3.14"  # inclusive
+max-version = "3.14" # inclusive
 
 [package.metadata.pypy]
 min-version = "3.9"
-max-version = "3.11"  # inclusive
+max-version = "3.11" # inclusive

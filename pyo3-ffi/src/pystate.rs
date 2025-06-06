@@ -102,13 +102,13 @@ impl Drop for HangThread {
 // C-unwind only supported (and necessary) since 1.71. Python 3.14+ does not do
 // pthread_exit from PyGILState_Ensure (https://github.com/python/cpython/issues/87135).
 mod raw {
-    #[cfg(all(not(Py_3_14), rustc_has_extern_c_unwind))]
+    #[cfg(not(Py_3_14))]
     extern "C-unwind" {
         #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure")]
         pub fn PyGILState_Ensure() -> super::PyGILState_STATE;
     }
 
-    #[cfg(not(all(not(Py_3_14), rustc_has_extern_c_unwind)))]
+    #[cfg(Py_3_14)]
     extern "C" {
         #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure")]
         pub fn PyGILState_Ensure() -> super::PyGILState_STATE;

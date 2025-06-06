@@ -373,25 +373,12 @@ macro_rules! c_str {
 
 /// Private helper for `c_str!` macro.
 #[doc(hidden)]
-pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &CStr {
-    // TODO: Replace this implementation with `CStr::from_bytes_with_nul` when MSRV above 1.72.
-    let bytes = s.as_bytes();
-    let len = bytes.len();
-    assert!(
-        !bytes.is_empty() && bytes[bytes.len() - 1] == b'\0',
-        "string is not nul-terminated"
-    );
-    let mut i = 0;
-    let non_null_len = len - 1;
-    while i < non_null_len {
-        assert!(bytes[i] != b'\0', "string contains null bytes");
-        i += 1;
+pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &std::ffi::CStr {
+    match std::ffi::CStr::from_bytes_with_nul(s.as_bytes()) {
+        Ok(cstr) => cstr,
+        Err(_) => panic!("string contains nul bytes"),
     }
-
-    unsafe { CStr::from_bytes_with_nul_unchecked(bytes) }
 }
-
-use std::ffi::CStr;
 
 pub mod compat;
 mod impl_;
