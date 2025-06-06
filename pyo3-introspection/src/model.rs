@@ -46,6 +46,8 @@ pub struct Argument {
     pub name: String,
     /// Default value as a Python expression
     pub default_value: Option<String>,
+    /// Type annotation as a Python expression
+    pub annotation: Option<String>,
 }
 
 /// A variable length argument ie. *vararg or **kwarg

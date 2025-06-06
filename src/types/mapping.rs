@@ -168,6 +168,8 @@ fn get_mapping_abc(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
 
 impl PyTypeCheck for PyMapping {
     const NAME: &'static str = "Mapping";
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "collections.abc.Mapping";
 
     #[inline]
     fn type_check(object: &Bound<'_, PyAny>) -> bool {

@@ -347,8 +347,25 @@ pub(crate) fn get_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<&syn::Attribut
 fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -> TokenStream {
     let Ctx { pyo3_path, .. } = ctx;
 
-    // We introduce self/cls argument and setup decorators
     let name = spec.python_name.to_string();
+    if matches!(
+        name.as_str(),
+        "__richcmp__"
+            | "__concat__"
+            | "__repeat__"
+            | "__inplace_concat__"
+            | "__inplace_repeat__"
+            | "__getbuffer__"
+            | "__releasebuffer__"
+            | "__traverse__"
+            | "__clear__"
+    ) {
+        // This is not a magic Python method, ignore for now
+        // TODO: properly implement
+        return quote! {};
+    }
+
+    // We introduce self/cls argument and setup decorators
     let mut first_argument = None;
     let mut decorators = Vec::new();
     match &spec.tp {
