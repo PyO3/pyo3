@@ -613,7 +613,7 @@ Additionally `IntoPyObject` can be derived for a reference to a struct or enum u
 ##### `#[derive(IntoPyObject)]`/`#[derive(IntoPyObjectRef)]` Field Attributes
 - `pyo3(into_py_with = ...)`
     - apply a custom function to convert the field from Rust into Python.
-    - the argument must be the function indentifier
+    - the argument must be the function identifier
     - the function signature must be `fn(Cow<'_, T>, Python<'py>) -> PyResult<Bound<'py, PyAny>>` where `T` is the Rust type of the argument.
       - `#[derive(IntoPyObject)]` will invoke the function with `Cow::Owned`
       - `#[derive(IntoPyObjectRef)]` will invoke the function with `Cow::Borrowed`
@@ -650,7 +650,7 @@ struct MyPyObjectWrapper(PyObject);
 impl<'py> IntoPyObject<'py> for MyPyObjectWrapper {
     type Target = PyAny; // the Python type
     type Output = Bound<'py, Self::Target>; // in most cases this will be `Bound`
-    type Error = std::convert::Infallible; // the conversion error type, has to be convertable to `PyErr`
+    type Error = std::convert::Infallible; // the conversion error type, has to be convertible to `PyErr`
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.0.into_bound(py))
