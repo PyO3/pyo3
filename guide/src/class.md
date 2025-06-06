@@ -55,7 +55,7 @@ enum HttpResponse {
 }
 
 // PyO3 also supports enums with Struct and Tuple variants
-// These complex enums have sligtly different behavior from the simple enums above
+// These complex enums have slightly different behavior from the simple enums above
 // They are meant to work with instance checks and match statement patterns
 // The variants can be mixed and matched
 // Struct variants have named fields while tuple enums generate generic names for fields in order _0, _1, _2, ...
@@ -825,7 +825,7 @@ impl MyClass {
 
 ## Classes as function arguments
 
-Free functions defined using `#[pyfunction]` interact with classes through the same mechanisms as the self parameters of instance methods, i.e. they can take GIL-bound references, GIL-bound reference wrappers or GIL-indepedent references:
+Free functions defined using `#[pyfunction]` interact with classes through the same mechanisms as the self parameters of instance methods, i.e. they can take GIL-bound references, GIL-bound reference wrappers or GIL-independent references:
 
 ```rust,no_run
 # #![allow(dead_code)]
@@ -857,7 +857,7 @@ fn increment_then_print_field(my_class: &Bound<'_, MyClass>) {
     println!("{}", my_class.borrow().my_field);
 }
 
-// Take a GIL-indepedent reference when you want to store the reference elsewhere.
+// Take a GIL-independent reference when you want to store the reference elsewhere.
 #[pyfunction]
 fn print_refcnt(my_class: Py<MyClass>, py: Python<'_>) {
     println!("{}", my_class.get_refcnt(py));
