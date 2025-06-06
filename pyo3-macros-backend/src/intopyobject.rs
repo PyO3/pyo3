@@ -530,8 +530,8 @@ pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Resu
             type Error = #error;
 
             fn into_pyobject(self, py: #pyo3_path::Python<#lt_param>) -> ::std::result::Result<
-                <Self as #pyo3_path::conversion::IntoPyObject>::Output,
-                <Self as #pyo3_path::conversion::IntoPyObject>::Error,
+                <Self as #pyo3_path::conversion::IntoPyObject<#lt_param>>::Output,
+                <Self as #pyo3_path::conversion::IntoPyObject<#lt_param>>::Error,
             > {
                 #body
             }
