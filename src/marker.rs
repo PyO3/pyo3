@@ -124,6 +124,7 @@ use crate::gil::{GILGuard, SuspendGIL};
 use crate::impl_::not_send::NotSend;
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
+#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 use crate::types::PyCode;
 use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
@@ -613,10 +614,54 @@ impl<'py> Python<'py> {
         let code_obj = unsafe {
             ffi::Py_CompileString(code.as_ptr(), ffi::c_str!("<string>").as_ptr(), start)
                 .assume_owned_or_err(self)?
-        }
-        .downcast_into()?;
+        };
 
-        self.run_code_object(&code_obj, globals, locals)
+        let mptr = unsafe {
+            ffi::compat::PyImport_AddModuleRef(ffi::c_str!("__main__").as_ptr())
+                .assume_owned_or_err(self)?
+        };
+        let attr = mptr.getattr(crate::intern!(self, "__dict__"))?;
+        let globals = match globals {
+            Some(globals) => globals,
+            None => attr.downcast::<PyDict>()?,
+        };
+        let locals = locals.unwrap_or(globals);
+
+        // If `globals` don't provide `__builtins__`, most of the code will fail if Python
+        // version is <3.10. That's probably not what user intended, so insert `__builtins__`
+        // for them.
+        //
+        // See also:
+        // - https://github.com/python/cpython/pull/24564 (the same fix in CPython 3.10)
+        // - https://github.com/PyO3/pyo3/issues/3370
+        let builtins_s = crate::intern!(self, "__builtins__");
+        let has_builtins = globals.contains(builtins_s)?;
+        if !has_builtins {
+            crate::sync::with_critical_section(globals, || {
+                // check if another thread set __builtins__ while this thread was blocked on the critical section
+                let has_builtins = globals.contains(builtins_s)?;
+                if !has_builtins {
+                    // Inherit current builtins.
+                    let builtins = unsafe { ffi::PyEval_GetBuiltins() };
+
+                    // `PyDict_SetItem` doesn't take ownership of `builtins`, but `PyEval_GetBuiltins`
+                    // seems to return a borrowed reference, so no leak here.
+                    if unsafe {
+                        ffi::PyDict_SetItem(globals.as_ptr(), builtins_s.as_ptr(), builtins)
+                    } == -1
+                    {
+                        return Err(PyErr::fetch(self));
+                    }
+                }
+                Ok(())
+            })?;
+        }
+
+        unsafe {
+            ffi::PyEval_EvalCode(code_obj.as_ptr(), globals.as_ptr(), locals.as_ptr())
+                .assume_owned_or_err(self)
+                .downcast_into_unchecked()
+        }
     }
 
     /// Runs code object in the given context.
@@ -626,6 +671,7 @@ impl<'py> Python<'py> {
     ///
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
+    #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
     pub fn run_code_object(
         self,
         code_obj: &Bound<'py, PyCode>,
@@ -874,6 +920,7 @@ mod tests {
         });
     }
 
+    #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
     #[test]
     fn test_reuse_compiled_code() {
         Python::with_gil(|py| {
