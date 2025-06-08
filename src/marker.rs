@@ -124,6 +124,7 @@ use crate::gil::{GILGuard, SuspendGIL};
 use crate::impl_::not_send::NotSend;
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
+use crate::types::PyCode;
 use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
 };
@@ -609,6 +610,28 @@ impl<'py> Python<'py> {
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
+        let code_obj = unsafe {
+            ffi::Py_CompileString(code.as_ptr(), ffi::c_str!("<string>").as_ptr(), start)
+                .assume_owned_or_err(self)?
+        }
+        .downcast_into()?;
+
+        self.run_code_object(&code_obj, globals, locals)
+    }
+
+    /// Runs code object in the given context.
+    ///
+    /// `start` indicates the type of input expected: one of `Py_single_input`,
+    /// `Py_file_input`, or `Py_eval_input`.
+    ///
+    /// If `globals` is `None`, it defaults to Python module `__main__`.
+    /// If `locals` is `None`, it defaults to the value of `globals`.
+    pub fn run_code_object(
+        self,
+        code_obj: &Bound<'py, PyCode>,
+        globals: Option<&Bound<'py, PyDict>>,
+        locals: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let mptr = unsafe {
             ffi::compat::PyImport_AddModuleRef(ffi::c_str!("__main__").as_ptr())
                 .assume_owned_or_err(self)?
@@ -649,11 +672,6 @@ impl<'py> Python<'py> {
                 Ok(())
             })?;
         }
-
-        let code_obj = unsafe {
-            ffi::Py_CompileString(code.as_ptr(), ffi::c_str!("<string>").as_ptr(), start)
-                .assume_owned_or_err(self)?
-        };
 
         unsafe {
             ffi::PyEval_EvalCode(code_obj.as_ptr(), globals.as_ptr(), locals.as_ptr())
@@ -853,6 +871,37 @@ mod tests {
                 .extract()
                 .unwrap();
             assert_eq!(v, 2);
+        });
+    }
+
+    #[test]
+    fn test_reuse_compiled_code() {
+        Python::with_gil(|py| {
+            // Perform one-off compilation of a code string
+            let code_obj = PyCode::compile(
+                py,
+                ffi::c_str!("total = local_int + global_int"),
+                ffi::Py_file_input,
+            )
+            .unwrap();
+
+            // Run compiled code with globals & locals
+            let globals = [("global_int", 50)].into_py_dict(py).unwrap();
+            let locals = [("local_int", 100)].into_py_dict(py).unwrap();
+            py.run_code_object(&code_obj, Some(&globals), Some(&locals))
+                .unwrap();
+
+            let py_total = locals.get_item("total").unwrap();
+            assert_eq!(py_total.extract::<i32>().unwrap(), 150);
+
+            // Run compiled code with different globals & locals
+            let globals = [("global_int", 150)].into_py_dict(py).unwrap();
+            let locals = [("local_int", 350)].into_py_dict(py).unwrap();
+            py.run_code_object(&code_obj, Some(&globals), Some(&locals))
+                .unwrap();
+
+            let py_total = locals.get_item("total").unwrap();
+            assert_eq!(py_total.extract::<i32>().unwrap(), 500);
         });
     }
 
