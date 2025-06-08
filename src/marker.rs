@@ -541,12 +541,11 @@ impl<'py> Python<'py> {
     /// ```
     pub fn eval(
         self,
-        code_str: &CStr,
+        code: &CStr,
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let code_obj = self.compile_string_as(code_str, ffi::Py_eval_input)?;
-        self.run_code(&code_obj, globals, locals)
+        self.run_code(code, ffi::Py_eval_input, globals, locals)
     }
 
     /// Executes one or more Python statements in the given context.
@@ -586,24 +585,27 @@ impl<'py> Python<'py> {
     /// if you don't need `globals` and unwrapping is OK.
     pub fn run(
         self,
-        code_str: &CStr,
+        code: &CStr,
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
-        let code_obj = self.compile_string(code_str)?;
-        let res = self.run_code(&code_obj, globals, locals);
+        let res = self.run_code(code, ffi::Py_file_input, globals, locals);
         res.map(|obj| {
             debug_assert!(obj.is_none());
         })
     }
 
-    /// Runs a code object in the given context.
+    /// Runs code in the given context.
+    ///
+    /// `start` indicates the type of input expected: one of `Py_single_input`,
+    /// `Py_file_input`, or `Py_eval_input`.
     ///
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
-    pub fn run_code(
+    fn run_code(
         self,
-        code_obj: &Bound<'py, PyAny>,
+        code: &CStr,
+        start: c_int,
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
@@ -648,26 +650,15 @@ impl<'py> Python<'py> {
             })?;
         }
 
+        let code_obj = unsafe {
+            ffi::Py_CompileString(code.as_ptr(), ffi::c_str!("<string>").as_ptr(), start)
+                .assume_owned_or_err(self)?
+        };
+
         unsafe {
             ffi::PyEval_EvalCode(code_obj.as_ptr(), globals.as_ptr(), locals.as_ptr())
                 .assume_owned_or_err(self)
                 .downcast_into_unchecked()
-        }
-    }
-
-    /// Compiles an arbitrarily large string of code into a runnable code object.
-    pub fn compile_string(self, code_str: &CStr) -> PyResult<Bound<'py, PyAny>> {
-        self.compile_string_as(code_str, ffi::Py_file_input)
-    }
-
-    /// Compiles a string of code into a runnable code object.
-    ///
-    /// `start` indicates the type of input expected: one of `Py_single_input`,
-    /// `Py_file_input`, or `Py_eval_input`.
-    fn compile_string_as(self, code_str: &CStr, start: c_int) -> PyResult<Bound<'py, PyAny>> {
-        unsafe {
-            ffi::Py_CompileString(code_str.as_ptr(), ffi::c_str!("<string>").as_ptr(), start)
-                .assume_owned_or_err(self)
         }
     }
 
@@ -862,32 +853,6 @@ mod tests {
                 .extract()
                 .unwrap();
             assert_eq!(v, 2);
-        });
-    }
-
-    #[test]
-    fn test_reuse_compiled_code() {
-        Python::with_gil(|py| {
-            // Perform one-off compilation of a code string
-            let code = py
-                .compile_string(ffi::c_str!("total = local_int + global_int"))
-                .unwrap();
-
-            // Run compiled code with globals & locals
-            let globals = [("global_int", 50)].into_py_dict(py).unwrap();
-            let locals = [("local_int", 100)].into_py_dict(py).unwrap();
-            py.run_code(&code, Some(&globals), Some(&locals)).unwrap();
-
-            let py_total = locals.get_item("total").unwrap();
-            assert_eq!(py_total.extract::<i32>().unwrap(), 150);
-
-            // Run compiled code with different globals & locals
-            let globals = [("global_int", 150)].into_py_dict(py).unwrap();
-            let locals = [("local_int", 350)].into_py_dict(py).unwrap();
-            py.run_code(&code, Some(&globals), Some(&locals)).unwrap();
-
-            let py_total = locals.get_item("total").unwrap();
-            assert_eq!(py_total.extract::<i32>().unwrap(), 500);
         });
     }
 
