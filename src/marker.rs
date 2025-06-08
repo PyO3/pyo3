@@ -611,11 +611,6 @@ impl<'py> Python<'py> {
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let code_obj = unsafe {
-            ffi::Py_CompileString(code.as_ptr(), ffi::c_str!("<string>").as_ptr(), start)
-                .assume_owned_or_err(self)?
-        };
-
         let mptr = unsafe {
             ffi::compat::PyImport_AddModuleRef(ffi::c_str!("__main__").as_ptr())
                 .assume_owned_or_err(self)?
@@ -656,6 +651,11 @@ impl<'py> Python<'py> {
                 Ok(())
             })?;
         }
+
+        let code_obj = unsafe {
+            ffi::Py_CompileString(code.as_ptr(), ffi::c_str!("<string>").as_ptr(), start)
+                .assume_owned_or_err(self)?
+        };
 
         unsafe {
             ffi::PyEval_EvalCode(code_obj.as_ptr(), globals.as_ptr(), locals.as_ptr())
