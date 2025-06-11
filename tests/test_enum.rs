@@ -338,7 +338,7 @@ fn custom_eq() {
     impl CustomPyEq {
         fn __eq__(&self, other: &Bound<'_, PyAny>) -> bool {
             if let Ok(rhs) = other.downcast::<PyString>() {
-                rhs.to_cow().map_or(false, |rhs| self.__str__() == rhs)
+                rhs.to_cow().is_ok_and(|rhs| self.__str__() == rhs)
             } else if let Ok(rhs) = other.downcast::<Self>() {
                 self == rhs.get()
             } else {

@@ -31,8 +31,7 @@ pub const PyTrace_OPCODE: c_int = 7;
 #[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Clone, Copy)]
-#[doc(hidden)] // TODO should be able to make pub(crate) after MSRV 1.74
-pub struct _PyErr_StackItem {
+pub(crate) struct _PyErr_StackItem {
     #[cfg(not(Py_3_11))]
     exc_type: *mut PyObject,
     exc_value: *mut PyObject,
