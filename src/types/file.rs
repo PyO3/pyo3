@@ -5,6 +5,11 @@ use std::os::fd::{AsRawFd, FromRawFd};
 use std::ffi::CString;
 use nix::fcntl::{fcntl, FcntlArg, OFlag};
 
+use crate::create_exception;
+use crate::exceptions::PyException;
+
+create_exception!(crate, FileConversionError, PyException);
+
 
 /// Represents a Python `file` object.
 ///
@@ -40,9 +45,13 @@ impl PyFile {
     /// Creates a new Python `file` object.
     pub fn new(py: Python<'_>, file: File) -> PyResult<Bound<'_, PyAny>> {
 
-        let fd = file.as_raw_fd();
+        let fd: i32 = file.as_raw_fd();
+        if fd < 0 {
+            return Err(FileConversionError::new_err("Invalid file descriptor"));
+        }
 
-        let flags_raw: i32 = fcntl(fd, FcntlArg::F_GETFL).expect("Error flag");
+        let flags_raw: i32 = fcntl(fd, FcntlArg::F_GETFL)
+            .map_err(|e| PyErr::new::<crate::exceptions::PyOSError, _>(e.to_string()))?;
         let flags = OFlag::from_bits_truncate(flags_raw);
         let mode = PyFile::mode_string_from_flags(flags);
 
@@ -167,5 +176,15 @@ mod tests {
 
         let file = OpenOptions::new().read(true).write(true).open(tmp.path()).unwrap();
         roundtrip_file(&file, content);
+    }
+
+    #[test]
+    fn test_extract_invalid_pyobject() {
+        Python::with_gil(|py| {
+            // create a Python object that's *not* a file
+            let py_str = "not a file".into_pyobject(py).unwrap().into_any();
+            let result = File::extract_bound(&py_str);
+            assert!(result.is_err(), "Expected extract to fail on non-file PyObject");
+        });
     }
 }
