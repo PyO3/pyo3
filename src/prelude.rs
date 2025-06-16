@@ -45,3 +45,5 @@ pub use crate::types::traceback::PyTracebackMethods;
 pub use crate::types::tuple::PyTupleMethods;
 pub use crate::types::typeobject::PyTypeMethods;
 pub use crate::types::weakref::PyWeakrefMethods;
+
+pub use crate::types::pyo3file::Pyo3File;
