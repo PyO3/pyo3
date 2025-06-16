@@ -1,6 +1,7 @@
 use crate::{ffi, instance::Bound, PyAny, PyErr, PyResult, Python, FromPyObject, IntoPyObject};
 
 use std::fs::File;
+#[cfg(unix)]
 use std::os::fd::{AsRawFd, FromRawFd};
 use std::ffi::CString;
 use crate::create_exception;
@@ -12,6 +13,7 @@ create_exception!(crate, FileConversionError, PyException);
 use crate::types::pyo3file::Pyo3File;
 
 use crate::exceptions::PyOSError;
+#[cfg(unix)]
 use std::os::fd::RawFd;
 
 use crate::types::any::PyAnyMethods;
@@ -21,6 +23,8 @@ use nix::unistd::dup;
 #[cfg(unix)]
 use nix::fcntl::{fcntl, FcntlArg, OFlag};
 
+#[cfg(windows)]
+use std::os::windows::io::AsRawHandle;
 #[cfg(windows)]
 use winapi::um::handleapi::DuplicateHandle;
 #[cfg(windows)]
