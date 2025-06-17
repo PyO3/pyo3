@@ -77,7 +77,7 @@ This feature was introduced to ease migration. It was found that delayed referen
 
 ### `pyo3_disable_reference_pool`
 
-This is a performance-oriented conditional compilation flag, e.g. [set via `$RUSTFLAGS`][set-configuration-options], which disabled the global reference pool and the assocaited overhead for the crossing the Python-Rust boundary. However, if enabled, `Drop`ping an instance of `Py<T>` without the GIL being held will abort the process.
+This is a performance-oriented conditional compilation flag, e.g. [set via `$RUSTFLAGS`][set-configuration-options], which disabled the global reference pool and the associated overhead for the crossing the Python-Rust boundary. However, if enabled, `Drop`ping an instance of `Py<T>` without the GIL being held will abort the process.
 
 ### `macros`
 
@@ -137,6 +137,10 @@ Adds a dependency on [chrono](https://docs.rs/chrono). Enables a conversion from
 - [NaiveDate](https://docs.rs/chrono/latest/chrono/naive/struct.NaiveDate.html) -> [`PyDate`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDate.html)
 - [NaiveTime](https://docs.rs/chrono/latest/chrono/naive/struct.NaiveTime.html) -> [`PyTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTime.html)
 - [DateTime](https://docs.rs/chrono/latest/chrono/struct.DateTime.html) -> [`PyDateTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDateTime.html)
+
+### `chrono-local`
+
+Enables conversion from and to [Local](https://docs.rs/chrono/latest/chrono/struct.Local.html) timezones.
 
 ### `chrono-tz`
 

@@ -49,7 +49,7 @@ pub struct PyObjectObFlagsAndRefcnt {
 pub union PyObjectObRefcnt {
     #[cfg(all(target_pointer_width = "64", Py_3_14))]
     pub ob_refcnt_full: crate::PY_INT64_T,
-    #[cfg(Py_3_14)]
+    #[cfg(all(target_pointer_width = "64", Py_3_14))]
     pub refcnt_and_flags: PyObjectObFlagsAndRefcnt,
     pub ob_refcnt: Py_ssize_t,
     #[cfg(all(target_pointer_width = "64", not(Py_3_14)))]
