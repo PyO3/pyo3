@@ -3,6 +3,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use std::ffi::CString;
 use syn::spanned::Spanned;
+use syn::visit_mut::VisitMut;
 use syn::{punctuated::Punctuated, Token};
 
 /// Macro inspired by `anyhow::anyhow!` to create a compiler error with the given span.
@@ -334,62 +335,15 @@ pub(crate) trait TypeExt {
 
 impl TypeExt for syn::Type {
     fn elide_lifetimes(mut self) -> Self {
-        fn elide_lifetimes(ty: &mut syn::Type) {
-            match ty {
-                syn::Type::Path(type_path) => {
-                    if let Some(qself) = &mut type_path.qself {
-                        elide_lifetimes(&mut qself.ty)
-                    }
-                    for seg in &mut type_path.path.segments {
-                        if let syn::PathArguments::AngleBracketed(args) = &mut seg.arguments {
-                            for generic_arg in &mut args.args {
-                                match generic_arg {
-                                    syn::GenericArgument::Lifetime(lt) => {
-                                        *lt = syn::Lifetime::new("'_", lt.span());
-                                    }
-                                    syn::GenericArgument::Type(ty) => elide_lifetimes(ty),
-                                    syn::GenericArgument::AssocType(assoc) => {
-                                        elide_lifetimes(&mut assoc.ty)
-                                    }
+        struct ElideLifetimesVisitor;
 
-                                    syn::GenericArgument::Const(_)
-                                    | syn::GenericArgument::AssocConst(_)
-                                    | syn::GenericArgument::Constraint(_)
-                                    | _ => {}
-                                }
-                            }
-                        }
-                    }
-                }
-                syn::Type::Reference(type_ref) => {
-                    if let Some(lt) = type_ref.lifetime.as_mut() {
-                        *lt = syn::Lifetime::new("'_", lt.span());
-                    }
-                    elide_lifetimes(&mut type_ref.elem);
-                }
-                syn::Type::Tuple(type_tuple) => {
-                    for ty in &mut type_tuple.elems {
-                        elide_lifetimes(ty);
-                    }
-                }
-                syn::Type::Array(type_array) => elide_lifetimes(&mut type_array.elem),
-                syn::Type::Slice(ty) => elide_lifetimes(&mut ty.elem),
-                syn::Type::Group(ty) => elide_lifetimes(&mut ty.elem),
-                syn::Type::Paren(ty) => elide_lifetimes(&mut ty.elem),
-                syn::Type::Ptr(ty) => elide_lifetimes(&mut ty.elem),
-
-                syn::Type::BareFn(_)
-                | syn::Type::ImplTrait(_)
-                | syn::Type::Infer(_)
-                | syn::Type::Macro(_)
-                | syn::Type::Never(_)
-                | syn::Type::TraitObject(_)
-                | syn::Type::Verbatim(_)
-                | _ => {}
+        impl VisitMut for ElideLifetimesVisitor {
+            fn visit_lifetime_mut(&mut self, l: &mut syn::Lifetime) {
+                *l = syn::Lifetime::new("'_", l.span());
             }
         }
 
-        elide_lifetimes(&mut self);
+        ElideLifetimesVisitor.visit_type_mut(&mut self);
         self
     }
 }
