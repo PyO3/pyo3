@@ -20,6 +20,7 @@ use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use syn::ext::IdentExt;
+use syn::visit_mut::{visit_type_mut, VisitMut};
 use syn::{Attribute, Ident, Type, TypePath};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
@@ -465,61 +466,26 @@ fn ident_to_type(ident: &Ident) -> Cow<'static, Type> {
 
 // Replace Self in types with the given type
 fn replace_self(ty: &mut Type, self_target: &Type) {
-    match ty {
-        syn::Type::Path(type_path) => {
-            if type_path.qself.is_none()
-                && type_path.path.segments.len() == 1
-                && type_path.path.segments[0].ident == "Self"
-                && type_path.path.segments[0].arguments.is_empty()
-            {
-                // It is Self
-                *ty = self_target.clone();
-                return;
-            }
+    struct SelfReplacementVisitor<'a> {
+        self_target: &'a Type,
+    }
 
-            // We look recursively
-            if let Some(qself) = &mut type_path.qself {
-                replace_self(&mut qself.ty, self_target)
-            }
-            for seg in &mut type_path.path.segments {
-                if let syn::PathArguments::AngleBracketed(args) = &mut seg.arguments {
-                    for generic_arg in &mut args.args {
-                        match generic_arg {
-                            syn::GenericArgument::Type(ty) => replace_self(ty, self_target),
-                            syn::GenericArgument::AssocType(assoc) => {
-                                replace_self(&mut assoc.ty, self_target)
-                            }
-                            syn::GenericArgument::Lifetime(_)
-                            | syn::GenericArgument::Const(_)
-                            | syn::GenericArgument::AssocConst(_)
-                            | syn::GenericArgument::Constraint(_)
-                            | _ => {}
-                        }
-                    }
+    impl<'a> VisitMut for SelfReplacementVisitor<'a> {
+        fn visit_type_mut(&mut self, ty: &mut Type) {
+            if let syn::Type::Path(type_path) = ty {
+                if type_path.qself.is_none()
+                    && type_path.path.segments.len() == 1
+                    && type_path.path.segments[0].ident == "Self"
+                    && type_path.path.segments[0].arguments.is_empty()
+                {
+                    // It is Self
+                    *ty = self.self_target.clone();
+                    return;
                 }
             }
+            visit_type_mut(self, ty);
         }
-        syn::Type::Reference(type_ref) => {
-            replace_self(&mut type_ref.elem, self_target);
-        }
-        syn::Type::Tuple(type_tuple) => {
-            for ty in &mut type_tuple.elems {
-                replace_self(ty, self_target);
-            }
-        }
-        syn::Type::Array(type_array) => replace_self(&mut type_array.elem, self_target),
-        syn::Type::Slice(ty) => replace_self(&mut ty.elem, self_target),
-        syn::Type::Group(ty) => replace_self(&mut ty.elem, self_target),
-        syn::Type::Paren(ty) => replace_self(&mut ty.elem, self_target),
-        syn::Type::Ptr(ty) => replace_self(&mut ty.elem, self_target),
-
-        syn::Type::BareFn(_)
-        | syn::Type::ImplTrait(_)
-        | syn::Type::Infer(_)
-        | syn::Type::Macro(_)
-        | syn::Type::Never(_)
-        | syn::Type::TraitObject(_)
-        | syn::Type::Verbatim(_)
-        | _ => {}
     }
+
+    SelfReplacementVisitor { self_target }.visit_type_mut(ty);
 }
