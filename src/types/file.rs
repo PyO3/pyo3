@@ -1,4 +1,4 @@
-use crate::{ffi, instance::Bound, PyAny, PyErr, PyResult, Python, FromPyObject, IntoPyObject};
+use crate::{ffi, instance::Bound, PyAny, PyErr, PyResult, Python};
 
 use std::fs::File;
 #[cfg(unix)]
@@ -7,7 +7,6 @@ use std::ffi::CString;
 use crate::create_exception;
 use crate::exceptions::PyException;
 
-use std::ptr;
 create_exception!(crate, FileConversionError, PyException);
 
 use crate::types::pyo3file::Pyo3File;
@@ -20,8 +19,6 @@ use crate::types::any::PyAnyMethods;
 
 #[cfg(unix)]
 use nix::unistd::dup;
-#[cfg(unix)]
-use nix::fcntl::{fcntl, FcntlArg, OFlag};
 
 #[cfg(windows)]
 use std::os::windows::io::AsRawHandle;
@@ -55,7 +52,6 @@ pyobject_native_type!(
 
 impl PyFile {
 
-    // We must respect the opening flags
     #[cfg(unix)]
     pub fn new(py: Python<'_>, pyo3_file: Pyo3File) -> PyResult<Bound<'_, PyAny>> {
         let file = pyo3_file.getfile();
