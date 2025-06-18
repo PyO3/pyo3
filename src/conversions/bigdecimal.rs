@@ -82,7 +82,7 @@ impl<'py> IntoPyObject<'py> for BigDecimal {
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let cls = get_decimal_cls(py)?;
-        cls.call1((self.to_string(),))
+        cls.call1((self.to_scientific_notation(),))
     }
 }
 
@@ -209,5 +209,27 @@ mod test_bigdecimal {
             let roundtripped: Result<BigDecimal, PyErr> = py_dec.extract();
             assert!(roundtripped.is_err());
         })
+    }
+
+    #[test]
+    fn test_no_precision_loss() {
+        Python::with_gil(|py| {
+            let src = "1e4";
+            let expected = get_decimal_cls(py)
+                .unwrap()
+                .call1((src,))
+                .unwrap()
+                .call_method0("as_tuple")
+                .unwrap();
+            let actual = src
+                .parse::<BigDecimal>()
+                .unwrap()
+                .into_pyobject(py)
+                .unwrap()
+                .call_method0("as_tuple")
+                .unwrap();
+
+            assert!(actual.eq(expected).unwrap());
+        });
     }
 }
