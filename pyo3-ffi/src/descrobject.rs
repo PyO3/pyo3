@@ -14,7 +14,7 @@ pub type setter =
 /// Note that CPython may leave fields uninitialized. You must ensure that
 /// `name` != NULL before dereferencing or reading other fields.
 #[repr(C)]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug)]
 pub struct PyGetSetDef {
     pub name: *const c_char,
     pub get: Option<getter>,
