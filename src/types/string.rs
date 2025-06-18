@@ -8,7 +8,7 @@ use crate::types::PyBytes;
 use crate::{ffi, Bound, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
 use std::ffi::CStr;
-use std::str;
+use std::{fmt, str};
 
 /// Represents raw data backing a Python `str`.
 ///
@@ -228,6 +228,36 @@ impl PyString {
             ffi::PyUnicode_FromEncodedObject(src.as_ptr(), encoding, errors)
                 .assume_owned_or_err(src.py())
                 .cast_into_unchecked()
+        }
+    }
+
+    /// Creates a Python string using a format string.
+    ///
+    /// This function is similar to [`format!`], but it returns a Python string object instead of a Rust string.
+    #[inline]
+    pub fn from_fmt<'py>(
+        py: Python<'py>,
+        args: fmt::Arguments<'_>,
+    ) -> PyResult<Bound<'py, PyString>> {
+        if let Some(static_string) = args.as_str() {
+            return Ok(PyString::new(py, static_string));
+        };
+
+        #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
+        {
+            use crate::fmt::PyUnicodeWriter;
+            use std::fmt::Write as _;
+
+            let mut writer = PyUnicodeWriter::new(py)?;
+            writer
+                .write_fmt(args)
+                .map_err(|_| writer.take_error().expect("expected error"))?;
+            writer.into_py_string()
+        }
+
+        #[cfg(any(not(Py_3_14), Py_LIMITED_API))]
+        {
+            Ok(PyString::new(py, &format!("{args}")))
         }
     }
 }
