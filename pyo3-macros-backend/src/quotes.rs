@@ -15,10 +15,10 @@ pub(crate) fn ok_wrap(obj: TokenStream, ctx: &Ctx) -> TokenStream {
         output_span,
     } = ctx;
     let pyo3_path = pyo3_path.to_tokens_spanned(*output_span);
+    let into = quote!(::core::convert::Into::<#pyo3_path::PyErr>::into);
     quote_spanned! { *output_span => {
         let obj = #obj;
-        #[allow(clippy::useless_conversion)]
-        #pyo3_path::impl_::wrap::converter(&obj).wrap(obj).map_err(::core::convert::Into::<#pyo3_path::PyErr>::into)
+        #pyo3_path::impl_::wrap::converter(&obj).wrap(obj).map_err(#into)
     }}
 }
 
