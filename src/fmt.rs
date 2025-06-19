@@ -2,7 +2,7 @@
 //! constructing Python strings using Rust's `fmt::Write` trait.
 //! It allows for incremental string construction, without the need for repeated allocations, and
 //! is particularly useful for building strings in a performance-sensitive context.
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 use {
     crate::ffi::compat::{
         PyUnicodeWriter_Create, PyUnicodeWriter_Discard, PyUnicodeWriter_Finish,
@@ -24,14 +24,14 @@ macro_rules! py_format {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 /// The `PyUnicodeWriter` is a utility for efficiently constructing Python strings
 pub struct PyUnicodeWriter {
     writer: NonNull<ffi::PyUnicodeWriter>,
     last_error: Option<PyErr>,
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 impl PyUnicodeWriter {
     /// Creates a new `PyUnicodeWriter`.
     pub fn new(py: Python<'_>) -> PyResult<Self> {
@@ -76,7 +76,7 @@ impl PyUnicodeWriter {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 impl fmt::Write for PyUnicodeWriter {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         let result = unsafe {
@@ -101,7 +101,7 @@ impl fmt::Write for PyUnicodeWriter {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 impl Drop for PyUnicodeWriter {
     fn drop(&mut self) {
         unsafe {
@@ -112,14 +112,14 @@ impl Drop for PyUnicodeWriter {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     use super::*;
     use crate::types::PyStringMethods;
     use crate::{IntoPyObject, Python};
 
     #[test]
     #[allow(clippy::write_literal)]
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     fn unicode_writer_test() {
         use std::fmt::Write;
         Python::with_gil(|py| {
