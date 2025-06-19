@@ -28,6 +28,7 @@ compat_function!(
 compat_function!(
     originally_defined_for(all(Py_3_14, not(Py_LIMITED_API)));
 
+    #[cfg(not(Py_LIMITED_API))]
     pub unsafe fn PyUnicodeWriter_Create(length: crate::Py_ssize_t) -> *mut crate::PyUnicodeWriter {
         if length < 0 {
             crate::PyErr_SetString(
@@ -52,6 +53,7 @@ compat_function!(
 compat_function!(
     originally_defined_for(all(Py_3_14, not(Py_LIMITED_API)));
 
+    #[cfg(not(Py_LIMITED_API))]
     pub unsafe fn PyUnicodeWriter_Finish(writer: *mut crate::PyUnicodeWriter) -> *mut crate::PyObject {
         let str = crate::_PyUnicodeWriter_Finish(writer.cast());
         crate::PyMem_Free(writer.cast());
@@ -62,6 +64,7 @@ compat_function!(
 compat_function!(
     originally_defined_for(all(Py_3_14, not(Py_LIMITED_API)));
 
+    #[cfg(not(Py_LIMITED_API))]
     pub unsafe fn PyUnicodeWriter_Discard(writer: *mut crate::PyUnicodeWriter) -> () {
         crate::_PyUnicodeWriter_Dealloc(writer.cast());
         crate::PyMem_Free(writer.cast())
@@ -71,6 +74,7 @@ compat_function!(
 compat_function!(
     originally_defined_for(all(Py_3_14, not(Py_LIMITED_API)));
 
+    #[cfg(not(Py_LIMITED_API))]
     pub unsafe fn PyUnicodeWriter_WriteChar(writer: *mut crate::PyUnicodeWriter, ch: crate::Py_UCS4) -> std::os::raw::c_int {
         if ch > 0x10ffff {
             crate::PyErr_SetString(
@@ -87,6 +91,7 @@ compat_function!(
 compat_function!(
     originally_defined_for(all(Py_3_14, not(Py_LIMITED_API)));
 
+    #[cfg(not(Py_LIMITED_API))]
     pub unsafe fn PyUnicodeWriter_WriteUTF8(writer: *mut crate::PyUnicodeWriter,str: *const std::os::raw::c_char, size: crate::Py_ssize_t) -> std::os::raw::c_int {
         let size = if size < 0 {
             libc::strlen(str) as isize

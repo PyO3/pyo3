@@ -2,23 +2,36 @@
 //! constructing Python strings using Rust's `fmt::Write` trait.
 //! It allows for incremental string construction, without the need for repeated allocations, and
 //! is particularly useful for building strings in a performance-sensitive context.
-use crate::ffi::compat::{
-    PyUnicodeWriter_Create, PyUnicodeWriter_Discard, PyUnicodeWriter_Finish,
-    PyUnicodeWriter_WriteChar, PyUnicodeWriter_WriteUTF8,
+#[cfg(not(Py_LIMITED_API))]
+use {
+    crate::ffi::compat::{
+        PyUnicodeWriter_Create, PyUnicodeWriter_Discard, PyUnicodeWriter_Finish,
+        PyUnicodeWriter_WriteChar, PyUnicodeWriter_WriteUTF8,
+    },
+    crate::ffi_ptr_ext::FfiPtrExt,
+    crate::impl_::callback::WrappingCastTo,
+    crate::types::{PyAnyMethods, PyString},
+    crate::{ffi, Bound, PyErr, PyResult, Python},
+    std::ptr::NonNull,
+    std::{fmt, mem},
 };
-use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::impl_::callback::WrappingCastTo;
-use crate::types::{PyAnyMethods, PyString};
-use crate::{ffi, Bound, PyErr, PyResult, Python};
-use std::ptr::NonNull;
-use std::{fmt, mem};
 
+/// This is like the `format!` macro, but it returns a `PyString` instead of a `String`.
+#[macro_export]
+macro_rules! py_format {
+    ($py: expr, $($arg:tt)*) => {
+        $crate::types::PyString::from_fmt($py, format_args!($($arg)*))
+    }
+}
+
+#[cfg(not(Py_LIMITED_API))]
 /// The `PyUnicodeWriter` is a utility for efficiently constructing Python strings
 pub struct PyUnicodeWriter {
     writer: NonNull<ffi::PyUnicodeWriter>,
     last_error: Option<PyErr>,
 }
 
+#[cfg(not(Py_LIMITED_API))]
 impl PyUnicodeWriter {
     /// Creates a new `PyUnicodeWriter`.
     pub fn new(py: Python<'_>) -> PyResult<Self> {
@@ -63,6 +76,7 @@ impl PyUnicodeWriter {
     }
 }
 
+#[cfg(not(Py_LIMITED_API))]
 impl fmt::Write for PyUnicodeWriter {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         let result = unsafe {
@@ -87,6 +101,7 @@ impl fmt::Write for PyUnicodeWriter {
     }
 }
 
+#[cfg(not(Py_LIMITED_API))]
 impl Drop for PyUnicodeWriter {
     fn drop(&mut self) {
         unsafe {
@@ -97,13 +112,15 @@ impl Drop for PyUnicodeWriter {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(Py_LIMITED_API))]
     use super::*;
     use crate::types::PyStringMethods;
     use crate::{IntoPyObject, Python};
-    use std::fmt::Write;
 
     #[test]
+    #[cfg(not(Py_LIMITED_API))]
     fn unicode_writer_test() {
+        use std::fmt::Write;
         Python::with_gil(|py| {
             let mut writer = PyUnicodeWriter::new(py).unwrap();
             write!(writer, "Hello {}!", "world").unwrap();
@@ -116,7 +133,7 @@ mod tests {
     #[test]
     fn test_pystring_from_fmt() {
         Python::with_gil(|py| {
-            PyString::from_fmt(py, format_args!("Hello {}!", "world")).unwrap();
+            py_format!(py, "Hello {}!", "world").unwrap();
         });
     }
 
@@ -124,11 +141,7 @@ mod tests {
     fn test_complex_format() {
         Python::with_gil(|py| {
             let complex_value = (42, "foo", 3.14).into_pyobject(py).unwrap();
-            let py_string = PyString::from_fmt(
-                py,
-                format_args!("This is some complex value: {complex_value}"),
-            )
-            .unwrap();
+            let py_string = py_format!(py, "This is some complex value: {complex_value}").unwrap();
             let actual = py_string.to_cow().unwrap();
             let expected = "This is some complex value: (42, 'foo', 3.14)";
             assert_eq!(actual, expected);
