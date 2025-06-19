@@ -1,7 +1,7 @@
 #[cfg(not(Py_LIMITED_API))]
 use crate::exceptions::PyUnicodeDecodeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 use crate::fmt::PyUnicodeWriter;
 use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
@@ -11,7 +11,7 @@ use crate::types::PyBytes;
 use crate::{ffi, Bound, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
 use std::ffi::CString;
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 use std::fmt::Write as _;
 use std::{fmt, str};
 
@@ -225,7 +225,7 @@ impl PyString {
             return Ok(PyString::new(py, static_string));
         };
 
-        #[cfg(not(Py_LIMITED_API))]
+        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
         {
             let mut writer = PyUnicodeWriter::new(py)?;
             writer
@@ -234,7 +234,7 @@ impl PyString {
             writer.into_py_string(py)
         }
 
-        #[cfg(Py_LIMITED_API)]
+        #[cfg(any(Py_LIMITED_API, PyPy))]
         {
             Ok(PyString::new(py, &format!("{args}")))
         }
