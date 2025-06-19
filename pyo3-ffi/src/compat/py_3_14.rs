@@ -25,7 +25,7 @@ compat_function!(
     }
 );
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 compat_function!(
     originally_defined_for(all(Py_3_14, not(Py_LIMITED_API)));
 
@@ -50,7 +50,7 @@ compat_function!(
     }
 );
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 compat_function!(
     originally_defined_for(all(Py_3_14, not(Py_LIMITED_API)));
 
@@ -61,7 +61,7 @@ compat_function!(
     }
 );
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 compat_function!(
     originally_defined_for(all(Py_3_14, not(Py_LIMITED_API)));
 
@@ -71,7 +71,7 @@ compat_function!(
     }
 );
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 compat_function!(
     originally_defined_for(all(Py_3_14, not(Py_LIMITED_API)));
 
@@ -88,7 +88,7 @@ compat_function!(
     }
 );
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 compat_function!(
     originally_defined_for(all(Py_3_14, not(Py_LIMITED_API)));
 
