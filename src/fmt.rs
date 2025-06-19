@@ -118,6 +118,7 @@ mod tests {
     use crate::{IntoPyObject, Python};
 
     #[test]
+    #[allow(clippy::write_literal)]
     #[cfg(not(Py_LIMITED_API))]
     fn unicode_writer_test() {
         use std::fmt::Write;
@@ -140,10 +141,10 @@ mod tests {
     #[test]
     fn test_complex_format() {
         Python::with_gil(|py| {
-            let complex_value = (42, "foo", 3.14).into_pyobject(py).unwrap();
+            let complex_value = (42, "foo", [0; 0]).into_pyobject(py).unwrap();
             let py_string = py_format!(py, "This is some complex value: {complex_value}").unwrap();
             let actual = py_string.to_cow().unwrap();
-            let expected = "This is some complex value: (42, 'foo', 3.14)";
+            let expected = "This is some complex value: (42, 'foo', [])";
             assert_eq!(actual, expected);
         });
     }
