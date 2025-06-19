@@ -686,11 +686,16 @@ extern "C" {
     // skipped PyUnicode_GetMax
 }
 
+#[cfg(Py_3_14)]
 opaque_struct!(pub PyUnicodeWriter);
 
 #[cfg(not(Py_3_14))]
+pub type PyUnicodeWriter = _PyUnicodeWriter;
+
+#[cfg(not(Py_3_14))]
+#[doc(hidden)]
 #[repr(C)]
-pub(crate) struct _PyUnicodeWriter {
+pub struct _PyUnicodeWriter {
     buffer: *mut PyObject,
     data: *mut c_void,
     kind: c_int,
