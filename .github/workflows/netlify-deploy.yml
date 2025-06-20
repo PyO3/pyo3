@@ -28,6 +28,10 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
+      - name: Install netlify-cli
+        run: |
+          npm install -g netlify-cli
+
       - name: Deploy to Netlify
         run: |
           ls -l netlify_build/
