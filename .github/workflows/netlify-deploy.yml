@@ -1,3 +1,8 @@
+# This runs as a separate job because it needs to run on the `workflow_run` event
+# in order to access the netlify secrets.
+#
+# This is safe because this doesn't run arbitrary code from PRs.
+
 name: netlify-deploy
 
 on:
