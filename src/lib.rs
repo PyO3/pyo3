@@ -15,6 +15,7 @@
         warnings
     ),
     allow(
+        unused_imports,  // to make imports already in the prelude explicit
         unused_variables,
         unused_assignments,
         unused_extern_crates,
