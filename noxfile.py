@@ -754,10 +754,6 @@ def test_version_limits(session: nox.Session):
         config_file.set("PyPy", "3.8")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        assert "3.12" not in PYPY_VERSIONS
-        config_file.set("PyPy", "3.12")
-        _run_cargo(session, "check", env=env, expect_error=True)
-
 
 @nox.session(name="check-feature-powerset", venv_backend="none")
 def check_feature_powerset(session: nox.Session):
