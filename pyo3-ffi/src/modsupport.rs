@@ -73,6 +73,7 @@ extern "C" {
     // skipped PyModule_AddStringMacro
     pub fn PyModule_SetDocString(arg1: *mut PyObject, arg2: *const c_char) -> c_int;
     pub fn PyModule_AddFunctions(arg1: *mut PyObject, arg2: *mut PyMethodDef) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyModule_ExecDef")]
     pub fn PyModule_ExecDef(module: *mut PyObject, def: *mut PyModuleDef) -> c_int;
 }
 
