@@ -1,4 +1,5 @@
-name: netlify-build.yml
+name: netlify-build
+
 on:
   push:
     branches:
@@ -34,7 +35,7 @@ jobs:
           npm install -g netlify-cli
 
       - uses: dtolnay/rust-toolchain@nightly
-        
+
       - name: Use nightly
         run: |
           rustup update nightly
@@ -56,11 +57,11 @@ jobs:
         run: |
           wget -qc https://github.com/PyO3/pyo3/archive/gh-pages.tar.gz -O - | tar -xz
           mv pyo3-gh-pages netlify_build
-          
+
       # Set redirects.
       - name: Set redirects
         run: |
-          source .netlify/redirect.sh 
+          source .netlify/redirect.sh
 
       # This builds the book and docs in netlify_build/main
       - name: Build the guide and public docs
@@ -76,9 +77,9 @@ jobs:
           mkdir -p netlify_build/internal
           mv target/doc netlify_build/internal/
 
-      # Deploy the build tp Netlify
-      - name: Deploy to Netlify
-        run: |
-          ls -l netlify_build/
-          DEBUG=* netlify deploy
-          
+      # Upload the built site as an artifact for deploy workflow to consume
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: ./netlify_build
