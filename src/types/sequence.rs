@@ -377,6 +377,8 @@ fn get_sequence_abc(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
 
 impl PyTypeCheck for PySequence {
     const NAME: &'static str = "Sequence";
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "collections.abc.Sequence";
 
     #[inline]
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
