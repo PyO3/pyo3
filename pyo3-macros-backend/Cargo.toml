@@ -9,7 +9,7 @@ repository = "https://github.com/pyo3/pyo3"
 categories = ["api-bindings", "development-tools::ffi"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.63"
+rust-version.workspace = true
 
 # Note: we use default-features = false for proc-macro related crates
 # not to depend on proc-macro itself.
@@ -21,7 +21,8 @@ pyo3-build-config = { path = "../pyo3-build-config", version = "=0.25.0", featur
 quote = { version = "1", default-features = false }
 
 [dependencies.syn]
-version = "2.0.59" # for `LitCStr`
+# 2.0.59 for `LitCStr`
+version = "2.0.59"
 default-features = false
 features = ["derive", "parsing", "printing", "clone-impls", "full", "extra-traits", "visit-mut"]
 

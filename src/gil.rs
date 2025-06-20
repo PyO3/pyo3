@@ -3,9 +3,9 @@
 #[cfg(pyo3_disable_reference_pool)]
 use crate::impl_::panic::PanicTrap;
 use crate::{ffi, Python};
-#[cfg(not(pyo3_disable_reference_pool))]
-use once_cell::sync::Lazy;
 use std::cell::Cell;
+#[cfg(not(pyo3_disable_reference_pool))]
+use std::sync::OnceLock;
 use std::{mem, ptr::NonNull, sync};
 
 static START: sync::Once = sync::Once::new();
@@ -209,7 +209,7 @@ impl GILGuard {
         increment_gil_count();
 
         #[cfg(not(pyo3_disable_reference_pool))]
-        if let Some(pool) = Lazy::get(&POOL) {
+        if let Some(pool) = POOL.get() {
             pool.update_counts(unsafe { Python::assume_gil_acquired() });
         }
         GILGuard::Ensured { gstate }
@@ -220,7 +220,7 @@ impl GILGuard {
         increment_gil_count();
         let guard = GILGuard::Assumed;
         #[cfg(not(pyo3_disable_reference_pool))]
-        if let Some(pool) = Lazy::get(&POOL) {
+        if let Some(pool) = POOL.get() {
             pool.update_counts(guard.python());
         }
         guard
@@ -290,7 +290,12 @@ unsafe impl Send for ReferencePool {}
 unsafe impl Sync for ReferencePool {}
 
 #[cfg(not(pyo3_disable_reference_pool))]
-static POOL: Lazy<ReferencePool> = Lazy::new(ReferencePool::new);
+static POOL: OnceLock<ReferencePool> = OnceLock::new();
+
+#[cfg(not(pyo3_disable_reference_pool))]
+fn get_pool() -> &'static ReferencePool {
+    POOL.get_or_init(ReferencePool::new)
+}
 
 /// A guard which can be used to temporarily release the GIL and restore on `Drop`.
 pub(crate) struct SuspendGIL {
@@ -315,7 +320,7 @@ impl Drop for SuspendGIL {
 
             // Update counts of PyObjects / Py that were cloned or dropped while the GIL was released.
             #[cfg(not(pyo3_disable_reference_pool))]
-            if let Some(pool) = Lazy::get(&POOL) {
+            if let Some(pool) = POOL.get() {
                 pool.update_counts(Python::assume_gil_acquired());
             }
         }
@@ -385,7 +390,7 @@ pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
         unsafe { ffi::Py_DECREF(obj.as_ptr()) }
     } else {
         #[cfg(not(pyo3_disable_reference_pool))]
-        POOL.register_decref(obj);
+        get_pool().register_decref(obj);
         #[cfg(all(
             pyo3_disable_reference_pool,
             not(pyo3_leak_on_drop_without_reference_pool)
@@ -428,7 +433,7 @@ fn decrement_gil_count() {
 mod tests {
     use super::GIL_COUNT;
     #[cfg(not(pyo3_disable_reference_pool))]
-    use super::{gil_is_acquired, POOL};
+    use super::{get_pool, gil_is_acquired};
     use crate::{ffi, PyObject, Python};
     use crate::{gil::GILGuard, types::any::PyAnyMethods};
     use std::ptr::NonNull;
@@ -441,7 +446,7 @@ mod tests {
 
     #[cfg(not(pyo3_disable_reference_pool))]
     fn pool_dec_refs_does_not_contain(obj: &PyObject) -> bool {
-        !POOL
+        !get_pool()
             .pending_decrefs
             .lock()
             .unwrap()
@@ -452,7 +457,8 @@ mod tests {
     // function does not test anything meaningful
     #[cfg(not(any(pyo3_disable_reference_pool, Py_GIL_DISABLED)))]
     fn pool_dec_refs_contains(obj: &PyObject) -> bool {
-        POOL.pending_decrefs
+        get_pool()
+            .pending_decrefs
             .lock()
             .unwrap()
             .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
@@ -634,10 +640,10 @@ mod tests {
             let capsule =
                 unsafe { ffi::PyCapsule_New(ptr as _, std::ptr::null(), Some(capsule_drop)) };
 
-            POOL.register_decref(NonNull::new(capsule).unwrap());
+            get_pool().register_decref(NonNull::new(capsule).unwrap());
 
             // Updating the counts will call decref on the capsule, which calls capsule_drop
-            POOL.update_counts(py);
+            get_pool().update_counts(py);
         })
     }
 
@@ -651,7 +657,7 @@ mod tests {
 
             // For GILGuard::acquire
 
-            POOL.register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap());
+            get_pool().register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap());
             #[cfg(not(Py_GIL_DISABLED))]
             assert!(pool_dec_refs_contains(&obj));
             let _guard = GILGuard::acquire();
@@ -659,7 +665,7 @@ mod tests {
 
             // For GILGuard::assume
 
-            POOL.register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap());
+            get_pool().register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap());
             #[cfg(not(Py_GIL_DISABLED))]
             assert!(pool_dec_refs_contains(&obj));
             let _guard2 = unsafe { GILGuard::assume() };

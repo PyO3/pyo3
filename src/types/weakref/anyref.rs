@@ -382,10 +382,8 @@ mod tests {
                         let obj = obj.unwrap();
 
                         assert!(obj.is_some());
-                        assert!(
-                            obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())
-                                && obj.is_exact_instance(&class))
-                        );
+                        assert!(obj.is_some_and(|obj| ptr::eq(obj.as_ptr(), object.as_ptr())
+                            && obj.is_exact_instance(&class)));
                     }
 
                     drop(object);
@@ -426,10 +424,8 @@ mod tests {
                         let obj = unsafe { reference.upgrade_as_unchecked::<PyAny>() };
 
                         assert!(obj.is_some());
-                        assert!(
-                            obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())
-                                && obj.is_exact_instance(&class))
-                        );
+                        assert!(obj.is_some_and(|obj| ptr::eq(obj.as_ptr(), object.as_ptr())
+                            && obj.is_exact_instance(&class)));
                     }
 
                     drop(object);
@@ -467,7 +463,7 @@ mod tests {
 
                     assert!(not_call_retrievable || reference.call0()?.is(&object));
                     assert!(reference.upgrade().is_some());
-                    assert!(reference.upgrade().map_or(false, |obj| obj.is(&object)));
+                    assert!(reference.upgrade().is_some_and(|obj| obj.is(&object)));
 
                     drop(object);
 
@@ -512,7 +508,7 @@ mod tests {
                         let obj = obj.unwrap();
 
                         assert!(obj.is_some());
-                        assert!(obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())));
+                        assert!(obj.is_some_and(|obj| ptr::eq(obj.as_ptr(), object.as_ptr())));
                     }
 
                     drop(object);
@@ -550,7 +546,7 @@ mod tests {
                         let obj = unsafe { reference.upgrade_as_unchecked::<WeakrefablePyClass>() };
 
                         assert!(obj.is_some());
-                        assert!(obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())));
+                        assert!(obj.is_some_and(|obj| ptr::eq(obj.as_ptr(), object.as_ptr())));
                     }
 
                     drop(object);
@@ -586,7 +582,7 @@ mod tests {
 
                     assert!(not_call_retrievable || reference.call0()?.is(&object));
                     assert!(reference.upgrade().is_some());
-                    assert!(reference.upgrade().map_or(false, |obj| obj.is(&object)));
+                    assert!(reference.upgrade().is_some_and(|obj| obj.is(&object)));
 
                     drop(object);
 
