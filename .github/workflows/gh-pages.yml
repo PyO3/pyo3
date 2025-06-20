@@ -45,6 +45,8 @@ jobs:
           nox -s ${{ github.event_name == 'release' && 'build-guide' || 'check-guide' }}
         env:
           PYO3_VERSION_TAG: ${{ steps.prepare_tag.outputs.tag_name }}
+          # allows lychee to get better rate limits from github
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy docs and the guide
         if: ${{ github.event_name == 'release' }}
