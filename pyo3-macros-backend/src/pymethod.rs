@@ -4,6 +4,7 @@ use std::ffi::CString;
 use crate::attributes::{FromPyWithAttribute, NameAttribute, RenamingRule};
 use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
 use crate::params::{impl_regular_arg_param, Holders};
+use crate::pyfunction::WarningFactory;
 use crate::utils::{Ctx, LitCStr};
 use crate::utils::{PythonDoc, TypeExt as _};
 use crate::{
@@ -195,6 +196,13 @@ pub fn gen_py_method(
 ) -> Result<GeneratedPyMethod> {
     let spec = &method.spec;
     let Ctx { pyo3_path, .. } = ctx;
+
+    if spec.asyncness.is_some() {
+        ensure_spanned!(
+            cfg!(feature = "experimental-async"),
+            spec.asyncness.span() => "async functions are only supported with the `experimental-async` feature"
+        );
+    }
 
     Ok(match (method.kind, &spec.tp) {
         // Class attributes go before protos so that class attributes can be used to set proto
@@ -454,6 +462,11 @@ fn impl_traverse_slot(
         }
     }
 
+    ensure_spanned!(
+        spec.warnings.is_empty(),
+        spec.warnings.span() => "__traverse__ cannot be used with #[pyo3(warn)]"
+    );
+
     let rust_fn_ident = spec.name;
 
     let associated_method = quote! {
@@ -533,6 +546,12 @@ pub(crate) fn impl_py_class_attribute(
     ensure_spanned!(
         args.is_empty(),
         args[0].ty().span() => "#[classattr] can only have one argument (of type pyo3::Python)"
+    );
+
+    ensure_spanned!(
+        spec.warnings.is_empty(),
+        spec.warnings.span()
+        => "#[classattr] cannot be used with #[pyo3(warn)]"
     );
 
     let name = &spec.name;
@@ -718,6 +737,12 @@ pub fn impl_py_setter_def(
         }
     }
 
+    let warnings = if let PropertyType::Function { spec, .. } = &property_type {
+        spec.warnings.build_py_warning(ctx)
+    } else {
+        quote!()
+    };
+
     let init_holders = holders.init_holders(ctx);
     let associated_method = quote! {
         #cfg_attrs
@@ -733,6 +758,7 @@ pub fn impl_py_setter_def(
                 })?;
             #init_holders
             #extract
+            #warnings
             let result = #setter_impl;
             #pyo3_path::impl_::callback::convert(py, result)
         }
@@ -865,6 +891,8 @@ pub fn impl_py_getter_def(
             };
 
             let init_holders = holders.init_holders(ctx);
+            let warnings = spec.warnings.build_py_warning(ctx);
+
             let associated_method = quote! {
                 #cfg_attrs
                 unsafe fn #wrapper_ident(
@@ -872,6 +900,7 @@ pub fn impl_py_getter_def(
                     _slf: *mut #pyo3_path::ffi::PyObject
                 ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                     #init_holders
+                    #warnings
                     let result = #body;
                     result
                 }
@@ -1412,13 +1441,19 @@ fn generate_method_body(
     let rust_name = spec.name;
     let args = extract_proto_arguments(spec, arguments, extract_error_mode, holders, ctx)?;
     let call = quote! { #cls::#rust_name(#self_arg #(#args),*) };
-    Ok(if let Some(return_mode) = return_mode {
+    let body = if let Some(return_mode) = return_mode {
         return_mode.return_call_output(call, ctx)
     } else {
         quote! {
             let result = #call;
             #pyo3_path::impl_::callback::convert(py, result)
         }
+    };
+    let warnings = spec.warnings.build_py_warning(ctx);
+
+    Ok(quote! {
+        #warnings
+        #body
     })
 }
 

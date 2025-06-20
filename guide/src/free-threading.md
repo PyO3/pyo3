@@ -148,7 +148,7 @@ GIL-enabled build instead ask the interpreter to attach the thread to the Python
 runtime, and there can be many threads simultaneously attached. See [PEP
 703](https://peps.python.org/pep-0703/#thread-states) for more background about
 how threads can be attached and detached from the interpreter runtime, in a
-manner analagous to releasing and acquiring the GIL in the GIL-enabled build.
+manner analogous to releasing and acquiring the GIL in the GIL-enabled build.
 
 In the GIL-enabled build, PyO3 uses the [`Python<'py>`] type and the `'py`
 lifetime to signify that the global interpreter lock is held. In the
@@ -289,7 +289,7 @@ GIL-enabled build.
 
 If, for example, the function executed by [`GILOnceCell`] releases the GIL or
 calls code that releases the GIL, then it is possible for multiple threads to
-race to initialize the cell. While the cell will only ever be intialized
+race to initialize the cell. While the cell will only ever be initialized
 once, it can be problematic in some contexts that [`GILOnceCell`] does not block
 like the standard library [`OnceLock`].
 

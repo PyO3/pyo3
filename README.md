@@ -182,9 +182,14 @@ about this topic.
 - [rustimport](https://github.com/mityax/rustimport) _Directly import Rust files or crates from Python, without manual compilation step. Provides pyo3 integration by default and generates pyo3 binding code automatically._
 - [pyo3-arrow](https://crates.io/crates/pyo3-arrow) _Lightweight [Apache Arrow](https://arrow.apache.org/) integration for pyo3._
 - [pyo3-bytes](https://crates.io/crates/pyo3-bytes) _Integration between [`bytes`](https://crates.io/crates/bytes) and pyo3._
+- [pyo3-object_store](https://github.com/developmentseed/obstore/tree/main/pyo3-object_store) _Integration between [`object_store`](https://docs.rs/object_store) and [`pyo3`](https://github.com/PyO3/pyo3)._
 
 ## Examples
 
+- [arro3](https://github.com/kylebarron/arro3) _A minimal Python library for Apache Arrow, connecting to the Rust arrow crate._
+    - [arro3-compute](https://github.com/kylebarron/arro3/tree/main/arro3-compute) _`arro3-compute`_
+    - [arro3-core](https://github.com/kylebarron/arro3/tree/main/arro3-core) _`arro3-core`_
+    - [arro3-io](https://github.com/kylebarron/arro3/tree/main/arro3-io) _`arro3-io`_
 - [bed-reader](https://github.com/fastlmm/bed-reader) _Read and write the PLINK BED format, simply and efficiently._
     - Shows Rayon/ndarray::parallel (including capturing errors, controlling thread num), Python types to Rust generics, Github Actions
 - [blake3-py](https://github.com/oconnor663/blake3-py) _Python bindings for the [BLAKE3](https://github.com/BLAKE3-team/BLAKE3) cryptographic hash function._
@@ -199,6 +204,7 @@ about this topic.
 - [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library._
 - [feos](https://github.com/feos-org/feos) _Lightning fast thermodynamic modeling in Rust with fully developed Python interface._
 - [forust](https://github.com/jinlow/forust) _A lightweight gradient boosted decision tree library written in Rust._
+- [geo-index](https://github.com/kylebarron/geo-index) _A Rust crate and [Python library](https://github.com/kylebarron/geo-index/tree/main/python) for packed, immutable, zero-copy spatial indexes._
 - [granian](https://github.com/emmett-framework/granian) _A Rust HTTP server for Python applications._
 - [haem](https://github.com/BooleanCat/haem) _A Python library for working on Bioinformatics problems._
 - [html2text-rs](https://github.com/deedy5/html2text_rs) _Python library for converting HTML to markup or plain text._
@@ -207,6 +213,7 @@ about this topic.
 - [johnnycanencrypt](https://github.com/kushaldas/johnnycanencrypt) OpenPGP library with Yubikey support.
 - [jsonschema](https://github.com/Stranger6667/jsonschema/tree/master/crates/jsonschema-py) _A high-performance JSON Schema validator for Python._
 - [mocpy](https://github.com/cds-astro/mocpy) _Astronomical Python library offering data structures for describing any arbitrary coverage regions on the unit sphere._
+- [obstore](https://github.com/developmentseed/obstore) _The simplest, highest-throughput Python interface to Amazon S3, Google Cloud Storage, Azure Storage, & other S3-compliant APIs, powered by Rust._
 - [opendal](https://github.com/apache/opendal/tree/main/bindings/python) _A data access layer that allows users to easily and efficiently retrieve data from various storage services in a unified way._
 - [orjson](https://github.com/ijl/orjson) _Fast Python JSON library._
 - [ormsgpack](https://github.com/aviramha/ormsgpack) _Fast Python msgpack library._

@@ -172,6 +172,9 @@ impl<'py> IntoPyObject<'py> for &bool {
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
 impl FromPyObject<'_> for bool {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "bool";
+
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         let err = match obj.downcast::<PyBool>() {
             Ok(obj) => return Ok(obj.is_true()),

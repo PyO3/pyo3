@@ -43,6 +43,10 @@ pub unsafe trait PyTypeInfo: Sized {
     /// Module name, if any.
     const MODULE: Option<&'static str>;
 
+    /// Provides the full python type paths.
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "typing.Any";
+
     /// Returns the PyTypeObject instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;
 
@@ -86,6 +90,10 @@ pub trait PyTypeCheck {
     /// Name of self. This is used in error messages, for example.
     const NAME: &'static str;
 
+    /// Provides the full python type of the allowed values.
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str;
+
     /// Checks if `object` is an instance of `Self`, which may include a subtype.
     ///
     /// This should be equivalent to the Python expression `isinstance(object, Self)`.
@@ -97,6 +105,9 @@ where
     T: PyTypeInfo,
 {
     const NAME: &'static str = <T as PyTypeInfo>::NAME;
+
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = <T as PyTypeInfo>::PYTHON_TYPE;
 
     #[inline]
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
