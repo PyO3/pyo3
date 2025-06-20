@@ -517,6 +517,15 @@ def check_guide(session: nox.Session):
     remap_args = []
     for key, value in remaps.items():
         remap_args.extend(("--remap", f"{key} {value}"))
+
+    # some http URL fragments fail to be loaded (needs javascript?)
+    lychee_exclusions = [
+        "https://github.com/PyO3/pyo3/issues/1800#issuecomment-906786649",
+        "https://docs.rs/parking_lot/latest/parking_lot/type.Mutex.html#method.lock_arc",
+        "https://github.com/PyO3/pyo3/issues/1517#issuecomment-808664021",
+        "https://github.com/PyO3/maturin/blob/0dee40510083c03607834c821eea76964140a126/Readme.md#mixed-rustpython-projects",
+    ]
+
     # check all links in the guide
     _run(
         session,
@@ -524,6 +533,7 @@ def check_guide(session: nox.Session):
         "--include-fragments",
         str(PYO3_GUIDE_SRC),
         *remap_args,
+        "--exclude=" + "|".join(lychee_exclusions),
         "--accept=200,429",
         *session.posargs,
     )
@@ -535,7 +545,9 @@ def check_guide(session: nox.Session):
         str(PYO3_DOCS_TARGET),
         *remap_args,
         f"--exclude=file://{PYO3_DOCS_TARGET}",
+        # exclude some old http links from copyright notices, known to fail
         "--exclude=http://www.adobe.com/",
+        "--exclude=http://www.nhncorp.com/",
         "--accept=200,429",
         *session.posargs,
     )
