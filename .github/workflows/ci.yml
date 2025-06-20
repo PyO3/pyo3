@@ -269,9 +269,10 @@ jobs:
             "3.13t",
             "3.14-dev",
             "3.14t-dev",
-            "pypy3.9",
-            "pypy3.10",
-            "pypy3.11",
+            # FIXME: using nightly for 5142, should consider what to do before merging
+            #"pypy3.9",
+            "pypy3.10-nightly",
+            "pypy3.11-nightly",
             "graalpy24.2",
           ]
         platform:
