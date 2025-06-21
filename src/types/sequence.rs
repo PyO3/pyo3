@@ -1,3 +1,5 @@
+use std::iter::FusedIterator;
+
 use crate::err::{self, DowncastError, PyErr, PyResult};
 use crate::exceptions::PyTypeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -137,6 +139,9 @@ pub trait PySequenceMethods<'py>: crate::sealed::Sealed {
 
     /// Returns a fresh tuple based on the Sequence.
     fn to_tuple(&self) -> PyResult<Bound<'py, PyTuple>>;
+
+    /// Returns an iterator over the Sequence's items.
+    fn iter(&self) -> BoundSequenceIterator<'py>;
 }
 
 impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
@@ -328,6 +333,92 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
                 .assume_owned_or_err(self.py())
                 .downcast_into_unchecked()
         }
+    }
+
+    #[inline]
+    fn iter(&self) -> BoundSequenceIterator<'py> {
+        BoundSequenceIterator::new(self.clone())
+    }
+}
+
+pub struct BoundSequenceIterator<'py> {
+    sequence: Bound<'py, PySequence>,
+    index: usize,
+    length: usize,
+}
+
+impl<'py> BoundSequenceIterator<'py> {
+    fn new(sequence: Bound<'py, PySequence>) -> Self {
+        let length: usize = sequence.len().expect("failed to get sequence length");
+        Self {
+            sequence,
+            index: 0,
+            length,
+        }
+    }
+
+    fn get_item(&self, index: usize) -> PyResult<Bound<'py, PyAny>> {
+        self.sequence.get_item(index)
+    }
+}
+
+impl<'py> Iterator for BoundSequenceIterator<'py> {
+    type Item = PyResult<Bound<'py, PyAny>>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.length {
+            let item = { self.get_item(self.index) };
+            self.index += 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
+}
+
+impl DoubleEndedIterator for BoundSequenceIterator<'_> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.index < self.length {
+            let item = { self.get_item(self.length - 1) };
+            self.length -= 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+}
+
+impl ExactSizeIterator for BoundSequenceIterator<'_> {
+    fn len(&self) -> usize {
+        self.length.saturating_sub(self.index)
+    }
+}
+
+impl FusedIterator for BoundSequenceIterator<'_> {}
+
+impl<'py> IntoIterator for Bound<'py, PySequence> {
+    type Item = PyResult<Bound<'py, PyAny>>;
+    type IntoIter = BoundSequenceIterator<'py>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        BoundSequenceIterator::new(self)
+    }
+}
+
+impl<'py> IntoIterator for &Bound<'py, PySequence> {
+    type Item = PyResult<Bound<'py, PyAny>>;
+    type IntoIter = BoundSequenceIterator<'py>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
@@ -639,13 +730,30 @@ mod tests {
     }
 
     #[test]
-    fn test_seq_iter() {
+    fn test_seq_try_iter() {
         Python::with_gil(|py| {
             let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
             let ob = (&v).into_pyobject(py).unwrap();
             let seq = ob.downcast::<PySequence>().unwrap();
             let mut idx = 0;
             for el in seq.try_iter().unwrap() {
+                assert_eq!(v[idx], el.unwrap().extract::<i32>().unwrap());
+                idx += 1;
+            }
+            assert_eq!(idx, v.len());
+        });
+    }
+
+    #[test]
+    fn test_seq_iter() {
+        use crate::types::any::PyAnyMethods;
+
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
+            let ob = (&v).into_pyobject(py).unwrap();
+            let seq = ob.downcast::<PySequence>().unwrap();
+            let mut idx = 0;
+            for el in seq {
                 assert_eq!(v[idx], el.unwrap().extract::<i32>().unwrap());
                 idx += 1;
             }
