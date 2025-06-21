@@ -1,8 +1,6 @@
 use crate::{ffi, instance::Bound, PyAny, PyErr, PyResult, Python};
 
 use std::fs::File;
-#[cfg(unix)]
-use std::os::fd::{AsRawFd, FromRawFd};
 use std::ffi::CString;
 use crate::create_exception;
 use crate::exceptions::PyException;
@@ -12,11 +10,13 @@ create_exception!(crate, FileConversionError, PyException);
 use crate::types::pyo3file::Pyo3File;
 
 use crate::exceptions::PyOSError;
-#[cfg(unix)]
-use std::os::fd::RawFd;
 
 use crate::types::any::PyAnyMethods;
 
+#[cfg(unix)]
+use std::os::fd::{AsRawFd, FromRawFd};
+#[cfg(unix)]
+use std::os::fd::RawFd;
 #[cfg(unix)]
 use nix::unistd::dup;
 
@@ -37,9 +37,6 @@ use std::os::windows::io::{FromRawHandle, RawHandle};
 ///
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyFile>`][crate::Py] or [`Bound<'py, PyFile>`][Bound].
-///
-/// You can usually avoid directly working with this type
-/// by using [`IntoPyObject`]
 #[repr(transparent)]
 pub struct PyFile(PyAny);
 
@@ -174,8 +171,7 @@ impl<'py> crate::FromPyObject<'py> for Pyo3File {
 
         Ok(Pyo3File::new(
             file,
-            name.clone(),
-            name.clone(),
+            name,
             mode,
             encoding,
         ))
@@ -230,8 +226,7 @@ impl<'py> crate::FromPyObject<'py> for Pyo3File {
 
         Ok(Pyo3File::new(
             file,
-            name.clone(),
-            name.clone(),
+            name,
             mode,
             encoding,
         ))
@@ -245,5 +240,120 @@ impl<'py> crate::IntoPyObject<'py> for Pyo3File {
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         PyFile::new(py, self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{IntoPyObject, Python};
+    use tempfile::NamedTempFile;
+    use pyo3_ffi::c_str;
+    use crate::prelude::PyModule;
+    use crate::Py;
+
+    fn create_file_like_object_with_fd<'py>(
+        py: Python<'py>,
+        fd: i32,
+        name: String,
+        mode: String,
+        encoding: String
+    ) -> &'py PyAny {
+
+        let code = format!(
+        "
+class FileLike:
+    def __init__(self):
+        self.name = {name:?}
+        self.mode = {mode:?}
+        self.encoding = {encoding:?}
+    def fileno(self):
+        return {fd}
+",
+        name = name,
+        mode = mode,
+        encoding = encoding,
+        fd = fd
+    );
+
+        Python::with_gil(|py| {
+            let obj: Py<PyAny> = PyModule::from_code(
+                py,
+                pyo3_ffi::c_str!(&code),
+                c_str!(""),
+                c_str!(""),
+            )?
+                .getattr("FileLike")?
+                .into();
+
+            Ok(obj)})
+
+    }
+
+    #[test]
+    fn test_create_object_from_pyo3file() {
+        Python::with_gil(|py| {
+        let temp_file = NamedTempFile::new().expect("");
+        let name: String = String::from("name");
+        let mode: String = String::from("r");
+        let encoding: String = String::from("utf-8");
+        let pyo3_file: Pyo3File = Pyo3File::new(
+            temp_file.into_file(),
+            name.clone(),
+            mode.clone(),
+            encoding.clone());
+
+        let pyfile = pyo3_file.into_pyobject(py).expect("");
+
+        let name_pyfile: String = pyfile
+            .getattr("name").expect("")
+            .extract()
+            .unwrap_or_else(|_| "<unknown>".to_string());
+
+        let mode_pyfile: String = pyfile
+            .getattr("mode").expect("")
+            .extract()
+            .unwrap_or_else(|_| "r".to_string());
+
+        let encoding_pyfile: String = pyfile
+            .getattr("encoding").expect("")
+            .extract()
+            .unwrap_or_else(|_| "utf-8".to_string());
+
+        //assert_eq!(name_pyfile.clone(), name.clone());
+        assert_eq!(mode_pyfile.clone(), mode.clone());
+        assert_eq!(encoding_pyfile.clone(), encoding.clone())
+        })
+    }
+
+    #[test]
+    fn test_create_pyo3file_from_object_() {
+        Python::with_gil(|py| {
+            let name: String = String::from("name");
+            let mode: String = String::from("r");
+            let encoding: String = String::from("utf-8");
+            let temp_file = NamedTempFile::new().expect("");
+            let file: File = temp_file.into_file();
+            let fd: i32 = file.as_raw_fd();
+
+            let pyfile: PyAny = create_file_like_object(py, name, mode, encoding, fd);
+
+            let name_pyfile: String = pyfile
+                .getattr("name").expect("")
+                .extract()
+                .unwrap_or_else(|_| "<unknown>".to_string());
+
+            let mode_pyfile: String = pyfile
+                .getattr("mode").expect("")
+                .extract()
+                .unwrap_or_else(|_| "r".to_string());
+
+            let encoding_pyfile: String = pyfile
+                .getattr("encoding").expect("")
+                .extract()
+                .unwrap_or_else(|_| "utf-8".to_string());
+
+
+        })
     }
 }

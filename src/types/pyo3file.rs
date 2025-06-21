@@ -5,8 +5,6 @@ pub struct Pyo3File {
     /// Our rust file
     pub file: File,
     /// For python file, do nothing in rust
-    pub path: String,
-    /// For python file, do nothing in rust
     pub name: String,
     /// For python file, do nothing in rust
     ///
@@ -21,11 +19,10 @@ pub struct Pyo3File {
 }
 
 impl Pyo3File {
-    /// [Pyo3File]\[new\]: create a Pyo3File
-    pub fn new(file: File, path: String, name: String, mode: String, encoding: String) -> Self {
+    ///
+    pub fn new(file: File, name: String, mode: String, encoding: String) -> Self {
         Self {
             file,
-            path,
             name,
             mode,
             encoding,
@@ -33,9 +30,30 @@ impl Pyo3File {
     }
 
     ///
-    /// [Pyo3File]\[getfile\]
-    ///
     pub fn getfile(&self) -> &File {
         &self.file
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn test_create_pyo3file() {
+        let temp_file = NamedTempFile::new().expect("");
+        let name: String = String::from("name");
+        let mode: String = String::from("r");
+        let encoding: String = String::from("utf-8");
+        let pyo3_file: Pyo3File = Pyo3File::new(
+            temp_file.into_file(),
+            name.clone(),
+            mode.clone(),
+            encoding.clone());
+
+        assert_eq!(pyo3_file.name, name.clone());
+        assert_eq!(pyo3_file.mode, mode.clone());
+        assert_eq!(pyo3_file.encoding, encoding.clone())
     }
 }
