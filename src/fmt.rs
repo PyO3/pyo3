@@ -50,14 +50,18 @@ impl PyUnicodeWriter {
     }
 
     /// Consumes the `PyUnicodeWriter` and returns a `Bound<PyString>` containing the constructed string.
-    pub fn into_py_string(self, py: Python<'_>) -> PyResult<Bound<'_, PyString>> {
-        let writer_ptr = self.as_ptr();
-        mem::forget(self);
-        Ok(unsafe {
-            PyUnicodeWriter_Finish(writer_ptr)
-                .assume_owned_or_err(py)?
-                .downcast_into_unchecked()
-        })
+    pub fn into_py_string(mut self, py: Python<'_>) -> PyResult<Bound<'_, PyString>> {
+        if let Some(error) = self.take_error() {
+            Err(error)
+        } else {
+            let writer_ptr = self.as_ptr();
+            mem::forget(self);
+            Ok(unsafe {
+                PyUnicodeWriter_Finish(writer_ptr)
+                    .assume_owned_or_err(py)?
+                    .downcast_into_unchecked()
+            })
+        }
     }
 
     /// When fmt::Write returned an error, this function can be used to retrieve the last error that occurred.
