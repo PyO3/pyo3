@@ -253,7 +253,7 @@ mod tests {
 
     #[test]
     fn test_type_is_subclass() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bool_type = py.get_type::<PyBool>();
             let long_type = py.get_type::<PyInt>();
             assert!(bool_type.is_subclass(&long_type).unwrap());
@@ -262,14 +262,14 @@ mod tests {
 
     #[test]
     fn test_type_is_subclass_of() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(py.get_type::<PyBool>().is_subclass_of::<PyInt>().unwrap());
         });
     }
 
     #[test]
     fn test_mro() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(py
                 .get_type::<PyBool>()
                 .mro()
@@ -288,7 +288,7 @@ mod tests {
 
     #[test]
     fn test_bases_bool() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(py
                 .get_type::<PyBool>()
                 .bases()
@@ -299,7 +299,7 @@ mod tests {
 
     #[test]
     fn test_bases_object() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(py
                 .get_type::<PyAny>()
                 .bases()
@@ -310,7 +310,7 @@ mod tests {
 
     #[test]
     fn test_type_names_standard() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module_name = generate_unique_module_name("test_module");
             let module = PyModule::from_code(
                 py,
@@ -341,7 +341,7 @@ class MyClass:
 
     #[test]
     fn test_type_names_builtin() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bool_type = py.get_type::<PyBool>();
             assert_eq!(bool_type.name().unwrap(), "bool");
             assert_eq!(bool_type.qualname().unwrap(), "bool");
@@ -352,7 +352,7 @@ class MyClass:
 
     #[test]
     fn test_type_names_nested() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module_name = generate_unique_module_name("test_module");
             let module = PyModule::from_code(
                 py,

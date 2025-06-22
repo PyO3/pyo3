@@ -21,7 +21,7 @@ struct ClassWithFreelist {}
 
 #[test]
 fn class_with_freelist() {
-    let ptr = Python::with_gil(|py| {
+    let ptr = Python::attach(|py| {
         let inst = Py::new(py, ClassWithFreelist {}).unwrap();
         let _inst2 = Py::new(py, ClassWithFreelist {}).unwrap();
         let ptr = inst.as_ptr();
@@ -29,7 +29,7 @@ fn class_with_freelist() {
         ptr
     });
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst3 = Py::new(py, ClassWithFreelist {}).unwrap();
         assert_eq!(ptr, inst3.as_ptr());
 
@@ -59,10 +59,10 @@ fn spin_freelist(py: Python<'_>, data: usize) {
 fn multithreaded_class_with_freelist() {
     std::thread::scope(|s| {
         s.spawn(|| {
-            Python::with_gil(|py| spin_freelist(py, 12));
+            Python::attach(|py| spin_freelist(py, 12));
         });
         s.spawn(|| {
-            Python::with_gil(|py| spin_freelist(py, 0x4d3d3d3));
+            Python::attach(|py| spin_freelist(py, 0x4d3d3d3));
         });
     });
 }
@@ -103,7 +103,7 @@ impl DropCheck {
                 return;
             }
 
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 py.run(ffi::c_str!("import gc; gc.collect()"), None, None)
                     .unwrap();
             });
@@ -134,7 +134,7 @@ fn data_is_dropped() {
     let (guard1, check1) = drop_check();
     let (guard2, check2) = drop_check();
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let data_is_dropped = DataIsDropped {
             _guard1: guard1,
             _guard2: guard2,
@@ -172,7 +172,7 @@ impl CycleWithClear {
 fn test_cycle_clear() {
     let (guard, check) = drop_check();
 
-    let ptr = Python::with_gil(|py| {
+    let ptr = Python::attach(|py| {
         let inst = Bound::new(
             py,
             CycleWithClear {
@@ -219,7 +219,7 @@ fn gc_null_traversal() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let obj = Py::new(
             py,
             GcNullTraversal {
@@ -270,7 +270,7 @@ fn inheritance_with_new_methods_with_drop() {
     let (guard_base, check_base) = drop_check();
     let (guard_sub, check_sub) = drop_check();
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let typeobj = py.get_type::<SubClassWithDrop>();
         let inst = typeobj
             .call((), None)
@@ -315,7 +315,7 @@ fn gc_during_borrow() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // get the traverse function
         let ty = py.get_type::<TraversableClass>();
         let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
@@ -360,7 +360,7 @@ fn traverse_partial() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // get the traverse function
         let ty = py.get_type::<PartialTraverse>();
         let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
@@ -395,7 +395,7 @@ fn traverse_panic() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // get the traverse function
         let ty = py.get_type::<PanickyTraverse>();
         let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
@@ -417,11 +417,11 @@ fn tries_gil_in_traverse() {
     #[pymethods]
     impl TriesGILInTraverse {
         fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-            Python::with_gil(|_py| Ok(()))
+            Python::attach(|_py| Ok(()))
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // get the traverse function
         let ty = py.get_type::<TriesGILInTraverse>();
         let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
@@ -480,7 +480,7 @@ fn traverse_cannot_be_hijacked() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // get the traverse function
         let ty = py.get_type::<HijackedTraverse>();
         let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
@@ -513,7 +513,7 @@ impl DropDuringTraversal {
 fn drop_during_traversal_with_gil() {
     let (guard, check) = drop_check();
 
-    let ptr = Python::with_gil(|py| {
+    let ptr = Python::attach(|py| {
         let cycle = Mutex::new(None);
         let inst = Py::new(
             py,
@@ -547,7 +547,7 @@ fn drop_during_traversal_with_gil() {
 fn drop_during_traversal_without_gil() {
     let (guard, check) = drop_check();
 
-    let inst = Python::with_gil(|py| {
+    let inst = Python::attach(|py| {
         let cycle = Mutex::new(None);
         let inst = Py::new(
             py,
@@ -594,7 +594,7 @@ fn unsendable_are_not_traversed_on_foreign_thread() {
 
     unsafe impl Send for SendablePtr {}
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let ty = py.get_type::<UnsendableTraversal>();
         let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
 
@@ -646,7 +646,7 @@ fn test_traverse_subclass() {
 
     let (guard, check) = drop_check();
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let base = CycleWithClear {
             cycle: None,
             _guard: guard,
@@ -693,7 +693,7 @@ fn test_traverse_subclass_override_clear() {
 
     let (guard, check) = drop_check();
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let base = CycleWithClear {
             cycle: None,
             _guard: guard,

@@ -21,7 +21,7 @@ fn fail_to_open_file() -> PyResult<()> {
 #[cfg_attr(target_arch = "wasm32", ignore)] // Not sure why this fails.
 #[cfg(not(target_os = "windows"))]
 fn test_filenotfounderror() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let fail_to_open_file = wrap_pyfunction!(fail_to_open_file)(py).unwrap();
 
         py_run!(
@@ -66,7 +66,7 @@ fn call_fail_with_custom_error() -> PyResult<()> {
 
 #[test]
 fn test_custom_error() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let call_fail_with_custom_error =
             wrap_pyfunction!(call_fail_with_custom_error)(py).unwrap();
 
@@ -105,7 +105,7 @@ fn test_write_unraisable() {
     use pyo3::{exceptions::PyRuntimeError, ffi, types::PyNotImplemented};
     use std::ptr;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let capture = UnraisableCapture::install(py);
 
         assert!(capture.borrow(py).capture.is_none());

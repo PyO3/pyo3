@@ -173,7 +173,7 @@ fn declarative_module(py: Python<'_>) -> &Bound<'_, PyModule> {
 
 #[test]
 fn test_declarative_module() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let m = declarative_module(py);
         py_assert!(
             py,
@@ -216,7 +216,7 @@ mod r#type {
 
 #[test]
 fn test_raw_ident_module() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let m = pyo3::wrap_pymodule!(r#type)(py).into_bound(py);
         py_assert!(py, m, "m.double(2) == 4");
     })
@@ -224,7 +224,7 @@ fn test_raw_ident_module() {
 
 #[test]
 fn test_module_names() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let m = declarative_module(py);
         py_assert!(
             py,
@@ -248,7 +248,7 @@ fn test_module_names() {
 
 #[test]
 fn test_inner_module_full_path() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let m = declarative_module(py);
         py_assert!(py, m, "m.full_path_inner");
     })

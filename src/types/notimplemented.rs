@@ -52,7 +52,7 @@ mod tests {
 
     #[test]
     fn test_notimplemented_is_itself() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyNotImplemented::get(py).is_instance_of::<PyNotImplemented>());
             assert!(PyNotImplemented::get(py).is_exact_instance_of::<PyNotImplemented>());
         })
@@ -60,7 +60,7 @@ mod tests {
 
     #[test]
     fn test_notimplemented_type_object_consistent() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyNotImplemented::get(py)
                 .get_type()
                 .is(PyNotImplemented::type_object(py)));
@@ -69,7 +69,7 @@ mod tests {
 
     #[test]
     fn test_dict_is_not_notimplemented() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyDict::new(py).downcast::<PyNotImplemented>().is_err());
         })
     }

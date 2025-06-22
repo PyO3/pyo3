@@ -147,11 +147,11 @@ struct UserID {
     id: i64,
 }
 
-let allowed_ids: Vec<bool> = Python::with_gil(|outer_py| {
+let allowed_ids: Vec<bool> = Python::attach(|outer_py| {
     let instances: Vec<Py<UserID>> = (0..10).map(|x| Py::new(outer_py, UserID { id: x }).unwrap()).collect();
     outer_py.allow_threads(|| {
         instances.par_iter().map(|instance| {
-            Python::with_gil(|inner_py| {
+            Python::attach(|inner_py| {
                 instance.borrow(inner_py).id > 5
             })
         }).collect()

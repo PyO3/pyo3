@@ -71,7 +71,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// }
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let data = Bound::new(py, Foo{})?;
     ///     let reference = PyWeakrefReference::new(&data)?;
     ///
@@ -151,7 +151,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// }
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let data = Bound::new(py, Foo{})?;
     ///     let reference = PyWeakrefReference::new(&data)?;
     ///
@@ -221,7 +221,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// }
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let data = Bound::new(py, Foo{})?;
     ///     let reference = PyWeakrefReference::new(&data)?;
     ///
@@ -291,7 +291,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// }
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let data = Bound::new(py, Foo{})?;
     ///     let reference = PyWeakrefReference::new(&data)?;
     ///
@@ -369,7 +369,7 @@ mod tests {
                 )
                     -> PyResult<Bound<'py, PyWeakref>>,
             ) -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let class = get_type(py)?;
                     let object = class.call0()?;
                     let reference = create_reference(&object)?;
@@ -414,7 +414,7 @@ mod tests {
                 )
                     -> PyResult<Bound<'py, PyWeakref>>,
             ) -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let class = get_type(py)?;
                     let object = class.call0()?;
                     let reference = create_reference(&object)?;
@@ -456,7 +456,7 @@ mod tests {
             ) -> PyResult<()> {
                 let not_call_retrievable = !call_retrievable;
 
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let class = get_type(py)?;
                     let object = class.call0()?;
                     let reference = create_reference(&object)?;
@@ -497,7 +497,7 @@ mod tests {
                 )
                     -> PyResult<Bound<'py, PyWeakref>>,
             ) -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
                     let reference = create_reference(object.bind(py))?;
 
@@ -538,7 +538,7 @@ mod tests {
                 )
                     -> PyResult<Bound<'py, PyWeakref>>,
             ) -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
                     let reference = create_reference(object.bind(py))?;
 
@@ -576,7 +576,7 @@ mod tests {
             ) -> PyResult<()> {
                 let not_call_retrievable = !call_retrievable;
 
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
                     let reference = create_reference(object.bind(py))?;
 

@@ -11,7 +11,7 @@ module available in your environment.
 use pyo3::prelude::*;
 
 fn main() -> PyResult<()> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let builtins = PyModule::import(py, "builtins")?;
         let total: i32 = builtins
             .getattr("sum")?
@@ -36,7 +36,7 @@ use pyo3::prelude::*;
 use pyo3::ffi::c_str;
 
 # fn main() -> Result<(), ()> {
-Python::with_gil(|py| {
+Python::attach(|py| {
     let result = py
         .eval(c_str!("[i * 10 for i in range(5)]"), None, None)
         .map_err(|e| {
@@ -84,7 +84,7 @@ impl UserData {
     }
 }
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     let userdata = UserData {
         id: 34,
         name: "Yu".to_string(),
@@ -113,7 +113,7 @@ use pyo3::{prelude::*, types::IntoPyDict};
 use pyo3_ffi::c_str;
 
 # fn main() -> PyResult<()> {
-Python::with_gil(|py| {
+Python::attach(|py| {
     let activators = PyModule::from_code(
         py,
         c_str!(r#"
@@ -172,7 +172,7 @@ fn foo(foo_module: &Bound<'_, PyModule>) -> PyResult<()> {
 
 fn main() -> PyResult<()> {
     pyo3::append_to_inittab!(foo);
-    Python::with_gil(|py| Python::run(py, c_str!("import foo; foo.add_one(6)"), None, None))
+    Python::attach(|py| Python::run(py, c_str!("import foo; foo.add_one(6)"), None, None))
 }
 ```
 
@@ -191,7 +191,7 @@ pub fn add_one(x: i64) -> i64 {
 }
 
 fn main() -> PyResult<()> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // Create new module
         let foo_module = PyModule::new(py, "foo")?;
         foo_module.add_function(wrap_pyfunction!(add_one, &foo_module)?)?;
@@ -264,7 +264,7 @@ fn main() -> PyResult<()> {
         "/python_app/utils/foo.py"
     )));
     let py_app = c_str!(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py")));
-    let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
+    let from_python = Python::attach(|py| -> PyResult<Py<PyAny>> {
         PyModule::from_code(py, py_foo, c_str!("foo.py"), c_str!("utils.foo"))?;
         let app: Py<PyAny> = PyModule::from_code(py, py_app, c_str!("app.py"), c_str!(""))?
             .getattr("run")?
@@ -299,7 +299,7 @@ use std::ffi::CString;
 fn main() -> PyResult<()> {
     let path = Path::new("/usr/share/python_app");
     let py_app = CString::new(fs::read_to_string(path.join("app.py"))?)?;
-    let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
+    let from_python = Python::attach(|py| -> PyResult<Py<PyAny>> {
         let syspath = py
             .import("sys")?
             .getattr("path")?
@@ -329,7 +329,7 @@ use pyo3::prelude::*;
 use pyo3::ffi::c_str;
 
 fn main() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let custom_manager = PyModule::from_code(
             py,
             c_str!(r#"
@@ -393,7 +393,7 @@ Alternatively, set Python's `signal` module to take the default action for a sig
 use pyo3::prelude::*;
 
 # fn main() -> PyResult<()> {
-Python::with_gil(|py| -> PyResult<()> {
+Python::attach(|py| -> PyResult<()> {
     let signal = py.import("signal")?;
     // Set SIGINT to have the default action
     signal

@@ -244,7 +244,7 @@ impl<'py, T> IntoPyObjectExt<'py> for T where T: IntoPyObject<'py> {}
 /// use pyo3::types::PyString;
 ///
 /// # fn main() -> PyResult<()> {
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     // Calling `.extract()` on a `Bound` smart pointer
 ///     let obj: Bound<'_, PyString> = PyString::new(py, "blah");
 ///     let s: String = obj.extract()?;
@@ -438,7 +438,7 @@ impl<'py> IntoPyObject<'py> for () {
 ///
 /// let t = TestClass { num: 10 };
 ///
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let pyvalue = Py::new(py, t).unwrap().to_object(py);
 ///     let t: TestClass = pyvalue.extract(py).unwrap();
 /// })

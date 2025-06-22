@@ -29,7 +29,7 @@ use std::os::raw::{c_char, c_int, c_void};
 ///     pub val: u32,
 /// }
 ///
-/// let r = Python::with_gil(|py| -> PyResult<()> {
+/// let r = Python::attach(|py| -> PyResult<()> {
 ///     let foo = Foo { val: 123 };
 ///     let name = CString::new("builtins.capsule").unwrap();
 ///
@@ -63,7 +63,7 @@ impl PyCapsule {
     /// use pyo3::{prelude::*, types::PyCapsule};
     /// use std::ffi::CString;
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let name = CString::new("foo").unwrap();
     ///     let capsule = PyCapsule::new(py, 123_u32, Some(name)).unwrap();
     ///     let val = unsafe { capsule.reference::<u32>() };
@@ -77,7 +77,7 @@ impl PyCapsule {
     /// use pyo3::{prelude::*, types::PyCapsule};
     /// use std::ffi::CString;
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let capsule = PyCapsule::new(py, (), None).unwrap();  // Oops! `()` is zero sized!
     /// });
     /// ```
@@ -179,7 +179,7 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     ///     ctx.send("Destructor called!".to_string()).unwrap();
     /// }
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let capsule =
     ///         PyCapsule::new_with_destructor(py, 123, None, destructor as fn(u32, *mut c_void))
     ///             .unwrap();
@@ -354,7 +354,7 @@ mod tests {
             }
         }
 
-        Python::with_gil(|py| -> PyResult<()> {
+        Python::attach(|py| -> PyResult<()> {
             let foo = Foo { val: 123 };
             let name = CString::new("foo").unwrap();
 
@@ -375,13 +375,13 @@ mod tests {
             x
         }
 
-        let cap: Py<PyCapsule> = Python::with_gil(|py| {
+        let cap: Py<PyCapsule> = Python::attach(|py| {
             let name = CString::new("foo").unwrap();
             let cap = PyCapsule::new(py, foo as fn(u32) -> u32, Some(name)).unwrap();
             cap.into()
         });
 
-        Python::with_gil(move |py| {
+        Python::attach(move |py| {
             let f = unsafe { cap.bind(py).reference::<fn(u32) -> u32>() };
             assert_eq!(f(123), 123);
         });
@@ -389,7 +389,7 @@ mod tests {
 
     #[test]
     fn test_pycapsule_context() -> PyResult<()> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let name = CString::new("foo").unwrap();
             let cap = PyCapsule::new(py, 0, Some(name))?;
 
@@ -413,7 +413,7 @@ mod tests {
             pub val: u32,
         }
 
-        Python::with_gil(|py| -> PyResult<()> {
+        Python::attach(|py| -> PyResult<()> {
             let foo = Foo { val: 123 };
             let name = CString::new("builtins.capsule").unwrap();
 
@@ -436,7 +436,7 @@ mod tests {
 
     #[test]
     fn test_vec_storage() {
-        let cap: Py<PyCapsule> = Python::with_gil(|py| {
+        let cap: Py<PyCapsule> = Python::attach(|py| {
             let name = CString::new("foo").unwrap();
 
             let stuff: Vec<u8> = vec![1, 2, 3, 4];
@@ -445,7 +445,7 @@ mod tests {
             cap.into()
         });
 
-        Python::with_gil(move |py| {
+        Python::attach(move |py| {
             let ctx: &Vec<u8> = unsafe { cap.bind(py).reference() };
             assert_eq!(ctx, &[1, 2, 3, 4]);
         })
@@ -455,7 +455,7 @@ mod tests {
     fn test_vec_context() {
         let context: Vec<u8> = vec![1, 2, 3, 4];
 
-        let cap: Py<PyCapsule> = Python::with_gil(|py| {
+        let cap: Py<PyCapsule> = Python::attach(|py| {
             let name = CString::new("foo").unwrap();
             let cap = PyCapsule::new(py, 0, Some(name)).unwrap();
             cap.set_context(Box::into_raw(Box::new(&context)).cast())
@@ -464,7 +464,7 @@ mod tests {
             cap.into()
         });
 
-        Python::with_gil(move |py| {
+        Python::attach(move |py| {
             let ctx_ptr: *mut c_void = cap.bind(py).context().unwrap();
             let ctx = unsafe { *Box::from_raw(ctx_ptr.cast::<&Vec<u8>>()) };
             assert_eq!(ctx, &vec![1_u8, 2, 3, 4]);
@@ -481,7 +481,7 @@ mod tests {
             context.send(true).unwrap();
         }
 
-        Python::with_gil(move |py| {
+        Python::attach(move |py| {
             let name = CString::new("foo").unwrap();
             let cap = PyCapsule::new_with_destructor(py, 0, Some(name), destructor).unwrap();
             cap.set_context(Box::into_raw(Box::new(tx)).cast()).unwrap();
@@ -493,7 +493,7 @@ mod tests {
 
     #[test]
     fn test_pycapsule_no_name() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let cap = PyCapsule::new(py, 0usize, None).unwrap();
 
             assert_eq!(unsafe { cap.reference::<usize>() }, &0usize);

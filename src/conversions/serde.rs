@@ -23,7 +23,7 @@ where
     where
         S: Serializer,
     {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.try_borrow(py)
                 .map_err(|e| ser::Error::custom(e.to_string()))?
                 .serialize(serializer)
@@ -41,8 +41,6 @@ where
     {
         let deserialized = T::deserialize(deserializer)?;
 
-        Python::with_gil(|py| {
-            Py::new(py, deserialized).map_err(|e| de::Error::custom(e.to_string()))
-        })
+        Python::attach(|py| Py::new(py, deserialized).map_err(|e| de::Error::custom(e.to_string())))
     }
 }

@@ -819,7 +819,7 @@ mod tests {
 
     #[test]
     fn test_new() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict = [(7, 32)].into_py_dict(py).unwrap();
             assert_eq!(
                 32,
@@ -840,7 +840,7 @@ mod tests {
     #[test]
     #[cfg(not(any(PyPy, GraalPy)))]
     fn test_from_sequence() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let items = PyList::new(py, vec![("a", 1), ("b", 2)]).unwrap();
             let dict = PyDict::from_sequence(&items).unwrap();
             assert_eq!(
@@ -871,7 +871,7 @@ mod tests {
     #[test]
     #[cfg(not(any(PyPy, GraalPy)))]
     fn test_from_sequence_err() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let items = PyList::new(py, vec!["a", "b"]).unwrap();
             assert!(PyDict::from_sequence(&items).is_err());
         });
@@ -879,7 +879,7 @@ mod tests {
 
     #[test]
     fn test_copy() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict = [(7, 32)].into_py_dict(py).unwrap();
 
             let ndict = dict.copy().unwrap();
@@ -898,7 +898,7 @@ mod tests {
 
     #[test]
     fn test_len() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::<i32, i32>::new();
             let dict = (&v).into_pyobject(py).unwrap();
             assert_eq!(0, dict.len());
@@ -910,7 +910,7 @@ mod tests {
 
     #[test]
     fn test_contains() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let dict = v.into_pyobject(py).unwrap();
@@ -921,7 +921,7 @@ mod tests {
 
     #[test]
     fn test_get_item() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let dict = v.into_pyobject(py).unwrap();
@@ -957,7 +957,7 @@ mod tests {
             }
         }
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let class = py.get_type::<HashErrors>();
             let instance = class.call0().unwrap();
             let d = PyDict::new(py);
@@ -975,7 +975,7 @@ mod tests {
 
     #[test]
     fn test_set_item() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let dict = v.into_pyobject(py).unwrap();
@@ -1002,7 +1002,7 @@ mod tests {
 
     #[test]
     fn test_set_item_refcnt() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let cnt;
             let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
             {
@@ -1017,7 +1017,7 @@ mod tests {
 
     #[test]
     fn test_set_item_does_not_update_original_object() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let dict = (&v).into_pyobject(py).unwrap();
@@ -1030,7 +1030,7 @@ mod tests {
 
     #[test]
     fn test_del_item() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let dict = v.into_pyobject(py).unwrap();
@@ -1042,7 +1042,7 @@ mod tests {
 
     #[test]
     fn test_del_item_does_not_update_original_object() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let dict = (&v).into_pyobject(py).unwrap();
@@ -1053,7 +1053,7 @@ mod tests {
 
     #[test]
     fn test_items() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             v.insert(8, 42);
@@ -1074,7 +1074,7 @@ mod tests {
 
     #[test]
     fn test_keys() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             v.insert(8, 42);
@@ -1091,7 +1091,7 @@ mod tests {
 
     #[test]
     fn test_values() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             v.insert(8, 42);
@@ -1108,7 +1108,7 @@ mod tests {
 
     #[test]
     fn test_iter() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             v.insert(8, 42);
@@ -1127,7 +1127,7 @@ mod tests {
 
     #[test]
     fn test_iter_bound() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             v.insert(8, 42);
@@ -1146,7 +1146,7 @@ mod tests {
 
     #[test]
     fn test_iter_value_mutated() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             v.insert(8, 42);
@@ -1164,7 +1164,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_iter_key_mutated() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             for i in 0..10 {
                 v.insert(i * 2, i * 2);
@@ -1188,7 +1188,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_iter_key_mutated_constant_len() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             for i in 0..10 {
                 v.insert(i * 2, i * 2);
@@ -1211,7 +1211,7 @@ mod tests {
 
     #[test]
     fn test_iter_size_hint() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             v.insert(8, 42);
@@ -1236,7 +1236,7 @@ mod tests {
 
     #[test]
     fn test_into_iter() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             v.insert(8, 42);
@@ -1255,7 +1255,7 @@ mod tests {
 
     #[test]
     fn test_hashmap_into_dict() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
@@ -1276,7 +1276,7 @@ mod tests {
 
     #[test]
     fn test_btreemap_into_dict() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut map = BTreeMap::<i32, i32>::new();
             map.insert(1, 1);
 
@@ -1297,7 +1297,7 @@ mod tests {
 
     #[test]
     fn test_vec_into_dict() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let vec = vec![("a", 1), ("b", 2), ("c", 3)];
             let py_map = vec.into_py_dict(py).unwrap();
 
@@ -1316,7 +1316,7 @@ mod tests {
 
     #[test]
     fn test_slice_into_dict() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let arr = [("a", 1), ("b", 2), ("c", 3)];
             let py_map = arr.into_py_dict(py).unwrap();
 
@@ -1335,7 +1335,7 @@ mod tests {
 
     #[test]
     fn dict_as_mapping() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
@@ -1356,7 +1356,7 @@ mod tests {
 
     #[test]
     fn dict_into_mapping() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
@@ -1380,7 +1380,7 @@ mod tests {
     #[test]
     #[cfg(not(any(PyPy, GraalPy)))]
     fn dict_keys_view() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict = abc_dict(py);
             let keys = dict.call_method0("keys").unwrap();
             assert!(keys.is_instance(&py.get_type::<PyDictKeys>()).unwrap());
@@ -1390,7 +1390,7 @@ mod tests {
     #[test]
     #[cfg(not(any(PyPy, GraalPy)))]
     fn dict_values_view() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict = abc_dict(py);
             let values = dict.call_method0("values").unwrap();
             assert!(values.is_instance(&py.get_type::<PyDictValues>()).unwrap());
@@ -1400,7 +1400,7 @@ mod tests {
     #[test]
     #[cfg(not(any(PyPy, GraalPy)))]
     fn dict_items_view() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict = abc_dict(py);
             let items = dict.call_method0("items").unwrap();
             assert!(items.is_instance(&py.get_type::<PyDictItems>()).unwrap());
@@ -1409,7 +1409,7 @@ mod tests {
 
     #[test]
     fn dict_update() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict(py).unwrap();
             let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py).unwrap();
             dict.update(other.as_mapping()).unwrap();
@@ -1480,7 +1480,7 @@ mod tests {
 
     #[test]
     fn dict_update_if_missing() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict(py).unwrap();
             let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py).unwrap();
             dict.update_if_missing(other.as_mapping()).unwrap();
@@ -1551,7 +1551,7 @@ mod tests {
 
     #[test]
     fn test_iter_all() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict = [(1, true), (2, true), (3, true)].into_py_dict(py).unwrap();
             assert!(dict.iter().all(|(_, v)| v.extract::<bool>().unwrap()));
 
@@ -1562,7 +1562,7 @@ mod tests {
 
     #[test]
     fn test_iter_any() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict = [(1, true), (2, false), (3, false)]
                 .into_py_dict(py)
                 .unwrap();
@@ -1578,7 +1578,7 @@ mod tests {
     #[test]
     #[allow(clippy::search_is_some)]
     fn test_iter_find() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict = [(1, false), (2, true), (3, false)]
                 .into_py_dict(py)
                 .unwrap();
@@ -1604,7 +1604,7 @@ mod tests {
     #[test]
     #[allow(clippy::search_is_some)]
     fn test_iter_position() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict = [(1, false), (2, false), (3, true)]
                 .into_py_dict(py)
                 .unwrap();
@@ -1625,7 +1625,7 @@ mod tests {
 
     #[test]
     fn test_iter_fold() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict = [(1, 1), (2, 2), (3, 3)].into_py_dict(py).unwrap();
             let sum = dict
                 .iter()
@@ -1636,7 +1636,7 @@ mod tests {
 
     #[test]
     fn test_iter_try_fold() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict = [(1, 1), (2, 2), (3, 3)].into_py_dict(py).unwrap();
             let sum = dict
                 .iter()
@@ -1654,7 +1654,7 @@ mod tests {
 
     #[test]
     fn test_iter_count() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict = [(1, 1), (2, 2), (3, 3)].into_py_dict(py).unwrap();
             assert_eq!(dict.iter().count(), 3);
         })

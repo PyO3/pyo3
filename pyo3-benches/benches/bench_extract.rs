@@ -8,7 +8,7 @@ use pyo3::{
 };
 
 fn extract_str_extract_success(bench: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let s = PyString::new(py, "Hello, World!").into_any();
 
         bench.iter(|| black_box(&s).extract::<&str>().unwrap());
@@ -16,7 +16,7 @@ fn extract_str_extract_success(bench: &mut Bencher<'_>) {
 }
 
 fn extract_str_extract_fail(bench: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = PyDict::new(py).into_any();
 
         bench.iter(|| match black_box(&d).extract::<&str>() {
@@ -28,7 +28,7 @@ fn extract_str_extract_fail(bench: &mut Bencher<'_>) {
 
 #[cfg(Py_3_10)]
 fn extract_str_downcast_success(bench: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let s = PyString::new(py, "Hello, World!").into_any();
 
         bench.iter(|| {
@@ -39,7 +39,7 @@ fn extract_str_downcast_success(bench: &mut Bencher<'_>) {
 }
 
 fn extract_str_downcast_fail(bench: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = PyDict::new(py).into_any();
 
         bench.iter(|| match black_box(&d).downcast::<PyString>() {
@@ -50,7 +50,7 @@ fn extract_str_downcast_fail(bench: &mut Bencher<'_>) {
 }
 
 fn extract_int_extract_success(bench: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let int = 123i32.into_pyobject(py).unwrap();
 
         bench.iter(|| black_box(&int).extract::<i64>().unwrap());
@@ -58,7 +58,7 @@ fn extract_int_extract_success(bench: &mut Bencher<'_>) {
 }
 
 fn extract_int_extract_fail(bench: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = PyDict::new(py).into_any();
 
         bench.iter(|| match black_box(&d).extract::<i64>() {
@@ -69,7 +69,7 @@ fn extract_int_extract_fail(bench: &mut Bencher<'_>) {
 }
 
 fn extract_int_downcast_success(bench: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let int = 123i32.into_pyobject(py).unwrap();
 
         bench.iter(|| {
@@ -80,7 +80,7 @@ fn extract_int_downcast_success(bench: &mut Bencher<'_>) {
 }
 
 fn extract_int_downcast_fail(bench: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = PyDict::new(py).into_any();
 
         bench.iter(|| match black_box(&d).downcast::<PyInt>() {
@@ -91,7 +91,7 @@ fn extract_int_downcast_fail(bench: &mut Bencher<'_>) {
 }
 
 fn extract_float_extract_success(bench: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let float = 23.42f64.into_pyobject(py).unwrap();
 
         bench.iter(|| black_box(&float).extract::<f64>().unwrap());
@@ -99,7 +99,7 @@ fn extract_float_extract_success(bench: &mut Bencher<'_>) {
 }
 
 fn extract_float_extract_fail(bench: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = PyDict::new(py).into_any();
 
         bench.iter(|| match black_box(&d).extract::<f64>() {
@@ -110,7 +110,7 @@ fn extract_float_extract_fail(bench: &mut Bencher<'_>) {
 }
 
 fn extract_float_downcast_success(bench: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let float = 23.42f64.into_pyobject(py).unwrap();
 
         bench.iter(|| {
@@ -121,7 +121,7 @@ fn extract_float_downcast_success(bench: &mut Bencher<'_>) {
 }
 
 fn extract_float_downcast_fail(bench: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = PyDict::new(py).into_any();
 
         bench.iter(|| match black_box(&d).downcast::<PyFloat>() {

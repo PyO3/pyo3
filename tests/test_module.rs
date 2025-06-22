@@ -72,7 +72,7 @@ fn module_with_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 fn test_module_with_functions() {
     use pyo3::wrap_pymodule;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = [(
             "module_with_functions",
             wrap_pymodule!(module_with_functions)(py),
@@ -130,7 +130,7 @@ fn module_with_explicit_py_arg(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyRe
 fn test_module_with_explicit_py_arg() {
     use pyo3::wrap_pymodule;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = [(
             "module_with_explicit_py_arg",
             wrap_pymodule!(module_with_explicit_py_arg)(py),
@@ -152,7 +152,7 @@ fn some_name(m: &Bound<'_, PyModule>) -> PyResult<()> {
 fn test_module_renaming() {
     use pyo3::wrap_pymodule;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = [("different_name", wrap_pymodule!(some_name)(py))]
             .into_py_dict(py)
             .unwrap();
@@ -163,7 +163,7 @@ fn test_module_renaming() {
 
 #[test]
 fn test_module_from_code_bound() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let adder_mod = PyModule::from_code(
             py,
             c_str!("def add(a,b):\n\treturn a+b"),
@@ -202,7 +202,7 @@ fn raw_ident_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
 fn test_raw_idents() {
     use pyo3::wrap_pymodule;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = wrap_pymodule!(raw_ident_module)(py);
 
         py_assert!(py, module, "module.move() == 42");
@@ -223,7 +223,7 @@ fn test_custom_names() {
         Ok(())
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = pyo3::wrap_pymodule!(custom_names)(py);
 
         py_assert!(py, module, "not hasattr(module, 'custom_named_fn')");
@@ -239,7 +239,7 @@ fn test_module_dict() {
         Ok(())
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = pyo3::wrap_pymodule!(module_dict)(py);
 
         py_assert!(py, module, "module.yay == 'me'");
@@ -248,7 +248,7 @@ fn test_module_dict() {
 
 #[test]
 fn test_module_dunder_all() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         #[pymodule]
         fn dunder_all(m: &Bound<'_, PyModule>) -> PyResult<()> {
             m.dict().set_item("yay", "me")?;
@@ -299,7 +299,7 @@ fn supermodule(module: &Bound<'_, PyModule>) -> PyResult<()> {
 fn test_module_nesting() {
     use pyo3::wrap_pymodule;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let supermodule = wrap_pymodule!(supermodule)(py);
 
         py_assert!(
@@ -345,7 +345,7 @@ fn vararg_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 #[test]
 fn test_vararg_module() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let m = pyo3::wrap_pymodule!(vararg_module)(py);
 
         py_assert!(py, m, "m.ext_vararg_fn() == [5, ()]");
@@ -370,7 +370,7 @@ fn test_module_with_constant() {
         Ok(())
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let m = pyo3::wrap_pymodule!(module_with_constant)(py);
         py_assert!(py, m, "isinstance(m.ANON, m.AnonClass)");
     });
@@ -444,7 +444,7 @@ fn module_with_functions_with_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 #[test]
 fn test_module_functions_with_module() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let m = pyo3::wrap_pymodule!(module_with_functions_with_module)(py);
         py_assert!(
             py,
@@ -485,7 +485,7 @@ fn test_module_doc_hidden() {
         Ok(())
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let m = pyo3::wrap_pymodule!(my_module)(py);
         py_assert!(py, m, "m.__doc__ == ''");
     })

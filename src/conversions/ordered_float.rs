@@ -113,7 +113,7 @@ mod test_ordered_float {
             fn $standard_test(inner_f: $float_type) {
                 let f = $constructor(inner_f);
 
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let f_py: Bound<'_, PyFloat>  = f.into_pyobject(py).unwrap();
 
                     py_run!(
@@ -139,7 +139,7 @@ mod test_ordered_float {
                 let inner_f = 10.0;
                 let f = $constructor(inner_f);
 
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let f_py: Bound<'_, PyFloat>  = f.into_pyobject(py).unwrap();
 
                     py_run!(
@@ -166,7 +166,7 @@ mod test_ordered_float {
                 let inner_ninf = <$float_type>::NEG_INFINITY;
                 let ninf = $constructor(inner_ninf);
 
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let pinf_py: Bound<'_, PyFloat>  = pinf.into_pyobject(py).unwrap();
                     let ninf_py: Bound<'_, PyFloat>  = ninf.into_pyobject(py).unwrap();
 
@@ -194,7 +194,7 @@ mod test_ordered_float {
                 let inner_nzero: $float_type = -0.0;
                 let nzero = $constructor(inner_nzero);
 
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let pzero_py: Bound<'_, PyFloat>  = pzero.into_pyobject(py).unwrap();
                     let nzero_py: Bound<'_, PyFloat>  = nzero.into_pyobject(py).unwrap();
 
@@ -266,7 +266,7 @@ mod test_ordered_float {
                 let inner_nan: $float_type = <$float_type>::NAN;
                 let nan = OrderedFloat(inner_nan);
 
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let nan_py: Bound<'_, PyFloat> = nan.into_pyobject(py).unwrap();
 
                     py_run!(
@@ -291,7 +291,7 @@ mod test_ordered_float {
         ($test_name:ident, $float_type:ty) => {
             #[test]
             fn $test_name() {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let nan_py = py.eval(c_str!("float('nan')"), None, None).unwrap();
 
                     let nan_rs: PyResult<NotNan<$float_type>> = nan_py.extract();
@@ -308,7 +308,7 @@ mod test_ordered_float {
         ($test_name:ident, $wrapper:ident, $float_type:ty) => {
             #[test]
             fn $test_name() {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_64 = py
                         .import("sys")
                         .unwrap()

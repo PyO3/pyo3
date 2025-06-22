@@ -45,7 +45,7 @@ impl PyByteArray {
     /// use pyo3::{prelude::*, types::PyByteArray};
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
+    /// Python::attach(|py| -> PyResult<()> {
     ///     let py_bytearray = PyByteArray::new_with(py, 10, |bytes: &mut [u8]| {
     ///         bytes.copy_from_slice(b"Hello Rust");
     ///         Ok(())
@@ -155,7 +155,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     ///     Ok(())
     /// }
     /// # fn main() -> PyResult<()> {
-    /// #     Python::with_gil(|py| -> PyResult<()> {
+    /// #     Python::attach(|py| -> PyResult<()> {
     /// #         let fun = wrap_pyfunction!(a_valid_function, py)?;
     /// #         let locals = pyo3::types::PyDict::new(py);
     /// #         locals.set_item("a_valid_function", fun)?;
@@ -222,7 +222,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// ```
     /// # use pyo3::prelude::*;
     /// # use pyo3::types::PyByteArray;
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// let bytearray = PyByteArray::new(py, b"Hello World.");
     /// let mut copied_message = bytearray.to_vec();
     /// assert_eq!(b"Hello World.", copied_message.as_slice());
@@ -315,7 +315,7 @@ mod tests {
 
     #[test]
     fn test_len() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
             assert_eq!(src.len(), bytearray.len());
@@ -324,7 +324,7 @@ mod tests {
 
     #[test]
     fn test_as_bytes() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
 
@@ -336,7 +336,7 @@ mod tests {
 
     #[test]
     fn test_as_bytes_mut() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
 
@@ -352,7 +352,7 @@ mod tests {
 
     #[test]
     fn test_to_vec() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
 
@@ -363,7 +363,7 @@ mod tests {
 
     #[test]
     fn test_from() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
 
@@ -376,7 +376,7 @@ mod tests {
 
     #[test]
     fn test_from_err() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             if let Err(err) = PyByteArray::from(py.None().bind(py)) {
                 assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
             } else {
@@ -387,7 +387,7 @@ mod tests {
 
     #[test]
     fn test_try_from() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray: &Bound<'_, PyAny> = &PyByteArray::new(py, src);
             let bytearray: Bound<'_, PyByteArray> = TryInto::try_into(bytearray).unwrap();
@@ -398,7 +398,7 @@ mod tests {
 
     #[test]
     fn test_resize() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
 
@@ -409,7 +409,7 @@ mod tests {
 
     #[test]
     fn test_byte_array_new_with() -> super::PyResult<()> {
-        Python::with_gil(|py| -> super::PyResult<()> {
+        Python::attach(|py| -> super::PyResult<()> {
             let py_bytearray = PyByteArray::new_with(py, 10, |b: &mut [u8]| {
                 b.copy_from_slice(b"Hello Rust");
                 Ok(())
@@ -422,7 +422,7 @@ mod tests {
 
     #[test]
     fn test_byte_array_new_with_zero_initialised() -> super::PyResult<()> {
-        Python::with_gil(|py| -> super::PyResult<()> {
+        Python::attach(|py| -> super::PyResult<()> {
             let py_bytearray = PyByteArray::new_with(py, 10, |_b: &mut [u8]| Ok(()))?;
             let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
             assert_eq!(bytearray, &[0; 10]);
@@ -433,7 +433,7 @@ mod tests {
     #[test]
     fn test_byte_array_new_with_error() {
         use crate::exceptions::PyValueError;
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_bytearray_result = PyByteArray::new_with(py, 10, |_b: &mut [u8]| {
                 Err(PyValueError::new_err("Hello Crustaceans!"))
             });

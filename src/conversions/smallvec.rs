@@ -117,7 +117,7 @@ mod tests {
 
     #[test]
     fn test_smallvec_from_py_object() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let l = PyList::new(py, [1, 2, 3, 4, 5]).unwrap();
             let sv: SmallVec<[u64; 8]> = l.extract().unwrap();
             assert_eq!(sv.as_slice(), [1, 2, 3, 4, 5]);
@@ -126,7 +126,7 @@ mod tests {
 
     #[test]
     fn test_smallvec_from_py_object_fails() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict = PyDict::new(py);
             let sv: PyResult<SmallVec<[u64; 8]>> = dict.extract();
             assert_eq!(
@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn test_smallvec_into_pyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let sv: SmallVec<[u64; 8]> = [1, 2, 3, 4, 5].iter().cloned().collect();
             let hso = sv.into_pyobject(py).unwrap();
             let l = PyList::new(py, [1, 2, 3, 4, 5]).unwrap();
@@ -148,7 +148,7 @@ mod tests {
 
     #[test]
     fn test_smallvec_intopyobject_impl() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes: SmallVec<[u8; 8]> = [1, 2, 3, 4, 5].iter().cloned().collect();
             let obj = bytes.clone().into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());

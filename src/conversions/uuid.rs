@@ -126,7 +126,7 @@ mod tests {
         ($name:ident, $rs:expr, $py:literal) => {
             #[test]
             fn $name() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let rs_orig = $rs;
                     let rs_uuid = rs_orig.into_pyobject(py).unwrap();
                     let locals = PyDict::new(py);

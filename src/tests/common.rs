@@ -107,7 +107,7 @@ with warnings.catch_warnings(record=True) as warning_record:
     #[macro_export]
     macro_rules! py_expect_warning_for_fn {
         ($fn:ident, $($val:ident)+, [$(($warning_msg:literal, $warning_category:path)),+] $(,)?) => {
-            pyo3::Python::with_gil(|py| {
+            pyo3::Python::attach(|py| {
                 let f = wrap_pyfunction!($fn)(py).unwrap();
                 py_expect_warning!(
                     py,
