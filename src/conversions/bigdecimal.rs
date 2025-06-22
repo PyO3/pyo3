@@ -51,6 +51,7 @@
 
 use std::str::FromStr;
 
+use crate::types::PyTuple;
 use crate::{
     exceptions::PyValueError,
     sync::GILOnceCell,
@@ -58,11 +59,16 @@ use crate::{
     Bound, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python,
 };
 use bigdecimal::BigDecimal;
-
-static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+use num_bigint::Sign;
 
 fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
+    static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
     DECIMAL_CLS.import(py, "decimal", "Decimal")
+}
+
+fn get_invalid_operation_error_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
+    static INVALID_OPERATION_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+    INVALID_OPERATION_CLS.import(py, "decimal", "InvalidOperation")
 }
 
 impl FromPyObject<'_> for BigDecimal {
@@ -82,7 +88,19 @@ impl<'py> IntoPyObject<'py> for BigDecimal {
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let cls = get_decimal_cls(py)?;
-        cls.call1((self.to_string(),))
+        let (bigint, scale) = self.into_bigint_and_scale();
+        if scale == 0 {
+            return cls.call1((bigint,));
+        }
+        let exponent = scale.checked_neg().ok_or_else(|| {
+            get_invalid_operation_error_cls(py)
+                .map_or_else(|err| err, |cls| PyErr::from_type(cls.clone(), ()))
+        })?;
+        let (sign, digits) = bigint.to_radix_be(10);
+        let signed = matches!(sign, Sign::Minus).into_pyobject(py)?;
+        let digits = PyTuple::new(py, digits)?;
+
+        cls.call1(((signed, digits, exponent),))
     }
 }
 
@@ -209,5 +227,27 @@ mod test_bigdecimal {
             let roundtripped: Result<BigDecimal, PyErr> = py_dec.extract();
             assert!(roundtripped.is_err());
         })
+    }
+
+    #[test]
+    fn test_no_precision_loss() {
+        Python::with_gil(|py| {
+            let src = "1e4";
+            let expected = get_decimal_cls(py)
+                .unwrap()
+                .call1((src,))
+                .unwrap()
+                .call_method0("as_tuple")
+                .unwrap();
+            let actual = src
+                .parse::<BigDecimal>()
+                .unwrap()
+                .into_pyobject(py)
+                .unwrap()
+                .call_method0("as_tuple")
+                .unwrap();
+
+            assert!(actual.eq(expected).unwrap());
+        });
     }
 }
