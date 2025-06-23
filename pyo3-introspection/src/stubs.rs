@@ -108,17 +108,22 @@ fn function_stubs(function: &Function, modules_to_import: &mut BTreeSet<String>)
     if let Some(argument) = &function.arguments.kwarg {
         parameters.push(format!("**{}", variable_length_argument_stub(argument)));
     }
-    let output = format!("def {}({}): ...", function.name, parameters.join(", "));
-    if function.decorators.is_empty() {
-        return output;
-    }
     let mut buffer = String::new();
     for decorator in &function.decorators {
         buffer.push('@');
         buffer.push_str(decorator);
         buffer.push('\n');
     }
-    buffer.push_str(&output);
+    buffer.push_str("def ");
+    buffer.push_str(&function.name);
+    buffer.push('(');
+    buffer.push_str(&parameters.join(", "));
+    buffer.push(')');
+    if let Some(returns) = &function.returns {
+        buffer.push_str(" -> ");
+        buffer.push_str(annotation_stub(returns, modules_to_import));
+    }
+    buffer.push_str(": ...");
     buffer
 }
 
@@ -132,11 +137,7 @@ fn argument_stub(argument: &Argument, modules_to_import: &mut BTreeSet<String>) 
     let mut output = argument.name.clone();
     if let Some(annotation) = &argument.annotation {
         output.push_str(": ");
-        output.push_str(annotation);
-        if let Some((module, _)) = annotation.rsplit_once('.') {
-            // TODO: this is very naive
-            modules_to_import.insert(module.into());
-        }
+        output.push_str(annotation_stub(annotation, modules_to_import));
     }
     if let Some(default_value) = &argument.default_value {
         output.push_str(if argument.annotation.is_some() {
@@ -151,6 +152,14 @@ fn argument_stub(argument: &Argument, modules_to_import: &mut BTreeSet<String>) 
 
 fn variable_length_argument_stub(argument: &VariableLengthArgument) -> String {
     argument.name.clone()
+}
+
+fn annotation_stub<'a>(annotation: &'a str, modules_to_import: &mut BTreeSet<String>) -> &'a str {
+    if let Some((module, _)) = annotation.rsplit_once('.') {
+        // TODO: this is very naive
+        modules_to_import.insert(module.into());
+    }
+    annotation
 }
 
 #[cfg(test)]
@@ -186,9 +195,10 @@ mod tests {
                     name: "kwarg".into(),
                 }),
             },
+            returns: Some("list[str]".into()),
         };
         assert_eq!(
-            "def func(posonly, /, arg, *varargs, karg: str, **kwarg): ...",
+            "def func(posonly, /, arg, *varargs, karg: str, **kwarg) -> list[str]: ...",
             function_stubs(&function, &mut BTreeSet::new())
         )
     }
@@ -217,6 +227,7 @@ mod tests {
                 }],
                 kwarg: None,
             },
+            returns: None,
         };
         assert_eq!(
             "def afunc(posonly=1, /, arg=True, *, karg: str = \"foo\"): ...",
