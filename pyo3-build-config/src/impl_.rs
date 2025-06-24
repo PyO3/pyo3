@@ -22,7 +22,7 @@ use std::{
 
 pub use target_lexicon::Triple;
 
-use target_lexicon::{Architecture, Environment, OperatingSystem};
+use target_lexicon::{Architecture, Environment, OperatingSystem, Vendor};
 
 use crate::{
     bail, ensure,
@@ -956,7 +956,9 @@ impl CrossCompileConfig {
         // e.g. x86_64-unknown-linux-musl on x86_64-unknown-linux-gnu host
         //      x86_64-pc-windows-gnu on x86_64-pc-windows-msvc host
         let mut compatible = host.architecture == target.architecture
-            && host.vendor == target.vendor
+            && (host.vendor == target.vendor
+                // Don't treat `-pc-` to `-win7-` as cross-compiling
+                || (host.vendor == Vendor::Pc && target.vendor.as_str() == "win7"))
             && host.operating_system == target.operating_system;
 
         // Not cross-compiling to compile for 32-bit Python from windows 64-bit
@@ -2992,6 +2994,13 @@ mod tests {
         assert!(cross_compiling_from_to(
             &triple!("x86_64-unknown-linux-gnu"),
             &triple!("x86_64-unknown-linux-musl")
+        )
+        .unwrap()
+        .is_none());
+
+        assert!(cross_compiling_from_to(
+            &triple!("x86_64-pc-windows-msvc"),
+            &triple!("x86_64-win7-windows-msvc"),
         )
         .unwrap()
         .is_none());
