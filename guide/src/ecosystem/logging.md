@@ -19,23 +19,23 @@ Use [`pyo3_log::init`][init] to install the logger in its default configuration.
 It's also possible to tweak its configuration (mostly to tune its performance).
 
 ```rust,no_run
-use log::info;
-use pyo3::prelude::*;
+#[pyo3::pymodule]
+mod my_module {
+    use log::info;
+    use pyo3::prelude::*;
 
-#[pyfunction]
-fn log_something() {
-    // This will use the logger installed in `my_module` to send the `info`
-    // message to the Python logging facilities.
-    info!("Something!");
-}
+    #[pyfunction]
+    fn log_something() {
+        // This will use the logger installed in `my_module` to send the `info`
+        // message to the Python logging facilities.
+        info!("Something!");
+    }
 
-#[pymodule]
-fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // A good place to install the Rust -> Python logger.
-    pyo3_log::init();
-
-    m.add_function(wrap_pyfunction!(log_something, m)?)?;
-    Ok(())
+    #[pymodule_init]
+    fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
+        // A good place to install the Rust -> Python logger.
+        pyo3_log::init();
+    }
 }
 ```
 
