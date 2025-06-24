@@ -555,7 +555,7 @@ mod tests {
         Python::attach(|py| {
             let inst = Py::new(py, MyClass { x: 0 }).unwrap();
 
-            let total_modifications = py.allow_threads(|| {
+            let total_modifications = py.detach(|| {
                 std::thread::scope(|s| {
                     // Spawn a bunch of threads all racing to write to
                     // the same instance of `MyClass`.

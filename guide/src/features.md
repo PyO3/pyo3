@@ -105,7 +105,7 @@ See [the `#[pyclass]` implementation details](class.md#implementation-details) f
 
 ### `nightly`
 
-The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use the `auto_traits` and `negative_impls` features to fix the `Python::allow_threads` function.
+The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use the `auto_traits` and `negative_impls` features to fix the `Python::detach` function.
 
 ### `resolve-config`
 

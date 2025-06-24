@@ -67,7 +67,7 @@ where
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let waker = cx.waker();
         Python::attach(|py| {
-            py.allow_threads(|| pin!(&mut self.0).poll(&mut Context::from_waker(waker)))
+            py.detach(|| pin!(&mut self.0).poll(&mut Context::from_waker(waker)))
         })
     }
 }

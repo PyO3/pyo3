@@ -551,13 +551,13 @@ mod tests {
     }
 
     #[test]
-    fn test_allow_threads() {
+    fn test_detach() {
         assert!(!gil_is_acquired());
 
         Python::attach(|py| {
             assert!(gil_is_acquired());
 
-            py.allow_threads(move || {
+            py.detach(move || {
                 assert!(!gil_is_acquired());
 
                 Python::attach(|_| assert!(gil_is_acquired()));
@@ -574,13 +574,13 @@ mod tests {
     #[cfg(feature = "py-clone")]
     #[test]
     #[should_panic]
-    fn test_allow_threads_updates_refcounts() {
+    fn test_detach_updates_refcounts() {
         Python::attach(|py| {
             // Make a simple object with 1 reference
             let obj = get_object(py);
             assert!(obj.get_refcnt(py) == 1);
             // Clone the object without the GIL which should panic
-            py.allow_threads(|| obj.clone());
+            py.detach(|| obj.clone());
         });
     }
 

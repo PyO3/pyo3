@@ -58,7 +58,7 @@ mod bound_object_sealed {
 ///
 /// To access the object in situations where the GIL is not held, convert it to [`Py<T>`]
 /// using [`.unbind()`][Bound::unbind]. This includes situations where the GIL is temporarily
-/// released, such as [`Python::allow_threads`](crate::Python::allow_threads)'s closure.
+/// released, such as [`Python::detach`](crate::Python::detach)'s closure.
 ///
 /// See
 #[doc = concat!("[the guide](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/types.html#boundpy-t)")]

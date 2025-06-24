@@ -49,7 +49,7 @@ fn search_sequential(contents: &str, needle: &str) -> usize {
 }
 ```
 
-To enable parallel execution of this function, the [`Python::allow_threads`] method can be used to temporarily release the GIL, thus allowing other Python threads to run. We then have a function exposed to the Python runtime which calls `search_sequential` inside a closure passed to [`Python::allow_threads`] to enable true parallelism:
+To enable parallel execution of this function, the [`Python::detach`] method can be used to temporarily release the GIL, thus allowing other Python threads to run. We then have a function exposed to the Python runtime which calls `search_sequential` inside a closure passed to [`Python::detach`] to enable true parallelism:
 ```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
@@ -68,23 +68,23 @@ To enable parallel execution of this function, the [`Python::allow_threads`] met
 #    contents.lines().map(|line| count_line(line, needle)).sum()
 # }
 #[pyfunction]
-fn search_sequential_allow_threads(py: Python<'_>, contents: &str, needle: &str) -> usize {
-    py.allow_threads(|| search_sequential(contents, needle))
+fn search_sequential_detached(py: Python<'_>, contents: &str, needle: &str) -> usize {
+    py.detach(|| search_sequential(contents, needle))
 }
 ```
 
 Now Python threads can use more than one CPU core, resolving the limitation which usually makes multi-threading in Python only good for IO-bound tasks:
 ```Python
 from concurrent.futures import ThreadPoolExecutor
-from word_count import search_sequential_allow_threads
+from word_count import search_sequential_detached
 
 executor = ThreadPoolExecutor(max_workers=2)
 
 future_1 = executor.submit(
-    word_count.search_sequential_allow_threads, contents, needle
+    word_count.search_sequential_detached, contents, needle
 )
 future_2 = executor.submit(
-    word_count.search_sequential_allow_threads, contents, needle
+    word_count.search_sequential_detached, contents, needle
 )
 result_1 = future_1.result()
 result_2 = future_2.result()
@@ -149,7 +149,7 @@ struct UserID {
 
 let allowed_ids: Vec<bool> = Python::attach(|outer_py| {
     let instances: Vec<Py<UserID>> = (0..10).map(|x| Py::new(outer_py, UserID { id: x }).unwrap()).collect();
-    outer_py.allow_threads(|| {
+    outer_py.detach(|| {
         instances.par_iter().map(|instance| {
             Python::attach(|inner_py| {
                 instance.borrow(inner_py).id > 5
@@ -165,13 +165,13 @@ an `inner_py` token. Sharing GIL lifetime tokens between threads is not allowed
 and threads must individually acquire the GIL to access data wrapped by a python
 object.
 
-It's also important to see that this example uses [`Python::allow_threads`] to
+It's also important to see that this example uses [`Python::detach`] to
 wrap the code that spawns OS threads via `rayon`. If this example didn't use
-`allow_threads`, a rayon worker thread would block on acquiring the GIL while a
+`detach`, a rayon worker thread would block on acquiring the GIL while a
 thread that owns the GIL spins forever waiting for the result of the rayon
-thread. Calling `allow_threads` allows the GIL to be released in the thread
+thread. Calling `detach` allows the GIL to be released in the thread
 collecting the results from the worker threads. You should always call
-`allow_threads` in situations that spawn worker threads, but especially so in
+`detach` in situations that spawn worker threads, but especially so in
 cases where worker threads need to acquire the GIL, to prevent deadlocks.
 
-[`Python::allow_threads`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.allow_threads
+[`Python::detach`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.detach

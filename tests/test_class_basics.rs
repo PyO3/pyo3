@@ -650,7 +650,7 @@ fn drop_unsendable_elsewhere() {
         )
         .unwrap();
 
-        py.allow_threads(|| {
+        py.detach(|| {
             spawn(move || {
                 Python::attach(move |_py| {
                     drop(unsendable);

@@ -17,8 +17,8 @@ fn search_sequential(contents: &str, needle: &str) -> usize {
 }
 
 #[pyfunction]
-fn search_sequential_allow_threads(py: Python<'_>, contents: &str, needle: &str) -> usize {
-    py.allow_threads(|| search_sequential(contents, needle))
+fn search_sequential_detached(py: Python<'_>, contents: &str, needle: &str) -> usize {
+    py.detach(|| search_sequential(contents, needle))
 }
 
 /// Count the occurrences of needle in line, case insensitive
@@ -36,7 +36,7 @@ fn count_line(line: &str, needle: &str) -> usize {
 fn word_count(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(search, m)?)?;
     m.add_function(wrap_pyfunction!(search_sequential, m)?)?;
-    m.add_function(wrap_pyfunction!(search_sequential_allow_threads, m)?)?;
+    m.add_function(wrap_pyfunction!(search_sequential_detached, m)?)?;
 
     Ok(())
 }

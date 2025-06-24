@@ -192,7 +192,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     ///
     ///     // This explicitly yields control back to the Python interpreter...
     ///     // ...but it's not always this obvious. Many things do this implicitly.
-    ///     py.allow_threads(|| {
+    ///     py.detach(|| {
     ///         // Python code could be mutating through its handle to `bytes`,
     ///         // which makes reading it a data race, which is undefined behavior.
     ///         println!("{:?}", slice[0]);
