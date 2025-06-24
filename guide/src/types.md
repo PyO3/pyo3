@@ -30,7 +30,7 @@ Because `Py<T>` is not bound to [the `'py` lifetime](./python-from-rust.md#the-p
 
 The lack of binding to the `'py` lifetime also carries drawbacks:
  - Almost all methods on `Py<T>` require a `Python<'py>` token as the first argument
- - Other functionality, such as [`Drop`][Drop], needs to check at runtime for attachment to the Python GIL, at a small performance cost
+ - Other functionality, such as [`Drop`][Drop], needs to check at runtime for attachment to the Python interpreter, at a small performance cost
 
 Because of the drawbacks `Bound<'py, T>` is preferred for many of PyO3's APIs. In particular, `Bound<'py, T>` is better for function arguments.
 
