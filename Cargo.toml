@@ -18,7 +18,6 @@ rust-version = "1.63"
 libc = "0.2.62"
 memoffset = "0.9"
 once_cell = "1.13"
-nix = "0.26"
 tempfile = "3"
 
 # ffi bindings to the python interpreter, split into a separate crate so they can be used independently
