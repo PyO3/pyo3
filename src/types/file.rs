@@ -14,22 +14,13 @@ use crate::types::any::PyAnyMethods;
 use std::mem;
 
 #[cfg(unix)]
-use std::os::fd::RawFd;
-#[cfg(unix)]
 use std::os::fd::{AsRawFd, FromRawFd};
 
 #[cfg(windows)]
-use std::os::windows::io::AsRawHandle;
+use crate::exceptions::PyOSError;
+
 #[cfg(windows)]
-use std::os::windows::io::{FromRawHandle, RawHandle};
-#[cfg(windows)]
-use std::os::windows::prelude::IntoRawHandle;
-#[cfg(windows)]
-use winapi::um::handleapi::DuplicateHandle;
-#[cfg(windows)]
-use winapi::um::processthreadsapi::GetCurrentProcess;
-#[cfg(windows)]
-use winapi::um::winnt::{DUPLICATE_SAME_ACCESS, HANDLE};
+use std::os::windows::io::{AsRawHandle, FromRawHandle};
 
 /// Represents a Python `file` object.
 ///
@@ -48,7 +39,16 @@ pyobject_native_type!(
 impl PyFile {
     pub fn new(py: Python<'_>, pyo3_file: Pyo3File) -> PyResult<Bound<'_, PyAny>> {
         let file = pyo3_file.getfile();
+        
+        #[cfg(unix)]
         let fd = file.as_raw_fd();
+
+        #[cfg(windows)]
+        let fd = unsafe { 
+            let handle = file.as_raw_handle();
+            libc::open_osfhandle(handle as isize, 0) 
+        };
+
         if fd < 0 {
             return Err(FileConversionError::new_err("Invalid file descriptor"));
         }
@@ -84,7 +84,7 @@ impl PyFile {
 
 impl<'py> crate::FromPyObject<'py> for Pyo3File {
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let fd: RawFd = unsafe { crate::ffi::PyObject_AsFileDescriptor(obj.as_ptr()) };
+        let fd = unsafe { crate::ffi::PyObject_AsFileDescriptor(obj.as_ptr()) };
         if fd < 0 {
             return Err(PyErr::fetch(obj.py()));
         }
@@ -104,7 +104,8 @@ impl<'py> crate::FromPyObject<'py> for Pyo3File {
         };
 
         let new_file = file.try_clone()?;
-        // Do not steal the handle from Python, as it is still used by the python object.
+        // Do not steal the handle from Python, as it is still used by the
+        // python object.
         mem::forget(file);
 
         let name: String = obj
@@ -181,12 +182,15 @@ mod tests {
     fn test_pyo3file_to_python_preserves_attributes() {
         Python::with_gil(|py| {
             let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
+
             writeln!(temp_file, "Hello, world!").expect("Failed to write to temp file");
+
             let file = temp_file.reopen().expect("Failed to reopen temp file");
 
             let name = "myfile.txt".to_string();
             let mode = "r".to_string();
             let encoding = "utf-8".to_string();
+
             let pyo3_file = Pyo3File::new(file, name.clone(), mode.clone(), encoding.clone());
 
             let py_file_obj = PyFile::new(py, pyo3_file).expect("Failed to create PyFile");
