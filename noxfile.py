@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 import json
 import os
 import re
@@ -7,6 +6,7 @@ import subprocess
 import sys
 import sysconfig
 import tempfile
+from contextlib import contextmanager
 from functools import lru_cache
 from glob import glob
 from pathlib import Path
@@ -21,7 +21,6 @@ from typing import (
     Tuple,
 )
 
-import nox
 import nox.command
 
 try:
@@ -460,14 +459,6 @@ def docs(session: nox.Session) -> None:
 
     features = "full"
 
-    if get_rust_version()[:2] >= (1, 67):
-        # time needs MSRC 1.67+
-        features += ",time"
-
-    if get_rust_version()[:2] >= (1, 70):
-        # jiff needs MSRC 1.70+
-        features += ",jiff-02"
-
     shutil.rmtree(PYO3_DOCS_TARGET, ignore_errors=True)
     _run_cargo(
         session,
@@ -517,6 +508,15 @@ def check_guide(session: nox.Session):
     remap_args = []
     for key, value in remaps.items():
         remap_args.extend(("--remap", f"{key} {value}"))
+
+    # some http URL fragments fail to be loaded (needs javascript?)
+    lychee_exclusions = [
+        "https://github.com/PyO3/pyo3/issues/1800#issuecomment-906786649",
+        "https://docs.rs/parking_lot/latest/parking_lot/type.Mutex.html#method.lock_arc",
+        "https://github.com/PyO3/pyo3/issues/1517#issuecomment-808664021",
+        "https://github.com/PyO3/maturin/blob/0dee40510083c03607834c821eea76964140a126/Readme.md#mixed-rustpython-projects",
+    ]
+
     # check all links in the guide
     _run(
         session,
@@ -524,6 +524,7 @@ def check_guide(session: nox.Session):
         "--include-fragments",
         str(PYO3_GUIDE_SRC),
         *remap_args,
+        "--exclude=" + "|".join(lychee_exclusions),
         "--accept=200,429",
         *session.posargs,
     )
@@ -535,7 +536,9 @@ def check_guide(session: nox.Session):
         str(PYO3_DOCS_TARGET),
         *remap_args,
         f"--exclude=file://{PYO3_DOCS_TARGET}",
+        # exclude some old http links from copyright notices, known to fail
         "--exclude=http://www.adobe.com/",
+        "--exclude=http://www.nhncorp.com/",
         "--accept=200,429",
         *session.posargs,
     )
@@ -670,10 +673,7 @@ def set_msrv_package_versions(session: nox.Session):
         *(Path(p).parent for p in glob("examples/*/Cargo.toml")),
         *(Path(p).parent for p in glob("pyo3-ffi/examples/*/Cargo.toml")),
     )
-    min_pkg_versions = {
-        "trybuild": "1.0.89",
-        "allocator-api2": "0.2.10",
-    }
+    min_pkg_versions = {}
 
     # run cargo update first to ensure that everything is at highest
     # possible version, so that this matches what CI will resolve to.
@@ -752,10 +752,6 @@ def test_version_limits(session: nox.Session):
 
         assert "3.8" not in PYPY_VERSIONS
         config_file.set("PyPy", "3.8")
-        _run_cargo(session, "check", env=env, expect_error=True)
-
-        assert "3.12" not in PYPY_VERSIONS
-        config_file.set("PyPy", "3.12")
         _run_cargo(session, "check", env=env, expect_error=True)
 
 
@@ -857,8 +853,8 @@ def update_ui_tests(session: nox.Session):
     env["TRYBUILD"] = "overwrite"
     command = ["test", "--test", "test_compile_error"]
     _run_cargo(session, *command, env=env)
-    _run_cargo(session, *command, "--features=full,jiff-02,time", env=env)
-    _run_cargo(session, *command, "--features=abi3,full,jiff-02,time", env=env)
+    _run_cargo(session, *command, "--features=full", env=env)
+    _run_cargo(session, *command, "--features=abi3,full", env=env)
 
 
 @nox.session(name="test-introspection")
@@ -928,14 +924,6 @@ def _get_feature_sets() -> Tuple[Optional[str], ...]:
     if "wasm32-wasip1" not in cargo_target:
         # multiple-pymethods not supported on wasm
         features += ",multiple-pymethods"
-
-    if get_rust_version()[:2] >= (1, 67):
-        # time needs MSRC 1.67+
-        features += ",time"
-
-    if get_rust_version()[:2] >= (1, 70):
-        # jiff needs MSRC 1.70+
-        features += ",jiff-02"
 
     if is_rust_nightly():
         features += ",nightly"

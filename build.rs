@@ -41,7 +41,6 @@ fn configure_pyo3() -> Result<()> {
         println!("{cfg}")
     }
 
-    // Emit cfgs like `invalid_from_utf8_lint`
     print_feature_cfgs();
 
     // Make `cargo test` etc work on macOS with Xcode bundled Python

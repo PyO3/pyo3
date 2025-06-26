@@ -1,3 +1,4 @@
+use crate::call::PyCallArgs;
 use crate::conversion::IntoPyObject;
 use crate::err::{self, PyErr, PyResult};
 use crate::impl_::pycell::PyClassObject;
@@ -5,7 +6,7 @@ use crate::internal_tricks::ptr_from_ref;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
-use crate::types::{DerefToPyAny, PyDict, PyString, PyTuple};
+use crate::types::{DerefToPyAny, PyDict, PyString};
 use crate::{
     ffi, DowncastError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef, PyRefMut,
     PyTypeInfo, Python,
@@ -1490,30 +1491,19 @@ impl<T> Py<T> {
         kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<PyObject>
     where
-        A: IntoPyObject<'py, Target = PyTuple>,
+        A: PyCallArgs<'py>,
     {
-        self.bind(py)
-            .as_any()
-            .call(
-                // FIXME(icxolu): remove explicit args conversion
-                args.into_pyobject(py).map_err(Into::into)?.into_bound(),
-                kwargs,
-            )
-            .map(Bound::unbind)
+        self.bind(py).as_any().call(args, kwargs).map(Bound::unbind)
     }
 
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
-    pub fn call1<'py, N>(&self, py: Python<'py>, args: N) -> PyResult<PyObject>
+    pub fn call1<'py, A>(&self, py: Python<'py>, args: A) -> PyResult<PyObject>
     where
-        N: IntoPyObject<'py, Target = PyTuple>,
+        A: PyCallArgs<'py>,
     {
-        self.bind(py)
-            .as_any()
-            // FIXME(icxolu): remove explicit args conversion
-            .call1(args.into_pyobject(py).map_err(Into::into)?.into_bound())
-            .map(Bound::unbind)
+        self.bind(py).as_any().call1(args).map(Bound::unbind)
     }
 
     /// Calls the object without arguments.
@@ -1538,16 +1528,11 @@ impl<T> Py<T> {
     ) -> PyResult<PyObject>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        A: IntoPyObject<'py, Target = PyTuple>,
+        A: PyCallArgs<'py>,
     {
         self.bind(py)
             .as_any()
-            .call_method(
-                name,
-                // FIXME(icxolu): remove explicit args conversion
-                args.into_pyobject(py).map_err(Into::into)?.into_bound(),
-                kwargs,
-            )
+            .call_method(name, args, kwargs)
             .map(Bound::unbind)
     }
 
@@ -1560,15 +1545,11 @@ impl<T> Py<T> {
     pub fn call_method1<'py, N, A>(&self, py: Python<'py>, name: N, args: A) -> PyResult<PyObject>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        A: IntoPyObject<'py, Target = PyTuple>,
+        A: PyCallArgs<'py>,
     {
         self.bind(py)
             .as_any()
-            .call_method1(
-                name,
-                // FIXME(icxolu): remove explicit args conversion
-                args.into_pyobject(py).map_err(Into::into)?.into_bound(),
-            )
+            .call_method1(name, args)
             .map(Bound::unbind)
     }
 

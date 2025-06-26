@@ -59,7 +59,7 @@ For more information about how to use both `lldb` and `gdb` you can read the [gd
    ```bash
    # Debug is the default for maturin, but you can explicitly ensure debug symbols with:
    RUSTFLAGS="-g" maturin develop
-   
+
    # For setuptools-rust users:
    pip install -e .
    ```
@@ -90,10 +90,10 @@ Depending on your OS and your preferences you can use two different debuggers, `
    ```bash
    # Option 1: Run an inline Python command
    (gdb) run -c "import your_module; your_module.your_function()"
-   
+
    # Option 2: Run a Python script
    (gdb) run your_script.py
-   
+
    # Option 3: Run pytest tests
    (gdb) run -m pytest tests/test_something.py::TestName
    ```
@@ -118,10 +118,10 @@ Depending on your OS and your preferences you can use two different debuggers, `
    ```bash
    # Option 1: Run an inline Python command
    (lldb) run -c "import your_module; your_module.your_function()"
-   
+
    # Option 2: Run a Python script
    (lldb) run your_script.py
-   
+
    # Option 3: Run pytest tests
    (lldb) run -m pytest tests/test_something.py::TestName
    ```
@@ -237,7 +237,7 @@ import sys
 
 def update_launch_json(vscode_config_file_path=None):
     """Update VSCode launch.json with the correct Jupyter kernel PID.
-    
+
     Args:
         vscode_config_file_path (str, optional): Path to the .vscode/launch.json file.
             If not provided, will use the current working directory.
@@ -246,7 +246,7 @@ def update_launch_json(vscode_config_file_path=None):
     if not pid:
         print("Could not determine Jupyter kernel PID.")
         return
-        
+
     # Determine launch.json path
     if vscode_config_file_path:
         launch_json_path = vscode_config_file_path
@@ -255,7 +255,7 @@ def update_launch_json(vscode_config_file_path=None):
 
     # Get Python interpreter path
     python_path = sys.executable
-    
+
     # Default debugger config
     debug_config = {
         "version": "0.2.0",
@@ -270,7 +270,7 @@ def update_launch_json(vscode_config_file_path=None):
             },
             {
                 "name": "Launch Python with PyO3",
-                "type": "lldb", 
+                "type": "lldb",
                 "request": "launch",
                 "program": python_path,
                 "args": ["${file}"],
@@ -283,13 +283,13 @@ def update_launch_json(vscode_config_file_path=None):
     # Create .vscode directory if it doesn't exist
     try:
         os.makedirs(os.path.dirname(launch_json_path), exist_ok=True)
-        
+
         # If launch.json already exists, try to update it instead of overwriting
         if os.path.exists(launch_json_path):
             try:
                 with open(launch_json_path, "r") as f:
                     existing_config = json.load(f)
-                
+
                 # Check if our configuration already exists
                 config_exists = False
                 for config in existing_config.get("configurations", []):
@@ -297,15 +297,15 @@ def update_launch_json(vscode_config_file_path=None):
                         config["pid"] = pid
                         config["program"] = python_path
                         config_exists = True
-                
+
                 if not config_exists:
                     existing_config.setdefault("configurations", []).append(debug_config["configurations"][0])
-                
+
                 debug_config = existing_config
             except Exception:
                 # If reading fails, we'll just overwrite with our new configuration
                 pass
-        
+
         with open(launch_json_path, "w") as f:
             json.dump(debug_config, f, indent=4)
         print(f"Updated launch.json with PID: {pid} at {launch_json_path}")
@@ -315,7 +315,7 @@ def update_launch_json(vscode_config_file_path=None):
 
 def get_jupyter_kernel_pid():
     """Find the process ID (PID) of the running Jupyter kernel.
-    
+
     Returns:
         int: The process ID of the Jupyter kernel, or None if not found.
     """
@@ -358,7 +358,7 @@ will need to compile the Rust standard library:
 
 ```bash
 rustup install nightly
-rustup override set nighty
+rustup override set nightly
 rustup component add rust-src
 ```
 

@@ -139,7 +139,7 @@ impl<'py> FromPyObject<'py> for BigInt {
         #[cfg(not(Py_LIMITED_API))]
         {
             let mut buffer = int_to_u32_vec::<true>(num)?;
-            let sign = if buffer.last().copied().map_or(false, |last| last >> 31 != 0) {
+            let sign = if buffer.last().copied().is_some_and(|last| last >> 31 != 0) {
                 // BigInt::new takes an unsigned array, so need to convert from two's complement
                 // flip all bits, 'subtract' 1 (by adding one to the unsigned array)
                 let mut elements = buffer.iter_mut();
@@ -195,7 +195,7 @@ impl<'py> FromPyObject<'py> for BigUint {
             if n_bits == 0 {
                 return Ok(BigUint::from(0usize));
             }
-            let bytes = int_to_py_bytes(num, (n_bits + 7) / 8, false)?;
+            let bytes = int_to_py_bytes(num, n_bits.div_ceil(8), false)?;
             Ok(BigUint::from_bytes_le(bytes.as_bytes()))
         }
     }
@@ -212,7 +212,7 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
     let n_digits = if SIGNED {
         (n_bits + 32) / 32
     } else {
-        (n_bits + 31) / 32
+        n_bits.div_ceil(32)
     };
     buffer.reserve_exact(n_digits);
     unsafe {
@@ -251,11 +251,7 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
     if n_bytes == 0 {
         return Ok(buffer);
     }
-    // TODO: use div_ceil when MSRV >= 1.73
-    let n_digits = {
-        let adjust = if n_bytes % 4 == 0 { 0 } else { 1 };
-        (n_bytes_unsigned / 4) + adjust
-    };
+    let n_digits = n_bytes_unsigned.div_ceil(4);
     buffer.reserve_exact(n_digits);
     unsafe {
         ffi::PyLong_AsNativeBytes(
