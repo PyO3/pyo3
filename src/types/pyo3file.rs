@@ -50,7 +50,8 @@ mod tests {
             temp_file.into_file(),
             name.clone(),
             mode.clone(),
-            encoding.clone());
+            encoding.clone(),
+        );
 
         assert_eq!(pyo3_file.name, name.clone());
         assert_eq!(pyo3_file.mode, mode.clone());

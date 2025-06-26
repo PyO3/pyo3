@@ -226,13 +226,13 @@ pub(crate) mod boolobject;
 pub(crate) mod bytearray;
 pub(crate) mod bytes;
 pub(crate) mod capsule;
-pub(crate) mod file;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 mod code;
 pub(crate) mod complex;
 pub(crate) mod datetime;
 pub(crate) mod dict;
 mod ellipsis;
+pub(crate) mod file;
 pub(crate) mod float;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 mod frame;
