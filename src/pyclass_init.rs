@@ -145,7 +145,7 @@ impl<T: PyClass> PyClassInitializer<T> {
         PyClassInitializer::new(subclass_value, self)
     }
 
-    /// Creates a new PyCell and initializes it.
+    /// Creates a new class object and initializes it.
     pub(crate) fn create_class_object(self, py: Python<'_>) -> PyResult<Bound<'_, T>>
     where
         T: PyClass,

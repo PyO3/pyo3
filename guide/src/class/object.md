@@ -133,7 +133,7 @@ impl Number {
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         // This is the equivalent of `self.__class__.__name__` in Python.
         let class_name: Bound<'_, PyString> = slf.get_type().qualname()?;
-        // To access fields of the Rust struct, we need to borrow the `PyCell`.
+        // To access fields of the Rust struct, we need to borrow from the Bound object.
         Ok(format!("{}({})", class_name, slf.borrow().0))
     }
 }
