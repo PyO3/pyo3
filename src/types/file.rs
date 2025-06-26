@@ -19,17 +19,10 @@ use std::os::fd::{AsRawFd, FromRawFd};
 use std::os::fd::RawFd;
 
 #[cfg(windows)]
-use std::os::windows::io::AsRawHandle;
+use crate::exceptions::PyOSError;
+
 #[cfg(windows)]
-use winapi::um::handleapi::DuplicateHandle;
-#[cfg(windows)]
-use winapi::um::processthreadsapi::GetCurrentProcess;
-#[cfg(windows)]
-use winapi::um::winnt::{DUPLICATE_SAME_ACCESS, HANDLE};
-#[cfg(windows)]
-use std::os::windows::prelude::IntoRawHandle;
-#[cfg(windows)]
-use std::os::windows::io::{FromRawHandle, RawHandle};
+use std::os::windows::io::{AsRawHandle, FromRawHandle};
 
 /// Represents a Python `file` object.
 ///
@@ -49,7 +42,16 @@ impl PyFile {
 
     pub fn new(py: Python<'_>, pyo3_file: Pyo3File) -> PyResult<Bound<'_, PyAny>> {
         let file = pyo3_file.getfile();
+        
+        #[cfg(unix)]
         let fd = file.as_raw_fd();
+
+        #[cfg(windows)]
+        let fd = unsafe { 
+            let handle = file.as_raw_handle();
+            libc::open_osfhandle(handle as isize, 0) 
+        };
+
         if fd < 0 {
             return Err(FileConversionError::new_err("Invalid file descriptor"));
         }
@@ -86,7 +88,7 @@ impl PyFile {
 impl<'py> crate::FromPyObject<'py> for Pyo3File {
 
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let fd: RawFd = unsafe { crate::ffi::PyObject_AsFileDescriptor(obj.as_ptr()) };
+        let fd = unsafe { crate::ffi::PyObject_AsFileDescriptor(obj.as_ptr()) };
         if fd < 0 {
             return Err(PyErr::fetch(obj.py()));
         }
