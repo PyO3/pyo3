@@ -172,6 +172,9 @@ impl<'py> IntoPyObject<'py> for &bool {
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
 impl FromPyObject<'_> for bool {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "bool";
+
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         let err = match obj.downcast::<PyBool>() {
             Ok(obj) => return Ok(obj.is_true()),
@@ -180,10 +183,10 @@ impl FromPyObject<'_> for bool {
 
         let is_numpy_bool = {
             let ty = obj.get_type();
-            ty.module().map_or(false, |module| module == "numpy")
+            ty.module().is_ok_and(|module| module == "numpy")
                 && ty
                     .name()
-                    .map_or(false, |name| name == "bool_" || name == "bool")
+                    .is_ok_and(|name| name == "bool_" || name == "bool")
         };
 
         if is_numpy_bool {

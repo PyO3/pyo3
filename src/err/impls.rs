@@ -49,7 +49,7 @@ impl From<PyErr> for io::Error {
 impl From<io::Error> for PyErr {
     fn from(err: io::Error) -> PyErr {
         // If the error wraps a Python error we return it
-        if err.get_ref().map_or(false, |e| e.is::<PyErr>()) {
+        if err.get_ref().is_some_and(|e| e.is::<PyErr>()) {
             return *err.into_inner().unwrap().downcast().unwrap();
         }
         match err.kind() {

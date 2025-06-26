@@ -22,6 +22,8 @@ pyobject_native_type_named!(PyWeakrefProxy);
 
 impl PyTypeCheck for PyWeakrefProxy {
     const NAME: &'static str = "weakref.ProxyTypes";
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "weakref.ProxyType | weakref.CallableProxyType";
 
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::PyWeakref_CheckProxy(object.as_ptr()) > 0 }
@@ -55,8 +57,7 @@ impl PyWeakrefProxy {
     ///     let weakref = PyWeakrefProxy::new(&foo)?;
     ///     assert!(
     ///         // In normal situations where a direct `Bound<'py, Foo>` is required use `upgrade::<Foo>`
-    ///         weakref.upgrade()
-    ///             .map_or(false, |obj| obj.is(&foo))
+    ///         weakref.upgrade().is_some_and(|obj| obj.is(&foo))
     ///     );
     ///
     ///     let weakref2 = PyWeakrefProxy::new(&foo)?;
@@ -118,8 +119,7 @@ impl PyWeakrefProxy {
     ///     assert!(weakref.upgrade_as::<Foo>()?.is_some());
     ///     assert!(
     ///         // In normal situations where a direct `Bound<'py, Foo>` is required use `upgrade::<Foo>`
-    ///         weakref.upgrade()
-    ///             .map_or(false, |obj| obj.is(&foo))
+    ///         weakref.upgrade().is_some_and(|obj| obj.is(&foo))
     ///     );
     ///     assert_eq!(py.eval(c_str!("counter"), None, None)?.extract::<u32>()?, 0);
     ///
@@ -275,9 +275,9 @@ mod tests {
                     assert!(reference
                         .getattr("__callback__")
                         .err()
-                        .map_or(false, |err| err.is_instance_of::<PyAttributeError>(py)));
+                        .is_some_and(|err| err.is_instance_of::<PyAttributeError>(py)));
 
-                    assert!(reference.call0().err().map_or(false, |err| {
+                    assert!(reference.call0().err().is_some_and(|err| {
                         let result = err.is_instance_of::<PyTypeError>(py);
                         #[cfg(not(Py_LIMITED_API))]
                         let result = result
@@ -292,16 +292,16 @@ mod tests {
                     assert!(reference
                         .getattr("__class__")
                         .err()
-                        .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
+                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)));
                     #[cfg(not(Py_LIMITED_API))]
                     check_repr(&reference, py.None().bind(py), None)?;
 
                     assert!(reference
                         .getattr("__callback__")
                         .err()
-                        .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
+                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)));
 
-                    assert!(reference.call0().err().map_or(false, |err| {
+                    assert!(reference.call0().err().is_some_and(|err| {
                         let result = err.is_instance_of::<PyTypeError>(py);
                         #[cfg(not(Py_LIMITED_API))]
                         let result = result
@@ -329,10 +329,8 @@ mod tests {
                         let obj = obj.unwrap();
 
                         assert!(obj.is_some());
-                        assert!(
-                            obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())
-                                && obj.is_exact_instance(&class))
-                        );
+                        assert!(obj.is_some_and(|obj| ptr::eq(obj.as_ptr(), object.as_ptr())
+                            && obj.is_exact_instance(&class)));
                     }
 
                     drop(object);
@@ -363,10 +361,8 @@ mod tests {
                         let obj = unsafe { reference.upgrade_as_unchecked::<PyAny>() };
 
                         assert!(obj.is_some());
-                        assert!(
-                            obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())
-                                && obj.is_exact_instance(&class))
-                        );
+                        assert!(obj.is_some_and(|obj| ptr::eq(obj.as_ptr(), object.as_ptr())
+                            && obj.is_exact_instance(&class)));
                     }
 
                     drop(object);
@@ -390,7 +386,7 @@ mod tests {
                     let reference = PyWeakrefProxy::new(&object)?;
 
                     assert!(reference.upgrade().is_some());
-                    assert!(reference.upgrade().map_or(false, |obj| obj.is(&object)));
+                    assert!(reference.upgrade().is_some_and(|obj| obj.is(&object)));
 
                     drop(object);
 
@@ -453,9 +449,9 @@ mod tests {
                     assert!(reference
                         .getattr("__callback__")
                         .err()
-                        .map_or(false, |err| err.is_instance_of::<PyAttributeError>(py)));
+                        .is_some_and(|err| err.is_instance_of::<PyAttributeError>(py)));
 
-                    assert!(reference.call0().err().map_or(false, |err| {
+                    assert!(reference.call0().err().is_some_and(|err| {
                         let result = err.is_instance_of::<PyTypeError>(py);
                         #[cfg(not(Py_LIMITED_API))]
                         let result = result
@@ -470,16 +466,16 @@ mod tests {
                     assert!(reference
                         .getattr("__class__")
                         .err()
-                        .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
+                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)));
                     #[cfg(not(Py_LIMITED_API))]
                     check_repr(&reference, py.None().bind(py), None)?;
 
                     assert!(reference
                         .getattr("__callback__")
                         .err()
-                        .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
+                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)));
 
-                    assert!(reference.call0().err().map_or(false, |err| {
+                    assert!(reference.call0().err().is_some_and(|err| {
                         let result = err.is_instance_of::<PyTypeError>(py);
                         #[cfg(not(Py_LIMITED_API))]
                         let result = result
@@ -505,7 +501,7 @@ mod tests {
                         let obj = obj.unwrap();
 
                         assert!(obj.is_some());
-                        assert!(obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())));
+                        assert!(obj.is_some_and(|obj| ptr::eq(obj.as_ptr(), object.as_ptr())));
                     }
 
                     drop(object);
@@ -533,7 +529,7 @@ mod tests {
                         let obj = unsafe { reference.upgrade_as_unchecked::<WeakrefablePyClass>() };
 
                         assert!(obj.is_some());
-                        assert!(obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())));
+                        assert!(obj.is_some_and(|obj| ptr::eq(obj.as_ptr(), object.as_ptr())));
                     }
 
                     drop(object);
@@ -555,7 +551,7 @@ mod tests {
                     let reference = PyWeakrefProxy::new(object.bind(py))?;
 
                     assert!(reference.upgrade().is_some());
-                    assert!(reference.upgrade().map_or(false, |obj| obj.is(&object)));
+                    assert!(reference.upgrade().is_some_and(|obj| obj.is(&object)));
 
                     drop(object);
 
@@ -611,7 +607,7 @@ mod tests {
                     assert!(reference
                         .getattr("__callback__")
                         .err()
-                        .map_or(false, |err| err.is_instance_of::<PyAttributeError>(py)));
+                        .is_some_and(|err| err.is_instance_of::<PyAttributeError>(py)));
 
                     assert_eq!(reference.call0()?.to_string(), "This class is callable!");
 
@@ -621,19 +617,19 @@ mod tests {
                     assert!(reference
                         .getattr("__class__")
                         .err()
-                        .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
+                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)));
                     #[cfg(not(Py_LIMITED_API))]
                     check_repr(&reference, py.None().bind(py), None)?;
 
                     assert!(reference
                         .getattr("__callback__")
                         .err()
-                        .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
+                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)));
 
                     assert!(reference
                         .call0()
                         .err()
-                        .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)
+                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)
                             & (err.value(py).to_string()
                                 == "weakly-referenced object no longer exists")));
 
@@ -656,10 +652,8 @@ mod tests {
                         let obj = obj.unwrap();
 
                         assert!(obj.is_some());
-                        assert!(
-                            obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())
-                                && obj.is_exact_instance(&class))
-                        );
+                        assert!(obj.is_some_and(|obj| ptr::eq(obj.as_ptr(), object.as_ptr())
+                            && obj.is_exact_instance(&class)));
                     }
 
                     drop(object);
@@ -690,10 +684,8 @@ mod tests {
                         let obj = unsafe { reference.upgrade_as_unchecked::<PyAny>() };
 
                         assert!(obj.is_some());
-                        assert!(
-                            obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())
-                                && obj.is_exact_instance(&class))
-                        );
+                        assert!(obj.is_some_and(|obj| ptr::eq(obj.as_ptr(), object.as_ptr())
+                            && obj.is_exact_instance(&class)));
                     }
 
                     drop(object);
@@ -717,7 +709,7 @@ mod tests {
                     let reference = PyWeakrefProxy::new(&object)?;
 
                     assert!(reference.upgrade().is_some());
-                    assert!(reference.upgrade().map_or(false, |obj| obj.is(&object)));
+                    assert!(reference.upgrade().is_some_and(|obj| obj.is(&object)));
 
                     drop(object);
 
@@ -767,7 +759,7 @@ mod tests {
                     assert!(reference
                         .getattr("__callback__")
                         .err()
-                        .map_or(false, |err| err.is_instance_of::<PyAttributeError>(py)));
+                        .is_some_and(|err| err.is_instance_of::<PyAttributeError>(py)));
 
                     assert_eq!(reference.call0()?.to_string(), "This class is callable!");
 
@@ -777,19 +769,19 @@ mod tests {
                     assert!(reference
                         .getattr("__class__")
                         .err()
-                        .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
+                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)));
                     #[cfg(not(Py_LIMITED_API))]
                     check_repr(&reference, py.None().bind(py), None)?;
 
                     assert!(reference
                         .getattr("__callback__")
                         .err()
-                        .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
+                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)));
 
                     assert!(reference
                         .call0()
                         .err()
-                        .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)
+                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)
                             & (err.value(py).to_string()
                                 == "weakly-referenced object no longer exists")));
 
@@ -810,7 +802,7 @@ mod tests {
                         let obj = obj.unwrap();
 
                         assert!(obj.is_some());
-                        assert!(obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())));
+                        assert!(obj.is_some_and(|obj| ptr::eq(obj.as_ptr(), object.as_ptr())));
                     }
 
                     drop(object);
@@ -838,7 +830,7 @@ mod tests {
                         let obj = unsafe { reference.upgrade_as_unchecked::<WeakrefablePyClass>() };
 
                         assert!(obj.is_some());
-                        assert!(obj.map_or(false, |obj| ptr::eq(obj.as_ptr(), object.as_ptr())));
+                        assert!(obj.is_some_and(|obj| ptr::eq(obj.as_ptr(), object.as_ptr())));
                     }
 
                     drop(object);
@@ -860,7 +852,7 @@ mod tests {
                     let reference = PyWeakrefProxy::new(object.bind(py))?;
 
                     assert!(reference.upgrade().is_some());
-                    assert!(reference.upgrade().map_or(false, |obj| obj.is(&object)));
+                    assert!(reference.upgrade().is_some_and(|obj| obj.is(&object)));
 
                     drop(object);
 

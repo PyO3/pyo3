@@ -22,6 +22,11 @@ type PyArg<'py> = Borrowed<'py, 'py, PyAny>;
 /// There exists a trivial blanket implementation for `T: FromPyObject` with `Holder = ()`.
 pub trait PyFunctionArgument<'a, 'py, const IS_OPTION: bool>: Sized + 'a {
     type Holder: FunctionArgumentHolder;
+
+    /// Provides the type hint information for which Python types are allowed.
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str;
+
     fn extract(obj: &'a Bound<'py, PyAny>, holder: &'a mut Self::Holder) -> PyResult<Self>;
 }
 
@@ -30,6 +35,9 @@ where
     T: FromPyObjectBound<'a, 'py> + 'a,
 {
     type Holder = ();
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = T::INPUT_TYPE;
 
     #[inline]
     fn extract(obj: &'a Bound<'py, PyAny>, _: &'a mut ()) -> PyResult<Self> {
@@ -43,6 +51,9 @@ where
 {
     type Holder = ();
 
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = T::PYTHON_TYPE;
+
     #[inline]
     fn extract(obj: &'a Bound<'py, PyAny>, _: &'a mut ()) -> PyResult<Self> {
         obj.downcast().map_err(Into::into)
@@ -54,6 +65,9 @@ where
     T: PyFunctionArgument<'a, 'py, false>, // inner `Option`s will use `FromPyObject`
 {
     type Holder = T::Holder;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "typing.Any | None";
 
     #[inline]
     fn extract(obj: &'a Bound<'py, PyAny>, holder: &'a mut T::Holder) -> PyResult<Self> {
@@ -68,6 +82,9 @@ where
 #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
 impl<'a> PyFunctionArgument<'a, '_, false> for &'a str {
     type Holder = Option<std::borrow::Cow<'a, str>>;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "str";
 
     #[inline]
     fn extract(

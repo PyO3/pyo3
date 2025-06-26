@@ -1380,6 +1380,7 @@ impl pyo3::types::DerefToPyAny for MyClass {}
 unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
     const NAME: &'static str = "MyClass";
     const MODULE: ::std::option::Option<&'static str> = ::std::option::Option::None;
+
     #[inline]
     fn type_object_raw(py: pyo3::Python<'_>) -> *mut pyo3::ffi::PyTypeObject {
         <Self as pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()
@@ -1395,6 +1396,8 @@ impl pyo3::PyClass for MyClass {
 impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py, false> for &'a MyClass
 {
     type Holder = ::std::option::Option<pyo3::PyRef<'py, MyClass>>;
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "MyClass";
 
     #[inline]
     fn extract(obj: &'a pyo3::Bound<'py, PyAny>, holder: &'a mut Self::Holder) -> pyo3::PyResult<Self> {
@@ -1405,6 +1408,8 @@ impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py, false> 
 impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py, false> for &'a mut MyClass
 {
     type Holder = ::std::option::Option<pyo3::PyRefMut<'py, MyClass>>;
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "MyClass";
 
     #[inline]
     fn extract(obj: &'a pyo3::Bound<'py, PyAny>, holder: &'a mut Self::Holder) -> pyo3::PyResult<Self> {

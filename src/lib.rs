@@ -4,8 +4,7 @@
     feature(auto_traits, negative_impls, try_trait_v2, iter_advance_by)
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
-#![cfg_attr(not(cargo_toml_lints), warn(unsafe_op_in_unsafe_fn))]
-// necessary for MSRV 1.63 to build
+#![warn(unsafe_op_in_unsafe_fn)]
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
 #![doc(test(attr(
@@ -16,6 +15,7 @@
         warnings
     ),
     allow(
+        unused_imports,  // to make imports already in the prelude explicit
         unused_variables,
         unused_assignments,
         unused_extern_crates,
