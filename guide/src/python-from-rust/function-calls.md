@@ -36,7 +36,7 @@ fn main() -> PyResult<()> {
                     print('called with kwargs', kwargs)
                 if args == () and kwargs == {}:
                     print('called with no arguments')"),
-            c_str!(""),
+            c_str!("example.py"),
             c_str!(""),
         )?
         .getattr("example")?
@@ -83,7 +83,7 @@ fn main() -> PyResult<()> {
                     print('called with kwargs', kwargs)
                 if args == () and kwargs == {}:
                     print('called with no arguments')"),
-            c_str!(""),
+            c_str!("example.py"),
             c_str!(""),
         )?
         .getattr("example")?

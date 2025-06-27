@@ -548,6 +548,8 @@ fn __name__(py: Python<'_>) -> &Bound<'_, PyString> {
 
 #[cfg(test)]
 mod tests {
+    use pyo3_ffi::c_str;
+
     use crate::{
         types::{module::PyModuleMethods, PyModule},
         Python,
@@ -572,6 +574,14 @@ mod tests {
                 .to_cow()
                 .unwrap()
                 .ends_with("site.py"));
+        })
+    }
+
+    #[test]
+    fn module_from_code_empty_file() {
+        Python::with_gil(|py| {
+            let builtins = PyModule::from_code(py, c_str!(""), c_str!(""), c_str!("")).unwrap();
+            assert_eq!(builtins.filename().unwrap(), "<string>");
         })
     }
 }
