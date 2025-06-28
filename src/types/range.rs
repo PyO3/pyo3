@@ -72,7 +72,7 @@ mod tests {
 
     #[test]
     fn test_py_range_new() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let range = PyRange::new(py, isize::MIN, isize::MAX).unwrap();
             assert_eq!(range.start().unwrap(), isize::MIN);
             assert_eq!(range.stop().unwrap(), isize::MAX);
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn test_py_range_new_with_step() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let range = PyRange::new_with_step(py, 1, 10, 2).unwrap();
             assert_eq!(range.start().unwrap(), 1);
             assert_eq!(range.stop().unwrap(), 10);

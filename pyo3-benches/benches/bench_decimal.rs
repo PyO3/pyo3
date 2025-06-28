@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
 fn decimal_via_extract(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let locals = PyDict::new(py);
         py.run(
             cr#"

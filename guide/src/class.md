@@ -221,7 +221,7 @@ struct MyClass {
     #[pyo3(get)]
     num: i32,
 }
-Python::with_gil(|py| {
+Python::attach(|py| {
     let obj = Bound::new(py, MyClass { num: 3 }).unwrap();
     {
         let obj_ref = obj.borrow(); // Get PyRef
@@ -253,12 +253,12 @@ struct MyClass {
 }
 
 fn return_myclass() -> Py<MyClass> {
-    Python::with_gil(|py| Py::new(py, MyClass { num: 1 }).unwrap())
+    Python::attach(|py| Py::new(py, MyClass { num: 1 }).unwrap())
 }
 
 let obj = return_myclass();
 
-Python::with_gil(move |py| {
+Python::attach(move |py| {
     let bound = obj.bind(py); // Py<MyClass>::bind returns &Bound<'py, MyClass>
     let obj_ref = bound.borrow(); // Get PyRef<T>
     assert_eq!(obj_ref.num, 1);
@@ -280,7 +280,7 @@ struct FrozenCounter {
     value: AtomicUsize,
 }
 
-let py_counter: Py<FrozenCounter> = Python::with_gil(|py| {
+let py_counter: Py<FrozenCounter> = Python::attach(|py| {
     let counter = FrozenCounter {
         value: AtomicUsize::new(0),
     };
@@ -290,7 +290,7 @@ let py_counter: Py<FrozenCounter> = Python::with_gil(|py| {
 
 py_counter.get().value.fetch_add(1, Ordering::Relaxed);
 
-Python::with_gil(move |_py| drop(py_counter));
+Python::attach(move |_py| drop(py_counter));
 ```
 
 Frozen classes are likely to become the default thereby guiding the PyO3 ecosystem towards a more deliberate application of interior mutability. Eventually, this should enable further optimizations of PyO3's internals and avoid downstream code paying the cost of interior mutability when it is not actually required.
@@ -423,7 +423,7 @@ impl SubSubClass {
         }
     }
 }
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 #     let subsub = pyo3::Py::new(py, SubSubClass::new()).unwrap();
 #     pyo3::py_run!(py, subsub, "assert subsub.method1() == 10");
 #     pyo3::py_run!(py, subsub, "assert subsub.method2() == 150");
@@ -473,7 +473,7 @@ impl DictWithCounter {
         dict.set_item(key, value)
     }
 }
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 #     let cnt = pyo3::Py::new(py, DictWithCounter::new()).unwrap();
 #     pyo3::py_run!(py, cnt, "cnt.set('abc', 10); assert cnt['abc'] == 10")
 # });
@@ -529,7 +529,7 @@ impl MyDict {
 
     // some custom methods that use `private` here...
 }
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 #     let cls = py.get_type::<MyDict>();
 #     pyo3::py_run!(py, cls, "cls(a=1, b=2)")
 # });
@@ -800,7 +800,7 @@ impl MyClass {
     }
 }
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     let my_class = py.get_type::<MyClass>();
     pyo3::py_run!(py, my_class, "assert my_class.my_attribute == 'hello'")
 });
@@ -973,7 +973,7 @@ impl MyClass {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
 #         let module = PyModule::new(py, "my_module")?;
 #         module.add_class::<MyClass>()?;
@@ -1096,7 +1096,7 @@ enum MyEnum {
     OtherVariant,
 }
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     let x = Py::new(py, MyEnum::Variant).unwrap();
     let y = Py::new(py, MyEnum::OtherVariant).unwrap();
     let cls = py.get_type::<MyEnum>();
@@ -1119,7 +1119,7 @@ enum MyEnum {
     OtherVariant = 10,
 }
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     let cls = py.get_type::<MyEnum>();
     let x = MyEnum::Variant as i32; // The exact value is assigned by the compiler.
     pyo3::py_run!(py, cls x, r#"
@@ -1140,7 +1140,7 @@ enum MyEnum{
     OtherVariant,
 }
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     let cls = py.get_type::<MyEnum>();
     let x = Py::new(py, MyEnum::Variant).unwrap();
     pyo3::py_run!(py, cls x, r#"
@@ -1167,7 +1167,7 @@ impl MyEnum {
     }
 }
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     let cls = py.get_type::<MyEnum>();
     pyo3::py_run!(py, cls, "assert repr(cls.Answer) == '42'")
 })
@@ -1184,7 +1184,7 @@ enum MyEnum {
     Variant,
 }
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     let x = Py::new(py, MyEnum::Variant).unwrap();
     let cls = py.get_type::<MyEnum>();
     pyo3::py_run!(py, x cls, r#"
@@ -1207,7 +1207,7 @@ enum MyEnum{
     C,
 }
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     let cls = py.get_type::<MyEnum>();
     let a = Py::new(py, MyEnum::A).unwrap();
     let b = Py::new(py, MyEnum::B).unwrap();
@@ -1263,7 +1263,7 @@ enum Shape {
 }
 
 # #[cfg(Py_3_10)]
-Python::with_gil(|py| {
+Python::attach(|py| {
     let circle = Shape::Circle { radius: 10.0 }.into_pyobject(py)?;
     let square = Shape::RegularPolygon(4, 10.0).into_pyobject(py)?;
     let cls = py.get_type::<Shape>();
@@ -1305,7 +1305,7 @@ enum MyEnum {
     Variant { i: i32 },
 }
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     let x = Py::new(py, MyEnum::Variant { i: 42 }).unwrap();
     let cls = py.get_type::<MyEnum>();
     pyo3::py_run!(py, x cls, r#"
@@ -1332,7 +1332,7 @@ enum Shape {
 }
 
 # #[cfg(Py_3_10)]
-Python::with_gil(|py| {
+Python::attach(|py| {
     let cls = py.get_type::<Shape>();
     pyo3::py_run!(py, cls, r#"
         circle = cls.Circle()
@@ -1452,7 +1452,7 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     }
 }
 
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 #     let cls = py.get_type::<MyClass>();
 #     pyo3::py_run!(py, cls, "assert cls.__name__ == 'MyClass'")
 # });

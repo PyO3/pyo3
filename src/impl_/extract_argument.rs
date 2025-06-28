@@ -822,7 +822,7 @@ mod tests {
             keyword_only_parameters: &[],
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let args = PyTuple::empty(py);
             let kwargs = [("foo", 0u8)].into_py_dict(py).unwrap();
             let err = unsafe {
@@ -853,7 +853,7 @@ mod tests {
             keyword_only_parameters: &[],
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let args = PyTuple::empty(py);
             let kwargs = [(1u8, 1u8)].into_py_dict(py).unwrap();
             let err = unsafe {
@@ -884,7 +884,7 @@ mod tests {
             keyword_only_parameters: &[],
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let args = PyTuple::empty(py);
             let mut output = [None, None];
             let err = unsafe {

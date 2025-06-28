@@ -141,7 +141,7 @@ impl<'a> PyStringData<'a> {
 /// # use pyo3::prelude::*;
 /// use pyo3::types::PyString;
 ///
-/// # Python::with_gil(|py| {
+/// # Python::attach(|py| {
 /// let py_string = PyString::new(py, "foo");
 /// // via PartialEq<str>
 /// assert_eq!(py_string, "foo");
@@ -539,7 +539,7 @@ mod tests {
 
     #[test]
     fn test_to_cow_utf8() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = "ascii 🐈";
             let py_string = PyString::new(py, s);
             assert_eq!(s, py_string.to_cow().unwrap());
@@ -548,7 +548,7 @@ mod tests {
 
     #[test]
     fn test_to_cow_surrogate() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_string = py
                 .eval(ffi::c_str!(r"'\ud800'"), None, None)
                 .unwrap()
@@ -560,7 +560,7 @@ mod tests {
 
     #[test]
     fn test_to_cow_unicode() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = "哈哈🐈";
             let py_string = PyString::new(py, s);
             assert_eq!(s, py_string.to_cow().unwrap());
@@ -569,7 +569,7 @@ mod tests {
 
     #[test]
     fn test_encode_utf8_unicode() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = "哈哈🐈";
             let obj = PyString::new(py, s);
             assert_eq!(s.as_bytes(), obj.encode_utf8().unwrap().as_bytes());
@@ -578,7 +578,7 @@ mod tests {
 
     #[test]
     fn test_encode_utf8_surrogate() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj: PyObject = py
                 .eval(ffi::c_str!(r"'\ud800'"), None, None)
                 .unwrap()
@@ -594,7 +594,7 @@ mod tests {
 
     #[test]
     fn test_to_string_lossy() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_string = py
                 .eval(ffi::c_str!(r"'🐈 Hello \ud800World'"), None, None)
                 .unwrap()
@@ -607,7 +607,7 @@ mod tests {
 
     #[test]
     fn test_debug_string() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = "Hello\n".into_pyobject(py).unwrap();
             assert_eq!(format!("{s:?}"), "'Hello\\n'");
         })
@@ -615,7 +615,7 @@ mod tests {
 
     #[test]
     fn test_display_string() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = "Hello\n".into_pyobject(py).unwrap();
             assert_eq!(format!("{s}"), "Hello\n");
         })
@@ -623,7 +623,7 @@ mod tests {
 
     #[test]
     fn test_string_from_object() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_bytes = PyBytes::new(py, b"ab\xFFcd");
 
             let py_string = PyString::from_object(&py_bytes, "utf-8", "ignore").unwrap();
@@ -635,7 +635,7 @@ mod tests {
 
     #[test]
     fn test_string_from_obect_with_invalid_encoding_errors() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_bytes = PyBytes::new(py, b"abcd");
 
             let result = PyString::from_object(&py_bytes, "utf\0-8", "ignore");
@@ -649,7 +649,7 @@ mod tests {
     #[test]
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn test_string_data_ucs1() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = PyString::new(py, "hello, world");
             let data = unsafe { s.data().unwrap() };
 
@@ -662,7 +662,7 @@ mod tests {
     #[test]
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn test_string_data_ucs1_invalid() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // 0xfe is not allowed in UTF-8.
             let buffer = b"f\xfe\0";
             let ptr = unsafe {
@@ -688,7 +688,7 @@ mod tests {
     #[test]
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn test_string_data_ucs2() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = py.eval(ffi::c_str!("'foo\\ud800'"), None, None).unwrap();
             let py_string = s.downcast::<PyString>().unwrap();
             let data = unsafe { py_string.data().unwrap() };
@@ -704,7 +704,7 @@ mod tests {
     #[test]
     #[cfg(all(not(any(Py_LIMITED_API, PyPy, GraalPy)), target_endian = "little"))]
     fn test_string_data_ucs2_invalid() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // U+FF22 (valid) & U+d800 (never valid)
             let buffer = b"\x22\xff\x00\xd8\x00\x00";
             let ptr = unsafe {
@@ -730,7 +730,7 @@ mod tests {
     #[test]
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn test_string_data_ucs4() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = "哈哈🐈";
             let py_string = PyString::new(py, s);
             let data = unsafe { py_string.data().unwrap() };
@@ -743,7 +743,7 @@ mod tests {
     #[test]
     #[cfg(all(not(any(Py_LIMITED_API, PyPy, GraalPy)), target_endian = "little"))]
     fn test_string_data_ucs4_invalid() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // U+20000 (valid) & U+d800 (never valid)
             let buffer = b"\x00\x00\x02\x00\x00\xd8\x00\x00\x00\x00\x00\x00";
             let ptr = unsafe {
@@ -768,7 +768,7 @@ mod tests {
 
     #[test]
     fn test_intern_string() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_string1 = PyString::intern(py, "foo");
             assert_eq!(py_string1, "foo");
 
@@ -786,7 +786,7 @@ mod tests {
 
     #[test]
     fn test_py_to_str_utf8() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = "ascii 🐈";
             let py_string = PyString::new(py, s).unbind();
 
@@ -799,7 +799,7 @@ mod tests {
 
     #[test]
     fn test_py_to_str_surrogate() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_string: Py<PyString> = py
                 .eval(ffi::c_str!(r"'\ud800'"), None, None)
                 .unwrap()
@@ -815,7 +815,7 @@ mod tests {
 
     #[test]
     fn test_py_to_string_lossy() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_string: Py<PyString> = py
                 .eval(ffi::c_str!(r"'🐈 Hello \ud800World'"), None, None)
                 .unwrap()
@@ -827,7 +827,7 @@ mod tests {
 
     #[test]
     fn test_comparisons() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = "hello, world";
             let py_string = PyString::new(py, s);
 

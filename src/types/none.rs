@@ -47,7 +47,7 @@ mod tests {
 
     #[test]
     fn test_none_is_itself() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyNone::get(py).is_instance_of::<PyNone>());
             assert!(PyNone::get(py).is_exact_instance_of::<PyNone>());
         })
@@ -55,21 +55,21 @@ mod tests {
 
     #[test]
     fn test_none_type_object_consistent() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyNone::get(py).get_type().is(PyNone::type_object(py)));
         })
     }
 
     #[test]
     fn test_none_is_none() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyNone::get(py).downcast::<PyNone>().unwrap().is_none());
         })
     }
 
     #[test]
     fn test_dict_is_not_none() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyDict::new(py).downcast::<PyNone>().is_err());
         })
     }

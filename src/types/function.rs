@@ -61,7 +61,7 @@ impl PyCFunction {
     /// # use pyo3::prelude::*;
     /// # use pyo3::{py_run, types::{PyCFunction, PyDict, PyTuple}};
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let add_one = |args: &Bound<'_, PyTuple>, _kwargs: Option<&Bound<'_, PyDict>>| -> PyResult<_> {
     ///         let i = args.extract::<(i64,)>()?.0;
     ///         Ok(i+1)

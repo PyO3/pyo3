@@ -155,7 +155,7 @@ mod tests {
 
     #[test]
     fn test_hashmap_to_python() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn test_btreemap_to_python() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut map = BTreeMap::<i32, i32>::new();
             map.insert(1, 1);
 
@@ -199,7 +199,7 @@ mod tests {
 
     #[test]
     fn test_hashmap_into_python() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
@@ -220,7 +220,7 @@ mod tests {
 
     #[test]
     fn test_btreemap_into_py() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut map = BTreeMap::<i32, i32>::new();
             map.insert(1, 1);
 

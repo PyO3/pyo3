@@ -622,7 +622,7 @@ impl<T: Element> PyBuffer<T> {
 
 impl<T> Drop for PyBuffer<T> {
     fn drop(&mut self) {
-        Python::with_gil(|_| unsafe { ffi::PyBuffer_Release(&mut *self.0) });
+        Python::attach(|_| unsafe { ffi::PyBuffer_Release(&mut *self.0) });
     }
 }
 
@@ -684,7 +684,7 @@ mod tests {
 
     #[test]
     fn test_debug() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes = py.eval(ffi::c_str!("b'abcde'"), None, None).unwrap();
             let buffer: PyBuffer<u8> = PyBuffer::get(&bytes).unwrap();
             let expected = format!(
@@ -845,7 +845,7 @@ mod tests {
 
     #[test]
     fn test_bytes_buffer() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes = py.eval(ffi::c_str!("b'abcde'"), None, None).unwrap();
             let buffer = PyBuffer::get(&bytes).unwrap();
             assert_eq!(buffer.dimensions(), 1);
@@ -877,7 +877,7 @@ mod tests {
 
     #[test]
     fn test_array_buffer() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let array = py
                 .import("array")
                 .unwrap()

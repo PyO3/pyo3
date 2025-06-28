@@ -43,7 +43,7 @@ impl PyModule {
     /// use pyo3::prelude::*;
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
+    /// Python::attach(|py| -> PyResult<()> {
     ///     let module = PyModule::new(py, "my_module")?;
     ///
     ///     assert_eq!(module.name()?, "my_module");
@@ -68,7 +68,7 @@ impl PyModule {
     /// # fn main() {
     /// use pyo3::prelude::*;
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let module = PyModule::import(py, "antigravity").expect("No flying for you.");
     /// });
     /// # }
@@ -124,7 +124,7 @@ impl PyModule {
     /// // This path is resolved relative to this file.
     /// let code = c_str!(include_str!("../../assets/script.py"));
     ///
-    /// Python::with_gil(|py| -> PyResult<()> {
+    /// Python::attach(|py| -> PyResult<()> {
     ///     PyModule::from_code(py, code, c_str!("example.py"), c_str!("example"))?;
     ///     Ok(())
     /// })?;
@@ -145,7 +145,7 @@ impl PyModule {
     /// // if you just want to bundle a script with your module.
     /// let code = std::fs::read_to_string("assets/script.py")?;
     ///
-    /// Python::with_gil(|py| -> PyResult<()> {
+    /// Python::attach(|py| -> PyResult<()> {
     ///     PyModule::from_code(py, CString::new(code)?.as_c_str(), c_str!("example.py"), c_str!("example"))?;
     ///     Ok(())
     /// })?;
@@ -557,7 +557,7 @@ mod tests {
 
     #[test]
     fn module_import_and_name() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let builtins = PyModule::import(py, "builtins").unwrap();
             assert_eq!(builtins.name().unwrap(), "builtins");
         })
@@ -566,7 +566,7 @@ mod tests {
     #[test]
     fn module_filename() {
         use crate::types::string::PyStringMethods;
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let site = PyModule::import(py, "site").unwrap();
             assert!(site
                 .filename()
@@ -579,7 +579,7 @@ mod tests {
 
     #[test]
     fn module_from_code_empty_file() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let builtins = PyModule::from_code(py, c_str!(""), c_str!(""), c_str!("")).unwrap();
             assert_eq!(builtins.filename().unwrap(), "<string>");
         })

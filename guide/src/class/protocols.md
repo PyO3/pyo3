@@ -215,7 +215,7 @@ impl Container {
     }
 }
 
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 #     let container = Container { iter: vec![1, 2, 3, 4] };
 #     let inst = pyo3::Py::new(py, container).unwrap();
 #     pyo3::py_run!(py, inst, "assert list(inst) == [1, 2, 3, 4]");
@@ -458,7 +458,7 @@ impl ClassWithGCSupport {
 
 Usually, an implementation of `__traverse__` should do nothing but calls to `visit.call`.
 Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`,
-i.e. `Python::with_gil` will panic.
+i.e. `Python::attach` will panic.
 
 > Note: these methods are part of the C API, PyPy does not necessarily honor them. If you are building for PyPy you should measure memory consumption to make sure you do not have runaway memory growth. See [this issue on the PyPy bug tracker](https://github.com/pypy/pypy/issues/3848).
 

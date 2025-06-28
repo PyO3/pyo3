@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //import path for python
     let path = Path::new("./python_plugin/");
     //do useful work
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         //add the current directory to import path of Python (do not use this in production!)
         let syspath: Bound<PyList> = py.import("sys")?.getattr("path")?.extract()?;
         syspath.insert(0, &path)?;

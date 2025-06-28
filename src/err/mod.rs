@@ -142,7 +142,7 @@ impl PyErr {
     ///     Err(PyErr::new::<PyTypeError, _>("Error message"))
     /// }
     /// #
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// #     let fun = pyo3::wrap_pyfunction!(always_throws, py).unwrap();
     /// #     let err = fun.call0().expect_err("called a function that should always return an error but the return value was Ok");
     /// #     assert!(err.is_instance_of::<PyTypeError>(py))
@@ -160,7 +160,7 @@ impl PyErr {
     ///     Err(PyTypeError::new_err("Error message"))
     /// }
     /// #
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// #     let fun = pyo3::wrap_pyfunction!(always_throws, py).unwrap();
     /// #     let err = fun.call0().expect_err("called a function that should always return an error but the return value was Ok");
     /// #     assert!(err.is_instance_of::<PyTypeError>(py))
@@ -212,7 +212,7 @@ impl PyErr {
     /// use pyo3::exceptions::PyTypeError;
     /// use pyo3::types::PyString;
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     // Case #1: Exception object
     ///     let err = PyErr::from_value(PyTypeError::new_err("some type error")
     ///         .value(py).clone().into_any());
@@ -251,7 +251,7 @@ impl PyErr {
     /// ```rust
     /// use pyo3::{prelude::*, exceptions::PyTypeError, types::PyType};
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
     ///     assert!(err.get_type(py).is(&PyType::new::<PyTypeError>(py)));
     /// });
@@ -267,7 +267,7 @@ impl PyErr {
     /// ```rust
     /// use pyo3::{exceptions::PyTypeError, PyErr, Python};
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
     ///     assert!(err.is_instance_of::<PyTypeError>(py));
     ///     assert_eq!(err.value(py).to_string(), "some type error");
@@ -298,7 +298,7 @@ impl PyErr {
     /// ```rust
     /// use pyo3::{exceptions::PyTypeError, Python};
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let err = PyTypeError::new_err(("some type error",));
     ///     assert!(err.traceback(py).is_none());
     /// });
@@ -506,7 +506,7 @@ impl PyErr {
     /// # use pyo3::exceptions::PyRuntimeError;
     /// # fn failing_function() -> PyResult<()> { Err(PyRuntimeError::new_err("foo")) }
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     match failing_function() {
     ///         Err(pyerr) => pyerr.write_unraisable(py, None),
     ///         Ok(..) => { /* do something here */ }
@@ -535,7 +535,7 @@ impl PyErr {
     /// # use pyo3::prelude::*;
     /// # use pyo3::ffi::c_str;
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let user_warning = py.get_type::<pyo3::exceptions::PyUserWarning>();
     ///     PyErr::warn(py, &user_warning, c_str!("I am warning you"), 0)?;
     ///     Ok(())
@@ -599,7 +599,7 @@ impl PyErr {
     /// # Examples
     /// ```rust
     /// use pyo3::{exceptions::PyTypeError, PyErr, Python, prelude::PyAnyMethods};
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
     ///     let err_clone = err.clone_ref(py);
     ///     assert!(err.get_type(py).is(&err_clone.get_type(py)));
@@ -657,7 +657,7 @@ impl PyErr {
 
 impl std::fmt::Debug for PyErr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             f.debug_struct("PyErr")
                 .field("type", &self.get_type(py))
                 .field("value", self.value(py))
@@ -682,7 +682,7 @@ impl std::fmt::Debug for PyErr {
 
 impl std::fmt::Display for PyErr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let value = self.value(py);
             let type_name = value.get_type().qualname().map_err(|_| std::fmt::Error)?;
             write!(f, "{type_name}")?;
@@ -856,12 +856,12 @@ mod tests {
 
     #[test]
     fn no_error() {
-        assert!(Python::with_gil(PyErr::take).is_none());
+        assert!(Python::attach(PyErr::take).is_none());
     }
 
     #[test]
     fn set_valueerror() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err: PyErr = exceptions::PyValueError::new_err("some exception message");
             assert!(err.is_instance_of::<exceptions::PyValueError>(py));
             err.restore(py);
@@ -874,7 +874,7 @@ mod tests {
 
     #[test]
     fn invalid_error_type() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err: PyErr = PyErr::new::<crate::types::PyString, _>(());
             assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
             err.restore(py);
@@ -890,7 +890,7 @@ mod tests {
 
     #[test]
     fn set_typeerror() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err: PyErr = exceptions::PyTypeError::new_err(());
             err.restore(py);
             assert!(PyErr::occurred(py));
@@ -903,7 +903,7 @@ mod tests {
     fn fetching_panic_exception_resumes_unwind() {
         use crate::panic::PanicException;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err: PyErr = PanicException::new_err("new panic");
             err.restore(py);
             assert!(PyErr::occurred(py));
@@ -919,7 +919,7 @@ mod tests {
     fn fetching_normalized_panic_exception_resumes_unwind() {
         use crate::panic::PanicException;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err: PyErr = PanicException::new_err("new panic");
             // Restoring an error doesn't normalize it before Python 3.12,
             // so we have to explicitly test this case.
@@ -941,7 +941,7 @@ mod tests {
         //     traceback:  Some(\"Traceback (most recent call last):\\n  File \\\"<string>\\\", line 1, in <module>\\n\")
         // }
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err = py
                 .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error");
@@ -967,7 +967,7 @@ mod tests {
 
     #[test]
     fn err_display() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err = py
                 .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error");
@@ -989,7 +989,7 @@ mod tests {
 
     #[test]
     fn test_pyerr_matches() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err = PyErr::new::<PyValueError, _>("foo");
             assert!(err.matches(py, PyValueError::type_object(py)).unwrap());
 
@@ -1010,7 +1010,7 @@ mod tests {
 
     #[test]
     fn test_pyerr_cause() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err = py
                 .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error");
@@ -1046,7 +1046,7 @@ mod tests {
         // Note: although the warning filter is interpreter global, keeping the
         // GIL locked should prevent effects to be visible to other testing
         // threads.
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let cls = py.get_type::<exceptions::PyUserWarning>();
 
             // Reset warning filter to default state

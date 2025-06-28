@@ -32,7 +32,7 @@ fn noop_coroutine() {
     async fn noop() -> usize {
         42
     }
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let noop = wrap_pyfunction!(noop, py).unwrap();
         let test = "import asyncio; assert asyncio.run(noop()) == 42";
         py_run!(py, noop, &handle_windows(test));
@@ -58,7 +58,7 @@ fn test_coroutine_qualname() {
         #[staticmethod]
         async fn my_staticmethod() {}
     }
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let test = r#"
         for coro, name, qualname in [
             (my_fn(), "my_fn", "my_fn"),
@@ -93,7 +93,7 @@ fn sleep_0_like_coroutine() {
         })
         .await
     }
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let sleep_0 = wrap_pyfunction!(sleep_0, py).unwrap();
         let test = "import asyncio; assert asyncio.run(sleep_0()) == 42";
         py_run!(py, sleep_0, &handle_windows(test));
@@ -112,7 +112,7 @@ async fn sleep(seconds: f64) -> usize {
 
 #[test]
 fn sleep_coroutine() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let sleep = wrap_pyfunction!(sleep, py).unwrap();
         let test = r#"import asyncio; assert asyncio.run(sleep(0.1)) == 42"#;
         py_run!(py, sleep, &handle_windows(test));
@@ -126,7 +126,7 @@ async fn return_tuple() -> (usize, usize) {
 
 #[test]
 fn tuple_coroutine() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let func = wrap_pyfunction!(return_tuple, py).unwrap();
         let test = r#"import asyncio; assert asyncio.run(func()) == (42, 43)"#;
         py_run!(py, func, &handle_windows(test));
@@ -135,7 +135,7 @@ fn tuple_coroutine() {
 
 #[test]
 fn cancelled_coroutine() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let sleep = wrap_pyfunction!(sleep, py).unwrap();
         let test = r#"
         import asyncio
@@ -174,7 +174,7 @@ fn coroutine_cancel_handle() {
             _ = cancel.cancelled().fuse() => 0,
         }
     }
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let cancellable_sleep = wrap_pyfunction!(cancellable_sleep, py).unwrap();
         let test = r#"
         import asyncio;
@@ -206,7 +206,7 @@ fn coroutine_is_cancelled() {
             sleep(0.001).await;
         }
     }
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let sleep_loop = wrap_pyfunction!(sleep_loop, py).unwrap();
         let test = r#"
         import asyncio;
@@ -234,7 +234,7 @@ fn coroutine_panic() {
     async fn panic() {
         panic!("test panic");
     }
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let panic = wrap_pyfunction!(panic, py).unwrap();
         let test = r#"
         import asyncio
@@ -284,7 +284,7 @@ fn test_async_method_receiver() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let test = r#"
         import asyncio
 
@@ -342,7 +342,7 @@ fn test_async_method_receiver_with_other_args() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let test = r#"
         import asyncio
 

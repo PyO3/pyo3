@@ -160,7 +160,7 @@ mod tests {
 
     #[test]
     fn test_py_slice_new() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let slice = PySlice::new(py, isize::MIN, isize::MAX, 1);
             assert_eq!(
                 slice.getattr("start").unwrap().extract::<isize>().unwrap(),
@@ -179,7 +179,7 @@ mod tests {
 
     #[test]
     fn test_py_slice_full() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let slice = PySlice::full(py);
             assert!(slice.getattr("start").unwrap().is_none(),);
             assert!(slice.getattr("stop").unwrap().is_none(),);

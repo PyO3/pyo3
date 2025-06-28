@@ -139,7 +139,7 @@ fn add(a: u64, b: u64) -> u64 {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let fun = pyo3::wrap_pyfunction!(add, py)?;
 #
 #         let doc: String = fun.getattr("__doc__")?.extract()?;
@@ -187,7 +187,7 @@ fn add(a: u64, b: u64) -> u64 {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let fun = pyo3::wrap_pyfunction!(add, py)?;
 #
 #         let doc: String = fun.getattr("__doc__")?.extract()?;
@@ -229,7 +229,7 @@ fn add(a: u64, b: u64) -> u64 {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let fun = pyo3::wrap_pyfunction!(add, py)?;
 #
 #         let doc: String = fun.getattr("__doc__")?.extract()?;

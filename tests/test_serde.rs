@@ -31,7 +31,7 @@ mod test_serde {
             friends: vec![],
         };
 
-        let user = Python::with_gil(|py| {
+        let user = Python::attach(|py| {
             let py_friend1 = Py::new(py, friend1).expect("failed to create friend 1");
             let py_friend2 = Py::new(py, friend2).expect("failed to create friend 2");
 
@@ -69,7 +69,7 @@ mod test_serde {
         assert_eq!(user.friends.len(), 1usize);
         let friend = user.friends.first().unwrap();
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert_eq!(friend.borrow(py).username, "friend");
             assert_eq!(
                 friend.borrow(py).group.as_ref().unwrap().borrow(py).name,

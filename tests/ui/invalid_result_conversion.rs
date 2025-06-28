@@ -26,7 +26,7 @@ fn should_not_work() -> Result<(), MyError> {
 }
 
 fn main() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         wrap_pyfunction!(should_not_work)(py);
     });
 }

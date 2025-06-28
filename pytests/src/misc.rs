@@ -6,7 +6,7 @@ use pyo3::{
 #[pyfunction]
 fn issue_219() {
     // issue 219: acquiring GIL inside #[pyfunction] deadlocks.
-    Python::with_gil(|_| {});
+    Python::attach(|_| {});
 }
 
 #[pyclass]
@@ -24,7 +24,7 @@ fn hammer_gil_in_thread() -> LockHolder {
         // now the interpreter has shut down, so hammer the GIL. In buggy
         // versions of PyO3 this will cause a crash.
         loop {
-            Python::with_gil(|_py| ());
+            Python::attach(|_py| ());
         }
     });
     LockHolder { sender }

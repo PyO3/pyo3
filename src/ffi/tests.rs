@@ -15,7 +15,7 @@ use libc::wchar_t;
 #[test]
 fn test_datetime_fromtimestamp() {
     use crate::IntoPyObject;
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let args = (100,).into_pyobject(py).unwrap();
         let dt = unsafe {
             PyDateTime_IMPORT();
@@ -37,7 +37,7 @@ fn test_datetime_fromtimestamp() {
 #[test]
 fn test_date_fromtimestamp() {
     use crate::IntoPyObject;
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let args = (100,).into_pyobject(py).unwrap();
         let dt = unsafe {
             PyDateTime_IMPORT();
@@ -58,7 +58,7 @@ fn test_date_fromtimestamp() {
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
 #[test]
 fn test_utc_timezone() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let utc_timezone: Bound<'_, PyAny> = unsafe {
             PyDateTime_IMPORT();
             Bound::from_borrowed_ptr(py, PyDateTime_TimeZone_UTC())
@@ -81,7 +81,7 @@ fn test_utc_timezone() {
 fn test_timezone_from_offset() {
     use crate::{ffi_ptr_ext::FfiPtrExt, types::PyDelta};
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let delta = PyDelta::new(py, 0, 100, 0, false).unwrap();
         let tz = unsafe { PyTimeZone_FromOffset(delta.as_ptr()).assume_owned(py) };
         crate::py_run!(
@@ -99,7 +99,7 @@ fn test_timezone_from_offset() {
 fn test_timezone_from_offset_and_name() {
     use crate::{ffi_ptr_ext::FfiPtrExt, types::PyDelta};
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let delta = PyDelta::new(py, 0, 100, 0, false).unwrap();
         let tzname = PyString::new(py, "testtz");
         let tz = unsafe {
@@ -171,7 +171,7 @@ fn ascii_object_bitfield() {
 #[test]
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 fn ascii() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // This test relies on implementation details of PyString.
         let s = PyString::new(py, "hello, world");
         let ptr = s.as_ptr();
@@ -216,7 +216,7 @@ fn ascii() {
 #[test]
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 fn ucs4() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let s = "哈哈🐈";
         let py_string = PyString::new(py, s);
         let ptr = py_string.as_ptr();
@@ -266,7 +266,7 @@ fn ucs4() {
 fn test_get_tzinfo() {
     use crate::types::PyTzInfo;
 
-    crate::Python::with_gil(|py| {
+    crate::Python::attach(|py| {
         use crate::types::{PyDateTime, PyTime};
 
         let utc: &Bound<'_, _> = &PyTzInfo::utc(py).unwrap();
@@ -302,7 +302,7 @@ fn test_get_tzinfo() {
 
 #[test]
 fn test_inc_dec_ref() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
 
         let ref_count = obj.get_refcnt();
@@ -321,7 +321,7 @@ fn test_inc_dec_ref() {
 #[test]
 #[cfg(Py_3_12)]
 fn test_inc_dec_ref_immortal() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let obj = py.None();
 
         let ref_count = obj.get_refcnt(py);

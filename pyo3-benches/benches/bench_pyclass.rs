@@ -27,7 +27,7 @@ impl MyClass {
 }
 
 pub fn first_time_init(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         b.iter(|| {
             // This is using an undocumented internal PyO3 API to measure pyclass performance; please
             // don't use this in your own code!

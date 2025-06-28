@@ -59,7 +59,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
         m.add_function(wrap_pyfunction!(no_args_py, m)?)
     }
 
-    # Python::with_gil(|py| {
+    # Python::attach(|py| {
     #     let m = pyo3::wrap_pymodule!(module_with_functions)(py);
     #     assert!(m.getattr(py, "no_args").is_ok());
     #     assert!(m.getattr(py, "no_args_py").is_err());
@@ -164,7 +164,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     #     };
     # }
     # 
-    # Python::with_gil(|py| {
+    # Python::attach(|py| {
     #     assert_warnings!(
     #         py,
     #         {
@@ -224,7 +224,7 @@ The `#[pyo3]` attribute can be used on individual arguments to modify properties
         argument
     }
 
-    # Python::with_gil(|py| {
+    # Python::attach(|py| {
     #     let f = pyo3::wrap_pyfunction!(object_length)(py).unwrap();
     #     assert_eq!(f.call1((vec![1, 2, 3],)).unwrap().extract::<usize>().unwrap(), 3);
     # });

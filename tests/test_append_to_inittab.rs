@@ -28,7 +28,7 @@ fn test_module_append_to_inittab() {
 
     append_to_inittab!(module_mod_with_functions);
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         py.run(
             ffi::c_str!(
                 r#"
@@ -43,7 +43,7 @@ assert module_fn_with_functions.foo() == 123
         .unwrap();
     });
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         py.run(
             ffi::c_str!(
                 r#"

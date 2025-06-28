@@ -6,7 +6,7 @@
 ///
 /// ```rust
 /// # use pyo3::Python;
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     // PyO3 supports Python 3.7 and up.
 ///     assert!(py.version_info() >= (3, 7));
 ///     assert!(py.version_info() >= (3, 7, 0));
@@ -99,7 +99,7 @@ mod test {
     use crate::Python;
     #[test]
     fn test_python_version_info() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let version = py.version_info();
             #[cfg(Py_3_7)]
             assert!(version >= (3, 7));

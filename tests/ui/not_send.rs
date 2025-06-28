@@ -5,7 +5,7 @@ fn test_not_send_allow_threads(py: Python<'_>) {
 }
 
 fn main() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         test_not_send_allow_threads(py);
     })
 }

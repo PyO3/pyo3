@@ -78,7 +78,7 @@ fn make_example(py: Python<'_>) -> Bound<'_, ExampleClass> {
 
 #[test]
 fn test_getattr() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let example_py = make_example(py);
         assert_eq!(
             example_py
@@ -105,7 +105,7 @@ fn test_getattr() {
 
 #[test]
 fn test_setattr() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let example_py = make_example(py);
         example_py.setattr("special_custom_attr", 15).unwrap();
         assert_eq!(
@@ -121,7 +121,7 @@ fn test_setattr() {
 
 #[test]
 fn test_delattr() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let example_py = make_example(py);
         example_py.delattr("special_custom_attr").unwrap();
         assert!(example_py.getattr("special_custom_attr").unwrap().is_none());
@@ -130,7 +130,7 @@ fn test_delattr() {
 
 #[test]
 fn test_str() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let example_py = make_example(py);
         assert_eq!(example_py.str().unwrap(), "5");
     })
@@ -138,7 +138,7 @@ fn test_str() {
 
 #[test]
 fn test_repr() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let example_py = make_example(py);
         assert_eq!(example_py.repr().unwrap(), "ExampleClass(value=5)");
     })
@@ -146,7 +146,7 @@ fn test_repr() {
 
 #[test]
 fn test_hash() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let example_py = make_example(py);
         assert_eq!(example_py.hash().unwrap(), 5);
     })
@@ -154,7 +154,7 @@ fn test_hash() {
 
 #[test]
 fn test_bool() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let example_py = make_example(py);
         assert!(example_py.is_truthy().unwrap());
         example_py.borrow_mut().value = 0;
@@ -174,7 +174,7 @@ impl LenOverflow {
 
 #[test]
 fn len_overflow() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(py, LenOverflow).unwrap();
         py_expect_exception!(py, inst, "len(inst)", PyOverflowError);
     });
@@ -207,7 +207,7 @@ impl Mapping {
 
 #[test]
 fn mapping() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         PyMapping::register::<Mapping>(py).unwrap();
 
         let inst = Py::new(
@@ -315,7 +315,7 @@ impl Sequence {
 
 #[test]
 fn sequence() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         PySequence::register::<Sequence>(py).unwrap();
 
         let inst = Py::new(py, Sequence { values: vec![] }).unwrap();
@@ -378,7 +378,7 @@ impl Iterator {
 
 #[test]
 fn iterator() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(
             py,
             Iterator {
@@ -406,7 +406,7 @@ struct NotCallable;
 
 #[test]
 fn callable() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Py::new(py, Callable).unwrap();
         py_assert!(py, c, "callable(c)");
         py_assert!(py, c, "c(7) == 42");
@@ -433,7 +433,7 @@ impl SetItem {
 
 #[test]
 fn setitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Bound::new(py, SetItem { key: 0, val: 0 }).unwrap();
         py_run!(py, c, "c[1] = 2");
         {
@@ -459,7 +459,7 @@ impl DelItem {
 
 #[test]
 fn delitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Bound::new(py, DelItem { key: 0 }).unwrap();
         py_run!(py, c, "del c[1]");
         {
@@ -488,7 +488,7 @@ impl SetDelItem {
 
 #[test]
 fn setdelitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Bound::new(py, SetDelItem { val: None }).unwrap();
         py_run!(py, c, "c[1] = 2");
         {
@@ -513,7 +513,7 @@ impl Contains {
 
 #[test]
 fn contains() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Py::new(py, Contains {}).unwrap();
         py_run!(py, c, "assert 1 in c");
         py_run!(py, c, "assert -1 not in c");
@@ -543,7 +543,7 @@ impl GetItem {
 
 #[test]
 fn test_getitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let ob = Py::new(py, GetItem {}).unwrap();
 
         py_assert!(py, ob, "ob[1] == 'int'");
@@ -566,7 +566,7 @@ impl ClassWithGetAttr {
 
 #[test]
 fn getattr_doesnt_override_member() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(py, ClassWithGetAttr { data: 4 }).unwrap();
         py_assert!(py, inst, "inst.data == 4");
         py_assert!(py, inst, "inst.a == 8");
@@ -588,7 +588,7 @@ impl ClassWithGetAttribute {
 
 #[test]
 fn getattribute_overrides_member() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(py, ClassWithGetAttribute { data: 4 }).unwrap();
         py_assert!(py, inst, "inst.data == 8");
         py_assert!(py, inst, "inst.y == 8");
@@ -621,7 +621,7 @@ impl ClassWithGetAttrAndGetAttribute {
 
 #[test]
 fn getattr_and_getattribute() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(py, ClassWithGetAttrAndGetAttribute).unwrap();
         py_assert!(py, inst, "inst.exists == 42");
         py_assert!(py, inst, "inst.lucky == 57");
@@ -668,7 +668,7 @@ impl OnceFuture {
 #[test]
 #[cfg(not(target_arch = "wasm32"))] // Won't work without wasm32 event loop (e.g., Pyodide has WebLoop)
 fn test_await() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let once = py.get_type::<OnceFuture>();
         let source = pyo3_ffi::c_str!(
             r#"
@@ -720,7 +720,7 @@ impl AsyncIterator {
 #[test]
 #[cfg(not(target_arch = "wasm32"))] // Won't work without wasm32 event loop (e.g., Pyodide has WebLoop)
 fn test_anext_aiter() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let once = py.get_type::<OnceFuture>();
         let source = pyo3_ffi::c_str!(
             r#"
@@ -787,7 +787,7 @@ impl DescrCounter {
 
 #[test]
 fn descr_getset() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let counter = py.get_type::<DescrCounter>();
         let source = pyo3_ffi::c_str!(pyo3::indoc::indoc!(
             r#"
@@ -835,7 +835,7 @@ impl NotHashable {
 fn test_hash_opt_out() {
     // By default Python provides a hash implementation, which can be disabled by setting __hash__
     // to None.
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let empty = Py::new(py, EmptyClass).unwrap();
         py_assert!(py, empty, "hash(empty) is not None");
 
@@ -884,7 +884,7 @@ impl NoContains {
 
 #[test]
 fn test_contains_opt_out() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let defaulted_contains = Py::new(py, DefaultedContains).unwrap();
         py_assert!(py, defaulted_contains, "'a' in defaulted_contains");
 

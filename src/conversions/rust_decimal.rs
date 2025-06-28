@@ -119,7 +119,7 @@ mod test_rust_decimal {
         ($name:ident, $rs:expr, $py:literal) => {
             #[test]
             fn $name() {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let rs_orig = $rs;
                     let rs_dec = rs_orig.into_pyobject(py).unwrap();
                     let locals = PyDict::new(py);
@@ -163,7 +163,7 @@ mod test_rust_decimal {
             scale in 0..28u32
         ) {
             let num = Decimal::from_parts(lo, mid, high, negative, scale);
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let rs_dec = num.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
                 locals.set_item("rs_dec", &rs_dec).unwrap();
@@ -178,7 +178,7 @@ mod test_rust_decimal {
 
         #[test]
         fn test_integers(num in any::<i64>()) {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let py_num = num.into_pyobject(py).unwrap();
                 let roundtripped: Decimal = py_num.extract().unwrap();
                 let rs_dec = Decimal::new(num, 0);
@@ -189,7 +189,7 @@ mod test_rust_decimal {
 
     #[test]
     fn test_nan() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
                 ffi::c_str!("import decimal\npy_dec = decimal.Decimal(\"NaN\")"),
@@ -205,7 +205,7 @@ mod test_rust_decimal {
 
     #[test]
     fn test_scientific_notation() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
                 ffi::c_str!("import decimal\npy_dec = decimal.Decimal(\"1e3\")"),
@@ -222,7 +222,7 @@ mod test_rust_decimal {
 
     #[test]
     fn test_infinity() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
                 ffi::c_str!("import decimal\npy_dec = decimal.Decimal(\"Infinity\")"),

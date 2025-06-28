@@ -29,7 +29,7 @@ use std::str;
 /// # use pyo3::prelude::*;
 /// use pyo3::types::PyBytes;
 ///
-/// # Python::with_gil(|py| {
+/// # Python::attach(|py| {
 /// let py_bytes = PyBytes::new(py, b"foo".as_slice());
 /// // via PartialEq<[u8]>
 /// assert_eq!(py_bytes, b"foo".as_slice());
@@ -77,7 +77,7 @@ impl PyBytes {
     /// use pyo3::{prelude::*, types::PyBytes};
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
+    /// Python::attach(|py| -> PyResult<()> {
     ///     let py_bytes = PyBytes::new_with(py, 10, |bytes: &mut [u8]| {
     ///         bytes.copy_from_slice(b"Hello Rust");
     ///         Ok(())
@@ -281,7 +281,7 @@ mod tests {
 
     #[test]
     fn test_bytes_index() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes = PyBytes::new(py, b"Hello World");
             assert_eq!(bytes[1], b'e');
         });
@@ -289,7 +289,7 @@ mod tests {
 
     #[test]
     fn test_bound_bytes_index() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes = PyBytes::new(py, b"Hello World");
             assert_eq!(bytes[1], b'e');
 
@@ -300,7 +300,7 @@ mod tests {
 
     #[test]
     fn test_bytes_new_with() -> super::PyResult<()> {
-        Python::with_gil(|py| -> super::PyResult<()> {
+        Python::attach(|py| -> super::PyResult<()> {
             let py_bytes = PyBytes::new_with(py, 10, |b: &mut [u8]| {
                 b.copy_from_slice(b"Hello Rust");
                 Ok(())
@@ -313,7 +313,7 @@ mod tests {
 
     #[test]
     fn test_bytes_new_with_zero_initialised() -> super::PyResult<()> {
-        Python::with_gil(|py| -> super::PyResult<()> {
+        Python::attach(|py| -> super::PyResult<()> {
             let py_bytes = PyBytes::new_with(py, 10, |_b: &mut [u8]| Ok(()))?;
             let bytes: &[u8] = py_bytes.extract()?;
             assert_eq!(bytes, &[0; 10]);
@@ -324,7 +324,7 @@ mod tests {
     #[test]
     fn test_bytes_new_with_error() {
         use crate::exceptions::PyValueError;
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_bytes_result = PyBytes::new_with(py, 10, |_b: &mut [u8]| {
                 Err(PyValueError::new_err("Hello Crustaceans!"))
             });
@@ -338,7 +338,7 @@ mod tests {
 
     #[test]
     fn test_comparisons() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let b = b"hello, world".as_slice();
             let py_bytes = PyBytes::new(py, b);
 
@@ -369,7 +369,7 @@ mod tests {
     #[test]
     #[cfg(not(Py_LIMITED_API))]
     fn test_as_string() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let b = b"hello, world".as_slice();
             let py_bytes = PyBytes::new(py, b);
             unsafe {

@@ -99,7 +99,7 @@ mod tests {
 
     #[test]
     fn test_extract_bytes() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_bytes = py.eval(ffi::c_str!("b'Hello Python'"), None, None).unwrap();
             let bytes: &[u8] = py_bytes.extract().unwrap();
             assert_eq!(bytes, b"Hello Python");
@@ -108,7 +108,7 @@ mod tests {
 
     #[test]
     fn test_cow_impl() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes = py.eval(ffi::c_str!(r#"b"foobar""#), None, None).unwrap();
             let cow = bytes.extract::<Cow<'_, [u8]>>().unwrap();
             assert_eq!(cow, Cow::<[u8]>::Borrowed(b"foobar"));
@@ -136,7 +136,7 @@ mod tests {
 
     #[test]
     fn test_slice_intopyobject_impl() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes: &[u8] = b"foobar";
             let obj = bytes.into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_cow_intopyobject_impl() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let borrowed_bytes = Cow::<[u8]>::Borrowed(b"foobar");
             let obj = borrowed_bytes.clone().into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());

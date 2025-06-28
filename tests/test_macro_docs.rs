@@ -22,7 +22,7 @@ impl MacroDocs {
 
 #[test]
 fn meth_doc() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = [("C", py.get_type::<MacroDocs>())]
             .into_py_dict(py)
             .unwrap();

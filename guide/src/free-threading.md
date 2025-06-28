@@ -136,7 +136,7 @@ We are aware that there are some naming issues in the PyO3 API that make it
 awkward to think about a runtime environment where there is no GIL. We plan to
 change the names of these types to de-emphasize the role of the GIL in future
 versions of PyO3, but for now you should remember that the use of the term `GIL`
-in functions and types like [`Python::with_gil`] and [`GILOnceCell`] is
+in functions and types like [`Python::attach`] and [`GILOnceCell`] is
 historical.
 
 Instead, you should think about whether or not a Rust thread is attached to a
@@ -158,7 +158,7 @@ simultaneously interacting with the interpreter.
 
 You still need to obtain a `'py` lifetime is to interact with Python
 objects or call into the CPython C API. If you are not yet attached to the
-Python runtime, you can register a thread using the [`Python::with_gil`]
+Python runtime, you can register a thread using the [`Python::attach`]
 function. Threads created via the Python [`threading`] module do not not need to
 do this, and pyo3 will handle setting up the [`Python<'py>`] token when CPython
 calls into your extension.
@@ -322,7 +322,7 @@ let mut cache = RuntimeCache {
     cache: None
 };
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     // guaranteed to be called once and only once
     cache.once.call_once_py_attached(py, || {
         cache.cache = Some(PyDict::new(py).unbind());
@@ -353,7 +353,7 @@ use std::cell::RefCell;
 static OBJECTS: GILProtected<RefCell<Vec<Py<PyDict>>>> =
     GILProtected::new(RefCell::new(Vec::new()));
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     // stand-in for something that executes arbitrary Python code
     let d = PyDict::new(py);
     d.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
@@ -372,7 +372,7 @@ use std::sync::Mutex;
 
 static OBJECTS: Mutex<Vec<Py<PyDict>>> = Mutex::new(Vec::new());
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     // stand-in for something that executes arbitrary Python code
     let d = PyDict::new(py);
     d.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
@@ -403,6 +403,6 @@ interpreter.
 [`OnceLock`]: https://doc.rust-lang.org/stable/std/sync/struct.OnceLock.html
 [`OnceLock::get_or_init`]: https://doc.rust-lang.org/stable/std/sync/struct.OnceLock.html#method.get_or_init
 [`Python::allow_threads`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.allow_threads
-[`Python::with_gil`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.with_gil
+[`Python::attach`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.attach
 [`Python<'py>`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html
 [`threading`]: https://docs.python.org/3/library/threading.html

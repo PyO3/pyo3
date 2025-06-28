@@ -51,7 +51,7 @@ use std::{
 ///             })
 ///     }
 /// }
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let typeobj = py.get_type::<SubSubClass>();
 ///     let sub_sub_class = typeobj.call((), None).unwrap();
 ///     py_run!(
@@ -120,7 +120,7 @@ impl<T: PyClass> PyClassInitializer<T> {
     /// }
     ///
     /// fn main() -> PyResult<()> {
-    ///     Python::with_gil(|py| {
+    ///     Python::attach(|py| {
     ///         let m = PyModule::new(py, "example")?;
     ///         m.add_class::<SubClass>()?;
     ///         m.add_class::<BaseClass>()?;
@@ -287,7 +287,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn add_subclass_to_py_is_unsound() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let base = Py::new(py, BaseClass {}).unwrap();
             let _subclass = PyClassInitializer::from(base).add_subclass(SubClass { _data: 42 });
         });

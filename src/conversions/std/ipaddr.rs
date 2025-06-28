@@ -111,7 +111,7 @@ mod test_ipaddr {
 
     #[test]
     fn test_roundtrip() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             fn roundtrip(py: Python<'_>, ip: &str) {
                 let ip = IpAddr::from_str(ip).unwrap();
                 let py_cls = if ip.is_ipv4() {
@@ -136,7 +136,7 @@ mod test_ipaddr {
 
     #[test]
     fn test_from_pystring() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_str = PyString::new(py, "0:0:0:0:0:0:0:1");
             let ip: IpAddr = py_str.extract().unwrap();
             assert_eq!(ip, IpAddr::from_str("::1").unwrap());

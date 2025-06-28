@@ -88,7 +88,7 @@ impl TestBufferErrors {
 
 #[test]
 fn test_get_buffer_errors() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let instance = Py::new(
             py,
             TestBufferErrors {

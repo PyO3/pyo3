@@ -113,7 +113,7 @@ impl PyErrState {
                 };
 
                 let normalized_state =
-                    Python::with_gil(|py| PyErrStateInner::Normalized(state.normalize(py)));
+                    Python::attach(|py| PyErrStateInner::Normalized(state.normalize(py)));
 
                 // Safety: no other thread can access the inner value while we are normalizing it.
                 unsafe {
@@ -389,7 +389,7 @@ mod tests {
             }
         }
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             ERR.set(py, PyValueError::new_err(RecursiveArgs)).unwrap();
             ERR.get(py).expect("is set just above").value(py);
         })
@@ -413,13 +413,13 @@ mod tests {
             }
         }
 
-        Python::with_gil(|py| ERR.set(py, PyValueError::new_err(GILSwitchArgs)).unwrap());
+        Python::attach(|py| ERR.set(py, PyValueError::new_err(GILSwitchArgs)).unwrap());
 
         // Let many threads attempt to read the normalized value at the same time
         let handles = (0..10)
             .map(|_| {
                 std::thread::spawn(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         ERR.get(py).expect("is set just above").value(py);
                     });
                 })
@@ -432,7 +432,7 @@ mod tests {
 
         // We should never have deadlocked, and should be able to run
         // this assertion
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(ERR
                 .get(py)
                 .expect("is set above")

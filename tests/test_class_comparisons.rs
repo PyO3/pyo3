@@ -21,7 +21,7 @@ pub enum MyEnumOrd {
 
 #[test]
 fn test_enum_eq_enum() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let var1 = Py::new(py, MyEnum::Variant).unwrap();
         let var2 = Py::new(py, MyEnum::Variant).unwrap();
         let other_var = Py::new(py, MyEnum::OtherVariant).unwrap();
@@ -33,7 +33,7 @@ fn test_enum_eq_enum() {
 
 #[test]
 fn test_enum_eq_incomparable() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let var1 = Py::new(py, MyEnum::Variant).unwrap();
         py_assert!(py, var1, "(var1 == 'foo') == False");
         py_assert!(py, var1, "(var1 != 'foo') == True");
@@ -42,7 +42,7 @@ fn test_enum_eq_incomparable() {
 
 #[test]
 fn test_enum_ord_comparable_opt_in_only() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let var1 = Py::new(py, MyEnum::Variant).unwrap();
         let var2 = Py::new(py, MyEnum::OtherVariant).unwrap();
         // ordering on simple enums if opt in only, thus raising an error below
@@ -52,7 +52,7 @@ fn test_enum_ord_comparable_opt_in_only() {
 
 #[test]
 fn test_simple_enum_ord_comparable() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let var1 = Py::new(py, MyEnumOrd::Variant).unwrap();
         let var2 = Py::new(py, MyEnumOrd::OtherVariant).unwrap();
         let var3 = Py::new(py, MyEnumOrd::OtherVariant).unwrap();
@@ -80,7 +80,7 @@ pub enum MyComplexEnumOrd2 {
 
 #[test]
 fn test_complex_enum_ord_comparable() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let var1 = Py::new(py, MyComplexEnumOrd::Variant(-2)).unwrap();
         let var2 = Py::new(py, MyComplexEnumOrd::Variant(5)).unwrap();
         let var3 = Py::new(py, MyComplexEnumOrd::OtherVariant("a".to_string())).unwrap();
@@ -156,7 +156,7 @@ pub struct Point {
 
 #[test]
 fn test_struct_numeric_ord_comparable() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let var1 = Py::new(py, Point { x: 10, y: 2, z: 3 }).unwrap();
         let var2 = Py::new(py, Point { x: 2, y: 2, z: 3 }).unwrap();
         let var3 = Py::new(py, Point { x: 1, y: 22, z: 4 }).unwrap();
@@ -180,7 +180,7 @@ pub struct Person {
 
 #[test]
 fn test_struct_string_ord_comparable() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let var1 = Py::new(
             py,
             Person {
@@ -239,7 +239,7 @@ impl PartialOrd for Record {
 
 #[test]
 fn test_struct_custom_ord_comparable() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let var1 = Py::new(
             py,
             Record {

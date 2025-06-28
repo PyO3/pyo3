@@ -449,7 +449,7 @@ mod tests {
 
     #[test]
     fn test_mutable_borrow_prevents_further_borrows() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mmm = Py::new(
                 py,
                 PyClassInitializer::from(MutableBase)
@@ -500,7 +500,7 @@ mod tests {
 
     #[test]
     fn test_immutable_borrows_prevent_mutable_borrows() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mmm = Py::new(
                 py,
                 PyClassInitializer::from(MutableBase)
@@ -552,7 +552,7 @@ mod tests {
             x: u64,
         }
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let inst = Py::new(py, MyClass { x: 0 }).unwrap();
 
             let total_modifications = py.allow_threads(|| {
@@ -562,7 +562,7 @@ mod tests {
                     let threads = (0..10)
                         .map(|_| {
                             s.spawn(|| {
-                                Python::with_gil(|py| {
+                                Python::attach(|py| {
                                     // Each thread records its own view of how many writes it made
                                     let mut local_modifications = 0;
                                     for _ in 0..100 {

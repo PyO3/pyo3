@@ -623,7 +623,7 @@ mod test_128bit_integers {
     proptest! {
         #[test]
         fn test_i128_roundtrip(x: i128) {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
                 locals.set_item("x_py", &x_py).unwrap();
@@ -639,7 +639,7 @@ mod test_128bit_integers {
                 .prop_filter("Values must not be 0", |x| x != &0)
                 .prop_map(|x| NonZeroI128::new(x).unwrap())
         ) {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
                 locals.set_item("x_py", &x_py).unwrap();
@@ -654,7 +654,7 @@ mod test_128bit_integers {
     proptest! {
         #[test]
         fn test_u128_roundtrip(x: u128) {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
                 locals.set_item("x_py", &x_py).unwrap();
@@ -670,7 +670,7 @@ mod test_128bit_integers {
                 .prop_filter("Values must not be 0", |x| x != &0)
                 .prop_map(|x| NonZeroU128::new(x).unwrap())
         ) {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
                 locals.set_item("x_py", &x_py).unwrap();
@@ -683,7 +683,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_i128_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = i128::MAX;
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<i128>().unwrap());
@@ -694,7 +694,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_i128_min() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = i128::MIN;
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<i128>().unwrap());
@@ -705,7 +705,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_u128_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = u128::MAX;
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<u128>().unwrap());
@@ -715,7 +715,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_i128_overflow() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = py.eval(ffi::c_str!("(1 << 130) * -1"), None, None).unwrap();
             let err = obj.extract::<i128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
@@ -724,7 +724,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_u128_overflow() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = py.eval(ffi::c_str!("1 << 130"), None, None).unwrap();
             let err = obj.extract::<u128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
@@ -733,7 +733,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_nonzero_i128_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = NonZeroI128::new(i128::MAX).unwrap();
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<NonZeroI128>().unwrap());
@@ -747,7 +747,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_nonzero_i128_min() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = NonZeroI128::new(i128::MIN).unwrap();
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<NonZeroI128>().unwrap());
@@ -758,7 +758,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_nonzero_u128_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = NonZeroU128::new(u128::MAX).unwrap();
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<NonZeroU128>().unwrap());
@@ -768,7 +768,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_nonzero_i128_overflow() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = py.eval(ffi::c_str!("(1 << 130) * -1"), None, None).unwrap();
             let err = obj.extract::<NonZeroI128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
@@ -777,7 +777,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_nonzero_u128_overflow() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = py.eval(ffi::c_str!("1 << 130"), None, None).unwrap();
             let err = obj.extract::<NonZeroU128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
@@ -786,7 +786,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_nonzero_i128_zero_value() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = py.eval(ffi::c_str!("0"), None, None).unwrap();
             let err = obj.extract::<NonZeroI128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyValueError>(py));
@@ -795,7 +795,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_nonzero_u128_zero_value() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = py.eval(ffi::c_str!("0"), None, None).unwrap();
             let err = obj.extract::<NonZeroU128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyValueError>(py));
@@ -811,7 +811,7 @@ mod tests {
 
     #[test]
     fn test_u32_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = u32::MAX;
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<u32>().unwrap());
@@ -822,7 +822,7 @@ mod tests {
 
     #[test]
     fn test_i64_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = i64::MAX;
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<i64>().unwrap());
@@ -833,7 +833,7 @@ mod tests {
 
     #[test]
     fn test_i64_min() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = i64::MIN;
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<i64>().unwrap());
@@ -844,7 +844,7 @@ mod tests {
 
     #[test]
     fn test_u64_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = u64::MAX;
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<u64>().unwrap());
@@ -862,7 +862,7 @@ mod tests {
 
                 #[test]
                 fn from_py_string_type_error() {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                     let obj = ("123").into_pyobject(py).unwrap();
                     let err = obj.extract::<$t>().unwrap_err();
                     assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
@@ -871,7 +871,7 @@ mod tests {
 
                 #[test]
                 fn from_py_float_type_error() {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                     let obj = (12.3f64).into_pyobject(py).unwrap();
                     let err = obj.extract::<$t>().unwrap_err();
                     assert!(err.is_instance_of::<exceptions::PyTypeError>(py));});
@@ -879,7 +879,7 @@ mod tests {
 
                 #[test]
                 fn to_py_object_and_back() {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                     let val = 123 as $t;
                     let obj = val.into_pyobject(py).unwrap();
                     assert_eq!(obj.extract::<$t>().unwrap(), val as $t);});
@@ -903,7 +903,7 @@ mod tests {
 
     #[test]
     fn test_nonzero_u32_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = NonZeroU32::new(u32::MAX).unwrap();
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<NonZeroU32>().unwrap());
@@ -914,7 +914,7 @@ mod tests {
 
     #[test]
     fn test_nonzero_i64_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = NonZeroI64::new(i64::MAX).unwrap();
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<NonZeroI64>().unwrap());
@@ -928,7 +928,7 @@ mod tests {
 
     #[test]
     fn test_nonzero_i64_min() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = NonZeroI64::new(i64::MIN).unwrap();
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<NonZeroI64>().unwrap());
@@ -939,7 +939,7 @@ mod tests {
 
     #[test]
     fn test_nonzero_u64_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = NonZeroU64::new(u64::MAX).unwrap();
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<NonZeroU64>().unwrap());
@@ -958,7 +958,7 @@ mod tests {
 
                 #[test]
                 fn from_py_string_type_error() {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                     let obj = ("123").into_pyobject(py).unwrap();
                     let err = obj.extract::<$t>().unwrap_err();
                     assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
@@ -967,7 +967,7 @@ mod tests {
 
                 #[test]
                 fn from_py_float_type_error() {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                     let obj = (12.3f64).into_pyobject(py).unwrap();
                     let err = obj.extract::<$t>().unwrap_err();
                     assert!(err.is_instance_of::<exceptions::PyTypeError>(py));});
@@ -975,7 +975,7 @@ mod tests {
 
                 #[test]
                 fn to_py_object_and_back() {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                     let val = <$t>::new(123).unwrap();
                     let obj = val.into_pyobject(py).unwrap();
                     assert_eq!(obj.extract::<$t>().unwrap(), val);});
@@ -999,7 +999,7 @@ mod tests {
 
     #[test]
     fn test_i64_bool() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = true.into_pyobject(py).unwrap();
             assert_eq!(1, obj.extract::<i64>().unwrap());
             let obj = false.into_pyobject(py).unwrap();
@@ -1009,7 +1009,7 @@ mod tests {
 
     #[test]
     fn test_i64_f64() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = 12.34f64.into_pyobject(py).unwrap();
             let err = obj.extract::<i64>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyTypeError>(py));

@@ -97,7 +97,7 @@ PyO3 provides the APIs [`Python::version()`] and [`Python::version_info()`] to q
 ```rust
 use pyo3::Python;
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     // PyO3 supports Python 3.7 and up.
     assert!(py.version_info() >= (3, 7));
     assert!(py.version_info() >= (3, 7, 0));

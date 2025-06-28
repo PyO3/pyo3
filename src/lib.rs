@@ -91,7 +91,7 @@
 //!
 //! - `abi3`: Restricts PyO3's API to a subset of the full Python API which is guaranteed by
 //! [PEP 384] to be forward-compatible with future Python versions.
-//! - `auto-initialize`: Changes [`Python::with_gil`] to automatically initialize the Python
+//! - `auto-initialize`: Changes [`Python::attach`] to automatically initialize the Python
 //! interpreter if needed.
 //! - `extension-module`: This will tell the linker to keep the Python symbols unresolved, so that
 //! your module can also be used with statically linked Python interpreters. Use this feature when
@@ -255,7 +255,7 @@
 //! use pyo3::ffi::c_str;
 //!
 //! fn main() -> PyResult<()> {
-//!     Python::with_gil(|py| {
+//!     Python::attach(|py| {
 //!         let sys = py.import("sys")?;
 //!         let version: String = sys.getattr("version")?.extract()?;
 //!

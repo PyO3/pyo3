@@ -240,7 +240,7 @@ mod tests {
             wrap_pyfunction, Py, Python,
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let f = wrap_pyfunction!(args_kwargs, py).unwrap();
 
             let args = PyTuple::new(py, [1, 2, 3]).unwrap();
@@ -282,7 +282,7 @@ mod tests {
             wrap_pyfunction, Py, Python,
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let f = wrap_pyfunction!(args_kwargs, py).unwrap();
 
             let args = PyTuple::new(py, [1, 2, 3]).unwrap();

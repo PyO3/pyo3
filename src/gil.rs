@@ -55,7 +55,7 @@ fn gil_is_acquired() -> bool {
 ///
 /// # fn main() -> PyResult<()> {
 /// pyo3::prepare_freethreaded_python();
-/// Python::with_gil(|py| py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None))
+/// Python::attach(|py| py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None))
 /// # }
 /// ```
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -144,7 +144,7 @@ pub(crate) enum GILGuard {
 }
 
 impl GILGuard {
-    /// PyO3 internal API for acquiring the GIL. The public API is Python::with_gil.
+    /// PyO3 internal API for acquiring the GIL. The public API is Python::attach.
     ///
     /// If the GIL was already acquired via PyO3, this returns
     /// `GILGuard::Assumed`. Otherwise, the GIL will be acquired and
@@ -466,7 +466,7 @@ mod tests {
 
     #[test]
     fn test_pyobject_drop_with_gil_decreases_refcnt() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = get_object(py);
 
             // Create a reference to drop with the GIL.
@@ -488,7 +488,7 @@ mod tests {
     #[test]
     #[cfg(all(not(pyo3_disable_reference_pool), not(target_arch = "wasm32")))] // We are building wasm Python with pthreads disabled
     fn test_pyobject_drop_without_gil_doesnt_decrease_refcnt() {
-        let obj = Python::with_gil(|py| {
+        let obj = Python::attach(|py| {
             let obj = get_object(py);
             // Create a reference to drop without the GIL.
             let reference = obj.clone_ref(py);
@@ -509,7 +509,7 @@ mod tests {
 
         // Next time the GIL is acquired, the reference is released
         #[allow(unused)]
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // with no GIL, another thread could still be processing
             // DECREFs after releasing the lock on the POOL, so the
             // refcnt could still be 2 when this assert happens
@@ -522,11 +522,11 @@ mod tests {
     #[test]
     #[allow(deprecated)]
     fn test_gil_counts() {
-        // Check with_gil and GILGuard both increase counts correctly
+        // Check `attach` and GILGuard both increase counts correctly
         let get_gil_count = || GIL_COUNT.with(|c| c.get());
 
         assert_eq!(get_gil_count(), 0);
-        Python::with_gil(|_| {
+        Python::attach(|_| {
             assert_eq!(get_gil_count(), 1);
 
             let pool = unsafe { GILGuard::assume() };
@@ -538,8 +538,8 @@ mod tests {
             drop(pool);
             assert_eq!(get_gil_count(), 2);
 
-            Python::with_gil(|_| {
-                // nested with_gil updates gil count
+            Python::attach(|_| {
+                // nested `attach` updates gil count
                 assert_eq!(get_gil_count(), 3);
             });
             assert_eq!(get_gil_count(), 2);
@@ -554,13 +554,13 @@ mod tests {
     fn test_allow_threads() {
         assert!(!gil_is_acquired());
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(gil_is_acquired());
 
             py.allow_threads(move || {
                 assert!(!gil_is_acquired());
 
-                Python::with_gil(|_| assert!(gil_is_acquired()));
+                Python::attach(|_| assert!(gil_is_acquired()));
 
                 assert!(!gil_is_acquired());
             });
@@ -575,7 +575,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_allow_threads_updates_refcounts() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // Make a simple object with 1 reference
             let obj = get_object(py);
             assert!(obj.get_refcnt(py) == 1);
@@ -587,8 +587,8 @@ mod tests {
     #[test]
     fn dropping_gil_does_not_invalidate_references() {
         // Acquiring GIL for the second time should be safe - see #864
-        Python::with_gil(|py| {
-            let obj = Python::with_gil(|_| py.eval(ffi::c_str!("object()"), None, None).unwrap());
+        Python::attach(|py| {
+            let obj = Python::attach(|_| py.eval(ffi::c_str!("object()"), None, None).unwrap());
 
             // After gil2 drops, obj should still have a reference count of one
             assert_eq!(obj.get_refcnt(), 1);
@@ -598,7 +598,7 @@ mod tests {
     #[cfg(feature = "py-clone")]
     #[test]
     fn test_clone_with_gil() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = get_object(py);
             let count = obj.get_refcnt(py);
 
@@ -618,7 +618,7 @@ mod tests {
         use crate::ffi;
         use crate::gil::GILGuard;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = get_object(py);
 
             unsafe extern "C" fn capsule_drop(capsule: *mut ffi::PyObject) {
@@ -652,7 +652,7 @@ mod tests {
     fn test_gil_guard_update_counts() {
         use crate::gil::GILGuard;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = get_object(py);
 
             // For GILGuard::acquire

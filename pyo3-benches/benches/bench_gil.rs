@@ -4,13 +4,13 @@ use pyo3::prelude::*;
 
 fn bench_clean_acquire_gil(b: &mut Bencher<'_>) {
     // Acquiring first GIL will also create a "clean" GILPool, so this measures the Python overhead.
-    b.iter(|| Python::with_gil(|_| {}));
+    b.iter(|| Python::attach(|_| {}));
 }
 
 fn bench_dirty_acquire_gil(b: &mut Bencher<'_>) {
-    let obj = Python::with_gil(|py| py.None());
+    let obj = Python::attach(|py| py.None());
     // Drop the returned clone of the object so that the reference pool has work to do.
-    b.iter(|| Python::with_gil(|py| obj.clone_ref(py)));
+    b.iter(|| Python::attach(|py| obj.clone_ref(py)));
 }
 
 fn criterion_benchmark(c: &mut Criterion) {

@@ -14,7 +14,7 @@ fn test_bad_datetime_module_panic() {
         .unwrap();
     std::fs::File::create(tmpdir.path().join("datetime.py")).unwrap();
 
-    Python::with_gil(|py: Python<'_>| {
+    Python::attach(|py: Python<'_>| {
         let sys = py.import("sys").unwrap();
         sys.getattr("path")
             .unwrap()

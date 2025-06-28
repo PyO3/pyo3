@@ -14,7 +14,7 @@ macro_rules! test_module {
 }
 
 fn bench_call_0(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = test_module!(py, "def foo(): pass");
 
         let foo_module = &module.getattr("foo").unwrap();
@@ -28,7 +28,7 @@ fn bench_call_0(b: &mut Bencher<'_>) {
 }
 
 fn bench_call_1(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = test_module!(py, "def foo(a, b, c): pass");
 
         let foo_module = &module.getattr("foo").unwrap();
@@ -47,7 +47,7 @@ fn bench_call_1(b: &mut Bencher<'_>) {
 }
 
 fn bench_call(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = test_module!(py, "def foo(a, b, c, d, e): pass");
 
         let foo_module = &module.getattr("foo").unwrap();
@@ -69,7 +69,7 @@ fn bench_call(b: &mut Bencher<'_>) {
 }
 
 fn bench_call_one_arg(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = test_module!(py, "def foo(a): pass");
 
         let foo_module = &module.getattr("foo").unwrap();
@@ -84,7 +84,7 @@ fn bench_call_one_arg(b: &mut Bencher<'_>) {
 }
 
 fn bench_call_method_0(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = test_module!(
             py,
             "
@@ -105,7 +105,7 @@ class Foo:
 }
 
 fn bench_call_method_1(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = test_module!(
             py,
             "
@@ -133,7 +133,7 @@ class Foo:
 }
 
 fn bench_call_method(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = test_module!(
             py,
             "
@@ -162,7 +162,7 @@ class Foo:
 }
 
 fn bench_call_method_one_arg(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = test_module!(
             py,
             "

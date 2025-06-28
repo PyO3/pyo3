@@ -56,7 +56,7 @@ impl Foo {
 
 #[test]
 fn class_attributes() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let foo_obj = py.get_type::<Foo>();
         py_assert!(py, foo_obj, "foo_obj.MY_CONST == 'foobar'");
         py_assert!(py, foo_obj, "foo_obj.RENAMED_CONST == 'foobar_2'");
@@ -83,7 +83,7 @@ fn class_attributes_mutable() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let obj = py.get_type::<Foo>();
         py_run!(py, obj, "obj.MY_CONST = 'BAZ'");
         py_run!(py, obj, "obj.a = 42");
@@ -119,7 +119,7 @@ fn immutable_type_object() {
         Variant(u32),
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let obj = py.get_type::<ImmutableType>();
         py_expect_exception!(py, obj, "obj.MY_CONST = 'FOOBAR'", PyTypeError);
         py_expect_exception!(py, obj, "obj.a = 6", PyTypeError);
@@ -142,7 +142,7 @@ impl Bar {
 
 #[test]
 fn recursive_class_attributes() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let foo_obj = py.get_type::<Foo>();
         let bar_obj = py.get_type::<Bar>();
         py_assert!(py, foo_obj, "foo_obj.a_foo.x == 1");
@@ -198,7 +198,7 @@ fn test_fallible_class_attribute() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let stderr = CaptureStdErr::new(py).unwrap();
         assert!(std::panic::catch_unwind(|| py.get_type::<BrokenClass>()).is_err());
         assert_eq!(
@@ -241,7 +241,7 @@ impl StructWithRenamedFields {
 fn test_renaming_all_struct_fields() {
     use pyo3::types::PyBool;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let struct_class = py.get_type::<StructWithRenamedFields>();
         let struct_obj = struct_class.call0().unwrap();
         assert!(struct_obj
@@ -274,7 +274,7 @@ macro_rules! test_case {
         fn $test_name() {
             //use pyo3::types::PyInt;
 
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let struct_class = py.get_type::<$struct_name>();
                 let struct_obj = struct_class.call0().unwrap();
                 assert!(struct_obj.setattr($renamed_field_name, 2).is_ok());

@@ -121,7 +121,7 @@ mod tests {
     use proptest::prelude::*;
     #[test]
     fn test_negative_fraction() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
                 ffi::c_str!("import fractions\npy_frac = fractions.Fraction(-0.125)"),
@@ -137,7 +137,7 @@ mod tests {
     }
     #[test]
     fn test_obj_with_incorrect_atts() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
                 ffi::c_str!("not_fraction = \"contains_incorrect_atts\""),
@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn test_fraction_with_fraction_type() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
                 ffi::c_str!(
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_fraction_with_decimal() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
                 ffi::c_str!("import fractions\n\nfrom decimal import Decimal\npy_frac = fractions.Fraction(Decimal(\"1.1\"))"),
@@ -188,7 +188,7 @@ mod tests {
 
     #[test]
     fn test_fraction_with_num_den() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
                 ffi::c_str!("import fractions\npy_frac = fractions.Fraction(10,5)"),
@@ -206,7 +206,7 @@ mod tests {
     #[cfg(target_arch = "wasm32")]
     #[test]
     fn test_int_roundtrip() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let rs_frac = Ratio::new(1i32, 2);
             let py_frac = rs_frac.into_pyobject(py).unwrap();
             let roundtripped: Ratio<i32> = py_frac.extract().unwrap();
@@ -218,7 +218,7 @@ mod tests {
     #[cfg(target_arch = "wasm32")]
     #[test]
     fn test_big_int_roundtrip() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let rs_frac = Ratio::from_float(5.5).unwrap();
             let py_frac = rs_frac.clone().into_pyobject(py).unwrap();
             let roundtripped: Ratio<BigInt> = py_frac.extract().unwrap();
@@ -230,7 +230,7 @@ mod tests {
     proptest! {
         #[test]
         fn test_int_roundtrip(num in any::<i32>(), den in any::<i32>()) {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let rs_frac = Ratio::new(num, den);
                 let py_frac = rs_frac.into_pyobject(py).unwrap();
                 let roundtripped: Ratio<i32> = py_frac.extract().unwrap();
@@ -241,7 +241,7 @@ mod tests {
         #[test]
         #[cfg(feature = "num-bigint")]
         fn test_big_int_roundtrip(num in any::<f32>()) {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let rs_frac = Ratio::from_float(num).unwrap();
                 let py_frac = rs_frac.clone().into_pyobject(py).unwrap();
                 let roundtripped: Ratio<BigInt> = py_frac.extract().unwrap();
@@ -253,7 +253,7 @@ mod tests {
 
     #[test]
     fn test_infinity() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             let py_bound = py.run(
                 ffi::c_str!("import fractions\npy_frac = fractions.Fraction(\"Infinity\")"),

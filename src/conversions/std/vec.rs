@@ -57,7 +57,7 @@ mod tests {
 
     #[test]
     fn test_vec_intopyobject_impl() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes: Vec<u8> = b"foobar".to_vec();
             let obj = bytes.clone().into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
@@ -72,7 +72,7 @@ mod tests {
 
     #[test]
     fn test_vec_reference_intopyobject_impl() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes: Vec<u8> = b"foobar".to_vec();
             let obj = (&bytes).into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());

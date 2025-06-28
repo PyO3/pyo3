@@ -720,7 +720,7 @@ mod tests {
         use crate::types::{PyAnyMethods, PyCFunction};
         use crate::{ffi, Python};
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             unsafe extern "C" fn accepts_no_arguments(
                 _slf: *mut ffi::PyObject,
                 _args: *const *mut ffi::PyObject,

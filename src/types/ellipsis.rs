@@ -49,7 +49,7 @@ mod tests {
 
     #[test]
     fn test_ellipsis_is_itself() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyEllipsis::get(py).is_instance_of::<PyEllipsis>());
             assert!(PyEllipsis::get(py).is_exact_instance_of::<PyEllipsis>());
         })
@@ -57,7 +57,7 @@ mod tests {
 
     #[test]
     fn test_ellipsis_type_object_consistent() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyEllipsis::get(py)
                 .get_type()
                 .is(PyEllipsis::type_object(py)));
@@ -66,7 +66,7 @@ mod tests {
 
     #[test]
     fn test_dict_is_not_ellipsis() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyDict::new(py).downcast::<PyEllipsis>().is_err());
         })
     }

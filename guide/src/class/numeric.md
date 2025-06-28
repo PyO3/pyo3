@@ -385,7 +385,7 @@ fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 # use pyo3::PyTypeInfo;
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         let globals = PyModule::import(py, "__main__")?.dict();
 #         globals.set_item("Number", Number::type_object(py))?;
 #

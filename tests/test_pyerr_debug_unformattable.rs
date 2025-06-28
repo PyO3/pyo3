@@ -14,7 +14,7 @@ fn err_debug_unformattable() {
     //     traceback: Some(\"<unformattable <traceback object at 0x...>>\")
     // }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // PyTracebackMethods::format uses io.StringIO. Mock it out to trigger a
         // formatting failure:
         // TypeError: 'Mock' object cannot be converted to 'PyString'

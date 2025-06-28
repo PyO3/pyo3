@@ -28,7 +28,7 @@ enum CfgSimpleEnum {
 
 #[test]
 fn test_cfg() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let cfg = CfgClass { b: 3 };
         let py_cfg = Py::new(py, cfg).unwrap();
         assert!(py_cfg.bind(py).getattr("a").is_err());
@@ -39,7 +39,7 @@ fn test_cfg() {
 
 #[test]
 fn test_cfg_simple_enum() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let simple = py.get_type::<CfgSimpleEnum>();
         pyo3::py_run!(
             py,

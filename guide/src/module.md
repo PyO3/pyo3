@@ -85,7 +85,7 @@ fn func() -> String {
     "func".to_string()
 }
 
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 #    use pyo3::wrap_pymodule;
 #    use pyo3::types::IntoPyDict;
 #    use pyo3::ffi::c_str;

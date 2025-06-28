@@ -277,7 +277,7 @@ impl Number {
 }
 
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let x = &Bound::new(py, Number(4))?;
 #         let y = &Bound::new(py, Number(4))?;
 #         assert!(x.eq(y)?);

@@ -73,7 +73,7 @@ property_rename_via_macro!(my_new_property_name);
 
 #[test]
 fn test_macro_rules_interactions() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let my_base = py.get_type::<MyBaseClass>();
         py_assert!(py, my_base, "my_base.__name__ == 'MyClass'");
 
