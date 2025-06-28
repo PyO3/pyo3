@@ -15,6 +15,8 @@ pub mod exceptions;
 pub mod extract_argument;
 pub mod freelist;
 pub mod frompyobject;
+#[cfg(feature = "experimental-inspect")]
+pub mod introspection;
 pub(crate) mod not_send;
 pub mod panic;
 pub mod pycell;

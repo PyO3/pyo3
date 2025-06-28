@@ -21,7 +21,7 @@ use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use syn::ext::IdentExt;
 use syn::visit_mut::{visit_type_mut, VisitMut};
-use syn::{Attribute, Ident, Type, TypePath};
+use syn::{Attribute, Ident, ReturnType, Type, TypePath};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
 
@@ -99,12 +99,14 @@ pub fn class_introspection_code(
     .emit(pyo3_crate_path)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn function_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
     ident: Option<&Ident>,
     name: &str,
     signature: &FunctionSignature<'_>,
     first_argument: Option<&'static str>,
+    returns: ReturnType,
     decorators: impl IntoIterator<Item = String>,
     parent: Option<&Type>,
 ) -> TokenStream {
@@ -114,6 +116,25 @@ pub fn function_introspection_code(
         (
             "arguments",
             arguments_introspection_data(signature, first_argument, parent),
+        ),
+        (
+            "returns",
+            match returns {
+                ReturnType::Default => IntrospectionNode::String("None".into()),
+                ReturnType::Type(_, ty) => match *ty {
+                    Type::Tuple(t) if t.elems.is_empty() => {
+                        // () is converted to None in return types
+                        IntrospectionNode::String("None".into())
+                    }
+                    mut ty => {
+                        if let Some(class_type) = parent {
+                            replace_self(&mut ty, class_type);
+                        }
+                        ty = ty.elide_lifetimes();
+                        IntrospectionNode::OutputType { rust_type: ty }
+                    }
+                },
+            },
         ),
     ]);
     if let Some(ident) = ident {
@@ -290,6 +311,7 @@ enum IntrospectionNode<'a> {
     String(Cow<'a, str>),
     IntrospectionId(Option<Cow<'a, Type>>),
     InputType { rust_type: Type, nullable: bool },
+    OutputType { rust_type: Type },
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<IntrospectionNode<'a>>),
 }
@@ -338,6 +360,11 @@ impl IntrospectionNode<'_> {
                 if nullable {
                     content.push_str(" | None");
                 }
+                content.push_str("\"");
+            }
+            Self::OutputType { rust_type } => {
+                content.push_str("\"");
+                content.push_tokens(quote! { <#rust_type as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE });
                 content.push_str("\"");
             }
             Self::Map(map) => {

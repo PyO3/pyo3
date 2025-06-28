@@ -390,6 +390,7 @@ pub fn impl_wrap_pyfunction(
         &name.to_string(),
         &signature,
         None,
+        func.sig.output.clone(),
         [] as [String; 0],
         None,
     );
@@ -410,6 +411,8 @@ pub fn impl_wrap_pyfunction(
         asyncness: func.sig.asyncness,
         unsafety: func.sig.unsafety,
         warnings,
+        #[cfg(feature = "experimental-inspect")]
+        output: func.sig.output.clone(),
     };
 
     let wrapper_ident = format_ident!("__pyfunction_{}", spec.name);

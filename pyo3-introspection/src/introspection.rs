@@ -121,7 +121,8 @@ fn convert_members(
                 arguments,
                 parent: _,
                 decorators,
-            } => functions.push(convert_function(name, arguments, decorators)),
+                returns,
+            } => functions.push(convert_function(name, arguments, decorators, returns)),
         }
     }
     Ok((modules, classes, functions))
@@ -170,7 +171,12 @@ fn convert_class(
     })
 }
 
-fn convert_function(name: &str, arguments: &ChunkArguments, decorators: &[String]) -> Function {
+fn convert_function(
+    name: &str,
+    arguments: &ChunkArguments,
+    decorators: &[String],
+    returns: &Option<String>,
+) -> Function {
     Function {
         name: name.into(),
         decorators: decorators.to_vec(),
@@ -187,6 +193,7 @@ fn convert_function(name: &str, arguments: &ChunkArguments, decorators: &[String
                 .as_ref()
                 .map(convert_variable_length_argument),
         },
+        returns: returns.clone(),
     }
 }
 
@@ -382,6 +389,8 @@ enum Chunk {
         parent: Option<String>,
         #[serde(default)]
         decorators: Vec<String>,
+        #[serde(default)]
+        returns: Option<String>,
     },
 }
 

@@ -47,6 +47,7 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_frozen_pyclass_borrow.rs");
     #[cfg(not(any(feature = "hashbrown", feature = "indexmap")))]
     t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
+    #[cfg(not(feature = "experimental-inspect"))]
     t.compile_fail("tests/ui/missing_intopy.rs");
     // adding extra error conversion impls changes the output
     #[cfg(not(any(windows, feature = "eyre", feature = "anyhow", Py_LIMITED_API)))]

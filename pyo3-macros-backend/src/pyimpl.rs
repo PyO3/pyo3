@@ -367,6 +367,7 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
 
     // We introduce self/cls argument and setup decorators
     let mut first_argument = None;
+    let mut output = spec.output.clone();
     let mut decorators = Vec::new();
     match &spec.tp {
         FnType::Getter(_) => {
@@ -382,6 +383,7 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
         }
         FnType::FnNew | FnType::FnNewClass(_) => {
             first_argument = Some("cls");
+            output = syn::ReturnType::Default; // The __new__ Python function return type is None
         }
         FnType::FnClass(_) => {
             first_argument = Some("cls");
@@ -404,6 +406,7 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
         &name,
         &spec.signature,
         first_argument,
+        output,
         decorators,
         Some(parent),
     )
