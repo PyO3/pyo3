@@ -1,3 +1,5 @@
+use pyo3_ffi::c_str;
+
 use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::callback::IntoPyCallbackOutput;
@@ -95,6 +97,8 @@ impl PyModule {
     /// containing the Python code passed to `code`
     /// and pretending to live at `file_name`.
     ///
+    /// If `file_name` is empty, it will be set to `<string>`.
+    ///
     /// <div class="information">
     ///     <div class="tooltip compile_fail" style="">&#x26a0; &#xfe0f;</div>
     /// </div><div class="example-wrap" style="display:inline-block"><pre class="compile_fail" style="white-space:normal;font:inherit;">
@@ -154,6 +158,11 @@ impl PyModule {
         file_name: &CStr,
         module_name: &CStr,
     ) -> PyResult<Bound<'py, PyModule>> {
+        let file_name = if file_name.is_empty() {
+            c_str!("<string>")
+        } else {
+            file_name
+        };
         unsafe {
             let code = ffi::Py_CompileString(code.as_ptr(), file_name.as_ptr(), ffi::Py_file_input)
                 .assume_owned_or_err(py)?;
@@ -539,6 +548,8 @@ fn __name__(py: Python<'_>) -> &Bound<'_, PyString> {
 
 #[cfg(test)]
 mod tests {
+    use pyo3_ffi::c_str;
+
     use crate::{
         types::{module::PyModuleMethods, PyModule},
         Python,
@@ -563,6 +574,14 @@ mod tests {
                 .to_cow()
                 .unwrap()
                 .ends_with("site.py"));
+        })
+    }
+
+    #[test]
+    fn module_from_code_empty_file() {
+        Python::with_gil(|py| {
+            let builtins = PyModule::from_code(py, c_str!(""), c_str!(""), c_str!("")).unwrap();
+            assert_eq!(builtins.filename().unwrap(), "<string>");
         })
     }
 }

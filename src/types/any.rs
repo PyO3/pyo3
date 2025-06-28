@@ -457,7 +457,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
+    ///     let module = PyModule::from_code(py, CODE, c_str!("func.py"), c_str!(""))?;
     ///     let fun = module.getattr("function")?;
     ///     let args = ("hello",);
     ///     let kwargs = PyDict::new(py);
@@ -514,7 +514,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
+    ///     let module = PyModule::from_code(py, CODE, c_str!("func.py"), c_str!(""))?;
     ///     let fun = module.getattr("function")?;
     ///     let args = ("hello",);
     ///     let result = fun.call1(args)?;
@@ -553,7 +553,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
+    ///     let module = PyModule::from_code(py, CODE, c_str!("a.py"), c_str!(""))?;
     ///     let instance = module.getattr("a")?;
     ///     let args = ("hello",);
     ///     let kwargs = PyDict::new(py);
@@ -599,7 +599,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
+    ///     let module = PyModule::from_code(py, CODE, c_str!("a.py"), c_str!(""))?;
     ///     let instance = module.getattr("a")?;
     ///     let result = instance.call_method0("method")?;
     ///     assert_eq!(result.extract::<String>()?, "called with no arguments");
@@ -636,7 +636,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
+    ///     let module = PyModule::from_code(py, CODE, c_str!("a.py"), c_str!(""))?;
     ///     let instance = module.getattr("a")?;
     ///     let args = ("hello",);
     ///     let result = instance.call_method1("method", args)?;

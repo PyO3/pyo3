@@ -60,7 +60,7 @@ struct RustyStruct {
 #             c_str!("class Foo:
 #             def __init__(self):
 #                 self.my_string = 'test'"),
-#             c_str!(""),
+#             c_str!("<string>"),
 #             c_str!(""),
 #         )?;
 #
@@ -119,7 +119,7 @@ struct RustyStruct {
 #             def __init__(self):
 #                 self.name = 'test'
 #                 self['key'] = 'test2'"),
-#             c_str!(""),
+#             c_str!("<string>"),
 #             c_str!(""),
 #         )?;
 #
@@ -349,7 +349,7 @@ enum RustyEnum<'py> {
 #                 self.x = 0
 #                 self.y = 1
 #                 self.z = 2"),
-#                 c_str!(""),
+#                 c_str!("<string>"),
 #                 c_str!(""),
 #             )?;
 #
@@ -373,7 +373,7 @@ enum RustyEnum<'py> {
 #             def __init__(self):
 #                 self.x = 3
 #                 self.y = 4"),
-#                 c_str!(""),
+#                 c_str!("<string>"),
 #                 c_str!(""),
 #             )?;
 #

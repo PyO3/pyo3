@@ -265,8 +265,8 @@ fn main() -> PyResult<()> {
     )));
     let py_app = c_str!(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py")));
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
-        PyModule::from_code(py, py_foo, c_str!("utils.foo"), c_str!("utils.foo"))?;
-        let app: Py<PyAny> = PyModule::from_code(py, py_app, c_str!(""), c_str!(""))?
+        PyModule::from_code(py, py_foo, c_str!("foo.py"), c_str!("utils.foo"))?;
+        let app: Py<PyAny> = PyModule::from_code(py, py_app, c_str!("app.py"), c_str!(""))?
             .getattr("run")?
             .into();
         app.call0(py)
@@ -305,7 +305,7 @@ fn main() -> PyResult<()> {
             .getattr("path")?
             .downcast_into::<PyList>()?;
         syspath.insert(0, path)?;
-        let app: Py<PyAny> = PyModule::from_code(py, py_app.as_c_str(), c_str!(""), c_str!(""))?
+        let app: Py<PyAny> = PyModule::from_code(py, py_app.as_c_str(), c_str!("app.py"), c_str!(""))?
             .getattr("run")?
             .into();
         app.call0(py)
