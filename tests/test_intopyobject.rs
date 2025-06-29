@@ -296,7 +296,7 @@ fn test_bigint_to_python_i64_max_plus_one() {
     use std::str::FromStr;
 
     Python::with_gil(|py| {
-        let big_int_str = "9223372036854775808"; // i64::MAX + 1
+        let big_int_str = "9223372036854775808"; 
         let big_int = BigInt::from_str(big_int_str).unwrap();
 
         let py_int = big_int.to_object(py);
