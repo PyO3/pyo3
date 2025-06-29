@@ -3,6 +3,9 @@ use std::os::raw::{c_char, c_int};
 
 pub const PY_STDIOTEXTMODE: &str = "b";
 
+#[cfg(Py_LIMITED_API)]
+opaque_struct!(pub PyFileObject);
+
 extern "C" {
     pub fn PyFile_FromFd(
         arg1: c_int,
