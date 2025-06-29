@@ -32,7 +32,8 @@ pub struct PyFile(PyAny);
 pyobject_native_type!(
     PyFile,
     ffi::PyFileObject,
-    pyobject_native_static_type_object!(ffi::PyFile_Type)
+    pyobject_native_static_type_object!(ffi::PyBaseObject_Type),
+    #checkfunction=PyObject_Check
 );
 
 impl PyFile {

@@ -1,18 +1,10 @@
 use crate::object::PyObject;
 use std::os::raw::{c_char, c_int};
-use crate::PyTypeObject;
 
 pub const PY_STDIOTEXTMODE: &str = "b";
 
 #[cfg(Py_LIMITED_API)]
 opaque_struct!(pub PyFileObject);
-
-
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyFile_Type")]
-    pub static mut PyFile_Type: PyTypeObject;
-}
 
 extern "C" {
     pub fn PyFile_FromFd(
