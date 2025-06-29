@@ -1,8 +1,6 @@
 use crate::object::PyObject;
 use std::os::raw::{c_char, c_int};
-use std::ptr::addr_of_mut;
 use crate::PyTypeObject;
-use crate::PyObject_TypeCheck;
 
 pub const PY_STDIOTEXTMODE: &str = "b";
 
@@ -14,11 +12,6 @@ opaque_struct!(pub PyFileObject);
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyFile_Type")]
     pub static mut PyFile_Type: PyTypeObject;
-}
-
-#[inline]
-pub unsafe fn PyFile_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyFile_Type))
 }
 
 extern "C" {
