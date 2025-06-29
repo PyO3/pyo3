@@ -421,6 +421,7 @@ pub mod coroutine;
 mod err;
 pub mod exceptions;
 pub mod ffi;
+pub mod fmt;
 mod gil;
 #[doc(hidden)]
 pub mod impl_;
