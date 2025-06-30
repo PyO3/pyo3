@@ -209,6 +209,7 @@ about this topic.
 - [haem](https://github.com/BooleanCat/haem) _A Python library for working on Bioinformatics problems._
 - [html2text-rs](https://github.com/deedy5/html2text_rs) _Python library for converting HTML to markup or plain text._
 - [html-py-ever](https://github.com/PyO3/setuptools-rust/tree/main/examples/html-py-ever) _Using [html5ever](https://github.com/servo/html5ever) through [kuchiki](https://github.com/kuchiki-rs/kuchiki) to speed up html parsing and css-selecting._
+- [hudi-rs](https://github.com/apache/hudi-rs) _The native Rust implementation for Apache Hudi, with C++ & Python API bindings._
 - [inline-python](https://github.com/m-ou-se/inline-python) _Inline Python code directly in your Rust code._
 - [johnnycanencrypt](https://github.com/kushaldas/johnnycanencrypt) OpenPGP library with Yubikey support.
 - [jsonschema](https://github.com/Stranger6667/jsonschema/tree/master/crates/jsonschema-py) _A high-performance JSON Schema validator for Python._
