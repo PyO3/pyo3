@@ -78,7 +78,7 @@ fn main() -> PyResult<()> {
     warn!("Something spooky happened!");
 
     // Log some messages from Python
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         py.run(
             "
 import logging

@@ -181,7 +181,7 @@ mod tests {
     #[test]
     #[cfg(not(windows))]
     fn test_non_utf8_conversion() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             #[cfg(not(target_os = "wasi"))]
             use std::os::unix::ffi::OsStrExt;
             #[cfg(target_os = "wasi")]
@@ -200,7 +200,7 @@ mod tests {
 
     #[test]
     fn test_intopyobject_roundtrip() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             fn test_roundtrip<'py, T>(py: Python<'py>, obj: T)
             where
                 T: IntoPyObject<'py> + AsRef<OsStr> + Debug + Clone,

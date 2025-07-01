@@ -50,7 +50,7 @@ mod tests {
     // created from Python.
     #[test]
     fn equivalency_test() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let list_int = py
                 .eval(ffi::c_str!("list[int]"), None, None)
                 .unwrap()

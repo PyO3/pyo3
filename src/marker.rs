@@ -44,7 +44,7 @@
 //! use std::rc::Rc;
 //!
 //! fn main() {
-//!     Python::with_gil(|py| {
+//!     Python::attach(|py| {
 //!         let rc = Rc::new(5);
 //!
 //!         py.allow_threads(|| {
@@ -72,7 +72,7 @@
 //! use pyo3::types::PyString;
 //! use send_wrapper::SendWrapper;
 //!
-//! Python::with_gil(|py| {
+//! Python::attach(|py| {
 //!     let string = PyString::new(py, "foo");
 //!
 //!     let wrapped = SendWrapper::new(string);
@@ -151,7 +151,7 @@ use std::os::raw::c_int;
 /// # use pyo3::prelude::*;
 /// use std::rc::Rc;
 ///
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let rc = Rc::new(42);
 ///
 ///     py.allow_threads(|| {
@@ -160,7 +160,7 @@ use std::os::raw::c_int;
 /// });
 /// ```
 ///
-/// This also implies that the interplay between `with_gil` and `allow_threads` is unsound, for example
+/// This also implies that the interplay between `attach` and `allow_threads` is unsound, for example
 /// one can circumvent this protection using the [`send_wrapper`](https://docs.rs/send_wrapper/) crate:
 ///
 /// ```no_run
@@ -168,7 +168,7 @@ use std::os::raw::c_int;
 /// # use pyo3::types::PyString;
 /// use send_wrapper::SendWrapper;
 ///
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let string = PyString::new(py, "foo");
 ///
 ///     let wrapped = SendWrapper::new(string);
@@ -214,7 +214,7 @@ mod nightly {
         /// ```compile_fail
         /// # use pyo3::prelude::*;
         /// # use pyo3::types::PyString;
-        /// Python::with_gil(|py| {
+        /// Python::attach(|py| {
         ///     let string = PyString::new(py, "foo");
         ///
         ///     py.allow_threads(|| {
@@ -227,7 +227,7 @@ mod nightly {
         ///
         /// ```compile_fail
         /// # use pyo3::prelude::*;
-        /// Python::with_gil(|py| {
+        /// Python::attach(|py| {
         ///     py.allow_threads(|| {
         ///         drop(py);
         ///     });
@@ -242,7 +242,7 @@ mod nightly {
         /// # use pyo3::types::PyString;
         /// use send_wrapper::SendWrapper;
         ///
-        /// Python::with_gil(|py| {
+        /// Python::attach(|py| {
         ///     let string = PyString::new(py, "foo");
         ///
         ///     let wrapped = SendWrapper::new(string);
@@ -262,7 +262,7 @@ mod nightly {
         /// # use pyo3::prelude::*;
         /// use std::rc::Rc;
         ///
-        /// Python::with_gil(|py| {
+        /// Python::attach(|py| {
         ///     let rc = Rc::new(42);
         ///
         ///     py.allow_threads(|| {
@@ -320,9 +320,9 @@ pub use nightly::Ungil;
 /// - In a function or method annotated with [`#[pyfunction]`](crate::pyfunction) or [`#[pymethods]`](crate::pymethods) you can declare it
 ///   as a parameter, and PyO3 will pass in the token when Python code calls it.
 /// - When you need to acquire the GIL yourself, such as when calling Python code from Rust, you
-///   should call [`Python::with_gil`] to do that and pass your code as a closure to it.
+///   should call [`Python::attach`] to do that and pass your code as a closure to it.
 ///
-/// The first two options are zero-cost; [`Python::with_gil`] requires runtime checking and may need to block
+/// The first two options are zero-cost; [`Python::attach`] requires runtime checking and may need to block
 /// to acquire the GIL.
 ///
 /// # Deadlocks
@@ -357,12 +357,23 @@ pub use nightly::Ungil;
 pub struct Python<'py>(PhantomData<(&'py GILGuard, NotSend)>);
 
 impl Python<'_> {
+    /// See [Python::attach]
+    #[inline]
+    #[track_caller]
+    #[deprecated(note = "use `Python::attach` instead", since = "0.26.0")]
+    pub fn with_gil<F, R>(f: F) -> R
+    where
+        F: for<'py> FnOnce(Python<'py>) -> R,
+    {
+        Self::attach(f)
+    }
+
     /// Acquires the global interpreter lock, allowing access to the Python interpreter. The
     /// provided closure `F` will be executed with the acquired `Python` marker token.
     ///
     /// If implementing [`#[pymethods]`](crate::pymethods) or [`#[pyfunction]`](crate::pyfunction),
     /// declare `py: Python` as an argument. PyO3 will pass in the token to grant access to the GIL
-    /// context in which the function is running, avoiding the need to call `with_gil`.
+    /// context in which the function is running, avoiding the need to call `attach`.
     ///
     /// If the [`auto-initialize`] feature is enabled and the Python runtime is not already
     /// initialized, this function will initialize it. See
@@ -389,7 +400,7 @@ impl Python<'_> {
     /// use pyo3::ffi::c_str;
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
+    /// Python::attach(|py| -> PyResult<()> {
     ///     let x: i32 = py.eval(c_str!("5"), None, None)?.extract()?;
     ///     assert_eq!(x, 5);
     ///     Ok(())
@@ -400,7 +411,7 @@ impl Python<'_> {
     /// [`auto-initialize`]: https://pyo3.rs/main/features.html#auto-initialize
     #[inline]
     #[track_caller]
-    pub fn with_gil<F, R>(f: F) -> R
+    pub fn attach<F, R>(f: F) -> R
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
@@ -410,7 +421,7 @@ impl Python<'_> {
         f(guard.python())
     }
 
-    /// Like [`Python::with_gil`] except Python interpreter state checking is skipped.
+    /// Like [`Python::attach`] except Python interpreter state checking is skipped.
     ///
     /// Normally when the GIL is acquired, we check that the Python interpreter is an
     /// appropriate state (e.g. it is fully initialized). This function skips those
@@ -418,12 +429,12 @@ impl Python<'_> {
     ///
     /// # Safety
     ///
-    /// If [`Python::with_gil`] would succeed, it is safe to call this function.
+    /// If [`Python::attach`] would succeed, it is safe to call this function.
     ///
-    /// In most cases, you should use [`Python::with_gil`].
+    /// In most cases, you should use [`Python::attach`].
     ///
     /// A justified scenario for calling this function is during multi-phase interpreter
-    /// initialization when [`Python::with_gil`] would fail before
+    /// initialization when [`Python::attach`] would fail before
     // this link is only valid on 3.8+not pypy and up.
     #[cfg_attr(
         all(Py_3_8, not(PyPy)),
@@ -477,7 +488,7 @@ impl<'py> Python<'py> {
     /// }
     /// #
     /// # fn main() -> PyResult<()> {
-    /// #     Python::with_gil(|py| -> PyResult<()> {
+    /// #     Python::attach(|py| -> PyResult<()> {
     /// #         let fun = pyo3::wrap_pyfunction!(sum_numbers, py)?;
     /// #         let res = fun.call1((vec![1_u32, 2, 3],))?;
     /// #         assert_eq!(res.extract::<u32>()?, 6_u32);
@@ -533,7 +544,7 @@ impl<'py> Python<'py> {
     /// ```
     /// # use pyo3::prelude::*;
     /// # use pyo3::ffi::c_str;
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// let result = py.eval(c_str!("[i * 10 for i in range(5)]"), None, None).unwrap();
     /// let res: Vec<i64> = result.extract().unwrap();
     /// assert_eq!(res, vec![0, 10, 20, 30, 40])
@@ -563,7 +574,7 @@ impl<'py> Python<'py> {
     ///     types::{PyBytes, PyDict},
     ///     ffi::c_str,
     /// };
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let locals = PyDict::new(py);
     ///     py.run(c_str!(
     ///         r#"
@@ -705,7 +716,7 @@ impl<'py> Python<'py> {
     /// # Examples
     /// ```rust
     /// # use pyo3::Python;
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     // The full string could be, for example:
     ///     // "3.10.0 (tags/v3.10.0:b494f59, Oct  4 2021, 19:00:18) [MSC v.1929 64 bit (AMD64)]"
     ///     assert!(py.version().starts_with("3."));
@@ -725,7 +736,7 @@ impl<'py> Python<'py> {
     /// # Examples
     /// ```rust
     /// # use pyo3::Python;
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     // PyO3 supports Python 3.7 and up.
     ///     assert!(py.version_info() >= (3, 7));
     ///     assert!(py.version_info() >= (3, 7, 0));
@@ -818,7 +829,7 @@ mod tests {
 
     #[test]
     fn test_eval() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // Make sure builtin names are accessible
             let v: i32 = py
                 .eval(ffi::c_str!("min(1, 2)"), None, None)
@@ -859,11 +870,11 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     fn test_allow_threads_releases_and_acquires_gil() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let b = std::sync::Arc::new(std::sync::Barrier::new(2));
 
             let b2 = b.clone();
-            std::thread::spawn(move || Python::with_gil(|_| b2.wait()));
+            std::thread::spawn(move || Python::attach(|_| b2.wait()));
 
             py.allow_threads(|| {
                 // If allow_threads does not release the GIL, this will deadlock because
@@ -882,7 +893,7 @@ mod tests {
 
     #[test]
     fn test_allow_threads_panics_safely() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = std::panic::catch_unwind(|| unsafe {
                 let py = Python::assume_gil_acquired();
                 py.allow_threads(|| {
@@ -903,11 +914,11 @@ mod tests {
     #[cfg(not(pyo3_disable_reference_pool))]
     #[test]
     fn test_allow_threads_pass_stuff_in() {
-        let list = Python::with_gil(|py| PyList::new(py, vec!["foo", "bar"]).unwrap().unbind());
+        let list = Python::attach(|py| PyList::new(py, vec!["foo", "bar"]).unwrap().unbind());
         let mut v = vec![1, 2, 3];
         let a = std::sync::Arc::new(String::from("foo"));
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             py.allow_threads(|| {
                 drop((list, &mut v, a));
             });
@@ -928,7 +939,7 @@ mod tests {
         let state = unsafe { crate::ffi::PyGILState_Check() };
         assert_eq!(state, GIL_NOT_HELD);
 
-        Python::with_gil(|_| {
+        Python::attach(|_| {
             let state = unsafe { crate::ffi::PyGILState_Check() };
             assert_eq!(state, GIL_HELD);
         });
@@ -939,7 +950,7 @@ mod tests {
 
     #[test]
     fn test_ellipsis() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert_eq!(py.Ellipsis().to_string(), "Ellipsis");
 
             let v = py
@@ -955,7 +966,7 @@ mod tests {
     fn test_py_run_inserts_globals() {
         use crate::types::dict::PyDictMethods;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let namespace = PyDict::new(py);
             py.run(
                 ffi::c_str!("class Foo: pass\na = int(3)"),
@@ -1010,7 +1021,7 @@ cls.func()
             .unwrap(),
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             runner.reproducer(py).unwrap();
         });
     }

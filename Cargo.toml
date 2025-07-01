@@ -122,7 +122,7 @@ abi3-py314 = ["abi3", "pyo3-build-config/abi3-py314", "pyo3-ffi/abi3-py314"]
 # Automatically generates `python3.dll` import libraries for Windows targets.
 generate-import-lib = ["pyo3-ffi/generate-import-lib"]
 
-# Changes `Python::with_gil` to automatically initialize the Python interpreter if needed.
+# Changes `Python::attach` to automatically initialize the Python interpreter if needed.
 auto-initialize = []
 
 # Enables `Clone`ing references to Python objects `Py<T>` which panics if the GIL is not held.

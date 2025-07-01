@@ -12,7 +12,7 @@
 /// use pyo3::{prelude::*, py_run, types::PyList};
 ///
 /// # fn main() -> PyResult<()> {
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let list = PyList::new(py, &[1, 2, 3])?;
 ///     py_run!(py, list, "assert list == [1, 2, 3]");
 /// # Ok(())
@@ -47,7 +47,7 @@
 ///     }
 /// }
 ///
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let time = Py::new(py, Time {hour: 8, minute: 43, second: 16}).unwrap();
 ///     let time_as_tuple = (8, 43, 16);
 ///     py_run!(py, time time_as_tuple, r#"
@@ -76,7 +76,7 @@
 /// }
 ///
 /// # fn main() -> PyResult<()> {
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let locals = [("C", py.get_type::<MyClass>())].into_py_dict(py)?;
 ///     pyo3::py_run!(py, *locals, "c = C()");
 /// #   Ok(())

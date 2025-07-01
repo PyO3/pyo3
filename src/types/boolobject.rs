@@ -244,7 +244,7 @@ mod tests {
 
     #[test]
     fn test_true() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyBool::new(py, true).is_true());
             let t = PyBool::new(py, true);
             assert!(t.extract::<bool>().unwrap());
@@ -254,7 +254,7 @@ mod tests {
 
     #[test]
     fn test_false() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(!PyBool::new(py, false).is_true());
             let t = PyBool::new(py, false);
             assert!(!t.extract::<bool>().unwrap());
@@ -267,7 +267,7 @@ mod tests {
 
     #[test]
     fn test_pybool_comparisons() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_bool = PyBool::new(py, true);
             let py_bool_false = PyBool::new(py, false);
             let rust_bool = true;

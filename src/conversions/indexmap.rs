@@ -154,7 +154,7 @@ mod test_indexmap {
 
     #[test]
     fn test_indexmap_indexmap_into_pyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut map = indexmap::IndexMap::<i32, i32>::new();
             map.insert(1, 1);
 
@@ -179,7 +179,7 @@ mod test_indexmap {
 
     #[test]
     fn test_indexmap_indexmap_into_dict() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut map = indexmap::IndexMap::<i32, i32>::new();
             map.insert(1, 1);
 
@@ -200,7 +200,7 @@ mod test_indexmap {
 
     #[test]
     fn test_indexmap_indexmap_insertion_order_round_trip() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let n = 20;
             let mut map = indexmap::IndexMap::<i32, i32>::new();
 

@@ -49,7 +49,7 @@ impl Drop for TestBufferClass {
 fn test_buffer() {
     let drop_called = Arc::new(AtomicBool::new(false));
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let instance = Py::new(
             py,
             TestBufferClass {
@@ -71,7 +71,7 @@ fn test_buffer_referenced() {
 
     let buf = {
         let input = vec![b' ', b'2', b'3'];
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let instance = TestBufferClass {
                 vec: input.clone(),
                 drop_called: drop_called.clone(),
@@ -88,7 +88,7 @@ fn test_buffer_referenced() {
 
     assert!(!drop_called.load(Ordering::Relaxed));
 
-    Python::with_gil(|_| {
+    Python::attach(|_| {
         drop(buf);
     });
 
@@ -120,7 +120,7 @@ fn test_releasebuffer_unraisable_error() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let capture = UnraisableCapture::install(py);
 
         let instance = Py::new(py, ReleaseBufferError {}).unwrap();

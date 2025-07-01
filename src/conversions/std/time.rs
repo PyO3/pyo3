@@ -141,7 +141,7 @@ mod tests {
 
     #[test]
     fn test_duration_frompyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert_eq!(
                 new_timedelta(py, 0, 0, 0).extract::<Duration>().unwrap(),
                 Duration::new(0, 0)
@@ -175,7 +175,7 @@ mod tests {
 
     #[test]
     fn test_duration_frompyobject_negative() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert_eq!(
                 new_timedelta(py, 0, -1, 0)
                     .extract::<Duration>()
@@ -188,7 +188,7 @@ mod tests {
 
     #[test]
     fn test_duration_into_pyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let assert_eq = |l: Bound<'_, PyAny>, r: Bound<'_, PyAny>| {
                 assert!(l.eq(r).unwrap());
             };
@@ -238,14 +238,14 @@ mod tests {
 
     #[test]
     fn test_duration_into_pyobject_overflow() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(Duration::MAX.into_pyobject(py).is_err());
         })
     }
 
     #[test]
     fn test_time_frompyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert_eq!(
                 new_datetime(py, 1970, 1, 1, 0, 0, 0, 0)
                     .extract::<SystemTime>()
@@ -271,7 +271,7 @@ mod tests {
 
     #[test]
     fn test_time_frompyobject_before_epoch() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert_eq!(
                 new_datetime(py, 1950, 1, 1, 0, 0, 0, 0)
                     .extract::<SystemTime>()
@@ -284,7 +284,7 @@ mod tests {
 
     #[test]
     fn test_time_intopyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let assert_eq = |l: Bound<'_, PyDateTime>, r: Bound<'_, PyDateTime>| {
                 assert!(l.eq(r).unwrap());
             };
@@ -352,7 +352,7 @@ mod tests {
         let big_system_time = UNIX_EPOCH
             .checked_add(Duration::new(300000000000, 0))
             .unwrap();
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(big_system_time.into_pyobject(py).is_err());
         })
     }

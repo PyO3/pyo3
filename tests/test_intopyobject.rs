@@ -18,7 +18,7 @@ pub struct A<'py> {
 
 #[test]
 fn test_named_fields_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let a = A {
             s: "Hello".into(),
             t: PyString::new(py, "World"),
@@ -60,7 +60,7 @@ pub struct B<'a> {
 
 #[test]
 fn test_transparent_named_field_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let pyb = B { test: "test" }.into_pyobject(py).unwrap();
         let b = pyb.extract::<String>().unwrap();
         assert_eq!(b, "test");
@@ -75,7 +75,7 @@ pub struct D<T> {
 
 #[test]
 fn test_generic_transparent_named_field_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let pyd = D {
             test: String::from("test"),
         }
@@ -95,7 +95,7 @@ pub struct GenericWithBound<K: Hash + Eq, V>(HashMap<K, V>);
 
 #[test]
 fn test_generic_with_bound() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let mut hash_map = HashMap::<String, i32>::new();
         hash_map.insert("1".into(), 1);
         hash_map.insert("2".into(), 2);
@@ -126,7 +126,7 @@ pub struct Tuple(String, usize);
 
 #[test]
 fn test_tuple_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = Tuple(String::from("test"), 1).into_pyobject(py).unwrap();
         assert!(tup.extract::<(usize, String)>().is_err());
         let tup = tup.extract::<(String, usize)>().unwrap();
@@ -140,7 +140,7 @@ pub struct TransparentTuple(String);
 
 #[test]
 fn test_transparent_tuple_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = TransparentTuple(String::from("test"))
             .into_pyobject(py)
             .unwrap();
@@ -177,7 +177,7 @@ pub enum Foo<'py> {
 
 #[test]
 fn test_enum() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let foo = Foo::TupleVar(1, "test".into(), std::marker::PhantomData)
             .into_pyobject(py)
             .unwrap();
@@ -231,7 +231,7 @@ fn zap_into_py<'py>(
 
 #[test]
 fn test_into_py_with() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let zap = Zap {
             name: "whatever".into(),
             some_object_length: 3,
@@ -271,7 +271,7 @@ fn test_struct_into_py_rename_all() {
         long_field_name: 0.0,
     };
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let py_foo_ref = (&foo).into_pyobject(py).unwrap();
         let py_foo = foo.into_pyobject(py).unwrap();
 

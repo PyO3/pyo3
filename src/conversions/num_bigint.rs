@@ -346,7 +346,7 @@ mod tests {
 
     #[test]
     fn convert_biguint() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // check the first 2000 numbers in the fibonacci sequence
             for (py_result, rs_result) in python_fib(py).zip(rust_fib::<BigUint>()).take(2000) {
                 // Python -> Rust
@@ -359,7 +359,7 @@ mod tests {
 
     #[test]
     fn convert_bigint() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // check the first 2000 numbers in the fibonacci sequence
             for (py_result, rs_result) in python_fib(py).zip(rust_fib::<BigInt>()).take(2000) {
                 // Python -> Rust
@@ -401,7 +401,7 @@ mod tests {
 
     #[test]
     fn convert_index_class() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let index = python_index_class(py);
             let locals = PyDict::new(py);
             locals.set_item("index", index).unwrap();
@@ -414,7 +414,7 @@ mod tests {
 
     #[test]
     fn handle_zero() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let zero: BigInt = 0i32.into_pyobject(py).unwrap().extract().unwrap();
             assert_eq!(zero, BigInt::from(0));
         })
@@ -423,7 +423,7 @@ mod tests {
     /// `OverflowError` on converting Python int to BigInt, see issue #629
     #[test]
     fn check_overflow() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             macro_rules! test {
                 ($T:ty, $value:expr, $py:expr) => {
                     let value = $value;

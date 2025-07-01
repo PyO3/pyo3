@@ -50,7 +50,7 @@ impl<T: PyClass> Deref for RefGuard<T> {
 
 impl<T: PyClass> Drop for RefGuard<T> {
     fn drop(&mut self) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .get_class_object()
@@ -87,7 +87,7 @@ impl<T: PyClass<Frozen = False>> DerefMut for RefMutGuard<T> {
 
 impl<T: PyClass<Frozen = False>> Drop for RefMutGuard<T> {
     fn drop(&mut self) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .get_class_object()

@@ -55,7 +55,7 @@ fn frobnicate<'py>(value: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
 
 ## Access to Bound implies access to GIL token
 
-Calling `Python::with_gil` is effectively a no-op when the GIL is already held, but checking that this is the case still has a cost. If an existing GIL token can not be accessed, for example when implementing a pre-existing trait, but a GIL-bound reference is available, this cost can be avoided by exploiting that access to GIL-bound reference gives zero-cost access to a GIL token via `Bound::py`.
+Calling `Python::attach` is effectively a no-op when the GIL is already held, but checking that this is the case still has a cost. If an existing GIL token can not be accessed, for example when implementing a pre-existing trait, but a GIL-bound reference is available, this cost can be avoided by exploiting that access to GIL-bound reference gives zero-cost access to a GIL token via `Bound::py`.
 
 For example, instead of writing
 
@@ -70,7 +70,7 @@ struct FooBound<'py>(Bound<'py, PyList>);
 
 impl PartialEq<Foo> for FooBound<'_> {
     fn eq(&self, other: &Foo) -> bool {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let len = other.0.bind(py).len();
             self.0.len() == len
         })
@@ -116,18 +116,18 @@ PyO3 uses global mutable state to keep track of deferred reference count updates
 
 This functionality can be avoided by setting the `pyo3_disable_reference_pool` conditional compilation flag. This removes the global reference pool and the associated costs completely. However, it does _not_ remove the `Drop` implementation for `Py<T>` which is necessary to interoperate with existing Rust code written without PyO3-based code in mind. To stay compatible with the wider Rust ecosystem in these cases, we keep the implementation but abort when `Drop` is called without the GIL being held. If `pyo3_leak_on_drop_without_reference_pool` is additionally enabled, objects dropped without the GIL being held will be leaked instead which is always sound but might have determinal effects like resource exhaustion in the long term.
 
-This limitation is important to keep in mind when this setting is used, especially when embedding Python code into a Rust application as it is quite easy to accidentally drop a `Py<T>` (or types containing it like `PyErr`, `PyBackedStr` or `PyBackedBytes`) returned from `Python::with_gil` without making sure to re-acquire the GIL beforehand. For example, the following code
+This limitation is important to keep in mind when this setting is used, especially when embedding Python code into a Rust application as it is quite easy to accidentally drop a `Py<T>` (or types containing it like `PyErr`, `PyBackedStr` or `PyBackedBytes`) returned from `Python::attach` without making sure to re-acquire the GIL beforehand. For example, the following code
 
 ```rust,ignore
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
-let numbers: Py<PyList> = Python::with_gil(|py| PyList::empty(py).unbind());
+let numbers: Py<PyList> = Python::attach(|py| PyList::empty(py).unbind());
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     numbers.bind(py).append(23).unwrap();
 });
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     numbers.bind(py).append(42).unwrap();
 });
 ```
@@ -137,17 +137,17 @@ will abort if the list not explicitly disposed via
 ```rust
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
-let numbers: Py<PyList> = Python::with_gil(|py| PyList::empty(py).unbind());
+let numbers: Py<PyList> = Python::attach(|py| PyList::empty(py).unbind());
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     numbers.bind(py).append(23).unwrap();
 });
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     numbers.bind(py).append(42).unwrap();
 });
 
-Python::with_gil(move |py| {
+Python::attach(move |py| {
     drop(numbers);
 });
 ```

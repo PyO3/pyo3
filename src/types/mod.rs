@@ -64,7 +64,7 @@ pub use self::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefRe
 /// use pyo3::ffi::c_str;
 ///
 /// # pub fn main() -> PyResult<()> {
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let dict = py.eval(c_str!("{'a':'b', 'c':'d'}"), None, None)?.downcast_into::<PyDict>()?;
 ///
 ///     for (key, value) in &dict {

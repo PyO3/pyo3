@@ -52,7 +52,7 @@ impl PyWeakrefProxy {
     /// struct Foo { /* fields omitted */ }
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let foo = Bound::new(py, Foo {})?;
     ///     let weakref = PyWeakrefProxy::new(&foo)?;
     ///     assert!(
@@ -109,7 +109,7 @@ impl PyWeakrefProxy {
     /// }
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     py.run(c_str!("counter = 0"), None, None)?;
     ///     assert_eq!(py.eval(c_str!("counter"), None, None)?.extract::<u32>()?, 0);
     ///     let foo = Bound::new(py, Foo{})?;
@@ -254,7 +254,7 @@ mod tests {
 
             #[test]
             fn test_weakref_proxy_behavior() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let class = get_type(py)?;
                     let object = class.call0()?;
                     let reference = PyWeakrefProxy::new(&object)?;
@@ -316,7 +316,7 @@ mod tests {
 
             #[test]
             fn test_weakref_upgrade_as() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let class = get_type(py)?;
                     let object = class.call0()?;
                     let reference = PyWeakrefProxy::new(&object)?;
@@ -351,7 +351,7 @@ mod tests {
 
             #[test]
             fn test_weakref_upgrade_as_unchecked() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let class = get_type(py)?;
                     let object = class.call0()?;
                     let reference = PyWeakrefProxy::new(&object)?;
@@ -380,7 +380,7 @@ mod tests {
 
             #[test]
             fn test_weakref_upgrade() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let class = get_type(py)?;
                     let object = class.call0()?;
                     let reference = PyWeakrefProxy::new(&object)?;
@@ -398,7 +398,7 @@ mod tests {
 
             #[test]
             fn test_weakref_get_object() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let class = get_type(py)?;
                     let object = class.call0()?;
                     let reference = PyWeakrefProxy::new(&object)?;
@@ -426,7 +426,7 @@ mod tests {
 
             #[test]
             fn test_weakref_proxy_behavior() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let object: Bound<'_, WeakrefablePyClass> =
                         Bound::new(py, WeakrefablePyClass {})?;
                     let reference = PyWeakrefProxy::new(&object)?;
@@ -490,7 +490,7 @@ mod tests {
 
             #[test]
             fn test_weakref_upgrade_as() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
                     let reference = PyWeakrefProxy::new(object.bind(py))?;
 
@@ -521,7 +521,7 @@ mod tests {
 
             #[test]
             fn test_weakref_upgrade_as_unchecked() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
                     let reference = PyWeakrefProxy::new(object.bind(py))?;
 
@@ -546,7 +546,7 @@ mod tests {
 
             #[test]
             fn test_weakref_upgrade() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
                     let reference = PyWeakrefProxy::new(object.bind(py))?;
 
@@ -590,7 +590,7 @@ mod tests {
 
             #[test]
             fn test_weakref_proxy_behavior() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let class = get_type(py)?;
                     let object = class.call0()?;
                     let reference = PyWeakrefProxy::new(&object)?;
@@ -639,7 +639,7 @@ mod tests {
 
             #[test]
             fn test_weakref_upgrade_as() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let class = get_type(py)?;
                     let object = class.call0()?;
                     let reference = PyWeakrefProxy::new(&object)?;
@@ -674,7 +674,7 @@ mod tests {
 
             #[test]
             fn test_weakref_upgrade_as_unchecked() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let class = get_type(py)?;
                     let object = class.call0()?;
                     let reference = PyWeakrefProxy::new(&object)?;
@@ -703,7 +703,7 @@ mod tests {
 
             #[test]
             fn test_weakref_upgrade() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let class = get_type(py)?;
                     let object = class.call0()?;
                     let reference = PyWeakrefProxy::new(&object)?;
@@ -739,7 +739,7 @@ mod tests {
 
             #[test]
             fn test_weakref_proxy_behavior() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let object: Bound<'_, WeakrefablePyClass> =
                         Bound::new(py, WeakrefablePyClass {})?;
                     let reference = PyWeakrefProxy::new(&object)?;
@@ -791,7 +791,7 @@ mod tests {
 
             #[test]
             fn test_weakref_upgrade_as() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
                     let reference = PyWeakrefProxy::new(object.bind(py))?;
 
@@ -822,7 +822,7 @@ mod tests {
 
             #[test]
             fn test_weakref_upgrade_as_unchecked() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
                     let reference = PyWeakrefProxy::new(object.bind(py))?;
 
@@ -847,7 +847,7 @@ mod tests {
 
             #[test]
             fn test_weakref_upgrade() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let object = Py::new(py, WeakrefablePyClass {})?;
                     let reference = PyWeakrefProxy::new(object.bind(py))?;
 

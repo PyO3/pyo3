@@ -70,7 +70,7 @@ macro_rules! assert_check_only {
 
 #[test]
 fn test_date_check() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "date", "2018, 1, 1").unwrap();
         unsafe { PyDateTime_IMPORT() }
         assert_check_exact!(PyDate_Check, PyDate_CheckExact, obj);
@@ -84,7 +84,7 @@ fn test_date_check() {
 
 #[test]
 fn test_time_check() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "time", "12, 30, 15").unwrap();
         unsafe { PyDateTime_IMPORT() }
 
@@ -99,7 +99,7 @@ fn test_time_check() {
 
 #[test]
 fn test_datetime_check() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "datetime", "2018, 1, 1, 13, 30, 15")
             .map_err(|e| e.display(py))
             .unwrap();
@@ -117,7 +117,7 @@ fn test_datetime_check() {
 
 #[test]
 fn test_delta_check() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "timedelta", "1, -3").unwrap();
         unsafe { PyDateTime_IMPORT() }
 
@@ -132,7 +132,7 @@ fn test_datetime_utc() {
     use assert_approx_eq::assert_approx_eq;
     use pyo3::types::PyDateTime;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let utc = PyTzInfo::utc(py).unwrap();
 
         let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
@@ -171,7 +171,7 @@ static INVALID_TIMES: &[(u8, u8, u8, u32)] =
 fn test_pydate_out_of_bounds() {
     use pyo3::types::PyDate;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         for val in INVALID_DATES {
             let (year, month, day) = val;
             let dt = PyDate::new(py, *year, *month, *day);
@@ -184,7 +184,7 @@ fn test_pydate_out_of_bounds() {
 fn test_pytime_out_of_bounds() {
     use pyo3::types::PyTime;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         for val in INVALID_TIMES {
             let (hour, minute, second, microsecond) = val;
             let dt = PyTime::new(py, *hour, *minute, *second, *microsecond, None);
@@ -198,7 +198,7 @@ fn test_pydatetime_out_of_bounds() {
     use pyo3::types::PyDateTime;
     use std::iter;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let valid_time = (0, 0, 0, 0);
         let valid_date = (2018, 1, 1);
 

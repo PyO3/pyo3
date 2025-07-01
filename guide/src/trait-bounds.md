@@ -81,7 +81,7 @@ struct UserModel {
 impl Model for UserModel {
     fn set_variables(&mut self, var: &Vec<f64>) {
         println!("Rust calling Python to set the variables");
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.model
                 .bind(py)
                 .call_method("set_variables", (PyList::new(py, var).unwrap(),), None)
@@ -91,7 +91,7 @@ impl Model for UserModel {
 
     fn get_results(&self) -> Vec<f64> {
         println!("Rust calling Python to get the results");
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.model
                 .bind(py)
                 .call_method("get_results", (), None)
@@ -103,7 +103,7 @@ impl Model for UserModel {
 
     fn compute(&mut self) {
         println!("Rust calling Python to perform the computation");
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.model
                 .bind(py)
                 .call_method("compute", (), None)
@@ -180,7 +180,7 @@ This wrapper will also perform the type conversions between Python and Rust.
 # impl Model for UserModel {
 #  fn set_variables(&mut self, var: &Vec<f64>) {
 #      println!("Rust calling Python to set the variables");
-#      Python::with_gil(|py| {
+#      Python::attach(|py| {
 #          self.model.bind(py)
 #              .call_method("set_variables", (PyList::new(py, var).unwrap(),), None)
 #              .unwrap();
@@ -189,7 +189,7 @@ This wrapper will also perform the type conversions between Python and Rust.
 #
 #  fn get_results(&self) -> Vec<f64> {
 #      println!("Rust calling Python to get the results");
-#      Python::with_gil(|py| {
+#      Python::attach(|py| {
 #          self.model
 #              .bind(py)
 #              .call_method("get_results", (), None)
@@ -201,7 +201,7 @@ This wrapper will also perform the type conversions between Python and Rust.
 #
 #  fn compute(&mut self) {
 #      println!("Rust calling Python to perform the computation");
-#      Python::with_gil(|py| {
+#      Python::attach(|py| {
 #          self.model
 #              .bind(py)
 #              .call_method("compute", (), None)
@@ -347,7 +347,7 @@ We used in our `get_results` method the following call that performs the type co
 impl Model for UserModel {
     fn get_results(&self) -> Vec<f64> {
         println!("Rust calling Python to get the results");
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.model
                 .bind(py)
                 .call_method("get_results", (), None)
@@ -358,7 +358,7 @@ impl Model for UserModel {
     }
 #     fn set_variables(&mut self, var: &Vec<f64>) {
 #         println!("Rust calling Python to set the variables");
-#         Python::with_gil(|py| {
+#         Python::attach(|py| {
 #             self.model.bind(py)
 #                 .call_method("set_variables", (PyList::new(py, var).unwrap(),), None)
 #                 .unwrap();
@@ -367,7 +367,7 @@ impl Model for UserModel {
 #
 #     fn compute(&mut self) {
 #         println!("Rust calling Python to perform the computation");
-#         Python::with_gil(|py| {
+#         Python::attach(|py| {
 #             self.model
 #                 .bind(py)
 #                 .call_method("compute", (), None)
@@ -398,7 +398,7 @@ Let's break it down in order to perform better error handling:
 impl Model for UserModel {
     fn get_results(&self) -> Vec<f64> {
         println!("Get results from Rust calling Python");
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_result: Bound<'_, PyAny> = self
                 .model
                 .bind(py)
@@ -417,7 +417,7 @@ impl Model for UserModel {
     }
 #     fn set_variables(&mut self, var: &Vec<f64>) {
 #         println!("Rust calling Python to set the variables");
-#         Python::with_gil(|py| {
+#         Python::attach(|py| {
 #             let py_model = self.model.bind(py)
 #                 .call_method("set_variables", (PyList::new(py, var).unwrap(),), None)
 #                 .unwrap();
@@ -426,7 +426,7 @@ impl Model for UserModel {
 #
 #     fn compute(&mut self) {
 #         println!("Rust calling Python to perform the computation");
-#         Python::with_gil(|py| {
+#         Python::attach(|py| {
 #             self.model
 #                 .bind(py)
 #                 .call_method("compute", (), None)
@@ -514,7 +514,7 @@ impl UserModel {
 impl Model for UserModel {
     fn set_variables(&mut self, var: &Vec<f64>) {
         println!("Rust calling Python to set the variables");
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.model
                 .bind(py)
                 .call_method("set_variables", (PyList::new(py, var).unwrap(),), None)
@@ -524,7 +524,7 @@ impl Model for UserModel {
 
     fn get_results(&self) -> Vec<f64> {
         println!("Get results from Rust calling Python");
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_result: Bound<'_, PyAny> = self
                 .model
                 .bind(py)
@@ -544,7 +544,7 @@ impl Model for UserModel {
 
     fn compute(&mut self) {
         println!("Rust calling Python to perform the computation");
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.model
                 .bind(py)
                 .call_method("compute", (), None)

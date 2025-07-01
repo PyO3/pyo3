@@ -12,7 +12,7 @@ fails, so usually you will use something like
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let list = PyList::new(py, b"foo")?;
 let v: Vec<i32> = list.extract()?;
 #         assert_eq!(&v, &[102, 111, 111]);
@@ -54,7 +54,7 @@ struct RustyStruct {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         let module = PyModule::from_code(
 #             py,
 #             c_str!("class Foo:
@@ -86,7 +86,7 @@ struct RustyStruct {
 #
 # use pyo3::types::PyDict;
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         let dict = PyDict::new(py);
 #         dict.set_item("my_string", "test")?;
 #
@@ -112,7 +112,7 @@ struct RustyStruct {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         let module = PyModule::from_code(
 #             py,
 #             c_str!("class Foo(dict):
@@ -156,7 +156,7 @@ struct RustyStruct {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         let py_dict = py.eval(pyo3::ffi::c_str!("{'foo': 'foo', 'bar': 'bar', 'foobar': 'foobar'}"), None, None)?;
 #         let rustystruct: RustyStruct = py_dict.extract()?;
 # 		  assert_eq!(rustystruct.foo, "foo");
@@ -182,7 +182,7 @@ struct RustyTuple(String, String);
 
 # use pyo3::types::PyTuple;
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         let tuple = PyTuple::new(py, vec!["test", "test2"])?;
 #
 #         let rustytuple: RustyTuple = tuple.extract()?;
@@ -205,7 +205,7 @@ struct RustyTuple((String,));
 
 # use pyo3::types::PyTuple;
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         let tuple = PyTuple::new(py, vec!["test"])?;
 #
 #         let rustytuple: RustyTuple = tuple.extract()?;
@@ -237,7 +237,7 @@ struct RustyTransparentStruct {
 
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         let s = PyString::new(py, "test");
 #
 #         let tup: RustyTransparentTupleStruct = s.extract()?;
@@ -292,7 +292,7 @@ enum RustyEnum<'py> {
 #
 # use pyo3::types::{PyBytes, PyString};
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         {
 #             let thing = 42_u8.into_pyobject(py)?;
 #             let rust_thing: RustyEnum<'_> = thing.extract()?;
@@ -425,7 +425,7 @@ enum RustyEnum {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         {
 #             let thing = 42_u8.into_pyobject(py)?;
 #             let rust_thing: RustyEnum = thing.extract()?;
@@ -515,7 +515,7 @@ struct RustyStruct {
 #
 # use pyo3::types::PyDict;
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         // Filled case
 #         let dict = PyDict::new(py);
 #         dict.set_item("value", (1,)).unwrap();
@@ -681,7 +681,7 @@ use pyo3::types::{PyBool, PyInt};
 let ints: Vec<u32> = vec![1, 2, 3, 4];
 let bools = vec![true, false, false, true];
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     let ints_as_pyint: Vec<Bound<'_, PyInt>> = ints
         .iter()
         .map(|x| Ok(x.into_pyobject(py)?))
@@ -696,7 +696,7 @@ Python::with_gil(|py| {
 });
 ```
 
-In this example if we wanted to combine `ints_as_pyints` and `bools_as_pybool` into a single `Vec<Py<PyAny>>` to return from the `with_gil` closure, we would have to manually convert the concrete types for the smart pointers and the python types.
+In this example if we wanted to combine `ints_as_pyints` and `bools_as_pybool` into a single `Vec<Py<PyAny>>` to return from the `Python::attach` closure, we would have to manually convert the concrete types for the smart pointers and the python types.
 
 Instead, we can write a function that generically converts vectors of either integers or bools into a vector of `Py<PyAny>` using the [`BoundObject`] trait:
 
@@ -726,7 +726,7 @@ where
         .collect()
 }
 
-let vec_of_pyobjs: Vec<Py<PyAny>> = Python::with_gil(|py| {
+let vec_of_pyobjs: Vec<Py<PyAny>> = Python::attach(|py| {
     let mut bools_as_pyany = convert_to_vec_of_pyobj(py, bools).unwrap();
     let mut ints_as_pyany = convert_to_vec_of_pyobj(py, ints).unwrap();
     let mut result: Vec<Py<PyAny>> = vec![];

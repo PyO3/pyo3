@@ -34,7 +34,7 @@ impl InstanceMethod {
 
 #[test]
 fn instance_method() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let obj = Bound::new(py, InstanceMethod { member: 42 }).unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.method(), 42);
@@ -58,7 +58,7 @@ impl InstanceMethodWithArgs {
 
 #[test]
 fn instance_method_with_args() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let obj = Bound::new(py, InstanceMethodWithArgs { member: 7 }).unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.method(6), 42);
@@ -91,7 +91,7 @@ impl ClassMethod {
 
 #[test]
 fn class_method() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = [("C", py.get_type::<ClassMethod>())]
             .into_py_dict(py)
             .unwrap();
@@ -120,7 +120,7 @@ impl ClassMethodWithArgs {
 
 #[test]
 fn class_method_with_args() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = [("C", py.get_type::<ClassMethodWithArgs>())]
             .into_py_dict(py)
             .unwrap();
@@ -151,7 +151,7 @@ impl StaticMethod {
 
 #[test]
 fn static_method() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         assert_eq!(StaticMethod::method(py), "StaticMethod.method()!");
 
         let d = [("C", py.get_type::<StaticMethod>())]
@@ -177,7 +177,7 @@ impl StaticMethodWithArgs {
 
 #[test]
 fn static_method_with_args() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         assert_eq!(StaticMethodWithArgs::method(py, 1234), "0x4d2");
 
         let d = [("C", py.get_type::<StaticMethodWithArgs>())]
@@ -375,7 +375,7 @@ impl MethSignature {
 
 #[test]
 fn meth_signature() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(py, MethSignature {}).unwrap();
 
         py_run!(py, inst, "assert inst.get_optional() == 10");
@@ -722,7 +722,7 @@ impl MethDocs {
 
 #[test]
 fn meth_doc() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = [("C", py.get_type::<MethDocs>())].into_py_dict(py).unwrap();
         py_assert!(py, *d, "C.__doc__ == 'A class with \"documentation\".'");
         py_assert!(
@@ -757,7 +757,7 @@ impl MethodWithLifeTime {
 
 #[test]
 fn method_with_lifetime() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let obj = Py::new(py, MethodWithLifeTime {}).unwrap();
         py_run!(
             py,
@@ -807,7 +807,7 @@ impl MethodWithPyClassArg {
 
 #[test]
 fn method_with_pyclassarg() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let obj1 = Py::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
         let obj2 = Py::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
         let d = [("obj1", obj1), ("obj2", obj2)].into_py_dict(py).unwrap();
@@ -870,7 +870,7 @@ impl CfgStruct {
 
 #[test]
 fn test_cfg_attrs() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(py, CfgStruct {}).unwrap();
 
         #[cfg(unix)]
@@ -913,7 +913,7 @@ impl FromSequence {
 
 #[test]
 fn test_from_sequence() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let typeobj = py.get_type::<FromSequence>();
         py_assert!(py, typeobj, "typeobj(range(0, 4)).numbers == [0, 1, 2, 3]");
     });
@@ -993,7 +993,7 @@ impl r#RawIdents {
 
 #[test]
 fn test_raw_idents() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let raw_idents_type = py.get_type::<r#RawIdents>();
         assert_eq!(raw_idents_type.qualname().unwrap(), "RawIdents");
         py_run!(
@@ -1180,7 +1180,7 @@ fn test_option_pyclass_arg() {
         arg.map(|_| SomePyClass {})
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let f = wrap_pyfunction!(option_class_arg, py).unwrap();
         assert!(f.call0().unwrap().is_none());
         let obj = Py::new(py, SomePyClass {}).unwrap();
@@ -1289,7 +1289,7 @@ fn test_pymethods_warn() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let typeobj = py.get_type::<WarningMethodContainer>();
         let obj = typeobj.call0().unwrap();
 
@@ -1407,7 +1407,7 @@ fn test_pymethods_warn() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let typeobj = py.get_type::<WarningMethodContainer2>();
 
         // #[new], #[classmethod], FnType::FnNewClass
@@ -1446,7 +1446,7 @@ fn test_py_methods_multiple_warn() {
         fn multiple_warn_custom_category_method(&self) {}
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let typeobj = py.get_type::<MultipleWarnContainer>();
         let obj = typeobj.call0().unwrap();
 

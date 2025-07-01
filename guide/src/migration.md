@@ -201,7 +201,7 @@ Before:
 # use pyo3::prelude::*;
 # use pyo3::types::PyTuple;
 # fn main() {
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 // For example, for PyTuple. Many such APIs have been changed.
 let tup = PyTuple::new_bound(py, [1, 2, 3]);
 # })
@@ -214,7 +214,7 @@ After:
 # use pyo3::prelude::*;
 # use pyo3::types::PyTuple;
 # fn main() {
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 // For example, for PyTuple. Many such APIs have been changed.
 let tup = PyTuple::new(py, [1, 2, 3]);
 # })
@@ -1160,7 +1160,7 @@ fn simple_function(a: i32, b: i32, c: i32) {}
 fn function_with_defaults(a: i32, b: i32, c: i32) {}
 
 # fn main() {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let simple = wrap_pyfunction!(simple_function, py).unwrap();
 #         assert_eq!(simple.getattr("__text_signature__").unwrap().to_string(), "(a, b, c)");
 #         let defaulted = wrap_pyfunction!(function_with_defaults, py).unwrap();
@@ -1891,14 +1891,14 @@ To migrate, just pass a `py` argument to any calls to these methods.
 
 Before:
 ```rust,compile_fail
-# pyo3::Python::with_gil(|py| {
+# pyo3::Python::attach(|py| {
 py.None().get_refcnt();
 # })
 ```
 
 After:
 ```rust
-# pyo3::Python::with_gil(|py| {
+# pyo3::Python::attach(|py| {
 py.None().get_refcnt(py);
 # })
 ```
@@ -2018,7 +2018,7 @@ impl Names {
         self.names.append(&mut other.names)
     }
 }
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 #     let names = Py::new(py, Names::new()).unwrap();
 #     pyo3::py_run!(py, names, r"
 #     try:

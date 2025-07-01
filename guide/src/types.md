@@ -67,7 +67,7 @@ fn example<'py>(py: Python<'py>) -> PyResult<()> {
     drop(x); // release the original reference x
     Ok(())
 }
-# Python::with_gil(example).unwrap();
+# Python::attach(example).unwrap();
 ```
 
 Or, without the type annotations:
@@ -83,7 +83,7 @@ fn example(py: Python<'_>) -> PyResult<()> {
     drop(x);
     Ok(())
 }
-# Python::with_gil(example).unwrap();
+# Python::attach(example).unwrap();
 ```
 
 #### Function argument lifetimes
@@ -111,7 +111,7 @@ fn add<'py>(
 ) -> PyResult<Bound<'py, PyAny>> {
     left.add(right)
 }
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 #     let s = pyo3::types::PyString::new(py, "s");
 #     assert!(add(&s, &s).unwrap().eq("ss").unwrap());
 # })
@@ -125,7 +125,7 @@ fn add(left: &Bound<'_, PyAny>, right: &Bound<'_, PyAny>) -> PyResult<PyObject> 
     let output: Bound<'_, PyAny> = left.add(right)?;
     Ok(output.unbind())
 }
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 #     let s = pyo3::types::PyString::new(py, "s");
 #     assert!(add(&s, &s).unwrap().bind(py).eq("ss").unwrap());
 # })
@@ -155,7 +155,7 @@ for i in 0..=2 {
 }
 # Ok(())
 # }
-# Python::with_gil(example).unwrap();
+# Python::attach(example).unwrap();
 ```
 
 ### Casting between smart pointer types
@@ -231,7 +231,7 @@ use pyo3::types::PyList;
 fn get_first_item<'py>(list: &Bound<'py, PyList>) -> PyResult<Bound<'py, PyAny>> {
     list.get_item(0)
 }
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 #     let l = PyList::new(py, ["hello world"]).unwrap();
 #     assert!(get_first_item(&l).unwrap().eq("hello world").unwrap());
 # })
@@ -259,7 +259,7 @@ let _: &Bound<'py, PyTuple> = obj.downcast()?;
 let _: Bound<'py, PyTuple> = obj.downcast_into()?;
 # Ok(())
 # }
-# Python::with_gil(example).unwrap()
+# Python::attach(example).unwrap()
 ```
 
 Custom [`#[pyclass]`][pyclass] types implement [`PyTypeCheck`], so `.downcast()` also works for these types. The snippet below is the same as the snippet above casting instead to a custom type `MyClass`:
@@ -281,7 +281,7 @@ let _: &Bound<'py, MyClass> = obj.downcast()?;
 let _: Bound<'py, MyClass> = obj.downcast_into()?;
 # Ok(())
 # }
-# Python::with_gil(example).unwrap()
+# Python::attach(example).unwrap()
 ```
 
 ### Extracting Rust data from Python objects
@@ -302,7 +302,7 @@ let (x, y, z) = obj.extract::<(i32, i32, i32)>()?;
 assert_eq!((x, y, z), (1, 2, 3));
 # Ok(())
 # }
-# Python::with_gil(example).unwrap()
+# Python::attach(example).unwrap()
 ```
 
 To avoid copying data, [`#[pyclass]`][pyclass] types can directly reference Rust data stored within the Python objects without needing to `.extract()`. See the [corresponding documentation in the class section of the guide](./class.md#bound-and-interior-mutability)
