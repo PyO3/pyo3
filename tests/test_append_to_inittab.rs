@@ -7,13 +7,13 @@ fn foo() -> usize {
     123
 }
 
-#[pymodule]
+#[pymodule(gil_used = false)]
 fn module_fn_with_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(foo, m)?)?;
     Ok(())
 }
 
-#[pymodule]
+#[pymodule(gil_used = false)]
 mod module_mod_with_functions {
     #[pymodule_export]
     use super::foo;
