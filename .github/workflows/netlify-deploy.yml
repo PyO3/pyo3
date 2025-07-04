@@ -7,7 +7,7 @@ name: netlify-deploy
 
 on:
   workflow_run:
-    workflows: ['netlify-build']
+    workflows: ["netlify-build"]
     types:
       - completed
 
@@ -34,8 +34,8 @@ jobs:
 
       - name: Deploy to Netlify
         run: |
-          ls -l netlify_build/
+          ls -la
           DEBUG=* netlify deploy \
               --site ${{ secrets.NETLIFY_SITE_ID }} \
               --auth ${{ secrets.NETLIFY_TOKEN }} \
-              ${{ github.event.workflow_run.head_branch == 'main' && '--prod' || '' }} \
+              ${{ github.event.workflow_run.head_branch == 'main' && '--prod' || '' }}
