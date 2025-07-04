@@ -118,6 +118,7 @@ Let's add the PyO3 annotations and add a constructor:
 
 ```rust,no_run
 # #![allow(dead_code)]
+# fn main() {}
 # pub trait Model {
 #   fn set_variables(&mut self, inputs: &Vec<f64>);
 #   fn compute(&mut self);
@@ -130,18 +131,18 @@ struct UserModel {
     model: Py<PyAny>,
 }
 
-#[pymodule]
-fn trait_exposure(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<UserModel>()?;
-    Ok(())
-}
-
 #[pymethods]
 impl UserModel {
     #[new]
     pub fn new(model: Py<PyAny>) -> Self {
         UserModel { model }
     }
+}
+
+#[pymodule]
+mod trait_exposure {
+    #[pymodule_export]
+    use super::UserModel;
 }
 ```
 
@@ -458,6 +459,7 @@ It is also required to make the struct public.
 
 ```rust,no_run
 # #![allow(dead_code)]
+# fn main() {}
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
@@ -482,13 +484,6 @@ pub struct UserModel {
     model: Py<PyAny>,
 }
 
-#[pymodule]
-fn trait_exposure(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<UserModel>()?;
-    m.add_function(wrap_pyfunction!(solve_wrapper, m)?)?;
-    Ok(())
-}
-
 #[pymethods]
 impl UserModel {
     #[new]
@@ -509,6 +504,12 @@ impl UserModel {
     pub fn compute(&mut self) {
         Model::compute(self)
     }
+}
+
+#[pymodule]
+mod trait_exposure {
+    #[pymodule_export]
+    use super::{UserModel, solve_wrapper};
 }
 
 impl Model for UserModel {

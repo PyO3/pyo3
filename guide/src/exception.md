@@ -41,17 +41,18 @@ When using PyO3 to create an extension module, you can add the new exception to
 the module like this, so that it is importable from Python:
 
 ```rust,no_run
+# fn main() {}
 use pyo3::prelude::*;
 use pyo3::exceptions::PyException;
 
 pyo3::create_exception!(mymodule, CustomError, PyException);
 
 #[pymodule]
-fn mymodule(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // ... other elements added to module ...
-    m.add("CustomError", py.get_type::<CustomError>())?;
+mod mymodule {
+    #[pymodule_export]
+    use super::CustomError;
 
-    Ok(())
+    // ... other elements added to module ...
 }
 ```
 

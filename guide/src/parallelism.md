@@ -134,7 +134,7 @@ that deadlocks with the GIL in these cases.
 
 In the example below, we share a `Vec` of User ID objects defined using the
 `pyclass` macro and spawn threads to process the collection of data into a `Vec`
-of booleans based on a predicate using a rayon parallel iterator:
+of booleans based on a predicate using a `rayon` parallel iterator:
 
 ```rust,no_run
 use pyo3::prelude::*;
@@ -160,15 +160,15 @@ let allowed_ids: Vec<bool> = Python::attach(|outer_py| {
 assert!(allowed_ids.into_iter().filter(|b| *b).count() == 4);
 ```
 
-It's important to note that there is an `outer_py` GIL lifetime token as well as
-an `inner_py` token. Sharing GIL lifetime tokens between threads is not allowed
-and threads must individually acquire the GIL to access data wrapped by a python
+It's important to note that there is an `outer_py` Python token as well as
+an `inner_py` token. Sharing Python tokens between threads is not allowed
+and threads must individually attach to the interpreter to access data wrapped by a Python
 object.
 
 It's also important to see that this example uses [`Python::detach`] to
 wrap the code that spawns OS threads via `rayon`. If this example didn't use
-`detach`, a rayon worker thread would block on acquiring the GIL while a
-thread that owns the GIL spins forever waiting for the result of the rayon
+`detach`, a `rayon` worker thread would block on acquiring the GIL while a
+thread that owns the GIL spins forever waiting for the result of the `rayon`
 thread. Calling `detach` allows the GIL to be released in the thread
 collecting the results from the worker threads. You should always call
 `detach` in situations that spawn worker threads, but especially so in
