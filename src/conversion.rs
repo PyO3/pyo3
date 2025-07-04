@@ -47,6 +47,16 @@ pub trait IntoPyObject<'py>: Sized {
     /// The type returned in the event of a conversion error.
     type Error: Into<PyErr>;
 
+    /// Extracts the type hint information for this type when it appears as a return value.
+    ///
+    /// For example, `Vec<u32>` would return `List[int]`.
+    /// The default implementation returns `Any`, which is correct for any type.
+    ///
+    /// For most types, the return value for this method will be identical to that of [`FromPyObject::INPUT_TYPE`].
+    /// It may be different for some types, such as `Dict`, to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = "typing.Any";
+
     /// Performs the conversion.
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error>;
 

@@ -19,6 +19,8 @@ pub struct Function {
     /// decorator like 'property' or 'staticmethod'
     pub decorators: Vec<String>,
     pub arguments: Arguments,
+    /// return type
+    pub returns: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
