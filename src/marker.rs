@@ -14,7 +14,7 @@
 //!   awaiting a future
 //! - Once that is done, reacquire the GIL
 //!
-//! That API is provided by [`Python::allow_threads`] and enforced via the [`Ungil`] bound on the
+//! That API is provided by [`Python::detach`] and enforced via the [`Ungil`] bound on the
 //! closure and the return type. This is done by relying on the [`Send`] auto trait. `Ungil` is
 //! defined as the following:
 //!
@@ -34,7 +34,7 @@
 //! ## Drawbacks
 //!
 //! There is no reason to prevent `!Send` types like [`Rc`] from crossing the closure. After all,
-//! [`Python::allow_threads`] just lets other Python threads run - it does not itself launch a new
+//! [`Python::detach`] just lets other Python threads run - it does not itself launch a new
 //! thread.
 //!
 //! ```rust, compile_fail
@@ -47,7 +47,7 @@
 //!     Python::attach(|py| {
 //!         let rc = Rc::new(5);
 //!
-//!         py.allow_threads(|| {
+//!         py.detach(|| {
 //!             // This would actually be fine...
 //!             println!("{:?}", *rc);
 //!         });
@@ -77,7 +77,7 @@
 //!
 //!     let wrapped = SendWrapper::new(string);
 //!
-//!     py.allow_threads(|| {
+//!     py.detach(|| {
 //! # #[cfg(not(feature = "nightly"))]
 //! # {
 //!         // 💥 Unsound! 💥
@@ -154,13 +154,13 @@ use std::os::raw::c_int;
 /// Python::attach(|py| {
 ///     let rc = Rc::new(42);
 ///
-///     py.allow_threads(|| {
+///     py.detach(|| {
 ///         println!("{:?}", rc);
 ///     });
 /// });
 /// ```
 ///
-/// This also implies that the interplay between `attach` and `allow_threads` is unsound, for example
+/// This also implies that the interplay between `attach` and `detach` is unsound, for example
 /// one can circumvent this protection using the [`send_wrapper`](https://docs.rs/send_wrapper/) crate:
 ///
 /// ```no_run
@@ -173,7 +173,7 @@ use std::os::raw::c_int;
 ///
 ///     let wrapped = SendWrapper::new(string);
 ///
-///     py.allow_threads(|| {
+///     py.detach(|| {
 ///         let sneaky: &Bound<'_, PyString> = &*wrapped;
 ///
 ///         println!("{:?}", sneaky);
@@ -217,7 +217,7 @@ mod nightly {
         /// Python::attach(|py| {
         ///     let string = PyString::new(py, "foo");
         ///
-        ///     py.allow_threads(|| {
+        ///     py.detach(|| {
         ///         println!("{:?}", string);
         ///     });
         /// });
@@ -228,7 +228,7 @@ mod nightly {
         /// ```compile_fail
         /// # use pyo3::prelude::*;
         /// Python::attach(|py| {
-        ///     py.allow_threads(|| {
+        ///     py.detach(|| {
         ///         drop(py);
         ///     });
         /// });
@@ -247,7 +247,7 @@ mod nightly {
         ///
         ///     let wrapped = SendWrapper::new(string);
         ///
-        ///     py.allow_threads(|| {
+        ///     py.detach(|| {
         ///         let sneaky: &PyString = *wrapped;
         ///
         ///         println!("{:?}", sneaky);
@@ -255,7 +255,7 @@ mod nightly {
         /// });
         /// ```
         ///
-        /// This also enables using non-[`Send`] types in `allow_threads`,
+        /// This also enables using non-[`Send`] types in `detach`,
         /// at least if they are not also bound to the GIL:
         ///
         /// ```rust
@@ -265,7 +265,7 @@ mod nightly {
         /// Python::attach(|py| {
         ///     let rc = Rc::new(42);
         ///
-        ///     py.allow_threads(|| {
+        ///     py.detach(|| {
         ///         println!("{:?}", rc);
         ///     });
         /// });
@@ -347,7 +347,7 @@ pub use nightly::Ungil;
 ///  * Thread 1's Python interpreter call blocks trying to reacquire the GIL held by thread 2
 ///
 /// To avoid deadlocking, you should release the GIL before trying to lock a mutex or `await`ing in
-/// asynchronous code, e.g. with [`Python::allow_threads`].
+/// asynchronous code, e.g. with [`Python::detach`].
 ///
 /// # Releasing and freeing memory
 ///
@@ -457,6 +457,17 @@ impl Python<'_> {
 }
 
 impl<'py> Python<'py> {
+    /// See [Python::detach]
+    #[inline]
+    #[deprecated(note = "use `Python::detach` instead", since = "0.26.0")]
+    pub fn allow_threads<T, F>(self, f: F) -> T
+    where
+        F: Ungil + FnOnce() -> T,
+        T: Ungil,
+    {
+        self.detach(f)
+    }
+
     /// Temporarily releases the GIL, thus allowing other Python threads to run. The GIL will be
     /// reacquired when `F`'s scope ends.
     ///
@@ -479,7 +490,7 @@ impl<'py> Python<'py> {
     /// #[pyfunction]
     /// fn sum_numbers(py: Python<'_>, numbers: Vec<u32>) -> PyResult<u32> {
     ///     // We release the GIL here so any other Python threads get a chance to run.
-    ///     py.allow_threads(move || {
+    ///     py.detach(move || {
     ///         // An example of an "expensive" Rust calculation
     ///         let sum = numbers.iter().sum();
     ///
@@ -498,7 +509,7 @@ impl<'py> Python<'py> {
     /// ```
     ///
     /// Please see the [Parallelism] chapter of the guide for a thorough discussion of using
-    /// [`Python::allow_threads`] in this manner.
+    /// [`Python::detach`] in this manner.
     ///
     /// # Example: Passing borrowed Python references into the closure is not allowed
     ///
@@ -508,7 +519,7 @@ impl<'py> Python<'py> {
     ///
     /// fn parallel_print(py: Python<'_>) {
     ///     let s = PyString::new(py, "This object cannot be accessed without holding the GIL >_<");
-    ///     py.allow_threads(move || {
+    ///     py.detach(move || {
     ///         println!("{:?}", s); // This causes a compile error.
     ///     });
     /// }
@@ -518,7 +529,7 @@ impl<'py> Python<'py> {
     /// [`PyString`]: crate::types::PyString
     /// [auto-traits]: https://doc.rust-lang.org/nightly/unstable-book/language-features/auto-traits.html
     /// [Parallelism]: https://pyo3.rs/main/parallelism.html
-    pub fn allow_threads<T, F>(self, f: F) -> T
+    pub fn detach<T, F>(self, f: F) -> T
     where
         F: Ungil + FnOnce() -> T,
         T: Ungil,
@@ -869,21 +880,21 @@ mod tests {
 
     #[test]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
-    fn test_allow_threads_releases_and_acquires_gil() {
+    fn test_detach_releases_and_acquires_gil() {
         Python::attach(|py| {
             let b = std::sync::Arc::new(std::sync::Barrier::new(2));
 
             let b2 = b.clone();
             std::thread::spawn(move || Python::attach(|_| b2.wait()));
 
-            py.allow_threads(|| {
-                // If allow_threads does not release the GIL, this will deadlock because
+            py.detach(|| {
+                // If `detach` does not release the GIL, this will deadlock because
                 // the thread spawned above will never be able to acquire the GIL.
                 b.wait();
             });
 
             unsafe {
-                // If the GIL is not reacquired at the end of allow_threads, this call
+                // If the GIL is not reacquired at the end of `detach`, this call
                 // will crash the Python interpreter.
                 let tstate = ffi::PyEval_SaveThread();
                 ffi::PyEval_RestoreThread(tstate);
@@ -892,11 +903,11 @@ mod tests {
     }
 
     #[test]
-    fn test_allow_threads_panics_safely() {
+    fn test_detach_panics_safely() {
         Python::attach(|py| {
             let result = std::panic::catch_unwind(|| unsafe {
                 let py = Python::assume_gil_acquired();
-                py.allow_threads(|| {
+                py.detach(|| {
                     panic!("There was a panic!");
                 });
             });
@@ -904,7 +915,7 @@ mod tests {
             // Check panic was caught
             assert!(result.is_err());
 
-            // If allow_threads is implemented correctly, this thread still owns the GIL here
+            // If `detach` is implemented correctly, this thread still owns the GIL here
             // so the following Python calls should not cause crashes.
             let list = PyList::new(py, [1, 2, 3, 4]).unwrap();
             assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![1, 2, 3, 4]);
@@ -913,13 +924,13 @@ mod tests {
 
     #[cfg(not(pyo3_disable_reference_pool))]
     #[test]
-    fn test_allow_threads_pass_stuff_in() {
+    fn test_detach_pass_stuff_in() {
         let list = Python::attach(|py| PyList::new(py, vec!["foo", "bar"]).unwrap().unbind());
         let mut v = vec![1, 2, 3];
         let a = std::sync::Arc::new(String::from("foo"));
 
         Python::attach(|py| {
-            py.allow_threads(|| {
+            py.detach(|| {
                 drop((list, &mut v, a));
             });
         });

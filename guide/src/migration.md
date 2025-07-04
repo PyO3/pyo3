@@ -3,9 +3,19 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.25.* to 0.26
+### Rename of `Python::with_gil` and `Python::allow_threads`
+<details open>
+<summary><small>Click to expand</small></summary>
+The names for these APIs were created when the global interpreter lock (GIL) was mandatory. With the introduction of free-threading in Python 3.13 this is no longer the case, and the naming does not has no universal meaning anymore.
+For this reason we chose to rename these to more modern terminology introduced in free-threading:
+- `Python::with_gil` is now called `Python::attach`, it attaches a Python thread-state to the current thread. In GIL enabled builds there can only be 1 thread attached to the interpreter, in free-threading there can be more.
+- `Python::allow_threads` is now called `Python::detach`, it detaches a previously attached thread-state.
+</details>
+
 ## from 0.24.* to 0.25
 ### `AsPyPointer` removal
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 The `AsPyPointer` trait is mostly a leftover from the now removed gil-refs API. The last remaining uses were the GC API, namely `PyVisit::call`, and identity comparison (`PyAnyMethods::is` and `Py::is`).
 

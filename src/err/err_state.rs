@@ -45,7 +45,7 @@ impl PyErrState {
     pub(crate) fn normalized(normalized: PyErrStateNormalized) -> Self {
         let state = Self::from_inner(PyErrStateInner::Normalized(normalized));
         // This state is already normalized, by completing the Once immediately we avoid
-        // reaching the `py.allow_threads` in `make_normalized` which is less efficient
+        // reaching the `py.detach` in `make_normalized` which is less efficient
         // and introduces a GIL switch which could deadlock.
         // See https://github.com/PyO3/pyo3/issues/4764
         state.normalized.call_once(|| {});
@@ -98,7 +98,7 @@ impl PyErrState {
         }
 
         // avoid deadlock of `.call_once` with the GIL
-        py.allow_threads(|| {
+        py.detach(|| {
             self.normalized.call_once(|| {
                 self.normalizing_thread
                     .lock()
@@ -406,7 +406,7 @@ mod tests {
             fn arguments(self, py: Python<'_>) -> PyObject {
                 // releasing the GIL potentially allows for other threads to deadlock
                 // with the normalization going on here
-                py.allow_threads(|| {
+                py.detach(|| {
                     std::thread::sleep(std::time::Duration::from_millis(10));
                 });
                 py.None()

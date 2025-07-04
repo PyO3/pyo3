@@ -1,8 +1,8 @@
 error[E0277]: `*mut pyo3::Python<'static>` cannot be shared between threads safely
-  --> tests/ui/not_send2.rs:8:26
+  --> tests/ui/not_send2.rs:8:19
    |
-8  |           py.allow_threads(|| {
-   |  ____________-------------_^
+8  |           py.detach(|| {
+   |  ____________------_^
    | |            |
    | |            required by a bound introduced by this call
 9  | |             println!("{:?}", string);
@@ -38,16 +38,16 @@ note: required because it appears within the type `pyo3::Bound<'_, PyString>`
    |            ^^^^^
    = note: required for `&pyo3::Bound<'_, PyString>` to implement `Send`
 note: required because it's used within this closure
-  --> tests/ui/not_send2.rs:8:26
+  --> tests/ui/not_send2.rs:8:19
    |
-8  |         py.allow_threads(|| {
-   |                          ^^
-   = note: required for `{closure@$DIR/tests/ui/not_send2.rs:8:26: 8:28}` to implement `Ungil`
-note: required by a bound in `pyo3::Python::<'py>::allow_threads`
+8  |         py.detach(|| {
+   |                   ^^
+   = note: required for `{closure@$DIR/tests/ui/not_send2.rs:8:19: 8:21}` to implement `Ungil`
+note: required by a bound in `pyo3::Python::<'py>::detach`
   --> src/marker.rs
    |
-   |     pub fn allow_threads<T, F>(self, f: F) -> T
-   |            ------------- required by a bound in this associated function
+   |     pub fn detach<T, F>(self, f: F) -> T
+   |            ------ required by a bound in this associated function
    |     where
    |         F: Ungil + FnOnce() -> T,
-   |            ^^^^^ required by this bound in `Python::<'py>::allow_threads`
+   |            ^^^^^ required by this bound in `Python::<'py>::detach`

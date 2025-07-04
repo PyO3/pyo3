@@ -180,7 +180,7 @@ This is a non-exhaustive list and there may be other situations in future Python
 versions that can trigger global synchronization events.
 
 This means that you should detach from the interpreter runtime using
-[`Python::allow_threads`] in exactly the same situations as you should detach
+[`Python::detach`] in exactly the same situations as you should detach
 from the runtime in the GIL-enabled build: when doing long-running tasks that do
 not require the CPython runtime or when doing any task that needs to re-attach
 to the runtime (see the [guide
@@ -197,7 +197,7 @@ Data attached to `pyclass` instances is protected from concurrent access by a
 `RefCell`-like pattern of runtime borrow checking. Like a `RefCell`, PyO3 will
 raise exceptions (or in some cases panic) to enforce exclusive access for
 mutable borrows. It was always possible to generate panics like this in PyO3 in
-code that releases the GIL with [`Python::allow_threads`] or calling a python
+code that releases the GIL with [`Python::detach`] or calling a python
 method accepting `&self` from a `&mut self` (see [the docs on interior
 mutability](./class.md#bound-and-interior-mutability),) but now in free-threaded
 Python there are more opportunities to trigger these panics from Python because
@@ -402,7 +402,7 @@ interpreter.
 [`OnceLockExt::get_or_init_py_attached`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceLockExt.html#tymethod.get_or_init_py_attached
 [`OnceLock`]: https://doc.rust-lang.org/stable/std/sync/struct.OnceLock.html
 [`OnceLock::get_or_init`]: https://doc.rust-lang.org/stable/std/sync/struct.OnceLock.html#method.get_or_init
-[`Python::allow_threads`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.allow_threads
+[`Python::detach`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.detach
 [`Python::attach`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.attach
 [`Python<'py>`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html
 [`threading`]: https://docs.python.org/3/library/threading.html
