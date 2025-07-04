@@ -13,7 +13,7 @@ pyo3 = { path = "../", features = ["auto-initialize", "full"] }
 pyo3-build-config = { path = "../pyo3-build-config" }
 
 [dev-dependencies]
-codspeed-criterion-compat = "2.3"
+codspeed-criterion-compat = "3.0"
 criterion = "0.6.0"
 num-bigint = "0.4.3"
 rust_decimal = { version = "1.0.0", default-features = false }
