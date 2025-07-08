@@ -504,6 +504,13 @@ def check_guide(session: nox.Session):
         "https://pyo3.rs/main/": f"file://{PYO3_GUIDE_TARGET}/",
         "https://pyo3.rs/latest/": f"file://{PYO3_GUIDE_TARGET}/",
         "%7B%7B#PYO3_DOCS_VERSION}}": "latest",
+        # bypass fragments for edge cases
+        # blob links
+        "(https://github.com/[^/]+/[^/]+/blob/[^#]+)#[a-zA-Z0-9._-]*": "\$1",
+        # issue comments
+        "(https://github.com/[^/]+/[^/]+/issues/[0-9]+)#issuecomment-[0-9]*": "\$1",
+        # parking-lot docs
+        "(https://docs.rs/parking_lot/[^#]+)#[a-zA-Z0-9._-]*": "\$1",
     }
     remap_args = []
     for key, value in remaps.items():
@@ -513,9 +520,7 @@ def check_guide(session: nox.Session):
     _run(
         session,
         "lychee",
-        # FIXME: would be nice to use `--include-fragments` here, but we've had
-        # a lot of flaky failures from it - see https://github.com/lycheeverse/lychee/issues/1746
-        # "--include-fragments",
+        "--include-fragments",
         str(PYO3_GUIDE_SRC),
         *remap_args,
         "--accept=200,429",
