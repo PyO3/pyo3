@@ -158,7 +158,7 @@ pub fn pymodule_module_impl(
     let mut module_consts = Vec::new();
     let mut module_consts_cfg_attrs = Vec::new();
 
-    let _: Vec<()> = (&mut *items).iter_mut().map(|item|{
+    let _: Vec<()> = (*items).iter_mut().map(|item|{
         match item {
             Item::Use(item_use) => {
                 let is_pymodule_export =
