@@ -25,7 +25,9 @@ use crate::PyVisit;
 // The trait is only public if the `once_cell` feature is enabled, so that we have the option
 // to make `once_cell` an optional dependency in the future.
 #[cfg(feature = "once_cell")]
-pub use self::once_cell::OnceCellExt;
+pub use self::once_cell::{OnceCellExt, PyOnceCell};
+#[cfg(not(feature = "once_cell"))]
+pub(crate) use self::once_cell::{OnceCellExt, PyOnceCell};
 
 /// Value with concurrent access protected by the GIL.
 ///
@@ -423,12 +425,12 @@ macro_rules! intern {
 
 /// Implementation detail for `intern!` macro.
 #[doc(hidden)]
-pub struct Interned(&'static str, GILOnceCell<Py<PyString>>);
+pub struct Interned(&'static str, PyOnceCell<Py<PyString>>);
 
 impl Interned {
     /// Creates an empty holder for an interned `str`.
     pub const fn new(value: &'static str) -> Self {
-        Interned(value, GILOnceCell::new())
+        Interned(value, PyOnceCell::new())
     }
 
     /// Gets or creates the interned `str` value.
