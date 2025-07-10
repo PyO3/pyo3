@@ -25,7 +25,7 @@
 //!
 //! fn main() -> PyResult<()> {
 //!     pyo3::prepare_freethreaded_python();
-//!     Python::with_gil(|py| {
+//!     Python::attach(|py| {
 //!         // Convert to Python
 //!         let py_tzinfo = Tz::Europe__Paris.into_pyobject(py)?;
 //!         // Convert back to Rust
@@ -84,7 +84,7 @@ mod tests {
 
     #[test]
     fn test_frompyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert_eq!(
                 new_zoneinfo(py, "Europe/Paris").extract::<Tz>().unwrap(),
                 Tz::Europe__Paris
@@ -116,7 +116,7 @@ mod tests {
             ]
         );
 
-        let dates = Python::with_gil(|py| {
+        let dates = Python::attach(|py| {
             let pydates = dates.map(|dt| dt.into_pyobject(py).unwrap());
             assert_eq!(
                 pydates
@@ -148,7 +148,7 @@ mod tests {
     #[test]
     #[cfg(not(Py_GIL_DISABLED))] // https://github.com/python/cpython/issues/116738#issuecomment-2404360445
     fn test_into_pyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let assert_eq = |l: Bound<'_, PyTzInfo>, r: Bound<'_, PyTzInfo>| {
                 assert!(l.eq(&r).unwrap(), "{l:?} != {r:?}");
             };

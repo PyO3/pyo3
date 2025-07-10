@@ -14,7 +14,7 @@
 //!   awaiting a future
 //! - Once that is done, reacquire the GIL
 //!
-//! That API is provided by [`Python::allow_threads`] and enforced via the [`Ungil`] bound on the
+//! That API is provided by [`Python::detach`] and enforced via the [`Ungil`] bound on the
 //! closure and the return type. This is done by relying on the [`Send`] auto trait. `Ungil` is
 //! defined as the following:
 //!
@@ -34,7 +34,7 @@
 //! ## Drawbacks
 //!
 //! There is no reason to prevent `!Send` types like [`Rc`] from crossing the closure. After all,
-//! [`Python::allow_threads`] just lets other Python threads run - it does not itself launch a new
+//! [`Python::detach`] just lets other Python threads run - it does not itself launch a new
 //! thread.
 //!
 //! ```rust, compile_fail
@@ -44,10 +44,10 @@
 //! use std::rc::Rc;
 //!
 //! fn main() {
-//!     Python::with_gil(|py| {
+//!     Python::attach(|py| {
 //!         let rc = Rc::new(5);
 //!
-//!         py.allow_threads(|| {
+//!         py.detach(|| {
 //!             // This would actually be fine...
 //!             println!("{:?}", *rc);
 //!         });
@@ -72,12 +72,12 @@
 //! use pyo3::types::PyString;
 //! use send_wrapper::SendWrapper;
 //!
-//! Python::with_gil(|py| {
+//! Python::attach(|py| {
 //!     let string = PyString::new(py, "foo");
 //!
 //!     let wrapped = SendWrapper::new(string);
 //!
-//!     py.allow_threads(|| {
+//!     py.detach(|| {
 //! # #[cfg(not(feature = "nightly"))]
 //! # {
 //!         // 💥 Unsound! 💥
@@ -117,21 +117,18 @@
 //! [`Rc`]: std::rc::Rc
 //! [`Py`]: crate::Py
 use crate::conversion::IntoPyObject;
-use crate::err::PyErr;
 use crate::err::{self, PyResult};
-use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::gil::{GILGuard, SuspendGIL};
 use crate::impl_::not_send::NotSend;
-use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::{
-    PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
+    PyAny, PyCode, PyCodeMethods, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString,
+    PyType,
 };
 use crate::version::PythonVersionInfo;
 use crate::{ffi, Bound, PyObject, PyTypeInfo};
 use std::ffi::CStr;
 use std::marker::PhantomData;
-use std::os::raw::c_int;
 
 /// Types that are safe to access while the GIL is not held.
 ///
@@ -151,16 +148,16 @@ use std::os::raw::c_int;
 /// # use pyo3::prelude::*;
 /// use std::rc::Rc;
 ///
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let rc = Rc::new(42);
 ///
-///     py.allow_threads(|| {
+///     py.detach(|| {
 ///         println!("{:?}", rc);
 ///     });
 /// });
 /// ```
 ///
-/// This also implies that the interplay between `with_gil` and `allow_threads` is unsound, for example
+/// This also implies that the interplay between `attach` and `detach` is unsound, for example
 /// one can circumvent this protection using the [`send_wrapper`](https://docs.rs/send_wrapper/) crate:
 ///
 /// ```no_run
@@ -168,12 +165,12 @@ use std::os::raw::c_int;
 /// # use pyo3::types::PyString;
 /// use send_wrapper::SendWrapper;
 ///
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let string = PyString::new(py, "foo");
 ///
 ///     let wrapped = SendWrapper::new(string);
 ///
-///     py.allow_threads(|| {
+///     py.detach(|| {
 ///         let sneaky: &Bound<'_, PyString> = &*wrapped;
 ///
 ///         println!("{:?}", sneaky);
@@ -214,10 +211,10 @@ mod nightly {
         /// ```compile_fail
         /// # use pyo3::prelude::*;
         /// # use pyo3::types::PyString;
-        /// Python::with_gil(|py| {
+        /// Python::attach(|py| {
         ///     let string = PyString::new(py, "foo");
         ///
-        ///     py.allow_threads(|| {
+        ///     py.detach(|| {
         ///         println!("{:?}", string);
         ///     });
         /// });
@@ -227,8 +224,8 @@ mod nightly {
         ///
         /// ```compile_fail
         /// # use pyo3::prelude::*;
-        /// Python::with_gil(|py| {
-        ///     py.allow_threads(|| {
+        /// Python::attach(|py| {
+        ///     py.detach(|| {
         ///         drop(py);
         ///     });
         /// });
@@ -242,12 +239,12 @@ mod nightly {
         /// # use pyo3::types::PyString;
         /// use send_wrapper::SendWrapper;
         ///
-        /// Python::with_gil(|py| {
+        /// Python::attach(|py| {
         ///     let string = PyString::new(py, "foo");
         ///
         ///     let wrapped = SendWrapper::new(string);
         ///
-        ///     py.allow_threads(|| {
+        ///     py.detach(|| {
         ///         let sneaky: &PyString = *wrapped;
         ///
         ///         println!("{:?}", sneaky);
@@ -255,17 +252,17 @@ mod nightly {
         /// });
         /// ```
         ///
-        /// This also enables using non-[`Send`] types in `allow_threads`,
+        /// This also enables using non-[`Send`] types in `detach`,
         /// at least if they are not also bound to the GIL:
         ///
         /// ```rust
         /// # use pyo3::prelude::*;
         /// use std::rc::Rc;
         ///
-        /// Python::with_gil(|py| {
+        /// Python::attach(|py| {
         ///     let rc = Rc::new(42);
         ///
-        ///     py.allow_threads(|| {
+        ///     py.detach(|| {
         ///         println!("{:?}", rc);
         ///     });
         /// });
@@ -320,9 +317,9 @@ pub use nightly::Ungil;
 /// - In a function or method annotated with [`#[pyfunction]`](crate::pyfunction) or [`#[pymethods]`](crate::pymethods) you can declare it
 ///   as a parameter, and PyO3 will pass in the token when Python code calls it.
 /// - When you need to acquire the GIL yourself, such as when calling Python code from Rust, you
-///   should call [`Python::with_gil`] to do that and pass your code as a closure to it.
+///   should call [`Python::attach`] to do that and pass your code as a closure to it.
 ///
-/// The first two options are zero-cost; [`Python::with_gil`] requires runtime checking and may need to block
+/// The first two options are zero-cost; [`Python::attach`] requires runtime checking and may need to block
 /// to acquire the GIL.
 ///
 /// # Deadlocks
@@ -347,7 +344,7 @@ pub use nightly::Ungil;
 ///  * Thread 1's Python interpreter call blocks trying to reacquire the GIL held by thread 2
 ///
 /// To avoid deadlocking, you should release the GIL before trying to lock a mutex or `await`ing in
-/// asynchronous code, e.g. with [`Python::allow_threads`].
+/// asynchronous code, e.g. with [`Python::detach`].
 ///
 /// # Releasing and freeing memory
 ///
@@ -357,12 +354,23 @@ pub use nightly::Ungil;
 pub struct Python<'py>(PhantomData<(&'py GILGuard, NotSend)>);
 
 impl Python<'_> {
+    /// See [Python::attach]
+    #[inline]
+    #[track_caller]
+    #[deprecated(note = "use `Python::attach` instead", since = "0.26.0")]
+    pub fn with_gil<F, R>(f: F) -> R
+    where
+        F: for<'py> FnOnce(Python<'py>) -> R,
+    {
+        Self::attach(f)
+    }
+
     /// Acquires the global interpreter lock, allowing access to the Python interpreter. The
     /// provided closure `F` will be executed with the acquired `Python` marker token.
     ///
     /// If implementing [`#[pymethods]`](crate::pymethods) or [`#[pyfunction]`](crate::pyfunction),
     /// declare `py: Python` as an argument. PyO3 will pass in the token to grant access to the GIL
-    /// context in which the function is running, avoiding the need to call `with_gil`.
+    /// context in which the function is running, avoiding the need to call `attach`.
     ///
     /// If the [`auto-initialize`] feature is enabled and the Python runtime is not already
     /// initialized, this function will initialize it. See
@@ -389,7 +397,7 @@ impl Python<'_> {
     /// use pyo3::ffi::c_str;
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
+    /// Python::attach(|py| -> PyResult<()> {
     ///     let x: i32 = py.eval(c_str!("5"), None, None)?.extract()?;
     ///     assert_eq!(x, 5);
     ///     Ok(())
@@ -400,7 +408,7 @@ impl Python<'_> {
     /// [`auto-initialize`]: https://pyo3.rs/main/features.html#auto-initialize
     #[inline]
     #[track_caller]
-    pub fn with_gil<F, R>(f: F) -> R
+    pub fn attach<F, R>(f: F) -> R
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
@@ -410,7 +418,7 @@ impl Python<'_> {
         f(guard.python())
     }
 
-    /// Like [`Python::with_gil`] except Python interpreter state checking is skipped.
+    /// Like [`Python::attach`] except Python interpreter state checking is skipped.
     ///
     /// Normally when the GIL is acquired, we check that the Python interpreter is an
     /// appropriate state (e.g. it is fully initialized). This function skips those
@@ -418,12 +426,12 @@ impl Python<'_> {
     ///
     /// # Safety
     ///
-    /// If [`Python::with_gil`] would succeed, it is safe to call this function.
+    /// If [`Python::attach`] would succeed, it is safe to call this function.
     ///
-    /// In most cases, you should use [`Python::with_gil`].
+    /// In most cases, you should use [`Python::attach`].
     ///
     /// A justified scenario for calling this function is during multi-phase interpreter
-    /// initialization when [`Python::with_gil`] would fail before
+    /// initialization when [`Python::attach`] would fail before
     // this link is only valid on 3.8+not pypy and up.
     #[cfg_attr(
         all(Py_3_8, not(PyPy)),
@@ -446,6 +454,17 @@ impl Python<'_> {
 }
 
 impl<'py> Python<'py> {
+    /// See [Python::detach]
+    #[inline]
+    #[deprecated(note = "use `Python::detach` instead", since = "0.26.0")]
+    pub fn allow_threads<T, F>(self, f: F) -> T
+    where
+        F: Ungil + FnOnce() -> T,
+        T: Ungil,
+    {
+        self.detach(f)
+    }
+
     /// Temporarily releases the GIL, thus allowing other Python threads to run. The GIL will be
     /// reacquired when `F`'s scope ends.
     ///
@@ -468,7 +487,7 @@ impl<'py> Python<'py> {
     /// #[pyfunction]
     /// fn sum_numbers(py: Python<'_>, numbers: Vec<u32>) -> PyResult<u32> {
     ///     // We release the GIL here so any other Python threads get a chance to run.
-    ///     py.allow_threads(move || {
+    ///     py.detach(move || {
     ///         // An example of an "expensive" Rust calculation
     ///         let sum = numbers.iter().sum();
     ///
@@ -477,7 +496,7 @@ impl<'py> Python<'py> {
     /// }
     /// #
     /// # fn main() -> PyResult<()> {
-    /// #     Python::with_gil(|py| -> PyResult<()> {
+    /// #     Python::attach(|py| -> PyResult<()> {
     /// #         let fun = pyo3::wrap_pyfunction!(sum_numbers, py)?;
     /// #         let res = fun.call1((vec![1_u32, 2, 3],))?;
     /// #         assert_eq!(res.extract::<u32>()?, 6_u32);
@@ -487,7 +506,7 @@ impl<'py> Python<'py> {
     /// ```
     ///
     /// Please see the [Parallelism] chapter of the guide for a thorough discussion of using
-    /// [`Python::allow_threads`] in this manner.
+    /// [`Python::detach`] in this manner.
     ///
     /// # Example: Passing borrowed Python references into the closure is not allowed
     ///
@@ -497,7 +516,7 @@ impl<'py> Python<'py> {
     ///
     /// fn parallel_print(py: Python<'_>) {
     ///     let s = PyString::new(py, "This object cannot be accessed without holding the GIL >_<");
-    ///     py.allow_threads(move || {
+    ///     py.detach(move || {
     ///         println!("{:?}", s); // This causes a compile error.
     ///     });
     /// }
@@ -507,7 +526,7 @@ impl<'py> Python<'py> {
     /// [`PyString`]: crate::types::PyString
     /// [auto-traits]: https://doc.rust-lang.org/nightly/unstable-book/language-features/auto-traits.html
     /// [Parallelism]: https://pyo3.rs/main/parallelism.html
-    pub fn allow_threads<T, F>(self, f: F) -> T
+    pub fn detach<T, F>(self, f: F) -> T
     where
         F: Ungil + FnOnce() -> T,
         T: Ungil,
@@ -533,7 +552,7 @@ impl<'py> Python<'py> {
     /// ```
     /// # use pyo3::prelude::*;
     /// # use pyo3::ffi::c_str;
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// let result = py.eval(c_str!("[i * 10 for i in range(5)]"), None, None).unwrap();
     /// let res: Vec<i64> = result.extract().unwrap();
     /// assert_eq!(res, vec![0, 10, 20, 30, 40])
@@ -545,7 +564,13 @@ impl<'py> Python<'py> {
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        self.run_code(code, ffi::Py_eval_input, globals, locals)
+        let code = PyCode::compile(
+            self,
+            code,
+            ffi::c_str!("<string>"),
+            crate::types::PyCodeInput::Eval,
+        )?;
+        code.run(globals, locals)
     }
 
     /// Executes one or more Python statements in the given context.
@@ -563,7 +588,7 @@ impl<'py> Python<'py> {
     ///     types::{PyBytes, PyDict},
     ///     ffi::c_str,
     /// };
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let locals = PyDict::new(py);
     ///     py.run(c_str!(
     ///         r#"
@@ -589,77 +614,15 @@ impl<'py> Python<'py> {
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
-        let res = self.run_code(code, ffi::Py_file_input, globals, locals);
-        res.map(|obj| {
+        let code = PyCode::compile(
+            self,
+            code,
+            ffi::c_str!("<string>"),
+            crate::types::PyCodeInput::File,
+        )?;
+        code.run(globals, locals).map(|obj| {
             debug_assert!(obj.is_none());
         })
-    }
-
-    /// Runs code in the given context.
-    ///
-    /// `start` indicates the type of input expected: one of `Py_single_input`,
-    /// `Py_file_input`, or `Py_eval_input`.
-    ///
-    /// If `globals` is `None`, it defaults to Python module `__main__`.
-    /// If `locals` is `None`, it defaults to the value of `globals`.
-    fn run_code(
-        self,
-        code: &CStr,
-        start: c_int,
-        globals: Option<&Bound<'py, PyDict>>,
-        locals: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        let mptr = unsafe {
-            ffi::compat::PyImport_AddModuleRef(ffi::c_str!("__main__").as_ptr())
-                .assume_owned_or_err(self)?
-        };
-        let attr = mptr.getattr(crate::intern!(self, "__dict__"))?;
-        let globals = match globals {
-            Some(globals) => globals,
-            None => attr.downcast::<PyDict>()?,
-        };
-        let locals = locals.unwrap_or(globals);
-
-        // If `globals` don't provide `__builtins__`, most of the code will fail if Python
-        // version is <3.10. That's probably not what user intended, so insert `__builtins__`
-        // for them.
-        //
-        // See also:
-        // - https://github.com/python/cpython/pull/24564 (the same fix in CPython 3.10)
-        // - https://github.com/PyO3/pyo3/issues/3370
-        let builtins_s = crate::intern!(self, "__builtins__");
-        let has_builtins = globals.contains(builtins_s)?;
-        if !has_builtins {
-            crate::sync::with_critical_section(globals, || {
-                // check if another thread set __builtins__ while this thread was blocked on the critical section
-                let has_builtins = globals.contains(builtins_s)?;
-                if !has_builtins {
-                    // Inherit current builtins.
-                    let builtins = unsafe { ffi::PyEval_GetBuiltins() };
-
-                    // `PyDict_SetItem` doesn't take ownership of `builtins`, but `PyEval_GetBuiltins`
-                    // seems to return a borrowed reference, so no leak here.
-                    if unsafe {
-                        ffi::PyDict_SetItem(globals.as_ptr(), builtins_s.as_ptr(), builtins)
-                    } == -1
-                    {
-                        return Err(PyErr::fetch(self));
-                    }
-                }
-                Ok(())
-            })?;
-        }
-
-        let code_obj = unsafe {
-            ffi::Py_CompileString(code.as_ptr(), ffi::c_str!("<string>").as_ptr(), start)
-                .assume_owned_or_err(self)?
-        };
-
-        unsafe {
-            ffi::PyEval_EvalCode(code_obj.as_ptr(), globals.as_ptr(), locals.as_ptr())
-                .assume_owned_or_err(self)
-                .downcast_into_unchecked()
-        }
     }
 
     /// Gets the Python type object for type `T`.
@@ -705,7 +668,7 @@ impl<'py> Python<'py> {
     /// # Examples
     /// ```rust
     /// # use pyo3::Python;
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     // The full string could be, for example:
     ///     // "3.10.0 (tags/v3.10.0:b494f59, Oct  4 2021, 19:00:18) [MSC v.1929 64 bit (AMD64)]"
     ///     assert!(py.version().starts_with("3."));
@@ -725,7 +688,7 @@ impl<'py> Python<'py> {
     /// # Examples
     /// ```rust
     /// # use pyo3::Python;
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     // PyO3 supports Python 3.7 and up.
     ///     assert!(py.version_info() >= (3, 7));
     ///     assert!(py.version_info() >= (3, 7, 0));
@@ -744,7 +707,7 @@ impl<'py> Python<'py> {
     /// Lets the Python interpreter check and handle any pending signals. This will invoke the
     /// corresponding signal handlers registered in Python (if any).
     ///
-    /// Returns `Err(`[`PyErr`]`)` if any signal handler raises an exception.
+    /// Returns `Err(`[`PyErr`](crate::PyErr)`)` if any signal handler raises an exception.
     ///
     /// These signals include `SIGINT` (normally raised by CTRL + C), which by default raises
     /// `KeyboardInterrupt`. For this reason it is good practice to call this function regularly
@@ -818,7 +781,7 @@ mod tests {
 
     #[test]
     fn test_eval() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // Make sure builtin names are accessible
             let v: i32 = py
                 .eval(ffi::c_str!("min(1, 2)"), None, None)
@@ -858,21 +821,21 @@ mod tests {
 
     #[test]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
-    fn test_allow_threads_releases_and_acquires_gil() {
-        Python::with_gil(|py| {
+    fn test_detach_releases_and_acquires_gil() {
+        Python::attach(|py| {
             let b = std::sync::Arc::new(std::sync::Barrier::new(2));
 
             let b2 = b.clone();
-            std::thread::spawn(move || Python::with_gil(|_| b2.wait()));
+            std::thread::spawn(move || Python::attach(|_| b2.wait()));
 
-            py.allow_threads(|| {
-                // If allow_threads does not release the GIL, this will deadlock because
+            py.detach(|| {
+                // If `detach` does not release the GIL, this will deadlock because
                 // the thread spawned above will never be able to acquire the GIL.
                 b.wait();
             });
 
             unsafe {
-                // If the GIL is not reacquired at the end of allow_threads, this call
+                // If the GIL is not reacquired at the end of `detach`, this call
                 // will crash the Python interpreter.
                 let tstate = ffi::PyEval_SaveThread();
                 ffi::PyEval_RestoreThread(tstate);
@@ -881,11 +844,11 @@ mod tests {
     }
 
     #[test]
-    fn test_allow_threads_panics_safely() {
-        Python::with_gil(|py| {
+    fn test_detach_panics_safely() {
+        Python::attach(|py| {
             let result = std::panic::catch_unwind(|| unsafe {
                 let py = Python::assume_gil_acquired();
-                py.allow_threads(|| {
+                py.detach(|| {
                     panic!("There was a panic!");
                 });
             });
@@ -893,7 +856,7 @@ mod tests {
             // Check panic was caught
             assert!(result.is_err());
 
-            // If allow_threads is implemented correctly, this thread still owns the GIL here
+            // If `detach` is implemented correctly, this thread still owns the GIL here
             // so the following Python calls should not cause crashes.
             let list = PyList::new(py, [1, 2, 3, 4]).unwrap();
             assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![1, 2, 3, 4]);
@@ -902,13 +865,13 @@ mod tests {
 
     #[cfg(not(pyo3_disable_reference_pool))]
     #[test]
-    fn test_allow_threads_pass_stuff_in() {
-        let list = Python::with_gil(|py| PyList::new(py, vec!["foo", "bar"]).unwrap().unbind());
+    fn test_detach_pass_stuff_in() {
+        let list = Python::attach(|py| PyList::new(py, vec!["foo", "bar"]).unwrap().unbind());
         let mut v = vec![1, 2, 3];
         let a = std::sync::Arc::new(String::from("foo"));
 
-        Python::with_gil(|py| {
-            py.allow_threads(|| {
+        Python::attach(|py| {
+            py.detach(|| {
                 drop((list, &mut v, a));
             });
         });
@@ -917,6 +880,8 @@ mod tests {
     #[test]
     #[cfg(not(Py_LIMITED_API))]
     fn test_acquire_gil() {
+        use std::ffi::c_int;
+
         const GIL_NOT_HELD: c_int = 0;
         const GIL_HELD: c_int = 1;
 
@@ -928,7 +893,7 @@ mod tests {
         let state = unsafe { crate::ffi::PyGILState_Check() };
         assert_eq!(state, GIL_NOT_HELD);
 
-        Python::with_gil(|_| {
+        Python::attach(|_| {
             let state = unsafe { crate::ffi::PyGILState_Check() };
             assert_eq!(state, GIL_HELD);
         });
@@ -939,7 +904,7 @@ mod tests {
 
     #[test]
     fn test_ellipsis() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert_eq!(py.Ellipsis().to_string(), "Ellipsis");
 
             let v = py
@@ -955,7 +920,7 @@ mod tests {
     fn test_py_run_inserts_globals() {
         use crate::types::dict::PyDictMethods;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let namespace = PyDict::new(py);
             py.run(
                 ffi::c_str!("class Foo: pass\na = int(3)"),
@@ -1010,7 +975,7 @@ cls.func()
             .unwrap(),
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             runner.reproducer(py).unwrap();
         });
     }

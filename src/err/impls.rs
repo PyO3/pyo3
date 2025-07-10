@@ -5,7 +5,7 @@ use std::io;
 /// Convert `PyErr` to `io::Error`
 impl From<PyErr> for io::Error {
     fn from(err: PyErr) -> Self {
-        let kind = Python::with_gil(|py| {
+        let kind = Python::attach(|py| {
             if err.is_instance_of::<exceptions::PyBrokenPipeError>(py) {
                 io::ErrorKind::BrokenPipe
             } else if err.is_instance_of::<exceptions::PyConnectionRefusedError>(py) {
@@ -49,7 +49,7 @@ impl From<PyErr> for io::Error {
 impl From<io::Error> for PyErr {
     fn from(err: io::Error) -> PyErr {
         // If the error wraps a Python error we return it
-        if err.get_ref().map_or(false, |e| e.is::<PyErr>()) {
+        if err.get_ref().is_some_and(|e| e.is::<PyErr>()) {
             return *err.into_inner().unwrap().downcast().unwrap();
         }
         match err.kind() {
@@ -151,7 +151,7 @@ mod tests {
         use crate::types::any::PyAnyMethods;
 
         let check_err = |kind, expected_ty| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let rust_err = io::Error::new(kind, "some error msg");
 
                 let py_err: PyErr = rust_err.into();

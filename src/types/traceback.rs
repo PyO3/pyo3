@@ -37,7 +37,7 @@ pub trait PyTracebackMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// # use pyo3::{Python, PyResult, prelude::PyTracebackMethods, ffi::c_str};
     /// # let result: PyResult<()> =
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let err = py
     ///         .run(c_str!("raise Exception('banana')"), None, None)
     ///         .expect_err("raise will create a Python error");
@@ -89,7 +89,7 @@ mod tests {
 
     #[test]
     fn format_traceback() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err = py
                 .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error");
@@ -103,7 +103,7 @@ mod tests {
 
     #[test]
     fn test_err_from_value() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             // Produce an error from python so that it has a traceback
             py.run(
@@ -127,7 +127,7 @@ except Exception as e:
 
     #[test]
     fn test_err_into_py() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             // Produce an error from python so that it has a traceback
             py.run(

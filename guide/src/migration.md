@@ -3,9 +3,19 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.25.* to 0.26
+### Rename of `Python::with_gil` and `Python::allow_threads`
+<details open>
+<summary><small>Click to expand</small></summary>
+The names for these APIs were created when the global interpreter lock (GIL) was mandatory. With the introduction of free-threading in Python 3.13 this is no longer the case, and the naming does not has no universal meaning anymore.
+For this reason we chose to rename these to more modern terminology introduced in free-threading:
+- `Python::with_gil` is now called `Python::attach`, it attaches a Python thread-state to the current thread. In GIL enabled builds there can only be 1 thread attached to the interpreter, in free-threading there can be more.
+- `Python::allow_threads` is now called `Python::detach`, it detaches a previously attached thread-state.
+</details>
+
 ## from 0.24.* to 0.25
 ### `AsPyPointer` removal
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 The `AsPyPointer` trait is mostly a leftover from the now removed gil-refs API. The last remaining uses were the GC API, namely `PyVisit::call`, and identity comparison (`PyAnyMethods::is` and `Py::is`).
 
@@ -201,7 +211,7 @@ Before:
 # use pyo3::prelude::*;
 # use pyo3::types::PyTuple;
 # fn main() {
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 // For example, for PyTuple. Many such APIs have been changed.
 let tup = PyTuple::new_bound(py, [1, 2, 3]);
 # })
@@ -214,7 +224,7 @@ After:
 # use pyo3::prelude::*;
 # use pyo3::types::PyTuple;
 # fn main() {
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 // For example, for PyTuple. Many such APIs have been changed.
 let tup = PyTuple::new(py, [1, 2, 3]);
 # })
@@ -645,7 +655,7 @@ impl PyClassAsyncIter {
 <details>
 <summary><small>Click to expand</small></summary>
 
-Interactions with Python objects implemented in Rust no longer need to go though `PyCell<T>`. Instead iteractions with Python object now consistently go through `Bound<T>` or `Py<T>` independently of whether `T` is native Python object or a `#[pyclass]` implemented in Rust. Use `Bound::new` or `Py::new` respectively to create and `Bound::borrow(_mut)` / `Py::borrow(_mut)` to borrow the Rust object.
+Interactions with Python objects implemented in Rust no longer need to go though `PyCell<T>`. Instead interactions with Python object now consistently go through `Bound<T>` or `Py<T>` independently of whether `T` is native Python object or a `#[pyclass]` implemented in Rust. Use `Bound::new` or `Py::new` respectively to create and `Bound::borrow(_mut)` / `Py::borrow(_mut)` to borrow the Rust object.
 </details>
 
 ### Migrating from the GIL Refs API to `Bound<T>`
@@ -657,7 +667,7 @@ To minimise breakage of code using the GIL Refs API, the `Bound<T>` smart pointe
 To identify what to migrate, temporarily switch off the `gil-refs` feature to see deprecation warnings on [almost](#cases-where-pyo3-cannot-emit-gil-ref-deprecation-warnings) all uses of APIs accepting and producing GIL Refs . Over one or more PRs it should be possible to follow the deprecation hints to update code. Depending on your development environment, switching off the `gil-refs` feature may introduce [some very targeted breakages](#deactivating-the-gil-refs-feature), so you may need to fixup those first.
 
 For example, the following APIs have gained updated variants:
-- `PyList::new`, `PyTyple::new` and similar constructors have replacements `PyList::new_bound`, `PyTuple::new_bound` etc.
+- `PyList::new`, `PyTuple::new` and similar constructors have replacements `PyList::new_bound`, `PyTuple::new_bound` etc.
 - `FromPyObject::extract` has a new `FromPyObject::extract_bound` (see the section below)
 - The `PyTypeInfo` trait has had new `_bound` methods added to accept / return `Bound<T>`.
 
@@ -1082,7 +1092,7 @@ impl Object {
     }
 }
 
-// It either forces us to release the GIL before aquiring it again.
+// It either forces us to release the GIL before acquiring it again.
 let first = Python::with_gil(|py| Object::new(py));
 let second = Python::with_gil(|py| Object::new(py));
 drop(first);
@@ -1160,7 +1170,7 @@ fn simple_function(a: i32, b: i32, c: i32) {}
 fn function_with_defaults(a: i32, b: i32, c: i32) {}
 
 # fn main() {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let simple = wrap_pyfunction!(simple_function, py).unwrap();
 #         assert_eq!(simple.getattr("__text_signature__").unwrap().to_string(), "(a, b, c)");
 #         let defaulted = wrap_pyfunction!(function_with_defaults, py).unwrap();
@@ -1891,14 +1901,14 @@ To migrate, just pass a `py` argument to any calls to these methods.
 
 Before:
 ```rust,compile_fail
-# pyo3::Python::with_gil(|py| {
+# pyo3::Python::attach(|py| {
 py.None().get_refcnt();
 # })
 ```
 
 After:
 ```rust
-# pyo3::Python::with_gil(|py| {
+# pyo3::Python::attach(|py| {
 py.None().get_refcnt(py);
 # })
 ```
@@ -2018,7 +2028,7 @@ impl Names {
         self.names.append(&mut other.names)
     }
 }
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 #     let names = Py::new(py, Names::new()).unwrap();
 #     pyo3::py_run!(py, names, r"
 #     try:

@@ -1,4 +1,4 @@
-use crate::model::{Argument, Arguments, Class, Function, Module, VariableLengthArgument};
+use crate::model::{Argument, Arguments, Class, Const, Function, Module, VariableLengthArgument};
 use anyhow::{bail, ensure, Context, Result};
 use goblin::elf::Elf;
 use goblin::mach::load_command::CommandVariant;
@@ -44,11 +44,12 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
         if let Chunk::Module {
             name,
             members,
+            consts,
             id: _,
         } = chunk
         {
             if name == main_module_name {
-                return convert_module(name, members, &chunks_by_id, &chunks_by_parent);
+                return convert_module(name, members, consts, &chunks_by_id, &chunks_by_parent);
             }
         }
     }
@@ -58,6 +59,7 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
 fn convert_module(
     name: &str,
     members: &[String],
+    consts: &[ConstChunk],
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
 ) -> Result<Module> {
@@ -69,11 +71,19 @@ fn convert_module(
         chunks_by_id,
         chunks_by_parent,
     )?;
+
     Ok(Module {
         name: name.into(),
         modules,
         classes,
         functions,
+        consts: consts
+            .iter()
+            .map(|c| Const {
+                name: c.name.clone(),
+                value: c.value.clone(),
+            })
+            .collect(),
     })
 }
 
@@ -91,11 +101,13 @@ fn convert_members(
             Chunk::Module {
                 name,
                 members,
+                consts,
                 id: _,
             } => {
                 modules.push(convert_module(
                     name,
                     members,
+                    consts,
                     chunks_by_id,
                     chunks_by_parent,
                 )?);
@@ -109,7 +121,8 @@ fn convert_members(
                 arguments,
                 parent: _,
                 decorators,
-            } => functions.push(convert_function(name, arguments, decorators)),
+                returns,
+            } => functions.push(convert_function(name, arguments, decorators, returns)),
         }
     }
     Ok((modules, classes, functions))
@@ -158,7 +171,12 @@ fn convert_class(
     })
 }
 
-fn convert_function(name: &str, arguments: &ChunkArguments, decorators: &[String]) -> Function {
+fn convert_function(
+    name: &str,
+    arguments: &ChunkArguments,
+    decorators: &[String],
+    returns: &Option<String>,
+) -> Function {
     Function {
         name: name.into(),
         decorators: decorators.to_vec(),
@@ -175,6 +193,7 @@ fn convert_function(name: &str, arguments: &ChunkArguments, decorators: &[String
                 .as_ref()
                 .map(convert_variable_length_argument),
         },
+        returns: returns.clone(),
     }
 }
 
@@ -182,6 +201,7 @@ fn convert_argument(arg: &ChunkArgument) -> Argument {
     Argument {
         name: arg.name.clone(),
         default_value: arg.default.clone(),
+        annotation: arg.annotation.clone(),
     }
 }
 
@@ -354,6 +374,7 @@ enum Chunk {
         id: String,
         name: String,
         members: Vec<String>,
+        consts: Vec<ConstChunk>,
     },
     Class {
         id: String,
@@ -363,12 +384,20 @@ enum Chunk {
         #[serde(default)]
         id: Option<String>,
         name: String,
-        arguments: ChunkArguments,
+        arguments: Box<ChunkArguments>,
         #[serde(default)]
         parent: Option<String>,
         #[serde(default)]
         decorators: Vec<String>,
+        #[serde(default)]
+        returns: Option<String>,
     },
+}
+
+#[derive(Deserialize)]
+struct ConstChunk {
+    name: String,
+    value: String,
 }
 
 #[derive(Deserialize)]
@@ -390,4 +419,6 @@ struct ChunkArgument {
     name: String,
     #[serde(default)]
     default: Option<String>,
+    #[serde(default)]
+    annotation: Option<String>,
 }

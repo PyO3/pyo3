@@ -85,7 +85,7 @@ fn map_dict(py: Python<'_>) -> Bound<'_, pyo3::types::PyDict> {
 
 #[test]
 fn test_getitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = map_dict(py);
 
         py_assert!(py, *d, "m['1'] == 0");
@@ -97,7 +97,7 @@ fn test_getitem() {
 
 #[test]
 fn test_setitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = map_dict(py);
 
         py_run!(py, *d, "m['1'] = 4; assert m['1'] == 4");
@@ -110,7 +110,7 @@ fn test_setitem() {
 
 #[test]
 fn test_delitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = map_dict(py);
         py_run!(
             py,
@@ -124,7 +124,7 @@ fn test_delitem() {
 
 #[test]
 fn mapping_is_not_sequence() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let mut index = HashMap::new();
         index.insert("Foo".into(), 1);
         index.insert("Bar".into(), 2);

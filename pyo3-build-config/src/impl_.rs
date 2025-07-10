@@ -22,7 +22,7 @@ use std::{
 
 pub use target_lexicon::Triple;
 
-use target_lexicon::{Architecture, Environment, OperatingSystem};
+use target_lexicon::{Architecture, Environment, OperatingSystem, Vendor};
 
 use crate::{
     bail, ensure,
@@ -730,6 +730,9 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             );
 
             self.version = version;
+        } else if is_abi3() && self.version.minor > ABI3_MAX_MINOR {
+            warn!("Automatically falling back to abi3-py3{ABI3_MAX_MINOR} because current Python is higher than the maximum supported");
+            self.version.minor = ABI3_MAX_MINOR;
         }
 
         Ok(())
@@ -845,7 +848,7 @@ fn have_python_interpreter() -> bool {
 /// Must be called from a PyO3 crate build script.
 fn is_abi3() -> bool {
     cargo_env_var("CARGO_FEATURE_ABI3").is_some()
-        || env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").map_or(false, |os_str| os_str == "1")
+        || env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").is_some_and(|os_str| os_str == "1")
 }
 
 /// Gets the minimum supported Python version from PyO3 `abi3-py*` features.
@@ -953,7 +956,9 @@ impl CrossCompileConfig {
         // e.g. x86_64-unknown-linux-musl on x86_64-unknown-linux-gnu host
         //      x86_64-pc-windows-gnu on x86_64-pc-windows-msvc host
         let mut compatible = host.architecture == target.architecture
-            && host.vendor == target.vendor
+            && (host.vendor == target.vendor
+                // Don't treat `-pc-` to `-win7-` as cross-compiling
+                || (host.vendor == Vendor::Pc && target.vendor.as_str() == "win7"))
             && host.operating_system == target.operating_system;
 
         // Not cross-compiling to compile for 32-bit Python from windows 64-bit
@@ -1464,7 +1469,7 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Result<
         sysconfig_paths.extend(match &f {
             // Python 3.7+ sysconfigdata with platform specifics
             Ok(f) if starts_with(f, "_sysconfigdata_") && ends_with(f, "py") => vec![f.path()],
-            Ok(f) if f.metadata().map_or(false, |metadata| metadata.is_dir()) => {
+            Ok(f) if f.metadata().is_ok_and(|metadata| metadata.is_dir()) => {
                 let file_name = f.file_name();
                 let file_name = file_name.to_string_lossy();
                 if file_name == "build" || file_name == "lib" {
@@ -2989,6 +2994,13 @@ mod tests {
         assert!(cross_compiling_from_to(
             &triple!("x86_64-unknown-linux-gnu"),
             &triple!("x86_64-unknown-linux-musl")
+        )
+        .unwrap()
+        .is_none());
+
+        assert!(cross_compiling_from_to(
+            &triple!("x86_64-pc-windows-msvc"),
+            &triple!("x86_64-win7-windows-msvc"),
         )
         .unwrap()
         .is_none());

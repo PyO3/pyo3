@@ -1,11 +1,11 @@
 #![cfg(feature = "macros")]
 
-use std::sync::Once;
+use std::sync::OnceLock;
 
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
-use pyo3::sync::{GILOnceCell, OnceExt};
+use pyo3::sync::OnceLockExt;
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -164,23 +164,16 @@ mod declarative_module2 {
 }
 
 fn declarative_module(py: Python<'_>) -> &Bound<'_, PyModule> {
-    static MODULE: GILOnceCell<Py<PyModule>> = GILOnceCell::new();
-    static ONCE: Once = Once::new();
+    static MODULE: OnceLock<Py<PyModule>> = OnceLock::new();
 
-    // Guarantee that the module is only ever initialized once; GILOnceCell can race.
-    // TODO: use OnceLock when MSRV >= 1.70
-    ONCE.call_once_py_attached(py, || {
-        MODULE
-            .set(py, pyo3::wrap_pymodule!(declarative_module)(py))
-            .expect("only ever set once");
-    });
-
-    MODULE.get(py).expect("once is completed").bind(py)
+    MODULE
+        .get_or_init_py_attached(py, || pyo3::wrap_pymodule!(declarative_module)(py))
+        .bind(py)
 }
 
 #[test]
 fn test_declarative_module() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let m = declarative_module(py);
         py_assert!(
             py,
@@ -223,7 +216,7 @@ mod r#type {
 
 #[test]
 fn test_raw_ident_module() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let m = pyo3::wrap_pymodule!(r#type)(py).into_bound(py);
         py_assert!(py, m, "m.double(2) == 4");
     })
@@ -231,7 +224,7 @@ fn test_raw_ident_module() {
 
 #[test]
 fn test_module_names() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let m = declarative_module(py);
         py_assert!(
             py,
@@ -255,7 +248,7 @@ fn test_module_names() {
 
 #[test]
 fn test_inner_module_full_path() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let m = declarative_module(py);
         py_assert!(py, m, "m.full_path_inner");
     })

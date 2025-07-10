@@ -2,6 +2,7 @@
 
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{introspection_id_const, module_introspection_code};
+use crate::utils::expr_to_python;
 use crate::{
     attributes::{
         self, kw, take_attributes, take_pyo3_options, CrateAttribute, GILUsedAttribute,
@@ -156,6 +157,7 @@ pub fn pymodule_module_impl(
 
     let mut pymodule_init = None;
     let mut module_consts = Vec::new();
+    let mut module_consts_values = Vec::new();
     let mut module_consts_cfg_attrs = Vec::new();
 
     let _: Vec<()> = (*items).iter_mut().map(|item|{
@@ -299,8 +301,8 @@ pub fn pymodule_module_impl(
                 if !find_and_remove_attribute(&mut item.attrs, "pymodule_export") {
                     return Ok(());
                 }
-
                 module_consts.push(item.ident.clone());
+                module_consts_values.push(expr_to_python(&item.expr));
                 module_consts_cfg_attrs.push(get_cfg_attributes(&item.attrs));
             }
             Item::Static(item) => {
@@ -356,6 +358,9 @@ pub fn pymodule_module_impl(
         &name.to_string(),
         &module_items,
         &module_items_cfg_attrs,
+        &module_consts,
+        &module_consts_values,
+        &module_consts_cfg_attrs,
     );
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection = quote! {};
@@ -439,7 +444,8 @@ pub fn pymodule_function_impl(
     );
 
     #[cfg(feature = "experimental-inspect")]
-    let introspection = module_introspection_code(pyo3_path, &name.to_string(), &[], &[]);
+    let introspection =
+        module_introspection_code(pyo3_path, &name.to_string(), &[], &[], &[], &[], &[]);
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection = quote! {};
     #[cfg(feature = "experimental-inspect")]

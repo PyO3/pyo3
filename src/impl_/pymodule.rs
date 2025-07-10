@@ -245,7 +245,7 @@ mod tests {
                 }),
             )
         };
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module = MODULE_DEF.make_module(py, false).unwrap().into_bound(py);
             assert_eq!(
                 module
@@ -294,7 +294,7 @@ mod tests {
             assert_eq!((*module_def.ffi_def.get()).m_name, NAME.as_ptr() as _);
             assert_eq!((*module_def.ffi_def.get()).m_doc, DOC.as_ptr() as _);
 
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 module_def.initializer.0(&py.import("builtins").unwrap()).unwrap();
                 assert!(INIT_CALLED.load(Ordering::SeqCst));
             })

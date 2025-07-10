@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 import json
 import os
 import re
@@ -7,6 +6,7 @@ import subprocess
 import sys
 import sysconfig
 import tempfile
+from contextlib import contextmanager
 from functools import lru_cache
 from glob import glob
 from pathlib import Path
@@ -21,7 +21,6 @@ from typing import (
     Tuple,
 )
 
-import nox
 import nox.command
 
 try:
@@ -460,14 +459,6 @@ def docs(session: nox.Session) -> None:
 
     features = "full"
 
-    if get_rust_version()[:2] >= (1, 67):
-        # time needs MSRC 1.67+
-        features += ",time"
-
-    if get_rust_version()[:2] >= (1, 70):
-        # jiff needs MSRC 1.70+
-        features += ",jiff-02"
-
     shutil.rmtree(PYO3_DOCS_TARGET, ignore_errors=True)
     _run_cargo(
         session,
@@ -517,11 +508,14 @@ def check_guide(session: nox.Session):
     remap_args = []
     for key, value in remaps.items():
         remap_args.extend(("--remap", f"{key} {value}"))
+
     # check all links in the guide
     _run(
         session,
         "lychee",
-        "--include-fragments",
+        # FIXME: would be nice to use `--include-fragments` here, but we've had
+        # a lot of flaky failures from it - see https://github.com/lycheeverse/lychee/issues/1746
+        # "--include-fragments",
         str(PYO3_GUIDE_SRC),
         *remap_args,
         "--accept=200,429",
@@ -535,7 +529,9 @@ def check_guide(session: nox.Session):
         str(PYO3_DOCS_TARGET),
         *remap_args,
         f"--exclude=file://{PYO3_DOCS_TARGET}",
+        # exclude some old http links from copyright notices, known to fail
         "--exclude=http://www.adobe.com/",
+        "--exclude=http://www.nhncorp.com/",
         "--accept=200,429",
         *session.posargs,
     )
@@ -670,10 +666,7 @@ def set_msrv_package_versions(session: nox.Session):
         *(Path(p).parent for p in glob("examples/*/Cargo.toml")),
         *(Path(p).parent for p in glob("pyo3-ffi/examples/*/Cargo.toml")),
     )
-    min_pkg_versions = {
-        "trybuild": "1.0.89",
-        "allocator-api2": "0.2.10",
-    }
+    min_pkg_versions = {}
 
     # run cargo update first to ensure that everything is at highest
     # possible version, so that this matches what CI will resolve to.
@@ -743,16 +736,15 @@ def test_version_limits(session: nox.Session):
         config_file.set("CPython", "3.15")
         _run_cargo(session, "check", env=env, expect_error=True)
 
+        # 3.15 CPython should build if abi3 is explicitly requested
+        _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
+
         # 3.15 CPython should build with forward compatibility
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
 
         assert "3.8" not in PYPY_VERSIONS
         config_file.set("PyPy", "3.8")
-        _run_cargo(session, "check", env=env, expect_error=True)
-
-        assert "3.12" not in PYPY_VERSIONS
-        config_file.set("PyPy", "3.12")
         _run_cargo(session, "check", env=env, expect_error=True)
 
 
@@ -854,13 +846,14 @@ def update_ui_tests(session: nox.Session):
     env["TRYBUILD"] = "overwrite"
     command = ["test", "--test", "test_compile_error"]
     _run_cargo(session, *command, env=env)
-    _run_cargo(session, *command, "--features=full,jiff-02,time", env=env)
-    _run_cargo(session, *command, "--features=abi3,full,jiff-02,time", env=env)
+    _run_cargo(session, *command, "--features=full", env=env)
+    _run_cargo(session, *command, "--features=abi3,full", env=env)
 
 
 @nox.session(name="test-introspection")
 def test_introspection(session: nox.Session):
     session.install("maturin")
+    session.install("ruff")
     target = os.environ.get("CARGO_BUILD_TARGET")
     for options in ([], ["--release"]):
         if target is not None:
@@ -924,14 +917,6 @@ def _get_feature_sets() -> Tuple[Optional[str], ...]:
     if "wasm32-wasip1" not in cargo_target:
         # multiple-pymethods not supported on wasm
         features += ",multiple-pymethods"
-
-    if get_rust_version()[:2] >= (1, 67):
-        # time needs MSRC 1.67+
-        features += ",time"
-
-    if get_rust_version()[:2] >= (1, 70):
-        # jiff needs MSRC 1.70+
-        features += ",jiff-02"
 
     if is_rust_nightly():
         features += ",nightly"

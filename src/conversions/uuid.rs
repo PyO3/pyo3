@@ -85,7 +85,7 @@ impl FromPyObject<'_> for Uuid {
 
         if obj.is_instance(uuid_cls)? {
             let uuid_int: u128 = obj.getattr(intern!(py, "int"))?.extract()?;
-            Ok(Uuid::from_u128(uuid_int.to_le()))
+            Ok(Uuid::from_u128(uuid_int))
         } else {
             Err(PyTypeError::new_err("Expected a `uuid.UUID` instance."))
         }
@@ -126,7 +126,7 @@ mod tests {
         ($name:ident, $rs:expr, $py:literal) => {
             #[test]
             fn $name() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let rs_orig = $rs;
                     let rs_uuid = rs_orig.into_pyobject(py).unwrap();
                     let locals = PyDict::new(py);

@@ -239,6 +239,8 @@ pyobject_native_type_named!(PyDate);
 #[cfg(Py_LIMITED_API)]
 impl PyTypeCheck for PyDate {
     const NAME: &'static str = "PyDate";
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "datetime.date";
 
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         let py = object.py();
@@ -338,6 +340,8 @@ pyobject_native_type_named!(PyDateTime);
 #[cfg(Py_LIMITED_API)]
 impl PyTypeCheck for PyDateTime {
     const NAME: &'static str = "PyDateTime";
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "datetime.datetime";
 
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         let py = object.py();
@@ -587,6 +591,8 @@ pyobject_native_type_named!(PyTime);
 #[cfg(Py_LIMITED_API)]
 impl PyTypeCheck for PyTime {
     const NAME: &'static str = "PyTime";
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "datetime.time";
 
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         let py = object.py();
@@ -771,6 +777,8 @@ pyobject_native_type_named!(PyTzInfo);
 #[cfg(Py_LIMITED_API)]
 impl PyTypeCheck for PyTzInfo {
     const NAME: &'static str = "PyTzInfo";
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "datetime.tzinfo";
 
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         let py = object.py();
@@ -885,6 +893,8 @@ pyobject_native_type_named!(PyDelta);
 #[cfg(Py_LIMITED_API)]
 impl PyTypeCheck for PyDelta {
     const NAME: &'static str = "PyDelta";
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "datetime.timedelta";
 
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         let py = object.py();
@@ -966,7 +976,7 @@ mod tests {
     #[cfg(feature = "macros")]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_datetime_fromtimestamp() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dt = PyDateTime::from_timestamp(py, 100.0, None).unwrap();
             py_run!(
                 py,
@@ -988,7 +998,7 @@ mod tests {
     #[cfg(feature = "macros")]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_date_fromtimestamp() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dt = PyDate::from_timestamp(py, 100).unwrap();
             py_run!(
                 py,
@@ -1002,7 +1012,7 @@ mod tests {
     #[cfg(not(Py_LIMITED_API))]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_new_with_fold() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let a = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, false);
             let b = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, true);
 
@@ -1014,7 +1024,7 @@ mod tests {
     #[test]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_get_tzinfo() {
-        crate::Python::with_gil(|py| {
+        crate::Python::attach(|py| {
             let utc = PyTzInfo::utc(py).unwrap();
 
             let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
@@ -1041,7 +1051,7 @@ mod tests {
     fn test_timezone_from_offset() {
         use crate::types::PyNone;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(
                 PyTzInfo::fixed_offset(py, PyDelta::new(py, 0, -3600, 0, true).unwrap())
                     .unwrap()

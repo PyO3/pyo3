@@ -41,10 +41,13 @@ fn test_compile_errors() {
     // output changes with async feature
     #[cfg(all(Py_LIMITED_API, feature = "experimental-async"))]
     t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
+    #[cfg(not(any(feature = "experimental-async")))]
+    t.compile_fail("tests/ui/invalid_async.rs");
     t.compile_fail("tests/ui/invalid_intern_arg.rs");
     t.compile_fail("tests/ui/invalid_frozen_pyclass_borrow.rs");
     #[cfg(not(any(feature = "hashbrown", feature = "indexmap")))]
     t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
+    #[cfg(not(feature = "experimental-inspect"))]
     t.compile_fail("tests/ui/missing_intopy.rs");
     // adding extra error conversion impls changes the output
     #[cfg(not(any(windows, feature = "eyre", feature = "anyhow", Py_LIMITED_API)))]
@@ -78,4 +81,6 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/immutable_type.rs");
     t.pass("tests/ui/ambiguous_associated_items.rs");
     t.pass("tests/ui/pyclass_probe.rs");
+    t.compile_fail("tests/ui/invalid_pyfunction_warn.rs");
+    t.compile_fail("tests/ui/invalid_pymethods_warn.rs");
 }

@@ -12,7 +12,7 @@ fn test_anyhow_py_function_ok_result() {
         Ok(String::from("OK buddy"))
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let func = wrap_pyfunction!(produce_ok_result)(py).unwrap();
 
         py_run!(
@@ -35,7 +35,7 @@ fn test_anyhow_py_function_err_result() {
         anyhow::bail!("error time")
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let func = wrap_pyfunction!(produce_err_result)(py).unwrap();
         let locals = PyDict::new(py);
         locals.set_item("func", func).unwrap();

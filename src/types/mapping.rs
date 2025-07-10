@@ -168,6 +168,8 @@ fn get_mapping_abc(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
 
 impl PyTypeCheck for PyMapping {
     const NAME: &'static str = "Mapping";
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "collections.abc.Mapping";
 
     #[inline]
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
@@ -194,7 +196,7 @@ mod tests {
 
     #[test]
     fn test_len() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::<i32, i32>::new();
             let ob = (&v).into_pyobject(py).unwrap();
             let mapping = ob.downcast::<PyMapping>().unwrap();
@@ -211,7 +213,7 @@ mod tests {
 
     #[test]
     fn test_contains() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert("key0", 1234);
             let ob = v.into_pyobject(py).unwrap();
@@ -226,7 +228,7 @@ mod tests {
 
     #[test]
     fn test_get_item() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.into_pyobject(py).unwrap();
@@ -244,7 +246,7 @@ mod tests {
 
     #[test]
     fn test_set_item() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.into_pyobject(py).unwrap();
@@ -264,7 +266,7 @@ mod tests {
 
     #[test]
     fn test_del_item() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.into_pyobject(py).unwrap();
@@ -280,7 +282,7 @@ mod tests {
 
     #[test]
     fn test_items() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             v.insert(8, 42);
@@ -302,7 +304,7 @@ mod tests {
 
     #[test]
     fn test_keys() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             v.insert(8, 42);
@@ -320,7 +322,7 @@ mod tests {
 
     #[test]
     fn test_values() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             v.insert(8, 42);

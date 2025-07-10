@@ -1,3 +1,5 @@
+use pyo3_ffi::c_str;
+
 use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::callback::IntoPyCallbackOutput;
@@ -41,7 +43,7 @@ impl PyModule {
     /// use pyo3::prelude::*;
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
+    /// Python::attach(|py| -> PyResult<()> {
     ///     let module = PyModule::new(py, "my_module")?;
     ///
     ///     assert_eq!(module.name()?, "my_module");
@@ -66,7 +68,7 @@ impl PyModule {
     /// # fn main() {
     /// use pyo3::prelude::*;
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let module = PyModule::import(py, "antigravity").expect("No flying for you.");
     /// });
     /// # }
@@ -95,6 +97,8 @@ impl PyModule {
     /// containing the Python code passed to `code`
     /// and pretending to live at `file_name`.
     ///
+    /// If `file_name` is empty, it will be set to `<string>`.
+    ///
     /// <div class="information">
     ///     <div class="tooltip compile_fail" style="">&#x26a0; &#xfe0f;</div>
     /// </div><div class="example-wrap" style="display:inline-block"><pre class="compile_fail" style="white-space:normal;font:inherit;">
@@ -120,7 +124,7 @@ impl PyModule {
     /// // This path is resolved relative to this file.
     /// let code = c_str!(include_str!("../../assets/script.py"));
     ///
-    /// Python::with_gil(|py| -> PyResult<()> {
+    /// Python::attach(|py| -> PyResult<()> {
     ///     PyModule::from_code(py, code, c_str!("example.py"), c_str!("example"))?;
     ///     Ok(())
     /// })?;
@@ -141,7 +145,7 @@ impl PyModule {
     /// // if you just want to bundle a script with your module.
     /// let code = std::fs::read_to_string("assets/script.py")?;
     ///
-    /// Python::with_gil(|py| -> PyResult<()> {
+    /// Python::attach(|py| -> PyResult<()> {
     ///     PyModule::from_code(py, CString::new(code)?.as_c_str(), c_str!("example.py"), c_str!("example"))?;
     ///     Ok(())
     /// })?;
@@ -154,6 +158,11 @@ impl PyModule {
         file_name: &CStr,
         module_name: &CStr,
     ) -> PyResult<Bound<'py, PyModule>> {
+        let file_name = if file_name.is_empty() {
+            c_str!("<string>")
+        } else {
+            file_name
+        };
         unsafe {
             let code = ffi::Py_CompileString(code.as_ptr(), file_name.as_ptr(), ffi::Py_file_input)
                 .assume_owned_or_err(py)?;
@@ -539,6 +548,8 @@ fn __name__(py: Python<'_>) -> &Bound<'_, PyString> {
 
 #[cfg(test)]
 mod tests {
+    use pyo3_ffi::c_str;
+
     use crate::{
         types::{module::PyModuleMethods, PyModule},
         Python,
@@ -546,7 +557,7 @@ mod tests {
 
     #[test]
     fn module_import_and_name() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let builtins = PyModule::import(py, "builtins").unwrap();
             assert_eq!(builtins.name().unwrap(), "builtins");
         })
@@ -555,7 +566,7 @@ mod tests {
     #[test]
     fn module_filename() {
         use crate::types::string::PyStringMethods;
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let site = PyModule::import(py, "site").unwrap();
             assert!(site
                 .filename()
@@ -563,6 +574,14 @@ mod tests {
                 .to_cow()
                 .unwrap()
                 .ends_with("site.py"));
+        })
+    }
+
+    #[test]
+    fn module_from_code_empty_file() {
+        Python::attach(|py| {
+            let builtins = PyModule::from_code(py, c_str!(""), c_str!(""), c_str!("")).unwrap();
+            assert_eq!(builtins.filename().unwrap(), "<string>");
         })
     }
 }
