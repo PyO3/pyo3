@@ -67,7 +67,7 @@ Using Rust library types as function arguments will incur a conversion cost comp
 However, once that conversion cost has been paid, the Rust standard library types offer a number of benefits:
 - You can write functionality in native-speed Rust code (free of Python's runtime costs).
 - You get better interoperability with the rest of the Rust ecosystem.
-- You can use `Python::detach` to release the Python GIL and let other Python threads make progress while your Rust code is executing.
+- You can use `Python::detach` to detach from the interpreter and let other Python threads make progress while your Rust code is executing.
 - You also benefit from stricter type checking. For example you can specify `Vec<i32>`, which will only accept a Python `list` containing integers. The Python-native equivalent, `&PyList`, would accept a Python `list` containing Python objects of any type.
 
 For most PyO3 usage the conversion cost is worth paying to get these benefits. As always, if you're not sure it's worth it in your case, benchmark it!

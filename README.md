@@ -16,7 +16,7 @@
 
 ## Usage
 
-Requires Rust 1.63 or greater.
+Requires Rust 1.74 or greater.
 
 PyO3 supports the following Python distributions:
   - CPython 3.7 or greater

@@ -65,12 +65,6 @@ Also, this feature adds the `pyo3::inspect` module, as well as `IntoPy::type_out
 
 This is a first step towards adding first-class support for generating type annotations automatically in PyO3, however work is needed to finish this off. All feedback and offers of help welcome on [issue #2454](https://github.com/PyO3/pyo3/issues/2454).
 
-### `gil-refs`
-
-This feature is a backwards-compatibility feature to allow continued use of the "GIL Refs" APIs deprecated in PyO3 0.21. These APIs have performance drawbacks and soundness edge cases which the newer `Bound<T>` smart pointer and accompanying APIs resolve.
-
-This feature and the APIs it enables is expected to be removed in a future PyO3 version.
-
 ### `py-clone`
 
 This feature was introduced to ease migration. It was found that delayed reference counts cannot be made sound and hence `Clon`ing an instance of `Py<T>` must panic without the GIL being held. To avoid migrations introducing new panics without warning, the `Clone` implementation itself is now gated behind this feature.

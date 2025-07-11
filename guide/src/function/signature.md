@@ -11,18 +11,16 @@ This section of the guide goes into detail about use of the `#[pyo3(signature = 
 For example, below is a function that accepts arbitrary keyword arguments (`**kwargs` in Python syntax) and returns the number that was passed:
 
 ```rust,no_run
-use pyo3::prelude::*;
-use pyo3::types::PyDict;
+#[pyo3::pymodule]
+mod module_with_functions {
+    use pyo3::prelude::*;
+    use pyo3::types::PyDict;
 
-#[pyfunction]
-#[pyo3(signature = (**kwds))]
-fn num_kwds(kwds: Option<&Bound<'_, PyDict>>) -> usize {
-    kwds.map_or(0, |dict| dict.len())
-}
-
-#[pymodule]
-fn module_with_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(num_kwds, m)?)
+    #[pyfunction]
+    #[pyo3(signature = (**kwds))]
+    fn num_kwds(kwds: Option<&Bound<'_, PyDict>>) -> usize {
+        kwds.map_or(0, |dict| dict.len())
+    }
 }
 ```
 

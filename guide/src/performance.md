@@ -53,9 +53,9 @@ fn frobnicate<'py>(value: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
 }
 ```
 
-## Access to Bound implies access to GIL token
+## Access to Bound implies access to Python token
 
-Calling `Python::attach` is effectively a no-op when the GIL is already held, but checking that this is the case still has a cost. If an existing GIL token can not be accessed, for example when implementing a pre-existing trait, but a GIL-bound reference is available, this cost can be avoided by exploiting that access to GIL-bound reference gives zero-cost access to a GIL token via `Bound::py`.
+Calling `Python::attach` is effectively a no-op when we're already attached to the interpreter, but checking that this is the case still has a cost. If an existing Python token can not be accessed, for example when implementing a pre-existing trait, but a Python-bound reference is available, this cost can be avoided by exploiting that access to Python-bound reference gives zero-cost access to a Python token via `Bound::py`.
 
 For example, instead of writing
 
@@ -112,11 +112,11 @@ Rust tuples may make use of [`vectorcall`] where as `Bound<'_, PyTuple>` and `Py
 
 ## Disable the global reference pool
 
-PyO3 uses global mutable state to keep track of deferred reference count updates implied by `impl<T> Drop for Py<T>` being called without the GIL being held. The necessary synchronization to obtain and apply these reference count updates when PyO3-based code next acquires the GIL is somewhat expensive and can become a significant part of the cost of crossing the Python-Rust boundary.
+PyO3 uses global mutable state to keep track of deferred reference count updates implied by `impl<T> Drop for Py<T>` being called without being attached to the interpreter. The necessary synchronization to obtain and apply these reference count updates when PyO3-based code next attaches to the interpreter is somewhat expensive and can become a significant part of the cost of crossing the Python-Rust boundary.
 
-This functionality can be avoided by setting the `pyo3_disable_reference_pool` conditional compilation flag. This removes the global reference pool and the associated costs completely. However, it does _not_ remove the `Drop` implementation for `Py<T>` which is necessary to interoperate with existing Rust code written without PyO3-based code in mind. To stay compatible with the wider Rust ecosystem in these cases, we keep the implementation but abort when `Drop` is called without the GIL being held. If `pyo3_leak_on_drop_without_reference_pool` is additionally enabled, objects dropped without the GIL being held will be leaked instead which is always sound but might have determinal effects like resource exhaustion in the long term.
+This functionality can be avoided by setting the `pyo3_disable_reference_pool` conditional compilation flag. This removes the global reference pool and the associated costs completely. However, it does _not_ remove the `Drop` implementation for `Py<T>` which is necessary to interoperate with existing Rust code written without PyO3-based code in mind. To stay compatible with the wider Rust ecosystem in these cases, we keep the implementation but abort when `Drop` is called without being attached to the interpreter. If `pyo3_leak_on_drop_without_reference_pool` is additionally enabled, objects dropped without being attached to Python will be leaked instead which is always sound but might have determinal effects like resource exhaustion in the long term.
 
-This limitation is important to keep in mind when this setting is used, especially when embedding Python code into a Rust application as it is quite easy to accidentally drop a `Py<T>` (or types containing it like `PyErr`, `PyBackedStr` or `PyBackedBytes`) returned from `Python::attach` without making sure to re-acquire the GIL beforehand. For example, the following code
+This limitation is important to keep in mind when this setting is used, especially when embedding Python code into a Rust application as it is quite easy to accidentally drop a `Py<T>` (or types containing it like `PyErr`, `PyBackedStr` or `PyBackedBytes`) returned from `Python::attach` without making sure to re-attach beforehand. For example, the following code
 
 ```rust,ignore
 # use pyo3::prelude::*;
