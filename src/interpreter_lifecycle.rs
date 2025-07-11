@@ -1,8 +1,7 @@
-use std::sync;
-
+#[cfg(not(any(PyPy, GraalPy)))]
 use crate::{ffi, internal::state::AttachGuard, Python};
 
-static START: sync::Once = sync::Once::new();
+static START: std::sync::Once = std::sync::Once::new();
 
 /// Prepares the use of Python in a free-threaded context.
 ///
@@ -26,6 +25,7 @@ static START: sync::Once = sync::Once::new();
 /// Python::attach(|py| py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None))
 /// # }
 /// ```
+#[cfg(not(any(PyPy, GraalPy)))]
 pub fn prepare_freethreaded_python() {
     // Protect against race conditions when Python is not yet initialized and multiple threads
     // concurrently call 'prepare_freethreaded_python()'. Note that we do not protect against
@@ -72,6 +72,7 @@ pub fn prepare_freethreaded_python() {
 ///     });
 /// }
 /// ```
+#[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn with_embedded_python_interpreter<F, R>(f: F) -> R
 where
     F: for<'p> FnOnce(Python<'p>) -> R,
@@ -102,12 +103,12 @@ where
 }
 
 pub(crate) fn ensure_initialized() {
-    // Maybe auto-initialize the GIL:
+    // Maybe auto-initialize the interpreter:
     //  - If auto-initialize feature set and supported, try to initialize the interpreter.
     //  - If the auto-initialize feature is set but unsupported, emit hard errors only when the
     //    extension-module feature is not activated - extension modules don't care about
     //    auto-initialize so this avoids breaking existing builds.
-    //  - Otherwise, just check the GIL is initialized.
+    //  - Otherwise, just check the interpreter is initialized.
     #[cfg(all(feature = "auto-initialize", not(any(PyPy, GraalPy))))]
     {
         prepare_freethreaded_python();
@@ -128,7 +129,7 @@ pub(crate) fn ensure_initialized() {
             // not initialized, it's fine for the user to initialize the interpreter and
             // retry.
             assert_ne!(
-                ffi::Py_IsInitialized(),
+                crate::ffi::Py_IsInitialized(),
                 0,
                 "The Python interpreter is not initialized and the `auto-initialize` \
                         feature is not enabled.\n\n\
