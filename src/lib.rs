@@ -343,9 +343,11 @@
 pub use crate::class::*;
 pub use crate::conversion::{FromPyObject, IntoPyObject, IntoPyObjectExt};
 pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
-#[cfg(not(any(PyPy, GraalPy)))]
-pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
 pub use crate::instance::{Borrowed, Bound, BoundObject, Py, PyObject};
+#[cfg(not(any(PyPy, GraalPy)))]
+pub use crate::interpreter_lifecycle::{
+    prepare_freethreaded_python, with_embedded_python_interpreter,
+};
 pub use crate::marker::Python;
 pub use crate::pycell::{PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;
@@ -421,10 +423,10 @@ pub mod coroutine;
 mod err;
 pub mod exceptions;
 pub mod ffi;
-mod gil;
 #[doc(hidden)]
 pub mod impl_;
 mod instance;
+mod interpreter_lifecycle;
 pub mod marker;
 pub mod marshal;
 #[macro_use]

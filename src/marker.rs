@@ -118,8 +118,7 @@
 //! [`Py`]: crate::Py
 use crate::conversion::IntoPyObject;
 use crate::err::{self, PyResult};
-use crate::gil::{GILGuard, SuspendGIL};
-use crate::impl_::not_send::NotSend;
+use crate::internal::state::{AttachGuard, SuspendAttach};
 use crate::types::any::PyAnyMethods;
 use crate::types::{
     PyAny, PyCode, PyCodeMethods, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString,
@@ -351,7 +350,11 @@ pub use nightly::Ungil;
 /// The [`Python<'py>`] type can be used to create references to variables owned by the Python
 /// interpreter, using functions such as [`Python::eval`] and [`PyModule::import`].
 #[derive(Copy, Clone)]
-pub struct Python<'py>(PhantomData<(&'py GILGuard, NotSend)>);
+pub struct Python<'py>(PhantomData<&'py AttachGuard>, PhantomData<NotSend>);
+
+/// A marker type that makes the type !Send.
+/// Workaround for lack of !Send on stable (<https://github.com/rust-lang/rust/issues/68318>).
+struct NotSend(PhantomData<*mut Python<'static>>);
 
 impl Python<'_> {
     /// See [Python::attach]
@@ -412,9 +415,7 @@ impl Python<'_> {
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        let guard = GILGuard::acquire();
-
-        // SAFETY: Either the GIL was already acquired or we just created a new `GILGuard`.
+        let guard = AttachGuard::acquire();
         f(guard.python())
     }
 
@@ -447,7 +448,7 @@ impl Python<'_> {
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        let guard = unsafe { GILGuard::acquire_unchecked() };
+        let guard = unsafe { AttachGuard::acquire_unchecked() };
 
         f(guard.python())
     }
@@ -535,7 +536,7 @@ impl<'py> Python<'py> {
         // so that the GIL will be reacquired even if `f` panics.
         // The `Send` bound on the closure prevents the user from
         // transferring the `Python` token into the closure.
-        let _guard = unsafe { SuspendGIL::new() };
+        let _guard = unsafe { SuspendAttach::new() };
         f()
     }
 
@@ -770,7 +771,7 @@ impl<'unbound> Python<'unbound> {
     /// [nomicon]: https://doc.rust-lang.org/nomicon/unbounded-lifetimes.html
     #[inline]
     pub unsafe fn assume_gil_acquired() -> Python<'unbound> {
-        Python(PhantomData)
+        Python(PhantomData, PhantomData)
     }
 }
 
@@ -978,5 +979,10 @@ cls.func()
         Python::attach(|py| {
             runner.reproducer(py).unwrap();
         });
+    }
+
+    #[test]
+    fn python_is_zst() {
+        assert_eq!(std::mem::size_of::<Python<'_>>(), 0);
     }
 }
