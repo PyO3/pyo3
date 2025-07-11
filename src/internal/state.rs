@@ -37,7 +37,7 @@ fn thread_is_attached() -> bool {
 
 /// RAII type that represents thread attachment to the interpreter.
 pub(crate) enum AttachGuard {
-    /// Indicates the thread was already attached with this AttachGuard was acquired.
+    /// Indicates the thread was already attached when this AttachGuard was acquired.
     Assumed,
     /// Indicates that we attached when this AttachGuard was acquired
     Ensured { gstate: ffi::PyGILState_STATE },
