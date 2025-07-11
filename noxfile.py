@@ -538,6 +538,8 @@ def check_guide(session: nox.Session):
         "--exclude=http://www.adobe.com/",
         "--exclude=http://www.nhncorp.com/",
         "--accept=200,429",
+        # reduce the concurrency to avoid rate-limit from `pyo3.rs`
+        "--max-concurrency=32",
         *session.posargs,
     )
 
