@@ -426,7 +426,6 @@ pub mod ffi;
 #[doc(hidden)]
 pub mod impl_;
 mod instance;
-#[cfg(not(any(PyPy, GraalPy)))]
 mod interpreter_lifecycle;
 pub mod marker;
 pub mod marshal;
