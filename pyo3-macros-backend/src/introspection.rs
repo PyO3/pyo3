@@ -25,6 +25,7 @@ use syn::{Attribute, Ident, ReturnType, Type, TypePath};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
 
+#[allow(clippy::too_many_arguments)]
 pub fn module_introspection_code<'a>(
     pyo3_crate_path: &PyO3CratePath,
     name: &str,
@@ -33,6 +34,7 @@ pub fn module_introspection_code<'a>(
     consts: impl IntoIterator<Item = &'a Ident>,
     consts_values: impl IntoIterator<Item = &'a String>,
     consts_cfg_attrs: impl IntoIterator<Item = &'a Vec<Attribute>>,
+    incomplete: bool,
 ) -> TokenStream {
     IntrospectionNode::Map(
         [
@@ -74,6 +76,7 @@ pub fn module_introspection_code<'a>(
                         .collect(),
                 ),
             ),
+            ("incomplete", IntrospectionNode::Bool(incomplete)),
         ]
         .into(),
     )
@@ -309,6 +312,7 @@ fn argument_introspection_data<'a>(
 
 enum IntrospectionNode<'a> {
     String(Cow<'a, str>),
+    Bool(bool),
     IntrospectionId(Option<Cow<'a, Type>>),
     InputType { rust_type: Type, nullable: bool },
     OutputType { rust_type: Type },
@@ -342,6 +346,7 @@ impl IntrospectionNode<'_> {
             Self::String(string) => {
                 content.push_str_to_escape(&string);
             }
+            Self::Bool(value) => content.push_str(if value { "true" } else { "false" }),
             Self::IntrospectionId(ident) => {
                 content.push_str("\"");
                 content.push_tokens(if let Some(ident) = ident {
