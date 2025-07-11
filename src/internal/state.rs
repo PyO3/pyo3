@@ -1,29 +1,28 @@
-//! Interaction with Python's global interpreter lock
+//! Interaction with attachment of the current thread to the Python interpreter.
 
 #[cfg(pyo3_disable_reference_pool)]
 use crate::impl_::panic::PanicTrap;
 use crate::{ffi, Python};
+
 use std::cell::Cell;
 #[cfg(not(pyo3_disable_reference_pool))]
 use std::sync::OnceLock;
 use std::{mem, ptr::NonNull, sync};
 
-static START: sync::Once = sync::Once::new();
-
 std::thread_local! {
-    /// This is an internal counter in pyo3 monitoring whether this thread has the GIL.
+    /// This is an internal counter in pyo3 monitoring whether this thread is attached to the interpreter.
     ///
-    /// It will be incremented whenever a GILGuard or GILPool is created, and decremented whenever
+    /// It will be incremented whenever an AttachGuard is created, and decremented whenever
     /// they are dropped.
     ///
-    /// As a result, if this thread has the GIL, GIL_COUNT is greater than zero.
+    /// As a result, if this thread is attached to the interpreter, ATTACH_COUNT is greater than zero.
     ///
-    /// Additionally, we sometimes need to prevent safe access to the GIL,
+    /// Additionally, we sometimes need to prevent safe access to the Python interpreter,
     /// e.g. when implementing `__traverse__`, which is represented by a negative value.
-    static GIL_COUNT: Cell<isize> = const { Cell::new(0) };
+    static ATTACH_COUNT: Cell<isize> = const { Cell::new(0) };
 }
 
-const GIL_LOCKED_DURING_TRAVERSE: isize = -1;
+const ATTACH_FORBIDDEN_DURING_TRAVERSE: isize = -1;
 
 /// Checks whether the GIL is acquired.
 ///
@@ -32,164 +31,31 @@ const GIL_LOCKED_DURING_TRAVERSE: isize = -1;
 ///  2) PyGILState_Check always returns 1 if the sub-interpreter APIs have ever been called,
 ///     which could lead to incorrect conclusions that the GIL is held.
 #[inline(always)]
-fn gil_is_acquired() -> bool {
-    GIL_COUNT.try_with(|c| c.get() > 0).unwrap_or(false)
+fn thread_is_attached() -> bool {
+    ATTACH_COUNT.try_with(|c| c.get() > 0).unwrap_or(false)
 }
 
-/// Prepares the use of Python in a free-threaded context.
-///
-/// If the Python interpreter is not already initialized, this function will initialize it with
-/// signal handling disabled (Python will not raise the `KeyboardInterrupt` exception). Python
-/// signal handling depends on the notion of a 'main thread', which must be the thread that
-/// initializes the Python interpreter.
-///
-/// If the Python interpreter is already initialized, this function has no effect.
-///
-/// This function is unavailable under PyPy because PyPy cannot be embedded in Rust (or any other
-/// software). Support for this is tracked on the
-/// [PyPy issue tracker](https://github.com/pypy/pypy/issues/3836).
-///
-/// # Examples
-/// ```rust
-/// use pyo3::prelude::*;
-///
-/// # fn main() -> PyResult<()> {
-/// pyo3::prepare_freethreaded_python();
-/// Python::attach(|py| py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None))
-/// # }
-/// ```
-#[cfg(not(any(PyPy, GraalPy)))]
-pub fn prepare_freethreaded_python() {
-    // Protect against race conditions when Python is not yet initialized and multiple threads
-    // concurrently call 'prepare_freethreaded_python()'. Note that we do not protect against
-    // concurrent initialization of the Python runtime by other users of the Python C API.
-    START.call_once_force(|_| unsafe {
-        // Use call_once_force because if initialization panics, it's okay to try again.
-        if ffi::Py_IsInitialized() == 0 {
-            ffi::Py_InitializeEx(0);
-
-            // Release the GIL.
-            ffi::PyEval_SaveThread();
-        }
-    });
-}
-
-/// Executes the provided closure with an embedded Python interpreter.
-///
-/// This function initializes the Python interpreter, executes the provided closure, and then
-/// finalizes the Python interpreter.
-///
-/// After execution all Python resources are cleaned up, and no further Python APIs can be called.
-/// Because many Python modules implemented in C do not support multiple Python interpreters in a
-/// single process, it is not safe to call this function more than once. (Many such modules will not
-/// initialize correctly on the second run.)
-///
-/// # Panics
-/// - If the Python interpreter is already initialized before calling this function.
-///
-/// # Safety
-/// - This function should only ever be called once per process (usually as part of the `main`
-///   function). It is also not thread-safe.
-/// - No Python APIs can be used after this function has finished executing.
-/// - The return value of the closure must not contain any Python value, _including_ `PyResult`.
-///
-/// # Examples
-///
-/// ```rust
-/// unsafe {
-///     pyo3::with_embedded_python_interpreter(|py| {
-///         if let Err(e) = py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None) {
-///             // We must make sure to not return a `PyErr`!
-///             e.print(py);
-///         }
-///     });
-/// }
-/// ```
-#[cfg(not(any(PyPy, GraalPy)))]
-pub unsafe fn with_embedded_python_interpreter<F, R>(f: F) -> R
-where
-    F: for<'p> FnOnce(Python<'p>) -> R,
-{
-    assert_eq!(
-        unsafe { ffi::Py_IsInitialized() },
-        0,
-        "called `with_embedded_python_interpreter` but a Python interpreter is already running."
-    );
-
-    unsafe { ffi::Py_InitializeEx(0) };
-
-    let result = {
-        let guard = unsafe { GILGuard::assume() };
-        let py = guard.python();
-        // Import the threading module - this ensures that it will associate this thread as the "main"
-        // thread, which is important to avoid an `AssertionError` at finalization.
-        py.import("threading").unwrap();
-
-        // Execute the closure.
-        f(py)
-    };
-
-    // Finalize the Python interpreter.
-    unsafe { ffi::Py_Finalize() };
-
-    result
-}
-
-/// RAII type that represents the Global Interpreter Lock acquisition.
-pub(crate) enum GILGuard {
-    /// Indicates the GIL was already held with this GILGuard was acquired.
+/// RAII type that represents thread attachment to the interpreter.
+pub(crate) enum AttachGuard {
+    /// Indicates the thread was already attached with this AttachGuard was acquired.
     Assumed,
-    /// Indicates that we actually acquired the GIL when this GILGuard was acquired
+    /// Indicates that we attached when this AttachGuard was acquired
     Ensured { gstate: ffi::PyGILState_STATE },
 }
 
-impl GILGuard {
+impl AttachGuard {
     /// PyO3 internal API for acquiring the GIL. The public API is Python::attach.
     ///
     /// If the GIL was already acquired via PyO3, this returns
     /// `GILGuard::Assumed`. Otherwise, the GIL will be acquired and
     /// `GILGuard::Ensured` will be returned.
     pub(crate) fn acquire() -> Self {
-        if gil_is_acquired() {
+        if thread_is_attached() {
             // SAFETY: We just checked that the GIL is already acquired.
             return unsafe { Self::assume() };
         }
 
-        // Maybe auto-initialize the GIL:
-        //  - If auto-initialize feature set and supported, try to initialize the interpreter.
-        //  - If the auto-initialize feature is set but unsupported, emit hard errors only when the
-        //    extension-module feature is not activated - extension modules don't care about
-        //    auto-initialize so this avoids breaking existing builds.
-        //  - Otherwise, just check the GIL is initialized.
-        #[cfg(all(feature = "auto-initialize", not(any(PyPy, GraalPy))))]
-        {
-            prepare_freethreaded_python();
-        }
-        #[cfg(not(all(feature = "auto-initialize", not(any(PyPy, GraalPy)))))]
-        {
-            // This is a "hack" to make running `cargo test` for PyO3 convenient (i.e. no need
-            // to specify `--features auto-initialize` manually. Tests within the crate itself
-            // all depend on the auto-initialize feature for conciseness but Cargo does not
-            // provide a mechanism to specify required features for tests.
-            #[cfg(not(any(PyPy, GraalPy)))]
-            if option_env!("CARGO_PRIMARY_PACKAGE").is_some() {
-                prepare_freethreaded_python();
-            }
-
-            START.call_once_force(|_| unsafe {
-                // Use call_once_force because if there is a panic because the interpreter is
-                // not initialized, it's fine for the user to initialize the interpreter and
-                // retry.
-                assert_ne!(
-                    ffi::Py_IsInitialized(),
-                    0,
-                    "The Python interpreter is not initialized and the `auto-initialize` \
-                         feature is not enabled.\n\n\
-                         Consider calling `pyo3::prepare_freethreaded_python()` before attempting \
-                         to use Python APIs."
-                );
-            });
-        }
+        crate::interpreter_lifecycle::ensure_initialized();
 
         // SAFETY: We have ensured the Python interpreter is initialized.
         unsafe { Self::acquire_unchecked() }
@@ -201,24 +67,24 @@ impl GILGuard {
     /// checking performed by `GILGuard::acquire` may fail. This includes calling
     /// as part of multi-phase interpreter initialization.
     pub(crate) unsafe fn acquire_unchecked() -> Self {
-        if gil_is_acquired() {
+        if thread_is_attached() {
             return unsafe { Self::assume() };
         }
 
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
-        increment_gil_count();
+        increment_attach_count();
 
         #[cfg(not(pyo3_disable_reference_pool))]
         if let Some(pool) = POOL.get() {
             pool.update_counts(unsafe { Python::assume_gil_acquired() });
         }
-        GILGuard::Ensured { gstate }
+        AttachGuard::Ensured { gstate }
     }
 
     /// Acquires the `GILGuard` while assuming that the GIL is already held.
     pub(crate) unsafe fn assume() -> Self {
-        increment_gil_count();
-        let guard = GILGuard::Assumed;
+        increment_attach_count();
+        let guard = AttachGuard::Assumed;
         #[cfg(not(pyo3_disable_reference_pool))]
         if let Some(pool) = POOL.get() {
             pool.update_counts(guard.python());
@@ -234,16 +100,16 @@ impl GILGuard {
 }
 
 /// The Drop implementation for `GILGuard` will release the GIL.
-impl Drop for GILGuard {
+impl Drop for AttachGuard {
     fn drop(&mut self) {
         match self {
-            GILGuard::Assumed => {}
-            GILGuard::Ensured { gstate } => unsafe {
+            AttachGuard::Assumed => {}
+            AttachGuard::Ensured { gstate } => unsafe {
                 // Drop the objects in the pool before attempting to release the thread state
                 ffi::PyGILState_Release(*gstate);
             },
         }
-        decrement_gil_count();
+        decrement_attach_count();
     }
 }
 
@@ -297,24 +163,24 @@ fn get_pool() -> &'static ReferencePool {
     POOL.get_or_init(ReferencePool::new)
 }
 
-/// A guard which can be used to temporarily release the GIL and restore on `Drop`.
-pub(crate) struct SuspendGIL {
+/// A guard which can be used to temporarily release the interpreter and restore on `Drop`.
+pub(crate) struct SuspendAttach {
     count: isize,
     tstate: *mut ffi::PyThreadState,
 }
 
-impl SuspendGIL {
+impl SuspendAttach {
     pub(crate) unsafe fn new() -> Self {
-        let count = GIL_COUNT.with(|c| c.replace(0));
+        let count = ATTACH_COUNT.with(|c| c.replace(0));
         let tstate = unsafe { ffi::PyEval_SaveThread() };
 
         Self { count, tstate }
     }
 }
 
-impl Drop for SuspendGIL {
+impl Drop for SuspendAttach {
     fn drop(&mut self) {
-        GIL_COUNT.with(|c| c.set(self.count));
+        ATTACH_COUNT.with(|c| c.set(self.count));
         unsafe {
             ffi::PyEval_RestoreThread(self.tstate);
 
@@ -328,18 +194,18 @@ impl Drop for SuspendGIL {
 }
 
 /// Used to lock safe access to the GIL
-pub(crate) struct LockGIL {
+pub(crate) struct ForbidAttaching {
     count: isize,
 }
 
-impl LockGIL {
+impl ForbidAttaching {
     /// Lock access to the GIL while an implementation of `__traverse__` is running
     pub fn during_traverse() -> Self {
-        Self::new(GIL_LOCKED_DURING_TRAVERSE)
+        Self::new(ATTACH_FORBIDDEN_DURING_TRAVERSE)
     }
 
     fn new(reason: isize) -> Self {
-        let count = GIL_COUNT.with(|c| c.replace(reason));
+        let count = ATTACH_COUNT.with(|c| c.replace(reason));
 
         Self { count }
     }
@@ -347,7 +213,7 @@ impl LockGIL {
     #[cold]
     fn bail(current: isize) {
         match current {
-            GIL_LOCKED_DURING_TRAVERSE => panic!(
+            ATTACH_FORBIDDEN_DURING_TRAVERSE => panic!(
                 "Access to the GIL is prohibited while a __traverse__ implmentation is running."
             ),
             _ => panic!("Access to the GIL is currently prohibited."),
@@ -355,38 +221,38 @@ impl LockGIL {
     }
 }
 
-impl Drop for LockGIL {
+impl Drop for ForbidAttaching {
     fn drop(&mut self) {
-        GIL_COUNT.with(|c| c.set(self.count));
+        ATTACH_COUNT.with(|c| c.set(self.count));
     }
 }
 
-/// Increments the reference count of a Python object if the GIL is held. If
-/// the GIL is not held, this function will panic.
+/// Increments the reference count of a Python object if the thread is attached. If
+/// the thread is not attached, this function will panic.
 ///
 /// # Safety
 /// The object must be an owned Python reference.
 #[cfg(feature = "py-clone")]
 #[track_caller]
 pub unsafe fn register_incref(obj: NonNull<ffi::PyObject>) {
-    if gil_is_acquired() {
+    if thread_is_attached() {
         unsafe { ffi::Py_INCREF(obj.as_ptr()) }
     } else {
-        panic!("Cannot clone pointer into Python heap without the GIL being held.");
+        panic!("Cannot clone pointer into Python heap without the thread being attached.");
     }
 }
 
 /// Registers a Python object pointer inside the release pool, to have its reference count decreased
-/// the next time the GIL is acquired in pyo3.
+/// the next time the thread is attached in pyo3.
 ///
-/// If the GIL is held, the reference count will be decreased immediately instead of being queued
+/// If the thread is attached, the reference count will be decreased immediately instead of being queued
 /// for later.
 ///
 /// # Safety
 /// The object must be an owned Python reference.
 #[track_caller]
 pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
-    if gil_is_acquired() {
+    if thread_is_attached() {
         unsafe { ffi::Py_DECREF(obj.as_ptr()) }
     } else {
         #[cfg(not(pyo3_disable_reference_pool))]
@@ -397,29 +263,29 @@ pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
         ))]
         {
             let _trap = PanicTrap::new("Aborting the process to avoid panic-from-drop.");
-            panic!("Cannot drop pointer into Python heap without the GIL being held.");
+            panic!("Cannot drop pointer into Python heap without the thread being attached.");
         }
     }
 }
 
-/// Increments pyo3's internal GIL count - to be called whenever GILPool or GILGuard is created.
+/// Increments pyo3's internal attach count - to be called whenever an AttachGuard is created.
 #[inline(always)]
-fn increment_gil_count() {
+fn increment_attach_count() {
     // Ignores the error in case this function called from `atexit`.
-    let _ = GIL_COUNT.try_with(|c| {
+    let _ = ATTACH_COUNT.try_with(|c| {
         let current = c.get();
         if current < 0 {
-            LockGIL::bail(current);
+            ForbidAttaching::bail(current);
         }
         c.set(current + 1);
     });
 }
 
-/// Decrements pyo3's internal GIL count - to be called whenever GILPool or GILGuard is dropped.
+/// Decrements pyo3's internal attach count - to be called whenever AttachGuard is dropped.
 #[inline(always)]
-fn decrement_gil_count() {
+fn decrement_attach_count() {
     // Ignores the error in case this function called from `atexit`.
-    let _ = GIL_COUNT.try_with(|c| {
+    let _ = ATTACH_COUNT.try_with(|c| {
         let current = c.get();
         debug_assert!(
             current > 0,
@@ -431,11 +297,9 @@ fn decrement_gil_count() {
 
 #[cfg(test)]
 mod tests {
-    use super::GIL_COUNT;
-    #[cfg(not(pyo3_disable_reference_pool))]
-    use super::{get_pool, gil_is_acquired};
-    use crate::{ffi, PyObject, Python};
-    use crate::{gil::GILGuard, types::any::PyAnyMethods};
+    use super::*;
+
+    use crate::{ffi, types::PyAnyMethods, PyObject, Python};
     use std::ptr::NonNull;
 
     fn get_object(py: Python<'_>) -> PyObject {
@@ -523,16 +387,16 @@ mod tests {
     #[allow(deprecated)]
     fn test_gil_counts() {
         // Check `attach` and GILGuard both increase counts correctly
-        let get_gil_count = || GIL_COUNT.with(|c| c.get());
+        let get_gil_count = || ATTACH_COUNT.with(|c| c.get());
 
         assert_eq!(get_gil_count(), 0);
         Python::attach(|_| {
             assert_eq!(get_gil_count(), 1);
 
-            let pool = unsafe { GILGuard::assume() };
+            let pool = unsafe { AttachGuard::assume() };
             assert_eq!(get_gil_count(), 2);
 
-            let pool2 = unsafe { GILGuard::assume() };
+            let pool2 = unsafe { AttachGuard::assume() };
             assert_eq!(get_gil_count(), 3);
 
             drop(pool);
@@ -552,23 +416,23 @@ mod tests {
 
     #[test]
     fn test_detach() {
-        assert!(!gil_is_acquired());
+        assert!(!thread_is_attached());
 
         Python::attach(|py| {
-            assert!(gil_is_acquired());
+            assert!(thread_is_attached());
 
             py.detach(move || {
-                assert!(!gil_is_acquired());
+                assert!(!thread_is_attached());
 
-                Python::attach(|_| assert!(gil_is_acquired()));
+                Python::attach(|_| assert!(thread_is_attached()));
 
-                assert!(!gil_is_acquired());
+                assert!(!thread_is_attached());
             });
 
-            assert!(gil_is_acquired());
+            assert!(thread_is_attached());
         });
 
-        assert!(!gil_is_acquired());
+        assert!(!thread_is_attached());
     }
 
     #[cfg(feature = "py-clone")]
@@ -616,7 +480,6 @@ mod tests {
         // if the locking is implemented incorrectly, it will deadlock.
 
         use crate::ffi;
-        use crate::gil::GILGuard;
 
         Python::attach(|py| {
             let obj = get_object(py);
@@ -624,7 +487,7 @@ mod tests {
             unsafe extern "C" fn capsule_drop(capsule: *mut ffi::PyObject) {
                 // This line will implicitly call update_counts
                 // -> and so cause deadlock if update_counts is not handling recursion correctly.
-                let pool = unsafe { GILGuard::assume() };
+                let pool = unsafe { AttachGuard::assume() };
 
                 // Rebuild obj so that it can be dropped
                 unsafe {
@@ -650,8 +513,6 @@ mod tests {
     #[test]
     #[cfg(not(pyo3_disable_reference_pool))]
     fn test_gil_guard_update_counts() {
-        use crate::gil::GILGuard;
-
         Python::attach(|py| {
             let obj = get_object(py);
 
@@ -660,7 +521,7 @@ mod tests {
             get_pool().register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap());
             #[cfg(not(Py_GIL_DISABLED))]
             assert!(pool_dec_refs_contains(&obj));
-            let _guard = GILGuard::acquire();
+            let _guard = AttachGuard::acquire();
             assert!(pool_dec_refs_does_not_contain(&obj));
 
             // For GILGuard::assume
@@ -668,7 +529,7 @@ mod tests {
             get_pool().register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap());
             #[cfg(not(Py_GIL_DISABLED))]
             assert!(pool_dec_refs_contains(&obj));
-            let _guard2 = unsafe { GILGuard::assume() };
+            let _guard2 = unsafe { AttachGuard::assume() };
             assert!(pool_dec_refs_does_not_contain(&obj));
         })
     }
