@@ -126,16 +126,16 @@ fn test_pyref_as_base() {
         let cell = Bound::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
 
         // First try PyRefMut
-        let sub: PyRefMut<'_, SubClass> = cell.borrow_mut();
-        let mut base: PyRefMut<'_, BaseClass> = sub.into_super();
+        let sub: PyClassGuardMut<'_, SubClass> = cell.borrow_mut();
+        let mut base: PyClassGuardMut<'_, BaseClass> = sub.into_super();
         assert_eq!(120, base.value);
         base.value = 999;
         assert_eq!(999, base.value);
         drop(base);
 
         // Repeat for PyRef
-        let sub: PyRef<'_, SubClass> = cell.borrow();
-        let base: PyRef<'_, BaseClass> = sub.into_super();
+        let sub: PyClassGuard<'_, SubClass> = cell.borrow();
+        let base: PyClassGuard<'_, BaseClass> = sub.into_super();
         assert_eq!(999, base.value);
     });
 }

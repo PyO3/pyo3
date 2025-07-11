@@ -415,7 +415,7 @@ where
     T: PyClass,
 {
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
-        obj.downcast::<T>()?.try_borrow().map_err(Into::into)
+        PyRef::try_borrow(obj.downcast::<T>()?).map_err(Into::into)
     }
 }
 
@@ -424,7 +424,7 @@ where
     T: PyClass<Frozen = False>,
 {
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
-        obj.downcast::<T>()?.try_borrow_mut().map_err(Into::into)
+        PyRefMut::try_borrow(obj.downcast::<T>()?).map_err(Into::into)
     }
 }
 
