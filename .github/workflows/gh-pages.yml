@@ -30,7 +30,15 @@ jobs:
       - name: Setup mdBook
         uses: taiki-e/install-action@v2
         with:
-          tool: mdbook,mdbook-tabs,lychee
+          tool: mdbook,mdbook-tabs
+
+      - name: Link Checker
+        id: lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # setup lychee but don't run it for now
+          args: --version
+          lycheeVersion: nightly
 
       - name: Prepare tag
         id: prepare_tag
