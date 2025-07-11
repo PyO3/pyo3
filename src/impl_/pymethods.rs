@@ -10,8 +10,9 @@ use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
 use crate::{
-    ffi, Bound, DowncastError, Py, PyAny, PyClass, PyClassInitializer, PyErr, PyObject, PyRef,
-    PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
+    ffi, Bound, DowncastError, Py, PyAny, PyClass, PyClassGuard, PyClassGuardMut,
+    PyClassInitializer, PyErr, PyObject, PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck,
+    PyVisit, Python,
 };
 use std::ffi::CStr;
 use std::fmt;
@@ -654,11 +655,27 @@ impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
     }
 }
 
+impl<'a, 'py, T: PyClass> TryFrom<BoundRef<'a, 'py, T>> for PyClassGuard<'a, T> {
+    type Error = PyBorrowError;
+    #[inline]
+    fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
+        PyClassGuard::try_borrow(value.0.as_unbound())
+    }
+}
+
+impl<'a, 'py, T: PyClass<Frozen = False>> TryFrom<BoundRef<'a, 'py, T>> for PyClassGuardMut<'a, T> {
+    type Error = PyBorrowMutError;
+    #[inline]
+    fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
+        PyClassGuardMut::try_borrow_mut(value.0.as_unbound())
+    }
+}
+
 impl<'a, 'py, T: PyClass> TryFrom<BoundRef<'a, 'py, T>> for PyRef<'py, T> {
     type Error = PyBorrowError;
     #[inline]
     fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
-        value.0.try_borrow()
+        PyRef::try_borrow(value.0)
     }
 }
 
@@ -666,7 +683,7 @@ impl<'a, 'py, T: PyClass<Frozen = False>> TryFrom<BoundRef<'a, 'py, T>> for PyRe
     type Error = PyBorrowMutError;
     #[inline]
     fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
-        value.0.try_borrow_mut()
+        PyRefMut::try_borrow(value.0)
     }
 }
 
