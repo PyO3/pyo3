@@ -416,8 +416,6 @@ impl Python<'_> {
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
         let guard = AttachGuard::acquire();
-
-        // SAFETY: Either the GIL was already acquired or we just created a new `GILGuard`.
         f(guard.python())
     }
 

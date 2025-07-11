@@ -24,12 +24,12 @@ std::thread_local! {
 
 const ATTACH_FORBIDDEN_DURING_TRAVERSE: isize = -1;
 
-/// Checks whether the GIL is acquired.
+/// Checks whether the thread is attached to the Python interpreter.
 ///
 /// Note: This uses pyo3's internal count rather than PyGILState_Check for two reasons:
 ///  1) for performance
 ///  2) PyGILState_Check always returns 1 if the sub-interpreter APIs have ever been called,
-///     which could lead to incorrect conclusions that the GIL is held.
+///     which could lead to incorrect conclusions that the thread is attached.
 #[inline(always)]
 fn thread_is_attached() -> bool {
     ATTACH_COUNT.try_with(|c| c.get() > 0).unwrap_or(false)
@@ -44,14 +44,14 @@ pub(crate) enum AttachGuard {
 }
 
 impl AttachGuard {
-    /// PyO3 internal API for acquiring the GIL. The public API is Python::attach.
+    /// PyO3 internal API for attaching to the Python interpreter. The public API is Python::attach.
     ///
-    /// If the GIL was already acquired via PyO3, this returns
-    /// `GILGuard::Assumed`. Otherwise, the GIL will be acquired and
-    /// `GILGuard::Ensured` will be returned.
+    /// If the thread was already attached via PyO3, this returns
+    /// `AttachGuard::Assumed`. Otherwise, the thread will attach now and
+    /// `AttachGuard::Ensured` will be returned.
     pub(crate) fn acquire() -> Self {
         if thread_is_attached() {
-            // SAFETY: We just checked that the GIL is already acquired.
+            // SAFETY: We just checked that the thread is already attached.
             return unsafe { Self::assume() };
         }
 
@@ -61,17 +61,23 @@ impl AttachGuard {
         unsafe { Self::acquire_unchecked() }
     }
 
-    /// Acquires the `GILGuard` without performing any state checking.
+    /// Acquires the `AttachGuard` without performing any state checking.
     ///
     /// This can be called in "unsafe" contexts where the normal interpreter state
-    /// checking performed by `GILGuard::acquire` may fail. This includes calling
+    /// checking performed by `AttachGuard::acquire` may fail. This includes calling
     /// as part of multi-phase interpreter initialization.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the Python interpreter is sufficiently initialized
+    /// for a thread to be able to attach to it.
     pub(crate) unsafe fn acquire_unchecked() -> Self {
         if thread_is_attached() {
             return unsafe { Self::assume() };
         }
 
-        let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
+        // SAFETY: interpreter is sufficiently initialized to attach a thread.
+        let gstate = unsafe { ffi::PyGILState_Ensure() };
         increment_attach_count();
 
         #[cfg(not(pyo3_disable_reference_pool))]
@@ -81,7 +87,8 @@ impl AttachGuard {
         AttachGuard::Ensured { gstate }
     }
 
-    /// Acquires the `GILGuard` while assuming that the GIL is already held.
+    /// Acquires the `AttachGuard` while assuming that the thread is already attached
+    /// to the interpreter.
     pub(crate) unsafe fn assume() -> Self {
         increment_attach_count();
         let guard = AttachGuard::Assumed;
@@ -92,14 +99,14 @@ impl AttachGuard {
         guard
     }
 
-    /// Gets the Python token associated with this [`GILGuard`].
+    /// Gets the Python token associated with this [`AttachGuard`].
     #[inline]
     pub fn python(&self) -> Python<'_> {
         unsafe { Python::assume_gil_acquired() }
     }
 }
 
-/// The Drop implementation for `GILGuard` will release the GIL.
+/// The Drop implementation for `AttachGuard` will decrement the attach count (and potentially detach).
 impl Drop for AttachGuard {
     fn drop(&mut self) {
         match self {
@@ -117,7 +124,7 @@ impl Drop for AttachGuard {
 type PyObjVec = Vec<NonNull<ffi::PyObject>>;
 
 #[cfg(not(pyo3_disable_reference_pool))]
-/// Thread-safe storage for objects which were dec_ref while the GIL was not held.
+/// Thread-safe storage for objects which were dec_ref while not attached.
 struct ReferencePool {
     pending_decrefs: sync::Mutex<PyObjVec>,
 }
@@ -184,7 +191,7 @@ impl Drop for SuspendAttach {
         unsafe {
             ffi::PyEval_RestoreThread(self.tstate);
 
-            // Update counts of PyObjects / Py that were cloned or dropped while the GIL was released.
+            // Update counts of PyObjects / Py that were cloned or dropped while not attached.
             #[cfg(not(pyo3_disable_reference_pool))]
             if let Some(pool) = POOL.get() {
                 pool.update_counts(Python::assume_gil_acquired());
@@ -199,7 +206,7 @@ pub(crate) struct ForbidAttaching {
 }
 
 impl ForbidAttaching {
-    /// Lock access to the GIL while an implementation of `__traverse__` is running
+    /// Lock access to the interpreter while an implementation of `__traverse__` is running
     pub fn during_traverse() -> Self {
         Self::new(ATTACH_FORBIDDEN_DURING_TRAVERSE)
     }
@@ -214,9 +221,9 @@ impl ForbidAttaching {
     fn bail(current: isize) {
         match current {
             ATTACH_FORBIDDEN_DURING_TRAVERSE => panic!(
-                "Access to the GIL is prohibited while a __traverse__ implmentation is running."
+                "Attaching a thread to the interpreter is prohibited while a __traverse__ implmentation is running."
             ),
-            _ => panic!("Access to the GIL is currently prohibited."),
+            _ => panic!("Attaching a thread to the interpreter is currently prohibited."),
         }
     }
 }
@@ -289,7 +296,7 @@ fn decrement_attach_count() {
         let current = c.get();
         debug_assert!(
             current > 0,
-            "Negative GIL count detected. Please report this error to the PyO3 repo as a bug."
+            "Negative attach count detected. Please report this error to the PyO3 repo as a bug."
         );
         c.set(current - 1);
     });
@@ -317,7 +324,7 @@ mod tests {
             .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
     }
 
-    // with no GIL, threads can empty the POOL at any time, so this
+    // With free-threading, threads can empty the POOL at any time, so this
     // function does not test anything meaningful
     #[cfg(not(any(pyo3_disable_reference_pool, Py_GIL_DISABLED)))]
     fn pool_dec_refs_contains(obj: &PyObject) -> bool {
@@ -329,18 +336,18 @@ mod tests {
     }
 
     #[test]
-    fn test_pyobject_drop_with_gil_decreases_refcnt() {
+    fn test_pyobject_drop_attached_decreases_refcnt() {
         Python::attach(|py| {
             let obj = get_object(py);
 
-            // Create a reference to drop with the GIL.
+            // Create a reference to drop while attached.
             let reference = obj.clone_ref(py);
 
             assert_eq!(obj.get_refcnt(py), 2);
             #[cfg(not(pyo3_disable_reference_pool))]
             assert!(pool_dec_refs_does_not_contain(&obj));
 
-            // With the GIL held, reference count will be decreased immediately.
+            // While attached, reference count will be decreased immediately.
             drop(reference);
 
             assert_eq!(obj.get_refcnt(py), 1);
@@ -351,30 +358,30 @@ mod tests {
 
     #[test]
     #[cfg(all(not(pyo3_disable_reference_pool), not(target_arch = "wasm32")))] // We are building wasm Python with pthreads disabled
-    fn test_pyobject_drop_without_gil_doesnt_decrease_refcnt() {
+    fn test_pyobject_drop_detached_doesnt_decrease_refcnt() {
         let obj = Python::attach(|py| {
             let obj = get_object(py);
-            // Create a reference to drop without the GIL.
+            // Create a reference to drop while detached.
             let reference = obj.clone_ref(py);
 
             assert_eq!(obj.get_refcnt(py), 2);
             assert!(pool_dec_refs_does_not_contain(&obj));
 
-            // Drop reference in a separate thread which doesn't have the GIL.
+            // Drop reference in a separate (detached) thread.
             std::thread::spawn(move || drop(reference)).join().unwrap();
 
-            // The reference count should not have changed (the GIL has always
-            // been held by this thread), it is remembered to release later.
+            // The reference count should not have changed, it is remembered
+            // to release later.
             assert_eq!(obj.get_refcnt(py), 2);
             #[cfg(not(Py_GIL_DISABLED))]
             assert!(pool_dec_refs_contains(&obj));
             obj
         });
 
-        // Next time the GIL is acquired, the reference is released
+        // On next attach, the reference is released
         #[allow(unused)]
         Python::attach(|py| {
-            // with no GIL, another thread could still be processing
+            // With free-threading, another thread could still be processing
             // DECREFs after releasing the lock on the POOL, so the
             // refcnt could still be 2 when this assert happens
             #[cfg(not(Py_GIL_DISABLED))]
@@ -385,33 +392,33 @@ mod tests {
 
     #[test]
     #[allow(deprecated)]
-    fn test_gil_counts() {
-        // Check `attach` and GILGuard both increase counts correctly
-        let get_gil_count = || ATTACH_COUNT.with(|c| c.get());
+    fn test_attach_counts() {
+        // Check `attach` and AttachGuard both increase counts correctly
+        let get_attach_count = || ATTACH_COUNT.with(|c| c.get());
 
-        assert_eq!(get_gil_count(), 0);
+        assert_eq!(get_attach_count(), 0);
         Python::attach(|_| {
-            assert_eq!(get_gil_count(), 1);
+            assert_eq!(get_attach_count(), 1);
 
             let pool = unsafe { AttachGuard::assume() };
-            assert_eq!(get_gil_count(), 2);
+            assert_eq!(get_attach_count(), 2);
 
             let pool2 = unsafe { AttachGuard::assume() };
-            assert_eq!(get_gil_count(), 3);
+            assert_eq!(get_attach_count(), 3);
 
             drop(pool);
-            assert_eq!(get_gil_count(), 2);
+            assert_eq!(get_attach_count(), 2);
 
             Python::attach(|_| {
-                // nested `attach` updates gil count
-                assert_eq!(get_gil_count(), 3);
+                // nested `attach` updates attach count
+                assert_eq!(get_attach_count(), 3);
             });
-            assert_eq!(get_gil_count(), 2);
+            assert_eq!(get_attach_count(), 2);
 
             drop(pool2);
-            assert_eq!(get_gil_count(), 1);
+            assert_eq!(get_attach_count(), 1);
         });
-        assert_eq!(get_gil_count(), 0);
+        assert_eq!(get_attach_count(), 0);
     }
 
     #[test]
@@ -443,30 +450,27 @@ mod tests {
             // Make a simple object with 1 reference
             let obj = get_object(py);
             assert!(obj.get_refcnt(py) == 1);
-            // Clone the object without the GIL which should panic
+            // Cloning the object when detached should panic
             py.detach(|| obj.clone());
         });
     }
 
     #[test]
-    fn dropping_gil_does_not_invalidate_references() {
-        // Acquiring GIL for the second time should be safe - see #864
+    fn recursive_attach_ok() {
         Python::attach(|py| {
             let obj = Python::attach(|_| py.eval(ffi::c_str!("object()"), None, None).unwrap());
-
-            // After gil2 drops, obj should still have a reference count of one
             assert_eq!(obj.get_refcnt(), 1);
         })
     }
 
     #[cfg(feature = "py-clone")]
     #[test]
-    fn test_clone_with_gil() {
+    fn test_clone_attached() {
         Python::attach(|py| {
             let obj = get_object(py);
             let count = obj.get_refcnt(py);
 
-            // Cloning with the GIL should increase reference count immediately
+            // Cloning when attached should increase reference count immediately
             #[allow(clippy::redundant_clone)]
             let c = obj.clone();
             assert_eq!(count + 1, c.get_refcnt(py));
@@ -512,11 +516,11 @@ mod tests {
 
     #[test]
     #[cfg(not(pyo3_disable_reference_pool))]
-    fn test_gil_guard_update_counts() {
+    fn test_attach_guard_update_counts() {
         Python::attach(|py| {
             let obj = get_object(py);
 
-            // For GILGuard::acquire
+            // For AttachGuard::acquire
 
             get_pool().register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap());
             #[cfg(not(Py_GIL_DISABLED))]
@@ -524,7 +528,7 @@ mod tests {
             let _guard = AttachGuard::acquire();
             assert!(pool_dec_refs_does_not_contain(&obj));
 
-            // For GILGuard::assume
+            // For AttachGuard::assume
 
             get_pool().register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap());
             #[cfg(not(Py_GIL_DISABLED))]
