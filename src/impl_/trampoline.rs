@@ -222,7 +222,7 @@ where
 /// # Safety
 ///
 /// - ctx must be either a valid ffi::PyObject or NULL
-/// - The GIL must already be held when this is called.
+/// - The thread must be attached to the interpreter when this is called.
 #[inline]
 unsafe fn trampoline_unraisable<F>(body: F, ctx: *mut ffi::PyObject)
 where
@@ -230,7 +230,7 @@ where
 {
     let trap = PanicTrap::new("uncaught panic at ffi boundary");
 
-    // SAFETY: The GIL is already held.
+    // SAFETY: Thread is known to be attached.
     let guard = unsafe { AttachGuard::assume() };
     let py = guard.python();
 
