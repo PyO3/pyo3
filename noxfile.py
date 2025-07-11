@@ -509,8 +509,8 @@ def check_guide(session: nox.Session):
         "(https://github.com/[^/]+/[^/]+/blob/[^#]+)#[a-zA-Z0-9._-]*": "$1",
         # issue comments
         "(https://github.com/[^/]+/[^/]+/issues/[0-9]+)#issuecomment-[0-9]*": "$1",
-        # parking-lot docs
-        "(https://docs.rs/parking_lot/[^#]+)#[a-zA-Z0-9._-]*": "$1",
+        # rust docs
+        "(https://docs.rs/[^#]+)#[a-zA-Z0-9._-]*": "$1",
     }
     remap_args = []
     for key, value in remaps.items():
