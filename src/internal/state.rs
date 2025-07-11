@@ -191,7 +191,7 @@ impl Drop for SuspendAttach {
         unsafe {
             ffi::PyEval_RestoreThread(self.tstate);
 
-            // Update counts of PyObjects / Py that were cloned or dropped while not attached.
+            // Update counts of `Py<T>` that were dropped while not attached.
             #[cfg(not(pyo3_disable_reference_pool))]
             if let Some(pool) = POOL.get() {
                 pool.update_counts(Python::assume_gil_acquired());
@@ -221,7 +221,7 @@ impl ForbidAttaching {
     fn bail(current: isize) {
         match current {
             ATTACH_FORBIDDEN_DURING_TRAVERSE => panic!(
-                "Attaching a thread to the interpreter is prohibited while a __traverse__ implmentation is running."
+                "Attaching a thread to the interpreter is prohibited while a __traverse__ implementation is running."
             ),
             _ => panic!("Attaching a thread to the interpreter is currently prohibited."),
         }
