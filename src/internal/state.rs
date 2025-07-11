@@ -163,7 +163,7 @@ fn get_pool() -> &'static ReferencePool {
     POOL.get_or_init(ReferencePool::new)
 }
 
-/// A guard which can be used to temporarily release the interpreter and restore on `Drop`.
+/// A guard which can be used to temporarily detach from the interpreter and restore on `Drop`.
 pub(crate) struct SuspendAttach {
     count: isize,
     tstate: *mut ffi::PyThreadState,
@@ -193,7 +193,7 @@ impl Drop for SuspendAttach {
     }
 }
 
-/// Used to lock safe access to the GIL
+/// Used to lock safe access to the interpreter
 pub(crate) struct ForbidAttaching {
     count: isize,
 }
