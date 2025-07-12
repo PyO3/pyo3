@@ -19,7 +19,6 @@ use std::{
     marker::PhantomData,
     os::raw::{c_int, c_void},
     ptr,
-    ptr::NonNull,
     sync::Mutex,
     thread,
 };
@@ -425,7 +424,7 @@ macro_rules! define_pyclass_setattr_slot {
                 _py: Python<'_>,
                 _slf: *mut ffi::PyObject,
                 _attr: *mut ffi::PyObject,
-                _value: NonNull<ffi::PyObject>,
+                _value: *mut ffi::PyObject,
             ) -> PyResult<()> {
                 $set_error
             }
@@ -466,7 +465,7 @@ macro_rules! define_pyclass_setattr_slot {
                                 use $crate::impl_::pyclass::*;
                                 let collector = PyClassImplCollector::<$cls>::new();
                                 if let Some(value) = ::std::ptr::NonNull::new(value) {
-                                    collector.$set(py, _slf, attr, value).convert(py)
+                                    collector.$set(py, _slf, attr, value.as_ptr()).convert(py)
                                 } else {
                                     collector.$del(py, _slf, attr).convert(py)
                                 }
