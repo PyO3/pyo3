@@ -206,6 +206,27 @@ where
     /// # });
     /// ```
     pub fn into_super(self) -> PyClassGuard<'a, U> {
+        let t_not_frozen = !<T::Frozen as crate::pyclass::boolean_struct::private::Boolean>::VALUE;
+        let u_frozen = <U::Frozen as crate::pyclass::boolean_struct::private::Boolean>::VALUE;
+        if t_not_frozen && u_frozen {
+            // If `T` is a mutable subclass of a frozen `U` base, then it is possible that we need
+            // to release the borrow count now. (e.g. `U` may have a noop borrow checker so dropping
+            // the `PyRef<U>` later would noop and leak the borrow we currently hold.)
+            //
+            // However it's nontrivial, if `U` is frozen but itself has a mutable base class `V`,
+            // then the borrow checker of both `T` and `U` is the shared borrow checker of `V`.
+            //
+            // But it's really hard to prove that in the type system, the soundest thing we can do
+            // is just add a borrow to `U` now and then release the borrow of `T`.
+
+            self.as_super()
+                .as_class_object()
+                .borrow_checker()
+                .try_borrow()
+                .expect("this object is already borrowed");
+
+            self.as_class_object().borrow_checker().release_borrow()
+        };
         PyClassGuard {
             ptr: std::mem::ManuallyDrop::new(self).ptr,
             marker: PhantomData,
@@ -524,6 +545,8 @@ where
     ///
     /// See [`PyClassGuard::into_super`] for more.
     pub fn into_super(self) -> PyClassGuardMut<'a, U> {
+        // `PyClassGuardMut` is only available for non-frozen classes, so there
+        // is no possibility of leaking borrows like `PyClassGuard`
         PyClassGuardMut {
             ptr: std::mem::ManuallyDrop::new(self).ptr,
             marker: PhantomData,
@@ -602,6 +625,68 @@ unsafe impl<T: PyClass<Frozen = False> + Sync> Sync for PyClassGuardMut<'_, T> {
 mod tests {
     use super::{PyClassGuard, PyClassGuardMut};
     use crate::{types::PyAnyMethods as _, IntoPyObject as _, Py, PyErr, Python};
+
+    #[test]
+    fn test_into_frozen_super_released_borrow() {
+        #[crate::pyclass]
+        #[pyo3(crate = "crate", subclass, frozen)]
+        struct BaseClass {}
+
+        #[crate::pyclass]
+        #[pyo3(crate = "crate", extends=BaseClass, subclass)]
+        struct SubClass {}
+
+        #[crate::pymethods]
+        #[pyo3(crate = "crate")]
+        impl SubClass {
+            #[new]
+            fn new(py: Python<'_>) -> Py<SubClass> {
+                let init = crate::PyClassInitializer::from(BaseClass {}).add_subclass(SubClass {});
+                Py::new(py, init).expect("allocation error")
+            }
+        }
+
+        Python::attach(|py| {
+            let obj = SubClass::new(py);
+            drop(PyClassGuard::try_borrow(&obj).unwrap().into_super());
+            assert!(PyClassGuardMut::try_borrow_mut(&obj).is_ok());
+        })
+    }
+
+    #[test]
+    fn test_into_frozen_super_mutable_base_holds_borrow() {
+        #[crate::pyclass]
+        #[pyo3(crate = "crate", subclass)]
+        struct BaseClass {}
+
+        #[crate::pyclass]
+        #[pyo3(crate = "crate", extends=BaseClass, subclass, frozen)]
+        struct SubClass {}
+
+        #[crate::pyclass]
+        #[pyo3(crate = "crate", extends=SubClass, subclass)]
+        struct SubSubClass {}
+
+        #[crate::pymethods]
+        #[pyo3(crate = "crate")]
+        impl SubSubClass {
+            #[new]
+            fn new(py: Python<'_>) -> Py<SubSubClass> {
+                let init = crate::PyClassInitializer::from(BaseClass {})
+                    .add_subclass(SubClass {})
+                    .add_subclass(SubSubClass {});
+                Py::new(py, init).expect("allocation error")
+            }
+        }
+
+        Python::attach(|py| {
+            let obj = SubSubClass::new(py);
+            let _super_borrow = PyClassGuard::try_borrow(&obj).unwrap().into_super();
+            // the whole object still has an immutable borrow, so we cannot
+            // borrow any part mutably (the borrowflag is shared)
+            assert!(PyClassGuardMut::try_borrow_mut(&obj).is_err());
+        })
+    }
 
     #[crate::pyclass]
     #[pyo3(crate = "crate", subclass)]
