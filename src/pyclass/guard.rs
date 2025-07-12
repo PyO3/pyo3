@@ -197,9 +197,19 @@ where
     /// # });
     /// ```
     pub fn into_super(self) -> PyClassGuard<'a, U> {
+        let inner = if <U::Frozen as crate::pyclass::boolean_struct::private::Boolean>::VALUE {
+            // Frozen classes to not participate in borrow checking. We need to
+            // release the borrow here, because the BASE does not need it and so
+            // will also not release it, causing it to be leaked otherwise.
+            self.inner
+        } else {
+            // Non-frozen classes need to keep the borrow, it will be released
+            // on drop of the new guard
+            std::mem::ManuallyDrop::new(self).inner
+        };
         PyClassGuard {
             // SAFETY: `Py<T>` and `Py<U>` have the same layout
-            inner: unsafe { &*ptr_from_ref(std::mem::ManuallyDrop::new(self).inner).cast() },
+            inner: unsafe { &*ptr_from_ref(inner).cast() },
         }
     }
 }
@@ -483,6 +493,8 @@ where
     ///
     /// See [`PyClassGuard::into_super`] for more.
     pub fn into_super(self) -> PyClassGuardMut<'a, U> {
+        // `PyClassGuardMut` is only available for non-frozen classes, so there
+        // is no possibility of leaking borrows like `PyClassGuard`
         PyClassGuardMut {
             // SAFETY: `Py<T>` and `Py<U>` have the same layout
             inner: unsafe { &*ptr_from_ref(std::mem::ManuallyDrop::new(self).inner).cast() },
@@ -544,6 +556,33 @@ impl<T: PyClass<Frozen = False>> Drop for PyClassGuardMut<'_, T> {
 mod tests {
     use super::{PyClassGuard, PyClassGuardMut};
     use crate::{types::PyAnyMethods, IntoPyObject, Py, PyErr, Python};
+
+    #[test]
+    fn test_into_frozen_super_released_borrow() {
+        #[crate::pyclass]
+        #[pyo3(crate = "crate", subclass, frozen)]
+        struct BaseClass {}
+
+        #[crate::pyclass]
+        #[pyo3(crate = "crate", extends=BaseClass, subclass)]
+        struct SubClass {}
+
+        #[crate::pymethods]
+        #[pyo3(crate = "crate")]
+        impl SubClass {
+            #[new]
+            fn new(py: Python<'_>) -> Py<SubClass> {
+                let init = crate::PyClassInitializer::from(BaseClass {}).add_subclass(SubClass {});
+                Py::new(py, init).expect("allocation error")
+            }
+        }
+
+        Python::attach(|py| {
+            let obj = SubClass::new(py).into_bound(py);
+            drop(obj.borrow().into_super());
+            assert!(obj.try_borrow_mut().is_ok());
+        })
+    }
 
     #[crate::pyclass]
     #[pyo3(crate = "crate", subclass)]
