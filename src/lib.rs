@@ -348,7 +348,7 @@ pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpret
 pub use crate::instance::{Borrowed, Bound, BoundObject, Py, PyObject};
 pub use crate::marker::Python;
 pub use crate::pycell::{PyRef, PyRefMut};
-pub use crate::pyclass::PyClass;
+pub use crate::pyclass::{PyClass, PyClassGuard, PyClassGuardMut};
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::type_object::{PyTypeCheck, PyTypeInfo};
 pub use crate::types::PyAny;
