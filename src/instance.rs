@@ -703,6 +703,13 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
     pub(crate) fn to_any(self) -> Borrowed<'a, 'py, PyAny> {
         Borrowed(self.0, PhantomData, self.2)
     }
+
+    pub(crate) fn as_unbound(&self) -> &'a Py<T> {
+        // SAFETY:
+        // - `NonNull<ffi::PyObject>` and `Py<T>` are layout compatible => it is allowed to cast `&NonNull<ffi::PyObject>` to `&Py<T>`
+        // - the ptr (`self.0`) is guaranteed to be valid for at least `'a`
+        unsafe { &*ptr_from_ref(&self.0).cast() }
+    }
 }
 
 impl<'a, 'py> Borrowed<'a, 'py, PyAny> {

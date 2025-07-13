@@ -80,39 +80,6 @@ where
     }
 }
 
-// FIXME(icxolu): It currently seems hard to implement `FromPyObjectBound` for
-// `PyClassGuard(Mut)` instead, because there is no simple way to get a &Py<T>
-// from a `Borrowed<T>` (double indirection vs single indirection)
-impl<'a, 'holder, 'py, T> PyFunctionArgument<'a, 'holder, 'py, false> for PyClassGuard<'a, T>
-where
-    T: PyClass,
-{
-    type Holder = ();
-
-    #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "typing.Any";
-
-    #[inline]
-    fn extract(obj: &'a Bound<'py, PyAny>, _: &'holder mut ()) -> PyResult<Self> {
-        PyClassGuard::try_borrow(obj.downcast()?.as_unbound()).map_err(Into::into)
-    }
-}
-
-impl<'a, 'holder, 'py, T> PyFunctionArgument<'a, 'holder, 'py, false> for PyClassGuardMut<'a, T>
-where
-    T: PyClass<Frozen = False>,
-{
-    type Holder = ();
-
-    #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "typing.Any";
-
-    #[inline]
-    fn extract(obj: &'a Bound<'py, PyAny>, _: &'holder mut ()) -> PyResult<Self> {
-        PyClassGuardMut::try_borrow_mut(obj.downcast()?.as_unbound()).map_err(Into::into)
-    }
-}
-
 #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
 impl<'a, 'holder> PyFunctionArgument<'a, 'holder, '_, false> for &'holder str {
     type Holder = Option<std::borrow::Cow<'a, str>>;
