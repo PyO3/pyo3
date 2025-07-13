@@ -3,7 +3,8 @@ use crate::internal_tricks::{ptr_from_mut, ptr_from_ref};
 use crate::pycell::PyBorrowMutError;
 use crate::pycell::{impl_::PyClassBorrowChecker, PyBorrowError};
 use crate::pyclass::boolean_struct::False;
-use crate::{Py, PyClass};
+use crate::{Borrowed, IntoPyObject, Py, PyClass};
+use std::convert::Infallible;
 use std::ops::{Deref, DerefMut};
 
 /// A wrapper type for an immutably borrowed value from a `PyClass`.
@@ -232,6 +233,28 @@ impl<T: PyClass> Deref for PyClassGuard<'_, T> {
     #[inline]
     fn deref(&self) -> &T {
         unsafe { &*self.inner.get_class_object().get_ptr() }
+    }
+}
+
+impl<'a, 'py, T: PyClass> IntoPyObject<'py> for PyClassGuard<'a, T> {
+    type Target = T;
+    type Output = Borrowed<'a, 'py, T>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
+        (&self).into_pyobject(py)
+    }
+}
+
+impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &PyClassGuard<'a, T> {
+    type Target = T;
+    type Output = Borrowed<'a, 'py, T>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self.inner.bind_borrowed(py))
     }
 }
 
@@ -541,6 +564,28 @@ impl<T: PyClass<Frozen = False>> DerefMut for PyClassGuardMut<'_, T> {
     }
 }
 
+impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for PyClassGuardMut<'a, T> {
+    type Target = T;
+    type Output = Borrowed<'a, 'py, T>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
+        (&self).into_pyobject(py)
+    }
+}
+
+impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &PyClassGuardMut<'a, T> {
+    type Target = T;
+    type Output = Borrowed<'a, 'py, T>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self.inner.bind_borrowed(py))
+    }
+}
+
 impl<T: PyClass<Frozen = False>> Drop for PyClassGuardMut<'_, T> {
     /// Releases the mutable borrow
     fn drop(&mut self) {
@@ -627,6 +672,33 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_pyclassguard_into_pyobject() {
+        Python::attach(|py| {
+            let class = Py::new(py, BaseClass { val1: 42 })?;
+            let guard = class.borrow(py);
+            let new_ref = (&guard).into_pyobject(py)?;
+            assert!(new_ref.is(&class));
+            let new = guard.into_pyobject(py)?;
+            assert!(new.is(&class));
+            Ok::<_, PyErr>(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn test_pyclassguardmut_into_pyobject() {
+        Python::attach(|py| {
+            let class = Py::new(py, BaseClass { val1: 42 })?;
+            let guard = class.borrow_mut(py);
+            let new_ref = (&guard).into_pyobject(py)?;
+            assert!(new_ref.is(&class));
+            let new = guard.into_pyobject(py)?;
+            assert!(new.is(&class));
+            Ok::<_, PyErr>(())
+        })
+        .unwrap();
+    }
     #[test]
     fn test_pyclassguard_as_super() {
         Python::attach(|py| {
