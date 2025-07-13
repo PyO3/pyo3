@@ -1,3 +1,4 @@
+use crate::conversion::FromPyObjectBound;
 use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout as _};
 use crate::pycell::PyBorrowMutError;
 use crate::pycell::{impl_::PyClassBorrowChecker, PyBorrowError};
@@ -220,6 +221,12 @@ impl<T: PyClass> Deref for PyClassGuard<'_, T> {
         // SAFETY: `PyClassObject<T>` constains a valid `T`, by construction no
         // mutable alias is enforced
         unsafe { &*self.as_class_object().get_ptr().cast_const() }
+    }
+}
+
+impl<'a, 'py, T: PyClass> FromPyObjectBound<'a, 'py> for PyClassGuard<'a, T> {
+    fn from_py_object_bound(obj: Borrowed<'a, 'py, crate::PyAny>) -> crate::PyResult<Self> {
+        Self::try_from_class_object(obj.downcast()?.get_class_object()).map_err(Into::into)
     }
 }
 
@@ -534,6 +541,12 @@ impl<T: PyClass<Frozen = False>> DerefMut for PyClassGuardMut<'_, T> {
     }
 }
 
+impl<'a, 'py, T: PyClass<Frozen = False>> FromPyObjectBound<'a, 'py> for PyClassGuardMut<'a, T> {
+    fn from_py_object_bound(obj: Borrowed<'a, 'py, crate::PyAny>) -> crate::PyResult<Self> {
+        Self::try_from_class_object(obj.downcast()?.get_class_object()).map_err(Into::into)
+    }
+}
+
 impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for PyClassGuardMut<'a, T> {
     type Target = T;
     type Output = Borrowed<'a, 'py, T>;
@@ -612,6 +625,22 @@ mod tests {
             self_.as_super().val2 *= 2;
             self_.val3 *= 2;
         }
+
+        fn __add__<'a>(
+            mut slf: PyClassGuardMut<'a, Self>,
+            other: PyClassGuard<'a, Self>,
+        ) -> PyClassGuardMut<'a, Self> {
+            slf.val3 += other.val3;
+            slf
+        }
+
+        fn __rsub__<'a>(
+            slf: PyClassGuard<'a, Self>,
+            mut other: PyClassGuardMut<'a, Self>,
+        ) -> PyClassGuardMut<'a, Self> {
+            other.val3 -= slf.val3;
+            other
+        }
     }
 
     #[test]
@@ -677,6 +706,15 @@ mod tests {
                 SubSubClass::get_values(PyClassGuard::try_borrow(obj.as_unbound()).unwrap()),
                 (10, 20, 30)
             );
+        });
+    }
+
+    #[test]
+    fn test_extract_guard() {
+        Python::attach(|py| {
+            let obj1 = SubSubClass::new(py);
+            let obj2 = SubSubClass::new(py);
+            crate::py_run!(py, obj1 obj2, "assert ((obj1 + obj2) - obj2).val3 == obj1.val3");
         });
     }
 

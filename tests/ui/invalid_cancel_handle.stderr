@@ -44,8 +44,6 @@ error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_, '_, fals
              `&'holder mut pyo3::coroutine::Coroutine` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
              `&'holder pyo3::coroutine::Coroutine` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
              `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, true>`
-             `PyClassGuard<'a, T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
-             `PyClassGuardMut<'a, T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
    = note: required for `CancelHandle` to implement `FromPyObject<'_>`
    = note: required for `CancelHandle` to implement `FromPyObjectBound<'_, '_>`
    = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_, '_, false>`
@@ -96,8 +94,6 @@ error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_, '_, fals
              `&'holder mut pyo3::coroutine::Coroutine` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
              `&'holder pyo3::coroutine::Coroutine` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
              `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, true>`
-             `PyClassGuard<'a, T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
-             `PyClassGuardMut<'a, T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
    = note: required for `CancelHandle` to implement `FromPyObject<'_>`
    = note: required for `CancelHandle` to implement `FromPyObjectBound<'_, '_>`
    = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_, '_, false>`

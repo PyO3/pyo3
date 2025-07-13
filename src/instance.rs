@@ -721,6 +721,17 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
     }
 }
 
+impl<'a, T: PyClass> Borrowed<'a, '_, T> {
+    /// Get a view on the underlying `PyClass` contents.
+    #[inline]
+    pub(crate) fn get_class_object(self) -> &'a PyClassObject<T> {
+        // Safety: Borrowed<'a, '_, T: PyClass> is known to contain an object
+        // which is laid out in memory as a PyClassObject<T> and lives for at
+        // least 'a.
+        unsafe { &*self.as_ptr().cast::<PyClassObject<T>>() }
+    }
+}
+
 impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// Constructs a new `Borrowed<'a, 'py, PyAny>` from a pointer. Panics if `ptr` is null.
     ///
