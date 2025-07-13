@@ -788,6 +788,15 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
         Self(unsafe { NonNull::new_unchecked(ptr) }, PhantomData, py)
     }
 
+    /// # Safety
+    /// This similar to `std::slice::from_raw_parts`, the lifetime `'a` is
+    /// completely defined by the caller and it is the caller's responsibility
+    /// to ensure that the reference this is derived from is valid for the
+    /// lifetime `'a`.
+    pub(crate) unsafe fn from_non_null(py: Python<'py>, ptr: NonNull<ffi::PyObject>) -> Self {
+        Self(ptr, PhantomData, py)
+    }
+
     #[inline]
     pub(crate) fn downcast<T>(self) -> Result<Borrowed<'a, 'py, T>, DowncastError<'a, 'py>>
     where

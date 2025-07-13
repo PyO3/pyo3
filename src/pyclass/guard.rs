@@ -2,7 +2,8 @@ use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout as _};
 use crate::pycell::PyBorrowMutError;
 use crate::pycell::{impl_::PyClassBorrowChecker, PyBorrowError};
 use crate::pyclass::boolean_struct::False;
-use crate::{ffi, Py, PyClass};
+use crate::{ffi, Borrowed, IntoPyObject, Py, PyClass};
+use std::convert::Infallible;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
@@ -219,6 +220,30 @@ impl<T: PyClass> Deref for PyClassGuard<'_, T> {
         // SAFETY: `PyClassObject<T>` constains a valid `T`, by construction no
         // mutable alias is enforced
         unsafe { &*self.as_class_object().get_ptr().cast_const() }
+    }
+}
+
+impl<'a, 'py, T: PyClass> IntoPyObject<'py> for PyClassGuard<'a, T> {
+    type Target = T;
+    type Output = Borrowed<'a, 'py, T>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
+        (&self).into_pyobject(py)
+    }
+}
+
+impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &PyClassGuard<'a, T> {
+    type Target = T;
+    type Output = Borrowed<'a, 'py, T>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
+        // SAFETY: `ptr` is guaranteed to be valid for 'a and points to an
+        // object of type T
+        unsafe { Ok(Borrowed::from_non_null(py, self.ptr).downcast_unchecked()) }
     }
 }
 
@@ -509,6 +534,30 @@ impl<T: PyClass<Frozen = False>> DerefMut for PyClassGuardMut<'_, T> {
     }
 }
 
+impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for PyClassGuardMut<'a, T> {
+    type Target = T;
+    type Output = Borrowed<'a, 'py, T>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
+        (&self).into_pyobject(py)
+    }
+}
+
+impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &PyClassGuardMut<'a, T> {
+    type Target = T;
+    type Output = Borrowed<'a, 'py, T>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
+        // SAFETY: `ptr` is guaranteed to be valid for 'a and points to an
+        // object of type T
+        unsafe { Ok(Borrowed::from_non_null(py, self.ptr).downcast_unchecked()) }
+    }
+}
+
 impl<T: PyClass<Frozen = False>> Drop for PyClassGuardMut<'_, T> {
     /// Releases the mutable borrow
     fn drop(&mut self) {
@@ -520,7 +569,7 @@ impl<T: PyClass<Frozen = False>> Drop for PyClassGuardMut<'_, T> {
 #[cfg(feature = "macros")]
 mod tests {
     use super::{PyClassGuard, PyClassGuardMut};
-    use crate::{Py, Python};
+    use crate::{types::PyAnyMethods as _, IntoPyObject as _, Py, PyErr, Python};
 
     #[crate::pyclass]
     #[pyo3(crate = "crate", subclass)]
@@ -565,6 +614,33 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_pyclassguard_into_pyobject() {
+        Python::attach(|py| {
+            let class = Py::new(py, BaseClass { val1: 42 })?;
+            let guard = PyClassGuard::try_borrow(&class).unwrap();
+            let new_ref = (&guard).into_pyobject(py)?;
+            assert!(new_ref.is(&class));
+            let new = guard.into_pyobject(py)?;
+            assert!(new.is(&class));
+            Ok::<_, PyErr>(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn test_pyclassguardmut_into_pyobject() {
+        Python::attach(|py| {
+            let class = Py::new(py, BaseClass { val1: 42 })?;
+            let guard = PyClassGuardMut::try_borrow_mut(&class).unwrap();
+            let new_ref = (&guard).into_pyobject(py)?;
+            assert!(new_ref.is(&class));
+            let new = guard.into_pyobject(py)?;
+            assert!(new.is(&class));
+            Ok::<_, PyErr>(())
+        })
+        .unwrap();
+    }
     #[test]
     fn test_pyclassguard_as_super() {
         Python::attach(|py| {
