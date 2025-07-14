@@ -10,10 +10,12 @@ use {
     },
     crate::ffi_ptr_ext::FfiPtrExt,
     crate::impl_::callback::WrappingCastTo,
-    crate::types::{PyAnyMethods, PyString},
+    crate::py_result_ext::PyResultExt,
+    crate::types::PyString,
     crate::{ffi, Bound, PyErr, PyResult, Python},
+    std::fmt,
+    std::mem::ManuallyDrop,
     std::ptr::NonNull,
-    std::{fmt, mem},
 };
 
 /// This is like the `format!` macro, but it returns a `PyString` instead of a `String`.
@@ -54,13 +56,11 @@ impl PyUnicodeWriter {
         if let Some(error) = self.take_error() {
             Err(error)
         } else {
-            let writer_ptr = self.as_ptr();
-            mem::forget(self);
-            Ok(unsafe {
-                PyUnicodeWriter_Finish(writer_ptr)
-                    .assume_owned_or_err(py)?
+            unsafe {
+                PyUnicodeWriter_Finish(ManuallyDrop::new(self).as_ptr())
+                    .assume_owned_or_err(py)
                     .downcast_into_unchecked()
-            })
+            }
         }
     }
 
