@@ -9,6 +9,7 @@
 mod utils;
 
 mod attributes;
+mod combine_errors;
 mod derive_attributes;
 mod frompyobject;
 mod intopyobject;
