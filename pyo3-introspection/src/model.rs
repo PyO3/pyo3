@@ -56,4 +56,6 @@ pub struct Argument {
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct VariableLengthArgument {
     pub name: String,
+    /// Type annotation as a Python expression
+    pub annotation: Option<String>,
 }

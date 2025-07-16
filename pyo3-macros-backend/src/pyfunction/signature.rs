@@ -1,3 +1,7 @@
+use crate::{
+    attributes::{kw, KeywordAttribute},
+    method::{FnArg, RegularArg},
+};
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use syn::{
@@ -8,25 +12,31 @@ use syn::{
     Token,
 };
 
-use crate::{
-    attributes::{kw, KeywordAttribute},
-    method::{FnArg, RegularArg},
-};
-
 #[derive(Clone)]
 pub struct Signature {
     paren_token: syn::token::Paren,
     pub items: Punctuated<SignatureItem, Token![,]>,
+    #[cfg(feature = "experimental-inspect")]
+    pub returns: Option<(Token![->], syn::LitStr)>,
 }
 
 impl Parse for Signature {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let content;
         let paren_token = syn::parenthesized!(content in input);
-
         let items = content.parse_terminated(SignatureItem::parse, Token![,])?;
-
-        Ok(Signature { paren_token, items })
+        #[cfg(feature = "experimental-inspect")]
+        let returns = if input.peek(Token![->]) {
+            Some((input.parse()?, input.parse()?))
+        } else {
+            None
+        };
+        Ok(Signature {
+            paren_token,
+            items,
+            #[cfg(feature = "experimental-inspect")]
+            returns,
+        })
     }
 }
 
@@ -40,6 +50,8 @@ impl ToTokens for Signature {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignatureItemArgument {
     pub ident: syn::Ident,
+    #[cfg(feature = "experimental-inspect")]
+    pub colon_and_annotation: Option<(Token![:], syn::LitStr)>,
     pub eq_and_default: Option<(Token![=], syn::Expr)>,
 }
 
@@ -57,12 +69,16 @@ pub struct SignatureItemVarargsSep {
 pub struct SignatureItemVarargs {
     pub sep: SignatureItemVarargsSep,
     pub ident: syn::Ident,
+    #[cfg(feature = "experimental-inspect")]
+    pub colon_and_annotation: Option<(Token![:], syn::LitStr)>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignatureItemKwargs {
     pub asterisks: (Token![*], Token![*]),
     pub ident: syn::Ident,
+    #[cfg(feature = "experimental-inspect")]
+    pub colon_and_annotation: Option<(Token![:], syn::LitStr)>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -88,6 +104,12 @@ impl Parse for SignatureItem {
                     Ok(SignatureItem::Varargs(SignatureItemVarargs {
                         sep,
                         ident: input.parse()?,
+                        #[cfg(feature = "experimental-inspect")]
+                        colon_and_annotation: if input.peek(Token![:]) {
+                            Some((input.parse()?, input.parse()?))
+                        } else {
+                            None
+                        },
                     }))
                 }
             }
@@ -115,6 +137,12 @@ impl Parse for SignatureItemArgument {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         Ok(Self {
             ident: input.parse()?,
+            #[cfg(feature = "experimental-inspect")]
+            colon_and_annotation: if input.peek(Token![:]) {
+                Some((input.parse()?, input.parse()?))
+            } else {
+                None
+            },
             eq_and_default: if input.peek(Token![=]) {
                 Some((input.parse()?, input.parse()?))
             } else {
@@ -127,6 +155,11 @@ impl Parse for SignatureItemArgument {
 impl ToTokens for SignatureItemArgument {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.ident.to_tokens(tokens);
+        #[cfg(feature = "experimental-inspect")]
+        if let Some((colon, annotation)) = &self.colon_and_annotation {
+            colon.to_tokens(tokens);
+            annotation.to_tokens(tokens);
+        }
         if let Some((eq, default)) = &self.eq_and_default {
             eq.to_tokens(tokens);
             default.to_tokens(tokens);
@@ -153,6 +186,12 @@ impl Parse for SignatureItemVarargs {
         Ok(Self {
             sep: input.parse()?,
             ident: input.parse()?,
+            #[cfg(feature = "experimental-inspect")]
+            colon_and_annotation: if input.peek(Token![:]) {
+                Some((input.parse()?, input.parse()?))
+            } else {
+                None
+            },
         })
     }
 }
@@ -169,6 +208,12 @@ impl Parse for SignatureItemKwargs {
         Ok(Self {
             asterisks: (input.parse()?, input.parse()?),
             ident: input.parse()?,
+            #[cfg(feature = "experimental-inspect")]
+            colon_and_annotation: if input.peek(Token![:]) {
+                Some((input.parse()?, input.parse()?))
+            } else {
+                None
+            },
         })
     }
 }
@@ -363,7 +408,7 @@ impl<'a> FunctionSignature<'a> {
         let mut next_non_py_argument_checked = |name: &syn::Ident| {
             for fn_arg in args_iter.by_ref() {
                 match fn_arg {
-                    crate::method::FnArg::Py(..) => {
+                    FnArg::Py(..) => {
                         // If the user incorrectly tried to include py: Python in the
                         // signature, give a useful error as a hint.
                         ensure_spanned!(
@@ -373,7 +418,7 @@ impl<'a> FunctionSignature<'a> {
                         // Otherwise try next argument.
                         continue;
                     }
-                    crate::method::FnArg::CancelHandle(..) => {
+                    FnArg::CancelHandle(..) => {
                         // If the user incorrectly tried to include cancel: CoroutineCancel in the
                         // signature, give a useful error as a hint.
                         ensure_spanned!(
@@ -422,6 +467,18 @@ impl<'a> FunctionSignature<'a> {
                             );
                         }
                     }
+                    #[cfg(feature = "experimental-inspect")]
+                    if let Some((_, annotation)) = &arg.colon_and_annotation {
+                        if let FnArg::Regular(arg) = fn_arg {
+                            arg.annotation = Some(annotation.value());
+                        } else {
+                            unreachable!(
+                                "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
+                                parsed and transformed below. Because the have to come last and are only allowed \
+                                once, this has to be a regular argument."
+                            );
+                        }
+                    }
                 }
                 SignatureItem::VarargsSep(sep) => {
                     parse_state.finish_pos_args(&python_signature, sep.span())?
@@ -430,11 +487,35 @@ impl<'a> FunctionSignature<'a> {
                     let fn_arg = next_non_py_argument_checked(&varargs.ident)?;
                     fn_arg.to_varargs_mut()?;
                     parse_state.add_varargs(&mut python_signature, varargs)?;
+                    #[cfg(feature = "experimental-inspect")]
+                    if let Some((_, annotation)) = &varargs.colon_and_annotation {
+                        if let FnArg::VarArgs(arg) = fn_arg {
+                            arg.annotation = Some(annotation.value());
+                        } else {
+                            unreachable!(
+                                "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
+                                parsed and transformed below. Because the have to come last and are only allowed \
+                                once, this has to be a regular argument."
+                            );
+                        }
+                    }
                 }
                 SignatureItem::Kwargs(kwargs) => {
                     let fn_arg = next_non_py_argument_checked(&kwargs.ident)?;
                     fn_arg.to_kwargs_mut()?;
                     parse_state.add_kwargs(&mut python_signature, kwargs)?;
+                    #[cfg(feature = "experimental-inspect")]
+                    if let Some((_, annotation)) = &kwargs.colon_and_annotation {
+                        if let FnArg::KwArgs(arg) = fn_arg {
+                            arg.annotation = Some(annotation.value());
+                        } else {
+                            unreachable!(
+                                "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
+                                parsed and transformed below. Because the have to come last and are only allowed \
+                                once, this has to be a regular argument."
+                            );
+                        }
+                    }
                 }
                 SignatureItem::PosargsSep(sep) => {
                     parse_state.finish_pos_only_args(&mut python_signature, sep.span())?

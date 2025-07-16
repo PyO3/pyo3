@@ -119,21 +119,29 @@ pub fn function_introspection_code(
         ),
         (
             "returns",
-            match returns {
-                ReturnType::Default => IntrospectionNode::String("None".into()),
-                ReturnType::Type(_, ty) => match *ty {
-                    Type::Tuple(t) if t.elems.is_empty() => {
-                        // () is converted to None in return types
-                        IntrospectionNode::String("None".into())
-                    }
-                    mut ty => {
-                        if let Some(class_type) = parent {
-                            replace_self(&mut ty, class_type);
+            if let Some((_, returns)) = signature
+                .attribute
+                .as_ref()
+                .and_then(|attribute| attribute.value.returns.as_ref())
+            {
+                IntrospectionNode::String(returns.value().into())
+            } else {
+                match returns {
+                    ReturnType::Default => IntrospectionNode::String("None".into()),
+                    ReturnType::Type(_, ty) => match *ty {
+                        Type::Tuple(t) if t.elems.is_empty() => {
+                            // () is converted to None in return types
+                            IntrospectionNode::String("None".into())
                         }
-                        ty = ty.elide_lifetimes();
-                        IntrospectionNode::OutputType { rust_type: ty }
-                    }
-                },
+                        mut ty => {
+                            if let Some(class_type) = parent {
+                                replace_self(&mut ty, class_type);
+                            }
+                            ty = ty.elide_lifetimes();
+                            IntrospectionNode::OutputType { rust_type: ty }
+                        }
+                    },
+                }
             },
         ),
     ]);
@@ -178,12 +186,11 @@ fn arguments_introspection_data<'a>(
     first_argument: Option<&'a str>,
     class_type: Option<&Type>,
 ) -> IntrospectionNode<'a> {
-    let mut argument_desc = signature.arguments.iter().filter_map(|arg| {
-        if let FnArg::Regular(arg) = arg {
-            Some(arg)
-        } else {
-            None
-        }
+    let mut argument_desc = signature.arguments.iter().filter(|arg| {
+        matches!(
+            arg,
+            FnArg::Regular(_) | FnArg::VarArgs(_) | FnArg::KwArgs(_)
+        )
     });
 
     let mut posonlyargs = Vec::new();
@@ -204,7 +211,7 @@ fn arguments_introspection_data<'a>(
         .iter()
         .enumerate()
     {
-        let arg_desc = if let Some(arg_desc) = argument_desc.next() {
+        let arg_desc = if let Some(FnArg::Regular(arg_desc)) = argument_desc.next() {
             arg_desc
         } else {
             panic!("Less arguments than in python signature");
@@ -218,13 +225,20 @@ fn arguments_introspection_data<'a>(
     }
 
     if let Some(param) = &signature.python_signature.varargs {
-        vararg = Some(IntrospectionNode::Map(
-            [("name", IntrospectionNode::String(param.into()))].into(),
-        ));
+        let arg_desc = if let Some(FnArg::VarArgs(arg_desc)) = argument_desc.next() {
+            arg_desc
+        } else {
+            panic!("Less arguments than in python signature");
+        };
+        let mut params = HashMap::from([("name", IntrospectionNode::String(param.into()))]);
+        if let Some(annotation) = &arg_desc.annotation {
+            params.insert("annotation", IntrospectionNode::String(annotation.into()));
+        }
+        vararg = Some(IntrospectionNode::Map(params));
     }
 
     for (param, _) in &signature.python_signature.keyword_only_parameters {
-        let arg_desc = if let Some(arg_desc) = argument_desc.next() {
+        let arg_desc = if let Some(FnArg::Regular(arg_desc)) = argument_desc.next() {
             arg_desc
         } else {
             panic!("Less arguments than in python signature");
@@ -233,13 +247,16 @@ fn arguments_introspection_data<'a>(
     }
 
     if let Some(param) = &signature.python_signature.kwargs {
-        kwarg = Some(IntrospectionNode::Map(
-            [
-                ("name", IntrospectionNode::String(param.into())),
-                ("kind", IntrospectionNode::String("VAR_KEYWORD".into())),
-            ]
-            .into(),
-        ));
+        let arg_desc = if let Some(FnArg::KwArgs(arg_desc)) = argument_desc.next() {
+            arg_desc
+        } else {
+            panic!("Less arguments than in python signature");
+        };
+        let mut params = HashMap::from([("name", IntrospectionNode::String(param.into()))]);
+        if let Some(annotation) = &arg_desc.annotation {
+            params.insert("annotation", IntrospectionNode::String(annotation.into()));
+        }
+        kwarg = Some(IntrospectionNode::Map(params));
     }
 
     let mut map = HashMap::new();
@@ -273,7 +290,10 @@ fn argument_introspection_data<'a>(
             IntrospectionNode::String(desc.default_value().into()),
         );
     }
-    if desc.from_py_with.is_none() {
+
+    if let Some(annotation) = &desc.annotation {
+        params.insert("annotation", IntrospectionNode::String(annotation.into()));
+    } else if desc.from_py_with.is_none() {
         // If from_py_with is set we don't know anything on the input type
         if let Some(ty) = desc.option_wrapped_type {
             // Special case to properly generate a `T | None` annotation
