@@ -24,11 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20.x'
-          registry-url: 'https://registry.npmjs.org'
+          python-version: "3.13"
 
       - uses: dtolnay/rust-toolchain@nightly
 
@@ -50,11 +46,16 @@ jobs:
           args: --version
           lycheeVersion: nightly
 
+      - name: Get current PyO3 version
+        run: |
+          PYO3_VERSION=$(cargo search pyo3 --limit 1 | head -1 | tr -s ' ' | cut -d ' ' -f 3 | tr -d '"')
+          echo "PYO3_VERSION=${PYO3_VERSION}" >> $GITHUB_ENV
+
       - name: Prepare tag
         id: prepare_tag
         run: |
           TAG_NAME="${GITHUB_REF##*/}"
-          echo "::set-output name=tag_name::${TAG_NAME}"
+          echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
 
       # Start with the current guides.
       - name: Get the guide
@@ -64,8 +65,7 @@ jobs:
 
       # Set redirects.
       - name: Set redirects
-        run: |
-          source .netlify/redirect.sh
+        run: sh .netlify/redirect.sh
 
       # This builds the book and docs in netlify_build/main
       - name: Build the guide and public docs
@@ -87,3 +87,14 @@ jobs:
         with:
           name: site
           path: ./netlify_build
+
+      # Upload PR number for use in deploy workflow, will be empty if not a PR
+      - name: Prepare PR number for upload
+        id: pr
+        run: echo "pr_number=$(echo ${{ github.event.pull_request.number }})" >> .pr-number
+
+      - name: Upload PR number
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-number
+          path: .pr-number

@@ -28,6 +28,16 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
+      - name: Download PR Number
+        uses: actions/download-artifact@v4
+        with:
+          name: pr_number
+
+      - name: Get PR Number
+        id: pr_number
+        run: |
+          echo "pr_number=$(cat .pr-number)" >> $GITHUB_OUTPUT
+
       - name: Install netlify-cli
         run: |
           npm install -g netlify-cli
@@ -38,4 +48,4 @@ jobs:
           DEBUG=* netlify deploy \
               --site ${{ secrets.NETLIFY_SITE_ID }} \
               --auth ${{ secrets.NETLIFY_TOKEN }} \
-              ${{ github.event.workflow_run.head_branch == 'main' && '--prod' || '' }}
+              ${{ steps.pr_number.outputs.pr_number == '' && '--prod' || '' }}
