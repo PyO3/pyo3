@@ -419,6 +419,21 @@ impl Python<'_> {
         f(guard.python())
     }
 
+    /// Variant of [`Python::attach`] which will do no work if the interpreter is in a
+    /// state where it cannot be attached to:
+    /// - in the middle of GC traversal
+    /// - not initialized
+    #[inline]
+    #[track_caller]
+    // TODO: make this API public?
+    pub(crate) fn try_attach<F, R>(f: F) -> Option<R>
+    where
+        F: for<'py> FnOnce(Python<'py>) -> R,
+    {
+        let guard = AttachGuard::try_acquire()?;
+        Some(f(guard.python()))
+    }
+
     /// Like [`Python::attach`] except Python interpreter state checking is skipped.
     ///
     /// Normally when the GIL is acquired, we check that the Python interpreter is an
