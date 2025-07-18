@@ -1,12 +1,14 @@
 #![cfg(feature = "macros")]
 #![warn(unsafe_op_in_unsafe_fn)]
 
+use pyo3::buffer::PyBuffer;
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::ffi;
 use pyo3::prelude::*;
 #[cfg(not(Py_GIL_DISABLED))]
 use pyo3::py_run;
+use pyo3::types::PyBytes;
 #[cfg(not(target_arch = "wasm32"))]
 use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -738,4 +740,52 @@ extern "C" fn visit_error(
     _arg: *mut core::ffi::c_void,
 ) -> std::os::raw::c_int {
     -1
+}
+
+#[test]
+fn test_drop_buffer_during_traversal_without_gil() {
+    // `PyBuffer` has a drop method which attempts to attach to the Python interpreter,
+    // if the thread is during traverse we leak it for safety. This should _never_ be happening
+    // so it's purely a user bug, but we leak to be safe.
+
+    #[pyclass]
+    struct BufferDropDuringTraversal {
+        inner: Mutex<Option<(DropGuard, PyBuffer<u8>)>>,
+        cycle: Option<PyObject>,
+    }
+
+    #[pymethods]
+    impl BufferDropDuringTraversal {
+        #[allow(clippy::unnecessary_wraps)]
+        fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            self.inner.lock().unwrap().take();
+            Ok(())
+        }
+
+        fn __clear__(&mut self) {
+            self.cycle = None;
+        }
+    }
+
+    let (guard, check) = drop_check();
+    Python::attach(|py| {
+        let obj = Py::new(
+            py,
+            BufferDropDuringTraversal {
+                inner: Mutex::new(Some((
+                    guard,
+                    PyBuffer::get(&PyBytes::new(py, b"test")).unwrap(),
+                ))),
+                cycle: None,
+            },
+        )
+        .unwrap();
+
+        obj.borrow_mut(py).cycle = Some(obj.clone_ref(py).into_any());
+
+        let ptr = obj.as_ptr();
+        drop(obj);
+
+        check.assert_drops_with_gc(ptr);
+    });
 }
