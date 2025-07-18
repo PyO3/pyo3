@@ -77,7 +77,7 @@ fn with_typed_args(a: bool, b: u64, c: f64, d: &str) -> (bool, u64, f64, &str) {
     (a, b, c, d)
 }
 
-#[pyfunction(signature = (a: "int", *_args: "str", _b: "int" = None, **_kwargs: "bool") -> "int")]
+#[pyfunction(signature = (a: "int", *_args: "str", _b: "int | None" = None, **_kwargs: "bool") -> "int")]
 fn with_custom_type_annotations<'py>(
     a: Any<'py>,
     _args: Tuple<'py>,
