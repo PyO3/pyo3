@@ -81,10 +81,10 @@ pub enum PyGILState_STATE {
     PyGILState_UNLOCKED,
 }
 
-#[cfg(not(Py_3_14))]
+#[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
 struct HangThread;
 
-#[cfg(not(Py_3_14))]
+#[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
 impl Drop for HangThread {
     fn drop(&mut self) {
         loop {
@@ -102,20 +102,20 @@ impl Drop for HangThread {
 // C-unwind only supported (and necessary) since 1.71. Python 3.14+ does not do
 // pthread_exit from PyGILState_Ensure (https://github.com/python/cpython/issues/87135).
 mod raw {
-    #[cfg(not(Py_3_14))]
+    #[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
     extern "C-unwind" {
         #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure")]
         pub fn PyGILState_Ensure() -> super::PyGILState_STATE;
     }
 
-    #[cfg(Py_3_14)]
+    #[cfg(any(Py_3_14, target_arch = "wasm32"))]
     extern "C" {
         #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure")]
         pub fn PyGILState_Ensure() -> super::PyGILState_STATE;
     }
 }
 
-#[cfg(not(Py_3_14))]
+#[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
 pub unsafe extern "C" fn PyGILState_Ensure() -> PyGILState_STATE {
     let guard = HangThread;
     // If `PyGILState_Ensure` calls `pthread_exit`, which it does on Python < 3.14
@@ -141,7 +141,7 @@ pub unsafe extern "C" fn PyGILState_Ensure() -> PyGILState_STATE {
     ret
 }
 
-#[cfg(Py_3_14)]
+#[cfg(any(Py_3_14, target_arch = "wasm32"))]
 pub use self::raw::PyGILState_Ensure;
 
 extern "C" {
