@@ -5,6 +5,7 @@ pub struct Module {
     pub classes: Vec<Class>,
     pub functions: Vec<Function>,
     pub consts: Vec<Const>,
+    pub incomplete: bool,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
