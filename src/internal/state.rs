@@ -62,6 +62,7 @@ impl AttachGuard {
     }
 
     /// Variant of the above which will will return `None` if the interpreter cannot be attached to.
+    #[cfg(any(not(Py_LIMITED_API), Py_3_11))] // see Python::try_attach
     pub(crate) fn try_acquire() -> Option<Self> {
         match ATTACH_COUNT.try_with(|c| c.get()) {
             Ok(i) if i > 0 => {
@@ -299,6 +300,7 @@ pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
 }
 
 /// Private helper function to check if we are currently in a GC traversal (as detected by PyO3).
+#[cfg(any(not(Py_LIMITED_API), Py_3_11))]
 pub(crate) fn is_in_gc_traversal() -> bool {
     ATTACH_COUNT
         .try_with(|c| c.get() == ATTACH_FORBIDDEN_DURING_TRAVERSE)

@@ -1,3 +1,5 @@
+#![cfg(not(any(PyPy, GraalPy)))]
+
 //! Dropping `Py<T>` after the interpreter has been finalized should be sound.
 //!
 //! See e.g. https://github.com/PyO3/pyo3/issues/4632 for an extension of this problem

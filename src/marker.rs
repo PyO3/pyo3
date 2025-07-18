@@ -425,7 +425,8 @@ impl Python<'_> {
     /// - not initialized
     #[inline]
     #[track_caller]
-    // TODO: make this API public?
+    #[cfg(any(not(Py_LIMITED_API), Py_3_11))] // only used in buffer.rs for now
+                                              // TODO: make this API public?
     pub(crate) fn try_attach<F, R>(f: F) -> Option<R>
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
