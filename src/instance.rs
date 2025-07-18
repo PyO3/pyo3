@@ -12,6 +12,7 @@ use crate::{
     PyTypeInfo, Python,
 };
 use crate::{internal::state, PyTypeCheck};
+use crate::{PyClassGuard, PyClassGuardMut};
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::ops::Deref;
@@ -265,8 +266,8 @@ where
     /// [`try_borrow`](#method.try_borrow).
     #[inline]
     #[track_caller]
-    pub fn borrow(&self) -> PyRef<'py, T> {
-        PyRef::borrow(self)
+    pub fn borrow(&self) -> PyClassGuard<'_, T> {
+        PyClassGuard::borrow(self.as_unbound())
     }
 
     /// Mutably borrows the value `T`.
@@ -300,11 +301,11 @@ where
     /// [`try_borrow_mut`](#method.try_borrow_mut).
     #[inline]
     #[track_caller]
-    pub fn borrow_mut(&self) -> PyRefMut<'py, T>
+    pub fn borrow_mut(&self) -> PyClassGuardMut<'_, T>
     where
         T: PyClass<Frozen = False>,
     {
-        PyRefMut::borrow(self)
+        PyClassGuardMut::borrow_mut(self.as_unbound())
     }
 
     /// Attempts to immutably borrow the value `T`, returning an error if the value is currently mutably borrowed.
@@ -315,8 +316,8 @@ where
     ///
     /// For frozen classes, the simpler [`get`][Self::get] is available.
     #[inline]
-    pub fn try_borrow(&self) -> Result<PyRef<'py, T>, PyBorrowError> {
-        PyRef::try_borrow(self)
+    pub fn try_borrow(&self) -> Result<PyClassGuard<'_, T>, PyBorrowError> {
+        PyClassGuard::try_borrow(self.as_unbound())
     }
 
     /// Attempts to mutably borrow the value `T`, returning an error if the value is currently borrowed.
@@ -325,11 +326,11 @@ where
     ///
     /// This is the non-panicking variant of [`borrow_mut`](#method.borrow_mut).
     #[inline]
-    pub fn try_borrow_mut(&self) -> Result<PyRefMut<'py, T>, PyBorrowMutError>
+    pub fn try_borrow_mut(&self) -> Result<PyClassGuardMut<'_, T>, PyBorrowMutError>
     where
         T: PyClass<Frozen = False>,
     {
-        PyRefMut::try_borrow(self)
+        PyClassGuardMut::try_borrow_mut(self.as_unbound())
     }
 
     /// Provide an immutable borrow of the value `T` without acquiring the GIL.
@@ -701,6 +702,13 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
 
     pub(crate) fn to_any(self) -> Borrowed<'a, 'py, PyAny> {
         Borrowed(self.0, PhantomData, self.2)
+    }
+
+    pub(crate) fn as_unbound(&self) -> &'a Py<T> {
+        // SAFETY:
+        // - `NonNull<ffi::PyObject>` and `Py<T>` are layout compatible => it is allowed to cast `&NonNull<ffi::PyObject>` to `&Py<T>`
+        // - the ptr (`self.0`) is guaranteed to be valid for at least `'a`
+        unsafe { &*ptr_from_ref(&self.0).cast() }
     }
 }
 
@@ -1179,8 +1187,8 @@ where
     /// [`try_borrow`](#method.try_borrow).
     #[inline]
     #[track_caller]
-    pub fn borrow<'py>(&'py self, py: Python<'py>) -> PyRef<'py, T> {
-        self.bind(py).borrow()
+    pub fn borrow<'a>(&'a self, _py: Python<'_>) -> PyClassGuard<'a, T> {
+        PyClassGuard::borrow(self)
     }
 
     /// Mutably borrows the value `T`.
@@ -1216,11 +1224,11 @@ where
     /// [`try_borrow_mut`](#method.try_borrow_mut).
     #[inline]
     #[track_caller]
-    pub fn borrow_mut<'py>(&'py self, py: Python<'py>) -> PyRefMut<'py, T>
+    pub fn borrow_mut<'a>(&'a self, _py: Python<'_>) -> PyClassGuardMut<'a, T>
     where
         T: PyClass<Frozen = False>,
     {
-        self.bind(py).borrow_mut()
+        PyClassGuardMut::borrow_mut(self)
     }
 
     /// Attempts to immutably borrow the value `T`, returning an error if the value is currently mutably borrowed.
@@ -1233,8 +1241,8 @@ where
     ///
     /// Equivalent to `self.bind(py).try_borrow()` - see [`Bound::try_borrow`].
     #[inline]
-    pub fn try_borrow<'py>(&'py self, py: Python<'py>) -> Result<PyRef<'py, T>, PyBorrowError> {
-        self.bind(py).try_borrow()
+    pub fn try_borrow<'a>(&'a self, _py: Python<'_>) -> Result<PyClassGuard<'a, T>, PyBorrowError> {
+        PyClassGuard::try_borrow(self)
     }
 
     /// Attempts to mutably borrow the value `T`, returning an error if the value is currently borrowed.
@@ -1245,14 +1253,14 @@ where
     ///
     /// Equivalent to `self.bind(py).try_borrow_mut()` - see [`Bound::try_borrow_mut`].
     #[inline]
-    pub fn try_borrow_mut<'py>(
-        &'py self,
-        py: Python<'py>,
-    ) -> Result<PyRefMut<'py, T>, PyBorrowMutError>
+    pub fn try_borrow_mut<'a>(
+        &'a self,
+        _py: Python<'_>,
+    ) -> Result<PyClassGuardMut<'a, T>, PyBorrowMutError>
     where
         T: PyClass<Frozen = False>,
     {
-        self.bind(py).try_borrow_mut()
+        PyClassGuardMut::try_borrow_mut(self)
     }
 
     /// Provide an immutable borrow of the value `T` without acquiring the GIL.

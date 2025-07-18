@@ -7,9 +7,10 @@ use crate::{
         pyclass_init::PyObjectInit,
         pymethods::{PyGetterDef, PyMethodDefType},
     },
+    internal_tricks::ptr_from_ref,
     pycell::PyBorrowError,
     types::{any::PyAnyMethods, PyBool},
-    Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyErr, PyRef,
+    Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr,
     PyResult, PyTypeInfo, Python,
 };
 use std::{
@@ -18,7 +19,6 @@ use std::{
     marker::PhantomData,
     os::raw::{c_int, c_void},
     ptr,
-    ptr::NonNull,
     sync::Mutex,
     thread,
 };
@@ -424,7 +424,7 @@ macro_rules! define_pyclass_setattr_slot {
                 _py: Python<'_>,
                 _slf: *mut ffi::PyObject,
                 _attr: *mut ffi::PyObject,
-                _value: NonNull<ffi::PyObject>,
+                _value: *mut ffi::PyObject,
             ) -> PyResult<()> {
                 $set_error
             }
@@ -465,7 +465,7 @@ macro_rules! define_pyclass_setattr_slot {
                                 use $crate::impl_::pyclass::*;
                                 let collector = PyClassImplCollector::<$cls>::new();
                                 if let Some(value) = ::std::ptr::NonNull::new(value) {
-                                    collector.$set(py, _slf, attr, value).convert(py)
+                                    collector.$set(py, _slf, attr, value.as_ptr()).convert(py)
                                 } else {
                                     collector.$del(py, _slf, attr).convert(py)
                                 }
@@ -923,7 +923,7 @@ macro_rules! generate_pyclass_richcompare_slot {
 }
 pub use generate_pyclass_richcompare_slot;
 
-use super::{pycell::PyClassObject, pymethods::BoundRef};
+use super::pycell::PyClassObject;
 
 /// Implements a freelist.
 ///
@@ -1368,15 +1368,11 @@ impl<
 
 /// ensures `obj` is not mutably aliased
 #[inline]
-unsafe fn ensure_no_mutable_alias<'py, ClassT: PyClass>(
-    py: Python<'py>,
-    obj: &*mut ffi::PyObject,
-) -> Result<PyRef<'py, ClassT>, PyBorrowError> {
-    unsafe {
-        BoundRef::ref_from_ptr(py, obj)
-            .downcast_unchecked::<ClassT>()
-            .try_borrow()
-    }
+unsafe fn ensure_no_mutable_alias<'a, ClassT: PyClass>(
+    _py: Python<'_>,
+    obj: &'a *mut ffi::PyObject,
+) -> Result<PyClassGuard<'a, ClassT>, PyBorrowError> {
+    unsafe { PyClassGuard::try_borrow(&*ptr_from_ref(obj).cast::<Py<ClassT>>()) }
 }
 
 /// calculates the field pointer from an PyObject pointer

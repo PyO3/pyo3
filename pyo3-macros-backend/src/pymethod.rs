@@ -1122,8 +1122,9 @@ impl Ty {
         } = ctx;
         let pyo3_path = pyo3_path.to_tokens_spanned(*output_span);
         match self {
-            Ty::Object | Ty::MaybeNullObject => quote! { *mut #pyo3_path::ffi::PyObject },
-            Ty::NonNullObject => quote! { ::std::ptr::NonNull<#pyo3_path::ffi::PyObject> },
+            Ty::Object | Ty::MaybeNullObject | Ty::NonNullObject => {
+                quote! { *mut #pyo3_path::ffi::PyObject }
+            }
             Ty::IPowModulo => quote! { #pyo3_path::impl_::pymethods::IPowModulo },
             Ty::Int | Ty::CompareOp => quote! { ::std::os::raw::c_int },
             Ty::PyHashT => quote! { #pyo3_path::ffi::Py_hash_t },
@@ -1143,7 +1144,7 @@ impl Ty {
     ) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
         match self {
-            Ty::Object => extract_object(
+            Ty::Object | Ty::NonNullObject => extract_object(
                 extract_error_mode,
                 holders,
                 arg,
@@ -1161,13 +1162,6 @@ impl Ty {
                         #ident
                     }
                 },
-                ctx
-            ),
-            Ty::NonNullObject => extract_object(
-                extract_error_mode,
-                holders,
-                arg,
-                quote! { #ident.as_ptr() },
                 ctx
             ),
             Ty::IPowModulo => extract_object(

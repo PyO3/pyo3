@@ -22,7 +22,7 @@ error: `from_py_with` and `cancel_handle` cannot be specified together
 24 |     #[pyo3(cancel_handle, from_py_with = cancel_handle)] _param: pyo3::coroutine::CancelHandle,
    |            ^^^^^^^^^^^^^
 
-error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_, false>` is not satisfied
+error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_, '_, false>` is not satisfied
   --> tests/ui/invalid_cancel_handle.rs:20:50
    |
 20 | async fn missing_cancel_handle_attribute(_param: pyo3::coroutine::CancelHandle) {}
@@ -31,22 +31,22 @@ error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_, false>` 
    = help: the trait `PyClass` is implemented for `pyo3::coroutine::Coroutine`
    = note: required for `CancelHandle` to implement `FromPyObject<'_>`
    = note: required for `CancelHandle` to implement `FromPyObjectBound<'_, '_>`
-   = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_, false>`
+   = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_, '_, false>`
 
-error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_, false>` is not satisfied
+error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_, '_, false>` is not satisfied
   --> tests/ui/invalid_cancel_handle.rs:20:50
    |
 20 | async fn missing_cancel_handle_attribute(_param: pyo3::coroutine::CancelHandle) {}
    |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `CancelHandle`
    |
-   = help: the following other types implement trait `PyFunctionArgument<'a, 'py, IS_OPTION>`:
-             `&'a mut pyo3::coroutine::Coroutine` implements `PyFunctionArgument<'a, 'py, false>`
-             `&'a pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, 'py, false>`
-             `&'a pyo3::coroutine::Coroutine` implements `PyFunctionArgument<'a, 'py, false>`
-             `Option<T>` implements `PyFunctionArgument<'a, 'py, true>`
+   = help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IS_OPTION>`:
+             `&'a pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+             `&'holder mut pyo3::coroutine::Coroutine` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+             `&'holder pyo3::coroutine::Coroutine` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+             `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, true>`
    = note: required for `CancelHandle` to implement `FromPyObject<'_>`
    = note: required for `CancelHandle` to implement `FromPyObjectBound<'_, '_>`
-   = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_, false>`
+   = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_, '_, false>`
 
 error[E0308]: mismatched types
   --> tests/ui/invalid_cancel_handle.rs:16:1
@@ -64,7 +64,7 @@ note: function defined here
    |          ^^^^^^^^^^^^^^^^^^^^^^^^                        --------------
    = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_, false>` is not satisfied
+error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_, '_, false>` is not satisfied
   --> tests/ui/invalid_cancel_handle.rs:20:50
    |
 20 | async fn missing_cancel_handle_attribute(_param: pyo3::coroutine::CancelHandle) {}
@@ -73,35 +73,35 @@ error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_, false>` 
    = help: the trait `PyClass` is implemented for `pyo3::coroutine::Coroutine`
    = note: required for `CancelHandle` to implement `FromPyObject<'_>`
    = note: required for `CancelHandle` to implement `FromPyObjectBound<'_, '_>`
-   = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_, false>`
+   = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_, '_, false>`
 note: required by a bound in `extract_argument`
   --> src/impl_/extract_argument.rs
    |
-   | pub fn extract_argument<'a, 'py, T, const IS_OPTION: bool>(
+   | pub fn extract_argument<'a, 'holder, 'py, T, const IS_OPTION: bool>(
    |        ---------------- required by a bound in this function
 ...
-   |     T: PyFunctionArgument<'a, 'py, IS_OPTION>,
-   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+   |     T: PyFunctionArgument<'a, 'holder, 'py, IS_OPTION>,
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
 
-error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_, false>` is not satisfied
+error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_, '_, false>` is not satisfied
   --> tests/ui/invalid_cancel_handle.rs:20:50
    |
 20 | async fn missing_cancel_handle_attribute(_param: pyo3::coroutine::CancelHandle) {}
    |                                                  ^^^^ the trait `Clone` is not implemented for `CancelHandle`
    |
-   = help: the following other types implement trait `PyFunctionArgument<'a, 'py, IS_OPTION>`:
-             `&'a mut pyo3::coroutine::Coroutine` implements `PyFunctionArgument<'a, 'py, false>`
-             `&'a pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, 'py, false>`
-             `&'a pyo3::coroutine::Coroutine` implements `PyFunctionArgument<'a, 'py, false>`
-             `Option<T>` implements `PyFunctionArgument<'a, 'py, true>`
+   = help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IS_OPTION>`:
+             `&'a pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+             `&'holder mut pyo3::coroutine::Coroutine` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+             `&'holder pyo3::coroutine::Coroutine` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+             `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, true>`
    = note: required for `CancelHandle` to implement `FromPyObject<'_>`
    = note: required for `CancelHandle` to implement `FromPyObjectBound<'_, '_>`
-   = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_, false>`
+   = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_, '_, false>`
 note: required by a bound in `extract_argument`
   --> src/impl_/extract_argument.rs
    |
-   | pub fn extract_argument<'a, 'py, T, const IS_OPTION: bool>(
+   | pub fn extract_argument<'a, 'holder, 'py, T, const IS_OPTION: bool>(
    |        ---------------- required by a bound in this function
 ...
-   |     T: PyFunctionArgument<'a, 'py, IS_OPTION>,
-   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+   |     T: PyFunctionArgument<'a, 'holder, 'py, IS_OPTION>,
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
