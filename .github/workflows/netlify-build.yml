@@ -55,7 +55,7 @@ jobs:
         id: prepare_tag
         run: |
           TAG_NAME="${GITHUB_REF##*/}"
-          echo "::set-output name=tag_name::${TAG_NAME}"
+          echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
 
       # Start with the current guides.
       - name: Get the guide
@@ -65,7 +65,7 @@ jobs:
 
       # Set redirects.
       - name: Set redirects
-        run: .netlify/redirect.sh
+        run: sh .netlify/redirect.sh
 
       # This builds the book and docs in netlify_build/main
       - name: Build the guide and public docs
