@@ -225,10 +225,8 @@ fn arguments_introspection_data<'a>(
     }
 
     if let Some(param) = &signature.python_signature.varargs {
-        let arg_desc = if let Some(FnArg::VarArgs(arg_desc)) = argument_desc.next() {
-            arg_desc
-        } else {
-            panic!("Less arguments than in python signature");
+        let Some(FnArg::VarArgs(arg_desc)) = argument_desc.next() {
+            panic!("Fewer arguments than in python signature");
         };
         let mut params = HashMap::from([("name", IntrospectionNode::String(param.into()))]);
         if let Some(annotation) = &arg_desc.annotation {
