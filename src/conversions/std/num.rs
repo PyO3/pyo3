@@ -12,6 +12,8 @@ use std::num::{
     NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
 };
 
+use super::array::invalid_sequence_length;
+
 macro_rules! int_fits_larger_int {
     ($rust_type:ty, $larger_type:ty) => {
         impl<'py> IntoPyObject<'py> for $rust_type {
@@ -291,6 +293,32 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
     #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         Self::type_output()
+    }
+
+    fn object_as_slice<'s>(
+        obj: Borrowed<'s, 'py, PyAny>,
+        _: crate::conversion::private::Token,
+    ) -> Option<PyResult<&'s [Self]>> {
+        // FIXME: this currently prevents extraction of `ByteArray` and other sequences that _might_ be valid to
+        // interpret as `Vec<u8>`. Probably the solution is to just drop error handling and return `Option<&[u8]>`.
+        Some(
+            obj.cast::<PyBytes>()
+                .map(|bytes| bytes.as_bytes())
+                .map_err(Into::into),
+        )
+    }
+
+    fn slice_into_array<const N: usize>(
+        slice: &[Self],
+        _: crate::conversion::private::Token,
+    ) -> PyResult<[Self; N]> {
+        slice
+            .try_into()
+            .map_err(|_| invalid_sequence_length(N, slice.len()))
+    }
+
+    fn slice_into_vec(slice: &[Self], _: crate::conversion::private::Token) -> PyResult<Vec<Self>> {
+        Ok(slice.to_vec())
     }
 }
 

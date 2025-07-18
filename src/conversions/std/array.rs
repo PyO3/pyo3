@@ -42,7 +42,14 @@ where
 {
     type Error = PyErr;
 
-    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        if let Some(slice) =
+            T::object_as_slice(obj, crate::conversion::private::Token).transpose()?
+        {
+            // If the object is a slice, we can extract it directly.
+            return T::slice_into_array(slice, crate::conversion::private::Token);
+        }
+
         create_array_from_obj(obj)
     }
 }
@@ -112,7 +119,7 @@ where
     }
 }
 
-fn invalid_sequence_length(expected: usize, actual: usize) -> PyErr {
+pub(crate) fn invalid_sequence_length(expected: usize, actual: usize) -> PyErr {
     exceptions::PyValueError::new_err(format!(
         "expected a sequence of length {expected} (got {actual})"
     ))
@@ -151,6 +158,36 @@ mod tests {
             });
         });
         assert_eq!(DROP_COUNTER.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn test_extract_bytes_to_array() {
+        Python::attach(|py| {
+            let v: [u8; 33] = py
+                .eval(
+                    ffi::c_str!("b'abcabcabcabcabcabcabcabcabcabcabc'"),
+                    None,
+                    None,
+                )
+                .unwrap()
+                .extract()
+                .unwrap();
+            assert!(&v == b"abcabcabcabcabcabcabcabcabcabcabc");
+        })
+    }
+
+    #[test]
+    fn test_extract_bytes_wrong_length() {
+        Python::attach(|py| {
+            let v: PyResult<[u8; 3]> = py
+                .eval(ffi::c_str!("b'abcdefg'"), None, None)
+                .unwrap()
+                .extract();
+            assert_eq!(
+                v.unwrap_err().to_string(),
+                "ValueError: expected a sequence of length 3 (got 7)"
+            );
+        })
     }
 
     #[test]
