@@ -186,6 +186,10 @@ Adds a dependency on [num-complex](https://docs.rs/num-complex) and enables conv
 
 Adds a dependency on [num-rational](https://docs.rs/num-rational) and enables conversions into its [`Ratio`](https://docs.rs/num-rational/latest/num_rational/struct.Ratio.html) type.
 
+### `once_cell`
+
+Exposes a [`pyo3::sync::OnceCellExt`]({{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceCellExt.html) trait which adds helper methods to avoid blocking when interacting with [`once_cell::sync::OnceCell`](https://docs.rs/once_cell/latest/once_cell/sync/struct.OnceCell.html) from threads attached to the Python interpreter.
+
 ### `ordered-float`
 
 Adds a dependency on [ordered-float](https://docs.rs/ordered-float) and enables conversions between [ordered-float](https://docs.rs/ordered-float)'s types and Python:

@@ -17,8 +17,15 @@ use std::{
     sync::{Once, OnceState},
 };
 
+pub(crate) mod once_cell;
+
 #[cfg(not(Py_GIL_DISABLED))]
 use crate::PyVisit;
+
+// The trait is only public if the `once_cell` feature is enabled, so that we have the option
+// to make `once_cell` an optional dependency in the future.
+#[cfg(feature = "once_cell")]
+pub use self::once_cell::OnceCellExt;
 
 /// Value with concurrent access protected by the GIL.
 ///
@@ -532,7 +539,7 @@ mod once_lock_ext_sealed {
     impl<T> Sealed for std::sync::OnceLock<T> {}
 }
 
-/// Helper trait for `Once` to help avoid deadlocking when using a `Once` when attached to a
+/// Extension trait for [`Once`] to help avoid deadlocking when using a [`Once`] when attached to a
 /// Python thread.
 pub trait OnceExt: Sealed {
     ///The state of `Once`
@@ -766,9 +773,6 @@ where
     // into the C API.
     let ts_guard = unsafe { SuspendAttach::new() };
 
-    // this trait is guarded by a rustc version config
-    // so clippy's MSRV check is wrong
-    #[allow(clippy::incompatible_msrv)]
     // By having detached here, we guarantee that `.get_or_init` cannot deadlock with
     // the Python interpreter
     let value = lock.get_or_init(move || {
