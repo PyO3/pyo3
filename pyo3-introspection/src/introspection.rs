@@ -220,6 +220,7 @@ fn convert_argument(arg: &ChunkArgument) -> Argument {
 fn convert_variable_length_argument(arg: &ChunkArgument) -> VariableLengthArgument {
     VariableLengthArgument {
         name: arg.name.clone(),
+        annotation: arg.annotation.clone(),
     }
 }
 

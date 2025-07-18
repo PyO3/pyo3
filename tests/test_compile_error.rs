@@ -28,6 +28,10 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/reject_generics.rs");
     t.compile_fail("tests/ui/invalid_closure.rs");
     t.compile_fail("tests/ui/pyclass_send.rs");
+    #[cfg(not(feature = "experimental-inspect"))]
+    t.compile_fail("tests/ui/invalid_annotation.rs");
+    #[cfg(not(feature = "experimental-inspect"))]
+    t.compile_fail("tests/ui/invalid_annotation_return.rs");
     t.compile_fail("tests/ui/invalid_argument_attributes.rs");
     t.compile_fail("tests/ui/invalid_intopy_derive.rs");
     #[cfg(not(windows))]
@@ -35,13 +39,13 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_frompy_derive.rs");
     t.compile_fail("tests/ui/static_ref.rs");
     t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
-    #[cfg(not(any(feature = "uuid")))]
+    #[cfg(not(feature = "uuid"))]
     t.compile_fail("tests/ui/invalid_pyfunctions.rs");
     t.compile_fail("tests/ui/invalid_pymethods.rs");
     // output changes with async feature
     #[cfg(all(Py_LIMITED_API, feature = "experimental-async"))]
     t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
-    #[cfg(not(any(feature = "experimental-async")))]
+    #[cfg(not(feature = "experimental-async"))]
     t.compile_fail("tests/ui/invalid_async.rs");
     t.compile_fail("tests/ui/invalid_intern_arg.rs");
     t.compile_fail("tests/ui/invalid_frozen_pyclass_borrow.rs");

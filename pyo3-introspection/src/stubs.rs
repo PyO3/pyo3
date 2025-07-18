@@ -123,7 +123,10 @@ fn function_stubs(function: &Function, modules_to_import: &mut BTreeSet<String>)
         parameters.push(argument_stub(argument, modules_to_import));
     }
     if let Some(argument) = &function.arguments.vararg {
-        parameters.push(format!("*{}", variable_length_argument_stub(argument)));
+        parameters.push(format!(
+            "*{}",
+            variable_length_argument_stub(argument, modules_to_import)
+        ));
     } else if !function.arguments.keyword_only_arguments.is_empty() {
         parameters.push("*".into());
     }
@@ -131,7 +134,10 @@ fn function_stubs(function: &Function, modules_to_import: &mut BTreeSet<String>)
         parameters.push(argument_stub(argument, modules_to_import));
     }
     if let Some(argument) = &function.arguments.kwarg {
-        parameters.push(format!("**{}", variable_length_argument_stub(argument)));
+        parameters.push(format!(
+            "**{}",
+            variable_length_argument_stub(argument, modules_to_import)
+        ));
     }
     let mut buffer = String::new();
     for decorator in &function.decorators {
@@ -175,8 +181,16 @@ fn argument_stub(argument: &Argument, modules_to_import: &mut BTreeSet<String>) 
     output
 }
 
-fn variable_length_argument_stub(argument: &VariableLengthArgument) -> String {
-    argument.name.clone()
+fn variable_length_argument_stub(
+    argument: &VariableLengthArgument,
+    modules_to_import: &mut BTreeSet<String>,
+) -> String {
+    let mut output = argument.name.clone();
+    if let Some(annotation) = &argument.annotation {
+        output.push_str(": ");
+        output.push_str(annotation_stub(annotation, modules_to_import));
+    }
+    output
 }
 
 fn annotation_stub<'a>(annotation: &'a str, modules_to_import: &mut BTreeSet<String>) -> &'a str {
@@ -210,6 +224,7 @@ mod tests {
                 }],
                 vararg: Some(VariableLengthArgument {
                     name: "varargs".into(),
+                    annotation: None,
                 }),
                 keyword_only_arguments: vec![Argument {
                     name: "karg".into(),
@@ -218,12 +233,13 @@ mod tests {
                 }],
                 kwarg: Some(VariableLengthArgument {
                     name: "kwarg".into(),
+                    annotation: Some("str".into()),
                 }),
             },
             returns: Some("list[str]".into()),
         };
         assert_eq!(
-            "def func(posonly, /, arg, *varargs, karg: str, **kwarg) -> list[str]: ...",
+            "def func(posonly, /, arg, *varargs, karg: str, **kwarg: str) -> list[str]: ...",
             function_stubs(&function, &mut BTreeSet::new())
         )
     }
