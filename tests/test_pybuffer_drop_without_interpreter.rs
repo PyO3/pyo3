@@ -1,4 +1,5 @@
-#![cfg(not(any(PyPy, GraalPy)))]
+#![cfg(any(not(Py_LIMITED_API), Py_3_11))] // buffer availability
+#![cfg(not(any(PyPy, GraalPy)))] // cannot control interpreter lifecycle in PyPy or GraalPy
 
 //! Dropping `Py<T>` after the interpreter has been finalized should be sound.
 //!
