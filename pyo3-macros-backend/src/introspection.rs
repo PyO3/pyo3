@@ -124,7 +124,7 @@ pub fn function_introspection_code(
                 .as_ref()
                 .and_then(|attribute| attribute.value.returns.as_ref())
             {
-                IntrospectionNode::String(returns.value().into())
+                IntrospectionNode::String(returns.to_python().into())
             } else {
                 match returns {
                     ReturnType::Default => IntrospectionNode::String("None".into()),
@@ -225,7 +225,7 @@ fn arguments_introspection_data<'a>(
     }
 
     if let Some(param) = &signature.python_signature.varargs {
-        let Some(FnArg::VarArgs(arg_desc)) = argument_desc.next() {
+        let Some(FnArg::VarArgs(arg_desc)) = argument_desc.next() else {
             panic!("Fewer arguments than in python signature");
         };
         let mut params = HashMap::from([("name", IntrospectionNode::String(param.into()))]);
@@ -236,18 +236,14 @@ fn arguments_introspection_data<'a>(
     }
 
     for (param, _) in &signature.python_signature.keyword_only_parameters {
-        let arg_desc = if let Some(FnArg::Regular(arg_desc)) = argument_desc.next() {
-            arg_desc
-        } else {
+        let Some(FnArg::Regular(arg_desc)) = argument_desc.next() else {
             panic!("Less arguments than in python signature");
         };
         kwonlyargs.push(argument_introspection_data(param, arg_desc, class_type));
     }
 
     if let Some(param) = &signature.python_signature.kwargs {
-        let arg_desc = if let Some(FnArg::KwArgs(arg_desc)) = argument_desc.next() {
-            arg_desc
-        } else {
+        let Some(FnArg::KwArgs(arg_desc)) = argument_desc.next() else {
             panic!("Less arguments than in python signature");
         };
         let mut params = HashMap::from([("name", IntrospectionNode::String(param.into()))]);

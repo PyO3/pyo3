@@ -1,0 +1,5 @@
+error: Type annotations in the signature is only supported with the `experimental-inspect` feature
+ --> tests/ui/invalid_annotation.rs:4:24
+  |
+4 | #[pyo3(signature = (a: "int"))]
+  |                        ^^^^^

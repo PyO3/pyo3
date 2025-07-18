@@ -16,8 +16,7 @@ use syn::{
 pub struct Signature {
     paren_token: syn::token::Paren,
     pub items: Punctuated<SignatureItem, Token![,]>,
-    #[cfg(feature = "experimental-inspect")]
-    pub returns: Option<(Token![->], syn::LitStr)>,
+    pub returns: Option<(Token![->], PyTypeAnnotation)>,
 }
 
 impl Parse for Signature {
@@ -25,7 +24,6 @@ impl Parse for Signature {
         let content;
         let paren_token = syn::parenthesized!(content in input);
         let items = content.parse_terminated(SignatureItem::parse, Token![,])?;
-        #[cfg(feature = "experimental-inspect")]
         let returns = if input.peek(Token![->]) {
             Some((input.parse()?, input.parse()?))
         } else {
@@ -34,7 +32,6 @@ impl Parse for Signature {
         Ok(Signature {
             paren_token,
             items,
-            #[cfg(feature = "experimental-inspect")]
             returns,
         })
     }
@@ -43,15 +40,18 @@ impl Parse for Signature {
 impl ToTokens for Signature {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.paren_token
-            .surround(tokens, |tokens| self.items.to_tokens(tokens))
+            .surround(tokens, |tokens| self.items.to_tokens(tokens));
+        if let Some((arrow, returns)) = &self.returns {
+            arrow.to_tokens(tokens);
+            returns.to_tokens(tokens);
+        }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignatureItemArgument {
     pub ident: syn::Ident,
-    #[cfg(feature = "experimental-inspect")]
-    pub colon_and_annotation: Option<(Token![:], syn::LitStr)>,
+    pub colon_and_annotation: Option<(Token![:], PyTypeAnnotation)>,
     pub eq_and_default: Option<(Token![=], syn::Expr)>,
 }
 
@@ -69,16 +69,14 @@ pub struct SignatureItemVarargsSep {
 pub struct SignatureItemVarargs {
     pub sep: SignatureItemVarargsSep,
     pub ident: syn::Ident,
-    #[cfg(feature = "experimental-inspect")]
-    pub colon_and_annotation: Option<(Token![:], syn::LitStr)>,
+    pub colon_and_annotation: Option<(Token![:], PyTypeAnnotation)>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignatureItemKwargs {
     pub asterisks: (Token![*], Token![*]),
     pub ident: syn::Ident,
-    #[cfg(feature = "experimental-inspect")]
-    pub colon_and_annotation: Option<(Token![:], syn::LitStr)>,
+    pub colon_and_annotation: Option<(Token![:], PyTypeAnnotation)>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -104,7 +102,6 @@ impl Parse for SignatureItem {
                     Ok(SignatureItem::Varargs(SignatureItemVarargs {
                         sep,
                         ident: input.parse()?,
-                        #[cfg(feature = "experimental-inspect")]
                         colon_and_annotation: if input.peek(Token![:]) {
                             Some((input.parse()?, input.parse()?))
                         } else {
@@ -137,7 +134,6 @@ impl Parse for SignatureItemArgument {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         Ok(Self {
             ident: input.parse()?,
-            #[cfg(feature = "experimental-inspect")]
             colon_and_annotation: if input.peek(Token![:]) {
                 Some((input.parse()?, input.parse()?))
             } else {
@@ -155,7 +151,6 @@ impl Parse for SignatureItemArgument {
 impl ToTokens for SignatureItemArgument {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.ident.to_tokens(tokens);
-        #[cfg(feature = "experimental-inspect")]
         if let Some((colon, annotation)) = &self.colon_and_annotation {
             colon.to_tokens(tokens);
             annotation.to_tokens(tokens);
@@ -186,7 +181,6 @@ impl Parse for SignatureItemVarargs {
         Ok(Self {
             sep: input.parse()?,
             ident: input.parse()?,
-            #[cfg(feature = "experimental-inspect")]
             colon_and_annotation: if input.peek(Token![:]) {
                 Some((input.parse()?, input.parse()?))
             } else {
@@ -208,7 +202,6 @@ impl Parse for SignatureItemKwargs {
         Ok(Self {
             asterisks: (input.parse()?, input.parse()?),
             ident: input.parse()?,
-            #[cfg(feature = "experimental-inspect")]
             colon_and_annotation: if input.peek(Token![:]) {
                 Some((input.parse()?, input.parse()?))
             } else {
@@ -237,6 +230,27 @@ impl Parse for SignatureItemPosargsSep {
 impl ToTokens for SignatureItemPosargsSep {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.slash.to_tokens(tokens);
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PyTypeAnnotation(syn::LitStr);
+
+impl Parse for PyTypeAnnotation {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        Ok(Self(input.parse()?))
+    }
+}
+
+impl ToTokens for PyTypeAnnotation {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl PyTypeAnnotation {
+    pub fn to_python(&self) -> String {
+        self.0.value()
     }
 }
 
@@ -446,6 +460,13 @@ impl<'a> FunctionSignature<'a> {
             )
         };
 
+        if let Some(returns) = &attribute.value.returns {
+            ensure_spanned!(
+                cfg!(feature = "experimental-inspect"),
+                returns.1.span() => "Return type annotation in the signature is only supported with the `experimental-inspect` feature"
+            );
+        }
+
         for item in &attribute.value.items {
             match item {
                 SignatureItem::Argument(arg) => {
@@ -456,27 +477,24 @@ impl<'a> FunctionSignature<'a> {
                         arg.eq_and_default.is_none(),
                         arg.span(),
                     )?;
+                    let FnArg::Regular(fn_arg) = fn_arg else {
+                        unreachable!(
+                            "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
+                                parsed and transformed below. Because the have to come last and are only allowed \
+                                once, this has to be a regular argument."
+                        );
+                    };
                     if let Some((_, default)) = &arg.eq_and_default {
-                        if let FnArg::Regular(arg) = fn_arg {
-                            arg.default_value = Some(default.clone());
-                        } else {
-                            unreachable!(
-                                "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
-                                parsed and transformed below. Because the have to come last and are only allowed \
-                                once, this has to be a regular argument."
-                            );
-                        }
+                        fn_arg.default_value = Some(default.clone());
                     }
-                    #[cfg(feature = "experimental-inspect")]
                     if let Some((_, annotation)) = &arg.colon_and_annotation {
-                        if let FnArg::Regular(arg) = fn_arg {
-                            arg.annotation = Some(annotation.value());
-                        } else {
-                            unreachable!(
-                                "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
-                                parsed and transformed below. Because the have to come last and are only allowed \
-                                once, this has to be a regular argument."
-                            );
+                        ensure_spanned!(
+                            cfg!(feature = "experimental-inspect"),
+                            annotation.span() => "Type annotations in the signature is only supported with the `experimental-inspect` feature"
+                        );
+                        #[cfg(feature = "experimental-inspect")]
+                        {
+                            fn_arg.annotation = Some(annotation.to_python());
                         }
                     }
                 }
@@ -487,16 +505,21 @@ impl<'a> FunctionSignature<'a> {
                     let fn_arg = next_non_py_argument_checked(&varargs.ident)?;
                     fn_arg.to_varargs_mut()?;
                     parse_state.add_varargs(&mut python_signature, varargs)?;
-                    #[cfg(feature = "experimental-inspect")]
                     if let Some((_, annotation)) = &varargs.colon_and_annotation {
-                        if let FnArg::VarArgs(arg) = fn_arg {
-                            arg.annotation = Some(annotation.value());
-                        } else {
-                            unreachable!(
-                                "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
+                        ensure_spanned!(
+                            cfg!(feature = "experimental-inspect"),
+                            annotation.span() => "Type annotations in the signature is only supported with the `experimental-inspect` feature"
+                        );
+                        #[cfg(feature = "experimental-inspect")]
+                        {
+                            let FnArg::VarArgs(fn_arg) = fn_arg else {
+                                unreachable!(
+                                    "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
                                 parsed and transformed below. Because the have to come last and are only allowed \
                                 once, this has to be a regular argument."
-                            );
+                                );
+                            };
+                            fn_arg.annotation = Some(annotation.to_python());
                         }
                     }
                 }
@@ -504,16 +527,21 @@ impl<'a> FunctionSignature<'a> {
                     let fn_arg = next_non_py_argument_checked(&kwargs.ident)?;
                     fn_arg.to_kwargs_mut()?;
                     parse_state.add_kwargs(&mut python_signature, kwargs)?;
-                    #[cfg(feature = "experimental-inspect")]
                     if let Some((_, annotation)) = &kwargs.colon_and_annotation {
-                        if let FnArg::KwArgs(arg) = fn_arg {
-                            arg.annotation = Some(annotation.value());
-                        } else {
-                            unreachable!(
-                                "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
+                        ensure_spanned!(
+                            cfg!(feature = "experimental-inspect"),
+                            annotation.span() => "Type annotations in the signature is only supported with the `experimental-inspect` feature"
+                        );
+                        #[cfg(feature = "experimental-inspect")]
+                        {
+                            let FnArg::KwArgs(fn_arg) = fn_arg else {
+                                unreachable!(
+                                    "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
                                 parsed and transformed below. Because the have to come last and are only allowed \
                                 once, this has to be a regular argument."
-                            );
+                                );
+                            };
+                            fn_arg.annotation = Some(annotation.to_python());
                         }
                     }
                 }
