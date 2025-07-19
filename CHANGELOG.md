@@ -10,6 +10,28 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.25.1] - 2025-06-12
+### Packaging
+
+- Add support for Windows on ARM64. [#5145](https://github.com/PyO3/pyo3/pull/5145)
+- Add `chrono-local` feature for optional conversions for chrono's `Local` timezone & `DateTime<Local>` instances. [#5174](https://github.com/PyO3/pyo3/pull/5174)
+
+### Added
+
+- Add FFI definition `PyBytes_AS_STRING`. [#5121](https://github.com/PyO3/pyo3/pull/5121)
+- Add support for module associated consts introspection. [#5150](https://github.com/PyO3/pyo3/pull/5150)
+
+### Changed
+
+- Enable "vectorcall" FFI definitions on GraalPy. [#5121](https://github.com/PyO3/pyo3/pull/5121)
+- Use `Py_Is` function on GraalPy [#5121](https://github.com/PyO3/pyo3/pull/5121)
+
+### Fixed
+
+- Report a better compile error for `async` declarations when not using `experimental-async` feature. [#5156](https://github.com/PyO3/pyo3/pull/5156)
+- Fix implementation of `FromPyObject` for `uuid::Uuid` on big-endian architectures. [#5161](https://github.com/PyO3/pyo3/pull/5161)
+- Fix segmentation faults on 32-bit x86 with Python 3.14. [#5180](https://github.com/PyO3/pyo3/pull/5180)
+
 ## [0.25.0] - 2025-05-14
 
 ### Packaging
@@ -2198,7 +2220,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.25.0...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.25.1...HEAD
+[0.25.0]: https://github.com/pyo3/pyo3/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/pyo3/pyo3/compare/v0.24.2...v0.25.0
 [0.24.2]: https://github.com/pyo3/pyo3/compare/v0.24.1...v0.24.2
 [0.24.1]: https://github.com/pyo3/pyo3/compare/v0.24.0...v0.24.1
