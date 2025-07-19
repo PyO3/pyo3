@@ -516,7 +516,7 @@ fn replace_self(ty: &mut Type, self_target: &Type) {
         self_target: &'a Type,
     }
 
-    impl<'a> VisitMut for SelfReplacementVisitor<'a> {
+    impl VisitMut for SelfReplacementVisitor<'_> {
         fn visit_type_mut(&mut self, ty: &mut Type) {
             if let syn::Type::Path(type_path) = ty {
                 if type_path.qself.is_none()
