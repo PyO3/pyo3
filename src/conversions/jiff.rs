@@ -28,7 +28,7 @@
 //! # fn main() -> () {}
 //! # #[cfg(not(windows))]
 //! fn main() -> PyResult<()> {
-//!     pyo3::prepare_freethreaded_python();
+//!     pyo3::initialize_python();
 //!     Python::attach(|py| {
 //!         // Build some jiff values
 //!         let jiff_zoned = Zoned::now();
