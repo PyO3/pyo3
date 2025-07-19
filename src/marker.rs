@@ -379,9 +379,9 @@ impl Python<'_> {
     /// initialized, this function will initialize it. See
     #[cfg_attr(
         not(any(PyPy, GraalPy)),
-        doc = "[`prepare_freethreaded_python`](crate::prepare_freethreaded_python)"
+        doc = "[`initialize_python`](crate::initialize_python)"
     )]
-    #[cfg_attr(PyPy, doc = "`prepare_freethreaded_python`")]
+    #[cfg_attr(PyPy, doc = "`initialize_python`")]
     /// for details.
     ///
     /// If the current thread does not yet have a Python "thread state" associated with it,
@@ -889,7 +889,7 @@ mod tests {
         // Before starting the interpreter the state of calling `PyGILState_Check`
         // seems to be undefined, so let's ensure that Python is up.
         #[cfg(not(any(PyPy, GraalPy)))]
-        crate::prepare_freethreaded_python();
+        crate::initialize_python();
 
         let state = unsafe { crate::ffi::PyGILState_Check() };
         assert_eq!(state, GIL_NOT_HELD);

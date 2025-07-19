@@ -21,14 +21,14 @@ static START: std::sync::Once = std::sync::Once::new();
 /// use pyo3::prelude::*;
 ///
 /// # fn main() -> PyResult<()> {
-/// pyo3::prepare_freethreaded_python();
+/// pyo3::initialize_python();
 /// Python::attach(|py| py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None))
 /// # }
 /// ```
 #[cfg(not(any(PyPy, GraalPy)))]
-pub fn prepare_freethreaded_python() {
+pub fn initialize_python() {
     // Protect against race conditions when Python is not yet initialized and multiple threads
-    // concurrently call 'prepare_freethreaded_python()'. Note that we do not protect against
+    // concurrently call 'initialize_python()'. Note that we do not protect against
     // concurrent initialization of the Python runtime by other users of the Python C API.
     START.call_once_force(|_| unsafe {
         // Use call_once_force because if initialization panics, it's okay to try again.
@@ -111,7 +111,7 @@ pub(crate) fn ensure_initialized() {
     //  - Otherwise, just check the interpreter is initialized.
     #[cfg(all(feature = "auto-initialize", not(any(PyPy, GraalPy))))]
     {
-        prepare_freethreaded_python();
+        initialize_python();
     }
     #[cfg(not(all(feature = "auto-initialize", not(any(PyPy, GraalPy)))))]
     {
@@ -121,7 +121,7 @@ pub(crate) fn ensure_initialized() {
         // provide a mechanism to specify required features for tests.
         #[cfg(not(any(PyPy, GraalPy)))]
         if option_env!("CARGO_PRIMARY_PACKAGE").is_some() {
-            prepare_freethreaded_python();
+            initialize_python();
         }
 
         START.call_once_force(|_| unsafe {
