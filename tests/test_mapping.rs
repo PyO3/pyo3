@@ -21,11 +21,12 @@ struct Mapping {
 #[pymethods]
 impl Mapping {
     #[new]
-    fn new(elements: Option<&PyList>) -> PyResult<Self> {
+    #[pyo3(signature=(elements=None))]
+    fn new(elements: Option<&Bound<'_, PyList>>) -> PyResult<Self> {
         if let Some(pylist) = elements {
             let mut elems = HashMap::with_capacity(pylist.len());
             for (i, pyelem) in pylist.into_iter().enumerate() {
-                let elem = String::extract(pyelem)?;
+                let elem = pyelem.extract()?;
                 elems.insert(elem, i);
             }
             Ok(Self { index: elems })
@@ -59,24 +60,32 @@ impl Mapping {
         }
     }
 
-    fn get(&self, py: Python<'_>, key: &str, default: Option<PyObject>) -> Option<PyObject> {
-        self.index
-            .get(key)
-            .map(|value| value.into_py(py))
-            .or(default)
+    #[pyo3(signature=(key, default=None))]
+    fn get(
+        &self,
+        py: Python<'_>,
+        key: &str,
+        default: Option<PyObject>,
+    ) -> PyResult<Option<PyObject>> {
+        match self.index.get(key) {
+            Some(value) => Ok(Some(value.into_pyobject(py)?.into_any().unbind())),
+            None => Ok(default),
+        }
     }
 }
 
 /// Return a dict with `m = Mapping(['1', '2', '3'])`.
 fn map_dict(py: Python<'_>) -> Bound<'_, pyo3::types::PyDict> {
-    let d = [("Mapping", py.get_type_bound::<Mapping>())].into_py_dict_bound(py);
+    let d = [("Mapping", py.get_type::<Mapping>())]
+        .into_py_dict(py)
+        .unwrap();
     py_run!(py, *d, "m = Mapping(['1', '2', '3'])");
     d
 }
 
 #[test]
 fn test_getitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = map_dict(py);
 
         py_assert!(py, *d, "m['1'] == 0");
@@ -88,7 +97,7 @@ fn test_getitem() {
 
 #[test]
 fn test_setitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = map_dict(py);
 
         py_run!(py, *d, "m['1'] = 4; assert m['1'] == 4");
@@ -101,7 +110,7 @@ fn test_setitem() {
 
 #[test]
 fn test_delitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = map_dict(py);
         py_run!(
             py,
@@ -115,7 +124,7 @@ fn test_delitem() {
 
 #[test]
 fn mapping_is_not_sequence() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let mut index = HashMap::new();
         index.insert("Foo".into(), 1);
         index.insert("Bar".into(), 2);

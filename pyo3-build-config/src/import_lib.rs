@@ -7,7 +7,7 @@ use python3_dll_a::ImportLibraryGenerator;
 use target_lexicon::{Architecture, OperatingSystem, Triple};
 
 use super::{PythonImplementation, PythonVersion};
-use crate::errors::{Context, Result};
+use crate::errors::{Context, Error, Result};
 
 /// Generates the `python3.dll` or `pythonXY.dll` import library for Windows targets.
 ///
@@ -19,6 +19,7 @@ pub(super) fn generate_import_lib(
     target: &Triple,
     py_impl: PythonImplementation,
     py_version: Option<PythonVersion>,
+    abiflags: Option<&str>,
 ) -> Result<Option<String>> {
     if target.operating_system != OperatingSystem::Windows {
         return Ok(None);
@@ -42,11 +43,15 @@ pub(super) fn generate_import_lib(
     let implementation = match py_impl {
         PythonImplementation::CPython => python3_dll_a::PythonImplementation::CPython,
         PythonImplementation::PyPy => python3_dll_a::PythonImplementation::PyPy,
+        PythonImplementation::GraalPy => {
+            return Err(Error::from("No support for GraalPy on Windows"))
+        }
     };
 
     ImportLibraryGenerator::new(&arch, &env)
         .version(py_version.map(|v| (v.major, v.minor)))
         .implementation(implementation)
+        .abiflags(abiflags)
         .generate(&out_lib_dir)
         .context("failed to generate python3.dll import library")?;
 

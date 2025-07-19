@@ -1,20 +1,20 @@
 error: getter function can only have one argument (of type pyo3::Python)
- --> tests/ui/invalid_property_args.rs:9:54
+ --> tests/ui/invalid_property_args.rs:9:56
   |
-9 |     fn getter_with_arg(&self, py: Python<'_>, index: u32) {}
-  |                                                      ^^^
+9 |     fn getter_with_arg(&self, _py: Python<'_>, _index: u32) {}
+  |                                                        ^^^
 
 error: setter function expected to have one argument
   --> tests/ui/invalid_property_args.rs:18:8
    |
-18 |     fn setter_with_no_arg(&mut self, py: Python<'_>) {}
+18 |     fn setter_with_no_arg(&mut self, _py: Python<'_>) {}
    |        ^^^^^^^^^^^^^^^^^^
 
 error: setter function can have at most two arguments ([pyo3::Python,] and value)
-  --> tests/ui/invalid_property_args.rs:24:76
+  --> tests/ui/invalid_property_args.rs:24:79
    |
-24 |     fn setter_with_too_many_args(&mut self, py: Python<'_>, foo: u32, bar: u32) {}
-   |                                                                            ^^^
+24 |     fn setter_with_too_many_args(&mut self, _py: Python<'_>, _foo: u32, _bar: u32) {}
+   |                                                                               ^^^
 
 error: `get` and `set` with tuple struct fields require `name`
   --> tests/ui/invalid_property_args.rs:28:50
@@ -45,3 +45,31 @@ error: `name` is useless without `get` or `set`
    |
 40 | struct NameWithoutGetSet(#[pyo3(name = "value")] i32);
    |                                 ^^^^^^^^^^^^^^
+
+error[E0277]: `PhantomData<i32>` cannot be converted to a Python object
+  --> tests/ui/invalid_property_args.rs:45:12
+   |
+45 |     value: ::std::marker::PhantomData<i32>,
+   |            ^ required by `#[pyo3(get)]` to create a readable property from a field of type `PhantomData<i32>`
+   |
+   = help: the trait `IntoPyObject<'_>` is not implemented for `PhantomData<i32>`
+   = note: implement `IntoPyObject` for `&PhantomData<i32>` or `IntoPyObject + Clone` for `PhantomData<i32>` to define the conversion
+   = help: the following other types implement trait `IntoPyObject<'py>`:
+             &&'a T
+             &&OsStr
+             &&Path
+             &&str
+             &'a (T0, T1)
+             &'a (T0, T1, T2)
+             &'a (T0, T1, T2, T3)
+             &'a (T0, T1, T2, T3, T4)
+           and $N others
+   = note: required for `PhantomData<i32>` to implement `for<'py> PyO3GetField<'py>`
+note: required by a bound in `PyClassGetterGenerator::<ClassT, FieldT, Offset, false, false, IMPLEMENTS_INTOPYOBJECT>::generate`
+  --> src/impl_/pyclass.rs
+   |
+   |     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType
+   |                  -------- required by a bound in this associated function
+...
+   |         for<'py> FieldT: PyO3GetField<'py>,
+   |                          ^^^^^^^^^^^^^^^^^ required by this bound in `PyClassGetterGenerator::<ClassT, FieldT, Offset, false, false, IMPLEMENTS_INTOPYOBJECT>::generate`

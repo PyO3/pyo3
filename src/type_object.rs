@@ -3,10 +3,11 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyType};
-use crate::{ffi, Bound, PyNativeType, Python};
+use crate::{ffi, Bound, Python};
+use std::ptr;
 
 /// `T: PyLayout<U>` represents that `T` is a concrete representation of `U` in the Python heap.
-/// E.g., `PyCell` is a concrete representation of all `pyclass`es, and `ffi::PyObject`
+/// E.g., `PyClassObject` is a concrete representation of all `pyclass`es, and `ffi::PyObject`
 /// is of `PyAny`.
 ///
 /// This trait is intended to be used internally.
@@ -17,29 +18,10 @@ use crate::{ffi, Bound, PyNativeType, Python};
 pub unsafe trait PyLayout<T> {}
 
 /// `T: PySizedLayout<U>` represents that `T` is not a instance of
-/// [`PyVarObject`](https://docs.python.org/3.8/c-api/structures.html?highlight=pyvarobject#c.PyVarObject).
+/// [`PyVarObject`](https://docs.python.org/3/c-api/structures.html#c.PyVarObject).
+///
 /// In addition, that `T` is a concrete representation of `U`.
 pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
-
-/// Specifies that this type has a "GIL-bound Reference" form.
-///
-/// This is expected to be deprecated in the near future, see <https://github.com/PyO3/pyo3/issues/3382>
-///
-/// # Safety
-///
-/// - `Py<Self>::as_ref` will hand out references to `Self::AsRefTarget`.
-/// - `Self::AsRefTarget` must have the same layout as `UnsafeCell<ffi::PyAny>`.
-pub unsafe trait HasPyGilRef {
-    /// Utility type to make Py::as_ref work.
-    type AsRefTarget: PyNativeType;
-}
-
-unsafe impl<T> HasPyGilRef for T
-where
-    T: PyNativeType,
-{
-    type AsRefTarget = Self;
-}
 
 /// Python type information.
 /// All Python native types (e.g., `PyDict`) and `#[pyclass]` structs implement this trait.
@@ -54,34 +36,23 @@ where
 ///
 /// Implementations must provide an implementation for `type_object_raw` which infallibly produces a
 /// non-null pointer to the corresponding Python type object.
-pub unsafe trait PyTypeInfo: Sized + HasPyGilRef {
+pub unsafe trait PyTypeInfo: Sized {
     /// Class name.
     const NAME: &'static str;
 
     /// Module name, if any.
     const MODULE: Option<&'static str>;
 
+    /// Provides the full python type paths.
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "typing.Any";
+
     /// Returns the PyTypeObject instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;
 
     /// Returns the safe abstraction over the type object.
     #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyTypeInfo::type_object` will be replaced by `PyTypeInfo::type_object_bound` in a future PyO3 version"
-        )
-    )]
-    fn type_object(py: Python<'_>) -> &PyType {
-        // This isn't implemented in terms of `type_object_bound` because this just borrowed the
-        // object, for legacy reasons.
-        unsafe { py.from_borrowed_ptr(Self::type_object_raw(py) as _) }
-    }
-
-    /// Returns the safe abstraction over the type object.
-    #[inline]
-    fn type_object_bound(py: Python<'_>) -> Bound<'_, PyType> {
+    fn type_object(py: Python<'_>) -> Bound<'_, PyType> {
         // Making the borrowed object `Bound` is necessary for soundness reasons. It's an extreme
         // edge case, but arbitrary Python code _could_ change the __class__ of an object and cause
         // the type object to be freed.
@@ -98,47 +69,30 @@ pub unsafe trait PyTypeInfo: Sized + HasPyGilRef {
 
     /// Checks if `object` is an instance of this type or a subclass of this type.
     #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyTypeInfo::is_type_of` will be replaced by `PyTypeInfo::is_type_of_bound` in a future PyO3 version"
-        )
-    )]
-    fn is_type_of(object: &PyAny) -> bool {
-        Self::is_type_of_bound(&object.as_borrowed())
-    }
-
-    /// Checks if `object` is an instance of this type or a subclass of this type.
-    #[inline]
-    fn is_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
+    fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object_raw(object.py())) != 0 }
     }
 
     /// Checks if `object` is an instance of this type.
     #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyTypeInfo::is_exact_type_of` will be replaced by `PyTypeInfo::is_exact_type_of_bound` in a future PyO3 version"
-        )
-    )]
-    fn is_exact_type_of(object: &PyAny) -> bool {
-        Self::is_exact_type_of_bound(&object.as_borrowed())
-    }
-
-    /// Checks if `object` is an instance of this type.
-    #[inline]
-    fn is_exact_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
-        unsafe { ffi::Py_TYPE(object.as_ptr()) == Self::type_object_raw(object.py()) }
+    fn is_exact_type_of(object: &Bound<'_, PyAny>) -> bool {
+        unsafe {
+            ptr::eq(
+                ffi::Py_TYPE(object.as_ptr()),
+                Self::type_object_raw(object.py()),
+            )
+        }
     }
 }
 
 /// Implemented by types which can be used as a concrete Python type inside `Py<T>` smart pointers.
-pub trait PyTypeCheck: HasPyGilRef {
+pub trait PyTypeCheck {
     /// Name of self. This is used in error messages, for example.
     const NAME: &'static str;
+
+    /// Provides the full python type of the allowed values.
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str;
 
     /// Checks if `object` is an instance of `Self`, which may include a subtype.
     ///
@@ -152,37 +106,11 @@ where
 {
     const NAME: &'static str = <T as PyTypeInfo>::NAME;
 
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = <T as PyTypeInfo>::PYTHON_TYPE;
+
     #[inline]
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
-        T::is_type_of_bound(object)
-    }
-}
-
-#[inline]
-pub(crate) unsafe fn get_tp_alloc(tp: *mut ffi::PyTypeObject) -> Option<ffi::allocfunc> {
-    #[cfg(not(Py_LIMITED_API))]
-    {
-        (*tp).tp_alloc
-    }
-
-    #[cfg(Py_LIMITED_API)]
-    {
-        let ptr = ffi::PyType_GetSlot(tp, ffi::Py_tp_alloc);
-        std::mem::transmute(ptr)
-    }
-}
-
-#[inline]
-pub(crate) unsafe fn get_tp_free(tp: *mut ffi::PyTypeObject) -> ffi::freefunc {
-    #[cfg(not(Py_LIMITED_API))]
-    {
-        (*tp).tp_free.unwrap()
-    }
-
-    #[cfg(Py_LIMITED_API)]
-    {
-        let ptr = ffi::PyType_GetSlot(tp, ffi::Py_tp_free);
-        debug_assert_ne!(ptr, std::ptr::null_mut());
-        std::mem::transmute(ptr)
+        T::is_type_of(object)
     }
 }

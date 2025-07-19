@@ -1,7 +1,9 @@
 use std::env;
 
 use pyo3_build_config::pyo3_build_script_impl::{cargo_env_var, errors::Result};
-use pyo3_build_config::{bail, print_feature_cfgs, InterpreterConfig};
+use pyo3_build_config::{
+    add_python_framework_link_args, bail, print_feature_cfgs, InterpreterConfig,
+};
 
 fn ensure_auto_initialize_ok(interpreter_config: &InterpreterConfig) -> Result<()> {
     if cargo_env_var("CARGO_FEATURE_AUTO_INITIALIZE").is_some() && !interpreter_config.shared {
@@ -16,7 +18,7 @@ fn ensure_auto_initialize_ok(interpreter_config: &InterpreterConfig) -> Result<(
             \n\
             For more information, see \
             https://pyo3.rs/v{pyo3_version}/\
-                building_and_distribution.html#embedding-python-in-rust",
+                building-and-distribution.html#embedding-python-in-rust",
             pyo3_version = env::var("CARGO_PKG_VERSION").unwrap()
         );
     }
@@ -36,16 +38,19 @@ fn configure_pyo3() -> Result<()> {
     ensure_auto_initialize_ok(interpreter_config)?;
 
     for cfg in interpreter_config.build_script_outputs() {
-        println!("{}", cfg)
+        println!("{cfg}")
     }
 
-    // Emit cfgs like `thread_local_const_init`
     print_feature_cfgs();
+
+    // Make `cargo test` etc work on macOS with Xcode bundled Python
+    add_python_framework_link_args();
 
     Ok(())
 }
 
 fn main() {
+    pyo3_build_config::print_expected_cfgs();
     if let Err(e) = configure_pyo3() {
         eprintln!("error: {}", e.report());
         std::process::exit(1)

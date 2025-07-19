@@ -22,13 +22,23 @@ jobs:
       tag_name: ${{ steps.prepare_tag.outputs.tag_name }}
     steps:
       - uses: actions/checkout@v4
-
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
       - uses: dtolnay/rust-toolchain@nightly
 
       - name: Setup mdBook
-        uses: peaceiris/actions-mdbook@v1
+        uses: taiki-e/install-action@v2
         with:
-          mdbook-version: "0.4.19"
+          tool: mdbook,mdbook-tabs
+
+      - name: Link Checker
+        id: lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # setup lychee but don't run it for now
+          args: --version
+          lycheeVersion: nightly
 
       - name: Prepare tag
         id: prepare_tag
@@ -36,104 +46,21 @@ jobs:
           TAG_NAME="${GITHUB_REF##*/}"
           echo "::set-output name=tag_name::${TAG_NAME}"
 
-      # This builds the book in target/guide.
+      # This builds the book in target/guide/.
       - name: Build the guide
         run: |
           python -m pip install --upgrade pip && pip install nox
-          nox -s build-guide
+          nox -s ${{ github.event_name == 'release' && 'build-guide' || 'check-guide' }}
         env:
           PYO3_VERSION_TAG: ${{ steps.prepare_tag.outputs.tag_name }}
+          # allows lychee to get better rate limits from github
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy docs and the guide
         if: ${{ github.event_name == 'release' }}
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./target/guide/
           destination_dir: ${{ steps.prepare_tag.outputs.tag_name }}
           full_commit_message: "Upload documentation for ${{ steps.prepare_tag.outputs.tag_name }}"
-
-  cargo-benchmark:
-    if: ${{ github.ref_name == 'main' }}
-    name: Cargo benchmark
-    needs: guide-build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: cargo-${{ runner.os }}-bench-${{ hashFiles('**/Cargo.toml') }}
-        continue-on-error: true
-
-      - name: Run benchmarks
-        run: |
-          python -m pip install --upgrade pip && pip install nox
-          for bench in pyo3-benches/benches/*.rs; do
-            bench_name=$(basename "$bench" .rs)
-            nox -s bench -- --bench "$bench_name" -- --output-format bencher | tee -a output.txt
-          done
-
-      # Download previous benchmark result from cache (if exists)
-      - name: Download previous benchmark data
-        uses: actions/cache@v4
-        with:
-          path: ./cache
-          key: ${{ runner.os }}-benchmark
-
-      # Run `github-action-benchmark` action
-      - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@v1
-        with:
-          name: pyo3-bench
-          # What benchmark tool the output.txt came from
-          tool: "cargo"
-          # Where the output from the benchmark tool is stored
-          output-file-path: output.txt
-          # GitHub API token to make a commit comment
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: ${{ github.event_name != 'pull_request' }}
-
-  pytest-benchmark:
-    if: ${{ github.ref_name == 'main' }}
-    name: Pytest benchmark
-    needs: cargo-benchmark
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: cargo-${{ runner.os }}-pytest-bench-${{ hashFiles('**/Cargo.toml') }}
-        continue-on-error: true
-
-      - name: Download previous benchmark data
-        uses: actions/cache@v4
-        with:
-          path: ./cache
-          key: ${{ runner.os }}-pytest-benchmark
-
-      - name: Run benchmarks
-        run: |
-          python -m pip install --upgrade pip && pip install nox
-          nox -f pytests/noxfile.py -s bench -- --benchmark-json $(pwd)/output.json
-      - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@v1
-        with:
-          name: pytest-bench
-          tool: "pytest"
-          output-file-path: output.json
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: ${{ github.event_name != 'pull_request' }}

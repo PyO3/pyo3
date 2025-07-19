@@ -3,9 +3,8 @@ use crate::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
 use std::ptr::addr_of_mut;
 
-#[cfg(not(any(PyPy, Py_LIMITED_API)))]
+#[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct PyByteArrayObject {
     pub ob_base: PyVarObject,
     pub ob_alloc: Py_ssize_t,
@@ -17,8 +16,8 @@ pub struct PyByteArrayObject {
     pub ob_exports: c_int,
 }
 
-#[cfg(any(PyPy, Py_LIMITED_API))]
-opaque_struct!(PyByteArrayObject);
+#[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
+opaque_struct!(pub PyByteArrayObject);
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {

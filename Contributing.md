@@ -23,10 +23,6 @@ To work and develop PyO3, you need Python & Rust installed on your system.
 * [virtualenv](https://virtualenv.pypa.io/en/latest/) can also be used with or without Pyenv to use specific installed Python versions.
 * [`nox`][nox] is used to automate many of our CI tasks.
 
-### Caveats
-
-* When using pyenv on macOS, installing a Python version using `--enable-shared` is required to make it work. i.e `env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install 3.7.12`
-
 ### Help users identify bugs
 
 The [PyO3 Discord server](https://discord.gg/33kcChzH7f) is very active with users who are new to PyO3, and often completely new to Rust. Helping them debug is a great way to get experience with the PyO3 codebase.
@@ -57,17 +53,23 @@ nox -s docs -- open
 #### Doctests
 
 We use lots of code blocks in our docs. Run `cargo test --doc` when making changes to check that
-the doctests still work, or `cargo test` to run all the tests including doctests. See
+the doctests still work, or `cargo test` to run all the Rust tests including doctests. See
 https://doc.rust-lang.org/rustdoc/documentation-tests.html for a guide on doctests.
 
 #### Building the guide
 
 You can preview the user guide by building it locally with `mdbook`.
 
-First, install [`mdbook`][mdbook] and [`nox`][nox]. Then, run
+First, install [`mdbook`][mdbook], the [`mdbook-tabs`][mdbook-tabs] plugin and [`nox`][nox]. Then, run
 
 ```shell
 nox -s build-guide -- --open
+```
+
+To check all links in the guide are valid, also install [`lychee`][lychee] and use the `check-guide` session instead:
+
+```shell
+nox -s check-guide
 ```
 
 ### Help design the next PyO3
@@ -84,21 +86,43 @@ Everybody is welcome to submit comments on open PRs. Please help ensure new PyO3
 
 Here are a few things to note when you are writing PRs.
 
-### Continuous Integration
+### Testing and Continuous Integration
 
-The PyO3 repo uses GitHub Actions. PRs are blocked from merging if CI is not successful.
-
-Formatting, linting and tests are checked for all Rust and Python code. In addition, all warnings in Rust code are disallowed (using `RUSTFLAGS="-D warnings"`).
+The PyO3 repo uses GitHub Actions. PRs are blocked from merging if CI is not successful. Formatting, linting and tests are checked for all Rust and Python code. In addition, all warnings in Rust code are disallowed (using `RUSTFLAGS="-D warnings"`).
 
 Tests run with all supported Python versions with the latest stable Rust compiler, as well as for Python 3.9 with the minimum supported Rust version.
 
 If you are adding a new feature, you should add it to the `full` feature in our *Cargo.toml** so that it is tested in CI.
 
-You can run these tests yourself with
-```nox```
-and
-```nox -l```
-lists further commands you can run.
+You can run these checks yourself with `nox`. Use  `nox -l` to list the full set of subcommands you can run.
+
+#### Linting Python code
+`nox -s ruff`
+
+#### Linting Rust code
+`nox -s rustfmt`
+
+#### Semver checks
+`cargo semver-checks check-release`
+
+#### Clippy
+`nox -s clippy-all`
+
+#### Tests
+`nox -s test` or `cargo test` for Rust tests only, `nox -f pytests/noxfile.py -s test` for Python tests only
+
+#### Check all conditional compilation
+`nox -s check-feature-powerset`
+
+#### UI Tests
+
+PyO3 uses [`trybuild`](https://github.com/dtolnay/trybuild) to develop UI tests to capture error messages from the Rust compiler for some of the macro functionality.
+
+Because there are several feature combinations for these UI tests, when updating them all (e.g. for a new Rust compiler version) it may be helpful to use the `update-ui-tests` nox session:
+
+```bash
+nox -s update-ui-tests
+```
 
 ### Documenting changes
 
@@ -155,6 +179,20 @@ Below are guidelines on what compatibility all PRs are expected to deliver for e
 
 PyO3 supports all officially supported Python versions, as well as the latest PyPy3 release. All of these versions are tested in CI.
 
+#### Adding support for new CPython versions
+
+If you plan to add support for a pre-release version of CPython, here's a (non-exhaustive) checklist:
+
+ - [ ] Wait until the last alpha release (usually alpha7), since ABI is not guranteed until the first beta release
+ - [ ] Add prelease_ver-dev (e.g. `3.14-dev`) to `‎.github/workflows/ci.yml`, and bump version in `noxfile.py`, `pyo3-ffi/Cargo.toml` under `max-version` within  `[package.metadata.cpython]`, and `max` within `pyo3-ffi/build.rs`
+- [ ] Add a new abi3-prerelease feature for the version (e.g. `abi3-py314`)
+   - In `pyo3-build-config/Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease"] and abi3-prerelease to ["abi3"]
+   - In `pyo3-ffi/Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease", "pyo3-build-config/abi3-most_current_stable"] and abi3-prerelease to ["abi3", "pyo3-build-config/abi3-prerelease"]
+   - In `Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease", "pyo3-ffi/abi3-most_current_stable"] and abi3-prerelease to ["abi3", "pyo3-ffi/abi3-prerelease"]
+ - [ ] Use `#[cfg(Py_prerelease])` (e.g. `#[cfg(Py_3_14)]`) and `#[cfg(not(Py_prerelease]))` to indicate changes between the stable branches of CPython and the pre-release
+ - [ ] Do not add a Rust binding to any function, struct, or global variable prefixed with `_` in CPython's headers
+ - [ ] Ping @ngoldbaum and @davidhewitt for assistance
+
 ### Rust
 
 PyO3 aims to make use of up-to-date Rust language features to keep the implementation as efficient as possible.
@@ -171,13 +209,13 @@ First, there are Rust-based benchmarks located in the `pyo3-benches` subdirector
 
     nox -s bench
 
-Second, there is a Python-based benchmark contained in the `pytests` subdirectory. You can read more about it [here](pytests).
+Second, there is a Python-based benchmark contained in the `pytests` subdirectory. You can read more about it [here](https://github.com/PyO3/pyo3/tree/main/pytests).
 
 ## Code coverage
 
 You can view what code is and isn't covered by PyO3's tests. We aim to have 100% coverage - please check coverage and add tests if you notice a lack of coverage!
 
-- First, ensure the llmv-cov cargo plugin is installed. You may need to run the plugin through cargo once before using it with `nox`.
+- First, ensure the llvm-cov cargo plugin is installed. You may need to run the plugin through cargo once before using it with `nox`.
 ```shell
 cargo install cargo-llvm-cov
 cargo llvm-cov
@@ -211,4 +249,6 @@ In the meanwhile, some of our maintainers have personal GitHub sponsorship pages
 - [messense](https://github.com/sponsors/messense)
 
 [mdbook]: https://rust-lang.github.io/mdBook/cli/index.html
+[mdbook-tabs]: https://mdbook-plugins.rustforweb.org/tabs.html
+[lychee]: https://github.com/lycheeverse/lychee
 [nox]: https://github.com/theacodes/nox

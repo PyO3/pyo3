@@ -1,8 +1,7 @@
 use crate::{Py, PyAny, PyObject};
-use parking_lot::Mutex;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll, Waker};
 
 #[derive(Debug, Default)]
@@ -25,12 +24,12 @@ impl CancelHandle {
 
     /// Returns whether the associated coroutine has been cancelled.
     pub fn is_cancelled(&self) -> bool {
-        self.0.lock().exception.is_some()
+        self.0.lock().unwrap().exception.is_some()
     }
 
     /// Poll to retrieve the exception thrown in the associated coroutine.
     pub fn poll_cancelled(&mut self, cx: &mut Context<'_>) -> Poll<PyObject> {
-        let mut inner = self.0.lock();
+        let mut inner = self.0.lock().unwrap();
         if let Some(exc) = inner.exception.take() {
             return Poll::Ready(exc);
         }
@@ -69,7 +68,7 @@ pub struct ThrowCallback(Arc<Mutex<Inner>>);
 
 impl ThrowCallback {
     pub(super) fn throw(&self, exc: Py<PyAny>) {
-        let mut inner = self.0.lock();
+        let mut inner = self.0.lock().unwrap();
         inner.exception = Some(exc);
         if let Some(waker) = inner.waker.take() {
             waker.wake();

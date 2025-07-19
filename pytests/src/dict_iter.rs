@@ -20,7 +20,7 @@ impl DictSize {
         DictSize { expected }
     }
 
-    fn iter_dict(&mut self, _py: Python<'_>, dict: &PyDict) -> PyResult<u32> {
+    fn iter_dict(&mut self, _py: Python<'_>, dict: &Bound<'_, PyDict>) -> PyResult<u32> {
         let mut seen = 0u32;
         for (sym, values) in dict {
             seen += 1;

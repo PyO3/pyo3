@@ -17,37 +17,37 @@ impl BytesExtractor {
     }
 
     #[staticmethod]
-    pub fn from_bytes(bytes: &PyBytes) -> PyResult<usize> {
+    pub fn from_bytes(bytes: &Bound<'_, PyBytes>) -> PyResult<usize> {
         let byte_vec: Vec<u8> = bytes.extract()?;
         Ok(byte_vec.len())
     }
 
     #[staticmethod]
-    pub fn from_str(string: &PyString) -> PyResult<usize> {
+    pub fn from_str(string: &Bound<'_, PyString>) -> PyResult<usize> {
         let rust_string: String = string.extract()?;
         Ok(rust_string.len())
     }
 
     #[staticmethod]
-    pub fn from_str_lossy(string: &PyString) -> usize {
+    pub fn from_str_lossy(string: &Bound<'_, PyString>) -> usize {
         let rust_string_lossy: String = string.to_string_lossy().to_string();
         rust_string_lossy.len()
     }
 
     #[staticmethod]
     pub fn from_buffer(buf: &Bound<'_, PyAny>) -> PyResult<usize> {
-        let buf = PyBuffer::<u8>::get_bound(buf)?;
+        let buf = PyBuffer::<u8>::get(buf)?;
         Ok(buf.item_count())
     }
 }
 
 #[pyfunction]
 fn return_memoryview(py: Python<'_>) -> PyResult<Bound<'_, PyMemoryView>> {
-    let bytes = PyBytes::new_bound(py, b"hello world");
-    PyMemoryView::from_bound(&bytes)
+    let bytes = PyBytes::new(py, b"hello world");
+    PyMemoryView::from(&bytes)
 }
 
-#[pymodule]
+#[pymodule(gil_used = false)]
 pub fn buf_and_str(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<BytesExtractor>()?;
     m.add_function(wrap_pyfunction!(return_memoryview, m)?)?;

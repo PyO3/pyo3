@@ -1,9 +1,9 @@
 #![cfg(feature = "macros")]
 #![cfg(any(not(Py_LIMITED_API), Py_3_11))]
+#![warn(unsafe_op_in_unsafe_fn)]
 
 use pyo3::{buffer::PyBuffer, exceptions::PyBufferError, ffi, prelude::*};
 use std::{
-    ffi::CStr,
     os::raw::{c_int, c_void},
     ptr,
 };
@@ -43,42 +43,44 @@ impl TestBufferErrors {
 
         let bytes = &slf.buf;
 
-        (*view).buf = bytes.as_ptr() as *mut c_void;
-        (*view).len = bytes.len() as isize;
-        (*view).readonly = 1;
-        (*view).itemsize = std::mem::size_of::<u32>() as isize;
+        unsafe {
+            (*view).buf = bytes.as_ptr() as *mut c_void;
+            (*view).len = bytes.len() as isize;
+            (*view).readonly = 1;
+            (*view).itemsize = std::mem::size_of::<u32>() as isize;
 
-        let msg = CStr::from_bytes_with_nul(b"I\0").unwrap();
-        (*view).format = msg.as_ptr() as *mut _;
+            let msg = ffi::c_str!("I");
+            (*view).format = msg.as_ptr() as *mut _;
 
-        (*view).ndim = 1;
-        (*view).shape = &mut (*view).len;
+            (*view).ndim = 1;
+            (*view).shape = &mut (*view).len;
 
-        (*view).strides = &mut (*view).itemsize;
+            (*view).strides = &mut (*view).itemsize;
 
-        (*view).suboffsets = ptr::null_mut();
-        (*view).internal = ptr::null_mut();
+            (*view).suboffsets = ptr::null_mut();
+            (*view).internal = ptr::null_mut();
 
-        if let Some(err) = &slf.error {
-            use TestGetBufferError::*;
-            match err {
-                NullShape => {
-                    (*view).shape = std::ptr::null_mut();
+            if let Some(err) = &slf.error {
+                use TestGetBufferError::*;
+                match err {
+                    NullShape => {
+                        (*view).shape = std::ptr::null_mut();
+                    }
+                    NullStrides => {
+                        (*view).strides = std::ptr::null_mut();
+                    }
+                    IncorrectItemSize => {
+                        (*view).itemsize += 1;
+                    }
+                    IncorrectFormat => {
+                        (*view).format = ffi::c_str!("B").as_ptr() as _;
+                    }
+                    IncorrectAlignment => (*view).buf = (*view).buf.add(1),
                 }
-                NullStrides => {
-                    (*view).strides = std::ptr::null_mut();
-                }
-                IncorrectItemSize => {
-                    (*view).itemsize += 1;
-                }
-                IncorrectFormat => {
-                    (*view).format = CStr::from_bytes_with_nul(b"B\0").unwrap().as_ptr() as _;
-                }
-                IncorrectAlignment => (*view).buf = (*view).buf.add(1),
             }
-        }
 
-        (*view).obj = slf.into_ptr();
+            (*view).obj = slf.into_ptr();
+        }
 
         Ok(())
     }
@@ -86,7 +88,7 @@ impl TestBufferErrors {
 
 #[test]
 fn test_get_buffer_errors() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let instance = Py::new(
             py,
             TestBufferErrors {
@@ -96,11 +98,11 @@ fn test_get_buffer_errors() {
         )
         .unwrap();
 
-        assert!(PyBuffer::<u32>::get_bound(instance.bind(py)).is_ok());
+        assert!(PyBuffer::<u32>::get(instance.bind(py)).is_ok());
 
         instance.borrow_mut(py).error = Some(TestGetBufferError::NullShape);
         assert_eq!(
-            PyBuffer::<u32>::get_bound(instance.bind(py))
+            PyBuffer::<u32>::get(instance.bind(py))
                 .unwrap_err()
                 .to_string(),
             "BufferError: shape is null"
@@ -108,7 +110,7 @@ fn test_get_buffer_errors() {
 
         instance.borrow_mut(py).error = Some(TestGetBufferError::NullStrides);
         assert_eq!(
-            PyBuffer::<u32>::get_bound(instance.bind(py))
+            PyBuffer::<u32>::get(instance.bind(py))
                 .unwrap_err()
                 .to_string(),
             "BufferError: strides is null"
@@ -116,7 +118,7 @@ fn test_get_buffer_errors() {
 
         instance.borrow_mut(py).error = Some(TestGetBufferError::IncorrectItemSize);
         assert_eq!(
-            PyBuffer::<u32>::get_bound(instance.bind(py))
+            PyBuffer::<u32>::get(instance.bind(py))
                 .unwrap_err()
                 .to_string(),
             "BufferError: buffer contents are not compatible with u32"
@@ -124,7 +126,7 @@ fn test_get_buffer_errors() {
 
         instance.borrow_mut(py).error = Some(TestGetBufferError::IncorrectFormat);
         assert_eq!(
-            PyBuffer::<u32>::get_bound(instance.bind(py))
+            PyBuffer::<u32>::get(instance.bind(py))
                 .unwrap_err()
                 .to_string(),
             "BufferError: buffer contents are not compatible with u32"
@@ -132,7 +134,7 @@ fn test_get_buffer_errors() {
 
         instance.borrow_mut(py).error = Some(TestGetBufferError::IncorrectAlignment);
         assert_eq!(
-            PyBuffer::<u32>::get_bound(instance.bind(py))
+            PyBuffer::<u32>::get(instance.bind(py))
                 .unwrap_err()
                 .to_string(),
             "BufferError: buffer contents are insufficiently aligned for u32"

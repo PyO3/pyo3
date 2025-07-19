@@ -37,18 +37,15 @@ automated tooling because:
   - it gives us best control about how to adapt C conventions to Rust, and
   - there are many Python interpreter versions we support in a single set of files.
 
-We aim to provide straight-forward Rust wrappers resembling the file structure of
-[`cpython/Include`](https://github.com/python/cpython/tree/v3.9.2/Include).
+We aim to provide straight-forward Rust wrappers resembling the file structure of [`cpython/Include`](https://github.com/python/cpython/tree/3.13/Include).
 
-However, we still lack some APIs and are continuously updating the module to match
-the file contents upstream in CPython.
-The tracking issue is [#1289](https://github.com/PyO3/pyo3/issues/1289), and contribution is welcome.
+We are continuously updating the module to match the latest CPython version which PyO3 supports (i.e. as of time of writing Python 3.13). The tracking issue is [#1289](https://github.com/PyO3/pyo3/issues/1289), and contribution is welcome.
 
 In the [`pyo3-ffi`] crate, there is lots of conditional compilation such as `#[cfg(Py_LIMITED_API)]`,
 `#[cfg(Py_3_7)]`, and `#[cfg(PyPy)]`.
 `Py_LIMITED_API` corresponds to `#define Py_LIMITED_API` macro in Python/C API.
 With `Py_LIMITED_API`, we can build a Python-version-agnostic binary called an
-[abi3 wheel](https://pyo3.rs/latest/building_and_distribution.html#py_limited_apiabi3).
+[abi3 wheel](https://pyo3.rs/latest/building-and-distribution.html#py_limited_apiabi3).
 `Py_3_7` means that the API is available from Python >= 3.7.
 There are also `Py_3_8`, `Py_3_9`, and so on.
 `PyPy` means that the API definition is for PyPy.
@@ -59,6 +56,7 @@ Those flags are set in [`build.rs`](#6-buildrs-and-pyo3-build-config).
 [`src/types`] contains bindings to [built-in types](https://docs.python.org/3/library/stdtypes.html)
 of Python, such as `dict` and `list`.
 For historical reasons, Python's `object` is called `PyAny` in PyO3 and located in [`src/types/any.rs`].
+
 Currently, `PyAny` is a straightforward wrapper of `ffi::PyObject`, defined as:
 
 ```rust
@@ -66,38 +64,16 @@ Currently, `PyAny` is a straightforward wrapper of `ffi::PyObject`, defined as:
 pub struct PyAny(UnsafeCell<ffi::PyObject>);
 ```
 
-All built-in types are defined as a C struct.
-For example, `dict` is defined as:
-
-```c
-typedef struct {
-    /* Base object */
-    PyObject ob_base;
-    /* Number of items in the dictionary */
-    Py_ssize_t ma_used;
-    /* Dictionary version */
-    uint64_t ma_version_tag;
-    PyDictKeysObject *ma_keys;
-    PyObject **ma_values;
-} PyDictObject;
-```
-
-However, we cannot access such a specific data structure with `#[cfg(Py_LIMITED_API)]` set.
-Thus, all builtin objects are implemented as opaque types by wrapping `PyAny`, e.g.,:
+Concrete Python objects are implemented by wrapping `PyAny`, e.g.,:
 
 ```rust
 #[repr(transparent)]
 pub struct PyDict(PyAny);
 ```
 
-Note that `PyAny` is not a pointer, and it is usually used as a pointer to the object in the
-Python heap, as `&PyAny`.
-This design choice can be changed
-(see the discussion in [#1056](https://github.com/PyO3/pyo3/issues/1056)).
+These types are not intended to be accessed directly, and instead are used through the `Py<T>` and `Bound<T>` smart pointers.
 
-Since we need lots of boilerplate for implementing common traits for these types
-(e.g., `AsPyPointer`, `AsRef<PyAny>`, and `Debug`), we have some macros in
-[`src/types/mod.rs`].
+We have some macros in [`src/types/mod.rs`] which make it easier to implement APIs for concrete Python types.
 
 ## 3. `PyClass` and related functionalities
 
@@ -109,23 +85,23 @@ To realize object-oriented programming in C, all Python objects have `ob_base: P
 first field in their structure definition. Thanks to this guarantee, casting `*mut A` to `*mut PyObject`
 is valid if `A` is a Python object.
 
-To ensure this guarantee, we have a wrapper struct `PyCell<T>` in [`src/pycell.rs`] which is roughly:
+To ensure this guarantee, we have a wrapper struct `PyClassObject<T>` in [`src/pycell/impl_.rs`] which is roughly:
 
 ```rust
 #[repr(C)]
-pub struct PyCell<T: PyClass> {
+pub struct PyClassObject<T> {
     ob_base: crate::ffi::PyObject,
     inner: T,
 }
 ```
 
-Thus, when copying a Rust struct to a Python object, we first allocate `PyCell` on the Python heap and then
+Thus, when copying a Rust struct to a Python object, we first allocate `PyClassObject` on the Python heap and then
 move `T` into it.
-Also, `PyCell` provides [RefCell](https://doc.rust-lang.org/std/cell/struct.RefCell.html)-like methods
-to ensure Rust's borrow rules.
-See [the documentation](https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyCell.html) for more.
 
-`PyCell<T>` requires that `T` implements `PyClass`.
+The primary way to interact with Python objects implemented in Rust is through the `Bound<'py, T>` smart pointer.
+By having the `'py` lifetime of the `Python<'py>` token, this ties the lifetime of the `Bound<'py, T>` smart pointer to the lifetime of the GIL and allows PyO3 to call Python APIs at maximum efficiency.
+
+`Bound<'py, T>` requires that `T` implements `PyClass`.
 This trait is somewhat complex and derives many traits, but the most important one is `PyTypeInfo`
 in [`src/type_object.rs`].
 `PyTypeInfo` is also implemented for built-in types.

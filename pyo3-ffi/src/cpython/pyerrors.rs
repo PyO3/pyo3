@@ -1,5 +1,5 @@
 use crate::PyObject;
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 use crate::Py_ssize_t;
 
 #[repr(C)]
@@ -22,7 +22,7 @@ pub struct PyBaseExceptionObject {
     pub suppress_context: char,
 }
 
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PySyntaxErrorObject {
@@ -46,9 +46,11 @@ pub struct PySyntaxErrorObject {
     pub end_offset: *mut PyObject,
     pub text: *mut PyObject,
     pub print_file_and_line: *mut PyObject,
+    #[cfg(Py_3_14)]
+    pub metadata: *mut PyObject,
 }
 
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyImportErrorObject {
@@ -69,7 +71,7 @@ pub struct PyImportErrorObject {
     pub name_from: *mut PyObject,
 }
 
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyUnicodeErrorObject {
@@ -90,7 +92,7 @@ pub struct PyUnicodeErrorObject {
     pub reason: *mut PyObject,
 }
 
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PySystemExitObject {
@@ -107,7 +109,7 @@ pub struct PySystemExitObject {
     pub code: *mut PyObject,
 }
 
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyOSErrorObject {
@@ -152,10 +154,7 @@ pub struct PyStopIterationObject {
     pub value: *mut PyObject,
 }
 
-extern "C" {
-    #[cfg(not(PyPy))]
-    pub fn _PyErr_ChainExceptions(typ: *mut PyObject, val: *mut PyObject, tb: *mut PyObject);
-}
+// skipped _PyErr_ChainExceptions
 
 // skipped PyNameErrorObject
 // skipped PyAttributeErrorObject

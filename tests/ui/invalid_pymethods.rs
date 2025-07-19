@@ -6,7 +6,7 @@ struct MyClass {}
 #[pymethods]
 impl MyClass {
     #[classattr]
-    fn class_attr_with_args(foo: i32) {}
+    fn class_attr_with_args(_foo: i32) {}
 }
 
 #[pymethods]
@@ -40,10 +40,12 @@ impl MyClass {
     }
 }
 
+struct NotATypeObject;
+
 #[pymethods]
 impl MyClass {
     #[classmethod]
-    fn classmethod_wrong_first_argument(_x: i32) -> Self {
+    fn classmethod_wrong_first_argument(_t: NotATypeObject) -> Self {
         Self {}
     }
 }
@@ -164,23 +166,23 @@ impl MyClass {
 
 #[pymethods]
 impl MyClass {
-    fn generic_method<T>(value: T) {}
+    fn generic_method<T>(_value: T) {}
 }
 
 #[pymethods]
 impl MyClass {
-    fn impl_trait_method_first_arg(impl_trait: impl AsRef<PyAny>) {}
+    fn impl_trait_method_first_arg(_impl_trait: impl AsRef<PyAny>) {}
 }
 
 #[pymethods]
 impl MyClass {
-    fn impl_trait_method_second_arg(&self, impl_trait: impl AsRef<PyAny>) {}
+    fn impl_trait_method_second_arg(&self, _impl_trait: impl AsRef<PyAny>) {}
 }
 
 #[pymethods]
 impl MyClass {
     #[pyo3(pass_module)]
-    fn method_cannot_pass_module(&self, m: &PyModule) {}
+    fn method_cannot_pass_module(&self, _m: &PyModule) {}
 }
 
 #[pymethods]

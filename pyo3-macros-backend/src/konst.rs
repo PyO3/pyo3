@@ -1,11 +1,9 @@
 use std::borrow::Cow;
+use std::ffi::CString;
 
-use crate::{
-    attributes::{self, get_pyo3_options, take_attributes, NameAttribute},
-    deprecations::Deprecations,
-};
-use proc_macro2::{Ident, TokenStream};
-use quote::quote;
+use crate::attributes::{self, get_pyo3_options, take_attributes, NameAttribute};
+use crate::utils::{Ctx, LitCStr};
+use proc_macro2::{Ident, Span};
 use syn::{
     ext::IdentExt,
     parse::{Parse, ParseStream},
@@ -28,16 +26,15 @@ impl ConstSpec {
     }
 
     /// Null-terminated Python name
-    pub fn null_terminated_python_name(&self) -> TokenStream {
-        let name = format!("{}\0", self.python_name());
-        quote!({#name})
+    pub fn null_terminated_python_name(&self, ctx: &Ctx) -> LitCStr {
+        let name = self.python_name().to_string();
+        LitCStr::new(CString::new(name).unwrap(), Span::call_site(), ctx)
     }
 }
 
 pub struct ConstAttributes {
     pub is_class_attr: bool,
     pub name: Option<NameAttribute>,
-    pub deprecations: Deprecations,
 }
 
 pub enum PyO3ConstAttribute {
@@ -60,7 +57,6 @@ impl ConstAttributes {
         let mut attributes = ConstAttributes {
             is_class_attr: false,
             name: None,
-            deprecations: Deprecations::new(),
         };
 
         take_attributes(attrs, |attr| {

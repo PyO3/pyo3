@@ -24,6 +24,7 @@ extern "C" {
         closure: *mut PyObject,
     ) -> *mut PyObject;
 
+    #[cfg(not(Py_3_13))]
     #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
     #[cfg_attr(PyPy, link_name = "PyPyEval_CallObjectWithKeywords")]
     pub fn PyEval_CallObjectWithKeywords(
@@ -33,6 +34,7 @@ extern "C" {
     ) -> *mut PyObject;
 }
 
+#[cfg(not(Py_3_13))]
 #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
 #[inline]
 pub unsafe fn PyEval_CallObject(func: *mut PyObject, arg: *mut PyObject) -> *mut PyObject {
@@ -41,9 +43,11 @@ pub unsafe fn PyEval_CallObject(func: *mut PyObject, arg: *mut PyObject) -> *mut
 }
 
 extern "C" {
+    #[cfg(not(Py_3_13))]
     #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
     #[cfg_attr(PyPy, link_name = "PyPyEval_CallFunction")]
     pub fn PyEval_CallFunction(obj: *mut PyObject, format: *const c_char, ...) -> *mut PyObject;
+    #[cfg(not(Py_3_13))]
     #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
     #[cfg_attr(PyPy, link_name = "PyPyEval_CallMethod")]
     pub fn PyEval_CallMethod(
@@ -95,9 +99,22 @@ extern "C" {
 }
 
 extern "C" {
+    #[cfg(not(Py_3_13))]
     #[cfg_attr(PyPy, link_name = "PyPyEval_ThreadsInitialized")]
+    #[cfg_attr(
+        Py_3_9,
+        deprecated(
+            note = "Deprecated in Python 3.9, this function always returns true in Python 3.7 or newer."
+        )
+    )]
     pub fn PyEval_ThreadsInitialized() -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyEval_InitThreads")]
+    #[cfg_attr(
+        Py_3_9,
+        deprecated(
+            note = "Deprecated in Python 3.9, this function does nothing in Python 3.7 or newer."
+        )
+    )]
     pub fn PyEval_InitThreads();
     pub fn PyEval_AcquireLock();
     pub fn PyEval_ReleaseLock();

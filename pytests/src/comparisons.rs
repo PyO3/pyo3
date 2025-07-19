@@ -34,6 +34,18 @@ impl EqDefaultNe {
     }
 }
 
+#[pyclass(eq)]
+#[derive(PartialEq, Eq)]
+struct EqDerived(i64);
+
+#[pymethods]
+impl EqDerived {
+    #[new]
+    fn new(value: i64) -> Self {
+        Self(value)
+    }
+}
+
 #[pyclass]
 struct Ordered(i64);
 
@@ -100,10 +112,11 @@ impl OrderedDefaultNe {
     }
 }
 
-#[pymodule]
+#[pymodule(gil_used = false)]
 pub fn comparisons(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Eq>()?;
     m.add_class::<EqDefaultNe>()?;
+    m.add_class::<EqDerived>()?;
     m.add_class::<Ordered>()?;
     m.add_class::<OrderedDefaultNe>()?;
     Ok(())

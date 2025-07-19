@@ -49,6 +49,7 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
             .unwrap()
             .strip_suffix(".html")
             .unwrap();
+
         let struct_ident = Ident::new(struct_name, Span::call_site());
         output.extend(quote!(#macro_name!(#struct_ident);));
     }

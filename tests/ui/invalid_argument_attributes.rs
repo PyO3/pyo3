@@ -1,43 +1,25 @@
 use pyo3::prelude::*;
 
 #[pyfunction]
-fn invalid_attribute(#[pyo3(get)] param: String) {}
+fn invalid_attribute(#[pyo3(get)] _param: String) {}
 
 #[pyfunction]
-fn from_py_with_no_value(#[pyo3(from_py_with)] param: String) {}
+fn from_py_with_no_value(#[pyo3(from_py_with)] _param: String) {}
 
 #[pyfunction]
-fn from_py_with_string(#[pyo3("from_py_with")] param: String) {}
+fn from_py_with_string(#[pyo3("from_py_with")] _param: String) {}
 
 #[pyfunction]
-fn from_py_with_value_not_a_string(#[pyo3(from_py_with = func)] param: String) {}
+fn from_py_with_value_not_found(#[pyo3(from_py_with = func)] _param: String) {}
 
 #[pyfunction]
-fn from_py_with_repeated(#[pyo3(from_py_with = "func", from_py_with = "func")] param: String) {}
+fn from_py_with_repeated(#[pyo3(from_py_with = func, from_py_with = func)] _param: String) {}
 
-#[pyfunction]
-async fn from_py_with_value_and_cancel_handle(
-    #[pyo3(from_py_with = "func", cancel_handle)] _param: String,
-) {
+fn bytes_from_py(bytes: &Bound<'_, pyo3::types::PyBytes>) -> Vec<u8> {
+    bytes.as_bytes().to_vec()
 }
 
 #[pyfunction]
-async fn cancel_handle_repeated(#[pyo3(cancel_handle, cancel_handle)] _param: String) {}
-
-#[pyfunction]
-async fn cancel_handle_repeated2(
-    #[pyo3(cancel_handle)] _param: String,
-    #[pyo3(cancel_handle)] _param2: String,
-) {
-}
-
-#[pyfunction]
-fn cancel_handle_synchronous(#[pyo3(cancel_handle)] _param: String) {}
-
-#[pyfunction]
-async fn cancel_handle_wrong_type(#[pyo3(cancel_handle)] _param: String) {}
-
-#[pyfunction]
-async fn missing_cancel_handle_attribute(_param: pyo3::coroutine::CancelHandle) {}
+fn f(#[pyo3(from_py_with = "bytes_from_py")] _bytes: Vec<u8>) {}
 
 fn main() {}

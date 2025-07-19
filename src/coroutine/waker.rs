@@ -41,10 +41,10 @@ impl Wake for AsyncioWaker {
     }
 
     fn wake_by_ref(self: &Arc<Self>) {
-        Python::with_gil(|gil| {
-            if let Some(loop_and_future) = self.0.get_or_init(gil, || None) {
+        Python::attach(|py| {
+            if let Some(loop_and_future) = self.0.get_or_init(py, || None) {
                 loop_and_future
-                    .set_result(gil)
+                    .set_result(py)
                     .expect("unexpected error in coroutine waker");
             }
         });
@@ -60,7 +60,7 @@ impl LoopAndFuture {
     fn new(py: Python<'_>) -> PyResult<Self> {
         static GET_RUNNING_LOOP: GILOnceCell<PyObject> = GILOnceCell::new();
         let import = || -> PyResult<_> {
-            let module = py.import_bound("asyncio")?;
+            let module = py.import("asyncio")?;
             Ok(module.getattr("get_running_loop")?.into())
         };
         let event_loop = GET_RUNNING_LOOP.get_or_try_init(py, import)?.call0(py)?;
@@ -70,8 +70,9 @@ impl LoopAndFuture {
 
     fn set_result(&self, py: Python<'_>) -> PyResult<()> {
         static RELEASE_WAITER: GILOnceCell<Py<PyCFunction>> = GILOnceCell::new();
-        let release_waiter = RELEASE_WAITER
-            .get_or_try_init(py, || wrap_pyfunction!(release_waiter, py).map(Into::into))?;
+        let release_waiter = RELEASE_WAITER.get_or_try_init(py, || {
+            wrap_pyfunction!(release_waiter, py).map(Bound::unbind)
+        })?;
         // `Future.set_result` must be called in event loop thread,
         // so it requires `call_soon_threadsafe`
         let call_soon_threadsafe = self.event_loop.call_method1(
@@ -96,7 +97,7 @@ impl LoopAndFuture {
 /// Future can be cancelled by the event loop before being waken.
 /// See <https://github.com/python/cpython/blob/main/Lib/asyncio/tasks.py#L452C5-L452C5>
 #[pyfunction(crate = "crate")]
-fn release_waiter(future: &PyAny) -> PyResult<()> {
+fn release_waiter(future: &Bound<'_, PyAny>) -> PyResult<()> {
     let done = future.call_method0(intern!(future.py(), "done"))?;
     if !done.extract::<bool>()? {
         future.call_method1(intern!(future.py(), "set_result"), (future.py().None(),))?;

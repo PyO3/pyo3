@@ -18,15 +18,18 @@ struct Reader {
 
 #[pymethods]
 impl Reader {
-    fn clone_ref(slf: &PyCell<Self>) -> &PyCell<Self> {
+    fn clone_ref<'a, 'py>(slf: &'a Bound<'py, Self>) -> &'a Bound<'py, Self> {
         slf
     }
-    fn clone_ref_with_py<'py>(slf: &'py PyCell<Self>, _py: Python<'py>) -> &'py PyCell<Self> {
+    fn clone_ref_with_py<'a, 'py>(
+        slf: &'a Bound<'py, Self>,
+        _py: Python<'py>,
+    ) -> &'a Bound<'py, Self> {
         slf
     }
-    fn get_iter(slf: &PyCell<Self>, keys: Py<PyBytes>) -> Iter {
+    fn get_iter(slf: &Bound<'_, Self>, keys: Py<PyBytes>) -> Iter {
         Iter {
-            reader: slf.into(),
+            reader: slf.clone().unbind(),
             keys,
             idx: 0,
         }
@@ -72,7 +75,7 @@ impl Iter {
                 let res = reader_ref
                     .inner
                     .get(&b)
-                    .map(|s| PyString::new_bound(py, s).into());
+                    .map(|s| PyString::new(py, s).into());
                 Ok(res)
             }
             None => Ok(None),
@@ -89,8 +92,8 @@ fn reader() -> Reader {
 
 #[test]
 fn test_nested_iter() {
-    Python::with_gil(|py| {
-        let reader: PyObject = reader().into_py(py);
+    Python::attach(|py| {
+        let reader = reader().into_pyobject(py).unwrap();
         py_assert!(
             py,
             reader,
@@ -101,8 +104,8 @@ fn test_nested_iter() {
 
 #[test]
 fn test_clone_ref() {
-    Python::with_gil(|py| {
-        let reader: PyObject = reader().into_py(py);
+    Python::attach(|py| {
+        let reader = reader().into_pyobject(py).unwrap();
         py_assert!(py, reader, "reader == reader.clone_ref()");
         py_assert!(py, reader, "reader == reader.clone_ref_with_py()");
     });
@@ -110,7 +113,7 @@ fn test_clone_ref() {
 
 #[test]
 fn test_nested_iter_reset() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let reader = Bound::new(py, reader()).unwrap();
         py_assert!(
             py,

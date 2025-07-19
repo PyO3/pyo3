@@ -13,11 +13,10 @@
 //! The functions in this module lack individual safety documentation, but
 //! generally the following apply:
 //! - Pointer arguments have to point to a valid Python object of the correct type,
-//! although null pointers are sometimes valid input.
+//!   although null pointers are sometimes valid input.
 //! - The vast majority can only be used safely while the GIL is held.
 //! - Some functions have additional safety requirements, consult the
-//! [Python/C API Reference Manual][capi]
-//! for more information.
+//!   [Python/C API Reference Manual][capi] for more information.
 //!
 //! [capi]: https://docs.python.org/3/c-api/index.html
 

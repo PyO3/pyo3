@@ -22,8 +22,10 @@ impl MacroDocs {
 
 #[test]
 fn meth_doc() {
-    Python::with_gil(|py| {
-        let d = [("C", py.get_type_bound::<MacroDocs>())].into_py_dict_bound(py);
+    Python::attach(|py| {
+        let d = [("C", py.get_type::<MacroDocs>())]
+            .into_py_dict(py)
+            .unwrap();
         py_assert!(
             py,
             *d,

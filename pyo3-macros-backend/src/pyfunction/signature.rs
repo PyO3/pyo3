@@ -1,3 +1,7 @@
+use crate::{
+    attributes::{kw, KeywordAttribute},
+    method::{FnArg, RegularArg},
+};
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use syn::{
@@ -8,63 +12,74 @@ use syn::{
     Token,
 };
 
-use crate::{
-    attributes::{kw, KeywordAttribute},
-    method::FnArg,
-};
-
+#[derive(Clone)]
 pub struct Signature {
     paren_token: syn::token::Paren,
     pub items: Punctuated<SignatureItem, Token![,]>,
+    pub returns: Option<(Token![->], PyTypeAnnotation)>,
 }
 
 impl Parse for Signature {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let content;
         let paren_token = syn::parenthesized!(content in input);
-
         let items = content.parse_terminated(SignatureItem::parse, Token![,])?;
-
-        Ok(Signature { paren_token, items })
+        let returns = if input.peek(Token![->]) {
+            Some((input.parse()?, input.parse()?))
+        } else {
+            None
+        };
+        Ok(Signature {
+            paren_token,
+            items,
+            returns,
+        })
     }
 }
 
 impl ToTokens for Signature {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.paren_token
-            .surround(tokens, |tokens| self.items.to_tokens(tokens))
+            .surround(tokens, |tokens| self.items.to_tokens(tokens));
+        if let Some((arrow, returns)) = &self.returns {
+            arrow.to_tokens(tokens);
+            returns.to_tokens(tokens);
+        }
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignatureItemArgument {
     pub ident: syn::Ident,
+    pub colon_and_annotation: Option<(Token![:], PyTypeAnnotation)>,
     pub eq_and_default: Option<(Token![=], syn::Expr)>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignatureItemPosargsSep {
     pub slash: Token![/],
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignatureItemVarargsSep {
     pub asterisk: Token![*],
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignatureItemVarargs {
     pub sep: SignatureItemVarargsSep,
     pub ident: syn::Ident,
+    pub colon_and_annotation: Option<(Token![:], PyTypeAnnotation)>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignatureItemKwargs {
     pub asterisks: (Token![*], Token![*]),
     pub ident: syn::Ident,
+    pub colon_and_annotation: Option<(Token![:], PyTypeAnnotation)>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SignatureItem {
     Argument(Box<SignatureItemArgument>),
     PosargsSep(SignatureItemPosargsSep),
@@ -87,6 +102,11 @@ impl Parse for SignatureItem {
                     Ok(SignatureItem::Varargs(SignatureItemVarargs {
                         sep,
                         ident: input.parse()?,
+                        colon_and_annotation: if input.peek(Token![:]) {
+                            Some((input.parse()?, input.parse()?))
+                        } else {
+                            None
+                        },
                     }))
                 }
             }
@@ -114,6 +134,11 @@ impl Parse for SignatureItemArgument {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         Ok(Self {
             ident: input.parse()?,
+            colon_and_annotation: if input.peek(Token![:]) {
+                Some((input.parse()?, input.parse()?))
+            } else {
+                None
+            },
             eq_and_default: if input.peek(Token![=]) {
                 Some((input.parse()?, input.parse()?))
             } else {
@@ -126,6 +151,10 @@ impl Parse for SignatureItemArgument {
 impl ToTokens for SignatureItemArgument {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.ident.to_tokens(tokens);
+        if let Some((colon, annotation)) = &self.colon_and_annotation {
+            colon.to_tokens(tokens);
+            annotation.to_tokens(tokens);
+        }
         if let Some((eq, default)) = &self.eq_and_default {
             eq.to_tokens(tokens);
             default.to_tokens(tokens);
@@ -152,6 +181,11 @@ impl Parse for SignatureItemVarargs {
         Ok(Self {
             sep: input.parse()?,
             ident: input.parse()?,
+            colon_and_annotation: if input.peek(Token![:]) {
+                Some((input.parse()?, input.parse()?))
+            } else {
+                None
+            },
         })
     }
 }
@@ -168,6 +202,11 @@ impl Parse for SignatureItemKwargs {
         Ok(Self {
             asterisks: (input.parse()?, input.parse()?),
             ident: input.parse()?,
+            colon_and_annotation: if input.peek(Token![:]) {
+                Some((input.parse()?, input.parse()?))
+            } else {
+                None
+            },
         })
     }
 }
@@ -194,7 +233,38 @@ impl ToTokens for SignatureItemPosargsSep {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PyTypeAnnotation(syn::LitStr);
+
+impl Parse for PyTypeAnnotation {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        Ok(Self(input.parse()?))
+    }
+}
+
+impl ToTokens for PyTypeAnnotation {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl PyTypeAnnotation {
+    pub fn to_python(&self) -> String {
+        self.0.value()
+    }
+}
+
 pub type SignatureAttribute = KeywordAttribute<kw::signature, Signature>;
+pub type ConstructorAttribute = KeywordAttribute<kw::constructor, Signature>;
+
+impl ConstructorAttribute {
+    pub fn into_signature(self) -> SignatureAttribute {
+        SignatureAttribute {
+            kw: kw::signature(self.kw.span),
+            value: self.value,
+        }
+    }
+}
 
 #[derive(Default)]
 pub struct PythonSignature {
@@ -351,41 +421,51 @@ impl<'a> FunctionSignature<'a> {
 
         let mut next_non_py_argument_checked = |name: &syn::Ident| {
             for fn_arg in args_iter.by_ref() {
-                if fn_arg.py {
-                    // If the user incorrectly tried to include py: Python in the
-                    // signature, give a useful error as a hint.
-                    ensure_spanned!(
-                        name != fn_arg.name,
-                        name.span() => "arguments of type `Python` must not be part of the signature"
-                    );
-                    // Otherwise try next argument.
-                    continue;
+                match fn_arg {
+                    FnArg::Py(..) => {
+                        // If the user incorrectly tried to include py: Python in the
+                        // signature, give a useful error as a hint.
+                        ensure_spanned!(
+                            name != fn_arg.name(),
+                            name.span() => "arguments of type `Python` must not be part of the signature"
+                        );
+                        // Otherwise try next argument.
+                        continue;
+                    }
+                    FnArg::CancelHandle(..) => {
+                        // If the user incorrectly tried to include cancel: CoroutineCancel in the
+                        // signature, give a useful error as a hint.
+                        ensure_spanned!(
+                            name != fn_arg.name(),
+                            name.span() => "`cancel_handle` argument must not be part of the signature"
+                        );
+                        // Otherwise try next argument.
+                        continue;
+                    }
+                    _ => {
+                        ensure_spanned!(
+                            name == fn_arg.name(),
+                            name.span() => format!(
+                                "expected argument from function definition `{}` but got argument `{}`",
+                                fn_arg.name().unraw(),
+                                name.unraw(),
+                            )
+                        );
+                        return Ok(fn_arg);
+                    }
                 }
-                if fn_arg.is_cancel_handle {
-                    // If the user incorrectly tried to include cancel: CoroutineCancel in the
-                    // signature, give a useful error as a hint.
-                    ensure_spanned!(
-                        name != fn_arg.name,
-                        name.span() => "`cancel_handle` argument must not be part of the signature"
-                    );
-                    // Otherwise try next argument.
-                    continue;
-                }
-
-                ensure_spanned!(
-                    name == fn_arg.name,
-                    name.span() => format!(
-                        "expected argument from function definition `{}` but got argument `{}`",
-                        fn_arg.name.unraw(),
-                        name.unraw(),
-                    )
-                );
-                return Ok(fn_arg);
             }
             bail_spanned!(
                 name.span() => "signature entry does not have a corresponding function argument"
             )
         };
+
+        if let Some(returns) = &attribute.value.returns {
+            ensure_spanned!(
+                cfg!(feature = "experimental-inspect"),
+                returns.1.span() => "Return type annotation in the signature is only supported with the `experimental-inspect` feature"
+            );
+        }
 
         for item in &attribute.value.items {
             match item {
@@ -397,8 +477,25 @@ impl<'a> FunctionSignature<'a> {
                         arg.eq_and_default.is_none(),
                         arg.span(),
                     )?;
+                    let FnArg::Regular(fn_arg) = fn_arg else {
+                        unreachable!(
+                            "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
+                                parsed and transformed below. Because the have to come last and are only allowed \
+                                once, this has to be a regular argument."
+                        );
+                    };
                     if let Some((_, default)) = &arg.eq_and_default {
-                        fn_arg.default = Some(default.clone());
+                        fn_arg.default_value = Some(default.clone());
+                    }
+                    if let Some((_, annotation)) = &arg.colon_and_annotation {
+                        ensure_spanned!(
+                            cfg!(feature = "experimental-inspect"),
+                            annotation.span() => "Type annotations in the signature is only supported with the `experimental-inspect` feature"
+                        );
+                        #[cfg(feature = "experimental-inspect")]
+                        {
+                            fn_arg.annotation = Some(annotation.to_python());
+                        }
                     }
                 }
                 SignatureItem::VarargsSep(sep) => {
@@ -406,13 +503,47 @@ impl<'a> FunctionSignature<'a> {
                 }
                 SignatureItem::Varargs(varargs) => {
                     let fn_arg = next_non_py_argument_checked(&varargs.ident)?;
-                    fn_arg.is_varargs = true;
+                    fn_arg.to_varargs_mut()?;
                     parse_state.add_varargs(&mut python_signature, varargs)?;
+                    if let Some((_, annotation)) = &varargs.colon_and_annotation {
+                        ensure_spanned!(
+                            cfg!(feature = "experimental-inspect"),
+                            annotation.span() => "Type annotations in the signature is only supported with the `experimental-inspect` feature"
+                        );
+                        #[cfg(feature = "experimental-inspect")]
+                        {
+                            let FnArg::VarArgs(fn_arg) = fn_arg else {
+                                unreachable!(
+                                    "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
+                                parsed and transformed below. Because the have to come last and are only allowed \
+                                once, this has to be a regular argument."
+                                );
+                            };
+                            fn_arg.annotation = Some(annotation.to_python());
+                        }
+                    }
                 }
                 SignatureItem::Kwargs(kwargs) => {
                     let fn_arg = next_non_py_argument_checked(&kwargs.ident)?;
-                    fn_arg.is_kwargs = true;
+                    fn_arg.to_kwargs_mut()?;
                     parse_state.add_kwargs(&mut python_signature, kwargs)?;
+                    if let Some((_, annotation)) = &kwargs.colon_and_annotation {
+                        ensure_spanned!(
+                            cfg!(feature = "experimental-inspect"),
+                            annotation.span() => "Type annotations in the signature is only supported with the `experimental-inspect` feature"
+                        );
+                        #[cfg(feature = "experimental-inspect")]
+                        {
+                            let FnArg::KwArgs(fn_arg) = fn_arg else {
+                                unreachable!(
+                                    "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
+                                parsed and transformed below. Because the have to come last and are only allowed \
+                                once, this has to be a regular argument."
+                                );
+                            };
+                            fn_arg.annotation = Some(annotation.to_python());
+                        }
+                    }
                 }
                 SignatureItem::PosargsSep(sep) => {
                     parse_state.finish_pos_only_args(&mut python_signature, sep.span())?
@@ -421,9 +552,11 @@ impl<'a> FunctionSignature<'a> {
         }
 
         // Ensure no non-py arguments remain
-        if let Some(arg) = args_iter.find(|arg| !arg.py && !arg.is_cancel_handle) {
+        if let Some(arg) =
+            args_iter.find(|arg| !matches!(arg, FnArg::Py(..) | FnArg::CancelHandle(..)))
+        {
             bail_spanned!(
-                attribute.kw.span() => format!("missing signature entry for argument `{}`", arg.name)
+                attribute.kw.span() => format!("missing signature entry for argument `{}`", arg.name())
             );
         }
 
@@ -435,20 +568,19 @@ impl<'a> FunctionSignature<'a> {
     }
 
     /// Without `#[pyo3(signature)]` or `#[args]` - just take the Rust function arguments as positional.
-    pub fn from_arguments(arguments: Vec<FnArg<'a>>) -> syn::Result<Self> {
+    pub fn from_arguments(arguments: Vec<FnArg<'a>>) -> Self {
         let mut python_signature = PythonSignature::default();
         for arg in &arguments {
             // Python<'_> arguments don't show in Python signature
-            if arg.py || arg.is_cancel_handle {
+            if matches!(arg, FnArg::Py(..) | FnArg::CancelHandle(..)) {
                 continue;
             }
 
-            if arg.optional.is_none() {
+            if let FnArg::Regular(RegularArg { .. }) = arg {
                 // This argument is required, all previous arguments must also have been required
-                ensure_spanned!(
-                    python_signature.required_positional_parameters == python_signature.positional_parameters.len(),
-                    arg.ty.span() => "required arguments after an `Option<_>` argument are ambiguous\n\
-                    = help: add a `#[pyo3(signature)]` annotation on this function to unambiguously specify the default values for all optional parameters"
+                assert_eq!(
+                    python_signature.required_positional_parameters,
+                    python_signature.positional_parameters.len(),
                 );
 
                 python_signature.required_positional_parameters =
@@ -457,52 +589,22 @@ impl<'a> FunctionSignature<'a> {
 
             python_signature
                 .positional_parameters
-                .push(arg.name.unraw().to_string());
+                .push(arg.name().unraw().to_string());
         }
 
-        Ok(Self {
+        Self {
             arguments,
             python_signature,
             attribute: None,
-        })
+        }
     }
 
     fn default_value_for_parameter(&self, parameter: &str) -> String {
-        let mut default = "...".to_string();
-        if let Some(fn_arg) = self.arguments.iter().find(|arg| arg.name == parameter) {
-            if let Some(arg_default) = fn_arg.default.as_ref() {
-                match arg_default {
-                    // literal values
-                    syn::Expr::Lit(syn::ExprLit { lit, .. }) => match lit {
-                        syn::Lit::Str(s) => default = s.token().to_string(),
-                        syn::Lit::Char(c) => default = c.token().to_string(),
-                        syn::Lit::Int(i) => default = i.base10_digits().to_string(),
-                        syn::Lit::Float(f) => default = f.base10_digits().to_string(),
-                        syn::Lit::Bool(b) => {
-                            default = if b.value() {
-                                "True".to_string()
-                            } else {
-                                "False".to_string()
-                            }
-                        }
-                        _ => {}
-                    },
-                    // None
-                    syn::Expr::Path(syn::ExprPath {
-                        qself: None, path, ..
-                    }) if path.is_ident("None") => {
-                        default = "None".to_string();
-                    }
-                    // others, unsupported yet so defaults to `...`
-                    _ => {}
-                }
-            } else if fn_arg.optional.is_some() {
-                // functions without a `#[pyo3(signature = (...))]` option
-                // will treat trailing `Option<T>` arguments as having a default of `None`
-                default = "None".to_string();
-            }
+        if let Some(fn_arg) = self.arguments.iter().find(|arg| arg.name() == parameter) {
+            fn_arg.default_value()
+        } else {
+            "...".to_string()
         }
-        default
     }
 
     pub fn text_signature(&self, self_argument: Option<&str>) -> String {

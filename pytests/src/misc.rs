@@ -1,15 +1,38 @@
-use pyo3::{prelude::*, types::PyDict};
-use std::borrow::Cow;
+use pyo3::{
+    prelude::*,
+    types::{PyDict, PyString},
+};
 
 #[pyfunction]
 fn issue_219() {
     // issue 219: acquiring GIL inside #[pyfunction] deadlocks.
-    Python::with_gil(|_| {});
+    Python::attach(|_| {});
+}
+
+#[pyclass]
+struct LockHolder {
+    #[allow(unused)]
+    sender: std::sync::mpsc::Sender<()>,
+}
+
+// This will hammer the GIL once the LockHolder is dropped.
+#[pyfunction]
+fn hammer_gil_in_thread() -> LockHolder {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        receiver.recv().ok();
+        // now the interpreter has shut down, so hammer the GIL. In buggy
+        // versions of PyO3 this will cause a crash.
+        loop {
+            Python::attach(|_py| ());
+        }
+    });
+    LockHolder { sender }
 }
 
 #[pyfunction]
-fn get_type_full_name(obj: &PyAny) -> PyResult<Cow<'_, str>> {
-    obj.get_type().name()
+fn get_type_fully_qualified_name<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyString>> {
+    obj.get_type().fully_qualified_name()
 }
 
 #[pyfunction]
@@ -30,10 +53,11 @@ fn get_item_and_run_callback(dict: Bound<'_, PyDict>, callback: Bound<'_, PyAny>
     Ok(())
 }
 
-#[pymodule]
+#[pymodule(gil_used = false)]
 pub fn misc(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(issue_219, m)?)?;
-    m.add_function(wrap_pyfunction!(get_type_full_name, m)?)?;
+    m.add_function(wrap_pyfunction!(hammer_gil_in_thread, m)?)?;
+    m.add_function(wrap_pyfunction!(get_type_fully_qualified_name, m)?)?;
     m.add_function(wrap_pyfunction!(accepts_bool, m)?)?;
     m.add_function(wrap_pyfunction!(get_item_and_run_callback, m)?)?;
     Ok(())

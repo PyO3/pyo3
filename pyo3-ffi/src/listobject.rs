@@ -28,6 +28,9 @@ extern "C" {
     pub fn PyList_Size(arg1: *mut PyObject) -> Py_ssize_t;
     #[cfg_attr(PyPy, link_name = "PyPyList_GetItem")]
     pub fn PyList_GetItem(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
+    #[cfg(Py_3_13)]
+    #[cfg_attr(PyPy, link_name = "PyPyList_GetItemRef")]
+    pub fn PyList_GetItemRef(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyList_SetItem")]
     pub fn PyList_SetItem(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyList_Insert")]
@@ -47,6 +50,10 @@ extern "C" {
         arg3: Py_ssize_t,
         arg4: *mut PyObject,
     ) -> c_int;
+    #[cfg(Py_3_13)]
+    pub fn PyList_Extend(list: *mut PyObject, iterable: *mut PyObject) -> c_int;
+    #[cfg(Py_3_13)]
+    pub fn PyList_Clear(list: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyList_Sort")]
     pub fn PyList_Sort(arg1: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyList_Reverse")]
@@ -54,14 +61,16 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyList_AsTuple")]
     pub fn PyList_AsTuple(arg1: *mut PyObject) -> *mut PyObject;
 
-    // CPython macros exported as functions on PyPy
-    #[cfg(PyPy)]
+    // CPython macros exported as functions on PyPy or GraalPy
+    #[cfg(any(PyPy, GraalPy))]
     #[cfg_attr(PyPy, link_name = "PyPyList_GET_ITEM")]
+    #[cfg_attr(GraalPy, link_name = "PyList_GetItem")]
     pub fn PyList_GET_ITEM(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
     #[cfg(PyPy)]
     #[cfg_attr(PyPy, link_name = "PyPyList_GET_SIZE")]
     pub fn PyList_GET_SIZE(arg1: *mut PyObject) -> Py_ssize_t;
-    #[cfg(PyPy)]
+    #[cfg(any(PyPy, GraalPy))]
     #[cfg_attr(PyPy, link_name = "PyPyList_SET_ITEM")]
+    #[cfg_attr(GraalPy, link_name = "_PyList_SET_ITEM")]
     pub fn PyList_SET_ITEM(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut PyObject);
 }

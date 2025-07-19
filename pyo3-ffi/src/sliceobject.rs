@@ -5,21 +5,31 @@ use std::ptr::addr_of_mut;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    #[cfg(not(GraalPy))]
     #[cfg_attr(PyPy, link_name = "_PyPy_EllipsisObject")]
     static mut _Py_EllipsisObject: PyObject;
+
+    #[cfg(GraalPy)]
+    static mut _Py_EllipsisObjectReference: *mut PyObject;
 }
 
 #[inline]
 pub unsafe fn Py_Ellipsis() -> *mut PyObject {
-    addr_of_mut!(_Py_EllipsisObject)
+    #[cfg(not(GraalPy))]
+    return addr_of_mut!(_Py_EllipsisObject);
+    #[cfg(GraalPy)]
+    return _Py_EllipsisObjectReference;
 }
 
 #[cfg(not(Py_LIMITED_API))]
 #[repr(C)]
 pub struct PySliceObject {
     pub ob_base: PyObject,
+    #[cfg(not(GraalPy))]
     pub start: *mut PyObject,
+    #[cfg(not(GraalPy))]
     pub stop: *mut PyObject,
+    #[cfg(not(GraalPy))]
     pub step: *mut PyObject,
 }
 

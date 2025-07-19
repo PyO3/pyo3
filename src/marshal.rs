@@ -6,27 +6,11 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::types::{PyAny, PyBytes};
 use crate::{ffi, Bound};
-use crate::{AsPyPointer, PyResult, Python};
+use crate::{PyResult, Python};
 use std::os::raw::c_int;
 
 /// The current version of the marshal binary format.
 pub const VERSION: i32 = 4;
-
-/// Deprecated form of [`dumps_bound`]
-#[cfg_attr(
-    not(feature = "gil-refs"),
-    deprecated(
-        since = "0.21.0",
-        note = "`dumps` will be replaced by `dumps_bound` in a future PyO3 version"
-    )
-)]
-pub fn dumps<'py>(
-    py: Python<'py>,
-    object: &impl AsPyPointer,
-    version: i32,
-) -> PyResult<&'py PyBytes> {
-    dumps_bound(py, object, version).map(Bound::into_gil_ref)
-}
 
 /// Serialize an object to bytes using the Python built-in marshal module.
 ///
@@ -39,44 +23,25 @@ pub fn dumps<'py>(
 /// # Examples
 /// ```
 /// # use pyo3::{marshal, types::PyDict, prelude::PyDictMethods};
-/// # pyo3::Python::with_gil(|py| {
-/// let dict = PyDict::new_bound(py);
+/// # pyo3::Python::attach(|py| {
+/// let dict = PyDict::new(py);
 /// dict.set_item("aap", "noot").unwrap();
 /// dict.set_item("mies", "wim").unwrap();
 /// dict.set_item("zus", "jet").unwrap();
 ///
-/// let bytes = marshal::dumps_bound(py, &dict, marshal::VERSION);
+/// let bytes = marshal::dumps(&dict, marshal::VERSION);
 /// # });
 /// ```
-pub fn dumps_bound<'py>(
-    py: Python<'py>,
-    object: &impl AsPyPointer,
-    version: i32,
-) -> PyResult<Bound<'py, PyBytes>> {
+pub fn dumps<'py>(object: &Bound<'py, PyAny>, version: i32) -> PyResult<Bound<'py, PyBytes>> {
     unsafe {
         ffi::PyMarshal_WriteObjectToString(object.as_ptr(), version as c_int)
-            .assume_owned_or_err(py)
+            .assume_owned_or_err(object.py())
             .downcast_into_unchecked()
     }
 }
 
-/// Deprecated form of [`loads_bound`]
-#[cfg_attr(
-    not(feature = "gil-refs"),
-    deprecated(
-        since = "0.21.0",
-        note = "`loads` will be replaced by `loads_bound` in a future PyO3 version"
-    )
-)]
-pub fn loads<'py, B>(py: Python<'py>, data: &B) -> PyResult<&'py PyAny>
-where
-    B: AsRef<[u8]> + ?Sized,
-{
-    loads_bound(py, data).map(Bound::into_gil_ref)
-}
-
 /// Deserialize an object from bytes using the Python built-in marshal module.
-pub fn loads_bound<'py, B>(py: Python<'py>, data: &B) -> PyResult<Bound<'py, PyAny>>
+pub fn loads<'py, B>(py: Python<'py>, data: &B) -> PyResult<Bound<'py, PyAny>>
 where
     B: AsRef<[u8]> + ?Sized,
 {
@@ -90,24 +55,20 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{bytes::PyBytesMethods, dict::PyDictMethods, PyDict};
+    use crate::types::{bytes::PyBytesMethods, dict::PyDictMethods, PyAnyMethods, PyDict};
 
     #[test]
     fn marshal_roundtrip() {
-        Python::with_gil(|py| {
-            let dict = PyDict::new_bound(py);
+        Python::attach(|py| {
+            let dict = PyDict::new(py);
             dict.set_item("aap", "noot").unwrap();
             dict.set_item("mies", "wim").unwrap();
             dict.set_item("zus", "jet").unwrap();
 
-            let pybytes = dumps_bound(py, &dict, VERSION).expect("marshalling failed");
-            let deserialized = loads_bound(py, pybytes.as_bytes()).expect("unmarshalling failed");
+            let pybytes = dumps(&dict, VERSION).expect("marshalling failed");
+            let deserialized = loads(py, pybytes.as_bytes()).expect("unmarshalling failed");
 
-            assert!(equal(py, &dict, &deserialized));
+            assert!(dict.eq(&deserialized).unwrap());
         });
-    }
-
-    fn equal(_py: Python<'_>, a: &impl AsPyPointer, b: &impl AsPyPointer) -> bool {
-        unsafe { ffi::PyObject_RichCompareBool(a.as_ptr(), b.as_ptr(), ffi::Py_EQ) != 0 }
     }
 }

@@ -66,6 +66,13 @@ extern "C" {
     ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyDict_DelItemString")]
     pub fn PyDict_DelItemString(dp: *mut PyObject, key: *const c_char) -> c_int;
+    #[cfg(Py_3_13)]
+    #[cfg_attr(PyPy, link_name = "PyPyDict_GetItemRef")]
+    pub fn PyDict_GetItemRef(
+        dp: *mut PyObject,
+        key: *mut PyObject,
+        result: *mut *mut PyObject,
+    ) -> c_int;
     // skipped 3.10 / ex-non-limited PyObject_GenericGetDict
 }
 
@@ -109,6 +116,6 @@ extern "C" {
     pub static mut PyDictRevIterItem_Type: PyTypeObject;
 }
 
-#[cfg(any(PyPy, Py_LIMITED_API))]
+#[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
 // TODO: remove (see https://github.com/PyO3/pyo3/pull/1341#issuecomment-751515985)
-opaque_struct!(PyDictObject);
+opaque_struct!(pub PyDictObject);

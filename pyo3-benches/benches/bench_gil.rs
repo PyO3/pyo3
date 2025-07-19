@@ -1,22 +1,16 @@
-use codspeed_criterion_compat::{criterion_group, criterion_main, BatchSize, Bencher, Criterion};
+use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criterion};
 
 use pyo3::prelude::*;
 
 fn bench_clean_acquire_gil(b: &mut Bencher<'_>) {
     // Acquiring first GIL will also create a "clean" GILPool, so this measures the Python overhead.
-    b.iter(|| Python::with_gil(|_| {}));
+    b.iter(|| Python::attach(|_| {}));
 }
 
 fn bench_dirty_acquire_gil(b: &mut Bencher<'_>) {
-    let obj = Python::with_gil(|py| py.None());
-    b.iter_batched(
-        || {
-            // Clone and drop an object so that the GILPool has work to do.
-            let _ = obj.clone();
-        },
-        |_| Python::with_gil(|_| {}),
-        BatchSize::NumBatches(1),
-    );
+    let obj = Python::attach(|py| py.None());
+    // Drop the returned clone of the object so that the reference pool has work to do.
+    b.iter(|| Python::attach(|py| obj.clone_ref(py)));
 }
 
 fn criterion_benchmark(c: &mut Criterion) {

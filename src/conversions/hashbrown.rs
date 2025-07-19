@@ -17,37 +17,53 @@
 //! Note that you must use compatible versions of hashbrown and PyO3.
 //! The required hashbrown version may vary based on the version of PyO3.
 use crate::{
-    types::any::PyAnyMethods,
-    types::dict::PyDictMethods,
-    types::frozenset::PyFrozenSetMethods,
-    types::set::{new_from_iter, PySetMethods},
-    types::{IntoPyDict, PyDict, PyFrozenSet, PySet},
-    Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    conversion::IntoPyObject,
+    types::{
+        any::PyAnyMethods,
+        dict::PyDictMethods,
+        frozenset::PyFrozenSetMethods,
+        set::{try_new_from_iter, PySetMethods},
+        PyDict, PyFrozenSet, PySet,
+    },
+    Bound, FromPyObject, PyAny, PyErr, PyResult, Python,
 };
 use std::{cmp, hash};
 
-impl<K, V, H> ToPyObject for hashbrown::HashMap<K, V, H>
+impl<'py, K, V, H> IntoPyObject<'py> for hashbrown::HashMap<K, V, H>
 where
-    K: hash::Hash + cmp::Eq + ToPyObject,
-    V: ToPyObject,
+    K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
+    V: IntoPyObject<'py>,
     H: hash::BuildHasher,
 {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        IntoPyDict::into_py_dict_bound(self, py).into()
+    type Target = PyDict;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let dict = PyDict::new(py);
+        for (k, v) in self {
+            dict.set_item(k, v)?;
+        }
+        Ok(dict)
     }
 }
 
-impl<K, V, H> IntoPy<PyObject> for hashbrown::HashMap<K, V, H>
+impl<'a, 'py, K, V, H> IntoPyObject<'py> for &'a hashbrown::HashMap<K, V, H>
 where
-    K: hash::Hash + cmp::Eq + IntoPy<PyObject>,
-    V: IntoPy<PyObject>,
+    &'a K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
+    &'a V: IntoPyObject<'py>,
     H: hash::BuildHasher,
 {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let iter = self
-            .into_iter()
-            .map(|(k, v)| (k.into_py(py), v.into_py(py)));
-        IntoPyDict::into_py_dict_bound(iter, py).into()
+    type Target = PyDict;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let dict = PyDict::new(py);
+        for (k, v) in self {
+            dict.set_item(k, v)?;
+        }
+        Ok(dict)
     }
 }
 
@@ -60,33 +76,38 @@ where
     fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.downcast::<PyDict>()?;
         let mut ret = hashbrown::HashMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict.iter() {
+        for (k, v) in dict {
             ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)
     }
 }
 
-impl<T> ToPyObject for hashbrown::HashSet<T>
+impl<'py, K, H> IntoPyObject<'py> for hashbrown::HashSet<K, H>
 where
-    T: hash::Hash + Eq + ToPyObject,
+    K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
+    H: hash::BuildHasher,
 {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        new_from_iter(py, self)
-            .expect("Failed to create Python set from hashbrown::HashSet")
-            .into()
+    type Target = PySet;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        try_new_from_iter(py, self)
     }
 }
 
-impl<K, S> IntoPy<PyObject> for hashbrown::HashSet<K, S>
+impl<'a, 'py, K, H> IntoPyObject<'py> for &'a hashbrown::HashSet<K, H>
 where
-    K: IntoPy<PyObject> + Eq + hash::Hash,
-    S: hash::BuildHasher + Default,
+    &'a K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
+    H: hash::BuildHasher,
 {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        new_from_iter(py, self.into_iter().map(|item| item.into_py(py)))
-            .expect("Failed to create Python set from hashbrown::HashSet")
-            .into()
+    type Target = PySet;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        try_new_from_iter(py, self)
     }
 }
 
@@ -112,15 +133,17 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::IntoPyDict;
+    use std::collections::hash_map::RandomState;
 
     #[test]
-    fn test_hashbrown_hashmap_to_python() {
-        Python::with_gil(|py| {
-            let mut map = hashbrown::HashMap::<i32, i32>::new();
+    fn test_hashbrown_hashmap_into_pyobject() {
+        Python::attach(|py| {
+            let mut map =
+                hashbrown::HashMap::<i32, i32, RandomState>::with_hasher(RandomState::new());
             map.insert(1, 1);
 
-            let m = map.to_object(py);
-            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
+            let py_map = (&map).into_pyobject(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(
@@ -135,35 +158,15 @@ mod tests {
             assert_eq!(map, py_map.extract().unwrap());
         });
     }
-    #[test]
-    fn test_hashbrown_hashmap_into_python() {
-        Python::with_gil(|py| {
-            let mut map = hashbrown::HashMap::<i32, i32>::new();
-            map.insert(1, 1);
-
-            let m: PyObject = map.into_py(py);
-            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
-
-            assert!(py_map.len() == 1);
-            assert!(
-                py_map
-                    .get_item(1)
-                    .unwrap()
-                    .unwrap()
-                    .extract::<i32>()
-                    .unwrap()
-                    == 1
-            );
-        });
-    }
 
     #[test]
     fn test_hashbrown_hashmap_into_dict() {
-        Python::with_gil(|py| {
-            let mut map = hashbrown::HashMap::<i32, i32>::new();
+        Python::attach(|py| {
+            let mut map =
+                hashbrown::HashMap::<i32, i32, RandomState>::with_hasher(RandomState::new());
             map.insert(1, 1);
 
-            let py_map = map.into_py_dict_bound(py);
+            let py_map = map.into_py_dict(py).unwrap();
 
             assert_eq!(py_map.len(), 1);
             assert_eq!(
@@ -180,25 +183,26 @@ mod tests {
 
     #[test]
     fn test_extract_hashbrown_hashset() {
-        Python::with_gil(|py| {
-            let set = PySet::new_bound(py, &[1, 2, 3, 4, 5]).unwrap();
-            let hash_set: hashbrown::HashSet<usize> = set.extract().unwrap();
+        Python::attach(|py| {
+            let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
+            let hash_set: hashbrown::HashSet<usize, RandomState> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
 
-            let set = PyFrozenSet::new_bound(py, &[1, 2, 3, 4, 5]).unwrap();
-            let hash_set: hashbrown::HashSet<usize> = set.extract().unwrap();
+            let set = PyFrozenSet::new(py, [1, 2, 3, 4, 5]).unwrap();
+            let hash_set: hashbrown::HashSet<usize, RandomState> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
         });
     }
 
     #[test]
-    fn test_hashbrown_hashset_into_py() {
-        Python::with_gil(|py| {
-            let hs: hashbrown::HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
+    fn test_hashbrown_hashset_into_pyobject() {
+        Python::attach(|py| {
+            let hs: hashbrown::HashSet<u64, RandomState> =
+                [1, 2, 3, 4, 5].iter().cloned().collect();
 
-            let hso: PyObject = hs.clone().into_py(py);
+            let hso = hs.clone().into_pyobject(py).unwrap();
 
-            assert_eq!(hs, hso.extract(py).unwrap());
+            assert_eq!(hs, hso.extract().unwrap());
         });
     }
 }

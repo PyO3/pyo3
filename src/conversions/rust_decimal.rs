@@ -20,7 +20,7 @@
 //!
 //! Rust code to create a function that adds one to a Decimal
 //!
-//! ```rust
+//! ```rust,no_run
 //! use rust_decimal::Decimal;
 //! use pyo3::prelude::*;
 //!
@@ -49,14 +49,13 @@
 //! assert d + 1 == value
 //! ```
 
+use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
 use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
-use crate::{
-    intern, Bound, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
-};
+use crate::{Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
 use rust_decimal::Decimal;
 use std::str::FromStr;
 
@@ -66,51 +65,53 @@ impl FromPyObject<'_> for Decimal {
         if let Ok(val) = obj.extract() {
             Ok(Decimal::new(val, 0))
         } else {
-            Decimal::from_str(&obj.str()?.to_cow()?)
-                .map_err(|e| PyValueError::new_err(e.to_string()))
+            let py_str = &obj.str()?;
+            let rs_str = &py_str.to_cow()?;
+            Decimal::from_str(rs_str).or_else(|_| {
+                Decimal::from_scientific(rs_str).map_err(|e| PyValueError::new_err(e.to_string()))
+            })
         }
     }
 }
 
 static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
 
-fn get_decimal_cls(py: Python<'_>) -> PyResult<&PyType> {
-    DECIMAL_CLS
-        .get_or_try_init(py, || {
-            py.import_bound(intern!(py, "decimal"))?
-                .getattr(intern!(py, "Decimal"))?
-                .extract()
-        })
-        .map(|ty| ty.as_ref(py))
+fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
+    DECIMAL_CLS.import(py, "decimal", "Decimal")
 }
 
-impl ToPyObject for Decimal {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        // TODO: handle error gracefully when ToPyObject can error
-        // look up the decimal.Decimal
-        let dec_cls = get_decimal_cls(py).expect("failed to load decimal.Decimal");
+impl<'py> IntoPyObject<'py> for Decimal {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let dec_cls = get_decimal_cls(py)?;
         // now call the constructor with the Rust Decimal string-ified
         // to not be lossy
-        let ret = dec_cls
-            .call1((self.to_string(),))
-            .expect("failed to call decimal.Decimal(value)");
-        ret.to_object(py)
+        dec_cls.call1((self.to_string(),))
     }
 }
 
-impl IntoPy<PyObject> for Decimal {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+impl<'py> IntoPyObject<'py> for &Decimal {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
     }
 }
 
 #[cfg(test)]
 mod test_rust_decimal {
     use super::*;
-    use crate::err::PyErr;
     use crate::types::dict::PyDictMethods;
     use crate::types::PyDict;
+    use std::ffi::CString;
 
+    use crate::ffi;
     #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;
 
@@ -118,17 +119,18 @@ mod test_rust_decimal {
         ($name:ident, $rs:expr, $py:literal) => {
             #[test]
             fn $name() {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let rs_orig = $rs;
-                    let rs_dec = rs_orig.into_py(py);
-                    let locals = PyDict::new_bound(py);
+                    let rs_dec = rs_orig.into_pyobject(py).unwrap();
+                    let locals = PyDict::new(py);
                     locals.set_item("rs_dec", &rs_dec).unwrap();
                     // Checks if Rust Decimal -> Python Decimal conversion is correct
-                    py.run_bound(
-                        &format!(
+                    py.run(
+                        &CString::new(format!(
                             "import decimal\npy_dec = decimal.Decimal({})\nassert py_dec == rs_dec",
                             $py
-                        ),
+                        ))
+                        .unwrap(),
                         None,
                         Some(&locals),
                     )
@@ -161,25 +163,24 @@ mod test_rust_decimal {
             scale in 0..28u32
         ) {
             let num = Decimal::from_parts(lo, mid, high, negative, scale);
-            Python::with_gil(|py| {
-                let rs_dec = num.into_py(py);
-                let locals = PyDict::new_bound(py);
+            Python::attach(|py| {
+                let rs_dec = num.into_pyobject(py).unwrap();
+                let locals = PyDict::new(py);
                 locals.set_item("rs_dec", &rs_dec).unwrap();
-                py.run_bound(
-                    &format!(
-                       "import decimal\npy_dec = decimal.Decimal(\"{}\")\nassert py_dec == rs_dec",
-                     num),
+                py.run(
+                    &CString::new(format!(
+                       "import decimal\npy_dec = decimal.Decimal(\"{num}\")\nassert py_dec == rs_dec")).unwrap(),
                 None, Some(&locals)).unwrap();
-                let roundtripped: Decimal = rs_dec.extract(py).unwrap();
+                let roundtripped: Decimal = rs_dec.extract().unwrap();
                 assert_eq!(num, roundtripped);
             })
         }
 
         #[test]
         fn test_integers(num in any::<i64>()) {
-            Python::with_gil(|py| {
-                let py_num = num.into_py(py);
-                let roundtripped: Decimal = py_num.extract(py).unwrap();
+            Python::attach(|py| {
+                let py_num = num.into_pyobject(py).unwrap();
+                let roundtripped: Decimal = py_num.extract().unwrap();
                 let rs_dec = Decimal::new(num, 0);
                 assert_eq!(rs_dec, roundtripped);
             })
@@ -188,10 +189,10 @@ mod test_rust_decimal {
 
     #[test]
     fn test_nan() {
-        Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
-            py.run_bound(
-                "import decimal\npy_dec = decimal.Decimal(\"NaN\")",
+        Python::attach(|py| {
+            let locals = PyDict::new(py);
+            py.run(
+                ffi::c_str!("import decimal\npy_dec = decimal.Decimal(\"NaN\")"),
                 None,
                 Some(&locals),
             )
@@ -203,11 +204,28 @@ mod test_rust_decimal {
     }
 
     #[test]
+    fn test_scientific_notation() {
+        Python::attach(|py| {
+            let locals = PyDict::new(py);
+            py.run(
+                ffi::c_str!("import decimal\npy_dec = decimal.Decimal(\"1e3\")"),
+                None,
+                Some(&locals),
+            )
+            .unwrap();
+            let py_dec = locals.get_item("py_dec").unwrap().unwrap();
+            let roundtripped: Decimal = py_dec.extract().unwrap();
+            let rs_dec = Decimal::from_scientific("1e3").unwrap();
+            assert_eq!(rs_dec, roundtripped);
+        })
+    }
+
+    #[test]
     fn test_infinity() {
-        Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
-            py.run_bound(
-                "import decimal\npy_dec = decimal.Decimal(\"Infinity\")",
+        Python::attach(|py| {
+            let locals = PyDict::new(py);
+            py.run(
+                ffi::c_str!("import decimal\npy_dec = decimal.Decimal(\"Infinity\")"),
                 None,
                 Some(&locals),
             )

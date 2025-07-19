@@ -12,7 +12,7 @@ macro_rules! make_struct_using_macro {
     // Ensure that one doesn't need to fall back on the escape type: tt
     // in order to macro create pyclass.
     ($class_name:ident, $py_name:literal) => {
-        #[pyclass(name=$py_name)]
+        #[pyclass(name=$py_name, subclass)]
         struct $class_name {}
     };
 }
@@ -22,6 +22,7 @@ make_struct_using_macro!(MyBaseClass, "MyClass");
 macro_rules! set_extends_via_macro {
     ($class_name:ident, $base_class:path) => {
         // Try and pass a variable into the extends parameter
+        #[allow(dead_code)]
         #[pyclass(extends=$base_class)]
         struct $class_name {}
     };
@@ -72,8 +73,8 @@ property_rename_via_macro!(my_new_property_name);
 
 #[test]
 fn test_macro_rules_interactions() {
-    Python::with_gil(|py| {
-        let my_base = py.get_type_bound::<MyBaseClass>();
+    Python::attach(|py| {
+        let my_base = py.get_type::<MyBaseClass>();
         py_assert!(py, my_base, "my_base.__name__ == 'MyClass'");
 
         let my_func = wrap_pyfunction!(my_function_in_macro, py).unwrap();
@@ -83,7 +84,7 @@ fn test_macro_rules_interactions() {
             "my_func.__text_signature__ == '(a, b=None, *, c=42)'"
         );
 
-        let renamed_prop = py.get_type_bound::<ClassWithProperty>();
+        let renamed_prop = py.get_type::<ClassWithProperty>();
         py_assert!(
             py,
             renamed_prop,

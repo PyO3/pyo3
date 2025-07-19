@@ -21,7 +21,7 @@ fn fail_to_open_file() -> PyResult<()> {
 #[cfg_attr(target_arch = "wasm32", ignore)] // Not sure why this fails.
 #[cfg(not(target_os = "windows"))]
 fn test_filenotfounderror() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let fail_to_open_file = wrap_pyfunction!(fail_to_open_file)(py).unwrap();
 
         py_run!(
@@ -66,7 +66,7 @@ fn call_fail_with_custom_error() -> PyResult<()> {
 
 #[test]
 fn test_custom_error() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let call_fail_with_custom_error =
             wrap_pyfunction!(call_fail_with_custom_error)(py).unwrap();
 
@@ -99,13 +99,13 @@ fn test_exception_nosegfault() {
 }
 
 #[test]
-#[cfg(Py_3_8)]
-#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
+#[cfg(all(Py_3_8, not(Py_GIL_DISABLED)))]
 fn test_write_unraisable() {
     use common::UnraisableCapture;
-    use pyo3::{exceptions::PyRuntimeError, ffi};
+    use pyo3::{exceptions::PyRuntimeError, ffi, types::PyNotImplemented};
+    use std::ptr;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let capture = UnraisableCapture::install(py);
 
         assert!(capture.borrow(py).capture.is_none());
@@ -118,11 +118,11 @@ fn test_write_unraisable() {
         assert!(object.is_none(py));
 
         let err = PyRuntimeError::new_err("bar");
-        err.write_unraisable(py, Some(py.NotImplemented().as_ref(py)));
+        err.write_unraisable(py, Some(&PyNotImplemented::get(py)));
 
         let (err, object) = capture.borrow_mut(py).capture.take().unwrap();
         assert_eq!(err.to_string(), "RuntimeError: bar");
-        assert!(object.as_ptr() == unsafe { ffi::Py_NotImplemented() });
+        assert!(unsafe { ptr::eq(object.as_ptr(), ffi::Py_NotImplemented()) });
 
         capture.borrow_mut(py).uninstall(py);
     });

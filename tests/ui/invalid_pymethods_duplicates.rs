@@ -3,6 +3,7 @@
 
 use pyo3::prelude::*;
 
+#[pyclass]
 struct TwoNew {}
 
 #[pymethods]
@@ -18,6 +19,7 @@ impl TwoNew {
     }
 }
 
+#[pyclass]
 struct DuplicateMethod {}
 
 #[pymethods]

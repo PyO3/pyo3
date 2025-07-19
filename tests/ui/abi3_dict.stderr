@@ -1,0 +1,5 @@
+error: `dict` requires Python >= 3.9 when using the `abi3` feature
+ --> tests/ui/abi3_dict.rs:4:11
+  |
+4 | #[pyclass(dict)]
+  |           ^^^^

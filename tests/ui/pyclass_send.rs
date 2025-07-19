@@ -1,26 +1,28 @@
 use pyo3::prelude::*;
-use std::rc::Rc;
+use std::os::raw::c_void;
 
 #[pyclass]
-struct NotThreadSafe {
-    data: Rc<i32>,
-}
+struct NotSyncNotSend(*mut c_void);
 
-fn main() {
-    let obj = Python::with_gil(|py| {
-        PyCell::new(py, NotThreadSafe { data: Rc::new(5) })
-            .unwrap()
-            .to_object(py)
-    });
+#[pyclass]
+struct SendNotSync(*mut c_void);
+unsafe impl Send for SendNotSync {}
 
-    std::thread::spawn(move || {
-        Python::with_gil(|py| {
-            // Uh oh, moved Rc to a new thread!
-            let c: &PyCell<NotThreadSafe> = obj.as_ref(py).downcast().unwrap();
+#[pyclass]
+struct SyncNotSend(*mut c_void);
+unsafe impl Sync for SyncNotSend {}
 
-            assert_eq!(*c.borrow().data, 5);
-        })
-    })
-    .join()
-    .unwrap();
-}
+// None of the `unsendable` forms below should fail to compile
+
+#[pyclass(unsendable)]
+struct NotSyncNotSendUnsendable(*mut c_void);
+
+#[pyclass(unsendable)]
+struct SendNotSyncUnsendable(*mut c_void);
+unsafe impl Send for SendNotSyncUnsendable {}
+
+#[pyclass(unsendable)]
+struct SyncNotSendUnsendable(*mut c_void);
+unsafe impl Sync for SyncNotSendUnsendable {}
+
+fn main() {}

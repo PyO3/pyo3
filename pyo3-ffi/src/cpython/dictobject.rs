@@ -2,17 +2,25 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::os::raw::c_int;
 
-opaque_struct!(PyDictKeysObject);
+opaque_struct!(pub PyDictKeysObject);
 
 #[cfg(Py_3_11)]
-opaque_struct!(PyDictValues);
+opaque_struct!(pub PyDictValues);
 
+#[cfg(not(GraalPy))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyDictObject {
     pub ob_base: PyObject,
     pub ma_used: Py_ssize_t,
+    #[cfg_attr(
+        Py_3_12,
+        deprecated(note = "Deprecated in Python 3.12 and will be removed in the future.")
+    )]
+    #[cfg(not(Py_3_14))]
     pub ma_version_tag: u64,
+    #[cfg(Py_3_14)]
+    _ma_watcher_tag: u64,
     pub ma_keys: *mut PyDictKeysObject,
     #[cfg(not(Py_3_11))]
     pub ma_values: *mut *mut PyObject,

@@ -16,4 +16,20 @@ impl ComplexEnum {
     }
 }
 
+#[pyclass]
+enum TupleEnum {
+    Int(i32),
+    Str(String),
+}
+
+#[pymethods]
+impl TupleEnum {
+    fn mutate_in_place(&mut self) {
+        *self = match self {
+            TupleEnum::Int(int) => TupleEnum::Str(int.to_string()),
+            TupleEnum::Str(string) => TupleEnum::Int(string.len() as i32),
+        }
+    }
+}
+
 fn main() {}

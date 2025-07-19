@@ -13,21 +13,21 @@ struct MyClass {}
 impl MyClass {
     #[staticmethod]
     #[pyo3(signature = (*args))]
-    fn test_args(args: &PyTuple) -> &PyTuple {
+    fn test_args(args: Bound<'_, PyTuple>) -> Bound<'_, PyTuple> {
         args
     }
 
     #[staticmethod]
     #[pyo3(signature = (**kwargs))]
-    fn test_kwargs(kwargs: Option<&PyDict>) -> Option<&PyDict> {
+    fn test_kwargs(kwargs: Option<Bound<'_, PyDict>>) -> Option<Bound<'_, PyDict>> {
         kwargs
     }
 }
 
 #[test]
 fn variable_args() {
-    Python::with_gil(|py| {
-        let my_obj = py.get_type_bound::<MyClass>();
+    Python::attach(|py| {
+        let my_obj = py.get_type::<MyClass>();
         py_assert!(py, my_obj, "my_obj.test_args() == ()");
         py_assert!(py, my_obj, "my_obj.test_args(1) == (1,)");
         py_assert!(py, my_obj, "my_obj.test_args(1, 2) == (1, 2)");
@@ -36,8 +36,8 @@ fn variable_args() {
 
 #[test]
 fn variable_kwargs() {
-    Python::with_gil(|py| {
-        let my_obj = py.get_type_bound::<MyClass>();
+    Python::attach(|py| {
+        let my_obj = py.get_type::<MyClass>();
         py_assert!(py, my_obj, "my_obj.test_kwargs() == None");
         py_assert!(py, my_obj, "my_obj.test_kwargs(test=1) == {'test': 1}");
         py_assert!(

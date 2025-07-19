@@ -9,26 +9,29 @@ use std::{
     panic::{self, UnwindSafe},
 };
 
+use crate::internal::state::AttachGuard;
 use crate::{
-    callback::PyCallbackOutput, ffi, ffi_ptr_ext::FfiPtrExt, impl_::panic::PanicTrap,
-    methods::IPowModulo, panic::PanicException, types::PyModule, GILPool, Py, PyResult, Python,
+    ffi, ffi_ptr_ext::FfiPtrExt, impl_::callback::PyCallbackOutput, impl_::panic::PanicTrap,
+    impl_::pymethods::IPowModulo, panic::PanicException, types::PyModule, Py, PyResult, Python,
 };
 
 #[inline]
 pub unsafe fn module_init(
     f: for<'py> unsafe fn(Python<'py>) -> PyResult<Py<PyModule>>,
 ) -> *mut ffi::PyObject {
-    trampoline(|py| f(py).map(|module| module.into_ptr()))
+    unsafe { trampoline(|py| f(py).map(|module| module.into_ptr())) }
 }
 
 #[inline]
+#[allow(clippy::used_underscore_binding)]
 pub unsafe fn noargs(
     slf: *mut ffi::PyObject,
-    args: *mut ffi::PyObject,
+    _args: *mut ffi::PyObject,
     f: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<*mut ffi::PyObject>,
 ) -> *mut ffi::PyObject {
-    debug_assert!(args.is_null());
-    trampoline(|py| f(py, slf))
+    #[cfg(not(GraalPy))] // this is not specified and GraalPy does not pass null here
+    debug_assert!(_args.is_null());
+    unsafe { trampoline(|py| f(py, slf)) }
 }
 
 macro_rules! trampoline {
@@ -38,7 +41,7 @@ macro_rules! trampoline {
             $($arg_names: $arg_types,)*
             f: for<'py> unsafe fn (Python<'py>, $($arg_types),*) -> PyResult<$ret>,
         ) -> $ret {
-            trampoline(|py| f(py, $($arg_names,)*))
+            unsafe {trampoline(|py| f(py, $($arg_names,)*))}
         }
     }
 }
@@ -131,7 +134,7 @@ pub unsafe fn releasebufferproc(
     buf: *mut ffi::Py_buffer,
     f: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject, *mut ffi::Py_buffer) -> PyResult<()>,
 ) {
-    trampoline_unraisable(|py| f(py, slf, buf), slf)
+    unsafe { trampoline_unraisable(|py| f(py, slf, buf), slf) }
 }
 
 #[inline]
@@ -143,13 +146,15 @@ pub(crate) unsafe fn dealloc(
     // so pass null_mut() to the context.
     //
     // (Note that we don't allow the implementation `f` to fail.)
-    trampoline_unraisable(
-        |py| {
-            f(py, slf);
-            Ok(())
-        },
-        std::ptr::null_mut(),
-    )
+    unsafe {
+        trampoline_unraisable(
+            |py| {
+                f(py, slf);
+                Ok(())
+            },
+            std::ptr::null_mut(),
+        )
+    }
 }
 
 // Ipowfunc is a unique case where PyO3 has its own type
@@ -163,19 +168,23 @@ trampoline!(
     ) -> *mut ffi::PyObject;
 );
 
-/// Implementation of trampoline functions, which sets up a GILPool and calls F.
+/// Implementation of trampoline functions, which sets up an AttachGuard and calls F.
 ///
 /// Panics during execution are trapped so that they don't propagate through any
 /// outer FFI boundary.
+///
+/// The thread must already be attached to the interpreter when this is called.
 #[inline]
-pub(crate) fn trampoline<F, R>(body: F) -> R
+pub(crate) unsafe fn trampoline<F, R>(body: F) -> R
 where
     F: for<'py> FnOnce(Python<'py>) -> PyResult<R> + UnwindSafe,
     R: PyCallbackOutput,
 {
     let trap = PanicTrap::new("uncaught panic at ffi boundary");
-    let pool = unsafe { GILPool::new() };
-    let py = pool.python();
+
+    // SAFETY: This function requires the thread to already be attached.
+    let guard = unsafe { AttachGuard::assume() };
+    let py = guard.python();
     let out = panic_result_into_callback_output(
         py,
         panic::catch_unwind(move || -> PyResult<_> { body(py) }),
@@ -212,19 +221,23 @@ where
 ///
 /// # Safety
 ///
-/// ctx must be either a valid ffi::PyObject or NULL
+/// - ctx must be either a valid ffi::PyObject or NULL
+/// - The thread must be attached to the interpreter when this is called.
 #[inline]
 unsafe fn trampoline_unraisable<F>(body: F, ctx: *mut ffi::PyObject)
 where
     F: for<'py> FnOnce(Python<'py>) -> PyResult<()> + UnwindSafe,
 {
     let trap = PanicTrap::new("uncaught panic at ffi boundary");
-    let pool = GILPool::new();
-    let py = pool.python();
+
+    // SAFETY: Thread is known to be attached.
+    let guard = unsafe { AttachGuard::assume() };
+    let py = guard.python();
+
     if let Err(py_err) = panic::catch_unwind(move || body(py))
         .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(payload)))
     {
-        py_err.write_unraisable_bound(py, ctx.assume_borrowed_or_opt(py).as_deref());
+        py_err.write_unraisable(py, unsafe { ctx.assume_borrowed_or_opt(py) }.as_deref());
     }
     trap.disarm();
 }
