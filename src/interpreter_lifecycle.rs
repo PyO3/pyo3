@@ -133,7 +133,7 @@ pub(crate) fn ensure_initialized() {
                 0,
                 "The Python interpreter is not initialized and the `auto-initialize` \
                         feature is not enabled.\n\n\
-                        Consider calling `pyo3::prepare_freethreaded_python()` before attempting \
+                        Consider calling `pyo3::initialize_python()` before attempting \
                         to use Python APIs."
             );
         });
