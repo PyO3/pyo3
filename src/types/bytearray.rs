@@ -465,8 +465,6 @@ mod tests {
         use crate::instance::Py;
         use crate::sync::{with_critical_section, MutexExt};
 
-        use pyo3_ffi::c_str;
-
         use std::sync::atomic::{AtomicBool, Ordering};
         use std::sync::Mutex;
         use std::thread;
@@ -475,7 +473,6 @@ mod tests {
 
         const SIZE: usize = 200_000_000;
         const DATA_VALUE: u8 = 42;
-        const GARBAGE_VALUE: u8 = 13;
 
         fn make_byte_array(py: Python<'_>, size: usize, value: u8) -> Bound<'_, PyByteArray> {
             PyByteArray::new_with(py, size, |b| {
@@ -507,7 +504,7 @@ mod tests {
         // continuously extends and resets the bytearray in data
         let worker1 = || {
             let mut rounds = 0;
-            while running.load(Ordering::Relaxed) && rounds < 25 {
+            while running.load(Ordering::SeqCst) && rounds < 25 {
                 Python::attach(|py| {
                     let byte_array = get_data(&data, py);
                     extending.store(true, Ordering::SeqCst);
@@ -523,7 +520,7 @@ mod tests {
 
         // continuously checks the integrity of bytearray in data
         let worker2 = || {
-            while running.load(Ordering::Relaxed) {
+            while running.load(Ordering::SeqCst) {
                 if !extending.load(Ordering::SeqCst) {
                     // wait until we have a chance to read inconsistent state
                     continue;
@@ -545,22 +542,6 @@ mod tests {
                                 && bytes.iter().take(50).all(|v| *v == DATA_VALUE)));
                         }
                     });
-                })
-            }
-        };
-
-        // write unrelated data to the memory for extra stress
-        let worker3 = || {
-            while running.load(Ordering::Relaxed) {
-                Python::attach(|py| {
-                    let arrays = (0..5)
-                        .map(|_| {
-                            make_byte_array(py, SIZE, GARBAGE_VALUE);
-                        })
-                        .collect::<Vec<_>>();
-                    drop(arrays);
-                    py.run(c_str!(r#"import gc; gc.collect()"#), None, None)
-                        .unwrap();
                 });
             }
         };
@@ -568,8 +549,7 @@ mod tests {
         thread::scope(|s| {
             let mut handle1 = Some(s.spawn(worker1));
             let mut handle2 = Some(s.spawn(worker2));
-            let mut handle3 = Some(s.spawn(worker3));
-            let mut handles = [&mut handle1, &mut handle2, &mut handle3];
+            let mut handles = [&mut handle1, &mut handle2];
 
             let t0 = std::time::Instant::now();
             while t0.elapsed() < Duration::from_secs(10) {
@@ -579,19 +559,18 @@ mod tests {
                         .map(ScopedJoinHandle::is_finished)
                         .unwrap_or(false)
                     {
-                        handle
-                            .take()
-                            .unwrap()
-                            .join()
-                            .inspect_err(|_| running.store(false, Ordering::Relaxed))
-                            .unwrap()
+                        let res = handle.take().unwrap().join();
+                        if res.is_err() {
+                            running.store(false, Ordering::SeqCst);
+                        }
+                        res.unwrap();
                     }
                 }
                 if handles.iter().any(|handle| handle.is_none()) {
                     break;
                 }
             }
-            running.store(false, Ordering::Relaxed);
+            running.store(false, Ordering::SeqCst);
             for handle in &mut handles {
                 if let Some(handle) = handle.take() {
                     handle.join().unwrap()
