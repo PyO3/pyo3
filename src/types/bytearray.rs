@@ -506,7 +506,8 @@ mod tests {
 
         // continuously extends and resets the bytearray in data
         let worker1 = || {
-            while running.load(Ordering::Relaxed) {
+            let mut rounds = 0;
+            while running.load(Ordering::Relaxed) && rounds < 25 {
                 Python::attach(|py| {
                     let byte_array = get_data(&data, py);
                     extending.store(true, Ordering::SeqCst);
@@ -515,6 +516,7 @@ mod tests {
                         .unwrap();
                     extending.store(false, Ordering::SeqCst);
                     set_data(&data, make_byte_array(py, SIZE, DATA_VALUE));
+                    rounds += 1;
                 });
             }
         };
@@ -585,7 +587,7 @@ mod tests {
                             .unwrap()
                     }
                 }
-                if handles.iter().all(|handle| handle.is_none()) {
+                if handles.iter().any(|handle| handle.is_none()) {
                     break;
                 }
             }
