@@ -311,8 +311,16 @@ impl<'py> TryFrom<&Bound<'py, PyAny>> for Bound<'py, PyByteArray> {
 
 #[cfg(test)]
 mod tests {
+    use crate::instance::Py;
+    use crate::sync::{with_critical_section, MutexExt};
     use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods};
     use crate::{exceptions, Bound, PyAny, PyObject, Python};
+    use pyo3_ffi::c_str;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Mutex;
+    use std::thread;
+    use std::thread::ScopedJoinHandle;
+    use std::time::Duration;
 
     #[test]
     fn test_len() {
@@ -444,5 +452,132 @@ mod tests {
                 .unwrap()
                 .is_instance_of::<PyValueError>(py));
         })
+    }
+
+    #[test]
+    fn test_data_integrity_in_critical_section() {
+        const SIZE: usize = 200_000_000;
+        const DATA_VALUE: u8 = 42;
+        const GARBAGE_VALUE: u8 = 13;
+
+        fn make_byte_array(py: Python<'_>, size: usize, value: u8) -> Bound<'_, PyByteArray> {
+            PyByteArray::new_with(py, size, |b| {
+                b.fill(value);
+                Ok(())
+            })
+            .unwrap()
+        }
+
+        let data: Mutex<Py<PyByteArray>> = Mutex::new(Python::attach(|py| {
+            make_byte_array(py, SIZE, DATA_VALUE).unbind()
+        }));
+
+        fn get_data<'py>(
+            data: &Mutex<Py<PyByteArray>>,
+            py: Python<'py>,
+        ) -> Bound<'py, PyByteArray> {
+            data.lock_py_attached(py).unwrap().bind(py).clone()
+        }
+
+        fn set_data(data: &Mutex<Py<PyByteArray>>, new: Bound<'_, PyByteArray>) {
+            let py = new.py();
+            *data.lock_py_attached(py).unwrap() = new.unbind()
+        }
+
+        let running = AtomicBool::new(true);
+        let extending = AtomicBool::new(false);
+
+        // continuously extends and resets the bytearray in data
+        let worker1 = || {
+            while running.load(Ordering::Relaxed) {
+                Python::attach(|py| {
+                    let byte_array = get_data(&data, py);
+                    extending.store(true, Ordering::SeqCst);
+                    byte_array
+                        .call_method("extend", (&byte_array,), None)
+                        .unwrap();
+                    extending.store(false, Ordering::SeqCst);
+                    set_data(&data, make_byte_array(py, SIZE, DATA_VALUE));
+                });
+            }
+        };
+
+        // continuously checks the integrity of bytearray in data
+        let worker2 = || {
+            while running.load(Ordering::Relaxed) {
+                if !extending.load(Ordering::SeqCst) {
+                    // wait until we have a chance to read inconsistent state
+                    continue;
+                }
+                Python::attach(|py| {
+                    let read = get_data(&data, py);
+                    if read.len() == SIZE {
+                        // extend is still not done => wait even more
+                        return;
+                    }
+                    with_critical_section(&read, || {
+                        // SAFETY: we are in a critical section
+                        // This is the whole point of the test: make sure that a
+                        // critical section is sufficient to ensure that the data
+                        // read is consistent.
+                        unsafe {
+                            let bytes = read.as_bytes();
+                            assert!(bytes.iter().rev().take(50).all(|v| *v == DATA_VALUE
+                                && bytes.iter().take(50).all(|v| *v == DATA_VALUE)));
+                        }
+                    });
+                })
+            }
+        };
+
+        // write unrelated data to the memory for extra stress
+        let worker3 = || {
+            while running.load(Ordering::Relaxed) {
+                Python::attach(|py| {
+                    let arrays = (0..5)
+                        .map(|_| {
+                            make_byte_array(py, SIZE, GARBAGE_VALUE);
+                        })
+                        .collect::<Vec<_>>();
+                    drop(arrays);
+                    py.run(c_str!(r#"import gc; gc.collect()"#), None, None)
+                        .unwrap();
+                });
+            }
+        };
+
+        thread::scope(|s| {
+            let mut handle1 = Some(s.spawn(worker1));
+            let mut handle2 = Some(s.spawn(worker2));
+            let mut handle3 = Some(s.spawn(worker3));
+            let mut handles = [&mut handle1, &mut handle2, &mut handle3];
+
+            let t0 = std::time::Instant::now();
+            while t0.elapsed() < Duration::from_secs(10) {
+                for handle in &mut handles {
+                    if handle
+                        .as_ref()
+                        .map(ScopedJoinHandle::is_finished)
+                        .unwrap_or(false)
+                    {
+                        handle
+                            .take()
+                            .unwrap()
+                            .join()
+                            .inspect_err(|_| running.store(false, Ordering::Relaxed))
+                            .unwrap()
+                    }
+                }
+                if handles.iter().all(|handle| handle.is_none()) {
+                    break;
+                }
+            }
+            running.store(false, Ordering::Relaxed);
+            for handle in &mut handles {
+                if let Some(handle) = handle.take() {
+                    handle.join().unwrap()
+                }
+            }
+        });
     }
 }
