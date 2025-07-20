@@ -224,13 +224,6 @@ impl<T: Element> PyBuffer<T> {
         }
     }
 
-    /// Deprecated name for [`PyBuffer::get`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyBuffer::get`")]
-    #[inline]
-    pub fn get_bound(obj: &Bound<'_, PyAny>) -> PyResult<PyBuffer<T>> {
-        Self::get(obj)
-    }
-
     /// Gets the pointer to the start of the buffer memory.
     ///
     /// Warning: the buffer memory might be mutated by other Python functions,
@@ -629,7 +622,7 @@ impl<T: Element> PyBuffer<T> {
 
 impl<T> Drop for PyBuffer<T> {
     fn drop(&mut self) {
-        Python::with_gil(|_| unsafe { ffi::PyBuffer_Release(&mut *self.0) });
+        Python::attach(|_| unsafe { ffi::PyBuffer_Release(&mut *self.0) });
     }
 }
 
@@ -691,7 +684,7 @@ mod tests {
 
     #[test]
     fn test_debug() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes = py.eval(ffi::c_str!("b'abcde'"), None, None).unwrap();
             let buffer: PyBuffer<u8> = PyBuffer::get(&bytes).unwrap();
             let expected = format!(
@@ -709,7 +702,7 @@ mod tests {
                 buffer.0.suboffsets,
                 buffer.0.internal
             );
-            let debug_repr = format!("{:?}", buffer);
+            let debug_repr = format!("{buffer:?}");
             assert_eq!(debug_repr, expected);
         });
     }
@@ -836,8 +829,7 @@ mod tests {
             assert_eq!(
                 ElementType::from_format(cstr),
                 expected,
-                "element from format &Cstr: {:?}",
-                cstr,
+                "element from format &Cstr: {cstr:?}",
             );
         }
     }
@@ -853,7 +845,7 @@ mod tests {
 
     #[test]
     fn test_bytes_buffer() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes = py.eval(ffi::c_str!("b'abcde'"), None, None).unwrap();
             let buffer = PyBuffer::get(&bytes).unwrap();
             assert_eq!(buffer.dimensions(), 1);
@@ -885,7 +877,7 @@ mod tests {
 
     #[test]
     fn test_array_buffer() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let array = py
                 .import("array")
                 .unwrap()

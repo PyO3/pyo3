@@ -17,7 +17,7 @@ The table below contains the Python type and the corresponding function argument
 | `bytes`       | `Vec<u8>`, `&[u8]`, `Cow<[u8]>` | `PyBytes`           |
 | `bool`        | `bool`                          | `PyBool`            |
 | `int`         | `i8`, `u8`, `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `isize`, `usize`, `num_bigint::BigInt`[^1], `num_bigint::BigUint`[^1] | `PyInt` |
-| `float`       | `f32`, `f64`                    | `PyFloat`           |
+| `float`       | `f32`, `f64`, `ordered_float::NotNan`[^10], `ordered_float::OrderedFloat`[^10]                    | `PyFloat`           |
 | `complex`     | `num_complex::Complex`[^2]      | `PyComplex`         |
 | `fractions.Fraction`| `num_rational::Ratio`[^8] | -         |
 | `list[T]`     | `Vec<T>`                        | `PyList`            |
@@ -36,8 +36,9 @@ The table below contains the Python type and the corresponding function argument
 | `datetime.tzinfo` | `chrono::FixedOffset`[^5], `chrono::Utc`[^5], `chrono_tz::TimeZone`[^6] | `PyTzInfo`          |
 | `datetime.timedelta` | `Duration`, `chrono::Duration`[^5] | `PyDelta`           |
 | `decimal.Decimal` | `rust_decimal::Decimal`[^7] | -                    |
-| `ipaddress.IPv4Address` | `std::net::IpAddr`, `std::net::IpV4Addr` | - |
-| `ipaddress.IPv6Address` | `std::net::IpAddr`, `std::net::IpV6Addr` | - |
+| `decimal.Decimal` | `bigdecimal::BigDecimal`[^9] | -                   |
+| `ipaddress.IPv4Address` | `std::net::IpAddr`, `std::net::Ipv4Addr` | - |
+| `ipaddress.IPv6Address` | `std::net::IpAddr`, `std::net::Ipv6Addr` | - |
 | `os.PathLike ` | `PathBuf`, `Path`              | `PyString` |
 | `pathlib.Path` | `PathBuf`, `Path`              | `PyString` |
 | `typing.Optional[T]` | `Option<T>`              | -                    |
@@ -66,7 +67,7 @@ Using Rust library types as function arguments will incur a conversion cost comp
 However, once that conversion cost has been paid, the Rust standard library types offer a number of benefits:
 - You can write functionality in native-speed Rust code (free of Python's runtime costs).
 - You get better interoperability with the rest of the Rust ecosystem.
-- You can use `Python::allow_threads` to release the Python GIL and let other Python threads make progress while your Rust code is executing.
+- You can use `Python::detach` to detach from the interpreter and let other Python threads make progress while your Rust code is executing.
 - You also benefit from stricter type checking. For example you can specify `Vec<i32>`, which will only accept a Python `list` containing integers. The Python-native equivalent, `&PyList`, would accept a Python `list` containing Python objects of any type.
 
 For most PyO3 usage the conversion cost is worth paying to get these benefits. As always, if you're not sure it's worth it in your case, benchmark it!
@@ -116,3 +117,7 @@ Finally, the following Rust types are also able to convert to Python as return v
 [^7]: Requires the `rust_decimal` optional feature.
 
 [^8]: Requires the `num-rational` optional feature.
+
+[^9]: Requires the `bigdecimal` optional feature.
+
+[^10]: Requires the `ordered-float` optional feature.

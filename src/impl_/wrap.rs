@@ -1,7 +1,5 @@
 use std::{convert::Infallible, marker::PhantomData, ops::Deref};
 
-#[allow(deprecated)]
-use crate::IntoPy;
 use crate::{ffi, types::PyNone, Bound, IntoPyObject, IntoPyObjectExt, PyObject, PyResult, Python};
 
 /// Used to wrap values in `Option<T>` for default arguments.
@@ -105,32 +103,6 @@ impl<'py, T: IntoPyObject<'py>, E> IntoPyObjectConverter<Result<T, E>> {
     {
         obj.and_then(|obj| obj.into_bound_py_any(py))
             .map(Bound::into_ptr)
-    }
-}
-
-#[allow(deprecated)]
-impl<T: IntoPy<PyObject>> IntoPyConverter<T> {
-    #[inline]
-    pub fn wrap(&self, obj: T) -> Result<T, Infallible> {
-        Ok(obj)
-    }
-}
-
-#[allow(deprecated)]
-impl<T: IntoPy<PyObject>, E> IntoPyConverter<Result<T, E>> {
-    #[inline]
-    pub fn wrap(&self, obj: Result<T, E>) -> Result<T, E> {
-        obj
-    }
-
-    #[inline]
-    pub fn map_into_pyobject(&self, py: Python<'_>, obj: PyResult<T>) -> PyResult<PyObject> {
-        obj.map(|obj| obj.into_py(py))
-    }
-
-    #[inline]
-    pub fn map_into_ptr(&self, py: Python<'_>, obj: PyResult<T>) -> PyResult<*mut ffi::PyObject> {
-        obj.map(|obj| obj.into_py(py).into_ptr())
     }
 }
 

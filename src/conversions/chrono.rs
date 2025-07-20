@@ -24,7 +24,7 @@
 //!
 //! fn main() -> PyResult<()> {
 //!     pyo3::prepare_freethreaded_python();
-//!     Python::with_gil(|py| {
+//!     Python::attach(|py| {
 //!         // Build some chrono values
 //!         let chrono_datetime = Utc.with_ymd_and_hms(2022, 1, 1, 12, 0, 0).unwrap();
 //!         let chrono_duration = Duration::seconds(1);
@@ -43,47 +43,29 @@
 
 use crate::conversion::IntoPyObject;
 use crate::exceptions::{PyTypeError, PyUserWarning, PyValueError};
-#[cfg(Py_LIMITED_API)]
-use crate::sync::GILOnceCell;
+use crate::intern;
 use crate::types::any::PyAnyMethods;
-#[cfg(not(Py_LIMITED_API))]
-use crate::types::datetime::timezone_from_offset;
 use crate::types::PyNone;
+use crate::types::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
 #[cfg(not(Py_LIMITED_API))]
-use crate::types::{
-    timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
-    PyTzInfo, PyTzInfoAccess,
+use crate::types::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
+#[cfg(feature = "chrono-local")]
+use crate::{
+    exceptions::PyRuntimeError,
+    sync::GILOnceCell,
+    types::{PyString, PyStringMethods},
+    Py,
 };
-use crate::{ffi, Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python};
-#[cfg(Py_LIMITED_API)]
-use crate::{intern, DowncastError};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
+use crate::{ffi, Borrowed, Bound, FromPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python};
 use chrono::offset::{FixedOffset, Utc};
+#[cfg(feature = "chrono-local")]
+use chrono::Local;
 use chrono::{
-    DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Timelike,
+    DateTime, Datelike, Duration, LocalResult, NaiveDate, NaiveDateTime, NaiveTime, Offset,
+    TimeZone, Timelike,
 };
-
-#[allow(deprecated)]
-impl ToPyObject for Duration {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for Duration {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
 
 impl<'py> IntoPyObject<'py> for Duration {
-    #[cfg(Py_LIMITED_API)]
-    type Target = PyAny;
-    #[cfg(not(Py_LIMITED_API))]
     type Target = PyDelta;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
@@ -100,35 +82,22 @@ impl<'py> IntoPyObject<'py> for Duration {
             // This should never panic since we are just getting the fractional
             // part of the total microseconds, which should never overflow.
             .unwrap();
-
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            // We do not need to check the days i64 to i32 cast from rust because
-            // python will panic with OverflowError.
-            // We pass true as the `normalize` parameter since we'd need to do several checks here to
-            // avoid that, and it shouldn't have a big performance impact.
-            // The seconds and microseconds cast should never overflow since it's at most the number of seconds per day
-            PyDelta::new(
-                py,
-                days.try_into().unwrap_or(i32::MAX),
-                secs.try_into()?,
-                micros.try_into()?,
-                true,
-            )
-        }
-
-        #[cfg(Py_LIMITED_API)]
-        {
-            DatetimeTypes::try_get(py)
-                .and_then(|dt| dt.timedelta.bind(py).call1((days, secs, micros)))
-        }
+        // We do not need to check the days i64 to i32 cast from rust because
+        // python will panic with OverflowError.
+        // We pass true as the `normalize` parameter since we'd need to do several checks here to
+        // avoid that, and it shouldn't have a big performance impact.
+        // The seconds and microseconds cast should never overflow since it's at most the number of seconds per day
+        PyDelta::new(
+            py,
+            days.try_into().unwrap_or(i32::MAX),
+            secs.try_into()?,
+            micros.try_into()?,
+            true,
+        )
     }
 }
 
 impl<'py> IntoPyObject<'py> for &Duration {
-    #[cfg(Py_LIMITED_API)]
-    type Target = PyAny;
-    #[cfg(not(Py_LIMITED_API))]
     type Target = PyDelta;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
@@ -141,13 +110,13 @@ impl<'py> IntoPyObject<'py> for &Duration {
 
 impl FromPyObject<'_> for Duration {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Duration> {
+        let delta = ob.downcast::<PyDelta>()?;
         // Python size are much lower than rust size so we do not need bound checks.
         // 0 <= microseconds < 1000000
         // 0 <= seconds < 3600*24
         // -999999999 <= days <= 999999999
         #[cfg(not(Py_LIMITED_API))]
         let (days, seconds, microseconds) = {
-            let delta = ob.downcast::<PyDelta>()?;
             (
                 delta.get_days().into(),
                 delta.get_seconds().into(),
@@ -156,11 +125,11 @@ impl FromPyObject<'_> for Duration {
         };
         #[cfg(Py_LIMITED_API)]
         let (days, seconds, microseconds) = {
-            check_type(ob, &DatetimeTypes::get(ob.py()).timedelta, "PyDelta")?;
+            let py = delta.py();
             (
-                ob.getattr(intern!(ob.py(), "days"))?.extract()?,
-                ob.getattr(intern!(ob.py(), "seconds"))?.extract()?,
-                ob.getattr(intern!(ob.py(), "microseconds"))?.extract()?,
+                delta.getattr(intern!(py, "days"))?.extract()?,
+                delta.getattr(intern!(py, "seconds"))?.extract()?,
+                delta.getattr(intern!(py, "microseconds"))?.extract()?,
             )
         };
         Ok(
@@ -171,48 +140,18 @@ impl FromPyObject<'_> for Duration {
     }
 }
 
-#[allow(deprecated)]
-impl ToPyObject for NaiveDate {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for NaiveDate {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
 impl<'py> IntoPyObject<'py> for NaiveDate {
-    #[cfg(Py_LIMITED_API)]
-    type Target = PyAny;
-    #[cfg(not(Py_LIMITED_API))]
     type Target = PyDate;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let DateArgs { year, month, day } = (&self).into();
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            PyDate::new(py, year, month, day)
-        }
-
-        #[cfg(Py_LIMITED_API)]
-        {
-            DatetimeTypes::try_get(py).and_then(|dt| dt.date.bind(py).call1((year, month, day)))
-        }
+        PyDate::new(py, year, month, day)
     }
 }
 
 impl<'py> IntoPyObject<'py> for &NaiveDate {
-    #[cfg(Py_LIMITED_API)]
-    type Target = PyAny;
-    #[cfg(not(Py_LIMITED_API))]
     type Target = PyDate;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
@@ -225,39 +164,12 @@ impl<'py> IntoPyObject<'py> for &NaiveDate {
 
 impl FromPyObject<'_> for NaiveDate {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<NaiveDate> {
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            let date = ob.downcast::<PyDate>()?;
-            py_date_to_naive_date(date)
-        }
-        #[cfg(Py_LIMITED_API)]
-        {
-            check_type(ob, &DatetimeTypes::get(ob.py()).date, "PyDate")?;
-            py_date_to_naive_date(ob)
-        }
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for NaiveTime {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for NaiveTime {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
+        let date = ob.downcast::<PyDate>()?;
+        py_date_to_naive_date(date)
     }
 }
 
 impl<'py> IntoPyObject<'py> for NaiveTime {
-    #[cfg(Py_LIMITED_API)]
-    type Target = PyAny;
-    #[cfg(not(Py_LIMITED_API))]
     type Target = PyTime;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
@@ -271,12 +183,7 @@ impl<'py> IntoPyObject<'py> for NaiveTime {
             truncated_leap_second,
         } = (&self).into();
 
-        #[cfg(not(Py_LIMITED_API))]
         let time = PyTime::new(py, hour, min, sec, micro, None)?;
-
-        #[cfg(Py_LIMITED_API)]
-        let time = DatetimeTypes::try_get(py)
-            .and_then(|dt| dt.time.bind(py).call1((hour, min, sec, micro)))?;
 
         if truncated_leap_second {
             warn_truncated_leap_second(&time);
@@ -287,9 +194,6 @@ impl<'py> IntoPyObject<'py> for NaiveTime {
 }
 
 impl<'py> IntoPyObject<'py> for &NaiveTime {
-    #[cfg(Py_LIMITED_API)]
-    type Target = PyAny;
-    #[cfg(not(Py_LIMITED_API))]
     type Target = PyTime;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
@@ -302,39 +206,12 @@ impl<'py> IntoPyObject<'py> for &NaiveTime {
 
 impl FromPyObject<'_> for NaiveTime {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<NaiveTime> {
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            let time = ob.downcast::<PyTime>()?;
-            py_time_to_naive_time(time)
-        }
-        #[cfg(Py_LIMITED_API)]
-        {
-            check_type(ob, &DatetimeTypes::get(ob.py()).time, "PyTime")?;
-            py_time_to_naive_time(ob)
-        }
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for NaiveDateTime {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for NaiveDateTime {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
+        let time = ob.downcast::<PyTime>()?;
+        py_time_to_naive_time(time)
     }
 }
 
 impl<'py> IntoPyObject<'py> for NaiveDateTime {
-    #[cfg(Py_LIMITED_API)]
-    type Target = PyAny;
-    #[cfg(not(Py_LIMITED_API))]
     type Target = PyDateTime;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
@@ -349,15 +226,7 @@ impl<'py> IntoPyObject<'py> for NaiveDateTime {
             truncated_leap_second,
         } = (&self.time()).into();
 
-        #[cfg(not(Py_LIMITED_API))]
         let datetime = PyDateTime::new(py, year, month, day, hour, min, sec, micro, None)?;
-
-        #[cfg(Py_LIMITED_API)]
-        let datetime = DatetimeTypes::try_get(py).and_then(|dt| {
-            dt.datetime
-                .bind(py)
-                .call1((year, month, day, hour, min, sec, micro))
-        })?;
 
         if truncated_leap_second {
             warn_truncated_leap_second(&datetime);
@@ -368,9 +237,6 @@ impl<'py> IntoPyObject<'py> for NaiveDateTime {
 }
 
 impl<'py> IntoPyObject<'py> for &NaiveDateTime {
-    #[cfg(Py_LIMITED_API)]
-    type Target = PyAny;
-    #[cfg(not(Py_LIMITED_API))]
     type Target = PyDateTime;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
@@ -383,18 +249,12 @@ impl<'py> IntoPyObject<'py> for &NaiveDateTime {
 
 impl FromPyObject<'_> for NaiveDateTime {
     fn extract_bound(dt: &Bound<'_, PyAny>) -> PyResult<NaiveDateTime> {
-        #[cfg(not(Py_LIMITED_API))]
         let dt = dt.downcast::<PyDateTime>()?;
-        #[cfg(Py_LIMITED_API)]
-        check_type(dt, &DatetimeTypes::get(dt.py()).datetime, "PyDateTime")?;
 
         // If the user tries to convert a timezone aware datetime into a naive one,
         // we return a hard error. We could silently remove tzinfo, or assume local timezone
         // and do a conversion, but better leave this decision to the user of the library.
-        #[cfg(not(Py_LIMITED_API))]
         let has_tzinfo = dt.get_tzinfo().is_some();
-        #[cfg(Py_LIMITED_API)]
-        let has_tzinfo = !dt.getattr(intern!(dt.py(), "tzinfo"))?.is_none();
         if has_tzinfo {
             return Err(PyTypeError::new_err("expected a datetime without tzinfo"));
         }
@@ -404,28 +264,10 @@ impl FromPyObject<'_> for NaiveDateTime {
     }
 }
 
-#[allow(deprecated)]
-impl<Tz: TimeZone> ToPyObject for DateTime<Tz> {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        // FIXME: convert to better timezone representation here than just convert to fixed offset
-        // See https://github.com/PyO3/pyo3/issues/3266
-        let tz = self.offset().fix().to_object(py);
-        let tz = tz.bind(py).downcast().unwrap();
-        naive_datetime_to_py_datetime(py, &self.naive_local(), Some(tz))
-    }
-}
-
-#[allow(deprecated)]
-impl<Tz: TimeZone> IntoPy<PyObject> for DateTime<Tz> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-impl<'py, Tz: TimeZone> IntoPyObject<'py> for DateTime<Tz> {
-    #[cfg(Py_LIMITED_API)]
-    type Target = PyAny;
-    #[cfg(not(Py_LIMITED_API))]
+impl<'py, Tz: TimeZone> IntoPyObject<'py> for DateTime<Tz>
+where
+    Tz: IntoPyObject<'py>,
+{
     type Target = PyDateTime;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
@@ -436,16 +278,17 @@ impl<'py, Tz: TimeZone> IntoPyObject<'py> for DateTime<Tz> {
     }
 }
 
-impl<'py, Tz: TimeZone> IntoPyObject<'py> for &DateTime<Tz> {
-    #[cfg(Py_LIMITED_API)]
-    type Target = PyAny;
-    #[cfg(not(Py_LIMITED_API))]
+impl<'py, Tz: TimeZone> IntoPyObject<'py> for &DateTime<Tz>
+where
+    Tz: IntoPyObject<'py>,
+{
     type Target = PyDateTime;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let tz = self.offset().fix().into_pyobject(py)?;
+        let tz = self.timezone().into_bound_py_any(py)?.downcast_into()?;
+
         let DateArgs { year, month, day } = (&self.naive_local().date()).into();
         let TimeArgs {
             hour,
@@ -455,15 +298,23 @@ impl<'py, Tz: TimeZone> IntoPyObject<'py> for &DateTime<Tz> {
             truncated_leap_second,
         } = (&self.naive_local().time()).into();
 
-        #[cfg(not(Py_LIMITED_API))]
-        let datetime = PyDateTime::new(py, year, month, day, hour, min, sec, micro, Some(&tz))?;
+        let fold = matches!(
+            self.timezone().offset_from_local_datetime(&self.naive_local()),
+            LocalResult::Ambiguous(_, latest) if self.offset().fix() == latest.fix()
+        );
 
-        #[cfg(Py_LIMITED_API)]
-        let datetime = DatetimeTypes::try_get(py).and_then(|dt| {
-            dt.datetime
-                .bind(py)
-                .call1((year, month, day, hour, min, sec, micro, tz))
-        })?;
+        let datetime = PyDateTime::new_with_fold(
+            py,
+            year,
+            month,
+            day,
+            hour,
+            min,
+            sec,
+            micro,
+            Some(&tz),
+            fold,
+        )?;
 
         if truncated_leap_second {
             warn_truncated_leap_second(&datetime);
@@ -475,15 +326,8 @@ impl<'py, Tz: TimeZone> IntoPyObject<'py> for &DateTime<Tz> {
 
 impl<Tz: TimeZone + for<'py> FromPyObject<'py>> FromPyObject<'_> for DateTime<Tz> {
     fn extract_bound(dt: &Bound<'_, PyAny>) -> PyResult<DateTime<Tz>> {
-        #[cfg(not(Py_LIMITED_API))]
         let dt = dt.downcast::<PyDateTime>()?;
-        #[cfg(Py_LIMITED_API)]
-        check_type(dt, &DatetimeTypes::get(dt.py()).datetime, "PyDateTime")?;
-
-        #[cfg(not(Py_LIMITED_API))]
         let tzinfo = dt.get_tzinfo();
-        #[cfg(Py_LIMITED_API)]
-        let tzinfo: Option<Bound<'_, PyAny>> = dt.getattr(intern!(dt.py(), "tzinfo"))?.extract()?;
 
         let tz = if let Some(tzinfo) = tzinfo {
             tzinfo.extract()?
@@ -493,59 +337,41 @@ impl<Tz: TimeZone + for<'py> FromPyObject<'py>> FromPyObject<'_> for DateTime<Tz
             ));
         };
         let naive_dt = NaiveDateTime::new(py_date_to_naive_date(dt)?, py_time_to_naive_time(dt)?);
-        naive_dt.and_local_timezone(tz).single().ok_or_else(|| {
-            PyValueError::new_err(format!(
-                "The datetime {:?} contains an incompatible or ambiguous timezone",
-                dt
-            ))
-        })
-    }
-}
+        match naive_dt.and_local_timezone(tz) {
+            LocalResult::Single(value) => Ok(value),
+            LocalResult::Ambiguous(earliest, latest) => {
+                #[cfg(not(Py_LIMITED_API))]
+                let fold = dt.get_fold();
 
-#[allow(deprecated)]
-impl ToPyObject for FixedOffset {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
+                #[cfg(Py_LIMITED_API)]
+                let fold = dt.getattr(intern!(dt.py(), "fold"))?.extract::<usize>()? > 0;
 
-#[allow(deprecated)]
-impl IntoPy<PyObject> for FixedOffset {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
+                if fold {
+                    Ok(latest)
+                } else {
+                    Ok(earliest)
+                }
+            }
+            LocalResult::None => Err(PyValueError::new_err(format!(
+                "The datetime {dt:?} contains an incompatible timezone"
+            ))),
+        }
     }
 }
 
 impl<'py> IntoPyObject<'py> for FixedOffset {
-    #[cfg(Py_LIMITED_API)]
-    type Target = PyAny;
-    #[cfg(not(Py_LIMITED_API))]
     type Target = PyTzInfo;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let seconds_offset = self.local_minus_utc();
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            let td = PyDelta::new(py, 0, seconds_offset, 0, true)?;
-            timezone_from_offset(&td)
-        }
-
-        #[cfg(Py_LIMITED_API)]
-        {
-            let td = Duration::seconds(seconds_offset.into()).into_pyobject(py)?;
-            DatetimeTypes::try_get(py).and_then(|dt| dt.timezone.bind(py).call1((td,)))
-        }
+        let td = PyDelta::new(py, 0, seconds_offset, 0, true)?;
+        PyTzInfo::fixed_offset(py, td)
     }
 }
 
 impl<'py> IntoPyObject<'py> for &FixedOffset {
-    #[cfg(Py_LIMITED_API)]
-    type Target = PyAny;
-    #[cfg(not(Py_LIMITED_API))]
     type Target = PyTzInfo;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
@@ -562,21 +388,18 @@ impl FromPyObject<'_> for FixedOffset {
     /// Note that the conversion will result in precision lost in microseconds as chrono offset
     /// does not supports microseconds.
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<FixedOffset> {
-        #[cfg(not(Py_LIMITED_API))]
         let ob = ob.downcast::<PyTzInfo>()?;
-        #[cfg(Py_LIMITED_API)]
-        check_type(ob, &DatetimeTypes::get(ob.py()).tzinfo, "PyTzInfo")?;
 
         // Passing Python's None to the `utcoffset` function will only
         // work for timezones defined as fixed offsets in Python.
         // Any other timezone would require a datetime as the parameter, and return
         // None if the datetime is not provided.
         // Trying to convert None to a PyDelta in the next line will then fail.
-        let py_timedelta = ob.call_method1("utcoffset", (PyNone::get(ob.py()),))?;
+        let py_timedelta =
+            ob.call_method1(intern!(ob.py(), "utcoffset"), (PyNone::get(ob.py()),))?;
         if py_timedelta.is_none() {
             return Err(PyTypeError::new_err(format!(
-                "{:?} is not a fixed offset timezone",
-                ob
+                "{ob:?} is not a fixed offset timezone"
             )));
         }
         let total_seconds: Duration = py_timedelta.extract()?;
@@ -587,48 +410,19 @@ impl FromPyObject<'_> for FixedOffset {
     }
 }
 
-#[allow(deprecated)]
-impl ToPyObject for Utc {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for Utc {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
 impl<'py> IntoPyObject<'py> for Utc {
-    #[cfg(Py_LIMITED_API)]
-    type Target = PyAny;
-    #[cfg(not(Py_LIMITED_API))]
     type Target = PyTzInfo;
-    type Output = Bound<'py, Self::Target>;
+    type Output = Borrowed<'static, 'py, Self::Target>;
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        #[cfg(Py_LIMITED_API)]
-        {
-            Ok(timezone_utc(py).into_any())
-        }
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            Ok(timezone_utc(py))
-        }
+        PyTzInfo::utc(py)
     }
 }
 
 impl<'py> IntoPyObject<'py> for &Utc {
-    #[cfg(Py_LIMITED_API)]
-    type Target = PyAny;
-    #[cfg(not(Py_LIMITED_API))]
     type Target = PyTzInfo;
-    type Output = Bound<'py, Self::Target>;
+    type Output = Borrowed<'static, 'py, Self::Target>;
     type Error = PyErr;
 
     #[inline]
@@ -639,11 +433,59 @@ impl<'py> IntoPyObject<'py> for &Utc {
 
 impl FromPyObject<'_> for Utc {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Utc> {
-        let py_utc = timezone_utc(ob.py());
+        let py_utc = PyTzInfo::utc(ob.py())?;
         if ob.eq(py_utc)? {
             Ok(Utc)
         } else {
             Err(PyValueError::new_err("expected datetime.timezone.utc"))
+        }
+    }
+}
+
+#[cfg(feature = "chrono-local")]
+impl<'py> IntoPyObject<'py> for Local {
+    type Target = PyTzInfo;
+    type Output = Borrowed<'static, 'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        static LOCAL_TZ: GILOnceCell<Py<PyTzInfo>> = GILOnceCell::new();
+        let tz = LOCAL_TZ
+            .get_or_try_init(py, || {
+                let iana_name = iana_time_zone::get_timezone().map_err(|e| {
+                    PyRuntimeError::new_err(format!("Could not get local timezone: {e}"))
+                })?;
+                PyTzInfo::timezone(py, iana_name).map(Bound::unbind)
+            })?
+            .bind_borrowed(py);
+        Ok(tz)
+    }
+}
+
+#[cfg(feature = "chrono-local")]
+impl<'py> IntoPyObject<'py> for &Local {
+    type Target = PyTzInfo;
+    type Output = Borrowed<'static, 'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
+#[cfg(feature = "chrono-local")]
+impl FromPyObject<'_> for Local {
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Local> {
+        let local_tz = Local.into_pyobject(ob.py())?;
+        if ob.eq(local_tz)? {
+            Ok(Local)
+        } else {
+            let name = local_tz.getattr("key")?.downcast_into::<PyString>()?;
+            Err(PyValueError::new_err(format!(
+                "expected local timezone {}",
+                name.to_cow()?
+            )))
         }
     }
 }
@@ -686,35 +528,6 @@ impl From<&NaiveTime> for TimeArgs {
             truncated_leap_second,
         }
     }
-}
-
-fn naive_datetime_to_py_datetime(
-    py: Python<'_>,
-    naive_datetime: &NaiveDateTime,
-    #[cfg(not(Py_LIMITED_API))] tzinfo: Option<&Bound<'_, PyTzInfo>>,
-    #[cfg(Py_LIMITED_API)] tzinfo: Option<&Bound<'_, PyAny>>,
-) -> PyObject {
-    let DateArgs { year, month, day } = (&naive_datetime.date()).into();
-    let TimeArgs {
-        hour,
-        min,
-        sec,
-        micro,
-        truncated_leap_second,
-    } = (&naive_datetime.time()).into();
-    #[cfg(not(Py_LIMITED_API))]
-    let datetime = PyDateTime::new(py, year, month, day, hour, min, sec, micro, tzinfo)
-        .expect("failed to construct datetime");
-    #[cfg(Py_LIMITED_API)]
-    let datetime = DatetimeTypes::get(py)
-        .datetime
-        .bind(py)
-        .call1((year, month, day, hour, min, sec, micro, tzinfo))
-        .expect("failed to construct datetime.datetime");
-    if truncated_leap_second {
-        warn_truncated_leap_second(&datetime);
-    }
-    datetime.into()
 }
 
 fn warn_truncated_leap_second(obj: &Bound<'_, PyAny>) {
@@ -777,54 +590,6 @@ fn py_time_to_naive_time(py_time: &Bound<'_, PyAny>) -> PyResult<NaiveTime> {
     .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))
 }
 
-#[cfg(Py_LIMITED_API)]
-fn check_type(value: &Bound<'_, PyAny>, t: &PyObject, type_name: &'static str) -> PyResult<()> {
-    if !value.is_instance(t.bind(value.py()))? {
-        return Err(DowncastError::new(value, type_name).into());
-    }
-    Ok(())
-}
-
-#[cfg(Py_LIMITED_API)]
-struct DatetimeTypes {
-    date: PyObject,
-    datetime: PyObject,
-    time: PyObject,
-    timedelta: PyObject,
-    timezone: PyObject,
-    timezone_utc: PyObject,
-    tzinfo: PyObject,
-}
-
-#[cfg(Py_LIMITED_API)]
-impl DatetimeTypes {
-    fn get(py: Python<'_>) -> &Self {
-        Self::try_get(py).expect("failed to load datetime module")
-    }
-
-    fn try_get(py: Python<'_>) -> PyResult<&Self> {
-        static TYPES: GILOnceCell<DatetimeTypes> = GILOnceCell::new();
-        TYPES.get_or_try_init(py, || {
-            let datetime = py.import("datetime")?;
-            let timezone = datetime.getattr("timezone")?;
-            Ok::<_, PyErr>(Self {
-                date: datetime.getattr("date")?.into(),
-                datetime: datetime.getattr("datetime")?.into(),
-                time: datetime.getattr("time")?.into(),
-                timedelta: datetime.getattr("timedelta")?.into(),
-                timezone_utc: timezone.getattr("utc")?.into(),
-                timezone: timezone.into(),
-                tzinfo: datetime.getattr("tzinfo")?.into(),
-            })
-        })
-    }
-}
-
-#[cfg(Py_LIMITED_API)]
-fn timezone_utc(py: Python<'_>) -> Bound<'_, PyAny> {
-    DatetimeTypes::get(py).timezone_utc.bind(py).clone()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -841,7 +606,7 @@ mod tests {
         use crate::types::any::PyAnyMethods;
         use crate::types::dict::PyDictMethods;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = crate::types::PyDict::new(py);
             py.run(
                 ffi::c_str!("import zoneinfo; zi = zoneinfo.ZoneInfo('Europe/London')"),
@@ -862,7 +627,7 @@ mod tests {
     fn test_timezone_aware_to_naive_fails() {
         // Test that if a user tries to convert a python's timezone aware datetime into a naive
         // one, the conversion fails.
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_datetime =
                 new_py_datetime_ob(py, "datetime", (2022, 1, 1, 1, 0, 0, 0, python_utc(py)));
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
@@ -878,7 +643,7 @@ mod tests {
     fn test_naive_to_timezone_aware_fails() {
         // Test that if a user tries to convert a python's timezone aware datetime into a naive
         // one, the conversion fails.
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_datetime = new_py_datetime_ob(py, "datetime", (2022, 1, 1, 1, 0, 0, 0));
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
             let res: PyResult<DateTime<Utc>> = py_datetime.extract();
@@ -900,7 +665,7 @@ mod tests {
     fn test_invalid_types_fail() {
         // Test that if a user tries to convert a python's timezone aware datetime into a naive
         // one, the conversion fails.
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let none = py.None().into_bound(py);
             assert_eq!(
                 none.extract::<Duration>().unwrap_err().to_string(),
@@ -944,15 +709,12 @@ mod tests {
         // Utility function used to check different durations.
         // The `name` parameter is used to identify the check in case of a failure.
         let check = |name: &'static str, delta: Duration, py_days, py_seconds, py_ms| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let delta = delta.into_pyobject(py).unwrap();
                 let py_delta = new_py_datetime_ob(py, "timedelta", (py_days, py_seconds, py_ms));
                 assert!(
                     delta.eq(&py_delta).unwrap(),
-                    "{}: {} != {}",
-                    name,
-                    delta,
-                    py_delta
+                    "{name}: {delta} != {py_delta}"
                 );
             });
         };
@@ -970,9 +732,13 @@ mod tests {
         check("delta max value", delta, 999999999, 86399, 999999);
 
         // Also check that trying to convert an out of bound value errors.
-        Python::with_gil(|py| {
-            assert!(Duration::min_value().into_pyobject(py).is_err());
-            assert!(Duration::max_value().into_pyobject(py).is_err());
+        Python::attach(|py| {
+            // min_value and max_value were deprecated in chrono 0.4.39
+            #[allow(deprecated)]
+            {
+                assert!(Duration::min_value().into_pyobject(py).is_err());
+                assert!(Duration::max_value().into_pyobject(py).is_err());
+            }
         });
     }
 
@@ -981,10 +747,10 @@ mod tests {
         // Utility function used to check different durations.
         // The `name` parameter is used to identify the check in case of a failure.
         let check = |name: &'static str, delta: Duration, py_days, py_seconds, py_ms| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let py_delta = new_py_datetime_ob(py, "timedelta", (py_days, py_seconds, py_ms));
                 let py_delta: Duration = py_delta.extract().unwrap();
-                assert_eq!(py_delta, delta, "{}: {} != {}", name, py_delta, delta);
+                assert_eq!(py_delta, delta, "{name}: {py_delta} != {delta}");
             })
         };
 
@@ -1008,7 +774,7 @@ mod tests {
 
         // This check is to assert that we can't construct every possible Duration from a PyDelta
         // since they have different bounds.
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let low_days: i32 = -1000000000;
             // This is possible
             assert!(panic::catch_unwind(|| Duration::days(low_days as i64)).is_ok());
@@ -1038,7 +804,7 @@ mod tests {
     #[test]
     fn test_pyo3_date_into_pyobject() {
         let eq_ymd = |name: &'static str, year, month, day| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let date = NaiveDate::from_ymd_opt(year, month, day)
                     .unwrap()
                     .into_pyobject(py)
@@ -1047,10 +813,7 @@ mod tests {
                 assert_eq!(
                     date.compare(&py_date).unwrap(),
                     Ordering::Equal,
-                    "{}: {} != {}",
-                    name,
-                    date,
-                    py_date
+                    "{name}: {date} != {py_date}"
                 );
             })
         };
@@ -1064,11 +827,11 @@ mod tests {
     #[test]
     fn test_pyo3_date_frompyobject() {
         let eq_ymd = |name: &'static str, year, month, day| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let py_date = new_py_datetime_ob(py, "date", (year, month, day));
                 let py_date: NaiveDate = py_date.extract().unwrap();
                 let date = NaiveDate::from_ymd_opt(year, month, day).unwrap();
-                assert_eq!(py_date, date, "{}: {} != {}", name, date, py_date);
+                assert_eq!(py_date, date, "{name}: {date} != {py_date}");
             })
         };
 
@@ -1080,7 +843,7 @@ mod tests {
 
     #[test]
     fn test_pyo3_datetime_into_pyobject_utc() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let check_utc =
                 |name: &'static str, year, month, day, hour, minute, second, ms, py_ms| {
                     let datetime = NaiveDate::from_ymd_opt(year, month, day)
@@ -1106,10 +869,7 @@ mod tests {
                     assert_eq!(
                         datetime.compare(&py_datetime).unwrap(),
                         Ordering::Equal,
-                        "{}: {} != {}",
-                        name,
-                        datetime,
-                        py_datetime
+                        "{name}: {datetime} != {py_datetime}"
                     );
                 };
 
@@ -1129,7 +889,7 @@ mod tests {
 
     #[test]
     fn test_pyo3_datetime_into_pyobject_fixed_offset() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let check_fixed_offset =
                 |name: &'static str, year, month, day, hour, minute, second, ms, py_ms| {
                     let offset = FixedOffset::east_opt(3600).unwrap();
@@ -1149,10 +909,7 @@ mod tests {
                     assert_eq!(
                         datetime.compare(&py_datetime).unwrap(),
                         Ordering::Equal,
-                        "{}: {} != {}",
-                        name,
-                        datetime,
-                        py_datetime
+                        "{name}: {datetime} != {py_datetime}"
                     );
                 };
 
@@ -1171,8 +928,37 @@ mod tests {
     }
 
     #[test]
+    #[cfg(all(Py_3_9, feature = "chrono-tz", not(windows)))]
+    fn test_pyo3_datetime_into_pyobject_tz() {
+        Python::attach(|py| {
+            let datetime = NaiveDate::from_ymd_opt(2024, 12, 11)
+                .unwrap()
+                .and_hms_opt(23, 3, 13)
+                .unwrap()
+                .and_local_timezone(chrono_tz::Tz::Europe__London)
+                .unwrap();
+            let datetime = datetime.into_pyobject(py).unwrap();
+            let py_datetime = new_py_datetime_ob(
+                py,
+                "datetime",
+                (
+                    2024,
+                    12,
+                    11,
+                    23,
+                    3,
+                    13,
+                    0,
+                    python_zoneinfo(py, "Europe/London"),
+                ),
+            );
+            assert_eq!(datetime.compare(&py_datetime).unwrap(), Ordering::Equal);
+        })
+    }
+
+    #[test]
     fn test_pyo3_datetime_frompyobject_utc() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let year = 2014;
             let month = 5;
             let day = 6;
@@ -1180,7 +966,7 @@ mod tests {
             let minute = 8;
             let second = 9;
             let micro = 999_999;
-            let tz_utc = timezone_utc(py);
+            let tz_utc = PyTzInfo::utc(py).unwrap();
             let py_datetime = new_py_datetime_ob(
                 py,
                 "datetime",
@@ -1198,7 +984,7 @@ mod tests {
 
     #[test]
     fn test_pyo3_datetime_frompyobject_fixed_offset() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let year = 2014;
             let month = 5;
             let day = 6;
@@ -1241,7 +1027,7 @@ mod tests {
 
     #[test]
     fn test_pyo3_offset_fixed_into_pyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // Chrono offset
             let offset = FixedOffset::east_opt(3600)
                 .unwrap()
@@ -1266,7 +1052,7 @@ mod tests {
 
     #[test]
     fn test_pyo3_offset_fixed_frompyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_timedelta = new_py_datetime_ob(py, "timedelta", (0, 3600, 0));
             let py_tzinfo = new_py_datetime_ob(py, "timezone", (py_timedelta,));
             let offset: FixedOffset = py_tzinfo.extract().unwrap();
@@ -1276,7 +1062,7 @@ mod tests {
 
     #[test]
     fn test_pyo3_offset_utc_into_pyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let utc = Utc.into_pyobject(py).unwrap();
             let py_utc = python_utc(py);
             assert!(utc.is(&py_utc));
@@ -1285,7 +1071,7 @@ mod tests {
 
     #[test]
     fn test_pyo3_offset_utc_frompyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_utc = python_utc(py);
             let py_utc: Utc = py_utc.extract().unwrap();
             assert_eq!(Utc, py_utc);
@@ -1303,20 +1089,14 @@ mod tests {
 
     #[test]
     fn test_pyo3_time_into_pyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let check_time = |name: &'static str, hour, minute, second, ms, py_ms| {
                 let time = NaiveTime::from_hms_micro_opt(hour, minute, second, ms)
                     .unwrap()
                     .into_pyobject(py)
                     .unwrap();
                 let py_time = new_py_datetime_ob(py, "time", (hour, minute, second, py_ms));
-                assert!(
-                    time.eq(&py_time).unwrap(),
-                    "{}: {} != {}",
-                    name,
-                    time,
-                    py_time
-                );
+                assert!(time.eq(&py_time).unwrap(), "{name}: {time} != {py_time}");
             };
 
             check_time("regular", 3, 5, 7, 999_999, 999_999);
@@ -1339,7 +1119,7 @@ mod tests {
         let minute = 5;
         let second = 7;
         let micro = 999_999;
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_time = new_py_datetime_ob(py, "time", (hour, minute, second, micro));
             let py_time: NaiveTime = py_time.extract().unwrap();
             let time = NaiveTime::from_hms_micro_opt(hour, minute, second, micro).unwrap();
@@ -1373,6 +1153,16 @@ mod tests {
             .unwrap()
     }
 
+    #[cfg(all(Py_3_9, feature = "chrono-tz", not(windows)))]
+    fn python_zoneinfo<'py>(py: Python<'py>, timezone: &str) -> Bound<'py, PyAny> {
+        py.import("zoneinfo")
+            .unwrap()
+            .getattr("ZoneInfo")
+            .unwrap()
+            .call1((timezone,))
+            .unwrap()
+    }
+
     #[cfg(not(any(target_arch = "wasm32", Py_GIL_DISABLED)))]
     mod proptests {
         use super::*;
@@ -1386,10 +1176,10 @@ mod tests {
             // Range is limited to 1970 to 2038 due to windows limitations
             #[test]
             fn test_pyo3_offset_fixed_frompyobject_created_in_python(timestamp in 0..(i32::MAX as i64), timedelta in -86399i32..=86399i32) {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
 
                     let globals = [("datetime", py.import("datetime").unwrap())].into_py_dict(py).unwrap();
-                    let code = format!("datetime.datetime.fromtimestamp({}).replace(tzinfo=datetime.timezone(datetime.timedelta(seconds={})))", timestamp, timedelta);
+                    let code = format!("datetime.datetime.fromtimestamp({timestamp}).replace(tzinfo=datetime.timezone(datetime.timedelta(seconds={timedelta})))");
                     let t = py.eval(&CString::new(code).unwrap(), Some(&globals), None).unwrap();
 
                     // Get ISO 8601 string from python
@@ -1413,7 +1203,7 @@ mod tests {
             fn test_duration_roundtrip(days in -999999999i64..=999999999i64) {
                 // Test roundtrip conversion rust->python->rust for all allowed
                 // python values of durations (from -999999999 to 999999999 days),
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dur = Duration::days(days);
                     let py_delta = dur.into_pyobject(py).unwrap();
                     let roundtripped: Duration = py_delta.extract().expect("Round trip");
@@ -1423,7 +1213,7 @@ mod tests {
 
             #[test]
             fn test_fixed_offset_roundtrip(secs in -86399i32..=86399i32) {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let offset = FixedOffset::east_opt(secs).unwrap();
                     let py_offset = offset.into_pyobject(py).unwrap();
                     let roundtripped: FixedOffset = py_offset.extract().expect("Round trip");
@@ -1439,7 +1229,7 @@ mod tests {
             ) {
                 // Test roundtrip conversion rust->python->rust for all allowed
                 // python dates (from year 1 to year 9999)
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     // We use to `from_ymd_opt` constructor so that we only test valid `NaiveDate`s.
                     // This is to skip the test if we are creating an invalid date, like February 31.
                     if let Some(date) = NaiveDate::from_ymd_opt(year, month, day) {
@@ -1461,7 +1251,7 @@ mod tests {
                 // Python time has a resolution of microseconds, so we only test
                 // NaiveTimes with microseconds resolution, even if NaiveTime has nanosecond
                 // resolution.
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     if let Some(time) = NaiveTime::from_hms_micro_opt(hour, min, sec, micro) {
                         // Wrap in CatchWarnings to avoid to_object firing warning for truncated leap second
                         let py_time = CatchWarnings::enter(py, |_| time.into_pyobject(py)).unwrap();
@@ -1483,7 +1273,7 @@ mod tests {
                 sec in 0u32..=60u32,
                 micro in 0u32..=999_999u32
             ) {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let date_opt = NaiveDate::from_ymd_opt(year, month, day);
                     let time_opt = NaiveTime::from_hms_micro_opt(hour, min, sec, micro);
                     if let (Some(date), Some(time)) = (date_opt, time_opt) {
@@ -1505,7 +1295,7 @@ mod tests {
                 sec in 0u32..=59u32,
                 micro in 0u32..=1_999_999u32
             ) {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let date_opt = NaiveDate::from_ymd_opt(year, month, day);
                     let time_opt = NaiveTime::from_hms_micro_opt(hour, min, sec, micro);
                     if let (Some(date), Some(time)) = (date_opt, time_opt) {
@@ -1532,7 +1322,7 @@ mod tests {
                 micro in 0u32..=1_999_999u32,
                 offset_secs in -86399i32..=86399i32
             ) {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let date_opt = NaiveDate::from_ymd_opt(year, month, day);
                     let time_opt = NaiveTime::from_hms_micro_opt(hour, min, sec, micro);
                     let offset = FixedOffset::east_opt(offset_secs).unwrap();
@@ -1545,6 +1335,43 @@ mod tests {
                         let expected_roundtrip_time = micro.checked_sub(1_000_000).map(|micro| NaiveTime::from_hms_micro_opt(hour, min, sec, micro).unwrap()).unwrap_or(time);
                         let expected_roundtrip_dt: DateTime<FixedOffset> = NaiveDateTime::new(date, expected_roundtrip_time).and_local_timezone(offset).unwrap();
                         assert_eq!(expected_roundtrip_dt, roundtripped);
+                    }
+                })
+            }
+
+            #[test]
+            #[cfg(all(feature = "chrono-local", not(target_os = "windows")))]
+            fn test_local_datetime_roundtrip(
+                year in 1i32..=9999i32,
+                month in 1u32..=12u32,
+                day in 1u32..=31u32,
+                hour in 0u32..=23u32,
+                min in 0u32..=59u32,
+                sec in 0u32..=59u32,
+                micro in 0u32..=1_999_999u32,
+            ) {
+                Python::attach(|py| {
+                    let date_opt = NaiveDate::from_ymd_opt(year, month, day);
+                    let time_opt = NaiveTime::from_hms_micro_opt(hour, min, sec, micro);
+                    if let (Some(date), Some(time)) = (date_opt, time_opt) {
+                        let dts = match NaiveDateTime::new(date, time).and_local_timezone(Local) {
+                            LocalResult::None => return,
+                            LocalResult::Single(dt) => [Some((dt, false)), None],
+                            LocalResult::Ambiguous(dt1, dt2) => [Some((dt1, false)), Some((dt2, true))],
+                        };
+                        for (dt, fold) in dts.iter().filter_map(|input| *input) {
+                            // Wrap in CatchWarnings to avoid into_py firing warning for truncated leap second
+                            let py_dt = CatchWarnings::enter(py, |_| dt.into_pyobject(py)).unwrap();
+                            let roundtripped: DateTime<Local> = py_dt.extract().expect("Round trip");
+                            // Leap seconds are not roundtripped
+                            let expected_roundtrip_time = micro.checked_sub(1_000_000).map(|micro| NaiveTime::from_hms_micro_opt(hour, min, sec, micro).unwrap()).unwrap_or(time);
+                            let expected_roundtrip_dt: DateTime<Local> = if fold {
+                                NaiveDateTime::new(date, expected_roundtrip_time).and_local_timezone(Local).latest()
+                            } else {
+                                NaiveDateTime::new(date, expected_roundtrip_time).and_local_timezone(Local).earliest()
+                            }.unwrap();
+                            assert_eq!(expected_roundtrip_dt, roundtripped);
+                        }
                     }
                 })
             }

@@ -17,16 +17,13 @@ const SUPPORTED_VERSIONS_CPYTHON: SupportedVersions = SupportedVersions {
     min: PythonVersion { major: 3, minor: 7 },
     max: PythonVersion {
         major: 3,
-        minor: 13,
+        minor: 14,
     },
 };
 
 const SUPPORTED_VERSIONS_PYPY: SupportedVersions = SupportedVersions {
     min: PythonVersion { major: 3, minor: 9 },
-    max: PythonVersion {
-        major: 3,
-        minor: 10,
-    },
+    max: SUPPORTED_VERSIONS_CPYTHON.max,
 };
 
 const SUPPORTED_VERSIONS_GRAALPY: SupportedVersions = SupportedVersions {
@@ -34,10 +31,7 @@ const SUPPORTED_VERSIONS_GRAALPY: SupportedVersions = SupportedVersions {
         major: 3,
         minor: 10,
     },
-    max: PythonVersion {
-        major: 3,
-        minor: 11,
-    },
+    max: SUPPORTED_VERSIONS_CPYTHON.max,
 };
 
 fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
@@ -63,7 +57,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                          = help: The free-threaded build of CPython does not support the limited API so this check cannot be suppressed.",
                         interpreter_config.version, versions.max, std::env::var("CARGO_PKG_VERSION").unwrap()
                 );
-                ensure!(env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").map_or(false, |os_str| os_str == "1"),
+                ensure!(env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").is_some_and(|os_str| os_str == "1"),
                         "the configured Python interpreter version ({}) is newer than PyO3's maximum supported version ({})\n\
                          = help: please check if an updated version of PyO3 is available. Current version: {}\n\
                          = help: set PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 to suppress this check and build anyway using the stable ABI",
@@ -176,7 +170,7 @@ fn emit_link_config(interpreter_config: &InterpreterConfig) -> Result<()> {
     );
 
     if let Some(lib_dir) = &interpreter_config.lib_dir {
-        println!("cargo:rustc-link-search=native={}", lib_dir);
+        println!("cargo:rustc-link-search=native={lib_dir}");
     }
 
     Ok(())
@@ -192,7 +186,7 @@ fn emit_link_config(interpreter_config: &InterpreterConfig) -> Result<()> {
 fn configure_pyo3() -> Result<()> {
     let interpreter_config = resolve_interpreter_config()?;
 
-    if env_var("PYO3_PRINT_CONFIG").map_or(false, |os_str| os_str == "1") {
+    if env_var("PYO3_PRINT_CONFIG").is_some_and(|os_str| os_str == "1") {
         print_config_and_exit(&interpreter_config);
     }
 
@@ -207,15 +201,14 @@ fn configure_pyo3() -> Result<()> {
     }
 
     for cfg in interpreter_config.build_script_outputs() {
-        println!("{}", cfg)
+        println!("{cfg}")
     }
 
     // Extra lines come last, to support last write wins.
     for line in &interpreter_config.extra_build_script_lines {
-        println!("{}", line);
+        println!("{line}");
     }
 
-    // Emit cfgs like `invalid_from_utf8_lint`
     print_feature_cfgs();
 
     Ok(())

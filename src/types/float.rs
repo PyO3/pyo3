@@ -3,11 +3,9 @@ use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, PyAny, PyErr, PyObject,
-    PyResult, Python,
+    ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, PyAny, PyErr, PyResult,
+    Python,
 };
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
 use std::convert::Infallible;
 use std::os::raw::c_double;
 
@@ -20,7 +18,7 @@ use std::os::raw::c_double;
 /// [`Bound<'py, PyFloat>`][Bound].
 ///
 /// You can usually avoid directly working with this type
-/// by using [`ToPyObject`] and [`extract`][PyAnyMethods::extract]
+/// by using [`IntoPyObject`] and [`extract`][PyAnyMethods::extract]
 /// with [`f32`]/[`f64`].
 #[repr(transparent)]
 pub struct PyFloat(PyAny);
@@ -42,13 +40,6 @@ impl PyFloat {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyFloat::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyFloat::new`")]
-    #[inline]
-    pub fn new_bound(py: Python<'_>, val: c_double) -> Bound<'_, PyFloat> {
-        Self::new(py, val)
     }
 }
 
@@ -75,22 +66,6 @@ impl<'py> PyFloatMethods<'py> for Bound<'py, PyFloat> {
         unsafe {
             ffi::PyFloat_AsDouble(self.as_ptr())
         }
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for f64 {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for f64 {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -127,8 +102,11 @@ impl<'py> IntoPyObject<'py> for &f64 {
 }
 
 impl<'py> FromPyObject<'py> for f64 {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "float";
+
     // PyFloat_AsDouble returns -1.0 upon failure
-    #![allow(clippy::float_cmp)]
+    #[allow(clippy::float_cmp)]
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         // On non-limited API, .value() uses PyFloat_AS_DOUBLE which
         // allows us to have an optimized fast path for the case when
@@ -153,22 +131,6 @@ impl<'py> FromPyObject<'py> for f64 {
     #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         Self::type_output()
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for f32 {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for f32 {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -205,6 +167,9 @@ impl<'py> IntoPyObject<'py> for &f32 {
 }
 
 impl<'py> FromPyObject<'py> for f32 {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "float";
+
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         Ok(obj.extract::<f64>()? as f32)
     }
@@ -306,7 +271,7 @@ mod tests {
             fn $func_name() {
                 use assert_approx_eq::assert_approx_eq;
 
-                Python::with_gil(|py| {
+                Python::attach(|py| {
 
                 let val = 123 as $t1;
                 let obj = val.into_pyobject(py).unwrap();
@@ -324,7 +289,7 @@ mod tests {
     fn test_float_value() {
         use assert_approx_eq::assert_approx_eq;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = 1.23f64;
             let obj = PyFloat::new(py, 1.23);
             assert_approx_eq!(v, obj.value());
@@ -333,7 +298,7 @@ mod tests {
 
     #[test]
     fn test_pyfloat_comparisons() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let f_64 = 1.01f64;
             let py_f64 = PyFloat::new(py, 1.01);
             let py_f64_ref = &py_f64;

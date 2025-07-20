@@ -15,7 +15,7 @@ use crate::{ffi, Bound, PyAny, PyErr, PyResult, PyTypeCheck};
 /// use pyo3::ffi::c_str;
 ///
 /// # fn main() -> PyResult<()> {
-/// Python::with_gil(|py| -> PyResult<()> {
+/// Python::attach(|py| -> PyResult<()> {
 ///     let list = py.eval(c_str!("iter([1, 2, 3, 4])"), None, None)?;
 ///     let numbers: PyResult<Vec<usize>> = list
 ///         .try_iter()?
@@ -34,7 +34,7 @@ pyobject_native_type_named!(PyIterator);
 impl PyIterator {
     /// Builds an iterator for an iterable Python object; the equivalent of calling `iter(obj)` in Python.
     ///
-    /// Usually it is more convenient to write [`obj.iter()`][crate::types::any::PyAnyMethods::iter],
+    /// Usually it is more convenient to write [`obj.try_iter()`][crate::types::any::PyAnyMethods::try_iter],
     /// which is a more concise way of calling this function.
     pub fn from_object<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyIterator>> {
         unsafe {
@@ -43,12 +43,34 @@ impl PyIterator {
                 .downcast_into_unchecked()
         }
     }
+}
 
-    /// Deprecated name for [`PyIterator::from_object`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyIterator::from_object`")]
+#[derive(Debug)]
+#[cfg(all(not(PyPy), Py_3_10))]
+pub enum PySendResult<'py> {
+    Next(Bound<'py, PyAny>),
+    Return(Bound<'py, PyAny>),
+}
+
+#[cfg(all(not(PyPy), Py_3_10))]
+impl<'py> Bound<'py, PyIterator> {
+    /// Sends a value into a python generator. This is the equivalent of calling `generator.send(value)` in Python.
+    /// This resumes the generator and continues its execution until the next `yield` or `return` statement.
+    /// If the generator exits without returning a value, this function returns a `StopException`.
+    /// The first call to `send` must be made with `None` as the argument to start the generator, failing to do so will raise a `TypeError`.
     #[inline]
-    pub fn from_bound_object<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyIterator>> {
-        Self::from_object(obj)
+    pub fn send(&self, value: &Bound<'py, PyAny>) -> PyResult<PySendResult<'py>> {
+        let py = self.py();
+        let mut result = std::ptr::null_mut();
+        match unsafe { ffi::PyIter_Send(self.as_ptr(), value.as_ptr(), &mut result) } {
+            ffi::PySendResult::PYGEN_ERROR => Err(PyErr::fetch(py)),
+            ffi::PySendResult::PYGEN_RETURN => Ok(PySendResult::Return(unsafe {
+                result.assume_owned_unchecked(py)
+            })),
+            ffi::PySendResult::PYGEN_NEXT => Ok(PySendResult::Next(unsafe {
+                result.assume_owned_unchecked(py)
+            })),
+        }
     }
 }
 
@@ -97,6 +119,8 @@ impl<'py> IntoIterator for &Bound<'py, PyIterator> {
 
 impl PyTypeCheck for PyIterator {
     const NAME: &'static str = "Iterator";
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "collections.abc.Iterator";
 
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::PyIter_Check(object.as_ptr()) != 0 }
@@ -106,13 +130,17 @@ impl PyTypeCheck for PyIterator {
 #[cfg(test)]
 mod tests {
     use super::PyIterator;
+    #[cfg(all(not(PyPy), Py_3_10))]
+    use super::PySendResult;
     use crate::exceptions::PyTypeError;
+    #[cfg(all(not(PyPy), Py_3_10))]
+    use crate::types::PyNone;
     use crate::types::{PyAnyMethods, PyDict, PyList, PyListMethods};
     use crate::{ffi, IntoPyObject, Python};
 
     #[test]
     fn vec_iter() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let inst = vec![10, 20].into_pyobject(py).unwrap();
             let mut it = inst.try_iter().unwrap();
             assert_eq!(
@@ -129,13 +157,13 @@ mod tests {
 
     #[test]
     fn iter_refcnt() {
-        let (obj, count) = Python::with_gil(|py| {
+        let (obj, count) = Python::attach(|py| {
             let obj = vec![10, 20].into_pyobject(py).unwrap();
             let count = obj.get_refcnt();
             (obj.unbind(), count)
         });
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let inst = obj.bind(py);
             let mut it = inst.try_iter().unwrap();
 
@@ -145,14 +173,14 @@ mod tests {
             );
         });
 
-        Python::with_gil(move |py| {
+        Python::attach(move |py| {
             assert_eq!(count, obj.get_refcnt(py));
         });
     }
 
     #[test]
     fn iter_item_refcnt() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let count;
             let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
             let list = {
@@ -187,7 +215,7 @@ def fibonacci(target):
 "#
         );
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let context = PyDict::new(py);
             py.run(fibonacci_generator, None, Some(&context)).unwrap();
 
@@ -198,6 +226,42 @@ def fibonacci(target):
                 let actual = actual.unwrap().extract::<usize>().unwrap();
                 assert_eq!(actual, *expected)
             }
+        });
+    }
+
+    #[test]
+    #[cfg(all(not(PyPy), Py_3_10))]
+    fn send_generator() {
+        let generator = ffi::c_str!(
+            r#"
+def gen():
+    value = None
+    while(True):
+        value = yield value
+        if value is None:
+            return
+"#
+        );
+
+        Python::attach(|py| {
+            let context = PyDict::new(py);
+            py.run(generator, None, Some(&context)).unwrap();
+
+            let generator = py.eval(ffi::c_str!("gen()"), None, Some(&context)).unwrap();
+
+            let one = 1i32.into_pyobject(py).unwrap();
+            assert!(matches!(
+                generator.try_iter().unwrap().send(&PyNone::get(py)).unwrap(),
+                PySendResult::Next(value) if value.is_none()
+            ));
+            assert!(matches!(
+                generator.try_iter().unwrap().send(&one).unwrap(),
+                PySendResult::Next(value) if value.is(&one)
+            ));
+            assert!(matches!(
+                generator.try_iter().unwrap().send(&PyNone::get(py)).unwrap(),
+                PySendResult::Return(value) if value.is_none()
+            ));
         });
     }
 
@@ -217,7 +281,7 @@ def fibonacci(target):
 "#
         );
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let context = PyDict::new(py);
             py.run(fibonacci_generator, None, Some(&context)).unwrap();
 
@@ -237,7 +301,7 @@ def fibonacci(target):
 
     #[test]
     fn int_not_iterable() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let x = 5i32.into_pyobject(py).unwrap();
             let err = PyIterator::from_object(&x).unwrap_err();
 
@@ -263,7 +327,7 @@ def fibonacci(target):
         }
 
         // Regression test for 2913
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let downcaster = crate::Py::new(py, Downcaster { failed: None }).unwrap();
             crate::py_run!(
                 py,
@@ -301,7 +365,7 @@ def fibonacci(target):
         }
 
         // Regression test for 2913
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let assert_iterator = crate::wrap_pyfunction!(assert_iterator, py).unwrap();
             crate::py_run!(
                 py,
@@ -320,7 +384,7 @@ def fibonacci(target):
     #[test]
     #[cfg(not(Py_LIMITED_API))]
     fn length_hint_becomes_size_hint_lower_bound() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let list = py.eval(ffi::c_str!("[1, 2, 3]"), None, None).unwrap();
             let iter = list.try_iter().unwrap();
             let hint = iter.size_hint();

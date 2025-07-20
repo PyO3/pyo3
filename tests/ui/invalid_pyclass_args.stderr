@@ -1,4 +1,4 @@
-error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `mapping`, `module`, `name`, `ord`, `rename_all`, `sequence`, `set_all`, `str`, `subclass`, `unsendable`, `weakref`
+error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `immutable_type`, `mapping`, `module`, `name`, `ord`, `rename_all`, `sequence`, `set_all`, `str`, `subclass`, `unsendable`, `weakref`, `generic`
  --> tests/ui/invalid_pyclass_args.rs:4:11
   |
 4 | #[pyclass(extend=pyo3::types::PyDict)]
@@ -46,7 +46,7 @@ error: expected string literal
 25 | #[pyclass(module = my_module)]
    |                    ^^^^^^^^^
 
-error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `mapping`, `module`, `name`, `ord`, `rename_all`, `sequence`, `set_all`, `str`, `subclass`, `unsendable`, `weakref`
+error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `immutable_type`, `mapping`, `module`, `name`, `ord`, `rename_all`, `sequence`, `set_all`, `str`, `subclass`, `unsendable`, `weakref`, `generic`
   --> tests/ui/invalid_pyclass_args.rs:28:11
    |
 28 | #[pyclass(weakrev)]
@@ -100,21 +100,21 @@ error: expected one of: `get`, `set`, `name`
 85 |     #[pyo3(pop)]
    |            ^^^
 
-error: invalid format string: expected `'}'` but string was terminated
+error: invalid format string: expected `}` but string was terminated
    --> tests/ui/invalid_pyclass_args.rs:105:19
     |
 105 | #[pyclass(str = "{")]
-    |                  -^ expected `'}'` in format string
+    |                  -^ expected `}` in format string
     |                  |
     |                  because of this opening brace
     |
     = note: if you intended to print `{`, you can escape it using `{{`
 
-error: invalid format string: expected `'}'`, found `'$'`
+error: invalid format string: expected `}`, found `$`
    --> tests/ui/invalid_pyclass_args.rs:109:19
     |
 109 | #[pyclass(str = "{$}")]
-    |                  -^ expected `'}'` in format string
+    |                  -^ expected `}` in format string
     |                  |
     |                  because of this opening brace
     |

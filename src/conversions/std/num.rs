@@ -5,9 +5,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::inspect::types::TypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyBytes, PyInt};
-use crate::{exceptions, ffi, Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
+use crate::{exceptions, ffi, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
 use std::convert::Infallible;
 use std::num::{
     NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize, NonZeroU128,
@@ -17,25 +15,13 @@ use std::os::raw::c_long;
 
 macro_rules! int_fits_larger_int {
     ($rust_type:ty, $larger_type:ty) => {
-        #[allow(deprecated)]
-        impl ToPyObject for $rust_type {
-            #[inline]
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-        #[allow(deprecated)]
-        impl IntoPy<PyObject> for $rust_type {
-            #[inline]
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-
         impl<'py> IntoPyObject<'py> for $rust_type {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;
             type Error = Infallible;
+
+            #[cfg(feature = "experimental-inspect")]
+            const OUTPUT_TYPE: &'static str = <$larger_type>::OUTPUT_TYPE;
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 (self as $larger_type).into_pyobject(py)
@@ -52,6 +38,9 @@ macro_rules! int_fits_larger_int {
             type Output = Bound<'py, Self::Target>;
             type Error = Infallible;
 
+            #[cfg(feature = "experimental-inspect")]
+            const OUTPUT_TYPE: &'static str = <$larger_type>::OUTPUT_TYPE;
+
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 (*self).into_pyobject(py)
             }
@@ -63,6 +52,9 @@ macro_rules! int_fits_larger_int {
         }
 
         impl FromPyObject<'_> for $rust_type {
+            #[cfg(feature = "experimental-inspect")]
+            const INPUT_TYPE: &'static str = <$larger_type>::INPUT_TYPE;
+
             fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
                 let val: $larger_type = obj.extract()?;
                 <$rust_type>::try_from(val)
@@ -104,24 +96,13 @@ macro_rules! extract_int {
 
 macro_rules! int_convert_u64_or_i64 {
     ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ll_or_ull:expr, $force_index_call:literal) => {
-        #[allow(deprecated)]
-        impl ToPyObject for $rust_type {
-            #[inline]
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-        #[allow(deprecated)]
-        impl IntoPy<PyObject> for $rust_type {
-            #[inline]
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
         impl<'py> IntoPyObject<'py> for $rust_type {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;
             type Error = Infallible;
+
+            #[cfg(feature = "experimental-inspect")]
+            const OUTPUT_TYPE: &'static str = "int";
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 unsafe {
@@ -141,6 +122,9 @@ macro_rules! int_convert_u64_or_i64 {
             type Output = Bound<'py, Self::Target>;
             type Error = Infallible;
 
+            #[cfg(feature = "experimental-inspect")]
+            const OUTPUT_TYPE: &'static str = "int";
+
             #[inline]
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 (*self).into_pyobject(py)
@@ -152,6 +136,9 @@ macro_rules! int_convert_u64_or_i64 {
             }
         }
         impl FromPyObject<'_> for $rust_type {
+            #[cfg(feature = "experimental-inspect")]
+            const INPUT_TYPE: &'static str = "int";
+
             fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<$rust_type> {
                 extract_int!(obj, !0, $pylong_as_ll_or_ull, $force_index_call)
             }
@@ -166,25 +153,13 @@ macro_rules! int_convert_u64_or_i64 {
 
 macro_rules! int_fits_c_long {
     ($rust_type:ty) => {
-        #[allow(deprecated)]
-        impl ToPyObject for $rust_type {
-            #[inline]
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-        #[allow(deprecated)]
-        impl IntoPy<PyObject> for $rust_type {
-            #[inline]
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-
         impl<'py> IntoPyObject<'py> for $rust_type {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;
             type Error = Infallible;
+
+            #[cfg(feature = "experimental-inspect")]
+            const OUTPUT_TYPE: &'static str = "int";
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 unsafe {
@@ -205,6 +180,9 @@ macro_rules! int_fits_c_long {
             type Output = Bound<'py, Self::Target>;
             type Error = Infallible;
 
+            #[cfg(feature = "experimental-inspect")]
+            const OUTPUT_TYPE: &'static str = "int";
+
             #[inline]
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 (*self).into_pyobject(py)
@@ -217,6 +195,9 @@ macro_rules! int_fits_c_long {
         }
 
         impl<'py> FromPyObject<'py> for $rust_type {
+            #[cfg(feature = "experimental-inspect")]
+            const INPUT_TYPE: &'static str = "int";
+
             fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
                 let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
                 <$rust_type>::try_from(val)
@@ -231,24 +212,13 @@ macro_rules! int_fits_c_long {
     };
 }
 
-#[allow(deprecated)]
-impl ToPyObject for u8 {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-#[allow(deprecated)]
-impl IntoPy<PyObject> for u8 {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
 impl<'py> IntoPyObject<'py> for u8 {
     type Target = PyInt;
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = "int";
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         unsafe {
@@ -281,6 +251,9 @@ impl<'py> IntoPyObject<'py> for &'_ u8 {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = "int";
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         u8::into_pyobject(*self, py)
     }
@@ -305,6 +278,9 @@ impl<'py> IntoPyObject<'py> for &'_ u8 {
 }
 
 impl FromPyObject<'_> for u8 {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "int";
+
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
         u8::try_from(val).map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
@@ -356,26 +332,13 @@ mod fast_128bit_int_conversion {
     // for 128bit Integers
     macro_rules! int_convert_128 {
         ($rust_type: ty, $is_signed: literal) => {
-            #[allow(deprecated)]
-            impl ToPyObject for $rust_type {
-                #[inline]
-                fn to_object(&self, py: Python<'_>) -> PyObject {
-                    self.into_pyobject(py).unwrap().into_any().unbind()
-                }
-            }
-
-            #[allow(deprecated)]
-            impl IntoPy<PyObject> for $rust_type {
-                #[inline]
-                fn into_py(self, py: Python<'_>) -> PyObject {
-                    self.into_pyobject(py).unwrap().into_any().unbind()
-                }
-            }
-
             impl<'py> IntoPyObject<'py> for $rust_type {
                 type Target = PyInt;
                 type Output = Bound<'py, Self::Target>;
                 type Error = Infallible;
+
+                #[cfg(feature = "experimental-inspect")]
+                const OUTPUT_TYPE: &'static str = "int";
 
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                     #[cfg(not(Py_3_13))]
@@ -431,6 +394,9 @@ mod fast_128bit_int_conversion {
                 type Output = Bound<'py, Self::Target>;
                 type Error = Infallible;
 
+                #[cfg(feature = "experimental-inspect")]
+                const OUTPUT_TYPE: &'static str = "int";
+
                 #[inline]
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                     (*self).into_pyobject(py)
@@ -443,6 +409,9 @@ mod fast_128bit_int_conversion {
             }
 
             impl FromPyObject<'_> for $rust_type {
+                #[cfg(feature = "experimental-inspect")]
+                const INPUT_TYPE: &'static str = "int";
+
                 fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<$rust_type> {
                     let num =
                         unsafe { ffi::PyNumber_Index(ob.as_ptr()).assume_owned_or_err(ob.py())? };
@@ -510,26 +479,13 @@ mod slow_128bit_int_conversion {
     // for 128bit Integers
     macro_rules! int_convert_128 {
         ($rust_type: ty, $half_type: ty) => {
-            #[allow(deprecated)]
-            impl ToPyObject for $rust_type {
-                #[inline]
-                fn to_object(&self, py: Python<'_>) -> PyObject {
-                    self.into_pyobject(py).unwrap().into_any().unbind()
-                }
-            }
-
-            #[allow(deprecated)]
-            impl IntoPy<PyObject> for $rust_type {
-                #[inline]
-                fn into_py(self, py: Python<'_>) -> PyObject {
-                    self.into_pyobject(py).unwrap().into_any().unbind()
-                }
-            }
-
             impl<'py> IntoPyObject<'py> for $rust_type {
                 type Target = PyInt;
                 type Output = Bound<'py, Self::Target>;
                 type Error = Infallible;
+
+                #[cfg(feature = "experimental-inspect")]
+                const OUTPUT_TYPE: &'static str = "int";
 
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                     let lower = (self as u64).into_pyobject(py)?;
@@ -556,6 +512,9 @@ mod slow_128bit_int_conversion {
                 type Output = Bound<'py, Self::Target>;
                 type Error = Infallible;
 
+                #[cfg(feature = "experimental-inspect")]
+                const OUTPUT_TYPE: &'static str = "int";
+
                 #[inline]
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                     (*self).into_pyobject(py)
@@ -568,6 +527,9 @@ mod slow_128bit_int_conversion {
             }
 
             impl FromPyObject<'_> for $rust_type {
+                #[cfg(feature = "experimental-inspect")]
+                const INPUT_TYPE: &'static str = "int";
+
                 fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<$rust_type> {
                     let py = ob.py();
                     unsafe {
@@ -577,11 +539,11 @@ mod slow_128bit_int_conversion {
                             ffi::PyLong_AsUnsignedLongLongMask(ob.as_ptr()),
                         )? as $rust_type;
                         let shift = SHIFT.into_pyobject(py)?;
-                        let shifted = PyObject::from_owned_ptr_or_err(
+                        let shifted = Bound::from_owned_ptr_or_err(
                             py,
                             ffi::PyNumber_Rshift(ob.as_ptr(), shift.as_ptr()),
                         )?;
-                        let upper: $half_type = shifted.extract(py)?;
+                        let upper: $half_type = shifted.extract()?;
                         Ok((<$rust_type>::from(upper) << SHIFT) | lower)
                     }
                 }
@@ -614,26 +576,13 @@ fn err_if_invalid_value<T: PartialEq>(
 
 macro_rules! nonzero_int_impl {
     ($nonzero_type:ty, $primitive_type:ty) => {
-        #[allow(deprecated)]
-        impl ToPyObject for $nonzero_type {
-            #[inline]
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-
-        #[allow(deprecated)]
-        impl IntoPy<PyObject> for $nonzero_type {
-            #[inline]
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-
         impl<'py> IntoPyObject<'py> for $nonzero_type {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;
             type Error = Infallible;
+
+            #[cfg(feature = "experimental-inspect")]
+            const OUTPUT_TYPE: &'static str = "int";
 
             #[inline]
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -651,6 +600,9 @@ macro_rules! nonzero_int_impl {
             type Output = Bound<'py, Self::Target>;
             type Error = Infallible;
 
+            #[cfg(feature = "experimental-inspect")]
+            const OUTPUT_TYPE: &'static str = "int";
+
             #[inline]
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 (*self).into_pyobject(py)
@@ -663,6 +615,9 @@ macro_rules! nonzero_int_impl {
         }
 
         impl FromPyObject<'_> for $nonzero_type {
+            #[cfg(feature = "experimental-inspect")]
+            const INPUT_TYPE: &'static str = <$primitive_type>::INPUT_TYPE;
+
             fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
                 let val: $primitive_type = obj.extract()?;
                 <$nonzero_type>::try_from(val)
@@ -710,11 +665,11 @@ mod test_128bit_integers {
     proptest! {
         #[test]
         fn test_i128_roundtrip(x: i128) {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
                 locals.set_item("x_py", &x_py).unwrap();
-                py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
+                py.run(&CString::new(format!("assert x_py == {x}")).unwrap(), None, Some(&locals)).unwrap();
                 let roundtripped: i128 = x_py.extract().unwrap();
                 assert_eq!(x, roundtripped);
             })
@@ -726,11 +681,11 @@ mod test_128bit_integers {
                 .prop_filter("Values must not be 0", |x| x != &0)
                 .prop_map(|x| NonZeroI128::new(x).unwrap())
         ) {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
                 locals.set_item("x_py", &x_py).unwrap();
-                py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
+                py.run(&CString::new(format!("assert x_py == {x}")).unwrap(), None, Some(&locals)).unwrap();
                 let roundtripped: NonZeroI128 = x_py.extract().unwrap();
                 assert_eq!(x, roundtripped);
             })
@@ -741,11 +696,11 @@ mod test_128bit_integers {
     proptest! {
         #[test]
         fn test_u128_roundtrip(x: u128) {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
                 locals.set_item("x_py", &x_py).unwrap();
-                py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
+                py.run(&CString::new(format!("assert x_py == {x}")).unwrap(), None, Some(&locals)).unwrap();
                 let roundtripped: u128 = x_py.extract().unwrap();
                 assert_eq!(x, roundtripped);
             })
@@ -757,11 +712,11 @@ mod test_128bit_integers {
                 .prop_filter("Values must not be 0", |x| x != &0)
                 .prop_map(|x| NonZeroU128::new(x).unwrap())
         ) {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let x_py = x.into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
                 locals.set_item("x_py", &x_py).unwrap();
-                py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
+                py.run(&CString::new(format!("assert x_py == {x}")).unwrap(), None, Some(&locals)).unwrap();
                 let roundtripped: NonZeroU128 = x_py.extract().unwrap();
                 assert_eq!(x, roundtripped);
             })
@@ -770,7 +725,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_i128_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = i128::MAX;
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<i128>().unwrap());
@@ -781,7 +736,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_i128_min() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = i128::MIN;
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<i128>().unwrap());
@@ -792,7 +747,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_u128_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = u128::MAX;
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<u128>().unwrap());
@@ -802,7 +757,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_i128_overflow() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = py.eval(ffi::c_str!("(1 << 130) * -1"), None, None).unwrap();
             let err = obj.extract::<i128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
@@ -811,7 +766,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_u128_overflow() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = py.eval(ffi::c_str!("1 << 130"), None, None).unwrap();
             let err = obj.extract::<u128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
@@ -820,7 +775,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_nonzero_i128_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = NonZeroI128::new(i128::MAX).unwrap();
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<NonZeroI128>().unwrap());
@@ -834,7 +789,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_nonzero_i128_min() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = NonZeroI128::new(i128::MIN).unwrap();
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<NonZeroI128>().unwrap());
@@ -845,7 +800,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_nonzero_u128_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = NonZeroU128::new(u128::MAX).unwrap();
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<NonZeroU128>().unwrap());
@@ -855,7 +810,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_nonzero_i128_overflow() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = py.eval(ffi::c_str!("(1 << 130) * -1"), None, None).unwrap();
             let err = obj.extract::<NonZeroI128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
@@ -864,7 +819,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_nonzero_u128_overflow() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = py.eval(ffi::c_str!("1 << 130"), None, None).unwrap();
             let err = obj.extract::<NonZeroU128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
@@ -873,7 +828,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_nonzero_i128_zero_value() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = py.eval(ffi::c_str!("0"), None, None).unwrap();
             let err = obj.extract::<NonZeroI128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyValueError>(py));
@@ -882,7 +837,7 @@ mod test_128bit_integers {
 
     #[test]
     fn test_nonzero_u128_zero_value() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = py.eval(ffi::c_str!("0"), None, None).unwrap();
             let err = obj.extract::<NonZeroU128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyValueError>(py));
@@ -898,7 +853,7 @@ mod tests {
 
     #[test]
     fn test_u32_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = u32::MAX;
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<u32>().unwrap());
@@ -909,7 +864,7 @@ mod tests {
 
     #[test]
     fn test_i64_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = i64::MAX;
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<i64>().unwrap());
@@ -920,7 +875,7 @@ mod tests {
 
     #[test]
     fn test_i64_min() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = i64::MIN;
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<i64>().unwrap());
@@ -931,7 +886,7 @@ mod tests {
 
     #[test]
     fn test_u64_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = u64::MAX;
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<u64>().unwrap());
@@ -949,7 +904,7 @@ mod tests {
 
                 #[test]
                 fn from_py_string_type_error() {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                     let obj = ("123").into_pyobject(py).unwrap();
                     let err = obj.extract::<$t>().unwrap_err();
                     assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
@@ -958,7 +913,7 @@ mod tests {
 
                 #[test]
                 fn from_py_float_type_error() {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                     let obj = (12.3f64).into_pyobject(py).unwrap();
                     let err = obj.extract::<$t>().unwrap_err();
                     assert!(err.is_instance_of::<exceptions::PyTypeError>(py));});
@@ -966,7 +921,7 @@ mod tests {
 
                 #[test]
                 fn to_py_object_and_back() {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                     let val = 123 as $t;
                     let obj = val.into_pyobject(py).unwrap();
                     assert_eq!(obj.extract::<$t>().unwrap(), val as $t);});
@@ -990,7 +945,7 @@ mod tests {
 
     #[test]
     fn test_nonzero_u32_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = NonZeroU32::new(u32::MAX).unwrap();
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<NonZeroU32>().unwrap());
@@ -1001,7 +956,7 @@ mod tests {
 
     #[test]
     fn test_nonzero_i64_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = NonZeroI64::new(i64::MAX).unwrap();
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<NonZeroI64>().unwrap());
@@ -1015,7 +970,7 @@ mod tests {
 
     #[test]
     fn test_nonzero_i64_min() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = NonZeroI64::new(i64::MIN).unwrap();
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<NonZeroI64>().unwrap());
@@ -1026,7 +981,7 @@ mod tests {
 
     #[test]
     fn test_nonzero_u64_max() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = NonZeroU64::new(u64::MAX).unwrap();
             let obj = v.into_pyobject(py).unwrap();
             assert_eq!(v, obj.extract::<NonZeroU64>().unwrap());
@@ -1045,7 +1000,7 @@ mod tests {
 
                 #[test]
                 fn from_py_string_type_error() {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                     let obj = ("123").into_pyobject(py).unwrap();
                     let err = obj.extract::<$t>().unwrap_err();
                     assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
@@ -1054,7 +1009,7 @@ mod tests {
 
                 #[test]
                 fn from_py_float_type_error() {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                     let obj = (12.3f64).into_pyobject(py).unwrap();
                     let err = obj.extract::<$t>().unwrap_err();
                     assert!(err.is_instance_of::<exceptions::PyTypeError>(py));});
@@ -1062,7 +1017,7 @@ mod tests {
 
                 #[test]
                 fn to_py_object_and_back() {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                     let val = <$t>::new(123).unwrap();
                     let obj = val.into_pyobject(py).unwrap();
                     assert_eq!(obj.extract::<$t>().unwrap(), val);});
@@ -1086,7 +1041,7 @@ mod tests {
 
     #[test]
     fn test_i64_bool() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = true.into_pyobject(py).unwrap();
             assert_eq!(1, obj.extract::<i64>().unwrap());
             let obj = false.into_pyobject(py).unwrap();
@@ -1096,7 +1051,7 @@ mod tests {
 
     #[test]
     fn test_i64_f64() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = 12.34f64.into_pyobject(py).unwrap();
             let err = obj.extract::<i64>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyTypeError>(py));

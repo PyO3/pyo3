@@ -43,7 +43,13 @@ impl PyErrState {
     }
 
     pub(crate) fn normalized(normalized: PyErrStateNormalized) -> Self {
-        Self::from_inner(PyErrStateInner::Normalized(normalized))
+        let state = Self::from_inner(PyErrStateInner::Normalized(normalized));
+        // This state is already normalized, by completing the Once immediately we avoid
+        // reaching the `py.detach` in `make_normalized` which is less efficient
+        // and introduces a GIL switch which could deadlock.
+        // See https://github.com/PyO3/pyo3/issues/4764
+        state.normalized.call_once(|| {});
+        state
     }
 
     pub(crate) fn restore(self, py: Python<'_>) {
@@ -92,7 +98,7 @@ impl PyErrState {
         }
 
         // avoid deadlock of `.call_once` with the GIL
-        py.allow_threads(|| {
+        py.detach(|| {
             self.normalized.call_once(|| {
                 self.normalizing_thread
                     .lock()
@@ -107,7 +113,7 @@ impl PyErrState {
                 };
 
                 let normalized_state =
-                    Python::with_gil(|py| PyErrStateInner::Normalized(state.normalize(py)));
+                    Python::attach(|py| PyErrStateInner::Normalized(state.normalize(py)));
 
                 // Safety: no other thread can access the inner value while we are normalizing it.
                 unsafe {
@@ -234,9 +240,11 @@ impl PyErrStateNormalized {
         ptraceback: *mut ffi::PyObject,
     ) -> Self {
         PyErrStateNormalized {
-            ptype: Py::from_owned_ptr_or_opt(py, ptype).expect("Exception type missing"),
-            pvalue: Py::from_owned_ptr_or_opt(py, pvalue).expect("Exception value missing"),
-            ptraceback: Py::from_owned_ptr_or_opt(py, ptraceback),
+            ptype: unsafe { Py::from_owned_ptr_or_opt(py, ptype).expect("Exception type missing") },
+            pvalue: unsafe {
+                Py::from_owned_ptr_or_opt(py, pvalue).expect("Exception value missing")
+            },
+            ptraceback: unsafe { Py::from_owned_ptr_or_opt(py, ptraceback) },
         }
     }
 
@@ -381,7 +389,7 @@ mod tests {
             }
         }
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             ERR.set(py, PyValueError::new_err(RecursiveArgs)).unwrap();
             ERR.get(py).expect("is set just above").value(py);
         })
@@ -398,20 +406,20 @@ mod tests {
             fn arguments(self, py: Python<'_>) -> PyObject {
                 // releasing the GIL potentially allows for other threads to deadlock
                 // with the normalization going on here
-                py.allow_threads(|| {
+                py.detach(|| {
                     std::thread::sleep(std::time::Duration::from_millis(10));
                 });
                 py.None()
             }
         }
 
-        Python::with_gil(|py| ERR.set(py, PyValueError::new_err(GILSwitchArgs)).unwrap());
+        Python::attach(|py| ERR.set(py, PyValueError::new_err(GILSwitchArgs)).unwrap());
 
         // Let many threads attempt to read the normalized value at the same time
         let handles = (0..10)
             .map(|_| {
                 std::thread::spawn(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         ERR.get(py).expect("is set just above").value(py);
                     });
                 })
@@ -424,7 +432,7 @@ mod tests {
 
         // We should never have deadlocked, and should be able to run
         // this assertion
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(ERR
                 .get(py)
                 .expect("is set above")

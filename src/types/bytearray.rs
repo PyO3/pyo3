@@ -33,13 +33,6 @@ impl PyByteArray {
         }
     }
 
-    /// Deprecated name for [`PyByteArray::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyByteArray::new`")]
-    #[inline]
-    pub fn new_bound<'py>(py: Python<'py>, src: &[u8]) -> Bound<'py, PyByteArray> {
-        Self::new(py, src)
-    }
-
     /// Creates a new Python `bytearray` object with an `init` closure to write its contents.
     /// Before calling `init` the bytearray is zero-initialised.
     /// * If Python raises a MemoryError on the allocation, `new_with` will return
@@ -53,7 +46,7 @@ impl PyByteArray {
     /// use pyo3::{prelude::*, types::PyByteArray};
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
+    /// Python::attach(|py| -> PyResult<()> {
     ///     let py_bytearray = PyByteArray::new_with(py, 10, |bytes: &mut [u8]| {
     ///         bytes.copy_from_slice(b"Hello Rust");
     ///         Ok(())
@@ -85,20 +78,6 @@ impl PyByteArray {
         }
     }
 
-    /// Deprecated name for [`PyByteArray::new_with`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyByteArray::new_with`")]
-    #[inline]
-    pub fn new_bound_with<F>(
-        py: Python<'_>,
-        len: usize,
-        init: F,
-    ) -> PyResult<Bound<'_, PyByteArray>>
-    where
-        F: FnOnce(&mut [u8]) -> PyResult<()>,
-    {
-        Self::new_with(py, len, init)
-    }
-
     /// Creates a new Python `bytearray` object from another Python object that
     /// implements the buffer protocol.
     pub fn from<'py>(src: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyByteArray>> {
@@ -107,13 +86,6 @@ impl PyByteArray {
                 .assume_owned_or_err(src.py())
                 .downcast_into_unchecked()
         }
-    }
-
-    ///Deprecated name for [`PyByteArray::from`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyByteArray::from`")]
-    #[inline]
-    pub fn from_bound<'py>(src: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyByteArray>> {
-        Self::from(src)
     }
 }
 
@@ -184,7 +156,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     ///     Ok(())
     /// }
     /// # fn main() -> PyResult<()> {
-    /// #     Python::with_gil(|py| -> PyResult<()> {
+    /// #     Python::attach(|py| -> PyResult<()> {
     /// #         let fun = wrap_pyfunction!(a_valid_function, py)?;
     /// #         let locals = pyo3::types::PyDict::new(py);
     /// #         locals.set_item("a_valid_function", fun)?;
@@ -221,7 +193,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     ///
     ///     // This explicitly yields control back to the Python interpreter...
     ///     // ...but it's not always this obvious. Many things do this implicitly.
-    ///     py.allow_threads(|| {
+    ///     py.detach(|| {
     ///         // Python code could be mutating through its handle to `bytes`,
     ///         // which makes reading it a data race, which is undefined behavior.
     ///         println!("{:?}", slice[0]);
@@ -251,7 +223,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// ```
     /// # use pyo3::prelude::*;
     /// # use pyo3::types::PyByteArray;
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// let bytearray = PyByteArray::new(py, b"Hello World.");
     /// let mut copied_message = bytearray.to_vec();
     /// assert_eq!(b"Hello World.", copied_message.as_slice());
@@ -287,12 +259,12 @@ impl<'py> PyByteArrayMethods<'py> for Bound<'py, PyByteArray> {
     }
 
     unsafe fn as_bytes(&self) -> &[u8] {
-        self.as_borrowed().as_bytes()
+        unsafe { self.as_borrowed().as_bytes() }
     }
 
     #[allow(clippy::mut_from_ref)]
     unsafe fn as_bytes_mut(&self) -> &mut [u8] {
-        self.as_borrowed().as_bytes_mut()
+        unsafe { self.as_borrowed().as_bytes_mut() }
     }
 
     fn to_vec(&self) -> Vec<u8> {
@@ -318,12 +290,12 @@ impl<'a> Borrowed<'a, '_, PyByteArray> {
 
     #[allow(clippy::wrong_self_convention)]
     unsafe fn as_bytes(self) -> &'a [u8] {
-        slice::from_raw_parts(self.data(), self.len())
+        unsafe { slice::from_raw_parts(self.data(), self.len()) }
     }
 
     #[allow(clippy::wrong_self_convention)]
     unsafe fn as_bytes_mut(self) -> &'a mut [u8] {
-        slice::from_raw_parts_mut(self.data(), self.len())
+        unsafe { slice::from_raw_parts_mut(self.data(), self.len()) }
     }
 }
 
@@ -344,7 +316,7 @@ mod tests {
 
     #[test]
     fn test_len() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
             assert_eq!(src.len(), bytearray.len());
@@ -353,7 +325,7 @@ mod tests {
 
     #[test]
     fn test_as_bytes() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
 
@@ -365,7 +337,7 @@ mod tests {
 
     #[test]
     fn test_as_bytes_mut() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
 
@@ -381,7 +353,7 @@ mod tests {
 
     #[test]
     fn test_to_vec() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
 
@@ -392,7 +364,7 @@ mod tests {
 
     #[test]
     fn test_from() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
 
@@ -405,7 +377,7 @@ mod tests {
 
     #[test]
     fn test_from_err() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             if let Err(err) = PyByteArray::from(py.None().bind(py)) {
                 assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
             } else {
@@ -416,7 +388,7 @@ mod tests {
 
     #[test]
     fn test_try_from() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray: &Bound<'_, PyAny> = &PyByteArray::new(py, src);
             let bytearray: Bound<'_, PyByteArray> = TryInto::try_into(bytearray).unwrap();
@@ -427,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_resize() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
 
@@ -438,7 +410,7 @@ mod tests {
 
     #[test]
     fn test_byte_array_new_with() -> super::PyResult<()> {
-        Python::with_gil(|py| -> super::PyResult<()> {
+        Python::attach(|py| -> super::PyResult<()> {
             let py_bytearray = PyByteArray::new_with(py, 10, |b: &mut [u8]| {
                 b.copy_from_slice(b"Hello Rust");
                 Ok(())
@@ -451,7 +423,7 @@ mod tests {
 
     #[test]
     fn test_byte_array_new_with_zero_initialised() -> super::PyResult<()> {
-        Python::with_gil(|py| -> super::PyResult<()> {
+        Python::attach(|py| -> super::PyResult<()> {
             let py_bytearray = PyByteArray::new_with(py, 10, |_b: &mut [u8]| Ok(()))?;
             let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
             assert_eq!(bytearray, &[0; 10]);
@@ -462,7 +434,7 @@ mod tests {
     #[test]
     fn test_byte_array_new_with_error() {
         use crate::exceptions::PyValueError;
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_bytearray_result = PyByteArray::new_with(py, 10, |_b: &mut [u8]| {
                 Err(PyValueError::new_err("Hello Crustaceans!"))
             });

@@ -1,5 +1,6 @@
 #![cfg(feature = "macros")]
 #![cfg(any(not(Py_LIMITED_API), Py_3_11))]
+#![warn(unsafe_op_in_unsafe_fn)]
 
 use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::PyBufferError;
@@ -28,12 +29,12 @@ impl TestBufferClass {
         view: *mut ffi::Py_buffer,
         flags: c_int,
     ) -> PyResult<()> {
-        fill_view_from_readonly_data(view, flags, &slf.borrow().vec, slf.into_any())
+        unsafe { fill_view_from_readonly_data(view, flags, &slf.borrow().vec, slf.into_any()) }
     }
 
     unsafe fn __releasebuffer__(&self, view: *mut ffi::Py_buffer) {
         // Release memory held by the format string
-        drop(CString::from_raw((*view).format));
+        drop(unsafe { CString::from_raw((*view).format) });
     }
 }
 
@@ -48,7 +49,7 @@ impl Drop for TestBufferClass {
 fn test_buffer() {
     let drop_called = Arc::new(AtomicBool::new(false));
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let instance = Py::new(
             py,
             TestBufferClass {
@@ -70,7 +71,7 @@ fn test_buffer_referenced() {
 
     let buf = {
         let input = vec![b' ', b'2', b'3'];
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let instance = TestBufferClass {
                 vec: input.clone(),
                 drop_called: drop_called.clone(),
@@ -87,7 +88,7 @@ fn test_buffer_referenced() {
 
     assert!(!drop_called.load(Ordering::Relaxed));
 
-    Python::with_gil(|_| {
+    Python::attach(|_| {
         drop(buf);
     });
 
@@ -111,7 +112,7 @@ fn test_releasebuffer_unraisable_error() {
             flags: c_int,
         ) -> PyResult<()> {
             static BUF_BYTES: &[u8] = b"hello world";
-            fill_view_from_readonly_data(view, flags, BUF_BYTES, slf.into_any())
+            unsafe { fill_view_from_readonly_data(view, flags, BUF_BYTES, slf.into_any()) }
         }
 
         unsafe fn __releasebuffer__(&self, _view: *mut ffi::Py_buffer) -> PyResult<()> {
@@ -119,7 +120,7 @@ fn test_releasebuffer_unraisable_error() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let capture = UnraisableCapture::install(py);
 
         let instance = Py::new(py, ReleaseBufferError {}).unwrap();
@@ -156,35 +157,36 @@ unsafe fn fill_view_from_readonly_data(
         return Err(PyBufferError::new_err("Object is not writable"));
     }
 
-    (*view).obj = owner.into_ptr();
+    unsafe {
+        (*view).obj = owner.into_ptr();
 
-    (*view).buf = data.as_ptr() as *mut c_void;
-    (*view).len = data.len() as isize;
-    (*view).readonly = 1;
-    (*view).itemsize = 1;
+        (*view).buf = data.as_ptr() as *mut c_void;
+        (*view).len = data.len() as isize;
+        (*view).readonly = 1;
+        (*view).itemsize = 1;
 
-    (*view).format = if (flags & ffi::PyBUF_FORMAT) == ffi::PyBUF_FORMAT {
-        let msg = CString::new("B").unwrap();
-        msg.into_raw()
-    } else {
-        ptr::null_mut()
-    };
+        (*view).format = if (flags & ffi::PyBUF_FORMAT) == ffi::PyBUF_FORMAT {
+            let msg = CString::new("B").unwrap();
+            msg.into_raw()
+        } else {
+            ptr::null_mut()
+        };
 
-    (*view).ndim = 1;
-    (*view).shape = if (flags & ffi::PyBUF_ND) == ffi::PyBUF_ND {
-        &mut (*view).len
-    } else {
-        ptr::null_mut()
-    };
+        (*view).ndim = 1;
+        (*view).shape = if (flags & ffi::PyBUF_ND) == ffi::PyBUF_ND {
+            &mut (*view).len
+        } else {
+            ptr::null_mut()
+        };
 
-    (*view).strides = if (flags & ffi::PyBUF_STRIDES) == ffi::PyBUF_STRIDES {
-        &mut (*view).itemsize
-    } else {
-        ptr::null_mut()
-    };
+        (*view).strides = if (flags & ffi::PyBUF_STRIDES) == ffi::PyBUF_STRIDES {
+            &mut (*view).itemsize
+        } else {
+            ptr::null_mut()
+        };
 
-    (*view).suboffsets = ptr::null_mut();
-    (*view).internal = ptr::null_mut();
-
+        (*view).suboffsets = ptr::null_mut();
+        (*view).internal = ptr::null_mut();
+    }
     Ok(())
 }

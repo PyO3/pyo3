@@ -1,6 +1,4 @@
 use crate::types::PyIterator;
-#[allow(deprecated)]
-use crate::ToPyObject;
 use crate::{
     err::{self, PyErr, PyResult},
     ffi_ptr_ext::FfiPtrExt,
@@ -54,17 +52,6 @@ impl PySet {
         try_new_from_iter(py, elements)
     }
 
-    /// Deprecated name for [`PySet::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PySet::new`")]
-    #[allow(deprecated)]
-    #[inline]
-    pub fn new_bound<'a, 'p, T: ToPyObject + 'a>(
-        py: Python<'p>,
-        elements: impl IntoIterator<Item = &'a T>,
-    ) -> PyResult<Bound<'p, PySet>> {
-        Self::new(py, elements.into_iter().map(|e| e.to_object(py)))
-    }
-
     /// Creates a new empty set.
     pub fn empty(py: Python<'_>) -> PyResult<Bound<'_, PySet>> {
         unsafe {
@@ -72,13 +59,6 @@ impl PySet {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PySet::empty`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PySet::empty`")]
-    #[inline]
-    pub fn empty_bound(py: Python<'_>) -> PyResult<Bound<'_, PySet>> {
-        Self::empty(py)
     }
 }
 
@@ -202,10 +182,7 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
 
     fn pop(&self) -> Option<Bound<'py, PyAny>> {
         let element = unsafe { ffi::PySet_Pop(self.as_ptr()).assume_owned_or_err(self.py()) };
-        match element {
-            Ok(e) => Some(e),
-            Err(_) => None,
-        }
+        element.ok()
     }
 
     fn iter(&self) -> BoundSetIterator<'py> {
@@ -270,22 +247,20 @@ impl<'py> Iterator for BoundSetIterator<'py> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.remaining, Some(self.remaining))
     }
+
+    #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
+    }
 }
 
 impl ExactSizeIterator for BoundSetIterator<'_> {
     fn len(&self) -> usize {
         self.remaining
     }
-}
-
-#[allow(deprecated)]
-#[inline]
-pub(crate) fn new_from_iter<T: ToPyObject>(
-    py: Python<'_>,
-    elements: impl IntoIterator<Item = T>,
-) -> PyResult<Bound<'_, PySet>> {
-    let mut iter = elements.into_iter().map(|e| e.to_object(py));
-    try_new_from_iter(py, &mut iter)
 }
 
 #[inline]
@@ -326,7 +301,7 @@ mod tests {
 
     #[test]
     fn test_set_new() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let set = PySet::new(py, [1]).unwrap();
             assert_eq!(1, set.len());
 
@@ -337,7 +312,7 @@ mod tests {
 
     #[test]
     fn test_set_empty() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let set = PySet::empty(py).unwrap();
             assert_eq!(0, set.len());
             assert!(set.is_empty());
@@ -346,7 +321,7 @@ mod tests {
 
     #[test]
     fn test_set_len() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashSet::<i32>::new();
             let ob = (&v).into_pyobject(py).unwrap();
             let set = ob.downcast::<PySet>().unwrap();
@@ -360,7 +335,7 @@ mod tests {
 
     #[test]
     fn test_set_clear() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let set = PySet::new(py, [1]).unwrap();
             assert_eq!(1, set.len());
             set.clear();
@@ -370,7 +345,7 @@ mod tests {
 
     #[test]
     fn test_set_contains() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let set = PySet::new(py, [1]).unwrap();
             assert!(set.contains(1).unwrap());
         });
@@ -378,7 +353,7 @@ mod tests {
 
     #[test]
     fn test_set_discard() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let set = PySet::new(py, [1]).unwrap();
             assert!(!set.discard(2).unwrap());
             assert_eq!(1, set.len());
@@ -393,7 +368,7 @@ mod tests {
 
     #[test]
     fn test_set_add() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let set = PySet::new(py, [1, 2]).unwrap();
             set.add(1).unwrap(); // Add a dupliated element
             assert!(set.contains(1).unwrap());
@@ -402,7 +377,7 @@ mod tests {
 
     #[test]
     fn test_set_pop() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let set = PySet::new(py, [1]).unwrap();
             let val = set.pop();
             assert!(val.is_some());
@@ -420,7 +395,7 @@ mod tests {
 
     #[test]
     fn test_set_iter() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let set = PySet::new(py, [1]).unwrap();
 
             for el in set {
@@ -433,7 +408,7 @@ mod tests {
     fn test_set_iter_bound() {
         use crate::types::any::PyAnyMethods;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let set = PySet::new(py, [1]).unwrap();
 
             for el in &set {
@@ -445,7 +420,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_set_iter_mutation() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
 
             for _ in &set {
@@ -457,7 +432,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_set_iter_mutation_same_len() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
 
             for item in &set {
@@ -470,7 +445,7 @@ mod tests {
 
     #[test]
     fn test_set_iter_size_hint() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let set = PySet::new(py, [1]).unwrap();
             let mut iter = set.iter();
 
@@ -481,5 +456,13 @@ mod tests {
             assert_eq!(iter.len(), 0);
             assert_eq!(iter.size_hint(), (0, Some(0)));
         });
+    }
+
+    #[test]
+    fn test_iter_count() {
+        Python::attach(|py| {
+            let set = PySet::new(py, vec![1, 2, 3]).unwrap();
+            assert_eq!(set.iter().count(), 3);
+        })
     }
 }

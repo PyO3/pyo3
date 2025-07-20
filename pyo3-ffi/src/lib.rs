@@ -129,7 +129,7 @@
 //! ```
 //!
 //! **`src/lib.rs`**
-//! ```rust
+//! ```rust,no_run
 //! use std::os::raw::{c_char, c_long};
 //! use std::ptr;
 //!
@@ -327,17 +327,24 @@
     non_snake_case,
     non_upper_case_globals,
     clippy::upper_case_acronyms,
-    clippy::missing_safety_doc
+    clippy::missing_safety_doc,
+    clippy::ptr_eq
 )]
 #![warn(elided_lifetimes_in_paths, unused_lifetimes)]
+// This crate is a hand-maintained translation of CPython's headers, so requiring "unsafe"
+// blocks within those translations increases maintenance burden without providing any
+// additional safety. The safety of the functions in this crate is determined by the
+// original CPython headers
+#![allow(unsafe_op_in_unsafe_fn)]
 
 // Until `extern type` is stabilized, use the recommended approach to
 // model opaque types:
 // https://doc.rust-lang.org/nomicon/ffi.html#representing-opaque-structs
 macro_rules! opaque_struct {
-    ($name:ident) => {
+    ($(#[$attrs:meta])* $pub:vis $name:ident) => {
+        $(#[$attrs])*
         #[repr(C)]
-        pub struct $name([u8; 0]);
+        $pub struct $name([u8; 0]);
     };
 }
 
@@ -351,7 +358,7 @@ macro_rules! opaque_struct {
 ///
 /// Examples:
 ///
-/// ```rust
+/// ```rust,no_run
 /// use std::ffi::CStr;
 ///
 /// const HELLO: &CStr = pyo3_ffi::c_str!("hello");
@@ -366,25 +373,12 @@ macro_rules! c_str {
 
 /// Private helper for `c_str!` macro.
 #[doc(hidden)]
-pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &CStr {
-    // TODO: Replace this implementation with `CStr::from_bytes_with_nul` when MSRV above 1.72.
-    let bytes = s.as_bytes();
-    let len = bytes.len();
-    assert!(
-        !bytes.is_empty() && bytes[bytes.len() - 1] == b'\0',
-        "string is not nul-terminated"
-    );
-    let mut i = 0;
-    let non_null_len = len - 1;
-    while i < non_null_len {
-        assert!(bytes[i] != b'\0', "string contains null bytes");
-        i += 1;
+pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &std::ffi::CStr {
+    match std::ffi::CStr::from_bytes_with_nul(s.as_bytes()) {
+        Ok(cstr) => cstr,
+        Err(_) => panic!("string contains nul bytes"),
     }
-
-    unsafe { CStr::from_bytes_with_nul_unchecked(bytes) }
 }
-
-use std::ffi::CStr;
 
 pub mod compat;
 mod impl_;
@@ -410,6 +404,8 @@ pub use self::enumobject::*;
 pub use self::fileobject::*;
 pub use self::fileutils::*;
 pub use self::floatobject::*;
+#[cfg(Py_3_9)]
+pub use self::genericaliasobject::*;
 pub use self::import::*;
 pub use self::intrcheck::*;
 pub use self::iterobject::*;
@@ -438,7 +434,9 @@ pub use self::pyport::*;
 pub use self::pystate::*;
 pub use self::pystrtod::*;
 pub use self::pythonrun::*;
+pub use self::pytypedefs::*;
 pub use self::rangeobject::*;
+pub use self::refcount::*;
 pub use self::setobject::*;
 pub use self::sliceobject::*;
 pub use self::structseq::*;
@@ -479,7 +477,7 @@ mod fileobject;
 mod fileutils;
 mod floatobject;
 // skipped empty frameobject.h
-// skipped genericaliasobject.h
+mod genericaliasobject;
 mod import;
 // skipped interpreteridobject.h
 mod intrcheck;
@@ -530,7 +528,9 @@ mod pythonrun;
 mod pystrtod;
 // skipped pythread.h
 // skipped pytime.h
+mod pytypedefs;
 mod rangeobject;
+mod refcount;
 mod setobject;
 mod sliceobject;
 mod structseq;

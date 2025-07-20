@@ -16,7 +16,7 @@ pub enum MyEnum2 {
 
 impl Display for MyEnum2 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -34,13 +34,13 @@ impl Display for MyEnum3 {
             MyEnum3::Variant => "AwesomeVariant",
             MyEnum3::OtherVariant => "OtherVariant",
         };
-        write!(f, "MyEnum.{}", variant)
+        write!(f, "MyEnum.{variant}")
     }
 }
 
 #[test]
 fn test_enum_class_fmt() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let var2 = Py::new(py, MyEnum2::Variant).unwrap();
         let var3 = Py::new(py, MyEnum3::Variant).unwrap();
         let var4 = Py::new(py, MyEnum3::OtherVariant).unwrap();
@@ -60,7 +60,7 @@ pub struct Point {
 
 #[test]
 fn test_custom_struct_custom_str() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let var1 = Py::new(py, Point { x: 1, y: 2, z: 3 }).unwrap();
         py_assert!(py, var1, "str(var1) == 'X: 1, Y: 2, Z: 3'");
     })
@@ -82,7 +82,7 @@ impl Display for Point2 {
 
 #[test]
 fn test_struct_str() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let var1 = Py::new(py, Point2 { x: 1, y: 2, z: 3 }).unwrap();
         py_assert!(py, var1, "str(var1) == '(1, 2, 3)'");
     })
@@ -97,13 +97,13 @@ enum ComplexEnumWithStr {
 
 impl Display for ComplexEnumWithStr {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
 #[test]
 fn test_custom_complex_enum_str() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let var1 = Py::new(py, ComplexEnumWithStr::A(45)).unwrap();
         let var2 = Py::new(
             py,
@@ -127,7 +127,7 @@ struct Coord2(u32, u32, u32);
 
 #[test]
 fn test_str_representation_by_position() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let var1 = Py::new(py, Coord(1, 2, 3)).unwrap();
         let var2 = Py::new(py, Coord2(1, 2, 3)).unwrap();
         py_assert!(py, var1, "str(var1) == '1, 2, 3'");
@@ -145,7 +145,7 @@ struct Point4 {
 
 #[test]
 fn test_mixed_and_repeated_str_formats() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let var1 = Py::new(
             py,
             Point4 {
@@ -172,7 +172,7 @@ struct Foo {
 
 #[test]
 fn test_raw_identifier_struct_custom_str() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let var1 = Py::new(py, Foo { r#type: 3 }).unwrap();
         py_assert!(py, var1, "str(var1) == 'type: 3'");
     })

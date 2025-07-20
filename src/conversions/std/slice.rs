@@ -5,17 +5,8 @@ use crate::inspect::types::TypeInfo;
 use crate::{
     conversion::IntoPyObject,
     types::{PyByteArray, PyByteArrayMethods, PyBytes},
-    Bound, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    Bound, PyAny, PyErr, PyResult, Python,
 };
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for &[u8] {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyBytes::new(py, self).unbind().into()
-    }
-}
 
 impl<'a, 'py, T> IntoPyObject<'py> for &'a [T]
 where
@@ -76,20 +67,6 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, [u8]> {
     }
 }
 
-#[allow(deprecated)]
-impl ToPyObject for Cow<'_, [u8]> {
-    fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
-        PyBytes::new(py, self.as_ref()).into()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<Py<PyAny>> for Cow<'_, [u8]> {
-    fn into_py(self, py: Python<'_>) -> Py<PyAny> {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
 impl<'py, T> IntoPyObject<'py> for Cow<'_, [T]>
 where
     T: Clone,
@@ -122,7 +99,7 @@ mod tests {
 
     #[test]
     fn test_extract_bytes() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_bytes = py.eval(ffi::c_str!("b'Hello Python'"), None, None).unwrap();
             let bytes: &[u8] = py_bytes.extract().unwrap();
             assert_eq!(bytes, b"Hello Python");
@@ -131,7 +108,7 @@ mod tests {
 
     #[test]
     fn test_cow_impl() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes = py.eval(ffi::c_str!(r#"b"foobar""#), None, None).unwrap();
             let cow = bytes.extract::<Cow<'_, [u8]>>().unwrap();
             assert_eq!(cow, Cow::<[u8]>::Borrowed(b"foobar"));
@@ -159,7 +136,7 @@ mod tests {
 
     #[test]
     fn test_slice_intopyobject_impl() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes: &[u8] = b"foobar";
             let obj = bytes.into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
@@ -174,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_cow_intopyobject_impl() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let borrowed_bytes = Cow::<[u8]>::Borrowed(b"foobar");
             let obj = borrowed_bytes.clone().into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());

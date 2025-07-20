@@ -2,7 +2,7 @@
 //! awaitable protocol.
 //!
 //! Both IterAwaitable and FutureAwaitable will return a value immediately
-//! when awaited, see guide examples related to pyo3-asyncio for ways
+//! when awaited, see guide examples related to pyo3-async-runtimes for ways
 //! to suspend tasks and await results.
 
 use pyo3::exceptions::PyStopIteration;

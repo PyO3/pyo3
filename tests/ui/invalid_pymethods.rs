@@ -40,10 +40,12 @@ impl MyClass {
     }
 }
 
+struct NotATypeObject;
+
 #[pymethods]
 impl MyClass {
     #[classmethod]
-    fn classmethod_wrong_first_argument(_x: i32) -> Self {
+    fn classmethod_wrong_first_argument(_t: NotATypeObject) -> Self {
         Self {}
     }
 }

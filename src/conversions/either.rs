@@ -30,7 +30,7 @@
 //!
 //! fn main() -> PyResult<()> {
 //!     pyo3::prepare_freethreaded_python();
-//!     Python::with_gil(|py| {
+//!     Python::attach(|py| {
 //!         // Create a string and an int in Python.
 //!         let py_str = "crab".into_pyobject(py)?;
 //!         let py_int = 42i32.into_pyobject(py)?;
@@ -48,27 +48,9 @@
 use crate::inspect::types::TypeInfo;
 use crate::{
     exceptions::PyTypeError, types::any::PyAnyMethods, Bound, FromPyObject, IntoPyObject,
-    IntoPyObjectExt, PyAny, PyErr, PyObject, PyResult, Python,
+    IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
 };
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
 use either::Either;
-
-#[cfg_attr(docsrs, doc(cfg(feature = "either")))]
-#[allow(deprecated)]
-impl<L, R> IntoPy<PyObject> for Either<L, R>
-where
-    L: IntoPy<PyObject>,
-    R: IntoPy<PyObject>,
-{
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        match self {
-            Either::Left(l) => l.into_py(py),
-            Either::Right(r) => r.into_py(py),
-        }
-    }
-}
 
 #[cfg_attr(docsrs, doc(cfg(feature = "either")))]
 impl<'py, L, R> IntoPyObject<'py> for Either<L, R>
@@ -102,22 +84,6 @@ where
         match self {
             Either::Left(l) => l.into_bound_py_any(py),
             Either::Right(r) => r.into_bound_py_any(py),
-        }
-    }
-}
-
-#[cfg_attr(docsrs, doc(cfg(feature = "either")))]
-#[allow(deprecated)]
-impl<L, R> ToPyObject for Either<L, R>
-where
-    L: ToPyObject,
-    R: ToPyObject,
-{
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        match self {
-            Either::Left(l) => l.to_object(py),
-            Either::Right(r) => r.to_object(py),
         }
     }
 }
@@ -168,7 +134,7 @@ mod tests {
         type E1 = Either<i32, f32>;
         type E2 = Either<f32, i32>;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let l = E::Left(42);
             let obj_l = (&l).into_pyobject(py).unwrap();
             assert_eq!(obj_l.extract::<i32>().unwrap(), 42);

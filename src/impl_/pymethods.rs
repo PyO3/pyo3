@@ -1,9 +1,9 @@
 use crate::exceptions::PyStopAsyncIteration;
-use crate::gil::LockGIL;
 use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::panic::PanicTrap;
 use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout};
 use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
+use crate::internal::state::ForbidAttaching;
 use crate::pycell::impl_::PyClassBorrowChecker as _;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
@@ -21,6 +21,7 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr::null_mut;
 
 use super::trampoline;
+use crate::internal_tricks::{clear_eq, traverse_eq};
 
 /// Python 3.8 and up - __ipow__ has modulo argument correctly populated.
 #[cfg(Py_3_8)]
@@ -259,7 +260,7 @@ impl PySetterDef {
 ///
 /// Elided lifetime should compile ok:
 ///
-/// ```rust
+/// ```rust,no_run
 /// use pyo3::prelude::*;
 /// use pyo3::pyclass::{PyTraverseError, PyVisit};
 ///
@@ -292,16 +293,16 @@ where
     // Since we do not create a `GILPool` at all, it is important that our usage of the GIL
     // token does not produce any owned objects thereby calling into `register_owned`.
     let trap = PanicTrap::new("uncaught panic inside __traverse__ handler");
-    let lock = LockGIL::during_traverse();
+    let lock = ForbidAttaching::during_traverse();
 
-    let super_retval = call_super_traverse(slf, visit, arg, current_traverse);
+    let super_retval = unsafe { call_super_traverse(slf, visit, arg, current_traverse) };
     if super_retval != 0 {
         return super_retval;
     }
 
     // SAFETY: `slf` is a valid Python object pointer to a class object of type T, and
     // traversal is running so no mutations can occur.
-    let class_object: &PyClassObject<T> = &*slf.cast();
+    let class_object: &PyClassObject<T> = unsafe { &*slf.cast() };
 
     let retval =
     // `#[pyclass(unsendable)]` types can only be deallocated by their own thread, so
@@ -319,7 +320,7 @@ where
         // `.try_borrow()` above created a borrow, we need to release it when we're done
         // traversing the object. This allows us to read `instance` safely.
         let _guard = TraverseGuard(class_object);
-        let instance = &*class_object.contents.value.get();
+        let instance = unsafe {&*class_object.contents.value.get()};
 
         let visit = PyVisit { visit, arg, _guard: PhantomData };
 
@@ -358,16 +359,16 @@ unsafe fn call_super_traverse(
     // because the GC is running and so
     // - (a) we cannot do refcounting and
     // - (b) the type of the object cannot change.
-    let mut ty = ffi::Py_TYPE(obj);
+    let mut ty = unsafe { ffi::Py_TYPE(obj) };
     let mut traverse: Option<ffi::traverseproc>;
 
     // First find the current type by the current_traverse function
     loop {
-        traverse = get_slot(ty, TP_TRAVERSE);
-        if traverse == Some(current_traverse) {
+        traverse = unsafe { get_slot(ty, TP_TRAVERSE) };
+        if traverse_eq(traverse, current_traverse) {
             break;
         }
-        ty = get_slot(ty, TP_BASE);
+        ty = unsafe { get_slot(ty, TP_BASE) };
         if ty.is_null() {
             // FIXME: return an error if current type not in the MRO? Should be impossible.
             return 0;
@@ -375,17 +376,17 @@ unsafe fn call_super_traverse(
     }
 
     // Get first base which has a different traverse function
-    while traverse == Some(current_traverse) {
-        ty = get_slot(ty, TP_BASE);
+    while traverse_eq(traverse, current_traverse) {
+        ty = unsafe { get_slot(ty, TP_BASE) };
         if ty.is_null() {
             break;
         }
-        traverse = get_slot(ty, TP_TRAVERSE);
+        traverse = unsafe { get_slot(ty, TP_TRAVERSE) };
     }
 
     // If we found a type with a different traverse function, call it
     if let Some(traverse) = traverse {
-        return traverse(obj, visit, arg);
+        return unsafe { traverse(obj, visit, arg) };
     }
 
     // FIXME same question as cython: what if the current type is not in the MRO?
@@ -398,14 +399,16 @@ pub unsafe fn _call_clear(
     impl_: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<()>,
     current_clear: ffi::inquiry,
 ) -> c_int {
-    trampoline::trampoline(move |py| {
-        let super_retval = call_super_clear(py, slf, current_clear);
-        if super_retval != 0 {
-            return Err(PyErr::fetch(py));
-        }
-        impl_(py, slf)?;
-        Ok(0)
-    })
+    unsafe {
+        trampoline::trampoline(move |py| {
+            let super_retval = call_super_clear(py, slf, current_clear);
+            if super_retval != 0 {
+                return Err(PyErr::fetch(py));
+            }
+            impl_(py, slf)?;
+            Ok(0)
+        })
+    }
 }
 
 /// Call super-type traverse method, if necessary.
@@ -423,13 +426,13 @@ unsafe fn call_super_clear(
     obj: *mut ffi::PyObject,
     current_clear: ffi::inquiry,
 ) -> c_int {
-    let mut ty = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(obj));
+    let mut ty = unsafe { PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(obj)) };
     let mut clear: Option<ffi::inquiry>;
 
     // First find the current type by the current_clear function
     loop {
         clear = ty.get_slot(TP_CLEAR);
-        if clear == Some(current_clear) {
+        if clear_eq(clear, current_clear) {
             break;
         }
         let base = ty.get_slot(TP_BASE);
@@ -437,22 +440,22 @@ unsafe fn call_super_clear(
             // FIXME: return an error if current type not in the MRO? Should be impossible.
             return 0;
         }
-        ty = PyType::from_borrowed_type_ptr(py, base);
+        ty = unsafe { PyType::from_borrowed_type_ptr(py, base) };
     }
 
     // Get first base which has a different clear function
-    while clear == Some(current_clear) {
+    while clear_eq(clear, current_clear) {
         let base = ty.get_slot(TP_BASE);
         if base.is_null() {
             break;
         }
-        ty = PyType::from_borrowed_type_ptr(py, base);
+        ty = unsafe { PyType::from_borrowed_type_ptr(py, base) };
         clear = ty.get_slot(TP_CLEAR);
     }
 
     // If we found a type with a different clear function, call it
     if let Some(clear) = clear {
-        return clear(obj);
+        return unsafe { clear(obj) };
     }
 
     // FIXME same question as cython: what if the current type is not in the MRO?
@@ -632,14 +635,14 @@ pub struct BoundRef<'a, 'py, T>(pub &'a Bound<'py, T>);
 
 impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
     pub unsafe fn ref_from_ptr(py: Python<'py>, ptr: &'a *mut ffi::PyObject) -> Self {
-        BoundRef(Bound::ref_from_ptr(py, ptr))
+        unsafe { BoundRef(Bound::ref_from_ptr(py, ptr)) }
     }
 
     pub unsafe fn ref_from_ptr_or_opt(
         py: Python<'py>,
         ptr: &'a *mut ffi::PyObject,
     ) -> Option<Self> {
-        Bound::ref_from_ptr_or_opt(py, ptr).as_ref().map(BoundRef)
+        unsafe { Bound::ref_from_ptr_or_opt(py, ptr).as_ref().map(BoundRef) }
     }
 
     pub fn downcast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, DowncastError<'a, 'py>> {
@@ -647,7 +650,7 @@ impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
     }
 
     pub unsafe fn downcast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
-        BoundRef(self.0.downcast_unchecked::<T>())
+        unsafe { BoundRef(self.0.downcast_unchecked::<T>()) }
     }
 }
 
@@ -701,9 +704,11 @@ pub unsafe fn tp_new_impl<T: PyClass>(
     initializer: PyClassInitializer<T>,
     target_type: *mut ffi::PyTypeObject,
 ) -> PyResult<*mut ffi::PyObject> {
-    initializer
-        .create_class_object_of_type(py, target_type)
-        .map(Bound::into_ptr)
+    unsafe {
+        initializer
+            .create_class_object_of_type(py, target_type)
+            .map(Bound::into_ptr)
+    }
 }
 
 #[cfg(test)]
@@ -715,7 +720,7 @@ mod tests {
         use crate::types::{PyAnyMethods, PyCFunction};
         use crate::{ffi, Python};
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             unsafe extern "C" fn accepts_no_arguments(
                 _slf: *mut ffi::PyObject,
                 _args: *const *mut ffi::PyObject,
@@ -724,7 +729,7 @@ mod tests {
             ) -> *mut ffi::PyObject {
                 assert_eq!(nargs, 0);
                 assert!(kwargs.is_null());
-                Python::assume_gil_acquired().None().into_ptr()
+                unsafe { Python::assume_gil_acquired().None().into_ptr() }
             }
 
             let f = PyCFunction::internal_new(

@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
-use pyo3::types::{PyDict, PyString};
-use pyo3::{prelude::*, IntoPyObject};
+use pyo3::types::{PyDict, PyList, PyString};
+use pyo3::{prelude::*, py_run, IntoPyObject, IntoPyObjectExt};
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -18,7 +18,7 @@ pub struct A<'py> {
 
 #[test]
 fn test_named_fields_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let a = A {
             s: "Hello".into(),
             t: PyString::new(py, "World"),
@@ -60,7 +60,7 @@ pub struct B<'a> {
 
 #[test]
 fn test_transparent_named_field_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let pyb = B { test: "test" }.into_pyobject(py).unwrap();
         let b = pyb.extract::<String>().unwrap();
         assert_eq!(b, "test");
@@ -75,7 +75,7 @@ pub struct D<T> {
 
 #[test]
 fn test_generic_transparent_named_field_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let pyd = D {
             test: String::from("test"),
         }
@@ -95,7 +95,7 @@ pub struct GenericWithBound<K: Hash + Eq, V>(HashMap<K, V>);
 
 #[test]
 fn test_generic_with_bound() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let mut hash_map = HashMap::<String, i32>::new();
         hash_map.insert("1".into(), 1);
         hash_map.insert("2".into(), 2);
@@ -126,7 +126,7 @@ pub struct Tuple(String, usize);
 
 #[test]
 fn test_tuple_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = Tuple(String::from("test"), 1).into_pyobject(py).unwrap();
         assert!(tup.extract::<(usize, String)>().is_err());
         let tup = tup.extract::<(String, usize)>().unwrap();
@@ -140,7 +140,7 @@ pub struct TransparentTuple(String);
 
 #[test]
 fn test_transparent_tuple_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = TransparentTuple(String::from("test"))
             .into_pyobject(py)
             .unwrap();
@@ -150,9 +150,20 @@ fn test_transparent_tuple_struct() {
     });
 }
 
-#[derive(Debug, IntoPyObject)]
+fn phantom_into_py<'py, T>(
+    _: std::borrow::Cow<'_, std::marker::PhantomData<T>>,
+    py: Python<'py>,
+) -> PyResult<Bound<'py, PyAny>> {
+    std::any::type_name::<T>().into_bound_py_any(py)
+}
+
+#[derive(Debug, IntoPyObject, IntoPyObjectRef)]
 pub enum Foo<'py> {
-    TupleVar(usize, String),
+    TupleVar(
+        usize,
+        String,
+        #[pyo3(into_py_with = phantom_into_py::<()>)] std::marker::PhantomData<()>,
+    ),
     StructVar {
         test: Bound<'py, PyString>,
     },
@@ -166,11 +177,13 @@ pub enum Foo<'py> {
 
 #[test]
 fn test_enum() {
-    Python::with_gil(|py| {
-        let foo = Foo::TupleVar(1, "test".into()).into_pyobject(py).unwrap();
+    Python::attach(|py| {
+        let foo = Foo::TupleVar(1, "test".into(), std::marker::PhantomData)
+            .into_pyobject(py)
+            .unwrap();
         assert_eq!(
-            foo.extract::<(usize, String)>().unwrap(),
-            (1, String::from("test"))
+            foo.extract::<(usize, String, String)>().unwrap(),
+            (1, String::from("test"), String::from("()"))
         );
 
         let foo = Foo::StructVar {
@@ -197,5 +210,80 @@ fn test_enum() {
             .into_pyobject(py)
             .unwrap();
         assert!(foo.is_none());
+    });
+}
+
+#[derive(Debug, IntoPyObject, IntoPyObjectRef)]
+pub struct Zap {
+    #[pyo3(item)]
+    name: String,
+
+    #[pyo3(into_py_with = zap_into_py, item("my_object"))]
+    some_object_length: usize,
+}
+
+fn zap_into_py<'py>(
+    len: std::borrow::Cow<'_, usize>,
+    py: Python<'py>,
+) -> PyResult<Bound<'py, PyAny>> {
+    Ok(PyList::new(py, 1..*len + 1)?.into_any())
+}
+
+#[test]
+fn test_into_py_with() {
+    Python::attach(|py| {
+        let zap = Zap {
+            name: "whatever".into(),
+            some_object_length: 3,
+        };
+
+        let py_zap_ref = (&zap).into_pyobject(py).unwrap();
+        let py_zap = zap.into_pyobject(py).unwrap();
+
+        py_run!(
+            py,
+            py_zap_ref,
+            "assert py_zap_ref == {'name': 'whatever', 'my_object': [1, 2, 3]},f'{py_zap_ref}'"
+        );
+        py_run!(
+            py,
+            py_zap,
+            "assert py_zap == {'name': 'whatever', 'my_object': [1, 2, 3]},f'{py_zap}'"
+        );
+    });
+}
+
+#[test]
+fn test_struct_into_py_rename_all() {
+    #[derive(IntoPyObject, IntoPyObjectRef)]
+    #[pyo3(rename_all = "camelCase")]
+    struct Foo {
+        foo_bar: String,
+        #[pyo3(item("BAZ"))]
+        baz: usize,
+        #[pyo3(item)]
+        long_field_name: f32,
+    }
+
+    let foo = Foo {
+        foo_bar: "foobar".into(),
+        baz: 42,
+        long_field_name: 0.0,
+    };
+
+    Python::attach(|py| {
+        let py_foo_ref = (&foo).into_pyobject(py).unwrap();
+        let py_foo = foo.into_pyobject(py).unwrap();
+
+        py_run!(
+            py,
+            py_foo_ref,
+            "assert py_foo_ref == {'fooBar': 'foobar', 'BAZ': 42, 'longFieldName': 0},f'{py_foo_ref}'"
+        );
+        py_run!(
+            py,
+            py_foo,
+            "assert py_foo == {'fooBar': 'foobar', 'BAZ': 42, 'longFieldName': 0},f'{py_foo}'"
+        );
     });
 }

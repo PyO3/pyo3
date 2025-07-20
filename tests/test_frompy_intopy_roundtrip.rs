@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::types::{PyDict, PyString};
-use pyo3::{prelude::*, IntoPyObject, IntoPyObjectRef};
+use pyo3::{prelude::*, IntoPyObject, IntoPyObjectExt, IntoPyObjectRef};
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -21,7 +21,7 @@ pub struct A<'py> {
 
 #[test]
 fn test_named_fields_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let a = A {
             s: "Hello".into(),
             t: PyString::new(py, "World"),
@@ -57,7 +57,7 @@ pub struct B {
 
 #[test]
 fn test_transparent_named_field_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let b = B {
             test: "test".into(),
         };
@@ -79,7 +79,7 @@ pub struct D<T> {
 
 #[test]
 fn test_generic_transparent_named_field_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = D {
             test: String::from("test"),
         };
@@ -111,7 +111,7 @@ pub struct GenericWithBound<K: Hash + Eq, V>(HashMap<K, V>);
 
 #[test]
 fn test_generic_with_bound() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let mut hash_map = HashMap::<String, i32>::new();
         hash_map.insert("1".into(), 1);
         hash_map.insert("2".into(), 2);
@@ -167,7 +167,7 @@ pub struct Tuple(String, usize);
 
 #[test]
 fn test_tuple_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = Tuple(String::from("test"), 1);
         let tuple = (&tup).into_pyobject(py).unwrap();
         let new_tup = tuple.extract::<Tuple>().unwrap();
@@ -184,7 +184,7 @@ pub struct TransparentTuple(String);
 
 #[test]
 fn test_transparent_tuple_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = TransparentTuple(String::from("test"));
         let tuple = (&tup).into_pyobject(py).unwrap();
         let new_tup = tuple.extract::<TransparentTuple>().unwrap();
@@ -196,12 +196,28 @@ fn test_transparent_tuple_struct() {
     });
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct IntWrapper(u32);
+
+fn int_wrapper_into_py<'py>(
+    v: std::borrow::Cow<'_, IntWrapper>,
+    py: Python<'py>,
+) -> PyResult<Bound<'py, PyAny>> {
+    v.0.into_bound_py_any(py)
+}
+
+fn int_wrapper_from_py(v: &Bound<'_, PyAny>) -> PyResult<IntWrapper> {
+    v.extract().map(IntWrapper)
+}
+
 #[derive(Debug, Clone, PartialEq, IntoPyObject, IntoPyObjectRef, FromPyObject)]
 pub enum Foo {
     TupleVar(usize, String),
     StructVar {
         #[pyo3(item)]
         test: char,
+        #[pyo3(item, into_py_with=int_wrapper_into_py, from_py_with=int_wrapper_from_py)]
+        int: IntWrapper,
     },
     #[pyo3(transparent)]
     TransparentTuple(usize),
@@ -209,11 +225,16 @@ pub enum Foo {
     TransparentStructVar {
         a: Option<String>,
     },
+    #[pyo3(rename_all = "camelCase", from_item_all)]
+    RenameAll {
+        long_field_name: [u16; 2],
+        other_field: Option<String>,
+    },
 }
 
 #[test]
 fn test_enum() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tuple_var = Foo::TupleVar(1, "test".into());
         let foo = (&tuple_var).into_pyobject(py).unwrap();
         assert_eq!(tuple_var, foo.extract::<Foo>().unwrap());
@@ -221,7 +242,10 @@ fn test_enum() {
         let foo = tuple_var.clone().into_pyobject(py).unwrap();
         assert_eq!(tuple_var, foo.extract::<Foo>().unwrap());
 
-        let struct_var = Foo::StructVar { test: 'b' };
+        let struct_var = Foo::StructVar {
+            test: 'b',
+            int: IntWrapper(42),
+        };
         let foo = (&struct_var)
             .into_pyobject(py)
             .unwrap()
@@ -251,5 +275,15 @@ fn test_enum() {
 
         let foo = transparent_struct_var.clone().into_pyobject(py).unwrap();
         assert_eq!(transparent_struct_var, foo.extract::<Foo>().unwrap());
+
+        let rename_all_struct_var = Foo::RenameAll {
+            long_field_name: [1, 2],
+            other_field: None,
+        };
+        let foo = (&rename_all_struct_var).into_pyobject(py).unwrap();
+        assert_eq!(rename_all_struct_var, foo.extract::<Foo>().unwrap());
+
+        let foo = rename_all_struct_var.clone().into_pyobject(py).unwrap();
+        assert_eq!(rename_all_struct_var, foo.extract::<Foo>().unwrap());
     });
 }

@@ -9,8 +9,6 @@
 //! ```
 
 pub use crate::conversion::{FromPyObject, IntoPyObject};
-#[allow(deprecated)]
-pub use crate::conversion::{IntoPy, ToPyObject};
 pub use crate::err::{PyErr, PyResult};
 pub use crate::instance::{Borrowed, Bound, Py, PyObject};
 pub use crate::marker::Python;
@@ -25,9 +23,6 @@ pub use pyo3_macros::{
 
 #[cfg(feature = "macros")]
 pub use crate::wrap_pyfunction;
-#[cfg(feature = "macros")]
-#[allow(deprecated)]
-pub use crate::wrap_pyfunction_bound;
 
 pub use crate::types::any::PyAnyMethods;
 pub use crate::types::boolobject::PyBoolMethods;
