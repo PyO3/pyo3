@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-introspection"
-version = "0.25.0"
+version = "0.25.1"
 description = "Introspect dynamic libraries built with PyO3 to get metadata about the exported Python types"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 homepage = "https://github.com/pyo3/pyo3"
