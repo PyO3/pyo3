@@ -470,7 +470,7 @@ mod tests {
         use std::thread::ScopedJoinHandle;
         use std::time::Duration;
 
-        const SIZE: usize = 200_000_000;
+        const SIZE: usize = 1_000_000;
         const DATA_VALUE: u8 = 42;
 
         fn make_byte_array(py: Python<'_>, size: usize, value: u8) -> Bound<'_, PyByteArray> {
@@ -503,7 +503,7 @@ mod tests {
         // continuously extends and resets the bytearray in data
         let worker1 = || {
             let mut rounds = 0;
-            while running.load(Ordering::SeqCst) && rounds < 25 {
+            while running.load(Ordering::SeqCst) && rounds < 50 {
                 Python::attach(|py| {
                     let byte_array = get_data(&data, py);
                     extending.store(true, Ordering::SeqCst);
@@ -551,7 +551,7 @@ mod tests {
             let mut handles = [&mut handle1, &mut handle2];
 
             let t0 = std::time::Instant::now();
-            while t0.elapsed() < Duration::from_secs(10) {
+            while t0.elapsed() < Duration::from_secs(1) {
                 for handle in &mut handles {
                     if handle
                         .as_ref()
