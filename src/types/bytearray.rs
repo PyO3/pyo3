@@ -125,19 +125,21 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     ///   using the slice.
     ///
     /// As a result, this slice should only be used for short-lived operations without executing any
-    /// Python code, such as copying into a Vec. For free-threaded Python support see also [`with_critical_section`].
+    /// Python code, such as copying into a Vec.
+    /// For free-threaded Python support see also [`with_critical_section`].
     ///
     /// # Examples
     ///
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3::exceptions::PyRuntimeError;
+    /// use pyo3::sync::with_critical_section;
     /// use pyo3::types::PyByteArray;
     ///
     /// #[pyfunction]
     /// fn a_valid_function(bytes: &Bound<'_, PyByteArray>) -> PyResult<()> {
-    ///     let section = {
-    ///         // SAFETY: We promise to not let the interpreter regain control
+    ///     let section = with_critical_section(bytes, || {
+    ///         // SAFETY: We promise to not let the interpreter regain control over the bytearray
     ///         // or invoke any PyO3 APIs while using the slice.
     ///         let slice = unsafe { bytes.as_bytes() };
     ///
@@ -147,7 +149,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     ///             .get(6..11)
     ///             .ok_or_else(|| PyRuntimeError::new_err("input is not long enough"))?;
     ///         Vec::from(section)
-    ///     };
+    ///     });
     ///
     ///     // Now we can do things with `section` and call PyO3 APIs again.
     ///     // ...
@@ -189,6 +191,9 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// # #[allow(dead_code)]
     /// #[pyfunction]
     /// fn bug(py: Python<'_>, bytes: &Bound<'_, PyByteArray>) {
+    ///     // No critical section is being used.
+    ///     // This means that for no-gil Python another thread could be modifying the
+    ///     // bytearray concurrently and thus invalidate `slice` any time.
     ///     let slice = unsafe { bytes.as_bytes() };
     ///
     ///     // This explicitly yields control back to the Python interpreter...
