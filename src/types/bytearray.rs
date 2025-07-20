@@ -145,11 +145,10 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     ///
     ///         // Copy only a section of `bytes` while avoiding
     ///         // `to_vec` which copies the entire thing.
-    ///         let section = slice
-    ///             .get(6..11)
-    ///             .ok_or_else(|| PyRuntimeError::new_err("input is not long enough"))?;
-    ///         Vec::from(section)
-    ///     });
+    ///         slice.get(6..11)
+    ///             .map(Vec::from)
+    ///             .ok_or_else(|| PyRuntimeError::new_err("input is not long enough"))
+    ///     })?;
     ///
     ///     // Now we can do things with `section` and call PyO3 APIs again.
     ///     // ...
