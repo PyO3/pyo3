@@ -311,16 +311,8 @@ impl<'py> TryFrom<&Bound<'py, PyAny>> for Bound<'py, PyByteArray> {
 
 #[cfg(test)]
 mod tests {
-    use crate::instance::Py;
-    use crate::sync::{with_critical_section, MutexExt};
     use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods};
     use crate::{exceptions, Bound, PyAny, PyObject, Python};
-    use pyo3_ffi::c_str;
-    use std::sync::atomic::{AtomicBool, Ordering};
-    use std::sync::Mutex;
-    use std::thread;
-    use std::thread::ScopedJoinHandle;
-    use std::time::Duration;
 
     #[test]
     fn test_len() {
@@ -454,8 +446,21 @@ mod tests {
         })
     }
 
+    // CPython 3.13t is unsound => test fails
+    #[cfg(any(Py_3_14, not(all(Py_3_13, Py_GIL_DISABLED))))]
     #[test]
     fn test_data_integrity_in_critical_section() {
+        use crate::instance::Py;
+        use crate::sync::{with_critical_section, MutexExt};
+
+        use pyo3_ffi::c_str;
+
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::Mutex;
+        use std::thread;
+        use std::thread::ScopedJoinHandle;
+        use std::time::Duration;
+
         const SIZE: usize = 200_000_000;
         const DATA_VALUE: u8 = 42;
         const GARBAGE_VALUE: u8 = 13;
