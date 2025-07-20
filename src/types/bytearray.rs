@@ -273,7 +273,14 @@ impl<'py> PyByteArrayMethods<'py> for Bound<'py, PyByteArray> {
     }
 
     fn to_vec(&self) -> Vec<u8> {
-        with_critical_section(self, || unsafe { self.as_bytes() }.to_vec())
+        with_critical_section(self, || {
+            // SAFETY:
+            //  * `self` is a `Bound` object, which guarantees that the Python GIL is held.
+            //  * For no-gil Python, a critical section is used in lieu of the GIL.
+            //  * We don't interact with the interpreter
+            //  * We don't mutate the underlying slice
+            unsafe { self.as_bytes() }.to_vec()
+        })
     }
 
     fn resize(&self, len: usize) -> PyResult<()> {
