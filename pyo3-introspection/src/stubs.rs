@@ -1,6 +1,7 @@
 use crate::model::{Argument, Arguments, Class, Const, Function, Module, VariableLengthArgument};
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
+use unicode_ident::{is_xid_continue, is_xid_start};
 
 /// Generates the [type stubs](https://typing.readthedocs.io/en/latest/source/stubs.html) of a given module.
 /// It returns a map between the file name and the file content.
@@ -194,17 +195,101 @@ fn variable_length_argument_stub(
 }
 
 fn annotation_stub<'a>(annotation: &'a str, modules_to_import: &mut BTreeSet<String>) -> &'a str {
-    if let Some((module, _)) = annotation.rsplit_once('.') {
-        // TODO: this is very naive
-        modules_to_import.insert(module.into());
+    // We iterate on the annotation string
+    // If it starts with a Python path like foo.bar, we add the module name (here foo) to the import list
+    // and we skip after it
+    let mut i = 0;
+    while i < annotation.len() {
+        if let Some(path) = path_prefix(&annotation[i..]) {
+            // We found a path!
+            i += path.len();
+            if let Some((module, _)) = path.rsplit_once('.') {
+                modules_to_import.insert(module.into());
+            }
+        }
+        i += 1;
     }
     annotation
+}
+
+// If the input starts with a path like foo.bar, returns it
+fn path_prefix(input: &str) -> Option<&str> {
+    let mut length = identifier_prefix(input)?.len();
+    loop {
+        // We try to add another identifier to the path
+        let Some(remaining) = input[length..].strip_prefix('.') else {
+            break;
+        };
+        let Some(id) = identifier_prefix(remaining) else {
+            break;
+        };
+        length += id.len() + 1;
+    }
+    Some(&input[..length])
+}
+
+// If the input starts with an identifier like foo, returns it
+fn identifier_prefix(input: &str) -> Option<&str> {
+    // We get the first char and validate it
+    let mut iter = input.chars();
+    let first_char = iter.next()?;
+    if first_char != '_' && !is_xid_start(first_char) {
+        return None;
+    }
+    let mut length = first_char.len_utf8();
+    // We add extra chars as much as we can
+    for c in iter {
+        if is_xid_continue(c) {
+            length += c.len_utf8();
+        } else {
+            break;
+        }
+    }
+    Some(&input[0..length])
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::model::Arguments;
+
+    #[test]
+    fn annotation_stub_proper_imports() {
+        let mut modules_to_import = BTreeSet::new();
+
+        // Basic int
+        annotation_stub("int", &mut modules_to_import);
+        assert!(modules_to_import.is_empty());
+
+        // Simple path
+        annotation_stub("collections.abc.Iterable", &mut modules_to_import);
+        assert!(modules_to_import.contains("collections.abc"));
+
+        // With underscore
+        annotation_stub("_foo._bar_baz", &mut modules_to_import);
+        assert!(modules_to_import.contains("_foo"));
+
+        // Basic generic
+        annotation_stub("typing.List[int]", &mut modules_to_import);
+        assert!(modules_to_import.contains("typing"));
+
+        // Complex generic
+        annotation_stub("typing.List[foo.Bar[int]]", &mut modules_to_import);
+        assert!(modules_to_import.contains("foo"));
+
+        // Callable
+        annotation_stub(
+            "typing.Callable[[int, baz.Bar], bar.Baz[bool]]",
+            &mut modules_to_import,
+        );
+        assert!(modules_to_import.contains("bar"));
+        assert!(modules_to_import.contains("baz"));
+
+        // Union
+        annotation_stub("a.B | b.C", &mut modules_to_import);
+        assert!(modules_to_import.contains("a"));
+        assert!(modules_to_import.contains("b"));
+    }
 
     #[test]
     fn function_stubs_with_variable_length() {
