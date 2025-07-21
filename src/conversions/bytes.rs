@@ -1,9 +1,14 @@
 #![cfg(feature = "bytes")]
 
-//! Conversions to and from [bytes](https://docs.rs/bytes/latest/bytes/)'s [`Bytes`] and
-//! [`BytesMut`] types.
+//! Conversions to and from [bytes](https://docs.rs/bytes/latest/bytes/)'s [`Bytes`].
 //!
 //! This is useful for efficiently converting Python's `bytes` and `bytearray` types efficiently.
+//!
+//! # When to use `Bytes`
+//!
+//! Unless you specifically need [`Bytes`] for ref-counted ownership and sharing,
+//! you may find that using `&[u8]`, `Vec<u8]`, [`Bound<PyBytes>`], or [`PyBackedBytes`]
+//! is simpler for most use cases.
 //!
 //! # Setup
 //!
@@ -11,8 +16,8 @@
 //!
 //! ```toml
 //! [dependencies]
-#![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"bytes\"] }")]
 //! bytes = "1.10"
+#![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"bytes\"] }")]
 //!
 //! Note that you must use compatible versions of bytes and PyO3.
 //!
@@ -25,7 +30,7 @@
 //!
 //! #[pyfunction]
 //! fn get_message_bytes() -> Bytes {
-//!     Bytes::from(b"Hello Python!".to_vec())
+//!     Bytes::from_static(b"Hello Python!")
 //! }
 //!
 //! #[pyfunction]
