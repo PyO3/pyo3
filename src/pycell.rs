@@ -366,6 +366,15 @@ where
     /// ```
     pub fn into_super(self) -> PyRef<'p, U> {
         let py = self.py();
+        if <U::Frozen as crate::pyclass::boolean_struct::private::Boolean>::VALUE {
+            // Frozen classes to not participate in borrow checking. We need to
+            // release the borrow here, because the BASE does not need it and so
+            // will also not release it, causing it to be leaked otherwise.
+            self.inner
+                .get_class_object()
+                .borrow_checker()
+                .release_borrow()
+        };
         PyRef {
             inner: unsafe {
                 ManuallyDrop::new(self)
@@ -812,5 +821,32 @@ mod tests {
             crate::py_run!(py, obj, "assert obj.double_values() is None");
             crate::py_run!(py, obj, "assert obj.get_values() == (20, 30, 40)");
         });
+    }
+
+    #[test]
+    fn test_into_frozen_super_released_borrow() {
+        #[crate::pyclass]
+        #[pyo3(crate = "crate", subclass, frozen)]
+        struct BaseClass {}
+
+        #[crate::pyclass]
+        #[pyo3(crate = "crate", extends=BaseClass, subclass)]
+        struct SubClass {}
+
+        #[crate::pymethods]
+        #[pyo3(crate = "crate")]
+        impl SubClass {
+            #[new]
+            fn new(py: Python<'_>) -> Bound<'_, SubClass> {
+                let init = crate::PyClassInitializer::from(BaseClass {}).add_subclass(SubClass {});
+                Bound::new(py, init).expect("allocation error")
+            }
+        }
+
+        Python::attach(|py| {
+            let obj = SubClass::new(py);
+            drop(obj.borrow().into_super());
+            assert!(obj.try_borrow_mut().is_ok());
+        })
     }
 }
