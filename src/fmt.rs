@@ -12,6 +12,7 @@ use {
     crate::impl_::callback::WrappingCastTo,
     crate::py_result_ext::PyResultExt,
     crate::types::PyString,
+    crate::IntoPyObject,
     crate::{ffi, Bound, PyErr, PyResult, Python},
     std::fmt,
     std::mem::ManuallyDrop,
@@ -111,6 +112,17 @@ impl Drop for PyUnicodeWriter {
         unsafe {
             PyUnicodeWriter_Discard(self.as_ptr());
         }
+    }
+}
+
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+impl<'py> IntoPyObject<'py> for PyUnicodeWriter {
+    type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> PyResult<Bound<'py, PyString>> {
+        self.into_py_string(py)
     }
 }
 
