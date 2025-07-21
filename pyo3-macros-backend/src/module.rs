@@ -1,7 +1,10 @@
 //! Code generation for the function that initializes a python module and adds classes and function.
 
 #[cfg(feature = "experimental-inspect")]
-use crate::introspection::{introspection_id_const, module_introspection_code};
+use crate::introspection::{
+    attribute_introspection_code, introspection_id_const, module_introspection_code,
+};
+#[cfg(feature = "experimental-inspect")]
 use crate::utils::expr_to_python;
 use crate::{
     attributes::{
@@ -124,6 +127,10 @@ pub fn pymodule_module_impl(
 
     let mut module_items = Vec::new();
     let mut module_items_cfg_attrs = Vec::new();
+    #[cfg(feature = "experimental-inspect")]
+    let mut introspection_chunks = Vec::new();
+    #[cfg(not(feature = "experimental-inspect"))]
+    let introspection_chunks = Vec::<TokenStream>::new();
 
     fn extract_use_items(
         source: &syn::UseTree,
@@ -157,7 +164,6 @@ pub fn pymodule_module_impl(
 
     let mut pymodule_init = None;
     let mut module_consts = Vec::new();
-    let mut module_consts_values = Vec::new();
     let mut module_consts_cfg_attrs = Vec::new();
 
     let _: Vec<()> = (*items).iter_mut().map(|item|{
@@ -302,8 +308,23 @@ pub fn pymodule_module_impl(
                     return Ok(());
                 }
                 module_consts.push(item.ident.clone());
-                module_consts_values.push(expr_to_python(&item.expr));
                 module_consts_cfg_attrs.push(get_cfg_attributes(&item.attrs));
+                #[cfg(feature = "experimental-inspect")]
+                {
+                    let cfg_attrs = get_cfg_attributes(&item.attrs);
+                    let chunk = attribute_introspection_code(
+                        pyo3_path,
+                        None,
+                        item.ident.unraw().to_string(),
+                        expr_to_python(&item.expr),
+                        (*item.ty).clone(),
+                        true,
+                    );
+                    introspection_chunks.push(quote! {
+                        #(#cfg_attrs)*
+                        #chunk
+                    });
+                }
             }
             Item::Static(item) => {
                 ensure_spanned!(
@@ -358,9 +379,6 @@ pub fn pymodule_module_impl(
         &name.to_string(),
         &module_items,
         &module_items_cfg_attrs,
-        &module_consts,
-        &module_consts_values,
-        &module_consts_cfg_attrs,
         pymodule_init.is_some(),
     );
     #[cfg(not(feature = "experimental-inspect"))]
@@ -399,6 +417,7 @@ pub fn pymodule_module_impl(
             #initialization
             #introspection
             #introspection_id
+            #(#introspection_chunks)*
 
             fn __pyo3_pymodule(module: &#pyo3_path::Bound<'_, #pyo3_path::types::PyModule>) -> #pyo3_path::PyResult<()> {
                 use #pyo3_path::impl_::pymodule::PyAddToModule;
@@ -446,7 +465,7 @@ pub fn pymodule_function_impl(
 
     #[cfg(feature = "experimental-inspect")]
     let introspection =
-        module_introspection_code(pyo3_path, &name.to_string(), &[], &[], &[], &[], &[], true);
+        module_introspection_code(pyo3_path, &name.unraw().to_string(), &[], &[], true);
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection = quote! {};
     #[cfg(feature = "experimental-inspect")]

@@ -2,9 +2,11 @@ use std::collections::HashSet;
 
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
-use crate::introspection::function_introspection_code;
+use crate::introspection::{attribute_introspection_code, function_introspection_code};
 #[cfg(feature = "experimental-inspect")]
 use crate::method::{FnSpec, FnType};
+#[cfg(feature = "experimental-inspect")]
+use crate::utils::expr_to_python;
 use crate::utils::{has_attribute, has_attribute_with_namespace, Ctx, PyO3CratePath};
 use crate::{
     attributes::{take_pyo3_options, CrateAttribute},
@@ -182,6 +184,15 @@ pub fn impl_methods(
                                 .attrs
                                 .push(syn::parse_quote!(#[allow(non_upper_case_globals)]));
                         }
+                        #[cfg(feature = "experimental-inspect")]
+                        extra_fragments.push(attribute_introspection_code(
+                            &ctx.pyo3_path,
+                            Some(ty),
+                            spec.python_name().to_string(),
+                            expr_to_python(&konst.expr),
+                            konst.ty.clone(),
+                            true,
+                        ));
                     }
                 }
                 syn::ImplItem::Macro(m) => bail_spanned!(
