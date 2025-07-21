@@ -123,7 +123,7 @@ Enables Pyo3's `MutexExt` trait for all Mutexes that extend on [`lock_api::Mutex
 Adds a dependency on [bigdecimal](https://docs.rs/bigdecimal) and enables conversions into its [`BigDecimal`](https://docs.rs/bigdecimal/latest/bigdecimal/struct.BigDecimal.html) type.
 
 ### `bytes`
-Adds a dependency on [bytes](https://docs.rs/bytes/latest/bytes) and enables conversions into its [`Bytes`](https://docs.rs/bytes/latest/bytes/struct.Bytes.html) and [`BytesMut`](https://docs.rs/bytes/latest/bytes/struct.BytesMut.html) types.
+Adds a dependency on [bytes](https://docs.rs/bytes/latest/bytes) and enables conversions into its [`Bytes`](https://docs.rs/bytes/latest/bytes/struct.Bytes.html) type.
 
 ### `chrono`
 
