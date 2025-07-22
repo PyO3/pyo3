@@ -2,12 +2,15 @@
 
 //! Conversions to and from [bytes](https://docs.rs/bytes/latest/bytes/)'s [`Bytes`].
 //!
-//! This is useful for efficiently converting Python's `bytes` and `bytearray` types efficiently.
+//! This is useful for efficiently converting Python's `bytes` types efficiently.
+//! While `bytes` will be directly borrowed, converting from `bytearray` will result in a copy.
+//!
+//! When converting `Bytes` back into Python, this will do a copy, just like `&[u8]` and `Vec<u8>`.
 //!
 //! # When to use `Bytes`
 //!
 //! Unless you specifically need [`Bytes`] for ref-counted ownership and sharing,
-//! you may find that using `&[u8]`, `Vec<u8]`, [`Bound<PyBytes>`], or [`PyBackedBytes`]
+//! you may find that using `&[u8]`, `Vec<u8>`, [`Bound<PyBytes>`], or [`PyBackedBytes`]
 //! is simpler for most use cases.
 //!
 //! # Setup
@@ -23,7 +26,7 @@
 //!
 //! # Example
 //!
-//! Rust code to create functions which return `Bytes` or take `Bytes` as arguements:
+//! Rust code to create functions which return `Bytes` or take `Bytes` as arguments:
 //!
 //! ```rust,no_run
 //! use pyo3::prelude::*;
@@ -79,6 +82,16 @@ impl<'py> IntoPyObject<'py> for Bytes {
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyBytes::new(py, &self))
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &Bytes {
+    type Target = PyBytes;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PyBytes::new(py, self))
     }
 }
 
