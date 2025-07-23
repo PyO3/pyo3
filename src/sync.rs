@@ -1224,10 +1224,23 @@ mod tests {
             parking_lot::Mutex::new(Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap())
         });
 
+        test_mutex!(parking_lot::ReentrantMutexGuard<'_, _>, |py| {
+            parking_lot::ReentrantMutex::new(
+                Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap(),
+            )
+        });
+
         #[cfg(feature = "arc_lock")]
         test_mutex!(parking_lot::ArcMutexGuard<_, _>, |py| {
             let mutex =
                 parking_lot::Mutex::new(Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap());
+            std::sync::Arc::new(mutex)
+        });
+
+        #[cfg(feature = "arc_lock")]
+        test_mutex!(parking_lot::ArcReentrantMutexGuard<_, _, _>, |py| {
+            let mutex =
+                parking_lot::ReentrantMutex::new(Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap());
             std::sync::Arc::new(mutex)
         });
     }
