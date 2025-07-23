@@ -720,6 +720,52 @@ where
     }
 }
 
+#[cfg(feature = "lock_api")]
+impl<R, G, T> MutexExt<T> for lock_api::ReentrantMutex<R, G, T>
+where
+    R: lock_api::RawMutex,
+    G: lock_api::GetThreadId,
+{
+    type LockResult<'a>
+        = lock_api::ReentrantMutexGuard<'a, R, G, T>
+    where
+        Self: 'a;
+
+    fn lock_py_attached(&self, _py: Python<'_>) -> lock_api::ReentrantMutexGuard<'_, R, G, T> {
+        if let Some(guard) = self.try_lock() {
+            return guard;
+        }
+
+        let ts_guard = unsafe { SuspendAttach::new() };
+        let res = self.lock();
+        drop(ts_guard);
+        res
+    }
+}
+
+#[cfg(feature = "arc_lock")]
+impl<R, G, T> MutexExt<T> for std::sync::Arc<lock_api::ReentrantMutex<R, G, T>>
+where
+    R: lock_api::RawMutex,
+    G: lock_api::GetThreadId,
+{
+    type LockResult<'a>
+        = lock_api::ArcReentrantMutexGuard<R, G, T>
+    where
+        Self: 'a;
+
+    fn lock_py_attached(&self, _py: Python<'_>) -> lock_api::ArcReentrantMutexGuard<R, G, T> {
+        if let Some(guard) = self.try_lock_arc() {
+            return guard;
+        }
+
+        let ts_guard = unsafe { SuspendAttach::new() };
+        let res = self.lock_arc();
+        drop(ts_guard);
+        res
+    }
+}
+
 #[cold]
 fn init_once_py_attached<F, T>(once: &Once, _py: Python<'_>, f: F)
 where
