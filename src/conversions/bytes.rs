@@ -98,16 +98,17 @@ impl<'py> IntoPyObject<'py> for &Bytes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ffi, Python};
+    use crate::types::{PyByteArray, PyByteArrayMethods, PyBytes};
+    use crate::Python;
 
     #[test]
     fn test_bytes() {
         Python::attach(|py| {
-            let py_bytes = py.eval(ffi::c_str!("b'foobar'"), None, None).unwrap();
+            let py_bytes = PyBytes::new(py, b"foobar");
             let bytes: Bytes = py_bytes.extract().unwrap();
-            assert_eq!(bytes, Bytes::from(b"foobar".to_vec()));
+            assert_eq!(&*bytes, b"foobar");
 
-            let bytes = Bytes::from(b"foobar".to_vec()).into_pyobject(py).unwrap();
+            let bytes = Bytes::from_static(b"foobar").into_pyobject(py).unwrap();
             assert!(bytes.is_instance_of::<PyBytes>());
         });
     }
@@ -115,11 +116,14 @@ mod tests {
     #[test]
     fn test_bytearray() {
         Python::attach(|py| {
-            let py_bytearray = py
-                .eval(ffi::c_str!("bytearray(b'foobar')"), None, None)
-                .unwrap();
+            let py_bytearray = PyByteArray::new(py, b"foobar");
             let bytes: Bytes = py_bytearray.extract().unwrap();
-            assert_eq!(bytes, Bytes::from(b"foobar".to_vec()));
+            assert_eq!(&*bytes, b"foobar");
+
+            // Editing the bytearray should not change extracted Bytes
+            unsafe { py_bytearray.as_bytes_mut()[0] = b'x' };
+            assert_eq!(&bytes, "foobar");
+            assert_eq!(&py_bytearray.extract::<Vec<u8>>().unwrap(), b"xoobar");
         });
     }
 }
