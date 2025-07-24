@@ -23,7 +23,7 @@ pub const VERSION: i32 = 4;
 /// # Examples
 /// ```
 /// # use pyo3::{marshal, types::PyDict, prelude::PyDictMethods};
-/// # pyo3::Python::with_gil(|py| {
+/// # pyo3::Python::attach(|py| {
 /// let dict = PyDict::new(py);
 /// dict.set_item("aap", "noot").unwrap();
 /// dict.set_item("mies", "wim").unwrap();
@@ -40,19 +40,6 @@ pub fn dumps<'py>(object: &Bound<'py, PyAny>, version: i32) -> PyResult<Bound<'p
     }
 }
 
-/// Deprecated form of [`dumps`].
-#[deprecated(since = "0.23.0", note = "use `dumps` instead")]
-pub fn dumps_bound<'py>(
-    py: Python<'py>,
-    object: &impl crate::AsPyPointer,
-    version: i32,
-) -> PyResult<Bound<'py, PyBytes>> {
-    dumps(
-        unsafe { object.as_ptr().assume_borrowed(py) }.as_any(),
-        version,
-    )
-}
-
 /// Deserialize an object from bytes using the Python built-in marshal module.
 pub fn loads<'py, B>(py: Python<'py>, data: &B) -> PyResult<Bound<'py, PyAny>>
 where
@@ -65,12 +52,6 @@ where
     }
 }
 
-/// Deprecated form of [`loads`].
-#[deprecated(since = "0.23.0", note = "renamed to `loads`")]
-pub fn loads_bound<'py>(py: Python<'py>, data: &[u8]) -> PyResult<Bound<'py, PyAny>> {
-    loads(py, data)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -78,7 +59,7 @@ mod tests {
 
     #[test]
     fn marshal_roundtrip() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict = PyDict::new(py);
             dict.set_item("aap", "noot").unwrap();
             dict.set_item("mies", "wim").unwrap();

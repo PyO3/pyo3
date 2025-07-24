@@ -16,7 +16,7 @@ struct Cloneable {
 fn test_cloneable_pyclass() {
     let c = Cloneable { x: 10 };
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let py_c = Py::new(py, c.clone()).unwrap();
 
         let c2: Cloneable = py_c.extract(py).unwrap();
@@ -62,7 +62,7 @@ struct PolymorphicContainer {
 
 #[test]
 fn test_polymorphic_container_stores_base_class() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let p = Py::new(
             py,
             PolymorphicContainer {
@@ -77,7 +77,7 @@ fn test_polymorphic_container_stores_base_class() {
 
 #[test]
 fn test_polymorphic_container_stores_sub_class() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let p = Py::new(
             py,
             PolymorphicContainer {
@@ -103,7 +103,7 @@ fn test_polymorphic_container_stores_sub_class() {
 
 #[test]
 fn test_polymorphic_container_does_not_accept_other_types() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let p = Py::new(
             py,
             PolymorphicContainer {
@@ -112,17 +112,17 @@ fn test_polymorphic_container_does_not_accept_other_types() {
         )
         .unwrap();
 
-        let setattr = |value: PyObject| p.bind(py).setattr("inner", value);
+        let setattr = |value: Bound<'_, PyAny>| p.bind(py).setattr("inner", value);
 
-        assert!(setattr(1i32.into_py(py)).is_err());
-        assert!(setattr(py.None()).is_err());
-        assert!(setattr((1i32, 2i32).into_py(py)).is_err());
+        assert!(setattr(1i32.into_pyobject(py).unwrap().into_any()).is_err());
+        assert!(setattr(py.None().into_bound(py)).is_err());
+        assert!(setattr((1i32, 2i32).into_pyobject(py).unwrap().into_any()).is_err());
     });
 }
 
 #[test]
 fn test_pyref_as_base() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let cell = Bound::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
 
         // First try PyRefMut
@@ -142,7 +142,7 @@ fn test_pyref_as_base() {
 
 #[test]
 fn test_pycell_deref() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let obj = Bound::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
 
         // Should be able to deref as PyAny

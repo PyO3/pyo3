@@ -37,7 +37,7 @@ pub trait PyTracebackMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// # use pyo3::{Python, PyResult, prelude::PyTracebackMethods, ffi::c_str};
     /// # let result: PyResult<()> =
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let err = py
     ///         .run(c_str!("raise Exception('banana')"), None, None)
     ///         .expect_err("raise will create a Python error");
@@ -80,15 +80,16 @@ impl<'py> PyTracebackMethods<'py> for Bound<'py, PyTraceback> {
 
 #[cfg(test)]
 mod tests {
+    use crate::IntoPyObject;
     use crate::{
         ffi,
         types::{any::PyAnyMethods, dict::PyDictMethods, traceback::PyTracebackMethods, PyDict},
-        IntoPy, PyErr, Python,
+        PyErr, Python,
     };
 
     #[test]
     fn format_traceback() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err = py
                 .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error");
@@ -102,7 +103,7 @@ mod tests {
 
     #[test]
     fn test_err_from_value() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             // Produce an error from python so that it has a traceback
             py.run(
@@ -126,7 +127,7 @@ except Exception as e:
 
     #[test]
     fn test_err_into_py() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             // Produce an error from python so that it has a traceback
             py.run(
@@ -143,7 +144,7 @@ def f():
             let f = locals.get_item("f").unwrap().unwrap();
             let err = f.call0().unwrap_err();
             let traceback = err.traceback(py).unwrap();
-            let err_object = err.clone_ref(py).into_py(py).into_bound(py);
+            let err_object = err.clone_ref(py).into_pyobject(py).unwrap();
 
             assert!(err_object.getattr("__traceback__").unwrap().is(&traceback));
         })

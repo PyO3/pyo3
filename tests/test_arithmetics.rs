@@ -1,8 +1,8 @@
 #![cfg(feature = "macros")]
 
 use pyo3::class::basic::CompareOp;
-use pyo3::prelude::*;
 use pyo3::py_run;
+use pyo3::{prelude::*, BoundObject};
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -47,7 +47,7 @@ impl UnaryArithmetic {
 
 #[test]
 fn unary_arithmetic() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Py::new(py, UnaryArithmetic::new(2.7)).unwrap();
         py_run!(py, c, "assert repr(-c) == 'UA(-2.7)'");
         py_run!(py, c, "assert repr(+c) == 'UA(2.7)'");
@@ -91,7 +91,7 @@ impl Indexable {
 
 #[test]
 fn indexable() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let i = Py::new(py, Indexable(5)).unwrap();
         py_run!(py, i, "assert int(i) == 5");
         py_run!(py, i, "assert [0, 1, 2, 3, 4, 5][i] == 5");
@@ -150,7 +150,7 @@ impl InPlaceOperations {
 
 #[test]
 fn inplace_operations() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let init = |value, code| {
             let c = Py::new(py, InPlaceOperations { value }).unwrap();
             py_run!(py, c, code);
@@ -182,65 +182,65 @@ impl BinaryArithmetic {
     }
 
     fn __add__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA + {:?}", rhs)
+        format!("BA + {rhs:?}")
     }
 
     fn __sub__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA - {:?}", rhs)
+        format!("BA - {rhs:?}")
     }
 
     fn __mul__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA * {:?}", rhs)
+        format!("BA * {rhs:?}")
     }
 
     fn __matmul__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA @ {:?}", rhs)
+        format!("BA @ {rhs:?}")
     }
 
     fn __truediv__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA / {:?}", rhs)
+        format!("BA / {rhs:?}")
     }
 
     fn __floordiv__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA // {:?}", rhs)
+        format!("BA // {rhs:?}")
     }
 
     fn __mod__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA % {:?}", rhs)
+        format!("BA % {rhs:?}")
     }
 
     fn __divmod__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("divmod(BA, {:?})", rhs)
+        format!("divmod(BA, {rhs:?})")
     }
 
     fn __lshift__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA << {:?}", rhs)
+        format!("BA << {rhs:?}")
     }
 
     fn __rshift__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA >> {:?}", rhs)
+        format!("BA >> {rhs:?}")
     }
 
     fn __and__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA & {:?}", rhs)
+        format!("BA & {rhs:?}")
     }
 
     fn __xor__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA ^ {:?}", rhs)
+        format!("BA ^ {rhs:?}")
     }
 
     fn __or__(&self, rhs: &Bound<'_, PyAny>) -> String {
-        format!("BA | {:?}", rhs)
+        format!("BA | {rhs:?}")
     }
 
     fn __pow__(&self, rhs: &Bound<'_, PyAny>, mod_: Option<u32>) -> String {
-        format!("BA ** {:?} (mod: {:?})", rhs, mod_)
+        format!("BA ** {rhs:?} (mod: {mod_:?})")
     }
 }
 
 #[test]
 fn binary_arithmetic() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Py::new(py, BinaryArithmetic {}).unwrap();
         py_run!(py, c, "assert c + c == 'BA + BA'");
         py_run!(py, c, "assert c.__add__(c) == 'BA + BA'");
@@ -303,45 +303,45 @@ struct RhsArithmetic {}
 #[pymethods]
 impl RhsArithmetic {
     fn __radd__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} + RA", other)
+        format!("{other:?} + RA")
     }
 
     fn __rsub__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} - RA", other)
+        format!("{other:?} - RA")
     }
 
     fn __rmul__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} * RA", other)
+        format!("{other:?} * RA")
     }
 
     fn __rlshift__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} << RA", other)
+        format!("{other:?} << RA")
     }
 
     fn __rrshift__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} >> RA", other)
+        format!("{other:?} >> RA")
     }
 
     fn __rand__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} & RA", other)
+        format!("{other:?} & RA")
     }
 
     fn __rxor__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} ^ RA", other)
+        format!("{other:?} ^ RA")
     }
 
     fn __ror__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} | RA", other)
+        format!("{other:?} | RA")
     }
 
     fn __rpow__(&self, other: &Bound<'_, PyAny>, _mod: Option<&Bound<'_, PyAny>>) -> String {
-        format!("{:?} ** RA", other)
+        format!("{other:?} ** RA")
     }
 }
 
 #[test]
 fn rhs_arithmetic() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Py::new(py, RhsArithmetic {}).unwrap();
         py_run!(py, c, "assert c.__radd__(1) == '1 + RA'");
         py_run!(py, c, "assert 1 + c == '1 + RA'");
@@ -380,97 +380,97 @@ impl LhsAndRhs {
     // }
 
     fn __add__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
-        format!("{:?} + {:?}", lhs, rhs)
+        format!("{lhs:?} + {rhs:?}")
     }
 
     fn __sub__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
-        format!("{:?} - {:?}", lhs, rhs)
+        format!("{lhs:?} - {rhs:?}")
     }
 
     fn __mul__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
-        format!("{:?} * {:?}", lhs, rhs)
+        format!("{lhs:?} * {rhs:?}")
     }
 
     fn __lshift__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
-        format!("{:?} << {:?}", lhs, rhs)
+        format!("{lhs:?} << {rhs:?}")
     }
 
     fn __rshift__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
-        format!("{:?} >> {:?}", lhs, rhs)
+        format!("{lhs:?} >> {rhs:?}")
     }
 
     fn __and__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
-        format!("{:?} & {:?}", lhs, rhs)
+        format!("{lhs:?} & {rhs:?}")
     }
 
     fn __xor__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
-        format!("{:?} ^ {:?}", lhs, rhs)
+        format!("{lhs:?} ^ {rhs:?}")
     }
 
     fn __or__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
-        format!("{:?} | {:?}", lhs, rhs)
+        format!("{lhs:?} | {rhs:?}")
     }
 
     fn __pow__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>, _mod: Option<usize>) -> String {
-        format!("{:?} ** {:?}", lhs, rhs)
+        format!("{lhs:?} ** {rhs:?}")
     }
 
     fn __matmul__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
-        format!("{:?} @ {:?}", lhs, rhs)
+        format!("{lhs:?} @ {rhs:?}")
     }
 
     fn __radd__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} + RA", other)
+        format!("{other:?} + RA")
     }
 
     fn __rsub__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} - RA", other)
+        format!("{other:?} - RA")
     }
 
     fn __rmul__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} * RA", other)
+        format!("{other:?} * RA")
     }
 
     fn __rlshift__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} << RA", other)
+        format!("{other:?} << RA")
     }
 
     fn __rrshift__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} >> RA", other)
+        format!("{other:?} >> RA")
     }
 
     fn __rand__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} & RA", other)
+        format!("{other:?} & RA")
     }
 
     fn __rxor__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} ^ RA", other)
+        format!("{other:?} ^ RA")
     }
 
     fn __ror__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} | RA", other)
+        format!("{other:?} | RA")
     }
 
     fn __rpow__(&self, other: &Bound<'_, PyAny>, _mod: Option<&Bound<'_, PyAny>>) -> String {
-        format!("{:?} ** RA", other)
+        format!("{other:?} ** RA")
     }
 
     fn __rmatmul__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} @ RA", other)
+        format!("{other:?} @ RA")
     }
 
     fn __rtruediv__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} / RA", other)
+        format!("{other:?} / RA")
     }
 
     fn __rfloordiv__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{:?} // RA", other)
+        format!("{other:?} // RA")
     }
 }
 
 #[test]
 fn lhs_fellback_to_rhs() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Py::new(py, LhsAndRhs {}).unwrap();
         // If the light hand value is `LhsAndRhs`, LHS is used.
         py_run!(py, c, "assert c + 1 == 'LR + 1'");
@@ -527,18 +527,26 @@ impl RichComparisons2 {
         "RC2"
     }
 
-    fn __richcmp__(&self, other: &Bound<'_, PyAny>, op: CompareOp) -> PyObject {
+    fn __richcmp__(&self, other: &Bound<'_, PyAny>, op: CompareOp) -> PyResult<PyObject> {
         match op {
-            CompareOp::Eq => true.into_py(other.py()),
-            CompareOp::Ne => false.into_py(other.py()),
-            _ => other.py().NotImplemented(),
+            CompareOp::Eq => true
+                .into_pyobject(other.py())
+                .map_err(Into::into)
+                .map(BoundObject::into_any)
+                .map(BoundObject::unbind),
+            CompareOp::Ne => false
+                .into_pyobject(other.py())
+                .map_err(Into::into)
+                .map(BoundObject::into_any)
+                .map(BoundObject::unbind),
+            _ => Ok(other.py().NotImplemented()),
         }
     }
 }
 
 #[test]
 fn rich_comparisons() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Py::new(py, RichComparisons {}).unwrap();
         py_run!(py, c, "assert (c < c) == 'RC < RC'");
         py_run!(py, c, "assert (c < 1) == 'RC < 1'");
@@ -563,7 +571,7 @@ fn rich_comparisons() {
 
 #[test]
 fn rich_comparisons_python_3_type_error() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c2 = Py::new(py, RichComparisons2 {}).unwrap();
         py_expect_exception!(py, c2, "c2 < c2", PyTypeError);
         py_expect_exception!(py, c2, "c2 < 1", PyTypeError);
@@ -664,15 +672,12 @@ mod return_not_implemented {
     }
 
     fn _test_binary_dunder(dunder: &str) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let c2 = Py::new(py, RichComparisonToSelf {}).unwrap();
             py_run!(
                 py,
                 c2,
-                &format!(
-                    "class Other: pass\nassert c2.__{}__(Other()) is NotImplemented",
-                    dunder
-                )
+                &format!("class Other: pass\nassert c2.__{dunder}__(Other()) is NotImplemented")
             );
         });
     }
@@ -680,7 +685,7 @@ mod return_not_implemented {
     fn _test_binary_operator(operator: &str, dunder: &str) {
         _test_binary_dunder(dunder);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let c2 = Py::new(py, RichComparisonToSelf {}).unwrap();
             py_expect_exception!(
                 py,

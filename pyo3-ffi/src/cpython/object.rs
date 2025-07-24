@@ -211,8 +211,6 @@ pub type printfunc =
 #[derive(Debug)]
 pub struct PyTypeObject {
     pub ob_base: object::PyVarObject,
-    #[cfg(GraalPy)]
-    pub ob_size: Py_ssize_t,
     pub tp_name: *const c_char,
     pub tp_basicsize: Py_ssize_t,
     pub tp_itemsize: Py_ssize_t,
@@ -312,10 +310,14 @@ pub struct PyHeapTypeObject {
     pub ht_cached_keys: *mut c_void,
     #[cfg(Py_3_9)]
     pub ht_module: *mut object::PyObject,
-    #[cfg(Py_3_11)]
+    #[cfg(all(Py_3_11, not(PyPy)))]
     _ht_tpname: *mut c_char,
-    #[cfg(Py_3_11)]
+    #[cfg(Py_3_14)]
+    pub ht_token: *mut c_void,
+    #[cfg(all(Py_3_11, not(PyPy)))]
     _spec_cache: _specialization_cache,
+    #[cfg(all(Py_GIL_DISABLED, Py_3_14))]
+    pub unique_id: Py_ssize_t,
 }
 
 impl Default for PyHeapTypeObject {

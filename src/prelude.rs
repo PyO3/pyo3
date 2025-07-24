@@ -8,9 +8,7 @@
 //! use pyo3::prelude::*;
 //! ```
 
-#[allow(deprecated)]
-pub use crate::conversion::ToPyObject;
-pub use crate::conversion::{FromPyObject, IntoPy, IntoPyObject};
+pub use crate::conversion::{FromPyObject, IntoPyObject};
 pub use crate::err::{PyErr, PyResult};
 pub use crate::instance::{Borrowed, Bound, Py, PyObject};
 pub use crate::marker::Python;
@@ -19,13 +17,12 @@ pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::types::{PyAny, PyModule};
 
 #[cfg(feature = "macros")]
-pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, FromPyObject};
+pub use pyo3_macros::{
+    pyclass, pyfunction, pymethods, pymodule, FromPyObject, IntoPyObject, IntoPyObjectRef,
+};
 
 #[cfg(feature = "macros")]
 pub use crate::wrap_pyfunction;
-#[cfg(feature = "macros")]
-#[allow(deprecated)]
-pub use crate::wrap_pyfunction_bound;
 
 pub use crate::types::any::PyAnyMethods;
 pub use crate::types::boolobject::PyBoolMethods;
@@ -38,6 +35,7 @@ pub use crate::types::float::PyFloatMethods;
 pub use crate::types::frozenset::PyFrozenSetMethods;
 pub use crate::types::list::PyListMethods;
 pub use crate::types::mapping::PyMappingMethods;
+pub use crate::types::mappingproxy::PyMappingProxyMethods;
 pub use crate::types::module::PyModuleMethods;
 pub use crate::types::sequence::PySequenceMethods;
 pub use crate::types::set::PySetMethods;

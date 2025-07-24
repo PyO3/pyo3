@@ -21,7 +21,7 @@
 //! Using [`BigInt`] to correctly increment an arbitrary precision integer.
 //! This is not possible with Rust's native integers if the Python integer is too large,
 //! in which case it will fail its conversion and raise `OverflowError`.
-//! ```rust
+//! ```rust,no_run
 //! use num_bigint::BigInt;
 //! use pyo3::prelude::*;
 //!
@@ -49,14 +49,12 @@
 
 #[cfg(Py_LIMITED_API)]
 use crate::types::{bytes::PyBytesMethods, PyBytes};
-#[allow(deprecated)]
-use crate::ToPyObject;
 use crate::{
     conversion::IntoPyObject,
     ffi,
     instance::Bound,
     types::{any::PyAnyMethods, PyInt},
-    FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    FromPyObject, Py, PyAny, PyErr, PyResult, Python,
 };
 
 use num_bigint::{BigInt, BigUint};
@@ -67,23 +65,6 @@ use num_bigint::Sign;
 // for identical functionality between BigInt and BigUint
 macro_rules! bigint_conversion {
     ($rust_ty: ty, $is_signed: literal, $to_bytes: path) => {
-        #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
-        #[allow(deprecated)]
-        impl ToPyObject for $rust_ty {
-            #[inline]
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-
-        #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
-        impl IntoPy<PyObject> for $rust_ty {
-            #[inline]
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-
         #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
         impl<'py> IntoPyObject<'py> for $rust_ty {
             type Target = PyInt;
@@ -158,7 +139,7 @@ impl<'py> FromPyObject<'py> for BigInt {
         #[cfg(not(Py_LIMITED_API))]
         {
             let mut buffer = int_to_u32_vec::<true>(num)?;
-            let sign = if buffer.last().copied().map_or(false, |last| last >> 31 != 0) {
+            let sign = if buffer.last().copied().is_some_and(|last| last >> 31 != 0) {
                 // BigInt::new takes an unsigned array, so need to convert from two's complement
                 // flip all bits, 'subtract' 1 (by adding one to the unsigned array)
                 let mut elements = buffer.iter_mut();
@@ -214,7 +195,7 @@ impl<'py> FromPyObject<'py> for BigUint {
             if n_bits == 0 {
                 return Ok(BigUint::from(0usize));
             }
-            let bytes = int_to_py_bytes(num, (n_bits + 7) / 8, false)?;
+            let bytes = int_to_py_bytes(num, n_bits.div_ceil(8), false)?;
             Ok(BigUint::from_bytes_le(bytes.as_bytes()))
         }
     }
@@ -231,7 +212,7 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
     let n_digits = if SIGNED {
         (n_bits + 32) / 32
     } else {
-        (n_bits + 31) / 32
+        n_bits.div_ceil(32)
     };
     buffer.reserve_exact(n_digits);
     unsafe {
@@ -270,11 +251,7 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
     if n_bytes == 0 {
         return Ok(buffer);
     }
-    // TODO: use div_ceil when MSRV >= 1.73
-    let n_digits = {
-        let adjust = if n_bytes % 4 == 0 { 0 } else { 1 };
-        (n_bytes_unsigned / 4) + adjust
-    };
+    let n_digits = n_bytes_unsigned.div_ceil(4);
     buffer.reserve_exact(n_digits);
     unsafe {
         ffi::PyLong_AsNativeBytes(
@@ -369,7 +346,7 @@ mod tests {
 
     #[test]
     fn convert_biguint() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // check the first 2000 numbers in the fibonacci sequence
             for (py_result, rs_result) in python_fib(py).zip(rust_fib::<BigUint>()).take(2000) {
                 // Python -> Rust
@@ -382,7 +359,7 @@ mod tests {
 
     #[test]
     fn convert_bigint() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // check the first 2000 numbers in the fibonacci sequence
             for (py_result, rs_result) in python_fib(py).zip(rust_fib::<BigInt>()).take(2000) {
                 // Python -> Rust
@@ -424,7 +401,7 @@ mod tests {
 
     #[test]
     fn convert_index_class() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let index = python_index_class(py);
             let locals = PyDict::new(py);
             locals.set_item("index", index).unwrap();
@@ -437,7 +414,7 @@ mod tests {
 
     #[test]
     fn handle_zero() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let zero: BigInt = 0i32.into_pyobject(py).unwrap().extract().unwrap();
             assert_eq!(zero, BigInt::from(0));
         })
@@ -446,13 +423,13 @@ mod tests {
     /// `OverflowError` on converting Python int to BigInt, see issue #629
     #[test]
     fn check_overflow() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             macro_rules! test {
                 ($T:ty, $value:expr, $py:expr) => {
                     let value = $value;
                     println!("{}: {}", stringify!($T), value);
-                    let python_value = value.clone().into_py(py);
-                    let roundtrip_value = python_value.extract::<$T>(py).unwrap();
+                    let python_value = value.clone().into_pyobject(py).unwrap();
+                    let roundtrip_value = python_value.extract::<$T>().unwrap();
                     assert_eq!(value, roundtrip_value);
                 };
             }

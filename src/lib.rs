@@ -1,6 +1,10 @@
 #![warn(missing_docs)]
-#![cfg_attr(feature = "nightly", feature(auto_traits, negative_impls))]
+#![cfg_attr(
+    feature = "nightly",
+    feature(auto_traits, negative_impls, try_trait_v2, iter_advance_by)
+)]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![warn(unsafe_op_in_unsafe_fn)]
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
 #![doc(test(attr(
@@ -11,6 +15,7 @@
         warnings
     ),
     allow(
+        unused_imports,  // to make imports already in the prelude explicit
         unused_variables,
         unused_assignments,
         unused_extern_crates,
@@ -86,7 +91,7 @@
 //!
 //! - `abi3`: Restricts PyO3's API to a subset of the full Python API which is guaranteed by
 //! [PEP 384] to be forward-compatible with future Python versions.
-//! - `auto-initialize`: Changes [`Python::with_gil`] to automatically initialize the Python
+//! - `auto-initialize`: Changes [`Python::attach`] to automatically initialize the Python
 //! interpreter if needed.
 //! - `extension-module`: This will tell the linker to keep the Python symbols unresolved, so that
 //! your module can also be used with statically linked Python interpreters. Use this feature when
@@ -109,6 +114,7 @@
 //! - [`num-complex`]: Enables conversions between Python objects and [num-complex]'s [`Complex`]
 //!  type.
 //! - [`num-rational`]: Enables conversions between Python's fractions.Fraction and [num-rational]'s types
+//! - [`ordered-float`]: Enables conversions between Python's float and [ordered-float]'s types
 //! - [`rust_decimal`]: Enables conversions between Python's decimal.Decimal and [rust_decimal]'s
 //! [`Decimal`] type.
 //! - [`serde`]: Allows implementing [serde]'s [`Serialize`] and [`Deserialize`] traits for
@@ -120,14 +126,25 @@
 //! - `nightly`: Uses  `#![feature(auto_traits, negative_impls)]` to define [`Ungil`] as an auto trait.
 //
 //! ## `rustc` environment flags
-//!
-//! PyO3 uses `rustc`'s `--cfg` flags to enable or disable code used for different Python versions.
-//! If you want to do this for your own crate, you can do so with the [`pyo3-build-config`] crate.
-//!
-//! - `Py_3_7`, `Py_3_8`, `Py_3_9`, `Py_3_10`: Marks code that is only enabled when
-//!  compiling for a given minimum Python version.
+//! - `Py_3_7`, `Py_3_8`, `Py_3_9`, `Py_3_10`, `Py_3_11`, `Py_3_12`, `Py_3_13`: Marks code that is
+//!    only enabled when compiling for a given minimum Python version.
 //! - `Py_LIMITED_API`: Marks code enabled when the `abi3` feature flag is enabled.
+//! - `Py_GIL_DISABLED`: Marks code that runs only in the free-threaded build of CPython.
 //! - `PyPy` - Marks code enabled when compiling for PyPy.
+//! - `GraalPy` - Marks code enabled when compiling for GraalPy.
+//!
+//! Additionally, you can query for the values `Py_DEBUG`, `Py_REF_DEBUG`,
+//! `Py_TRACE_REFS`, and `COUNT_ALLOCS` from `py_sys_config` to query for the
+//! corresponding C build-time defines. For example, to conditionally define
+//! debug code using `Py_DEBUG`, you could do:
+//!
+//! ```rust,ignore
+//! #[cfg(py_sys_config = "Py_DEBUG")]
+//! println!("only runs if python was compiled with Py_DEBUG")
+//! ```
+//! To use these attributes, add [`pyo3-build-config`] as a build dependency in
+//! your `Cargo.toml` and call `pyo3_build_config::use_pyo3_cfgs()` in a
+//! `build.rs` file.
 //!
 //! # Minimum supported Rust and Python versions
 //!
@@ -170,7 +187,7 @@
 //! ```
 //!
 //! **`src/lib.rs`**
-//! ```rust
+//! ```rust,no_run
 //! use pyo3::prelude::*;
 //!
 //! /// Formats the sum of two numbers as string.
@@ -238,7 +255,7 @@
 //! use pyo3::ffi::c_str;
 //!
 //! fn main() -> PyResult<()> {
-//!     Python::with_gil(|py| {
+//!     Python::attach(|py| {
 //!         let sys = py.import("sys")?;
 //!         let version: String = sys.getattr("version")?.extract()?;
 //!
@@ -272,6 +289,7 @@
 //! [`HashMap`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashMap.html
 //! [`HashSet`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html
 //! [`SmallVec`]: https://docs.rs/smallvec/latest/smallvec/struct.SmallVec.html
+//! [`Uuid`]: https://docs.rs/uuid/latest/uuid/struct.Uuid.html
 //! [`IndexMap`]: https://docs.rs/indexmap/latest/indexmap/map/struct.IndexMap.html
 //! [`BigInt`]: https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html
 //! [`BigUint`]: https://docs.rs/num-bigint/latest/num_bigint/struct.BigUint.html
@@ -294,6 +312,7 @@
 //! [`num-bigint`]: ./num_bigint/index.html "Documentation about the `num-bigint` feature."
 //! [`num-complex`]: ./num_complex/index.html "Documentation about the `num-complex` feature."
 //! [`num-rational`]: ./num_rational/index.html "Documentation about the `num-rational` feature."
+//! [`ordered-float`]: ./ordered_float/index.html "Documentation about the `ordered-float` feature."
 //! [`pyo3-build-config`]: https://docs.rs/pyo3-build-config
 //! [rust_decimal]: https://docs.rs/rust_decimal
 //! [`rust_decimal`]: ./rust_decimal/index.html "Documenation about the `rust_decimal` feature."
@@ -305,11 +324,13 @@
 //! [global interpreter lock]: https://docs.python.org/3/glossary.html#term-global-interpreter-lock
 //! [hashbrown]: https://docs.rs/hashbrown
 //! [smallvec]: https://docs.rs/smallvec
+//! [uuid]: https://docs.rs/uuid
 //! [indexmap]: https://docs.rs/indexmap
 #![doc = concat!("[manual_builds]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/building-and-distribution.html#manual-builds \"Manual builds - Building and Distribution - PyO3 user guide\"")]
 //! [num-bigint]: https://docs.rs/num-bigint
 //! [num-complex]: https://docs.rs/num-complex
 //! [num-rational]: https://docs.rs/num-rational
+//! [ordered-float]: https://docs.rs/ordered-float
 //! [serde]: https://docs.rs/serde
 //! [setuptools-rust]: https://github.com/PyO3/setuptools-rust "Setuptools plugin for Rust extensions"
 //! [the guide]: https://pyo3.rs "PyO3 user guide"
@@ -320,13 +341,13 @@
 #![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features Reference - PyO3 user guide\"")]
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
-#[allow(deprecated)]
-pub use crate::conversion::ToPyObject;
-pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, IntoPyObject};
+pub use crate::conversion::{FromPyObject, IntoPyObject, IntoPyObjectExt};
 pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
-#[cfg(not(any(PyPy, GraalPy)))]
-pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
 pub use crate::instance::{Borrowed, Bound, BoundObject, Py, PyObject};
+#[cfg(not(any(PyPy, GraalPy)))]
+pub use crate::interpreter_lifecycle::{
+    prepare_freethreaded_python, with_embedded_python_interpreter,
+};
 pub use crate::marker::Python;
 pub use crate::pycell::{PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;
@@ -348,26 +369,6 @@ pub(crate) mod sealed;
 /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
 pub mod class {
     pub use self::gc::{PyTraverseError, PyVisit};
-
-    pub use self::methods::*;
-
-    #[doc(hidden)]
-    pub mod methods {
-        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
-        pub type IPowModulo = crate::impl_::pymethods::IPowModulo;
-        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
-        pub type PyClassAttributeDef = crate::impl_::pymethods::PyClassAttributeDef;
-        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
-        pub type PyGetterDef = crate::impl_::pymethods::PyGetterDef;
-        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
-        pub type PyMethodDef = crate::impl_::pymethods::PyMethodDef;
-        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
-        pub type PyMethodDefType = crate::impl_::pymethods::PyMethodDefType;
-        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
-        pub type PyMethodType = crate::impl_::pymethods::PyMethodType;
-        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
-        pub type PySetterDef = crate::impl_::pymethods::PySetterDef;
-    }
 
     /// Old module which contained some implementation details of the `#[pyproto]` module.
     ///
@@ -414,6 +415,7 @@ mod internal_tricks;
 mod internal;
 
 pub mod buffer;
+pub mod call;
 pub mod conversion;
 mod conversions;
 #[cfg(feature = "experimental-async")]
@@ -421,10 +423,10 @@ pub mod coroutine;
 mod err;
 pub mod exceptions;
 pub mod ffi;
-mod gil;
 #[doc(hidden)]
 pub mod impl_;
 mod instance;
+mod interpreter_lifecycle;
 pub mod marker;
 pub mod marshal;
 #[macro_use]
@@ -443,7 +445,9 @@ mod version;
 pub use crate::conversions::*;
 
 #[cfg(feature = "macros")]
-pub use pyo3_macros::{pyfunction, pymethods, pymodule, FromPyObject};
+pub use pyo3_macros::{
+    pyfunction, pymethods, pymodule, FromPyObject, IntoPyObject, IntoPyObjectRef,
+};
 
 /// A proc macro used to expose Rust structs and fieldless enums as Python objects.
 ///
@@ -490,6 +494,7 @@ pub mod doc_test {
         "guide/src/class/object.md" => guide_class_object,
         "guide/src/class/numeric.md" => guide_class_numeric,
         "guide/src/class/protocols.md" => guide_class_protocols_md,
+        "guide/src/class/thread-safety.md" => guide_class_thread_safety_md,
         "guide/src/conversions.md" => guide_conversions_md,
         "guide/src/conversions/tables.md" => guide_conversions_tables_md,
         "guide/src/conversions/traits.md" => guide_conversions_traits_md,
@@ -501,6 +506,7 @@ pub mod doc_test {
         "guide/src/exception.md" => guide_exception_md,
         "guide/src/faq.md" => guide_faq_md,
         "guide/src/features.md" => guide_features_md,
+        "guide/src/free-threading.md" => guide_free_threading_md,
         "guide/src/function.md" => guide_function_md,
         "guide/src/function/error-handling.md" => guide_function_error_handling_md,
         "guide/src/function/signature.md" => guide_function_signature_md,

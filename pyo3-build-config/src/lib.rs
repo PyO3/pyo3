@@ -16,9 +16,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use std::{env, process::Command, str::FromStr};
-
-use once_cell::sync::OnceCell;
+use std::{env, process::Command, str::FromStr, sync::OnceLock};
 
 pub use impl_::{
     cross_compiling_from_to, find_all_sysconfigdata, parse_sysconfigdata, BuildFlag, BuildFlags,
@@ -46,7 +44,7 @@ use target_lexicon::OperatingSystem;
 pub fn use_pyo3_cfgs() {
     print_expected_cfgs();
     for cargo_command in get().build_script_outputs() {
-        println!("{}", cargo_command)
+        println!("{cargo_command}")
     }
 }
 
@@ -65,7 +63,7 @@ pub fn add_extension_module_link_args() {
 }
 
 fn _add_extension_module_link_args(triple: &Triple, mut writer: impl std::io::Write) {
-    if triple.operating_system == OperatingSystem::Darwin {
+    if matches!(triple.operating_system, OperatingSystem::Darwin(_)) {
         writeln!(writer, "cargo:rustc-cdylib-link-arg=-undefined").unwrap();
         writeln!(writer, "cargo:rustc-cdylib-link-arg=dynamic_lookup").unwrap();
     } else if triple == &Triple::from_str("wasm32-unknown-emscripten").unwrap() {
@@ -74,12 +72,45 @@ fn _add_extension_module_link_args(triple: &Triple, mut writer: impl std::io::Wr
     }
 }
 
+/// Adds linker arguments suitable for linking against the Python framework on macOS.
+///
+/// This should be called from a build script.
+///
+/// The following link flags are added:
+/// - macOS: `-Wl,-rpath,<framework_prefix>`
+///
+/// All other platforms currently are no-ops.
+#[cfg(feature = "resolve-config")]
+pub fn add_python_framework_link_args() {
+    let interpreter_config = pyo3_build_script_impl::resolve_interpreter_config().unwrap();
+    _add_python_framework_link_args(
+        &interpreter_config,
+        &impl_::target_triple_from_env(),
+        impl_::is_linking_libpython(),
+        std::io::stdout(),
+    )
+}
+
+#[cfg(feature = "resolve-config")]
+fn _add_python_framework_link_args(
+    interpreter_config: &InterpreterConfig,
+    triple: &Triple,
+    link_libpython: bool,
+    mut writer: impl std::io::Write,
+) {
+    if matches!(triple.operating_system, OperatingSystem::Darwin(_)) && link_libpython {
+        if let Some(framework_prefix) = interpreter_config.python_framework_prefix.as_ref() {
+            writeln!(writer, "cargo:rustc-link-arg=-Wl,-rpath,{framework_prefix}").unwrap();
+        }
+    }
+}
+
 /// Loads the configuration determined from the build environment.
 ///
-/// Because this will never change in a given compilation run, this is cached in a `once_cell`.
+/// Because this will never change in a given compilation run, this is cached in a `OnceLock`.
 #[cfg(feature = "resolve-config")]
 pub fn get() -> &'static InterpreterConfig {
-    static CONFIG: OnceCell<InterpreterConfig> = OnceCell::new();
+    static CONFIG: OnceLock<InterpreterConfig> = OnceLock::new();
     CONFIG.get_or_init(|| {
         // Check if we are in a build script and cross compiling to a different target.
         let cross_compile_config_path = resolve_cross_compile_config_path();
@@ -130,28 +161,32 @@ fn resolve_cross_compile_config_path() -> Option<PathBuf> {
     })
 }
 
+/// Helper to print a feature cfg with a minimum rust version required.
+fn print_feature_cfg(minor_version_required: u32, cfg: &str) {
+    let minor_version = rustc_minor_version().unwrap_or(0);
+
+    if minor_version >= minor_version_required {
+        println!("cargo:rustc-cfg={cfg}");
+    }
+
+    // rustc 1.80.0 stabilized `rustc-check-cfg` feature, don't emit before
+    if minor_version >= 80 {
+        println!("cargo:rustc-check-cfg=cfg({cfg})");
+    }
+}
+
 /// Use certain features if we detect the compiler being used supports them.
 ///
 /// Features may be removed or added as MSRV gets bumped or new features become available,
 /// so this function is unstable.
 #[doc(hidden)]
 pub fn print_feature_cfgs() {
-    let rustc_minor_version = rustc_minor_version().unwrap_or(0);
-
-    // invalid_from_utf8 lint was added in Rust 1.74
-    if rustc_minor_version >= 74 {
-        println!("cargo:rustc-cfg=invalid_from_utf8_lint");
-    }
-
-    if rustc_minor_version >= 79 {
-        println!("cargo:rustc-cfg=c_str_lit");
-    }
-
+    print_feature_cfg(79, "c_str_lit");
     // Actually this is available on 1.78, but we should avoid
     // https://github.com/rust-lang/rust/issues/124651 just in case
-    if rustc_minor_version >= 79 {
-        println!("cargo:rustc-cfg=diagnostic_namespace");
-    }
+    print_feature_cfg(79, "diagnostic_namespace");
+    print_feature_cfg(83, "io_error_more");
+    print_feature_cfg(85, "fn_ptr_eq");
 }
 
 /// Registers `pyo3`s config names as reachable cfg expressions
@@ -160,7 +195,7 @@ pub fn print_feature_cfgs() {
 /// - <https://doc.rust-lang.org/nightly/cargo/reference/build-scripts.html#rustc-check-cfg>
 #[doc(hidden)]
 pub fn print_expected_cfgs() {
-    if rustc_minor_version().map_or(false, |version| version < 80) {
+    if rustc_minor_version().is_some_and(|version| version < 80) {
         // rustc 1.80.0 stabilized `rustc-check-cfg` feature, don't emit before
         return;
     }
@@ -170,11 +205,8 @@ pub fn print_expected_cfgs() {
     println!("cargo:rustc-check-cfg=cfg(PyPy)");
     println!("cargo:rustc-check-cfg=cfg(GraalPy)");
     println!("cargo:rustc-check-cfg=cfg(py_sys_config, values(\"Py_DEBUG\", \"Py_REF_DEBUG\", \"Py_TRACE_REFS\", \"COUNT_ALLOCS\"))");
-    println!("cargo:rustc-check-cfg=cfg(invalid_from_utf8_lint)");
     println!("cargo:rustc-check-cfg=cfg(pyo3_disable_reference_pool)");
     println!("cargo:rustc-check-cfg=cfg(pyo3_leak_on_drop_without_reference_pool)");
-    println!("cargo:rustc-check-cfg=cfg(diagnostic_namespace)");
-    println!("cargo:rustc-check-cfg=cfg(c_str_lit)");
 
     // allow `Py_3_*` cfgs from the minimum supported version up to the
     // maximum minor version (+1 for development for the next)
@@ -242,7 +274,7 @@ pub mod pyo3_build_script_impl {
 }
 
 fn rustc_minor_version() -> Option<u32> {
-    static RUSTC_MINOR_VERSION: OnceCell<Option<u32>> = OnceCell::new();
+    static RUSTC_MINOR_VERSION: OnceLock<Option<u32>> = OnceLock::new();
     *RUSTC_MINOR_VERSION.get_or_init(|| {
         let rustc = env::var_os("RUSTC")?;
         let output = Command::new(rustc).arg("--version").output().ok()?;
@@ -289,6 +321,51 @@ mod tests {
             std::str::from_utf8(&buf).unwrap(),
             "cargo:rustc-cdylib-link-arg=-sSIDE_MODULE=2\n\
              cargo:rustc-cdylib-link-arg=-sWASM_BIGINT\n"
+        );
+    }
+
+    #[cfg(feature = "resolve-config")]
+    #[test]
+    fn python_framework_link_args() {
+        let mut buf = Vec::new();
+
+        let interpreter_config = InterpreterConfig {
+            implementation: PythonImplementation::CPython,
+            version: PythonVersion {
+                major: 3,
+                minor: 13,
+            },
+            shared: true,
+            abi3: false,
+            lib_name: None,
+            lib_dir: None,
+            executable: None,
+            pointer_width: None,
+            build_flags: BuildFlags::default(),
+            suppress_build_script_link_lines: false,
+            extra_build_script_lines: vec![],
+            python_framework_prefix: Some(
+                "/Applications/Xcode.app/Contents/Developer/Library/Frameworks".to_string(),
+            ),
+        };
+        // Does nothing on non-mac
+        _add_python_framework_link_args(
+            &interpreter_config,
+            &Triple::from_str("x86_64-pc-windows-msvc").unwrap(),
+            true,
+            &mut buf,
+        );
+        assert_eq!(buf, Vec::new());
+
+        _add_python_framework_link_args(
+            &interpreter_config,
+            &Triple::from_str("x86_64-apple-darwin").unwrap(),
+            true,
+            &mut buf,
+        );
+        assert_eq!(
+            std::str::from_utf8(&buf).unwrap(),
+            "cargo:rustc-link-arg=-Wl,-rpath,/Applications/Xcode.app/Contents/Developer/Library/Frameworks\n"
         );
     }
 }

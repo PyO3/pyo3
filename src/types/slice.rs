@@ -2,9 +2,8 @@ use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::types::any::PyAnyMethods;
-#[allow(deprecated)]
-use crate::ToPyObject;
-use crate::{Bound, IntoPyObject, PyAny, PyObject, Python};
+use crate::types::{PyRange, PyRangeMethods};
+use crate::{Bound, IntoPyObject, PyAny, Python};
 use std::convert::Infallible;
 
 /// Represents a Python `slice`.
@@ -69,13 +68,6 @@ impl PySlice {
         }
     }
 
-    /// Deprecated name for [`PySlice::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PySlice::new`")]
-    #[inline]
-    pub fn new_bound(py: Python<'_>, start: isize, stop: isize, step: isize) -> Bound<'_, PySlice> {
-        Self::new(py, start, stop, step)
-    }
-
     /// Constructs a new full slice that is equivalent to `::`.
     pub fn full(py: Python<'_>) -> Bound<'_, PySlice> {
         unsafe {
@@ -83,13 +75,6 @@ impl PySlice {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PySlice::full`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PySlice::full`")]
-    #[inline]
-    pub fn full_bound(py: Python<'_>) -> Bound<'_, PySlice> {
-        Self::full(py)
     }
 }
 
@@ -136,13 +121,6 @@ impl<'py> PySliceMethods<'py> for Bound<'py, PySlice> {
     }
 }
 
-#[allow(deprecated)]
-impl ToPyObject for PySliceIndices {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        PySlice::new(py, self.start, self.stop, self.step).into()
-    }
-}
-
 impl<'py> IntoPyObject<'py> for PySliceIndices {
     type Target = PySlice;
     type Output = Bound<'py, Self::Target>;
@@ -163,13 +141,26 @@ impl<'py> IntoPyObject<'py> for &PySliceIndices {
     }
 }
 
+impl<'py> TryFrom<Bound<'py, PyRange>> for Bound<'py, PySlice> {
+    type Error = PyErr;
+
+    fn try_from(range: Bound<'py, PyRange>) -> Result<Self, Self::Error> {
+        Ok(PySlice::new(
+            range.py(),
+            range.start()?,
+            range.stop()?,
+            range.step()?,
+        ))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_py_slice_new() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let slice = PySlice::new(py, isize::MIN, isize::MAX, 1);
             assert_eq!(
                 slice.getattr("start").unwrap().extract::<isize>().unwrap(),
@@ -188,7 +179,7 @@ mod tests {
 
     #[test]
     fn test_py_slice_full() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let slice = PySlice::full(py);
             assert!(slice.getattr("start").unwrap().is_none(),);
             assert!(slice.getattr("stop").unwrap().is_none(),);

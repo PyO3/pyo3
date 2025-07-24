@@ -13,9 +13,11 @@ Sorry that you're having trouble using PyO3. If you can't find the answer to you
 5. Thread A is blocked, because it waits to re-acquire the GIL which thread B still holds.
 6. Deadlock.
 
-PyO3 provides a struct [`GILOnceCell`] which works similarly to these types but avoids risk of deadlocking with the Python GIL. This means it can be used in place of other choices when you are experiencing the deadlock described above. See the documentation for [`GILOnceCell`] for further details and an example how to use it.
+PyO3 provides a struct [`GILOnceCell`] which implements a single-initialization API based on these types that relies on the GIL for locking. If the GIL is released or there is no GIL, then this type allows the initialization function to race but ensures that the data is only ever initialized once. If you need to ensure that the initialization function is called once and only once, you can make use of the [`OnceExt`] and [`OnceLockExt`] extension traits that enable using the standard library types for this purpose but provide new methods for these types that avoid the risk of deadlocking with the Python GIL. This means they can be used in place of other choices when you are experiencing the deadlock described above. See the documentation for [`GILOnceCell`] and [`OnceExt`] for further details and an example how to use them.
 
 [`GILOnceCell`]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html
+[`OnceExt`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html
+[`OnceLockExt`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceLockExt.html
 
 ## I can't run `cargo test`; or I can't build in a Cargo workspace: I'm having linker issues like "Symbol not found" or "Undefined reference to _PyExc_SystemError"!
 
@@ -84,7 +86,7 @@ You can give the Python interpreter a chance to process the signal properly by c
 
 You may have a nested struct similar to this:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 #[pyclass]
 #[derive(Clone)]
@@ -124,7 +126,7 @@ b: <builtins.Inner object at 0x00000238FFB9C830>
 This can be especially confusing if the field is mutable, as getting the field and then mutating it won't persist - you'll just get a fresh clone of the original on the next access. Unfortunately Python and Rust don't agree about ownership - if PyO3 gave out references to (possibly) temporary Rust objects to Python code, Python code could then keep that reference alive indefinitely. Therefore returning Rust objects requires cloning.
 
 If you don't want that cloning to happen, a workaround is to allocate the field on the Python heap and store a reference to that, by using [`Py<...>`]({{#PYO3_DOCS_URL}}/pyo3/struct.Py.html):
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 #[pyclass]
 struct Inner {/* fields omitted */}
@@ -177,7 +179,7 @@ However, when the dependency is renamed, or your crate only indirectly depends
 on `pyo3`, you need to let the macro code know where to find the crate.  This is
 done with the `crate` attribute:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 # pub extern crate pyo3;
 # mod reexported { pub use ::pyo3; }

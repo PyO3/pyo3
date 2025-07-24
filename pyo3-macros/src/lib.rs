@@ -5,9 +5,9 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{
-    build_derive_from_pyobject, build_py_class, build_py_enum, build_py_function, build_py_methods,
-    pymodule_function_impl, pymodule_module_impl, PyClassArgs, PyClassMethodsType,
-    PyFunctionOptions, PyModuleOptions,
+    build_derive_from_pyobject, build_derive_into_pyobject, build_py_class, build_py_enum,
+    build_py_function, build_py_methods, pymodule_function_impl, pymodule_module_impl, PyClassArgs,
+    PyClassMethodsType, PyFunctionOptions, PyModuleOptions,
 };
 use quote::quote;
 use syn::{parse_macro_input, Item};
@@ -130,6 +130,7 @@ pub fn pymethods(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// | `#[pyo3(name = "...")]` | Defines the name of the function in Python. |
 /// | `#[pyo3(text_signature = "...")]` | Defines the `__text_signature__` attribute of the function in Python. |
 /// | `#[pyo3(pass_module)]` | Passes the module containing the function as a `&PyModule` first argument to the function. |
+/// | `#[pyo3(warn(message = "...", category = ...))]` | Generate warning given a message and a category |
 ///
 /// For more on exposing functions see the [function section of the guide][1].
 ///
@@ -148,6 +149,27 @@ pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
 
     quote!(
         #ast
+        #expanded
+    )
+    .into()
+}
+
+#[proc_macro_derive(IntoPyObject, attributes(pyo3))]
+pub fn derive_into_py_object(item: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(item as syn::DeriveInput);
+    let expanded = build_derive_into_pyobject::<false>(&ast).unwrap_or_compile_error();
+    quote!(
+        #expanded
+    )
+    .into()
+}
+
+#[proc_macro_derive(IntoPyObjectRef, attributes(pyo3))]
+pub fn derive_into_py_object_ref(item: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(item as syn::DeriveInput);
+    let expanded =
+        pyo3_macros_backend::build_derive_into_pyobject::<true>(&ast).unwrap_or_compile_error();
+    quote!(
         #expanded
     )
     .into()

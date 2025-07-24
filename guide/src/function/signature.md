@@ -2,7 +2,7 @@
 
 The `#[pyfunction]` attribute also accepts parameters to control how the generated Python function accepts arguments. Just like in Python, arguments can be positional-only, keyword-only, or accept either. `*args` lists and `**kwargs` dicts can also be accepted. These parameters also work for `#[pymethods]` which will be introduced in the [Python Classes](../class.md) section of the guide.
 
-Like Python, by default PyO3 accepts all arguments as either positional or keyword arguments. Most arguments are required by default, except for trailing `Option<_>` arguments, which are [implicitly given a default of `None`](#trailing-optional-arguments). This behaviour can be configured by the `#[pyo3(signature = (...))]` option which allows writing a signature in Python syntax.
+Like Python, by default PyO3 accepts all arguments as either positional or keyword arguments. All arguments are required by default. This behaviour can be configured by the `#[pyo3(signature = (...))]` option which allows writing a signature in Python syntax.
 
 This section of the guide goes into detail about use of the `#[pyo3(signature = (...))]` option and its related option `#[pyo3(text_signature = "...")]`
 
@@ -10,19 +10,17 @@ This section of the guide goes into detail about use of the `#[pyo3(signature = 
 
 For example, below is a function that accepts arbitrary keyword arguments (`**kwargs` in Python syntax) and returns the number that was passed:
 
-```rust
-use pyo3::prelude::*;
-use pyo3::types::PyDict;
+```rust,no_run
+#[pyo3::pymodule]
+mod module_with_functions {
+    use pyo3::prelude::*;
+    use pyo3::types::PyDict;
 
-#[pyfunction]
-#[pyo3(signature = (**kwds))]
-fn num_kwds(kwds: Option<&Bound<'_, PyDict>>) -> usize {
-    kwds.map_or(0, |dict| dict.len())
-}
-
-#[pymodule]
-fn module_with_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(num_kwds, m)?)
+    #[pyfunction]
+    #[pyo3(signature = (**kwds))]
+    fn num_kwds(kwds: Option<&Bound<'_, PyDict>>) -> usize {
+        kwds.map_or(0, |dict| dict.len())
+    }
 }
 ```
 
@@ -38,7 +36,7 @@ Just like in Python, the following constructs can be part of the signature::
    code unmodified.
 
 Example:
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 #
@@ -79,7 +77,7 @@ impl MyClass {
 
 Arguments of type `Python` must not be part of the signature:
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 #[pyfunction]
@@ -108,7 +106,7 @@ num=-1
 
 > Note: to use keywords like `struct` as a function argument, use "raw identifier" syntax `r#struct` in both the signature and the function definition:
 >
-> ```rust
+> ```rust,no_run
 > # #![allow(dead_code)]
 > # use pyo3::prelude::*;
 > #[pyfunction(signature = (r#struct = "foo"))]
@@ -117,82 +115,6 @@ num=-1
 >     /* ... */
 > }
 > ```
-
-## Trailing optional arguments
-
-<div class="warning">
-
-⚠️ Warning: This behaviour is being phased out 🛠️
-
-The special casing of trailing optional arguments is deprecated. In a future `pyo3` version, arguments of type `Option<..>` will share the same behaviour as other arguments, they are required unless a default is set using `#[pyo3(signature = (...))]`.
-
-This is done to better align the Python and Rust definition of such functions and make it more intuitive to rewrite them from Python in Rust. Specifically `def some_fn(a: int, b: Optional[int]): ...` will not automatically default `b` to `none`, but requires an explicit default if desired, where as in current `pyo3` it is handled the other way around.
-
-During the migration window a `#[pyo3(signature = (...))]` will be required to silence the deprecation warning. After support for trailing optional arguments is fully removed, the signature attribute can be removed if all arguments should be required.
-</div>
-
-
-As a convenience, functions without a `#[pyo3(signature = (...))]` option will treat trailing `Option<T>` arguments as having a default of `None`. In the example below, PyO3 will create `increment` with a signature of `increment(x, amount=None)`.
-
-```rust
-#![allow(deprecated)]
-use pyo3::prelude::*;
-
-/// Returns a copy of `x` increased by `amount`.
-///
-/// If `amount` is unspecified or `None`, equivalent to `x + 1`.
-#[pyfunction]
-fn increment(x: u64, amount: Option<u64>) -> u64 {
-    x + amount.unwrap_or(1)
-}
-#
-# fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
-#         let fun = pyo3::wrap_pyfunction!(increment, py)?;
-#
-#         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
-#         let sig: String = inspect
-#             .call1((fun,))?
-#             .call_method0("__str__")?
-#             .extract()?;
-#
-#         #[cfg(Py_3_8)]  // on 3.7 the signature doesn't render b, upstream bug?
-#         assert_eq!(sig, "(x, amount=None)");
-#
-#         Ok(())
-#     })
-# }
-```
-
-To make trailing `Option<T>` arguments required, but still accept `None`, add a `#[pyo3(signature = (...))]` annotation. For the example above, this would be `#[pyo3(signature = (x, amount))]`:
-
-```rust
-# use pyo3::prelude::*;
-#[pyfunction]
-#[pyo3(signature = (x, amount))]
-fn increment(x: u64, amount: Option<u64>) -> u64 {
-    x + amount.unwrap_or(1)
-}
-#
-# fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
-#         let fun = pyo3::wrap_pyfunction!(increment, py)?;
-#
-#         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
-#         let sig: String = inspect
-#             .call1((fun,))?
-#             .call_method0("__str__")?
-#             .extract()?;
-#
-#         #[cfg(Py_3_8)]  // on 3.7 the signature doesn't render b, upstream bug?
-#         assert_eq!(sig, "(x, amount)");
-#
-#         Ok(())
-#     })
-# }
-```
-
-To help avoid confusion, PyO3 requires `#[pyo3(signature = (...))]` when an `Option<T>` argument is surrounded by arguments which aren't `Option<T>`.
 
 ## Making the function signature available to Python
 
@@ -215,7 +137,7 @@ fn add(a: u64, b: u64) -> u64 {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let fun = pyo3::wrap_pyfunction!(add, py)?;
 #
 #         let doc: String = fun.getattr("__doc__")?.extract()?;
@@ -263,7 +185,7 @@ fn add(a: u64, b: u64) -> u64 {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let fun = pyo3::wrap_pyfunction!(add, py)?;
 #
 #         let doc: String = fun.getattr("__doc__")?.extract()?;
@@ -305,7 +227,7 @@ fn add(a: u64, b: u64) -> u64 {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let fun = pyo3::wrap_pyfunction!(add, py)?;
 #
 #         let doc: String = fun.getattr("__doc__")?.extract()?;

@@ -1,4 +1,4 @@
-error: `#[pymodule_export]` may only be used on `use` statements
+error: `#[pymodule_export]` may only be used on `use` or `const` statements
  --> tests/ui/invalid_pymodule_trait.rs:5:5
   |
 5 |     #[pymodule_export]

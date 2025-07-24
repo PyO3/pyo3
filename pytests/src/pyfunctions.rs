@@ -67,13 +67,31 @@ fn args_kwargs<'py>(
     (args, kwargs)
 }
 
+#[pyfunction(signature = (a, /, b))]
+fn positional_only<'py>(a: Any<'py>, b: Any<'py>) -> (Any<'py>, Any<'py>) {
+    (a, b)
+}
+
+#[pyfunction(signature = (a = false, b = 0, c = 0.0, d = ""))]
+fn with_typed_args(a: bool, b: u64, c: f64, d: &str) -> (bool, u64, f64, &str) {
+    (a, b, c, d)
+}
+
+#[pyfunction(signature = (a: "int", *_args: "str", _b: "int | None" = None, **_kwargs: "bool") -> "int")]
+fn with_custom_type_annotations<'py>(
+    a: Any<'py>,
+    _args: Tuple<'py>,
+    _b: Option<Any<'py>>,
+    _kwargs: Option<Dict<'py>>,
+) -> Any<'py> {
+    a
+}
+
 #[pymodule]
-pub fn pyfunctions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(none, m)?)?;
-    m.add_function(wrap_pyfunction!(simple, m)?)?;
-    m.add_function(wrap_pyfunction!(simple_args, m)?)?;
-    m.add_function(wrap_pyfunction!(simple_kwargs, m)?)?;
-    m.add_function(wrap_pyfunction!(simple_args_kwargs, m)?)?;
-    m.add_function(wrap_pyfunction!(args_kwargs, m)?)?;
-    Ok(())
+pub mod pyfunctions {
+    #[pymodule_export]
+    use super::{
+        args_kwargs, none, positional_only, simple, simple_args, simple_args_kwargs, simple_kwargs,
+        with_custom_type_annotations, with_typed_args,
+    };
 }

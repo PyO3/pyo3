@@ -1,17 +1,14 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
-#[allow(deprecated)]
-use crate::ToPyObject;
 use crate::{
     exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
-    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
-    Python,
+    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, PyResult, Python,
 };
 
 use super::any::PyAnyMethods;
 use crate::conversion::IntoPyObject;
-use crate::BoundObject;
 use std::convert::Infallible;
+use std::ptr;
 
 /// Represents a Python `bool`.
 ///
@@ -39,13 +36,6 @@ impl PyBool {
                 .downcast_unchecked()
         }
     }
-
-    /// Deprecated name for [`PyBool::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyBool::new`")]
-    #[inline]
-    pub fn new_bound(py: Python<'_>, val: bool) -> Borrowed<'_, '_, Self> {
-        Self::new(py, val)
-    }
 }
 
 /// Implementation of functionality for [`PyBool`].
@@ -62,7 +52,7 @@ pub trait PyBoolMethods<'py>: crate::sealed::Sealed {
 impl<'py> PyBoolMethods<'py> for Bound<'py, PyBool> {
     #[inline]
     fn is_true(&self) -> bool {
-        self.as_ptr() == unsafe { crate::ffi::Py_True() }
+        unsafe { ptr::eq(self.as_ptr(), ffi::Py_True()) }
     }
 }
 
@@ -146,27 +136,6 @@ impl PartialEq<Borrowed<'_, '_, PyBool>> for &'_ bool {
     }
 }
 
-/// Converts a Rust `bool` to a Python `bool`.
-#[allow(deprecated)]
-impl ToPyObject for bool {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-impl IntoPy<PyObject> for bool {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::builtin("bool")
-    }
-}
-
 impl<'py> IntoPyObject<'py> for bool {
     type Target = PyBool;
     type Output = Borrowed<'py, 'py, Self::Target>;
@@ -175,6 +144,11 @@ impl<'py> IntoPyObject<'py> for bool {
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyBool::new(py, self))
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::builtin("bool")
     }
 }
 
@@ -187,12 +161,20 @@ impl<'py> IntoPyObject<'py> for &bool {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::builtin("bool")
+    }
 }
 
 /// Converts a Python `bool` to a Rust `bool`.
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
 impl FromPyObject<'_> for bool {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "bool";
+
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         let err = match obj.downcast::<PyBool>() {
             Ok(obj) => return Ok(obj.is_true()),
@@ -201,10 +183,10 @@ impl FromPyObject<'_> for bool {
 
         let is_numpy_bool = {
             let ty = obj.get_type();
-            ty.module().map_or(false, |module| module == "numpy")
+            ty.module().is_ok_and(|module| module == "numpy")
                 && ty
                     .name()
-                    .map_or(false, |name| name == "bool_" || name == "bool")
+                    .is_ok_and(|name| name == "bool_" || name == "bool")
         };
 
         if is_numpy_bool {
@@ -262,7 +244,7 @@ mod tests {
 
     #[test]
     fn test_true() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyBool::new(py, true).is_true());
             let t = PyBool::new(py, true);
             assert!(t.extract::<bool>().unwrap());
@@ -272,7 +254,7 @@ mod tests {
 
     #[test]
     fn test_false() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(!PyBool::new(py, false).is_true());
             let t = PyBool::new(py, false);
             assert!(!t.extract::<bool>().unwrap());
@@ -285,7 +267,7 @@ mod tests {
 
     #[test]
     fn test_pybool_comparisons() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_bool = PyBool::new(py, true);
             let py_bool_false = PyBool::new(py, false);
             let rust_bool = true;

@@ -86,7 +86,7 @@ Once built, symlink (or copy) and rename the shared library from Cargo's `target
 
 You can then open a Python shell in the output directory and you'll be able to run `import your_module`.
 
-If you're packaging your library for redistribution, you should indicated the Python interpreter your library is compiled for by including the [platform tag](#platform-tags) in its name. This prevents incompatible interpreters from trying to import your library. If you're compiling for PyPy you *must* include the platform tag, or PyPy will ignore the module.
+If you're packaging your library for redistribution, you should indicate the Python interpreter your library is compiled for by including the [platform tag](#platform-tags) in its name. This prevents incompatible interpreters from trying to import your library. If you're compiling for PyPy you *must* include the platform tag, or PyPy will ignore the module.
 
 #### Bazel builds
 
@@ -144,23 +144,23 @@ rustflags = [
 ]
 ```
 
-Using the MacOS system python3 (`/usr/bin/python3`, as opposed to python installed via homebrew, pyenv, nix, etc.) may result in runtime errors such as `Library not loaded: @rpath/Python3.framework/Versions/3.8/Python3`. These can be resolved with another addition to `.cargo/config.toml`:
+Using the MacOS system python3 (`/usr/bin/python3`, as opposed to python installed via homebrew, pyenv, nix, etc.) may result in runtime errors such as `Library not loaded: @rpath/Python3.framework/Versions/3.8/Python3`.
+
+The easiest way to set the correct linker arguments is to add a `build.rs` with the following content:
+
+```rust,ignore
+fn main() {
+    pyo3_build_config::add_python_framework_link_args();
+}
+```
+
+Alternatively it can be resolved with another addition to `.cargo/config.toml`:
 
 ```toml
 [build]
 rustflags = [
   "-C", "link-args=-Wl,-rpath,/Library/Developer/CommandLineTools/Library/Frameworks",
 ]
-```
-
-Alternatively, one can include in `build.rs`:
-
-```rust
-fn main() {
-    println!(
-        "cargo:rustc-link-arg=-Wl,-rpath,/Library/Developer/CommandLineTools/Library/Frameworks"
-    );
-}
 ```
 
 For more discussion on and workarounds for MacOS linking problems [see this issue](https://github.com/PyO3/pyo3/issues/1800#issuecomment-906786649).
@@ -278,7 +278,7 @@ If you encounter these or other complications when linking the interpreter stati
 
 ### Import your module when embedding the Python interpreter
 
-When you run your Rust binary with an embedded interpreter, any `#[pymodule]` created modules won't be accessible to import unless added to a table called `PyImport_Inittab` before the embedded interpreter is initialized. This will cause Python statements in your embedded interpreter such as `import your_new_module` to fail. You can call the macro [`append_to_inittab`]({{#PYO3_DOCS_URL}}/pyo3/macro.append_to_inittab.html) with your module before initializing the Python interpreter to add the module function into that table. (The Python interpreter will be initialized by calling `prepare_freethreaded_python`, `with_embedded_python_interpreter`, or `Python::with_gil` with the [`auto-initialize`](features.md#auto-initialize) feature enabled.)
+When you run your Rust binary with an embedded interpreter, any `#[pymodule]` created modules won't be accessible to import unless added to a table called `PyImport_Inittab` before the embedded interpreter is initialized. This will cause Python statements in your embedded interpreter such as `import your_new_module` to fail. You can call the macro [`append_to_inittab`]({{#PYO3_DOCS_URL}}/pyo3/macro.append_to_inittab.html) with your module before initializing the Python interpreter to add the module function into that table. (The Python interpreter will be initialized by calling `prepare_freethreaded_python`, `with_embedded_python_interpreter`, or `Python::attach` with the [`auto-initialize`](features.md#auto-initialize) feature enabled.)
 
 ## Cross Compiling
 

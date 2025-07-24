@@ -7,9 +7,7 @@ use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
-#[allow(deprecated)]
-use crate::ToPyObject;
-use crate::{intern, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python};
+use crate::{intern, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
 
 impl FromPyObject<'_> for IpAddr {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
@@ -28,14 +26,6 @@ impl FromPyObject<'_> for IpAddr {
                 obj.str()?.to_cow()?.parse().map_err(PyValueError::new_err)
             }
         }
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for Ipv4Addr {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().unbind()
     }
 }
 
@@ -63,14 +53,6 @@ impl<'py> IntoPyObject<'py> for &Ipv4Addr {
     }
 }
 
-#[allow(deprecated)]
-impl ToPyObject for Ipv6Addr {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().unbind()
-    }
-}
-
 impl<'py> IntoPyObject<'py> for Ipv6Addr {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -92,21 +74,6 @@ impl<'py> IntoPyObject<'py> for &Ipv6Addr {
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for IpAddr {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().unbind()
-    }
-}
-
-impl IntoPy<PyObject> for IpAddr {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().unbind()
     }
 }
 
@@ -144,7 +111,7 @@ mod test_ipaddr {
 
     #[test]
     fn test_roundtrip() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             fn roundtrip(py: Python<'_>, ip: &str) {
                 let ip = IpAddr::from_str(ip).unwrap();
                 let py_cls = if ip.is_ipv4() {
@@ -153,12 +120,12 @@ mod test_ipaddr {
                     "IPv6Address"
                 };
 
-                let pyobj = ip.into_py(py);
-                let repr = pyobj.bind(py).repr().unwrap();
+                let pyobj = ip.into_pyobject(py).unwrap();
+                let repr = pyobj.repr().unwrap();
                 let repr = repr.to_string_lossy();
-                assert_eq!(repr, format!("{}('{}')", py_cls, ip));
+                assert_eq!(repr, format!("{py_cls}('{ip}')"));
 
-                let ip2: IpAddr = pyobj.extract(py).unwrap();
+                let ip2: IpAddr = pyobj.extract().unwrap();
                 assert_eq!(ip, ip2);
             }
             roundtrip(py, "127.0.0.1");
@@ -169,7 +136,7 @@ mod test_ipaddr {
 
     #[test]
     fn test_from_pystring() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_str = PyString::new(py, "0:0:0:0:0:0:0:1");
             let ip: IpAddr = py_str.extract().unwrap();
             assert_eq!(ip, IpAddr::from_str("::1").unwrap());

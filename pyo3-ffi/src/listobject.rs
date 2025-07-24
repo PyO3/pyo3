@@ -50,6 +50,10 @@ extern "C" {
         arg3: Py_ssize_t,
         arg4: *mut PyObject,
     ) -> c_int;
+    #[cfg(Py_3_13)]
+    pub fn PyList_Extend(list: *mut PyObject, iterable: *mut PyObject) -> c_int;
+    #[cfg(Py_3_13)]
+    pub fn PyList_Clear(list: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyList_Sort")]
     pub fn PyList_Sort(arg1: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyList_Reverse")]
