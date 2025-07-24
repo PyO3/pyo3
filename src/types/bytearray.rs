@@ -459,6 +459,8 @@ mod tests {
 
     // CPython 3.13t is unsound => test fails
     #[cfg(any(Py_3_14, not(all(Py_3_13, Py_GIL_DISABLED))))]
+    // No threading support on wasm
+    #[cfg(not(target_family = "wasm"))]
     #[test]
     fn test_data_integrity_in_critical_section() {
         use crate::instance::Py;
