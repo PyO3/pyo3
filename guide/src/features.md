@@ -117,7 +117,7 @@ Adds a dependency on [anyhow](https://docs.rs/anyhow). Enables a conversion from
 
 ### `arc_lock`
 
-Enables Pyo3's `MutexExt` trait for all Mutexes that extend on [`lock_api::Mutex`](https://docs.rs/lock_api/latest/lock_api/struct.Mutex.html) and are wrapped in an [`Arc`](https://doc.rust-lang.org/std/sync/struct.Arc.html) type. Like [`Arc<parking_lot::Mutex>`](https://docs.rs/parking_lot/latest/parking_lot/type.Mutex.html#method.lock_arc)
+Enables Pyo3's `MutexExt` trait for all Mutexes that extend on [`lock_api::Mutex`](https://docs.rs/lock_api/latest/lock_api/struct.Mutex.html) or [`parking_lot::ReentrantMutex`](https://docs.rs/lock_api/latest/lock_api/struct.ReentrantMutex.html) and are wrapped in an [`Arc`](https://doc.rust-lang.org/std/sync/struct.Arc.html) type. Like [`Arc<parking_lot::Mutex>`](https://docs.rs/parking_lot/latest/parking_lot/type.Mutex.html#method.lock_arc)
 
 ### `bigdecimal`
 Adds a dependency on [bigdecimal](https://docs.rs/bigdecimal) and enables conversions into its [`BigDecimal`](https://docs.rs/bigdecimal/latest/bigdecimal/struct.BigDecimal.html) type.
@@ -172,7 +172,7 @@ Adds a dependency on [jiff@0.2](https://docs.rs/jiff/0.2) and requires MSRV 1.70
 
 ### `lock_api`
 
-Adds a dependency on [lock_api](https://docs.rs/lock_api) and enables Pyo3's `MutexExt` trait for all mutexes that extend on [`lock_api::Mutex`](https://docs.rs/lock_api/latest/lock_api/struct.Mutex.html) (like `parking_lot` or `spin`).
+Adds a dependency on [lock_api](https://docs.rs/lock_api) and enables Pyo3's `MutexExt` trait for all mutexes that extend on [`lock_api::Mutex`](https://docs.rs/lock_api/latest/lock_api/struct.Mutex.html) and [`parking_lot::ReentrantMutex`](https://docs.rs/lock_api/latest/lock_api/struct.ReentrantMutex.html) (like `parking_lot` or `spin`).
 
 ### `num-bigint`
 
@@ -194,7 +194,7 @@ Adds a dependency on [ordered-float](https://docs.rs/ordered-float) and enables 
 
 ### `parking-lot`
 
-Adds a dependency on [parking_lot](https://docs.rs/parking_lot) and enables Pyo3's `OnceExt` & `MutexExt` traits for [`parking_lot::Once`](https://docs.rs/parking_lot/latest/parking_lot/struct.Once.html) and [`parking_lot::Mutex`](https://docs.rs/parking_lot/latest/parking_lot/type.Mutex.html) types.
+Adds a dependency on [parking_lot](https://docs.rs/parking_lot) and enables Pyo3's `OnceExt` & `MutexExt` traits for [`parking_lot::Once`](https://docs.rs/parking_lot/latest/parking_lot/struct.Once.html) [`parking_lot::Mutex`](https://docs.rs/parking_lot/latest/parking_lot/type.Mutex.html) and [`parking_lot::ReentrantMutex`](https://docs.rs/parking_lot/latest/parking_lot/type.ReentrantMutex.html) types.
 
 ### `rust_decimal`
 
