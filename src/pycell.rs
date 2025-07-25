@@ -97,7 +97,7 @@
 //!
 //!     // We borrow the guard and then dereference
 //!     // it to get a mutable reference to Number
-//!     let mut guard: PyRefMut<'_, Number> = n.bind(py).borrow_mut();
+//!     let mut guard: PyClassGuardMut<'_, Number> = n.bind(py).borrow_mut();
 //!     let n_mutable: &mut Number = &mut *guard;
 //!
 //!     n_mutable.increment();
@@ -300,6 +300,7 @@ impl<'py, T: PyClass> PyRef<'py, T> {
         self.inner.clone().into_ptr()
     }
 
+    #[allow(dead_code)]
     #[track_caller]
     pub(crate) fn borrow(obj: &Bound<'py, T>) -> Self {
         Self::try_borrow(obj).expect("Already mutably borrowed")
@@ -535,6 +536,7 @@ impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
         self.inner.clone().into_ptr()
     }
 
+    #[allow(dead_code)]
     #[inline]
     #[track_caller]
     pub(crate) fn borrow(obj: &Bound<'py, T>) -> Self {
@@ -697,7 +699,6 @@ impl From<PyBorrowMutError> for PyErr {
 #[cfg(test)]
 #[cfg(feature = "macros")]
 mod tests {
-
     use super::*;
 
     #[crate::pyclass]
@@ -711,8 +712,8 @@ mod tests {
             let cell = Bound::new(py, SomeClass(0)).unwrap();
             let ptr = cell.as_ptr();
 
-            assert_eq!(cell.borrow().as_ptr(), ptr);
-            assert_eq!(cell.borrow_mut().as_ptr(), ptr);
+            assert_eq!(PyRef::borrow(&cell).as_ptr(), ptr);
+            assert_eq!(PyRefMut::borrow(&cell).as_ptr(), ptr);
         })
     }
 
@@ -722,10 +723,10 @@ mod tests {
             let cell = Bound::new(py, SomeClass(0)).unwrap();
             let ptr = cell.as_ptr();
 
-            assert_eq!(cell.borrow().into_ptr(), ptr);
+            assert_eq!(PyRef::borrow(&cell).into_ptr(), ptr);
             unsafe { ffi::Py_DECREF(ptr) };
 
-            assert_eq!(cell.borrow_mut().into_ptr(), ptr);
+            assert_eq!(PyRefMut::borrow(&cell).into_ptr(), ptr);
             unsafe { ffi::Py_DECREF(ptr) };
         })
     }
@@ -776,7 +777,7 @@ mod tests {
     fn test_pyref_as_super() {
         Python::attach(|py| {
             let obj = SubSubClass::new(py).into_bound(py);
-            let pyref = obj.borrow();
+            let pyref = PyRef::borrow(&obj);
             assert_eq!(pyref.as_super().as_super().val1, 10);
             assert_eq!(pyref.as_super().val2, 15);
             assert_eq!(pyref.as_ref().val2, 15); // `as_ref` also works
@@ -789,18 +790,18 @@ mod tests {
     fn test_pyrefmut_as_super() {
         Python::attach(|py| {
             let obj = SubSubClass::new(py).into_bound(py);
-            assert_eq!(SubSubClass::get_values(obj.borrow()), (10, 15, 20));
+            assert_eq!(SubSubClass::get_values(PyRef::borrow(&obj)), (10, 15, 20));
             {
-                let mut pyrefmut = obj.borrow_mut();
+                let mut pyrefmut = PyRefMut::borrow(&obj);
                 assert_eq!(pyrefmut.as_super().as_ref().val1, 10);
                 pyrefmut.as_super().as_super().val1 -= 5;
                 pyrefmut.as_super().val2 -= 3;
                 pyrefmut.as_mut().val2 -= 2; // `as_mut` also works
                 pyrefmut.val3 -= 5;
             }
-            assert_eq!(SubSubClass::get_values(obj.borrow()), (5, 10, 15));
-            SubSubClass::double_values(obj.borrow_mut());
-            assert_eq!(SubSubClass::get_values(obj.borrow()), (10, 20, 30));
+            assert_eq!(SubSubClass::get_values(PyRef::borrow(&obj)), (5, 10, 15));
+            SubSubClass::double_values(PyRefMut::borrow(&obj));
+            assert_eq!(SubSubClass::get_values(PyRef::borrow(&obj)), (10, 20, 30));
         });
     }
 
