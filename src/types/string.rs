@@ -211,14 +211,28 @@ impl PyString {
 
     /// Attempts to create a Python string from a Python [bytes-like object].
     ///
+    /// The `encoding` and `errors` parameters are optional:
+    /// - If `encoding` is `None`, the default encoding is used (UTF-8).
+    /// - If `errors` is `None`, the default error handling is used ("strict").
+    ///
+    /// See the [Python documentation on codecs] for more information.
+    ///
     /// [bytes-like object]: (https://docs.python.org/3/glossary.html#term-bytes-like-object).
+    /// [Python documentation on codecs]: https://docs.python.org/3/library/codecs.html#standard-encodings
     pub fn from_encoded_object<'py>(
         src: &Bound<'py, PyAny>,
-        encoding: &CStr,
-        errors: &CStr,
+        encoding: Option<&CStr>,
+        errors: Option<&CStr>,
     ) -> PyResult<Bound<'py, PyString>> {
+        let encoding = encoding.map_or_else(|| std::ptr::null(), CStr::as_ptr);
+        let errors = errors.map_or_else(|| std::ptr::null(), CStr::as_ptr);
+        // Safety:
+        // - `src` is a valid Python object
+        // - `encoding` and `errors` are either null or valid C strings. `encoding` and `errors` are
+        //   documented as allowing null.
+        // - `ffi::PyUnicode_FromEncodedObject` returns a new `str` object, or sets an error.
         unsafe {
-            ffi::PyUnicode_FromEncodedObject(src.as_ptr(), encoding.as_ptr(), errors.as_ptr())
+            ffi::PyUnicode_FromEncodedObject(src.as_ptr(), encoding, errors)
                 .assume_owned_or_err(src.py())
                 .downcast_into_unchecked()
         }
@@ -239,22 +253,7 @@ impl PyString {
     ) -> PyResult<Bound<'py, PyString>> {
         let encoding = CString::new(encoding)?;
         let errors = CString::new(errors)?;
-        PyString::from_encoded_object(src, &encoding, &errors)
-    }
-
-    /// Deprecated name for [`PyString::from_object`].
-    #[deprecated(
-        since = "0.23.0",
-        note = "replcaed with `PyString::from_encoded_object`"
-    )]
-    #[inline]
-    pub fn from_object_bound<'py>(
-        src: &Bound<'py, PyAny>,
-        encoding: &str,
-        errors: &str,
-    ) -> PyResult<Bound<'py, PyString>> {
-        #[allow(deprecated)]
-        Self::from_object(src, encoding, errors)
+        PyString::from_encoded_object(src, Some(&encoding), Some(&errors))
     }
 }
 
@@ -605,7 +604,7 @@ mod tests {
     use pyo3_ffi::c_str;
 
     use super::*;
-    use crate::{IntoPyObject, PyObject};
+    use crate::{exceptions::PyLookupError, IntoPyObject, PyObject};
 
     #[test]
     fn test_to_cow_utf8() {
@@ -692,13 +691,19 @@ mod tests {
     }
 
     #[test]
-    fn test_string_from_object() {
+    fn test_string_from_encoded_object() {
         Python::with_gil(|py| {
             let py_bytes = PyBytes::new(py, b"ab\xFFcd");
 
+            // default encoding is utf-8, default error handler is strict
+            let py_string = PyString::from_encoded_object(&py_bytes, None, None).unwrap_err();
+            assert!(py_string
+                .get_type(py)
+                .is(&py.get_type::<PyUnicodeDecodeError>()));
+
+            // with `ignore` error handler, the invalid byte is dropped
             let py_string =
-                PyString::from_encoded_object(&py_bytes, c_str!("utf-8"), c_str!("ignore"))
-                    .unwrap();
+                PyString::from_encoded_object(&py_bytes, None, Some(c_str!("ignore"))).unwrap();
 
             let result = py_string.to_cow().unwrap();
             assert_eq!(result, "abcd");
@@ -712,12 +717,28 @@ mod tests {
     }
 
     #[test]
-    fn test_string_from_object_with_invalid_encoding_errors() {
+    fn test_string_from_encoded_object_with_invalid_encoding_errors() {
         Python::with_gil(|py| {
             let py_bytes = PyBytes::new(py, b"abcd");
 
-            let result = PyString::from_encoded_object(&py_bytes, c_str!("wat"), c_str!("ignore"));
-            assert!(result.is_err());
+            // invalid encoding
+            let err =
+                PyString::from_encoded_object(&py_bytes, Some(c_str!("wat")), None).unwrap_err();
+            assert!(err.is_instance(py, &py.get_type::<PyLookupError>()));
+            assert_eq!(err.to_string(), "LookupError: unknown encoding: wat");
+
+            // invalid error handler
+            let err = PyString::from_encoded_object(
+                &PyBytes::new(py, b"ab\xFFcd"),
+                None,
+                Some(c_str!("wat")),
+            )
+            .unwrap_err();
+            assert!(err.is_instance(py, &py.get_type::<PyLookupError>()));
+            assert_eq!(
+                err.to_string(),
+                "LookupError: unknown error handler name 'wat'"
+            );
 
             #[allow(deprecated)]
             let result = PyString::from_object(&py_bytes, "utf\0-8", "ignore");
