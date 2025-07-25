@@ -3,20 +3,10 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyString;
-use crate::{ffi, FromPyObject, PyAny, PyObject, PyResult, Python};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
+use crate::{ffi, FromPyObject, PyAny, PyResult, Python};
 use std::borrow::Cow;
 use std::convert::Infallible;
 use std::ffi::{OsStr, OsString};
-
-#[allow(deprecated)]
-impl ToPyObject for OsStr {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
 
 impl<'py> IntoPyObject<'py> for &OsStr {
     type Target = PyString;
@@ -134,30 +124,6 @@ impl FromPyObject<'_> for OsString {
     }
 }
 
-#[allow(deprecated)]
-impl IntoPy<PyObject> for &'_ OsStr {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for Cow<'_, OsStr> {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for Cow<'_, OsStr> {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
 impl<'py> IntoPyObject<'py> for Cow<'_, OsStr> {
     type Target = PyString;
     type Output = Bound<'py, Self::Target>;
@@ -180,22 +146,6 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, OsStr> {
     }
 }
 
-#[allow(deprecated)]
-impl ToPyObject for OsString {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for OsString {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
 impl<'py> IntoPyObject<'py> for OsString {
     type Target = PyString;
     type Output = Bound<'py, Self::Target>;
@@ -204,14 +154,6 @@ impl<'py> IntoPyObject<'py> for OsString {
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.as_os_str().into_pyobject(py)
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for &OsString {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -239,7 +181,7 @@ mod tests {
     #[test]
     #[cfg(not(windows))]
     fn test_non_utf8_conversion() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             #[cfg(not(target_os = "wasi"))]
             use std::os::unix::ffi::OsStrExt;
             #[cfg(target_os = "wasi")]
@@ -258,7 +200,7 @@ mod tests {
 
     #[test]
     fn test_intopyobject_roundtrip() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             fn test_roundtrip<'py, T>(py: Python<'py>, obj: T)
             where
                 T: IntoPyObject<'py> + AsRef<OsStr> + Debug + Clone,

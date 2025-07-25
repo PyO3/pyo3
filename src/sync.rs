@@ -5,7 +5,7 @@
 //!
 //! [PEP 703]: https://peps.python.org/pep-703/
 use crate::{
-    gil::SuspendGIL,
+    internal::state::SuspendAttach,
     sealed::Sealed,
     types::{any::PyAnyMethods, PyAny, PyString},
     Bound, Py, PyResult, PyTypeCheck, Python,
@@ -39,7 +39,7 @@ use crate::PyVisit;
 ///
 /// static NUMBERS: GILProtected<RefCell<Vec<i32>>> = GILProtected::new(RefCell::new(Vec::new()));
 ///
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     NUMBERS.get(py).borrow_mut().push(42);
 /// });
 /// ```
@@ -117,7 +117,7 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 ///         .get_or_init(py, || PyList::empty(py).unbind())
 ///         .bind(py)
 /// }
-/// # Python::with_gil(|py| assert_eq!(get_shared_list(py).len(), 0));
+/// # Python::attach(|py| assert_eq!(get_shared_list(py).len(), 0));
 /// ```
 pub struct GILOnceCell<T> {
     once: Once,
@@ -140,7 +140,7 @@ pub struct GILOnceCell<T> {
     /// let cell = GILOnceCell::new();
     /// {
     ///     let s = String::new();
-    ///     let _ = Python::with_gil(|py| cell.set(py,A(&s)));
+    ///     let _ = Python::attach(|py| cell.set(py,A(&s)));
     /// }
     /// ```
     _marker: PhantomData<T>,
@@ -335,7 +335,7 @@ where
     ///         .call1((dict,))
     /// }
     ///
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// #     let dict = PyDict::new(py);
     /// #     dict.set_item(intern!(py, "foo"), 42).unwrap();
     /// #     let fun = wrap_pyfunction!(create_ordered_dict, py).unwrap();
@@ -397,7 +397,7 @@ impl<T> Drop for GILOnceCell<T> {
 ///     Ok(dict)
 /// }
 /// #
-/// # Python::with_gil(|py| {
+/// # Python::attach(|py| {
 /// #     let fun_slow = wrap_pyfunction!(create_dict, py).unwrap();
 /// #     let dict = fun_slow.call0().unwrap();
 /// #     assert!(dict.contains("foo").unwrap());
@@ -527,7 +527,6 @@ where
     }
 }
 
-#[cfg(rustc_has_once_lock)]
 mod once_lock_ext_sealed {
     pub trait Sealed {}
     impl<T> Sealed for std::sync::OnceLock<T> {}
@@ -536,18 +535,20 @@ mod once_lock_ext_sealed {
 /// Helper trait for `Once` to help avoid deadlocking when using a `Once` when attached to a
 /// Python thread.
 pub trait OnceExt: Sealed {
+    ///The state of `Once`
+    type OnceState;
+
     /// Similar to [`call_once`][Once::call_once], but releases the Python GIL temporarily
     /// if blocking on another thread currently calling this `Once`.
     fn call_once_py_attached(&self, py: Python<'_>, f: impl FnOnce());
 
     /// Similar to [`call_once_force`][Once::call_once_force], but releases the Python GIL
     /// temporarily if blocking on another thread currently calling this `Once`.
-    fn call_once_force_py_attached(&self, py: Python<'_>, f: impl FnOnce(&OnceState));
+    fn call_once_force_py_attached(&self, py: Python<'_>, f: impl FnOnce(&Self::OnceState));
 }
 
 /// Extension trait for [`std::sync::OnceLock`] which helps avoid deadlocks between the Python
 /// interpreter and initialization with the `OnceLock`.
-#[cfg(rustc_has_once_lock)]
 pub trait OnceLockExt<T>: once_lock_ext_sealed::Sealed {
     /// Initializes this `OnceLock` with the given closure if it has not been initialized yet.
     ///
@@ -566,6 +567,11 @@ pub trait OnceLockExt<T>: once_lock_ext_sealed::Sealed {
 /// Extension trait for [`std::sync::Mutex`] which helps avoid deadlocks between
 /// the Python interpreter and acquiring the `Mutex`.
 pub trait MutexExt<T>: Sealed {
+    /// The result type returned by the `lock_py_attached` method.
+    type LockResult<'a>
+    where
+        Self: 'a;
+
     /// Lock this `Mutex` in a manner that cannot deadlock with the Python interpreter.
     ///
     /// Before attempting to lock the mutex, this function detaches from the
@@ -573,13 +579,12 @@ pub trait MutexExt<T>: Sealed {
     /// runtime before returning the `LockResult`. This avoids deadlocks between
     /// the GIL and other global synchronization events triggered by the Python
     /// interpreter.
-    fn lock_py_attached(
-        &self,
-        py: Python<'_>,
-    ) -> std::sync::LockResult<std::sync::MutexGuard<'_, T>>;
+    fn lock_py_attached(&self, py: Python<'_>) -> Self::LockResult<'_>;
 }
 
 impl OnceExt for Once {
+    type OnceState = OnceState;
+
     fn call_once_py_attached(&self, py: Python<'_>, f: impl FnOnce()) {
         if self.is_completed() {
             return;
@@ -597,15 +602,46 @@ impl OnceExt for Once {
     }
 }
 
-#[cfg(rustc_has_once_lock)]
+#[cfg(feature = "parking_lot")]
+impl OnceExt for parking_lot::Once {
+    type OnceState = parking_lot::OnceState;
+
+    fn call_once_py_attached(&self, _py: Python<'_>, f: impl FnOnce()) {
+        if self.state().done() {
+            return;
+        }
+
+        let ts_guard = unsafe { SuspendAttach::new() };
+
+        self.call_once(move || {
+            drop(ts_guard);
+            f();
+        });
+    }
+
+    fn call_once_force_py_attached(
+        &self,
+        _py: Python<'_>,
+        f: impl FnOnce(&parking_lot::OnceState),
+    ) {
+        if self.state().done() {
+            return;
+        }
+
+        let ts_guard = unsafe { SuspendAttach::new() };
+
+        self.call_once_force(move |state| {
+            drop(ts_guard);
+            f(&state);
+        });
+    }
+}
+
 impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
     fn get_or_init_py_attached<F>(&self, py: Python<'_>, f: F) -> &T
     where
         F: FnOnce() -> T,
     {
-        // this trait is guarded by a rustc version config
-        // so clippy's MSRV check is wrong
-        #[allow(clippy::incompatible_msrv)]
         // Use self.get() first to create a fast path when initialized
         self.get()
             .unwrap_or_else(|| init_once_lock_py_attached(self, py, f))
@@ -613,6 +649,11 @@ impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
 }
 
 impl<T> MutexExt<T> for std::sync::Mutex<T> {
+    type LockResult<'a>
+        = std::sync::LockResult<std::sync::MutexGuard<'a, T>>
+    where
+        Self: 'a;
+
     fn lock_py_attached(
         &self,
         _py: Python<'_>,
@@ -631,8 +672,95 @@ impl<T> MutexExt<T> for std::sync::Mutex<T> {
         // SAFETY: detach from the runtime right before a possibly blocking call
         // then reattach when the blocking call completes and before calling
         // into the C API.
-        let ts_guard = unsafe { SuspendGIL::new() };
+        let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.lock();
+        drop(ts_guard);
+        res
+    }
+}
+
+#[cfg(feature = "lock_api")]
+impl<R: lock_api::RawMutex, T> MutexExt<T> for lock_api::Mutex<R, T> {
+    type LockResult<'a>
+        = lock_api::MutexGuard<'a, R, T>
+    where
+        Self: 'a;
+
+    fn lock_py_attached(&self, _py: Python<'_>) -> lock_api::MutexGuard<'_, R, T> {
+        if let Some(guard) = self.try_lock() {
+            return guard;
+        }
+
+        let ts_guard = unsafe { SuspendAttach::new() };
+        let res = self.lock();
+        drop(ts_guard);
+        res
+    }
+}
+
+#[cfg(feature = "arc_lock")]
+impl<R, T> MutexExt<T> for std::sync::Arc<lock_api::Mutex<R, T>>
+where
+    R: lock_api::RawMutex,
+{
+    type LockResult<'a>
+        = lock_api::ArcMutexGuard<R, T>
+    where
+        Self: 'a;
+
+    fn lock_py_attached(&self, _py: Python<'_>) -> lock_api::ArcMutexGuard<R, T> {
+        if let Some(guard) = self.try_lock_arc() {
+            return guard;
+        }
+
+        let ts_guard = unsafe { SuspendAttach::new() };
+        let res = self.lock_arc();
+        drop(ts_guard);
+        res
+    }
+}
+
+#[cfg(feature = "lock_api")]
+impl<R, G, T> MutexExt<T> for lock_api::ReentrantMutex<R, G, T>
+where
+    R: lock_api::RawMutex,
+    G: lock_api::GetThreadId,
+{
+    type LockResult<'a>
+        = lock_api::ReentrantMutexGuard<'a, R, G, T>
+    where
+        Self: 'a;
+
+    fn lock_py_attached(&self, _py: Python<'_>) -> lock_api::ReentrantMutexGuard<'_, R, G, T> {
+        if let Some(guard) = self.try_lock() {
+            return guard;
+        }
+
+        let ts_guard = unsafe { SuspendAttach::new() };
+        let res = self.lock();
+        drop(ts_guard);
+        res
+    }
+}
+
+#[cfg(feature = "arc_lock")]
+impl<R, G, T> MutexExt<T> for std::sync::Arc<lock_api::ReentrantMutex<R, G, T>>
+where
+    R: lock_api::RawMutex,
+    G: lock_api::GetThreadId,
+{
+    type LockResult<'a>
+        = lock_api::ArcReentrantMutexGuard<R, G, T>
+    where
+        Self: 'a;
+
+    fn lock_py_attached(&self, _py: Python<'_>) -> lock_api::ArcReentrantMutexGuard<R, G, T> {
+        if let Some(guard) = self.try_lock_arc() {
+            return guard;
+        }
+
+        let ts_guard = unsafe { SuspendAttach::new() };
+        let res = self.lock_arc();
         drop(ts_guard);
         res
     }
@@ -646,7 +774,7 @@ where
     // SAFETY: detach from the runtime right before a possibly blocking call
     // then reattach when the blocking call completes and before calling
     // into the C API.
-    let ts_guard = unsafe { SuspendGIL::new() };
+    let ts_guard = unsafe { SuspendAttach::new() };
 
     once.call_once(move || {
         drop(ts_guard);
@@ -662,7 +790,7 @@ where
     // SAFETY: detach from the runtime right before a possibly blocking call
     // then reattach when the blocking call completes and before calling
     // into the C API.
-    let ts_guard = unsafe { SuspendGIL::new() };
+    let ts_guard = unsafe { SuspendAttach::new() };
 
     once.call_once_force(move |state| {
         drop(ts_guard);
@@ -670,7 +798,6 @@ where
     });
 }
 
-#[cfg(rustc_has_once_lock)]
 #[cold]
 fn init_once_lock_py_attached<'a, F, T>(
     lock: &'a std::sync::OnceLock<T>,
@@ -683,7 +810,7 @@ where
     // SAFETY: detach from the runtime right before a possibly blocking call
     // then reattach when the blocking call completes and before calling
     // into the C API.
-    let ts_guard = unsafe { SuspendGIL::new() };
+    let ts_guard = unsafe { SuspendAttach::new() };
 
     // this trait is guarded by a rustc version config
     // so clippy's MSRV check is wrong
@@ -724,7 +851,7 @@ mod tests {
 
     #[test]
     fn test_intern() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let foo1 = "foo";
             let foo2 = intern!(py, "foo");
             let foo3 = intern!(py, stringify!(foo));
@@ -745,7 +872,7 @@ mod tests {
 
     #[test]
     fn test_once_cell() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut cell = GILOnceCell::new();
 
             assert!(cell.get(py).is_none());
@@ -779,7 +906,7 @@ mod tests {
             }
         }
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut dropped = false;
             let cell = GILOnceCell::new();
             cell.set(py, RecordDrop(&mut dropped)).unwrap();
@@ -797,13 +924,13 @@ mod tests {
     fn test_critical_section() {
         let barrier = Barrier::new(2);
 
-        let bool_wrapper = Python::with_gil(|py| -> Py<BoolWrapper> {
+        let bool_wrapper = Python::attach(|py| -> Py<BoolWrapper> {
             Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap()
         });
 
         std::thread::scope(|s| {
             s.spawn(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let b = bool_wrapper.bind(py);
                     with_critical_section(b, || {
                         barrier.wait();
@@ -814,7 +941,7 @@ mod tests {
             });
             s.spawn(|| {
                 barrier.wait();
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let b = bool_wrapper.bind(py);
                     // this blocks until the other thread's critical section finishes
                     with_critical_section(b, || {
@@ -831,7 +958,7 @@ mod tests {
     fn test_critical_section2() {
         let barrier = Barrier::new(3);
 
-        let (bool_wrapper1, bool_wrapper2) = Python::with_gil(|py| {
+        let (bool_wrapper1, bool_wrapper2) = Python::attach(|py| {
             (
                 Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap(),
                 Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap(),
@@ -840,7 +967,7 @@ mod tests {
 
         std::thread::scope(|s| {
             s.spawn(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let b1 = bool_wrapper1.bind(py);
                     let b2 = bool_wrapper2.bind(py);
                     with_critical_section2(b1, b2, || {
@@ -853,7 +980,7 @@ mod tests {
             });
             s.spawn(|| {
                 barrier.wait();
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let b1 = bool_wrapper1.bind(py);
                     // this blocks until the other thread's critical section finishes
                     with_critical_section(b1, || {
@@ -863,7 +990,7 @@ mod tests {
             });
             s.spawn(|| {
                 barrier.wait();
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let b2 = bool_wrapper2.bind(py);
                     // this blocks until the other thread's critical section finishes
                     with_critical_section(b2, || {
@@ -880,13 +1007,13 @@ mod tests {
     fn test_critical_section2_same_object_no_deadlock() {
         let barrier = Barrier::new(2);
 
-        let bool_wrapper = Python::with_gil(|py| -> Py<BoolWrapper> {
+        let bool_wrapper = Python::attach(|py| -> Py<BoolWrapper> {
             Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap()
         });
 
         std::thread::scope(|s| {
             s.spawn(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let b = bool_wrapper.bind(py);
                     with_critical_section2(b, b, || {
                         barrier.wait();
@@ -897,7 +1024,7 @@ mod tests {
             });
             s.spawn(|| {
                 barrier.wait();
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let b = bool_wrapper.bind(py);
                     // this blocks until the other thread's critical section finishes
                     with_critical_section(b, || {
@@ -912,7 +1039,7 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_critical_section2_two_containers() {
-        let (vec1, vec2) = Python::with_gil(|py| {
+        let (vec1, vec2) = Python::attach(|py| {
             (
                 Py::new(py, VecWrapper(vec![1, 2, 3])).unwrap(),
                 Py::new(py, VecWrapper(vec![4, 5])).unwrap(),
@@ -921,7 +1048,7 @@ mod tests {
 
         std::thread::scope(|s| {
             s.spawn(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let v1 = vec1.bind(py);
                     let v2 = vec2.bind(py);
                     with_critical_section2(v1, v2, || {
@@ -931,7 +1058,7 @@ mod tests {
                 });
             });
             s.spawn(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let v1 = vec1.bind(py);
                     let v2 = vec2.bind(py);
                     with_critical_section2(v1, v2, || {
@@ -942,7 +1069,7 @@ mod tests {
             });
         });
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v1 = vec1.bind(py);
             let v2 = vec2.bind(py);
             // execution order is not guaranteed, so we need to check both
@@ -966,39 +1093,49 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     fn test_once_ext() {
-        // adapted from the example in the docs for Once::try_once_force
-        let init = Once::new();
-        std::thread::scope(|s| {
-            // poison the once
-            let handle = s.spawn(|| {
-                Python::with_gil(|py| {
-                    init.call_once_py_attached(py, || panic!());
-                })
-            });
-            assert!(handle.join().is_err());
+        macro_rules! test_once {
+            ($once:expr, $is_poisoned:expr) => {{
+                // adapted from the example in the docs for Once::try_once_force
+                let init = $once;
+                std::thread::scope(|s| {
+                    // poison the once
+                    let handle = s.spawn(|| {
+                        Python::attach(|py| {
+                            init.call_once_py_attached(py, || panic!());
+                        })
+                    });
+                    assert!(handle.join().is_err());
 
-            // poisoning propagates
-            let handle = s.spawn(|| {
-                Python::with_gil(|py| {
-                    init.call_once_py_attached(py, || {});
+                    // poisoning propagates
+                    let handle = s.spawn(|| {
+                        Python::attach(|py| {
+                            init.call_once_py_attached(py, || {});
+                        });
+                    });
+
+                    assert!(handle.join().is_err());
+
+                    // call_once_force will still run and reset the poisoned state
+                    Python::attach(|py| {
+                        init.call_once_force_py_attached(py, |state| {
+                            assert!($is_poisoned(state.clone()));
+                        });
+
+                        // once any success happens, we stop propagating the poison
+                        init.call_once_py_attached(py, || {});
+                    });
+
+                    // calling call_once_force should return immediately without calling the closure
+                    Python::attach(|py| init.call_once_force_py_attached(py, |_| panic!()));
                 });
-            });
+            }};
+        }
 
-            assert!(handle.join().is_err());
-
-            // call_once_force will still run and reset the poisoned state
-            Python::with_gil(|py| {
-                init.call_once_force_py_attached(py, |state| {
-                    assert!(state.is_poisoned());
-                });
-
-                // once any success happens, we stop propagating the poison
-                init.call_once_py_attached(py, || {});
-            });
-        });
+        test_once!(Once::new(), OnceState::is_poisoned);
+        #[cfg(feature = "parking_lot")]
+        test_once!(parking_lot::Once::new(), parking_lot::OnceState::poisoned);
     }
 
-    #[cfg(rustc_has_once_lock)]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_once_lock_ext() {
@@ -1007,7 +1144,7 @@ mod tests {
             assert!(cell.get().is_none());
 
             s.spawn(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     assert_eq!(*cell.get_or_init_py_attached(py, || 12345), 12345);
                 });
             });
@@ -1021,13 +1158,13 @@ mod tests {
     fn test_mutex_ext() {
         let barrier = Barrier::new(2);
 
-        let mutex = Python::with_gil(|py| -> Mutex<Py<BoolWrapper>> {
+        let mutex = Python::attach(|py| -> Mutex<Py<BoolWrapper>> {
             Mutex::new(Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap())
         });
 
         std::thread::scope(|s| {
             s.spawn(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let b = mutex.lock_py_attached(py).unwrap();
                     barrier.wait();
                     // sleep to ensure the other thread actually blocks
@@ -1038,12 +1175,73 @@ mod tests {
             });
             s.spawn(|| {
                 barrier.wait();
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     // blocks until the other thread releases the lock
                     let b = mutex.lock_py_attached(py).unwrap();
                     assert!((*b).bind(py).borrow().0.load(Ordering::Acquire));
                 });
             });
+        });
+    }
+
+    #[cfg(feature = "macros")]
+    #[cfg(all(
+        any(feature = "parking_lot", feature = "lock_api"),
+        not(target_arch = "wasm32") // We are building wasm Python with pthreads disabled
+    ))]
+    #[test]
+    fn test_parking_lot_mutex_ext() {
+        macro_rules! test_mutex {
+            ($guard:ty ,$mutex:stmt) => {{
+                let barrier = Barrier::new(2);
+
+                let mutex = Python::attach({ $mutex });
+
+                std::thread::scope(|s| {
+                    s.spawn(|| {
+                        Python::attach(|py| {
+                            let b: $guard = mutex.lock_py_attached(py);
+                            barrier.wait();
+                            // sleep to ensure the other thread actually blocks
+                            std::thread::sleep(std::time::Duration::from_millis(10));
+                            (*b).bind(py).borrow().0.store(true, Ordering::Release);
+                            drop(b);
+                        });
+                    });
+                    s.spawn(|| {
+                        barrier.wait();
+                        Python::attach(|py| {
+                            // blocks until the other thread releases the lock
+                            let b: $guard = mutex.lock_py_attached(py);
+                            assert!((*b).bind(py).borrow().0.load(Ordering::Acquire));
+                        });
+                    });
+                });
+            }};
+        }
+
+        test_mutex!(parking_lot::MutexGuard<'_, _>, |py| {
+            parking_lot::Mutex::new(Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap())
+        });
+
+        test_mutex!(parking_lot::ReentrantMutexGuard<'_, _>, |py| {
+            parking_lot::ReentrantMutex::new(
+                Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap(),
+            )
+        });
+
+        #[cfg(feature = "arc_lock")]
+        test_mutex!(parking_lot::ArcMutexGuard<_, _>, |py| {
+            let mutex =
+                parking_lot::Mutex::new(Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap());
+            std::sync::Arc::new(mutex)
+        });
+
+        #[cfg(feature = "arc_lock")]
+        test_mutex!(parking_lot::ArcReentrantMutexGuard<_, _, _>, |py| {
+            let mutex =
+                parking_lot::ReentrantMutex::new(Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap());
+            std::sync::Arc::new(mutex)
         });
     }
 
@@ -1054,7 +1252,7 @@ mod tests {
 
         std::thread::scope(|s| {
             let lock_result = s.spawn(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let _unused = mutex.lock_py_attached(py);
                     panic!();
                 });
@@ -1062,7 +1260,7 @@ mod tests {
             assert!(lock_result.join().is_err());
             assert!(mutex.is_poisoned());
         });
-        let guard = Python::with_gil(|py| {
+        let guard = Python::attach(|py| {
             // recover from the poisoning
             match mutex.lock_py_attached(py) {
                 Ok(guard) => guard,

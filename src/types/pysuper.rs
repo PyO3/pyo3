@@ -21,7 +21,7 @@ impl PySuper {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use pyo3::prelude::*;
     ///
     /// #[pyclass(subclass)]
@@ -65,15 +65,5 @@ impl PySuper {
             // Safety: super() always returns instance of super
             unsafe { any.downcast_into_unchecked() }
         })
-    }
-
-    /// Deprecated name for [`PySuper::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PySuper::new`")]
-    #[inline]
-    pub fn new_bound<'py>(
-        ty: &Bound<'py, PyType>,
-        obj: &Bound<'py, PyAny>,
-    ) -> PyResult<Bound<'py, PySuper>> {
-        Self::new(ty, obj)
     }
 }

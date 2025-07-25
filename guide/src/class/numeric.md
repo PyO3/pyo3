@@ -31,7 +31,7 @@ own extraction function, using the `#[pyo3(from_py_with = ...)]` attribute. Unfo
 doesn't provide a way to wrap Python integers out of the box, but we can do a Python call to mask it
 and cast it to an `i32`.
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 use pyo3::prelude::*;
 
@@ -44,7 +44,7 @@ fn wrap(obj: &Bound<'_, PyAny>) -> PyResult<i32> {
 ```
 We also add documentation, via `///` comments, which are visible to Python users.
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 use pyo3::prelude::*;
 
@@ -70,7 +70,7 @@ impl Number {
 
 
 With that out of the way, let's implement some operators:
-```rust
+```rust,no_run
 use pyo3::exceptions::{PyZeroDivisionError, PyValueError};
 
 # use pyo3::prelude::*;
@@ -124,7 +124,7 @@ impl Number {
 
 ### Unary arithmetic operations
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 #
 # #[pyclass]
@@ -152,7 +152,7 @@ impl Number {
 
 ### Support for the `complex()`, `int()` and `float()` built-in functions.
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 #
 # #[pyclass]
@@ -326,9 +326,9 @@ impl Number {
 }
 
 #[pymodule]
-fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<Number>()?;
-    Ok(())
+mod my_module {
+    #[pymodule_export]
+    use super::Number;
 }
 # const SCRIPT: &'static std::ffi::CStr = pyo3::ffi::c_str!(r#"
 # def hash_djb2(s: str):
@@ -385,7 +385,7 @@ fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 # use pyo3::PyTypeInfo;
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         let globals = PyModule::import(py, "__main__")?.dict();
 #         globals.set_item("Number", Number::type_object(py))?;
 #
@@ -408,14 +408,14 @@ unsigned long PyLong_AsUnsignedLongMask(PyObject *obj)
 We can call this function from Rust by using [`pyo3::ffi::PyLong_AsUnsignedLongMask`]. This is an *unsafe*
 function, which means we have to use an unsafe block to call it and take responsibility for upholding
 the contracts of this function. Let's review those contracts:
-- The GIL must be held. If it's not, calling this function causes a data race.
+- We must be attached to the interpreter. If we're not, calling this function causes a data race.
 - The pointer must be valid, i.e. it must be properly aligned and point to a valid Python object.
 
 Let's create that helper function. The signature has to be `fn(&Bound<'_, PyAny>) -> PyResult<T>`.
-- `&Bound<'_, PyAny>` represents a checked borrowed reference, so the pointer derived from it is valid (and not null).
-- Whenever we have borrowed references to Python objects in scope, it is guaranteed that the GIL is held. This reference is also where we can get a [`Python`] token to use in our call to [`PyErr::take`].
+- `&Bound<'_, PyAny>` represents a checked bound reference, so the pointer derived from it is valid (and not null).
+- Whenever we have bound references to Python objects in scope, it is guaranteed that we're attached to the interpreter. This reference is also where we can get a [`Python`] token to use in our call to [`PyErr::take`].
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 use std::os::raw::c_ulong;
 use pyo3::prelude::*;

@@ -93,7 +93,7 @@ extern "C" {
         kwnames: *mut PyObject,
     ) -> *mut PyObject;
 
-    #[cfg(any(Py_3_12, all(Py_3_9, not(any(Py_LIMITED_API, PyPy, GraalPy)))))]
+    #[cfg(any(Py_3_12, all(Py_3_9, not(any(Py_LIMITED_API, PyPy)))))]
     pub fn PyObject_VectorcallMethod(
         name: *mut PyObject,
         args: *const *mut PyObject,

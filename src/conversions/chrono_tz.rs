@@ -25,7 +25,7 @@
 //!
 //! fn main() -> PyResult<()> {
 //!     pyo3::prepare_freethreaded_python();
-//!     Python::with_gil(|py| {
+//!     Python::attach(|py| {
 //!         // Convert to Python
 //!         let py_tzinfo = Tz::Europe__Paris.into_pyobject(py)?;
 //!         // Convert back to Rust
@@ -37,45 +37,23 @@
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
 use crate::pybacked::PyBackedStr;
-use crate::sync::GILOnceCell;
-use crate::types::{any::PyAnyMethods, PyType};
-use crate::{intern, Bound, FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
+use crate::types::{any::PyAnyMethods, PyTzInfo};
+use crate::{intern, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
 use chrono_tz::Tz;
 use std::str::FromStr;
 
-#[allow(deprecated)]
-impl ToPyObject for Tz {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for Tz {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().unbind()
-    }
-}
-
 impl<'py> IntoPyObject<'py> for Tz {
-    type Target = PyAny;
+    type Target = PyTzInfo;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        static ZONE_INFO: GILOnceCell<Py<PyType>> = GILOnceCell::new();
-        ZONE_INFO
-            .import(py, "zoneinfo", "ZoneInfo")
-            .and_then(|obj| obj.call1((self.name(),)))
+        PyTzInfo::timezone(py, self.name())
     }
 }
 
 impl<'py> IntoPyObject<'py> for &Tz {
-    type Target = PyAny;
+    type Target = PyTzInfo;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
@@ -99,13 +77,14 @@ impl FromPyObject<'_> for Tz {
 mod tests {
     use super::*;
     use crate::prelude::PyAnyMethods;
+    use crate::types::PyTzInfo;
     use crate::Python;
     use chrono::{DateTime, Utc};
     use chrono_tz::Tz;
 
     #[test]
     fn test_frompyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert_eq!(
                 new_zoneinfo(py, "Europe/Paris").extract::<Tz>().unwrap(),
                 Tz::Europe__Paris
@@ -137,7 +116,7 @@ mod tests {
             ]
         );
 
-        let dates = Python::with_gil(|py| {
+        let dates = Python::attach(|py| {
             let pydates = dates.map(|dt| dt.into_pyobject(py).unwrap());
             assert_eq!(
                 pydates
@@ -169,9 +148,9 @@ mod tests {
     #[test]
     #[cfg(not(Py_GIL_DISABLED))] // https://github.com/python/cpython/issues/116738#issuecomment-2404360445
     fn test_into_pyobject() {
-        Python::with_gil(|py| {
-            let assert_eq = |l: Bound<'_, PyAny>, r: Bound<'_, PyAny>| {
-                assert!(l.eq(&r).unwrap(), "{:?} != {:?}", l, r);
+        Python::attach(|py| {
+            let assert_eq = |l: Bound<'_, PyTzInfo>, r: Bound<'_, PyTzInfo>| {
+                assert!(l.eq(&r).unwrap(), "{l:?} != {r:?}");
             };
 
             assert_eq(
@@ -186,11 +165,7 @@ mod tests {
         });
     }
 
-    fn new_zoneinfo<'py>(py: Python<'py>, name: &str) -> Bound<'py, PyAny> {
-        zoneinfo_class(py).call1((name,)).unwrap()
-    }
-
-    fn zoneinfo_class(py: Python<'_>) -> Bound<'_, PyAny> {
-        py.import("zoneinfo").unwrap().getattr("ZoneInfo").unwrap()
+    fn new_zoneinfo<'py>(py: Python<'py>, name: &str) -> Bound<'py, PyTzInfo> {
+        PyTzInfo::timezone(py, name).unwrap()
     }
 }

@@ -5,8 +5,12 @@ coverage:
     project:
       default:
         target: auto
-        # Allow a tiny drop of overall project coverage in PR to reduce spurious failures.
-        threshold: 0.25%
+        # Allow a tiny drop of overall project coverage in PR due to
+        # not all configurations being tested in PR runs.
+        #
+        # (Note that patch coverage will still be required to be at least
+        # the project coverage.)
+        threshold: 1%
 
 ignore:
   - tests/

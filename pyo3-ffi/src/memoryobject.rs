@@ -3,11 +3,10 @@ use crate::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
 use std::ptr::addr_of_mut;
 
+// skipped _PyManagedBuffer_Type
+
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
-    #[cfg(not(Py_LIMITED_API))]
-    pub static mut _PyManagedBuffer_Type: PyTypeObject;
-
     #[cfg_attr(PyPy, link_name = "PyPyMemoryView_Type")]
     pub static mut PyMemoryView_Type: PyTypeObject;
 }

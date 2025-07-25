@@ -50,7 +50,7 @@ given signatures should be interpreted as follows:
     <summary>Disabling Python's default hash</summary>
     By default, all `#[pyclass]` types have a default hash implementation from Python. Types which should not be hashable can override this by setting `__hash__` to `None`. This is the same mechanism as for a pure-Python class. This is done like so:
 
-    ```rust
+    ```rust,no_run
     # use pyo3::prelude::*;
     #
     #[pyclass]
@@ -95,7 +95,7 @@ given signatures should be interpreted as follows:
     If you want to leave some operations unimplemented, you can return `py.NotImplemented()`
     for some of the operations:
 
-    ```rust
+    ```rust,no_run
     use pyo3::class::basic::CompareOp;
     use pyo3::types::PyNotImplemented;
 
@@ -155,7 +155,7 @@ Returning `None` from `__next__` indicates that that there are no further items.
 
 Example:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 use std::sync::Mutex;
@@ -181,7 +181,7 @@ In many cases you'll have a distinction between the type being iterated over
 only needs to implement `__iter__()` while the iterator must implement both
 `__iter__()` and `__next__()`. For example:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 
 #[pyclass]
@@ -215,7 +215,7 @@ impl Container {
     }
 }
 
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 #     let container = Container { iter: vec![1, 2, 3, 4] };
 #     let inst = pyo3::Py::new(py, container).unwrap();
 #     pyo3::py_run!(py, inst, "assert list(inst) == [1, 2, 3, 4]");
@@ -274,7 +274,7 @@ Use the `#[pyclass(sequence)]` annotation to instruct PyO3 to fill the `sq_lengt
     can override this by setting `__contains__` to `None`. This is the same
     mechanism as for a pure-Python class. This is done like so:
 
-    ```rust
+    ```rust,no_run
     # use pyo3::prelude::*;
     #
     #[pyclass]
@@ -428,9 +428,11 @@ cleared, as every cycle must contain at least one mutable reference.
   - `__traverse__(<self>, pyo3::class::gc::PyVisit<'_>) -> Result<(), pyo3::class::gc::PyTraverseError>`
   - `__clear__(<self>) -> ()`
 
+> Note: `__traverse__` does not work with [`#[pyo3(warn(...))]`](../function.md#warn).
+
 Example:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 use pyo3::PyTraverseError;
 use pyo3::gc::PyVisit;
@@ -443,9 +445,7 @@ struct ClassWithGCSupport {
 #[pymethods]
 impl ClassWithGCSupport {
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-        if let Some(obj) = &self.obj {
-            visit.call(obj)?
-        }
+        visit.call(&self.obj)?;
         Ok(())
     }
 
@@ -457,8 +457,8 @@ impl ClassWithGCSupport {
 ```
 
 Usually, an implementation of `__traverse__` should do nothing but calls to `visit.call`.
-Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`,
-i.e. `Python::with_gil` will panic.
+Most importantly, safe access to the interpreter is prohibited inside implementations of `__traverse__`,
+i.e. `Python::attach` will panic.
 
 > Note: these methods are part of the C API, PyPy does not necessarily honor them. If you are building for PyPy you should measure memory consumption to make sure you do not have runaway memory growth. See [this issue on the PyPy bug tracker](https://github.com/pypy/pypy/issues/3848).
 

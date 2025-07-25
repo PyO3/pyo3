@@ -2,17 +2,17 @@
 ///
 /// # Panics
 ///
-/// This macro internally calls [`Python::run_bound`](crate::Python::run_bound) and panics
+/// This macro internally calls [`Python::run`](crate::Python::run) and panics
 /// if it returns `Err`, after printing the error to stdout.
 ///
-/// If you need to handle failures, please use [`Python::run_bound`](crate::marker::Python::run_bound) instead.
+/// If you need to handle failures, please use [`Python::run`](crate::marker::Python::run) instead.
 ///
 /// # Examples
 /// ```
 /// use pyo3::{prelude::*, py_run, types::PyList};
 ///
 /// # fn main() -> PyResult<()> {
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let list = PyList::new(py, &[1, 2, 3])?;
 ///     py_run!(py, list, "assert list == [1, 2, 3]");
 /// # Ok(())
@@ -47,7 +47,7 @@
 ///     }
 /// }
 ///
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let time = Py::new(py, Time {hour: 8, minute: 43, second: 16}).unwrap();
 ///     let time_as_tuple = (8, 43, 16);
 ///     py_run!(py, time time_as_tuple, r#"
@@ -76,7 +76,7 @@
 /// }
 ///
 /// # fn main() -> PyResult<()> {
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let locals = [("C", py.get_type::<MyClass>())].into_py_dict(py)?;
 ///     pyo3::py_run!(py, *locals, "c = C()");
 /// #   Ok(())
@@ -147,22 +147,6 @@ macro_rules! wrap_pyfunction {
             &wrapped_pyfunction::_PYO3_DEF,
         )
     }};
-}
-
-/// Wraps a Rust function annotated with [`#[pyfunction]`](macro@crate::pyfunction).
-///
-/// This can be used with [`PyModule::add_function`](crate::types::PyModuleMethods::add_function) to
-/// add free functions to a [`PyModule`](crate::types::PyModule) - see its documentation for more
-/// information.
-#[deprecated(since = "0.23.0", note = "renamed to `wrap_pyfunction!`")]
-#[macro_export]
-macro_rules! wrap_pyfunction_bound {
-    ($function:path) => {
-        $crate::wrap_pyfunction!($function)
-    };
-    ($function:path, $py_or_module:expr) => {
-        $crate::wrap_pyfunction!($function, $py_or_module)
-    };
 }
 
 /// Returns a function that takes a [`Python`](crate::Python) instance and returns a

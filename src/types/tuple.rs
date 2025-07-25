@@ -6,11 +6,8 @@ use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{any::PyAnyMethods, sequence::PySequenceMethods, PyList, PySequence};
 use crate::{
-    exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyObject,
-    PyResult, Python,
+    exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
 };
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
 use std::iter::FusedIterator;
 #[cfg(feature = "nightly")]
 use std::num::NonZero;
@@ -77,7 +74,7 @@ impl PyTuple {
     /// use pyo3::types::PyTuple;
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let elements: Vec<i32> = vec![0, 1, 2, 3, 4, 5];
     ///     let tuple = PyTuple::new(py, elements)?;
     ///     assert_eq!(format!("{:?}", tuple), "(0, 1, 2, 3, 4, 5)");
@@ -104,22 +101,6 @@ impl PyTuple {
         try_new_from_iter(py, elements)
     }
 
-    /// Deprecated name for [`PyTuple::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyTuple::new`")]
-    #[allow(deprecated)]
-    #[track_caller]
-    #[inline]
-    pub fn new_bound<T, U>(
-        py: Python<'_>,
-        elements: impl IntoIterator<Item = T, IntoIter = U>,
-    ) -> Bound<'_, PyTuple>
-    where
-        T: ToPyObject,
-        U: ExactSizeIterator<Item = T>,
-    {
-        PyTuple::new(py, elements.into_iter().map(|e| e.to_object(py))).unwrap()
-    }
-
     /// Constructs an empty tuple (on the Python side, a singleton object).
     pub fn empty(py: Python<'_>) -> Bound<'_, PyTuple> {
         unsafe {
@@ -127,13 +108,6 @@ impl PyTuple {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyTuple::empty`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyTuple::empty`")]
-    #[inline]
-    pub fn empty_bound(py: Python<'_>) -> Bound<'_, PyTuple> {
-        PyTuple::empty(py)
     }
 }
 
@@ -168,7 +142,7 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
+    /// Python::attach(|py| -> PyResult<()> {
     ///     let tuple = (1, 2, 3).into_pyobject(py)?;
     ///     let obj = tuple.get_item(0);
     ///     assert_eq!(obj?.extract::<i32>()?, 1);
@@ -605,20 +579,6 @@ impl ExactSizeIterator for BorrowedTupleIterator<'_, '_> {
 
 impl FusedIterator for BorrowedTupleIterator<'_, '_> {}
 
-#[allow(deprecated)]
-impl IntoPy<Py<PyTuple>> for Bound<'_, PyTuple> {
-    fn into_py(self, _: Python<'_>) -> Py<PyTuple> {
-        self.unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<Py<PyTuple>> for &'_ Bound<'_, PyTuple> {
-    fn into_py(self, _: Python<'_>) -> Py<PyTuple> {
-        self.clone().unbind()
-    }
-}
-
 #[cold]
 fn wrong_tuple_length(t: &Bound<'_, PyTuple>, expected_length: usize) -> PyErr {
     let msg = format!(
@@ -630,20 +590,6 @@ fn wrong_tuple_length(t: &Bound<'_, PyTuple>, expected_length: usize) -> PyErr {
 }
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
-    #[allow(deprecated)]
-    impl <$($T: ToPyObject),+> ToPyObject for ($($T,)+) {
-        fn to_object(&self, py: Python<'_>) -> PyObject {
-            array_into_tuple(py, [$(self.$n.to_object(py).into_bound(py)),+]).into()
-        }
-    }
-
-    #[allow(deprecated)]
-    impl <$($T: IntoPy<PyObject>),+> IntoPy<PyObject> for ($($T,)+) {
-        fn into_py(self, py: Python<'_>) -> PyObject {
-            array_into_tuple(py, [$(self.$n.into_py(py).into_bound(py)),+]).into()
-        }
-    }
-
     impl <'py, $($T),+> IntoPyObject<'py> for ($($T,)+)
     where
         $($T: IntoPyObject<'py>,)+
@@ -939,13 +885,6 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
-    #[allow(deprecated)]
-    impl <$($T: IntoPy<PyObject>),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
-        fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
-            array_into_tuple(py, [$(self.$n.into_py(py).into_bound(py)),+]).unbind()
-        }
-    }
-
     impl<'py, $($T: FromPyObject<'py>),+> FromPyObject<'py> for ($($T,)+) {
         fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self>
         {
@@ -1099,7 +1038,7 @@ mod tests {
     use std::ops::Range;
     #[test]
     fn test_new() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = PyTuple::new(py, [1, 2, 3]).unwrap();
             assert_eq!(3, ob.len());
             let ob = ob.as_any();
@@ -1114,7 +1053,7 @@ mod tests {
 
     #[test]
     fn test_len() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 2, 3).into_pyobject(py).unwrap();
             let tuple = ob.downcast::<PyTuple>().unwrap();
             assert_eq!(3, tuple.len());
@@ -1126,7 +1065,7 @@ mod tests {
 
     #[test]
     fn test_empty() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::empty(py);
             assert!(tuple.is_empty());
             assert_eq!(0, tuple.len());
@@ -1135,7 +1074,7 @@ mod tests {
 
     #[test]
     fn test_slice() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tup = PyTuple::new(py, [2, 3, 5, 7]).unwrap();
             let slice = tup.get_slice(1, 3);
             assert_eq!(2, slice.len());
@@ -1146,7 +1085,7 @@ mod tests {
 
     #[test]
     fn test_iter() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 2, 3).into_pyobject(py).unwrap();
             let tuple = ob.downcast::<PyTuple>().unwrap();
             assert_eq!(3, tuple.len());
@@ -1170,7 +1109,7 @@ mod tests {
 
     #[test]
     fn test_iter_rev() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 2, 3).into_pyobject(py).unwrap();
             let tuple = ob.downcast::<PyTuple>().unwrap();
             assert_eq!(3, tuple.len());
@@ -1194,7 +1133,7 @@ mod tests {
 
     #[test]
     fn test_bound_iter() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, [1, 2, 3]).unwrap();
             assert_eq!(3, tuple.len());
             let mut iter = tuple.iter();
@@ -1217,7 +1156,7 @@ mod tests {
 
     #[test]
     fn test_bound_iter_rev() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, [1, 2, 3]).unwrap();
             assert_eq!(3, tuple.len());
             let mut iter = tuple.iter().rev();
@@ -1240,7 +1179,7 @@ mod tests {
 
     #[test]
     fn test_into_iter() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 2, 3).into_pyobject(py).unwrap();
             let tuple = ob.downcast::<PyTuple>().unwrap();
             assert_eq!(3, tuple.len());
@@ -1253,7 +1192,7 @@ mod tests {
 
     #[test]
     fn test_into_iter_bound() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = (1, 2, 3).into_pyobject(py).unwrap();
             assert_eq!(3, tuple.len());
 
@@ -1268,7 +1207,7 @@ mod tests {
     #[test]
     #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     fn test_as_slice() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 2, 3).into_pyobject(py).unwrap();
             let tuple = ob.downcast::<PyTuple>().unwrap();
 
@@ -1282,7 +1221,7 @@ mod tests {
 
     #[test]
     fn test_tuple_lengths_up_to_12() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let t0 = (0,).into_pyobject(py).unwrap();
             let t1 = (0, 1).into_pyobject(py).unwrap();
             let t2 = (0, 1, 2).into_pyobject(py).unwrap();
@@ -1350,7 +1289,7 @@ mod tests {
 
     #[test]
     fn test_tuple_get_item_invalid_index() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 2, 3).into_pyobject(py).unwrap();
             let tuple = ob.downcast::<PyTuple>().unwrap();
             let obj = tuple.get_item(5);
@@ -1364,7 +1303,7 @@ mod tests {
 
     #[test]
     fn test_tuple_get_item_sanity() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 2, 3).into_pyobject(py).unwrap();
             let tuple = ob.downcast::<PyTuple>().unwrap();
             let obj = tuple.get_item(0);
@@ -1375,7 +1314,7 @@ mod tests {
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     #[test]
     fn test_tuple_get_item_unchecked_sanity() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 2, 3).into_pyobject(py).unwrap();
             let tuple = ob.downcast::<PyTuple>().unwrap();
             let obj = unsafe { tuple.get_item_unchecked(0) };
@@ -1385,7 +1324,7 @@ mod tests {
 
     #[test]
     fn test_tuple_contains() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 1, 2, 3, 5, 8).into_pyobject(py).unwrap();
             let tuple = ob.downcast::<PyTuple>().unwrap();
             assert_eq!(6, tuple.len());
@@ -1403,7 +1342,7 @@ mod tests {
 
     #[test]
     fn test_tuple_index() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 1, 2, 3, 5, 8).into_pyobject(py).unwrap();
             let tuple = ob.downcast::<PyTuple>().unwrap();
             assert_eq!(0, tuple.index(1i32).unwrap());
@@ -1438,7 +1377,7 @@ mod tests {
         expected = "Attempted to create PyTuple but `elements` was larger than reported by its `ExactSizeIterator` implementation."
     )]
     fn too_long_iterator() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let iter = FaultyIter(0..usize::MAX, 73);
             let _tuple = PyTuple::new(py, iter);
         })
@@ -1449,7 +1388,7 @@ mod tests {
         expected = "Attempted to create PyTuple but `elements` was smaller than reported by its `ExactSizeIterator` implementation."
     )]
     fn too_short_iterator() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let iter = FaultyIter(0..35, 73);
             let _tuple = PyTuple::new(py, iter);
         })
@@ -1460,7 +1399,7 @@ mod tests {
         expected = "out of range integral type conversion attempted on `elements.len()`"
     )]
     fn overflowing_size() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let iter = FaultyIter(0..0, usize::MAX);
 
             let _tuple = PyTuple::new(py, iter);
@@ -1514,7 +1453,7 @@ mod tests {
             }
         }
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             std::panic::catch_unwind(|| {
                 let iter = FaultyIter(0..50, 50);
                 let _tuple = PyTuple::new(py, iter);
@@ -1559,7 +1498,7 @@ mod tests {
 
         let s = (Bad(1), Bad(2), Bad(3), Bad(4));
         NEEDS_DESTRUCTING_COUNT.store(4, SeqCst);
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             std::panic::catch_unwind(|| {
                 let _tuple = (&s).into_pyobject(py).unwrap();
             })
@@ -1576,7 +1515,7 @@ mod tests {
 
     #[test]
     fn test_tuple_to_list() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
             let list = tuple.to_list();
             let list_expected = PyList::new(py, vec![1, 2, 3]).unwrap();
@@ -1586,7 +1525,7 @@ mod tests {
 
     #[test]
     fn test_tuple_as_sequence() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
             let sequence = tuple.as_sequence();
             assert!(tuple.get_item(0).unwrap().eq(1).unwrap());
@@ -1599,7 +1538,7 @@ mod tests {
 
     #[test]
     fn test_tuple_into_sequence() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
             let sequence = tuple.into_sequence();
             assert!(sequence.get_item(0).unwrap().eq(1).unwrap());
@@ -1609,7 +1548,7 @@ mod tests {
 
     #[test]
     fn test_bound_tuple_get_item() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4]).unwrap();
 
             assert_eq!(tuple.len(), 4);
@@ -1642,7 +1581,7 @@ mod tests {
 
     #[test]
     fn test_bound_tuple_nth() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4]).unwrap();
             let mut iter = tuple.iter();
             assert_eq!(iter.nth(1).unwrap().extract::<i32>().unwrap(), 2);
@@ -1673,7 +1612,7 @@ mod tests {
 
     #[test]
     fn test_bound_tuple_nth_back() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
             let mut iter = tuple.iter();
             assert_eq!(iter.nth_back(0).unwrap().extract::<i32>().unwrap(), 5);
@@ -1716,7 +1655,7 @@ mod tests {
     #[cfg(feature = "nightly")]
     #[test]
     fn test_bound_tuple_advance_by() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
             let mut iter = tuple.iter();
 
@@ -1741,7 +1680,7 @@ mod tests {
     #[cfg(feature = "nightly")]
     #[test]
     fn test_bound_tuple_advance_back_by() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
             let mut iter = tuple.iter();
 
@@ -1765,7 +1704,7 @@ mod tests {
 
     #[test]
     fn test_iter_last() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
             let last = tuple.iter().last();
             assert_eq!(last.unwrap().extract::<i32>().unwrap(), 3);
@@ -1774,7 +1713,7 @@ mod tests {
 
     #[test]
     fn test_iter_count() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
             assert_eq!(tuple.iter().count(), 3);
         })

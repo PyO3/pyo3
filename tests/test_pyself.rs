@@ -92,7 +92,7 @@ fn reader() -> Reader {
 
 #[test]
 fn test_nested_iter() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let reader = reader().into_pyobject(py).unwrap();
         py_assert!(
             py,
@@ -104,7 +104,7 @@ fn test_nested_iter() {
 
 #[test]
 fn test_clone_ref() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let reader = reader().into_pyobject(py).unwrap();
         py_assert!(py, reader, "reader == reader.clone_ref()");
         py_assert!(py, reader, "reader == reader.clone_ref_with_py()");
@@ -113,7 +113,7 @@ fn test_clone_ref() {
 
 #[test]
 fn test_nested_iter_reset() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let reader = Bound::new(py, reader()).unwrap();
         py_assert!(
             py,

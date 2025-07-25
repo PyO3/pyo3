@@ -1,10 +1,10 @@
-from .word_count import search, search_sequential, search_sequential_allow_threads
+from .word_count import search, search_sequential, search_sequential_detached
 
 __all__ = [
     "search_py",
     "search",
     "search_sequential",
-    "search_sequential_allow_threads",
+    "search_sequential_detached",
 ]
 
 

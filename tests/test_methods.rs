@@ -1,10 +1,15 @@
 #![cfg(feature = "macros")]
 
+#[cfg(not(Py_LIMITED_API))]
+use pyo3::exceptions::PyWarning;
+#[cfg(not(Py_GIL_DISABLED))]
+use pyo3::exceptions::{PyFutureWarning, PyUserWarning};
 use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::PySequence;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
 use pyo3::BoundObject;
+use pyo3_macros::pyclass;
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -29,7 +34,7 @@ impl InstanceMethod {
 
 #[test]
 fn instance_method() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let obj = Bound::new(py, InstanceMethod { member: 42 }).unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.method(), 42);
@@ -53,7 +58,7 @@ impl InstanceMethodWithArgs {
 
 #[test]
 fn instance_method_with_args() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let obj = Bound::new(py, InstanceMethodWithArgs { member: 7 }).unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.method(6), 42);
@@ -86,7 +91,7 @@ impl ClassMethod {
 
 #[test]
 fn class_method() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = [("C", py.get_type::<ClassMethod>())]
             .into_py_dict(py)
             .unwrap();
@@ -115,7 +120,7 @@ impl ClassMethodWithArgs {
 
 #[test]
 fn class_method_with_args() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = [("C", py.get_type::<ClassMethodWithArgs>())]
             .into_py_dict(py)
             .unwrap();
@@ -146,7 +151,7 @@ impl StaticMethod {
 
 #[test]
 fn static_method() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         assert_eq!(StaticMethod::method(py), "StaticMethod.method()!");
 
         let d = [("C", py.get_type::<StaticMethod>())]
@@ -166,13 +171,13 @@ struct StaticMethodWithArgs {}
 impl StaticMethodWithArgs {
     #[staticmethod]
     fn method(_py: Python<'_>, input: i32) -> String {
-        format!("0x{:x}", input)
+        format!("0x{input:x}")
     }
 }
 
 #[test]
 fn static_method_with_args() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         assert_eq!(StaticMethodWithArgs::method(py, 1234), "0x4d2");
 
         let d = [("C", py.get_type::<StaticMethodWithArgs>())]
@@ -370,7 +375,7 @@ impl MethSignature {
 
 #[test]
 fn meth_signature() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(py, MethSignature {}).unwrap();
 
         py_run!(py, inst, "assert inst.get_optional() == 10");
@@ -717,7 +722,7 @@ impl MethDocs {
 
 #[test]
 fn meth_doc() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = [("C", py.get_type::<MethDocs>())].into_py_dict(py).unwrap();
         py_assert!(py, *d, "C.__doc__ == 'A class with \"documentation\".'");
         py_assert!(
@@ -752,7 +757,7 @@ impl MethodWithLifeTime {
 
 #[test]
 fn method_with_lifetime() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let obj = Py::new(py, MethodWithLifeTime {}).unwrap();
         py_run!(
             py,
@@ -802,7 +807,7 @@ impl MethodWithPyClassArg {
 
 #[test]
 fn method_with_pyclassarg() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let obj1 = Py::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
         let obj2 = Py::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
         let d = [("obj1", obj1), ("obj2", obj2)].into_py_dict(py).unwrap();
@@ -865,7 +870,7 @@ impl CfgStruct {
 
 #[test]
 fn test_cfg_attrs() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(py, CfgStruct {}).unwrap();
 
         #[cfg(unix)]
@@ -898,7 +903,7 @@ impl FromSequence {
     fn new(seq: Option<&Bound<'_, PySequence>>) -> PyResult<Self> {
         if let Some(seq) = seq {
             Ok(FromSequence {
-                numbers: seq.as_ref().extract::<Vec<_>>()?,
+                numbers: seq.as_any().extract::<Vec<_>>()?,
             })
         } else {
             Ok(FromSequence::default())
@@ -908,7 +913,7 @@ impl FromSequence {
 
 #[test]
 fn test_from_sequence() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let typeobj = py.get_type::<FromSequence>();
         py_assert!(py, typeobj, "typeobj(range(0, 4)).numbers == [0, 1, 2, 3]");
     });
@@ -988,7 +993,7 @@ impl r#RawIdents {
 
 #[test]
 fn test_raw_idents() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let raw_idents_type = py.get_type::<r#RawIdents>();
         assert_eq!(raw_idents_type.qualname().unwrap(), "RawIdents");
         py_run!(
@@ -1175,7 +1180,7 @@ fn test_option_pyclass_arg() {
         arg.map(|_| SomePyClass {})
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let f = wrap_pyfunction!(option_class_arg, py).unwrap();
         assert!(f.call0().unwrap().is_none());
         let obj = Py::new(py, SomePyClass {}).unwrap();
@@ -1201,4 +1206,269 @@ fn test_issue_2988() {
         #[pyo3(from_py_with = <Bound<'_, _> as PyAnyMethods>::extract)] _data2: Vec<i32>,
     ) {
     }
+}
+
+#[cfg(not(Py_LIMITED_API))]
+#[pyclass(extends=PyWarning)]
+pub struct UserDefinedWarning {}
+
+#[cfg(not(Py_LIMITED_API))]
+#[pymethods]
+impl UserDefinedWarning {
+    #[new]
+    #[pyo3(signature = (*_args, **_kwargs))]
+    fn new(_args: Bound<'_, PyAny>, _kwargs: Option<Bound<'_, PyAny>>) -> Self {
+        Self {}
+    }
+}
+
+#[test]
+#[cfg(not(Py_GIL_DISABLED))] // FIXME: enable once `warnings` is thread-safe
+fn test_pymethods_warn() {
+    // We do not test #[classattr] nor __traverse__
+    // because it doesn't make sense to implement deprecated methods for them.
+
+    #[pyclass]
+    struct WarningMethodContainer {
+        value: i32,
+    }
+
+    #[pymethods]
+    impl WarningMethodContainer {
+        #[new]
+        #[pyo3(warn(message = "this __new__ method raises warning"))]
+        fn new() -> Self {
+            Self { value: 0 }
+        }
+
+        #[pyo3(warn(message = "this method raises warning"))]
+        fn method_with_warning(_slf: PyRef<'_, Self>) {}
+
+        #[pyo3(warn(message = "this method raises warning", category = PyFutureWarning))]
+        fn method_with_warning_and_custom_category(_slf: PyRef<'_, Self>) {}
+
+        #[cfg(not(Py_LIMITED_API))]
+        #[pyo3(warn(message = "this method raises user-defined warning", category = UserDefinedWarning))]
+        fn method_with_warning_and_user_defined_category(&self) {}
+
+        #[staticmethod]
+        #[pyo3(warn(message = "this static method raises warning"))]
+        fn static_method() {}
+
+        #[staticmethod]
+        #[pyo3(warn(message = "this class method raises warning"))]
+        fn class_method() {}
+
+        #[getter]
+        #[pyo3(warn(message = "this getter raises warning"))]
+        fn get_value(&self) -> i32 {
+            self.value
+        }
+
+        #[setter]
+        #[pyo3(warn(message = "this setter raises warning"))]
+        fn set_value(&mut self, value: i32) {
+            self.value = value;
+        }
+
+        #[pyo3(warn(message = "this subscript op method raises warning"))]
+        fn __getitem__(&self, _key: i32) -> i32 {
+            0
+        }
+
+        #[pyo3(warn(message = "the + op method raises warning"))]
+        fn __add__(&self, other: PyRef<'_, Self>) -> Self {
+            Self {
+                value: self.value + other.value,
+            }
+        }
+
+        #[pyo3(warn(message = "this __call__ method raises warning"))]
+        fn __call__(&self) -> i32 {
+            self.value
+        }
+    }
+
+    Python::attach(|py| {
+        let typeobj = py.get_type::<WarningMethodContainer>();
+        let obj = typeobj.call0().unwrap();
+
+        // FnType::Fn
+        py_expect_warning!(
+            py,
+            obj,
+            "obj.method_with_warning()",
+            [("this method raises warning", PyUserWarning)],
+        );
+
+        // FnType::Fn
+        py_expect_warning!(
+            py,
+            obj,
+            "obj.method_with_warning_and_custom_category()",
+            [("this method raises warning", PyFutureWarning)]
+        );
+
+        // FnType::Fn, user-defined warning
+        #[cfg(not(Py_LIMITED_API))]
+        py_expect_warning!(
+            py,
+            obj,
+            "obj.method_with_warning_and_user_defined_category()",
+            [(
+                "this method raises user-defined warning",
+                UserDefinedWarning
+            )]
+        );
+
+        // #[staticmethod], FnType::FnStatic
+        py_expect_warning!(
+            py,
+            typeobj,
+            "typeobj.static_method()",
+            [("this static method raises warning", PyUserWarning)]
+        );
+
+        // #[classmethod], FnType::FnClass
+        py_expect_warning!(
+            py,
+            typeobj,
+            "typeobj.class_method()",
+            [("this class method raises warning", PyUserWarning)]
+        );
+
+        // #[classmethod], FnType::FnClass
+        py_expect_warning!(
+            py,
+            obj,
+            "obj.class_method()",
+            [("this class method raises warning", PyUserWarning)]
+        );
+
+        // #[new], FnType::FnNew
+        py_expect_warning!(
+            py,
+            typeobj,
+            "typeobj()",
+            [("this __new__ method raises warning", PyUserWarning)]
+        );
+
+        // #[getter], FnType::Getter
+        py_expect_warning!(
+            py,
+            obj,
+            "val = obj.value",
+            [("this getter raises warning", PyUserWarning)]
+        );
+
+        // #[setter], FnType::Setter
+        py_expect_warning!(
+            py,
+            obj,
+            "obj.value = 10",
+            [("this setter raises warning", PyUserWarning)]
+        );
+
+        // PyMethodProtoKind::Slot
+        py_expect_warning!(
+            py,
+            obj,
+            "obj[0]",
+            [("this subscript op method raises warning", PyUserWarning)]
+        );
+
+        // PyMethodProtoKind::SlotFragment
+        py_expect_warning!(
+            py,
+            obj,
+            "obj + obj",
+            [("the + op method raises warning", PyUserWarning)]
+        );
+
+        // PyMethodProtoKind::Call
+        py_expect_warning!(
+            py,
+            obj,
+            "obj()",
+            [("this __call__ method raises warning", PyUserWarning)]
+        );
+    });
+
+    #[pyclass]
+    struct WarningMethodContainer2 {}
+
+    #[pymethods]
+    impl WarningMethodContainer2 {
+        #[new]
+        #[classmethod]
+        #[pyo3(warn(message = "this class-method __new__ method raises warning"))]
+        fn new(_cls: Bound<'_, PyType>) -> Self {
+            Self {}
+        }
+    }
+
+    Python::attach(|py| {
+        let typeobj = py.get_type::<WarningMethodContainer2>();
+
+        // #[new], #[classmethod], FnType::FnNewClass
+        py_expect_warning!(
+            py,
+            typeobj,
+            "typeobj()",
+            [(
+                "this class-method __new__ method raises warning",
+                PyUserWarning
+            )]
+        );
+    });
+}
+
+#[test]
+#[cfg(not(Py_GIL_DISABLED))] // FIXME: enable once `warnings` is thread-safe
+fn test_py_methods_multiple_warn() {
+    #[pyclass]
+    struct MultipleWarnContainer {}
+
+    #[pymethods]
+    impl MultipleWarnContainer {
+        #[new]
+        fn new() -> Self {
+            Self {}
+        }
+
+        #[pyo3(warn(message = "this method raises warning 1"))]
+        #[pyo3(warn(message = "this method raises warning 2", category = PyFutureWarning))]
+        fn multiple_warn_method(&self) {}
+
+        #[cfg(not(Py_LIMITED_API))]
+        #[pyo3(warn(message = "this method raises FutureWarning", category = PyFutureWarning))]
+        #[pyo3(warn(message = "this method raises UserDefinedWarning", category = UserDefinedWarning))]
+        fn multiple_warn_custom_category_method(&self) {}
+    }
+
+    Python::attach(|py| {
+        let typeobj = py.get_type::<MultipleWarnContainer>();
+        let obj = typeobj.call0().unwrap();
+
+        py_expect_warning!(
+            py,
+            obj,
+            "obj.multiple_warn_method()",
+            [
+                ("this method raises warning 1", PyUserWarning),
+                ("this method raises warning 2", PyFutureWarning)
+            ]
+        );
+
+        #[cfg(not(Py_LIMITED_API))]
+        py_expect_warning!(
+            py,
+            obj,
+            "obj.multiple_warn_custom_category_method()",
+            [
+                ("this method raises FutureWarning", PyFutureWarning),
+                ("this method raises UserDefinedWarning", UserDefinedWarning)
+            ]
+        );
+    });
 }

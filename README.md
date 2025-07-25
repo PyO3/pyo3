@@ -16,12 +16,12 @@
 
 ## Usage
 
-Requires Rust 1.63 or greater.
+Requires Rust 1.74 or greater.
 
 PyO3 supports the following Python distributions:
   - CPython 3.7 or greater
   - PyPy 7.3 (Python 3.9+)
-  - GraalPy 24.0 or greater (Python 3.10+)
+  - GraalPy 24.2 or greater (Python 3.11+)
 
 You can use PyO3 to write a native Python module in Rust, or to embed Python in a Rust binary. The following sections explain each of these in turn.
 
@@ -71,7 +71,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.24.0", features = ["extension-module"] }
+pyo3 = { version = "0.25.1", features = ["extension-module"] }
 ```
 
 **`src/lib.rs`**
@@ -140,7 +140,7 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.24.0"
+version = "0.25.1"
 features = ["auto-initialize"]
 ```
 
@@ -152,7 +152,7 @@ use pyo3::types::IntoPyDict;
 use pyo3::ffi::c_str;
 
 fn main() -> PyResult<()> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let sys = py.import("sys")?;
         let version: String = sys.getattr("version")?.extract()?;
 
@@ -182,16 +182,20 @@ about this topic.
 - [rustimport](https://github.com/mityax/rustimport) _Directly import Rust files or crates from Python, without manual compilation step. Provides pyo3 integration by default and generates pyo3 binding code automatically._
 - [pyo3-arrow](https://crates.io/crates/pyo3-arrow) _Lightweight [Apache Arrow](https://arrow.apache.org/) integration for pyo3._
 - [pyo3-bytes](https://crates.io/crates/pyo3-bytes) _Integration between [`bytes`](https://crates.io/crates/bytes) and pyo3._
+- [pyo3-object_store](https://github.com/developmentseed/obstore/tree/main/pyo3-object_store) _Integration between [`object_store`](https://docs.rs/object_store) and [`pyo3`](https://github.com/PyO3/pyo3)._
 
 ## Examples
 
-- [autopy](https://github.com/autopilot-rs/autopy) _A simple, cross-platform GUI automation library for Python and Rust._
-  - Contains an example of building wheels on TravisCI and appveyor using [cibuildwheel](https://github.com/pypa/cibuildwheel)
-- [ballista-python](https://github.com/apache/arrow-ballista-python) _A Python library that binds to Apache Arrow distributed query engine Ballista._
+- [arro3](https://github.com/kylebarron/arro3) _A minimal Python library for Apache Arrow, connecting to the Rust arrow crate._
+    - [arro3-compute](https://github.com/kylebarron/arro3/tree/main/arro3-compute) _`arro3-compute`_
+    - [arro3-core](https://github.com/kylebarron/arro3/tree/main/arro3-core) _`arro3-core`_
+    - [arro3-io](https://github.com/kylebarron/arro3/tree/main/arro3-io) _`arro3-io`_
 - [bed-reader](https://github.com/fastlmm/bed-reader) _Read and write the PLINK BED format, simply and efficiently._
     - Shows Rayon/ndarray::parallel (including capturing errors, controlling thread num), Python types to Rust generics, Github Actions
+- [blake3-py](https://github.com/oconnor663/blake3-py) _Python bindings for the [BLAKE3](https://github.com/BLAKE3-team/BLAKE3) cryptographic hash function._
+    - Parallelized [builds](https://github.com/oconnor663/blake3-py/blob/master/.github/workflows/dists.yml) on GitHub Actions for MacOS, Linux, Windows, including free-threaded 3.13t wheels.
 - [cellular_raza](https://cellular-raza.com) _A cellular agent-based simulation framework for building complex models from a clean slate._
-- [connector-x](https://github.com/sfu-db/connector-x) _Fastest library to load data from DB to DataFrames in Rust and Python._
+- [connector-x](https://github.com/sfu-db/connector-x/tree/main/connectorx-python) _Fastest library to load data from DB to DataFrames in Rust and Python._
 - [cryptography](https://github.com/pyca/cryptography/tree/main/src/rust) _Python cryptography library with some functionality in Rust._
 - [css-inline](https://github.com/Stranger6667/css-inline/tree/master/bindings/python) _CSS inlining for Python implemented in Rust._
 - [datafusion-python](https://github.com/apache/arrow-datafusion-python) _A Python library that binds to Apache Arrow in-memory query engine DataFusion._
@@ -200,29 +204,25 @@ about this topic.
 - [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library._
 - [feos](https://github.com/feos-org/feos) _Lightning fast thermodynamic modeling in Rust with fully developed Python interface._
 - [forust](https://github.com/jinlow/forust) _A lightweight gradient boosted decision tree library written in Rust._
+- [geo-index](https://github.com/kylebarron/geo-index) _A Rust crate and [Python library](https://github.com/kylebarron/geo-index/tree/main/python) for packed, immutable, zero-copy spatial indexes._
 - [granian](https://github.com/emmett-framework/granian) _A Rust HTTP server for Python applications._
-- [greptimedb](https://github.com/GreptimeTeam/greptimedb/tree/main/src/script) _Support [Python scripting](https://docs.greptime.com/user-guide/python-scripts/overview) in the database_
 - [haem](https://github.com/BooleanCat/haem) _A Python library for working on Bioinformatics problems._
 - [html2text-rs](https://github.com/deedy5/html2text_rs) _Python library for converting HTML to markup or plain text._
 - [html-py-ever](https://github.com/PyO3/setuptools-rust/tree/main/examples/html-py-ever) _Using [html5ever](https://github.com/servo/html5ever) through [kuchiki](https://github.com/kuchiki-rs/kuchiki) to speed up html parsing and css-selecting._
-- [hyperjson](https://github.com/mre/hyperjson) _A hyper-fast Python module for reading/writing JSON data using Rust's serde-json._
-- [inline-python](https://github.com/fusion-engineering/inline-python) _Inline Python code directly in your Rust code._
+- [hudi-rs](https://github.com/apache/hudi-rs) _The native Rust implementation for Apache Hudi, with C++ & Python API bindings._
+- [inline-python](https://github.com/m-ou-se/inline-python) _Inline Python code directly in your Rust code._
 - [johnnycanencrypt](https://github.com/kushaldas/johnnycanencrypt) OpenPGP library with Yubikey support.
 - [jsonschema](https://github.com/Stranger6667/jsonschema/tree/master/crates/jsonschema-py) _A high-performance JSON Schema validator for Python._
 - [mocpy](https://github.com/cds-astro/mocpy) _Astronomical Python library offering data structures for describing any arbitrary coverage regions on the unit sphere._
+- [obstore](https://github.com/developmentseed/obstore) _The simplest, highest-throughput Python interface to Amazon S3, Google Cloud Storage, Azure Storage, & other S3-compliant APIs, powered by Rust._
 - [opendal](https://github.com/apache/opendal/tree/main/bindings/python) _A data access layer that allows users to easily and efficiently retrieve data from various storage services in a unified way._
 - [orjson](https://github.com/ijl/orjson) _Fast Python JSON library._
 - [ormsgpack](https://github.com/aviramha/ormsgpack) _Fast Python msgpack library._
-- [point-process](https://github.com/ManifoldFR/point-process-rust/tree/master/pylib) _High level API for pointprocesses as a Python library._
-- [polaroid](https://github.com/daggy1234/polaroid) _Hyper Fast and safe image manipulation library for Python written in Rust._
 - [polars](https://github.com/pola-rs/polars) _Fast multi-threaded DataFrame library in Rust | Python | Node.js._
+- [pycrdt](https://github.com/jupyter-server/pycrdt) _Python bindings for the Rust CRDT implementation [Yrs](https://github.com/y-crdt/y-crdt)._
 - [pydantic-core](https://github.com/pydantic/pydantic-core) _Core validation logic for pydantic written in Rust._
-- [pyheck](https://github.com/kevinheavey/pyheck) _Fast case conversion library, built by wrapping [heck](https://github.com/withoutboats/heck)._
-    - Quite easy to follow as there's not much code.
-- [pyre](https://github.com/Project-Dream-Weaver/pyre-http) _Fast Python HTTP server written in Rust._
 - [primp](https://github.com/deedy5/primp) _The fastest python HTTP client that can impersonate web browsers by mimicking their headers and TLS/JA3/JA4/HTTP2 fingerprints._
 - [rateslib](https://github.com/attack68/rateslib) _A fixed income library for Python using Rust extensions._
-- [ril-py](https://github.com/Cryptex-github/ril-py) _A performant and high-level image processing library for Python written in Rust._
 - [river](https://github.com/online-ml/river) _Online machine learning in python, the computationally heavy statistics algorithms are implemented in Rust._
 - [robyn](https://github.com/sparckles/Robyn) A Super Fast Async Python Web Framework with a Rust runtime.
 - [rust-python-coverage](https://github.com/cjermain/rust-python-coverage) _Example PyO3 project with automated test coverage for Rust and Python._
@@ -232,7 +232,6 @@ about this topic.
 - [tokenizers](https://github.com/huggingface/tokenizers/tree/main/bindings/python) _Python bindings to the Hugging Face tokenizers (NLP) written in Rust._
 - [tzfpy](http://github.com/ringsaturn/tzfpy) _A fast package to convert longitude/latitude to timezone name._
 - [utiles](https://github.com/jessekrubin/utiles) _Fast Python web-map tile utilities_
-- [wasmer-python](https://github.com/wasmerio/wasmer-python) _Python library to run WebAssembly binaries._
 
 ## Articles and other media
 

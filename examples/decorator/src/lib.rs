@@ -46,7 +46,7 @@ impl PyCounter {
         let new_count = self.count.fetch_add(1, Ordering::Relaxed);
         let name = self.wraps.getattr(py, "__name__")?;
 
-        println!("{} has been called {} time(s).", name, new_count);
+        println!("{name} has been called {new_count} time(s).");
 
         // After doing something, we finally forward the call to the wrapped function
         let ret = self.wraps.call(py, args, kwargs)?;

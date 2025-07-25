@@ -27,13 +27,6 @@ impl PyType {
         T::type_object(py)
     }
 
-    /// Deprecated name for [`PyType::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyType::new`")]
-    #[inline]
-    pub fn new_bound<T: PyTypeInfo>(py: Python<'_>) -> Bound<'_, PyType> {
-        Self::new::<T>(py)
-    }
-
     /// Converts the given FFI pointer into `Bound<PyType>`, to use in safe code.
     ///
     /// The function creates a new reference from the given pointer, and returns
@@ -172,7 +165,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
             if module_str == "builtins" || module_str == "__main__" {
                 qualname.downcast_into()?
             } else {
-                PyString::new(self.py(), &format!("{}.{}", module, qualname))
+                PyString::new(self.py(), &format!("{module}.{qualname}"))
             }
         };
 
@@ -260,7 +253,7 @@ mod tests {
 
     #[test]
     fn test_type_is_subclass() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bool_type = py.get_type::<PyBool>();
             let long_type = py.get_type::<PyInt>();
             assert!(bool_type.is_subclass(&long_type).unwrap());
@@ -269,14 +262,14 @@ mod tests {
 
     #[test]
     fn test_type_is_subclass_of() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(py.get_type::<PyBool>().is_subclass_of::<PyInt>().unwrap());
         });
     }
 
     #[test]
     fn test_mro() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(py
                 .get_type::<PyBool>()
                 .mro()
@@ -295,7 +288,7 @@ mod tests {
 
     #[test]
     fn test_bases_bool() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(py
                 .get_type::<PyBool>()
                 .bases()
@@ -306,7 +299,7 @@ mod tests {
 
     #[test]
     fn test_bases_object() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(py
                 .get_type::<PyAny>()
                 .bases()
@@ -317,7 +310,7 @@ mod tests {
 
     #[test]
     fn test_type_names_standard() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module_name = generate_unique_module_name("test_module");
             let module = PyModule::from_code(
                 py,
@@ -348,7 +341,7 @@ class MyClass:
 
     #[test]
     fn test_type_names_builtin() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bool_type = py.get_type::<PyBool>();
             assert_eq!(bool_type.name().unwrap(), "bool");
             assert_eq!(bool_type.qualname().unwrap(), "bool");
@@ -359,7 +352,7 @@ class MyClass:
 
     #[test]
     fn test_type_names_nested() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module_name = generate_unique_module_name("test_module");
             let module = PyModule::from_code(
                 py,

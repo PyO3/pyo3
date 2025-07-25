@@ -9,8 +9,6 @@ use crate::{
     },
     Bound, DowncastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python,
 };
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
 
 /// A wrapper around `str` where the storage is owned by a Python `bytes` or `str` object.
 ///
@@ -84,30 +82,6 @@ impl FromPyObject<'_> for PyBackedStr {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         let py_string = obj.downcast::<PyString>()?.to_owned();
         Self::try_from(py_string)
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for PyBackedStr {
-    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
-    fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
-        self.storage.as_any().clone_ref(py)
-    }
-    #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
-    fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
-        PyString::new(py, self).into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<Py<PyAny>> for PyBackedStr {
-    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
-    fn into_py(self, _py: Python<'_>) -> Py<PyAny> {
-        self.storage.into_any()
-    }
-    #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
-    fn into_py(self, py: Python<'_>) -> Py<PyAny> {
-        PyString::new(py, &self).into_any().unbind()
     }
 }
 
@@ -239,26 +213,6 @@ impl FromPyObject<'_> for PyBackedBytes {
     }
 }
 
-#[allow(deprecated)]
-impl ToPyObject for PyBackedBytes {
-    fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
-        match &self.storage {
-            PyBackedBytesStorage::Python(bytes) => bytes.to_object(py),
-            PyBackedBytesStorage::Rust(bytes) => PyBytes::new(py, bytes).into_any().unbind(),
-        }
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<Py<PyAny>> for PyBackedBytes {
-    fn into_py(self, py: Python<'_>) -> Py<PyAny> {
-        match self.storage {
-            PyBackedBytesStorage::Python(bytes) => bytes.into_any(),
-            PyBackedBytesStorage::Rust(bytes) => PyBytes::new(py, &bytes).into_any().unbind(),
-        }
-    }
-}
-
 impl<'py> IntoPyObject<'py> for PyBackedBytes {
     type Target = PyBytes;
     type Output = Bound<'py, Self::Target>;
@@ -367,7 +321,7 @@ mod test {
 
     #[test]
     fn py_backed_str_empty() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = PyString::new(py, "");
             let py_backed_str = s.extract::<PyBackedStr>().unwrap();
             assert_eq!(&*py_backed_str, "");
@@ -376,7 +330,7 @@ mod test {
 
     #[test]
     fn py_backed_str() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = PyString::new(py, "hello");
             let py_backed_str = s.extract::<PyBackedStr>().unwrap();
             assert_eq!(&*py_backed_str, "hello");
@@ -385,7 +339,7 @@ mod test {
 
     #[test]
     fn py_backed_str_try_from() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = PyString::new(py, "hello");
             let py_backed_str = PyBackedStr::try_from(s).unwrap();
             assert_eq!(&*py_backed_str, "hello");
@@ -394,7 +348,7 @@ mod test {
 
     #[test]
     fn py_backed_str_into_pyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let orig_str = PyString::new(py, "hello");
             let py_backed_str = orig_str.extract::<PyBackedStr>().unwrap();
             let new_str = py_backed_str.into_pyobject(py).unwrap();
@@ -405,21 +359,8 @@ mod test {
     }
 
     #[test]
-    #[allow(deprecated)]
-    fn py_backed_str_into_py() {
-        Python::with_gil(|py| {
-            let orig_str = PyString::new(py, "hello");
-            let py_backed_str = orig_str.extract::<PyBackedStr>().unwrap();
-            let new_str = py_backed_str.into_py(py);
-            assert_eq!(new_str.extract::<PyBackedStr>(py).unwrap(), "hello");
-            #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
-            assert!(new_str.is(&orig_str));
-        });
-    }
-
-    #[test]
     fn py_backed_bytes_empty() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let b = PyBytes::new(py, b"");
             let py_backed_bytes = b.extract::<PyBackedBytes>().unwrap();
             assert_eq!(&*py_backed_bytes, b"");
@@ -428,7 +369,7 @@ mod test {
 
     #[test]
     fn py_backed_bytes() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let b = PyBytes::new(py, b"abcde");
             let py_backed_bytes = b.extract::<PyBackedBytes>().unwrap();
             assert_eq!(&*py_backed_bytes, b"abcde");
@@ -437,7 +378,7 @@ mod test {
 
     #[test]
     fn py_backed_bytes_from_bytes() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let b = PyBytes::new(py, b"abcde");
             let py_backed_bytes = PyBackedBytes::from(b);
             assert_eq!(&*py_backed_bytes, b"abcde");
@@ -446,7 +387,7 @@ mod test {
 
     #[test]
     fn py_backed_bytes_from_bytearray() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let b = PyByteArray::new(py, b"abcde");
             let py_backed_bytes = PyBackedBytes::from(b);
             assert_eq!(&*py_backed_bytes, b"abcde");
@@ -454,23 +395,20 @@ mod test {
     }
 
     #[test]
-    #[allow(deprecated)]
     fn py_backed_bytes_into_pyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let orig_bytes = PyBytes::new(py, b"abcde");
             let py_backed_bytes = PyBackedBytes::from(orig_bytes.clone());
             assert!((&py_backed_bytes)
                 .into_pyobject(py)
                 .unwrap()
                 .is(&orig_bytes));
-            assert!(py_backed_bytes.into_py(py).is(&orig_bytes));
         });
     }
 
     #[test]
-    #[allow(deprecated)]
     fn rust_backed_bytes_into_pyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let orig_bytes = PyByteArray::new(py, b"abcde");
             let rust_backed_bytes = PyBackedBytes::from(orig_bytes);
             assert!(matches!(
@@ -480,9 +418,6 @@ mod test {
             let to_object = (&rust_backed_bytes).into_pyobject(py).unwrap();
             assert!(&to_object.is_exact_instance_of::<PyBytes>());
             assert_eq!(&to_object.extract::<PyBackedBytes>().unwrap(), b"abcde");
-            let into_py = rust_backed_bytes.into_py(py).into_bound(py);
-            assert!(&into_py.is_exact_instance_of::<PyBytes>());
-            assert_eq!(&into_py.extract::<PyBackedBytes>().unwrap(), b"abcde");
         });
     }
 
@@ -501,7 +436,7 @@ mod test {
     #[cfg(feature = "py-clone")]
     #[test]
     fn test_backed_str_clone() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s1: PyBackedStr = PyString::new(py, "hello").try_into().unwrap();
             let s2 = s1.clone();
             assert_eq!(s1, s2);
@@ -513,7 +448,7 @@ mod test {
 
     #[test]
     fn test_backed_str_eq() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s1: PyBackedStr = PyString::new(py, "hello").try_into().unwrap();
             let s2: PyBackedStr = PyString::new(py, "hello").try_into().unwrap();
             assert_eq!(s1, "hello");
@@ -527,7 +462,7 @@ mod test {
 
     #[test]
     fn test_backed_str_hash() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let h = {
                 let mut hasher = DefaultHasher::new();
                 "abcde".hash(&mut hasher);
@@ -547,7 +482,7 @@ mod test {
 
     #[test]
     fn test_backed_str_ord() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut a = vec!["a", "c", "d", "b", "f", "g", "e"];
             let mut b = a
                 .iter()
@@ -564,7 +499,7 @@ mod test {
     #[cfg(feature = "py-clone")]
     #[test]
     fn test_backed_bytes_from_bytes_clone() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let b1: PyBackedBytes = PyBytes::new(py, b"abcde").into();
             let b2 = b1.clone();
             assert_eq!(b1, b2);
@@ -577,7 +512,7 @@ mod test {
     #[cfg(feature = "py-clone")]
     #[test]
     fn test_backed_bytes_from_bytearray_clone() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let b1: PyBackedBytes = PyByteArray::new(py, b"abcde").into();
             let b2 = b1.clone();
             assert_eq!(b1, b2);
@@ -589,7 +524,7 @@ mod test {
 
     #[test]
     fn test_backed_bytes_eq() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let b1: PyBackedBytes = PyBytes::new(py, b"abcde").into();
             let b2: PyBackedBytes = PyByteArray::new(py, b"abcde").into();
 
@@ -604,7 +539,7 @@ mod test {
 
     #[test]
     fn test_backed_bytes_hash() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let h = {
                 let mut hasher = DefaultHasher::new();
                 b"abcde".hash(&mut hasher);
@@ -632,7 +567,7 @@ mod test {
 
     #[test]
     fn test_backed_bytes_ord() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut a = vec![b"a", b"c", b"d", b"b", b"f", b"g", b"e"];
             let mut b = a
                 .iter()

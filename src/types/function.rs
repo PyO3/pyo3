@@ -39,19 +39,6 @@ impl PyCFunction {
         )
     }
 
-    /// Deprecated name for [`PyCFunction::new_with_keywords`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyCFunction::new_with_keywords`")]
-    #[inline]
-    pub fn new_with_keywords_bound<'py>(
-        py: Python<'py>,
-        fun: ffi::PyCFunctionWithKeywords,
-        name: &'static CStr,
-        doc: &'static CStr,
-        module: Option<&Bound<'py, PyModule>>,
-    ) -> PyResult<Bound<'py, Self>> {
-        Self::new_with_keywords(py, fun, name, doc, module)
-    }
-
     /// Create a new built-in function which takes no arguments.
     ///
     /// To create `name` and `doc` static strings on Rust versions older than 1.77 (which added c"" literals),
@@ -66,19 +53,6 @@ impl PyCFunction {
         Self::internal_new(py, &PyMethodDef::noargs(name, fun, doc), module)
     }
 
-    /// Deprecated name for [`PyCFunction::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyCFunction::new`")]
-    #[inline]
-    pub fn new_bound<'py>(
-        py: Python<'py>,
-        fun: ffi::PyCFunction,
-        name: &'static CStr,
-        doc: &'static CStr,
-        module: Option<&Bound<'py, PyModule>>,
-    ) -> PyResult<Bound<'py, Self>> {
-        Self::new(py, fun, name, doc, module)
-    }
-
     /// Create a new function from a closure.
     ///
     /// # Examples
@@ -87,7 +61,7 @@ impl PyCFunction {
     /// # use pyo3::prelude::*;
     /// # use pyo3::{py_run, types::{PyCFunction, PyDict, PyTuple}};
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let add_one = |args: &Bound<'_, PyTuple>, _kwargs: Option<&Bound<'_, PyDict>>| -> PyResult<_> {
     ///         let i = args.extract::<(i64,)>()?.0;
     ///         Ok(i+1)
@@ -129,22 +103,6 @@ impl PyCFunction {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyCFunction::new_closure`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyCFunction::new_closure`")]
-    #[inline]
-    pub fn new_closure_bound<'py, F, R>(
-        py: Python<'py>,
-        name: Option<&'static CStr>,
-        doc: Option<&'static CStr>,
-        closure: F,
-    ) -> PyResult<Bound<'py, Self>>
-    where
-        F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
-        for<'p> R: crate::impl_::callback::IntoPyCallbackOutput<'p, *mut ffi::PyObject>,
-    {
-        Self::new_closure(py, name, doc, closure)
     }
 
     #[doc(hidden)]

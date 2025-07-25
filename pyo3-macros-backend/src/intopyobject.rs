@@ -1,173 +1,13 @@
-use crate::attributes::{self, get_pyo3_options, CrateAttribute, IntoPyWithAttribute};
-use crate::utils::Ctx;
+use crate::attributes::{IntoPyWithAttribute, RenamingRule};
+use crate::derive_attributes::{ContainerAttributes, FieldAttributes};
+use crate::utils::{self, Ctx};
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::ext::IdentExt;
-use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned as _;
-use syn::{
-    parenthesized, parse_quote, Attribute, DataEnum, DeriveInput, Fields, Ident, Index, Result,
-    Token,
-};
+use syn::{parse_quote, DataEnum, DeriveInput, Fields, Ident, Index, Result};
 
-/// Attributes for deriving `IntoPyObject` scoped on containers.
-enum ContainerPyO3Attribute {
-    /// Treat the Container as a Wrapper, directly convert its field into the output object.
-    Transparent(attributes::kw::transparent),
-    /// Change the path for the pyo3 crate
-    Crate(CrateAttribute),
-}
-
-impl Parse for ContainerPyO3Attribute {
-    fn parse(input: ParseStream<'_>) -> Result<Self> {
-        let lookahead = input.lookahead1();
-        if lookahead.peek(attributes::kw::transparent) {
-            let kw: attributes::kw::transparent = input.parse()?;
-            Ok(ContainerPyO3Attribute::Transparent(kw))
-        } else if lookahead.peek(Token![crate]) {
-            input.parse().map(ContainerPyO3Attribute::Crate)
-        } else {
-            Err(lookahead.error())
-        }
-    }
-}
-
-#[derive(Default)]
-struct ContainerOptions {
-    /// Treat the Container as a Wrapper, directly convert its field into the output object.
-    transparent: Option<attributes::kw::transparent>,
-    /// Change the path for the pyo3 crate
-    krate: Option<CrateAttribute>,
-}
-
-impl ContainerOptions {
-    fn from_attrs(attrs: &[Attribute]) -> Result<Self> {
-        let mut options = ContainerOptions::default();
-
-        for attr in attrs {
-            if let Some(pyo3_attrs) = get_pyo3_options(attr)? {
-                pyo3_attrs
-                    .into_iter()
-                    .try_for_each(|opt| options.set_option(opt))?;
-            }
-        }
-        Ok(options)
-    }
-
-    fn set_option(&mut self, option: ContainerPyO3Attribute) -> syn::Result<()> {
-        macro_rules! set_option {
-            ($key:ident) => {
-                {
-                    ensure_spanned!(
-                        self.$key.is_none(),
-                        $key.span() => concat!("`", stringify!($key), "` may only be specified once")
-                    );
-                    self.$key = Some($key);
-                }
-            };
-        }
-
-        match option {
-            ContainerPyO3Attribute::Transparent(transparent) => set_option!(transparent),
-            ContainerPyO3Attribute::Crate(krate) => set_option!(krate),
-        }
-        Ok(())
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ItemOption {
-    field: Option<syn::LitStr>,
-    span: Span,
-}
-
-impl ItemOption {
-    fn span(&self) -> Span {
-        self.span
-    }
-}
-
-enum FieldAttribute {
-    Item(ItemOption),
-    IntoPyWith(IntoPyWithAttribute),
-}
-
-impl Parse for FieldAttribute {
-    fn parse(input: ParseStream<'_>) -> Result<Self> {
-        let lookahead = input.lookahead1();
-        if lookahead.peek(attributes::kw::attribute) {
-            let attr: attributes::kw::attribute = input.parse()?;
-            bail_spanned!(attr.span => "`attribute` is not supported by `IntoPyObject`");
-        } else if lookahead.peek(attributes::kw::item) {
-            let attr: attributes::kw::item = input.parse()?;
-            if input.peek(syn::token::Paren) {
-                let content;
-                let _ = parenthesized!(content in input);
-                let key = content.parse()?;
-                if !content.is_empty() {
-                    return Err(
-                        content.error("expected at most one argument: `item` or `item(key)`")
-                    );
-                }
-                Ok(FieldAttribute::Item(ItemOption {
-                    field: Some(key),
-                    span: attr.span,
-                }))
-            } else {
-                Ok(FieldAttribute::Item(ItemOption {
-                    field: None,
-                    span: attr.span,
-                }))
-            }
-        } else if lookahead.peek(attributes::kw::into_py_with) {
-            input.parse().map(FieldAttribute::IntoPyWith)
-        } else {
-            Err(lookahead.error())
-        }
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-struct FieldAttributes {
-    item: Option<ItemOption>,
-    into_py_with: Option<IntoPyWithAttribute>,
-}
-
-impl FieldAttributes {
-    /// Extract the field attributes.
-    fn from_attrs(attrs: &[Attribute]) -> Result<Self> {
-        let mut options = FieldAttributes::default();
-
-        for attr in attrs {
-            if let Some(pyo3_attrs) = get_pyo3_options(attr)? {
-                pyo3_attrs
-                    .into_iter()
-                    .try_for_each(|opt| options.set_option(opt))?;
-            }
-        }
-        Ok(options)
-    }
-
-    fn set_option(&mut self, option: FieldAttribute) -> syn::Result<()> {
-        macro_rules! set_option {
-            ($key:ident) => {
-                {
-                    ensure_spanned!(
-                        self.$key.is_none(),
-                        $key.span() => concat!("`", stringify!($key), "` may only be specified once")
-                    );
-                    self.$key = Some($key);
-                }
-            };
-        }
-
-        match option {
-            FieldAttribute::Item(item) => set_option!(item),
-            FieldAttribute::IntoPyWith(into_py_with) => set_option!(into_py_with),
-        }
-        Ok(())
-    }
-}
+struct ItemOption(Option<syn::Lit>);
 
 enum IntoPyObjectTypes {
     Transparent(syn::Type),
@@ -225,6 +65,7 @@ struct Container<'a, const REF: bool> {
     path: syn::Path,
     receiver: Option<Ident>,
     ty: ContainerType<'a>,
+    rename_rule: Option<RenamingRule>,
 }
 
 /// Construct a container based on fields, identifier and attributes.
@@ -235,18 +76,22 @@ impl<'a, const REF: bool> Container<'a, REF> {
         receiver: Option<Ident>,
         fields: &'a Fields,
         path: syn::Path,
-        options: ContainerOptions,
+        options: ContainerAttributes,
     ) -> Result<Self> {
         let style = match fields {
             Fields::Unnamed(unnamed) if !unnamed.unnamed.is_empty() => {
+                ensure_spanned!(
+                    options.rename_all.is_none(),
+                    options.rename_all.span() => "`rename_all` is useless on tuple structs and variants."
+                );
                 let mut tuple_fields = unnamed
                     .unnamed
                     .iter()
                     .map(|field| {
                         let attrs = FieldAttributes::from_attrs(&field.attrs)?;
                         ensure_spanned!(
-                            attrs.item.is_none(),
-                            attrs.item.unwrap().span() => "`item` is not permitted on tuple struct elements."
+                            attrs.getter.is_none(),
+                            attrs.getter.unwrap().span() => "`item` and `attribute` are not permitted on tuple struct elements."
                         );
                         Ok(TupleStructField {
                             field,
@@ -284,8 +129,12 @@ impl<'a, const REF: bool> Container<'a, REF> {
                     let field = named.named.iter().next().unwrap();
                     let attrs = FieldAttributes::from_attrs(&field.attrs)?;
                     ensure_spanned!(
-                        attrs.item.is_none(),
-                        attrs.item.unwrap().span() => "`transparent` structs may not have `item` for the inner field"
+                        attrs.getter.is_none(),
+                        attrs.getter.unwrap().span() => "`transparent` structs may not have `item` nor `attribute` for the inner field"
+                    );
+                    ensure_spanned!(
+                        options.rename_all.is_none(),
+                        options.rename_all.span() => "`rename_all` is not permitted on `transparent` structs and variants"
                     );
                     ensure_spanned!(
                         attrs.into_py_with.is_none(),
@@ -307,7 +156,12 @@ impl<'a, const REF: bool> Container<'a, REF> {
                             Ok(NamedStructField {
                                 ident,
                                 field,
-                                item: attrs.item,
+                                item: attrs.getter.and_then(|getter| match getter {
+                                    crate::derive_attributes::FieldGetter::GetItem(_, lit) => {
+                                        Some(ItemOption(lit))
+                                    }
+                                    crate::derive_attributes::FieldGetter::GetAttr(_, _) => None,
+                                }),
                                 into_py_with: attrs.into_py_with,
                             })
                         })
@@ -324,6 +178,7 @@ impl<'a, const REF: bool> Container<'a, REF> {
             path,
             receiver,
             ty: style,
+            rename_rule: options.rename_all.map(|v| v.value.rule),
         };
         Ok(v)
     }
@@ -407,9 +262,12 @@ impl<'a, const REF: bool> Container<'a, REF> {
                 let key = f
                     .item
                     .as_ref()
-                    .and_then(|item| item.field.as_ref())
-                    .map(|item| item.value())
-                    .unwrap_or_else(|| f.ident.unraw().to_string());
+                    .and_then(|item| item.0.as_ref())
+                    .map(|item| item.into_token_stream())
+                    .unwrap_or_else(|| {
+                        let name = f.ident.unraw().to_string();
+                        self.rename_rule.map(|rule| utils::apply_renaming_rule(rule, &name)).unwrap_or(name).into_token_stream()
+                    });
                 let value = Ident::new(&format!("arg{i}"), f.field.ty.span());
 
                 if let Some(expr_path) = f.into_py_with.as_ref().map(|i|&i.value) {
@@ -519,7 +377,7 @@ impl<'a, const REF: bool> Enum<'a, REF> {
             .variants
             .iter()
             .map(|variant| {
-                let attrs = ContainerOptions::from_attrs(&variant.attrs)?;
+                let attrs = ContainerAttributes::from_attrs(&variant.attrs)?;
                 let var_ident = &variant.ident;
 
                 ensure_spanned!(
@@ -582,7 +440,7 @@ fn verify_and_get_lifetime(generics: &syn::Generics) -> Option<&syn::LifetimePar
 }
 
 pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Result<TokenStream> {
-    let options = ContainerOptions::from_attrs(&tokens.attrs)?;
+    let options = ContainerAttributes::from_attrs(&tokens.attrs)?;
     let ctx = &Ctx::new(&options.krate, None);
     let Ctx { pyo3_path, .. } = &ctx;
 
@@ -613,6 +471,9 @@ pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Resu
         syn::Data::Enum(en) => {
             if options.transparent.is_some() {
                 bail_spanned!(tokens.span() => "`transparent` is not supported at top level for enums");
+            }
+            if let Some(rename_all) = options.rename_all {
+                bail_spanned!(rename_all.span() => "`rename_all` is not supported at top level for enums");
             }
             let en = Enum::<REF>::new(en, &tokens.ident)?;
             en.build(ctx)
@@ -669,8 +530,8 @@ pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Resu
             type Error = #error;
 
             fn into_pyobject(self, py: #pyo3_path::Python<#lt_param>) -> ::std::result::Result<
-                <Self as #pyo3_path::conversion::IntoPyObject>::Output,
-                <Self as #pyo3_path::conversion::IntoPyObject>::Error,
+                <Self as #pyo3_path::conversion::IntoPyObject<#lt_param>>::Output,
+                <Self as #pyo3_path::conversion::IntoPyObject<#lt_param>>::Error,
             > {
                 #body
             }
