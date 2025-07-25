@@ -253,6 +253,8 @@ Type:      builtin_function_or_method
 
 When the `experimental-inspect` Cargo feature is enabled, the `signature` attribute can also contain type hints:
 ```rust
+use pyo3::prelude::*;
+
 #[pymodule]
 pub mod example {
    use pyo3::prelude::*;
