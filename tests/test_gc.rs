@@ -1,14 +1,12 @@
 #![cfg(feature = "macros")]
 #![warn(unsafe_op_in_unsafe_fn)]
 
-use pyo3::buffer::PyBuffer;
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::ffi;
 use pyo3::prelude::*;
 #[cfg(not(Py_GIL_DISABLED))]
 use pyo3::py_run;
-use pyo3::types::PyBytes;
 #[cfg(not(target_arch = "wasm32"))]
 use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -743,7 +741,11 @@ extern "C" fn visit_error(
 }
 
 #[test]
+#[cfg(any(not(Py_LIMITED_API), Py_3_11))] // buffer availability
 fn test_drop_buffer_during_traversal_without_gil() {
+    use pyo3::buffer::PyBuffer;
+    use pyo3::types::PyBytes;
+
     // `PyBuffer` has a drop method which attempts to attach to the Python interpreter,
     // if the thread is during traverse we leak it for safety. This should _never_ be happening
     // so it's purely a user bug, but we leak to be safe.
