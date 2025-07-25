@@ -32,6 +32,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: metadata
+          path: .metadata
 
       - name: Get PR metadata
         id: pr_metadata
