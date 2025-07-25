@@ -42,6 +42,7 @@ inventory = { version = "0.3.5", optional = true }
 # crate integrations that can be added using the eponymous features
 anyhow = { version = "1.0.1", optional = true }
 bigdecimal = { version = "0.4.7", optional = true }
+bytes = { version = "1.10", optional = true }
 chrono = { version = "0.4.25", default-features = false, optional = true }
 chrono-tz = { version = ">= 0.10, < 0.11", default-features = false, optional = true }
 either = { version = "1.9", optional = true }
@@ -146,6 +147,7 @@ full = [
     "anyhow",
     "arc_lock",
     "bigdecimal",
+    "bytes",
     "chrono",
     "chrono-local",
     "chrono-tz",
