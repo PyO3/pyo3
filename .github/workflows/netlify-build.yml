@@ -78,5 +78,5 @@ jobs:
       - name: Upload PR number
         uses: actions/upload-artifact@v4
         with:
-          name: pr-number
+          name: pr_number
           path: .pr-number
