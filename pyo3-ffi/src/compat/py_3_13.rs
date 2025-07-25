@@ -50,3 +50,72 @@ compat_function!(
         Py_XNewRef(PyImport_AddModule(name))
     }
 );
+
+compat_function!(
+    originally_defined_for(Py_3_13);
+
+    #[inline]
+    pub unsafe fn PyWeakref_GetRef(
+        reference: *mut crate::PyObject,
+        pobj: *mut *mut crate::PyObject,
+    ) -> std::os::raw::c_int {
+        use crate::{
+            compat::Py_NewRef, PyErr_SetString, PyExc_TypeError, PyWeakref_Check,
+            PyWeakref_GetObject, Py_None,
+        };
+
+        if !reference.is_null() && PyWeakref_Check(reference) == 0 {
+            *pobj = std::ptr::null_mut();
+            PyErr_SetString(PyExc_TypeError, c_str!("expected a weakref").as_ptr());
+            return -1;
+        }
+        let obj = PyWeakref_GetObject(reference);
+        if obj.is_null() {
+            // SystemError if reference is NULL
+            *pobj = std::ptr::null_mut();
+            return -1;
+        }
+        if obj == Py_None() {
+            *pobj = std::ptr::null_mut();
+            return 0;
+        }
+        *pobj = Py_NewRef(obj);
+        1
+    }
+);
+
+compat_function!(
+    originally_defined_for(Py_3_13);
+
+    #[inline]
+    pub unsafe fn PyList_Extend(
+        list: *mut crate::PyObject,
+        iterable: *mut crate::PyObject,
+    ) -> std::os::raw::c_int {
+        crate::PyList_SetSlice(list, crate::PY_SSIZE_T_MAX, crate::PY_SSIZE_T_MAX, iterable)
+    }
+);
+
+compat_function!(
+    originally_defined_for(Py_3_13);
+
+    #[inline]
+    pub unsafe fn PyList_Clear(list: *mut crate::PyObject) -> std::os::raw::c_int {
+        crate::PyList_SetSlice(list, 0, crate::PY_SSIZE_T_MAX, std::ptr::null_mut())
+    }
+);
+
+compat_function!(
+    originally_defined_for(Py_3_13);
+
+    #[inline]
+    pub unsafe fn PyModule_Add(
+        module: *mut crate::PyObject,
+        name: *const std::os::raw::c_char,
+        value: *mut crate::PyObject,
+    ) -> std::os::raw::c_int {
+        let result = crate::compat::PyModule_AddObjectRef(module, name, value);
+        crate::Py_XDECREF(value);
+        result
+    }
+);

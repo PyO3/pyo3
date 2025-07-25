@@ -6,7 +6,7 @@ use crate::py_result_ext::PyResultExt;
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
-use crate::types::{PyAny, PyDict, PySequence, PyType};
+use crate::types::{PyAny, PyDict, PyList, PyType};
 use crate::{ffi, Py, PyTypeCheck, Python};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
@@ -77,14 +77,14 @@ pub trait PyMappingMethods<'py>: crate::sealed::Sealed {
     where
         K: IntoPyObject<'py>;
 
-    /// Returns a sequence containing all keys in the mapping.
-    fn keys(&self) -> PyResult<Bound<'py, PySequence>>;
+    /// Returns a list containing all keys in the mapping.
+    fn keys(&self) -> PyResult<Bound<'py, PyList>>;
 
-    /// Returns a sequence containing all values in the mapping.
-    fn values(&self) -> PyResult<Bound<'py, PySequence>>;
+    /// Returns a list containing all values in the mapping.
+    fn values(&self) -> PyResult<Bound<'py, PyList>>;
 
-    /// Returns a sequence of tuples of all (key, value) pairs in the mapping.
-    fn items(&self) -> PyResult<Bound<'py, PySequence>>;
+    /// Returns a list of all (key, value) pairs in the mapping.
+    fn items(&self) -> PyResult<Bound<'py, PyList>>;
 }
 
 impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
@@ -133,7 +133,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
     }
 
     #[inline]
-    fn keys(&self) -> PyResult<Bound<'py, PySequence>> {
+    fn keys(&self) -> PyResult<Bound<'py, PyList>> {
         unsafe {
             ffi::PyMapping_Keys(self.as_ptr())
                 .assume_owned_or_err(self.py())
@@ -142,7 +142,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
     }
 
     #[inline]
-    fn values(&self) -> PyResult<Bound<'py, PySequence>> {
+    fn values(&self) -> PyResult<Bound<'py, PyList>> {
         unsafe {
             ffi::PyMapping_Values(self.as_ptr())
                 .assume_owned_or_err(self.py())
@@ -151,7 +151,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
     }
 
     #[inline]
-    fn items(&self) -> PyResult<Bound<'py, PySequence>> {
+    fn items(&self) -> PyResult<Bound<'py, PyList>> {
         unsafe {
             ffi::PyMapping_Items(self.as_ptr())
                 .assume_owned_or_err(self.py())
@@ -163,11 +163,13 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
 fn get_mapping_abc(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     static MAPPING_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
 
-    MAPPING_ABC.get_or_try_init_type_ref(py, "collections.abc", "Mapping")
+    MAPPING_ABC.import(py, "collections.abc", "Mapping")
 }
 
 impl PyTypeCheck for PyMapping {
     const NAME: &'static str = "Mapping";
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "collections.abc.Mapping";
 
     #[inline]
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
@@ -194,7 +196,7 @@ mod tests {
 
     #[test]
     fn test_len() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::<i32, i32>::new();
             let ob = (&v).into_pyobject(py).unwrap();
             let mapping = ob.downcast::<PyMapping>().unwrap();
@@ -211,7 +213,7 @@ mod tests {
 
     #[test]
     fn test_contains() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert("key0", 1234);
             let ob = v.into_pyobject(py).unwrap();
@@ -226,7 +228,7 @@ mod tests {
 
     #[test]
     fn test_get_item() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.into_pyobject(py).unwrap();
@@ -244,7 +246,7 @@ mod tests {
 
     #[test]
     fn test_set_item() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.into_pyobject(py).unwrap();
@@ -264,7 +266,7 @@ mod tests {
 
     #[test]
     fn test_del_item() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.into_pyobject(py).unwrap();
@@ -280,7 +282,7 @@ mod tests {
 
     #[test]
     fn test_items() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             v.insert(8, 42);
@@ -290,7 +292,7 @@ mod tests {
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
             let mut value_sum = 0;
-            for el in mapping.items().unwrap().iter().unwrap() {
+            for el in mapping.items().unwrap().try_iter().unwrap() {
                 let tuple = el.unwrap().downcast_into::<PyTuple>().unwrap();
                 key_sum += tuple.get_item(0).unwrap().extract::<i32>().unwrap();
                 value_sum += tuple.get_item(1).unwrap().extract::<i32>().unwrap();
@@ -302,7 +304,7 @@ mod tests {
 
     #[test]
     fn test_keys() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             v.insert(8, 42);
@@ -311,7 +313,7 @@ mod tests {
             let mapping = ob.downcast::<PyMapping>().unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
-            for el in mapping.keys().unwrap().iter().unwrap() {
+            for el in mapping.keys().unwrap().try_iter().unwrap() {
                 key_sum += el.unwrap().extract::<i32>().unwrap();
             }
             assert_eq!(7 + 8 + 9, key_sum);
@@ -320,7 +322,7 @@ mod tests {
 
     #[test]
     fn test_values() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
             v.insert(8, 42);
@@ -329,7 +331,7 @@ mod tests {
             let mapping = ob.downcast::<PyMapping>().unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut values_sum = 0;
-            for el in mapping.values().unwrap().iter().unwrap() {
+            for el in mapping.values().unwrap().try_iter().unwrap() {
                 values_sum += el.unwrap().extract::<i32>().unwrap();
             }
             assert_eq!(32 + 42 + 123, values_sum);

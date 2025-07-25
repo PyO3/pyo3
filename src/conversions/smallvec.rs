@@ -20,41 +20,10 @@ use crate::exceptions::PyTypeError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::types::any::PyAnyMethods;
-use crate::types::list::new_from_iter;
 use crate::types::{PySequence, PyString};
 use crate::PyErr;
-use crate::{
-    err::DowncastError, ffi, Bound, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python,
-    ToPyObject,
-};
+use crate::{err::DowncastError, ffi, Bound, FromPyObject, PyAny, PyResult, Python};
 use smallvec::{Array, SmallVec};
-
-impl<A> ToPyObject for SmallVec<A>
-where
-    A: Array,
-    A::Item: ToPyObject,
-{
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.as_slice().to_object(py)
-    }
-}
-
-impl<A> IntoPy<PyObject> for SmallVec<A>
-where
-    A: Array,
-    A::Item: IntoPy<PyObject>,
-{
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let mut iter = self.into_iter().map(|e| e.into_py(py));
-        let list = new_from_iter(py, &mut iter);
-        list.into()
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::list_of(A::Item::type_output())
-    }
-}
 
 impl<'py, A> IntoPyObject<'py> for SmallVec<A>
 where
@@ -73,12 +42,18 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         <A::Item>::owned_sequence_into_pyobject(self, py, crate::conversion::private::Token)
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::list_of(A::Item::type_output())
+    }
 }
 
 impl<'a, 'py, A> IntoPyObject<'py> for &'a SmallVec<A>
 where
     A: Array,
     &'a A::Item: IntoPyObject<'py>,
+    A::Item: 'a, // MSRV
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -87,6 +62,11 @@ where
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.as_slice().into_pyobject(py)
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::list_of(<&A::Item>::type_output())
     }
 }
 
@@ -124,7 +104,7 @@ where
     };
 
     let mut sv = SmallVec::with_capacity(seq.len().unwrap_or(0));
-    for item in seq.iter()? {
+    for item in seq.try_iter()? {
         sv.push(item?.extract::<A::Item>()?);
     }
     Ok(sv)
@@ -136,19 +116,9 @@ mod tests {
     use crate::types::{PyBytes, PyBytesMethods, PyDict, PyList};
 
     #[test]
-    fn test_smallvec_into_py() {
-        Python::with_gil(|py| {
-            let sv: SmallVec<[u64; 8]> = [1, 2, 3, 4, 5].iter().cloned().collect();
-            let hso: PyObject = sv.clone().into_py(py);
-            let l = PyList::new(py, [1, 2, 3, 4, 5]);
-            assert!(l.eq(hso).unwrap());
-        });
-    }
-
-    #[test]
     fn test_smallvec_from_py_object() {
-        Python::with_gil(|py| {
-            let l = PyList::new(py, [1, 2, 3, 4, 5]);
+        Python::attach(|py| {
+            let l = PyList::new(py, [1, 2, 3, 4, 5]).unwrap();
             let sv: SmallVec<[u64; 8]> = l.extract().unwrap();
             assert_eq!(sv.as_slice(), [1, 2, 3, 4, 5]);
         });
@@ -156,7 +126,7 @@ mod tests {
 
     #[test]
     fn test_smallvec_from_py_object_fails() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict = PyDict::new(py);
             let sv: PyResult<SmallVec<[u64; 8]>> = dict.extract();
             assert_eq!(
@@ -167,18 +137,18 @@ mod tests {
     }
 
     #[test]
-    fn test_smallvec_to_object() {
-        Python::with_gil(|py| {
+    fn test_smallvec_into_pyobject() {
+        Python::attach(|py| {
             let sv: SmallVec<[u64; 8]> = [1, 2, 3, 4, 5].iter().cloned().collect();
-            let hso: PyObject = sv.to_object(py);
-            let l = PyList::new(py, [1, 2, 3, 4, 5]);
+            let hso = sv.into_pyobject(py).unwrap();
+            let l = PyList::new(py, [1, 2, 3, 4, 5]).unwrap();
             assert!(l.eq(hso).unwrap());
         });
     }
 
     #[test]
     fn test_smallvec_intopyobject_impl() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes: SmallVec<[u8; 8]> = [1, 2, 3, 4, 5].iter().cloned().collect();
             let obj = bytes.clone().into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());

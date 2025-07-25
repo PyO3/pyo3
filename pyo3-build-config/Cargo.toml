@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-build-config"
-version = "0.23.0-dev"
+version = "0.25.1"
 description = "Build configuration for the PyO3 ecosystem"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
@@ -9,15 +9,15 @@ repository = "https://github.com/pyo3/pyo3"
 categories = ["api-bindings", "development-tools::ffi"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
+rust-version.workspace = true
 
 [dependencies]
-once_cell = "1"
-python3-dll-a = { version = "0.2.6", optional = true }
-target-lexicon = "0.12.14"
+python3-dll-a = { version = "0.2.12", optional = true }
+target-lexicon = "0.13"
 
 [build-dependencies]
-python3-dll-a = { version = "0.2.6", optional = true }
-target-lexicon = "0.12.14"
+python3-dll-a = { version = "0.2.12", optional = true }
+target-lexicon = "0.13"
 
 [features]
 default = []
@@ -36,7 +36,9 @@ abi3-py38 = ["abi3-py39"]
 abi3-py39 = ["abi3-py310"]
 abi3-py310 = ["abi3-py311"]
 abi3-py311 = ["abi3-py312"]
-abi3-py312 = ["abi3"]
+abi3-py312 = ["abi3-py313"]
+abi3-py313 = ["abi3-py314"]
+abi3-py314 = ["abi3"]
 
 [package.metadata.docs.rs]
 features = ["resolve-config"]

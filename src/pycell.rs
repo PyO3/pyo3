@@ -7,7 +7,7 @@
 //! PyO3 deals with these differences by employing the [Interior Mutability]
 //! pattern. This requires that PyO3 enforces the borrowing rules and it has two mechanisms for
 //! doing so:
-//! - Statically it can enforce threadsafe access with the [`Python<'py>`](crate::Python) token.
+//! - Statically it can enforce thread-safe access with the [`Python<'py>`](crate::Python) token.
 //!   All Rust code holding that token, or anything derived from it, can assume that they have
 //!   safe access to the Python interpreter's state. For this reason all the native Python objects
 //!   can be mutated through shared references.
@@ -22,7 +22,7 @@
 //! Usually you can use `&mut` references as method and function receivers and arguments, and you
 //! won't need to use `PyCell` directly:
 //!
-//! ```rust
+//! ```rust,no_run
 //! use pyo3::prelude::*;
 //!
 //! #[pyclass]
@@ -68,7 +68,7 @@
 //!             .downcast::<_pyo3::PyCell<Number>>()?;
 //!         let mut _ref = _cell.try_borrow_mut()?;
 //!         let _slf: &mut Number = &mut *_ref;
-//!         _pyo3::callback::convert(py, Number::increment(_slf))
+//!         _pyo3::impl_::callback::convert(py, Number::increment(_slf))
 //!     })
 //! }
 //! ```
@@ -92,7 +92,7 @@
 //! #     }
 //! # }
 //! # fn main() -> PyResult<()> {
-//! Python::with_gil(|py| {
+//! Python::attach(|py| {
 //!     let n = Py::new(py, Number { inner: 0 })?;
 //!
 //!     // We borrow the guard and then dereference
@@ -128,7 +128,7 @@
 //!     std::mem::swap(&mut a.inner, &mut b.inner);
 //! }
 //! # fn main() {
-//! #     Python::with_gil(|py| {
+//! #     Python::attach(|py| {
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = n.clone_ref(py);
 //! #         assert!(n.is(&n2));
@@ -166,7 +166,7 @@
 //! }
 //! # fn main() {
 //! #     // With duplicate numbers
-//! #     Python::with_gil(|py| {
+//! #     Python::attach(|py| {
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = n.clone_ref(py);
 //! #         assert!(n.is(&n2));
@@ -175,7 +175,7 @@
 //! #     });
 //! #
 //! #     // With two different numbers
-//! #     Python::with_gil(|py| {
+//! #     Python::attach(|py| {
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = Py::new(py, Number{inner: 42}).unwrap();
 //! #         assert!(!n.is(&n2));
@@ -193,13 +193,13 @@
 //! [guide]: https://pyo3.rs/latest/class.html#pycell-and-interior-mutability "PyCell and interior mutability"
 //! [Interior Mutability]: https://doc.rust-lang.org/book/ch15-05-interior-mutability.html "RefCell<T> and the Interior Mutability Pattern - The Rust Programming Language"
 
-use crate::conversion::{AsPyPointer, IntoPyObject};
+use crate::conversion::IntoPyObject;
 use crate::exceptions::PyRuntimeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::{ptr_from_mut, ptr_from_ref};
 use crate::pyclass::{boolean_struct::False, PyClass};
 use crate::types::any::PyAnyMethods;
-use crate::{ffi, Borrowed, Bound, IntoPy, PyErr, PyObject, Python};
+use crate::{ffi, Borrowed, Bound, PyErr, Python};
 use std::convert::Infallible;
 use std::fmt;
 use std::mem::ManuallyDrop;
@@ -244,7 +244,7 @@ use impl_::{PyClassBorrowChecker, PyClassObjectLayout};
 ///         format!("{}(base: {}, cnt: {})", slf.name, basename, refcnt)
 ///     }
 /// }
-/// # Python::with_gil(|py| {
+/// # Python::attach(|py| {
 /// #     let sub = Py::new(py, Child::new()).unwrap();
 /// #     pyo3::py_run!(py, sub, "assert sub.format() == 'Caterpillar(base: Butterfly, cnt: 4)', sub.format()");
 /// # });
@@ -265,7 +265,7 @@ impl<'p, T: PyClass> PyRef<'p, T> {
     }
 }
 
-impl<'p, T, U> AsRef<U> for PyRef<'p, T>
+impl<T, U> AsRef<U> for PyRef<'_, T>
 where
     T: PyClass<BaseType = U>,
     U: PyClass,
@@ -359,7 +359,7 @@ where
     ///         format!("{} {} {}", super_.as_ref().name1, super_.name2, subname)
     ///     }
     /// }
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// #     let sub = Py::new(py, Sub::new()).unwrap();
     /// #     pyo3::py_run!(py, sub, "assert sub.name() == 'base1 base2 sub'")
     /// # });
@@ -370,7 +370,7 @@ where
             inner: unsafe {
                 ManuallyDrop::new(self)
                     .as_ptr()
-                    .assume_owned(py)
+                    .assume_owned_unchecked(py)
                     .downcast_into_unchecked()
             },
         }
@@ -414,7 +414,7 @@ where
     ///         format!("{} {}", slf.as_super().base_name_len(), slf.sub_name_len())
     ///     }
     /// }
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// #     let sub = Py::new(py, Sub::new()).unwrap();
     /// #     pyo3::py_run!(py, sub, "assert sub.format_name_lengths() == '9 8'")
     /// # });
@@ -429,7 +429,7 @@ where
     }
 }
 
-impl<'p, T: PyClass> Deref for PyRef<'p, T> {
+impl<T: PyClass> Deref for PyRef<'_, T> {
     type Target = T;
 
     #[inline]
@@ -438,24 +438,12 @@ impl<'p, T: PyClass> Deref for PyRef<'p, T> {
     }
 }
 
-impl<'p, T: PyClass> Drop for PyRef<'p, T> {
+impl<T: PyClass> Drop for PyRef<'_, T> {
     fn drop(&mut self) {
         self.inner
             .get_class_object()
             .borrow_checker()
             .release_borrow()
-    }
-}
-
-impl<T: PyClass> IntoPy<PyObject> for PyRef<'_, T> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
-    }
-}
-
-impl<T: PyClass> IntoPy<PyObject> for &'_ PyRef<'_, T> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
     }
 }
 
@@ -476,12 +464,6 @@ impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &'a PyRef<'py, T> {
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.inner.as_borrowed())
-    }
-}
-
-unsafe impl<'a, T: PyClass> AsPyPointer for PyRef<'a, T> {
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.inner.as_ptr()
     }
 }
 
@@ -508,7 +490,7 @@ impl<'p, T: PyClass<Frozen = False>> PyRefMut<'p, T> {
     }
 }
 
-impl<'p, T, U> AsRef<U> for PyRefMut<'p, T>
+impl<T, U> AsRef<U> for PyRefMut<'_, T>
 where
     T: PyClass<BaseType = U, Frozen = False>,
     U: PyClass<Frozen = False>,
@@ -518,7 +500,7 @@ where
     }
 }
 
-impl<'p, T, U> AsMut<U> for PyRefMut<'p, T>
+impl<T, U> AsMut<U> for PyRefMut<'_, T>
 where
     T: PyClass<BaseType = U, Frozen = False>,
     U: PyClass<Frozen = False>,
@@ -587,7 +569,7 @@ where
             inner: unsafe {
                 ManuallyDrop::new(self)
                     .as_ptr()
-                    .assume_owned(py)
+                    .assume_owned_unchecked(py)
                     .downcast_into_unchecked()
             },
         }
@@ -611,7 +593,7 @@ where
     }
 }
 
-impl<'p, T: PyClass<Frozen = False>> Deref for PyRefMut<'p, T> {
+impl<T: PyClass<Frozen = False>> Deref for PyRefMut<'_, T> {
     type Target = T;
 
     #[inline]
@@ -620,31 +602,19 @@ impl<'p, T: PyClass<Frozen = False>> Deref for PyRefMut<'p, T> {
     }
 }
 
-impl<'p, T: PyClass<Frozen = False>> DerefMut for PyRefMut<'p, T> {
+impl<T: PyClass<Frozen = False>> DerefMut for PyRefMut<'_, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut *self.inner.get_class_object().get_ptr() }
     }
 }
 
-impl<'p, T: PyClass<Frozen = False>> Drop for PyRefMut<'p, T> {
+impl<T: PyClass<Frozen = False>> Drop for PyRefMut<'_, T> {
     fn drop(&mut self) {
         self.inner
             .get_class_object()
             .borrow_checker()
             .release_borrow_mut()
-    }
-}
-
-impl<T: PyClass<Frozen = False>> IntoPy<PyObject> for PyRefMut<'_, T> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
-    }
-}
-
-impl<T: PyClass<Frozen = False>> IntoPy<PyObject> for &'_ PyRefMut<'_, T> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.inner.clone().into_py(py)
     }
 }
 
@@ -737,7 +707,7 @@ mod tests {
 
     #[test]
     fn test_as_ptr() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let cell = Bound::new(py, SomeClass(0)).unwrap();
             let ptr = cell.as_ptr();
 
@@ -748,7 +718,7 @@ mod tests {
 
     #[test]
     fn test_into_ptr() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let cell = Bound::new(py, SomeClass(0)).unwrap();
             let ptr = cell.as_ptr();
 
@@ -804,7 +774,7 @@ mod tests {
 
     #[test]
     fn test_pyref_as_super() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = SubSubClass::new(py).into_bound(py);
             let pyref = obj.borrow();
             assert_eq!(pyref.as_super().as_super().val1, 10);
@@ -817,7 +787,7 @@ mod tests {
 
     #[test]
     fn test_pyrefmut_as_super() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = SubSubClass::new(py).into_bound(py);
             assert_eq!(SubSubClass::get_values(obj.borrow()), (10, 15, 20));
             {
@@ -836,7 +806,7 @@ mod tests {
 
     #[test]
     fn test_pyrefs_in_python() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = SubSubClass::new(py);
             crate::py_run!(py, obj, "assert obj.get_values() == (10, 15, 20)");
             crate::py_run!(py, obj, "assert obj.double_values() is None");

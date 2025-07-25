@@ -1,0 +1,3 @@
+import _typeshed
+
+def __getattr__(name: str) -> _typeshed.Incomplete: ...

@@ -1,3 +1,4 @@
+import platform
 from typing import Type
 
 import pytest
@@ -51,6 +52,27 @@ def test_iter():
     with pytest.raises(StopIteration) as excinfo:
         next(i)
     assert excinfo.value.value == "Ended"
+
+
+@pytest.mark.skipif(
+    platform.machine() in ["wasm32", "wasm64"],
+    reason="not supporting threads in CI for WASM yet",
+)
+def test_parallel_iter():
+    import concurrent.futures
+
+    i = pyclasses.PyClassThreadIter()
+
+    def func():
+        next(i)
+
+    # the second thread attempts to borrow a reference to the instance's
+    # state while the first thread is still sleeping, so we trigger a
+    # runtime borrow-check error
+    with pytest.raises(RuntimeError, match="Already borrowed"):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as tpe:
+            futures = [tpe.submit(func), tpe.submit(func)]
+            [f.result() for f in futures]
 
 
 class AssertingSubClass(pyclasses.AssertingBaseClass):
@@ -109,3 +131,32 @@ def test_dict():
 
     d.foo = 42
     assert d.__dict__ == {"foo": 42}
+
+
+def test_getter(benchmark):
+    obj = pyclasses.ClassWithDecorators()
+    benchmark(lambda: obj.attr)
+
+
+def test_setter(benchmark):
+    obj = pyclasses.ClassWithDecorators()
+
+    def set_attr():
+        obj.attr = 42
+
+    benchmark(set_attr)
+
+
+def test_class_attribute(benchmark):
+    cls = pyclasses.ClassWithDecorators
+    benchmark(lambda: cls.cls_attribute)
+
+
+def test_class_method(benchmark):
+    cls = pyclasses.ClassWithDecorators
+    benchmark(lambda: cls.cls_method())
+
+
+def test_static_method(benchmark):
+    cls = pyclasses.ClassWithDecorators
+    benchmark(lambda: cls.static_method())

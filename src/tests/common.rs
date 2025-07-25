@@ -40,14 +40,15 @@ mod inner {
         // Case1: idents & no err_msg
         ($py:expr, $($val:ident)+, $code:expr, $err:ident) => {{
             use pyo3::types::IntoPyDict;
-            let d = [$((stringify!($val), $val.to_object($py)),)+].into_py_dict($py);
+            use pyo3::BoundObject;
+            let d = [$((stringify!($val), (&$val).into_pyobject($py).unwrap().into_any().into_bound()),)+].into_py_dict($py).unwrap();
             py_expect_exception!($py, *d, $code, $err)
         }};
         // Case2: dict & no err_msg
         ($py:expr, *$dict:expr, $code:expr, $err:ident) => {{
             let res = $py.run(&std::ffi::CString::new($code).unwrap(), None, Some(&$dict.as_borrowed()));
             let err = res.expect_err(&format!("Did not raise {}", stringify!($err)));
-            if !err.matches($py, $py.get_type::<pyo3::exceptions::$err>()) {
+            if !err.matches($py, $py.get_type::<pyo3::exceptions::$err>()).unwrap() {
                 panic!("Expected {} but got {:?}", stringify!($err), err)
             }
             err
@@ -65,6 +66,57 @@ mod inner {
             assert_eq!(format!("Py{}", err), concat!(stringify!($err), ": ", $err_msg));
             err
         }};
+    }
+
+    #[macro_export]
+    macro_rules! py_expect_warning {
+        ($py:expr, $($val:ident)+, $code:expr, [$(($warning_msg:literal, $warning_category:path)),+] $(,)?) => {{
+            use pyo3::types::IntoPyDict;
+            let d = [$((stringify!($val), ($val.as_ref() as &Bound<'_, PyAny>).into_pyobject($py).expect("Failed to create test dict element")),)+].into_py_dict($py).expect("Failed to create test dict");
+            py_expect_warning!($py, *d, $code, [$(($warning_msg, $warning_category)),+])
+        }};
+        ($py:expr, *$dict:expr, $code:expr, [$(($warning_msg:literal, $warning_category:path)),+] $(,)?) => {{
+            let code_lines: Vec<&str> = $code.lines().collect();
+            let indented_code: String = code_lines.iter()
+                .map(|line| format!("    {}", line))  // add 4 spaces indentation
+                .collect::<Vec<String>>()
+                .join("\n");
+
+            let wrapped_code = format!(r#"
+import warnings
+with warnings.catch_warnings(record=True) as warning_record:
+{}
+"#, indented_code);
+
+            $py.run(&std::ffi::CString::new(wrapped_code).unwrap(), None, Some(&$dict.as_borrowed())).expect("Failed to run warning testing code");
+            let expected_warnings = [$(($warning_msg, <$warning_category as pyo3::PyTypeInfo>::type_object($py))),+];
+            let warning_record: Bound<'_, pyo3::types::PyList> = $dict.get_item("warning_record").expect("Failed to capture warnings").expect("Failed to downcast to PyList").extract().unwrap();
+
+            assert_eq!(warning_record.len(), expected_warnings.len(), "Expecting {} warnings but got {}", expected_warnings.len(), warning_record.len());
+
+            for ((index, warning), (msg, category)) in warning_record.iter().enumerate().zip(expected_warnings.iter()) {
+                let actual_msg = warning.getattr("message").unwrap().str().unwrap().to_string_lossy().to_string();
+                let actual_category = warning.getattr("category").unwrap();
+
+                assert_eq!(actual_msg, msg.to_string(), "Warning message mismatch at index {}, expecting `{}` but got `{}`", index, msg, actual_msg);
+                assert!(actual_category.is(category), "Warning category mismatch at index {}, expecting {:?} but got {:?}", index, category, actual_category);
+            }
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! py_expect_warning_for_fn {
+        ($fn:ident, $($val:ident)+, [$(($warning_msg:literal, $warning_category:path)),+] $(,)?) => {
+            pyo3::Python::attach(|py| {
+                let f = wrap_pyfunction!($fn)(py).unwrap();
+                py_expect_warning!(
+                    py,
+                    f,
+                    "f()",
+                    [$(($warning_msg, $warning_category)),+]
+                );
+            });
+        };
     }
 
     // sys.unraisablehook not available until Python 3.8
@@ -126,7 +178,7 @@ mod inner {
             f: impl FnOnce(&Bound<'py, PyList>) -> PyResult<R>,
         ) -> PyResult<R> {
             let warnings = py.import("warnings")?;
-            let kwargs = [("record", true)].into_py_dict(py);
+            let kwargs = [("record", true)].into_py_dict(py)?;
             let catch_warnings = warnings
                 .getattr("catch_warnings")?
                 .call((), Some(&kwargs))?;

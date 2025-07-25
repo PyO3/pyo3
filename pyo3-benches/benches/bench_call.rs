@@ -14,7 +14,7 @@ macro_rules! test_module {
 }
 
 fn bench_call_0(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = test_module!(py, "def foo(): pass");
 
         let foo_module = &module.getattr("foo").unwrap();
@@ -28,14 +28,14 @@ fn bench_call_0(b: &mut Bencher<'_>) {
 }
 
 fn bench_call_1(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = test_module!(py, "def foo(a, b, c): pass");
 
         let foo_module = &module.getattr("foo").unwrap();
         let args = (
-            <_ as IntoPy<PyObject>>::into_py(1, py).into_bound(py),
-            <_ as IntoPy<PyObject>>::into_py("s", py).into_bound(py),
-            <_ as IntoPy<PyObject>>::into_py(1.23, py).into_bound(py),
+            1.into_pyobject(py).unwrap(),
+            "s".into_pyobject(py).unwrap(),
+            1.23.into_pyobject(py).unwrap(),
         );
 
         b.iter(|| {
@@ -47,16 +47,16 @@ fn bench_call_1(b: &mut Bencher<'_>) {
 }
 
 fn bench_call(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = test_module!(py, "def foo(a, b, c, d, e): pass");
 
         let foo_module = &module.getattr("foo").unwrap();
         let args = (
-            <_ as IntoPy<PyObject>>::into_py(1, py).into_bound(py),
-            <_ as IntoPy<PyObject>>::into_py("s", py).into_bound(py),
-            <_ as IntoPy<PyObject>>::into_py(1.23, py).into_bound(py),
+            1.into_pyobject(py).unwrap(),
+            "s".into_pyobject(py).unwrap(),
+            1.23.into_pyobject(py).unwrap(),
         );
-        let kwargs = [("d", 1), ("e", 42)].into_py_dict(py);
+        let kwargs = [("d", 1), ("e", 42)].into_py_dict(py).unwrap();
 
         b.iter(|| {
             for _ in 0..1000 {
@@ -69,11 +69,11 @@ fn bench_call(b: &mut Bencher<'_>) {
 }
 
 fn bench_call_one_arg(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = test_module!(py, "def foo(a): pass");
 
         let foo_module = &module.getattr("foo").unwrap();
-        let arg = <_ as IntoPy<PyObject>>::into_py(1, py).into_bound(py);
+        let arg = 1i32.into_pyobject(py).unwrap();
 
         b.iter(|| {
             for _ in 0..1000 {
@@ -84,7 +84,7 @@ fn bench_call_one_arg(b: &mut Bencher<'_>) {
 }
 
 fn bench_call_method_0(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = test_module!(
             py,
             "
@@ -105,7 +105,7 @@ class Foo:
 }
 
 fn bench_call_method_1(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = test_module!(
             py,
             "
@@ -117,9 +117,9 @@ class Foo:
 
         let foo_module = &module.getattr("Foo").unwrap().call0().unwrap();
         let args = (
-            <_ as IntoPy<PyObject>>::into_py(1, py).into_bound(py),
-            <_ as IntoPy<PyObject>>::into_py("s", py).into_bound(py),
-            <_ as IntoPy<PyObject>>::into_py(1.23, py).into_bound(py),
+            1.into_pyobject(py).unwrap(),
+            "s".into_pyobject(py).unwrap(),
+            1.23.into_pyobject(py).unwrap(),
         );
 
         b.iter(|| {
@@ -133,7 +133,7 @@ class Foo:
 }
 
 fn bench_call_method(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = test_module!(
             py,
             "
@@ -145,11 +145,11 @@ class Foo:
 
         let foo_module = &module.getattr("Foo").unwrap().call0().unwrap();
         let args = (
-            <_ as IntoPy<PyObject>>::into_py(1, py).into_bound(py),
-            <_ as IntoPy<PyObject>>::into_py("s", py).into_bound(py),
-            <_ as IntoPy<PyObject>>::into_py(1.23, py).into_bound(py),
+            1.into_pyobject(py).unwrap(),
+            "s".into_pyobject(py).unwrap(),
+            1.23.into_pyobject(py).unwrap(),
         );
-        let kwargs = [("d", 1), ("e", 42)].into_py_dict(py);
+        let kwargs = [("d", 1), ("e", 42)].into_py_dict(py).unwrap();
 
         b.iter(|| {
             for _ in 0..1000 {
@@ -162,7 +162,7 @@ class Foo:
 }
 
 fn bench_call_method_one_arg(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = test_module!(
             py,
             "
@@ -173,7 +173,7 @@ class Foo:
         );
 
         let foo_module = &module.getattr("Foo").unwrap().call0().unwrap();
-        let arg = <_ as IntoPy<PyObject>>::into_py(1, py).into_bound(py);
+        let arg = 1i32.into_pyobject(py).unwrap();
 
         b.iter(|| {
             for _ in 0..1000 {

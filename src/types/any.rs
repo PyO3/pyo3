@@ -1,19 +1,22 @@
+use crate::call::PyCallArgs;
 use crate::class::basic::CompareOp;
-use crate::conversion::{private, AsPyPointer, FromPyObjectBound, IntoPy, IntoPyObject};
+use crate::conversion::{FromPyObjectBound, IntoPyObject};
 use crate::err::{DowncastError, DowncastIntoError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
+use crate::internal::get_slot::TP_DESCR_GET;
 use crate::internal_tricks::ptr_from_ref;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::types::PySuper;
-use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
-use crate::{err, ffi, Borrowed, BoundObject, Py, Python};
+use crate::types::{PyDict, PyIterator, PyList, PyString, PyType};
+use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
+use std::ptr;
 
 /// Represents any Python object.
 ///
@@ -48,7 +51,7 @@ pyobject_native_type_sized!(PyAny, ffi::PyObject);
 impl crate::impl_::pyclass::PyClassBaseType for PyAny {
     type LayoutAsBase = crate::impl_::pycell::PyClassObjectBase<ffi::PyObject>;
     type BaseNativeType = PyAny;
-    type Initializer = crate::pyclass_init::PyNativeTypeInitializer<Self>;
+    type Initializer = crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
     type PyClassMutability = crate::pycell::impl_::ImmutableClass;
 }
 
@@ -62,7 +65,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// the equality of two objects (the `==` operator), use [`eq`](PyAnyMethods::eq).
     ///
     /// This is equivalent to the Python expression `self is other`.
-    fn is<T: AsPyPointer>(&self, other: &T) -> bool;
+    fn is<T: AsRef<Py<PyAny>>>(&self, other: T) -> bool;
 
     /// Determines whether this object has the given attribute.
     ///
@@ -81,7 +84,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///     sys.hasattr(intern!(sys.py(), "version"))
     /// }
     /// #
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// #    let sys = py.import("sys").unwrap();
     /// #    has_version(&sys).unwrap();
     /// # });
@@ -107,12 +110,44 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///     sys.getattr(intern!(sys.py(), "version"))
     /// }
     /// #
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// #    let sys = py.import("sys").unwrap();
     /// #    version(&sys).unwrap();
     /// # });
     /// ```
     fn getattr<N>(&self, attr_name: N) -> PyResult<Bound<'py, PyAny>>
+    where
+        N: IntoPyObject<'py, Target = PyString>;
+
+    /// Retrieves an attribute value optionally.
+    ///
+    /// This is equivalent to the Python expression `getattr(self, attr_name, None)`, which may
+    /// be more efficient in some cases by simply returning `None` if the attribute is not found
+    /// instead of raising `AttributeError`.
+    ///
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
+    /// to intern `attr_name`.
+    ///
+    /// # Errors
+    /// Returns `Err` if an exception other than `AttributeError` is raised during attribute lookup,
+    /// such as a `ValueError` from a property or descriptor.
+    ///
+    /// # Example: Retrieving an optional attribute
+    /// ```
+    /// # use pyo3::{prelude::*, intern};
+    /// #
+    /// #[pyfunction]
+    /// fn get_version_if_exists<'py>(sys: &Bound<'py, PyModule>) -> PyResult<Option<Bound<'py, PyAny>>> {
+    ///     sys.getattr_opt(intern!(sys.py(), "version"))
+    /// }
+    /// #
+    /// # Python::attach(|py| {
+    /// #    let sys = py.import("sys").unwrap();
+    /// #    let version = get_version_if_exists(&sys).unwrap();
+    /// #    assert!(version.is_some());
+    /// # });
+    /// ```
+    fn getattr_opt<N>(&self, attr_name: N) -> PyResult<Option<Bound<'py, PyAny>>>
     where
         N: IntoPyObject<'py, Target = PyString>;
 
@@ -133,7 +168,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///     ob.setattr(intern!(ob.py(), "answer"), 42)
     /// }
     /// #
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// #    let ob = PyModule::new(py, "empty").unwrap();
     /// #    set_answer(&ob).unwrap();
     /// # });
@@ -175,7 +210,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// use std::cmp::Ordering;
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
+    /// Python::attach(|py| -> PyResult<()> {
     ///     let a = PyFloat::new(py, 0_f64);
     ///     let b = PyFloat::new(py, 42_f64);
     ///     assert_eq!(a.compare(b)?, Ordering::Less);
@@ -191,7 +226,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::types::{PyFloat, PyString};
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
+    /// Python::attach(|py| -> PyResult<()> {
     ///     let a = PyFloat::new(py, 0_f64);
     ///     let b = PyString::new(py, "zero");
     ///     assert!(a.compare(b).is_err());
@@ -226,12 +261,11 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::class::basic::CompareOp;
     /// use pyo3::prelude::*;
-    /// use pyo3::types::PyInt;
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let a: Bound<'_, PyInt> = 0_u8.into_py(py).into_bound(py).downcast_into()?;
-    ///     let b: Bound<'_, PyInt> = 42_u8.into_py(py).into_bound(py).downcast_into()?;
+    /// Python::attach(|py| -> PyResult<()> {
+    ///     let a = 0_u8.into_pyobject(py)?;
+    ///     let b = 42_u8.into_pyobject(py)?;
     ///     assert!(a.rich_compare(b, CompareOp::Le)?.is_truthy()?);
     ///     Ok(())
     /// })?;
@@ -383,7 +417,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
+    /// Python::attach(|py| -> PyResult<()> {
     ///     let builtins = PyModule::import(py, "builtins")?;
     ///     let print = builtins.getattr("print")?;
     ///     assert!(print.is_callable());
@@ -422,8 +456,8 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// "#);
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
+    /// Python::attach(|py| {
+    ///     let module = PyModule::from_code(py, CODE, c_str!("func.py"), c_str!(""))?;
     ///     let fun = module.getattr("function")?;
     ///     let args = ("hello",);
     ///     let kwargs = PyDict::new(py);
@@ -434,9 +468,9 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// })
     /// # }
     /// ```
-    fn call<A>(&self, args: A, kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Bound<'py, PyAny>>
+    fn call<A>(&self, args: A, kwargs: Option<&Bound<'py, PyDict>>) -> PyResult<Bound<'py, PyAny>>
     where
-        A: IntoPy<Py<PyTuple>>;
+        A: PyCallArgs<'py>;
 
     /// Calls the object without arguments.
     ///
@@ -448,7 +482,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
+    /// Python::attach(|py| -> PyResult<()> {
     ///     let module = PyModule::import(py, "builtins")?;
     ///     let help = module.getattr("help")?;
     ///     help.call0()?;
@@ -479,8 +513,8 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// "#);
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
+    /// Python::attach(|py| {
+    ///     let module = PyModule::from_code(py, CODE, c_str!("func.py"), c_str!(""))?;
     ///     let fun = module.getattr("function")?;
     ///     let args = ("hello",);
     ///     let result = fun.call1(args)?;
@@ -491,7 +525,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```
     fn call1<A>(&self, args: A) -> PyResult<Bound<'py, PyAny>>
     where
-        A: IntoPy<Py<PyTuple>>;
+        A: PyCallArgs<'py>;
 
     /// Calls a method on the object.
     ///
@@ -518,8 +552,8 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// "#);
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
+    /// Python::attach(|py| {
+    ///     let module = PyModule::from_code(py, CODE, c_str!("a.py"), c_str!(""))?;
     ///     let instance = module.getattr("a")?;
     ///     let args = ("hello",);
     ///     let kwargs = PyDict::new(py);
@@ -534,11 +568,11 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
         &self,
         name: N,
         args: A,
-        kwargs: Option<&Bound<'_, PyDict>>,
+        kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        A: IntoPy<Py<PyTuple>>;
+        A: PyCallArgs<'py>;
 
     /// Calls a method on the object without arguments.
     ///
@@ -564,8 +598,8 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// "#);
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
+    /// Python::attach(|py| {
+    ///     let module = PyModule::from_code(py, CODE, c_str!("a.py"), c_str!(""))?;
     ///     let instance = module.getattr("a")?;
     ///     let result = instance.call_method0("method")?;
     ///     assert_eq!(result.extract::<String>()?, "called with no arguments");
@@ -601,8 +635,8 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// "#);
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
+    /// Python::attach(|py| {
+    ///     let module = PyModule::from_code(py, CODE, c_str!("a.py"), c_str!(""))?;
     ///     let instance = module.getattr("a")?;
     ///     let args = ("hello",);
     ///     let result = instance.call_method1("method", args)?;
@@ -614,7 +648,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     fn call_method1<N, A>(&self, name: N, args: A) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        A: IntoPy<Py<PyTuple>>;
+        A: PyCallArgs<'py>;
 
     /// Returns whether the object is considered to be true.
     ///
@@ -625,12 +659,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// This is equivalent to the Python expression `self is None`.
     fn is_none(&self) -> bool;
-
-    /// Returns whether the object is Ellipsis, e.g. `...`.
-    ///
-    /// This is equivalent to the Python expression `self is ...`.
-    #[deprecated(since = "0.23.0", note = "use `.is(py.Ellipsis())` instead")]
-    fn is_ellipsis(&self) -> bool;
 
     /// Returns true if the sequence or mapping has a length of 0.
     ///
@@ -659,11 +687,31 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     where
         K: IntoPyObject<'py>;
 
-    /// Takes an object and returns an iterator for it.
+    /// Takes an object and returns an iterator for it. Returns an error if the object is not
+    /// iterable.
     ///
     /// This is typically a new iterator but if the argument is an iterator,
     /// this returns itself.
-    fn iter(&self) -> PyResult<Bound<'py, PyIterator>>;
+    ///
+    /// # Example: Checking a Python object for iterability
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyAny, PyNone};
+    ///
+    /// fn is_iterable(obj: &Bound<'_, PyAny>) -> bool {
+    ///     match obj.try_iter() {
+    ///         Ok(_) => true,
+    ///         Err(_) => false,
+    ///     }
+    /// }
+    ///
+    /// Python::attach(|py| {
+    ///     assert!(is_iterable(&vec![1, 2, 3].into_pyobject(py).unwrap()));
+    ///     assert!(!is_iterable(&PyNone::get(py)));
+    /// });
+    /// ```
+    fn try_iter(&self) -> PyResult<Bound<'py, PyIterator>>;
 
     /// Returns the Python type object for this object's type.
     fn get_type(&self) -> Bound<'py, PyType>;
@@ -685,7 +733,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     /// use pyo3::types::{PyDict, PyList};
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let dict = PyDict::new(py);
     ///     assert!(dict.is_instance_of::<PyAny>());
     ///     let any = dict.as_any();
@@ -709,7 +757,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///     i: i32,
     /// }
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let class = Py::new(py, Class { i: 0 }).unwrap().into_bound(py).into_any();
     ///
     ///     let class_bound: &Bound<'_, Class> = class.downcast()?;
@@ -737,7 +785,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     /// use pyo3::types::{PyDict, PyList};
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let obj: Bound<'_, PyAny> = PyDict::new(py).into_any();
     ///
     ///     let obj: Bound<'_, PyAny> = match obj.downcast_into::<PyList>() {
@@ -770,7 +818,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     /// use pyo3::types::{PyBool, PyInt};
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let b = PyBool::new(py, true);
     ///     assert!(b.is_instance_of::<PyBool>());
     ///     let any: &Bound<'_, PyAny> = b.as_any();
@@ -856,7 +904,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// This is equivalent to the Python expression `isinstance(self, T)`,
     /// if the type `T` is known at compile time.
-    fn is_instance_of<T: PyTypeInfo>(&self) -> bool;
+    fn is_instance_of<T: PyTypeCheck>(&self) -> bool;
 
     /// Checks whether this object is an instance of exactly type `T`.
     ///
@@ -895,11 +943,7 @@ macro_rules! implement_binop {
             let py = self.py();
             inner(
                 self,
-                other
-                    .into_pyobject(py)
-                    .map_err(Into::into)?
-                    .into_any()
-                    .as_borrowed(),
+                other.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
             )
         }
     };
@@ -907,8 +951,8 @@ macro_rules! implement_binop {
 
 impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     #[inline]
-    fn is<T: AsPyPointer>(&self, other: &T) -> bool {
-        self.as_ptr() == other.as_ptr()
+    fn is<T: AsRef<Py<PyAny>>>(&self, other: T) -> bool {
+        ptr::eq(self.as_ptr(), other.as_ref().as_ptr())
     }
 
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
@@ -925,7 +969,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
             }
         }
 
-        inner(self.py(), self.getattr(attr_name).map_err(Into::into))
+        inner(self.py(), self.getattr(attr_name))
     }
 
     fn getattr<N>(&self, attr_name: N) -> PyResult<Bound<'py, PyAny>>
@@ -951,6 +995,54 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         )
     }
 
+    fn getattr_opt<N>(&self, attr_name: N) -> PyResult<Option<Bound<'py, PyAny>>>
+    where
+        N: IntoPyObject<'py, Target = PyString>,
+    {
+        fn inner<'py>(
+            any: &Bound<'py, PyAny>,
+            attr_name: Borrowed<'_, 'py, PyString>,
+        ) -> PyResult<Option<Bound<'py, PyAny>>> {
+            #[cfg(Py_3_13)]
+            {
+                let mut resp_ptr: *mut ffi::PyObject = std::ptr::null_mut();
+                match unsafe {
+                    ffi::PyObject_GetOptionalAttr(any.as_ptr(), attr_name.as_ptr(), &mut resp_ptr)
+                } {
+                    // Attribute found, result is a new strong reference
+                    1 => {
+                        let bound = unsafe { Bound::from_owned_ptr(any.py(), resp_ptr) };
+                        Ok(Some(bound))
+                    }
+                    // Attribute not found, result is NULL
+                    0 => Ok(None),
+
+                    // An error occurred (other than AttributeError)
+                    _ => Err(PyErr::fetch(any.py())),
+                }
+            }
+
+            #[cfg(not(Py_3_13))]
+            {
+                match any.getattr(attr_name) {
+                    Ok(bound) => Ok(Some(bound)),
+                    Err(err) => {
+                        let err_type = err
+                            .get_type(any.py())
+                            .is(PyType::new::<PyAttributeError>(any.py()));
+                        match err_type {
+                            true => Ok(None),
+                            false => Err(err),
+                        }
+                    }
+                }
+            }
+        }
+
+        let py = self.py();
+        inner(self, attr_name.into_pyobject_or_pyerr(py)?.as_borrowed())
+    }
+
     fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
     where
         N: IntoPyObject<'py, Target = PyString>,
@@ -969,15 +1061,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            attr_name
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .as_borrowed(),
-            value
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            attr_name.into_pyobject_or_pyerr(py)?.as_borrowed(),
+            value.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -992,13 +1077,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(
-            self,
-            attr_name
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .as_borrowed(),
-        )
+        inner(self, attr_name.into_pyobject_or_pyerr(py)?.as_borrowed())
     }
 
     fn compare<O>(&self, other: O) -> PyResult<Ordering>
@@ -1030,11 +1109,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            other
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            other.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -1056,11 +1131,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            other
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            other.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
             compare_op,
         )
     }
@@ -1171,11 +1242,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            other
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            other.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -1200,16 +1267,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            other
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
-            modulus
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            other.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
+            modulus.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -1217,16 +1276,19 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         unsafe { ffi::PyCallable_Check(self.as_ptr()) != 0 }
     }
 
-    fn call<A>(&self, args: A, kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Bound<'py, PyAny>>
+    fn call<A>(&self, args: A, kwargs: Option<&Bound<'py, PyDict>>) -> PyResult<Bound<'py, PyAny>>
     where
-        A: IntoPy<Py<PyTuple>>,
+        A: PyCallArgs<'py>,
     {
-        args.__py_call_vectorcall(
-            self.py(),
-            self.as_borrowed(),
-            kwargs.map(Bound::as_borrowed),
-            private::Token,
-        )
+        if let Some(kwargs) = kwargs {
+            args.call(
+                self.as_borrowed(),
+                kwargs.as_borrowed(),
+                crate::call::private::Token,
+            )
+        } else {
+            args.call_positional(self.as_borrowed(), crate::call::private::Token)
+        }
     }
 
     #[inline]
@@ -1236,9 +1298,9 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     fn call1<A>(&self, args: A) -> PyResult<Bound<'py, PyAny>>
     where
-        A: IntoPy<Py<PyTuple>>,
+        A: PyCallArgs<'py>,
     {
-        args.__py_call_vectorcall1(self.py(), self.as_borrowed(), private::Token)
+        args.call_positional(self.as_borrowed(), crate::call::private::Token)
     }
 
     #[inline]
@@ -1246,18 +1308,17 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         &self,
         name: N,
         args: A,
-        kwargs: Option<&Bound<'_, PyDict>>,
+        kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        A: IntoPy<Py<PyTuple>>,
+        A: PyCallArgs<'py>,
     {
-        // Don't `args.into_py()`! This will lose the optimization of vectorcall.
-        match kwargs {
-            Some(_) => self
-                .getattr(name)
-                .and_then(|method| method.call(args, kwargs)),
-            None => self.call_method1(name, args),
+        if kwargs.is_none() {
+            self.call_method1(name, args)
+        } else {
+            self.getattr(name)
+                .and_then(|method| method.call(args, kwargs))
         }
     }
 
@@ -1267,7 +1328,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         N: IntoPyObject<'py, Target = PyString>,
     {
         let py = self.py();
-        let name = name.into_pyobject(py).map_err(Into::into)?.into_bound();
+        let name = name.into_pyobject_or_pyerr(py)?.into_bound();
         unsafe {
             ffi::compat::PyObject_CallMethodNoArgs(self.as_ptr(), name.as_ptr())
                 .assume_owned_or_err(py)
@@ -1277,15 +1338,13 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     fn call_method1<N, A>(&self, name: N, args: A) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
-        A: IntoPy<Py<PyTuple>>,
+        A: PyCallArgs<'py>,
     {
-        args.__py_call_method_vectorcall1(
-            self.py(),
+        let name = name.into_pyobject_or_pyerr(self.py())?;
+        args.call_method_positional(
             self.as_borrowed(),
-            name.into_pyobject(self.py())
-                .map_err(Into::into)?
-                .as_borrowed(),
-            private::Token,
+            name.as_borrowed(),
+            crate::call::private::Token,
         )
     }
 
@@ -1297,11 +1356,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[inline]
     fn is_none(&self) -> bool {
-        unsafe { ffi::Py_None() == self.as_ptr() }
-    }
-
-    fn is_ellipsis(&self) -> bool {
-        unsafe { ffi::Py_Ellipsis() == self.as_ptr() }
+        unsafe { ptr::eq(ffi::Py_None(), self.as_ptr()) }
     }
 
     fn is_empty(&self) -> PyResult<bool> {
@@ -1324,10 +1379,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            key.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -1349,15 +1401,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            key.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
-            value
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
+            value.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -1374,14 +1419,11 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            key.into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
-    fn iter(&self) -> PyResult<Bound<'py, PyIterator>> {
+    fn try_iter(&self) -> PyResult<Bound<'py, PyIterator>> {
         PyIterator::from_object(self)
     }
 
@@ -1448,12 +1490,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[inline]
     unsafe fn downcast_unchecked<T>(&self) -> &Bound<'py, T> {
-        &*ptr_from_ref(self).cast()
+        unsafe { &*ptr_from_ref(self).cast() }
     }
 
     #[inline]
     unsafe fn downcast_into_unchecked<T>(self) -> Bound<'py, T> {
-        std::mem::transmute(self)
+        unsafe { std::mem::transmute(self) }
     }
 
     fn extract<'a, T>(&'a self) -> PyResult<T>
@@ -1516,8 +1558,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     #[inline]
-    fn is_instance_of<T: PyTypeInfo>(&self) -> bool {
-        T::is_type_of(self)
+    fn is_instance_of<T: PyTypeCheck>(&self) -> bool {
+        T::type_check(self)
     }
 
     #[inline]
@@ -1540,11 +1582,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            value
-                .into_pyobject(py)
-                .map_err(Into::into)?
-                .into_any()
-                .as_borrowed(),
+            value.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
         )
     }
 
@@ -1578,23 +1616,14 @@ impl<'py> Bound<'py, PyAny> {
             return Ok(None);
         };
 
-        // Manually resolve descriptor protocol.
-        if cfg!(Py_3_10)
-            || unsafe { ffi::PyType_HasFeature(attr.get_type_ptr(), ffi::Py_TPFLAGS_HEAPTYPE) } != 0
-        {
-            // This is the preferred faster path, but does not work on static types (generally,
-            // types defined in extension modules) before Python 3.10.
+        // Manually resolve descriptor protocol. (Faster than going through Python.)
+        if let Some(descr_get) = attr.get_type().get_slot(TP_DESCR_GET) {
+            // attribute is a descriptor, resolve it
             unsafe {
-                let descr_get_ptr = ffi::PyType_GetSlot(attr.get_type_ptr(), ffi::Py_tp_descr_get);
-                if descr_get_ptr.is_null() {
-                    return Ok(Some(attr));
-                }
-                let descr_get: ffi::descrgetfunc = std::mem::transmute(descr_get_ptr);
-                let ret = descr_get(attr.as_ptr(), self.as_ptr(), self_type.as_ptr());
-                ret.assume_owned_or_err(py).map(Some)
+                descr_get(attr.as_ptr(), self.as_ptr(), self_type.as_ptr())
+                    .assume_owned_or_err(py)
+                    .map(Some)
             }
-        } else if let Ok(descr_get) = attr.get_type().getattr(crate::intern!(py, "__get__")) {
-            descr_get.call1((attr, self, self_type)).map(Some)
         } else {
             Ok(Some(attr))
         }
@@ -1608,13 +1637,14 @@ mod tests {
         ffi,
         tests::common::generate_unique_module_name,
         types::{IntoPyDict, PyAny, PyAnyMethods, PyBool, PyInt, PyList, PyModule, PyTypeMethods},
-        Bound, PyTypeInfo, Python, ToPyObject,
+        Bound, BoundObject, IntoPyObject, PyTypeInfo, Python,
     };
     use pyo3_ffi::c_str;
+    use std::fmt::Debug;
 
     #[test]
     fn test_lookup_special() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module = PyModule::from_code(
                 py,
                 c_str!(
@@ -1687,8 +1717,53 @@ class NonHeapNonDescriptorInt:
     }
 
     #[test]
+    fn test_getattr_opt() {
+        Python::attach(|py| {
+            let module = PyModule::from_code(
+                py,
+                c_str!(
+                    r#"
+class Test:
+    class_str_attribute = "class_string"
+
+    @property
+    def error(self):
+        raise ValueError("This is an intentional error")
+                "#
+                ),
+                c_str!("test.py"),
+                &generate_unique_module_name("test"),
+            )
+            .unwrap();
+
+            // Get the class Test
+            let class_test = module.getattr_opt("Test").unwrap().unwrap();
+
+            // Test attribute that exist
+            let cls_attr_str = class_test
+                .getattr_opt("class_str_attribute")
+                .unwrap()
+                .unwrap();
+            assert_eq!(cls_attr_str.extract::<String>().unwrap(), "class_string");
+
+            // Test non-existent attribute
+            let do_not_exist = class_test.getattr_opt("doNotExist").unwrap();
+            assert!(do_not_exist.is_none());
+
+            // Test error attribute
+            let instance = class_test.call0().unwrap();
+            let error = instance.getattr_opt("error");
+            assert!(error.is_err());
+            assert!(error
+                .unwrap_err()
+                .to_string()
+                .contains("This is an intentional error"));
+        });
+    }
+
+    #[test]
     fn test_call_for_non_existing_method() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let a = py.eval(ffi::c_str!("42"), None, None).unwrap();
             a.call_method0("__str__").unwrap(); // ok
             assert!(a.call_method("nonexistent_method", (1,), None).is_err());
@@ -1699,17 +1774,17 @@ class NonHeapNonDescriptorInt:
 
     #[test]
     fn test_call_with_kwargs() {
-        Python::with_gil(|py| {
-            let list = vec![3, 6, 5, 4, 7].to_object(py);
-            let dict = vec![("reverse", true)].into_py_dict(py);
-            list.call_method(py, "sort", (), Some(&dict)).unwrap();
-            assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
+        Python::attach(|py| {
+            let list = vec![3, 6, 5, 4, 7].into_pyobject(py).unwrap();
+            let dict = vec![("reverse", true)].into_py_dict(py).unwrap();
+            list.call_method("sort", (), Some(&dict)).unwrap();
+            assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![7, 6, 5, 4, 3]);
         });
     }
 
     #[test]
     fn test_call_method0() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module = PyModule::from_code(
                 py,
                 c_str!(
@@ -1738,7 +1813,7 @@ class SimpleClass:
 
     #[test]
     fn test_type() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = py.eval(ffi::c_str!("42"), None, None).unwrap();
             assert_eq!(obj.get_type().as_type_ptr(), obj.get_type_ptr());
         });
@@ -1746,7 +1821,7 @@ class SimpleClass:
 
     #[test]
     fn test_dir() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = py.eval(ffi::c_str!("42"), None, None).unwrap();
             let dir = py
                 .eval(ffi::c_str!("dir(42)"), None, None)
@@ -1765,8 +1840,8 @@ class SimpleClass:
 
     #[test]
     fn test_hasattr() {
-        Python::with_gil(|py| {
-            let x = 5.to_object(py).into_bound(py);
+        Python::attach(|py| {
+            let x = 5i32.into_pyobject(py).unwrap();
             assert!(x.is_instance_of::<PyInt>());
 
             assert!(x.hasattr("to_bytes").unwrap());
@@ -1791,9 +1866,9 @@ class SimpleClass:
             }
         }
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = Py::new(py, GetattrFail).unwrap();
-            let obj = obj.bind(py).as_ref();
+            let obj = obj.bind(py).as_any();
 
             assert!(obj
                 .hasattr("foo")
@@ -1804,7 +1879,7 @@ class SimpleClass:
 
     #[test]
     fn test_nan_eq() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let nan = py.eval(ffi::c_str!("float('nan')"), None, None).unwrap();
             assert!(nan.compare(&nan).is_err());
         });
@@ -1812,27 +1887,27 @@ class SimpleClass:
 
     #[test]
     fn test_any_is_instance_of() {
-        Python::with_gil(|py| {
-            let x = 5.to_object(py).into_bound(py);
+        Python::attach(|py| {
+            let x = 5i32.into_pyobject(py).unwrap();
             assert!(x.is_instance_of::<PyInt>());
 
-            let l = vec![&x, &x].to_object(py).into_bound(py);
+            let l = vec![&x, &x].into_pyobject(py).unwrap();
             assert!(l.is_instance_of::<PyList>());
         });
     }
 
     #[test]
     fn test_any_is_instance() {
-        Python::with_gil(|py| {
-            let l = vec![1u8, 2].to_object(py).into_bound(py);
+        Python::attach(|py| {
+            let l = vec![1i8, 2].into_pyobject(py).unwrap();
             assert!(l.is_instance(&py.get_type::<PyList>()).unwrap());
         });
     }
 
     #[test]
     fn test_any_is_exact_instance_of() {
-        Python::with_gil(|py| {
-            let x = 5.to_object(py).into_bound(py);
+        Python::attach(|py| {
+            let x = 5i32.into_pyobject(py).unwrap();
             assert!(x.is_exact_instance_of::<PyInt>());
 
             let t = PyBool::new(py, true);
@@ -1840,14 +1915,14 @@ class SimpleClass:
             assert!(!t.is_exact_instance_of::<PyInt>());
             assert!(t.is_exact_instance_of::<PyBool>());
 
-            let l = vec![&x, &x].to_object(py).into_bound(py);
+            let l = vec![&x, &x].into_pyobject(py).unwrap();
             assert!(l.is_exact_instance_of::<PyList>());
         });
     }
 
     #[test]
     fn test_any_is_exact_instance() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let t = PyBool::new(py, true);
             assert!(t.is_instance(&py.get_type::<PyInt>()).unwrap());
             assert!(!t.is_exact_instance(&py.get_type::<PyInt>()));
@@ -1857,36 +1932,38 @@ class SimpleClass:
 
     #[test]
     fn test_any_contains() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
-            let ob = v.to_object(py).into_bound(py);
+            let ob = v.into_pyobject(py).unwrap();
 
-            let bad_needle = 7i32.to_object(py);
+            let bad_needle = 7i32.into_pyobject(py).unwrap();
             assert!(!ob.contains(&bad_needle).unwrap());
 
-            let good_needle = 8i32.to_object(py);
+            let good_needle = 8i32.into_pyobject(py).unwrap();
             assert!(ob.contains(&good_needle).unwrap());
 
-            let type_coerced_needle = 8f32.to_object(py);
+            let type_coerced_needle = 8f32.into_pyobject(py).unwrap();
             assert!(ob.contains(&type_coerced_needle).unwrap());
 
             let n: u32 = 42;
-            let bad_haystack = n.to_object(py).into_bound(py);
-            let irrelevant_needle = 0i32.to_object(py);
+            let bad_haystack = n.into_pyobject(py).unwrap();
+            let irrelevant_needle = 0i32.into_pyobject(py).unwrap();
             assert!(bad_haystack.contains(&irrelevant_needle).is_err());
         });
     }
 
     // This is intentionally not a test, it's a generic function used by the tests below.
-    fn test_eq_methods_generic<T>(list: &[T])
+    fn test_eq_methods_generic<'a, T>(list: &'a [T])
     where
-        T: PartialEq + PartialOrd + ToPyObject,
+        T: PartialEq + PartialOrd,
+        for<'py> &'a T: IntoPyObject<'py>,
+        for<'py> <&'a T as IntoPyObject<'py>>::Error: Debug,
     {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             for a in list {
                 for b in list {
-                    let a_py = a.to_object(py).into_bound(py);
-                    let b_py = b.to_object(py).into_bound(py);
+                    let a_py = a.into_pyobject(py).unwrap().into_any().into_bound();
+                    let b_py = b.into_pyobject(py).unwrap().into_any().into_bound();
 
                     assert_eq!(
                         a.lt(b),
@@ -1944,13 +2021,13 @@ class SimpleClass:
     #[test]
     fn test_eq_methods_integers() {
         let ints = [-4, -4, 1, 2, 0, -100, 1_000_000];
-        test_eq_methods_generic(&ints);
+        test_eq_methods_generic::<i32>(&ints);
     }
 
     #[test]
     fn test_eq_methods_strings() {
         let strings = ["Let's", "test", "some", "eq", "methods"];
-        test_eq_methods_generic(&strings);
+        test_eq_methods_generic::<&str>(&strings);
     }
 
     #[test]
@@ -1965,20 +2042,20 @@ class SimpleClass:
             10.0 / 3.0,
             -1_000_000.0,
         ];
-        test_eq_methods_generic(&floats);
+        test_eq_methods_generic::<f64>(&floats);
     }
 
     #[test]
     fn test_eq_methods_bools() {
         let bools = [true, false];
-        test_eq_methods_generic(&bools);
+        test_eq_methods_generic::<bool>(&bools);
     }
 
     #[test]
     fn test_rich_compare_type_error() {
-        Python::with_gil(|py| {
-            let py_int = 1.to_object(py).into_bound(py);
-            let py_str = "1".to_object(py).into_bound(py);
+        Python::attach(|py| {
+            let py_int = 1i32.into_pyobject(py).unwrap();
+            let py_str = "1".into_pyobject(py).unwrap();
 
             assert!(py_int.rich_compare(&py_str, CompareOp::Lt).is_err());
             assert!(!py_int
@@ -1990,41 +2067,25 @@ class SimpleClass:
     }
 
     #[test]
-    #[allow(deprecated)]
-    fn test_is_ellipsis() {
-        Python::with_gil(|py| {
-            let v = py
-                .eval(ffi::c_str!("..."), None, None)
-                .map_err(|e| e.display(py))
-                .unwrap();
-
-            assert!(v.is_ellipsis());
-
-            let not_ellipsis = 5.to_object(py).into_bound(py);
-            assert!(!not_ellipsis.is_ellipsis());
-        });
-    }
-
-    #[test]
     fn test_is_callable() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyList::type_object(py).is_callable());
 
-            let not_callable = 5.to_object(py).into_bound(py);
+            let not_callable = 5i32.into_pyobject(py).unwrap();
             assert!(!not_callable.is_callable());
         });
     }
 
     #[test]
     fn test_is_empty() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let empty_list = PyList::empty(py).into_any();
             assert!(empty_list.is_empty().unwrap());
 
-            let list = PyList::new(py, vec![1, 2, 3]).into_any();
+            let list = PyList::new(py, vec![1, 2, 3]).unwrap().into_any();
             assert!(!list.is_empty().unwrap());
 
-            let not_container = 5.to_object(py).into_bound(py);
+            let not_container = 5i32.into_pyobject(py).unwrap();
             assert!(not_container.is_empty().is_err());
         });
     }
@@ -2046,7 +2107,7 @@ class SimpleClass:
             }
         }
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = Bound::new(py, DirFail).unwrap();
             assert!(obj.dir().unwrap_err().is_instance_of::<PyValueError>(py));
         })

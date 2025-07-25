@@ -5,15 +5,14 @@ pub use self::boolobject::{PyBool, PyBoolMethods};
 pub use self::bytearray::{PyByteArray, PyByteArrayMethods};
 pub use self::bytes::{PyBytes, PyBytesMethods};
 pub use self::capsule::{PyCapsule, PyCapsuleMethods};
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
-pub use self::code::PyCode;
+pub use self::code::{PyCode, PyCodeInput, PyCodeMethods};
 pub use self::complex::{PyComplex, PyComplexMethods};
-#[cfg(not(Py_LIMITED_API))]
 #[allow(deprecated)]
 pub use self::datetime::{
-    timezone_utc, timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess,
-    PyTime, PyTimeAccess, PyTzInfo, PyTzInfoAccess,
+    timezone_utc, PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess,
 };
+#[cfg(not(Py_LIMITED_API))]
+pub use self::datetime::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
 pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::dict::{PyDictItems, PyDictKeys, PyDictValues};
@@ -23,26 +22,28 @@ pub use self::float::{PyFloat, PyFloatMethods};
 pub use self::frame::PyFrame;
 pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
 pub use self::function::PyCFunction;
-#[cfg(all(not(Py_LIMITED_API), not(all(PyPy, not(Py_3_8))), not(GraalPy)))]
+#[cfg(all(not(Py_LIMITED_API), not(all(PyPy, not(Py_3_8)))))]
 pub use self::function::PyFunction;
+#[cfg(Py_3_9)]
+pub use self::genericalias::PyGenericAlias;
 pub use self::iterator::PyIterator;
 pub use self::list::{PyList, PyListMethods};
 pub use self::mapping::{PyMapping, PyMappingMethods};
+pub use self::mappingproxy::PyMappingProxy;
 pub use self::memoryview::PyMemoryView;
 pub use self::module::{PyModule, PyModuleMethods};
 pub use self::none::PyNone;
 pub use self::notimplemented::PyNotImplemented;
-#[allow(deprecated)]
-pub use self::num::{PyInt, PyLong};
+pub use self::num::PyInt;
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::pysuper::PySuper;
+pub use self::range::{PyRange, PyRangeMethods};
 pub use self::sequence::{PySequence, PySequenceMethods};
 pub use self::set::{PySet, PySetMethods};
 pub use self::slice::{PySlice, PySliceIndices, PySliceMethods};
 #[cfg(not(Py_LIMITED_API))]
 pub use self::string::PyStringData;
-#[allow(deprecated)]
-pub use self::string::{PyString, PyStringMethods, PyUnicode};
+pub use self::string::{PyString, PyStringMethods};
 pub use self::traceback::{PyTraceback, PyTracebackMethods};
 pub use self::tuple::{PyTuple, PyTupleMethods};
 pub use self::typeobject::{PyType, PyTypeMethods};
@@ -62,7 +63,7 @@ pub use self::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefRe
 /// use pyo3::ffi::c_str;
 ///
 /// # pub fn main() -> PyResult<()> {
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let dict = py.eval(c_str!("{'a':'b', 'c':'d'}"), None, None)?.downcast_into::<PyDict>()?;
 ///
 ///     for (key, value) in &dict {
@@ -118,22 +119,6 @@ pub trait DerefToPyAny {
 #[macro_export]
 macro_rules! pyobject_native_type_named (
     ($name:ty $(;$generics:ident)*) => {
-        impl<$($generics,)*> ::std::convert::AsRef<$crate::PyAny> for $name {
-            #[inline]
-            fn as_ref(&self) -> &$crate::PyAny {
-                &self.0
-            }
-        }
-
-        impl<$($generics,)*> ::std::ops::Deref for $name {
-            type Target = $crate::PyAny;
-
-            #[inline]
-            fn deref(&self) -> &$crate::PyAny {
-                &self.0
-            }
-        }
-
         impl $crate::types::DerefToPyAny for $name {}
     };
 );
@@ -153,7 +138,6 @@ macro_rules! pyobject_native_static_type_object(
 #[macro_export]
 macro_rules! pyobject_native_type_info(
     ($name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        #[allow(unsafe_code)]
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
             const NAME: &'static str = stringify!($name);
             const MODULE: ::std::option::Option<&'static str> = $module;
@@ -166,7 +150,7 @@ macro_rules! pyobject_native_type_info(
 
             $(
                 #[inline]
-                fn is_type_of_bound(obj: &$crate::Bound<'_, $crate::PyAny>) -> bool {
+                fn is_type_of(obj: &$crate::Bound<'_, $crate::PyAny>) -> bool {
                     #[allow(unused_unsafe)]
                     unsafe { $checkfunction(obj.as_ptr()) > 0 }
                 }
@@ -176,6 +160,10 @@ macro_rules! pyobject_native_type_info(
         impl $name {
             #[doc(hidden)]
             pub const _PYO3_DEF: $crate::impl_::pymodule::AddTypeToModule<Self> = $crate::impl_::pymodule::AddTypeToModule::new();
+
+            #[allow(dead_code)]
+            #[doc(hidden)]
+            pub const _PYO3_INTROSPECTION_ID: &'static str = concat!(stringify!($module), stringify!($name));
         }
     };
 );
@@ -201,7 +189,7 @@ macro_rules! pyobject_subclassable_native_type {
         impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
             type LayoutAsBase = $crate::impl_::pycell::PyClassObjectBase<$layout>;
             type BaseNativeType = $name;
-            type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
+            type Initializer = $crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
             type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
         }
     }
@@ -234,10 +222,8 @@ pub(crate) mod boolobject;
 pub(crate) mod bytearray;
 pub(crate) mod bytes;
 pub(crate) mod capsule;
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 mod code;
 pub(crate) mod complex;
-#[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
 pub(crate) mod dict;
 mod ellipsis;
@@ -246,9 +232,12 @@ pub(crate) mod float;
 mod frame;
 pub(crate) mod frozenset;
 mod function;
+#[cfg(Py_3_9)]
+pub(crate) mod genericalias;
 pub(crate) mod iterator;
 pub(crate) mod list;
 pub(crate) mod mapping;
+pub(crate) mod mappingproxy;
 mod memoryview;
 pub(crate) mod module;
 mod none;
@@ -256,6 +245,7 @@ mod notimplemented;
 mod num;
 #[cfg(not(any(PyPy, GraalPy)))]
 mod pysuper;
+pub(crate) mod range;
 pub(crate) mod sequence;
 pub(crate) mod set;
 pub(crate) mod slice;

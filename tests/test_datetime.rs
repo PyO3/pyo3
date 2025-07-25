@@ -1,6 +1,6 @@
 #![cfg(not(Py_LIMITED_API))]
 
-use pyo3::types::{timezone_utc, IntoPyDict, PyDate, PyDateTime, PyTime};
+use pyo3::types::{IntoPyDict, PyDate, PyDateTime, PyTime, PyTzInfo};
 use pyo3::{ffi, prelude::*};
 use pyo3_ffi::PyDateTime_IMPORT;
 use std::ffi::CString;
@@ -13,9 +13,11 @@ fn _get_subclasses<'py>(
     // Import the class from Python and create some subclasses
     let datetime = py.import("datetime")?;
 
-    let locals = [(py_type, datetime.getattr(py_type)?)].into_py_dict(py);
+    let locals = [(py_type, datetime.getattr(py_type)?)]
+        .into_py_dict(py)
+        .unwrap();
 
-    let make_subclass_py = CString::new(format!("class Subklass({}):\n    pass", py_type))?;
+    let make_subclass_py = CString::new(format!("class Subklass({py_type}):\n    pass"))?;
 
     let make_sub_subclass_py = ffi::c_str!("class SubSubklass(Subklass):\n    pass");
 
@@ -24,21 +26,21 @@ fn _get_subclasses<'py>(
 
     // Construct an instance of the base class
     let obj = py.eval(
-        &CString::new(format!("{}({})", py_type, args))?,
+        &CString::new(format!("{py_type}({args})"))?,
         None,
         Some(&locals),
     )?;
 
     // Construct an instance of the subclass
     let sub_obj = py.eval(
-        &CString::new(format!("Subklass({})", args))?,
+        &CString::new(format!("Subklass({args})"))?,
         None,
         Some(&locals),
     )?;
 
     // Construct an instance of the sub-subclass
     let sub_sub_obj = py.eval(
-        &CString::new(format!("SubSubklass({})", args))?,
+        &CString::new(format!("SubSubklass({args})"))?,
         None,
         Some(&locals),
     )?;
@@ -68,7 +70,7 @@ macro_rules! assert_check_only {
 
 #[test]
 fn test_date_check() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "date", "2018, 1, 1").unwrap();
         unsafe { PyDateTime_IMPORT() }
         assert_check_exact!(PyDate_Check, PyDate_CheckExact, obj);
@@ -82,7 +84,7 @@ fn test_date_check() {
 
 #[test]
 fn test_time_check() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "time", "12, 30, 15").unwrap();
         unsafe { PyDateTime_IMPORT() }
 
@@ -97,7 +99,7 @@ fn test_time_check() {
 
 #[test]
 fn test_datetime_check() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "datetime", "2018, 1, 1, 13, 30, 15")
             .map_err(|e| e.display(py))
             .unwrap();
@@ -115,7 +117,7 @@ fn test_datetime_check() {
 
 #[test]
 fn test_delta_check() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "timedelta", "1, -3").unwrap();
         unsafe { PyDateTime_IMPORT() }
 
@@ -130,12 +132,12 @@ fn test_datetime_utc() {
     use assert_approx_eq::assert_approx_eq;
     use pyo3::types::PyDateTime;
 
-    Python::with_gil(|py| {
-        let utc = timezone_utc(py);
+    Python::attach(|py| {
+        let utc = PyTzInfo::utc(py).unwrap();
 
         let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
 
-        let locals = [("dt", dt)].into_py_dict(py);
+        let locals = [("dt", dt)].into_py_dict(py).unwrap();
 
         let offset: f32 = py
             .eval(
@@ -169,7 +171,7 @@ static INVALID_TIMES: &[(u8, u8, u8, u32)] =
 fn test_pydate_out_of_bounds() {
     use pyo3::types::PyDate;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         for val in INVALID_DATES {
             let (year, month, day) = val;
             let dt = PyDate::new(py, *year, *month, *day);
@@ -182,7 +184,7 @@ fn test_pydate_out_of_bounds() {
 fn test_pytime_out_of_bounds() {
     use pyo3::types::PyTime;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         for val in INVALID_TIMES {
             let (hour, minute, second, microsecond) = val;
             let dt = PyTime::new(py, *hour, *minute, *second, *microsecond, None);
@@ -196,7 +198,7 @@ fn test_pydatetime_out_of_bounds() {
     use pyo3::types::PyDateTime;
     use std::iter;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let valid_time = (0, 0, 0, 0);
         let valid_date = (2018, 1, 1);
 

@@ -5,23 +5,13 @@ use crate::inspect::types::TypeInfo;
 use crate::{
     conversion::IntoPyObject,
     types::{PyByteArray, PyByteArrayMethods, PyBytes},
-    Bound, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    Bound, PyAny, PyErr, PyResult, Python,
 };
-
-impl<'a> IntoPy<PyObject> for &'a [u8] {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyBytes::new(py, self).unbind().into()
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::builtin("bytes")
-    }
-}
 
 impl<'a, 'py, T> IntoPyObject<'py> for &'a [T]
 where
     &'a T: IntoPyObject<'py>,
+    T: 'a, // MSRV
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -35,6 +25,14 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         <&T>::borrowed_sequence_into_pyobject(self, py, crate::conversion::private::Token)
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::union_of(&[
+            TypeInfo::builtin("bytes"),
+            TypeInfo::list_of(<&T>::type_output()),
+        ])
+    }
 }
 
 impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a [u8] {
@@ -44,7 +42,7 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a [u8] {
 
     #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
-        Self::type_output()
+        TypeInfo::builtin("bytes")
     }
 }
 
@@ -66,18 +64,6 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, [u8]> {
     #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         Self::type_output()
-    }
-}
-
-impl ToPyObject for Cow<'_, [u8]> {
-    fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
-        PyBytes::new(py, self.as_ref()).into()
-    }
-}
-
-impl IntoPy<Py<PyAny>> for Cow<'_, [u8]> {
-    fn into_py(self, py: Python<'_>) -> Py<PyAny> {
-        self.to_object(py)
     }
 }
 
@@ -108,12 +94,12 @@ mod tests {
         conversion::IntoPyObject,
         ffi,
         types::{any::PyAnyMethods, PyBytes, PyBytesMethods, PyList},
-        Python, ToPyObject,
+        Python,
     };
 
     #[test]
     fn test_extract_bytes() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_bytes = py.eval(ffi::c_str!("b'Hello Python'"), None, None).unwrap();
             let bytes: &[u8] = py_bytes.extract().unwrap();
             assert_eq!(bytes, b"Hello Python");
@@ -122,7 +108,7 @@ mod tests {
 
     #[test]
     fn test_cow_impl() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes = py.eval(ffi::c_str!(r#"b"foobar""#), None, None).unwrap();
             let cow = bytes.extract::<Cow<'_, [u8]>>().unwrap();
             assert_eq!(cow, Cow::<[u8]>::Borrowed(b"foobar"));
@@ -138,17 +124,19 @@ mod tests {
                 .extract::<Cow<'_, [u8]>>()
                 .unwrap_err();
 
-            let cow = Cow::<[u8]>::Borrowed(b"foobar").to_object(py);
-            assert!(cow.bind(py).is_instance_of::<PyBytes>());
+            let cow = Cow::<[u8]>::Borrowed(b"foobar").into_pyobject(py).unwrap();
+            assert!(cow.is_instance_of::<PyBytes>());
 
-            let cow = Cow::<[u8]>::Owned(b"foobar".to_vec()).to_object(py);
-            assert!(cow.bind(py).is_instance_of::<PyBytes>());
+            let cow = Cow::<[u8]>::Owned(b"foobar".to_vec())
+                .into_pyobject(py)
+                .unwrap();
+            assert!(cow.is_instance_of::<PyBytes>());
         });
     }
 
     #[test]
     fn test_slice_intopyobject_impl() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes: &[u8] = b"foobar";
             let obj = bytes.into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
@@ -163,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_cow_intopyobject_impl() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let borrowed_bytes = Cow::<[u8]>::Borrowed(b"foobar");
             let obj = borrowed_bytes.clone().into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());

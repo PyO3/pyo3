@@ -19,6 +19,7 @@ pub(super) fn generate_import_lib(
     target: &Triple,
     py_impl: PythonImplementation,
     py_version: Option<PythonVersion>,
+    abiflags: Option<&str>,
 ) -> Result<Option<String>> {
     if target.operating_system != OperatingSystem::Windows {
         return Ok(None);
@@ -50,6 +51,7 @@ pub(super) fn generate_import_lib(
     ImportLibraryGenerator::new(&arch, &env)
         .version(py_version.map(|v| (v.major, v.minor)))
         .implementation(implementation)
+        .abiflags(abiflags)
         .generate(&out_lib_dir)
         .context("failed to generate python3.dll import library")?;
 

@@ -7,7 +7,7 @@ use crate::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
             tp_dealloc_with_gc, MaybeRuntimePyMethodDef, PyClassItemsIter,
         },
-        pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter},
+        pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, _call_clear},
         trampoline::trampoline,
     },
     internal_tricks::ptr_from_ref,
@@ -23,6 +23,7 @@ use std::{
 
 pub(crate) struct PyClassTypeObject {
     pub type_object: Py<PyType>,
+    pub is_immutable_type: bool,
     #[allow(dead_code)] // This is purely a cache that must live as long as the type object
     getset_destructors: Vec<GetSetDefDestructor>,
 }
@@ -40,6 +41,7 @@ where
         dealloc_with_gc: unsafe extern "C" fn(*mut ffi::PyObject),
         is_mapping: bool,
         is_sequence: bool,
+        is_immutable_type: bool,
         doc: &'static CStr,
         dict_offset: Option<ffi::Py_ssize_t>,
         weaklist_offset: Option<ffi::Py_ssize_t>,
@@ -49,33 +51,36 @@ where
         module: Option<&'static str>,
         size_of: usize,
     ) -> PyResult<PyClassTypeObject> {
-        PyTypeBuilder {
-            slots: Vec::new(),
-            method_defs: Vec::new(),
-            member_defs: Vec::new(),
-            getset_builders: HashMap::new(),
-            cleanup: Vec::new(),
-            tp_base: base,
-            tp_dealloc: dealloc,
-            tp_dealloc_with_gc: dealloc_with_gc,
-            is_mapping,
-            is_sequence,
-            has_new: false,
-            has_dealloc: false,
-            has_getitem: false,
-            has_setitem: false,
-            has_traverse: false,
-            has_clear: false,
-            dict_offset: None,
-            class_flags: 0,
-            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
-            buffer_procs: Default::default(),
+        unsafe {
+            PyTypeBuilder {
+                slots: Vec::new(),
+                method_defs: Vec::new(),
+                member_defs: Vec::new(),
+                getset_builders: HashMap::new(),
+                cleanup: Vec::new(),
+                tp_base: base,
+                tp_dealloc: dealloc,
+                tp_dealloc_with_gc: dealloc_with_gc,
+                is_mapping,
+                is_sequence,
+                is_immutable_type,
+                has_new: false,
+                has_dealloc: false,
+                has_getitem: false,
+                has_setitem: false,
+                has_traverse: false,
+                has_clear: false,
+                dict_offset: None,
+                class_flags: 0,
+                #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+                buffer_procs: Default::default(),
+            }
+            .type_doc(doc)
+            .offsets(dict_offset, weaklist_offset)
+            .set_is_basetype(is_basetype)
+            .class_items(items_iter)
+            .build(py, name, module, size_of)
         }
-        .type_doc(doc)
-        .offsets(dict_offset, weaklist_offset)
-        .set_is_basetype(is_basetype)
-        .class_items(items_iter)
-        .build(py, name, module, size_of)
     }
 
     unsafe {
@@ -86,6 +91,7 @@ where
             tp_dealloc_with_gc::<T>,
             T::IS_MAPPING,
             T::IS_SEQUENCE,
+            T::IS_IMMUTABLE_TYPE,
             T::doc(py)?,
             T::dict_offset(),
             T::weaklist_offset(),
@@ -114,6 +120,7 @@ struct PyTypeBuilder {
     tp_dealloc_with_gc: ffi::destructor,
     is_mapping: bool,
     is_sequence: bool,
+    is_immutable_type: bool,
     has_new: bool,
     has_dealloc: bool,
     has_getitem: bool,
@@ -145,13 +152,13 @@ impl PyTypeBuilder {
             ffi::Py_bf_getbuffer => {
                 // Safety: slot.pfunc is a valid function pointer
                 self.buffer_procs.bf_getbuffer =
-                    Some(std::mem::transmute::<*mut T, ffi::getbufferproc>(pfunc));
+                    Some(unsafe { std::mem::transmute::<*mut T, ffi::getbufferproc>(pfunc) });
             }
             #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
             ffi::Py_bf_releasebuffer => {
                 // Safety: slot.pfunc is a valid function pointer
                 self.buffer_procs.bf_releasebuffer =
-                    Some(std::mem::transmute::<*mut T, ffi::releasebufferproc>(pfunc));
+                    Some(unsafe { std::mem::transmute::<*mut T, ffi::releasebufferproc>(pfunc) });
             }
             _ => {}
         }
@@ -167,8 +174,10 @@ impl PyTypeBuilder {
     unsafe fn push_raw_vec_slot<T>(&mut self, slot: c_int, mut data: Vec<T>) {
         if !data.is_empty() {
             // Python expects a zeroed entry to mark the end of the defs
-            data.push(std::mem::zeroed());
-            self.push_slot(slot, Box::into_raw(data.into_boxed_slice()) as *mut c_void);
+            unsafe {
+                data.push(std::mem::zeroed());
+                self.push_slot(slot, Box::into_raw(data.into_boxed_slice()) as *mut c_void);
+            }
         }
     }
 
@@ -314,7 +323,7 @@ impl PyTypeBuilder {
     unsafe fn class_items(mut self, iter: PyClassItemsIter) -> Self {
         for items in iter {
             for slot in items.slots {
-                self.push_slot(slot.slot, slot.pfunc);
+                unsafe { self.push_slot(slot.slot, slot.pfunc) };
             }
             for method in items.methods {
                 let built_method;
@@ -439,7 +448,8 @@ impl PyTypeBuilder {
             }
         }
 
-        let tp_dealloc = if self.has_traverse || unsafe { ffi::PyType_IS_GC(self.tp_base) == 1 } {
+        let base_is_gc = unsafe { ffi::PyType_IS_GC(self.tp_base) == 1 };
+        let tp_dealloc = if self.has_traverse || base_is_gc {
             self.tp_dealloc_with_gc
         } else {
             self.tp_dealloc
@@ -448,9 +458,24 @@ impl PyTypeBuilder {
 
         if self.has_clear && !self.has_traverse {
             return Err(PyTypeError::new_err(format!(
-                "`#[pyclass]` {} implements __clear__ without __traverse__",
-                name
+                "`#[pyclass]` {name} implements __clear__ without __traverse__"
             )));
+        }
+
+        // If this type is a GC type, and the base also is, we may need to add
+        // `tp_traverse` / `tp_clear` implementations to call the base, if this type didn't
+        // define `__traverse__` or `__clear__`.
+        //
+        // This is because when Py_TPFLAGS_HAVE_GC is set, then `tp_traverse` and
+        // `tp_clear` are not inherited.
+        if ((self.class_flags & ffi::Py_TPFLAGS_HAVE_GC) != 0) && base_is_gc {
+            // If this assertion breaks, need to consider doing the same for __traverse__.
+            assert!(self.has_traverse); // Py_TPFLAGS_HAVE_GC is set when a `__traverse__` method is found
+
+            if !self.has_clear {
+                // Safety: This is the correct slot type for Py_tp_clear
+                unsafe { self.push_slot(ffi::Py_tp_clear, call_super_clear as *mut c_void) }
+            }
         }
 
         // For sequences, implement sq_length instead of mp_length
@@ -491,6 +516,7 @@ impl PyTypeBuilder {
 
         Ok(PyClassTypeObject {
             type_object,
+            is_immutable_type: self.is_immutable_type,
             getset_destructors,
         })
     }
@@ -536,7 +562,7 @@ unsafe extern "C" fn no_constructor_defined(
     _args: *mut ffi::PyObject,
     _kwds: *mut ffi::PyObject,
 ) -> *mut ffi::PyObject {
-    trampoline(|py| {
+    unsafe {
         let tpobj = PyType::from_borrowed_type_ptr(py, subtype);
         // unlike `fully_qualified_name`, this always include the module
         let module = tpobj
@@ -547,7 +573,11 @@ unsafe extern "C" fn no_constructor_defined(
         Err(crate::exceptions::PyTypeError::new_err(format!(
             "cannot create '{module}.{qualname}' instances"
         )))
-    })
+    }
+}
+
+unsafe extern "C" fn call_super_clear(slf: *mut ffi::PyObject) -> c_int {
+    unsafe { _call_clear(slf, |_, _| Ok(()), call_super_clear) }
 }
 
 #[derive(Default)]
@@ -632,8 +662,8 @@ impl GetSetDefType {
                         closure: *mut c_void,
                     ) -> *mut ffi::PyObject {
                         // Safety: PyO3 sets the closure when constructing the ffi getter so this cast should always be valid
-                        let getter: Getter = std::mem::transmute(closure);
-                        trampoline(|py| getter(py, slf))
+                        let getter: Getter = unsafe { std::mem::transmute(closure) };
+                        unsafe { trampoline(|py| getter(py, slf)) }
                     }
                     (Some(getter), None, closure as Getter as _)
                 }
@@ -644,8 +674,8 @@ impl GetSetDefType {
                         closure: *mut c_void,
                     ) -> c_int {
                         // Safety: PyO3 sets the closure when constructing the ffi setter so this cast should always be valid
-                        let setter: Setter = std::mem::transmute(closure);
-                        trampoline(|py| setter(py, slf, value))
+                        let setter: Setter = unsafe { std::mem::transmute(closure) };
+                        unsafe { trampoline(|py| setter(py, slf, value)) }
                     }
                     (None, Some(setter), closure as Setter as _)
                 }
@@ -654,8 +684,8 @@ impl GetSetDefType {
                         slf: *mut ffi::PyObject,
                         closure: *mut c_void,
                     ) -> *mut ffi::PyObject {
-                        let getset: &GetterAndSetter = &*closure.cast();
-                        trampoline(|py| (getset.getter)(py, slf))
+                        let getset: &GetterAndSetter = unsafe { &*closure.cast() };
+                        unsafe { trampoline(|py| (getset.getter)(py, slf)) }
                     }
 
                     unsafe extern "C" fn getset_setter(
@@ -663,8 +693,8 @@ impl GetSetDefType {
                         value: *mut ffi::PyObject,
                         closure: *mut c_void,
                     ) -> c_int {
-                        let getset: &GetterAndSetter = &*closure.cast();
-                        trampoline(|py| (getset.setter)(py, slf, value))
+                        let getset: &GetterAndSetter = unsafe { &*closure.cast() };
+                        unsafe { trampoline(|py| (getset.setter)(py, slf, value)) }
                     }
                     (
                         Some(getset_getter),

@@ -1,21 +1,23 @@
 use crate::object::*;
+#[cfg(Py_3_14)]
+use crate::pyport::Py_hash_t;
 #[cfg(not(PyPy))]
 use crate::pyport::Py_ssize_t;
 
 #[repr(C)]
 pub struct PyTupleObject {
     pub ob_base: PyVarObject,
-    #[cfg(not(GraalPy))]
+    #[cfg(Py_3_14)]
+    pub ob_hash: Py_hash_t,
     pub ob_item: [*mut PyObject; 1],
 }
 
 // skipped _PyTuple_Resize
 // skipped _PyTuple_MaybeUntrack
 
-/// Macro, trading safety for speed
-
 // skipped _PyTuple_CAST
 
+/// Macro, trading safety for speed
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyTuple_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {

@@ -6,7 +6,7 @@ use crate::{
     py_result_ext::PyResultExt,
     types::any::PyAnyMethods,
 };
-use crate::{ffi, PyAny, PyObject, Python, ToPyObject};
+use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, Python};
 use std::ptr;
 
 /// Represents a Python `set`.
@@ -42,21 +42,14 @@ impl PySet {
     ///
     /// Returns an error if some element is not hashable.
     #[inline]
-    pub fn new<'a, 'p, T: ToPyObject + 'a>(
-        py: Python<'p>,
-        elements: impl IntoIterator<Item = &'a T>,
-    ) -> PyResult<Bound<'p, PySet>> {
-        new_from_iter(py, elements)
-    }
-
-    /// Deprecated name for [`PySet::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PySet::new`")]
-    #[inline]
-    pub fn new_bound<'a, 'p, T: ToPyObject + 'a>(
-        py: Python<'p>,
-        elements: impl IntoIterator<Item = &'a T>,
-    ) -> PyResult<Bound<'p, PySet>> {
-        Self::new(py, elements)
+    pub fn new<'py, T>(
+        py: Python<'py>,
+        elements: impl IntoIterator<Item = T>,
+    ) -> PyResult<Bound<'py, PySet>>
+    where
+        T: IntoPyObject<'py>,
+    {
+        try_new_from_iter(py, elements)
     }
 
     /// Creates a new empty set.
@@ -66,13 +59,6 @@ impl PySet {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PySet::empty`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PySet::empty`")]
-    #[inline]
-    pub fn empty_bound(py: Python<'_>) -> PyResult<Bound<'_, PySet>> {
-        Self::empty(py)
     }
 }
 
@@ -101,19 +87,19 @@ pub trait PySetMethods<'py>: crate::sealed::Sealed {
     /// This is equivalent to the Python expression `key in self`.
     fn contains<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>;
 
     /// Removes the element from the set if it is present.
     ///
     /// Returns `true` if the element was present in the set.
     fn discard<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>;
 
     /// Adds an element to the set.
     fn add<K>(&self, key: K) -> PyResult<()>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>;
 
     /// Removes and returns an arbitrary element from the set.
     fn pop(&self) -> Option<Bound<'py, PyAny>>;
@@ -141,9 +127,9 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
 
     fn contains<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
     {
-        fn inner(set: &Bound<'_, PySet>, key: Bound<'_, PyAny>) -> PyResult<bool> {
+        fn inner(set: &Bound<'_, PySet>, key: Borrowed<'_, '_, PyAny>) -> PyResult<bool> {
             match unsafe { ffi::PySet_Contains(set.as_ptr(), key.as_ptr()) } {
                 1 => Ok(true),
                 0 => Ok(false),
@@ -152,14 +138,17 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).into_bound(py))
+        inner(
+            self,
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
+        )
     }
 
     fn discard<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
     {
-        fn inner(set: &Bound<'_, PySet>, key: Bound<'_, PyAny>) -> PyResult<bool> {
+        fn inner(set: &Bound<'_, PySet>, key: Borrowed<'_, '_, PyAny>) -> PyResult<bool> {
             match unsafe { ffi::PySet_Discard(set.as_ptr(), key.as_ptr()) } {
                 1 => Ok(true),
                 0 => Ok(false),
@@ -168,29 +157,32 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).into_bound(py))
+        inner(
+            self,
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
+        )
     }
 
     fn add<K>(&self, key: K) -> PyResult<()>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
     {
-        fn inner(set: &Bound<'_, PySet>, key: Bound<'_, PyAny>) -> PyResult<()> {
+        fn inner(set: &Bound<'_, PySet>, key: Borrowed<'_, '_, PyAny>) -> PyResult<()> {
             err::error_on_minusone(set.py(), unsafe {
                 ffi::PySet_Add(set.as_ptr(), key.as_ptr())
             })
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).into_bound(py))
+        inner(
+            self,
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
+        )
     }
 
     fn pop(&self) -> Option<Bound<'py, PyAny>> {
         let element = unsafe { ffi::PySet_Pop(self.as_ptr()).assume_owned_or_err(self.py()) };
-        match element {
-            Ok(e) => Some(e),
-            Err(_) => None,
-        }
+        element.ok()
     }
 
     fn iter(&self) -> BoundSetIterator<'py> {
@@ -255,28 +247,30 @@ impl<'py> Iterator for BoundSetIterator<'py> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.remaining, Some(self.remaining))
     }
+
+    #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
+    }
 }
 
-impl<'py> ExactSizeIterator for BoundSetIterator<'py> {
+impl ExactSizeIterator for BoundSetIterator<'_> {
     fn len(&self) -> usize {
         self.remaining
     }
 }
 
 #[inline]
-pub(crate) fn new_from_iter<T: ToPyObject>(
-    py: Python<'_>,
+pub(crate) fn try_new_from_iter<'py, T>(
+    py: Python<'py>,
     elements: impl IntoIterator<Item = T>,
-) -> PyResult<Bound<'_, PySet>> {
-    let mut iter = elements.into_iter().map(|e| Ok(e.to_object(py)));
-    try_new_from_iter(py, &mut iter)
-}
-
-#[inline]
-pub(crate) fn try_new_from_iter(
-    py: Python<'_>,
-    elements: impl IntoIterator<Item = PyResult<PyObject>>,
-) -> PyResult<Bound<'_, PySet>> {
+) -> PyResult<Bound<'py, PySet>>
+where
+    T: IntoPyObject<'py>,
+{
     let set = unsafe {
         // We create the `Bound` pointer because its Drop cleans up the set if
         // user code errors or panics.
@@ -286,9 +280,10 @@ pub(crate) fn try_new_from_iter(
     };
     let ptr = set.as_ptr();
 
-    for obj in elements {
-        err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj?.as_ptr()) })?;
-    }
+    elements.into_iter().try_for_each(|element| {
+        let obj = element.into_pyobject_or_pyerr(py)?;
+        err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj.as_ptr()) })
+    })?;
 
     Ok(set)
 }
@@ -297,16 +292,17 @@ pub(crate) fn try_new_from_iter(
 mod tests {
     use super::PySet;
     use crate::{
+        conversion::IntoPyObject,
         ffi,
         types::{PyAnyMethods, PySetMethods},
-        Python, ToPyObject,
+        Python,
     };
     use std::collections::HashSet;
 
     #[test]
     fn test_set_new() {
-        Python::with_gil(|py| {
-            let set = PySet::new(py, &[1]).unwrap();
+        Python::attach(|py| {
+            let set = PySet::new(py, [1]).unwrap();
             assert_eq!(1, set.len());
 
             let v = vec![1];
@@ -316,7 +312,7 @@ mod tests {
 
     #[test]
     fn test_set_empty() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let set = PySet::empty(py).unwrap();
             assert_eq!(0, set.len());
             assert!(set.is_empty());
@@ -325,22 +321,22 @@ mod tests {
 
     #[test]
     fn test_set_len() {
-        Python::with_gil(|py| {
-            let mut v = HashSet::new();
-            let ob = v.to_object(py);
-            let set = ob.downcast_bound::<PySet>(py).unwrap();
+        Python::attach(|py| {
+            let mut v = HashSet::<i32>::new();
+            let ob = (&v).into_pyobject(py).unwrap();
+            let set = ob.downcast::<PySet>().unwrap();
             assert_eq!(0, set.len());
             v.insert(7);
-            let ob = v.to_object(py);
-            let set2 = ob.downcast_bound::<PySet>(py).unwrap();
+            let ob = v.into_pyobject(py).unwrap();
+            let set2 = ob.downcast::<PySet>().unwrap();
             assert_eq!(1, set2.len());
         });
     }
 
     #[test]
     fn test_set_clear() {
-        Python::with_gil(|py| {
-            let set = PySet::new(py, &[1]).unwrap();
+        Python::attach(|py| {
+            let set = PySet::new(py, [1]).unwrap();
             assert_eq!(1, set.len());
             set.clear();
             assert_eq!(0, set.len());
@@ -349,16 +345,16 @@ mod tests {
 
     #[test]
     fn test_set_contains() {
-        Python::with_gil(|py| {
-            let set = PySet::new(py, &[1]).unwrap();
+        Python::attach(|py| {
+            let set = PySet::new(py, [1]).unwrap();
             assert!(set.contains(1).unwrap());
         });
     }
 
     #[test]
     fn test_set_discard() {
-        Python::with_gil(|py| {
-            let set = PySet::new(py, &[1]).unwrap();
+        Python::attach(|py| {
+            let set = PySet::new(py, [1]).unwrap();
             assert!(!set.discard(2).unwrap());
             assert_eq!(1, set.len());
 
@@ -372,8 +368,8 @@ mod tests {
 
     #[test]
     fn test_set_add() {
-        Python::with_gil(|py| {
-            let set = PySet::new(py, &[1, 2]).unwrap();
+        Python::attach(|py| {
+            let set = PySet::new(py, [1, 2]).unwrap();
             set.add(1).unwrap(); // Add a dupliated element
             assert!(set.contains(1).unwrap());
         });
@@ -381,8 +377,8 @@ mod tests {
 
     #[test]
     fn test_set_pop() {
-        Python::with_gil(|py| {
-            let set = PySet::new(py, &[1]).unwrap();
+        Python::attach(|py| {
+            let set = PySet::new(py, [1]).unwrap();
             let val = set.pop();
             assert!(val.is_some());
             let val2 = set.pop();
@@ -399,8 +395,8 @@ mod tests {
 
     #[test]
     fn test_set_iter() {
-        Python::with_gil(|py| {
-            let set = PySet::new(py, &[1]).unwrap();
+        Python::attach(|py| {
+            let set = PySet::new(py, [1]).unwrap();
 
             for el in set {
                 assert_eq!(1i32, el.extract::<'_, i32>().unwrap());
@@ -412,8 +408,8 @@ mod tests {
     fn test_set_iter_bound() {
         use crate::types::any::PyAnyMethods;
 
-        Python::with_gil(|py| {
-            let set = PySet::new(py, &[1]).unwrap();
+        Python::attach(|py| {
+            let set = PySet::new(py, [1]).unwrap();
 
             for el in &set {
                 assert_eq!(1i32, el.extract::<i32>().unwrap());
@@ -424,8 +420,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_set_iter_mutation() {
-        Python::with_gil(|py| {
-            let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+        Python::attach(|py| {
+            let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
 
             for _ in &set {
                 let _ = set.add(42);
@@ -436,8 +432,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_set_iter_mutation_same_len() {
-        Python::with_gil(|py| {
-            let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+        Python::attach(|py| {
+            let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
 
             for item in &set {
                 let item: i32 = item.extract().unwrap();
@@ -449,8 +445,8 @@ mod tests {
 
     #[test]
     fn test_set_iter_size_hint() {
-        Python::with_gil(|py| {
-            let set = PySet::new(py, &[1]).unwrap();
+        Python::attach(|py| {
+            let set = PySet::new(py, [1]).unwrap();
             let mut iter = set.iter();
 
             // Exact size
@@ -460,5 +456,13 @@ mod tests {
             assert_eq!(iter.len(), 0);
             assert_eq!(iter.size_hint(), (0, Some(0)));
         });
+    }
+
+    #[test]
+    fn test_iter_count() {
+        Python::attach(|py| {
+            let set = PySet::new(py, vec![1, 2, 3]).unwrap();
+            assert_eq!(set.iter().count(), 3);
+        })
     }
 }

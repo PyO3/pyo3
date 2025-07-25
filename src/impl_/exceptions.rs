@@ -17,7 +17,7 @@ impl ImportedExceptionTypeObject {
 
     pub fn get<'py>(&self, py: Python<'py>) -> &Bound<'py, PyType> {
         self.imported_value
-            .get_or_try_init_type_ref(py, self.module, self.name)
+            .import(py, self.module, self.name)
             .unwrap_or_else(|e| {
                 panic!(
                     "failed to import exception {}.{}: {}",

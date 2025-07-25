@@ -45,7 +45,7 @@
 //! }
 //!
 //! fn main() {
-//!     let error = Python::with_gil(|py| -> PyResult<Vec<u8>> {
+//!     let error = Python::attach(|py| -> PyResult<Vec<u8>> {
 //!         let fun = wrap_pyfunction!(py_open, py)?;
 //!         let text = fun.call1(("foo.txt",))?.extract::<Vec<u8>>()?;
 //!         Ok(text)
@@ -72,7 +72,7 @@
 //!     // An arbitrary example of a Python api you
 //!     // could call inside an application...
 //!     // This might return a `PyErr`.
-//!     let res = Python::with_gil(|py| {
+//!     let res = Python::attach(|py| {
 //!         let zlib = PyModule::import(py, "zlib")?;
 //!         let decompress = zlib.getattr("decompress")?;
 //!         let bytes = PyBytes::new(py, bytes);
@@ -119,7 +119,7 @@ impl From<eyre::Report> for PyErr {
                 Err(error) => error,
             };
         }
-        PyRuntimeError::new_err(format!("{:?}", error))
+        PyRuntimeError::new_err(format!("{error:?}"))
     }
 }
 
@@ -147,11 +147,11 @@ mod tests {
     #[test]
     fn test_pyo3_exception_contents() {
         let err = h().unwrap_err();
-        let expected_contents = format!("{:?}", err);
+        let expected_contents = format!("{err:?}");
         let pyerr = PyErr::from(err);
 
-        Python::with_gil(|py| {
-            let locals = [("err", pyerr)].into_py_dict(py);
+        Python::attach(|py| {
+            let locals = [("err", pyerr)].into_py_dict(py).unwrap();
             let pyerr = py
                 .run(ffi::c_str!("raise err"), None, Some(&locals))
                 .unwrap_err();
@@ -166,11 +166,11 @@ mod tests {
     #[test]
     fn test_pyo3_exception_contents2() {
         let err = k().unwrap_err();
-        let expected_contents = format!("{:?}", err);
+        let expected_contents = format!("{err:?}");
         let pyerr = PyErr::from(err);
 
-        Python::with_gil(|py| {
-            let locals = [("err", pyerr)].into_py_dict(py);
+        Python::attach(|py| {
+            let locals = [("err", pyerr)].into_py_dict(py).unwrap();
             let pyerr = py
                 .run(ffi::c_str!("raise err"), None, Some(&locals))
                 .unwrap_err();
@@ -183,7 +183,7 @@ mod tests {
         let origin_exc = PyValueError::new_err("Value Error");
         let report: Report = origin_exc.into();
         let converted: PyErr = report.into();
-        assert!(Python::with_gil(
+        assert!(Python::attach(
             |py| converted.is_instance_of::<PyValueError>(py)
         ))
     }
@@ -193,7 +193,7 @@ mod tests {
         let mut report: Report = origin_exc.into();
         report = report.wrap_err("Wrapped");
         let converted: PyErr = report.into();
-        assert!(Python::with_gil(
+        assert!(Python::attach(
             |py| converted.is_instance_of::<PyRuntimeError>(py)
         ))
     }

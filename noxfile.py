@@ -1,17 +1,26 @@
-from contextlib import contextmanager
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
+import sysconfig
 import tempfile
+from contextlib import contextmanager
 from functools import lru_cache
 from glob import glob
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+)
 
-import nox
 import nox.command
 
 try:
@@ -24,14 +33,49 @@ except ImportError:
 
 nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "docs"]
 
-
 PYO3_DIR = Path(__file__).parent
 PYO3_TARGET = Path(os.environ.get("CARGO_TARGET_DIR", PYO3_DIR / "target")).absolute()
 PYO3_GUIDE_SRC = PYO3_DIR / "guide" / "src"
 PYO3_GUIDE_TARGET = PYO3_TARGET / "guide"
 PYO3_DOCS_TARGET = PYO3_TARGET / "doc"
-PY_VERSIONS = ("3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13")
-PYPY_VERSIONS = ("3.7", "3.8", "3.9", "3.10")
+FREE_THREADED_BUILD = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+
+
+def _get_output(*args: str) -> str:
+    return subprocess.run(args, capture_output=True, text=True, check=True).stdout
+
+
+def _parse_supported_interpreter_version(
+    python_impl: str,  # Literal["cpython", "pypy"], TODO update after 3.7 dropped
+) -> Tuple[str, str]:
+    output = _get_output("cargo", "metadata", "--format-version=1", "--no-deps")
+    cargo_packages = json.loads(output)["packages"]
+    # Check Python interpreter version support in package metadata
+    package = "pyo3-ffi"
+    metadata = next(pkg["metadata"] for pkg in cargo_packages if pkg["name"] == package)
+    version_info = metadata[python_impl]
+    assert "min-version" in version_info, f"missing min-version for {python_impl}"
+    assert "max-version" in version_info, f"missing max-version for {python_impl}"
+    return version_info["min-version"], version_info["max-version"]
+
+
+def _supported_interpreter_versions(
+    python_impl: str,  # Literal["cpython", "pypy"], TODO update after 3.7 dropped
+) -> List[str]:
+    min_version, max_version = _parse_supported_interpreter_version(python_impl)
+    major = int(min_version.split(".")[0])
+    assert major == 3, f"unsupported Python major version {major}"
+    min_minor = int(min_version.split(".")[1])
+    max_minor = int(max_version.split(".")[1])
+    versions = [f"{major}.{minor}" for minor in range(min_minor, max_minor + 1)]
+    # Add free-threaded builds for 3.13+
+    if python_impl == "cpython":
+        versions += [f"{major}.{minor}t" for minor in range(13, max_minor + 1)]
+    return versions
+
+
+PY_VERSIONS = _supported_interpreter_versions("cpython")
+PYPY_VERSIONS = _supported_interpreter_versions("pypy")
 
 
 @nox.session(venv_backend="none")
@@ -45,19 +89,57 @@ def test_rust(session: nox.Session):
     _run_cargo_test(session, package="pyo3-build-config")
     _run_cargo_test(session, package="pyo3-macros-backend")
     _run_cargo_test(session, package="pyo3-macros")
-    _run_cargo_test(session, package="pyo3-ffi")
 
-    _run_cargo_test(session)
-    _run_cargo_test(session, features="abi3")
-    if "skip-full" not in session.posargs:
-        _run_cargo_test(session, features="full")
-        _run_cargo_test(session, features="abi3 full")
+    extra_flags = []
+    # pypy and graalpy don't have Py_Initialize APIs, so we can only
+    # build the main tests, not run them
+    if sys.implementation.name in ("pypy", "graalpy"):
+        extra_flags.append("--no-run")
+
+    _run_cargo_test(session, package="pyo3-ffi", extra_flags=extra_flags)
+
+    extra_flags.append("--no-default-features")
+
+    for feature_set in _get_feature_sets():
+        flags = extra_flags.copy()
+        print(feature_set)
+
+        if feature_set is None or "full" not in feature_set:
+            # doctests require at least the macros feature, which is
+            # activated by the full feature set
+            #
+            # using `--all-targets` makes cargo run everything except doctests
+            flags.append("--all-targets")
+
+        # We need to pass the feature set to the test command
+        # so that it can be used in the test code
+        # (e.g. for `#[cfg(feature = "abi3-py37")]`)
+        if feature_set and "abi3" in feature_set and FREE_THREADED_BUILD:
+            # free-threaded builds don't support abi3 yet
+            continue
+
+        _run_cargo_test(session, features=feature_set, extra_flags=flags)
+
+        if (
+            feature_set
+            and "abi3" in feature_set
+            and "full" in feature_set
+            and sys.version_info >= (3, 7)
+        ):
+            # run abi3-py37 tests to check abi3 forward compatibility
+            _run_cargo_test(
+                session,
+                features=feature_set.replace("abi3", "abi3-py37"),
+                extra_flags=flags,
+            )
 
 
 @nox.session(name="test-py", venv_backend="none")
 def test_py(session: nox.Session) -> None:
     _run(session, "nox", "-f", "pytests/noxfile.py", external=True)
     for example in glob("examples/*/noxfile.py"):
+        _run(session, "nox", "-f", example, external=True)
+    for example in glob("pyo3-ffi/examples/*/noxfile.py"):
         _run(session, "nox", "-f", example, external=True)
 
 
@@ -66,7 +148,19 @@ def coverage(session: nox.Session) -> None:
     session.env.update(_get_coverage_env())
     _run_cargo(session, "llvm-cov", "clean", "--workspace")
     test(session)
+    generate_coverage_report(session)
 
+
+@nox.session(name="set-coverage-env", venv_backend="none")
+def set_coverage_env(session: nox.Session) -> None:
+    """For use in GitHub Actions to set coverage environment variables."""
+    with open(os.environ["GITHUB_ENV"], "a") as env_file:
+        for k, v in _get_coverage_env().items():
+            print(f"{k}={v}", file=env_file)
+
+
+@nox.session(name="generate-coverage-report", venv_backend="none")
+def generate_coverage_report(session: nox.Session) -> None:
     cov_format = "codecov"
     output_file = "coverage.json"
 
@@ -116,7 +210,8 @@ def _clippy(session: nox.Session, *, env: Dict[str, str] = None) -> bool:
             _run_cargo(
                 session,
                 "clippy",
-                *feature_set,
+                "--no-default-features",
+                *((f"--features={feature_set}",) if feature_set else ()),
                 "--all-targets",
                 "--workspace",
                 "--",
@@ -193,7 +288,8 @@ def check_all(session: nox.Session) -> None:
                 _run_cargo(
                     session,
                     "check",
-                    *feature_set,
+                    "--no-default-features",
+                    *((f"--features={feature_set}",) if feature_set else ()),
                     "--all-targets",
                     "--workspace",
                     env=env,
@@ -319,6 +415,7 @@ def test_emscripten(session: nox.Session):
             f"-C link-arg=-lpython{info.pymajorminor}",
             "-C link-arg=-lexpat",
             "-C link-arg=-lmpdec",
+            "-C link-arg=-lsqlite3",
             "-C link-arg=-lz",
             "-C link-arg=-lbz2",
             "-C link-arg=-sALLOW_MEMORY_GROWTH=1",
@@ -331,7 +428,7 @@ def test_emscripten(session: nox.Session):
         session,
         "bash",
         "-c",
-        f"source {info.builddir/'emsdk/emsdk_env.sh'} && cargo test",
+        f"source {info.builddir / 'emsdk/emsdk_env.sh'} && cargo test",
     )
 
 
@@ -360,6 +457,8 @@ def docs(session: nox.Session) -> None:
     rustdoc_flags.append(session.env.get("RUSTDOCFLAGS", ""))
     session.env["RUSTDOCFLAGS"] = " ".join(rustdoc_flags)
 
+    features = "full"
+
     shutil.rmtree(PYO3_DOCS_TARGET, ignore_errors=True)
     _run_cargo(
         session,
@@ -367,7 +466,7 @@ def docs(session: nox.Session) -> None:
         "doc",
         "--lib",
         "--no-default-features",
-        "--features=full",
+        f"--features={features}",
         "--no-deps",
         "--workspace",
         *cargo_flags,
@@ -405,10 +504,18 @@ def check_guide(session: nox.Session):
         "https://pyo3.rs/main/": f"file://{PYO3_GUIDE_TARGET}/",
         "https://pyo3.rs/latest/": f"file://{PYO3_GUIDE_TARGET}/",
         "%7B%7B#PYO3_DOCS_VERSION}}": "latest",
+        # bypass fragments for edge cases
+        # blob links
+        "(https://github.com/[^/]+/[^/]+/blob/[^#]+)#[a-zA-Z0-9._-]*": "$1",
+        # issue comments
+        "(https://github.com/[^/]+/[^/]+/issues/[0-9]+)#issuecomment-[0-9]*": "$1",
+        # rust docs
+        "(https://docs.rs/[^#]+)#[a-zA-Z0-9._-]*": "$1",
     }
     remap_args = []
     for key, value in remaps.items():
         remap_args.extend(("--remap", f"{key} {value}"))
+
     # check all links in the guide
     _run(
         session,
@@ -416,6 +523,7 @@ def check_guide(session: nox.Session):
         "--include-fragments",
         str(PYO3_GUIDE_SRC),
         *remap_args,
+        "--accept=200,429",
         *session.posargs,
     )
     # check external links in the docs
@@ -426,7 +534,12 @@ def check_guide(session: nox.Session):
         str(PYO3_DOCS_TARGET),
         *remap_args,
         f"--exclude=file://{PYO3_DOCS_TARGET}",
+        # exclude some old http links from copyright notices, known to fail
         "--exclude=http://www.adobe.com/",
+        "--exclude=http://www.nhncorp.com/",
+        "--accept=200,429",
+        # reduce the concurrency to avoid rate-limit from `pyo3.rs`
+        "--max-concurrency=32",
         *session.posargs,
     )
 
@@ -503,6 +616,7 @@ def address_sanitizer(session: nox.Session):
 _IGNORE_CHANGELOG_PR_CATEGORIES = (
     "release",
     "docs",
+    "ci",
 )
 
 
@@ -554,34 +668,25 @@ def check_changelog(session: nox.Session):
 def set_msrv_package_versions(session: nox.Session):
     from collections import defaultdict
 
-    if toml is None:
-        session.error("requires Python 3.11 or `toml` to be installed")
-
     projects = (
-        None,
-        "examples/decorator",
-        "examples/maturin-starter",
-        "examples/setuptools-rust-starter",
-        "examples/word-count",
+        PYO3_DIR,
+        *(Path(p).parent for p in glob("examples/*/Cargo.toml")),
+        *(Path(p).parent for p in glob("pyo3-ffi/examples/*/Cargo.toml")),
     )
-    min_pkg_versions = {
-        "regex": "1.9.6",
-        "proptest": "1.2.0",
-        "trybuild": "1.0.89",
-        "eyre": "0.6.8",
-        "allocator-api2": "0.2.10",
-    }
+    min_pkg_versions = {}
 
     # run cargo update first to ensure that everything is at highest
     # possible version, so that this matches what CI will resolve to.
     for project in projects:
-        if project is None:
-            _run_cargo(session, "update")
-        else:
-            _run_cargo(session, "update", f"--manifest-path={project}/Cargo.toml")
+        _run_cargo(
+            session,
+            "+stable",
+            "update",
+            f"--manifest-path={project}/Cargo.toml",
+            env=os.environ | {"CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS": "fallback"},
+        )
 
-    for project in projects:
-        lock_file = Path(project or "") / "Cargo.lock"
+        lock_file = project / "Cargo.lock"
 
         def load_pkg_versions():
             cargo_lock = toml.loads(lock_file.read_text())
@@ -607,19 +712,15 @@ def set_msrv_package_versions(session: nox.Session):
                     # and re-read `Cargo.lock`
                     pkg_versions = load_pkg_versions()
 
-    # As a smoke test, cargo metadata solves all dependencies, so
-    # will break if any crates rely on cargo features not
-    # supported on MSRV
-    for project in projects:
-        if project is None:
-            _run_cargo(session, "metadata", silent=True)
-        else:
-            _run_cargo(
-                session,
-                "metadata",
-                f"--manifest-path={project}/Cargo.toml",
-                silent=True,
-            )
+        # As a smoke test, cargo metadata solves all dependencies, so
+        # will break if any crates rely on cargo features not
+        # supported on MSRV
+        _run_cargo(
+            session,
+            "metadata",
+            f"--manifest-path={project}/Cargo.toml",
+            silent=True,
+        )
 
 
 @nox.session(name="ffi-check")
@@ -638,29 +739,20 @@ def test_version_limits(session: nox.Session):
         config_file.set("CPython", "3.6")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        assert "3.14" not in PY_VERSIONS
-        config_file.set("CPython", "3.14")
+        assert "3.15" not in PY_VERSIONS
+        config_file.set("CPython", "3.15")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        # 3.14 CPython should build with forward compatibility
+        # 3.15 CPython should build if abi3 is explicitly requested
+        _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
+
+        # 3.15 CPython should build with forward compatibility
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
 
-        assert "3.6" not in PYPY_VERSIONS
-        config_file.set("PyPy", "3.6")
+        assert "3.8" not in PYPY_VERSIONS
+        config_file.set("PyPy", "3.8")
         _run_cargo(session, "check", env=env, expect_error=True)
-
-        assert "3.11" not in PYPY_VERSIONS
-        config_file.set("PyPy", "3.11")
-        _run_cargo(session, "check", env=env, expect_error=True)
-
-        # Python build with GIL disabled should fail building
-        config_file.set("CPython", "3.13", build_flags=["Py_GIL_DISABLED"])
-        _run_cargo(session, "check", env=env, expect_error=True)
-
-        # Python build with GIL disabled should pass with env flag on
-        env["UNSAFE_PYO3_BUILD_FREE_THREADED"] = "1"
-        _run_cargo(session, "check", env=env)
 
 
 @nox.session(name="check-feature-powerset", venv_backend="none")
@@ -669,6 +761,11 @@ def check_feature_powerset(session: nox.Session):
         session.error("requires Python 3.11 or `toml` to be installed")
 
     cargo_toml = toml.loads((PYO3_DIR / "Cargo.toml").read_text())
+
+    # free-threaded builds do not support ABI3 (yet)
+    EXPECTED_ABI3_FEATURES = {
+        f"abi3-py3{ver.split('.')[1]}" for ver in PY_VERSIONS if not ver.endswith("t")
+    }
 
     EXCLUDED_FROM_FULL = {
         "nightly",
@@ -685,6 +782,16 @@ def check_feature_powerset(session: nox.Session):
     full_feature = set(features["full"])
     abi3_features = {feature for feature in features if feature.startswith("abi3")}
     abi3_version_features = abi3_features - {"abi3"}
+
+    unexpected_abi3_features = abi3_version_features - EXPECTED_ABI3_FEATURES
+    if unexpected_abi3_features:
+        session.error(
+            f"unexpected `abi3` features found in Cargo.toml: {unexpected_abi3_features}"
+        )
+
+    missing_abi3_features = EXPECTED_ABI3_FEATURES - abi3_version_features
+    if missing_abi3_features:
+        session.error(f"missing `abi3` features in Cargo.toml: {missing_abi3_features}")
 
     expected_full_feature = features.keys() - EXCLUDED_FROM_FULL - abi3_features
 
@@ -750,6 +857,27 @@ def update_ui_tests(session: nox.Session):
     _run_cargo(session, *command, "--features=abi3,full", env=env)
 
 
+@nox.session(name="test-introspection")
+def test_introspection(session: nox.Session):
+    session.install("maturin")
+    session.install("ruff")
+    target = os.environ.get("CARGO_BUILD_TARGET")
+    for options in ([], ["--release"]):
+        if target is not None:
+            options += ("--target", target)
+        session.run_always("maturin", "develop", "-m", "./pytests/Cargo.toml", *options)
+        # We look for the built library
+        lib_file = None
+        for file in Path(session.virtualenv.location).rglob("pyo3_pytests.*"):
+            if file.is_file():
+                lib_file = str(file.resolve())
+        _run_cargo_test(
+            session,
+            package="pyo3-introspection",
+            env={"PYO3_PYTEST_LIB_PATH": lib_file},
+        )
+
+
 def _build_docs_for_ffi_check(session: nox.Session) -> None:
     # pyo3-ffi-check needs to scrape docs of pyo3-ffi
     env = os.environ.copy()
@@ -764,13 +892,20 @@ def _get_rust_info() -> Tuple[str, ...]:
     return tuple(output.splitlines())
 
 
-def _get_rust_version() -> Tuple[int, int, int, List[str]]:
+def get_rust_version() -> Tuple[int, int, int, List[str]]:
     for line in _get_rust_info():
         if line.startswith(_RELEASE_LINE_START):
             version = line[len(_RELEASE_LINE_START) :].strip()
             # e.g. 1.67.0-beta.2
             (version_number, *extra) = version.split("-", maxsplit=1)
             return (*map(int, version_number.split(".")), extra)
+
+
+def is_rust_nightly() -> bool:
+    for line in _get_rust_info():
+        if line.startswith(_RELEASE_LINE_START):
+            return line.strip().endswith("-nightly")
+    return False
 
 
 def _get_rust_default_target() -> str:
@@ -780,30 +915,20 @@ def _get_rust_default_target() -> str:
 
 
 @lru_cache()
-def _get_feature_sets() -> Tuple[Tuple[str, ...], ...]:
-    """Returns feature sets to use for clippy job"""
+def _get_feature_sets() -> Tuple[Optional[str], ...]:
+    """Returns feature sets to use for Rust jobs"""
     cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
-    if "wasm32-wasi" not in cargo_target:
+
+    features = "full"
+
+    if "wasm32-wasip1" not in cargo_target:
         # multiple-pymethods not supported on wasm
-        return (
-            ("--no-default-features",),
-            (
-                "--no-default-features",
-                "--features=abi3",
-            ),
-            ("--features=full multiple-pymethods",),
-            ("--features=abi3 full multiple-pymethods",),
-        )
-    else:
-        return (
-            ("--no-default-features",),
-            (
-                "--no-default-features",
-                "--features=abi3",
-            ),
-            ("--features=full",),
-            ("--features=abi3 full",),
-        )
+        features += ",multiple-pymethods"
+
+    if is_rust_nightly():
+        features += ",nightly"
+
+    return (None, "abi3", features, f"abi3,{features}")
 
 
 _RELEASE_LINE_START = "release: "
@@ -866,21 +991,27 @@ def _run_cargo_test(
     *,
     package: Optional[str] = None,
     features: Optional[str] = None,
+    env: Optional[Dict[str, str]] = None,
+    extra_flags: Optional[List[str]] = None,
 ) -> None:
     command = ["cargo"]
     if "careful" in session.posargs:
         # do explicit setup so failures in setup can be seen
         _run_cargo(session, "careful", "setup")
         command.append("careful")
+
     command.extend(("test", "--no-fail-fast"))
+
     if "release" in session.posargs:
         command.append("--release")
     if package:
         command.append(f"--package={package}")
     if features:
         command.append(f"--features={features}")
+    if extra_flags:
+        command.extend(extra_flags)
 
-    _run(session, *command, external=True)
+    _run(session, *command, external=True, env=env or {})
 
 
 def _run_cargo_publish(session: nox.Session, *, package: str) -> None:
@@ -898,10 +1029,6 @@ def _run_cargo_set_package_version(
     if project:
         command.append(f"--manifest-path={project}/Cargo.toml")
     _run(session, *command, external=True)
-
-
-def _get_output(*args: str) -> str:
-    return subprocess.run(args, capture_output=True, text=True, check=True).stdout
 
 
 def _for_all_version_configs(
@@ -931,13 +1058,18 @@ class _ConfigFile:
         self, implementation: str, version: str, build_flags: Iterable[str] = ()
     ) -> None:
         """Set the contents of this config file to the given implementation and version."""
+        if version.endswith("t"):
+            # Free threaded versions pass the support in config file through a flag
+            version = version[:-1]
+            build_flags = (*build_flags, "Py_GIL_DISABLED")
+
         self._config_file.seek(0)
         self._config_file.truncate(0)
         self._config_file.write(
             f"""\
 implementation={implementation}
 version={version}
-build_flags={','.join(build_flags)}
+build_flags={",".join(build_flags)}
 suppress_build_script_link_lines=true
 """
         )

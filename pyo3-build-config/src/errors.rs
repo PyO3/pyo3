@@ -68,7 +68,7 @@ impl std::fmt::Display for ErrorReport<'_> {
             writeln!(f, "\ncaused by:")?;
             let mut index = 0;
             while let Some(some_source) = source {
-                writeln!(f, "  - {}: {}", index, some_source)?;
+                writeln!(f, "  - {index}: {some_source}")?;
                 source = some_source.source();
                 index += 1;
             }

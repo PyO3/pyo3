@@ -7,16 +7,16 @@ use pyo3::prelude::*;
 use pyo3::intern;
 
 fn getattr_direct(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
-        let sys = &py.import_bound("sys").unwrap();
+    Python::attach(|py| {
+        let sys = &py.import("sys").unwrap();
 
         b.iter(|| black_box(sys).getattr("version").unwrap());
     });
 }
 
 fn getattr_intern(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
-        let sys = &py.import_bound("sys").unwrap();
+    Python::attach(|py| {
+        let sys = &py.import("sys").unwrap();
 
         b.iter(|| black_box(sys).getattr(intern!(py, "version")).unwrap());
     });

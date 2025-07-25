@@ -30,7 +30,7 @@ Because `Py<T>` is not bound to [the `'py` lifetime](./python-from-rust.md#the-p
 
 The lack of binding to the `'py` lifetime also carries drawbacks:
  - Almost all methods on `Py<T>` require a `Python<'py>` token as the first argument
- - Other functionality, such as [`Drop`][Drop], needs to check at runtime for attachment to the Python GIL, at a small performance cost
+ - Other functionality, such as [`Drop`][Drop], needs to check at runtime for attachment to the Python interpreter, at a small performance cost
 
 Because of the drawbacks `Bound<'py, T>` is preferred for many of PyO3's APIs. In particular, `Bound<'py, T>` is better for function arguments.
 
@@ -40,7 +40,7 @@ To convert a `Py<T>` into a `Bound<'py, T>`, the `Py::bind` and `Py::into_bound`
 
 [`Bound<'py, T>`][Bound] is the counterpart to `Py<T>` which is also bound to the `'py` lifetime. It can be thought of as equivalent to the Rust tuple `(Python<'py>, Py<T>)`.
 
-By having the binding to the `'py` lifetime, `Bound<'py, T>` can offer the complete PyO3 API at maximum efficiency. This means that in almost all cases where `Py<T>` is not necessary for lifetime reasons, `Bound<'py, T>` should be used.
+By having the binding to the `'py` lifetime, `Bound<'py, T>` can offer the complete PyO3 API at maximum efficiency. This means that `Bound<'py, T>` should usually be used whenever carrying this lifetime is acceptable, and `Py<T>` otherwise.
 
 `Bound<'py, T>` engages in Python reference counting. This means that `Bound<'py, T>` owns a Python object. Rust code which just wants to borrow a Python object should use a shared reference `&Bound<'py, T>`. Just like `std::sync::Arc`, using `.clone()` and `drop()` will cheaply increment and decrement the reference count of the object (just in this case, the reference counting is implemented by the Python interpreter itself).
 
@@ -67,7 +67,7 @@ fn example<'py>(py: Python<'py>) -> PyResult<()> {
     drop(x); // release the original reference x
     Ok(())
 }
-# Python::with_gil(example).unwrap();
+# Python::attach(example).unwrap();
 ```
 
 Or, without the type annotations:
@@ -83,7 +83,7 @@ fn example(py: Python<'_>) -> PyResult<()> {
     drop(x);
     Ok(())
 }
-# Python::with_gil(example).unwrap();
+# Python::attach(example).unwrap();
 ```
 
 #### Function argument lifetimes
@@ -111,7 +111,7 @@ fn add<'py>(
 ) -> PyResult<Bound<'py, PyAny>> {
     left.add(right)
 }
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 #     let s = pyo3::types::PyString::new(py, "s");
 #     assert!(add(&s, &s).unwrap().eq("ss").unwrap());
 # })
@@ -125,7 +125,7 @@ fn add(left: &Bound<'_, PyAny>, right: &Bound<'_, PyAny>) -> PyResult<PyObject> 
     let output: Bound<'_, PyAny> = left.add(right)?;
     Ok(output.unbind())
 }
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 #     let s = pyo3::types::PyString::new(py, "s");
 #     assert!(add(&s, &s).unwrap().bind(py).eq("ss").unwrap());
 # })
@@ -145,7 +145,7 @@ use pyo3::types::PyTuple;
 
 # fn example<'py>(py: Python<'py>) -> PyResult<()> {
 // Create a new tuple with the elements (0, 1, 2)
-let t = PyTuple::new(py, [0, 1, 2]);
+let t = PyTuple::new(py, [0, 1, 2])?;
 for i in 0..=2 {
     let entry: Borrowed<'_, 'py, PyAny> = t.get_borrowed_item(i)?;
     // `PyAnyMethods::extract` is available on `Borrowed`
@@ -155,7 +155,7 @@ for i in 0..=2 {
 }
 # Ok(())
 # }
-# Python::with_gil(example).unwrap();
+# Python::attach(example).unwrap();
 ```
 
 ### Casting between smart pointer types
@@ -231,8 +231,8 @@ use pyo3::types::PyList;
 fn get_first_item<'py>(list: &Bound<'py, PyList>) -> PyResult<Bound<'py, PyAny>> {
     list.get_item(0)
 }
-# Python::with_gil(|py| {
-#     let l = PyList::new(py, ["hello world"]);
+# Python::attach(|py| {
+#     let l = PyList::new(py, ["hello world"]).unwrap();
 #     assert!(get_first_item(&l).unwrap().eq("hello world").unwrap());
 # })
 ```
@@ -259,7 +259,7 @@ let _: &Bound<'py, PyTuple> = obj.downcast()?;
 let _: Bound<'py, PyTuple> = obj.downcast_into()?;
 # Ok(())
 # }
-# Python::with_gil(example).unwrap()
+# Python::attach(example).unwrap()
 ```
 
 Custom [`#[pyclass]`][pyclass] types implement [`PyTypeCheck`], so `.downcast()` also works for these types. The snippet below is the same as the snippet above casting instead to a custom type `MyClass`:
@@ -281,7 +281,7 @@ let _: &Bound<'py, MyClass> = obj.downcast()?;
 let _: Bound<'py, MyClass> = obj.downcast_into()?;
 # Ok(())
 # }
-# Python::with_gil(example).unwrap()
+# Python::attach(example).unwrap()
 ```
 
 ### Extracting Rust data from Python objects
@@ -295,14 +295,14 @@ For example, the following snippet extracts a Rust tuple of integers from a Pyth
 # use pyo3::types::PyTuple;
 # fn example<'py>(py: Python<'py>) -> PyResult<()> {
 // create a new Python `tuple`, and use `.into_any()` to erase the type
-let obj: Bound<'py, PyAny> = PyTuple::new(py, [1, 2, 3]).into_any();
+let obj: Bound<'py, PyAny> = PyTuple::new(py, [1, 2, 3])?.into_any();
 
 // extracting the Python `tuple` to a rust `(i32, i32, i32)` tuple
 let (x, y, z) = obj.extract::<(i32, i32, i32)>()?;
 assert_eq!((x, y, z), (1, 2, 3));
 # Ok(())
 # }
-# Python::with_gil(example).unwrap()
+# Python::attach(example).unwrap()
 ```
 
 To avoid copying data, [`#[pyclass]`][pyclass] types can directly reference Rust data stored within the Python objects without needing to `.extract()`. See the [corresponding documentation in the class section of the guide](./class.md#bound-and-interior-mutability)

@@ -6,19 +6,19 @@ use crate::Py_ssize_t;
 #[derive(Debug)]
 pub struct PyBaseExceptionObject {
     pub ob_base: PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub dict: *mut PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub args: *mut PyObject,
-    #[cfg(all(Py_3_11, not(any(PyPy, GraalPy))))]
+    #[cfg(all(Py_3_11, not(PyPy)))]
     pub notes: *mut PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub traceback: *mut PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub context: *mut PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub cause: *mut PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub suppress_context: char,
 }
 
@@ -46,6 +46,8 @@ pub struct PySyntaxErrorObject {
     pub end_offset: *mut PyObject,
     pub text: *mut PyObject,
     pub print_file_and_line: *mut PyObject,
+    #[cfg(Py_3_14)]
+    pub metadata: *mut PyObject,
 }
 
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -134,19 +136,19 @@ pub struct PyOSErrorObject {
 #[derive(Debug)]
 pub struct PyStopIterationObject {
     pub ob_base: PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub dict: *mut PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub args: *mut PyObject,
-    #[cfg(all(Py_3_11, not(any(PyPy, GraalPy))))]
+    #[cfg(all(Py_3_11, not(PyPy)))]
     pub notes: *mut PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub traceback: *mut PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub context: *mut PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub cause: *mut PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub suppress_context: char,
 
     pub value: *mut PyObject,

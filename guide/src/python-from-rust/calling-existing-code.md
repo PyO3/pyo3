@@ -4,15 +4,14 @@ If you already have some existing Python code that you need to execute from Rust
 
 ## Want to access Python APIs? Then use `PyModule::import`.
 
-[`PyModule::import`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.import) can
-be used to get handle to a Python module from Rust. You can use this to import and use any Python
+[`PyModule::import`] can be used to get handle to a Python module from Rust. You can use this to import and use any Python
 module available in your environment.
 
 ```rust
 use pyo3::prelude::*;
 
 fn main() -> PyResult<()> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let builtins = PyModule::import(py, "builtins")?;
         let total: i32 = builtins
             .getattr("sum")?
@@ -24,9 +23,11 @@ fn main() -> PyResult<()> {
 }
 ```
 
-## Want to run just an expression? Then use `eval_bound`.
+[`PyModule::import`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.import
 
-[`Python::eval_bound`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval_bound) is
+## Want to run just an expression? Then use `eval`.
+
+[`Python::eval`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval) is
 a method to execute a [Python expression](https://docs.python.org/3/reference/expressions.html)
 and return the evaluated value as a `Bound<'py, PyAny>` object.
 
@@ -35,7 +36,7 @@ use pyo3::prelude::*;
 use pyo3::ffi::c_str;
 
 # fn main() -> Result<(), ()> {
-Python::with_gil(|py| {
+Python::attach(|py| {
     let result = py
         .eval(c_str!("[i * 10 for i in range(5)]"), None, None)
         .map_err(|e| {
@@ -48,16 +49,18 @@ Python::with_gil(|py| {
 # }
 ```
 
-## Want to run statements? Then use `run_bound`.
+## Want to run statements? Then use `run`.
 
-[`Python::run_bound`] is a method to execute one or more
+[`Python::run`] is a method to execute one or more
 [Python statements](https://docs.python.org/3/reference/simple_stmts.html).
 This method returns nothing (like any Python statement), but you can get
 access to manipulated objects via the `locals` dict.
 
-You can also use the [`py_run!`] macro, which is a shorthand for [`Python::run_bound`].
+You can also use the [`py_run!`] macro, which is a shorthand for [`Python::run`].
 Since [`py_run!`] panics on exceptions, we recommend you use this macro only for
 quickly testing your Python extensions.
+
+[`Python::run`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.run
 
 ```rust
 use pyo3::prelude::*;
@@ -81,7 +84,7 @@ impl UserData {
     }
 }
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     let userdata = UserData {
         id: 34,
         name: "Yu".to_string(),
@@ -110,7 +113,7 @@ use pyo3::{prelude::*, types::IntoPyDict};
 use pyo3_ffi::c_str;
 
 # fn main() -> PyResult<()> {
-Python::with_gil(|py| {
+Python::attach(|py| {
     let activators = PyModule::from_code(
         py,
         c_str!(r#"
@@ -128,7 +131,7 @@ def leaky_relu(x, slope=0.01):
     let relu_result: f64 = activators.getattr("relu")?.call1((-1.0,))?.extract()?;
     assert_eq!(relu_result, 0.0);
 
-    let kwargs = [("slope", 0.2)].into_py_dict(py);
+    let kwargs = [("slope", 0.2)].into_py_dict(py)?;
     let lrelu_result: f64 = activators
         .getattr("leaky_relu")?
         .call((-1.0,), Some(&kwargs))?
@@ -156,20 +159,19 @@ As an example, the below adds the module `foo` to the embedded interpreter:
 use pyo3::prelude::*;
 use pyo3::ffi::c_str;
 
-#[pyfunction]
-fn add_one(x: i64) -> i64 {
-    x + 1
-}
-
 #[pymodule]
-fn foo(foo_module: &Bound<'_, PyModule>) -> PyResult<()> {
-    foo_module.add_function(wrap_pyfunction!(add_one, foo_module)?)?;
-    Ok(())
+mod foo {
+    use pyo3::prelude::*;
+    
+    #[pyfunction]
+    fn add_one(x: i64) -> i64 {
+        x + 1
+    }
 }
 
 fn main() -> PyResult<()> {
     pyo3::append_to_inittab!(foo);
-    Python::with_gil(|py| Python::run(py, c_str!("import foo; foo.add_one(6)"), None, None))
+    Python::attach(|py| Python::run(py, c_str!("import foo; foo.add_one(6)"), None, None))
 }
 ```
 
@@ -188,7 +190,7 @@ pub fn add_one(x: i64) -> i64 {
 }
 
 fn main() -> PyResult<()> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // Create new module
         let foo_module = PyModule::new(py, "foo")?;
         foo_module.add_function(wrap_pyfunction!(add_one, &foo_module)?)?;
@@ -261,9 +263,9 @@ fn main() -> PyResult<()> {
         "/python_app/utils/foo.py"
     )));
     let py_app = c_str!(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py")));
-    let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
-        PyModule::from_code(py, py_foo, c_str!("utils.foo"), c_str!("utils.foo"))?;
-        let app: Py<PyAny> = PyModule::from_code(py, py_app, c_str!(""), c_str!(""))?
+    let from_python = Python::attach(|py| -> PyResult<Py<PyAny>> {
+        PyModule::from_code(py, py_foo, c_str!("foo.py"), c_str!("utils.foo"))?;
+        let app: Py<PyAny> = PyModule::from_code(py, py_app, c_str!("app.py"), c_str!(""))?
             .getattr("run")?
             .into();
         app.call0(py)
@@ -296,13 +298,13 @@ use std::ffi::CString;
 fn main() -> PyResult<()> {
     let path = Path::new("/usr/share/python_app");
     let py_app = CString::new(fs::read_to_string(path.join("app.py"))?)?;
-    let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
+    let from_python = Python::attach(|py| -> PyResult<Py<PyAny>> {
         let syspath = py
             .import("sys")?
             .getattr("path")?
             .downcast_into::<PyList>()?;
-        syspath.insert(0, &path)?;
-        let app: Py<PyAny> = PyModule::from_code(py, py_app.as_c_str(), c_str!(""), c_str!(""))?
+        syspath.insert(0, path)?;
+        let app: Py<PyAny> = PyModule::from_code(py, py_app.as_c_str(), c_str!("app.py"), c_str!(""))?
             .getattr("run")?
             .into();
         app.call0(py)
@@ -326,7 +328,7 @@ use pyo3::prelude::*;
 use pyo3::ffi::c_str;
 
 fn main() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let custom_manager = PyModule::from_code(
             py,
             c_str!(r#"
@@ -390,7 +392,7 @@ Alternatively, set Python's `signal` module to take the default action for a sig
 use pyo3::prelude::*;
 
 # fn main() -> PyResult<()> {
-Python::with_gil(|py| -> PyResult<()> {
+Python::attach(|py| -> PyResult<()> {
     let signal = py.import("signal")?;
     // Set SIGINT to have the default action
     signal

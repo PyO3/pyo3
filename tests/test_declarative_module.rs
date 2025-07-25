@@ -1,9 +1,11 @@
 #![cfg(feature = "macros")]
 
+use std::sync::OnceLock;
+
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
-use pyo3::sync::GILOnceCell;
+use pyo3::sync::OnceLockExt;
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -73,6 +75,20 @@ mod declarative_module {
 
     #[pymodule_export]
     use super::external_submodule;
+
+    #[pymodule_export]
+    const FOO: u32 = 42;
+
+    #[pymodule_export]
+    #[cfg(Py_LIMITED_API)]
+    const BAR: &str = "BAR";
+
+    #[pymodule_export]
+    #[allow(non_upper_case_globals)]
+    const r#type: char = '!';
+
+    #[allow(unused)]
+    const NOT_EXPORTED: &str = "not exported";
 
     #[pymodule]
     mod inner {
@@ -148,15 +164,16 @@ mod declarative_module2 {
 }
 
 fn declarative_module(py: Python<'_>) -> &Bound<'_, PyModule> {
-    static MODULE: GILOnceCell<Py<PyModule>> = GILOnceCell::new();
+    static MODULE: OnceLock<Py<PyModule>> = OnceLock::new();
+
     MODULE
-        .get_or_init(py, || pyo3::wrap_pymodule!(declarative_module)(py))
+        .get_or_init_py_attached(py, || pyo3::wrap_pymodule!(declarative_module)(py))
         .bind(py)
 }
 
 #[test]
 fn test_declarative_module() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let m = declarative_module(py);
         py_assert!(
             py,
@@ -180,7 +197,14 @@ fn test_declarative_module() {
         py_assert!(py, m, "hasattr(m, 'LocatedClass')");
         py_assert!(py, m, "isinstance(m.inner.Struct(), m.inner.Struct)");
         py_assert!(py, m, "isinstance(m.inner.Enum.A, m.inner.Enum)");
-        py_assert!(py, m, "hasattr(m, 'external_submodule')")
+        py_assert!(py, m, "hasattr(m, 'external_submodule')");
+        py_assert!(py, m, "m.FOO == 42");
+        #[cfg(Py_LIMITED_API)]
+        py_assert!(py, m, "m.BAR == 'BAR'");
+        #[cfg(not(Py_LIMITED_API))]
+        py_assert!(py, m, "not hasattr(m, 'BAR')");
+        py_assert!(py, m, "m.type == '!'");
+        py_assert!(py, m, "not hasattr(m, 'NOT_EXPORTED')");
     })
 }
 
@@ -192,7 +216,7 @@ mod r#type {
 
 #[test]
 fn test_raw_ident_module() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let m = pyo3::wrap_pymodule!(r#type)(py).into_bound(py);
         py_assert!(py, m, "m.double(2) == 4");
     })
@@ -200,7 +224,7 @@ fn test_raw_ident_module() {
 
 #[test]
 fn test_module_names() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let m = declarative_module(py);
         py_assert!(
             py,
@@ -224,7 +248,7 @@ fn test_module_names() {
 
 #[test]
 fn test_inner_module_full_path() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let m = declarative_module(py);
         py_assert!(py, m, "m.full_path_inner");
     })

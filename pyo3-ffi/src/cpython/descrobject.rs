@@ -69,10 +69,7 @@ pub struct PyWrapperDescrObject {
     pub d_wrapped: *mut c_void,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
-    pub static mut _PyMethodWrapper_Type: PyTypeObject;
-}
+// skipped _PyMethodWrapper_Type
 
 // skipped non-limited PyDescr_NewWrapper
 // skipped non-limited PyDescr_IsData

@@ -6,9 +6,9 @@ use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
-use crate::deprecations::deprecate_trailing_option_default;
+use crate::pyfunction::{PyFunctionWarning, WarningFactory};
 use crate::pyversions::is_abi3_before;
-use crate::utils::{Ctx, LitCStr};
+use crate::utils::{expr_to_python, Ctx, LitCStr};
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
     params::{impl_arg_params, Holders},
@@ -26,6 +26,30 @@ pub struct RegularArg<'a> {
     pub from_py_with: Option<FromPyWithAttribute>,
     pub default_value: Option<syn::Expr>,
     pub option_wrapped_type: Option<&'a syn::Type>,
+    #[cfg(feature = "experimental-inspect")]
+    pub annotation: Option<String>,
+}
+
+impl RegularArg<'_> {
+    pub fn default_value(&self) -> String {
+        if let Self {
+            default_value: Some(arg_default),
+            ..
+        } = self
+        {
+            expr_to_python(arg_default)
+        } else if let RegularArg {
+            option_wrapped_type: Some(..),
+            ..
+        } = self
+        {
+            // functions without a `#[pyo3(signature = (...))]` option
+            // will treat trailing `Option<T>` arguments as having a default of `None`
+            "None".to_string()
+        } else {
+            "...".to_string()
+        }
+    }
 }
 
 /// Pythons *args argument
@@ -33,6 +57,8 @@ pub struct RegularArg<'a> {
 pub struct VarargsArg<'a> {
     pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
+    #[cfg(feature = "experimental-inspect")]
+    pub annotation: Option<String>,
 }
 
 /// Pythons **kwarg argument
@@ -40,6 +66,8 @@ pub struct VarargsArg<'a> {
 pub struct KwargsArg<'a> {
     pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
+    #[cfg(feature = "experimental-inspect")]
+    pub annotation: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -54,6 +82,7 @@ pub struct PyArg<'a> {
     pub ty: &'a syn::Type,
 }
 
+#[allow(clippy::large_enum_variant)] // See #5039
 #[derive(Clone, Debug)]
 pub enum FnArg<'a> {
     Regular(RegularArg<'a>),
@@ -98,12 +127,16 @@ impl<'a> FnArg<'a> {
             name,
             ty,
             option_wrapped_type: None,
+            #[cfg(feature = "experimental-inspect")]
+            annotation,
             ..
         }) = self
         {
             *self = Self::VarArgs(VarargsArg {
                 name: name.clone(),
                 ty,
+                #[cfg(feature = "experimental-inspect")]
+                annotation: annotation.clone(),
             });
             Ok(self)
         } else {
@@ -116,12 +149,16 @@ impl<'a> FnArg<'a> {
             name,
             ty,
             option_wrapped_type: Some(..),
+            #[cfg(feature = "experimental-inspect")]
+            annotation,
             ..
         }) = self
         {
             *self = Self::KwArgs(KwargsArg {
                 name: name.clone(),
                 ty,
+                #[cfg(feature = "experimental-inspect")]
+                annotation: annotation.clone(),
             });
             Ok(self)
         } else {
@@ -173,8 +210,18 @@ impl<'a> FnArg<'a> {
                     from_py_with,
                     default_value: None,
                     option_wrapped_type: utils::option_type_argument(&cap.ty),
+                    #[cfg(feature = "experimental-inspect")]
+                    annotation: None,
                 }))
             }
+        }
+    }
+
+    pub fn default_value(&self) -> String {
+        if let Self::Regular(args) = self {
+            args.default_value()
+        } else {
+            "...".to_string()
         }
     }
 }
@@ -263,29 +310,29 @@ impl FnType {
             }
             FnType::FnClass(span) | FnType::FnNewClass(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
-                let slf: Ident = syn::Ident::new("_slf_ref", Span::call_site());
+                let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let ret = quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
                     ::std::convert::Into::into(
-                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(#slf as *const _ as *const *mut _))
+                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
                             .downcast_unchecked::<#pyo3_path::types::PyType>()
-                    ),
+                    )
                 };
-                Some(ret)
+                Some(quote! { unsafe { #ret }, })
             }
             FnType::FnModule(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
-                let slf: Ident = syn::Ident::new("_slf_ref", Span::call_site());
+                let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let ret = quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
                     ::std::convert::Into::into(
-                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(#slf as *const _ as *const *mut _))
+                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
                             .downcast_unchecked::<#pyo3_path::types::PyModule>()
-                    ),
+                    )
                 };
-                Some(ret)
+                Some(quote! { unsafe { #ret }, })
             }
             FnType::FnNew | FnType::FnStatic | FnType::ClassAttribute => None,
         }
@@ -312,7 +359,7 @@ impl ExtractErrorMode {
             ExtractErrorMode::NotImplemented => quote! {
                 match #extract {
                     ::std::result::Result::Ok(value) => value,
-                    ::std::result::Result::Err(_) => { return #pyo3_path::callback::convert(py, py.NotImplemented()); },
+                    ::std::result::Result::Err(_) => { return #pyo3_path::impl_::callback::convert(py, py.NotImplemented()); },
                 }
             },
         }
@@ -332,6 +379,8 @@ impl SelfType {
         let py = syn::Ident::new("py", Span::call_site());
         let slf = syn::Ident::new("_slf", Span::call_site());
         let Ctx { pyo3_path, .. } = ctx;
+        let bound_ref =
+            quote! { unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf) } };
         match self {
             SelfType::Receiver { span, mutable } => {
                 let method = if *mutable {
@@ -344,7 +393,7 @@ impl SelfType {
                 error_mode.handle_error(
                     quote_spanned! { *span =>
                         #pyo3_path::impl_::extract_argument::#method::<#cls>(
-                            #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf).0,
+                            #bound_ref.0,
                             &mut #holder,
                         )
                     },
@@ -355,7 +404,7 @@ impl SelfType {
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 error_mode.handle_error(
                     quote_spanned! { *span =>
-                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf).downcast::<#cls>()
+                        #bound_ref.downcast::<#cls>()
                             .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
                             .and_then(
                                 #[allow(unknown_lints, clippy::unnecessary_fallible_conversions)]  // In case slf is Py<Self> (unknown_lints can be removed when MSRV is 1.75+)
@@ -411,6 +460,9 @@ pub struct FnSpec<'a> {
     pub text_signature: Option<TextSignatureAttribute>,
     pub asyncness: Option<syn::Token![async]>,
     pub unsafety: Option<syn::Token![unsafe]>,
+    pub warnings: Vec<PyFunctionWarning>,
+    #[cfg(feature = "experimental-inspect")]
+    pub output: syn::ReturnType,
 }
 
 pub fn parse_method_receiver(arg: &syn::FnArg) -> Result<SelfType> {
@@ -447,6 +499,7 @@ impl<'a> FnSpec<'a> {
             text_signature,
             name,
             signature,
+            warnings,
             ..
         } = options;
 
@@ -472,7 +525,7 @@ impl<'a> FnSpec<'a> {
         let signature = if let Some(signature) = signature {
             FunctionSignature::from_arguments_and_attribute(arguments, signature)?
         } else {
-            FunctionSignature::from_arguments(arguments)?
+            FunctionSignature::from_arguments(arguments)
         };
 
         let convention = if matches!(fn_type, FnType::FnNew | FnType::FnNewClass(_)) {
@@ -490,6 +543,9 @@ impl<'a> FnSpec<'a> {
             text_signature,
             asyncness: sig.asyncness,
             unsafety: sig.unsafety,
+            warnings,
+            #[cfg(feature = "experimental-inspect")]
+            output: sig.output.clone(),
         })
     }
 
@@ -591,10 +647,10 @@ impl<'a> FnSpec<'a> {
                     .fold(first.span(), |s, next| s.join(next.span()).unwrap_or(s));
                 let span = span.join(last.span()).unwrap_or(span);
                 // List all the attributes in the error message
-                let mut msg = format!("`{}` may not be combined with", first);
+                let mut msg = format!("`{first}` may not be combined with");
                 let mut is_first = true;
                 for attr in &*rest {
-                    msg.push_str(&format!(" `{}`", attr));
+                    msg.push_str(&format!(" `{attr}`"));
                     if is_first {
                         is_first = false;
                     } else {
@@ -604,7 +660,7 @@ impl<'a> FnSpec<'a> {
                 if !rest.is_empty() {
                     msg.push_str(" and");
                 }
-                msg.push_str(&format!(" `{}`", last));
+                msg.push_str(&format!(" `{last}`"));
                 bail_spanned!(span => msg)
             }
         };
@@ -637,13 +693,6 @@ impl<'a> FnSpec<'a> {
             }
         }
 
-        if self.asyncness.is_some() {
-            ensure_spanned!(
-                cfg!(feature = "experimental-async"),
-                self.asyncness.span() => "async functions are only supported with the `experimental-async` feature"
-            );
-        }
-
         let rust_call = |args: Vec<TokenStream>, holders: &mut Holders| {
             let mut self_arg = || self.tp.self_arg(cls, ExtractErrorMode::Raise, holders, ctx);
 
@@ -665,14 +714,14 @@ impl<'a> FnSpec<'a> {
                     FnType::Fn(SelfType::Receiver { mutable: false, .. }) => {
                         quote! {{
                             #(let #arg_names = #args;)*
-                            let __guard = #pyo3_path::impl_::coroutine::RefGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))?;
+                            let __guard = unsafe { #pyo3_path::impl_::coroutine::RefGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))? };
                             async move { function(&__guard, #(#arg_names),*).await }
                         }}
                     }
                     FnType::Fn(SelfType::Receiver { mutable: true, .. }) => {
                         quote! {{
                             #(let #arg_names = #args;)*
-                            let mut __guard = #pyo3_path::impl_::coroutine::RefMutGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))?;
+                            let mut __guard = unsafe { #pyo3_path::impl_::coroutine::RefMutGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))? };
                             async move { function(&mut __guard, #(#arg_names),*).await }
                         }}
                     }
@@ -743,7 +792,7 @@ impl<'a> FnSpec<'a> {
             quote!(#func_name)
         };
 
-        let deprecation = deprecate_trailing_option_default(self);
+        let warnings = self.warnings.build_py_warning(ctx);
 
         Ok(match self.convention {
             CallingConvention::Noargs => {
@@ -765,10 +814,9 @@ impl<'a> FnSpec<'a> {
                         py: #pyo3_path::Python<'py>,
                         _slf: *mut #pyo3_path::ffi::PyObject,
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
-                        #deprecation
-                        let _slf_ref = &_slf;
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #init_holders
+                        #warnings
                         let result = #call;
                         result
                     }
@@ -788,11 +836,10 @@ impl<'a> FnSpec<'a> {
                         _nargs: #pyo3_path::ffi::Py_ssize_t,
                         _kwnames: *mut #pyo3_path::ffi::PyObject
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
-                        #deprecation
-                        let _slf_ref = &_slf;
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #init_holders
+                        #warnings
                         let result = #call;
                         result
                     }
@@ -811,11 +858,10 @@ impl<'a> FnSpec<'a> {
                         _args: *mut #pyo3_path::ffi::PyObject,
                         _kwargs: *mut #pyo3_path::ffi::PyObject
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
-                        #deprecation
-                        let _slf_ref = &_slf;
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #init_holders
+                        #warnings
                         let result = #call;
                         result
                     }
@@ -836,12 +882,11 @@ impl<'a> FnSpec<'a> {
                         _args: *mut #pyo3_path::ffi::PyObject,
                         _kwargs: *mut #pyo3_path::ffi::PyObject
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
-                        use #pyo3_path::callback::IntoPyCallbackOutput;
-                        #deprecation
-                        let _slf_ref = &_slf;
+                        use #pyo3_path::impl_::callback::IntoPyCallbackOutput;
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #init_holders
+                        #warnings
                         let result = #call;
                         let initializer: #pyo3_path::PyClassInitializer::<#cls> = result.convert(py)?;
                         #pyo3_path::impl_::pymethods::tp_new_impl(py, initializer, _slf)
@@ -866,11 +911,13 @@ impl<'a> FnSpec<'a> {
                             _args: *mut #pyo3_path::ffi::PyObject,
                         ) -> *mut #pyo3_path::ffi::PyObject
                         {
-                            #pyo3_path::impl_::trampoline::noargs(
-                                _slf,
-                                _args,
-                                #wrapper
-                            )
+                            unsafe {
+                                #pyo3_path::impl_::trampoline::noargs(
+                                    _slf,
+                                    _args,
+                                    #wrapper
+                                )
+                            }
                         }
                         trampoline
                     },

@@ -1,10 +1,11 @@
 import nox
+import sys
 
 
 @nox.session
 def python(session: nox.Session):
-    session.install("-rrequirements-dev.txt")
-    session.run_always(
-        "pip", "install", "-e", ".", "--no-build-isolation", env={"BUILD_DEBUG": "1"}
-    )
+    if sys.version_info < (3, 9):
+        session.skip("Python 3.9 or later is required for setuptools-rust 1.11")
+    session.env["SETUPTOOLS_RUST_CARGO_PROFILE"] = "dev"
+    session.install(".[dev]")
     session.run("pytest")

@@ -1,6 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
+use pyo3::py_run;
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -55,7 +56,7 @@ impl Foo {
 
 #[test]
 fn class_attributes() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let foo_obj = py.get_type::<Foo>();
         py_assert!(py, foo_obj, "foo_obj.MY_CONST == 'foobar'");
         py_assert!(py, foo_obj, "foo_obj.RENAMED_CONST == 'foobar_2'");
@@ -66,14 +67,68 @@ fn class_attributes() {
     });
 }
 
-// Ignored because heap types are not immutable:
-// https://github.com/python/cpython/blob/master/Objects/typeobject.c#L3399-L3409
 #[test]
-#[ignore]
-fn class_attributes_are_immutable() {
-    Python::with_gil(|py| {
-        let foo_obj = py.get_type::<Foo>();
-        py_expect_exception!(py, foo_obj, "foo_obj.a = 6", PyTypeError);
+fn class_attributes_mutable() {
+    #[pyclass]
+    struct Foo {}
+
+    #[pymethods]
+    impl Foo {
+        #[classattr]
+        const MY_CONST: &'static str = "foobar";
+
+        #[classattr]
+        fn a() -> i32 {
+            5
+        }
+    }
+
+    Python::attach(|py| {
+        let obj = py.get_type::<Foo>();
+        py_run!(py, obj, "obj.MY_CONST = 'BAZ'");
+        py_run!(py, obj, "obj.a = 42");
+        py_assert!(py, obj, "obj.MY_CONST == 'BAZ'");
+        py_assert!(py, obj, "obj.a == 42");
+    });
+}
+
+#[test]
+#[cfg(any(Py_3_14, all(Py_3_10, not(Py_LIMITED_API))))]
+fn immutable_type_object() {
+    #[pyclass(immutable_type)]
+    struct ImmutableType {}
+
+    #[pymethods]
+    impl ImmutableType {
+        #[classattr]
+        const MY_CONST: &'static str = "foobar";
+
+        #[classattr]
+        fn a() -> i32 {
+            5
+        }
+    }
+
+    #[pyclass(immutable_type)]
+    enum SimpleImmutable {
+        Variant = 42,
+    }
+
+    #[pyclass(immutable_type)]
+    enum ComplexImmutable {
+        Variant(u32),
+    }
+
+    Python::attach(|py| {
+        let obj = py.get_type::<ImmutableType>();
+        py_expect_exception!(py, obj, "obj.MY_CONST = 'FOOBAR'", PyTypeError);
+        py_expect_exception!(py, obj, "obj.a = 6", PyTypeError);
+
+        let obj = py.get_type::<SimpleImmutable>();
+        py_expect_exception!(py, obj, "obj.Variant = 0", PyTypeError);
+
+        let obj = py.get_type::<ComplexImmutable>();
+        py_expect_exception!(py, obj, "obj.Variant = 0", PyTypeError);
     });
 }
 
@@ -87,7 +142,7 @@ impl Bar {
 
 #[test]
 fn recursive_class_attributes() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let foo_obj = py.get_type::<Foo>();
         let bar_obj = py.get_type::<Bar>();
         py_assert!(py, foo_obj, "foo_obj.a_foo.x == 1");
@@ -143,7 +198,7 @@ fn test_fallible_class_attribute() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let stderr = CaptureStdErr::new(py).unwrap();
         assert!(std::panic::catch_unwind(|| py.get_type::<BrokenClass>()).is_err());
         assert_eq!(
@@ -186,7 +241,7 @@ impl StructWithRenamedFields {
 fn test_renaming_all_struct_fields() {
     use pyo3::types::PyBool;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let struct_class = py.get_type::<StructWithRenamedFields>();
         let struct_obj = struct_class.call0().unwrap();
         assert!(struct_obj
@@ -219,7 +274,7 @@ macro_rules! test_case {
         fn $test_name() {
             //use pyo3::types::PyInt;
 
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let struct_class = py.get_type::<$struct_name>();
                 let struct_obj = struct_class.call0().unwrap();
                 assert!(struct_obj.setattr($renamed_field_name, 2).is_ok());
