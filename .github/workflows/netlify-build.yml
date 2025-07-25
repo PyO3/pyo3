@@ -70,13 +70,16 @@ jobs:
           name: site
           path: ./netlify_build
 
-      # Upload PR number for use in deploy workflow, will be empty if not a PR
-      - name: Prepare PR number for upload
+      # Upload metadata for use in deploy workflow, will be empty if not a PR
+      - name: Prepare metadata for upload
         id: pr
-        run: echo "pr_number=$(echo ${{ github.event.pull_request.number }})" >> .pr-number
+        run: |
+          mkdir -p .metadata
+          echo "pr_number=$(echo ${{ github.event.pull_request.number }})" >> .metadata/pr_number
+          echo "pr_head_sha=$(echo ${{ github.event.pull_request.head.sha }})" >> .metadata/pr_head_sha
 
-      - name: Upload PR number
+      - name: Upload PR metadata
         uses: actions/upload-artifact@v4
         with:
-          name: pr_number
-          path: .pr-number
+          name: metadata
+          path: .metadata
