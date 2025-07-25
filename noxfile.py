@@ -494,6 +494,7 @@ def build_guide(session: nox.Session):
         str(PYO3_GUIDE_TARGET),
         "guide",
         *session.posargs,
+        external=True,
     )
     for license in ("LICENSE-APACHE", "LICENSE-MIT"):
         target_file = PYO3_GUIDE_TARGET / license
@@ -514,7 +515,12 @@ def build_netlify_site(session: nox.Session):
     with tarfile.open(fileobj=io.BytesIO(response.content), mode="r:gz") as tar:
         tar.extractall()
     shutil.move("pyo3-gh-pages", "netlify_build")
-    build_netlify_redirects(session)
+
+    preview = "--preview" in session.posargs
+    if preview:
+        session.posargs.remove("--preview")
+
+    _build_netlify_redirects(preview)
 
     session.install("towncrier")
     # Save a copy of the changelog to restore later
@@ -546,16 +552,13 @@ def build_netlify_site(session: nox.Session):
     PYO3_DOCS_TARGET.rename("netlify_build/internal")
 
 
-@nox.session(name="build-netlify-redirects", venv_backend="none")
-def build_netlify_redirects(session: nox.Session):
-
+def _build_netlify_redirects(preview: bool) -> None:
     current_version = os.environ.get("PYO3_VERSION")
-    preview = "--preview" in session.posargs
 
-    with open("netlify_build/_redirects", "w") as redirects_file, open(
-        "netlify_build/_headers", "w"
-    ) as headers_file:
-
+    with (
+        open("netlify_build/_redirects", "w") as redirects_file,
+        open("netlify_build/_headers", "w") as headers_file,
+    ):
         for d in glob("netlify_build/v*"):
             version = d.removeprefix("netlify_build/v")
             full_directory = d + "/"
