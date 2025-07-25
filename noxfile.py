@@ -486,7 +486,15 @@ def docs(session: nox.Session, nightly: bool = False, internal: bool = False) ->
 @nox.session(name="build-guide", venv_backend="none")
 def build_guide(session: nox.Session):
     shutil.rmtree(PYO3_GUIDE_TARGET, ignore_errors=True)
-    _run(session, "mdbook", "build", "-d", PYO3_GUIDE_TARGET, "guide", *session.posargs)
+    _run(
+        session,
+        "mdbook",
+        "build",
+        "-d",
+        str(PYO3_GUIDE_TARGET),
+        "guide",
+        *session.posargs,
+    )
     for license in ("LICENSE-APACHE", "LICENSE-MIT"):
         target_file = PYO3_GUIDE_TARGET / license
         target_file.unlink(missing_ok=True)
