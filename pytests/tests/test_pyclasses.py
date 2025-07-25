@@ -67,7 +67,9 @@ def test_new_classmethod():
 
 class ClassWithoutConstructor:
     def __new__(cls):
-        raise TypeError("No constructor defined for ClassWithoutConstructor")
+        raise TypeError(
+            f"cannot create '{cls.__module__}.{cls.__qualname__}' instances"
+        )
 
 
 @pytest.mark.parametrize(
@@ -77,7 +79,10 @@ class ClassWithoutConstructor:
             pyclasses.ClassWithoutConstructor,
             "cannot create 'builtins.ClassWithoutConstructor' instances",
         ),
-        (ClassWithoutConstructor, "No constructor defined for ClassWithoutConstructor"),
+        (
+            ClassWithoutConstructor,
+            "cannot create 'test_pyclasses.ClassWithoutConstructor' instances",
+        ),
     ],
 )
 def test_no_constructor_defined_propagates_cause(cls: Type, exc_message: str):
