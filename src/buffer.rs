@@ -622,7 +622,19 @@ impl<T: Element> PyBuffer<T> {
 
 impl<T> Drop for PyBuffer<T> {
     fn drop(&mut self) {
-        Python::attach(|_| unsafe { ffi::PyBuffer_Release(&mut *self.0) });
+        fn inner(buf: &mut Pin<Box<ffi::Py_buffer>>) {
+            if Python::try_attach(|_| unsafe { ffi::PyBuffer_Release(&mut **buf) }).is_none()
+                && crate::internal::state::is_in_gc_traversal()
+            {
+                eprintln!("Warning: PyBuffer dropped while in GC traversal, this is a bug and will leak memory.");
+            }
+            // If `try_attach` failed and `is_in_gc_traversal()` is false, then probably the interpreter has
+            // already finalized and we can just assume that the underlying memory has already been freed.
+            //
+            // So we don't handle that case here.
+        }
+
+        inner(&mut self.0);
     }
 }
 
