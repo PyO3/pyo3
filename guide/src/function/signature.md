@@ -248,3 +248,34 @@ True
 Docstring: This function adds two unsigned 64-bit integers.
 Type:      builtin_function_or_method
 ```
+
+### Type annotations in the signature
+
+When the `experimental-inspect` Cargo feature is enabled, the `signature` attribute can also contain type hints:
+```rust
+use pyo3::prelude::*;
+
+#[pymodule]
+pub mod example {
+   use pyo3::prelude::*;
+
+   #[pyfunction]
+   #[pyo3(signature = (arg: "list[int]") -> "list[int]")]
+   fn list_of_int_identity(arg: Bound<'_, PyAny>) -> Bound<'_, PyAny> {
+      arg
+   }
+}
+```
+
+It enables the [work-in-progress capacity of PyO3 to autogenerate type stubs](../type-stub.md) to generate a file with the correct type hints:
+```python
+def list_of_int_identity(arg: list[int]) -> list[int]: ...
+```
+instead of the generic:
+```python
+import typing
+
+def list_of_int_identity(arg: typing.Any) -> typing.Any: ...
+```
+
+Note that currently type annotations must be written as Rust strings.
