@@ -91,6 +91,7 @@ extern "C" {
     fn PyModule_Create2TraceRefs(module: *mut PyModuleDef, apiver: c_int) -> *mut PyObject;
 
     #[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
+    #[cfg_attr(PyPy, link_name = "PyPyModule_FromDefAndSpec2")]
     pub fn PyModule_FromDefAndSpec2(
         def: *mut PyModuleDef,
         spec: *mut PyObject,
