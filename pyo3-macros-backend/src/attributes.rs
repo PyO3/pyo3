@@ -10,6 +10,8 @@ use syn::{
     Attribute, Expr, ExprPath, Ident, Index, LitBool, LitStr, Member, Path, Result, Token,
 };
 
+use crate::combine_errors::CombineErrors;
+
 pub mod kw {
     syn::custom_keyword!(annotation);
     syn::custom_keyword!(attribute);
@@ -395,41 +397,23 @@ pub fn take_attributes(
 
 pub fn take_pyo3_options<T: Parse>(attrs: &mut Vec<syn::Attribute>) -> Result<Vec<T>> {
     let mut out = Vec::new();
-    let mut all_errors = ErrorCombiner(None);
+
     take_attributes(attrs, |attr| match get_pyo3_options(attr) {
         Ok(result) => {
             if let Some(options) = result {
-                out.extend(options);
+                out.extend(options.into_iter().map(|a| Ok(a)));
                 Ok(true)
             } else {
                 Ok(false)
             }
         }
         Err(err) => {
-            all_errors.combine(err);
+            out.push(Err(err));
             Ok(true)
         }
     })?;
-    all_errors.ensure_empty()?;
+
+    let out: Vec<T> = out.into_iter().try_combine_syn_errors()?;
+
     Ok(out)
-}
-
-pub struct ErrorCombiner(pub Option<syn::Error>);
-
-impl ErrorCombiner {
-    pub fn combine(&mut self, error: syn::Error) {
-        if let Some(existing) = &mut self.0 {
-            existing.combine(error);
-        } else {
-            self.0 = Some(error);
-        }
-    }
-
-    pub fn ensure_empty(self) -> Result<()> {
-        if let Some(error) = self.0 {
-            Err(error)
-        } else {
-            Ok(())
-        }
-    }
 }

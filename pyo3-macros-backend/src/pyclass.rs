@@ -10,10 +10,10 @@ use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, ImplItemFn, Result
 
 use crate::attributes::kw::frozen;
 use crate::attributes::{
-    self, kw, take_pyo3_options, CrateAttribute, ErrorCombiner, ExtendsAttribute,
-    FreelistAttribute, ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute,
-    StrFormatterAttribute,
+    self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
+    ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute, StrFormatterAttribute,
 };
+use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{class_introspection_code, introspection_id_const};
 use crate::konst::{ConstAttributes, ConstSpec};
@@ -269,48 +269,42 @@ pub fn build_py_class(
         )
     );
 
-    let mut all_errors = ErrorCombiner(None);
-
     let mut field_options: Vec<(&syn::Field, FieldPyO3Options)> = match &mut class.fields {
         syn::Fields::Named(fields) => fields
             .named
             .iter_mut()
-            .filter_map(
+            .map(
                 |field| match FieldPyO3Options::take_pyo3_options(&mut field.attrs) {
-                    Ok(options) => Some((&*field, options)),
-                    Err(e) => {
-                        all_errors.combine(e);
-                        None
-                    }
+                    Ok(options) => Ok((&*field, options)),
+                    Err(e) => Err(e),
                 },
             )
             .collect::<Vec<_>>(),
         syn::Fields::Unnamed(fields) => fields
             .unnamed
             .iter_mut()
-            .filter_map(
+            .map(
                 |field| match FieldPyO3Options::take_pyo3_options(&mut field.attrs) {
-                    Ok(options) => Some((&*field, options)),
-                    Err(e) => {
-                        all_errors.combine(e);
-                        None
-                    }
+                    Ok(options) => Ok((&*field, options)),
+                    Err(e) => Err(e),
                 },
             )
             .collect::<Vec<_>>(),
         syn::Fields::Unit => {
+            let mut results = Vec::new();
+
             if let Some(attr) = args.options.set_all {
-                return Err(syn::Error::new_spanned(attr, UNIT_SET));
+                results.push(Err(syn::Error::new_spanned(attr, UNIT_SET)));
             };
             if let Some(attr) = args.options.get_all {
-                return Err(syn::Error::new_spanned(attr, UNIT_GET));
+                results.push(Err(syn::Error::new_spanned(attr, UNIT_GET)));
             };
-            // No fields for unit struct
-            Vec::new()
-        }
-    };
 
-    all_errors.ensure_empty()?;
+            results
+        }
+    }
+    .into_iter()
+    .try_combine_syn_errors()?;
 
     if let Some(attr) = args.options.get_all {
         for (_, FieldPyO3Options { get, .. }) in &mut field_options {
