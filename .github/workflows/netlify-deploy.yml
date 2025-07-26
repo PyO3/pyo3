@@ -28,15 +28,17 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Download PR Number
+      - name: Download PR Metadata
         uses: actions/download-artifact@v4
         with:
-          name: pr_number
+          name: metadata
+          path: .metadata
 
-      - name: Get PR Number
-        id: pr_number
+      - name: Get PR metadata
+        id: pr_metadata
         run: |
-          echo "pr_number=$(cat .pr-number)" >> $GITHUB_OUTPUT
+          echo "pr_number=$(cat .metadata/pr_number)" >> $GITHUB_OUTPUT
+          echo "pr_head_sha=$(cat .metadata/pr_head_sha)" >> $GITHUB_OUTPUT
 
       - name: Install netlify-cli
         run: |
@@ -48,4 +50,33 @@ jobs:
           DEBUG=* netlify deploy \
               --site ${{ secrets.NETLIFY_SITE_ID }} \
               --auth ${{ secrets.NETLIFY_TOKEN }} \
-              ${{ steps.pr_number.outputs.pr_number == '' && '--prod' || '' }}
+              ${{ steps.pr_metadata.outputs.pr_number == '' && '--prod' || '' }}
+              --json | tee deploy_output.json
+
+      # credit: https://www.raulmelo.me/en/blog/deploying-netlify-github-actions-guide
+      - name: Generate URL Preview
+        id: url_preview
+        if: ${{ steps.pr_metadata.outputs.pr_head_sha != '' }}
+        run: |
+          NETLIFY_PREVIEW_URL=$(jq -r '.deploy_url' deploy_output.json)
+          echo "NETLIFY_PREVIEW_URL=$NETLIFY_PREVIEW_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Post Netlify Preview Status to PR
+        if: ${{ steps.pr_metadata.outputs.pr_head_sha != '' }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = Number('${{ steps.pr_metadata.outputs.pr_number }}');
+            const previewUrl = '${{ steps.url_preview.outputs.NETLIFY_PREVIEW_URL }}';
+            const commitSha = '${{ steps.pr_metadata.outputs.pr_head_sha }}';
+
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: commitSha,
+              state: 'success',
+              target_url: previewUrl,
+              description: 'Netlify Preview',
+              context: 'netlify/preview'
+            });

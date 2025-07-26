@@ -57,29 +57,11 @@ jobs:
           TAG_NAME="${GITHUB_REF##*/}"
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
 
-      # Start with the current guides.
-      - name: Get the guide
+      # Build the site
+      - name: Prepare the versioned guide entries
         run: |
-          wget -qc https://github.com/PyO3/pyo3/archive/gh-pages.tar.gz -O - | tar -xz
-          mv pyo3-gh-pages netlify_build
-
-      # Set redirects.
-      - name: Set redirects
-        run: sh .netlify/redirect.sh
-
-      # This builds the book and docs in netlify_build/main
-      - name: Build the guide and public docs
-        run: |
-          python -m pip install --upgrade pip && pip install nox towncrier
-          towncrier build --yes --version Unreleased --date TBC
-          nox -s check-guide
-          mv target/guide/ netlify_build/main/
-          nox -s docs
-          mv target/doc netlify_build/main/doc/
-          echo "<meta http-equiv=refresh content=0;url=pyo3/>" > netlify_build/main/doc/index.html
-          nox -s docs -- nightly internal
-          mkdir -p netlify_build/internal
-          mv target/doc netlify_build/internal/
+          python -m pip install --upgrade pip && pip install nox towncrier requests
+          nox -s build-netlify-site -- ${{ github.ref == 'refs/heads/main' && '' || '--preview' }}
 
       # Upload the built site as an artifact for deploy workflow to consume
       - name: Upload Build Artifact
@@ -88,13 +70,16 @@ jobs:
           name: site
           path: ./netlify_build
 
-      # Upload PR number for use in deploy workflow, will be empty if not a PR
-      - name: Prepare PR number for upload
+      # Upload metadata for use in deploy workflow, will be empty if not a PR
+      - name: Prepare metadata for upload
         id: pr
-        run: echo "pr_number=$(echo ${{ github.event.pull_request.number }})" >> .pr-number
+        run: |
+          mkdir -p metadata
+          echo "pr_number=$(echo ${{ github.event.pull_request.number }})" >> metadata/pr_number
+          echo "pr_head_sha=$(echo ${{ github.event.pull_request.head.sha }})" >> metadata/pr_head_sha
 
-      - name: Upload PR number
+      - name: Upload PR metadata
         uses: actions/upload-artifact@v4
         with:
-          name: pr-number
-          path: .pr-number
+          name: metadata
+          path: metadata
