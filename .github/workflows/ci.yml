@@ -84,6 +84,8 @@ jobs:
       CARGO_BUILD_TARGET: x86_64-unknown-linux-gnu
 
   clippy:
+    # Don't run clippy on `main` because it's already run in the merge queue.
+    if: github.ref != 'refs/heads/main'
     needs: [fmt]
     runs-on: ${{ matrix.platform.os }}
     strategy:
@@ -159,13 +161,8 @@ jobs:
           components: clippy,rust-src
       - uses: actions/setup-python@v5
         with:
-          # FIXME: 3.13.4 has an issue on windows so pinned to 3.13.3
-          # once 3.13.5 is out, unpin the patch version
-          python-version: "3.13.3"
+          python-version: "3.13"
           architecture: ${{ matrix.platform.python-architecture }}
-      - uses: Swatinem/rust-cache@v2
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       # windows on arm image contains x86-64 libclang
       - name: Install LLVM and Clang
         if: matrix.platform.os == 'windows-11-arm'
