@@ -563,16 +563,18 @@ unsafe extern "C" fn no_constructor_defined(
     _kwds: *mut ffi::PyObject,
 ) -> *mut ffi::PyObject {
     unsafe {
-        let tpobj = PyType::from_borrowed_type_ptr(py, subtype);
-        // unlike `fully_qualified_name`, this always include the module
-        let module = tpobj
-            .module()
-            .map_or_else(|_| "<unknown>".into(), |s| s.to_string());
-        let qualname = tpobj.qualname();
-        let qualname = qualname.map_or_else(|_| "<unknown>".into(), |s| s.to_string());
-        Err(crate::exceptions::PyTypeError::new_err(format!(
-            "cannot create '{module}.{qualname}' instances"
-        )))
+        trampoline(|py| {
+            let tpobj = PyType::from_borrowed_type_ptr(py, subtype);
+            // unlike `fully_qualified_name`, this always include the module
+            let module = tpobj
+                .module()
+                .map_or_else(|_| "<unknown>".into(), |s| s.to_string());
+            let qualname = tpobj.qualname();
+            let qualname = qualname.map_or_else(|_| "<unknown>".into(), |s| s.to_string());
+            Err(crate::exceptions::PyTypeError::new_err(format!(
+                "cannot create '{module}.{qualname}' instances"
+            )))
+        })
     }
 }
 
