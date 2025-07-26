@@ -119,16 +119,22 @@ free-threaded build.
 
 ## Special considerations for the free-threaded build
 
-The free-threaded interpreter does not have a GIL, and this can make interacting
-with the PyO3 API confusing, since the API was originally designed around strong
-assumptions about the GIL providing locking.  Additionally, since the GIL
-provided locking for operations on Python objects, many existing extensions that
-provide mutable data structures relied on the GIL to make interior mutability
-thread-safe.
+The free-threaded interpreter does not have a GIL. Many existing extensions
+providing mutable data structures relied on the GIL provided locking for
+operations on Python objects, to make interior mutability thread-safe.
+Historically PyO3s API was designed around the same strong assumptions, but is
+transitioning towards more general APIs applicable for both builds.
 
-Working with PyO3 under the free-threaded interpreter therefore requires some
-additional care and mental overhead compared with a GIL-enabled interpreter. We
-discuss how to handle this below.
+Working with PyO3 under the free-threaded interpreter requires some additional
+care and mental overhead compared with a GIL-enabled interpreter. Most notable
+it is still neccessary to be attached (via [`Python::attach`]) to the Python
+interpreter to perform any operation on Python objects. PyO3 models this the
+same way as in GIL-enabled builds using the `Python` token, but unlike in
+GIL-enabled builds it does not provide exclusive access anymore. Additionally it
+is also still neccessary to detach (via [`Python::detach`]) from the interpreter
+for possibly long running oprations that don't interact with the interpreter,
+even though other Python threads are still able to run. Both operations are
+explained in more details below.
 
 ### Many symbols exposed by PyO3 have `GIL` in the name
 
@@ -136,8 +142,7 @@ We are aware that there are some naming issues in the PyO3 API that make it
 awkward to think about a runtime environment where there is no GIL. We plan to
 change the names of these types to de-emphasize the role of the GIL in future
 versions of PyO3, but for now you should remember that the use of the term `GIL`
-in functions and types like [`Python::attach`] and [`GILOnceCell`] is
-historical.
+in functions and types like [`GILOnceCell`] is historical.
 
 Instead, you should think about whether or not a Rust thread is attached to a
 Python interpreter runtime. Calling into the CPython C API is only legal when an

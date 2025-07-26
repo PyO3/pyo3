@@ -15,13 +15,12 @@ note: required because it appears within the type `PhantomData<*mut pyo3::Python
    |
    | pub struct PhantomData<T: ?Sized>;
    |            ^^^^^^^^^^^
-note: required because it appears within the type `impl_::not_send::NotSend`
-  --> src/impl_/not_send.rs
+note: required because it appears within the type `pyo3::marker::NotSend`
+  --> src/marker.rs
    |
-   | pub(crate) struct NotSend(PhantomData<*mut Python<'static>>);
-   |                   ^^^^^^^
-   = note: required because it appears within the type `(&pyo3::gil::GILGuard, impl_::not_send::NotSend)`
-note: required because it appears within the type `PhantomData<(&pyo3::gil::GILGuard, impl_::not_send::NotSend)>`
+   | struct NotSend(PhantomData<*mut Python<'static>>);
+   |        ^^^^^^^
+note: required because it appears within the type `PhantomData<pyo3::marker::NotSend>`
   --> $RUST/core/src/marker.rs
    |
    | pub struct PhantomData<T: ?Sized>;
@@ -29,7 +28,7 @@ note: required because it appears within the type `PhantomData<(&pyo3::gil::GILG
 note: required because it appears within the type `pyo3::Python<'_>`
   --> src/marker.rs
    |
-   | pub struct Python<'py>(PhantomData<(&'py GILGuard, NotSend)>);
+   | pub struct Python<'py>(PhantomData<&'py AttachGuard>, PhantomData<NotSend>);
    |            ^^^^^^
 note: required because it appears within the type `pyo3::Bound<'_, PyString>`
   --> src/instance.rs

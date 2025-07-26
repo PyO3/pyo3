@@ -16,7 +16,7 @@
 
 ## Usage
 
-Requires Rust 1.63 or greater.
+Requires Rust 1.74 or greater.
 
 PyO3 supports the following Python distributions:
   - CPython 3.7 or greater
@@ -71,7 +71,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.25.0", features = ["extension-module"] }
+pyo3 = { version = "0.25.1", features = ["extension-module"] }
 ```
 
 **`src/lib.rs`**
@@ -140,7 +140,7 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.25.0"
+version = "0.25.1"
 features = ["auto-initialize"]
 ```
 

@@ -1,9 +1,9 @@
 use crate::exceptions::PyStopAsyncIteration;
-use crate::gil::LockGIL;
 use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::panic::PanicTrap;
 use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout};
 use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
+use crate::internal::state::ForbidAttaching;
 use crate::pycell::impl_::PyClassBorrowChecker as _;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
@@ -293,7 +293,7 @@ where
     // Since we do not create a `GILPool` at all, it is important that our usage of the GIL
     // token does not produce any owned objects thereby calling into `register_owned`.
     let trap = PanicTrap::new("uncaught panic inside __traverse__ handler");
-    let lock = LockGIL::during_traverse();
+    let lock = ForbidAttaching::during_traverse();
 
     let super_retval = unsafe { call_super_traverse(slf, visit, arg, current_traverse) };
     if super_retval != 0 {

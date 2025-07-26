@@ -4,6 +4,7 @@ Recall the `Number` class from the previous chapter:
 
 ```rust,no_run
 # #![allow(dead_code)]
+# fn main() {}
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -18,9 +19,9 @@ impl Number {
 }
 
 #[pymodule]
-fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<Number>()?;
-    Ok(())
+mod my_module {
+    #[pymodule_export]
+    use super::Number;
 }
 ```
 
@@ -331,6 +332,7 @@ impl Number {
 ### Final code
 
 ```rust,no_run
+# fn main() {}
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
@@ -380,9 +382,9 @@ impl Number {
 }
 
 #[pymodule]
-fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<Number>()?;
-    Ok(())
+mod my_module {
+    #[pymodule_export]
+    use super::Number;
 }
 ```
 

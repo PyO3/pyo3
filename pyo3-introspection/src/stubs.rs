@@ -1,6 +1,7 @@
-use crate::model::{Argument, Class, Const, Function, Module, VariableLengthArgument};
+use crate::model::{Argument, Arguments, Class, Const, Function, Module, VariableLengthArgument};
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
+use unicode_ident::{is_xid_continue, is_xid_start};
 
 /// Generates the [type stubs](https://typing.readthedocs.io/en/latest/source/stubs.html) of a given module.
 /// It returns a map between the file name and the file content.
@@ -43,6 +44,31 @@ fn module_stubs(module: &Module) -> String {
     for function in &module.functions {
         elements.push(function_stubs(function, &mut modules_to_import));
     }
+
+    // We generate a __getattr__ method to tag incomplete stubs
+    // See https://typing.python.org/en/latest/guides/writing_stubs.html#incomplete-stubs
+    if module.incomplete && !module.functions.iter().any(|f| f.name == "__getattr__") {
+        elements.push(function_stubs(
+            &Function {
+                name: "__getattr__".into(),
+                decorators: Vec::new(),
+                arguments: Arguments {
+                    positional_only_arguments: Vec::new(),
+                    arguments: vec![Argument {
+                        name: "name".to_string(),
+                        default_value: None,
+                        annotation: Some("str".into()),
+                    }],
+                    vararg: None,
+                    keyword_only_arguments: Vec::new(),
+                    kwarg: None,
+                },
+                returns: Some("_typeshed.Incomplete".into()),
+            },
+            &mut modules_to_import,
+        ));
+    }
+
     let mut final_elements = Vec::new();
     for module_to_import in &modules_to_import {
         final_elements.push(format!("import {module_to_import}"));
@@ -98,7 +124,10 @@ fn function_stubs(function: &Function, modules_to_import: &mut BTreeSet<String>)
         parameters.push(argument_stub(argument, modules_to_import));
     }
     if let Some(argument) = &function.arguments.vararg {
-        parameters.push(format!("*{}", variable_length_argument_stub(argument)));
+        parameters.push(format!(
+            "*{}",
+            variable_length_argument_stub(argument, modules_to_import)
+        ));
     } else if !function.arguments.keyword_only_arguments.is_empty() {
         parameters.push("*".into());
     }
@@ -106,7 +135,10 @@ fn function_stubs(function: &Function, modules_to_import: &mut BTreeSet<String>)
         parameters.push(argument_stub(argument, modules_to_import));
     }
     if let Some(argument) = &function.arguments.kwarg {
-        parameters.push(format!("**{}", variable_length_argument_stub(argument)));
+        parameters.push(format!(
+            "**{}",
+            variable_length_argument_stub(argument, modules_to_import)
+        ));
     }
     let mut buffer = String::new();
     for decorator in &function.decorators {
@@ -150,22 +182,114 @@ fn argument_stub(argument: &Argument, modules_to_import: &mut BTreeSet<String>) 
     output
 }
 
-fn variable_length_argument_stub(argument: &VariableLengthArgument) -> String {
-    argument.name.clone()
+fn variable_length_argument_stub(
+    argument: &VariableLengthArgument,
+    modules_to_import: &mut BTreeSet<String>,
+) -> String {
+    let mut output = argument.name.clone();
+    if let Some(annotation) = &argument.annotation {
+        output.push_str(": ");
+        output.push_str(annotation_stub(annotation, modules_to_import));
+    }
+    output
 }
 
 fn annotation_stub<'a>(annotation: &'a str, modules_to_import: &mut BTreeSet<String>) -> &'a str {
-    if let Some((module, _)) = annotation.rsplit_once('.') {
-        // TODO: this is very naive
-        modules_to_import.insert(module.into());
+    // We iterate on the annotation string
+    // If it starts with a Python path like foo.bar, we add the module name (here foo) to the import list
+    // and we skip after it
+    let mut i = 0;
+    while i < annotation.len() {
+        if let Some(path) = path_prefix(&annotation[i..]) {
+            // We found a path!
+            i += path.len();
+            if let Some((module, _)) = path.rsplit_once('.') {
+                modules_to_import.insert(module.into());
+            }
+        }
+        i += 1;
     }
     annotation
+}
+
+// If the input starts with a path like foo.bar, returns it
+fn path_prefix(input: &str) -> Option<&str> {
+    let mut length = identifier_prefix(input)?.len();
+    loop {
+        // We try to add another identifier to the path
+        let Some(remaining) = input[length..].strip_prefix('.') else {
+            break;
+        };
+        let Some(id) = identifier_prefix(remaining) else {
+            break;
+        };
+        length += id.len() + 1;
+    }
+    Some(&input[..length])
+}
+
+// If the input starts with an identifier like foo, returns it
+fn identifier_prefix(input: &str) -> Option<&str> {
+    // We get the first char and validate it
+    let mut iter = input.chars();
+    let first_char = iter.next()?;
+    if first_char != '_' && !is_xid_start(first_char) {
+        return None;
+    }
+    let mut length = first_char.len_utf8();
+    // We add extra chars as much as we can
+    for c in iter {
+        if is_xid_continue(c) {
+            length += c.len_utf8();
+        } else {
+            break;
+        }
+    }
+    Some(&input[0..length])
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::model::Arguments;
+
+    #[test]
+    fn annotation_stub_proper_imports() {
+        let mut modules_to_import = BTreeSet::new();
+
+        // Basic int
+        annotation_stub("int", &mut modules_to_import);
+        assert!(modules_to_import.is_empty());
+
+        // Simple path
+        annotation_stub("collections.abc.Iterable", &mut modules_to_import);
+        assert!(modules_to_import.contains("collections.abc"));
+
+        // With underscore
+        annotation_stub("_foo._bar_baz", &mut modules_to_import);
+        assert!(modules_to_import.contains("_foo"));
+
+        // Basic generic
+        annotation_stub("typing.List[int]", &mut modules_to_import);
+        assert!(modules_to_import.contains("typing"));
+
+        // Complex generic
+        annotation_stub("typing.List[foo.Bar[int]]", &mut modules_to_import);
+        assert!(modules_to_import.contains("foo"));
+
+        // Callable
+        annotation_stub(
+            "typing.Callable[[int, baz.Bar], bar.Baz[bool]]",
+            &mut modules_to_import,
+        );
+        assert!(modules_to_import.contains("bar"));
+        assert!(modules_to_import.contains("baz"));
+
+        // Union
+        annotation_stub("a.B | b.C", &mut modules_to_import);
+        assert!(modules_to_import.contains("a"));
+        assert!(modules_to_import.contains("b"));
+    }
 
     #[test]
     fn function_stubs_with_variable_length() {
@@ -185,6 +309,7 @@ mod tests {
                 }],
                 vararg: Some(VariableLengthArgument {
                     name: "varargs".into(),
+                    annotation: None,
                 }),
                 keyword_only_arguments: vec![Argument {
                     name: "karg".into(),
@@ -193,12 +318,13 @@ mod tests {
                 }],
                 kwarg: Some(VariableLengthArgument {
                     name: "kwarg".into(),
+                    annotation: Some("str".into()),
                 }),
             },
             returns: Some("list[str]".into()),
         };
         assert_eq!(
-            "def func(posonly, /, arg, *varargs, karg: str, **kwarg) -> list[str]: ...",
+            "def func(posonly, /, arg, *varargs, karg: str, **kwarg: str) -> list[str]: ...",
             function_stubs(&function, &mut BTreeSet::new())
         )
     }

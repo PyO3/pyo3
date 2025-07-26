@@ -45,11 +45,19 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
             name,
             members,
             consts,
+            incomplete,
             id: _,
         } = chunk
         {
             if name == main_module_name {
-                return convert_module(name, members, consts, &chunks_by_id, &chunks_by_parent);
+                return convert_module(
+                    name,
+                    members,
+                    consts,
+                    *incomplete,
+                    &chunks_by_id,
+                    &chunks_by_parent,
+                );
             }
         }
     }
@@ -60,6 +68,7 @@ fn convert_module(
     name: &str,
     members: &[String],
     consts: &[ConstChunk],
+    incomplete: bool,
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
 ) -> Result<Module> {
@@ -84,6 +93,7 @@ fn convert_module(
                 value: c.value.clone(),
             })
             .collect(),
+        incomplete,
     })
 }
 
@@ -102,12 +112,14 @@ fn convert_members(
                 name,
                 members,
                 consts,
+                incomplete,
                 id: _,
             } => {
                 modules.push(convert_module(
                     name,
                     members,
                     consts,
+                    *incomplete,
                     chunks_by_id,
                     chunks_by_parent,
                 )?);
@@ -208,6 +220,7 @@ fn convert_argument(arg: &ChunkArgument) -> Argument {
 fn convert_variable_length_argument(arg: &ChunkArgument) -> VariableLengthArgument {
     VariableLengthArgument {
         name: arg.name.clone(),
+        annotation: arg.annotation.clone(),
     }
 }
 
@@ -375,6 +388,7 @@ enum Chunk {
         name: String,
         members: Vec<String>,
         consts: Vec<ConstChunk>,
+        incomplete: bool,
     },
     Class {
         id: String,

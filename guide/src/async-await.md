@@ -35,15 +35,15 @@ As a consequence, `async fn` parameters and return types must also be `Send + 's
 
 However, there is an exception for method receivers, so async methods can accept `&self`/`&mut self`. Note that this means that the class instance is borrowed for as long as the returned future is not completed, even across yield points and while waiting for I/O operations to complete. Hence, other methods cannot obtain exclusive borrows while the future is still being polled. This is the same as how async methods in Rust generally work but it is more problematic for Rust code interfacing with Python code due to pervasive shared mutability. This strongly suggests to prefer shared borrows `&self` over exclusive ones `&mut self` to avoid racy borrow check failures at runtime.
 
-## Implicit GIL holding
+## Implicitly attached to the interpreter
 
-Even if it is not possible to pass a `py: Python<'py>` parameter to `async fn`, the GIL is still held during the execution of the future – it's also the case for regular `fn` without `Python<'py>`/`Bound<'py, PyAny>` parameter, yet the GIL is held.
+Even if it is not possible to pass a `py: Python<'py>` token to an `async fn`, we're still attached to the interpreter during the execution of the future – the same as for a regular `fn` without `Python<'py>`/`Bound<'py, PyAny>` parameter
 
 It is still possible to get a `Python` marker using [`Python::attach`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.attach); because `attach` is reentrant and optimized, the cost will be negligible.
 
-## Release the GIL across `.await`
+## Detaching from the interpreter across `.await`
 
-There is currently no simple way to release the GIL when awaiting a future, *but solutions are currently in development*.
+There is currently no simple way to detach from the interpreter when awaiting a future, *but solutions are currently in development*.
 
 Here is the advised workaround for now:
 

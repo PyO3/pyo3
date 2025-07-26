@@ -183,18 +183,19 @@ For arguments, see the [`Method arguments`](#method-arguments) section below.
 
 ## Adding the class to a module
 
-The next step is to create the module initializer and add our class to it:
+The next step is to create the Python module and add our class to it:
 
 ```rust
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
+# fn main() {}
 # #[pyclass]
 # struct Number(i32);
 #
 #[pymodule]
-fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<Number>()?;
-    Ok(())
+mod my_module {
+    #[pymodule_export]
+    use super::Number;
 }
 ```
 
@@ -242,7 +243,7 @@ Python::attach(|py| {
 });
 ```
 
-A `Bound<'py, T>` is restricted to the GIL lifetime `'py`. To make the object longer lived (for example, to store it in a struct on the
+A `Bound<'py, T>` is restricted to the Python lifetime `'py`. To make the object longer lived (for example, to store it in a struct on the
 Rust side), use `Py<T>`. `Py<T>` needs a `Python<'_>` token to allow access:
 
 ```rust
@@ -269,7 +270,7 @@ Python::attach(move |py| {
 
 As detailed above, runtime borrow checking is currently enabled by default. But a class can opt of out it by declaring itself `frozen`. It can still use interior mutability via standard Rust types like `RefCell` or `Mutex`, but it is not bound to the implementation provided by PyO3 and can choose the most appropriate strategy on field-by-field basis.
 
-Classes which are `frozen` and also `Sync`, e.g. they do use `Mutex` but not `RefCell`, can be accessed without needing the Python GIL via the `Bound::get` and `Py::get` methods:
+Classes which are `frozen` and also `Sync`, e.g. they do use `Mutex` but not `RefCell`, can be accessed without needing a `Python` token via the `Bound::get` and `Py::get` methods:
 
 ```rust
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -566,7 +567,7 @@ The above would make the `num` field available for reading and writing as a `sel
 Properties can be readonly or writeonly by using just `#[pyo3(get)]` or `#[pyo3(set)]` respectively.
 
 To use these annotations, your field type must implement some conversion traits:
-- For `get` the field type must implement both `IntoPy<PyObject>` and `Clone`.
+- For `get` the field type `T` must implement either `&T: IntoPyObject` or `T: IntoPyObject + Clone`.
 - For `set` the field type must implement `FromPyObject`.
 
 For example, implementations of those traits are provided for the `Cell` type, if the inner type also implements the trait. This means you can use `#[pyo3(get, set)]` on fields wrapped in a `Cell`.
@@ -685,7 +686,7 @@ impl MyClass {
 ```
 
 Calls to these methods are protected by the GIL, so both `&self` and `&mut self` can be used.
-The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPy<PyObject>`;
+The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPyObject`;
 the latter is allowed if the method cannot raise Python exceptions.
 
 A `Python` parameter can be specified as part of method signature, in this case the `py` argument
@@ -737,7 +738,7 @@ Declares a class method callable from Python.
   This may be the type object of a derived class.
 * The first parameter implicitly has type `&Bound<'_, PyType>`.
 * For details on `parameter-list`, see the documentation of `Method arguments` section.
-* The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPy<PyObject>`.
+* The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPyObject`.
 
 ### Constructors which accept a class argument
 
@@ -765,7 +766,7 @@ impl BaseClass {
 
 To create a static method for a custom class, the method needs to be annotated with the
 `#[staticmethod]` attribute. The return type must be `T` or `PyResult<T>` for some `T` that implements
-`IntoPy<PyObject>`.
+`IntoPyObject`.
 
 ```rust
 # use pyo3::prelude::*;
@@ -827,7 +828,7 @@ impl MyClass {
 
 ## Classes as function arguments
 
-Free functions defined using `#[pyfunction]` interact with classes through the same mechanisms as the self parameters of instance methods, i.e. they can take GIL-bound references, GIL-bound reference wrappers or GIL-independent references:
+Free functions defined using `#[pyfunction]` interact with classes through the same mechanisms as the self parameters of instance methods, i.e. they can take Python-bound references, Python-bound reference wrappers or Python-independent references:
 
 ```rust,no_run
 # #![allow(dead_code)]
@@ -1043,7 +1044,7 @@ Note that `text_signature` on `#[new]` is not compatible with compilation in
 
 PyO3 supports writing instance methods using the normal method receivers for shared `&self` and unique `&mut self` references. This interacts with [lifetime elision][lifetime-elision] insofar as the lifetime of a such a receiver is assigned to all elided output lifetime parameters.
 
-This is a good default for general Rust code where return values are more likely to borrow from the receiver than from the other arguments, if they contain any lifetimes at all. However, when returning bound references `Bound<'py, T>` in PyO3-based code, the GIL lifetime `'py` should usually be derived from a GIL token `py: Python<'py>` passed as an argument instead of the receiver.
+This is a good default for general Rust code where return values are more likely to borrow from the receiver than from the other arguments, if they contain any lifetimes at all. However, when returning bound references `Bound<'py, T>` in PyO3-based code, the Python lifetime `'py` should usually be derived from a `py: Python<'py>` token passed as an argument instead of the receiver.
 
 Specifically, signatures like
 

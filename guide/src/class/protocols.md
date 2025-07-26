@@ -457,7 +457,7 @@ impl ClassWithGCSupport {
 ```
 
 Usually, an implementation of `__traverse__` should do nothing but calls to `visit.call`.
-Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`,
+Most importantly, safe access to the interpreter is prohibited inside implementations of `__traverse__`,
 i.e. `Python::attach` will panic.
 
 > Note: these methods are part of the C API, PyPy does not necessarily honor them. If you are building for PyPy you should measure memory consumption to make sure you do not have runaway memory growth. See [this issue on the PyPy bug tracker](https://github.com/pypy/pypy/issues/3848).
