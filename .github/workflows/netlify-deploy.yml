@@ -33,6 +33,8 @@ jobs:
         with:
           name: metadata
           path: .metadata
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
 
       - name: Get PR metadata
         id: pr_metadata
