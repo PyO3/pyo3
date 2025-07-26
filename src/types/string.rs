@@ -1,3 +1,4 @@
+#[cfg(not(Py_LIMITED_API))]
 use crate::exceptions::PyUnicodeDecodeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
@@ -657,7 +658,7 @@ mod tests {
             let py_string = PyString::from_encoded_object(&py_bytes, None, None).unwrap_err();
             assert!(py_string
                 .get_type(py)
-                .is(&py.get_type::<PyUnicodeDecodeError>()));
+                .is(py.get_type::<crate::exceptions::PyUnicodeDecodeError>()));
 
             // with `ignore` error handler, the invalid byte is dropped
             let py_string =
