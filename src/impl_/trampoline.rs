@@ -9,17 +9,24 @@ use std::{
     panic::{self, UnwindSafe},
 };
 
-use crate::internal::state::AttachGuard;
 use crate::{
     ffi, ffi_ptr_ext::FfiPtrExt, impl_::callback::PyCallbackOutput, impl_::panic::PanicTrap,
-    impl_::pymethods::IPowModulo, panic::PanicException, types::PyModule, Py, PyResult, Python,
+    impl_::pymethods::IPowModulo, internal::state::AttachGuard, panic::PanicException,
+    types::PyModule, Bound, PyResult, Python,
 };
 
 #[inline]
-pub unsafe fn module_init(
-    f: for<'py> unsafe fn(Python<'py>) -> PyResult<Py<PyModule>>,
-) -> *mut ffi::PyObject {
-    unsafe { trampoline(|py| f(py).map(|module| module.into_ptr())) }
+pub unsafe fn module_exec(
+    module: *mut ffi::PyObject,
+    f: for<'a, 'py> fn(&'a Bound<'py, PyModule>) -> PyResult<()>,
+) -> c_int {
+    unsafe {
+        trampoline(|py| {
+            let module = module.assume_borrowed_or_err(py)?.downcast::<PyModule>()?;
+            f(&module)?;
+            Ok(0)
+        })
+    }
 }
 
 #[inline]
