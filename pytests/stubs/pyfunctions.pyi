@@ -19,6 +19,9 @@ def simple_args_kwargs(
 def simple_kwargs(
     a: typing.Any, b: typing.Any | None = None, c: typing.Any | None = None, **kwargs
 ) -> typing.Any: ...
+def with_custom_type_annotations(
+    a: int, *_args: str, _b: int | None = None, **_kwargs: bool
+) -> int: ...
 def with_typed_args(
     a: bool = False, b: int = 0, c: float = 0.0, d: str = ""
 ) -> typing.Any: ...

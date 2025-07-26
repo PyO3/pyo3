@@ -1,0 +1,5 @@
+error: Return type annotation in the signature is only supported with the `experimental-inspect` feature
+ --> tests/ui/invalid_annotation_return.rs:4:27
+  |
+4 | #[pyo3(signature = (a) -> "int")]
+  |                           ^^^^^

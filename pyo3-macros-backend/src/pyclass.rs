@@ -1646,6 +1646,8 @@ fn complex_enum_struct_variant_new<'a>(
                 from_py_with: None,
                 default_value: None,
                 option_wrapped_type: None,
+                #[cfg(feature = "experimental-inspect")]
+                annotation: None,
             }));
         }
         args
@@ -1703,6 +1705,8 @@ fn complex_enum_tuple_variant_new<'a>(
                 from_py_with: None,
                 default_value: None,
                 option_wrapped_type: None,
+                #[cfg(feature = "experimental-inspect")]
+                annotation: None,
             }));
         }
         args

@@ -5,6 +5,7 @@ pub struct Module {
     pub classes: Vec<Class>,
     pub functions: Vec<Function>,
     pub consts: Vec<Const>,
+    pub incomplete: bool,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
@@ -56,4 +57,6 @@ pub struct Argument {
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct VariableLengthArgument {
     pub name: String,
+    /// Type annotation as a Python expression
+    pub annotation: Option<String>,
 }

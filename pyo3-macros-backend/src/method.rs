@@ -26,6 +26,8 @@ pub struct RegularArg<'a> {
     pub from_py_with: Option<FromPyWithAttribute>,
     pub default_value: Option<syn::Expr>,
     pub option_wrapped_type: Option<&'a syn::Type>,
+    #[cfg(feature = "experimental-inspect")]
+    pub annotation: Option<String>,
 }
 
 impl RegularArg<'_> {
@@ -55,6 +57,8 @@ impl RegularArg<'_> {
 pub struct VarargsArg<'a> {
     pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
+    #[cfg(feature = "experimental-inspect")]
+    pub annotation: Option<String>,
 }
 
 /// Pythons **kwarg argument
@@ -62,6 +66,8 @@ pub struct VarargsArg<'a> {
 pub struct KwargsArg<'a> {
     pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
+    #[cfg(feature = "experimental-inspect")]
+    pub annotation: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -121,12 +127,16 @@ impl<'a> FnArg<'a> {
             name,
             ty,
             option_wrapped_type: None,
+            #[cfg(feature = "experimental-inspect")]
+            annotation,
             ..
         }) = self
         {
             *self = Self::VarArgs(VarargsArg {
                 name: name.clone(),
                 ty,
+                #[cfg(feature = "experimental-inspect")]
+                annotation: annotation.clone(),
             });
             Ok(self)
         } else {
@@ -139,12 +149,16 @@ impl<'a> FnArg<'a> {
             name,
             ty,
             option_wrapped_type: Some(..),
+            #[cfg(feature = "experimental-inspect")]
+            annotation,
             ..
         }) = self
         {
             *self = Self::KwArgs(KwargsArg {
                 name: name.clone(),
                 ty,
+                #[cfg(feature = "experimental-inspect")]
+                annotation: annotation.clone(),
             });
             Ok(self)
         } else {
@@ -196,6 +210,8 @@ impl<'a> FnArg<'a> {
                     from_py_with,
                     default_value: None,
                     option_wrapped_type: utils::option_type_argument(&cap.ty),
+                    #[cfg(feature = "experimental-inspect")]
+                    annotation: None,
                 }))
             }
         }
