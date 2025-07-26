@@ -8,7 +8,7 @@ import sys
 import sysconfig
 import tarfile
 import tempfile
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from functools import lru_cache
 from glob import glob
 from pathlib import Path
@@ -555,10 +555,9 @@ def build_netlify_site(session: nox.Session):
 def _build_netlify_redirects(preview: bool) -> None:
     current_version = os.environ.get("PYO3_VERSION")
 
-    with (
-        open("netlify_build/_redirects", "w") as redirects_file,
-        open("netlify_build/_headers", "w") as headers_file,
-    ):
+    with ExitStack() as stack:
+        redirects_file = stack.enter_context(open("netlify_build/_redirects", "w"))
+        headers_file = stack.enter_context(open("netlify_build/_headers", "w"))
         for d in glob("netlify_build/v*"):
             version = d.removeprefix("netlify_build/v")
             full_directory = d + "/"
