@@ -36,6 +36,9 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
+      - name: Debug head branch
+        run: echo ${{ github.event.workflow_run.head_branch }}
+
       - name: Get PR metadata
         id: pr_metadata
         run: |
@@ -52,7 +55,7 @@ jobs:
           DEBUG=* netlify deploy \
               --site ${{ secrets.NETLIFY_SITE_ID }} \
               --auth ${{ secrets.NETLIFY_TOKEN }} \
-              ${{ steps.pr_metadata.outputs.pr_number == '' && '--prod' || '' }}
+              ${{ steps.pr_metadata.outputs.pr_number == '' && '--prod' || '' }} \
               --json | tee deploy_output.json
 
       # credit: https://www.raulmelo.me/en/blog/deploying-netlify-github-actions-guide

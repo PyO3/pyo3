@@ -75,8 +75,8 @@ jobs:
         id: pr
         run: |
           mkdir -p metadata
-          echo "pr_number=$(echo ${{ github.event.pull_request.number }})" >> metadata/pr_number
-          echo "pr_head_sha=$(echo ${{ github.event.pull_request.head.sha }})" >> metadata/pr_head_sha
+          echo "${{ github.event.pull_request.number }}" >> metadata/pr_number
+          echo "${{ github.event.pull_request.head.sha }}" >> metadata/pr_head_sha
 
       - name: Upload PR metadata
         uses: actions/upload-artifact@v4
