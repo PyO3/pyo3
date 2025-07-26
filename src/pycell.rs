@@ -92,7 +92,7 @@
 //! #     }
 //! # }
 //! # fn main() -> PyResult<()> {
-//! Python::with_gil(|py| {
+//! Python::attach(|py| {
 //!     let n = Py::new(py, Number { inner: 0 })?;
 //!
 //!     // We borrow the guard and then dereference
@@ -128,7 +128,7 @@
 //!     std::mem::swap(&mut a.inner, &mut b.inner);
 //! }
 //! # fn main() {
-//! #     Python::with_gil(|py| {
+//! #     Python::attach(|py| {
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = n.clone_ref(py);
 //! #         assert!(n.is(&n2));
@@ -166,7 +166,7 @@
 //! }
 //! # fn main() {
 //! #     // With duplicate numbers
-//! #     Python::with_gil(|py| {
+//! #     Python::attach(|py| {
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = n.clone_ref(py);
 //! #         assert!(n.is(&n2));
@@ -175,7 +175,7 @@
 //! #     });
 //! #
 //! #     // With two different numbers
-//! #     Python::with_gil(|py| {
+//! #     Python::attach(|py| {
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = Py::new(py, Number{inner: 42}).unwrap();
 //! #         assert!(!n.is(&n2));
@@ -244,7 +244,7 @@ use impl_::{PyClassBorrowChecker, PyClassObjectLayout};
 ///         format!("{}(base: {}, cnt: {})", slf.name, basename, refcnt)
 ///     }
 /// }
-/// # Python::with_gil(|py| {
+/// # Python::attach(|py| {
 /// #     let sub = Py::new(py, Child::new()).unwrap();
 /// #     pyo3::py_run!(py, sub, "assert sub.format() == 'Caterpillar(base: Butterfly, cnt: 4)', sub.format()");
 /// # });
@@ -359,7 +359,7 @@ where
     ///         format!("{} {} {}", super_.as_ref().name1, super_.name2, subname)
     ///     }
     /// }
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// #     let sub = Py::new(py, Sub::new()).unwrap();
     /// #     pyo3::py_run!(py, sub, "assert sub.name() == 'base1 base2 sub'")
     /// # });
@@ -414,7 +414,7 @@ where
     ///         format!("{} {}", slf.as_super().base_name_len(), slf.sub_name_len())
     ///     }
     /// }
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// #     let sub = Py::new(py, Sub::new()).unwrap();
     /// #     pyo3::py_run!(py, sub, "assert sub.format_name_lengths() == '9 8'")
     /// # });
@@ -707,7 +707,7 @@ mod tests {
 
     #[test]
     fn test_as_ptr() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let cell = Bound::new(py, SomeClass(0)).unwrap();
             let ptr = cell.as_ptr();
 
@@ -718,7 +718,7 @@ mod tests {
 
     #[test]
     fn test_into_ptr() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let cell = Bound::new(py, SomeClass(0)).unwrap();
             let ptr = cell.as_ptr();
 
@@ -774,7 +774,7 @@ mod tests {
 
     #[test]
     fn test_pyref_as_super() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = SubSubClass::new(py).into_bound(py);
             let pyref = obj.borrow();
             assert_eq!(pyref.as_super().as_super().val1, 10);
@@ -787,7 +787,7 @@ mod tests {
 
     #[test]
     fn test_pyrefmut_as_super() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = SubSubClass::new(py).into_bound(py);
             assert_eq!(SubSubClass::get_values(obj.borrow()), (10, 15, 20));
             {
@@ -806,7 +806,7 @@ mod tests {
 
     #[test]
     fn test_pyrefs_in_python() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = SubSubClass::new(py);
             crate::py_run!(py, obj, "assert obj.get_values() == (10, 15, 20)");
             crate::py_run!(py, obj, "assert obj.double_values() is None");

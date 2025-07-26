@@ -5,8 +5,7 @@ pub use self::boolobject::{PyBool, PyBoolMethods};
 pub use self::bytearray::{PyByteArray, PyByteArrayMethods};
 pub use self::bytes::{PyBytes, PyBytesMethods};
 pub use self::capsule::{PyCapsule, PyCapsuleMethods};
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
-pub use self::code::PyCode;
+pub use self::code::{PyCode, PyCodeInput, PyCodeMethods};
 pub use self::complex::{PyComplex, PyComplexMethods};
 #[allow(deprecated)]
 pub use self::datetime::{
@@ -64,7 +63,7 @@ pub use self::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefRe
 /// use pyo3::ffi::c_str;
 ///
 /// # pub fn main() -> PyResult<()> {
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let dict = py.eval(c_str!("{'a':'b', 'c':'d'}"), None, None)?.downcast_into::<PyDict>()?;
 ///
 ///     for (key, value) in &dict {
@@ -223,7 +222,6 @@ pub(crate) mod boolobject;
 pub(crate) mod bytearray;
 pub(crate) mod bytes;
 pub(crate) mod capsule;
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 mod code;
 pub(crate) mod complex;
 pub(crate) mod datetime;

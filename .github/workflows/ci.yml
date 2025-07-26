@@ -45,7 +45,7 @@ jobs:
           python-version: "3.13"
       - name: resolve MSRV
         id: resolve-msrv
-        run: echo MSRV=`python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["rust-version"])'` >> $GITHUB_OUTPUT
+        run: echo MSRV=`python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["rust-version"])'` >> $GITHUB_OUTPUT
 
   semver-checks:
     if: github.ref != 'refs/heads/main'
@@ -133,6 +133,11 @@ jobs:
               python-architecture: "x86",
               rust-target: "i686-pc-windows-msvc",
             },
+            {
+              os: "windows-11-arm",
+              python-architecture: "arm64",
+              rust-target: "aarch64-pc-windows-msvc",
+            },
           ]
         include:
           # Run beta clippy as a way to detect any incoming lints which may affect downstream users
@@ -154,11 +159,20 @@ jobs:
           components: clippy,rust-src
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          # FIXME: 3.13.4 has an issue on windows so pinned to 3.13.3
+          # once 3.13.5 is out, unpin the patch version
+          python-version: "3.13.3"
           architecture: ${{ matrix.platform.python-architecture }}
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+      # windows on arm image contains x86-64 libclang
+      - name: Install LLVM and Clang
+        if: matrix.platform.os == 'windows-11-arm'
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          # to match windows-2022 images
+          version: "18"
       - run: python -m pip install --upgrade pip && pip install nox
       - run: nox -s clippy-all
     env:
@@ -386,7 +400,14 @@ jobs:
                 python-architecture: "arm64",
                 rust-target: "aarch64-unknown-linux-gnu",
               }
-
+          - rust: stable
+            python-version: "3.13"
+            platform:
+              {
+                os: "windows-11-arm",
+                python-architecture: "arm64",
+                rust-target: "aarch64-pc-windows-msvc",
+              }
         exclude:
           # ubuntu-latest (24.04) no longer supports 3.7
           - python-version: "3.7"

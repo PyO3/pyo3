@@ -30,7 +30,7 @@
 //!
 //! fn main() -> PyResult<()> {
 //!     pyo3::prepare_freethreaded_python();
-//!     Python::with_gil(|py| {
+//!     Python::attach(|py| {
 //!         // Create a string and an int in Python.
 //!         let py_str = "crab".into_pyobject(py)?;
 //!         let py_int = 42i32.into_pyobject(py)?;
@@ -134,7 +134,7 @@ mod tests {
         type E1 = Either<i32, f32>;
         type E2 = Either<f32, i32>;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let l = E::Left(42);
             let obj_l = (&l).into_pyobject(py).unwrap();
             assert_eq!(obj_l.extract::<i32>().unwrap(), 42);

@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
 fn bench_bytes_new(b: &mut Bencher<'_>, data: &[u8]) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         b.iter_with_large_drop(|| PyBytes::new(py, black_box(data)));
     });
 }
@@ -27,7 +27,7 @@ fn bytes_new_large(b: &mut Bencher<'_>) {
 }
 
 fn bench_bytes_into_pyobject(b: &mut Bencher<'_>, data: &[u8]) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         b.iter_with_large_drop(|| black_box(data).into_pyobject(py));
     });
 }
@@ -47,7 +47,7 @@ fn byte_slice_into_pyobject_large(b: &mut Bencher<'_>) {
 }
 
 fn vec_into_pyobject(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let bytes = (0..u8::MAX).collect::<Vec<u8>>();
         b.iter_with_large_drop(|| black_box(&bytes).clone().into_pyobject(py));
     });

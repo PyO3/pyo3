@@ -47,7 +47,7 @@ impl UnaryArithmetic {
 
 #[test]
 fn unary_arithmetic() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Py::new(py, UnaryArithmetic::new(2.7)).unwrap();
         py_run!(py, c, "assert repr(-c) == 'UA(-2.7)'");
         py_run!(py, c, "assert repr(+c) == 'UA(2.7)'");
@@ -91,7 +91,7 @@ impl Indexable {
 
 #[test]
 fn indexable() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let i = Py::new(py, Indexable(5)).unwrap();
         py_run!(py, i, "assert int(i) == 5");
         py_run!(py, i, "assert [0, 1, 2, 3, 4, 5][i] == 5");
@@ -150,7 +150,7 @@ impl InPlaceOperations {
 
 #[test]
 fn inplace_operations() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let init = |value, code| {
             let c = Py::new(py, InPlaceOperations { value }).unwrap();
             py_run!(py, c, code);
@@ -240,7 +240,7 @@ impl BinaryArithmetic {
 
 #[test]
 fn binary_arithmetic() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Py::new(py, BinaryArithmetic {}).unwrap();
         py_run!(py, c, "assert c + c == 'BA + BA'");
         py_run!(py, c, "assert c.__add__(c) == 'BA + BA'");
@@ -341,7 +341,7 @@ impl RhsArithmetic {
 
 #[test]
 fn rhs_arithmetic() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Py::new(py, RhsArithmetic {}).unwrap();
         py_run!(py, c, "assert c.__radd__(1) == '1 + RA'");
         py_run!(py, c, "assert 1 + c == '1 + RA'");
@@ -470,7 +470,7 @@ impl LhsAndRhs {
 
 #[test]
 fn lhs_fellback_to_rhs() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Py::new(py, LhsAndRhs {}).unwrap();
         // If the light hand value is `LhsAndRhs`, LHS is used.
         py_run!(py, c, "assert c + 1 == 'LR + 1'");
@@ -546,7 +546,7 @@ impl RichComparisons2 {
 
 #[test]
 fn rich_comparisons() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Py::new(py, RichComparisons {}).unwrap();
         py_run!(py, c, "assert (c < c) == 'RC < RC'");
         py_run!(py, c, "assert (c < 1) == 'RC < 1'");
@@ -571,7 +571,7 @@ fn rich_comparisons() {
 
 #[test]
 fn rich_comparisons_python_3_type_error() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c2 = Py::new(py, RichComparisons2 {}).unwrap();
         py_expect_exception!(py, c2, "c2 < c2", PyTypeError);
         py_expect_exception!(py, c2, "c2 < 1", PyTypeError);
@@ -672,7 +672,7 @@ mod return_not_implemented {
     }
 
     fn _test_binary_dunder(dunder: &str) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let c2 = Py::new(py, RichComparisonToSelf {}).unwrap();
             py_run!(
                 py,
@@ -685,7 +685,7 @@ mod return_not_implemented {
     fn _test_binary_operator(operator: &str, dunder: &str) {
         _test_binary_dunder(dunder);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let c2 = Py::new(py, RichComparisonToSelf {}).unwrap();
             py_expect_exception!(
                 py,

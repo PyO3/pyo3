@@ -51,6 +51,7 @@
 
 use std::str::FromStr;
 
+use crate::types::PyTuple;
 use crate::{
     exceptions::PyValueError,
     sync::GILOnceCell,
@@ -58,11 +59,16 @@ use crate::{
     Bound, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python,
 };
 use bigdecimal::BigDecimal;
-
-static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+use num_bigint::Sign;
 
 fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
+    static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
     DECIMAL_CLS.import(py, "decimal", "Decimal")
+}
+
+fn get_invalid_operation_error_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
+    static INVALID_OPERATION_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+    INVALID_OPERATION_CLS.import(py, "decimal", "InvalidOperation")
 }
 
 impl FromPyObject<'_> for BigDecimal {
@@ -82,7 +88,19 @@ impl<'py> IntoPyObject<'py> for BigDecimal {
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let cls = get_decimal_cls(py)?;
-        cls.call1((self.to_string(),))
+        let (bigint, scale) = self.into_bigint_and_scale();
+        if scale == 0 {
+            return cls.call1((bigint,));
+        }
+        let exponent = scale.checked_neg().ok_or_else(|| {
+            get_invalid_operation_error_cls(py)
+                .map_or_else(|err| err, |cls| PyErr::from_type(cls.clone(), ()))
+        })?;
+        let (sign, digits) = bigint.to_radix_be(10);
+        let signed = matches!(sign, Sign::Minus).into_pyobject(py)?;
+        let digits = PyTuple::new(py, digits)?;
+
+        cls.call1(((signed, digits, exponent),))
     }
 }
 
@@ -102,7 +120,7 @@ mod test_bigdecimal {
         ($name:ident, $rs:expr, $py:literal) => {
             #[test]
             fn $name() {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let rs_orig = $rs;
                     let rs_dec = rs_orig.clone().into_pyobject(py).unwrap();
                     let locals = PyDict::new(py);
@@ -155,7 +173,7 @@ mod test_bigdecimal {
             number in 0..28u32
         ) {
             let num = BigDecimal::from(number);
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let rs_dec = num.clone().into_pyobject(py).unwrap();
                 let locals = PyDict::new(py);
                 locals.set_item("rs_dec", &rs_dec).unwrap();
@@ -170,7 +188,7 @@ mod test_bigdecimal {
 
         #[test]
         fn test_integers(num in any::<i64>()) {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let py_num = num.into_pyobject(py).unwrap();
                 let roundtripped: BigDecimal = py_num.extract().unwrap();
                 let rs_dec = BigDecimal::from(num);
@@ -181,7 +199,7 @@ mod test_bigdecimal {
 
     #[test]
     fn test_nan() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
                 ffi::c_str!("import decimal\npy_dec = decimal.Decimal(\"NaN\")"),
@@ -197,7 +215,7 @@ mod test_bigdecimal {
 
     #[test]
     fn test_infinity() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
                 ffi::c_str!("import decimal\npy_dec = decimal.Decimal(\"Infinity\")"),
@@ -209,5 +227,27 @@ mod test_bigdecimal {
             let roundtripped: Result<BigDecimal, PyErr> = py_dec.extract();
             assert!(roundtripped.is_err());
         })
+    }
+
+    #[test]
+    fn test_no_precision_loss() {
+        Python::attach(|py| {
+            let src = "1e4";
+            let expected = get_decimal_cls(py)
+                .unwrap()
+                .call1((src,))
+                .unwrap()
+                .call_method0("as_tuple")
+                .unwrap();
+            let actual = src
+                .parse::<BigDecimal>()
+                .unwrap()
+                .into_pyobject(py)
+                .unwrap()
+                .call_method0("as_tuple")
+                .unwrap();
+
+            assert!(actual.eq(expected).unwrap());
+        });
     }
 }

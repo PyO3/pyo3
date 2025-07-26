@@ -11,9 +11,9 @@ use std::{
 
 use crate::{
     ffi, ffi_ptr_ext::FfiPtrExt, impl_::callback::PyCallbackOutput, impl_::panic::PanicTrap,
-    impl_::pymethods::IPowModulo, panic::PanicException, types::PyModule, PyResult, Python,
+    impl_::pymethods::IPowModulo, internal::state::AttachGuard, panic::PanicException,
+    types::PyModule, Bound, PyResult, Python,
 };
-use crate::{gil::GILGuard, Bound};
 
 #[inline]
 pub unsafe fn module_exec(
@@ -175,12 +175,12 @@ trampoline!(
     ) -> *mut ffi::PyObject;
 );
 
-/// Implementation of trampoline functions, which sets up a GILPool and calls F.
+/// Implementation of trampoline functions, which sets up an AttachGuard and calls F.
 ///
 /// Panics during execution are trapped so that they don't propagate through any
 /// outer FFI boundary.
 ///
-/// The GIL must already be held when this is called.
+/// The thread must already be attached to the interpreter when this is called.
 #[inline]
 pub(crate) unsafe fn trampoline<F, R>(body: F) -> R
 where
@@ -189,8 +189,8 @@ where
 {
     let trap = PanicTrap::new("uncaught panic at ffi boundary");
 
-    // SAFETY: This function requires the GIL to already be held.
-    let guard = unsafe { GILGuard::assume() };
+    // SAFETY: This function requires the thread to already be attached.
+    let guard = unsafe { AttachGuard::assume() };
     let py = guard.python();
     let out = panic_result_into_callback_output(
         py,
@@ -229,7 +229,7 @@ where
 /// # Safety
 ///
 /// - ctx must be either a valid ffi::PyObject or NULL
-/// - The GIL must already be held when this is called.
+/// - The thread must be attached to the interpreter when this is called.
 #[inline]
 unsafe fn trampoline_unraisable<F>(body: F, ctx: *mut ffi::PyObject)
 where
@@ -237,8 +237,8 @@ where
 {
     let trap = PanicTrap::new("uncaught panic at ffi boundary");
 
-    // SAFETY: The GIL is already held.
-    let guard = unsafe { GILGuard::assume() };
+    // SAFETY: Thread is known to be attached.
+    let guard = unsafe { AttachGuard::assume() };
     let py = guard.python();
 
     if let Err(py_err) = panic::catch_unwind(move || body(py))

@@ -75,7 +75,7 @@ mod tests {
 
     #[test]
     fn test_partial_eq() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v_i8 = 123i8;
             let v_u8 = 123i8;
             let v_i16 = 123i16;
@@ -137,7 +137,7 @@ mod tests {
 
     #[test]
     fn test_display_int() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = PyInt::new(py, 42u8);
             assert_eq!(format!("{s}"), "42");
 

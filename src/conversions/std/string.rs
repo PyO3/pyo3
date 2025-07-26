@@ -138,6 +138,9 @@ impl<'py> IntoPyObject<'py> for &String {
 
 #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
 impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a str {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "str";
+
     fn from_py_object_bound(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
         ob.downcast::<PyString>()?.to_str()
     }
@@ -149,6 +152,9 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a str {
 }
 
 impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, str> {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "str";
+
     fn from_py_object_bound(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
         ob.downcast::<PyString>()?.to_cow()
     }
@@ -162,6 +168,9 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, str> {
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 impl FromPyObject<'_> for String {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "str";
+
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         obj.downcast::<PyString>()?.to_cow().map(Cow::into_owned)
     }
@@ -173,6 +182,9 @@ impl FromPyObject<'_> for String {
 }
 
 impl FromPyObject<'_> for char {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "str";
+
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         let s = obj.downcast::<PyString>()?.to_cow()?;
         let mut iter = s.chars();
@@ -199,7 +211,7 @@ mod tests {
 
     #[test]
     fn test_cow_into_pyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = "Hello Python";
             let py_string = Cow::Borrowed(s).into_pyobject(py).unwrap();
             assert_eq!(s, py_string.extract::<Cow<'_, str>>().unwrap());
@@ -210,7 +222,7 @@ mod tests {
 
     #[test]
     fn test_non_bmp() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = "\u{1F30F}";
             let py_string = s.into_pyobject(py).unwrap();
             assert_eq!(s, py_string.extract::<String>().unwrap());
@@ -219,7 +231,7 @@ mod tests {
 
     #[test]
     fn test_extract_str() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = "Hello Python";
             let py_string = s.into_pyobject(py).unwrap();
 
@@ -230,7 +242,7 @@ mod tests {
 
     #[test]
     fn test_extract_char() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ch = '😃';
             let py_string = ch.into_pyobject(py).unwrap();
             let ch2: char = py_string.extract().unwrap();
@@ -240,7 +252,7 @@ mod tests {
 
     #[test]
     fn test_extract_char_err() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = "Hello Python";
             let py_string = s.into_pyobject(py).unwrap();
             let err: crate::PyResult<char> = py_string.extract();
@@ -253,7 +265,7 @@ mod tests {
 
     #[test]
     fn test_string_into_pyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let s = "Hello Python";
             let s2 = s.to_owned();
             let s3 = &s2;

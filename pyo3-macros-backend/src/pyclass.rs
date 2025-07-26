@@ -1646,6 +1646,8 @@ fn complex_enum_struct_variant_new<'a>(
                 from_py_with: None,
                 default_value: None,
                 option_wrapped_type: None,
+                #[cfg(feature = "experimental-inspect")]
+                annotation: None,
             }));
         }
         args
@@ -1669,6 +1671,9 @@ fn complex_enum_struct_variant_new<'a>(
         text_signature: None,
         asyncness: None,
         unsafety: None,
+        warnings: vec![],
+        #[cfg(feature = "experimental-inspect")]
+        output: syn::ReturnType::Default,
     };
 
     crate::pymethod::impl_py_method_def_new(&variant_cls_type, &spec, ctx)
@@ -1700,6 +1705,8 @@ fn complex_enum_tuple_variant_new<'a>(
                 from_py_with: None,
                 default_value: None,
                 option_wrapped_type: None,
+                #[cfg(feature = "experimental-inspect")]
+                annotation: None,
             }));
         }
         args
@@ -1723,6 +1730,9 @@ fn complex_enum_tuple_variant_new<'a>(
         text_signature: None,
         asyncness: None,
         unsafety: None,
+        warnings: vec![],
+        #[cfg(feature = "experimental-inspect")]
+        output: syn::ReturnType::Default,
     };
 
     crate::pymethod::impl_py_method_def_new(&variant_cls_type, &spec, ctx)
@@ -1747,6 +1757,9 @@ fn complex_enum_variant_field_getter<'a>(
         text_signature: None,
         asyncness: None,
         unsafety: None,
+        warnings: vec![],
+        #[cfg(feature = "experimental-inspect")]
+        output: syn::ReturnType::Type(Token![->](field_span), Box::new(variant_cls_type.clone())),
     };
 
     let property_type = crate::pymethod::PropertyType::Function {
@@ -2003,7 +2016,6 @@ fn pyclass_hash(
             options.eq.is_some(), options.hash.span() => "The `hash` option requires the `eq` option.";
         );
     }
-    // FIXME: Use hash.map(...).unzip() on MSRV >= 1.66
     match options.hash {
         Some(opt) => {
             let mut hash_impl = parse_quote_spanned! { opt.span() =>
@@ -2133,11 +2145,26 @@ impl<'a> PyClassImplsBuilder<'a> {
     fn impl_extractext(&self, ctx: &Ctx) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
         let cls = self.cls;
+
+        let input_type = if cfg!(feature = "experimental-inspect") {
+            let cls_name = get_class_python_name(cls, self.attr).to_string();
+            let full_name = if let Some(ModuleAttribute { value, .. }) = &self.attr.options.module {
+                let value = value.value();
+                format!("{value}.{cls_name}")
+            } else {
+                cls_name
+            };
+            quote! { const INPUT_TYPE: &'static str = #full_name; }
+        } else {
+            quote! {}
+        };
         if self.attr.options.frozen.is_some() {
             quote! {
                 impl<'a, 'py> #pyo3_path::impl_::extract_argument::PyFunctionArgument<'a, 'py, false> for &'a #cls
                 {
                     type Holder = ::std::option::Option<#pyo3_path::PyRef<'py, #cls>>;
+
+                    #input_type
 
                     #[inline]
                     fn extract(obj: &'a #pyo3_path::Bound<'py, #pyo3_path::PyAny>, holder: &'a mut Self::Holder) -> #pyo3_path::PyResult<Self> {
@@ -2151,6 +2178,8 @@ impl<'a> PyClassImplsBuilder<'a> {
                 {
                     type Holder = ::std::option::Option<#pyo3_path::PyRef<'py, #cls>>;
 
+                    #input_type
+
                     #[inline]
                     fn extract(obj: &'a #pyo3_path::Bound<'py, #pyo3_path::PyAny>, holder: &'a mut Self::Holder) -> #pyo3_path::PyResult<Self> {
                         #pyo3_path::impl_::extract_argument::extract_pyclass_ref(obj, holder)
@@ -2160,6 +2189,8 @@ impl<'a> PyClassImplsBuilder<'a> {
                 impl<'a, 'py> #pyo3_path::impl_::extract_argument::PyFunctionArgument<'a, 'py, false> for &'a mut #cls
                 {
                     type Holder = ::std::option::Option<#pyo3_path::PyRefMut<'py, #cls>>;
+
+                    #input_type
 
                     #[inline]
                     fn extract(obj: &'a #pyo3_path::Bound<'py, #pyo3_path::PyAny>, holder: &'a mut Self::Holder) -> #pyo3_path::PyResult<Self> {

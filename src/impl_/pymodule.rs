@@ -398,7 +398,7 @@ mod tests {
         static MODULE_DEF: ModuleDef =
             ModuleDef::new(ffi::c_str!("test_module"), ffi::c_str!("some doc"), &SLOTS);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module = MODULE_DEF.make_module(py, false).unwrap().into_bound(py);
             assert_eq!(
                 module

@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 use pyo3::prelude::*;
 
 fn drop_many_objects(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         b.iter(|| {
             for _ in 0..1000 {
                 drop(py.None());
@@ -22,11 +22,11 @@ fn drop_many_objects(b: &mut Bencher<'_>) {
 
 fn drop_many_objects_without_gil(b: &mut Bencher<'_>) {
     b.iter_batched(
-        || Python::with_gil(|py| (0..1000).map(|_| py.None()).collect::<Vec<PyObject>>()),
+        || Python::attach(|py| (0..1000).map(|_| py.None()).collect::<Vec<PyObject>>()),
         |objs| {
             drop(objs);
 
-            Python::with_gil(|_py| ());
+            Python::attach(|_py| ());
         },
         BatchSize::SmallInput,
     );
@@ -68,7 +68,7 @@ fn drop_many_objects_multiple_threads(b: &mut Bencher<'_>) {
 
         for _ in 0..iters {
             for sender in &sender {
-                let objs = Python::with_gil(|py| {
+                let objs = Python::attach(|py| {
                     (0..1000 / THREADS)
                         .map(|_| py.None())
                         .collect::<Vec<PyObject>>()
@@ -82,7 +82,7 @@ fn drop_many_objects_multiple_threads(b: &mut Bencher<'_>) {
             let start = Instant::now();
 
             loop {
-                Python::with_gil(|_py| ());
+                Python::attach(|_py| ());
 
                 let done = done.load(Ordering::Acquire);
                 if done - last_done == THREADS {
@@ -91,7 +91,7 @@ fn drop_many_objects_multiple_threads(b: &mut Bencher<'_>) {
                 }
             }
 
-            Python::with_gil(|_py| ());
+            Python::attach(|_py| ());
 
             duration += start.elapsed();
         }

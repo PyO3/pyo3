@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_extract_bytearray_to_array() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v: [u8; 33] = py
                 .eval(
                     ffi::c_str!("bytearray(b'abcabcabcabcabcabcabcabcabcabcabc')"),
@@ -167,7 +167,7 @@ mod tests {
 
     #[test]
     fn test_extract_small_bytearray_to_array() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v: [u8; 3] = py
                 .eval(ffi::c_str!("bytearray(b'abc')"), None, None)
                 .unwrap()
@@ -178,7 +178,7 @@ mod tests {
     }
     #[test]
     fn test_into_pyobject_array_conversion() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let array: [f32; 4] = [0.0, -16.0, 16.0, 42.0];
             let pyobject = array.into_pyobject(py).unwrap();
             let pylist = pyobject.downcast::<PyList>().unwrap();
@@ -191,7 +191,7 @@ mod tests {
 
     #[test]
     fn test_extract_invalid_sequence_length() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v: PyResult<[u8; 3]> = py
                 .eval(ffi::c_str!("bytearray(b'abcdefg')"), None, None)
                 .unwrap()
@@ -205,7 +205,7 @@ mod tests {
 
     #[test]
     fn test_intopyobject_array_conversion() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let array: [f32; 4] = [0.0, -16.0, 16.0, 42.0];
             let pylist = array
                 .into_pyobject(py)
@@ -222,7 +222,7 @@ mod tests {
 
     #[test]
     fn test_array_intopyobject_impl() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes: [u8; 6] = *b"foobar";
             let obj = bytes.into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
@@ -237,7 +237,7 @@ mod tests {
 
     #[test]
     fn test_extract_non_iterable_to_array() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = py.eval(ffi::c_str!("42"), None, None).unwrap();
             v.extract::<i32>().unwrap();
             v.extract::<[i32; 1]>().unwrap_err();
@@ -250,7 +250,7 @@ mod tests {
         #[crate::pyclass(crate = "crate")]
         struct Foo;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let array: [Foo; 8] = [Foo, Foo, Foo, Foo, Foo, Foo, Foo, Foo];
             let list = array
                 .into_pyobject(py)

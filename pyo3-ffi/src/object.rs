@@ -49,7 +49,7 @@ pub struct PyObjectObFlagsAndRefcnt {
 pub union PyObjectObRefcnt {
     #[cfg(all(target_pointer_width = "64", Py_3_14))]
     pub ob_refcnt_full: crate::PY_INT64_T,
-    #[cfg(Py_3_14)]
+    #[cfg(all(target_pointer_width = "64", Py_3_14))]
     pub refcnt_and_flags: PyObjectObFlagsAndRefcnt,
     pub ob_refcnt: Py_ssize_t,
     #[cfg(all(target_pointer_width = "64", not(Py_3_14)))]
@@ -147,13 +147,13 @@ pub struct PyVarObject {
 // skipped private _PyVarObject_CAST
 
 #[inline]
-#[cfg(not(all(PyPy, Py_3_10)))]
+#[cfg(not(any(GraalPy, all(PyPy, Py_3_10))))]
 #[cfg_attr(docsrs, doc(cfg(all())))]
 pub unsafe fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int {
     (x == y).into()
 }
 
-#[cfg(all(PyPy, Py_3_10))]
+#[cfg(any(GraalPy, all(PyPy, Py_3_10)))]
 #[cfg_attr(docsrs, doc(cfg(all())))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPy_Is")]

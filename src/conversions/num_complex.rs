@@ -54,7 +54,7 @@
 //! # use pyo3::types::PyComplex;
 //! #
 //! # fn main() -> PyResult<()> {
-//! #     Python::with_gil(|py| -> PyResult<()> {
+//! #     Python::attach(|py| -> PyResult<()> {
 //! #         let module = PyModule::new(py, "my_module")?;
 //! #
 //! #         module.add_function(&wrap_pyfunction!(get_eigenvalues, module)?)?;
@@ -204,7 +204,7 @@ mod tests {
 
     #[test]
     fn from_complex() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let complex = Complex::new(3.0, 1.2);
             let py_c = PyComplex::from_complex_bound(py, complex);
             assert_eq!(py_c.real(), 3.0);
@@ -213,7 +213,7 @@ mod tests {
     }
     #[test]
     fn to_from_complex() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let val = Complex::new(3.0f64, 1.2);
             let obj = val.into_pyobject(py).unwrap();
             assert_eq!(obj.extract::<Complex<f64>>().unwrap(), val);
@@ -221,14 +221,14 @@ mod tests {
     }
     #[test]
     fn from_complex_err() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = vec![1i32].into_pyobject(py).unwrap();
             assert!(obj.extract::<Complex<f64>>().is_err());
         });
     }
     #[test]
     fn from_python_magic() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module = PyModule::from_code(
                 py,
                 c_str!(
@@ -268,7 +268,7 @@ class C:
     }
     #[test]
     fn from_python_inherited_magic() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module = PyModule::from_code(
                 py,
                 c_str!(
@@ -314,7 +314,7 @@ class C(First, IndexMixin): pass
         // Functions and lambdas implement the descriptor protocol in a way that makes
         // `type(inst).attr(inst)` equivalent to `inst.attr()` for methods, but this isn't the only
         // way the descriptor protocol might be implemented.
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module = PyModule::from_code(
                 py,
                 c_str!(
@@ -339,7 +339,7 @@ class A:
     #[test]
     fn from_python_nondescriptor_magic() {
         // Magic methods don't need to implement the descriptor protocol, if they're callable.
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module = PyModule::from_code(
                 py,
                 c_str!(

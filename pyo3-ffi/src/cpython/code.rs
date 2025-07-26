@@ -4,7 +4,7 @@ use crate::pyport::Py_ssize_t;
 #[cfg(not(GraalPy))]
 use std::os::raw::c_char;
 use std::os::raw::{c_int, c_void};
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(PyPy))]
 use std::ptr::addr_of_mut;
 
 // skipped private _PY_MONITORING_LOCAL_EVENTS
@@ -71,14 +71,14 @@ pub const CO_FUTURE_GENERATOR_STOP: c_int = 0x8_0000;
 
 pub const CO_MAXBLOCKS: usize = 20;
 
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(PyPy))]
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub static mut PyCode_Type: PyTypeObject;
 }
 
 #[inline]
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(PyPy))]
 pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == addr_of_mut!(PyCode_Type)) as c_int
 }

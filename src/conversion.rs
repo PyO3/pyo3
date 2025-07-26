@@ -47,6 +47,16 @@ pub trait IntoPyObject<'py>: Sized {
     /// The type returned in the event of a conversion error.
     type Error: Into<PyErr>;
 
+    /// Extracts the type hint information for this type when it appears as a return value.
+    ///
+    /// For example, `Vec<u32>` would return `List[int]`.
+    /// The default implementation returns `Any`, which is correct for any type.
+    ///
+    /// For most types, the return value for this method will be identical to that of [`FromPyObject::INPUT_TYPE`].
+    /// It may be different for some types, such as `Dict`, to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = "typing.Any";
+
     /// Performs the conversion.
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error>;
 
@@ -244,7 +254,7 @@ impl<'py, T> IntoPyObjectExt<'py> for T where T: IntoPyObject<'py> {}
 /// use pyo3::types::PyString;
 ///
 /// # fn main() -> PyResult<()> {
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     // Calling `.extract()` on a `Bound` smart pointer
 ///     let obj: Bound<'_, PyString> = PyString::new(py, "blah");
 ///     let s: String = obj.extract()?;
@@ -277,6 +287,13 @@ impl<'py, T> IntoPyObjectExt<'py> for T where T: IntoPyObject<'py> {}
 /// infinite recursion, implementors must implement at least one of these methods. The recommendation
 /// is to implement `extract_bound` and leave `extract` as the default implementation.
 pub trait FromPyObject<'py>: Sized {
+    /// Provides the type hint information for this type when it appears as an argument.
+    ///
+    /// For example, `Vec<u32>` would be `collections.abc.Sequence[int]`.
+    /// The default value is `typing.Any`, which is correct for any type.
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "typing.Any";
+
     /// Extracts `Self` from the bound smart pointer `obj`.
     ///
     /// Implementors are encouraged to implement this method and leave `extract` defaulted, as
@@ -339,6 +356,13 @@ mod from_py_object_bound_sealed {
 /// Similarly, users should typically not call these trait methods and should instead
 /// use this via the `extract` method on `Bound` and `Py`.
 pub trait FromPyObjectBound<'a, 'py>: Sized + from_py_object_bound_sealed::Sealed {
+    /// Provides the type hint information for this type when it appears as an argument.
+    ///
+    /// For example, `Vec<u32>` would be `collections.abc.Sequence[int]`.
+    /// The default value is `typing.Any`, which is correct for any type.
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "typing.Any";
+
     /// Extracts `Self` from the bound smart pointer `obj`.
     ///
     /// Users are advised against calling this method directly: instead, use this via
@@ -363,6 +387,9 @@ impl<'py, T> FromPyObjectBound<'_, 'py> for T
 where
     T: FromPyObject<'py>,
 {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = T::INPUT_TYPE;
+
     fn from_py_object_bound(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         Self::extract_bound(&ob)
     }
@@ -421,7 +448,7 @@ impl<'py> IntoPyObject<'py> for () {
 ///
 /// let t = TestClass { num: 10 };
 ///
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let pyvalue = Py::new(py, t).unwrap().to_object(py);
 ///     let t: TestClass = pyvalue.extract(py).unwrap();
 /// })

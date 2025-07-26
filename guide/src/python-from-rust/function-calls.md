@@ -26,7 +26,7 @@ fn main() -> PyResult<()> {
     let arg2 = "arg2";
     let arg3 = "arg3";
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let fun: Py<PyAny> = PyModule::from_code(
             py,
             c_str!("def example(*args, **kwargs):
@@ -36,7 +36,7 @@ fn main() -> PyResult<()> {
                     print('called with kwargs', kwargs)
                 if args == () and kwargs == {}:
                     print('called with no arguments')"),
-            c_str!(""),
+            c_str!("example.py"),
             c_str!(""),
         )?
         .getattr("example")?
@@ -73,7 +73,7 @@ fn main() -> PyResult<()> {
     let key2 = "key2";
     let val2 = 2;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let fun: Py<PyAny> = PyModule::from_code(
             py,
             c_str!("def example(*args, **kwargs):
@@ -83,7 +83,7 @@ fn main() -> PyResult<()> {
                     print('called with kwargs', kwargs)
                 if args == () and kwargs == {}:
                     print('called with no arguments')"),
-            c_str!(""),
+            c_str!("example.py"),
             c_str!(""),
         )?
         .getattr("example")?

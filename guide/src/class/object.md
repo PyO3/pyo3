@@ -4,6 +4,7 @@ Recall the `Number` class from the previous chapter:
 
 ```rust,no_run
 # #![allow(dead_code)]
+# fn main() {}
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -18,9 +19,9 @@ impl Number {
 }
 
 #[pymodule]
-fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<Number>()?;
-    Ok(())
+mod my_module {
+    #[pymodule_export]
+    use super::Number;
 }
 ```
 
@@ -77,8 +78,8 @@ To automatically generate the `__str__` implementation using a `Display` trait i
 # use pyo3::prelude::*;
 #
 # #[allow(dead_code)]
-# #[pyclass(str)]
-# struct Coordinate {
+#[pyclass(str)]
+struct Coordinate {
     x: i32,
     y: i32,
     z: i32,
@@ -104,8 +105,8 @@ For convenience, a shorthand format string can be passed to `str` as `str="<form
 # use pyo3::prelude::*;
 #
 # #[allow(dead_code)]
-# #[pyclass(str="({x}, {y}, {z})")]
-# struct Coordinate {
+#[pyclass(str="({x}, {y}, {z})")]
+struct Coordinate {
     x: i32,
     y: i32,
     z: i32,
@@ -133,7 +134,7 @@ impl Number {
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         // This is the equivalent of `self.__class__.__name__` in Python.
         let class_name: Bound<'_, PyString> = slf.get_type().qualname()?;
-        // To access fields of the Rust struct, we need to borrow the `PyCell`.
+        // To access fields of the Rust struct, we need to borrow from the Bound object.
         Ok(format!("{}({})", class_name, slf.borrow().0))
     }
 }
@@ -277,7 +278,7 @@ impl Number {
 }
 
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let x = &Bound::new(py, Number(4))?;
 #         let y = &Bound::new(py, Number(4))?;
 #         assert!(x.eq(y)?);
@@ -331,6 +332,7 @@ impl Number {
 ### Final code
 
 ```rust,no_run
+# fn main() {}
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
@@ -380,9 +382,9 @@ impl Number {
 }
 
 #[pymodule]
-fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<Number>()?;
-    Ok(())
+mod my_module {
+    #[pymodule_export]
+    use super::Number;
 }
 ```
 

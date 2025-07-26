@@ -102,8 +102,11 @@ impl<'py> IntoPyObject<'py> for &f64 {
 }
 
 impl<'py> FromPyObject<'py> for f64 {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "float";
+
     // PyFloat_AsDouble returns -1.0 upon failure
-    #![allow(clippy::float_cmp)]
+    #[allow(clippy::float_cmp)]
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         // On non-limited API, .value() uses PyFloat_AS_DOUBLE which
         // allows us to have an optimized fast path for the case when
@@ -164,6 +167,9 @@ impl<'py> IntoPyObject<'py> for &f32 {
 }
 
 impl<'py> FromPyObject<'py> for f32 {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = "float";
+
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         Ok(obj.extract::<f64>()? as f32)
     }
@@ -265,7 +271,7 @@ mod tests {
             fn $func_name() {
                 use assert_approx_eq::assert_approx_eq;
 
-                Python::with_gil(|py| {
+                Python::attach(|py| {
 
                 let val = 123 as $t1;
                 let obj = val.into_pyobject(py).unwrap();
@@ -283,7 +289,7 @@ mod tests {
     fn test_float_value() {
         use assert_approx_eq::assert_approx_eq;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = 1.23f64;
             let obj = PyFloat::new(py, 1.23);
             assert_approx_eq!(v, obj.value());
@@ -292,7 +298,7 @@ mod tests {
 
     #[test]
     fn test_pyfloat_comparisons() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let f_64 = 1.01f64;
             let py_f64 = PyFloat::new(py, 1.01);
             let py_f64_ref = &py_f64;

@@ -46,8 +46,7 @@ jobs:
           python-version: ${{ inputs.python-version }}
           architecture: ${{ inputs.python-architecture }}
           # PyPy can have FFI changes within Python versions, which creates pain in CI
-          # 3.13.2 also had an ABI break so temporarily add this for 3.13 to ensure that we're using 3.13.3
-          check-latest: ${{ startsWith(inputs.python-version, 'pypy') || startsWith(inputs.python-version, '3.13') }}
+          check-latest: ${{ startsWith(inputs.python-version, 'pypy') }}
 
       - name: Install nox
         run: python -m pip install --upgrade pip && pip install nox
@@ -68,6 +67,14 @@ jobs:
         shell: bash
         run: |
           echo "CARGO_BUILD_TARGET=i686-pc-windows-msvc" >> $GITHUB_ENV
+
+      # windows on arm image contains x86-64 libclang
+      - name: Install LLVM and Clang
+        if: inputs.os == 'windows-11-arm'
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          # to match windows-2022 images
+          version: "18"
 
       - name: Install zoneinfo backport for Python 3.7 / 3.8
         if: contains(fromJSON('["3.7", "3.8"]'), inputs.python-version)
@@ -103,6 +110,9 @@ jobs:
               - '.github/workflows/build.yml'
 
       - name: Run pyo3-ffi-check
+        # Python 3.13.4 has an issue on Windows where the headers are configured to always be free-threaded
+        # https://discuss.python.org/t/heads-up-3-13-5-release-coming-soon/94535
+        continue-on-error: ${{ inputs.python-version == '3.13' && (inputs.os == 'windows-latest' || inputs.os == 'windows-11-arm') }}
         # pypy 3.9 on windows is not PEP 3123 compliant, nor is graalpy
         if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows'))) }}
         run: nox -s ffi-check
@@ -132,6 +142,8 @@ jobs:
 
       - if: ${{ github.event_name != 'merge_group' }}
         name: Generate coverage report
+        # needs investigation why llvm-cov fails on windows-11-arm
+        continue-on-error: ${{ inputs.os == 'windows-11-arm' }}
         run: cargo llvm-cov
           --package=pyo3
           --package=pyo3-build-config
@@ -143,6 +155,8 @@ jobs:
       - if: ${{ github.event_name != 'merge_group' }}
         name: Upload coverage report
         uses: codecov/codecov-action@v5
+        # needs investigation why llvm-cov fails on windows-11-arm
+        continue-on-error: ${{ inputs.os == 'windows-11-arm' }}
         with:
           files: coverage.json
           name: ${{ inputs.os }}/${{ inputs.python-version }}/${{ inputs.rust }}

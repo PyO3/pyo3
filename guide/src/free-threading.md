@@ -119,16 +119,22 @@ free-threaded build.
 
 ## Special considerations for the free-threaded build
 
-The free-threaded interpreter does not have a GIL, and this can make interacting
-with the PyO3 API confusing, since the API was originally designed around strong
-assumptions about the GIL providing locking.  Additionally, since the GIL
-provided locking for operations on Python objects, many existing extensions that
-provide mutable data structures relied on the GIL to make interior mutability
-thread-safe.
+The free-threaded interpreter does not have a GIL. Many existing extensions
+providing mutable data structures relied on the GIL provided locking for
+operations on Python objects, to make interior mutability thread-safe.
+Historically PyO3s API was designed around the same strong assumptions, but is
+transitioning towards more general APIs applicable for both builds.
 
-Working with PyO3 under the free-threaded interpreter therefore requires some
-additional care and mental overhead compared with a GIL-enabled interpreter. We
-discuss how to handle this below.
+Working with PyO3 under the free-threaded interpreter requires some additional
+care and mental overhead compared with a GIL-enabled interpreter. Most notable
+it is still neccessary to be attached (via [`Python::attach`]) to the Python
+interpreter to perform any operation on Python objects. PyO3 models this the
+same way as in GIL-enabled builds using the `Python` token, but unlike in
+GIL-enabled builds it does not provide exclusive access anymore. Additionally it
+is also still neccessary to detach (via [`Python::detach`]) from the interpreter
+for possibly long running oprations that don't interact with the interpreter,
+even though other Python threads are still able to run. Both operations are
+explained in more details below.
 
 ### Many symbols exposed by PyO3 have `GIL` in the name
 
@@ -136,8 +142,7 @@ We are aware that there are some naming issues in the PyO3 API that make it
 awkward to think about a runtime environment where there is no GIL. We plan to
 change the names of these types to de-emphasize the role of the GIL in future
 versions of PyO3, but for now you should remember that the use of the term `GIL`
-in functions and types like [`Python::with_gil`] and [`GILOnceCell`] is
-historical.
+in functions and types like [`GILOnceCell`] is historical.
 
 Instead, you should think about whether or not a Rust thread is attached to a
 Python interpreter runtime. Calling into the CPython C API is only legal when an
@@ -148,7 +153,7 @@ GIL-enabled build instead ask the interpreter to attach the thread to the Python
 runtime, and there can be many threads simultaneously attached. See [PEP
 703](https://peps.python.org/pep-0703/#thread-states) for more background about
 how threads can be attached and detached from the interpreter runtime, in a
-manner analagous to releasing and acquiring the GIL in the GIL-enabled build.
+manner analogous to releasing and acquiring the GIL in the GIL-enabled build.
 
 In the GIL-enabled build, PyO3 uses the [`Python<'py>`] type and the `'py`
 lifetime to signify that the global interpreter lock is held. In the
@@ -158,7 +163,7 @@ simultaneously interacting with the interpreter.
 
 You still need to obtain a `'py` lifetime is to interact with Python
 objects or call into the CPython C API. If you are not yet attached to the
-Python runtime, you can register a thread using the [`Python::with_gil`]
+Python runtime, you can register a thread using the [`Python::attach`]
 function. Threads created via the Python [`threading`] module do not not need to
 do this, and pyo3 will handle setting up the [`Python<'py>`] token when CPython
 calls into your extension.
@@ -180,7 +185,7 @@ This is a non-exhaustive list and there may be other situations in future Python
 versions that can trigger global synchronization events.
 
 This means that you should detach from the interpreter runtime using
-[`Python::allow_threads`] in exactly the same situations as you should detach
+[`Python::detach`] in exactly the same situations as you should detach
 from the runtime in the GIL-enabled build: when doing long-running tasks that do
 not require the CPython runtime or when doing any task that needs to re-attach
 to the runtime (see the [guide
@@ -197,7 +202,7 @@ Data attached to `pyclass` instances is protected from concurrent access by a
 `RefCell`-like pattern of runtime borrow checking. Like a `RefCell`, PyO3 will
 raise exceptions (or in some cases panic) to enforce exclusive access for
 mutable borrows. It was always possible to generate panics like this in PyO3 in
-code that releases the GIL with [`Python::allow_threads`] or calling a python
+code that releases the GIL with [`Python::detach`] or calling a python
 method accepting `&self` from a `&mut self` (see [the docs on interior
 mutability](./class.md#bound-and-interior-mutability),) but now in free-threaded
 Python there are more opportunities to trigger these panics from Python because
@@ -289,7 +294,7 @@ GIL-enabled build.
 
 If, for example, the function executed by [`GILOnceCell`] releases the GIL or
 calls code that releases the GIL, then it is possible for multiple threads to
-race to initialize the cell. While the cell will only ever be intialized
+race to initialize the cell. While the cell will only ever be initialized
 once, it can be problematic in some contexts that [`GILOnceCell`] does not block
 like the standard library [`OnceLock`].
 
@@ -322,7 +327,7 @@ let mut cache = RuntimeCache {
     cache: None
 };
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     // guaranteed to be called once and only once
     cache.once.call_once_py_attached(py, || {
         cache.cache = Some(PyDict::new(py).unbind());
@@ -353,7 +358,7 @@ use std::cell::RefCell;
 static OBJECTS: GILProtected<RefCell<Vec<Py<PyDict>>>> =
     GILProtected::new(RefCell::new(Vec::new()));
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     // stand-in for something that executes arbitrary Python code
     let d = PyDict::new(py);
     d.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
@@ -372,7 +377,7 @@ use std::sync::Mutex;
 
 static OBJECTS: Mutex<Vec<Py<PyDict>>> = Mutex::new(Vec::new());
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     // stand-in for something that executes arbitrary Python code
     let d = PyDict::new(py);
     d.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
@@ -393,16 +398,16 @@ interpreter.
 [`GILProtected`]: https://docs.rs/pyo3/0.22/pyo3/sync/struct.GILProtected.html
 [`MutexExt`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.MutexExt.html
 [`Once`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html
-[`Once::call_once`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html#tymethod.call_once
-[`Once::call_once_force`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html#tymethod.call_once_force
+[`Once::call_once`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html#method.call_once
+[`Once::call_once_force`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html#method.call_once_force
 [`OnceExt`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html
 [`OnceExt::call_once_py_attached`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html#tymethod.call_once_py_attached
 [`OnceExt::call_once_force_py_attached`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html#tymethod.call_once_force_py_attached
 [`OnceLockExt`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceLockExt.html
 [`OnceLockExt::get_or_init_py_attached`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceLockExt.html#tymethod.get_or_init_py_attached
 [`OnceLock`]: https://doc.rust-lang.org/stable/std/sync/struct.OnceLock.html
-[`OnceLock::get_or_init`]: https://doc.rust-lang.org/stable/std/sync/struct.OnceLock.html#tymethod.get_or_init
-[`Python::allow_threads`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.allow_threads
-[`Python::with_gil`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.with_gil
+[`OnceLock::get_or_init`]: https://doc.rust-lang.org/stable/std/sync/struct.OnceLock.html#method.get_or_init
+[`Python::detach`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.detach
+[`Python::attach`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.attach
 [`Python<'py>`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html
 [`threading`]: https://docs.python.org/3/library/threading.html
