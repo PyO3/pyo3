@@ -1,4 +1,3 @@
-#[cfg(not(Py_LIMITED_API))]
 use crate::exceptions::PyUnicodeDecodeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
@@ -204,8 +203,8 @@ impl PyString {
         encoding: Option<&CStr>,
         errors: Option<&CStr>,
     ) -> PyResult<Bound<'py, PyString>> {
-        let encoding = encoding.map_or_else(|| std::ptr::null(), CStr::as_ptr);
-        let errors = errors.map_or_else(|| std::ptr::null(), CStr::as_ptr);
+        let encoding = encoding.map_or(std::ptr::null(), CStr::as_ptr);
+        let errors = errors.map_or(std::ptr::null(), CStr::as_ptr);
         // Safety:
         // - `src` is a valid Python object
         // - `encoding` and `errors` are either null or valid C strings. `encoding` and `errors` are
