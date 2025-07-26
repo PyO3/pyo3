@@ -63,9 +63,12 @@ pyobject_native_type_core!(PyTuple, pyobject_native_static_type_object!(ffi::PyT
 impl PyTuple {
     /// Constructs a new tuple with the given elements.
     ///
-    /// If you want to create a [`PyTuple`] with elements of different or unknown types, or from an
-    /// iterable that doesn't implement [`ExactSizeIterator`], create a Rust tuple with the given
-    /// elements and convert it at once using `into_py`.
+    /// If you want to create a [`PyTuple`] with elements of different or unknown types, create a Rust
+    /// tuple with the given elements and convert it at once using [`into_pyobject()`][crate::IntoPyObject].
+    /// (`IntoPyObject` is implemented for tuples of up to 12 elements.)
+    ///
+    /// To create a [`PyTuple`] from an iterable that doesn't implement [`ExactSizeIterator`],
+    /// collect the elements into a `Vec` first.
     ///
     /// # Examples
     ///
@@ -78,6 +81,10 @@ impl PyTuple {
     ///     let elements: Vec<i32> = vec![0, 1, 2, 3, 4, 5];
     ///     let tuple = PyTuple::new(py, elements)?;
     ///     assert_eq!(format!("{:?}", tuple), "(0, 1, 2, 3, 4, 5)");
+    ///
+    ///     // alternative using `into_pyobject()`
+    ///     let tuple = (0, "hello", true).into_pyobject(py)?;
+    ///     assert_eq!(format!("{:?}", tuple), "(0, 'hello', True)");
     /// # Ok(())
     /// })
     /// # }
