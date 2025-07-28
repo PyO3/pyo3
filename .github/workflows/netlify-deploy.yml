@@ -36,9 +36,6 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Debug workflow run
-        run: echo ${{ toJSON(github.event.workflow_run) }}
-
       - name: Get PR metadata
         id: pr_metadata
         run: |
