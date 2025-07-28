@@ -36,15 +36,6 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Debug workflow run
-        run: echo ${{ toJSON(github.event.workflow_run) }}
-
-      - name: Get PR metadata
-        id: pr_metadata
-        run: |
-          echo "pr_number=$(cat .metadata/pr_number)" >> $GITHUB_OUTPUT
-          echo "pr_head_sha=$(cat .metadata/pr_head_sha)" >> $GITHUB_OUTPUT
-
       - name: Install netlify-cli
         run: |
           npm install -g netlify-cli
@@ -55,26 +46,25 @@ jobs:
           DEBUG=* netlify deploy \
               --site ${{ secrets.NETLIFY_SITE_ID }} \
               --auth ${{ secrets.NETLIFY_TOKEN }} \
-              ${{ steps.pr_metadata.outputs.pr_number == '' && '--prod' || '' }} \
+              ${{ ((github.event.workflow_run.head_repository.full_name == 'PyO3/pyo3') && (github.event.workflow_run.head_branch == 'main') && '--prod') || '' }} \
               --json | tee deploy_output.json
 
       # credit: https://www.raulmelo.me/en/blog/deploying-netlify-github-actions-guide
       - name: Generate URL Preview
         id: url_preview
-        if: ${{ steps.pr_metadata.outputs.pr_head_sha != '' }}
+        if: ${{ github.event.workflow_run.event == 'pull_request' }}
         run: |
           NETLIFY_PREVIEW_URL=$(jq -r '.deploy_url' deploy_output.json)
           echo "NETLIFY_PREVIEW_URL=$NETLIFY_PREVIEW_URL" >> "$GITHUB_OUTPUT"
 
       - name: Post Netlify Preview Status to PR
-        if: ${{ steps.pr_metadata.outputs.pr_head_sha != '' }}
+        if: ${{ github.event.workflow_run.event == 'pull_request' }}
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const prNumber = Number('${{ steps.pr_metadata.outputs.pr_number }}');
             const previewUrl = '${{ steps.url_preview.outputs.NETLIFY_PREVIEW_URL }}';
-            const commitSha = '${{ steps.pr_metadata.outputs.pr_head_sha }}';
+            const commitSha = '${{ github.event.workflow_run.head_sha }}';
 
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
