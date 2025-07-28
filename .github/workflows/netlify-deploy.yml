@@ -28,14 +28,6 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Download PR Metadata
-        uses: actions/download-artifact@v4
-        with:
-          name: metadata
-          path: .metadata
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
-
       - name: Install netlify-cli
         run: |
           npm install -g netlify-cli
