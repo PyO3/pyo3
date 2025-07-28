@@ -36,8 +36,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Debug head branch
-        run: echo ${{ github.event.workflow_run.head_branch }}
+      - name: Debug workflow run
+        run: echo ${{ toJSON(github.event.workflow_run) }}
 
       - name: Get PR metadata
         id: pr_metadata
@@ -82,6 +82,6 @@ jobs:
               sha: commitSha,
               state: 'success',
               target_url: previewUrl,
-              description: 'Netlify Preview',
-              context: 'netlify/preview'
+              description: 'click to view Netlify preview deploy',
+              context: 'netlify-deploy / preview'
             });
