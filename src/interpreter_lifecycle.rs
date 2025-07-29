@@ -97,7 +97,7 @@ pub(crate) fn ensure_initialized() {
     //  - Otherwise, just check the interpreter is initialized.
     #[cfg(all(feature = "auto-initialize", not(any(PyPy, GraalPy))))]
     {
-        Python::initialize();
+        initialize();
     }
     #[cfg(not(all(feature = "auto-initialize", not(any(PyPy, GraalPy)))))]
     {
@@ -107,7 +107,7 @@ pub(crate) fn ensure_initialized() {
         // provide a mechanism to specify required features for tests.
         #[cfg(not(any(PyPy, GraalPy)))]
         if option_env!("CARGO_PRIMARY_PACKAGE").is_some() {
-            Python::initialize();
+            initialize();
         }
 
         START.call_once_force(|_| unsafe {
