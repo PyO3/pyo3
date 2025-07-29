@@ -345,7 +345,7 @@ pub use crate::conversion::{FromPyObject, IntoPyObject, IntoPyObjectExt};
 pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
 pub use crate::instance::{Borrowed, Bound, BoundObject, Py, PyObject};
 #[cfg(not(any(PyPy, GraalPy)))]
-pub use crate::interpreter_lifecycle::{initialize_python, with_embedded_python_interpreter};
+pub use crate::interpreter_lifecycle::with_embedded_python_interpreter;
 pub use crate::marker::Python;
 pub use crate::pycell::{PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;
