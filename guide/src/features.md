@@ -45,7 +45,7 @@ section for further detail.
 
 ### `auto-initialize`
 
-This feature changes [`Python::attach`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.attach) to automatically initialize a Python interpreter (by calling [`Python::initialize`]({{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.initialize)) if needed.
+This feature changes [`Python::attach`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.attach) to automatically initialize a Python interpreter (by calling [`Python::initialize`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.initialize)) if needed.
 
 If you do not enable this feature, you should call `Python::initialize()` before attempting to call any other Python APIs.
 

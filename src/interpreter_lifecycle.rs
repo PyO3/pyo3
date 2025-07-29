@@ -4,53 +4,27 @@ use crate::{ffi, internal::state::AttachGuard, Python};
 static START: std::sync::Once = std::sync::Once::new();
 
 #[cfg(not(any(PyPy, GraalPy)))]
-impl Python<'_> {
-    /// Prepares the use of Python.
-    ///
-    /// If the Python interpreter is not already initialized, this function will initialize it with
-    /// signal handling disabled (Python will not raise the `KeyboardInterrupt` exception). Python
-    /// signal handling depends on the notion of a 'main thread', which must be the thread that
-    /// initializes the Python interpreter.
-    ///
-    /// If the Python interpreter is already initialized, this function has no effect.
-    ///
-    /// This function is unavailable under PyPy because PyPy cannot be embedded in Rust (or any other
-    /// software). Support for this is tracked on the
-    /// [PyPy issue tracker](https://github.com/pypy/pypy/issues/3836).
-    ///
-    /// # Examples
-    /// ```rust
-    /// use pyo3::prelude::*;
-    ///
-    /// # fn main() -> PyResult<()> {
-    /// Python::initialize();
-    /// Python::attach(|py| py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None))
-    /// # }
-    /// ```
-    pub fn initialize() {
-        // Protect against race conditions when Python is not yet initialized and multiple threads
-        // concurrently call 'initialize()'. Note that we do not protect against
-        // concurrent initialization of the Python runtime by other users of the Python C API.
-        START.call_once_force(|_| unsafe {
-            // Use call_once_force because if initialization panics, it's okay to try again.
-            if ffi::Py_IsInitialized() == 0 {
-                ffi::Py_InitializeEx(0);
+pub(crate) fn initialize() {
+    // Protect against race conditions when Python is not yet initialized and multiple threads
+    // concurrently call 'initialize()'. Note that we do not protect against
+    // concurrent initialization of the Python runtime by other users of the Python C API.
+    START.call_once_force(|_| unsafe {
+        // Use call_once_force because if initialization panics, it's okay to try again.
+        if ffi::Py_IsInitialized() == 0 {
+            ffi::Py_InitializeEx(0);
 
-                // Release the GIL.
-                ffi::PyEval_SaveThread();
-            }
-        });
-    }
+            // Release the GIL.
+            ffi::PyEval_SaveThread();
+        }
+    });
 }
 
 /// See [Python::initialize]
 #[cfg(not(any(PyPy, GraalPy)))]
 #[inline]
-#[track_caller]
-#[allow(dead_code)]
 #[deprecated(note = "use `Python::initialize` instead", since = "0.26.0")]
 pub fn prepare_freethreaded_python() {
-    Python::initialize();
+    initialize();
 }
 
 /// Executes the provided closure with an embedded Python interpreter.

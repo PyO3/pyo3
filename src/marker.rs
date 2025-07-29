@@ -419,6 +419,33 @@ impl Python<'_> {
         f(guard.python())
     }
 
+    /// Prepares the use of Python.
+    ///
+    /// If the Python interpreter is not already initialized, this function will initialize it with
+    /// signal handling disabled (Python will not raise the `KeyboardInterrupt` exception). Python
+    /// signal handling depends on the notion of a 'main thread', which must be the thread that
+    /// initializes the Python interpreter.
+    ///
+    /// If the Python interpreter is already initialized, this function has no effect.
+    ///
+    /// This function is unavailable under PyPy because PyPy cannot be embedded in Rust (or any other
+    /// software). Support for this is tracked on the
+    /// [PyPy issue tracker](https://github.com/pypy/pypy/issues/3836).
+    ///
+    /// # Examples
+    /// ```rust
+    /// use pyo3::prelude::*;
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::initialize();
+    /// Python::attach(|py| py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None))
+    /// # }
+    /// ```
+    #[cfg(not(any(PyPy, GraalPy)))]
+    pub fn initialize() {
+        crate::interpreter_lifecycle::initialize();
+    }
+
     /// Like [`Python::attach`] except Python interpreter state checking is skipped.
     ///
     /// Normally when the GIL is acquired, we check that the Python interpreter is an
