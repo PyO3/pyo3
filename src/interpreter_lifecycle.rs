@@ -3,6 +3,7 @@ use crate::{ffi, internal::state::AttachGuard, Python};
 
 static START: std::sync::Once = std::sync::Once::new();
 
+#[cfg(not(any(PyPy, GraalPy)))]
 impl Python<'_> {
     /// Prepares the use of Python.
     ///
@@ -26,7 +27,6 @@ impl Python<'_> {
     /// Python::attach(|py| py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None))
     /// # }
     /// ```
-    #[cfg(not(any(PyPy, GraalPy)))]
     pub fn initialize() {
         // Protect against race conditions when Python is not yet initialized and multiple threads
         // concurrently call 'initialize()'. Note that we do not protect against
