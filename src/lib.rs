@@ -423,6 +423,7 @@ pub mod coroutine;
 mod err;
 pub mod exceptions;
 pub mod ffi;
+pub mod fmt;
 #[doc(hidden)]
 pub mod impl_;
 mod instance;
