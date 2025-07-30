@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::function_introspection_code;
 #[cfg(feature = "experimental-inspect")]
@@ -122,73 +123,78 @@ pub fn impl_methods(
 
     let mut implemented_proto_fragments = HashSet::new();
 
-    for iimpl in impls {
-        match iimpl {
-            syn::ImplItem::Fn(meth) => {
-                let ctx = &Ctx::new(&options.krate, Some(&meth.sig));
-                let mut fun_options = PyFunctionOptions::from_attrs(&mut meth.attrs)?;
-                fun_options.krate = fun_options.krate.or_else(|| options.krate.clone());
+    let _: Vec<()> = impls
+        .iter_mut()
+        .map(|iimpl| {
+            match iimpl {
+                syn::ImplItem::Fn(meth) => {
+                    let ctx = &Ctx::new(&options.krate, Some(&meth.sig));
+                    let mut fun_options = PyFunctionOptions::from_attrs(&mut meth.attrs)?;
+                    fun_options.krate = fun_options.krate.or_else(|| options.krate.clone());
 
-                check_pyfunction(&ctx.pyo3_path, meth)?;
-                let method = PyMethod::parse(&mut meth.sig, &mut meth.attrs, fun_options)?;
-                #[cfg(feature = "experimental-inspect")]
-                extra_fragments.push(method_introspection_code(&method.spec, ty, ctx));
-                match pymethod::gen_py_method(ty, method, &meth.attrs, ctx)? {
-                    GeneratedPyMethod::Method(MethodAndMethodDef {
-                        associated_method,
-                        method_def,
-                    }) => {
-                        let attrs = get_cfg_attributes(&meth.attrs);
-                        associated_methods.push(quote!(#(#attrs)* #associated_method));
+                    check_pyfunction(&ctx.pyo3_path, meth)?;
+                    let method = PyMethod::parse(&mut meth.sig, &mut meth.attrs, fun_options)?;
+                    #[cfg(feature = "experimental-inspect")]
+                    extra_fragments.push(method_introspection_code(&method.spec, ty, ctx));
+                    match pymethod::gen_py_method(ty, method, &meth.attrs, ctx)? {
+                        GeneratedPyMethod::Method(MethodAndMethodDef {
+                            associated_method,
+                            method_def,
+                        }) => {
+                            let attrs = get_cfg_attributes(&meth.attrs);
+                            associated_methods.push(quote!(#(#attrs)* #associated_method));
+                            methods.push(quote!(#(#attrs)* #method_def));
+                        }
+                        GeneratedPyMethod::SlotTraitImpl(method_name, token_stream) => {
+                            implemented_proto_fragments.insert(method_name);
+                            let attrs = get_cfg_attributes(&meth.attrs);
+                            extra_fragments.push(quote!(#(#attrs)* #token_stream));
+                        }
+                        GeneratedPyMethod::Proto(MethodAndSlotDef {
+                            associated_method,
+                            slot_def,
+                        }) => {
+                            let attrs = get_cfg_attributes(&meth.attrs);
+                            proto_impls.push(quote!(#(#attrs)* #slot_def));
+                            associated_methods.push(quote!(#(#attrs)* #associated_method));
+                        }
+                    }
+                }
+                syn::ImplItem::Const(konst) => {
+                    let ctx = &Ctx::new(&options.krate, None);
+                    let attributes = ConstAttributes::from_attrs(&mut konst.attrs)?;
+                    if attributes.is_class_attr {
+                        let spec = ConstSpec {
+                            rust_ident: konst.ident.clone(),
+                            attributes,
+                        };
+                        let attrs = get_cfg_attributes(&konst.attrs);
+                        let MethodAndMethodDef {
+                            associated_method,
+                            method_def,
+                        } = gen_py_const(ty, &spec, ctx);
                         methods.push(quote!(#(#attrs)* #method_def));
-                    }
-                    GeneratedPyMethod::SlotTraitImpl(method_name, token_stream) => {
-                        implemented_proto_fragments.insert(method_name);
-                        let attrs = get_cfg_attributes(&meth.attrs);
-                        extra_fragments.push(quote!(#(#attrs)* #token_stream));
-                    }
-                    GeneratedPyMethod::Proto(MethodAndSlotDef {
-                        associated_method,
-                        slot_def,
-                    }) => {
-                        let attrs = get_cfg_attributes(&meth.attrs);
-                        proto_impls.push(quote!(#(#attrs)* #slot_def));
                         associated_methods.push(quote!(#(#attrs)* #associated_method));
+                        if is_proto_method(&spec.python_name().to_string()) {
+                            // If this is a known protocol method e.g. __contains__, then allow this
+                            // symbol even though it's not an uppercase constant.
+                            konst
+                                .attrs
+                                .push(syn::parse_quote!(#[allow(non_upper_case_globals)]));
+                        }
                     }
                 }
+                syn::ImplItem::Macro(m) => bail_spanned!(
+                    m.span() =>
+                    "macros cannot be used as items in `#[pymethods]` impl blocks\n\
+                    = note: this was previously accepted and ignored"
+                ),
+                _ => {}
             }
-            syn::ImplItem::Const(konst) => {
-                let ctx = &Ctx::new(&options.krate, None);
-                let attributes = ConstAttributes::from_attrs(&mut konst.attrs)?;
-                if attributes.is_class_attr {
-                    let spec = ConstSpec {
-                        rust_ident: konst.ident.clone(),
-                        attributes,
-                    };
-                    let attrs = get_cfg_attributes(&konst.attrs);
-                    let MethodAndMethodDef {
-                        associated_method,
-                        method_def,
-                    } = gen_py_const(ty, &spec, ctx);
-                    methods.push(quote!(#(#attrs)* #method_def));
-                    associated_methods.push(quote!(#(#attrs)* #associated_method));
-                    if is_proto_method(&spec.python_name().to_string()) {
-                        // If this is a known protocol method e.g. __contains__, then allow this
-                        // symbol even though it's not an uppercase constant.
-                        konst
-                            .attrs
-                            .push(syn::parse_quote!(#[allow(non_upper_case_globals)]));
-                    }
-                }
-            }
-            syn::ImplItem::Macro(m) => bail_spanned!(
-                m.span() =>
-                "macros cannot be used as items in `#[pymethods]` impl blocks\n\
-                 = note: this was previously accepted and ignored"
-            ),
-            _ => {}
-        }
-    }
+            Ok(())
+        })
+        .try_combine_syn_errors()?;
+
     let ctx = &Ctx::new(&options.krate, None);
 
     add_shared_proto_slots(ty, &mut proto_impls, implemented_proto_fragments, ctx);
