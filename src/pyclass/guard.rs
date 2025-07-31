@@ -261,6 +261,15 @@ impl<T: PyClass> Drop for PyClassGuard<'_, T> {
     }
 }
 
+// SAFETY: `PyClassGuard` only provides access to the inner `T` (and no other
+// Python APIs) which does not require a Python thread state
+#[cfg(feature = "nightly")]
+unsafe impl<T: PyClass> crate::marker::Ungil for PyClassGuard<'_, T> {}
+// SAFETY: we provide access to
+// - `&T`, which requires `T: Sync` to be Send and `T: Sync` to be Sync
+unsafe impl<T: PyClass + Sync> Send for PyClassGuard<'_, T> {}
+unsafe impl<T: PyClass + Sync> Sync for PyClassGuard<'_, T> {}
+
 /// A wrapper type for a mutably borrowed value from a `PyClass`
 ///
 /// # When *not* to use [`PyClassGuardMut`]
@@ -577,6 +586,16 @@ impl<T: PyClass<Frozen = False>> Drop for PyClassGuardMut<'_, T> {
         self.as_class_object().borrow_checker().release_borrow_mut()
     }
 }
+
+// SAFETY: `PyClassGuardMut` only provides access to the inner `T` (and no other
+// Python APIs) which does not require a Python thread state
+#[cfg(feature = "nightly")]
+unsafe impl<T: PyClass<Frozen = False>> crate::marker::Ungil for PyClassGuardMut<'_, T> {}
+// SAFETY: we provide access to
+// - `&T`, which requires `T: Sync` to be Send and `T: Sync` to be Sync
+// - `&mut T`, which requires `T: Send` to be Send and `T: Sync` to be Sync
+unsafe impl<T: PyClass<Frozen = False> + Send + Sync> Send for PyClassGuardMut<'_, T> {}
+unsafe impl<T: PyClass<Frozen = False> + Sync> Sync for PyClassGuardMut<'_, T> {}
 
 #[cfg(test)]
 #[cfg(feature = "macros")]
