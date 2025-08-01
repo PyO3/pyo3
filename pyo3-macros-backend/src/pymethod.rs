@@ -191,7 +191,7 @@ pub fn is_proto_method(name: &str) -> bool {
 pub fn gen_py_method(
     cls: &syn::Type,
     method: PyMethod<'_>,
-    meth_attrs: &[syn::Attribute],
+    meth_attrs: &mut Vec<syn::Attribute>,
     ctx: &Ctx,
 ) -> Result<GeneratedPyMethod> {
     let spec = &method.spec;
@@ -236,21 +236,21 @@ pub fn gen_py_method(
         (_, FnType::Fn(_)) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &spec.get_doc(meth_attrs, ctx),
+            &spec.get_doc(meth_attrs, ctx)?,
             None,
             ctx,
         )?),
         (_, FnType::FnClass(_)) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &spec.get_doc(meth_attrs, ctx),
+            &spec.get_doc(meth_attrs, ctx)?,
             Some(quote!(#pyo3_path::ffi::METH_CLASS)),
             ctx,
         )?),
         (_, FnType::FnStatic) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &spec.get_doc(meth_attrs, ctx),
+            &spec.get_doc(meth_attrs, ctx)?,
             Some(quote!(#pyo3_path::ffi::METH_STATIC)),
             ctx,
         )?),
@@ -264,7 +264,7 @@ pub fn gen_py_method(
             PropertyType::Function {
                 self_type,
                 spec,
-                doc: spec.get_doc(meth_attrs, ctx),
+                doc: spec.get_doc(meth_attrs, ctx)?,
             },
             ctx,
         )?),
@@ -273,7 +273,7 @@ pub fn gen_py_method(
             PropertyType::Function {
                 self_type,
                 spec,
-                doc: spec.get_doc(meth_attrs, ctx),
+                doc: spec.get_doc(meth_attrs, ctx)?,
             },
             ctx,
         )?),
@@ -627,7 +627,7 @@ pub fn impl_py_setter_def(
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
     let python_name = property_type.null_terminated_python_name(ctx)?;
-    let doc = property_type.doc(ctx);
+    let doc = property_type.doc(ctx)?;
     let mut holders = Holders::new();
     let setter_impl = match property_type {
         PropertyType::Descriptor {
@@ -815,7 +815,7 @@ pub fn impl_py_getter_def(
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
     let python_name = property_type.null_terminated_python_name(ctx)?;
-    let doc = property_type.doc(ctx);
+    let doc = property_type.doc(ctx)?;
 
     let mut cfg_attrs = TokenStream::new();
     if let PropertyType::Descriptor { field, .. } = &property_type {
@@ -978,13 +978,17 @@ impl PropertyType<'_> {
         }
     }
 
-    fn doc(&self, ctx: &Ctx) -> Cow<'_, PythonDoc> {
-        match self {
+    fn doc(&self, ctx: &Ctx) -> Result<Cow<'_, PythonDoc>> {
+        let doc = match self {
             PropertyType::Descriptor { field, .. } => {
-                Cow::Owned(utils::get_doc(&field.attrs, None, ctx))
+                // FIXME: due to the clone this will not properly strip Rust documentation, maybe
+                // need to parse the field and doc earlier in the process?
+                let mut attrs = field.attrs.clone();
+                Cow::Owned(utils::get_doc(&mut attrs, None, ctx)?)
             }
             PropertyType::Function { doc, .. } => Cow::Borrowed(doc),
-        }
+        };
+        Ok(doc)
     }
 }
 
