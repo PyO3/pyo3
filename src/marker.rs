@@ -379,9 +379,9 @@ impl Python<'_> {
     /// initialized, this function will initialize it. See
     #[cfg_attr(
         not(any(PyPy, GraalPy)),
-        doc = "[`prepare_freethreaded_python`](crate::prepare_freethreaded_python)"
+        doc = "[`Python::initialize`](crate::marker::Python::initialize)"
     )]
-    #[cfg_attr(PyPy, doc = "`prepare_freethreaded_python`")]
+    #[cfg_attr(PyPy, doc = "`Python::initialize")]
     /// for details.
     ///
     /// If the current thread does not yet have a Python "thread state" associated with it,
@@ -417,6 +417,33 @@ impl Python<'_> {
     {
         let guard = AttachGuard::acquire();
         f(guard.python())
+    }
+
+    /// Prepares the use of Python.
+    ///
+    /// If the Python interpreter is not already initialized, this function will initialize it with
+    /// signal handling disabled (Python will not raise the `KeyboardInterrupt` exception). Python
+    /// signal handling depends on the notion of a 'main thread', which must be the thread that
+    /// initializes the Python interpreter.
+    ///
+    /// If the Python interpreter is already initialized, this function has no effect.
+    ///
+    /// This function is unavailable under PyPy because PyPy cannot be embedded in Rust (or any other
+    /// software). Support for this is tracked on the
+    /// [PyPy issue tracker](https://github.com/pypy/pypy/issues/3836).
+    ///
+    /// # Examples
+    /// ```rust
+    /// use pyo3::prelude::*;
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::initialize();
+    /// Python::attach(|py| py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None))
+    /// # }
+    /// ```
+    #[cfg(not(any(PyPy, GraalPy)))]
+    pub fn initialize() {
+        crate::interpreter_lifecycle::initialize();
     }
 
     /// Like [`Python::attach`] except Python interpreter state checking is skipped.
@@ -889,7 +916,7 @@ mod tests {
         // Before starting the interpreter the state of calling `PyGILState_Check`
         // seems to be undefined, so let's ensure that Python is up.
         #[cfg(not(any(PyPy, GraalPy)))]
-        crate::prepare_freethreaded_python();
+        Python::initialize();
 
         let state = unsafe { crate::ffi::PyGILState_Check() };
         assert_eq!(state, GIL_NOT_HELD);

@@ -24,7 +24,7 @@
 //! use pyo3::{Python, PyResult, IntoPyObject, types::PyAnyMethods};
 //!
 //! fn main() -> PyResult<()> {
-//!     pyo3::prepare_freethreaded_python();
+//!     Python::initialize();
 //!     Python::attach(|py| {
 //!         // Convert to Python
 //!         let py_tzinfo = Tz::Europe__Paris.into_pyobject(py)?;

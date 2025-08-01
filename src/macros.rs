@@ -169,7 +169,7 @@ macro_rules! wrap_pymodule {
 /// Add the module to the initialization table in order to make embedded Python code to use it.
 /// Module name is the argument.
 ///
-/// Use it before [`prepare_freethreaded_python`](crate::prepare_freethreaded_python) and
+/// Use it before [`Python::initialize`](crate::marker::Python::initialize) and
 /// leave feature `auto-initialize` off
 #[cfg(not(any(PyPy, GraalPy)))]
 #[macro_export]
