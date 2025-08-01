@@ -7,33 +7,18 @@ struct MyClass {}
 impl MyClass {
     #[classattr]
     fn class_attr_with_args(_foo: i32) {}
-}
 
-#[pymethods]
-impl MyClass {
     #[classattr(foobar)]
     const CLASS_ATTR_WITH_ATTRIBUTE_ARG: i32 = 3;
-}
 
-#[pymethods]
-impl MyClass {
     fn staticmethod_without_attribute() {}
-}
 
-#[pymethods]
-impl MyClass {
     #[staticmethod]
     fn staticmethod_with_receiver(&self) {}
-}
 
-#[pymethods]
-impl MyClass {
     #[classmethod]
     fn classmethod_with_receiver(&self) {}
-}
 
-#[pymethods]
-impl MyClass {
     #[classmethod]
     fn classmethod_missing_argument() -> Self {
         Self {}
@@ -66,37 +51,22 @@ impl MyClass {
 impl MyClass {
     #[pyo3(name = "__call__", text_signature = "()")]
     fn text_signature_on_call() {}
-}
 
-#[pymethods]
-impl MyClass {
     #[getter(x)]
     #[pyo3(text_signature = "()")]
     fn text_signature_on_getter(&self) {}
-}
 
-#[pymethods]
-impl MyClass {
     #[setter(x)]
     #[pyo3(text_signature = "()")]
     fn text_signature_on_setter(&self) {}
-}
 
-#[pymethods]
-impl MyClass {
     #[classattr]
     #[pyo3(text_signature = "()")]
     fn text_signature_on_classattr() {}
-}
 
-#[pymethods]
-impl MyClass {
     #[pyo3(text_signature = 1)]
     fn invalid_text_signature() {}
-}
 
-#[pymethods]
-impl MyClass {
     #[pyo3(text_signature = "()")]
     #[pyo3(text_signature = None)]
     fn duplicate_text_signature() {}
@@ -107,17 +77,11 @@ impl MyClass {
     #[getter(x)]
     #[pyo3(signature = ())]
     fn signature_on_getter(&self) {}
-}
 
-#[pymethods]
-impl MyClass {
     #[setter(x)]
     #[pyo3(signature = ())]
     fn signature_on_setter(&self) {}
-}
 
-#[pymethods]
-impl MyClass {
     #[classattr]
     #[pyo3(signature = ())]
     fn signature_on_classattr() {}
@@ -172,10 +136,7 @@ impl MyClass {
 #[pymethods]
 impl MyClass {
     fn impl_trait_method_first_arg(_impl_trait: impl AsRef<PyAny>) {}
-}
 
-#[pymethods]
-impl MyClass {
     fn impl_trait_method_second_arg(&self, _impl_trait: impl AsRef<PyAny>) {}
 }
 
@@ -197,6 +158,19 @@ macro_rules! macro_invocation {
 #[pymethods]
 impl MyClass {
     macro_invocation!();
+}
+
+#[pymethods]
+impl MyClass {
+    #[staticmethod]
+    #[classmethod]
+    fn multiple_errors_static_and_class_method() {}
+
+    #[staticmethod]
+    fn multiple_errors_staticmethod_with_receiver(&self) {}
+
+    #[classmethod]
+    fn multiple_errors_classmethod_with_receiver(&self) {}
 }
 
 fn main() {}
