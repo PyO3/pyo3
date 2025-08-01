@@ -84,6 +84,8 @@ jobs:
       CARGO_BUILD_TARGET: x86_64-unknown-linux-gnu
 
   clippy:
+    # Don't run clippy on `main` because it's already run in the merge queue.
+    if: github.ref != 'refs/heads/main'
     needs: [fmt]
     runs-on: ${{ matrix.platform.os }}
     strategy:
@@ -161,9 +163,6 @@ jobs:
         with:
           python-version: "3.13"
           architecture: ${{ matrix.platform.python-architecture }}
-      - uses: Swatinem/rust-cache@v2
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       # windows on arm image contains x86-64 libclang
       - name: Install LLVM and Clang
         if: matrix.platform.os == 'windows-11-arm'
