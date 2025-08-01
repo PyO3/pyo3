@@ -63,7 +63,6 @@ impl<'a> PyStringData<'a> {
     /// C APIs that skip input validation (like `PyUnicode_FromKindAndData`) and should
     /// never occur for strings that were created from Python code.
     pub fn to_string(self, py: Python<'_>) -> PyResult<Cow<'a, str>> {
-        use std::ffi::CStr;
         match self {
             Self::Ucs1(data) => match str::from_utf8(data) {
                 Ok(s) => Ok(Cow::Borrowed(s)),
