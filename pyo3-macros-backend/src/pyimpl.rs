@@ -136,7 +136,7 @@ pub fn impl_methods(
                     let method = PyMethod::parse(&mut meth.sig, &mut meth.attrs, fun_options)?;
                     #[cfg(feature = "experimental-inspect")]
                     extra_fragments.push(method_introspection_code(&method.spec, ty, ctx));
-                    match pymethod::gen_py_method(ty, method, &meth.attrs, ctx)? {
+                    match pymethod::gen_py_method(ty, method, &mut meth.attrs, ctx)? {
                         GeneratedPyMethod::Method(MethodAndMethodDef {
                             associated_method,
                             method_def,

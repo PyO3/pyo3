@@ -18,8 +18,10 @@ pub mod kw {
     syn::custom_keyword!(cancel_handle);
     syn::custom_keyword!(constructor);
     syn::custom_keyword!(dict);
+    syn::custom_keyword!(doc_mode);
     syn::custom_keyword!(eq);
     syn::custom_keyword!(eq_int);
+    syn::custom_keyword!(end_doc_mode);
     syn::custom_keyword!(extends);
     syn::custom_keyword!(freelist);
     syn::custom_keyword!(from_py_with);
@@ -318,6 +320,7 @@ pub type StrFormatterAttribute = OptionalKeywordAttribute<kw::str, StringFormatt
 pub type TextSignatureAttribute = KeywordAttribute<kw::text_signature, TextSignatureAttributeValue>;
 pub type SubmoduleAttribute = kw::submodule;
 pub type GILUsedAttribute = KeywordAttribute<kw::gil_used, LitBool>;
+pub type DocModeAttribute = KeywordAttribute<kw::doc_mode, LitStr>;
 
 impl<K: Parse + std::fmt::Debug, V: Parse> Parse for KeywordAttribute<K, V> {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
