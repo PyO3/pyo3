@@ -28,7 +28,7 @@
 //! # fn main() -> () {}
 //! # #[cfg(not(windows))]
 //! fn main() -> PyResult<()> {
-//!     pyo3::prepare_freethreaded_python();
+//!     Python::initialize();
 //!     Python::attach(|py| {
 //!         // Build some jiff values
 //!         let jiff_zoned = Zoned::now();
@@ -939,21 +939,37 @@ mod tests {
         use std::ffi::CString;
 
         // This is to skip the test if we are creating an invalid date, like February 31.
-        fn try_date(year: i32, month: u32, day: u32) -> PyResult<Date> {
-            Ok(Date::new(
-                year.try_into()?,
-                month.try_into()?,
-                day.try_into()?,
-            )?)
+        #[track_caller]
+        fn try_date(year: i16, month: i8, day: i8) -> Result<Date, TestCaseError> {
+            let location = std::panic::Location::caller();
+            Date::new(year, month, day)
+                .map_err(|err| TestCaseError::reject(format!("{location}: {err:?}")))
         }
 
-        fn try_time(hour: u32, min: u32, sec: u32, micro: u32) -> PyResult<Time> {
-            Ok(Time::new(
-                hour.try_into()?,
-                min.try_into()?,
-                sec.try_into()?,
-                (micro * 1000).try_into()?,
-            )?)
+        #[track_caller]
+        fn try_time(hour: i8, min: i8, sec: i8, micro: i32) -> Result<Time, TestCaseError> {
+            let location = std::panic::Location::caller();
+            Time::new(hour, min, sec, micro * 1000)
+                .map_err(|err| TestCaseError::reject(format!("{location}: {err:?}")))
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        fn try_zoned(
+            year: i16,
+            month: i8,
+            day: i8,
+            hour: i8,
+            min: i8,
+            sec: i8,
+            micro: i32,
+            tz: TimeZone,
+        ) -> Result<Zoned, TestCaseError> {
+            let date = try_date(year, month, day)?;
+            let time = try_time(hour, min, sec, micro)?;
+            let location = std::panic::Location::caller();
+            DateTime::from_parts(date, time)
+                .to_zoned(tz)
+                .map_err(|err| TestCaseError::reject(format!("{location}: {err:?}")))
         }
 
         prop_compose! {
@@ -972,7 +988,6 @@ mod tests {
             #[test]
             fn test_pyo3_offset_fixed_frompyobject_created_in_python(timestamp in 0..(i32::MAX as i64), timedelta in -86399i32..=86399i32) {
                 Python::attach(|py| {
-
                     let globals = [("datetime", py.import("datetime").unwrap())].into_py_dict(py).unwrap();
                     let code = format!("datetime.datetime.fromtimestamp({timestamp}).replace(tzinfo=datetime.timezone(datetime.timedelta(seconds={timedelta})))");
                     let t = py.eval(&CString::new(code).unwrap(), Some(&globals), None).unwrap();
@@ -984,8 +999,9 @@ mod tests {
                     let rust_iso_str = t.extract::<Zoned>().unwrap().strftime("%Y-%m-%dT%H:%M:%S%:z").to_string();
 
                     // They should be equal
-                    assert_eq!(py_iso_str.to_string(), rust_iso_str);
-                })
+                    prop_assert_eq!(py_iso_str.to_string(), rust_iso_str);
+                    Ok(())
+                })?;
             }
 
             #[test]
@@ -996,8 +1012,9 @@ mod tests {
                     let dur = SignedDuration::new(days * 24 * 60 * 60, 0);
                     let py_delta = dur.into_pyobject(py).unwrap();
                     let roundtripped: SignedDuration = py_delta.extract().expect("Round trip");
-                    assert_eq!(dur, roundtripped);
-                })
+                    prop_assert_eq!(dur, roundtripped);
+                    Ok(())
+                })?;
             }
 
             #[test]
@@ -1010,9 +1027,10 @@ mod tests {
                         let jiff_duration = span.to_duration(relative_to).unwrap();
                         let py_delta = jiff_duration.into_pyobject(py).unwrap();
                         let roundtripped: Span = py_delta.extract().expect("Round trip");
-                        assert_eq!(span.compare((roundtripped, relative_to)).unwrap(), Ordering::Equal);
+                        prop_assert_eq!(span.compare((roundtripped, relative_to)).unwrap(), Ordering::Equal);
                     }
-                })
+                    Ok(())
+                })?;
             }
 
             #[test]
@@ -1021,109 +1039,103 @@ mod tests {
                     let offset = Offset::from_seconds(secs).unwrap();
                     let py_offset = offset.into_pyobject(py).unwrap();
                     let roundtripped: Offset = py_offset.extract().expect("Round trip");
-                    assert_eq!(offset, roundtripped);
-                })
+                    prop_assert_eq!(offset, roundtripped);
+                    Ok(())
+                })?;
             }
 
             #[test]
             fn test_naive_date_roundtrip(
-                year in 1i32..=9999i32,
-                month in 1u32..=12u32,
-                day in 1u32..=31u32
+                year in 1i16..=9999i16,
+                month in 1i8..=12i8,
+                day in 1i8..=31i8
             ) {
                 // Test roundtrip conversion rust->python->rust for all allowed
                 // python dates (from year 1 to year 9999)
                 Python::attach(|py| {
-                    if let Ok(date) = try_date(year, month, day) {
-                        let py_date = date.into_pyobject(py).unwrap();
-                        let roundtripped: Date = py_date.extract().expect("Round trip");
-                        assert_eq!(date, roundtripped);
-                    }
-                })
+                    let date = try_date(year, month, day)?;
+                    let py_date = date.into_pyobject(py).unwrap();
+                    let roundtripped: Date = py_date.extract().expect("Round trip");
+                    prop_assert_eq!(date, roundtripped);
+                    Ok(())
+                })?;
             }
 
             #[test]
             fn test_naive_time_roundtrip(
-                hour in 0u32..=23u32,
-                min in 0u32..=59u32,
-                sec in 0u32..=59u32,
-                micro in 0u32..=1_999_999u32
+                hour in 0i8..=23i8,
+                min in 0i8..=59i8,
+                sec in 0i8..=59i8,
+                micro in 0i32..=999_999i32
             ) {
                 Python::attach(|py| {
-                    if let Ok(time) = try_time(hour, min, sec, micro) {
-                        let py_time = time.into_pyobject(py).unwrap();
-                        let roundtripped: Time = py_time.extract().expect("Round trip");
-                        assert_eq!(time, roundtripped);
-                    }
-                })
+                    let time = try_time(hour, min, sec, micro)?;
+                    let py_time = time.into_pyobject(py).unwrap();
+                    let roundtripped: Time = py_time.extract().expect("Round trip");
+                    prop_assert_eq!(time, roundtripped);
+                    Ok(())
+                })?;
             }
 
             #[test]
             fn test_naive_datetime_roundtrip(
-                year in 1i32..=9999i32,
-                month in 1u32..=12u32,
-                day in 1u32..=31u32,
-                hour in 0u32..=24u32,
-                min in 0u32..=60u32,
-                sec in 0u32..=60u32,
-                micro in 0u32..=999_999u32
+                year in 1i16..=9999i16,
+                month in 1i8..=12i8,
+                day in 1i8..=31i8,
+                hour in 0i8..=23i8,
+                min in 0i8..=59i8,
+                sec in 0i8..=59i8,
+                micro in 0i32..=999_999i32
             ) {
                 Python::attach(|py| {
-                    let date_opt = try_date(year, month, day);
-                    let time_opt = try_time(hour, min, sec, micro);
-                    if let (Ok(date), Ok(time)) = (date_opt, time_opt) {
-                        let dt = DateTime::from_parts(date, time);
-                        let pydt = dt.into_pyobject(py).unwrap();
-                        let roundtripped: DateTime = pydt.extract().expect("Round trip");
-                        assert_eq!(dt, roundtripped);
-                    }
-                })
+                    let date = try_date(year, month, day)?;
+                    let time = try_time(hour, min, sec, micro)?;
+                    let dt = DateTime::from_parts(date, time);
+                    let pydt = dt.into_pyobject(py).unwrap();
+                    let roundtripped: DateTime = pydt.extract().expect("Round trip");
+                    prop_assert_eq!(dt, roundtripped);
+                    Ok(())
+                })?;
             }
 
             #[test]
             fn test_utc_datetime_roundtrip(
-                year in 1i32..=9999i32,
-                month in 1u32..=12u32,
-                day in 1u32..=31u32,
-                hour in 0u32..=23u32,
-                min in 0u32..=59u32,
-                sec in 0u32..=59u32,
-                micro in 0u32..=1_999_999u32
+                year in 1i16..=9999i16,
+                month in 1i8..=12i8,
+                day in 1i8..=31i8,
+                hour in 0i8..=23i8,
+                min in 0i8..=59i8,
+                sec in 0i8..=59i8,
+                micro in 0i32..=999_999i32
             ) {
                 Python::attach(|py| {
-                    let date_opt = try_date(year, month, day);
-                    let time_opt = try_time(hour, min, sec, micro);
-                    if let (Ok(date), Ok(time)) = (date_opt, time_opt) {
-                        let dt: Zoned = DateTime::from_parts(date, time).to_zoned(TimeZone::UTC).unwrap();
-                        let py_dt = (&dt).into_pyobject(py).unwrap();
-                        let roundtripped: Zoned = py_dt.extract().expect("Round trip");
-                        assert_eq!(dt, roundtripped);
-                    }
-                })
+                    let dt: Zoned = try_zoned(year, month, day, hour, min, sec, micro, TimeZone::UTC)?;
+                    let py_dt = (&dt).into_pyobject(py).unwrap();
+                    let roundtripped: Zoned = py_dt.extract().expect("Round trip");
+                    prop_assert_eq!(dt, roundtripped);
+                    Ok(())
+                })?;
             }
 
             #[test]
             fn test_fixed_offset_datetime_roundtrip(
-                year in 1i32..=9999i32,
-                month in 1u32..=12u32,
-                day in 1u32..=31u32,
-                hour in 0u32..=23u32,
-                min in 0u32..=59u32,
-                sec in 0u32..=59u32,
-                micro in 0u32..=1_999_999u32,
+                year in 1i16..=9999i16,
+                month in 1i8..=12i8,
+                day in 1i8..=31i8,
+                hour in 0i8..=23i8,
+                min in 0i8..=59i8,
+                sec in 0i8..=59i8,
+                micro in 0i32..=999_999i32,
                 offset_secs in -86399i32..=86399i32
             ) {
                 Python::attach(|py| {
-                    let date_opt = try_date(year, month, day);
-                    let time_opt = try_time(hour, min, sec, micro);
                     let offset = Offset::from_seconds(offset_secs).unwrap();
-                    if let (Ok(date), Ok(time)) = (date_opt, time_opt) {
-                        let dt: Zoned = DateTime::from_parts(date, time).to_zoned(offset.to_time_zone()).unwrap();
-                        let py_dt = (&dt).into_pyobject(py).unwrap();
-                        let roundtripped: Zoned = py_dt.extract().expect("Round trip");
-                        assert_eq!(dt, roundtripped);
-                    }
-                })
+                    let dt = try_zoned(year, month, day, hour, min, sec, micro, offset.to_time_zone())?;
+                    let py_dt = (&dt).into_pyobject(py).unwrap();
+                    let roundtripped: Zoned = py_dt.extract().expect("Round trip");
+                    prop_assert_eq!(dt, roundtripped);
+                    Ok(())
+                })?;
             }
 
             #[test]
@@ -1137,7 +1149,6 @@ mod tests {
                 hour in -2i32..=2i32,
                 min in 0u32..=59u32,
             ) {
-
                 Python::attach(|py| {
                     let transition_moment = transition.timestamp();
                     let zoned = (transition_moment - Span::new().hours(hour).minutes(min))
@@ -1145,9 +1156,9 @@ mod tests {
 
                     let py_dt = (&zoned).into_pyobject(py).unwrap();
                     let roundtripped: Zoned = py_dt.extract().expect("Round trip");
-                    assert_eq!(zoned, roundtripped);
-                })
-
+                    prop_assert_eq!(zoned, roundtripped);
+                    Ok(())
+                })?;
             }
         }
     }
