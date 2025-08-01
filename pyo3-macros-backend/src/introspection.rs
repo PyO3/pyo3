@@ -122,7 +122,7 @@ pub fn function_introspection_code(
                             ty = ty.elide_lifetimes();
                             IntrospectionNode::OutputType {
                                 rust_type: ty,
-                                r#final: false,
+                                is_final: false,
                             }
                         }
                     },
@@ -158,7 +158,7 @@ pub fn attribute_introspection_code(
     name: String,
     value: String,
     mut rust_type: Type,
-    r#final: bool,
+    is_final: bool,
 ) -> TokenStream {
     let mut desc = HashMap::from([
         ("type", IntrospectionNode::String("attribute".into())),
@@ -176,16 +176,24 @@ pub fn attribute_introspection_code(
         rust_type = rust_type.elide_lifetimes();
         desc.insert(
             "annotation",
-            IntrospectionNode::OutputType { rust_type, r#final },
+            IntrospectionNode::OutputType {
+                rust_type,
+                is_final,
+            },
         );
     } else {
         desc.insert(
             "annotation",
-            if r#final {
+            if is_final {
                 // Type checkers can infer the type from the value because it's typing.Literal[value]
+                // So, following stubs best practices, we only write typing.Final and not
+                // typing.Final[typing.literal[value]]
                 IntrospectionNode::String("typing.Final".into())
             } else {
-                IntrospectionNode::OutputType { rust_type, r#final }
+                IntrospectionNode::OutputType {
+                    rust_type,
+                    is_final,
+                }
             },
         );
         desc.insert("value", IntrospectionNode::String(value.into()));
@@ -338,7 +346,7 @@ enum IntrospectionNode<'a> {
     Bool(bool),
     IntrospectionId(Option<Cow<'a, Type>>),
     InputType { rust_type: Type, nullable: bool },
-    OutputType { rust_type: Type, r#final: bool },
+    OutputType { rust_type: Type, is_final: bool },
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<IntrospectionNode<'a>>),
 }
@@ -390,13 +398,16 @@ impl IntrospectionNode<'_> {
                 }
                 content.push_str("\"");
             }
-            Self::OutputType { rust_type, r#final } => {
+            Self::OutputType {
+                rust_type,
+                is_final,
+            } => {
                 content.push_str("\"");
-                if r#final {
+                if is_final {
                     content.push_str("typing.Final[");
                 }
                 content.push_tokens(quote! { <#rust_type as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE });
-                if r#final {
+                if is_final {
                     content.push_str("]");
                 }
                 content.push_str("\"");

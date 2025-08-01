@@ -27,21 +27,16 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
     let mut chunks_by_id = HashMap::<&str, &Chunk>::new();
     let mut chunks_by_parent = HashMap::<&str, Vec<&Chunk>>::new();
     for chunk in chunks {
-        if let Some(id) = match chunk {
-            Chunk::Module { id, .. } | Chunk::Class { id, .. } => Some(id),
-            Chunk::Function { id, .. } | Chunk::Attribute { id, .. } => id.as_ref(),
-        } {
+        let (id, parent) = match chunk {
+            Chunk::Module { id, .. } | Chunk::Class { id, .. } => (Some(id.as_str()), None),
+            Chunk::Function { id, parent, .. } | Chunk::Attribute { id, parent, .. } => {
+                (id.as_deref(), parent.as_deref())
+            }
+        };
+        if let Some(id) = id {
             chunks_by_id.insert(id, chunk);
         }
-        if let Chunk::Function {
-            parent: Some(parent),
-            ..
-        }
-        | Chunk::Attribute {
-            parent: Some(parent),
-            ..
-        } = chunk
-        {
+        if let Some(parent) = parent {
             chunks_by_parent.entry(parent).or_default().push(chunk);
         }
     }
