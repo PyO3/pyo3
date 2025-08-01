@@ -366,15 +366,14 @@ where
     /// ```
     pub fn into_super(self) -> PyRef<'p, U> {
         let py = self.py();
-        if <T::Frozen as crate::pyclass::boolean_struct::private::Boolean>::VALUE
-            != <U::Frozen as crate::pyclass::boolean_struct::private::Boolean>::VALUE
-        {
-            // If the mutability of `T` and `U` differ, then it is possible that we need to
-            // release the borrow count now. (e.g. imagine that `T` is mutable and `U` is not,
-            // then `U` has a noop borrow checker so dropping the `PyRef<U>` later would noop
-            // and leak the borrow we currently hold.)
+        let t_not_frozen = !<T::Frozen as crate::pyclass::boolean_struct::private::Boolean>::VALUE;
+        let u_frozen = <U::Frozen as crate::pyclass::boolean_struct::private::Boolean>::VALUE;
+        if t_not_frozen && u_frozen {
+            // If `T` is mutable subclass of `U` differ, then it is possible that we need to
+            // release the borrow count now. (e.g. `U` may have a noop borrow checker so
+            // dropping the `PyRef<U>` later would noop and leak the borrow we currently hold.)
             //
-            // However it's nontrivial, if `U` is frozen but itself has a mutable base class `V`,
+            // However it's nontrivial, if `U` itself has a mutable base class `V`,
             // then the borrow checker of both `T` and `U` is the shared borrow checker of `V`.
             //
             // But it's really hard to prove that in the type system, the soundest thing we
