@@ -1,4 +1,5 @@
 import platform
+import sys
 from typing import Type
 
 import pytest
@@ -94,6 +95,10 @@ class ClassWithoutConstructor:
         )
 
 
+@pytest.mark.xfail(
+    platform.python_implementation() == "PyPy" and sys.version_info < (3, 11),
+    reason="broken on older PyPy due to https://github.com/pypy/pypy/issues/5319 on supported PyPy",
+)
 @pytest.mark.parametrize(
     "cls, exc_message",
     [
