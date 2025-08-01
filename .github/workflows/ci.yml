@@ -159,9 +159,7 @@ jobs:
           components: clippy,rust-src
       - uses: actions/setup-python@v5
         with:
-          # FIXME: 3.13.4 has an issue on windows so pinned to 3.13.3
-          # once 3.13.5 is out, unpin the patch version
-          python-version: "3.13.3"
+          python-version: "3.13"
           architecture: ${{ matrix.platform.python-architecture }}
       - uses: Swatinem/rust-cache@v2
         with:
