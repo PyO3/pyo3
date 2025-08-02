@@ -24,6 +24,7 @@ def test_multiple_imports_same_interpreter_ok():
     spec = importlib.util.find_spec("pyo3_pytests.pyo3_pytests")
 
     module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
     assert dir(module) == dir(pyo3_pytests.pyo3_pytests)
 
 
