@@ -62,7 +62,7 @@ impl PyClassThreadIter {
         let current_count = self.count;
         self.count += 1;
         if current_count == 0 {
-            py.allow_threads(|| thread::sleep(time::Duration::from_millis(100)));
+            py.detach(|| thread::sleep(time::Duration::from_millis(100)));
         }
         self.count
     }

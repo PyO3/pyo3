@@ -45,11 +45,19 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
             name,
             members,
             consts,
+            incomplete,
             id: _,
         } = chunk
         {
             if name == main_module_name {
-                return convert_module(name, members, consts, &chunks_by_id, &chunks_by_parent);
+                return convert_module(
+                    name,
+                    members,
+                    consts,
+                    *incomplete,
+                    &chunks_by_id,
+                    &chunks_by_parent,
+                );
             }
         }
     }
@@ -60,6 +68,7 @@ fn convert_module(
     name: &str,
     members: &[String],
     consts: &[ConstChunk],
+    incomplete: bool,
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
 ) -> Result<Module> {
@@ -84,6 +93,7 @@ fn convert_module(
                 value: c.value.clone(),
             })
             .collect(),
+        incomplete,
     })
 }
 
@@ -102,12 +112,14 @@ fn convert_members(
                 name,
                 members,
                 consts,
+                incomplete,
                 id: _,
             } => {
                 modules.push(convert_module(
                     name,
                     members,
                     consts,
+                    *incomplete,
                     chunks_by_id,
                     chunks_by_parent,
                 )?);
@@ -121,7 +133,8 @@ fn convert_members(
                 arguments,
                 parent: _,
                 decorators,
-            } => functions.push(convert_function(name, arguments, decorators)),
+                returns,
+            } => functions.push(convert_function(name, arguments, decorators, returns)),
         }
     }
     Ok((modules, classes, functions))
@@ -170,7 +183,12 @@ fn convert_class(
     })
 }
 
-fn convert_function(name: &str, arguments: &ChunkArguments, decorators: &[String]) -> Function {
+fn convert_function(
+    name: &str,
+    arguments: &ChunkArguments,
+    decorators: &[String],
+    returns: &Option<String>,
+) -> Function {
     Function {
         name: name.into(),
         decorators: decorators.to_vec(),
@@ -187,6 +205,7 @@ fn convert_function(name: &str, arguments: &ChunkArguments, decorators: &[String
                 .as_ref()
                 .map(convert_variable_length_argument),
         },
+        returns: returns.clone(),
     }
 }
 
@@ -201,6 +220,7 @@ fn convert_argument(arg: &ChunkArgument) -> Argument {
 fn convert_variable_length_argument(arg: &ChunkArgument) -> VariableLengthArgument {
     VariableLengthArgument {
         name: arg.name.clone(),
+        annotation: arg.annotation.clone(),
     }
 }
 
@@ -368,6 +388,7 @@ enum Chunk {
         name: String,
         members: Vec<String>,
         consts: Vec<ConstChunk>,
+        incomplete: bool,
     },
     Class {
         id: String,
@@ -382,6 +403,8 @@ enum Chunk {
         parent: Option<String>,
         #[serde(default)]
         decorators: Vec<String>,
+        #[serde(default)]
+        returns: Option<String>,
     },
 }
 

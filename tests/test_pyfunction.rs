@@ -569,7 +569,7 @@ fn return_value_borrows_from_arguments<'py>(
     key: &'py Key,
     value: &'py Value,
 ) -> HashMap<&'py str, i32> {
-    py.allow_threads(move || {
+    py.detach(move || {
         let mut map = HashMap::new();
         map.insert(key.0.as_str(), value.0);
         map
@@ -591,6 +591,7 @@ fn test_return_value_borrows_from_arguments() {
 #[test]
 fn test_some_wrap_arguments() {
     // https://github.com/PyO3/pyo3/issues/3460
+    #[allow(unused)]
     const NONE: Option<u8> = None;
     #[pyfunction(signature = (a = 1, b = Some(2), c = None, d = NONE))]
     fn some_wrap_arguments(

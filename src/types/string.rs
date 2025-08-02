@@ -8,7 +8,7 @@ use crate::types::bytes::PyBytesMethods;
 use crate::types::PyBytes;
 use crate::{ffi, Bound, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::str;
 
 /// Represents raw data backing a Python `str`.
@@ -63,7 +63,6 @@ impl<'a> PyStringData<'a> {
     /// C APIs that skip input validation (like `PyUnicode_FromKindAndData`) and should
     /// never occur for strings that were created from Python code.
     pub fn to_string(self, py: Python<'_>) -> PyResult<Cow<'a, str>> {
-        use std::ffi::CStr;
         match self {
             Self::Ucs1(data) => match str::from_utf8(data) {
                 Ok(s) => Ok(Cow::Borrowed(s)),
@@ -191,7 +190,41 @@ impl PyString {
 
     /// Attempts to create a Python string from a Python [bytes-like object].
     ///
+    /// The `encoding` and `errors` parameters are optional:
+    /// - If `encoding` is `None`, the default encoding is used (UTF-8).
+    /// - If `errors` is `None`, the default error handling is used ("strict").
+    ///
+    /// See the [Python documentation on codecs] for more information.
+    ///
     /// [bytes-like object]: (https://docs.python.org/3/glossary.html#term-bytes-like-object).
+    /// [Python documentation on codecs]: https://docs.python.org/3/library/codecs.html#standard-encodings
+    pub fn from_encoded_object<'py>(
+        src: &Bound<'py, PyAny>,
+        encoding: Option<&CStr>,
+        errors: Option<&CStr>,
+    ) -> PyResult<Bound<'py, PyString>> {
+        let encoding = encoding.map_or(std::ptr::null(), CStr::as_ptr);
+        let errors = errors.map_or(std::ptr::null(), CStr::as_ptr);
+        // Safety:
+        // - `src` is a valid Python object
+        // - `encoding` and `errors` are either null or valid C strings. `encoding` and `errors` are
+        //   documented as allowing null.
+        // - `ffi::PyUnicode_FromEncodedObject` returns a new `str` object, or sets an error.
+        unsafe {
+            ffi::PyUnicode_FromEncodedObject(src.as_ptr(), encoding, errors)
+                .assume_owned_or_err(src.py())
+                .downcast_into_unchecked()
+        }
+    }
+
+    /// Deprecated form of `PyString::from_encoded_object`.
+    ///
+    /// This version took `&str` arguments for `encoding` and `errors`, which required a runtime
+    /// conversion to `CString` internally.
+    #[deprecated(
+        since = "0.25.0",
+        note = "replaced with to `PyString::from_encoded_object`"
+    )]
     pub fn from_object<'py>(
         src: &Bound<'py, PyAny>,
         encoding: &str,
@@ -199,15 +232,7 @@ impl PyString {
     ) -> PyResult<Bound<'py, PyString>> {
         let encoding = CString::new(encoding)?;
         let errors = CString::new(errors)?;
-        unsafe {
-            ffi::PyUnicode_FromEncodedObject(
-                src.as_ptr(),
-                encoding.as_ptr().cast(),
-                errors.as_ptr().cast(),
-            )
-            .assume_owned_or_err(src.py())
-            .downcast_into_unchecked()
-        }
+        PyString::from_encoded_object(src, Some(&encoding), Some(&errors))
     }
 }
 
@@ -534,8 +559,10 @@ impl PartialEq<Borrowed<'_, '_, PyString>> for &'_ str {
 
 #[cfg(test)]
 mod tests {
+    use pyo3_ffi::c_str;
+
     use super::*;
-    use crate::{IntoPyObject, PyObject};
+    use crate::{exceptions::PyLookupError, IntoPyObject, PyObject};
 
     #[test]
     fn test_to_cow_utf8() {
@@ -622,10 +649,24 @@ mod tests {
     }
 
     #[test]
-    fn test_string_from_object() {
+    fn test_string_from_encoded_object() {
         Python::attach(|py| {
             let py_bytes = PyBytes::new(py, b"ab\xFFcd");
 
+            // default encoding is utf-8, default error handler is strict
+            let py_string = PyString::from_encoded_object(&py_bytes, None, None).unwrap_err();
+            assert!(py_string
+                .get_type(py)
+                .is(py.get_type::<crate::exceptions::PyUnicodeDecodeError>()));
+
+            // with `ignore` error handler, the invalid byte is dropped
+            let py_string =
+                PyString::from_encoded_object(&py_bytes, None, Some(c_str!("ignore"))).unwrap();
+
+            let result = py_string.to_cow().unwrap();
+            assert_eq!(result, "abcd");
+
+            #[allow(deprecated)]
             let py_string = PyString::from_object(&py_bytes, "utf-8", "ignore").unwrap();
 
             let result = py_string.to_cow().unwrap();
@@ -634,13 +675,34 @@ mod tests {
     }
 
     #[test]
-    fn test_string_from_obect_with_invalid_encoding_errors() {
+    fn test_string_from_encoded_object_with_invalid_encoding_errors() {
         Python::attach(|py| {
             let py_bytes = PyBytes::new(py, b"abcd");
 
+            // invalid encoding
+            let err =
+                PyString::from_encoded_object(&py_bytes, Some(c_str!("wat")), None).unwrap_err();
+            assert!(err.is_instance(py, &py.get_type::<PyLookupError>()));
+            assert_eq!(err.to_string(), "LookupError: unknown encoding: wat");
+
+            // invalid error handler
+            let err = PyString::from_encoded_object(
+                &PyBytes::new(py, b"ab\xFFcd"),
+                None,
+                Some(c_str!("wat")),
+            )
+            .unwrap_err();
+            assert!(err.is_instance(py, &py.get_type::<PyLookupError>()));
+            assert_eq!(
+                err.to_string(),
+                "LookupError: unknown error handler name 'wat'"
+            );
+
+            #[allow(deprecated)]
             let result = PyString::from_object(&py_bytes, "utf\0-8", "ignore");
             assert!(result.is_err());
 
+            #[allow(deprecated)]
             let result = PyString::from_object(&py_bytes, "utf-8", "ign\0ore");
             assert!(result.is_err());
         });

@@ -7,7 +7,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //"export" our API module to the python runtime
     pyo3::append_to_inittab!(pylib_module);
     //spawn runtime
-    pyo3::prepare_freethreaded_python();
+    Python::initialize();
     //import path for python
     let path = Path::new("./python_plugin/");
     //do useful work

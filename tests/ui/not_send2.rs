@@ -5,7 +5,7 @@ fn main() {
     Python::attach(|py| {
         let string = PyString::new(py, "foo");
 
-        py.allow_threads(|| {
+        py.detach(|| {
             println!("{:?}", string);
         });
     });

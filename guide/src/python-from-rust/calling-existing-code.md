@@ -159,15 +159,14 @@ As an example, the below adds the module `foo` to the embedded interpreter:
 use pyo3::prelude::*;
 use pyo3::ffi::c_str;
 
-#[pyfunction]
-fn add_one(x: i64) -> i64 {
-    x + 1
-}
-
 #[pymodule]
-fn foo(foo_module: &Bound<'_, PyModule>) -> PyResult<()> {
-    foo_module.add_function(wrap_pyfunction!(add_one, foo_module)?)?;
-    Ok(())
+mod foo {
+    use pyo3::prelude::*;
+    
+    #[pyfunction]
+    fn add_one(x: i64) -> i64 {
+        x + 1
+    }
 }
 
 fn main() -> PyResult<()> {

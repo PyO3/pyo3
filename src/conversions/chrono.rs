@@ -23,7 +23,7 @@
 //! use pyo3::{Python, PyResult, IntoPyObject, types::PyAnyMethods};
 //!
 //! fn main() -> PyResult<()> {
-//!     pyo3::prepare_freethreaded_python();
+//!     Python::initialize();
 //!     Python::attach(|py| {
 //!         // Build some chrono values
 //!         let chrono_datetime = Utc.with_ymd_and_hms(2022, 1, 1, 12, 0, 0).unwrap();

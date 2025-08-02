@@ -5,7 +5,7 @@
 //!
 //! [PEP 703]: https://peps.python.org/pep-703/
 use crate::{
-    gil::SuspendGIL,
+    internal::state::SuspendAttach,
     sealed::Sealed,
     types::{any::PyAnyMethods, PyAny, PyString},
     Bound, Py, PyResult, PyTypeCheck, Python,
@@ -620,7 +620,7 @@ impl OnceExt for parking_lot::Once {
             return;
         }
 
-        let ts_guard = unsafe { SuspendGIL::new() };
+        let ts_guard = unsafe { SuspendAttach::new() };
 
         self.call_once(move || {
             drop(ts_guard);
@@ -637,7 +637,7 @@ impl OnceExt for parking_lot::Once {
             return;
         }
 
-        let ts_guard = unsafe { SuspendGIL::new() };
+        let ts_guard = unsafe { SuspendAttach::new() };
 
         self.call_once_force(move |state| {
             drop(ts_guard);
@@ -681,7 +681,7 @@ impl<T> MutexExt<T> for std::sync::Mutex<T> {
         // SAFETY: detach from the runtime right before a possibly blocking call
         // then reattach when the blocking call completes and before calling
         // into the C API.
-        let ts_guard = unsafe { SuspendGIL::new() };
+        let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.lock();
         drop(ts_guard);
         res
@@ -700,7 +700,7 @@ impl<R: lock_api::RawMutex, T> MutexExt<T> for lock_api::Mutex<R, T> {
             return guard;
         }
 
-        let ts_guard = unsafe { SuspendGIL::new() };
+        let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.lock();
         drop(ts_guard);
         res
@@ -722,7 +722,53 @@ where
             return guard;
         }
 
-        let ts_guard = unsafe { SuspendGIL::new() };
+        let ts_guard = unsafe { SuspendAttach::new() };
+        let res = self.lock_arc();
+        drop(ts_guard);
+        res
+    }
+}
+
+#[cfg(feature = "lock_api")]
+impl<R, G, T> MutexExt<T> for lock_api::ReentrantMutex<R, G, T>
+where
+    R: lock_api::RawMutex,
+    G: lock_api::GetThreadId,
+{
+    type LockResult<'a>
+        = lock_api::ReentrantMutexGuard<'a, R, G, T>
+    where
+        Self: 'a;
+
+    fn lock_py_attached(&self, _py: Python<'_>) -> lock_api::ReentrantMutexGuard<'_, R, G, T> {
+        if let Some(guard) = self.try_lock() {
+            return guard;
+        }
+
+        let ts_guard = unsafe { SuspendAttach::new() };
+        let res = self.lock();
+        drop(ts_guard);
+        res
+    }
+}
+
+#[cfg(feature = "arc_lock")]
+impl<R, G, T> MutexExt<T> for std::sync::Arc<lock_api::ReentrantMutex<R, G, T>>
+where
+    R: lock_api::RawMutex,
+    G: lock_api::GetThreadId,
+{
+    type LockResult<'a>
+        = lock_api::ArcReentrantMutexGuard<R, G, T>
+    where
+        Self: 'a;
+
+    fn lock_py_attached(&self, _py: Python<'_>) -> lock_api::ArcReentrantMutexGuard<R, G, T> {
+        if let Some(guard) = self.try_lock_arc() {
+            return guard;
+        }
+
+        let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.lock_arc();
         drop(ts_guard);
         res
@@ -737,7 +783,7 @@ where
     // SAFETY: detach from the runtime right before a possibly blocking call
     // then reattach when the blocking call completes and before calling
     // into the C API.
-    let ts_guard = unsafe { SuspendGIL::new() };
+    let ts_guard = unsafe { SuspendAttach::new() };
 
     once.call_once(move || {
         drop(ts_guard);
@@ -753,7 +799,7 @@ where
     // SAFETY: detach from the runtime right before a possibly blocking call
     // then reattach when the blocking call completes and before calling
     // into the C API.
-    let ts_guard = unsafe { SuspendGIL::new() };
+    let ts_guard = unsafe { SuspendAttach::new() };
 
     once.call_once_force(move |state| {
         drop(ts_guard);
@@ -773,7 +819,7 @@ where
     // SAFETY: detach from the runtime right before a possibly blocking call
     // then reattach when the blocking call completes and before calling
     // into the C API.
-    let ts_guard = unsafe { SuspendGIL::new() };
+    let ts_guard = unsafe { SuspendAttach::new() };
 
     // By having detached here, we guarantee that `.get_or_init` cannot deadlock with
     // the Python interpreter
@@ -1184,10 +1230,23 @@ mod tests {
             parking_lot::Mutex::new(Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap())
         });
 
+        test_mutex!(parking_lot::ReentrantMutexGuard<'_, _>, |py| {
+            parking_lot::ReentrantMutex::new(
+                Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap(),
+            )
+        });
+
         #[cfg(feature = "arc_lock")]
         test_mutex!(parking_lot::ArcMutexGuard<_, _>, |py| {
             let mutex =
                 parking_lot::Mutex::new(Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap());
+            std::sync::Arc::new(mutex)
+        });
+
+        #[cfg(feature = "arc_lock")]
+        test_mutex!(parking_lot::ArcReentrantMutexGuard<_, _, _>, |py| {
+            let mutex =
+                parking_lot::ReentrantMutex::new(Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap());
             std::sync::Arc::new(mutex)
         });
     }

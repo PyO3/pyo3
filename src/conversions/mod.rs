@@ -2,6 +2,7 @@
 
 pub mod anyhow;
 pub mod bigdecimal;
+pub mod bytes;
 pub mod chrono;
 pub mod chrono_tz;
 pub mod either;

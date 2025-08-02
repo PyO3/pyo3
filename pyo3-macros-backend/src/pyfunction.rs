@@ -1,4 +1,5 @@
 use crate::attributes::KeywordAttribute;
+use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{function_introspection_code, introspection_id_const};
 use crate::utils::{Ctx, LitCStr};
@@ -372,7 +373,7 @@ pub fn impl_wrap_pyfunction(
             0
         })
         .map(FnArg::parse)
-        .collect::<syn::Result<Vec<_>>>()?;
+        .try_combine_syn_errors()?;
 
     let signature = if let Some(signature) = signature {
         FunctionSignature::from_arguments_and_attribute(arguments, signature)?
@@ -390,6 +391,7 @@ pub fn impl_wrap_pyfunction(
         &name.to_string(),
         &signature,
         None,
+        func.sig.output.clone(),
         [] as [String; 0],
         None,
     );
@@ -410,6 +412,8 @@ pub fn impl_wrap_pyfunction(
         asyncness: func.sig.asyncness,
         unsafety: func.sig.unsafety,
         warnings,
+        #[cfg(feature = "experimental-inspect")]
+        output: func.sig.output.clone(),
     };
 
     let wrapper_ident = format_ident!("__pyfunction_{}", spec.name);

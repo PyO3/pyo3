@@ -45,9 +45,9 @@ section for further detail.
 
 ### `auto-initialize`
 
-This feature changes [`Python::attach`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.attach) to automatically initialize a Python interpreter (by calling [`prepare_freethreaded_python`]({{#PYO3_DOCS_URL}}/pyo3/fn.prepare_freethreaded_python.html)) if needed.
+This feature changes [`Python::attach`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.attach) to automatically initialize a Python interpreter (by calling [`Python::initialize`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.initialize)) if needed.
 
-If you do not enable this feature, you should call `pyo3::prepare_freethreaded_python()` before attempting to call any other Python APIs.
+If you do not enable this feature, you should call `Python::initialize()` before attempting to call any other Python APIs.
 
 ## Advanced Features
 
@@ -64,12 +64,6 @@ This feature adds to the built binaries introspection data that can be then retr
 Also, this feature adds the `pyo3::inspect` module, as well as `IntoPy::type_output` and `FromPyObject::type_input` APIs to produce Python type "annotations" for Rust types.
 
 This is a first step towards adding first-class support for generating type annotations automatically in PyO3, however work is needed to finish this off. All feedback and offers of help welcome on [issue #2454](https://github.com/PyO3/pyo3/issues/2454).
-
-### `gil-refs`
-
-This feature is a backwards-compatibility feature to allow continued use of the "GIL Refs" APIs deprecated in PyO3 0.21. These APIs have performance drawbacks and soundness edge cases which the newer `Bound<T>` smart pointer and accompanying APIs resolve.
-
-This feature and the APIs it enables is expected to be removed in a future PyO3 version.
 
 ### `py-clone`
 
@@ -105,7 +99,7 @@ See [the `#[pyclass]` implementation details](class.md#implementation-details) f
 
 ### `nightly`
 
-The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use the `auto_traits` and `negative_impls` features to fix the `Python::allow_threads` function.
+The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use the `auto_traits` and `negative_impls` features to fix the `Python::detach` function.
 
 ### `resolve-config`
 
@@ -123,10 +117,13 @@ Adds a dependency on [anyhow](https://docs.rs/anyhow). Enables a conversion from
 
 ### `arc_lock`
 
-Enables Pyo3's `MutexExt` trait for all Mutexes that extend on [`lock_api::Mutex`](https://docs.rs/lock_api/latest/lock_api/struct.Mutex.html) and are wrapped in an [`Arc`](https://doc.rust-lang.org/std/sync/struct.Arc.html) type. Like [`Arc<parking_lot::Mutex>`](https://docs.rs/parking_lot/latest/parking_lot/type.Mutex.html#method.lock_arc)
+Enables Pyo3's `MutexExt` trait for all Mutexes that extend on [`lock_api::Mutex`](https://docs.rs/lock_api/latest/lock_api/struct.Mutex.html) or [`parking_lot::ReentrantMutex`](https://docs.rs/lock_api/latest/lock_api/struct.ReentrantMutex.html) and are wrapped in an [`Arc`](https://doc.rust-lang.org/std/sync/struct.Arc.html) type. Like [`Arc<parking_lot::Mutex>`](https://docs.rs/parking_lot/latest/parking_lot/type.Mutex.html#method.lock_arc)
 
 ### `bigdecimal`
 Adds a dependency on [bigdecimal](https://docs.rs/bigdecimal) and enables conversions into its [`BigDecimal`](https://docs.rs/bigdecimal/latest/bigdecimal/struct.BigDecimal.html) type.
+
+### `bytes`
+Adds a dependency on [bytes](https://docs.rs/bytes/latest/bytes) and enables conversions into its [`Bytes`](https://docs.rs/bytes/latest/bytes/struct.Bytes.html) type.
 
 ### `chrono`
 
@@ -178,7 +175,7 @@ Adds a dependency on [jiff@0.2](https://docs.rs/jiff/0.2) and requires MSRV 1.70
 
 ### `lock_api`
 
-Adds a dependency on [lock_api](https://docs.rs/lock_api) and enables Pyo3's `MutexExt` trait for all mutexes that extend on [`lock_api::Mutex`](https://docs.rs/lock_api/latest/lock_api/struct.Mutex.html) (like `parking_lot` or `spin`).
+Adds a dependency on [lock_api](https://docs.rs/lock_api) and enables Pyo3's `MutexExt` trait for all mutexes that extend on [`lock_api::Mutex`](https://docs.rs/lock_api/latest/lock_api/struct.Mutex.html) and [`parking_lot::ReentrantMutex`](https://docs.rs/lock_api/latest/lock_api/struct.ReentrantMutex.html) (like `parking_lot` or `spin`).
 
 ### `num-bigint`
 
@@ -204,7 +201,7 @@ Adds a dependency on [ordered-float](https://docs.rs/ordered-float) and enables 
 
 ### `parking-lot`
 
-Adds a dependency on [parking_lot](https://docs.rs/parking_lot) and enables Pyo3's `OnceExt` & `MutexExt` traits for [`parking_lot::Once`](https://docs.rs/parking_lot/latest/parking_lot/struct.Once.html) and [`parking_lot::Mutex`](https://docs.rs/parking_lot/latest/parking_lot/type.Mutex.html) types.
+Adds a dependency on [parking_lot](https://docs.rs/parking_lot) and enables Pyo3's `OnceExt` & `MutexExt` traits for [`parking_lot::Once`](https://docs.rs/parking_lot/latest/parking_lot/struct.Once.html) [`parking_lot::Mutex`](https://docs.rs/parking_lot/latest/parking_lot/type.Mutex.html) and [`parking_lot::ReentrantMutex`](https://docs.rs/parking_lot/latest/parking_lot/type.ReentrantMutex.html) types.
 
 ### `rust_decimal`
 

@@ -11,7 +11,7 @@ use crate::{
     ffi, DowncastError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef, PyRefMut,
     PyTypeInfo, Python,
 };
-use crate::{gil, PyTypeCheck};
+use crate::{internal::state, PyTypeCheck};
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::ops::Deref;
@@ -58,7 +58,7 @@ mod bound_object_sealed {
 ///
 /// To access the object in situations where the GIL is not held, convert it to [`Py<T>`]
 /// using [`.unbind()`][Bound::unbind]. This includes situations where the GIL is temporarily
-/// released, such as [`Python::allow_threads`](crate::Python::allow_threads)'s closure.
+/// released, such as [`Python::detach`](crate::Python::detach)'s closure.
 ///
 /// See
 #[doc = concat!("[the guide](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/types.html#boundpy-t)")]
@@ -1747,7 +1747,7 @@ impl<T> Clone for Py<T> {
     #[track_caller]
     fn clone(&self) -> Self {
         unsafe {
-            gil::register_incref(self.0);
+            state::register_incref(self.0);
         }
         Self(self.0, PhantomData)
     }
@@ -1765,7 +1765,7 @@ impl<T> Drop for Py<T> {
     #[track_caller]
     fn drop(&mut self) {
         unsafe {
-            gil::register_decref(self.0);
+            state::register_decref(self.0);
         }
     }
 }

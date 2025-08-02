@@ -110,9 +110,6 @@ jobs:
               - '.github/workflows/build.yml'
 
       - name: Run pyo3-ffi-check
-        # Python 3.13.4 has an issue on Windows where the headers are configured to always be free-threaded
-        # https://discuss.python.org/t/heads-up-3-13-5-release-coming-soon/94535
-        continue-on-error: ${{ inputs.python-version == '3.13' && (inputs.os == 'windows-latest' || inputs.os == 'windows-11-arm') }}
         # pypy 3.9 on windows is not PEP 3123 compliant, nor is graalpy
         if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows'))) }}
         run: nox -s ffi-check

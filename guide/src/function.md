@@ -1,20 +1,18 @@
 # Python functions
 
-The `#[pyfunction]` attribute is used to define a Python function from a Rust function. Once defined, the function needs to be added to a [module](./module.md) using the `wrap_pyfunction!` macro.
+The `#[pyfunction]` attribute is used to define a Python function from a Rust function. Once defined, the function needs to be added to a [module](./module.md).
 
 The following example defines a function called `double` in a Python module called `my_extension`:
 
 ```rust,no_run
-use pyo3::prelude::*;
+#[pyo3::pymodule]
+mod my_extension {
+    use pyo3::prelude::*;
 
-#[pyfunction]
-fn double(x: usize) -> usize {
-    x * 2
-}
-
-#[pymodule]
-fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(double, m)?)
+    #[pyfunction]
+    fn double(x: usize) -> usize {
+        x * 2
+    }
 }
 ```
 
@@ -46,17 +44,16 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     `module_with_functions` as the Python function `no_args`:
 
     ```rust
-    use pyo3::prelude::*;
+    # use pyo3::prelude::*;
+    #[pyo3::pymodule]
+    mod module_with_functions {
+        use pyo3::prelude::*;
 
-    #[pyfunction]
-    #[pyo3(name = "no_args")]
-    fn no_args_py() -> usize {
-        42
-    }
-
-    #[pymodule]
-    fn module_with_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-        m.add_function(wrap_pyfunction!(no_args_py, m)?)
+        #[pyfunction]
+        #[pyo3(name = "no_args")]
+        fn no_args_py() -> usize {
+            42
+        }
     }
 
     # Python::attach(|py| {
@@ -81,20 +78,18 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     The following example creates a function `pyfunction_with_module` which returns the containing module's name (i.e. `module_with_fn`):
 
     ```rust,no_run
-    use pyo3::prelude::*;
-    use pyo3::types::PyString;
+    #[pyo3::pymodule]
+    mod module_with_fn {
+        use pyo3::prelude::*;
+        use pyo3::types::PyString;
 
-    #[pyfunction]
-    #[pyo3(pass_module)]
-    fn pyfunction_with_module<'py>(
-        module: &Bound<'py, PyModule>,
-    ) -> PyResult<Bound<'py, PyString>> {
-        module.name()
-    }
-
-    #[pymodule]
-    fn module_with_fn(m: &Bound<'_, PyModule>) -> PyResult<()> {
-        m.add_function(wrap_pyfunction!(pyfunction_with_module, m)?)
+        #[pyfunction]
+        #[pyo3(pass_module)]
+        fn pyfunction_with_module<'py>(
+            module: &Bound<'py, PyModule>,
+        ) -> PyResult<Bound<'py, PyString>> {
+            module.name()
+        }
     }
     ```
   - <a id="warn"></a> `#[pyo3(warn(message = "...", category = ...))]`
