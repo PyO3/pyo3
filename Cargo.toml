@@ -134,9 +134,6 @@ py-clone = []
 parking_lot = ["dep:parking_lot", "lock_api"]
 arc_lock = ["lock_api", "lock_api/arc_lock", "parking_lot?/arc_lock"]
 
-# Adds `OnceCellExt` implementation for `once_cell::sync::OnceCell`
-once_cell = []
-
 bigdecimal = ["dep:bigdecimal", "num-bigint"]
 
 chrono-local = ["chrono/clock", "dep:iana-time-zone"]
@@ -168,7 +165,6 @@ full = [
     "num-complex",
     "num-rational",
     "ordered-float",
-    "once_cell",
     "parking_lot",
     "py-clone",
     "rust_decimal",

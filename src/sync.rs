@@ -22,12 +22,7 @@ pub(crate) mod once_cell;
 #[cfg(not(Py_GIL_DISABLED))]
 use crate::PyVisit;
 
-// The trait is only public if the `once_cell` feature is enabled, so that we have the option
-// to make `once_cell` an optional dependency in the future.
-#[cfg(feature = "once_cell")]
-pub use self::once_cell::{OnceCellExt, PyOnceCell};
-#[cfg(not(feature = "once_cell"))]
-pub(crate) use self::once_cell::{OnceCellExt, PyOnceCell};
+pub use self::once_cell::PyOnceCell;
 
 /// Value with concurrent access protected by the GIL.
 ///
