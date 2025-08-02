@@ -1,7 +1,8 @@
-use crate::attributes::{CrateAttribute, RenamingRule};
+use crate::attributes::{self, CrateAttribute, RenamingRule};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use std::ffi::CString;
+use syn::parse::Parse;
 use syn::spanned::Spanned;
 use syn::visit_mut::VisitMut;
 use syn::{punctuated::Punctuated, Token};
@@ -115,6 +116,13 @@ impl quote::ToTokens for LitCStr {
 #[derive(Clone)]
 pub struct PythonDoc(PythonDocKind);
 
+impl PythonDoc {
+    /// Returns an empty docstring.
+    pub fn empty(ctx: &Ctx) -> Self {
+        PythonDoc(PythonDocKind::LitCStr(LitCStr::empty(ctx)))
+    }
+}
+
 #[derive(Clone)]
 enum PythonDocKind {
     LitCStr(LitCStr),
@@ -123,16 +131,50 @@ enum PythonDocKind {
     Tokens(TokenStream),
 }
 
+enum DocParseMode {
+    /// Currently generating docs for both Python and Rust.
+    Both,
+    /// Currently generating docs for Python only, starting from the given Span.
+    PythonOnly(Span),
+    /// Currently generating docs for Rust only, starting from the given Span.
+    RustOnly(Span),
+}
+
+impl Parse for DocParseMode {
+    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(attributes::kw::doc_mode) {
+            let attribute: attributes::DocModeAttribute = input.parse()?;
+            let lit = attribute.value;
+            if lit.value() == "python" {
+                Ok(DocParseMode::PythonOnly(lit.span()))
+            } else if lit.value() == "rust" {
+                Ok(DocParseMode::RustOnly(lit.span()))
+            } else {
+                Err(syn::Error::new(
+                    lit.span(),
+                    "expected `doc_mode = \"python\"` or `doc_mode = \"rust\"",
+                ))
+            }
+        } else if lookahead.peek(attributes::kw::end_doc_mode) {
+            let _: attributes::kw::end_doc_mode = input.parse()?;
+            Ok(DocParseMode::Both)
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
 /// Collects all #[doc = "..."] attributes into a TokenStream evaluating to a null-terminated string.
 ///
 /// If this doc is for a callable, the provided `text_signature` can be passed to prepend
 /// this to the documentation suitable for Python to extract this into the `__text_signature__`
 /// attribute.
 pub fn get_doc(
-    attrs: &[syn::Attribute],
+    attrs: &mut Vec<syn::Attribute>,
     mut text_signature: Option<String>,
     ctx: &Ctx,
-) -> PythonDoc {
+) -> syn::Result<PythonDoc> {
     let Ctx { pyo3_path, .. } = ctx;
     // insert special divider between `__text_signature__` and doc
     // (assume text_signature is itself well-formed)
@@ -144,31 +186,92 @@ pub fn get_doc(
     let mut first = true;
     let mut current_part = text_signature.unwrap_or_default();
 
-    for attr in attrs {
+    let mut mode = DocParseMode::Both;
+
+    let mut error: Option<syn::Error> = None;
+
+    attrs.retain(|attr| {
         if attr.path().is_ident("doc") {
-            if let Ok(nv) = attr.meta.require_name_value() {
-                if !first {
-                    current_part.push('\n');
-                } else {
-                    first = false;
-                }
-                if let syn::Expr::Lit(syn::ExprLit {
-                    lit: syn::Lit::Str(lit_str),
-                    ..
-                }) = &nv.value
-                {
-                    // Strip single left space from literal strings, if needed.
-                    // e.g. `/// Hello world` expands to #[doc = " Hello world"]
-                    let doc_line = lit_str.value();
-                    current_part.push_str(doc_line.strip_prefix(' ').unwrap_or(&doc_line));
-                } else {
-                    // This is probably a macro doc from Rust 1.54, e.g. #[doc = include_str!(...)]
-                    // Reset the string buffer, write that part, and then push this macro part too.
-                    parts.push(current_part.to_token_stream());
-                    current_part.clear();
-                    parts.push(nv.value.to_token_stream());
+            // if not in Rust-only mode, we process the doc attribute to add to the Python docstring
+            if !matches!(mode, DocParseMode::RustOnly(_)) {
+                if let Ok(nv) = attr.meta.require_name_value() {
+                    if !first {
+                        current_part.push('\n');
+                    } else {
+                        first = false;
+                    }
+                    if let syn::Expr::Lit(syn::ExprLit {
+                        lit: syn::Lit::Str(lit_str),
+                        ..
+                    }) = &nv.value
+                    {
+                        // Strip single left space from literal strings, if needed.
+                        // e.g. `/// Hello world` expands to #[doc = " Hello world"]
+                        let doc_line = lit_str.value();
+                        current_part.push_str(doc_line.strip_prefix(' ').unwrap_or(&doc_line));
+                    } else {
+                        // This is probably a macro doc from Rust 1.54, e.g. #[doc = include_str!(...)]
+                        // Reset the string buffer, write that part, and then push this macro part too.
+                        parts.push(current_part.to_token_stream());
+                        current_part.clear();
+                        parts.push(nv.value.to_token_stream());
+                    }
                 }
             }
+            // discard doc attributes if we're in PythonOnly mode
+            !matches!(mode, DocParseMode::PythonOnly(_))
+        } else if attr.path().is_ident("pyo3_doc_mode") {
+            match attr.parse_args() {
+                Ok(new_mode) => {
+                    mode = new_mode;
+                }
+                Err(err) => match &mut error {
+                    Some(existing_error) => existing_error.combine(err),
+                    None => {
+                        error = Some(err);
+                    }
+                },
+            }
+            // we processed these attributes, remove them
+            false
+        } else {
+            true
+        }
+    });
+
+    // for attr in attrs {
+    //     if attr.path().is_ident("doc") {
+    //         if let Ok(nv) = attr.meta.require_name_value() {
+    //             if !first {
+    //                 current_part.push('\n');
+    //             } else {
+    //                 first = false;
+    //             }
+    //             if let syn::Expr::Lit(syn::ExprLit {
+    //                 lit: syn::Lit::Str(lit_str),
+    //                 ..
+    //             }) = &nv.value
+    //             {
+    //                 // Strip single left space from literal strings, if needed.
+    //                 // e.g. `/// Hello world` expands to #[doc = " Hello world"]
+    //                 let doc_line = lit_str.value();
+    //                 current_part.push_str(doc_line.strip_prefix(' ').unwrap_or(&doc_line));
+    //             } else {
+    //                 // This is probably a macro doc from Rust 1.54, e.g. #[doc = include_str!(...)]
+    //                 // Reset the string buffer, write that part, and then push this macro part too.
+    //                 parts.push(current_part.to_token_stream());
+    //                 current_part.clear();
+    //                 parts.push(nv.value.to_token_stream());
+    //             }
+    //         }
+    //     }
+    // }
+
+    // if the mode has not been ended, we return an error
+    match mode {
+        DocParseMode::Both => {}
+        DocParseMode::PythonOnly(span) | DocParseMode::RustOnly(span) => {
+            return Err(err_spanned!(span => "doc_mode must be ended with `end_doc_mode`"));
         }
     }
 
@@ -187,17 +290,17 @@ pub fn get_doc(
             syn::token::Comma(Span::call_site()).to_tokens(tokens);
         });
 
-        PythonDoc(PythonDocKind::Tokens(
+        Ok(PythonDoc(PythonDocKind::Tokens(
             quote!(#pyo3_path::ffi::c_str!(#tokens)),
-        ))
+        )))
     } else {
         // Just a string doc - return directly with nul terminator
         let docs = CString::new(current_part).unwrap();
-        PythonDoc(PythonDocKind::LitCStr(LitCStr::new(
+        Ok(PythonDoc(PythonDocKind::LitCStr(LitCStr::new(
             docs,
             Span::call_site(),
             ctx,
-        )))
+        ))))
     }
 }
 
