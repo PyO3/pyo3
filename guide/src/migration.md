@@ -15,6 +15,46 @@ For this reason we chose to rename these to more modern terminology introduced i
 - `pyo3::prepare_freethreaded_python` is now called `Python::initialize`.
 </details>
 
+### Deprecation of `GILProtected`
+<details open>
+<summary><small>Click to expand</small></summary>
+
+As another cleanup related to concurrency primitives designed for a Python constrained by the GIL, the `GILProtected` type is now deprecated. Prefer to use concurrency primitives which are compatible with free-threaded Python, such as [`std::sync::Mutex`](https://doc.rust-lang.org/std/sync/struct.Mutex.html) (in combination with PyO3's [`OnceExt`]({{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html) trait).
+
+Before:
+
+```rust
+# #![allow(deprecated)]
+# use pyo3::prelude::*;
+use pyo3::sync::GILProtected;
+use std::cell::RefCell;
+# fn main() {
+# Python::attach(|py| {
+static NUMBERS: GILProtected<RefCell<Vec<i32>>> = GILProtected::new(RefCell::new(Vec::new()));
+Python::attach(|py| {
+    NUMBERS.get(py).borrow_mut().push(42);
+});
+# })
+# }
+```
+
+After:
+
+```rust
+# use pyo3::prelude::*;
+use pyo3::sync::MutexExt;
+use std::sync::Mutex;
+# fn main() {
+# Python::attach(|py| {
+static NUMBERS: Mutex<Vec<i32>> = Mutex::new(Vec::new());
+Python::attach(|py| {
+    NUMBERS.lock_py_attached(py).expect("no poisoning").push(42);
+});
+# })
+# }
+```
+</summary>
+
 ## from 0.24.* to 0.25
 ### `AsPyPointer` removal
 <details>

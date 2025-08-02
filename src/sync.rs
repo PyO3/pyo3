@@ -43,6 +43,10 @@ use crate::PyVisit;
 ///     NUMBERS.get(py).borrow_mut().push(42);
 /// });
 /// ```
+#[deprecated(
+    since = "0.26.0",
+    note = "Prefer an interior mutability primitive compatible with free-threaded Python, such as `Mutex` in combination with the `MutexExt` trait"
+)]
 #[cfg(not(Py_GIL_DISABLED))]
 pub struct GILProtected<T> {
     value: T,
