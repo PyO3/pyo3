@@ -15,6 +15,125 @@ For this reason we chose to rename these to more modern terminology introduced i
 - `pyo3::prepare_freethreaded_python` is now called `Python::initialize`.
 </details>
 
+### `FromPyObject` gains additional lifetime
+<details open>
+<summary><small>Click to expand</small></summary>
+
+With the removal of the `gil-ref` API it is now possible to fully split the Python GIL lifetime
+`'py` and the input lifetime `'a`. This allows borrowing from the input data without extending the
+GIL lifetime.
+
+`FromPyObject` now takes an additional lifetime `'a` describing the input lifetime. The argument
+type of the `extract` method changed from `&Bound<'py, PyAny>` to `Borrowed<'a, 'py, PyAny>`. This was
+done because `&'a Bound<'py, PyAny>` would have an implicit restriction `'py: 'a` due to the reference type. `extract_bound` with its
+old signature is deprecated, but still available during migration.
+
+This new form was partly implemented already in 0.22 using the internal `FromPyObjectBound` trait and
+is now extended to all types.
+
+Most implementations can just add an elided lifetime to migrate.
+
+Before:
+```rust,ignore
+impl<'py> FromPyObject<'py> for IpAddr {
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        ...
+    }
+}
+```
+
+After
+```rust,ignore
+impl<'py> FromPyObject<'_, 'py> for IpAddr {
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        ...
+        // since `Borrowed` derefs to `&Bound`, the body often
+        // needs no changes, or adding an occasional `&`
+    }
+}
+```
+
+Occasionally, more steps are necessary. For generic types, the bounds need to be adjusted. The
+correct bound depends on how the type is used.
+
+For simple wrapper types usually it's possible to just forward the bound.
+
+Before:
+```rust,ignore
+struct MyWrapper<T>(T);
+
+impl<'py, T> FromPyObject<'py> for MyWrapper<T>
+where 
+    T: FromPyObject<'py>
+{
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        ob.extract().map(MyWrapper)
+    }
+}
+```
+
+After: 
+```rust
+# use pyo3::prelude::*;
+# pub struct MyWrapper<T>(T);
+impl<'a, 'py, T> FromPyObject<'a, 'py> for MyWrapper<T>
+where
+    T: FromPyObject<'a, 'py>
+{
+    type Error = T::Error;
+
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        obj.extract().map(MyWrapper)
+    }
+}
+```
+
+Container types that need to create temporary Python references during extraction, for example
+extracing from a `PyList`, require a stronger bound. For these the `FromPyObjectOwned` trait was
+introduced. It is automatically implemented for any type that implements `FromPyObject` and does not
+borrow from the input. It is intended to be used as a trait bound in these situations.
+
+Before:
+```rust,ignore
+struct MyVec<T>(Vec<T>);
+impl<'py, T> FromPyObject<'py> for Vec<T>
+where
+    T: FromPyObject<'py>,
+{
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let mut v = MyVec(Vec::new());
+        for item in obj.try_iter()? {
+            v.0.push(item?.extract::<T>()?);
+        }
+        Ok(v)
+    }
+}
+```
+
+After:
+```rust
+# use pyo3::prelude::*;
+# pub struct MyVec<T>(Vec<T>);
+impl<'py, T> FromPyObject<'_, 'py> for MyVec<T>
+where
+    T: FromPyObjectOwned<'py> // 👈 can only extract owned values, because each `item` below
+                              //    is a temporary short lived owned reference
+{
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
+        let mut v = MyVec(Vec::new());
+        for item in obj.try_iter()? {
+            v.0.push(item?.extract::<T>().map_err(Into::into)?);
+        }
+        Ok(v)
+    }
+}
+```
+
+This is very similar to `serde`s `Deserialize` and `DeserializeOwned` traits.
+</details>
+
 ## from 0.24.* to 0.25
 ### `AsPyPointer` removal
 <details>
@@ -24,12 +143,6 @@ The `AsPyPointer` trait is mostly a leftover from the now removed gil-refs API. 
 `PyVisit::call` has been updated to take `T: Into<Option<&Py<T>>>`, which allows for arguments of type `&Py<T>`, `&Option<Py<T>>` and `Option<&Py<T>>`. It is unlikely any changes are needed here to migrate.
 
 `PyAnyMethods::is`/`Py::is` has been updated to take `T: AsRef<Py<PyAny>>>`. Additionally `AsRef<Py<PyAny>>>` implementations were added for `Py`, `Bound` and `Borrowed`. Because of the existing `AsRef<Bound<PyAny>> for Bound<T>` implementation this may cause inference issues in non-generic code. This can be easily migrated by switching to `as_any` instead of `as_ref` for these calls.
-</details>
-
-## from 0.23.* to 0.24
-<details>
-<summary><small>Click to expand</small></summary>
-There were no significant changes from 0.23 to 0.24 which required documenting in this guide.
 </details>
 
 ## from 0.22.* to 0.23
