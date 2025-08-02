@@ -224,6 +224,23 @@ impl<'py> Bound<'py, PyAny> {
     ) -> &'a Option<Self> {
         unsafe { &*ptr_from_ref(ptr).cast::<Option<Bound<'py, PyAny>>>() }
     }
+
+    /// This slightly strange method is used to obtain `&Bound<PyAny>` from a [`NonNull`] in macro
+    /// code where we need to constrain the lifetime `'a` safely.
+    ///
+    /// Note that `'py` is required to outlive `'a` implicitly by the nature of the fact that `&'a
+    /// Bound<'py>` means that `Bound<'py>` exists for at least the lifetime `'a`.
+    ///
+    /// # Safety
+    /// - `ptr` must be a valid pointer to a Python object for the lifetime `'a`. The `ptr` can be
+    ///   either a borrowed reference or an owned reference, it does not matter, as this is just
+    ///   `&Bound` there will never be any ownership transfer.
+    pub(crate) unsafe fn ref_from_non_null<'a>(
+        _py: Python<'py>,
+        ptr: &'a NonNull<ffi::PyObject>,
+    ) -> &'a Self {
+        unsafe { NonNull::from(ptr).cast().as_ref() }
+    }
 }
 
 impl<'py, T> Bound<'py, T>
@@ -704,6 +721,17 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
     }
 }
 
+impl<'a, T: PyClass> Borrowed<'a, '_, T> {
+    /// Get a view on the underlying `PyClass` contents.
+    #[inline]
+    pub(crate) fn get_class_object(self) -> &'a PyClassObject<T> {
+        // Safety: Borrowed<'a, '_, T: PyClass> is known to contain an object
+        // which is laid out in memory as a PyClassObject<T> and lives for at
+        // least 'a.
+        unsafe { &*self.as_ptr().cast::<PyClassObject<T>>() }
+    }
+}
+
 impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// Constructs a new `Borrowed<'a, 'py, PyAny>` from a pointer. Panics if `ptr` is null.
     ///
@@ -769,6 +797,15 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     #[inline]
     pub(crate) unsafe fn from_ptr_unchecked(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(unsafe { NonNull::new_unchecked(ptr) }, PhantomData, py)
+    }
+
+    /// # Safety
+    /// This similar to `std::slice::from_raw_parts`, the lifetime `'a` is
+    /// completely defined by the caller and it is the caller's responsibility
+    /// to ensure that the reference this is derived from is valid for the
+    /// lifetime `'a`.
+    pub(crate) unsafe fn from_non_null(py: Python<'py>, ptr: NonNull<ffi::PyObject>) -> Self {
+        Self(ptr, PhantomData, py)
     }
 
     #[inline]

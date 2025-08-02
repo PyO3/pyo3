@@ -14,7 +14,7 @@ use crate::{
 use crate::{quotes, utils};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
-use syn::{ext::IdentExt, spanned::Spanned, Result};
+use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
 /// Generated code for a single pymethod item.
 pub struct MethodAndMethodDef {
@@ -1147,6 +1147,7 @@ impl Ty {
                 extract_error_mode,
                 holders,
                 arg,
+                format_ident!("ref_from_ptr"),
                 quote! { #ident },
                 ctx
             ),
@@ -1154,6 +1155,7 @@ impl Ty {
                 extract_error_mode,
                 holders,
                 arg,
+                format_ident!("ref_from_ptr"),
                 quote! {
                     if #ident.is_null() {
                         #pyo3_path::ffi::Py_None()
@@ -1167,13 +1169,15 @@ impl Ty {
                 extract_error_mode,
                 holders,
                 arg,
-                quote! { #ident.as_ptr() },
+                format_ident!("ref_from_non_null"),
+                quote! { #ident },
                 ctx
             ),
             Ty::IPowModulo => extract_object(
                 extract_error_mode,
                 holders,
                 arg,
+                format_ident!("ref_from_ptr"),
                 quote! { #ident.as_ptr() },
                 ctx
             ),
@@ -1203,6 +1207,7 @@ fn extract_object(
     extract_error_mode: ExtractErrorMode,
     holders: &mut Holders,
     arg: &FnArg<'_>,
+    ref_from_method: Ident,
     source_ptr: TokenStream,
     ctx: &Ctx,
 ) -> TokenStream {
@@ -1220,7 +1225,7 @@ fn extract_object(
 
         quote! {
             #pyo3_path::impl_::extract_argument::from_py_with(
-                unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0 },
+                unsafe { #pyo3_path::impl_::pymethods::BoundRef::#ref_from_method(py, &#source_ptr).0 },
                 #name,
                 #extractor,
             )
@@ -1235,7 +1240,7 @@ fn extract_object(
                 _,
                 { #pyo3_path::impl_::pyclass::IsOption::<#ty>::VALUE }
             >(
-                unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0 },
+                unsafe { #pyo3_path::impl_::pymethods::BoundRef::#ref_from_method(py, &#source_ptr).0 },
                 &mut #holder,
                 #name
             )
