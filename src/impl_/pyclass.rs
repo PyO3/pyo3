@@ -1008,8 +1008,8 @@ unsafe fn bpo_35810_workaround(py: Python<'_>, ty: *mut ffi::PyTypeObject) {
     {
         // Must check version at runtime for abi3 wheels - they could run against a higher version
         // than the build config suggests.
-        use crate::sync::GILOnceCell;
-        static IS_PYTHON_3_8: GILOnceCell<bool> = GILOnceCell::new();
+        use crate::sync::PyOnceCell;
+        static IS_PYTHON_3_8: PyOnceCell<bool> = PyOnceCell::new();
 
         if *IS_PYTHON_3_8.get_or_init(py, || py.version_info() >= (3, 8)) {
             // No fix needed - the wheel is running on a sufficiently new interpreter.

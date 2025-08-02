@@ -15,10 +15,49 @@ For this reason we chose to rename these to more modern terminology introduced i
 - `pyo3::prepare_freethreaded_python` is now called `Python::initialize`.
 </details>
 
+### Replacement of `GILOnceCell` with `PyOnceCell`
+<details open>
+<summary><small>Click to expand</small></summary>
+
+Similar to the above, the `GILOnceCell` type was designed for a Python interpreter which was limited by the GIL. Aside from its name, it allowed for the "once" initialization to race because the racing was mediated by the GIL and was extremely unlikely to manifest in practice.
+
+With the introduction of free-threaded Python the racy initialization behavior is more likely to be problematic and so a new type `PyOnceCell` has been introduced which performs true single-initialization correctly while attached to the Python interpreter. It exposes the same API as `GILOnceCell`, so should be a drop-in replacement with the notable exception that if the racy initialization of `GILOnceCell` was inadvertently relied on (e.g. due to circular references) then the stronger once-ever guarantee of `PyOnceCell` may lead to deadlocking which requires refactoring.
+
+Before:
+
+```rust
+# #![allow(deprecated)]
+# use pyo3::prelude::*;
+# use pyo3::sync::PyOnceCell;
+# use pyo3::types::PyType;
+# fn main() {
+# Python::attach(|py| {
+static DECIMAL_TYPE: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+DECIMAL_TYPE.import("decimal", "Decimal");
+# })
+# }
+```
+
+After:
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::sync::PyOnceCell;
+# use pyo3::types::PyTuple;
+# fn main() {
+# Python::attach(|py| {
+static DECIMAL_TYPE: PyOnceCell<Py<PyType>> = PyOnceCell::new();
+DECIMAL_TYPE.import("decimal", "Decimal");
+# })
+# }
+```
+</summary>
+
 ## from 0.24.* to 0.25
 ### `AsPyPointer` removal
 <details>
 <summary><small>Click to expand</small></summary>
+
 The `AsPyPointer` trait is mostly a leftover from the now removed gil-refs API. The last remaining uses were the GC API, namely `PyVisit::call`, and identity comparison (`PyAnyMethods::is` and `Py::is`).
 
 `PyVisit::call` has been updated to take `T: Into<Option<&Py<T>>>`, which allows for arguments of type `&Py<T>`, `&Option<Py<T>>` and `Option<&Py<T>>`. It is unlikely any changes are needed here to migrate.
@@ -29,6 +68,7 @@ The `AsPyPointer` trait is mostly a leftover from the now removed gil-refs API. 
 ## from 0.23.* to 0.24
 <details>
 <summary><small>Click to expand</small></summary>
+
 There were no significant changes from 0.23 to 0.24 which required documenting in this guide.
 </details>
 

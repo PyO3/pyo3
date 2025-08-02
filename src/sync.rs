@@ -123,6 +123,10 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 /// }
 /// # Python::attach(|py| assert_eq!(get_shared_list(py).len(), 0));
 /// ```
+#[deprecated(
+    since = "0.26.0",
+    note = "Prefer `pyo3::sync::PyOnceCell`, which avoids the possibility of racing during initialization."
+)]
 pub struct GILOnceCell<T> {
     once: Once,
     data: UnsafeCell<MaybeUninit<T>>,
@@ -150,6 +154,7 @@ pub struct GILOnceCell<T> {
     _marker: PhantomData<T>,
 }
 
+#[allow(deprecated)]
 impl<T> Default for GILOnceCell<T> {
     fn default() -> Self {
         Self::new()
@@ -159,9 +164,12 @@ impl<T> Default for GILOnceCell<T> {
 // T: Send is needed for Sync because the thread which drops the GILOnceCell can be different
 // to the thread which fills it. (e.g. think scoped thread which fills the cell and then exits,
 // leaving the cell to be dropped by the main thread).
+#[allow(deprecated)]
 unsafe impl<T: Send + Sync> Sync for GILOnceCell<T> {}
+#[allow(deprecated)]
 unsafe impl<T: Send> Send for GILOnceCell<T> {}
 
+#[allow(deprecated)]
 impl<T> GILOnceCell<T> {
     /// Create a `GILOnceCell` which does not yet contain a value.
     pub const fn new() -> Self {
@@ -295,6 +303,7 @@ impl<T> GILOnceCell<T> {
     }
 }
 
+#[allow(deprecated)]
 impl<T> GILOnceCell<Py<T>> {
     /// Creates a new cell that contains a new Python reference to the same contained object.
     ///
@@ -312,6 +321,7 @@ impl<T> GILOnceCell<Py<T>> {
     }
 }
 
+#[allow(deprecated)]
 impl<T> GILOnceCell<Py<T>>
 where
     T: PyTypeCheck,
@@ -364,6 +374,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<T> Drop for GILOnceCell<T> {
     fn drop(&mut self) {
         if self.once.is_completed() {
