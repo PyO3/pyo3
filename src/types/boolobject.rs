@@ -141,6 +141,9 @@ impl<'py> IntoPyObject<'py> for bool {
     type Output = Borrowed<'py, 'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = "bool";
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyBool::new(py, self))
@@ -156,6 +159,9 @@ impl<'py> IntoPyObject<'py> for &bool {
     type Target = PyBool;
     type Output = Borrowed<'py, 'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = bool::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
