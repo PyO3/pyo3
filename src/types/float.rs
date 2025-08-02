@@ -74,6 +74,9 @@ impl<'py> IntoPyObject<'py> for f64 {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = "float";
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyFloat::new(py, self))
@@ -89,6 +92,9 @@ impl<'py> IntoPyObject<'py> for &f64 {
     type Target = PyFloat;
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = f64::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -139,6 +145,9 @@ impl<'py> IntoPyObject<'py> for f32 {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = "float";
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyFloat::new(py, self.into()))
@@ -154,6 +163,9 @@ impl<'py> IntoPyObject<'py> for &f32 {
     type Target = PyFloat;
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = f32::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
