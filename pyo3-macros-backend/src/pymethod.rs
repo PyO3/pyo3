@@ -360,10 +360,14 @@ pub fn impl_py_method_def_new(
     // Use just the text_signature_call_signature() because the class' Python name
     // isn't known to `#[pymethods]` - that has to be attached at runtime from the PyClassImpl
     // trait implementation created by `#[pyclass]`.
-    let text_signature_body = spec.text_signature_call_signature().map_or_else(
-        || quote!(::std::option::Option::None),
-        |text_signature| quote!(::std::option::Option::Some(#text_signature)),
-    );
+    let text_signature_impl = spec.text_signature_call_signature().map(|text_signature| {
+        quote! {
+            #[allow(unknown_lints, non_local_definitions)]
+            impl #pyo3_path::impl_::pyclass::doc::PyClassNewTextSignature for #cls {
+                const TEXT_SIGNATURE: &str = #text_signature;
+            }
+        }
+    });
     let slot_def = quote! {
         #pyo3_path::ffi::PyType_Slot {
             slot: #pyo3_path::ffi::Py_tp_new,
@@ -373,13 +377,8 @@ pub fn impl_py_method_def_new(
                     args: *mut #pyo3_path::ffi::PyObject,
                     kwargs: *mut #pyo3_path::ffi::PyObject,
                 ) -> *mut #pyo3_path::ffi::PyObject {
-                    #[allow(unknown_lints, non_local_definitions)]
-                    impl #pyo3_path::impl_::pyclass::PyClassNewTextSignature<#cls> for #pyo3_path::impl_::pyclass::PyClassImplCollector<#cls> {
-                        #[inline]
-                        fn new_text_signature(self) -> ::std::option::Option<&'static str> {
-                            #text_signature_body
-                        }
-                    }
+
+                    #text_signature_impl
 
                     #pyo3_path::impl_::trampoline::newfunc(
                         subtype,

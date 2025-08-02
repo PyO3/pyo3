@@ -192,6 +192,7 @@ pub fn get_doc(
         ))
     } else {
         // Just a string doc - return directly with nul terminator
+        // FIXME: if this contains nul bytes, this panics with an ugly error.
         let docs = CString::new(current_part).unwrap();
         PythonDoc(PythonDocKind::LitCStr(LitCStr::new(
             docs,
