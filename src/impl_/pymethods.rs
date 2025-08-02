@@ -19,7 +19,7 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::os::raw::{c_int, c_void};
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::ptr::null_mut;
+use std::ptr::{null_mut, NonNull};
 
 use super::trampoline;
 use crate::internal_tricks::{clear_eq, traverse_eq};
@@ -644,6 +644,10 @@ impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
         ptr: &'a *mut ffi::PyObject,
     ) -> Option<Self> {
         unsafe { Bound::ref_from_ptr_or_opt(py, ptr).as_ref().map(BoundRef) }
+    }
+
+    pub unsafe fn ref_from_non_null(py: Python<'py>, ptr: &'a NonNull<ffi::PyObject>) -> Self {
+        unsafe { Self(Bound::ref_from_non_null(py, ptr)) }
     }
 
     pub fn downcast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, DowncastError<'a, 'py>> {
