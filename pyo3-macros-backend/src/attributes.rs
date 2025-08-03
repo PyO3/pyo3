@@ -320,7 +320,6 @@ pub type StrFormatterAttribute = OptionalKeywordAttribute<kw::str, StringFormatt
 pub type TextSignatureAttribute = KeywordAttribute<kw::text_signature, TextSignatureAttributeValue>;
 pub type SubmoduleAttribute = kw::submodule;
 pub type GILUsedAttribute = KeywordAttribute<kw::gil_used, LitBool>;
-pub type DocModeAttribute = KeywordAttribute<kw::doc_mode, LitStr>;
 
 impl<K: Parse + std::fmt::Debug, V: Parse> Parse for KeywordAttribute<K, V> {
     fn parse(input: ParseStream<'_>) -> Result<Self> {

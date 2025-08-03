@@ -1,8 +1,7 @@
-use crate::attributes::{self, CrateAttribute, RenamingRule};
+use crate::attributes::{CrateAttribute, RenamingRule};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use std::ffi::CString;
-use syn::parse::Parse;
 use syn::spanned::Spanned;
 use syn::visit_mut::VisitMut;
 use syn::{punctuated::Punctuated, Token};
@@ -134,35 +133,10 @@ enum PythonDocKind {
 enum DocParseMode {
     /// Currently generating docs for both Python and Rust.
     Both,
-    /// Currently generating docs for Python only, starting from the given Span.
-    PythonOnly(Span),
-    /// Currently generating docs for Rust only, starting from the given Span.
-    RustOnly(Span),
-}
-
-impl Parse for DocParseMode {
-    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
-        let lookahead = input.lookahead1();
-        if lookahead.peek(attributes::kw::doc_mode) {
-            let attribute: attributes::DocModeAttribute = input.parse()?;
-            let lit = attribute.value;
-            if lit.value() == "python" {
-                Ok(DocParseMode::PythonOnly(lit.span()))
-            } else if lit.value() == "rust" {
-                Ok(DocParseMode::RustOnly(lit.span()))
-            } else {
-                Err(syn::Error::new(
-                    lit.span(),
-                    "expected `doc_mode = \"python\"` or `doc_mode = \"rust\"",
-                ))
-            }
-        } else if lookahead.peek(attributes::kw::end_doc_mode) {
-            let _: attributes::kw::end_doc_mode = input.parse()?;
-            Ok(DocParseMode::Both)
-        } else {
-            Err(lookahead.error())
-        }
-    }
+    /// Currently generating docs for Python only.
+    PythonOnly,
+    /// Currently generating docs for Rust only.
+    RustOnly,
 }
 
 /// Collects all #[doc = "..."] attributes into a TokenStream evaluating to a null-terminated string.
@@ -189,91 +163,85 @@ pub fn get_doc(
 
     let mut mode = DocParseMode::Both;
 
-    let mut error: Option<syn::Error> = None;
+    let mut to_retain = vec![]; // Collect indices of attributes to retain
 
-    attrs.retain(|attr| {
+    for (i, attr) in attrs.iter().enumerate() {
         if attr.path().is_ident("doc") {
-            // if not in Rust-only mode, we process the doc attribute to add to the Python docstring
-            if !matches!(mode, DocParseMode::RustOnly(_)) {
-                if let Ok(nv) = attr.meta.require_name_value() {
-                    if !first {
-                        current_part.push('\n');
-                    } else {
-                        first = false;
+            if let Ok(nv) = attr.meta.require_name_value() {
+                let include_in_python;
+                let retain_in_rust;
+
+                if let syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(lit_str),
+                    ..
+                }) = &nv.value
+                {
+                    // Strip single left space from literal strings, if needed.
+                    let doc_line = lit_str.value();
+                    let stripped_line = doc_line.strip_prefix(' ').unwrap_or(&doc_line);
+                    let trimmed = stripped_line.trim();
+
+                    // Check if this is a mode switch instruction
+                    if let Some(content) = trimmed.strip_prefix("<!--").and_then(|s| s.strip_suffix("-->")) {
+                        let content_trimmed = content.trim();
+                        if content_trimmed.starts_with("pyo3_doc_mode:") {
+                            let value = content_trimmed.strip_prefix("pyo3_doc_mode:").unwrap_or("").trim();
+                            mode = match value {
+                                "python" => DocParseMode::PythonOnly,
+                                "rust" => DocParseMode::RustOnly,
+                                "both" => DocParseMode::Both,
+                                _ => return Err(syn::Error::new(lit_str.span(), format!("Invalid doc_mode: '{}'. Expected 'python', 'rust', or 'both'.", value))),
+                            };
+                            // Do not retain mode switch lines in Rust, and skip in Python
+                            continue;
+                        }
                     }
-                    if let syn::Expr::Lit(syn::ExprLit {
-                        lit: syn::Lit::Str(lit_str),
-                        ..
-                    }) = &nv.value
-                    {
-                        // Strip single left space from literal strings, if needed.
-                        // e.g. `/// Hello world` expands to #[doc = " Hello world"]
-                        let doc_line = lit_str.value();
-                        current_part.push_str(doc_line.strip_prefix(' ').unwrap_or(&doc_line));
-                    } else {
-                        // This is probably a macro doc from Rust 1.54, e.g. #[doc = include_str!(...)]
+
+                    // Not a mode switch, decide based on current mode
+                    include_in_python = matches!(mode, DocParseMode::Both | DocParseMode::PythonOnly);
+                    retain_in_rust = matches!(mode, DocParseMode::Both | DocParseMode::RustOnly);
+
+                    // Include in Python doc if needed
+                    if include_in_python {
+                        if !first {
+                            current_part.push('\n');
+                        } else {
+                            first = false;
+                        }
+                        current_part.push_str(stripped_line);
+                    }
+                } else {
+                    // This is probably a macro doc, e.g. #[doc = include_str!(...)]
+                    // Decide based on current mode
+                    include_in_python = matches!(mode, DocParseMode::Both | DocParseMode::PythonOnly);
+                    retain_in_rust = matches!(mode, DocParseMode::Both | DocParseMode::RustOnly);
+
+                    // Include in Python doc if needed
+                    if include_in_python {
                         // Reset the string buffer, write that part, and then push this macro part too.
                         parts.push(current_part.to_token_stream());
                         current_part.clear();
                         parts.push(nv.value.to_token_stream());
                     }
                 }
-            }
-            // discard doc attributes if we're in PythonOnly mode
-            !matches!(mode, DocParseMode::PythonOnly(_))
-        } else if attr.path().is_ident("pyo3_doc_mode") {
-            match attr.parse_args() {
-                Ok(new_mode) => {
-                    mode = new_mode;
+
+                // Collect to retain if needed
+                if retain_in_rust {
+                    to_retain.push(i);
                 }
-                Err(err) => match &mut error {
-                    Some(existing_error) => existing_error.combine(err),
-                    None => {
-                        error = Some(err);
-                    }
-                },
             }
-            // we processed these attributes, remove them
-            false
         } else {
-            true
+            // Non-doc attributes are always retained
+            to_retain.push(i);
         }
-    });
+    }
 
-    // for attr in attrs {
-    //     if attr.path().is_ident("doc") {
-    //         if let Ok(nv) = attr.meta.require_name_value() {
-    //             if !first {
-    //                 current_part.push('\n');
-    //             } else {
-    //                 first = false;
-    //             }
-    //             if let syn::Expr::Lit(syn::ExprLit {
-    //                 lit: syn::Lit::Str(lit_str),
-    //                 ..
-    //             }) = &nv.value
-    //             {
-    //                 // Strip single left space from literal strings, if needed.
-    //                 // e.g. `/// Hello world` expands to #[doc = " Hello world"]
-    //                 let doc_line = lit_str.value();
-    //                 current_part.push_str(doc_line.strip_prefix(' ').unwrap_or(&doc_line));
-    //             } else {
-    //                 // This is probably a macro doc from Rust 1.54, e.g. #[doc = include_str!(...)]
-    //                 // Reset the string buffer, write that part, and then push this macro part too.
-    //                 parts.push(current_part.to_token_stream());
-    //                 current_part.clear();
-    //                 parts.push(nv.value.to_token_stream());
-    //             }
-    //         }
-    //     }
-    // }
+    // Retain only the selected attributes
+    *attrs = to_retain.into_iter().map(|i| attrs[i].clone()).collect();
 
-    // if the mode has not been ended, we return an error
-    match mode {
-        DocParseMode::Both => {}
-        DocParseMode::PythonOnly(span) | DocParseMode::RustOnly(span) => {
-            return Err(err_spanned!(span => "doc_mode must be ended with `end_doc_mode`"));
-        }
+    // Check if mode ended in Both; if not, error to enforce "pairing"
+    if !matches!(mode, DocParseMode::Both) {
+        return Err(err_spanned!(Span::call_site() => "doc_mode did not end in 'both' mode; consider adding <!-- pyo3_doc_mode: both --> at the end"));
     }
 
     if !parts.is_empty() {
