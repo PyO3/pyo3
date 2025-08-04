@@ -30,7 +30,7 @@ impl<'py> PyRange {
         unsafe {
             Ok(Self::type_object(py)
                 .call1((start, stop, step))?
-                .downcast_into_unchecked())
+                .cast_into_unchecked())
         }
     }
 }

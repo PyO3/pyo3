@@ -71,7 +71,7 @@ impl<'py> PyTracebackMethods<'py> for Bound<'py, PyTraceback> {
         let formatted = string_io
             .getattr(intern!(py, "getvalue"))?
             .call0()?
-            .downcast::<PyString>()?
+            .cast::<PyString>()?
             .to_cow()?
             .into_owned();
         Ok(formatted)

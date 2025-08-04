@@ -1056,7 +1056,7 @@ fn impl_complex_enum(
                 quote! {
                     #cls::#variant_ident { .. } => {
                         let pyclass_init = <#pyo3_path::PyClassInitializer<Self> as ::std::convert::From<Self>>::from(self).add_subclass(#variant_cls);
-                        unsafe { #pyo3_path::Bound::new(py, pyclass_init).map(|b| #pyo3_path::types::PyAnyMethods::downcast_into_unchecked(b.into_any())) }
+                        unsafe { #pyo3_path::Bound::new(py, pyclass_init).map(|b| b.cast_into_unchecked()) }
                     }
                 }
             });
@@ -1915,7 +1915,7 @@ fn pyclass_richcmp_simple_enum(
     let eq = options.eq.map(|eq| {
         quote_spanned! { eq.span() =>
             let self_val = self;
-            if let ::std::result::Result::Ok(other) = #pyo3_path::types::PyAnyMethods::downcast::<Self>(other) {
+            if let ::std::result::Result::Ok(other) = other.cast::<Self>() {
                 let other = &*other.borrow();
                 return match op {
                     #arms
@@ -1928,7 +1928,7 @@ fn pyclass_richcmp_simple_enum(
         quote_spanned! { eq_int.span() =>
             let self_val = self.__pyo3__int__();
             if let ::std::result::Result::Ok(other) = #pyo3_path::types::PyAnyMethods::extract::<#repr_type>(other).or_else(|_| {
-                #pyo3_path::types::PyAnyMethods::downcast::<Self>(other).map(|o| o.borrow().__pyo3__int__())
+                other.cast::<Self>().map(|o| o.borrow().__pyo3__int__())
             }) {
                 return match op {
                     #arms
@@ -1979,7 +1979,7 @@ fn pyclass_richcmp(
                 op: #pyo3_path::pyclass::CompareOp
             ) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
                 let self_val = self;
-                if let ::std::result::Result::Ok(other) = #pyo3_path::types::PyAnyMethods::downcast::<Self>(other) {
+                if let ::std::result::Result::Ok(other) = other.cast::<Self>() {
                     let other = &*other.borrow();
                     match op {
                         #arms

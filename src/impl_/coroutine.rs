@@ -8,7 +8,7 @@ use crate::{
     instance::Bound,
     pycell::impl_::PyClassBorrowChecker,
     pyclass::boolean_struct::False,
-    types::{PyAnyMethods, PyString},
+    types::PyString,
     IntoPyObject, Py, PyAny, PyClass, PyErr, PyResult, Python,
 };
 
@@ -34,7 +34,7 @@ pub struct RefGuard<T: PyClass>(Py<T>);
 
 impl<T: PyClass> RefGuard<T> {
     pub fn new(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let bound = obj.downcast::<T>()?;
+        let bound = obj.cast::<T>()?;
         bound.get_class_object().borrow_checker().try_borrow()?;
         Ok(RefGuard(bound.clone().unbind()))
     }
@@ -64,7 +64,7 @@ pub struct RefMutGuard<T: PyClass<Frozen = False>>(Py<T>);
 
 impl<T: PyClass<Frozen = False>> RefMutGuard<T> {
     pub fn new(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let bound = obj.downcast::<T>()?;
+        let bound = obj.cast::<T>()?;
         bound.get_class_object().borrow_checker().try_borrow_mut()?;
         Ok(RefMutGuard(bound.clone().unbind()))
     }

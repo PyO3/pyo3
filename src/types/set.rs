@@ -4,7 +4,6 @@ use crate::{
     ffi_ptr_ext::FfiPtrExt,
     instance::Bound,
     py_result_ext::PyResultExt,
-    types::any::PyAnyMethods,
 };
 use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, Python};
 use std::ptr;
@@ -57,7 +56,7 @@ impl PySet {
         unsafe {
             ffi::PySet_New(ptr::null_mut())
                 .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }
@@ -276,7 +275,7 @@ where
         // user code errors or panics.
         ffi::PySet_New(std::ptr::null_mut())
             .assume_owned_or_err(py)?
-            .downcast_into_unchecked()
+            .cast_into_unchecked()
     };
     let ptr = set.as_ptr();
 
@@ -324,11 +323,11 @@ mod tests {
         Python::attach(|py| {
             let mut v = HashSet::<i32>::new();
             let ob = (&v).into_pyobject(py).unwrap();
-            let set = ob.downcast::<PySet>().unwrap();
+            let set = ob.cast::<PySet>().unwrap();
             assert_eq!(0, set.len());
             v.insert(7);
             let ob = v.into_pyobject(py).unwrap();
-            let set2 = ob.downcast::<PySet>().unwrap();
+            let set2 = ob.cast::<PySet>().unwrap();
             assert_eq!(1, set2.len());
         });
     }

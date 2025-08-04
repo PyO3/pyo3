@@ -65,7 +65,7 @@
 //! #       #[allow(deprecated)]
 //!         let _cell = py
 //!             .from_borrowed_ptr::<_pyo3::PyAny>(_slf)
-//!             .downcast::<_pyo3::PyCell<Number>>()?;
+//!             .cast::<_pyo3::PyCell<Number>>()?;
 //!         let mut _ref = _cell.try_borrow_mut()?;
 //!         let _slf: &mut Number = &mut *_ref;
 //!         _pyo3::impl_::callback::convert(py, Number::increment(_slf))
@@ -198,7 +198,6 @@ use crate::exceptions::PyRuntimeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::{ptr_from_mut, ptr_from_ref};
 use crate::pyclass::{boolean_struct::False, PyClass};
-use crate::types::any::PyAnyMethods;
 use crate::{ffi, Borrowed, Bound, PyErr, Python};
 use std::convert::Infallible;
 use std::fmt;
@@ -396,7 +395,7 @@ where
                 ManuallyDrop::new(self)
                     .as_ptr()
                     .assume_owned_unchecked(py)
-                    .downcast_into_unchecked()
+                    .cast_into_unchecked()
             },
         }
     }
@@ -595,7 +594,7 @@ where
                 ManuallyDrop::new(self)
                     .as_ptr()
                     .assume_owned_unchecked(py)
-                    .downcast_into_unchecked()
+                    .cast_into_unchecked()
             },
         }
     }
