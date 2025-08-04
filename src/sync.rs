@@ -12,7 +12,7 @@
 use crate::{
     internal::state::SuspendAttach,
     sealed::Sealed,
-    types::{any::PyAnyMethods, PyAny, PyString},
+    types::{any::PyAnyMethods, PyAny, PyMutex, PyString},
     Bound, Py, PyResult, PyTypeCheck, Python,
 };
 use std::{
@@ -460,6 +460,30 @@ impl Interned {
     }
 }
 
+#[cfg(Py_GIL_DISABLED)]
+struct CSGuard(crate::ffi::PyCriticalSection);
+
+#[cfg(Py_GIL_DISABLED)]
+impl Drop for CSGuard {
+    fn drop(&mut self) {
+        unsafe {
+            crate::ffi::PyCriticalSection_End(&mut self.0);
+        }
+    }
+}
+
+#[cfg(Py_GIL_DISABLED)]
+struct CS2Guard(crate::ffi::PyCriticalSection2);
+
+#[cfg(Py_GIL_DISABLED)]
+impl Drop for CS2Guard {
+    fn drop(&mut self) {
+        unsafe {
+            crate::ffi::PyCriticalSection2_End(&mut self.0);
+        }
+    }
+}
+
 /// Executes a closure with a Python critical section held on an object.
 ///
 /// Acquires the per-object lock for the object `op` that is held
@@ -487,17 +511,7 @@ where
 {
     #[cfg(Py_GIL_DISABLED)]
     {
-        struct Guard(crate::ffi::PyCriticalSection);
-
-        impl Drop for Guard {
-            fn drop(&mut self) {
-                unsafe {
-                    crate::ffi::PyCriticalSection_End(&mut self.0);
-                }
-            }
-        }
-
-        let mut guard = Guard(unsafe { std::mem::zeroed() });
+        let mut guard = CSGuard(unsafe { std::mem::zeroed() });
         unsafe { crate::ffi::PyCriticalSection_Begin(&mut guard.0, object.as_ptr()) };
         f()
     }
@@ -534,19 +548,103 @@ where
 {
     #[cfg(Py_GIL_DISABLED)]
     {
-        struct Guard(crate::ffi::PyCriticalSection2);
-
-        impl Drop for Guard {
-            fn drop(&mut self) {
-                unsafe {
-                    crate::ffi::PyCriticalSection2_End(&mut self.0);
-                }
-            }
-        }
-
-        let mut guard = Guard(unsafe { std::mem::zeroed() });
+        let mut guard = CS2Guard(unsafe { std::mem::zeroed() });
         unsafe { crate::ffi::PyCriticalSection2_Begin(&mut guard.0, a.as_ptr(), b.as_ptr()) };
         f()
+    }
+    #[cfg(not(Py_GIL_DISABLED))]
+    {
+        f()
+    }
+}
+
+/// Executes a closure with a Python critical section held on mutex.
+///
+/// Acquires the per-object lock for the mutex `mutex` that is held
+/// until the closure `f` is finished.
+///
+/// This is structurally equivalent to the use of the paired
+/// Py_BEGIN_CRITICAL_SECTION_MUTEX and Py_END_CRITICAL_SECTION C-API macros.
+///
+/// A no-op on GIL-enabled builds, where the critical section API is exposed as
+/// a no-op by the Python C API.
+///
+/// Provides weaker locking guarantees than traditional locks, but can in some
+/// cases be used to provide guarantees similar to the GIL without the risk of
+/// deadlocks associated with traditional locks.
+///
+/// This variant with a mutex as an argument is particularly useful when paired
+/// with a static `PyMutex`. This can be used in situations where a `PyMutex` would
+/// deadlock with the interpreter.
+///
+/// Many CPython C API functions do not acquire the per-object lock on objects
+/// passed to Python. You should not expect critical sections applied to
+/// built-in types to prevent concurrent modification. This API is most useful
+/// for user-defined types with full control over how the internal state for the
+/// type is managed.
+///
+/// Only available on Python 3.14 and newer.
+#[cfg(Py_3_14)]
+#[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
+pub fn with_critical_section_mutex<F, R, T>(mutex: &mut PyMutex<T>, f: F) -> R
+where
+    F: FnOnce(&mut T) -> R,
+{
+    #[cfg(Py_GIL_DISABLED)]
+    {
+        let mut guard = CSGuard(unsafe { std::mem::zeroed() });
+        unsafe { crate::ffi::PyCriticalSection_BeginMutex(&mut guard.0, &mut *mutex.mutex.get()) };
+        f(mutex.data.get_mut())
+    }
+    #[cfg(not(Py_GIL_DISABLED))]
+    {
+        f()
+    }
+}
+
+/// Executes a closure with a Python critical section held on two mutexes.
+///
+/// Simultaneously acquires the mutexes `m1` and `m2` and holds them
+/// until the closure `f` is finished.
+///
+/// This is structurally equivalent to the use of the paired
+/// Py_BEGIN_CRITICAL_SECTION2_MUTEX and Py_END_CRITICAL_SECTION2 C-API macros.
+///
+/// A no-op on GIL-enabled builds, where the critical section API is exposed as
+/// a no-op by the Python C API.
+///
+/// Provides weaker locking guarantees than traditional locks, but can in some
+/// cases be used to provide guarantees similar to the GIL without the risk of
+/// deadlocks associated with traditional locks.
+///
+/// Many CPython C API functions do not acquire the per-object lock on objects
+/// passed to Python. You should not expect critical sections applied to
+/// built-in types to prevent concurrent modification. This API is most useful
+/// for user-defined types with full control over how the internal state for the
+/// type is managed.
+///
+/// Only available on Python 3.14 and newer.
+#[cfg(Py_3_14)]
+#[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
+pub fn with_critical_section_mutex2<F, R, T1, T2>(
+    m1: &mut PyMutex<T1>,
+    m2: &mut PyMutex<T2>,
+    f: F,
+) -> R
+where
+    F: FnOnce(&mut T1, &mut T2) -> R,
+{
+    #[cfg(Py_GIL_DISABLED)]
+    {
+        let mut guard = CS2Guard(unsafe { std::mem::zeroed() });
+        unsafe {
+            crate::ffi::PyCriticalSection2_BeginMutex(
+                &mut guard.0,
+                &mut *m1.mutex.get(),
+                &mut *m2.mutex.get(),
+            )
+        };
+        f(m1.data.get_mut(), m2.data.get_mut())
     }
     #[cfg(not(Py_GIL_DISABLED))]
     {
@@ -1147,6 +1245,32 @@ mod tests {
                     with_critical_section(b, || {
                         assert!(b.borrow().0.load(Ordering::Acquire));
                     });
+                });
+            });
+        });
+    }
+
+    #[cfg(feature = "macros")]
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[test]
+    fn test_critical_section_mutex() {
+        let barrier = Barrier::new(2);
+
+        let bool_wrapper = PyMutex::new(BoolWrapper(AtomicBool::new(false)));
+
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                with_critical_section_mutex(&mut bool_wrapper, |b| {
+                    barrier.wait();
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    b.0.store(true, Ordering::Release);
+                });
+            });
+            s.spawn(|| {
+                barrier.wait();
+                // this blocks until the other thread's critical section finishes
+                with_critical_section_mutex(&mut bool_wrapper, |b| {
+                    assert!(b.0.load(Ordering::Acquire));
                 });
             });
         });
