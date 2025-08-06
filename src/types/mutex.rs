@@ -178,6 +178,7 @@ impl<T> PyMutex<T> {
     /// Note that this is only useful for debugging or test purposes and should
     /// not be used to make concurrency control decisions, as the lock state may
     /// change immediately after the check.
+    #[cfg(Py_3_14)]
     pub fn is_locked(&self) -> bool {
         let ret = unsafe { crate::ffi::PyMutex_IsLocked(UnsafeCell::raw_get(&self.mutex)) };
         ret != 0
@@ -284,8 +285,10 @@ mod tests {
                         let dict = dict_guard.bind(py);
                         dict.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
                     });
+                    #[cfg(Py_3_14)]
                     assert!(mutex.is_locked());
                     drop(dict_guard);
+                    #[cfg(Py_3_14)]
                     assert!(!mutex.is_locked());
                     mutex
                 })
@@ -294,6 +297,7 @@ mod tests {
             });
 
             let dict_guard = mutex.lock().unwrap();
+            #[cfg(Py_3_14)]
             assert!(mutex.is_locked());
             let d = dict_guard.bind(py);
 
@@ -303,11 +307,14 @@ mod tests {
                 .unwrap()
                 .eq(PyNone::get(py))
                 .unwrap());
+            #[cfg(Py_3_14)]
             assert!(mutex.is_locked());
             drop(dict_guard);
+            #[cfg(Py_3_14)]
             assert!(!mutex.is_locked());
             mutex
         });
+        #[cfg(Py_3_14)]
         assert!(!mutex.is_locked());
     }
 
