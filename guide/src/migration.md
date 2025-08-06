@@ -19,7 +19,7 @@ For this reason we chose to rename these to more modern terminology introduced i
 <details open>
 <summary><small>Click to expand</small></summary>
 
-As another cleanup related to concurrency primitives designed for a Python constrained by the GIL, the `GILProtected` type is now deprecated. Prefer to use concurrency primitives which are compatible with free-threaded Python, such as [`std::sync::Mutex`](https://doc.rust-lang.org/std/sync/struct.Mutex.html) (in combination with PyO3's [`OnceExt`]({{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html) trait).
+As another cleanup related to concurrency primitives designed for a Python constrained by the GIL, the `GILProtected` type is now deprecated. Prefer to use concurrency primitives which are compatible with free-threaded Python, such as [`std::sync::Mutex`](https://doc.rust-lang.org/std/sync/struct.Mutex.html) (in combination with PyO3's [`MutexExt`]({{#PYO3_DOCS_URL}}/pyo3/sync/trait.MutexExt.html) trait).
 
 Before:
 
