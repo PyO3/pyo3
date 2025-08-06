@@ -370,7 +370,7 @@ mod tests {
         let lock = Arc::new(mutex);
         let lock2 = Arc::clone(&lock);
 
-        let _ = thread::spawn(move || -> () {
+        let _ = thread::spawn(move || {
             let _guard = lock2.lock().unwrap();
 
             // poison the mutex
@@ -380,9 +380,8 @@ mod tests {
 
         // by now the lock is poisoned, use into_inner to recover the value despite that
         let guard = match lock.lock() {
-            Ok(guard) => {
-                assert!(false);
-                guard
+            Ok(_) => {
+                unreachable!();
             }
             Err(poisoned) => poisoned.into_inner(),
         };
