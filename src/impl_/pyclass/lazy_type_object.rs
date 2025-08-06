@@ -14,7 +14,7 @@ use crate::{
     impl_::pyclass::MaybeRuntimePyMethodDef,
     impl_::pymethods::PyMethodDefType,
     pyclass::{create_type_object, PyClassTypeObject},
-    sync::GILOnceCell,
+    sync::PyOnceCell,
     types::PyType,
     Bound, PyClass, PyErr, PyObject, PyResult, Python,
 };
@@ -29,11 +29,11 @@ pub struct LazyTypeObject<T>(LazyTypeObjectInner, PhantomData<T>);
 
 // Non-generic inner of LazyTypeObject to keep code size down
 struct LazyTypeObjectInner {
-    value: GILOnceCell<PyClassTypeObject>,
+    value: PyOnceCell<PyClassTypeObject>,
     // Threads which have begun initialization of the `tp_dict`. Used for
     // reentrant initialization detection.
     initializing_threads: Mutex<Vec<ThreadId>>,
-    tp_dict_filled: GILOnceCell<()>,
+    tp_dict_filled: PyOnceCell<()>,
 }
 
 impl<T> LazyTypeObject<T> {
@@ -42,9 +42,9 @@ impl<T> LazyTypeObject<T> {
     pub const fn new() -> Self {
         LazyTypeObject(
             LazyTypeObjectInner {
-                value: GILOnceCell::new(),
+                value: PyOnceCell::new(),
                 initializing_threads: Mutex::new(Vec::new()),
-                tp_dict_filled: GILOnceCell::new(),
+                tp_dict_filled: PyOnceCell::new(),
             },
             PhantomData,
         )

@@ -51,7 +51,7 @@
 
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
-use crate::sync::GILOnceCell;
+use crate::sync::PyOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
@@ -74,7 +74,7 @@ impl FromPyObject<'_> for Decimal {
     }
 }
 
-static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+static DECIMAL_CLS: PyOnceCell<Py<PyType>> = PyOnceCell::new();
 
 fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     DECIMAL_CLS.import(py, "decimal", "Decimal")

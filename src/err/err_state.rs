@@ -368,13 +368,13 @@ fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
 mod tests {
 
     use crate::{
-        exceptions::PyValueError, sync::GILOnceCell, PyErr, PyErrArguments, PyObject, Python,
+        exceptions::PyValueError, sync::PyOnceCell, PyErr, PyErrArguments, PyObject, Python,
     };
 
     #[test]
     #[should_panic(expected = "Re-entrant normalization of PyErrState detected")]
     fn test_reentrant_normalization() {
-        static ERR: GILOnceCell<PyErr> = GILOnceCell::new();
+        static ERR: PyOnceCell<PyErr> = PyOnceCell::new();
 
         struct RecursiveArgs;
 
@@ -398,7 +398,7 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     fn test_no_deadlock_thread_switch() {
-        static ERR: GILOnceCell<PyErr> = GILOnceCell::new();
+        static ERR: PyOnceCell<PyErr> = PyOnceCell::new();
 
         struct GILSwitchArgs;
 

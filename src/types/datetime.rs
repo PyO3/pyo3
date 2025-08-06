@@ -21,7 +21,7 @@ use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNo
 use crate::types::{any::PyAnyMethods, PyString, PyType};
 #[cfg(not(Py_LIMITED_API))]
 use crate::{ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, types::PyTuple, BoundObject};
-use crate::{sync::GILOnceCell, Py};
+use crate::{sync::PyOnceCell, Py};
 #[cfg(Py_LIMITED_API)]
 use crate::{types::IntoPyDict, PyTypeCheck};
 use crate::{Borrowed, Bound, IntoPyObject, PyAny, PyErr, Python};
@@ -63,7 +63,7 @@ impl DatetimeTypes {
     }
 
     fn try_get(py: Python<'_>) -> PyResult<&Self> {
-        static TYPES: GILOnceCell<DatetimeTypes> = GILOnceCell::new();
+        static TYPES: PyOnceCell<DatetimeTypes> = PyOnceCell::new();
         TYPES.get_or_try_init(py, || {
             let datetime = py.import("datetime")?;
             Ok::<_, PyErr>(Self {
@@ -801,7 +801,7 @@ impl PyTzInfo {
 
         #[cfg(Py_LIMITED_API)]
         {
-            static UTC: GILOnceCell<Py<PyTzInfo>> = GILOnceCell::new();
+            static UTC: PyOnceCell<Py<PyTzInfo>> = PyOnceCell::new();
             UTC.get_or_try_init(py, || {
                 Ok(DatetimeTypes::get(py)
                     .timezone
@@ -819,7 +819,7 @@ impl PyTzInfo {
     where
         T: IntoPyObject<'py, Target = PyString>,
     {
-        static ZONE_INFO: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+        static ZONE_INFO: PyOnceCell<Py<PyType>> = PyOnceCell::new();
 
         let zoneinfo = ZONE_INFO.import(py, "zoneinfo", "ZoneInfo");
 
