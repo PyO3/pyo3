@@ -52,6 +52,7 @@ pub struct GILProtected<T> {
     value: T,
 }
 
+#[allow(deprecated)]
 #[cfg(not(Py_GIL_DISABLED))]
 impl<T> GILProtected<T> {
     /// Place the given value under the protection of the GIL.
@@ -70,6 +71,7 @@ impl<T> GILProtected<T> {
     }
 }
 
+#[allow(deprecated)]
 #[cfg(not(Py_GIL_DISABLED))]
 unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 
