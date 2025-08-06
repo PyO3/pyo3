@@ -1165,6 +1165,8 @@ pub trait PyClassBaseType: Sized {
     type BaseNativeType;
     type Initializer: PyObjectInit<Self>;
     type PyClassMutability: PyClassMutability;
+    /// Use the provided function instead of [ffi::PyTypeObject::tp_new] when creating an object of this type
+    const OVERRIDE_TP_NEW: Option<ffi::newfunc> = None;
 }
 
 /// Implementation of tp_dealloc for pyclasses without gc

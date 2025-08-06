@@ -883,13 +883,15 @@ impl<'a> FnSpec<'a> {
                         _kwargs: *mut #pyo3_path::ffi::PyObject
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                         use #pyo3_path::impl_::callback::IntoPyCallbackOutput;
+                        let raw_args = _args;
+                        let raw_kwargs = _kwargs;
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #init_holders
                         #warnings
                         let result = #call;
                         let initializer: #pyo3_path::PyClassInitializer::<#cls> = result.convert(py)?;
-                        #pyo3_path::impl_::pymethods::tp_new_impl(py, initializer, _slf)
+                        #pyo3_path::impl_::pymethods::tp_new_impl(py, initializer, _slf, raw_args, raw_kwargs)
                     }
                 }
             }
