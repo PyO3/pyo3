@@ -21,7 +21,7 @@ pub(crate) mod import;
 pub(crate) mod initconfig;
 // skipped interpreteridobject.h
 pub(crate) mod listobject;
-#[cfg(Py_3_13)]
+#[cfg(all(Py_3_13, not(Py_LIMITED_API)))]
 pub(crate) mod lock;
 pub(crate) mod longobject;
 #[cfg(all(Py_3_9, not(PyPy)))]
