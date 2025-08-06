@@ -30,6 +30,7 @@ impl From<PyErr> for io::Error {
                 io::ErrorKind::OutOfMemory
             } else {
                 #[cfg(io_error_more)]
+                #[allow(clippy::incompatible_msrv)] // gated by `io_error_more`
                 if err.is_instance_of::<exceptions::PyIsADirectoryError>(py) {
                     io::ErrorKind::IsADirectory
                 } else if err.is_instance_of::<exceptions::PyNotADirectoryError>(py) {
