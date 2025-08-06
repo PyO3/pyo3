@@ -9,7 +9,7 @@ use std::thread;
 // See std::sync::poison in the rust standard library.
 // This is more-or-less copied from there since it is not public.
 // this type detects a panic and poisons the wrapping mutex
-pub(crate) struct Flag {
+struct Flag {
     #[cfg(panic = "unwind")]
     failed: AtomicBool,
 }
