@@ -1,4 +1,5 @@
 use std::marker::PhantomPinned;
+#[cfg(Py_3_14)]
 use std::os::raw::c_int;
 use std::sync::atomic::AtomicU8;
 
