@@ -88,9 +88,12 @@ pub(crate) struct Guard {
 ///
 /// Compared with `std::sync::Mutex` or `parking_lot::Mutex`, this is a very
 /// stripped-down locking primitive that only supports blocking lock and unlock
-/// operations.
+/// operations and does not support `try_lock` or APIs that depend on
+/// `try_lock`.  For this reason, it is not possible to avoid the possibility of
+/// possibly blocking when calling `lock` and extreme care must be taken to avoid
+/// introducing a deadlock.
 ///
-/// Consider using this type if arbitrary Python code might execute while the
+/// This type is most useful when arbitrary Python code might execute while the
 /// lock is held. On the GIL-enabled build, PyMutex will release the GIL if the
 /// thread is blocked on acquiring the lock. On the free-threaded build, threads
 /// blocked on acquiring a PyMutex will not prevent the garbage collector from
@@ -99,7 +102,7 @@ pub(crate) struct Guard {
 /// ## Poisoning
 ///
 /// Like `std::sync::Mutex`, `PyMutex` implements poisoning. A mutex
-/// is considered poisoned whenever a thread panics while holding the mtex. Once
+/// is considered poisoned whenever a thread panics while holding the mutex. Once
 /// a mutex is poisoned, all other threads are unable to access the data by
 /// default as it is likely to be tainted (some invariant is not being held).
 ///
