@@ -1,4 +1,3 @@
-use std::marker::PhantomPinned;
 #[cfg(Py_3_14)]
 use std::os::raw::c_int;
 use std::sync::atomic::AtomicU8;
@@ -7,14 +6,12 @@ use std::sync::atomic::AtomicU8;
 #[derive(Debug)]
 pub struct PyMutex {
     pub(crate) _bits: AtomicU8,
-    pub(crate) _pin: PhantomPinned,
 }
 
 impl PyMutex {
     pub const fn new() -> PyMutex {
         PyMutex {
             _bits: AtomicU8::new(0),
-            _pin: PhantomPinned,
         }
     }
 }
