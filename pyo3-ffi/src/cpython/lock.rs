@@ -1,4 +1,5 @@
 use std::marker::PhantomPinned;
+use std::os::raw::c_int;
 use std::sync::atomic::AtomicU8;
 
 #[repr(transparent)]
@@ -31,4 +32,6 @@ extern "C" {
     pub fn PyMutex_Lock(m: *mut PyMutex);
     #[cfg(all(Py_3_13, not(Py_LIMITED_API)))]
     pub fn PyMutex_Unlock(m: *mut PyMutex);
+    #[cfg(Py_3_14)]
+    pub fn PyMutex_IsLocked(m: *mut PyMutex) -> c_int;
 }
