@@ -33,6 +33,7 @@ use crate::PyVisit;
 /// Combining `GILProtected` with `RefCell` enables mutable access to static data:
 ///
 /// ```
+/// # #![allow(deprecated)]
 /// # use pyo3::prelude::*;
 /// use pyo3::sync::GILProtected;
 /// use std::cell::RefCell;
