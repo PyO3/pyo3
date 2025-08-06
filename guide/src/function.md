@@ -31,6 +31,7 @@ This chapter of the guide explains full usage of the `#[pyfunction]` attribute. 
 There are also additional sections on the following topics:
 
 - [Function Signatures](./function/signature.md)
+- [Error Handling](./function/error-handling.md)
 
 ## Function options
 
