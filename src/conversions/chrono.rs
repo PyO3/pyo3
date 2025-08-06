@@ -336,26 +336,28 @@ impl<Tz: TimeZone + for<'py> FromPyObject<'py>> FromPyObject<'_> for DateTime<Tz
                 "expected a datetime with non-None tzinfo",
             ));
         };
-        let naive_dt = NaiveDateTime::new(py_date_to_naive_date(dt)?, py_time_to_naive_time(dt)?);
-        match naive_dt.and_local_timezone(tz) {
-            LocalResult::Single(value) => Ok(value),
-            LocalResult::Ambiguous(earliest, latest) => {
-                #[cfg(not(Py_LIMITED_API))]
-                let fold = dt.get_fold();
 
-                #[cfg(Py_LIMITED_API)]
-                let fold = dt.getattr(intern!(dt.py(), "fold"))?.extract::<usize>()? > 0;
+        py_datetime_to_datetime_with_timezone(dt, tz)
+    }
+}
 
-                if fold {
-                    Ok(latest)
-                } else {
-                    Ok(earliest)
-                }
+#[cfg(feature = "chrono-local")]
+impl<'py> FromPyObject<'py> for DateTime<Local> {
+    fn extract_bound(dt: &Bound<'_, PyAny>) -> PyResult<DateTime<Local>> {
+        let dt = dt.downcast::<PyDateTime>()?;
+
+        if let Some(tzinfo) = dt.get_tzinfo() {
+            let local_tz = Local.into_pyobject(dt.py())?;
+            if !(tzinfo.eq(local_tz)?) {
+                let name = local_tz.getattr("key")?.downcast_into::<PyString>()?;
+                return Err(PyValueError::new_err(format!(
+                    "expected a datetime without timezone or with local timezone {}",
+                    name.to_cow()?
+                )));
             }
-            LocalResult::None => Err(PyValueError::new_err(format!(
-                "The datetime {dt:?} contains an incompatible timezone"
-            ))),
-        }
+        };
+
+        py_datetime_to_datetime_with_timezone(dt, Local)
     }
 }
 
@@ -474,22 +476,6 @@ impl<'py> IntoPyObject<'py> for &Local {
     }
 }
 
-#[cfg(feature = "chrono-local")]
-impl FromPyObject<'_> for Local {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Local> {
-        let local_tz = Local.into_pyobject(ob.py())?;
-        if ob.eq(local_tz)? {
-            Ok(Local)
-        } else {
-            let name = local_tz.getattr("key")?.downcast_into::<PyString>()?;
-            Err(PyValueError::new_err(format!(
-                "expected local timezone {}",
-                name.to_cow()?
-            )))
-        }
-    }
-}
-
 struct DateArgs {
     year: i32,
     month: u8,
@@ -588,6 +574,32 @@ fn py_time_to_naive_time(py_time: &Bound<'_, PyAny>) -> PyResult<NaiveTime> {
             .extract()?,
     )
     .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))
+}
+
+fn py_datetime_to_datetime_with_timezone<Tz: TimeZone>(
+    dt: &Bound<'_, PyDateTime>,
+    tz: Tz,
+) -> PyResult<DateTime<Tz>> {
+    let naive_dt = NaiveDateTime::new(py_date_to_naive_date(dt)?, py_time_to_naive_time(dt)?);
+    match naive_dt.and_local_timezone(tz) {
+        LocalResult::Single(value) => Ok(value),
+        LocalResult::Ambiguous(earliest, latest) => {
+            #[cfg(not(Py_LIMITED_API))]
+            let fold = dt.get_fold();
+
+            #[cfg(Py_LIMITED_API)]
+            let fold = dt.getattr(intern!(dt.py(), "fold"))?.extract::<usize>()? > 0;
+
+            if fold {
+                Ok(latest)
+            } else {
+                Ok(earliest)
+            }
+        }
+        LocalResult::None => Err(PyValueError::new_err(format!(
+            "The datetime {dt:?} contains an incompatible timezone"
+        ))),
+    }
 }
 
 #[cfg(test)]
@@ -979,6 +991,33 @@ mod tests {
                 .unwrap()
                 .and_utc();
             assert_eq!(py_datetime, datetime,);
+        })
+    }
+
+    #[test]
+    #[cfg(feature = "chrono-local")]
+    fn test_pyo3_naive_datetime_frompyobject_local() {
+        Python::with_gil(|py| {
+            let year = 2014;
+            let month = 5;
+            let day = 6;
+            let hour = 7;
+            let minute = 8;
+            let second = 9;
+            let micro = 999_999;
+            let py_datetime = new_py_datetime_ob(
+                py,
+                "datetime",
+                (year, month, day, hour, minute, second, micro),
+            );
+            let py_datetime: DateTime<Local> = py_datetime.extract().unwrap();
+            let expected_datetime = NaiveDate::from_ymd_opt(year, month, day)
+                .unwrap()
+                .and_hms_micro_opt(hour, minute, second, micro)
+                .unwrap()
+                .and_local_timezone(Local)
+                .unwrap();
+            assert_eq!(py_datetime, expected_datetime);
         })
     }
 
