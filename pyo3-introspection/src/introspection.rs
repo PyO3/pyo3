@@ -140,30 +140,10 @@ fn convert_members<'a>(
             } => attributes.push(convert_attribute(name, value, annotation)),
         }
     }
-    Ok((modules, classes, functions, attributes))
-}
-
-fn convert_class(
-    id: &str,
-    name: &str,
-    chunks_by_id: &HashMap<&str, &Chunk>,
-    chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
-) -> Result<Class> {
-    let (nested_modules, nested_classes, mut methods, mut attributes) = convert_members(
-        chunks_by_parent.get(&id).into_iter().flatten().copied(),
-        chunks_by_id,
-        chunks_by_parent,
-    )?;
-    ensure!(
-        nested_modules.is_empty(),
-        "Classes cannot contain nested modules"
-    );
-    ensure!(
-        nested_classes.is_empty(),
-        "Nested classes are not supported yet"
-    );
-    // We sort methods to get a stable output
-    methods.sort_by(|l, r| match l.name.cmp(&r.name) {
+    // We sort elements to get a stable output
+    modules.sort_by(|l, r| l.name.cmp(&r.name));
+    classes.sort_by(|l, r| l.name.cmp(&r.name));
+    functions.sort_by(|l, r| match l.name.cmp(&r.name) {
         Ordering::Equal => {
             // We put the getter before the setter
             if l.decorators.iter().any(|d| d == "property") {
@@ -177,8 +157,29 @@ fn convert_class(
         }
         o => o,
     });
-    // We sort attributes to get a stable output
     attributes.sort_by(|l, r| l.name.cmp(&r.name));
+    Ok((modules, classes, functions, attributes))
+}
+
+fn convert_class(
+    id: &str,
+    name: &str,
+    chunks_by_id: &HashMap<&str, &Chunk>,
+    chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
+) -> Result<Class> {
+    let (nested_modules, nested_classes, methods, attributes) = convert_members(
+        chunks_by_parent.get(&id).into_iter().flatten().copied(),
+        chunks_by_id,
+        chunks_by_parent,
+    )?;
+    ensure!(
+        nested_modules.is_empty(),
+        "Classes cannot contain nested modules"
+    );
+    ensure!(
+        nested_classes.is_empty(),
+        "Nested classes are not supported yet"
+    );
     Ok(Class {
         name: name.into(),
         methods,
