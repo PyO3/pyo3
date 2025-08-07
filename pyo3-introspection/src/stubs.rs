@@ -1,4 +1,6 @@
-use crate::model::{Argument, Arguments, Class, Const, Function, Module, VariableLengthArgument};
+use crate::model::{
+    Argument, Arguments, Attribute, Class, Function, Module, VariableLengthArgument,
+};
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use unicode_ident::{is_xid_continue, is_xid_start};
@@ -35,8 +37,8 @@ fn add_module_stub_files(
 fn module_stubs(module: &Module) -> String {
     let mut modules_to_import = BTreeSet::new();
     let mut elements = Vec::new();
-    for konst in &module.consts {
-        elements.push(const_stubs(konst, &mut modules_to_import));
+    for attribute in &module.attributes {
+        elements.push(attribute_stubs(attribute, &mut modules_to_import));
     }
     for class in &module.classes {
         elements.push(class_stubs(class, &mut modules_to_import));
@@ -99,9 +101,14 @@ fn module_stubs(module: &Module) -> String {
 
 fn class_stubs(class: &Class, modules_to_import: &mut BTreeSet<String>) -> String {
     let mut buffer = format!("class {}:", class.name);
-    if class.methods.is_empty() {
+    if class.methods.is_empty() && class.attributes.is_empty() {
         buffer.push_str(" ...");
         return buffer;
+    }
+    for attribute in &class.attributes {
+        // We do the indentation
+        buffer.push_str("\n    ");
+        buffer.push_str(&attribute_stubs(attribute, modules_to_import).replace('\n', "\n    "));
     }
     for method in &class.methods {
         // We do the indentation
@@ -159,10 +166,17 @@ fn function_stubs(function: &Function, modules_to_import: &mut BTreeSet<String>)
     buffer
 }
 
-fn const_stubs(konst: &Const, modules_to_import: &mut BTreeSet<String>) -> String {
-    modules_to_import.insert("typing".to_string());
-    let Const { name, value } = konst;
-    format!("{name}: typing.Final = {value}")
+fn attribute_stubs(attribute: &Attribute, modules_to_import: &mut BTreeSet<String>) -> String {
+    let mut output = attribute.name.clone();
+    if let Some(annotation) = &attribute.annotation {
+        output.push_str(": ");
+        output.push_str(annotation_stub(annotation, modules_to_import));
+    }
+    if let Some(value) = &attribute.value {
+        output.push_str(" = ");
+        output.push_str(value);
+    }
+    output
 }
 
 fn argument_stub(argument: &Argument, modules_to_import: &mut BTreeSet<String>) -> String {
