@@ -94,6 +94,7 @@ pub const Py_mod_gil: c_int = 4;
 // skipped private _Py_mod_LAST_SLOT
 
 #[cfg(Py_3_12)]
+#[allow(clippy::zero_ptr)] // matches the way that the rest of these constants are defined
 pub const Py_MOD_MULTIPLE_INTERPRETERS_NOT_SUPPORTED: *mut c_void = 0 as *mut c_void;
 #[cfg(Py_3_12)]
 pub const Py_MOD_MULTIPLE_INTERPRETERS_SUPPORTED: *mut c_void = 1 as *mut c_void;
@@ -101,6 +102,7 @@ pub const Py_MOD_MULTIPLE_INTERPRETERS_SUPPORTED: *mut c_void = 1 as *mut c_void
 pub const Py_MOD_PER_INTERPRETER_GIL_SUPPORTED: *mut c_void = 2 as *mut c_void;
 
 #[cfg(Py_3_13)]
+#[allow(clippy::zero_ptr)] // matches the way that the rest of these constants are defined
 pub const Py_MOD_GIL_USED: *mut c_void = 0 as *mut c_void;
 #[cfg(Py_3_13)]
 pub const Py_MOD_GIL_NOT_USED: *mut c_void = 1 as *mut c_void;
