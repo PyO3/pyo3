@@ -7,6 +7,7 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 ### Rename of `Python::with_gil`, `Python::allow_threads`, and `pyo3::prepare_freethreaded_python`
 <details open>
 <summary><small>Click to expand</small></summary>
+
 The names for these APIs were created when the global interpreter lock (GIL) was mandatory. With the introduction of free-threading in Python 3.13 this is no longer the case, and the naming does not has no universal meaning anymore.
 For this reason we chose to rename these to more modern terminology introduced in free-threading:
 
@@ -54,6 +55,16 @@ Python::attach(|py| {
 # }
 ```
 </summary>
+
+### `PyMemoryError` now maps to `io::ErrorKind::OutOfMemory` when converted to `io::Error`
+<details>
+<summary><small>Click to expand</small></summary>
+
+Previously, converting a `PyMemoryError` into a Rust `io::Error` would result in an error with kind `Other`. Now, it produces an error with kind `OutOfMemory`.
+Similarly, converting an `io::Error` with kind `OutOfMemory` back into a Python error would previously yield a generic `PyOSError`. Now, it yields a `PyMemoryError`.
+
+This change makes error conversions more precise and matches the semantics of out-of-memory errors between Python and Rust.
+</details>
 
 ## from 0.24.* to 0.25
 ### `AsPyPointer` removal

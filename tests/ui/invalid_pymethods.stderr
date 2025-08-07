@@ -166,7 +166,7 @@ error: `pass_module` cannot be used on Python methods
     |            ^^^^^^^^^^^
 
 error: Python objects are shared, so 'self' cannot be moved out of the Python interpreter.
-       Try `&self`, `&mut self, `slf: PyRef<'_, Self>` or `slf: PyRefMut<'_, Self>`.
+       Try `&self`, `&mut self, `slf: PyClassGuard<'_, Self>` or `slf: PyClassGuardMut<'_, Self>`.
    --> tests/ui/invalid_pymethods.rs:151:29
     |
 151 |     fn method_self_by_value(self) {}
