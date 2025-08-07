@@ -435,7 +435,7 @@ def test_emscripten(session: nox.Session):
         session,
         "bash",
         "-c",
-        f"source {info.builddir / 'emsdk/emsdk_env.sh'} && cargo test",
+        f"source {info.builddir / 'emsdk/emsdk_env.sh'} && cargo test --lib --tests",
     )
 
 
