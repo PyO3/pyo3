@@ -337,7 +337,7 @@ Python::attach(|py| {
 
 ### `GILProtected` is not exposed
 
-[`GILProtected`] is a PyO3 type that allows mutable access to static data by
+[`GILProtected`] is a (deprecated) PyO3 type that allows mutable access to static data by
 leveraging the GIL to lock concurrent access from other threads. In
 free-threaded Python there is no GIL, so you will need to replace this type with
 some other form of locking. In many cases, a type from
@@ -348,6 +348,7 @@ be sufficient.
 Before:
 
 ```rust
+# #![allow(deprecated)]
 # fn main() {
 # #[cfg(not(Py_GIL_DISABLED))] {
 # use pyo3::prelude::*;
