@@ -419,6 +419,22 @@ impl Python<'_> {
         f(guard.python())
     }
 
+    /// Variant of [`Python::attach`] which will do no work if the interpreter is in a
+    /// state where it cannot be attached to:
+    /// - in the middle of GC traversal
+    /// - not initialized
+    #[inline]
+    #[track_caller]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_11, test))] // only used in buffer.rs for now, allow in test cfg for simplicity
+                                                    // TODO: make this API public?
+    pub(crate) fn try_attach<F, R>(f: F) -> Option<R>
+    where
+        F: for<'py> FnOnce(Python<'py>) -> R,
+    {
+        let guard = AttachGuard::try_acquire()?;
+        Some(f(guard.python()))
+    }
+
     /// Prepares the use of Python.
     ///
     /// If the Python interpreter is not already initialized, this function will initialize it with
@@ -805,7 +821,10 @@ impl<'unbound> Python<'unbound> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{IntoPyDict, PyList};
+    use crate::{
+        internal::state::ForbidAttaching,
+        types::{IntoPyDict, PyList},
+    };
 
     #[test]
     fn test_eval() {
@@ -1011,5 +1030,27 @@ cls.func()
     #[test]
     fn python_is_zst() {
         assert_eq!(std::mem::size_of::<Python<'_>>(), 0);
+    }
+
+    #[test]
+    fn test_try_attach_fail_during_gc() {
+        Python::attach(|_| {
+            assert!(Python::try_attach(|_| {}).is_some());
+
+            let guard = ForbidAttaching::during_traverse();
+            assert!(Python::try_attach(|_| {}).is_none());
+            drop(guard);
+
+            assert!(Python::try_attach(|_| {}).is_some());
+        })
+    }
+
+    #[test]
+    fn test_try_attach_ok_when_detached() {
+        Python::attach(|py| {
+            py.detach(|| {
+                assert!(Python::try_attach(|_| {}).is_some());
+            });
+        });
     }
 }
