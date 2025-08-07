@@ -315,6 +315,8 @@ pub trait FromPyObject<'py>: Sized {
 }
 
 mod from_py_object_bound_sealed {
+    use crate::{pyclass::boolean_struct::False, PyClass, PyClassGuard, PyClassGuardMut};
+
     /// Private seal for the `FromPyObjectBound` trait.
     ///
     /// This prevents downstream types from implementing the trait before
@@ -324,6 +326,8 @@ mod from_py_object_bound_sealed {
     // This generic implementation is why the seal is separate from
     // `crate::sealed::Sealed`.
     impl<'py, T> Sealed for T where T: super::FromPyObject<'py> {}
+    impl<T> Sealed for PyClassGuard<'_, T> where T: PyClass {}
+    impl<T> Sealed for PyClassGuardMut<'_, T> where T: PyClass<Frozen = False> {}
     impl Sealed for &'_ str {}
     impl Sealed for std::borrow::Cow<'_, str> {}
     impl Sealed for &'_ [u8] {}

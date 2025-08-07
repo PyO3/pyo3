@@ -23,7 +23,9 @@ mod pyo3_pytests {
     use super::*;
 
     #[pymodule_export]
-    use {consts::consts, pyclasses::pyclasses, pyfunctions::pyfunctions};
+    use {
+        comparisons::comparisons, consts::consts, pyclasses::pyclasses, pyfunctions::pyfunctions,
+    };
 
     // Inserting to sys.modules allows importing submodules nicely from Python
     // e.g. import pyo3_pytests.buf_and_str as bas
@@ -32,7 +34,6 @@ mod pyo3_pytests {
         m.add_wrapped(wrap_pymodule!(awaitable::awaitable))?;
         #[cfg(not(Py_LIMITED_API))]
         m.add_wrapped(wrap_pymodule!(buf_and_str::buf_and_str))?;
-        m.add_wrapped(wrap_pymodule!(comparisons::comparisons))?;
         #[cfg(not(Py_LIMITED_API))]
         m.add_wrapped(wrap_pymodule!(datetime::datetime))?;
         m.add_wrapped(wrap_pymodule!(dict_iter::dict_iter))?;

@@ -61,7 +61,7 @@ jobs:
       - name: Prepare the versioned guide entries
         run: |
           python -m pip install --upgrade pip && pip install nox towncrier requests
-          nox -s build-netlify-site -- ${{ github.ref == 'refs/heads/main' && '' || '--preview' }}
+          nox -s build-netlify-site -- ${{ (github.ref != 'refs/heads/main' && '--preview') || '' }}
 
       # Upload the built site as an artifact for deploy workflow to consume
       - name: Upload Build Artifact
@@ -69,17 +69,3 @@ jobs:
         with:
           name: site
           path: ./netlify_build
-
-      # Upload metadata for use in deploy workflow, will be empty if not a PR
-      - name: Prepare metadata for upload
-        id: pr
-        run: |
-          mkdir -p metadata
-          echo "${{ github.event.pull_request.number }}" >> metadata/pr_number
-          echo "${{ github.event.pull_request.head.sha }}" >> metadata/pr_head_sha
-
-      - name: Upload PR metadata
-        uses: actions/upload-artifact@v4
-        with:
-          name: metadata
-          path: metadata
