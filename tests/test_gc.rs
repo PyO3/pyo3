@@ -275,7 +275,7 @@ fn inheritance_with_new_methods_with_drop() {
         let inst = typeobj
             .call((), None)
             .unwrap()
-            .downcast_into::<SubClassWithDrop>()
+            .cast_into::<SubClassWithDrop>()
             .unwrap();
 
         inst.as_super().borrow_mut().guard = Some(guard_base);

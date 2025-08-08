@@ -447,7 +447,7 @@ This is not supported when building for the Python limited API (aka the `abi3` f
 
 To convert between the Rust type and its native base class, you can take
 `slf` as a Python object. To access the Rust fields use `slf.borrow()` or
-`slf.borrow_mut()`, and to access the base class use `slf.downcast::<BaseClass>()`.
+`slf.borrow_mut()`, and to access the base class use `slf.cast::<BaseClass>()`.
 
 ```rust
 # #[cfg(not(Py_LIMITED_API))] {
@@ -470,7 +470,7 @@ impl DictWithCounter {
 
     fn set(slf: &Bound<'_, Self>, key: String, value: Bound<'_, PyAny>) -> PyResult<()> {
         slf.borrow_mut().counter.entry(key.clone()).or_insert(0);
-        let dict = slf.downcast::<PyDict>()?;
+        let dict = slf.cast::<PyDict>()?;
         dict.set_item(key, value)
     }
 }

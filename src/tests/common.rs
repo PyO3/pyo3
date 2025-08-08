@@ -182,7 +182,7 @@ with warnings.catch_warnings(record=True) as warning_record:
             let catch_warnings = warnings
                 .getattr("catch_warnings")?
                 .call((), Some(&kwargs))?;
-            let list = catch_warnings.call_method0("__enter__")?.downcast_into()?;
+            let list = catch_warnings.call_method0("__enter__")?.cast_into()?;
             let _guard = Self { catch_warnings };
             f(&list)
         }

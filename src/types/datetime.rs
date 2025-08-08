@@ -67,12 +67,12 @@ impl DatetimeTypes {
         TYPES.get_or_try_init(py, || {
             let datetime = py.import("datetime")?;
             Ok::<_, PyErr>(Self {
-                date: datetime.getattr("date")?.downcast_into()?.into(),
-                datetime: datetime.getattr("datetime")?.downcast_into()?.into(),
-                time: datetime.getattr("time")?.downcast_into()?.into(),
-                timedelta: datetime.getattr("timedelta")?.downcast_into()?.into(),
-                timezone: datetime.getattr("timezone")?.downcast_into()?.into(),
-                tzinfo: datetime.getattr("tzinfo")?.downcast_into()?.into(),
+                date: datetime.getattr("date")?.cast_into()?.into(),
+                datetime: datetime.getattr("datetime")?.cast_into()?.into(),
+                time: datetime.getattr("time")?.cast_into()?.into(),
+                timedelta: datetime.getattr("timedelta")?.cast_into()?.into(),
+                timezone: datetime.getattr("timezone")?.cast_into()?.into(),
+                tzinfo: datetime.getattr("tzinfo")?.cast_into()?.into(),
             })
         })
     }
@@ -259,7 +259,7 @@ impl PyDate {
             unsafe {
                 (api.Date_FromDate)(year, c_int::from(month), c_int::from(day), api.DateType)
                     .assume_owned_or_err(py)
-                    .downcast_into_unchecked()
+                    .cast_into_unchecked()
             }
         }
         #[cfg(Py_LIMITED_API)]
@@ -268,7 +268,7 @@ impl PyDate {
                 .date
                 .bind(py)
                 .call((year, month, day), None)?
-                .downcast_into_unchecked())
+                .cast_into_unchecked())
         }
     }
 
@@ -286,7 +286,7 @@ impl PyDate {
             unsafe {
                 PyDate_FromTimestamp(time_tuple.as_ptr())
                     .assume_owned_or_err(py)
-                    .downcast_into_unchecked()
+                    .cast_into_unchecked()
             }
         }
 
@@ -296,7 +296,7 @@ impl PyDate {
                 .date
                 .bind(py)
                 .call_method1("fromtimestamp", (timestamp,))?
-                .downcast_into_unchecked())
+                .cast_into_unchecked())
         }
     }
 }
@@ -381,7 +381,7 @@ impl PyDateTime {
                     api.DateTimeType,
                 )
                 .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
             }
         }
 
@@ -394,7 +394,7 @@ impl PyDateTime {
                     (year, month, day, hour, minute, second, microsecond, tzinfo),
                     None,
                 )?
-                .downcast_into_unchecked())
+                .cast_into_unchecked())
         }
     }
 
@@ -435,7 +435,7 @@ impl PyDateTime {
                     api.DateTimeType,
                 )
                 .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
             }
         }
 
@@ -448,7 +448,7 @@ impl PyDateTime {
                     (year, month, day, hour, minute, second, microsecond, tzinfo),
                     Some(&[("fold", fold)].into_py_dict(py)?),
                 )?
-                .downcast_into_unchecked())
+                .cast_into_unchecked())
         }
     }
 
@@ -470,7 +470,7 @@ impl PyDateTime {
             unsafe {
                 PyDateTime_FromTimestamp(args.as_ptr())
                     .assume_owned_or_err(py)
-                    .downcast_into_unchecked()
+                    .cast_into_unchecked()
             }
         }
 
@@ -480,7 +480,7 @@ impl PyDateTime {
                 .datetime
                 .bind(py)
                 .call_method1("fromtimestamp", (timestamp, tzinfo))?
-                .downcast_into_unchecked())
+                .cast_into_unchecked())
         }
     }
 }
@@ -534,7 +534,7 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyDateTime> {
                         .tzinfo
                         .assume_borrowed(self.py())
                         .to_owned()
-                        .downcast_into_unchecked(),
+                        .cast_into_unchecked(),
                 )
             } else {
                 None
@@ -550,7 +550,7 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyDateTime> {
                 Some(
                     res.assume_borrowed(self.py())
                         .to_owned()
-                        .downcast_into_unchecked(),
+                        .cast_into_unchecked(),
                 )
             }
         }
@@ -561,7 +561,7 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyDateTime> {
             if tzinfo.is_none() {
                 None
             } else {
-                Some(tzinfo.downcast_into_unchecked())
+                Some(tzinfo.cast_into_unchecked())
             }
         }
     }
@@ -625,7 +625,7 @@ impl PyTime {
                     api.TimeType,
                 )
                 .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
             }
         }
 
@@ -635,7 +635,7 @@ impl PyTime {
                 .time
                 .bind(py)
                 .call((hour, minute, second, microsecond, tzinfo), None)?
-                .downcast_into_unchecked())
+                .cast_into_unchecked())
         }
     }
 
@@ -663,7 +663,7 @@ impl PyTime {
                     api.TimeType,
                 )
                 .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
             }
         }
 
@@ -677,7 +677,7 @@ impl PyTime {
                     (hour, minute, second, microsecond, tzinfo),
                     Some(&[("fold", fold)].into_py_dict(py)?),
                 )?
-                .downcast_into_unchecked())
+                .cast_into_unchecked())
         }
     }
 }
@@ -716,7 +716,7 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
                         .tzinfo
                         .assume_borrowed(self.py())
                         .to_owned()
-                        .downcast_into_unchecked(),
+                        .cast_into_unchecked(),
                 )
             } else {
                 None
@@ -732,7 +732,7 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
                 Some(
                     res.assume_borrowed(self.py())
                         .to_owned()
-                        .downcast_into_unchecked(),
+                        .cast_into_unchecked(),
                 )
             }
         }
@@ -743,7 +743,7 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
             if tzinfo.is_none() {
                 None
             } else {
-                Some(tzinfo.downcast_into_unchecked())
+                Some(tzinfo.cast_into_unchecked())
             }
         }
     }
@@ -796,7 +796,7 @@ impl PyTzInfo {
             Ok(ensure_datetime_api(py)?
                 .TimeZone_UTC
                 .assume_borrowed(py)
-                .downcast_unchecked())
+                .cast_unchecked())
         }
 
         #[cfg(Py_LIMITED_API)]
@@ -807,7 +807,7 @@ impl PyTzInfo {
                     .timezone
                     .bind(py)
                     .getattr("utc")?
-                    .downcast_into()?
+                    .cast_into()?
                     .unbind())
             })
             .map(|utc| utc.bind_borrowed(py))
@@ -830,7 +830,7 @@ impl PyTzInfo {
 
         zoneinfo?
             .call1((iana_name,))?
-            .downcast_into()
+            .cast_into()
             .map_err(Into::into)
     }
 
@@ -846,7 +846,7 @@ impl PyTzInfo {
             unsafe {
                 (api.TimeZone_FromTimeZone)(delta.as_ptr(), std::ptr::null_mut())
                     .assume_owned_or_err(py)
-                    .downcast_into_unchecked()
+                    .cast_into_unchecked()
             }
         }
 
@@ -856,7 +856,7 @@ impl PyTzInfo {
                 .timezone
                 .bind(py)
                 .call1((offset,))?
-                .downcast_into_unchecked())
+                .cast_into_unchecked())
         }
     }
 }
@@ -925,7 +925,7 @@ impl PyDelta {
                     api.DeltaType,
                 )
                 .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
             }
         }
 
@@ -936,7 +936,7 @@ impl PyDelta {
                 .timedelta
                 .bind(py)
                 .call1((days, seconds, microseconds))?
-                .downcast_into_unchecked())
+                .cast_into_unchecked())
         }
     }
 }
@@ -1057,7 +1057,7 @@ mod tests {
                     .unwrap()
                     .call_method1("utcoffset", (PyNone::get(py),))
                     .unwrap()
-                    .downcast_into::<PyDelta>()
+                    .cast_into::<PyDelta>()
                     .unwrap()
                     .eq(PyDelta::new(py, 0, -3600, 0, true).unwrap())
                     .unwrap()
@@ -1068,7 +1068,7 @@ mod tests {
                     .unwrap()
                     .call_method1("utcoffset", (PyNone::get(py),))
                     .unwrap()
-                    .downcast_into::<PyDelta>()
+                    .cast_into::<PyDelta>()
                     .unwrap()
                     .eq(PyDelta::new(py, 0, 3600, 0, true).unwrap())
                     .unwrap()

@@ -645,7 +645,7 @@ impl<'py> Python<'py> {
     ///     )
     ///     .unwrap();
     ///     let ret = locals.get_item("ret").unwrap().unwrap();
-    ///     let b64 = ret.downcast::<PyBytes>().unwrap();
+    ///     let b64 = ret.cast::<PyBytes>().unwrap();
     ///     assert_eq!(b64.as_bytes(), b"SGVsbG8gUnVzdCE=");
     /// });
     /// ```

@@ -4,8 +4,8 @@ use std::{convert::Infallible, ops::Deref, ptr::NonNull, sync::Arc};
 
 use crate::{
     types::{
-        any::PyAnyMethods, bytearray::PyByteArrayMethods, bytes::PyBytesMethods,
-        string::PyStringMethods, PyByteArray, PyBytes, PyString,
+        bytearray::PyByteArrayMethods, bytes::PyBytesMethods, string::PyStringMethods, PyByteArray,
+        PyBytes, PyString,
     },
     Bound, DowncastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python,
 };
@@ -80,7 +80,7 @@ impl TryFrom<Bound<'_, PyString>> for PyBackedStr {
 
 impl FromPyObject<'_> for PyBackedStr {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let py_string = obj.downcast::<PyString>()?.to_owned();
+        let py_string = obj.cast::<PyString>()?.to_owned();
         Self::try_from(py_string)
     }
 }
@@ -203,9 +203,9 @@ impl From<Bound<'_, PyByteArray>> for PyBackedBytes {
 
 impl FromPyObject<'_> for PyBackedBytes {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
-        if let Ok(bytes) = obj.downcast::<PyBytes>() {
+        if let Ok(bytes) = obj.cast::<PyBytes>() {
             Ok(Self::from(bytes.to_owned()))
-        } else if let Ok(bytearray) = obj.downcast::<PyByteArray>() {
+        } else if let Ok(bytearray) = obj.cast::<PyByteArray>() {
             Ok(Self::from(bytearray.to_owned()))
         } else {
             Err(DowncastError::new(obj, "`bytes` or `bytearray`").into())
@@ -315,6 +315,7 @@ use impl_traits;
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::types::PyAnyMethods as _;
     use crate::{IntoPyObject, Python};
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
