@@ -30,9 +30,6 @@ impl<T> IsPyT<Py<T>> {
 
 probe!(IsIntoPyObjectRef);
 
-// Possible clippy beta regression,
-// see https://github.com/rust-lang/rust-clippy/issues/13578
-#[allow(clippy::extra_unused_lifetimes)]
 impl<'a, 'py, T: 'a> IsIntoPyObjectRef<T>
 where
     &'a T: IntoPyObject<'py>,
