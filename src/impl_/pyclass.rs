@@ -26,6 +26,7 @@ use std::{
 
 mod assertions;
 mod lazy_type_object;
+#[macro_use]
 mod probes;
 
 pub use assertions::*;

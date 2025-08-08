@@ -1229,7 +1229,7 @@ fn impl_complex_enum_struct_variant_cls(
         let field_getter_impl = quote! {
             fn #field_name(slf: #pyo3_path::PyClassGuard<'_, Self>, py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
                 #[allow(unused_imports)]
-                use #pyo3_path::impl_::pyclass::Probe;
+                use #pyo3_path::impl_::pyclass::Probe as _;
                 match &*slf.into_super() {
                     #enum_name::#variant_ident { #field_name, .. } =>
                         #pyo3_path::impl_::pyclass::ConvertField::<
@@ -1305,7 +1305,7 @@ fn impl_complex_enum_tuple_variant_field_getters(
         let field_getter_impl: syn::ImplItemFn = parse_quote! {
             fn #field_name(slf: #pyo3_path::PyClassGuard<'_, Self>, py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
                 #[allow(unused_imports)]
-                use #pyo3_path::impl_::pyclass::Probe;
+                use #pyo3_path::impl_::pyclass::Probe as _;
                 match &*slf.into_super() {
                     #enum_name::#variant_ident ( #(#field_access_tokens), *) =>
                         #pyo3_path::impl_::pyclass::ConvertField::<
