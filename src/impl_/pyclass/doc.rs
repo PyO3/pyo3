@@ -57,3 +57,67 @@ pub const fn doc_bytes_as_cstr(bytes: &'static [u8]) -> &'static ::std::ffi::CSt
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use crate::ffi;
+
+    use super::*;
+
+    #[test]
+    #[cfg(feature = "macros")]
+    fn test_doc_generator() {
+        use crate::impl_::concat::{combine_bytes_to_array, combined_len_bytes};
+
+        /// A dummy class with signature.
+        #[crate::pyclass(crate = "crate")]
+        struct MyClass;
+
+        #[crate::pymethods(crate = "crate")]
+        impl MyClass {
+            #[new]
+            fn new(x: i32, y: i32) -> Self {
+                let _ = (x, y); // suppress unused variable warnings
+                MyClass
+            }
+        }
+
+        // simulate what the macro is doing
+        const PIECES: &[&[u8]] = PyClassDocGenerator::<MyClass, true>::DOC_PIECES;
+        assert_eq!(
+            &combine_bytes_to_array::<{ combined_len_bytes(PIECES) }>(PIECES),
+            b"MyClass(x, y)\n--\n\nA dummy class with signature.\0"
+        );
+
+        // simulate if the macro detected no text signature
+        const PIECES_WITHOUT_SIGNATURE: &[&[u8]] =
+            PyClassDocGenerator::<MyClass, false>::DOC_PIECES;
+        assert_eq!(
+            &combine_bytes_to_array::<{ combined_len_bytes(PIECES_WITHOUT_SIGNATURE) }>(
+                PIECES_WITHOUT_SIGNATURE
+            ),
+            b"A dummy class with signature.\0"
+        );
+    }
+
+    #[test]
+    fn test_doc_bytes_as_cstr() {
+        let cstr = doc_bytes_as_cstr(b"MyClass\0");
+        assert_eq!(cstr, ffi::c_str!("MyClass"));
+    }
+
+    #[test]
+    #[cfg(from_bytes_with_nul_error)]
+    #[should_panic(expected = "pyclass doc contains nul bytes")]
+    fn test_doc_bytes_as_cstr_central_nul() {
+        doc_bytes_as_cstr(b"MyClass\0Foo");
+    }
+
+    #[test]
+    #[cfg(from_bytes_with_nul_error)]
+    #[should_panic(expected = "pyclass doc expected to be nul terminated")]
+    fn test_doc_bytes_as_cstr_not_nul_terminated() {
+        doc_bytes_as_cstr(b"MyClass");
+    }
+}

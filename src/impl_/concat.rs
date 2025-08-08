@@ -48,7 +48,7 @@ pub const fn combine(pieces: &[&str], out: &mut [u8]) {
         }
         pieces_idx += 1;
     }
-    assert!(out_idx == out.len(), "Output buffer size mismatch");
+    assert!(out_idx == out.len(), "output buffer too large");
 }
 
 /// Wrapper around combine which has a const generic parameter, this is going to be more codegen
@@ -73,7 +73,7 @@ pub const fn combine_to_array<const LEN: usize>(pieces: &[&str]) -> [u8; LEN] {
             }
             pieces_idx += 1;
         }
-        assert!(out_idx == out.len(), "Output buffer size mismatch");
+        assert!(out_idx == out.len(), "output buffer too large");
     }
     out
 }
@@ -109,7 +109,7 @@ pub const fn combine_bytes(pieces: &[&[u8]], out: &mut [u8]) {
         }
         pieces_idx += 1;
     }
-    assert!(out_idx == out.len(), "Output buffer size mismatch");
+    assert!(out_idx == out.len(), "output buffer too large");
 }
 
 /// Wrapper around `combine_bytes` which has a const generic parameter, this is going to be more codegen
@@ -134,7 +134,82 @@ pub const fn combine_bytes_to_array<const LEN: usize>(pieces: &[&[u8]]) -> [u8; 
             }
             pieces_idx += 1;
         }
-        assert!(out_idx == out.len(), "Output buffer size mismatch");
+        assert!(out_idx == out.len(), "output buffer too large");
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_combined_len() {
+        let pieces = ["foo", "bar", "baz"];
+        assert_eq!(combined_len(&pieces), 9);
+        let empty: [&str; 0] = [];
+        assert_eq!(combined_len(&empty), 0);
+    }
+
+    #[test]
+    fn test_combine_to_array() {
+        let pieces = ["foo", "bar"];
+        let combined = combine_to_array::<6>(&pieces);
+        assert_eq!(&combined, b"foobar");
+    }
+
+    #[test]
+    fn test_const_concat_macro() {
+        const RESULT: &str = const_concat!("foo", "bar", "baz");
+        assert_eq!(RESULT, "foobarbaz");
+        const SINGLE: &str = const_concat!("abc");
+        assert_eq!(SINGLE, "abc");
+    }
+
+    #[test]
+    fn test_combined_len_bytes() {
+        let pieces: [&[u8]; 3] = [b"foo", b"bar", b"baz"];
+        assert_eq!(combined_len_bytes(&pieces), 9);
+        let empty: [&[u8]; 0] = [];
+        assert_eq!(combined_len_bytes(&empty), 0);
+    }
+
+    #[test]
+    fn test_combine_bytes_to_array() {
+        let pieces: [&[u8]; 2] = [b"foo", b"bar"];
+        let combined = combine_bytes_to_array::<6>(&pieces);
+        assert_eq!(&combined, b"foobar");
+    }
+
+    #[test]
+    #[should_panic(expected = "index out of bounds")]
+    fn test_combine_to_array_buffer_too_small() {
+        let pieces = ["foo", "bar"];
+        // Intentionally wrong length
+        let _ = combine_to_array::<5>(&pieces);
+    }
+
+    #[test]
+    #[should_panic(expected = "output buffer too large")]
+    fn test_combine_to_array_buffer_too_big() {
+        let pieces = ["foo", "bar"];
+        // Intentionally wrong length
+        let _ = combine_to_array::<10>(&pieces);
+    }
+
+    #[test]
+    #[should_panic(expected = "index out of bounds")]
+    fn test_combine_bytes_to_array_buffer_too_small() {
+        let pieces: [&[u8]; 2] = [b"foo", b"bar"];
+        // Intentionally wrong length
+        let _ = combine_bytes_to_array::<5>(&pieces);
+    }
+
+    #[test]
+    #[should_panic(expected = "output buffer too large")]
+    fn test_combine_bytes_to_array_buffer_too_big() {
+        let pieces: [&[u8]; 2] = [b"foo", b"bar"];
+        // Intentionally wrong length
+        let _ = combine_bytes_to_array::<10>(&pieces);
+    }
 }
