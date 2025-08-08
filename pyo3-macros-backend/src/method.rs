@@ -448,6 +448,7 @@ impl CallingConvention {
     }
 }
 
+#[derive(Clone)]
 pub struct FnSpec<'a> {
     pub tp: FnType,
     // Rust function name
@@ -1125,7 +1126,7 @@ fn parse_method_attributes(attrs: &mut Vec<syn::Attribute>) -> Result<Vec<Method
 const IMPL_TRAIT_ERR: &str = "Python functions cannot have `impl Trait` arguments";
 const RECEIVER_BY_VALUE_ERR: &str =
     "Python objects are shared, so 'self' cannot be moved out of the Python interpreter.
-Try `&self`, `&mut self, `slf: PyRef<'_, Self>` or `slf: PyRefMut<'_, Self>`.";
+Try `&self`, `&mut self, `slf: PyClassGuard<'_, Self>` or `slf: PyClassGuardMut<'_, Self>`.";
 
 fn ensure_signatures_on_valid_method(
     fn_type: &FnType,

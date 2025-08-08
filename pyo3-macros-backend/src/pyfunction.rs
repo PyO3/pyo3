@@ -96,13 +96,14 @@ pub struct PyFunctionWarningAttribute {
     pub span: Span,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum PyFunctionWarningCategory {
     Path(Path),
     UserWarning,
     DeprecationWarning, // TODO: unused for now, intended for pyo3(deprecated) special-case
 }
 
+#[derive(Clone)]
 pub struct PyFunctionWarning {
     pub message: LitStr,
     pub category: PyFunctionWarningCategory,

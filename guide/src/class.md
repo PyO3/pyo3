@@ -1394,26 +1394,26 @@ impl pyo3::PyClass for MyClass {
     type Frozen = pyo3::pyclass::boolean_struct::False;
 }
 
-impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py, false> for &'a MyClass
+impl<'a, 'holder, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false> for &'holder MyClass
 {
-    type Holder = ::std::option::Option<pyo3::PyRef<'py, MyClass>>;
+    type Holder = ::std::option::Option<pyo3::PyClassGuard<'a, MyClass>>;
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = "MyClass";
 
     #[inline]
-    fn extract(obj: &'a pyo3::Bound<'py, PyAny>, holder: &'a mut Self::Holder) -> pyo3::PyResult<Self> {
+    fn extract(obj: &'a pyo3::Bound<'py, PyAny>, holder: &'holder mut Self::Holder) -> pyo3::PyResult<Self> {
         pyo3::impl_::extract_argument::extract_pyclass_ref(obj, holder)
     }
 }
 
-impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py, false> for &'a mut MyClass
+impl<'a, 'holder, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false> for &'holder mut MyClass
 {
-    type Holder = ::std::option::Option<pyo3::PyRefMut<'py, MyClass>>;
+    type Holder = ::std::option::Option<pyo3::PyClassGuardMut<'a, MyClass>>;
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = "MyClass";
 
     #[inline]
-    fn extract(obj: &'a pyo3::Bound<'py, PyAny>, holder: &'a mut Self::Holder) -> pyo3::PyResult<Self> {
+    fn extract(obj: &'a pyo3::Bound<'py, PyAny>, holder: &'holder mut Self::Holder) -> pyo3::PyResult<Self> {
         pyo3::impl_::extract_argument::extract_pyclass_ref_mut(obj, holder)
     }
 }

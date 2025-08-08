@@ -428,6 +428,7 @@ def test_emscripten(session: nox.Session):
             "-C link-arg=-sALLOW_MEMORY_GROWTH=1",
         ]
     )
+    session.env["RUSTDOCFLAGS"] = session.env["RUSTFLAGS"]
     session.env["CARGO_BUILD_TARGET"] = target
     session.env["PYO3_CROSS_LIB_DIR"] = pythonlibdir
     _run(session, "rustup", "target", "add", target, "--toolchain", "stable")
