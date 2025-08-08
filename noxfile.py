@@ -317,6 +317,7 @@ def publish(session: nox.Session) -> None:
     _run_cargo_publish(session, package="pyo3-macros")
     _run_cargo_publish(session, package="pyo3-ffi")
     _run_cargo_publish(session, package="pyo3")
+    _run_cargo_publish(session, package="pyo3-introspection")
 
 
 @nox.session(venv_backend="none")
@@ -428,6 +429,7 @@ def test_emscripten(session: nox.Session):
             "-C link-arg=-sALLOW_MEMORY_GROWTH=1",
         ]
     )
+    session.env["RUSTDOCFLAGS"] = session.env["RUSTFLAGS"]
     session.env["CARGO_BUILD_TARGET"] = target
     session.env["PYO3_CROSS_LIB_DIR"] = pythonlibdir
     _run(session, "rustup", "target", "add", target, "--toolchain", "stable")
