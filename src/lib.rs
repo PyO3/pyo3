@@ -361,9 +361,6 @@ pub(crate) mod ffi_ptr_ext;
 pub(crate) mod py_result_ext;
 pub(crate) mod sealed;
 
-#[cfg(windows)]
-compile_error!("smoke test to confirm clippy running against right target.");
-
 /// Old module which contained some implementation details of the `#[pyproto]` module.
 ///
 /// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::CompareOp` instead
