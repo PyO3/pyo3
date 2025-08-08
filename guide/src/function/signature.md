@@ -253,6 +253,7 @@ Type:      builtin_function_or_method
 
 When the `experimental-inspect` Cargo feature is enabled, the `signature` attribute can also contain type hints:
 ```rust
+# #[cfg(feature = "experimental-inspect")] {
 use pyo3::prelude::*;
 
 #[pymodule]
@@ -265,6 +266,7 @@ pub mod example {
       arg
    }
 }
+# }
 ```
 
 It enables the [work-in-progress capacity of PyO3 to autogenerate type stubs](../type-stub.md) to generate a file with the correct type hints:

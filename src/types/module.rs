@@ -140,6 +140,8 @@ impl PyModule {
     /// use std::ffi::CString;
     ///
     /// # fn main() -> PyResult<()> {
+    /// # #[cfg(not(target_arch = "wasm32"))]  // node fs doesn't see this file, maybe cwd wrong?
+    /// # {
     /// // This path is resolved by however the platform resolves paths,
     /// // which also makes this less portable. Consider using `include_str`
     /// // if you just want to bundle a script with your module.
@@ -149,7 +151,8 @@ impl PyModule {
     ///     PyModule::from_code(py, CString::new(code)?.as_c_str(), c_str!("example.py"), c_str!("example"))?;
     ///     Ok(())
     /// })?;
-    /// Ok(())
+    /// # }
+    /// # Ok(())
     /// # }
     /// ```
     pub fn from_code<'py>(
