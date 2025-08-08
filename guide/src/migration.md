@@ -27,15 +27,17 @@ Before:
 ```rust
 # #![allow(deprecated)]
 # use pyo3::prelude::*;
+# fn main() {
+# #[cfg(not(Py_GIL_DISABLED))] {
 use pyo3::sync::GILProtected;
 use std::cell::RefCell;
-# fn main() {
 # Python::attach(|py| {
 static NUMBERS: GILProtected<RefCell<Vec<i32>>> = GILProtected::new(RefCell::new(Vec::new()));
 Python::attach(|py| {
     NUMBERS.get(py).borrow_mut().push(42);
 });
 # })
+# }
 # }
 ```
 
