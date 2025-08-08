@@ -1430,8 +1430,8 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     type WeakRef = pyo3::impl_::pyclass::PyClassDummySlot;
     type BaseNativeType = pyo3::PyAny;
 
-    const RAW_DOC: &std::ffi::CStr = pyo3::ffi::c_str!("...");
-    const DOC: &std::ffi::CStr = pyo3::ffi::c_str!("...");
+    const RAW_DOC: &'static std::ffi::CStr = pyo3::ffi::c_str!("...");
+    const DOC: &'static std::ffi::CStr = pyo3::ffi::c_str!("...");
 
     fn items_iter() -> pyo3::impl_::pyclass::PyClassItemsIter {
         use pyo3::impl_::pyclass::*;

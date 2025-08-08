@@ -364,7 +364,7 @@ pub fn impl_py_method_def_new(
         quote! {
             #[allow(unknown_lints, non_local_definitions)]
             impl #pyo3_path::impl_::pyclass::doc::PyClassNewTextSignature for #cls {
-                const TEXT_SIGNATURE: &str = #text_signature;
+                const TEXT_SIGNATURE: &'static str = #text_signature;
             }
         }
     });

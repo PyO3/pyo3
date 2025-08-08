@@ -211,13 +211,13 @@ pub trait PyClassImpl: Sized + 'static {
     /// Docstring for the class provided on the struct or enum.
     ///
     /// This is exposed for `PyClassDocGenerator` to use as a docstring piece.
-    const RAW_DOC: &CStr;
+    const RAW_DOC: &'static CStr;
 
     /// Fully rendered class doc, including the `text_signature` if a constructor is defined.
     ///
     /// This is constructed at compile-time with const specialization via the proc macros with help
     /// from the PyClassDocGenerator` type.
-    const DOC: &CStr;
+    const DOC: &'static CStr;
 
     fn items_iter() -> PyClassItemsIter;
 
