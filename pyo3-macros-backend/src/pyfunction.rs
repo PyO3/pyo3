@@ -1,4 +1,5 @@
 use crate::attributes::KeywordAttribute;
+use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{function_introspection_code, introspection_id_const};
 use crate::utils::{Ctx, LitCStr};
@@ -95,13 +96,14 @@ pub struct PyFunctionWarningAttribute {
     pub span: Span,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum PyFunctionWarningCategory {
     Path(Path),
     UserWarning,
     DeprecationWarning, // TODO: unused for now, intended for pyo3(deprecated) special-case
 }
 
+#[derive(Clone)]
 pub struct PyFunctionWarning {
     pub message: LitStr,
     pub category: PyFunctionWarningCategory,
@@ -372,7 +374,7 @@ pub fn impl_wrap_pyfunction(
             0
         })
         .map(FnArg::parse)
-        .collect::<syn::Result<Vec<_>>>()?;
+        .try_combine_syn_errors()?;
 
     let signature = if let Some(signature) = signature {
         FunctionSignature::from_arguments_and_attribute(arguments, signature)?

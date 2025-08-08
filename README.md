@@ -203,6 +203,7 @@ about this topic.
 - [fastbloom](https://github.com/yankun1992/fastbloom) _A fast [bloom filter](https://github.com/yankun1992/fastbloom#BloomFilter) | [counting bloom filter](https://github.com/yankun1992/fastbloom#countingbloomfilter) implemented by Rust for Rust and Python!_
 - [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library._
 - [feos](https://github.com/feos-org/feos) _Lightning fast thermodynamic modeling in Rust with fully developed Python interface._
+- [finalytics](https://github.com/Nnamdi-sys/finalytics) _Investment Analysis library in Rust | Python._
 - [forust](https://github.com/jinlow/forust) _A lightweight gradient boosted decision tree library written in Rust._
 - [geo-index](https://github.com/kylebarron/geo-index) _A Rust crate and [Python library](https://github.com/kylebarron/geo-index/tree/main/python) for packed, immutable, zero-copy spatial indexes._
 - [granian](https://github.com/emmett-framework/granian) _A Rust HTTP server for Python applications._

@@ -1,3 +1,4 @@
+use pyo3::basic::CompareOp;
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -82,6 +83,21 @@ impl Ordered {
 }
 
 #[pyclass]
+struct OrderedRichCmp(i64);
+
+#[pymethods]
+impl OrderedRichCmp {
+    #[new]
+    fn new(value: i64) -> Self {
+        Self(value)
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp) -> bool {
+        op.matches(self.0.cmp(&other.0))
+    }
+}
+
+#[pyclass]
 struct OrderedDefaultNe(i64);
 
 #[pymethods]
@@ -113,11 +129,7 @@ impl OrderedDefaultNe {
 }
 
 #[pymodule(gil_used = false)]
-pub fn comparisons(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<Eq>()?;
-    m.add_class::<EqDefaultNe>()?;
-    m.add_class::<EqDerived>()?;
-    m.add_class::<Ordered>()?;
-    m.add_class::<OrderedDefaultNe>()?;
-    Ok(())
+pub mod comparisons {
+    #[pymodule_export]
+    use super::{Eq, EqDefaultNe, EqDerived, Ordered, OrderedDefaultNe, OrderedRichCmp};
 }

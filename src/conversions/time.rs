@@ -21,7 +21,7 @@
 //! use pyo3::{Python, PyResult, IntoPyObject, types::PyAnyMethods};
 //!
 //! fn main() -> PyResult<()> {
-//!     pyo3::prepare_freethreaded_python();
+//!     Python::initialize();
 //!     Python::attach(|py| {
 //!         // Create a fixed date and time (2022-01-01 12:00:00 UTC)
 //!         let date = Date::from_calendar_date(2022, Month::January, 1).unwrap();

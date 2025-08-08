@@ -437,8 +437,17 @@ impl PyTypeBuilder {
         unsafe { self.push_slot(ffi::Py_tp_base, self.tp_base) }
 
         if !self.has_new {
-            // Safety: This is the correct slot type for Py_tp_new
-            unsafe { self.push_slot(ffi::Py_tp_new, no_constructor_defined as *mut c_void) }
+            // PyPy doesn't respect the flag
+            // https://github.com/pypy/pypy/issues/5318
+            #[cfg(not(all(Py_3_10, not(PyPy))))]
+            {
+                // Safety: This is the correct slot type for Py_tp_new
+                unsafe { self.push_slot(ffi::Py_tp_new, no_constructor_defined as *mut c_void) }
+            }
+            #[cfg(all(Py_3_10, not(PyPy)))]
+            {
+                self.class_flags |= ffi::Py_TPFLAGS_DISALLOW_INSTANTIATION;
+            }
         }
 
         let base_is_gc = unsafe { ffi::PyType_IS_GC(self.tp_base) == 1 };
@@ -549,6 +558,7 @@ fn bpo_45315_workaround(py: Python<'_>, class_name: CString) {
 }
 
 /// Default new implementation
+#[cfg(not(all(Py_3_10, not(PyPy))))]
 unsafe extern "C" fn no_constructor_defined(
     subtype: *mut ffi::PyTypeObject,
     _args: *mut ffi::PyObject,
@@ -557,12 +567,29 @@ unsafe extern "C" fn no_constructor_defined(
     unsafe {
         trampoline(|py| {
             let tpobj = PyType::from_borrowed_type_ptr(py, subtype);
-            let name = tpobj
-                .name()
-                .map_or_else(|_| "<unknown>".into(), |name| name.to_string());
-            Err(crate::exceptions::PyTypeError::new_err(format!(
-                "No constructor defined for {name}"
-            )))
+            #[cfg(not(PyPy))]
+            {
+                // unlike `fully_qualified_name`, this always include the module
+                let module = tpobj
+                    .module()
+                    .map_or_else(|_| "<unknown>".into(), |s| s.to_string());
+                let qualname = tpobj.qualname();
+                let qualname = qualname.map_or_else(|_| "<unknown>".into(), |s| s.to_string());
+                Err(crate::exceptions::PyTypeError::new_err(format!(
+                    "cannot create '{module}.{qualname}' instances"
+                )))
+            }
+            #[cfg(PyPy)]
+            {
+                // https://github.com/pypy/pypy/issues/5319
+                // .qualname() seems wrong on PyPy, includes the module already
+                let full_name = tpobj
+                    .qualname()
+                    .map_or_else(|_| "<unknown>".into(), |s| s.to_string());
+                Err(crate::exceptions::PyTypeError::new_err(format!(
+                    "cannot create '{full_name}' instances"
+                )))
+            }
         })
     }
 }

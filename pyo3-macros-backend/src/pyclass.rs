@@ -10,10 +10,10 @@ use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, ImplItemFn, Result
 
 use crate::attributes::kw::frozen;
 use crate::attributes::{
-    self, kw, take_pyo3_options, CrateAttribute, ErrorCombiner, ExtendsAttribute,
-    FreelistAttribute, ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute,
-    StrFormatterAttribute,
+    self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
+    ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute, StrFormatterAttribute,
 };
+use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{class_introspection_code, introspection_id_const};
 use crate::konst::{ConstAttributes, ConstSpec};
@@ -269,48 +269,42 @@ pub fn build_py_class(
         )
     );
 
-    let mut all_errors = ErrorCombiner(None);
-
     let mut field_options: Vec<(&syn::Field, FieldPyO3Options)> = match &mut class.fields {
         syn::Fields::Named(fields) => fields
             .named
             .iter_mut()
-            .filter_map(
+            .map(
                 |field| match FieldPyO3Options::take_pyo3_options(&mut field.attrs) {
-                    Ok(options) => Some((&*field, options)),
-                    Err(e) => {
-                        all_errors.combine(e);
-                        None
-                    }
+                    Ok(options) => Ok((&*field, options)),
+                    Err(e) => Err(e),
                 },
             )
             .collect::<Vec<_>>(),
         syn::Fields::Unnamed(fields) => fields
             .unnamed
             .iter_mut()
-            .filter_map(
+            .map(
                 |field| match FieldPyO3Options::take_pyo3_options(&mut field.attrs) {
-                    Ok(options) => Some((&*field, options)),
-                    Err(e) => {
-                        all_errors.combine(e);
-                        None
-                    }
+                    Ok(options) => Ok((&*field, options)),
+                    Err(e) => Err(e),
                 },
             )
             .collect::<Vec<_>>(),
         syn::Fields::Unit => {
+            let mut results = Vec::new();
+
             if let Some(attr) = args.options.set_all {
-                return Err(syn::Error::new_spanned(attr, UNIT_SET));
+                results.push(Err(syn::Error::new_spanned(attr, UNIT_SET)));
             };
             if let Some(attr) = args.options.get_all {
-                return Err(syn::Error::new_spanned(attr, UNIT_GET));
+                results.push(Err(syn::Error::new_spanned(attr, UNIT_GET)));
             };
-            // No fields for unit struct
-            Vec::new()
-        }
-    };
 
-    all_errors.ensure_empty()?;
+            results
+        }
+    }
+    .into_iter()
+    .try_combine_syn_errors()?;
 
     if let Some(attr) = args.options.get_all {
         for (_, FieldPyO3Options { get, .. }) in &mut field_options {
@@ -1233,10 +1227,9 @@ fn impl_complex_enum_struct_variant_cls(
             complex_enum_variant_field_getter(&variant_cls_type, field_name, field.span, ctx)?;
 
         let field_getter_impl = quote! {
-            fn #field_name(slf: #pyo3_path::PyRef<Self>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+            fn #field_name(slf: #pyo3_path::PyClassGuard<'_, Self>, py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
                 #[allow(unused_imports)]
                 use #pyo3_path::impl_::pyclass::Probe;
-                let py = slf.py();
                 match &*slf.into_super() {
                     #enum_name::#variant_ident { #field_name, .. } =>
                         #pyo3_path::impl_::pyclass::ConvertField::<
@@ -1310,10 +1303,9 @@ fn impl_complex_enum_tuple_variant_field_getters(
             })
             .collect();
         let field_getter_impl: syn::ImplItemFn = parse_quote! {
-            fn #field_name(slf: #pyo3_path::PyRef<Self>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+            fn #field_name(slf: #pyo3_path::PyClassGuard<'_, Self>, py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
                 #[allow(unused_imports)]
                 use #pyo3_path::impl_::pyclass::Probe;
-                let py = slf.py();
                 match &*slf.into_super() {
                     #enum_name::#variant_ident ( #(#field_access_tokens), *) =>
                         #pyo3_path::impl_::pyclass::ConvertField::<
@@ -1343,7 +1335,7 @@ fn impl_complex_enum_tuple_variant_len(
     let Ctx { pyo3_path, .. } = ctx;
 
     let mut len_method_impl: syn::ImplItemFn = parse_quote! {
-        fn __len__(slf: #pyo3_path::PyRef<Self>) -> #pyo3_path::PyResult<usize> {
+        fn __len__(slf: #pyo3_path::PyClassGuard<'_, Self>) -> #pyo3_path::PyResult<usize> {
             ::std::result::Result::Ok(#num_fields)
         }
     };
@@ -1366,14 +1358,13 @@ fn impl_complex_enum_tuple_variant_getitem(
         .map(|i| {
             let field_access = format_ident!("_{}", i);
             quote! { #i =>
-                #pyo3_path::IntoPyObjectExt::into_py_any(#variant_cls::#field_access(slf)?, py)
+                #pyo3_path::IntoPyObjectExt::into_py_any(#variant_cls::#field_access(slf, py)?, py)
             }
         })
         .collect();
 
     let mut get_item_method_impl: syn::ImplItemFn = parse_quote! {
-        fn __getitem__(slf: #pyo3_path::PyRef<Self>, idx: usize) -> #pyo3_path::PyResult< #pyo3_path::PyObject> {
-            let py = slf.py();
+        fn __getitem__(slf: #pyo3_path::PyClassGuard<'_, Self>, py: #pyo3_path::Python<'_>, idx: usize) -> #pyo3_path::PyResult< #pyo3_path::PyObject> {
             match idx {
                 #( #match_arms, )*
                 _ => ::std::result::Result::Err(#pyo3_path::exceptions::PyIndexError::new_err("tuple index out of range")),
@@ -1744,7 +1735,9 @@ fn complex_enum_variant_field_getter<'a>(
     field_span: Span,
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
-    let signature = crate::pyfunction::FunctionSignature::from_arguments(vec![]);
+    let mut arg = parse_quote!(py: Python<'_>);
+    let py = FnArg::parse(&mut arg)?;
+    let signature = crate::pyfunction::FunctionSignature::from_arguments(vec![py]);
 
     let self_type = crate::method::SelfType::TryFromBoundRef(field_span);
 
@@ -2160,40 +2153,40 @@ impl<'a> PyClassImplsBuilder<'a> {
         };
         if self.attr.options.frozen.is_some() {
             quote! {
-                impl<'a, 'py> #pyo3_path::impl_::extract_argument::PyFunctionArgument<'a, 'py, false> for &'a #cls
+                impl<'a, 'holder, 'py> #pyo3_path::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false> for &'holder #cls
                 {
-                    type Holder = ::std::option::Option<#pyo3_path::PyRef<'py, #cls>>;
+                    type Holder = ::std::option::Option<#pyo3_path::PyClassGuard<'a, #cls>>;
 
                     #input_type
 
                     #[inline]
-                    fn extract(obj: &'a #pyo3_path::Bound<'py, #pyo3_path::PyAny>, holder: &'a mut Self::Holder) -> #pyo3_path::PyResult<Self> {
+                    fn extract(obj: &'a #pyo3_path::Bound<'py, #pyo3_path::PyAny>, holder: &'holder mut Self::Holder) -> #pyo3_path::PyResult<Self> {
                         #pyo3_path::impl_::extract_argument::extract_pyclass_ref(obj, holder)
                     }
                 }
             }
         } else {
             quote! {
-                impl<'a, 'py> #pyo3_path::impl_::extract_argument::PyFunctionArgument<'a, 'py, false> for &'a #cls
+                impl<'a, 'holder, 'py> #pyo3_path::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false> for &'holder #cls
                 {
-                    type Holder = ::std::option::Option<#pyo3_path::PyRef<'py, #cls>>;
+                    type Holder = ::std::option::Option<#pyo3_path::PyClassGuard<'a, #cls>>;
 
                     #input_type
 
                     #[inline]
-                    fn extract(obj: &'a #pyo3_path::Bound<'py, #pyo3_path::PyAny>, holder: &'a mut Self::Holder) -> #pyo3_path::PyResult<Self> {
+                    fn extract(obj: &'a #pyo3_path::Bound<'py, #pyo3_path::PyAny>, holder: &'holder mut Self::Holder) -> #pyo3_path::PyResult<Self> {
                         #pyo3_path::impl_::extract_argument::extract_pyclass_ref(obj, holder)
                     }
                 }
 
-                impl<'a, 'py> #pyo3_path::impl_::extract_argument::PyFunctionArgument<'a, 'py, false> for &'a mut #cls
+                impl<'a, 'holder, 'py> #pyo3_path::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false> for &'holder mut #cls
                 {
-                    type Holder = ::std::option::Option<#pyo3_path::PyRefMut<'py, #cls>>;
+                    type Holder = ::std::option::Option<#pyo3_path::PyClassGuardMut<'a, #cls>>;
 
                     #input_type
 
                     #[inline]
-                    fn extract(obj: &'a #pyo3_path::Bound<'py, #pyo3_path::PyAny>, holder: &'a mut Self::Holder) -> #pyo3_path::PyResult<Self> {
+                    fn extract(obj: &'a #pyo3_path::Bound<'py, #pyo3_path::PyAny>, holder: &'holder mut Self::Holder) -> #pyo3_path::PyResult<Self> {
                         #pyo3_path::impl_::extract_argument::extract_pyclass_ref_mut(obj, holder)
                     }
                 }

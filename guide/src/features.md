@@ -45,9 +45,9 @@ section for further detail.
 
 ### `auto-initialize`
 
-This feature changes [`Python::attach`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.attach) to automatically initialize a Python interpreter (by calling [`prepare_freethreaded_python`]({{#PYO3_DOCS_URL}}/pyo3/fn.prepare_freethreaded_python.html)) if needed.
+This feature changes [`Python::attach`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.attach) to automatically initialize a Python interpreter (by calling [`Python::initialize`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.initialize)) if needed.
 
-If you do not enable this feature, you should call `pyo3::prepare_freethreaded_python()` before attempting to call any other Python APIs.
+If you do not enable this feature, you should call `Python::initialize()` before attempting to call any other Python APIs.
 
 ## Advanced Features
 
@@ -121,6 +121,9 @@ Enables Pyo3's `MutexExt` trait for all Mutexes that extend on [`lock_api::Mutex
 
 ### `bigdecimal`
 Adds a dependency on [bigdecimal](https://docs.rs/bigdecimal) and enables conversions into its [`BigDecimal`](https://docs.rs/bigdecimal/latest/bigdecimal/struct.BigDecimal.html) type.
+
+### `bytes`
+Adds a dependency on [bytes](https://docs.rs/bytes/latest/bytes) and enables conversions into its [`Bytes`](https://docs.rs/bytes/latest/bytes/struct.Bytes.html) type.
 
 ### `chrono`
 

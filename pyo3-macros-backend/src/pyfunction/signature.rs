@@ -266,7 +266,7 @@ impl ConstructorAttribute {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PythonSignature {
     pub positional_parameters: Vec<String>,
     pub positional_only_parameters: usize,
@@ -286,6 +286,7 @@ impl PythonSignature {
     }
 }
 
+#[derive(Clone)]
 pub struct FunctionSignature<'a> {
     pub arguments: Vec<FnArg<'a>>,
     pub python_signature: PythonSignature,

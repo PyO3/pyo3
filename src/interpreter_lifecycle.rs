@@ -3,32 +3,10 @@ use crate::{ffi, internal::state::AttachGuard, Python};
 
 static START: std::sync::Once = std::sync::Once::new();
 
-/// Prepares the use of Python in a free-threaded context.
-///
-/// If the Python interpreter is not already initialized, this function will initialize it with
-/// signal handling disabled (Python will not raise the `KeyboardInterrupt` exception). Python
-/// signal handling depends on the notion of a 'main thread', which must be the thread that
-/// initializes the Python interpreter.
-///
-/// If the Python interpreter is already initialized, this function has no effect.
-///
-/// This function is unavailable under PyPy because PyPy cannot be embedded in Rust (or any other
-/// software). Support for this is tracked on the
-/// [PyPy issue tracker](https://github.com/pypy/pypy/issues/3836).
-///
-/// # Examples
-/// ```rust
-/// use pyo3::prelude::*;
-///
-/// # fn main() -> PyResult<()> {
-/// pyo3::prepare_freethreaded_python();
-/// Python::attach(|py| py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None))
-/// # }
-/// ```
 #[cfg(not(any(PyPy, GraalPy)))]
-pub fn prepare_freethreaded_python() {
+pub(crate) fn initialize() {
     // Protect against race conditions when Python is not yet initialized and multiple threads
-    // concurrently call 'prepare_freethreaded_python()'. Note that we do not protect against
+    // concurrently call 'initialize()'. Note that we do not protect against
     // concurrent initialization of the Python runtime by other users of the Python C API.
     START.call_once_force(|_| unsafe {
         // Use call_once_force because if initialization panics, it's okay to try again.
@@ -39,6 +17,14 @@ pub fn prepare_freethreaded_python() {
             ffi::PyEval_SaveThread();
         }
     });
+}
+
+/// See [Python::initialize]
+#[cfg(not(any(PyPy, GraalPy)))]
+#[inline]
+#[deprecated(note = "use `Python::initialize` instead", since = "0.26.0")]
+pub fn prepare_freethreaded_python() {
+    initialize();
 }
 
 /// Executes the provided closure with an embedded Python interpreter.
@@ -111,17 +97,17 @@ pub(crate) fn ensure_initialized() {
     //  - Otherwise, just check the interpreter is initialized.
     #[cfg(all(feature = "auto-initialize", not(any(PyPy, GraalPy))))]
     {
-        prepare_freethreaded_python();
+        initialize();
     }
     #[cfg(not(all(feature = "auto-initialize", not(any(PyPy, GraalPy)))))]
     {
         // This is a "hack" to make running `cargo test` for PyO3 convenient (i.e. no need
-        // to specify `--features auto-initialize` manually. Tests within the crate itself
+        // to specify `--features auto-initialize` manually). Tests within the crate itself
         // all depend on the auto-initialize feature for conciseness but Cargo does not
         // provide a mechanism to specify required features for tests.
         #[cfg(not(any(PyPy, GraalPy)))]
         if option_env!("CARGO_PRIMARY_PACKAGE").is_some() {
-            prepare_freethreaded_python();
+            initialize();
         }
 
         START.call_once_force(|_| unsafe {
@@ -133,7 +119,7 @@ pub(crate) fn ensure_initialized() {
                 0,
                 "The Python interpreter is not initialized and the `auto-initialize` \
                         feature is not enabled.\n\n\
-                        Consider calling `pyo3::prepare_freethreaded_python()` before attempting \
+                        Consider calling `Python::initialize()` before attempting \
                         to use Python APIs."
             );
         });
