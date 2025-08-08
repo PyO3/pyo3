@@ -24,14 +24,6 @@ pub struct PyClassDocGenerator<
     const HAS_NEW_TEXT_SIGNATURE: bool,
 >(PhantomData<ClassT>);
 
-impl<ClassT: PyClass, const HAS_NEW_TEXT_SIGNATURE: bool>
-    PyClassDocGenerator<ClassT, HAS_NEW_TEXT_SIGNATURE>
-{
-    pub const fn new() -> Self {
-        Self(PhantomData)
-    }
-}
-
 impl<ClassT: PyClass + PyClassNewTextSignature> PyClassDocGenerator<ClassT, true> {
     pub const DOC_PIECES: &'static [&'static [u8]] = &[
         <ClassT as PyTypeInfo>::NAME.as_bytes(),
