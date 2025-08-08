@@ -37,7 +37,7 @@ where
 
 impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a [u8] {
     fn from_py_object_bound(obj: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
-        Ok(obj.downcast::<PyBytes>()?.as_bytes())
+        Ok(obj.cast::<PyBytes>()?.as_bytes())
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -53,11 +53,11 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a [u8] {
 /// If it is a `bytearray`, its contents will be copied to an owned `Cow`.
 impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, [u8]> {
     fn from_py_object_bound(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
-        if let Ok(bytes) = ob.downcast::<PyBytes>() {
+        if let Ok(bytes) = ob.cast::<PyBytes>() {
             return Ok(Cow::Borrowed(bytes.as_bytes()));
         }
 
-        let byte_array = ob.downcast::<PyByteArray>()?;
+        let byte_array = ob.cast::<PyByteArray>()?;
         Ok(Cow::Owned(byte_array.to_vec()))
     }
 
@@ -140,7 +140,7 @@ mod tests {
             let bytes: &[u8] = b"foobar";
             let obj = bytes.into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
-            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            let obj = obj.cast_into::<PyBytes>().unwrap();
             assert_eq!(obj.as_bytes(), bytes);
 
             let nums: &[u16] = &[0, 1, 2, 3];
@@ -155,13 +155,13 @@ mod tests {
             let borrowed_bytes = Cow::<[u8]>::Borrowed(b"foobar");
             let obj = borrowed_bytes.clone().into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
-            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            let obj = obj.cast_into::<PyBytes>().unwrap();
             assert_eq!(obj.as_bytes(), &*borrowed_bytes);
 
             let owned_bytes = Cow::<[u8]>::Owned(b"foobar".to_vec());
             let obj = owned_bytes.clone().into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
-            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            let obj = obj.cast_into::<PyBytes>().unwrap();
             assert_eq!(obj.as_bytes(), &*owned_bytes);
 
             let borrowed_nums = Cow::<[u16]>::Borrowed(&[0, 1, 2, 3]);

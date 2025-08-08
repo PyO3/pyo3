@@ -40,7 +40,7 @@ impl PyIterator {
         unsafe {
             ffi::PyObject_GetIter(obj.as_ptr())
                 .assume_owned_or_err(obj.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }
@@ -288,7 +288,7 @@ def fibonacci(target):
             let generator: Bound<'_, PyIterator> = py
                 .eval(ffi::c_str!("fibonacci(5)"), None, Some(&context))
                 .unwrap()
-                .downcast_into()
+                .cast_into()
                 .unwrap();
             let mut items = vec![];
             for actual in &generator {
@@ -322,7 +322,7 @@ def fibonacci(target):
         #[crate::pymethods(crate = "crate")]
         impl Downcaster {
             fn downcast_iterator(&mut self, obj: &crate::Bound<'_, crate::PyAny>) {
-                self.failed = Some(obj.downcast::<PyIterator>().unwrap_err().into());
+                self.failed = Some(obj.cast::<PyIterator>().unwrap_err().into());
             }
         }
 
@@ -361,7 +361,7 @@ def fibonacci(target):
     fn python_class_iterator() {
         #[crate::pyfunction(crate = "crate")]
         fn assert_iterator(obj: &crate::Bound<'_, crate::PyAny>) {
-            assert!(obj.downcast::<PyIterator>().is_ok())
+            assert!(obj.cast::<PyIterator>().is_ok())
         }
 
         // Regression test for 2913

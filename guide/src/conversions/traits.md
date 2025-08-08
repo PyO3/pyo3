@@ -397,7 +397,7 @@ enum RustyEnum<'py> {
 #             assert_eq!(
 #                 b"text",
 #                 match rust_thing {
-#                     RustyEnum::CatchAll(ref i) => i.downcast::<PyBytes>()?.as_bytes(),
+#                     RustyEnum::CatchAll(ref i) => i.cast::<PyBytes>()?.as_bytes(),
 #                     other => unreachable!("Error extracting: {:?}", other),
 #                 }
 #             );

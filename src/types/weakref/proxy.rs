@@ -77,7 +77,7 @@ impl PyWeakrefProxy {
                 object.py(),
                 ffi::PyWeakref_NewProxy(object.as_ptr(), ffi::Py_None()),
             )
-            .downcast_into_unchecked()
+            .cast_into_unchecked()
         }
     }
 
@@ -152,7 +152,7 @@ impl PyWeakrefProxy {
                     object.py(),
                     ffi::PyWeakref_NewProxy(object.as_ptr(), callback.as_ptr()),
                 )
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
             }
         }
 
@@ -249,7 +249,7 @@ mod tests {
                 let globals = PyDict::new(py);
                 py.run(ffi::c_str!("class A:\n    pass\n"), Some(&globals), None)?;
                 py.eval(ffi::c_str!("A"), Some(&globals), None)
-                    .downcast_into::<PyType>()
+                    .cast_into::<PyType>()
             }
 
             #[test]
@@ -585,7 +585,7 @@ mod tests {
                     None,
                 )?;
                 py.eval(ffi::c_str!("A"), Some(&globals), None)
-                    .downcast_into::<PyType>()
+                    .cast_into::<PyType>()
             }
 
             #[test]

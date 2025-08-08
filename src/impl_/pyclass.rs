@@ -7,7 +7,6 @@ use crate::{
         pyclass_init::PyObjectInit,
         pymethods::{PyGetterDef, PyMethodDefType},
     },
-    internal_tricks::ptr_from_ref,
     pycell::PyBorrowError,
     types::{any::PyAnyMethods, PyBool},
     Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr,
@@ -1373,7 +1372,7 @@ unsafe fn ensure_no_mutable_alias<'a, ClassT: PyClass>(
     _py: Python<'_>,
     obj: &'a *mut ffi::PyObject,
 ) -> Result<PyClassGuard<'a, ClassT>, PyBorrowError> {
-    unsafe { PyClassGuard::try_borrow(&*ptr_from_ref(obj).cast::<Py<ClassT>>()) }
+    unsafe { PyClassGuard::try_borrow(NonNull::from(obj).cast::<Py<ClassT>>().as_ref()) }
 }
 
 /// calculates the field pointer from an PyObject pointer

@@ -44,7 +44,7 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
                 subtype
                     .cast::<ffi::PyObject>()
                     .assume_borrowed_unchecked(py)
-                    .downcast_unchecked()
+                    .cast_unchecked()
             };
 
             if is_base_object {

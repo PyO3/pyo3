@@ -33,7 +33,7 @@ impl PyGenericAlias {
         unsafe {
             ffi::Py_GenericAlias(origin.as_ptr(), args.as_ptr())
                 .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }

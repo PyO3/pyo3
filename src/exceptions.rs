@@ -650,7 +650,7 @@ impl PyUnicodeDecodeError {
             )
             .assume_owned_or_err(py)
         }
-        .downcast_into()
+        .cast_into()
     }
 
     /// Creates a Python `UnicodeDecodeError` from a Rust UTF-8 decoding error.
@@ -754,7 +754,6 @@ macro_rules! test_exception {
             use super::$exc_ty;
 
             $crate::Python::attach(|py| {
-                use $crate::types::PyAnyMethods;
                 let err: $crate::PyErr = {
                     None
                     $(
@@ -765,7 +764,7 @@ macro_rules! test_exception {
 
                 assert!(err.is_instance_of::<$exc_ty>(py));
 
-                let value = err.value(py).as_any().downcast::<$exc_ty>().unwrap();
+                let value = err.value(py).as_any().cast::<$exc_ty>().unwrap();
 
                 assert!($crate::PyErr::from(value.clone()).is_instance_of::<$exc_ty>(py));
             })

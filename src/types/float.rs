@@ -38,7 +38,7 @@ impl PyFloat {
         unsafe {
             ffi::PyFloat_FromDouble(val)
                 .assume_owned(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }
@@ -119,7 +119,7 @@ impl<'py> FromPyObject<'py> for f64 {
         // we have exactly a `float` object (it's not worth going through
         // `isinstance` machinery for subclasses).
         #[cfg(not(Py_LIMITED_API))]
-        if let Ok(float) = obj.downcast_exact::<PyFloat>() {
+        if let Ok(float) = obj.cast_exact::<PyFloat>() {
             return Ok(float.value());
         }
 
