@@ -2388,24 +2388,18 @@ impl<'a> PyClassImplsBuilder<'a> {
                     PyClassItemsIter::new(&INTRINSIC_ITEMS, #pymethods_items)
                 }
 
-                // FIXME: don't make the doc a cstring
-                const RAW_DOC: &str = match #doc.to_str() {
-                    ::std::result::Result::Ok(doc) => doc,
-                    ::std::result::Result::Err(_) => {
-                        ::std::panic!("PyClass docstring must be valid UTF-8")
-                    }
-                };
+                const RAW_DOC: &::std::ffi::CStr = #doc;
 
                 const DOC: &::std::ffi::CStr = {
                     use #pyo3_path::impl_ as impl_;
                     use impl_::pyclass::Probe as _;
-                    const DOC_PIECES: &[&str] = impl_::pyclass::doc::PyClassDocGenerator::<
+                    const DOC_PIECES: &[&[u8]] = impl_::pyclass::doc::PyClassDocGenerator::<
                         #cls,
                         { impl_::pyclass::HasNewTextSignature::<#cls>::VALUE }
                     >::DOC_PIECES;
-                    const LEN: usize = impl_::concat::combined_len(DOC_PIECES);
-                    const RENDERED_DOC: &[u8] = &impl_::concat::combine::<LEN>(DOC_PIECES);
-                    impl_::pyclass::doc::doc_bytes_as_cstr(RENDERED_DOC)
+                    const LEN: usize = impl_::concat::combined_len_bytes(DOC_PIECES);
+                    const DOC: &[u8] = &impl_::pyclass::doc::create_doc::<LEN>(DOC_PIECES);
+                    impl_::pyclass::doc::doc_bytes_as_cstr(DOC)
                 };
 
                 #dict_offset
