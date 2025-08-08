@@ -917,9 +917,9 @@ def test_version_limits(session: nox.Session):
     # interpreter."
     #
     # then `ABI3_MAX_MINOR` in `pyo3-build-config/src/impl_.rs` is probably outdated.
-    assert (
-        f"version=3.{max_minor_version}" in stderr
-    ), f"Expected to see version=3.{max_minor_version}, got: \n\n{stderr}"
+    assert f"version=3.{max_minor_version}" in stderr, (
+        f"Expected to see version=3.{max_minor_version}, got: \n\n{stderr}"
+    )
 
 
 @nox.session(name="check-feature-powerset", venv_backend="none")
