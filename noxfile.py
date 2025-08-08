@@ -317,6 +317,7 @@ def publish(session: nox.Session) -> None:
     _run_cargo_publish(session, package="pyo3-macros")
     _run_cargo_publish(session, package="pyo3-ffi")
     _run_cargo_publish(session, package="pyo3")
+    _run_cargo_publish(session, package="pyo3-introspection")
 
 
 @nox.session(venv_backend="none")
