@@ -250,7 +250,7 @@ pub fn build_py_class(
     args.options.take_pyo3_options(&mut class.attrs)?;
 
     let ctx = &Ctx::new(&args.options.krate, None);
-    let doc = utils::get_doc(&class.attrs, None, ctx);
+    let doc = utils::get_doc(&class.attrs, None, ctx)?;
 
     if let Some(lt) = class.generics.lifetimes().next() {
         bail_spanned!(
@@ -521,7 +521,7 @@ pub fn build_py_enum(
         bail_spanned!(generic.span() => "enums do not support #[pyclass(generic)]");
     }
 
-    let doc = utils::get_doc(&enum_.attrs, None, ctx);
+    let doc = utils::get_doc(&enum_.attrs, None, ctx)?;
     let enum_ = PyClassEnum::new(enum_)?;
     impl_enum(enum_, &args, doc, method_type, ctx)
 }
@@ -1759,7 +1759,7 @@ fn complex_enum_variant_field_getter<'a>(
     let property_type = crate::pymethod::PropertyType::Function {
         self_type: &self_type,
         spec: &spec,
-        doc: crate::get_doc(&[], None, ctx),
+        doc: crate::get_doc(&[], None, ctx)?,
     };
 
     let getter = crate::pymethod::impl_py_getter_def(variant_cls_type, property_type, ctx)?;
@@ -2057,7 +2057,7 @@ fn pyclass_class_geitem(
             let class_geitem_method = crate::pymethod::impl_py_method_def(
                 cls,
                 &spec,
-                &spec.get_doc(&class_geitem_impl.attrs, ctx),
+                &spec.get_doc(&class_geitem_impl.attrs, ctx)?,
                 Some(quote!(#pyo3_path::ffi::METH_CLASS)),
                 ctx,
             )?;
@@ -2396,7 +2396,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                     }
                 };
 
-                const DOC: &'static ::std::ffi::CStr = {
+                const DOC: &::std::ffi::CStr = {
                     use #pyo3_path::impl_ as impl_;
                     use impl_::pyclass::Probe as _;
                     const DOC_PIECES: &[&str] = impl_::pyclass::doc::PyClassDocGenerator::<

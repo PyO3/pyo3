@@ -1,7 +1,5 @@
-error: custom attribute panicked
- --> tests/ui/invalid_pyclass_doc.rs:4:1
+error: Python doc may not contain nul byte, found nul at position 5
+ --> tests/ui/invalid_pyclass_doc.rs:3:9
   |
-4 | #[pyclass]
-  | ^^^^^^^^^^
-  |
-  = help: message: called `Result::unwrap()` on an `Err` value: NulError(5, [84, 104, 105, 115, 32, 0, 32, 99, 111, 110, 116, 97, 105, 110, 115, 32, 97, 32, 110, 117, 108, 32, 98, 121, 116, 101, 33])
+3 | #[doc = "This \0 contains a nul byte!"]
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

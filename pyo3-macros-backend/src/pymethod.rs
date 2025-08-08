@@ -236,21 +236,21 @@ pub fn gen_py_method(
         (_, FnType::Fn(_)) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &spec.get_doc(meth_attrs, ctx),
+            &spec.get_doc(meth_attrs, ctx)?,
             None,
             ctx,
         )?),
         (_, FnType::FnClass(_)) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &spec.get_doc(meth_attrs, ctx),
+            &spec.get_doc(meth_attrs, ctx)?,
             Some(quote!(#pyo3_path::ffi::METH_CLASS)),
             ctx,
         )?),
         (_, FnType::FnStatic) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &spec.get_doc(meth_attrs, ctx),
+            &spec.get_doc(meth_attrs, ctx)?,
             Some(quote!(#pyo3_path::ffi::METH_STATIC)),
             ctx,
         )?),
@@ -264,7 +264,7 @@ pub fn gen_py_method(
             PropertyType::Function {
                 self_type,
                 spec,
-                doc: spec.get_doc(meth_attrs, ctx),
+                doc: spec.get_doc(meth_attrs, ctx)?,
             },
             ctx,
         )?),
@@ -273,7 +273,7 @@ pub fn gen_py_method(
             PropertyType::Function {
                 self_type,
                 spec,
-                doc: spec.get_doc(meth_attrs, ctx),
+                doc: spec.get_doc(meth_attrs, ctx)?,
             },
             ctx,
         )?),
@@ -626,7 +626,7 @@ pub fn impl_py_setter_def(
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
     let python_name = property_type.null_terminated_python_name(ctx)?;
-    let doc = property_type.doc(ctx);
+    let doc = property_type.doc(ctx)?;
     let mut holders = Holders::new();
     let setter_impl = match property_type {
         PropertyType::Descriptor {
@@ -814,7 +814,7 @@ pub fn impl_py_getter_def(
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
     let python_name = property_type.null_terminated_python_name(ctx)?;
-    let doc = property_type.doc(ctx);
+    let doc = property_type.doc(ctx)?;
 
     let mut cfg_attrs = TokenStream::new();
     if let PropertyType::Descriptor { field, .. } = &property_type {
@@ -977,12 +977,12 @@ impl PropertyType<'_> {
         }
     }
 
-    fn doc(&self, ctx: &Ctx) -> Cow<'_, PythonDoc> {
+    fn doc(&self, ctx: &Ctx) -> Result<Cow<'_, PythonDoc>> {
         match self {
             PropertyType::Descriptor { field, .. } => {
-                Cow::Owned(utils::get_doc(&field.attrs, None, ctx))
+                utils::get_doc(&field.attrs, None, ctx).map(Cow::Owned)
             }
-            PropertyType::Function { doc, .. } => Cow::Borrowed(doc),
+            PropertyType::Function { doc, .. } => Ok(Cow::Borrowed(doc)),
         }
     }
 }
