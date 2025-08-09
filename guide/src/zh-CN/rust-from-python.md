@@ -1,6 +1,6 @@
 # 在 Python 调用 Rust
 
-指南的本章致力于解释如何将 Rust 代码包装成 Python 对象。
+指南的本章旨在解释如何将 Rust 代码包装成 Python 对象。
 
 PyO3 使用 Rust 的“过程宏”来提供一个强大而简单的 API，用于指定哪些 Rust 代码应该映射到 Python 对象。
 
