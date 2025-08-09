@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'docs/**.md'  # 监控docs下所有.md变化
+      - 'guide/**/*.md'  # 监控guide下所有.md变化
 
 jobs:
   detect-changes:
@@ -18,7 +18,7 @@ jobs:
         id: changes
         run: |
           # git diff找出变化的文件，排除zh-CN
-          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD -- docs/*.md docs/**/*.md | grep -v '/zh-CN/' || true)
+          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD -- guide/**/*.md | grep -v '/zh-CN/' || true)
           if [ -n "$CHANGED_FILES" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
             echo "files<<EOF" >> $GITHUB_OUTPUT
@@ -34,5 +34,6 @@ jobs:
         with:
           title: "英文文档更新：需要同步中文翻译"
           content: |
-            以下英文文件有变化，请检查并更新对应中文版本（在docs/zh-CN/下）：
+            以下英文文件有变化，请检查并更新对应中文版本（在guide/zh-CN/下）：
             
+            ${{ steps.changes.outputs.files }}
