@@ -853,7 +853,7 @@ pub fn impl_py_getter_def(
                 #cfg_attrs
                 {
                     #[allow(unused_imports)]  // might not be used if all probes are positve
-                    use #pyo3_path::impl_::pyclass::Probe;
+                    use #pyo3_path::impl_::pyclass::Probe as _;
 
                     struct Offset;
                     unsafe impl #pyo3_path::impl_::pyclass::OffsetCalculator<#cls, #ty> for Offset {

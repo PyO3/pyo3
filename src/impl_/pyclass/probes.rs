@@ -46,6 +46,12 @@ where
     pub const VALUE: bool = true;
 }
 
+probe!(IsSend);
+
+impl<T: Send> IsSend<T> {
+    pub const VALUE: bool = true;
+}
+
 probe!(IsSync);
 
 impl<T: Sync> IsSync<T> {
@@ -57,3 +63,15 @@ probe!(IsOption);
 impl<T> IsOption<Option<T>> {
     pub const VALUE: bool = true;
 }
+
+#[cfg(test)]
+macro_rules! value_of {
+    ($probe:ident, $ty:ty) => {{
+        #[allow(unused_imports)] // probe trait not used if VALUE is true
+        use crate::impl_::pyclass::Probe as _;
+        $probe::<$ty>::VALUE
+    }};
+}
+
+#[cfg(test)]
+pub(crate) use value_of;
