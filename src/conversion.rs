@@ -3,7 +3,6 @@ use crate::err::PyResult;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
-use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
 use crate::{Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyErr, PyRef, PyRefMut, Python};
 use std::convert::Infallible;
@@ -370,7 +369,7 @@ pub trait FromPyObjectBound<'a, 'py>: Sized + from_py_object_bound_sealed::Seale
     /// Extracts `Self` from the bound smart pointer `obj`.
     ///
     /// Users are advised against calling this method directly: instead, use this via
-    /// [`Bound<'_, PyAny>::extract`] or [`Py::extract`].
+    /// [`Bound<'_, PyAny>::extract`](crate::types::any::PyAnyMethods::extract) or [`Py::extract`].
     fn from_py_object_bound(ob: Borrowed<'a, 'py, PyAny>) -> PyResult<Self>;
 
     /// Extracts the type hint information for this type when it appears as an argument.
@@ -409,7 +408,7 @@ where
     T: PyClass + Clone,
 {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let bound = obj.downcast::<Self>()?;
+        let bound = obj.cast::<Self>()?;
         Ok(bound.try_borrow()?.clone())
     }
 }
@@ -419,7 +418,7 @@ where
     T: PyClass,
 {
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
-        obj.downcast::<T>()?.try_borrow().map_err(Into::into)
+        obj.cast::<T>()?.try_borrow().map_err(Into::into)
     }
 }
 
@@ -428,7 +427,7 @@ where
     T: PyClass<Frozen = False>,
 {
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
-        obj.downcast::<T>()?.try_borrow_mut().map_err(Into::into)
+        obj.cast::<T>()?.try_borrow_mut().map_err(Into::into)
     }
 }
 

@@ -89,7 +89,7 @@ impl<'py> DowncastIntoError<'py> {
     /// Consumes this `DowncastIntoError` and returns the original object, allowing continued
     /// use of it after a failed conversion.
     ///
-    /// See [`downcast_into`][PyAnyMethods::downcast_into] for an example.
+    /// See [`cast_into`][Bound::cast_into] for an example.
     pub fn into_inner(self) -> Bound<'py, PyAny> {
         self.from
     }
@@ -231,7 +231,7 @@ impl PyErr {
     /// });
     /// ```
     pub fn from_value(obj: Bound<'_, PyAny>) -> PyErr {
-        let state = match obj.downcast_into::<PyBaseException>() {
+        let state = match obj.cast_into::<PyBaseException>() {
             Ok(obj) => PyErrState::normalized(PyErrStateNormalized::new(obj)),
             Err(err) => {
                 // Assume obj is Type[Exception]; let later normalization handle if this

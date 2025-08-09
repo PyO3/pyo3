@@ -87,93 +87,41 @@ jobs:
     # Don't run clippy on `main` because it's already run in the merge queue.
     if: github.ref != 'refs/heads/main'
     needs: [fmt]
-    runs-on: ${{ matrix.platform.os }}
+    runs-on: ubuntu-24.04-arm
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
       fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
         rust: [stable]
-        platform:
+        target:
           [
-            {
-              os: "macos-latest",
-              python-architecture: "arm64",
-              rust-target: "aarch64-apple-darwin",
-            },
-            {
-              os: "ubuntu-latest",
-              python-architecture: "x64",
-              rust-target: "x86_64-unknown-linux-gnu",
-            },
-            {
-              os: "ubuntu-22.04-arm",
-              python-architecture: "arm64",
-              rust-target: "aarch64-unknown-linux-gnu",
-            },
-            {
-              os: "ubuntu-latest",
-              python-architecture: "x64",
-              rust-target: "powerpc64le-unknown-linux-gnu",
-            },
-            {
-              os: "ubuntu-latest",
-              python-architecture: "x64",
-              rust-target: "s390x-unknown-linux-gnu",
-            },
-            {
-              os: "ubuntu-latest",
-              python-architecture: "x64",
-              rust-target: "wasm32-wasip1",
-            },
-            {
-              os: "windows-latest",
-              python-architecture: "x64",
-              rust-target: "x86_64-pc-windows-msvc",
-            },
-            {
-              os: "windows-latest",
-              python-architecture: "x86",
-              rust-target: "i686-pc-windows-msvc",
-            },
-            {
-              os: "windows-11-arm",
-              python-architecture: "arm64",
-              rust-target: "aarch64-pc-windows-msvc",
-            },
+            "aarch64-apple-darwin",
+            "x86_64-unknown-linux-gnu",
+            "aarch64-unknown-linux-gnu",
+            "powerpc64le-unknown-linux-gnu",
+            "s390x-unknown-linux-gnu",
+            "wasm32-wasip1",
+            "x86_64-pc-windows-msvc",
+            "i686-pc-windows-msvc",
+            "aarch64-pc-windows-msvc",
           ]
         include:
           # Run beta clippy as a way to detect any incoming lints which may affect downstream users
           - rust: beta
-            platform:
-              {
-                os: "ubuntu-latest",
-                python-architecture: "x64",
-                rust-target: "x86_64-unknown-linux-gnu",
-              }
-    name: clippy/${{ matrix.platform.rust-target }}/${{ matrix.rust }}
+            target: "x86_64-unknown-linux-gnu"
+    name: clippy/${{ matrix.target }}/${{ matrix.rust }}
     continue-on-error: ${{ matrix.rust != 'stable' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          targets: ${{ matrix.platform.rust-target }}
+          targets: ${{ matrix.target }}
           components: clippy,rust-src
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-          architecture: ${{ matrix.platform.python-architecture }}
-      # windows on arm image contains x86-64 libclang
-      - name: Install LLVM and Clang
-        if: matrix.platform.os == 'windows-11-arm'
-        uses: KyleMayes/install-llvm-action@v2
-        with:
-          # to match windows-2022 images
-          version: "18"
-      - run: python -m pip install --upgrade pip && pip install nox
-      - run: nox -s clippy-all
+      - uses: astral-sh/setup-uv@v6
+      - run: uvx nox -s clippy-all
     env:
-      CARGO_BUILD_TARGET: ${{ matrix.platform.rust-target }}
+      CARGO_BUILD_TARGET: ${{ matrix.target }}
 
   build-pr:
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-build-full') && github.event_name == 'pull_request' }}

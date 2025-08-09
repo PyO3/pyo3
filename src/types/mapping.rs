@@ -23,7 +23,7 @@ pyobject_native_type_named!(PyMapping);
 impl PyMapping {
     /// Register a pyclass as a subclass of `collections.abc.Mapping` (from the Python standard
     /// library). This is equivalent to `collections.abc.Mapping.register(T)` in Python.
-    /// This registration is required for a pyclass to be downcastable from `PyAny` to `PyMapping`.
+    /// This registration is required for a pyclass to be castable from `PyAny` to `PyMapping`.
     pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
         let ty = T::type_object(py);
         get_mapping_abc(py)?.call_method1("register", (ty,))?;
@@ -137,7 +137,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
         unsafe {
             ffi::PyMapping_Keys(self.as_ptr())
                 .assume_owned_or_err(self.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -146,7 +146,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
         unsafe {
             ffi::PyMapping_Values(self.as_ptr())
                 .assume_owned_or_err(self.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -155,7 +155,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
         unsafe {
             ffi::PyMapping_Items(self.as_ptr())
                 .assume_owned_or_err(self.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }
@@ -199,13 +199,13 @@ mod tests {
         Python::attach(|py| {
             let mut v = HashMap::<i32, i32>::new();
             let ob = (&v).into_pyobject(py).unwrap();
-            let mapping = ob.downcast::<PyMapping>().unwrap();
+            let mapping = ob.cast::<PyMapping>().unwrap();
             assert_eq!(0, mapping.len().unwrap());
             assert!(mapping.is_empty().unwrap());
 
             v.insert(7, 32);
             let ob = v.into_pyobject(py).unwrap();
-            let mapping2 = ob.downcast::<PyMapping>().unwrap();
+            let mapping2 = ob.cast::<PyMapping>().unwrap();
             assert_eq!(1, mapping2.len().unwrap());
             assert!(!mapping2.is_empty().unwrap());
         });
@@ -217,7 +217,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert("key0", 1234);
             let ob = v.into_pyobject(py).unwrap();
-            let mapping = ob.downcast::<PyMapping>().unwrap();
+            let mapping = ob.cast::<PyMapping>().unwrap();
             mapping.set_item("key1", "foo").unwrap();
 
             assert!(mapping.contains("key0").unwrap());
@@ -232,7 +232,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.into_pyobject(py).unwrap();
-            let mapping = ob.downcast::<PyMapping>().unwrap();
+            let mapping = ob.cast::<PyMapping>().unwrap();
             assert_eq!(
                 32,
                 mapping.get_item(7i32).unwrap().extract::<i32>().unwrap()
@@ -250,7 +250,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.into_pyobject(py).unwrap();
-            let mapping = ob.downcast::<PyMapping>().unwrap();
+            let mapping = ob.cast::<PyMapping>().unwrap();
             assert!(mapping.set_item(7i32, 42i32).is_ok()); // change
             assert!(mapping.set_item(8i32, 123i32).is_ok()); // insert
             assert_eq!(
@@ -270,7 +270,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.into_pyobject(py).unwrap();
-            let mapping = ob.downcast::<PyMapping>().unwrap();
+            let mapping = ob.cast::<PyMapping>().unwrap();
             assert!(mapping.del_item(7i32).is_ok());
             assert_eq!(0, mapping.len().unwrap());
             assert!(mapping
@@ -288,12 +288,12 @@ mod tests {
             v.insert(8, 42);
             v.insert(9, 123);
             let ob = v.into_pyobject(py).unwrap();
-            let mapping = ob.downcast::<PyMapping>().unwrap();
+            let mapping = ob.cast::<PyMapping>().unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
             let mut value_sum = 0;
             for el in mapping.items().unwrap().try_iter().unwrap() {
-                let tuple = el.unwrap().downcast_into::<PyTuple>().unwrap();
+                let tuple = el.unwrap().cast_into::<PyTuple>().unwrap();
                 key_sum += tuple.get_item(0).unwrap().extract::<i32>().unwrap();
                 value_sum += tuple.get_item(1).unwrap().extract::<i32>().unwrap();
             }
@@ -310,7 +310,7 @@ mod tests {
             v.insert(8, 42);
             v.insert(9, 123);
             let ob = v.into_pyobject(py).unwrap();
-            let mapping = ob.downcast::<PyMapping>().unwrap();
+            let mapping = ob.cast::<PyMapping>().unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
             for el in mapping.keys().unwrap().try_iter().unwrap() {
@@ -328,7 +328,7 @@ mod tests {
             v.insert(8, 42);
             v.insert(9, 123);
             let ob = v.into_pyobject(py).unwrap();
-            let mapping = ob.downcast::<PyMapping>().unwrap();
+            let mapping = ob.cast::<PyMapping>().unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut values_sum = 0;
             for el in mapping.values().unwrap().try_iter().unwrap() {

@@ -7,7 +7,6 @@ use crate::internal::state::ForbidAttaching;
 use crate::pycell::impl_::PyClassBorrowChecker as _;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
-use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
 use crate::{
     ffi, Bound, DowncastError, Py, PyAny, PyClass, PyClassGuard, PyClassGuardMut,
@@ -651,11 +650,11 @@ impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
     }
 
     pub fn downcast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, DowncastError<'a, 'py>> {
-        self.0.downcast::<T>().map(BoundRef)
+        self.0.cast::<T>().map(BoundRef)
     }
 
     pub unsafe fn downcast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
-        unsafe { BoundRef(self.0.downcast_unchecked::<T>()) }
+        unsafe { BoundRef(self.0.cast_unchecked::<T>()) }
     }
 }
 
