@@ -3,15 +3,14 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    conversion::IntoPyObject,
-    instance::Bound,
+    conversion::{FromPyObjectOwned, IntoPyObject},
     types::{
         any::PyAnyMethods,
         frozenset::PyFrozenSetMethods,
         set::{try_new_from_iter, PySetMethods},
         PyFrozenSet, PySet,
     },
-    FromPyObject, PyAny, PyErr, PyResult, Python,
+    Borrowed, Bound, FromPyObject, PyAny, PyErr, Python,
 };
 
 impl<'py, K, S> IntoPyObject<'py> for collections::HashSet<K, S>
@@ -53,17 +52,25 @@ where
     }
 }
 
-impl<'py, K, S> FromPyObject<'py> for collections::HashSet<K, S>
+impl<'py, K, S> FromPyObject<'_, 'py> for collections::HashSet<K, S>
 where
-    K: FromPyObject<'py> + cmp::Eq + hash::Hash,
+    K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         match ob.cast::<PySet>() {
-            Ok(set) => set.iter().map(|any| any.extract()).collect(),
+            Ok(set) => set
+                .iter()
+                .map(|any| any.extract().map_err(Into::into))
+                .collect(),
             Err(err) => {
                 if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
-                    frozen_set.iter().map(|any| any.extract()).collect()
+                    frozen_set
+                        .iter()
+                        .map(|any| any.extract().map_err(Into::into))
+                        .collect()
                 } else {
                     Err(PyErr::from(err))
                 }
@@ -114,16 +121,24 @@ where
     }
 }
 
-impl<'py, K> FromPyObject<'py> for collections::BTreeSet<K>
+impl<'py, K> FromPyObject<'_, 'py> for collections::BTreeSet<K>
 where
-    K: FromPyObject<'py> + cmp::Ord,
+    K: FromPyObjectOwned<'py> + cmp::Ord,
 {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         match ob.cast::<PySet>() {
-            Ok(set) => set.iter().map(|any| any.extract()).collect(),
+            Ok(set) => set
+                .iter()
+                .map(|any| any.extract().map_err(Into::into))
+                .collect(),
             Err(err) => {
                 if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
-                    frozen_set.iter().map(|any| any.extract()).collect()
+                    frozen_set
+                        .iter()
+                        .map(|any| any.extract().map_err(Into::into))
+                        .collect()
                 } else {
                     Err(PyErr::from(err))
                 }

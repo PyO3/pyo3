@@ -478,7 +478,7 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
         let gen_ident = &param.ident;
         where_clause
             .predicates
-            .push(parse_quote!(#gen_ident: #pyo3_path::FromPyObject<'py>))
+            .push(parse_quote!(#gen_ident: #pyo3_path::conversion::FromPyObjectOwned<#lt_param>))
     }
 
     let derives = match &tokens.data {
@@ -506,8 +506,10 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
     let ident = &tokens.ident;
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics #pyo3_path::FromPyObject<#lt_param> for #ident #ty_generics #where_clause {
-            fn extract_bound(obj: &#pyo3_path::Bound<#lt_param, #pyo3_path::PyAny>) -> #pyo3_path::PyResult<Self>  {
+        impl #impl_generics #pyo3_path::FromPyObject<'_, #lt_param> for #ident #ty_generics #where_clause {
+            type Error = #pyo3_path::PyErr;
+            fn extract(obj: #pyo3_path::Borrowed<'_, #lt_param, #pyo3_path::PyAny>) -> ::std::result::Result<Self, Self::Error> {
+                let obj: &#pyo3_path::Bound<'_, _> = &*obj;
                 #derives
             }
         }

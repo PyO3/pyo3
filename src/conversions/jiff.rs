@@ -51,7 +51,7 @@ use crate::types::{PyAnyMethods, PyNone};
 use crate::types::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
-use crate::{intern, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
+use crate::{intern, Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
 use jiff::civil::{Date, DateTime, Time};
 use jiff::tz::{Offset, TimeZone};
 use jiff::{SignedDuration, Span, Timestamp, Zoned};
@@ -122,8 +122,10 @@ impl<'py> IntoPyObject<'py> for &Timestamp {
     }
 }
 
-impl<'py> FromPyObject<'py> for Timestamp {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+impl<'a, 'py> FromPyObject<'a, 'py> for Timestamp {
+    type Error = <Zoned as FromPyObject<'a, 'py>>::Error;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let zoned = ob.extract::<Zoned>()?;
         Ok(zoned.timestamp())
     }
@@ -154,8 +156,10 @@ impl<'py> IntoPyObject<'py> for &Date {
     }
 }
 
-impl<'py> FromPyObject<'py> for Date {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for Date {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let date = ob.cast::<PyDate>()?;
 
         #[cfg(not(Py_LIMITED_API))]
@@ -206,11 +210,13 @@ impl<'py> IntoPyObject<'py> for &Time {
     }
 }
 
-impl<'py> FromPyObject<'py> for Time {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let ob = ob.cast::<PyTime>()?;
+impl<'py> FromPyObject<'_, 'py> for Time {
+    type Error = PyErr;
 
-        pytime_to_time(ob)
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        let ob = ob.cast::<PyTime>()?;
+        #[allow(clippy::explicit_auto_deref)]
+        pytime_to_time(&*ob)
     }
 }
 
@@ -234,8 +240,10 @@ impl<'py> IntoPyObject<'py> for &DateTime {
     }
 }
 
-impl<'py> FromPyObject<'py> for DateTime {
-    fn extract_bound(dt: &Bound<'py, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for DateTime {
+    type Error = PyErr;
+
+    fn extract(dt: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let dt = dt.cast::<PyDateTime>()?;
         let has_tzinfo = dt.get_tzinfo().is_some();
 
@@ -243,7 +251,8 @@ impl<'py> FromPyObject<'py> for DateTime {
             return Err(PyTypeError::new_err("expected a datetime without tzinfo"));
         }
 
-        Ok(DateTime::from_parts(dt.extract()?, pytime_to_time(dt)?))
+        #[allow(clippy::explicit_auto_deref)]
+        Ok(DateTime::from_parts(dt.extract()?, pytime_to_time(&*dt)?))
     }
 }
 
@@ -283,8 +292,10 @@ impl<'py> IntoPyObject<'py> for &Zoned {
     }
 }
 
-impl<'py> FromPyObject<'py> for Zoned {
-    fn extract_bound(dt: &Bound<'py, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for Zoned {
+    type Error = PyErr;
+
+    fn extract(dt: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let dt = dt.cast::<PyDateTime>()?;
 
         let tz = dt
@@ -295,7 +306,8 @@ impl<'py> FromPyObject<'py> for Zoned {
                     "expected a datetime with non-None tzinfo",
                 ))
             })?;
-        let datetime = DateTime::from_parts(dt.extract()?, pytime_to_time(dt)?);
+        #[allow(clippy::explicit_auto_deref)]
+        let datetime = DateTime::from_parts(dt.extract()?, pytime_to_time(&*dt)?);
         let zoned = tz.into_ambiguous_zoned(datetime);
 
         #[cfg(not(Py_LIMITED_API))]
@@ -340,8 +352,10 @@ impl<'py> IntoPyObject<'py> for &TimeZone {
     }
 }
 
-impl<'py> FromPyObject<'py> for TimeZone {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for TimeZone {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let ob = ob.cast::<PyTzInfo>()?;
 
         let attr = intern!(ob.py(), "key");
@@ -377,8 +391,10 @@ impl<'py> IntoPyObject<'py> for Offset {
     }
 }
 
-impl<'py> FromPyObject<'py> for Offset {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for Offset {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let py = ob.py();
         let ob = ob.cast::<PyTzInfo>()?;
 
@@ -425,8 +441,10 @@ impl<'py> IntoPyObject<'py> for SignedDuration {
     }
 }
 
-impl<'py> FromPyObject<'py> for SignedDuration {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for SignedDuration {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let delta = ob.cast::<PyDelta>()?;
 
         #[cfg(not(Py_LIMITED_API))]
@@ -450,8 +468,10 @@ impl<'py> FromPyObject<'py> for SignedDuration {
     }
 }
 
-impl<'py> FromPyObject<'py> for Span {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for Span {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let duration = ob.extract::<SignedDuration>()?;
         Ok(duration.try_into()?)
     }

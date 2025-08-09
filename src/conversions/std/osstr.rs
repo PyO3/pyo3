@@ -2,7 +2,7 @@ use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::types::PyString;
-use crate::{ffi, FromPyObject, PyAny, PyResult, Python};
+use crate::{ffi, Borrowed, FromPyObject, PyAny, PyErr, Python};
 use std::borrow::Cow;
 use std::convert::Infallible;
 use std::ffi::{OsStr, OsString};
@@ -70,8 +70,10 @@ impl<'py> IntoPyObject<'py> for &&OsStr {
 // There's no FromPyObject implementation for &OsStr because albeit possible on Unix, this would
 // be impossible to implement on Windows. Hence it's omitted entirely
 
-impl FromPyObject<'_> for OsString {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for OsString {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let pystring = ob.cast::<PyString>()?;
 
         #[cfg(not(windows))]
@@ -97,8 +99,6 @@ impl FromPyObject<'_> for OsString {
 
         #[cfg(windows)]
         {
-            use crate::types::string::PyStringMethods;
-
             // Take the quick and easy shortcut if UTF-8
             if let Ok(utf8_string) = pystring.to_cow() {
                 return Ok(utf8_string.into_owned().into());
@@ -169,7 +169,7 @@ impl<'py> IntoPyObject<'py> for &OsString {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{PyAnyMethods, PyString, PyStringMethods};
+    use crate::types::{PyString, PyStringMethods};
     use crate::{BoundObject, IntoPyObject, Python};
     use std::fmt::Debug;
     use std::{
@@ -181,6 +181,7 @@ mod tests {
     #[cfg(not(windows))]
     fn test_non_utf8_conversion() {
         Python::attach(|py| {
+            use crate::types::PyAnyMethods;
             #[cfg(not(target_os = "wasi"))]
             use std::os::unix::ffi::OsStrExt;
             #[cfg(target_os = "wasi")]
