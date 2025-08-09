@@ -57,7 +57,7 @@ where
 
     #[inline]
     fn extract(obj: &'a Bound<'py, PyAny>, _: &'holder mut ()) -> PyResult<Self> {
-        obj.downcast().map_err(Into::into)
+        obj.cast().map_err(Into::into)
     }
 }
 
@@ -331,7 +331,7 @@ impl FunctionDescription {
         // Safety: kwnames is known to be a pointer to a tuple, or null
         //  - we both have the GIL and can borrow this input reference for the `'py` lifetime.
         let kwnames: Option<Borrowed<'_, '_, PyTuple>> = unsafe {
-            Borrowed::from_ptr_or_opt(py, kwnames).map(|kwnames| kwnames.downcast_unchecked())
+            Borrowed::from_ptr_or_opt(py, kwnames).map(|kwnames| kwnames.cast_unchecked())
         };
         if let Some(kwnames) = kwnames {
             let kwargs = unsafe {
@@ -386,10 +386,9 @@ impl FunctionDescription {
         //  - `kwargs` is known to be a dict or null
         //  - we both have the GIL and can borrow these input references for the `'py` lifetime.
         let args: Borrowed<'py, 'py, PyTuple> =
-            unsafe { Borrowed::from_ptr(py, args).downcast_unchecked::<PyTuple>() };
-        let kwargs: Option<Borrowed<'py, 'py, PyDict>> = unsafe {
-            Borrowed::from_ptr_or_opt(py, kwargs).map(|kwargs| kwargs.downcast_unchecked())
-        };
+            unsafe { Borrowed::from_ptr(py, args).cast_unchecked::<PyTuple>() };
+        let kwargs: Option<Borrowed<'py, 'py, PyDict>> =
+            unsafe { Borrowed::from_ptr_or_opt(py, kwargs).map(|kwargs| kwargs.cast_unchecked()) };
 
         let num_positional_parameters = self.positional_parameter_names.len();
 
@@ -457,7 +456,7 @@ impl FunctionDescription {
             // will return an error anyway.
             #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
             let kwarg_name =
-                unsafe { kwarg_name_py.downcast_unchecked::<crate::types::PyString>() }.to_str();
+                unsafe { kwarg_name_py.cast_unchecked::<crate::types::PyString>() }.to_str();
 
             #[cfg(all(not(Py_3_10), Py_LIMITED_API))]
             let kwarg_name = kwarg_name_py.extract::<crate::pybacked::PyBackedStr>();

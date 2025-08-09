@@ -247,7 +247,7 @@ impl<T: PyClass> Deref for PyClassGuard<'_, T> {
 
 impl<'a, 'py, T: PyClass> FromPyObjectBound<'a, 'py> for PyClassGuard<'a, T> {
     fn from_py_object_bound(obj: Borrowed<'a, 'py, crate::PyAny>) -> crate::PyResult<Self> {
-        Self::try_from_class_object(obj.downcast()?.get_class_object()).map_err(Into::into)
+        Self::try_from_class_object(obj.cast()?.get_class_object()).map_err(Into::into)
     }
 }
 
@@ -271,7 +271,7 @@ impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &PyClassGuard<'a, T> {
     fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
         // SAFETY: `ptr` is guaranteed to be valid for 'a and points to an
         // object of type T
-        unsafe { Ok(Borrowed::from_non_null(py, self.ptr).downcast_unchecked()) }
+        unsafe { Ok(Borrowed::from_non_null(py, self.ptr).cast_unchecked()) }
     }
 }
 
@@ -575,7 +575,7 @@ impl<T: PyClass<Frozen = False>> DerefMut for PyClassGuardMut<'_, T> {
 
 impl<'a, 'py, T: PyClass<Frozen = False>> FromPyObjectBound<'a, 'py> for PyClassGuardMut<'a, T> {
     fn from_py_object_bound(obj: Borrowed<'a, 'py, crate::PyAny>) -> crate::PyResult<Self> {
-        Self::try_from_class_object(obj.downcast()?.get_class_object()).map_err(Into::into)
+        Self::try_from_class_object(obj.cast()?.get_class_object()).map_err(Into::into)
     }
 }
 
@@ -599,7 +599,7 @@ impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &PyClassGuardMut
     fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
         // SAFETY: `ptr` is guaranteed to be valid for 'a and points to an
         // object of type T
-        unsafe { Ok(Borrowed::from_non_null(py, self.ptr).downcast_unchecked()) }
+        unsafe { Ok(Borrowed::from_non_null(py, self.ptr).cast_unchecked()) }
     }
 }
 

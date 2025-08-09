@@ -96,7 +96,7 @@ fn mapping_from_dict(b: &mut Bencher<'_>) {
             .map(|i| (i, i * 2))
             .into_py_dict(py)
             .unwrap();
-        b.iter(|| black_box(dict).downcast::<PyMapping>().unwrap());
+        b.iter(|| black_box(dict).cast::<PyMapping>().unwrap());
     });
 }
 

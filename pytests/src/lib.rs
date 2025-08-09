@@ -49,7 +49,7 @@ mod pyo3_pytests {
         // e.g. import pyo3_pytests.buf_and_str as bas
 
         let sys = PyModule::import(m.py(), "sys")?;
-        let sys_modules = sys.getattr("modules")?.downcast_into::<PyDict>()?;
+        let sys_modules = sys.getattr("modules")?.cast_into::<PyDict>()?;
         sys_modules.set_item("pyo3_pytests.awaitable", m.getattr("awaitable")?)?;
         sys_modules.set_item("pyo3_pytests.buf_and_str", m.getattr("buf_and_str")?)?;
         sys_modules.set_item("pyo3_pytests.comparisons", m.getattr("comparisons")?)?;

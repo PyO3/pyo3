@@ -3,7 +3,6 @@ use crate::exceptions::PyUnicodeDecodeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
-use crate::types::any::PyAnyMethods;
 use crate::types::bytes::PyBytesMethods;
 use crate::types::PyBytes;
 use crate::{ffi, Bound, Py, PyAny, PyResult, Python};
@@ -132,9 +131,10 @@ impl<'a> PyStringData<'a> {
 /// For convenience, [`Bound<'py, PyString>`] implements [`PartialEq<str>`] to allow comparing the
 /// data in the Python string to a Rust UTF-8 string slice.
 ///
-/// This is not always the most appropriate way to compare Python strings, as Python string subclasses
-/// may have different equality semantics. In situations where subclasses overriding equality might be
-/// relevant, use [`PyAnyMethods::eq`], at cost of the additional overhead of a Python method call.
+/// This is not always the most appropriate way to compare Python strings, as Python string
+/// subclasses may have different equality semantics. In situations where subclasses overriding
+/// equality might be relevant, use [`PyAnyMethods::eq`](crate::types::any::PyAnyMethods::eq), at
+/// cost of the additional overhead of a Python method call.
 ///
 /// ```rust
 /// # use pyo3::prelude::*;
@@ -164,7 +164,7 @@ impl PyString {
         unsafe {
             ffi::PyUnicode_FromStringAndSize(ptr, len)
                 .assume_owned(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -184,7 +184,7 @@ impl PyString {
             if !ob.is_null() {
                 ffi::PyUnicode_InternInPlace(&mut ob);
             }
-            ob.assume_owned(py).downcast_into_unchecked()
+            ob.assume_owned(py).cast_into_unchecked()
         }
     }
 
@@ -213,7 +213,7 @@ impl PyString {
         unsafe {
             ffi::PyUnicode_FromEncodedObject(src.as_ptr(), encoding, errors)
                 .assume_owned_or_err(src.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -301,7 +301,7 @@ impl<'py> PyStringMethods<'py> for Bound<'py, PyString> {
         unsafe {
             ffi::PyUnicode_AsUTF8String(self.as_ptr())
                 .assume_owned_or_err(self.py())
-                .downcast_into_unchecked::<PyBytes>()
+                .cast_into_unchecked::<PyBytes>()
         }
     }
 
@@ -363,7 +363,7 @@ impl<'a> Borrowed<'a, '_, PyString> {
                 ffi::c_str!("surrogatepass").as_ptr(),
             )
             .assume_owned(py)
-            .downcast_into_unchecked::<PyBytes>()
+            .cast_into_unchecked::<PyBytes>()
         };
         Cow::Owned(String::from_utf8_lossy(bytes.as_bytes()).into_owned())
     }
@@ -562,7 +562,7 @@ mod tests {
     use pyo3_ffi::c_str;
 
     use super::*;
-    use crate::{exceptions::PyLookupError, IntoPyObject, PyObject};
+    use crate::{exceptions::PyLookupError, types::PyAnyMethods as _, IntoPyObject, PyObject};
 
     #[test]
     fn test_to_cow_utf8() {
@@ -579,7 +579,7 @@ mod tests {
             let py_string = py
                 .eval(ffi::c_str!(r"'\ud800'"), None, None)
                 .unwrap()
-                .downcast_into::<PyString>()
+                .cast_into::<PyString>()
                 .unwrap();
             assert!(py_string.to_cow().is_err());
         })
@@ -612,7 +612,7 @@ mod tests {
                 .into();
             assert!(obj
                 .bind(py)
-                .downcast::<PyString>()
+                .cast::<PyString>()
                 .unwrap()
                 .encode_utf8()
                 .is_err());
@@ -625,7 +625,7 @@ mod tests {
             let py_string = py
                 .eval(ffi::c_str!(r"'🐈 Hello \ud800World'"), None, None)
                 .unwrap()
-                .downcast_into::<PyString>()
+                .cast_into::<PyString>()
                 .unwrap();
 
             assert_eq!(py_string.to_string_lossy(), "🐈 Hello ���World");
@@ -735,7 +735,7 @@ mod tests {
                 )
             };
             assert!(!ptr.is_null());
-            let s = unsafe { ptr.assume_owned(py).downcast_into_unchecked::<PyString>() };
+            let s = unsafe { ptr.assume_owned(py).cast_into_unchecked::<PyString>() };
             let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs1(b"f\xfe"));
             let err = data.to_string(py).unwrap_err();
@@ -752,7 +752,7 @@ mod tests {
     fn test_string_data_ucs2() {
         Python::attach(|py| {
             let s = py.eval(ffi::c_str!("'foo\\ud800'"), None, None).unwrap();
-            let py_string = s.downcast::<PyString>().unwrap();
+            let py_string = s.cast::<PyString>().unwrap();
             let data = unsafe { py_string.data().unwrap() };
 
             assert_eq!(data, PyStringData::Ucs2(&[102, 111, 111, 0xd800]));
@@ -777,7 +777,7 @@ mod tests {
                 )
             };
             assert!(!ptr.is_null());
-            let s = unsafe { ptr.assume_owned(py).downcast_into_unchecked::<PyString>() };
+            let s = unsafe { ptr.assume_owned(py).cast_into_unchecked::<PyString>() };
             let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs2(&[0xff22, 0xd800]));
             let err = data.to_string(py).unwrap_err();
@@ -816,7 +816,7 @@ mod tests {
                 )
             };
             assert!(!ptr.is_null());
-            let s = unsafe { ptr.assume_owned(py).downcast_into_unchecked::<PyString>() };
+            let s = unsafe { ptr.assume_owned(py).cast_into_unchecked::<PyString>() };
             let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs4(&[0x20000, 0xd800]));
             let err = data.to_string(py).unwrap_err();

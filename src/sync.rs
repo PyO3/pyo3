@@ -33,6 +33,7 @@ use crate::PyVisit;
 /// Combining `GILProtected` with `RefCell` enables mutable access to static data:
 ///
 /// ```
+/// # #![allow(deprecated)]
 /// # use pyo3::prelude::*;
 /// use pyo3::sync::GILProtected;
 /// use std::cell::RefCell;
@@ -43,11 +44,16 @@ use crate::PyVisit;
 ///     NUMBERS.get(py).borrow_mut().push(42);
 /// });
 /// ```
+#[deprecated(
+    since = "0.26.0",
+    note = "Prefer an interior mutability primitive compatible with free-threaded Python, such as `Mutex` in combination with the `MutexExt` trait"
+)]
 #[cfg(not(Py_GIL_DISABLED))]
 pub struct GILProtected<T> {
     value: T,
 }
 
+#[allow(deprecated)]
 #[cfg(not(Py_GIL_DISABLED))]
 impl<T> GILProtected<T> {
     /// Place the given value under the protection of the GIL.
@@ -66,6 +72,7 @@ impl<T> GILProtected<T> {
     }
 }
 
+#[allow(deprecated)]
 #[cfg(not(Py_GIL_DISABLED))]
 unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 
@@ -350,10 +357,7 @@ where
         attr_name: &str,
     ) -> PyResult<&Bound<'py, T>> {
         self.get_or_try_init(py, || {
-            let type_object = py
-                .import(module_name)?
-                .getattr(attr_name)?
-                .downcast_into()?;
+            let type_object = py.import(module_name)?.getattr(attr_name)?.cast_into()?;
             Ok(type_object.unbind())
         })
         .map(|ty| ty.bind(py))
