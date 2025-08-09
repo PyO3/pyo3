@@ -251,7 +251,7 @@ jobs:
           # As we approach 3.14 release date, let's also have testing for 3.14 and 3.14t
           # on linux
           - rust: stable
-            python-version: "3.14"
+            python-version: "3.14-dev"
             platform:
               {
                 os: "ubuntu-latest",
@@ -259,7 +259,7 @@ jobs:
                 rust-target: "x86_64-unknown-linux-gnu",
               }
           - rust: stable
-            python-version: "3.14t"
+            python-version: "3.14t-dev"
             platform:
               {
                 os: "ubuntu-latest",
