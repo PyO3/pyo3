@@ -68,17 +68,13 @@ impl<T> IsOption<Option<T>> {
 }
 
 #[cfg(test)]
-mod value_of_impl {
-
-    #[macro_export]
-    macro_rules! value_of {
-        ($probe:ident, $ty:ty) => {{
-            #[allow(unused_imports)] // probe trait not used if VALUE is true
-            use crate::impl_::pyclass::Probe as _;
-            $probe::<$ty>::VALUE
-        }};
-    }
+macro_rules! value_of {
+    ($probe:ident, $ty:ty) => {{
+        #[allow(unused_imports)] // probe trait not used if VALUE is true
+        use crate::impl_::pyclass::Probe as _;
+        $probe::<$ty>::VALUE
+    }};
 }
 
 #[cfg(test)]
-pub use crate::value_of; // because `#[macro_export]` puts it in the crate root...
+pub(crate) use value_of;
