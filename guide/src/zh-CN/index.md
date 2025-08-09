@@ -12,7 +12,6 @@
 
 <hr style="opacity:0.2">
 
-````markdown
 # PyO3
 
 [![actions status](https://img.shields.io/github/actions/workflow/status/PyO3/pyo3/ci.yml?branch=main&logo=github&style=)](https://github.com/PyO3/pyo3/actions)
@@ -291,4 +290,3 @@ Python 根据 [Python 许可](https://docs.python.org/3/license.html) 许可。
 除非您明确声明, 否则您有意提交以包含在 PyO3 中的任何贡献，如 Apache 许可中定义，将如上所述双重许可，而无任何附加条款或条件。
 
 <a href="https://www.netlify.com"> <img src="https://www.netlify.com/v3/img/components/netlify-color-accent.svg" alt="Deploys by Netlify" /> </a>
-````
