@@ -64,6 +64,12 @@ impl<T> IsOption<Option<T>> {
     pub const VALUE: bool = true;
 }
 
+probe!(HasNewTextSignature);
+
+impl<T: super::doc::PyClassNewTextSignature> HasNewTextSignature<T> {
+    pub const VALUE: bool = true;
+}
+
 #[cfg(test)]
 macro_rules! value_of {
     ($probe:ident, $ty:ty) => {{

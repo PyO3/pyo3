@@ -1430,6 +1430,9 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     type WeakRef = pyo3::impl_::pyclass::PyClassDummySlot;
     type BaseNativeType = pyo3::PyAny;
 
+    const RAW_DOC: &'static std::ffi::CStr = pyo3::ffi::c_str!("...");
+    const DOC: &'static std::ffi::CStr = pyo3::ffi::c_str!("...");
+
     fn items_iter() -> pyo3::impl_::pyclass::PyClassItemsIter {
         use pyo3::impl_::pyclass::*;
         let collector = PyClassImplCollector::<MyClass>::new();
@@ -1441,15 +1444,6 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
         use pyo3::impl_::pyclass::LazyTypeObject;
         static TYPE_OBJECT: LazyTypeObject<MyClass> = LazyTypeObject::new();
         &TYPE_OBJECT
-    }
-
-    fn doc(py: Python<'_>) -> pyo3::PyResult<&'static ::std::ffi::CStr> {
-        use pyo3::impl_::pyclass::*;
-        static DOC: pyo3::sync::GILOnceCell<::std::borrow::Cow<'static, ::std::ffi::CStr>> = pyo3::sync::GILOnceCell::new();
-        DOC.get_or_try_init(py, || {
-            let collector = PyClassImplCollector::<Self>::new();
-            build_pyclass_doc(<MyClass as pyo3::PyTypeInfo>::NAME, pyo3::ffi::c_str!(""), collector.new_text_signature())
-        }).map(::std::ops::Deref::deref)
     }
 }
 
