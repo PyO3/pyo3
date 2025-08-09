@@ -92,7 +92,7 @@ where
             T::IS_MAPPING,
             T::IS_SEQUENCE,
             T::IS_IMMUTABLE_TYPE,
-            T::doc(py)?,
+            T::DOC,
             T::dict_offset(),
             T::weaklist_offset(),
             T::IS_BASETYPE,

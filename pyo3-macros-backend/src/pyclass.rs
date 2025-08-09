@@ -250,7 +250,7 @@ pub fn build_py_class(
     args.options.take_pyo3_options(&mut class.attrs)?;
 
     let ctx = &Ctx::new(&args.options.krate, None);
-    let doc = utils::get_doc(&class.attrs, None, ctx);
+    let doc = utils::get_doc(&class.attrs, None, ctx)?;
 
     if let Some(lt) = class.generics.lifetimes().next() {
         bail_spanned!(
@@ -521,7 +521,7 @@ pub fn build_py_enum(
         bail_spanned!(generic.span() => "enums do not support #[pyclass(generic)]");
     }
 
-    let doc = utils::get_doc(&enum_.attrs, None, ctx);
+    let doc = utils::get_doc(&enum_.attrs, None, ctx)?;
     let enum_ = PyClassEnum::new(enum_)?;
     impl_enum(enum_, &args, doc, method_type, ctx)
 }
@@ -1758,7 +1758,7 @@ fn complex_enum_variant_field_getter<'a>(
     let property_type = crate::pymethod::PropertyType::Function {
         self_type: &self_type,
         spec: &spec,
-        doc: crate::get_doc(&[], None, ctx),
+        doc: crate::get_doc(&[], None, ctx)?,
     };
 
     let getter = crate::pymethod::impl_py_getter_def(variant_cls_type, property_type, ctx)?;
@@ -2056,7 +2056,7 @@ fn pyclass_class_geitem(
             let class_geitem_method = crate::pymethod::impl_py_method_def(
                 cls,
                 &spec,
-                &spec.get_doc(&class_geitem_impl.attrs, ctx),
+                &spec.get_doc(&class_geitem_impl.attrs, ctx)?,
                 Some(quote!(#pyo3_path::ffi::METH_CLASS)),
                 ctx,
             )?;
@@ -2387,14 +2387,19 @@ impl<'a> PyClassImplsBuilder<'a> {
                     PyClassItemsIter::new(&INTRINSIC_ITEMS, #pymethods_items)
                 }
 
-                fn doc(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<&'static ::std::ffi::CStr>  {
-                    use #pyo3_path::impl_::pyclass::*;
-                    static DOC: #pyo3_path::sync::GILOnceCell<::std::borrow::Cow<'static, ::std::ffi::CStr>> = #pyo3_path::sync::GILOnceCell::new();
-                    DOC.get_or_try_init(py, || {
-                        let collector = PyClassImplCollector::<Self>::new();
-                        build_pyclass_doc(<Self as #pyo3_path::PyTypeInfo>::NAME, #doc, collector.new_text_signature())
-                    }).map(::std::ops::Deref::deref)
-                }
+                const RAW_DOC: &'static ::std::ffi::CStr = #doc;
+
+                const DOC: &'static ::std::ffi::CStr = {
+                    use #pyo3_path::impl_ as impl_;
+                    use impl_::pyclass::Probe as _;
+                    const DOC_PIECES: &'static [&'static [u8]] = impl_::pyclass::doc::PyClassDocGenerator::<
+                        #cls,
+                        { impl_::pyclass::HasNewTextSignature::<#cls>::VALUE }
+                    >::DOC_PIECES;
+                    const LEN: usize = impl_::concat::combined_len_bytes(DOC_PIECES);
+                    const DOC: &'static [u8] = &impl_::concat::combine_bytes_to_array::<LEN>(DOC_PIECES);
+                    impl_::pyclass::doc::doc_bytes_as_cstr(DOC)
+                };
 
                 #dict_offset
 
