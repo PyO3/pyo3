@@ -35,20 +35,17 @@ pub const fn combined_len(pieces: &[&str]) -> usize {
 ///
 /// `out` should be a buffer at the correct size of `combined_len(pieces)`, else this will panic.
 #[cfg(mut_ref_in_const_fn)] // requires MSRV 1.83
-pub const fn combine(pieces: &[&str], out: &mut [u8]) {
-    let mut out_idx = 0;
+pub const fn combine(pieces: &[&str], mut out: &mut [u8]) {
     let mut pieces_idx = 0;
     while pieces_idx < pieces.len() {
         let piece = pieces[pieces_idx].as_bytes();
-        let mut piece_idx = 0;
-        while piece_idx < piece.len() {
-            out[out_idx] = piece[piece_idx];
-            out_idx += 1;
-            piece_idx += 1;
-        }
+        slice_copy_from_slice(out, piece);
+        // using split_at_mut because range indexing not yet supported in const fn
+        out = out.split_at_mut(piece.len()).1;
         pieces_idx += 1;
     }
-    assert!(out_idx == out.len(), "output buffer too large");
+    // should be no trailing buffer
+    assert!(out.is_empty(), "output buffer too large");
 }
 
 /// Wrapper around combine which has a const generic parameter, this is going to be more codegen
@@ -96,20 +93,17 @@ pub const fn combined_len_bytes(pieces: &[&[u8]]) -> usize {
 ///
 /// `out` should be a buffer at the correct size of `combined_len(pieces)`, else this will panic.
 #[cfg(mut_ref_in_const_fn)] // requires MSRV 1.83
-pub const fn combine_bytes(pieces: &[&[u8]], out: &mut [u8]) {
-    let mut out_idx = 0;
+pub const fn combine_bytes(pieces: &[&[u8]], mut out: &mut [u8]) {
     let mut pieces_idx = 0;
     while pieces_idx < pieces.len() {
         let piece = pieces[pieces_idx];
-        let mut piece_idx = 0;
-        while piece_idx < piece.len() {
-            out[out_idx] = piece[piece_idx];
-            out_idx += 1;
-            piece_idx += 1;
-        }
+        slice_copy_from_slice(out, piece);
+        // using split_at_mut because range indexing not yet supported in const fn
+        out = out.split_at_mut(piece.len()).1;
         pieces_idx += 1;
     }
-    assert!(out_idx == out.len(), "output buffer too large");
+    // should be no trailing buffer
+    assert!(out.is_empty(), "output buffer too large");
 }
 
 /// Wrapper around `combine_bytes` which has a const generic parameter, this is going to be more codegen
@@ -137,6 +131,16 @@ pub const fn combine_bytes_to_array<const LEN: usize>(pieces: &[&[u8]]) -> [u8; 
         assert!(out_idx == out.len(), "output buffer too large");
     }
     out
+}
+
+/// Replacement for `slice::copy_from_slice`, which is const from 1.87
+#[cfg(mut_ref_in_const_fn)] // requires MSRV 1.83
+const fn slice_copy_from_slice(out: &mut [u8], src: &[u8]) {
+    let mut i = 0;
+    while i < src.len() {
+        out[i] = src[i];
+        i += 1;
+    }
 }
 
 #[cfg(test)]
