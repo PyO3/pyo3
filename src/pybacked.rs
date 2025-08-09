@@ -315,6 +315,7 @@ use impl_traits;
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::impl_::pyclass::{value_of, IsSend, IsSync};
     use crate::types::PyAnyMethods as _;
     use crate::{IntoPyObject, Python};
     use std::collections::hash_map::DefaultHasher;
@@ -424,14 +425,11 @@ mod test {
 
     #[test]
     fn test_backed_types_send_sync() {
-        fn is_send<T: Send>() {}
-        fn is_sync<T: Sync>() {}
+        assert!(value_of!(IsSend, PyBackedStr));
+        assert!(value_of!(IsSync, PyBackedStr));
 
-        is_send::<PyBackedStr>();
-        is_sync::<PyBackedStr>();
-
-        is_send::<PyBackedBytes>();
-        is_sync::<PyBackedBytes>();
+        assert!(value_of!(IsSend, PyBackedBytes));
+        assert!(value_of!(IsSync, PyBackedBytes));
     }
 
     #[cfg(feature = "py-clone")]

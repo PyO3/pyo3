@@ -852,6 +852,7 @@ impl_signed_integer!(isize);
 mod tests {
     use super::PyErrState;
     use crate::exceptions::{self, PyTypeError, PyValueError};
+    use crate::impl_::pyclass::{value_of, IsSend, IsSync};
     use crate::{ffi, PyErr, PyTypeInfo, Python};
 
     #[test]
@@ -977,14 +978,11 @@ mod tests {
 
     #[test]
     fn test_pyerr_send_sync() {
-        fn is_send<T: Send>() {}
-        fn is_sync<T: Sync>() {}
+        assert!(value_of!(IsSend, PyErr));
+        assert!(value_of!(IsSync, PyErr));
 
-        is_send::<PyErr>();
-        is_sync::<PyErr>();
-
-        is_send::<PyErrState>();
-        is_sync::<PyErrState>();
+        assert!(value_of!(IsSend, PyErrState));
+        assert!(value_of!(IsSync, PyErrState));
     }
 
     #[test]
