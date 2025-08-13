@@ -215,6 +215,7 @@ impl<T> PyMutex<T> {
     }
 }
 
+#[cfg_attr(not(panic = "unwind"), allow(clippy::unnecessary_wraps))]
 fn map_result<T, U, F>(result: LockResult<T>, f: F) -> LockResult<U>
 where
     F: FnOnce(T) -> U,
@@ -224,7 +225,7 @@ where
         #[cfg(panic = "unwind")]
         Err(e) => Err(PoisonError::new(f(e.into_inner()))),
         #[cfg(not(panic = "unwind"))]
-        Err(e) => {
+        Err(_) => {
             unreachable!();
         }
     }
@@ -269,14 +270,18 @@ impl<'a, T> DerefMut for PyMutexGuard<'a, T> {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(target_arch = "wasm32"))]
     use std::sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Barrier,
     };
 
     use super::*;
+    #[cfg(not(target_arch = "wasm32"))]
     use crate::types::{PyAnyMethods, PyDict, PyDictMethods, PyNone};
+    #[cfg(not(target_arch = "wasm32"))]
     use crate::Py;
+    #[cfg(not(target_arch = "wasm32"))]
     use crate::Python;
 
     #[cfg(not(target_arch = "wasm32"))]
