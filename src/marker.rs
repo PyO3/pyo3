@@ -379,9 +379,9 @@ impl Python<'_> {
     /// initialized, this function will initialize it. See
     #[cfg_attr(
         not(any(PyPy, GraalPy)),
-        doc = "[`prepare_freethreaded_python`](crate::prepare_freethreaded_python)"
+        doc = "[`Python::initialize`](crate::marker::Python::initialize)"
     )]
-    #[cfg_attr(PyPy, doc = "`prepare_freethreaded_python`")]
+    #[cfg_attr(PyPy, doc = "`Python::initialize")]
     /// for details.
     ///
     /// If the current thread does not yet have a Python "thread state" associated with it,
@@ -417,6 +417,49 @@ impl Python<'_> {
     {
         let guard = AttachGuard::acquire();
         f(guard.python())
+    }
+
+    /// Variant of [`Python::attach`] which will do no work if the interpreter is in a
+    /// state where it cannot be attached to:
+    /// - in the middle of GC traversal
+    /// - not initialized
+    #[inline]
+    #[track_caller]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_11, test))] // only used in buffer.rs for now, allow in test cfg for simplicity
+                                                    // TODO: make this API public?
+    pub(crate) fn try_attach<F, R>(f: F) -> Option<R>
+    where
+        F: for<'py> FnOnce(Python<'py>) -> R,
+    {
+        let guard = AttachGuard::try_acquire()?;
+        Some(f(guard.python()))
+    }
+
+    /// Prepares the use of Python.
+    ///
+    /// If the Python interpreter is not already initialized, this function will initialize it with
+    /// signal handling disabled (Python will not raise the `KeyboardInterrupt` exception). Python
+    /// signal handling depends on the notion of a 'main thread', which must be the thread that
+    /// initializes the Python interpreter.
+    ///
+    /// If the Python interpreter is already initialized, this function has no effect.
+    ///
+    /// This function is unavailable under PyPy because PyPy cannot be embedded in Rust (or any other
+    /// software). Support for this is tracked on the
+    /// [PyPy issue tracker](https://github.com/pypy/pypy/issues/3836).
+    ///
+    /// # Examples
+    /// ```rust
+    /// use pyo3::prelude::*;
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::initialize();
+    /// Python::attach(|py| py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None))
+    /// # }
+    /// ```
+    #[cfg(not(any(PyPy, GraalPy)))]
+    pub fn initialize() {
+        crate::interpreter_lifecycle::initialize();
     }
 
     /// Like [`Python::attach`] except Python interpreter state checking is skipped.
@@ -602,7 +645,7 @@ impl<'py> Python<'py> {
     ///     )
     ///     .unwrap();
     ///     let ret = locals.get_item("ret").unwrap().unwrap();
-    ///     let b64 = ret.downcast::<PyBytes>().unwrap();
+    ///     let b64 = ret.cast::<PyBytes>().unwrap();
     ///     assert_eq!(b64.as_bytes(), b"SGVsbG8gUnVzdCE=");
     /// });
     /// ```
@@ -778,7 +821,10 @@ impl<'unbound> Python<'unbound> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{IntoPyDict, PyList};
+    use crate::{
+        internal::state::ForbidAttaching,
+        types::{IntoPyDict, PyList},
+    };
 
     #[test]
     fn test_eval() {
@@ -889,7 +935,7 @@ mod tests {
         // Before starting the interpreter the state of calling `PyGILState_Check`
         // seems to be undefined, so let's ensure that Python is up.
         #[cfg(not(any(PyPy, GraalPy)))]
-        crate::prepare_freethreaded_python();
+        Python::initialize();
 
         let state = unsafe { crate::ffi::PyGILState_Check() };
         assert_eq!(state, GIL_NOT_HELD);
@@ -984,5 +1030,27 @@ cls.func()
     #[test]
     fn python_is_zst() {
         assert_eq!(std::mem::size_of::<Python<'_>>(), 0);
+    }
+
+    #[test]
+    fn test_try_attach_fail_during_gc() {
+        Python::attach(|_| {
+            assert!(Python::try_attach(|_| {}).is_some());
+
+            let guard = ForbidAttaching::during_traverse();
+            assert!(Python::try_attach(|_| {}).is_none());
+            drop(guard);
+
+            assert!(Python::try_attach(|_| {}).is_some());
+        })
+    }
+
+    #[test]
+    fn test_try_attach_ok_when_detached() {
+        Python::attach(|py| {
+            py.detach(|| {
+                assert!(Python::try_attach(|_| {}).is_some());
+            });
+        });
     }
 }

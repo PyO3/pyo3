@@ -1,3 +1,4 @@
+import io
 import json
 import os
 import re
@@ -5,8 +6,9 @@ import shutil
 import subprocess
 import sys
 import sysconfig
+import tarfile
 import tempfile
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from functools import lru_cache
 from glob import glob
 from pathlib import Path
@@ -30,6 +32,11 @@ except ImportError:
         import toml
     except ImportError:
         toml = None
+
+try:
+    import requests
+except ImportError:
+    requests = None
 
 nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "docs"]
 
@@ -310,6 +317,7 @@ def publish(session: nox.Session) -> None:
     _run_cargo_publish(session, package="pyo3-macros")
     _run_cargo_publish(session, package="pyo3-ffi")
     _run_cargo_publish(session, package="pyo3")
+    _run_cargo_publish(session, package="pyo3-introspection")
 
 
 @nox.session(venv_backend="none")
@@ -421,6 +429,7 @@ def test_emscripten(session: nox.Session):
             "-C link-arg=-sALLOW_MEMORY_GROWTH=1",
         ]
     )
+    session.env["RUSTDOCFLAGS"] = session.env["RUSTFLAGS"]
     session.env["CARGO_BUILD_TARGET"] = target
     session.env["PYO3_CROSS_LIB_DIR"] = pythonlibdir
     _run(session, "rustup", "target", "add", target, "--toolchain", "stable")
@@ -433,20 +442,23 @@ def test_emscripten(session: nox.Session):
 
 
 @nox.session(venv_backend="none")
-def docs(session: nox.Session) -> None:
+def docs(session: nox.Session, nightly: bool = False, internal: bool = False) -> None:
     rustdoc_flags = ["-Dwarnings"]
     toolchain_flags = []
     cargo_flags = []
 
+    nightly = nightly or ("nightly" in session.posargs)
+    internal = internal or ("internal" in session.posargs)
+
     if "open" in session.posargs:
         cargo_flags.append("--open")
 
-    if "nightly" in session.posargs:
+    if nightly:
         rustdoc_flags.append("--cfg docsrs")
         toolchain_flags.append("+nightly")
         cargo_flags.extend(["-Z", "unstable-options", "-Z", "rustdoc-scrape-examples"])
 
-    if "nightly" in session.posargs and "internal" in session.posargs:
+    if internal:
         rustdoc_flags.append("--Z unstable-options")
         rustdoc_flags.append("--document-hidden-items")
         rustdoc_flags.extend(("--html-after-content", ".netlify/internal_banner.html"))
@@ -476,11 +488,140 @@ def docs(session: nox.Session) -> None:
 @nox.session(name="build-guide", venv_backend="none")
 def build_guide(session: nox.Session):
     shutil.rmtree(PYO3_GUIDE_TARGET, ignore_errors=True)
-    _run(session, "mdbook", "build", "-d", PYO3_GUIDE_TARGET, "guide", *session.posargs)
+    _run(
+        session,
+        "mdbook",
+        "build",
+        "-d",
+        str(PYO3_GUIDE_TARGET),
+        "guide",
+        *session.posargs,
+        external=True,
+    )
     for license in ("LICENSE-APACHE", "LICENSE-MIT"):
         target_file = PYO3_GUIDE_TARGET / license
         target_file.unlink(missing_ok=True)
         shutil.copy(PYO3_DIR / license, target_file)
+
+
+@nox.session(name="build-netlify-site")
+def build_netlify_site(session: nox.Session):
+    # Remove netlify_build directory if it exists
+    netlify_build = Path("netlify_build")
+    if netlify_build.exists():
+        shutil.rmtree(netlify_build)
+
+    url = "https://github.com/PyO3/pyo3/archive/gh-pages.tar.gz"
+    response = requests.get(url, stream=True)
+    response.raise_for_status()
+    with tarfile.open(fileobj=io.BytesIO(response.content), mode="r:gz") as tar:
+        tar.extractall()
+    shutil.move("pyo3-gh-pages", "netlify_build")
+
+    preview = "--preview" in session.posargs
+    if preview:
+        session.posargs.remove("--preview")
+
+    _build_netlify_redirects(preview)
+
+    session.install("towncrier")
+    # Save a copy of the changelog to restore later
+    changelog = (PYO3_DIR / "CHANGELOG.md").read_text()
+
+    # Build the changelog
+    session.run(
+        "towncrier", "build", "--keep", "--version", "Unreleased", "--date", "TBC"
+    )
+
+    # Build the guide
+    build_guide(session)
+    PYO3_GUIDE_TARGET.rename("netlify_build/main")
+
+    # Restore the original changelog
+    (PYO3_DIR / "CHANGELOG.md").write_text(changelog)
+    session.run("git", "restore", "--staged", "CHANGELOG.md", external=True)
+
+    # Build the main branch docs
+    docs(session)
+    PYO3_DOCS_TARGET.rename("netlify_build/main/doc")
+
+    Path("netlify_build/main/doc/index.html").write_text(
+        "<meta http-equiv=refresh content=0;url=pyo3/>"
+    )
+
+    # Build the internal docs
+    docs(session, nightly=True, internal=True)
+    PYO3_DOCS_TARGET.rename("netlify_build/internal")
+
+
+def _build_netlify_redirects(preview: bool) -> None:
+    current_version = os.environ.get("PYO3_VERSION")
+
+    with ExitStack() as stack:
+        redirects_file = stack.enter_context(open("netlify_build/_redirects", "w"))
+        headers_file = stack.enter_context(open("netlify_build/_headers", "w"))
+        for d in glob("netlify_build/v*"):
+            version = d.removeprefix("netlify_build/v")
+            full_directory = d + "/"
+            redirects_file.write(
+                f"/v{version}/doc/* https://docs.rs/pyo3/{version}/:splat\n"
+            )
+            if version != current_version:
+                # for old versions, mark the files in the latest version as the canonical URL
+                for file in glob(f"{d}/**", recursive=True):
+                    file_path = file.removeprefix(full_directory)
+                    # remove index.html and/or .html suffix to match the page URL on the
+                    # final netlfiy site
+                    url_path = file_path
+                    if file_path == "index.html":
+                        url_path = ""
+
+                    url_path = url_path.removesuffix(".html")
+
+                    # if the file exists in the latest version, add a canonical
+                    # URL as a header
+                    for url in (
+                        f"/v{version}/{url_path}",
+                        *(
+                            (f"/v{version}/{file_path}",)
+                            if file_path != url_path
+                            else ()
+                        ),
+                    ):
+                        headers_file.write(url + "\n")
+                        if os.path.exists(
+                            f"netlify_build/v{current_version}/{file_path}"
+                        ):
+                            headers_file.write(
+                                f'  Link: <https://pyo3.rs/v{current_version}/{url_path}>; rel="canonical"\n'
+                            )
+                        else:
+                            # this file doesn't exist in the latest guide, don't
+                            # index it
+                            headers_file.write("  X-Robots-Tag: noindex\n")
+
+        # Add latest redirect
+        if current_version is not None:
+            redirects_file.write(f"/latest/* /v{current_version}/:splat 302\n")
+
+        # some backwards compatbiility redirects
+        redirects_file.write(
+            """\
+/latest/building_and_distribution/* /latest/building-and-distribution/:splat 302
+/latest/building_and_distribution/multiple_python_versions/* /latest/building-and-distribution/multiple-python-versions:splat 302
+/latest/function/error_handling/* /latest/function/error-handling/:splat 302
+/latest/getting_started/* /latest/getting-started/:splat 302
+/latest/python_from_rust/* /latest/python-from-rust/:splat 302
+/latest/python_typing_hints/* /latest/python-typing-hints/:splat 302
+/latest/trait_bounds/* /latest/trait-bounds/:splat 302
+"""
+        )
+
+        # Add landing page redirect
+        if preview:
+            redirects_file.write("/ /main/ 302\n")
+        else:
+            redirects_file.write(f"/ /v{current_version}/ 302\n")
 
 
 @nox.session(name="check-guide", venv_backend="none")
@@ -753,6 +894,32 @@ def test_version_limits(session: nox.Session):
         assert "3.8" not in PYPY_VERSIONS
         config_file.set("PyPy", "3.8")
         _run_cargo(session, "check", env=env, expect_error=True)
+
+    # attempt to build with latest version and check that abi3 version
+    # configured matches the feature
+    max_minor_version = max(int(v.split(".")[1]) for v in PY_VERSIONS if "t" not in v)
+    with tempfile.TemporaryFile() as stderr:
+        env = os.environ.copy()
+        env["PYO3_PRINT_CONFIG"] = "1"  # get diagnostics from the build
+        env["PYO3_NO_PYTHON"] = "1"  # isolate the build from local Python
+        _run_cargo(
+            session,
+            "check",
+            f"--features=pyo3/abi3-py3{max_minor_version}",
+            env=env,
+            stderr=stderr,
+            expect_error=True,
+        )
+        stderr.seek(0)
+        stderr = stderr.read().decode()
+    # NB if this assertion fails with something like
+    # "An abi3-py3* feature must be specified when compiling without a Python
+    # interpreter."
+    #
+    # then `ABI3_MAX_MINOR` in `pyo3-build-config/src/impl_.rs` is probably outdated.
+    assert f"version=3.{max_minor_version}" in stderr, (
+        f"Expected to see version=3.{max_minor_version}, got: \n\n{stderr}"
+    )
 
 
 @nox.session(name="check-feature-powerset", venv_backend="none")

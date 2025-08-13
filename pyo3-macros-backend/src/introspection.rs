@@ -19,7 +19,6 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use syn::ext::IdentExt;
 use syn::visit_mut::{visit_type_mut, VisitMut};
 use syn::{Attribute, Ident, ReturnType, Type, TypePath};
 
@@ -31,9 +30,6 @@ pub fn module_introspection_code<'a>(
     name: &str,
     members: impl IntoIterator<Item = &'a Ident>,
     members_cfg_attrs: impl IntoIterator<Item = &'a Vec<Attribute>>,
-    consts: impl IntoIterator<Item = &'a Ident>,
-    consts_values: impl IntoIterator<Item = &'a String>,
-    consts_cfg_attrs: impl IntoIterator<Item = &'a Vec<Attribute>>,
     incomplete: bool,
 ) -> TokenStream {
     IntrospectionNode::Map(
@@ -52,23 +48,6 @@ pub fn module_introspection_code<'a>(
                                 Some(IntrospectionNode::IntrospectionId(Some(ident_to_type(
                                     member,
                                 ))))
-                            } else {
-                                None // TODO: properly interpret cfg attributes
-                            }
-                        })
-                        .collect(),
-                ),
-            ),
-            (
-                "consts",
-                IntrospectionNode::List(
-                    consts
-                        .into_iter()
-                        .zip(consts_values)
-                        .zip(consts_cfg_attrs)
-                        .filter_map(|((ident, value), attributes)| {
-                            if attributes.is_empty() {
-                                Some(const_introspection_code(ident, value))
                             } else {
                                 None // TODO: properly interpret cfg attributes
                             }
@@ -141,7 +120,10 @@ pub fn function_introspection_code(
                                 replace_self(&mut ty, class_type);
                             }
                             ty = ty.elide_lifetimes();
-                            IntrospectionNode::OutputType { rust_type: ty }
+                            IntrospectionNode::OutputType {
+                                rust_type: ty,
+                                is_final: false,
+                            }
                         }
                     },
                 }
@@ -170,18 +152,53 @@ pub fn function_introspection_code(
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
 
-fn const_introspection_code<'a>(ident: &'a Ident, value: &'a String) -> IntrospectionNode<'a> {
-    IntrospectionNode::Map(
-        [
-            ("type", IntrospectionNode::String("const".into())),
-            (
-                "name",
-                IntrospectionNode::String(ident.unraw().to_string().into()),
-            ),
-            ("value", IntrospectionNode::String(value.into())),
-        ]
-        .into(),
-    )
+pub fn attribute_introspection_code(
+    pyo3_crate_path: &PyO3CratePath,
+    parent: Option<&Type>,
+    name: String,
+    value: String,
+    mut rust_type: Type,
+    is_final: bool,
+) -> TokenStream {
+    let mut desc = HashMap::from([
+        ("type", IntrospectionNode::String("attribute".into())),
+        ("name", IntrospectionNode::String(name.into())),
+        (
+            "parent",
+            IntrospectionNode::IntrospectionId(parent.map(Cow::Borrowed)),
+        ),
+    ]);
+    if value == "..." {
+        // We need to set a type, but not need to set the value to ..., all attributes have a value
+        if let Some(parent) = parent {
+            replace_self(&mut rust_type, parent);
+        }
+        rust_type = rust_type.elide_lifetimes();
+        desc.insert(
+            "annotation",
+            IntrospectionNode::OutputType {
+                rust_type,
+                is_final,
+            },
+        );
+    } else {
+        desc.insert(
+            "annotation",
+            if is_final {
+                // Type checkers can infer the type from the value because it's typing.Literal[value]
+                // So, following stubs best practices, we only write typing.Final and not
+                // typing.Final[typing.literal[value]]
+                IntrospectionNode::String("typing.Final".into())
+            } else {
+                IntrospectionNode::OutputType {
+                    rust_type,
+                    is_final,
+                }
+            },
+        );
+        desc.insert("value", IntrospectionNode::String(value.into()));
+    }
+    IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
 
 fn arguments_introspection_data<'a>(
@@ -329,7 +346,7 @@ enum IntrospectionNode<'a> {
     Bool(bool),
     IntrospectionId(Option<Cow<'a, Type>>),
     InputType { rust_type: Type, nullable: bool },
-    OutputType { rust_type: Type },
+    OutputType { rust_type: Type, is_final: bool },
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<IntrospectionNode<'a>>),
 }
@@ -381,9 +398,18 @@ impl IntrospectionNode<'_> {
                 }
                 content.push_str("\"");
             }
-            Self::OutputType { rust_type } => {
+            Self::OutputType {
+                rust_type,
+                is_final,
+            } => {
                 content.push_str("\"");
+                if is_final {
+                    content.push_str("typing.Final[");
+                }
                 content.push_tokens(quote! { <#rust_type as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE });
+                if is_final {
+                    content.push_str("]");
+                }
                 content.push_str("\"");
             }
             Self::Map(map) => {

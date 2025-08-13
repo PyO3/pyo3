@@ -85,7 +85,7 @@ fn sequence_from_list(b: &mut Bencher<'_>) {
     Python::attach(|py| {
         const LEN: usize = 50_000;
         let list = &PyList::new(py, 0..LEN).unwrap();
-        b.iter(|| black_box(list).downcast::<PySequence>().unwrap());
+        b.iter(|| black_box(list).cast::<PySequence>().unwrap());
     });
 }
 

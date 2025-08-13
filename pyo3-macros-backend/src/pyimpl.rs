@@ -1,9 +1,12 @@
 use std::collections::HashSet;
 
+use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
-use crate::introspection::function_introspection_code;
+use crate::introspection::{attribute_introspection_code, function_introspection_code};
 #[cfg(feature = "experimental-inspect")]
 use crate::method::{FnSpec, FnType};
+#[cfg(feature = "experimental-inspect")]
+use crate::utils::expr_to_python;
 use crate::utils::{has_attribute, has_attribute_with_namespace, Ctx, PyO3CratePath};
 use crate::{
     attributes::{take_pyo3_options, CrateAttribute},
@@ -15,11 +18,12 @@ use crate::{
 };
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::ImplItemFn;
+#[cfg(feature = "experimental-inspect")]
+use syn::Ident;
 use syn::{
     parse::{Parse, ParseStream},
     spanned::Spanned,
-    Result,
+    ImplItemFn, Result,
 };
 
 /// The mechanism used to collect `#[pymethods]` into the type object
@@ -122,73 +126,87 @@ pub fn impl_methods(
 
     let mut implemented_proto_fragments = HashSet::new();
 
-    for iimpl in impls {
-        match iimpl {
-            syn::ImplItem::Fn(meth) => {
-                let ctx = &Ctx::new(&options.krate, Some(&meth.sig));
-                let mut fun_options = PyFunctionOptions::from_attrs(&mut meth.attrs)?;
-                fun_options.krate = fun_options.krate.or_else(|| options.krate.clone());
+    let _: Vec<()> = impls
+        .iter_mut()
+        .map(|iimpl| {
+            match iimpl {
+                syn::ImplItem::Fn(meth) => {
+                    let ctx = &Ctx::new(&options.krate, Some(&meth.sig));
+                    let mut fun_options = PyFunctionOptions::from_attrs(&mut meth.attrs)?;
+                    fun_options.krate = fun_options.krate.or_else(|| options.krate.clone());
 
-                check_pyfunction(&ctx.pyo3_path, meth)?;
-                let method = PyMethod::parse(&mut meth.sig, &mut meth.attrs, fun_options)?;
-                #[cfg(feature = "experimental-inspect")]
-                extra_fragments.push(method_introspection_code(&method.spec, ty, ctx));
-                match pymethod::gen_py_method(ty, method, &meth.attrs, ctx)? {
-                    GeneratedPyMethod::Method(MethodAndMethodDef {
-                        associated_method,
-                        method_def,
-                    }) => {
-                        let attrs = get_cfg_attributes(&meth.attrs);
-                        associated_methods.push(quote!(#(#attrs)* #associated_method));
+                    check_pyfunction(&ctx.pyo3_path, meth)?;
+                    let method = PyMethod::parse(&mut meth.sig, &mut meth.attrs, fun_options)?;
+                    #[cfg(feature = "experimental-inspect")]
+                    extra_fragments.push(method_introspection_code(&method.spec, ty, ctx));
+                    match pymethod::gen_py_method(ty, method, &meth.attrs, ctx)? {
+                        GeneratedPyMethod::Method(MethodAndMethodDef {
+                            associated_method,
+                            method_def,
+                        }) => {
+                            let attrs = get_cfg_attributes(&meth.attrs);
+                            associated_methods.push(quote!(#(#attrs)* #associated_method));
+                            methods.push(quote!(#(#attrs)* #method_def));
+                        }
+                        GeneratedPyMethod::SlotTraitImpl(method_name, token_stream) => {
+                            implemented_proto_fragments.insert(method_name);
+                            let attrs = get_cfg_attributes(&meth.attrs);
+                            extra_fragments.push(quote!(#(#attrs)* #token_stream));
+                        }
+                        GeneratedPyMethod::Proto(MethodAndSlotDef {
+                            associated_method,
+                            slot_def,
+                        }) => {
+                            let attrs = get_cfg_attributes(&meth.attrs);
+                            proto_impls.push(quote!(#(#attrs)* #slot_def));
+                            associated_methods.push(quote!(#(#attrs)* #associated_method));
+                        }
+                    }
+                }
+                syn::ImplItem::Const(konst) => {
+                    let ctx = &Ctx::new(&options.krate, None);
+                    let attributes = ConstAttributes::from_attrs(&mut konst.attrs)?;
+                    if attributes.is_class_attr {
+                        let spec = ConstSpec {
+                            rust_ident: konst.ident.clone(),
+                            attributes,
+                        };
+                        let attrs = get_cfg_attributes(&konst.attrs);
+                        let MethodAndMethodDef {
+                            associated_method,
+                            method_def,
+                        } = gen_py_const(ty, &spec, ctx);
                         methods.push(quote!(#(#attrs)* #method_def));
-                    }
-                    GeneratedPyMethod::SlotTraitImpl(method_name, token_stream) => {
-                        implemented_proto_fragments.insert(method_name);
-                        let attrs = get_cfg_attributes(&meth.attrs);
-                        extra_fragments.push(quote!(#(#attrs)* #token_stream));
-                    }
-                    GeneratedPyMethod::Proto(MethodAndSlotDef {
-                        associated_method,
-                        slot_def,
-                    }) => {
-                        let attrs = get_cfg_attributes(&meth.attrs);
-                        proto_impls.push(quote!(#(#attrs)* #slot_def));
                         associated_methods.push(quote!(#(#attrs)* #associated_method));
+                        if is_proto_method(&spec.python_name().to_string()) {
+                            // If this is a known protocol method e.g. __contains__, then allow this
+                            // symbol even though it's not an uppercase constant.
+                            konst
+                                .attrs
+                                .push(syn::parse_quote!(#[allow(non_upper_case_globals)]));
+                        }
+                        #[cfg(feature = "experimental-inspect")]
+                        extra_fragments.push(attribute_introspection_code(
+                            &ctx.pyo3_path,
+                            Some(ty),
+                            spec.python_name().to_string(),
+                            expr_to_python(&konst.expr),
+                            konst.ty.clone(),
+                            true,
+                        ));
                     }
                 }
+                syn::ImplItem::Macro(m) => bail_spanned!(
+                    m.span() =>
+                    "macros cannot be used as items in `#[pymethods]` impl blocks\n\
+                    = note: this was previously accepted and ignored"
+                ),
+                _ => {}
             }
-            syn::ImplItem::Const(konst) => {
-                let ctx = &Ctx::new(&options.krate, None);
-                let attributes = ConstAttributes::from_attrs(&mut konst.attrs)?;
-                if attributes.is_class_attr {
-                    let spec = ConstSpec {
-                        rust_ident: konst.ident.clone(),
-                        attributes,
-                    };
-                    let attrs = get_cfg_attributes(&konst.attrs);
-                    let MethodAndMethodDef {
-                        associated_method,
-                        method_def,
-                    } = gen_py_const(ty, &spec, ctx);
-                    methods.push(quote!(#(#attrs)* #method_def));
-                    associated_methods.push(quote!(#(#attrs)* #associated_method));
-                    if is_proto_method(&spec.python_name().to_string()) {
-                        // If this is a known protocol method e.g. __contains__, then allow this
-                        // symbol even though it's not an uppercase constant.
-                        konst
-                            .attrs
-                            .push(syn::parse_quote!(#[allow(non_upper_case_globals)]));
-                    }
-                }
-            }
-            syn::ImplItem::Macro(m) => bail_spanned!(
-                m.span() =>
-                "macros cannot be used as items in `#[pymethods]` impl blocks\n\
-                 = note: this was previously accepted and ignored"
-            ),
-            _ => {}
-        }
-    }
+            Ok(())
+        })
+        .try_combine_syn_errors()?;
+
     let ctx = &Ctx::new(&options.krate, None);
 
     add_shared_proto_slots(ty, &mut proto_impls, implemented_proto_fragments, ctx);
@@ -348,22 +366,34 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
     let Ctx { pyo3_path, .. } = ctx;
 
     let name = spec.python_name.to_string();
-    if matches!(
-        name.as_str(),
-        "__richcmp__"
-            | "__concat__"
-            | "__repeat__"
-            | "__inplace_concat__"
-            | "__inplace_repeat__"
-            | "__getbuffer__"
-            | "__releasebuffer__"
-            | "__traverse__"
-            | "__clear__"
-    ) {
-        // This is not a magic Python method, ignore for now
-        // TODO: properly implement
-        return quote! {};
+
+    // __richcmp__ special case
+    if name == "__richcmp__" {
+        // We expend into each individual method
+        return ["__eq__", "__ne__", "__lt__", "__le__", "__gt__", "__ge__"]
+            .into_iter()
+            .map(|method_name| {
+                let mut spec = (*spec).clone();
+                spec.python_name = Ident::new(method_name, spec.python_name.span());
+                // We remove the CompareOp arg, this is safe because the signature is always the same
+                // First the other value to compare with then the CompareOp
+                // We cant to keep the first argument type, hence this hack
+                spec.signature.arguments.pop();
+                spec.signature.python_signature.positional_parameters.pop();
+                method_introspection_code(&spec, parent, ctx)
+            })
+            .collect();
     }
+    // We map or ignore some magic methods
+    // TODO: this might create a naming conflict
+    let name = match name.as_str() {
+        "__concat__" => "__add__".into(),
+        "__repeat__" => "__mul__".into(),
+        "__inplace_concat__" => "__iadd__".into(),
+        "__inplace_repeat__" => "__imul__".into(),
+        "__getbuffer__" | "__releasebuffer__" | "__traverse__" | "__clear__" => return quote! {},
+        _ => name,
+    };
 
     // We introduce self/cls argument and setup decorators
     let mut first_argument = None;

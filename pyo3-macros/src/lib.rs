@@ -85,12 +85,12 @@ pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// |  Annotation  |  Description |
 /// | :-  | :- |
 /// | [`#[new]`][4]  | Defines the class constructor, like Python's `__new__` method. |
-/// | [`#[getter]`][5] and [`#[setter]`][5] | These define getters and setters, similar to Python's `@property` decorator. This is useful for getters/setters that require computation or side effects; if that is not the case consider using [`#[pyo3(get, set)]`][11] on the struct's field(s).|
+/// | [`#[getter]`][5] and [`#[setter]`][5] | These define getters and setters, similar to Python's `@property` decorator. This is useful for getters/setters that require computation or side effects; if that is not the case consider using [`#[pyo3(get, set)]`][12] on the struct's field(s).|
 /// | [`#[staticmethod]`][6]| Defines the method as a staticmethod, like Python's `@staticmethod` decorator.|
 /// | [`#[classmethod]`][7]  | Defines the method as a classmethod, like Python's `@classmethod` decorator.|
 /// | [`#[classattr]`][9]  | Defines a class variable. |
 /// | [`#[args]`][10]  | Deprecated way to define a method's default arguments and allows the function to receive `*args` and `**kwargs`. Use `#[pyo3(signature = (...))]` instead. |
-/// | <nobr>[`#[pyo3(<option> = <value>)`][pyo3-method-options]</nobr> | Any of the `#[pyo3]` options supported on [`macro@pyfunction`]. |
+/// | <nobr>[`#[pyo3(<option> = <value>)`][11]</nobr> | Any of the `#[pyo3]` options supported on [`macro@pyfunction`]. |
 ///
 /// For more on creating class methods,
 /// see the [class section of the guide][1].
@@ -109,7 +109,8 @@ pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
 #[doc = concat!("[8]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#callable-objects")]
 #[doc = concat!("[9]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#class-attributes")]
 #[doc = concat!("[10]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#method-arguments")]
-#[doc = concat!("[11]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#object-properties-using-pyo3get-set")]
+#[doc = concat!("[11]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/function.html#function-options")]
+#[doc = concat!("[12]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#object-properties-using-pyo3get-set")]
 #[proc_macro_attribute]
 pub fn pymethods(attr: TokenStream, input: TokenStream) -> TokenStream {
     let methods_type = if cfg!(feature = "multiple-pymethods") {

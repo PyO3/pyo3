@@ -178,7 +178,7 @@ impl PyErrStateNormalized {
         unsafe {
             ffi::PyException_GetTraceback(self.pvalue.as_ptr())
                 .assume_owned_or_opt(py)
-                .map(|b| b.downcast_into_unchecked())
+                .map(|b| b.cast_into_unchecked())
         }
     }
 
@@ -190,7 +190,7 @@ impl PyErrStateNormalized {
             unsafe { ffi::PyErr_GetRaisedException().assume_owned_or_opt(py) }.map(|pvalue| {
                 PyErrStateNormalized {
                     // Safety: PyErr_GetRaisedException returns a valid exception type.
-                    pvalue: unsafe { pvalue.downcast_into_unchecked() }.unbind(),
+                    pvalue: unsafe { pvalue.cast_into_unchecked() }.unbind(),
                 }
             })
         }
@@ -214,13 +214,13 @@ impl PyErrStateNormalized {
                 (
                     ptype
                         .assume_owned_or_opt(py)
-                        .map(|b| b.downcast_into_unchecked()),
+                        .map(|b| b.cast_into_unchecked()),
                     pvalue
                         .assume_owned_or_opt(py)
-                        .map(|b| b.downcast_into_unchecked()),
+                        .map(|b| b.cast_into_unchecked()),
                     ptraceback
                         .assume_owned_or_opt(py)
-                        .map(|b| b.downcast_into_unchecked()),
+                        .map(|b| b.cast_into_unchecked()),
                 )
             };
 

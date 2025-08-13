@@ -179,7 +179,7 @@ fn test_functions_with_function_args() {
 
 #[cfg(not(Py_LIMITED_API))]
 fn datetime_to_timestamp(dt: &Bound<'_, PyAny>) -> PyResult<i64> {
-    let dt = dt.downcast::<PyDateTime>()?;
+    let dt = dt.cast::<PyDateTime>()?;
     let ts: f64 = dt.call_method0("timestamp")?.extract()?;
 
     Ok(ts as i64)
@@ -591,6 +591,7 @@ fn test_return_value_borrows_from_arguments() {
 #[test]
 fn test_some_wrap_arguments() {
     // https://github.com/PyO3/pyo3/issues/3460
+    #[allow(unused)]
     const NONE: Option<u8> = None;
     #[pyfunction(signature = (a = 1, b = Some(2), c = None, d = NONE))]
     fn some_wrap_arguments(

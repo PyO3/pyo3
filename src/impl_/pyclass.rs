@@ -1,5 +1,5 @@
 use crate::{
-    exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
+    exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError},
     ffi,
     impl_::{
         freelist::PyObjectFreeList,
@@ -9,12 +9,11 @@ use crate::{
     },
     pycell::PyBorrowError,
     types::{any::PyAnyMethods, PyBool},
-    Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyErr, PyRef,
+    Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr,
     PyResult, PyTypeInfo, Python,
 };
 use std::{
-    borrow::Cow,
-    ffi::{CStr, CString},
+    ffi::CStr,
     marker::PhantomData,
     os::raw::{c_int, c_void},
     ptr,
@@ -24,7 +23,9 @@ use std::{
 };
 
 mod assertions;
+pub mod doc;
 mod lazy_type_object;
+#[macro_use]
 mod probes;
 
 pub use assertions::*;
@@ -207,8 +208,16 @@ pub trait PyClassImpl: Sized + 'static {
     #[cfg(feature = "multiple-pymethods")]
     type Inventory: PyClassInventory;
 
-    /// Rendered class doc
-    fn doc(py: Python<'_>) -> PyResult<&'static CStr>;
+    /// Docstring for the class provided on the struct or enum.
+    ///
+    /// This is exposed for `PyClassDocGenerator` to use as a docstring piece.
+    const RAW_DOC: &'static CStr;
+
+    /// Fully rendered class doc, including the `text_signature` if a constructor is defined.
+    ///
+    /// This is constructed at compile-time with const specialization via the proc macros with help
+    /// from the PyClassDocGenerator` type.
+    const DOC: &'static CStr;
 
     fn items_iter() -> PyClassItemsIter;
 
@@ -223,29 +232,6 @@ pub trait PyClassImpl: Sized + 'static {
     }
 
     fn lazy_type_object() -> &'static LazyTypeObject<Self>;
-}
-
-/// Runtime helper to build a class docstring from the `doc` and `text_signature`.
-///
-/// This is done at runtime because the class text signature is collected via dtolnay
-/// specialization in to the `#[pyclass]` macro from the `#[pymethods]` macro.
-pub fn build_pyclass_doc(
-    class_name: &'static str,
-    doc: &'static CStr,
-    text_signature: Option<&'static str>,
-) -> PyResult<Cow<'static, CStr>> {
-    if let Some(text_signature) = text_signature {
-        let doc = CString::new(format!(
-            "{}{}\n--\n\n{}",
-            class_name,
-            text_signature,
-            doc.to_str().unwrap(),
-        ))
-        .map_err(|_| PyValueError::new_err("class doc cannot contain nul bytes"))?;
-        Ok(Cow::Owned(doc))
-    } else {
-        Ok(Cow::Borrowed(doc))
-    }
 }
 
 /// Iterator used to process all class items during type instantiation.
@@ -923,7 +909,7 @@ macro_rules! generate_pyclass_richcompare_slot {
 }
 pub use generate_pyclass_richcompare_slot;
 
-use super::{pycell::PyClassObject, pymethods::BoundRef};
+use super::pycell::PyClassObject;
 
 /// Implements a freelist.
 ///
@@ -1049,18 +1035,6 @@ impl<T> PyMethods<T> for &'_ PyClassImplCollector<T> {
             methods: &[],
             slots: &[],
         }
-    }
-}
-
-// Text signature for __new__
-pub trait PyClassNewTextSignature<T> {
-    fn new_text_signature(self) -> Option<&'static str>;
-}
-
-impl<T> PyClassNewTextSignature<T> for &'_ PyClassImplCollector<T> {
-    #[inline]
-    fn new_text_signature(self) -> Option<&'static str> {
-        None
     }
 }
 
@@ -1368,15 +1342,11 @@ impl<
 
 /// ensures `obj` is not mutably aliased
 #[inline]
-unsafe fn ensure_no_mutable_alias<'py, ClassT: PyClass>(
-    py: Python<'py>,
-    obj: &*mut ffi::PyObject,
-) -> Result<PyRef<'py, ClassT>, PyBorrowError> {
-    unsafe {
-        BoundRef::ref_from_ptr(py, obj)
-            .downcast_unchecked::<ClassT>()
-            .try_borrow()
-    }
+unsafe fn ensure_no_mutable_alias<'a, ClassT: PyClass>(
+    _py: Python<'_>,
+    obj: &'a *mut ffi::PyObject,
+) -> Result<PyClassGuard<'a, ClassT>, PyBorrowError> {
+    unsafe { PyClassGuard::try_borrow(NonNull::from(obj).cast::<Py<ClassT>>().as_ref()) }
 }
 
 /// calculates the field pointer from an PyObject pointer

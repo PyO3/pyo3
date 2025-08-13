@@ -186,7 +186,9 @@ pub fn print_feature_cfgs() {
     // https://github.com/rust-lang/rust/issues/124651 just in case
     print_feature_cfg(79, "diagnostic_namespace");
     print_feature_cfg(83, "io_error_more");
+    print_feature_cfg(83, "mut_ref_in_const_fn");
     print_feature_cfg(85, "fn_ptr_eq");
+    print_feature_cfg(86, "from_bytes_with_nul_error");
 }
 
 /// Registers `pyo3`s config names as reachable cfg expressions

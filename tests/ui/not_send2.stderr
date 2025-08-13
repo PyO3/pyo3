@@ -13,7 +13,7 @@ error[E0277]: `*mut pyo3::Python<'static>` cannot be shared between threads safe
 note: required because it appears within the type `PhantomData<*mut pyo3::Python<'static>>`
   --> $RUST/core/src/marker.rs
    |
-   | pub struct PhantomData<T: ?Sized>;
+   | pub struct PhantomData<T: PointeeSized>;
    |            ^^^^^^^^^^^
 note: required because it appears within the type `pyo3::marker::NotSend`
   --> src/marker.rs
@@ -23,7 +23,7 @@ note: required because it appears within the type `pyo3::marker::NotSend`
 note: required because it appears within the type `PhantomData<pyo3::marker::NotSend>`
   --> $RUST/core/src/marker.rs
    |
-   | pub struct PhantomData<T: ?Sized>;
+   | pub struct PhantomData<T: PointeeSized>;
    |            ^^^^^^^^^^^
 note: required because it appears within the type `pyo3::Python<'_>`
   --> src/marker.rs

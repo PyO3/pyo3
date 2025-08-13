@@ -2,7 +2,6 @@ use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::get_ssize_index;
-use crate::types::any::PyAnyMethods;
 use crate::types::sequence::PySequenceMethods;
 use crate::types::{PySequence, PyTuple};
 use crate::{Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, Python};
@@ -40,7 +39,7 @@ pub(crate) fn try_new_from_iter<'py>(
         // We create the `Bound` pointer here for two reasons:
         // - panics if the ptr is null
         // - its Drop cleans up the list if user code or the asserts panic.
-        let list = ptr.assume_owned(py).downcast_into_unchecked();
+        let list = ptr.assume_owned(py).cast_into_unchecked();
 
         let count = (&mut elements)
             .take(len as usize)
@@ -101,11 +100,7 @@ impl PyList {
 
     /// Constructs a new empty list.
     pub fn empty(py: Python<'_>) -> Bound<'_, PyList> {
-        unsafe {
-            ffi::PyList_New(0)
-                .assume_owned(py)
-                .downcast_into_unchecked()
-        }
+        unsafe { ffi::PyList_New(0).assume_owned(py).cast_into_unchecked() }
     }
 }
 
@@ -251,12 +246,12 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
 
     /// Returns `self` cast as a `PySequence`.
     fn as_sequence(&self) -> &Bound<'py, PySequence> {
-        unsafe { self.downcast_unchecked() }
+        unsafe { self.cast_unchecked() }
     }
 
     /// Returns `self` cast as a `PySequence`.
     fn into_sequence(self) -> Bound<'py, PySequence> {
-        unsafe { self.into_any().downcast_into_unchecked() }
+        unsafe { self.cast_into_unchecked() }
     }
 
     /// Gets the list item at the specified index.
@@ -299,7 +294,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
         unsafe {
             ffi::PyList_GetSlice(self.as_ptr(), get_ssize_index(low), get_ssize_index(high))
                 .assume_owned(self.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -446,7 +441,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
         unsafe {
             ffi::PyList_AsTuple(self.as_ptr())
                 .assume_owned(self.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }
@@ -1010,7 +1005,7 @@ mod tests {
             {
                 let v = vec![2];
                 let ob = v.into_pyobject(py).unwrap();
-                let list = ob.downcast::<PyList>().unwrap();
+                let list = ob.cast::<PyList>().unwrap();
                 cnt = obj.get_refcnt();
                 list.set_item(0, &obj).unwrap();
             }
@@ -1094,7 +1089,7 @@ mod tests {
         Python::attach(|py| {
             let v = vec![2, 3, 5, 7];
             let ob = (&v).into_pyobject(py).unwrap();
-            let list = ob.downcast::<PyList>().unwrap();
+            let list = ob.cast::<PyList>().unwrap();
 
             let mut iter = list.iter();
             assert_eq!(iter.size_hint(), (v.len(), Some(v.len())));
@@ -1113,7 +1108,7 @@ mod tests {
         Python::attach(|py| {
             let v = vec![2, 3, 5, 7];
             let ob = v.into_pyobject(py).unwrap();
-            let list = ob.downcast::<PyList>().unwrap();
+            let list = ob.cast::<PyList>().unwrap();
 
             let mut iter = list.iter().rev();
 
@@ -1373,7 +1368,7 @@ mod tests {
     fn test_array_into_pyobject() {
         Python::attach(|py| {
             let array = [1, 2].into_pyobject(py).unwrap();
-            let list = array.downcast::<PyList>().unwrap();
+            let list = array.cast::<PyList>().unwrap();
             assert_eq!(1, list.get_item(0).unwrap().extract::<i32>().unwrap());
             assert_eq!(2, list.get_item(1).unwrap().extract::<i32>().unwrap());
         });
@@ -1616,7 +1611,7 @@ mod tests {
         Python::attach(|py| {
             let v = vec![6, 7, 8, 9, 10];
             let ob = (&v).into_pyobject(py).unwrap();
-            let list = ob.downcast::<PyList>().unwrap();
+            let list = ob.cast::<PyList>().unwrap();
 
             let mut iter = list.iter();
             iter.next();
@@ -1626,7 +1621,7 @@ mod tests {
 
             let v: Vec<i32> = vec![];
             let ob = (&v).into_pyobject(py).unwrap();
-            let list = ob.downcast::<PyList>().unwrap();
+            let list = ob.cast::<PyList>().unwrap();
 
             let mut iter = list.iter();
             iter.next();
@@ -1634,14 +1629,14 @@ mod tests {
 
             let v = vec![1, 2, 3];
             let ob = (&v).into_pyobject(py).unwrap();
-            let list = ob.downcast::<PyList>().unwrap();
+            let list = ob.cast::<PyList>().unwrap();
 
             let mut iter = list.iter();
             assert!(iter.nth(10).is_none());
 
             let v = vec![6, 7, 8, 9, 10];
             let ob = (&v).into_pyobject(py).unwrap();
-            let list = ob.downcast::<PyList>().unwrap();
+            let list = ob.cast::<PyList>().unwrap();
             let mut iter = list.iter();
             assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 6);
             assert_eq!(iter.nth(2).unwrap().extract::<i32>().unwrap(), 9);
@@ -1659,7 +1654,7 @@ mod tests {
         Python::attach(|py| {
             let v = vec![1, 2, 3, 4, 5];
             let ob = (&v).into_pyobject(py).unwrap();
-            let list = ob.downcast::<PyList>().unwrap();
+            let list = ob.cast::<PyList>().unwrap();
 
             let mut iter = list.iter();
             assert_eq!(iter.nth_back(0).unwrap().extract::<i32>().unwrap(), 5);
@@ -1668,7 +1663,7 @@ mod tests {
 
             let v: Vec<i32> = vec![];
             let ob = (&v).into_pyobject(py).unwrap();
-            let list = ob.downcast::<PyList>().unwrap();
+            let list = ob.cast::<PyList>().unwrap();
 
             let mut iter = list.iter();
             assert!(iter.nth_back(0).is_none());
@@ -1676,14 +1671,14 @@ mod tests {
 
             let v = vec![1, 2, 3];
             let ob = (&v).into_pyobject(py).unwrap();
-            let list = ob.downcast::<PyList>().unwrap();
+            let list = ob.cast::<PyList>().unwrap();
 
             let mut iter = list.iter();
             assert!(iter.nth_back(5).is_none());
 
             let v = vec![1, 2, 3, 4, 5];
             let ob = (&v).into_pyobject(py).unwrap();
-            let list = ob.downcast::<PyList>().unwrap();
+            let list = ob.cast::<PyList>().unwrap();
 
             let mut iter = list.iter();
             iter.next_back(); // Consume the last element
@@ -1693,7 +1688,7 @@ mod tests {
 
             let v = vec![1, 2, 3, 4, 5];
             let ob = (&v).into_pyobject(py).unwrap();
-            let list = ob.downcast::<PyList>().unwrap();
+            let list = ob.cast::<PyList>().unwrap();
 
             let mut iter = list.iter();
             assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 4);
@@ -1717,7 +1712,7 @@ mod tests {
         Python::attach(|py| {
             let v = vec![1, 2, 3, 4, 5];
             let ob = (&v).into_pyobject(py).unwrap();
-            let list = ob.downcast::<PyList>().unwrap();
+            let list = ob.cast::<PyList>().unwrap();
 
             let mut iter = list.iter();
             assert_eq!(iter.advance_by(2), Ok(()));
@@ -1743,7 +1738,7 @@ mod tests {
         Python::attach(|py| {
             let v = vec![1, 2, 3, 4, 5];
             let ob = (&v).into_pyobject(py).unwrap();
-            let list = ob.downcast::<PyList>().unwrap();
+            let list = ob.cast::<PyList>().unwrap();
 
             let mut iter = list.iter();
             assert_eq!(iter.advance_back_by(2), Ok(()));
