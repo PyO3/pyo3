@@ -137,10 +137,10 @@ pub struct PyMutexGuard<'a, T: ?Sized> {
 /// because it is possible to get a `&T` from `&MutexGuard` (via `Deref`).
 unsafe impl<T: ?Sized + Sync> Sync for PyMutexGuard<'_, T> {}
 
-/// `T` must be `Send` for a [`Mutex`] to be `Send` because it is possible to acquire
-/// the owned `T` from the `Mutex` via [`into_inner`].
+/// `T` must be `Send` for a [`PyMutex`] to be `Send` because it is possible to acquire
+/// the owned `T` from the `PyMutex` via [`into_inner`].
 ///
-/// [`into_inner`]: Mutex::into_inner
+/// [`into_inner`]: PyMutex::into_inner
 unsafe impl<T: ?Sized + Send> Send for PyMutex<T> {}
 
 /// `T` must be `Send` for [`PyMutex`] to be `Sync`.
@@ -158,7 +158,7 @@ unsafe impl<T: ?Sized + Send> Send for PyMutex<T> {}
 /// Also note that it is not necessary for `T` to be `Sync` as `&T` is only made available
 /// to one thread at a time if `T` is not `Sync`.
 ///
-/// [`Rc`]: crate::rc::Rc
+/// [`Rc`]: std::rc::Rc
 unsafe impl<T: ?Sized + Send> Sync for PyMutex<T> {}
 
 impl<T> PyMutex<T> {
