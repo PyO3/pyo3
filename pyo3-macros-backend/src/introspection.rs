@@ -547,7 +547,7 @@ pub fn introspection_id_const() -> TokenStream {
     }
 }
 
-fn unique_element_id() -> u64 {
+pub fn unique_element_id() -> u64 {
     let mut hasher = DefaultHasher::new();
     format!("{:?}", Span::call_site()).hash(&mut hasher); // Distinguishes between call sites
     GLOBAL_COUNTER_FOR_UNIQUE_NAMES
