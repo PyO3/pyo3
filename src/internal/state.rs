@@ -57,6 +57,16 @@ impl AttachGuard {
 
         crate::interpreter_lifecycle::ensure_initialized();
 
+        // Calling `PyGILState_Ensure` while finalizing may crash CPython in unpredictable
+        // ways, we'll make a best effort attempt here to avoid that. (There's a time of
+        // check to time-of-use issue, but it's better than nothing.)
+        //
+        // SAFETY: This API is always sound to call
+        #[cfg(Py_3_13)]
+        if unsafe { ffi::Py_IsFinalizing() } != 0 {
+            panic!("Cannot attach to the Python interpreter while it is finalizing.");
+        }
+
         // SAFETY: We have ensured the Python interpreter is initialized.
         unsafe { Self::acquire_unchecked() }
     }
@@ -75,8 +85,8 @@ impl AttachGuard {
             _ => {}
         }
 
-        // SAFETY: This API is always sound to call
-        if unsafe { ffi::Py_IsInitialized() } == 0 {
+        // SAFETY: These APIs are always sound to call
+        if unsafe { ffi::Py_IsInitialized() } == 0 || unsafe { ffi::Py_IsFinalizing() } != 0 {
             // If the interpreter is not initialized, we cannot attach.
             return None;
         }
