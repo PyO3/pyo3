@@ -363,7 +363,7 @@ impl IntrospectionNode<'_> {
             const _: () = {
                 #[used]
                 #[no_mangle]
-                static #static_name: &'static str = #content;
+                static #static_name: &'static [u8] = #content;
             };
         }
     }
@@ -485,11 +485,16 @@ impl ConcatenationBuilder {
 
         if let [ConcatenationBuilderElement::String(string)] = elements.as_slice() {
             // We avoid the const_concat! macro if there is only a single string
-            return string.to_token_stream();
+            return quote! { #string.as_bytes() };
         }
 
         quote! {
-            #pyo3_crate_path::impl_::concat::const_concat!(#(#elements , )*)
+            {
+                const PIECES: &[&[u8]] = &[#(#elements.as_bytes() , )*];
+                &#pyo3_crate_path::impl_::concat::combine_to_array::<{
+                    #pyo3_crate_path::impl_::concat::combined_len(PIECES)
+                }>(PIECES)
+            }
         }
     }
 }

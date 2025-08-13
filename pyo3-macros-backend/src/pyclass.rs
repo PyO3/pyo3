@@ -2396,8 +2396,8 @@ impl<'a> PyClassImplsBuilder<'a> {
                         #cls,
                         { impl_::pyclass::HasNewTextSignature::<#cls>::VALUE }
                     >::DOC_PIECES;
-                    const LEN: usize = impl_::concat::combined_len_bytes(DOC_PIECES);
-                    const DOC: &'static [u8] = &impl_::concat::combine_bytes_to_array::<LEN>(DOC_PIECES);
+                    const LEN: usize = impl_::concat::combined_len(DOC_PIECES);
+                    const DOC: &'static [u8] = &impl_::concat::combine_to_array::<LEN>(DOC_PIECES);
                     impl_::pyclass::doc::doc_bytes_as_cstr(DOC)
                 };
 

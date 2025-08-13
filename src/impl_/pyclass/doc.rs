@@ -68,7 +68,7 @@ mod tests {
     #[test]
     #[cfg(feature = "macros")]
     fn test_doc_generator() {
-        use crate::impl_::concat::{combine_bytes_to_array, combined_len_bytes};
+        use crate::impl_::concat::{combine_to_array, combined_len};
 
         /// A dummy class with signature.
         #[crate::pyclass(crate = "crate")]
@@ -86,7 +86,7 @@ mod tests {
         // simulate what the macro is doing
         const PIECES: &[&[u8]] = PyClassDocGenerator::<MyClass, true>::DOC_PIECES;
         assert_eq!(
-            &combine_bytes_to_array::<{ combined_len_bytes(PIECES) }>(PIECES),
+            &combine_to_array::<{ combined_len(PIECES) }>(PIECES),
             b"MyClass(x, y)\n--\n\nA dummy class with signature.\0"
         );
 
@@ -94,7 +94,7 @@ mod tests {
         const PIECES_WITHOUT_SIGNATURE: &[&[u8]] =
             PyClassDocGenerator::<MyClass, false>::DOC_PIECES;
         assert_eq!(
-            &combine_bytes_to_array::<{ combined_len_bytes(PIECES_WITHOUT_SIGNATURE) }>(
+            &combine_to_array::<{ combined_len(PIECES_WITHOUT_SIGNATURE) }>(
                 PIECES_WITHOUT_SIGNATURE
             ),
             b"A dummy class with signature.\0"
