@@ -1,10 +1,10 @@
 use std::cell::UnsafeCell;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    LockResult, PoisonError,
-};
+#[cfg(panic = "unwind")]
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{LockResult, PoisonError};
+#[cfg(panic = "unwind")]
 use std::thread;
 
 // See std::sync::poison in the rust standard library.
@@ -223,6 +223,10 @@ where
         Ok(t) => Ok(f(t)),
         #[cfg(panic = "unwind")]
         Err(e) => Err(PoisonError::new(f(e.into_inner()))),
+        #[cfg(not(panic = "unwind"))]
+        Err(e) => {
+            unreachable!();
+        }
     }
 }
 
@@ -275,6 +279,7 @@ mod tests {
     use crate::Py;
     use crate::Python;
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn test_pymutex() {
         let mutex = Python::attach(|py| -> PyMutex<Py<PyDict>> {
@@ -323,6 +328,7 @@ mod tests {
         assert!(!mutex.is_locked());
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn test_pymutex_blocks() {
         let mutex = PyMutex::new(());
@@ -364,6 +370,7 @@ mod tests {
         });
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn test_recover_poison() {
         let mutex = Python::attach(|py| -> PyMutex<Py<PyDict>> {
