@@ -1,4 +1,5 @@
 use std::cell::UnsafeCell;
+use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -127,6 +128,9 @@ pub struct PyMutex<T: ?Sized> {
 pub struct PyMutexGuard<'a, T: ?Sized> {
     inner: &'a PyMutex<T>,
     poison: Guard,
+    // this is equivalent to impl !Send, which we can't do
+    // because negative trait bounds aren't supported yet
+    _phantom: PhantomData<*const ()>,
 }
 
 /// `T` must be `Sync` for a [`PyMutexGuard<T>`] to be `Sync`
@@ -227,6 +231,7 @@ impl<'mutex, T: ?Sized> PyMutexGuard<'mutex, T> {
         map_result(lock.poison.guard(), |guard| PyMutexGuard {
             inner: lock,
             poison: guard,
+            _phantom: PhantomData,
         })
     }
 }
@@ -271,12 +276,13 @@ mod tests {
     use crate::Python;
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_pymutex() {
         let mutex = Python::attach(|py| -> PyMutex<Py<PyDict>> {
             let d = PyDict::new(py);
             PyMutex::new(d.unbind())
         });
-
+        #[cfg_attr(not(Py_3_14), allow(unused_variables))]
         let mutex = Python::attach(|py| {
             let mutex = py.detach(|| -> PyMutex<Py<PyDict>> {
                 std::thread::spawn(|| {
@@ -398,5 +404,16 @@ mod tests {
                     == "world"
             );
         });
+    }
+
+    #[test]
+    fn test_send_not_send() {
+        use crate::impl_::pyclass::{value_of, IsSend, IsSync};
+
+        assert!(!value_of!(IsSend, PyMutexGuard<'_, i32>));
+        assert!(value_of!(IsSync, PyMutexGuard<'_, i32>));
+
+        assert!(value_of!(IsSend, PyMutex<i32>));
+        assert!(value_of!(IsSync, PyMutex<i32>));
     }
 }
