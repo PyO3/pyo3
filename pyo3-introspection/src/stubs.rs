@@ -100,7 +100,18 @@ fn module_stubs(module: &Module) -> String {
 }
 
 fn class_stubs(class: &Class, modules_to_import: &mut BTreeSet<String>) -> String {
-    let mut buffer = format!("class {}:", class.name);
+    let mut buffer = format!("class {}", class.name);
+    if !class.bases.is_empty() {
+        buffer.push('(');
+        for (i, base) in class.bases.iter().enumerate() {
+            if i > 0 {
+                buffer.push_str(", ");
+            }
+            buffer.push_str(annotation_stub(base, modules_to_import));
+        }
+        buffer.push(')');
+    }
+    buffer.push(':');
     if class.methods.is_empty() && class.attributes.is_empty() {
         buffer.push_str(" ...");
         return buffer;

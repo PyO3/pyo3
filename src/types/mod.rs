@@ -184,15 +184,16 @@ macro_rules! pyobject_native_type_core {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_subclassable_native_type {
-    ($name:ty, $layout:path $(;$generics:ident)*) => {
+    ($name:ty, $layout:path, $python_name:expr) => {
         #[cfg(not(Py_LIMITED_API))]
-        impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
+        impl $crate::impl_::pyclass::PyClassBaseType for $name {
             type LayoutAsBase = $crate::impl_::pycell::PyClassObjectBase<$layout>;
             type BaseNativeType = $name;
             type Initializer = $crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
             type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
+            const BASE_NAME: &'static str = $python_name;
         }
-    }
+    };
 }
 
 #[doc(hidden)]

@@ -16,7 +16,7 @@ use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
 #[repr(transparent)]
 pub struct PyDict(PyAny);
 
-pyobject_subclassable_native_type!(PyDict, crate::ffi::PyDictObject);
+pyobject_subclassable_native_type!(PyDict, crate::ffi::PyDictObject, "dict");
 
 pyobject_native_type!(
     PyDict,

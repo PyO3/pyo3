@@ -399,7 +399,7 @@ impl FieldPyO3Options {
     }
 }
 
-fn get_class_python_name<'a>(cls: &'a syn::Ident, args: &'a PyClassArgs) -> Cow<'a, syn::Ident> {
+fn get_class_python_name<'a>(cls: &'a Ident, args: &'a PyClassArgs) -> Cow<'a, Ident> {
     args.options
         .name
         .as_ref()
@@ -2352,12 +2352,14 @@ impl<'a> PyClassImplsBuilder<'a> {
         };
 
         let pyclass_base_type_impl = attr.options.subclass.map(|subclass| {
+            let name_with_module = get_class_python_module_and_name(cls, self.attr);
             quote_spanned! { subclass.span() =>
                 impl #pyo3_path::impl_::pyclass::PyClassBaseType for #cls {
                     type LayoutAsBase = #pyo3_path::impl_::pycell::PyClassObject<Self>;
                     type BaseNativeType = <Self as #pyo3_path::impl_::pyclass::PyClassImpl>::BaseNativeType;
                     type Initializer = #pyo3_path::pyclass_init::PyClassInitializer<Self>;
                     type PyClassMutability = <Self as #pyo3_path::impl_::pyclass::PyClassImpl>::PyClassMutability;
+                    const BASE_NAME: &'static str = #name_with_module;
                 }
             }
         });
@@ -2498,9 +2500,14 @@ impl<'a> PyClassImplsBuilder<'a> {
     #[cfg(feature = "experimental-inspect")]
     fn impl_introspection(&self, ctx: &Ctx) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
-        let name = get_class_python_name(self.cls, self.attr).to_string();
         let ident = self.cls;
-        let static_introspection = class_introspection_code(pyo3_path, ident, &name);
+        let name = get_class_python_name(ident, self.attr).to_string();
+        let static_introspection = class_introspection_code(
+            pyo3_path,
+            ident,
+            &name,
+            self.attr.options.extends.as_ref().map(|attr| &attr.value),
+        );
         let introspection_id = introspection_id_const();
         quote! {
             #static_introspection
