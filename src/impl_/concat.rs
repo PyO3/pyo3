@@ -17,7 +17,7 @@ pub const fn combined_len(pieces: &[&[u8]]) -> usize {
 /// `out` should be a buffer at the correct size of `combined_len(pieces)`, else this will panic.
 #[cfg(mut_ref_in_const_fn)] // requires MSRV 1.83
 #[allow(clippy::incompatible_msrv)] // `split_at_mut` also requires MSRV 1.83
-pub const fn combine(pieces: &[&[u8]], mut out: &mut [u8]) {
+const fn combine(pieces: &[&[u8]], mut out: &mut [u8]) {
     let mut pieces_idx = 0;
     while pieces_idx < pieces.len() {
         let piece = pieces[pieces_idx];
