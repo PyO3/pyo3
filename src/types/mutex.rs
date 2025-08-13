@@ -415,6 +415,44 @@ mod tests {
                     == "world"
             );
         });
+
+        // now test recovering via PyMutex::into_inner
+        let mutex = PyMutex::new(0);
+        assert_eq!(mutex.into_inner().unwrap(), 0);
+
+        let mutex = PyMutex::new(0);
+        let _ = std::thread::scope(|s| {
+            s.spawn(|| {
+                let _guard = mutex.lock().unwrap();
+
+                // poison the mutex
+                panic!();
+            })
+            .join()
+        });
+
+        match mutex.into_inner() {
+            Ok(_) => {
+                unreachable!()
+            }
+            Err(e) => {
+                assert!(e.into_inner() == 0)
+            }
+        }
+
+        // now test recovering via PyMutex::clear_poison
+        let mutex = PyMutex::new(0);
+        let _ = std::thread::scope(|s| {
+            s.spawn(|| {
+                let _guard = mutex.lock().unwrap();
+
+                // poison the mutex
+                panic!();
+            })
+            .join()
+        });
+        mutex.clear_poison();
+        assert!(*mutex.lock().unwrap() == 0);
     }
 
     #[test]
