@@ -325,6 +325,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_pymutex_blocks() {
         let mutex = PyMutex::new(());
         let first_thread_locked_once = AtomicBool::new(false);
@@ -366,6 +367,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_recover_poison() {
         let mutex = Python::attach(|py| -> PyMutex<Py<PyDict>> {
             let d = PyDict::new(py);
