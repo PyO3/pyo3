@@ -4,7 +4,6 @@ use crate::{
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     py_result_ext::PyResultExt,
-    types::any::PyAnyMethods,
     Bound, PyAny, Python,
 };
 use crate::{Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt};
@@ -98,7 +97,7 @@ impl PyFrozenSet {
         unsafe {
             ffi::PyFrozenSet_New(ptr::null_mut())
                 .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }
@@ -240,7 +239,7 @@ where
         // We create the  `Py` pointer because its Drop cleans up the set if user code panics.
         ffi::PyFrozenSet_New(std::ptr::null_mut())
             .assume_owned_or_err(py)?
-            .downcast_into_unchecked()
+            .cast_into_unchecked()
     };
     let ptr = set.as_ptr();
 
@@ -255,6 +254,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::PyAnyMethods as _;
 
     #[test]
     fn test_frozenset_new_and_len() {

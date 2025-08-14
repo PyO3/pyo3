@@ -317,6 +317,7 @@ def publish(session: nox.Session) -> None:
     _run_cargo_publish(session, package="pyo3-macros")
     _run_cargo_publish(session, package="pyo3-ffi")
     _run_cargo_publish(session, package="pyo3")
+    _run_cargo_publish(session, package="pyo3-introspection")
 
 
 @nox.session(venv_backend="none")
@@ -428,6 +429,7 @@ def test_emscripten(session: nox.Session):
             "-C link-arg=-sALLOW_MEMORY_GROWTH=1",
         ]
     )
+    session.env["RUSTDOCFLAGS"] = session.env["RUSTFLAGS"]
     session.env["CARGO_BUILD_TARGET"] = target
     session.env["PYO3_CROSS_LIB_DIR"] = pythonlibdir
     _run(session, "rustup", "target", "add", target, "--toolchain", "stable")
@@ -892,6 +894,32 @@ def test_version_limits(session: nox.Session):
         assert "3.8" not in PYPY_VERSIONS
         config_file.set("PyPy", "3.8")
         _run_cargo(session, "check", env=env, expect_error=True)
+
+    # attempt to build with latest version and check that abi3 version
+    # configured matches the feature
+    max_minor_version = max(int(v.split(".")[1]) for v in PY_VERSIONS if "t" not in v)
+    with tempfile.TemporaryFile() as stderr:
+        env = os.environ.copy()
+        env["PYO3_PRINT_CONFIG"] = "1"  # get diagnostics from the build
+        env["PYO3_NO_PYTHON"] = "1"  # isolate the build from local Python
+        _run_cargo(
+            session,
+            "check",
+            f"--features=pyo3/abi3-py3{max_minor_version}",
+            env=env,
+            stderr=stderr,
+            expect_error=True,
+        )
+        stderr.seek(0)
+        stderr = stderr.read().decode()
+    # NB if this assertion fails with something like
+    # "An abi3-py3* feature must be specified when compiling without a Python
+    # interpreter."
+    #
+    # then `ABI3_MAX_MINOR` in `pyo3-build-config/src/impl_.rs` is probably outdated.
+    assert f"version=3.{max_minor_version}" in stderr, (
+        f"Expected to see version=3.{max_minor_version}, got: \n\n{stderr}"
+    )
 
 
 @nox.session(name="check-feature-powerset", venv_backend="none")

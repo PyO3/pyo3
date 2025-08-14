@@ -1,6 +1,5 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
-use crate::types::any::PyAnyMethods;
 use crate::{ffi, Py, PyAny, PyResult, Python};
 use std::ops::Index;
 use std::slice::SliceIndex;
@@ -22,8 +21,9 @@ use std::str;
 /// data in the Python bytes to a Rust `[u8]` byte slice.
 ///
 /// This is not always the most appropriate way to compare Python bytes, as Python bytes subclasses
-/// may have different equality semantics. In situations where subclasses overriding equality might be
-/// relevant, use [`PyAnyMethods::eq`], at cost of the additional overhead of a Python method call.
+/// may have different equality semantics. In situations where subclasses overriding equality might
+/// be relevant, use [`PyAnyMethods::eq`](crate::types::any::PyAnyMethods::eq), at cost of the
+/// additional overhead of a Python method call.
 ///
 /// ```rust
 /// # use pyo3::prelude::*;
@@ -60,7 +60,7 @@ impl PyBytes {
         unsafe {
             ffi::PyBytes_FromStringAndSize(ptr, len)
                 .assume_owned(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -96,7 +96,7 @@ impl PyBytes {
         unsafe {
             let pyptr = ffi::PyBytes_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
             // Check for an allocation error and return it
-            let pybytes = pyptr.assume_owned_or_err(py)?.downcast_into_unchecked();
+            let pybytes = pyptr.assume_owned_or_err(py)?.cast_into_unchecked();
             let buffer: *mut u8 = ffi::PyBytes_AsString(pyptr).cast();
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytestring
@@ -121,7 +121,7 @@ impl PyBytes {
         unsafe {
             ffi::PyBytes_FromStringAndSize(ptr.cast(), len as isize)
                 .assume_owned(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }
@@ -278,6 +278,7 @@ impl PartialEq<Borrowed<'_, '_, PyBytes>> for &'_ [u8] {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::PyAnyMethods as _;
 
     #[test]
     fn test_bytes_index() {

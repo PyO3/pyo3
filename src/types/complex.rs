@@ -1,6 +1,8 @@
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 use crate::py_result_ext::PyResultExt;
-use crate::{ffi, types::any::PyAnyMethods, Bound, PyAny, Python};
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+use crate::types::any::PyAnyMethods;
+use crate::{ffi, Bound, PyAny, Python};
 use std::os::raw::c_double;
 
 /// Represents a Python [`complex`](https://docs.python.org/3/library/functions.html#complex) object.
@@ -35,7 +37,7 @@ impl PyComplex {
         unsafe {
             ffi::PyComplex_FromDoubles(real, imag)
                 .assume_owned(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }
@@ -53,7 +55,7 @@ mod not_limited_impls {
                 type Output = Bound<'py, PyComplex>;
                 fn $fn(self, other: Self) -> Self::Output {
                     PyAnyMethods::$fn(self.as_any(), other)
-                    .downcast_into().expect(
+                    .cast_into().expect(
                         concat!("Complex method ",
                             stringify!($fn),
                             " failed.")
@@ -100,7 +102,7 @@ mod not_limited_impls {
         type Output = Bound<'py, PyComplex>;
         fn neg(self) -> Self::Output {
             PyAnyMethods::neg(self.as_any())
-                .downcast_into()
+                .cast_into()
                 .expect("Complex method __neg__ failed.")
         }
     }
@@ -231,7 +233,7 @@ impl<'py> PyComplexMethods<'py> for Bound<'py, PyComplex> {
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn abs(&self) -> c_double {
         PyAnyMethods::abs(self.as_any())
-            .downcast_into()
+            .cast_into()
             .expect("Complex method __abs__ failed.")
             .extract()
             .expect("Failed to extract to c double.")
@@ -241,7 +243,7 @@ impl<'py> PyComplexMethods<'py> for Bound<'py, PyComplex> {
     fn pow(&self, other: &Bound<'py, PyComplex>) -> Bound<'py, PyComplex> {
         Python::attach(|py| {
             PyAnyMethods::pow(self.as_any(), other, py.None())
-                .downcast_into()
+                .cast_into()
                 .expect("Complex method __pow__ failed.")
         })
     }

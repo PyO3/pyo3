@@ -239,7 +239,7 @@ fn get_first_item<'py>(list: &Bound<'py, PyList>) -> PyResult<Bound<'py, PyAny>>
 
 ### Casting between Python object types
 
-To cast `Bound<'py, T>` smart pointers to some other type, use the [`.downcast()`][PyAnyMethods::downcast] family of functions. This converts `&Bound<'py, T>` to a different `&Bound<'py, U>`, without transferring ownership. There is also [`.downcast_into()`][PyAnyMethods::downcast_into] to convert `Bound<'py, T>` to `Bound<'py, U>` with transfer of ownership. These methods are available for all types `T` which implement the [`PyTypeCheck`] trait.
+To cast `Bound<'py, T>` smart pointers to some other type, use the [`.cast()`][Bound::cast] family of functions. This converts `&Bound<'py, T>` to a different `&Bound<'py, U>`, without transferring ownership. There is also [`.cast_into()`][Bound::cast_into] to convert `Bound<'py, T>` to `Bound<'py, U>` with transfer of ownership. These methods are available for all types `T` which implement the [`PyTypeCheck`] trait.
 
 Casting to `Bound<'py, PyAny>` can be done with `.as_any()` or `.into_any()`.
 
@@ -252,17 +252,17 @@ For example, the following snippet shows how to cast `Bound<'py, PyAny>` to `Bou
 // create a new Python `tuple`, and use `.into_any()` to erase the type
 let obj: Bound<'py, PyAny> = PyTuple::empty(py).into_any();
 
-// use `.downcast()` to cast to `PyTuple` without transferring ownership
-let _: &Bound<'py, PyTuple> = obj.downcast()?;
+// use `.cast()` to cast to `PyTuple` without transferring ownership
+let _: &Bound<'py, PyTuple> = obj.cast()?;
 
-// use `.downcast_into()` to cast to `PyTuple` with transfer of ownership
-let _: Bound<'py, PyTuple> = obj.downcast_into()?;
+// use `.cast_into()` to cast to `PyTuple` with transfer of ownership
+let _: Bound<'py, PyTuple> = obj.cast_into()?;
 # Ok(())
 # }
 # Python::attach(example).unwrap()
 ```
 
-Custom [`#[pyclass]`][pyclass] types implement [`PyTypeCheck`], so `.downcast()` also works for these types. The snippet below is the same as the snippet above casting instead to a custom type `MyClass`:
+Custom [`#[pyclass]`][pyclass] types implement [`PyTypeCheck`], so `.cast()` also works for these types. The snippet below is the same as the snippet above casting instead to a custom type `MyClass`:
 
 ```rust
 use pyo3::prelude::*;
@@ -274,11 +274,11 @@ struct MyClass {}
 // create a new Python `tuple`, and use `.into_any()` to erase the type
 let obj: Bound<'py, PyAny> = Bound::new(py, MyClass {})?.into_any();
 
-// use `.downcast()` to cast to `MyClass` without transferring ownership
-let _: &Bound<'py, MyClass> = obj.downcast()?;
+// use `.cast()` to cast to `MyClass` without transferring ownership
+let _: &Bound<'py, MyClass> = obj.cast()?;
 
-// use `.downcast_into()` to cast to `MyClass` with transfer of ownership
-let _: Bound<'py, MyClass> = obj.downcast_into()?;
+// use `.cast_into()` to cast to `MyClass` with transfer of ownership
+let _: Bound<'py, MyClass> = obj.cast_into()?;
 # Ok(())
 # }
 # Python::attach(example).unwrap()
@@ -286,7 +286,7 @@ let _: Bound<'py, MyClass> = obj.downcast_into()?;
 
 ### Extracting Rust data from Python objects
 
-To extract Rust data from Python objects, use [`.extract()`][PyAnyMethods::extract] instead of `.downcast()`. This method is available for all types which implement the [`FromPyObject`] trait.
+To extract Rust data from Python objects, use [`.extract()`][PyAnyMethods::extract] instead of `.cast()`. This method is available for all types which implement the [`FromPyObject`] trait.
 
 For example, the following snippet extracts a Rust tuple of integers from a Python tuple:
 
@@ -313,8 +313,8 @@ for more detail.
 [Py]: {{#PYO3_DOCS_URL}}/pyo3/struct.Py.html
 [PyAnyMethods::add]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.add
 [PyAnyMethods::extract]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.extract
-[PyAnyMethods::downcast]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.downcast
-[PyAnyMethods::downcast_into]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.downcast_into
+[Bound::cast]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html#method.cast
+[Bound::cast_into]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html#method.cast_into
 [`PyTypeCheck`]: {{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PyTypeCheck.html
 [`PyAnyMethods`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html
 [`PyDictMethods`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyDictMethods.html

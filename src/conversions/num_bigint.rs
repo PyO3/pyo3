@@ -50,11 +50,8 @@
 #[cfg(Py_LIMITED_API)]
 use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
-    conversion::IntoPyObject,
-    ffi,
-    instance::Bound,
-    types::{any::PyAnyMethods, PyInt},
-    FromPyObject, Py, PyAny, PyErr, PyResult, Python,
+    conversion::IntoPyObject, ffi, instance::Bound, types::PyInt, FromPyObject, Py, PyAny, PyErr,
+    PyResult, Python,
 };
 
 use num_bigint::{BigInt, BigUint};
@@ -95,13 +92,14 @@ macro_rules! bigint_conversion {
                         $is_signed.into(),
                     )
                     .assume_owned(py)
-                    .downcast_into_unchecked())
+                    .cast_into_unchecked())
                 }
             }
 
             #[cfg(Py_LIMITED_API)]
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 use $crate::py_result_ext::PyResultExt;
+                use $crate::types::any::PyAnyMethods;
                 let bytes = $to_bytes(&self);
                 let bytes_obj = PyBytes::new(py, &bytes);
                 let kwargs = if $is_signed {
@@ -114,7 +112,7 @@ macro_rules! bigint_conversion {
                 unsafe {
                     py.get_type::<PyInt>()
                         .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
-                        .downcast_into_unchecked()
+                        .cast_into_unchecked()
                 }
             }
         }
@@ -130,7 +128,7 @@ impl<'py> FromPyObject<'py> for BigInt {
         let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
         let num_owned: Py<PyInt>;
-        let num = if let Ok(long) = ob.downcast::<PyInt>() {
+        let num = if let Ok(long) = ob.cast::<PyInt>() {
             long
         } else {
             num_owned = unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
@@ -178,7 +176,7 @@ impl<'py> FromPyObject<'py> for BigUint {
         let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
         let num_owned: Py<PyInt>;
-        let num = if let Ok(long) = ob.downcast::<PyInt>() {
+        let num = if let Ok(long) = ob.cast::<PyInt>() {
             long
         } else {
             num_owned = unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
@@ -276,6 +274,7 @@ fn int_to_py_bytes<'py>(
     is_signed: bool,
 ) -> PyResult<Bound<'py, PyBytes>> {
     use crate::intern;
+    use crate::types::any::PyAnyMethods;
     let py = long.py();
     let kwargs = if is_signed {
         let kwargs = crate::types::PyDict::new(py);
@@ -289,7 +288,7 @@ fn int_to_py_bytes<'py>(
         (n_bytes, intern!(py, "little")),
         kwargs.as_ref(),
     )?;
-    Ok(bytes.downcast_into()?)
+    Ok(bytes.cast_into()?)
 }
 
 #[inline]
@@ -308,6 +307,7 @@ fn int_n_bits(long: &Bound<'_, PyInt>) -> PyResult<usize> {
 
     #[cfg(Py_LIMITED_API)]
     {
+        use crate::types::any::PyAnyMethods;
         // slow path
         long.call_method0(crate::intern!(py, "bit_length"))
             .and_then(|any| any.extract())
@@ -318,7 +318,7 @@ fn int_n_bits(long: &Bound<'_, PyInt>) -> PyResult<usize> {
 mod tests {
     use super::*;
     use crate::tests::common::generate_unique_module_name;
-    use crate::types::{PyDict, PyModule};
+    use crate::types::{PyAnyMethods as _, PyDict, PyModule};
     use indoc::indoc;
     use pyo3_ffi::c_str;
 

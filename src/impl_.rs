@@ -7,7 +7,6 @@
 //! breaking semver guarantees.
 
 pub mod callback;
-#[cfg(feature = "experimental-inspect")]
 pub mod concat;
 #[cfg(feature = "experimental-async")]
 pub mod coroutine;

@@ -34,7 +34,7 @@ impl PyMappingProxy {
         unsafe {
             ffi::PyDictProxy_New(elements.as_ptr())
                 .assume_owned(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }
@@ -76,7 +76,7 @@ impl<'py, 'a> PyMappingProxyMethods<'py, 'a> for Bound<'py, PyMappingProxy> {
         unsafe {
             Ok(ffi::PyMapping_Keys(self.as_ptr())
                 .assume_owned_or_err(self.py())?
-                .downcast_into_unchecked())
+                .cast_into_unchecked())
         }
     }
 
@@ -85,7 +85,7 @@ impl<'py, 'a> PyMappingProxyMethods<'py, 'a> for Bound<'py, PyMappingProxy> {
         unsafe {
             Ok(ffi::PyMapping_Values(self.as_ptr())
                 .assume_owned_or_err(self.py())?
-                .downcast_into_unchecked())
+                .cast_into_unchecked())
         }
     }
 
@@ -94,12 +94,12 @@ impl<'py, 'a> PyMappingProxyMethods<'py, 'a> for Bound<'py, PyMappingProxy> {
         unsafe {
             Ok(ffi::PyMapping_Items(self.as_ptr())
                 .assume_owned_or_err(self.py())?
-                .downcast_into_unchecked())
+                .cast_into_unchecked())
         }
     }
 
     fn as_mapping(&self) -> &Bound<'py, PyMapping> {
-        unsafe { self.downcast_unchecked() }
+        unsafe { self.cast_unchecked() }
     }
 
     fn try_iter(&'a self) -> PyResult<BoundMappingProxyIterator<'py, 'a>> {
@@ -287,7 +287,7 @@ mod tests {
             let mut value_sum = 0;
             for res in mappingproxy.items().unwrap().try_iter().unwrap() {
                 let el = res.unwrap();
-                let tuple = el.downcast::<PyTuple>().unwrap();
+                let tuple = el.cast::<PyTuple>().unwrap();
                 key_sum += tuple.get_item(0).unwrap().extract::<i32>().unwrap();
                 value_sum += tuple.get_item(1).unwrap().extract::<i32>().unwrap();
             }
@@ -506,18 +506,8 @@ mod tests {
                     .map(|object| {
                         let tuple = object.unwrap();
                         (
-                            tuple
-                                .0
-                                .downcast::<PyInt>()
-                                .unwrap()
-                                .extract::<usize>()
-                                .unwrap(),
-                            tuple
-                                .1
-                                .downcast::<PyInt>()
-                                .unwrap()
-                                .extract::<usize>()
-                                .unwrap(),
+                            tuple.0.cast::<PyInt>().unwrap().extract::<usize>().unwrap(),
+                            tuple.1.cast::<PyInt>().unwrap().extract::<usize>().unwrap(),
                         )
                     })
                     .collect::<Vec<(usize, usize)>>()

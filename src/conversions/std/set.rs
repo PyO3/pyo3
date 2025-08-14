@@ -59,10 +59,10 @@ where
     S: hash::BuildHasher + Default,
 {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        match ob.downcast::<PySet>() {
+        match ob.cast::<PySet>() {
             Ok(set) => set.iter().map(|any| any.extract()).collect(),
             Err(err) => {
-                if let Ok(frozen_set) = ob.downcast::<PyFrozenSet>() {
+                if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
                     frozen_set.iter().map(|any| any.extract()).collect()
                 } else {
                     Err(PyErr::from(err))
@@ -119,10 +119,10 @@ where
     K: FromPyObject<'py> + cmp::Ord,
 {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        match ob.downcast::<PySet>() {
+        match ob.cast::<PySet>() {
             Ok(set) => set.iter().map(|any| any.extract()).collect(),
             Err(err) => {
-                if let Ok(frozen_set) = ob.downcast::<PyFrozenSet>() {
+                if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
                     frozen_set.iter().map(|any| any.extract()).collect()
                 } else {
                     Err(PyErr::from(err))

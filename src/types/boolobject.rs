@@ -33,7 +33,7 @@ impl PyBool {
         unsafe {
             if val { ffi::Py_True() } else { ffi::Py_False() }
                 .assume_borrowed(py)
-                .downcast_unchecked()
+                .cast_unchecked()
         }
     }
 }
@@ -141,6 +141,9 @@ impl<'py> IntoPyObject<'py> for bool {
     type Output = Borrowed<'py, 'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = "bool";
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyBool::new(py, self))
@@ -156,6 +159,9 @@ impl<'py> IntoPyObject<'py> for &bool {
     type Target = PyBool;
     type Output = Borrowed<'py, 'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = bool::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -176,7 +182,7 @@ impl FromPyObject<'_> for bool {
     const INPUT_TYPE: &'static str = "bool";
 
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let err = match obj.downcast::<PyBool>() {
+        let err = match obj.cast::<PyBool>() {
             Ok(obj) => return Ok(obj.is_true()),
             Err(err) => err,
         };
@@ -220,7 +226,7 @@ impl FromPyObject<'_> for bool {
                     .lookup_special(crate::intern!(obj.py(), "__bool__"))?
                     .ok_or_else(|| missing_conversion(obj))?;
 
-                let obj = meth.call0()?.downcast_into::<PyBool>()?;
+                let obj = meth.call0()?.cast_into::<PyBool>()?;
                 return Ok(obj.is_true());
             }
         }

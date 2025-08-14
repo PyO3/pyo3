@@ -351,7 +351,7 @@ pub use crate::interpreter_lifecycle::{
 };
 pub use crate::marker::Python;
 pub use crate::pycell::{PyRef, PyRefMut};
-pub use crate::pyclass::PyClass;
+pub use crate::pyclass::{PyClass, PyClassGuard, PyClassGuardMut};
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::type_object::{PyTypeCheck, PyTypeInfo};
 pub use crate::types::PyAny;
@@ -411,6 +411,11 @@ pub use inventory; // Re-exported for `#[pyclass]` and `#[pymethods]` with `mult
 #[macro_use]
 mod tests;
 
+// Macro dependencies, also contains macros exported for use across the codebase and
+// in expanded macros.
+#[doc(hidden)]
+pub mod impl_;
+
 #[macro_use]
 mod internal_tricks;
 mod internal;
@@ -424,8 +429,6 @@ pub mod coroutine;
 mod err;
 pub mod exceptions;
 pub mod ffi;
-#[doc(hidden)]
-pub mod impl_;
 mod instance;
 mod interpreter_lifecycle;
 pub mod marker;

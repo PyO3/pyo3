@@ -1,4 +1,6 @@
-use crate::model::{Argument, Arguments, Class, Const, Function, Module, VariableLengthArgument};
+use crate::model::{
+    Argument, Arguments, Attribute, Class, Function, Module, VariableLengthArgument,
+};
 use anyhow::{bail, ensure, Context, Result};
 use goblin::elf::Elf;
 use goblin::mach::load_command::CommandVariant;
@@ -25,35 +27,33 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
     let mut chunks_by_id = HashMap::<&str, &Chunk>::new();
     let mut chunks_by_parent = HashMap::<&str, Vec<&Chunk>>::new();
     for chunk in chunks {
-        if let Some(id) = match chunk {
-            Chunk::Module { id, .. } => Some(id),
-            Chunk::Class { id, .. } => Some(id),
-            Chunk::Function { id, .. } => id.as_ref(),
-        } {
+        let (id, parent) = match chunk {
+            Chunk::Module { id, .. } | Chunk::Class { id, .. } => (Some(id.as_str()), None),
+            Chunk::Function { id, parent, .. } | Chunk::Attribute { id, parent, .. } => {
+                (id.as_deref(), parent.as_deref())
+            }
+        };
+        if let Some(id) = id {
             chunks_by_id.insert(id, chunk);
         }
-        if let Some(parent) = match chunk {
-            Chunk::Module { .. } | Chunk::Class { .. } => None,
-            Chunk::Function { parent, .. } => parent.as_ref(),
-        } {
+        if let Some(parent) = parent {
             chunks_by_parent.entry(parent).or_default().push(chunk);
         }
     }
     // We look for the root chunk
     for chunk in chunks {
         if let Chunk::Module {
+            id,
             name,
             members,
-            consts,
             incomplete,
-            id: _,
         } = chunk
         {
             if name == main_module_name {
                 return convert_module(
+                    id,
                     name,
                     members,
-                    consts,
                     *incomplete,
                     &chunks_by_id,
                     &chunks_by_parent,
@@ -65,18 +65,18 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
 }
 
 fn convert_module(
+    id: &str,
     name: &str,
     members: &[String],
-    consts: &[ConstChunk],
     incomplete: bool,
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
 ) -> Result<Module> {
-    let (modules, classes, functions) = convert_members(
-        &members
+    let (modules, classes, functions, attributes) = convert_members(
+        members
             .iter()
             .filter_map(|id| chunks_by_id.get(id.as_str()).copied())
-            .collect::<Vec<_>>(),
+            .chain(chunks_by_parent.get(&id).into_iter().flatten().copied()),
         chunks_by_id,
         chunks_by_parent,
     )?;
@@ -86,39 +86,35 @@ fn convert_module(
         modules,
         classes,
         functions,
-        consts: consts
-            .iter()
-            .map(|c| Const {
-                name: c.name.clone(),
-                value: c.value.clone(),
-            })
-            .collect(),
+        attributes,
         incomplete,
     })
 }
 
+type Members = (Vec<Module>, Vec<Class>, Vec<Function>, Vec<Attribute>);
+
 /// Convert a list of members of a module or a class
-fn convert_members(
-    chunks: &[&Chunk],
+fn convert_members<'a>(
+    chunks: impl IntoIterator<Item = &'a Chunk>,
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
-) -> Result<(Vec<Module>, Vec<Class>, Vec<Function>)> {
+) -> Result<Members> {
     let mut modules = Vec::new();
     let mut classes = Vec::new();
     let mut functions = Vec::new();
+    let mut attributes = Vec::new();
     for chunk in chunks {
         match chunk {
             Chunk::Module {
                 name,
+                id,
                 members,
-                consts,
                 incomplete,
-                id: _,
             } => {
                 modules.push(convert_module(
+                    id,
                     name,
                     members,
-                    consts,
                     *incomplete,
                     chunks_by_id,
                     chunks_by_parent,
@@ -135,35 +131,19 @@ fn convert_members(
                 decorators,
                 returns,
             } => functions.push(convert_function(name, arguments, decorators, returns)),
+            Chunk::Attribute {
+                name,
+                id: _,
+                parent: _,
+                value,
+                annotation,
+            } => attributes.push(convert_attribute(name, value, annotation)),
         }
     }
-    Ok((modules, classes, functions))
-}
-
-fn convert_class(
-    id: &str,
-    name: &str,
-    chunks_by_id: &HashMap<&str, &Chunk>,
-    chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
-) -> Result<Class> {
-    let (nested_modules, nested_classes, mut methods) = convert_members(
-        chunks_by_parent
-            .get(&id)
-            .map(Vec::as_slice)
-            .unwrap_or_default(),
-        chunks_by_id,
-        chunks_by_parent,
-    )?;
-    ensure!(
-        nested_modules.is_empty(),
-        "Classes cannot contain nested modules"
-    );
-    ensure!(
-        nested_classes.is_empty(),
-        "Nested classes are not supported yet"
-    );
-    // We sort methods to get a stable output
-    methods.sort_by(|l, r| match l.name.cmp(&r.name) {
+    // We sort elements to get a stable output
+    modules.sort_by(|l, r| l.name.cmp(&r.name));
+    classes.sort_by(|l, r| l.name.cmp(&r.name));
+    functions.sort_by(|l, r| match l.name.cmp(&r.name) {
         Ordering::Equal => {
             // We put the getter before the setter
             if l.decorators.iter().any(|d| d == "property") {
@@ -177,9 +157,33 @@ fn convert_class(
         }
         o => o,
     });
+    attributes.sort_by(|l, r| l.name.cmp(&r.name));
+    Ok((modules, classes, functions, attributes))
+}
+
+fn convert_class(
+    id: &str,
+    name: &str,
+    chunks_by_id: &HashMap<&str, &Chunk>,
+    chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
+) -> Result<Class> {
+    let (nested_modules, nested_classes, methods, attributes) = convert_members(
+        chunks_by_parent.get(&id).into_iter().flatten().copied(),
+        chunks_by_id,
+        chunks_by_parent,
+    )?;
+    ensure!(
+        nested_modules.is_empty(),
+        "Classes cannot contain nested modules"
+    );
+    ensure!(
+        nested_classes.is_empty(),
+        "Nested classes are not supported yet"
+    );
     Ok(Class {
         name: name.into(),
         methods,
+        attributes,
     })
 }
 
@@ -221,6 +225,14 @@ fn convert_variable_length_argument(arg: &ChunkArgument) -> VariableLengthArgume
     VariableLengthArgument {
         name: arg.name.clone(),
         annotation: arg.annotation.clone(),
+    }
+}
+
+fn convert_attribute(name: &str, value: &Option<String>, annotation: &Option<String>) -> Attribute {
+    Attribute {
+        name: name.into(),
+        value: value.clone(),
+        annotation: annotation.clone(),
     }
 }
 
@@ -387,7 +399,6 @@ enum Chunk {
         id: String,
         name: String,
         members: Vec<String>,
-        consts: Vec<ConstChunk>,
         incomplete: bool,
     },
     Class {
@@ -406,12 +417,17 @@ enum Chunk {
         #[serde(default)]
         returns: Option<String>,
     },
-}
-
-#[derive(Deserialize)]
-struct ConstChunk {
-    name: String,
-    value: String,
+    Attribute {
+        #[serde(default)]
+        id: Option<String>,
+        #[serde(default)]
+        parent: Option<String>,
+        name: String,
+        #[serde(default)]
+        value: Option<String>,
+        #[serde(default)]
+        annotation: Option<String>,
+    },
 }
 
 #[derive(Deserialize)]
