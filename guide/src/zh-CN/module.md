@@ -38,7 +38,7 @@ fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
 模块的名称必须与 `.so` 或 `.pyd` 文件的名称匹配。否则，在 Python 中导入时会收到导入错误，消息为：`ImportError: dynamic module does not define module export function (PyInit_name_of_your_module)` 即 `ImportError: 动态模块未定义模块导出函数 (PyInit_你的模块名称)`
 
 要导入模块，可以：
- - 如[手动构建](building-and-distribution.md#manual-builds)中所述复制共享库，或者
+ - 如[手动构建](building-and-distribution.md)中所述复制共享库，或者
  - 使用工具，例如使用 [maturin](https://github.com/PyO3/maturin) 的 `maturin develop` 或使用 [setuptools-rust](https://github.com/PyO3/setuptools-rust) 的 `python setup.py develop`。
 
 ## 文档
