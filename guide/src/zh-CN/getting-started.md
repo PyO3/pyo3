@@ -28,7 +28,7 @@ pyenv install 3.12 --keep
 
 ### 构建
 
-有许多构建和Python包管理系统，比如[`setuptools-rust`](https://github.com/PyO3/setuptools-rust)或[手动](./building-and-distribution.md#manual-builds)构建。我们推荐使用`maturin`，您可以在[这里](https://maturin.rs/installation.html)安装它。它是专门为与PyO3配合使用而开发的，提供了最"开箱即用"的体验，特别是如果您的目标是发布到PyPI。`maturin`只是一个Python包，所以您可以用安装其他Python包的相同方式来添加它。
+有许多构建和Python包管理系统，比如[`setuptools-rust`](https://github.com/PyO3/setuptools-rust)或[手动](./building-and-distribution.md)构建。我们推荐使用`maturin`，您可以在[这里](https://maturin.rs/installation.html)安装它。它是专门为与PyO3配合使用而开发的，提供了最"开箱即用"的体验，特别是如果您的目标是发布到PyPI。`maturin`只是一个Python包，所以您可以用安装其他Python包的相同方式来添加它。
 
 系统Python：
 ```bash
