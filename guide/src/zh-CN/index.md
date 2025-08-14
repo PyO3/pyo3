@@ -248,7 +248,7 @@ fn main() -> PyResult<()> {
 
 ## 文章和其他媒体
 
-- [(视频) PyO3：从 Python 到 Rust 再返回](https://www.youtube.com/watch?v=UmL_CA-v3O8) - 2024 年 7 月 3 日
+- [(视频) PyO3：从 Python 到 Rust 再返回]( https://www.youtube.com/watch?v=UmL_CA-v3O8 ) - 2024 年 7 月 3 日
 - [使用 Rust 将 Python AST 解析速度提高 20 倍](https://www.gauge.sh/blog/parsing-python-asts-20x-faster-with-rust) - 2024 年 6 月 17 日
 - [(视频) Python 如何通过 PyO3 利用 Rust](https://www.youtube.com/watch?v=UkZ_m3Wj2hA) - 2024 年 5 月 18 日
 - [(视频) 将 Rust 和 Python 结合：两全其美？](https://www.youtube.com/watch?v=lyG6AKzu4ew) - 2024 年 3 月 1 日
@@ -283,7 +283,7 @@ fn main() -> PyResult<()> {
 
 ## 许可
 
-PyO3 根据 [Apache-2.0 许可](LICENSE-APACHE) 或 [MIT 许可](LICENSE-MIT) 许可，由您选择。
+PyO3 根据 [Apache-2.0 许可] 或 [MIT 许可] 许可，由您选择。
 
 Python 根据 [Python 许可](https://docs.python.org/3/license.html) 许可。
 
