@@ -407,6 +407,16 @@ fn get_class_python_name<'a>(cls: &'a syn::Ident, args: &'a PyClassArgs) -> Cow<
         .unwrap_or_else(|| Cow::Owned(cls.unraw()))
 }
 
+fn get_class_python_module_and_name<'a>(cls: &'a Ident, args: &'a PyClassArgs) -> String {
+    let name = get_class_python_name(cls, args);
+    if let Some(module) = &args.options.module {
+        let value = module.value.value();
+        format!("{value}.{name}")
+    } else {
+        name.to_string()
+    }
+}
+
 fn impl_class(
     cls: &syn::Ident,
     args: &PyClassArgs,
@@ -2140,13 +2150,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         let cls = self.cls;
 
         let input_type = if cfg!(feature = "experimental-inspect") {
-            let cls_name = get_class_python_name(cls, self.attr).to_string();
-            let full_name = if let Some(ModuleAttribute { value, .. }) = &self.attr.options.module {
-                let value = value.value();
-                format!("{value}.{cls_name}")
-            } else {
-                cls_name
-            };
+            let full_name = get_class_python_module_and_name(cls, self.attr);
             quote! { const INPUT_TYPE: &'static str = #full_name; }
         } else {
             quote! {}
@@ -2200,11 +2204,18 @@ impl<'a> PyClassImplsBuilder<'a> {
         let attr = self.attr;
         // If #cls is not extended type, we allow Self->PyObject conversion
         if attr.options.extends.is_none() {
+            let output_type = if cfg!(feature = "experimental-inspect") {
+                let full_name = get_class_python_module_and_name(cls, self.attr);
+                quote! { const OUTPUT_TYPE: &'static str = #full_name; }
+            } else {
+                quote! {}
+            };
             quote! {
                 impl<'py> #pyo3_path::conversion::IntoPyObject<'py> for #cls {
                     type Target = Self;
                     type Output = #pyo3_path::Bound<'py, <Self as #pyo3_path::conversion::IntoPyObject<'py>>::Target>;
                     type Error = #pyo3_path::PyErr;
+                    #output_type
 
                     fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> ::std::result::Result<
                         <Self as #pyo3_path::conversion::IntoPyObject>::Output,
