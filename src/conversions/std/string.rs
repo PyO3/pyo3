@@ -5,7 +5,7 @@ use crate::inspect::types::TypeInfo;
 use crate::{
     conversion::IntoPyObject,
     instance::Bound,
-    types::{any::PyAnyMethods, string::PyStringMethods, PyString},
+    types::{string::PyStringMethods, PyString},
     FromPyObject, PyAny, PyResult, Python,
 };
 
@@ -142,7 +142,7 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a str {
     const INPUT_TYPE: &'static str = "str";
 
     fn from_py_object_bound(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
-        ob.downcast::<PyString>()?.to_str()
+        ob.cast::<PyString>()?.to_str()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -156,7 +156,7 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, str> {
     const INPUT_TYPE: &'static str = "str";
 
     fn from_py_object_bound(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
-        ob.downcast::<PyString>()?.to_cow()
+        ob.cast::<PyString>()?.to_cow()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -172,7 +172,7 @@ impl FromPyObject<'_> for String {
     const INPUT_TYPE: &'static str = "str";
 
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
-        obj.downcast::<PyString>()?.to_cow().map(Cow::into_owned)
+        obj.cast::<PyString>()?.to_cow().map(Cow::into_owned)
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -186,7 +186,7 @@ impl FromPyObject<'_> for char {
     const INPUT_TYPE: &'static str = "str";
 
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let s = obj.downcast::<PyString>()?.to_cow()?;
+        let s = obj.cast::<PyString>()?.to_cow()?;
         let mut iter = s.chars();
         if let (Some(ch), None) = (iter.next(), iter.next()) {
             Ok(ch)

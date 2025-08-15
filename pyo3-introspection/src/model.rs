@@ -4,7 +4,7 @@ pub struct Module {
     pub modules: Vec<Module>,
     pub classes: Vec<Class>,
     pub functions: Vec<Function>,
-    pub consts: Vec<Const>,
+    pub attributes: Vec<Attribute>,
     pub incomplete: bool,
 }
 
@@ -12,6 +12,7 @@ pub struct Module {
 pub struct Class {
     pub name: String,
     pub methods: Vec<Function>,
+    pub attributes: Vec<Attribute>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
@@ -25,9 +26,12 @@ pub struct Function {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
-pub struct Const {
+pub struct Attribute {
     pub name: String,
-    pub value: String,
+    /// Value as a Python expression if easily expressible
+    pub value: Option<String>,
+    /// Type annotation as a Python expression
+    pub annotation: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]

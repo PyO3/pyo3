@@ -56,7 +56,7 @@ impl PyModule {
         unsafe {
             ffi::PyModule_NewObject(name.as_ptr())
                 .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -89,7 +89,7 @@ impl PyModule {
         unsafe {
             ffi::PyImport_Import(name.as_ptr())
                 .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -140,6 +140,8 @@ impl PyModule {
     /// use std::ffi::CString;
     ///
     /// # fn main() -> PyResult<()> {
+    /// # #[cfg(not(target_arch = "wasm32"))]  // node fs doesn't see this file, maybe cwd wrong?
+    /// # {
     /// // This path is resolved by however the platform resolves paths,
     /// // which also makes this less portable. Consider using `include_str`
     /// // if you just want to bundle a script with your module.
@@ -149,7 +151,8 @@ impl PyModule {
     ///     PyModule::from_code(py, CString::new(code)?.as_c_str(), c_str!("example.py"), c_str!("example"))?;
     ///     Ok(())
     /// })?;
-    /// Ok(())
+    /// # }
+    /// # Ok(())
     /// # }
     /// ```
     pub fn from_code<'py>(
@@ -169,7 +172,7 @@ impl PyModule {
 
             ffi::PyImport_ExecCodeModuleEx(module_name.as_ptr(), code.as_ptr(), file_name.as_ptr())
                 .assume_owned_or_err(py)
-                .downcast_into()
+                .cast_into()
         }
     }
 }
@@ -406,14 +409,14 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
             ffi::PyModule_GetDict(self.as_ptr())
                 .assume_borrowed(self.py())
                 .to_owned()
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
     fn index(&self) -> PyResult<Bound<'py, PyList>> {
         let __all__ = __all__(self.py());
         match self.getattr(__all__) {
-            Ok(idx) => idx.downcast_into().map_err(PyErr::from),
+            Ok(idx) => idx.cast_into().map_err(PyErr::from),
             Err(err) => {
                 if err.is_instance_of::<exceptions::PyAttributeError>(self.py()) {
                     let l = PyList::empty(self.py());
@@ -432,7 +435,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
             unsafe {
                 ffi::PyModule_GetNameObject(self.as_ptr())
                     .assume_owned_or_err(self.py())
-                    .downcast_into_unchecked()
+                    .cast_into_unchecked()
             }
         }
 
@@ -441,7 +444,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
             self.dict()
                 .get_item("__name__")
                 .map_err(|_| exceptions::PyAttributeError::new_err("__name__"))?
-                .downcast_into()
+                .cast_into()
                 .map_err(PyErr::from)
         }
     }
@@ -451,7 +454,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
         unsafe {
             ffi::PyModule_GetFilenameObject(self.as_ptr())
                 .assume_owned_or_err(self.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
 
         #[cfg(PyPy)]
@@ -459,7 +462,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
             self.dict()
                 .get_item("__file__")
                 .map_err(|_| exceptions::PyAttributeError::new_err("__file__"))?
-                .downcast_into()
+                .cast_into()
                 .map_err(PyErr::from)
         }
     }
@@ -503,7 +506,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
     {
         fn inner(module: &Bound<'_, PyModule>, object: Bound<'_, PyAny>) -> PyResult<()> {
             let name = object.getattr(__name__(module.py()))?;
-            module.add(name.downcast_into::<PyString>()?, object)
+            module.add(name.cast_into::<PyString>()?, object)
         }
 
         let py = self.py();
@@ -517,7 +520,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
 
     fn add_function(&self, fun: Bound<'_, PyCFunction>) -> PyResult<()> {
         let name = fun.getattr(__name__(self.py()))?;
-        self.add(name.downcast_into::<PyString>()?, fun)
+        self.add(name.cast_into::<PyString>()?, fun)
     }
 
     #[cfg_attr(any(Py_LIMITED_API, not(Py_GIL_DISABLED)), allow(unused_variables))]

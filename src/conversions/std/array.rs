@@ -54,7 +54,7 @@ where
     // to support this function and if not, we will only fail extraction safely.
     let seq = unsafe {
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-            obj.downcast_unchecked::<PySequence>()
+            obj.cast_unchecked::<PySequence>()
         } else {
             return Err(DowncastError::new(obj, "Sequence").into());
         }
@@ -181,7 +181,7 @@ mod tests {
         Python::attach(|py| {
             let array: [f32; 4] = [0.0, -16.0, 16.0, 42.0];
             let pyobject = array.into_pyobject(py).unwrap();
-            let pylist = pyobject.downcast::<PyList>().unwrap();
+            let pylist = pyobject.cast::<PyList>().unwrap();
             assert_eq!(pylist.get_item(0).unwrap().extract::<f32>().unwrap(), 0.0);
             assert_eq!(pylist.get_item(1).unwrap().extract::<f32>().unwrap(), -16.0);
             assert_eq!(pylist.get_item(2).unwrap().extract::<f32>().unwrap(), 16.0);
@@ -210,7 +210,7 @@ mod tests {
             let pylist = array
                 .into_pyobject(py)
                 .unwrap()
-                .downcast_into::<PyList>()
+                .cast_into::<PyList>()
                 .unwrap();
 
             assert_eq!(pylist.get_item(0).unwrap().extract::<f32>().unwrap(), 0.0);
@@ -226,7 +226,7 @@ mod tests {
             let bytes: [u8; 6] = *b"foobar";
             let obj = bytes.into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
-            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            let obj = obj.cast_into::<PyBytes>().unwrap();
             assert_eq!(obj.as_bytes(), &bytes);
 
             let nums: [u16; 4] = [0, 1, 2, 3];
@@ -255,9 +255,9 @@ mod tests {
             let list = array
                 .into_pyobject(py)
                 .unwrap()
-                .downcast_into::<PyList>()
+                .cast_into::<PyList>()
                 .unwrap();
-            let _bound = list.get_item(4).unwrap().downcast::<Foo>().unwrap();
+            let _bound = list.get_item(4).unwrap().cast::<Foo>().unwrap();
         });
     }
 

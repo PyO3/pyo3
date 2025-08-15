@@ -19,7 +19,7 @@ impl PyMemoryView {
         unsafe {
             ffi::PyMemoryView_FromObject(src.as_ptr())
                 .assume_owned_or_err(src.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }

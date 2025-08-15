@@ -36,7 +36,7 @@ pub fn dumps<'py>(object: &Bound<'py, PyAny>, version: i32) -> PyResult<Bound<'p
     unsafe {
         ffi::PyMarshal_WriteObjectToString(object.as_ptr(), version as c_int)
             .assume_owned_or_err(object.py())
-            .downcast_into_unchecked()
+            .cast_into_unchecked()
     }
 }
 

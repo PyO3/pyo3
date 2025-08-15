@@ -3,7 +3,6 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, PyClassWeakRef};
 use crate::impl_::pyclass_init::{PyNativeTypeInitializer, PyObjectInit};
-use crate::types::PyAnyMethods;
 use crate::{ffi, Bound, Py, PyClass, PyResult, Python};
 use crate::{
     ffi::PyTypeObject,
@@ -196,7 +195,7 @@ impl<T: PyClass> PyClassInitializer<T> {
 
         // Safety: obj is a valid pointer to an object of type `target_type`, which` is a known
         // subclass of `T`
-        Ok(unsafe { obj.assume_owned(py).downcast_into_unchecked() })
+        Ok(unsafe { obj.assume_owned(py).cast_into_unchecked() })
     }
 }
 

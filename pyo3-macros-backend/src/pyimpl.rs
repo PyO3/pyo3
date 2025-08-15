@@ -2,9 +2,11 @@ use std::collections::HashSet;
 
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
-use crate::introspection::function_introspection_code;
+use crate::introspection::{attribute_introspection_code, function_introspection_code};
 #[cfg(feature = "experimental-inspect")]
 use crate::method::{FnSpec, FnType};
+#[cfg(feature = "experimental-inspect")]
+use crate::utils::expr_to_python;
 use crate::utils::{has_attribute, has_attribute_with_namespace, Ctx, PyO3CratePath};
 use crate::{
     attributes::{take_pyo3_options, CrateAttribute},
@@ -16,11 +18,12 @@ use crate::{
 };
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::ImplItemFn;
+#[cfg(feature = "experimental-inspect")]
+use syn::Ident;
 use syn::{
     parse::{Parse, ParseStream},
     spanned::Spanned,
-    Result,
+    ImplItemFn, Result,
 };
 
 /// The mechanism used to collect `#[pymethods]` into the type object
@@ -182,6 +185,15 @@ pub fn impl_methods(
                                 .attrs
                                 .push(syn::parse_quote!(#[allow(non_upper_case_globals)]));
                         }
+                        #[cfg(feature = "experimental-inspect")]
+                        extra_fragments.push(attribute_introspection_code(
+                            &ctx.pyo3_path,
+                            Some(ty),
+                            spec.python_name().to_string(),
+                            expr_to_python(&konst.expr),
+                            konst.ty.clone(),
+                            true,
+                        ));
                     }
                 }
                 syn::ImplItem::Macro(m) => bail_spanned!(
@@ -354,22 +366,34 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
     let Ctx { pyo3_path, .. } = ctx;
 
     let name = spec.python_name.to_string();
-    if matches!(
-        name.as_str(),
-        "__richcmp__"
-            | "__concat__"
-            | "__repeat__"
-            | "__inplace_concat__"
-            | "__inplace_repeat__"
-            | "__getbuffer__"
-            | "__releasebuffer__"
-            | "__traverse__"
-            | "__clear__"
-    ) {
-        // This is not a magic Python method, ignore for now
-        // TODO: properly implement
-        return quote! {};
+
+    // __richcmp__ special case
+    if name == "__richcmp__" {
+        // We expend into each individual method
+        return ["__eq__", "__ne__", "__lt__", "__le__", "__gt__", "__ge__"]
+            .into_iter()
+            .map(|method_name| {
+                let mut spec = (*spec).clone();
+                spec.python_name = Ident::new(method_name, spec.python_name.span());
+                // We remove the CompareOp arg, this is safe because the signature is always the same
+                // First the other value to compare with then the CompareOp
+                // We cant to keep the first argument type, hence this hack
+                spec.signature.arguments.pop();
+                spec.signature.python_signature.positional_parameters.pop();
+                method_introspection_code(&spec, parent, ctx)
+            })
+            .collect();
     }
+    // We map or ignore some magic methods
+    // TODO: this might create a naming conflict
+    let name = match name.as_str() {
+        "__concat__" => "__add__".into(),
+        "__repeat__" => "__mul__".into(),
+        "__inplace_concat__" => "__iadd__".into(),
+        "__inplace_repeat__" => "__imul__".into(),
+        "__getbuffer__" | "__releasebuffer__" | "__traverse__" | "__clear__" => return quote! {},
+        _ => name,
+    };
 
     // We introduce self/cls argument and setup decorators
     let mut first_argument = None;

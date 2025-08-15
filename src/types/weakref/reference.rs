@@ -88,7 +88,7 @@ impl PyWeakrefReference {
                 object.py(),
                 ffi::PyWeakref_NewRef(object.as_ptr(), ffi::Py_None()),
             )
-            .downcast_into_unchecked()
+            .cast_into_unchecked()
         }
     }
 
@@ -162,7 +162,7 @@ impl PyWeakrefReference {
                     object.py(),
                     ffi::PyWeakref_NewRef(object.as_ptr(), callback.as_ptr()),
                 )
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
             }
         }
 
@@ -244,8 +244,7 @@ mod tests {
 
         fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
             py.run(ffi::c_str!("class A:\n    pass\n"), None, None)?;
-            py.eval(ffi::c_str!("A"), None, None)
-                .downcast_into::<PyType>()
+            py.eval(ffi::c_str!("A"), None, None).cast_into::<PyType>()
         }
 
         #[test]

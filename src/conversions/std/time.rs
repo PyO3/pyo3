@@ -14,7 +14,7 @@ const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
 
 impl FromPyObject<'_> for Duration {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let delta = obj.downcast::<PyDelta>()?;
+        let delta = obj.cast::<PyDelta>()?;
         #[cfg(not(Py_LIMITED_API))]
         let (days, seconds, microseconds) = {
             (
@@ -108,7 +108,7 @@ impl<'py> IntoPyObject<'py> for SystemTime {
             self.duration_since(UNIX_EPOCH).unwrap().into_pyobject(py)?;
         unix_epoch_py(py)?
             .add(duration_since_unix_epoch)?
-            .downcast_into()
+            .cast_into()
             .map_err(Into::into)
     }
 }
@@ -343,7 +343,7 @@ mod tests {
         naive_max
             .call_method("replace", (), Some(&kargs))
             .unwrap()
-            .downcast_into()
+            .cast_into()
             .unwrap()
     }
 

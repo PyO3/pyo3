@@ -6,7 +6,6 @@ use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::internal::get_slot::TP_DESCR_GET;
-use crate::internal_tricks::ptr_from_ref;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -730,6 +729,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// # Example: Downcasting to a specific Python object
     ///
     /// ```rust
+    /// # #![allow(deprecated)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::{PyDict, PyList};
     ///
@@ -749,6 +749,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// might actually be a pyclass.
     ///
     /// ```rust
+    /// # #![allow(deprecated)]
     /// # fn main() -> Result<(), pyo3::PyErr> {
     /// use pyo3::prelude::*;
     ///
@@ -771,6 +772,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// })
     /// # }
     /// ```
+    // FIXME(icxolu) deprecate in favor of `Bound::cast`
     fn downcast<T>(&self) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
     where
         T: PyTypeCheck;
@@ -782,6 +784,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// # Example
     ///
     /// ```rust
+    /// # #![allow(deprecated)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::{PyDict, PyList};
     ///
@@ -797,6 +800,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///     assert!(obj.downcast_into::<PyDict>().is_ok());
     /// })
     /// ```
+    // FIXME(icxolu) deprecate in favor of `Bound::cast_into`
     fn downcast_into<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
     where
         T: PyTypeCheck;
@@ -815,6 +819,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// # Example: Downcasting to a specific Python object but not a subtype
     ///
     /// ```rust
+    /// # #![allow(deprecated)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::{PyBool, PyInt};
     ///
@@ -831,11 +836,13 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///     assert!(any.downcast_exact::<PyBool>().is_ok());
     /// });
     /// ```
+    // FIXME(icxolu) deprecate in favor of `Bound::cast_exact`
     fn downcast_exact<T>(&self) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
     where
         T: PyTypeInfo;
 
     /// Like `downcast_exact` but takes ownership of `self`.
+    // FIXME(icxolu) deprecate in favor of `Bound::cast_into_exact`
     fn downcast_into_exact<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
     where
         T: PyTypeInfo;
@@ -845,6 +852,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// # Safety
     ///
     /// Callers must ensure that the type is valid or risk type confusion.
+    // FIXME(icxolu) deprecate in favor of `Bound::cast_unchecked`
     unsafe fn downcast_unchecked<T>(&self) -> &Bound<'py, T>;
 
     /// Like `downcast_unchecked` but takes ownership of `self`.
@@ -852,6 +860,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// # Safety
     ///
     /// Callers must ensure that the type is valid or risk type confusion.
+    // FIXME(icxolu) deprecate in favor of `Bound::cast_into_unchecked`
     unsafe fn downcast_into_unchecked<T>(self) -> Bound<'py, T>;
 
     /// Extracts some type from the Python object.
@@ -1441,12 +1450,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         T: PyTypeCheck,
     {
-        if T::type_check(self) {
-            // Safety: type_check is responsible for ensuring that the type is correct
-            Ok(unsafe { self.downcast_unchecked() })
-        } else {
-            Err(DowncastError::new(self, T::NAME))
-        }
+        self.cast()
     }
 
     #[inline]
@@ -1454,12 +1458,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         T: PyTypeCheck,
     {
-        if T::type_check(&self) {
-            // Safety: type_check is responsible for ensuring that the type is correct
-            Ok(unsafe { self.downcast_into_unchecked() })
-        } else {
-            Err(DowncastIntoError::new(self, T::NAME))
-        }
+        self.cast_into()
     }
 
     #[inline]
@@ -1467,12 +1466,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         T: PyTypeInfo,
     {
-        if self.is_exact_instance_of::<T>() {
-            // Safety: is_exact_instance_of is responsible for ensuring that the type is correct
-            Ok(unsafe { self.downcast_unchecked() })
-        } else {
-            Err(DowncastError::new(self, T::NAME))
-        }
+        self.cast_exact()
     }
 
     #[inline]
@@ -1480,22 +1474,17 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         T: PyTypeInfo,
     {
-        if self.is_exact_instance_of::<T>() {
-            // Safety: is_exact_instance_of is responsible for ensuring that the type is correct
-            Ok(unsafe { self.downcast_into_unchecked() })
-        } else {
-            Err(DowncastIntoError::new(self, T::NAME))
-        }
+        self.cast_into_exact()
     }
 
     #[inline]
     unsafe fn downcast_unchecked<T>(&self) -> &Bound<'py, T> {
-        unsafe { &*ptr_from_ref(self).cast() }
+        unsafe { self.cast_unchecked() }
     }
 
     #[inline]
     unsafe fn downcast_into_unchecked<T>(self) -> Bound<'py, T> {
-        unsafe { std::mem::transmute(self) }
+        unsafe { self.cast_into_unchecked() }
     }
 
     fn extract<'a, T>(&'a self) -> PyResult<T>
@@ -1513,7 +1502,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         unsafe {
             ffi::PyObject_Repr(self.as_ptr())
                 .assume_owned_or_err(self.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -1521,7 +1510,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         unsafe {
             ffi::PyObject_Str(self.as_ptr())
                 .assume_owned_or_err(self.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -1541,7 +1530,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         unsafe {
             ffi::PyObject_Dir(self.as_ptr())
                 .assume_owned_or_err(self.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -1826,7 +1815,7 @@ class SimpleClass:
             let dir = py
                 .eval(ffi::c_str!("dir(42)"), None, None)
                 .unwrap()
-                .downcast_into::<PyList>()
+                .cast_into::<PyList>()
                 .unwrap();
             let a = obj
                 .dir()

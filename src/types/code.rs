@@ -66,7 +66,7 @@ impl PyCode {
         unsafe {
             ffi::Py_CompileString(code.as_ptr(), filename.as_ptr(), start)
                 .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }
@@ -101,7 +101,7 @@ impl<'py> PyCodeMethods<'py> for Bound<'py, PyCode> {
         let attr = mptr.getattr(crate::intern!(self.py(), "__dict__"))?;
         let globals = match globals {
             Some(globals) => globals,
-            None => attr.downcast::<PyDict>()?,
+            None => attr.cast::<PyDict>()?,
         };
         let locals = locals.unwrap_or(globals);
 

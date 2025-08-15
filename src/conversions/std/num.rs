@@ -82,7 +82,7 @@ macro_rules! extract_int {
         // See https://github.com/PyO3/pyo3/pull/3742 for detials
         if cfg!(Py_3_10) && !$force_index_call {
             err_if_invalid_value($obj.py(), $error_val, unsafe { $pylong_as($obj.as_ptr()) })
-        } else if let Ok(long) = $obj.downcast::<crate::types::PyInt>() {
+        } else if let Ok(long) = $obj.cast::<crate::types::PyInt>() {
             // fast path - checking for subclass of `int` just checks a bit in the type $object
             err_if_invalid_value($obj.py(), $error_val, unsafe { $pylong_as(long.as_ptr()) })
         } else {
@@ -108,7 +108,7 @@ macro_rules! int_convert_u64_or_i64 {
                 unsafe {
                     Ok($pylong_from_ll_or_ull(self)
                         .assume_owned(py)
-                        .downcast_into_unchecked())
+                        .cast_into_unchecked())
                 }
             }
 
@@ -165,7 +165,7 @@ macro_rules! int_fits_c_long {
                 unsafe {
                     Ok(ffi::PyLong_FromLong(self as c_long)
                         .assume_owned(py)
-                        .downcast_into_unchecked())
+                        .cast_into_unchecked())
                 }
             }
 
@@ -224,7 +224,7 @@ impl<'py> IntoPyObject<'py> for u8 {
         unsafe {
             Ok(ffi::PyLong_FromLong(self as c_long)
                 .assume_owned(py)
-                .downcast_into_unchecked())
+                .cast_into_unchecked())
         }
     }
 
@@ -352,7 +352,7 @@ mod fast_128bit_int_conversion {
                                 $is_signed.into(),
                             )
                             .assume_owned(py)
-                            .downcast_into_unchecked())
+                            .cast_into_unchecked())
                         }
                     }
                     #[cfg(Py_3_13)]
@@ -367,7 +367,7 @@ mod fast_128bit_int_conversion {
                                     ffi::Py_ASNATIVEBYTES_NATIVE_ENDIAN,
                                 )
                                 .assume_owned(py)
-                                .downcast_into_unchecked())
+                                .cast_into_unchecked())
                             }
                         } else {
                             unsafe {
@@ -377,7 +377,7 @@ mod fast_128bit_int_conversion {
                                     ffi::Py_ASNATIVEBYTES_NATIVE_ENDIAN,
                                 )
                                 .assume_owned(py)
-                                .downcast_into_unchecked())
+                                .cast_into_unchecked())
                             }
                         }
                     }
@@ -497,7 +497,7 @@ mod slow_128bit_int_conversion {
 
                         Ok(ffi::PyNumber_Or(shifted.as_ptr(), lower.as_ptr())
                             .assume_owned(py)
-                            .downcast_into_unchecked())
+                            .cast_into_unchecked())
                     }
                 }
 

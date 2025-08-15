@@ -12,7 +12,7 @@
 | <span style="white-space: pre">`frozen`</span> | Declares that your pyclass is immutable. It removes the borrow checker overhead when retrieving a shared reference to the Rust struct, but disables the ability to get a mutable reference. |
 | `generic` | Implements runtime parametrization for the class following [PEP 560](https://peps.python.org/pep-0560/). |
 | `get_all` | Generates getters for all fields of the pyclass. |
-| `hash` | Implements `__hash__` using the `Hash` implementation of the underlying Rust datatype. |
+| `hash` | Implements `__hash__` using the `Hash` implementation of the underlying Rust datatype. *Requires `eq` and `frozen`* |
 | `immutable_type` | Makes the type object immutable. Supported on 3.14+ with the `abi3` feature active, or 3.10+ otherwise. |
 | `mapping` |  Inform PyO3 that this class is a [`Mapping`][params-mapping], and so leave its implementation of sequence C-API slots empty. |
 | <span style="white-space: pre">`module = "module_name"`</span> |  Python code will see the class as being defined in this module. Defaults to `builtins`. |

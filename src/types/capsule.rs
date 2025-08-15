@@ -124,7 +124,7 @@ impl PyCapsule {
                 Some(capsule_destructor::<T, F>),
             )
             .assume_owned_or_err(py)
-            .downcast_into_unchecked()
+            .cast_into_unchecked()
         }
     }
 

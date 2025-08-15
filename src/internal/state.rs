@@ -61,6 +61,30 @@ impl AttachGuard {
         unsafe { Self::acquire_unchecked() }
     }
 
+    /// Variant of the above which will will return `None` if the interpreter cannot be attached to.
+    #[cfg(any(not(Py_LIMITED_API), Py_3_11, test))] // see Python::try_attach
+    pub(crate) fn try_acquire() -> Option<Self> {
+        match ATTACH_COUNT.try_with(|c| c.get()) {
+            Ok(i) if i > 0 => {
+                // SAFETY: We just checked that the thread is already attached.
+                return Some(unsafe { Self::assume() });
+            }
+            // Cannot attach during GC traversal.
+            Ok(ATTACH_FORBIDDEN_DURING_TRAVERSE) => return None,
+            // other cases handled below
+            _ => {}
+        }
+
+        // SAFETY: This API is always sound to call
+        if unsafe { ffi::Py_IsInitialized() } == 0 {
+            // If the interpreter is not initialized, we cannot attach.
+            return None;
+        }
+
+        // SAFETY: We have ensured the Python interpreter is initialized.
+        Some(unsafe { Self::acquire_unchecked() })
+    }
+
     /// Acquires the `AttachGuard` without performing any state checking.
     ///
     /// This can be called in "unsafe" contexts where the normal interpreter state
@@ -273,6 +297,14 @@ pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
             panic!("Cannot drop pointer into Python heap without the thread being attached.");
         }
     }
+}
+
+/// Private helper function to check if we are currently in a GC traversal (as detected by PyO3).
+#[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+pub(crate) fn is_in_gc_traversal() -> bool {
+    ATTACH_COUNT
+        .try_with(|c| c.get() == ATTACH_FORBIDDEN_DURING_TRAVERSE)
+        .unwrap_or(false)
 }
 
 /// Increments pyo3's internal attach count - to be called whenever an AttachGuard is created.

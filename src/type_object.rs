@@ -1,7 +1,6 @@
 //! Python type object information
 
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyType};
 use crate::{ffi, Bound, Python};
 use std::ptr;
@@ -63,7 +62,7 @@ pub unsafe trait PyTypeInfo: Sized {
                 .cast::<ffi::PyObject>()
                 .assume_borrowed_unchecked(py)
                 .to_owned()
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 

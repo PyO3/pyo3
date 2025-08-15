@@ -1,7 +1,6 @@
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::types::any::PyAnyMethods;
 use crate::types::{PyRange, PyRangeMethods};
 use crate::{Bound, IntoPyObject, PyAny, Python};
 use std::convert::Infallible;
@@ -64,7 +63,7 @@ impl PySlice {
                 ffi::PyLong_FromSsize_t(step),
             )
             .assume_owned(py)
-            .downcast_into_unchecked()
+            .cast_into_unchecked()
         }
     }
 
@@ -73,7 +72,7 @@ impl PySlice {
         unsafe {
             ffi::PySlice_New(ffi::Py_None(), ffi::Py_None(), ffi::Py_None())
                 .assume_owned(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }
@@ -157,6 +156,7 @@ impl<'py> TryFrom<Bound<'py, PyRange>> for Bound<'py, PySlice> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::PyAnyMethods as _;
 
     #[test]
     fn test_py_slice_new() {

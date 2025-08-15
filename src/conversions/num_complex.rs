@@ -94,10 +94,8 @@
 //! assert result == [complex(1,-1), complex(-2,0)]
 //! ```
 use crate::{
-    ffi,
-    ffi_ptr_ext::FfiPtrExt,
-    types::{any::PyAnyMethods, PyComplex},
-    Bound, FromPyObject, PyAny, PyErr, PyResult, Python,
+    ffi, ffi_ptr_ext::FfiPtrExt, types::PyComplex, Bound, FromPyObject, PyAny, PyErr, PyResult,
+    Python,
 };
 use num_complex::Complex;
 use std::os::raw::c_double;
@@ -111,7 +109,7 @@ impl PyComplex {
         unsafe {
             ffi::PyComplex_FromDoubles(complex.re.into(), complex.im.into())
                 .assume_owned(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }
@@ -129,7 +127,7 @@ macro_rules! complex_conversion {
                     Ok(
                         ffi::PyComplex_FromDoubles(self.re as c_double, self.im as c_double)
                             .assume_owned(py)
-                            .downcast_into_unchecked(),
+                            .cast_into_unchecked(),
                     )
                 }
             }
@@ -163,6 +161,7 @@ macro_rules! complex_conversion {
 
                 #[cfg(any(Py_LIMITED_API, PyPy))]
                 unsafe {
+                    use $crate::types::any::PyAnyMethods;
                     let complex;
                     let obj = if obj.is_instance_of::<PyComplex>() {
                         obj
@@ -198,6 +197,7 @@ complex_conversion!(f64);
 mod tests {
     use super::*;
     use crate::tests::common::generate_unique_module_name;
+    use crate::types::PyAnyMethods as _;
     use crate::types::{complex::PyComplexMethods, PyModule};
     use crate::IntoPyObject;
     use pyo3_ffi::c_str;

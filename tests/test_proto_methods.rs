@@ -218,7 +218,7 @@ fn mapping() {
         )
         .unwrap();
 
-        let mapping: &Bound<'_, PyMapping> = inst.bind(py).downcast().unwrap();
+        let mapping: &Bound<'_, PyMapping> = inst.bind(py).cast().unwrap();
 
         py_assert!(py, inst, "len(inst) == 0");
 
@@ -320,7 +320,7 @@ fn sequence() {
 
         let inst = Py::new(py, Sequence { values: vec![] }).unwrap();
 
-        let sequence: &Bound<'_, PySequence> = inst.bind(py).downcast().unwrap();
+        let sequence: &Bound<'_, PySequence> = inst.bind(py).cast().unwrap();
 
         py_assert!(py, inst, "len(inst) == 0");
 
@@ -527,7 +527,7 @@ struct GetItem {}
 #[pymethods]
 impl GetItem {
     fn __getitem__(&self, idx: &Bound<'_, PyAny>) -> PyResult<&'static str> {
-        if let Ok(slice) = idx.downcast::<PySlice>() {
+        if let Ok(slice) = idx.cast::<PySlice>() {
             let indices = slice.indices(1000)?;
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
                 return Ok("slice");

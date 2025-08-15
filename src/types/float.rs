@@ -38,7 +38,7 @@ impl PyFloat {
         unsafe {
             ffi::PyFloat_FromDouble(val)
                 .assume_owned(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }
@@ -74,6 +74,9 @@ impl<'py> IntoPyObject<'py> for f64 {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = "float";
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyFloat::new(py, self))
@@ -89,6 +92,9 @@ impl<'py> IntoPyObject<'py> for &f64 {
     type Target = PyFloat;
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = f64::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -113,7 +119,7 @@ impl<'py> FromPyObject<'py> for f64 {
         // we have exactly a `float` object (it's not worth going through
         // `isinstance` machinery for subclasses).
         #[cfg(not(Py_LIMITED_API))]
-        if let Ok(float) = obj.downcast_exact::<PyFloat>() {
+        if let Ok(float) = obj.cast_exact::<PyFloat>() {
             return Ok(float.value());
         }
 
@@ -139,6 +145,9 @@ impl<'py> IntoPyObject<'py> for f32 {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = "float";
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyFloat::new(py, self.into()))
@@ -154,6 +163,9 @@ impl<'py> IntoPyObject<'py> for &f32 {
     type Target = PyFloat;
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = f32::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {

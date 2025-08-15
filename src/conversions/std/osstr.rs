@@ -1,7 +1,6 @@
 use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
-use crate::types::any::PyAnyMethods;
 use crate::types::PyString;
 use crate::{ffi, FromPyObject, PyAny, PyResult, Python};
 use std::borrow::Cow;
@@ -35,7 +34,7 @@ impl<'py> IntoPyObject<'py> for &OsStr {
                 // parse os strings losslessly (i.e. surrogateescape most of the time)
                 Ok(ffi::PyUnicode_DecodeFSDefaultAndSize(ptr, len)
                     .assume_owned(py)
-                    .downcast_into_unchecked::<PyString>())
+                    .cast_into_unchecked::<PyString>())
             }
         }
 
@@ -50,7 +49,7 @@ impl<'py> IntoPyObject<'py> for &OsStr {
                 Ok(
                     ffi::PyUnicode_FromWideChar(wstr.as_ptr(), wstr.len() as ffi::Py_ssize_t)
                         .assume_owned(py)
-                        .downcast_into_unchecked::<PyString>(),
+                        .cast_into_unchecked::<PyString>(),
                 )
             }
         }
@@ -73,7 +72,7 @@ impl<'py> IntoPyObject<'py> for &&OsStr {
 
 impl FromPyObject<'_> for OsString {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let pystring = ob.downcast::<PyString>()?;
+        let pystring = ob.cast::<PyString>()?;
 
         #[cfg(not(windows))]
         {
@@ -207,7 +206,7 @@ mod tests {
                 T::Error: Debug,
             {
                 let pyobject = obj.clone().into_pyobject(py).unwrap().into_any();
-                let pystring = pyobject.as_borrowed().downcast::<PyString>().unwrap();
+                let pystring = pyobject.as_borrowed().cast::<PyString>().unwrap();
                 assert_eq!(pystring.to_string_lossy(), obj.as_ref().to_string_lossy());
                 let roundtripped_obj: OsString = pystring.extract().unwrap();
                 assert_eq!(obj.as_ref(), roundtripped_obj.as_os_str());

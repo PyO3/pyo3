@@ -178,7 +178,7 @@ fn test_fallible_class_attribute() {
                 .string_io
                 .getattr("getvalue")?
                 .call0()?
-                .downcast::<PyString>()?
+                .cast::<PyString>()?
                 .to_cow()?
                 .into_owned();
             let sys = py.import("sys")?;

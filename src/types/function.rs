@@ -101,7 +101,7 @@ impl PyCFunction {
         unsafe {
             ffi::PyCFunction_NewEx(data.def.get(), capsule.as_ptr(), std::ptr::null_mut())
                 .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -129,7 +129,7 @@ impl PyCFunction {
         unsafe {
             ffi::PyCFunction_NewEx(def, mod_ptr, module_name_ptr)
                 .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }
@@ -145,8 +145,6 @@ where
     F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
     for<'py> R: crate::impl_::callback::IntoPyCallbackOutput<'py, *mut ffi::PyObject>,
 {
-    use crate::types::any::PyAnyMethods;
-
     unsafe {
         crate::impl_::trampoline::cfunction_with_keywords(
             capsule_ptr,
@@ -156,10 +154,10 @@ where
                 let boxed_fn: &ClosureDestructor<F> =
                     &*(ffi::PyCapsule_GetPointer(capsule_ptr, CLOSURE_CAPSULE_NAME.as_ptr())
                         as *mut ClosureDestructor<F>);
-                let args = Bound::ref_from_ptr(py, &args).downcast_unchecked::<PyTuple>();
+                let args = Bound::ref_from_ptr(py, &args).cast_unchecked::<PyTuple>();
                 let kwargs = Bound::ref_from_ptr_or_opt(py, &kwargs)
                     .as_ref()
-                    .map(|b| b.downcast_unchecked::<PyDict>());
+                    .map(|b| b.cast_unchecked::<PyDict>());
                 let result = (boxed_fn.closure)(args, kwargs);
                 crate::impl_::callback::convert(py, result)
             },

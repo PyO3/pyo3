@@ -197,7 +197,7 @@ fn main() -> PyResult<()> {
 
         // Import and get sys.modules
         let sys = PyModule::import(py, "sys")?;
-        let py_modules: Bound<'_, PyDict> = sys.getattr("modules")?.downcast_into()?;
+        let py_modules: Bound<'_, PyDict> = sys.getattr("modules")?.cast_into()?;
 
         // Insert foo into sys.modules
         py_modules.set_item("foo", foo_module)?;
@@ -302,7 +302,7 @@ fn main() -> PyResult<()> {
         let syspath = py
             .import("sys")?
             .getattr("path")?
-            .downcast_into::<PyList>()?;
+            .cast_into::<PyList>()?;
         syspath.insert(0, path)?;
         let app: Py<PyAny> = PyModule::from_code(py, py_app.as_c_str(), c_str!("app.py"), c_str!(""))?
             .getattr("run")?

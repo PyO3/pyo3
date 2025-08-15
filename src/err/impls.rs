@@ -26,8 +26,11 @@ impl From<PyErr> for io::Error {
                 io::ErrorKind::WouldBlock
             } else if err.is_instance_of::<exceptions::PyTimeoutError>(py) {
                 io::ErrorKind::TimedOut
+            } else if err.is_instance_of::<exceptions::PyMemoryError>(py) {
+                io::ErrorKind::OutOfMemory
             } else {
                 #[cfg(io_error_more)]
+                #[allow(clippy::incompatible_msrv)] // gated by `io_error_more`
                 if err.is_instance_of::<exceptions::PyIsADirectoryError>(py) {
                     io::ErrorKind::IsADirectory
                 } else if err.is_instance_of::<exceptions::PyNotADirectoryError>(py) {
@@ -63,6 +66,7 @@ impl From<io::Error> for PyErr {
             io::ErrorKind::AlreadyExists => exceptions::PyFileExistsError::new_err(err),
             io::ErrorKind::WouldBlock => exceptions::PyBlockingIOError::new_err(err),
             io::ErrorKind::TimedOut => exceptions::PyTimeoutError::new_err(err),
+            io::ErrorKind::OutOfMemory => exceptions::PyMemoryError::new_err(err),
             #[cfg(io_error_more)]
             io::ErrorKind::IsADirectory => exceptions::PyIsADirectoryError::new_err(err),
             #[cfg(io_error_more)]

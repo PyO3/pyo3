@@ -249,7 +249,7 @@ fn test_enum() {
         let foo = (&struct_var)
             .into_pyobject(py)
             .unwrap()
-            .downcast_into::<PyDict>()
+            .cast_into::<PyDict>()
             .unwrap();
         assert_eq!(struct_var, foo.extract::<Foo>().unwrap());
 
@@ -257,7 +257,7 @@ fn test_enum() {
             .clone()
             .into_pyobject(py)
             .unwrap()
-            .downcast_into::<PyDict>()
+            .cast_into::<PyDict>()
             .unwrap();
 
         assert_eq!(struct_var, foo.extract::<Foo>().unwrap());

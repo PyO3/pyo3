@@ -105,7 +105,7 @@ macro_rules! month_from_number {
 fn extract_date_time(dt: &Bound<'_, PyAny>) -> PyResult<(Date, Time)> {
     #[cfg(not(Py_LIMITED_API))]
     {
-        let dt = dt.downcast::<PyDateTime>()?;
+        let dt = dt.cast::<PyDateTime>()?;
         let date = Date::from_calendar_date(
             dt.get_year(),
             month_from_number!(dt.get_month()),
@@ -184,7 +184,7 @@ impl FromPyObject<'_> for Duration {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Duration> {
         #[cfg(not(Py_LIMITED_API))]
         let (days, seconds, microseconds) = {
-            let delta = ob.downcast::<PyDelta>()?;
+            let delta = ob.cast::<PyDelta>()?;
             (
                 delta.get_days().into(),
                 delta.get_seconds().into(),
@@ -228,7 +228,7 @@ impl FromPyObject<'_> for Date {
         let (year, month, day) = {
             #[cfg(not(Py_LIMITED_API))]
             {
-                let date = ob.downcast::<PyDate>()?;
+                let date = ob.cast::<PyDate>()?;
                 (date.get_year(), date.get_month(), date.get_day())
             }
 
@@ -269,7 +269,7 @@ impl FromPyObject<'_> for Time {
         let (hour, minute, second, microsecond) = {
             #[cfg(not(Py_LIMITED_API))]
             {
-                let time = ob.downcast::<PyTime>()?;
+                let time = ob.cast::<PyTime>()?;
                 let hour: u8 = time.get_hour();
                 let minute: u8 = time.get_minute();
                 let second: u8 = time.get_second();
@@ -328,7 +328,7 @@ impl FromPyObject<'_> for PrimitiveDateTime {
         let has_tzinfo = {
             #[cfg(not(Py_LIMITED_API))]
             {
-                let dt = dt.downcast::<PyDateTime>()?;
+                let dt = dt.cast::<PyDateTime>()?;
                 dt.get_tzinfo().is_some()
             }
             #[cfg(Py_LIMITED_API)]
@@ -363,7 +363,7 @@ impl<'py> IntoPyObject<'py> for UtcOffset {
 impl FromPyObject<'_> for UtcOffset {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<UtcOffset> {
         #[cfg(not(Py_LIMITED_API))]
-        let ob = ob.downcast::<PyTzInfo>()?;
+        let ob = ob.cast::<PyTzInfo>()?;
 
         // Get the offset in seconds from the Python tzinfo
         let py_timedelta = ob.call_method1("utcoffset", (PyNone::get(ob.py()),))?;
@@ -412,7 +412,7 @@ impl<'py> IntoPyObject<'py> for OffsetDateTime {
             minute,
             second,
             microsecond,
-            Some(py_tzinfo.downcast()?),
+            Some(py_tzinfo.cast()?),
         )
     }
 }
@@ -422,7 +422,7 @@ impl FromPyObject<'_> for OffsetDateTime {
         let offset: UtcOffset = {
             #[cfg(not(Py_LIMITED_API))]
             {
-                let dt = ob.downcast::<PyDateTime>()?;
+                let dt = ob.cast::<PyDateTime>()?;
                 let tzinfo = dt.get_tzinfo().ok_or_else(|| {
                     PyTypeError::new_err("expected a datetime with non-None tzinfo")
                 })?;
@@ -485,7 +485,7 @@ impl FromPyObject<'_> for UtcDateTime {
         let tzinfo = {
             #[cfg(not(Py_LIMITED_API))]
             {
-                let dt = ob.downcast::<PyDateTime>()?;
+                let dt = ob.cast::<PyDateTime>()?;
                 dt.get_tzinfo().ok_or_else(|| {
                     PyTypeError::new_err("expected a datetime with non-None tzinfo")
                 })?

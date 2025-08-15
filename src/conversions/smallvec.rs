@@ -97,7 +97,7 @@ where
     // to support this function and if not, we will only fail extraction safely.
     let seq = unsafe {
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-            obj.downcast_unchecked::<PySequence>()
+            obj.cast_unchecked::<PySequence>()
         } else {
             return Err(DowncastError::new(obj, "Sequence").into());
         }
@@ -152,7 +152,7 @@ mod tests {
             let bytes: SmallVec<[u8; 8]> = [1, 2, 3, 4, 5].iter().cloned().collect();
             let obj = bytes.clone().into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
-            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            let obj = obj.cast_into::<PyBytes>().unwrap();
             assert_eq!(obj.as_bytes(), &*bytes);
 
             let nums: SmallVec<[u16; 8]> = [1, 2, 3, 4, 5].iter().cloned().collect();

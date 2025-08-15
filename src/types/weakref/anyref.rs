@@ -1,7 +1,7 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
-use crate::types::any::{PyAny, PyAnyMethods};
+use crate::types::any::PyAny;
 use crate::{ffi, Bound};
 
 /// Represents any Python `weakref` reference.
@@ -104,12 +104,12 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
         T: PyTypeCheck,
     {
         self.upgrade()
-            .map(Bound::downcast_into::<T>)
+            .map(Bound::cast_into::<T>)
             .transpose()
             .map_err(Into::into)
     }
 
-    /// Upgrade the weakref to a direct Bound object reference unchecked. The type of the recovered object is not checked before downcasting, this could lead to unexpected behavior. Use only when absolutely certain the type can be guaranteed. The `weakref` may still return `None`.
+    /// Upgrade the weakref to a direct Bound object reference unchecked. The type of the recovered object is not checked before casting, this could lead to unexpected behavior. Use only when absolutely certain the type can be guaranteed. The `weakref` may still return `None`.
     ///
     /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
     /// In Python it would be equivalent to [`PyWeakref_GetRef`].
@@ -180,7 +180,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
     unsafe fn upgrade_as_unchecked<T>(&self) -> Option<Bound<'py, T>> {
-        Some(unsafe { self.upgrade()?.downcast_into_unchecked() })
+        Some(unsafe { self.upgrade()?.cast_into_unchecked() })
     }
 
     /// Upgrade the weakref to a exact direct Bound object reference.
@@ -254,7 +254,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
         T: PyTypeInfo,
     {
         self.upgrade()
-            .map(Bound::downcast_into_exact)
+            .map(Bound::cast_into_exact)
             .transpose()
             .map_err(Into::into)
     }
@@ -341,12 +341,12 @@ mod tests {
 
     fn new_reference<'py>(object: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyWeakref>> {
         let reference = PyWeakrefReference::new(object)?;
-        reference.into_any().downcast_into().map_err(Into::into)
+        reference.cast_into().map_err(Into::into)
     }
 
     fn new_proxy<'py>(object: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyWeakref>> {
         let reference = PyWeakrefProxy::new(object)?;
-        reference.into_any().downcast_into().map_err(Into::into)
+        reference.cast_into().map_err(Into::into)
     }
 
     mod python_class {
@@ -357,8 +357,7 @@ mod tests {
 
         fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
             py.run(ffi::c_str!("class A:\n    pass\n"), None, None)?;
-            py.eval(ffi::c_str!("A"), None, None)
-                .downcast_into::<PyType>()
+            py.eval(ffi::c_str!("A"), None, None).cast_into::<PyType>()
         }
 
         #[test]

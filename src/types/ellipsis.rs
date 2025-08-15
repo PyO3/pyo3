@@ -16,7 +16,7 @@ impl PyEllipsis {
     /// Returns the `Ellipsis` object.
     #[inline]
     pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyEllipsis> {
-        unsafe { ffi::Py_Ellipsis().assume_borrowed(py).downcast_unchecked() }
+        unsafe { ffi::Py_Ellipsis().assume_borrowed(py).cast_unchecked() }
     }
 }
 
@@ -67,7 +67,7 @@ mod tests {
     #[test]
     fn test_dict_is_not_ellipsis() {
         Python::attach(|py| {
-            assert!(PyDict::new(py).downcast::<PyEllipsis>().is_err());
+            assert!(PyDict::new(py).cast::<PyEllipsis>().is_err());
         })
     }
 }

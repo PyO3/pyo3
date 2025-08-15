@@ -29,7 +29,7 @@ fn test_named_fields_struct() {
             pya.get_item("s")
                 .unwrap()
                 .unwrap()
-                .downcast::<PyString>()
+                .cast::<PyString>()
                 .unwrap(),
             "Hello"
         );
@@ -37,7 +37,7 @@ fn test_named_fields_struct() {
             pya.get_item("t")
                 .unwrap()
                 .unwrap()
-                .downcast::<PyString>()
+                .cast::<PyString>()
                 .unwrap(),
             "World"
         );
@@ -191,14 +191,14 @@ fn test_enum() {
         }
         .into_pyobject(py)
         .unwrap()
-        .downcast_into::<PyDict>()
+        .cast_into::<PyDict>()
         .unwrap();
 
         assert_eq!(
             foo.get_item("test")
                 .unwrap()
                 .unwrap()
-                .downcast_into::<PyString>()
+                .cast_into::<PyString>()
                 .unwrap(),
             "test"
         );

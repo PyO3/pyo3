@@ -61,7 +61,7 @@ mod tests {
             let bytes: Vec<u8> = b"foobar".to_vec();
             let obj = bytes.clone().into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
-            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            let obj = obj.cast_into::<PyBytes>().unwrap();
             assert_eq!(obj.as_bytes(), &bytes);
 
             let nums: Vec<u16> = vec![0, 1, 2, 3];
@@ -76,7 +76,7 @@ mod tests {
             let bytes: Vec<u8> = b"foobar".to_vec();
             let obj = (&bytes).into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
-            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            let obj = obj.cast_into::<PyBytes>().unwrap();
             assert_eq!(obj.as_bytes(), &bytes);
 
             let nums: Vec<u16> = vec![0, 1, 2, 3];

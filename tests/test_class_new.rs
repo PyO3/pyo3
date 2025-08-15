@@ -23,7 +23,7 @@ fn empty_class_with_new() {
         assert!(typeobj
             .call((), None)
             .unwrap()
-            .downcast::<EmptyClassWithNew>()
+            .cast::<EmptyClassWithNew>()
             .is_ok());
 
         // Calling with arbitrary args or kwargs is not ok
@@ -52,7 +52,7 @@ fn unit_class_with_new() {
         assert!(typeobj
             .call((), None)
             .unwrap()
-            .downcast::<UnitClassWithNew>()
+            .cast::<UnitClassWithNew>()
             .is_ok());
     });
 }
@@ -73,7 +73,7 @@ fn tuple_class_with_new() {
     Python::attach(|py| {
         let typeobj = py.get_type::<TupleClassWithNew>();
         let wrp = typeobj.call((42,), None).unwrap();
-        let obj = wrp.downcast::<TupleClassWithNew>().unwrap();
+        let obj = wrp.cast::<TupleClassWithNew>().unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.0, 42);
     });
@@ -98,7 +98,7 @@ fn new_with_one_arg() {
     Python::attach(|py| {
         let typeobj = py.get_type::<NewWithOneArg>();
         let wrp = typeobj.call((42,), None).unwrap();
-        let obj = wrp.downcast::<NewWithOneArg>().unwrap();
+        let obj = wrp.cast::<NewWithOneArg>().unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.data, 42);
     });
@@ -129,7 +129,7 @@ fn new_with_two_args() {
             .call((10, 20), None)
             .map_err(|e| e.display(py))
             .unwrap();
-        let obj = wrp.downcast::<NewWithTwoArgs>().unwrap();
+        let obj = wrp.cast::<NewWithTwoArgs>().unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.data1, 10);
         assert_eq!(obj_ref.data2, 20);

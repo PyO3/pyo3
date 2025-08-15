@@ -30,9 +30,6 @@ impl<T> IsPyT<Py<T>> {
 
 probe!(IsIntoPyObjectRef);
 
-// Possible clippy beta regression,
-// see https://github.com/rust-lang/rust-clippy/issues/13578
-#[allow(clippy::extra_unused_lifetimes)]
 impl<'a, 'py, T: 'a> IsIntoPyObjectRef<T>
 where
     &'a T: IntoPyObject<'py>,
@@ -49,6 +46,12 @@ where
     pub const VALUE: bool = true;
 }
 
+probe!(IsSend);
+
+impl<T: Send> IsSend<T> {
+    pub const VALUE: bool = true;
+}
+
 probe!(IsSync);
 
 impl<T: Sync> IsSync<T> {
@@ -60,3 +63,21 @@ probe!(IsOption);
 impl<T> IsOption<Option<T>> {
     pub const VALUE: bool = true;
 }
+
+probe!(HasNewTextSignature);
+
+impl<T: super::doc::PyClassNewTextSignature> HasNewTextSignature<T> {
+    pub const VALUE: bool = true;
+}
+
+#[cfg(test)]
+macro_rules! value_of {
+    ($probe:ident, $ty:ty) => {{
+        #[allow(unused_imports)] // probe trait not used if VALUE is true
+        use crate::impl_::pyclass::Probe as _;
+        $probe::<$ty>::VALUE
+    }};
+}
+
+#[cfg(test)]
+pub(crate) use value_of;

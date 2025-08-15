@@ -156,7 +156,7 @@ impl<'py> IntoPyObject<'py> for &Date {
 
 impl<'py> FromPyObject<'py> for Date {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let date = ob.downcast::<PyDate>()?;
+        let date = ob.cast::<PyDate>()?;
 
         #[cfg(not(Py_LIMITED_API))]
         {
@@ -208,7 +208,7 @@ impl<'py> IntoPyObject<'py> for &Time {
 
 impl<'py> FromPyObject<'py> for Time {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let ob = ob.downcast::<PyTime>()?;
+        let ob = ob.cast::<PyTime>()?;
 
         pytime_to_time(ob)
     }
@@ -236,7 +236,7 @@ impl<'py> IntoPyObject<'py> for &DateTime {
 
 impl<'py> FromPyObject<'py> for DateTime {
     fn extract_bound(dt: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let dt = dt.downcast::<PyDateTime>()?;
+        let dt = dt.cast::<PyDateTime>()?;
         let has_tzinfo = dt.get_tzinfo().is_some();
 
         if has_tzinfo {
@@ -285,7 +285,7 @@ impl<'py> IntoPyObject<'py> for &Zoned {
 
 impl<'py> FromPyObject<'py> for Zoned {
     fn extract_bound(dt: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let dt = dt.downcast::<PyDateTime>()?;
+        let dt = dt.cast::<PyDateTime>()?;
 
         let tz = dt
             .get_tzinfo()
@@ -342,7 +342,7 @@ impl<'py> IntoPyObject<'py> for &TimeZone {
 
 impl<'py> FromPyObject<'py> for TimeZone {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let ob = ob.downcast::<PyTzInfo>()?;
+        let ob = ob.cast::<PyTzInfo>()?;
 
         let attr = intern!(ob.py(), "key");
         if ob.hasattr(attr)? {
@@ -380,7 +380,7 @@ impl<'py> IntoPyObject<'py> for Offset {
 impl<'py> FromPyObject<'py> for Offset {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         let py = ob.py();
-        let ob = ob.downcast::<PyTzInfo>()?;
+        let ob = ob.cast::<PyTzInfo>()?;
 
         let py_timedelta = ob.call_method1(intern!(py, "utcoffset"), (PyNone::get(py),))?;
         if py_timedelta.is_none() {
@@ -427,7 +427,7 @@ impl<'py> IntoPyObject<'py> for SignedDuration {
 
 impl<'py> FromPyObject<'py> for SignedDuration {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let delta = ob.downcast::<PyDelta>()?;
+        let delta = ob.cast::<PyDelta>()?;
 
         #[cfg(not(Py_LIMITED_API))]
         let (seconds, microseconds) = {

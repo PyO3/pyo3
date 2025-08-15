@@ -89,7 +89,7 @@ impl<'py> DowncastIntoError<'py> {
     /// Consumes this `DowncastIntoError` and returns the original object, allowing continued
     /// use of it after a failed conversion.
     ///
-    /// See [`downcast_into`][PyAnyMethods::downcast_into] for an example.
+    /// See [`cast_into`][Bound::cast_into] for an example.
     pub fn into_inner(self) -> Bound<'py, PyAny> {
         self.from
     }
@@ -231,7 +231,7 @@ impl PyErr {
     /// });
     /// ```
     pub fn from_value(obj: Bound<'_, PyAny>) -> PyErr {
-        let state = match obj.downcast_into::<PyBaseException>() {
+        let state = match obj.cast_into::<PyBaseException>() {
             Ok(obj) => PyErrState::normalized(PyErrStateNormalized::new(obj)),
             Err(err) => {
                 // Assume obj is Type[Exception]; let later normalization handle if this
@@ -852,6 +852,7 @@ impl_signed_integer!(isize);
 mod tests {
     use super::PyErrState;
     use crate::exceptions::{self, PyTypeError, PyValueError};
+    use crate::impl_::pyclass::{value_of, IsSend, IsSync};
     use crate::{ffi, PyErr, PyTypeInfo, Python};
 
     #[test]
@@ -977,14 +978,11 @@ mod tests {
 
     #[test]
     fn test_pyerr_send_sync() {
-        fn is_send<T: Send>() {}
-        fn is_sync<T: Sync>() {}
+        assert!(value_of!(IsSend, PyErr));
+        assert!(value_of!(IsSync, PyErr));
 
-        is_send::<PyErr>();
-        is_sync::<PyErr>();
-
-        is_send::<PyErrState>();
-        is_sync::<PyErrState>();
+        assert!(value_of!(IsSend, PyErrState));
+        assert!(value_of!(IsSync, PyErrState));
     }
 
     #[test]

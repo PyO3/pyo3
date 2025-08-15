@@ -343,8 +343,8 @@ fn sequence_is_not_mapping() {
 
         PySequence::register::<OptionList>(py).unwrap();
 
-        assert!(list.downcast::<PyMapping>().is_err());
-        assert!(list.downcast::<PySequence>().is_ok());
+        assert!(list.cast::<PyMapping>().is_err());
+        assert!(list.cast::<PySequence>().is_ok());
     })
 }
 

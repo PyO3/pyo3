@@ -110,7 +110,7 @@ impl<'py> IntoPyObject<'py> for &Duration {
 
 impl FromPyObject<'_> for Duration {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Duration> {
-        let delta = ob.downcast::<PyDelta>()?;
+        let delta = ob.cast::<PyDelta>()?;
         // Python size are much lower than rust size so we do not need bound checks.
         // 0 <= microseconds < 1000000
         // 0 <= seconds < 3600*24
@@ -164,7 +164,7 @@ impl<'py> IntoPyObject<'py> for &NaiveDate {
 
 impl FromPyObject<'_> for NaiveDate {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<NaiveDate> {
-        let date = ob.downcast::<PyDate>()?;
+        let date = ob.cast::<PyDate>()?;
         py_date_to_naive_date(date)
     }
 }
@@ -206,7 +206,7 @@ impl<'py> IntoPyObject<'py> for &NaiveTime {
 
 impl FromPyObject<'_> for NaiveTime {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<NaiveTime> {
-        let time = ob.downcast::<PyTime>()?;
+        let time = ob.cast::<PyTime>()?;
         py_time_to_naive_time(time)
     }
 }
@@ -249,7 +249,7 @@ impl<'py> IntoPyObject<'py> for &NaiveDateTime {
 
 impl FromPyObject<'_> for NaiveDateTime {
     fn extract_bound(dt: &Bound<'_, PyAny>) -> PyResult<NaiveDateTime> {
-        let dt = dt.downcast::<PyDateTime>()?;
+        let dt = dt.cast::<PyDateTime>()?;
 
         // If the user tries to convert a timezone aware datetime into a naive one,
         // we return a hard error. We could silently remove tzinfo, or assume local timezone
@@ -287,7 +287,7 @@ where
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let tz = self.timezone().into_bound_py_any(py)?.downcast_into()?;
+        let tz = self.timezone().into_bound_py_any(py)?.cast_into()?;
 
         let DateArgs { year, month, day } = (&self.naive_local().date()).into();
         let TimeArgs {
@@ -326,7 +326,7 @@ where
 
 impl<Tz: TimeZone + for<'py> FromPyObject<'py>> FromPyObject<'_> for DateTime<Tz> {
     fn extract_bound(dt: &Bound<'_, PyAny>) -> PyResult<DateTime<Tz>> {
-        let dt = dt.downcast::<PyDateTime>()?;
+        let dt = dt.cast::<PyDateTime>()?;
         let tzinfo = dt.get_tzinfo();
 
         let tz = if let Some(tzinfo) = tzinfo {
@@ -388,7 +388,7 @@ impl FromPyObject<'_> for FixedOffset {
     /// Note that the conversion will result in precision lost in microseconds as chrono offset
     /// does not supports microseconds.
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<FixedOffset> {
-        let ob = ob.downcast::<PyTzInfo>()?;
+        let ob = ob.cast::<PyTzInfo>()?;
 
         // Passing Python's None to the `utcoffset` function will only
         // work for timezones defined as fixed offsets in Python.
@@ -481,7 +481,7 @@ impl FromPyObject<'_> for Local {
         if ob.eq(local_tz)? {
             Ok(Local)
         } else {
-            let name = local_tz.getattr("key")?.downcast_into::<PyString>()?;
+            let name = local_tz.getattr("key")?.cast_into::<PyString>()?;
             Err(PyValueError::new_err(format!(
                 "expected local timezone {}",
                 name.to_cow()?

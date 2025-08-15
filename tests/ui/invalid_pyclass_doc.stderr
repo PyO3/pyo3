@@ -1,0 +1,5 @@
+error: Python doc may not contain nul byte, found nul at position 5
+ --> tests/ui/invalid_pyclass_doc.rs:3:9
+  |
+3 | #[doc = "This \0 contains a nul byte!"]
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

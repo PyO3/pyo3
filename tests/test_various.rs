@@ -145,7 +145,7 @@ fn test_pickle() {
             .get_item("modules")
             .unwrap()
             .unwrap()
-            .downcast::<PyDict>()?
+            .cast::<PyDict>()?
             .set_item(module.name()?, module)
     }
 

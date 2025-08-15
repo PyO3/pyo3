@@ -14,7 +14,7 @@ use crate::{
 use crate::{quotes, utils};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
-use syn::{ext::IdentExt, spanned::Spanned, Result};
+use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
 /// Generated code for a single pymethod item.
 pub struct MethodAndMethodDef {
@@ -236,21 +236,21 @@ pub fn gen_py_method(
         (_, FnType::Fn(_)) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &spec.get_doc(meth_attrs, ctx),
+            &spec.get_doc(meth_attrs, ctx)?,
             None,
             ctx,
         )?),
         (_, FnType::FnClass(_)) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &spec.get_doc(meth_attrs, ctx),
+            &spec.get_doc(meth_attrs, ctx)?,
             Some(quote!(#pyo3_path::ffi::METH_CLASS)),
             ctx,
         )?),
         (_, FnType::FnStatic) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &spec.get_doc(meth_attrs, ctx),
+            &spec.get_doc(meth_attrs, ctx)?,
             Some(quote!(#pyo3_path::ffi::METH_STATIC)),
             ctx,
         )?),
@@ -264,7 +264,7 @@ pub fn gen_py_method(
             PropertyType::Function {
                 self_type,
                 spec,
-                doc: spec.get_doc(meth_attrs, ctx),
+                doc: spec.get_doc(meth_attrs, ctx)?,
             },
             ctx,
         )?),
@@ -273,7 +273,7 @@ pub fn gen_py_method(
             PropertyType::Function {
                 self_type,
                 spec,
-                doc: spec.get_doc(meth_attrs, ctx),
+                doc: spec.get_doc(meth_attrs, ctx)?,
             },
             ctx,
         )?),
@@ -360,10 +360,14 @@ pub fn impl_py_method_def_new(
     // Use just the text_signature_call_signature() because the class' Python name
     // isn't known to `#[pymethods]` - that has to be attached at runtime from the PyClassImpl
     // trait implementation created by `#[pyclass]`.
-    let text_signature_body = spec.text_signature_call_signature().map_or_else(
-        || quote!(::std::option::Option::None),
-        |text_signature| quote!(::std::option::Option::Some(#text_signature)),
-    );
+    let text_signature_impl = spec.text_signature_call_signature().map(|text_signature| {
+        quote! {
+            #[allow(unknown_lints, non_local_definitions)]
+            impl #pyo3_path::impl_::pyclass::doc::PyClassNewTextSignature for #cls {
+                const TEXT_SIGNATURE: &'static str = #text_signature;
+            }
+        }
+    });
     let slot_def = quote! {
         #pyo3_path::ffi::PyType_Slot {
             slot: #pyo3_path::ffi::Py_tp_new,
@@ -373,13 +377,8 @@ pub fn impl_py_method_def_new(
                     args: *mut #pyo3_path::ffi::PyObject,
                     kwargs: *mut #pyo3_path::ffi::PyObject,
                 ) -> *mut #pyo3_path::ffi::PyObject {
-                    #[allow(unknown_lints, non_local_definitions)]
-                    impl #pyo3_path::impl_::pyclass::PyClassNewTextSignature<#cls> for #pyo3_path::impl_::pyclass::PyClassImplCollector<#cls> {
-                        #[inline]
-                        fn new_text_signature(self) -> ::std::option::Option<&'static str> {
-                            #text_signature_body
-                        }
-                    }
+
+                    #text_signature_impl
 
                     #pyo3_path::impl_::trampoline::newfunc(
                         subtype,
@@ -627,7 +626,7 @@ pub fn impl_py_setter_def(
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
     let python_name = property_type.null_terminated_python_name(ctx)?;
-    let doc = property_type.doc(ctx);
+    let doc = property_type.doc(ctx)?;
     let mut holders = Holders::new();
     let setter_impl = match property_type {
         PropertyType::Descriptor {
@@ -815,7 +814,7 @@ pub fn impl_py_getter_def(
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
     let python_name = property_type.null_terminated_python_name(ctx)?;
-    let doc = property_type.doc(ctx);
+    let doc = property_type.doc(ctx)?;
 
     let mut cfg_attrs = TokenStream::new();
     if let PropertyType::Descriptor { field, .. } = &property_type {
@@ -853,7 +852,7 @@ pub fn impl_py_getter_def(
                 #cfg_attrs
                 {
                     #[allow(unused_imports)]  // might not be used if all probes are positve
-                    use #pyo3_path::impl_::pyclass::Probe;
+                    use #pyo3_path::impl_::pyclass::Probe as _;
 
                     struct Offset;
                     unsafe impl #pyo3_path::impl_::pyclass::OffsetCalculator<#cls, #ty> for Offset {
@@ -978,12 +977,12 @@ impl PropertyType<'_> {
         }
     }
 
-    fn doc(&self, ctx: &Ctx) -> Cow<'_, PythonDoc> {
+    fn doc(&self, ctx: &Ctx) -> Result<Cow<'_, PythonDoc>> {
         match self {
             PropertyType::Descriptor { field, .. } => {
-                Cow::Owned(utils::get_doc(&field.attrs, None, ctx))
+                utils::get_doc(&field.attrs, None, ctx).map(Cow::Owned)
             }
-            PropertyType::Function { doc, .. } => Cow::Borrowed(doc),
+            PropertyType::Function { doc, .. } => Ok(Cow::Borrowed(doc)),
         }
     }
 }
@@ -1147,6 +1146,7 @@ impl Ty {
                 extract_error_mode,
                 holders,
                 arg,
+                format_ident!("ref_from_ptr"),
                 quote! { #ident },
                 ctx
             ),
@@ -1154,6 +1154,7 @@ impl Ty {
                 extract_error_mode,
                 holders,
                 arg,
+                format_ident!("ref_from_ptr"),
                 quote! {
                     if #ident.is_null() {
                         #pyo3_path::ffi::Py_None()
@@ -1167,13 +1168,15 @@ impl Ty {
                 extract_error_mode,
                 holders,
                 arg,
-                quote! { #ident.as_ptr() },
+                format_ident!("ref_from_non_null"),
+                quote! { #ident },
                 ctx
             ),
             Ty::IPowModulo => extract_object(
                 extract_error_mode,
                 holders,
                 arg,
+                format_ident!("ref_from_ptr"),
                 quote! { #ident.as_ptr() },
                 ctx
             ),
@@ -1203,6 +1206,7 @@ fn extract_object(
     extract_error_mode: ExtractErrorMode,
     holders: &mut Holders,
     arg: &FnArg<'_>,
+    ref_from_method: Ident,
     source_ptr: TokenStream,
     ctx: &Ctx,
 ) -> TokenStream {
@@ -1220,7 +1224,7 @@ fn extract_object(
 
         quote! {
             #pyo3_path::impl_::extract_argument::from_py_with(
-                unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0 },
+                unsafe { #pyo3_path::impl_::pymethods::BoundRef::#ref_from_method(py, &#source_ptr).0 },
                 #name,
                 #extractor,
             )
@@ -1235,7 +1239,7 @@ fn extract_object(
                 _,
                 { #pyo3_path::impl_::pyclass::IsOption::<#ty>::VALUE }
             >(
-                unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0 },
+                unsafe { #pyo3_path::impl_::pymethods::BoundRef::#ref_from_method(py, &#source_ptr).0 },
                 &mut #holder,
                 #name
             )

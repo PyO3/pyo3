@@ -179,7 +179,7 @@ fn test_functions_with_function_args() {
 
 #[cfg(not(Py_LIMITED_API))]
 fn datetime_to_timestamp(dt: &Bound<'_, PyAny>) -> PyResult<i64> {
-    let dt = dt.downcast::<PyDateTime>()?;
+    let dt = dt.cast::<PyDateTime>()?;
     let ts: f64 = dt.call_method0("timestamp")?.extract()?;
 
     Ok(ts as i64)
