@@ -43,14 +43,9 @@ pub fn module_introspection_code<'a>(
                     members
                         .into_iter()
                         .zip(members_cfg_attrs)
-                        .filter_map(|(member, attributes)| {
-                            if attributes.is_empty() {
-                                Some(IntrospectionNode::IntrospectionId(Some(ident_to_type(
-                                    member,
-                                ))))
-                            } else {
-                                None // TODO: properly interpret cfg attributes
-                            }
+                        .map(|(member, attributes)| AttributedIntrospectionNode {
+                            node: IntrospectionNode::IntrospectionId(Some(ident_to_type(member))),
+                            attributes,
                         })
                         .collect(),
                 ),
@@ -138,7 +133,7 @@ pub fn function_introspection_code(
     }
     let decorators = decorators
         .into_iter()
-        .map(|d| IntrospectionNode::String(d.into()))
+        .map(|d| IntrospectionNode::String(d.into()).into())
         .collect::<Vec<_>>();
     if !decorators.is_empty() {
         desc.insert("decorators", IntrospectionNode::List(decorators));
@@ -220,9 +215,12 @@ fn arguments_introspection_data<'a>(
     let mut kwarg = None;
 
     if let Some(first_argument) = first_argument {
-        posonlyargs.push(IntrospectionNode::Map(
-            [("name", IntrospectionNode::String(first_argument.into()))].into(),
-        ));
+        posonlyargs.push(
+            IntrospectionNode::Map(
+                [("name", IntrospectionNode::String(first_argument.into()))].into(),
+            )
+            .into(),
+        );
     }
 
     for (i, param) in signature
@@ -296,7 +294,7 @@ fn argument_introspection_data<'a>(
     name: &'a str,
     desc: &'a RegularArg<'_>,
     class_type: Option<&Type>,
-) -> IntrospectionNode<'a> {
+) -> AttributedIntrospectionNode<'a> {
     let mut params: HashMap<_, _> = [("name", IntrospectionNode::String(name.into()))].into();
     if desc.default_value.is_some() {
         params.insert(
@@ -338,7 +336,7 @@ fn argument_introspection_data<'a>(
             );
         }
     }
-    IntrospectionNode::Map(params)
+    IntrospectionNode::Map(params).into()
 }
 
 enum IntrospectionNode<'a> {
@@ -348,7 +346,7 @@ enum IntrospectionNode<'a> {
     InputType { rust_type: Type, nullable: bool },
     OutputType { rust_type: Type, is_final: bool },
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
-    List(Vec<IntrospectionNode<'a>>),
+    List(Vec<AttributedIntrospectionNode<'a>>),
 }
 
 impl IntrospectionNode<'_> {
@@ -381,9 +379,9 @@ impl IntrospectionNode<'_> {
             Self::IntrospectionId(ident) => {
                 content.push_str("\"");
                 content.push_tokens(if let Some(ident) = ident {
-                    quote! { #ident::_PYO3_INTROSPECTION_ID }
+                    quote! { #ident::_PYO3_INTROSPECTION_ID.as_bytes() }
                 } else {
-                    quote! { _PYO3_INTROSPECTION_ID }
+                    quote! { _PYO3_INTROSPECTION_ID.as_bytes() }
                 });
                 content.push_str("\"");
             }
@@ -392,7 +390,7 @@ impl IntrospectionNode<'_> {
                 nullable,
             } => {
                 content.push_str("\"");
-                content.push_tokens(quote! { <#rust_type as #pyo3_crate_path::impl_::extract_argument::PyFunctionArgument<false>>::INPUT_TYPE });
+                content.push_tokens(quote! { <#rust_type as #pyo3_crate_path::impl_::extract_argument::PyFunctionArgument<false>>::INPUT_TYPE.as_bytes() });
                 if nullable {
                     content.push_str(" | None");
                 }
@@ -406,7 +404,7 @@ impl IntrospectionNode<'_> {
                 if is_final {
                     content.push_str("typing.Final[");
                 }
-                content.push_tokens(quote! { <#rust_type as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE });
+                content.push_tokens(quote! { <#rust_type as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE.as_bytes() });
                 if is_final {
                     content.push_str("]");
                 }
@@ -426,14 +424,41 @@ impl IntrospectionNode<'_> {
             }
             Self::List(list) => {
                 content.push_str("[");
-                for (i, value) in list.into_iter().enumerate() {
-                    if i > 0 {
-                        content.push_str(",");
+                for (i, AttributedIntrospectionNode { node, attributes }) in
+                    list.into_iter().enumerate()
+                {
+                    if attributes.is_empty() {
+                        if i > 0 {
+                            content.push_str(",");
+                        }
+                        node.add_to_serialization(content, pyo3_crate_path);
+                    } else {
+                        // We serialize the element to easily gate it behind the attributes
+                        let mut nested_builder = ConcatenationBuilder::default();
+                        if i > 0 {
+                            nested_builder.push_str(",");
+                        }
+                        node.add_to_serialization(&mut nested_builder, pyo3_crate_path);
+                        let nested_content = nested_builder.into_token_stream(pyo3_crate_path);
+                        content.push_tokens(quote! { #(#attributes)* #nested_content });
                     }
-                    value.add_to_serialization(content, pyo3_crate_path);
                 }
                 content.push_str("]");
             }
+        }
+    }
+}
+
+struct AttributedIntrospectionNode<'a> {
+    node: IntrospectionNode<'a>,
+    attributes: &'a [Attribute],
+}
+
+impl<'a> From<IntrospectionNode<'a>> for AttributedIntrospectionNode<'a> {
+    fn from(node: IntrospectionNode<'a>) -> Self {
+        Self {
+            node,
+            attributes: &[],
         }
     }
 }
@@ -490,7 +515,7 @@ impl ConcatenationBuilder {
 
         quote! {
             {
-                const PIECES: &[&[u8]] = &[#(#elements.as_bytes() , )*];
+                const PIECES: &[&[u8]] = &[#(#elements , )*];
                 &#pyo3_crate_path::impl_::concat::combine_to_array::<{
                     #pyo3_crate_path::impl_::concat::combined_len(PIECES)
                 }>(PIECES)
@@ -507,7 +532,7 @@ enum ConcatenationBuilderElement {
 impl ToTokens for ConcatenationBuilderElement {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Self::String(s) => s.to_tokens(tokens),
+            Self::String(s) => quote! { #s.as_bytes() }.to_tokens(tokens),
             Self::TokenStream(ts) => ts.to_tokens(tokens),
         }
     }
