@@ -20,7 +20,7 @@ For this reason we chose to rename these to more modern terminology introduced i
 <details open>
 <summary><small>Click to expand</small></summary>
 
-The type alias `PyObject` (aka `Py<PyAny>`) is often confused with the identically named FFI definition `pyo3::ffi::PyObject`. For this reason we are deprecating is usage. To migrate simply replace it's usage by the target type `Py<PyAny>`.
+The type alias `PyObject` (aka `Py<PyAny>`) is often confused with the identically named FFI definition `pyo3::ffi::PyObject`. For this reason we are deprecating its usage. To migrate simply replace its usage by the target type `Py<PyAny>`.
 
 </details>
 
