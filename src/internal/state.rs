@@ -60,9 +60,10 @@ impl AttachGuard {
         // Calling `PyGILState_Ensure` while finalizing may crash CPython in unpredictable
         // ways, we'll make a best effort attempt here to avoid that. (There's a time of
         // check to time-of-use issue, but it's better than nothing.)
-        if is_finalizing() {
-            panic!("Cannot attach to the Python interpreter while it is finalizing.");
-        }
+        assert!(
+            !is_finalizing(),
+            "Cannot attach to the Python interpreter while it is finalizing."
+        );
 
         // SAFETY: We have ensured the Python interpreter is initialized.
         unsafe { Self::acquire_unchecked() }
