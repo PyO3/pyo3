@@ -322,7 +322,7 @@ impl<'py> TryFrom<&Bound<'py, PyAny>> for Bound<'py, PyByteArray> {
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods};
-    use crate::{exceptions, Bound, PyAny, PyObject, Python};
+    use crate::{exceptions, Bound, Py, PyAny, Python};
 
     #[test]
     fn test_len() {
@@ -378,7 +378,7 @@ mod tests {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
 
-            let ba: PyObject = bytearray.into();
+            let ba: Py<PyAny> = bytearray.into();
             let bytearray = PyByteArray::from(ba.bind(py)).unwrap();
 
             assert_eq!(src, unsafe { bytearray.as_bytes() });

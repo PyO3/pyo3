@@ -21,7 +21,7 @@ struct ExampleClass {
 
 #[pymethods]
 impl ExampleClass {
-    fn __getattr__(&self, py: Python<'_>, attr: &str) -> PyResult<PyObject> {
+    fn __getattr__(&self, py: Python<'_>, attr: &str) -> PyResult<Py<PyAny>> {
         if attr == "special_custom_attr" {
             Ok(self.custom_attr.into_pyobject(py)?.into_any().unbind())
         } else {
@@ -252,7 +252,7 @@ enum SequenceIndex<'py> {
 
 #[pyclass]
 pub struct Sequence {
-    values: Vec<PyObject>,
+    values: Vec<Py<PyAny>>,
 }
 
 #[pymethods]
@@ -261,7 +261,7 @@ impl Sequence {
         self.values.len()
     }
 
-    fn __getitem__(&self, index: SequenceIndex<'_>, py: Python<'_>) -> PyResult<PyObject> {
+    fn __getitem__(&self, index: SequenceIndex<'_>, py: Python<'_>) -> PyResult<Py<PyAny>> {
         match index {
             SequenceIndex::Integer(index) => {
                 let uindex = self.usize_index(index)?;
@@ -275,7 +275,7 @@ impl Sequence {
         }
     }
 
-    fn __setitem__(&mut self, index: isize, value: PyObject) -> PyResult<()> {
+    fn __setitem__(&mut self, index: isize, value: Py<PyAny>) -> PyResult<()> {
         let uindex = self.usize_index(index)?;
         self.values
             .get_mut(uindex)
@@ -293,7 +293,7 @@ impl Sequence {
         }
     }
 
-    fn append(&mut self, value: PyObject) {
+    fn append(&mut self, value: Py<PyAny>) {
         self.values.push(value);
     }
 }
@@ -634,14 +634,14 @@ fn getattr_and_getattribute() {
 #[pyclass]
 #[derive(Debug)]
 struct OnceFuture {
-    future: PyObject,
+    future: Py<PyAny>,
     polled: bool,
 }
 
 #[pymethods]
 impl OnceFuture {
     #[new]
-    fn new(future: PyObject) -> Self {
+    fn new(future: Py<PyAny>) -> Self {
         OnceFuture {
             future,
             polled: false,
@@ -828,7 +828,7 @@ struct NotHashable;
 #[pymethods]
 impl NotHashable {
     #[classattr]
-    const __hash__: Option<PyObject> = None;
+    const __hash__: Option<Py<PyAny>> = None;
 }
 
 #[test]
@@ -850,7 +850,7 @@ struct DefaultedContains;
 
 #[pymethods]
 impl DefaultedContains {
-    fn __iter__(&self, py: Python<'_>) -> PyObject {
+    fn __iter__(&self, py: Python<'_>) -> Py<PyAny> {
         PyList::new(py, ["a", "b", "c"])
             .unwrap()
             .as_any()
@@ -865,7 +865,7 @@ struct NoContains;
 
 #[pymethods]
 impl NoContains {
-    fn __iter__(&self, py: Python<'_>) -> PyObject {
+    fn __iter__(&self, py: Python<'_>) -> Py<PyAny> {
         PyList::new(py, ["a", "b", "c"])
             .unwrap()
             .as_any()
@@ -877,7 +877,7 @@ impl NoContains {
     // Equivalent to the opt-out const form in NotHashable above, just more verbose, to confirm this
     // also works.
     #[classattr]
-    fn __contains__() -> Option<PyObject> {
+    fn __contains__() -> Option<Py<PyAny>> {
         None
     }
 }

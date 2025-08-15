@@ -151,7 +151,7 @@ fn data_is_dropped() {
 
 #[pyclass(subclass)]
 struct CycleWithClear {
-    cycle: Option<PyObject>,
+    cycle: Option<Py<PyAny>>,
     _guard: DropGuard,
 }
 
@@ -342,7 +342,7 @@ fn gc_during_borrow() {
 fn traverse_partial() {
     #[pyclass]
     struct PartialTraverse {
-        member: PyObject,
+        member: Py<PyAny>,
     }
 
     impl PartialTraverse {
@@ -378,7 +378,7 @@ fn traverse_partial() {
 fn traverse_panic() {
     #[pyclass]
     struct PanickyTraverse {
-        member: PyObject,
+        member: Py<PyAny>,
     }
 
     impl PanickyTraverse {
@@ -753,7 +753,7 @@ fn test_drop_buffer_during_traversal_without_gil() {
     #[pyclass]
     struct BufferDropDuringTraversal {
         inner: Mutex<Option<(DropGuard, PyBuffer<u8>)>>,
-        cycle: Option<PyObject>,
+        cycle: Option<Py<PyAny>>,
     }
 
     #[pymethods]

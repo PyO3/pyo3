@@ -10,7 +10,7 @@ use crate::{
     exceptions::{self, PyBaseException},
     ffi,
 };
-use crate::{Borrowed, BoundObject, Py, PyAny, PyObject, Python};
+use crate::{Borrowed, BoundObject, Py, PyAny, Python};
 use std::borrow::Cow;
 use std::ffi::CStr;
 
@@ -98,14 +98,14 @@ impl<'py> DowncastIntoError<'py> {
 /// Helper conversion trait that allows to use custom arguments for lazy exception construction.
 pub trait PyErrArguments: Send + Sync {
     /// Arguments for exception
-    fn arguments(self, py: Python<'_>) -> PyObject;
+    fn arguments(self, py: Python<'_>) -> Py<PyAny>;
 }
 
 impl<T> PyErrArguments for T
 where
     T: for<'py> IntoPyObject<'py> + Send + Sync,
 {
-    fn arguments(self, py: Python<'_>) -> PyObject {
+    fn arguments(self, py: Python<'_>) -> Py<PyAny> {
         // FIXME: `arguments` should become fallible
         match self.into_pyobject(py) {
             Ok(obj) => obj.into_any().unbind(),
@@ -391,7 +391,7 @@ impl PyErr {
         name: &CStr,
         doc: Option<&CStr>,
         base: Option<&Bound<'py, PyType>>,
-        dict: Option<PyObject>,
+        dict: Option<Py<PyAny>>,
     ) -> PyResult<Py<PyType>> {
         let base: *mut ffi::PyObject = match base {
             None => std::ptr::null_mut(),
@@ -725,7 +725,7 @@ struct PyDowncastErrorArguments {
 }
 
 impl PyErrArguments for PyDowncastErrorArguments {
-    fn arguments(self, py: Python<'_>) -> PyObject {
+    fn arguments(self, py: Python<'_>) -> Py<PyAny> {
         const FAILED_TO_EXTRACT: Cow<'_, str> = Cow::Borrowed("<failed to extract type name>");
         let from = self.from.bind(py).qualname();
         let from = match &from {
