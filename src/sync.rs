@@ -22,7 +22,7 @@ pub(crate) mod once_cell;
 #[cfg(not(Py_GIL_DISABLED))]
 use crate::PyVisit;
 
-pub use self::once_cell::PyOnceCell;
+pub use self::once_cell::PyOnceLock;
 
 /// Value with concurrent access protected by the GIL.
 ///
@@ -133,7 +133,7 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 /// ```
 #[deprecated(
     since = "0.26.0",
-    note = "Prefer `pyo3::sync::PyOnceCell`, which avoids the possibility of racing during initialization."
+    note = "Prefer `pyo3::sync::PyOnceLock`, which avoids the possibility of racing during initialization."
 )]
 pub struct GILOnceCell<T> {
     once: Once,
@@ -438,12 +438,12 @@ macro_rules! intern {
 
 /// Implementation detail for `intern!` macro.
 #[doc(hidden)]
-pub struct Interned(&'static str, PyOnceCell<Py<PyString>>);
+pub struct Interned(&'static str, PyOnceLock<Py<PyString>>);
 
 impl Interned {
     /// Creates an empty holder for an interned `str`.
     pub const fn new(value: &'static str) -> Self {
-        Interned(value, PyOnceCell::new())
+        Interned(value, PyOnceLock::new())
     }
 
     /// Gets or creates the interned `str` value.

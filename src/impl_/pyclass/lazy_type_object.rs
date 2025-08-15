@@ -13,7 +13,7 @@ use crate::{
     exceptions::PyRuntimeError,
     impl_::{pyclass::MaybeRuntimePyMethodDef, pymethods::PyMethodDefType},
     pyclass::{create_type_object, PyClassTypeObject},
-    sync::PyOnceCell,
+    sync::PyOnceLock,
     type_object::PyTypeInfo,
     types::{PyAnyMethods, PyType},
     Bound, Py, PyClass, PyErr, PyResult, Python,
@@ -29,9 +29,9 @@ pub struct LazyTypeObject<T>(LazyTypeObjectInner, PhantomData<T>);
 
 // Non-generic inner of LazyTypeObject to keep code size down
 struct LazyTypeObjectInner {
-    value: PyOnceCell<PyClassTypeObject>,
+    value: PyOnceLock<PyClassTypeObject>,
     initializing_thread: Mutex<Option<ThreadId>>,
-    fully_initialized_type: PyOnceCell<Py<PyType>>,
+    fully_initialized_type: PyOnceLock<Py<PyType>>,
 }
 
 impl<T> LazyTypeObject<T> {
@@ -40,9 +40,9 @@ impl<T> LazyTypeObject<T> {
     pub const fn new() -> Self {
         LazyTypeObject(
             LazyTypeObjectInner {
-                value: PyOnceCell::new(),
+                value: PyOnceLock::new(),
                 initializing_thread: Mutex::new(None),
-                fully_initialized_type: PyOnceCell::new(),
+                fully_initialized_type: PyOnceLock::new(),
             },
             PhantomData,
         )
@@ -105,7 +105,7 @@ impl LazyTypeObjectInner {
         items_iter: PyClassItemsIter,
     ) -> PyResult<&Bound<'py, PyType>> {
         (|| -> PyResult<_> {
-            // ensure that base is fully initialized before entering the `PyOnceCell`
+            // ensure that base is fully initialized before entering the `PyOnceLock`
             // initialization; that could otherwise deadlock if the base type needs
             // to load the subtype as an attribute.
             //

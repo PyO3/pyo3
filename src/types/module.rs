@@ -80,7 +80,7 @@ impl PyModule {
     /// ```
     ///
     /// If you want to import a class, you can store a reference to it with
-    /// [`PyOnceCell::import`][crate::sync::PyOnceCell#method.import].
+    /// [`PyOnceLock::import`][crate::sync::PyOnceLock#method.import].
     pub fn import<'py, N>(py: Python<'py>, name: N) -> PyResult<Bound<'py, PyModule>>
     where
         N: IntoPyObject<'py, Target = PyString>,

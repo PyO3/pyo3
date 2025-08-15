@@ -13,9 +13,9 @@ Sorry that you're having trouble using PyO3. If you can't find the answer to you
 5. On non-free-threaded Python, thread A is now also blocked, because it waits to re-attach to the interpreter (by taking the GIL which thread B still holds).
 6. Deadlock.
 
-PyO3 provides a struct [`PyOnceCell`] which implements a single-initialization API based on these types that avoids deadlocks. You can also make use of the [`OnceExt`] and [`OnceLockExt`] extension traits that enable using the standard library types for this purpose by providing new methods for these types that avoid the risk of deadlocking with the Python interpreter. This means they can be used in place of other choices when you are experiencing the deadlock described above. See the documentation for [`PyOnceCell`] and [`OnceExt`] for further details and an example how to use them.
+PyO3 provides a struct [`PyOnceLock`] which implements a single-initialization API based on these types that avoids deadlocks. You can also make use of the [`OnceExt`] and [`OnceLockExt`] extension traits that enable using the standard library types for this purpose by providing new methods for these types that avoid the risk of deadlocking with the Python interpreter. This means they can be used in place of other choices when you are experiencing the deadlock described above. See the documentation for [`PyOnceLock`] and [`OnceExt`] for further details and an example how to use them.
 
-[`PyOnceCell`]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.PyOnceCell.html
+[`PyOnceLock`]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.PyOnceLock.html
 [`OnceExt`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html
 [`OnceLockExt`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceLockExt.html
 

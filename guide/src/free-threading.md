@@ -285,21 +285,21 @@ the free-threaded build.
 
 ### Thread-safe single initialization
 
-To initialize data exactly once, use the [`PyOnceCell`] type, which is a
-wrapper around [`OnceCell`] which detaches from the Python interpreter to
-help avoid deadlocks when threads are blocking waiting for another thread to
-complete intialization. If using a `std::sync::OnceLock` and it is impractical
-to replace with a [`PyOnceCell`], there is the [`OnceLockExt`] extension trait
+To initialize data exactly once, use the [`PyOnceLock`] type, which is a close equivalent
+to [`std::sync::OnceLock`][`OnceLock`] that also helps avoid deadlocks by detaching from
+the Python interpreter when threads are blocking waiting for another thread to
+complete intialization. If already using [`OnceLock`] and it is impractical
+to replace with a [`PyOnceLock`], there is the [`OnceLockExt`] extension trait
 which adds [`OnceLockExt::get_or_init_py_attached`] to detach from the interpreter
-when blocking in the same fashion as [`PyOnceCell`]. Here is an example using
-[`PyOnceCell`] to single-initialize a runtime cache holding a `Py<PyDict>`:
+when blocking in the same fashion as [`PyOnceLock`]. Here is an example using
+[`PyOnceLock`] to single-initialize a runtime cache holding a `Py<PyDict>`:
 
 ```rust
 # use pyo3::prelude::*;
-use pyo3::sync::PyOnceCell;
+use pyo3::sync::PyOnceLock;
 use pyo3::types::PyDict;
 
-let cache: PyOnceCell<Py<PyDict>> = PyOnceCell::new();
+let cache: PyOnceLock<Py<PyDict>> = PyOnceLock::new();
 
 Python::attach(|py| {
     // guaranteed to be called once and only once
@@ -317,7 +317,7 @@ token in addition to an `FnOnce`. All of these functions detach from the
 interpreter before blocking and re-attach before executing the function,
 avoiding deadlocks that are possible without using the PyO3
 extension traits. Here the same example as above built using a [`Once`] instead of a
-[`PyOnceCell`]:
+[`PyOnceLock`]:
 
 ```rust
 # use pyo3::prelude::*;
@@ -421,5 +421,5 @@ interpreter.
 [`Python::detach`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.detach
 [`Python::attach`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.attach
 [`Python<'py>`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html
-[`PyOnceCell`]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.PyOnceCell.html
+[`PyOnceLock`]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.PyOnceLock.html
 [`threading`]: https://docs.python.org/3/library/threading.html

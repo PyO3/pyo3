@@ -16,13 +16,13 @@ For this reason we chose to rename these to more modern terminology introduced i
 - `pyo3::prepare_freethreaded_python` is now called `Python::initialize`.
 </details>
 
-### Replacement of `GILOnceCell` with `PyOnceCell`
+### Replacement of `GILOnceCell` with `PyOnceLock`
 <details open>
 <summary><small>Click to expand</small></summary>
 
 Similar to the above, the `GILOnceCell` type was designed for a Python interpreter which was limited by the GIL. Aside from its name, it allowed for the "once" initialization to race because the racing was mediated by the GIL and was extremely unlikely to manifest in practice.
 
-With the introduction of free-threaded Python the racy initialization behavior is more likely to be problematic and so a new type `PyOnceCell` has been introduced which performs true single-initialization correctly while attached to the Python interpreter. It exposes the same API as `GILOnceCell`, so should be a drop-in replacement with the notable exception that if the racy initialization of `GILOnceCell` was inadvertently relied on (e.g. due to circular references) then the stronger once-ever guarantee of `PyOnceCell` may lead to deadlocking which requires refactoring.
+With the introduction of free-threaded Python the racy initialization behavior is more likely to be problematic and so a new type `PyOnceLock` has been introduced which performs true single-initialization correctly while attached to the Python interpreter. It exposes the same API as `GILOnceCell`, so should be a drop-in replacement with the notable exception that if the racy initialization of `GILOnceCell` was inadvertently relied on (e.g. due to circular references) then the stronger once-ever guarantee of `PyOnceLock` may lead to deadlocking which requires refactoring.
 
 Before:
 
@@ -44,11 +44,11 @@ After:
 
 ```rust
 # use pyo3::prelude::*;
-# use pyo3::sync::PyOnceCell;
+# use pyo3::sync::PyOnceLock;
 # use pyo3::types::PyType;
 # fn main() -> PyResult<()> {
 # Python::attach(|py| {
-static DECIMAL_TYPE: PyOnceCell<Py<PyType>> = PyOnceCell::new();
+static DECIMAL_TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 DECIMAL_TYPE.import(py, "decimal", "Decimal")?;
 # Ok(())
 # })

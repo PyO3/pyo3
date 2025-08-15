@@ -3,28 +3,29 @@ use crate::{
     Python,
 };
 
-/// A wrapper for [`once_cell::sync::OnceCell<T>`] for initializing objects while attached to
+/// An equivalent to [`std::sync::OnceLock`] for initializing objects while attached to
 /// the Python interpreter.
 ///
-/// Unlike `OnceCell<T>`, this type will not deadlock with the interpreter.
+/// Unlike `OnceLock<T>`, this type will not deadlock with the interpreter.
 /// Before blocking calls the cell will detach from the runtime and then
 /// re-attach once the cell is unblocked.
 ///
 /// # Re-entrant initialization
 ///
-/// Like `OnceCell<T>`, it is an error to re-entrantly initialize a `PyOnceCell<T>`.
+/// Like `OnceLock<T>`, it is an error to re-entrantly initialize a `PyOnceLock<T>`. The exact
+/// behavior in this case is not guaranteed, it may either deadlock or panic.
 ///
 /// # Examples
 ///
-/// The following example shows how to use `PyOnceCell` to share a reference to a Python list
+/// The following example shows how to use `PyOnceLock` to share a reference to a Python list
 /// between threads:
 ///
 /// ```
-/// use pyo3::sync::PyOnceCell;
+/// use pyo3::sync::PyOnceLock;
 /// use pyo3::prelude::*;
 /// use pyo3::types::PyList;
 ///
-/// static LIST_CELL: PyOnceCell<Py<PyList>> = PyOnceCell::new();
+/// static LIST_CELL: PyOnceLock<Py<PyList>> = PyOnceLock::new();
 ///
 /// pub fn get_shared_list(py: Python<'_>) -> &Bound<'_, PyList> {
 ///     LIST_CELL
@@ -34,12 +35,12 @@ use crate::{
 /// # Python::attach(|py| assert_eq!(get_shared_list(py).len(), 0));
 /// ```
 #[derive(Default)]
-pub struct PyOnceCell<T> {
+pub struct PyOnceLock<T> {
     inner: once_cell::sync::OnceCell<T>,
 }
 
-impl<T> PyOnceCell<T> {
-    /// Create a `PyOnceCell` which does not yet contain a value.
+impl<T> PyOnceLock<T> {
+    /// Create a `PyOnceLock` which does not yet contain a value.
     pub const fn new() -> Self {
         Self {
             inner: once_cell::sync::OnceCell::new(),
@@ -108,12 +109,12 @@ impl<T> PyOnceCell<T> {
     }
 }
 
-impl<T> PyOnceCell<Py<T>> {
+impl<T> PyOnceLock<Py<T>> {
     /// Creates a new cell that contains a new Python reference to the same contained object.
     ///
     /// Returns an uninitialized cell if `self` has not yet been initialized.
     pub fn clone_ref(&self, py: Python<'_>) -> Self {
-        let cloned = PyOnceCell::new();
+        let cloned = PyOnceLock::new();
         if let Some(value) = self.get(py) {
             let _ = cloned.set(py, value.clone_ref(py));
         }
@@ -121,18 +122,18 @@ impl<T> PyOnceCell<Py<T>> {
     }
 }
 
-impl<T> PyOnceCell<Py<T>>
+impl<T> PyOnceLock<Py<T>>
 where
     T: PyTypeCheck,
 {
     /// This is a shorthand method for `get_or_init` which imports the type from Python on init.
     ///
-    /// # Example: Using `PyOnceCell` to store a class in a static variable.
+    /// # Example: Using `PyOnceLock` to store a class in a static variable.
     ///
-    /// `PyOnceCell` can be used to avoid importing a class multiple times:
+    /// `PyOnceLock` can be used to avoid importing a class multiple times:
     /// ```
     /// # use pyo3::prelude::*;
-    /// # use pyo3::sync::PyOnceCell;
+    /// # use pyo3::sync::PyOnceLock;
     /// # use pyo3::types::{PyDict, PyType};
     /// # use pyo3::intern;
     /// #
@@ -140,7 +141,7 @@ where
     /// fn create_ordered_dict<'py>(py: Python<'py>, dict: Bound<'py, PyDict>) -> PyResult<Bound<'py, PyAny>> {
     ///     // Even if this function is called multiple times,
     ///     // the `OrderedDict` class will be imported only once.
-    ///     static ORDERED_DICT: PyOnceCell<Py<PyType>> = PyOnceCell::new();
+    ///     static ORDERED_DICT: PyOnceLock<Py<PyType>> = PyOnceLock::new();
     ///     ORDERED_DICT
     ///         .import(py, "collections", "OrderedDict")?
     ///         .call1((dict,))
@@ -222,7 +223,7 @@ mod tests {
     #[test]
     fn test_once_cell() {
         Python::attach(|py| {
-            let mut cell = PyOnceCell::new();
+            let mut cell = PyOnceLock::new();
 
             assert!(cell.get(py).is_none());
 
@@ -237,7 +238,7 @@ mod tests {
             assert_eq!(cell.take(), Some(2));
             assert_eq!(cell.into_inner(), None);
 
-            let cell_py = PyOnceCell::new();
+            let cell_py = PyOnceLock::new();
             assert!(cell_py.clone_ref(py).get(py).is_none());
             cell_py.get_or_init(py, || py.None());
             assert!(cell_py.clone_ref(py).get(py).unwrap().is_none(py));
@@ -257,7 +258,7 @@ mod tests {
 
         Python::attach(|py| {
             let mut dropped = false;
-            let cell = PyOnceCell::new();
+            let cell = PyOnceLock::new();
             cell.set(py, RecordDrop(&mut dropped)).unwrap();
             let drop_container = cell.get(py).unwrap();
 

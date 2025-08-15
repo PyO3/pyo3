@@ -252,9 +252,9 @@ macro_rules! create_exception_type_object {
 
         impl $name {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
-                use $crate::sync::PyOnceCell;
-                static TYPE_OBJECT: PyOnceCell<$crate::Py<$crate::types::PyType>> =
-                    PyOnceCell::new();
+                use $crate::sync::PyOnceLock;
+                static TYPE_OBJECT: PyOnceLock<$crate::Py<$crate::types::PyType>> =
+                    PyOnceLock::new();
 
                 TYPE_OBJECT
                     .get_or_init(py, ||
