@@ -439,7 +439,7 @@ macro_rules! define_pyclass_setattr_slot {
                     _slf: *mut $crate::ffi::PyObject,
                     attr: *mut $crate::ffi::PyObject,
                     value: *mut $crate::ffi::PyObject,
-                ) -> ::std::os::raw::c_int {
+                ) -> ::std::ffi::c_int {
                     unsafe {
                         $crate::impl_::trampoline::setattrofunc(
                             _slf,
@@ -882,7 +882,7 @@ macro_rules! generate_pyclass_richcompare_slot {
             unsafe extern "C" fn __pymethod___richcmp____(
                 slf: *mut $crate::ffi::PyObject,
                 other: *mut $crate::ffi::PyObject,
-                op: ::std::os::raw::c_int,
+                op: ::std::ffi::c_int,
             ) -> *mut $crate::ffi::PyObject {
                 unsafe {
                     $crate::impl_::trampoline::richcmpfunc(slf, other, op, |py, slf, other, op| {

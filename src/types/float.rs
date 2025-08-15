@@ -7,7 +7,7 @@ use crate::{
     Python,
 };
 use std::convert::Infallible;
-use std::os::raw::c_double;
+use std::ffi::c_double;
 
 /// Represents a Python `float` object.
 ///

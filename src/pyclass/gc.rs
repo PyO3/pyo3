@@ -63,7 +63,7 @@ mod get_nonzero_c_int {
     }
 
     pub type Type =
-        <GetNonZeroCInt<{ std::mem::size_of::<std::os::raw::c_int>() * 8 }> as NonZeroCIntType>::Type;
+        <GetNonZeroCInt<{ std::mem::size_of::<std::ffi::c_int>() * 8 }> as NonZeroCIntType>::Type;
 }
 
 use get_nonzero_c_int::Type as NonZeroCInt;

@@ -14,7 +14,7 @@ use crate::types::{PyDict, PyIterator, PyList, PyString, PyType};
 use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
-use std::os::raw::c_int;
+use std::ffi::c_int;
 use std::ptr;
 
 /// Represents any Python object.

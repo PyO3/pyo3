@@ -14,9 +14,9 @@ use crate::{
     PyVisit, Python,
 };
 use std::ffi::CStr;
+use std::ffi::{c_int, c_void};
 use std::fmt;
 use std::marker::PhantomData;
-use std::os::raw::{c_int, c_void};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr::{null_mut, NonNull};
 

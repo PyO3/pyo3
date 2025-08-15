@@ -1,7 +1,7 @@
 use crate::methodobject::PyMethodDef;
 use crate::object::{PyObject, PyTypeObject};
 use crate::Py_ssize_t;
-use std::os::raw::{c_char, c_int, c_void};
+use std::ffi::{c_char, c_int, c_void};
 use std::ptr;
 
 pub type getter = unsafe extern "C" fn(slf: *mut PyObject, closure: *mut c_void) -> *mut PyObject;
