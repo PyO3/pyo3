@@ -53,32 +53,13 @@ impl<T> LazyTypeObject<T> {
 impl<T: PyClass> LazyTypeObject<T> {
     /// Gets the type object contained by this `LazyTypeObject`, initializing it if needed.
     #[inline]
-    pub fn get_or_init<'py>(&self, py: Python<'py>) -> &Bound<'py, PyType> {
-        if let Some(type_object) = self.0.fully_initialized_type.get(py) {
-            // Fast path
-            return type_object.bind(py);
-        }
-
-        self.init(py)
-    }
-
-    /// Fallible version of the above.
-    #[inline]
-    pub(crate) fn get_or_try_init<'py>(&self, py: Python<'py>) -> PyResult<&Bound<'py, PyType>> {
+    pub fn get_or_try_init<'py>(&self, py: Python<'py>) -> PyResult<&Bound<'py, PyType>> {
         if let Some(type_object) = self.0.fully_initialized_type.get(py) {
             // Fast path
             return Ok(type_object.bind(py));
         }
 
         self.try_init(py)
-    }
-
-    #[cold]
-    fn init<'py>(&self, py: Python<'py>) -> &Bound<'py, PyType> {
-        self.try_init(py).unwrap_or_else(|err| {
-            err.print(py);
-            panic!("failed to create type object for {}", T::NAME)
-        })
     }
 
     #[cold]
@@ -270,6 +251,13 @@ fn initialize_tp_dict(
 
 // This is necessary for making static `LazyTypeObject`s
 unsafe impl<T> Sync for LazyTypeObject<T> {}
+
+/// Used in the macro-expanded implementation of `type_object_raw` for `#[pyclass]` types
+#[cold]
+pub fn type_object_init_failed(py: Python<'_>, err: PyErr, type_name: &str) -> ! {
+    err.write_unraisable(py, None);
+    panic!("failed to create type object for `{type_name}`")
+}
 
 #[cold]
 fn wrap_in_runtime_error(py: Python<'_>, err: PyErr, message: String) -> PyErr {
