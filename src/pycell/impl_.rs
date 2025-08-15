@@ -98,7 +98,9 @@ pub struct BorrowChecker(BorrowFlag);
 
 pub trait PyClassBorrowChecker {
     /// Initial value for self
-    fn new() -> Self;
+    fn new() -> Self
+    where
+        Self: Sized;
 
     /// Increments immutable borrow count, if possible
     fn try_borrow(&self) -> Result<(), PyBorrowError>;
