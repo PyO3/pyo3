@@ -17,12 +17,12 @@ use std::{
     sync::{Once, OnceState},
 };
 
-pub(crate) mod once_cell;
+pub(crate) mod once_lock;
 
 #[cfg(not(Py_GIL_DISABLED))]
 use crate::PyVisit;
 
-pub use self::once_cell::PyOnceLock;
+pub use self::once_lock::PyOnceLock;
 
 /// Value with concurrent access protected by the GIL.
 ///
