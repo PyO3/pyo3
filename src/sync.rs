@@ -117,6 +117,7 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 /// between threads:
 ///
 /// ```
+/// #![allow(deprecated)]
 /// use pyo3::sync::GILOnceCell;
 /// use pyo3::prelude::*;
 /// use pyo3::types::PyList;
@@ -143,6 +144,7 @@ pub struct GILOnceCell<T> {
     /// `PhantomData` to make sure dropck understands we're dropping T in our Drop impl.
     ///
     /// ```compile_error,E0597
+    /// #![allow(deprecated)]
     /// use pyo3::Python;
     /// use pyo3::sync::GILOnceCell;
     ///
@@ -341,6 +343,7 @@ where
     ///
     /// `GILOnceCell` can be used to avoid importing a class multiple times:
     /// ```
+    /// #![allow(deprecated)]
     /// # use pyo3::prelude::*;
     /// # use pyo3::sync::GILOnceCell;
     /// # use pyo3::types::{PyDict, PyType};
@@ -887,6 +890,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_once_cell() {
         Python::attach(|py| {
             let mut cell = GILOnceCell::new();
@@ -912,6 +916,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_once_cell_drop() {
         #[derive(Debug)]
         struct RecordDrop<'a>(&'a mut bool);

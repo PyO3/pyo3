@@ -361,5 +361,6 @@ fn test_class_attribute_reentrancy() {
 
     Python::attach(|py| {
         let derived_class = py.get_type::<Derived>();
+        assert!(derived_class.getattr("DERIVED").is_ok());
     })
 }

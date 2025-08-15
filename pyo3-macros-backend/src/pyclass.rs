@@ -2443,7 +2443,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 impl #pyo3_path::impl_::pyclass::PyClassWithFreeList for #cls {
                     #[inline]
                     fn get_free_list(py: #pyo3_path::Python<'_>) -> &'static ::std::sync::Mutex<#pyo3_path::impl_::freelist::PyObjectFreeList> {
-                        static FREELIST: #pyo3_path::sync::GILOnceCell<::std::sync::Mutex<#pyo3_path::impl_::freelist::PyObjectFreeList>> = #pyo3_path::sync::GILOnceCell::new();
+                        static FREELIST: #pyo3_path::sync::PyOnceCell<::std::sync::Mutex<#pyo3_path::impl_::freelist::PyObjectFreeList>> = #pyo3_path::sync::PyOnceCell::new();
                         // If there's a race to fill the cell, the object created
                         // by the losing thread will be deallocated via RAII
                         &FREELIST.get_or_init(py, || {

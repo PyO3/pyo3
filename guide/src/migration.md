@@ -29,12 +29,13 @@ Before:
 ```rust
 # #![allow(deprecated)]
 # use pyo3::prelude::*;
-# use pyo3::sync::PyOnceCell;
+# use pyo3::sync::GILOnceCell;
 # use pyo3::types::PyType;
-# fn main() {
+# fn main() -> PyResult<()> {
 # Python::attach(|py| {
 static DECIMAL_TYPE: GILOnceCell<Py<PyType>> = GILOnceCell::new();
-DECIMAL_TYPE.import("decimal", "Decimal");
+DECIMAL_TYPE.import(py, "decimal", "Decimal")?;
+# Ok(())
 # })
 # }
 ```
@@ -44,11 +45,12 @@ After:
 ```rust
 # use pyo3::prelude::*;
 # use pyo3::sync::PyOnceCell;
-# use pyo3::types::PyTuple;
-# fn main() {
+# use pyo3::types::PyType;
+# fn main() -> PyResult<()> {
 # Python::attach(|py| {
 static DECIMAL_TYPE: PyOnceCell<Py<PyType>> = PyOnceCell::new();
-DECIMAL_TYPE.import("decimal", "Decimal");
+DECIMAL_TYPE.import(py, "decimal", "Decimal")?;
+# Ok(())
 # })
 # }
 ```
