@@ -472,8 +472,8 @@ fn impl_traverse_slot(
         pub unsafe extern "C" fn __pymethod_traverse__(
             slf: *mut #pyo3_path::ffi::PyObject,
             visit: #pyo3_path::ffi::visitproc,
-            arg: *mut ::std::os::raw::c_void,
-        ) -> ::std::os::raw::c_int {
+            arg: *mut ::std::ffi::c_void,
+        ) -> ::std::ffi::c_int {
             #pyo3_path::impl_::pymethods::_call_traverse::<#cls>(slf, #cls::#rust_fn_ident, visit, arg, #cls::__pymethod_traverse__)
         }
     };
@@ -514,7 +514,7 @@ fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result
     let associated_method = quote! {
         pub unsafe extern "C" fn __pymethod___clear____(
             _slf: *mut #pyo3_path::ffi::PyObject,
-        ) -> ::std::os::raw::c_int {
+        ) -> ::std::ffi::c_int {
             #pyo3_path::impl_::pymethods::_call_clear(_slf, |py, _slf| {
                 #holders
                 let result = #fncall;
@@ -749,7 +749,7 @@ pub fn impl_py_setter_def(
             py: #pyo3_path::Python<'_>,
             _slf: *mut #pyo3_path::ffi::PyObject,
             _value: *mut #pyo3_path::ffi::PyObject,
-        ) -> #pyo3_path::PyResult<::std::os::raw::c_int> {
+        ) -> #pyo3_path::PyResult<::std::ffi::c_int> {
             use ::std::convert::Into;
             let _value = #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr_or_opt(py, &_value)
                 .ok_or_else(|| {
@@ -1124,7 +1124,7 @@ impl Ty {
             Ty::Object | Ty::MaybeNullObject => quote! { *mut #pyo3_path::ffi::PyObject },
             Ty::NonNullObject => quote! { ::std::ptr::NonNull<#pyo3_path::ffi::PyObject> },
             Ty::IPowModulo => quote! { #pyo3_path::impl_::pymethods::IPowModulo },
-            Ty::Int | Ty::CompareOp => quote! { ::std::os::raw::c_int },
+            Ty::Int | Ty::CompareOp => quote! { ::std::ffi::c_int },
             Ty::PyHashT => quote! { #pyo3_path::ffi::Py_hash_t },
             Ty::PySsizeT => quote! { #pyo3_path::ffi::Py_ssize_t },
             Ty::Void => quote! { () },

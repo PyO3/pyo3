@@ -728,7 +728,7 @@ unsafe fn get_type_traverse(tp: *mut pyo3::ffi::PyTypeObject) -> Option<pyo3::ff
 extern "C" fn novisit(
     _object: *mut pyo3::ffi::PyObject,
     _arg: *mut core::ffi::c_void,
-) -> std::os::raw::c_int {
+) -> std::ffi::c_int {
     0
 }
 
@@ -736,7 +736,7 @@ extern "C" fn novisit(
 extern "C" fn visit_error(
     _object: *mut pyo3::ffi::PyObject,
     _arg: *mut core::ffi::c_void,
-) -> std::os::raw::c_int {
+) -> std::ffi::c_int {
     -1
 }
 

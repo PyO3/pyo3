@@ -11,9 +11,9 @@ use crate::types::{
 use crate::{
     exceptions, ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyObject, Python,
 };
-use std::ffi::CStr;
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
-use std::os::raw::c_int;
+use std::ffi::c_int;
+use std::ffi::CStr;
 use std::str;
 
 /// Represents a Python [`module`][1] object.

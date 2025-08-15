@@ -1930,7 +1930,7 @@ There can be two fixes:
 
    #[pyclass]
    struct Unsendable {
-       pointers: Vec<*mut std::os::raw::c_char>,
+       pointers: Vec<*mut std::ffi::c_char>,
    }
    ```
 
@@ -1941,7 +1941,7 @@ There can be two fixes:
 
    #[pyclass(unsendable)]
    struct Unsendable {
-       pointers: Vec<*mut std::os::raw::c_char>,
+       pointers: Vec<*mut std::ffi::c_char>,
    }
    ```
 </details>

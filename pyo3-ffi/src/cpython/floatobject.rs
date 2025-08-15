@@ -1,7 +1,7 @@
 #[cfg(GraalPy)]
 use crate::PyFloat_AsDouble;
 use crate::{PyFloat_Check, PyObject};
-use std::os::raw::c_double;
+use std::ffi::c_double;
 
 #[repr(C)]
 pub struct PyFloatObject {

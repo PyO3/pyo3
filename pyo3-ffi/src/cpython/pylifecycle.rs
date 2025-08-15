@@ -1,6 +1,6 @@
 use crate::{PyConfig, PyPreConfig, PyStatus, Py_ssize_t};
 use libc::wchar_t;
-use std::os::raw::{c_char, c_int};
+use std::ffi::{c_char, c_int};
 
 // "private" functions in cpython/pylifecycle.h accepted in PEP 587
 extern "C" {

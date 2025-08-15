@@ -66,7 +66,7 @@ fn main() {
 
 **`src/lib.rs`**
 ```rust,no_run
-use std::os::raw::{c_char, c_long};
+use std::ffi::{c_char, c_long};
 use std::ptr;
 
 use pyo3_ffi::*;
