@@ -167,8 +167,12 @@ pub struct InterpreterConfig {
     ///
     /// Serialized to multiple `extra_build_script_line` values.
     pub extra_build_script_lines: Vec<String>,
+
     /// macOS Python3.framework requires special rpath handling
     pub python_framework_prefix: Option<String>,
+
+    /// Relocatable Python installations require special rpath handling
+    pub relocatable: bool,
 }
 
 impl InterpreterConfig {
@@ -265,6 +269,7 @@ print("calcsize_pointer", struct.calcsize("P"))
 print("mingw", get_platform().startswith("mingw"))
 print("ext_suffix", get_config_var("EXT_SUFFIX"))
 print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
+print_if_set("python_build_standalone", get_config_var("PYTHON_BUILD_STANDALONE"))
 "#;
         let output = run_python_script(interpreter.as_ref(), SCRIPT)?;
         let map: HashMap<String, String> = parse_script_output(&output);
@@ -313,6 +318,13 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             "0" => false,
             "None" => false,
             _ => panic!("Unknown Py_GIL_DISABLED value"),
+        };
+
+        let relocatable = match map.get("python_build_standalone").map(String::as_str) {
+            None => false,
+            Some("0") => false,
+            Some("1") => true,
+            _ => panic!("Unknown PYTHON_BUILD_STANDALONE value"),
         };
 
         let lib_name = if cfg!(windows) {
@@ -365,6 +377,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
             python_framework_prefix,
+            relocatable,
         })
     }
 
@@ -410,6 +423,10 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             Some(value) => value == "1",
             None => false,
         };
+        let relocatable = match sysconfigdata.get_value("python_build_standalone") {
+            Some(value) => value == "1",
+            None => false,
+        };
         let lib_name = Some(default_lib_name_unix(
             version,
             implementation,
@@ -434,6 +451,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
             python_framework_prefix,
+            relocatable,
         })
     }
 
@@ -511,6 +529,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         let mut suppress_build_script_link_lines = None;
         let mut extra_build_script_lines = vec![];
         let mut python_framework_prefix = None;
+        let mut relocatable = None;
 
         for (i, line) in lines.enumerate() {
             let line = line.context("failed to read line from config")?;
@@ -540,6 +559,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
                     extra_build_script_lines.push(value.to_string());
                 }
                 "python_framework_prefix" => parse_value!(python_framework_prefix, value),
+                "relocatable" => parse_value!(relocatable, value),
                 unknown => warn!("unknown config key `{}`", unknown),
             }
         }
@@ -571,6 +591,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             suppress_build_script_link_lines: suppress_build_script_link_lines.unwrap_or(false),
             extra_build_script_lines,
             python_framework_prefix,
+            relocatable: relocatable.unwrap_or(false),
         })
     }
 
@@ -663,12 +684,13 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         write_option_line!(executable)?;
         write_option_line!(pointer_width)?;
         write_line!(build_flags)?;
-        write_option_line!(python_framework_prefix)?;
         write_line!(suppress_build_script_link_lines)?;
         for line in &self.extra_build_script_lines {
             writeln!(writer, "extra_build_script_line={line}")
                 .context("failed to write extra_build_script_line")?;
         }
+        write_option_line!(python_framework_prefix)?;
+        write_line!(relocatable)?;
         Ok(())
     }
 
@@ -1610,7 +1632,10 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
         build_flags: BuildFlags::default(),
         suppress_build_script_link_lines: false,
         extra_build_script_lines: vec![],
+        // Because this is only used for extensions, we know we do not
+        // need any rpath handling.
         python_framework_prefix: None,
+        relocatable: false,
     })
 }
 
@@ -1653,7 +1678,10 @@ fn default_abi3_config(host: &Triple, version: PythonVersion) -> Result<Interpre
         build_flags: BuildFlags::default(),
         suppress_build_script_link_lines: false,
         extra_build_script_lines: vec![],
+        // Because this is only used for extensions, we know we do not
+        // need any rpath handling.
         python_framework_prefix: None,
+        relocatable: false,
     })
 }
 
@@ -2037,6 +2065,7 @@ mod tests {
             suppress_build_script_link_lines: true,
             extra_build_script_lines: vec!["cargo:test1".to_string(), "cargo:test2".to_string()],
             python_framework_prefix: None,
+            relocatable: false,
         };
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
@@ -2066,6 +2095,7 @@ mod tests {
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
             python_framework_prefix: None,
+            relocatable: true,
         };
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
@@ -2088,6 +2118,7 @@ mod tests {
             suppress_build_script_link_lines: true,
             extra_build_script_lines: vec!["cargo:test1".to_string(), "cargo:test2".to_string()],
             python_framework_prefix: None,
+            relocatable: false,
         };
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
@@ -2115,6 +2146,7 @@ mod tests {
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
                 python_framework_prefix: None,
+                relocatable: false,
             }
         )
     }
@@ -2138,6 +2170,7 @@ mod tests {
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
                 python_framework_prefix: None,
+                relocatable: false,
             }
         )
     }
@@ -2241,6 +2274,7 @@ mod tests {
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
                 python_framework_prefix: None,
+                relocatable: false,
             }
         );
     }
@@ -2271,6 +2305,7 @@ mod tests {
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
                 python_framework_prefix: None,
+                relocatable: false,
             }
         );
 
@@ -2298,6 +2333,37 @@ mod tests {
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
                 python_framework_prefix: None,
+                relocatable: false,
+            }
+        );
+    }
+
+    #[test]
+    fn config_from_sysconfigdata_relocatable() {
+        let mut sysconfigdata = Sysconfigdata::new();
+        sysconfigdata.insert("SOABI", "cpython-37m-x86_64-linux-gnu");
+        sysconfigdata.insert("VERSION", "3.7");
+        sysconfigdata.insert("Py_ENABLE_SHARED", "1");
+        sysconfigdata.insert("LIBDIR", "/home/xyz/Downloads/python/lib");
+        sysconfigdata.insert("LDVERSION", "3.7m");
+        sysconfigdata.insert("SIZEOF_VOID_P", "8");
+        sysconfigdata.insert("PYTHON_BUILD_STANDALONE", "1");
+        assert_eq!(
+            InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
+            InterpreterConfig {
+                abi3: false,
+                build_flags: BuildFlags::from_sysconfigdata(&sysconfigdata),
+                pointer_width: Some(64),
+                executable: None,
+                implementation: PythonImplementation::CPython,
+                lib_dir: Some("/home/xyz/Downloads/python/lib".into()),
+                lib_name: Some("python3.7m".into()),
+                shared: true,
+                version: PythonVersion::PY37,
+                suppress_build_script_link_lines: false,
+                extra_build_script_lines: vec![],
+                python_framework_prefix: None,
+                relocatable: true,
             }
         );
     }
@@ -2322,6 +2388,7 @@ mod tests {
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
                 python_framework_prefix: None,
+                relocatable: false,
             }
         );
     }
@@ -2346,6 +2413,7 @@ mod tests {
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
                 python_framework_prefix: None,
+                relocatable: false,
             }
         );
     }
@@ -2381,6 +2449,7 @@ mod tests {
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
                 python_framework_prefix: None,
+                relcoatable: false,
             }
         );
     }
@@ -2416,6 +2485,7 @@ mod tests {
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
                 python_framework_prefix: None,
+                relocatable: false,
             }
         );
     }
@@ -2451,6 +2521,7 @@ mod tests {
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
                 python_framework_prefix: None,
+                relocatable; false,
             }
         );
     }
@@ -2488,6 +2559,7 @@ mod tests {
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
                 python_framework_prefix: None,
+                relocatable: false,
             }
         );
     }
@@ -2836,6 +2908,7 @@ mod tests {
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
             python_framework_prefix: None,
+            relocatable: false,
         };
 
         config
@@ -2859,6 +2932,7 @@ mod tests {
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
             python_framework_prefix: None,
+            relocatable: false,
         };
 
         assert!(config
@@ -2924,6 +2998,7 @@ mod tests {
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
                 python_framework_prefix: None,
+                relocatable: false,
             }
         )
     }
@@ -3056,6 +3131,7 @@ mod tests {
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
             python_framework_prefix: None,
+            relocatable: false,
         };
         assert_eq!(
             interpreter_config.build_script_outputs(),
@@ -3096,6 +3172,7 @@ mod tests {
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
             python_framework_prefix: None,
+            relocatable: false,
         };
 
         assert_eq!(
@@ -3144,6 +3221,7 @@ mod tests {
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
             python_framework_prefix: None,
+            relocatable: false,
         };
 
         assert_eq!(
@@ -3178,6 +3256,7 @@ mod tests {
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
             python_framework_prefix: None,
+            relocatable: false,
         };
 
         assert_eq!(
