@@ -68,13 +68,13 @@ use uuid::Uuid;
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyTypeError;
 use crate::instance::Bound;
-use crate::sync::GILOnceCell;
+use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
 use crate::{intern, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
 
 fn get_uuid_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
-    static UUID_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+    static UUID_CLS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
     UUID_CLS.import(py, "uuid", "UUID")
 }
 

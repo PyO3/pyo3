@@ -52,7 +52,7 @@ use crate::types::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
 #[cfg(feature = "chrono-local")]
 use crate::{
     exceptions::PyRuntimeError,
-    sync::GILOnceCell,
+    sync::PyOnceLock,
     types::{PyString, PyStringMethods},
     Py,
 };
@@ -449,7 +449,7 @@ impl<'py> IntoPyObject<'py> for Local {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        static LOCAL_TZ: GILOnceCell<Py<PyTzInfo>> = GILOnceCell::new();
+        static LOCAL_TZ: PyOnceLock<Py<PyTzInfo>> = PyOnceLock::new();
         let tz = LOCAL_TZ
             .get_or_try_init(py, || {
                 let iana_name = iana_time_zone::get_timezone().map_err(|e| {

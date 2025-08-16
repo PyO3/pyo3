@@ -30,8 +30,8 @@ impl crate::PyTypeCheck for PyCode {
 
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         let py = object.py();
-        static TYPE: crate::sync::GILOnceCell<crate::Py<super::PyType>> =
-            crate::sync::GILOnceCell::new();
+        static TYPE: crate::sync::PyOnceLock<crate::Py<super::PyType>> =
+            crate::sync::PyOnceLock::new();
 
         TYPE.import(py, "types", "CodeType")
             .and_then(|ty| object.is_instance(ty))

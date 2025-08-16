@@ -3,7 +3,7 @@ use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::py_result_ext::PyResultExt;
-use crate::sync::GILOnceCell;
+use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyDict, PyList, PyType};
@@ -161,7 +161,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
 }
 
 fn get_mapping_abc(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
-    static MAPPING_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+    static MAPPING_ABC: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 
     MAPPING_ABC.import(py, "collections.abc", "Mapping")
 }

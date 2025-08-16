@@ -54,7 +54,7 @@ use std::str::FromStr;
 use crate::types::PyTuple;
 use crate::{
     exceptions::PyValueError,
-    sync::GILOnceCell,
+    sync::PyOnceLock,
     types::{PyAnyMethods, PyStringMethods, PyType},
     Bound, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python,
 };
@@ -62,12 +62,12 @@ use bigdecimal::BigDecimal;
 use num_bigint::Sign;
 
 fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
-    static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+    static DECIMAL_CLS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
     DECIMAL_CLS.import(py, "decimal", "Decimal")
 }
 
 fn get_invalid_operation_error_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
-    static INVALID_OPERATION_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+    static INVALID_OPERATION_CLS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
     INVALID_OPERATION_CLS.import(py, "decimal", "InvalidOperation")
 }
 
