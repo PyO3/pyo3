@@ -164,7 +164,7 @@ simultaneously interacting with the interpreter.
 You still need to obtain a `'py` lifetime is to interact with Python
 objects or call into the CPython C API. If you are not yet attached to the
 Python runtime, you can register a thread using the [`Python::attach`]
-function. Threads created via the Python [`threading`] module do not not need to
+function. Threads created via the Python [`threading`] module do not need to
 do this, and pyo3 will handle setting up the [`Python<'py>`] token when CPython
 calls into your extension.
 
