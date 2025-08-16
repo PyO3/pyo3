@@ -44,7 +44,7 @@ How could we expose this solver to Python thanks to PyO3 ?
 ## Implementation of the trait bounds for the Python class
 
 If a Python class implements the same three methods as the `Model` trait, it seems logical it could be adapted to use the solver.
-However, it is not possible to pass a `PyObject` to it as it does not implement the Rust trait (even if the Python model has the required methods).
+However, it is not possible to pass a `Py<PyAny>` to it as it does not implement the Rust trait (even if the Python model has the required methods).
 
 In order to implement the trait, we must write a wrapper around the calls in Rust to the Python model.
 The method signatures must be the same as the trait, keeping in mind that the Rust trait cannot be changed for the purpose of making the code available in Python.

@@ -45,7 +45,7 @@ impl EqOptAndManualRichCmp {
         _py: Python,
         _other: Bound<'_, PyAny>,
         _op: pyo3::pyclass::CompareOp,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         todo!()
     }
 }

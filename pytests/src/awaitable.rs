@@ -11,13 +11,13 @@ use pyo3::prelude::*;
 #[pyclass]
 #[derive(Debug)]
 pub(crate) struct IterAwaitable {
-    result: Option<PyResult<PyObject>>,
+    result: Option<PyResult<Py<PyAny>>>,
 }
 
 #[pymethods]
 impl IterAwaitable {
     #[new]
-    fn new(result: PyObject) -> Self {
+    fn new(result: Py<PyAny>) -> Self {
         IterAwaitable {
             result: Some(Ok(result)),
         }
@@ -31,7 +31,7 @@ impl IterAwaitable {
         pyself
     }
 
-    fn __next__(&mut self, py: Python<'_>) -> PyResult<PyObject> {
+    fn __next__(&mut self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         match self.result.take() {
             Some(res) => match res {
                 Ok(v) => Err(PyStopIteration::new_err(v)),
@@ -46,13 +46,13 @@ impl IterAwaitable {
 pub(crate) struct FutureAwaitable {
     #[pyo3(get, set, name = "_asyncio_future_blocking")]
     py_block: bool,
-    result: Option<PyResult<PyObject>>,
+    result: Option<PyResult<Py<PyAny>>>,
 }
 
 #[pymethods]
 impl FutureAwaitable {
     #[new]
-    fn new(result: PyObject) -> Self {
+    fn new(result: Py<PyAny>) -> Self {
         FutureAwaitable {
             py_block: false,
             result: Some(Ok(result)),

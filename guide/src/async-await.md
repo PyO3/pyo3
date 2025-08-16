@@ -13,7 +13,7 @@ use pyo3::prelude::*;
 
 #[pyfunction]
 #[pyo3(signature=(seconds, result=None))]
-async fn sleep(seconds: f64, result: Option<PyObject>) -> Option<PyObject> {
+async fn sleep(seconds: f64, result: Option<Py<PyAny>>) -> Option<Py<PyAny>> {
     let (tx, rx) = oneshot::channel();
     thread::spawn(move || {
         thread::sleep(Duration::from_secs_f64(seconds));

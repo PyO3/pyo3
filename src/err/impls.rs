@@ -1,5 +1,5 @@
-use crate::IntoPyObject;
-use crate::{err::PyErrArguments, exceptions, PyErr, PyObject, Python};
+use crate::{err::PyErrArguments, exceptions, PyErr, Python};
+use crate::{IntoPyObject, Py, PyAny};
 use std::io;
 
 /// Convert `PyErr` to `io::Error`
@@ -77,7 +77,7 @@ impl From<io::Error> for PyErr {
 }
 
 impl PyErrArguments for io::Error {
-    fn arguments(self, py: Python<'_>) -> PyObject {
+    fn arguments(self, py: Python<'_>) -> Py<PyAny> {
         //FIXME(icxolu) remove unwrap
         self.to_string()
             .into_pyobject(py)
@@ -94,7 +94,7 @@ impl<W> From<io::IntoInnerError<W>> for PyErr {
 }
 
 impl<W: Send + Sync> PyErrArguments for io::IntoInnerError<W> {
-    fn arguments(self, py: Python<'_>) -> PyObject {
+    fn arguments(self, py: Python<'_>) -> Py<PyAny> {
         self.into_error().arguments(py)
     }
 }
@@ -108,7 +108,7 @@ impl From<std::convert::Infallible> for PyErr {
 macro_rules! impl_to_pyerr {
     ($err: ty, $pyexc: ty) => {
         impl PyErrArguments for $err {
-            fn arguments(self, py: Python<'_>) -> PyObject {
+            fn arguments(self, py: Python<'_>) -> $crate::Py<$crate::PyAny> {
                 // FIXME(icxolu) remove unwrap
                 self.to_string()
                     .into_pyobject(py)

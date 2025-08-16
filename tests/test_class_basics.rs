@@ -207,13 +207,13 @@ struct ClassWithObjectField {
     // It used to be that PyObject was not supported with (get, set)
     // - this test is just ensuring it compiles.
     #[pyo3(get, set)]
-    value: PyObject,
+    value: Py<PyAny>,
 }
 
 #[pymethods]
 impl ClassWithObjectField {
     #[new]
-    fn new(value: PyObject) -> ClassWithObjectField {
+    fn new(value: Py<PyAny>) -> ClassWithObjectField {
         Self { value }
     }
 }
@@ -719,14 +719,14 @@ fn test_unsendable_dict_with_weakref() {
 #[pyclass(generic)]
 struct ClassWithRuntimeParametrization {
     #[pyo3(get, set)]
-    value: PyObject,
+    value: Py<PyAny>,
 }
 
 #[cfg(Py_3_9)]
 #[pymethods]
 impl ClassWithRuntimeParametrization {
     #[new]
-    fn new(value: PyObject) -> ClassWithRuntimeParametrization {
+    fn new(value: Py<PyAny>) -> ClassWithRuntimeParametrization {
         Self { value }
     }
 }

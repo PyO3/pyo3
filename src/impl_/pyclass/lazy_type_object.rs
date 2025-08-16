@@ -11,12 +11,11 @@ use crate::types::PyTypeMethods;
 use crate::{
     exceptions::PyRuntimeError,
     ffi,
-    impl_::pyclass::MaybeRuntimePyMethodDef,
-    impl_::pymethods::PyMethodDefType,
+    impl_::{pyclass::MaybeRuntimePyMethodDef, pymethods::PyMethodDefType},
     pyclass::{create_type_object, PyClassTypeObject},
     sync::GILOnceCell,
     types::PyType,
-    Bound, PyClass, PyErr, PyObject, PyResult, Python,
+    Bound, Py, PyAny, PyClass, PyErr, PyResult, Python,
 };
 
 use std::sync::Mutex;
@@ -235,7 +234,7 @@ impl LazyTypeObjectInner {
 fn initialize_tp_dict(
     py: Python<'_>,
     type_object: *mut ffi::PyObject,
-    items: Vec<(&'static CStr, PyObject)>,
+    items: Vec<(&'static CStr, Py<PyAny>)>,
 ) -> PyResult<()> {
     // We hold the GIL: the dictionary update can be considered atomic from
     // the POV of other threads.

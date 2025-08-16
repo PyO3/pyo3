@@ -562,7 +562,7 @@ mod tests {
     use pyo3_ffi::c_str;
 
     use super::*;
-    use crate::{exceptions::PyLookupError, types::PyAnyMethods as _, IntoPyObject, PyObject};
+    use crate::{exceptions::PyLookupError, types::PyAnyMethods as _, IntoPyObject};
 
     #[test]
     fn test_to_cow_utf8() {
@@ -606,7 +606,7 @@ mod tests {
     #[test]
     fn test_encode_utf8_surrogate() {
         Python::attach(|py| {
-            let obj: PyObject = py
+            let obj: Py<PyAny> = py
                 .eval(ffi::c_str!(r"'\ud800'"), None, None)
                 .unwrap()
                 .into();

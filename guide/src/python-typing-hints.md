@@ -230,7 +230,7 @@ impl MyClass {
     pub fn __class_getitem__(
         cls: &Bound<'_, PyType>,
         key: &Bound<'_, PyAny>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         /* implementation details */
     }
 }

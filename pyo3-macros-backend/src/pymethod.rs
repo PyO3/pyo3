@@ -565,7 +565,7 @@ pub(crate) fn impl_py_class_attribute(
     let body = quotes::ok_wrap(fncall, ctx);
 
     let associated_method = quote! {
-        fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+        fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
             let function = #cls::#name; // Shadow the method name to avoid #3017
             let result = #body;
             #pyo3_path::impl_::wrap::converter(&result).map_into_pyobject(py, result)

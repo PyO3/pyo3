@@ -15,7 +15,7 @@ use crate::{
     exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
     panic::PanicException,
     types::{string::PyStringMethods, PyIterator, PyString},
-    Bound, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    Bound, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
 };
 
 pub(crate) mod cancel;
@@ -31,7 +31,8 @@ pub struct Coroutine {
     name: Option<Py<PyString>>,
     qualname_prefix: Option<&'static str>,
     throw_callback: Option<ThrowCallback>,
-    future: Option<Pin<Box<dyn Future<Output = PyResult<PyObject>> + Send>>>,
+    #[allow(clippy::type_complexity)]
+    future: Option<Pin<Box<dyn Future<Output = PyResult<Py<PyAny>>> + Send>>>,
     waker: Option<Arc<AsyncioWaker>>,
 }
 
@@ -71,7 +72,7 @@ impl Coroutine {
         }
     }
 
-    fn poll(&mut self, py: Python<'_>, throw: Option<PyObject>) -> PyResult<PyObject> {
+    fn poll(&mut self, py: Python<'_>, throw: Option<Py<PyAny>>) -> PyResult<Py<PyAny>> {
         // raise if the coroutine has already been run to completion
         let future_rs = match self.future {
             Some(ref mut fut) => fut,
@@ -145,11 +146,11 @@ impl Coroutine {
         }
     }
 
-    fn send(&mut self, py: Python<'_>, _value: &Bound<'_, PyAny>) -> PyResult<PyObject> {
+    fn send(&mut self, py: Python<'_>, _value: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
         self.poll(py, None)
     }
 
-    fn throw(&mut self, py: Python<'_>, exc: PyObject) -> PyResult<PyObject> {
+    fn throw(&mut self, py: Python<'_>, exc: Py<PyAny>) -> PyResult<Py<PyAny>> {
         self.poll(py, Some(exc))
     }
 
@@ -163,7 +164,7 @@ impl Coroutine {
         self_
     }
 
-    fn __next__(&mut self, py: Python<'_>) -> PyResult<PyObject> {
+    fn __next__(&mut self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         self.poll(py, None)
     }
 }

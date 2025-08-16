@@ -1,6 +1,8 @@
 use std::{convert::Infallible, marker::PhantomData, ops::Deref};
 
-use crate::{ffi, types::PyNone, Bound, IntoPyObject, IntoPyObjectExt, PyObject, PyResult, Python};
+use crate::{
+    ffi, types::PyNone, Bound, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyResult, Python,
+};
 
 /// Used to wrap values in `Option<T>` for default arguments.
 pub trait SomeWrap<T> {
@@ -89,7 +91,7 @@ impl<'py, T: IntoPyObject<'py>, E> IntoPyObjectConverter<Result<T, E>> {
     }
 
     #[inline]
-    pub fn map_into_pyobject(&self, py: Python<'py>, obj: PyResult<T>) -> PyResult<PyObject>
+    pub fn map_into_pyobject(&self, py: Python<'py>, obj: PyResult<T>) -> PyResult<Py<PyAny>>
     where
         T: IntoPyObject<'py>,
     {
@@ -126,7 +128,7 @@ impl<T> UnknownReturnType<T> {
     }
 
     #[inline]
-    pub fn map_into_pyobject<'py>(&self, _: Python<'py>, _: PyResult<T>) -> PyResult<PyObject>
+    pub fn map_into_pyobject<'py>(&self, _: Python<'py>, _: PyResult<T>) -> PyResult<Py<PyAny>>
     where
         T: IntoPyObject<'py>,
     {

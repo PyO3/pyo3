@@ -580,7 +580,7 @@ forward the implementation to the inner type.
 
 // newtype tuple structs are implicitly `transparent`
 #[derive(IntoPyObject)]
-struct TransparentTuple(PyObject);
+struct TransparentTuple(Py<PyAny>);
 
 #[derive(IntoPyObject)]
 #[pyo3(transparent)]
@@ -599,7 +599,7 @@ For `enum`s each variant is converted according to the rules for `struct`s above
 
 #[derive(IntoPyObject)]
 enum Enum<'a, 'py, K: Hash + Eq, V> { // enums are supported and convert using the same
-    TransparentTuple(PyObject),       // rules on the variants as the structs above
+    TransparentTuple(Py<PyAny>),       // rules on the variants as the structs above
     #[pyo3(transparent)]
     TransparentStruct { inner: Bound<'py, PyAny> },
     Tuple(&'a str, HashMap<K, V>),
@@ -645,7 +645,7 @@ demonstrated below.
 ```rust,no_run
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
-struct MyPyObjectWrapper(PyObject);
+struct MyPyObjectWrapper(Py<PyAny>);
 
 impl<'py> IntoPyObject<'py> for MyPyObjectWrapper {
     type Target = PyAny; // the Python type
@@ -741,7 +741,6 @@ In the example above we used `BoundObject::into_any` and `BoundObject::unbind` t
 [`FromPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.FromPyObject.html
 [`IntoPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.IntoPyObject.html
 [`IntoPyObjectExt`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.IntoPyObjectExt.html
-[`PyObject`]: {{#PYO3_DOCS_URL}}/pyo3/type.PyObject.html
 
 [`PyRef`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
 [`PyRefMut`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRefMut.html

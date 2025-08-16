@@ -1,6 +1,6 @@
 ## Mapping of Rust types to Python types
 
-When writing functions callable from Python (such as a `#[pyfunction]` or in a `#[pymethods]` block), the trait `FromPyObject` is required for function arguments, and `IntoPy<PyObject>` is required for function return values.
+When writing functions callable from Python (such as a `#[pyfunction]` or in a `#[pymethods]` block), the trait `FromPyObject` is required for function arguments, and `IntoPyObject` is required for function return values.
 
 Consult the tables in the following section to find the Rust types provided by PyO3 which implement these traits.
 
@@ -54,7 +54,6 @@ It is also worth remembering the following special types:
 | `Python<'py>`    | A GIL token, used to pass to PyO3 constructors to prove ownership of the GIL. |
 | `Bound<'py, T>`  | A Python object connected to the GIL lifetime. This provides access to most of PyO3's APIs. |
 | `Py<T>`          | A Python object isolated from the GIL lifetime. This can be sent to other threads. |
-| `PyObject`       | An alias for `Py<PyAny>`              |
 | `PyRef<T>`       | A `#[pyclass]` borrowed immutably.    |
 | `PyRefMut<T>`    | A `#[pyclass]` borrowed mutably.      |
 

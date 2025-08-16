@@ -59,7 +59,7 @@ given signatures should be interpreted as follows:
     #[pymethods]
     impl NotHashable {
         #[classattr]
-        const __hash__: Option<PyObject> = None;
+        const __hash__: Option<Py<PyAny>> = None;
     }
     ```
     </details>
@@ -162,7 +162,7 @@ use std::sync::Mutex;
 
 #[pyclass]
 struct MyIterator {
-    iter: Mutex<Box<dyn Iterator<Item = PyObject> + Send>>,
+    iter: Mutex<Box<dyn Iterator<Item = Py<PyAny>> + Send>>,
 }
 
 #[pymethods]
@@ -170,7 +170,7 @@ impl MyIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(slf: PyRefMut<'_, Self>) -> Option<PyObject> {
+    fn __next__(slf: PyRefMut<'_, Self>) -> Option<Py<PyAny>> {
         slf.iter.lock().unwrap().next()
     }
 }
@@ -283,7 +283,7 @@ Use the `#[pyclass(sequence)]` annotation to instruct PyO3 to fill the `sq_lengt
     #[pymethods]
     impl NoContains {
         #[classattr]
-        const __contains__: Option<PyObject> = None;
+        const __contains__: Option<Py<PyAny>> = None;
     }
     ```
     </details>
@@ -439,7 +439,7 @@ use pyo3::gc::PyVisit;
 
 #[pyclass]
 struct ClassWithGCSupport {
-    obj: Option<PyObject>,
+    obj: Option<Py<PyAny>>,
 }
 
 #[pymethods]

@@ -125,7 +125,7 @@ use crate::types::{
     PyType,
 };
 use crate::version::PythonVersionInfo;
-use crate::{ffi, Bound, PyObject, PyTypeInfo};
+use crate::{ffi, Bound, Py, PyTypeInfo};
 use std::ffi::CStr;
 use std::marker::PhantomData;
 
@@ -689,21 +689,21 @@ impl<'py> Python<'py> {
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn None(self) -> PyObject {
+    pub fn None(self) -> Py<PyAny> {
         PyNone::get(self).to_owned().into_any().unbind()
     }
 
     /// Gets the Python builtin value `Ellipsis`, or `...`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn Ellipsis(self) -> PyObject {
+    pub fn Ellipsis(self) -> Py<PyAny> {
         PyEllipsis::get(self).to_owned().into_any().unbind()
     }
 
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn NotImplemented(self) -> PyObject {
+    pub fn NotImplemented(self) -> Py<PyAny> {
         PyNotImplemented::get(self).to_owned().into_any().unbind()
     }
 

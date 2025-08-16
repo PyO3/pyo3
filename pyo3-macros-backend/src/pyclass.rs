@@ -1237,7 +1237,7 @@ fn impl_complex_enum_struct_variant_cls(
             complex_enum_variant_field_getter(&variant_cls_type, field_name, field.span, ctx)?;
 
         let field_getter_impl = quote! {
-            fn #field_name(slf: #pyo3_path::PyClassGuard<'_, Self>, py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+            fn #field_name(slf: #pyo3_path::PyClassGuard<'_, Self>, py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
                 #[allow(unused_imports)]
                 use #pyo3_path::impl_::pyclass::Probe as _;
                 match &*slf.into_super() {
@@ -1313,7 +1313,7 @@ fn impl_complex_enum_tuple_variant_field_getters(
             })
             .collect();
         let field_getter_impl: syn::ImplItemFn = parse_quote! {
-            fn #field_name(slf: #pyo3_path::PyClassGuard<'_, Self>, py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+            fn #field_name(slf: #pyo3_path::PyClassGuard<'_, Self>, py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
                 #[allow(unused_imports)]
                 use #pyo3_path::impl_::pyclass::Probe as _;
                 match &*slf.into_super() {
@@ -1374,7 +1374,7 @@ fn impl_complex_enum_tuple_variant_getitem(
         .collect();
 
     let mut get_item_method_impl: syn::ImplItemFn = parse_quote! {
-        fn __getitem__(slf: #pyo3_path::PyClassGuard<'_, Self>, py: #pyo3_path::Python<'_>, idx: usize) -> #pyo3_path::PyResult< #pyo3_path::PyObject> {
+        fn __getitem__(slf: #pyo3_path::PyClassGuard<'_, Self>, py: #pyo3_path::Python<'_>, idx: usize) -> #pyo3_path::PyResult< #pyo3_path::Py<#pyo3_path::PyAny>> {
             match idx {
                 #( #match_arms, )*
                 _ => ::std::result::Result::Err(#pyo3_path::exceptions::PyIndexError::new_err("tuple index out of range")),
@@ -1582,7 +1582,7 @@ pub fn gen_complex_enum_variant_attr(
 
     let variant_cls = format_ident!("{}_{}", cls, member);
     let associated_method = quote! {
-        fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+        fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
             ::std::result::Result::Ok(py.get_type::<#variant_cls>().into_any().unbind())
         }
     };
@@ -1953,7 +1953,7 @@ fn pyclass_richcmp_simple_enum(
             py: #pyo3_path::Python,
             other: &#pyo3_path::Bound<'_, #pyo3_path::PyAny>,
             op: #pyo3_path::pyclass::CompareOp
-        ) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+        ) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
             #eq
 
             #eq_int
@@ -1987,7 +1987,7 @@ fn pyclass_richcmp(
                 py: #pyo3_path::Python,
                 other: &#pyo3_path::Bound<'_, #pyo3_path::PyAny>,
                 op: #pyo3_path::pyclass::CompareOp
-            ) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+            ) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
                 let self_val = self;
                 if let ::std::result::Result::Ok(other) = other.cast::<Self>() {
                     let other = &*other.borrow();
