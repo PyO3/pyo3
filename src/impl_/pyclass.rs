@@ -29,7 +29,7 @@ mod lazy_type_object;
 mod probes;
 
 pub use assertions::*;
-pub use lazy_type_object::LazyTypeObject;
+pub use lazy_type_object::{type_object_init_failed, LazyTypeObject};
 pub use probes::*;
 
 /// Gets the offset of the dictionary from the start of the object in bytes.

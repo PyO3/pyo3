@@ -152,40 +152,10 @@ fn recursive_class_attributes() {
 }
 
 #[test]
+#[cfg(all(Py_3_8, not(Py_GIL_DISABLED)))] // sys.unraisablehook not available until Python 3.8
 fn test_fallible_class_attribute() {
-    use pyo3::{exceptions::PyValueError, types::PyString};
-
-    struct CaptureStdErr<'py> {
-        oldstderr: Bound<'py, PyAny>,
-        string_io: Bound<'py, PyAny>,
-    }
-
-    impl<'py> CaptureStdErr<'py> {
-        fn new(py: Python<'py>) -> PyResult<Self> {
-            let sys = py.import("sys")?;
-            let oldstderr = sys.getattr("stderr")?;
-            let string_io = py.import("io")?.getattr("StringIO")?.call0()?;
-            sys.setattr("stderr", &string_io)?;
-            Ok(Self {
-                oldstderr,
-                string_io,
-            })
-        }
-
-        fn reset(self) -> PyResult<String> {
-            let py = self.string_io.py();
-            let payload = self
-                .string_io
-                .getattr("getvalue")?
-                .call0()?
-                .cast::<PyString>()?
-                .to_cow()?
-                .into_owned();
-            let sys = py.import("sys")?;
-            sys.setattr("stderr", self.oldstderr)?;
-            Ok(payload)
-        }
-    }
+    use common::UnraisableCapture;
+    use pyo3::exceptions::PyValueError;
 
     #[pyclass]
     struct BrokenClass;
@@ -199,21 +169,29 @@ fn test_fallible_class_attribute() {
     }
 
     Python::attach(|py| {
-        let stderr = CaptureStdErr::new(py).unwrap();
+        let capture = UnraisableCapture::install(py);
         assert!(std::panic::catch_unwind(|| py.get_type::<BrokenClass>()).is_err());
+
+        let (err, object) = capture.borrow_mut(py).capture.take().unwrap();
+        assert!(object.is_none(py));
+
         assert_eq!(
-            stderr.reset().unwrap().trim(),
-            "\
-ValueError: failed to create class attribute
+            err.to_string(),
+            "RuntimeError: An error occurred while initializing class BrokenClass"
+        );
+        let cause = err.cause(py).unwrap();
+        assert_eq!(
+            cause.to_string(),
+            "RuntimeError: An error occurred while initializing `BrokenClass.fails_to_init`"
+        );
+        let cause = cause.cause(py).unwrap();
+        assert_eq!(
+            cause.to_string(),
+            "ValueError: failed to create class attribute"
+        );
+        assert!(cause.cause(py).is_none());
 
-The above exception was the direct cause of the following exception:
-
-RuntimeError: An error occurred while initializing `BrokenClass.fails_to_init`
-
-The above exception was the direct cause of the following exception:
-
-RuntimeError: An error occurred while initializing class BrokenClass"
-        )
+        capture.borrow_mut(py).uninstall(py);
     });
 }
 

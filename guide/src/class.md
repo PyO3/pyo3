@@ -1385,7 +1385,12 @@ unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
     #[inline]
     fn type_object_raw(py: pyo3::Python<'_>) -> *mut pyo3::ffi::PyTypeObject {
         <Self as pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()
-            .get_or_init(py)
+            .get_or_try_init(py)
+            .unwrap_or_else(|e| pyo3::impl_::pyclass::type_object_init_failed(
+                py,
+                e,
+                <Self as pyo3::type_object::PyTypeInfo>::NAME
+            ))
             .as_type_ptr()
     }
 }
