@@ -229,8 +229,13 @@ impl<T: Element> PyBuffer<T> {
 
     /// Gets the pointer to the start of the buffer memory.
     ///
-    /// Warning: the buffer memory might be mutated by other Python functions,
-    /// and thus may only be accessed while the GIL is held.
+    /// Warning: the buffer memory can be mutated by other code (including
+    /// other Python functions, if the GIL is released, or other extension
+    /// modules even if the GIL is held). You must either access memory
+    /// atomically, or ensure there are no data races yourself. See
+    /// [this blog post] for more details.
+    ///
+    /// [this blog post]: https://alexgaynor.net/2022/oct/23/buffers-on-the-edge/
     #[inline]
     pub fn buf_ptr(&self) -> *mut c_void {
         self.0.buf
