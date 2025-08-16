@@ -3,7 +3,7 @@
 use crate::err::{PyErr, PyResult};
 use crate::exceptions::PyOverflowError;
 use crate::ffi::{self, Py_hash_t};
-use crate::{BoundObject, IntoPyObject, PyObject, Python};
+use crate::{BoundObject, IntoPyObject, Py, PyAny, Python};
 use std::ffi::c_int;
 
 /// A type which can be the return type of a python C-API callback
@@ -106,12 +106,12 @@ impl IntoPyCallbackOutput<'_, usize> for usize {
     }
 }
 
-impl<'py, T> IntoPyCallbackOutput<'py, PyObject> for T
+impl<'py, T> IntoPyCallbackOutput<'py, Py<PyAny>> for T
 where
     T: IntoPyObject<'py>,
 {
     #[inline]
-    fn convert(self, py: Python<'py>) -> PyResult<PyObject> {
+    fn convert(self, py: Python<'py>) -> PyResult<Py<PyAny>> {
         self.into_pyobject(py)
             .map(BoundObject::into_any)
             .map(BoundObject::unbind)

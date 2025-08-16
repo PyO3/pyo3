@@ -10,8 +10,8 @@ use crate::pyclass::boolean_struct::False;
 use crate::types::PyType;
 use crate::{
     ffi, Bound, DowncastError, Py, PyAny, PyClass, PyClassGuard, PyClassGuardMut,
-    PyClassInitializer, PyErr, PyObject, PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck,
-    PyVisit, Python,
+    PyClassInitializer, PyErr, PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit,
+    Python,
 };
 use std::ffi::CStr;
 use std::ffi::{c_int, c_void};
@@ -84,7 +84,7 @@ pub enum PyMethodType {
     PyCFunctionFastWithKeywords(ffi::PyCFunctionFastWithKeywords),
 }
 
-pub type PyClassAttributeFactory = for<'p> fn(Python<'p>) -> PyResult<PyObject>;
+pub type PyClassAttributeFactory = for<'p> fn(Python<'p>) -> PyResult<Py<PyAny>>;
 
 // TODO: it would be nice to use CStr in these types, but then the constructors can't be const fn
 // until `CStr::from_bytes_with_nul_unchecked` is const fn.

@@ -338,17 +338,17 @@ fn decrement_attach_count() {
 mod tests {
     use super::*;
 
-    use crate::{ffi, types::PyAnyMethods, PyObject, Python};
+    use crate::{ffi, types::PyAnyMethods, Py, PyAny, Python};
     use std::ptr::NonNull;
 
-    fn get_object(py: Python<'_>) -> PyObject {
+    fn get_object(py: Python<'_>) -> Py<PyAny> {
         py.eval(ffi::c_str!("object()"), None, None)
             .unwrap()
             .unbind()
     }
 
     #[cfg(not(pyo3_disable_reference_pool))]
-    fn pool_dec_refs_does_not_contain(obj: &PyObject) -> bool {
+    fn pool_dec_refs_does_not_contain(obj: &Py<PyAny>) -> bool {
         !get_pool()
             .pending_decrefs
             .lock()
@@ -359,7 +359,7 @@ mod tests {
     // With free-threading, threads can empty the POOL at any time, so this
     // function does not test anything meaningful
     #[cfg(not(any(pyo3_disable_reference_pool, Py_GIL_DISABLED)))]
-    fn pool_dec_refs_contains(obj: &PyObject) -> bool {
+    fn pool_dec_refs_contains(obj: &Py<PyAny>) -> bool {
         get_pool()
             .pending_decrefs
             .lock()
@@ -527,7 +527,7 @@ mod tests {
 
                 // Rebuild obj so that it can be dropped
                 unsafe {
-                    PyObject::from_owned_ptr(
+                    Py::<PyAny>::from_owned_ptr(
                         pool.python(),
                         ffi::PyCapsule_GetPointer(capsule, std::ptr::null()) as _,
                     )

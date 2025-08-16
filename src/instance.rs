@@ -1689,7 +1689,7 @@ impl<T> Py<T> {
     /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
-    /// fn version(sys: Py<PyModule>, py: Python<'_>) -> PyResult<PyObject> {
+    /// fn version(sys: Py<PyModule>, py: Python<'_>) -> PyResult<Py<PyAny>> {
     ///     sys.getattr(py, intern!(py, "version"))
     /// }
     /// #
@@ -1698,7 +1698,7 @@ impl<T> Py<T> {
     /// #    version(sys, py).unwrap();
     /// # });
     /// ```
-    pub fn getattr<'py, N>(&self, py: Python<'py>, attr_name: N) -> PyResult<PyObject>
+    pub fn getattr<'py, N>(&self, py: Python<'py>, attr_name: N) -> PyResult<Py<PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
@@ -1715,10 +1715,10 @@ impl<T> Py<T> {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, IntoPyObjectExt, PyObject, Python, PyResult};
+    /// # use pyo3::{intern, pyfunction, types::PyModule, IntoPyObjectExt, Py, PyAny, Python, PyResult};
     /// #
     /// #[pyfunction]
-    /// fn set_answer(ob: PyObject, py: Python<'_>) -> PyResult<()> {
+    /// fn set_answer(ob: Py<PyAny>, py: Python<'_>) -> PyResult<()> {
     ///     ob.setattr(py, intern!(py, "answer"), 42)
     /// }
     /// #
@@ -1743,7 +1743,7 @@ impl<T> Py<T> {
         py: Python<'py>,
         args: A,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<PyObject>
+    ) -> PyResult<Py<PyAny>>
     where
         A: PyCallArgs<'py>,
     {
@@ -1753,7 +1753,7 @@ impl<T> Py<T> {
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
-    pub fn call1<'py, A>(&self, py: Python<'py>, args: A) -> PyResult<PyObject>
+    pub fn call1<'py, A>(&self, py: Python<'py>, args: A) -> PyResult<Py<PyAny>>
     where
         A: PyCallArgs<'py>,
     {
@@ -1763,7 +1763,7 @@ impl<T> Py<T> {
     /// Calls the object without arguments.
     ///
     /// This is equivalent to the Python expression `self()`.
-    pub fn call0(&self, py: Python<'_>) -> PyResult<PyObject> {
+    pub fn call0(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         self.bind(py).as_any().call0().map(Bound::unbind)
     }
 
@@ -1779,7 +1779,7 @@ impl<T> Py<T> {
         name: N,
         args: A,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<PyObject>
+    ) -> PyResult<Py<PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
         A: PyCallArgs<'py>,
@@ -1796,7 +1796,7 @@ impl<T> Py<T> {
     ///
     /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
     /// macro can be used to intern `name`.
-    pub fn call_method1<'py, N, A>(&self, py: Python<'py>, name: N, args: A) -> PyResult<PyObject>
+    pub fn call_method1<'py, N, A>(&self, py: Python<'py>, name: N, args: A) -> PyResult<Py<PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
         A: PyCallArgs<'py>,
@@ -1813,7 +1813,7 @@ impl<T> Py<T> {
     ///
     /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
     /// macro can be used to intern `name`.
-    pub fn call_method0<'py, N>(&self, py: Python<'py>, name: N) -> PyResult<PyObject>
+    pub fn call_method0<'py, N>(&self, py: Python<'py>, name: N) -> PyResult<Py<PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
@@ -1941,7 +1941,7 @@ impl<T> AsRef<Py<PyAny>> for Py<T> {
     }
 }
 
-impl<T> std::convert::From<Py<T>> for PyObject
+impl<T> std::convert::From<Py<T>> for Py<PyAny>
 where
     T: DerefToPyAny,
 {
@@ -1951,7 +1951,7 @@ where
     }
 }
 
-impl<T> std::convert::From<Bound<'_, T>> for PyObject
+impl<T> std::convert::From<Bound<'_, T>> for Py<PyAny>
 where
     T: DerefToPyAny,
 {
@@ -2065,9 +2065,10 @@ impl<T> std::fmt::Debug for Py<T> {
 /// safely sent between threads.
 ///
 /// See the documentation for [`Py`](struct.Py.html).
+#[deprecated(since = "0.26.0", note = "use `Py<PyAny>` instead")]
 pub type PyObject = Py<PyAny>;
 
-impl PyObject {
+impl Py<PyAny> {
     /// Deprecated version of [`PyObject::cast_bound`]
     #[inline]
     #[deprecated(since = "0.26.0", note = "use `Py::cast_bound_unchecked` instead")]
@@ -2163,7 +2164,7 @@ impl PyObject {
 
 #[cfg(test)]
 mod tests {
-    use super::{Bound, IntoPyObject, Py, PyObject};
+    use super::{Bound, IntoPyObject, Py};
     use crate::tests::common::generate_unique_module_name;
     use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
     use crate::{ffi, Borrowed, PyAny, PyResult, Python};
@@ -2239,7 +2240,7 @@ mod tests {
     #[test]
     fn test_call_for_non_existing_method() {
         Python::attach(|py| {
-            let obj: PyObject = PyDict::new(py).into();
+            let obj: Py<PyAny> = PyDict::new(py).into();
             assert!(obj.call_method0(py, "asdf").is_err());
             assert!(obj
                 .call_method(py, "nonexistent_method", (1,), None)
@@ -2266,7 +2267,7 @@ mod tests {
         Python::attach(|py| {
             let dict: Py<PyDict> = PyDict::new(py).unbind();
             let cnt = dict.get_refcnt(py);
-            let p: PyObject = dict.into();
+            let p: Py<PyAny> = dict.into();
             assert_eq!(p.get_refcnt(py), cnt);
         });
     }
@@ -2355,7 +2356,7 @@ a = A()
         Python::attach(|py| {
             let instance = py.eval(ffi::c_str!("object()"), None, None).unwrap();
             let ptr = instance.as_ptr();
-            let instance: PyObject = instance.clone().unbind();
+            let instance: Py<PyAny> = instance.clone().unbind();
             assert_eq!(instance.as_ptr(), ptr);
         })
     }

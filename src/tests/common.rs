@@ -123,8 +123,8 @@ with warnings.catch_warnings(record=True) as warning_record:
     #[cfg(all(feature = "macros", Py_3_8, not(Py_GIL_DISABLED)))]
     #[pyclass(crate = "pyo3")]
     pub struct UnraisableCapture {
-        pub capture: Option<(PyErr, PyObject)>,
-        old_hook: Option<PyObject>,
+        pub capture: Option<(PyErr, Py<PyAny>)>,
+        old_hook: Option<Py<PyAny>>,
     }
 
     #[cfg(all(feature = "macros", Py_3_8, not(Py_GIL_DISABLED)))]

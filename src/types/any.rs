@@ -1850,7 +1850,7 @@ class SimpleClass:
 
         #[pymethods(crate = "crate")]
         impl GetattrFail {
-            fn __getattr__(&self, attr: PyObject) -> PyResult<PyObject> {
+            fn __getattr__(&self, attr: Py<PyAny>) -> PyResult<Py<PyAny>> {
                 Err(PyValueError::new_err(attr))
             }
         }
@@ -2091,7 +2091,7 @@ class SimpleClass:
 
         #[pymethods(crate = "crate")]
         impl DirFail {
-            fn __dir__(&self) -> PyResult<PyObject> {
+            fn __dir__(&self) -> PyResult<Py<PyAny>> {
                 Err(PyValueError::new_err("uh-oh!"))
             }
         }
