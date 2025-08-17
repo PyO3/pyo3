@@ -32,7 +32,7 @@ pub fn first_time_init(b: &mut Bencher<'_>) {
             // This is using an undocumented internal PyO3 API to measure pyclass performance; please
             // don't use this in your own code!
             let ty = LazyTypeObject::<MyClass>::new();
-            ty.get_or_init(py);
+            ty.get_or_try_init(py).unwrap();
         });
     });
 }
