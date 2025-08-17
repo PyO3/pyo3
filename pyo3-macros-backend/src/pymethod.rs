@@ -233,55 +233,65 @@ pub fn gen_py_method(
             }
         }
         // ordinary functions (with some specialties)
-        (_, FnType::Fn(_)) => GeneratedPyMethod::Method(impl_py_method_def(
-            cls,
-            spec,
-            &spec.get_doc(meth_attrs, ctx)?,
-            &spec.get_doc(meth_attrs, ctx)?,
-            None,
-            ctx,
-        )?),
-        (_, FnType::FnClass(_)) => GeneratedPyMethod::Method(impl_py_method_def(
-            cls,
-            spec,
-            &spec.get_doc(meth_attrs, ctx)?,
-            &spec.get_doc(meth_attrs, ctx)?,
-            Some(quote!(#pyo3_path::ffi::METH_CLASS)),
-            ctx,
-        )?),
-        (_, FnType::FnStatic) => GeneratedPyMethod::Method(impl_py_method_def(
-            cls,
-            spec,
-            &spec.get_doc(meth_attrs, ctx)?,
-            &spec.get_doc(meth_attrs, ctx)?,
-            Some(quote!(#pyo3_path::ffi::METH_STATIC)),
-            ctx,
-        )?),
+        (_, FnType::Fn(_)) => {
+            let doc = spec.get_doc(meth_attrs, ctx)?;
+            GeneratedPyMethod::Method(impl_py_method_def(
+                cls,
+                spec,
+                &doc,
+                None,
+                ctx,
+            )?)
+        },
+        (_, FnType::FnClass(_)) => {
+            let doc = spec.get_doc(meth_attrs, ctx)?;
+            GeneratedPyMethod::Method(impl_py_method_def(
+                cls,
+                spec,
+                &doc,
+                Some(quote!(#pyo3_path::ffi::METH_CLASS)),
+                ctx,
+            )?)
+        },
+        (_, FnType::FnStatic) => {
+            let doc = spec.get_doc(meth_attrs, ctx)?;
+            GeneratedPyMethod::Method(impl_py_method_def(
+                cls,
+                spec,
+                &doc,
+                Some(quote!(#pyo3_path::ffi::METH_STATIC)),
+                ctx,
+            )?)
+        },
         // special prototypes
         (_, FnType::FnNew) | (_, FnType::FnNewClass(_)) => {
             GeneratedPyMethod::Proto(impl_py_method_def_new(cls, spec, ctx)?)
         }
 
-        (_, FnType::Getter(self_type)) => GeneratedPyMethod::Method(impl_py_getter_def(
-            cls,
-            PropertyType::Function {
-                self_type,
-                spec,
-                doc: spec.get_doc(meth_attrs, ctx)?,
-                doc: spec.get_doc(meth_attrs, ctx)?,
-            },
-            ctx,
-        )?),
-        (_, FnType::Setter(self_type)) => GeneratedPyMethod::Method(impl_py_setter_def(
-            cls,
-            PropertyType::Function {
-                self_type,
-                spec,
-                doc: spec.get_doc(meth_attrs, ctx)?,
-                doc: spec.get_doc(meth_attrs, ctx)?,
-            },
-            ctx,
-        )?),
+        (_, FnType::Getter(self_type)) => {
+            let doc = spec.get_doc(meth_attrs, ctx)?;
+            GeneratedPyMethod::Method(impl_py_getter_def(
+                cls,
+                PropertyType::Function {
+                    self_type,
+                    spec,
+                    doc,
+                },
+                ctx,
+            )?)
+        },
+        (_, FnType::Setter(self_type)) => {
+            let doc = spec.get_doc(meth_attrs, ctx)?;
+            GeneratedPyMethod::Method(impl_py_setter_def(
+                cls,
+                PropertyType::Function {
+                    self_type,
+                    spec,
+                    doc,
+                },
+                ctx,
+            )?)
+        },
         (_, FnType::FnModule(_)) => {
             unreachable!("methods cannot be FnModule")
         }
@@ -632,7 +642,6 @@ pub fn impl_py_setter_def(
     let Ctx { pyo3_path, .. } = ctx;
     let python_name = property_type.null_terminated_python_name(ctx)?;
     let doc = property_type.doc(ctx)?;
-    let doc = property_type.doc(ctx)?;
     let mut holders = Holders::new();
     let setter_impl = match property_type {
         PropertyType::Descriptor {
@@ -820,7 +829,6 @@ pub fn impl_py_getter_def(
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
     let python_name = property_type.null_terminated_python_name(ctx)?;
-    let doc = property_type.doc(ctx)?;
     let doc = property_type.doc(ctx)?;
 
     let mut cfg_attrs = TokenStream::new();

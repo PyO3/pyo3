@@ -116,7 +116,6 @@ pub fn pymodule_module_impl(
     let ctx = &Ctx::new(&options.krate, None);
     let Ctx { pyo3_path, .. } = ctx;
     let doc = get_doc(attrs, None, ctx)?;
-    let doc = get_doc(attrs, None, ctx)?;
     let name = options
         .name
         .map_or_else(|| ident.unraw(), |name| name.value.0);

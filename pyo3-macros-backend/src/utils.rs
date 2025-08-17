@@ -149,7 +149,6 @@ pub fn get_doc(
     mut text_signature: Option<String>,
     ctx: &Ctx,
 ) -> syn::Result<PythonDoc> {
-) -> syn::Result<PythonDoc> {
     let Ctx { pyo3_path, .. } = ctx;
     // insert special divider between `__text_signature__` and doc
     // (assume text_signature is itself well-formed)
@@ -160,6 +159,7 @@ pub fn get_doc(
     let mut parts = Punctuated::<TokenStream, Token![,]>::new();
     let mut first = true;
     let mut current_part = text_signature.unwrap_or_default();
+    let mut current_part_span = None; // Track span for error reporting
 
     let mut mode = DocParseMode::Both;
 
@@ -176,6 +176,11 @@ pub fn get_doc(
                     ..
                 }) = &nv.value
                 {
+                    // Update span for error reporting
+                    if current_part_span.is_none() {
+                        current_part_span = Some(lit_str.span());
+                    }
+
                     // Strip single left space from literal strings, if needed.
                     let doc_line = lit_str.value();
                     let stripped_line = doc_line.strip_prefix(' ').unwrap_or(&doc_line);
@@ -190,11 +195,25 @@ pub fn get_doc(
                                 "python" => DocParseMode::PythonOnly,
                                 "rust" => DocParseMode::RustOnly,
                                 "both" => DocParseMode::Both,
-                                _ => return Err(syn::Error::new(lit_str.span(), format!("Invalid doc_mode: '{}'. Expected 'python', 'rust', or 'both'.", value))),
+                                _ => return Err(syn::Error::new(
+                                    lit_str.span(), 
+                                    format!("Invalid doc_mode: '{}'. Expected 'python', 'rust', or 'both'.", value)
+                                )),
                             };
                             // Do not retain mode switch lines in Rust, and skip in Python
                             continue;
+                        } else if is_likely_pyo3_doc_mode_typo(content_trimmed) {
+                            // Handle potential typos in pyo3_doc_mode prefix
+                            return Err(syn::Error::new(
+                                lit_str.span(),
+                                format!(
+                                    "Suspicious comment '{}' - did you mean 'pyo3_doc_mode'? Valid format: <!-- pyo3_doc_mode: python/rust/both -->",
+                                    content_trimmed
+                                )
+                            ));
                         }
+                        // If it's an HTML comment but not pyo3_doc_mode related, 
+                        // it will be included based on current mode (no special handling)
                     }
 
                     // Not a mode switch, decide based on current mode
@@ -219,8 +238,10 @@ pub fn get_doc(
                     // Include in Python doc if needed
                     if include_in_python {
                         // Reset the string buffer, write that part, and then push this macro part too.
-                        parts.push(current_part.to_token_stream());
-                        current_part.clear();
+                        if !current_part.is_empty() {
+                            parts.push(current_part.to_token_stream());
+                            current_part.clear();
+                        }
                         parts.push(nv.value.to_token_stream());
                     }
                 }
@@ -241,7 +262,10 @@ pub fn get_doc(
 
     // Check if mode ended in Both; if not, error to enforce "pairing"
     if !matches!(mode, DocParseMode::Both) {
-        return Err(err_spanned!(Span::call_site() => "doc_mode did not end in 'both' mode; consider adding <!-- pyo3_doc_mode: both --> at the end"));
+        return Err(syn::Error::new(
+            Span::call_site(),
+            "doc_mode did not end in 'both' mode; consider adding <!-- pyo3_doc_mode: both --> at the end"
+        ));
     }
 
     if !parts.is_empty() {
@@ -256,15 +280,12 @@ pub fn get_doc(
 
         syn::Ident::new("concat", Span::call_site()).to_tokens(&mut tokens);
         syn::token::Not(Span::call_site()).to_tokens(&mut tokens);
-        syn::token::Bracket(Span::call_site()).surround(&mut tokens, |tokens| {
+        syn::token::Paren(Span::call_site()).surround(&mut tokens, |tokens| {
             parts.to_tokens(tokens);
-            syn::token::Comma(Span::call_site()).to_tokens(tokens);
         });
 
         Ok(PythonDoc(PythonDocKind::Tokens(
-        Ok(PythonDoc(PythonDocKind::Tokens(
             quote!(#pyo3_path::ffi::c_str!(#tokens)),
-        )))
         )))
     } else {
         // Just a string doc - return directly with nul terminator
@@ -274,8 +295,61 @@ pub fn get_doc(
             current_part_span.unwrap_or(Span::call_site()),
             ctx,
         ))))
-        ))))
     }
+}
+
+/// Helper function to detect likely typos in pyo3_doc_mode prefix
+fn is_likely_pyo3_doc_mode_typo(content: &str) -> bool {
+    // Simple fuzzy matching for common typos
+    let potential_typos = [
+        "pyo3_doc_mde",
+        "pyo3_docc_mode",
+        "pyo3_doc_mod",
+        "py03_doc_mode",
+        "pyo3doc_mode",
+        "pyo3_docmode",
+        "pyo_doc_mode",
+        "pyo3_doc_node",
+    ];
+    
+    potential_typos.iter().any(|&typo| {
+        content.starts_with(typo) || 
+        (content.len() >= typo.len() - 2 && 
+         simple_edit_distance(content.split(':').next().unwrap_or(""), typo) <= 2)
+    })
+}
+
+/// Simple edit distance calculation for typo detection
+fn simple_edit_distance(a: &str, b: &str) -> usize {
+    let a_chars: Vec<char> = a.chars().collect();
+    let b_chars: Vec<char> = b.chars().collect();
+    let a_len = a_chars.len();
+    let b_len = b_chars.len();
+    
+    if a_len == 0 { return b_len; }
+    if b_len == 0 { return a_len; }
+    
+    let mut matrix = vec![vec![0; b_len + 1]; a_len + 1];
+    
+    // Initialize first row and column
+    for i in 0..=a_len {
+        matrix[i][0] = i;
+    }
+    for j in 0..=b_len {
+        matrix[0][j] = j;
+    }
+    
+    // Fill the matrix
+    for i in 1..=a_len {
+        for j in 1..=b_len {
+            let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
+            matrix[i][j] = (matrix[i - 1][j] + 1)           // deletion
+                .min(matrix[i][j - 1] + 1)                  // insertion
+                .min(matrix[i - 1][j - 1] + cost);          // substitution
+        }
+    }
+    
+    matrix[a_len][b_len]
 }
 
 impl quote::ToTokens for PythonDoc {
