@@ -235,14 +235,8 @@ pub fn gen_py_method(
         // ordinary functions (with some specialties)
         (_, FnType::Fn(_)) => {
             let doc = spec.get_doc(meth_attrs, ctx)?;
-            GeneratedPyMethod::Method(impl_py_method_def(
-                cls,
-                spec,
-                &doc,
-                None,
-                ctx,
-            )?)
-        },
+            GeneratedPyMethod::Method(impl_py_method_def(cls, spec, &doc, None, ctx)?)
+        }
         (_, FnType::FnClass(_)) => {
             let doc = spec.get_doc(meth_attrs, ctx)?;
             GeneratedPyMethod::Method(impl_py_method_def(
@@ -252,7 +246,7 @@ pub fn gen_py_method(
                 Some(quote!(#pyo3_path::ffi::METH_CLASS)),
                 ctx,
             )?)
-        },
+        }
         (_, FnType::FnStatic) => {
             let doc = spec.get_doc(meth_attrs, ctx)?;
             GeneratedPyMethod::Method(impl_py_method_def(
@@ -262,7 +256,7 @@ pub fn gen_py_method(
                 Some(quote!(#pyo3_path::ffi::METH_STATIC)),
                 ctx,
             )?)
-        },
+        }
         // special prototypes
         (_, FnType::FnNew) | (_, FnType::FnNewClass(_)) => {
             GeneratedPyMethod::Proto(impl_py_method_def_new(cls, spec, ctx)?)
@@ -279,7 +273,7 @@ pub fn gen_py_method(
                 },
                 ctx,
             )?)
-        },
+        }
         (_, FnType::Setter(self_type)) => {
             let doc = spec.get_doc(meth_attrs, ctx)?;
             GeneratedPyMethod::Method(impl_py_setter_def(
@@ -291,7 +285,7 @@ pub fn gen_py_method(
                 },
                 ctx,
             )?)
-        },
+        }
         (_, FnType::FnModule(_)) => {
             unreachable!("methods cannot be FnModule")
         }

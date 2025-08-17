@@ -187,16 +187,22 @@ pub fn get_doc(
                     let trimmed = stripped_line.trim();
 
                     // Check if this is a mode switch instruction
-                    if let Some(content) = trimmed.strip_prefix("<!--").and_then(|s| s.strip_suffix("-->")) {
+                    if let Some(content) = trimmed
+                        .strip_prefix("<!--")
+                        .and_then(|s| s.strip_suffix("-->"))
+                    {
                         let content_trimmed = content.trim();
                         if content_trimmed.starts_with("pyo3_doc_mode:") {
-                            let value = content_trimmed.strip_prefix("pyo3_doc_mode:").unwrap_or("").trim();
+                            let value = content_trimmed
+                                .strip_prefix("pyo3_doc_mode:")
+                                .unwrap_or("")
+                                .trim();
                             mode = match value {
                                 "python" => DocParseMode::PythonOnly,
                                 "rust" => DocParseMode::RustOnly,
                                 "both" => DocParseMode::Both,
                                 _ => return Err(syn::Error::new(
-                                    lit_str.span(), 
+                                    lit_str.span(),
                                     format!("Invalid doc_mode: '{}'. Expected 'python', 'rust', or 'both'.", value)
                                 )),
                             };
@@ -212,12 +218,13 @@ pub fn get_doc(
                                 )
                             ));
                         }
-                        // If it's an HTML comment but not pyo3_doc_mode related, 
+                        // If it's an HTML comment but not pyo3_doc_mode related,
                         // it will be included based on current mode (no special handling)
                     }
 
                     // Not a mode switch, decide based on current mode
-                    include_in_python = matches!(mode, DocParseMode::Both | DocParseMode::PythonOnly);
+                    include_in_python =
+                        matches!(mode, DocParseMode::Both | DocParseMode::PythonOnly);
                     retain_in_rust = matches!(mode, DocParseMode::Both | DocParseMode::RustOnly);
 
                     // Include in Python doc if needed
@@ -232,7 +239,8 @@ pub fn get_doc(
                 } else {
                     // This is probably a macro doc, e.g. #[doc = include_str!(...)]
                     // Decide based on current mode
-                    include_in_python = matches!(mode, DocParseMode::Both | DocParseMode::PythonOnly);
+                    include_in_python =
+                        matches!(mode, DocParseMode::Both | DocParseMode::PythonOnly);
                     retain_in_rust = matches!(mode, DocParseMode::Both | DocParseMode::RustOnly);
 
                     // Include in Python doc if needed
@@ -311,11 +319,11 @@ fn is_likely_pyo3_doc_mode_typo(content: &str) -> bool {
         "pyo_doc_mode",
         "pyo3_doc_node",
     ];
-    
+
     potential_typos.iter().any(|&typo| {
-        content.starts_with(typo) || 
-        (content.len() >= typo.len() - 2 && 
-         simple_edit_distance(content.split(':').next().unwrap_or(""), typo) <= 2)
+        content.starts_with(typo)
+            || (content.len() >= typo.len() - 2
+                && simple_edit_distance(content.split(':').next().unwrap_or(""), typo) <= 2)
     })
 }
 
@@ -325,12 +333,16 @@ fn simple_edit_distance(a: &str, b: &str) -> usize {
     let b_chars: Vec<char> = b.chars().collect();
     let a_len = a_chars.len();
     let b_len = b_chars.len();
-    
-    if a_len == 0 { return b_len; }
-    if b_len == 0 { return a_len; }
-    
+
+    if a_len == 0 {
+        return b_len;
+    }
+    if b_len == 0 {
+        return a_len;
+    }
+
     let mut matrix = vec![vec![0; b_len + 1]; a_len + 1];
-    
+
     // Initialize first row and column
     for i in 0..=a_len {
         matrix[i][0] = i;
@@ -338,17 +350,21 @@ fn simple_edit_distance(a: &str, b: &str) -> usize {
     for j in 0..=b_len {
         matrix[0][j] = j;
     }
-    
+
     // Fill the matrix
     for i in 1..=a_len {
         for j in 1..=b_len {
-            let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
-            matrix[i][j] = (matrix[i - 1][j] + 1)           // deletion
-                .min(matrix[i][j - 1] + 1)                  // insertion
-                .min(matrix[i - 1][j - 1] + cost);          // substitution
+            let cost = if a_chars[i - 1] == b_chars[j - 1] {
+                0
+            } else {
+                1
+            };
+            matrix[i][j] = (matrix[i - 1][j] + 1) // deletion
+                .min(matrix[i][j - 1] + 1) // insertion
+                .min(matrix[i - 1][j - 1] + cost); // substitution
         }
     }
-    
+
     matrix[a_len][b_len]
 }
 
