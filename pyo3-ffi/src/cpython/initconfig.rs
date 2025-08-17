@@ -2,7 +2,7 @@
 
 use crate::Py_ssize_t;
 use libc::wchar_t;
-use std::os::raw::{c_char, c_int, c_ulong};
+use std::ffi::{c_char, c_int, c_ulong};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

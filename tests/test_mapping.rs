@@ -65,8 +65,8 @@ impl Mapping {
         &self,
         py: Python<'_>,
         key: &str,
-        default: Option<PyObject>,
-    ) -> PyResult<Option<PyObject>> {
+        default: Option<Py<PyAny>>,
+    ) -> PyResult<Option<Py<PyAny>>> {
         match self.index.get(key) {
             Some(value) => Ok(Some(value.into_pyobject(py)?.into_any().unbind())),
             None => Ok(default),

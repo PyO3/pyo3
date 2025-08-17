@@ -17,6 +17,9 @@ class ClassWithDecorators:
     @staticmethod
     def static_method() -> int: ...
 
+class ClassWithDict:
+    def __new__(cls, /) -> None: ...
+
 class ClassWithoutConstructor: ...
 
 class EmptyClass:

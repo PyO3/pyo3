@@ -1,5 +1,5 @@
 use crate::object::*;
-use std::os::raw::{c_double, c_int};
+use std::ffi::{c_double, c_int};
 use std::ptr::addr_of_mut;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

@@ -398,10 +398,10 @@ impl PyTypeCheck for PySequence {
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAnyMethods, PyList, PySequence, PySequenceMethods, PyTuple};
-    use crate::{ffi, IntoPyObject, PyObject, Python};
+    use crate::{ffi, IntoPyObject, Py, PyAny, Python};
     use std::ptr;
 
-    fn get_object() -> PyObject {
+    fn get_object() -> Py<PyAny> {
         // Convenience function for getting a single unique object
         Python::attach(|py| {
             let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();

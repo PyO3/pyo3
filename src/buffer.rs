@@ -20,8 +20,11 @@
 //! `PyBuffer` implementation
 use crate::Bound;
 use crate::{err, exceptions::PyBufferError, ffi, FromPyObject, PyAny, PyResult, Python};
+use std::ffi::{
+    c_char, c_int, c_long, c_longlong, c_schar, c_short, c_uchar, c_uint, c_ulong, c_ulonglong,
+    c_ushort, c_void,
+};
 use std::marker::PhantomData;
-use std::os::raw;
 use std::pin::Pin;
 use std::{cell, mem, ptr, slice};
 use std::{ffi::CStr, fmt::Debug};
@@ -96,38 +99,38 @@ fn native_element_type_from_type_char(type_char: u8) -> ElementType {
     use self::ElementType::*;
     match type_char {
         b'c' => UnsignedInteger {
-            bytes: mem::size_of::<raw::c_char>(),
+            bytes: mem::size_of::<c_char>(),
         },
         b'b' => SignedInteger {
-            bytes: mem::size_of::<raw::c_schar>(),
+            bytes: mem::size_of::<c_schar>(),
         },
         b'B' => UnsignedInteger {
-            bytes: mem::size_of::<raw::c_uchar>(),
+            bytes: mem::size_of::<c_uchar>(),
         },
         b'?' => Bool,
         b'h' => SignedInteger {
-            bytes: mem::size_of::<raw::c_short>(),
+            bytes: mem::size_of::<c_short>(),
         },
         b'H' => UnsignedInteger {
-            bytes: mem::size_of::<raw::c_ushort>(),
+            bytes: mem::size_of::<c_ushort>(),
         },
         b'i' => SignedInteger {
-            bytes: mem::size_of::<raw::c_int>(),
+            bytes: mem::size_of::<c_int>(),
         },
         b'I' => UnsignedInteger {
-            bytes: mem::size_of::<raw::c_uint>(),
+            bytes: mem::size_of::<c_uint>(),
         },
         b'l' => SignedInteger {
-            bytes: mem::size_of::<raw::c_long>(),
+            bytes: mem::size_of::<c_long>(),
         },
         b'L' => UnsignedInteger {
-            bytes: mem::size_of::<raw::c_ulong>(),
+            bytes: mem::size_of::<c_ulong>(),
         },
         b'q' => SignedInteger {
-            bytes: mem::size_of::<raw::c_longlong>(),
+            bytes: mem::size_of::<c_longlong>(),
         },
         b'Q' => UnsignedInteger {
-            bytes: mem::size_of::<raw::c_ulonglong>(),
+            bytes: mem::size_of::<c_ulonglong>(),
         },
         b'n' => SignedInteger {
             bytes: mem::size_of::<libc::ssize_t>(),
@@ -226,17 +229,22 @@ impl<T: Element> PyBuffer<T> {
 
     /// Gets the pointer to the start of the buffer memory.
     ///
-    /// Warning: the buffer memory might be mutated by other Python functions,
-    /// and thus may only be accessed while the GIL is held.
+    /// Warning: the buffer memory can be mutated by other code (including
+    /// other Python functions, if the GIL is released, or other extension
+    /// modules even if the GIL is held). You must either access memory
+    /// atomically, or ensure there are no data races yourself. See
+    /// [this blog post] for more details.
+    ///
+    /// [this blog post]: https://alexgaynor.net/2022/oct/23/buffers-on-the-edge/
     #[inline]
-    pub fn buf_ptr(&self) -> *mut raw::c_void {
+    pub fn buf_ptr(&self) -> *mut c_void {
         self.0.buf
     }
 
     /// Gets a pointer to the specified item.
     ///
     /// If `indices.len() < self.dimensions()`, returns the start address of the sub-array at the specified dimension.
-    pub fn get_ptr(&self, indices: &[usize]) -> *mut raw::c_void {
+    pub fn get_ptr(&self, indices: &[usize]) -> *mut c_void {
         let shape = &self.shape()[..indices.len()];
         for i in 0..indices.len() {
             assert!(indices[i] < shape[i]);
@@ -349,13 +357,13 @@ impl<T: Element> PyBuffer<T> {
     /// Gets whether the buffer is contiguous in C-style order (last index varies fastest when visiting items in order of memory address).
     #[inline]
     pub fn is_c_contiguous(&self) -> bool {
-        unsafe { ffi::PyBuffer_IsContiguous(&*self.0, b'C' as std::os::raw::c_char) != 0 }
+        unsafe { ffi::PyBuffer_IsContiguous(&*self.0, b'C' as std::ffi::c_char) != 0 }
     }
 
     /// Gets whether the buffer is contiguous in Fortran-style order (first index varies fastest when visiting items in order of memory address).
     #[inline]
     pub fn is_fortran_contiguous(&self) -> bool {
-        unsafe { ffi::PyBuffer_IsContiguous(&*self.0, b'F' as std::os::raw::c_char) != 0 }
+        unsafe { ffi::PyBuffer_IsContiguous(&*self.0, b'F' as std::ffi::c_char) != 0 }
     }
 
     /// Gets the buffer memory as a slice.
@@ -493,7 +501,7 @@ impl<T: Element> PyBuffer<T> {
                     &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer
                 },
                 self.0.len,
-                fort as std::os::raw::c_char,
+                fort as std::ffi::c_char,
             )
         })
     }
@@ -522,7 +530,7 @@ impl<T: Element> PyBuffer<T> {
         // Due to T:Copy, we don't need to be concerned with Drop impls.
         err::error_on_minusone(py, unsafe {
             ffi::PyBuffer_ToContiguous(
-                vec.as_ptr() as *mut raw::c_void,
+                vec.as_ptr() as *mut c_void,
                 #[cfg(Py_3_11)]
                 &*self.0,
                 #[cfg(not(Py_3_11))]
@@ -530,7 +538,7 @@ impl<T: Element> PyBuffer<T> {
                     &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer
                 },
                 self.0.len,
-                fort as std::os::raw::c_char,
+                fort as std::ffi::c_char,
             )
         })?;
         // set vector length to mark the now-initialized space as usable
@@ -591,10 +599,10 @@ impl<T: Element> PyBuffer<T> {
                 },
                 #[cfg(not(Py_3_11))]
                 {
-                    source.as_ptr() as *mut raw::c_void
+                    source.as_ptr() as *mut c_void
                 },
                 self.0.len,
-                fort as std::os::raw::c_char,
+                fort as std::ffi::c_char,
             )
         })
     }
@@ -689,7 +697,8 @@ impl_element!(f64, Float);
 
 #[cfg(test)]
 mod tests {
-    use super::PyBuffer;
+    use super::*;
+
     use crate::ffi;
     use crate::types::any::PyAnyMethods;
     use crate::Python;
@@ -721,84 +730,82 @@ mod tests {
 
     #[test]
     fn test_element_type_from_format() {
-        use super::ElementType;
         use super::ElementType::*;
         use std::mem::size_of;
-        use std::os::raw;
 
         for (cstr, expected) in [
             // @ prefix goes to native_element_type_from_type_char
             (
                 ffi::c_str!("@b"),
                 SignedInteger {
-                    bytes: size_of::<raw::c_schar>(),
+                    bytes: size_of::<c_schar>(),
                 },
             ),
             (
                 ffi::c_str!("@c"),
                 UnsignedInteger {
-                    bytes: size_of::<raw::c_char>(),
+                    bytes: size_of::<c_char>(),
                 },
             ),
             (
                 ffi::c_str!("@b"),
                 SignedInteger {
-                    bytes: size_of::<raw::c_schar>(),
+                    bytes: size_of::<c_schar>(),
                 },
             ),
             (
                 ffi::c_str!("@B"),
                 UnsignedInteger {
-                    bytes: size_of::<raw::c_uchar>(),
+                    bytes: size_of::<c_uchar>(),
                 },
             ),
             (ffi::c_str!("@?"), Bool),
             (
                 ffi::c_str!("@h"),
                 SignedInteger {
-                    bytes: size_of::<raw::c_short>(),
+                    bytes: size_of::<c_short>(),
                 },
             ),
             (
                 ffi::c_str!("@H"),
                 UnsignedInteger {
-                    bytes: size_of::<raw::c_ushort>(),
+                    bytes: size_of::<c_ushort>(),
                 },
             ),
             (
                 ffi::c_str!("@i"),
                 SignedInteger {
-                    bytes: size_of::<raw::c_int>(),
+                    bytes: size_of::<c_int>(),
                 },
             ),
             (
                 ffi::c_str!("@I"),
                 UnsignedInteger {
-                    bytes: size_of::<raw::c_uint>(),
+                    bytes: size_of::<c_uint>(),
                 },
             ),
             (
                 ffi::c_str!("@l"),
                 SignedInteger {
-                    bytes: size_of::<raw::c_long>(),
+                    bytes: size_of::<c_long>(),
                 },
             ),
             (
                 ffi::c_str!("@L"),
                 UnsignedInteger {
-                    bytes: size_of::<raw::c_ulong>(),
+                    bytes: size_of::<c_ulong>(),
                 },
             ),
             (
                 ffi::c_str!("@q"),
                 SignedInteger {
-                    bytes: size_of::<raw::c_longlong>(),
+                    bytes: size_of::<c_longlong>(),
                 },
             ),
             (
                 ffi::c_str!("@Q"),
                 UnsignedInteger {
-                    bytes: size_of::<raw::c_ulonglong>(),
+                    bytes: size_of::<c_ulonglong>(),
                 },
             ),
             (

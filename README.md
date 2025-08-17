@@ -236,9 +236,12 @@ about this topic.
 
 ## Articles and other media
 
+- [(Video) Using Rust in Free-Threaded vs Regular Python 3.13](https://www.youtube.com/watch?v=J7phN_M4GLM) - Jun 4, 2025
+- [(Video) Techniques learned from five years finding the way for Rust in Python](https://www.youtube.com/watch?v=KTQn_PTHNCw) - Feb 26, 2025
+- [(Podcast) Bridging Python and Rust: An Interview with PyO3 Maintainer David Hewitt](https://www.youtube.com/watch?v=P47JUMSQagU) - Aug 30, 2024
 - [(Video) PyO3: From Python to Rust and Back Again](https://www.youtube.com/watch?v=UmL_CA-v3O8) - Jul 3, 2024
 - [Parsing Python ASTs 20x Faster with Rust](https://www.gauge.sh/blog/parsing-python-asts-20x-faster-with-rust) - Jun 17, 2024
-- [(Video) How Python Harnesses Rust through PyO3](https://www.youtube.com/watch?v=UkZ_m3Wj2hA) - May 18, 2024
+- [(Video) How Python Harnesses Rust through PyO3](https://www.youtube.com/watch?v=UilujdubqVU) - May 18, 2024
 - [(Video) Combining Rust and Python: The Best of Both Worlds?](https://www.youtube.com/watch?v=lyG6AKzu4ew) - Mar 1, 2024
 - [(Video) Extending Python with Rust using PyO3](https://www.youtube.com/watch?v=T45ZEmSR1-s) - Dec 16, 2023
 - [A Week of PyO3 + rust-numpy (How to Speed Up Your Data Pipeline X Times)](https://terencezl.github.io/blog/2023/06/06/a-week-of-pyo3-rust-numpy/) - Jun 6, 2023
@@ -250,7 +253,7 @@ about this topic.
 - [Calling Rust from Python using PyO3](https://saidvandeklundert.net/learn/2021-11-18-calling-rust-from-python-using-pyo3/) - Nov 18, 2021
 - [davidhewitt's 2021 talk at Rust Manchester meetup](https://www.youtube.com/watch?v=-XyWG_klSAw&t=320s) - Aug 19, 2021
 - [Incrementally porting a small Python project to Rust](https://blog.waleedkhan.name/port-python-to-rust/) - Apr 29, 2021
-- [Vortexa - Integrating Rust into Python](https://www.vortexa.com/insight/integrating-rust-into-python) - Apr 12, 2021
+- [Vortexa - Integrating Rust into Python](https://www.vortexa.com/blog/integrating-rust-into-python) - Apr 12, 2021
 - [Writing and publishing a Python module in Rust](https://blog.yossarian.net/2020/08/02/Writing-and-publishing-a-python-module-in-rust) - Aug 2, 2020
 
 ## Contributing

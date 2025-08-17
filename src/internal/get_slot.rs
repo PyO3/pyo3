@@ -3,7 +3,7 @@ use crate::{
     types::{PyType, PyTypeMethods},
     Borrowed, Bound,
 };
-use std::os::raw::c_int;
+use std::ffi::c_int;
 
 impl Bound<'_, PyType> {
     #[inline]
@@ -160,7 +160,7 @@ pub struct PyNumberMethods39Snapshot {
     pub nb_xor: Option<ffi::binaryfunc>,
     pub nb_or: Option<ffi::binaryfunc>,
     pub nb_int: Option<ffi::unaryfunc>,
-    pub nb_reserved: *mut std::os::raw::c_void,
+    pub nb_reserved: *mut std::ffi::c_void,
     pub nb_float: Option<ffi::unaryfunc>,
     pub nb_inplace_add: Option<ffi::binaryfunc>,
     pub nb_inplace_subtract: Option<ffi::binaryfunc>,
@@ -188,9 +188,9 @@ pub struct PySequenceMethods39Snapshot {
     pub sq_concat: Option<ffi::binaryfunc>,
     pub sq_repeat: Option<ffi::ssizeargfunc>,
     pub sq_item: Option<ffi::ssizeargfunc>,
-    pub was_sq_slice: *mut std::os::raw::c_void,
+    pub was_sq_slice: *mut std::ffi::c_void,
     pub sq_ass_item: Option<ffi::ssizeobjargproc>,
-    pub was_sq_ass_slice: *mut std::os::raw::c_void,
+    pub was_sq_ass_slice: *mut std::ffi::c_void,
     pub sq_contains: Option<ffi::objobjproc>,
     pub sq_inplace_concat: Option<ffi::binaryfunc>,
     pub sq_inplace_repeat: Option<ffi::ssizeargfunc>,
@@ -216,8 +216,8 @@ pub struct PyAsyncMethods39Snapshot {
 #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
 pub struct PyBufferProcs39Snapshot {
     // not available in limited api, but structure needs to have the right size
-    pub bf_getbuffer: *mut std::os::raw::c_void,
-    pub bf_releasebuffer: *mut std::os::raw::c_void,
+    pub bf_getbuffer: *mut std::ffi::c_void,
+    pub bf_releasebuffer: *mut std::ffi::c_void,
 }
 
 /// Snapshot of the structure of PyTypeObject for Python 3.7 through 3.9.
@@ -229,12 +229,12 @@ pub struct PyBufferProcs39Snapshot {
 #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
 struct PyTypeObject39Snapshot {
     pub ob_base: ffi::PyVarObject,
-    pub tp_name: *const std::os::raw::c_char,
+    pub tp_name: *const std::ffi::c_char,
     pub tp_basicsize: ffi::Py_ssize_t,
     pub tp_itemsize: ffi::Py_ssize_t,
     pub tp_dealloc: Option<ffi::destructor>,
     #[cfg(not(Py_3_8))]
-    pub tp_print: *mut std::os::raw::c_void, // stubbed out, not available in limited API
+    pub tp_print: *mut std::ffi::c_void, // stubbed out, not available in limited API
     #[cfg(Py_3_8)]
     pub tp_vectorcall_offset: ffi::Py_ssize_t,
     pub tp_getattr: Option<ffi::getattrfunc>,
@@ -250,8 +250,8 @@ struct PyTypeObject39Snapshot {
     pub tp_getattro: Option<ffi::getattrofunc>,
     pub tp_setattro: Option<ffi::setattrofunc>,
     pub tp_as_buffer: *mut PyBufferProcs39Snapshot,
-    pub tp_flags: std::os::raw::c_ulong,
-    pub tp_doc: *const std::os::raw::c_char,
+    pub tp_flags: std::ffi::c_ulong,
+    pub tp_doc: *const std::ffi::c_char,
     pub tp_traverse: Option<ffi::traverseproc>,
     pub tp_clear: Option<ffi::inquiry>,
     pub tp_richcompare: Option<ffi::richcmpfunc>,
@@ -277,7 +277,7 @@ struct PyTypeObject39Snapshot {
     pub tp_subclasses: *mut ffi::PyObject,
     pub tp_weaklist: *mut ffi::PyObject,
     pub tp_del: Option<ffi::destructor>,
-    pub tp_version_tag: std::os::raw::c_uint,
+    pub tp_version_tag: std::ffi::c_uint,
     pub tp_finalize: Option<ffi::destructor>,
     #[cfg(Py_3_8)]
     pub tp_vectorcall: Option<ffi::vectorcallfunc>,
