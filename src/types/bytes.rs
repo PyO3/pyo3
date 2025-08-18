@@ -375,8 +375,8 @@ mod tests {
             let py_bytes = PyBytes::new(py, b);
             unsafe {
                 assert_eq!(
-                    ffi::PyBytes_AsString(py_bytes.as_ptr()) as *const std::os::raw::c_char,
-                    ffi::PyBytes_AS_STRING(py_bytes.as_ptr()) as *const std::os::raw::c_char
+                    ffi::PyBytes_AsString(py_bytes.as_ptr()) as *const std::ffi::c_char,
+                    ffi::PyBytes_AS_STRING(py_bytes.as_ptr()) as *const std::ffi::c_char
                 );
             }
         })

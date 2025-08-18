@@ -6,7 +6,7 @@ compat_function!(
         dp: *mut crate::PyObject,
         key: *mut crate::PyObject,
         result: *mut *mut crate::PyObject,
-    ) -> std::os::raw::c_int {
+    ) -> std::ffi::c_int {
         use crate::{compat::Py_NewRef, PyDict_GetItemWithError, PyErr_Occurred};
 
         let item = PyDict_GetItemWithError(dp, key);
@@ -43,7 +43,7 @@ compat_function!(
 
     #[inline]
     pub unsafe fn PyImport_AddModuleRef(
-        name: *const std::os::raw::c_char,
+        name: *const std::ffi::c_char,
     ) -> *mut crate::PyObject {
         use crate::{compat::Py_XNewRef, PyImport_AddModule};
 
@@ -58,7 +58,7 @@ compat_function!(
     pub unsafe fn PyWeakref_GetRef(
         reference: *mut crate::PyObject,
         pobj: *mut *mut crate::PyObject,
-    ) -> std::os::raw::c_int {
+    ) -> std::ffi::c_int {
         use crate::{
             compat::Py_NewRef, PyErr_SetString, PyExc_TypeError, PyWeakref_Check,
             PyWeakref_GetObject, Py_None,
@@ -91,7 +91,7 @@ compat_function!(
     pub unsafe fn PyList_Extend(
         list: *mut crate::PyObject,
         iterable: *mut crate::PyObject,
-    ) -> std::os::raw::c_int {
+    ) -> std::ffi::c_int {
         crate::PyList_SetSlice(list, crate::PY_SSIZE_T_MAX, crate::PY_SSIZE_T_MAX, iterable)
     }
 );
@@ -100,7 +100,7 @@ compat_function!(
     originally_defined_for(Py_3_13);
 
     #[inline]
-    pub unsafe fn PyList_Clear(list: *mut crate::PyObject) -> std::os::raw::c_int {
+    pub unsafe fn PyList_Clear(list: *mut crate::PyObject) -> std::ffi::c_int {
         crate::PyList_SetSlice(list, 0, crate::PY_SSIZE_T_MAX, std::ptr::null_mut())
     }
 );
@@ -111,9 +111,9 @@ compat_function!(
     #[inline]
     pub unsafe fn PyModule_Add(
         module: *mut crate::PyObject,
-        name: *const std::os::raw::c_char,
+        name: *const std::ffi::c_char,
         value: *mut crate::PyObject,
-    ) -> std::os::raw::c_int {
+    ) -> std::ffi::c_int {
         let result = crate::compat::PyModule_AddObjectRef(module, name, value);
         crate::Py_XDECREF(value);
         result

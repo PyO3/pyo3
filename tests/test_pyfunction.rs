@@ -405,7 +405,7 @@ fn test_pycfunction_new() {
 #[test]
 fn test_pycfunction_new_with_keywords() {
     use pyo3::ffi;
-    use std::os::raw::c_long;
+    use std::ffi::c_long;
     use std::ptr;
 
     Python::attach(|py| {

@@ -9,13 +9,13 @@ use crate::PyCapsule_Import;
 #[cfg(GraalPy)]
 use crate::{PyLong_AsLong, PyLong_Check, PyObject_GetAttrString, Py_DecRef};
 use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_TYPE};
-use std::os::raw::c_char;
-use std::os::raw::c_int;
+use std::ffi::c_char;
+use std::ffi::c_int;
 use std::ptr;
 use std::sync::Once;
 use std::{cell::UnsafeCell, ffi::CStr};
 #[cfg(not(PyPy))]
-use {crate::Py_hash_t, std::os::raw::c_uchar};
+use {crate::Py_hash_t, std::ffi::c_uchar};
 // Type struct wrappers
 const _PyDateTime_DATE_DATASIZE: usize = 4;
 const _PyDateTime_TIME_DATASIZE: usize = 6;

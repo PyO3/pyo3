@@ -1,5 +1,5 @@
 use crate::{PyGetSetDef, PyMethodDef, PyObject, PyTypeObject};
-use std::os::raw::{c_char, c_int, c_void};
+use std::ffi::{c_char, c_int, c_void};
 
 pub type wrapperfunc = Option<
     unsafe extern "C" fn(

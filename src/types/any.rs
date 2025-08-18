@@ -14,7 +14,7 @@ use crate::types::{PyDict, PyIterator, PyList, PyString, PyType};
 use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
-use std::os::raw::c_int;
+use std::ffi::c_int;
 use std::ptr;
 
 /// Represents any Python object.
@@ -1850,7 +1850,7 @@ class SimpleClass:
 
         #[pymethods(crate = "crate")]
         impl GetattrFail {
-            fn __getattr__(&self, attr: PyObject) -> PyResult<PyObject> {
+            fn __getattr__(&self, attr: Py<PyAny>) -> PyResult<Py<PyAny>> {
                 Err(PyValueError::new_err(attr))
             }
         }
@@ -2091,7 +2091,7 @@ class SimpleClass:
 
         #[pymethods(crate = "crate")]
         impl DirFail {
-            fn __dir__(&self) -> PyResult<PyObject> {
+            fn __dir__(&self) -> PyResult<Py<PyAny>> {
                 Err(PyValueError::new_err("uh-oh!"))
             }
         }

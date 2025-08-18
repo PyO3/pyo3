@@ -82,7 +82,7 @@ Arguments of type `Python` must not be part of the signature:
 # use pyo3::prelude::*;
 #[pyfunction]
 #[pyo3(signature = (lambda))]
-pub fn simple_python_bound_function(py: Python<'_>, lambda: PyObject) -> PyResult<()> {
+pub fn simple_python_bound_function(py: Python<'_>, lambda: Py<PyAny>) -> PyResult<()> {
     Ok(())
 }
 ```

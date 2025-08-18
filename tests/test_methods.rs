@@ -289,7 +289,7 @@ impl MethSignature {
         py: Python<'_>,
         a: i32,
         kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         [
             a.into_pyobject(py)?.into_any().into_bound(),
             kwargs.into_pyobject(py)?.into_any().into_bound(),
@@ -304,7 +304,7 @@ impl MethSignature {
         py: Python<'_>,
         a: i32,
         kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         [
             a.into_pyobject(py)?.into_any().into_bound(),
             kwargs.into_pyobject(py)?.into_any().into_bound(),
@@ -334,7 +334,7 @@ impl MethSignature {
         py: Python<'_>,
         args: &Bound<'_, PyTuple>,
         a: i32,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         (args, a)
             .into_pyobject(py)
             .map(BoundObject::into_any)
@@ -357,7 +357,7 @@ impl MethSignature {
         py: Python<'_>,
         a: i32,
         kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         [
             a.into_pyobject(py)?.into_any().into_bound(),
             kwargs.into_pyobject(py)?.into_any().into_bound(),
@@ -922,9 +922,9 @@ fn test_from_sequence() {
 #[pyclass]
 struct r#RawIdents {
     #[pyo3(get, set)]
-    r#type: PyObject,
-    r#subtype: PyObject,
-    r#subsubtype: PyObject,
+    r#type: Py<PyAny>,
+    r#subtype: Py<PyAny>,
+    r#subsubtype: Py<PyAny>,
 }
 
 #[pymethods]
@@ -932,9 +932,9 @@ impl r#RawIdents {
     #[new]
     pub fn r#new(
         r#_py: Python<'_>,
-        r#type: PyObject,
-        r#subtype: PyObject,
-        r#subsubtype: PyObject,
+        r#type: Py<PyAny>,
+        r#subtype: Py<PyAny>,
+        r#subsubtype: Py<PyAny>,
     ) -> Self {
         Self {
             r#type,
@@ -944,36 +944,36 @@ impl r#RawIdents {
     }
 
     #[getter(r#subtype)]
-    pub fn r#get_subtype(&self, py: Python<'_>) -> PyObject {
+    pub fn r#get_subtype(&self, py: Python<'_>) -> Py<PyAny> {
         self.r#subtype.clone_ref(py)
     }
 
     #[setter(r#subtype)]
-    pub fn r#set_subtype(&mut self, r#subtype: PyObject) {
+    pub fn r#set_subtype(&mut self, r#subtype: Py<PyAny>) {
         self.r#subtype = r#subtype;
     }
 
     #[getter]
-    pub fn r#get_subsubtype(&self, py: Python<'_>) -> PyObject {
+    pub fn r#get_subsubtype(&self, py: Python<'_>) -> Py<PyAny> {
         self.r#subsubtype.clone_ref(py)
     }
 
     #[setter]
-    pub fn r#set_subsubtype(&mut self, r#subsubtype: PyObject) {
+    pub fn r#set_subsubtype(&mut self, r#subsubtype: Py<PyAny>) {
         self.r#subsubtype = r#subsubtype;
     }
 
-    pub fn r#__call__(&mut self, r#type: PyObject) {
+    pub fn r#__call__(&mut self, r#type: Py<PyAny>) {
         self.r#type = r#type;
     }
 
     #[staticmethod]
-    pub fn r#static_method(r#type: PyObject) -> PyObject {
+    pub fn r#static_method(r#type: Py<PyAny>) -> Py<PyAny> {
         r#type
     }
 
     #[classmethod]
-    pub fn r#class_method(_: &Bound<'_, PyType>, r#type: PyObject) -> PyObject {
+    pub fn r#class_method(_: &Bound<'_, PyType>, r#type: Py<PyAny>) -> Py<PyAny> {
         r#type
     }
 

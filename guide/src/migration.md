@@ -16,6 +16,14 @@ For this reason we chose to rename these to more modern terminology introduced i
 - `pyo3::prepare_freethreaded_python` is now called `Python::initialize`.
 </details>
 
+### Deprecation of `PyObject` type alias
+<details open>
+<summary><small>Click to expand</small></summary>
+
+The type alias `PyObject` (aka `Py<PyAny>`) is often confused with the identically named FFI definition `pyo3::ffi::PyObject`. For this reason we are deprecating its usage. To migrate simply replace its usage by the target type `Py<PyAny>`.
+
+</details>
+
 ### Deprecation of `GILProtected`
 <details open>
 <summary><small>Click to expand</small></summary>
@@ -186,6 +194,7 @@ impl ToPyObject for MyPyObjectWrapper {
 
 After:
 ```rust,no_run
+# #![allow(deprecated)]
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
 # struct MyPyObjectWrapper(PyObject);
@@ -1930,7 +1939,7 @@ There can be two fixes:
 
    #[pyclass]
    struct Unsendable {
-       pointers: Vec<*mut std::os::raw::c_char>,
+       pointers: Vec<*mut std::ffi::c_char>,
    }
    ```
 
@@ -1941,7 +1950,7 @@ There can be two fixes:
 
    #[pyclass(unsendable)]
    struct Unsendable {
-       pointers: Vec<*mut std::os::raw::c_char>,
+       pointers: Vec<*mut std::ffi::c_char>,
    }
    ```
 </details>

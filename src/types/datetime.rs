@@ -26,7 +26,7 @@ use crate::{sync::GILOnceCell, Py};
 use crate::{types::IntoPyDict, PyTypeCheck};
 use crate::{Borrowed, Bound, IntoPyObject, PyAny, PyErr, Python};
 #[cfg(not(Py_LIMITED_API))]
-use std::os::raw::c_int;
+use std::ffi::c_int;
 
 #[cfg(not(Py_LIMITED_API))]
 fn ensure_datetime_api(py: Python<'_>) -> PyResult<&'static PyDateTime_CAPI> {

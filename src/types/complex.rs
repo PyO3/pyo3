@@ -3,7 +3,7 @@ use crate::py_result_ext::PyResultExt;
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 use crate::types::any::PyAnyMethods;
 use crate::{ffi, Bound, PyAny, Python};
-use std::os::raw::c_double;
+use std::ffi::c_double;
 
 /// Represents a Python [`complex`](https://docs.python.org/3/library/functions.html#complex) object.
 ///

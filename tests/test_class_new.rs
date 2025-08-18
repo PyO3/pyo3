@@ -302,7 +302,7 @@ fn test_new_returns_bound() {
 #[pyo3::pyclass]
 struct NewClassMethod {
     #[pyo3(get)]
-    cls: pyo3::PyObject,
+    cls: pyo3::Py<PyAny>,
 }
 
 #[pyo3::pymethods]

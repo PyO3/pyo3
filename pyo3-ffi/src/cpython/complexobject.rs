@@ -1,5 +1,5 @@
 use crate::PyObject;
-use std::os::raw::c_double;
+use std::ffi::c_double;
 
 #[repr(C)]
 #[derive(Copy, Clone)]

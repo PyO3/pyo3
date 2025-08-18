@@ -1,7 +1,7 @@
 // NB libc does not define this constant on all platforms, so we hard code it
 // like CPython does.
 // https://github.com/python/cpython/blob/d8b9011702443bb57579f8834f3effe58e290dfc/Include/pyport.h#L372
-pub const INT_MAX: std::os::raw::c_int = 2147483647;
+pub const INT_MAX: std::ffi::c_int = 2147483647;
 
 pub type PY_UINT32_T = u32;
 pub type PY_UINT64_T = u64;
