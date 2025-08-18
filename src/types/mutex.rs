@@ -58,7 +58,7 @@ impl Flag {
 
     #[inline]
     #[cfg(not(panic = "unwind"))]
-    pub fn done(&self, _guard: &Guard) {}
+    fn done(&self, _guard: &Guard) {}
 
     #[inline]
     #[cfg(panic = "unwind")]
@@ -68,7 +68,7 @@ impl Flag {
 
     #[inline(always)]
     #[cfg(not(panic = "unwind"))]
-    pub fn get(&self) -> bool {
+    fn get(&self) -> bool {
         false
     }
 
