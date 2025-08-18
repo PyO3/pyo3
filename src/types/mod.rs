@@ -32,6 +32,8 @@ pub use self::mapping::{PyMapping, PyMappingMethods};
 pub use self::mappingproxy::PyMappingProxy;
 pub use self::memoryview::PyMemoryView;
 pub use self::module::{PyModule, PyModuleMethods};
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+pub use self::mutex::{PyMutex, PyMutexGuard};
 pub use self::none::PyNone;
 pub use self::notimplemented::PyNotImplemented;
 pub use self::num::PyInt;
@@ -240,6 +242,8 @@ pub(crate) mod mapping;
 pub(crate) mod mappingproxy;
 mod memoryview;
 pub(crate) mod module;
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+mod mutex;
 mod none;
 mod notimplemented;
 mod num;

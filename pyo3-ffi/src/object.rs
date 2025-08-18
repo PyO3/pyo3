@@ -4,12 +4,10 @@ use crate::refcount;
 #[cfg(Py_GIL_DISABLED)]
 use crate::PyMutex;
 use std::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
-#[cfg(Py_GIL_DISABLED)]
-use std::marker::PhantomPinned;
 use std::mem;
 use std::ptr;
 #[cfg(Py_GIL_DISABLED)]
-use std::sync::atomic::{AtomicIsize, AtomicU32, AtomicU8};
+use std::sync::atomic::{AtomicIsize, AtomicU32};
 
 #[cfg(Py_LIMITED_API)]
 opaque_struct!(pub PyTypeObject);
@@ -110,10 +108,7 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     #[cfg(all(Py_GIL_DISABLED, not(Py_3_14)))]
     _padding: 0,
     #[cfg(Py_GIL_DISABLED)]
-    ob_mutex: PyMutex {
-        _bits: AtomicU8::new(0),
-        _pin: PhantomPinned,
-    },
+    ob_mutex: PyMutex::new(),
     #[cfg(Py_GIL_DISABLED)]
     ob_gc_bits: 0,
     #[cfg(Py_GIL_DISABLED)]
