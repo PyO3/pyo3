@@ -62,7 +62,6 @@ impl AttachGuard {
     }
 
     /// Variant of the above which will will return `None` if the interpreter cannot be attached to.
-    #[cfg(any(not(Py_LIMITED_API), Py_3_11, test))] // see Python::try_attach
     pub(crate) fn try_acquire() -> Option<Self> {
         match ATTACH_COUNT.try_with(|c| c.get()) {
             Ok(i) if i > 0 => {
