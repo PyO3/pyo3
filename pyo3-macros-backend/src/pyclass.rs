@@ -2373,6 +2373,13 @@ impl<'a> PyClassImplsBuilder<'a> {
             }
         };
 
+        let type_name = if cfg!(feature = "experimental-inspect") {
+            let full_name = get_class_python_module_and_name(cls, self.attr);
+            quote! { const TYPE_NAME: &'static str = #full_name; }
+        } else {
+            quote! {}
+        };
+
         Ok(quote! {
             #assertions
 
@@ -2392,6 +2399,8 @@ impl<'a> PyClassImplsBuilder<'a> {
                 type Dict = #dict;
                 type WeakRef = #weakref;
                 type BaseNativeType = #base_nativetype;
+
+                #type_name
 
                 fn items_iter() -> #pyo3_path::impl_::pyclass::PyClassItemsIter {
                     use #pyo3_path::impl_::pyclass::*;

@@ -5,6 +5,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyType;
 
 #[pyclass]
+#[derive(Clone, Default)]
 struct EmptyClass {}
 
 #[pymethods]
@@ -104,6 +105,7 @@ impl ClassWithDict {
 }
 
 #[pyclass]
+#[derive(Clone)]
 struct ClassWithDecorators {
     attr: usize,
 }
@@ -142,6 +144,24 @@ impl ClassWithDecorators {
     }
 }
 
+#[derive(FromPyObject, IntoPyObject)]
+enum AClass {
+    NewType(EmptyClass),
+    Tuple(EmptyClass, EmptyClass),
+    Struct {
+        f: EmptyClass,
+        #[pyo3(item(42))]
+        g: EmptyClass,
+        #[pyo3(default)]
+        h: EmptyClass,
+    },
+}
+
+#[pyfunction]
+fn map_a_class(cls: AClass) -> AClass {
+    cls
+}
+
 #[pymodule(gil_used = false)]
 pub mod pyclasses {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
@@ -149,7 +169,7 @@ pub mod pyclasses {
     use super::ClassWithDict;
     #[pymodule_export]
     use super::{
-        AssertingBaseClass, ClassWithDecorators, ClassWithoutConstructor, EmptyClass, PyClassIter,
-        PyClassThreadIter,
+        map_a_class, AssertingBaseClass, ClassWithDecorators, ClassWithoutConstructor, EmptyClass,
+        PyClassIter, PyClassThreadIter,
     };
 }
