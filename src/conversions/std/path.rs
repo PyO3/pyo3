@@ -1,7 +1,7 @@
 use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
-use crate::sync::GILOnceCell;
+use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 use crate::{ffi, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
 use std::borrow::Cow;
@@ -25,7 +25,7 @@ impl<'py> IntoPyObject<'py> for &Path {
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        static PY_PATH: GILOnceCell<Py<PyAny>> = GILOnceCell::new();
+        static PY_PATH: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
         PY_PATH
             .import(py, "pathlib", "Path")?
             .call((self.as_os_str(),), None)

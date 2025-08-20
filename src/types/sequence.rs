@@ -6,7 +6,7 @@ use crate::inspect::types::TypeInfo;
 use crate::instance::Bound;
 use crate::internal_tricks::get_ssize_index;
 use crate::py_result_ext::PyResultExt;
-use crate::sync::GILOnceCell;
+use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
 use crate::types::{any::PyAnyMethods, PyAny, PyList, PyString, PyTuple, PyType};
 use crate::{
@@ -370,7 +370,7 @@ where
 }
 
 fn get_sequence_abc(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
-    static SEQUENCE_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+    static SEQUENCE_ABC: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 
     SEQUENCE_ABC.import(py, "collections.abc", "Sequence")
 }

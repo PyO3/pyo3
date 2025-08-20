@@ -17,8 +17,12 @@ use std::{
     sync::{Once, OnceState},
 };
 
+pub(crate) mod once_lock;
+
 #[cfg(not(Py_GIL_DISABLED))]
 use crate::PyVisit;
+
+pub use self::once_lock::PyOnceLock;
 
 /// Value with concurrent access protected by the GIL.
 ///
@@ -113,6 +117,7 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 /// between threads:
 ///
 /// ```
+/// #![allow(deprecated)]
 /// use pyo3::sync::GILOnceCell;
 /// use pyo3::prelude::*;
 /// use pyo3::types::PyList;
@@ -126,6 +131,10 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 /// }
 /// # Python::attach(|py| assert_eq!(get_shared_list(py).len(), 0));
 /// ```
+#[deprecated(
+    since = "0.26.0",
+    note = "Prefer `pyo3::sync::PyOnceLock`, which avoids the possibility of racing during initialization."
+)]
 pub struct GILOnceCell<T> {
     once: Once,
     data: UnsafeCell<MaybeUninit<T>>,
@@ -135,6 +144,7 @@ pub struct GILOnceCell<T> {
     /// `PhantomData` to make sure dropck understands we're dropping T in our Drop impl.
     ///
     /// ```compile_error,E0597
+    /// #![allow(deprecated)]
     /// use pyo3::Python;
     /// use pyo3::sync::GILOnceCell;
     ///
@@ -153,6 +163,7 @@ pub struct GILOnceCell<T> {
     _marker: PhantomData<T>,
 }
 
+#[allow(deprecated)]
 impl<T> Default for GILOnceCell<T> {
     fn default() -> Self {
         Self::new()
@@ -162,9 +173,12 @@ impl<T> Default for GILOnceCell<T> {
 // T: Send is needed for Sync because the thread which drops the GILOnceCell can be different
 // to the thread which fills it. (e.g. think scoped thread which fills the cell and then exits,
 // leaving the cell to be dropped by the main thread).
+#[allow(deprecated)]
 unsafe impl<T: Send + Sync> Sync for GILOnceCell<T> {}
+#[allow(deprecated)]
 unsafe impl<T: Send> Send for GILOnceCell<T> {}
 
+#[allow(deprecated)]
 impl<T> GILOnceCell<T> {
     /// Create a `GILOnceCell` which does not yet contain a value.
     pub const fn new() -> Self {
@@ -298,6 +312,7 @@ impl<T> GILOnceCell<T> {
     }
 }
 
+#[allow(deprecated)]
 impl<T> GILOnceCell<Py<T>> {
     /// Creates a new cell that contains a new Python reference to the same contained object.
     ///
@@ -315,6 +330,7 @@ impl<T> GILOnceCell<Py<T>> {
     }
 }
 
+#[allow(deprecated)]
 impl<T> GILOnceCell<Py<T>>
 where
     T: PyTypeCheck,
@@ -327,6 +343,7 @@ where
     ///
     /// `GILOnceCell` can be used to avoid importing a class multiple times:
     /// ```
+    /// #![allow(deprecated)]
     /// # use pyo3::prelude::*;
     /// # use pyo3::sync::GILOnceCell;
     /// # use pyo3::types::{PyDict, PyType};
@@ -364,6 +381,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<T> Drop for GILOnceCell<T> {
     fn drop(&mut self) {
         if self.once.is_completed() {
@@ -420,12 +438,12 @@ macro_rules! intern {
 
 /// Implementation detail for `intern!` macro.
 #[doc(hidden)]
-pub struct Interned(&'static str, GILOnceCell<Py<PyString>>);
+pub struct Interned(&'static str, PyOnceLock<Py<PyString>>);
 
 impl Interned {
     /// Creates an empty holder for an interned `str`.
     pub const fn new(value: &'static str) -> Self {
-        Interned(value, GILOnceCell::new())
+        Interned(value, PyOnceLock::new())
     }
 
     /// Gets or creates the interned `str` value.
@@ -536,7 +554,7 @@ mod once_lock_ext_sealed {
     impl<T> Sealed for std::sync::OnceLock<T> {}
 }
 
-/// Helper trait for `Once` to help avoid deadlocking when using a `Once` when attached to a
+/// Extension trait for [`Once`] to help avoid deadlocking when using a [`Once`] when attached to a
 /// Python thread.
 pub trait OnceExt: Sealed {
     ///The state of `Once`
@@ -816,9 +834,6 @@ where
     // into the C API.
     let ts_guard = unsafe { SuspendAttach::new() };
 
-    // this trait is guarded by a rustc version config
-    // so clippy's MSRV check is wrong
-    #[allow(clippy::incompatible_msrv)]
     // By having detached here, we guarantee that `.get_or_init` cannot deadlock with
     // the Python interpreter
     let value = lock.get_or_init(move || {
@@ -875,6 +890,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_once_cell() {
         Python::attach(|py| {
             let mut cell = GILOnceCell::new();
@@ -900,6 +916,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_once_cell_drop() {
         #[derive(Debug)]
         struct RecordDrop<'a>(&'a mut bool);

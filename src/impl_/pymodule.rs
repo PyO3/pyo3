@@ -25,7 +25,7 @@ use crate::PyErr;
 use crate::{
     ffi,
     impl_::pymethods::PyMethodDef,
-    sync::GILOnceCell,
+    sync::PyOnceLock,
     types::{PyCFunction, PyModule, PyModuleMethods},
     Bound, Py, PyClass, PyResult, PyTypeInfo, Python,
 };
@@ -43,7 +43,7 @@ pub struct ModuleDef {
     ))]
     interpreter: AtomicI64,
     /// Initialized module object, cached to avoid reinitialization.
-    module: GILOnceCell<Py<PyModule>>,
+    module: PyOnceLock<Py<PyModule>>,
     /// Whether or not the module supports running without the GIL
     gil_used: AtomicBool,
 }
@@ -89,7 +89,7 @@ impl ModuleDef {
                 not(all(windows, Py_LIMITED_API, not(Py_3_10)))
             ))]
             interpreter: AtomicI64::new(-1),
-            module: GILOnceCell::new(),
+            module: PyOnceLock::new(),
             gil_used: AtomicBool::new(true),
         }
     }

@@ -3,7 +3,7 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
 use crate::instance::Bound;
-use crate::sync::GILOnceCell;
+use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
@@ -35,7 +35,7 @@ impl<'py> IntoPyObject<'py> for Ipv4Addr {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        static IPV4_ADDRESS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+        static IPV4_ADDRESS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         IPV4_ADDRESS
             .import(py, "ipaddress", "IPv4Address")?
             .call1((u32::from_be_bytes(self.octets()),))
@@ -59,7 +59,7 @@ impl<'py> IntoPyObject<'py> for Ipv6Addr {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        static IPV6_ADDRESS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+        static IPV6_ADDRESS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         IPV6_ADDRESS
             .import(py, "ipaddress", "IPv6Address")?
             .call1((u128::from_be_bytes(self.octets()),))
