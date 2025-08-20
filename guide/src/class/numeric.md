@@ -417,7 +417,7 @@ Let's create that helper function. The signature has to be `fn(&Bound<'_, PyAny>
 
 ```rust,no_run
 # #![allow(dead_code)]
-use std::os::raw::c_ulong;
+use std::ffi::c_ulong;
 use pyo3::prelude::*;
 use pyo3::ffi;
 

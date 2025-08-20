@@ -98,7 +98,7 @@ use crate::{
     Python,
 };
 use num_complex::Complex;
-use std::os::raw::c_double;
+use std::ffi::c_double;
 
 impl PyComplex {
     /// Creates a new Python `PyComplex` object from `num_complex`'s [`Complex`].

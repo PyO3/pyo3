@@ -106,6 +106,38 @@ impl<'a, T: PyClass> PyClassGuard<'a, T> {
         // valid for at least 'a
         unsafe { self.ptr.cast().as_ref() }
     }
+
+    /// Consumes the [`PyClassGuard`] and returns a [`PyClassGuardMap`] for a component of the
+    /// borrowed data
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use pyo3::prelude::*;
+    /// # use pyo3::PyClassGuard;
+    ///
+    /// #[pyclass]
+    /// pub struct MyClass {
+    ///     msg: String,
+    /// }
+    ///
+    /// # Python::attach(|py| {
+    /// let obj = Bound::new(py, MyClass { msg: String::from("hello") })?;
+    /// let msg = obj.extract::<PyClassGuard<'_, MyClass>>()?.map(|c| &c.msg);
+    /// assert_eq!(&*msg, "hello");
+    /// # Ok::<_, PyErr>(())
+    /// # }).unwrap();
+    /// ```
+    pub fn map<F, U: ?Sized>(self, f: F) -> PyClassGuardMap<'a, U, false>
+    where
+        F: FnOnce(&T) -> &U,
+    {
+        let slf = std::mem::ManuallyDrop::new(self); // the borrow is released when dropping the `PyClassGuardMap`
+        PyClassGuardMap {
+            ptr: NonNull::from(f(&slf)),
+            checker: slf.as_class_object().borrow_checker(),
+        }
+    }
 }
 
 impl<'a, T, U> PyClassGuard<'a, T>
@@ -521,6 +553,38 @@ impl<'a, T: PyClass<Frozen = False>> PyClassGuardMut<'a, T> {
         // valid for at least 'a
         unsafe { self.ptr.cast().as_ref() }
     }
+
+    /// Consumes the [`PyClassGuardMut`] and returns a [`PyClassGuardMap`] for a component of the
+    /// borrowed data
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use pyo3::prelude::*;
+    /// # use pyo3::PyClassGuardMut;
+    ///
+    /// #[pyclass]
+    /// pub struct MyClass {
+    ///     data: [i32; 100],
+    /// }
+    ///
+    /// # Python::attach(|py| {
+    /// let obj = Bound::new(py, MyClass { data: [0; 100] })?;
+    /// let mut data = obj.extract::<PyClassGuardMut<'_, MyClass>>()?.map(|c| c.data.as_mut_slice());
+    /// data[0] = 42;
+    /// # Ok::<_, PyErr>(())
+    /// # }).unwrap();
+    /// ```
+    pub fn map<F, U: ?Sized>(self, f: F) -> PyClassGuardMap<'a, U, true>
+    where
+        F: FnOnce(&mut T) -> &mut U,
+    {
+        let mut slf = std::mem::ManuallyDrop::new(self); // the borrow is released when dropping the `PyClassGuardMap`
+        PyClassGuardMap {
+            ptr: NonNull::from(f(&mut slf)),
+            checker: slf.as_class_object().borrow_checker(),
+        }
+    }
 }
 
 impl<'a, T, U> PyClassGuardMut<'a, T>
@@ -620,11 +684,45 @@ unsafe impl<T: PyClass<Frozen = False>> crate::marker::Ungil for PyClassGuardMut
 unsafe impl<T: PyClass<Frozen = False> + Send + Sync> Send for PyClassGuardMut<'_, T> {}
 unsafe impl<T: PyClass<Frozen = False> + Sync> Sync for PyClassGuardMut<'_, T> {}
 
+/// Wraps a borrowed reference `U` to a value stored inside of a pyclass `T`
+///
+/// See [`PyClassGuard::map`] and [`PyClassGuardMut::map`]
+pub struct PyClassGuardMap<'a, U: ?Sized, const MUT: bool> {
+    ptr: NonNull<U>,
+    checker: &'a dyn PyClassBorrowChecker,
+}
+
+impl<U: ?Sized, const MUT: bool> Deref for PyClassGuardMap<'_, U, MUT> {
+    type Target = U;
+
+    fn deref(&self) -> &U {
+        // SAFETY: `checker` guards our access to the `T` that `U` points into
+        unsafe { self.ptr.as_ref() }
+    }
+}
+
+impl<U: ?Sized> DerefMut for PyClassGuardMap<'_, U, true> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        // SAFETY: `checker` guards our access to the `T` that `U` points into
+        unsafe { self.ptr.as_mut() }
+    }
+}
+
+impl<U: ?Sized, const MUT: bool> Drop for PyClassGuardMap<'_, U, MUT> {
+    fn drop(&mut self) {
+        if MUT {
+            self.checker.release_borrow_mut();
+        } else {
+            self.checker.release_borrow();
+        }
+    }
+}
+
 #[cfg(test)]
 #[cfg(feature = "macros")]
 mod tests {
     use super::{PyClassGuard, PyClassGuardMut};
-    use crate::{types::PyAnyMethods as _, IntoPyObject as _, Py, PyErr, Python};
+    use crate::{types::PyAnyMethods as _, Bound, IntoPyObject as _, Py, PyErr, Python};
 
     #[test]
     fn test_into_frozen_super_released_borrow() {
@@ -830,5 +928,57 @@ mod tests {
             crate::py_run!(py, obj, "assert obj.double_values() is None");
             crate::py_run!(py, obj, "assert obj.get_values() == (20, 30, 40)");
         });
+    }
+
+    #[crate::pyclass]
+    #[pyo3(crate = "crate")]
+    pub struct MyClass {
+        data: [i32; 100],
+    }
+
+    #[test]
+    fn test_pyclassguard_map() {
+        Python::attach(|py| {
+            let obj = Bound::new(py, MyClass { data: [0; 100] })?;
+            let data = PyClassGuard::try_borrow(obj.as_unbound())?.map(|c| &c.data);
+            assert_eq!(data[0], 0);
+            assert!(obj.try_borrow_mut().is_err()); // obj is still protected
+            drop(data);
+            assert!(obj.try_borrow_mut().is_ok()); // drop released shared borrow
+            Ok::<_, PyErr>(())
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn test_pyclassguardmut_map() {
+        Python::attach(|py| {
+            let obj = Bound::new(py, MyClass { data: [0; 100] })?;
+            let mut data =
+                PyClassGuardMut::try_borrow_mut(obj.as_unbound())?.map(|c| c.data.as_mut_slice());
+            assert_eq!(data[0], 0);
+            data[0] = 5;
+            assert_eq!(data[0], 5);
+            assert!(obj.try_borrow_mut().is_err()); // obj is still protected
+            drop(data);
+            assert!(obj.try_borrow_mut().is_ok()); // drop released mutable borrow
+            Ok::<_, PyErr>(())
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn test_pyclassguard_map_unrelated() {
+        use crate::types::{PyString, PyStringMethods};
+        Python::attach(|py| {
+            let obj = Bound::new(py, MyClass { data: [0; 100] })?;
+            let string = PyString::new(py, "pyo3");
+            // It is possible to return something not borrowing from the guard, but that shouldn't
+            // matter. `RefCell` has the same behaviour
+            let refmap = PyClassGuard::try_borrow(obj.as_unbound())?.map(|_| &string);
+            assert_eq!(refmap.to_cow()?, "pyo3");
+            Ok::<_, PyErr>(())
+        })
+        .unwrap()
     }
 }

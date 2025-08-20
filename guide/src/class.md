@@ -413,7 +413,7 @@ impl SubSubClass {
     }
 
     #[staticmethod]
-    fn factory_method(py: Python<'_>, val: usize) -> PyResult<PyObject> {
+    fn factory_method(py: Python<'_>, val: usize) -> PyResult<Py<PyAny>> {
         let base = PyClassInitializer::from(BaseClass::new());
         let sub = base.add_subclass(SubClass { val2: val });
         if val % 2 == 0 {
@@ -748,7 +748,7 @@ To create a constructor which takes a positional class argument, you can combine
 # use pyo3::prelude::*;
 # use pyo3::types::PyType;
 # #[pyclass]
-# struct BaseClass(PyObject);
+# struct BaseClass(Py<PyAny>);
 #
 #[pymethods]
 impl BaseClass {
@@ -1385,7 +1385,12 @@ unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
     #[inline]
     fn type_object_raw(py: pyo3::Python<'_>) -> *mut pyo3::ffi::PyTypeObject {
         <Self as pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()
-            .get_or_init(py)
+            .get_or_try_init(py)
+            .unwrap_or_else(|e| pyo3::impl_::pyclass::type_object_init_failed(
+                py,
+                e,
+                <Self as pyo3::type_object::PyTypeInfo>::NAME
+            ))
             .as_type_ptr()
     }
 }

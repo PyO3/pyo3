@@ -1,5 +1,5 @@
 use crate::object::PyObject;
-use std::os::raw::{c_char, c_int};
+use std::ffi::{c_char, c_int};
 
 extern "C" {
     pub fn PyCodec_Register(search_function: *mut PyObject) -> c_int;

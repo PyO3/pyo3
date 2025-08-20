@@ -4,8 +4,8 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use libc::size_t;
 #[cfg(Py_3_13)]
-use std::os::raw::c_void;
-use std::os::raw::{c_int, c_uchar};
+use std::ffi::c_void;
+use std::ffi::{c_int, c_uchar};
 
 #[cfg(Py_3_13)]
 extern "C" {

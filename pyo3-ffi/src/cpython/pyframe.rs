@@ -2,8 +2,8 @@
 use crate::PyFrameObject;
 use crate::{PyObject, PyTypeObject, Py_TYPE};
 #[cfg(Py_3_12)]
-use std::os::raw::c_char;
-use std::os::raw::c_int;
+use std::ffi::c_char;
+use std::ffi::c_int;
 use std::ptr::addr_of_mut;
 
 // NB used in `_PyEval_EvalFrameDefault`, maybe we remove this too.

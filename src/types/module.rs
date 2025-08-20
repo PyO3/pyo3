@@ -9,11 +9,11 @@ use crate::types::{
     any::PyAnyMethods, list::PyListMethods, PyAny, PyCFunction, PyDict, PyList, PyString,
 };
 use crate::{
-    exceptions, ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyObject, Python,
+    exceptions, ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python,
 };
-use std::ffi::CStr;
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
-use std::os::raw::c_int;
+use std::ffi::c_int;
+use std::ffi::CStr;
 use std::str;
 
 /// Represents a Python [`module`][1] object.
@@ -287,7 +287,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// instead.
     fn add_wrapped<T>(&self, wrapper: &impl Fn(Python<'py>) -> T) -> PyResult<()>
     where
-        T: IntoPyCallbackOutput<'py, PyObject>;
+        T: IntoPyCallbackOutput<'py, Py<PyAny>>;
 
     /// Adds a submodule to a module.
     ///
@@ -502,7 +502,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
 
     fn add_wrapped<T>(&self, wrapper: &impl Fn(Python<'py>) -> T) -> PyResult<()>
     where
-        T: IntoPyCallbackOutput<'py, PyObject>,
+        T: IntoPyCallbackOutput<'py, Py<PyAny>>,
     {
         fn inner(module: &Bound<'_, PyModule>, object: Bound<'_, PyAny>) -> PyResult<()> {
             let name = object.getattr(__name__(module.py()))?;

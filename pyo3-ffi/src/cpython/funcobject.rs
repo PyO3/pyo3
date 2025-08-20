@@ -1,4 +1,4 @@
-use std::os::raw::c_int;
+use std::ffi::c_int;
 #[cfg(not(all(PyPy, not(Py_3_8))))]
 use std::ptr::addr_of_mut;
 

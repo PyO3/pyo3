@@ -1,7 +1,7 @@
 use crate::{PyObject, Py_ssize_t};
 #[cfg(any(all(Py_3_8, not(PyPy)), not(Py_3_11)))]
-use std::os::raw::c_char;
-use std::os::raw::c_int;
+use std::ffi::c_char;
+use std::ffi::c_int;
 
 #[cfg(not(Py_3_11))]
 use crate::Py_buffer;
@@ -238,12 +238,12 @@ extern "C" {
     pub fn PyBuffer_GetPointer(
         view: *mut Py_buffer,
         indices: *mut Py_ssize_t,
-    ) -> *mut std::os::raw::c_void;
+    ) -> *mut std::ffi::c_void;
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_SizeFromFormat")]
     pub fn PyBuffer_SizeFromFormat(format: *const c_char) -> Py_ssize_t;
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_ToContiguous")]
     pub fn PyBuffer_ToContiguous(
-        buf: *mut std::os::raw::c_void,
+        buf: *mut std::ffi::c_void,
         view: *mut Py_buffer,
         len: Py_ssize_t,
         order: c_char,
@@ -251,7 +251,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_FromContiguous")]
     pub fn PyBuffer_FromContiguous(
         view: *mut Py_buffer,
-        buf: *mut std::os::raw::c_void,
+        buf: *mut std::ffi::c_void,
         len: Py_ssize_t,
         order: c_char,
     ) -> c_int;
@@ -269,7 +269,7 @@ extern "C" {
     pub fn PyBuffer_FillInfo(
         view: *mut Py_buffer,
         o: *mut PyObject,
-        buf: *mut std::os::raw::c_void,
+        buf: *mut std::ffi::c_void,
         len: Py_ssize_t,
         readonly: c_int,
         flags: c_int,
