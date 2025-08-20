@@ -1,22 +1,22 @@
 use std::{
-    ffi::CStr,
     marker::PhantomData,
     thread::{self, ThreadId},
 };
 
+use pyo3_ffi::PyTypeObject;
+
 #[cfg(Py_3_14)]
 use crate::err::error_on_minusone;
-#[allow(deprecated)]
-use crate::sync::GILOnceCell;
 #[cfg(Py_3_14)]
 use crate::types::PyTypeMethods;
 use crate::{
     exceptions::PyRuntimeError,
-    ffi,
     impl_::pymethods::PyMethodDefType,
     pyclass::{create_type_object, PyClassTypeObject},
-    types::PyType,
-    Bound, Py, PyAny, PyClass, PyErr, PyResult, Python,
+    sync::PyOnceLock,
+    type_object::PyTypeInfo,
+    types::{PyAnyMethods, PyType},
+    Bound, Py, PyClass, PyErr, PyResult, Python,
 };
 
 use std::sync::Mutex;
@@ -29,13 +29,9 @@ pub struct LazyTypeObject<T>(LazyTypeObjectInner, PhantomData<T>);
 
 // Non-generic inner of LazyTypeObject to keep code size down
 struct LazyTypeObjectInner {
-    #[allow(deprecated)]
-    value: GILOnceCell<PyClassTypeObject>,
-    // Threads which have begun initialization of the `tp_dict`. Used for
-    // reentrant initialization detection.
-    initializing_threads: Mutex<Vec<ThreadId>>,
-    #[allow(deprecated)]
-    fully_initialized_type: GILOnceCell<Py<PyType>>,
+    value: PyOnceLock<PyClassTypeObject>,
+    initializing_thread: Mutex<Option<ThreadId>>,
+    fully_initialized_type: PyOnceLock<Py<PyType>>,
 }
 
 impl<T> LazyTypeObject<T> {
@@ -44,11 +40,9 @@ impl<T> LazyTypeObject<T> {
     pub const fn new() -> Self {
         LazyTypeObject(
             LazyTypeObjectInner {
-                #[allow(deprecated)]
-                value: GILOnceCell::new(),
-                initializing_threads: Mutex::new(Vec::new()),
-                #[allow(deprecated)]
-                fully_initialized_type: GILOnceCell::new(),
+                value: PyOnceLock::new(),
+                initializing_thread: Mutex::new(None),
+                fully_initialized_type: PyOnceLock::new(),
             },
             PhantomData,
         )
@@ -71,8 +65,9 @@ impl<T: PyClass> LazyTypeObject<T> {
     fn try_init<'py>(&self, py: Python<'py>) -> PyResult<&Bound<'py, PyType>> {
         self.0.get_or_try_init(
             py,
+            <T::BaseType as PyTypeInfo>::type_object_raw,
             create_type_object::<T>,
-            <T as PyClass>::NAME,
+            T::NAME,
             T::items_iter(),
         )
     }
@@ -85,18 +80,28 @@ impl LazyTypeObjectInner {
     fn get_or_try_init<'py>(
         &self,
         py: Python<'py>,
+        base_init: fn(Python<'py>) -> *mut PyTypeObject,
         init: fn(Python<'py>) -> PyResult<PyClassTypeObject>,
         name: &str,
         items_iter: PyClassItemsIter,
     ) -> PyResult<&Bound<'py, PyType>> {
         (|| -> PyResult<_> {
+            // ensure that base is fully initialized before entering the `PyOnceLock`
+            // initialization; that could otherwise deadlock if the base type needs
+            // to load the subtype as an attribute.
+            //
+            // don't try to synchronize this; assume that `base_init` handles concurrency and
+            // re-entrancy in the same way this function does
+            base_init(py);
+            // at this point, we are guaranteed that the base type object has been created, we may be inside
+            // `fill_tp_dict` of the base type in the case of this subtype being an attribute on the base
             let PyClassTypeObject {
                 type_object,
                 is_immutable_type,
                 ..
             } = self.value.get_or_try_init(py, || init(py))?;
             let type_object = type_object.bind(py);
-            self.ensure_init(type_object, *is_immutable_type, name, items_iter)?;
+            self.fill_tp_dict(type_object, *is_immutable_type, name, items_iter)?;
             Ok(type_object)
         })()
         .map_err(|err| {
@@ -108,146 +113,133 @@ impl LazyTypeObjectInner {
         })
     }
 
-    fn ensure_init(
+    fn fill_tp_dict(
         &self,
         type_object: &Bound<'_, PyType>,
         #[allow(unused_variables)] is_immutable_type: bool,
         name: &str,
         items_iter: PyClassItemsIter,
     ) -> PyResult<()> {
-        let py = type_object.py();
+        let py: Python<'_> = type_object.py();
 
         // We might want to fill the `tp_dict` with python instances of `T`
         // itself. In order to do so, we must first initialize the type object
         // with an empty `tp_dict`: now we can create instances of `T`.
         //
-        // Then we fill the `tp_dict`. Multiple threads may try to fill it at
-        // the same time, but only one of them will succeed.
-        //
         // More importantly, if a thread is performing initialization of the
         // `tp_dict`, it can still request the type object through `get_or_init`,
         // but the `tp_dict` may appear empty of course.
 
-        if self.fully_initialized_type.get(py).is_some() {
-            // `tp_dict` is already filled: ok.
+        let Some(guard) = InitializationGuard::new(&self.initializing_thread) else {
+            // we are re-entrant with `tp_dict` initialization on this thread, we should
+            // just return Ok and allow the init to proceed, whatever is accessing the type
+            // object will just see the class without all attributes present.
             return Ok(());
-        }
-
-        let thread_id = thread::current().id();
-        {
-            let mut threads = self.initializing_threads.lock().unwrap();
-            if threads.contains(&thread_id) {
-                // Reentrant call: just return the type object, even if the
-                // `tp_dict` is not filled yet.
-                return Ok(());
-            }
-            threads.push(thread_id);
-        }
-
-        struct InitializationGuard<'a> {
-            initializing_threads: &'a Mutex<Vec<ThreadId>>,
-            thread_id: ThreadId,
-        }
-        impl Drop for InitializationGuard<'_> {
-            fn drop(&mut self) {
-                let mut threads = self.initializing_threads.lock().unwrap();
-                threads.retain(|id| *id != self.thread_id);
-            }
-        }
-
-        let guard = InitializationGuard {
-            initializing_threads: &self.initializing_threads,
-            thread_id,
         };
 
-        // Pre-compute the class attribute objects: this can temporarily
-        // release the GIL since we're calling into arbitrary user code. It
-        // means that another thread can continue the initialization in the
-        // meantime: at worst, we'll just make a useless computation.
-        let mut items = vec![];
-        for class_items in items_iter {
-            for method in class_items.methods {
-                if let PyMethodDefType::ClassAttribute(attr) = method {
-                    match (attr.meth)(py) {
-                        Ok(val) => items.push((attr.name, val)),
-                        Err(err) => {
-                            return Err(wrap_in_runtime_error(
-                                py,
-                                err,
-                                format!(
-                                    "An error occurred while initializing `{}.{}`",
-                                    name,
-                                    attr.name.to_str().unwrap()
-                                ),
-                            ))
+        // Only one thread will now proceed to set the type attributes.
+        self.fully_initialized_type
+            .get_or_try_init(py, move || -> PyResult<_> {
+                guard.start_init();
+
+                for class_items in items_iter {
+                    for method in class_items.methods {
+                        if let PyMethodDefType::ClassAttribute(attr) = method {
+                            (attr.meth)(py)
+                                .and_then(|val| {
+                                    type_object.setattr(
+                                        // FIXME: add `IntoPyObject` for `&CStr`?
+                                        attr.name.to_str().expect("attribute name should be UTF8"),
+                                        val,
+                                    )
+                                })
+                                .map_err(|err| {
+                                    wrap_in_runtime_error(
+                                        py,
+                                        err,
+                                        format!(
+                                            "An error occurred while initializing `{}.{}`",
+                                            name,
+                                            attr.name.to_str().unwrap()
+                                        ),
+                                    )
+                                })?;
                         }
                     }
                 }
-            }
-        }
 
-        // Now we hold the GIL and we can assume it won't be released until we
-        // return from the function.
-        let result = self.fully_initialized_type.get_or_try_init(py, move || {
-            initialize_tp_dict(py, type_object.as_ptr(), items)?;
-            #[cfg(Py_3_14)]
-            if is_immutable_type {
-                // freeze immutable types after __dict__ is initialized
-                let res = unsafe { ffi::PyType_Freeze(type_object.as_type_ptr()) };
-                error_on_minusone(py, res)?;
-            }
-            #[cfg(all(Py_3_10, not(Py_LIMITED_API), not(Py_3_14)))]
-            if is_immutable_type {
-                use crate::types::PyTypeMethods as _;
-                #[cfg(not(Py_GIL_DISABLED))]
-                unsafe {
-                    (*type_object.as_type_ptr()).tp_flags |= ffi::Py_TPFLAGS_IMMUTABLETYPE
-                };
-                #[cfg(Py_GIL_DISABLED)]
-                unsafe {
-                    (*type_object.as_type_ptr()).tp_flags.fetch_or(
-                        ffi::Py_TPFLAGS_IMMUTABLETYPE,
-                        std::sync::atomic::Ordering::Relaxed,
-                    )
-                };
-                unsafe { ffi::PyType_Modified(type_object.as_type_ptr()) };
-            }
+                #[cfg(Py_3_14)]
+                if is_immutable_type {
+                    // freeze immutable types after __dict__ is initialized
+                    let res = unsafe { crate::ffi::PyType_Freeze(type_object.as_type_ptr()) };
+                    error_on_minusone(py, res)?;
+                }
+                #[cfg(all(Py_3_10, not(Py_LIMITED_API), not(Py_3_14)))]
+                if is_immutable_type {
+                    use crate::types::PyTypeMethods as _;
+                    #[cfg(not(Py_GIL_DISABLED))]
+                    unsafe {
+                        (*type_object.as_type_ptr()).tp_flags |=
+                            crate::ffi::Py_TPFLAGS_IMMUTABLETYPE
+                    };
+                    #[cfg(Py_GIL_DISABLED)]
+                    unsafe {
+                        (*type_object.as_type_ptr()).tp_flags.fetch_or(
+                            crate::ffi::Py_TPFLAGS_IMMUTABLETYPE,
+                            std::sync::atomic::Ordering::Relaxed,
+                        )
+                    };
+                    unsafe { crate::ffi::PyType_Modified(type_object.as_type_ptr()) };
+                }
 
-            // Initialization successfully complete, can clear the thread list.
-            // (No further calls to get_or_init() will try to init, on any thread.)
-            let mut threads = {
                 drop(guard);
-                self.initializing_threads.lock().unwrap()
-            };
-            threads.clear();
-            Ok(type_object.clone().unbind())
-        });
-
-        if let Err(err) = result {
-            return Err(wrap_in_runtime_error(
-                py,
-                err,
-                format!("An error occurred while initializing `{name}.__dict__`"),
-            ));
-        }
+                Ok(type_object.clone().unbind())
+            })?;
 
         Ok(())
     }
 }
 
-fn initialize_tp_dict(
-    py: Python<'_>,
-    type_object: *mut ffi::PyObject,
-    items: Vec<(&'static CStr, Py<PyAny>)>,
-) -> PyResult<()> {
-    // We hold the GIL: the dictionary update can be considered atomic from
-    // the POV of other threads.
-    for (key, val) in items {
-        crate::err::error_on_minusone(py, unsafe {
-            ffi::PyObject_SetAttrString(type_object, key.as_ptr(), val.into_ptr())
-        })?;
+struct InitializationGuard<'a> {
+    initializing_thread: &'a Mutex<Option<ThreadId>>,
+    thread_id: ThreadId,
+}
+
+impl<'a> InitializationGuard<'a> {
+    /// Attempt to create a new `InitializationGuard`.
+    ///
+    /// Returns `None` if this call would be re-entrant.
+    ///
+    /// The guard will not protect against re-entrancy until `start_init` is called.
+    fn new(initializing_thread: &'a Mutex<Option<ThreadId>>) -> Option<Self> {
+        let thread_id = thread::current().id();
+        let thread = initializing_thread.lock().expect("no poisoning");
+        if thread.is_some_and(|id| id == thread_id) {
+            None
+        } else {
+            Some(Self {
+                initializing_thread,
+                thread_id,
+            })
+        }
     }
-    Ok(())
+
+    /// Starts the initialization process. From this point forward `InitializationGuard::new` will protect against re-entrancy.
+    fn start_init(&self) {
+        let mut thread = self.initializing_thread.lock().expect("no poisoning");
+        assert!(thread.is_none(), "overlapping use of `InitializationGuard`");
+        *thread = Some(self.thread_id);
+    }
+}
+
+impl Drop for InitializationGuard<'_> {
+    fn drop(&mut self) {
+        let mut thread = self.initializing_thread.lock().unwrap();
+        // only clear the thread if this was the thread which called `start_init`
+        if thread.is_some_and(|id| id == self.thread_id) {
+            *thread = None;
+        }
+    }
 }
 
 // This is necessary for making static `LazyTypeObject`s
