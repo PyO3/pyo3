@@ -862,9 +862,14 @@ pub fn get_abi3_version() -> Option<PythonVersion> {
 
 /// Checks if the `extension-module` feature is enabled for the PyO3 crate.
 ///
+/// This can be triggered either by:
+/// - The `extension-module` Cargo feature
+/// - Setting the `PYO3_BUILD_EXTENSION_MODULE` environment variable
+///
 /// Must be called from a PyO3 crate build script.
 pub fn is_extension_module() -> bool {
     cargo_env_var("CARGO_FEATURE_EXTENSION_MODULE").is_some()
+        || env_var("PYO3_BUILD_EXTENSION_MODULE").is_some()
 }
 
 /// Checks if we need to link to `libpython` for the current build target.
