@@ -465,10 +465,24 @@ impl Python<'_> {
         crate::interpreter_lifecycle::initialize();
     }
 
+    /// See [Python::attach_unchecked]
+    /// # Safety
+    ///
+    /// If [`Python::attach`] would succeed, it is safe to call this function.
+    #[inline]
+    #[track_caller]
+    #[deprecated(note = "use `Python::attach_unchecked` instead", since = "0.26.0")]
+    pub unsafe fn with_gil_unchecked<F, R>(f: F) -> R
+    where
+        F: for<'py> FnOnce(Python<'py>) -> R,
+    {
+        unsafe { Self::attach_unchecked(f) }
+    }
+
     /// Like [`Python::attach`] except Python interpreter state checking is skipped.
     ///
-    /// Normally when the GIL is acquired, PyO3 checks that the Python interpreter is
-    /// in an appropriate state (e.g. it is fully initialized). This function skips
+    /// Normally when attaching to the Python interpreter, PyO3 checks that it is in
+    /// an appropriate state (e.g. it is fully initialized). This function skips
     /// those checks.
     ///
     /// # Safety
@@ -476,7 +490,7 @@ impl Python<'_> {
     /// If [`Python::attach`] would succeed, it is safe to call this function.
     #[inline]
     #[track_caller]
-    pub unsafe fn with_gil_unchecked<F, R>(f: F) -> R
+    pub unsafe fn attach_unchecked<F, R>(f: F) -> R
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
