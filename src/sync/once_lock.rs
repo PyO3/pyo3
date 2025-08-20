@@ -47,7 +47,7 @@ impl<T> PyOnceLock<T> {
         }
     }
 
-    /// Get a reference to the contained value, or `None` if hte cell has not yet been written.
+    /// Get a reference to the contained value, or `None` if the cell has not yet been written.
     #[inline]
     pub fn get(&self, _py: Python<'_>) -> Option<&T> {
         self.inner.get()

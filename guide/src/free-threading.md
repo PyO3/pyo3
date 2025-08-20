@@ -409,8 +409,6 @@ interpreter.
 [`Once`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html
 [`Once::call_once`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html#method.call_once
 [`Once::call_once_force`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html#method.call_once_force
-[`OnceCell`]: https://docs.rs/once_cell/latest/once_cell/sync/struct.OnceCell.html
-[`OnceCellExt`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceCellExt.html
 [`OnceExt`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html
 [`OnceExt::call_once_py_attached`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html#tymethod.call_once_py_attached
 [`OnceExt::call_once_force_py_attached`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html#tymethod.call_once_force_py_attached
