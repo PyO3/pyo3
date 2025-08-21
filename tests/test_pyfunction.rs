@@ -246,7 +246,8 @@ fn test_function_with_custom_conversion_error() {
             custom_conv_func,
             "custom_conv_func(['a'])",
             PyTypeError,
-            "argument 'timestamp': 'list' object is not an instance of 'datetime'"
+            "'list' object is not an instance of 'datetime'",
+            "while processing 'timestamp'"
         );
     });
 }
@@ -318,35 +319,40 @@ fn test_conversion_error() {
             conversion_error,
             "conversion_error(None, None, None, None, None)",
             PyTypeError,
-            "argument 'str_arg': 'None' is not an instance of 'str'"
+            "'None' is not an instance of 'str'",
+            "while processing 'str_arg'"
         );
         py_expect_exception!(
             py,
             conversion_error,
             "conversion_error(100, None, None, None, None)",
             PyTypeError,
-            "argument 'str_arg': 'int' object is not an instance of 'str'"
+            "'int' object is not an instance of 'str'",
+            "while processing 'str_arg'"
         );
         py_expect_exception!(
             py,
             conversion_error,
             "conversion_error('string1', 'string2', None, None, None)",
             PyTypeError,
-            "argument 'int_arg': 'str' object cannot be interpreted as an integer"
+            "'str' object cannot be interpreted as an integer",
+            "while processing 'int_arg'"
         );
         py_expect_exception!(
             py,
             conversion_error,
             "conversion_error('string1', -100, 'string2', None, None)",
             PyTypeError,
-            "argument 'tuple_arg': 'str' object is not an instance of 'tuple'"
+            "'str' object is not an instance of 'tuple'",
+            "while processing 'tuple_arg'"
         );
         py_expect_exception!(
             py,
             conversion_error,
             "conversion_error('string1', -100, ('string2', 10.), 'string3', None)",
             PyTypeError,
-            "argument 'option_arg': 'str' object cannot be interpreted as an integer"
+            "'str' object cannot be interpreted as an integer",
+            "while processing 'option_arg'"
         );
         let exception = py_expect_exception!(
             py,
@@ -359,8 +365,19 @@ conversion_error('string1', -100, ('string2', 10.), None, ValueClass(\"no_expect
             PyTypeError
         );
         assert_eq!(
+            exception
+                .value(py)
+                .getattr("__notes__")
+                .unwrap()
+                .get_item(0)
+                .unwrap()
+                .extract::<std::borrow::Cow<'_, str>>()
+                .unwrap(),
+            "while processing 'struct_arg'"
+        );
+        assert_eq!(
             extract_traceback(py, exception),
-            "TypeError: argument 'struct_arg': failed to \
+            "TypeError: failed to \
     extract field ValueClass.value: TypeError: 'str' object cannot be interpreted as an integer"
         );
 
@@ -375,8 +392,19 @@ conversion_error('string1', -100, ('string2', 10.), None, ValueClass(-5))",
             PyTypeError
         );
         assert_eq!(
+            exception
+                .value(py)
+                .getattr("__notes__")
+                .unwrap()
+                .get_item(0)
+                .unwrap()
+                .extract::<std::borrow::Cow<'_, str>>()
+                .unwrap(),
+            "while processing 'struct_arg'"
+        );
+        assert_eq!(
             extract_traceback(py, exception),
-            "TypeError: argument 'struct_arg': failed to \
+            "TypeError: failed to \
     extract field ValueClass.value: OverflowError: can't convert negative int to unsigned"
         );
     });
