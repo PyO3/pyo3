@@ -6,8 +6,6 @@ use std::ffi::c_int;
 // skipped _PyInterpreterState_RequiresIDRef
 // skipped _PyInterpreterState_RequireIDRef
 
-// skipped _PyInterpreterState_GetMainModule
-
 pub type Py_tracefunc = unsafe extern "C" fn(
     obj: *mut PyObject,
     frame: *mut PyFrameObject,
@@ -24,8 +22,8 @@ pub const PyTrace_C_EXCEPTION: c_int = 5;
 pub const PyTrace_C_RETURN: c_int = 6;
 pub const PyTrace_OPCODE: c_int = 7;
 
-// skipped PyTraceInfo
-// skipped CFrame
+// skipped Py_MAX_SCRIPT_PATH_SIZE
+// skipped _PyRemoteDebuggerSupport
 
 /// Private structure used inline in `PyGenObject`
 #[cfg(not(PyPy))]
@@ -44,14 +42,16 @@ pub(crate) struct _PyErr_StackItem {
 // skipped _ts (aka PyThreadState)
 
 extern "C" {
-    // skipped _PyThreadState_Prealloc
-    // skipped _PyThreadState_UncheckedGet
-    // skipped _PyThreadState_GetDict
+
+    #[cfg(Py_3_13)]
+    pub fn PyThreadState_GetUnchecked() -> *mut PyThreadState;
+
+    // skipped PyThreadState_EnterTracing
+    // skipped PyThreadState_LeaveTracing
 
     #[cfg_attr(PyPy, link_name = "PyPyGILState_Check")]
     pub fn PyGILState_Check() -> c_int;
 
-    // skipped _PyGILState_GetInterpreterStateUnsafe
     // skipped _PyThread_CurrentFrames
     // skipped _PyThread_CurrentExceptions
 
@@ -97,17 +97,3 @@ extern "C" {
         eval_frame: _PyFrameEvalFunction,
     );
 }
-
-// skipped _PyInterpreterState_GetConfig
-// skipped _PyInterpreterState_GetConfigCopy
-// skipped _PyInterpreterState_SetConfig
-// skipped _Py_GetConfig
-
-// skipped _PyCrossInterpreterData
-// skipped _PyObject_GetCrossInterpreterData
-// skipped _PyCrossInterpreterData_NewObject
-// skipped _PyCrossInterpreterData_Release
-// skipped _PyObject_CheckCrossInterpreterData
-// skipped crossinterpdatafunc
-// skipped _PyCrossInterpreterData_RegisterClass
-// skipped _PyCrossInterpreterData_Lookup
