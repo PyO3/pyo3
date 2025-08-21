@@ -464,13 +464,13 @@ impl<'a> From<IntrospectionNode<'a>> for AttributedIntrospectionNode<'a> {
 }
 
 #[derive(Default)]
-struct ConcatenationBuilder {
+pub struct ConcatenationBuilder {
     elements: Vec<ConcatenationBuilderElement>,
     current_string: String,
 }
 
 impl ConcatenationBuilder {
-    fn push_tokens(&mut self, token_stream: TokenStream) {
+    pub fn push_tokens(&mut self, token_stream: TokenStream) {
         if !self.current_string.is_empty() {
             self.elements.push(ConcatenationBuilderElement::String(take(
                 &mut self.current_string,
@@ -480,7 +480,7 @@ impl ConcatenationBuilder {
             .push(ConcatenationBuilderElement::TokenStream(token_stream));
     }
 
-    fn push_str(&mut self, value: &str) {
+    pub fn push_str(&mut self, value: &str) {
         self.current_string.push_str(value);
     }
 
@@ -502,7 +502,7 @@ impl ConcatenationBuilder {
         self.current_string.push('"');
     }
 
-    fn into_token_stream(self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
+    pub fn into_token_stream(self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
         let mut elements = self.elements;
         if !self.current_string.is_empty() {
             elements.push(ConcatenationBuilderElement::String(self.current_string));

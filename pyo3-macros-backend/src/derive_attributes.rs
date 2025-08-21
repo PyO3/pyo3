@@ -44,7 +44,7 @@ impl Parse for ContainerAttribute {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ContainerAttributes {
     /// Treat the Container as a Wrapper, operate directly on its field
     pub transparent: Option<attributes::kw::transparent>,

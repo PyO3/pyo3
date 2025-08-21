@@ -219,6 +219,9 @@ pub trait PyClassImpl: Sized + 'static {
     /// from the PyClassDocGenerator` type.
     const DOC: &'static CStr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const TYPE_NAME: &'static str;
+
     fn items_iter() -> PyClassItemsIter;
 
     #[inline]
