@@ -134,7 +134,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     #     let catch_warnings = warnings
     #         .getattr("catch_warnings")?
     #         .call((), Some(&kwargs))?;
-    #     let list = catch_warnings.call_method0("__enter__")?.downcast_into()?;
+    #     let list = catch_warnings.call_method0("__enter__")?.cast_into()?;
     #     warnings.getattr("simplefilter")?.call1(("always",))?;  // show all warnings
     #     f(&list);
     #     catch_warnings

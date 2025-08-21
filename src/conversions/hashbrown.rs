@@ -74,7 +74,7 @@ where
     S: hash::BuildHasher + Default,
 {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
-        let dict = ob.downcast::<PyDict>()?;
+        let dict = ob.cast::<PyDict>()?;
         let mut ret = hashbrown::HashMap::with_capacity_and_hasher(dict.len(), S::default());
         for (k, v) in dict {
             ret.insert(k.extract()?, v.extract()?);
@@ -117,10 +117,10 @@ where
     S: hash::BuildHasher + Default,
 {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        match ob.downcast::<PySet>() {
+        match ob.cast::<PySet>() {
             Ok(set) => set.iter().map(|any| any.extract()).collect(),
             Err(err) => {
-                if let Ok(frozen_set) = ob.downcast::<PyFrozenSet>() {
+                if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
                     frozen_set.iter().map(|any| any.extract()).collect()
                 } else {
                     Err(PyErr::from(err))

@@ -1,5 +1,5 @@
 use crate::object::*;
-use std::os::raw::c_int;
+use std::ffi::c_int;
 #[cfg(not(PyPy))]
 use std::ptr::addr_of_mut;
 

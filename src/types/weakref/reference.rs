@@ -88,7 +88,7 @@ impl PyWeakrefReference {
                 object.py(),
                 ffi::PyWeakref_NewRef(object.as_ptr(), ffi::Py_None()),
             )
-            .downcast_into_unchecked()
+            .cast_into_unchecked()
         }
     }
 
@@ -162,7 +162,7 @@ impl PyWeakrefReference {
                     object.py(),
                     ffi::PyWeakref_NewRef(object.as_ptr(), callback.as_ptr()),
                 )
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
             }
         }
 
@@ -181,9 +181,9 @@ impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakrefReference> {
     fn upgrade(&self) -> Option<Bound<'py, PyAny>> {
         let mut obj: *mut ffi::PyObject = std::ptr::null_mut();
         match unsafe { ffi::compat::PyWeakref_GetRef(self.as_ptr(), &mut obj) } {
-            std::os::raw::c_int::MIN..=-1 => panic!("The 'weakref.ReferenceType' instance should be valid (non-null and actually a weakref reference)"),
+            std::ffi::c_int::MIN..=-1 => panic!("The 'weakref.ReferenceType' instance should be valid (non-null and actually a weakref reference)"),
             0 => None,
-            1..=std::os::raw::c_int::MAX => Some(unsafe { obj.assume_owned_unchecked(self.py()) }),
+            1..=std::ffi::c_int::MAX => Some(unsafe { obj.assume_owned_unchecked(self.py()) }),
         }
     }
 }
@@ -244,8 +244,7 @@ mod tests {
 
         fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
             py.run(ffi::c_str!("class A:\n    pass\n"), None, None)?;
-            py.eval(ffi::c_str!("A"), None, None)
-                .downcast_into::<PyType>()
+            py.eval(ffi::c_str!("A"), None, None).cast_into::<PyType>()
         }
 
         #[test]

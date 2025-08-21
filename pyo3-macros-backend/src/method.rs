@@ -976,7 +976,7 @@ impl<'a> FnSpec<'a> {
     }
 
     /// Forwards to [utils::get_doc] with the text signature of this spec.
-    pub fn get_doc(&self, attrs: &[syn::Attribute], ctx: &Ctx) -> PythonDoc {
+    pub fn get_doc(&self, attrs: &[syn::Attribute], ctx: &Ctx) -> syn::Result<PythonDoc> {
         let text_signature = self
             .text_signature_call_signature()
             .map(|sig| format!("{}{}", self.python_name, sig));

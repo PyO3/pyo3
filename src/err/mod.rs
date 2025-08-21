@@ -10,7 +10,7 @@ use crate::{
     exceptions::{self, PyBaseException},
     ffi,
 };
-use crate::{Borrowed, BoundObject, Py, PyAny, PyObject, Python};
+use crate::{Borrowed, BoundObject, Py, PyAny, Python};
 use std::borrow::Cow;
 use std::ffi::CStr;
 
@@ -89,7 +89,7 @@ impl<'py> DowncastIntoError<'py> {
     /// Consumes this `DowncastIntoError` and returns the original object, allowing continued
     /// use of it after a failed conversion.
     ///
-    /// See [`downcast_into`][PyAnyMethods::downcast_into] for an example.
+    /// See [`cast_into`][Bound::cast_into] for an example.
     pub fn into_inner(self) -> Bound<'py, PyAny> {
         self.from
     }
@@ -98,14 +98,14 @@ impl<'py> DowncastIntoError<'py> {
 /// Helper conversion trait that allows to use custom arguments for lazy exception construction.
 pub trait PyErrArguments: Send + Sync {
     /// Arguments for exception
-    fn arguments(self, py: Python<'_>) -> PyObject;
+    fn arguments(self, py: Python<'_>) -> Py<PyAny>;
 }
 
 impl<T> PyErrArguments for T
 where
     T: for<'py> IntoPyObject<'py> + Send + Sync,
 {
-    fn arguments(self, py: Python<'_>) -> PyObject {
+    fn arguments(self, py: Python<'_>) -> Py<PyAny> {
         // FIXME: `arguments` should become fallible
         match self.into_pyobject(py) {
             Ok(obj) => obj.into_any().unbind(),
@@ -231,7 +231,7 @@ impl PyErr {
     /// });
     /// ```
     pub fn from_value(obj: Bound<'_, PyAny>) -> PyErr {
-        let state = match obj.downcast_into::<PyBaseException>() {
+        let state = match obj.cast_into::<PyBaseException>() {
             Ok(obj) => PyErrState::normalized(PyErrStateNormalized::new(obj)),
             Err(err) => {
                 // Assume obj is Type[Exception]; let later normalization handle if this
@@ -391,7 +391,7 @@ impl PyErr {
         name: &CStr,
         doc: Option<&CStr>,
         base: Option<&Bound<'py, PyType>>,
-        dict: Option<PyObject>,
+        dict: Option<Py<PyAny>>,
     ) -> PyResult<Py<PyType>> {
         let base: *mut ffi::PyObject = match base {
             None => std::ptr::null_mut(),
@@ -725,7 +725,7 @@ struct PyDowncastErrorArguments {
 }
 
 impl PyErrArguments for PyDowncastErrorArguments {
-    fn arguments(self, py: Python<'_>) -> PyObject {
+    fn arguments(self, py: Python<'_>) -> Py<PyAny> {
         const FAILED_TO_EXTRACT: Cow<'_, str> = Cow::Borrowed("<failed to extract type name>");
         let from = self.from.bind(py).qualname();
         let from = match &from {
@@ -852,6 +852,7 @@ impl_signed_integer!(isize);
 mod tests {
     use super::PyErrState;
     use crate::exceptions::{self, PyTypeError, PyValueError};
+    use crate::impl_::pyclass::{value_of, IsSend, IsSync};
     use crate::{ffi, PyErr, PyTypeInfo, Python};
 
     #[test]
@@ -977,14 +978,11 @@ mod tests {
 
     #[test]
     fn test_pyerr_send_sync() {
-        fn is_send<T: Send>() {}
-        fn is_sync<T: Sync>() {}
+        assert!(value_of!(IsSend, PyErr));
+        assert!(value_of!(IsSync, PyErr));
 
-        is_send::<PyErr>();
-        is_sync::<PyErr>();
-
-        is_send::<PyErrState>();
-        is_sync::<PyErrState>();
+        assert!(value_of!(IsSend, PyErrState));
+        assert!(value_of!(IsSync, PyErrState));
     }
 
     #[test]

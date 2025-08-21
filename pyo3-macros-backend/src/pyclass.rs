@@ -250,7 +250,7 @@ pub fn build_py_class(
     args.options.take_pyo3_options(&mut class.attrs)?;
 
     let ctx = &Ctx::new(&args.options.krate, None);
-    let doc = utils::get_doc(&class.attrs, None, ctx);
+    let doc = utils::get_doc(&class.attrs, None, ctx)?;
 
     if let Some(lt) = class.generics.lifetimes().next() {
         bail_spanned!(
@@ -407,6 +407,16 @@ fn get_class_python_name<'a>(cls: &'a syn::Ident, args: &'a PyClassArgs) -> Cow<
         .unwrap_or_else(|| Cow::Owned(cls.unraw()))
 }
 
+fn get_class_python_module_and_name<'a>(cls: &'a Ident, args: &'a PyClassArgs) -> String {
+    let name = get_class_python_name(cls, args);
+    if let Some(module) = &args.options.module {
+        let value = module.value.value();
+        format!("{value}.{name}")
+    } else {
+        name.to_string()
+    }
+}
+
 fn impl_class(
     cls: &syn::Ident,
     args: &PyClassArgs,
@@ -521,7 +531,7 @@ pub fn build_py_enum(
         bail_spanned!(generic.span() => "enums do not support #[pyclass(generic)]");
     }
 
-    let doc = utils::get_doc(&enum_.attrs, None, ctx);
+    let doc = utils::get_doc(&enum_.attrs, None, ctx)?;
     let enum_ = PyClassEnum::new(enum_)?;
     impl_enum(enum_, &args, doc, method_type, ctx)
 }
@@ -1056,7 +1066,7 @@ fn impl_complex_enum(
                 quote! {
                     #cls::#variant_ident { .. } => {
                         let pyclass_init = <#pyo3_path::PyClassInitializer<Self> as ::std::convert::From<Self>>::from(self).add_subclass(#variant_cls);
-                        unsafe { #pyo3_path::Bound::new(py, pyclass_init).map(|b| #pyo3_path::types::PyAnyMethods::downcast_into_unchecked(b.into_any())) }
+                        unsafe { #pyo3_path::Bound::new(py, pyclass_init).map(|b| b.cast_into_unchecked()) }
                     }
                 }
             });
@@ -1227,9 +1237,9 @@ fn impl_complex_enum_struct_variant_cls(
             complex_enum_variant_field_getter(&variant_cls_type, field_name, field.span, ctx)?;
 
         let field_getter_impl = quote! {
-            fn #field_name(slf: #pyo3_path::PyClassGuard<'_, Self>, py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+            fn #field_name(slf: #pyo3_path::PyClassGuard<'_, Self>, py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
                 #[allow(unused_imports)]
-                use #pyo3_path::impl_::pyclass::Probe;
+                use #pyo3_path::impl_::pyclass::Probe as _;
                 match &*slf.into_super() {
                     #enum_name::#variant_ident { #field_name, .. } =>
                         #pyo3_path::impl_::pyclass::ConvertField::<
@@ -1303,9 +1313,9 @@ fn impl_complex_enum_tuple_variant_field_getters(
             })
             .collect();
         let field_getter_impl: syn::ImplItemFn = parse_quote! {
-            fn #field_name(slf: #pyo3_path::PyClassGuard<'_, Self>, py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+            fn #field_name(slf: #pyo3_path::PyClassGuard<'_, Self>, py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
                 #[allow(unused_imports)]
-                use #pyo3_path::impl_::pyclass::Probe;
+                use #pyo3_path::impl_::pyclass::Probe as _;
                 match &*slf.into_super() {
                     #enum_name::#variant_ident ( #(#field_access_tokens), *) =>
                         #pyo3_path::impl_::pyclass::ConvertField::<
@@ -1364,7 +1374,7 @@ fn impl_complex_enum_tuple_variant_getitem(
         .collect();
 
     let mut get_item_method_impl: syn::ImplItemFn = parse_quote! {
-        fn __getitem__(slf: #pyo3_path::PyClassGuard<'_, Self>, py: #pyo3_path::Python<'_>, idx: usize) -> #pyo3_path::PyResult< #pyo3_path::PyObject> {
+        fn __getitem__(slf: #pyo3_path::PyClassGuard<'_, Self>, py: #pyo3_path::Python<'_>, idx: usize) -> #pyo3_path::PyResult< #pyo3_path::Py<#pyo3_path::PyAny>> {
             match idx {
                 #( #match_arms, )*
                 _ => ::std::result::Result::Err(#pyo3_path::exceptions::PyIndexError::new_err("tuple index out of range")),
@@ -1572,7 +1582,7 @@ pub fn gen_complex_enum_variant_attr(
 
     let variant_cls = format_ident!("{}_{}", cls, member);
     let associated_method = quote! {
-        fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+        fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
             ::std::result::Result::Ok(py.get_type::<#variant_cls>().into_any().unbind())
         }
     };
@@ -1758,7 +1768,7 @@ fn complex_enum_variant_field_getter<'a>(
     let property_type = crate::pymethod::PropertyType::Function {
         self_type: &self_type,
         spec: &spec,
-        doc: crate::get_doc(&[], None, ctx),
+        doc: crate::get_doc(&[], None, ctx)?,
     };
 
     let getter = crate::pymethod::impl_py_getter_def(variant_cls_type, property_type, ctx)?;
@@ -1835,7 +1845,12 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
             fn type_object_raw(py: #pyo3_path::Python<'_>) -> *mut #pyo3_path::ffi::PyTypeObject {
                 use #pyo3_path::prelude::PyTypeMethods;
                 <#cls as #pyo3_path::impl_::pyclass::PyClassImpl>::lazy_type_object()
-                    .get_or_init(py)
+                    .get_or_try_init(py)
+                    .unwrap_or_else(|e| #pyo3_path::impl_::pyclass::type_object_init_failed(
+                        py,
+                        e,
+                        <Self as #pyo3_path::type_object::PyTypeInfo>::NAME
+                    ))
                     .as_type_ptr()
             }
         }
@@ -1915,7 +1930,7 @@ fn pyclass_richcmp_simple_enum(
     let eq = options.eq.map(|eq| {
         quote_spanned! { eq.span() =>
             let self_val = self;
-            if let ::std::result::Result::Ok(other) = #pyo3_path::types::PyAnyMethods::downcast::<Self>(other) {
+            if let ::std::result::Result::Ok(other) = other.cast::<Self>() {
                 let other = &*other.borrow();
                 return match op {
                     #arms
@@ -1928,7 +1943,7 @@ fn pyclass_richcmp_simple_enum(
         quote_spanned! { eq_int.span() =>
             let self_val = self.__pyo3__int__();
             if let ::std::result::Result::Ok(other) = #pyo3_path::types::PyAnyMethods::extract::<#repr_type>(other).or_else(|_| {
-                #pyo3_path::types::PyAnyMethods::downcast::<Self>(other).map(|o| o.borrow().__pyo3__int__())
+                other.cast::<Self>().map(|o| o.borrow().__pyo3__int__())
             }) {
                 return match op {
                     #arms
@@ -1943,7 +1958,7 @@ fn pyclass_richcmp_simple_enum(
             py: #pyo3_path::Python,
             other: &#pyo3_path::Bound<'_, #pyo3_path::PyAny>,
             op: #pyo3_path::pyclass::CompareOp
-        ) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+        ) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
             #eq
 
             #eq_int
@@ -1977,9 +1992,9 @@ fn pyclass_richcmp(
                 py: #pyo3_path::Python,
                 other: &#pyo3_path::Bound<'_, #pyo3_path::PyAny>,
                 op: #pyo3_path::pyclass::CompareOp
-            ) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+            ) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
                 let self_val = self;
-                if let ::std::result::Result::Ok(other) = #pyo3_path::types::PyAnyMethods::downcast::<Self>(other) {
+                if let ::std::result::Result::Ok(other) = other.cast::<Self>() {
                     let other = &*other.borrow();
                     match op {
                         #arms
@@ -2056,7 +2071,7 @@ fn pyclass_class_geitem(
             let class_geitem_method = crate::pymethod::impl_py_method_def(
                 cls,
                 &spec,
-                &spec.get_doc(&class_geitem_impl.attrs, ctx),
+                &spec.get_doc(&class_geitem_impl.attrs, ctx)?,
                 Some(quote!(#pyo3_path::ffi::METH_CLASS)),
                 ctx,
             )?;
@@ -2140,13 +2155,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         let cls = self.cls;
 
         let input_type = if cfg!(feature = "experimental-inspect") {
-            let cls_name = get_class_python_name(cls, self.attr).to_string();
-            let full_name = if let Some(ModuleAttribute { value, .. }) = &self.attr.options.module {
-                let value = value.value();
-                format!("{value}.{cls_name}")
-            } else {
-                cls_name
-            };
+            let full_name = get_class_python_module_and_name(cls, self.attr);
             quote! { const INPUT_TYPE: &'static str = #full_name; }
         } else {
             quote! {}
@@ -2200,11 +2209,18 @@ impl<'a> PyClassImplsBuilder<'a> {
         let attr = self.attr;
         // If #cls is not extended type, we allow Self->PyObject conversion
         if attr.options.extends.is_none() {
+            let output_type = if cfg!(feature = "experimental-inspect") {
+                let full_name = get_class_python_module_and_name(cls, self.attr);
+                quote! { const OUTPUT_TYPE: &'static str = #full_name; }
+            } else {
+                quote! {}
+            };
             quote! {
                 impl<'py> #pyo3_path::conversion::IntoPyObject<'py> for #cls {
                     type Target = Self;
                     type Output = #pyo3_path::Bound<'py, <Self as #pyo3_path::conversion::IntoPyObject<'py>>::Target>;
                     type Error = #pyo3_path::PyErr;
+                    #output_type
 
                     fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> ::std::result::Result<
                         <Self as #pyo3_path::conversion::IntoPyObject>::Output,
@@ -2387,14 +2403,19 @@ impl<'a> PyClassImplsBuilder<'a> {
                     PyClassItemsIter::new(&INTRINSIC_ITEMS, #pymethods_items)
                 }
 
-                fn doc(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<&'static ::std::ffi::CStr>  {
-                    use #pyo3_path::impl_::pyclass::*;
-                    static DOC: #pyo3_path::sync::GILOnceCell<::std::borrow::Cow<'static, ::std::ffi::CStr>> = #pyo3_path::sync::GILOnceCell::new();
-                    DOC.get_or_try_init(py, || {
-                        let collector = PyClassImplCollector::<Self>::new();
-                        build_pyclass_doc(<Self as #pyo3_path::PyTypeInfo>::NAME, #doc, collector.new_text_signature())
-                    }).map(::std::ops::Deref::deref)
-                }
+                const RAW_DOC: &'static ::std::ffi::CStr = #doc;
+
+                const DOC: &'static ::std::ffi::CStr = {
+                    use #pyo3_path::impl_ as impl_;
+                    use impl_::pyclass::Probe as _;
+                    const DOC_PIECES: &'static [&'static [u8]] = impl_::pyclass::doc::PyClassDocGenerator::<
+                        #cls,
+                        { impl_::pyclass::HasNewTextSignature::<#cls>::VALUE }
+                    >::DOC_PIECES;
+                    const LEN: usize = impl_::concat::combined_len(DOC_PIECES);
+                    const DOC: &'static [u8] = &impl_::concat::combine_to_array::<LEN>(DOC_PIECES);
+                    impl_::pyclass::doc::doc_bytes_as_cstr(DOC)
+                };
 
                 #dict_offset
 

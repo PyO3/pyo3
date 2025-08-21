@@ -151,7 +151,7 @@ fn data_is_dropped() {
 
 #[pyclass(subclass)]
 struct CycleWithClear {
-    cycle: Option<PyObject>,
+    cycle: Option<Py<PyAny>>,
     _guard: DropGuard,
 }
 
@@ -275,7 +275,7 @@ fn inheritance_with_new_methods_with_drop() {
         let inst = typeobj
             .call((), None)
             .unwrap()
-            .downcast_into::<SubClassWithDrop>()
+            .cast_into::<SubClassWithDrop>()
             .unwrap();
 
         inst.as_super().borrow_mut().guard = Some(guard_base);
@@ -342,7 +342,7 @@ fn gc_during_borrow() {
 fn traverse_partial() {
     #[pyclass]
     struct PartialTraverse {
-        member: PyObject,
+        member: Py<PyAny>,
     }
 
     impl PartialTraverse {
@@ -378,7 +378,7 @@ fn traverse_partial() {
 fn traverse_panic() {
     #[pyclass]
     struct PanickyTraverse {
-        member: PyObject,
+        member: Py<PyAny>,
     }
 
     impl PanickyTraverse {
@@ -728,7 +728,7 @@ unsafe fn get_type_traverse(tp: *mut pyo3::ffi::PyTypeObject) -> Option<pyo3::ff
 extern "C" fn novisit(
     _object: *mut pyo3::ffi::PyObject,
     _arg: *mut core::ffi::c_void,
-) -> std::os::raw::c_int {
+) -> std::ffi::c_int {
     0
 }
 
@@ -736,7 +736,7 @@ extern "C" fn novisit(
 extern "C" fn visit_error(
     _object: *mut pyo3::ffi::PyObject,
     _arg: *mut core::ffi::c_void,
-) -> std::os::raw::c_int {
+) -> std::ffi::c_int {
     -1
 }
 
@@ -753,7 +753,7 @@ fn test_drop_buffer_during_traversal_without_gil() {
     #[pyclass]
     struct BufferDropDuringTraversal {
         inner: Mutex<Option<(DropGuard, PyBuffer<u8>)>>,
-        cycle: Option<PyObject>,
+        cycle: Option<Py<PyAny>>,
     }
 
     #[pymethods]

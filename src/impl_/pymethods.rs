@@ -7,17 +7,16 @@ use crate::internal::state::ForbidAttaching;
 use crate::pycell::impl_::PyClassBorrowChecker as _;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
-use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
 use crate::{
     ffi, Bound, DowncastError, Py, PyAny, PyClass, PyClassGuard, PyClassGuardMut,
-    PyClassInitializer, PyErr, PyObject, PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck,
-    PyVisit, Python,
+    PyClassInitializer, PyErr, PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit,
+    Python,
 };
 use std::ffi::CStr;
+use std::ffi::{c_int, c_void};
 use std::fmt;
 use std::marker::PhantomData;
-use std::os::raw::{c_int, c_void};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr::{null_mut, NonNull};
 
@@ -85,7 +84,7 @@ pub enum PyMethodType {
     PyCFunctionFastWithKeywords(ffi::PyCFunctionFastWithKeywords),
 }
 
-pub type PyClassAttributeFactory = for<'p> fn(Python<'p>) -> PyResult<PyObject>;
+pub type PyClassAttributeFactory = for<'p> fn(Python<'p>) -> PyResult<Py<PyAny>>;
 
 // TODO: it would be nice to use CStr in these types, but then the constructors can't be const fn
 // until `CStr::from_bytes_with_nul_unchecked` is const fn.
@@ -651,11 +650,11 @@ impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
     }
 
     pub fn downcast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, DowncastError<'a, 'py>> {
-        self.0.downcast::<T>().map(BoundRef)
+        self.0.cast::<T>().map(BoundRef)
     }
 
     pub unsafe fn downcast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
-        unsafe { BoundRef(self.0.downcast_unchecked::<T>()) }
+        unsafe { BoundRef(self.0.cast_unchecked::<T>()) }
     }
 }
 

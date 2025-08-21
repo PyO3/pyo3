@@ -2,8 +2,8 @@ use crate::object::*;
 #[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
 use libc::FILE;
 #[cfg(any(Py_LIMITED_API, not(Py_3_10), PyPy, GraalPy))]
-use std::os::raw::c_char;
-use std::os::raw::c_int;
+use std::ffi::c_char;
+use std::ffi::c_int;
 
 extern "C" {
     #[cfg(any(all(Py_LIMITED_API, not(PyPy)), GraalPy))]
@@ -33,7 +33,7 @@ pub unsafe fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int
             string: *const c_char,
             p: *const c_char,
             s: c_int,
-            f: *mut std::os::raw::c_void, // Actually *mut Py_CompilerFlags in the real definition
+            f: *mut std::ffi::c_void, // Actually *mut Py_CompilerFlags in the real definition
         ) -> *mut PyObject;
     }
     #[cfg(not(Py_LIMITED_API))]

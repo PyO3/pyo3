@@ -236,21 +236,21 @@ pub fn gen_py_method(
         (_, FnType::Fn(_)) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &spec.get_doc(meth_attrs, ctx),
+            &spec.get_doc(meth_attrs, ctx)?,
             None,
             ctx,
         )?),
         (_, FnType::FnClass(_)) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &spec.get_doc(meth_attrs, ctx),
+            &spec.get_doc(meth_attrs, ctx)?,
             Some(quote!(#pyo3_path::ffi::METH_CLASS)),
             ctx,
         )?),
         (_, FnType::FnStatic) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &spec.get_doc(meth_attrs, ctx),
+            &spec.get_doc(meth_attrs, ctx)?,
             Some(quote!(#pyo3_path::ffi::METH_STATIC)),
             ctx,
         )?),
@@ -264,7 +264,7 @@ pub fn gen_py_method(
             PropertyType::Function {
                 self_type,
                 spec,
-                doc: spec.get_doc(meth_attrs, ctx),
+                doc: spec.get_doc(meth_attrs, ctx)?,
             },
             ctx,
         )?),
@@ -273,7 +273,7 @@ pub fn gen_py_method(
             PropertyType::Function {
                 self_type,
                 spec,
-                doc: spec.get_doc(meth_attrs, ctx),
+                doc: spec.get_doc(meth_attrs, ctx)?,
             },
             ctx,
         )?),
@@ -360,10 +360,14 @@ pub fn impl_py_method_def_new(
     // Use just the text_signature_call_signature() because the class' Python name
     // isn't known to `#[pymethods]` - that has to be attached at runtime from the PyClassImpl
     // trait implementation created by `#[pyclass]`.
-    let text_signature_body = spec.text_signature_call_signature().map_or_else(
-        || quote!(::std::option::Option::None),
-        |text_signature| quote!(::std::option::Option::Some(#text_signature)),
-    );
+    let text_signature_impl = spec.text_signature_call_signature().map(|text_signature| {
+        quote! {
+            #[allow(unknown_lints, non_local_definitions)]
+            impl #pyo3_path::impl_::pyclass::doc::PyClassNewTextSignature for #cls {
+                const TEXT_SIGNATURE: &'static str = #text_signature;
+            }
+        }
+    });
     let slot_def = quote! {
         #pyo3_path::ffi::PyType_Slot {
             slot: #pyo3_path::ffi::Py_tp_new,
@@ -373,13 +377,8 @@ pub fn impl_py_method_def_new(
                     args: *mut #pyo3_path::ffi::PyObject,
                     kwargs: *mut #pyo3_path::ffi::PyObject,
                 ) -> *mut #pyo3_path::ffi::PyObject {
-                    #[allow(unknown_lints, non_local_definitions)]
-                    impl #pyo3_path::impl_::pyclass::PyClassNewTextSignature<#cls> for #pyo3_path::impl_::pyclass::PyClassImplCollector<#cls> {
-                        #[inline]
-                        fn new_text_signature(self) -> ::std::option::Option<&'static str> {
-                            #text_signature_body
-                        }
-                    }
+
+                    #text_signature_impl
 
                     #pyo3_path::impl_::trampoline::newfunc(
                         subtype,
@@ -473,8 +472,8 @@ fn impl_traverse_slot(
         pub unsafe extern "C" fn __pymethod_traverse__(
             slf: *mut #pyo3_path::ffi::PyObject,
             visit: #pyo3_path::ffi::visitproc,
-            arg: *mut ::std::os::raw::c_void,
-        ) -> ::std::os::raw::c_int {
+            arg: *mut ::std::ffi::c_void,
+        ) -> ::std::ffi::c_int {
             #pyo3_path::impl_::pymethods::_call_traverse::<#cls>(slf, #cls::#rust_fn_ident, visit, arg, #cls::__pymethod_traverse__)
         }
     };
@@ -515,7 +514,7 @@ fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result
     let associated_method = quote! {
         pub unsafe extern "C" fn __pymethod___clear____(
             _slf: *mut #pyo3_path::ffi::PyObject,
-        ) -> ::std::os::raw::c_int {
+        ) -> ::std::ffi::c_int {
             #pyo3_path::impl_::pymethods::_call_clear(_slf, |py, _slf| {
                 #holders
                 let result = #fncall;
@@ -566,7 +565,7 @@ pub(crate) fn impl_py_class_attribute(
     let body = quotes::ok_wrap(fncall, ctx);
 
     let associated_method = quote! {
-        fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+        fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
             let function = #cls::#name; // Shadow the method name to avoid #3017
             let result = #body;
             #pyo3_path::impl_::wrap::converter(&result).map_into_pyobject(py, result)
@@ -627,7 +626,7 @@ pub fn impl_py_setter_def(
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
     let python_name = property_type.null_terminated_python_name(ctx)?;
-    let doc = property_type.doc(ctx);
+    let doc = property_type.doc(ctx)?;
     let mut holders = Holders::new();
     let setter_impl = match property_type {
         PropertyType::Descriptor {
@@ -750,7 +749,7 @@ pub fn impl_py_setter_def(
             py: #pyo3_path::Python<'_>,
             _slf: *mut #pyo3_path::ffi::PyObject,
             _value: *mut #pyo3_path::ffi::PyObject,
-        ) -> #pyo3_path::PyResult<::std::os::raw::c_int> {
+        ) -> #pyo3_path::PyResult<::std::ffi::c_int> {
             use ::std::convert::Into;
             let _value = #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr_or_opt(py, &_value)
                 .ok_or_else(|| {
@@ -815,7 +814,7 @@ pub fn impl_py_getter_def(
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
     let python_name = property_type.null_terminated_python_name(ctx)?;
-    let doc = property_type.doc(ctx);
+    let doc = property_type.doc(ctx)?;
 
     let mut cfg_attrs = TokenStream::new();
     if let PropertyType::Descriptor { field, .. } = &property_type {
@@ -853,7 +852,7 @@ pub fn impl_py_getter_def(
                 #cfg_attrs
                 {
                     #[allow(unused_imports)]  // might not be used if all probes are positve
-                    use #pyo3_path::impl_::pyclass::Probe;
+                    use #pyo3_path::impl_::pyclass::Probe as _;
 
                     struct Offset;
                     unsafe impl #pyo3_path::impl_::pyclass::OffsetCalculator<#cls, #ty> for Offset {
@@ -978,12 +977,12 @@ impl PropertyType<'_> {
         }
     }
 
-    fn doc(&self, ctx: &Ctx) -> Cow<'_, PythonDoc> {
+    fn doc(&self, ctx: &Ctx) -> Result<Cow<'_, PythonDoc>> {
         match self {
             PropertyType::Descriptor { field, .. } => {
-                Cow::Owned(utils::get_doc(&field.attrs, None, ctx))
+                utils::get_doc(&field.attrs, None, ctx).map(Cow::Owned)
             }
-            PropertyType::Function { doc, .. } => Cow::Borrowed(doc),
+            PropertyType::Function { doc, .. } => Ok(Cow::Borrowed(doc)),
         }
     }
 }
@@ -1125,7 +1124,7 @@ impl Ty {
             Ty::Object | Ty::MaybeNullObject => quote! { *mut #pyo3_path::ffi::PyObject },
             Ty::NonNullObject => quote! { ::std::ptr::NonNull<#pyo3_path::ffi::PyObject> },
             Ty::IPowModulo => quote! { #pyo3_path::impl_::pymethods::IPowModulo },
-            Ty::Int | Ty::CompareOp => quote! { ::std::os::raw::c_int },
+            Ty::Int | Ty::CompareOp => quote! { ::std::ffi::c_int },
             Ty::PyHashT => quote! { #pyo3_path::ffi::Py_hash_t },
             Ty::PySsizeT => quote! { #pyo3_path::ffi::Py_ssize_t },
             Ty::Void => quote! { () },

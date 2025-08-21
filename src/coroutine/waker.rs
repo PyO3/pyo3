@@ -1,7 +1,7 @@
 use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyCFunction;
-use crate::{intern, wrap_pyfunction, Bound, Py, PyAny, PyObject, PyResult, Python};
+use crate::{intern, wrap_pyfunction, Bound, Py, PyAny, PyResult, Python};
 use pyo3_macros::pyfunction;
 use std::sync::Arc;
 use std::task::Wake;
@@ -52,13 +52,13 @@ impl Wake for AsyncioWaker {
 }
 
 struct LoopAndFuture {
-    event_loop: PyObject,
-    future: PyObject,
+    event_loop: Py<PyAny>,
+    future: Py<PyAny>,
 }
 
 impl LoopAndFuture {
     fn new(py: Python<'_>) -> PyResult<Self> {
-        static GET_RUNNING_LOOP: GILOnceCell<PyObject> = GILOnceCell::new();
+        static GET_RUNNING_LOOP: GILOnceCell<Py<PyAny>> = GILOnceCell::new();
         let import = || -> PyResult<_> {
             let module = py.import("asyncio")?;
             Ok(module.getattr("get_running_loop")?.into())

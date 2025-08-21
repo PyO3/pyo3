@@ -95,7 +95,7 @@ fn sequence_from_tuple(b: &mut Bencher<'_>) {
     Python::attach(|py| {
         const LEN: usize = 50_000;
         let tuple = PyTuple::new(py, 0..LEN).unwrap().into_any();
-        b.iter(|| black_box(&tuple).downcast::<PySequence>().unwrap());
+        b.iter(|| black_box(&tuple).cast::<PySequence>().unwrap());
     });
 }
 

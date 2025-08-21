@@ -13,7 +13,7 @@ compat_function!(
 
         #[cfg(any(Py_LIMITED_API, PyPy))]
         {
-            let bytes = crate::PyBytes_FromStringAndSize(ptr as *const std::os::raw::c_char, len);
+            let bytes = crate::PyBytes_FromStringAndSize(ptr as *const std::ffi::c_char, len);
             if bytes.is_null() {
                 -1
             } else {

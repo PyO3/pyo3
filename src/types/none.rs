@@ -14,7 +14,7 @@ impl PyNone {
     /// Returns the `None` object.
     #[inline]
     pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyNone> {
-        unsafe { ffi::Py_None().assume_borrowed(py).downcast_unchecked() }
+        unsafe { ffi::Py_None().assume_borrowed(py).cast_unchecked() }
     }
 }
 
@@ -63,14 +63,14 @@ mod tests {
     #[test]
     fn test_none_is_none() {
         Python::attach(|py| {
-            assert!(PyNone::get(py).downcast::<PyNone>().unwrap().is_none());
+            assert!(PyNone::get(py).cast::<PyNone>().unwrap().is_none());
         })
     }
 
     #[test]
     fn test_dict_is_not_none() {
         Python::attach(|py| {
-            assert!(PyDict::new(py).downcast::<PyNone>().is_err());
+            assert!(PyDict::new(py).cast::<PyNone>().is_err());
         })
     }
 }

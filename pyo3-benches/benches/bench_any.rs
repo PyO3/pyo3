@@ -52,9 +52,9 @@ fn find_object_type(obj: &Bound<'_, PyAny>) -> ObjectType {
         ObjectType::Str
     } else if obj.is_instance_of::<PyTuple>() {
         ObjectType::Tuple
-    } else if obj.downcast::<PySequence>().is_ok() {
+    } else if obj.cast::<PySequence>().is_ok() {
         ObjectType::Sequence
-    } else if obj.downcast::<PyMapping>().is_ok() {
+    } else if obj.cast::<PyMapping>().is_ok() {
         ObjectType::Mapping
     } else {
         ObjectType::Unknown

@@ -19,7 +19,7 @@ impl PyNotImplemented {
         unsafe {
             ffi::Py_NotImplemented()
                 .assume_borrowed(py)
-                .downcast_unchecked()
+                .cast_unchecked()
         }
     }
 }
@@ -70,7 +70,7 @@ mod tests {
     #[test]
     fn test_dict_is_not_notimplemented() {
         Python::attach(|py| {
-            assert!(PyDict::new(py).downcast::<PyNotImplemented>().is_err());
+            assert!(PyDict::new(py).cast::<PyNotImplemented>().is_err());
         })
     }
 }

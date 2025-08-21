@@ -9,7 +9,7 @@ use crate::{
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     types::{PyAnyMethods, PyTraceback, PyType},
-    Bound, Py, PyAny, PyErrArguments, PyObject, PyTypeInfo, Python,
+    Bound, Py, PyAny, PyErrArguments, PyTypeInfo, Python,
 };
 
 pub(crate) struct PyErrState {
@@ -178,7 +178,7 @@ impl PyErrStateNormalized {
         unsafe {
             ffi::PyException_GetTraceback(self.pvalue.as_ptr())
                 .assume_owned_or_opt(py)
-                .map(|b| b.downcast_into_unchecked())
+                .map(|b| b.cast_into_unchecked())
         }
     }
 
@@ -190,7 +190,7 @@ impl PyErrStateNormalized {
             unsafe { ffi::PyErr_GetRaisedException().assume_owned_or_opt(py) }.map(|pvalue| {
                 PyErrStateNormalized {
                     // Safety: PyErr_GetRaisedException returns a valid exception type.
-                    pvalue: unsafe { pvalue.downcast_into_unchecked() }.unbind(),
+                    pvalue: unsafe { pvalue.cast_into_unchecked() }.unbind(),
                 }
             })
         }
@@ -214,13 +214,13 @@ impl PyErrStateNormalized {
                 (
                     ptype
                         .assume_owned_or_opt(py)
-                        .map(|b| b.downcast_into_unchecked()),
+                        .map(|b| b.cast_into_unchecked()),
                     pvalue
                         .assume_owned_or_opt(py)
-                        .map(|b| b.downcast_into_unchecked()),
+                        .map(|b| b.cast_into_unchecked()),
                     ptraceback
                         .assume_owned_or_opt(py)
-                        .map(|b| b.downcast_into_unchecked()),
+                        .map(|b| b.cast_into_unchecked()),
                 )
             };
 
@@ -263,8 +263,8 @@ impl PyErrStateNormalized {
 }
 
 pub(crate) struct PyErrStateLazyFnOutput {
-    pub(crate) ptype: PyObject,
-    pub(crate) pvalue: PyObject,
+    pub(crate) ptype: Py<PyAny>,
+    pub(crate) pvalue: Py<PyAny>,
 }
 
 pub(crate) type PyErrStateLazyFn =
@@ -368,7 +368,7 @@ fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
 mod tests {
 
     use crate::{
-        exceptions::PyValueError, sync::GILOnceCell, PyErr, PyErrArguments, PyObject, Python,
+        exceptions::PyValueError, sync::GILOnceCell, Py, PyAny, PyErr, PyErrArguments, Python,
     };
 
     #[test]
@@ -379,7 +379,7 @@ mod tests {
         struct RecursiveArgs;
 
         impl PyErrArguments for RecursiveArgs {
-            fn arguments(self, py: Python<'_>) -> PyObject {
+            fn arguments(self, py: Python<'_>) -> Py<PyAny> {
                 // .value(py) triggers normalization
                 ERR.get(py)
                     .expect("is set just below")
@@ -403,7 +403,7 @@ mod tests {
         struct GILSwitchArgs;
 
         impl PyErrArguments for GILSwitchArgs {
-            fn arguments(self, py: Python<'_>) -> PyObject {
+            fn arguments(self, py: Python<'_>) -> Py<PyAny> {
                 // releasing the GIL potentially allows for other threads to deadlock
                 // with the normalization going on here
                 py.detach(|| {

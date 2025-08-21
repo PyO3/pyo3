@@ -3,7 +3,7 @@ use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
-use crate::types::{PyAny, PyAnyMethods, PyList, PyMapping};
+use crate::types::{PyAny, PyList, PyMapping};
 use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
 
 /// Represents a Python `dict`.
@@ -64,7 +64,7 @@ pyobject_native_type_core!(
 impl PyDict {
     /// Creates a new empty dictionary.
     pub fn new(py: Python<'_>) -> Bound<'_, PyDict> {
-        unsafe { ffi::PyDict_New().assume_owned(py).downcast_into_unchecked() }
+        unsafe { ffi::PyDict_New().assume_owned(py).cast_into_unchecked() }
     }
 
     /// Creates a new dictionary from the sequence given.
@@ -205,7 +205,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         unsafe {
             ffi::PyDict_Copy(self.as_ptr())
                 .assume_owned_or_err(self.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -253,9 +253,9 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
             match unsafe {
                 ffi::compat::PyDict_GetItemRef(dict.as_ptr(), key.as_ptr(), &mut result)
             } {
-                std::os::raw::c_int::MIN..=-1 => Err(PyErr::fetch(py)),
+                std::ffi::c_int::MIN..=-1 => Err(PyErr::fetch(py)),
                 0 => Ok(None),
-                1..=std::os::raw::c_int::MAX => {
+                1..=std::ffi::c_int::MAX => {
                     // Safety: PyDict_GetItemRef positive return value means the result is a valid
                     // owned reference
                     Ok(Some(unsafe { result.assume_owned_unchecked(py) }))
@@ -314,7 +314,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         unsafe {
             ffi::PyDict_Keys(self.as_ptr())
                 .assume_owned(self.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -322,7 +322,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         unsafe {
             ffi::PyDict_Values(self.as_ptr())
                 .assume_owned(self.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -330,7 +330,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         unsafe {
             ffi::PyDict_Items(self.as_ptr())
                 .assume_owned(self.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -358,11 +358,11 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
     }
 
     fn as_mapping(&self) -> &Bound<'py, PyMapping> {
-        unsafe { self.downcast_unchecked() }
+        unsafe { self.cast_unchecked() }
     }
 
     fn into_mapping(self) -> Bound<'py, PyMapping> {
-        unsafe { self.into_any().downcast_into_unchecked() }
+        unsafe { self.cast_into_unchecked() }
     }
 
     fn update(&self, other: &Bound<'_, PyMapping>) -> PyResult<()> {
@@ -814,7 +814,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::PyTuple;
+    use crate::types::{PyAnyMethods as _, PyTuple};
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
@@ -1063,7 +1063,7 @@ mod tests {
             let mut key_sum = 0;
             let mut value_sum = 0;
             for el in dict.items() {
-                let tuple = el.downcast::<PyTuple>().unwrap();
+                let tuple = el.cast::<PyTuple>().unwrap();
                 key_sum += tuple.get_item(0).unwrap().extract::<i32>().unwrap();
                 value_sum += tuple.get_item(1).unwrap().extract::<i32>().unwrap();
             }

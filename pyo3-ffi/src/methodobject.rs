@@ -1,7 +1,7 @@
 use crate::object::{PyObject, PyTypeObject, Py_TYPE};
 #[cfg(Py_3_9)]
 use crate::PyObject_TypeCheck;
-use std::os::raw::{c_char, c_int, c_void};
+use std::ffi::{c_char, c_int, c_void};
 use std::{mem, ptr};
 
 #[cfg(all(Py_3_9, not(Py_LIMITED_API), not(GraalPy)))]

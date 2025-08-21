@@ -413,7 +413,7 @@ impl SubSubClass {
     }
 
     #[staticmethod]
-    fn factory_method(py: Python<'_>, val: usize) -> PyResult<PyObject> {
+    fn factory_method(py: Python<'_>, val: usize) -> PyResult<Py<PyAny>> {
         let base = PyClassInitializer::from(BaseClass::new());
         let sub = base.add_subclass(SubClass { val2: val });
         if val % 2 == 0 {
@@ -447,7 +447,7 @@ This is not supported when building for the Python limited API (aka the `abi3` f
 
 To convert between the Rust type and its native base class, you can take
 `slf` as a Python object. To access the Rust fields use `slf.borrow()` or
-`slf.borrow_mut()`, and to access the base class use `slf.downcast::<BaseClass>()`.
+`slf.borrow_mut()`, and to access the base class use `slf.cast::<BaseClass>()`.
 
 ```rust
 # #[cfg(not(Py_LIMITED_API))] {
@@ -470,7 +470,7 @@ impl DictWithCounter {
 
     fn set(slf: &Bound<'_, Self>, key: String, value: Bound<'_, PyAny>) -> PyResult<()> {
         slf.borrow_mut().counter.entry(key.clone()).or_insert(0);
-        let dict = slf.downcast::<PyDict>()?;
+        let dict = slf.cast::<PyDict>()?;
         dict.set_item(key, value)
     }
 }
@@ -748,7 +748,7 @@ To create a constructor which takes a positional class argument, you can combine
 # use pyo3::prelude::*;
 # use pyo3::types::PyType;
 # #[pyclass]
-# struct BaseClass(PyObject);
+# struct BaseClass(Py<PyAny>);
 #
 #[pymethods]
 impl BaseClass {
@@ -1385,7 +1385,12 @@ unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
     #[inline]
     fn type_object_raw(py: pyo3::Python<'_>) -> *mut pyo3::ffi::PyTypeObject {
         <Self as pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()
-            .get_or_init(py)
+            .get_or_try_init(py)
+            .unwrap_or_else(|e| pyo3::impl_::pyclass::type_object_init_failed(
+                py,
+                e,
+                <Self as pyo3::type_object::PyTypeInfo>::NAME
+            ))
             .as_type_ptr()
     }
 }
@@ -1430,6 +1435,9 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     type WeakRef = pyo3::impl_::pyclass::PyClassDummySlot;
     type BaseNativeType = pyo3::PyAny;
 
+    const RAW_DOC: &'static std::ffi::CStr = pyo3::ffi::c_str!("...");
+    const DOC: &'static std::ffi::CStr = pyo3::ffi::c_str!("...");
+
     fn items_iter() -> pyo3::impl_::pyclass::PyClassItemsIter {
         use pyo3::impl_::pyclass::*;
         let collector = PyClassImplCollector::<MyClass>::new();
@@ -1441,15 +1449,6 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
         use pyo3::impl_::pyclass::LazyTypeObject;
         static TYPE_OBJECT: LazyTypeObject<MyClass> = LazyTypeObject::new();
         &TYPE_OBJECT
-    }
-
-    fn doc(py: Python<'_>) -> pyo3::PyResult<&'static ::std::ffi::CStr> {
-        use pyo3::impl_::pyclass::*;
-        static DOC: pyo3::sync::GILOnceCell<::std::borrow::Cow<'static, ::std::ffi::CStr>> = pyo3::sync::GILOnceCell::new();
-        DOC.get_or_try_init(py, || {
-            let collector = PyClassImplCollector::<Self>::new();
-            build_pyclass_doc(<MyClass as pyo3::PyTypeInfo>::NAME, pyo3::ffi::c_str!(""), collector.new_text_signature())
-        }).map(::std::ops::Deref::deref)
     }
 }
 

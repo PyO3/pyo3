@@ -1,11 +1,11 @@
-error[E0119]: conflicting implementations of trait `pyo3::impl_::pyclass::PyClassNewTextSignature<TwoNew>` for type `pyo3::impl_::pyclass::PyClassImplCollector<TwoNew>`
+error[E0119]: conflicting implementations of trait `PyClassNewTextSignature` for type `TwoNew`
  --> tests/ui/invalid_pymethods_duplicates.rs:9:1
   |
 9 | #[pymethods]
   | ^^^^^^^^^^^^
   | |
   | first implementation here
-  | conflicting implementation for `pyo3::impl_::pyclass::PyClassImplCollector<TwoNew>`
+  | conflicting implementation for `TwoNew`
   |
   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 

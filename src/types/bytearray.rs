@@ -3,7 +3,6 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::sync::with_critical_section;
-use crate::types::any::PyAnyMethods;
 use crate::{ffi, PyAny, Python};
 use std::slice;
 
@@ -29,7 +28,7 @@ impl PyByteArray {
         unsafe {
             ffi::PyByteArray_FromStringAndSize(ptr, len)
                 .assume_owned(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -66,7 +65,7 @@ impl PyByteArray {
             let pybytearray: Bound<'_, Self> =
                 ffi::PyByteArray_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t)
                     .assume_owned_or_err(py)?
-                    .downcast_into_unchecked();
+                    .cast_into_unchecked();
 
             let buffer: *mut u8 = ffi::PyByteArray_AsString(pybytearray.as_ptr()).cast();
             debug_assert!(!buffer.is_null());
@@ -84,7 +83,7 @@ impl PyByteArray {
         unsafe {
             ffi::PyByteArray_FromObject(src.as_ptr())
                 .assume_owned_or_err(src.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }
@@ -323,7 +322,7 @@ impl<'py> TryFrom<&Bound<'py, PyAny>> for Bound<'py, PyByteArray> {
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods};
-    use crate::{exceptions, Bound, PyAny, PyObject, Python};
+    use crate::{exceptions, Bound, Py, PyAny, Python};
 
     #[test]
     fn test_len() {
@@ -379,7 +378,7 @@ mod tests {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
 
-            let ba: PyObject = bytearray.into();
+            let ba: Py<PyAny> = bytearray.into();
             let bytearray = PyByteArray::from(ba.bind(py)).unwrap();
 
             assert_eq!(src, unsafe { bytearray.as_bytes() });

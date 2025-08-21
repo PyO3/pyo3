@@ -8,8 +8,8 @@ use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{DerefToPyAny, PyDict, PyString};
 use crate::{
-    ffi, DowncastError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef, PyRefMut,
-    PyTypeInfo, Python,
+    ffi, DowncastError, DowncastIntoError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef,
+    PyRefMut, PyTypeInfo, Python,
 };
 use crate::{internal::state, PyTypeCheck};
 use std::marker::PhantomData;
@@ -94,6 +94,223 @@ where
         value: impl Into<PyClassInitializer<T>>,
     ) -> PyResult<Bound<'py, T>> {
         value.into().create_class_object(py)
+    }
+}
+
+impl<'py, T> Bound<'py, T> {
+    /// Cast this to a concrete Python type or pyclass.
+    ///
+    /// Note that you can often avoid casting yourself by just specifying the desired type in
+    /// function or method signatures. However, manual casting is sometimes necessary.
+    ///
+    /// For extracting a Rust-only type, see [`extract`](PyAnyMethods::extract).
+    ///
+    /// This performs a runtime type check using the equivalent of Python's
+    /// `isinstance(self, U)`.
+    ///
+    /// # Example: Casting to a specific Python object
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyDict, PyList};
+    ///
+    /// Python::attach(|py| {
+    ///     let dict = PyDict::new(py);
+    ///     assert!(dict.is_instance_of::<PyAny>());
+    ///     let any = dict.as_any();
+    ///
+    ///     assert!(any.cast::<PyDict>().is_ok());
+    ///     assert!(any.cast::<PyList>().is_err());
+    /// });
+    /// ```
+    ///
+    /// # Example: Getting a reference to a pyclass
+    ///
+    /// This is useful if you want to mutate a `Py<PyAny>` that might actually be a pyclass.
+    ///
+    /// ```rust
+    /// # fn main() -> Result<(), pyo3::PyErr> {
+    /// use pyo3::prelude::*;
+    ///
+    /// #[pyclass]
+    /// struct Class {
+    ///     i: i32,
+    /// }
+    ///
+    /// Python::attach(|py| {
+    ///     let class = Bound::new(py, Class { i: 0 })?.into_any();
+    ///
+    ///     let class_bound: &Bound<'_, Class> = class.cast()?;
+    ///
+    ///     class_bound.borrow_mut().i += 1;
+    ///
+    ///     // Alternatively you can get a `PyRefMut` directly
+    ///     let class_ref: PyRefMut<'_, Class> = class.extract()?;
+    ///     assert_eq!(class_ref.i, 1);
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
+    #[inline]
+    pub fn cast<U>(&self) -> Result<&Bound<'py, U>, DowncastError<'_, 'py>>
+    where
+        U: PyTypeCheck,
+    {
+        #[inline]
+        fn inner<'a, 'py, U>(
+            any: &'a Bound<'py, PyAny>,
+        ) -> Result<&'a Bound<'py, U>, DowncastError<'a, 'py>>
+        where
+            U: PyTypeCheck,
+        {
+            if U::type_check(any) {
+                // Safety: type_check is responsible for ensuring that the type is correct
+                Ok(unsafe { any.cast_unchecked() })
+            } else {
+                Err(DowncastError::new(any, U::NAME))
+            }
+        }
+
+        inner(self.as_any())
+    }
+
+    /// Like [`cast`](Self::cast) but takes ownership of `self`.
+    ///
+    /// In case of an error, it is possible to retrieve `self` again via
+    /// [`DowncastIntoError::into_inner`].
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyDict, PyList};
+    ///
+    /// Python::attach(|py| {
+    ///     let obj: Bound<'_, PyAny> = PyDict::new(py).into_any();
+    ///
+    ///     let obj: Bound<'_, PyAny> = match obj.cast_into::<PyList>() {
+    ///         Ok(_) => panic!("obj should not be a list"),
+    ///         Err(err) => err.into_inner(),
+    ///     };
+    ///
+    ///     // obj is a dictionary
+    ///     assert!(obj.cast_into::<PyDict>().is_ok());
+    /// })
+    /// ```
+    #[inline]
+    pub fn cast_into<U>(self) -> Result<Bound<'py, U>, DowncastIntoError<'py>>
+    where
+        U: PyTypeCheck,
+    {
+        #[inline]
+        fn inner<U>(any: Bound<'_, PyAny>) -> Result<Bound<'_, U>, DowncastIntoError<'_>>
+        where
+            U: PyTypeCheck,
+        {
+            if U::type_check(&any) {
+                // Safety: type_check is responsible for ensuring that the type is correct
+                Ok(unsafe { any.cast_into_unchecked() })
+            } else {
+                Err(DowncastIntoError::new(any, U::NAME))
+            }
+        }
+
+        inner(self.into_any())
+    }
+
+    /// Cast this to a concrete Python type or pyclass (but not a subclass of it).
+    ///
+    /// It is almost always better to use [`cast`](Self::cast) because it accounts for Python
+    /// subtyping. Use this method only when you do not want to allow subtypes.
+    ///
+    /// The advantage of this method over [`cast`](Self::cast) is that it is faster. The
+    /// implementation of `cast_exact` uses the equivalent of the Python expression `type(self) is
+    /// U`, whereas `cast` uses `isinstance(self, U)`.
+    ///
+    /// For extracting a Rust-only type, see [`extract`](PyAnyMethods::extract).
+    ///
+    /// # Example: Casting to a specific Python object but not a subtype
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyBool, PyInt};
+    ///
+    /// Python::attach(|py| {
+    ///     let b = PyBool::new(py, true);
+    ///     assert!(b.is_instance_of::<PyBool>());
+    ///     let any: &Bound<'_, PyAny> = b.as_any();
+    ///
+    ///     // `bool` is a subtype of `int`, so `cast` will accept a `bool` as an `int`
+    ///     // but `cast_exact` will not.
+    ///     assert!(any.cast::<PyInt>().is_ok());
+    ///     assert!(any.cast_exact::<PyInt>().is_err());
+    ///
+    ///     assert!(any.cast_exact::<PyBool>().is_ok());
+    /// });
+    /// ```
+    #[inline]
+    pub fn cast_exact<U>(&self) -> Result<&Bound<'py, U>, DowncastError<'_, 'py>>
+    where
+        U: PyTypeInfo,
+    {
+        #[inline]
+        fn inner<'a, 'py, U>(
+            any: &'a Bound<'py, PyAny>,
+        ) -> Result<&'a Bound<'py, U>, DowncastError<'a, 'py>>
+        where
+            U: PyTypeInfo,
+        {
+            if any.is_exact_instance_of::<U>() {
+                // Safety: is_exact_instance_of is responsible for ensuring that the type is correct
+                Ok(unsafe { any.cast_unchecked() })
+            } else {
+                Err(DowncastError::new(any, U::NAME))
+            }
+        }
+
+        inner(self.as_any())
+    }
+
+    /// Like [`cast_exact`](Self::cast_exact) but takes ownership of `self`.
+    #[inline]
+    pub fn cast_into_exact<U>(self) -> Result<Bound<'py, U>, DowncastIntoError<'py>>
+    where
+        U: PyTypeInfo,
+    {
+        #[inline]
+        fn inner<U>(any: Bound<'_, PyAny>) -> Result<Bound<'_, U>, DowncastIntoError<'_>>
+        where
+            U: PyTypeInfo,
+        {
+            if any.is_exact_instance_of::<U>() {
+                // Safety: is_exact_instance_of is responsible for ensuring that the type is correct
+                Ok(unsafe { any.cast_into_unchecked() })
+            } else {
+                Err(DowncastIntoError::new(any, U::NAME))
+            }
+        }
+
+        inner(self.into_any())
+    }
+
+    /// Converts this to a concrete Python type without checking validity.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that the type is valid or risk type confusion.
+    #[inline]
+    pub unsafe fn cast_unchecked<U>(&self) -> &Bound<'py, U> {
+        unsafe { NonNull::from(self).cast().as_ref() }
+    }
+
+    /// Like [`cast_unchecked`](Self::cast_unchecked) but takes ownership of `self`.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that the type is valid or risk type confusion.
+    #[inline]
+    pub unsafe fn cast_into_unchecked<U>(self) -> Bound<'py, U> {
+        unsafe { std::mem::transmute(self) }
     }
 }
 
@@ -428,8 +645,8 @@ where
     /// [`borrow`]: Bound::borrow
     #[inline]
     pub fn as_super(&self) -> &Bound<'py, T::BaseType> {
-        // a pyclass can always be safely "downcast" to its base type
-        unsafe { self.as_any().downcast_unchecked() }
+        // a pyclass can always be safely "cast" to its base type
+        unsafe { self.as_any().cast_unchecked() }
     }
 
     /// Upcast this `Bound<PyClass>` to its base type by value.
@@ -480,8 +697,8 @@ where
     /// [`borrow`]: Bound::borrow
     #[inline]
     pub fn into_super(self) -> Bound<'py, T::BaseType> {
-        // a pyclass can always be safely "downcast" to its base type
-        unsafe { self.into_any().downcast_into_unchecked() }
+        // a pyclass can always be safely "cast" to its base type
+        unsafe { self.cast_into_unchecked() }
     }
 
     #[inline]
@@ -809,13 +1026,13 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     }
 
     #[inline]
-    pub(crate) fn downcast<T>(self) -> Result<Borrowed<'a, 'py, T>, DowncastError<'a, 'py>>
+    pub(crate) fn cast<T>(self) -> Result<Borrowed<'a, 'py, T>, DowncastError<'a, 'py>>
     where
         T: PyTypeCheck,
     {
         if T::type_check(&self) {
             // Safety: type_check is responsible for ensuring that the type is correct
-            Ok(unsafe { self.downcast_unchecked() })
+            Ok(unsafe { self.cast_unchecked() })
         } else {
             Err(DowncastError::new_from_borrowed(self, T::NAME))
         }
@@ -826,7 +1043,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// # Safety
     /// Callers must ensure that the type is valid or risk type confusion.
     #[inline]
-    pub(crate) unsafe fn downcast_unchecked<T>(self) -> Borrowed<'a, 'py, T> {
+    pub(crate) unsafe fn cast_unchecked<T>(self) -> Borrowed<'a, 'py, T> {
         Borrowed(self.0, PhantomData, self.2)
     }
 }
@@ -981,7 +1198,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// #         let m = pyo3::types::PyModule::new(py, "test")?;
 /// #         m.add_class::<Foo>()?;
 /// #
-/// #         let foo: Bound<'_, Foo> = m.getattr("Foo")?.call0()?.downcast_into()?;
+/// #         let foo: Bound<'_, Foo> = m.getattr("Foo")?.call0()?.cast_into()?;
 /// #         let dict = &foo.borrow().inner;
 /// #         let dict: &Bound<'_, PyDict> = dict.bind(py);
 /// #
@@ -1018,7 +1235,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// #         let m = pyo3::types::PyModule::new(py, "test")?;
 /// #         m.add_class::<Foo>()?;
 /// #
-/// #         let foo: Bound<'_, Foo> = m.getattr("Foo")?.call0()?.downcast_into()?;
+/// #         let foo: Bound<'_, Foo> = m.getattr("Foo")?.call0()?.cast_into()?;
 /// #         let bar = &foo.borrow().inner;
 /// #         let bar: &Bar = &*bar.borrow(py);
 /// #
@@ -1472,7 +1689,7 @@ impl<T> Py<T> {
     /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
-    /// fn version(sys: Py<PyModule>, py: Python<'_>) -> PyResult<PyObject> {
+    /// fn version(sys: Py<PyModule>, py: Python<'_>) -> PyResult<Py<PyAny>> {
     ///     sys.getattr(py, intern!(py, "version"))
     /// }
     /// #
@@ -1481,7 +1698,7 @@ impl<T> Py<T> {
     /// #    version(sys, py).unwrap();
     /// # });
     /// ```
-    pub fn getattr<'py, N>(&self, py: Python<'py>, attr_name: N) -> PyResult<PyObject>
+    pub fn getattr<'py, N>(&self, py: Python<'py>, attr_name: N) -> PyResult<Py<PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
@@ -1498,10 +1715,10 @@ impl<T> Py<T> {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, IntoPyObjectExt, PyObject, Python, PyResult};
+    /// # use pyo3::{intern, pyfunction, types::PyModule, IntoPyObjectExt, Py, PyAny, Python, PyResult};
     /// #
     /// #[pyfunction]
-    /// fn set_answer(ob: PyObject, py: Python<'_>) -> PyResult<()> {
+    /// fn set_answer(ob: Py<PyAny>, py: Python<'_>) -> PyResult<()> {
     ///     ob.setattr(py, intern!(py, "answer"), 42)
     /// }
     /// #
@@ -1526,7 +1743,7 @@ impl<T> Py<T> {
         py: Python<'py>,
         args: A,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<PyObject>
+    ) -> PyResult<Py<PyAny>>
     where
         A: PyCallArgs<'py>,
     {
@@ -1536,7 +1753,7 @@ impl<T> Py<T> {
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
-    pub fn call1<'py, A>(&self, py: Python<'py>, args: A) -> PyResult<PyObject>
+    pub fn call1<'py, A>(&self, py: Python<'py>, args: A) -> PyResult<Py<PyAny>>
     where
         A: PyCallArgs<'py>,
     {
@@ -1546,7 +1763,7 @@ impl<T> Py<T> {
     /// Calls the object without arguments.
     ///
     /// This is equivalent to the Python expression `self()`.
-    pub fn call0(&self, py: Python<'_>) -> PyResult<PyObject> {
+    pub fn call0(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         self.bind(py).as_any().call0().map(Bound::unbind)
     }
 
@@ -1562,7 +1779,7 @@ impl<T> Py<T> {
         name: N,
         args: A,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<PyObject>
+    ) -> PyResult<Py<PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
         A: PyCallArgs<'py>,
@@ -1579,7 +1796,7 @@ impl<T> Py<T> {
     ///
     /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
     /// macro can be used to intern `name`.
-    pub fn call_method1<'py, N, A>(&self, py: Python<'py>, name: N, args: A) -> PyResult<PyObject>
+    pub fn call_method1<'py, N, A>(&self, py: Python<'py>, name: N, args: A) -> PyResult<Py<PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
         A: PyCallArgs<'py>,
@@ -1596,7 +1813,7 @@ impl<T> Py<T> {
     ///
     /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
     /// macro can be used to intern `name`.
-    pub fn call_method0<'py, N>(&self, py: Python<'py>, name: N) -> PyResult<PyObject>
+    pub fn call_method0<'py, N>(&self, py: Python<'py>, name: N) -> PyResult<Py<PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
@@ -1724,7 +1941,7 @@ impl<T> AsRef<Py<PyAny>> for Py<T> {
     }
 }
 
-impl<T> std::convert::From<Py<T>> for PyObject
+impl<T> std::convert::From<Py<T>> for Py<PyAny>
 where
     T: DerefToPyAny,
 {
@@ -1734,7 +1951,7 @@ where
     }
 }
 
-impl<T> std::convert::From<Bound<'_, T>> for PyObject
+impl<T> std::convert::From<Bound<'_, T>> for Py<PyAny>
 where
     T: DerefToPyAny,
 {
@@ -1823,7 +2040,7 @@ where
 {
     /// Extracts `Self` from the source `PyObject`.
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        ob.downcast().cloned().map_err(Into::into)
+        ob.cast().cloned().map_err(Into::into)
     }
 }
 
@@ -1848,35 +2065,47 @@ impl<T> std::fmt::Debug for Py<T> {
 /// safely sent between threads.
 ///
 /// See the documentation for [`Py`](struct.Py.html).
+#[deprecated(since = "0.26.0", note = "use `Py<PyAny>` instead")]
 pub type PyObject = Py<PyAny>;
 
-impl PyObject {
-    /// Downcast this `PyObject` to a concrete Python type or pyclass.
+impl Py<PyAny> {
+    /// Deprecated version of [`PyObject::cast_bound`]
+    #[inline]
+    #[deprecated(since = "0.26.0", note = "use `Py::cast_bound_unchecked` instead")]
+    pub fn downcast_bound<'py, T>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
+    where
+        T: PyTypeCheck,
+    {
+        self.cast_bound(py)
+    }
+
+    /// Cast this `Py<PyAny>` to a concrete Python type or pyclass.
     ///
-    /// Note that you can often avoid downcasting yourself by just specifying
-    /// the desired type in function or method signatures.
-    /// However, manual downcasting is sometimes necessary.
+    /// Note that you can often avoid casting yourself by just specifying the desired type in
+    /// function or method signatures. However, manual casting is sometimes necessary.
     ///
-    /// For extracting a Rust-only type, see [`Py::extract`](struct.Py.html#method.extract).
+    /// For extracting a Rust-only type, see [`Py::extract`].
     ///
-    /// # Example: Downcasting to a specific Python object
+    /// # Example: Casting to a specific Python object
     ///
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3::types::{PyDict, PyList};
     ///
     /// Python::attach(|py| {
-    ///     let any: PyObject = PyDict::new(py).into();
+    ///     let any = PyDict::new(py).into_any().unbind();
     ///
-    ///     assert!(any.downcast_bound::<PyDict>(py).is_ok());
-    ///     assert!(any.downcast_bound::<PyList>(py).is_err());
+    ///     assert!(any.cast_bound::<PyDict>(py).is_ok());
+    ///     assert!(any.cast_bound::<PyList>(py).is_err());
     /// });
     /// ```
     ///
     /// # Example: Getting a reference to a pyclass
     ///
-    /// This is useful if you want to mutate a `PyObject` that
-    /// might actually be a pyclass.
+    /// This is useful if you want to mutate a `Py<PyAny>` that might actually be a pyclass.
     ///
     /// ```rust
     /// # fn main() -> Result<(), pyo3::PyErr> {
@@ -1888,9 +2117,9 @@ impl PyObject {
     /// }
     ///
     /// Python::attach(|py| {
-    ///     let class: PyObject = Py::new(py, Class { i: 0 })?.into_any();
+    ///     let class = Py::new(py, Class { i: 0 })?.into_any();
     ///
-    ///     let class_bound = class.downcast_bound::<Class>(py)?;
+    ///     let class_bound = class.cast_bound::<Class>(py)?;
     ///
     ///     class_bound.borrow_mut().i += 1;
     ///
@@ -1901,15 +2130,14 @@ impl PyObject {
     /// })
     /// # }
     /// ```
-    #[inline]
-    pub fn downcast_bound<'py, T>(
+    pub fn cast_bound<'py, T>(
         &self,
         py: Python<'py>,
     ) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
     where
         T: PyTypeCheck,
     {
-        self.bind(py).downcast()
+        self.bind(py).cast()
     }
 
     /// Casts the PyObject to a concrete Python object type without checking validity.
@@ -1918,14 +2146,25 @@ impl PyObject {
     ///
     /// Callers must ensure that the type is valid or risk type confusion.
     #[inline]
+    #[deprecated(since = "0.26.0", note = "use `Py::cast_bound_unchecked` instead")]
     pub unsafe fn downcast_bound_unchecked<'py, T>(&self, py: Python<'py>) -> &Bound<'py, T> {
-        unsafe { self.bind(py).downcast_unchecked() }
+        unsafe { self.cast_bound_unchecked(py) }
+    }
+
+    /// Casts the PyObject to a concrete Python object type without checking validity.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that the type is valid or risk type confusion.
+    #[inline]
+    pub unsafe fn cast_bound_unchecked<'py, T>(&self, py: Python<'py>) -> &Bound<'py, T> {
+        unsafe { self.bind(py).cast_unchecked() }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Bound, IntoPyObject, Py, PyObject};
+    use super::{Bound, IntoPyObject, Py};
     use crate::tests::common::generate_unique_module_name;
     use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
     use crate::{ffi, Borrowed, PyAny, PyResult, Python};
@@ -2001,7 +2240,7 @@ mod tests {
     #[test]
     fn test_call_for_non_existing_method() {
         Python::attach(|py| {
-            let obj: PyObject = PyDict::new(py).into();
+            let obj: Py<PyAny> = PyDict::new(py).into();
             assert!(obj.call_method0(py, "asdf").is_err());
             assert!(obj
                 .call_method(py, "nonexistent_method", (1,), None)
@@ -2028,7 +2267,7 @@ mod tests {
         Python::attach(|py| {
             let dict: Py<PyDict> = PyDict::new(py).unbind();
             let cnt = dict.get_refcnt(py);
-            let p: PyObject = dict.into();
+            let p: Py<PyAny> = dict.into();
             assert_eq!(p.get_refcnt(py), cnt);
         });
     }
@@ -2117,7 +2356,7 @@ a = A()
         Python::attach(|py| {
             let instance = py.eval(ffi::c_str!("object()"), None, None).unwrap();
             let ptr = instance.as_ptr();
-            let instance: PyObject = instance.clone().unbind();
+            let instance: Py<PyAny> = instance.clone().unbind();
             assert_eq!(instance.as_ptr(), ptr);
         })
     }

@@ -77,7 +77,7 @@ impl PyWeakrefProxy {
                 object.py(),
                 ffi::PyWeakref_NewProxy(object.as_ptr(), ffi::Py_None()),
             )
-            .downcast_into_unchecked()
+            .cast_into_unchecked()
         }
     }
 
@@ -152,7 +152,7 @@ impl PyWeakrefProxy {
                     object.py(),
                     ffi::PyWeakref_NewProxy(object.as_ptr(), callback.as_ptr()),
                 )
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
             }
         }
 
@@ -171,9 +171,9 @@ impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakrefProxy> {
     fn upgrade(&self) -> Option<Bound<'py, PyAny>> {
         let mut obj: *mut ffi::PyObject = std::ptr::null_mut();
         match unsafe { ffi::compat::PyWeakref_GetRef(self.as_ptr(), &mut obj) } {
-            std::os::raw::c_int::MIN..=-1 => panic!("The 'weakref.ProxyType' (or `weakref.CallableProxyType`) instance should be valid (non-null and actually a weakref reference)"),
+            std::ffi::c_int::MIN..=-1 => panic!("The 'weakref.ProxyType' (or `weakref.CallableProxyType`) instance should be valid (non-null and actually a weakref reference)"),
             0 => None,
-            1..=std::os::raw::c_int::MAX => Some(unsafe { obj.assume_owned_unchecked(self.py()) }),
+            1..=std::ffi::c_int::MAX => Some(unsafe { obj.assume_owned_unchecked(self.py()) }),
         }
     }
 }
@@ -249,7 +249,7 @@ mod tests {
                 let globals = PyDict::new(py);
                 py.run(ffi::c_str!("class A:\n    pass\n"), Some(&globals), None)?;
                 py.eval(ffi::c_str!("A"), Some(&globals), None)
-                    .downcast_into::<PyType>()
+                    .cast_into::<PyType>()
             }
 
             #[test]
@@ -585,7 +585,7 @@ mod tests {
                     None,
                 )?;
                 py.eval(ffi::c_str!("A"), Some(&globals), None)
-                    .downcast_into::<PyType>()
+                    .cast_into::<PyType>()
             }
 
             #[test]

@@ -10,16 +10,16 @@ pub enum SimpleItems {
 
 #[pyclass]
 pub enum ComplexItems {
-    Error(PyObject),
-    Output(PyObject),
-    Target(PyObject),
+    Error(Py<PyAny>),
+    Output(Py<PyAny>),
+    Target(Py<PyAny>),
 }
 
 #[derive(IntoPyObject)]
 enum DeriveItems {
-    Error(PyObject),
-    Output(PyObject),
-    Target(PyObject),
+    Error(Py<PyAny>),
+    Output(Py<PyAny>),
+    Target(Py<PyAny>),
 }
 
 fn main() {}
