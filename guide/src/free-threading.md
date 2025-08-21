@@ -285,31 +285,39 @@ the free-threaded build.
 
 ### Thread-safe single initialization
 
-Until version 0.23, PyO3 provided only [`GILOnceCell`] to enable deadlock-free
-single initialization of data in contexts that might execute arbitrary Python
-code. While we have updated [`GILOnceCell`] to avoid thread safety issues
-triggered only under the free-threaded build, the design of [`GILOnceCell`] is
-inherently thread-unsafe, in a manner that can be problematic even in the
-GIL-enabled build.
+To initialize data exactly once, use the [`PyOnceLock`] type, which is a close equivalent
+to [`std::sync::OnceLock`][`OnceLock`] that also helps avoid deadlocks by detaching from
+the Python interpreter when threads are blocking waiting for another thread to
+complete intialization. If already using [`OnceLock`] and it is impractical
+to replace with a [`PyOnceLock`], there is the [`OnceLockExt`] extension trait
+which adds [`OnceLockExt::get_or_init_py_attached`] to detach from the interpreter
+when blocking in the same fashion as [`PyOnceLock`]. Here is an example using
+[`PyOnceLock`] to single-initialize a runtime cache holding a `Py<PyDict>`:
 
-If, for example, the function executed by [`GILOnceCell`] releases the GIL or
-calls code that releases the GIL, then it is possible for multiple threads to
-race to initialize the cell. While the cell will only ever be initialized
-once, it can be problematic in some contexts that [`GILOnceCell`] does not block
-like the standard library [`OnceLock`].
+```rust
+# use pyo3::prelude::*;
+use pyo3::sync::PyOnceLock;
+use pyo3::types::PyDict;
 
-In cases where the initialization function must run exactly once, you can bring
-the [`OnceExt`] or [`OnceLockExt`] traits into scope. The [`OnceExt`] trait adds
+let cache: PyOnceLock<Py<PyDict>> = PyOnceLock::new();
+
+Python::attach(|py| {
+    // guaranteed to be called once and only once
+    cache.get_or_init(py, || PyDict::new(py).unbind())
+});
+```
+
+In cases where a function must run exactly once, you can bring
+the [`OnceExt`] trait into scope. The [`OnceExt`] trait adds
 [`OnceExt::call_once_py_attached`] and [`OnceExt::call_once_force_py_attached`]
 functions to the api of `std::sync::Once`, enabling use of [`Once`] in contexts
-where the GIL is held. Similarly, [`OnceLockExt`] adds
-[`OnceLockExt::get_or_init_py_attached`]. These functions are analogous to
-[`Once::call_once`], [`Once::call_once_force`], and [`OnceLock::get_or_init`] except
-they accept a [`Python<'py>`] token in addition to an `FnOnce`. All of these
-functions release the GIL and re-acquire it before executing the function,
-avoiding deadlocks with the GIL that are possible without using the PyO3
-extension traits. Here is an example of how to use [`OnceExt`] to
-enable single-initialization of a runtime cache holding a `Py<PyDict>`.
+where the thread is attached to the Python interpreter. These functions are analogous to
+[`Once::call_once`], [`Once::call_once_force`] except they accept a [`Python<'py>`]
+token in addition to an `FnOnce`. All of these functions detach from the
+interpreter before blocking and re-attach before executing the function,
+avoiding deadlocks that are possible without using the PyO3
+extension traits. Here the same example as above built using a [`Once`] instead of a
+[`PyOnceLock`]:
 
 ```rust
 # use pyo3::prelude::*;
@@ -411,4 +419,5 @@ interpreter.
 [`Python::detach`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.detach
 [`Python::attach`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.attach
 [`Python<'py>`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html
+[`PyOnceLock`]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.PyOnceLock.html
 [`threading`]: https://docs.python.org/3/library/threading.html

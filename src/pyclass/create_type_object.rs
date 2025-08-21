@@ -540,8 +540,8 @@ fn bpo_45315_workaround(py: Python<'_>, class_name: CString) {
     {
         // Must check version at runtime for abi3 wheels - they could run against a higher version
         // than the build config suggests.
-        use crate::sync::GILOnceCell;
-        static IS_PYTHON_3_11: GILOnceCell<bool> = GILOnceCell::new();
+        use crate::sync::PyOnceLock;
+        static IS_PYTHON_3_11: PyOnceLock<bool> = PyOnceLock::new();
 
         if *IS_PYTHON_3_11.get_or_init(py, || py.version_info() >= (3, 11)) {
             // No fix needed - the wheel is running on a sufficiently new interpreter.

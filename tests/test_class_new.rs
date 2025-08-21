@@ -2,7 +2,7 @@
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::sync::GILOnceCell;
+use pyo3::sync::PyOnceLock;
 use pyo3::types::IntoPyDict;
 
 #[pyclass]
@@ -216,7 +216,7 @@ struct NewExisting {
 impl NewExisting {
     #[new]
     fn new(py: pyo3::Python<'_>, val: usize) -> pyo3::Py<NewExisting> {
-        static PRE_BUILT: GILOnceCell<[pyo3::Py<NewExisting>; 2]> = GILOnceCell::new();
+        static PRE_BUILT: PyOnceLock<[pyo3::Py<NewExisting>; 2]> = PyOnceLock::new();
         let existing = PRE_BUILT.get_or_init(py, || {
             [
                 pyo3::Py::new(py, NewExisting { num: 0 }).unwrap(),
