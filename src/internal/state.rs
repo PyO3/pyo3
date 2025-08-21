@@ -57,6 +57,14 @@ impl AttachGuard {
 
         crate::interpreter_lifecycle::ensure_initialized();
 
+        // Calling `PyGILState_Ensure` while finalizing may crash CPython in unpredictable
+        // ways, we'll make a best effort attempt here to avoid that. (There's a time of
+        // check to time-of-use issue, but it's better than nothing.)
+        assert!(
+            !is_finalizing(),
+            "Cannot attach to the Python interpreter while it is finalizing."
+        );
+
         // SAFETY: We have ensured the Python interpreter is initialized.
         unsafe { Self::acquire_unchecked() }
     }
@@ -75,8 +83,8 @@ impl AttachGuard {
             _ => {}
         }
 
-        // SAFETY: This API is always sound to call
-        if unsafe { ffi::Py_IsInitialized() } == 0 {
+        // SAFETY: These APIs are always sound to call
+        if unsafe { ffi::Py_IsInitialized() } == 0 || is_finalizing() {
             // If the interpreter is not initialized, we cannot attach.
             return None;
         }
@@ -128,6 +136,18 @@ impl AttachGuard {
     pub fn python(&self) -> Python<'_> {
         unsafe { Python::assume_gil_acquired() }
     }
+}
+
+fn is_finalizing() -> bool {
+    // SAFTETY: always safe to call this
+    #[cfg(Py_3_13)]
+    unsafe {
+        ffi::Py_IsFinalizing() != 0
+    }
+
+    // can't reliably check this before 3.13
+    #[cfg(not(Py_3_13))]
+    false
 }
 
 /// The Drop implementation for `AttachGuard` will decrement the attach count (and potentially detach).

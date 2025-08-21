@@ -392,6 +392,7 @@ impl Python<'_> {
     ///
     /// - If the [`auto-initialize`] feature is not enabled and the Python interpreter is not
     ///   initialized.
+    /// - If the Python interpreter is in the process of [shutting down].
     ///
     /// # Examples
     ///
@@ -409,6 +410,7 @@ impl Python<'_> {
     /// ```
     ///
     /// [`auto-initialize`]: https://pyo3.rs/main/features.html#auto-initialize
+    /// [shutting down]: https://docs.python.org/3/glossary.html#term-interpreter-shutdown
     #[inline]
     #[track_caller]
     pub fn attach<F, R>(f: F) -> R
@@ -422,6 +424,7 @@ impl Python<'_> {
     /// Variant of [`Python::attach`] which will do no work if the interpreter is in a
     /// state where it cannot be attached to:
     /// - in the middle of GC traversal
+    /// - in the process of shutting down
     /// - not initialized
     #[inline]
     #[track_caller]
@@ -464,27 +467,13 @@ impl Python<'_> {
 
     /// Like [`Python::attach`] except Python interpreter state checking is skipped.
     ///
-    /// Normally when the GIL is acquired, we check that the Python interpreter is an
-    /// appropriate state (e.g. it is fully initialized). This function skips those
-    /// checks.
+    /// Normally when the GIL is acquired, PyO3 checks that the Python interpreter is
+    /// in an appropriate state (e.g. it is fully initialized). This function skips
+    /// those checks.
     ///
     /// # Safety
     ///
     /// If [`Python::attach`] would succeed, it is safe to call this function.
-    ///
-    /// In most cases, you should use [`Python::attach`].
-    ///
-    /// A justified scenario for calling this function is during multi-phase interpreter
-    /// initialization when [`Python::attach`] would fail before
-    // this link is only valid on 3.8+not pypy and up.
-    #[cfg_attr(
-        all(Py_3_8, not(PyPy)),
-        doc = "[`_Py_InitializeMain`](crate::ffi::_Py_InitializeMain)"
-    )]
-    #[cfg_attr(any(not(Py_3_8), PyPy), doc = "`_Py_InitializeMain`")]
-    /// is called because the interpreter is only partially initialized.
-    ///
-    /// Behavior in other scenarios is not documented.
     #[inline]
     #[track_caller]
     pub unsafe fn with_gil_unchecked<F, R>(f: F) -> R
