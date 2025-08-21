@@ -393,6 +393,7 @@ impl Python<'_> {
     /// - If the [`auto-initialize`] feature is not enabled and the Python interpreter is not
     ///   initialized.
     /// - If the Python interpreter is in the process of [shutting down].
+    /// - If the middle of GC traversal.
     ///
     /// To avoid possible initialization or panics if calling in a context where the Python
     /// interpreter might be unavailable, consider using [`Python::try_attach`].
@@ -420,7 +421,7 @@ impl Python<'_> {
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        let guard = AttachGuard::acquire();
+        let guard = AttachGuard::attach();
         f(guard.python())
     }
 
@@ -442,7 +443,7 @@ impl Python<'_> {
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        let guard = AttachGuard::try_acquire()?;
+        let guard = AttachGuard::try_attach().ok()?;
         Some(f(guard.python()))
     }
 
@@ -488,7 +489,7 @@ impl Python<'_> {
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        let guard = unsafe { AttachGuard::acquire_unchecked() };
+        let guard = unsafe { AttachGuard::attach_unchecked() };
 
         f(guard.python())
     }
