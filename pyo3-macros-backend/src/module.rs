@@ -453,7 +453,7 @@ pub fn pymodule_function_impl(
         .name
         .map_or_else(|| ident.unraw(), |name| name.value.0);
     let vis = &function.vis;
-    let doc = get_doc(&function.attrs, None, ctx)?;
+    let doc = get_doc(&mut function.attrs, None, ctx)?;
 
     let initialization = module_initialization(
         &name,
