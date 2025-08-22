@@ -270,7 +270,7 @@ pub(crate) struct ForbidAttaching {
 }
 
 impl ForbidAttaching {
-    const FORBIDDEN_DURING_TRAVERSE: &str = "Attaching a thread to the interpreter is prohibited while a __traverse__ implementation is running.";
+    const FORBIDDEN_DURING_TRAVERSE: &'static str = "Attaching a thread to the interpreter is prohibited while a __traverse__ implementation is running.";
 
     /// Lock access to the interpreter while an implementation of `__traverse__` is running
     pub fn during_traverse() -> Self {
