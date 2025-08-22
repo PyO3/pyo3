@@ -227,6 +227,7 @@ pyobject_native_type!(
     PyDate,
     crate::ffi::PyDateTime_Date,
     |py| expect_datetime_api(py).DateType,
+    "date",
     #module=Some("datetime"),
     #checkfunction=PyDate_Check
 );
@@ -238,7 +239,7 @@ pyobject_native_type_named!(PyDate);
 
 #[cfg(Py_LIMITED_API)]
 impl PyTypeCheck for PyDate {
-    const NAME: &'static str = "PyDate";
+    const NAME: &'static str = "date";
     #[cfg(feature = "experimental-inspect")]
     const PYTHON_TYPE: &'static str = "datetime.date";
 
@@ -328,6 +329,7 @@ pyobject_native_type!(
     PyDateTime,
     crate::ffi::PyDateTime_DateTime,
     |py| expect_datetime_api(py).DateTimeType,
+    "datetime",
     #module=Some("datetime"),
     #checkfunction=PyDateTime_Check
 );
@@ -339,7 +341,7 @@ pyobject_native_type_named!(PyDateTime);
 
 #[cfg(Py_LIMITED_API)]
 impl PyTypeCheck for PyDateTime {
-    const NAME: &'static str = "PyDateTime";
+    const NAME: &'static str = "datetime";
     #[cfg(feature = "experimental-inspect")]
     const PYTHON_TYPE: &'static str = "datetime.datetime";
 
@@ -579,6 +581,7 @@ pyobject_native_type!(
     PyTime,
     crate::ffi::PyDateTime_Time,
     |py| expect_datetime_api(py).TimeType,
+    "time",
     #module=Some("datetime"),
     #checkfunction=PyTime_Check
 );
@@ -590,7 +593,7 @@ pyobject_native_type_named!(PyTime);
 
 #[cfg(Py_LIMITED_API)]
 impl PyTypeCheck for PyTime {
-    const NAME: &'static str = "PyTime";
+    const NAME: &'static str = "time";
     #[cfg(feature = "experimental-inspect")]
     const PYTHON_TYPE: &'static str = "datetime.time";
 
@@ -765,6 +768,7 @@ pyobject_native_type!(
     PyTzInfo,
     crate::ffi::PyObject,
     |py| expect_datetime_api(py).TZInfoType,
+    "tzinfo",
     #module=Some("datetime"),
     #checkfunction=PyTZInfo_Check
 );
@@ -776,7 +780,7 @@ pyobject_native_type_named!(PyTzInfo);
 
 #[cfg(Py_LIMITED_API)]
 impl PyTypeCheck for PyTzInfo {
-    const NAME: &'static str = "PyTzInfo";
+    const NAME: &'static str = "tzinfo";
     #[cfg(feature = "experimental-inspect")]
     const PYTHON_TYPE: &'static str = "datetime.tzinfo";
 
@@ -881,6 +885,7 @@ pyobject_native_type!(
     PyDelta,
     crate::ffi::PyDateTime_Delta,
     |py| expect_datetime_api(py).DeltaType,
+    "timedelta",
     #module=Some("datetime"),
     #checkfunction=PyDelta_Check
 );
@@ -892,7 +897,7 @@ pyobject_native_type_named!(PyDelta);
 
 #[cfg(Py_LIMITED_API)]
 impl PyTypeCheck for PyDelta {
-    const NAME: &'static str = "PyDelta";
+    const NAME: &'static str = "timedelta";
     #[cfg(feature = "experimental-inspect")]
     const PYTHON_TYPE: &'static str = "datetime.timedelta";
 

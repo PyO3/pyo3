@@ -16,6 +16,7 @@ pub struct PyCode(PyAny);
 pyobject_native_type_core!(
     PyCode,
     pyobject_native_static_type_object!(ffi::PyCode_Type),
+    "PyCode",
     #checkfunction=ffi::PyCode_Check
 );
 
@@ -24,7 +25,7 @@ pyobject_native_type_named!(PyCode);
 
 #[cfg(any(Py_LIMITED_API, PyPy))]
 impl crate::PyTypeCheck for PyCode {
-    const NAME: &'static str = "PyCode";
+    const NAME: &'static str = "codeobject";
     #[cfg(feature = "experimental-inspect")]
     const PYTHON_TYPE: &'static str = "types.CodeType";
 
