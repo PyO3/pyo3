@@ -2028,6 +2028,9 @@ impl<T> FromPyObject<'_> for Py<T>
 where
     T: PyTypeCheck,
 {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = T::PYTHON_TYPE;
+
     /// Extracts `Self` from the source `PyObject`.
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
         ob.extract::<Bound<'_, T>>().map(Bound::unbind)
@@ -2038,6 +2041,9 @@ impl<'py, T> FromPyObject<'py> for Bound<'py, T>
 where
     T: PyTypeCheck,
 {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = T::PYTHON_TYPE;
+
     /// Extracts `Self` from the source `PyObject`.
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         ob.cast().cloned().map_err(Into::into)
