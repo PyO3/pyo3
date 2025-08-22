@@ -870,11 +870,11 @@ fn implement_py_formatting(
         &__STR__,
         "__str__",
         #[cfg(feature = "experimental-inspect")]
-        &["__str__"],
-        #[cfg(feature = "experimental-inspect")]
-        Vec::new(),
-        #[cfg(feature = "experimental-inspect")]
-        parse_quote! { ::std::string::String },
+        FunctionIntrospectionData {
+            names: &["__str__"],
+            arguments: Vec::new(),
+            returns: parse_quote! { ::std::string::String },
+        },
         ctx,
     )
     .unwrap();
@@ -1491,15 +1491,19 @@ fn gen_complex_enum_variant_class_ident(enum_: &syn::Ident, variant: &syn::Ident
     format_ident!("{}_{}", enum_, variant)
 }
 
-#[cfg_attr(feature = "experimental-inspect", allow(clippy::too_many_arguments))]
+#[cfg(feature = "experimental-inspect")]
+struct FunctionIntrospectionData<'a> {
+    names: &'a [&'a str],
+    arguments: Vec<FnArg<'a>>,
+    returns: syn::Type,
+}
+
 fn generate_protocol_slot(
     cls: &syn::Type,
     method: &mut syn::ImplItemFn,
     slot: &SlotDef,
     name: &str,
-    #[cfg(feature = "experimental-inspect")] introspection_names: &[&str],
-    #[cfg(feature = "experimental-inspect")] introspection_arguments: Vec<FnArg<'_>>,
-    #[cfg(feature = "experimental-inspect")] introspection_return: syn::Type,
+    #[cfg(feature = "experimental-inspect")] introspection_data: FunctionIntrospectionData<'_>,
     ctx: &Ctx,
 ) -> syn::Result<MethodAndSlotDef> {
     let spec = FnSpec::parse(
@@ -1513,8 +1517,10 @@ fn generate_protocol_slot(
     {
         // We generate introspection data
         let associated_method = def.associated_method;
-        let signature = FunctionSignature::from_arguments(introspection_arguments.clone());
-        let introspection = introspection_names
+        let signature = FunctionSignature::from_arguments(introspection_data.arguments.clone());
+        let returns = introspection_data.returns;
+        let introspection = introspection_data
+            .names
             .iter()
             .map(|name| {
                 function_introspection_code(
@@ -1523,7 +1529,7 @@ fn generate_protocol_slot(
                     name,
                     &signature,
                     Some("self"),
-                    parse_quote!(-> #introspection_return),
+                    parse_quote!(-> #returns),
                     [],
                     Some(cls),
                 )
@@ -2034,26 +2040,26 @@ fn pyclass_richcmp_simple_enum(
             &__RICHCMP__,
             "__richcmp__",
             #[cfg(feature = "experimental-inspect")]
-            &["__eq__", "__ne__"],
-            #[cfg(feature = "experimental-inspect")]
-            vec![FnArg::Regular(RegularArg {
-                name: Cow::Owned(format_ident!("other")),
-                // we need to set a type, let's pick something small, it is overridden by annotation anyway
-                ty: &parse_quote!(!),
-                from_py_with: None,
-                default_value: None,
-                option_wrapped_type: None,
-                annotation: Some(match (options.eq.is_some(), options.eq_int.is_some()) {
-                    (true, true) => {
-                        format!("{class_name} | int")
-                    }
-                    (true, false) => class_name.into(),
-                    (false, true) => "int".into(),
-                    (false, false) => unreachable!(),
-                }),
-            })],
-            #[cfg(feature = "experimental-inspect")]
-            parse_quote! { ::std::primitive::bool },
+            FunctionIntrospectionData {
+                names: &["__eq__", "__ne__"],
+                arguments: vec![FnArg::Regular(RegularArg {
+                    name: Cow::Owned(format_ident!("other")),
+                    // we need to set a type, let's pick something small, it is overridden by annotation anyway
+                    ty: &parse_quote!(!),
+                    from_py_with: None,
+                    default_value: None,
+                    option_wrapped_type: None,
+                    annotation: Some(match (options.eq.is_some(), options.eq_int.is_some()) {
+                        (true, true) => {
+                            format!("{class_name} | int")
+                        }
+                        (true, false) => class_name.into(),
+                        (false, true) => "int".into(),
+                        (false, false) => unreachable!(),
+                    }),
+                })],
+                returns: parse_quote! { ::std::primitive::bool },
+            },
             ctx,
         )?
     } else {
@@ -2098,22 +2104,22 @@ fn pyclass_richcmp(
             &__RICHCMP__,
             "__richcmp__",
             #[cfg(feature = "experimental-inspect")]
-            if options.ord.is_some() {
-                &["__eq__", "__ne__", "__lt__", "__le__", "__gt__", "__ge__"]
-            } else {
-                &["__eq__", "__ne__"]
+            FunctionIntrospectionData {
+                names: if options.ord.is_some() {
+                    &["__eq__", "__ne__", "__lt__", "__le__", "__gt__", "__ge__"]
+                } else {
+                    &["__eq__", "__ne__"]
+                },
+                arguments: vec![FnArg::Regular(RegularArg {
+                    name: Cow::Owned(format_ident!("other")),
+                    ty: &parse_quote!(&#cls),
+                    from_py_with: None,
+                    default_value: None,
+                    option_wrapped_type: None,
+                    annotation: None,
+                })],
+                returns: parse_quote! { ::std::primitive::bool },
             },
-            #[cfg(feature = "experimental-inspect")]
-            vec![FnArg::Regular(RegularArg {
-                name: Cow::Owned(format_ident!("other")),
-                ty: &parse_quote!(&#cls),
-                from_py_with: None,
-                default_value: None,
-                option_wrapped_type: None,
-                annotation: None,
-            })],
-            #[cfg(feature = "experimental-inspect")]
-            parse_quote! { ::std::primitive::bool },
             ctx,
         )?;
         Ok((Some(richcmp_impl), Some(richcmp_slot)))
@@ -2148,11 +2154,11 @@ fn pyclass_hash(
                 &__HASH__,
                 "__hash__",
                 #[cfg(feature = "experimental-inspect")]
-                &["__hash__"],
-                #[cfg(feature = "experimental-inspect")]
-                Vec::new(),
-                #[cfg(feature = "experimental-inspect")]
-                parse_quote! { ::std::primitive::u64 },
+                FunctionIntrospectionData {
+                    names: &["__hash__"],
+                    arguments: Vec::new(),
+                    returns: parse_quote! { ::std::primitive::u64 },
+                },
                 ctx,
             )?;
             Ok((Some(hash_impl), Some(hash_slot)))
