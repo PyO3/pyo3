@@ -19,7 +19,14 @@ std::thread_local! {
     ///
     /// Additionally, we sometimes need to prevent safe access to the Python interpreter,
     /// e.g. when implementing `__traverse__`, which is represented by a negative value.
+    #[cfg(not(all(Py_3_13, not(Py_LIMITED_API))))]
     static ATTACH_COUNT: Cell<isize> = const { Cell::new(0) };
+
+    /// On Python 3.13+ we can use PyThreadState_GetUnchecked to peek the attached thread state,
+    /// however that still returns a thread state during `__traverse__` so we need to defend
+    /// against that.
+    #[cfg(all(Py_3_13, not(Py_LIMITED_API)))]
+    static ATTACH_FORBIDDEN: Cell<bool> = const { Cell::new(false) };
 }
 
 const ATTACH_FORBIDDEN_DURING_TRAVERSE: isize = -1;
@@ -32,7 +39,16 @@ const ATTACH_FORBIDDEN_DURING_TRAVERSE: isize = -1;
 ///     which could lead to incorrect conclusions that the thread is attached.
 #[inline(always)]
 fn thread_is_attached() -> bool {
-    ATTACH_COUNT.try_with(|c| c.get() > 0).unwrap_or(false)
+    #[cfg(not(all(Py_3_13, not(Py_LIMITED_API))))]
+    {
+        ATTACH_COUNT.try_with(|c| c.get() > 0).unwrap_or(false)
+    }
+
+    #[cfg(all(Py_3_13, not(Py_LIMITED_API)))]
+    {
+        let tstate = unsafe { ffi::PyThreadState_GetUnchecked() };
+        (!tstate.is_null()) && !is_in_gc_traversal()
+    }
 }
 
 /// RAII type that represents thread attachment to the interpreter.
@@ -72,6 +88,7 @@ impl AttachGuard {
     /// Variant of the above which will will return `None` if the interpreter cannot be attached to.
     #[cfg(any(not(Py_LIMITED_API), Py_3_11, test))] // see Python::try_attach
     pub(crate) fn try_acquire() -> Option<Self> {
+        #[cfg(not(all(Py_3_13, not(Py_LIMITED_API))))]
         match ATTACH_COUNT.try_with(|c| c.get()) {
             Ok(i) if i > 0 => {
                 // SAFETY: We just checked that the thread is already attached.
@@ -81,6 +98,19 @@ impl AttachGuard {
             Ok(ATTACH_FORBIDDEN_DURING_TRAVERSE) => return None,
             // other cases handled below
             _ => {}
+        }
+
+        // Annoyingly, `PyThreadState_GetUnchecked` can return non-null when in the GC, so
+        // we have to check if we're in GC traversal.
+        if is_in_gc_traversal() {
+            return None;
+        }
+
+        // SAFETY: always safe to check if the tstate pointer is non-null
+        let has_tstate = !(unsafe { ffi::PyThreadState_GetUnchecked().is_null() });
+        if has_tstate {
+            // SAFETY: we already checked that we're not in GC
+            return Some(unsafe { Self::assume() });
         }
 
         // SAFETY: These APIs are always sound to call
@@ -216,21 +246,28 @@ fn get_pool() -> &'static ReferencePool {
 
 /// A guard which can be used to temporarily detach from the interpreter and restore on `Drop`.
 pub(crate) struct SuspendAttach {
+    #[cfg(not(all(Py_3_13, not(Py_LIMITED_API))))]
     count: isize,
     tstate: *mut ffi::PyThreadState,
 }
 
 impl SuspendAttach {
     pub(crate) unsafe fn new() -> Self {
+        #[cfg(not(all(Py_3_13, not(Py_LIMITED_API))))]
         let count = ATTACH_COUNT.with(|c| c.replace(0));
         let tstate = unsafe { ffi::PyEval_SaveThread() };
 
-        Self { count, tstate }
+        Self {
+            #[cfg(not(all(Py_3_13, not(Py_LIMITED_API))))]
+            count,
+            tstate,
+        }
     }
 }
 
 impl Drop for SuspendAttach {
     fn drop(&mut self) {
+        #[cfg(not(all(Py_3_13, not(Py_LIMITED_API))))]
         ATTACH_COUNT.with(|c| c.set(self.count));
         unsafe {
             ffi::PyEval_RestoreThread(self.tstate);
@@ -246,19 +283,32 @@ impl Drop for SuspendAttach {
 
 /// Used to lock safe access to the interpreter
 pub(crate) struct ForbidAttaching {
+    #[cfg(not(all(Py_3_13, not(Py_LIMITED_API))))]
     count: isize,
 }
 
 impl ForbidAttaching {
     /// Lock access to the interpreter while an implementation of `__traverse__` is running
     pub fn during_traverse() -> Self {
-        Self::new(ATTACH_FORBIDDEN_DURING_TRAVERSE)
+        Self::new(
+            #[cfg(not(all(Py_3_13, not(Py_LIMITED_API))))]
+            ATTACH_FORBIDDEN_DURING_TRAVERSE,
+        )
     }
 
-    fn new(reason: isize) -> Self {
-        let count = ATTACH_COUNT.with(|c| c.replace(reason));
+    fn new(#[cfg(not(all(Py_3_13, not(Py_LIMITED_API))))] reason: isize) -> Self {
+        #[cfg(not(all(Py_3_13, not(Py_LIMITED_API))))]
+        {
+            let count = ATTACH_COUNT.with(|c| c.replace(reason));
 
-        Self { count }
+            Self { count }
+        }
+
+        #[cfg(all(Py_3_13, not(Py_LIMITED_API)))]
+        {
+            ATTACH_FORBIDDEN.with(|c| c.set(true));
+            Self {}
+        }
     }
 
     #[cold]
@@ -274,7 +324,15 @@ impl ForbidAttaching {
 
 impl Drop for ForbidAttaching {
     fn drop(&mut self) {
-        ATTACH_COUNT.with(|c| c.set(self.count));
+        #[cfg(not(all(Py_3_13, not(Py_LIMITED_API))))]
+        {
+            ATTACH_COUNT.with(|c| c.set(self.count));
+        }
+
+        #[cfg(all(Py_3_13, not(Py_LIMITED_API)))]
+        {
+            ATTACH_FORBIDDEN.with(|c| c.set(false));
+        }
     }
 }
 
@@ -321,16 +379,26 @@ pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
 
 /// Private helper function to check if we are currently in a GC traversal (as detected by PyO3).
 #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+#[inline(always)]
 pub(crate) fn is_in_gc_traversal() -> bool {
-    ATTACH_COUNT
-        .try_with(|c| c.get() == ATTACH_FORBIDDEN_DURING_TRAVERSE)
-        .unwrap_or(false)
+    #[cfg(not(all(Py_3_13, not(Py_LIMITED_API))))]
+    {
+        ATTACH_COUNT
+            .try_with(|c| c.get() == ATTACH_FORBIDDEN_DURING_TRAVERSE)
+            .unwrap_or(false)
+    }
+
+    #[cfg(all(Py_3_13, not(Py_LIMITED_API)))]
+    {
+        ATTACH_FORBIDDEN.try_with(|c| c.get()).unwrap_or(false)
+    }
 }
 
 /// Increments pyo3's internal attach count - to be called whenever an AttachGuard is created.
 #[inline(always)]
 fn increment_attach_count() {
     // Ignores the error in case this function called from `atexit`.
+    #[cfg(not(all(Py_3_13, not(Py_LIMITED_API))))]
     let _ = ATTACH_COUNT.try_with(|c| {
         let current = c.get();
         if current < 0 {
@@ -338,20 +406,30 @@ fn increment_attach_count() {
         }
         c.set(current + 1);
     });
+
+    #[cfg(all(Py_3_13, not(Py_LIMITED_API)))]
+    {
+        if is_in_gc_traversal() {
+            ForbidAttaching::bail(ATTACH_FORBIDDEN_DURING_TRAVERSE);
+        }
+    }
 }
 
 /// Decrements pyo3's internal attach count - to be called whenever AttachGuard is dropped.
 #[inline(always)]
 fn decrement_attach_count() {
-    // Ignores the error in case this function called from `atexit`.
-    let _ = ATTACH_COUNT.try_with(|c| {
-        let current = c.get();
-        debug_assert!(
-            current > 0,
-            "Negative attach count detected. Please report this error to the PyO3 repo as a bug."
-        );
-        c.set(current - 1);
-    });
+    #[cfg(not(all(Py_3_13, not(Py_LIMITED_API))))]
+    {
+        // Ignores the error in case this function called from `atexit`.
+        let _ = ATTACH_COUNT.try_with(|c| {
+            let current = c.get();
+            debug_assert!(
+                current > 0,
+                "Negative attach count detected. Please report this error to the PyO3 repo as a bug."
+            );
+            c.set(current - 1);
+        });
+    }
 }
 
 #[cfg(test)]
@@ -444,6 +522,7 @@ mod tests {
 
     #[test]
     #[allow(deprecated)]
+    #[cfg(not(all(Py_3_13, not(Py_LIMITED_API))))]
     fn test_attach_counts() {
         // Check `attach` and AttachGuard both increase counts correctly
         let get_attach_count = || ATTACH_COUNT.with(|c| c.get());
