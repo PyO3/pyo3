@@ -2,8 +2,7 @@
 
 use pyo3::prelude::*;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 // Test default generated __repr__.
 #[pyclass(eq, eq_int)]

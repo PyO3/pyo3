@@ -853,6 +853,7 @@ mod tests {
     use super::PyErrState;
     use crate::exceptions::{self, PyTypeError, PyValueError};
     use crate::impl_::pyclass::{value_of, IsSend, IsSync};
+    use crate::test_utils::assert_warnings;
     use crate::{ffi, PyErr, PyTypeInfo, Python};
 
     #[test]
@@ -1052,7 +1053,6 @@ mod tests {
             warnings.call_method0("resetwarnings").unwrap();
 
             // First, test the warning is emitted
-            #[cfg(not(Py_GIL_DISABLED))]
             assert_warnings!(
                 py,
                 { PyErr::warn(py, &cls, ffi::c_str!("I am warning you"), 0).unwrap() },
@@ -1072,7 +1072,6 @@ mod tests {
                 .unwrap();
 
             // This has the wrong module and will not raise, just be emitted
-            #[cfg(not(Py_GIL_DISABLED))]
             assert_warnings!(
                 py,
                 { PyErr::warn(py, &cls, ffi::c_str!("I am warning you"), 0).unwrap() },

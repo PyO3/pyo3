@@ -3,8 +3,7 @@
 use pyo3::prelude::*;
 use pyo3::py_run;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct Foo {
@@ -154,8 +153,8 @@ fn recursive_class_attributes() {
 #[test]
 #[cfg(all(Py_3_8, not(Py_GIL_DISABLED)))] // sys.unraisablehook not available until Python 3.8
 fn test_fallible_class_attribute() {
-    use common::UnraisableCapture;
     use pyo3::exceptions::PyValueError;
+    use test_utils::UnraisableCapture;
 
     #[pyclass]
     struct BrokenClass;

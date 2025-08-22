@@ -7,7 +7,6 @@ use std::collections::HashMap;
 use pyo3::buffer::PyBuffer;
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::exceptions::PyWarning;
-#[cfg(not(Py_GIL_DISABLED))]
 use pyo3::exceptions::{PyFutureWarning, PyUserWarning};
 use pyo3::ffi::c_str;
 use pyo3::prelude::*;
@@ -18,8 +17,7 @@ use pyo3::types::PyFunction;
 use pyo3::types::{self, PyCFunction};
 use pyo3_macros::pyclass;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyfunction(name = "struct")]
 fn struct_function() {}
@@ -669,7 +667,6 @@ impl UserDefinedWarning {
 }
 
 #[test]
-#[cfg(not(Py_GIL_DISABLED))] // FIXME: enable once `warnings` is thread-safe
 fn test_pyfunction_warn() {
     #[pyfunction]
     #[pyo3(warn(message = "this function raises warning"))]
@@ -724,7 +721,6 @@ fn test_pyfunction_warn() {
 }
 
 #[test]
-#[cfg(not(Py_GIL_DISABLED))] // FIXME: enable once `warnings` is thread-safe
 fn test_pyfunction_multiple_warnings() {
     #[pyfunction]
     #[pyo3(warn(message = "this function raises warning"))]

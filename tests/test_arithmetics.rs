@@ -4,8 +4,7 @@ use pyo3::class::basic::CompareOp;
 use pyo3::py_run;
 use pyo3::{prelude::*, BoundObject};
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct UnaryArithmetic {

@@ -6,8 +6,7 @@ use pyo3::types::PyTuple;
 
 use std::fmt;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct MutRefArg {

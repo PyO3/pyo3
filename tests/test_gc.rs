@@ -13,8 +13,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Once;
 use std::sync::{Arc, Mutex};
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass(freelist = 2)]
 struct ClassWithFreelist {}

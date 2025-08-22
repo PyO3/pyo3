@@ -4,8 +4,7 @@ use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 
 #[macro_use]
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 /// The MacroDocs class.

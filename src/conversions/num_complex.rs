@@ -196,7 +196,7 @@ complex_conversion!(f64);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::common::generate_unique_module_name;
+    use crate::test_utils::generate_unique_module_name;
     use crate::types::PyAnyMethods as _;
     use crate::types::{complex::PyComplexMethods, PyModule};
     use crate::IntoPyObject;

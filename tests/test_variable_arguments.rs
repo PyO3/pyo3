@@ -3,8 +3,7 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct MyClass {}
