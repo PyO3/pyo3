@@ -60,8 +60,8 @@ impl Coroutine {
     {
         let wrap = async move {
             let obj = future.await.map_err(Into::into)?;
-            // SAFETY: GIL is acquired when future is polled (see `Coroutine::poll`)
-            obj.into_py_any(unsafe { Python::assume_gil_acquired() })
+            // SAFETY: attached when future is polled (see `Coroutine::poll`)
+            obj.into_py_any(unsafe { Python::assume_attached() })
         };
         Self {
             name: name.map(Bound::unbind),
