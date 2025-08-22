@@ -393,6 +393,10 @@ impl Python<'_> {
     /// - If the [`auto-initialize`] feature is not enabled and the Python interpreter is not
     ///   initialized.
     /// - If the Python interpreter is in the process of [shutting down].
+    /// - If the middle of GC traversal.
+    ///
+    /// To avoid possible initialization or panics if calling in a context where the Python
+    /// interpreter might be unavailable, consider using [`Python::try_attach`].
     ///
     /// # Examples
     ///
@@ -417,24 +421,29 @@ impl Python<'_> {
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        let guard = AttachGuard::acquire();
+        let guard = AttachGuard::attach();
         f(guard.python())
     }
 
-    /// Variant of [`Python::attach`] which will do no work if the interpreter is in a
-    /// state where it cannot be attached to:
+    /// Variant of [`Python::attach`] which will return without attaching to the Python
+    /// interpreter if the interpreter is in a state where it cannot be attached to:
     /// - in the middle of GC traversal
     /// - in the process of shutting down
     /// - not initialized
+    ///
+    /// Note that due to the nature of the underlying Python APIs used to implement this,
+    /// the behavior is currently provided on a best-effort basis; it is expected that a
+    /// future CPython version will introduce APIs which guarantee this behaviour. This
+    /// function is still recommended for use in the meanwhile as it provides the best
+    /// possible behaviour and should transparently change to an optimal implementation
+    /// once such APIs are available.
     #[inline]
     #[track_caller]
-    #[cfg(any(not(Py_LIMITED_API), Py_3_11, test))] // only used in buffer.rs for now, allow in test cfg for simplicity
-                                                    // TODO: make this API public?
-    pub(crate) fn try_attach<F, R>(f: F) -> Option<R>
+    pub fn try_attach<F, R>(f: F) -> Option<R>
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        let guard = AttachGuard::try_acquire()?;
+        let guard = AttachGuard::try_attach().ok()?;
         Some(f(guard.python()))
     }
 
@@ -494,7 +503,7 @@ impl Python<'_> {
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        let guard = unsafe { AttachGuard::acquire_unchecked() };
+        let guard = unsafe { AttachGuard::attach_unchecked() };
 
         f(guard.python())
     }
