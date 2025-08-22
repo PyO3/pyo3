@@ -564,13 +564,22 @@ unsafe extern "C" fn no_constructor_defined(
     _args: *mut ffi::PyObject,
     _kwds: *mut ffi::PyObject,
 ) -> *mut ffi::PyObject {
-    // SAFETY: this matches the CPython implementation
     unsafe {
-        ffi::PyErr_Format(
-            ffi::PyExc_TypeError,
-            ffi::c_str!("cannot create '%s' instances").as_ptr(),
-            (*subtype).tp_name,
-        );
+        trampoline(|py| {
+            let tpobj = PyType::from_borrowed_type_ptr(py, subtype);
+            #[cfg(not(PyPy))]
+            {
+                // unlike `fully_qualified_name`, this always include the module
+                let module = tpobj
+                    .module()
+                    .map_or_else(|_| "<unknown>".into(), |s| s.to_string());
+                let qualname = tpobj.qualname();
+                let qualname = qualname.map_or_else(|_| "<unknown>".into(), |s| s.to_string());
+                Err(crate::exceptions::PyTypeError::new_err(format!(
+                    "cannot create '{module}.{qualname}' instances"
+                )))
+            }
+        })
     }
     ptr::null_mut()
 }
