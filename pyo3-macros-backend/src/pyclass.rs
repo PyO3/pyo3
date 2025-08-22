@@ -1517,7 +1517,7 @@ fn generate_protocol_slot(
     {
         // We generate introspection data
         let associated_method = def.associated_method;
-        let signature = FunctionSignature::from_arguments(introspection_data.arguments.clone());
+        let signature = FunctionSignature::from_arguments(introspection_data.arguments);
         let returns = introspection_data.returns;
         let introspection = introspection_data
             .names
