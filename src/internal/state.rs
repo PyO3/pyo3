@@ -140,7 +140,7 @@ impl AttachGuard {
         let gstate = unsafe { ffi::PyGILState_Ensure() };
         increment_attach_count();
         // SAFETY: just attached to the interpreter
-        drop_deferred_references(unsafe { Python::assume_gil_acquired() });
+        drop_deferred_references(unsafe { Python::assume_attached() });
         AttachGuard::Ensured { gstate }
     }
 
@@ -149,7 +149,7 @@ impl AttachGuard {
     pub(crate) unsafe fn assume() -> Self {
         increment_attach_count();
         // SAFETY: invariant of calling this function
-        drop_deferred_references(unsafe { Python::assume_gil_acquired() });
+        drop_deferred_references(unsafe { Python::assume_attached() });
         AttachGuard::Assumed
     }
 
@@ -157,7 +157,7 @@ impl AttachGuard {
     #[inline]
     pub(crate) fn python(&self) -> Python<'_> {
         // SAFETY: this guard guarantees the thread is attached
-        unsafe { Python::assume_gil_acquired() }
+        unsafe { Python::assume_attached() }
     }
 }
 
@@ -258,7 +258,7 @@ impl Drop for SuspendAttach {
             // Update counts of `Py<T>` that were dropped while not attached.
             #[cfg(not(pyo3_disable_reference_pool))]
             if let Some(pool) = POOL.get() {
-                pool.drop_deferred_references(Python::assume_gil_acquired());
+                pool.drop_deferred_references(Python::assume_attached());
             }
         }
     }

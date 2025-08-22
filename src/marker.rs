@@ -808,24 +808,33 @@ impl<'py> Python<'py> {
 }
 
 impl<'unbound> Python<'unbound> {
+    /// Deprecated version of [`Python::assume_attached`]
+    ///
+    /// # Safety
+    /// See [`Python::assume_attached`]
+    #[inline]
+    #[deprecated(since = "0.26.0", note = "use `Python::assume_attached` instead")]
+    pub unsafe fn assume_gil_acquired() -> Python<'unbound> {
+        unsafe { Self::assume_attached() }
+    }
     /// Unsafely creates a Python token with an unbounded lifetime.
     ///
-    /// Many of PyO3 APIs use `Python<'_>` as proof that the GIL is held, but this function can be
-    /// used to call them unsafely.
+    /// Many of PyO3 APIs use [`Python<'_>`] as proof that the calling thread is attached to the
+    /// interpreter, but this function can be used to call them unsafely.
     ///
     /// # Safety
     ///
     /// - This token and any borrowed Python references derived from it can only be safely used
-    ///   whilst the currently executing thread is actually holding the GIL.
+    ///   whilst the currently executing thread is actually attached to the interpreter.
     /// - This function creates a token with an *unbounded* lifetime. Safe code can assume that
-    ///   holding a `Python<'py>` token means the GIL is and stays acquired for the lifetime `'py`.
-    ///   If you let it or borrowed Python references escape to safe code you are
+    ///   holding a [`Python<'py>`] token means the thread is attached and stays attached for the
+    ///   lifetime `'py`. If you let it or borrowed Python references escape to safe code you are
     ///   responsible for bounding the lifetime `'unbound` appropriately. For more on unbounded
     ///   lifetimes, see the [nomicon].
     ///
     /// [nomicon]: https://doc.rust-lang.org/nomicon/unbounded-lifetimes.html
     #[inline]
-    pub unsafe fn assume_gil_acquired() -> Python<'unbound> {
+    pub unsafe fn assume_attached() -> Python<'unbound> {
         Python(PhantomData, PhantomData)
     }
 }
@@ -906,7 +915,7 @@ mod tests {
     fn test_detach_panics_safely() {
         Python::attach(|py| {
             let result = std::panic::catch_unwind(|| unsafe {
-                let py = Python::assume_gil_acquired();
+                let py = Python::assume_attached();
                 py.detach(|| {
                     panic!("There was a panic!");
                 });
