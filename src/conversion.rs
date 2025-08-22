@@ -187,6 +187,9 @@ where
     type Output = <&'a T as IntoPyObject<'py>>::Output;
     type Error = <&'a T as IntoPyObject<'py>>::Error;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = <&'a T as IntoPyObject<'py>>::OUTPUT_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
