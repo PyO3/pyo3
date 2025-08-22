@@ -586,15 +586,16 @@ where
 /// Only available on Python 3.14 and newer.
 #[cfg(Py_3_14)]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
-pub fn with_critical_section_mutex<F, R, T>(mutex: &mut PyMutex<T>, f: F) -> R
+pub fn with_critical_section_mutex<F, R, T>(mutex: &PyMutex<T>, f: F) -> R
 where
-    F: FnOnce(&mut T) -> R,
+    F: FnOnce(&UnsafeCell<T>) -> R,
 {
     #[cfg(Py_GIL_DISABLED)]
     {
         let mut guard = CSGuard(unsafe { std::mem::zeroed() });
         unsafe { crate::ffi::PyCriticalSection_BeginMutex(&mut guard.0, &mut *mutex.mutex.get()) };
-        f(mutex.data.get_mut())
+        let cell = unsafe { &*(mutex.data.get() as *mut T as *const UnsafeCell<T>) };
+        f(&cell)
     }
     #[cfg(not(Py_GIL_DISABLED))]
     {
@@ -632,7 +633,7 @@ pub fn with_critical_section_mutex2<F, R, T1, T2>(
     f: F,
 ) -> R
 where
-    F: FnOnce(&mut T1, &mut T2) -> R,
+    F: FnOnce(&UnsafeCell<T1>, &UnsafeCell<T2>) -> R,
 {
     #[cfg(Py_GIL_DISABLED)]
     {
@@ -644,7 +645,9 @@ where
                 &mut *m2.mutex.get(),
             )
         };
-        f(m1.data.get_mut(), m2.data.get_mut())
+        let cell1 = unsafe { &*(m1.mutex.get() as *mut T1 as *const UnsafeCell<T1>) };
+        let cell2 = unsafe { &*(m2.mutex.get() as *mut T2 as *const UnsafeCell<T2>) };
+        f(&cell1, &cell2)
     }
     #[cfg(not(Py_GIL_DISABLED))]
     {
@@ -1263,14 +1266,14 @@ mod tests {
                 with_critical_section_mutex(&mut bool_wrapper, |b| {
                     barrier.wait();
                     std::thread::sleep(std::time::Duration::from_millis(10));
-                    b.0.store(true, Ordering::Release);
+                    unsafe { (*b.get()).0.store(true, Ordering::Release) };
                 });
             });
             s.spawn(|| {
                 barrier.wait();
                 // this blocks until the other thread's critical section finishes
                 with_critical_section_mutex(&mut bool_wrapper, |b| {
-                    assert!(b.0.load(Ordering::Acquire));
+                    assert!(b.get_mut().0.load(Ordering::Acquire));
                 });
             });
         });
