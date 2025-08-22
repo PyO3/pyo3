@@ -50,6 +50,7 @@ pub(crate) enum AttachError {
     ForbiddenDuringTraverse,
     /// The interpreter is not initialized.
     NotInitialized,
+    #[cfg(Py_3_13)]
     /// The interpreter is finalizing.
     Finalizing,
 }
@@ -71,6 +72,7 @@ impl AttachGuard {
                 crate::interpreter_lifecycle::ensure_initialized();
                 unsafe { Self::do_attach_unchecked() }
             }
+            #[cfg(Py_3_13)]
             Err(AttachError::Finalizing) => {
                 panic!("Cannot attach to the Python interpreter while it is finalizing.");
             }
