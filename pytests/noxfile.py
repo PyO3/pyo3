@@ -65,12 +65,21 @@ def check_guide(session: nox.Session):
         "--remap", "file://target/guide/=https://pyo3.rs/",
         "--remap", "file://target/guide/cn/=https://pyo3.rs/cn/",
         "--accept=200,429",
-        "--exclude-path", "target/guide/doc/",  
+        "--exclude-path", "target/guide/doc/",
         external=True
     )
 
+
 @nox.session
-def build_netlify_site(session: nox.Session):
+def ruff(session: nox.Session):
+    """Check code formatting and linting with ruff"""
+    session.install("ruff")
+    
+    # Run ruff format check
+    session.run("ruff", "format", ".", "--check")
+    
+    # Run ruff linting
+    session.run("ruff", "check", ".")
     """Build the complete Netlify site"""
     session.install("requests", "towncrier")
     
