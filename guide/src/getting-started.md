@@ -120,6 +120,9 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { {{#PYO3_CRATE_VERSION}}, features = ["extension-module"] }
+
+[build-dependencies]
+pyo3-build-config = { {{#PYO3_CRATE_VERSION} }
 ```
 
 ## pyproject.toml
@@ -139,6 +142,17 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
+```
+
+## build.rs
+
+Finally, in order to make `cargo test` work correctly, you should create
+a `build.rs` file with the following contents:
+
+```
+fn main() {
+    pyo3_build_config::add_python_link_args();
+}
 ```
 
 ## Running code
