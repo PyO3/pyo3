@@ -410,7 +410,8 @@ pub use inventory; // Re-exported for `#[pyclass]` and `#[pymethods]` with `mult
 /// Tests and helpers which reside inside PyO3's main library. Declared first so that macros
 /// are available in unit tests.
 #[cfg(test)]
-#[macro_use]
+mod test_utils;
+#[cfg(test)]
 mod tests;
 
 // Macro dependencies, also contains macros exported for use across the codebase and

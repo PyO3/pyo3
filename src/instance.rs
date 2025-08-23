@@ -2171,7 +2171,7 @@ impl Py<PyAny> {
 #[cfg(test)]
 mod tests {
     use super::{Bound, IntoPyObject, Py};
-    use crate::tests::common::generate_unique_module_name;
+    use crate::test_utils::generate_unique_module_name;
     use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
     use crate::{ffi, Borrowed, PyAny, PyResult, Python};
     use pyo3_ffi::c_str;

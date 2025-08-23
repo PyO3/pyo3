@@ -4,8 +4,7 @@ use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::PyString;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass(eq, eq_int)]
 #[derive(Debug, PartialEq, Eq, Clone)]

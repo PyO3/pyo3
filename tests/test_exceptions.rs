@@ -7,8 +7,7 @@ use std::fmt;
 #[cfg(not(target_os = "windows"))]
 use std::fs::File;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyfunction]
 #[cfg(not(target_os = "windows"))]
@@ -101,9 +100,9 @@ fn test_exception_nosegfault() {
 #[test]
 #[cfg(all(Py_3_8, not(Py_GIL_DISABLED)))]
 fn test_write_unraisable() {
-    use common::UnraisableCapture;
     use pyo3::{exceptions::PyRuntimeError, ffi, types::PyNotImplemented};
     use std::ptr;
+    use test_utils::UnraisableCapture;
 
     Python::attach(|py| {
         let capture = UnraisableCapture::install(py);

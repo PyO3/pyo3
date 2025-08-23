@@ -5,8 +5,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
 use std::collections::HashMap;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 /// Assumes it's a file reader or so.
 /// Inspired by https://github.com/jothan/cordoba, thanks.
