@@ -65,7 +65,7 @@ def check_guide(session: nox.Session):
         "--remap", "file://target/guide/=https://pyo3.rs/",
         "--remap", "file://target/guide/cn/=https://pyo3.rs/cn/",
         "--accept=200,429",
-        "--exclude-path", "target/guide/doc/",  # Exclude if this path causes issues
+        "--exclude-path", "target/guide/doc/",  
         external=True
     )
 
