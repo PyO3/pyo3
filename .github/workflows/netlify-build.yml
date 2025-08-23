@@ -47,14 +47,22 @@ jobs:
           TAG_NAME="${GITHUB_REF##*/}"
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
 
-      # This builds the book in target/guide/.
+      # 总是先构建文档
       - name: Build the guide
         run: |
           python -m pip install --upgrade pip && pip install nox
-          nox -s ${{ github.event_name == 'release' && 'build-guide' || 'check-guide' }}
+          nox -s build-guide
         env:
           PYO3_VERSION_TAG: ${{ steps.prepare_tag.outputs.tag_name }}
-          # allows lychee to get better rate limits from github
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 只有在非 release 事件时才检查链接
+      - name: Check guide links
+        if: ${{ github.event_name != 'release' }}
+        run: |
+          nox -s check-guide
+        env:
+          PYO3_VERSION_TAG: ${{ steps.prepare_tag.outputs.tag_name }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # We store the versioned guides on GitHub's gh-pages branch for convenience
