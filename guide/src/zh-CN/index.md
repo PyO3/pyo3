@@ -26,7 +26,7 @@ PyO3 是 [Rust](https://www.rust-lang.org/) 与 [Python](https://www.python.org/
 
 - 用户指南：[stable](https://pyo3.rs) | [main](https://pyo3.rs/main)
 
-- API 文档：[stable](https://docs.rs/pyo3/) | [main](https://pyo3.rs/main/doc)
+- API 文档：[stable](https://docs.rs/pyo3/) | [main](https://pyo3.rs/main/doc/pyo3/)
 
 ## 使用
 
@@ -248,9 +248,12 @@ fn main() -> PyResult<()> {
 
 ## 文章和其他媒体
 
-- [(视频) PyO3：从 Python 到 Rust 再返回]( https://www.youtube.com/watch?v=UmL_CA-v3O8 ) - 2024 年 7 月 3 日
+- [(视频) 对比在 Free-Threaded 与常规 Python 3.13 中使用 Rust](https://www.youtube.com/watch?v=J7phN_M4GLM) - 2025 年 6 月 4 日
+- [(视频) 在 Python 中探索 Rust 五年所学的技巧](https://www.youtube.com/watch?v=KTQn_PTHNCw) - 2025 年 2 月 26 日
+- [(播客) 连接 Python 与 Rust：对 PyO3 维护者 David Hewitt 的访谈](https://www.youtube.com/watch?v=P47JUMSQagU) - 2024 年 8 月 30 日
+- [(视频) 从 Python 到 Rust，再回到 Python](https://www.youtube.com/watch?v=UmL_CA-v3O8) - 2024 年 7 月 3 日
 - [使用 Rust 将 Python AST 解析速度提高 20 倍](https://www.gauge.sh/blog/parsing-python-asts-20x-faster-with-rust) - 2024 年 6 月 17 日
-- [(视频) Python 如何通过 PyO3 利用 Rust](https://www.youtube.com/watch?v=UkZ_m3Wj2hA) - 2024 年 5 月 18 日
+- [(视频) Python 如何通过 PyO3 利用 Rust](https://www.youtube.com/watch?v=UilujdubqVU) - 2024 年 5 月 18 日
 - [(视频) 将 Rust 和 Python 结合：两全其美？](https://www.youtube.com/watch?v=lyG6AKzu4ew) - 2024 年 3 月 1 日
 - [(视频) 使用 PyO3 扩展 Python 与 Rust](https://www.youtube.com/watch?v=T45ZEmSR1-s) - 2023 年 12 月 16 日
 - [PyO3 + rust-numpy 的一周（如何将数据管道速度提高 X 倍）](https://terencezl.github.io/blog/2023/06/06/a-week-of-pyo3-rust-numpy/) - 2023 年 6 月 6 日
@@ -262,7 +265,7 @@ fn main() -> PyResult<()> {
 - [使用 PyO3 从 Python 调用 Rust](https://saidvandeklundert.net/learn/2021-11-18-calling-rust-from-python-using-pyo3/) - 2021 年 11 月 18 日
 - [davidhewitt 在 2021 年 Rust Manchester 聚会的演讲](https://www.youtube.com/watch?v=-XyWG_klSAw&t=320s) - 2021 年 8 月 19 日
 - [逐步将小型 Python 项目移植到 Rust](https://blog.waleedkhan.name/port-python-to-rust/) - 2021 年 4 月 29 日
-- [Vortexa - 将 Rust 集成到 Python](https://www.vortexa.com/insight/integrating-rust-into-python) - 2021 年 4 月 12 日
+- [Vortexa - 将 Rust 集成到 Python](https://www.vortexa.com/blog/integrating-rust-into-python) - 2021 年 4 月 12 日
 - [编写并发布 Rust 中的 Python 模块](https://blog.yossarian.net/2020/08/02/Writing-and-publishing-a-python-module-in-rust) - 2020 年 8 月 2 日
 
 ## 贡献
