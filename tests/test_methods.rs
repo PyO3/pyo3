@@ -10,6 +10,8 @@ use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
 use pyo3::BoundObject;
 use pyo3_macros::pyclass;
 
+use crate::test_utils::CatchWarnings;
+
 mod test_utils;
 
 #[pyclass]
@@ -1288,7 +1290,7 @@ fn test_pymethods_warn() {
 
     Python::attach(|py| {
         let typeobj = py.get_type::<WarningMethodContainer>();
-        let obj = typeobj.call0().unwrap();
+        let obj = CatchWarnings::enter(py, |_| typeobj.call0()).unwrap();
 
         // FnType::Fn
         py_expect_warning!(
