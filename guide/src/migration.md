@@ -16,6 +16,53 @@ For this reason we chose to rename these to more modern terminology introduced i
 - `pyo3::prepare_freethreaded_python` is now called `Python::initialize`.
 </details>
 
+### Deprecation of `PyObject` type alias
+<details open>
+<summary><small>Click to expand</small></summary>
+
+The type alias `PyObject` (aka `Py<PyAny>`) is often confused with the identically named FFI definition `pyo3::ffi::PyObject`. For this reason we are deprecating its usage. To migrate simply replace its usage by the target type `Py<PyAny>`.
+</details>
+
+### Replacement of `GILOnceCell` with `PyOnceLock`
+<details open>
+<summary><small>Click to expand</small></summary>
+
+Similar to the above renaming of `Python::with_gil` and related APIs, the `GILOnceCell` type was designed for a Python interpreter which was limited by the GIL. Aside from its name, it allowed for the "once" initialization to race because the racing was mediated by the GIL and was extremely unlikely to manifest in practice.
+
+With the introduction of free-threaded Python the racy initialization behavior is more likely to be problematic and so a new type `PyOnceLock` has been introduced which performs true single-initialization correctly while attached to the Python interpreter. It exposes the same API as `GILOnceCell`, so should be a drop-in replacement with the notable exception that if the racy initialization of `GILOnceCell` was inadvertently relied on (e.g. due to circular references) then the stronger once-ever guarantee of `PyOnceLock` may lead to deadlocking which requires refactoring.
+
+Before:
+
+```rust
+# #![allow(deprecated)]
+# use pyo3::prelude::*;
+# use pyo3::sync::GILOnceCell;
+# use pyo3::types::PyType;
+# fn main() -> PyResult<()> {
+# Python::attach(|py| {
+static DECIMAL_TYPE: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+DECIMAL_TYPE.import(py, "decimal", "Decimal")?;
+# Ok(())
+# })
+# }
+```
+
+After:
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::sync::PyOnceLock;
+# use pyo3::types::PyType;
+# fn main() -> PyResult<()> {
+# Python::attach(|py| {
+static DECIMAL_TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+DECIMAL_TYPE.import(py, "decimal", "Decimal")?;
+# Ok(())
+# })
+# }
+```
+</details>
+
 ### Deprecation of `GILProtected`
 <details open>
 <summary><small>Click to expand</small></summary>
@@ -56,7 +103,7 @@ Python::attach(|py| {
 # })
 # }
 ```
-</summary>
+</details>
 
 ### `PyMemoryError` now maps to `io::ErrorKind::OutOfMemory` when converted to `io::Error`
 <details>
@@ -186,6 +233,7 @@ impl ToPyObject for MyPyObjectWrapper {
 
 After:
 ```rust,no_run
+# #![allow(deprecated)]
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
 # struct MyPyObjectWrapper(PyObject);
@@ -1930,7 +1978,7 @@ There can be two fixes:
 
    #[pyclass]
    struct Unsendable {
-       pointers: Vec<*mut std::os::raw::c_char>,
+       pointers: Vec<*mut std::ffi::c_char>,
    }
    ```
 
@@ -1941,7 +1989,7 @@ There can be two fixes:
 
    #[pyclass(unsendable)]
    struct Unsendable {
-       pointers: Vec<*mut std::os::raw::c_char>,
+       pointers: Vec<*mut std::ffi::c_char>,
    }
    ```
 </details>

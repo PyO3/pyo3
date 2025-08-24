@@ -1,7 +1,7 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use libc::size_t;
-use std::os::raw::{c_char, c_double, c_int, c_long, c_longlong, c_ulong, c_ulonglong, c_void};
+use std::ffi::{c_char, c_double, c_int, c_long, c_longlong, c_ulong, c_ulonglong, c_void};
 use std::ptr::addr_of_mut;
 
 opaque_struct!(pub PyLongObject);

@@ -3,8 +3,7 @@
 use pyo3::prelude::*;
 
 #[macro_use]
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 #[derive(Clone, Debug, PartialEq)]

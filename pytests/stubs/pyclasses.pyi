@@ -1,3 +1,4 @@
+import _typeshed
 import typing
 
 class AssertingBaseClass:
@@ -17,6 +18,9 @@ class ClassWithDecorators:
     @staticmethod
     def static_method() -> int: ...
 
+class ClassWithDict:
+    def __new__(cls, /) -> None: ...
+
 class ClassWithoutConstructor: ...
 
 class EmptyClass:
@@ -31,3 +35,7 @@ class PyClassIter:
 class PyClassThreadIter:
     def __new__(cls, /) -> None: ...
     def __next__(self, /) -> int: ...
+
+def map_a_class(
+    cls: EmptyClass | tuple[EmptyClass, EmptyClass] | _typeshed.Incomplete,
+) -> typing.Any: ...

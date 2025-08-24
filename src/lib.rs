@@ -343,7 +343,9 @@
 pub use crate::class::*;
 pub use crate::conversion::{FromPyObject, IntoPyObject, IntoPyObjectExt};
 pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
-pub use crate::instance::{Borrowed, Bound, BoundObject, Py, PyObject};
+#[allow(deprecated)]
+pub use crate::instance::PyObject;
+pub use crate::instance::{Borrowed, Bound, BoundObject, Py};
 #[cfg(not(any(PyPy, GraalPy)))]
 #[allow(deprecated)]
 pub use crate::interpreter_lifecycle::{
@@ -408,7 +410,8 @@ pub use inventory; // Re-exported for `#[pyclass]` and `#[pymethods]` with `mult
 /// Tests and helpers which reside inside PyO3's main library. Declared first so that macros
 /// are available in unit tests.
 #[cfg(test)]
-#[macro_use]
+mod test_utils;
+#[cfg(test)]
 mod tests;
 
 // Macro dependencies, also contains macros exported for use across the codebase and

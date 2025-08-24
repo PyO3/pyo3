@@ -317,7 +317,7 @@ fn int_n_bits(long: &Bound<'_, PyInt>) -> PyResult<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::common::generate_unique_module_name;
+    use crate::test_utils::generate_unique_module_name;
     use crate::types::{PyAnyMethods as _, PyDict, PyModule};
     use indoc::indoc;
     use pyo3_ffi::c_str;

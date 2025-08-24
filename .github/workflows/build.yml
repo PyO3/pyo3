@@ -133,7 +133,6 @@ jobs:
       - name: Test python examples and tests
         shell: bash
         run: nox -s test-py
-        continue-on-error: ${{ endsWith(inputs.python-version, '-dev') }}
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
 

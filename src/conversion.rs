@@ -187,6 +187,9 @@ where
     type Output = <&'a T as IntoPyObject<'py>>::Output;
     type Error = <&'a T as IntoPyObject<'py>>::Error;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = <&'a T as IntoPyObject<'py>>::OUTPUT_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
@@ -407,6 +410,9 @@ impl<T> FromPyObject<'_> for T
 where
     T: PyClass + Clone,
 {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = <T as crate::impl_::pyclass::PyClassImpl>::TYPE_NAME;
+
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         let bound = obj.cast::<Self>()?;
         Ok(bound.try_borrow()?.clone())
@@ -417,6 +423,9 @@ impl<'py, T> FromPyObject<'py> for PyRef<'py, T>
 where
     T: PyClass,
 {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = <T as crate::impl_::pyclass::PyClassImpl>::TYPE_NAME;
+
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         obj.cast::<T>()?.try_borrow().map_err(Into::into)
     }
@@ -426,6 +435,9 @@ impl<'py, T> FromPyObject<'py> for PyRefMut<'py, T>
 where
     T: PyClass<Frozen = False>,
 {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = <T as crate::impl_::pyclass::PyClassImpl>::TYPE_NAME;
+
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         obj.cast::<T>()?.try_borrow_mut().map_err(Into::into)
     }

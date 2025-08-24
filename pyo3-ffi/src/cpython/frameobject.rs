@@ -6,8 +6,8 @@ use crate::object::*;
 use crate::pystate::PyThreadState;
 use crate::PyFrameObject;
 #[cfg(not(any(PyPy, GraalPy, Py_3_11)))]
-use std::os::raw::c_char;
-use std::os::raw::c_int;
+use std::ffi::c_char;
+use std::ffi::c_int;
 
 #[cfg(not(any(PyPy, GraalPy, Py_3_11)))]
 pub type PyFrameState = c_char;

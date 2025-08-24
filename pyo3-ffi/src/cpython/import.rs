@@ -1,7 +1,7 @@
 use crate::{PyInterpreterState, PyObject};
 #[cfg(not(PyPy))]
-use std::os::raw::c_uchar;
-use std::os::raw::{c_char, c_int};
+use std::ffi::c_uchar;
+use std::ffi::{c_char, c_int};
 
 // skipped PyInit__imp
 

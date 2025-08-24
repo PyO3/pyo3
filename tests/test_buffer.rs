@@ -9,8 +9,7 @@ use std::{
 };
 
 #[macro_use]
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 enum TestGetBufferError {
     NullShape,

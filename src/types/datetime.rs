@@ -21,12 +21,12 @@ use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNo
 use crate::types::{any::PyAnyMethods, PyString, PyType};
 #[cfg(not(Py_LIMITED_API))]
 use crate::{ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, types::PyTuple, BoundObject};
-use crate::{sync::GILOnceCell, Py};
+use crate::{sync::PyOnceLock, Py};
 #[cfg(Py_LIMITED_API)]
 use crate::{types::IntoPyDict, PyTypeCheck};
 use crate::{Borrowed, Bound, IntoPyObject, PyAny, PyErr, Python};
 #[cfg(not(Py_LIMITED_API))]
-use std::os::raw::c_int;
+use std::ffi::c_int;
 
 #[cfg(not(Py_LIMITED_API))]
 fn ensure_datetime_api(py: Python<'_>) -> PyResult<&'static PyDateTime_CAPI> {
@@ -63,7 +63,7 @@ impl DatetimeTypes {
     }
 
     fn try_get(py: Python<'_>) -> PyResult<&Self> {
-        static TYPES: GILOnceCell<DatetimeTypes> = GILOnceCell::new();
+        static TYPES: PyOnceLock<DatetimeTypes> = PyOnceLock::new();
         TYPES.get_or_try_init(py, || {
             let datetime = py.import("datetime")?;
             Ok::<_, PyErr>(Self {
@@ -100,7 +100,7 @@ macro_rules! ffi_fun_with_autoinit {
             /// Must only be called while the GIL is held
             unsafe fn $name($arg: *mut crate::ffi::PyObject) -> $ret {
 
-                let _ = ensure_datetime_api(unsafe { Python::assume_gil_acquired() });
+                let _ = ensure_datetime_api(unsafe { Python::assume_attached() });
                 unsafe { crate::ffi::$name($arg) }
             }
         )*
@@ -801,7 +801,7 @@ impl PyTzInfo {
 
         #[cfg(Py_LIMITED_API)]
         {
-            static UTC: GILOnceCell<Py<PyTzInfo>> = GILOnceCell::new();
+            static UTC: PyOnceLock<Py<PyTzInfo>> = PyOnceLock::new();
             UTC.get_or_try_init(py, || {
                 Ok(DatetimeTypes::get(py)
                     .timezone
@@ -819,7 +819,7 @@ impl PyTzInfo {
     where
         T: IntoPyObject<'py, Target = PyString>,
     {
-        static ZONE_INFO: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+        static ZONE_INFO: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 
         let zoneinfo = ZONE_INFO.import(py, "zoneinfo", "ZoneInfo");
 

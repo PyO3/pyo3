@@ -1,6 +1,6 @@
 use core::{mem, ptr};
 use pyo3_ffi::*;
-use std::os::raw::{c_int, c_void};
+use std::ffi::{c_int, c_void};
 
 pub static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_base: PyModuleDef_HEAD_INIT,

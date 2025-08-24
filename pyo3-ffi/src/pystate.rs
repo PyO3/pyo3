@@ -1,12 +1,12 @@
 use crate::moduleobject::PyModuleDef;
 use crate::object::PyObject;
-use std::os::raw::c_int;
+use std::ffi::c_int;
 
 #[cfg(all(Py_3_10, not(PyPy), not(Py_LIMITED_API)))]
 use crate::PyFrameObject;
 
 #[cfg(not(PyPy))]
-use std::os::raw::c_long;
+use std::ffi::c_long;
 
 pub const MAX_CO_EXTRA_USERS: c_int = 255;
 

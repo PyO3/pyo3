@@ -253,9 +253,9 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
             match unsafe {
                 ffi::compat::PyDict_GetItemRef(dict.as_ptr(), key.as_ptr(), &mut result)
             } {
-                std::os::raw::c_int::MIN..=-1 => Err(PyErr::fetch(py)),
+                std::ffi::c_int::MIN..=-1 => Err(PyErr::fetch(py)),
                 0 => Ok(None),
-                1..=std::os::raw::c_int::MAX => {
+                1..=std::ffi::c_int::MAX => {
                     // Safety: PyDict_GetItemRef positive return value means the result is a valid
                     // owned reference
                     Ok(Some(unsafe { result.assume_owned_unchecked(py) }))

@@ -2,7 +2,7 @@ use crate::conversion::IntoPyObject;
 use crate::exceptions::{PyOverflowError, PyValueError};
 #[cfg(Py_LIMITED_API)]
 use crate::intern;
-use crate::sync::GILOnceCell;
+use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::PyDeltaAccess;
@@ -125,7 +125,7 @@ impl<'py> IntoPyObject<'py> for &SystemTime {
 }
 
 fn unix_epoch_py(py: Python<'_>) -> PyResult<Borrowed<'_, '_, PyDateTime>> {
-    static UNIX_EPOCH: GILOnceCell<Py<PyDateTime>> = GILOnceCell::new();
+    static UNIX_EPOCH: PyOnceLock<Py<PyDateTime>> = PyOnceLock::new();
     Ok(UNIX_EPOCH
         .get_or_try_init(py, || {
             let utc = PyTzInfo::utc(py)?;

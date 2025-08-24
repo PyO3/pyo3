@@ -6,7 +6,7 @@ use crate::inspect::types::TypeInfo;
 use crate::instance::Bound;
 use crate::internal_tricks::get_ssize_index;
 use crate::py_result_ext::PyResultExt;
-use crate::sync::GILOnceCell;
+use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
 use crate::types::{any::PyAnyMethods, PyAny, PyList, PyString, PyTuple, PyType};
 use crate::{
@@ -370,7 +370,7 @@ where
 }
 
 fn get_sequence_abc(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
-    static SEQUENCE_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+    static SEQUENCE_ABC: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 
     SEQUENCE_ABC.import(py, "collections.abc", "Sequence")
 }
@@ -398,10 +398,10 @@ impl PyTypeCheck for PySequence {
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAnyMethods, PyList, PySequence, PySequenceMethods, PyTuple};
-    use crate::{ffi, IntoPyObject, PyObject, Python};
+    use crate::{ffi, IntoPyObject, Py, PyAny, Python};
     use std::ptr;
 
-    fn get_object() -> PyObject {
+    fn get_object() -> Py<PyAny> {
         // Convenience function for getting a single unique object
         Python::attach(|py| {
             let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();

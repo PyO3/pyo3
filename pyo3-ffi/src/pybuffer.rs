@@ -1,6 +1,6 @@
 use crate::object::PyObject;
 use crate::pyport::Py_ssize_t;
-use std::os::raw::{c_char, c_int, c_void};
+use std::ffi::{c_char, c_int, c_void};
 use std::ptr;
 
 #[repr(C)]

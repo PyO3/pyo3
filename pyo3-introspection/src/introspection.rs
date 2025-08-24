@@ -328,7 +328,7 @@ fn find_introspection_chunks_in_pe(pe: &PE<'_>, library_content: &[u8]) -> Resul
         .iter()
         .find(|section| section.name().unwrap_or_default() == ".rdata")
         .context("No .rdata section found")?;
-    let rdata_shift = pe.image_base
+    let rdata_shift = usize::try_from(pe.image_base).context("image_base overflow")?
         + usize::try_from(rdata_data_section.virtual_address)
             .context(".rdata virtual_address overflow")?
         - usize::try_from(rdata_data_section.pointer_to_raw_data)

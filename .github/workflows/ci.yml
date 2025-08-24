@@ -196,6 +196,24 @@ jobs:
                 python-architecture: "x64",
                 rust-target: "x86_64-unknown-linux-gnu",
               }
+          # As we approach 3.14 release date, let's also have testing for 3.14 and 3.14t
+          # on linux
+          - rust: stable
+            python-version: "3.14-dev"
+            platform:
+              {
+                os: "ubuntu-latest",
+                python-architecture: "x64",
+                rust-target: "x86_64-unknown-linux-gnu",
+              }
+          - rust: stable
+            python-version: "3.14t-dev"
+            platform:
+              {
+                os: "ubuntu-latest",
+                python-architecture: "x64",
+                rust-target: "x86_64-unknown-linux-gnu",
+              }
 
   build-full:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}

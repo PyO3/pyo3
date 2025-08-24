@@ -6,8 +6,7 @@ use pyo3::{ffi, prelude::*};
 
 use pyo3::py_run;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct ByteSequence {
@@ -257,7 +256,7 @@ fn test_inplace_repeat() {
 #[pyclass]
 struct AnyObjectList {
     #[pyo3(get, set)]
-    items: Vec<PyObject>,
+    items: Vec<Py<PyAny>>,
 }
 
 #[test]
@@ -372,7 +371,7 @@ fn sequence_length() {
 #[pyclass(generic, sequence)]
 struct GenericList {
     #[pyo3(get, set)]
-    items: Vec<PyObject>,
+    items: Vec<Py<PyAny>>,
 }
 
 #[cfg(Py_3_10)]
@@ -382,7 +381,7 @@ impl GenericList {
         self.items.len()
     }
 
-    fn __getitem__(&self, idx: isize) -> PyResult<PyObject> {
+    fn __getitem__(&self, idx: isize) -> PyResult<Py<PyAny>> {
         match self.items.get(idx as usize) {
             Some(x) => pyo3::Python::attach(|py| Ok(x.clone_ref(py))),
             None => Err(PyIndexError::new_err("Index out of bounds")),
@@ -402,7 +401,7 @@ fn test_generic_both_subscriptions_types() {
             GenericList {
                 items: [1, 2, 3]
                     .iter()
-                    .map(|x| -> PyObject {
+                    .map(|x| -> Py<PyAny> {
                         let x: Result<Bound<'_, PyInt>, Infallible> = x.into_pyobject(py);
                         x.unwrap().into_any().unbind()
                     })

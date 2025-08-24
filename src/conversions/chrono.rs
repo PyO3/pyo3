@@ -52,7 +52,7 @@ use crate::types::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
 #[cfg(feature = "chrono-local")]
 use crate::{
     exceptions::PyRuntimeError,
-    sync::GILOnceCell,
+    sync::PyOnceLock,
     types::{PyString, PyStringMethods},
     Py,
 };
@@ -449,7 +449,7 @@ impl<'py> IntoPyObject<'py> for Local {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        static LOCAL_TZ: GILOnceCell<Py<PyTzInfo>> = GILOnceCell::new();
+        static LOCAL_TZ: PyOnceLock<Py<PyTzInfo>> = PyOnceLock::new();
         let tz = LOCAL_TZ
             .get_or_try_init(py, || {
                 let iana_name = iana_time_zone::get_timezone().map_err(|e| {
@@ -593,7 +593,7 @@ fn py_time_to_naive_time(py_time: &Bound<'_, PyAny>) -> PyResult<NaiveTime> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{types::PyTuple, BoundObject};
+    use crate::{test_utils::assert_warnings, types::PyTuple, BoundObject};
     use std::{cmp::Ordering, panic};
 
     #[test]
@@ -875,7 +875,6 @@ mod tests {
 
             check_utc("regular", 2014, 5, 6, 7, 8, 9, 999_999, 999_999);
 
-            #[cfg(not(Py_GIL_DISABLED))]
             assert_warnings!(
                 py,
                 check_utc("leap second", 2014, 5, 6, 7, 8, 59, 1_999_999, 999_999),
@@ -915,7 +914,6 @@ mod tests {
 
             check_fixed_offset("regular", 2014, 5, 6, 7, 8, 9, 999_999, 999_999);
 
-            #[cfg(not(Py_GIL_DISABLED))]
             assert_warnings!(
                 py,
                 check_fixed_offset("leap second", 2014, 5, 6, 7, 8, 59, 1_999_999, 999_999),
@@ -1101,7 +1099,6 @@ mod tests {
 
             check_time("regular", 3, 5, 7, 999_999, 999_999);
 
-            #[cfg(not(Py_GIL_DISABLED))]
             assert_warnings!(
                 py,
                 check_time("leap second", 3, 5, 59, 1_999_999, 999_999),
@@ -1163,10 +1160,10 @@ mod tests {
             .unwrap()
     }
 
-    #[cfg(not(any(target_arch = "wasm32", Py_GIL_DISABLED)))]
+    #[cfg(not(any(target_arch = "wasm32")))]
     mod proptests {
         use super::*;
-        use crate::tests::common::CatchWarnings;
+        use crate::test_utils::CatchWarnings;
         use crate::types::IntoPyDict;
         use proptest::prelude::*;
         use std::ffi::CString;

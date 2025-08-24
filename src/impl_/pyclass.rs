@@ -29,7 +29,7 @@ mod lazy_type_object;
 mod probes;
 
 pub use assertions::*;
-pub use lazy_type_object::LazyTypeObject;
+pub use lazy_type_object::{type_object_init_failed, LazyTypeObject};
 pub use probes::*;
 
 /// Gets the offset of the dictionary from the start of the object in bytes.
@@ -218,6 +218,9 @@ pub trait PyClassImpl: Sized + 'static {
     /// This is constructed at compile-time with const specialization via the proc macros with help
     /// from the PyClassDocGenerator` type.
     const DOC: &'static CStr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const TYPE_NAME: &'static str;
 
     fn items_iter() -> PyClassItemsIter;
 
@@ -439,7 +442,7 @@ macro_rules! define_pyclass_setattr_slot {
                     _slf: *mut $crate::ffi::PyObject,
                     attr: *mut $crate::ffi::PyObject,
                     value: *mut $crate::ffi::PyObject,
-                ) -> ::std::os::raw::c_int {
+                ) -> ::std::ffi::c_int {
                     unsafe {
                         $crate::impl_::trampoline::setattrofunc(
                             _slf,
@@ -882,7 +885,7 @@ macro_rules! generate_pyclass_richcompare_slot {
             unsafe extern "C" fn __pymethod___richcmp____(
                 slf: *mut $crate::ffi::PyObject,
                 other: *mut $crate::ffi::PyObject,
-                op: ::std::os::raw::c_int,
+                op: ::std::ffi::c_int,
             ) -> *mut $crate::ffi::PyObject {
                 unsafe {
                     $crate::impl_::trampoline::richcmpfunc(slf, other, op, |py, slf, other, op| {
@@ -923,12 +926,12 @@ pub trait PyClassWithFreeList: PyClass {
 ///
 /// # Safety
 /// - `subtype` must be a valid pointer to the type object of T or a subclass.
-/// - The GIL must be held.
+/// - The calling thread must be attached to the interpreter
 pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
     subtype: *mut ffi::PyTypeObject,
     nitems: ffi::Py_ssize_t,
 ) -> *mut ffi::PyObject {
-    let py = unsafe { Python::assume_gil_acquired() };
+    let py = unsafe { Python::assume_attached() };
 
     #[cfg(not(Py_3_8))]
     unsafe {
@@ -955,17 +958,15 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
 ///
 /// # Safety
 /// - `obj` must be a valid pointer to an instance of T (not a subclass).
-/// - The GIL must be held.
+/// - The calling thread must be attached to the interpreter
 pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_void) {
     let obj = obj as *mut ffi::PyObject;
     unsafe {
         debug_assert_eq!(
-            T::type_object_raw(Python::assume_gil_acquired()),
+            T::type_object_raw(Python::assume_attached()),
             ffi::Py_TYPE(obj)
         );
-        let mut free_list = T::get_free_list(Python::assume_gil_acquired())
-            .lock()
-            .unwrap();
+        let mut free_list = T::get_free_list(Python::assume_attached()).lock().unwrap();
         if let Some(obj) = free_list.insert(obj) {
             drop(free_list);
             let ty = ffi::Py_TYPE(obj);
@@ -994,8 +995,8 @@ unsafe fn bpo_35810_workaround(py: Python<'_>, ty: *mut ffi::PyTypeObject) {
     {
         // Must check version at runtime for abi3 wheels - they could run against a higher version
         // than the build config suggests.
-        use crate::sync::GILOnceCell;
-        static IS_PYTHON_3_8: GILOnceCell<bool> = GILOnceCell::new();
+        use crate::sync::PyOnceLock;
+        static IS_PYTHON_3_8: PyOnceLock<bool> = PyOnceLock::new();
 
         if *IS_PYTHON_3_8.get_or_init(py, || py.version_info() >= (3, 8)) {
             // No fix needed - the wheel is running on a sufficiently new interpreter.

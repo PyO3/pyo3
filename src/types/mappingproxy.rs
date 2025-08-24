@@ -8,7 +8,7 @@ use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyIterator, PyList};
 use crate::{ffi, Python};
 
-use std::os::raw::c_int;
+use std::ffi::c_int;
 
 /// Represents a Python `mappingproxy`.
 #[repr(transparent)]

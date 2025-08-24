@@ -8,8 +8,7 @@ use pyo3::types::{IntoPyDict, PyDict, PyTuple};
 use pyo3::BoundObject;
 use pyo3_ffi::c_str;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct AnonClass {}
@@ -168,7 +167,7 @@ fn test_module_from_code_bound() {
             py,
             c_str!("def add(a,b):\n\treturn a+b"),
             c_str!("adder_mod.py"),
-            &common::generate_unique_module_name("adder_mod"),
+            &test_utils::generate_unique_module_name("adder_mod"),
         )
         .expect("Module code should be loaded");
 
@@ -323,7 +322,7 @@ fn test_module_nesting() {
 // Test that argument parsing specification works for pyfunctions
 
 #[pyfunction(signature = (a=5, *args))]
-fn ext_vararg_fn(py: Python<'_>, a: i32, args: &Bound<'_, PyTuple>) -> PyResult<PyObject> {
+fn ext_vararg_fn(py: Python<'_>, a: i32, args: &Bound<'_, PyTuple>) -> PyResult<Py<PyAny>> {
     [
         a.into_pyobject(py)?.into_any().into_bound(),
         args.as_any().clone(),
@@ -335,7 +334,7 @@ fn ext_vararg_fn(py: Python<'_>, a: i32, args: &Bound<'_, PyTuple>) -> PyResult<
 #[pymodule]
 fn vararg_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     #[pyfn(m, signature = (a=5, *args))]
-    fn int_vararg_fn(py: Python<'_>, a: i32, args: &Bound<'_, PyTuple>) -> PyResult<PyObject> {
+    fn int_vararg_fn(py: Python<'_>, a: i32, args: &Bound<'_, PyTuple>) -> PyResult<Py<PyAny>> {
         ext_vararg_fn(py, a, args)
     }
 
