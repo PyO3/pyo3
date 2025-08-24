@@ -24,7 +24,8 @@ mod pyo3_pytests {
 
     #[pymodule_export]
     use {
-        comparisons::comparisons, consts::consts, pyclasses::pyclasses, pyfunctions::pyfunctions,
+        comparisons::comparisons, consts::consts, enums::enums, pyclasses::pyclasses,
+        pyfunctions::pyfunctions,
     };
 
     // Inserting to sys.modules allows importing submodules nicely from Python
@@ -37,7 +38,6 @@ mod pyo3_pytests {
         #[cfg(not(Py_LIMITED_API))]
         m.add_wrapped(wrap_pymodule!(datetime::datetime))?;
         m.add_wrapped(wrap_pymodule!(dict_iter::dict_iter))?;
-        m.add_wrapped(wrap_pymodule!(enums::enums))?;
         m.add_wrapped(wrap_pymodule!(misc::misc))?;
         m.add_wrapped(wrap_pymodule!(objstore::objstore))?;
         m.add_wrapped(wrap_pymodule!(othermod::othermod))?;
