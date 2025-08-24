@@ -2075,9 +2075,56 @@ impl<T> std::fmt::Debug for Py<T> {
 pub type PyObject = Py<PyAny>;
 
 impl Py<PyAny> {
-    /// Deprecated version of [`PyObject::cast_bound`]
+    /// Downcast this `Py<PyAny>` to a concrete Python type or pyclass.
+    ///
+    /// Note that you can often avoid casting yourself by just specifying the desired type in
+    /// function or method signatures. However, manual casting is sometimes necessary.
+    ///
+    /// For extracting a Rust-only type, see [`Py::extract`].
+    ///
+    ///  # Example: Downcasting to a specific Python object
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyDict, PyList};
+    ///
+    /// Python::attach(|py| {
+    ///     let any = PyDict::new(py).into_any().unbind();
+    ///
+    ///     assert!(any.downcast_bound::<PyDict>(py).is_ok());
+    ///     assert!(any.downcast_bound::<PyList>(py).is_err());
+    /// });
+    /// ```
+    ///
+    /// # Example: Getting a reference to a pyclass
+    ///
+    /// This is useful if you want to mutate a `Py<PyAny>` that might actually be a pyclass.
+    ///
+    /// ```rust
+    /// # fn main() -> Result<(), pyo3::PyErr> {
+    /// use pyo3::prelude::*;
+    ///
+    /// #[pyclass]
+    /// struct Class {
+    ///     i: i32,
+    /// }
+    ///
+    /// Python::attach(|py| {
+    ///     let class = Py::new(py, Class { i: 0 })?.into_any();
+    ///
+    ///     let class_bound = class.downcast_bound::<Class>(py)?;
+    ///
+    ///     class_bound.borrow_mut().i += 1;
+    ///
+    ///     // Alternatively you can get a `PyRefMut` directly
+    ///     let class_ref: PyRefMut<'_, Class> = class.extract(py)?;
+    ///     assert_eq!(class_ref.i, 1);
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
+    // FIXME(icxolu) deprecate in favor of `Py::cast_bound`
     #[inline]
-    #[deprecated(since = "0.26.0", note = "use `Py::cast_bound_unchecked` instead")]
     pub fn downcast_bound<'py, T>(
         &self,
         py: Python<'py>,
@@ -2088,7 +2135,20 @@ impl Py<PyAny> {
         self.cast_bound(py)
     }
 
-    /// Cast this `Py<PyAny>` to a concrete Python type or pyclass.
+    /// Casts the `Py<PyAny>` to a concrete Python object type without checking validity.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that the type is valid or risk type confusion.
+    // FIXME(icxolu) deprecate in favor of `Py::cast_bound_unchecked`
+    #[inline]
+    pub unsafe fn downcast_bound_unchecked<'py, T>(&self, py: Python<'py>) -> &Bound<'py, T> {
+        unsafe { self.cast_bound_unchecked(py) }
+    }
+}
+
+impl<T> Py<T> {
+    /// Cast this `Py<T>` to a concrete Python type or pyclass.
     ///
     /// Note that you can often avoid casting yourself by just specifying the desired type in
     /// function or method signatures. However, manual casting is sometimes necessary.
@@ -2136,34 +2196,23 @@ impl Py<PyAny> {
     /// })
     /// # }
     /// ```
-    pub fn cast_bound<'py, T>(
+    pub fn cast_bound<'py, U>(
         &self,
         py: Python<'py>,
-    ) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
+    ) -> Result<&Bound<'py, U>, DowncastError<'_, 'py>>
     where
-        T: PyTypeCheck,
+        U: PyTypeCheck,
     {
         self.bind(py).cast()
     }
 
-    /// Casts the PyObject to a concrete Python object type without checking validity.
+    /// Casts the `Py<T>` to a concrete Python object type without checking validity.
     ///
     /// # Safety
     ///
     /// Callers must ensure that the type is valid or risk type confusion.
     #[inline]
-    #[deprecated(since = "0.26.0", note = "use `Py::cast_bound_unchecked` instead")]
-    pub unsafe fn downcast_bound_unchecked<'py, T>(&self, py: Python<'py>) -> &Bound<'py, T> {
-        unsafe { self.cast_bound_unchecked(py) }
-    }
-
-    /// Casts the PyObject to a concrete Python object type without checking validity.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that the type is valid or risk type confusion.
-    #[inline]
-    pub unsafe fn cast_bound_unchecked<'py, T>(&self, py: Python<'py>) -> &Bound<'py, T> {
+    pub unsafe fn cast_bound_unchecked<'py, U>(&self, py: Python<'py>) -> &Bound<'py, U> {
         unsafe { self.bind(py).cast_unchecked() }
     }
 }
