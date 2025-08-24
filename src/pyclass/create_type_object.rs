@@ -556,8 +556,7 @@ fn bpo_45315_workaround(py: Python<'_>, class_name: CString) {
     std::mem::forget(class_name);
 }
 
-/// Default new implementation, to match
-/// <https://github.com/python/cpython/blob/3663b2ad54c9e15775a605facf69da8f5ee8d335/Objects/typeobject.c#L2427-L2428>
+/// Default new implementation
 #[cfg(not(any(all(Py_3_10, not(PyPy)), all(Py_3_11, PyPy))))]
 unsafe extern "C" fn no_constructor_defined(
     subtype: *mut ffi::PyTypeObject,
@@ -567,18 +566,15 @@ unsafe extern "C" fn no_constructor_defined(
     unsafe {
         trampoline(|py| {
             let tpobj = PyType::from_borrowed_type_ptr(py, subtype);
-            #[cfg(not(PyPy))]
-            {
-                // unlike `fully_qualified_name`, this always include the module
-                let module = tpobj
-                    .module()
-                    .map_or_else(|_| "<unknown>".into(), |s| s.to_string());
-                let qualname = tpobj.qualname();
-                let qualname = qualname.map_or_else(|_| "<unknown>".into(), |s| s.to_string());
-                Err(crate::exceptions::PyTypeError::new_err(format!(
-                    "cannot create '{module}.{qualname}' instances"
-                )))
-            }
+            // unlike `fully_qualified_name`, this always include the module
+            let module = tpobj
+                .module()
+                .map_or_else(|_| "<unknown>".into(), |s| s.to_string());
+            let qualname = tpobj.qualname();
+            let qualname = qualname.map_or_else(|_| "<unknown>".into(), |s| s.to_string());
+            Err(crate::exceptions::PyTypeError::new_err(format!(
+                "cannot create '{module}.{qualname}' instances"
+            )))
         })
     }
     ptr::null_mut()
