@@ -577,7 +577,6 @@ unsafe extern "C" fn no_constructor_defined(
             )))
         })
     }
-    ptr::null_mut()
 }
 
 unsafe extern "C" fn call_super_clear(slf: *mut ffi::PyObject) -> c_int {
