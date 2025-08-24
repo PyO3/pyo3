@@ -16,7 +16,11 @@ use super::PyWeakrefMethods;
 pub struct PyWeakrefReference(PyAny);
 
 #[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
-pyobject_subclassable_native_type!(PyWeakrefReference, crate::ffi::PyWeakReference);
+pyobject_subclassable_native_type!(
+    PyWeakrefReference,
+    crate::ffi::PyWeakReference,
+    "weakref.ref"
+);
 
 #[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
 pyobject_native_type!(

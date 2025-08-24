@@ -1140,6 +1140,8 @@ pub trait PyClassBaseType: Sized {
     type BaseNativeType;
     type Initializer: PyObjectInit<Self>;
     type PyClassMutability: PyClassMutability;
+    /// Fully qualified name of the base class including modules
+    const BASE_NAME: &'static str;
 }
 
 /// Implementation of tp_dealloc for pyclasses without gc

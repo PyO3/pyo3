@@ -19,7 +19,7 @@ use std::ptr;
 pub struct PySet(PyAny);
 
 #[cfg(not(any(PyPy, GraalPy)))]
-pyobject_subclassable_native_type!(PySet, crate::ffi::PySetObject);
+pyobject_subclassable_native_type!(PySet, crate::ffi::PySetObject, "set");
 
 #[cfg(not(any(PyPy, GraalPy)))]
 pyobject_native_type!(

@@ -43,8 +43,12 @@ fn test_compile_errors() {
     #[cfg(not(feature = "uuid"))]
     t.compile_fail("tests/ui/invalid_pyfunctions.rs");
     t.compile_fail("tests/ui/invalid_pymethods.rs");
-    // output changes with async feature
-    #[cfg(all(Py_LIMITED_API, feature = "experimental-async"))]
+    // output changes with async and inspection features
+    #[cfg(all(
+        Py_LIMITED_API,
+        feature = "experimental-async",
+        not(feature = "experimental-inspect")
+    ))]
     t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
     #[cfg(not(feature = "experimental-async"))]
     t.compile_fail("tests/ui/invalid_async.rs");
@@ -80,7 +84,7 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/abi3_dict.rs");
     #[cfg(not(feature = "experimental-inspect"))]
     t.compile_fail("tests/ui/duplicate_pymodule_submodule.rs");
-    #[cfg(all(not(Py_LIMITED_API), Py_3_11))]
+    #[cfg(all(not(Py_LIMITED_API), Py_3_11, not(feature = "experimental-inspect")))]
     t.compile_fail("tests/ui/invalid_base_class.rs");
     #[cfg(any(not(Py_3_10), all(not(Py_3_14), Py_LIMITED_API)))]
     t.compile_fail("tests/ui/immutable_type.rs");

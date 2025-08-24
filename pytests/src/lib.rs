@@ -25,6 +25,7 @@ mod pyo3_pytests {
     #[pymodule_export]
     use {
         comparisons::comparisons, consts::consts, pyclasses::pyclasses, pyfunctions::pyfunctions,
+        subclassing::subclassing,
     };
 
     // Inserting to sys.modules allows importing submodules nicely from Python
@@ -43,7 +44,6 @@ mod pyo3_pytests {
         m.add_wrapped(wrap_pymodule!(othermod::othermod))?;
         m.add_wrapped(wrap_pymodule!(path::path))?;
         m.add_wrapped(wrap_pymodule!(sequence::sequence))?;
-        m.add_wrapped(wrap_pymodule!(subclassing::subclassing))?;
 
         // Inserting to sys.modules allows importing submodules nicely from Python
         // e.g. import pyo3_pytests.buf_and_str as bas

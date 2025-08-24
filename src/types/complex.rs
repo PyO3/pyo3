@@ -21,7 +21,7 @@ use std::ffi::c_double;
 #[repr(transparent)]
 pub struct PyComplex(PyAny);
 
-pyobject_subclassable_native_type!(PyComplex, ffi::PyComplexObject);
+pyobject_subclassable_native_type!(PyComplex, ffi::PyComplexObject, "complex");
 
 pyobject_native_type!(
     PyComplex,
