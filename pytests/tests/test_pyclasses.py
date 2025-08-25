@@ -96,7 +96,7 @@ class ClassWithoutConstructor:
 
 
 @pytest.mark.xfail(
-    platform.python_implementation() == "PyPy" and sys.version_info == (3, 11),
+    platform.python_implementation() == "PyPy" and sys.version_info[:2] == (3, 11),
     reason="broken on PyPy 3.11 due to https://github.com/pypy/pypy/issues/5319, waiting for next release",
 )
 @pytest.mark.parametrize(
