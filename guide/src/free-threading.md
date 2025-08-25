@@ -8,12 +8,14 @@ has preliminary support for building Rust extensions for the free-threaded
 Python build and support for calling into free-threaded Python from Rust.
 
 If you want more background on free-threaded Python in general, see the [what's
-new](https://docs.python.org/3.13/whatsnew/3.13.html#whatsnew313-free-threaded-cpython)
-entry in the CPython docs, the [HOWTO
-guide](https://docs.python.org/3.13/howto/free-threading-extensions.html#freethreading-extensions-howto)
-for porting C extensions, and [PEP 703](https://peps.python.org/pep-0703/),
-which provides the technical background for the free-threading implementation in
-CPython.
+new](https://docs.python.org/3/whatsnew/3.13.html#whatsnew313-free-threaded-cpython)
+entry in the 3.13 release notes, the [free-threading HOWTO
+guide](https://docs.python.org/3/howto/free-threading-extensions.html#freethreading-extensions-howto)
+in the CPython docs, the [extension porting
+guide](https://py-free-threading.github.io/porting-extensions/) in the
+community-maintained Python free-threading guide, and [PEP
+703](https://peps.python.org/pep-0703/), which provides the technical background
+for the free-threading implementation in CPython.
 
 In the GIL-enabled build, the global interpreter lock serializes access to the
 Python runtime. The GIL is therefore a fundamental limitation to parallel
@@ -122,7 +124,7 @@ free-threaded build.
 The free-threaded interpreter does not have a GIL. Many existing extensions
 providing mutable data structures relied on the GIL provided locking for
 operations on Python objects, to make interior mutability thread-safe.
-Historically PyO3s API was designed around the same strong assumptions, but is
+Historically, PyO3's API was designed around the same strong assumptions, but is
 transitioning towards more general APIs applicable for both builds.
 
 Working with PyO3 under the free-threaded interpreter requires some additional
@@ -133,24 +135,14 @@ same way as in GIL-enabled builds using the `Python` token, but unlike in
 GIL-enabled builds it does not provide exclusive access anymore. Additionally it
 is also still neccessary to detach (via [`Python::detach`]) from the interpreter
 for possibly long running oprations that don't interact with the interpreter,
-even though other Python threads are still able to run. Both operations are
-explained in more details below.
+even though other Python threads are still able to run.
 
-### Many symbols exposed by PyO3 have `GIL` in the name
-
-We are aware that there are some naming issues in the PyO3 API that make it
-awkward to think about a runtime environment where there is no GIL. We plan to
-change the names of these types to de-emphasize the role of the GIL in future
-versions of PyO3, but for now you should remember that the use of the term `GIL`
-in functions and types like [`GILOnceCell`] is historical.
-
-Instead, you should think about whether or not a Rust thread is attached to a
-Python interpreter runtime. Calling into the CPython C API is only legal when an
-OS thread is explicitly attached to the interpreter runtime. In the GIL-enabled
-build, this happens when the GIL is acquired. In the free-threaded build there
-is no GIL, but the same C macros that release or acquire the GIL in the
-GIL-enabled build instead ask the interpreter to attach the thread to the Python
-runtime, and there can be many threads simultaneously attached. See [PEP
+Calling into the CPython C API is only legal when an OS thread is explicitly
+attached to the interpreter runtime. In the GIL-enabled build, this happens when
+the GIL is acquired. In the free-threaded build there is no GIL, but the same C
+macros that release or acquire the GIL in the GIL-enabled build instead ask the
+interpreter to attach the thread to the Python runtime, and there can be many
+threads simultaneously attached. See [PEP
 703](https://peps.python.org/pep-0703/#thread-states) for more background about
 how threads can be attached and detached from the interpreter runtime, in a
 manner analogous to releasing and acquiring the GIL in the GIL-enabled build.
@@ -179,7 +171,7 @@ situations:
   order to mark certain objects as immortal
 * When either `sys.settrace` or `sys.setprofile` are called in order to
   instrument running code objects and threads
-* Before `os.fork()` is called.
+* During a call to `os.fork()`, to ensure a process-wide consistent state.
 
 This is a non-exhaustive list and there may be other situations in future Python
 versions that can trigger global synchronization events.
@@ -260,11 +252,11 @@ Traceback (most recent call last)
 RuntimeError: Already borrowed
 ```
 
-We plan to allow user-selectable semantics for mutable pyclass definitions in
-PyO3 0.24, allowing some form of opt-in locking to emulate the GIL if that is
-needed. For now you should explicitly add locking, possibly using conditional
-compilation or using the critical section API, to avoid creating deadlocks with
-the GIL.
+We may allow user-selectable semantics for mutable pyclass definitions in a
+future version of PyO3, allowing some form of opt-in locking to emulate the GIL
+if that is needed. For now you should explicitly add locking, possibly using
+conditional compilation or using the critical section API, to avoid creating
+deadlocks with the GIL.
 
 ### Cannot build extensions using the limited API
 
@@ -403,7 +395,6 @@ instead of `lock`. This ensures that global synchronization events started by
 the Python runtime can proceed, avoiding possible deadlocks with the
 interpreter.
 
-[`GILOnceCell`]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html
 [`GILProtected`]: https://docs.rs/pyo3/0.22/pyo3/sync/struct.GILProtected.html
 [`MutexExt`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.MutexExt.html
 [`Once`]: https://doc.rust-lang.org/stable/std/sync/struct.Once.html
