@@ -15,23 +15,22 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  NOX_DEFAULT_VENV_BACKEND: uv
+  UV_PYTHON: 3.13
 
 jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - run: python -m pip install --upgrade pip && pip install nox
+      - uses: astral-sh/setup-uv@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
       - name: Check python formatting and lints (ruff)
-        run: nox -s ruff
+        run: uvx nox -s ruff
       - name: Check rust formatting (rustfmt)
-        run: nox -s rustfmt
+        run: uvx nox -s rustfmt
 
   resolve:
     runs-on: ubuntu-latest
