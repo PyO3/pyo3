@@ -661,6 +661,7 @@ mod tests {
         });
     }
 
+    #[cfg(not(Py_LIMITED_API))]
     #[test]
     fn test_invalid_types_fail() {
         // Test that if a user tries to convert a python's timezone aware datetime into a naive
