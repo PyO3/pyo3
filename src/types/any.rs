@@ -1624,7 +1624,7 @@ mod tests {
     use crate::{
         basic::CompareOp,
         ffi,
-        tests::common::generate_unique_module_name,
+        test_utils::generate_unique_module_name,
         types::{IntoPyDict, PyAny, PyAnyMethods, PyBool, PyInt, PyList, PyModule, PyTypeMethods},
         Bound, BoundObject, IntoPyObject, PyTypeInfo, Python,
     };

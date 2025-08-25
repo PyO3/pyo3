@@ -7,6 +7,7 @@ use crate::{ffi, Python};
 use std::cell::Cell;
 #[cfg(not(pyo3_disable_reference_pool))]
 use std::sync::OnceLock;
+#[cfg_attr(pyo3_disable_reference_pool, allow(unused_imports))]
 use std::{mem, ptr::NonNull, sync};
 
 std::thread_local! {
@@ -43,79 +44,103 @@ pub(crate) enum AttachGuard {
     Ensured { gstate: ffi::PyGILState_STATE },
 }
 
+/// Possible error when calling `try_attach()`
+pub(crate) enum AttachError {
+    /// Forbidden during GC traversal.
+    ForbiddenDuringTraverse,
+    /// The interpreter is not initialized.
+    NotInitialized,
+    #[cfg(Py_3_13)]
+    /// The interpreter is finalizing.
+    Finalizing,
+}
+
 impl AttachGuard {
     /// PyO3 internal API for attaching to the Python interpreter. The public API is Python::attach.
     ///
     /// If the thread was already attached via PyO3, this returns
     /// `AttachGuard::Assumed`. Otherwise, the thread will attach now and
     /// `AttachGuard::Ensured` will be returned.
-    pub(crate) fn acquire() -> Self {
-        if thread_is_attached() {
-            // SAFETY: We just checked that the thread is already attached.
-            return unsafe { Self::assume() };
+    pub(crate) fn attach() -> Self {
+        match Self::try_attach() {
+            Ok(guard) => guard,
+            Err(AttachError::ForbiddenDuringTraverse) => {
+                panic!("{}", ForbidAttaching::FORBIDDEN_DURING_TRAVERSE)
+            }
+            Err(AttachError::NotInitialized) => {
+                // try to initialize the interpreter and try again
+                crate::interpreter_lifecycle::ensure_initialized();
+                unsafe { Self::do_attach_unchecked() }
+            }
+            #[cfg(Py_3_13)]
+            Err(AttachError::Finalizing) => {
+                panic!("Cannot attach to the Python interpreter while it is finalizing.");
+            }
         }
-
-        crate::interpreter_lifecycle::ensure_initialized();
-
-        // Calling `PyGILState_Ensure` while finalizing may crash CPython in unpredictable
-        // ways, we'll make a best effort attempt here to avoid that. (There's a time of
-        // check to time-of-use issue, but it's better than nothing.)
-        assert!(
-            !is_finalizing(),
-            "Cannot attach to the Python interpreter while it is finalizing."
-        );
-
-        // SAFETY: We have ensured the Python interpreter is initialized.
-        unsafe { Self::acquire_unchecked() }
     }
 
-    /// Variant of the above which will will return `None` if the interpreter cannot be attached to.
-    #[cfg(any(not(Py_LIMITED_API), Py_3_11, test))] // see Python::try_attach
-    pub(crate) fn try_acquire() -> Option<Self> {
+    /// Variant of the above which will will return gracefully if the interpreter cannot be attached to.
+    pub(crate) fn try_attach() -> Result<Self, AttachError> {
         match ATTACH_COUNT.try_with(|c| c.get()) {
             Ok(i) if i > 0 => {
                 // SAFETY: We just checked that the thread is already attached.
-                return Some(unsafe { Self::assume() });
+                return Ok(unsafe { Self::assume() });
             }
             // Cannot attach during GC traversal.
-            Ok(ATTACH_FORBIDDEN_DURING_TRAVERSE) => return None,
+            Ok(ATTACH_FORBIDDEN_DURING_TRAVERSE) => {
+                return Err(AttachError::ForbiddenDuringTraverse)
+            }
             // other cases handled below
             _ => {}
         }
 
-        // SAFETY: These APIs are always sound to call
-        if unsafe { ffi::Py_IsInitialized() } == 0 || is_finalizing() {
-            // If the interpreter is not initialized, we cannot attach.
-            return None;
+        // SAFETY: always safe to call this
+        if unsafe { ffi::Py_IsInitialized() } == 0 {
+            return Err(AttachError::NotInitialized);
         }
 
-        // SAFETY: We have ensured the Python interpreter is initialized.
-        Some(unsafe { Self::acquire_unchecked() })
+        // Calling `PyGILState_Ensure` while finalizing may crash CPython in unpredictable
+        // ways, we'll make a best effort attempt here to avoid that. (There's a time of
+        // check to time-of-use issue, but it's better than nothing.)
+        //
+        // SAFETY: always safe to call this
+        #[cfg(Py_3_13)]
+        if unsafe { ffi::Py_IsFinalizing() } != 0 {
+            // If the interpreter is not initialized, we cannot attach.
+            return Err(AttachError::Finalizing);
+        }
+
+        // SAFETY: We have done everything reasonable to ensure we're in a safe state to
+        // attach to the Python interpreter.
+        Ok(unsafe { Self::do_attach_unchecked() })
     }
 
     /// Acquires the `AttachGuard` without performing any state checking.
     ///
     /// This can be called in "unsafe" contexts where the normal interpreter state
-    /// checking performed by `AttachGuard::acquire` may fail. This includes calling
+    /// checking performed by `AttachGuard::try_attach` may fail. This includes calling
     /// as part of multi-phase interpreter initialization.
     ///
     /// # Safety
     ///
     /// The caller must ensure that the Python interpreter is sufficiently initialized
     /// for a thread to be able to attach to it.
-    pub(crate) unsafe fn acquire_unchecked() -> Self {
+    pub(crate) unsafe fn attach_unchecked() -> Self {
         if thread_is_attached() {
             return unsafe { Self::assume() };
         }
 
+        unsafe { Self::do_attach_unchecked() }
+    }
+
+    /// Attach to the interpreter, without a fast-path to check if the thread is already attached.
+    #[cold]
+    unsafe fn do_attach_unchecked() -> Self {
         // SAFETY: interpreter is sufficiently initialized to attach a thread.
         let gstate = unsafe { ffi::PyGILState_Ensure() };
         increment_attach_count();
-
-        #[cfg(not(pyo3_disable_reference_pool))]
-        if let Some(pool) = POOL.get() {
-            pool.update_counts(unsafe { Python::assume_gil_acquired() });
-        }
+        // SAFETY: just attached to the interpreter
+        drop_deferred_references(unsafe { Python::assume_attached() });
         AttachGuard::Ensured { gstate }
     }
 
@@ -123,31 +148,17 @@ impl AttachGuard {
     /// to the interpreter.
     pub(crate) unsafe fn assume() -> Self {
         increment_attach_count();
-        let guard = AttachGuard::Assumed;
-        #[cfg(not(pyo3_disable_reference_pool))]
-        if let Some(pool) = POOL.get() {
-            pool.update_counts(guard.python());
-        }
-        guard
+        // SAFETY: invariant of calling this function
+        drop_deferred_references(unsafe { Python::assume_attached() });
+        AttachGuard::Assumed
     }
 
     /// Gets the Python token associated with this [`AttachGuard`].
     #[inline]
-    pub fn python(&self) -> Python<'_> {
-        unsafe { Python::assume_gil_acquired() }
+    pub(crate) fn python(&self) -> Python<'_> {
+        // SAFETY: this guard guarantees the thread is attached
+        unsafe { Python::assume_attached() }
     }
-}
-
-fn is_finalizing() -> bool {
-    // SAFTETY: always safe to call this
-    #[cfg(Py_3_13)]
-    unsafe {
-        ffi::Py_IsFinalizing() != 0
-    }
-
-    // can't reliably check this before 3.13
-    #[cfg(not(Py_3_13))]
-    false
 }
 
 /// The Drop implementation for `AttachGuard` will decrement the attach count (and potentially detach).
@@ -164,7 +175,7 @@ impl Drop for AttachGuard {
     }
 }
 
-// Vector of PyObject
+#[cfg(not(pyo3_disable_reference_pool))]
 type PyObjVec = Vec<NonNull<ffi::PyObject>>;
 
 #[cfg(not(pyo3_disable_reference_pool))]
@@ -185,7 +196,7 @@ impl ReferencePool {
         self.pending_decrefs.lock().unwrap().push(obj);
     }
 
-    fn update_counts(&self, _py: Python<'_>) {
+    fn drop_deferred_references(&self, _py: Python<'_>) {
         let mut pending_decrefs = self.pending_decrefs.lock().unwrap();
         if pending_decrefs.is_empty() {
             return;
@@ -214,6 +225,15 @@ fn get_pool() -> &'static ReferencePool {
     POOL.get_or_init(ReferencePool::new)
 }
 
+#[cfg_attr(pyo3_disable_reference_pool, inline(always))]
+#[cfg_attr(pyo3_disable_reference_pool, allow(unused_variables))]
+fn drop_deferred_references(py: Python<'_>) {
+    #[cfg(not(pyo3_disable_reference_pool))]
+    if let Some(pool) = POOL.get() {
+        pool.drop_deferred_references(py);
+    }
+}
+
 /// A guard which can be used to temporarily detach from the interpreter and restore on `Drop`.
 pub(crate) struct SuspendAttach {
     count: isize,
@@ -238,7 +258,7 @@ impl Drop for SuspendAttach {
             // Update counts of `Py<T>` that were dropped while not attached.
             #[cfg(not(pyo3_disable_reference_pool))]
             if let Some(pool) = POOL.get() {
-                pool.update_counts(Python::assume_gil_acquired());
+                pool.drop_deferred_references(Python::assume_attached());
             }
         }
     }
@@ -250,6 +270,8 @@ pub(crate) struct ForbidAttaching {
 }
 
 impl ForbidAttaching {
+    const FORBIDDEN_DURING_TRAVERSE: &'static str = "Attaching a thread to the interpreter is prohibited while a __traverse__ implementation is running.";
+
     /// Lock access to the interpreter while an implementation of `__traverse__` is running
     pub fn during_traverse() -> Self {
         Self::new(ATTACH_FORBIDDEN_DURING_TRAVERSE)
@@ -264,9 +286,7 @@ impl ForbidAttaching {
     #[cold]
     fn bail(current: isize) {
         match current {
-            ATTACH_FORBIDDEN_DURING_TRAVERSE => panic!(
-                "Attaching a thread to the interpreter is prohibited while a __traverse__ implementation is running."
-            ),
+            ATTACH_FORBIDDEN_DURING_TRAVERSE => panic!("{}", Self::FORBIDDEN_DURING_TRAVERSE),
             _ => panic!("Attaching a thread to the interpreter is currently prohibited."),
         }
     }
@@ -359,7 +379,6 @@ mod tests {
     use super::*;
 
     use crate::{ffi, types::PyAnyMethods, Py, PyAny, Python};
-    use std::ptr::NonNull;
 
     fn get_object(py: Python<'_>) -> Py<PyAny> {
         py.eval(ffi::c_str!("object()"), None, None)
@@ -531,8 +550,8 @@ mod tests {
 
     #[test]
     #[cfg(not(pyo3_disable_reference_pool))]
-    fn test_update_counts_does_not_deadlock() {
-        // update_counts can run arbitrary Python code during Py_DECREF.
+    fn test_drop_deferred_references_does_not_deadlock() {
+        // drop_deferred_references can run arbitrary Python code during Py_DECREF.
         // if the locking is implemented incorrectly, it will deadlock.
 
         use crate::ffi;
@@ -541,8 +560,8 @@ mod tests {
             let obj = get_object(py);
 
             unsafe extern "C" fn capsule_drop(capsule: *mut ffi::PyObject) {
-                // This line will implicitly call update_counts
-                // -> and so cause deadlock if update_counts is not handling recursion correctly.
+                // This line will implicitly call drop_deferred_references
+                // -> and so cause deadlock if drop_deferred_references is not handling recursion correctly.
                 let pool = unsafe { AttachGuard::assume() };
 
                 // Rebuild obj so that it can be dropped
@@ -562,22 +581,22 @@ mod tests {
             get_pool().register_decref(NonNull::new(capsule).unwrap());
 
             // Updating the counts will call decref on the capsule, which calls capsule_drop
-            get_pool().update_counts(py);
+            get_pool().drop_deferred_references(py);
         })
     }
 
     #[test]
     #[cfg(not(pyo3_disable_reference_pool))]
-    fn test_attach_guard_update_counts() {
+    fn test_attach_guard_drop_deferred_references() {
         Python::attach(|py| {
             let obj = get_object(py);
 
-            // For AttachGuard::acquire
+            // For AttachGuard::attach
 
             get_pool().register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap());
             #[cfg(not(Py_GIL_DISABLED))]
             assert!(pool_dec_refs_contains(&obj));
-            let _guard = AttachGuard::acquire();
+            let _guard = AttachGuard::attach();
             assert!(pool_dec_refs_does_not_contain(&obj));
 
             // For AttachGuard::assume

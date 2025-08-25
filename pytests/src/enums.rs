@@ -1,21 +1,12 @@
-use pyo3::{
-    pyclass, pyfunction, pymodule,
-    types::{PyModule, PyModuleMethods},
-    wrap_pyfunction, Bound, PyResult,
-};
+use pyo3::{pyclass, pyfunction, pymodule};
 
 #[pymodule(gil_used = false)]
-pub fn enums(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<SimpleEnum>()?;
-    m.add_class::<ComplexEnum>()?;
-    m.add_class::<SimpleTupleEnum>()?;
-    m.add_class::<TupleEnum>()?;
-    m.add_class::<MixedComplexEnum>()?;
-    m.add_wrapped(wrap_pyfunction!(do_simple_stuff))?;
-    m.add_wrapped(wrap_pyfunction!(do_complex_stuff))?;
-    m.add_wrapped(wrap_pyfunction!(do_tuple_stuff))?;
-    m.add_wrapped(wrap_pyfunction!(do_mixed_complex_stuff))?;
-    Ok(())
+pub mod enums {
+    #[pymodule_export]
+    use super::{
+        do_complex_stuff, do_mixed_complex_stuff, do_simple_stuff, do_tuple_stuff, ComplexEnum,
+        MixedComplexEnum, SimpleEnum, SimpleTupleEnum, TupleEnum,
+    };
 }
 
 #[pyclass(eq, eq_int)]

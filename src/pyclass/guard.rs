@@ -299,6 +299,9 @@ impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &PyClassGuard<'a, T> {
     type Output = Borrowed<'a, 'py, T>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = T::PYTHON_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
         // SAFETY: `ptr` is guaranteed to be valid for 'a and points to an

@@ -7,8 +7,7 @@ use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::sync::OnceLockExt;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 mod some_module {
     use pyo3::create_exception;

@@ -5,8 +5,7 @@
 use pyo3::prelude::*;
 
 #[macro_use]
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 macro_rules! make_struct_using_macro {
     // Ensure that one doesn't need to fall back on the escape type: tt

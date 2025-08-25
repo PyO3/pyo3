@@ -1,20 +1,27 @@
+// Common macros and helpers for tests
+//
+// This file is used in two different ways, which makes it a bit of a pain to build:
+// - as a module `include!`-ed from `src/test_utils.rs`
+// - as a module `mod test_utils` in various integration tests
+//
 // the inner mod enables the #![allow(dead_code)] to
-// be applied - `test_utils.rs` uses `include!` to pull in this file
+// be applied - `src/test_utils.rs` uses `include!` to pull in this file
 
-/// Common macros and helpers for tests
-#[allow(dead_code)] // many tests do not use the complete set of functionality offered here
+#[allow(dead_code, unused_macros)] // many tests do not use the complete set of functionality offered here
 #[allow(missing_docs)] // only used in tests
 #[macro_use]
 mod inner {
 
-    #[allow(unused_imports)] // pulls in `use crate as pyo3` in `test_utils.rs`
+    #[allow(unused_imports)]
+    // pulls in `use crate as pyo3` in `src/test_utils.rs`, no function in integration tests
     use super::*;
 
-    #[cfg(not(Py_GIL_DISABLED))]
     use pyo3::prelude::*;
 
-    #[cfg(not(Py_GIL_DISABLED))]
+    use pyo3::sync::MutexExt;
     use pyo3::types::{IntoPyDict, PyList};
+
+    use std::sync::{Mutex, PoisonError};
 
     use uuid::Uuid;
 
@@ -76,31 +83,22 @@ mod inner {
             py_expect_warning!($py, *d, $code, [$(($warning_msg, $warning_category)),+])
         }};
         ($py:expr, *$dict:expr, $code:expr, [$(($warning_msg:literal, $warning_category:path)),+] $(,)?) => {{
-            let code_lines: Vec<&str> = $code.lines().collect();
-            let indented_code: String = code_lines.iter()
-                .map(|line| format!("    {}", line))  // add 4 spaces indentation
-                .collect::<Vec<String>>()
-                .join("\n");
+            $crate::test_utils::CatchWarnings::enter($py, |warning_record| {
+                $py.run(&std::ffi::CString::new($code).unwrap(), None, Some(&$dict.as_borrowed())).expect("Failed to run warning testing code");
+                let expected_warnings = [$(($warning_msg, <$warning_category as pyo3::PyTypeInfo>::type_object($py))),+];
 
-            let wrapped_code = format!(r#"
-import warnings
-with warnings.catch_warnings(record=True) as warning_record:
-{}
-"#, indented_code);
+                assert_eq!(warning_record.len(), expected_warnings.len(), "Expecting {} warnings but got {}", expected_warnings.len(), warning_record.len());
 
-            $py.run(&std::ffi::CString::new(wrapped_code).unwrap(), None, Some(&$dict.as_borrowed())).expect("Failed to run warning testing code");
-            let expected_warnings = [$(($warning_msg, <$warning_category as pyo3::PyTypeInfo>::type_object($py))),+];
-            let warning_record: Bound<'_, pyo3::types::PyList> = $dict.get_item("warning_record").expect("Failed to capture warnings").expect("Failed to downcast to PyList").extract().unwrap();
+                for ((index, warning), (msg, category)) in warning_record.iter().enumerate().zip(expected_warnings.iter()) {
+                    let actual_msg = warning.getattr("message").unwrap().str().unwrap().to_string_lossy().to_string();
+                    let actual_category = warning.getattr("category").unwrap();
 
-            assert_eq!(warning_record.len(), expected_warnings.len(), "Expecting {} warnings but got {}", expected_warnings.len(), warning_record.len());
+                    assert_eq!(actual_msg, msg.to_string(), "Warning message mismatch at index {}, expecting `{}` but got `{}`", index, msg, actual_msg);
+                    assert!(actual_category.is(category), "Warning category mismatch at index {}, expecting {:?} but got {:?}", index, category, actual_category);
+                }
 
-            for ((index, warning), (msg, category)) in warning_record.iter().enumerate().zip(expected_warnings.iter()) {
-                let actual_msg = warning.getattr("message").unwrap().str().unwrap().to_string_lossy().to_string();
-                let actual_category = warning.getattr("category").unwrap();
-
-                assert_eq!(actual_msg, msg.to_string(), "Warning message mismatch at index {}, expecting `{}` but got `{}`", index, msg, actual_msg);
-                assert!(actual_category.is(category), "Warning category mismatch at index {}, expecting {:?} but got {:?}", index, category, actual_category);
-            }
+                Ok(())
+            }).expect("failed to test warnings");
         }};
     }
 
@@ -166,17 +164,23 @@ with warnings.catch_warnings(record=True) as warning_record:
         }
     }
 
-    #[cfg(not(Py_GIL_DISABLED))]
     pub struct CatchWarnings<'py> {
         catch_warnings: Bound<'py, PyAny>,
     }
 
-    #[cfg(not(Py_GIL_DISABLED))]
+    /// catch_warnings is not thread-safe, so only one thread can be using this struct at
+    /// a time.
+    static CATCH_WARNINGS_MUTEX: Mutex<()> = Mutex::new(());
+
     impl<'py> CatchWarnings<'py> {
         pub fn enter<R>(
             py: Python<'py>,
             f: impl FnOnce(&Bound<'py, PyList>) -> PyResult<R>,
         ) -> PyResult<R> {
+            // NB this is best-effort, other tests could always call the warnings API directly.
+            let _mutex_guard = CATCH_WARNINGS_MUTEX
+                .lock_py_attached(py)
+                .unwrap_or_else(PoisonError::into_inner);
             let warnings = py.import("warnings")?;
             let kwargs = [("record", true)].into_py_dict(py)?;
             let catch_warnings = warnings
@@ -188,7 +192,6 @@ with warnings.catch_warnings(record=True) as warning_record:
         }
     }
 
-    #[cfg(not(Py_GIL_DISABLED))]
     impl Drop for CatchWarnings<'_> {
         fn drop(&mut self) {
             let py = self.catch_warnings.py();
@@ -198,11 +201,9 @@ with warnings.catch_warnings(record=True) as warning_record:
         }
     }
 
-    #[cfg(not(Py_GIL_DISABLED))]
-    #[macro_export]
     macro_rules! assert_warnings {
         ($py:expr, $body:expr, [$(($category:ty, $message:literal)),+] $(,)? ) => {{
-            $crate::tests::common::CatchWarnings::enter($py, |w| {
+            $crate::test_utils::CatchWarnings::enter($py, |w| {
                 use $crate::types::{PyListMethods, PyStringMethods};
                 $body;
                 let expected_warnings = [$((<$category as $crate::type_object::PyTypeInfo>::type_object($py), $message)),+];
@@ -221,6 +222,8 @@ with warnings.catch_warnings(record=True) as warning_record:
             .unwrap();
         }};
     }
+
+    pub(crate) use assert_warnings;
 
     pub fn generate_unique_module_name(base: &str) -> std::ffi::CString {
         let uuid = Uuid::new_v4().simple().to_string();

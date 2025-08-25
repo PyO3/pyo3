@@ -2,8 +2,7 @@
 
 use pyo3::prelude::*;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyfunction]
 fn take_str(_s: &str) {}

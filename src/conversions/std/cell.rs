@@ -10,6 +10,9 @@ impl<'py, T: Copy + IntoPyObject<'py>> IntoPyObject<'py> for Cell<T> {
     type Output = T::Output;
     type Error = T::Error;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = T::OUTPUT_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.get().into_pyobject(py)
@@ -21,6 +24,9 @@ impl<'py, T: Copy + IntoPyObject<'py>> IntoPyObject<'py> for &Cell<T> {
     type Output = T::Output;
     type Error = T::Error;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = T::OUTPUT_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.get().into_pyobject(py)
@@ -28,6 +34,9 @@ impl<'py, T: Copy + IntoPyObject<'py>> IntoPyObject<'py> for &Cell<T> {
 }
 
 impl<'py, T: FromPyObject<'py>> FromPyObject<'py> for Cell<T> {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = T::INPUT_TYPE;
+
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         ob.extract().map(Cell::new)
     }
