@@ -95,9 +95,9 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     ```
   - <a id="warn"></a> `#[pyo3(warn(message = "...", category = ...))]`
 
-    This option is used to display a warning when the function is used in Python. It is equivalent to [`warnings.warn(message, category)`](https://docs.python.org/3.13/library/warnings.html#warnings.warn). 
-    The `message` parameter is a string that will be displayed when the function is called, and the `category` parameter is optional and has to be a subclass of [`Warning`](https://docs.python.org/3.12/library/exceptions.html#Warning). 
-    When the `category` parameter is not provided, the warning will be defaulted to [`UserWarning`](https://docs.python.org/3.12/library/exceptions.html#UserWarning).
+    This option is used to display a warning when the function is used in Python. It is equivalent to [`warnings.warn(message, category)`](https://docs.python.org/3/library/warnings.html#warnings.warn). 
+    The `message` parameter is a string that will be displayed when the function is called, and the `category` parameter is optional and has to be a subclass of [`Warning`](https://docs.python.org/3/library/exceptions.html#Warning). 
+    When the `category` parameter is not provided, the warning will be defaulted to [`UserWarning`](https://docs.python.org/3/library/exceptions.html#UserWarning).
 
     > Note: when used with `#[pymethods]`, this attribute does not work with `#[classattr]` nor `__traverse__` magic method. 
 
