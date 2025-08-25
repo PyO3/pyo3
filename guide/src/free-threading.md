@@ -8,10 +8,10 @@ has preliminary support for building Rust extensions for the free-threaded
 Python build and support for calling into free-threaded Python from Rust.
 
 If you want more background on free-threaded Python in general, see the [what's
-new](https://docs.python.org/3.13/whatsnew/3.13.html#whatsnew313-free-threaded-cpython)
-entry in the CPython docs, the [HOWTO
-guide](https://docs.python.org/3.13/howto/free-threading-extensions.html#freethreading-extensions-howto)
-for porting C extensions the [extension porting
+new](https://docs.python.org/3/whatsnew/3.13.html#whatsnew313-free-threaded-cpython)
+entry in the 3.13 release notes, the [free-threading HOWTO
+guide](https://docs.python.org/3/howto/free-threading-extensions.html#freethreading-extensions-howto)
+in the CPython docs, the [extension porting
 guide](https://py-free-threading.github.io/porting-extensions/) in the
 community-maintained Python free-threading guide, and [PEP
 703](https://peps.python.org/pep-0703/), which provides the technical background
