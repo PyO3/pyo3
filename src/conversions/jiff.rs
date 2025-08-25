@@ -527,37 +527,38 @@ mod tests {
         });
     }
 
+    #[cfg(not(Py_LIMITED_API))]
     #[test]
     fn test_invalid_types_fail() {
         Python::attach(|py| {
             let none = py.None().into_bound(py);
             assert_eq!(
                 none.extract::<Span>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'timedelta'"
+                "TypeError: 'NoneType' object cannot be converted to 'PyDelta'"
             );
             assert_eq!(
                 none.extract::<Offset>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'tzinfo'"
+                "TypeError: 'NoneType' object cannot be converted to 'PyTzInfo'"
             );
             assert_eq!(
                 none.extract::<TimeZone>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'tzinfo'"
+                "TypeError: 'NoneType' object cannot be converted to 'PyTzInfo'"
             );
             assert_eq!(
                 none.extract::<Time>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'time'"
+                "TypeError: 'NoneType' object cannot be converted to 'PyTime'"
             );
             assert_eq!(
                 none.extract::<Date>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'date'"
+                "TypeError: 'NoneType' object cannot be converted to 'PyDate'"
             );
             assert_eq!(
                 none.extract::<DateTime>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'datetime'"
+                "TypeError: 'NoneType' object cannot be converted to 'PyDateTime'"
             );
             assert_eq!(
                 none.extract::<Zoned>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'datetime'"
+                "TypeError: 'NoneType' object cannot be converted to 'PyDateTime'"
             );
         });
     }
