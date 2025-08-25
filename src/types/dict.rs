@@ -35,7 +35,7 @@ pub struct PyDictKeys(PyAny);
 pyobject_native_type_core!(
     PyDictKeys,
     pyobject_native_static_type_object!(ffi::PyDictKeys_Type),
-    "PyDictKeys",
+    "dict_keys",
     #checkfunction=ffi::PyDictKeys_Check
 );
 
@@ -48,7 +48,7 @@ pub struct PyDictValues(PyAny);
 pyobject_native_type_core!(
     PyDictValues,
     pyobject_native_static_type_object!(ffi::PyDictValues_Type),
-    "PyDictValues",
+    "dict_values",
     #checkfunction=ffi::PyDictValues_Check
 );
 
@@ -61,7 +61,7 @@ pub struct PyDictItems(PyAny);
 pyobject_native_type_core!(
     PyDictItems,
     pyobject_native_static_type_object!(ffi::PyDictItems_Type),
-    "PyDictItems",
+    "dict_items",
     #checkfunction=ffi::PyDictItems_Check
 );
 
