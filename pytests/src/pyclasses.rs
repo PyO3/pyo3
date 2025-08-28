@@ -144,6 +144,12 @@ impl ClassWithDecorators {
     }
 }
 
+#[pyclass(get_all, set_all)]
+struct PlainObject {
+    foo: String,
+    bar: usize,
+}
+
 #[derive(FromPyObject, IntoPyObject)]
 enum AClass {
     NewType(EmptyClass),
@@ -170,6 +176,6 @@ pub mod pyclasses {
     #[pymodule_export]
     use super::{
         map_a_class, AssertingBaseClass, ClassWithDecorators, ClassWithoutConstructor, EmptyClass,
-        PyClassIter, PyClassThreadIter,
+        PlainObject, PyClassIter, PyClassThreadIter,
     };
 }
