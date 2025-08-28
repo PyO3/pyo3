@@ -122,20 +122,10 @@ free-threaded build.
 ## Special considerations for the free-threaded build
 
 The free-threaded interpreter does not have a GIL. Many existing extensions
-providing mutable data structures relied on the GIL provided locking for
-operations on Python objects, to make interior mutability thread-safe.
-Historically, PyO3's API was designed around the same strong assumptions, but is
-transitioning towards more general APIs applicable for both builds.
-
-Working with PyO3 under the free-threaded interpreter requires some additional
-care and mental overhead compared with a GIL-enabled interpreter. Most notable
-it is still neccessary to be attached (via [`Python::attach`]) to the Python
-interpreter to perform any operation on Python objects. PyO3 models this the
-same way as in GIL-enabled builds using the `Python` token, but unlike in
-GIL-enabled builds it does not provide exclusive access anymore. Additionally it
-is also still neccessary to detach (via [`Python::detach`]) from the interpreter
-for possibly long running oprations that don't interact with the interpreter,
-even though other Python threads are still able to run.
+providing mutable data structures relied on the GIL to lock Python objects and
+make interior mutability thread-safe.  Historically, PyO3's API was designed
+around the same strong assumptions, but is transitioning towards more general
+APIs applicable for both builds.
 
 Calling into the CPython C API is only legal when an OS thread is explicitly
 attached to the interpreter runtime. In the GIL-enabled build, this happens when
@@ -153,14 +143,16 @@ freethreaded build, holding a `'py` lifetime means only that the thread is
 currently attached to the Python interpreter -- other threads can be
 simultaneously interacting with the interpreter.
 
-You still need to obtain a `'py` lifetime is to interact with Python
+### Attaching to the runtime
+
+You still need to obtain a `'py` lifetime to interact with Python
 objects or call into the CPython C API. If you are not yet attached to the
 Python runtime, you can register a thread using the [`Python::attach`]
 function. Threads created via the Python [`threading`] module do not need to
 do this, and pyo3 will handle setting up the [`Python<'py>`] token when CPython
 calls into your extension.
 
-### Global synchronization events can cause hangs and deadlocks
+### Detaching to avoid hangs and deadlocks
 
 The free-threaded build triggers global synchronization events in the following
 situations:
