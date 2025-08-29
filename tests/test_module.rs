@@ -332,7 +332,11 @@ fn test_module_nesting() {
             supermodule,
             "supermodule.submodule.__name__ == 'supermodule.submodule_with_init_fn'"
         );
-        py_assert!(py, supermodule, "'submodule_with_init_fn' in supermodule.__dict__");
+        py_assert!(
+            py,
+            supermodule,
+            "'submodule_with_init_fn' in supermodule.__dict__"
+        );
         py_assert!(
             py,
             supermodule,
