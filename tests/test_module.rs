@@ -320,12 +320,13 @@ fn test_module_nesting() {
 }
 
 #[test]
-fn test_submodule_attribute_and_dunder_names_submodule() {
+fn test_submodule_attribute_and_dunder_names() {
     use pyo3::wrap_pymodule;
 
     Python::attach(|py| {
         let supermodule = wrap_pymodule!(supermodule)(py);
 
+        // submodule
         py_assert!(
             py,
             supermodule,
@@ -337,16 +338,8 @@ fn test_submodule_attribute_and_dunder_names_submodule() {
             supermodule,
             "'supermodule.submodule' not in supermodule.__dict__"
         );
-    });
-}
 
-#[test]
-fn test_submodule_attribute_and_dunder_names_submodule_with_init_fn() {
-    use pyo3::wrap_pymodule;
-
-    Python::attach(|py| {
-        let supermodule = wrap_pymodule!(supermodule)(py);
-
+        // submodule_with_init_fn
         py_assert!(
             py,
             supermodule,
