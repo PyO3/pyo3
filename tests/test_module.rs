@@ -316,6 +316,16 @@ fn test_module_nesting() {
             supermodule,
             "supermodule.submodule_with_init_fn.subfunction() == 'Subfunction'"
         );
+    });
+}
+
+#[test]
+fn test_submodule_attribute_and_dunder_names() {
+    use pyo3::wrap_pymodule;
+
+    Python::attach(|py| {
+        let supermodule = wrap_pymodule!(supermodule)(py);
+
         py_assert!(
             py,
             supermodule,
