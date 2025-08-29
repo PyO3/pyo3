@@ -2,6 +2,8 @@
 title = "PyO3 user guide"
 description = "PyO3 user guide"
 author = "PyO3 Project and Contributors"
+language = "en"
+src = "../src"
 
 [preprocessor.pyo3_version]
 command = "python3 guide/pyo3_version.py"
@@ -12,5 +14,5 @@ command = "python3 guide/pyo3_version.py"
 git-repository-url = "https://github.com/PyO3/pyo3/tree/main/guide"
 edit-url-template = "https://github.com/PyO3/pyo3/edit/main/guide/{path}"
 playground.runnable = false
-additional-css = ["theme/tabs.css"]
-additional-js = ["theme/tabs.js"]
+additional-css = ["../theme/tabs.css"]
+additional-js = ["../theme/tabs.js"]
