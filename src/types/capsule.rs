@@ -47,7 +47,7 @@ use std::ffi::{CStr, CString};
 #[repr(transparent)]
 pub struct PyCapsule(PyAny);
 
-pyobject_native_type_core!(PyCapsule, pyobject_native_static_type_object!(ffi::PyCapsule_Type), #checkfunction=ffi::PyCapsule_CheckExact);
+pyobject_native_type_core!(PyCapsule, pyobject_native_static_type_object!(ffi::PyCapsule_Type), "PyCapsule", #checkfunction=ffi::PyCapsule_CheckExact);
 
 impl PyCapsule {
     /// Constructs a new capsule whose contents are `value`, associated with `name`.
