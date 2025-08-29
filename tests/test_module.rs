@@ -317,7 +317,6 @@ fn test_module_nesting() {
             "supermodule.submodule_with_init_fn.subfunction() == 'Subfunction'"
         );
 
-
         // submodule dunder name and attribute name
         py_assert!(
             py,
