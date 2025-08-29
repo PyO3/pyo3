@@ -321,11 +321,7 @@ fn test_module_nesting() {
             supermodule,
             "supermodule.submodule.__name__ == 'supermodule.submodule'"
         );
-        py_assert!(
-            py,
-            supermodule,
-            "'submodule' in supermodule.__dict__"
-        );
+        py_assert!(py, supermodule, "'submodule' in supermodule.__dict__");
         py_assert!(
             py,
             supermodule,
