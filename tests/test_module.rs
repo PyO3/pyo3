@@ -316,17 +316,9 @@ fn test_module_nesting() {
             supermodule,
             "supermodule.submodule_with_init_fn.subfunction() == 'Subfunction'"
         );
-    });
-}
 
-#[test]
-fn test_submodule_attribute_and_dunder_names() {
-    use pyo3::wrap_pymodule;
 
-    Python::attach(|py| {
-        let supermodule = wrap_pymodule!(supermodule)(py);
-
-        // submodule
+        // submodule dunder name and attribute name
         py_assert!(
             py,
             supermodule,
@@ -339,7 +331,7 @@ fn test_submodule_attribute_and_dunder_names() {
             "'supermodule.submodule' not in supermodule.__dict__"
         );
 
-        // submodule_with_init_fn
+        // submodule_with_init_fn dunder name and attribute name
         py_assert!(
             py,
             supermodule,
