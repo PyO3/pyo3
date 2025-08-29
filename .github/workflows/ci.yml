@@ -143,16 +143,12 @@ jobs:
       matrix:
         rust: [stable]
         python-version: ["3.13"]
-        platform: [
+        platform:
+          [
             {
-              os: "macos-latest", # first available arm macos runner
+              os: "macos-latest",
               python-architecture: "arm64",
               rust-target: "aarch64-apple-darwin",
-            },
-            {
-              os: "macos-13", # last available x86_64 macos runner
-              python-architecture: "x64",
-              rust-target: "x86_64-apple-darwin",
             },
             {
               os: "ubuntu-latest",
@@ -313,7 +309,7 @@ jobs:
             python-version: "3.13"
             platform:
               {
-                os: "macos-13",
+                os: "macos-latest",
                 python-architecture: "x64",
                 rust-target: "x86_64-apple-darwin",
               }
@@ -328,12 +324,12 @@ jobs:
               }
 
           # arm64 macOS Python not available on GitHub Actions until 3.10
-          # so backfill 3.7-3.9 with x64 macOS runners
+          # so backfill 3.7-3.9 with x64
           - rust: stable
             python-version: "3.7"
             platform:
               {
-                os: "macos-13",
+                os: "macos-latest",
                 python-architecture: "x64",
                 rust-target: "x86_64-apple-darwin",
               }
@@ -341,7 +337,7 @@ jobs:
             python-version: "3.8"
             platform:
               {
-                os: "macos-13",
+                os: "macos-latest",
                 python-architecture: "x64",
                 rust-target: "x86_64-apple-darwin",
               }
@@ -349,7 +345,7 @@ jobs:
             python-version: "3.9"
             platform:
               {
-                os: "macos-13",
+                os: "macos-latest",
                 python-architecture: "x64",
                 rust-target: "x86_64-apple-darwin",
               }
@@ -615,12 +611,6 @@ jobs:
           - os: "ubuntu-latest"
             target: "x86_64-pc-windows-gnu"
             flags: "-i python3.13 --features generate-import-lib"
-          # macos x86_64 -> aarch64
-          - os: "macos-13" # last x86_64 macos runners
-            target: "aarch64-apple-darwin"
-          # macos aarch64 -> x86_64
-          - os: "macos-latest"
-            target: "x86_64-apple-darwin"
           # windows x86_64 -> aarch64
           - os: "windows-latest"
             target: "aarch64-pc-windows-msvc"
