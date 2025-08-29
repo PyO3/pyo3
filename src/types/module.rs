@@ -514,7 +514,11 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
     }
 
     fn add_submodule(&self, module: &Bound<'_, PyModule>) -> PyResult<()> {
-        let name = module.name()?.call_method1("rpartition", (".",))?.get_item(2)?.downcast_into::<PyString>()?;
+        let name = module
+            .name()?
+            .call_method1("rpartition", (".",))?
+            .get_item(2)?
+            .downcast_into::<PyString>()?;
         self.add(name, module)
     }
 
