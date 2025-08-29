@@ -9,6 +9,8 @@ jobs:
   release:
     runs-on: ubuntu-latest
     environment: release
+    permissions:
+      id-token: "write"
     steps:
       - uses: actions/checkout@v5
 
@@ -21,3 +23,4 @@ jobs:
         run: nox -s publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+
