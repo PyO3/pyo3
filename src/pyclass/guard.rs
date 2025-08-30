@@ -271,7 +271,7 @@ impl<T: PyClass> Deref for PyClassGuard<'_, T> {
 
     #[inline]
     fn deref(&self) -> &T {
-        // SAFETY: `PyClassObject<T>` constains a valid `T`, by construction no
+        // SAFETY: `PyClassObject<T>` contains a valid `T`, by construction no
         // mutable alias is enforced
         unsafe { &*self.as_class_object().get_ptr().cast_const() }
     }
@@ -626,7 +626,7 @@ impl<T: PyClass<Frozen = False>> Deref for PyClassGuardMut<'_, T> {
 
     #[inline]
     fn deref(&self) -> &T {
-        // SAFETY: `PyClassObject<T>` constains a valid `T`, by construction no
+        // SAFETY: `PyClassObject<T>` contains a valid `T`, by construction no
         // alias is enforced
         unsafe { &*self.as_class_object().get_ptr().cast_const() }
     }
@@ -634,7 +634,7 @@ impl<T: PyClass<Frozen = False>> Deref for PyClassGuardMut<'_, T> {
 impl<T: PyClass<Frozen = False>> DerefMut for PyClassGuardMut<'_, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
-        // SAFETY: `PyClassObject<T>` constains a valid `T`, by construction no
+        // SAFETY: `PyClassObject<T>` contains a valid `T`, by construction no
         // alias is enforced
         unsafe { &mut *self.as_class_object().get_ptr() }
     }

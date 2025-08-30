@@ -17,7 +17,7 @@ pub unsafe fn PyMemoryView_Check(op: *mut PyObject) -> c_int {
 }
 
 // skipped non-limited PyMemoryView_GET_BUFFER
-// skipped non-limited PyMemeryView_GET_BASE
+// skipped non-limited PyMemoryView_GET_BASE
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyMemoryView_FromObject")]

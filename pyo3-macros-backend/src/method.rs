@@ -196,7 +196,7 @@ impl<'a> FnArg<'a> {
                 if cancel_handle.is_some() {
                     // `PyFunctionArgPyO3Attributes::from_attrs` validates that
                     // only compatible attributes are specified, either
-                    // `cancel_handle` or `from_py_with`, dublicates and any
+                    // `cancel_handle` or `from_py_with`, duplicates and any
                     // combination of the two are already rejected.
                     return Ok(Self::CancelHandle(CancelHandleArg {
                         name: ident,

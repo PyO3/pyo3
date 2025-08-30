@@ -79,7 +79,7 @@ macro_rules! extract_int {
         // however 3.8 & 3.9 do lossy conversion of floats, hence we only use the
         // simplest logic for 3.10+ where that was fixed - python/cpython#82180.
         // `PyLong_AsUnsignedLongLong` does not call `PyNumber_Index`, hence the `force_index_call` argument
-        // See https://github.com/PyO3/pyo3/pull/3742 for detials
+        // See https://github.com/PyO3/pyo3/pull/3742 for details
         if cfg!(Py_3_10) && !$force_index_call {
             err_if_invalid_value($obj.py(), $error_val, unsafe { $pylong_as($obj.as_ptr()) })
         } else if let Ok(long) = $obj.cast::<crate::types::PyInt>() {

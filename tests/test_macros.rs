@@ -30,7 +30,7 @@ macro_rules! set_extends_via_macro {
 set_extends_via_macro!(MyClass2, MyBaseClass);
 
 //
-// Check that pyfunctiona nd text_signature can be called with macro arguments.
+// Check that pyfunctions and text_signature can be called with macro arguments.
 //
 
 macro_rules! fn_macro {
