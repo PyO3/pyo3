@@ -879,7 +879,7 @@ struct MyClass {
 }
 
 #[pyfunction]
-fn dissamble_clone(my_class: MyClass) {
+fn disassemble_clone(my_class: MyClass) {
     let MyClass { mut my_field } = my_class;
     *my_field += 1;
 }

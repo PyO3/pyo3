@@ -908,7 +908,7 @@ mod tests {
             assert_eq!(buffer.format().to_str().unwrap(), "f");
             assert_eq!(buffer.shape(), [4]);
 
-            // array creates a 1D contiguious buffer, so it's both C and F contiguous.  This would
+            // array creates a 1D contiguous buffer, so it's both C and F contiguous.  This would
             // be more interesting if we can come up with a 2D buffer but I think it would need a
             // third-party lib or a custom class.
 

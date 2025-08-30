@@ -28,7 +28,7 @@ pyobject_native_type!(
     #checkfunction=ffi::PyWeakref_CheckRefExact
 );
 
-// When targetting alternative or multiple interpreters, it is better to not use the internal API.
+// When targeting alternative or multiple interpreters, it is better to not use the internal API.
 #[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
 pyobject_native_type_named!(PyWeakrefReference);
 

@@ -8,8 +8,8 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 <details open>
 <summary><small>Click to expand</small></summary>
 
-The names for these APIs were created when the global interpreter lock (GIL) was mandatory. With the introduction of free-threading in Python 3.13 this is no longer the case, and the naming does not has no universal meaning anymore.
-For this reason we chose to rename these to more modern terminology introduced in free-threading:
+The names for these APIs were created when the global interpreter lock (GIL) was mandatory. With the introduction of free-threading in Python 3.13 this is no longer the case, and the naming does not have no universal meaning anymore.
+For this reason, we chose to rename these to more modern terminology introduced in free-threading:
 
 - `Python::with_gil` is now called `Python::attach`, it attaches a Python thread-state to the current thread. In GIL enabled builds there can only be 1 thread attached to the interpreter, in free-threading there can be more.
 - `Python::allow_threads` is now called `Python::detach`, it detaches a previously attached thread-state.

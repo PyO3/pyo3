@@ -66,7 +66,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///         let (name, score) = data.get_data();
     ///         Ok(format!("Processing '{}': score = {}", name, score))
     ///     } else {
-    ///         Ok("The supplied data reference is nolonger relavent.".to_owned())
+    ///         Ok("The supplied data reference is no longer relevant.".to_owned())
     ///     }
     /// }
     ///
@@ -84,7 +84,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
-    ///         "The supplied data reference is nolonger relavent."
+    ///         "The supplied data reference is no longer relevant."
     ///     );
     ///
     ///     Ok(())
@@ -94,7 +94,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Panics
     /// This function panics is the current object is invalid.
-    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    /// If used properly this is never the case. (NonNull and actually a weakref type)
     ///
     /// [`PyWeakref_GetRef`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetRef
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
@@ -146,7 +146,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///         let (name, score) = data.get_data();
     ///         format!("Processing '{}': score = {}", name, score)
     ///     } else {
-    ///         "The supplied data reference is nolonger relavent.".to_owned()
+    ///         "The supplied data reference is no longer relevant.".to_owned()
     ///     }
     /// }
     ///
@@ -164,7 +164,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed()),
-    ///         "The supplied data reference is nolonger relavent."
+    ///         "The supplied data reference is no longer relevant."
     ///     );
     ///
     ///     Ok(())
@@ -174,7 +174,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Panics
     /// This function panics is the current object is invalid.
-    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    /// If used properly this is never the case. (NonNull and actually a weakref type)
     ///
     /// [`PyWeakref_GetRef`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetRef
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
@@ -216,7 +216,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///         let (name, score) = data.get_data();
     ///         Ok(format!("Processing '{}': score = {}", name, score))
     ///     } else {
-    ///         Ok("The supplied data reference is nolonger relavent.".to_owned())
+    ///         Ok("The supplied data reference is no longer relevant.".to_owned())
     ///     }
     /// }
     ///
@@ -234,7 +234,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
-    ///         "The supplied data reference is nolonger relavent."
+    ///         "The supplied data reference is no longer relevant."
     ///     );
     ///
     ///     Ok(())
@@ -244,7 +244,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Panics
     /// This function panics is the current object is invalid.
-    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    /// If used properly this is never the case. (NonNull and actually a weakref type)
     ///
     /// [`PyWeakref_GetRef`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetRef
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
@@ -284,9 +284,9 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///
     /// fn parse_data(reference: Borrowed<'_, '_, PyWeakrefReference>) -> PyResult<String> {
     ///     if let Some(object) = reference.upgrade() {
-    ///         Ok(format!("The object '{}' refered by this reference still exists.", object.getattr("__class__")?.getattr("__qualname__")?))
+    ///         Ok(format!("The object '{}' referred by this reference still exists.", object.getattr("__class__")?.getattr("__qualname__")?))
     ///     } else {
-    ///         Ok("The object, which this reference refered to, no longer exists".to_owned())
+    ///         Ok("The object, which this reference referred to, no longer exists".to_owned())
     ///     }
     /// }
     ///
@@ -297,14 +297,14 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
-    ///         "The object 'Foo' refered by this reference still exists."
+    ///         "The object 'Foo' referred by this reference still exists."
     ///     );
     ///
     ///     drop(data);
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
-    ///         "The object, which this reference refered to, no longer exists"
+    ///         "The object, which this reference referred to, no longer exists"
     ///     );
     ///
     ///     Ok(())

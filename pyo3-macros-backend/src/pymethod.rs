@@ -851,7 +851,7 @@ pub fn impl_py_getter_def(
             let method_def = quote! {
                 #cfg_attrs
                 {
-                    #[allow(unused_imports)]  // might not be used if all probes are positve
+                    #[allow(unused_imports)]  // might not be used if all probes are positive
                     use #pyo3_path::impl_::pyclass::Probe as _;
 
                     struct Offset;
