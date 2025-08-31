@@ -21,6 +21,7 @@
 //! [dependencies]
 //! bytes = "1.10"
 #![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"bytes\"] }")]
+//! ```
 //!
 //! Note that you must use compatible versions of bytes and PyO3.
 //!
@@ -30,6 +31,7 @@
 //!
 //! ```rust,no_run
 //! use pyo3::prelude::*;
+//! use bytes::Bytes;
 //!
 //! #[pyfunction]
 //! fn get_message_bytes() -> Bytes {
