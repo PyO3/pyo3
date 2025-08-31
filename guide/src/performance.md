@@ -98,6 +98,7 @@ impl PartialEq<Foo> for FooBound<'_> {
 ```
 
 ## Calling Python callables (`__call__`)
+
 CPython support multiple calling protocols: [`tp_call`] and [`vectorcall`]. [`vectorcall`] is a more efficient protocol unlocking faster calls.
 PyO3 will try to dispatch Python `call`s using the [`vectorcall`] calling convention to archive maximum performance if possible and falling back to [`tp_call`] otherwise.
 This is implemented using the (internal) `PyCallArgs` trait. It defines how Rust types can be used as Python `call` arguments. This trait is currently implemented for
@@ -109,6 +110,18 @@ Rust tuples may make use of [`vectorcall`] where as `Bound<'_, PyTuple>` and `Py
 
 [`tp_call`]: https://docs.python.org/3/c-api/call.html#the-tp-call-protocol
 [`vectorcall`]: https://docs.python.org/3/c-api/call.html#the-vectorcall-protocol
+
+## Detach from the interpreter for long-running Rust-only work
+
+When executing Rust code which does not need to interact with the Python interpreter, use [`Python::detach`] to allow the Python interpreter to proceed without waiting for the current thread.
+
+On the GIL-enabled build, this is crucial for best performance as only a single thread may ever be attached at a time.
+
+On the free-threaded build, this is still best practice as there are several "stop the world" events (such as garbage collection) where all threads attached to the Python interpreter are forced to wait.
+
+As a rule of thumb, attaching and detaching from the Python interpreter takes less than a millisecond, so any work which is expected to take multiple milliseconds can likely benefit from detaching from the interpreter.
+
+[`Python::detach`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.detach
 
 ## Disable the global reference pool
 

@@ -67,11 +67,11 @@ This is a first step towards adding first-class support for generating type anno
 
 ### `py-clone`
 
-This feature was introduced to ease migration. It was found that delayed reference counts cannot be made sound and hence `Clon`ing an instance of `Py<T>` must panic without the GIL being held. To avoid migrations introducing new panics without warning, the `Clone` implementation itself is now gated behind this feature.
+This feature was introduced to ease migration. It was found that delayed reference counting (which PyO3 used historically) could not be made sound and hence `Clone`-ing an instance of `Py<T>` is impossible when not attached to Python interpreter (it will panic). To avoid migrations introducing new panics without warning, the `Clone` implementation itself is now gated behind this feature.
 
 ### `pyo3_disable_reference_pool`
 
-This is a performance-oriented conditional compilation flag, e.g. [set via `$RUSTFLAGS`][set-configuration-options], which disabled the global reference pool and the associated overhead for the crossing the Python-Rust boundary. However, if enabled, `Drop`ping an instance of `Py<T>` without the GIL being held will abort the process.
+This is a performance-oriented conditional compilation flag, e.g. [set via `$RUSTFLAGS`][set-configuration-options], which disabled the global reference pool and the associated overhead for the crossing the Python-Rust boundary. However, if enabled, `Drop`ping an instance of `Py<T>` when not attached to the Python interpreter will abort the process.
 
 ### `macros`
 
