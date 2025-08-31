@@ -567,6 +567,10 @@ fn process_functions_in_module(options: &PyModuleOptions, func: &mut syn::ItemFn
                     {
                         use #pyo3_path::types::PyModuleMethods;
                         #module_name.add_function(#pyo3_path::wrap_pyfunction!(#name, #module_name.as_borrowed())?)?;
+                        #[deprecated(note = "`pyfn` will be removed in a future PyO3 version, use declarative `#[pymodule]` with `mod` instead")]
+                        #[allow(dead_code)]
+                        const PYFN_ATTRIBUTE: () = ();
+                        const _: () = PYFN_ATTRIBUTE;
                     }
                 };
                 stmts.extend(statements);
