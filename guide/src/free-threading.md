@@ -272,7 +272,7 @@ the free-threaded build.
 To initialize data exactly once, use the [`PyOnceLock`] type, which is a close equivalent
 to [`std::sync::OnceLock`][`OnceLock`] that also helps avoid deadlocks by detaching from
 the Python interpreter when threads are blocking waiting for another thread to
-complete intialization. If already using [`OnceLock`] and it is impractical
+complete initialization. If already using [`OnceLock`] and it is impractical
 to replace with a [`PyOnceLock`], there is the [`OnceLockExt`] extension trait
 which adds [`OnceLockExt::get_or_init_py_attached`] to detach from the interpreter
 when blocking in the same fashion as [`PyOnceLock`]. Here is an example using

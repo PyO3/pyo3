@@ -246,9 +246,9 @@ pub mod pyo3_build_script_impl {
         // CONFIG_FILE is generated in build.rs, so it's content can vary
         #[allow(unknown_lints, clippy::const_is_empty)]
         if !CONFIG_FILE.is_empty() {
-            let mut interperter_config = InterpreterConfig::from_reader(Cursor::new(CONFIG_FILE))?;
-            interperter_config.generate_import_libs()?;
-            Ok(interperter_config)
+            let mut interpreter_config = InterpreterConfig::from_reader(Cursor::new(CONFIG_FILE))?;
+            interpreter_config.generate_import_libs()?;
+            Ok(interpreter_config)
         } else if let Some(interpreter_config) = make_cross_compile_config()? {
             // This is a cross compile and need to write the config file.
             let path = resolve_cross_compile_config_path()

@@ -498,7 +498,7 @@ impl PyErr {
     ///
     /// Calling this method has the benefit that the error goes back into a standardized callback
     /// in Python which for instance allows unittests to ensure that no unraisable error
-    /// actually happend by hooking `sys.unraisablehook`.
+    /// actually happened by hooking `sys.unraisablehook`.
     ///
     /// Example:
     /// ```rust
