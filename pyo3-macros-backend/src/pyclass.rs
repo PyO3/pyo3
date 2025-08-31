@@ -17,7 +17,6 @@ use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{
     class_introspection_code, function_introspection_code, introspection_id_const,
-    unique_element_id,
 };
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::{FnArg, FnSpec, PyArg, RegularArg};
@@ -25,6 +24,8 @@ use crate::pyfunction::ConstructorAttribute;
 #[cfg(feature = "experimental-inspect")]
 use crate::pyfunction::FunctionSignature;
 use crate::pyimpl::{gen_py_const, get_cfg_attributes, PyClassMethodsType};
+#[cfg(feature = "experimental-inspect")]
+use crate::pymethod::field_python_name;
 use crate::pymethod::{
     impl_py_class_attribute, impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef,
     MethodAndSlotDef, PropertyType, SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __REPR__,
@@ -1516,32 +1517,26 @@ fn generate_protocol_slot(
     #[cfg(feature = "experimental-inspect")]
     {
         // We generate introspection data
-        let associated_method = def.associated_method;
         let signature = FunctionSignature::from_arguments(introspection_data.arguments);
         let returns = introspection_data.returns;
-        let introspection = introspection_data
-            .names
-            .iter()
-            .map(|name| {
-                function_introspection_code(
-                    &ctx.pyo3_path,
-                    None,
-                    name,
-                    &signature,
-                    Some("self"),
-                    parse_quote!(-> #returns),
-                    [],
-                    Some(cls),
-                )
-            })
-            .collect::<Vec<_>>();
-        let const_name = format_ident!("_{}", unique_element_id()); // We need an explicit name here
-        def.associated_method = quote! {
-            #associated_method
-            const #const_name: () = {
-                #(#introspection)*
-            };
-        };
+        def.add_introspection(
+            introspection_data
+                .names
+                .iter()
+                .flat_map(|name| {
+                    function_introspection_code(
+                        &ctx.pyo3_path,
+                        None,
+                        name,
+                        &signature,
+                        Some("self"),
+                        parse_quote!(-> #returns),
+                        [],
+                        Some(cls),
+                    )
+                })
+                .collect(),
+        );
     }
     Ok(def)
 }
@@ -1829,7 +1824,7 @@ fn complex_enum_variant_field_getter<'a>(
         unsafety: None,
         warnings: vec![],
         #[cfg(feature = "experimental-inspect")]
-        output: syn::ReturnType::Type(Token![->](field_span), Box::new(variant_cls_type.clone())),
+        output: parse_quote!(-> #variant_cls_type),
     };
 
     let property_type = crate::pymethod::PropertyType::Function {
@@ -1862,31 +1857,72 @@ fn descriptors_to_items(
         }
 
         if options.get.is_some() {
-            let getter = impl_py_getter_def(
+            let renaming_rule = rename_all.map(|rename_all| rename_all.value.rule);
+            #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
+            let mut getter = impl_py_getter_def(
                 &ty,
                 PropertyType::Descriptor {
                     field_index,
                     field,
                     python_name: options.name.as_ref(),
-                    renaming_rule: rename_all.map(|rename_all| rename_all.value.rule),
+                    renaming_rule,
                 },
                 ctx,
             )?;
+            #[cfg(feature = "experimental-inspect")]
+            {
+                // We generate introspection data
+                let return_type = &field.ty;
+                getter.add_introspection(function_introspection_code(
+                    &ctx.pyo3_path,
+                    None,
+                    &field_python_name(field, options.name.as_ref(), renaming_rule)?,
+                    &FunctionSignature::from_arguments(vec![]),
+                    Some("self"),
+                    parse_quote!(-> #return_type),
+                    vec!["property".into()],
+                    Some(&parse_quote!(#cls)),
+                ));
+            }
             items.push(getter);
         }
 
         if let Some(set) = options.set {
             ensure_spanned!(frozen.is_none(), set.span() => "cannot use `#[pyo3(set)]` on a `frozen` class");
-            let setter = impl_py_setter_def(
+            let renaming_rule = rename_all.map(|rename_all| rename_all.value.rule);
+            #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
+            let mut setter = impl_py_setter_def(
                 &ty,
                 PropertyType::Descriptor {
                     field_index,
                     field,
                     python_name: options.name.as_ref(),
-                    renaming_rule: rename_all.map(|rename_all| rename_all.value.rule),
+                    renaming_rule,
                 },
                 ctx,
             )?;
+            #[cfg(feature = "experimental-inspect")]
+            {
+                // We generate introspection data
+                let name = field_python_name(field, options.name.as_ref(), renaming_rule)?;
+                setter.add_introspection(function_introspection_code(
+                    &ctx.pyo3_path,
+                    None,
+                    &name,
+                    &FunctionSignature::from_arguments(vec![FnArg::Regular(RegularArg {
+                        name: Cow::Owned(format_ident!("value")),
+                        ty: &field.ty,
+                        from_py_with: None,
+                        default_value: None,
+                        option_wrapped_type: None,
+                        annotation: None,
+                    })]),
+                    Some("self"),
+                    syn::ReturnType::Default,
+                    vec![format!("{name}.setter")],
+                    Some(&parse_quote!(#cls)),
+                ));
+            }
             items.push(setter);
         };
     }
