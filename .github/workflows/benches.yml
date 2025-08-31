@@ -37,7 +37,7 @@ jobs:
           tool: cargo-codspeed
 
       - name: Install nox
-        run: pip install nox
+        run: pip install nox[uv]
 
       - name: Run the benchmarks
         uses: CodSpeedHQ/action@v3

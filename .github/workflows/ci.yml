@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: python -m pip install --upgrade pip && pip install nox
+      - run: python -m pip install --upgrade pip && pip install nox[uv]
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -73,7 +73,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - run: python -m pip install --upgrade pip && pip install nox
+      - run: python -m pip install --upgrade pip && pip install nox[uv]
       # This is a smoke test to confirm that CI will run on MSRV (including dev dependencies)
       - name: Check with MSRV package versions
         run: |
@@ -414,7 +414,7 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@valgrind
-      - run: python -m pip install --upgrade pip && pip install nox
+      - run: python -m pip install --upgrade pip && pip install nox[uv]
       - run: nox -s test-rust -- release skip-full
     env:
       CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: valgrind --leak-check=no --error-exitcode=1
@@ -437,7 +437,7 @@ jobs:
         with:
           components: rust-src
       - uses: taiki-e/install-action@cargo-careful
-      - run: python -m pip install --upgrade pip && pip install nox
+      - run: python -m pip install --upgrade pip && pip install nox[uv]
       - run: nox -s test-rust -- careful skip-full
     env:
       RUST_BACKTRACE: 1
@@ -480,7 +480,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 18
-      - run: python -m pip install --upgrade pip && pip install nox
+      - run: python -m pip install --upgrade pip && pip install nox[uv]
       - uses: actions/cache/restore@v4
         id: cache
         with:
@@ -528,7 +528,7 @@ jobs:
           echo PYTHONHOME=$(pwd)/python/install >> $GITHUB_ENV
           echo PYO3_PYTHON=$(pwd)/python/install/bin/python3 >> $GITHUB_ENV
       - run: python3 -m sysconfig
-      - run: python3 -m pip install --upgrade pip && pip install nox
+      - run: python3 -m pip install --upgrade pip && pip install nox[uv]
       - run: |
           PYO3_CONFIG_FILE=$(mktemp)
           cat > $PYO3_CONFIG_FILE << EOF
@@ -559,7 +559,7 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@stable
-      - run: python3 -m pip install --upgrade pip && pip install nox
+      - run: python3 -m pip install --upgrade pip && pip install nox[uv]
       - run: python3 -m nox -s test-version-limits
 
   check-feature-powerset:
@@ -588,7 +588,7 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-hack,cargo-minimal-versions
-      - run: python3 -m pip install --upgrade pip && pip install nox
+      - run: python3 -m pip install --upgrade pip && pip install nox[uv]
       - run: python3 -m nox -s check-feature-powerset -- ${{ matrix.rust != 'stable' && 'minimal-versions' || '' }}
 
   test-cross-compilation:
@@ -732,7 +732,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - run: python -m pip install --upgrade pip && pip install nox
+      - run: python -m pip install --upgrade pip && pip install nox[uv]
       - run: nox -s test-introspection
     env:
       CARGO_BUILD_TARGET: ${{ matrix.platform.rust-target }}
