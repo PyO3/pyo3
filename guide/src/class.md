@@ -203,9 +203,10 @@ mod my_module {
 
 It is often useful to turn a `#[pyclass]` type `T` into a Python object and access it from Rust code. The [`Py<T>`] and [`Bound<'py, T>`] smart pointers are the ways to represent a Python object in PyO3's API. More detail can be found about them [in the Python objects](./types.md#pyo3s-smart-pointers) section of the guide.
 
-Most Python objects do not offer exclusive (`&mut`) access (see the [section on Python's memory model](./python-from-rust.md#pythons-memory-model)). However, Rust structs wrapped as Python objects (called `pyclass` types) often *do* need `&mut` access. Due to the GIL, PyO3 *can* guarantee exclusive access to them.
+Most Python objects do not offer exclusive (`&mut`) access (see the [section on Python's memory model](./python-from-rust.md#pythons-memory-model)). However, Rust structs wrapped as Python objects (called `pyclass` types) often *do* need `&mut` access.
+However, the Rust borrow checker cannot reason about `&mut` references once an object's ownership has been passed to the Python interpreter.
 
-The Rust borrow checker cannot reason about `&mut` references once an object's ownership has been passed to the Python interpreter. This means that borrow checking is done at runtime using with a scheme very similar to `std::cell::RefCell<T>`. This is known as [interior mutability](https://doc.rust-lang.org/book/ch15-05-interior-mutability.html).
+To solve this, PyO3 does borrow checking at runtime using a scheme very similar to `std::cell::RefCell<T>`. This is known as [interior mutability](https://doc.rust-lang.org/book/ch15-05-interior-mutability.html).
 
 Users who are familiar with `RefCell<T>` can use `Py<T>` and `Bound<'py, T>` just like `RefCell<T>`.
 
@@ -685,7 +686,8 @@ impl MyClass {
 }
 ```
 
-Calls to these methods are protected by the GIL, so both `&self` and `&mut self` can be used.
+Both `&self` and `&mut self` can be used, due to the use of [runtime borrow checking](#bound-and-interior-mutability).
+
 The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPyObject`;
 the latter is allowed if the method cannot raise Python exceptions.
 
@@ -828,7 +830,12 @@ impl MyClass {
 
 ## Classes as function arguments
 
-Free functions defined using `#[pyfunction]` interact with classes through the same mechanisms as the self parameters of instance methods, i.e. they can take Python-bound references, Python-bound reference wrappers or Python-independent references:
+Class objects can be used as arguments to `#[pyfunction]`s and `#[pymethods]` in the same way as the self parameters of instance methods, i.e. they can be passed as:
+- `Py<T>` or `Bound<'py, T>` smart pointers to the class Python object,
+- `&T` or `&mut T` references to the Rust data contained in the Python object, or
+- `PyRef<T>` and `PyRefMut<T>` reference wrappers.
+
+Examples of each of these below:
 
 ```rust,no_run
 # #![allow(dead_code)]
@@ -838,21 +845,21 @@ struct MyClass {
     my_field: i32,
 }
 
-// Take a reference when the underlying `Bound` is irrelevant.
+// Take a reference to Rust data when the Python object is irrelevant.
 #[pyfunction]
 fn increment_field(my_class: &mut MyClass) {
     my_class.my_field += 1;
 }
 
 // Take a reference wrapper when borrowing should be automatic,
-// but interaction with the underlying `Bound` is desired.
+// but access to the Python object is still needed
 #[pyfunction]
-fn print_field(my_class: PyRef<'_, MyClass>) {
+fn print_field_and_return_me(my_class: PyRef<'_, MyClass>) -> PyRef<'_, MyClass> {
     println!("{}", my_class.my_field);
+    my_class
 }
 
-// Take a reference to the underlying Bound
-// when borrowing needs to be managed manually.
+// Take (a reference to) a Python object smart pointer when borrowing needs to be managed manually.
 #[pyfunction]
 fn increment_then_print_field(my_class: &Bound<'_, MyClass>) {
     my_class.borrow_mut().my_field += 1;
@@ -860,7 +867,8 @@ fn increment_then_print_field(my_class: &Bound<'_, MyClass>) {
     println!("{}", my_class.borrow().my_field);
 }
 
-// Take a GIL-independent reference when you want to store the reference elsewhere.
+// When the Python object smart pointer needs to be stored elsewhere prefer `Py<T>` over `Bound<'py, T>`
+// to avoid the lifetime restrictions.
 #[pyfunction]
 fn print_refcnt(my_class: Py<MyClass>, py: Python<'_>) {
     println!("{}", my_class.get_refcnt(py));

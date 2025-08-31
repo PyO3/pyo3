@@ -127,7 +127,8 @@ generate-import-lib = ["pyo3-ffi/generate-import-lib"]
 # Changes `Python::attach` to automatically initialize the Python interpreter if needed.
 auto-initialize = []
 
-# Enables `Clone`ing references to Python objects `Py<T>` which panics if the GIL is not held.
+# Enables `Clone`ing references to Python objects `Py<T>` which panics if the
+# thread is not attached to the Python interpreter.
 py-clone = []
 
 # Adds `OnceExt` and `MutexExt` implementations to the `parking_lot` types

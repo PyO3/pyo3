@@ -166,7 +166,8 @@ print(f"a: {a}\nb: {b}")
 a: <builtins.Inner object at 0x0000020044FCC670>
 b: <builtins.Inner object at 0x0000020044FCC670>
 ```
-The downside to this approach is that any Rust code working on the `Outer` struct now has to acquire the GIL to do anything with its field.
+The downside to this approach is that any Rust code working on the `Outer` struct potentially has to attach to the Python interpreter to do anything with the `inner` field. (If `Inner` is `#[pyclass(frozen)]` and implements `Sync`, then `Py::get`
+may be used to access the `Inner` contents from `Py<Inner>` without needing to attach to the interpreter.)
 
 ## I want to use the `pyo3` crate re-exported from dependency but the proc-macros fail!
 
