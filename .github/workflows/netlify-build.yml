@@ -50,7 +50,7 @@ jobs:
       # This builds the book in target/guide/.
       - name: Build the guide
         run: |
-          python -m pip install --upgrade pip && pip install nox
+          python -m pip install --upgrade pip && pip install nox[uv]
           nox -s ${{ github.event_name == 'release' && 'build-guide' || 'check-guide' }}
         env:
           PYO3_VERSION_TAG: ${{ steps.prepare_tag.outputs.tag_name }}
@@ -75,7 +75,7 @@ jobs:
 
       - name: Build the site
         run: |
-          python -m pip install --upgrade pip && pip install nox towncrier requests
+          python -m pip install --upgrade pip && pip install nox[uv] towncrier requests
           nox -s build-netlify-site -- ${{ (github.ref != 'refs/heads/main' && '--preview') || '' }}
 
       # Upload the built site as an artifact for deploy workflow to consume
