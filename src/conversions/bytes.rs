@@ -31,6 +31,7 @@
 //!
 //! ```rust,no_run
 //! use pyo3::prelude::*;
+//! use bytes::Bytes;
 //!
 //! #[pyfunction]
 //! fn get_message_bytes() -> Bytes {
