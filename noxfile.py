@@ -109,7 +109,6 @@ def test_rust(session: nox.Session):
 
     for feature_set in _get_feature_sets():
         flags = extra_flags.copy()
-        print(feature_set)
 
         if feature_set is None or "full" not in feature_set:
             # doctests require at least the macros feature, which is
