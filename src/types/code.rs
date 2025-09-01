@@ -25,7 +25,7 @@ pyobject_native_type_named!(PyCode);
 
 #[cfg(any(Py_LIMITED_API, PyPy))]
 impl crate::PyTypeCheck for PyCode {
-    const NAME: &'static str = "codeobject";
+    const NAME: &'static str = "code";
     #[cfg(feature = "experimental-inspect")]
     const PYTHON_TYPE: &'static str = "types.CodeType";
 
