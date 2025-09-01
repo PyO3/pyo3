@@ -12,6 +12,7 @@ use crate::{
     PyRefMut, PyTypeInfo, Python,
 };
 use crate::{internal::state, PyTypeCheck};
+use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::ops::Deref;
@@ -264,7 +265,7 @@ impl<'py, T> Bound<'py, T> {
                 // Safety: is_exact_instance_of is responsible for ensuring that the type is correct
                 Ok(unsafe { any.cast_unchecked() })
             } else {
-                Err(DowncastError::new(any, U::NAME))
+                Err(DowncastError::new(any, type_name::<U>(any.py())))
             }
         }
 
@@ -286,7 +287,8 @@ impl<'py, T> Bound<'py, T> {
                 // Safety: is_exact_instance_of is responsible for ensuring that the type is correct
                 Ok(unsafe { any.cast_into_unchecked() })
             } else {
-                Err(DowncastIntoError::new(any, U::NAME))
+                let to = type_name::<U>(any.py());
+                Err(DowncastIntoError::new(any, to))
             }
         }
 
@@ -2229,6 +2231,13 @@ impl<T> Py<T> {
     pub unsafe fn cast_bound_unchecked<'py, U>(&self, py: Python<'py>) -> &Bound<'py, U> {
         unsafe { self.bind(py).cast_unchecked() }
     }
+}
+
+fn type_name<T: PyTypeInfo>(py: Python<'_>) -> Cow<'static, str> {
+    T::type_object(py)
+        .name()
+        .map(|name| Cow::Owned(name.to_string_lossy().into_owned()))
+        .unwrap_or(Cow::Borrowed("unknown type"))
 }
 
 #[cfg(test)]
