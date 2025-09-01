@@ -16,7 +16,7 @@ pub struct PyCode(PyAny);
 pyobject_native_type_core!(
     PyCode,
     pyobject_native_static_type_object!(ffi::PyCode_Type),
-    "PyCode",
+    "code",
     #checkfunction=ffi::PyCode_Check
 );
 
