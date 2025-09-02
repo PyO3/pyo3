@@ -1,6 +1,7 @@
 pub(crate) mod abstract_;
 // skipped bytearrayobject.h
 pub(crate) mod bytesobject;
+pub(crate) mod fileobject;
 #[cfg(not(PyPy))]
 pub(crate) mod ceval;
 pub(crate) mod code;
@@ -60,6 +61,7 @@ pub use self::frameobject::*;
 pub use self::funcobject::*;
 pub use self::genobject::*;
 pub use self::import::*;
+pub use self::fileobject::*;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub use self::initconfig::*;
 pub use self::listobject::*;
