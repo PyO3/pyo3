@@ -111,6 +111,7 @@ impl<'py> DowncastIntoError<'py> {
 }
 
 // Helper to store either a concrete type or a type name
+#[derive(Debug)]
 enum TypeNameOrValue<'py> {
     Name(Cow<'static, str>),
     Value(Bound<'py, PyType>),
@@ -843,12 +844,6 @@ fn display_downcast_error(
         from.get_type().qualname().map_err(|_| std::fmt::Error)?,
         to
     )
-}
-
-impl std::fmt::Debug for TypeNameOrValue<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Display::fmt(self, f)
-    }
 }
 
 impl std::fmt::Display for TypeNameOrValue<'_> {
