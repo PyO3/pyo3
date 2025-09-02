@@ -1,9 +1,8 @@
-use crate::conversion::IntoPyObject;
-use crate::instance::Bound;
+use crate::conversion::{FromPyObjectOwned, IntoPyObject};
 use crate::types::any::PyAnyMethods;
 use crate::types::PySequence;
 use crate::{err::DowncastError, ffi, FromPyObject, PyAny, PyResult, Python};
-use crate::{exceptions, PyErr};
+use crate::{exceptions, Borrowed, Bound, PyErr};
 
 impl<'py, T, const N: usize> IntoPyObject<'py> for [T; N]
 where
@@ -37,18 +36,20 @@ where
     }
 }
 
-impl<'py, T, const N: usize> FromPyObject<'py> for [T; N]
+impl<'py, T, const N: usize> FromPyObject<'_, 'py> for [T; N]
 where
-    T: FromPyObject<'py>,
+    T: FromPyObjectOwned<'py>,
 {
-    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         create_array_from_obj(obj)
     }
 }
 
-fn create_array_from_obj<'py, T, const N: usize>(obj: &Bound<'py, PyAny>) -> PyResult<[T; N]>
+fn create_array_from_obj<'py, T, const N: usize>(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<[T; N]>
 where
-    T: FromPyObject<'py>,
+    T: FromPyObjectOwned<'py>,
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
@@ -56,14 +57,17 @@ where
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
             obj.cast_unchecked::<PySequence>()
         } else {
-            return Err(DowncastError::new(obj, "Sequence").into());
+            return Err(DowncastError::new_from_borrowed(obj, "Sequence").into());
         }
     };
     let seq_len = seq.len()?;
     if seq_len != N {
         return Err(invalid_sequence_length(N, seq_len));
     }
-    array_try_from_fn(|idx| seq.get_item(idx).and_then(|any| any.extract()))
+    array_try_from_fn(|idx| {
+        seq.get_item(idx)
+            .and_then(|any| any.extract().map_err(Into::into))
+    })
 }
 
 // TODO use std::array::try_from_fn, if that stabilises:

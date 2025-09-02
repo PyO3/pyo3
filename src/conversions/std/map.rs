@@ -3,10 +3,10 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    conversion::IntoPyObject,
+    conversion::{FromPyObjectOwned, IntoPyObject},
     instance::Bound,
     types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
-    FromPyObject, PyAny, PyErr, Python,
+    Borrowed, FromPyObject, PyAny, PyErr, Python,
 };
 
 impl<'py, K, V, H> IntoPyObject<'py> for collections::HashMap<K, V, H>
@@ -107,17 +107,22 @@ where
     }
 }
 
-impl<'py, K, V, S> FromPyObject<'py> for collections::HashMap<K, V, S>
+impl<'py, K, V, S> FromPyObject<'_, 'py> for collections::HashMap<K, V, S>
 where
-    K: FromPyObject<'py> + cmp::Eq + hash::Hash,
-    V: FromPyObject<'py>,
+    K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
+    V: FromPyObjectOwned<'py>,
     S: hash::BuildHasher + Default,
 {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let dict = ob.cast::<PyDict>()?;
         let mut ret = collections::HashMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict {
-            ret.insert(k.extract()?, v.extract()?);
+        for (k, v) in dict.iter() {
+            ret.insert(
+                k.extract().map_err(Into::into)?,
+                v.extract().map_err(Into::into)?,
+            );
         }
         Ok(ret)
     }
@@ -128,16 +133,21 @@ where
     }
 }
 
-impl<'py, K, V> FromPyObject<'py> for collections::BTreeMap<K, V>
+impl<'py, K, V> FromPyObject<'_, 'py> for collections::BTreeMap<K, V>
 where
-    K: FromPyObject<'py> + cmp::Ord,
-    V: FromPyObject<'py>,
+    K: FromPyObjectOwned<'py> + cmp::Ord,
+    V: FromPyObjectOwned<'py>,
 {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.cast::<PyDict>()?;
         let mut ret = collections::BTreeMap::new();
-        for (k, v) in dict {
-            ret.insert(k.extract()?, v.extract()?);
+        for (k, v) in dict.iter() {
+            ret.insert(
+                k.extract().map_err(Into::into)?,
+                v.extract().map_err(Into::into)?,
+            );
         }
         Ok(ret)
     }
