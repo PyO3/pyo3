@@ -46,25 +46,33 @@ pub type PyResult<T> = Result<T, PyErr>;
 #[derive(Debug)]
 pub struct DowncastError<'a, 'py> {
     from: Borrowed<'a, 'py, PyAny>,
-    to: Cow<'static, str>,
+    to: TypeNameOrValue<'py>,
 }
 
 impl<'a, 'py> DowncastError<'a, 'py> {
     /// Create a new `PyDowncastError` representing a failure to convert the object
     /// `from` into the type named in `to`.
     pub fn new(from: &'a Bound<'py, PyAny>, to: impl Into<Cow<'static, str>>) -> Self {
-        DowncastError {
+        Self {
             from: from.as_borrowed(),
-            to: to.into(),
+            to: TypeNameOrValue::Name(to.into()),
         }
     }
+
     pub(crate) fn new_from_borrowed(
         from: Borrowed<'a, 'py, PyAny>,
         to: impl Into<Cow<'static, str>>,
     ) -> Self {
-        DowncastError {
+        Self {
             from,
-            to: to.into(),
+            to: TypeNameOrValue::Name(to.into()),
+        }
+    }
+
+    pub(crate) fn new_from_type(from: Borrowed<'a, 'py, PyAny>, to: Bound<'py, PyType>) -> Self {
+        Self {
+            from,
+            to: TypeNameOrValue::Value(to),
         }
     }
 }
@@ -73,16 +81,23 @@ impl<'a, 'py> DowncastError<'a, 'py> {
 #[derive(Debug)]
 pub struct DowncastIntoError<'py> {
     from: Bound<'py, PyAny>,
-    to: Cow<'static, str>,
+    to: TypeNameOrValue<'py>,
 }
 
 impl<'py> DowncastIntoError<'py> {
     /// Create a new `DowncastIntoError` representing a failure to convert the object
     /// `from` into the type named in `to`.
     pub fn new(from: Bound<'py, PyAny>, to: impl Into<Cow<'static, str>>) -> Self {
-        DowncastIntoError {
+        Self {
             from,
-            to: to.into(),
+            to: TypeNameOrValue::Name(to.into()),
+        }
+    }
+
+    pub(crate) fn new_from_type(from: Bound<'py, PyAny>, to: Bound<'py, PyType>) -> Self {
+        Self {
+            from,
+            to: TypeNameOrValue::Value(to),
         }
     }
 
@@ -95,6 +110,11 @@ impl<'py> DowncastIntoError<'py> {
     }
 }
 
+// Helper to store either a concrete type or a type name
+enum TypeNameOrValue<'py> {
+    Name(Cow<'static, str>),
+    Value(Bound<'py, PyType>),
+}
 /// Helper conversion trait that allows to use custom arguments for lazy exception construction.
 pub trait PyErrArguments: Send + Sync {
     /// Arguments for exception
@@ -721,23 +741,31 @@ impl<'py> IntoPyObject<'py> for &PyErr {
 
 struct PyDowncastErrorArguments {
     from: Py<PyType>,
-    to: Cow<'static, str>,
+    to: OwnedTypeNameOrValue,
 }
 
 impl PyErrArguments for PyDowncastErrorArguments {
     fn arguments(self, py: Python<'_>) -> Py<PyAny> {
-        const FAILED_TO_EXTRACT: Cow<'_, str> = Cow::Borrowed("<failed to extract type name>");
         let from = self.from.bind(py).qualname();
-        let from = match &from {
-            Ok(qn) => qn.to_cow().unwrap_or(FAILED_TO_EXTRACT),
-            Err(_) => FAILED_TO_EXTRACT,
+        let from = from
+            .as_ref()
+            .map(|name| name.to_string_lossy())
+            .unwrap_or(Cow::Borrowed("<failed to extract type name>"));
+        let to = match self.to {
+            OwnedTypeNameOrValue::Name(name) => TypeNameOrValue::Name(name),
+            OwnedTypeNameOrValue::Value(t) => TypeNameOrValue::Value(t.into_bound(py)),
         };
-        format!("'{}' object cannot be converted to '{}'", from, self.to)
+        format!("'{}' object cannot be converted to '{}'", from, to)
             .into_pyobject(py)
             .unwrap()
             .into_any()
             .unbind()
     }
+}
+
+enum OwnedTypeNameOrValue {
+    Name(Cow<'static, str>),
+    Value(Py<PyType>),
 }
 
 /// Python exceptions that can be converted to [`PyErr`].
@@ -763,7 +791,10 @@ impl std::convert::From<DowncastError<'_, '_>> for PyErr {
     fn from(err: DowncastError<'_, '_>) -> PyErr {
         let args = PyDowncastErrorArguments {
             from: err.from.get_type().into(),
-            to: err.to,
+            to: match err.to {
+                TypeNameOrValue::Name(name) => OwnedTypeNameOrValue::Name(name),
+                TypeNameOrValue::Value(t) => OwnedTypeNameOrValue::Value(t.into()),
+            },
         };
 
         exceptions::PyTypeError::new_err(args)
@@ -783,7 +814,10 @@ impl std::convert::From<DowncastIntoError<'_>> for PyErr {
     fn from(err: DowncastIntoError<'_>) -> PyErr {
         let args = PyDowncastErrorArguments {
             from: err.from.get_type().into(),
-            to: err.to,
+            to: match err.to {
+                TypeNameOrValue::Name(name) => OwnedTypeNameOrValue::Name(name),
+                TypeNameOrValue::Value(t) => OwnedTypeNameOrValue::Value(t.into()),
+            },
         };
 
         exceptions::PyTypeError::new_err(args)
@@ -801,7 +835,7 @@ impl std::fmt::Display for DowncastIntoError<'_> {
 fn display_downcast_error(
     f: &mut std::fmt::Formatter<'_>,
     from: &Bound<'_, PyAny>,
-    to: &str,
+    to: &TypeNameOrValue<'_>,
 ) -> std::fmt::Result {
     write!(
         f,
@@ -809,6 +843,25 @@ fn display_downcast_error(
         from.get_type().qualname().map_err(|_| std::fmt::Error)?,
         to
     )
+}
+
+impl std::fmt::Debug for TypeNameOrValue<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(self, f)
+    }
+}
+
+impl std::fmt::Display for TypeNameOrValue<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Name(name) => name.fmt(f),
+            Self::Value(t) => t
+                .qualname()
+                .map_err(|_| std::fmt::Error)?
+                .to_string_lossy()
+                .fmt(f),
+        }
+    }
 }
 
 #[track_caller]
