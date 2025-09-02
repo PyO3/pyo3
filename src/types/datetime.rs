@@ -18,12 +18,14 @@ use crate::ffi::{
 };
 #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
 use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNone};
+#[cfg(Py_LIMITED_API)]
+use crate::types::typeobject::PyTypeMethods;
+#[cfg(Py_LIMITED_API)]
+use crate::types::IntoPyDict;
 use crate::types::{any::PyAnyMethods, PyString, PyType};
 #[cfg(not(Py_LIMITED_API))]
 use crate::{ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, types::PyTuple, BoundObject};
 use crate::{sync::PyOnceLock, Py};
-#[cfg(Py_LIMITED_API)]
-use crate::{types::IntoPyDict, PyTypeCheck};
 use crate::{Borrowed, Bound, IntoPyObject, PyAny, PyErr, Python};
 #[cfg(not(Py_LIMITED_API))]
 use std::ffi::c_int;
@@ -234,21 +236,11 @@ pyobject_native_type!(
 pyobject_subclassable_native_type!(PyDate, crate::ffi::PyDateTime_Date);
 
 #[cfg(Py_LIMITED_API)]
-pyobject_native_type_named!(PyDate);
-
-#[cfg(Py_LIMITED_API)]
-impl PyTypeCheck for PyDate {
-    const NAME: &'static str = "PyDate";
-    #[cfg(feature = "experimental-inspect")]
-    const PYTHON_TYPE: &'static str = "datetime.date";
-
-    fn type_check(object: &Bound<'_, PyAny>) -> bool {
-        let py = object.py();
-        DatetimeTypes::try_get(py)
-            .and_then(|module| object.is_instance(module.date.bind(py)))
-            .unwrap_or_default()
-    }
-}
+pyobject_native_type_core!(
+    PyDate,
+    |py| type_to_ptr(&DatetimeTypes::try_get(py).unwrap().date, py),
+    #module=Some("datetime")
+);
 
 impl PyDate {
     /// Creates a new `datetime.date`.
@@ -335,21 +327,11 @@ pyobject_native_type!(
 pyobject_subclassable_native_type!(PyDateTime, crate::ffi::PyDateTime_DateTime);
 
 #[cfg(Py_LIMITED_API)]
-pyobject_native_type_named!(PyDateTime);
-
-#[cfg(Py_LIMITED_API)]
-impl PyTypeCheck for PyDateTime {
-    const NAME: &'static str = "PyDateTime";
-    #[cfg(feature = "experimental-inspect")]
-    const PYTHON_TYPE: &'static str = "datetime.datetime";
-
-    fn type_check(object: &Bound<'_, PyAny>) -> bool {
-        let py = object.py();
-        DatetimeTypes::try_get(py)
-            .and_then(|module| object.is_instance(module.datetime.bind(py)))
-            .unwrap_or_default()
-    }
-}
+pyobject_native_type_core!(
+    PyDateTime,
+    |py| type_to_ptr(&DatetimeTypes::try_get(py).unwrap().datetime, py),
+    #module=Some("datetime")
+);
 
 impl PyDateTime {
     /// Creates a new `datetime.datetime` object.
@@ -586,21 +568,11 @@ pyobject_native_type!(
 pyobject_subclassable_native_type!(PyTime, crate::ffi::PyDateTime_Time);
 
 #[cfg(Py_LIMITED_API)]
-pyobject_native_type_named!(PyTime);
-
-#[cfg(Py_LIMITED_API)]
-impl PyTypeCheck for PyTime {
-    const NAME: &'static str = "PyTime";
-    #[cfg(feature = "experimental-inspect")]
-    const PYTHON_TYPE: &'static str = "datetime.time";
-
-    fn type_check(object: &Bound<'_, PyAny>) -> bool {
-        let py = object.py();
-        DatetimeTypes::try_get(py)
-            .and_then(|module| object.is_instance(module.time.bind(py)))
-            .unwrap_or_default()
-    }
-}
+pyobject_native_type_core!(
+    PyTime,
+    |py| type_to_ptr(&DatetimeTypes::try_get(py).unwrap().time, py),
+    #module=Some("datetime")
+);
 
 impl PyTime {
     /// Creates a new `datetime.time` object.
@@ -772,21 +744,11 @@ pyobject_native_type!(
 pyobject_subclassable_native_type!(PyTzInfo, crate::ffi::PyObject);
 
 #[cfg(Py_LIMITED_API)]
-pyobject_native_type_named!(PyTzInfo);
-
-#[cfg(Py_LIMITED_API)]
-impl PyTypeCheck for PyTzInfo {
-    const NAME: &'static str = "PyTzInfo";
-    #[cfg(feature = "experimental-inspect")]
-    const PYTHON_TYPE: &'static str = "datetime.tzinfo";
-
-    fn type_check(object: &Bound<'_, PyAny>) -> bool {
-        let py = object.py();
-        DatetimeTypes::try_get(py)
-            .and_then(|module| object.is_instance(module.tzinfo.bind(py)))
-            .unwrap_or_default()
-    }
-}
+pyobject_native_type_core!(
+    PyTzInfo,
+    |py| type_to_ptr(&DatetimeTypes::try_get(py).unwrap().tzinfo, py),
+    #module=Some("datetime")
+);
 
 impl PyTzInfo {
     /// Equivalent to `datetime.timezone.utc`
@@ -888,21 +850,11 @@ pyobject_native_type!(
 pyobject_subclassable_native_type!(PyDelta, crate::ffi::PyDateTime_Delta);
 
 #[cfg(Py_LIMITED_API)]
-pyobject_native_type_named!(PyDelta);
-
-#[cfg(Py_LIMITED_API)]
-impl PyTypeCheck for PyDelta {
-    const NAME: &'static str = "PyDelta";
-    #[cfg(feature = "experimental-inspect")]
-    const PYTHON_TYPE: &'static str = "datetime.timedelta";
-
-    fn type_check(object: &Bound<'_, PyAny>) -> bool {
-        let py = object.py();
-        DatetimeTypes::try_get(py)
-            .and_then(|module| object.is_instance(module.timedelta.bind(py)))
-            .unwrap_or_default()
-    }
-}
+pyobject_native_type_core!(
+    PyDelta,
+    |py| type_to_ptr(&DatetimeTypes::try_get(py).unwrap().timedelta, py),
+    #module=Some("datetime")
+);
 
 impl PyDelta {
     /// Creates a new `timedelta`.
@@ -964,6 +916,12 @@ fn opt_to_pyobj(opt: Option<&Bound<'_, PyTzInfo>>) -> *mut ffi::PyObject {
         Some(tzi) => tzi.as_ptr(),
         None => unsafe { ffi::Py_None() },
     }
+}
+
+// Utility to get pointer to the type object in order to feed PyTypeInfo::type_object_raw
+#[cfg(Py_LIMITED_API)]
+fn type_to_ptr(t: &Py<PyType>, py: Python<'_>) -> *mut crate::ffi::PyTypeObject {
+    t.bind_borrowed(py).as_type_ptr()
 }
 
 #[cfg(test)]
