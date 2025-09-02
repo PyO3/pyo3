@@ -279,6 +279,80 @@ impl<'py, T> IntoPyObjectExt<'py> for T where T: IntoPyObject<'py> {}
 /// Types that must not borrow from the input can use [`FromPyObjectOwned`] as a restriction. This
 /// is most often the case for collection types. See its documentation for more details.
 ///
+/// # How to implement [`FromPyObject`]?
+/// ## `#[derive(FromPyObject)]`
+/// The simplest way to implement [`FromPyObject`] for a custom type is to make use of our derive
+/// macro.
+/// ```rust,no_run
+/// # #![allow(dead_code)]
+/// use pyo3::prelude::*;
+///
+/// #[derive(FromPyObject)]
+/// struct MyObject {
+///     msg: String,
+///     list: Vec<u32>
+/// }
+/// # fn main() {}
+/// ```
+/// By default this will try to extract each field from the Python object by attribute access, but
+/// this can be customized. For more information about the derive macro, its configuration as well
+/// as its working principle for other types, take a look at the [guide].
+///
+/// In case the derive macro is not sufficient or can not be used for some other reason,
+/// [`FromPyObject`] can be implemented manually. In the following types without lifetime parameters
+/// are handled first, because they are a little bit simpler. Types with lifetime parameters are
+/// explained below.
+///
+/// ## Manual implementation for types without lifetime
+/// Types that do not contain lifetime parameters are unable to borrow from the Python object, so
+/// the lifetimes of [`FromPyObject`] can be elided:
+/// ```rust,no_run
+/// # #![allow(dead_code)]
+/// use pyo3::prelude::*;
+///
+/// struct MyObject {
+///     msg: String,
+///     list: Vec<u32>
+/// }
+///
+/// impl FromPyObject<'_, '_> for MyObject {
+///     type Error = PyErr;
+///
+///     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
+///         Ok(MyObject {
+///             msg: obj.getattr("msg")?.extract()?,
+///             list: obj.getattr("list")?.extract()?,
+///         })
+///     }
+/// }
+///
+/// # fn main() {}
+/// ```
+/// This is basically what the derive macro above expands to.
+///
+/// ## Manual implementation for types with lifetime paramaters
+/// For types that contain lifetimes, these lifetimes need to be bound to the corresponding
+/// [`FromPyObject`] lifetime. This is roughly how the extraction of a typed [`Bound`] is
+/// implemented within PyO3.
+///
+/// ```rust,no_run
+/// # #![allow(dead_code)]
+/// use pyo3::prelude::*;
+/// use pyo3::types::PyString;
+///
+/// struct MyObject<'py>(Bound<'py, PyString>);
+///
+/// impl<'py> FromPyObject<'_, 'py> for MyObject<'py> {
+///     type Error = PyErr;
+///
+///     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
+///         Ok(MyObject(obj.cast()?.to_owned()))
+///     }
+/// }
+///
+/// # fn main() {}
+/// ```
+///
 /// # Details
 /// [`Cow<'a, str>`] is an example of an output type that may or may not borrow from the input
 /// lifetime `'a`. Which variant will be produced depends on the runtime type of the Python object.
@@ -292,8 +366,18 @@ impl<'py, T> IntoPyObjectExt<'py> for T where T: IntoPyObject<'py> {}
 /// [`Cow<'a, str>`]: std::borrow::Cow
 /// [`Cow::Borrowed`]: std::borrow::Cow::Borrowed
 /// [`Cow::Owned`]: std::borrow::Cow::Owned
+/// [guide]: https://pyo3.rs/latest/conversions/traits.html#deriving-frompyobject
 pub trait FromPyObject<'a, 'py>: Sized {
     /// The type returned in the event of a conversion error.
+    ///
+    /// For most use cases defaulting to [PyErr] here is perfectly acceptable. Using a custom error
+    /// type can be used to avoid having to create a Python exception object in the case where that
+    /// exception never reaches Python. This may lead to slightly better performance under certain
+    /// conditions.
+    ///
+    /// # Note
+    /// Unfortunately `Try` and thus `?` is based on [`From`], not [`Into`], so implementations may
+    /// need to use `.map_err(Into::into)` sometimes to convert a generic `Error` into a [`PyErr`].
     type Error: Into<PyErr>;
 
     /// Provides the type hint information for this type when it appears as an argument.

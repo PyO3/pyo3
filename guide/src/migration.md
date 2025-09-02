@@ -4,23 +4,26 @@ This guide can help you upgrade code through breaking changes from one PyO3 vers
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.26.* to 0.27
-### `FromPyObject` gains additional lifetime
+### `FromPyObject` reworked for flexibility and efficiency
 <details open>
 <summary><small>Click to expand</small></summary>
 
-With the removal of the `gil-ref` API it is now possible to fully split the Python GIL lifetime
+With the removal of the `gil-ref` API in PyO3 0.23 it is now possible to fully split the Python lifetime
 `'py` and the input lifetime `'a`. This allows borrowing from the input data without extending the
-GIL lifetime.
+lifetime of being attached to the interpreter.
 
 `FromPyObject` now takes an additional lifetime `'a` describing the input lifetime. The argument
 type of the `extract` method changed from `&Bound<'py, PyAny>` to `Borrowed<'a, 'py, PyAny>`. This was
-done because `&'a Bound<'py, PyAny>` would have an implicit restriction `'py: 'a` due to the reference type. `extract_bound` with its
-old signature is deprecated, but still available during migration.
+done because `&'a Bound<'py, PyAny>` would have an implicit restriction `'py: 'a` due to the reference type.
 
 This new form was partly implemented already in 0.22 using the internal `FromPyObjectBound` trait and
 is now extended to all types.
 
 Most implementations can just add an elided lifetime to migrate.
+
+Additionally `FromPyObject` gained an associated type `Error`. This is the error type that can be used
+in case of a conversion error. During migration using `PyErr` is a good default, later a custom error
+type can be introduced to prevent unneccessary creation of Python exception objects and improved type safety.
 
 Before:
 ```rust,ignore
@@ -34,7 +37,9 @@ impl<'py> FromPyObject<'py> for IpAddr {
 After
 ```rust,ignore
 impl<'py> FromPyObject<'_, 'py> for IpAddr {
-    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         ...
         // since `Borrowed` derefs to `&Bound`, the body often
         // needs no changes, or adding an occasional `&`
@@ -79,7 +84,7 @@ where
 ```
 
 Container types that need to create temporary Python references during extraction, for example
-extracing from a `PyList`, require a stronger bound. For these the `FromPyObjectOwned` trait was
+extracing from a `PyList`, requires a stronger bound. For these the `FromPyObjectOwned` trait was
 introduced. It is automatically implemented for any type that implements `FromPyObject` and does not
 borrow from the input. It is intended to be used as a trait bound in these situations.
 
@@ -115,14 +120,17 @@ where
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let mut v = MyVec(Vec::new());
         for item in obj.try_iter()? {
-            v.0.push(item?.extract::<T>().map_err(Into::into)?);
+            v.0.push(item?.extract::<T>().map_err(Into::into)?); // `map_err` is needed because `?` uses `From`, not `Into` 🙁
         }
         Ok(v)
     }
 }
 ```
 
-This is very similar to `serde`s `Deserialize` and `DeserializeOwned` traits.
+This is very similar to `serde`s [`Deserialize`] and [`DeserializeOwned`] traits, see [here](https://serde.rs/lifetimes.html).
+
+[`Deserialize`]: https://docs.rs/serde/latest/serde/trait.Deserialize.html
+[`DeserializeOwned`]: https://docs.rs/serde/latest/serde/de/trait.DeserializeOwned.html
 </details>
 
 ## from 0.25.* to 0.26
