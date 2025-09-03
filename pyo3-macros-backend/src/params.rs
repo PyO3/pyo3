@@ -209,7 +209,7 @@ fn impl_arg_param(
             let holder = holders.push_holder(arg.name.span());
             let name_str = arg.name.to_string();
             quote_spanned! { arg.name.span() =>
-                #pyo3_path::impl_::extract_argument::extract_optional_argument(
+                #pyo3_path::impl_::extract_argument::extract_argument_with_default(
                     _kwargs.as_deref(),
                     &mut #holder,
                     #name_str,
@@ -281,30 +281,16 @@ pub(crate) fn impl_regular_arg_param(
         }
     } else if let Some(default) = default {
         let holder = holders.push_holder(arg.name.span());
-        if let Some(_) = arg.option_wrapped_type {
-            quote_arg_span! {
-                #pyo3_path::impl_::extract_argument::extract_optional_argument(
-                    #arg_value,
-                    &mut #holder,
-                    #name_str,
-                    #[allow(clippy::redundant_closure)]
-                    {
-                        || #default
-                    }
-                )?
-            }
-        } else {
-            quote_arg_span! {
-                #pyo3_path::impl_::extract_argument::extract_argument_with_default(
-                    #arg_value,
-                    &mut #holder,
-                    #name_str,
-                    #[allow(clippy::redundant_closure)]
-                    {
-                        || #default
-                    }
-                )?
-            }
+        quote_arg_span! {
+            #pyo3_path::impl_::extract_argument::extract_argument_with_default(
+                #arg_value,
+                &mut #holder,
+                #name_str,
+                #[allow(clippy::redundant_closure)]
+                {
+                    || #default
+                }
+            )?
         }
     } else {
         let holder = holders.push_holder(arg.name.span());

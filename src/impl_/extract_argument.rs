@@ -196,31 +196,6 @@ where
     }
 }
 
-/// Alternative to [`extract_argument`] used for `Option<T>` arguments. This is necessary because Option<&T>
-/// does not implement `PyFunctionArgument` for `T: PyClass`.
-#[doc(hidden)]
-pub fn extract_optional_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
-    obj: Option<&'a Bound<'py, PyAny>>,
-    holder: &'holder mut T::Holder,
-    arg_name: &str,
-    default: fn() -> Option<T>,
-) -> PyResult<Option<T>>
-where
-    T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
-{
-    match obj {
-        Some(obj) => {
-            if obj.is_none() {
-                // Explicit `None` will result in None being used as the function argument
-                Ok(None)
-            } else {
-                extract_argument(obj, holder, arg_name).map(Some)
-            }
-        }
-        _ => Ok(default()),
-    }
-}
-
 /// Alternative to [`extract_argument`] used when the argument has a default value provided by an annotation.
 #[doc(hidden)]
 pub fn extract_argument_with_default<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
