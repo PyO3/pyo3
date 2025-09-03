@@ -16,27 +16,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: Fetch merge base
+        id: fetch_merge_base
+        uses: ./.github/actions/fetch-merge-base
+        with:
+          base_ref: "refs/heads/${{ github.event.pull_request.base.ref }}"
+          head_ref: "refs/pull/${{ github.event.pull_request.number }}/merge"
       - name: Set PR base on codecov
         run: |
-          # fetch the merge commit between the PR base and head
-          git fetch -u --progress --depth=1 origin "+$BASE_REF:$BASE_REF" "+$MERGE_REF:$MERGE_REF"
-          while [ -z "$(git merge-base "$BASE_REF" "$MERGE_REF")" ]; do
-            git fetch -u -q --deepen="10" origin "$BASE_REF" "$MERGE_REF";
-          done
-
-          MERGE_BASE=$(git merge-base "$BASE_REF" "$MERGE_REF")
-          echo "Merge base: $MERGE_BASE"
-
-          # inform codecov about the merge base
           pip install codecov-cli
           codecovcli pr-base-picking \
-            --base-sha $MERGE_BASE \
+            --base-sha ${{ steps.fetch_merge_base.outputs.merge_base }} \
             --pr ${{ github.event.number }} \
             --slug PyO3/pyo3 \
             --token ${{ secrets.CODECOV_TOKEN }} \
             --service github
-        env:
-          # Don't put these in bash, because we don't want the expansion to
-          # risk code execution
-          BASE_REF: "refs/heads/${{ github.event.pull_request.base.ref }}"
-          MERGE_REF: "refs/pull/${{ github.event.pull_request.number }}/merge"
