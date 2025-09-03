@@ -23,6 +23,8 @@ type PyArg<'py> = Borrowed<'py, 'py, PyAny>;
 ///
 /// The const generic arg `IMPLEMENTS_FROMPYOBJECT` allows for const generic specialization of
 /// some additional types which don't implement `FromPyObject`, such as `&T` for `#[pyclass]` types.
+/// All types should only implement this trait once; either by the `FromPyObject` blanket or one
+/// of the specialized implementations which needs a `Holder`.
 #[cfg_attr(
     diagnostic_namespace,
     diagnostic::on_unimplemented(
