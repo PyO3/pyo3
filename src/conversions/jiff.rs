@@ -547,6 +547,7 @@ mod tests {
         });
     }
 
+    #[cfg(not(Py_LIMITED_API))]
     #[test]
     fn test_invalid_types_fail() {
         Python::attach(|py| {

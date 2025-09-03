@@ -67,6 +67,7 @@ pyobject_native_type!(
     PyFrozenSet,
     ffi::PySetObject,
     pyobject_native_static_type_object!(ffi::PyFrozenSet_Type),
+    "frozenset",
     #checkfunction=ffi::PyFrozenSet_Check
 );
 
@@ -74,6 +75,7 @@ pyobject_native_type!(
 pyobject_native_type_core!(
     PyFrozenSet,
     pyobject_native_static_type_object!(ffi::PyFrozenSet_Type),
+    "frozenset",
     #checkfunction=ffi::PyFrozenSet_Check
 );
 
