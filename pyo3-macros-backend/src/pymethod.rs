@@ -745,7 +745,7 @@ pub fn impl_py_setter_def(
                 use #pyo3_path::impl_::pyclass::Probe as _;
                 let _val = #pyo3_path::impl_::extract_argument::extract_argument::<
                     _,
-                    { #pyo3_path::impl_::pyclass::IsOption::<#ty>::VALUE }
+                    { #pyo3_path::impl_::pyclass::IsFromPyObject::<#ty>::VALUE }
                 >(_value.into(), &mut #holder, #name)?;
             }
         }
@@ -1251,7 +1251,7 @@ fn extract_object(
             use #pyo3_path::impl_::pyclass::Probe as _;
             #pyo3_path::impl_::extract_argument::extract_argument::<
                 _,
-                { #pyo3_path::impl_::pyclass::IsOption::<#ty>::VALUE }
+                { #pyo3_path::impl_::pyclass::IsFromPyObject::<#ty>::VALUE }
             >(
                 unsafe { #pyo3_path::impl_::pymethods::BoundRef::#ref_from_method(py, &#source_ptr).0 },
                 &mut #holder,

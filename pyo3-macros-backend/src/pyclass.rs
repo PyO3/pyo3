@@ -1121,7 +1121,6 @@ fn impl_complex_enum(
 
     let pyclass_impls: TokenStream = [
         impl_builder.impl_pyclass(ctx),
-        impl_builder.impl_extractext(ctx),
         enum_into_pyobject_impl,
         impl_builder.impl_pyclassimpl(ctx)?,
         impl_builder.impl_add_to_module(ctx),
@@ -1939,10 +1938,19 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
         quote! { ::core::option::Option::None }
     };
 
+    let python_type = if cfg!(feature = "experimental-inspect") {
+        let full_name = get_class_python_module_and_name(cls, attr);
+        quote! { const PYTHON_TYPE: &'static str = #full_name; }
+    } else {
+        quote! {}
+    };
+
     quote! {
         unsafe impl #pyo3_path::type_object::PyTypeInfo for #cls {
             const NAME: &'static str = #cls_name;
             const MODULE: ::std::option::Option<&'static str> = #module;
+
+            #python_type
 
             #[inline]
             fn type_object_raw(py: #pyo3_path::Python<'_>) -> *mut #pyo3_path::ffi::PyTypeObject {
@@ -2285,7 +2293,6 @@ impl<'a> PyClassImplsBuilder<'a> {
     fn impl_all(&self, ctx: &Ctx) -> Result<TokenStream> {
         Ok([
             self.impl_pyclass(ctx),
-            self.impl_extractext(ctx),
             self.impl_into_py(ctx),
             self.impl_pyclassimpl(ctx)?,
             self.impl_add_to_module(ctx),
@@ -2309,61 +2316,6 @@ impl<'a> PyClassImplsBuilder<'a> {
         quote! {
             impl #pyo3_path::PyClass for #cls {
                 type Frozen = #frozen;
-            }
-        }
-    }
-    fn impl_extractext(&self, ctx: &Ctx) -> TokenStream {
-        let Ctx { pyo3_path, .. } = ctx;
-        let cls = self.cls;
-
-        let input_type = if cfg!(feature = "experimental-inspect") {
-            let full_name = get_class_python_module_and_name(cls, self.attr);
-            quote! { const INPUT_TYPE: &'static str = #full_name; }
-        } else {
-            quote! {}
-        };
-        if self.attr.options.frozen.is_some() {
-            quote! {
-                impl<'a, 'holder, 'py> #pyo3_path::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false> for &'holder #cls
-                {
-                    type Holder = ::std::option::Option<#pyo3_path::PyClassGuard<'a, #cls>>;
-                    type Error = #pyo3_path::PyErr;
-
-                    #input_type
-
-                    #[inline]
-                    fn extract(obj: &'a #pyo3_path::Bound<'py, #pyo3_path::PyAny>, holder: &'holder mut Self::Holder) -> #pyo3_path::PyResult<Self> {
-                        #pyo3_path::impl_::extract_argument::extract_pyclass_ref(obj, holder)
-                    }
-                }
-            }
-        } else {
-            quote! {
-                impl<'a, 'holder, 'py> #pyo3_path::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false> for &'holder #cls
-                {
-                    type Holder = ::std::option::Option<#pyo3_path::PyClassGuard<'a, #cls>>;
-                    type Error = #pyo3_path::PyErr;
-
-                    #input_type
-
-                    #[inline]
-                    fn extract(obj: &'a #pyo3_path::Bound<'py, #pyo3_path::PyAny>, holder: &'holder mut Self::Holder) -> #pyo3_path::PyResult<Self> {
-                        #pyo3_path::impl_::extract_argument::extract_pyclass_ref(obj, holder)
-                    }
-                }
-
-                impl<'a, 'holder, 'py> #pyo3_path::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false> for &'holder mut #cls
-                {
-                    type Holder = ::std::option::Option<#pyo3_path::PyClassGuardMut<'a, #cls>>;
-                    type Error =#pyo3_path::PyErr;
-
-                    #input_type
-
-                    #[inline]
-                    fn extract(obj: &'a #pyo3_path::Bound<'py, #pyo3_path::PyAny>, holder: &'holder mut Self::Holder) -> #pyo3_path::PyResult<Self> {
-                        #pyo3_path::impl_::extract_argument::extract_pyclass_ref_mut(obj, holder)
-                    }
-                }
             }
         }
     }

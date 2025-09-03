@@ -196,9 +196,17 @@ fn impl_arg_param(
         }
         FnArg::VarArgs(arg) => {
             let holder = holders.push_holder(arg.name.span());
+            let ty = arg.ty.clone().elide_lifetimes();
             let name_str = arg.name.to_string();
             quote_spanned! { arg.name.span() =>
-                #pyo3_path::impl_::extract_argument::extract_argument::<_, false>(
+                #pyo3_path::impl_::extract_argument::extract_argument::<
+                    _,
+                    {
+                        #[allow(unused_imports)]
+                        use #pyo3_path::impl_::pyclass::Probe as _;
+                        #pyo3_path::impl_::pyclass::IsFromPyObject::<#ty>::VALUE
+                    }
+                >(
                     &_args,
                     &mut #holder,
                     #name_str
@@ -207,9 +215,17 @@ fn impl_arg_param(
         }
         FnArg::KwArgs(arg) => {
             let holder = holders.push_holder(arg.name.span());
+            let ty = arg.ty.clone().elide_lifetimes();
             let name_str = arg.name.to_string();
             quote_spanned! { arg.name.span() =>
-                #pyo3_path::impl_::extract_argument::extract_optional_argument::<_, false>(
+                #pyo3_path::impl_::extract_argument::extract_optional_argument::<
+                    _,
+                    {
+                        #[allow(unused_imports)]
+                        use #pyo3_path::impl_::pyclass::Probe as _;
+                        #pyo3_path::impl_::pyclass::IsFromPyObject::<#ty>::VALUE
+                    }
+                >(
                     _kwargs.as_deref(),
                     &mut #holder,
                     #name_str,
@@ -287,7 +303,7 @@ pub(crate) fn impl_regular_arg_param(
             quote_arg_span! {
                 #pyo3_path::impl_::extract_argument::extract_optional_argument::<
                     _,
-                    { #pyo3_path::impl_::pyclass::IsOption::<#arg_ty>::VALUE }
+                    { #pyo3_path::impl_::pyclass::IsFromPyObject::<#arg_ty>::VALUE }
                 >(
                     #arg_value,
                     &mut #holder,
@@ -302,7 +318,7 @@ pub(crate) fn impl_regular_arg_param(
             quote_arg_span! {
                 #pyo3_path::impl_::extract_argument::extract_argument_with_default::<
                     _,
-                    { #pyo3_path::impl_::pyclass::IsOption::<#arg_ty>::VALUE }
+                    { #pyo3_path::impl_::pyclass::IsFromPyObject::<#arg_ty>::VALUE }
                 >(
                     #arg_value,
                     &mut #holder,
@@ -320,7 +336,7 @@ pub(crate) fn impl_regular_arg_param(
         quote_arg_span! {
             #pyo3_path::impl_::extract_argument::extract_argument::<
                 _,
-                { #pyo3_path::impl_::pyclass::IsOption::<#arg_ty>::VALUE }
+                { #pyo3_path::impl_::pyclass::IsFromPyObject::<#arg_ty>::VALUE }
             >(
                 #unwrap,
                 &mut #holder,

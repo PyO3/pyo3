@@ -20,7 +20,18 @@ type PyArg<'py> = Borrowed<'py, 'py, PyAny>;
 /// will be dropped as soon as the pyfunction call ends.
 ///
 /// There exists a trivial blanket implementation for `T: FromPyObject` with `Holder = ()`.
-pub trait PyFunctionArgument<'a, 'holder, 'py, const IS_OPTION: bool>: Sized {
+///
+/// The const generic arg `IMPLEMENTS_FROMPYOBJECT` allows for const generic specialization of
+/// some additional types which don't implement `FromPyObject`, such as `&T` for `#[pyclass]` types.
+#[cfg_attr(
+    diagnostic_namespace,
+    diagnostic::on_unimplemented(
+        message = "`{Self}` cannot be used as a Python function argument",
+        note = "implement `FromPyObject` to enable using `{Self}` as a function argument",
+        note = "`Python<'py>` is also a valid argument type to pass the Python token into a PyO3 function"
+    )
+)]
+pub trait PyFunctionArgument<'a, 'holder, 'py, const IMPLEMENTS_FROMPYOBJECT: bool>: Sized {
     type Holder: FunctionArgumentHolder;
     type Error: Into<PyErr>;
 
@@ -34,7 +45,7 @@ pub trait PyFunctionArgument<'a, 'holder, 'py, const IS_OPTION: bool>: Sized {
     ) -> Result<Self, Self::Error>;
 }
 
-impl<'a, 'holder, 'py, T> PyFunctionArgument<'a, 'holder, 'py, false> for T
+impl<'a, 'py, T> PyFunctionArgument<'a, '_, 'py, true> for T
 where
     T: FromPyObject<'a, 'py>,
 {
@@ -45,12 +56,12 @@ where
     const INPUT_TYPE: &'static str = T::INPUT_TYPE;
 
     #[inline]
-    fn extract(obj: &'a Bound<'py, PyAny>, _: &'holder mut ()) -> Result<Self, Self::Error> {
+    fn extract(obj: &'a Bound<'py, PyAny>, _: &'_ mut ()) -> Result<Self, Self::Error> {
         obj.extract()
     }
 }
 
-impl<'a, 'holder, 'py, T: 'py> PyFunctionArgument<'a, 'holder, 'py, false> for &'a Bound<'py, T>
+impl<'a, 'py, T: 'py> PyFunctionArgument<'a, '_, 'py, false> for &'a Bound<'py, T>
 where
     T: PyTypeCheck,
 {
@@ -61,14 +72,15 @@ where
     const INPUT_TYPE: &'static str = T::PYTHON_TYPE;
 
     #[inline]
-    fn extract(obj: &'a Bound<'py, PyAny>, _: &'holder mut ()) -> Result<Self, Self::Error> {
+    fn extract(obj: &'a Bound<'py, PyAny>, _: &'_ mut ()) -> Result<Self, Self::Error> {
         obj.cast()
     }
 }
 
-impl<'a, 'holder, 'py, T> PyFunctionArgument<'a, 'holder, 'py, true> for Option<T>
+/// Allow `Option<T>` to be a function argument also for types which don't implement `FromPyObject`
+impl<'a, 'holder, 'py, T> PyFunctionArgument<'a, 'holder, 'py, false> for Option<T>
 where
-    T: PyFunctionArgument<'a, 'holder, 'py, false>, // inner `Option`s will use `FromPyObject`
+    T: PyFunctionArgument<'a, 'holder, 'py, false>,
 {
     type Holder = T::Holder;
     type Error = T::Error;
@@ -120,17 +132,45 @@ impl<T> FunctionArgumentHolder for Option<T> {
     const INIT: Self = None;
 }
 
+impl<'a, 'holder, T: PyClass> PyFunctionArgument<'a, 'holder, '_, false> for &'holder T {
+    type Holder = ::std::option::Option<PyClassGuard<'a, T>>;
+    type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = T::PYTHON_TYPE;
+
+    #[inline]
+    fn extract(obj: &'a Bound<'_, PyAny>, holder: &'holder mut Self::Holder) -> PyResult<Self> {
+        extract_pyclass_ref(obj, holder)
+    }
+}
+
+impl<'a, 'holder, T: PyClass<Frozen = False>> PyFunctionArgument<'a, 'holder, '_, false>
+    for &'holder mut T
+{
+    type Holder = ::std::option::Option<PyClassGuardMut<'a, T>>;
+    type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: &'static str = T::PYTHON_TYPE;
+
+    #[inline]
+    fn extract(obj: &'a Bound<'_, PyAny>, holder: &'holder mut Self::Holder) -> PyResult<Self> {
+        extract_pyclass_ref_mut(obj, holder)
+    }
+}
+
 #[inline]
-pub fn extract_pyclass_ref<'a, 'holder, 'py, T: PyClass>(
-    obj: &'a Bound<'py, PyAny>,
+pub fn extract_pyclass_ref<'a, 'holder, T: PyClass>(
+    obj: &'a Bound<'_, PyAny>,
     holder: &'holder mut Option<PyClassGuard<'a, T>>,
 ) -> PyResult<&'holder T> {
     Ok(&*holder.insert(PyClassGuard::try_borrow(obj.downcast()?.as_unbound())?))
 }
 
 #[inline]
-pub fn extract_pyclass_ref_mut<'a, 'holder, 'py, T: PyClass<Frozen = False>>(
-    obj: &'a Bound<'py, PyAny>,
+pub fn extract_pyclass_ref_mut<'a, 'holder, T: PyClass<Frozen = False>>(
+    obj: &'a Bound<'_, PyAny>,
     holder: &'holder mut Option<PyClassGuardMut<'a, T>>,
 ) -> PyResult<&'holder mut T> {
     Ok(&mut *holder.insert(PyClassGuardMut::try_borrow_mut(
@@ -140,13 +180,13 @@ pub fn extract_pyclass_ref_mut<'a, 'holder, 'py, T: PyClass<Frozen = False>>(
 
 /// The standard implementation of how PyO3 extracts a `#[pyfunction]` or `#[pymethod]` function argument.
 #[doc(hidden)]
-pub fn extract_argument<'a, 'holder, 'py, T, const IS_OPTION: bool>(
+pub fn extract_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
     obj: &'a Bound<'py, PyAny>,
     holder: &'holder mut T::Holder,
     arg_name: &str,
 ) -> PyResult<T>
 where
-    T: PyFunctionArgument<'a, 'holder, 'py, IS_OPTION>,
+    T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
 {
     match PyFunctionArgument::extract(obj, holder) {
         Ok(value) => Ok(value),
@@ -157,14 +197,14 @@ where
 /// Alternative to [`extract_argument`] used for `Option<T>` arguments. This is necessary because Option<&T>
 /// does not implement `PyFunctionArgument` for `T: PyClass`.
 #[doc(hidden)]
-pub fn extract_optional_argument<'a, 'holder, 'py, T, const IS_OPTION: bool>(
+pub fn extract_optional_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
     obj: Option<&'a Bound<'py, PyAny>>,
     holder: &'holder mut T::Holder,
     arg_name: &str,
     default: fn() -> Option<T>,
 ) -> PyResult<Option<T>>
 where
-    T: PyFunctionArgument<'a, 'holder, 'py, IS_OPTION>,
+    T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
 {
     match obj {
         Some(obj) => {
@@ -181,14 +221,14 @@ where
 
 /// Alternative to [`extract_argument`] used when the argument has a default value provided by an annotation.
 #[doc(hidden)]
-pub fn extract_argument_with_default<'a, 'holder, 'py, T, const IS_OPTION: bool>(
+pub fn extract_argument_with_default<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
     obj: Option<&'a Bound<'py, PyAny>>,
     holder: &'holder mut T::Holder,
     arg_name: &str,
     default: fn() -> T,
 ) -> PyResult<T>
 where
-    T: PyFunctionArgument<'a, 'holder, 'py, IS_OPTION>,
+    T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
 {
     match obj {
         Some(obj) => extract_argument(obj, holder, arg_name),
