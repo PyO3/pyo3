@@ -3,6 +3,8 @@
 //! For more details about these types, see the [Python
 //! documentation](https://docs.python.org/3/library/datetime.html)
 
+#[cfg(not(Py_LIMITED_API))]
+use crate::err::PyErr;
 use crate::err::PyResult;
 #[cfg(not(Py_3_9))]
 use crate::exceptions::PyImportError;
@@ -19,6 +21,8 @@ use crate::ffi::{
 #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
 use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNone};
 #[cfg(Py_LIMITED_API)]
+use crate::type_object::PyTypeInfo;
+#[cfg(Py_LIMITED_API)]
 use crate::types::typeobject::PyTypeMethods;
 #[cfg(Py_LIMITED_API)]
 use crate::types::IntoPyDict;
@@ -26,7 +30,7 @@ use crate::types::{any::PyAnyMethods, PyString, PyType};
 #[cfg(not(Py_LIMITED_API))]
 use crate::{ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, types::PyTuple, BoundObject};
 use crate::{sync::PyOnceLock, Py};
-use crate::{Borrowed, Bound, IntoPyObject, PyAny, PyErr, Python};
+use crate::{Borrowed, Bound, IntoPyObject, PyAny, Python};
 #[cfg(not(Py_LIMITED_API))]
 use std::ffi::c_int;
 
@@ -46,38 +50,6 @@ fn ensure_datetime_api(py: Python<'_>) -> PyResult<&'static PyDateTime_CAPI> {
 #[cfg(not(Py_LIMITED_API))]
 fn expect_datetime_api(py: Python<'_>) -> &'static PyDateTime_CAPI {
     ensure_datetime_api(py).expect("failed to import `datetime` C API")
-}
-
-#[cfg(Py_LIMITED_API)]
-struct DatetimeTypes {
-    date: Py<PyType>,
-    datetime: Py<PyType>,
-    time: Py<PyType>,
-    timedelta: Py<PyType>,
-    timezone: Py<PyType>,
-    tzinfo: Py<PyType>,
-}
-
-#[cfg(Py_LIMITED_API)]
-impl DatetimeTypes {
-    fn get(py: Python<'_>) -> &Self {
-        Self::try_get(py).expect("failed to load datetime module")
-    }
-
-    fn try_get(py: Python<'_>) -> PyResult<&Self> {
-        static TYPES: PyOnceLock<DatetimeTypes> = PyOnceLock::new();
-        TYPES.get_or_try_init(py, || {
-            let datetime = py.import("datetime")?;
-            Ok::<_, PyErr>(Self {
-                date: datetime.getattr("date")?.cast_into()?.into(),
-                datetime: datetime.getattr("datetime")?.cast_into()?.into(),
-                time: datetime.getattr("time")?.cast_into()?.into(),
-                timedelta: datetime.getattr("timedelta")?.cast_into()?.into(),
-                timezone: datetime.getattr("timezone")?.cast_into()?.into(),
-                tzinfo: datetime.getattr("tzinfo")?.cast_into()?.into(),
-            })
-        })
-    }
 }
 
 // Type Check macros
@@ -238,7 +210,10 @@ pyobject_subclassable_native_type!(PyDate, crate::ffi::PyDateTime_Date);
 #[cfg(Py_LIMITED_API)]
 pyobject_native_type_core!(
     PyDate,
-    |py| type_to_ptr(&DatetimeTypes::try_get(py).unwrap().date, py),
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "datetime", "date").unwrap().as_type_ptr()
+    },
     #module=Some("datetime")
 );
 
@@ -255,13 +230,9 @@ impl PyDate {
             }
         }
         #[cfg(Py_LIMITED_API)]
-        unsafe {
-            Ok(DatetimeTypes::try_get(py)?
-                .date
-                .bind(py)
-                .call((year, month, day), None)?
-                .cast_into_unchecked())
-        }
+        Ok(Self::type_object(py)
+            .call((year, month, day), None)?
+            .cast_into()?)
     }
 
     /// Construct a `datetime.date` from a POSIX timestamp
@@ -283,13 +254,9 @@ impl PyDate {
         }
 
         #[cfg(Py_LIMITED_API)]
-        unsafe {
-            Ok(DatetimeTypes::try_get(py)?
-                .date
-                .bind(py)
-                .call_method1("fromtimestamp", (timestamp,))?
-                .cast_into_unchecked())
-        }
+        Ok(Self::type_object(py)
+            .call_method1("fromtimestamp", (timestamp,))?
+            .cast_into()?)
     }
 }
 
@@ -329,7 +296,10 @@ pyobject_subclassable_native_type!(PyDateTime, crate::ffi::PyDateTime_DateTime);
 #[cfg(Py_LIMITED_API)]
 pyobject_native_type_core!(
     PyDateTime,
-    |py| type_to_ptr(&DatetimeTypes::try_get(py).unwrap().datetime, py),
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "datetime", "datetime").unwrap().as_type_ptr()
+    },
     #module=Some("datetime")
 );
 
@@ -368,16 +338,12 @@ impl PyDateTime {
         }
 
         #[cfg(Py_LIMITED_API)]
-        unsafe {
-            Ok(DatetimeTypes::try_get(py)?
-                .datetime
-                .bind(py)
-                .call(
-                    (year, month, day, hour, minute, second, microsecond, tzinfo),
-                    None,
-                )?
-                .cast_into_unchecked())
-        }
+        Ok(Self::type_object(py)
+            .call(
+                (year, month, day, hour, minute, second, microsecond, tzinfo),
+                None,
+            )?
+            .cast_into()?)
     }
 
     /// Alternate constructor that takes a `fold` parameter. A `true` value for this parameter
@@ -422,16 +388,12 @@ impl PyDateTime {
         }
 
         #[cfg(Py_LIMITED_API)]
-        unsafe {
-            Ok(DatetimeTypes::try_get(py)?
-                .datetime
-                .bind(py)
-                .call(
-                    (year, month, day, hour, minute, second, microsecond, tzinfo),
-                    Some(&[("fold", fold)].into_py_dict(py)?),
-                )?
-                .cast_into_unchecked())
-        }
+        Ok(Self::type_object(py)
+            .call(
+                (year, month, day, hour, minute, second, microsecond, tzinfo),
+                Some(&[("fold", fold)].into_py_dict(py)?),
+            )?
+            .cast_into()?)
     }
 
     /// Construct a `datetime` object from a POSIX timestamp
@@ -457,13 +419,9 @@ impl PyDateTime {
         }
 
         #[cfg(Py_LIMITED_API)]
-        unsafe {
-            Ok(DatetimeTypes::try_get(py)?
-                .datetime
-                .bind(py)
-                .call_method1("fromtimestamp", (timestamp, tzinfo))?
-                .cast_into_unchecked())
-        }
+        Ok(Self::type_object(py)
+            .call_method1("fromtimestamp", (timestamp, tzinfo))?
+            .cast_into()?)
     }
 }
 
@@ -570,7 +528,10 @@ pyobject_subclassable_native_type!(PyTime, crate::ffi::PyDateTime_Time);
 #[cfg(Py_LIMITED_API)]
 pyobject_native_type_core!(
     PyTime,
-    |py| type_to_ptr(&DatetimeTypes::try_get(py).unwrap().time, py),
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "datetime", "time").unwrap().as_type_ptr()
+    },
     #module=Some("datetime")
 );
 
@@ -602,13 +563,9 @@ impl PyTime {
         }
 
         #[cfg(Py_LIMITED_API)]
-        unsafe {
-            Ok(DatetimeTypes::try_get(py)?
-                .time
-                .bind(py)
-                .call((hour, minute, second, microsecond, tzinfo), None)?
-                .cast_into_unchecked())
-        }
+        Ok(Self::type_object(py)
+            .call((hour, minute, second, microsecond, tzinfo), None)?
+            .cast_into()?)
     }
 
     /// Alternate constructor that takes a `fold` argument. See [`PyDateTime::new_with_fold`].
@@ -640,17 +597,12 @@ impl PyTime {
         }
 
         #[cfg(Py_LIMITED_API)]
-        #[cfg(Py_LIMITED_API)]
-        unsafe {
-            Ok(DatetimeTypes::try_get(py)?
-                .time
-                .bind(py)
-                .call(
-                    (hour, minute, second, microsecond, tzinfo),
-                    Some(&[("fold", fold)].into_py_dict(py)?),
-                )?
-                .cast_into_unchecked())
-        }
+        Ok(Self::type_object(py)
+            .call(
+                (hour, minute, second, microsecond, tzinfo),
+                Some(&[("fold", fold)].into_py_dict(py)?),
+            )?
+            .cast_into()?)
     }
 }
 
@@ -746,7 +698,10 @@ pyobject_subclassable_native_type!(PyTzInfo, crate::ffi::PyObject);
 #[cfg(Py_LIMITED_API)]
 pyobject_native_type_core!(
     PyTzInfo,
-    |py| type_to_ptr(&DatetimeTypes::try_get(py).unwrap().tzinfo, py),
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "datetime", "tzinfo").unwrap().as_type_ptr()
+    },
     #module=Some("datetime")
 );
 
@@ -765,9 +720,9 @@ impl PyTzInfo {
         {
             static UTC: PyOnceLock<Py<PyTzInfo>> = PyOnceLock::new();
             UTC.get_or_try_init(py, || {
-                Ok(DatetimeTypes::get(py)
-                    .timezone
-                    .bind(py)
+                Ok(py
+                    .import("datetime")?
+                    .getattr("timezone")?
                     .getattr("utc")?
                     .cast_into()?
                     .unbind())
@@ -813,12 +768,12 @@ impl PyTzInfo {
         }
 
         #[cfg(Py_LIMITED_API)]
-        unsafe {
-            Ok(DatetimeTypes::try_get(py)?
-                .timezone
-                .bind(py)
+        {
+            static TIMEZONE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+            Ok(TIMEZONE
+                .import(py, "datetime", "timezone")?
                 .call1((offset,))?
-                .cast_into_unchecked())
+                .cast_into()?)
         }
     }
 }
@@ -852,7 +807,10 @@ pyobject_subclassable_native_type!(PyDelta, crate::ffi::PyDateTime_Delta);
 #[cfg(Py_LIMITED_API)]
 pyobject_native_type_core!(
     PyDelta,
-    |py| type_to_ptr(&DatetimeTypes::try_get(py).unwrap().timedelta, py),
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "datetime", "timedelta").unwrap().as_type_ptr()
+    },
     #module=Some("datetime")
 );
 
@@ -882,14 +840,11 @@ impl PyDelta {
         }
 
         #[cfg(Py_LIMITED_API)]
-        unsafe {
-            let _ = normalize;
-            Ok(DatetimeTypes::try_get(py)?
-                .timedelta
-                .bind(py)
-                .call1((days, seconds, microseconds))?
-                .cast_into_unchecked())
-        }
+        let _ = normalize;
+        #[cfg(Py_LIMITED_API)]
+        Ok(Self::type_object(py)
+            .call1((days, seconds, microseconds))?
+            .cast_into()?)
     }
 }
 
@@ -916,12 +871,6 @@ fn opt_to_pyobj(opt: Option<&Bound<'_, PyTzInfo>>) -> *mut ffi::PyObject {
         Some(tzi) => tzi.as_ptr(),
         None => unsafe { ffi::Py_None() },
     }
-}
-
-// Utility to get pointer to the type object in order to feed PyTypeInfo::type_object_raw
-#[cfg(Py_LIMITED_API)]
-fn type_to_ptr(t: &Py<PyType>, py: Python<'_>) -> *mut crate::ffi::PyTypeObject {
-    t.bind_borrowed(py).as_type_ptr()
 }
 
 #[cfg(test)]
