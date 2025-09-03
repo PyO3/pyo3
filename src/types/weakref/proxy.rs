@@ -1,11 +1,11 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
-use crate::type_object::PyTypeCheck;
+use crate::sync::PyOnceLock;
 use crate::types::any::PyAny;
-use crate::{ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt};
-
-use super::PyWeakrefMethods;
+use crate::types::weakref::PyWeakrefMethods;
+use crate::types::{PyType, PyTypeMethods};
+use crate::{ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py};
 
 /// Represents any Python `weakref` Proxy type.
 ///
@@ -14,21 +14,21 @@ use super::PyWeakrefMethods;
 #[repr(transparent)]
 pub struct PyWeakrefProxy(PyAny);
 
-pyobject_native_type_named!(PyWeakrefProxy);
+pyobject_native_type_core!(
+    PyWeakrefProxy,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "weakref", "proxy")
+            .unwrap()
+            .as_type_ptr()
+    },
+    #module=Some("weakref"),
+    #checkfunction=ffi::PyWeakref_CheckProxy
+);
 
 // TODO: We known the layout but this cannot be implemented, due to the lack of public typeobject pointers. And it is 2 distinct types
 // #[cfg(not(Py_LIMITED_API))]
 // pyobject_native_type_sized!(PyWeakrefProxy, ffi::PyWeakReference);
-
-impl PyTypeCheck for PyWeakrefProxy {
-    const NAME: &'static str = "weakref.ProxyTypes";
-    #[cfg(feature = "experimental-inspect")]
-    const PYTHON_TYPE: &'static str = "weakref.ProxyType | weakref.CallableProxyType";
-
-    fn type_check(object: &Bound<'_, PyAny>) -> bool {
-        unsafe { ffi::PyWeakref_CheckProxy(object.as_ptr()) > 0 }
-    }
-}
 
 /// TODO: UPDATE DOCS
 impl PyWeakrefProxy {

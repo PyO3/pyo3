@@ -1,11 +1,16 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
-use crate::types::any::PyAny;
-use crate::{ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt};
-
 #[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
-use crate::type_object::PyTypeCheck;
+use crate::sync::PyOnceLock;
+use crate::types::any::PyAny;
+#[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
+use crate::types::typeobject::PyTypeMethods;
+#[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
+use crate::types::PyType;
+#[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
+use crate::Py;
+use crate::{ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt};
 
 use super::PyWeakrefMethods;
 
@@ -30,18 +35,17 @@ pyobject_native_type!(
 
 // When targeting alternative or multiple interpreters, it is better to not use the internal API.
 #[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
-pyobject_native_type_named!(PyWeakrefReference);
-
-#[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
-impl PyTypeCheck for PyWeakrefReference {
-    const NAME: &'static str = "weakref.ReferenceType";
-    #[cfg(feature = "experimental-inspect")]
-    const PYTHON_TYPE: &'static str = "weakref.ReferenceType";
-
-    fn type_check(object: &Bound<'_, PyAny>) -> bool {
-        unsafe { ffi::PyWeakref_CheckRef(object.as_ptr()) > 0 }
-    }
-}
+pyobject_native_type_core!(
+    PyWeakrefReference,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "weakref", "ref")
+            .unwrap()
+            .as_type_ptr()
+    },
+    #module=Some("weakref"),
+    #checkfunction=ffi::PyWeakref_CheckRef
+);
 
 impl PyWeakrefReference {
     /// Constructs a new Weak Reference (`weakref.ref`/`weakref.ReferenceType`) for the given object.
