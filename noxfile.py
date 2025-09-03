@@ -440,6 +440,69 @@ def test_emscripten(session: nox.Session):
     )
 
 
+@nox.session(name="test-cross-compilation-windows")
+def test_cross_compilation_windows(session: nox.Session):
+    session.install("cargo-xwin")
+
+    env = os.environ.copy()
+    env["XWIN_ARCH"] = "x86_64"
+
+    # abi3
+    _run_cargo(
+        session,
+        "build",
+        "--manifest-path",
+        "examples/maturin-starter/Cargo.toml",
+        "--features",
+        "abi3",
+        "--target",
+        "x86_64-pc-windows-gnu",
+        env=env,
+    )
+    _run_cargo(
+        session,
+        "xwin",
+        "build",
+        "--cross-compiler",
+        "clang",
+        "--manifest-path",
+        "examples/maturin-starter/Cargo.toml",
+        "--features",
+        "abi3",
+        "--target",
+        "x86_64-pc-windows-msvc",
+        env=env,
+    )
+
+    # non-abi3
+    env["PYO3_CROSS_PYTHON_VERSION"] = "3.13"
+    _run_cargo(
+        session,
+        "build",
+        "--manifest-path",
+        "examples/maturin-starter/Cargo.toml",
+        "--features",
+        "generate-import-lib",
+        "--target",
+        "x86_64-pc-windows-gnu",
+        env=env,
+    )
+    _run_cargo(
+        session,
+        "xwin",
+        "build",
+        "--cross-compiler",
+        "clang",
+        "--manifest-path",
+        "examples/maturin-starter/Cargo.toml",
+        "--features",
+        "generate-import-lib",
+        "--target",
+        "x86_64-pc-windows-msvc",
+        env=env,
+    )
+
+
 @nox.session(venv_backend="none")
 def docs(session: nox.Session, nightly: bool = False, internal: bool = False) -> None:
     rustdoc_flags = ["-Dwarnings"]

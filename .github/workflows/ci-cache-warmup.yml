@@ -1,0 +1,34 @@
+name: CI Cache Warmup
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  cross-compilation-windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
+          components: rust-src
+      - uses: actions/cache/restore@v4
+        with:
+          # https://github.com/PyO3/maturin/discussions/1953
+          path: ~/.cache/cargo-xwin
+          key: cargo-xwin-cache
+      - name: Test cross compile to Windows
+        run: |
+          set -ex
+          sudo apt-get install -y mingw-w64 llvm
+          pip install nox
+          nox -s test-cross-compilation-windows
+      - uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/cargo-xwin
+          key: cargo-xwin-cache
