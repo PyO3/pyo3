@@ -1,7 +1,9 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
-use crate::{ffi, Bound, PyAny, PyErr, PyResult, PyTypeCheck};
+use crate::sync::PyOnceLock;
+use crate::types::{PyType, PyTypeMethods};
+use crate::{ffi, Bound, Py, PyAny, PyErr, PyResult};
 
 /// A Python iterator object.
 ///
@@ -29,7 +31,18 @@ use crate::{ffi, Bound, PyAny, PyErr, PyResult, PyTypeCheck};
 /// ```
 #[repr(transparent)]
 pub struct PyIterator(PyAny);
-pyobject_native_type_named!(PyIterator);
+
+pyobject_native_type_core!(
+    PyIterator,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "collections.abc", "Iterator")
+            .unwrap()
+            .as_type_ptr()
+    },
+    #module=Some("collections.abc"),
+    #checkfunction=ffi::PyIter_Check
+);
 
 impl PyIterator {
     /// Builds an iterator for an iterable Python object; the equivalent of calling `iter(obj)` in Python.
@@ -117,16 +130,6 @@ impl<'py> IntoIterator for &Bound<'py, PyIterator> {
     }
 }
 
-impl PyTypeCheck for PyIterator {
-    const NAME: &'static str = "Iterator";
-    #[cfg(feature = "experimental-inspect")]
-    const PYTHON_TYPE: &'static str = "collections.abc.Iterator";
-
-    fn type_check(object: &Bound<'_, PyAny>) -> bool {
-        unsafe { ffi::PyIter_Check(object.as_ptr()) != 0 }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::PyIterator;
@@ -136,7 +139,7 @@ mod tests {
     #[cfg(all(not(PyPy), Py_3_10))]
     use crate::types::PyNone;
     use crate::types::{PyAnyMethods, PyDict, PyList, PyListMethods};
-    use crate::{ffi, IntoPyObject, Python};
+    use crate::{ffi, IntoPyObject, PyTypeInfo, Python};
 
     #[test]
     fn vec_iter() {
@@ -351,7 +354,7 @@ def fibonacci(target):
 
             assert_eq!(
                 downcaster.borrow_mut(py).failed.take().unwrap().to_string(),
-                "TypeError: 'MySequence' object cannot be converted to 'Iterator'"
+                "TypeError: 'MySequence' object cannot be converted to 'PyIterator'"
             );
         });
     }
@@ -390,5 +393,14 @@ def fibonacci(target):
             let hint = iter.size_hint();
             assert_eq!(hint, (3, None));
         });
+    }
+
+    #[test]
+    fn test_type_object() {
+        Python::attach(|py| {
+            let abc = PyIterator::type_object(py);
+            let iter = py.eval(ffi::c_str!("iter(())"), None, None).unwrap();
+            assert!(iter.is_instance(&abc).unwrap());
+        })
     }
 }
