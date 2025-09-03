@@ -3,8 +3,11 @@ use crate::err::PyResult;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
+use crate::pyclass::{PyClassGuardError, PyClassGuardMutError};
 use crate::types::PyTuple;
-use crate::{Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyErr, PyRef, PyRefMut, Python};
+use crate::{
+    Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyClassGuard, PyErr, PyRef, PyRefMut, Python,
+};
 use std::convert::Infallible;
 
 /// Defines a conversion from a Rust type to a Python object, which may fail.
@@ -460,46 +463,51 @@ pub trait FromPyObject<'a, 'py>: Sized {
 pub trait FromPyObjectOwned<'py>: for<'a> FromPyObject<'a, 'py> {}
 impl<'py, T> FromPyObjectOwned<'py> for T where T: for<'a> FromPyObject<'a, 'py> {}
 
-impl<T> FromPyObject<'_, '_> for T
+impl<'a, 'py, T> FromPyObject<'a, 'py> for T
 where
     T: PyClass + Clone,
 {
-    type Error = PyErr;
+    type Error = PyClassGuardError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = <T as crate::impl_::pyclass::PyClassImpl>::TYPE_NAME;
 
-    fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
-        let bound = obj.cast::<Self>()?;
-        Ok(bound.try_borrow()?.clone())
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        Ok(obj.extract::<PyClassGuard<'_, T>>()?.clone())
     }
 }
 
-impl<'py, T> FromPyObject<'_, 'py> for PyRef<'py, T>
+impl<'a, 'py, T> FromPyObject<'a, 'py> for PyRef<'py, T>
 where
     T: PyClass,
 {
-    type Error = PyErr;
+    type Error = PyClassGuardError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = <T as crate::impl_::pyclass::PyClassImpl>::TYPE_NAME;
 
-    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
-        obj.cast::<T>()?.try_borrow().map_err(Into::into)
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        obj.cast::<T>()
+            .map_err(|e| PyClassGuardError(Some(e)))?
+            .try_borrow()
+            .map_err(|_| PyClassGuardError(None))
     }
 }
 
-impl<'py, T> FromPyObject<'_, 'py> for PyRefMut<'py, T>
+impl<'a, 'py, T> FromPyObject<'a, 'py> for PyRefMut<'py, T>
 where
     T: PyClass<Frozen = False>,
 {
-    type Error = PyErr;
+    type Error = PyClassGuardMutError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = <T as crate::impl_::pyclass::PyClassImpl>::TYPE_NAME;
 
-    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
-        obj.cast::<T>()?.try_borrow_mut().map_err(Into::into)
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        obj.cast::<T>()
+            .map_err(|e| PyClassGuardMutError(Some(e)))?
+            .try_borrow_mut()
+            .map_err(|_| PyClassGuardMutError(None))
     }
 }
 
