@@ -1,8 +1,10 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::sync::PyOnceLock;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::any::PyAny;
-use crate::{ffi, Bound};
+use crate::types::{PyAnyMethods, PyDict, PyType, PyTypeMethods};
+use crate::{ffi, Bound, Py};
 
 /// Represents any Python `weakref` reference.
 ///
@@ -10,21 +12,30 @@ use crate::{ffi, Bound};
 #[repr(transparent)]
 pub struct PyWeakref(PyAny);
 
-pyobject_native_type_named!(PyWeakref);
+pyobject_native_type_core!(
+    PyWeakref,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.get_or_try_init(py, || {
+            // Terrible way to generate a super class of both ProxyType and CallableProxyType
+            let globals = PyDict::new(py);
+            globals.set_item("abc", py.import("abc")?)?;
+            py.run(ffi::c_str!("class Weakref(abc.ABC):\n    pass"), Some(&globals), None)?;
+            let cls = globals.get_item("Weakref")?.downcast_into::<PyType>()?;
+            let weakref = py.import("weakref")?;
+            for child_name in ["ProxyType", "CallableProxyType", "ReferenceType"] {
+                cls.call_method1("register", (weakref.getattr(child_name)?,))?;
+            }
+            PyResult::Ok(cls.unbind())
+        }).unwrap().bind(py).as_type_ptr()
+    },
+    #module=Some("weakref"),
+    #checkfunction=ffi::PyWeakref_Check
+);
 
 // TODO: We known the layout but this cannot be implemented, due to the lack of public typeobject pointers
 // #[cfg(not(Py_LIMITED_API))]
 // pyobject_native_type_sized!(PyWeakref, ffi::PyWeakReference);
-
-impl PyTypeCheck for PyWeakref {
-    const NAME: &'static str = "weakref";
-    #[cfg(feature = "experimental-inspect")]
-    const PYTHON_TYPE: &'static str = "weakref.ProxyTypes";
-
-    fn type_check(object: &Bound<'_, PyAny>) -> bool {
-        unsafe { ffi::PyWeakref_Check(object.as_ptr()) > 0 }
-    }
-}
 
 /// Implementation of functionality for [`PyWeakref`].
 ///
@@ -351,7 +362,8 @@ mod tests {
 
     mod python_class {
         use super::*;
-        use crate::ffi;
+        use crate::prelude::PyTypeMethods;
+        use crate::{ffi, PyTypeInfo};
         use crate::{py_result_ext::PyResultExt, types::PyType};
         use std::ptr;
 
@@ -475,6 +487,29 @@ mod tests {
 
             inner(new_reference, true)?;
             inner(new_proxy, false)
+        }
+
+        #[test]
+        fn test_type_object() -> PyResult<()> {
+            fn inner(
+                create_reference: impl for<'py> FnOnce(
+                    &Bound<'py, PyAny>,
+                )
+                    -> PyResult<Bound<'py, PyWeakref>>,
+            ) -> PyResult<()> {
+                Python::attach(|py| {
+                    let class = get_type(py)?;
+                    let object = class.call0()?;
+                    let reference = create_reference(&object)?;
+                    let t = PyWeakref::type_object(py);
+                    assert!(reference.is_instance(&t)?);
+                    assert_eq!(t.name()?.to_string(), "Weakref");
+                    Ok(())
+                })
+            }
+
+            inner(new_reference)?;
+            inner(new_proxy)
         }
     }
 
