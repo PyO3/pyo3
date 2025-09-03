@@ -393,6 +393,32 @@ pub trait FromPyObject<'a, 'py>: Sized {
     /// [`Bound<'_, PyAny>::extract`](crate::types::any::PyAnyMethods::extract) or [`Py::extract`].
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error>;
 
+    // step 1 of slice extraction for specialized types like `Vec<u8>` and `[u8; N]`
+    // note that 's lifetime is deliberately different from 'a because the type may
+    // in general not have a meaningful relation to the lifetime 'a
+    #[doc(hidden)]
+    fn object_as_slice<'s>(
+        _obj: Borrowed<'s, 'py, PyAny>,
+        _: private::Token,
+    ) -> Option<PyResult<&'s [Self]>> {
+        None
+    }
+
+    // step 2 of the slice extraction into an array
+    #[doc(hidden)]
+    fn slice_into_array<const N: usize>(_slice: &[Self], _: private::Token) -> PyResult<[Self; N]> {
+        unreachable!("types implementing as_slice must also implement slice_into_array");
+    }
+
+    // step 2 of the slice extraction into a vector
+    #[doc(hidden)]
+    fn slice_into_vec(_slice: &[Self], _: private::Token) -> PyResult<Vec<Self>>
+    where
+        Self: Sized,
+    {
+        unreachable!("types implementing as_slice must also implement slice_into_vec");
+    }
+
     /// Extracts the type hint information for this type when it appears as an argument.
     ///
     /// For example, `Vec<u32>` would return `Sequence[int]`.
