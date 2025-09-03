@@ -6,8 +6,8 @@ use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
-use crate::types::{PyAny, PyDict, PyList, PyType};
-use crate::{ffi, Py, PyTypeCheck, Python};
+use crate::types::{PyAny, PyDict, PyList, PyType, PyTypeMethods};
+use crate::{ffi, Py, Python};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
 ///
@@ -18,7 +18,35 @@ use crate::{ffi, Py, PyTypeCheck, Python};
 /// [`Bound<'py, PyMapping>`][Bound].
 #[repr(transparent)]
 pub struct PyMapping(PyAny);
+
 pyobject_native_type_named!(PyMapping);
+
+unsafe impl PyTypeInfo for PyMapping {
+    const NAME: &'static str = "Mapping";
+    const MODULE: Option<&'static str> = Some("collections.abc");
+
+    #[inline]
+    #[allow(clippy::redundant_closure_call)]
+    fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "collections.abc", "Mapping")
+            .unwrap()
+            .as_type_ptr()
+    }
+
+    #[inline]
+    fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
+        // Using `is_instance` for `collections.abc.Mapping` is slow, so provide
+        // optimized case dict as a well-known mapping
+        PyDict::is_type_of(object)
+            || object
+                .is_instance(&Self::type_object(object.py()).into_any())
+                .unwrap_or_else(|err| {
+                    err.write_unraisable(object.py(), Some(object));
+                    false
+                })
+    }
+}
 
 impl PyMapping {
     /// Register a pyclass as a subclass of `collections.abc.Mapping` (from the Python standard
@@ -26,7 +54,7 @@ impl PyMapping {
     /// This registration is required for a pyclass to be castable from `PyAny` to `PyMapping`.
     pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
         let ty = T::type_object(py);
-        get_mapping_abc(py)?.call_method1("register", (ty,))?;
+        Self::type_object(py).call_method1("register", (ty,))?;
         Ok(())
     }
 }
@@ -157,31 +185,6 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
                 .assume_owned_or_err(self.py())
                 .cast_into_unchecked()
         }
-    }
-}
-
-fn get_mapping_abc(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
-    static MAPPING_ABC: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-
-    MAPPING_ABC.import(py, "collections.abc", "Mapping")
-}
-
-impl PyTypeCheck for PyMapping {
-    const NAME: &'static str = "Mapping";
-    #[cfg(feature = "experimental-inspect")]
-    const PYTHON_TYPE: &'static str = "collections.abc.Mapping";
-
-    #[inline]
-    fn type_check(object: &Bound<'_, PyAny>) -> bool {
-        // Using `is_instance` for `collections.abc.Mapping` is slow, so provide
-        // optimized case dict as a well-known mapping
-        PyDict::is_type_of(object)
-            || get_mapping_abc(object.py())
-                .and_then(|abc| object.is_instance(abc))
-                .unwrap_or_else(|err| {
-                    err.write_unraisable(object.py(), Some(object));
-                    false
-                })
     }
 }
 
@@ -336,5 +339,13 @@ mod tests {
             }
             assert_eq!(32 + 42 + 123, values_sum);
         });
+    }
+
+    #[test]
+    fn test_type_object() {
+        Python::attach(|py| {
+            let abc = PyMapping::type_object(py);
+            assert!(PyDict::new(py).is_instance(&abc).unwrap());
+        })
     }
 }
