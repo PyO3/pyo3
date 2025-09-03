@@ -2,6 +2,12 @@ use super::PyAnyMethods as _;
 use super::PyDict;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
+#[cfg(any(Py_LIMITED_API, PyPy))]
+use crate::sync::PyOnceLock;
+#[cfg(any(Py_LIMITED_API, PyPy))]
+use crate::types::{PyType, PyTypeMethods};
+#[cfg(any(Py_LIMITED_API, PyPy))]
+use crate::Py;
 use crate::{ffi, Bound, PyAny, PyErr, PyResult, Python};
 use std::ffi::CStr;
 
@@ -20,24 +26,10 @@ pyobject_native_type_core!(
 );
 
 #[cfg(any(Py_LIMITED_API, PyPy))]
-pyobject_native_type_named!(PyCode);
-
-#[cfg(any(Py_LIMITED_API, PyPy))]
-impl crate::PyTypeCheck for PyCode {
-    const NAME: &'static str = "PyCode";
-    #[cfg(feature = "experimental-inspect")]
-    const PYTHON_TYPE: &'static str = "types.CodeType";
-
-    fn type_check(object: &Bound<'_, PyAny>) -> bool {
-        let py = object.py();
-        static TYPE: crate::sync::PyOnceLock<crate::Py<super::PyType>> =
-            crate::sync::PyOnceLock::new();
-
-        TYPE.import(py, "types", "CodeType")
-            .and_then(|ty| object.is_instance(ty))
-            .unwrap_or_default()
-    }
-}
+pyobject_native_type_core!(PyCode, |py| {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "types", "CodeType").unwrap().as_type_ptr()
+});
 
 /// Compilation mode of [`PyCode::compile`]
 pub enum PyCodeInput {
@@ -145,7 +137,6 @@ impl<'py> PyCodeMethods<'py> for Bound<'py, PyCode> {
 #[cfg(test)]
 mod tests {
     #[test]
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     fn test_type_object() {
         use crate::types::PyTypeMethods;
         use crate::{PyTypeInfo, Python};
