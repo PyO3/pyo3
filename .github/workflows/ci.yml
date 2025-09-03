@@ -48,7 +48,7 @@ jobs:
         run: echo MSRV=`python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["rust-version"])'` >> $GITHUB_OUTPUT
 
   semver-checks:
-    if: github.event == 'pull_request'
+    if: github.event_name == 'pull_request'
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
