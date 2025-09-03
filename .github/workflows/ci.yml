@@ -1,9 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
   merge_group:
     types: [checks_requested]
@@ -84,8 +81,6 @@ jobs:
       CARGO_BUILD_TARGET: x86_64-unknown-linux-gnu
 
   clippy:
-    # Don't run clippy on `main` because it's already run in the merge queue.
-    if: github.ref != 'refs/heads/main'
     needs: [fmt]
     runs-on: ubuntu-24.04-arm
     strategy:
@@ -660,35 +655,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          workspaces: examples/maturin-starter
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          targets: x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
+          components: rust-src
+      # load cache (prepared in ci-cache-warmup.yml)
       - uses: actions/cache/restore@v4
         with:
-          # https://github.com/PyO3/maturin/discussions/1953
           path: ~/.cache/cargo-xwin
           key: cargo-xwin-cache
       - name: Test cross compile to Windows
-        env:
-          XWIN_ARCH: x86_64
         run: |
           set -ex
           sudo apt-get install -y mingw-w64 llvm
-          rustup target add x86_64-pc-windows-gnu x86_64-pc-windows-msvc
-          pip install cargo-xwin
-          # abi3
-          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-gnu
-          cargo xwin build --cross-compiler clang --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-msvc
-          # non-abi3
-          export PYO3_CROSS_PYTHON_VERSION=3.13
-          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-gnu
-          cargo xwin build --cross-compiler clang --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-msvc
-      - if: ${{ github.ref == 'refs/heads/main' }}
-        uses: actions/cache/save@v4
-        with:
-          path: ~/.cache/cargo-xwin
-          key: cargo-xwin-cache
+          pip install nox
+          nox -s test-cross-compilation-windows
 
   test-introspection:
     needs: [fmt]
