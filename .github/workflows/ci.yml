@@ -305,24 +305,8 @@ jobs:
                 rust-target: "x86_64-unknown-linux-gnu",
               }
 
-          # arm64 macOS Python not available on GitHub Actions until 3.10
-          # so backfill 3.7-3.9 with x64
-          - rust: stable
-            python-version: "3.7"
-            platform:
-              {
-                os: "macos-latest",
-                python-architecture: "x64",
-                rust-target: "x86_64-apple-darwin",
-              }
-          - rust: stable
-            python-version: "3.8"
-            platform:
-              {
-                os: "macos-latest",
-                python-architecture: "x64",
-                rust-target: "x86_64-apple-darwin",
-              }
+          # arm64 macOS Python not available on GitHub Actions until 3.10,
+          # and 3.7 & 3.8 not available to install from uv, but can backfill 3.9 with x64 from uv
           - rust: stable
             python-version: "3.9"
             platform:
