@@ -4,8 +4,7 @@ use pyo3::prelude::*;
 use pyo3::py_run;
 use std::fmt::{Display, Formatter};
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass(eq, str)]
 #[derive(Debug, PartialEq)]

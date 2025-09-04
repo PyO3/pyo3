@@ -2,6 +2,8 @@ use std::borrow::Cow;
 use std::ffi::CString;
 
 use crate::attributes::{FromPyWithAttribute, NameAttribute, RenamingRule};
+#[cfg(feature = "experimental-inspect")]
+use crate::introspection::unique_element_id;
 use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
 use crate::params::{impl_regular_arg_param, Holders};
 use crate::pyfunction::WarningFactory;
@@ -14,7 +16,7 @@ use crate::{
 use crate::{quotes, utils};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
-use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
+use syn::{ext::IdentExt, spanned::Spanned, Field, Ident, Result};
 
 /// Generated code for a single pymethod item.
 pub struct MethodAndMethodDef {
@@ -24,12 +26,36 @@ pub struct MethodAndMethodDef {
     pub method_def: TokenStream,
 }
 
+#[cfg(feature = "experimental-inspect")]
+impl MethodAndMethodDef {
+    pub fn add_introspection(&mut self, data: TokenStream) {
+        let const_name = format_ident!("_{}", unique_element_id()); // We need an explicit name here
+        self.associated_method.extend(quote! {
+            const #const_name: () = {
+                #data
+            };
+        });
+    }
+}
+
 /// Generated code for a single pymethod item which is registered by a slot.
 pub struct MethodAndSlotDef {
     /// The implementation of the Python wrapper for the pymethod
     pub associated_method: TokenStream,
     /// The slot def which will be used to register this pymethod
     pub slot_def: TokenStream,
+}
+
+#[cfg(feature = "experimental-inspect")]
+impl MethodAndSlotDef {
+    pub fn add_introspection(&mut self, data: TokenStream) {
+        let const_name = format_ident!("_{}", unique_element_id()); // We need an explicit name here
+        self.associated_method.extend(quote! {
+            const #const_name: () = {
+                #data
+            };
+        });
+    }
 }
 
 pub enum GeneratedPyMethod {
@@ -472,8 +498,8 @@ fn impl_traverse_slot(
         pub unsafe extern "C" fn __pymethod_traverse__(
             slf: *mut #pyo3_path::ffi::PyObject,
             visit: #pyo3_path::ffi::visitproc,
-            arg: *mut ::std::os::raw::c_void,
-        ) -> ::std::os::raw::c_int {
+            arg: *mut ::std::ffi::c_void,
+        ) -> ::std::ffi::c_int {
             #pyo3_path::impl_::pymethods::_call_traverse::<#cls>(slf, #cls::#rust_fn_ident, visit, arg, #cls::__pymethod_traverse__)
         }
     };
@@ -514,7 +540,7 @@ fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result
     let associated_method = quote! {
         pub unsafe extern "C" fn __pymethod___clear____(
             _slf: *mut #pyo3_path::ffi::PyObject,
-        ) -> ::std::os::raw::c_int {
+        ) -> ::std::ffi::c_int {
             #pyo3_path::impl_::pymethods::_call_clear(_slf, |py, _slf| {
                 #holders
                 let result = #fncall;
@@ -565,7 +591,7 @@ pub(crate) fn impl_py_class_attribute(
     let body = quotes::ok_wrap(fncall, ctx);
 
     let associated_method = quote! {
-        fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+        fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
             let function = #cls::#name; // Shadow the method name to avoid #3017
             let result = #body;
             #pyo3_path::impl_::wrap::converter(&result).map_into_pyobject(py, result)
@@ -749,7 +775,7 @@ pub fn impl_py_setter_def(
             py: #pyo3_path::Python<'_>,
             _slf: *mut #pyo3_path::ffi::PyObject,
             _value: *mut #pyo3_path::ffi::PyObject,
-        ) -> #pyo3_path::PyResult<::std::os::raw::c_int> {
+        ) -> #pyo3_path::PyResult<::std::ffi::c_int> {
             use ::std::convert::Into;
             let _value = #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr_or_opt(py, &_value)
                 .ok_or_else(|| {
@@ -851,7 +877,7 @@ pub fn impl_py_getter_def(
             let method_def = quote! {
                 #cfg_attrs
                 {
-                    #[allow(unused_imports)]  // might not be used if all probes are positve
+                    #[allow(unused_imports)]  // might not be used if all probes are positive
                     use #pyo3_path::impl_::pyclass::Probe as _;
 
                     struct Offset;
@@ -957,19 +983,7 @@ impl PropertyType<'_> {
                 renaming_rule,
                 ..
             } => {
-                let name = match (python_name, &field.ident) {
-                    (Some(name), _) => name.value.0.to_string(),
-                    (None, Some(field_name)) => {
-                        let mut name = field_name.unraw().to_string();
-                        if let Some(rule) = renaming_rule {
-                            name = utils::apply_renaming_rule(*rule, &name);
-                        }
-                        name
-                    }
-                    (None, None) => {
-                        bail_spanned!(field.span() => "`get` and `set` with tuple struct fields require `name`");
-                    }
-                };
+                let name = field_python_name(field, *python_name, *renaming_rule)?;
                 let name = CString::new(name).unwrap();
                 Ok(LitCStr::new(name, field.span(), ctx))
             }
@@ -1124,7 +1138,7 @@ impl Ty {
             Ty::Object | Ty::MaybeNullObject => quote! { *mut #pyo3_path::ffi::PyObject },
             Ty::NonNullObject => quote! { ::std::ptr::NonNull<#pyo3_path::ffi::PyObject> },
             Ty::IPowModulo => quote! { #pyo3_path::impl_::pymethods::IPowModulo },
-            Ty::Int | Ty::CompareOp => quote! { ::std::os::raw::c_int },
+            Ty::Int | Ty::CompareOp => quote! { ::std::ffi::c_int },
             Ty::PyHashT => quote! { #pyo3_path::ffi::Py_hash_t },
             Ty::PySsizeT => quote! { #pyo3_path::ffi::Py_ssize_t },
             Ty::Void => quote! { () },
@@ -1671,4 +1685,22 @@ impl ToTokens for TokenGeneratorCtx<'_> {
         let Self(TokenGenerator(gen), ctx) = self;
         (gen)(ctx).to_tokens(tokens)
     }
+}
+
+pub fn field_python_name(
+    field: &Field,
+    name_attr: Option<&NameAttribute>,
+    renaming_rule: Option<RenamingRule>,
+) -> Result<String> {
+    if let Some(name_attr) = name_attr {
+        return Ok(name_attr.value.0.to_string());
+    }
+    let Some(ident) = &field.ident else {
+        bail_spanned!(field.span() => "`get` and `set` with tuple struct fields require `name`");
+    };
+    let mut name = ident.unraw().to_string();
+    if let Some(rule) = renaming_rule {
+        name = utils::apply_renaming_rule(rule, &name);
+    }
+    Ok(name)
 }

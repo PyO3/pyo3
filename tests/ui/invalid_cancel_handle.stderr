@@ -45,8 +45,7 @@ error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_, '_, fals
    |                                                  ^^^^ the trait `PyClass` is not implemented for `CancelHandle`
    |
    = help: the trait `PyClass` is implemented for `pyo3::coroutine::Coroutine`
-   = note: required for `CancelHandle` to implement `FromPyObject<'_>`
-   = note: required for `CancelHandle` to implement `FromPyObjectBound<'_, '_>`
+   = note: required for `CancelHandle` to implement `FromPyObject<'_, '_>`
    = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_, '_, false>`
 note: required by a bound in `extract_argument`
   --> src/impl_/extract_argument.rs
@@ -68,8 +67,7 @@ error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_, '_, fals
              `&'holder mut pyo3::coroutine::Coroutine` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
              `&'holder pyo3::coroutine::Coroutine` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
              `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, true>`
-   = note: required for `CancelHandle` to implement `FromPyObject<'_>`
-   = note: required for `CancelHandle` to implement `FromPyObjectBound<'_, '_>`
+   = note: required for `CancelHandle` to implement `FromPyObject<'_, '_>`
    = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_, '_, false>`
 note: required by a bound in `extract_argument`
   --> src/impl_/extract_argument.rs
@@ -87,8 +85,7 @@ error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_, '_, fals
    |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyClass` is not implemented for `CancelHandle`
    |
    = help: the trait `PyClass` is implemented for `pyo3::coroutine::Coroutine`
-   = note: required for `CancelHandle` to implement `FromPyObject<'_>`
-   = note: required for `CancelHandle` to implement `FromPyObjectBound<'_, '_>`
+   = note: required for `CancelHandle` to implement `FromPyObject<'_, '_>`
    = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_, '_, false>`
 
 error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_, '_, false>` is not satisfied
@@ -102,6 +99,5 @@ error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_, '_, fals
              `&'holder mut pyo3::coroutine::Coroutine` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
              `&'holder pyo3::coroutine::Coroutine` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
              `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, true>`
-   = note: required for `CancelHandle` to implement `FromPyObject<'_>`
-   = note: required for `CancelHandle` to implement `FromPyObjectBound<'_, '_>`
+   = note: required for `CancelHandle` to implement `FromPyObject<'_, '_>`
    = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_, '_, false>`

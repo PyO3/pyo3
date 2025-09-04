@@ -125,7 +125,7 @@ use crate::types::{
     PyType,
 };
 use crate::version::PythonVersionInfo;
-use crate::{ffi, Bound, PyObject, PyTypeInfo};
+use crate::{ffi, Bound, Py, PyTypeInfo};
 use std::ffi::CStr;
 use std::marker::PhantomData;
 
@@ -392,6 +392,11 @@ impl Python<'_> {
     ///
     /// - If the [`auto-initialize`] feature is not enabled and the Python interpreter is not
     ///   initialized.
+    /// - If the Python interpreter is in the process of [shutting down].
+    /// - If the middle of GC traversal.
+    ///
+    /// To avoid possible initialization or panics if calling in a context where the Python
+    /// interpreter might be unavailable, consider using [`Python::try_attach`].
     ///
     /// # Examples
     ///
@@ -409,29 +414,36 @@ impl Python<'_> {
     /// ```
     ///
     /// [`auto-initialize`]: https://pyo3.rs/main/features.html#auto-initialize
+    /// [shutting down]: https://docs.python.org/3/glossary.html#term-interpreter-shutdown
     #[inline]
     #[track_caller]
     pub fn attach<F, R>(f: F) -> R
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        let guard = AttachGuard::acquire();
+        let guard = AttachGuard::attach();
         f(guard.python())
     }
 
-    /// Variant of [`Python::attach`] which will do no work if the interpreter is in a
-    /// state where it cannot be attached to:
+    /// Variant of [`Python::attach`] which will return without attaching to the Python
+    /// interpreter if the interpreter is in a state where it cannot be attached to:
     /// - in the middle of GC traversal
+    /// - in the process of shutting down
     /// - not initialized
+    ///
+    /// Note that due to the nature of the underlying Python APIs used to implement this,
+    /// the behavior is currently provided on a best-effort basis; it is expected that a
+    /// future CPython version will introduce APIs which guarantee this behaviour. This
+    /// function is still recommended for use in the meanwhile as it provides the best
+    /// possible behaviour and should transparently change to an optimal implementation
+    /// once such APIs are available.
     #[inline]
     #[track_caller]
-    #[cfg(any(not(Py_LIMITED_API), Py_3_11, test))] // only used in buffer.rs for now, allow in test cfg for simplicity
-                                                    // TODO: make this API public?
-    pub(crate) fn try_attach<F, R>(f: F) -> Option<R>
+    pub fn try_attach<F, R>(f: F) -> Option<R>
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        let guard = AttachGuard::try_acquire()?;
+        let guard = AttachGuard::try_attach().ok()?;
         Some(f(guard.python()))
     }
 
@@ -462,36 +474,36 @@ impl Python<'_> {
         crate::interpreter_lifecycle::initialize();
     }
 
-    /// Like [`Python::attach`] except Python interpreter state checking is skipped.
-    ///
-    /// Normally when the GIL is acquired, we check that the Python interpreter is an
-    /// appropriate state (e.g. it is fully initialized). This function skips those
-    /// checks.
-    ///
+    /// See [Python::attach_unchecked]
     /// # Safety
     ///
     /// If [`Python::attach`] would succeed, it is safe to call this function.
-    ///
-    /// In most cases, you should use [`Python::attach`].
-    ///
-    /// A justified scenario for calling this function is during multi-phase interpreter
-    /// initialization when [`Python::attach`] would fail before
-    // this link is only valid on 3.8+not pypy and up.
-    #[cfg_attr(
-        all(Py_3_8, not(PyPy)),
-        doc = "[`_Py_InitializeMain`](crate::ffi::_Py_InitializeMain)"
-    )]
-    #[cfg_attr(any(not(Py_3_8), PyPy), doc = "`_Py_InitializeMain`")]
-    /// is called because the interpreter is only partially initialized.
-    ///
-    /// Behavior in other scenarios is not documented.
     #[inline]
     #[track_caller]
+    #[deprecated(note = "use `Python::attach_unchecked` instead", since = "0.26.0")]
     pub unsafe fn with_gil_unchecked<F, R>(f: F) -> R
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        let guard = unsafe { AttachGuard::acquire_unchecked() };
+        unsafe { Self::attach_unchecked(f) }
+    }
+
+    /// Like [`Python::attach`] except Python interpreter state checking is skipped.
+    ///
+    /// Normally when attaching to the Python interpreter, PyO3 checks that it is in
+    /// an appropriate state (e.g. it is fully initialized). This function skips
+    /// those checks.
+    ///
+    /// # Safety
+    ///
+    /// If [`Python::attach`] would succeed, it is safe to call this function.
+    #[inline]
+    #[track_caller]
+    pub unsafe fn attach_unchecked<F, R>(f: F) -> R
+    where
+        F: for<'py> FnOnce(Python<'py>) -> R,
+    {
+        let guard = unsafe { AttachGuard::attach_unchecked() };
 
         f(guard.python())
     }
@@ -689,21 +701,21 @@ impl<'py> Python<'py> {
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn None(self) -> PyObject {
+    pub fn None(self) -> Py<PyAny> {
         PyNone::get(self).to_owned().into_any().unbind()
     }
 
     /// Gets the Python builtin value `Ellipsis`, or `...`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn Ellipsis(self) -> PyObject {
+    pub fn Ellipsis(self) -> Py<PyAny> {
         PyEllipsis::get(self).to_owned().into_any().unbind()
     }
 
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn NotImplemented(self) -> PyObject {
+    pub fn NotImplemented(self) -> Py<PyAny> {
         PyNotImplemented::get(self).to_owned().into_any().unbind()
     }
 
@@ -796,24 +808,33 @@ impl<'py> Python<'py> {
 }
 
 impl<'unbound> Python<'unbound> {
+    /// Deprecated version of [`Python::assume_attached`]
+    ///
+    /// # Safety
+    /// See [`Python::assume_attached`]
+    #[inline]
+    #[deprecated(since = "0.26.0", note = "use `Python::assume_attached` instead")]
+    pub unsafe fn assume_gil_acquired() -> Python<'unbound> {
+        unsafe { Self::assume_attached() }
+    }
     /// Unsafely creates a Python token with an unbounded lifetime.
     ///
-    /// Many of PyO3 APIs use `Python<'_>` as proof that the GIL is held, but this function can be
-    /// used to call them unsafely.
+    /// Many of PyO3 APIs use [`Python<'_>`] as proof that the calling thread is attached to the
+    /// interpreter, but this function can be used to call them unsafely.
     ///
     /// # Safety
     ///
     /// - This token and any borrowed Python references derived from it can only be safely used
-    ///   whilst the currently executing thread is actually holding the GIL.
+    ///   whilst the currently executing thread is actually attached to the interpreter.
     /// - This function creates a token with an *unbounded* lifetime. Safe code can assume that
-    ///   holding a `Python<'py>` token means the GIL is and stays acquired for the lifetime `'py`.
-    ///   If you let it or borrowed Python references escape to safe code you are
+    ///   holding a [`Python<'py>`] token means the thread is attached and stays attached for the
+    ///   lifetime `'py`. If you let it or borrowed Python references escape to safe code you are
     ///   responsible for bounding the lifetime `'unbound` appropriately. For more on unbounded
     ///   lifetimes, see the [nomicon].
     ///
     /// [nomicon]: https://doc.rust-lang.org/nomicon/unbounded-lifetimes.html
     #[inline]
-    pub unsafe fn assume_gil_acquired() -> Python<'unbound> {
+    pub unsafe fn assume_attached() -> Python<'unbound> {
         Python(PhantomData, PhantomData)
     }
 }
@@ -894,7 +915,7 @@ mod tests {
     fn test_detach_panics_safely() {
         Python::attach(|py| {
             let result = std::panic::catch_unwind(|| unsafe {
-                let py = Python::assume_gil_acquired();
+                let py = Python::assume_attached();
                 py.detach(|| {
                     panic!("There was a panic!");
                 });

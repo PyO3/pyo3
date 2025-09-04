@@ -5,7 +5,7 @@ use crate::PyCompilerFlags;
 #[cfg(not(any(PyPy, GraalPy, Py_3_10)))]
 use crate::{_mod, _node};
 use libc::FILE;
-use std::os::raw::{c_char, c_int};
+use std::ffi::{c_char, c_int};
 
 extern "C" {
     pub fn PyRun_SimpleStringFlags(arg1: *const c_char, arg2: *mut PyCompilerFlags) -> c_int;

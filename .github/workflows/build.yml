@@ -23,6 +23,9 @@ on:
         type: boolean
         default: false
 
+env:
+  NOX_DEFAULT_VENV_BACKEND: uv
+
 jobs:
   build:
     continue-on-error: ${{ endsWith(inputs.python-version, '-dev') || contains(fromJSON('["3.7", "3.8"]'), inputs.python-version) || contains(fromJSON('["beta", "nightly"]'), inputs.rust) }}
@@ -58,7 +61,7 @@ jobs:
           python-version: cpython-${{ inputs.python-version }}-macos-x86-64
 
       - name: Install nox
-        run: python -m pip install --upgrade pip && pip install nox
+        run: python -m pip install --upgrade pip && pip install nox[uv]
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
@@ -142,7 +145,6 @@ jobs:
       - name: Test python examples and tests
         shell: bash
         run: nox -s test-py
-        continue-on-error: ${{ endsWith(inputs.python-version, '-dev') }}
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
 

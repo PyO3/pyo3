@@ -8,13 +8,12 @@ use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use std::ffi::CString;
-use std::os::raw::{c_int, c_void};
+use std::ffi::{c_int, c_void};
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct TestBufferClass {
@@ -98,8 +97,8 @@ fn test_buffer_referenced() {
 #[test]
 #[cfg(all(Py_3_8, not(Py_GIL_DISABLED)))] // sys.unraisablehook not available until Python 3.8
 fn test_releasebuffer_unraisable_error() {
-    use common::UnraisableCapture;
     use pyo3::exceptions::PyValueError;
+    use test_utils::UnraisableCapture;
 
     #[pyclass]
     struct ReleaseBufferError {}

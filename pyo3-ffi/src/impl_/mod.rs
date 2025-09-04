@@ -13,7 +13,7 @@ mod atomic_c_ulong {
     }
 
     pub type TYPE =
-        <GetAtomicCULong<{ std::mem::size_of::<std::os::raw::c_ulong>() * 8 }> as AtomicCULongType>::Type;
+        <GetAtomicCULong<{ std::mem::size_of::<std::ffi::c_ulong>() * 8 }> as AtomicCULongType>::Type;
 }
 
 /// Typedef for an atomic integer to match the platform-dependent c_ulong type.

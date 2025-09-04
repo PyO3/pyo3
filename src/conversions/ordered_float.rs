@@ -53,15 +53,17 @@
 
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
-use crate::types::{any::PyAnyMethods, PyFloat};
-use crate::{Bound, FromPyObject, PyAny, PyResult, Python};
+use crate::types::PyFloat;
+use crate::{Borrowed, Bound, FromPyObject, PyAny, Python};
 use ordered_float::{NotNan, OrderedFloat};
 use std::convert::Infallible;
 
 macro_rules! float_conversions {
     ($wrapper:ident, $float_type:ty, $constructor:expr) => {
-        impl FromPyObject<'_> for $wrapper<$float_type> {
-            fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        impl<'a, 'py> FromPyObject<'a, 'py> for $wrapper<$float_type> {
+            type Error = <$float_type as FromPyObject<'a, 'py>>::Error;
+
+            fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
                 let val: $float_type = obj.extract()?;
                 $constructor(val)
             }
@@ -101,6 +103,7 @@ mod test_ordered_float {
     use super::*;
     use crate::ffi::c_str;
     use crate::py_run;
+    use crate::types::PyAnyMethods;
 
     #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;
@@ -294,7 +297,7 @@ mod test_ordered_float {
                 Python::attach(|py| {
                     let nan_py = py.eval(c_str!("float('nan')"), None, None).unwrap();
 
-                    let nan_rs: PyResult<NotNan<$float_type>> = nan_py.extract();
+                    let nan_rs: Result<NotNan<$float_type>, _> = nan_py.extract();
 
                     assert!(nan_rs.is_err());
                 })

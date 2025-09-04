@@ -45,16 +45,16 @@
 
 use crate::conversion::IntoPyObject;
 use crate::ffi;
-use crate::sync::GILOnceCell;
+use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
-use crate::{Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
+use crate::{Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
 
 #[cfg(feature = "num-bigint")]
 use num_bigint::BigInt;
 use num_rational::Ratio;
 
-static FRACTION_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+static FRACTION_CLS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 
 fn get_fraction_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     FRACTION_CLS.import(py, "fractions", "Fraction")
@@ -62,8 +62,10 @@ fn get_fraction_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
 
 macro_rules! rational_conversion {
     ($int: ty) => {
-        impl<'py> FromPyObject<'py> for Ratio<$int> {
-            fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        impl<'py> FromPyObject<'_, 'py> for Ratio<$int> {
+            type Error = PyErr;
+
+            fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
                 let py = obj.py();
                 let py_numerator_obj = obj.getattr(crate::intern!(py, "numerator"))?;
                 let py_denominator_obj = obj.getattr(crate::intern!(py, "denominator"))?;

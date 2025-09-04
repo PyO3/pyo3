@@ -9,7 +9,7 @@ use crate::{
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     types::{PyAnyMethods, PyTraceback, PyType},
-    Bound, Py, PyAny, PyErrArguments, PyObject, PyTypeInfo, Python,
+    Bound, Py, PyAny, PyErrArguments, PyTypeInfo, Python,
 };
 
 pub(crate) struct PyErrState {
@@ -263,8 +263,8 @@ impl PyErrStateNormalized {
 }
 
 pub(crate) struct PyErrStateLazyFnOutput {
-    pub(crate) ptype: PyObject,
-    pub(crate) pvalue: PyObject,
+    pub(crate) ptype: Py<PyAny>,
+    pub(crate) pvalue: Py<PyAny>,
 }
 
 pub(crate) type PyErrStateLazyFn =
@@ -368,18 +368,18 @@ fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
 mod tests {
 
     use crate::{
-        exceptions::PyValueError, sync::GILOnceCell, PyErr, PyErrArguments, PyObject, Python,
+        exceptions::PyValueError, sync::PyOnceLock, Py, PyAny, PyErr, PyErrArguments, Python,
     };
 
     #[test]
     #[should_panic(expected = "Re-entrant normalization of PyErrState detected")]
     fn test_reentrant_normalization() {
-        static ERR: GILOnceCell<PyErr> = GILOnceCell::new();
+        static ERR: PyOnceLock<PyErr> = PyOnceLock::new();
 
         struct RecursiveArgs;
 
         impl PyErrArguments for RecursiveArgs {
-            fn arguments(self, py: Python<'_>) -> PyObject {
+            fn arguments(self, py: Python<'_>) -> Py<PyAny> {
                 // .value(py) triggers normalization
                 ERR.get(py)
                     .expect("is set just below")
@@ -398,12 +398,12 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     fn test_no_deadlock_thread_switch() {
-        static ERR: GILOnceCell<PyErr> = GILOnceCell::new();
+        static ERR: PyOnceLock<PyErr> = PyOnceLock::new();
 
         struct GILSwitchArgs;
 
         impl PyErrArguments for GILSwitchArgs {
-            fn arguments(self, py: Python<'_>) -> PyObject {
+            fn arguments(self, py: Python<'_>) -> Py<PyAny> {
                 // releasing the GIL potentially allows for other threads to deadlock
                 // with the normalization going on here
                 py.detach(|| {

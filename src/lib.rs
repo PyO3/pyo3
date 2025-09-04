@@ -315,7 +315,7 @@
 //! [`ordered-float`]: ./ordered_float/index.html "Documentation about the `ordered-float` feature."
 //! [`pyo3-build-config`]: https://docs.rs/pyo3-build-config
 //! [rust_decimal]: https://docs.rs/rust_decimal
-//! [`rust_decimal`]: ./rust_decimal/index.html "Documenation about the `rust_decimal` feature."
+//! [`rust_decimal`]: ./rust_decimal/index.html "Documentation about the `rust_decimal` feature."
 //! [`Decimal`]: https://docs.rs/rust_decimal/latest/rust_decimal/struct.Decimal.html
 //! [`serde`]: <./serde/index.html> "Documentation about the `serde` feature."
 #![doc = concat!("[calling_rust]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/python-from-rust.html \"Calling Python from Rust - PyO3 user guide\"")]
@@ -343,7 +343,9 @@
 pub use crate::class::*;
 pub use crate::conversion::{FromPyObject, IntoPyObject, IntoPyObjectExt};
 pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
-pub use crate::instance::{Borrowed, Bound, BoundObject, Py, PyObject};
+#[allow(deprecated)]
+pub use crate::instance::PyObject;
+pub use crate::instance::{Borrowed, Bound, BoundObject, Py};
 #[cfg(not(any(PyPy, GraalPy)))]
 #[allow(deprecated)]
 pub use crate::interpreter_lifecycle::{
@@ -408,7 +410,8 @@ pub use inventory; // Re-exported for `#[pyclass]` and `#[pymethods]` with `mult
 /// Tests and helpers which reside inside PyO3's main library. Declared first so that macros
 /// are available in unit tests.
 #[cfg(test)]
-#[macro_use]
+mod test_utils;
+#[cfg(test)]
 mod tests;
 
 // Macro dependencies, also contains macros exported for use across the codebase and

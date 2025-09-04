@@ -22,9 +22,9 @@ The recommendation of when to use each of these smart pointers is as follows:
 
 The sections below also explain these smart pointers in a little more detail.
 
-### `Py<T>` (and `PyObject`)
+### `Py<T>`
 
-[`Py<T>`][Py] is the foundational smart pointer in PyO3's API. The type parameter `T` denotes the type of the Python object. Very frequently this is `PyAny`, meaning any Python object. This is so common that `Py<PyAny>` has a type alias `PyObject`.
+[`Py<T>`][Py] is the foundational smart pointer in PyO3's API. The type parameter `T` denotes the type of the Python object. Very frequently this is `PyAny`, meaning any Python object.
 
 Because `Py<T>` is not bound to [the `'py` lifetime](./python-from-rust.md#the-py-lifetime), it is the type to use when storing a Python object inside a Rust `struct` or `enum` which do not want to have a lifetime parameter. In particular, [`#[pyclass]`][pyclass] types are not permitted to have a lifetime, so `Py<T>` is the correct type to store Python objects inside them.
 
@@ -117,11 +117,11 @@ fn add<'py>(
 # })
 ```
 
-If naming the `'py` lifetime adds unwanted complexity to the function signature, it is also acceptable to return `PyObject` (aka `Py<PyAny>`), which has no lifetime. The cost is instead paid by a slight increase in implementation complexity, as seen by the introduction of a call to [`Bound::unbind`]:
+If naming the `'py` lifetime adds unwanted complexity to the function signature, it is also acceptable to return `Py<PyAny>`, which has no lifetime. The cost is instead paid by a slight increase in implementation complexity, as seen by the introduction of a call to [`Bound::unbind`]:
 
 ```rust
 # use pyo3::prelude::*;
-fn add(left: &Bound<'_, PyAny>, right: &Bound<'_, PyAny>) -> PyResult<PyObject> {
+fn add(left: &Bound<'_, PyAny>, right: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
     let output: Bound<'_, PyAny> = left.add(right)?;
     Ok(output.unbind())
 }

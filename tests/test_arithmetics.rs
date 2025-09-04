@@ -4,8 +4,7 @@ use pyo3::class::basic::CompareOp;
 use pyo3::py_run;
 use pyo3::{prelude::*, BoundObject};
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct UnaryArithmetic {
@@ -527,7 +526,7 @@ impl RichComparisons2 {
         "RC2"
     }
 
-    fn __richcmp__(&self, other: &Bound<'_, PyAny>, op: CompareOp) -> PyResult<PyObject> {
+    fn __richcmp__(&self, other: &Bound<'_, PyAny>, op: CompareOp) -> PyResult<Py<PyAny>> {
         match op {
             CompareOp::Eq => true
                 .into_pyobject(other.py())
@@ -608,7 +607,7 @@ mod return_not_implemented {
             "RC_Self"
         }
 
-        fn __richcmp__(&self, other: PyRef<'_, Self>, _op: CompareOp) -> PyObject {
+        fn __richcmp__(&self, other: PyRef<'_, Self>, _op: CompareOp) -> Py<PyAny> {
             other.py().None()
         }
 

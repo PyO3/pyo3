@@ -1,9 +1,9 @@
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
 use crate::pyport::{Py_hash_t, Py_ssize_t};
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-use std::os::raw::c_void;
+use std::ffi::c_void;
 
-use std::os::raw::{c_int, c_ulong};
+use std::ffi::{c_int, c_ulong};
 
 extern "C" {
     // skipped non-limited _Py_HashDouble

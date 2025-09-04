@@ -1,5 +1,5 @@
 use crate::object::PyObject;
-use std::os::raw::{c_char, c_double, c_int};
+use std::ffi::{c_char, c_double, c_int};
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyOS_string_to_double")]

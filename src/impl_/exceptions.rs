@@ -1,7 +1,7 @@
-use crate::{sync::GILOnceCell, types::PyType, Bound, Py, Python};
+use crate::{sync::PyOnceLock, types::PyType, Bound, Py, Python};
 
 pub struct ImportedExceptionTypeObject {
-    imported_value: GILOnceCell<Py<PyType>>,
+    imported_value: PyOnceLock<Py<PyType>>,
     module: &'static str,
     name: &'static str,
 }
@@ -9,7 +9,7 @@ pub struct ImportedExceptionTypeObject {
 impl ImportedExceptionTypeObject {
     pub const fn new(module: &'static str, name: &'static str) -> Self {
         Self {
-            imported_value: GILOnceCell::new(),
+            imported_value: PyOnceLock::new(),
             module,
             name,
         }

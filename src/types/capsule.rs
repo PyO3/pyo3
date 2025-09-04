@@ -3,8 +3,8 @@ use crate::py_result_ext::PyResultExt;
 use crate::{ffi, PyAny};
 use crate::{Bound, Python};
 use crate::{PyErr, PyResult};
+use std::ffi::{c_char, c_int, c_void};
 use std::ffi::{CStr, CString};
-use std::os::raw::{c_char, c_int, c_void};
 /// Represents a Python Capsule
 /// as described in [Capsules](https://docs.python.org/3/c-api/capsule.html#capsules):
 /// > This subtype of PyObject represents an opaque value, useful for C extension
@@ -168,7 +168,7 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     /// # Example
     ///
     /// ```
-    /// use std::os::raw::c_void;
+    /// use std::ffi::c_void;
     /// use std::sync::mpsc::{channel, Sender};
     /// use pyo3::{prelude::*, types::PyCapsule};
     ///
@@ -337,8 +337,8 @@ mod tests {
     use crate::types::capsule::PyCapsuleMethods;
     use crate::types::module::PyModuleMethods;
     use crate::{types::PyCapsule, Py, PyResult, Python};
+    use std::ffi::c_void;
     use std::ffi::CString;
-    use std::os::raw::c_void;
     use std::sync::mpsc::{channel, Sender};
 
     #[test]
@@ -427,7 +427,7 @@ mod tests {
             let result: PyResult<&Foo> = unsafe { PyCapsule::import(py, wrong_name.as_ref()) };
             assert!(result.is_err());
 
-            // corret name is okay.
+            // correct name is okay.
             let cap: &Foo = unsafe { PyCapsule::import(py, name.as_ref())? };
             assert_eq!(cap.val, 123);
             Ok(())

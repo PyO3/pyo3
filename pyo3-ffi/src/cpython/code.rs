@@ -2,8 +2,8 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 
 #[cfg(not(GraalPy))]
-use std::os::raw::c_char;
-use std::os::raw::{c_int, c_void};
+use std::ffi::c_char;
+use std::ffi::{c_int, c_void};
 #[cfg(not(PyPy))]
 use std::ptr::addr_of_mut;
 

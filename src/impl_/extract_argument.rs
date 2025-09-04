@@ -1,11 +1,10 @@
 use crate::{
-    conversion::FromPyObjectBound,
     exceptions::PyTypeError,
     ffi,
     pyclass::boolean_struct::False,
     types::{any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods, PyDict, PyTuple},
-    Borrowed, Bound, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr, PyResult, PyTypeCheck,
-    Python,
+    Borrowed, Bound, DowncastError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut,
+    PyErr, PyResult, PyTypeCheck, Python,
 };
 
 /// Helper type used to keep implementation more concise.
@@ -23,25 +22,30 @@ type PyArg<'py> = Borrowed<'py, 'py, PyAny>;
 /// There exists a trivial blanket implementation for `T: FromPyObject` with `Holder = ()`.
 pub trait PyFunctionArgument<'a, 'holder, 'py, const IS_OPTION: bool>: Sized {
     type Holder: FunctionArgumentHolder;
+    type Error: Into<PyErr>;
 
     /// Provides the type hint information for which Python types are allowed.
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str;
 
-    fn extract(obj: &'a Bound<'py, PyAny>, holder: &'holder mut Self::Holder) -> PyResult<Self>;
+    fn extract(
+        obj: &'a Bound<'py, PyAny>,
+        holder: &'holder mut Self::Holder,
+    ) -> Result<Self, Self::Error>;
 }
 
 impl<'a, 'holder, 'py, T> PyFunctionArgument<'a, 'holder, 'py, false> for T
 where
-    T: FromPyObjectBound<'a, 'py>,
+    T: FromPyObject<'a, 'py>,
 {
     type Holder = ();
+    type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = T::INPUT_TYPE;
 
     #[inline]
-    fn extract(obj: &'a Bound<'py, PyAny>, _: &'holder mut ()) -> PyResult<Self> {
+    fn extract(obj: &'a Bound<'py, PyAny>, _: &'holder mut ()) -> Result<Self, Self::Error> {
         obj.extract()
     }
 }
@@ -51,13 +55,14 @@ where
     T: PyTypeCheck,
 {
     type Holder = ();
+    type Error = DowncastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = T::PYTHON_TYPE;
 
     #[inline]
-    fn extract(obj: &'a Bound<'py, PyAny>, _: &'holder mut ()) -> PyResult<Self> {
-        obj.cast().map_err(Into::into)
+    fn extract(obj: &'a Bound<'py, PyAny>, _: &'holder mut ()) -> Result<Self, Self::Error> {
+        obj.cast()
     }
 }
 
@@ -66,12 +71,16 @@ where
     T: PyFunctionArgument<'a, 'holder, 'py, false>, // inner `Option`s will use `FromPyObject`
 {
     type Holder = T::Holder;
+    type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = "typing.Any | None";
 
     #[inline]
-    fn extract(obj: &'a Bound<'py, PyAny>, holder: &'holder mut T::Holder) -> PyResult<Self> {
+    fn extract(
+        obj: &'a Bound<'py, PyAny>,
+        holder: &'holder mut T::Holder,
+    ) -> Result<Self, Self::Error> {
         if obj.is_none() {
             Ok(None)
         } else {
@@ -81,15 +90,16 @@ where
 }
 
 #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
-impl<'a, 'holder> PyFunctionArgument<'a, 'holder, '_, false> for &'holder str {
+impl<'a, 'holder, 'py> PyFunctionArgument<'a, 'holder, 'py, false> for &'holder str {
     type Holder = Option<std::borrow::Cow<'a, str>>;
+    type Error = <std::borrow::Cow<'a, str> as FromPyObject<'a, 'py>>::Error;
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = "str";
 
     #[inline]
     fn extract(
-        obj: &'a Bound<'_, PyAny>,
+        obj: &'a Bound<'py, PyAny>,
         holder: &'holder mut Option<std::borrow::Cow<'a, str>>,
     ) -> PyResult<Self> {
         Ok(holder.insert(obj.extract()?))
@@ -140,7 +150,7 @@ where
 {
     match PyFunctionArgument::extract(obj, holder) {
         Ok(value) => Ok(value),
-        Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e)),
+        Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e.into())),
     }
 }
 

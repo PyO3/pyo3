@@ -6,8 +6,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 #[macro_use]
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[derive(Debug, Clone, IntoPyObject, IntoPyObjectRef, FromPyObject)]
 pub struct A<'py> {

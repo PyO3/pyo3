@@ -3,9 +3,9 @@ use crate::Py_ssize_t;
 #[cfg(Py_3_13)]
 use crate::{PyObject, Py_hash_t};
 #[cfg(any(Py_3_13, not(PyPy)))]
-use std::os::raw::c_void;
+use std::ffi::c_void;
 #[cfg(not(PyPy))]
-use std::os::raw::{c_char, c_int};
+use std::ffi::{c_char, c_int};
 
 #[cfg(not(PyPy))]
 #[repr(C)]

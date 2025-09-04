@@ -6,17 +6,17 @@ use std::{
 
 #[cfg(Py_3_14)]
 use crate::err::error_on_minusone;
+#[allow(deprecated)]
+use crate::sync::GILOnceCell;
 #[cfg(Py_3_14)]
 use crate::types::PyTypeMethods;
 use crate::{
     exceptions::PyRuntimeError,
     ffi,
-    impl_::pyclass::MaybeRuntimePyMethodDef,
-    impl_::pymethods::PyMethodDefType,
+    impl_::{pyclass::MaybeRuntimePyMethodDef, pymethods::PyMethodDefType},
     pyclass::{create_type_object, PyClassTypeObject},
-    sync::GILOnceCell,
     types::PyType,
-    Bound, PyClass, PyErr, PyObject, PyResult, Python,
+    Bound, Py, PyAny, PyClass, PyErr, PyResult, Python,
 };
 
 use std::sync::Mutex;
@@ -29,11 +29,13 @@ pub struct LazyTypeObject<T>(LazyTypeObjectInner, PhantomData<T>);
 
 // Non-generic inner of LazyTypeObject to keep code size down
 struct LazyTypeObjectInner {
+    #[allow(deprecated)]
     value: GILOnceCell<PyClassTypeObject>,
     // Threads which have begun initialization of the `tp_dict`. Used for
     // reentrant initialization detection.
     initializing_threads: Mutex<Vec<ThreadId>>,
-    tp_dict_filled: GILOnceCell<()>,
+    #[allow(deprecated)]
+    fully_initialized_type: GILOnceCell<Py<PyType>>,
 }
 
 impl<T> LazyTypeObject<T> {
@@ -42,9 +44,11 @@ impl<T> LazyTypeObject<T> {
     pub const fn new() -> Self {
         LazyTypeObject(
             LazyTypeObjectInner {
+                #[allow(deprecated)]
                 value: GILOnceCell::new(),
                 initializing_threads: Mutex::new(Vec::new()),
-                tp_dict_filled: GILOnceCell::new(),
+                #[allow(deprecated)]
+                fully_initialized_type: GILOnceCell::new(),
             },
             PhantomData,
         )
@@ -53,15 +57,18 @@ impl<T> LazyTypeObject<T> {
 
 impl<T: PyClass> LazyTypeObject<T> {
     /// Gets the type object contained by this `LazyTypeObject`, initializing it if needed.
-    pub fn get_or_init<'py>(&self, py: Python<'py>) -> &Bound<'py, PyType> {
-        self.get_or_try_init(py).unwrap_or_else(|err| {
-            err.print(py);
-            panic!("failed to create type object for {}", T::NAME)
-        })
+    #[inline]
+    pub fn get_or_try_init<'py>(&self, py: Python<'py>) -> PyResult<&Bound<'py, PyType>> {
+        if let Some(type_object) = self.0.fully_initialized_type.get(py) {
+            // Fast path
+            return Ok(type_object.bind(py));
+        }
+
+        self.try_init(py)
     }
 
-    /// Fallible version of the above.
-    pub(crate) fn get_or_try_init<'py>(&self, py: Python<'py>) -> PyResult<&Bound<'py, PyType>> {
+    #[cold]
+    fn try_init<'py>(&self, py: Python<'py>) -> PyResult<&Bound<'py, PyType>> {
         self.0
             .get_or_try_init(py, create_type_object::<T>, T::NAME, T::items_iter())
     }
@@ -117,7 +124,7 @@ impl LazyTypeObjectInner {
         // `tp_dict`, it can still request the type object through `get_or_init`,
         // but the `tp_dict` may appear empty of course.
 
-        if self.tp_dict_filled.get(py).is_some() {
+        if self.fully_initialized_type.get(py).is_some() {
             // `tp_dict` is already filled: ok.
             return Ok(());
         }
@@ -185,8 +192,8 @@ impl LazyTypeObjectInner {
 
         // Now we hold the GIL and we can assume it won't be released until we
         // return from the function.
-        let result = self.tp_dict_filled.get_or_try_init(py, move || {
-            let result = initialize_tp_dict(py, type_object.as_ptr(), items);
+        let result = self.fully_initialized_type.get_or_try_init(py, move || {
+            initialize_tp_dict(py, type_object.as_ptr(), items)?;
             #[cfg(Py_3_14)]
             if is_immutable_type {
                 // freeze immutable types after __dict__ is initialized
@@ -217,13 +224,13 @@ impl LazyTypeObjectInner {
                 self.initializing_threads.lock().unwrap()
             };
             threads.clear();
-            result
+            Ok(type_object.clone().unbind())
         });
 
         if let Err(err) = result {
             return Err(wrap_in_runtime_error(
                 py,
-                err.clone_ref(py),
+                err,
                 format!("An error occurred while initializing `{name}.__dict__`"),
             ));
         }
@@ -235,7 +242,7 @@ impl LazyTypeObjectInner {
 fn initialize_tp_dict(
     py: Python<'_>,
     type_object: *mut ffi::PyObject,
-    items: Vec<(&'static CStr, PyObject)>,
+    items: Vec<(&'static CStr, Py<PyAny>)>,
 ) -> PyResult<()> {
     // We hold the GIL: the dictionary update can be considered atomic from
     // the POV of other threads.
@@ -249,6 +256,13 @@ fn initialize_tp_dict(
 
 // This is necessary for making static `LazyTypeObject`s
 unsafe impl<T> Sync for LazyTypeObject<T> {}
+
+/// Used in the macro-expanded implementation of `type_object_raw` for `#[pyclass]` types
+#[cold]
+pub fn type_object_init_failed(py: Python<'_>, err: PyErr, type_name: &str) -> ! {
+    err.write_unraisable(py, None);
+    panic!("failed to create type object for `{type_name}`")
+}
 
 #[cold]
 fn wrap_in_runtime_error(py: Python<'_>, err: PyErr, message: String) -> PyErr {

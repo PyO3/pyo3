@@ -21,6 +21,7 @@
 //! [dependencies]
 //! bytes = "1.10"
 #![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"bytes\"] }")]
+//! ```
 //!
 //! Note that you must use compatible versions of bytes and PyO3.
 //!
@@ -30,6 +31,7 @@
 //!
 //! ```rust,no_run
 //! use pyo3::prelude::*;
+//! use bytes::Bytes;
 //!
 //! #[pyfunction]
 //! fn get_message_bytes() -> Bytes {
@@ -65,13 +67,14 @@ use bytes::Bytes;
 use crate::conversion::IntoPyObject;
 use crate::instance::Bound;
 use crate::pybacked::PyBackedBytes;
-use crate::types::any::PyAnyMethods;
 use crate::types::PyBytes;
-use crate::{FromPyObject, PyAny, PyErr, PyResult, Python};
+use crate::{Borrowed, DowncastError, FromPyObject, PyAny, PyErr, Python};
 
-impl FromPyObject<'_> for Bytes {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
-        Ok(Bytes::from_owner(ob.extract::<PyBackedBytes>()?))
+impl<'a, 'py> FromPyObject<'a, 'py> for Bytes {
+    type Error = DowncastError<'a, 'py>;
+
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        Ok(Bytes::from_owner(obj.extract::<PyBackedBytes>()?))
     }
 }
 
@@ -98,7 +101,7 @@ impl<'py> IntoPyObject<'py> for &Bytes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{PyByteArray, PyByteArrayMethods, PyBytes};
+    use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods, PyBytes};
     use crate::Python;
 
     #[test]

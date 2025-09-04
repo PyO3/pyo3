@@ -1,7 +1,7 @@
 #[cfg(not(PyPy))]
 use crate::PyThreadState;
 use crate::{PyFrameObject, PyInterpreterState, PyObject};
-use std::os::raw::c_int;
+use std::ffi::c_int;
 
 // skipped _PyInterpreterState_RequiresIDRef
 // skipped _PyInterpreterState_RequireIDRef

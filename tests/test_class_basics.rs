@@ -4,8 +4,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyType;
 use pyo3::{py_run, PyClass};
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct EmptyClass {}
@@ -207,13 +206,13 @@ struct ClassWithObjectField {
     // It used to be that PyObject was not supported with (get, set)
     // - this test is just ensuring it compiles.
     #[pyo3(get, set)]
-    value: PyObject,
+    value: Py<PyAny>,
 }
 
 #[pymethods]
 impl ClassWithObjectField {
     #[new]
-    fn new(value: PyObject) -> ClassWithObjectField {
+    fn new(value: Py<PyAny>) -> ClassWithObjectField {
         Self { value }
     }
 }
@@ -619,12 +618,12 @@ fn access_frozen_class_without_gil() {
 #[cfg(all(Py_3_8, not(Py_GIL_DISABLED)))] // sys.unraisablehook not available until Python 3.8
 #[cfg_attr(target_arch = "wasm32", ignore)]
 fn drop_unsendable_elsewhere() {
-    use common::UnraisableCapture;
     use std::sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
     };
     use std::thread::spawn;
+    use test_utils::UnraisableCapture;
 
     #[pyclass(unsendable)]
     struct Unsendable {
@@ -719,14 +718,14 @@ fn test_unsendable_dict_with_weakref() {
 #[pyclass(generic)]
 struct ClassWithRuntimeParametrization {
     #[pyo3(get, set)]
-    value: PyObject,
+    value: Py<PyAny>,
 }
 
 #[cfg(Py_3_9)]
 #[pymethods]
 impl ClassWithRuntimeParametrization {
     #[new]
-    fn new(value: PyObject) -> ClassWithRuntimeParametrization {
+    fn new(value: Py<PyAny>) -> ClassWithRuntimeParametrization {
         Self { value }
     }
 }

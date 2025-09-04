@@ -1,6 +1,6 @@
 use crate::object::PyObject;
 use crate::pystate::PyThreadState;
-use std::os::raw::{c_char, c_int, c_void};
+use std::ffi::{c_char, c_int, c_void};
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyEval_EvalCode")]

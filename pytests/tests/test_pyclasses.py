@@ -64,16 +64,15 @@ def test_parallel_iter():
 
     i = pyclasses.PyClassThreadIter()
 
-    def func():
-        next(i)
-
     # the second thread attempts to borrow a reference to the instance's
     # state while the first thread is still sleeping, so we trigger a
     # runtime borrow-check error
     with pytest.raises(RuntimeError, match="Already borrowed"):
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as tpe:
-            futures = [tpe.submit(func), tpe.submit(func)]
-            [f.result() for f in futures]
+            # should never reach 100 iterations, should error out as soon
+            # as the borrow error occurs
+            for _ in tpe.map(lambda _: next(i), range(100)):
+                pass
 
 
 class AssertingSubClass(pyclasses.AssertingBaseClass):
@@ -96,8 +95,8 @@ class ClassWithoutConstructor:
 
 
 @pytest.mark.xfail(
-    platform.python_implementation() == "PyPy" and sys.version_info < (3, 11),
-    reason="broken on older PyPy due to https://github.com/pypy/pypy/issues/5319 on supported PyPy",
+    platform.python_implementation() == "PyPy" and sys.version_info[:2] == (3, 11),
+    reason="broken on PyPy 3.11 due to https://github.com/pypy/pypy/issues/5319, waiting for next release",
 )
 @pytest.mark.parametrize(
     "cls, exc_message",
