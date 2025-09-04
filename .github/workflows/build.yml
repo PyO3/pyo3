@@ -44,7 +44,7 @@ jobs:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       # installs using setup-python do not work for arm macOS 3.9 and below
-      - if: ${{ !(inputs.os == 'macos-latest' && contains(fromJSON('["3.7", "3.8", "3.9"]'), inputs.python-version)) && inputs.python-architecture == 'x64' }}
+      - if: ${{ !(inputs.os == 'macos-latest' && contains(fromJSON('["3.7", "3.8", "3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64') }}
         name: Set up Python ${{ inputs.python-version }}
         uses: actions/setup-python@v5
         with:
