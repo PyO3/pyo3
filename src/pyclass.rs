@@ -9,7 +9,9 @@ mod guard;
 pub(crate) use self::create_type_object::{create_type_object, PyClassTypeObject};
 
 pub use self::gc::{PyTraverseError, PyVisit};
-pub use self::guard::{PyClassGuard, PyClassGuardMap, PyClassGuardMut};
+pub use self::guard::{
+    PyClassGuard, PyClassGuardError, PyClassGuardMap, PyClassGuardMut, PyClassGuardMutError,
+};
 
 /// Types that can be used as Python classes.
 ///
