@@ -1,9 +1,14 @@
-//! Synchronization mechanisms based on the Python GIL.
+//! Synchronization mechanisms which are aware of the existence of the Python interpreter.
 //!
-//! With the acceptance of [PEP 703] (aka a "freethreaded Python") for Python 3.13, these
-//! are likely to undergo significant developments in the future.
+//! The Python interpreter has multiple "stop the world" situations which may block threads, such as
+//! - The Python global interpreter lock (GIL), on GIL-enabled builds of Python, or
+//! - The Python garbage collector (GC), which pauses attached threads during collection.
 //!
-//! [PEP 703]: https://peps.python.org/pep-703/
+//! To avoid deadlocks in these cases, threads should take care to be detached from the Python interpreter
+//! before performing operations which might block waiting for other threads attached to the Python
+//! interpreter.
+//!
+//! This module provides synchronization primitives which are able to synchronize under these conditions.
 use crate::{
     internal::state::SuspendAttach,
     sealed::Sealed,

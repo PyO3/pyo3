@@ -8,7 +8,7 @@ nox.options.sessions = ["test"]
 @nox.session
 def test(session: nox.Session):
     session.env["MATURIN_PEP517_ARGS"] = "--profile=dev"
-    session.run_always("python", "-m", "pip", "install", "-v", ".[dev]")
+    session.install("-v", ".[dev]")
 
     def try_install_binary(package: str, constraint: str):
         try:

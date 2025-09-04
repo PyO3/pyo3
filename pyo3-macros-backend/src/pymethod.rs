@@ -2,6 +2,8 @@ use std::borrow::Cow;
 use std::ffi::CString;
 
 use crate::attributes::{FromPyWithAttribute, NameAttribute, RenamingRule};
+#[cfg(feature = "experimental-inspect")]
+use crate::introspection::unique_element_id;
 use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
 use crate::params::{impl_regular_arg_param, Holders};
 use crate::pyfunction::WarningFactory;
@@ -14,7 +16,7 @@ use crate::{
 use crate::{quotes, utils};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
-use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
+use syn::{ext::IdentExt, spanned::Spanned, Field, Ident, Result};
 
 /// Generated code for a single pymethod item.
 pub struct MethodAndMethodDef {
@@ -24,12 +26,36 @@ pub struct MethodAndMethodDef {
     pub method_def: TokenStream,
 }
 
+#[cfg(feature = "experimental-inspect")]
+impl MethodAndMethodDef {
+    pub fn add_introspection(&mut self, data: TokenStream) {
+        let const_name = format_ident!("_{}", unique_element_id()); // We need an explicit name here
+        self.associated_method.extend(quote! {
+            const #const_name: () = {
+                #data
+            };
+        });
+    }
+}
+
 /// Generated code for a single pymethod item which is registered by a slot.
 pub struct MethodAndSlotDef {
     /// The implementation of the Python wrapper for the pymethod
     pub associated_method: TokenStream,
     /// The slot def which will be used to register this pymethod
     pub slot_def: TokenStream,
+}
+
+#[cfg(feature = "experimental-inspect")]
+impl MethodAndSlotDef {
+    pub fn add_introspection(&mut self, data: TokenStream) {
+        let const_name = format_ident!("_{}", unique_element_id()); // We need an explicit name here
+        self.associated_method.extend(quote! {
+            const #const_name: () = {
+                #data
+            };
+        });
+    }
 }
 
 pub enum GeneratedPyMethod {
@@ -957,19 +983,7 @@ impl PropertyType<'_> {
                 renaming_rule,
                 ..
             } => {
-                let name = match (python_name, &field.ident) {
-                    (Some(name), _) => name.value.0.to_string(),
-                    (None, Some(field_name)) => {
-                        let mut name = field_name.unraw().to_string();
-                        if let Some(rule) = renaming_rule {
-                            name = utils::apply_renaming_rule(*rule, &name);
-                        }
-                        name
-                    }
-                    (None, None) => {
-                        bail_spanned!(field.span() => "`get` and `set` with tuple struct fields require `name`");
-                    }
-                };
+                let name = field_python_name(field, *python_name, *renaming_rule)?;
                 let name = CString::new(name).unwrap();
                 Ok(LitCStr::new(name, field.span(), ctx))
             }
@@ -1671,4 +1685,22 @@ impl ToTokens for TokenGeneratorCtx<'_> {
         let Self(TokenGenerator(gen), ctx) = self;
         (gen)(ctx).to_tokens(tokens)
     }
+}
+
+pub fn field_python_name(
+    field: &Field,
+    name_attr: Option<&NameAttribute>,
+    renaming_rule: Option<RenamingRule>,
+) -> Result<String> {
+    if let Some(name_attr) = name_attr {
+        return Ok(name_attr.value.0.to_string());
+    }
+    let Some(ident) = &field.ident else {
+        bail_spanned!(field.span() => "`get` and `set` with tuple struct fields require `name`");
+    };
+    let mut name = ident.unraw().to_string();
+    if let Some(rule) = renaming_rule {
+        name = utils::apply_renaming_rule(rule, &name);
+    }
+    Ok(name)
 }

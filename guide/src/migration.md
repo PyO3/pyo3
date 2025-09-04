@@ -3,12 +3,142 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.26.* to 0.27
+### `FromPyObject` reworked for flexibility and efficiency
+<details open>
+<summary><small>Click to expand</small></summary>
+
+With the removal of the `gil-ref` API in PyO3 0.23 it is now possible to fully split the Python lifetime
+`'py` and the input lifetime `'a`. This allows borrowing from the input data without extending the
+lifetime of being attached to the interpreter.
+
+`FromPyObject` now takes an additional lifetime `'a` describing the input lifetime. The argument
+type of the `extract` method changed from `&Bound<'py, PyAny>` to `Borrowed<'a, 'py, PyAny>`. This was
+done because `&'a Bound<'py, PyAny>` would have an implicit restriction `'py: 'a` due to the reference type.
+
+This new form was partly implemented already in 0.22 using the internal `FromPyObjectBound` trait and
+is now extended to all types.
+
+Most implementations can just add an elided lifetime to migrate.
+
+Additionally `FromPyObject` gained an associated type `Error`. This is the error type that can be used
+in case of a conversion error. During migration using `PyErr` is a good default, later a custom error
+type can be introduced to prevent unneccessary creation of Python exception objects and improved type safety.
+
+Before:
+```rust,ignore
+impl<'py> FromPyObject<'py> for IpAddr {
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        ...
+    }
+}
+```
+
+After
+```rust,ignore
+impl<'py> FromPyObject<'_, 'py> for IpAddr {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
+        ...
+        // since `Borrowed` derefs to `&Bound`, the body often
+        // needs no changes, or adding an occasional `&`
+    }
+}
+```
+
+Occasionally, more steps are necessary. For generic types, the bounds need to be adjusted. The
+correct bound depends on how the type is used.
+
+For simple wrapper types usually it's possible to just forward the bound.
+
+Before:
+```rust,ignore
+struct MyWrapper<T>(T);
+
+impl<'py, T> FromPyObject<'py> for MyWrapper<T>
+where 
+    T: FromPyObject<'py>
+{
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        ob.extract().map(MyWrapper)
+    }
+}
+```
+
+After: 
+```rust
+# use pyo3::prelude::*;
+# #[allow(dead_code)]
+# pub struct MyWrapper<T>(T);
+impl<'a, 'py, T> FromPyObject<'a, 'py> for MyWrapper<T>
+where
+    T: FromPyObject<'a, 'py>
+{
+    type Error = T::Error;
+
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        obj.extract().map(MyWrapper)
+    }
+}
+```
+
+Container types that need to create temporary Python references during extraction, for example
+extracing from a `PyList`, requires a stronger bound. For these the `FromPyObjectOwned` trait was
+introduced. It is automatically implemented for any type that implements `FromPyObject` and does not
+borrow from the input. It is intended to be used as a trait bound in these situations.
+
+Before:
+```rust,ignore
+struct MyVec<T>(Vec<T>);
+impl<'py, T> FromPyObject<'py> for Vec<T>
+where
+    T: FromPyObject<'py>,
+{
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let mut v = MyVec(Vec::new());
+        for item in obj.try_iter()? {
+            v.0.push(item?.extract::<T>()?);
+        }
+        Ok(v)
+    }
+}
+```
+
+After:
+```rust
+# use pyo3::prelude::*;
+# #[allow(dead_code)]
+# pub struct MyVec<T>(Vec<T>);
+impl<'py, T> FromPyObject<'_, 'py> for MyVec<T>
+where
+    T: FromPyObjectOwned<'py> // 👈 can only extract owned values, because each `item` below
+                              //    is a temporary short lived owned reference
+{
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
+        let mut v = MyVec(Vec::new());
+        for item in obj.try_iter()? {
+            v.0.push(item?.extract::<T>().map_err(Into::into)?); // `map_err` is needed because `?` uses `From`, not `Into` 🙁
+        }
+        Ok(v)
+    }
+}
+```
+
+This is very similar to `serde`s [`Deserialize`] and [`DeserializeOwned`] traits, see [here](https://serde.rs/lifetimes.html).
+
+[`Deserialize`]: https://docs.rs/serde/latest/serde/trait.Deserialize.html
+[`DeserializeOwned`]: https://docs.rs/serde/latest/serde/de/trait.DeserializeOwned.html
+</details>
+
 ## from 0.25.* to 0.26
 ### Rename of `Python::with_gil`, `Python::allow_threads`, and `pyo3::prepare_freethreaded_python`
 <details open>
 <summary><small>Click to expand</small></summary>
 
-The names for these APIs were created when the global interpreter lock (GIL) was mandatory. With the introduction of free-threading in Python 3.13 this is no longer the case, and the naming does not have no universal meaning anymore.
+The names for these APIs were created when the global interpreter lock (GIL) was mandatory. With the introduction of free-threading in Python 3.13 this is no longer the case, and the naming has no universal meaning anymore.
 For this reason, we chose to rename these to more modern terminology introduced in free-threading:
 
 - `Python::with_gil` is now called `Python::attach`, it attaches a Python thread-state to the current thread. In GIL enabled builds there can only be 1 thread attached to the interpreter, in free-threading there can be more.

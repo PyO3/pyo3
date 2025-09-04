@@ -936,6 +936,16 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
     pub(crate) fn to_any(self) -> Borrowed<'a, 'py, PyAny> {
         Borrowed(self.0, PhantomData, self.2)
     }
+
+    /// Extracts some type from the Python object.
+    ///
+    /// This is a wrapper function around [`FromPyObject::extract()`](crate::FromPyObject::extract).
+    pub fn extract<O>(self) -> Result<O, O::Error>
+    where
+        O: FromPyObject<'a, 'py>,
+    {
+        FromPyObject::extract(self.to_any())
+    }
 }
 
 impl<'a, T: PyClass> Borrowed<'a, '_, T> {
@@ -1665,9 +1675,9 @@ impl<T> Py<T> {
     /// Extracts some type from the Python object.
     ///
     /// This is a wrapper function around `FromPyObject::extract()`.
-    pub fn extract<'a, 'py, D>(&'a self, py: Python<'py>) -> PyResult<D>
+    pub fn extract<'a, 'py, D>(&'a self, py: Python<'py>) -> Result<D, D::Error>
     where
-        D: crate::conversion::FromPyObjectBound<'a, 'py>,
+        D: FromPyObject<'a, 'py>,
         // TODO it might be possible to relax this bound in future, to allow
         // e.g. `.extract::<&str>(py)` where `py` is short-lived.
         'py: 'a,
@@ -2024,29 +2034,33 @@ impl<T> Drop for Py<T> {
     }
 }
 
-impl<T> FromPyObject<'_> for Py<T>
+impl<'a, 'py, T> FromPyObject<'a, 'py> for Py<T>
 where
-    T: PyTypeCheck,
+    T: PyTypeCheck + 'a,
 {
+    type Error = DowncastError<'a, 'py>;
+
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = T::PYTHON_TYPE;
 
     /// Extracts `Self` from the source `PyObject`.
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
-        ob.extract::<Bound<'_, T>>().map(Bound::unbind)
+    fn extract(ob: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        ob.extract::<Bound<'py, T>>().map(Bound::unbind)
     }
 }
 
-impl<'py, T> FromPyObject<'py> for Bound<'py, T>
+impl<'a, 'py, T> FromPyObject<'a, 'py> for Bound<'py, T>
 where
-    T: PyTypeCheck,
+    T: PyTypeCheck + 'a,
 {
+    type Error = DowncastError<'a, 'py>;
+
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = T::PYTHON_TYPE;
 
     /// Extracts `Self` from the source `PyObject`.
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        ob.cast().cloned().map_err(Into::into)
+    fn extract(ob: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        ob.cast().map(Borrowed::to_owned)
     }
 }
 

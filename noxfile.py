@@ -109,7 +109,6 @@ def test_rust(session: nox.Session):
 
     for feature_set in _get_feature_sets():
         flags = extra_flags.copy()
-        print(feature_set)
 
         if feature_set is None or "full" not in feature_set:
             # doctests require at least the macros feature, which is
@@ -438,6 +437,69 @@ def test_emscripten(session: nox.Session):
         "bash",
         "-c",
         f"source {info.builddir / 'emsdk/emsdk_env.sh'} && cargo test",
+    )
+
+
+@nox.session(name="test-cross-compilation-windows")
+def test_cross_compilation_windows(session: nox.Session):
+    session.install("cargo-xwin")
+
+    env = os.environ.copy()
+    env["XWIN_ARCH"] = "x86_64"
+
+    # abi3
+    _run_cargo(
+        session,
+        "build",
+        "--manifest-path",
+        "examples/maturin-starter/Cargo.toml",
+        "--features",
+        "abi3",
+        "--target",
+        "x86_64-pc-windows-gnu",
+        env=env,
+    )
+    _run_cargo(
+        session,
+        "xwin",
+        "build",
+        "--cross-compiler",
+        "clang",
+        "--manifest-path",
+        "examples/maturin-starter/Cargo.toml",
+        "--features",
+        "abi3",
+        "--target",
+        "x86_64-pc-windows-msvc",
+        env=env,
+    )
+
+    # non-abi3
+    env["PYO3_CROSS_PYTHON_VERSION"] = "3.13"
+    _run_cargo(
+        session,
+        "build",
+        "--manifest-path",
+        "examples/maturin-starter/Cargo.toml",
+        "--features",
+        "generate-import-lib",
+        "--target",
+        "x86_64-pc-windows-gnu",
+        env=env,
+    )
+    _run_cargo(
+        session,
+        "xwin",
+        "build",
+        "--cross-compiler",
+        "clang",
+        "--manifest-path",
+        "examples/maturin-starter/Cargo.toml",
+        "--features",
+        "generate-import-lib",
+        "--target",
+        "x86_64-pc-windows-msvc",
+        env=env,
     )
 
 

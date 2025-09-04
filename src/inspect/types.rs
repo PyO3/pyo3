@@ -467,7 +467,7 @@ mod conversion {
         assert_display(&<&[u8]>::type_output(), "Union[bytes, List[int]]");
         assert_display(&<&[String]>::type_output(), "Union[bytes, List[str]]");
         assert_display(
-            &<&[u8] as crate::conversion::FromPyObjectBound>::type_input(),
+            &<&[u8] as crate::conversion::FromPyObject>::type_input(),
             "bytes",
         );
     }

@@ -1,9 +1,8 @@
-use crate::conversion::FromPyObjectBound;
 use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout as _};
 use crate::pycell::PyBorrowMutError;
 use crate::pycell::{impl_::PyClassBorrowChecker, PyBorrowError};
 use crate::pyclass::boolean_struct::False;
-use crate::{ffi, Borrowed, IntoPyObject, Py, PyClass};
+use crate::{ffi, Borrowed, FromPyObject, IntoPyObject, Py, PyClass, PyErr};
 use std::convert::Infallible;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
@@ -277,8 +276,10 @@ impl<T: PyClass> Deref for PyClassGuard<'_, T> {
     }
 }
 
-impl<'a, 'py, T: PyClass> FromPyObjectBound<'a, 'py> for PyClassGuard<'a, T> {
-    fn from_py_object_bound(obj: Borrowed<'a, 'py, crate::PyAny>) -> crate::PyResult<Self> {
+impl<'a, 'py, T: PyClass> FromPyObject<'a, 'py> for PyClassGuard<'a, T> {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'a, 'py, crate::PyAny>) -> Result<Self, Self::Error> {
         Self::try_from_class_object(obj.cast()?.get_class_object()).map_err(Into::into)
     }
 }
@@ -640,8 +641,10 @@ impl<T: PyClass<Frozen = False>> DerefMut for PyClassGuardMut<'_, T> {
     }
 }
 
-impl<'a, 'py, T: PyClass<Frozen = False>> FromPyObjectBound<'a, 'py> for PyClassGuardMut<'a, T> {
-    fn from_py_object_bound(obj: Borrowed<'a, 'py, crate::PyAny>) -> crate::PyResult<Self> {
+impl<'a, 'py, T: PyClass<Frozen = False>> FromPyObject<'a, 'py> for PyClassGuardMut<'a, T> {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'a, 'py, crate::PyAny>) -> Result<Self, Self::Error> {
         Self::try_from_class_object(obj.cast()?.get_class_object()).map_err(Into::into)
     }
 }

@@ -3,10 +3,8 @@ use std::{borrow::Cow, convert::Infallible};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    conversion::IntoPyObject,
-    instance::Bound,
-    types::{string::PyStringMethods, PyString},
-    FromPyObject, PyAny, PyResult, Python,
+    conversion::IntoPyObject, instance::Bound, types::PyString, Borrowed, FromPyObject, PyAny,
+    PyErr, Python,
 };
 
 impl<'py> IntoPyObject<'py> for &str {
@@ -161,11 +159,13 @@ impl<'py> IntoPyObject<'py> for &String {
 }
 
 #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
-impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a str {
+impl<'a> crate::conversion::FromPyObject<'a, '_> for &'a str {
+    type Error = PyErr;
+
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = "str";
 
-    fn from_py_object_bound(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
+    fn extract(ob: crate::Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
         ob.cast::<PyString>()?.to_str()
     }
 
@@ -175,11 +175,13 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a str {
     }
 }
 
-impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, str> {
+impl<'a> crate::conversion::FromPyObject<'a, '_> for Cow<'a, str> {
+    type Error = PyErr;
+
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = "str";
 
-    fn from_py_object_bound(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
+    fn extract(ob: crate::Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
         ob.cast::<PyString>()?.to_cow()
     }
 
@@ -191,11 +193,13 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, str> {
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
-impl FromPyObject<'_> for String {
+impl FromPyObject<'_, '_> for String {
+    type Error = PyErr;
+
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = "str";
 
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         obj.cast::<PyString>()?.to_cow().map(Cow::into_owned)
     }
 
@@ -205,11 +209,13 @@ impl FromPyObject<'_> for String {
     }
 }
 
-impl FromPyObject<'_> for char {
+impl FromPyObject<'_, '_> for char {
+    type Error = PyErr;
+
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = "str";
 
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let s = obj.cast::<PyString>()?.to_cow()?;
         let mut iter = s.chars();
         if let (Some(ch), None) = (iter.next(), iter.next()) {

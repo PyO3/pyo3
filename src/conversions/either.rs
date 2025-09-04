@@ -47,8 +47,8 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    exceptions::PyTypeError, types::any::PyAnyMethods, Bound, FromPyObject, IntoPyObject,
-    IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
+    exceptions::PyTypeError, Borrowed, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny,
+    PyErr, Python,
 };
 use either::Either;
 
@@ -89,13 +89,15 @@ where
 }
 
 #[cfg_attr(docsrs, doc(cfg(feature = "either")))]
-impl<'py, L, R> FromPyObject<'py> for Either<L, R>
+impl<'a, 'py, L, R> FromPyObject<'a, 'py> for Either<L, R>
 where
-    L: FromPyObject<'py>,
-    R: FromPyObject<'py>,
+    L: FromPyObject<'a, 'py>,
+    R: FromPyObject<'a, 'py>,
 {
+    type Error = PyErr;
+
     #[inline]
-    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         if let Ok(l) = obj.extract::<L>() {
             Ok(Either::Left(l))
         } else if let Ok(r) = obj.extract::<R>() {
