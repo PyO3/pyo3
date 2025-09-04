@@ -60,11 +60,11 @@ name = "bench_list"
 harness = false
 
 [[bench]]
-name = "bench_pyclass"
+name = "bench_py"
 harness = false
 
 [[bench]]
-name = "bench_pyobject"
+name = "bench_pyclass"
 harness = false
 
 [[bench]]

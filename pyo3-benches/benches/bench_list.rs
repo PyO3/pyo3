@@ -65,7 +65,7 @@ fn list_nth_back(b: &mut Bencher<'_>) {
     });
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, Py_GIL_DISABLED)))]
 fn list_get_item_unchecked(b: &mut Bencher<'_>) {
     Python::attach(|py| {
         const LEN: usize = 50_000;
