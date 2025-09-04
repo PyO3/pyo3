@@ -3,7 +3,6 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use std::ffi::CString;
 use syn::spanned::Spanned;
-use syn::visit_mut::VisitMut;
 use syn::{punctuated::Punctuated, Token};
 
 /// Macro inspired by `anyhow::anyhow!` to create a compiler error with the given span.
@@ -340,6 +339,7 @@ pub(crate) fn has_attribute_with_namespace(
     })
 }
 
+#[cfg(feature = "experimental-inspect")]
 pub(crate) trait TypeExt {
     /// Replaces all explicit lifetimes in `self` with elided (`'_`) lifetimes
     ///
@@ -348,8 +348,11 @@ pub(crate) trait TypeExt {
     fn elide_lifetimes(self) -> Self;
 }
 
+#[cfg(feature = "experimental-inspect")]
 impl TypeExt for syn::Type {
     fn elide_lifetimes(mut self) -> Self {
+        use syn::visit_mut::VisitMut;
+
         struct ElideLifetimesVisitor;
 
         impl VisitMut for ElideLifetimesVisitor {

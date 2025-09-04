@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{conversion::IntoPyObject, Py};
+use crate::{conversion::IntoPyObject, FromPyObject, Py};
 
 /// Trait used to combine with zero-sized types to calculate at compile time
 /// some property of a type.
@@ -58,9 +58,12 @@ impl<T: Sync> IsSync<T> {
     pub const VALUE: bool = true;
 }
 
-probe!(IsOption);
+probe!(IsFromPyObject);
 
-impl<T> IsOption<Option<T>> {
+impl<'a, 'py, T> IsFromPyObject<T>
+where
+    T: FromPyObject<'a, 'py>,
+{
     pub const VALUE: bool = true;
 }
 

@@ -1407,32 +1407,6 @@ impl pyo3::PyClass for MyClass {
     type Frozen = pyo3::pyclass::boolean_struct::False;
 }
 
-impl<'a, 'holder, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false> for &'holder MyClass
-{
-    type Holder = ::std::option::Option<pyo3::PyClassGuard<'a, MyClass>>;
-    type Error = pyo3::PyErr;
-    #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "MyClass";
-
-    #[inline]
-    fn extract(obj: &'a pyo3::Bound<'py, PyAny>, holder: &'holder mut Self::Holder) -> pyo3::PyResult<Self> {
-        pyo3::impl_::extract_argument::extract_pyclass_ref(obj, holder)
-    }
-}
-
-impl<'a, 'holder, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false> for &'holder mut MyClass
-{
-    type Holder = ::std::option::Option<pyo3::PyClassGuardMut<'a, MyClass>>;
-    type Error = pyo3::PyErr;
-    #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "MyClass";
-
-    #[inline]
-    fn extract(obj: &'a pyo3::Bound<'py, PyAny>, holder: &'holder mut Self::Holder) -> pyo3::PyResult<Self> {
-        pyo3::impl_::extract_argument::extract_pyclass_ref_mut(obj, holder)
-    }
-}
-
 impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     const IS_BASETYPE: bool = false;
     const IS_SUBCLASS: bool = false;
