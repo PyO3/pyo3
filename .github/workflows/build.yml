@@ -43,13 +43,22 @@ jobs:
           # with the commit diff, because the merge may affect line numbers.
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
-      - name: Set up Python ${{ inputs.python-version }}
+      # installs using setup-python do not work for arm macOS 3.9 and below
+      - if: ${{ !(inputs.os == 'macos-latest' && contains(fromJSON('["3.7", "3.8", "3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64') }}
+        name: Set up Python ${{ inputs.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ inputs.python-version }}
           architecture: ${{ inputs.python-architecture }}
           # PyPy can have FFI changes within Python versions, which creates pain in CI
           check-latest: ${{ startsWith(inputs.python-version, 'pypy') }}
+
+      # workaround for the above, only available for 3.9
+      - if: ${{ inputs.os == 'macos-latest' && contains(fromJSON('["3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64' }}
+        name: Set up Python ${{ inputs.python-version }}
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: cpython-${{ inputs.python-version }}-macos-x86-64
 
       - name: Install nox
         run: python -m pip install --upgrade pip && pip install nox[uv]
