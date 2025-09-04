@@ -5,6 +5,7 @@
 fn test_compile_errors() {
     let t = trybuild::TestCases::new();
 
+    t.compile_fail("tests/ui/deprecated_pyfn.rs");
     #[cfg(not(feature = "experimental-inspect"))]
     t.compile_fail("tests/ui/invalid_property_args.rs");
     t.compile_fail("tests/ui/invalid_proto_pymethods.rs");

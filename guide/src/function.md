@@ -26,7 +26,6 @@ This chapter of the guide explains full usage of the `#[pyfunction]` attribute. 
   - [`#[pyo3(warn(message = "...", category = ...))]`](#warn)
 - [Per-argument options](#per-argument-options)
 - [Advanced function patterns](#advanced-function-patterns)
-- [`#[pyfn]` shorthand](#pyfn-shorthand)
 
 There are also additional sections on the following topics:
 
@@ -95,11 +94,11 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     ```
   - <a id="warn"></a> `#[pyo3(warn(message = "...", category = ...))]`
 
-    This option is used to display a warning when the function is used in Python. It is equivalent to [`warnings.warn(message, category)`](https://docs.python.org/3/library/warnings.html#warnings.warn). 
-    The `message` parameter is a string that will be displayed when the function is called, and the `category` parameter is optional and has to be a subclass of [`Warning`](https://docs.python.org/3/library/exceptions.html#Warning). 
+    This option is used to display a warning when the function is used in Python. It is equivalent to [`warnings.warn(message, category)`](https://docs.python.org/3/library/warnings.html#warnings.warn).
+    The `message` parameter is a string that will be displayed when the function is called, and the `category` parameter is optional and has to be a subclass of [`Warning`](https://docs.python.org/3/library/exceptions.html#Warning).
     When the `category` parameter is not provided, the warning will be defaulted to [`UserWarning`](https://docs.python.org/3/library/exceptions.html#UserWarning).
 
-    > Note: when used with `#[pymethods]`, this attribute does not work with `#[classattr]` nor `__traverse__` magic method. 
+    > Note: when used with `#[pymethods]`, this attribute does not work with `#[classattr]` nor `__traverse__` magic method.
 
     The following are examples of using the `#[pyo3(warn)]` attribute:
 
@@ -110,20 +109,20 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     mod raising_warning_fn {
         use pyo3::prelude::pyfunction;
         use pyo3::exceptions::PyFutureWarning;
-    
+
         #[pyfunction]
         #[pyo3(warn(message = "This is a warning message"))]
         fn function_with_warning() -> usize {
             42
         }
-        
+
         #[pyfunction]
         #[pyo3(warn(message = "This function is warning with FutureWarning", category = PyFutureWarning))]
         fn function_with_warning_and_custom_category() -> usize {
             42
         }
     }
-    
+
     # use pyo3::exceptions::{PyFutureWarning, PyUserWarning};
     # use pyo3::types::{IntoPyDict, PyList};
     # use pyo3::PyTypeInfo;
@@ -142,7 +141,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     #         .unwrap();
     #     Ok(())
     # }
-    # 
+    #
     # macro_rules! assert_warnings {
     #     ($py:expr, $body:expr, [$(($category:ty, $message:literal)),+] $(,)? ) => {
     #         catch_warning($py, |list| {
@@ -159,7 +158,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     #         }).unwrap();
     #     };
     # }
-    # 
+    #
     # Python::attach(|py| {
     #     assert_warnings!(
     #         py,
@@ -181,7 +180,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     # });
     ```
 
-    When the functions are called as the following, warnings will be displayed. 
+    When the functions are called as the following, warnings will be displayed.
 
     ```python
     import warnings
@@ -197,7 +196,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     UserWarning: This is a warning message
     FutureWarning: This function is warning with FutureWarning
     ```
-    
+
 ## Per-argument options
 
 The `#[pyo3]` attribute can be used on individual arguments to modify properties of them in the generated function. It can take any combination of the following options:
@@ -267,43 +266,5 @@ arguments from the input `PyObject`s.
 
 The `wrap_pyfunction` macro can be used to directly get a `Bound<PyCFunction>` given a
 `#[pyfunction]` and a `Bound<PyModule>`: `wrap_pyfunction!(rust_fun, module)`.
-
-## `#[pyfn]` shorthand
-
-There is a shorthand to `#[pyfunction]` and `wrap_pymodule!`: the function can be placed inside the module definition and
-annotated with `#[pyfn]`. To simplify PyO3, it is expected that `#[pyfn]` may be removed in a future release (See [#694](https://github.com/PyO3/pyo3/issues/694)).
-
-An example of `#[pyfn]` is below:
-
-```rust,no_run
-use pyo3::prelude::*;
-
-#[pymodule]
-fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    #[pyfn(m)]
-    fn double(x: usize) -> usize {
-        x * 2
-    }
-
-    Ok(())
-}
-```
-
-`#[pyfn(m)]` is just syntactic sugar for `#[pyfunction]`, and takes all the same options
-documented in the rest of this chapter. The code above is expanded to the following:
-
-```rust,no_run
-use pyo3::prelude::*;
-
-#[pymodule]
-fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    #[pyfunction]
-    fn double(x: usize) -> usize {
-        x * 2
-    }
-
-    m.add_function(wrap_pyfunction!(double, m)?)
-}
-```
 
 [`inspect.signature`]: https://docs.python.org/3/library/inspect.html#inspect.signature
