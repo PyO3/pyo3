@@ -20,6 +20,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
+use crate::prelude::PyTypeMethods;
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
 use crate::PyErr;
 use crate::{
@@ -180,7 +181,8 @@ impl<T> AddTypeToModule<T> {
 
 impl<T: PyTypeInfo> PyAddToModule for AddTypeToModule<T> {
     fn add_to_module(&'static self, module: &Bound<'_, PyModule>) -> PyResult<()> {
-        module.add(T::NAME, T::type_object(module.py()))
+        let object = T::type_object(module.py());
+        module.add(object.name()?, object)
     }
 }
 
