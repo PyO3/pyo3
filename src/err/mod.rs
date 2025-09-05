@@ -4,7 +4,7 @@ use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{
     string::PyStringMethods, traceback::PyTracebackMethods, typeobject::PyTypeMethods, PyTraceback,
-    PyType,
+    PyTuple, PyTupleMethods, PyType,
 };
 use crate::{
     exceptions::{self, PyBaseException},
@@ -59,17 +59,7 @@ impl<'a, 'py> DowncastError<'a, 'py> {
         }
     }
 
-    pub(crate) fn new_from_borrowed(
-        from: Borrowed<'a, 'py, PyAny>,
-        to: impl Into<Cow<'static, str>>,
-    ) -> Self {
-        Self {
-            from,
-            to: TypeNameOrValue::Name(to.into()),
-        }
-    }
-
-    pub(crate) fn new_from_type(from: Borrowed<'a, 'py, PyAny>, to: Bound<'py, PyType>) -> Self {
+    pub(crate) fn new_from_type(from: Borrowed<'a, 'py, PyAny>, to: Bound<'py, PyAny>) -> Self {
         Self {
             from,
             to: TypeNameOrValue::Value(to),
@@ -94,7 +84,7 @@ impl<'py> DowncastIntoError<'py> {
         }
     }
 
-    pub(crate) fn new_from_type(from: Bound<'py, PyAny>, to: Bound<'py, PyType>) -> Self {
+    pub(crate) fn new_from_type(from: Bound<'py, PyAny>, to: Bound<'py, PyAny>) -> Self {
         Self {
             from,
             to: TypeNameOrValue::Value(to),
@@ -114,7 +104,7 @@ impl<'py> DowncastIntoError<'py> {
 #[derive(Debug)]
 enum TypeNameOrValue<'py> {
     Name(Cow<'static, str>),
-    Value(Bound<'py, PyType>),
+    Value(Bound<'py, PyAny>),
 }
 /// Helper conversion trait that allows to use custom arguments for lazy exception construction.
 pub trait PyErrArguments: Send + Sync {
@@ -766,7 +756,7 @@ impl PyErrArguments for PyDowncastErrorArguments {
 
 enum OwnedTypeNameOrValue {
     Name(Cow<'static, str>),
-    Value(Py<PyType>),
+    Value(Py<PyAny>),
 }
 
 /// Python exceptions that can be converted to [`PyErr`].
@@ -850,11 +840,24 @@ impl std::fmt::Display for TypeNameOrValue<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Name(name) => name.fmt(f),
-            Self::Value(t) => t
-                .qualname()
-                .map_err(|_| std::fmt::Error)?
-                .to_string_lossy()
-                .fmt(f),
+            Self::Value(t) => {
+                if let Ok(t) = t.downcast::<PyType>() {
+                    t.qualname()
+                        .map_err(|_| std::fmt::Error)?
+                        .to_string_lossy()
+                        .fmt(f)
+                } else if let Ok(t) = t.downcast::<PyTuple>() {
+                    for (i, t) in t.iter().enumerate() {
+                        if i > 0 {
+                            f.write_str(" | ")?;
+                        }
+                        TypeNameOrValue::Value(t).fmt(f)?;
+                    }
+                    Ok(())
+                } else {
+                    t.fmt(f)
+                }
+            }
         }
     }
 }

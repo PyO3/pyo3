@@ -5,9 +5,10 @@ use std::{convert::Infallible, ops::Deref, ptr::NonNull, sync::Arc};
 use crate::{
     types::{
         bytearray::PyByteArrayMethods, bytes::PyBytesMethods, string::PyStringMethods, PyByteArray,
-        PyBytes, PyString,
+        PyBytes, PyString, PyTuple,
     },
-    Borrowed, Bound, DowncastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, Python,
+    Borrowed, Bound, DowncastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyTypeInfo,
+    Python,
 };
 
 /// A wrapper around `str` where the storage is owned by a Python `bytes` or `str` object.
@@ -212,9 +213,17 @@ impl<'a, 'py> FromPyObject<'a, 'py> for PyBackedBytes {
         } else if let Ok(bytearray) = obj.cast::<PyByteArray>() {
             Ok(Self::from(bytearray.to_owned()))
         } else {
-            Err(DowncastError::new_from_borrowed(
+            Err(DowncastError::new_from_type(
                 obj,
-                "`bytes` or `bytearray`",
+                PyTuple::new(
+                    obj.py(),
+                    [
+                        PyBytes::type_object(obj.py()),
+                        PyByteArray::type_object(obj.py()),
+                    ],
+                )
+                .unwrap()
+                .into_any(),
             ))
         }
     }
