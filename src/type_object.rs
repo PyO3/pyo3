@@ -86,9 +86,6 @@ pub unsafe trait PyTypeInfo: Sized {
 
 /// Implemented by types which can be used as a concrete Python type inside `Py<T>` smart pointers.
 pub trait PyTypeCheck {
-    /// Name of self. This is used in error messages, for example.
-    const NAME: &'static str;
-
     /// Provides the full python type of the allowed values.
     #[cfg(feature = "experimental-inspect")]
     const PYTHON_TYPE: &'static str;
@@ -97,19 +94,27 @@ pub trait PyTypeCheck {
     ///
     /// This should be equivalent to the Python expression `isinstance(object, Self)`.
     fn type_check(object: &Bound<'_, PyAny>) -> bool;
+
+    /// Returns the expected type as a possible argument for the `isinstance` and `issubclass` function.
+    ///
+    /// It may be a single type or a tuple of types.
+    fn classinfo_object(py: Python<'_>) -> Bound<'_, PyAny>;
 }
 
 impl<T> PyTypeCheck for T
 where
     T: PyTypeInfo,
 {
-    const NAME: &'static str = <T as PyTypeInfo>::NAME;
-
     #[cfg(feature = "experimental-inspect")]
     const PYTHON_TYPE: &'static str = <T as PyTypeInfo>::PYTHON_TYPE;
 
     #[inline]
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         T::is_type_of(object)
+    }
+
+    #[inline]
+    fn classinfo_object(py: Python<'_>) -> Bound<'_, PyAny> {
+        T::type_object(py).into_any()
     }
 }
