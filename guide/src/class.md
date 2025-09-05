@@ -1447,6 +1447,7 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
 
     const RAW_DOC: &'static std::ffi::CStr = pyo3::ffi::c_str!("...");
     const DOC: &'static std::ffi::CStr = pyo3::ffi::c_str!("...");
+    const TYPE_NAME: &'static str = "MyClass";
 
     fn items_iter() -> pyo3::impl_::pyclass::PyClassItemsIter {
         use pyo3::impl_::pyclass::*;
