@@ -167,7 +167,10 @@ impl<'py, T> Bound<'py, T> {
                 // Safety: type_check is responsible for ensuring that the type is correct
                 Ok(unsafe { any.cast_unchecked() })
             } else {
-                Err(DowncastError::new(any, U::NAME))
+                Err(DowncastError::new_from_type(
+                    any.as_borrowed(),
+                    U::classinfo_object(any.py()),
+                ))
             }
         }
 
@@ -211,7 +214,8 @@ impl<'py, T> Bound<'py, T> {
                 // Safety: type_check is responsible for ensuring that the type is correct
                 Ok(unsafe { any.cast_into_unchecked() })
             } else {
-                Err(DowncastIntoError::new(any, U::NAME))
+                let to = U::classinfo_object(any.py());
+                Err(DowncastIntoError::new_from_type(any, to))
             }
         }
 
@@ -264,7 +268,10 @@ impl<'py, T> Bound<'py, T> {
                 // Safety: is_exact_instance_of is responsible for ensuring that the type is correct
                 Ok(unsafe { any.cast_unchecked() })
             } else {
-                Err(DowncastError::new(any, U::NAME))
+                Err(DowncastError::new_from_type(
+                    any.as_borrowed(),
+                    U::type_object(any.py()).into_any(),
+                ))
             }
         }
 
@@ -286,7 +293,8 @@ impl<'py, T> Bound<'py, T> {
                 // Safety: is_exact_instance_of is responsible for ensuring that the type is correct
                 Ok(unsafe { any.cast_into_unchecked() })
             } else {
-                Err(DowncastIntoError::new(any, U::NAME))
+                let to = U::type_object(any.py()).into_any();
+                Err(DowncastIntoError::new_from_type(any, to))
             }
         }
 
@@ -1044,7 +1052,10 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
             // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.cast_unchecked() })
         } else {
-            Err(DowncastError::new_from_borrowed(self, T::NAME))
+            Err(DowncastError::new_from_type(
+                self,
+                T::classinfo_object(self.py()),
+            ))
         }
     }
 

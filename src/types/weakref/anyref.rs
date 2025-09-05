@@ -1,8 +1,10 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::sync::PyOnceLock;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::any::PyAny;
-use crate::{ffi, Bound};
+use crate::types::{PyTuple, PyWeakrefProxy, PyWeakrefReference};
+use crate::{ffi, Bound, Py, Python};
 
 /// Represents any Python `weakref` reference.
 ///
@@ -17,12 +19,33 @@ pyobject_native_type_named!(PyWeakref);
 // pyobject_native_type_sized!(PyWeakref, ffi::PyWeakReference);
 
 impl PyTypeCheck for PyWeakref {
-    const NAME: &'static str = "weakref";
     #[cfg(feature = "experimental-inspect")]
-    const PYTHON_TYPE: &'static str = "weakref.ProxyTypes";
+    const PYTHON_TYPE: &'static str =
+        "weakref.ProxyType | weakref.CallableProxyType | weakref.ReferenceType";
 
+    #[inline]
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::PyWeakref_Check(object.as_ptr()) > 0 }
+    }
+
+    fn classinfo_object(py: Python<'_>) -> Bound<'_, PyAny> {
+        static TYPE: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+        TYPE.get_or_try_init(py, || {
+            PyResult::Ok(
+                PyTuple::new(
+                    py,
+                    [
+                        PyWeakrefProxy::classinfo_object(py),
+                        PyWeakrefReference::classinfo_object(py),
+                    ],
+                )?
+                .into_any()
+                .unbind(),
+            )
+        })
+        .unwrap()
+        .bind(py)
+        .clone()
     }
 }
 
@@ -351,7 +374,8 @@ mod tests {
 
     mod python_class {
         use super::*;
-        use crate::ffi;
+        use crate::types::PyInt;
+        use crate::{ffi, PyTypeCheck};
         use crate::{py_result_ext::PyResultExt, types::PyType};
         use std::ptr;
 
@@ -475,6 +499,42 @@ mod tests {
 
             inner(new_reference, true)?;
             inner(new_proxy, false)
+        }
+
+        #[test]
+        fn test_classinfo_object() -> PyResult<()> {
+            fn inner(
+                create_reference: impl for<'py> FnOnce(
+                    &Bound<'py, PyAny>,
+                )
+                    -> PyResult<Bound<'py, PyWeakref>>,
+            ) -> PyResult<()> {
+                Python::attach(|py| {
+                    let class = get_type(py)?;
+                    let object = class.call0()?;
+                    let reference = create_reference(&object)?;
+                    let t = PyWeakref::classinfo_object(py);
+                    assert!(reference.is_instance(&t)?);
+                    Ok(())
+                })
+            }
+
+            inner(new_reference)?;
+            inner(new_proxy)
+        }
+
+        #[test]
+        fn test_classinfo_downcast_error() -> PyResult<()> {
+            Python::attach(|py| {
+                assert_eq!(
+                    PyInt::new(py, 1)
+                        .cast_into::<PyWeakref>()
+                        .unwrap_err()
+                        .to_string(),
+                    "'int' object cannot be converted to 'ProxyType | CallableProxyType | ReferenceType'"
+                );
+                Ok(())
+            })
         }
     }
 

@@ -221,7 +221,7 @@ fn test_function_with_custom_conversion_error() {
             custom_conv_func,
             "custom_conv_func(['a'])",
             PyTypeError,
-            "argument 'timestamp': 'list' object cannot be converted to 'PyDateTime'"
+            "argument 'timestamp': 'list' object cannot be converted to 'datetime'"
         );
     });
 }
@@ -293,14 +293,14 @@ fn test_conversion_error() {
             conversion_error,
             "conversion_error(None, None, None, None, None)",
             PyTypeError,
-            "argument 'str_arg': 'NoneType' object cannot be converted to 'PyString'"
+            "argument 'str_arg': 'NoneType' object cannot be converted to 'str'"
         );
         py_expect_exception!(
             py,
             conversion_error,
             "conversion_error(100, None, None, None, None)",
             PyTypeError,
-            "argument 'str_arg': 'int' object cannot be converted to 'PyString'"
+            "argument 'str_arg': 'int' object cannot be converted to 'str'"
         );
         py_expect_exception!(
             py,
@@ -314,7 +314,7 @@ fn test_conversion_error() {
             conversion_error,
             "conversion_error('string1', -100, 'string2', None, None)",
             PyTypeError,
-            "argument 'tuple_arg': 'str' object cannot be converted to 'PyTuple'"
+            "argument 'tuple_arg': 'str' object cannot be converted to 'tuple'"
         );
         py_expect_exception!(
             py,
