@@ -61,7 +61,7 @@
 //!
 //! The type parameter `T` in these smart pointers can be filled by:
 //!   - [`PyAny`], e.g. `Py<PyAny>` or `Bound<'py, PyAny>`, where the Python object type is not
-//!     known. `Py<PyAny>` is so common it has a type alias [`PyObject`].
+//!     known.
 //!   - Concrete Python types like [`PyList`](types::PyList) or [`PyTuple`](types::PyTuple).
 //!   - Rust types which are exposed to Python using the [`#[pyclass]`](macro@pyclass) macro.
 //!
