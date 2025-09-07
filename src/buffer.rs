@@ -25,14 +25,12 @@ use std::ffi::{
     c_ushort, c_void,
 };
 use std::marker::PhantomData;
-use std::pin::Pin;
-use std::{cell, mem, ptr, slice};
+use std::{cell, mem, slice};
 use std::{ffi::CStr, fmt::Debug};
 
 /// Allows access to the underlying buffer used by a python object such as `bytes`, `bytearray` or `array.array`.
-// use Pin<Box> because Python expects that the Py_buffer struct has a stable memory address
 #[repr(transparent)]
-pub struct PyBuffer<T>(Pin<Box<ffi::Py_buffer>>, PhantomData<T>);
+pub struct PyBuffer<T>(Box<ffi::Py_buffer>, PhantomData<T>);
 
 // PyBuffer is thread-safe: the shape of the buffer is immutable while a Py_buffer exists.
 // Accessing the buffer contents is protected using the GIL.
@@ -208,7 +206,7 @@ impl<T: Element> PyBuffer<T> {
         };
         // Create PyBuffer immediately so that if validation checks fail, the PyBuffer::drop code
         // will call PyBuffer_Release (thus avoiding any leaks).
-        let buf = PyBuffer(Pin::from(buf), PhantomData);
+        let buf = PyBuffer(buf, PhantomData);
 
         if buf.0.shape.is_null() {
             Err(PyBufferError::new_err("shape is null"))
@@ -614,26 +612,17 @@ impl<T: Element> PyBuffer<T> {
     ///
     /// This will automatically be called on drop.
     pub fn release(self, _py: Python<'_>) {
-        // First move self into a ManuallyDrop, so that PyBuffer::drop will
-        // never be called. (It would acquire the GIL and call PyBuffer_Release
-        // again.)
-        let mut mdself = mem::ManuallyDrop::new(self);
-        unsafe {
-            // Next, make the actual PyBuffer_Release call.
-            ffi::PyBuffer_Release(&mut *mdself.0);
-
-            // Finally, drop the contained Pin<Box<_>> in place, to free the
-            // Box memory.
-            let inner: *mut Pin<Box<ffi::Py_buffer>> = &mut mdself.0;
-            ptr::drop_in_place(inner);
-        }
+        // SAFETY: Self is `repr(transparent)` around a Box<ffi::Py_buffer>
+        let mut inner: Box<ffi::Py_buffer> = unsafe { std::mem::transmute(self) };
+        // SAFETY: the ffi::Py_buffer structure is valid until this release call
+        unsafe { ffi::PyBuffer_Release(&mut *inner) };
     }
 }
 
 impl<T> Drop for PyBuffer<T> {
     fn drop(&mut self) {
-        fn inner(buf: &mut Pin<Box<ffi::Py_buffer>>) {
-            if Python::try_attach(|_| unsafe { ffi::PyBuffer_Release(&mut **buf) }).is_none()
+        fn inner(buf: &mut Box<ffi::Py_buffer>) {
+            if Python::try_attach(|_| unsafe { ffi::PyBuffer_Release(buf.as_mut()) }).is_none()
                 && crate::internal::state::is_in_gc_traversal()
             {
                 eprintln!("Warning: PyBuffer dropped while in GC traversal, this is a bug and will leak memory.");
