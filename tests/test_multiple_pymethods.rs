@@ -73,3 +73,23 @@ fn test_class_with_multiple_pymethods() {
         py_assert!(py, cls, "cls.CLASS_ATTRIBUTE == 'CLASS_ATTRIBUTE'");
     })
 }
+
+#[pyclass(get_all, set_all, auto_new)]
+struct AutoNewCls {
+    a: i32,
+    b: String,
+    c: Option<f64>,
+}
+
+#[test]
+fn auto_new() {
+    Python::attach(|py| {
+        // python should be able to do AutoNewCls(1, "two", 3.0)
+        let cls = py.get_type::<AutoNewCls>();
+        pyo3::py_run!(
+            py,
+            cls,
+            "inst = cls(1, 'two', 3.0); assert inst.a == 1; assert inst.b == 'two'; assert inst.c == 3.0"
+        );
+    });
+}

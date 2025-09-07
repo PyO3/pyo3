@@ -2,38 +2,39 @@ use std::borrow::Cow;
 use std::fmt::Debug;
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{ToTokens, format_ident, quote, quote_spanned};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, ImplItemFn, Result, Token};
+use syn::{ImplItemFn, Result, Token, parse_quote, parse_quote_spanned, spanned::Spanned};
 
+use crate::PyFunctionOptions;
+use crate::PyFunctionOptions;
 use crate::attributes::kw::frozen;
 use crate::attributes::{
-    self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
-    ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute, StrFormatterAttribute,
+    self, CrateAttribute, ExtendsAttribute, FreelistAttribute, ModuleAttribute, NameAttribute,
+    NameLitStr, RenameAllAttribute, StrFormatterAttribute, kw, take_pyo3_options,
 };
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{
-    class_introspection_code, function_introspection_code, introspection_id_const, PythonIdentifier,
+    PythonIdentifier, class_introspection_code, function_introspection_code, introspection_id_const,
 };
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::{FnArg, FnSpec, PyArg, RegularArg};
 use crate::pyfunction::ConstructorAttribute;
 #[cfg(feature = "experimental-inspect")]
 use crate::pyfunction::FunctionSignature;
-use crate::pyimpl::{gen_py_const, get_cfg_attributes, PyClassMethodsType};
+use crate::pyimpl::{PyClassMethodsType, gen_py_const, get_cfg_attributes};
 #[cfg(feature = "experimental-inspect")]
 use crate::pymethod::field_python_name;
 use crate::pymethod::{
-    impl_py_class_attribute, impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef,
-    MethodAndSlotDef, PropertyType, SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __NEW__,
-    __REPR__, __RICHCMP__, __STR__,
+    __GETITEM__, __HASH__, __INT__, __LEN__, __NEW__, __REPR__, __RICHCMP__, __STR__,
+    MethodAndMethodDef, MethodAndSlotDef, PropertyType, SlotDef, impl_py_class_attribute,
+    impl_py_getter_def, impl_py_setter_def,
 };
 use crate::pyversions::{is_abi3_before, is_py_before};
-use crate::utils::{self, apply_renaming_rule, Ctx, PythonDoc};
-use crate::PyFunctionOptions;
+use crate::utils::{self, Ctx, PythonDoc, apply_renaming_rule};
 
 /// If the class is derived from a Rust `struct` or `enum`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -85,6 +86,7 @@ pub struct PyClassPyO3Options {
     pub rename_all: Option<RenameAllAttribute>,
     pub sequence: Option<kw::sequence>,
     pub set_all: Option<kw::set_all>,
+    pub auto_new: Option<kw::auto_new>,
     pub str: Option<StrFormatterAttribute>,
     pub subclass: Option<kw::subclass>,
     pub unsendable: Option<kw::unsendable>,
@@ -112,6 +114,7 @@ pub enum PyClassPyO3Option {
     RenameAll(RenameAllAttribute),
     Sequence(kw::sequence),
     SetAll(kw::set_all),
+    AutoNew(kw::auto_new),
     Str(StrFormatterAttribute),
     Subclass(kw::subclass),
     Unsendable(kw::unsendable),
@@ -158,6 +161,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Sequence)
         } else if lookahead.peek(attributes::kw::set_all) {
             input.parse().map(PyClassPyO3Option::SetAll)
+        } else if lookahead.peek(attributes::kw::auto_new) {
+            input.parse().map(PyClassPyO3Option::AutoNew)
         } else if lookahead.peek(attributes::kw::str) {
             input.parse().map(PyClassPyO3Option::Str)
         } else if lookahead.peek(attributes::kw::subclass) {
@@ -240,6 +245,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::RenameAll(rename_all) => set_option!(rename_all),
             PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
             PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
+            PyClassPyO3Option::AutoNew(auto_new) => set_option!(auto_new),
             PyClassPyO3Option::Str(str) => set_option!(str),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
@@ -468,6 +474,14 @@ fn impl_class(
         }
     }
 
+    let auto_new = pyclass_auto_new(
+        &args.options,
+        cls,
+        field_options.iter().map(|(f, _)| f),
+        methods_type,
+        ctx,
+    )?;
+
     let mut default_methods = descriptors_to_items(
         cls,
         args.options.rename_all.as_ref(),
@@ -507,6 +521,8 @@ fn impl_class(
         #pytypeinfo_impl
 
         #py_class_impl
+
+        #auto_new
 
         #[doc(hidden)]
         #[allow(non_snake_case)]
@@ -2226,7 +2242,7 @@ fn pyclass_hash(
     }
 }
 
-fn pyclass_class_getitem(
+fn pyclass_class_geitem(
     options: &PyClassPyO3Options,
     cls: &syn::Type,
     ctx: &Ctx,
