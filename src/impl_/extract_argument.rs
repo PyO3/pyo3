@@ -12,6 +12,25 @@ use crate::{
 /// (Function argument extraction borrows input arguments.)
 type PyArg<'py> = Borrowed<'py, 'py, PyAny>;
 
+/// Seals `PyFunctionArgument` so that types outside PyO3 cannot implement it.
+///
+/// The public API is `FromPyObject`.
+mod function_argument {
+    use crate::{
+        impl_::extract_argument::PyFunctionArgument, pyclass::boolean_struct::False, FromPyObject,
+        PyClass, PyTypeCheck,
+    };
+
+    pub trait Sealed<const IMPLEMENTS_FROMPYOBJECT: bool> {}
+    impl<'a, 'py, T: FromPyObject<'a, 'py>> Sealed<true> for T {}
+    impl<'a, 'py, T: PyTypeCheck + 'py> Sealed<false> for &'a crate::Bound<'py, T> {}
+    impl<'a, 'holder, 'py, T: PyFunctionArgument<'a, 'holder, 'py, false>> Sealed<false> for Option<T> {}
+    #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
+    impl<'a> Sealed<false> for &'a str {}
+    impl<'a, T: PyClass> Sealed<false> for &'a T {}
+    impl<'a, T: PyClass<Frozen = False>> Sealed<false> for &'a mut T {}
+}
+
 /// A trait which is used to help PyO3 macros extract function arguments.
 ///
 /// `#[pyclass]` structs need to extract as `PyRef<T>` and `PyRefMut<T>`
@@ -30,10 +49,12 @@ type PyArg<'py> = Borrowed<'py, 'py, PyAny>;
     diagnostic::on_unimplemented(
         message = "`{Self}` cannot be used as a Python function argument",
         note = "implement `FromPyObject` to enable using `{Self}` as a function argument",
-        note = "`Python<'py>` is also a valid argument type to pass the Python token into a PyO3 function"
+        note = "`Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`"
     )
 )]
-pub trait PyFunctionArgument<'a, 'holder, 'py, const IMPLEMENTS_FROMPYOBJECT: bool>: Sized {
+pub trait PyFunctionArgument<'a, 'holder, 'py, const IMPLEMENTS_FROMPYOBJECT: bool>:
+    Sized + function_argument::Sealed<IMPLEMENTS_FROMPYOBJECT>
+{
     type Holder: FunctionArgumentHolder;
     type Error: Into<PyErr>;
 
