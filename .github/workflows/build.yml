@@ -56,9 +56,9 @@ jobs:
       # workaround for the above, only available for 3.9
       - if: ${{ inputs.os == 'macos-latest' && contains(fromJSON('["3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64' }}
         name: Set up Python ${{ inputs.python-version }}
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
-          python-version: cpython-${{ inputs.python-version }}-macos-x86-64
+          python-version: cpython-${{ inputs.python-version }}-macos-x86_64-none
 
       - name: Install nox
         run: python -m pip install --upgrade pip && pip install nox[uv]
