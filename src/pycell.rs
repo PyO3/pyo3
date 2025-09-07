@@ -687,6 +687,12 @@ pub struct PyBorrowError {
     _private: (),
 }
 
+impl PyBorrowError {
+    pub(crate) fn new() -> Self {
+        Self { _private: () }
+    }
+}
+
 impl fmt::Debug for PyBorrowError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PyBorrowError").finish()
@@ -710,6 +716,12 @@ impl From<PyBorrowError> for PyErr {
 /// If this error is allowed to bubble up into Python code it will raise a `RuntimeError`.
 pub struct PyBorrowMutError {
     _private: (),
+}
+
+impl PyBorrowMutError {
+    pub(crate) fn new() -> Self {
+        Self { _private: () }
+    }
 }
 
 impl fmt::Debug for PyBorrowMutError {
