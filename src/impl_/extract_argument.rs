@@ -23,12 +23,12 @@ mod function_argument {
 
     pub trait Sealed<const IMPLEMENTS_FROMPYOBJECT: bool> {}
     impl<'a, 'py, T: FromPyObject<'a, 'py>> Sealed<true> for T {}
-    impl<'a, 'py, T: PyTypeCheck + 'py> Sealed<false> for &'a crate::Bound<'py, T> {}
+    impl<'py, T: PyTypeCheck + 'py> Sealed<false> for &'_ crate::Bound<'py, T> {}
     impl<'a, 'holder, 'py, T: PyFunctionArgument<'a, 'holder, 'py, false>> Sealed<false> for Option<T> {}
     #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
-    impl<'a> Sealed<false> for &'a str {}
-    impl<'a, T: PyClass> Sealed<false> for &'a T {}
-    impl<'a, T: PyClass<Frozen = False>> Sealed<false> for &'a mut T {}
+    impl Sealed<false> for &'_ str {}
+    impl<T: PyClass> Sealed<false> for &'_ T {}
+    impl<T: PyClass<Frozen = False>> Sealed<false> for &'_ mut T {}
 }
 
 /// A trait which is used to help PyO3 macros extract function arguments.
