@@ -40,6 +40,7 @@ pub mod kw {
     syn::custom_keyword!(sequence);
     syn::custom_keyword!(set);
     syn::custom_keyword!(set_all);
+    syn::custom_keyword!(auto_new);
     syn::custom_keyword!(signature);
     syn::custom_keyword!(str);
     syn::custom_keyword!(subclass);
