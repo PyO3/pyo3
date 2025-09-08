@@ -8,7 +8,6 @@ use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{ImplItemFn, Result, Token, parse_quote, parse_quote_spanned, spanned::Spanned};
 
-use crate::PyFunctionOptions;
 use crate::attributes::kw::frozen;
 use crate::attributes::{
     self, CrateAttribute, ExtendsAttribute, FreelistAttribute, ModuleAttribute, NameAttribute,
@@ -34,6 +33,7 @@ use crate::pymethod::{
 };
 use crate::pyversions::{is_abi3_before, is_py_before};
 use crate::utils::{self, Ctx, PythonDoc, apply_renaming_rule};
+use crate::PyFunctionOptions;
 
 /// If the class is derived from a Rust `struct` or `enum`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
