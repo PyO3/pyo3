@@ -17,7 +17,7 @@ codspeed-criterion-compat = "3.0"
 criterion = "0.7.0"
 num-bigint = "0.4.3"
 rust_decimal = { version = "1.0.0", default-features = false }
-hashbrown = "0.15"
+hashbrown = "0.16"
 
 [[bench]]
 name = "bench_any"
