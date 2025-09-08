@@ -21,6 +21,8 @@ pyobject_native_type_named!(PyWeakrefProxy);
 // pyobject_native_type_sized!(PyWeakrefProxy, ffi::PyWeakReference);
 
 impl PyTypeCheck for PyWeakrefProxy {
+    const NAME: &'static str = "weakref.ProxyTypes";
+
     #[cfg(feature = "experimental-inspect")]
     const PYTHON_TYPE: &'static str = "weakref.ProxyType | weakref.CallableProxyType";
 
