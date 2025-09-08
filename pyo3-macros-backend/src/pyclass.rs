@@ -34,7 +34,6 @@ use crate::pymethod::{
 };
 use crate::pyversions::{is_abi3_before, is_py_before};
 use crate::utils::{self, apply_renaming_rule, Ctx, LitCStr, PythonDoc};
-use crate::PyFunctionOptions;
 
 /// If the class is derived from a Rust `struct` or `enum`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
