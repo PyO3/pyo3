@@ -9,7 +9,6 @@ use syn::punctuated::Punctuated;
 use syn::{ImplItemFn, Result, Token, parse_quote, parse_quote_spanned, spanned::Spanned};
 
 use crate::PyFunctionOptions;
-use crate::PyFunctionOptions;
 use crate::attributes::kw::frozen;
 use crate::attributes::{
     self, CrateAttribute, ExtendsAttribute, FreelistAttribute, ModuleAttribute, NameAttribute,
@@ -2242,7 +2241,59 @@ fn pyclass_hash(
     }
 }
 
-fn pyclass_class_geitem(
+fn pyclass_auto_new<'a>(
+    options: &PyClassPyO3Options,
+    cls: &syn::Ident,
+    fields: impl Iterator<Item = &'a &'a syn::Field>,
+    methods_type: PyClassMethodsType,
+    ctx: &Ctx,
+) -> Result<Option<syn::ItemImpl>> {
+    if options.auto_new.is_some() {
+        ensure_spanned!(
+            options.set_all.is_some(), options.hash.span() => "The `auto_new` option requires the `set_all` option.";
+        );
+    }
+    match options.auto_new {
+        Some(opt) => {
+            if matches!(methods_type, PyClassMethodsType::Specialization) {
+                bail_spanned!(opt.span() => "`auto_new` requires the `multiple-pymethods` feature.");
+            }
+
+            let autonew_impl = {
+                let Ctx { pyo3_path, .. } = ctx;
+                let mut field_idents = vec![];
+                let mut field_types = vec![];
+                for (idx, field) in fields.enumerate() {
+                    field_idents.push(
+                        field
+                            .ident
+                            .clone()
+                            .unwrap_or_else(|| format_ident!("_{}", idx)),
+                    );
+                    field_types.push(&field.ty);
+                }
+
+                parse_quote_spanned! { opt.span() =>
+                    #[#pyo3_path::pymethods]
+                    impl #cls {
+                        #[new]
+                        fn _pyo3_generated_new( #( #field_idents : #field_types ),* ) -> Self {
+                            Self {
+                                #( #field_idents, )*
+                            }
+                        }
+                    }
+
+                }
+            };
+
+            Ok(Some(autonew_impl))
+        }
+        None => Ok(None),
+    }
+}
+
+fn pyclass_class_getitem(
     options: &PyClassPyO3Options,
     cls: &syn::Type,
     ctx: &Ctx,
