@@ -42,7 +42,7 @@ jobs:
         run: pip install nox[uv]
 
       - name: Run the benchmarks
-        uses: CodSpeedHQ/action@v3
+        uses: CodSpeedHQ/action@v4
         with:
           run: nox -s codspeed
           token: ${{ secrets.CODSPEED_TOKEN }}
