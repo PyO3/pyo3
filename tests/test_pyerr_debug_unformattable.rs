@@ -17,7 +17,7 @@ fn err_debug_unformattable() {
     Python::attach(|py| {
         // PyTracebackMethods::format uses io.StringIO. Mock it out to trigger a
         // formatting failure:
-        // TypeError: 'Mock' object cannot be converted to 'PyString'
+        // TypeError: 'Mock' object cannot be converted to 'str'
         let err = py
             .run(
                 ffi::c_str!(
