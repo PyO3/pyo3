@@ -20,6 +20,7 @@ exclude = [
     "/.github",
     "/tests/test_compile_error.rs",
     "/tests/ui",
+    "/emscripten/pybuilddir.txt",
 ]
 edition = "2021"
 rust-version.workspace = true
