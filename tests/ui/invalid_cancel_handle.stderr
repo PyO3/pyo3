@@ -45,7 +45,7 @@ error[E0277]: `CancelHandle` cannot be used as a Python function argument
    |                                                  ^^^^ the trait `PyClass` is not implemented for `CancelHandle`
    |
    = note: implement `FromPyObject` to enable using `CancelHandle` as a function argument
-   = note: `Python<'py>` is also a valid argument type to pass the Python token into a PyO3 function
+   = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
    = help: the trait `PyClass` is implemented for `pyo3::coroutine::Coroutine`
    = note: required for `CancelHandle` to implement `FromPyObject<'_, '_>`
    = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_, '_, true>`
@@ -65,7 +65,7 @@ error[E0277]: `CancelHandle` cannot be used as a Python function argument
    |                                                  ^^^^ the trait `Clone` is not implemented for `CancelHandle`
    |
    = note: implement `FromPyObject` to enable using `CancelHandle` as a function argument
-   = note: `Python<'py>` is also a valid argument type to pass the Python token into a PyO3 function
+   = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
    = help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`:
              `&'a pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, '_, 'py, false>`
              `&'holder T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
@@ -89,7 +89,7 @@ error[E0277]: `CancelHandle` cannot be used as a Python function argument
    |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyFunctionArgument<'_, '_, '_, false>` is not implemented for `CancelHandle`
    |
    = note: implement `FromPyObject` to enable using `CancelHandle` as a function argument
-   = note: `Python<'py>` is also a valid argument type to pass the Python token into a PyO3 function
+   = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
    = help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`:
              `&'a pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, '_, 'py, false>`
              `&'holder T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
