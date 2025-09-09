@@ -48,7 +48,7 @@ chrono = { version = "0.4.25", default-features = false, optional = true }
 chrono-tz = { version = ">= 0.10, < 0.11", default-features = false, optional = true }
 either = { version = "1.9", optional = true }
 eyre = { version = ">= 0.6.8, < 0.7", optional = true }
-hashbrown = { version = ">= 0.15.0, < 0.16", optional = true, default-features = false }
+hashbrown = { version = ">= 0.15.0, < 0.17", optional = true, default-features = false }
 indexmap = { version = ">= 2.5.0, < 3", optional = true }
 jiff-02 = { package = "jiff", version = "0.2", optional = true }
 num-bigint = { version = "0.4.2", optional = true }
