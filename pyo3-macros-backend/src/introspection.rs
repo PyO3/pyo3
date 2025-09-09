@@ -390,7 +390,15 @@ impl IntrospectionNode<'_> {
                 nullable,
             } => {
                 content.push_str("\"");
-                content.push_tokens(quote! { <#rust_type as #pyo3_crate_path::impl_::extract_argument::PyFunctionArgument<false>>::INPUT_TYPE.as_bytes() });
+                content.push_tokens(quote! {
+                    <#rust_type as #pyo3_crate_path::impl_::extract_argument::PyFunctionArgument<
+                        {
+                            #[allow(unused_imports)]
+                            use #pyo3_crate_path::impl_::pyclass::Probe as _;
+                            #pyo3_crate_path::impl_::pyclass::IsFromPyObject::<#rust_type>::VALUE
+                        }
+                    >>::INPUT_TYPE.as_bytes()
+                });
                 if nullable {
                     content.push_str(" | None");
                 }
