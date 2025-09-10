@@ -1,5 +1,6 @@
 use crate::model::{
-    Argument, Arguments, Attribute, Class, Function, Module, VariableLengthArgument,
+    Argument, Arguments, Attribute, Class, Function, Module, TypeHint, TypeHintImport,
+    VariableLengthArgument,
 };
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use goblin::elf::section_header::SHN_XINDEX;
@@ -9,11 +10,12 @@ use goblin::mach::symbols::{NO_SECT, N_SECT};
 use goblin::mach::{Mach, MachO, SingleArch};
 use goblin::pe::PE;
 use goblin::Object;
-use serde::Deserialize;
+use serde::de::{Error, MapAccess, Visitor};
+use serde::{de, Deserialize, Deserializer};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::path::Path;
-use std::{fs, str};
+use std::{fs, str, fmt};
 
 /// Introspect a cdylib built with PyO3 and returns the definition of a Python module.
 ///
@@ -192,7 +194,7 @@ fn convert_function(
     name: &str,
     arguments: &ChunkArguments,
     decorators: &[String],
-    returns: &Option<String>,
+    returns: &Option<ChunkTypeHint>,
 ) -> Function {
     Function {
         name: name.into(),
@@ -210,7 +212,7 @@ fn convert_function(
                 .as_ref()
                 .map(convert_variable_length_argument),
         },
-        returns: returns.clone(),
+        returns: returns.as_ref().map(convert_type_hint),
     }
 }
 
@@ -218,22 +220,40 @@ fn convert_argument(arg: &ChunkArgument) -> Argument {
     Argument {
         name: arg.name.clone(),
         default_value: arg.default.clone(),
-        annotation: arg.annotation.clone(),
+        annotation: arg.annotation.as_ref().map(convert_type_hint),
     }
 }
 
 fn convert_variable_length_argument(arg: &ChunkArgument) -> VariableLengthArgument {
     VariableLengthArgument {
         name: arg.name.clone(),
-        annotation: arg.annotation.clone(),
+        annotation: arg.annotation.as_ref().map(convert_type_hint),
     }
 }
 
-fn convert_attribute(name: &str, value: &Option<String>, annotation: &Option<String>) -> Attribute {
+fn convert_attribute(
+    name: &str,
+    value: &Option<String>,
+    annotation: &Option<ChunkTypeHint>,
+) -> Attribute {
     Attribute {
         name: name.into(),
         value: value.clone(),
-        annotation: annotation.clone(),
+        annotation: annotation.as_ref().map(convert_type_hint),
+    }
+}
+
+fn convert_type_hint(arg: &ChunkTypeHint) -> TypeHint {
+    TypeHint {
+        annotation: arg.annotation.clone(),
+        imports: arg.imports.iter().map(convert_type_hint_import).collect(),
+    }
+}
+
+fn convert_type_hint_import(arg: &ChunkTypeHintImport) -> TypeHintImport {
+    TypeHintImport {
+        module: arg.module.clone(),
+        name: arg.name.clone(),
     }
 }
 
@@ -388,8 +408,8 @@ enum Chunk {
         parent: Option<String>,
         #[serde(default)]
         decorators: Vec<String>,
-        #[serde(default)]
-        returns: Option<String>,
+        #[serde(default, deserialize_with = "deserialize_annotation")]
+        returns: Option<ChunkTypeHint>,
     },
     Attribute {
         #[serde(default)]
@@ -399,8 +419,8 @@ enum Chunk {
         name: String,
         #[serde(default)]
         value: Option<String>,
-        #[serde(default)]
-        annotation: Option<String>,
+        #[serde(default, deserialize_with = "deserialize_annotation")]
+        annotation: Option<ChunkTypeHint>,
     },
 }
 
@@ -423,6 +443,56 @@ struct ChunkArgument {
     name: String,
     #[serde(default)]
     default: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_annotation")]
+    annotation: Option<ChunkTypeHint>,
+}
+
+#[derive(Deserialize)]
+struct ChunkTypeHint {
+    annotation: String,
     #[serde(default)]
-    annotation: Option<String>,
+    imports: Vec<ChunkTypeHintImport>,
+}
+
+#[derive(Deserialize)]
+struct ChunkTypeHintImport {
+    module: String,
+    name: String,
+}
+
+fn deserialize_annotation<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<ChunkTypeHint>, D::Error> {
+    struct AnnotationVisitor;
+
+    impl<'de> Visitor<'de> for AnnotationVisitor {
+        type Value = ChunkTypeHint;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("annotation")
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            self.visit_string(v.into())
+        }
+
+        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            Ok(ChunkTypeHint {
+                annotation: v,
+                imports: Vec::new(),
+            })
+        }
+
+        fn visit_map<M: MapAccess<'de>>(self, map: M) -> Result<ChunkTypeHint, M::Error> {
+            Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))
+        }
+    }
+
+    Ok(Some(deserializer.deserialize_any(AnnotationVisitor)?))
 }

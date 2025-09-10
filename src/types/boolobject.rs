@@ -1,13 +1,16 @@
+use super::any::PyAnyMethods;
+use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_hint;
+use crate::PyErr;
 use crate::{
     exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
     types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, Python,
 };
-
-use super::any::PyAnyMethods;
-use crate::conversion::IntoPyObject;
-use crate::PyErr;
 use std::convert::Infallible;
 use std::ptr;
 
@@ -143,7 +146,7 @@ impl<'py> IntoPyObject<'py> for bool {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = "bool";
+    const OUTPUT_TYPE: TypeHint = type_hint!("bool");
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -162,7 +165,7 @@ impl<'py> IntoPyObject<'py> for &bool {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = bool::OUTPUT_TYPE;
+    const OUTPUT_TYPE: TypeHint = bool::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -182,7 +185,7 @@ impl FromPyObject<'_, '_> for bool {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "bool";
+    const INPUT_TYPE: TypeHint = type_hint!("bool");
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let err = match obj.cast::<PyBool>() {

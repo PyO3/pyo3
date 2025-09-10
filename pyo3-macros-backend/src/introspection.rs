@@ -104,11 +104,17 @@ pub fn function_introspection_code(
                 IntrospectionNode::String(returns.to_python().into())
             } else {
                 match returns {
-                    ReturnType::Default => IntrospectionNode::String("None".into()),
+                    ReturnType::Default => IntrospectionNode::ConstantType {
+                        name: "None",
+                        module: None,
+                    },
                     ReturnType::Type(_, ty) => match *ty {
                         Type::Tuple(t) if t.elems.is_empty() => {
                             // () is converted to None in return types
-                            IntrospectionNode::String("None".into())
+                            IntrospectionNode::ConstantType {
+                                name: "None",
+                                module: None,
+                            }
                         }
                         mut ty => {
                             if let Some(class_type) = parent {
@@ -183,7 +189,10 @@ pub fn attribute_introspection_code(
                 // Type checkers can infer the type from the value because it's typing.Literal[value]
                 // So, following stubs best practices, we only write typing.Final and not
                 // typing.Final[typing.literal[value]]
-                IntrospectionNode::String("typing.Final".into())
+                IntrospectionNode::ConstantType {
+                    name: "Final",
+                    module: Some("typing"),
+                }
             } else {
                 IntrospectionNode::OutputType {
                     rust_type,
@@ -343,8 +352,18 @@ enum IntrospectionNode<'a> {
     String(Cow<'a, str>),
     Bool(bool),
     IntrospectionId(Option<Cow<'a, Type>>),
-    InputType { rust_type: Type, nullable: bool },
-    OutputType { rust_type: Type, is_final: bool },
+    InputType {
+        rust_type: Type,
+        nullable: bool,
+    },
+    OutputType {
+        rust_type: Type,
+        is_final: bool,
+    },
+    ConstantType {
+        name: &'static str,
+        module: Option<&'static str>,
+    },
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<AttributedIntrospectionNode<'a>>),
 }
@@ -382,34 +401,37 @@ impl IntrospectionNode<'_> {
                 rust_type,
                 nullable,
             } => {
-                content.push_str("\"");
-                content.push_tokens(quote! {
+                let mut annotation = quote! {
                     <#rust_type as #pyo3_crate_path::impl_::extract_argument::PyFunctionArgument<
                         {
                             #[allow(unused_imports)]
                             use #pyo3_crate_path::impl_::pyclass::Probe as _;
                             #pyo3_crate_path::impl_::pyclass::IsFromPyObject::<#rust_type>::VALUE
                         }
-                    >>::INPUT_TYPE.as_bytes()
-                });
+                    >>::INPUT_TYPE
+                };
                 if nullable {
-                    content.push_str(" | None");
+                    annotation = quote! { #pyo3_crate_path::type_hint_union!(#annotation, #pyo3_crate_path::type_hint!("None")) };
                 }
-                content.push_str("\"");
+                content.push_tokens(quote! { #pyo3_crate_path::type_hint_json!(#annotation) });
             }
             Self::OutputType {
                 rust_type,
                 is_final,
             } => {
-                content.push_str("\"");
+                let mut annotation = quote! { <#rust_type as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE };
                 if is_final {
-                    content.push_str("typing.Final[");
+                    annotation = quote! { #pyo3_crate_path::type_hint_subscript!(#pyo3_crate_path::type_hint!("typing", "Final"), #annotation) };
                 }
-                content.push_tokens(quote! { <#rust_type as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE.as_bytes() });
-                if is_final {
-                    content.push_str("]");
-                }
-                content.push_str("\"");
+                content.push_tokens(quote! { #pyo3_crate_path::type_hint_json!(#annotation) });
+            }
+            Self::ConstantType { name, module } => {
+                let annotation = if let Some(module) = module {
+                    quote! { #pyo3_crate_path::type_hint!(#module, #name) }
+                } else {
+                    quote! { #pyo3_crate_path::type_hint!(#name) }
+                };
+                content.push_tokens(quote! { #pyo3_crate_path::type_hint_json!(#annotation) });
             }
             Self::Map(map) => {
                 content.push_str("{");
