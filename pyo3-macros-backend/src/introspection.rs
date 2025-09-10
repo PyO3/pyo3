@@ -10,7 +10,7 @@
 
 use crate::method::{FnArg, RegularArg};
 use crate::pyfunction::FunctionSignature;
-use crate::utils::{PyO3CratePath, TypeExt};
+use crate::utils::PyO3CratePath;
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::borrow::Cow;
@@ -20,7 +20,7 @@ use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use syn::visit_mut::{visit_type_mut, VisitMut};
-use syn::{Attribute, Ident, ReturnType, Type, TypePath};
+use syn::{Attribute, Ident, Lifetime, ReturnType, Type, TypePath};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
 
@@ -114,7 +114,7 @@ pub fn function_introspection_code(
                             if let Some(class_type) = parent {
                                 replace_self(&mut ty, class_type);
                             }
-                            ty = ty.elide_lifetimes();
+                            elide_lifetimes(&mut ty);
                             IntrospectionNode::OutputType {
                                 rust_type: ty,
                                 is_final: false,
@@ -168,7 +168,7 @@ pub fn attribute_introspection_code(
         if let Some(parent) = parent {
             replace_self(&mut rust_type, parent);
         }
-        rust_type = rust_type.elide_lifetimes();
+        elide_lifetimes(&mut rust_type);
         desc.insert(
             "annotation",
             IntrospectionNode::OutputType {
@@ -313,7 +313,7 @@ fn argument_introspection_data<'a>(
             if let Some(class_type) = class_type {
                 replace_self(&mut ty, class_type);
             }
-            ty = ty.elide_lifetimes();
+            elide_lifetimes(&mut ty);
             params.insert(
                 "annotation",
                 IntrospectionNode::InputType {
@@ -326,7 +326,7 @@ fn argument_introspection_data<'a>(
             if let Some(class_type) = class_type {
                 replace_self(&mut ty, class_type);
             }
-            ty = ty.elide_lifetimes();
+            elide_lifetimes(&mut ty);
             params.insert(
                 "annotation",
                 IntrospectionNode::InputType {
@@ -574,6 +574,22 @@ fn ident_to_type(ident: &Ident) -> Cow<'static, Type> {
     )
 }
 
+/// Replaces all explicit lifetimes in `self` with elided (`'_`) lifetimes
+///
+/// This is useful if `Self` is used in `const` context, where explicit
+/// lifetimes are not allowed (yet).
+pub fn elide_lifetimes(ty: &mut Type) {
+    struct ElideLifetimesVisitor;
+
+    impl VisitMut for ElideLifetimesVisitor {
+        fn visit_lifetime_mut(&mut self, l: &mut syn::Lifetime) {
+            *l = Lifetime::new("'_", l.span());
+        }
+    }
+
+    ElideLifetimesVisitor.visit_type_mut(ty);
+}
+
 // Replace Self in types with the given type
 fn replace_self(ty: &mut Type, self_target: &Type) {
     struct SelfReplacementVisitor<'a> {
@@ -582,7 +598,7 @@ fn replace_self(ty: &mut Type, self_target: &Type) {
 
     impl VisitMut for SelfReplacementVisitor<'_> {
         fn visit_type_mut(&mut self, ty: &mut Type) {
-            if let syn::Type::Path(type_path) = ty {
+            if let Type::Path(type_path) = ty {
                 if type_path.qself.is_none()
                     && type_path.path.segments.len() == 1
                     && type_path.path.segments[0].ident == "Self"

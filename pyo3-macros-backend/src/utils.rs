@@ -339,33 +339,6 @@ pub(crate) fn has_attribute_with_namespace(
     })
 }
 
-#[cfg(feature = "experimental-inspect")]
-pub(crate) trait TypeExt {
-    /// Replaces all explicit lifetimes in `self` with elided (`'_`) lifetimes
-    ///
-    /// This is useful if `Self` is used in `const` context, where explicit
-    /// lifetimes are not allowed (yet).
-    fn elide_lifetimes(self) -> Self;
-}
-
-#[cfg(feature = "experimental-inspect")]
-impl TypeExt for syn::Type {
-    fn elide_lifetimes(mut self) -> Self {
-        use syn::visit_mut::VisitMut;
-
-        struct ElideLifetimesVisitor;
-
-        impl VisitMut for ElideLifetimesVisitor {
-            fn visit_lifetime_mut(&mut self, l: &mut syn::Lifetime) {
-                *l = syn::Lifetime::new("'_", l.span());
-            }
-        }
-
-        ElideLifetimesVisitor.visit_type_mut(&mut self);
-        self
-    }
-}
-
 pub fn expr_to_python(expr: &syn::Expr) -> String {
     match expr {
         // literal values
