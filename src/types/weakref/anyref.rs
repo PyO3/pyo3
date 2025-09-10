@@ -1,8 +1,12 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::any::PyAny;
 use crate::{ffi, Bound};
+#[cfg(feature = "experimental-inspect")]
+use crate::{type_hint, type_hint_union};
 
 /// Represents any Python `weakref` reference.
 ///
@@ -19,7 +23,11 @@ pyobject_native_type_named!(PyWeakref);
 impl PyTypeCheck for PyWeakref {
     const NAME: &'static str = "weakref";
     #[cfg(feature = "experimental-inspect")]
-    const PYTHON_TYPE: &'static str = "weakref.ProxyTypes";
+    const TYPE_HINT: TypeHint = type_hint_union!(
+        type_hint!("weakref", "ProxyType"),
+        type_hint!("weakref", "CallableProxyType"),
+        type_hint!("weakref", "ReferenceType")
+    );
 
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::PyWeakref_Check(object.as_ptr()) > 0 }

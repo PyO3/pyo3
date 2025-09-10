@@ -1,8 +1,6 @@
 use crate::attributes::{IntoPyWithAttribute, RenamingRule};
 use crate::derive_attributes::{ContainerAttributes, FieldAttributes};
 #[cfg(feature = "experimental-inspect")]
-use crate::introspection::ConcatenationBuilder;
-#[cfg(feature = "experimental-inspect")]
 use crate::utils::TypeExt;
 use crate::utils::{self, Ctx};
 use proc_macro2::{Span, TokenStream};
@@ -362,51 +360,46 @@ impl<'a, const REF: bool> Container<'a, REF> {
     }
 
     #[cfg(feature = "experimental-inspect")]
-    fn write_output_type(&self, builder: &mut ConcatenationBuilder, ctx: &Ctx) {
+    fn output_type(&self, ctx: &Ctx) -> TokenStream {
+        let pyo3_crate_path = &ctx.pyo3_path;
         match &self.ty {
             ContainerType::StructNewtype(field) | ContainerType::TupleNewtype(field) => {
-                Self::write_field_output_type(&None, &field.ty, builder, ctx);
+                Self::field_output_type(&None, &field.ty, ctx)
             }
             ContainerType::Tuple(tups) => {
-                builder.push_str("tuple[");
-                for (
-                    i,
-                    TupleStructField {
-                        into_py_with,
-                        field,
-                    },
-                ) in tups.iter().enumerate()
-                {
-                    if i > 0 {
-                        builder.push_str(", ");
-                    }
-                    Self::write_field_output_type(into_py_with, &field.ty, builder, ctx);
-                }
-                builder.push_str("]");
+                let elements = tups
+                    .iter()
+                    .map(
+                        |TupleStructField {
+                             into_py_with,
+                             field,
+                         }| {
+                            Self::field_output_type(into_py_with, &field.ty, ctx)
+                        },
+                    )
+                    .collect::<Vec<_>>();
+                quote! { #pyo3_crate_path::type_hint_subscript!(#pyo3_crate_path::type_hint!("tuple")#(, #elements)*) }
             }
             ContainerType::Struct(_) => {
                 // TODO: implement using a Protocol?
-                builder.push_str("_typeshed.Incomplete")
+                quote! { #pyo3_crate_path::type_hint!("_typeshed", "Incomplete") }
             }
         }
     }
 
     #[cfg(feature = "experimental-inspect")]
-    fn write_field_output_type(
+    fn field_output_type(
         into_py_with: &Option<IntoPyWithAttribute>,
         ty: &syn::Type,
-        builder: &mut ConcatenationBuilder,
         ctx: &Ctx,
-    ) {
+    ) -> TokenStream {
+        let pyo3_crate_path = &ctx.pyo3_path;
         if into_py_with.is_some() {
             // We don't know what into_py_with is doing
-            builder.push_str("_typeshed.Incomplete")
+            quote! { #pyo3_crate_path::type_hint!("_typeshed", "Incomplete") }
         } else {
             let ty = ty.clone().elide_lifetimes();
-            let pyo3_crate_path = &ctx.pyo3_path;
-            builder.push_tokens(
-                quote! { <#ty as #pyo3_crate_path::IntoPyObject<'_>>::OUTPUT_TYPE.as_bytes() },
-            )
+            quote! { <#ty as #pyo3_crate_path::IntoPyObject<'_>>::OUTPUT_TYPE }
         }
     }
 }
@@ -486,13 +479,14 @@ impl<'a, const REF: bool> Enum<'a, REF> {
     }
 
     #[cfg(feature = "experimental-inspect")]
-    fn write_output_type(&self, builder: &mut ConcatenationBuilder, ctx: &Ctx) {
-        for (i, var) in self.variants.iter().enumerate() {
-            if i > 0 {
-                builder.push_str(" | ");
-            }
-            var.write_output_type(builder, ctx);
-        }
+    fn output_type(&self, ctx: &Ctx) -> TokenStream {
+        let pyo3_crate_path = &ctx.pyo3_path;
+        let union = self
+            .variants
+            .iter()
+            .map(|var| var.output_type(ctx))
+            .collect::<Vec<_>>();
+        quote! { #pyo3_crate_path::type_hint_union!(#(#union),*) }
     }
 }
 
@@ -588,17 +582,15 @@ pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Resu
 
     #[cfg(feature = "experimental-inspect")]
     let output_type = {
-        let mut builder = ConcatenationBuilder::default();
-        if tokens
+        let pyo3_crate_path = &ctx.pyo3_path;
+        let output_type = if tokens
             .generics
             .params
             .iter()
             .all(|p| matches!(p, syn::GenericParam::Lifetime(_)))
         {
             match &tokens.data {
-                syn::Data::Enum(en) => {
-                    Enum::<REF>::new(en, &tokens.ident)?.write_output_type(&mut builder, ctx)
-                }
+                syn::Data::Enum(en) => Enum::<REF>::new(en, &tokens.ident)?.output_type(ctx),
                 syn::Data::Struct(st) => {
                     let ident = &tokens.ident;
                     Container::<REF>::new(
@@ -607,20 +599,19 @@ pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Resu
                         parse_quote!(#ident),
                         options,
                     )?
-                    .write_output_type(&mut builder, ctx)
+                    .output_type(ctx)
                 }
                 syn::Data::Union(_) => {
                     // Not supported at this point
-                    builder.push_str("_typeshed.Incomplete")
+                    quote! { #pyo3_crate_path::type_hint!("_typeshed", "Incomplete") }
                 }
             }
         } else {
             // We don't know how to deal with generic parameters
             // Blocked by https://github.com/rust-lang/rust/issues/76560
-            builder.push_str("_typeshed.Incomplete")
+            quote! { #pyo3_crate_path::type_hint!("_typeshed", "Incomplete") }
         };
-        let output_type = builder.into_token_stream(&ctx.pyo3_path);
-        quote! { const OUTPUT_TYPE: &'static str = unsafe { ::std::str::from_utf8_unchecked(#output_type) }; }
+        quote! { const OUTPUT_TYPE: #pyo3_path::inspect::TypeHint = #output_type; }
     };
     #[cfg(not(feature = "experimental-inspect"))]
     let output_type = quote! {};
