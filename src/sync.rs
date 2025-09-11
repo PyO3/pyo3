@@ -562,6 +562,10 @@ mod once_lock_ext_sealed {
 mod rwlock_ext_sealed {
     pub trait Sealed {}
     impl<T> Sealed for std::sync::RwLock<T> {}
+    #[cfg(feature = "lock_api")]
+    impl<R, T> Sealed for lock_api::RwLock<R, T> {}
+    #[cfg(feature = "arc_lock")]
+    impl<R, T> Sealed for std::sync::Arc<lock_api::RwLock<R, T>> {}
 }
 
 /// Extension trait for [`Once`] to help avoid deadlocking when using a [`Once`] when attached to a
@@ -885,6 +889,79 @@ impl<T> RwLockExt<T> for std::sync::RwLock<T> {
         let ts_guard = unsafe { SuspendAttach::new() };
 
         let res = self.write();
+        drop(ts_guard);
+        res
+    }
+}
+
+#[cfg(feature = "lock_api")]
+impl<R: lock_api::RawRwLock, T> RwLockExt<T> for lock_api::RwLock<R, T> {
+    type ReadLockResult<'a>
+        = lock_api::RwLockReadGuard<'a, R, T>
+    where
+        Self: 'a;
+
+    type WriteLockResult<'a>
+        = lock_api::RwLockWriteGuard<'a, R, T>
+    where
+        Self: 'a;
+
+    fn read_py_attached(&self, _py: Python<'_>) -> Self::ReadLockResult<'_> {
+        if let Some(guard) = self.try_read() {
+            return guard;
+        }
+
+        let ts_guard = unsafe { SuspendAttach::new() };
+        let res = self.read();
+        drop(ts_guard);
+        res
+    }
+
+    fn write_py_attached(&self, _py: Python<'_>) -> Self::WriteLockResult<'_> {
+        if let Some(guard) = self.try_write() {
+            return guard;
+        }
+
+        let ts_guard = unsafe { SuspendAttach::new() };
+        let res = self.write();
+        drop(ts_guard);
+        res
+    }
+}
+
+#[cfg(feature = "arc_lock")]
+impl<R, T> RwLockExt<T> for std::sync::Arc<lock_api::RwLock<R, T>>
+where
+    R: lock_api::RawRwLock,
+{
+    type ReadLockResult<'a>
+        = lock_api::ArcRwLockReadGuard<R, T>
+    where
+        Self: 'a;
+
+    type WriteLockResult<'a>
+        = lock_api::ArcRwLockWriteGuard<R, T>
+    where
+        Self: 'a;
+
+    fn read_py_attached(&self, _py: Python<'_>) -> Self::ReadLockResult<'_> {
+        if let Some(guard) = self.try_read_arc() {
+            return guard;
+        }
+
+        let ts_guard = unsafe { SuspendAttach::new() };
+        let res = self.read_arc();
+        drop(ts_guard);
+        res
+    }
+
+    fn write_py_attached(&self, _py: Python<'_>) -> Self::WriteLockResult<'_> {
+        if let Some(guard) = self.try_write_arc() {
+            return guard;
+        }
+
+        let ts_guard = unsafe { SuspendAttach::new() };
+        let res = self.write_arc();
         drop(ts_guard);
         res
     }
