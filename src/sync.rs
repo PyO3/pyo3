@@ -559,6 +559,11 @@ mod once_lock_ext_sealed {
     impl<T> Sealed for std::sync::OnceLock<T> {}
 }
 
+mod rwlock_ext_sealed {
+    pub trait Sealed {}
+    impl<T> Sealed for std::sync::RwLock<T> {}
+}
+
 /// Extension trait for [`Once`] to help avoid deadlocking when using a [`Once`] when attached to a
 /// Python thread.
 pub trait OnceExt: Sealed {
@@ -607,6 +612,40 @@ pub trait MutexExt<T>: Sealed {
     /// the GIL and other global synchronization events triggered by the Python
     /// interpreter.
     fn lock_py_attached(&self, py: Python<'_>) -> Self::LockResult<'_>;
+}
+
+/// Extension trait for [`std::sync::RwLock`] which helps avoid deadlocks between
+/// the Python interpreter and acquiring the `RwLock`.
+pub trait RwLockExt<T>: rwlock_ext_sealed::Sealed {
+    /// The result type returned by the `read_py_attached` method.
+    type ReadLockResult<'a>
+    where
+        Self: 'a;
+
+    /// The result type returned by the `write_py_attached` method.
+    type WriteLockResult<'a>
+    where
+        Self: 'a;
+
+    /// Lock this `RwLock` for reading in a manner that cannot deadlock with
+    /// the Python interpreter.
+    ///
+    /// Before attempting to lock the mutex, this function detaches from the
+    /// Python runtime. When the lock is acquired, it re-attaches to the Python
+    /// runtime before returning the `LockResult`. This avoids deadlocks between
+    /// the GIL and other global synchronization events triggered by the Python
+    /// interpreter.
+    fn read_py_attached(&self, py: Python<'_>) -> Self::ReadLockResult<'_>;
+
+    /// Lock this `RwLock` for writing in a manner that cannot deadlock with
+    /// the Python interpreter.
+    ///
+    /// Before attempting to lock the mutex, this function detaches from the
+    /// Python runtime. When the lock is acquired, it re-attaches to the Python
+    /// runtime before returning the `LockResult`. This avoids deadlocks between
+    /// the GIL and other global synchronization events triggered by the Python
+    /// interpreter.
+    fn write_py_attached(&self, py: Python<'_>) -> Self::WriteLockResult<'_>;
 }
 
 impl OnceExt for Once {
@@ -788,6 +827,64 @@ where
 
         let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.lock_arc();
+        drop(ts_guard);
+        res
+    }
+}
+
+impl<T> RwLockExt<T> for std::sync::RwLock<T> {
+    type ReadLockResult<'a>
+        = std::sync::LockResult<std::sync::RwLockReadGuard<'a, T>>
+    where
+        Self: 'a;
+
+    type WriteLockResult<'a>
+        = std::sync::LockResult<std::sync::RwLockWriteGuard<'a, T>>
+    where
+        Self: 'a;
+
+    fn read_py_attached(&self, _py: Python<'_>) -> Self::ReadLockResult<'_> {
+        // If try_read is successful or returns a poisoned rwlock, return them so
+        // the caller can deal with them. Otherwise we need to use blocking
+        // read lock, which requires detaching from the Python runtime to avoid
+        // possible deadlocks.
+        match self.try_read() {
+            Ok(inner) => return Ok(inner),
+            Err(std::sync::TryLockError::Poisoned(inner)) => {
+                return std::sync::LockResult::Err(inner)
+            }
+            Err(std::sync::TryLockError::WouldBlock) => {}
+        }
+
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
+        let ts_guard = unsafe { SuspendAttach::new() };
+
+        let res = self.read();
+        drop(ts_guard);
+        res
+    }
+
+    fn write_py_attached(&self, _py: Python<'_>) -> Self::WriteLockResult<'_> {
+        // If try_write is successful or returns a poisoned rwlock, return them so
+        // the caller can deal with them. Otherwise we need to use blocking
+        // read lock, which requires detaching from the Python runtime to avoid
+        // possible deadlocks.
+        match self.try_write() {
+            Ok(inner) => return Ok(inner),
+            Err(std::sync::TryLockError::Poisoned(inner)) => {
+                return std::sync::LockResult::Err(inner)
+            }
+            Err(std::sync::TryLockError::WouldBlock) => {}
+        }
+
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
+        let ts_guard = unsafe { SuspendAttach::new() };
+
+        let res = self.write();
         drop(ts_guard);
         res
     }
@@ -1289,6 +1386,67 @@ mod tests {
         let guard = Python::attach(|py| {
             // recover from the poisoning
             match mutex.lock_py_attached(py) {
+                Ok(guard) => guard,
+                Err(poisoned) => poisoned.into_inner(),
+            }
+        });
+        assert!(*guard == 42);
+    }
+
+    #[cfg(feature = "macros")]
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[test]
+    fn test_rwlockx_ext() {
+        use std::sync::RwLock;
+
+        let barrier = Barrier::new(2);
+
+        let rwlock = Python::attach(|py| -> RwLock<Py<BoolWrapper>> {
+            RwLock::new(Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap())
+        });
+
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                Python::attach(|py| {
+                    let b = rwlock.write_py_attached(py).unwrap();
+                    barrier.wait();
+                    // sleep to ensure the other thread actually blocks
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    (*b).bind(py).borrow().0.store(true, Ordering::Release);
+                    drop(b);
+                });
+            });
+            s.spawn(|| {
+                barrier.wait();
+                Python::attach(|py| {
+                    // blocks until the other thread releases the lock
+                    let b = rwlock.read_py_attached(py).unwrap();
+                    assert!((*b).bind(py).borrow().0.load(Ordering::Acquire));
+                });
+            });
+        });
+    }
+
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[test]
+    fn test_rwlock_ext_poison() {
+        use std::sync::RwLock;
+
+        let rwlock = RwLock::new(42);
+
+        std::thread::scope(|s| {
+            let lock_result = s.spawn(|| {
+                Python::attach(|py| {
+                    let _unused = rwlock.write_py_attached(py);
+                    panic!();
+                });
+            });
+            assert!(lock_result.join().is_err());
+            assert!(rwlock.is_poisoned());
+        });
+        let guard = Python::attach(|py| {
+            // recover from the poisoning
+            match rwlock.write_py_attached(py) {
                 Ok(guard) => guard,
                 Err(poisoned) => poisoned.into_inner(),
             }
