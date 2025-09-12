@@ -842,6 +842,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn test_pystring_from_bytes() {
         Python::attach(|py| {
             let result = PyString::from_bytes(py, "\u{2122}".as_bytes());
