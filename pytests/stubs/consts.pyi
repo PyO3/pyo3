@@ -1,8 +1,7 @@
-import consts
-import typing
+from typing import Final
 
-PI: typing.Final[float]
-SIMPLE: typing.Final = "SIMPLE"
+PI: Final[float]
+SIMPLE: Final = "SIMPLE"
 
 class ClassWithConst:
-    INSTANCE: typing.Final[consts.ClassWithConst]
+    INSTANCE: Final[ClassWithConst]
