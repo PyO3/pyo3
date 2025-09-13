@@ -1473,7 +1473,7 @@ mod tests {
     #[cfg(feature = "macros")]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
-    fn test_rwlockx_ext() {
+    fn test_rwlock_ext() {
         use std::sync::RwLock;
 
         let barrier = Barrier::new(2);
