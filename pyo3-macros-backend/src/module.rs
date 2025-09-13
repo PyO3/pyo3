@@ -558,15 +558,20 @@ fn process_functions_in_module(options: &PyModuleOptions, func: &mut syn::ItemFn
 
     for mut stmt in func.block.stmts.drain(..) {
         if let syn::Stmt::Item(Item::Fn(func)) = &mut stmt {
-            if let Some(pyfn_args) = get_pyfn_attr(&mut func.attrs)? {
+            if let Some((pyfn_span, pyfn_args)) = get_pyfn_attr(&mut func.attrs)? {
                 let module_name = pyfn_args.modname;
                 let wrapped_function = impl_wrap_pyfunction(func, pyfn_args.options)?;
                 let name = &func.sig.ident;
-                let statements: Vec<syn::Stmt> = syn::parse_quote! {
+                let statements: Vec<syn::Stmt> = syn::parse_quote_spanned! {
+                    pyfn_span =>
                     #wrapped_function
                     {
                         use #pyo3_path::types::PyModuleMethods;
                         #module_name.add_function(#pyo3_path::wrap_pyfunction!(#name, #module_name.as_borrowed())?)?;
+                        #[deprecated(note = "`pyfn` will be removed in a future PyO3 version, use declarative `#[pymodule]` with `mod` instead")]
+                        #[allow(dead_code)]
+                        const PYFN_ATTRIBUTE: () = ();
+                        const _: () = PYFN_ATTRIBUTE;
                     }
                 };
                 stmts.extend(statements);
@@ -607,8 +612,8 @@ impl Parse for PyFnArgs {
 }
 
 /// Extracts the data from the #[pyfn(...)] attribute of a function
-fn get_pyfn_attr(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Option<PyFnArgs>> {
-    let mut pyfn_args: Option<PyFnArgs> = None;
+fn get_pyfn_attr(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Option<(Span, PyFnArgs)>> {
+    let mut pyfn_args: Option<(Span, PyFnArgs)> = None;
 
     take_attributes(attrs, |attr| {
         if attr.path().is_ident("pyfn") {
@@ -616,14 +621,14 @@ fn get_pyfn_attr(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Option<PyFnArgs
                 pyfn_args.is_none(),
                 attr.span() => "`#[pyfn] may only be specified once"
             );
-            pyfn_args = Some(attr.parse_args()?);
+            pyfn_args = Some((attr.path().span(), attr.parse_args()?));
             Ok(true)
         } else {
             Ok(false)
         }
     })?;
 
-    if let Some(pyfn_args) = &mut pyfn_args {
+    if let Some((_, pyfn_args)) = &mut pyfn_args {
         pyfn_args
             .options
             .add_attributes(take_pyo3_options(attrs)?)?;

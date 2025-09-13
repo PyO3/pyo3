@@ -43,9 +43,7 @@ where
     type Error = PyErr;
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
-        if let Some(slice) =
-            T::object_as_slice(obj, crate::conversion::private::Token).transpose()?
-        {
+        if let Some(slice) = T::object_as_slice(obj, crate::conversion::private::Token) {
             // If the object is a slice, we can extract it directly.
             return T::slice_into_array(slice, crate::conversion::private::Token);
         }

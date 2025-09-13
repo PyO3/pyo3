@@ -1,9 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
   merge_group:
     types: [checks_requested]
@@ -48,7 +45,7 @@ jobs:
         run: echo MSRV=`python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["rust-version"])'` >> $GITHUB_OUTPUT
 
   semver-checks:
-    if: github.ref != 'refs/heads/main'
+    if: github.event_name == 'pull_request'
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
@@ -56,7 +53,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - name: Fetch merge base
+        id: fetch_merge_base
+        uses: ./.github/actions/fetch-merge-base
+        with:
+          base_ref: "refs/heads/${{ github.event.pull_request.base.ref }}"
+          head_ref: "refs/pull/${{ github.event.pull_request.number }}/merge"
       - uses: obi1kenobi/cargo-semver-checks-action@v2
+        with:
+          baseline-rev: ${{ steps.fetch_merge_base.outputs.merge_base }}
 
   check-msrv:
     needs: [fmt, resolve]
@@ -84,8 +89,6 @@ jobs:
       CARGO_BUILD_TARGET: x86_64-unknown-linux-gnu
 
   clippy:
-    # Don't run clippy on `main` because it's already run in the merge queue.
-    if: github.ref != 'refs/heads/main'
     needs: [fmt]
     runs-on: ubuntu-24.04-arm
     strategy:
@@ -143,16 +146,12 @@ jobs:
       matrix:
         rust: [stable]
         python-version: ["3.13"]
-        platform: [
+        platform:
+          [
             {
-              os: "macos-latest", # first available arm macos runner
+              os: "macos-latest",
               python-architecture: "arm64",
               rust-target: "aarch64-apple-darwin",
-            },
-            {
-              os: "macos-13", # last available x86_64 macos runner
-              python-architecture: "x64",
-              rust-target: "x86_64-apple-darwin",
             },
             {
               os: "ubuntu-latest",
@@ -313,7 +312,7 @@ jobs:
             python-version: "3.13"
             platform:
               {
-                os: "macos-13",
+                os: "macos-latest",
                 python-architecture: "x64",
                 rust-target: "x86_64-apple-darwin",
               }
@@ -327,32 +326,17 @@ jobs:
                 rust-target: "x86_64-unknown-linux-gnu",
               }
 
-          # arm64 macOS Python not available on GitHub Actions until 3.10
-          # so backfill 3.7-3.9 with x64 macOS runners
-          - rust: stable
-            python-version: "3.7"
-            platform:
-              {
-                os: "macos-13",
-                python-architecture: "x64",
-                rust-target: "x86_64-apple-darwin",
-              }
-          - rust: stable
-            python-version: "3.8"
-            platform:
-              {
-                os: "macos-13",
-                python-architecture: "x64",
-                rust-target: "x86_64-apple-darwin",
-              }
-          - rust: stable
-            python-version: "3.9"
-            platform:
-              {
-                os: "macos-13",
-                python-architecture: "x64",
-                rust-target: "x86_64-apple-darwin",
-              }
+          # arm64 macOS Python not available on GitHub Actions until 3.10,
+          # and 3.7 & 3.8 not available to install from uv, but can backfill 3.9 with x64 from uv
+          # FIXME: setup-uv issue prevents this from working, https://github.com/astral-sh/setup-uv/issues/554
+          # - rust: stable
+          #   python-version: "3.9"
+          #   platform:
+          #     {
+          #       os: "macos-latest",
+          #       python-architecture: "x64",
+          #       rust-target: "x86_64-apple-darwin",
+          #     }
           # arm64 Linux runner is in public preview, so test 3.13 on it
           - rust: stable
             python-version: "3.13"
@@ -615,12 +599,6 @@ jobs:
           - os: "ubuntu-latest"
             target: "x86_64-pc-windows-gnu"
             flags: "-i python3.13 --features generate-import-lib"
-          # macos x86_64 -> aarch64
-          - os: "macos-13" # last x86_64 macos runners
-            target: "aarch64-apple-darwin"
-          # macos aarch64 -> x86_64
-          - os: "macos-latest"
-            target: "x86_64-apple-darwin"
           # windows x86_64 -> aarch64
           - os: "windows-latest"
             target: "aarch64-pc-windows-msvc"
@@ -660,35 +638,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          workspaces: examples/maturin-starter
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          targets: x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
+          components: rust-src
+      # load cache (prepared in ci-cache-warmup.yml)
       - uses: actions/cache/restore@v4
         with:
-          # https://github.com/PyO3/maturin/discussions/1953
           path: ~/.cache/cargo-xwin
           key: cargo-xwin-cache
       - name: Test cross compile to Windows
-        env:
-          XWIN_ARCH: x86_64
         run: |
           set -ex
           sudo apt-get install -y mingw-w64 llvm
-          rustup target add x86_64-pc-windows-gnu x86_64-pc-windows-msvc
-          pip install cargo-xwin
-          # abi3
-          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-gnu
-          cargo xwin build --cross-compiler clang --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-msvc
-          # non-abi3
-          export PYO3_CROSS_PYTHON_VERSION=3.13
-          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-gnu
-          cargo xwin build --cross-compiler clang --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-msvc
-      - if: ${{ github.ref == 'refs/heads/main' }}
-        uses: actions/cache/save@v4
-        with:
-          path: ~/.cache/cargo-xwin
-          key: cargo-xwin-cache
+          pip install nox
+          nox -s test-cross-compilation-windows
 
   test-introspection:
     needs: [fmt]

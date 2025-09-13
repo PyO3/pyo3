@@ -31,6 +31,8 @@ jobs:
             .
             pyo3-benches
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          cache-all-crates: 'true'
+          cache-workspace-crates: 'true'
 
       - uses: taiki-e/install-action@v2
         with:

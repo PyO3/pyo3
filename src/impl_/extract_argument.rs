@@ -254,8 +254,9 @@ pub unsafe fn unwrap_required_argument<'a, 'py>(
         Some(value) => value,
         #[cfg(debug_assertions)]
         None => unreachable!("required method argument was not extracted"),
+        // SAFETY: invariant of calling this function. Enforced by the macros.
         #[cfg(not(debug_assertions))]
-        None => std::hint::unreachable_unchecked(),
+        None => unsafe { std::hint::unreachable_unchecked() },
     }
 }
 

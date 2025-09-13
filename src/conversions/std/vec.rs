@@ -65,9 +65,7 @@ where
         if obj.is_instance_of::<PyString>() {
             return Err(PyTypeError::new_err("Can't extract `str` to `Vec`"));
         }
-        if let Some(slice) =
-            T::object_as_slice(obj, crate::conversion::private::Token).transpose()?
-        {
+        if let Some(slice) = T::object_as_slice(obj, crate::conversion::private::Token) {
             return T::slice_into_vec(slice, crate::conversion::private::Token);
         }
         extract_sequence(obj)

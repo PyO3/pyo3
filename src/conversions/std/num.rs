@@ -298,14 +298,8 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
     fn object_as_slice<'s>(
         obj: Borrowed<'s, 'py, PyAny>,
         _: crate::conversion::private::Token,
-    ) -> Option<PyResult<&'s [Self]>> {
-        // FIXME: this currently prevents extraction of `ByteArray` and other sequences that _might_ be valid to
-        // interpret as `Vec<u8>`. Probably the solution is to just drop error handling and return `Option<&[u8]>`.
-        Some(
-            obj.cast::<PyBytes>()
-                .map(|bytes| bytes.as_bytes())
-                .map_err(Into::into),
-        )
+    ) -> Option<&'s [Self]> {
+        obj.cast::<PyBytes>().ok().map(Borrowed::as_bytes)
     }
 
     fn slice_into_array<const N: usize>(

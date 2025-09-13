@@ -400,7 +400,7 @@ pub trait FromPyObject<'a, 'py>: Sized {
     fn object_as_slice<'s>(
         _obj: Borrowed<'s, 'py, PyAny>,
         _: private::Token,
-    ) -> Option<PyResult<&'s [Self]>> {
+    ) -> Option<&'s [Self]> {
         None
     }
 
