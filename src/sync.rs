@@ -1504,6 +1504,63 @@ mod tests {
         });
     }
 
+    #[cfg(feature = "macros")]
+    #[cfg(all(
+        any(feature = "parking_lot", feature = "lock_api"),
+        not(target_arch = "wasm32") // We are building wasm Python with pthreads disabled
+    ))]
+    #[test]
+    fn test_parking_lot_rwlock_ext() {
+        macro_rules! test_rwlock {
+            ($write_guard:ty, $read_guard:ty, $rwlock:stmt) => {{
+                let barrier = Barrier::new(2);
+
+                let rwlock = Python::attach({ $rwlock });
+
+                std::thread::scope(|s| {
+                    s.spawn(|| {
+                        Python::attach(|py| {
+                            let b: $write_guard = rwlock.write_py_attached(py);
+                            barrier.wait();
+                            // sleep to ensure the other thread actually blocks
+                            std::thread::sleep(std::time::Duration::from_millis(10));
+                            (*b).bind(py).borrow().0.store(true, Ordering::Release);
+                            drop(b);
+                        });
+                    });
+                    s.spawn(|| {
+                        barrier.wait();
+                        Python::attach(|py| {
+                            // blocks until the other thread releases the lock
+                            let b: $read_guard = rwlock.read_py_attached(py);
+                            assert!((*b).bind(py).borrow().0.load(Ordering::Acquire));
+                        });
+                    });
+                });
+            }};
+        }
+
+        test_rwlock!(
+            parking_lot::RwLockWriteGuard<'_, _>,
+            parking_lot::RwLockReadGuard<'_, _>,
+            |py| {
+                parking_lot::RwLock::new(Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap())
+            }
+        );
+
+        #[cfg(feature = "arc_lock")]
+        test_rwlock!(
+            parking_lot::ArcRwLockWriteGuard<_, _>,
+            parking_lot::ArcRwLockReadGuard<_, _>,
+            |py| {
+                let rwlock = parking_lot::RwLock::new(
+                    Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap(),
+                );
+                std::sync::Arc::new(rwlock)
+            }
+        );
+    }
+
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_rwlock_ext_poison() {
