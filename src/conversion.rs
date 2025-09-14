@@ -395,6 +395,19 @@ pub trait FromPyObject<'a, 'py>: Sized {
     /// [`Bound<'_, PyAny>::extract`](crate::types::any::PyAnyMethods::extract) or [`Py::extract`].
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error>;
 
+    /// Extracts the type hint information for this type when it appears as an argument.
+    ///
+    /// For example, `Vec<u32>` would return `Sequence[int]`.
+    /// The default implementation returns `Any`, which is correct for any type.
+    ///
+    /// For most types, the return value for this method will be identical to that of
+    /// [`IntoPyObject::type_output`]. It may be different for some types, such as `Dict`,
+    /// to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
+    #[cfg(feature = "experimental-inspect")]
+    fn type_input() -> TypeInfo {
+        TypeInfo::Any
+    }
+
     /// Specialization hook for extracting sequences for types like `Vec<u8>` and `[u8; N]`,
     /// where the bytes can be directly copied from some python objects without going through
     /// iteration.
@@ -426,24 +439,11 @@ pub trait FromPyObject<'a, 'py>: Sized {
     #[doc(hidden)]
     #[inline(always)]
     #[cfg(not(return_position_impl_trait_in_traits))]
-    fn sequence_extractor(
-        _obj: Borrowed<'_, 'py, PyAny>,
+    fn sequence_extractor<'b>(
+        _obj: Borrowed<'b, 'b, PyAny>,
         _: private::Token,
-    ) -> Option<Box<dyn FromPyObjectSequence<Target = Self>>> {
+    ) -> Option<Box<dyn FromPyObjectSequence<Target = Self> + 'b>> {
         None
-    }
-
-    /// Extracts the type hint information for this type when it appears as an argument.
-    ///
-    /// For example, `Vec<u32>` would return `Sequence[int]`.
-    /// The default implementation returns `Any`, which is correct for any type.
-    ///
-    /// For most types, the return value for this method will be identical to that of
-    /// [`IntoPyObject::type_output`]. It may be different for some types, such as `Dict`,
-    /// to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
-    #[cfg(feature = "experimental-inspect")]
-    fn type_input() -> TypeInfo {
-        TypeInfo::Any
     }
 }
 
@@ -457,7 +457,14 @@ mod from_py_object_sequence {
 
         fn to_vec(&self) -> Vec<Self::Target>;
 
+        #[cfg(return_position_impl_trait_in_traits)]
         fn to_array<const N: usize>(&self) -> PyResult<[Self::Target; N]>;
+
+        /// Fills an uninit slice with values from the object.
+        ///
+        /// on success, `out` is fully initialized, on failure, `out` should be considered uninitialized.
+        #[cfg(not(return_position_impl_trait_in_traits))]
+        fn fill_slice(&self, out: &mut [std::mem::MaybeUninit<Self::Target>]) -> PyResult<()>;
     }
 }
 
