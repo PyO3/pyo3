@@ -541,6 +541,14 @@ def docs(session: nox.Session, nightly: bool = False, internal: bool = False) ->
         *toolchain_flags,
         "update",
         "-p",
+        "serde_json",
+        "--precise=1.0.143",
+    )
+    _run_cargo(
+        session,
+        *toolchain_flags,
+        "update",
+        "-p",
         "serde",
         "--precise=1.0.219",
     )
