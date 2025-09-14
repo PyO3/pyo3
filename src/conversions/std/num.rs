@@ -1,9 +1,9 @@
 use crate::conversion::private::Reference;
-use crate::conversion::IntoPyObject;
+use crate::conversion::{FromPyObjectSequence, IntoPyObject};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
-use crate::types::{PyBytes, PyInt};
+use crate::types::{PyByteArray, PyByteArrayMethods, PyBytes, PyInt};
 use crate::{exceptions, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
 use std::convert::Infallible;
 use std::ffi::c_long;
@@ -295,24 +295,70 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
         Self::type_output()
     }
 
-    fn object_as_slice<'s>(
-        obj: Borrowed<'s, 'py, PyAny>,
+    #[cfg(return_position_impl_trait_in_traits)]
+    #[inline]
+    fn sequence_extractor(
+        obj: Borrowed<'_, 'py, PyAny>,
         _: crate::conversion::private::Token,
-    ) -> Option<&'s [Self]> {
-        obj.cast::<PyBytes>().ok().map(Borrowed::as_bytes)
+    ) -> Option<impl FromPyObjectSequence<Target = u8>> {
+        if let Ok(bytes) = obj.cast::<PyBytes>() {
+            Some(BytesSequenceExtractor::Bytes(bytes))
+        } else if let Ok(byte_array) = obj.cast::<crate::types::PyByteArray>() {
+            Some(BytesSequenceExtractor::ByteArray(byte_array))
+        } else {
+            None
+        }
     }
 
-    fn slice_into_array<const N: usize>(
-        slice: &[Self],
+    #[cfg(not(return_position_impl_trait_in_traits))]
+    #[inline]
+    fn sequence_extractor(
+        obj: Borrowed<'_, 'py, PyAny>,
         _: crate::conversion::private::Token,
-    ) -> PyResult<[Self; N]> {
-        slice
-            .try_into()
-            .map_err(|_| invalid_sequence_length(N, slice.len()))
+    ) -> Option<Box<dyn FromPyObjectSequence<Target = u8>>> {
+        if let Ok(_) = obj.cast::<PyBytes>() {
+            Some(Box::new(BytesSequenceExtractor::Bytes(
+                _obj.cast::<PyBytes>().ok()?,
+            )))
+        } else if let Ok(_) = _obj.cast::<crate::types::PyByteArray>() {
+            Some(Box::new(BytesSequenceExtractor::ByteArray(
+                _obj.cast::<crate::types::PyByteArray>().ok()?,
+            )))
+        } else {
+            None
+        }
+    }
+}
+
+pub(crate) enum BytesSequenceExtractor<'a, 'py> {
+    Bytes(Borrowed<'a, 'py, PyBytes>),
+    ByteArray(Borrowed<'a, 'py, PyByteArray>),
+}
+
+impl FromPyObjectSequence for BytesSequenceExtractor<'_, '_> {
+    type Target = u8;
+
+    fn to_vec(&self) -> Vec<Self::Target> {
+        match self {
+            BytesSequenceExtractor::Bytes(b) => b.as_bytes().to_vec(),
+            BytesSequenceExtractor::ByteArray(b) => b.to_vec(),
+        }
     }
 
-    fn slice_into_vec(slice: &[Self], _: crate::conversion::private::Token) -> PyResult<Vec<Self>> {
-        Ok(slice.to_vec())
+    fn to_array<const N: usize>(&self) -> PyResult<[Self::Target; N]> {
+        match self {
+            BytesSequenceExtractor::Bytes(b) => b
+                .as_bytes()
+                .try_into()
+                .map_err(|_| invalid_sequence_length(N, b.as_bytes().len())),
+            BytesSequenceExtractor::ByteArray(b) => crate::sync::with_critical_section(&b, || {
+                // Safety: b is protected by a critical section
+                let slice = unsafe { b.as_bytes() };
+                slice
+                    .try_into()
+                    .map_err(|_| invalid_sequence_length(N, slice.len()))
+            }),
+        }
     }
 }
 

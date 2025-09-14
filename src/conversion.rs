@@ -6,6 +6,8 @@ use crate::pyclass::boolean_struct::False;
 use crate::types::PyTuple;
 use crate::{Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyErr, PyRef, PyRefMut, Python};
 use std::convert::Infallible;
+#[cfg(return_position_impl_trait_in_traits)]
+use std::marker::PhantomData;
 
 /// Defines a conversion from a Rust type to a Python object, which may fail.
 ///
@@ -393,30 +395,42 @@ pub trait FromPyObject<'a, 'py>: Sized {
     /// [`Bound<'_, PyAny>::extract`](crate::types::any::PyAnyMethods::extract) or [`Py::extract`].
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error>;
 
-    // step 1 of slice extraction for specialized types like `Vec<u8>` and `[u8; N]`
-    // note that 's lifetime is deliberately different from 'a because the type may
-    // in general not have a meaningful relation to the lifetime 'a
+    /// Specialization hook for extracting sequences for types like `Vec<u8>` and `[u8; N]`,
+    /// where the bytes can be directly copied from some python objects without going through
+    /// iteration.
     #[doc(hidden)]
-    fn object_as_slice<'s>(
-        _obj: Borrowed<'s, 'py, PyAny>,
+    #[inline(always)]
+    #[cfg(return_position_impl_trait_in_traits)]
+    fn sequence_extractor(
+        _obj: Borrowed<'_, 'py, PyAny>,
         _: private::Token,
-    ) -> Option<&'s [Self]> {
+    ) -> Option<impl FromPyObjectSequence<Target = Self>> {
+        struct NeverASequence<T>(PhantomData<T>);
+
+        impl<T> FromPyObjectSequence for NeverASequence<T> {
+            type Target = T;
+
+            fn to_vec(&self) -> Vec<Self::Target> {
+                unreachable!()
+            }
+
+            fn to_array<const N: usize>(&self) -> PyResult<[Self::Target; N]> {
+                unreachable!()
+            }
+        }
+
+        Option::<NeverASequence<Self>>::None
+    }
+
+    /// Equivalent to the above for MSRV < 1.75, which pays an additional allocation cost.
+    #[doc(hidden)]
+    #[inline(always)]
+    #[cfg(not(return_position_impl_trait_in_traits))]
+    fn sequence_extractor(
+        _obj: Borrowed<'_, 'py, PyAny>,
+        _: private::Token,
+    ) -> Option<Box<dyn FromPyObjectSequence<Target = Self>>> {
         None
-    }
-
-    // step 2 of the slice extraction into an array
-    #[doc(hidden)]
-    fn slice_into_array<const N: usize>(_slice: &[Self], _: private::Token) -> PyResult<[Self; N]> {
-        unreachable!("types implementing as_slice must also implement slice_into_array");
-    }
-
-    // step 2 of the slice extraction into a vector
-    #[doc(hidden)]
-    fn slice_into_vec(_slice: &[Self], _: private::Token) -> PyResult<Vec<Self>>
-    where
-        Self: Sized,
-    {
-        unreachable!("types implementing as_slice must also implement slice_into_vec");
     }
 
     /// Extracts the type hint information for this type when it appears as an argument.
@@ -432,6 +446,23 @@ pub trait FromPyObject<'a, 'py>: Sized {
         TypeInfo::Any
     }
 }
+
+mod from_py_object_sequence {
+    use crate::PyResult;
+
+    /// Private trait for implementing specialized sequence extraction for `Vec<u8>` and `[u8; N]`
+    #[doc(hidden)]
+    pub trait FromPyObjectSequence {
+        type Target;
+
+        fn to_vec(&self) -> Vec<Self::Target>;
+
+        fn to_array<const N: usize>(&self) -> PyResult<[Self::Target; N]>;
+    }
+}
+
+// Only reachable / implementable inside PyO3 itself.
+pub(crate) use from_py_object_sequence::FromPyObjectSequence;
 
 /// A data structure that can be extracted without borrowing any data from the input.
 ///

@@ -1,7 +1,7 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    conversion::{FromPyObject, FromPyObjectOwned, IntoPyObject},
+    conversion::{FromPyObject, FromPyObjectOwned, FromPyObjectSequence, IntoPyObject},
     exceptions::PyTypeError,
     ffi,
     types::{PyAnyMethods, PySequence, PyString},
@@ -62,12 +62,14 @@ where
     type Error = PyErr;
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        if let Some(extractor) = T::sequence_extractor(obj, crate::conversion::private::Token) {
+            return Ok(extractor.to_vec());
+        }
+
         if obj.is_instance_of::<PyString>() {
             return Err(PyTypeError::new_err("Can't extract `str` to `Vec`"));
         }
-        if let Some(slice) = T::object_as_slice(obj, crate::conversion::private::Token) {
-            return T::slice_into_vec(slice, crate::conversion::private::Token);
-        }
+
         extract_sequence(obj)
     }
 

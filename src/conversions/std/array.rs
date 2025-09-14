@@ -1,4 +1,4 @@
-use crate::conversion::{FromPyObjectOwned, IntoPyObject};
+use crate::conversion::{FromPyObjectOwned, FromPyObjectSequence, IntoPyObject};
 use crate::types::any::PyAnyMethods;
 use crate::types::PySequence;
 use crate::{err::DowncastError, ffi, FromPyObject, PyAny, PyResult, Python};
@@ -43,9 +43,8 @@ where
     type Error = PyErr;
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
-        if let Some(slice) = T::object_as_slice(obj, crate::conversion::private::Token) {
-            // If the object is a slice, we can extract it directly.
-            return T::slice_into_array(slice, crate::conversion::private::Token);
+        if let Some(extractor) = T::sequence_extractor(obj, crate::conversion::private::Token) {
+            return extractor.to_array();
         }
 
         create_array_from_obj(obj)
