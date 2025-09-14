@@ -208,7 +208,7 @@ Stub files (`pyi`) are only useful for static type checkers and ignored at runti
 PyO3 classes do not inherit from `typing.Generic` even if specified in the stub files.
 
 This can cause some runtime issues, as annotating a variable like `f1_car: Car[AlloyWheel] = ...`
-can make Python call magic methods that are not defined. 
+can make Python call magic methods that are not defined.
 
 To overcome this limitation, implementers can pass the `generic` parameter to `pyclass` in Rust:
 
@@ -236,8 +236,8 @@ impl MyClass {
 }
 ```
 
-Note that [`pyo3::types::PyGenericAlias`][pygenericalias] can be helfpul when implementing
-`__class_geitem__` as it can create [`types.GenericAlias`][genericalias] objects from Rust.
+Note that [`pyo3::types::PyGenericAlias`][pygenericalias] can be helpful when implementing
+`__class_getitem__` as it can create [`types.GenericAlias`][genericalias] objects from Rust.
 
-[pygenericalias]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.pygenericalias
+[pygenericalias]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyGenericAlias.html
 [genericalias]: https://docs.python.org/3/library/types.html#types.GenericAlias
