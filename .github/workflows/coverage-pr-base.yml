@@ -21,7 +21,7 @@ jobs:
         uses: ./.github/actions/fetch-merge-base
         with:
           base_ref: "refs/heads/${{ github.event.pull_request.base.ref }}"
-          head_ref: "refs/pull/${{ github.event.pull_request.number }}/merge"
+          head_ref: "refs/pull/${{ github.event.pull_request.number }}/head"
       - name: Set PR base on codecov
         run: |
           pip install codecov-cli
