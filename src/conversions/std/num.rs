@@ -303,7 +303,7 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
     ) -> Option<impl FromPyObjectSequence<Target = u8>> {
         if let Ok(bytes) = obj.cast::<PyBytes>() {
             Some(BytesSequenceExtractor::Bytes(bytes))
-        } else if let Ok(byte_array) = obj.cast::<crate::types::PyByteArray>() {
+        } else if let Ok(byte_array) = obj.cast::<PyByteArray>() {
             Some(BytesSequenceExtractor::ByteArray(byte_array))
         } else {
             None
@@ -316,14 +316,10 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
         obj: Borrowed<'_, 'py, PyAny>,
         _: crate::conversion::private::Token,
     ) -> Option<Box<dyn FromPyObjectSequence<Target = u8>>> {
-        if let Ok(_) = obj.cast::<PyBytes>() {
-            Some(Box::new(BytesSequenceExtractor::Bytes(
-                _obj.cast::<PyBytes>().ok()?,
-            )))
-        } else if let Ok(_) = _obj.cast::<crate::types::PyByteArray>() {
-            Some(Box::new(BytesSequenceExtractor::ByteArray(
-                _obj.cast::<crate::types::PyByteArray>().ok()?,
-            )))
+        if let Ok(bytes) = obj.cast::<PyBytes>() {
+            Some(Box::new(BytesSequenceExtractor::Bytes(bytes)))
+        } else if let Ok(byte_array) = obj.cast::<PyByteArray>() {
+            Some(Box::new(BytesSequenceExtractor::ByteArray(byte_array)))
         } else {
             None
         }
