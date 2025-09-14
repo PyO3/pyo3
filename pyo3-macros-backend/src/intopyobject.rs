@@ -1,9 +1,7 @@
 use crate::attributes::{IntoPyWithAttribute, RenamingRule};
 use crate::derive_attributes::{ContainerAttributes, FieldAttributes};
 #[cfg(feature = "experimental-inspect")]
-use crate::introspection::ConcatenationBuilder;
-#[cfg(feature = "experimental-inspect")]
-use crate::utils::TypeExt;
+use crate::introspection::{elide_lifetimes, ConcatenationBuilder};
 use crate::utils::{self, Ctx};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
@@ -402,7 +400,8 @@ impl<'a, const REF: bool> Container<'a, REF> {
             // We don't know what into_py_with is doing
             builder.push_str("_typeshed.Incomplete")
         } else {
-            let ty = ty.clone().elide_lifetimes();
+            let mut ty = ty.clone();
+            elide_lifetimes(&mut ty);
             let pyo3_crate_path = &ctx.pyo3_path;
             builder.push_tokens(
                 quote! { <#ty as #pyo3_crate_path::IntoPyObject<'_>>::OUTPUT_TYPE.as_bytes() },

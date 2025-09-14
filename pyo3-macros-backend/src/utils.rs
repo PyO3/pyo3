@@ -3,7 +3,6 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use std::ffi::CString;
 use syn::spanned::Spanned;
-use syn::visit_mut::VisitMut;
 use syn::{punctuated::Punctuated, Token};
 
 /// Macro inspired by `anyhow::anyhow!` to create a compiler error with the given span.
@@ -338,29 +337,6 @@ pub(crate) fn has_attribute_with_namespace(
             .iter()
             .eq(attr.path().segments.iter().map(|v| &v.ident))
     })
-}
-
-pub(crate) trait TypeExt {
-    /// Replaces all explicit lifetimes in `self` with elided (`'_`) lifetimes
-    ///
-    /// This is useful if `Self` is used in `const` context, where explicit
-    /// lifetimes are not allowed (yet).
-    fn elide_lifetimes(self) -> Self;
-}
-
-impl TypeExt for syn::Type {
-    fn elide_lifetimes(mut self) -> Self {
-        struct ElideLifetimesVisitor;
-
-        impl VisitMut for ElideLifetimesVisitor {
-            fn visit_lifetime_mut(&mut self, l: &mut syn::Lifetime) {
-                *l = syn::Lifetime::new("'_", l.span());
-            }
-        }
-
-        ElideLifetimesVisitor.visit_type_mut(&mut self);
-        self
-    }
 }
 
 pub fn expr_to_python(expr: &syn::Expr) -> String {

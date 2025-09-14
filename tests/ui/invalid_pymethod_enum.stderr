@@ -12,8 +12,8 @@ note: expected this to be `False`
 note: required by a bound in `extract_pyclass_ref_mut`
   --> src/impl_/extract_argument.rs
    |
-   | pub fn extract_pyclass_ref_mut<'a, 'holder, 'py, T: PyClass<Frozen = False>>(
-   |                                                             ^^^^^^^^^^^^^^ required by this bound in `extract_pyclass_ref_mut`
+   | pub fn extract_pyclass_ref_mut<'a, 'holder, T: PyClass<Frozen = False>>(
+   |                                                        ^^^^^^^^^^^^^^ required by this bound in `extract_pyclass_ref_mut`
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0271]: type mismatch resolving `<ComplexEnum as PyClass>::Frozen == False`
@@ -48,8 +48,8 @@ note: expected this to be `False`
 note: required by a bound in `extract_pyclass_ref_mut`
   --> src/impl_/extract_argument.rs
    |
-   | pub fn extract_pyclass_ref_mut<'a, 'holder, 'py, T: PyClass<Frozen = False>>(
-   |                                                             ^^^^^^^^^^^^^^ required by this bound in `extract_pyclass_ref_mut`
+   | pub fn extract_pyclass_ref_mut<'a, 'holder, T: PyClass<Frozen = False>>(
+   |                                                        ^^^^^^^^^^^^^^ required by this bound in `extract_pyclass_ref_mut`
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0271]: type mismatch resolving `<TupleEnum as PyClass>::Frozen == False`
