@@ -534,6 +534,17 @@ def docs(session: nox.Session, nightly: bool = False, internal: bool = False) ->
     features = "full"
 
     shutil.rmtree(PYO3_DOCS_TARGET, ignore_errors=True)
+
+    # workaround for https://github.com/serde-rs/serde/issues/2977
+    _run_cargo(
+        session,
+        *toolchain_flags,
+        "update",
+        "-p",
+        "serde",
+        "--precise=1.0.219",
+    )
+
     _run_cargo(
         session,
         *toolchain_flags,
