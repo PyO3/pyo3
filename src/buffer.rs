@@ -707,29 +707,24 @@ mod tests {
 
     use crate::ffi;
     use crate::types::any::PyAnyMethods;
+    use crate::types::PyBytes;
     use crate::Python;
 
     #[test]
     fn test_debug() {
         Python::attach(|py| {
-            let bytes = py.eval(ffi::c_str!("b'abcde'"), None, None).unwrap();
+            let bytes = PyBytes::new(py, b"abcde");
             let buffer: PyBuffer<u8> = PyBuffer::get(&bytes).unwrap();
             let expected = format!(
                 concat!(
                     "PyBuffer {{ buf: {:?}, obj: {:?}, ",
                     "len: 5, itemsize: 1, readonly: 1, ",
-                    "ndim: 1, format: {:?}, shape: {:?}, ",
-                    "strides: {:?}, suboffsets: {:?}, internal: {:?} }}",
+                    "ndim: 1, format: \"B\", shape: [5], ",
+                    "strides: [1], suboffsets: None, internal: {:?} }}",
                 ),
-                buffer.0.buf,
-                buffer.0.obj,
-                buffer.0.format,
-                buffer.0.shape,
-                buffer.0.strides,
-                buffer.0.suboffsets,
-                buffer.0.internal
+                buffer.0.buf, buffer.0.obj, buffer.0.internal
             );
-            let debug_repr = format!("{buffer:?}");
+            let debug_repr = format!("{:?}", buffer);
             assert_eq!(debug_repr, expected);
         });
     }
@@ -871,7 +866,7 @@ mod tests {
     #[test]
     fn test_bytes_buffer() {
         Python::attach(|py| {
-            let bytes = py.eval(ffi::c_str!("b'abcde'"), None, None).unwrap();
+            let bytes = PyBytes::new(py, b"abcde");
             let buffer = PyBuffer::get(&bytes).unwrap();
             assert_eq!(buffer.dimensions(), 1);
             assert_eq!(buffer.item_count(), 5);
@@ -955,25 +950,6 @@ mod tests {
             assert_eq!(slice[2].get(), 12.0);
 
             assert_eq!(buffer.to_fortran_vec(py).unwrap(), [10.0, 11.0, 12.0, 13.0]);
-        });
-    }
-
-    #[test]
-    fn test_buffer_debug() {
-        Python::attach(|py| {
-            let bytes = py.eval(ffi::c_str!("b'abcde'"), None, None).unwrap();
-            let buffer: PyBuffer<u8> = PyBuffer::get(&bytes).unwrap();
-            let expected = format!(
-                concat!(
-                    "PyBuffer {{ buf: {:?}, obj: {:?}, ",
-                    "len: 5, itemsize: 1, readonly: 1, ",
-                    "ndim: 1, format: \"B\", shape: [5], ",
-                    "strides: [1], suboffsets: None, internal: {:?} }}",
-                ),
-                buffer.0.buf, buffer.0.obj, buffer.0.internal
-            );
-            let debug_repr = format!("{:?}", buffer);
-            assert_eq!(debug_repr, expected);
         });
     }
 }
