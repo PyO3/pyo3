@@ -126,12 +126,10 @@ jobs:
         if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows'))) }}
         run: nox -s ffi-check
 
-      - if: ${{ github.event_name != 'merge_group' }}
-        name: Install cargo-llvm-cov
+      - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
-      - if: ${{ github.event_name != 'merge_group' }}
-        name: Prepare coverage environment
+      - name: Prepare coverage environment
         run: |
           cargo llvm-cov clean --workspace --profraw-only
           nox -s set-coverage-env
@@ -148,8 +146,7 @@ jobs:
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
-      - if: ${{ github.event_name != 'merge_group' }}
-        name: Generate coverage report
+      - name: Generate coverage report
         # needs investigation why llvm-cov fails on windows-11-arm
         continue-on-error: ${{ inputs.os == 'windows-11-arm' }}
         run: cargo llvm-cov
@@ -160,8 +157,7 @@ jobs:
           --package=pyo3-ffi
           report --codecov --output-path coverage.json
 
-      - if: ${{ github.event_name != 'merge_group' }}
-        name: Upload coverage report
+      - name: Upload coverage report
         uses: codecov/codecov-action@v5
         # needs investigation why llvm-cov fails on windows-11-arm
         continue-on-error: ${{ inputs.os == 'windows-11-arm' }}
