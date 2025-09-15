@@ -433,6 +433,7 @@ mod tests {
                 })
             }
 
+            #[cfg(Py_3_10)] // Name is different in 3.9
             #[test]
             fn test_classinfo_downcast_error() -> PyResult<()> {
                 Python::attach(|py| {
