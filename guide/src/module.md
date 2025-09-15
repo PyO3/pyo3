@@ -14,8 +14,15 @@ fn double(x: usize) -> usize {
 /// This module is implemented in Rust.
 #[pymodule]
 mod my_extension {
+    use pyo3::prelude::*;
+
     #[pymodule_export]
     use super::double; // The double function is made available from Python, works also with classes
+    
+    #[pyfunction] // Inline definition of a pyfunction, also made availlable to Python
+    fn triple(x: usize) -> usize {
+        x * 3
+    }
 }
 # }
 ```
@@ -70,7 +77,6 @@ You can create a module hierarchy within a single extension module by just `use`
 For example, you could define the modules `parent_module` and `parent_module.child_module`:
 
 ```rust
-# mod declarative_module_submodule_test {
 use pyo3::prelude::*;
 
 #[pymodule]
@@ -89,13 +95,26 @@ mod child_module {
 fn func() -> String {
     "func".to_string()
 }
-# }
+#
+# fn main() {
+#   Python::attach(|py| {
+#       use pyo3::wrap_pymodule;
+#       use pyo3::types::IntoPyDict;
+#       use pyo3::ffi::c_str;
+#       let parent_module = wrap_pymodule!(parent_module)(py);
+#       let ctx = [("parent_module", parent_module)].into_py_dict(py).unwrap();
+#
+#      py.run(c_str!("assert parent_module.child_module.func() == 'func'"), None, Some(&ctx)).unwrap();
+#   })
+}
 ```
 
 Note that this does not define a package, so this won’t allow Python code to directly import
 submodules by using `from parent_module import child_module`. For more information, see
 [#759](https://github.com/PyO3/pyo3/issues/759) and
 [#1517](https://github.com/PyO3/pyo3/issues/1517#issuecomment-808664021).
+
+You can provide the `submodule` argument to `#[pymodule()]` for modules that are not top-level modules in order for them to properly generate the `#[pyclass]` `module` attribute automatically.
 
 ## Inline declaration
 
@@ -123,7 +142,7 @@ mod my_extension {
     mod submodule {
         // This is a submodule
         use pyo3::prelude::*;
-                
+
         #[pyclass]
         struct Nested;
     }
@@ -134,8 +153,6 @@ mod my_extension {
 In this case, `#[pymodule]` macro automatically sets the `module` attribute of the `#[pyclass]` macros declared inside of it with its name.
 For nested modules, the name of the parent module is automatically added.
 In the previous example, the `Nested` class will have for `module` `my_extension.submodule`.
-
-You can provide the `submodule` argument to `#[pymodule()]` for modules that are not top-level modules in order for them to properly generate the `#[pyclass]` `module` attribute automatically.
 
 ## Procedural initialization
 
