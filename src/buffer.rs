@@ -48,10 +48,10 @@ impl<T> Debug for PyBuffer<T> {
             .field("itemsize", &self.0.itemsize)
             .field("readonly", &self.0.readonly)
             .field("ndim", &self.0.ndim)
-            .field("format", &self.0.format)
-            .field("shape", &self.0.shape)
-            .field("strides", &self.0.strides)
-            .field("suboffsets", &self.0.suboffsets)
+            .field("format", &self.format())
+            .field("shape", &self.shape())
+            .field("strides", &self.strides())
+            .field("suboffsets", &self.suboffsets())
             .field("internal", &self.0.internal)
             .finish()
     }
@@ -228,7 +228,9 @@ impl<T: Element> PyBuffer<T> {
             Ok(buf)
         }
     }
+}
 
+impl<T> PyBuffer<T> {
     /// Gets the pointer to the start of the buffer memory.
     ///
     /// Warning: the buffer memory can be mutated by other code (including
@@ -367,7 +369,9 @@ impl<T: Element> PyBuffer<T> {
     pub fn is_fortran_contiguous(&self) -> bool {
         unsafe { ffi::PyBuffer_IsContiguous(&*self.0, b'F' as std::ffi::c_char) != 0 }
     }
+}
 
+impl<T: Element> PyBuffer<T> {
     /// Gets the buffer memory as a slice.
     ///
     /// This function succeeds if:
@@ -703,29 +707,24 @@ mod tests {
 
     use crate::ffi;
     use crate::types::any::PyAnyMethods;
+    use crate::types::PyBytes;
     use crate::Python;
 
     #[test]
     fn test_debug() {
         Python::attach(|py| {
-            let bytes = py.eval(ffi::c_str!("b'abcde'"), None, None).unwrap();
+            let bytes = PyBytes::new(py, b"abcde");
             let buffer: PyBuffer<u8> = PyBuffer::get(&bytes).unwrap();
             let expected = format!(
                 concat!(
                     "PyBuffer {{ buf: {:?}, obj: {:?}, ",
                     "len: 5, itemsize: 1, readonly: 1, ",
-                    "ndim: 1, format: {:?}, shape: {:?}, ",
-                    "strides: {:?}, suboffsets: {:?}, internal: {:?} }}",
+                    "ndim: 1, format: \"B\", shape: [5], ",
+                    "strides: [1], suboffsets: None, internal: {:?} }}",
                 ),
-                buffer.0.buf,
-                buffer.0.obj,
-                buffer.0.format,
-                buffer.0.shape,
-                buffer.0.strides,
-                buffer.0.suboffsets,
-                buffer.0.internal
+                buffer.0.buf, buffer.0.obj, buffer.0.internal
             );
-            let debug_repr = format!("{buffer:?}");
+            let debug_repr = format!("{:?}", buffer);
             assert_eq!(debug_repr, expected);
         });
     }
@@ -867,7 +866,7 @@ mod tests {
     #[test]
     fn test_bytes_buffer() {
         Python::attach(|py| {
-            let bytes = py.eval(ffi::c_str!("b'abcde'"), None, None).unwrap();
+            let bytes = PyBytes::new(py, b"abcde");
             let buffer = PyBuffer::get(&bytes).unwrap();
             assert_eq!(buffer.dimensions(), 1);
             assert_eq!(buffer.item_count(), 5);
