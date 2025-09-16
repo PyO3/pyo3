@@ -170,7 +170,9 @@ impl PyString {
 
     /// Creates a new Python string object from bytes.
     ///
-    /// Panics if out of memory.
+    /// Returns [PyMemoryError] if out of memory.
+    /// Returns [PyUnicodeDecodeError] if the slice is not a valid UTF-8 string.
+
     pub fn from_bytes<'py>(py: Python<'py>, s: &[u8]) -> PyResult<Bound<'py, PyString>> {
         let ptr = s.as_ptr().cast();
         let len = s.len() as ffi::Py_ssize_t;
