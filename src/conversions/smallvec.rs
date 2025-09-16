@@ -22,7 +22,8 @@ use crate::inspect::types::TypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PySequence, PyString};
 use crate::{
-    err::DowncastError, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python,
+    err::DowncastError, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, PyTypeInfo,
+    Python,
 };
 use smallvec::{Array, SmallVec};
 
@@ -102,7 +103,11 @@ where
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
             obj.cast_unchecked::<PySequence>()
         } else {
-            return Err(DowncastError::new_from_borrowed(obj, "Sequence").into());
+            return Err(DowncastError::new_from_type(
+                obj,
+                PySequence::type_object(obj.py()).into_any(),
+            )
+            .into());
         }
     };
 
