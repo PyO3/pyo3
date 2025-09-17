@@ -15,6 +15,7 @@ pub use crate::instance::PyObject;
 pub use crate::instance::{Borrowed, Bound, Py};
 pub use crate::marker::Python;
 pub use crate::pycell::{PyRef, PyRefMut};
+pub use crate::pyref_map::{PyRefMap, PyRefMapMut};
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::types::{PyAny, PyModule};
 
