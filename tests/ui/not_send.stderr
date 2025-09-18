@@ -1,44 +1,44 @@
 error[E0277]: `*mut pyo3::Python<'static>` cannot be shared between threads safely
  --> tests/ui/not_send.rs:4:15
   |
-4 |     py.detach(|| { drop(py); });
-  |        ------ ^^^^^^^^^^^^^^^^ `*mut pyo3::Python<'static>` cannot be shared between threads safely
-  |        |
-  |        required by a bound introduced by this call
-  |
-  = help: within `pyo3::Python<'_>`, the trait `Sync` is not implemented for `*mut pyo3::Python<'static>`
+  4 |     py.detach(|| { drop(py); });
+    |        ------ ^^^^^^^^^^^^^^^^ `*mut pyo3::Python<'static>` cannot be shared between threads safely
+    |        |
+    |        required by a bound introduced by this call
+    |
+    = help: within `pyo3::Python<'_>`, the trait `Sync` is not implemented for `*mut pyo3::Python<'static>`
 note: required because it appears within the type `PhantomData<*mut pyo3::Python<'static>>`
- --> $RUST/core/src/marker.rs
-  |
-  | pub struct PhantomData<T: PointeeSized>;
-  |            ^^^^^^^^^^^
+   --> $RUST/core/src/marker.rs
+    |
+    | pub struct PhantomData<T: PointeeSized>;
+    |            ^^^^^^^^^^^
 note: required because it appears within the type `pyo3::marker::NotSend`
- --> src/marker.rs
-  |
-  | struct NotSend(PhantomData<*mut Python<'static>>);
-  |        ^^^^^^^
+   --> src/marker.rs
+    |
+    | struct NotSend(PhantomData<*mut Python<'static>>);
+    |        ^^^^^^^
 note: required because it appears within the type `PhantomData<pyo3::marker::NotSend>`
- --> $RUST/core/src/marker.rs
-  |
-  | pub struct PhantomData<T: PointeeSized>;
-  |            ^^^^^^^^^^^
+   --> $RUST/core/src/marker.rs
+    |
+    | pub struct PhantomData<T: PointeeSized>;
+    |            ^^^^^^^^^^^
 note: required because it appears within the type `pyo3::Python<'_>`
- --> src/marker.rs
-  |
-  | pub struct Python<'py>(PhantomData<&'py AttachGuard>, PhantomData<NotSend>);
-  |            ^^^^^^
-  = note: required for `&pyo3::Python<'_>` to implement `Send`
+   --> src/marker.rs
+    |
+    | pub struct Python<'py>(PhantomData<&'py AttachGuard>, PhantomData<NotSend>);
+    |            ^^^^^^
+    = note: required for `&pyo3::Python<'_>` to implement `Send`
 note: required because it's used within this closure
- --> tests/ui/not_send.rs:4:15
-  |
-4 |     py.detach(|| { drop(py); });
-  |               ^^
-  = note: required for `{closure@$DIR/tests/ui/not_send.rs:4:15: 4:17}` to implement `Ungil`
+   --> tests/ui/not_send.rs:4:15
+    |
+  4 |     py.detach(|| { drop(py); });
+    |               ^^
+    = note: required for `{closure@$DIR/tests/ui/not_send.rs:4:15: 4:17}` to implement `Ungil`
 note: required by a bound in `pyo3::Python::<'py>::detach`
- --> src/marker.rs
-  |
-  |     pub fn detach<T, F>(self, f: F) -> T
-  |            ------ required by a bound in this associated function
-  |     where
-  |         F: Ungil + FnOnce() -> T,
-  |            ^^^^^ required by this bound in `Python::<'py>::detach`
+   --> src/marker.rs
+    |
+    |     pub fn detach<T, F>(self, f: F) -> T
+    |            ------ required by a bound in this associated function
+    |     where
+    |         F: Ungil + FnOnce() -> T,
+    |            ^^^^^ required by this bound in `Python::<'py>::detach`
