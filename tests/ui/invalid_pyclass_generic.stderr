@@ -10,8 +10,8 @@ error[E0592]: duplicate definitions with name `__pymethod___class_getitem____`
   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0592]: duplicate definitions with name `__class_getitem__`
- --> tests/ui/invalid_pyclass_generic.rs:4:1
-  |
+  --> tests/ui/invalid_pyclass_generic.rs:4:1
+   |
  4 |   #[pyclass(generic)]
    |   ^^^^^^^^^^^^^^^^^^^ duplicate definitions for `__class_getitem__`
 ...
@@ -42,8 +42,8 @@ note: candidate #2 is defined in an impl for the type `ClassRedefinesClassGetIte
   = note: this error originates in the attribute macro `pyclass` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0034]: multiple applicable items in scope
- --> tests/ui/invalid_pyclass_generic.rs:4:1
-  |
+  --> tests/ui/invalid_pyclass_generic.rs:4:1
+   |
  4 | #[pyclass(generic)]
    | ^^^^^^^^^^^^^^^^^^^ multiple `__class_getitem__` found
    |
