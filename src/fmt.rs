@@ -40,22 +40,24 @@ macro_rules! py_format {
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
 /// The `PyUnicodeWriter` is a utility for efficiently constructing Python strings
-pub struct PyUnicodeWriter {
+pub struct PyUnicodeWriter<'py> {
+    python: Python<'py>,
     writer: NonNull<ffi::PyUnicodeWriter>,
     last_error: Option<PyErr>,
 }
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-impl PyUnicodeWriter {
+impl<'py> PyUnicodeWriter<'py> {
     /// Creates a new `PyUnicodeWriter`.
-    pub fn new(py: Python<'_>) -> PyResult<Self> {
+    pub fn new(py: Python<'py>) -> PyResult<Self> {
         Self::with_capacity(py, 0)
     }
 
     /// Creates a new `PyUnicodeWriter` with the specified initial capacity.
-    pub fn with_capacity(py: Python<'_>, capacity: usize) -> PyResult<Self> {
+    pub fn with_capacity(py: Python<'py>, capacity: usize) -> PyResult<Self> {
         match NonNull::new(unsafe { PyUnicodeWriter_Create(capacity.wrapping_cast()) }) {
             Some(ptr) => Ok(PyUnicodeWriter {
+                python: py,
                 writer: ptr,
                 last_error: None,
             }),
@@ -64,7 +66,8 @@ impl PyUnicodeWriter {
     }
 
     /// Consumes the `PyUnicodeWriter` and returns a `Bound<PyString>` containing the constructed string.
-    pub fn into_py_string(mut self, py: Python<'_>) -> PyResult<Bound<'_, PyString>> {
+    pub fn into_py_string(mut self) -> PyResult<Bound<'py, PyString>> {
+        let py = self.python;
         if let Some(error) = self.take_error() {
             Err(error)
         } else {
@@ -86,14 +89,12 @@ impl PyUnicodeWriter {
     }
 
     fn set_error(&mut self) {
-        Python::attach(|py| {
-            self.last_error = Some(PyErr::fetch(py));
-        })
+        self.last_error = Some(PyErr::fetch(self.python));
     }
 }
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-impl fmt::Write for PyUnicodeWriter {
+impl fmt::Write for PyUnicodeWriter<'_> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         let result = unsafe {
             PyUnicodeWriter_WriteUTF8(self.as_ptr(), s.as_ptr().cast(), s.len() as isize)
@@ -118,7 +119,7 @@ impl fmt::Write for PyUnicodeWriter {
 }
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-impl Drop for PyUnicodeWriter {
+impl Drop for PyUnicodeWriter<'_> {
     fn drop(&mut self) {
         unsafe {
             PyUnicodeWriter_Discard(self.as_ptr());
@@ -127,13 +128,13 @@ impl Drop for PyUnicodeWriter {
 }
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-impl<'py> IntoPyObject<'py> for PyUnicodeWriter {
+impl<'py> IntoPyObject<'py> for PyUnicodeWriter<'py> {
     type Target = PyString;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> PyResult<Bound<'py, PyString>> {
-        self.into_py_string(py)
+    fn into_pyobject(self, _py: Python<'py>) -> PyResult<Bound<'py, PyString>> {
+        self.into_py_string()
     }
 }
 
@@ -153,7 +154,7 @@ mod tests {
             let mut writer = PyUnicodeWriter::new(py).unwrap();
             write!(writer, "Hello {}!", "world").unwrap();
             writer.write_char('😎').unwrap();
-            let result = writer.into_py_string(py).unwrap();
+            let result = writer.into_py_string().unwrap();
             assert_eq!(result.to_string(), "Hello world!😎");
         });
     }
