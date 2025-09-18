@@ -270,7 +270,7 @@ impl PyString {
             writer
                 .write_fmt(args)
                 .map_err(|_| writer.take_error().expect("expected error"))?;
-            writer.into_py_string(py)
+            writer.into_py_string()
         }
 
         #[cfg(any(Py_LIMITED_API, PyPy))]
