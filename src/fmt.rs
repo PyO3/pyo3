@@ -22,9 +22,20 @@ use {
 /// This is like the `format!` macro, but it returns a `PyString` instead of a `String`.
 #[macro_export]
 macro_rules! py_format {
-    ($py: expr, $($arg:tt)*) => {
-        $crate::types::PyString::from_fmt($py, format_args!($($arg)*))
-    }
+    ($py: expr, $($arg:tt)*) => {{
+        let format_args = format_args!($($arg)*);
+        if let Some(static_string) = format_args.as_str() {
+            static INTERNED: $crate::sync::PyOnceLock<$crate::Py<$crate::types::PyString>> = $crate::sync::PyOnceLock::new();
+            Ok(
+                INTERNED
+                .get_or_init($py, || $crate::types::PyString::intern($py, static_string).unbind())
+                .bind($py)
+                .to_owned()
+            )
+        } else {
+            $crate::types::PyString::from_fmt($py, format_args)
+        }
+    }}
 }
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
