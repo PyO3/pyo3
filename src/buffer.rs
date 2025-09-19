@@ -274,10 +274,10 @@ impl<T> PyBuffer<T> {
         unsafe {
             ffi::PyBuffer_GetPointer(
                 #[cfg(Py_3_11)]
-                &*self.raw(),
+                self.raw(),
                 #[cfg(not(Py_3_11))]
                 {
-                    &*self.raw() as *const ffi::Py_buffer as *mut ffi::Py_buffer
+                    self.raw() as *const ffi::Py_buffer as *mut ffi::Py_buffer
                 },
                 #[cfg(Py_3_11)]
                 {
@@ -523,10 +523,10 @@ impl<T: Element> PyBuffer<T> {
             ffi::PyBuffer_ToContiguous(
                 target.as_mut_ptr().cast(),
                 #[cfg(Py_3_11)]
-                &*self.raw(),
+                self.raw(),
                 #[cfg(not(Py_3_11))]
                 {
-                    &*self.raw() as *const ffi::Py_buffer as *mut ffi::Py_buffer
+                    self.raw() as *const ffi::Py_buffer as *mut ffi::Py_buffer
                 },
                 self.raw().len,
                 fort as std::ffi::c_char,
@@ -560,10 +560,10 @@ impl<T: Element> PyBuffer<T> {
             ffi::PyBuffer_ToContiguous(
                 vec.as_ptr() as *mut c_void,
                 #[cfg(Py_3_11)]
-                &*self.raw(),
+                self.raw(),
                 #[cfg(not(Py_3_11))]
                 {
-                    &*self.raw() as *const ffi::Py_buffer as *mut ffi::Py_buffer
+                    self.raw() as *const ffi::Py_buffer as *mut ffi::Py_buffer
                 },
                 self.raw().len,
                 fort as std::ffi::c_char,
@@ -616,10 +616,10 @@ impl<T: Element> PyBuffer<T> {
         err::error_on_minusone(py, unsafe {
             ffi::PyBuffer_FromContiguous(
                 #[cfg(Py_3_11)]
-                &*self.raw(),
+                self.raw(),
                 #[cfg(not(Py_3_11))]
                 {
-                    &*self.raw() as *const ffi::Py_buffer as *mut ffi::Py_buffer
+                    self.raw() as *const ffi::Py_buffer as *mut ffi::Py_buffer
                 },
                 #[cfg(Py_3_11)]
                 {
