@@ -537,7 +537,10 @@ impl ConcatenationBuilder {
                 const PIECES_LEN: usize = #pyo3_crate_path::impl_::concat::combined_len(PIECES);
                 #[used]
                 #[no_mangle]
-                static #ident: [u8; PIECES_LEN] = #pyo3_crate_path::impl_::concat::combine_to_array::<PIECES_LEN>(PIECES);
+                static #ident: #pyo3_crate_path::impl_::introspection::SerializedIntrospectionFragment<PIECES_LEN> = #pyo3_crate_path::impl_::introspection::SerializedIntrospectionFragment {
+                    length: PIECES_LEN as u32,
+                    fragment: #pyo3_crate_path::impl_::concat::combine_to_array::<PIECES_LEN>(PIECES)
+                };
             };
         }
     }

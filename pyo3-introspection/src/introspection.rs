@@ -1,7 +1,7 @@
 use crate::model::{
     Argument, Arguments, Attribute, Class, Function, Module, VariableLengthArgument,
 };
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
 use goblin::elf::section_header::SHN_XINDEX;
 use goblin::elf::Elf;
 use goblin::mach::load_command::CommandVariant;
@@ -10,7 +10,6 @@ use goblin::mach::{Mach, MachO, SingleArch};
 use goblin::pe::PE;
 use goblin::Object;
 use serde::Deserialize;
-use serde_json::Deserializer;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::path::Path;
@@ -273,8 +272,9 @@ fn find_introspection_chunks_in_elf(elf: &Elf<'_>, library_content: &[u8]) -> Re
             ensure!(u32::try_from(sym.st_shndx)? != SHN_XINDEX, "Section names length is greater than SHN_LORESERVE in ELF, this is not supported by PyO3 yet");
             let section_header = &elf.section_headers[sym.st_shndx];
             let data_offset = sym.st_value + section_header.sh_offset - section_header.sh_addr;
-            chunks.push(deserialize_prefix(
+            chunks.push(deserialize_chunk(
                 &library_content[usize::try_from(data_offset).context("File offset overflow")?..],
+                elf.little_endian,
             )?);
         }
     }
@@ -311,8 +311,9 @@ fn find_introspection_chunks_in_macho(
         {
             let section = &sections[nlist.n_sect - 1]; // Sections are counted from 1
             let data_offset = nlist.n_value + u64::from(section.offset) - section.addr;
-            chunks.push(deserialize_prefix(
+            chunks.push(deserialize_chunk(
                 &library_content[usize::try_from(data_offset).context("File offset overflow")?..],
+                macho.little_endian,
             )?);
         }
     }
@@ -323,21 +324,39 @@ fn find_introspection_chunks_in_pe(pe: &PE<'_>, library_content: &[u8]) -> Resul
     let mut chunks = Vec::new();
     for export in &pe.exports {
         if is_introspection_symbol(export.name.unwrap_or_default()) {
-            chunks.push(deserialize_prefix(
+            chunks.push(deserialize_chunk(
                 &library_content[export.offset.context("No symbol offset")?..],
+                true,
             )?);
         }
     }
     Ok(chunks)
 }
 
-fn deserialize_prefix(chunk: &[u8]) -> Result<Chunk> {
-    Chunk::deserialize(&mut Deserializer::from_slice(chunk)).with_context(|| {
-        // We take the first valid utf8 bytes, it's quite likely to be the actual chunk
-        // We use a 4096 upper bound for security
-        let chunk = str::from_utf8(&chunk[..4096])
-            .unwrap_or_else(|e| str::from_utf8(&chunk[..e.valid_up_to()]).unwrap_or_default());
-        format!("Failed to parse introspection chunk: '{chunk}'")
+fn deserialize_chunk(
+    content_with_chunk_at_the_beginning: &[u8],
+    is_little_endian: bool,
+) -> Result<Chunk> {
+    let length = content_with_chunk_at_the_beginning
+        .split_at(4)
+        .0
+        .try_into()
+        .context("The introspection chunk must contain a length")?;
+    let length = if is_little_endian {
+        u32::from_le_bytes(length)
+    } else {
+        u32::from_be_bytes(length)
+    };
+    let chunk = content_with_chunk_at_the_beginning
+        .get(4..4 + length as usize)
+        .ok_or_else(|| {
+            anyhow!("The introspection chunk length {length} is greater that the binary size")
+        })?;
+    serde_json::from_slice(chunk).with_context(|| {
+        format!(
+            "Failed to parse introspection chunk: '{}'",
+            String::from_utf8_lossy(chunk)
+        )
     })
 }
 
