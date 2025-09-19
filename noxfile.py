@@ -2,6 +2,7 @@ import io
 import json
 import os
 import re
+from shlex import quote
 import shutil
 import subprocess
 import sys
@@ -422,6 +423,7 @@ def test_emscripten(session: nox.Session):
             f"-C link-arg=-lpython{info.pymajorminor}",
             "-C link-arg=-lexpat",
             "-C link-arg=-lmpdec",
+            "-C link-arg=-lHacl_Hash_SHA2",
             "-C link-arg=-lsqlite3",
             "-C link-arg=-lz",
             "-C link-arg=-lbz2",
@@ -436,7 +438,7 @@ def test_emscripten(session: nox.Session):
         session,
         "bash",
         "-c",
-        f"source {info.builddir / 'emsdk/emsdk_env.sh'} && cargo test",
+        f"source {info.builddir / 'emsdk/emsdk_env.sh'} && cargo test {' '.join(quote(arg) for arg in session.posargs)}",
     )
 
 
