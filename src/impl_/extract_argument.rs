@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{
     exceptions::PyTypeError,
     ffi,
@@ -305,15 +307,52 @@ pub struct KeywordOnlyParameterDescription {
 
 /// Function argument specification for a `#[pyfunction]` or `#[pymethod]`.
 pub struct FunctionDescription {
-    pub cls_name: Option<&'static str>,
-    pub func_name: &'static str,
-    pub positional_parameter_names: &'static [&'static str],
-    pub positional_only_parameters: usize,
-    pub required_positional_parameters: usize,
-    pub keyword_only_parameters: &'static [KeywordOnlyParameterDescription],
+    cls_name: Option<&'static str>,
+    func_name: &'static str,
+    positional_parameter_names: &'static [&'static str],
+    positional_only_parameters: usize,
+    required_positional_parameters: usize,
+    keyword_only_parameters: &'static [KeywordOnlyParameterDescription],
+    /// Optimized lookup of keyword argument names to parameter indices.
+    argument_lookup_by_name: fn(&str) -> Option<usize>,
+    /// Whether any keywords are required, useful to avoid iterating if not needed.
+    has_required_keywords: bool,
 }
 
 impl FunctionDescription {
+    pub const fn new(
+        cls_name: Option<&'static str>,
+        func_name: &'static str,
+        positional_parameter_names: &'static [&'static str],
+        positional_only_parameters: usize,
+        required_positional_parameters: usize,
+        keyword_only_parameters: &'static [KeywordOnlyParameterDescription],
+        argument_lookup_by_name: fn(&str) -> Option<usize>,
+    ) -> Self {
+        let mut has_required_keywords = false;
+        let mut idx = 0;
+        loop {
+            if idx >= keyword_only_parameters.len() {
+                break;
+            }
+            if keyword_only_parameters[idx].required {
+                has_required_keywords = true;
+                break;
+            }
+            idx += 1;
+        }
+        Self {
+            cls_name,
+            func_name,
+            positional_parameter_names,
+            positional_only_parameters,
+            required_positional_parameters,
+            keyword_only_parameters,
+            argument_lookup_by_name,
+            has_required_keywords,
+        }
+    }
+
     fn full_name(&self) -> String {
         if let Some(cls_name) = self.cls_name {
             format!("{}.{}()", cls_name, self.func_name)
@@ -357,18 +396,17 @@ impl FunctionDescription {
         //  - we both have the GIL and can borrow these input references for the `'py` lifetime.
         let args: *const Option<PyArg<'py>> = args.cast();
         let positional_args_provided = nargs as usize;
-        let remaining_positional_args = if args.is_null() {
-            debug_assert_eq!(positional_args_provided, 0);
+        let remaining_positional_args = if args.is_null() || positional_args_provided == 0 {
+            debug_assert_eq!(nargs, 0); // in case args is null
             &[]
         } else {
             // Can consume at most the number of positional parameters in the function definition,
             // the rest are varargs.
             let positional_args_to_consume =
                 num_positional_parameters.min(positional_args_provided);
-            let (positional_parameters, remaining) = unsafe {
-                std::slice::from_raw_parts(args, positional_args_provided)
-                    .split_at(positional_args_to_consume)
-            };
+            let (positional_parameters, remaining) =
+                unsafe { std::slice::from_raw_parts(args, positional_args_provided) }
+                    .split_at(positional_args_to_consume);
             output[..positional_args_to_consume].copy_from_slice(positional_parameters);
             remaining
         };
@@ -499,8 +537,8 @@ impl FunctionDescription {
             output.len(),
             num_positional_parameters + self.keyword_only_parameters.len()
         );
-        let mut positional_only_keyword_arguments = Vec::new();
-        for (kwarg_name_py, value) in kwargs {
+        let mut kwargs = kwargs.into_iter();
+        while let Some((kwarg_name_py, value)) = kwargs.next() {
             // Safety: All keyword arguments should be UTF-8 strings, but if it's not, `.to_str()`
             // will return an error anyway.
             #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
@@ -509,32 +547,21 @@ impl FunctionDescription {
 
             #[cfg(all(not(Py_3_10), Py_LIMITED_API))]
             let kwarg_name = kwarg_name_py.extract::<crate::pybacked::PyBackedStr>();
+            #[cfg(all(not(Py_3_10), Py_LIMITED_API))]
+            let kwarg_name = kwarg_name.as_deref();
 
-            if let Ok(kwarg_name_owned) = kwarg_name {
-                #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
-                let kwarg_name = kwarg_name_owned;
-                #[cfg(all(not(Py_3_10), Py_LIMITED_API))]
-                let kwarg_name: &str = &kwarg_name_owned;
-
-                // Try to place parameter in keyword only parameters
-                if let Some(i) = self.find_keyword_parameter_in_keyword_only(kwarg_name) {
-                    if output[i + num_positional_parameters]
-                        .replace(value)
-                        .is_some()
-                    {
-                        return Err(self.multiple_values_for_argument(kwarg_name));
-                    }
-                    continue;
-                }
-
-                // Repeat for positional parameters
-                if let Some(i) = self.find_keyword_parameter_in_positional(kwarg_name) {
+            if let Ok(kwarg_name) = kwarg_name {
+                if let Some(i) = (self.argument_lookup_by_name)(kwarg_name) {
                     if i < self.positional_only_parameters {
                         // If accepting **kwargs, then it's allowed for the name of the
                         // kwarg to conflict with a postional-only argument - the value
                         // will go into **kwargs anyway.
                         if K::handle_varkeyword(varkeywords, kwarg_name_py, value, self).is_err() {
-                            positional_only_keyword_arguments.push(kwarg_name_owned);
+                            // otherwise, can bail out into an error pathway
+                            return Err(self.positional_only_keyword_arguments(
+                                kwarg_name,
+                                kwargs.map(|(k, _)| k),
+                            ));
                         }
                     } else if output[i].replace(value).is_some() {
                         return Err(self.multiple_values_for_argument(kwarg_name));
@@ -546,33 +573,7 @@ impl FunctionDescription {
             K::handle_varkeyword(varkeywords, kwarg_name_py, value, self)?
         }
 
-        if !positional_only_keyword_arguments.is_empty() {
-            #[cfg(all(not(Py_3_10), Py_LIMITED_API))]
-            let positional_only_keyword_arguments: Vec<_> = positional_only_keyword_arguments
-                .iter()
-                .map(std::ops::Deref::deref)
-                .collect();
-            return Err(self.positional_only_keyword_arguments(&positional_only_keyword_arguments));
-        }
-
         Ok(())
-    }
-
-    #[inline]
-    fn find_keyword_parameter_in_positional(&self, kwarg_name: &str) -> Option<usize> {
-        self.positional_parameter_names
-            .iter()
-            .position(|&param_name| param_name == kwarg_name)
-    }
-
-    #[inline]
-    fn find_keyword_parameter_in_keyword_only(&self, kwarg_name: &str) -> Option<usize> {
-        // Compare the keyword name against each parameter in turn. This is exactly the same method
-        // which CPython uses to map keyword names. Although it's O(num_parameters), the number of
-        // parameters is expected to be small so it's not worth constructing a mapping.
-        self.keyword_only_parameters
-            .iter()
-            .position(|param_desc| param_desc.name == kwarg_name)
     }
 
     #[inline]
@@ -596,6 +597,9 @@ impl FunctionDescription {
         &self,
         output: &[Option<PyArg<'_>>],
     ) -> PyResult<()> {
+        if !self.has_required_keywords {
+            return Ok(());
+        }
         let keyword_output = &output[self.positional_parameter_names.len()..];
         for (param, out) in self.keyword_only_parameters.iter().zip(keyword_output) {
             if param.required && out.is_none() {
@@ -648,12 +652,31 @@ impl FunctionDescription {
     }
 
     #[cold]
-    fn positional_only_keyword_arguments(&self, parameter_names: &[&str]) -> PyErr {
+    fn positional_only_keyword_arguments<'py>(
+        &self,
+        current_kwarg: &str,
+        remaining_kwargs: impl IntoIterator<Item = PyArg<'py>>,
+    ) -> PyErr {
+        let mut parameter_names = vec![Cow::Borrowed(current_kwarg)];
+        for kwarg_name_py in remaining_kwargs {
+            // Safety: All keyword arguments should be UTF-8 strings, but if it's not, `.to_cow()`
+            // will return an error anyway.
+            let kwarg_name =
+                unsafe { kwarg_name_py.cast_unchecked::<crate::types::PyString>() }.to_cow();
+
+            if let Ok(kwarg_name) = kwarg_name {
+                if (self.argument_lookup_by_name)(&*kwarg_name)
+                    .is_some_and(|i| i < self.positional_only_parameters)
+                {
+                    parameter_names.push(kwarg_name);
+                }
+            }
+        }
         let mut msg = format!(
             "{} got some positional-only arguments passed as keyword arguments: ",
             self.full_name()
         );
-        push_parameter_list(&mut msg, parameter_names);
+        push_parameter_list(&mut msg, &parameter_names);
         PyTypeError::new_err(msg)
     }
 
@@ -805,7 +828,7 @@ pub struct NoVarkeywords;
 
 impl<'py> VarkeywordsHandler<'py> for NoVarkeywords {
     type Varkeywords = ();
-    #[inline]
+    #[cold]
     fn handle_varkeyword(
         _varkeywords: &mut Self::Varkeywords,
         name: PyArg<'py>,
@@ -834,7 +857,7 @@ impl<'py> VarkeywordsHandler<'py> for DictVarkeywords {
     }
 }
 
-fn push_parameter_list(msg: &mut String, parameter_names: &[&str]) {
+fn push_parameter_list<S: AsRef<str>>(msg: &mut String, parameter_names: &[S]) {
     let len = parameter_names.len();
     for (i, parameter) in parameter_names.iter().enumerate() {
         if i != 0 {
@@ -850,7 +873,7 @@ fn push_parameter_list(msg: &mut String, parameter_names: &[&str]) {
         }
 
         msg.push('\'');
-        msg.push_str(parameter);
+        msg.push_str(parameter.as_ref());
         msg.push('\'');
     }
 }
@@ -871,6 +894,8 @@ mod tests {
             positional_only_parameters: 0,
             required_positional_parameters: 0,
             keyword_only_parameters: &[],
+            argument_lookup_by_name: |_: &str| None,
+            has_required_keywords: false,
         };
 
         Python::attach(|py| {
@@ -902,6 +927,8 @@ mod tests {
             positional_only_parameters: 0,
             required_positional_parameters: 0,
             keyword_only_parameters: &[],
+            argument_lookup_by_name: |_: &str| None,
+            has_required_keywords: false,
         };
 
         Python::attach(|py| {
@@ -933,6 +960,8 @@ mod tests {
             positional_only_parameters: 0,
             required_positional_parameters: 2,
             keyword_only_parameters: &[],
+            argument_lookup_by_name: |_: &str| None,
+            has_required_keywords: false,
         };
 
         Python::attach(|py| {
@@ -957,7 +986,7 @@ mod tests {
     #[test]
     fn push_parameter_list_empty() {
         let mut s = String::new();
-        push_parameter_list(&mut s, &[]);
+        push_parameter_list::<&str>(&mut s, &[]);
         assert_eq!(&s, "");
     }
 

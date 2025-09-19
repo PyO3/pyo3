@@ -108,6 +108,14 @@ pub fn impl_arg_params(
             }
         });
 
+    let parameter_names = positional_parameter_names.iter().chain(
+        spec.signature
+            .python_signature
+            .keyword_only_parameters
+            .iter()
+            .map(|(name, _)| name),
+    );
+
     let num_params = positional_parameter_names.len() + keyword_only_parameters.len();
 
     let mut option_pos = 0usize;
@@ -161,14 +169,20 @@ pub fn impl_arg_params(
     // create array of arguments, and then parse
     (
         quote! {
-                const DESCRIPTION: #pyo3_path::impl_::extract_argument::FunctionDescription = #pyo3_path::impl_::extract_argument::FunctionDescription {
-                    cls_name: #cls_name,
-                    func_name: stringify!(#python_name),
-                    positional_parameter_names: &[#(#positional_parameter_names),*],
-                    positional_only_parameters: #positional_only_parameters,
-                    required_positional_parameters: #required_positional_parameters,
-                    keyword_only_parameters: &[#(#keyword_only_parameters),*],
-                };
+                const PARAMETER_NAMES: &[&str] = &[#(#parameter_names),*];
+                fn argument_lookup_by_name(name: &str) -> Option<usize> {
+                    PARAMETER_NAMES.iter().position(|&n| n == name)
+                }
+
+                const DESCRIPTION: #pyo3_path::impl_::extract_argument::FunctionDescription = #pyo3_path::impl_::extract_argument::FunctionDescription::new(
+                    #cls_name,
+                    stringify!(#python_name),
+                    &[#(#positional_parameter_names),*],
+                    #positional_only_parameters,
+                    #required_positional_parameters,
+                    &[#(#keyword_only_parameters),*],
+                    argument_lookup_by_name,
+                );
                 let mut #args_array = [::std::option::Option::None; #num_params];
                 let (_args, _kwargs) = #extract_expression;
                 #from_py_with
