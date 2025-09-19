@@ -87,6 +87,7 @@ fn with_custom_type_annotations<'py>(
     a
 }
 
+#[allow(clippy::too_many_arguments)]
 #[pyfunction(
     signature = (
         *,
