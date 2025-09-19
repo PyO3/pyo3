@@ -275,6 +275,20 @@ impl PartialEq<Borrowed<'_, '_, PyBytes>> for &'_ [u8] {
     }
 }
 
+impl<'a> AsRef<[u8]> for Borrowed<'a, '_, PyBytes> {
+    #[inline]
+    fn as_ref(&self) -> &'a [u8] {
+        self.as_bytes()
+    }
+}
+
+impl AsRef<[u8]> for Bound<'_, PyBytes> {
+    #[inline]
+    fn as_ref(&self) -> &[u8] {
+        self.as_bytes()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -379,6 +393,19 @@ mod tests {
                     ffi::PyBytes_AS_STRING(py_bytes.as_ptr()) as *const std::ffi::c_char
                 );
             }
+        })
+    }
+
+    #[test]
+    fn test_as_ref_slice() {
+        Python::attach(|py| {
+            let b = b"hello, world";
+            let py_bytes = PyBytes::new(py, b);
+            let ref_bound: &[u8] = py_bytes.as_ref();
+            assert_eq!(ref_bound, b);
+            let py_bytes_borrowed = py_bytes.as_borrowed();
+            let ref_borrowed: &[u8] = py_bytes_borrowed.as_ref();
+            assert_eq!(ref_borrowed, b);
         })
     }
 }
