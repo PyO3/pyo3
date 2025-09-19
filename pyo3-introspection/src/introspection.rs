@@ -2,6 +2,7 @@ use crate::model::{
     Argument, Arguments, Attribute, Class, Function, Module, VariableLengthArgument,
 };
 use anyhow::{bail, ensure, Context, Result};
+use goblin::elf::section_header::SHN_XINDEX;
 use goblin::elf::Elf;
 use goblin::mach::load_command::CommandVariant;
 use goblin::mach::symbols::{NO_SECT, N_SECT};
@@ -268,6 +269,7 @@ fn find_introspection_chunks_in_elf(elf: &Elf<'_>, library_content: &[u8]) -> Re
     let mut chunks = Vec::new();
     for sym in &elf.syms {
         if is_introspection_symbol(elf.strtab.get_at(sym.st_name).unwrap_or_default()) {
+            ensure!(u32::try_from(sym.st_shndx)? != SHN_XINDEX, "Section names length is greater than SHN_LORESERVE in ELF, this is not supported by PyO3 yet");
             let section_header = &elf.section_headers[sym.st_shndx];
             let data_offset = sym.st_value + section_header.sh_offset - section_header.sh_addr;
             chunks.push(read_symbol_value_with_ptr_and_len(
