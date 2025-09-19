@@ -10,10 +10,11 @@ use goblin::mach::{Mach, MachO, SingleArch};
 use goblin::pe::PE;
 use goblin::Object;
 use serde::Deserialize;
+use serde_json::Deserializer;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::fs;
 use std::path::Path;
+use std::{fs, str};
 
 /// Introspect a cdylib built with PyO3 and returns the definition of a Python module.
 ///
@@ -272,11 +273,8 @@ fn find_introspection_chunks_in_elf(elf: &Elf<'_>, library_content: &[u8]) -> Re
             ensure!(u32::try_from(sym.st_shndx)? != SHN_XINDEX, "Section names length is greater than SHN_LORESERVE in ELF, this is not supported by PyO3 yet");
             let section_header = &elf.section_headers[sym.st_shndx];
             let data_offset = sym.st_value + section_header.sh_offset - section_header.sh_addr;
-            chunks.push(read_symbol_value_with_ptr_and_len(
+            chunks.push(deserialize_prefix(
                 &library_content[usize::try_from(data_offset).context("File offset overflow")?..],
-                0,
-                library_content,
-                elf.is_64,
             )?);
         }
     }
@@ -313,11 +311,8 @@ fn find_introspection_chunks_in_macho(
         {
             let section = &sections[nlist.n_sect - 1]; // Sections are counted from 1
             let data_offset = nlist.n_value + u64::from(section.offset) - section.addr;
-            chunks.push(read_symbol_value_with_ptr_and_len(
+            chunks.push(deserialize_prefix(
                 &library_content[usize::try_from(data_offset).context("File offset overflow")?..],
-                0,
-                library_content,
-                macho.is_64,
             )?);
         }
     }
@@ -325,73 +320,31 @@ fn find_introspection_chunks_in_macho(
 }
 
 fn find_introspection_chunks_in_pe(pe: &PE<'_>, library_content: &[u8]) -> Result<Vec<Chunk>> {
-    let rdata_data_section = pe
-        .sections
-        .iter()
-        .find(|section| section.name().unwrap_or_default() == ".rdata")
-        .context("No .rdata section found")?;
-    let rdata_shift = usize::try_from(pe.image_base).context("image_base overflow")?
-        + usize::try_from(rdata_data_section.virtual_address)
-            .context(".rdata virtual_address overflow")?
-        - usize::try_from(rdata_data_section.pointer_to_raw_data)
-            .context(".rdata pointer_to_raw_data overflow")?;
-
     let mut chunks = Vec::new();
     for export in &pe.exports {
         if is_introspection_symbol(export.name.unwrap_or_default()) {
-            chunks.push(read_symbol_value_with_ptr_and_len(
+            chunks.push(deserialize_prefix(
                 &library_content[export.offset.context("No symbol offset")?..],
-                rdata_shift,
-                library_content,
-                pe.is_64,
             )?);
         }
     }
     Ok(chunks)
 }
 
-fn read_symbol_value_with_ptr_and_len(
-    value_slice: &[u8],
-    shift: usize,
-    full_library_content: &[u8],
-    is_64: bool,
-) -> Result<Chunk> {
-    let (ptr, len) = if is_64 {
-        let (ptr, len) = value_slice[..16].split_at(8);
-        let ptr = usize::try_from(u64::from_le_bytes(
-            ptr.try_into().context("Too short symbol value")?,
-        ))
-        .context("Pointer overflow")?;
-        let len = usize::try_from(u64::from_le_bytes(
-            len.try_into().context("Too short symbol value")?,
-        ))
-        .context("Length overflow")?;
-        (ptr, len)
-    } else {
-        let (ptr, len) = value_slice[..8].split_at(4);
-        let ptr = usize::try_from(u32::from_le_bytes(
-            ptr.try_into().context("Too short symbol value")?,
-        ))
-        .context("Pointer overflow")?;
-        let len = usize::try_from(u32::from_le_bytes(
-            len.try_into().context("Too short symbol value")?,
-        ))
-        .context("Length overflow")?;
-        (ptr, len)
-    };
-    let chunk = &full_library_content[ptr - shift..ptr - shift + len];
-    serde_json::from_slice(chunk).with_context(|| {
-        format!(
-            "Failed to parse introspection chunk: '{}'",
-            String::from_utf8_lossy(chunk)
-        )
+fn deserialize_prefix(chunk: &[u8]) -> Result<Chunk> {
+    Chunk::deserialize(&mut Deserializer::from_slice(chunk)).with_context(|| {
+        // We take the first valid utf8 bytes, it's quite likely to be the actual chunk
+        // We use a 4096 upper bound for security
+        let chunk = str::from_utf8(&chunk[..4096])
+            .unwrap_or_else(|e| str::from_utf8(&chunk[..e.valid_up_to()]).unwrap_or_default());
+        format!("Failed to parse introspection chunk: '{chunk}'")
     })
 }
 
 fn is_introspection_symbol(name: &str) -> bool {
     name.strip_prefix('_')
         .unwrap_or(name)
-        .starts_with("PYO3_INTROSPECTION_0_")
+        .starts_with("PYO3_INTROSPECTION_1_")
 }
 
 #[derive(Deserialize)]
