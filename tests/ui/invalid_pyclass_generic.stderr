@@ -12,7 +12,7 @@ error[E0592]: duplicate definitions with name `__pymethod___class_getitem____`
 error[E0592]: duplicate definitions with name `__class_getitem__`
   --> tests/ui/invalid_pyclass_generic.rs:4:1
    |
-4  |   #[pyclass(generic)]
+ 4 |   #[pyclass(generic)]
    |   ^^^^^^^^^^^^^^^^^^^ duplicate definitions for `__class_getitem__`
 ...
 15 | /     pub fn __class_getitem__(
@@ -44,13 +44,13 @@ note: candidate #2 is defined in an impl for the type `ClassRedefinesClassGetIte
 error[E0034]: multiple applicable items in scope
   --> tests/ui/invalid_pyclass_generic.rs:4:1
    |
-4  | #[pyclass(generic)]
+ 4 | #[pyclass(generic)]
    | ^^^^^^^^^^^^^^^^^^^ multiple `__class_getitem__` found
    |
 note: candidate #1 is defined in an impl for the type `ClassRedefinesClassGetItem`
   --> tests/ui/invalid_pyclass_generic.rs:4:1
    |
-4  | #[pyclass(generic)]
+ 4 | #[pyclass(generic)]
    | ^^^^^^^^^^^^^^^^^^^
 note: candidate #2 is defined in an impl for the type `ClassRedefinesClassGetItem`
   --> tests/ui/invalid_pyclass_generic.rs:15:5
@@ -70,8 +70,6 @@ error[E0034]: multiple applicable items in scope
   |
   = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
   = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
-  = note: candidate #3 is defined in an impl for the type `UnknownReturnResultType<Result<T, E>>`
-  = note: candidate #4 is defined in an impl for the type `UnknownReturnType<T>`
   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0308]: mismatched types
@@ -94,12 +92,12 @@ error[E0034]: multiple applicable items in scope
 note: candidate #1 is defined in an impl for the type `ClassRedefinesClassGetItem`
   --> tests/ui/invalid_pyclass_generic.rs:4:1
    |
-4  | #[pyclass(generic)]
+ 4 | #[pyclass(generic)]
    | ^^^^^^^^^^^^^^^^^^^
 note: candidate #2 is defined in an impl for the type `ClassRedefinesClassGetItem`
   --> tests/ui/invalid_pyclass_generic.rs:7:1
    |
-7  | #[pymethods]
+ 7 | #[pymethods]
    | ^^^^^^^^^^^^
    = note: this error originates in the attribute macro `pyclass` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
@@ -112,7 +110,7 @@ error[E0034]: multiple applicable items in scope
 note: candidate #1 is defined in an impl for the type `ClassRedefinesClassGetItem`
   --> tests/ui/invalid_pyclass_generic.rs:4:1
    |
-4  | #[pyclass(generic)]
+ 4 | #[pyclass(generic)]
    | ^^^^^^^^^^^^^^^^^^^
 note: candidate #2 is defined in an impl for the type `ClassRedefinesClassGetItem`
   --> tests/ui/invalid_pyclass_generic.rs:15:5
@@ -132,5 +130,3 @@ error[E0034]: multiple applicable items in scope
    |
    = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
    = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
-   = note: candidate #3 is defined in an impl for the type `UnknownReturnResultType<Result<T, E>>`
-   = note: candidate #4 is defined in an impl for the type `UnknownReturnType<T>`
