@@ -34,7 +34,7 @@ PYTHONLIBDIR=$(BUILDROOT)/install/Python-$(PYVERSION)/lib
 
 all: $(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a
 
-$(BUILDROOT)/.exists: 
+$(BUILDROOT)/.exists:
 	mkdir -p $(BUILDROOT)
 	touch $@
 
@@ -66,14 +66,14 @@ $(PYTHONBUILD)/Makefile: $(PYTHONBUILD)/.patched $(BUILDROOT)/emsdk
 		--build=$(shell $(PYTHONBUILD)/config.guess) \
 		--with-emscripten-target=browser \
 		--enable-wasm-dynamic-linking \
-		--with-build-python=python3.11
+		--with-build-python=python$(PYMAJORMINOR)
 
 $(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a : $(PYTHONBUILD)/Makefile
 	cd $(PYTHONBUILD) && \
 		emmake make -j3 libpython$(PYMAJORMINOR).a
 
 	# Generate sysconfigdata
-	_PYTHON_SYSCONFIGDATA_NAME=$(SYSCONFIGDATA_NAME) _PYTHON_PROJECT_BASE=$(PYTHONBUILD) python3.11 -m sysconfig --generate-posix-vars
+	_PYTHON_SYSCONFIGDATA_NAME=$(SYSCONFIGDATA_NAME) _PYTHON_PROJECT_BASE=$(PYTHONBUILD) python$(PYMAJORMINOR) -m sysconfig --generate-posix-vars
 	cp `cat pybuilddir.txt`/$(SYSCONFIGDATA_NAME).py $(PYTHONBUILD)/Lib
 
 	mkdir -p $(PYTHONLIBDIR)
