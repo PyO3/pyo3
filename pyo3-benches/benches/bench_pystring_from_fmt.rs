@@ -5,8 +5,7 @@ use std::hint::black_box;
 fn format_simple(b: &mut Bencher<'_>) {
     Python::attach(|py| {
         b.iter(|| {
-            let result = py_format!(py, "Hello {}!", "world");
-            assert!(result.is_ok());
+            py_format!(py, "Hello {}!", "world").unwrap()
         });
     });
 }
@@ -15,8 +14,7 @@ fn format_complex(b: &mut Bencher<'_>) {
     Python::attach(|py| {
         b.iter(|| {
             let value = (black_box(42), black_box("foo"), [0; 0]);
-            let result = py_format!(py, "This is some complex value: {value:?}");
-            assert!(result.is_ok());
+            py_format!(py, "This is some complex value: {value:?}").unwrap()
         });
     });
 }
