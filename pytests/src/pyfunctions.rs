@@ -87,11 +87,57 @@ fn with_custom_type_annotations<'py>(
     a
 }
 
+#[allow(clippy::too_many_arguments)]
+#[pyfunction(
+    signature = (
+        *,
+        ant = None,
+        bear = None,
+        cat = None,
+        dog = None,
+        elephant = None,
+        fox = None,
+        goat = None,
+        horse = None,
+        iguana = None,
+        jaguar = None,
+        koala = None,
+        lion = None,
+        monkey = None,
+        newt = None,
+        owl = None,
+        penguin = None
+    )
+)]
+fn many_keyword_arguments<'py>(
+    ant: Option<&'_ Bound<'py, PyAny>>,
+    bear: Option<&'_ Bound<'py, PyAny>>,
+    cat: Option<&'_ Bound<'py, PyAny>>,
+    dog: Option<&'_ Bound<'py, PyAny>>,
+    elephant: Option<&'_ Bound<'py, PyAny>>,
+    fox: Option<&'_ Bound<'py, PyAny>>,
+    goat: Option<&'_ Bound<'py, PyAny>>,
+    horse: Option<&'_ Bound<'py, PyAny>>,
+    iguana: Option<&'_ Bound<'py, PyAny>>,
+    jaguar: Option<&'_ Bound<'py, PyAny>>,
+    koala: Option<&'_ Bound<'py, PyAny>>,
+    lion: Option<&'_ Bound<'py, PyAny>>,
+    monkey: Option<&'_ Bound<'py, PyAny>>,
+    newt: Option<&'_ Bound<'py, PyAny>>,
+    owl: Option<&'_ Bound<'py, PyAny>>,
+    penguin: Option<&'_ Bound<'py, PyAny>>,
+) {
+    std::hint::black_box((
+        ant, bear, cat, dog, elephant, fox, goat, horse, iguana, jaguar, koala, lion, monkey, newt,
+        owl, penguin,
+    ));
+}
+
 #[pymodule]
 pub mod pyfunctions {
     #[pymodule_export]
     use super::{
-        args_kwargs, none, positional_only, simple, simple_args, simple_args_kwargs, simple_kwargs,
-        with_custom_type_annotations, with_typed_args,
+        args_kwargs, many_keyword_arguments, none, positional_only, simple, simple_args,
+        simple_args_kwargs, simple_kwargs, with_custom_type_annotations, with_typed_args,
     };
 }
