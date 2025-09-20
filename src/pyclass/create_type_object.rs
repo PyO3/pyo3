@@ -195,7 +195,7 @@ impl PyTypeBuilder {
                 .add_setter(setter),
             PyMethodDefType::Method(def)
             | PyMethodDefType::Class(def)
-            | PyMethodDefType::Static(def) => self.method_defs.push(def.as_method_def()),
+            | PyMethodDefType::Static(def) => self.method_defs.push(def.into_raw()),
             // These class attributes are added after the type gets created by LazyStaticType
             PyMethodDefType::ClassAttribute(_) => {}
             PyMethodDefType::StructMember(def) => self.member_defs.push(*def),

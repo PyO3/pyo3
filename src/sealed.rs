@@ -1,3 +1,4 @@
+use crate::impl_::pyfunction::PyFunctionDef;
 use crate::types::{
     PyBool, PyByteArray, PyBytes, PyCapsule, PyComplex, PyDict, PyFloat, PyFrozenSet, PyList,
     PyMapping, PyMappingProxy, PyModule, PyRange, PySequence, PySet, PySlice, PyString,
@@ -50,6 +51,7 @@ impl Sealed for Bound<'_, PyWeakrefReference> {}
 impl<T> Sealed for AddTypeToModule<T> {}
 impl<T> Sealed for AddClassToModule<T> {}
 impl Sealed for PyMethodDef {}
+impl Sealed for PyFunctionDef {}
 impl Sealed for ModuleDef {}
 
 impl<T: crate::type_object::PyTypeInfo> Sealed for PyNativeTypeInitializer<T> {}
