@@ -3,6 +3,12 @@
     feature = "nightly",
     feature(auto_traits, negative_impls, try_trait_v2, iter_advance_by)
 )]
+// wasip2 conditionally gates stdlib APIs.
+// https://github.com/rust-lang/rust/issues/130323
+#![cfg_attr(
+    all(feature = "nightly", target_os = "wasi", target_env = "p2"),
+    feature(wasip2)
+)]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![warn(unsafe_op_in_unsafe_fn)]
 // Deny some lints in doctests.
