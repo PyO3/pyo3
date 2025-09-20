@@ -32,7 +32,7 @@ const ATTACH_FORBIDDEN_DURING_TRAVERSE: isize = -1;
 ///  2) PyGILState_Check always returns 1 if the sub-interpreter APIs have ever been called,
 ///     which could lead to incorrect conclusions that the thread is attached.
 #[inline(always)]
-fn thread_is_attached() -> bool {
+pub(crate) fn thread_is_attached() -> bool {
     ATTACH_COUNT.try_with(|c| c.get() > 0).unwrap_or(false)
 }
 
@@ -298,21 +298,6 @@ impl Drop for ForbidAttaching {
     }
 }
 
-/// Increments the reference count of a Python object if the thread is attached. If
-/// the thread is not attached, this function will panic.
-///
-/// # Safety
-/// The object must be an owned Python reference.
-#[cfg(feature = "py-clone")]
-#[track_caller]
-pub unsafe fn register_incref(obj: NonNull<ffi::PyObject>) {
-    if thread_is_attached() {
-        unsafe { ffi::Py_INCREF(obj.as_ptr()) }
-    } else {
-        panic!("Cannot clone pointer into Python heap without the thread being attached.");
-    }
-}
-
 /// Registers a Python object pointer inside the release pool, to have its reference count decreased
 /// the next time the thread is attached in pyo3.
 ///
@@ -320,22 +305,21 @@ pub unsafe fn register_incref(obj: NonNull<ffi::PyObject>) {
 /// for later.
 ///
 /// # Safety
-/// The object must be an owned Python reference.
-#[track_caller]
+/// - The object must be an owned Python reference.
+/// - The reference must not be used after calling this function.
+#[inline]
 pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
-    if thread_is_attached() {
-        unsafe { ffi::Py_DECREF(obj.as_ptr()) }
-    } else {
-        #[cfg(not(pyo3_disable_reference_pool))]
+    #[cfg(not(pyo3_disable_reference_pool))]
+    {
         get_pool().register_decref(obj);
-        #[cfg(all(
-            pyo3_disable_reference_pool,
-            not(pyo3_leak_on_drop_without_reference_pool)
-        ))]
-        {
-            let _trap = PanicTrap::new("Aborting the process to avoid panic-from-drop.");
-            panic!("Cannot drop pointer into Python heap without the thread being attached.");
-        }
+    }
+    #[cfg(all(
+        pyo3_disable_reference_pool,
+        not(pyo3_leak_on_drop_without_reference_pool)
+    ))]
+    {
+        let _trap = PanicTrap::new("Aborting the process to avoid panic-from-drop.");
+        panic!("Cannot drop pointer into Python heap without the thread being attached.");
     }
 }
 
