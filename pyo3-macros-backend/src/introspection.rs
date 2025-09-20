@@ -353,17 +353,10 @@ impl IntrospectionNode<'_> {
     fn emit(self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
         let mut content = ConcatenationBuilder::default();
         self.add_to_serialization(&mut content, pyo3_crate_path);
-        let content = content.into_token_stream(pyo3_crate_path);
-
-        let static_name = format_ident!("PYO3_INTROSPECTION_0_{}", unique_element_id());
-        // #[no_mangle] is required to make sure some linkers like Linux ones do not mangle the section name too.
-        quote! {
-            const _: () = {
-                #[used]
-                #[no_mangle]
-                static #static_name: &'static [u8] = #content;
-            };
-        }
+        content.into_static(
+            pyo3_crate_path,
+            format_ident!("PYO3_INTROSPECTION_1_{}", unique_element_id()),
+        )
     }
 
     fn add_to_serialization(
@@ -528,6 +521,27 @@ impl ConcatenationBuilder {
                     #pyo3_crate_path::impl_::concat::combined_len(PIECES)
                 }>(PIECES)
             }
+        }
+    }
+
+    fn into_static(self, pyo3_crate_path: &PyO3CratePath, ident: Ident) -> TokenStream {
+        let mut elements = self.elements;
+        if !self.current_string.is_empty() {
+            elements.push(ConcatenationBuilderElement::String(self.current_string));
+        }
+
+        // #[no_mangle] is required to make sure some linkers like Linux ones do not mangle the section name too.
+        quote! {
+            const _: () = {
+                const PIECES: &[&[u8]] = &[#(#elements , )*];
+                const PIECES_LEN: usize = #pyo3_crate_path::impl_::concat::combined_len(PIECES);
+                #[used]
+                #[no_mangle]
+                static #ident: #pyo3_crate_path::impl_::introspection::SerializedIntrospectionFragment<PIECES_LEN> = #pyo3_crate_path::impl_::introspection::SerializedIntrospectionFragment {
+                    length: PIECES_LEN as u32,
+                    fragment: #pyo3_crate_path::impl_::concat::combine_to_array::<PIECES_LEN>(PIECES)
+                };
+            };
         }
     }
 }
