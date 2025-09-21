@@ -732,12 +732,15 @@ mod tests {
         use crate::{ffi, Python};
 
         Python::attach(|py| {
-            static DEF: PyFunctionDef =
+            let def =
                 PyFunctionDef::from_method_def(PyMethodDef::fastcall_cfunction_with_keywords(
                     ffi::c_str!("test"),
                     accepts_no_arguments,
                     ffi::c_str!("doc"),
                 ));
+            // leak to make it 'static
+            // deliberately done at runtime to have coverage of `PyFunctionDef::from_method_def`
+            let def = Box::leak(Box::new(def));
 
             unsafe extern "C" fn accepts_no_arguments(
                 _slf: *mut ffi::PyObject,
@@ -750,7 +753,7 @@ mod tests {
                 unsafe { Python::assume_attached().None().into_ptr() }
             }
 
-            let f = DEF.create_py_c_function(py, None).unwrap();
+            let f = def.create_py_c_function(py, None).unwrap();
 
             f.call0().unwrap();
         });

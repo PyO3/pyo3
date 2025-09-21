@@ -116,3 +116,37 @@ pub unsafe fn create_py_c_function<'py>(
             .cast_into_unchecked()
     }
 }
+
+#[cfg(test)]
+#[cfg(feature = "macros")]
+mod tests {
+    #[test]
+    fn test_wrap_pyfunction_forms() {
+        use crate::types::{PyAnyMethods, PyModule};
+        use crate::{wrap_pyfunction, Python};
+
+        #[crate::pyfunction(crate = "crate")]
+        fn f() {}
+
+        Python::attach(|py| {
+            let module = PyModule::new(py, "test_wrap_pyfunction_forms").unwrap();
+
+            let func = wrap_pyfunction!(f, module.clone()).unwrap();
+            func.call0().unwrap();
+
+            let func = wrap_pyfunction!(f, &module).unwrap();
+            func.call0().unwrap();
+
+            let module_borrowed = module.as_borrowed();
+
+            let func = wrap_pyfunction!(f, module_borrowed).unwrap();
+            func.call0().unwrap();
+
+            let func = wrap_pyfunction!(f, &module_borrowed).unwrap();
+            func.call0().unwrap();
+
+            let func = wrap_pyfunction!(f, py).unwrap();
+            func.call0().unwrap();
+        });
+    }
+}
