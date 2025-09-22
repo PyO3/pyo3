@@ -9,6 +9,8 @@ use crate::{
     Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyClassGuard, PyErr, PyRef, PyRefMut, Python,
 };
 use std::convert::Infallible;
+#[cfg(return_position_impl_trait_in_traits)]
+use std::marker::PhantomData;
 
 /// Defines a conversion from a Rust type to a Python object, which may fail.
 ///
@@ -408,7 +410,69 @@ pub trait FromPyObject<'a, 'py>: Sized {
     fn type_input() -> TypeInfo {
         TypeInfo::Any
     }
+
+    /// Specialization hook for extracting sequences for types like `Vec<u8>` and `[u8; N]`,
+    /// where the bytes can be directly copied from some python objects without going through
+    /// iteration.
+    #[doc(hidden)]
+    #[inline(always)]
+    #[cfg(return_position_impl_trait_in_traits)]
+    fn sequence_extractor(
+        _obj: Borrowed<'_, 'py, PyAny>,
+        _: private::Token,
+    ) -> Option<impl FromPyObjectSequence<Target = Self>> {
+        struct NeverASequence<T>(PhantomData<T>);
+
+        impl<T> FromPyObjectSequence for NeverASequence<T> {
+            type Target = T;
+
+            fn to_vec(&self) -> Vec<Self::Target> {
+                unreachable!()
+            }
+
+            fn to_array<const N: usize>(&self) -> PyResult<[Self::Target; N]> {
+                unreachable!()
+            }
+        }
+
+        Option::<NeverASequence<Self>>::None
+    }
+
+    /// Equivalent to the above for MSRV < 1.75, which pays an additional allocation cost.
+    #[doc(hidden)]
+    #[inline(always)]
+    #[cfg(not(return_position_impl_trait_in_traits))]
+    fn sequence_extractor<'b>(
+        _obj: Borrowed<'b, 'b, PyAny>,
+        _: private::Token,
+    ) -> Option<Box<dyn FromPyObjectSequence<Target = Self> + 'b>> {
+        None
+    }
 }
+
+mod from_py_object_sequence {
+    use crate::PyResult;
+
+    /// Private trait for implementing specialized sequence extraction for `Vec<u8>` and `[u8; N]`
+    #[doc(hidden)]
+    pub trait FromPyObjectSequence {
+        type Target;
+
+        fn to_vec(&self) -> Vec<Self::Target>;
+
+        #[cfg(return_position_impl_trait_in_traits)]
+        fn to_array<const N: usize>(&self) -> PyResult<[Self::Target; N]>;
+
+        /// Fills an uninit slice with values from the object.
+        ///
+        /// on success, `out` is fully initialized, on failure, `out` should be considered uninitialized.
+        #[cfg(not(return_position_impl_trait_in_traits))]
+        fn fill_slice(&self, out: &mut [std::mem::MaybeUninit<Self::Target>]) -> PyResult<()>;
+    }
+}
+
+// Only reachable / implementable inside PyO3 itself.
+pub(crate) use from_py_object_sequence::FromPyObjectSequence;
 
 /// A data structure that can be extracted without borrowing any data from the input.
 ///

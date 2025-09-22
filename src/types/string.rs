@@ -168,6 +168,20 @@ impl PyString {
         }
     }
 
+    /// Creates a new Python string object from bytes.
+    ///
+    /// Returns PyMemoryError if out of memory.
+    /// Returns [PyUnicodeDecodeError] if the slice is not a valid UTF-8 string.
+    pub fn from_bytes<'py>(py: Python<'py>, s: &[u8]) -> PyResult<Bound<'py, PyString>> {
+        let ptr = s.as_ptr().cast();
+        let len = s.len() as ffi::Py_ssize_t;
+        unsafe {
+            ffi::PyUnicode_FromStringAndSize(ptr, len)
+                .assume_owned_or_err(py)
+                .cast_into_unchecked()
+        }
+    }
+
     /// Intern the given string
     ///
     /// This will return a reference to the same Python string object if called repeatedly with the same string.
@@ -825,6 +839,20 @@ mod tests {
                 .to_string()
                 .contains("'utf-32' codec can't decode bytes in position 0-7"));
             assert_eq!(data.to_string_lossy(), Cow::Owned::<str>("𠀀�".into()));
+        });
+    }
+
+    #[test]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+    fn test_pystring_from_bytes() {
+        Python::attach(|py| {
+            let result = PyString::from_bytes(py, "\u{2122}".as_bytes());
+            assert!(result.is_ok());
+            let result = PyString::from_bytes(py, b"\x80");
+            assert!(result
+                .unwrap_err()
+                .get_type(py)
+                .is(py.get_type::<PyUnicodeDecodeError>()));
         });
     }
 

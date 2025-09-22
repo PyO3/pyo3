@@ -248,6 +248,7 @@ mod tests {
 
         mod python_class {
             use super::*;
+            #[cfg(Py_3_10)]
             use crate::types::PyInt;
             use crate::{ffi, PyTypeCheck};
             use crate::{py_result_ext::PyResultExt, types::PyDict, types::PyType};

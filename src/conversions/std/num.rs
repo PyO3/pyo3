@@ -1,16 +1,19 @@
 use crate::conversion::private::Reference;
-use crate::conversion::IntoPyObject;
+use crate::conversion::{FromPyObjectSequence, IntoPyObject};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
-use crate::types::{PyBytes, PyInt};
+use crate::types::{PyByteArray, PyByteArrayMethods, PyBytes, PyInt};
 use crate::{exceptions, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
 use std::convert::Infallible;
 use std::ffi::c_long;
+use std::mem::MaybeUninit;
 use std::num::{
     NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize, NonZeroU128,
     NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
 };
+
+use super::array::invalid_sequence_length;
 
 macro_rules! int_fits_larger_int {
     ($rust_type:ty, $larger_type:ty) => {
@@ -291,6 +294,95 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
     #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         Self::type_output()
+    }
+
+    #[cfg(return_position_impl_trait_in_traits)]
+    #[inline]
+    fn sequence_extractor(
+        obj: Borrowed<'_, 'py, PyAny>,
+        _: crate::conversion::private::Token,
+    ) -> Option<impl FromPyObjectSequence<Target = u8>> {
+        if let Ok(bytes) = obj.cast::<PyBytes>() {
+            Some(BytesSequenceExtractor::Bytes(bytes))
+        } else if let Ok(byte_array) = obj.cast::<PyByteArray>() {
+            Some(BytesSequenceExtractor::ByteArray(byte_array))
+        } else {
+            None
+        }
+    }
+
+    #[cfg(not(return_position_impl_trait_in_traits))]
+    #[inline]
+    fn sequence_extractor<'b>(
+        obj: Borrowed<'b, 'b, PyAny>,
+        _: crate::conversion::private::Token,
+    ) -> Option<Box<dyn FromPyObjectSequence<Target = u8> + 'b>> {
+        if let Ok(bytes) = obj.cast::<PyBytes>() {
+            Some(Box::new(BytesSequenceExtractor::Bytes(bytes)))
+        } else if let Ok(byte_array) = obj.cast::<PyByteArray>() {
+            Some(Box::new(BytesSequenceExtractor::ByteArray(byte_array)))
+        } else {
+            None
+        }
+    }
+}
+
+pub(crate) enum BytesSequenceExtractor<'a, 'py> {
+    Bytes(Borrowed<'a, 'py, PyBytes>),
+    ByteArray(Borrowed<'a, 'py, PyByteArray>),
+}
+
+impl BytesSequenceExtractor<'_, '_> {
+    fn fill_slice(&self, out: &mut [MaybeUninit<u8>]) -> PyResult<()> {
+        let mut copy_slice = |slice: &[u8]| {
+            if slice.len() != out.len() {
+                return Err(invalid_sequence_length(out.len(), slice.len()));
+            }
+            // Safety: `slice` and `out` are guaranteed not to overlap due to `&mut` reference on `out`.
+            unsafe {
+                std::ptr::copy_nonoverlapping(slice.as_ptr(), out.as_mut_ptr().cast(), out.len())
+            };
+            Ok(())
+        };
+
+        match self {
+            BytesSequenceExtractor::Bytes(b) => copy_slice(b.as_bytes()),
+            BytesSequenceExtractor::ByteArray(b) => crate::sync::with_critical_section(b, || {
+                // Safety: b is protected by a critical section
+                copy_slice(unsafe { b.as_bytes() })
+            }),
+        }
+    }
+}
+
+impl FromPyObjectSequence for BytesSequenceExtractor<'_, '_> {
+    type Target = u8;
+
+    fn to_vec(&self) -> Vec<Self::Target> {
+        match self {
+            BytesSequenceExtractor::Bytes(b) => b.as_bytes().to_vec(),
+            BytesSequenceExtractor::ByteArray(b) => b.to_vec(),
+        }
+    }
+
+    #[cfg(return_position_impl_trait_in_traits)]
+    fn to_array<const N: usize>(&self) -> PyResult<[u8; N]> {
+        let mut out: MaybeUninit<[u8; N]> = MaybeUninit::uninit();
+
+        // Safety: `[u8; N]` has the same layout as `[MaybeUninit<u8>; N]`
+        let slice = unsafe {
+            std::slice::from_raw_parts_mut(out.as_mut_ptr().cast::<MaybeUninit<u8>>(), N)
+        };
+
+        self.fill_slice(slice)?;
+
+        // Safety: `out` is fully initialized
+        Ok(unsafe { out.assume_init() })
+    }
+
+    #[cfg(not(return_position_impl_trait_in_traits))]
+    fn fill_slice(&self, out: &mut [MaybeUninit<Self::Target>]) -> PyResult<()> {
+        self.fill_slice(out)
     }
 }
 

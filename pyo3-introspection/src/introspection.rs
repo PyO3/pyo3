@@ -1,7 +1,8 @@
 use crate::model::{
     Argument, Arguments, Attribute, Class, Function, Module, VariableLengthArgument,
 };
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
+use goblin::elf::section_header::SHN_XINDEX;
 use goblin::elf::Elf;
 use goblin::mach::load_command::CommandVariant;
 use goblin::mach::symbols::{NO_SECT, N_SECT};
@@ -11,8 +12,8 @@ use goblin::Object;
 use serde::Deserialize;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::fs;
 use std::path::Path;
+use std::{fs, str};
 
 /// Introspect a cdylib built with PyO3 and returns the definition of a Python module.
 ///
@@ -268,13 +269,12 @@ fn find_introspection_chunks_in_elf(elf: &Elf<'_>, library_content: &[u8]) -> Re
     let mut chunks = Vec::new();
     for sym in &elf.syms {
         if is_introspection_symbol(elf.strtab.get_at(sym.st_name).unwrap_or_default()) {
+            ensure!(u32::try_from(sym.st_shndx)? != SHN_XINDEX, "Section names length is greater than SHN_LORESERVE in ELF, this is not supported by PyO3 yet");
             let section_header = &elf.section_headers[sym.st_shndx];
             let data_offset = sym.st_value + section_header.sh_offset - section_header.sh_addr;
-            chunks.push(read_symbol_value_with_ptr_and_len(
+            chunks.push(deserialize_chunk(
                 &library_content[usize::try_from(data_offset).context("File offset overflow")?..],
-                0,
-                library_content,
-                elf.is_64,
+                elf.little_endian,
             )?);
         }
     }
@@ -311,11 +311,9 @@ fn find_introspection_chunks_in_macho(
         {
             let section = &sections[nlist.n_sect - 1]; // Sections are counted from 1
             let data_offset = nlist.n_value + u64::from(section.offset) - section.addr;
-            chunks.push(read_symbol_value_with_ptr_and_len(
+            chunks.push(deserialize_chunk(
                 &library_content[usize::try_from(data_offset).context("File offset overflow")?..],
-                0,
-                library_content,
-                macho.is_64,
+                macho.little_endian,
             )?);
         }
     }
@@ -323,61 +321,37 @@ fn find_introspection_chunks_in_macho(
 }
 
 fn find_introspection_chunks_in_pe(pe: &PE<'_>, library_content: &[u8]) -> Result<Vec<Chunk>> {
-    let rdata_data_section = pe
-        .sections
-        .iter()
-        .find(|section| section.name().unwrap_or_default() == ".rdata")
-        .context("No .rdata section found")?;
-    let rdata_shift = usize::try_from(pe.image_base).context("image_base overflow")?
-        + usize::try_from(rdata_data_section.virtual_address)
-            .context(".rdata virtual_address overflow")?
-        - usize::try_from(rdata_data_section.pointer_to_raw_data)
-            .context(".rdata pointer_to_raw_data overflow")?;
-
     let mut chunks = Vec::new();
     for export in &pe.exports {
         if is_introspection_symbol(export.name.unwrap_or_default()) {
-            chunks.push(read_symbol_value_with_ptr_and_len(
+            chunks.push(deserialize_chunk(
                 &library_content[export.offset.context("No symbol offset")?..],
-                rdata_shift,
-                library_content,
-                pe.is_64,
+                true,
             )?);
         }
     }
     Ok(chunks)
 }
 
-fn read_symbol_value_with_ptr_and_len(
-    value_slice: &[u8],
-    shift: usize,
-    full_library_content: &[u8],
-    is_64: bool,
+fn deserialize_chunk(
+    content_with_chunk_at_the_beginning: &[u8],
+    is_little_endian: bool,
 ) -> Result<Chunk> {
-    let (ptr, len) = if is_64 {
-        let (ptr, len) = value_slice[..16].split_at(8);
-        let ptr = usize::try_from(u64::from_le_bytes(
-            ptr.try_into().context("Too short symbol value")?,
-        ))
-        .context("Pointer overflow")?;
-        let len = usize::try_from(u64::from_le_bytes(
-            len.try_into().context("Too short symbol value")?,
-        ))
-        .context("Length overflow")?;
-        (ptr, len)
+    let length = content_with_chunk_at_the_beginning
+        .split_at(4)
+        .0
+        .try_into()
+        .context("The introspection chunk must contain a length")?;
+    let length = if is_little_endian {
+        u32::from_le_bytes(length)
     } else {
-        let (ptr, len) = value_slice[..8].split_at(4);
-        let ptr = usize::try_from(u32::from_le_bytes(
-            ptr.try_into().context("Too short symbol value")?,
-        ))
-        .context("Pointer overflow")?;
-        let len = usize::try_from(u32::from_le_bytes(
-            len.try_into().context("Too short symbol value")?,
-        ))
-        .context("Length overflow")?;
-        (ptr, len)
+        u32::from_be_bytes(length)
     };
-    let chunk = &full_library_content[ptr - shift..ptr - shift + len];
+    let chunk = content_with_chunk_at_the_beginning
+        .get(4..4 + length as usize)
+        .ok_or_else(|| {
+            anyhow!("The introspection chunk length {length} is greater that the binary size")
+        })?;
     serde_json::from_slice(chunk).with_context(|| {
         format!(
             "Failed to parse introspection chunk: '{}'",
@@ -389,7 +363,7 @@ fn read_symbol_value_with_ptr_and_len(
 fn is_introspection_symbol(name: &str) -> bool {
     name.strip_prefix('_')
         .unwrap_or(name)
-        .starts_with("PYO3_INTROSPECTION_0_")
+        .starts_with("PYO3_INTROSPECTION_1_")
 }
 
 #[derive(Deserialize)]
