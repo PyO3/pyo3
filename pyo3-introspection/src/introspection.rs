@@ -1,5 +1,5 @@
 use crate::model::{
-    Argument, Arguments, Attribute, Class, Function, Module, TypeHint, TypeHintImport,
+    Argument, Arguments, Attribute, Class, Function, Module, TypeHint, TypeHintExpr,
     VariableLengthArgument,
 };
 use anyhow::{anyhow, bail, ensure, Context, Result};
@@ -10,12 +10,13 @@ use goblin::mach::symbols::{NO_SECT, N_SECT};
 use goblin::mach::{Mach, MachO, SingleArch};
 use goblin::pe::PE;
 use goblin::Object;
+use serde::de::value::MapAccessDeserializer;
 use serde::de::{Error, MapAccess, Visitor};
-use serde::{de, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::path::Path;
-use std::{fs, str, fmt};
+use std::{fmt, fs, str};
 
 /// Introspect a cdylib built with PyO3 and returns the definition of a Python module.
 ///
@@ -244,16 +245,26 @@ fn convert_attribute(
 }
 
 fn convert_type_hint(arg: &ChunkTypeHint) -> TypeHint {
-    TypeHint {
-        annotation: arg.annotation.clone(),
-        imports: arg.imports.iter().map(convert_type_hint_import).collect(),
+    match arg {
+        ChunkTypeHint::Ast(expr) => TypeHint::Ast(convert_type_hint_expr(expr)),
+        ChunkTypeHint::Plain(t) => TypeHint::Plain(t.clone()),
     }
 }
 
-fn convert_type_hint_import(arg: &ChunkTypeHintImport) -> TypeHintImport {
-    TypeHintImport {
-        module: arg.module.clone(),
-        name: arg.name.clone(),
+fn convert_type_hint_expr(expr: &ChunkTypeHintExpr) -> TypeHintExpr {
+    match expr {
+        ChunkTypeHintExpr::Builtin { id } => TypeHintExpr::Builtin { id: id.clone() },
+        ChunkTypeHintExpr::Attribute { module, attr } => TypeHintExpr::Attribute {
+            module: module.clone(),
+            attr: attr.clone(),
+        },
+        ChunkTypeHintExpr::Union { elts } => TypeHintExpr::Union {
+            elts: elts.iter().map(convert_type_hint_expr).collect(),
+        },
+        ChunkTypeHintExpr::Subscript { value, slice } => TypeHintExpr::Subscript {
+            value: Box::new(convert_type_hint_expr(value)),
+            slice: slice.iter().map(convert_type_hint_expr).collect(),
+        },
     }
 }
 
@@ -408,7 +419,7 @@ enum Chunk {
         parent: Option<String>,
         #[serde(default)]
         decorators: Vec<String>,
-        #[serde(default, deserialize_with = "deserialize_annotation")]
+        #[serde(default, deserialize_with = "deserialize_type_hint")]
         returns: Option<ChunkTypeHint>,
     },
     Attribute {
@@ -419,7 +430,7 @@ enum Chunk {
         name: String,
         #[serde(default)]
         value: Option<String>,
-        #[serde(default, deserialize_with = "deserialize_annotation")]
+        #[serde(default, deserialize_with = "deserialize_type_hint")]
         annotation: Option<ChunkTypeHint>,
     },
 }
@@ -443,24 +454,35 @@ struct ChunkArgument {
     name: String,
     #[serde(default)]
     default: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_annotation")]
+    #[serde(default, deserialize_with = "deserialize_type_hint")]
     annotation: Option<ChunkTypeHint>,
 }
 
-#[derive(Deserialize)]
-struct ChunkTypeHint {
-    annotation: String,
-    #[serde(default)]
-    imports: Vec<ChunkTypeHintImport>,
+enum ChunkTypeHint {
+    Ast(ChunkTypeHintExpr),
+    Plain(String),
 }
 
 #[derive(Deserialize)]
-struct ChunkTypeHintImport {
-    module: String,
-    name: String,
+#[serde(tag = "type", rename_all = "lowercase")]
+enum ChunkTypeHintExpr {
+    Builtin {
+        id: String,
+    },
+    Attribute {
+        module: String,
+        attr: String,
+    },
+    Union {
+        elts: Vec<ChunkTypeHintExpr>,
+    },
+    Subscript {
+        value: Box<ChunkTypeHintExpr>,
+        slice: Vec<ChunkTypeHintExpr>,
+    },
 }
 
-fn deserialize_annotation<'de, D: Deserializer<'de>>(
+fn deserialize_type_hint<'de, D: Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Option<ChunkTypeHint>, D::Error> {
     struct AnnotationVisitor;
@@ -483,14 +505,13 @@ fn deserialize_annotation<'de, D: Deserializer<'de>>(
         where
             E: Error,
         {
-            Ok(ChunkTypeHint {
-                annotation: v,
-                imports: Vec::new(),
-            })
+            Ok(ChunkTypeHint::Plain(v))
         }
 
         fn visit_map<M: MapAccess<'de>>(self, map: M) -> Result<ChunkTypeHint, M::Error> {
-            Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))
+            Ok(ChunkTypeHint::Ast(Deserialize::deserialize(
+                MapAccessDeserializer::new(map),
+            )?))
         }
     }
 

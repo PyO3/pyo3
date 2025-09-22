@@ -419,9 +419,9 @@ fn get_class_type_hint(cls: &Ident, args: &PyClassArgs, ctx: &Ctx) -> TokenStrea
     let name = get_class_python_name(cls, args).to_string();
     if let Some(module) = &args.options.module {
         let module = module.value.value();
-        quote! { #pyo3_path::type_hint!(#module, #name) }
+        quote! { #pyo3_path::inspect::TypeHint::module_member(#module, #name) }
     } else {
-        quote! { #pyo3_path::type_hint!(#name) }
+        quote! { #pyo3_path::inspect::TypeHint::builtin(#name) }
     }
 }
 

@@ -7,8 +7,6 @@ use crate::py_result_ext::PyResultExt;
 use crate::type_object::PyTypeCheck;
 use crate::types::any::PyAny;
 use crate::{ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt};
-#[cfg(feature = "experimental-inspect")]
-use crate::{type_hint, type_hint_union};
 
 /// Represents any Python `weakref` Proxy type.
 ///
@@ -26,10 +24,10 @@ pyobject_native_type_named!(PyWeakrefProxy);
 impl PyTypeCheck for PyWeakrefProxy {
     const NAME: &'static str = "weakref.ProxyTypes";
     #[cfg(feature = "experimental-inspect")]
-    const TYPE_HINT: TypeHint = type_hint_union!(
-        type_hint!("weakref", "ProxyType"),
-        type_hint!("weakref", "CallableProxyType")
-    );
+    const TYPE_HINT: TypeHint = TypeHint::union(&[
+        TypeHint::module_member("weakref", "ProxyType"),
+        TypeHint::module_member("weakref", "CallableProxyType"),
+    ]);
 
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::PyWeakref_CheckProxy(object.as_ptr()) > 0 }

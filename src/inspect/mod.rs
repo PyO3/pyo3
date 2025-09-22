@@ -7,185 +7,233 @@ use std::fmt::Formatter;
 
 pub mod types;
 
-/// A [type hint](https://docs.python.org/3/glossary.html#term-type-hint) with a list of imports to make it valid
+/// A [type hint](https://docs.python.org/3/glossary.html#term-type-hint).
 ///
 /// This struct aims at being used in `const` contexts like in [`FromPyObject::INPUT_TYPE`](crate::FromPyObject::INPUT_TYPE) and [`IntoPyObject::OUTPUT_TYPE`](crate::IntoPyObject::OUTPUT_TYPE).
 ///
 /// ```
-/// use pyo3::{type_hint, type_hint_union};
 /// use pyo3::inspect::TypeHint;
 ///
-/// const T: TypeHint = type_hint_union!(type_hint!("int"), type_hint!("b", "B"));
-/// assert_eq!(T.to_string(), "int | B");
+/// const T: TypeHint = TypeHint::union(&[TypeHint::builtin("int"), TypeHint::module_member("b", "B")]);
+/// assert_eq!(T.to_string(), "int | b.B");
 /// ```
 #[derive(Clone, Copy)]
 pub struct TypeHint {
-    /// The type hint annotation
-    #[doc(hidden)]
-    pub annotation: &'static str,
-    /// The modules to import
-    #[doc(hidden)]
-    pub imports: &'static [TypeHintImport],
+    inner: TypeHintExpr,
 }
 
-/// `from {module} import {name}` import
-#[doc(hidden)]
 #[derive(Clone, Copy)]
-pub struct TypeHintImport {
-    /// The module from which to import
+enum TypeHintExpr {
+    /// A built-name like `list` or `datetime`. Used for built-in types or modules.
+    Builtin { id: &'static str },
+    /// A module member like `datetime.time` where module = `datetime` and attr = `time`
+    ModuleAttribute {
+        module: &'static str,
+        attr: &'static str,
+    },
+    /// A union elts[0] | ... | elts[len]
+    Union { elts: &'static [TypeHint] },
+    /// A subscript main[*args]
+    Subscript {
+        value: &'static TypeHint,
+        slice: &'static [TypeHint],
+    },
+}
+
+impl TypeHint {
+    /// A builtin like `int` or `list`
+    ///
+    /// ```
+    /// use pyo3::inspect::TypeHint;
+    ///
+    /// const T: TypeHint = TypeHint::builtin("int");
+    /// assert_eq!(T.to_string(), "int");
+    /// ```
+    pub const fn builtin(name: &'static str) -> Self {
+        Self {
+            inner: TypeHintExpr::Builtin { id: name },
+        }
+    }
+
+    /// A type contained in a module like `datetime.time`
+    ///
+    /// ```
+    /// use pyo3::inspect::TypeHint;
+    ///
+    /// const T: TypeHint = TypeHint::module_member("datetime", "time");
+    /// assert_eq!(T.to_string(), "datetime.time");
+    /// ```
+    pub const fn module_member(module: &'static str, attr: &'static str) -> Self {
+        Self {
+            inner: TypeHintExpr::ModuleAttribute { module, attr },
+        }
+    }
+
+    /// The union of multiple types
+    ///
+    /// ```
+    /// use pyo3::inspect::TypeHint;
+    ///
+    /// const T: TypeHint = TypeHint::union(&[TypeHint::builtin("int"), TypeHint::builtin("float")]);
+    /// assert_eq!(T.to_string(), "int | float");
+    /// ```
+    pub const fn union(elts: &'static [TypeHint]) -> Self {
+        Self {
+            inner: TypeHintExpr::Union { elts },
+        }
+    }
+
+    /// A subscribed type, often a container
+    ///
+    /// ```
+    /// use pyo3::inspect::TypeHint;
+    ///
+    /// const T: TypeHint = TypeHint::subscript(&TypeHint::builtin("dict"), &[TypeHint::builtin("int"), TypeHint::builtin("str")]);
+    /// assert_eq!(T.to_string(), "dict[int, str]");
+    /// ```
+    pub const fn subscript(value: &'static Self, slice: &'static [Self]) -> Self {
+        Self {
+            inner: TypeHintExpr::Subscript { value, slice },
+        }
+    }
+
+    /// Serialize the type for introspection
+    ///
+    /// We use the same AST as Python: https://docs.python.org/3/library/ast.html#abstract-grammar
     #[doc(hidden)]
-    pub module: &'static str,
-    /// The elements to import from the module
+    #[allow(clippy::incompatible_msrv)] // The introspection feature target 1.83+
+    pub const fn serialize_for_introspection(&self, mut output: &mut [u8]) {
+        match &self.inner {
+            TypeHintExpr::Builtin { id } => {
+                output = write_slice_and_move_forward(b"{\"type\":\"builtin\",\"id\":\"", output);
+                output = write_slice_and_move_forward(id.as_bytes(), output);
+                write_slice_and_move_forward(b"\"}", output);
+            }
+            TypeHintExpr::ModuleAttribute { module, attr } => {
+                output =
+                    write_slice_and_move_forward(b"{\"type\":\"attribute\",\"module\":\"", output);
+                output = write_slice_and_move_forward(module.as_bytes(), output);
+                output = write_slice_and_move_forward(b"\",\"attr\":\"", output);
+                output = write_slice_and_move_forward(attr.as_bytes(), output);
+                write_slice_and_move_forward(b"\"}", output);
+            }
+            TypeHintExpr::Union { elts } => {
+                output = write_slice_and_move_forward(b"{\"type\":\"union\",\"elts\":[", output);
+                let mut i = 0;
+                while i < elts.len() {
+                    if i > 0 {
+                        output = write_slice_and_move_forward(b",", output);
+                    }
+                    output = write_type_hind_and_move_forward(&elts[i], output);
+                    i += 1;
+                }
+                write_slice_and_move_forward(b"]}", output);
+            }
+            TypeHintExpr::Subscript { value, slice } => {
+                output =
+                    write_slice_and_move_forward(b"{\"type\":\"subscript\",\"value\":", output);
+                output = write_type_hind_and_move_forward(value, output);
+                output = write_slice_and_move_forward(b",\"slice\":[", output);
+                let mut i = 0;
+                while i < slice.len() {
+                    if i > 0 {
+                        output = write_slice_and_move_forward(b",", output);
+                    }
+                    output = write_type_hind_and_move_forward(&slice[i], output);
+                    i += 1;
+                }
+                write_slice_and_move_forward(b"]}", output);
+            }
+        }
+    }
+
+    /// Length required by [`Self::serialize_for_introspection`]
     #[doc(hidden)]
-    pub name: &'static str,
+    pub const fn serialized_len_for_introspection(&self) -> usize {
+        match &self.inner {
+            TypeHintExpr::Builtin { id } => 26 + id.len(),
+            TypeHintExpr::ModuleAttribute { module, attr } => 42 + module.len() + attr.len(),
+            TypeHintExpr::Union { elts } => {
+                let mut count = 26;
+                let mut i = 0;
+                while i < elts.len() {
+                    if i > 0 {
+                        count += 1;
+                    }
+                    count += elts[i].serialized_len_for_introspection();
+                    i += 1;
+                }
+                count
+            }
+            TypeHintExpr::Subscript { value, slice } => {
+                let mut count = 40 + value.serialized_len_for_introspection();
+                let mut i = 0;
+                while i < slice.len() {
+                    if i > 0 {
+                        count += 1;
+                    }
+                    count += slice[i].serialized_len_for_introspection();
+                    i += 1;
+                }
+                count
+            }
+        }
+    }
 }
 
 impl fmt::Display for TypeHint {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.annotation.fmt(f)
+        match &self.inner {
+            TypeHintExpr::Builtin { id } => id.fmt(f),
+            TypeHintExpr::ModuleAttribute { module, attr } => {
+                module.fmt(f)?;
+                f.write_str(".")?;
+                attr.fmt(f)
+            }
+            TypeHintExpr::Union { elts } => {
+                for (i, elt) in elts.iter().enumerate() {
+                    if i > 0 {
+                        f.write_str(" | ")?;
+                    }
+                    elt.fmt(f)?;
+                }
+                Ok(())
+            }
+            TypeHintExpr::Subscript { value, slice } => {
+                value.fmt(f)?;
+                f.write_str("[")?;
+                for (i, elt) in slice.iter().enumerate() {
+                    if i > 0 {
+                        f.write_str(", ")?;
+                    }
+                    elt.fmt(f)?;
+                }
+                f.write_str("]")
+            }
+        }
     }
 }
 
-/// Allows to build a [`TypeHint`] from a module name and a qualified name
-///
-/// ```
-/// use pyo3::type_hint;
-/// use pyo3::inspect::TypeHint;
-///
-/// const T: TypeHint = type_hint!("collections.abc", "Sequence");
-/// assert_eq!(T.to_string(), "Sequence");
-/// ```
-#[macro_export]
-macro_rules! type_hint {
-    ($qualname: expr) => {
-        $crate::inspect::TypeHint {
-            annotation: $qualname,
-            imports: &[],
-        }
-    };
-    ($module:expr, $name: expr) => {
-        $crate::inspect::TypeHint {
-            annotation: $name,
-            imports: &[$crate::inspect::TypeHintImport {
-                module: $module,
-                name: $name,
-            }],
-        }
-    };
+#[allow(clippy::incompatible_msrv)] // The experimental-inspect feature is targeting 1.83+
+const fn write_slice_and_move_forward<'a>(value: &[u8], output: &'a mut [u8]) -> &'a mut [u8] {
+    let mut i = 0;
+    while i < value.len() {
+        output[i] = value[i];
+        i += 1;
+    }
+    output.split_at_mut(value.len()).1
 }
 
-/// Allows to build a [`TypeHint`] that is the union of other [`TypeHint`]
-///
-/// ```
-/// use pyo3::{type_hint, type_hint_union};
-/// use pyo3::inspect::TypeHint;
-///
-/// const T: TypeHint = type_hint_union!(type_hint!("a", "A"), type_hint!("b", "B"));
-/// assert_eq!(T.to_string(), "A | B");
-/// ```
-#[macro_export]
-macro_rules! type_hint_union {
-    // TODO: avoid using the parameters twice
-    // TODO: factor our common code in const functions
-    ($arg:expr) => { $arg };
-    ($firstarg:expr, $($arg:expr),+) => {{
-        $crate::inspect::TypeHint {
-            annotation: {
-                const PARTS: &[&[u8]] = &[$firstarg.annotation.as_bytes(), $(b" | ", $arg.annotation.as_bytes()),*];
-                unsafe {
-                    ::std::str::from_utf8_unchecked(&$crate::impl_::concat::combine_to_array::<{
-                        $crate::impl_::concat::combined_len(PARTS)
-                    }>(PARTS))
-                }
-            },
-            imports: {
-                const ARGS: &[$crate::inspect::TypeHint] = &[$firstarg, $($arg),*];
-                const LEN: usize = {
-                    let mut count = 0;
-                    let mut i = 0;
-                    while i < ARGS.len() {
-                        count += ARGS[i].imports.len();
-                        i += 1;
-                    }
-                    count
-                };
-                const OUTPUT: [$crate::inspect::TypeHintImport; LEN] = {
-                    let mut output = [$crate::inspect::TypeHintImport { module: "", name: "" }; LEN];
-                    let mut args_i = 0;
-                    let mut in_arg_i = 0;
-                    let mut output_i = 0;
-                    while args_i < ARGS.len() {
-                        while in_arg_i < ARGS[args_i].imports.len() {
-                            output[output_i] = ARGS[args_i].imports[in_arg_i];
-                            in_arg_i += 1;
-                            output_i += 1;
-                        }
-                        args_i += 1;
-                        in_arg_i = 0;
-                    }
-                    output
-                };
-                &OUTPUT
-            }
-        }
-    }};
-}
-
-/// Allows to build a [`TypeHint`] that is the subscripted
-///
-/// ```
-/// use pyo3::{type_hint, type_hint_subscript};
-/// use pyo3::inspect::TypeHint;
-///
-/// const T: TypeHint = type_hint_subscript!(type_hint!("collections.abc", "Sequence"), type_hint!("weakref", "ProxyType"));
-/// assert_eq!(T.to_string(), "Sequence[ProxyType]");
-/// ```
-#[macro_export]
-macro_rules! type_hint_subscript {
-    // TODO: avoid using the parameters twice
-    // TODO: factor our common code in const functions
-    ($main:expr, $firstarg:expr $(, $arg:expr)*) => {{
-        $crate::inspect::TypeHint {
-            annotation: {
-                const PARTS: &[&[u8]] = &[$main.annotation.as_bytes(), b"[", $firstarg.annotation.as_bytes() $(, b", ", $arg.annotation.as_bytes())* , b"]"];
-                unsafe {
-                    ::std::str::from_utf8_unchecked(&$crate::impl_::concat::combine_to_array::<{
-                        $crate::impl_::concat::combined_len(PARTS)
-                    }>(PARTS))
-                }
-            },
-            imports: {
-                const ARGS: &[$crate::inspect::TypeHint] = &[$main, $firstarg, $($arg),*];
-                const LEN: usize = {
-                    let mut count = 0;
-                    let mut i = 0;
-                    while i < ARGS.len() {
-                        count += ARGS[i].imports.len();
-                        i += 1;
-                    }
-                    count
-                };
-                const OUTPUT: [$crate::inspect::TypeHintImport; LEN] = {
-                    let mut output = [$crate::inspect::TypeHintImport { module: "", name: "" }; LEN];
-                    let mut args_i = 0;
-                    let mut in_arg_i = 0;
-                    let mut output_i = 0;
-                    while args_i < ARGS.len() {
-                        while in_arg_i < ARGS[args_i].imports.len() {
-                            output[output_i] = ARGS[args_i].imports[in_arg_i];
-                            in_arg_i += 1;
-                            output_i += 1;
-                        }
-                        args_i += 1;
-                        in_arg_i = 0;
-                    }
-                    output
-                };
-                &OUTPUT
-            }
-        }
-    }};
+#[allow(clippy::incompatible_msrv)] // The experimental-inspect feature is targeting 1.83+
+const fn write_type_hind_and_move_forward<'a>(
+    value: &TypeHint,
+    output: &'a mut [u8],
+) -> &'a mut [u8] {
+    value.serialize_for_introspection(output);
+    output
+        .split_at_mut(value.serialized_len_for_introspection())
+        .1
 }
 
 #[cfg(test)]
@@ -193,25 +241,35 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_union() {
-        const T: TypeHint = type_hint_union!(type_hint!("a", "A"), type_hint!("b", "B"));
-        assert_eq!(T.annotation, "A | B");
-        assert_eq!(T.imports[0].name, "A");
-        assert_eq!(T.imports[0].module, "a");
-        assert_eq!(T.imports[1].name, "B");
-        assert_eq!(T.imports[1].module, "b");
+    fn test_to_string() {
+        const T: TypeHint = TypeHint::subscript(
+            &TypeHint::builtin("dict"),
+            &[
+                TypeHint::union(&[TypeHint::builtin("int"), TypeHint::builtin("float")]),
+                TypeHint::module_member("datetime", "time"),
+            ],
+        );
+        assert_eq!(T.to_string(), "dict[int | float, datetime.time]")
     }
 
     #[test]
-    fn test_subscript() {
-        const T: TypeHint = type_hint_subscript!(
-            type_hint!("collections.abc", "Sequence"),
-            type_hint!("weakref", "ProxyType")
+    fn test_serialize_for_introspection() {
+        const T: TypeHint = TypeHint::subscript(
+            &TypeHint::builtin("dict"),
+            &[
+                TypeHint::union(&[TypeHint::builtin("int"), TypeHint::builtin("float")]),
+                TypeHint::module_member("datetime", "time"),
+            ],
         );
-        assert_eq!(T.annotation, "Sequence[ProxyType]");
-        assert_eq!(T.imports[0].name, "Sequence");
-        assert_eq!(T.imports[0].module, "collections.abc");
-        assert_eq!(T.imports[1].name, "ProxyType");
-        assert_eq!(T.imports[1].module, "weakref");
+        const SER_LEN: usize = T.serialized_len_for_introspection();
+        const SER: [u8; SER_LEN] = {
+            let mut out: [u8; SER_LEN] = [0; SER_LEN];
+            T.serialize_for_introspection(&mut out);
+            out
+        };
+        assert_eq!(
+            str::from_utf8(&SER).unwrap(),
+            r#"{"type":"subscript","value":{"type":"builtin","id":"dict"},"slice":[{"type":"union","elts":[{"type":"builtin","id":"int"},{"type":"builtin","id":"float"}]},{"type":"attribute","module":"datetime","attr":"time"}]}"#
+        )
     }
 }

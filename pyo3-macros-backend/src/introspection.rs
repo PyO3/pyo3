@@ -411,9 +411,9 @@ impl IntrospectionNode<'_> {
                     >>::INPUT_TYPE
                 };
                 if nullable {
-                    annotation = quote! { #pyo3_crate_path::type_hint_union!(#annotation, #pyo3_crate_path::type_hint!("None")) };
+                    annotation = quote! { #pyo3_crate_path::inspect::TypeHint::union(&[#annotation, #pyo3_crate_path::inspect::TypeHint::builtin("None")]) };
                 }
-                content.push_tokens(quote! { #pyo3_crate_path::type_hint_json!(#annotation) });
+                content.push_tokens(serialize_type_hint(annotation, pyo3_crate_path));
             }
             Self::OutputType {
                 rust_type,
@@ -421,17 +421,17 @@ impl IntrospectionNode<'_> {
             } => {
                 let mut annotation = quote! { <#rust_type as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE };
                 if is_final {
-                    annotation = quote! { #pyo3_crate_path::type_hint_subscript!(#pyo3_crate_path::type_hint!("typing", "Final"), #annotation) };
+                    annotation = quote! { #pyo3_crate_path::inspect::TypeHint::subscript(&#pyo3_crate_path::inspect::TypeHint::module_member("typing", "Final"), &[#annotation]) };
                 }
-                content.push_tokens(quote! { #pyo3_crate_path::type_hint_json!(#annotation) });
+                content.push_tokens(serialize_type_hint(annotation, pyo3_crate_path));
             }
             Self::ConstantType { name, module } => {
                 let annotation = if let Some(module) = module {
-                    quote! { #pyo3_crate_path::type_hint!(#module, #name) }
+                    quote! { #pyo3_crate_path::inspect::TypeHint::module_member(#module, #name) }
                 } else {
-                    quote! { #pyo3_crate_path::type_hint!(#name) }
+                    quote! { #pyo3_crate_path::inspect::TypeHint::builtin(#name) }
                 };
-                content.push_tokens(quote! { #pyo3_crate_path::type_hint_json!(#annotation) });
+                content.push_tokens(serialize_type_hint(annotation, pyo3_crate_path));
             }
             Self::Map(map) => {
                 content.push_str("{");
@@ -470,6 +470,19 @@ impl IntrospectionNode<'_> {
             }
         }
     }
+}
+
+fn serialize_type_hint(hint: TokenStream, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
+    quote! {{
+        const TYPE_HINT: #pyo3_crate_path::inspect::TypeHint = #hint;
+        const TYPE_HINT_LEN: usize = TYPE_HINT.serialized_len_for_introspection();
+        const TYPE_HINT_SER: [u8; TYPE_HINT_LEN] = {
+            let mut result: [u8; TYPE_HINT_LEN] = [0; TYPE_HINT_LEN];
+            TYPE_HINT.serialize_for_introspection(&mut result);
+            result
+        };
+        &TYPE_HINT_SER
+    }}
 }
 
 struct AttributedIntrospectionNode<'a> {

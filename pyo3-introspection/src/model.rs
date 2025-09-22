@@ -65,16 +65,27 @@ pub struct VariableLengthArgument {
     pub annotation: Option<TypeHint>,
 }
 
-/// A type hint annotation with the required modules to import
+/// A type hint annotation
+///
+/// Might be a plain string or an AST fragment
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
-pub struct TypeHint {
-    pub annotation: String,
-    pub imports: Vec<TypeHintImport>,
+pub enum TypeHint {
+    Ast(TypeHintExpr),
+    Plain(String),
 }
 
-/// An import required to make the type hint valid like `from {module} import {name}`
+/// A type hint annotation as an AST fragment
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
-pub struct TypeHintImport {
-    pub module: String,
-    pub name: String,
+pub enum TypeHintExpr {
+    /// A Python builtin like `int`
+    Builtin { id: String },
+    /// The attribute of a python object like `{value}.{attr}`
+    Attribute { module: String, attr: String },
+    /// A union `{left} | {right}`
+    Union { elts: Vec<TypeHintExpr> },
+    /// A subscript `{value}[*slice]`
+    Subscript {
+        value: Box<TypeHintExpr>,
+        slice: Vec<TypeHintExpr>,
+    },
 }

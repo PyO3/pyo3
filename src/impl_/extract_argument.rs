@@ -8,8 +8,6 @@ use crate::{
     Borrowed, Bound, DowncastError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut,
     PyErr, PyResult, PyTypeCheck, Python,
 };
-#[cfg(feature = "experimental-inspect")]
-use crate::{type_hint, type_hint_union};
 
 /// Helper type used to keep implementation more concise.
 ///
@@ -113,7 +111,10 @@ where
     type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = type_hint_union!(type_hint!("typing", "Any"), type_hint!("None"));
+    const INPUT_TYPE: TypeHint = TypeHint::union(&[
+        TypeHint::module_member("typing", "Any"),
+        TypeHint::builtin("None"),
+    ]);
 
     #[inline]
     fn extract(
@@ -134,7 +135,7 @@ impl<'a, 'holder, 'py> PyFunctionArgument<'a, 'holder, 'py, false> for &'holder 
     type Error = <std::borrow::Cow<'a, str> as FromPyObject<'a, 'py>>::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = type_hint!("str");
+    const INPUT_TYPE: TypeHint = TypeHint::builtin("str");
 
     #[inline]
     fn extract(

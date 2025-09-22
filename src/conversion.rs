@@ -6,8 +6,6 @@ use crate::inspect::types::TypeInfo;
 use crate::inspect::TypeHint;
 use crate::pyclass::boolean_struct::False;
 use crate::pyclass::{PyClassGuardError, PyClassGuardMutError};
-#[cfg(feature = "experimental-inspect")]
-use crate::type_hint;
 use crate::types::PyTuple;
 use crate::{
     Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyClassGuard, PyErr, PyRef, PyRefMut, Python,
@@ -63,7 +61,7 @@ pub trait IntoPyObject<'py>: Sized {
     /// For most types, the return value for this method will be identical to that of [`FromPyObject::INPUT_TYPE`].
     /// It may be different for some types, such as `Dict`, to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = type_hint!("typing", "Any");
+    const OUTPUT_TYPE: TypeHint = TypeHint::module_member("typing", "Any");
 
     /// Performs the conversion.
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error>;
@@ -394,7 +392,7 @@ pub trait FromPyObject<'a, 'py>: Sized {
     /// For example, `Vec<u32>` would be `collections.abc.Sequence[int]`.
     /// The default value is `typing.Any`, which is correct for any type.
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = type_hint!("typing", "Any");
+    const INPUT_TYPE: TypeHint = TypeHint::module_member("typing", "Any");
 
     /// Extracts `Self` from the bound smart pointer `obj`.
     ///

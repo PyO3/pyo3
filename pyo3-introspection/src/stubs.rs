@@ -1,9 +1,10 @@
 use crate::model::{
-    Argument, Arguments, Attribute, Class, Function, Module, TypeHint, TypeHintImport,
+    Argument, Arguments, Attribute, Class, Function, Module, TypeHint, TypeHintExpr,
     VariableLengthArgument,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::PathBuf;
+use std::str::FromStr;
 
 /// Generates the [type stubs](https://typing.readthedocs.io/en/latest/source/stubs.html) of a given module.
 /// It returns a map between the file name and the file content.
@@ -44,16 +45,16 @@ fn add_module_stub_files(
 
 /// Generates the module stubs to a String, not including submodules
 fn module_stubs(module: &Module, parents: &[&str]) -> String {
-    let mut imports = Imports::new();
+    let imports = Imports::create(module, parents);
     let mut elements = Vec::new();
     for attribute in &module.attributes {
-        elements.push(attribute_stubs(attribute, &mut imports));
+        elements.push(attribute_stubs(attribute, &imports));
     }
     for class in &module.classes {
-        elements.push(class_stubs(class, &mut imports));
+        elements.push(class_stubs(class, &imports));
     }
     for function in &module.functions {
-        elements.push(function_stubs(function, &mut imports));
+        elements.push(function_stubs(function, &imports));
     }
 
     // We generate a __getattr__ method to tag incomplete stubs
@@ -68,31 +69,22 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
                     arguments: vec![Argument {
                         name: "name".to_string(),
                         default_value: None,
-                        annotation: Some(TypeHint {
-                            annotation: "str".into(),
-                            imports: Vec::new(),
-                        }),
+                        annotation: Some(TypeHint::Ast(TypeHintExpr::Builtin { id: "str".into() })),
                     }],
                     vararg: None,
                     keyword_only_arguments: Vec::new(),
                     kwarg: None,
                 },
-                returns: Some(TypeHint {
-                    annotation: "Incomplete".into(),
-                    imports: vec![TypeHintImport {
-                        module: "_typeshed".into(),
-                        name: "Incomplete".into(),
-                    }],
-                }),
+                returns: Some(TypeHint::Ast(TypeHintExpr::Attribute {
+                    module: "_typeshed".into(),
+                    attr: "Incomplete".into(),
+                })),
             },
-            &mut imports,
+            &imports,
         ));
     }
 
-    // We validate the imports
-    imports.filter_for_module(&module.name, parents);
-
-    let mut final_elements = imports.to_lines();
+    let mut final_elements = imports.imports;
     final_elements.extend(elements);
 
     let mut output = String::new();
@@ -117,7 +109,7 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
     output
 }
 
-fn class_stubs(class: &Class, imports: &mut Imports) -> String {
+fn class_stubs(class: &Class, imports: &Imports) -> String {
     let mut buffer = format!("class {}:", class.name);
     if class.methods.is_empty() && class.attributes.is_empty() {
         buffer.push_str(" ...");
@@ -136,7 +128,7 @@ fn class_stubs(class: &Class, imports: &mut Imports) -> String {
     buffer
 }
 
-fn function_stubs(function: &Function, imports: &mut Imports) -> String {
+fn function_stubs(function: &Function, imports: &Imports) -> String {
     // Signature
     let mut parameters = Vec::new();
     for argument in &function.arguments.positional_only_arguments {
@@ -178,107 +170,303 @@ fn function_stubs(function: &Function, imports: &mut Imports) -> String {
     buffer.push(')');
     if let Some(returns) = &function.returns {
         buffer.push_str(" -> ");
-        buffer.push_str(type_hint_stub(returns, imports));
+        type_hint_stub(returns, imports, &mut buffer);
     }
     buffer.push_str(": ...");
     buffer
 }
 
-fn attribute_stubs(attribute: &Attribute, imports: &mut Imports) -> String {
-    let mut output = attribute.name.clone();
+fn attribute_stubs(attribute: &Attribute, imports: &Imports) -> String {
+    let mut buffer = attribute.name.clone();
     if let Some(annotation) = &attribute.annotation {
-        output.push_str(": ");
-        output.push_str(type_hint_stub(annotation, imports));
+        buffer.push_str(": ");
+        type_hint_stub(annotation, imports, &mut buffer);
     }
     if let Some(value) = &attribute.value {
-        output.push_str(" = ");
-        output.push_str(value);
+        buffer.push_str(" = ");
+        buffer.push_str(value);
     }
-    output
+    buffer
 }
 
-fn argument_stub(argument: &Argument, imports: &mut Imports) -> String {
-    let mut output = argument.name.clone();
+fn argument_stub(argument: &Argument, imports: &Imports) -> String {
+    let mut buffer = argument.name.clone();
     if let Some(annotation) = &argument.annotation {
-        output.push_str(": ");
-        output.push_str(type_hint_stub(annotation, imports));
+        buffer.push_str(": ");
+        type_hint_stub(annotation, imports, &mut buffer);
     }
     if let Some(default_value) = &argument.default_value {
-        output.push_str(if argument.annotation.is_some() {
+        buffer.push_str(if argument.annotation.is_some() {
             " = "
         } else {
             "="
         });
-        output.push_str(default_value);
+        buffer.push_str(default_value);
     }
-    output
+    buffer
 }
 
-fn variable_length_argument_stub(
-    argument: &VariableLengthArgument,
-    imports: &mut Imports,
-) -> String {
-    let mut output = argument.name.clone();
+fn variable_length_argument_stub(argument: &VariableLengthArgument, imports: &Imports) -> String {
+    let mut buffer = argument.name.clone();
     if let Some(annotation) = &argument.annotation {
-        output.push_str(": ");
-        output.push_str(type_hint_stub(annotation, imports));
+        buffer.push_str(": ");
+        type_hint_stub(annotation, imports, &mut buffer);
     }
-    output
+    buffer
 }
 
-fn type_hint_stub<'a>(annotation: &'a TypeHint, imports: &mut Imports) -> &'a str {
-    for import in &annotation.imports {
-        imports.add(import);
+fn type_hint_stub(type_hint: &TypeHint, imports: &Imports, buffer: &mut String) {
+    match type_hint {
+        TypeHint::Ast(t) => imports.serialize_type_hint(t, buffer),
+        TypeHint::Plain(t) => buffer.push_str(t),
     }
-    &annotation.annotation
 }
 
 /// Datastructure to deduplicate, validate and generate imports
+#[derive(Default)]
 struct Imports {
-    /// module -> names
-    imports: BTreeMap<String, BTreeSet<String>>,
+    /// Import lines ready to use
+    imports: Vec<String>,
+    /// Renaming map: from module name and member name return the name to use in type hints
+    renaming: BTreeMap<(String, String), String>,
 }
 
 impl Imports {
+    /// This generates a map from the builtin or module name to the actual alias used in the file
+    ///
+    /// For Python builtins and elements declared by the module the alias is always the actual name.
+    ///
+    /// For other elements, we can alias them using the `from X import Y as Z` syntax.
+    /// So, we first list all builtins and local elements, then iterate on imports
+    /// and create the aliases when needed.
+    fn create(module: &Module, module_parents: &[&str]) -> Self {
+        let mut elements_used_in_annotations = ElementsUsedInAnnotations::new();
+        elements_used_in_annotations.walk_module(module);
+
+        let mut imports = Vec::new();
+        let mut renaming = BTreeMap::new();
+        let mut local_name_to_module_and_attribute = BTreeMap::new();
+
+        // We first process local and built-ins elements, they are never aliased or imported
+        for name in module
+            .classes
+            .iter()
+            .map(|c| c.name.clone())
+            .chain(module.functions.iter().map(|f| f.name.clone()))
+            .chain(module.attributes.iter().map(|a| a.name.clone()))
+            .chain(elements_used_in_annotations.builtins)
+        {
+            local_name_to_module_and_attribute.insert(name.clone(), (None, name.clone()));
+        }
+
+        // We compute the set of ways the current module can be named
+        let mut possible_current_module_names = vec![module.name.clone()];
+        let mut current_module_name = Some(module.name.clone());
+        for parent in module_parents.iter().rev() {
+            let path = if let Some(current) = current_module_name {
+                format!("{parent}.{current}")
+            } else {
+                parent.to_string()
+            };
+            possible_current_module_names.push(path.clone());
+            current_module_name = Some(path);
+        }
+
+        // We process then imports, normalizing local imports
+        for (module, attrs) in elements_used_in_annotations.module_members {
+            let normalized_module = if possible_current_module_names.contains(&module) {
+                None
+            } else {
+                Some(module.clone())
+            };
+            let mut import_for_module = Vec::new();
+            for attr in attrs {
+                let mut local_name = attr.clone();
+                while let Some((possible_conflict_module, possible_conflict_attr)) =
+                    local_name_to_module_and_attribute.get(&local_name)
+                {
+                    if *possible_conflict_module == normalized_module
+                        && *possible_conflict_attr == attr
+                    {
+                        break; // It's the same
+                    }
+                    // We generate a new local name
+                    let number_of_digits_at_the_end = local_name
+                        .bytes()
+                        .rev()
+                        .take_while(|b| b.is_ascii_digit())
+                        .count();
+                    let (local_name_prefix, local_name_number) =
+                        local_name.split_at(local_name.len() - number_of_digits_at_the_end);
+                    local_name = format!(
+                        "{local_name_prefix}{}",
+                        u64::from_str(local_name_number).unwrap_or(1) + 1
+                    );
+                }
+                local_name_to_module_and_attribute.insert(
+                    local_name.clone(),
+                    (normalized_module.clone(), attr.clone()),
+                );
+                renaming.insert((module.clone(), attr.clone()), local_name.clone());
+                import_for_module.push(if local_name == attr {
+                    attr
+                } else {
+                    format!("{attr} as {local_name}")
+                });
+            }
+            if let Some(module) = normalized_module {
+                imports.push(format!(
+                    "from {module} import {}",
+                    import_for_module.join(", ")
+                ));
+            }
+        }
+
+        Self { imports, renaming }
+    }
+
+    fn serialize_type_hint(&self, expr: &TypeHintExpr, buffer: &mut String) {
+        match expr {
+            TypeHintExpr::Builtin { id } => buffer.push_str(id),
+            TypeHintExpr::Attribute { module, attr } => {
+                let alias = self
+                    .renaming
+                    .get(&(module.clone(), attr.clone()))
+                    .expect("All type hint attributes should have been visited");
+                buffer.push_str(alias)
+            }
+            TypeHintExpr::Union { elts } => {
+                for (i, elt) in elts.iter().enumerate() {
+                    if i > 0 {
+                        buffer.push_str(" | ");
+                    }
+                    self.serialize_type_hint(elt, buffer);
+                }
+            }
+            TypeHintExpr::Subscript { value, slice } => {
+                self.serialize_type_hint(value, buffer);
+                buffer.push('[');
+                for (i, elt) in slice.iter().enumerate() {
+                    if i > 0 {
+                        buffer.push_str(", ");
+                    }
+                    self.serialize_type_hint(elt, buffer);
+                }
+                buffer.push(']');
+            }
+        }
+    }
+}
+
+/// Lists all the elements used in annotations
+struct ElementsUsedInAnnotations {
+    /// module -> name
+    module_members: BTreeMap<String, BTreeSet<String>>,
+    builtins: BTreeSet<String>,
+}
+
+impl ElementsUsedInAnnotations {
     fn new() -> Self {
         Self {
-            imports: BTreeMap::new(),
+            module_members: BTreeMap::new(),
+            builtins: BTreeSet::new(),
         }
     }
 
-    fn add(&mut self, import: &TypeHintImport) {
-        self.imports
-            .entry(import.module.clone())
-            .or_default()
-            .insert(import.name.clone());
-    }
-
-    /// Remove all local import paths i.e. 'foo' and 'bar.foo' if the module is 'bar.foo' (encoded as name = 'foo' and parents = \['bar'\]
-    fn filter_for_module(&mut self, name: &str, parents: &[&str]) {
-        let mut local_import_path = name.to_string();
-        self.imports.remove(name);
-        for parent in parents {
-            local_import_path = format!("{local_import_path}.{parent}");
-            self.imports.remove(&local_import_path);
+    fn walk_module(&mut self, module: &Module) {
+        for attr in &module.attributes {
+            self.walk_attribute(attr);
+        }
+        for class in &module.classes {
+            self.walk_class(class);
+        }
+        for function in &module.functions {
+            self.walk_function(function);
+        }
+        if module.incomplete {
+            self.builtins.insert("str".into());
+            self.module_members
+                .entry("_typeshed".into())
+                .or_default()
+                .insert("Incomplete".into());
         }
     }
 
-    fn to_lines(&self) -> Vec<String> {
-        let mut lines = Vec::with_capacity(self.imports.len());
-        for (module, names) in &self.imports {
-            let mut output = String::new();
-            output.push_str("from ");
-            output.push_str(module);
-            output.push_str(" import ");
-            for (i, name) in names.iter().enumerate() {
-                if i > 0 {
-                    output.push_str(", ");
-                }
-                output.push_str(name);
+    fn walk_class(&mut self, class: &Class) {
+        for method in &class.methods {
+            self.walk_function(method);
+        }
+        for attr in &class.attributes {
+            self.walk_attribute(attr);
+        }
+    }
+
+    fn walk_attribute(&mut self, attribute: &Attribute) {
+        if let Some(type_hint) = &attribute.annotation {
+            self.walk_type_hint(type_hint);
+        }
+    }
+
+    fn walk_function(&mut self, function: &Function) {
+        for decorator in &function.decorators {
+            self.builtins.insert(decorator.clone());
+        }
+        for arg in function
+            .arguments
+            .positional_only_arguments
+            .iter()
+            .chain(&function.arguments.arguments)
+            .chain(&function.arguments.keyword_only_arguments)
+        {
+            if let Some(type_hint) = &arg.annotation {
+                self.walk_type_hint(type_hint);
             }
-            lines.push(output);
         }
-        lines
+        for arg in function
+            .arguments
+            .vararg
+            .as_ref()
+            .iter()
+            .chain(&function.arguments.kwarg.as_ref())
+        {
+            if let Some(type_hint) = &arg.annotation {
+                self.walk_type_hint(type_hint);
+            }
+        }
+        if let Some(type_hint) = &function.returns {
+            self.walk_type_hint(type_hint);
+        }
+    }
+
+    fn walk_type_hint(&mut self, type_hint: &TypeHint) {
+        if let TypeHint::Ast(type_hint) = type_hint {
+            self.walk_type_hint_expr(type_hint);
+        }
+    }
+
+    fn walk_type_hint_expr(&mut self, expr: &TypeHintExpr) {
+        match expr {
+            TypeHintExpr::Builtin { id } => {
+                self.builtins.insert(id.clone());
+            }
+            TypeHintExpr::Attribute { module, attr } => {
+                self.module_members
+                    .entry(module.clone())
+                    .or_default()
+                    .insert(attr.clone());
+            }
+            TypeHintExpr::Union { elts } => {
+                for elt in elts {
+                    self.walk_type_hint_expr(elt)
+                }
+            }
+            TypeHintExpr::Subscript { value, slice } => {
+                self.walk_type_hint_expr(value);
+                for elt in slice {
+                    self.walk_type_hint_expr(elt);
+                }
+            }
+        }
     }
 }
 
@@ -310,27 +498,18 @@ mod tests {
                 keyword_only_arguments: vec![Argument {
                     name: "karg".into(),
                     default_value: None,
-                    annotation: Some(TypeHint {
-                        annotation: "str".into(),
-                        imports: Vec::new(),
-                    }),
+                    annotation: Some(TypeHint::Plain("str".into())),
                 }],
                 kwarg: Some(VariableLengthArgument {
                     name: "kwarg".into(),
-                    annotation: Some(TypeHint {
-                        annotation: "str".into(),
-                        imports: Vec::new(),
-                    }),
+                    annotation: Some(TypeHint::Plain("str".into())),
                 }),
             },
-            returns: Some(TypeHint {
-                annotation: "list[str]".into(),
-                imports: Vec::new(),
-            }),
+            returns: Some(TypeHint::Plain("list[str]".into())),
         };
         assert_eq!(
             "def func(posonly, /, arg, *varargs, karg: str, **kwarg: str) -> list[str]: ...",
-            function_stubs(&function, &mut Imports::new())
+            function_stubs(&function, &Imports::default())
         )
     }
 
@@ -354,10 +533,7 @@ mod tests {
                 keyword_only_arguments: vec![Argument {
                     name: "karg".into(),
                     default_value: Some("\"foo\"".into()),
-                    annotation: Some(TypeHint {
-                        annotation: "str".into(),
-                        imports: Vec::new(),
-                    }),
+                    annotation: Some(TypeHint::Plain("str".into())),
                 }],
                 kwarg: None,
             },
@@ -365,7 +541,77 @@ mod tests {
         };
         assert_eq!(
             "def afunc(posonly=1, /, arg=True, *, karg: str = \"foo\"): ...",
-            function_stubs(&function, &mut Imports::new())
+            function_stubs(&function, &Imports::default())
         )
+    }
+
+    #[test]
+    fn test_import() {
+        let big_type = TypeHintExpr::Subscript {
+            value: Box::new(TypeHintExpr::Builtin { id: "dict".into() }),
+            slice: vec![
+                TypeHintExpr::Attribute {
+                    module: "foo.bar".into(),
+                    attr: "A".into(),
+                },
+                TypeHintExpr::Union {
+                    elts: vec![
+                        TypeHintExpr::Attribute {
+                            module: "bar".into(),
+                            attr: "A".into(),
+                        },
+                        TypeHintExpr::Attribute {
+                            module: "foo".into(),
+                            attr: "A".into(),
+                        },
+                        TypeHintExpr::Attribute {
+                            module: "foo".into(),
+                            attr: "B".into(),
+                        },
+                        TypeHintExpr::Attribute {
+                            module: "bat".into(),
+                            attr: "A".into(),
+                        },
+                    ],
+                },
+            ],
+        };
+        let imports = Imports::create(
+            &Module {
+                name: "bar".into(),
+                modules: Vec::new(),
+                classes: vec![Class {
+                    name: "A".into(),
+                    methods: Vec::new(),
+                    attributes: Vec::new(),
+                }],
+                functions: vec![Function {
+                    name: String::new(),
+                    decorators: Vec::new(),
+                    arguments: Arguments {
+                        positional_only_arguments: Vec::new(),
+                        arguments: Vec::new(),
+                        vararg: None,
+                        keyword_only_arguments: Vec::new(),
+                        kwarg: None,
+                    },
+                    returns: Some(TypeHint::Ast(big_type.clone())),
+                }],
+                attributes: Vec::new(),
+                incomplete: true,
+            },
+            &["foo"],
+        );
+        assert_eq!(
+            &imports.imports,
+            &[
+                "from _typeshed import Incomplete",
+                "from bat import A as A2",
+                "from foo import A as A3, B"
+            ]
+        );
+        let mut output = String::new();
+        imports.serialize_type_hint(&big_type, &mut output);
+        assert_eq!(output, "dict[A, A | A3 | B | A2]");
     }
 }
