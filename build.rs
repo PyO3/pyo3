@@ -2,7 +2,7 @@ use std::env;
 
 use pyo3_build_config::pyo3_build_script_impl::{cargo_env_var, errors::Result};
 use pyo3_build_config::{
-    add_python_framework_link_args, bail, print_feature_cfgs, InterpreterConfig,
+    add_python_link_args, bail, print_feature_cfgs, InterpreterConfig,
 };
 
 fn ensure_auto_initialize_ok(interpreter_config: &InterpreterConfig) -> Result<()> {
@@ -43,8 +43,8 @@ fn configure_pyo3() -> Result<()> {
 
     print_feature_cfgs();
 
-    // Make `cargo test` etc work on macOS with Xcode bundled Python
-    add_python_framework_link_args();
+    // Make `cargo test` etc work on non-global Python installations
+    add_python_link_args();
 
     Ok(())
 }

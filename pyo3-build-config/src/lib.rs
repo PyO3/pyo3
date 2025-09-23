@@ -72,18 +72,47 @@ fn _add_extension_module_link_args(triple: &Triple, mut writer: impl std::io::Wr
     }
 }
 
-/// Adds linker arguments suitable for linking against the Python framework on macOS.
+#[doc(hidden)]
+#[deprecated = "Use add_python_link_args instead"]
+pub fn add_python_framework_link_args() {
+    add_python_link_args();
+}
+
+/// Adds any linker arguments needed to locate libpython.
 ///
-/// This should be called from a build script.
+/// This should be called from a build script. While this is only needed
+/// on certain platforms, it is recommended to unconditionally call this
+/// from your build.rs to ensure that your crate correctly builds on
+/// those platforms.
+///
+/// This is necessary for any code that dynamically links libpython,
+/// including binary crates as well as Rust test cases that call into
+/// the Python interpreter. It is not necessary for an extension module,
+/// provided that your test cases do not call the Python interpreter.
 ///
 /// The following link flags are added:
-/// - macOS: `-Wl,-rpath,<framework_prefix>`
+/// - macOS framework builds: `-Wl,-rpath,<framework_prefix>`
+/// - UNIX relocatable Python builds: `-Wl,rpath,<lib_dir>`
 ///
 /// All other platforms currently are no-ops.
+///
+/// Note that this function works by including a reference to the location of
+/// the libpython dynamic library into your executable. If your only use of this
+/// library is in `cargo test`, or if the Python installation will be in the same
+/// place on your build system and production system (e.g., you are building on
+/// the same machine where you run, or you are generating a container or system
+/// image, or you are building against a Python installation packaged by your
+/// operating system), then this is probably the behavior you want. If you are
+/// distributing an application to run on other systems, you will likely want to
+/// figure out a plan to distribute libpython along with your application and
+/// manually set the correct rpath, either by having your build.rs emit the right
+/// flags instead of calling this function, or by using a tool like patchelf
+/// after the fact, or alternatively you will want to build against a
+/// static libpython.
 #[cfg(feature = "resolve-config")]
-pub fn add_python_framework_link_args() {
+pub fn add_python_link_args() {
     let interpreter_config = pyo3_build_script_impl::resolve_interpreter_config().unwrap();
-    _add_python_framework_link_args(
+    _add_python_link_args(
         &interpreter_config,
         &impl_::target_triple_from_env(),
         impl_::is_linking_libpython(),
@@ -92,7 +121,7 @@ pub fn add_python_framework_link_args() {
 }
 
 #[cfg(feature = "resolve-config")]
-fn _add_python_framework_link_args(
+fn _add_python_link_args(
     interpreter_config: &InterpreterConfig,
     triple: &Triple,
     link_libpython: bool,
@@ -101,6 +130,15 @@ fn _add_python_framework_link_args(
     if matches!(triple.operating_system, OperatingSystem::Darwin(_)) && link_libpython {
         if let Some(framework_prefix) = interpreter_config.python_framework_prefix.as_ref() {
             writeln!(writer, "cargo:rustc-link-arg=-Wl,-rpath,{framework_prefix}").unwrap();
+        }
+    } else if interpreter_config.relocatable && link_libpython && triple.operating_system != OperatingSystem::Windows {
+        if let Some(lib_dir) = interpreter_config.lib_dir.as_ref() {
+            writeln!(
+                writer,
+                "cargo:rustc-link-arg=-Wl,-rpath,{}",
+                lib_dir
+            )
+            .unwrap();
         }
     }
 }
@@ -329,10 +367,10 @@ mod tests {
 
     #[cfg(feature = "resolve-config")]
     #[test]
-    fn python_framework_link_args() {
+    fn python_link_args() {
         let mut buf = Vec::new();
 
-        let interpreter_config = InterpreterConfig {
+        let base = InterpreterConfig {
             implementation: PythonImplementation::CPython,
             version: PythonVersion {
                 major: 3,
@@ -347,21 +385,34 @@ mod tests {
             build_flags: BuildFlags::default(),
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
+            python_framework_prefix: None,
+            relocatable: false,
+        };
+
+        let mac_framework_config = InterpreterConfig {
             python_framework_prefix: Some(
                 "/Applications/Xcode.app/Contents/Developer/Library/Frameworks".to_string(),
             ),
+            ..base
+        };
+        let relocatable_config = InterpreterConfig {
+            lib_dir: "/home/xyz/Downloads/python/lib",
+            relocatable: true,
+            ..base
         };
         // Does nothing on non-mac
-        _add_python_framework_link_args(
-            &interpreter_config,
-            &Triple::from_str("x86_64-pc-windows-msvc").unwrap(),
-            true,
-            &mut buf,
-        );
-        assert_eq!(buf, Vec::new());
+        for interpreter_config in &[mac_framework_config, relocatable_config] {
+            _add_python_link_args(
+                &interpreter_config,
+                &Triple::from_str("x86_64-pc-windows-msvc").unwrap(),
+                true,
+                &mut buf,
+            );
+            assert_eq!(buf, Vec::new());
+        }
 
-        _add_python_framework_link_args(
-            &interpreter_config,
+        _add_python_link_args(
+            &mac_framework_config,
             &Triple::from_str("x86_64-apple-darwin").unwrap(),
             true,
             &mut buf,
@@ -369,6 +420,17 @@ mod tests {
         assert_eq!(
             std::str::from_utf8(&buf).unwrap(),
             "cargo:rustc-link-arg=-Wl,-rpath,/Applications/Xcode.app/Contents/Developer/Library/Frameworks\n"
+        );
+
+        _add_python_link_args(
+            &relocatable_config,
+            &Triple::from_str("x86_64-apple-darwin").unwrap(),
+            true,
+            &mut buf,
+        );
+        assert_eq!(
+            std::str::from_utf8(&buf).unwrap(),
+            "cargo:rustc-link-arg=-Wl,-rpath,/home/xyz/Downloads/python/lib\n"
         );
     }
 }
