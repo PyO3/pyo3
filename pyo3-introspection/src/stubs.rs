@@ -110,7 +110,21 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
 }
 
 fn class_stubs(class: &Class, imports: &Imports) -> String {
-    let mut buffer = format!("class {}:", class.name);
+    let mut buffer = String::new();
+    if class.is_final {
+        buffer.push('@');
+        imports.serialize_type_hint(
+            &TypeHintExpr::Attribute {
+                module: "typing".into(),
+                attr: "final".into(),
+            },
+            &mut buffer,
+        );
+        buffer.push('\n');
+    }
+    buffer.push_str("class ");
+    buffer.push_str(&class.name);
+    buffer.push(':');
     if class.methods.is_empty() && class.attributes.is_empty() {
         buffer.push_str(" ...");
         return buffer;
@@ -410,6 +424,12 @@ impl ElementsUsedInAnnotations {
     }
 
     fn walk_class(&mut self, class: &Class) {
+        if class.is_final {
+            self.module_members
+                .entry("typing".into())
+                .or_default()
+                .insert("final".into());
+        }
         for method in &class.methods {
             self.walk_function(method);
         }
@@ -605,6 +625,7 @@ mod tests {
                     name: "A".into(),
                     methods: Vec::new(),
                     attributes: Vec::new(),
+                    is_final: true,
                 }],
                 functions: vec![Function {
                     name: String::new(),
@@ -628,7 +649,8 @@ mod tests {
             &[
                 "from _typeshed import Incomplete",
                 "from bat import A as A2",
-                "from foo import A as A3, B"
+                "from foo import A as A3, B",
+                "from typing import final"
             ]
         );
         let mut output = String::new();
