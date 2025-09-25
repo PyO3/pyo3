@@ -156,7 +156,6 @@ full = [
     "chrono-tz",
     "either",
     "experimental-async",
-    "experimental-inspect",
     "eyre",
     "hashbrown",
     "indexmap",
