@@ -96,7 +96,9 @@ impl PyCFunction {
         )?;
 
         // Safety: just created the capsule with type ClosureDestructor<F> above
-        let data = unsafe { capsule.reference::<ClosureDestructor<F>>() };
+        let data = unsafe {
+            capsule.reference_checked::<ClosureDestructor<F>>(Some(CLOSURE_CAPSULE_NAME))
+        }?;
 
         unsafe {
             ffi::PyCFunction_NewEx(data.def.get(), capsule.as_ptr(), std::ptr::null_mut())
