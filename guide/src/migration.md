@@ -57,7 +57,7 @@ Before:
 struct MyWrapper<T>(T);
 
 impl<'py, T> FromPyObject<'py> for MyWrapper<T>
-where 
+where
     T: FromPyObject<'py>
 {
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
@@ -66,7 +66,7 @@ where
 }
 ```
 
-After: 
+After:
 ```rust
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
@@ -132,6 +132,12 @@ This is very similar to `serde`s [`Deserialize`] and [`DeserializeOwned`] traits
 [`Deserialize`]: https://docs.rs/serde/latest/serde/trait.Deserialize.html
 [`DeserializeOwned`]: https://docs.rs/serde/latest/serde/de/trait.DeserializeOwned.html
 </details>
+
+## `PyTypeCheck` is now an `unsafe trait`
+
+Because `PyTypeCheck` is the trait used to guard the `.cast()` functions to treat Python objects as specific concrete types, the trait is `unsafe` to implement.
+
+This should always have been the case, it was an unfortunate omission from its original implementation which is being corrected in this release.
 
 ## from 0.25.* to 0.26
 ### Rename of `Python::with_gil`, `Python::allow_threads`, and `pyo3::prepare_freethreaded_python`
