@@ -890,12 +890,26 @@ impl<'py, T> BoundObject<'py, T> for Bound<'py, T> {
     }
 }
 
-/// A borrowed equivalent to `Bound`.
+/// A borrowed equivalent to [`Bound`].
 ///
-/// The advantage of this over `&Bound` is that it avoids the need to have a pointer-to-pointer, as Bound
-/// is already a pointer to an `ffi::PyObject``.
+/// [`Borrowed<'a, 'py, T>`] is an advanced type used just occasionally at the edge of interaction
+/// with the Python interpreter. It can be thought of as analogous to the shared reference `&'a
+/// Bound<'py, T>`, similarly this type is `Copy` and `Clone`. The difference is that [`Borrowed<'a,
+/// 'py, T>`] is just a smart pointer rather than a reference-to-a-smart-pointer. For one this
+/// reduces one level of pointer indirection, but additionally it removes the implicit lifetime
+/// relation that `'py` has to outlive `'a` (`'py: 'a`). This opens the possibility to borrow from
+/// the underlying Python object without necessarily requiring attachment to the interpreter for
+/// that duration. Within PyO3 this is used for example for the byte slice (`&[u8]`) extraction.
 ///
-/// Similarly, this type is `Copy` and `Clone`, like a shared reference (`&T`).
+/// [`Borrowed<'a, 'py, T>`] dereferences to [`Bound<'py, T>`], so all methods on [`Bound<'py, T>`]
+/// are available on [`Borrowed<'a, 'py, T>`].
+///
+/// Some Python C APIs also return "borrowed" pointers, which need to be increfd by the caller to
+/// keep them alive. This can also be modelled using [`Borrowed`]. However with free-threading these
+/// APIs are gradually replaced, because in absense of the GIL it is very hard to guarantee that the
+/// referred to object is not deallocated between receiving the pointer and incrementing the
+/// reference count. When possible APIs which return a "strong" reference (modelled by [`Bound`])
+/// should be using instead and otherwise great care needs to be taken to ensure safety.
 #[repr(transparent)]
 pub struct Borrowed<'a, 'py, T>(NonNull<ffi::PyObject>, PhantomData<&'a Py<T>>, Python<'py>);
 
@@ -953,6 +967,75 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
         O: FromPyObject<'a, 'py>,
     {
         FromPyObject::extract(self.to_any())
+    }
+
+    /// Cast this to a concrete Python type or pyclass.
+    ///
+    /// This performs a runtime type check using the equivalent of Python's
+    /// `isinstance(self, U)`.
+    #[inline]
+    pub fn cast<U>(self) -> Result<Borrowed<'a, 'py, U>, DowncastError<'a, 'py>>
+    where
+        U: PyTypeCheck,
+    {
+        fn inner<'a, 'py, U>(
+            any: Borrowed<'a, 'py, PyAny>,
+        ) -> Result<Borrowed<'a, 'py, U>, DowncastError<'a, 'py>>
+        where
+            U: PyTypeCheck,
+        {
+            if U::type_check(&any) {
+                // Safety: type_check is responsible for ensuring that the type is correct
+                Ok(unsafe { any.cast_unchecked() })
+            } else {
+                Err(DowncastError::new_from_type(
+                    any,
+                    U::classinfo_object(any.py()),
+                ))
+            }
+        }
+        inner(self.to_any())
+    }
+
+    /// Cast this to a concrete Python type or pyclass (but not a subclass of it).
+    ///
+    /// It is almost always better to use [`cast`](Self::cast) because it accounts for Python
+    /// subtyping. Use this method only when you do not want to allow subtypes.
+    ///
+    /// The advantage of this method over [`cast`](Self::cast) is that it is faster. The
+    /// implementation of `cast_exact` uses the equivalent of the Python expression `type(self) is
+    /// U`, whereas `cast` uses `isinstance(self, U)`.
+    #[inline]
+    pub fn cast_exact<U>(self) -> Result<Borrowed<'a, 'py, U>, DowncastError<'a, 'py>>
+    where
+        U: PyTypeInfo,
+    {
+        fn inner<'a, 'py, U>(
+            any: Borrowed<'a, 'py, PyAny>,
+        ) -> Result<Borrowed<'a, 'py, U>, DowncastError<'a, 'py>>
+        where
+            U: PyTypeInfo,
+        {
+            if any.is_exact_instance_of::<U>() {
+                // Safety: is_exact_instance_of is responsible for ensuring that the type is correct
+                Ok(unsafe { any.cast_unchecked() })
+            } else {
+                Err(DowncastError::new_from_type(
+                    any,
+                    U::classinfo_object(any.py()),
+                ))
+            }
+        }
+        inner(self.to_any())
+    }
+
+    /// Converts this to a concrete Python type without checking validity.
+    ///
+    /// # Safety
+    /// Callers must ensure that the type is valid or risk type confusion.
+    #[inline]
+    pub unsafe fn cast_unchecked<U>(self) -> Borrowed<'a, 'py, U> {
+        Borrowed(self.0, PhantomData, self.2)
     }
 }
 
@@ -1041,31 +1124,6 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// lifetime `'a`.
     pub(crate) unsafe fn from_non_null(py: Python<'py>, ptr: NonNull<ffi::PyObject>) -> Self {
         Self(ptr, PhantomData, py)
-    }
-
-    #[inline]
-    pub(crate) fn cast<T>(self) -> Result<Borrowed<'a, 'py, T>, DowncastError<'a, 'py>>
-    where
-        T: PyTypeCheck,
-    {
-        if T::type_check(&self) {
-            // Safety: type_check is responsible for ensuring that the type is correct
-            Ok(unsafe { self.cast_unchecked() })
-        } else {
-            Err(DowncastError::new_from_type(
-                self,
-                T::classinfo_object(self.py()),
-            ))
-        }
-    }
-
-    /// Converts this `PyAny` to a concrete Python type without checking validity.
-    ///
-    /// # Safety
-    /// Callers must ensure that the type is valid or risk type confusion.
-    #[inline]
-    pub(crate) unsafe fn cast_unchecked<T>(self) -> Borrowed<'a, 'py, T> {
-        Borrowed(self.0, PhantomData, self.2)
     }
 }
 
