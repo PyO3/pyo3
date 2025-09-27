@@ -84,7 +84,7 @@ macro_rules! bigint_conversion {
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 use num_traits::ToBytes;
 
-                #[cfg(Py_3_13)]
+                #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
                 {
                     use crate::conversions::std::num::py_int_from_ne_bytes;
                     let bytes = self.to_ne_bytes();
@@ -98,7 +98,7 @@ macro_rules! bigint_conversion {
                     Ok(py_int_from_le_bytes::<{ $is_signed }>(py, &bytes))
                 }
 
-                #[cfg(all(Py_LIMITED_API, not(Py_3_13)))]
+                #[cfg(Py_LIMITED_API)]
                 {
                     use $crate::py_result_ext::PyResultExt;
                     use $crate::types::any::PyAnyMethods;
