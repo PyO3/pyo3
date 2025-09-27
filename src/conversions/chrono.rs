@@ -692,11 +692,11 @@ mod tests {
             let none = py.None().into_bound(py);
             assert_eq!(
                 none.extract::<Duration>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'PyDelta'"
+                "TypeError: 'NoneType' object cannot be converted to 'timedelta'"
             );
             assert_eq!(
                 none.extract::<FixedOffset>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'PyTzInfo'"
+                "TypeError: 'NoneType' object cannot be converted to 'tzinfo'"
             );
             assert_eq!(
                 none.extract::<Utc>().unwrap_err().to_string(),
@@ -704,25 +704,25 @@ mod tests {
             );
             assert_eq!(
                 none.extract::<NaiveTime>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'PyTime'"
+                "TypeError: 'NoneType' object cannot be converted to 'time'"
             );
             assert_eq!(
                 none.extract::<NaiveDate>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'PyDate'"
+                "TypeError: 'NoneType' object cannot be converted to 'date'"
             );
             assert_eq!(
                 none.extract::<NaiveDateTime>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'PyDateTime'"
+                "TypeError: 'NoneType' object cannot be converted to 'datetime'"
             );
             assert_eq!(
                 none.extract::<DateTime<Utc>>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'PyDateTime'"
+                "TypeError: 'NoneType' object cannot be converted to 'datetime'"
             );
             assert_eq!(
                 none.extract::<DateTime<FixedOffset>>()
                     .unwrap_err()
                     .to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'PyDateTime'"
+                "TypeError: 'NoneType' object cannot be converted to 'datetime'"
             );
         });
     }
