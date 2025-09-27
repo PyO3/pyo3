@@ -2186,7 +2186,7 @@ impl Py<PyAny> {
     /// })
     /// # }
     /// ```
-    // FIXME(icxolu) deprecate in favor of `Py::cast_bound`
+    #[deprecated(since = "0.27.0", note = "use `Py::cast_bound` instead")]
     #[inline]
     pub fn downcast_bound<'py, T>(
         &self,
@@ -2195,7 +2195,8 @@ impl Py<PyAny> {
     where
         T: PyTypeCheck,
     {
-        self.cast_bound(py)
+        #[allow(deprecated)]
+        self.bind(py).downcast()
     }
 
     /// Casts the `Py<PyAny>` to a concrete Python object type without checking validity.
@@ -2203,10 +2204,13 @@ impl Py<PyAny> {
     /// # Safety
     ///
     /// Callers must ensure that the type is valid or risk type confusion.
-    // FIXME(icxolu) deprecate in favor of `Py::cast_bound_unchecked`
+    #[deprecated(since = "0.27.0", note = "use `Py::cast_bound_unchecked` instead")]
     #[inline]
     pub unsafe fn downcast_bound_unchecked<'py, T>(&self, py: Python<'py>) -> &Bound<'py, T> {
-        unsafe { self.cast_bound_unchecked(py) }
+        #[allow(deprecated)]
+        unsafe {
+            self.bind(py).downcast_unchecked()
+        }
     }
 }
 
