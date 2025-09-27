@@ -464,7 +464,7 @@ enum RustyEnum {
 ```
 
 If the input is neither a string nor an integer, the error message will be:
-`"'<INPUT_TYPE>' cannot be converted to 'str | int'"`.
+`"'<INPUT_TYPE>' cannot be cast as 'str | int'"`.
 
 #### `#[derive(FromPyObject)]` Container Attributes
 - `pyo3(transparent)`

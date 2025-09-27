@@ -342,7 +342,9 @@
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
 pub use crate::conversion::{FromPyObject, IntoPyObject, IntoPyObjectExt};
-pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
+pub use crate::err::{CastError, CastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
+#[allow(deprecated)]
+pub use crate::err::{DowncastError, DowncastIntoError};
 #[allow(deprecated)]
 pub use crate::instance::PyObject;
 pub use crate::instance::{Borrowed, Bound, BoundObject, Py};

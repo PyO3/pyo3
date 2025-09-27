@@ -535,7 +535,7 @@ mod tests {
                         .cast_into::<PyWeakref>()
                         .unwrap_err()
                         .to_string(),
-                    "'int' object cannot be converted to 'ProxyType | CallableProxyType | ReferenceType'"
+                    "'int' object cannot be cast as 'ProxyType | CallableProxyType | ReferenceType'"
                 );
                 Ok(())
             })

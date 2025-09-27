@@ -1,7 +1,7 @@
 use crate::call::PyCallArgs;
 use crate::class::basic::CompareOp;
 use crate::conversion::{FromPyObject, IntoPyObject};
-use crate::err::{DowncastError, DowncastIntoError, PyErr, PyResult};
+use crate::err::{CastError, CastIntoError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
@@ -773,13 +773,13 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// # }
     /// ```
     // FIXME(icxolu) deprecate in favor of `Bound::cast`
-    fn downcast<T>(&self) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
+    fn downcast<T>(&self) -> Result<&Bound<'py, T>, CastError<'_, 'py>>
     where
         T: PyTypeCheck;
 
     /// Like `downcast` but takes ownership of `self`.
     ///
-    /// In case of an error, it is possible to retrieve `self` again via [`DowncastIntoError::into_inner`].
+    /// In case of an error, it is possible to retrieve `self` again via [`CastIntoError::into_inner`].
     ///
     /// # Example
     ///
@@ -801,7 +801,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// })
     /// ```
     // FIXME(icxolu) deprecate in favor of `Bound::cast_into`
-    fn downcast_into<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
+    fn downcast_into<T>(self) -> Result<Bound<'py, T>, CastIntoError<'py>>
     where
         T: PyTypeCheck;
 
@@ -837,13 +837,13 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// });
     /// ```
     // FIXME(icxolu) deprecate in favor of `Bound::cast_exact`
-    fn downcast_exact<T>(&self) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
+    fn downcast_exact<T>(&self) -> Result<&Bound<'py, T>, CastError<'_, 'py>>
     where
         T: PyTypeInfo;
 
     /// Like `downcast_exact` but takes ownership of `self`.
     // FIXME(icxolu) deprecate in favor of `Bound::cast_into_exact`
-    fn downcast_into_exact<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
+    fn downcast_into_exact<T>(self) -> Result<Bound<'py, T>, CastIntoError<'py>>
     where
         T: PyTypeInfo;
 
@@ -1445,7 +1445,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     #[inline]
-    fn downcast<T>(&self) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
+    fn downcast<T>(&self) -> Result<&Bound<'py, T>, CastError<'_, 'py>>
     where
         T: PyTypeCheck,
     {
@@ -1453,7 +1453,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     #[inline]
-    fn downcast_into<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
+    fn downcast_into<T>(self) -> Result<Bound<'py, T>, CastIntoError<'py>>
     where
         T: PyTypeCheck,
     {
@@ -1461,7 +1461,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     #[inline]
-    fn downcast_exact<T>(&self) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
+    fn downcast_exact<T>(&self) -> Result<&Bound<'py, T>, CastError<'_, 'py>>
     where
         T: PyTypeInfo,
     {
@@ -1469,7 +1469,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     #[inline]
-    fn downcast_into_exact<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
+    fn downcast_into_exact<T>(self) -> Result<Bound<'py, T>, CastIntoError<'py>>
     where
         T: PyTypeInfo,
     {
