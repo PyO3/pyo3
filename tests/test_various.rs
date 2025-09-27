@@ -6,8 +6,7 @@ use pyo3::types::PyTuple;
 
 use std::fmt;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct MutRefArg {
@@ -26,7 +25,7 @@ impl MutRefArg {
 
 #[test]
 fn mut_ref_arg() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst1 = Py::new(py, MutRefArg { n: 0 }).unwrap();
         let inst2 = Py::new(py, MutRefArg { n: 0 }).unwrap();
 
@@ -51,7 +50,7 @@ fn get_zero() -> PyUsize {
 /// Checks that we can use return a custom class in arbitrary function and use those functions
 /// both in rust and python
 fn return_custom_class() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // Using from rust
         assert_eq!(get_zero().value, 0);
 
@@ -63,7 +62,7 @@ fn return_custom_class() {
 
 #[test]
 fn intopytuple_primitive() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = (1, 2, "foo");
         py_assert!(py, tup, "tup == (1, 2, 'foo')");
         py_assert!(py, tup, "tup[0] == 1");
@@ -77,7 +76,7 @@ struct SimplePyClass {}
 
 #[test]
 fn intopytuple_pyclass() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = (
             Py::new(py, SimplePyClass {}).unwrap(),
             Py::new(py, SimplePyClass {}).unwrap(),
@@ -90,7 +89,7 @@ fn intopytuple_pyclass() {
 
 #[test]
 fn pytuple_primitive_iter() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = PyTuple::new(py, [1u32, 2, 3].iter()).unwrap();
         py_assert!(py, tup, "tup == (1, 2, 3)");
     });
@@ -98,7 +97,7 @@ fn pytuple_primitive_iter() {
 
 #[test]
 fn pytuple_pyclass_iter() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = PyTuple::new(
             py,
             [
@@ -145,11 +144,11 @@ fn test_pickle() {
             .get_item("modules")
             .unwrap()
             .unwrap()
-            .downcast::<PyDict>()?
+            .cast::<PyDict>()?
             .set_item(module.name()?, module)
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = PyModule::new(py, "test_module").unwrap();
         module.add_class::<PickleSupport>().unwrap();
         add_module(module).unwrap();
@@ -203,7 +202,7 @@ fn result_conversion_function() -> Result<(), MyError> {
 
 #[test]
 fn test_result_conversion() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         wrap_pyfunction!(result_conversion_function)(py).unwrap();
     });
 }

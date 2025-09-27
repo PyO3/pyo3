@@ -4,18 +4,18 @@ Sorry that you're having trouble using PyO3. If you can't find the answer to you
 
 ## I'm experiencing deadlocks using PyO3 with `std::sync::OnceLock`, `std::sync::LazyLock`, `lazy_static`, and `once_cell`!
 
-`OnceLock`, `LazyLock`, and their thirdparty predecessors use blocking to ensure only one thread ever initializes them. Because the Python GIL is an additional lock this can lead to deadlocks in the following way:
+`OnceLock`, `LazyLock`, and their thirdparty predecessors use blocking to ensure only one thread ever initializes them. Because the Python interpreter can introduce additional locks (the Python GIL and GC can both require all other threads to pause) this can lead to deadlocks in the following way:
 
-1. A thread (thread A) which has acquired the Python GIL starts initialization of a `OnceLock` value.
-2. The initialization code calls some Python API which temporarily releases the GIL e.g. `Python::import`.
-3. Another thread (thread B) acquires the Python GIL and attempts to access the same `OnceLock` value.
+1. A thread (thread A) which is attached to the Python interpreter starts initialization of a `OnceLock` value.
+2. The initialization code calls some Python API which temporarily detaches from the interpreter e.g. `Python::import`.
+3. Another thread (thread B) attaches to the Python interpreter and attempts to access the same `OnceLock` value.
 4. Thread B is blocked, because it waits for `OnceLock`'s initialization to lock to release.
-5. Thread A is blocked, because it waits to re-acquire the GIL which thread B still holds.
+5. On non-free-threaded Python, thread A is now also blocked, because it waits to re-attach to the interpreter (by taking the GIL which thread B still holds).
 6. Deadlock.
 
-PyO3 provides a struct [`GILOnceCell`] which implements a single-initialization API based on these types that relies on the GIL for locking. If the GIL is released or there is no GIL, then this type allows the initialization function to race but ensures that the data is only ever initialized once. If you need to ensure that the initialization function is called once and only once, you can make use of the [`OnceExt`] and [`OnceLockExt`] extension traits that enable using the standard library types for this purpose but provide new methods for these types that avoid the risk of deadlocking with the Python GIL. This means they can be used in place of other choices when you are experiencing the deadlock described above. See the documentation for [`GILOnceCell`] and [`OnceExt`] for further details and an example how to use them.
+PyO3 provides a struct [`PyOnceLock`] which implements a single-initialization API based on these types that avoids deadlocks. You can also make use of the [`OnceExt`] and [`OnceLockExt`] extension traits that enable using the standard library types for this purpose by providing new methods for these types that avoid the risk of deadlocking with the Python interpreter. This means they can be used in place of other choices when you are experiencing the deadlock described above. See the documentation for [`PyOnceLock`] and [`OnceExt`] for further details and an example how to use them.
 
-[`GILOnceCell`]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html
+[`PyOnceLock`]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.PyOnceLock.html
 [`OnceExt`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html
 [`OnceLockExt`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceLockExt.html
 
@@ -86,7 +86,7 @@ You can give the Python interpreter a chance to process the signal properly by c
 
 You may have a nested struct similar to this:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 #[pyclass]
 #[derive(Clone)]
@@ -126,7 +126,7 @@ b: <builtins.Inner object at 0x00000238FFB9C830>
 This can be especially confusing if the field is mutable, as getting the field and then mutating it won't persist - you'll just get a fresh clone of the original on the next access. Unfortunately Python and Rust don't agree about ownership - if PyO3 gave out references to (possibly) temporary Rust objects to Python code, Python code could then keep that reference alive indefinitely. Therefore returning Rust objects requires cloning.
 
 If you don't want that cloning to happen, a workaround is to allocate the field on the Python heap and store a reference to that, by using [`Py<...>`]({{#PYO3_DOCS_URL}}/pyo3/struct.Py.html):
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 #[pyclass]
 struct Inner {/* fields omitted */}
@@ -166,7 +166,8 @@ print(f"a: {a}\nb: {b}")
 a: <builtins.Inner object at 0x0000020044FCC670>
 b: <builtins.Inner object at 0x0000020044FCC670>
 ```
-The downside to this approach is that any Rust code working on the `Outer` struct now has to acquire the GIL to do anything with its field.
+The downside to this approach is that any Rust code working on the `Outer` struct potentially has to attach to the Python interpreter to do anything with the `inner` field. (If `Inner` is `#[pyclass(frozen)]` and implements `Sync`, then `Py::get`
+may be used to access the `Inner` contents from `Py<Inner>` without needing to attach to the interpreter.)
 
 ## I want to use the `pyo3` crate re-exported from dependency but the proc-macros fail!
 
@@ -179,7 +180,7 @@ However, when the dependency is renamed, or your crate only indirectly depends
 on `pyo3`, you need to let the macro code know where to find the crate.  This is
 done with the `crate` attribute:
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 # pub extern crate pyo3;
 # mod reexported { pub use ::pyo3; }

@@ -16,14 +16,7 @@ impl PyEllipsis {
     /// Returns the `Ellipsis` object.
     #[inline]
     pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyEllipsis> {
-        unsafe { ffi::Py_Ellipsis().assume_borrowed(py).downcast_unchecked() }
-    }
-
-    /// Deprecated name for [`PyEllipsis::get`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyEllipsis::get`")]
-    #[inline]
-    pub fn get_bound(py: Python<'_>) -> Borrowed<'_, '_, PyEllipsis> {
-        Self::get(py)
+        unsafe { ffi::Py_Ellipsis().assume_borrowed(py).cast_unchecked() }
     }
 }
 
@@ -56,7 +49,7 @@ mod tests {
 
     #[test]
     fn test_ellipsis_is_itself() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyEllipsis::get(py).is_instance_of::<PyEllipsis>());
             assert!(PyEllipsis::get(py).is_exact_instance_of::<PyEllipsis>());
         })
@@ -64,17 +57,17 @@ mod tests {
 
     #[test]
     fn test_ellipsis_type_object_consistent() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyEllipsis::get(py)
                 .get_type()
-                .is(&PyEllipsis::type_object(py)));
+                .is(PyEllipsis::type_object(py)));
         })
     }
 
     #[test]
     fn test_dict_is_not_ellipsis() {
-        Python::with_gil(|py| {
-            assert!(PyDict::new(py).downcast::<PyEllipsis>().is_err());
+        Python::attach(|py| {
+            assert!(PyDict::new(py).cast::<PyEllipsis>().is_err());
         })
     }
 }

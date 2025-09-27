@@ -2,6 +2,7 @@ use crate::err::{self, PyResult};
 use crate::instance::Borrowed;
 #[cfg(not(Py_3_13))]
 use crate::pybacked::PyBackedStr;
+#[cfg(any(Py_LIMITED_API, PyPy, not(Py_3_13)))]
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
 use crate::{ffi, Bound, PyAny, PyTypeInfo, Python};
@@ -27,13 +28,6 @@ impl PyType {
         T::type_object(py)
     }
 
-    /// Deprecated name for [`PyType::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyType::new`")]
-    #[inline]
-    pub fn new_bound<T: PyTypeInfo>(py: Python<'_>) -> Bound<'_, PyType> {
-        Self::new::<T>(py)
-    }
-
     /// Converts the given FFI pointer into `Bound<PyType>`, to use in safe code.
     ///
     /// The function creates a new reference from the given pointer, and returns
@@ -48,7 +42,7 @@ impl PyType {
     ) -> Bound<'_, PyType> {
         unsafe {
             Borrowed::from_ptr_unchecked(py, p.cast())
-                .downcast_unchecked()
+                .cast_unchecked()
                 .to_owned()
         }
     }
@@ -111,9 +105,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
     /// Gets the name of the `PyType`.
     fn name(&self) -> PyResult<Bound<'py, PyString>> {
         #[cfg(not(Py_3_11))]
-        let name = self
-            .getattr(intern!(self.py(), "__name__"))?
-            .downcast_into()?;
+        let name = self.getattr(intern!(self.py(), "__name__"))?.cast_into()?;
 
         #[cfg(Py_3_11)]
         let name = unsafe {
@@ -121,7 +113,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
             ffi::PyType_GetName(self.as_type_ptr())
                 .assume_owned_or_err(self.py())?
                 // SAFETY: setting `__name__` from Python is required to be a `str`
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         };
 
         Ok(name)
@@ -132,7 +124,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
         #[cfg(not(Py_3_11))]
         let name = self
             .getattr(intern!(self.py(), "__qualname__"))?
-            .downcast_into()?;
+            .cast_into()?;
 
         #[cfg(Py_3_11)]
         let name = unsafe {
@@ -140,7 +132,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
             ffi::PyType_GetQualName(self.as_type_ptr())
                 .assume_owned_or_err(self.py())?
                 // SAFETY: setting `__qualname__` from Python is required to be a `str`
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         };
 
         Ok(name)
@@ -158,7 +150,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
         };
 
         // `__module__` is never guaranteed to be a `str`
-        name.downcast_into().map_err(Into::into)
+        name.cast_into().map_err(Into::into)
     }
 
     /// Gets the [fully qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
@@ -170,9 +162,9 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
 
             let module_str = module.extract::<PyBackedStr>()?;
             if module_str == "builtins" || module_str == "__main__" {
-                qualname.downcast_into()?
+                qualname.cast_into()?
             } else {
-                PyString::new(self.py(), &format!("{}.{}", module, qualname))
+                PyString::new(self.py(), &format!("{module}.{qualname}"))
             }
         };
 
@@ -181,7 +173,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
             use crate::ffi_ptr_ext::FfiPtrExt;
             ffi::PyType_GetFullyQualifiedName(self.as_type_ptr())
                 .assume_owned_or_err(self.py())?
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         };
 
         Ok(name)
@@ -222,7 +214,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
                 .tp_mro
                 .assume_borrowed(self.py())
                 .to_owned()
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         };
 
         mro
@@ -243,7 +235,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
                 .tp_bases
                 .assume_borrowed(self.py())
                 .to_owned()
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         };
 
         bases
@@ -252,7 +244,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::common::generate_unique_module_name;
+    use crate::test_utils::generate_unique_module_name;
     use crate::types::{PyAnyMethods, PyBool, PyInt, PyModule, PyTuple, PyType, PyTypeMethods};
     use crate::PyAny;
     use crate::Python;
@@ -260,7 +252,7 @@ mod tests {
 
     #[test]
     fn test_type_is_subclass() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bool_type = py.get_type::<PyBool>();
             let long_type = py.get_type::<PyInt>();
             assert!(bool_type.is_subclass(&long_type).unwrap());
@@ -269,14 +261,14 @@ mod tests {
 
     #[test]
     fn test_type_is_subclass_of() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(py.get_type::<PyBool>().is_subclass_of::<PyInt>().unwrap());
         });
     }
 
     #[test]
     fn test_mro() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(py
                 .get_type::<PyBool>()
                 .mro()
@@ -295,7 +287,7 @@ mod tests {
 
     #[test]
     fn test_bases_bool() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(py
                 .get_type::<PyBool>()
                 .bases()
@@ -306,7 +298,7 @@ mod tests {
 
     #[test]
     fn test_bases_object() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(py
                 .get_type::<PyAny>()
                 .bases()
@@ -317,7 +309,7 @@ mod tests {
 
     #[test]
     fn test_type_names_standard() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module_name = generate_unique_module_name("test_module");
             let module = PyModule::from_code(
                 py,
@@ -333,7 +325,7 @@ class MyClass:
             .expect("module create failed");
 
             let my_class = module.getattr("MyClass").unwrap();
-            let my_class_type = my_class.downcast_into::<PyType>().unwrap();
+            let my_class_type = my_class.cast_into::<PyType>().unwrap();
             assert_eq!(my_class_type.name().unwrap(), "MyClass");
             assert_eq!(my_class_type.qualname().unwrap(), "MyClass");
             let module_name = module_name.to_str().unwrap();
@@ -348,7 +340,7 @@ class MyClass:
 
     #[test]
     fn test_type_names_builtin() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bool_type = py.get_type::<PyBool>();
             assert_eq!(bool_type.name().unwrap(), "bool");
             assert_eq!(bool_type.qualname().unwrap(), "bool");
@@ -359,7 +351,7 @@ class MyClass:
 
     #[test]
     fn test_type_names_nested() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module_name = generate_unique_module_name("test_module");
             let module = PyModule::from_code(
                 py,
@@ -377,7 +369,7 @@ class OuterClass:
 
             let outer_class = module.getattr("OuterClass").unwrap();
             let inner_class = outer_class.getattr("InnerClass").unwrap();
-            let inner_class_type = inner_class.downcast_into::<PyType>().unwrap();
+            let inner_class_type = inner_class.cast_into::<PyType>().unwrap();
             assert_eq!(inner_class_type.name().unwrap(), "InnerClass");
             assert_eq!(
                 inner_class_type.qualname().unwrap(),

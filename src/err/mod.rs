@@ -4,17 +4,15 @@ use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{
     string::PyStringMethods, traceback::PyTracebackMethods, typeobject::PyTypeMethods, PyTraceback,
-    PyType,
+    PyTuple, PyTupleMethods, PyType,
 };
 use crate::{
     exceptions::{self, PyBaseException},
     ffi,
 };
-use crate::{Borrowed, BoundObject, Py, PyAny, PyObject, Python};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
+use crate::{Borrowed, BoundObject, Py, PyAny, Python};
 use std::borrow::Cow;
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 
 mod err_state;
 mod impls;
@@ -22,6 +20,7 @@ mod impls;
 use crate::conversion::IntoPyObject;
 use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
 use std::convert::Infallible;
+use std::ptr;
 
 /// Represents a Python exception.
 ///
@@ -29,8 +28,8 @@ use std::convert::Infallible;
 /// compatibility with `?` and other Rust errors) this type supports creating exceptions instances
 /// in a lazy fashion, where the full Python object for the exception is created only when needed.
 ///
-/// Accessing the contained exception in any way, such as with [`value_bound`](PyErr::value_bound),
-/// [`get_type_bound`](PyErr::get_type_bound), or [`is_instance_bound`](PyErr::is_instance_bound)
+/// Accessing the contained exception in any way, such as with [`value`](PyErr::value),
+/// [`get_type`](PyErr::get_type), or [`is_instance`](PyErr::is_instance)
 /// will create the full exception object if it was not already created.
 pub struct PyErr {
     state: PyErrState,
@@ -47,25 +46,23 @@ pub type PyResult<T> = Result<T, PyErr>;
 #[derive(Debug)]
 pub struct DowncastError<'a, 'py> {
     from: Borrowed<'a, 'py, PyAny>,
-    to: Cow<'static, str>,
+    to: TypeNameOrValue<'py>,
 }
 
 impl<'a, 'py> DowncastError<'a, 'py> {
     /// Create a new `PyDowncastError` representing a failure to convert the object
     /// `from` into the type named in `to`.
     pub fn new(from: &'a Bound<'py, PyAny>, to: impl Into<Cow<'static, str>>) -> Self {
-        DowncastError {
+        Self {
             from: from.as_borrowed(),
-            to: to.into(),
+            to: TypeNameOrValue::Name(to.into()),
         }
     }
-    pub(crate) fn new_from_borrowed(
-        from: Borrowed<'a, 'py, PyAny>,
-        to: impl Into<Cow<'static, str>>,
-    ) -> Self {
-        DowncastError {
+
+    pub(crate) fn new_from_type(from: Borrowed<'a, 'py, PyAny>, to: Bound<'py, PyAny>) -> Self {
+        Self {
             from,
-            to: to.into(),
+            to: TypeNameOrValue::Value(to),
         }
     }
 }
@@ -74,39 +71,52 @@ impl<'a, 'py> DowncastError<'a, 'py> {
 #[derive(Debug)]
 pub struct DowncastIntoError<'py> {
     from: Bound<'py, PyAny>,
-    to: Cow<'static, str>,
+    to: TypeNameOrValue<'py>,
 }
 
 impl<'py> DowncastIntoError<'py> {
     /// Create a new `DowncastIntoError` representing a failure to convert the object
     /// `from` into the type named in `to`.
     pub fn new(from: Bound<'py, PyAny>, to: impl Into<Cow<'static, str>>) -> Self {
-        DowncastIntoError {
+        Self {
             from,
-            to: to.into(),
+            to: TypeNameOrValue::Name(to.into()),
+        }
+    }
+
+    pub(crate) fn new_from_type(from: Bound<'py, PyAny>, to: Bound<'py, PyAny>) -> Self {
+        Self {
+            from,
+            to: TypeNameOrValue::Value(to),
         }
     }
 
     /// Consumes this `DowncastIntoError` and returns the original object, allowing continued
     /// use of it after a failed conversion.
     ///
-    /// See [`downcast_into`][PyAnyMethods::downcast_into] for an example.
+    /// See [`cast_into`][Bound::cast_into] for an example.
     pub fn into_inner(self) -> Bound<'py, PyAny> {
         self.from
     }
 }
 
+// Helper to store either a concrete type or a type name
+#[derive(Debug)]
+enum TypeNameOrValue<'py> {
+    Name(Cow<'static, str>),
+    Value(Bound<'py, PyAny>),
+}
 /// Helper conversion trait that allows to use custom arguments for lazy exception construction.
 pub trait PyErrArguments: Send + Sync {
     /// Arguments for exception
-    fn arguments(self, py: Python<'_>) -> PyObject;
+    fn arguments(self, py: Python<'_>) -> Py<PyAny>;
 }
 
 impl<T> PyErrArguments for T
 where
     T: for<'py> IntoPyObject<'py> + Send + Sync,
 {
-    fn arguments(self, py: Python<'_>) -> PyObject {
+    fn arguments(self, py: Python<'_>) -> Py<PyAny> {
         // FIXME: `arguments` should become fallible
         match self.into_pyobject(py) {
             Ok(obj) => obj.into_any().unbind(),
@@ -126,7 +136,7 @@ impl PyErr {
     ///
     /// This exception instance will be initialized lazily. This avoids the need for the Python GIL
     /// to be held, but requires `args` to be `Send` and `Sync`. If `args` is not `Send` or `Sync`,
-    /// consider using [`PyErr::from_value_bound`] instead.
+    /// consider using [`PyErr::from_value`] instead.
     ///
     /// If `T` does not inherit from `BaseException`, then a `TypeError` will be returned.
     ///
@@ -143,7 +153,7 @@ impl PyErr {
     ///     Err(PyErr::new::<PyTypeError, _>("Error message"))
     /// }
     /// #
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// #     let fun = pyo3::wrap_pyfunction!(always_throws, py).unwrap();
     /// #     let err = fun.call0().expect_err("called a function that should always return an error but the return value was Ok");
     /// #     assert!(err.is_instance_of::<PyTypeError>(py))
@@ -161,7 +171,7 @@ impl PyErr {
     ///     Err(PyTypeError::new_err("Error message"))
     /// }
     /// #
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// #     let fun = pyo3::wrap_pyfunction!(always_throws, py).unwrap();
     /// #     let err = fun.call0().expect_err("called a function that should always return an error but the return value was Ok");
     /// #     assert!(err.is_instance_of::<PyTypeError>(py))
@@ -198,16 +208,6 @@ impl PyErr {
         PyErr::from_state(PyErrState::lazy_arguments(ty.unbind().into_any(), args))
     }
 
-    /// Deprecated name for [`PyErr::from_type`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyErr::from_type`")]
-    #[inline]
-    pub fn from_type_bound<A>(ty: Bound<'_, PyType>, args: A) -> PyErr
-    where
-        A: PyErrArguments + Send + Sync + 'static,
-    {
-        Self::from_type(ty, args)
-    }
-
     /// Creates a new PyErr.
     ///
     /// If `obj` is a Python exception object, the PyErr will contain that object.
@@ -223,7 +223,7 @@ impl PyErr {
     /// use pyo3::exceptions::PyTypeError;
     /// use pyo3::types::PyString;
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     // Case #1: Exception object
     ///     let err = PyErr::from_value(PyTypeError::new_err("some type error")
     ///         .value(py).clone().into_any());
@@ -242,7 +242,7 @@ impl PyErr {
     /// });
     /// ```
     pub fn from_value(obj: Bound<'_, PyAny>) -> PyErr {
-        let state = match obj.downcast_into::<PyBaseException>() {
+        let state = match obj.cast_into::<PyBaseException>() {
             Ok(obj) => PyErrState::normalized(PyErrStateNormalized::new(obj)),
             Err(err) => {
                 // Assume obj is Type[Exception]; let later normalization handle if this
@@ -256,33 +256,19 @@ impl PyErr {
         PyErr::from_state(state)
     }
 
-    /// Deprecated name for [`PyErr::from_value`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyErr::from_value`")]
-    #[inline]
-    pub fn from_value_bound(obj: Bound<'_, PyAny>) -> PyErr {
-        Self::from_value(obj)
-    }
-
     /// Returns the type of this exception.
     ///
     /// # Examples
     /// ```rust
     /// use pyo3::{prelude::*, exceptions::PyTypeError, types::PyType};
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
     ///     assert!(err.get_type(py).is(&PyType::new::<PyTypeError>(py)));
     /// });
     /// ```
     pub fn get_type<'py>(&self, py: Python<'py>) -> Bound<'py, PyType> {
         self.normalized(py).ptype(py)
-    }
-
-    /// Deprecated name for [`PyErr::get_type`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyErr::get_type`")]
-    #[inline]
-    pub fn get_type_bound<'py>(&self, py: Python<'py>) -> Bound<'py, PyType> {
-        self.get_type(py)
     }
 
     /// Returns the value of this exception.
@@ -292,7 +278,7 @@ impl PyErr {
     /// ```rust
     /// use pyo3::{exceptions::PyTypeError, PyErr, Python};
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
     ///     assert!(err.is_instance_of::<PyTypeError>(py));
     ///     assert_eq!(err.value(py).to_string(), "some type error");
@@ -300,13 +286,6 @@ impl PyErr {
     /// ```
     pub fn value<'py>(&self, py: Python<'py>) -> &Bound<'py, PyBaseException> {
         self.normalized(py).pvalue.bind(py)
-    }
-
-    /// Deprecated name for [`PyErr::value`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyErr::value`")]
-    #[inline]
-    pub fn value_bound<'py>(&self, py: Python<'py>) -> &Bound<'py, PyBaseException> {
-        self.value(py)
     }
 
     /// Consumes self to take ownership of the exception value contained in this error.
@@ -330,20 +309,13 @@ impl PyErr {
     /// ```rust
     /// use pyo3::{exceptions::PyTypeError, Python};
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let err = PyTypeError::new_err(("some type error",));
     ///     assert!(err.traceback(py).is_none());
     /// });
     /// ```
     pub fn traceback<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyTraceback>> {
         self.normalized(py).ptraceback(py)
-    }
-
-    /// Deprecated name for [`PyErr::traceback`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyErr::traceback`")]
-    #[inline]
-    pub fn traceback_bound<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyTraceback>> {
-        self.traceback(py)
     }
 
     /// Gets whether an error is present in the Python interpreter's global state.
@@ -364,7 +336,10 @@ impl PyErr {
     pub fn take(py: Python<'_>) -> Option<PyErr> {
         let state = PyErrStateNormalized::take(py)?;
         let pvalue = state.pvalue.bind(py);
-        if pvalue.get_type().as_ptr() == PanicException::type_object_raw(py).cast() {
+        if ptr::eq(
+            pvalue.get_type().as_ptr(),
+            PanicException::type_object_raw(py).cast(),
+        ) {
             let msg: String = pvalue
                 .str()
                 .map(|py_str| py_str.to_string_lossy().into())
@@ -427,7 +402,7 @@ impl PyErr {
         name: &CStr,
         doc: Option<&CStr>,
         base: Option<&Bound<'py, PyType>>,
-        dict: Option<PyObject>,
+        dict: Option<Py<PyAny>>,
     ) -> PyResult<Py<PyType>> {
         let base: *mut ffi::PyObject = match base {
             None => std::ptr::null_mut(),
@@ -447,29 +422,6 @@ impl PyErr {
         let ptr = unsafe { ffi::PyErr_NewExceptionWithDoc(name.as_ptr(), doc_ptr, base, dict) };
 
         unsafe { Py::from_owned_ptr_or_err(py, ptr) }
-    }
-
-    /// Deprecated name for [`PyErr::new_type`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyErr::new_type`")]
-    #[inline]
-    pub fn new_type_bound<'py>(
-        py: Python<'py>,
-        name: &str,
-        doc: Option<&str>,
-        base: Option<&Bound<'py, PyType>>,
-        dict: Option<PyObject>,
-    ) -> PyResult<Py<PyType>> {
-        let null_terminated_name =
-            CString::new(name).expect("Failed to initialize nul terminated exception name");
-        let null_terminated_doc =
-            doc.map(|d| CString::new(d).expect("Failed to initialize nul terminated docstring"));
-        Self::new_type(
-            py,
-            &null_terminated_name,
-            null_terminated_doc.as_deref(),
-            base,
-            dict,
-        )
     }
 
     /// Prints a standard traceback to `sys.stderr`.
@@ -529,13 +481,6 @@ impl PyErr {
         (unsafe { ffi::PyErr_GivenExceptionMatches(type_bound.as_ptr(), ty.as_ptr()) }) != 0
     }
 
-    /// Deprecated name for [`PyErr::is_instance`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyErr::is_instance`")]
-    #[inline]
-    pub fn is_instance_bound(&self, py: Python<'_>, ty: &Bound<'_, PyAny>) -> bool {
-        self.is_instance(py, ty)
-    }
-
     /// Returns true if the current exception is instance of `T`.
     #[inline]
     pub fn is_instance_of<T>(&self, py: Python<'_>) -> bool
@@ -564,7 +509,7 @@ impl PyErr {
     ///
     /// Calling this method has the benefit that the error goes back into a standardized callback
     /// in Python which for instance allows unittests to ensure that no unraisable error
-    /// actually happend by hooking `sys.unraisablehook`.
+    /// actually happened by hooking `sys.unraisablehook`.
     ///
     /// Example:
     /// ```rust
@@ -572,7 +517,7 @@ impl PyErr {
     /// # use pyo3::exceptions::PyRuntimeError;
     /// # fn failing_function() -> PyResult<()> { Err(PyRuntimeError::new_err("foo")) }
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     match failing_function() {
     ///         Err(pyerr) => pyerr.write_unraisable(py, None),
     ///         Ok(..) => { /* do something here */ }
@@ -586,13 +531,6 @@ impl PyErr {
         unsafe { ffi::PyErr_WriteUnraisable(obj.map_or(std::ptr::null_mut(), Bound::as_ptr)) }
     }
 
-    /// Deprecated name for [`PyErr::write_unraisable`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyErr::write_unraisable`")]
-    #[inline]
-    pub fn write_unraisable_bound(self, py: Python<'_>, obj: Option<&Bound<'_, PyAny>>) {
-        self.write_unraisable(py, obj)
-    }
-
     /// Issues a warning message.
     ///
     /// May return an `Err(PyErr)` if warnings-as-errors is enabled.
@@ -601,14 +539,14 @@ impl PyErr {
     ///
     /// The `category` should be one of the `Warning` classes available in
     /// [`pyo3::exceptions`](crate::exceptions), or a subclass.  The Python
-    /// object can be retrieved using [`Python::get_type_bound()`].
+    /// object can be retrieved using [`Python::get_type()`].
     ///
     /// Example:
     /// ```rust
     /// # use pyo3::prelude::*;
     /// # use pyo3::ffi::c_str;
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let user_warning = py.get_type::<pyo3::exceptions::PyUserWarning>();
     ///     PyErr::warn(py, &user_warning, c_str!("I am warning you"), 0)?;
     ///     Ok(())
@@ -628,19 +566,6 @@ impl PyErr {
                 stacklevel as ffi::Py_ssize_t,
             )
         })
-    }
-
-    /// Deprecated name for [`PyErr::warn`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyErr::warn`")]
-    #[inline]
-    pub fn warn_bound<'py>(
-        py: Python<'py>,
-        category: &Bound<'py, PyAny>,
-        message: &str,
-        stacklevel: i32,
-    ) -> PyResult<()> {
-        let message = CString::new(message)?;
-        Self::warn(py, category, &message, stacklevel)
     }
 
     /// Issues a warning message, with more control over the warning attributes.
@@ -680,38 +605,12 @@ impl PyErr {
         })
     }
 
-    /// Deprecated name for [`PyErr::warn_explicit`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyErr::warn`")]
-    #[inline]
-    pub fn warn_explicit_bound<'py>(
-        py: Python<'py>,
-        category: &Bound<'py, PyAny>,
-        message: &str,
-        filename: &str,
-        lineno: i32,
-        module: Option<&str>,
-        registry: Option<&Bound<'py, PyAny>>,
-    ) -> PyResult<()> {
-        let message = CString::new(message)?;
-        let filename = CString::new(filename)?;
-        let module = module.map(CString::new).transpose()?;
-        Self::warn_explicit(
-            py,
-            category,
-            &message,
-            &filename,
-            lineno,
-            module.as_deref(),
-            registry,
-        )
-    }
-
     /// Clone the PyErr. This requires the GIL, which is why PyErr does not implement Clone.
     ///
     /// # Examples
     /// ```rust
     /// use pyo3::{exceptions::PyTypeError, PyErr, Python, prelude::PyAnyMethods};
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
     ///     let err_clone = err.clone_ref(py);
     ///     assert!(err.get_type(py).is(&err_clone.get_type(py)));
@@ -769,7 +668,7 @@ impl PyErr {
 
 impl std::fmt::Debug for PyErr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             f.debug_struct("PyErr")
                 .field("type", &self.get_type(py))
                 .field("value", self.value(py))
@@ -783,7 +682,7 @@ impl std::fmt::Debug for PyErr {
                             // error, but we can't guarantee that the error
                             // won't have another unformattable traceback inside
                             // it and we want to avoid an infinite recursion.
-                            format!("<unformattable {:?}>", tb)
+                            format!("<unformattable {tb:?}>")
                         }
                     }),
                 )
@@ -794,10 +693,10 @@ impl std::fmt::Debug for PyErr {
 
 impl std::fmt::Display for PyErr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let value = self.value(py);
             let type_name = value.get_type().qualname().map_err(|_| std::fmt::Error)?;
-            write!(f, "{}", type_name)?;
+            write!(f, "{type_name}")?;
             if let Ok(s) = value.str() {
                 write!(f, ": {}", &s.to_string_lossy())
             } else {
@@ -808,30 +707,6 @@ impl std::fmt::Display for PyErr {
 }
 
 impl std::error::Error for PyErr {}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for PyErr {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for PyErr {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for &PyErr {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_pyobject(py).unwrap().into_any().unbind()
-    }
-}
 
 impl<'py> IntoPyObject<'py> for PyErr {
     type Target = PyBaseException;
@@ -857,23 +732,31 @@ impl<'py> IntoPyObject<'py> for &PyErr {
 
 struct PyDowncastErrorArguments {
     from: Py<PyType>,
-    to: Cow<'static, str>,
+    to: OwnedTypeNameOrValue,
 }
 
 impl PyErrArguments for PyDowncastErrorArguments {
-    fn arguments(self, py: Python<'_>) -> PyObject {
-        const FAILED_TO_EXTRACT: Cow<'_, str> = Cow::Borrowed("<failed to extract type name>");
+    fn arguments(self, py: Python<'_>) -> Py<PyAny> {
         let from = self.from.bind(py).qualname();
-        let from = match &from {
-            Ok(qn) => qn.to_cow().unwrap_or(FAILED_TO_EXTRACT),
-            Err(_) => FAILED_TO_EXTRACT,
+        let from = from
+            .as_ref()
+            .map(|name| name.to_string_lossy())
+            .unwrap_or(Cow::Borrowed("<failed to extract type name>"));
+        let to = match self.to {
+            OwnedTypeNameOrValue::Name(name) => TypeNameOrValue::Name(name),
+            OwnedTypeNameOrValue::Value(t) => TypeNameOrValue::Value(t.into_bound(py)),
         };
-        format!("'{}' object cannot be converted to '{}'", from, self.to)
+        format!("'{}' object cannot be converted to '{}'", from, to)
             .into_pyobject(py)
             .unwrap()
             .into_any()
             .unbind()
     }
+}
+
+enum OwnedTypeNameOrValue {
+    Name(Cow<'static, str>),
+    Value(Py<PyAny>),
 }
 
 /// Python exceptions that can be converted to [`PyErr`].
@@ -899,7 +782,10 @@ impl std::convert::From<DowncastError<'_, '_>> for PyErr {
     fn from(err: DowncastError<'_, '_>) -> PyErr {
         let args = PyDowncastErrorArguments {
             from: err.from.get_type().into(),
-            to: err.to,
+            to: match err.to {
+                TypeNameOrValue::Name(name) => OwnedTypeNameOrValue::Name(name),
+                TypeNameOrValue::Value(t) => OwnedTypeNameOrValue::Value(t.into()),
+            },
         };
 
         exceptions::PyTypeError::new_err(args)
@@ -919,7 +805,10 @@ impl std::convert::From<DowncastIntoError<'_>> for PyErr {
     fn from(err: DowncastIntoError<'_>) -> PyErr {
         let args = PyDowncastErrorArguments {
             from: err.from.get_type().into(),
-            to: err.to,
+            to: match err.to {
+                TypeNameOrValue::Name(name) => OwnedTypeNameOrValue::Name(name),
+                TypeNameOrValue::Value(t) => OwnedTypeNameOrValue::Value(t.into()),
+            },
         };
 
         exceptions::PyTypeError::new_err(args)
@@ -937,7 +826,7 @@ impl std::fmt::Display for DowncastIntoError<'_> {
 fn display_downcast_error(
     f: &mut std::fmt::Formatter<'_>,
     from: &Bound<'_, PyAny>,
-    to: &str,
+    to: &TypeNameOrValue<'_>,
 ) -> std::fmt::Result {
     write!(
         f,
@@ -945,6 +834,32 @@ fn display_downcast_error(
         from.get_type().qualname().map_err(|_| std::fmt::Error)?,
         to
     )
+}
+
+impl std::fmt::Display for TypeNameOrValue<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Name(name) => name.fmt(f),
+            Self::Value(t) => {
+                if let Ok(t) = t.downcast::<PyType>() {
+                    t.qualname()
+                        .map_err(|_| std::fmt::Error)?
+                        .to_string_lossy()
+                        .fmt(f)
+                } else if let Ok(t) = t.downcast::<PyTuple>() {
+                    for (i, t) in t.iter().enumerate() {
+                        if i > 0 {
+                            f.write_str(" | ")?;
+                        }
+                        TypeNameOrValue::Value(t).fmt(f)?;
+                    }
+                    Ok(())
+                } else {
+                    t.fmt(f)
+                }
+            }
+        }
+    }
 }
 
 #[track_caller]
@@ -988,16 +903,18 @@ impl_signed_integer!(isize);
 mod tests {
     use super::PyErrState;
     use crate::exceptions::{self, PyTypeError, PyValueError};
+    use crate::impl_::pyclass::{value_of, IsSend, IsSync};
+    use crate::test_utils::assert_warnings;
     use crate::{ffi, PyErr, PyTypeInfo, Python};
 
     #[test]
     fn no_error() {
-        assert!(Python::with_gil(PyErr::take).is_none());
+        assert!(Python::attach(PyErr::take).is_none());
     }
 
     #[test]
     fn set_valueerror() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err: PyErr = exceptions::PyValueError::new_err("some exception message");
             assert!(err.is_instance_of::<exceptions::PyValueError>(py));
             err.restore(py);
@@ -1010,7 +927,7 @@ mod tests {
 
     #[test]
     fn invalid_error_type() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err: PyErr = PyErr::new::<crate::types::PyString, _>(());
             assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
             err.restore(py);
@@ -1026,7 +943,7 @@ mod tests {
 
     #[test]
     fn set_typeerror() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err: PyErr = exceptions::PyTypeError::new_err(());
             err.restore(py);
             assert!(PyErr::occurred(py));
@@ -1039,7 +956,7 @@ mod tests {
     fn fetching_panic_exception_resumes_unwind() {
         use crate::panic::PanicException;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err: PyErr = PanicException::new_err("new panic");
             err.restore(py);
             assert!(PyErr::occurred(py));
@@ -1055,7 +972,7 @@ mod tests {
     fn fetching_normalized_panic_exception_resumes_unwind() {
         use crate::panic::PanicException;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err: PyErr = PanicException::new_err("new panic");
             // Restoring an error doesn't normalize it before Python 3.12,
             // so we have to explicitly test this case.
@@ -1077,12 +994,12 @@ mod tests {
         //     traceback:  Some(\"Traceback (most recent call last):\\n  File \\\"<string>\\\", line 1, in <module>\\n\")
         // }
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err = py
                 .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error");
 
-            let debug_str = format!("{:?}", err);
+            let debug_str = format!("{err:?}");
             assert!(debug_str.starts_with("PyErr { "));
             assert!(debug_str.ends_with(" }"));
 
@@ -1103,7 +1020,7 @@ mod tests {
 
     #[test]
     fn err_display() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err = py
                 .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error");
@@ -1113,19 +1030,16 @@ mod tests {
 
     #[test]
     fn test_pyerr_send_sync() {
-        fn is_send<T: Send>() {}
-        fn is_sync<T: Sync>() {}
+        assert!(value_of!(IsSend, PyErr));
+        assert!(value_of!(IsSync, PyErr));
 
-        is_send::<PyErr>();
-        is_sync::<PyErr>();
-
-        is_send::<PyErrState>();
-        is_sync::<PyErrState>();
+        assert!(value_of!(IsSend, PyErrState));
+        assert!(value_of!(IsSync, PyErrState));
     }
 
     #[test]
     fn test_pyerr_matches() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err = PyErr::new::<PyValueError, _>("foo");
             assert!(err.matches(py, PyValueError::type_object(py)).unwrap());
 
@@ -1146,7 +1060,7 @@ mod tests {
 
     #[test]
     fn test_pyerr_cause() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let err = py
                 .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error");
@@ -1182,7 +1096,7 @@ mod tests {
         // Note: although the warning filter is interpreter global, keeping the
         // GIL locked should prevent effects to be visible to other testing
         // threads.
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let cls = py.get_type::<exceptions::PyUserWarning>();
 
             // Reset warning filter to default state
@@ -1190,7 +1104,6 @@ mod tests {
             warnings.call_method0("resetwarnings").unwrap();
 
             // First, test the warning is emitted
-            #[cfg(not(Py_GIL_DISABLED))]
             assert_warnings!(
                 py,
                 { PyErr::warn(py, &cls, ffi::c_str!("I am warning you"), 0).unwrap() },
@@ -1210,7 +1123,6 @@ mod tests {
                 .unwrap();
 
             // This has the wrong module and will not raise, just be emitted
-            #[cfg(not(Py_GIL_DISABLED))]
             assert_warnings!(
                 py,
                 { PyErr::warn(py, &cls, ffi::c_str!("I am warning you"), 0).unwrap() },

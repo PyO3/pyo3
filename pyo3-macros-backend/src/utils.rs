@@ -1,4 +1,4 @@
-use crate::attributes::{CrateAttribute, ExprPathWrap, RenamingRule};
+use crate::attributes::{CrateAttribute, RenamingRule};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use std::ffi::CString;
@@ -131,7 +131,7 @@ pub fn get_doc(
     attrs: &[syn::Attribute],
     mut text_signature: Option<String>,
     ctx: &Ctx,
-) -> PythonDoc {
+) -> syn::Result<PythonDoc> {
     let Ctx { pyo3_path, .. } = ctx;
     // insert special divider between `__text_signature__` and doc
     // (assume text_signature is itself well-formed)
@@ -142,10 +142,15 @@ pub fn get_doc(
     let mut parts = Punctuated::<TokenStream, Token![,]>::new();
     let mut first = true;
     let mut current_part = text_signature.unwrap_or_default();
+    let mut current_part_span = None;
 
     for attr in attrs {
         if attr.path().is_ident("doc") {
             if let Ok(nv) = attr.meta.require_name_value() {
+                current_part_span = match current_part_span {
+                    None => Some(nv.value.span()),
+                    Some(span) => span.join(nv.value.span()),
+                };
                 if !first {
                     current_part.push('\n');
                 } else {
@@ -163,7 +168,7 @@ pub fn get_doc(
                 } else {
                     // This is probably a macro doc from Rust 1.54, e.g. #[doc = include_str!(...)]
                     // Reset the string buffer, write that part, and then push this macro part too.
-                    parts.push(current_part.to_token_stream());
+                    parts.push(quote_spanned!(current_part_span.unwrap_or(Span::call_site()) => #current_part));
                     current_part.clear();
                     parts.push(nv.value.to_token_stream());
                 }
@@ -174,7 +179,9 @@ pub fn get_doc(
     if !parts.is_empty() {
         // Doc contained macro pieces - return as `concat!` expression
         if !current_part.is_empty() {
-            parts.push(current_part.to_token_stream());
+            parts.push(
+                quote_spanned!(current_part_span.unwrap_or(Span::call_site()) => #current_part),
+            );
         }
 
         let mut tokens = TokenStream::new();
@@ -186,17 +193,25 @@ pub fn get_doc(
             syn::token::Comma(Span::call_site()).to_tokens(tokens);
         });
 
-        PythonDoc(PythonDocKind::Tokens(
+        Ok(PythonDoc(PythonDocKind::Tokens(
             quote!(#pyo3_path::ffi::c_str!(#tokens)),
-        ))
+        )))
     } else {
         // Just a string doc - return directly with nul terminator
-        let docs = CString::new(current_part).unwrap();
-        PythonDoc(PythonDocKind::LitCStr(LitCStr::new(
+        let docs = CString::new(current_part).map_err(|e| {
+            syn::Error::new(
+                current_part_span.unwrap_or(Span::call_site()),
+                format!(
+                    "Python doc may not contain nul byte, found nul at position {}",
+                    e.nul_position()
+                ),
+            )
+        })?;
+        Ok(PythonDoc(PythonDocKind::LitCStr(LitCStr::new(
             docs,
-            Span::call_site(),
+            current_part_span.unwrap_or(Span::call_site()),
             ctx,
-        )))
+        ))))
     }
 }
 
@@ -324,16 +339,30 @@ pub(crate) fn has_attribute_with_namespace(
     })
 }
 
-pub(crate) fn deprecated_from_py_with(expr_path: &ExprPathWrap) -> Option<TokenStream> {
-    let path = quote!(#expr_path).to_string();
-    let msg =
-        format!("remove the quotes from the literal\n= help: use `{path}` instead of `\"{path}\"`");
-    expr_path.from_lit_str.then(|| {
-        quote_spanned! { expr_path.span() =>
-            #[deprecated(since = "0.24.0", note = #msg)]
-            #[allow(dead_code)]
-            const LIT_STR_DEPRECATION: () = ();
-            let _: () = LIT_STR_DEPRECATION;
+pub fn expr_to_python(expr: &syn::Expr) -> String {
+    match expr {
+        // literal values
+        syn::Expr::Lit(syn::ExprLit { lit, .. }) => match lit {
+            syn::Lit::Str(s) => s.token().to_string(),
+            syn::Lit::Char(c) => c.token().to_string(),
+            syn::Lit::Int(i) => i.base10_digits().to_string(),
+            syn::Lit::Float(f) => f.base10_digits().to_string(),
+            syn::Lit::Bool(b) => {
+                if b.value() {
+                    "True".to_string()
+                } else {
+                    "False".to_string()
+                }
+            }
+            _ => "...".to_string(),
+        },
+        // None
+        syn::Expr::Path(syn::ExprPath { qself, path, .. })
+            if qself.is_none() && path.is_ident("None") =>
+        {
+            "None".to_string()
         }
-    })
+        // others, unsupported yet so defaults to `...`
+        _ => "...".to_string(),
+    }
 }

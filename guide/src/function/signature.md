@@ -10,19 +10,17 @@ This section of the guide goes into detail about use of the `#[pyo3(signature = 
 
 For example, below is a function that accepts arbitrary keyword arguments (`**kwargs` in Python syntax) and returns the number that was passed:
 
-```rust
-use pyo3::prelude::*;
-use pyo3::types::PyDict;
+```rust,no_run
+#[pyo3::pymodule]
+mod module_with_functions {
+    use pyo3::prelude::*;
+    use pyo3::types::PyDict;
 
-#[pyfunction]
-#[pyo3(signature = (**kwds))]
-fn num_kwds(kwds: Option<&Bound<'_, PyDict>>) -> usize {
-    kwds.map_or(0, |dict| dict.len())
-}
-
-#[pymodule]
-fn module_with_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(num_kwds, m)?)
+    #[pyfunction]
+    #[pyo3(signature = (**kwds))]
+    fn num_kwds(kwds: Option<&Bound<'_, PyDict>>) -> usize {
+        kwds.map_or(0, |dict| dict.len())
+    }
 }
 ```
 
@@ -38,7 +36,7 @@ Just like in Python, the following constructs can be part of the signature::
    code unmodified.
 
 Example:
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 #
@@ -79,12 +77,12 @@ impl MyClass {
 
 Arguments of type `Python` must not be part of the signature:
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 #[pyfunction]
 #[pyo3(signature = (lambda))]
-pub fn simple_python_bound_function(py: Python<'_>, lambda: PyObject) -> PyResult<()> {
+pub fn simple_python_bound_function(py: Python<'_>, lambda: Py<PyAny>) -> PyResult<()> {
     Ok(())
 }
 ```
@@ -108,7 +106,7 @@ num=-1
 
 > Note: to use keywords like `struct` as a function argument, use "raw identifier" syntax `r#struct` in both the signature and the function definition:
 >
-> ```rust
+> ```rust,no_run
 > # #![allow(dead_code)]
 > # use pyo3::prelude::*;
 > #[pyfunction(signature = (r#struct = "foo"))]
@@ -139,7 +137,7 @@ fn add(a: u64, b: u64) -> u64 {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let fun = pyo3::wrap_pyfunction!(add, py)?;
 #
 #         let doc: String = fun.getattr("__doc__")?.extract()?;
@@ -187,7 +185,7 @@ fn add(a: u64, b: u64) -> u64 {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let fun = pyo3::wrap_pyfunction!(add, py)?;
 #
 #         let doc: String = fun.getattr("__doc__")?.extract()?;
@@ -229,7 +227,7 @@ fn add(a: u64, b: u64) -> u64 {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let fun = pyo3::wrap_pyfunction!(add, py)?;
 #
 #         let doc: String = fun.getattr("__doc__")?.extract()?;
@@ -250,3 +248,36 @@ True
 Docstring: This function adds two unsigned 64-bit integers.
 Type:      builtin_function_or_method
 ```
+
+### Type annotations in the signature
+
+When the `experimental-inspect` Cargo feature is enabled, the `signature` attribute can also contain type hints:
+```rust
+# #[cfg(feature = "experimental-inspect")] {
+use pyo3::prelude::*;
+
+#[pymodule]
+pub mod example {
+   use pyo3::prelude::*;
+
+   #[pyfunction]
+   #[pyo3(signature = (arg: "list[int]") -> "list[int]")]
+   fn list_of_int_identity(arg: Bound<'_, PyAny>) -> Bound<'_, PyAny> {
+      arg
+   }
+}
+# }
+```
+
+It enables the [work-in-progress capacity of PyO3 to autogenerate type stubs](../type-stub.md) to generate a file with the correct type hints:
+```python
+def list_of_int_identity(arg: list[int]) -> list[int]: ...
+```
+instead of the generic:
+```python
+import typing
+
+def list_of_int_identity(arg: typing.Any) -> typing.Any: ...
+```
+
+Note that currently type annotations must be written as Rust strings.

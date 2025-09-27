@@ -6,8 +6,9 @@ use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
+use crate::pyfunction::{PyFunctionWarning, WarningFactory};
 use crate::pyversions::is_abi3_before;
-use crate::utils::{Ctx, LitCStr};
+use crate::utils::{expr_to_python, Ctx, LitCStr};
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
     params::{impl_arg_params, Holders},
@@ -25,6 +26,30 @@ pub struct RegularArg<'a> {
     pub from_py_with: Option<FromPyWithAttribute>,
     pub default_value: Option<syn::Expr>,
     pub option_wrapped_type: Option<&'a syn::Type>,
+    #[cfg(feature = "experimental-inspect")]
+    pub annotation: Option<String>,
+}
+
+impl RegularArg<'_> {
+    pub fn default_value(&self) -> String {
+        if let Self {
+            default_value: Some(arg_default),
+            ..
+        } = self
+        {
+            expr_to_python(arg_default)
+        } else if let RegularArg {
+            option_wrapped_type: Some(..),
+            ..
+        } = self
+        {
+            // functions without a `#[pyo3(signature = (...))]` option
+            // will treat trailing `Option<T>` arguments as having a default of `None`
+            "None".to_string()
+        } else {
+            "...".to_string()
+        }
+    }
 }
 
 /// Pythons *args argument
@@ -32,6 +57,8 @@ pub struct RegularArg<'a> {
 pub struct VarargsArg<'a> {
     pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
+    #[cfg(feature = "experimental-inspect")]
+    pub annotation: Option<String>,
 }
 
 /// Pythons **kwarg argument
@@ -39,6 +66,8 @@ pub struct VarargsArg<'a> {
 pub struct KwargsArg<'a> {
     pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
+    #[cfg(feature = "experimental-inspect")]
+    pub annotation: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -53,6 +82,7 @@ pub struct PyArg<'a> {
     pub ty: &'a syn::Type,
 }
 
+#[allow(clippy::large_enum_variant)] // See #5039
 #[derive(Clone, Debug)]
 pub enum FnArg<'a> {
     Regular(RegularArg<'a>),
@@ -97,12 +127,16 @@ impl<'a> FnArg<'a> {
             name,
             ty,
             option_wrapped_type: None,
+            #[cfg(feature = "experimental-inspect")]
+            annotation,
             ..
         }) = self
         {
             *self = Self::VarArgs(VarargsArg {
                 name: name.clone(),
                 ty,
+                #[cfg(feature = "experimental-inspect")]
+                annotation: annotation.clone(),
             });
             Ok(self)
         } else {
@@ -115,12 +149,16 @@ impl<'a> FnArg<'a> {
             name,
             ty,
             option_wrapped_type: Some(..),
+            #[cfg(feature = "experimental-inspect")]
+            annotation,
             ..
         }) = self
         {
             *self = Self::KwArgs(KwargsArg {
                 name: name.clone(),
                 ty,
+                #[cfg(feature = "experimental-inspect")]
+                annotation: annotation.clone(),
             });
             Ok(self)
         } else {
@@ -158,7 +196,7 @@ impl<'a> FnArg<'a> {
                 if cancel_handle.is_some() {
                     // `PyFunctionArgPyO3Attributes::from_attrs` validates that
                     // only compatible attributes are specified, either
-                    // `cancel_handle` or `from_py_with`, dublicates and any
+                    // `cancel_handle` or `from_py_with`, duplicates and any
                     // combination of the two are already rejected.
                     return Ok(Self::CancelHandle(CancelHandleArg {
                         name: ident,
@@ -172,8 +210,18 @@ impl<'a> FnArg<'a> {
                     from_py_with,
                     default_value: None,
                     option_wrapped_type: utils::option_type_argument(&cap.ty),
+                    #[cfg(feature = "experimental-inspect")]
+                    annotation: None,
                 }))
             }
+        }
+    }
+
+    pub fn default_value(&self) -> String {
+        if let Self::Regular(args) = self {
+            args.default_value()
+        } else {
+            "...".to_string()
         }
     }
 }
@@ -400,6 +448,7 @@ impl CallingConvention {
     }
 }
 
+#[derive(Clone)]
 pub struct FnSpec<'a> {
     pub tp: FnType,
     // Rust function name
@@ -412,6 +461,9 @@ pub struct FnSpec<'a> {
     pub text_signature: Option<TextSignatureAttribute>,
     pub asyncness: Option<syn::Token![async]>,
     pub unsafety: Option<syn::Token![unsafe]>,
+    pub warnings: Vec<PyFunctionWarning>,
+    #[cfg(feature = "experimental-inspect")]
+    pub output: syn::ReturnType,
 }
 
 pub fn parse_method_receiver(arg: &syn::FnArg) -> Result<SelfType> {
@@ -448,6 +500,7 @@ impl<'a> FnSpec<'a> {
             text_signature,
             name,
             signature,
+            warnings,
             ..
         } = options;
 
@@ -491,6 +544,9 @@ impl<'a> FnSpec<'a> {
             text_signature,
             asyncness: sig.asyncness,
             unsafety: sig.unsafety,
+            warnings,
+            #[cfg(feature = "experimental-inspect")]
+            output: sig.output.clone(),
         })
     }
 
@@ -592,10 +648,10 @@ impl<'a> FnSpec<'a> {
                     .fold(first.span(), |s, next| s.join(next.span()).unwrap_or(s));
                 let span = span.join(last.span()).unwrap_or(span);
                 // List all the attributes in the error message
-                let mut msg = format!("`{}` may not be combined with", first);
+                let mut msg = format!("`{first}` may not be combined with");
                 let mut is_first = true;
                 for attr in &*rest {
-                    msg.push_str(&format!(" `{}`", attr));
+                    msg.push_str(&format!(" `{attr}`"));
                     if is_first {
                         is_first = false;
                     } else {
@@ -605,7 +661,7 @@ impl<'a> FnSpec<'a> {
                 if !rest.is_empty() {
                     msg.push_str(" and");
                 }
-                msg.push_str(&format!(" `{}`", last));
+                msg.push_str(&format!(" `{last}`"));
                 bail_spanned!(span => msg)
             }
         };
@@ -636,13 +692,6 @@ impl<'a> FnSpec<'a> {
             {
                 bail_spanned!(name.span() => "`cancel_handle` may only be specified once");
             }
-        }
-
-        if self.asyncness.is_some() {
-            ensure_spanned!(
-                cfg!(feature = "experimental-async"),
-                self.asyncness.span() => "async functions are only supported with the `experimental-async` feature"
-            );
         }
 
         let rust_call = |args: Vec<TokenStream>, holders: &mut Holders| {
@@ -744,6 +793,8 @@ impl<'a> FnSpec<'a> {
             quote!(#func_name)
         };
 
+        let warnings = self.warnings.build_py_warning(ctx);
+
         Ok(match self.convention {
             CallingConvention::Noargs => {
                 let mut holders = Holders::new();
@@ -766,6 +817,7 @@ impl<'a> FnSpec<'a> {
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #init_holders
+                        #warnings
                         let result = #call;
                         result
                     }
@@ -788,6 +840,7 @@ impl<'a> FnSpec<'a> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #init_holders
+                        #warnings
                         let result = #call;
                         result
                     }
@@ -809,6 +862,7 @@ impl<'a> FnSpec<'a> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #init_holders
+                        #warnings
                         let result = #call;
                         result
                     }
@@ -833,6 +887,7 @@ impl<'a> FnSpec<'a> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #init_holders
+                        #warnings
                         let result = #call;
                         let initializer: #pyo3_path::PyClassInitializer::<#cls> = result.convert(py)?;
                         #pyo3_path::impl_::pymethods::tp_new_impl(py, initializer, _slf)
@@ -921,7 +976,7 @@ impl<'a> FnSpec<'a> {
     }
 
     /// Forwards to [utils::get_doc] with the text signature of this spec.
-    pub fn get_doc(&self, attrs: &[syn::Attribute], ctx: &Ctx) -> PythonDoc {
+    pub fn get_doc(&self, attrs: &[syn::Attribute], ctx: &Ctx) -> syn::Result<PythonDoc> {
         let text_signature = self
             .text_signature_call_signature()
             .map(|sig| format!("{}{}", self.python_name, sig));
@@ -1071,7 +1126,7 @@ fn parse_method_attributes(attrs: &mut Vec<syn::Attribute>) -> Result<Vec<Method
 const IMPL_TRAIT_ERR: &str = "Python functions cannot have `impl Trait` arguments";
 const RECEIVER_BY_VALUE_ERR: &str =
     "Python objects are shared, so 'self' cannot be moved out of the Python interpreter.
-Try `&self`, `&mut self, `slf: PyRef<'_, Self>` or `slf: PyRefMut<'_, Self>`.";
+Try `&self`, `&mut self, `slf: PyClassGuard<'_, Self>` or `slf: PyClassGuardMut<'_, Self>`.";
 
 fn ensure_signatures_on_valid_method(
     fn_type: &FnType,

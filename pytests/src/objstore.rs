@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 #[pyclass]
 #[derive(Default)]
 pub struct ObjStore {
-    obj: Vec<PyObject>,
+    obj: Vec<Py<PyAny>>,
 }
 
 #[pymethods]

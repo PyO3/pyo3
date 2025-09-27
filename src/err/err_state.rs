@@ -3,7 +3,7 @@ use crate::{
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     types::{PyAnyMethods, PyTraceback, PyType},
-    Bound, Py, PyAny, PyErrArguments, PyObject, PyTypeInfo, Python,
+    Bound, Py, PyAny, PyErrArguments, PyTypeInfo, Python,
 };
 
 pub(crate) struct PyErrState(PyErrStateNormalized);
@@ -17,13 +17,11 @@ unsafe impl crate::marker::Ungil for PyErrState {}
 
 impl PyErrState {
     pub(crate) fn lazy(f: Box<PyErrStateLazyFn>) -> Self {
-        Self(Python::with_gil(|py| {
-            PyErrStateInner::Lazy(f).normalize(py)
-        }))
+        Self(Python::attach(|py| PyErrStateInner::Lazy(f).normalize(py)))
     }
 
     pub(crate) fn lazy_arguments(ptype: Py<PyAny>, args: impl PyErrArguments + 'static) -> Self {
-        Self(Python::with_gil(|py| {
+        Self(Python::attach(|py| {
             PyErrStateInner::Lazy(Box::new(move |py| PyErrStateLazyFnOutput {
                 ptype,
                 pvalue: args.arguments(py),
@@ -92,7 +90,7 @@ impl PyErrStateNormalized {
         unsafe {
             ffi::PyException_GetTraceback(self.pvalue.as_ptr())
                 .assume_owned_or_opt(py)
-                .map(|b| b.downcast_into_unchecked())
+                .map(|b| b.cast_into_unchecked())
         }
     }
 
@@ -104,7 +102,7 @@ impl PyErrStateNormalized {
             unsafe { ffi::PyErr_GetRaisedException().assume_owned_or_opt(py) }.map(|pvalue| {
                 PyErrStateNormalized {
                     // Safety: PyErr_GetRaisedException returns a valid exception type.
-                    pvalue: unsafe { pvalue.downcast_into_unchecked() }.unbind(),
+                    pvalue: unsafe { pvalue.cast_into_unchecked() }.unbind(),
                 }
             })
         }
@@ -128,13 +126,13 @@ impl PyErrStateNormalized {
                 (
                     ptype
                         .assume_owned_or_opt(py)
-                        .map(|b| b.downcast_into_unchecked()),
+                        .map(|b| b.cast_into_unchecked()),
                     pvalue
                         .assume_owned_or_opt(py)
-                        .map(|b| b.downcast_into_unchecked()),
+                        .map(|b| b.cast_into_unchecked()),
                     ptraceback
                         .assume_owned_or_opt(py)
-                        .map(|b| b.downcast_into_unchecked()),
+                        .map(|b| b.cast_into_unchecked()),
                 )
             };
 
@@ -177,8 +175,8 @@ impl PyErrStateNormalized {
 }
 
 pub(crate) struct PyErrStateLazyFnOutput {
-    pub(crate) ptype: PyObject,
-    pub(crate) pvalue: PyObject,
+    pub(crate) ptype: Py<PyAny>,
+    pub(crate) pvalue: Py<PyAny>,
 }
 
 pub(crate) type PyErrStateLazyFn =

@@ -5,6 +5,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyType;
 
 #[pyclass]
+#[derive(Clone, Default)]
 struct EmptyClass {}
 
 #[pymethods]
@@ -62,7 +63,7 @@ impl PyClassThreadIter {
         let current_count = self.count;
         self.count += 1;
         if current_count == 0 {
-            py.allow_threads(|| thread::sleep(time::Duration::from_millis(100)));
+            py.detach(|| thread::sleep(time::Duration::from_millis(100)));
         }
         self.count
     }
@@ -80,8 +81,7 @@ impl AssertingBaseClass {
     fn new(cls: &Bound<'_, PyType>, expected_type: Bound<'_, PyType>) -> PyResult<Self> {
         if !cls.is(&expected_type) {
             return Err(PyValueError::new_err(format!(
-                "{:?} != {:?}",
-                cls, expected_type
+                "{cls:?} != {expected_type:?}"
             )));
         }
         Ok(Self)
@@ -104,15 +104,78 @@ impl ClassWithDict {
     }
 }
 
-#[pymodule(gil_used = false)]
-pub fn pyclasses(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<EmptyClass>()?;
-    m.add_class::<PyClassIter>()?;
-    m.add_class::<PyClassThreadIter>()?;
-    m.add_class::<AssertingBaseClass>()?;
-    m.add_class::<ClassWithoutConstructor>()?;
-    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
-    m.add_class::<ClassWithDict>()?;
+#[pyclass]
+#[derive(Clone)]
+struct ClassWithDecorators {
+    attr: usize,
+}
 
-    Ok(())
+#[pymethods]
+impl ClassWithDecorators {
+    #[new]
+    #[classmethod]
+    fn new(_cls: Bound<'_, PyType>) -> Self {
+        Self { attr: 0 }
+    }
+
+    #[getter]
+    fn get_attr(&self) -> usize {
+        self.attr
+    }
+
+    #[setter]
+    fn set_attr(&mut self, value: usize) {
+        self.attr = value;
+    }
+
+    #[classmethod]
+    fn cls_method(_cls: &Bound<'_, PyType>) -> usize {
+        1
+    }
+
+    #[staticmethod]
+    fn static_method() -> usize {
+        2
+    }
+
+    #[classattr]
+    fn cls_attribute() -> usize {
+        3
+    }
+}
+
+#[pyclass(get_all, set_all)]
+struct PlainObject {
+    foo: String,
+    bar: usize,
+}
+
+#[derive(FromPyObject, IntoPyObject)]
+enum AClass {
+    NewType(EmptyClass),
+    Tuple(EmptyClass, EmptyClass),
+    Struct {
+        f: EmptyClass,
+        #[pyo3(item(42))]
+        g: EmptyClass,
+        #[pyo3(default)]
+        h: EmptyClass,
+    },
+}
+
+#[pyfunction]
+fn map_a_class(cls: AClass) -> AClass {
+    cls
+}
+
+#[pymodule(gil_used = false)]
+pub mod pyclasses {
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+    #[pymodule_export]
+    use super::ClassWithDict;
+    #[pymodule_export]
+    use super::{
+        map_a_class, AssertingBaseClass, ClassWithDecorators, ClassWithoutConstructor, EmptyClass,
+        PlainObject, PyClassIter, PyClassThreadIter,
+    };
 }

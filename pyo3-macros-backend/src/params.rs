@@ -1,4 +1,4 @@
-use crate::utils::{deprecated_from_py_with, Ctx};
+use crate::utils::Ctx;
 use crate::{
     attributes::FromPyWithAttribute,
     method::{FnArg, FnSpec, RegularArg},
@@ -62,9 +62,7 @@ pub fn impl_arg_params(
         .filter_map(|(i, arg)| {
             let from_py_with = &arg.from_py_with()?.value;
             let from_py_with_holder = format_ident!("from_py_with_{}", i);
-            let d = deprecated_from_py_with(from_py_with).unwrap_or_default();
             Some(quote_spanned! { from_py_with.span() =>
-                #d
                 let #from_py_with_holder = #from_py_with;
             })
         })
@@ -211,7 +209,7 @@ fn impl_arg_param(
             let holder = holders.push_holder(arg.name.span());
             let name_str = arg.name.to_string();
             quote_spanned! { arg.name.span() =>
-                #pyo3_path::impl_::extract_argument::extract_optional_argument(
+                #pyo3_path::impl_::extract_argument::extract_argument_with_default(
                     _kwargs.as_deref(),
                     &mut #holder,
                     #name_str,
@@ -238,8 +236,12 @@ pub(crate) fn impl_regular_arg_param(
 
     // Use this macro inside this function, to ensure that all code generated here is associated
     // with the function argument
+    let use_probe = quote! {
+        #[allow(unused_imports)]
+        use #pyo3_path::impl_::pyclass::Probe as _;
+    };
     macro_rules! quote_arg_span {
-        ($($tokens:tt)*) => { quote_spanned!(arg.ty.span() => $($tokens)*) }
+        ($($tokens:tt)*) => { quote_spanned!(arg.ty.span() => { #use_probe $($tokens)* }) }
     }
 
     let name_str = arg.name.to_string();
@@ -279,30 +281,16 @@ pub(crate) fn impl_regular_arg_param(
         }
     } else if let Some(default) = default {
         let holder = holders.push_holder(arg.name.span());
-        if arg.option_wrapped_type.is_some() {
-            quote_arg_span! {
-                #pyo3_path::impl_::extract_argument::extract_optional_argument(
-                    #arg_value,
-                    &mut #holder,
-                    #name_str,
-                    #[allow(clippy::redundant_closure)]
-                    {
-                        || #default
-                    }
-                )?
-            }
-        } else {
-            quote_arg_span! {
-                    #pyo3_path::impl_::extract_argument::extract_argument_with_default(
-                        #arg_value,
-                        &mut #holder,
-                        #name_str,
-                        #[allow(clippy::redundant_closure)]
-                        {
-                            || #default
-                        }
-                    )?
-            }
+        quote_arg_span! {
+            #pyo3_path::impl_::extract_argument::extract_argument_with_default(
+                #arg_value,
+                &mut #holder,
+                #name_str,
+                #[allow(clippy::redundant_closure)]
+                {
+                    || #default
+                }
+            )?
         }
     } else {
         let holder = holders.push_holder(arg.name.span());

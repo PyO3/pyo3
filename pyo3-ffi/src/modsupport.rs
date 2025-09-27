@@ -2,7 +2,7 @@ use crate::methodobject::PyMethodDef;
 use crate::moduleobject::PyModuleDef;
 use crate::object::PyObject;
 use crate::pyport::Py_ssize_t;
-use std::os::raw::{c_char, c_int, c_long};
+use std::ffi::{c_char, c_int, c_long};
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyArg_Parse")]
@@ -36,6 +36,8 @@ extern "C" {
     pub fn Py_BuildValue(arg1: *const c_char, ...) -> *mut PyObject;
     // skipped Py_VaBuildValue
 
+    #[cfg(Py_3_13)]
+    pub fn PyModule_Add(module: *mut PyObject, name: *const c_char, value: *mut PyObject) -> c_int;
     #[cfg(Py_3_10)]
     #[cfg_attr(PyPy, link_name = "PyPyModule_AddObjectRef")]
     pub fn PyModule_AddObjectRef(

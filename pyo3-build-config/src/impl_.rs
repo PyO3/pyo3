@@ -22,7 +22,7 @@ use std::{
 
 pub use target_lexicon::Triple;
 
-use target_lexicon::{Architecture, Environment, OperatingSystem};
+use target_lexicon::{Architecture, Environment, OperatingSystem, Vendor};
 
 use crate::{
     bail, ensure,
@@ -40,7 +40,7 @@ const MINIMUM_SUPPORTED_VERSION_GRAALPY: PythonVersion = PythonVersion {
 };
 
 /// Maximum Python version that can be used as minimum required Python version with abi3.
-pub(crate) const ABI3_MAX_MINOR: u8 = 13;
+pub(crate) const ABI3_MAX_MINOR: u8 = 14;
 
 #[cfg(test)]
 thread_local! {
@@ -58,7 +58,7 @@ pub fn cargo_env_var(var: &str) -> Option<String> {
 /// the variable changes.
 pub fn env_var(var: &str) -> Option<OsString> {
     if cfg!(feature = "resolve-config") {
-        println!("cargo:rerun-if-env-changed={}", var);
+        println!("cargo:rerun-if-env-changed={var}");
     }
     #[cfg(test)]
     {
@@ -180,7 +180,7 @@ impl InterpreterConfig {
         let mut out = vec![];
 
         for i in MINIMUM_SUPPORTED_VERSION.minor..=self.version.minor {
-            out.push(format!("cargo:rustc-cfg=Py_3_{}", i));
+            out.push(format!("cargo:rustc-cfg=Py_3_{i}"));
         }
 
         match self.implementation {
@@ -199,7 +199,7 @@ impl InterpreterConfig {
                 BuildFlag::Py_GIL_DISABLED => {
                     out.push("cargo:rustc-cfg=Py_GIL_DISABLED".to_owned())
                 }
-                flag => out.push(format!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag)),
+                flag => out.push(format!("cargo:rustc-cfg=py_sys_config=\"{flag}\"")),
             }
         }
 
@@ -338,7 +338,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
 
         let lib_dir = if cfg!(windows) {
             map.get("base_prefix")
-                .map(|base_prefix| format!("{}\\libs", base_prefix))
+                .map(|base_prefix| format!("{base_prefix}\\libs"))
         } else {
             map.get("libdir").cloned()
         };
@@ -666,7 +666,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         write_option_line!(python_framework_prefix)?;
         write_line!(suppress_build_script_link_lines)?;
         for line in &self.extra_build_script_lines {
-            writeln!(writer, "extra_build_script_line={}", line)
+            writeln!(writer, "extra_build_script_line={line}")
                 .context("failed to write extra_build_script_line")?;
         }
         Ok(())
@@ -730,6 +730,9 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             );
 
             self.version = version;
+        } else if is_abi3() && self.version.minor > ABI3_MAX_MINOR {
+            warn!("Automatically falling back to abi3-py3{ABI3_MAX_MINOR} because current Python is higher than the maximum supported");
+            self.version.minor = ABI3_MAX_MINOR;
         }
 
         Ok(())
@@ -845,7 +848,7 @@ fn have_python_interpreter() -> bool {
 /// Must be called from a PyO3 crate build script.
 fn is_abi3() -> bool {
     cargo_env_var("CARGO_FEATURE_ABI3").is_some()
-        || env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").map_or(false, |os_str| os_str == "1")
+        || env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").is_some_and(|os_str| os_str == "1")
 }
 
 /// Gets the minimum supported Python version from PyO3 `abi3-py*` features.
@@ -853,15 +856,20 @@ fn is_abi3() -> bool {
 /// Must be called from a PyO3 crate build script.
 pub fn get_abi3_version() -> Option<PythonVersion> {
     let minor_version = (MINIMUM_SUPPORTED_VERSION.minor..=ABI3_MAX_MINOR)
-        .find(|i| cargo_env_var(&format!("CARGO_FEATURE_ABI3_PY3{}", i)).is_some());
+        .find(|i| cargo_env_var(&format!("CARGO_FEATURE_ABI3_PY3{i}")).is_some());
     minor_version.map(|minor| PythonVersion { major: 3, minor })
 }
 
 /// Checks if the `extension-module` feature is enabled for the PyO3 crate.
 ///
+/// This can be triggered either by:
+/// - The `extension-module` Cargo feature
+/// - Setting the `PYO3_BUILD_EXTENSION_MODULE` environment variable
+///
 /// Must be called from a PyO3 crate build script.
 pub fn is_extension_module() -> bool {
     cargo_env_var("CARGO_FEATURE_EXTENSION_MODULE").is_some()
+        || env_var("PYO3_BUILD_EXTENSION_MODULE").is_some()
 }
 
 /// Checks if we need to link to `libpython` for the current build target.
@@ -953,7 +961,9 @@ impl CrossCompileConfig {
         // e.g. x86_64-unknown-linux-musl on x86_64-unknown-linux-gnu host
         //      x86_64-pc-windows-gnu on x86_64-pc-windows-msvc host
         let mut compatible = host.architecture == target.architecture
-            && host.vendor == target.vendor
+            && (host.vendor == target.vendor
+                // Don't treat `-pc-` to `-win7-` as cross-compiling
+                || (host.vendor == Vendor::Pc && target.vendor.as_str() == "win7"))
             && host.operating_system == target.operating_system;
 
         // Not cross-compiling to compile for 32-bit Python from windows 64-bit
@@ -1081,7 +1091,7 @@ impl CrossCompileEnvVars {
 ///   the target's libpython DSO and the associated `_sysconfigdata*.py` file for
 ///   Unix-like targets, or the Python DLL import libraries for the Windows target.
 /// * `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python
-///   installation. This variable is only needed if PyO3 cannnot determine the version to target
+///   installation. This variable is only needed if PyO3 cannot determine the version to target
 ///   from `abi3-py3*` features, or if there are multiple versions of Python present in
 ///   `PYO3_CROSS_LIB_DIR`.
 ///
@@ -1121,8 +1131,8 @@ pub enum BuildFlag {
 impl Display for BuildFlag {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BuildFlag::Other(flag) => write!(f, "{}", flag),
-            _ => write!(f, "{:?}", self),
+            BuildFlag::Other(flag) => write!(f, "{flag}"),
+            _ => write!(f, "{self:?}"),
         }
     }
 }
@@ -1146,7 +1156,7 @@ impl FromStr for BuildFlag {
 /// PyO3 will pick these up and pass to rustc via `--cfg=py_sys_config={varname}`;
 /// this allows using them conditional cfg attributes in the .rs files, so
 ///
-/// ```rust
+/// ```rust,no_run
 /// #[cfg(py_sys_config="{varname}")]
 /// # struct Foo;
 /// ```
@@ -1202,7 +1212,7 @@ impl BuildFlags {
 
         for k in &BuildFlags::ALL {
             use std::fmt::Write;
-            writeln!(&mut script, "print(config.get('{}', '0'))", k).unwrap();
+            writeln!(&mut script, "print(config.get('{k}', '0'))").unwrap();
         }
 
         let stdout = run_python_script(interpreter.as_ref(), &script)?;
@@ -1240,7 +1250,7 @@ impl Display for BuildFlags {
             } else {
                 write!(f, ",")?;
             }
-            write!(f, "{}", flag)?;
+            write!(f, "{flag}")?;
         }
         Ok(())
     }
@@ -1306,6 +1316,10 @@ pub fn parse_sysconfigdata(sysconfigdata_path: impl AsRef<Path>) -> Result<Sysco
     })?;
     script += r#"
 for key, val in build_time_vars.items():
+    # (ana)conda(-forge) built Pythons are statically linked but ship the shared library with them.
+    # We detect them based on the magic prefix directory they have encoded in their builds.
+    if key == "Py_ENABLE_SHARED" and "_h_env_placehold" in build_time_vars.get("prefix"):
+        val = 1
     print(key, val)
 "#;
 
@@ -1423,7 +1437,7 @@ pub fn find_all_sysconfigdata(cross: &CrossCompileConfig) -> Result<Vec<PathBuf>
 
 fn is_pypy_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
     let pypy_version_pat = if let Some(v) = v {
-        format!("pypy{}", v)
+        format!("pypy{v}")
     } else {
         "pypy3.".into()
     };
@@ -1432,7 +1446,7 @@ fn is_pypy_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
 
 fn is_graalpy_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
     let graalpy_version_pat = if let Some(v) = v {
-        format!("graalpy{}", v)
+        format!("graalpy{v}")
     } else {
         "graalpy2".into()
     };
@@ -1441,7 +1455,7 @@ fn is_graalpy_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
 
 fn is_cpython_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
     let cpython_version_pat = if let Some(v) = v {
-        format!("python{}", v)
+        format!("python{v}")
     } else {
         "python3.".into()
     };
@@ -1460,7 +1474,7 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Result<
         sysconfig_paths.extend(match &f {
             // Python 3.7+ sysconfigdata with platform specifics
             Ok(f) if starts_with(f, "_sysconfigdata_") && ends_with(f, "py") => vec![f.path()],
-            Ok(f) if f.metadata().map_or(false, |metadata| metadata.is_dir()) => {
+            Ok(f) if f.metadata().is_ok_and(|metadata| metadata.is_dir()) => {
                 let file_name = f.file_name();
                 let file_name = file_name.to_string_lossy();
                 if file_name == "build" || file_name == "lib" {
@@ -1755,7 +1769,7 @@ fn default_lib_name_unix(
 ) -> Result<String> {
     match implementation {
         PythonImplementation::CPython => match ld_version {
-            Some(ld_version) => Ok(format!("python{}", ld_version)),
+            Some(ld_version) => Ok(format!("python{ld_version}")),
             None => {
                 if version > PythonVersion::PY37 {
                     // PEP 3149 ABI version tags are finally gone
@@ -1772,7 +1786,7 @@ fn default_lib_name_unix(
             }
         },
         PythonImplementation::PyPy => match ld_version {
-            Some(ld_version) => Ok(format!("pypy{}-c", ld_version)),
+            Some(ld_version) => Ok(format!("pypy{ld_version}-c")),
             None => Ok(format!("pypy{}.{}-c", version.major, version.minor)),
         },
 
@@ -2985,6 +2999,13 @@ mod tests {
         assert!(cross_compiling_from_to(
             &triple!("x86_64-unknown-linux-gnu"),
             &triple!("x86_64-unknown-linux-musl")
+        )
+        .unwrap()
+        .is_none());
+
+        assert!(cross_compiling_from_to(
+            &triple!("x86_64-pc-windows-msvc"),
+            &triple!("x86_64-win7-windows-msvc"),
         )
         .unwrap()
         .is_none());

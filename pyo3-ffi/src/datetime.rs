@@ -9,13 +9,13 @@ use crate::PyCapsule_Import;
 #[cfg(GraalPy)]
 use crate::{PyLong_AsLong, PyLong_Check, PyObject_GetAttrString, Py_DecRef};
 use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_TYPE};
-use std::os::raw::c_char;
-use std::os::raw::c_int;
+use std::ffi::c_char;
+use std::ffi::c_int;
 use std::ptr;
 use std::sync::Once;
 use std::{cell::UnsafeCell, ffi::CStr};
 #[cfg(not(PyPy))]
-use {crate::Py_hash_t, std::os::raw::c_uchar};
+use {crate::Py_hash_t, std::ffi::c_uchar};
 // Type struct wrappers
 const _PyDateTime_DATE_DATASIZE: usize = 4;
 const _PyDateTime_TIME_DATASIZE: usize = 6;
@@ -487,7 +487,9 @@ extern "C" {
     pub fn PyDateTime_DATE_GET_MICROSECOND(o: *mut PyObject) -> c_int;
     #[link_name = "PyPyDateTime_GET_FOLD"]
     pub fn PyDateTime_DATE_GET_FOLD(o: *mut PyObject) -> c_int;
-    // skipped PyDateTime_DATE_GET_TZINFO (not in PyPy)
+    #[link_name = "PyPyDateTime_DATE_GET_TZINFO"]
+    #[cfg(Py_3_10)]
+    pub fn PyDateTime_DATE_GET_TZINFO(o: *mut PyObject) -> *mut PyObject;
 
     #[link_name = "PyPyDateTime_TIME_GET_HOUR"]
     pub fn PyDateTime_TIME_GET_HOUR(o: *mut PyObject) -> c_int;
@@ -499,7 +501,9 @@ extern "C" {
     pub fn PyDateTime_TIME_GET_MICROSECOND(o: *mut PyObject) -> c_int;
     #[link_name = "PyPyDateTime_TIME_GET_FOLD"]
     pub fn PyDateTime_TIME_GET_FOLD(o: *mut PyObject) -> c_int;
-    // skipped PyDateTime_TIME_GET_TZINFO (not in PyPy)
+    #[link_name = "PyPyDateTime_TIME_GET_TZINFO"]
+    #[cfg(Py_3_10)]
+    pub fn PyDateTime_TIME_GET_TZINFO(o: *mut PyObject) -> *mut PyObject;
 
     #[link_name = "PyPyDateTime_DELTA_GET_DAYS"]
     pub fn PyDateTime_DELTA_GET_DAYS(o: *mut PyObject) -> c_int;

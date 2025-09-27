@@ -14,10 +14,10 @@ fn err_debug_unformattable() {
     //     traceback: Some(\"<unformattable <traceback object at 0x...>>\")
     // }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // PyTracebackMethods::format uses io.StringIO. Mock it out to trigger a
         // formatting failure:
-        // TypeError: 'Mock' object cannot be converted to 'PyString'
+        // TypeError: 'Mock' object cannot be converted to 'str'
         let err = py
             .run(
                 ffi::c_str!(
@@ -32,7 +32,7 @@ raise Exception('banana')"#
             )
             .expect_err("raising should have given us an error");
 
-        let debug_str = format!("{:?}", err);
+        let debug_str = format!("{err:?}");
         assert!(debug_str.starts_with("PyErr { "));
         assert!(debug_str.ends_with(" }"));
 
@@ -46,8 +46,7 @@ raise Exception('banana')"#
         let traceback = fields.next().unwrap();
         assert!(
             traceback.starts_with("traceback: Some(\"<unformattable <traceback object at 0x"),
-            "assertion failed, actual traceback str: {:?}",
-            traceback
+            "assertion failed, actual traceback str: {traceback:?}"
         );
         assert!(fields.next().is_none());
 

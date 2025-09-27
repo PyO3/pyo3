@@ -36,25 +36,25 @@ fn extract_traceback(py: Python<'_>, mut error: PyErr) -> String {
 
     let mut error_msg = error.to_string();
     while let Some(cause) = error.cause(py) {
-        write!(&mut error_msg, ", caused by {}", cause).unwrap();
+        write!(&mut error_msg, ", caused by {cause}").unwrap();
         error = cause
     }
     error_msg
 }
 
-pub fn extract_struct_field<'py, T>(
-    obj: &Bound<'py, PyAny>,
+pub fn extract_struct_field<'a, 'py, T>(
+    obj: &'a Bound<'py, PyAny>,
     struct_name: &str,
     field_name: &str,
 ) -> PyResult<T>
 where
-    T: FromPyObject<'py>,
+    T: FromPyObject<'a, 'py>,
 {
     match obj.extract() {
         Ok(value) => Ok(value),
         Err(err) => Err(failed_to_extract_struct_field(
             obj.py(),
-            err,
+            err.into(),
             struct_name,
             field_name,
         )),
@@ -86,26 +86,25 @@ fn failed_to_extract_struct_field(
     field_name: &str,
 ) -> PyErr {
     let new_err = PyTypeError::new_err(format!(
-        "failed to extract field {}.{}",
-        struct_name, field_name
+        "failed to extract field {struct_name}.{field_name}"
     ));
     new_err.set_cause(py, ::std::option::Option::Some(inner_err));
     new_err
 }
 
-pub fn extract_tuple_struct_field<'py, T>(
-    obj: &Bound<'py, PyAny>,
+pub fn extract_tuple_struct_field<'a, 'py, T>(
+    obj: &'a Bound<'py, PyAny>,
     struct_name: &str,
     index: usize,
 ) -> PyResult<T>
 where
-    T: FromPyObject<'py>,
+    T: FromPyObject<'a, 'py>,
 {
     match obj.extract() {
         Ok(value) => Ok(value),
         Err(err) => Err(failed_to_extract_tuple_struct_field(
             obj.py(),
-            err,
+            err.into(),
             struct_name,
             index,
         )),
@@ -136,8 +135,7 @@ fn failed_to_extract_tuple_struct_field(
     struct_name: &str,
     index: usize,
 ) -> PyErr {
-    let new_err =
-        PyTypeError::new_err(format!("failed to extract field {}.{}", struct_name, index));
+    let new_err = PyTypeError::new_err(format!("failed to extract field {struct_name}.{index}"));
     new_err.set_cause(py, ::std::option::Option::Some(inner_err));
     new_err
 }

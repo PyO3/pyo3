@@ -1,24 +1,24 @@
 use crate::exceptions::PyStopAsyncIteration;
-use crate::gil::LockGIL;
 use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::panic::PanicTrap;
 use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout};
 use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
+use crate::internal::state::ForbidAttaching;
 use crate::pycell::impl_::PyClassBorrowChecker as _;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
-use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
 use crate::{
-    ffi, Bound, DowncastError, Py, PyAny, PyClass, PyClassInitializer, PyErr, PyObject, PyRef,
-    PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
+    ffi, Bound, DowncastError, Py, PyAny, PyClass, PyClassGuard, PyClassGuardMut,
+    PyClassInitializer, PyErr, PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit,
+    Python,
 };
 use std::ffi::CStr;
+use std::ffi::{c_int, c_void};
 use std::fmt;
 use std::marker::PhantomData;
-use std::os::raw::{c_int, c_void};
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::ptr::null_mut;
+use std::ptr::{null_mut, NonNull};
 
 use super::trampoline;
 use crate::internal_tricks::{clear_eq, traverse_eq};
@@ -84,7 +84,7 @@ pub enum PyMethodType {
     PyCFunctionFastWithKeywords(ffi::PyCFunctionFastWithKeywords),
 }
 
-pub type PyClassAttributeFactory = for<'p> fn(Python<'p>) -> PyResult<PyObject>;
+pub type PyClassAttributeFactory = for<'p> fn(Python<'p>) -> PyResult<Py<PyAny>>;
 
 // TODO: it would be nice to use CStr in these types, but then the constructors can't be const fn
 // until `CStr::from_bytes_with_nul_unchecked` is const fn.
@@ -260,7 +260,7 @@ impl PySetterDef {
 ///
 /// Elided lifetime should compile ok:
 ///
-/// ```rust
+/// ```rust,no_run
 /// use pyo3::prelude::*;
 /// use pyo3::pyclass::{PyTraverseError, PyVisit};
 ///
@@ -293,7 +293,7 @@ where
     // Since we do not create a `GILPool` at all, it is important that our usage of the GIL
     // token does not produce any owned objects thereby calling into `register_owned`.
     let trap = PanicTrap::new("uncaught panic inside __traverse__ handler");
-    let lock = LockGIL::during_traverse();
+    let lock = ForbidAttaching::during_traverse();
 
     let super_retval = unsafe { call_super_traverse(slf, visit, arg, current_traverse) };
     if super_retval != 0 {
@@ -645,12 +645,32 @@ impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
         unsafe { Bound::ref_from_ptr_or_opt(py, ptr).as_ref().map(BoundRef) }
     }
 
+    pub unsafe fn ref_from_non_null(py: Python<'py>, ptr: &'a NonNull<ffi::PyObject>) -> Self {
+        unsafe { Self(Bound::ref_from_non_null(py, ptr)) }
+    }
+
     pub fn downcast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, DowncastError<'a, 'py>> {
-        self.0.downcast::<T>().map(BoundRef)
+        self.0.cast::<T>().map(BoundRef)
     }
 
     pub unsafe fn downcast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
-        unsafe { BoundRef(self.0.downcast_unchecked::<T>()) }
+        unsafe { BoundRef(self.0.cast_unchecked::<T>()) }
+    }
+}
+
+impl<'a, 'py, T: PyClass> TryFrom<BoundRef<'a, 'py, T>> for PyClassGuard<'a, T> {
+    type Error = PyBorrowError;
+    #[inline]
+    fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
+        PyClassGuard::try_borrow(value.0.as_unbound())
+    }
+}
+
+impl<'a, 'py, T: PyClass<Frozen = False>> TryFrom<BoundRef<'a, 'py, T>> for PyClassGuardMut<'a, T> {
+    type Error = PyBorrowMutError;
+    #[inline]
+    fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
+        PyClassGuardMut::try_borrow_mut(value.0.as_unbound())
     }
 }
 
@@ -658,7 +678,7 @@ impl<'a, 'py, T: PyClass> TryFrom<BoundRef<'a, 'py, T>> for PyRef<'py, T> {
     type Error = PyBorrowError;
     #[inline]
     fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
-        value.0.try_borrow()
+        PyRef::try_borrow(value.0)
     }
 }
 
@@ -666,7 +686,7 @@ impl<'a, 'py, T: PyClass<Frozen = False>> TryFrom<BoundRef<'a, 'py, T>> for PyRe
     type Error = PyBorrowMutError;
     #[inline]
     fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
-        value.0.try_borrow_mut()
+        PyRefMut::try_borrow(value.0)
     }
 }
 
@@ -720,7 +740,7 @@ mod tests {
         use crate::types::{PyAnyMethods, PyCFunction};
         use crate::{ffi, Python};
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             unsafe extern "C" fn accepts_no_arguments(
                 _slf: *mut ffi::PyObject,
                 _args: *const *mut ffi::PyObject,
@@ -729,7 +749,7 @@ mod tests {
             ) -> *mut ffi::PyObject {
                 assert_eq!(nargs, 0);
                 assert!(kwargs.is_null());
-                unsafe { Python::assume_gil_acquired().None().into_ptr() }
+                unsafe { Python::assume_attached().None().into_ptr() }
             }
 
             let f = PyCFunction::internal_new(

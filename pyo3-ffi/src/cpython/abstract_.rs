@@ -1,12 +1,12 @@
 use crate::{PyObject, Py_ssize_t};
-#[cfg(any(all(Py_3_8, not(any(PyPy, GraalPy))), not(Py_3_11)))]
-use std::os::raw::c_char;
-use std::os::raw::c_int;
+#[cfg(any(all(Py_3_8, not(PyPy)), not(Py_3_11)))]
+use std::ffi::c_char;
+use std::ffi::c_int;
 
 #[cfg(not(Py_3_11))]
 use crate::Py_buffer;
 
-#[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
+#[cfg(all(Py_3_8, not(PyPy)))]
 use crate::{
     vectorcallfunc, PyCallable_Check, PyThreadState, PyThreadState_GET, PyTuple_Check,
     PyType_HasFeature, Py_TPFLAGS_HAVE_VECTORCALL,
@@ -23,7 +23,7 @@ extern "C" {
 const _PY_FASTCALL_SMALL_STACK: size_t = 5;
 
 extern "C" {
-    #[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
+    #[cfg(all(Py_3_8, not(PyPy)))]
     pub fn _Py_CheckFunctionResult(
         tstate: *mut PyThreadState,
         callable: *mut PyObject,
@@ -31,7 +31,7 @@ extern "C" {
         where_: *const c_char,
     ) -> *mut PyObject;
 
-    #[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
+    #[cfg(all(Py_3_8, not(PyPy)))]
     pub fn _PyObject_MakeTpCall(
         tstate: *mut PyThreadState,
         callable: *mut PyObject,
@@ -52,7 +52,7 @@ pub unsafe fn PyVectorcall_NARGS(n: size_t) -> Py_ssize_t {
     n.try_into().expect("cannot fail due to mask")
 }
 
-#[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
+#[cfg(all(Py_3_8, not(PyPy)))]
 #[inline(always)]
 pub unsafe fn PyVectorcall_Function(callable: *mut PyObject) -> Option<vectorcallfunc> {
     assert!(!callable.is_null());
@@ -67,7 +67,7 @@ pub unsafe fn PyVectorcall_Function(callable: *mut PyObject) -> Option<vectorcal
     *ptr
 }
 
-#[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
+#[cfg(all(Py_3_8, not(PyPy)))]
 #[inline(always)]
 pub unsafe fn _PyObject_VectorcallTstate(
     tstate: *mut PyThreadState,
@@ -148,7 +148,7 @@ pub unsafe fn _PyObject_FastCall(
     _PyObject_FastCallTstate(PyThreadState_GET(), func, args, nargs)
 }
 
-#[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
+#[cfg(all(Py_3_8, not(PyPy)))]
 #[inline(always)]
 pub unsafe fn _PyObject_CallNoArg(func: *mut PyObject) -> *mut PyObject {
     _PyObject_VectorcallTstate(
@@ -166,7 +166,7 @@ extern "C" {
     pub fn _PyObject_CallNoArg(func: *mut PyObject) -> *mut PyObject;
 }
 
-#[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
+#[cfg(all(Py_3_8, not(PyPy)))]
 #[inline(always)]
 pub unsafe fn PyObject_CallOneArg(func: *mut PyObject, arg: *mut PyObject) -> *mut PyObject {
     assert!(!arg.is_null());
@@ -177,7 +177,7 @@ pub unsafe fn PyObject_CallOneArg(func: *mut PyObject, arg: *mut PyObject) -> *m
     _PyObject_VectorcallTstate(tstate, func, args, nargsf, std::ptr::null_mut())
 }
 
-#[cfg(all(Py_3_9, not(any(PyPy, GraalPy))))]
+#[cfg(all(Py_3_9, not(PyPy)))]
 #[inline(always)]
 pub unsafe fn PyObject_CallMethodNoArgs(
     self_: *mut PyObject,
@@ -191,7 +191,7 @@ pub unsafe fn PyObject_CallMethodNoArgs(
     )
 }
 
-#[cfg(all(Py_3_9, not(any(PyPy, GraalPy))))]
+#[cfg(all(Py_3_9, not(PyPy)))]
 #[inline(always)]
 pub unsafe fn PyObject_CallMethodOneArg(
     self_: *mut PyObject,
@@ -219,7 +219,7 @@ extern "C" {
     pub fn PyObject_LengthHint(o: *mut PyObject, arg1: Py_ssize_t) -> Py_ssize_t;
 
     #[cfg(not(Py_3_11))] // moved to src/buffer.rs from 3.11
-    #[cfg(all(Py_3_9, not(any(PyPy, GraalPy))))]
+    #[cfg(all(Py_3_9, not(PyPy)))]
     pub fn PyObject_CheckBuffer(obj: *mut PyObject) -> c_int;
 }
 
@@ -238,12 +238,12 @@ extern "C" {
     pub fn PyBuffer_GetPointer(
         view: *mut Py_buffer,
         indices: *mut Py_ssize_t,
-    ) -> *mut std::os::raw::c_void;
+    ) -> *mut std::ffi::c_void;
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_SizeFromFormat")]
     pub fn PyBuffer_SizeFromFormat(format: *const c_char) -> Py_ssize_t;
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_ToContiguous")]
     pub fn PyBuffer_ToContiguous(
-        buf: *mut std::os::raw::c_void,
+        buf: *mut std::ffi::c_void,
         view: *mut Py_buffer,
         len: Py_ssize_t,
         order: c_char,
@@ -251,7 +251,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_FromContiguous")]
     pub fn PyBuffer_FromContiguous(
         view: *mut Py_buffer,
-        buf: *mut std::os::raw::c_void,
+        buf: *mut std::ffi::c_void,
         len: Py_ssize_t,
         order: c_char,
     ) -> c_int;
@@ -269,7 +269,7 @@ extern "C" {
     pub fn PyBuffer_FillInfo(
         view: *mut Py_buffer,
         o: *mut PyObject,
-        buf: *mut std::os::raw::c_void,
+        buf: *mut std::ffi::c_void,
         len: Py_ssize_t,
         readonly: c_int,
         flags: c_int,

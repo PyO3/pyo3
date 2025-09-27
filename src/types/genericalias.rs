@@ -33,7 +33,7 @@ impl PyGenericAlias {
         unsafe {
             ffi::Py_GenericAlias(origin.as_ptr(), args.as_ptr())
                 .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }
@@ -50,7 +50,7 @@ mod tests {
     // created from Python.
     #[test]
     fn equivalency_test() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let list_int = py
                 .eval(ffi::c_str!("list[int]"), None, None)
                 .unwrap()

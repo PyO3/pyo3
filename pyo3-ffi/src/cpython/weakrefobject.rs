@@ -1,3 +1,4 @@
+// NB publicly re-exported in `src/weakrefobject.rs`
 #[cfg(not(any(PyPy, GraalPy)))]
 pub struct _PyWeakReference {
     pub ob_base: crate::PyObject,

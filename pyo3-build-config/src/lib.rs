@@ -16,9 +16,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use std::{env, process::Command, str::FromStr};
-
-use once_cell::sync::OnceCell;
+use std::{env, process::Command, str::FromStr, sync::OnceLock};
 
 pub use impl_::{
     cross_compiling_from_to, find_all_sysconfigdata, parse_sysconfigdata, BuildFlag, BuildFlags,
@@ -46,7 +44,7 @@ use target_lexicon::OperatingSystem;
 pub fn use_pyo3_cfgs() {
     print_expected_cfgs();
     for cargo_command in get().build_script_outputs() {
-        println!("{}", cargo_command)
+        println!("{cargo_command}")
     }
 }
 
@@ -102,22 +100,17 @@ fn _add_python_framework_link_args(
 ) {
     if matches!(triple.operating_system, OperatingSystem::Darwin(_)) && link_libpython {
         if let Some(framework_prefix) = interpreter_config.python_framework_prefix.as_ref() {
-            writeln!(
-                writer,
-                "cargo:rustc-link-arg=-Wl,-rpath,{}",
-                framework_prefix
-            )
-            .unwrap();
+            writeln!(writer, "cargo:rustc-link-arg=-Wl,-rpath,{framework_prefix}").unwrap();
         }
     }
 }
 
 /// Loads the configuration determined from the build environment.
 ///
-/// Because this will never change in a given compilation run, this is cached in a `once_cell`.
+/// Because this will never change in a given compilation run, this is cached in a `OnceLock`.
 #[cfg(feature = "resolve-config")]
 pub fn get() -> &'static InterpreterConfig {
-    static CONFIG: OnceCell<InterpreterConfig> = OnceCell::new();
+    static CONFIG: OnceLock<InterpreterConfig> = OnceLock::new();
     CONFIG.get_or_init(|| {
         // Check if we are in a build script and cross compiling to a different target.
         let cross_compile_config_path = resolve_cross_compile_config_path();
@@ -173,12 +166,12 @@ fn print_feature_cfg(minor_version_required: u32, cfg: &str) {
     let minor_version = rustc_minor_version().unwrap_or(0);
 
     if minor_version >= minor_version_required {
-        println!("cargo:rustc-cfg={}", cfg);
+        println!("cargo:rustc-cfg={cfg}");
     }
 
     // rustc 1.80.0 stabilized `rustc-check-cfg` feature, don't emit before
     if minor_version >= 80 {
-        println!("cargo:rustc-check-cfg=cfg({})", cfg);
+        println!("cargo:rustc-check-cfg=cfg({cfg})");
     }
 }
 
@@ -188,16 +181,15 @@ fn print_feature_cfg(minor_version_required: u32, cfg: &str) {
 /// so this function is unstable.
 #[doc(hidden)]
 pub fn print_feature_cfgs() {
-    print_feature_cfg(70, "rustc_has_once_lock");
-    print_feature_cfg(70, "cargo_toml_lints");
-    print_feature_cfg(71, "rustc_has_extern_c_unwind");
-    print_feature_cfg(74, "invalid_from_utf8_lint");
+    print_feature_cfg(75, "return_position_impl_trait_in_traits");
     print_feature_cfg(79, "c_str_lit");
     // Actually this is available on 1.78, but we should avoid
     // https://github.com/rust-lang/rust/issues/124651 just in case
     print_feature_cfg(79, "diagnostic_namespace");
     print_feature_cfg(83, "io_error_more");
+    print_feature_cfg(83, "mut_ref_in_const_fn");
     print_feature_cfg(85, "fn_ptr_eq");
+    print_feature_cfg(86, "from_bytes_with_nul_error");
 }
 
 /// Registers `pyo3`s config names as reachable cfg expressions
@@ -206,7 +198,7 @@ pub fn print_feature_cfgs() {
 /// - <https://doc.rust-lang.org/nightly/cargo/reference/build-scripts.html#rustc-check-cfg>
 #[doc(hidden)]
 pub fn print_expected_cfgs() {
-    if rustc_minor_version().map_or(false, |version| version < 80) {
+    if rustc_minor_version().is_some_and(|version| version < 80) {
         // rustc 1.80.0 stabilized `rustc-check-cfg` feature, don't emit before
         return;
     }
@@ -221,8 +213,7 @@ pub fn print_expected_cfgs() {
 
     // allow `Py_3_*` cfgs from the minimum supported version up to the
     // maximum minor version (+1 for development for the next)
-    // FIXME: support cfg(Py_3_14) as well due to PyGILState_Ensure
-    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=std::cmp::max(14, impl_::ABI3_MAX_MINOR + 1) {
+    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::ABI3_MAX_MINOR + 1 {
         println!("cargo:rustc-check-cfg=cfg(Py_3_{i})");
     }
 }
@@ -256,9 +247,9 @@ pub mod pyo3_build_script_impl {
         // CONFIG_FILE is generated in build.rs, so it's content can vary
         #[allow(unknown_lints, clippy::const_is_empty)]
         if !CONFIG_FILE.is_empty() {
-            let mut interperter_config = InterpreterConfig::from_reader(Cursor::new(CONFIG_FILE))?;
-            interperter_config.generate_import_libs()?;
-            Ok(interperter_config)
+            let mut interpreter_config = InterpreterConfig::from_reader(Cursor::new(CONFIG_FILE))?;
+            interpreter_config.generate_import_libs()?;
+            Ok(interpreter_config)
         } else if let Some(interpreter_config) = make_cross_compile_config()? {
             // This is a cross compile and need to write the config file.
             let path = resolve_cross_compile_config_path()
@@ -286,7 +277,7 @@ pub mod pyo3_build_script_impl {
 }
 
 fn rustc_minor_version() -> Option<u32> {
-    static RUSTC_MINOR_VERSION: OnceCell<Option<u32>> = OnceCell::new();
+    static RUSTC_MINOR_VERSION: OnceLock<Option<u32>> = OnceLock::new();
     *RUSTC_MINOR_VERSION.get_or_init(|| {
         let rustc = env::var_os("RUSTC")?;
         let output = Command::new(rustc).arg("--version").output().ok()?;

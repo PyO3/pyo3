@@ -6,14 +6,13 @@ use pyo3::{
 #[pyfunction]
 fn issue_219() {
     // issue 219: acquiring GIL inside #[pyfunction] deadlocks.
-    Python::with_gil(|_| {});
+    Python::attach(|_| {});
 }
 
 #[pyclass]
 struct LockHolder {
     #[allow(unused)]
-    // Mutex needed for the MSRV
-    sender: std::sync::Mutex<std::sync::mpsc::Sender<()>>,
+    sender: std::sync::mpsc::Sender<()>,
 }
 
 // This will hammer the GIL once the LockHolder is dropped.
@@ -25,12 +24,10 @@ fn hammer_gil_in_thread() -> LockHolder {
         // now the interpreter has shut down, so hammer the GIL. In buggy
         // versions of PyO3 this will cause a crash.
         loop {
-            Python::with_gil(|_py| ());
+            Python::try_attach(|_py| ());
         }
     });
-    LockHolder {
-        sender: std::sync::Mutex::new(sender),
-    }
+    LockHolder { sender }
 }
 
 #[pyfunction]

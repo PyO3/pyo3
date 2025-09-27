@@ -2,7 +2,7 @@ use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
-use crate::types::any::PyAnyMethods;
+use crate::sync::with_critical_section;
 use crate::{ffi, PyAny, Python};
 use std::slice;
 
@@ -28,15 +28,8 @@ impl PyByteArray {
         unsafe {
             ffi::PyByteArray_FromStringAndSize(ptr, len)
                 .assume_owned(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
-    }
-
-    /// Deprecated name for [`PyByteArray::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyByteArray::new`")]
-    #[inline]
-    pub fn new_bound<'py>(py: Python<'py>, src: &[u8]) -> Bound<'py, PyByteArray> {
-        Self::new(py, src)
     }
 
     /// Creates a new Python `bytearray` object with an `init` closure to write its contents.
@@ -52,7 +45,7 @@ impl PyByteArray {
     /// use pyo3::{prelude::*, types::PyByteArray};
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
+    /// Python::attach(|py| -> PyResult<()> {
     ///     let py_bytearray = PyByteArray::new_with(py, 10, |bytes: &mut [u8]| {
     ///         bytes.copy_from_slice(b"Hello Rust");
     ///         Ok(())
@@ -72,7 +65,7 @@ impl PyByteArray {
             let pybytearray: Bound<'_, Self> =
                 ffi::PyByteArray_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t)
                     .assume_owned_or_err(py)?
-                    .downcast_into_unchecked();
+                    .cast_into_unchecked();
 
             let buffer: *mut u8 = ffi::PyByteArray_AsString(pybytearray.as_ptr()).cast();
             debug_assert!(!buffer.is_null());
@@ -84,35 +77,14 @@ impl PyByteArray {
         }
     }
 
-    /// Deprecated name for [`PyByteArray::new_with`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyByteArray::new_with`")]
-    #[inline]
-    pub fn new_bound_with<F>(
-        py: Python<'_>,
-        len: usize,
-        init: F,
-    ) -> PyResult<Bound<'_, PyByteArray>>
-    where
-        F: FnOnce(&mut [u8]) -> PyResult<()>,
-    {
-        Self::new_with(py, len, init)
-    }
-
     /// Creates a new Python `bytearray` object from another Python object that
     /// implements the buffer protocol.
     pub fn from<'py>(src: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyByteArray>> {
         unsafe {
             ffi::PyByteArray_FromObject(src.as_ptr())
                 .assume_owned_or_err(src.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
-    }
-
-    ///Deprecated name for [`PyByteArray::from`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyByteArray::from`")]
-    #[inline]
-    pub fn from_bound<'py>(src: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyByteArray>> {
-        Self::from(src)
     }
 }
 
@@ -153,28 +125,29 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     ///
     /// As a result, this slice should only be used for short-lived operations without executing any
     /// Python code, such as copying into a Vec.
+    /// For free-threaded Python support see also [`with_critical_section`].
     ///
     /// # Examples
     ///
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3::exceptions::PyRuntimeError;
+    /// use pyo3::sync::with_critical_section;
     /// use pyo3::types::PyByteArray;
     ///
     /// #[pyfunction]
     /// fn a_valid_function(bytes: &Bound<'_, PyByteArray>) -> PyResult<()> {
-    ///     let section = {
-    ///         // SAFETY: We promise to not let the interpreter regain control
+    ///     let section = with_critical_section(bytes, || {
+    ///         // SAFETY: We promise to not let the interpreter regain control over the bytearray
     ///         // or invoke any PyO3 APIs while using the slice.
     ///         let slice = unsafe { bytes.as_bytes() };
     ///
     ///         // Copy only a section of `bytes` while avoiding
     ///         // `to_vec` which copies the entire thing.
-    ///         let section = slice
-    ///             .get(6..11)
-    ///             .ok_or_else(|| PyRuntimeError::new_err("input is not long enough"))?;
-    ///         Vec::from(section)
-    ///     };
+    ///         slice.get(6..11)
+    ///             .map(Vec::from)
+    ///             .ok_or_else(|| PyRuntimeError::new_err("input is not long enough"))
+    ///     })?;
     ///
     ///     // Now we can do things with `section` and call PyO3 APIs again.
     ///     // ...
@@ -183,7 +156,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     ///     Ok(())
     /// }
     /// # fn main() -> PyResult<()> {
-    /// #     Python::with_gil(|py| -> PyResult<()> {
+    /// #     Python::attach(|py| -> PyResult<()> {
     /// #         let fun = wrap_pyfunction!(a_valid_function, py)?;
     /// #         let locals = pyo3::types::PyDict::new(py);
     /// #         locals.set_item("a_valid_function", fun)?;
@@ -216,11 +189,14 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// # #[allow(dead_code)]
     /// #[pyfunction]
     /// fn bug(py: Python<'_>, bytes: &Bound<'_, PyByteArray>) {
+    ///     // No critical section is being used.
+    ///     // This means that for no-gil Python another thread could be modifying the
+    ///     // bytearray concurrently and thus invalidate `slice` any time.
     ///     let slice = unsafe { bytes.as_bytes() };
     ///
     ///     // This explicitly yields control back to the Python interpreter...
     ///     // ...but it's not always this obvious. Many things do this implicitly.
-    ///     py.allow_threads(|| {
+    ///     py.detach(|| {
     ///         // Python code could be mutating through its handle to `bytes`,
     ///         // which makes reading it a data race, which is undefined behavior.
     ///         println!("{:?}", slice[0]);
@@ -250,7 +226,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// ```
     /// # use pyo3::prelude::*;
     /// # use pyo3::types::PyByteArray;
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// let bytearray = PyByteArray::new(py, b"Hello World.");
     /// let mut copied_message = bytearray.to_vec();
     /// assert_eq!(b"Hello World.", copied_message.as_slice());
@@ -295,7 +271,14 @@ impl<'py> PyByteArrayMethods<'py> for Bound<'py, PyByteArray> {
     }
 
     fn to_vec(&self) -> Vec<u8> {
-        unsafe { self.as_bytes() }.to_vec()
+        with_critical_section(self, || {
+            // SAFETY:
+            //  * `self` is a `Bound` object, which guarantees that the Python GIL is held.
+            //  * For no-gil Python, a critical section is used in lieu of the GIL.
+            //  * We don't interact with the interpreter
+            //  * We don't mutate the underlying slice
+            unsafe { self.as_bytes() }.to_vec()
+        })
     }
 
     fn resize(&self, len: usize) -> PyResult<()> {
@@ -316,7 +299,7 @@ impl<'a> Borrowed<'a, '_, PyByteArray> {
     }
 
     #[allow(clippy::wrong_self_convention)]
-    unsafe fn as_bytes(self) -> &'a [u8] {
+    pub(crate) unsafe fn as_bytes(self) -> &'a [u8] {
         unsafe { slice::from_raw_parts(self.data(), self.len()) }
     }
 
@@ -339,11 +322,11 @@ impl<'py> TryFrom<&Bound<'py, PyAny>> for Bound<'py, PyByteArray> {
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods};
-    use crate::{exceptions, Bound, PyAny, PyObject, Python};
+    use crate::{exceptions, Bound, Py, PyAny, Python};
 
     #[test]
     fn test_len() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
             assert_eq!(src.len(), bytearray.len());
@@ -352,7 +335,7 @@ mod tests {
 
     #[test]
     fn test_as_bytes() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
 
@@ -364,7 +347,7 @@ mod tests {
 
     #[test]
     fn test_as_bytes_mut() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
 
@@ -380,7 +363,7 @@ mod tests {
 
     #[test]
     fn test_to_vec() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
 
@@ -391,11 +374,11 @@ mod tests {
 
     #[test]
     fn test_from() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
 
-            let ba: PyObject = bytearray.into();
+            let ba: Py<PyAny> = bytearray.into();
             let bytearray = PyByteArray::from(ba.bind(py)).unwrap();
 
             assert_eq!(src, unsafe { bytearray.as_bytes() });
@@ -404,7 +387,7 @@ mod tests {
 
     #[test]
     fn test_from_err() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             if let Err(err) = PyByteArray::from(py.None().bind(py)) {
                 assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
             } else {
@@ -415,7 +398,7 @@ mod tests {
 
     #[test]
     fn test_try_from() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray: &Bound<'_, PyAny> = &PyByteArray::new(py, src);
             let bytearray: Bound<'_, PyByteArray> = TryInto::try_into(bytearray).unwrap();
@@ -426,7 +409,7 @@ mod tests {
 
     #[test]
     fn test_resize() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let src = b"Hello Python";
             let bytearray = PyByteArray::new(py, src);
 
@@ -437,7 +420,7 @@ mod tests {
 
     #[test]
     fn test_byte_array_new_with() -> super::PyResult<()> {
-        Python::with_gil(|py| -> super::PyResult<()> {
+        Python::attach(|py| -> super::PyResult<()> {
             let py_bytearray = PyByteArray::new_with(py, 10, |b: &mut [u8]| {
                 b.copy_from_slice(b"Hello Rust");
                 Ok(())
@@ -450,7 +433,7 @@ mod tests {
 
     #[test]
     fn test_byte_array_new_with_zero_initialised() -> super::PyResult<()> {
-        Python::with_gil(|py| -> super::PyResult<()> {
+        Python::attach(|py| -> super::PyResult<()> {
             let py_bytearray = PyByteArray::new_with(py, 10, |_b: &mut [u8]| Ok(()))?;
             let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
             assert_eq!(bytearray, &[0; 10]);
@@ -461,7 +444,7 @@ mod tests {
     #[test]
     fn test_byte_array_new_with_error() {
         use crate::exceptions::PyValueError;
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_bytearray_result = PyByteArray::new_with(py, 10, |_b: &mut [u8]| {
                 Err(PyValueError::new_err("Hello Crustaceans!"))
             });
@@ -471,5 +454,130 @@ mod tests {
                 .unwrap()
                 .is_instance_of::<PyValueError>(py));
         })
+    }
+
+    // * wasm has no threading support
+    // * CPython 3.13t is unsound => test fails
+    #[cfg(all(
+        not(target_family = "wasm"),
+        any(Py_3_14, not(all(Py_3_13, Py_GIL_DISABLED)))
+    ))]
+    #[test]
+    fn test_data_integrity_in_critical_section() {
+        use crate::instance::Py;
+        use crate::sync::{with_critical_section, MutexExt};
+
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::Mutex;
+        use std::thread;
+        use std::thread::ScopedJoinHandle;
+        use std::time::Duration;
+
+        const SIZE: usize = 1_000_000;
+        const DATA_VALUE: u8 = 42;
+
+        fn make_byte_array(py: Python<'_>, size: usize, value: u8) -> Bound<'_, PyByteArray> {
+            PyByteArray::new_with(py, size, |b| {
+                b.fill(value);
+                Ok(())
+            })
+            .unwrap()
+        }
+
+        let data: Mutex<Py<PyByteArray>> = Mutex::new(Python::attach(|py| {
+            make_byte_array(py, SIZE, DATA_VALUE).unbind()
+        }));
+
+        fn get_data<'py>(
+            data: &Mutex<Py<PyByteArray>>,
+            py: Python<'py>,
+        ) -> Bound<'py, PyByteArray> {
+            data.lock_py_attached(py).unwrap().bind(py).clone()
+        }
+
+        fn set_data(data: &Mutex<Py<PyByteArray>>, new: Bound<'_, PyByteArray>) {
+            let py = new.py();
+            *data.lock_py_attached(py).unwrap() = new.unbind()
+        }
+
+        let running = AtomicBool::new(true);
+        let extending = AtomicBool::new(false);
+
+        // continuously extends and resets the bytearray in data
+        let worker1 = || {
+            let mut rounds = 0;
+            while running.load(Ordering::SeqCst) && rounds < 50 {
+                Python::attach(|py| {
+                    let byte_array = get_data(&data, py);
+                    extending.store(true, Ordering::SeqCst);
+                    byte_array
+                        .call_method("extend", (&byte_array,), None)
+                        .unwrap();
+                    extending.store(false, Ordering::SeqCst);
+                    set_data(&data, make_byte_array(py, SIZE, DATA_VALUE));
+                    rounds += 1;
+                });
+            }
+        };
+
+        // continuously checks the integrity of bytearray in data
+        let worker2 = || {
+            while running.load(Ordering::SeqCst) {
+                if !extending.load(Ordering::SeqCst) {
+                    // wait until we have a chance to read inconsistent state
+                    continue;
+                }
+                Python::attach(|py| {
+                    let read = get_data(&data, py);
+                    if read.len() == SIZE {
+                        // extend is still not done => wait even more
+                        return;
+                    }
+                    with_critical_section(&read, || {
+                        // SAFETY: we are in a critical section
+                        // This is the whole point of the test: make sure that a
+                        // critical section is sufficient to ensure that the data
+                        // read is consistent.
+                        unsafe {
+                            let bytes = read.as_bytes();
+                            assert!(bytes.iter().rev().take(50).all(|v| *v == DATA_VALUE
+                                && bytes.iter().take(50).all(|v| *v == DATA_VALUE)));
+                        }
+                    });
+                });
+            }
+        };
+
+        thread::scope(|s| {
+            let mut handle1 = Some(s.spawn(worker1));
+            let mut handle2 = Some(s.spawn(worker2));
+            let mut handles = [&mut handle1, &mut handle2];
+
+            let t0 = std::time::Instant::now();
+            while t0.elapsed() < Duration::from_secs(1) {
+                for handle in &mut handles {
+                    if handle
+                        .as_ref()
+                        .map(ScopedJoinHandle::is_finished)
+                        .unwrap_or(false)
+                    {
+                        let res = handle.take().unwrap().join();
+                        if res.is_err() {
+                            running.store(false, Ordering::SeqCst);
+                        }
+                        res.unwrap();
+                    }
+                }
+                if handles.iter().any(|handle| handle.is_none()) {
+                    break;
+                }
+            }
+            running.store(false, Ordering::SeqCst);
+            for handle in &mut handles {
+                if let Some(handle) = handle.take() {
+                    handle.join().unwrap()
+                }
+            }
+        });
     }
 }

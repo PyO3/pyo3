@@ -31,7 +31,7 @@ fn intern(py: crate::Python<'_>) {
     let _bar = crate::intern!(py, stringify!(bar));
 }
 
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 fn append_to_inittab() {
     #[crate::pymodule]
     #[pyo3(crate = "crate")]

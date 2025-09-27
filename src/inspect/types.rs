@@ -212,7 +212,7 @@ impl Display for TypeInfo {
                         if comma {
                             write!(f, ", ")?;
                         }
-                        write!(f, "{}", arg)?;
+                        write!(f, "{arg}")?;
                         comma = true;
                     }
                     write!(f, "]")?;
@@ -220,7 +220,7 @@ impl Display for TypeInfo {
                     write!(f, "...")?;
                 }
 
-                write!(f, ", {}]", output)
+                write!(f, ", {output}]")
             }
             TypeInfo::Tuple(types) => {
                 write!(f, "Tuple[")?;
@@ -234,7 +234,7 @@ impl Display for TypeInfo {
                             if comma {
                                 write!(f, ", ")?;
                             }
-                            write!(f, "{}", t)?;
+                            write!(f, "{t}")?;
                             comma = true;
                         }
                     }
@@ -244,11 +244,11 @@ impl Display for TypeInfo {
 
                 write!(f, "]")
             }
-            TypeInfo::UnsizedTypedTuple(t) => write!(f, "Tuple[{}, ...]", t),
+            TypeInfo::UnsizedTypedTuple(t) => write!(f, "Tuple[{t}, ...]"),
             TypeInfo::Class {
                 name, type_vars, ..
             } => {
-                write!(f, "{}", name)?;
+                write!(f, "{name}")?;
 
                 if !type_vars.is_empty() {
                     write!(f, "[")?;
@@ -258,7 +258,7 @@ impl Display for TypeInfo {
                         if comma {
                             write!(f, ", ")?;
                         }
-                        write!(f, "{}", var)?;
+                        write!(f, "{var}")?;
                         comma = true;
                     }
 
@@ -279,7 +279,7 @@ mod test {
 
     #[track_caller]
     pub fn assert_display(t: &TypeInfo, expected: &str) {
-        assert_eq!(format!("{}", t), expected)
+        assert_eq!(format!("{t}"), expected)
     }
 
     #[test]
@@ -467,7 +467,7 @@ mod conversion {
         assert_display(&<&[u8]>::type_output(), "Union[bytes, List[int]]");
         assert_display(&<&[String]>::type_output(), "Union[bytes, List[str]]");
         assert_display(
-            &<&[u8] as crate::conversion::FromPyObjectBound>::type_input(),
+            &<&[u8] as crate::conversion::FromPyObject>::type_input(),
             "bytes",
         );
     }

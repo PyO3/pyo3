@@ -5,15 +5,14 @@ pub use self::boolobject::{PyBool, PyBoolMethods};
 pub use self::bytearray::{PyByteArray, PyByteArrayMethods};
 pub use self::bytes::{PyBytes, PyBytesMethods};
 pub use self::capsule::{PyCapsule, PyCapsuleMethods};
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
-pub use self::code::PyCode;
+pub use self::code::{PyCode, PyCodeInput, PyCodeMethods};
 pub use self::complex::{PyComplex, PyComplexMethods};
-#[cfg(not(Py_LIMITED_API))]
 #[allow(deprecated)]
 pub use self::datetime::{
-    timezone_utc, timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess,
-    PyTime, PyTimeAccess, PyTzInfo, PyTzInfoAccess,
+    timezone_utc, PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess,
 };
+#[cfg(not(Py_LIMITED_API))]
+pub use self::datetime::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
 pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::dict::{PyDictItems, PyDictKeys, PyDictValues};
@@ -33,19 +32,20 @@ pub use self::mapping::{PyMapping, PyMappingMethods};
 pub use self::mappingproxy::PyMappingProxy;
 pub use self::memoryview::PyMemoryView;
 pub use self::module::{PyModule, PyModuleMethods};
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+pub use self::mutex::{PyMutex, PyMutexGuard};
 pub use self::none::PyNone;
 pub use self::notimplemented::PyNotImplemented;
-#[allow(deprecated)]
-pub use self::num::{PyInt, PyLong};
+pub use self::num::PyInt;
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::pysuper::PySuper;
+pub use self::range::{PyRange, PyRangeMethods};
 pub use self::sequence::{PySequence, PySequenceMethods};
 pub use self::set::{PySet, PySetMethods};
 pub use self::slice::{PySlice, PySliceIndices, PySliceMethods};
 #[cfg(not(Py_LIMITED_API))]
 pub use self::string::PyStringData;
-#[allow(deprecated)]
-pub use self::string::{PyString, PyStringMethods, PyUnicode};
+pub use self::string::{PyString, PyStringMethods};
 pub use self::traceback::{PyTraceback, PyTracebackMethods};
 pub use self::tuple::{PyTuple, PyTupleMethods};
 pub use self::typeobject::{PyType, PyTypeMethods};
@@ -65,8 +65,8 @@ pub use self::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefRe
 /// use pyo3::ffi::c_str;
 ///
 /// # pub fn main() -> PyResult<()> {
-/// Python::with_gil(|py| {
-///     let dict = py.eval(c_str!("{'a':'b', 'c':'d'}"), None, None)?.downcast_into::<PyDict>()?;
+/// Python::attach(|py| {
+///     let dict = py.eval(c_str!("{'a':'b', 'c':'d'}"), None, None)?.cast_into::<PyDict>()?;
 ///
 ///     for (key, value) in &dict {
 ///         println!("key: {}, value: {}", key, value);
@@ -162,6 +162,10 @@ macro_rules! pyobject_native_type_info(
         impl $name {
             #[doc(hidden)]
             pub const _PYO3_DEF: $crate::impl_::pymodule::AddTypeToModule<Self> = $crate::impl_::pymodule::AddTypeToModule::new();
+
+            #[allow(dead_code)]
+            #[doc(hidden)]
+            pub const _PYO3_INTROSPECTION_ID: &'static str = concat!(stringify!($module), stringify!($name));
         }
     };
 );
@@ -220,13 +224,9 @@ pub(crate) mod boolobject;
 pub(crate) mod bytearray;
 pub(crate) mod bytes;
 pub(crate) mod capsule;
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 mod code;
 pub(crate) mod complex;
-#[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
-#[cfg(all(Py_LIMITED_API, any(feature = "chrono", feature = "jiff-02")))]
-pub(crate) mod datetime_abi3;
 pub(crate) mod dict;
 mod ellipsis;
 pub(crate) mod float;
@@ -242,11 +242,14 @@ pub(crate) mod mapping;
 pub(crate) mod mappingproxy;
 mod memoryview;
 pub(crate) mod module;
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+mod mutex;
 mod none;
 mod notimplemented;
 mod num;
 #[cfg(not(any(PyPy, GraalPy)))]
 mod pysuper;
+pub(crate) mod range;
 pub(crate) mod sequence;
 pub(crate) mod set;
 pub(crate) mod slice;
