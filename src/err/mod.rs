@@ -321,7 +321,7 @@ impl PyErr {
             #[cfg(debug_assertions)]
             None => panic!("{}", FAILED_TO_FETCH),
             #[cfg(not(debug_assertions))]
-            None => exceptions::PySystemError::new_err(FAILED_TO_FETCH),
+            None => crate::exceptions::PySystemError::new_err(FAILED_TO_FETCH),
         }
     }
 
