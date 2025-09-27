@@ -36,8 +36,9 @@ pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 /// Implementations must provide an implementation for `type_object_raw` which infallibly produces a
 /// non-null pointer to the corresponding Python type object.
 ///
-/// Implementations must also uphold the invariants of [`PyTypeCheck`], as this trait provides a
-/// blanket implementation of it.
+/// `is_type_of` must only return true for objects which can safely be treated as instances of `Self`.
+///
+/// `is_exact_type_of` must only return true for objects whose type is exactly `Self`.
 pub unsafe trait PyTypeInfo: Sized {
     /// Class name.
     const NAME: &'static str;
@@ -117,7 +118,7 @@ pub unsafe trait PyTypeCheck {
     fn classinfo_object(py: Python<'_>) -> Bound<'_, PyAny>;
 }
 
-impl<T> PyTypeCheck for T
+unsafe impl<T> PyTypeCheck for T
 where
     T: PyTypeInfo,
 {

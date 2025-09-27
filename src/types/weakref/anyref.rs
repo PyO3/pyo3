@@ -18,7 +18,7 @@ pyobject_native_type_named!(PyWeakref);
 // #[cfg(not(Py_LIMITED_API))]
 // pyobject_native_type_sized!(PyWeakref, ffi::PyWeakReference);
 
-impl PyTypeCheck for PyWeakref {
+unsafe impl PyTypeCheck for PyWeakref {
     const NAME: &'static str = "weakref";
 
     #[cfg(feature = "experimental-inspect")]
