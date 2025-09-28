@@ -61,14 +61,15 @@ impl PyCapsule {
     /// ```
     /// use pyo3::{prelude::*, types::PyCapsule, ffi::c_str};
     /// use std::ffi::CStr;
+    /// use std::ptr::NonNull;
     ///
     /// // this can be c"foo" on Rust 1.77+
     /// const NAME: &CStr = c_str!("foo");
     ///
     /// Python::attach(|py| {
     ///     let capsule = PyCapsule::new(py, 123_u32, Some(NAME.to_owned())).unwrap();
-    ///     let val = unsafe { capsule.reference_checked::<u32>(Some(NAME)) }.unwrap();
-    ///     assert_eq!(*val, 123);
+    ///     let val: NonNull<u32> = capsule.pointer_checked(Some(NAME)).unwrap().cast();
+    ///     assert_eq!(unsafe { *val.as_ref() }, 123);
     /// });
     /// ```
     ///
@@ -217,26 +218,11 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Safety
     ///
-    /// See [`reference_checked()`][PyCapsuleMethods::reference_checked].
-    #[deprecated(since = "0.27.0", note = "use `reference_checked()` instead")]
+    /// This performs a dereference of the pointer returned from [`pointer_checked()`][PyCapsuleMethods::pointer_checked].
+    ///
+    /// See the safety notes on that method.
+    #[deprecated(since = "0.27.0", note = "to be removed, see `pointer_checked()`")]
     unsafe fn reference<T>(&self) -> &T;
-
-    /// Obtains a reference dereferenced from the pointer of this capsule. This is inherently very
-    /// dangerous: it involves casting an untyped pointer to a specific type. Additionally, arbitrary
-    /// Python code can change the contents of the capsule, which may invalidate the reference.
-    ///
-    /// Returns an error if the `name` does not exactly match the name stored in the capsule, or if
-    /// the pointer stored in the capsule is null.
-    ///
-    /// # Safety
-    ///
-    /// - It must be known that the capsule pointer points to an item of type `T`.
-    /// - The reference should not be used after arbitrary Python code has run.
-    ///
-    /// It is recommended to use this reference only for short-lived operations without executing any
-    /// Python code. For long-lived operations, consider calling `.reference_checked()` each time the
-    /// data is needed.
-    unsafe fn reference_checked<T>(&self, name: Option<&CStr>) -> PyResult<&T>;
 
     /// Gets the raw pointer stored in this capsule, without checking its name.
     #[deprecated(since = "0.27.0", note = "use `pointer_checked()` instead")]
@@ -245,6 +231,20 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     /// Gets the raw pointer stored in this capsule.
     ///
     /// Returns an error if the capsule is not [valid][`PyCapsuleMethods::is_valid`] with the given `name`.
+    ///
+    /// # Safety
+    ///
+    /// This function itself is not `unsafe`, but dereferencing the returned pointer to produce a reference
+    /// is very dangerous:
+    /// - The pointer will need to be cast to a concrete type before dereferencing. As per [name checking](#name-checking),
+    ///   there is no way to statically guarantee this cast is correct, the name is the best hint to
+    ///   guard against accidental misuse.
+    /// - Arbitrary Python code can change the contents of the capsule, which may invalidate the
+    ///   pointer. The pointer and the reference produced by dereferencing the pointer should both
+    ///   be considered invalid after arbitrary Python code has run.
+    ///
+    /// Users should take care to cast to the correct type and consume the pointer for as little
+    /// duration as possible.
     fn pointer_checked(&self, name: Option<&CStr>) -> PyResult<NonNull<c_void>>;
 
     /// Checks if the capsule pointer is not null.
@@ -263,8 +263,8 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     /// Returns an error if this capsule is not valid.
     ///
     /// This method returns `*const c_char` instead of `&CStr` because it's possible for
-    /// arbitrary Python code to change the capsule name. Callers can use `NonNull::from_ptr()`
-    /// to get a `&CStr` if they want to, however they should beware the fact that the pointer
+    /// arbitrary Python code to change the capsule name. Callers can use `CStr::from_ptr()`
+    /// to get a `&CStr` when needed, however they should beware the fact that the pointer
     /// may become invalid after arbitrary Python code has run.
     fn name(&self) -> PyResult<*const c_char>;
 }
@@ -291,11 +291,6 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
     #[allow(deprecated)]
     unsafe fn reference<T>(&self) -> &T {
         unsafe { &*self.pointer().cast() }
-    }
-
-    unsafe fn reference_checked<T>(&self, name: Option<&CStr>) -> PyResult<&T> {
-        self.pointer_checked(name)
-            .map(|ptr| unsafe { &*ptr.as_ptr().cast::<T>() })
     }
 
     fn pointer(&self) -> *mut c_void {
@@ -432,9 +427,12 @@ mod tests {
             let cap = PyCapsule::new(py, foo, Some(NAME.to_owned()))?;
             assert!(cap.is_valid_checked(Some(NAME)));
 
-            let foo_capi = unsafe { cap.reference_checked::<Foo>(Some(NAME.as_ref())) }.unwrap();
-            assert_eq!(foo_capi.val, 123);
-            assert_eq!(foo_capi.get_val(), 123);
+            let foo_capi = cap
+                .pointer_checked(Some(NAME.as_ref()))
+                .unwrap()
+                .cast::<Foo>();
+            assert_eq!(unsafe { foo_capi.as_ref() }.val, 123);
+            assert_eq!(unsafe { foo_capi.as_ref() }.get_val(), 123);
             assert_eq!(unsafe { CStr::from_ptr(cap.name().unwrap()) }, NAME);
             Ok(())
         })
@@ -452,9 +450,12 @@ mod tests {
         });
 
         Python::attach(move |py| {
-            let f =
-                unsafe { cap.bind(py).reference_checked::<fn(u32) -> u32>(Some(NAME)) }.unwrap();
-            assert_eq!(f(123), 123);
+            let f = cap
+                .bind(py)
+                .pointer_checked(Some(NAME))
+                .unwrap()
+                .cast::<fn(u32) -> u32>();
+            assert_eq!(unsafe { f.as_ref() }(123), 123);
         });
     }
 
@@ -513,8 +514,12 @@ mod tests {
         });
 
         Python::attach(move |py| {
-            let stuff: &Vec<u8> = unsafe { cap.bind(py).reference_checked(Some(NAME)) }.unwrap();
-            assert_eq!(stuff, &[1, 2, 3, 4]);
+            let stuff = cap
+                .bind(py)
+                .pointer_checked(Some(NAME))
+                .unwrap()
+                .cast::<Vec<u8>>();
+            assert_eq!(unsafe { stuff.as_ref() }, &[1, 2, 3, 4]);
         })
     }
 
@@ -563,7 +568,7 @@ mod tests {
             let cap = PyCapsule::new(py, 0usize, None).unwrap();
 
             assert_eq!(
-                unsafe { cap.reference_checked::<usize>(None) }.unwrap(),
+                unsafe { cap.pointer_checked(None).unwrap().cast::<usize>().as_ref() },
                 &0usize
             );
             assert_eq!(cap.name().unwrap(), std::ptr::null());
