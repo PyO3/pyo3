@@ -427,10 +427,7 @@ mod tests {
             let cap = PyCapsule::new(py, foo, Some(NAME.to_owned()))?;
             assert!(cap.is_valid_checked(Some(NAME)));
 
-            let foo_capi = cap
-                .pointer_checked(Some(NAME.as_ref()))
-                .unwrap()
-                .cast::<Foo>();
+            let foo_capi = cap.pointer_checked(Some(NAME)).unwrap().cast::<Foo>();
             assert_eq!(unsafe { foo_capi.as_ref() }.val, 123);
             assert_eq!(unsafe { foo_capi.as_ref() }.get_val(), 123);
             assert_eq!(unsafe { CStr::from_ptr(cap.name().unwrap()) }, NAME);
