@@ -85,16 +85,16 @@ macro_rules! bigint_conversion {
 
                 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
                 {
-                    use crate::conversions::std::num::py_int_from_ne_bytes;
+                    use crate::conversions::std::num::int_from_ne_bytes;
                     let bytes = self.to_ne_bytes();
-                    Ok(py_int_from_ne_bytes::<{ $is_signed }>(py, &bytes))
+                    Ok(int_from_ne_bytes::<{ $is_signed }>(py, &bytes))
                 }
 
                 #[cfg(all(not(Py_LIMITED_API), not(Py_3_13)))]
                 {
-                    use crate::conversions::std::num::py_int_from_le_bytes;
+                    use crate::conversions::std::num::int_from_le_bytes;
                     let bytes = self.to_le_bytes();
-                    Ok(py_int_from_le_bytes::<{ $is_signed }>(py, &bytes))
+                    Ok(int_from_le_bytes::<{ $is_signed }>(py, &bytes))
                 }
 
                 #[cfg(Py_LIMITED_API)]

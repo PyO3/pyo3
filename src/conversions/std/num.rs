@@ -438,12 +438,12 @@ mod fast_128bit_int_conversion {
                     #[cfg(Py_3_13)]
                     {
                         let bytes = self.to_ne_bytes();
-                        Ok(py_int_from_ne_bytes::<{ $is_signed }>(py, &bytes))
+                        Ok(int_from_ne_bytes::<{ $is_signed }>(py, &bytes))
                     }
                     #[cfg(not(Py_3_13))]
                     {
                         let bytes = self.to_le_bytes();
-                        Ok(py_int_from_le_bytes::<{ $is_signed }>(py, &bytes))
+                        Ok(int_from_le_bytes::<{ $is_signed }>(py, &bytes))
                     }
                 }
 
@@ -537,7 +537,7 @@ mod fast_128bit_int_conversion {
 }
 
 #[cfg(all(not(Py_LIMITED_API), not(Py_3_13)))]
-pub(crate) fn py_int_from_le_bytes<'py, const IS_SIGNED: bool>(
+pub(crate) fn int_from_le_bytes<'py, const IS_SIGNED: bool>(
     py: Python<'py>,
     bytes: &[u8],
 ) -> Bound<'py, PyInt> {
@@ -551,7 +551,7 @@ pub(crate) fn py_int_from_le_bytes<'py, const IS_SIGNED: bool>(
 }
 
 #[cfg(all(Py_3_13, not(Py_LIMITED_API)))]
-pub(crate) fn py_int_from_ne_bytes<'py, const IS_SIGNED: bool>(
+pub(crate) fn int_from_ne_bytes<'py, const IS_SIGNED: bool>(
     py: Python<'py>,
     bytes: &[u8],
 ) -> Bound<'py, PyInt> {
