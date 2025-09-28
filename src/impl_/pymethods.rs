@@ -275,13 +275,11 @@ pub unsafe fn _call_traverse<T>(
 where
     T: PyClass,
 {
-    // It is important the implementation of `__traverse__` cannot safely access the GIL,
-    // c.f. https://github.com/PyO3/pyo3/issues/3165, and hence we do not expose our GIL
-    // token to the user code and lock safe methods for acquiring the GIL.
+    // It is important the implementation of `__traverse__` cannot safely access the interpreter,
+    // c.f. https://github.com/PyO3/pyo3/issues/3165, and hence we do not expose our Python
+    // token to the user code and forbid safe methods for attaching.
     // (This includes enforcing the `&self` method receiver as e.g. `PyRef<Self>` could
-    // reconstruct a GIL token via `PyRef::py`.)
-    // Since we do not create a `GILPool` at all, it is important that our usage of the GIL
-    // token does not produce any owned objects thereby calling into `register_owned`.
+    // reconstruct a Python token via `PyRef::py`.)
     let trap = PanicTrap::new("uncaught panic inside __traverse__ handler");
     let lock = ForbidAttaching::during_traverse();
 
