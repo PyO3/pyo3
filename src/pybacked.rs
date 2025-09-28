@@ -7,8 +7,7 @@ use crate::{
         bytearray::PyByteArrayMethods, bytes::PyBytesMethods, string::PyStringMethods, PyByteArray,
         PyBytes, PyString, PyTuple,
     },
-    Borrowed, Bound, DowncastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyTypeInfo,
-    Python,
+    Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyTypeInfo, Python,
 };
 
 /// A wrapper around `str` where the storage is owned by a Python `bytes` or `str` object.
@@ -205,7 +204,7 @@ impl From<Bound<'_, PyByteArray>> for PyBackedBytes {
 }
 
 impl<'a, 'py> FromPyObject<'a, 'py> for PyBackedBytes {
-    type Error = DowncastError<'a, 'py>;
+    type Error = CastError<'a, 'py>;
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         if let Ok(bytes) = obj.cast::<PyBytes>() {
@@ -213,7 +212,7 @@ impl<'a, 'py> FromPyObject<'a, 'py> for PyBackedBytes {
         } else if let Ok(bytearray) = obj.cast::<PyByteArray>() {
             Ok(Self::from(bytearray.to_owned()))
         } else {
-            Err(DowncastError::new_from_type(
+            Err(CastError::new(
                 obj,
                 PyTuple::new(
                     obj.py(),

@@ -3,8 +3,8 @@ use crate::{
     ffi,
     pyclass::boolean_struct::False,
     types::{any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods, PyDict, PyTuple},
-    Borrowed, Bound, DowncastError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut,
-    PyErr, PyResult, PyTypeCheck, Python,
+    Borrowed, Bound, CastError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr,
+    PyResult, PyTypeCheck, Python,
 };
 
 /// Helper type used to keep implementation more concise.
@@ -89,7 +89,7 @@ where
     T: PyTypeCheck,
 {
     type Holder = ();
-    type Error = DowncastError<'a, 'py>;
+    type Error = CastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = T::PYTHON_TYPE;

@@ -354,7 +354,7 @@ def fibonacci(target):
 
             assert_eq!(
                 downcaster.borrow_mut(py).failed.take().unwrap().to_string(),
-                "TypeError: 'MySequence' object cannot be converted to 'Iterator'"
+                "TypeError: 'MySequence' object cannot be cast as 'Iterator'"
             );
         });
     }

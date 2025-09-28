@@ -68,10 +68,10 @@ use crate::conversion::IntoPyObject;
 use crate::instance::Bound;
 use crate::pybacked::PyBackedBytes;
 use crate::types::PyBytes;
-use crate::{Borrowed, DowncastError, FromPyObject, PyAny, PyErr, Python};
+use crate::{Borrowed, CastError, FromPyObject, PyAny, PyErr, Python};
 
 impl<'a, 'py> FromPyObject<'a, 'py> for Bytes {
-    type Error = DowncastError<'a, 'py>;
+    type Error = CastError<'a, 'py>;
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         Ok(Bytes::from_owner(obj.extract::<PyBackedBytes>()?))

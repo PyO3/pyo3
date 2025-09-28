@@ -5,7 +5,7 @@ use crate::inspect::types::TypeInfo;
 use crate::{
     conversion::IntoPyObject,
     types::{PyByteArray, PyByteArrayMethods, PyBytes},
-    Bound, DowncastError, PyAny, PyErr, Python,
+    Bound, CastError, PyAny, PyErr, Python,
 };
 
 impl<'a, 'py, T> IntoPyObject<'py> for &'a [T]
@@ -36,7 +36,7 @@ where
 }
 
 impl<'a, 'py> crate::conversion::FromPyObject<'a, 'py> for &'a [u8] {
-    type Error = DowncastError<'a, 'py>;
+    type Error = CastError<'a, 'py>;
 
     fn extract(obj: crate::Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         Ok(obj.cast::<PyBytes>()?.as_bytes())
@@ -54,7 +54,7 @@ impl<'a, 'py> crate::conversion::FromPyObject<'a, 'py> for &'a [u8] {
 /// pointing into the source object, and no copying or heap allocations will happen.
 /// If it is a `bytearray`, its contents will be copied to an owned `Cow`.
 impl<'a, 'py> crate::conversion::FromPyObject<'a, 'py> for Cow<'a, [u8]> {
-    type Error = DowncastError<'a, 'py>;
+    type Error = CastError<'a, 'py>;
 
     fn extract(ob: crate::Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         if let Ok(bytes) = ob.cast::<PyBytes>() {

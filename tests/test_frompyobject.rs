@@ -295,9 +295,9 @@ fn test_transparent_struct_error_message() {
         let tup = tup.extract::<B>();
         assert!(tup.is_err());
         assert_eq!(
-            extract_traceback(py,tup.unwrap_err()),
-            "TypeError: failed to extract field B.test: TypeError: \'int\' object cannot be converted \
-         to \'str\'"
+            extract_traceback(py, tup.unwrap_err()),
+            "TypeError: failed to extract field B.test: TypeError: \'int\' object cannot be cast \
+         as \'str\'"
         );
     });
 }
@@ -310,8 +310,8 @@ fn test_tuple_struct_error_message() {
         assert!(tup.is_err());
         assert_eq!(
             extract_traceback(py, tup.unwrap_err()),
-            "TypeError: failed to extract field Tuple.0: TypeError: \'int\' object cannot be \
-         converted to \'str\'"
+            "TypeError: failed to extract field Tuple.0: TypeError: \'int\' object cannot be cast \
+         as \'str\'"
         );
     });
 }
@@ -325,7 +325,7 @@ fn test_transparent_tuple_error_message() {
         assert_eq!(
             extract_traceback(py, tup.unwrap_err()),
             "TypeError: failed to extract field TransparentTuple.0: TypeError: 'int' object \
-         cannot be converted to 'str'",
+         cannot be cast as 'str'",
         );
     });
 }
@@ -540,10 +540,10 @@ fn test_enum_error() {
             err.to_string(),
             "\
 TypeError: failed to extract enum Foo ('TupleVar | StructVar | TransparentTuple | TransparentStructVar | StructVarGetAttrArg | StructWithGetItem | StructWithGetItemArg')
-- variant TupleVar (TupleVar): TypeError: 'dict' object cannot be converted to 'tuple'
+- variant TupleVar (TupleVar): TypeError: 'dict' object cannot be cast as 'tuple'
 - variant StructVar (StructVar): AttributeError: 'dict' object has no attribute 'test'
 - variant TransparentTuple (TransparentTuple): TypeError: failed to extract field Foo::TransparentTuple.0, caused by TypeError: 'dict' object cannot be interpreted as an integer
-- variant TransparentStructVar (TransparentStructVar): TypeError: failed to extract field Foo::TransparentStructVar.a, caused by TypeError: 'dict' object cannot be converted to 'str'
+- variant TransparentStructVar (TransparentStructVar): TypeError: failed to extract field Foo::TransparentStructVar.a, caused by TypeError: 'dict' object cannot be cast as 'str'
 - variant StructVarGetAttrArg (StructVarGetAttrArg): AttributeError: 'dict' object has no attribute 'bla'
 - variant StructWithGetItem (StructWithGetItem): KeyError: 'a'
 - variant StructWithGetItemArg (StructWithGetItemArg): KeyError: 'foo'"
@@ -558,7 +558,7 @@ TypeError: failed to extract enum Foo ('TupleVar | StructVar | TransparentTuple 
 - variant TupleVar (TupleVar): ValueError: expected tuple of length 2, but got tuple of length 0
 - variant StructVar (StructVar): AttributeError: 'tuple' object has no attribute 'test'
 - variant TransparentTuple (TransparentTuple): TypeError: failed to extract field Foo::TransparentTuple.0, caused by TypeError: 'tuple' object cannot be interpreted as an integer
-- variant TransparentStructVar (TransparentStructVar): TypeError: failed to extract field Foo::TransparentStructVar.a, caused by TypeError: 'tuple' object cannot be converted to 'str'
+- variant TransparentStructVar (TransparentStructVar): TypeError: failed to extract field Foo::TransparentStructVar.a, caused by TypeError: 'tuple' object cannot be cast as 'str'
 - variant StructVarGetAttrArg (StructVarGetAttrArg): AttributeError: 'tuple' object has no attribute 'bla'
 - variant StructWithGetItem (StructWithGetItem): TypeError: tuple indices must be integers or slices, not str
 - variant StructWithGetItemArg (StructWithGetItemArg): TypeError: tuple indices must be integers or slices, not str"
@@ -612,7 +612,7 @@ fn test_err_rename() {
             f.unwrap_err().to_string(),
             "\
 TypeError: failed to extract enum Bar ('str | uint | int')
-- variant A (str): TypeError: failed to extract field Bar::A.0, caused by TypeError: 'dict' object cannot be converted to 'str'
+- variant A (str): TypeError: failed to extract field Bar::A.0, caused by TypeError: 'dict' object cannot be cast as 'str'
 - variant B (uint): TypeError: failed to extract field Bar::B.0, caused by TypeError: 'dict' object cannot be interpreted as an integer
 - variant C (int): TypeError: failed to extract field Bar::C.0, caused by TypeError: 'dict' object cannot be interpreted as an integer"
         );
