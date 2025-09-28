@@ -789,7 +789,7 @@ impl<T> Drop for Bound<'_, T> {
 }
 
 impl<'py, T> Bound<'py, T> {
-    /// Returns the GIL token associated with this object.
+    /// Returns the [`Python``] token associated with this object.
     #[inline]
     pub fn py(&self) -> Python<'py> {
         self.0

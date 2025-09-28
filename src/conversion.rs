@@ -17,7 +17,7 @@ use std::marker::PhantomData;
 /// This trait has `#[derive(IntoPyObject)]` to automatically implement it for simple types and
 /// `#[derive(IntoPyObjectRef)]` to implement the same for references.
 ///
-/// It functions similarly to std's [`TryInto`] trait, but requires a [GIL token](Python)
+/// It functions similarly to std's [`TryInto`] trait, but requires a [`Python<'py>`] token
 /// as an argument.
 ///
 /// The [`into_pyobject`][IntoPyObject::into_pyobject] method is designed for maximum flexibility and efficiency; it
