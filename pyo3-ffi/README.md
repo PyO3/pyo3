@@ -76,14 +76,14 @@ static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_name: c_str!("string_sum").as_ptr(),
     m_doc: c_str!("A Python module written in Rust.").as_ptr(),
     m_size: 0,
-    m_methods: unsafe { METHODS as *const [PyMethodDef] as *mut PyMethodDef },
-    m_slots: std::ptr::null_mut(),
+    m_methods: unsafe { METHODS.as_ptr().cast_mut() },
+    m_slots: unsafe { SLOTS.as_ptr().cast_mut() },
     m_traverse: None,
     m_clear: None,
     m_free: None,
 };
 
-static mut METHODS: &[PyMethodDef] = &[
+static mut METHODS: &mut [PyMethodDef] = &mut [
     PyMethodDef {
         ml_name: c_str!("sum_as_string").as_ptr(),
         ml_meth: PyMethodDefPointer {
@@ -96,22 +96,27 @@ static mut METHODS: &[PyMethodDef] = &[
     PyMethodDef::zeroed(),
 ];
 
+static mut SLOTS: &mut [PyModuleDef_Slot] = &mut [
+    PyModuleDef_Slot {
+        slot: Py_mod_multiple_interpreters,
+        value: Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
+    },
+    #[cfg(Py_GIL_DISABLED)]
+    PyModuleDef_Slot {
+        slot: Py_mod_gil,
+        value: Py_MOD_GIL_NOT_USED,
+    },
+    PyModuleDef_Slot {
+        slot: 0,
+        value: ptr::null_mut(),
+    },
+];
+
 // The module initialization function, which must be named `PyInit_<your_module>`.
 #[allow(non_snake_case)]
 #[no_mangle]
 pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
-    let module = PyModule_Create(ptr::addr_of_mut!(MODULE_DEF));
-    if module.is_null() {
-        return module;
-    }
-    #[cfg(Py_GIL_DISABLED)]
-    {
-        if PyUnstable_Module_SetGIL(module, Py_MOD_GIL_NOT_USED) < 0 {
-            Py_DECREF(module);
-            return std::ptr::null_mut();
-        }
-    }
-    module
+    PyModuleDef_Init(ptr::addr_of_mut!(MODULE_DEF))
 }
 
 /// A helper to parse function arguments

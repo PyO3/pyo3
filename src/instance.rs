@@ -18,7 +18,8 @@ use std::ops::Deref;
 use std::ptr;
 use std::ptr::NonNull;
 
-/// Owned or borrowed gil-bound Python smart pointer
+/// Owned or borrowed Python smart pointer with a lifetime `'py` signalling
+/// attachment to the Python interpreter.
 ///
 /// This is implemented for [`Bound`] and [`Borrowed`].
 pub trait BoundObject<'py, T>: bound_object_sealed::Sealed {
@@ -50,15 +51,16 @@ mod bound_object_sealed {
     unsafe impl<T> Sealed for super::Borrowed<'_, '_, T> {}
 }
 
-/// A GIL-attached equivalent to [`Py<T>`].
+/// A Python thread-attached equivalent to [`Py<T>`].
 ///
 /// This type can be thought of as equivalent to the tuple `(Py<T>, Python<'py>)`. By having the `'py`
 /// lifetime of the [`Python<'py>`] token, this ties the lifetime of the [`Bound<'py, T>`] smart pointer
-/// to the lifetime of the GIL and allows PyO3 to call Python APIs at maximum efficiency.
+/// to the lifetime the thread is attached to the Python interpreter and allows PyO3 to call Python APIs
+/// at maximum efficiency.
 ///
-/// To access the object in situations where the GIL is not held, convert it to [`Py<T>`]
-/// using [`.unbind()`][Bound::unbind]. This includes situations where the GIL is temporarily
-/// released, such as [`Python::detach`](crate::Python::detach)'s closure.
+/// To access the object in situations where the thread is not attached, convert it to [`Py<T>`]
+/// using [`.unbind()`][Bound::unbind]. This includes, for example, usage in
+/// [`Python::detach`](crate::Python::detach)'s closure.
 ///
 /// See
 #[doc = concat!("[the guide](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/types.html#boundpy-t)")]
@@ -574,7 +576,7 @@ where
         PyRefMut::try_borrow(self)
     }
 
-    /// Provide an immutable borrow of the value `T` without acquiring the GIL.
+    /// Provide an immutable borrow of the value `T`.
     ///
     /// This is available if the class is [`frozen`][macro@crate::pyclass] and [`Sync`].
     ///
@@ -789,7 +791,7 @@ impl<T> Drop for Bound<'_, T> {
 }
 
 impl<'py, T> Bound<'py, T> {
-    /// Returns the [`Python``] token associated with this object.
+    /// Returns the [`Python`] token associated with this object.
     #[inline]
     pub fn py(&self) -> Python<'py> {
         self.0
@@ -844,8 +846,8 @@ impl<'py, T> Bound<'py, T> {
         )
     }
 
-    /// Removes the connection for this `Bound<T>` from the GIL, allowing
-    /// it to cross thread boundaries.
+    /// Removes the connection for this `Bound<T>` from the [`Python<'py>`] token,
+    /// allowing it to cross thread boundaries.
     #[inline]
     pub fn unbind(self) -> Py<T> {
         // Safety: the type T is known to be correct and the ownership of the
@@ -854,8 +856,8 @@ impl<'py, T> Bound<'py, T> {
         unsafe { Py::from_non_null(non_null) }
     }
 
-    /// Removes the connection for this `Bound<T>` from the GIL, allowing
-    /// it to cross thread boundaries, without transferring ownership.
+    /// Removes the connection for this `Bound<T>` from the [`Python<'py>`] token,
+    /// allowing it to cross thread boundaries, without transferring ownership.
     #[inline]
     pub fn as_unbound(&self) -> &Py<T> {
         &self.1
@@ -1137,11 +1139,10 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
     }
 }
 
-/// A GIL-independent reference to an object allocated on the Python heap.
+/// A reference to an object allocated on the Python heap.
 ///
-/// This type does not auto-dereference to the inner object because you must prove you hold the GIL to access it.
-/// Instead, call one of its methods to access the inner object:
-///  - [`Py::bind`] or [`Py::into_bound`], to borrow a GIL-bound reference to the contained object.
+/// To access the contained data use the following methods:
+///  - [`Py::bind`] or [`Py::into_bound`], to bind the reference to the lifetime of the [`Python<'py>`] token.
 ///  - [`Py::borrow`], [`Py::try_borrow`], [`Py::borrow_mut`], or [`Py::try_borrow_mut`],
 ///
 /// to get a (mutable) reference to a contained pyclass, using a scheme similar to std's [`RefCell`].
@@ -1156,7 +1157,8 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// # Example: Storing Python objects in `#[pyclass]` structs
 ///
 /// Usually `Bound<'py, T>` is recommended for interacting with Python objects as its lifetime `'py`
-/// is an association to the GIL and that enables many operations to be done as efficiently as possible.
+/// proves the thread is attached to the Python interpreter and that enables many operations to be
+/// done as efficiently as possible.
 ///
 /// However, `#[pyclass]` structs cannot carry a lifetime, so `Py<T>` is the only way to store
 /// a Python object in a `#[pyclass]` struct.
@@ -1177,8 +1179,8 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 ///         let foo = Python::attach(|py| {
 ///             // `py` will only last for this scope.
 ///
-///             // `Bound<'py, PyDict>` inherits the GIL lifetime from `py` and
-///             // so won't be able to outlive this closure.
+///             // `Bound<'py, PyDict>` inherits the Python token lifetime from `py`
+///             // and so won't be able to outlive this closure.
 ///             let dict: Bound<'_, PyDict> = PyDict::new(py);
 ///
 ///             // because `Foo` contains `dict` its lifetime
@@ -1192,7 +1194,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// }
 /// ```
 ///
-/// [`Py`]`<T>` can be used to get around this by converting `dict` into a GIL-independent reference:
+/// [`Py`]`<T>` can be used to get around this by converting `dict` into a reference without any attachment:
 ///
 /// ```rust
 /// use pyo3::prelude::*;
@@ -1271,8 +1273,9 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// As with [`Rc`]`<T>`, cloning it increases its reference count rather than duplicating
 /// the underlying object.
 ///
-/// This can be done using either [`Py::clone_ref`] or [`Py`]`<T>`'s [`Clone`] trait implementation.
-/// [`Py::clone_ref`] will be faster if you happen to be already holding the GIL.
+/// This can be done using either [`Py::clone_ref`] or [`Py<T>`]'s [`Clone`] trait implementation.
+/// [`Py::clone_ref`] is recommended; the [`Clone`] implementation will panic if the thread
+/// is not attached to the Python interpreter (and is gated behind the `py-clone` feature flag).
 ///
 /// ```rust
 /// use pyo3::prelude::*;
@@ -1316,21 +1319,21 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// of the pointed-to variable, allowing Python's garbage collector to free
 /// the associated memory, but this may not happen immediately.  This is
 /// because a [`Py`]`<T>` can be dropped at any time, but the Python reference
-/// count can only be modified when the GIL is held.
+/// count can only be modified when the thread is attached to the Python interpreter.
 ///
-/// If a [`Py`]`<T>` is dropped while its thread happens to be holding the
-/// GIL then the Python reference count will be decreased immediately.
-/// Otherwise, the reference count will be decreased the next time the GIL is
-/// reacquired.
+/// If a [`Py`]`<T>` is dropped while its thread is attached to the Python interpreter
+/// then the Python reference count will be decreased immediately.
+/// Otherwise, the reference count will be decreased the next time the thread is
+/// attached to the interpreter.
 ///
-/// If you happen to be already holding the GIL, [`Py::drop_ref`] will decrease
+/// If you have a [`Python<'py>`] token, [`Py::drop_ref`] will decrease
 /// the Python reference count immediately and will execute slightly faster than
 /// relying on implicit [`Drop`]s.
 ///
 /// # A note on `Send` and `Sync`
 ///
-/// Accessing this object is thread-safe, since any access to its API requires a [`Python<'py>`](crate::Python) token.
-/// As you can only get this by acquiring the GIL, `Py<...>` implements [`Send`] and [`Sync`].
+/// [`Py<T>`] implements [`Send`] and [`Sync`], as Python allows objects to be freely
+/// shared between threads.
 ///
 /// [`Rc`]: std::rc::Rc
 /// [`RefCell`]: std::cell::RefCell
@@ -1338,7 +1341,6 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 #[repr(transparent)]
 pub struct Py<T>(NonNull<ffi::PyObject>, PhantomData<T>);
 
-// The inner value is only accessed through ways that require proving the gil is held
 #[cfg(feature = "nightly")]
 unsafe impl<T> crate::marker::Ungil for Py<T> {}
 unsafe impl<T> Send for Py<T> {}
@@ -1530,9 +1532,10 @@ where
         self.bind(py).try_borrow_mut()
     }
 
-    /// Provide an immutable borrow of the value `T` without acquiring the GIL.
+    /// Provide an immutable borrow of the value `T`.
     ///
-    /// This is available if the class is [`frozen`][macro@crate::pyclass] and [`Sync`].
+    /// This is available if the class is [`frozen`][macro@crate::pyclass] and [`Sync`], and
+    /// does not require attaching to the Python interpreter.
     ///
     /// # Examples
     ///
@@ -1612,7 +1615,7 @@ impl<T> Py<T> {
     ///
     /// This creates another pointer to the same object, increasing its reference count.
     ///
-    /// You should prefer using this method over [`Clone`] if you happen to be holding the GIL already.
+    /// You should prefer using this method over [`Clone`].
     ///
     /// # Examples
     ///
@@ -1640,11 +1643,11 @@ impl<T> Py<T> {
 
     /// Drops `self` and immediately decreases its reference count.
     ///
-    /// This method is a micro-optimisation over [`Drop`] if you happen to be holding the GIL
-    /// already.
+    /// This method is a micro-optimisation over [`Drop`] if you happen to have a [`Python<'py>`]
+    /// token to prove attachment to the Python interpreter.
     ///
     /// Note that if you are using [`Bound`], you do not need to use [`Self::drop_ref`] since
-    /// [`Bound`] guarantees that the GIL is held.
+    /// [`Bound`] guarantees that the thread is attached to the interpreter.
     ///
     /// # Examples
     ///
@@ -2013,7 +2016,7 @@ where
     }
 }
 
-/// If the GIL is held this increments `self`'s reference count.
+/// If the thread is attached to the Python interpreter this increments `self`'s reference count.
 /// Otherwise, it will panic.
 ///
 /// Only available if the `py-clone` feature is enabled.
@@ -2048,10 +2051,10 @@ impl<T> Clone for Py<T> {
 }
 
 /// Dropping a `Py` instance decrements the reference count
-/// on the object by one if the GIL is held.
+/// on the object by one if the thread is attached to the Python interpreter.
 ///
 /// Otherwise and by default, this registers the underlying pointer to have its reference count
-/// decremented the next time PyO3 acquires the GIL.
+/// decremented the next time PyO3 attaches to the Python interpreter.
 ///
 /// However, if the `pyo3_disable_reference_pool` conditional compilation flag
 /// is enabled, it will abort the process.

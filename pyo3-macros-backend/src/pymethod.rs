@@ -468,8 +468,8 @@ fn impl_traverse_slot(
     if let (Some(py_arg), _) = split_off_python_arg(&spec.signature.arguments) {
         return Err(syn::Error::new_spanned(py_arg.ty, "__traverse__ may not take `Python`. \
             Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` \
-            should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited \
-            inside implementations of `__traverse__`, i.e. `Python::attach` will panic."));
+            should do nothing but calls to `visit.call`. Most importantly, safe access to the Python interpreter is \
+            prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic."));
     }
 
     // check that the receiver does not try to smuggle an (implicit) `Python` token into here
@@ -482,8 +482,8 @@ fn impl_traverse_slot(
         bail_spanned! { span =>
             "__traverse__ may not take a receiver other than `&self`. Usually, an implementation of \
             `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` \
-            should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited \
-            inside implementations of `__traverse__`, i.e. `Python::attach` will panic."
+            should do nothing but calls to `visit.call`. Most importantly, safe access to the Python interpreter is \
+            prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic."
         }
     }
 
