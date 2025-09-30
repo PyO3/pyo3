@@ -2,9 +2,9 @@
 //! constructing Python strings using Rust's `fmt::Write` trait.
 //! It allows for incremental string construction, without the need for repeated allocations, and
 //! is particularly useful for building strings in a performance-sensitive context.
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(Py_3_14)]
 use {
-    crate::ffi::compat::{
+    crate::ffi::{
         PyUnicodeWriter_Create, PyUnicodeWriter_Discard, PyUnicodeWriter_Finish,
         PyUnicodeWriter_WriteChar, PyUnicodeWriter_WriteUTF8,
     },
@@ -23,8 +23,7 @@ use {
 #[macro_export]
 macro_rules! py_format {
     ($py: expr, $($arg:tt)*) => {{
-        let format_args = format_args!($($arg)*);
-        if let Some(static_string) = format_args.as_str() {
+        if let Some(static_string) = format_args!($($arg)*).as_str() {
             static INTERNED: $crate::sync::PyOnceLock<$crate::Py<$crate::types::PyString>> = $crate::sync::PyOnceLock::new();
             Ok(
                 INTERNED
@@ -33,12 +32,12 @@ macro_rules! py_format {
                 .to_owned()
             )
         } else {
-            $crate::types::PyString::from_fmt($py, format_args)
+            $crate::types::PyString::from_fmt($py, format_args!($($arg)*))
         }
     }}
 }
 
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(Py_3_14)]
 /// The `PyUnicodeWriter` is a utility for efficiently constructing Python strings
 pub struct PyUnicodeWriter<'py> {
     python: Python<'py>,
@@ -46,7 +45,7 @@ pub struct PyUnicodeWriter<'py> {
     last_error: Option<PyErr>,
 }
 
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(Py_3_14)]
 impl<'py> PyUnicodeWriter<'py> {
     /// Creates a new `PyUnicodeWriter`.
     pub fn new(py: Python<'py>) -> PyResult<Self> {
@@ -93,7 +92,7 @@ impl<'py> PyUnicodeWriter<'py> {
     }
 }
 
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(Py_3_14)]
 impl fmt::Write for PyUnicodeWriter<'_> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         let result = unsafe {
@@ -108,7 +107,7 @@ impl fmt::Write for PyUnicodeWriter<'_> {
     }
 
     fn write_char(&mut self, c: char) -> fmt::Result {
-        let result = unsafe { PyUnicodeWriter_WriteChar(self.as_ptr(), c as u32) };
+        let result = unsafe { PyUnicodeWriter_WriteChar(self.as_ptr(), c.into()) };
         if result < 0 {
             self.set_error();
             Err(fmt::Error)
@@ -118,7 +117,7 @@ impl fmt::Write for PyUnicodeWriter<'_> {
     }
 }
 
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(Py_3_14)]
 impl Drop for PyUnicodeWriter<'_> {
     fn drop(&mut self) {
         unsafe {
@@ -127,7 +126,7 @@ impl Drop for PyUnicodeWriter<'_> {
     }
 }
 
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(Py_3_14)]
 impl<'py> IntoPyObject<'py> for PyUnicodeWriter<'py> {
     type Target = PyString;
     type Output = Bound<'py, Self::Target>;
@@ -140,14 +139,14 @@ impl<'py> IntoPyObject<'py> for PyUnicodeWriter<'py> {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(Py_3_14)]
     use super::*;
     use crate::types::PyStringMethods;
     use crate::{IntoPyObject, Python};
 
     #[test]
     #[allow(clippy::write_literal)]
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(Py_3_14)]
     fn unicode_writer_test() {
         use std::fmt::Write;
         Python::attach(|py| {

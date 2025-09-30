@@ -689,77 +689,21 @@ extern "C" {
 #[cfg(Py_3_14)]
 opaque_struct!(pub PyUnicodeWriter);
 
-#[cfg(not(Py_3_14))]
-pub type PyUnicodeWriter = _PyUnicodeWriter;
-
-#[cfg(not(Py_3_14))]
-#[doc(hidden)]
-#[repr(C)]
-pub struct _PyUnicodeWriter {
-    buffer: *mut PyObject,
-    data: *mut c_void,
-    kind: c_int,
-    pub(crate) maxchar: Py_UCS4,
-    pub(crate) size: Py_ssize_t,
-    pub(crate) pos: Py_ssize_t,
-    min_length: Py_ssize_t,
-    min_char: Py_UCS4,
-    pub(crate) overallocate: c_char,
-    readonly: c_char,
-}
-
 extern "C" {
     #[cfg(Py_3_14)]
     pub fn PyUnicodeWriter_Create(length: Py_ssize_t) -> *mut PyUnicodeWriter;
     #[cfg(Py_3_14)]
     pub fn PyUnicodeWriter_Finish(writer: *mut PyUnicodeWriter) -> *mut PyObject;
-    #[cfg(not(Py_3_14))]
-    pub(crate) fn _PyUnicodeWriter_Finish(writer: *mut _PyUnicodeWriter) -> *mut PyObject;
     #[cfg(Py_3_14)]
     pub fn PyUnicodeWriter_Discard(writer: *mut PyUnicodeWriter);
-    #[cfg(not(Py_3_14))]
-    pub(crate) fn _PyUnicodeWriter_Dealloc(writer: *mut _PyUnicodeWriter);
-    #[cfg(not(Py_3_14))]
-    pub(crate) fn _PyUnicodeWriter_Init(writer: *mut _PyUnicodeWriter);
-    #[cfg(not(Py_3_14))]
-    pub(crate) fn _PyUnicodeWriter_PrepareInternal(
-        writer: *mut _PyUnicodeWriter,
-        length: Py_ssize_t,
-        maxchars: Py_UCS4,
-    ) -> c_int;
     #[cfg(Py_3_14)]
     pub fn PyUnicodeWriter_WriteChar(writer: *mut PyUnicodeWriter, ch: Py_UCS4) -> c_int;
-    #[cfg(not(Py_3_14))]
-    pub(crate) fn _PyUnicodeWriter_WriteChar(writer: *mut _PyUnicodeWriter, ch: Py_UCS4) -> c_int;
-    #[cfg(not(Py_3_14))]
-    pub(crate) fn _PyUnicodeWriter_WriteStr(
-        writer: *mut _PyUnicodeWriter,
-        str: *mut PyObject,
-    ) -> c_int;
     #[cfg(Py_3_14)]
     pub fn PyUnicodeWriter_WriteUTF8(
         writer: *mut PyUnicodeWriter,
         str: *const c_char,
         size: Py_ssize_t,
     ) -> c_int;
-}
-
-#[cfg(not(Py_3_14))]
-#[inline(always)]
-pub(crate) unsafe fn _PyUnicodeWriter_Prepare(
-    writer: *mut _PyUnicodeWriter,
-    length: Py_ssize_t,
-    maxchars: Py_UCS4,
-) -> c_int {
-    if maxchars <= (*writer).maxchar && length <= (*writer).size - (*writer).pos {
-        return 0;
-    }
-
-    if length == 0 {
-        return 0;
-    }
-
-    _PyUnicodeWriter_PrepareInternal(writer, length, maxchars)
 }
 
 // skipped _PyUnicodeWriter
