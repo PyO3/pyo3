@@ -23,7 +23,7 @@ impl<'py> IntoPyObject<'py> for &OsStr {
         #[cfg(not(windows))]
         {
             #[cfg(target_os = "wasi")]
-            let bytes = std::os::wasi::ffi::OsStrExt::as_bytes(self);
+            let bytes = self.to_str().expect("wasi strings are UTF8").as_bytes();
             #[cfg(not(target_os = "wasi"))]
             let bytes = std::os::unix::ffi::OsStrExt::as_bytes(self);
 
@@ -87,9 +87,11 @@ impl FromPyObject<'_, '_> for OsString {
             };
 
             // Create an OsStr view into the raw bytes from Python
+            //
+            // For WASI: OS strings are UTF-8 by definition.
             #[cfg(target_os = "wasi")]
             let os_str: &OsStr =
-                std::os::wasi::ffi::OsStrExt::from_bytes(fs_encoded_bytes.as_bytes(ob.py()));
+                OsStr::new(std::str::from_utf8(fs_encoded_bytes.as_bytes(ob.py()))?);
             #[cfg(not(target_os = "wasi"))]
             let os_str: &OsStr =
                 std::os::unix::ffi::OsStrExt::from_bytes(fs_encoded_bytes.as_bytes(ob.py()));
