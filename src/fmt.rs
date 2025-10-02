@@ -137,6 +137,15 @@ impl<'py> IntoPyObject<'py> for PyUnicodeWriter<'py> {
     }
 }
 
+#[cfg(Py_3_14)]
+impl<'py> TryInto<Bound<'py, PyString>> for PyUnicodeWriter<'py> {
+    type Error = PyErr;
+
+    fn try_into(self) -> PyResult<Bound<'py, PyString>> {
+        self.into_py_string()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[cfg(Py_3_14)]
