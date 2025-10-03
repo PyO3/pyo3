@@ -69,13 +69,15 @@ impl<'a> FromPyObject<'a, '_> for &'a CStr {
     fn extract(obj: Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
         let obj = obj.cast::<PyString>()?;
         let mut size = 0;
+        // SAFETY: obj is a PyString so we can safely call PyUnicode_AsUTF8AndSize
         let ptr = unsafe { ffi::PyUnicode_AsUTF8AndSize(obj.as_ptr(), &mut size) };
 
         if ptr.is_null() {
             return Err(PyErr::fetch(obj.py()));
         }
 
-        // SAFETY: PyUnicode_AsUTF8AndSize always returns a NUL-terminated string
+        // SAFETY: PyUnicode_AsUTF8AndSize always returns a NUL-terminated string but size does not
+        // include the NUL terminator. So we add 1 to the size to include it.
         let slice = unsafe { slice::from_raw_parts(ptr.cast(), size as usize + 1) };
 
         CStr::from_bytes_with_nul(slice).map_err(|err| PyValueError::new_err(err.to_string()))
