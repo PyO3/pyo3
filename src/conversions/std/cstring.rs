@@ -175,4 +175,19 @@ mod tests {
             assert_eq!(extracted_cstring.to_str().unwrap(), s);
         })
     }
+
+    #[test]
+    fn test_cow_roundtrip() {
+        Python::attach(|py| {
+            let s = "Hello, world!";
+            let cstr = CString::new(s).unwrap();
+            let cow: Cow<'_, CStr> = Cow::Borrowed(cstr.as_c_str());
+
+            let py_string = cow.into_pyobject(py).unwrap();
+            assert_eq!(py_string.to_cow().unwrap(), s);
+
+            let roundtripped: Cow<'_, CStr> = py_string.extract().unwrap();
+            assert_eq!(roundtripped, cstr);
+        })
+    }
 }
