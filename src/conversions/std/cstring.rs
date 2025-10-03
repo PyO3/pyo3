@@ -6,7 +6,6 @@ use std::str::Utf8Error;
 #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
 use {
     crate::{exceptions::PyValueError, ffi},
-    std::ffi::FromBytesWithNulError,
     std::slice,
 };
 
@@ -79,12 +78,7 @@ impl<'a> FromPyObject<'a, '_> for &'a CStr {
         // SAFETY: PyUnicode_AsUTF8AndSize always returns a NUL-terminated string
         let slice = unsafe { slice::from_raw_parts(ptr.cast(), size as usize + 1) };
 
-        CStr::from_bytes_with_nul(slice).map_err(|err| match err {
-            FromBytesWithNulError::InteriorNul { .. } => PyValueError::new_err(err.to_string()),
-            FromBytesWithNulError::NotNulTerminated => {
-                unreachable!("PyUnicode_AsUTF8AndSize always returns a NUL-terminated string")
-            }
-        })
+        CStr::from_bytes_with_nul(slice).map_err(|err| PyValueError::new_err(err.to_string()))
     }
 }
 
@@ -186,7 +180,7 @@ mod tests {
             assert_eq!(py_string.to_cow().unwrap(), s);
 
             let roundtripped: Cow<'_, CStr> = py_string.extract().unwrap();
-            assert_eq!(roundtripped, cstr);
+            assert_eq!(roundtripped.as_ref(), cstr.as_c_str());
         })
     }
 }
