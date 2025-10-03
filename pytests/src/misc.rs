@@ -5,7 +5,7 @@ use pyo3::{
 
 #[pyfunction]
 fn issue_219() {
-    // issue 219: acquiring GIL inside #[pyfunction] deadlocks.
+    // issue 219: attaching inside #[pyfunction] deadlocks.
     Python::attach(|_| {});
 }
 
@@ -15,13 +15,14 @@ struct LockHolder {
     sender: std::sync::mpsc::Sender<()>,
 }
 
-// This will hammer the GIL once the LockHolder is dropped.
+// This will repeatedly attach and detach from the Python interpreter
+// once the LockHolder is dropped.
 #[pyfunction]
-fn hammer_gil_in_thread() -> LockHolder {
+fn hammer_attaching_in_thread() -> LockHolder {
     let (sender, receiver) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         receiver.recv().ok();
-        // now the interpreter has shut down, so hammer the GIL. In buggy
+        // now the interpreter has shut down, so hammer the attach API. In buggy
         // versions of PyO3 this will cause a crash.
         loop {
             Python::try_attach(|_py| ());
@@ -56,7 +57,7 @@ fn get_item_and_run_callback(dict: Bound<'_, PyDict>, callback: Bound<'_, PyAny>
 #[pymodule(gil_used = false)]
 pub fn misc(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(issue_219, m)?)?;
-    m.add_function(wrap_pyfunction!(hammer_gil_in_thread, m)?)?;
+    m.add_function(wrap_pyfunction!(hammer_attaching_in_thread, m)?)?;
     m.add_function(wrap_pyfunction!(get_type_fully_qualified_name, m)?)?;
     m.add_function(wrap_pyfunction!(accepts_bool, m)?)?;
     m.add_function(wrap_pyfunction!(get_item_and_run_callback, m)?)?;

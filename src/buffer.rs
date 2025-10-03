@@ -46,7 +46,6 @@ pub struct PyBuffer<T>(
 struct RawBuffer(ffi::Py_buffer, PhantomPinned);
 
 // PyBuffer is thread-safe: the shape of the buffer is immutable while a Py_buffer exists.
-// Accessing the buffer contents is protected using the GIL.
 unsafe impl<T> Send for PyBuffer<T> {}
 unsafe impl<T> Sync for PyBuffer<T> {}
 
@@ -641,7 +640,7 @@ impl<T: Element> PyBuffer<T> {
     /// This will automatically be called on drop.
     pub fn release(self, _py: Python<'_>) {
         // First move self into a ManuallyDrop, so that PyBuffer::drop will
-        // never be called. (It would acquire the GIL and call PyBuffer_Release
+        // never be called. (It would attach to the interpreter and call PyBuffer_Release
         // again.)
         let mut mdself = mem::ManuallyDrop::new(self);
         unsafe {

@@ -12,7 +12,7 @@ Both of these APIs take `args` and `kwargs` arguments (for positional and keywor
 * [`call1`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call1) and [`call_method1`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call_method1) to call only with positional `args`.
 * [`call0`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call0) and [`call_method0`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call_method0) to call with no arguments.
 
-For convenience the [`Py<T>`](../types.md#pyt) smart pointer also exposes these same six API methods, but needs a `Python` token as an additional first argument to prove the GIL is held.
+For convenience the [`Py<T>`](../types.md#pyt) smart pointer also exposes these same six API methods, but needs a `Python` token as an additional first argument to prove the thread is attached to the Python interpreter.
 
 The example below calls a Python function behind a `Py<PyAny>` reference:
 

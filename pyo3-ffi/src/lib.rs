@@ -17,7 +17,7 @@
 //! generally the following apply:
 //! - Pointer arguments have to point to a valid Python object of the correct type,
 //! although null pointers are sometimes valid input.
-//! - The vast majority can only be used safely while the GIL is held.
+//! - The vast majority can only be used safely while the thread is attached to the Python interpreter.
 //! - Some functions have additional safety requirements, consult the
 //! [Python/C API Reference Manual][capi]
 //! for more information.
