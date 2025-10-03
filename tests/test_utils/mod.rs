@@ -223,8 +223,6 @@ mod inner {
         }};
     }
 
-    pub(crate) use assert_warnings;
-
     pub fn generate_unique_module_name(base: &str) -> std::ffi::CString {
         let uuid = Uuid::new_v4().simple().to_string();
         std::ffi::CString::new(format!("{base}_{uuid}")).unwrap()
