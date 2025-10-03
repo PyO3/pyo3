@@ -68,6 +68,7 @@ impl<'a> FromPyObject<'a, '_> for &'a CStr {
     type Error = PyErr;
 
     fn extract(obj: Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
+        let obj = obj.cast::<PyString>()?;
         let mut size = 0;
         let ptr = unsafe { ffi::PyUnicode_AsUTF8AndSize(obj.as_ptr(), &mut size) };
 
