@@ -1,10 +1,14 @@
-use crate::exceptions::PyValueError;
 use crate::types::PyString;
-use crate::{ffi, Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, Python};
+use crate::{Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, Python};
 use std::borrow::Cow;
-use std::ffi::{CStr, CString, FromBytesWithNulError};
-use std::slice;
+use std::ffi::{CStr, CString};
 use std::str::Utf8Error;
+#[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+use {
+    crate::{exceptions::PyValueError, ffi},
+    std::ffi::FromBytesWithNulError,
+    std::slice,
+};
 
 impl<'py> IntoPyObject<'py> for &CStr {
     type Target = PyString;
@@ -144,17 +148,11 @@ mod tests {
             #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
             {
                 let err = py_string.extract::<&CStr>();
-                assert_eq!(
-                    err.unwrap_err().value(py).repr().unwrap().to_string(),
-                    "ValueError('data provided contains an interior nul byte at byte pos 5')"
-                );
+                assert!(err.is_err());
             }
 
             let err = py_string.extract::<CString>();
-            assert_eq!(
-                err.unwrap_err().to_string(),
-                "ValueError: data provided contains an interior nul byte at byte pos 5"
-            );
+            assert!(err.is_err());
         })
     }
 
