@@ -1194,7 +1194,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// }
 /// ```
 ///
-/// [`Py`]`<T>` can be used to get around this by converting `dict` into a reference without any attachment:
+/// [`Py`]`<T>` can be used to get around this by removing the lifetime from `dict` and with it the proof of attachment.
 ///
 /// ```rust
 /// use pyo3::prelude::*;
