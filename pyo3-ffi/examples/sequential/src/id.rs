@@ -99,7 +99,7 @@ unsafe extern "C" fn id_richcompare(
     }
 }
 
-static mut SLOTS: &[PyType_Slot] = &[
+static mut SLOTS: [PyType_Slot; 6] = [
     PyType_Slot {
         slot: Py_tp_new,
         pfunc: id_new as *mut c_void,
@@ -132,5 +132,5 @@ pub static mut ID_SPEC: PyType_Spec = PyType_Spec {
     basicsize: mem::size_of::<PyId>() as c_int,
     itemsize: 0,
     flags: (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_IMMUTABLETYPE) as c_uint,
-    slots: unsafe { SLOTS as *const [PyType_Slot] as *mut PyType_Slot },
+    slots: ptr::addr_of_mut!(SLOTS).cast(),
 };
