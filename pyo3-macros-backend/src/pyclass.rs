@@ -2498,6 +2498,8 @@ impl<'a> PyClassImplsBuilder<'a> {
         };
 
         Ok(quote! {
+            impl #pyo3_path::impl_::pyclass::ExtractPyClassWithClone for #cls {}
+
             #assertions
 
             #pyclass_base_type_impl
