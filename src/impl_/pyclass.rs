@@ -1426,6 +1426,8 @@ impl<const IMPLEMENTS_INTOPYOBJECT: bool> ConvertField<false, IMPLEMENTS_INTOPYO
     }
 }
 
+pub trait ExtractPyClassWithClone {}
+
 #[cfg(test)]
 #[cfg(feature = "macros")]
 mod tests {

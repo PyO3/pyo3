@@ -1,5 +1,6 @@
 //! Defines conversions between Rust and Python types.
 use crate::err::PyResult;
+use crate::impl_::pyclass::ExtractPyClassWithClone;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
@@ -529,7 +530,7 @@ impl<'py, T> FromPyObjectOwned<'py> for T where T: for<'a> FromPyObject<'a, 'py>
 
 impl<'a, 'py, T> FromPyObject<'a, 'py> for T
 where
-    T: PyClass + Clone,
+    T: PyClass + Clone + ExtractPyClassWithClone,
 {
     type Error = PyClassGuardError<'a, 'py>;
 
