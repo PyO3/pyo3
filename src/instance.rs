@@ -1,4 +1,4 @@
-#![warn(clippy::undocumented_unsafe_blocks)] // TODO: remove this when the top-level is "warn"
+#![warn(clippy::undocumented_unsafe_blocks)] // TODO: remove this when the top-level is "warn" - https://github.com/PyO3/pyo3/issues/5487
 
 use crate::call::PyCallArgs;
 use crate::conversion::IntoPyObject;
@@ -1124,9 +1124,11 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     }
 
     /// # Safety
-    /// This is similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
-    /// the caller and it's the caller's responsibility to ensure that the reference this is
-    /// derived from is valid for the lifetime `'a`.
+    ///
+    /// - `ptr` must be a valid pointer to a Python object. It must not be null.
+    /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    ///   the caller and it is the caller's responsibility to ensure that the reference this is
+    ///   derived from is valid for the lifetime `'a`.
     #[inline]
     pub(crate) unsafe fn from_ptr_unchecked(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         // SAFETY: caller has upheld the safety contract
@@ -1134,10 +1136,11 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     }
 
     /// # Safety
-    /// This similar to `std::slice::from_raw_parts`, the lifetime `'a` is
-    /// completely defined by the caller and it is the caller's responsibility
-    /// to ensure that the reference this is derived from is valid for the
-    /// lifetime `'a`.
+    ///
+    /// - `ptr` must be a valid pointer to a Python object.
+    /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    ///   the caller and it is the caller's responsibility to ensure that the reference this is
+    ///   derived from is valid for the lifetime `'a`.
     #[inline]
     pub(crate) unsafe fn from_non_null(py: Python<'py>, ptr: NonNull<ffi::PyObject>) -> Self {
         Self(ptr, PhantomData, py)
@@ -2096,22 +2099,22 @@ impl<T> std::convert::From<Borrowed<'_, '_, T>> for Py<T> {
     }
 }
 
-impl<'a, T> std::convert::From<PyRef<'a, T>> for Py<T>
+impl<'py, T> std::convert::From<PyRef<'py, T>> for Py<T>
 where
     T: PyClass,
 {
-    fn from(pyref: PyRef<'a, T>) -> Self {
-        // SAFETY: PyRef is a borrowed reference to a valid object
+    fn from(pyref: PyRef<'py, T>) -> Self {
+        // SAFETY: PyRef::as_ptr returns a borrowed reference to a valid object
         unsafe { Py::from_borrowed_ptr(pyref.py(), pyref.as_ptr()) }
     }
 }
 
-impl<'a, T> std::convert::From<PyRefMut<'a, T>> for Py<T>
+impl<'py, T> std::convert::From<PyRefMut<'py, T>> for Py<T>
 where
     T: PyClass<Frozen = False>,
 {
-    fn from(pyref: PyRefMut<'a, T>) -> Self {
-        // SAFETY: PyRefMut is a borrowed reference to a valid object
+    fn from(pyref: PyRefMut<'py, T>) -> Self {
+        // SAFETY: PyRefMut::as_ptr returns a borrowed reference to a valid object
         unsafe { Py::from_borrowed_ptr(pyref.py(), pyref.as_ptr()) }
     }
 }
