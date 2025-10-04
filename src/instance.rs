@@ -474,7 +474,7 @@ impl<'py> Bound<'py, PyAny> {
         ptr: &'a NonNull<ffi::PyObject>,
     ) -> &'a Self {
         // SAFETY: caller has upheld the safety contract,
-        // and `Bound<PyAny>` is layout-compatible with `*mut ffi::PyObject`.
+        // and `Bound<PyAny>` is layout-compatible with `NonNull<ffi::PyObject>`.
         unsafe { NonNull::from(ptr).cast().as_ref() }
     }
 }
@@ -665,7 +665,7 @@ where
     #[inline]
     pub fn as_super(&self) -> &Bound<'py, T::BaseType> {
         // SAFETY: a pyclass can always be safely "cast" to its base type
-        unsafe { self.as_any().cast_unchecked() }
+        unsafe { self.cast_unchecked() }
     }
 
     /// Upcast this `Bound<PyClass>` to its base type by value.
