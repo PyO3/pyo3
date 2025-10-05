@@ -78,21 +78,22 @@ impl FromPyObject<'_, '_> for OsString {
 
         #[cfg(not(windows))]
         {
+            use crate::types::{PyBytes, PyBytesMethods};
             // Decode from Python's lossless bytes string representation back into raw bytes
+
             let fs_encoded_bytes = unsafe {
-                crate::Py::<crate::types::PyBytes>::from_owned_ptr(
-                    ob.py(),
-                    ffi::PyUnicode_EncodeFSDefault(pystring.as_ptr()),
-                )
+                ffi::PyUnicode_EncodeFSDefault(pystring.as_ptr())
+                    .assume_owned(ob.py())
+                    .cast_into_unchecked::<PyBytes>()
             };
 
             // Create an OsStr view into the raw bytes from Python
             #[cfg(target_os = "wasi")]
             let os_str: &OsStr =
-                std::os::wasi::ffi::OsStrExt::from_bytes(fs_encoded_bytes.as_bytes(ob.py()));
+                std::os::wasi::ffi::OsStrExt::from_bytes(fs_encoded_bytes.as_bytes());
             #[cfg(not(target_os = "wasi"))]
             let os_str: &OsStr =
-                std::os::unix::ffi::OsStrExt::from_bytes(fs_encoded_bytes.as_bytes(ob.py()));
+                std::os::unix::ffi::OsStrExt::from_bytes(fs_encoded_bytes.as_bytes());
 
             Ok(os_str.to_os_string())
         }

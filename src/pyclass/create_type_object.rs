@@ -1,6 +1,7 @@
 use crate::{
     exceptions::PyTypeError,
     ffi,
+    ffi_ptr_ext::FfiPtrExt,
     impl_::{
         pycell::PyClassObject,
         pyclass::{
@@ -505,18 +506,21 @@ impl PyTypeBuilder {
         };
 
         // Safety: We've correctly setup the PyType_Spec at this point
-        let type_object: Py<PyType> =
-            unsafe { Py::from_owned_ptr_or_err(py, ffi::PyType_FromSpec(&mut spec))? };
+        let type_object = unsafe {
+            ffi::PyType_FromSpec(&mut spec)
+                .assume_owned_or_err(py)?
+                .cast_into_unchecked()
+        };
 
         #[cfg(not(Py_3_11))]
         bpo_45315_workaround(py, class_name);
 
         for cleanup in std::mem::take(&mut self.cleanup) {
-            cleanup(&self, type_object.bind(py).as_type_ptr());
+            cleanup(&self, type_object.as_type_ptr());
         }
 
         Ok(PyClassTypeObject {
-            type_object,
+            type_object: type_object.unbind(),
             is_immutable_type: self.is_immutable_type,
             getset_destructors,
         })

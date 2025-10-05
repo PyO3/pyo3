@@ -1,6 +1,7 @@
 use crate::call::PyCallArgs;
 use crate::conversion::IntoPyObject;
 use crate::err::{self, PyErr, PyResult};
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pycell::PyClassObject;
 use crate::internal_tricks::ptr_from_ref;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
@@ -1898,7 +1899,9 @@ impl<T> Py<T> {
     {
         self.bind(py).as_any().call_method0(name).map(Bound::unbind)
     }
+}
 
+impl Py<PyAny> {
     /// Create a `Py<T>` instance by taking ownership of the given FFI pointer.
     ///
     /// # Safety
@@ -1911,31 +1914,28 @@ impl<T> Py<T> {
     /// Panics if `ptr` is null.
     #[inline]
     #[track_caller]
-    pub unsafe fn from_owned_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<T> {
+    pub unsafe fn from_owned_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Self {
         match NonNull::new(ptr) {
             Some(nonnull_ptr) => Py(nonnull_ptr, PhantomData),
             None => crate::err::panic_after_error(py),
         }
     }
 
-    /// Create a `Py<T>` instance by taking ownership of the given FFI pointer.
+    /// Create a `Self` instance by taking ownership of the given FFI pointer.
     ///
     /// If `ptr` is null then the current Python exception is fetched as a [`PyErr`].
     ///
     /// # Safety
     /// If non-null, `ptr` must be a pointer to a Python object of type T.
     #[inline]
-    pub unsafe fn from_owned_ptr_or_err(
-        py: Python<'_>,
-        ptr: *mut ffi::PyObject,
-    ) -> PyResult<Py<T>> {
+    pub unsafe fn from_owned_ptr_or_err(py: Python<'_>, ptr: *mut ffi::PyObject) -> PyResult<Self> {
         match NonNull::new(ptr) {
             Some(nonnull_ptr) => Ok(Py(nonnull_ptr, PhantomData)),
             None => Err(PyErr::fetch(py)),
         }
     }
 
-    /// Create a `Py<T>` instance by taking ownership of the given FFI pointer.
+    /// Create a `Self` instance by taking ownership of the given FFI pointer.
     ///
     /// If `ptr` is null then `None` is returned.
     ///
@@ -1946,7 +1946,7 @@ impl<T> Py<T> {
         NonNull::new(ptr).map(|nonnull_ptr| Py(nonnull_ptr, PhantomData))
     }
 
-    /// Constructs a new `Py<T>` instance by taking ownership of the given FFI pointer.
+    /// Constructs a new `Self` instance by taking ownership of the given FFI pointer.
     ///
     /// # Safety
     ///
@@ -1955,7 +1955,7 @@ impl<T> Py<T> {
         Py(unsafe { NonNull::new_unchecked(ptr) }, PhantomData)
     }
 
-    /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.
+    /// Create a `Self` instance by creating a new reference from the given FFI pointer.
     ///
     /// # Safety
     /// `ptr` must be a pointer to a Python object of type T.
@@ -1964,14 +1964,14 @@ impl<T> Py<T> {
     /// Panics if `ptr` is null.
     #[inline]
     #[track_caller]
-    pub unsafe fn from_borrowed_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<T> {
+    pub unsafe fn from_borrowed_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Self {
         match unsafe { Self::from_borrowed_ptr_or_opt(py, ptr) } {
             Some(slf) => slf,
             None => crate::err::panic_after_error(py),
         }
     }
 
-    /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.
+    /// Create a `Self` instance by creating a new reference from the given FFI pointer.
     ///
     /// If `ptr` is null then the current Python exception is fetched as a `PyErr`.
     ///
@@ -1985,7 +1985,7 @@ impl<T> Py<T> {
         unsafe { Self::from_borrowed_ptr_or_opt(py, ptr).ok_or_else(|| PyErr::fetch(py)) }
     }
 
-    /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.
+    /// Create a `Self` instance by creating a new reference from the given FFI pointer.
     ///
     /// If `ptr` is null then `None` is returned.
     ///
@@ -2003,7 +2003,9 @@ impl<T> Py<T> {
             })
         }
     }
+}
 
+impl<T> Py<T> {
     /// For internal conversions.
     ///
     /// # Safety
@@ -2058,7 +2060,14 @@ where
     T: PyClass,
 {
     fn from(pyref: PyRef<'a, T>) -> Self {
-        unsafe { Py::from_borrowed_ptr(pyref.py(), pyref.as_ptr()) }
+        unsafe {
+            pyref
+                .as_ptr()
+                .assume_borrowed_unchecked(pyref.py())
+                .cast_unchecked()
+        }
+        .clone()
+        .unbind()
     }
 }
 
@@ -2067,7 +2076,14 @@ where
     T: PyClass<Frozen = False>,
 {
     fn from(pyref: PyRefMut<'a, T>) -> Self {
-        unsafe { Py::from_borrowed_ptr(pyref.py(), pyref.as_ptr()) }
+        unsafe {
+            pyref
+                .as_ptr()
+                .assume_borrowed_unchecked(pyref.py())
+                .cast_unchecked()
+        }
+        .clone()
+        .unbind()
     }
 }
 

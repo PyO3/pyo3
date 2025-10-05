@@ -50,8 +50,8 @@
 #[cfg(Py_LIMITED_API)]
 use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
-    conversion::IntoPyObject, ffi, types::PyInt, Borrowed, Bound, FromPyObject, Py, PyAny, PyErr,
-    PyResult, Python,
+    conversion::IntoPyObject, ffi, ffi_ptr_ext::FfiPtrExt, types::PyInt, Borrowed, Bound,
+    FromPyObject, PyAny, PyErr, PyResult, Python,
 };
 
 use num_bigint::{BigInt, BigUint};
@@ -129,12 +129,13 @@ impl<'py> FromPyObject<'_, 'py> for BigInt {
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<BigInt, Self::Error> {
         let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
-        let num_owned: Py<PyInt>;
+        let num_owned: Bound<'py, PyInt>;
         let num = if let Ok(long) = ob.cast::<PyInt>() {
             long
         } else {
-            num_owned = unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
-            num_owned.bind_borrowed(py)
+            num_owned =
+                unsafe { ffi::PyNumber_Index(ob.as_ptr()).assume_owned_or_err(py)? }.cast_into()?;
+            num_owned.as_borrowed()
         };
         #[cfg(not(Py_LIMITED_API))]
         {
@@ -179,12 +180,13 @@ impl<'py> FromPyObject<'_, 'py> for BigUint {
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<BigUint, Self::Error> {
         let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
-        let num_owned: Py<PyInt>;
+        let num_owned: Bound<'py, PyInt>;
         let num = if let Ok(long) = ob.cast::<PyInt>() {
             long
         } else {
-            num_owned = unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
-            num_owned.bind_borrowed(py)
+            num_owned =
+                unsafe { ffi::PyNumber_Index(ob.as_ptr()).assume_owned_or_err(py)? }.cast_into()?;
+            num_owned.as_borrowed()
         };
         #[cfg(not(Py_LIMITED_API))]
         {
