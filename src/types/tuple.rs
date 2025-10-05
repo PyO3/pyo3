@@ -307,7 +307,8 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked(self, index: usize) -> Borrowed<'a, 'py, PyAny> {
         unsafe {
-            ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t).assume_borrowed(self.py())
+            ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
+                .assume_borrowed_unchecked(self.py())
         }
     }
 

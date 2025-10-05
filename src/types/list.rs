@@ -281,7 +281,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
         // PyList_GET_ITEM return borrowed ptr; must make owned for safety (see #890).
         unsafe {
             ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
-                .assume_borrowed(self.py())
+                .assume_borrowed_unchecked(self.py())
                 .to_owned()
         }
     }

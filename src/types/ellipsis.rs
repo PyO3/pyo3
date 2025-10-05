@@ -16,7 +16,11 @@ impl PyEllipsis {
     /// Returns the `Ellipsis` object.
     #[inline]
     pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyEllipsis> {
-        unsafe { ffi::Py_Ellipsis().assume_borrowed(py).cast_unchecked() }
+        unsafe {
+            ffi::Py_Ellipsis()
+                .assume_borrowed_unchecked(py)
+                .cast_unchecked()
+        }
     }
 }
 

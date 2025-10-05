@@ -14,7 +14,11 @@ impl PyNone {
     /// Returns the `None` object.
     #[inline]
     pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyNone> {
-        unsafe { ffi::Py_None().assume_borrowed(py).cast_unchecked() }
+        unsafe {
+            ffi::Py_None()
+                .assume_borrowed_unchecked(py)
+                .cast_unchecked()
+        }
     }
 }
 

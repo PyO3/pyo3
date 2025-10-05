@@ -18,7 +18,7 @@ impl PyNotImplemented {
     pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyNotImplemented> {
         unsafe {
             ffi::Py_NotImplemented()
-                .assume_borrowed(py)
+                .assume_borrowed_unchecked(py)
                 .cast_unchecked()
         }
     }

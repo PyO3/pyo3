@@ -33,7 +33,7 @@ impl PyBool {
     pub fn new(py: Python<'_>, val: bool) -> Borrowed<'_, '_, Self> {
         unsafe {
             if val { ffi::Py_True() } else { ffi::Py_False() }
-                .assume_borrowed(py)
+                .assume_borrowed_unchecked(py)
                 .cast_unchecked()
         }
     }
