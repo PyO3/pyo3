@@ -542,11 +542,9 @@ pub(crate) fn int_from_le_bytes<'py, const IS_SIGNED: bool>(
     bytes: &[u8],
 ) -> Bound<'py, PyInt> {
     unsafe {
-        Ok(
-            ffi::_PyLong_FromByteArray(bytes.as_ptr().cast(), bytes.len(), 1, IS_SIGNED.into())
-                .assume_owned(py)
-                .cast_into_unchecked(),
-        )
+        ffi::_PyLong_FromByteArray(bytes.as_ptr().cast(), bytes.len(), 1, IS_SIGNED.into())
+            .assume_owned(py)
+            .cast_into_unchecked()
     }
 }
 
