@@ -137,10 +137,8 @@ impl ModuleDef {
         self.module
             .get_or_try_init(py, || {
                 let module = unsafe {
-                    Py::<PyModule>::from_owned_ptr_or_err(
-                        py,
-                        ffi::PyModule_Create(self.ffi_def.get()),
-                    )?
+                    Bound::from_owned_ptr_or_err(py, ffi::PyModule_Create(self.ffi_def.get()))?
+                        .cast_into_unchecked()
                 };
                 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
                 {
@@ -155,8 +153,8 @@ impl ModuleDef {
                         return Err(PyErr::fetch(py));
                     }
                 }
-                self.initializer.0(module.bind(py))?;
-                Ok(module)
+                self.initializer.0(&module)?;
+                Ok(module.unbind())
             })
             .map(|py_module| py_module.clone_ref(py))
     }
