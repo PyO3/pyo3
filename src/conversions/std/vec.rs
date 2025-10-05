@@ -89,7 +89,7 @@ where
     // to support this function and if not, we will only fail extraction safely.
     let seq = unsafe {
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-            obj.downcast_unchecked::<PySequence>()
+            obj.cast_unchecked::<PySequence>()
         } else {
             return Err(DowncastError::new_from_type(
                 obj,
