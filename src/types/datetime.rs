@@ -138,12 +138,12 @@ pub trait PyDeltaAccess {
     /// Returns the number of seconds, as an int from 0 through 86399.
     ///
     /// Implementations should conform to the upstream documentation:
-    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DELTA_GET_DAYS>
+    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DELTA_GET_SECONDS>
     fn get_seconds(&self) -> i32;
     /// Returns the number of microseconds, as an int from 0 through 999999.
     ///
     /// Implementations should conform to the upstream documentation:
-    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DELTA_GET_DAYS>
+    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DELTA_GET_MICROSECONDS>
     fn get_microseconds(&self) -> i32;
 }
 
