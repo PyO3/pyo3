@@ -1,7 +1,11 @@
 use crate::instance::Bound;
+#[cfg(Py_3_11)]
+use crate::intern;
 use crate::panic::PanicException;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
+#[cfg(Py_3_11)]
+use crate::types::PyString;
 use crate::types::{
     string::PyStringMethods, traceback::PyTracebackMethods, typeobject::PyTypeMethods, PyTraceback,
     PyTuple, PyTupleMethods, PyType,
@@ -655,6 +659,18 @@ impl PyErr {
         }
     }
 
+    /// Equivalent to calling `add_note` on the exception in Python.
+    #[cfg(Py_3_11)]
+    pub fn add_note<N: for<'py> IntoPyObject<'py, Target = PyString>>(
+        &self,
+        py: Python<'_>,
+        note: N,
+    ) -> PyResult<()> {
+        self.value(py)
+            .call_method1(intern!(py, "add_note"), (note,))?;
+        Ok(())
+    }
+
     #[inline]
     fn from_state(state: PyErrState) -> PyErr {
         PyErr { state }
@@ -1150,6 +1166,23 @@ mod tests {
 
             // Finally, reset filter again
             warnings.call_method0("resetwarnings").unwrap();
+        });
+    }
+
+    #[test]
+    #[cfg(Py_3_11)]
+    fn test_add_note() {
+        use crate::types::any::PyAnyMethods;
+        Python::attach(|py| {
+            let err = PyErr::new::<exceptions::PyValueError, _>("original error");
+            err.add_note(py, "additional context").unwrap();
+
+            let notes = err.value(py).getattr("__notes__").unwrap();
+            assert_eq!(notes.len().unwrap(), 1);
+            assert_eq!(
+                notes.get_item(0).unwrap().extract::<String>().unwrap(),
+                "additional context"
+            );
         });
     }
 }
