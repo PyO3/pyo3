@@ -2393,7 +2393,7 @@ mod tests {
     use super::{Bound, IntoPyObject, Py};
     use crate::test_utils::generate_unique_module_name;
     use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
-    use crate::{ffi, Borrowed, PyAny, PyResult, Python};
+    use crate::{ffi, Borrowed, IntoPyObjectExt, PyAny, PyResult, Python};
     use pyo3_ffi::c_str;
     use std::ffi::CStr;
 
@@ -2735,6 +2735,17 @@ a = A()
             assert_eq!(object2.get_refcnt(py), 1);
 
             object2.drop_ref(py);
+        });
+    }
+
+    #[test]
+    fn test_py_is_truthy() {
+        Python::attach(|py| {
+            let yes = true.into_py_any(py).unwrap();
+            let no = false.into_py_any(py).unwrap();
+
+            assert!(yes.is_truthy(py).unwrap());
+            assert!(!no.is_truthy(py).unwrap());
         });
     }
 
