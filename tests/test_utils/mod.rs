@@ -223,6 +223,7 @@ mod inner {
         }};
     }
 
+    #[allow(unused_imports)] // not all tests use this macro
     pub(crate) use assert_warnings;
 
     pub fn generate_unique_module_name(base: &str) -> std::ffi::CString {

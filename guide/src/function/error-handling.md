@@ -231,6 +231,9 @@ fn wrapped_get_x() -> Result<i32, MyOtherError> {
 # }
 ```
 
+## Notes
+
+In Python 3.11 and up, notes can be added to Python exceptions to provide additional debugging information when printing the exception. In PyO3, you can use the `add_note` method on `PyErr` to accomplish this functionality.
 
 [`From`]: https://doc.rust-lang.org/stable/std/convert/trait.From.html
 [`Result<T, E>`]: https://doc.rust-lang.org/stable/std/result/enum.Result.html
