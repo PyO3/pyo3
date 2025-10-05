@@ -16,6 +16,7 @@ impl PyEllipsis {
     /// Returns the `Ellipsis` object.
     #[inline]
     pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyEllipsis> {
+        // SAFETY: `Py_Ellipsis` is a global singleton which is known to be the ellipsis object
         unsafe {
             ffi::Py_Ellipsis()
                 .assume_borrowed_unchecked(py)

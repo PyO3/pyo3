@@ -16,6 +16,7 @@ impl PyNotImplemented {
     /// Returns the `NotImplemented` object.
     #[inline]
     pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyNotImplemented> {
+        // SAFETY: `Py_NotImplemented` is a global singleton which is known to be the NotImplemented object
         unsafe {
             ffi::Py_NotImplemented()
                 .assume_borrowed_unchecked(py)
