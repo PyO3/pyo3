@@ -327,7 +327,7 @@ impl<'py> Bound<'py, PyAny> {
     ///
     /// # Safety
     ///
-    /// - `ptr` must be a valid pointer to a Python object
+    /// - `ptr` must be a valid pointer to a Python object (or null, which will cause a panic)
     /// - `ptr` must be an owned Python reference, as the `Bound<'py, PyAny>` will assume ownership
     #[inline]
     #[track_caller]
@@ -1058,18 +1058,16 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     ///
     /// # Safety
     ///
-    /// - `ptr` must be a valid pointer to a Python object
+    /// - `ptr` must be a valid pointer to a Python object (or null, which will cause a panic)
     /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
     #[inline]
     #[track_caller]
     pub unsafe fn from_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
-        Self(
-            NonNull::new(ptr).unwrap_or_else(|| crate::err::panic_after_error(py)),
-            PhantomData,
-            py,
-        )
+        let non_null = NonNull::new(ptr).unwrap_or_else(|| panic_on_null(py));
+        // SAFETY: caller upheld the safety contract, ptr is now known to be non-null
+        unsafe { Self::from_non_null(py, non_null) }
     }
 
     /// Constructs a new `Borrowed<'a, 'py, PyAny>` from a pointer. Returns `None` if `ptr` is null.
@@ -1085,7 +1083,10 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     ///   derived from is valid for the lifetime `'a`.
     #[inline]
     pub unsafe fn from_ptr_or_opt(py: Python<'py>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr).map(|ptr| Self(ptr, PhantomData, py))
+        NonNull::new(ptr).map(|ptr| {
+            // SAFETY: caller upheld the safety contract, ptr is now known to be non-null
+            unsafe { Self::from_non_null(py, ptr) }
+        })
     }
 
     /// Constructs a new `Borrowed<'a, 'py, PyAny>` from a pointer. Returns an `Err` by calling `PyErr::fetch`
@@ -1104,6 +1105,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     pub unsafe fn from_ptr_or_err(py: Python<'py>, ptr: *mut ffi::PyObject) -> PyResult<Self> {
         NonNull::new(ptr).map_or_else(
             || Err(PyErr::fetch(py)),
+            // SAFETY: caller upheld the safety contract, ptr is now known to be non-null
             |ptr| Ok(Self(ptr, PhantomData, py)),
         )
     }
@@ -1122,6 +1124,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// completely defined by the caller and it is the caller's responsibility
     /// to ensure that the reference this is derived from is valid for the
     /// lifetime `'a`.
+    #[inline(always)]
     pub(crate) unsafe fn from_non_null(py: Python<'py>, ptr: NonNull<ffi::PyObject>) -> Self {
         Self(ptr, PhantomData, py)
     }
@@ -1902,20 +1905,27 @@ impl<T> Py<T> {
     /// Create a `Py<T>` instance by taking ownership of the given FFI pointer.
     ///
     /// # Safety
-    /// `ptr` must be a pointer to a Python object of type T.
     ///
-    /// Callers must own the object referred to by `ptr`, as this function
-    /// implicitly takes ownership of that object.
+    /// - `ptr` must be a valid pointer to a Python object (or null, which will cause a panic)
+    /// - `ptr` must be an owned Python reference, as the `Py<T>` will assume ownership
     ///
     /// # Panics
+    ///
     /// Panics if `ptr` is null.
     #[inline]
     #[track_caller]
     pub unsafe fn from_owned_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<T> {
-        match NonNull::new(ptr) {
-            Some(nonnull_ptr) => Py(nonnull_ptr, PhantomData),
-            None => crate::err::panic_after_error(py),
+        // TODO: possibly make this constructor not generic
+        // https://github.com/PyO3/pyo3/pull/5495
+        fn inner(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<PyAny> {
+            let non_null = NonNull::new(ptr).unwrap_or_else(|| panic_on_null(py));
+            // SAFETY: caller provided a valid object, now known to be non-null
+            unsafe { Py::from_non_null(non_null) }
         }
+
+        let object = inner(py, ptr).into_bound(py);
+        // SAFETY: caller provided an object of type T.
+        unsafe { object.cast_into_unchecked() }.unbind()
     }
 
     /// Create a `Py<T>` instance by taking ownership of the given FFI pointer.
@@ -1923,16 +1933,29 @@ impl<T> Py<T> {
     /// If `ptr` is null then the current Python exception is fetched as a [`PyErr`].
     ///
     /// # Safety
-    /// If non-null, `ptr` must be a pointer to a Python object of type T.
+    ///
+    /// - `ptr` must be a valid pointer to a Python object, or null
+    /// - a non-null `ptr` must be an owned Python reference, as the `Py<T>` will assume ownership
     #[inline]
     pub unsafe fn from_owned_ptr_or_err(
         py: Python<'_>,
         ptr: *mut ffi::PyObject,
     ) -> PyResult<Py<T>> {
-        match NonNull::new(ptr) {
-            Some(nonnull_ptr) => Ok(Py(nonnull_ptr, PhantomData)),
-            None => Err(PyErr::fetch(py)),
+        // TODO: possibly make this constructor not generic
+        // https://github.com/PyO3/pyo3/pull/5495
+        fn inner(py: Python<'_>, ptr: *mut ffi::PyObject) -> PyResult<Py<PyAny>> {
+            NonNull::new(ptr).map_or_else(
+                || Err(PyErr::fetch(py)),
+                // SAFETY: caller provided a valid object, now known to be non-null
+                |nonnull_ptr| Ok(unsafe { Py::from_non_null(nonnull_ptr) }),
+            )
         }
+
+        inner(py, ptr).map(|object| {
+            let object = object.into_bound(py);
+            // SAFETY: caller provided an object of type T.
+            unsafe { object.cast_into_unchecked() }.unbind()
+        })
     }
 
     /// Create a `Py<T>` instance by taking ownership of the given FFI pointer.
@@ -1940,10 +1963,24 @@ impl<T> Py<T> {
     /// If `ptr` is null then `None` is returned.
     ///
     /// # Safety
-    /// If non-null, `ptr` must be a pointer to a Python object of type T.
+    ///
+    /// - `ptr` must be a valid pointer to a Python object, or null
+    /// - a non-null `ptr` must be an owned Python reference, as the `Py<T>` will assume ownership
     #[inline]
     pub unsafe fn from_owned_ptr_or_opt(_py: Python<'_>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr).map(|nonnull_ptr| Py(nonnull_ptr, PhantomData))
+        // TODO: possibly make this constructor not generic
+        fn inner(_py: Python<'_>, ptr: *mut ffi::PyObject) -> Option<Py<PyAny>> {
+            NonNull::new(ptr).map(|nonnull_ptr| {
+                // SAFETY: caller provided a valid object, now known to be non-null
+                unsafe { Py::from_non_null(nonnull_ptr) }
+            })
+        }
+
+        inner(_py, ptr).map(|object| {
+            let object = object.into_bound(_py);
+            // SAFETY: caller provided an object of type T.
+            unsafe { object.cast_into_unchecked() }.unbind()
+        })
     }
 
     /// Constructs a new `Py<T>` instance by taking ownership of the given FFI pointer.
@@ -1952,7 +1989,8 @@ impl<T> Py<T> {
     ///
     /// - `ptr` must be a non-null pointer to a Python object or type `T`.
     pub(crate) unsafe fn from_owned_ptr_unchecked(ptr: *mut ffi::PyObject) -> Self {
-        Py(unsafe { NonNull::new_unchecked(ptr) }, PhantomData)
+        // SAFETY: caller upheld the safety contract
+        unsafe { Py::from_non_null(NonNull::new_unchecked(ptr)) }
     }
 
     /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.
@@ -1961,14 +1999,22 @@ impl<T> Py<T> {
     /// `ptr` must be a pointer to a Python object of type T.
     ///
     /// # Panics
+    ///
     /// Panics if `ptr` is null.
     #[inline]
     #[track_caller]
     pub unsafe fn from_borrowed_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<T> {
-        match unsafe { Self::from_borrowed_ptr_or_opt(py, ptr) } {
-            Some(slf) => slf,
-            None => crate::err::panic_after_error(py),
+        // TODO: possibly make this constructor not generic
+        // https://github.com/PyO3/pyo3/pull/5495
+        fn inner(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<PyAny> {
+            let non_null = NonNull::new(ptr).unwrap_or_else(|| panic_on_null(py));
+            // SAFETY: caller provided a valid borrowed object, now known to be non-null
+            unsafe { Py::from_borrowed_non_null(py, non_null) }
         }
+
+        let object = inner(py, ptr).into_bound(py);
+        // SAFETY: caller provided an object of type T.
+        unsafe { object.cast_into_unchecked() }.unbind()
     }
 
     /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.
@@ -1982,7 +2028,21 @@ impl<T> Py<T> {
         py: Python<'_>,
         ptr: *mut ffi::PyObject,
     ) -> PyResult<Self> {
-        unsafe { Self::from_borrowed_ptr_or_opt(py, ptr).ok_or_else(|| PyErr::fetch(py)) }
+        // TODO: possibly make this constructor not generic
+        // https://github.com/PyO3/pyo3/pull/5495
+        fn inner(py: Python<'_>, ptr: *mut ffi::PyObject) -> PyResult<Py<PyAny>> {
+            NonNull::new(ptr).map_or_else(
+                || Err(PyErr::fetch(py)),
+                // SAFETY: caller provided a valid borrowed object, now known to be non-null
+                |nonnull_ptr| Ok(unsafe { Py::from_borrowed_non_null(py, nonnull_ptr) }),
+            )
+        }
+
+        inner(py, ptr).map(|object| {
+            let object = object.into_bound(py);
+            // SAFETY: caller provided an object of type T.
+            unsafe { object.cast_into_unchecked() }.unbind()
+        })
     }
 
     /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.
@@ -1996,19 +2056,39 @@ impl<T> Py<T> {
         _py: Python<'_>,
         ptr: *mut ffi::PyObject,
     ) -> Option<Self> {
-        unsafe {
+        // TODO: possibly make this constructor not generic
+        fn inner(_py: Python<'_>, ptr: *mut ffi::PyObject) -> Option<Py<PyAny>> {
             NonNull::new(ptr).map(|nonnull_ptr| {
-                ffi::Py_INCREF(ptr);
-                Py(nonnull_ptr, PhantomData)
+                // SAFETY: caller provided a valid borrowed object, now known to be non-null
+                unsafe { Py::from_borrowed_non_null(_py, nonnull_ptr) }
             })
         }
+
+        inner(_py, ptr).map(|object| {
+            let object = object.into_bound(_py);
+            // SAFETY: caller provided an object of type T.
+            unsafe { object.cast_into_unchecked() }.unbind()
+        })
     }
 
     /// For internal conversions.
     ///
     /// # Safety
-    /// `ptr` must point to a Python object of type T.
+    /// `ptr` must be an owning reference pointing to a Python object of type T.
+    #[inline]
     unsafe fn from_non_null(ptr: NonNull<ffi::PyObject>) -> Self {
+        Self(ptr, PhantomData)
+    }
+
+    /// For internal conversions.
+    ///
+    /// # Safety
+    /// `ptr` must be a borrowed reference pointing to a Python object of type T.
+    #[inline]
+    unsafe fn from_borrowed_non_null(_py: Python<'_>, ptr: NonNull<ffi::PyObject>) -> Self {
+        // SAFETY: caller provided a valid object, known to be non-null, which needs to have
+        // its reference count increased, and the thread is attached to the Python interpreter.
+        unsafe { ffi::Py_INCREF(ptr.as_ptr()) };
         Self(ptr, PhantomData)
     }
 }
@@ -2336,6 +2416,15 @@ impl<T> Py<T> {
     pub unsafe fn cast_bound_unchecked<'py, U>(&self, py: Python<'py>) -> &Bound<'py, U> {
         unsafe { self.bind(py).cast_unchecked() }
     }
+}
+
+#[track_caller]
+#[cold]
+fn panic_on_null(py: Python<'_>) -> ! {
+    if let Some(err) = PyErr::take(py) {
+        err.write_unraisable(py, None);
+    }
+    panic!("PyObject pointer is null");
 }
 
 #[cfg(test)]
