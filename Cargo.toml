@@ -136,7 +136,7 @@ py-clone = []
 parking_lot = ["dep:parking_lot", "lock_api"]
 arc_lock = ["lock_api", "lock_api/arc_lock", "parking_lot?/arc_lock"]
 
-num-bigint = ["dep:num-bigint", "num-traits"]
+num-bigint = ["dep:num-bigint", "dep:num-traits"]
 bigdecimal = ["dep:bigdecimal", "num-bigint"]
 
 chrono-local = ["chrono/clock", "dep:iana-time-zone"]
