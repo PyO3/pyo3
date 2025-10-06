@@ -151,6 +151,19 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, OsStr> {
     }
 }
 
+impl<'a> FromPyObject<'a, '_> for Cow<'a, OsStr> {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
+        #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+        if let Ok(s) = obj.extract::<&str>() {
+            return Ok(Cow::Borrowed(s.as_ref()));
+        }
+
+        obj.extract::<OsString>().map(Cow::Owned)
+    }
+}
+
 impl<'py> IntoPyObject<'py> for OsString {
     type Target = PyString;
     type Output = Bound<'py, Self::Target>;
@@ -250,6 +263,21 @@ mod tests {
             // Show that encode_wide is necessary: direct UTF-8 conversion would lose information
             let encoded: Vec<u16> = os_str.encode_wide().collect();
             assert_eq!(encoded, wide);
+        });
+    }
+
+    #[test]
+    fn test_extract_cow() {
+        Python::attach(|py| {
+            fn test_extract(py: Python<'_>, input: &str) {
+                let pystring = input.into_pyobject(py).unwrap();
+                let cow: Cow<'_, OsStr> = pystring.extract().unwrap();
+                assert_eq!(cow, AsRef::<OsStr>::as_ref(input));
+            }
+
+            // Test extracting both valid UTF-8 and non-UTF-8 strings
+            test_extract(py, "Hello\0\n🐍");
+            test_extract(py, "Hello, world!");
         });
     }
 }

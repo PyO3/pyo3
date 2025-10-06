@@ -66,6 +66,19 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, Path> {
     }
 }
 
+impl<'a> FromPyObject<'a, '_> for Cow<'a, Path> {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
+        #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+        if let Ok(s) = obj.extract::<&str>() {
+            return Ok(Cow::Borrowed(s.as_ref()));
+        }
+
+        obj.extract::<PathBuf>().map(Cow::Owned)
+    }
+}
+
 impl<'py> IntoPyObject<'py> for PathBuf {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -145,6 +158,21 @@ mod tests {
             let pystring = PyString::new(py, path);
             let roundtrip: PathBuf = pystring.extract().unwrap();
             assert_eq!(roundtrip, Path::new(path));
+        });
+    }
+
+    #[test]
+    fn test_extract_cow() {
+        Python::attach(|py| {
+            fn test_extract(py: Python<'_>, path: &str) {
+                let pystring = path.into_pyobject(py).unwrap();
+                let cow: Cow<'_, Path> = pystring.extract().unwrap();
+                assert_eq!(cow, AsRef::<Path>::as_ref(path));
+            }
+
+            // Test extracting both valid UTF-8 and non-UTF-8 strings
+            test_extract(py, "Hello\0\n🐍");
+            test_extract(py, "Hello, world!");
         });
     }
 }
