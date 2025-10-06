@@ -58,7 +58,7 @@ impl IPowModulo {
 
 /// `PyMethodDefType` represents different types of Python callable objects.
 /// It is used by the `#[pymethods]` attribute.
-#[cfg_attr(test, derive(Clone))]
+#[derive(Copy, Clone)]
 pub enum PyMethodDefType {
     /// Represents class method
     Class(PyMethodDef),
@@ -86,10 +86,7 @@ pub enum PyMethodType {
 
 pub type PyClassAttributeFactory = for<'p> fn(Python<'p>) -> PyResult<Py<PyAny>>;
 
-// TODO: it would be nice to use CStr in these types, but then the constructors can't be const fn
-// until `CStr::from_bytes_with_nul_unchecked` is const fn.
-
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct PyMethodDef {
     pub(crate) ml_name: &'static CStr,
     pub(crate) ml_meth: PyMethodType,
@@ -103,25 +100,19 @@ pub struct PyClassAttributeDef {
     pub(crate) meth: PyClassAttributeFactory,
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct PyGetterDef {
     pub(crate) name: &'static CStr,
     pub(crate) meth: Getter,
     pub(crate) doc: &'static CStr,
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct PySetterDef {
     pub(crate) name: &'static CStr,
     pub(crate) meth: Setter,
     pub(crate) doc: &'static CStr,
 }
-
-unsafe impl Sync for PyMethodDef {}
-
-unsafe impl Sync for PyGetterDef {}
-
-unsafe impl Sync for PySetterDef {}
 
 impl PyMethodDef {
     /// Define a function with no `*args` and `**kwargs`.
@@ -172,8 +163,7 @@ impl PyMethodDef {
         self
     }
 
-    /// Convert `PyMethodDef` to Python method definition struct `ffi::PyMethodDef`
-    pub(crate) fn as_method_def(&self) -> ffi::PyMethodDef {
+    pub const fn into_raw(self) -> ffi::PyMethodDef {
         let meth = match self.ml_meth {
             PyMethodType::PyCFunction(meth) => ffi::PyMethodDefPointer { PyCFunction: meth },
             PyMethodType::PyCFunctionWithKeywords(meth) => ffi::PyMethodDefPointer {
@@ -285,13 +275,11 @@ pub unsafe fn _call_traverse<T>(
 where
     T: PyClass,
 {
-    // It is important the implementation of `__traverse__` cannot safely access the GIL,
-    // c.f. https://github.com/PyO3/pyo3/issues/3165, and hence we do not expose our GIL
-    // token to the user code and lock safe methods for acquiring the GIL.
+    // It is important the implementation of `__traverse__` cannot safely access the interpreter,
+    // c.f. https://github.com/PyO3/pyo3/issues/3165, and hence we do not expose our Python
+    // token to the user code and forbid safe methods for attaching.
     // (This includes enforcing the `&self` method receiver as e.g. `PyRef<Self>` could
-    // reconstruct a GIL token via `PyRef::py`.)
-    // Since we do not create a `GILPool` at all, it is important that our usage of the GIL
-    // token does not produce any owned objects thereby calling into `register_owned`.
+    // reconstruct a Python token via `PyRef::py`.)
     let trap = PanicTrap::new("uncaught panic inside __traverse__ handler");
     let lock = ForbidAttaching::during_traverse();
 
@@ -737,10 +725,21 @@ mod tests {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     fn test_fastcall_function_with_keywords() {
         use super::PyMethodDef;
-        use crate::types::{PyAnyMethods, PyCFunction};
+        use crate::impl_::pyfunction::PyFunctionDef;
+        use crate::types::PyAnyMethods;
         use crate::{ffi, Python};
 
         Python::attach(|py| {
+            let def =
+                PyFunctionDef::from_method_def(PyMethodDef::fastcall_cfunction_with_keywords(
+                    ffi::c_str!("test"),
+                    accepts_no_arguments,
+                    ffi::c_str!("doc"),
+                ));
+            // leak to make it 'static
+            // deliberately done at runtime to have coverage of `PyFunctionDef::from_method_def`
+            let def = Box::leak(Box::new(def));
+
             unsafe extern "C" fn accepts_no_arguments(
                 _slf: *mut ffi::PyObject,
                 _args: *const *mut ffi::PyObject,
@@ -752,16 +751,7 @@ mod tests {
                 unsafe { Python::assume_attached().None().into_ptr() }
             }
 
-            let f = PyCFunction::internal_new(
-                py,
-                &PyMethodDef::fastcall_cfunction_with_keywords(
-                    ffi::c_str!("test"),
-                    accepts_no_arguments,
-                    ffi::c_str!("doc"),
-                ),
-                None,
-            )
-            .unwrap();
+            let f = def.create_py_c_function(py, None).unwrap();
 
             f.call0().unwrap();
         });

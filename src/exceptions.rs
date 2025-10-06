@@ -18,16 +18,6 @@ use std::ops;
 #[macro_export]
 macro_rules! impl_exception_boilerplate {
     ($name: ident) => {
-        $crate::impl_exception_boilerplate_bound!($name);
-
-        impl $crate::ToPyErr for $name {}
-    };
-}
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! impl_exception_boilerplate_bound {
-    ($name: ident) => {
         impl $name {
             /// Creates a new [`PyErr`] of this type.
             ///
@@ -41,6 +31,8 @@ macro_rules! impl_exception_boilerplate_bound {
                 $crate::PyErr::new::<$name, A>(args)
             }
         }
+
+        impl $crate::ToPyErr for $name {}
     };
 }
 
@@ -102,44 +94,12 @@ macro_rules! import_exception {
     };
 }
 
-/// Variant of [`import_exception`](crate::import_exception) that does not emit code needed to
-/// use the imported exception type as a GIL Ref.
-///
-/// This is useful only during migration as a way to avoid generating needless code.
+/// Deprecated name for `import_exception!`.
 #[macro_export]
+#[deprecated(since = "0.27.0", note = "renamed to `import_exception!` instead")]
 macro_rules! import_exception_bound {
     ($module: expr, $name: ident) => {
-        /// A Rust type representing an exception defined in Python code.
-        ///
-        /// This type was created by the [`pyo3::import_exception_bound!`] macro - see its documentation
-        /// for more information.
-        ///
-        /// [`pyo3::import_exception_bound!`]: https://docs.rs/pyo3/latest/pyo3/macro.import_exception.html "import_exception in pyo3"
-        #[repr(transparent)]
-        #[allow(non_camel_case_types)] // E.g. `socket.herror`
-        pub struct $name($crate::PyAny);
-
-        $crate::impl_exception_boilerplate_bound!($name);
-
-        $crate::pyobject_native_type_info!(
-            $name,
-            $name::type_object_raw,
-            ::std::option::Option::Some(stringify!($module))
-        );
-
-        impl $crate::types::DerefToPyAny for $name {}
-
-        impl $name {
-            fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
-                use $crate::types::PyTypeMethods;
-                static TYPE_OBJECT: $crate::impl_::exceptions::ImportedExceptionTypeObject =
-                    $crate::impl_::exceptions::ImportedExceptionTypeObject::new(
-                        stringify!($module),
-                        stringify!($name),
-                    );
-                TYPE_OBJECT.get(py).as_type_ptr()
-            }
-        }
+        $crate::import_exception!($module, $name);
     };
 }
 
@@ -821,8 +781,8 @@ mod tests {
     use crate::types::{IntoPyDict, PyDict};
     use crate::PyErr;
 
-    import_exception_bound!(socket, gaierror);
-    import_exception_bound!(email.errors, MessageError);
+    import_exception!(socket, gaierror);
+    import_exception!(email.errors, MessageError);
 
     #[test]
     fn test_check_exception() {

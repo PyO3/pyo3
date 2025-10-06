@@ -25,9 +25,9 @@ use crate::prelude::PyTypeMethods;
 use crate::PyErr;
 use crate::{
     ffi,
-    impl_::pymethods::PyMethodDef,
+    impl_::pyfunction::PyFunctionDef,
     sync::PyOnceLock,
-    types::{PyCFunction, PyModule, PyModuleMethods},
+    types::{PyModule, PyModuleMethods},
     Bound, Py, PyClass, PyResult, PyTypeInfo, Python,
 };
 
@@ -203,9 +203,10 @@ impl<T: PyClass> PyAddToModule for AddClassToModule<T> {
 }
 
 /// For adding a function to a module.
-impl PyAddToModule for PyMethodDef {
+impl PyAddToModule for PyFunctionDef {
     fn add_to_module(&'static self, module: &Bound<'_, PyModule>) -> PyResult<()> {
-        module.add_function(PyCFunction::internal_new(module.py(), self, Some(module))?)
+        // safety: self is static
+        module.add_function(self.create_py_c_function(module.py(), Some(module))?)
     }
 }
 

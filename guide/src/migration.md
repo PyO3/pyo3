@@ -57,7 +57,7 @@ Before:
 struct MyWrapper<T>(T);
 
 impl<'py, T> FromPyObject<'py> for MyWrapper<T>
-where 
+where
     T: FromPyObject<'py>
 {
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
@@ -66,7 +66,7 @@ where
 }
 ```
 
-After: 
+After:
 ```rust
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
@@ -132,6 +132,12 @@ This is very similar to `serde`s [`Deserialize`] and [`DeserializeOwned`] traits
 [`Deserialize`]: https://docs.rs/serde/latest/serde/trait.Deserialize.html
 [`DeserializeOwned`]: https://docs.rs/serde/latest/serde/de/trait.DeserializeOwned.html
 </details>
+
+## `PyTypeCheck` is now an `unsafe trait`
+
+Because `PyTypeCheck` is the trait used to guard the `.cast()` functions to treat Python objects as specific concrete types, the trait is `unsafe` to implement.
+
+This should always have been the case, it was an unfortunate omission from its original implementation which is being corrected in this release.
 
 ## from 0.25.* to 0.26
 ### Rename of `Python::with_gil`, `Python::allow_threads`, and `pyo3::prepare_freethreaded_python`
@@ -1274,7 +1280,7 @@ However, if the `anyhow::Error` or `eyre::Report` has a source, then the origina
 <details>
 <summary><small>Click to expand</small></summary>
 
-While the API provided by [`Python::acquire_gil`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html#method.acquire_gil) seems convenient, it is somewhat brittle as the design of the GIL token [`Python`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html) relies on proper nesting and panics if not used correctly, e.g.
+While the API provided by [`Python::acquire_gil`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html#method.acquire_gil) seems convenient, it is somewhat brittle as the design of the [`Python`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html) token relies on proper nesting and panics if not used correctly, e.g.
 
 ```rust,ignore
 # #![allow(dead_code, deprecated)]
@@ -1340,7 +1346,7 @@ Python::with_gil(|py| {
 });
 ```
 
-Furthermore, `Python::acquire_gil` provides ownership of a `GILGuard` which can be freely stored and passed around. This is usually not helpful as it may keep the lock held for a long time thereby blocking progress in other parts of the program. Due to the generative lifetime attached to the GIL token supplied by `Python::with_gil`, the problem is avoided as the GIL token can only be passed down the call chain. Often, this issue can also be avoided entirely as any GIL-bound reference `&'py PyAny` implies access to a GIL token `Python<'py>` via the [`PyAny::py`](https://docs.rs/pyo3/0.22.5/pyo3/types/struct.PyAny.html#method.py) method.
+Furthermore, `Python::acquire_gil` provides ownership of a `GILGuard` which can be freely stored and passed around. This is usually not helpful as it may keep the lock held for a long time thereby blocking progress in other parts of the program. Due to the generative lifetime attached to the Python token supplied by `Python::with_gil`, the problem is avoided as the Python token can only be passed down the call chain. Often, this issue can also be avoided entirely as any GIL-bound reference `&'py PyAny` implies access to a Python token `Python<'py>` via the [`PyAny::py`](https://docs.rs/pyo3/0.22.5/pyo3/types/struct.PyAny.html#method.py) method.
 </details>
 
 ## from 0.17.* to 0.18

@@ -1090,11 +1090,14 @@ def update_ui_tests(session: nox.Session):
 def test_introspection(session: nox.Session):
     session.install("maturin")
     session.install("ruff")
+    options = []
     target = os.environ.get("CARGO_BUILD_TARGET")
-    for options in ([], ["--release"]):
-        if target is not None:
-            options += ("--target", target)
-        session.run_always(
+    if target is not None:
+        options += ("--target", target)
+    profile = os.environ.get("CARGO_BUILD_PROFILE")
+    if profile == "release":
+        options.append("--release")
+    session.run_always(
             "maturin",
             "develop",
             "-m",
@@ -1103,16 +1106,16 @@ def test_introspection(session: nox.Session):
             "experimental-inspect",
             *options,
         )
-        # We look for the built library
-        lib_file = None
-        for file in Path(session.virtualenv.location).rglob("pyo3_pytests.*"):
-            if file.is_file():
-                lib_file = str(file.resolve())
-        _run_cargo_test(
-            session,
-            package="pyo3-introspection",
-            env={"PYO3_PYTEST_LIB_PATH": lib_file},
-        )
+    # We look for the built library
+    lib_file = None
+    for file in Path(session.virtualenv.location).rglob("pyo3_pytests.*"):
+        if file.is_file():
+            lib_file = str(file.resolve())
+    _run_cargo_test(
+        session,
+        package="pyo3-introspection",
+        env={"PYO3_PYTEST_LIB_PATH": lib_file},
+    )
 
 
 def _build_docs_for_ffi_check(session: nox.Session) -> None:
