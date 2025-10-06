@@ -281,16 +281,21 @@ impl Imports {
             };
             let mut import_for_module = Vec::new();
             for attr in attrs {
-                // TODO: we need to support nested classes like Foo.Bar
-                // In this case the import must be only Foo
-                let mut local_name = attr.clone();
+                // We split nested classes A.B in "A" (the part that must be imported and can have naming conflicts) and ".B"
+                let (root_attr, attr_path) = attr
+                    .split_once('.')
+                    .map_or((attr.as_str(), None), |(root, path)| (root, Some(path)));
+                let mut local_name = root_attr.to_owned();
+                let mut already_imported = false;
                 while let Some((possible_conflict_module, possible_conflict_attr)) =
                     local_name_to_module_and_attribute.get(&local_name)
                 {
                     if *possible_conflict_module == normalized_module
-                        && *possible_conflict_attr == attr
+                        && *possible_conflict_attr == root_attr
                     {
-                        break; // It's the same
+                        // It's the same
+                        already_imported = true;
+                        break;
                     }
                     // We generate a new local name
                     // TODO: we use currently a format like Foo2. It might be nicer to use something like ModFoo
@@ -306,16 +311,25 @@ impl Imports {
                         u64::from_str(local_name_number).unwrap_or(1) + 1
                     );
                 }
-                local_name_to_module_and_attribute.insert(
-                    local_name.clone(),
-                    (normalized_module.clone(), attr.clone()),
+                renaming.insert(
+                    (module.clone(), attr.clone()),
+                    if let Some(attr_path) = attr_path {
+                        format!("{local_name}.{attr_path}")
+                    } else {
+                        local_name.clone()
+                    },
                 );
-                renaming.insert((module.clone(), attr.clone()), local_name.clone());
-                import_for_module.push(if local_name == attr {
-                    attr
-                } else {
-                    format!("{attr} as {local_name}")
-                });
+                if !already_imported {
+                    local_name_to_module_and_attribute.insert(
+                        local_name.clone(),
+                        (normalized_module.clone(), root_attr.to_owned()),
+                    );
+                    import_for_module.push(if local_name == root_attr {
+                        local_name
+                    } else {
+                        format!("{root_attr} as {local_name}")
+                    });
+                }
             }
             if let Some(module) = normalized_module {
                 imports.push(format!(
@@ -565,7 +579,11 @@ mod tests {
                         },
                         TypeHintExpr::Attribute {
                             module: "foo".into(),
-                            attr: "A".into(),
+                            attr: "A.C".into(),
+                        },
+                        TypeHintExpr::Attribute {
+                            module: "foo".into(),
+                            attr: "A.D".into(),
                         },
                         TypeHintExpr::Attribute {
                             module: "foo".into(),
@@ -615,6 +633,6 @@ mod tests {
         );
         let mut output = String::new();
         imports.serialize_type_hint(&big_type, &mut output);
-        assert_eq!(output, "dict[A, A | A3 | B | A2]");
+        assert_eq!(output, "dict[A, A | A3.C | A3.D | B | A2]");
     }
 }
