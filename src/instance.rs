@@ -1999,6 +1999,15 @@ impl<T> Py<T> {
         unsafe { Self::from_non_null(NonNull::new_unchecked(ptr)) }
     }
 
+    /// Constructs a new `Py<T>` instance by taking ownership of the given FFI pointer.
+    ///
+    /// # Safety
+    ///
+    /// - `ptr` must be an owned Python reference or type `T`.
+    pub(crate) unsafe fn from_owned_non_null(ptr: NonNull<ffi::PyObject>) -> Self {
+        Py(ptr, PhantomData)
+    }
+
     /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.
     ///
     /// # Safety
