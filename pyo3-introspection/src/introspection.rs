@@ -458,6 +458,9 @@ struct ChunkArgument {
     annotation: Option<ChunkTypeHint>,
 }
 
+/// Variant of [`TypeHint`] that implements deserialization.
+///
+/// We keep separated type to allow them to evolve independently (this type will need to handle backward compatibility).
 enum ChunkTypeHint {
     Ast(ChunkTypeHintExpr),
     Plain(String),

@@ -14,7 +14,7 @@ pub mod types;
 /// ```
 /// use pyo3::inspect::TypeHint;
 ///
-/// const T: TypeHint = TypeHint::union(&[TypeHint::builtin("int"), TypeHint::module_member("b", "B")]);
+/// const T: TypeHint = TypeHint::union(&[TypeHint::builtin("int"), TypeHint::module_attr("b", "B")]);
 /// assert_eq!(T.to_string(), "int | b.B");
 /// ```
 #[derive(Clone, Copy)]
@@ -60,10 +60,10 @@ impl TypeHint {
     /// ```
     /// use pyo3::inspect::TypeHint;
     ///
-    /// const T: TypeHint = TypeHint::module_member("datetime", "time");
+    /// const T: TypeHint = TypeHint::module_attr("datetime", "time");
     /// assert_eq!(T.to_string(), "datetime.time");
     /// ```
-    pub const fn module_member(module: &'static str, attr: &'static str) -> Self {
+    pub const fn module_attr(module: &'static str, attr: &'static str) -> Self {
         Self {
             inner: TypeHintExpr::ModuleAttribute { module, attr },
         }
@@ -97,17 +97,18 @@ impl TypeHint {
         }
     }
 
-    /// Serialize the type for introspection
+    /// Serialize the type for introspection and return the number of written bytes
     ///
     /// We use the same AST as Python: https://docs.python.org/3/library/ast.html#abstract-grammar
     #[doc(hidden)]
     #[allow(clippy::incompatible_msrv)] // The introspection feature target 1.83+
-    pub const fn serialize_for_introspection(&self, mut output: &mut [u8]) {
+    pub const fn serialize_for_introspection(&self, mut output: &mut [u8]) -> usize {
+        let original_len = output.len();
         match &self.inner {
             TypeHintExpr::Builtin { id } => {
                 output = write_slice_and_move_forward(b"{\"type\":\"builtin\",\"id\":\"", output);
                 output = write_slice_and_move_forward(id.as_bytes(), output);
-                write_slice_and_move_forward(b"\"}", output);
+                output = write_slice_and_move_forward(b"\"}", output);
             }
             TypeHintExpr::ModuleAttribute { module, attr } => {
                 output =
@@ -115,7 +116,7 @@ impl TypeHint {
                 output = write_slice_and_move_forward(module.as_bytes(), output);
                 output = write_slice_and_move_forward(b"\",\"attr\":\"", output);
                 output = write_slice_and_move_forward(attr.as_bytes(), output);
-                write_slice_and_move_forward(b"\"}", output);
+                output = write_slice_and_move_forward(b"\"}", output);
             }
             TypeHintExpr::Union { elts } => {
                 output = write_slice_and_move_forward(b"{\"type\":\"union\",\"elts\":[", output);
@@ -124,27 +125,28 @@ impl TypeHint {
                     if i > 0 {
                         output = write_slice_and_move_forward(b",", output);
                     }
-                    output = write_type_hind_and_move_forward(&elts[i], output);
+                    output = write_type_hint_and_move_forward(&elts[i], output);
                     i += 1;
                 }
-                write_slice_and_move_forward(b"]}", output);
+                output = write_slice_and_move_forward(b"]}", output);
             }
             TypeHintExpr::Subscript { value, slice } => {
                 output =
                     write_slice_and_move_forward(b"{\"type\":\"subscript\",\"value\":", output);
-                output = write_type_hind_and_move_forward(value, output);
+                output = write_type_hint_and_move_forward(value, output);
                 output = write_slice_and_move_forward(b",\"slice\":[", output);
                 let mut i = 0;
                 while i < slice.len() {
                     if i > 0 {
                         output = write_slice_and_move_forward(b",", output);
                     }
-                    output = write_type_hind_and_move_forward(&slice[i], output);
+                    output = write_type_hint_and_move_forward(&slice[i], output);
                     i += 1;
                 }
-                write_slice_and_move_forward(b"]}", output);
+                output = write_slice_and_move_forward(b"]}", output);
             }
         }
+        original_len - output.len()
     }
 
     /// Length required by [`Self::serialize_for_introspection`]
@@ -217,6 +219,7 @@ impl fmt::Display for TypeHint {
 
 #[allow(clippy::incompatible_msrv)] // The experimental-inspect feature is targeting 1.83+
 const fn write_slice_and_move_forward<'a>(value: &[u8], output: &'a mut [u8]) -> &'a mut [u8] {
+    // TODO: use copy_from_slice with MSRV 1.87+
     let mut i = 0;
     while i < value.len() {
         output[i] = value[i];
@@ -226,14 +229,12 @@ const fn write_slice_and_move_forward<'a>(value: &[u8], output: &'a mut [u8]) ->
 }
 
 #[allow(clippy::incompatible_msrv)] // The experimental-inspect feature is targeting 1.83+
-const fn write_type_hind_and_move_forward<'a>(
+const fn write_type_hint_and_move_forward<'a>(
     value: &TypeHint,
     output: &'a mut [u8],
 ) -> &'a mut [u8] {
-    value.serialize_for_introspection(output);
-    output
-        .split_at_mut(value.serialized_len_for_introspection())
-        .1
+    let written = value.serialize_for_introspection(output);
+    output.split_at_mut(written).1
 }
 
 #[cfg(test)]
@@ -246,7 +247,7 @@ mod tests {
             &TypeHint::builtin("dict"),
             &[
                 TypeHint::union(&[TypeHint::builtin("int"), TypeHint::builtin("float")]),
-                TypeHint::module_member("datetime", "time"),
+                TypeHint::module_attr("datetime", "time"),
             ],
         );
         assert_eq!(T.to_string(), "dict[int | float, datetime.time]")
@@ -258,7 +259,7 @@ mod tests {
             &TypeHint::builtin("dict"),
             &[
                 TypeHint::union(&[TypeHint::builtin("int"), TypeHint::builtin("float")]),
-                TypeHint::module_member("datetime", "time"),
+                TypeHint::module_attr("datetime", "time"),
             ],
         );
         const SER_LEN: usize = T.serialized_len_for_introspection();

@@ -27,8 +27,8 @@ unsafe impl PyTypeCheck for PyWeakrefProxy {
 
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: TypeHint = TypeHint::union(&[
-        TypeHint::module_member("weakref", "ProxyType"),
-        TypeHint::module_member("weakref", "CallableProxyType"),
+        TypeHint::module_attr("weakref", "ProxyType"),
+        TypeHint::module_attr("weakref", "CallableProxyType"),
     ]);
 
     #[inline]

@@ -112,7 +112,7 @@ where
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: TypeHint = TypeHint::union(&[
-        TypeHint::module_member("typing", "Any"),
+        TypeHint::module_attr("typing", "Any"),
         TypeHint::builtin("None"),
     ]);
 

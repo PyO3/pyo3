@@ -281,6 +281,8 @@ impl Imports {
             };
             let mut import_for_module = Vec::new();
             for attr in attrs {
+                // TODO: we need to support nested classes like Foo.Bar
+                // In this case the import must be only Foo
                 let mut local_name = attr.clone();
                 while let Some((possible_conflict_module, possible_conflict_attr)) =
                     local_name_to_module_and_attribute.get(&local_name)
@@ -291,6 +293,7 @@ impl Imports {
                         break; // It's the same
                     }
                     // We generate a new local name
+                    // TODO: we use currently a format like Foo2. It might be nicer to use something like ModFoo
                     let number_of_digits_at_the_end = local_name
                         .bytes()
                         .rev()

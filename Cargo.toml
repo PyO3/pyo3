@@ -156,6 +156,7 @@ full = [
     "chrono-tz",
     "either",
     "experimental-async",
+    # "experimental-inspect", # Requires Rust 1.83+
     "eyre",
     "hashbrown",
     "indexmap",

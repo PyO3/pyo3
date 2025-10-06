@@ -50,7 +50,7 @@ pub unsafe trait PyTypeInfo: Sized {
 
     /// Provides the full python type as a type hint.
     #[cfg(feature = "experimental-inspect")]
-    const TYPE_HINT: TypeHint = TypeHint::module_member("typing", "Any");
+    const TYPE_HINT: TypeHint = TypeHint::module_attr("typing", "Any");
 
     /// Returns the PyTypeObject instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;

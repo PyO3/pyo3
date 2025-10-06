@@ -1098,14 +1098,14 @@ def test_introspection(session: nox.Session):
     if profile == "release":
         options.append("--release")
     session.run_always(
-            "maturin",
-            "develop",
-            "-m",
-            "./pytests/Cargo.toml",
-            "--features",
-            "experimental-inspect",
-            *options,
-        )
+        "maturin",
+        "develop",
+        "-m",
+        "./pytests/Cargo.toml",
+        "--features",
+        "experimental-inspect",
+        *options,
+    )
     # We look for the built library
     lib_file = None
     for file in Path(session.virtualenv.location).rglob("pyo3_pytests.*"):

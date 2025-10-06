@@ -421,13 +421,13 @@ impl IntrospectionNode<'_> {
             } => {
                 let mut annotation = quote! { <#rust_type as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE };
                 if is_final {
-                    annotation = quote! { #pyo3_crate_path::inspect::TypeHint::subscript(&#pyo3_crate_path::inspect::TypeHint::module_member("typing", "Final"), &[#annotation]) };
+                    annotation = quote! { #pyo3_crate_path::inspect::TypeHint::subscript(&#pyo3_crate_path::inspect::TypeHint::module_attr("typing", "Final"), &[#annotation]) };
                 }
                 content.push_tokens(serialize_type_hint(annotation, pyo3_crate_path));
             }
             Self::ConstantType { name, module } => {
                 let annotation = if let Some(module) = module {
-                    quote! { #pyo3_crate_path::inspect::TypeHint::module_member(#module, #name) }
+                    quote! { #pyo3_crate_path::inspect::TypeHint::module_attr(#module, #name) }
                 } else {
                     quote! { #pyo3_crate_path::inspect::TypeHint::builtin(#name) }
                 };

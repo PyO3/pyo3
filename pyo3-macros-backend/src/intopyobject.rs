@@ -367,22 +367,19 @@ impl<'a, const REF: bool> Container<'a, REF> {
                 Self::field_output_type(&None, &field.ty, ctx)
             }
             ContainerType::Tuple(tups) => {
-                let elements = tups
-                    .iter()
-                    .map(
-                        |TupleStructField {
-                             into_py_with,
-                             field,
-                         }| {
-                            Self::field_output_type(into_py_with, &field.ty, ctx)
-                        },
-                    )
-                    .collect::<Vec<_>>();
+                let elements = tups.iter().map(
+                    |TupleStructField {
+                         into_py_with,
+                         field,
+                     }| {
+                        Self::field_output_type(into_py_with, &field.ty, ctx)
+                    },
+                );
                 quote! { #pyo3_crate_path::inspect::TypeHint::subscript(&#pyo3_crate_path::inspect::TypeHint::builtin("tuple"), &[#(#elements),*]) }
             }
             ContainerType::Struct(_) => {
                 // TODO: implement using a Protocol?
-                quote! { #pyo3_crate_path::inspect::TypeHint::module_member("_typeshed", "Incomplete") }
+                quote! { #pyo3_crate_path::inspect::TypeHint::module_attr("_typeshed", "Incomplete") }
             }
         }
     }
@@ -396,7 +393,7 @@ impl<'a, const REF: bool> Container<'a, REF> {
         let pyo3_crate_path = &ctx.pyo3_path;
         if into_py_with.is_some() {
             // We don't know what into_py_with is doing
-            quote! { #pyo3_crate_path::inspect::TypeHint::module_member("_typeshed", "Incomplete") }
+            quote! { #pyo3_crate_path::inspect::TypeHint::module_attr("_typeshed", "Incomplete") }
         } else {
             let mut ty = ty.clone();
             elide_lifetimes(&mut ty);
@@ -482,11 +479,7 @@ impl<'a, const REF: bool> Enum<'a, REF> {
     #[cfg(feature = "experimental-inspect")]
     fn output_type(&self, ctx: &Ctx) -> TokenStream {
         let pyo3_crate_path = &ctx.pyo3_path;
-        let variants = self
-            .variants
-            .iter()
-            .map(|var| var.output_type(ctx))
-            .collect::<Vec<_>>();
+        let variants = self.variants.iter().map(|var| var.output_type(ctx));
         quote! {
             #pyo3_crate_path::inspect::TypeHint::union(&[#(#variants),*])
         }
@@ -606,13 +599,13 @@ pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Resu
                 }
                 syn::Data::Union(_) => {
                     // Not supported at this point
-                    quote! { #pyo3_crate_path::inspect::TypeHint::module_member("_typeshed", "Incomplete") }
+                    quote! { #pyo3_crate_path::inspect::TypeHint::module_attr("_typeshed", "Incomplete") }
                 }
             }
         } else {
             // We don't know how to deal with generic parameters
             // Blocked by https://github.com/rust-lang/rust/issues/76560
-            quote! { #pyo3_crate_path::inspect::TypeHint::module_member("_typeshed", "Incomplete") }
+            quote! { #pyo3_crate_path::inspect::TypeHint::module_attr("_typeshed", "Incomplete") }
         };
         quote! { const OUTPUT_TYPE: #pyo3_path::inspect::TypeHint = #output_type; }
     };
