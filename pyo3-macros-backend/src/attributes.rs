@@ -53,6 +53,7 @@ pub mod kw {
     syn::custom_keyword!(warn);
     syn::custom_keyword!(message);
     syn::custom_keyword!(category);
+    syn::custom_keyword!(from_py_object);
     syn::custom_keyword!(skip_from_py_object);
 }
 

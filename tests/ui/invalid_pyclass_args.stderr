@@ -1,4 +1,4 @@
-error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `immutable_type`, `mapping`, `module`, `name`, `ord`, `rename_all`, `sequence`, `set_all`, `str`, `subclass`, `unsendable`, `weakref`, `generic`, `skip_from_py_object`
+error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `immutable_type`, `mapping`, `module`, `name`, `ord`, `rename_all`, `sequence`, `set_all`, `str`, `subclass`, `unsendable`, `weakref`, `generic`, `from_py_object`, `skip_from_py_object`
  --> tests/ui/invalid_pyclass_args.rs:4:11
   |
 4 | #[pyclass(extend=pyo3::types::PyDict)]
@@ -46,7 +46,7 @@ error: expected string literal
 25 | #[pyclass(module = my_module)]
    |                    ^^^^^^^^^
 
-error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `immutable_type`, `mapping`, `module`, `name`, `ord`, `rename_all`, `sequence`, `set_all`, `str`, `subclass`, `unsendable`, `weakref`, `generic`, `skip_from_py_object`
+error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `immutable_type`, `mapping`, `module`, `name`, `ord`, `rename_all`, `sequence`, `set_all`, `str`, `subclass`, `unsendable`, `weakref`, `generic`, `from_py_object`, `skip_from_py_object`
   --> tests/ui/invalid_pyclass_args.rs:28:11
    |
 28 | #[pyclass(weakrev)]
@@ -161,6 +161,25 @@ error: The format string syntax cannot be used with enums
     |
 171 | #[pyclass(eq, str = "Stuff...")]
     |                     ^^^^^^^^^^
+
+error: `skip_from_py_object` and `from_py_object` are mutually exclusive
+   --> tests/ui/invalid_pyclass_args.rs:184:27
+    |
+184 | #[pyclass(from_py_object, skip_from_py_object)]
+    |                           ^^^^^^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `StructFromPyObjectNoClone: Clone` is not satisfied
+   --> tests/ui/invalid_pyclass_args.rs:190:11
+    |
+190 | #[pyclass(from_py_object)]
+    |           ^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `StructFromPyObjectNoClone`
+    |
+    = help: see issue #48214
+help: consider annotating `StructFromPyObjectNoClone` with `#[derive(Clone)]`
+    |
+191 + #[derive(Clone)]
+192 | struct StructFromPyObjectNoClone {
+    |
 
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
   --> tests/ui/invalid_pyclass_args.rs:37:1
