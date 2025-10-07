@@ -205,6 +205,8 @@ use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 
 pub(crate) mod impl_;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use impl_::{PyClassBorrowChecker, PyClassObjectLayout};
 
 /// A wrapper type for an immutably borrowed value from a [`Bound<'py, T>`].
@@ -477,7 +479,7 @@ impl<'py, T: PyClass> IntoPyObject<'py> for PyRef<'py, T> {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = T::PYTHON_TYPE;
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.inner.clone())
@@ -490,7 +492,7 @@ impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &'a PyRef<'py, T> {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = T::PYTHON_TYPE;
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.inner.as_borrowed())
@@ -654,7 +656,7 @@ impl<'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for PyRefMut<'py, T> {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = T::PYTHON_TYPE;
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.inner.clone())
@@ -667,7 +669,7 @@ impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &'a PyRefMut<'py
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = T::PYTHON_TYPE;
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.inner.as_borrowed())

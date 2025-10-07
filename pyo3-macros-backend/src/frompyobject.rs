@@ -1,7 +1,7 @@
 use crate::attributes::{DefaultAttribute, FromPyWithAttribute, RenamingRule};
 use crate::derive_attributes::{ContainerAttributes, FieldAttributes, FieldGetter};
 #[cfg(feature = "experimental-inspect")]
-use crate::introspection::{elide_lifetimes, ConcatenationBuilder};
+use crate::introspection::elide_lifetimes;
 use crate::utils::{self, Ctx};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
@@ -100,12 +100,11 @@ impl<'a> Enum<'a> {
     }
 
     #[cfg(feature = "experimental-inspect")]
-    fn write_input_type(&self, builder: &mut ConcatenationBuilder, ctx: &Ctx) {
-        for (i, var) in self.variants.iter().enumerate() {
-            if i > 0 {
-                builder.push_str(" | ");
-            }
-            var.write_input_type(builder, ctx);
+    fn input_type(&self, ctx: &Ctx) -> TokenStream {
+        let pyo3_crate_path = &ctx.pyo3_path;
+        let variants = self.variants.iter().map(|var| var.input_type(ctx));
+        quote! {
+            #pyo3_crate_path::inspect::TypeHint::union(&[#(#variants),*])
         }
     }
 }
@@ -458,48 +457,42 @@ impl<'a> Container<'a> {
     }
 
     #[cfg(feature = "experimental-inspect")]
-    fn write_input_type(&self, builder: &mut ConcatenationBuilder, ctx: &Ctx) {
+    fn input_type(&self, ctx: &Ctx) -> TokenStream {
+        let pyo3_crate_path = &ctx.pyo3_path;
         match &self.ty {
             ContainerType::StructNewtype(_, from_py_with, ty) => {
-                Self::write_field_input_type(from_py_with, ty, builder, ctx);
+                Self::field_input_type(from_py_with, ty, ctx)
             }
             ContainerType::TupleNewtype(from_py_with, ty) => {
-                Self::write_field_input_type(from_py_with, ty, builder, ctx);
+                Self::field_input_type(from_py_with, ty, ctx)
             }
             ContainerType::Tuple(tups) => {
-                builder.push_str("tuple[");
-                for (i, TupleStructField { from_py_with, ty }) in tups.iter().enumerate() {
-                    if i > 0 {
-                        builder.push_str(", ");
-                    }
-                    Self::write_field_input_type(from_py_with, ty, builder, ctx);
-                }
-                builder.push_str("]");
+                let elements = tups.iter().map(|TupleStructField { from_py_with, ty }| {
+                    Self::field_input_type(from_py_with, ty, ctx)
+                });
+                quote! { #pyo3_crate_path::inspect::TypeHint::subscript(&#pyo3_crate_path::inspect::TypeHint::builtin("tuple"), &[#(#elements),*]) }
             }
             ContainerType::Struct(_) => {
                 // TODO: implement using a Protocol?
-                builder.push_str("_typeshed.Incomplete")
+                quote! { #pyo3_crate_path::inspect::TypeHint::module_attr("_typeshed", "Incomplete") }
             }
         }
     }
 
     #[cfg(feature = "experimental-inspect")]
-    fn write_field_input_type(
+    fn field_input_type(
         from_py_with: &Option<FromPyWithAttribute>,
         ty: &syn::Type,
-        builder: &mut ConcatenationBuilder,
         ctx: &Ctx,
-    ) {
+    ) -> TokenStream {
+        let pyo3_crate_path = &ctx.pyo3_path;
         if from_py_with.is_some() {
             // We don't know what from_py_with is doing
-            builder.push_str("_typeshed.Incomplete")
+            quote! { #pyo3_crate_path::inspect::TypeHint::module_attr("_typeshed", "Incomplete") }
         } else {
             let mut ty = ty.clone();
             elide_lifetimes(&mut ty);
-            let pyo3_crate_path = &ctx.pyo3_path;
-            builder.push_tokens(
-                quote! { <#ty as #pyo3_crate_path::FromPyObject<'_, '_>>::INPUT_TYPE.as_bytes() },
-            )
+            quote! { <#ty as #pyo3_crate_path::FromPyObject<'_, '_>>::INPUT_TYPE }
         }
     }
 }
@@ -569,34 +562,31 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
 
     #[cfg(feature = "experimental-inspect")]
     let input_type = {
-        let mut builder = ConcatenationBuilder::default();
-        if tokens
+        let pyo3_crate_path = &ctx.pyo3_path;
+        let input_type = if tokens
             .generics
             .params
             .iter()
             .all(|p| matches!(p, syn::GenericParam::Lifetime(_)))
         {
             match &tokens.data {
-                syn::Data::Enum(en) => {
-                    Enum::new(en, &tokens.ident, options)?.write_input_type(&mut builder, ctx)
-                }
+                syn::Data::Enum(en) => Enum::new(en, &tokens.ident, options)?.input_type(ctx),
                 syn::Data::Struct(st) => {
                     let ident = &tokens.ident;
                     Container::new(&st.fields, parse_quote!(#ident), options.clone())?
-                        .write_input_type(&mut builder, ctx)
+                        .input_type(ctx)
                 }
                 syn::Data::Union(_) => {
                     // Not supported at this point
-                    builder.push_str("_typeshed.Incomplete")
+                    quote! { #pyo3_crate_path::inspect::TypeHint::module_attr("_typeshed", "Incomplete") }
                 }
             }
         } else {
             // We don't know how to deal with generic parameters
             // Blocked by https://github.com/rust-lang/rust/issues/76560
-            builder.push_str("_typeshed.Incomplete")
+            quote! { #pyo3_crate_path::inspect::TypeHint::module_attr("_typeshed", "Incomplete") }
         };
-        let input_type = builder.into_token_stream(&ctx.pyo3_path);
-        quote! { const INPUT_TYPE: &'static str = unsafe { ::std::str::from_utf8_unchecked(#input_type) }; }
+        quote! { const INPUT_TYPE: #pyo3_crate_path::inspect::TypeHint = #input_type; }
     };
     #[cfg(not(feature = "experimental-inspect"))]
     let input_type = quote! {};

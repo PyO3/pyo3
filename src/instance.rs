@@ -4,6 +4,8 @@ use crate::call::PyCallArgs;
 use crate::conversion::IntoPyObject;
 use crate::err::{PyErr, PyResult};
 use crate::impl_::pycell::PyClassObject;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::internal_tricks::ptr_from_ref;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
@@ -2196,7 +2198,7 @@ where
     type Error = DowncastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = T::PYTHON_TYPE;
+    const INPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
@@ -2211,7 +2213,7 @@ where
     type Error = DowncastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = T::PYTHON_TYPE;
+    const INPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {

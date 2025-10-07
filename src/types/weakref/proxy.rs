@@ -1,6 +1,8 @@
 use super::PyWeakrefMethods;
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeCheck;
@@ -24,7 +26,10 @@ unsafe impl PyTypeCheck for PyWeakrefProxy {
     const NAME: &'static str = "weakref.ProxyTypes";
 
     #[cfg(feature = "experimental-inspect")]
-    const PYTHON_TYPE: &'static str = "weakref.ProxyType | weakref.CallableProxyType";
+    const TYPE_HINT: TypeHint = TypeHint::union(&[
+        TypeHint::module_attr("weakref", "ProxyType"),
+        TypeHint::module_attr("weakref", "CallableProxyType"),
+    ]);
 
     #[inline]
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
