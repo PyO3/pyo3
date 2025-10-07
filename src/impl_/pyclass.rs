@@ -1444,7 +1444,7 @@ mod tests {
 
         for items in FrozenClass::items_iter() {
             methods.extend(items.methods.iter().map(|m| match m {
-                MaybeRuntimePyMethodDef::Static(m) => m.clone(),
+                MaybeRuntimePyMethodDef::Static(m) => *m,
                 MaybeRuntimePyMethodDef::Runtime(r) => r(),
             }));
             slots.extend_from_slice(items.slots);
@@ -1482,7 +1482,7 @@ mod tests {
 
         for items in FrozenClass::items_iter() {
             methods.extend(items.methods.iter().map(|m| match m {
-                MaybeRuntimePyMethodDef::Static(m) => m.clone(),
+                MaybeRuntimePyMethodDef::Static(m) => *m,
                 MaybeRuntimePyMethodDef::Runtime(r) => r(),
             }));
             slots.extend_from_slice(items.slots);
