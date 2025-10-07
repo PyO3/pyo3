@@ -8,14 +8,14 @@ static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_name: c_str!("string_sum").as_ptr(),
     m_doc: c_str!("A Python module written in Rust.").as_ptr(),
     m_size: 0,
-    m_methods: unsafe { METHODS.as_ptr().cast_mut() },
+    m_methods: unsafe { METHODS as *const [PyMethodDef] as *mut PyMethodDef },
     m_slots: std::ptr::null_mut(),
     m_traverse: None,
     m_clear: None,
     m_free: None,
 };
 
-static mut METHODS: &mut [PyMethodDef] = &mut [
+static mut METHODS: &[PyMethodDef] = &[
     PyMethodDef {
         ml_name: c_str!("sum_as_string").as_ptr(),
         ml_meth: PyMethodDefPointer {

@@ -76,14 +76,14 @@ static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_name: c_str!("string_sum").as_ptr(),
     m_doc: c_str!("A Python module written in Rust.").as_ptr(),
     m_size: 0,
-    m_methods: unsafe { METHODS.as_ptr().cast_mut() },
-    m_slots: unsafe { SLOTS.as_ptr().cast_mut() },
+    m_methods: unsafe { METHODS as *const [PyMethodDef] as *mut PyMethodDef },
+    m_slots: unsafe { SLOTS as *const [PyModuleDef_Slot] as *mut PyModuleDef_Slot },
     m_traverse: None,
     m_clear: None,
     m_free: None,
 };
 
-static mut METHODS: &mut [PyMethodDef] = &mut [
+static mut METHODS: &[PyMethodDef] = &[
     PyMethodDef {
         ml_name: c_str!("sum_as_string").as_ptr(),
         ml_meth: PyMethodDefPointer {
@@ -96,7 +96,7 @@ static mut METHODS: &mut [PyMethodDef] = &mut [
     PyMethodDef::zeroed(),
 ];
 
-static mut SLOTS: &mut [PyModuleDef_Slot] = &mut [
+static mut SLOTS: &[PyModuleDef_Slot] = &[
     PyModuleDef_Slot {
         slot: Py_mod_multiple_interpreters,
         value: Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
