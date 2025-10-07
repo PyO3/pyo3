@@ -419,7 +419,7 @@ int_convert_u64_or_i64!(
     true
 );
 
-#[cfg(all(not(Py_LIMITED_API), not(GraalPy)))]
+#[cfg(not(Py_LIMITED_API))]
 mod fast_128bit_int_conversion {
     use super::*;
 
@@ -566,7 +566,7 @@ pub(crate) fn int_from_ne_bytes<'py, const IS_SIGNED: bool>(
 }
 
 // For ABI3 we implement the conversion manually.
-#[cfg(any(Py_LIMITED_API, GraalPy))]
+#[cfg(Py_LIMITED_API)]
 mod slow_128bit_int_conversion {
     use super::*;
     use crate::types::any::PyAnyMethods as _;
