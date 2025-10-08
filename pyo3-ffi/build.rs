@@ -1,8 +1,8 @@
 use pyo3_build_config::{
     bail, ensure, print_feature_cfgs,
     pyo3_build_script_impl::{
-        cargo_env_var, env_var, errors::Result, is_linking_libpython, resolve_interpreter_config,
-        InterpreterConfig, PythonVersion,
+        cargo_env_var, env_var, errors::Result, is_linking_libpython, resolve_build_config,
+        target_triple_from_env, BuildConfig, BuildConfigSource, InterpreterConfig, PythonVersion,
     },
     warn, PythonImplementation,
 };
@@ -149,7 +149,8 @@ fn ensure_target_pointer_width(interpreter_config: &InterpreterConfig) -> Result
     Ok(())
 }
 
-fn emit_link_config(interpreter_config: &InterpreterConfig) -> Result<()> {
+fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
+    let interpreter_config = &build_config.interpreter_config;
     let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
 
     println!(
@@ -171,6 +172,13 @@ fn emit_link_config(interpreter_config: &InterpreterConfig) -> Result<()> {
 
     if let Some(lib_dir) = &interpreter_config.lib_dir {
         println!("cargo:rustc-link-search=native={lib_dir}");
+    } else if matches!(build_config.source, BuildConfigSource::CrossCompile) {
+        warn!(
+            "The output binary will link to libpython, \
+            but PYO3_CROSS_LIB_DIR environment variable is not set. \
+            Ensure that the target Python library directory is \
+            in the rustc native library search path."
+        );
     }
 
     Ok(())
@@ -184,20 +192,22 @@ fn emit_link_config(interpreter_config: &InterpreterConfig) -> Result<()> {
 /// Emits the cargo configuration based on this config as well as a few checks of the Rust compiler
 /// version to enable features which aren't supported on MSRV.
 fn configure_pyo3() -> Result<()> {
-    let interpreter_config = resolve_interpreter_config()?;
+    let target = target_triple_from_env();
+    let build_config = resolve_build_config(&target)?;
+    let interpreter_config = &build_config.interpreter_config;
 
     if env_var("PYO3_PRINT_CONFIG").is_some_and(|os_str| os_str == "1") {
-        print_config_and_exit(&interpreter_config);
+        print_config_and_exit(interpreter_config);
     }
 
-    ensure_python_version(&interpreter_config)?;
-    ensure_target_pointer_width(&interpreter_config)?;
+    ensure_python_version(interpreter_config)?;
+    ensure_target_pointer_width(interpreter_config)?;
 
     // Serialize the whole interpreter config into DEP_PYTHON_PYO3_CONFIG env var.
     interpreter_config.to_cargo_dep_env()?;
 
     if is_linking_libpython() && !interpreter_config.suppress_build_script_link_lines {
-        emit_link_config(&interpreter_config)?;
+        emit_link_config(&build_config)?;
     }
 
     for cfg in interpreter_config.build_script_outputs() {
