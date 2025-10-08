@@ -8,13 +8,13 @@ pub static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_doc: c_str!("A library for generating sequential ids, written in Rust.").as_ptr(),
     m_size: mem::size_of::<sequential_state>() as Py_ssize_t,
     m_methods: std::ptr::null_mut(),
-    m_slots: unsafe { SEQUENTIAL_SLOTS.as_ptr().cast_mut() },
+    m_slots: unsafe { SEQUENTIAL_SLOTS as *const [PyModuleDef_Slot] as *mut PyModuleDef_Slot },
     m_traverse: Some(sequential_traverse),
     m_clear: Some(sequential_clear),
     m_free: Some(sequential_free),
 };
 
-static mut SEQUENTIAL_SLOTS: &mut [PyModuleDef_Slot] = &mut [
+static mut SEQUENTIAL_SLOTS: &[PyModuleDef_Slot] = &[
     PyModuleDef_Slot {
         slot: Py_mod_exec,
         value: sequential_exec as *mut c_void,

@@ -28,7 +28,7 @@ static mut METHODS: &[PyMethodDef] = &[
     PyMethodDef::zeroed(),
 ];
 
-static mut SLOTS: &mut [PyModuleDef_Slot] = &mut [
+static mut SLOTS: &[PyModuleDef_Slot] = &[
     PyModuleDef_Slot {
         slot: Py_mod_multiple_interpreters,
         value: Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
