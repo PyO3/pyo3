@@ -461,6 +461,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             // removed from `InterpreterConfig`?
             config.abi3 |= is_abi3();
             config.fixup_for_abi3_version(get_abi3_version())?;
+
             Ok(config)
         })
     }
