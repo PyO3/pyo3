@@ -101,23 +101,22 @@ impl<'py> IntoPyObject<'py> for &PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{PyAnyMethods, PyString};
-    use crate::{Bound, IntoPyObject, IntoPyObjectExt, Python};
-    use std::borrow::Cow;
-    use std::ffi::{OsStr, OsString};
+    use super::*;
+    use crate::{
+        types::{PyAnyMethods, PyString},
+        IntoPyObjectExt,
+    };
+    use std::ffi::OsStr;
     use std::fmt::Debug;
     #[cfg(unix)]
     use std::os::unix::ffi::OsStringExt;
     #[cfg(windows)]
     use std::os::windows::ffi::OsStringExt;
-    use std::path::{Path, PathBuf};
 
     #[test]
     #[cfg(not(windows))]
     fn test_non_utf8_conversion() {
         Python::attach(|py| {
-            use crate::types::PyAnyMethods;
-            use std::ffi::OsStr;
             #[cfg(not(target_os = "wasi"))]
             use std::os::unix::ffi::OsStrExt;
             #[cfg(target_os = "wasi")]
@@ -195,6 +194,7 @@ mod tests {
             let os_str = { OsString::from_vec(vec![250, 251, 252, 253, 254, 255, 0, 255]) };
 
             // This cannot be borrowed because it is not valid UTF-8
+            #[cfg(any(unix, windows))]
             test_extract::<OsStr>(py, &os_str, false);
         });
     }

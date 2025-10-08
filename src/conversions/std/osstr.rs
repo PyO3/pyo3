@@ -298,6 +298,7 @@ mod tests {
             let os_str = { OsString::from_vec(vec![250, 251, 252, 253, 254, 255, 0, 255]) };
 
             // This cannot be borrowed because it is not valid UTF-8
+            #[cfg(any(windows, unix))]
             test_extract::<OsStr>(py, &os_str, false);
         });
     }
