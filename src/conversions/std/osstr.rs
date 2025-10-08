@@ -186,8 +186,12 @@ impl<'py> IntoPyObject<'py> for &OsString {
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAnyMethods, PyString, PyStringMethods};
-    use crate::{BoundObject, IntoPyObject, Python};
+    use crate::{Bound, BoundObject, IntoPyObject, Python};
     use std::fmt::Debug;
+    #[cfg(unix)]
+    use std::os::unix::ffi::OsStringExt;
+    #[cfg(windows)]
+    use std::os::windows::ffi::OsStringExt;
     use std::{
         borrow::Cow,
         ffi::{OsStr, OsString},
@@ -266,15 +270,35 @@ mod tests {
     #[test]
     fn test_extract_cow() {
         Python::attach(|py| {
-            fn test_extract(py: Python<'_>, input: &str) {
+            fn test_extract<'py, T>(py: Python<'py>, input: &T, is_borrowed: bool)
+            where
+                for<'a> &'a T: IntoPyObject<'py, Output = Bound<'py, PyString>>,
+                for<'a> <&'a T as IntoPyObject<'py>>::Error: Debug,
+                T: AsRef<OsStr> + ?Sized,
+            {
                 let pystring = input.into_pyobject(py).unwrap();
                 let cow: Cow<'_, OsStr> = pystring.extract().unwrap();
-                assert_eq!(cow, AsRef::<OsStr>::as_ref(input));
+                assert_eq!(cow, input.as_ref());
+                assert_eq!(is_borrowed, matches!(cow, Cow::Borrowed(_)));
             }
 
-            // Test extracting both valid UTF-8 and non-UTF-8 strings
-            test_extract(py, "Hello\0\n🐍");
-            test_extract(py, "Hello, world!");
+            // On Python 3.10+ or when not using the limited API, we can borrow strings from python
+            let can_borrow_str = cfg!(any(Py_3_10, not(Py_LIMITED_API)));
+            // This can be borrowed because it is valid UTF-8
+            test_extract::<str>(py, "Hello\0\n🐍", can_borrow_str);
+            test_extract::<str>(py, "Hello, world!", can_borrow_str);
+
+            #[cfg(windows)]
+            let os_str = {
+                // 'A', unpaired surrogate, 'B'
+                OsString::from_wide(&['A' as u16, 0xD800, 'B' as u16])
+            };
+
+            #[cfg(unix)]
+            let os_str = { OsString::from_vec(vec![250, 251, 252, 253, 254, 255, 0, 255]) };
+
+            // This cannot be borrowed because it is not valid UTF-8
+            test_extract::<OsStr>(py, &os_str, false);
         });
     }
 }
