@@ -461,20 +461,6 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             // removed from `InterpreterConfig`?
             config.abi3 |= is_abi3();
             config.fixup_for_abi3_version(get_abi3_version())?;
-
-            // Fixup lib_name if it's not set
-            if config.lib_name.is_none() {
-                if let Ok(Ok(target)) = env::var("TARGET").map(|target| target.parse::<Triple>()) {
-                    config.lib_name = default_lib_name_for_target(
-                        config.version,
-                        config.implementation,
-                        config.abi3,
-                        config.is_free_threaded(),
-                        &target,
-                    )
-                }
-            }
-
             Ok(config)
         })
     }
@@ -576,6 +562,23 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             extra_build_script_lines,
             python_framework_prefix,
         })
+    }
+
+    /// Helper function to apply a default lib_name if none is set in `PYO3_CONFIG_FILE`.
+    ///
+    /// This requires knowledge of the final target, so cannot be done when the config file is
+    /// inlined into `pyo3-build-config` at build time and instead needs to be done whenever
+    /// loading the inlined config file.
+    pub(crate) fn apply_default_lib_name_to_config_file(&mut self, target: &Triple) {
+        if self.lib_name.is_none() {
+            self.lib_name = Some(default_lib_name_for_target(
+                self.version,
+                self.implementation,
+                self.abi3,
+                self.is_free_threaded(),
+                target,
+            ));
+        }
     }
 
     #[cfg(feature = "generate-import-lib")]
@@ -1576,7 +1579,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
     let implementation = cross_compile_config
         .implementation
         .unwrap_or(PythonImplementation::CPython);
-    let gil_disabled = cross_compile_config.abiflags.as_deref() == Some("t");
+    let gil_disabled: bool = cross_compile_config.abiflags.as_deref() == Some("t");
 
     let lib_name = default_lib_name_for_target(
         version,
@@ -1612,7 +1615,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
         version,
         shared: true,
         abi3,
-        lib_name,
+        lib_name: Some(lib_name),
         lib_dir,
         executable: None,
         pointer_width: None,
@@ -1691,15 +1694,6 @@ fn load_cross_compile_config(
         default_cross_compile(&cross_compile_config)?
     };
 
-    if config.lib_name.is_some() && config.lib_dir.is_none() {
-        warn!(
-            "The output binary will link to libpython, \
-            but PYO3_CROSS_LIB_DIR environment variable is not set. \
-            Ensure that the target Python library directory is \
-            in the rustc native library search path."
-        );
-    }
-
     Ok(config)
 }
 
@@ -1707,22 +1701,18 @@ fn load_cross_compile_config(
 const WINDOWS_ABI3_LIB_NAME: &str = "python3";
 const WINDOWS_ABI3_DEBUG_LIB_NAME: &str = "python3_d";
 
+/// Generates the default library name for the target platform.
 fn default_lib_name_for_target(
     version: PythonVersion,
     implementation: PythonImplementation,
     abi3: bool,
     gil_disabled: bool,
     target: &Triple,
-) -> Option<String> {
+) -> String {
     if target.operating_system == OperatingSystem::Windows {
-        Some(
-            default_lib_name_windows(version, implementation, abi3, false, false, gil_disabled)
-                .unwrap(),
-        )
-    } else if is_linking_libpython_for_target(target) {
-        Some(default_lib_name_unix(version, implementation, None, gil_disabled).unwrap())
+        default_lib_name_windows(version, implementation, abi3, false, false, gil_disabled).unwrap()
     } else {
-        None
+        default_lib_name_unix(version, implementation, None, gil_disabled).unwrap()
     }
 }
 
@@ -3225,5 +3215,80 @@ mod tests {
         let _ = InterpreterConfig::from_pyo3_config_file_env();
         // it's possible that other env vars were also read, hence just checking for contains
         READ_ENV_VARS.with(|vars| assert!(vars.borrow().contains(&"PYO3_CONFIG_FILE".to_string())));
+    }
+
+    #[test]
+    fn test_apply_default_lib_name_to_config_file() {
+        let mut config = InterpreterConfig {
+            implementation: PythonImplementation::CPython,
+            version: PythonVersion { major: 3, minor: 9 },
+            shared: true,
+            abi3: false,
+            lib_name: None,
+            lib_dir: None,
+            executable: None,
+            pointer_width: None,
+            build_flags: BuildFlags::default(),
+            suppress_build_script_link_lines: false,
+            extra_build_script_lines: vec![],
+            python_framework_prefix: None,
+        };
+
+        let unix = Triple::from_str("x86_64-unknown-linux-gnu").unwrap();
+        let win_x64 = Triple::from_str("x86_64-pc-windows-msvc").unwrap();
+        let win_arm64 = Triple::from_str("aarch64-pc-windows-msvc").unwrap();
+
+        config.apply_default_lib_name_to_config_file(&unix);
+        assert_eq!(config.lib_name, Some("python3.9".into()));
+
+        config.lib_name = None;
+        config.apply_default_lib_name_to_config_file(&win_x64);
+        assert_eq!(config.lib_name, Some("python39".into()));
+
+        config.lib_name = None;
+        config.apply_default_lib_name_to_config_file(&win_arm64);
+        assert_eq!(config.lib_name, Some("python39".into()));
+
+        // PyPy
+        config.implementation = PythonImplementation::PyPy;
+        config.lib_name = None;
+        config.apply_default_lib_name_to_config_file(&unix);
+        assert_eq!(config.lib_name, Some("pypy3.9-c".into()));
+
+        config.implementation = PythonImplementation::CPython;
+
+        // Free-threaded
+        config.build_flags.0.insert(BuildFlag::Py_GIL_DISABLED);
+        config.version = PythonVersion {
+            major: 3,
+            minor: 13,
+        };
+        config.lib_name = None;
+        config.apply_default_lib_name_to_config_file(&unix);
+        assert_eq!(config.lib_name, Some("python3.13t".into()));
+
+        config.lib_name = None;
+        config.apply_default_lib_name_to_config_file(&win_x64);
+        assert_eq!(config.lib_name, Some("python313t".into()));
+
+        config.lib_name = None;
+        config.apply_default_lib_name_to_config_file(&win_arm64);
+        assert_eq!(config.lib_name, Some("python313t".into()));
+
+        config.build_flags.0.remove(&BuildFlag::Py_GIL_DISABLED);
+
+        // abi3
+        config.abi3 = true;
+        config.lib_name = None;
+        config.apply_default_lib_name_to_config_file(&unix);
+        assert_eq!(config.lib_name, Some("python3.13".into()));
+
+        config.lib_name = None;
+        config.apply_default_lib_name_to_config_file(&win_x64);
+        assert_eq!(config.lib_name, Some("python3".into()));
+
+        config.lib_name = None;
+        config.apply_default_lib_name_to_config_file(&win_arm64);
+        assert_eq!(config.lib_name, Some("python3".into()));
     }
 }
