@@ -419,7 +419,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         let pointer_width = parse_key!(sysconfigdata, "SIZEOF_VOID_P")
             .map(|bytes_width: u32| bytes_width * 8)
             .ok();
-        let build_flags: BuildFlags = BuildFlags::from_sysconfigdata(sysconfigdata);
+        let build_flags = BuildFlags::from_sysconfigdata(sysconfigdata);
 
         Ok(InterpreterConfig {
             implementation,
