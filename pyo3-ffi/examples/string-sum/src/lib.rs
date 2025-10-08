@@ -9,7 +9,7 @@ static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_doc: c_str!("A Python module written in Rust.").as_ptr(),
     m_size: 0,
     m_methods: unsafe { METHODS as *const [PyMethodDef] as *mut PyMethodDef },
-    m_slots: std::ptr::null_mut(),
+    m_slots: unsafe { SLOTS as *const [PyModuleDef_Slot] as *mut PyModuleDef_Slot },
     m_traverse: None,
     m_clear: None,
     m_free: None,
