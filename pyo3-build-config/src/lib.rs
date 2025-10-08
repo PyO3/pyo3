@@ -278,7 +278,7 @@ pub mod pyo3_build_script_impl {
         // CONFIG_FILE is generated in build.rs, so it's content can vary
         #[allow(unknown_lints, clippy::const_is_empty)]
         if let Some(mut interpreter_config) = config_from_pyo3_config_file_env() {
-            interpreter_config.apply_default_lib_name_to_config_file(&target);
+            interpreter_config.apply_default_lib_name_to_config_file(target);
             interpreter_config.generate_import_libs()?;
             Ok(BuildConfig {
                 interpreter_config,
