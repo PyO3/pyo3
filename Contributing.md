@@ -184,7 +184,7 @@ PyO3 supports all officially supported Python versions, as well as the latest Py
 If you plan to add support for a pre-release version of CPython, here's a (non-exhaustive) checklist:
 
  - [ ] Wait until the last alpha release (usually alpha7), since ABI is not guaranteed until the first beta release
- - [ ] Add prerelease_ver-dev (e.g. `3.14-dev`) to `‎.github/workflows/ci.yml`, and bump version in `noxfile.py`, `pyo3-ffi/Cargo.toml` under `max-version` within  `[package.metadata.cpython]`, and `max` within `pyo3-ffi/build.rs`
+ - [ ] Add prerelease_ver-dev (e.g. `3.14-dev`) to `.github/workflows/ci.yml`, and bump version in `noxfile.py`, `pyo3-ffi/Cargo.toml` under `max-version` within  `[package.metadata.cpython]`, and `max` within `pyo3-ffi/build.rs`
 - [ ] Add a new abi3-prerelease feature for the version (e.g. `abi3-py314`)
    - In `pyo3-build-config/Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease"] and abi3-prerelease to ["abi3"]
    - In `pyo3-ffi/Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease", "pyo3-build-config/abi3-most_current_stable"] and abi3-prerelease to ["abi3", "pyo3-build-config/abi3-prerelease"]
