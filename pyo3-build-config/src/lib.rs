@@ -119,7 +119,7 @@ pub fn get() -> &'static InterpreterConfig {
             .map(|path| path.exists())
             .unwrap_or(false);
 
-        // CONFIG_FILE is generated in build.rs, so it's content can vary
+        // CONFIG_FILE is generated in build.rs, so its content can vary
         #[allow(unknown_lints, clippy::const_is_empty)]
         if let Some(interpreter_config) = InterpreterConfig::from_cargo_dep_env() {
             interpreter_config
@@ -140,7 +140,7 @@ pub fn get() -> &'static InterpreterConfig {
 const CONFIG_FILE: &str = include_str!(concat!(env!("OUT_DIR"), "/pyo3-build-config-file.txt"));
 
 /// Build configuration discovered by `pyo3-build-config` build script. Not aware of
-/// cross-compilation settings.
+/// cross-compilation settings. Not generated if `PYO3_CONFIG_FILE` is set.
 #[doc(hidden)]
 #[cfg(feature = "resolve-config")]
 const HOST_CONFIG: &str = include_str!(concat!(env!("OUT_DIR"), "/pyo3-build-config.txt"));

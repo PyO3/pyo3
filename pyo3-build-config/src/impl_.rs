@@ -2,7 +2,7 @@
 //! and its build script.
 
 // Optional python3.dll import library generator for Windows
-#[cfg(feature = "python3-dll-a")]
+#[cfg(feature = "generate-import-lib")]
 #[path = "import_lib.rs"]
 mod import_lib;
 
@@ -419,7 +419,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         let pointer_width = parse_key!(sysconfigdata, "SIZEOF_VOID_P")
             .map(|bytes_width: u32| bytes_width * 8)
             .ok();
-        let build_flags = BuildFlags::from_sysconfigdata(sysconfigdata);
+        let build_flags: BuildFlags = BuildFlags::from_sysconfigdata(sysconfigdata);
 
         Ok(InterpreterConfig {
             implementation,
@@ -461,6 +461,19 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             // removed from `InterpreterConfig`?
             config.abi3 |= is_abi3();
             config.fixup_for_abi3_version(get_abi3_version())?;
+
+            // Fixup lib_name if it's not set
+            if config.lib_name.is_none() {
+                if let Ok(Ok(target)) = env::var("TARGET").map(|target| target.parse::<Triple>()) {
+                    config.lib_name = default_lib_name_for_target(
+                        config.version,
+                        config.implementation,
+                        config.abi3,
+                        config.is_free_threaded(),
+                        &target,
+                    )
+                }
+            }
 
             Ok(config)
         })
@@ -548,15 +561,6 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         let implementation = implementation.unwrap_or(PythonImplementation::CPython);
         let abi3 = abi3.unwrap_or(false);
         let build_flags = build_flags.unwrap_or_default();
-        let gil_disabled = build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED);
-        // Fixup lib_name if it's not set
-        let lib_name = lib_name.or_else(|| {
-            if let Ok(Ok(target)) = env::var("TARGET").map(|target| target.parse::<Triple>()) {
-                default_lib_name_for_target(version, implementation, abi3, gil_disabled, &target)
-            } else {
-                None
-            }
-        });
 
         Ok(InterpreterConfig {
             implementation,
@@ -574,7 +578,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         })
     }
 
-    #[cfg(feature = "python3-dll-a")]
+    #[cfg(feature = "generate-import-lib")]
     #[allow(clippy::unnecessary_wraps)]
     pub fn generate_import_libs(&mut self) -> Result<()> {
         // Auto generate python3.dll import libraries for Windows targets.
@@ -603,7 +607,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         Ok(())
     }
 
-    #[cfg(not(feature = "python3-dll-a"))]
+    #[cfg(not(feature = "generate-import-lib"))]
     #[allow(clippy::unnecessary_wraps)]
     pub fn generate_import_libs(&mut self) -> Result<()> {
         Ok(())
@@ -896,7 +900,7 @@ fn is_linking_libpython_for_target(target: &Triple) -> bool {
 ///
 /// Must be called from a PyO3 crate build script.
 fn require_libdir_for_target(target: &Triple) -> bool {
-    let is_generating_libpython = cfg!(feature = "python3-dll-a")
+    let is_generating_libpython = cfg!(feature = "generate-import-lib")
         && target.operating_system == OperatingSystem::Windows
         && is_abi3();
 
@@ -1585,7 +1589,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
     let mut lib_dir = cross_compile_config.lib_dir_string();
 
     // Auto generate python3.dll import libraries for Windows targets.
-    #[cfg(feature = "python3-dll-a")]
+    #[cfg(feature = "generate-import-lib")]
     if lib_dir.is_none() {
         let py_version = if implementation == PythonImplementation::CPython && abi3 && !gil_disabled
         {
@@ -1963,7 +1967,7 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     let mut interpreter_config = default_abi3_config(&host, abi3_version.unwrap())?;
 
     // Auto generate python3.dll import libraries for Windows targets.
-    #[cfg(feature = "python3-dll-a")]
+    #[cfg(feature = "generate-import-lib")]
     {
         let gil_disabled = interpreter_config
             .build_flags
