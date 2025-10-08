@@ -90,6 +90,9 @@ pub mod iter {
     pub use super::tuple::{BorrowedTupleIterator, BoundTupleIterator};
 }
 
+/// A Rust structure to deal with python File
+pub mod pyo3file;
+
 /// Python objects that have a base type.
 ///
 /// This marks types that can be upcast into a [`PyAny`] and used in its place.
@@ -229,6 +232,7 @@ pub(crate) mod complex;
 pub(crate) mod datetime;
 pub(crate) mod dict;
 mod ellipsis;
+pub(crate) mod file;
 pub(crate) mod float;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 mod frame;
