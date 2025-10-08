@@ -12,7 +12,7 @@ fn set_new(b: &mut Bencher<'_>) {
         const LEN: usize = 100_000;
         // Create Python objects up-front, so that the benchmark doesn't need to include
         // the cost of allocating LEN Python integers
-        let elements: Vec<PyObject> = (0..LEN).map(|i| i.into_py_any(py).unwrap()).collect();
+        let elements: Vec<Py<PyAny>> = (0..LEN).map(|i| i.into_py_any(py).unwrap()).collect();
         b.iter_with_large_drop(|| PySet::new(py, &elements).unwrap());
     });
 }

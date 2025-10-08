@@ -3,7 +3,7 @@
     feature = "nightly",
     feature(auto_traits, negative_impls, try_trait_v2, iter_advance_by)
 )]
-#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(unsafe_op_in_unsafe_fn)]
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
@@ -61,7 +61,7 @@
 //!
 //! The type parameter `T` in these smart pointers can be filled by:
 //!   - [`PyAny`], e.g. `Py<PyAny>` or `Bound<'py, PyAny>`, where the Python object type is not
-//!     known. `Py<PyAny>` is so common it has a type alias [`PyObject`].
+//!     known.
 //!   - Concrete Python types like [`PyList`](types::PyList) or [`PyTuple`](types::PyTuple).
 //!   - Rust types which are exposed to Python using the [`#[pyclass]`](macro@pyclass) macro.
 //!
@@ -315,7 +315,7 @@
 //! [`ordered-float`]: ./ordered_float/index.html "Documentation about the `ordered-float` feature."
 //! [`pyo3-build-config`]: https://docs.rs/pyo3-build-config
 //! [rust_decimal]: https://docs.rs/rust_decimal
-//! [`rust_decimal`]: ./rust_decimal/index.html "Documenation about the `rust_decimal` feature."
+//! [`rust_decimal`]: ./rust_decimal/index.html "Documentation about the `rust_decimal` feature."
 //! [`Decimal`]: https://docs.rs/rust_decimal/latest/rust_decimal/struct.Decimal.html
 //! [`serde`]: <./serde/index.html> "Documentation about the `serde` feature."
 #![doc = concat!("[calling_rust]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/python-from-rust.html \"Calling Python from Rust - PyO3 user guide\"")]
@@ -410,7 +410,8 @@ pub use inventory; // Re-exported for `#[pyclass]` and `#[pymethods]` with `mult
 /// Tests and helpers which reside inside PyO3's main library. Declared first so that macros
 /// are available in unit tests.
 #[cfg(test)]
-#[macro_use]
+mod test_utils;
+#[cfg(test)]
 mod tests;
 
 // Macro dependencies, also contains macros exported for use across the codebase and

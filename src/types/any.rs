@@ -1,6 +1,6 @@
 use crate::call::PyCallArgs;
 use crate::class::basic::CompareOp;
-use crate::conversion::{FromPyObjectBound, IntoPyObject};
+use crate::conversion::{FromPyObject, IntoPyObject};
 use crate::err::{DowncastError, DowncastIntoError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -42,7 +42,7 @@ pyobject_native_type_info!(
     PyAny,
     pyobject_native_static_type_object!(ffi::PyBaseObject_Type),
     "object",
-    Some("builtins"),
+    None,
     #checkfunction=PyObject_Check
 );
 
@@ -866,11 +866,10 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
 
     /// Extracts some type from the Python object.
     ///
-    /// This is a wrapper function around
-    /// [`FromPyObject::extract_bound()`](crate::FromPyObject::extract_bound).
-    fn extract<'a, T>(&'a self) -> PyResult<T>
+    /// This is a wrapper function around [`FromPyObject::extract()`](crate::FromPyObject::extract).
+    fn extract<'a, T>(&'a self) -> Result<T, T::Error>
     where
-        T: FromPyObjectBound<'a, 'py>;
+        T: FromPyObject<'a, 'py>;
 
     /// Returns the reference count for the Python object.
     fn get_refcnt(&self) -> isize;
@@ -1488,11 +1487,11 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         unsafe { self.cast_into_unchecked() }
     }
 
-    fn extract<'a, T>(&'a self) -> PyResult<T>
+    fn extract<'a, T>(&'a self) -> Result<T, T::Error>
     where
-        T: FromPyObjectBound<'a, 'py>,
+        T: FromPyObject<'a, 'py>,
     {
-        FromPyObjectBound::from_py_object_bound(self.as_borrowed())
+        FromPyObject::extract(self.as_borrowed())
     }
 
     fn get_refcnt(&self) -> isize {
@@ -1625,7 +1624,7 @@ mod tests {
     use crate::{
         basic::CompareOp,
         ffi,
-        tests::common::generate_unique_module_name,
+        test_utils::generate_unique_module_name,
         types::{IntoPyDict, PyAny, PyAnyMethods, PyBool, PyInt, PyList, PyModule, PyTypeMethods},
         Bound, BoundObject, IntoPyObject, PyTypeInfo, Python,
     };

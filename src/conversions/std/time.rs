@@ -12,8 +12,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
 
-impl FromPyObject<'_> for Duration {
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for Duration {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let delta = obj.cast::<PyDelta>()?;
         #[cfg(not(Py_LIMITED_API))]
         let (days, seconds, microseconds) = {
@@ -87,8 +89,10 @@ impl<'py> IntoPyObject<'py> for &Duration {
 //
 // TODO: it might be nice to investigate using timestamps anyway, at least when the datetime is a safe range.
 
-impl FromPyObject<'_> for SystemTime {
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for SystemTime {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let duration_since_unix_epoch: Duration = obj.sub(unix_epoch_py(obj.py())?)?.extract()?;
         UNIX_EPOCH
             .checked_add(duration_since_unix_epoch)

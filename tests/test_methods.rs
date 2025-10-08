@@ -2,7 +2,6 @@
 
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::exceptions::PyWarning;
-#[cfg(not(Py_GIL_DISABLED))]
 use pyo3::exceptions::{PyFutureWarning, PyUserWarning};
 use pyo3::prelude::*;
 use pyo3::py_run;
@@ -11,8 +10,9 @@ use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
 use pyo3::BoundObject;
 use pyo3_macros::pyclass;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+use crate::test_utils::CatchWarnings;
+
+mod test_utils;
 
 #[pyclass]
 struct InstanceMethod {
@@ -1223,7 +1223,6 @@ impl UserDefinedWarning {
 }
 
 #[test]
-#[cfg(not(Py_GIL_DISABLED))] // FIXME: enable once `warnings` is thread-safe
 fn test_pymethods_warn() {
     // We do not test #[classattr] nor __traverse__
     // because it doesn't make sense to implement deprecated methods for them.
@@ -1291,7 +1290,7 @@ fn test_pymethods_warn() {
 
     Python::attach(|py| {
         let typeobj = py.get_type::<WarningMethodContainer>();
-        let obj = typeobj.call0().unwrap();
+        let obj = CatchWarnings::enter(py, |_| typeobj.call0()).unwrap();
 
         // FnType::Fn
         py_expect_warning!(
@@ -1424,7 +1423,6 @@ fn test_pymethods_warn() {
 }
 
 #[test]
-#[cfg(not(Py_GIL_DISABLED))] // FIXME: enable once `warnings` is thread-safe
 fn test_py_methods_multiple_warn() {
     #[pyclass]
     struct MultipleWarnContainer {}

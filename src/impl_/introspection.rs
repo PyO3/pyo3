@@ -15,3 +15,9 @@ impl<'a, T: IntoPyObject<'a>> PyReturnType for T {
 impl<T: PyReturnType, E> PyReturnType for Result<T, E> {
     const OUTPUT_TYPE: &'static str = T::OUTPUT_TYPE;
 }
+
+#[repr(C)]
+pub struct SerializedIntrospectionFragment<const LEN: usize> {
+    pub length: u32,
+    pub fragment: [u8; LEN],
+}

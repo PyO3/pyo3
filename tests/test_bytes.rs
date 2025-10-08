@@ -3,8 +3,7 @@
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyfunction]
 fn bytes_pybytes_conversion(bytes: &[u8]) -> &[u8] {

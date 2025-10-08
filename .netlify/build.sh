@@ -97,7 +97,7 @@ if [ "${INSTALLED_MDBOOK_TABS_VERSION}" != "mdbook-tabs v${MDBOOK_TABS_VERSION}"
     cargo install mdbook-tabs@${MDBOOK_TABS_VERSION} --force
 fi
 
-pip install nox
+pip install nox[uv]
 nox -s build-guide
 mv target/guide/ netlify_build/main/
 

@@ -1,17 +1,18 @@
 use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::instance::Bound;
 use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
-use crate::{ffi, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
+use crate::{ffi, Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, Python};
 use std::borrow::Cow;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 // See osstr.rs for why there's no FromPyObject impl for &Path
 
-impl FromPyObject<'_> for PathBuf {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for PathBuf {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         // We use os.fspath to get the underlying path as bytes or str
         let path = unsafe { ffi::PyOS_FSPath(ob.as_ptr()).assume_owned_or_err(ob.py())? };
         Ok(path.extract::<OsString>()?.into())
@@ -99,6 +100,7 @@ mod tests {
     #[cfg(not(windows))]
     fn test_non_utf8_conversion() {
         Python::attach(|py| {
+            use crate::types::PyAnyMethods;
             use std::ffi::OsStr;
             #[cfg(not(target_os = "wasi"))]
             use std::os::unix::ffi::OsStrExt;

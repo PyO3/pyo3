@@ -2,7 +2,7 @@ use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::types::PyString;
-use crate::{ffi, FromPyObject, PyAny, PyResult, Python};
+use crate::{ffi, Borrowed, FromPyObject, PyAny, PyErr, Python};
 use std::borrow::Cow;
 use std::convert::Infallible;
 use std::ffi::{OsStr, OsString};
@@ -70,8 +70,10 @@ impl<'py> IntoPyObject<'py> for &&OsStr {
 // There's no FromPyObject implementation for &OsStr because albeit possible on Unix, this would
 // be impossible to implement on Windows. Hence it's omitted entirely
 
-impl FromPyObject<'_> for OsString {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for OsString {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let pystring = ob.cast::<PyString>()?;
 
         #[cfg(not(windows))]
@@ -97,8 +99,6 @@ impl FromPyObject<'_> for OsString {
 
         #[cfg(windows)]
         {
-            use crate::types::string::PyStringMethods;
-
             // Take the quick and easy shortcut if UTF-8
             if let Ok(utf8_string) = pystring.to_cow() {
                 return Ok(utf8_string.into_owned().into());
@@ -109,6 +109,12 @@ impl FromPyObject<'_> for OsString {
             let size =
                 unsafe { ffi::PyUnicode_AsWideChar(pystring.as_ptr(), std::ptr::null_mut(), 0) };
             crate::err::error_on_minusone(ob.py(), size)?;
+
+            debug_assert!(
+                size > 0,
+                "PyUnicode_AsWideChar should return at least 1 for null terminator"
+            );
+            let size = size - 1; // exclude null terminator
 
             let mut buffer = vec![0; size as usize];
             let bytes_read =
@@ -216,6 +222,34 @@ mod tests {
             test_roundtrip::<Cow<'_, OsStr>>(py, Cow::Borrowed(os_str));
             test_roundtrip::<Cow<'_, OsStr>>(py, Cow::Owned(os_str.to_os_string()));
             test_roundtrip::<OsString>(py, os_str.to_os_string());
+        });
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn test_windows_non_utf8_osstring_roundtrip() {
+        use std::os::windows::ffi::{OsStrExt, OsStringExt};
+
+        Python::attach(|py| {
+            // Example: Unpaired surrogate (0xD800) is not valid UTF-8, but valid in Windows OsString
+            let wide: &[u16] = &['A' as u16, 0xD800, 'B' as u16]; // 'A', unpaired surrogate, 'B'
+            let os_str = OsString::from_wide(wide);
+
+            assert_eq!(os_str.to_string_lossy(), "A�B");
+
+            // This cannot be represented as UTF-8, so .to_str() would return None
+            assert!(os_str.to_str().is_none());
+
+            // Convert to Python and back
+            let py_str = os_str.as_os_str().into_pyobject(py).unwrap();
+            let os_str_2 = py_str.extract::<OsString>().unwrap();
+
+            // The roundtrip should preserve the original wide data
+            assert_eq!(os_str, os_str_2);
+
+            // Show that encode_wide is necessary: direct UTF-8 conversion would lose information
+            let encoded: Vec<u16> = os_str.encode_wide().collect();
+            assert_eq!(encoded, wide);
         });
     }
 }

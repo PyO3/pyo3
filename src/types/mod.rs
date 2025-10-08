@@ -176,10 +176,10 @@ macro_rules! pyobject_native_type_info(
 macro_rules! pyobject_native_type_core {
     ($rust_name:ty, $typeobject:expr, $python_name:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_named!($rust_name $(;$generics)*);
-        $crate::pyobject_native_type_info!($rust_name, $typeobject, stringify!($rust_name), $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
+        $crate::pyobject_native_type_info!($rust_name, $typeobject, $python_name, $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
     ($rust_name:ty, $typeobject:expr, $python_name:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_core!($rust_name, $typeobject, $python_name, #module=::std::option::Option::Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
+        $crate::pyobject_native_type_core!($rust_name, $typeobject, $python_name, #module=::std::option::Option::None $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
 }
 

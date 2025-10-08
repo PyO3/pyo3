@@ -1,0 +1,31 @@
+name: 'Fetch Merge Base'
+description: 'Fetches the merge base between two branches, deepening the git checkout until complete'
+inputs:
+  base_ref:
+    description: 'The base branch reference'
+    required: true
+  head_ref:
+    description: 'The head branch reference'
+    required: true
+outputs:
+  merge_base:
+    description: 'The merge base commit SHA'
+    value: ${{ steps.fetch_merge_base.outputs.merge_base }}
+runs:
+  using: "composite"
+  steps:
+  - name: Fetch Merge Base
+    id: fetch_merge_base
+    shell: bash
+    run: |
+      # fetch the merge commit between the PR base and head
+      git fetch -u --progress --depth=1 origin "+$BASE_REF:$BASE_REF" "+$HEAD_REF:$HEAD_REF"
+      while [ -z "$(git merge-base "$BASE_REF" "$HEAD_REF")" ]; do
+        git fetch -u -q --deepen="10" origin "$BASE_REF" "$HEAD_REF";
+      done
+
+      MERGE_BASE=$(git merge-base "$BASE_REF" "$HEAD_REF")
+      echo "merge_base=$MERGE_BASE" >> $GITHUB_OUTPUT
+    env:
+      BASE_REF: "${{ inputs.base_ref }}"
+      HEAD_REF: "${{ inputs.head_ref }}"

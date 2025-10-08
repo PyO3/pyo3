@@ -56,7 +56,7 @@ where
             ty,
             // SAFETY: the Python runtime is initialized
             #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
-            is_runtime_3_10(crate::Python::assume_gil_acquired()),
+            is_runtime_3_10(crate::Python::assume_attached()),
         )
     }
 }

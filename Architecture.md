@@ -37,7 +37,7 @@ automated tooling because:
   - it gives us best control about how to adapt C conventions to Rust, and
   - there are many Python interpreter versions we support in a single set of files.
 
-We aim to provide straight-forward Rust wrappers resembling the file structure of [`cpython/Include`](https://github.com/python/cpython/tree/3.13/Include).
+We aim to provide straight-forward Rust wrappers resembling the file structure of [`cpython/Include`](https://github.com/python/cpython/tree/main/Include).
 
 We are continuously updating the module to match the latest CPython version which PyO3 supports (i.e. as of time of writing Python 3.13). The tracking issue is [#1289](https://github.com/PyO3/pyo3/issues/1289), and contribution is welcome.
 
@@ -99,7 +99,7 @@ Thus, when copying a Rust struct to a Python object, we first allocate `PyClassO
 move `T` into it.
 
 The primary way to interact with Python objects implemented in Rust is through the `Bound<'py, T>` smart pointer.
-By having the `'py` lifetime of the `Python<'py>` token, this ties the lifetime of the `Bound<'py, T>` smart pointer to the lifetime of the GIL and allows PyO3 to call Python APIs at maximum efficiency.
+By having the `'py` lifetime of the `Python<'py>` token, this ties the lifetime of the `Bound<'py, T>` smart pointer to the lifetime for which the thread is attached to the Python interpreter and allows PyO3 to call Python APIs at maximum efficiency.
 
 `Bound<'py, T>` requires that `T` implements `PyClass`.
 This trait is somewhat complex and derives many traits, but the most important one is `PyTypeInfo`

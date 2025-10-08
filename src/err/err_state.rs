@@ -85,8 +85,8 @@ impl PyErrState {
     #[cold]
     fn make_normalized(&self, py: Python<'_>) -> &PyErrStateNormalized {
         // This process is safe because:
-        // - Access is guaranteed not to be concurrent thanks to `Python` GIL token
         // - Write happens only once, and then never will change again.
+        // - The `Once` ensure that only one thread will do the write.
 
         // Guard against re-entrant normalization, because `Once` does not provide
         // re-entrancy guarantees.

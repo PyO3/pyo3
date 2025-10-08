@@ -8,6 +8,7 @@ from pyo3_pytests.comparisons import (
     EqDerived,
     Ordered,
     OrderedDefaultNe,
+    OrderedDerived,
     OrderedRichCmp,
 )
 from typing_extensions import Self
@@ -134,9 +135,11 @@ class PyOrdered:
 
 
 @pytest.mark.parametrize(
-    "ty", (Ordered, OrderedRichCmp, PyOrdered), ids=("rust", "rust-richcmp", "python")
+    "ty",
+    (Ordered, OrderedDerived, OrderedRichCmp, PyOrdered),
+    ids=("rust", "rust-derived", "rust-richcmp", "python"),
 )
-def test_ordered(ty: Type[Union[Ordered, OrderedRichCmp, PyOrdered]]):
+def test_ordered(ty: Type[Union[Ordered, OrderedDerived, OrderedRichCmp, PyOrdered]]):
     a = ty(0)
     b = ty(0)
     c = ty(1)

@@ -27,7 +27,7 @@ pub(crate) mod private {
 /// to `call`.
 ///
 /// This trait is not intended to used by downstream crates directly. As such it
-/// has no publicly available methods and cannot be implemented ouside of
+/// has no publicly available methods and cannot be implemented outside of
 /// `pyo3`. The corresponding public API is available through [`call`]
 /// ([`call0`], [`call1`] and friends) on [`PyAnyMethods`].
 ///

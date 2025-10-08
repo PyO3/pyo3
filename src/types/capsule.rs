@@ -427,7 +427,7 @@ mod tests {
             let result: PyResult<&Foo> = unsafe { PyCapsule::import(py, wrong_name.as_ref()) };
             assert!(result.is_err());
 
-            // corret name is okay.
+            // correct name is okay.
             let cap: &Foo = unsafe { PyCapsule::import(py, name.as_ref())? };
             assert_eq!(cap.val, 123);
             Ok(())

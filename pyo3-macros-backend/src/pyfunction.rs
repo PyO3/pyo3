@@ -433,17 +433,18 @@ pub fn impl_wrap_pyfunction(
         #[doc(hidden)]
         #vis mod #name {
             pub(crate) struct MakeDef;
-            pub const _PYO3_DEF: #pyo3_path::impl_::pymethods::PyMethodDef = MakeDef::_PYO3_DEF;
+            pub static _PYO3_DEF: #pyo3_path::impl_::pyfunction::PyFunctionDef = MakeDef::_PYO3_DEF;
             #introspection_id
         }
 
-        // Generate the definition inside an anonymous function in the same scope as the original function -
+        // Generate the definition in the same scope as the original function -
         // this avoids complications around the fact that the generated module has a different scope
         // (and `super` doesn't always refer to the outer scope, e.g. if the `#[pyfunction] is
         // inside a function body)
         #[allow(unknown_lints, non_local_definitions)]
         impl #name::MakeDef {
-            const _PYO3_DEF: #pyo3_path::impl_::pymethods::PyMethodDef = #methoddef;
+            const _PYO3_DEF: #pyo3_path::impl_::pyfunction::PyFunctionDef =
+                #pyo3_path::impl_::pyfunction::PyFunctionDef::from_method_def(#methoddef);
         }
 
         #[allow(non_snake_case)]

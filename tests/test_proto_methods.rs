@@ -6,8 +6,7 @@ use pyo3::{prelude::*, py_run};
 use std::iter;
 use std::sync::Mutex;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct EmptyClass;

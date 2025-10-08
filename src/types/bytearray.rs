@@ -299,7 +299,7 @@ impl<'a> Borrowed<'a, '_, PyByteArray> {
     }
 
     #[allow(clippy::wrong_self_convention)]
-    unsafe fn as_bytes(self) -> &'a [u8] {
+    pub(crate) unsafe fn as_bytes(self) -> &'a [u8] {
         unsafe { slice::from_raw_parts(self.data(), self.len()) }
     }
 

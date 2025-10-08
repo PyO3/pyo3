@@ -56,7 +56,7 @@ use crate::{
     exceptions::PyValueError,
     sync::PyOnceLock,
     types::{PyAnyMethods, PyStringMethods, PyType},
-    Bound, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python,
+    Borrowed, Bound, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python,
 };
 use bigdecimal::BigDecimal;
 use num_bigint::Sign;
@@ -71,8 +71,10 @@ fn get_invalid_operation_error_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType
     INVALID_OPERATION_CLS.import(py, "decimal", "InvalidOperation")
 }
 
-impl FromPyObject<'_> for BigDecimal {
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for BigDecimal {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
         let py_str = &obj.str()?;
         let rs_str = &py_str.to_cow()?;
         BigDecimal::from_str(rs_str).map_err(|e| PyValueError::new_err(e.to_string()))

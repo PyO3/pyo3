@@ -109,7 +109,6 @@ def test_rust(session: nox.Session):
 
     for feature_set in _get_feature_sets():
         flags = extra_flags.copy()
-        print(feature_set)
 
         if feature_set is None or "full" not in feature_set:
             # doctests require at least the macros feature, which is
@@ -438,6 +437,69 @@ def test_emscripten(session: nox.Session):
         "bash",
         "-c",
         f"source {info.builddir / 'emsdk/emsdk_env.sh'} && cargo test",
+    )
+
+
+@nox.session(name="test-cross-compilation-windows")
+def test_cross_compilation_windows(session: nox.Session):
+    session.install("cargo-xwin")
+
+    env = os.environ.copy()
+    env["XWIN_ARCH"] = "x86_64"
+
+    # abi3
+    _run_cargo(
+        session,
+        "build",
+        "--manifest-path",
+        "examples/maturin-starter/Cargo.toml",
+        "--features",
+        "abi3",
+        "--target",
+        "x86_64-pc-windows-gnu",
+        env=env,
+    )
+    _run_cargo(
+        session,
+        "xwin",
+        "build",
+        "--cross-compiler",
+        "clang",
+        "--manifest-path",
+        "examples/maturin-starter/Cargo.toml",
+        "--features",
+        "abi3",
+        "--target",
+        "x86_64-pc-windows-msvc",
+        env=env,
+    )
+
+    # non-abi3
+    env["PYO3_CROSS_PYTHON_VERSION"] = "3.13"
+    _run_cargo(
+        session,
+        "build",
+        "--manifest-path",
+        "examples/maturin-starter/Cargo.toml",
+        "--features",
+        "generate-import-lib",
+        "--target",
+        "x86_64-pc-windows-gnu",
+        env=env,
+    )
+    _run_cargo(
+        session,
+        "xwin",
+        "build",
+        "--cross-compiler",
+        "clang",
+        "--manifest-path",
+        "examples/maturin-starter/Cargo.toml",
+        "--features",
+        "generate-import-lib",
+        "--target",
+        "x86_64-pc-windows-msvc",
+        env=env,
     )
 
 
@@ -1028,21 +1090,24 @@ def update_ui_tests(session: nox.Session):
 def test_introspection(session: nox.Session):
     session.install("maturin")
     session.install("ruff")
+    options = []
     target = os.environ.get("CARGO_BUILD_TARGET")
-    for options in ([], ["--release"]):
-        if target is not None:
-            options += ("--target", target)
-        session.run_always("maturin", "develop", "-m", "./pytests/Cargo.toml", *options)
-        # We look for the built library
-        lib_file = None
-        for file in Path(session.virtualenv.location).rglob("pyo3_pytests.*"):
-            if file.is_file():
-                lib_file = str(file.resolve())
-        _run_cargo_test(
-            session,
-            package="pyo3-introspection",
-            env={"PYO3_PYTEST_LIB_PATH": lib_file},
-        )
+    if target is not None:
+        options += ("--target", target)
+    profile = os.environ.get("CARGO_BUILD_PROFILE")
+    if profile == "release":
+        options.append("--release")
+    session.run_always("maturin", "develop", "-m", "./pytests/Cargo.toml", *options)
+    # We look for the built library
+    lib_file = None
+    for file in Path(session.virtualenv.location).rglob("pyo3_pytests.*"):
+        if file.is_file():
+            lib_file = str(file.resolve())
+    _run_cargo_test(
+        session,
+        package="pyo3-introspection",
+        env={"PYO3_PYTEST_LIB_PATH": lib_file},
+    )
 
 
 def _build_docs_for_ffi_check(session: nox.Session) -> None:

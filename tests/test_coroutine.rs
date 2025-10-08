@@ -14,8 +14,7 @@ use pyo3::{
 #[cfg(target_has_atomic = "64")]
 use std::sync::atomic::{AtomicBool, Ordering};
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 fn handle_windows(test: &str) -> String {
     let set_event_loop_policy = r#"

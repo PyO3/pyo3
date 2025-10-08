@@ -926,12 +926,12 @@ pub trait PyClassWithFreeList: PyClass {
 ///
 /// # Safety
 /// - `subtype` must be a valid pointer to the type object of T or a subclass.
-/// - The GIL must be held.
+/// - The calling thread must be attached to the interpreter
 pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
     subtype: *mut ffi::PyTypeObject,
     nitems: ffi::Py_ssize_t,
 ) -> *mut ffi::PyObject {
-    let py = unsafe { Python::assume_gil_acquired() };
+    let py = unsafe { Python::assume_attached() };
 
     #[cfg(not(Py_3_8))]
     unsafe {
@@ -958,17 +958,15 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
 ///
 /// # Safety
 /// - `obj` must be a valid pointer to an instance of T (not a subclass).
-/// - The GIL must be held.
+/// - The calling thread must be attached to the interpreter
 pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_void) {
     let obj = obj as *mut ffi::PyObject;
     unsafe {
         debug_assert_eq!(
-            T::type_object_raw(Python::assume_gil_acquired()),
+            T::type_object_raw(Python::assume_attached()),
             ffi::Py_TYPE(obj)
         );
-        let mut free_list = T::get_free_list(Python::assume_gil_acquired())
-            .lock()
-            .unwrap();
+        let mut free_list = T::get_free_list(Python::assume_attached()).lock().unwrap();
         if let Some(obj) = free_list.insert(obj) {
             drop(free_list);
             let ty = ffi::Py_TYPE(obj);
@@ -1292,7 +1290,7 @@ impl<
     }
 }
 
-/// Field is not `Py<T>`; try to use `IntoPyObject` for `&T` (prefered over `ToPyObject`) to avoid
+/// Field is not `Py<T>`; try to use `IntoPyObject` for `&T` (preferred over `ToPyObject`) to avoid
 /// potentially expensive clones of containers like `Vec`
 impl<ClassT, FieldT, Offset, const IMPLEMENTS_INTOPYOBJECT: bool>
     PyClassGetterGenerator<ClassT, FieldT, Offset, false, true, IMPLEMENTS_INTOPYOBJECT>
@@ -1446,7 +1444,7 @@ mod tests {
 
         for items in FrozenClass::items_iter() {
             methods.extend(items.methods.iter().map(|m| match m {
-                MaybeRuntimePyMethodDef::Static(m) => m.clone(),
+                MaybeRuntimePyMethodDef::Static(m) => *m,
                 MaybeRuntimePyMethodDef::Runtime(r) => r(),
             }));
             slots.extend_from_slice(items.slots);
@@ -1484,7 +1482,7 @@ mod tests {
 
         for items in FrozenClass::items_iter() {
             methods.extend(items.methods.iter().map(|m| match m {
-                MaybeRuntimePyMethodDef::Static(m) => m.clone(),
+                MaybeRuntimePyMethodDef::Static(m) => *m,
                 MaybeRuntimePyMethodDef::Runtime(r) => r(),
             }));
             slots.extend_from_slice(items.slots);

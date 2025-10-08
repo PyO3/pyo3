@@ -1,6 +1,6 @@
 /// Represents the major, minor, and patch (if any) versions of this interpreter.
 ///
-/// This struct is usually created with [`Python::version`].
+/// This struct is usually created with [`Python::version_info`].
 ///
 /// # Examples
 ///
@@ -13,7 +13,7 @@
 /// });
 /// ```
 ///
-/// [`Python::version`]: crate::marker::Python::version
+/// [`Python::version_info`]: crate::marker::Python::version_info
 #[derive(Debug)]
 pub struct PythonVersionInfo<'a> {
     /// Python major version (e.g. `3`).

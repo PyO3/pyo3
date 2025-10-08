@@ -51,9 +51,9 @@ It is also worth remembering the following special types:
 
 | What             | Description                           |
 | ---------------- | ------------------------------------- |
-| `Python<'py>`    | A GIL token, used to pass to PyO3 constructors to prove ownership of the GIL. |
-| `Bound<'py, T>`  | A Python object connected to the GIL lifetime. This provides access to most of PyO3's APIs. |
-| `Py<T>`          | A Python object isolated from the GIL lifetime. This can be sent to other threads. |
+| `Python<'py>`    | A token used to prove attachment to the Python interpreter. |
+| `Bound<'py, T>`  | A Python object with a lifetime which binds it to the attachment to the Python interpreter. This provides access to most of PyO3's APIs. |
+| `Py<T>`          | A Python object not connected to any lifetime of attachment to the Python interpreter. This can be sent to other threads. |
 | `PyRef<T>`       | A `#[pyclass]` borrowed immutably.    |
 | `PyRefMut<T>`    | A `#[pyclass]` borrowed mutably.      |
 
