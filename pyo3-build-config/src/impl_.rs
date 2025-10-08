@@ -568,8 +568,8 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
     /// Helper function to apply a default lib_name if none is set in `PYO3_CONFIG_FILE`.
     ///
     /// This requires knowledge of the final target, so cannot be done when the config file is
-    /// inlined into `pyo3-build-config` at build time and instead needs to be done whenever
-    /// loading the inlined config file.
+    /// inlined into `pyo3-build-config` at build time and instead needs to be done when
+    /// resolving the build config for linking.
     pub(crate) fn apply_default_lib_name_to_config_file(&mut self, target: &Triple) {
         if self.lib_name.is_none() {
             self.lib_name = Some(default_lib_name_for_target(
