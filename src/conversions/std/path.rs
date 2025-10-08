@@ -7,8 +7,6 @@ use std::borrow::Cow;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-// See osstr.rs for why there's no FromPyObject impl for &Path
-
 impl FromPyObject<'_, '_> for PathBuf {
     type Error = PyErr;
 

@@ -67,9 +67,6 @@ impl<'py> IntoPyObject<'py> for &&OsStr {
     }
 }
 
-// There's no FromPyObject implementation for &OsStr because albeit possible on Unix, this would
-// be impossible to implement on Windows. Hence it's omitted entirely
-
 impl FromPyObject<'_, '_> for OsString {
     type Error = PyErr;
 
