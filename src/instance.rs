@@ -2254,6 +2254,7 @@ impl Py<PyAny> {
     ///  # Example: Downcasting to a specific Python object
     ///
     /// ```rust
+    /// # #![allow(deprecated)]
     /// use pyo3::prelude::*;
     /// use pyo3::types::{PyDict, PyList};
     ///
@@ -2270,6 +2271,7 @@ impl Py<PyAny> {
     /// This is useful if you want to mutate a `Py<PyAny>` that might actually be a pyclass.
     ///
     /// ```rust
+    /// # #![allow(deprecated)]
     /// # fn main() -> Result<(), pyo3::PyErr> {
     /// use pyo3::prelude::*;
     ///
@@ -2292,7 +2294,7 @@ impl Py<PyAny> {
     /// })
     /// # }
     /// ```
-    // FIXME(icxolu) deprecate in favor of `Py::cast_bound`
+    #[deprecated(since = "0.27.0", note = "use `Py::cast_bound` instead")]
     #[inline]
     pub fn downcast_bound<'py, T>(
         &self,
@@ -2301,7 +2303,8 @@ impl Py<PyAny> {
     where
         T: PyTypeCheck,
     {
-        self.cast_bound(py)
+        #[allow(deprecated)]
+        self.bind(py).downcast()
     }
 
     /// Casts the `Py<PyAny>` to a concrete Python object type without checking validity.
@@ -2309,7 +2312,7 @@ impl Py<PyAny> {
     /// # Safety
     ///
     /// Callers must ensure that the type is valid or risk type confusion.
-    // FIXME(icxolu) deprecate in favor of `Py::cast_bound_unchecked`
+    #[deprecated(since = "0.27.0", note = "use `Py::cast_bound_unchecked` instead")]
     #[inline]
     pub unsafe fn downcast_bound_unchecked<'py, T>(&self, py: Python<'py>) -> &Bound<'py, T> {
         // SAFETY: caller has upheld the safety contract

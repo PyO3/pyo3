@@ -857,12 +857,12 @@ impl std::fmt::Display for TypeNameOrValue<'_> {
         match self {
             Self::Name(name) => name.fmt(f),
             Self::Value(t) => {
-                if let Ok(t) = t.downcast::<PyType>() {
+                if let Ok(t) = t.cast::<PyType>() {
                     t.qualname()
                         .map_err(|_| std::fmt::Error)?
                         .to_string_lossy()
                         .fmt(f)
-                } else if let Ok(t) = t.downcast::<PyTuple>() {
+                } else if let Ok(t) = t.cast::<PyTuple>() {
                     for (i, t) in t.iter().enumerate() {
                         if i > 0 {
                             f.write_str(" | ")?;
