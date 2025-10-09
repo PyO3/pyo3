@@ -7,8 +7,6 @@ use std::borrow::Cow;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-// See osstr.rs for why there's no FromPyObject impl for &Path
-
 impl FromPyObject<'_, '_> for PathBuf {
     type Error = PyErr;
 
@@ -66,6 +64,19 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, Path> {
     }
 }
 
+impl<'a> FromPyObject<'a, '_> for Cow<'a, Path> {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
+        #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+        if let Ok(s) = obj.extract::<&str>() {
+            return Ok(Cow::Borrowed(s.as_ref()));
+        }
+
+        obj.extract::<PathBuf>().map(Cow::Owned)
+    }
+}
+
 impl<'py> IntoPyObject<'py> for PathBuf {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -90,18 +101,22 @@ impl<'py> IntoPyObject<'py> for &PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{PyAnyMethods, PyString};
-    use crate::{IntoPyObject, IntoPyObjectExt, Python};
-    use std::borrow::Cow;
+    use super::*;
+    use crate::{
+        types::{PyAnyMethods, PyString},
+        IntoPyObjectExt,
+    };
+    use std::ffi::OsStr;
     use std::fmt::Debug;
-    use std::path::{Path, PathBuf};
+    #[cfg(unix)]
+    use std::os::unix::ffi::OsStringExt;
+    #[cfg(windows)]
+    use std::os::windows::ffi::OsStringExt;
 
     #[test]
     #[cfg(not(windows))]
     fn test_non_utf8_conversion() {
         Python::attach(|py| {
-            use crate::types::PyAnyMethods;
-            use std::ffi::OsStr;
             #[cfg(not(target_os = "wasi"))]
             use std::os::unix::ffi::OsStrExt;
             #[cfg(target_os = "wasi")]
@@ -145,6 +160,42 @@ mod tests {
             let pystring = PyString::new(py, path);
             let roundtrip: PathBuf = pystring.extract().unwrap();
             assert_eq!(roundtrip, Path::new(path));
+        });
+    }
+
+    #[test]
+    fn test_extract_cow() {
+        Python::attach(|py| {
+            fn test_extract<'py, T>(py: Python<'py>, path: &T, is_borrowed: bool)
+            where
+                for<'a> &'a T: IntoPyObject<'py, Output = Bound<'py, PyString>>,
+                for<'a> <&'a T as IntoPyObject<'py>>::Error: Debug,
+                T: AsRef<Path> + ?Sized,
+            {
+                let pystring = path.into_pyobject(py).unwrap();
+                let cow: Cow<'_, Path> = pystring.extract().unwrap();
+                assert_eq!(cow, path.as_ref());
+                assert_eq!(is_borrowed, matches!(cow, Cow::Borrowed(_)));
+            }
+
+            // On Python 3.10+ or when not using the limited API, we can borrow strings from python
+            let can_borrow_str = cfg!(any(Py_3_10, not(Py_LIMITED_API)));
+            // This can be borrowed because it is valid UTF-8
+            test_extract::<str>(py, "Hello\0\n🐍", can_borrow_str);
+            test_extract::<str>(py, "Hello, world!", can_borrow_str);
+
+            #[cfg(windows)]
+            let os_str = {
+                // 'A', unpaired surrogate, 'B'
+                OsString::from_wide(&['A' as u16, 0xD800, 'B' as u16])
+            };
+
+            #[cfg(unix)]
+            let os_str = { OsString::from_vec(vec![250, 251, 252, 253, 254, 255, 0, 255]) };
+
+            // This cannot be borrowed because it is not valid UTF-8
+            #[cfg(any(unix, windows))]
+            test_extract::<OsStr>(py, &os_str, false);
         });
     }
 }
