@@ -156,7 +156,7 @@ impl PyCapsule {
 ///
 /// # Name checking
 ///
-/// Capsule methods contain arbitrary data which is cast to a specific type at runtime. This is
+/// Capsules contain pointers to arbitrary data which is cast to a specific type at runtime. This is
 /// inherently quite dangerous, so Python allows capsules to be "named" to provide a hint as to
 /// what data is contained in the capsule. Although not a perfect solution, this is better than
 /// nothing.
@@ -212,15 +212,15 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
 
     /// Obtains a reference dereferenced from the pointer of this capsule, without checking its name.
     ///
-    /// This does not check the name of the capsule, which is the only mechanism that Python
-    /// provides to make sure that the pointer has the expected type. Prefer to use
-    /// [`reference_checked()`][Self::reference_checked()] instead.
+    /// Because this method encourages dereferencing the pointer for longer than necessary, it
+    /// is deprecated. Prefer to use [`pointer_checked()`][PyCapsuleMethods::pointer_checked]
+    /// and dereference the pointer only for as short a time as possible.
     ///
     /// # Safety
     ///
-    /// This performs a dereference of the pointer returned from [`pointer_checked()`][PyCapsuleMethods::pointer_checked].
+    /// This performs a dereference of the pointer returned from [`pointer()`][PyCapsuleMethods::pointer].
     ///
-    /// See the safety notes on that method.
+    /// See the safety notes on [`pointer_checked()`][PyCapsuleMethods::pointer_checked].
     #[deprecated(since = "0.27.0", note = "to be removed, see `pointer_checked()`")]
     unsafe fn reference<T>(&self) -> &T;
 
@@ -230,15 +230,15 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
 
     /// Gets the raw pointer stored in this capsule.
     ///
-    /// Returns an error if the capsule is not [valid][`PyCapsuleMethods::is_valid`] with the given `name`.
+    /// Returns an error if the capsule is not [valid][`PyCapsuleMethods::is_valid_checked`] with the given `name`.
     ///
     /// # Safety
     ///
     /// This function itself is not `unsafe`, but dereferencing the returned pointer to produce a reference
     /// is very dangerous:
-    /// - The pointer will need to be cast to a concrete type before dereferencing. As per [name checking](#name-checking),
-    ///   there is no way to statically guarantee this cast is correct, the name is the best hint to
-    ///   guard against accidental misuse.
+    /// - The pointer will need to be [.cast()][NonNull::cast] to a concrete type before dereferencing.
+    ///   As per [name checking](#name-checking), there is no way to statically guarantee this cast is
+    ///   correct, the name is the best available hint to guard against accidental misuse.
     /// - Arbitrary Python code can change the contents of the capsule, which may invalidate the
     ///   pointer. The pointer and the reference produced by dereferencing the pointer should both
     ///   be considered invalid after arbitrary Python code has run.
@@ -333,7 +333,7 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
     }
 }
 
-// C layout, as PyCapsule::reference_checked() depends on `T` being first.
+// C layout, as casting the capsule pointer to `T` depends on `T` being first.
 #[repr(C)]
 struct CapsuleContents<T: 'static + Send, D: FnOnce(T, *mut c_void) + Send> {
     /// Value of the capsule
