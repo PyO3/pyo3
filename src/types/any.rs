@@ -782,7 +782,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
 
     /// Like `downcast` but takes ownership of `self`.
     ///
-    /// In case of an error, it is possible to retrieve `self` again via [`CastIntoError::into_inner`].
+    /// In case of an error, it is possible to retrieve `self` again via [`DowncastIntoError::into_inner`].
     ///
     /// # Example
     ///
