@@ -5,7 +5,7 @@ use crate::{
     exceptions::PyTypeError,
     ffi,
     types::{PyAnyMethods, PySequence, PyString},
-    Borrowed, DowncastError, PyResult, PyTypeInfo,
+    Borrowed, CastError, PyResult, PyTypeInfo,
 };
 use crate::{Bound, PyAny, PyErr, Python};
 
@@ -91,11 +91,7 @@ where
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
             obj.cast_unchecked::<PySequence>()
         } else {
-            return Err(DowncastError::new_from_type(
-                obj,
-                PySequence::type_object(obj.py()).into_any(),
-            )
-            .into());
+            return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
         }
     };
 

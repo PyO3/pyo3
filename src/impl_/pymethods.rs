@@ -9,9 +9,8 @@ use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
 use crate::types::PyType;
 use crate::{
-    ffi, Bound, DowncastError, Py, PyAny, PyClass, PyClassGuard, PyClassGuardMut,
-    PyClassInitializer, PyErr, PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit,
-    Python,
+    ffi, Bound, CastError, Py, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyClassInitializer,
+    PyErr, PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
 };
 use std::ffi::CStr;
 use std::ffi::{c_int, c_void};
@@ -637,11 +636,11 @@ impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
         unsafe { Self(Bound::ref_from_non_null(py, ptr)) }
     }
 
-    pub fn downcast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, DowncastError<'a, 'py>> {
+    pub fn cast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, CastError<'a, 'py>> {
         self.0.cast::<T>().map(BoundRef)
     }
 
-    pub unsafe fn downcast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
+    pub unsafe fn cast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
         unsafe { BoundRef(self.0.cast_unchecked::<T>()) }
     }
 }
