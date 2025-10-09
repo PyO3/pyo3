@@ -172,6 +172,7 @@ Adds a dependency on [jiff@0.2](https://docs.rs/jiff/0.2) and requires MSRV 1.70
 - [DateTime](https://docs.rs/jiff/0.2/jiff/civil/struct.DateTime.html) -> [`PyDateTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDateTime.html)
 - [Zoned](https://docs.rs/jiff/0.2/jiff/struct.Zoned.html) -> [`PyDateTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDateTime.html)
 - [Timestamp](https://docs.rs/jiff/0.2/jiff/struct.Timestamp.html) -> [`PyDateTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDateTime.html)
+- [ISOWeekDate](https://docs.rs/jiff/0.2/jiff/civil/struct.ISOWeekDate.html) -> [`PyDate`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDate.html)
 
 ### `lock_api`
 

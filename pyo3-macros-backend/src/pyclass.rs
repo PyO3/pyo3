@@ -90,6 +90,7 @@ pub struct PyClassPyO3Options {
     pub unsendable: Option<kw::unsendable>,
     pub weakref: Option<kw::weakref>,
     pub generic: Option<kw::generic>,
+    pub skip_from_py_object: Option<kw::skip_from_py_object>,
 }
 
 pub enum PyClassPyO3Option {
@@ -115,6 +116,7 @@ pub enum PyClassPyO3Option {
     Unsendable(kw::unsendable),
     Weakref(kw::weakref),
     Generic(kw::generic),
+    SkipFromPyObject(kw::skip_from_py_object),
 }
 
 impl Parse for PyClassPyO3Option {
@@ -164,6 +166,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Weakref)
         } else if lookahead.peek(attributes::kw::generic) {
             input.parse().map(PyClassPyO3Option::Generic)
+        } else if lookahead.peek(attributes::kw::skip_from_py_object) {
+            input.parse().map(PyClassPyO3Option::SkipFromPyObject)
         } else {
             Err(lookahead.error())
         }
@@ -243,6 +247,9 @@ impl PyClassPyO3Options {
                 set_option!(weakref);
             }
             PyClassPyO3Option::Generic(generic) => set_option!(generic),
+            PyClassPyO3Option::SkipFromPyObject(skip_from_py_object) => {
+                set_option!(skip_from_py_object)
+            }
         }
         Ok(())
     }
@@ -2497,7 +2504,15 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! {}
         };
 
+        let extract_pyclass_with_clone = if self.attr.options.skip_from_py_object.is_none() {
+            quote!( impl #pyo3_path::impl_::pyclass::ExtractPyClassWithClone for #cls {} )
+        } else {
+            TokenStream::new()
+        };
+
         Ok(quote! {
+            #extract_pyclass_with_clone
+
             #assertions
 
             #pyclass_base_type_impl

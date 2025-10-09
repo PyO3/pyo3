@@ -145,7 +145,7 @@ jobs:
       fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
         rust: [stable]
-        python-version: ["3.13"]
+        python-version: ["3.14"]
         platform:
           [
             {
@@ -159,7 +159,7 @@ jobs:
               rust-target: "x86_64-unknown-linux-gnu",
             },
             {
-              os: "ubuntu-22.04-arm",
+              os: "ubuntu-24.04-arm",
               python-architecture: "arm64",
               rust-target: "aarch64-unknown-linux-gnu",
             },
@@ -173,12 +173,17 @@ jobs:
               python-architecture: "x86",
               rust-target: "i686-pc-windows-msvc",
             },
+            {
+              os: "windows-11-arm",
+              python-architecture: "arm64",
+              rust-target: "aarch64-pc-windows-msvc",
+            },
           ]
         include:
           # Test nightly Rust on PRs so that PR authors have a chance to fix nightly
           # failures, as nightly does not block merge.
           - rust: nightly
-            python-version: "3.13"
+            python-version: "3.14"
             platform:
               {
                 os: "ubuntu-latest",
@@ -188,25 +193,7 @@ jobs:
           # Also test free-threaded Python just for latest Python version, on ubuntu
           # (run for all OSes on build-full)
           - rust: stable
-            python-version: "3.13t"
-            platform:
-              {
-                os: "ubuntu-latest",
-                python-architecture: "x64",
-                rust-target: "x86_64-unknown-linux-gnu",
-              }
-          # As we approach 3.14 release date, let's also have testing for 3.14 and 3.14t
-          # on linux
-          - rust: stable
-            python-version: "3.14-dev"
-            platform:
-              {
-                os: "ubuntu-latest",
-                python-architecture: "x64",
-                rust-target: "x86_64-unknown-linux-gnu",
-              }
-          - rust: stable
-            python-version: "3.14t-dev"
+            python-version: "3.14t"
             platform:
               {
                 os: "ubuntu-latest",
@@ -243,8 +230,8 @@ jobs:
             "3.12",
             "3.13",
             "3.13t",
-            "3.14-dev",
-            "3.14t-dev",
+            "3.14",
+            "3.14t",
             "pypy3.9",
             "pypy3.10",
             "pypy3.11",
@@ -271,7 +258,7 @@ jobs:
         include:
           # Test minimal supported Rust version
           - rust: ${{ needs.resolve.outputs.MSRV }}
-            python-version: "3.13"
+            python-version: "3.14"
             platform:
               {
                 os: "ubuntu-latest",
@@ -281,7 +268,7 @@ jobs:
 
           # Test the `nightly` feature
           - rust: nightly
-            python-version: "3.13"
+            python-version: "3.14"
             platform:
               {
                 os: "ubuntu-latest",
@@ -291,7 +278,7 @@ jobs:
 
           # Run rust beta to help catch toolchain regressions
           - rust: beta
-            python-version: "3.13"
+            python-version: "3.14"
             platform:
               {
                 os: "ubuntu-latest",
@@ -301,7 +288,7 @@ jobs:
 
           # Test 32-bit Windows and x64 macOS only with the latest Python version
           - rust: stable
-            python-version: "3.13"
+            python-version: "3.14"
             platform:
               {
                 os: "windows-latest",
@@ -309,7 +296,7 @@ jobs:
                 rust-target: "i686-pc-windows-msvc",
               }
           - rust: stable
-            python-version: "3.13"
+            python-version: "3.14"
             platform:
               {
                 os: "macos-latest",
@@ -337,17 +324,17 @@ jobs:
           #       python-architecture: "x64",
           #       rust-target: "x86_64-apple-darwin",
           #     }
-          # arm64 Linux runner is in public preview, so test 3.13 on it
+          # test latest Python on arm64 linux & windows runners
           - rust: stable
-            python-version: "3.13"
+            python-version: "3.14"
             platform:
               {
-                os: "ubuntu-22.04-arm",
+                os: "ubuntu-24.04-arm",
                 python-architecture: "arm64",
                 rust-target: "aarch64-unknown-linux-gnu",
               }
           - rust: stable
-            python-version: "3.13"
+            python-version: "3.14"
             platform:
               {
                 os: "windows-11-arm",

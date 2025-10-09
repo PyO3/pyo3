@@ -159,11 +159,16 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// by avoiding a reference count change.
     fn get_borrowed_item<'a>(&'a self, index: usize) -> PyResult<Borrowed<'a, 'py, PyAny>>;
 
-    /// Gets the tuple item at the specified index. Undefined behavior on bad index. Use with caution.
+    /// Gets the tuple item at the specified index. Undefined behavior on bad index, or if the tuple
+    /// contains a null pointer at the specified index. Use with caution.
     ///
     /// # Safety
     ///
-    /// Caller must verify that the index is within the bounds of the tuple.
+    /// - Caller must verify that the index is within the bounds of the tuple.
+    /// - A null pointer is only legal in a tuple which is in the process of being initialized, callers
+    ///   can typically assume the tuple item is non-null unless they are knowingly filling an
+    ///   uninitialized tuple. (If a tuple were to contain a null pointer element, accessing it from Python
+    ///   typically causes a segfault.)
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny>;
 
@@ -172,7 +177,7 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Safety
     ///
-    /// Caller must verify that the index is within the bounds of the tuple.
+    /// See [`get_item_unchecked`][PyTupleMethods::get_item_unchecked].
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny>;
 
@@ -304,10 +309,15 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
         }
     }
 
+    /// # Safety
+    ///
+    /// See `get_item_unchecked` in `PyTupleMethods`.
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked(self, index: usize) -> Borrowed<'a, 'py, PyAny> {
+        // SAFETY: caller has upheld the safety contract
         unsafe {
-            ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t).assume_borrowed(self.py())
+            ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
+                .assume_borrowed_unchecked(self.py())
         }
     }
 
