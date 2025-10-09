@@ -636,11 +636,11 @@ impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
         unsafe { Self(Bound::ref_from_non_null(py, ptr)) }
     }
 
-    pub fn downcast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, CastError<'a, 'py>> {
+    pub fn cast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, CastError<'a, 'py>> {
         self.0.cast::<T>().map(BoundRef)
     }
 
-    pub unsafe fn downcast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
+    pub unsafe fn cast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
         unsafe { BoundRef(self.0.cast_unchecked::<T>()) }
     }
 }

@@ -143,12 +143,12 @@ struct DisplayClassInfo<'a, 'py>(&'a Bound<'py, PyAny>);
 
 impl std::fmt::Display for DisplayClassInfo<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Ok(t) = self.0.downcast::<PyType>() {
+        if let Ok(t) = self.0.cast::<PyType>() {
             t.qualname()
                 .map_err(|_| std::fmt::Error)?
                 .to_string_lossy()
                 .fmt(f)
-        } else if let Ok(t) = self.0.downcast::<PyTuple>() {
+        } else if let Ok(t) = self.0.cast::<PyTuple>() {
             for (i, t) in t.iter().enumerate() {
                 if i > 0 {
                     f.write_str(" | ")?;

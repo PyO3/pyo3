@@ -9,6 +9,8 @@ use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{DerefToPyAny, PyDict, PyString};
+#[allow(deprecated)]
+use crate::DowncastError;
 use crate::{
     ffi, CastError, CastIntoError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef,
     PyRefMut, PyTypeInfo, Python,
@@ -984,13 +986,13 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
     /// This performs a runtime type check using the equivalent of Python's
     /// `isinstance(self, U)`.
     #[inline]
-    pub fn cast<U>(self) -> Result<Borrowed<'a, 'py, U>, DowncastError<'a, 'py>>
+    pub fn cast<U>(self) -> Result<Borrowed<'a, 'py, U>, CastError<'a, 'py>>
     where
         U: PyTypeCheck,
     {
         fn inner<'a, 'py, U>(
             any: Borrowed<'a, 'py, PyAny>,
-        ) -> Result<Borrowed<'a, 'py, U>, DowncastError<'a, 'py>>
+        ) -> Result<Borrowed<'a, 'py, U>, CastError<'a, 'py>>
         where
             U: PyTypeCheck,
         {
@@ -998,10 +1000,7 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
                 // Safety: type_check is responsible for ensuring that the type is correct
                 Ok(unsafe { any.cast_unchecked() })
             } else {
-                Err(DowncastError::new_from_type(
-                    any,
-                    U::classinfo_object(any.py()),
-                ))
+                Err(CastError::new(any, U::classinfo_object(any.py())))
             }
         }
         inner(self.to_any())
@@ -1016,13 +1015,13 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
     /// implementation of `cast_exact` uses the equivalent of the Python expression `type(self) is
     /// U`, whereas `cast` uses `isinstance(self, U)`.
     #[inline]
-    pub fn cast_exact<U>(self) -> Result<Borrowed<'a, 'py, U>, DowncastError<'a, 'py>>
+    pub fn cast_exact<U>(self) -> Result<Borrowed<'a, 'py, U>, CastError<'a, 'py>>
     where
         U: PyTypeInfo,
     {
         fn inner<'a, 'py, U>(
             any: Borrowed<'a, 'py, PyAny>,
-        ) -> Result<Borrowed<'a, 'py, U>, DowncastError<'a, 'py>>
+        ) -> Result<Borrowed<'a, 'py, U>, CastError<'a, 'py>>
         where
             U: PyTypeInfo,
         {
@@ -1030,10 +1029,7 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
                 // Safety: is_exact_instance_of is responsible for ensuring that the type is correct
                 Ok(unsafe { any.cast_unchecked() })
             } else {
-                Err(DowncastError::new_from_type(
-                    any,
-                    U::classinfo_object(any.py()),
-                ))
+                Err(CastError::new(any, U::classinfo_object(any.py())))
             }
         }
         inner(self.to_any())
@@ -2296,10 +2292,11 @@ impl Py<PyAny> {
     /// ```
     #[deprecated(since = "0.27.0", note = "use `Py::cast_bound` instead")]
     #[inline]
+    #[allow(deprecated)]
     pub fn downcast_bound<'py, T>(
         &self,
         py: Python<'py>,
-    ) -> Result<&Bound<'py, T>, CastError<'_, 'py>>
+    ) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
     where
         T: PyTypeCheck,
     {
