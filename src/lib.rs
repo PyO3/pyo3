@@ -3,7 +3,7 @@
     feature = "nightly",
     feature(auto_traits, negative_impls, try_trait_v2, iter_advance_by)
 )]
-#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(unsafe_op_in_unsafe_fn)]
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.

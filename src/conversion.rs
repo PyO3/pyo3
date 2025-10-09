@@ -1,5 +1,6 @@
 //! Defines conversions between Rust and Python types.
 use crate::err::PyResult;
+use crate::impl_::pyclass::ExtractPyClassWithClone;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
@@ -17,7 +18,7 @@ use std::marker::PhantomData;
 /// This trait has `#[derive(IntoPyObject)]` to automatically implement it for simple types and
 /// `#[derive(IntoPyObjectRef)]` to implement the same for references.
 ///
-/// It functions similarly to std's [`TryInto`] trait, but requires a [GIL token](Python)
+/// It functions similarly to std's [`TryInto`] trait, but requires a [`Python<'py>`] token
 /// as an argument.
 ///
 /// The [`into_pyobject`][IntoPyObject::into_pyobject] method is designed for maximum flexibility and efficiency; it
@@ -529,7 +530,7 @@ impl<'py, T> FromPyObjectOwned<'py> for T where T: for<'a> FromPyObject<'a, 'py>
 
 impl<'a, 'py, T> FromPyObject<'a, 'py> for T
 where
-    T: PyClass + Clone,
+    T: PyClass + Clone + ExtractPyClassWithClone,
 {
     type Error = PyClassGuardError<'a, 'py>;
 
@@ -601,3 +602,38 @@ impl<'py> IntoPyObject<'py> for () {
 /// })
 /// ```
 mod test_no_clone {}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[cfg(feature = "macros")]
+    fn test_pyclass_skip_from_py_object() {
+        use crate::{types::PyAnyMethods, FromPyObject, IntoPyObject, PyErr, Python};
+
+        #[crate::pyclass(crate = "crate", skip_from_py_object)]
+        #[derive(Clone)]
+        struct Foo(i32);
+
+        impl<'py> FromPyObject<'_, 'py> for Foo {
+            type Error = PyErr;
+
+            fn extract(obj: crate::Borrowed<'_, 'py, crate::PyAny>) -> Result<Self, Self::Error> {
+                if let Ok(obj) = obj.cast::<Self>() {
+                    Ok(obj.borrow().clone())
+                } else {
+                    obj.extract::<i32>().map(Self)
+                }
+            }
+        }
+        Python::attach(|py| {
+            let foo1 = 42i32.into_pyobject(py)?;
+            assert_eq!(foo1.extract::<Foo>()?.0, 42);
+
+            let foo2 = Foo(0).into_pyobject(py)?;
+            assert_eq!(foo2.extract::<Foo>()?.0, 0);
+
+            Ok::<_, PyErr>(())
+        })
+        .unwrap();
+    }
+}

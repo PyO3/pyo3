@@ -1,7 +1,7 @@
 use crate::call::PyCallArgs;
 use crate::class::basic::CompareOp;
 use crate::conversion::{FromPyObject, IntoPyObject};
-use crate::err::{CastError, CastIntoError, PyErr, PyResult};
+use crate::err::{PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
@@ -12,6 +12,8 @@ use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyType};
 use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py, Python};
+#[allow(deprecated)]
+use crate::{DowncastError, DowncastIntoError};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::ffi::c_int;
@@ -772,8 +774,9 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// })
     /// # }
     /// ```
-    // FIXME(icxolu) deprecate in favor of `Bound::cast`
-    fn downcast<T>(&self) -> Result<&Bound<'py, T>, CastError<'_, 'py>>
+    #[deprecated(since = "0.27.0", note = "use `Bound::cast` instead")]
+    #[allow(deprecated)]
+    fn downcast<T>(&self) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
     where
         T: PyTypeCheck;
 
@@ -800,8 +803,9 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///     assert!(obj.downcast_into::<PyDict>().is_ok());
     /// })
     /// ```
-    // FIXME(icxolu) deprecate in favor of `Bound::cast_into`
-    fn downcast_into<T>(self) -> Result<Bound<'py, T>, CastIntoError<'py>>
+    #[deprecated(since = "0.27.0", note = "use `Bound::cast_into` instead")]
+    #[allow(deprecated)]
+    fn downcast_into<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
     where
         T: PyTypeCheck;
 
@@ -836,14 +840,16 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///     assert!(any.downcast_exact::<PyBool>().is_ok());
     /// });
     /// ```
-    // FIXME(icxolu) deprecate in favor of `Bound::cast_exact`
-    fn downcast_exact<T>(&self) -> Result<&Bound<'py, T>, CastError<'_, 'py>>
+    #[deprecated(since = "0.27.0", note = "use `Bound::cast_exact` instead")]
+    #[allow(deprecated)]
+    fn downcast_exact<T>(&self) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
     where
         T: PyTypeInfo;
 
     /// Like `downcast_exact` but takes ownership of `self`.
-    // FIXME(icxolu) deprecate in favor of `Bound::cast_into_exact`
-    fn downcast_into_exact<T>(self) -> Result<Bound<'py, T>, CastIntoError<'py>>
+    #[deprecated(since = "0.27.0", note = "use `Bound::cast_into_exact` instead")]
+    #[allow(deprecated)]
+    fn downcast_into_exact<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
     where
         T: PyTypeInfo;
 
@@ -852,7 +858,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// # Safety
     ///
     /// Callers must ensure that the type is valid or risk type confusion.
-    // FIXME(icxolu) deprecate in favor of `Bound::cast_unchecked`
+    #[deprecated(since = "0.27.0", note = "use `Bound::cast_unchecked` instead")]
     unsafe fn downcast_unchecked<T>(&self) -> &Bound<'py, T>;
 
     /// Like `downcast_unchecked` but takes ownership of `self`.
@@ -860,7 +866,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// # Safety
     ///
     /// Callers must ensure that the type is valid or risk type confusion.
-    // FIXME(icxolu) deprecate in favor of `Bound::cast_into_unchecked`
+    #[deprecated(since = "0.27.0", note = "use `Bound::cast_into_unchecked` instead")]
     unsafe fn downcast_into_unchecked<T>(self) -> Bound<'py, T>;
 
     /// Extracts some type from the Python object.
@@ -1445,35 +1451,63 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     #[inline]
-    fn downcast<T>(&self) -> Result<&Bound<'py, T>, CastError<'_, 'py>>
+    #[allow(deprecated)]
+    fn downcast<T>(&self) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
     where
         T: PyTypeCheck,
     {
-        self.cast()
+        if T::type_check(self) {
+            // Safety: type_check is responsible for ensuring that the type is correct
+            Ok(unsafe { self.cast_unchecked() })
+        } else {
+            #[allow(deprecated)]
+            Err(DowncastError::new(self, T::NAME))
+        }
     }
 
     #[inline]
-    fn downcast_into<T>(self) -> Result<Bound<'py, T>, CastIntoError<'py>>
+    #[allow(deprecated)]
+    fn downcast_into<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
     where
         T: PyTypeCheck,
     {
-        self.cast_into()
+        if T::type_check(&self) {
+            // Safety: type_check is responsible for ensuring that the type is correct
+            Ok(unsafe { self.cast_into_unchecked() })
+        } else {
+            #[allow(deprecated)]
+            Err(DowncastIntoError::new(self, T::NAME))
+        }
     }
 
     #[inline]
-    fn downcast_exact<T>(&self) -> Result<&Bound<'py, T>, CastError<'_, 'py>>
+    #[allow(deprecated)]
+    fn downcast_exact<T>(&self) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
     where
         T: PyTypeInfo,
     {
-        self.cast_exact()
+        if T::is_exact_type_of(self) {
+            // Safety: is_exact_type_of is responsible for ensuring that the type is correct
+            Ok(unsafe { self.cast_unchecked() })
+        } else {
+            #[allow(deprecated)]
+            Err(DowncastError::new(self, T::NAME))
+        }
     }
 
     #[inline]
-    fn downcast_into_exact<T>(self) -> Result<Bound<'py, T>, CastIntoError<'py>>
+    #[allow(deprecated)]
+    fn downcast_into_exact<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
     where
         T: PyTypeInfo,
     {
-        self.cast_into_exact()
+        if T::is_exact_type_of(&self) {
+            // Safety: is_exact_type_of is responsible for ensuring that the type is correct
+            Ok(unsafe { self.cast_into_unchecked() })
+        } else {
+            #[allow(deprecated)]
+            Err(DowncastIntoError::new(self, T::NAME))
+        }
     }
 
     #[inline]

@@ -52,7 +52,7 @@ use crate::types::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
 use crate::{intern, Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
-use jiff::civil::{Date, DateTime, Time};
+use jiff::civil::{Date, DateTime, ISOWeekDate, Time};
 use jiff::tz::{Offset, TimeZone};
 use jiff::{SignedDuration, Span, Timestamp, Zoned};
 #[cfg(feature = "jiff-02")]
@@ -474,6 +474,34 @@ impl<'py> FromPyObject<'_, 'py> for Span {
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let duration = ob.extract::<SignedDuration>()?;
         Ok(duration.try_into()?)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for ISOWeekDate {
+    type Target = PyDate;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.date().into_pyobject(py)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &ISOWeekDate {
+    type Target = PyDate;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
+impl FromPyObject<'_, '_> for ISOWeekDate {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
+        Ok(ob.extract::<Date>()?.iso_week_date())
     }
 }
 
@@ -1077,6 +1105,23 @@ mod tests {
                     let py_date = date.into_pyobject(py).unwrap();
                     let roundtripped: Date = py_date.extract().expect("Round trip");
                     prop_assert_eq!(date, roundtripped);
+                    Ok(())
+                })?;
+            }
+
+            #[test]
+            fn test_weekdate_roundtrip(
+                year in 1i16..=9999i16,
+                month in 1i8..=12i8,
+                day in 1i8..=31i8
+            ) {
+                // Test roundtrip conversion rust->python->rust for all allowed
+                // python dates (from year 1 to year 9999)
+                Python::attach(|py| {
+                    let weekdate = try_date(year, month, day)?.iso_week_date();
+                    let py_date = weekdate.into_pyobject(py).unwrap();
+                    let roundtripped = py_date.extract::<ISOWeekDate>().expect("Round trip");
+                    prop_assert_eq!(weekdate, roundtripped);
                     Ok(())
                 })?;
             }

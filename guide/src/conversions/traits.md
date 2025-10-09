@@ -535,6 +535,29 @@ struct RustyStruct {
 # }
 ```
 
+#### ⚠ Phase-Out of `FromPyObject` blanket implementation for cloneable PyClasses ⚠
+Historically PyO3 has provided a blanket implementation for `#[pyclass]` types that also implement `Clone`, to allow extraction of such types by value. Over time this has turned out problematic for a few reasons, the major one being the prevention of custom conversions by downstream crates if their type is `Clone`. Over the next few releases the blanket implementation is gradually phased out, and eventually replaced by an opt-in option. As a first step of this migration a new `skip_from_py_object` option for `#[pyclass]` was introduced, to opt-out of the blanket implementation and allow downstream users to provide their own implementation:
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+
+#[pyclass(skip_from_py_object)] // opt-out of the PyO3 FromPyObject blanket
+#[derive(Clone)]
+struct Number(i32);
+
+impl<'py> FromPyObject<'_, 'py> for Number {
+    type Error = PyErr;
+
+    fn extract(obj: pyo3::Borrowed<'_, 'py, pyo3::PyAny>) -> Result<Self, Self::Error> {
+        if let Ok(obj) = obj.cast::<Self>() { // first try extraction via class object
+            Ok(obj.borrow().clone())
+        } else {
+            obj.extract::<i32>().map(Self) // otherwise try integer directly
+        }
+    }
+}
+```
+
 ### `IntoPyObject`
 The [`IntoPyObject`] trait defines the to-python conversion for a Rust type. All types in PyO3 implement this trait,
 as does a `#[pyclass]` which doesn't use `extends`.

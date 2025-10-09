@@ -419,7 +419,7 @@ int_convert_u64_or_i64!(
     true
 );
 
-#[cfg(all(not(Py_LIMITED_API), not(GraalPy)))]
+#[cfg(not(Py_LIMITED_API))]
 mod fast_128bit_int_conversion {
     use super::*;
 
@@ -435,45 +435,15 @@ mod fast_128bit_int_conversion {
                 const OUTPUT_TYPE: &'static str = "int";
 
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-                    #[cfg(not(Py_3_13))]
-                    {
-                        let bytes = self.to_le_bytes();
-                        unsafe {
-                            Ok(ffi::_PyLong_FromByteArray(
-                                bytes.as_ptr().cast(),
-                                bytes.len(),
-                                1,
-                                $is_signed.into(),
-                            )
-                            .assume_owned(py)
-                            .cast_into_unchecked())
-                        }
-                    }
                     #[cfg(Py_3_13)]
                     {
                         let bytes = self.to_ne_bytes();
-
-                        if $is_signed {
-                            unsafe {
-                                Ok(ffi::PyLong_FromNativeBytes(
-                                    bytes.as_ptr().cast(),
-                                    bytes.len(),
-                                    ffi::Py_ASNATIVEBYTES_NATIVE_ENDIAN,
-                                )
-                                .assume_owned(py)
-                                .cast_into_unchecked())
-                            }
-                        } else {
-                            unsafe {
-                                Ok(ffi::PyLong_FromUnsignedNativeBytes(
-                                    bytes.as_ptr().cast(),
-                                    bytes.len(),
-                                    ffi::Py_ASNATIVEBYTES_NATIVE_ENDIAN,
-                                )
-                                .assume_owned(py)
-                                .cast_into_unchecked())
-                            }
-                        }
+                        Ok(int_from_ne_bytes::<{ $is_signed }>(py, &bytes))
+                    }
+                    #[cfg(not(Py_3_13))]
+                    {
+                        let bytes = self.to_le_bytes();
+                        Ok(int_from_le_bytes::<{ $is_signed }>(py, &bytes))
                     }
                 }
 
@@ -566,8 +536,37 @@ mod fast_128bit_int_conversion {
     int_convert_128!(u128, false);
 }
 
+#[cfg(all(not(Py_LIMITED_API), not(Py_3_13)))]
+pub(crate) fn int_from_le_bytes<'py, const IS_SIGNED: bool>(
+    py: Python<'py>,
+    bytes: &[u8],
+) -> Bound<'py, PyInt> {
+    unsafe {
+        ffi::_PyLong_FromByteArray(bytes.as_ptr().cast(), bytes.len(), 1, IS_SIGNED.into())
+            .assume_owned(py)
+            .cast_into_unchecked()
+    }
+}
+
+#[cfg(all(Py_3_13, not(Py_LIMITED_API)))]
+pub(crate) fn int_from_ne_bytes<'py, const IS_SIGNED: bool>(
+    py: Python<'py>,
+    bytes: &[u8],
+) -> Bound<'py, PyInt> {
+    let flags = if IS_SIGNED {
+        ffi::Py_ASNATIVEBYTES_NATIVE_ENDIAN
+    } else {
+        ffi::Py_ASNATIVEBYTES_NATIVE_ENDIAN | ffi::Py_ASNATIVEBYTES_UNSIGNED_BUFFER
+    };
+    unsafe {
+        ffi::PyLong_FromNativeBytes(bytes.as_ptr().cast(), bytes.len(), flags)
+            .assume_owned(py)
+            .cast_into_unchecked()
+    }
+}
+
 // For ABI3 we implement the conversion manually.
-#[cfg(any(Py_LIMITED_API, GraalPy))]
+#[cfg(Py_LIMITED_API)]
 mod slow_128bit_int_conversion {
     use super::*;
     use crate::types::any::PyAnyMethods as _;

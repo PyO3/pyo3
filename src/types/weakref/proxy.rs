@@ -20,7 +20,7 @@ pyobject_native_type_named!(PyWeakrefProxy);
 // #[cfg(not(Py_LIMITED_API))]
 // pyobject_native_type_sized!(PyWeakrefProxy, ffi::PyWeakReference);
 
-impl PyTypeCheck for PyWeakrefProxy {
+unsafe impl PyTypeCheck for PyWeakrefProxy {
     const NAME: &'static str = "weakref.ProxyTypes";
 
     #[cfg(feature = "experimental-inspect")]

@@ -1,13 +1,13 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::impl_::pyfunction::create_py_c_function;
 use crate::py_result_ext::PyResultExt;
 use crate::types::capsule::PyCapsuleMethods;
-use crate::types::module::PyModuleMethods;
 use crate::{
     ffi,
     impl_::pymethods::{self, PyMethodDef},
-    types::{PyCapsule, PyDict, PyModule, PyString, PyTuple},
+    types::{PyCapsule, PyDict, PyModule, PyTuple},
 };
-use crate::{Bound, Py, PyAny, PyResult, Python};
+use crate::{Bound, PyAny, PyResult, Python};
 use std::cell::UnsafeCell;
 use std::ffi::CStr;
 
@@ -32,11 +32,11 @@ impl PyCFunction {
         doc: &'static CStr,
         module: Option<&Bound<'py, PyModule>>,
     ) -> PyResult<Bound<'py, Self>> {
-        Self::internal_new(
-            py,
-            &PyMethodDef::cfunction_with_keywords(name, fun, doc),
-            module,
-        )
+        let def = PyMethodDef::cfunction_with_keywords(name, fun, doc).into_raw();
+        // FIXME: stop leaking the def
+        let def = Box::leak(Box::new(def));
+        // Safety: def is static
+        unsafe { create_py_c_function(py, def, module) }
     }
 
     /// Create a new built-in function which takes no arguments.
@@ -50,7 +50,11 @@ impl PyCFunction {
         doc: &'static CStr,
         module: Option<&Bound<'py, PyModule>>,
     ) -> PyResult<Bound<'py, Self>> {
-        Self::internal_new(py, &PyMethodDef::noargs(name, fun, doc), module)
+        let def = PyMethodDef::noargs(name, fun, doc).into_raw();
+        // FIXME: stop leaking the def
+        let def = Box::leak(Box::new(def));
+        // Safety: def is static
+        unsafe { create_py_c_function(py, def, module) }
     }
 
     /// Create a new function from a closure.
@@ -84,7 +88,7 @@ impl PyCFunction {
         let doc = doc.unwrap_or(ffi::c_str!(""));
         let method_def =
             pymethods::PyMethodDef::cfunction_with_keywords(name, run_closure::<F, R>, doc);
-        let def = method_def.as_method_def();
+        let def = method_def.into_raw();
 
         let capsule = PyCapsule::new(
             py,
@@ -100,34 +104,6 @@ impl PyCFunction {
 
         unsafe {
             ffi::PyCFunction_NewEx(data.def.get(), capsule.as_ptr(), std::ptr::null_mut())
-                .assume_owned_or_err(py)
-                .cast_into_unchecked()
-        }
-    }
-
-    #[doc(hidden)]
-    pub fn internal_new<'py>(
-        py: Python<'py>,
-        method_def: &PyMethodDef,
-        module: Option<&Bound<'py, PyModule>>,
-    ) -> PyResult<Bound<'py, Self>> {
-        let (mod_ptr, module_name): (_, Option<Py<PyString>>) = if let Some(m) = module {
-            let mod_ptr = m.as_ptr();
-            (mod_ptr, Some(m.name()?.unbind()))
-        } else {
-            (std::ptr::null_mut(), None)
-        };
-        let def = method_def.as_method_def();
-
-        // FIXME: stop leaking the def
-        let def = Box::into_raw(Box::new(def));
-
-        let module_name_ptr = module_name
-            .as_ref()
-            .map_or(std::ptr::null_mut(), Py::as_ptr);
-
-        unsafe {
-            ffi::PyCFunction_NewEx(def, mod_ptr, module_name_ptr)
                 .assume_owned_or_err(py)
                 .cast_into_unchecked()
         }

@@ -219,7 +219,7 @@ mod nightly {
         /// });
         /// ```
         ///
-        /// This applies to the GIL token `Python` itself as well, e.g.
+        /// This applies to the [`Python`] token itself as well, e.g.
         ///
         /// ```compile_fail
         /// # use pyo3::prelude::*;
