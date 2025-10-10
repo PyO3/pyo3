@@ -1,3 +1,5 @@
+#![deny(clippy::undocumented_unsafe_blocks)]
+
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::{ffi, PyAny};
@@ -113,20 +115,22 @@ impl PyCapsule {
         debug_assert_eq!(memoffset::offset_of!(CapsuleContents::<T, F>, value), 0);
 
         let name_ptr = name.as_ref().map_or(std::ptr::null(), |name| name.as_ptr());
-        let val = Box::new(CapsuleContents {
+        let val = Box::into_raw(Box::new(CapsuleContents {
             value,
             destructor,
             name,
-        });
+        }));
 
+        // SAFETY:
+        // - `val` is a non-null pointer to valid capsule data
+        // - `name_ptr` is either a valid C string or null
+        // - `destructor` will delete this data when called
+        // - thread is attached to the Python interpreter
+        // - `PyCapsule_New` returns a new reference or null on error
         unsafe {
-            ffi::PyCapsule_New(
-                Box::into_raw(val).cast(),
-                name_ptr,
-                Some(capsule_destructor::<T, F>),
-            )
-            .assume_owned_or_err(py)
-            .cast_into_unchecked()
+            ffi::PyCapsule_New(val.cast(), name_ptr, Some(capsule_destructor::<T, F>))
+                .assume_owned_or_err(py)
+                .cast_into_unchecked()
         }
     }
 
@@ -139,10 +143,12 @@ impl PyCapsule {
     ///
     /// It must be known that the capsule imported by `name` contains an item of type `T`.
     pub unsafe fn import<'py, T>(py: Python<'py>, name: &CStr) -> PyResult<&'py T> {
+        // SAFETY: `name` is a valid C string, thread is attached to the Python interpreter
         let ptr = unsafe { ffi::PyCapsule_Import(name.as_ptr(), false as c_int) };
         if ptr.is_null() {
             Err(PyErr::fetch(py))
         } else {
+            // SAFETY: caller has upheld the safety contract
             Ok(unsafe { &*ptr.cast::<T>() })
         }
     }
@@ -272,6 +278,10 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
 impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     fn set_context(&self, context: *mut c_void) -> PyResult<()> {
+        // SAFETY:
+        // - `self.as_ptr()` is a valid object pointer
+        // - `context` is user-provided
+        // - thread is attached to the Python interpreter
         let result = unsafe { ffi::PyCapsule_SetContext(self.as_ptr(), context) };
         if result != 0 {
             Err(PyErr::fetch(self.py()))
@@ -281,6 +291,9 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
     }
 
     fn context(&self) -> PyResult<*mut c_void> {
+        // SAFETY:
+        // - `self.as_ptr()` is a valid object pointer
+        // - thread is attached to the Python interpreter
         let ctx = unsafe { ffi::PyCapsule_GetContext(self.as_ptr()) };
         if ctx.is_null() {
             ensure_no_error(self.py())?
@@ -290,10 +303,14 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
 
     #[allow(deprecated)]
     unsafe fn reference<T>(&self) -> &T {
+        // SAFETY:
+        // - caller has upheld the safety contract
+        // - thread is attached to the Python interpreter
         unsafe { &*self.pointer().cast() }
     }
 
     fn pointer(&self) -> *mut c_void {
+        // SAFETY: arguments to `PyCapsule_GetPointer` are valid, errors are handled properly
         unsafe {
             let ptr = ffi::PyCapsule_GetPointer(self.as_ptr(), name_ptr_ignore_error(self));
             if ptr.is_null() {
@@ -304,6 +321,10 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
     }
 
     fn pointer_checked(&self, name: Option<&CStr>) -> PyResult<NonNull<c_void>> {
+        // SAFETY:
+        // - `self.as_ptr()` is a valid object pointer
+        // - `name_ptr` is either a valid C string or null
+        // - thread is attached to the Python interpreter
         let ptr = unsafe { ffi::PyCapsule_GetPointer(self.as_ptr(), name_ptr(name)) };
         match NonNull::new(ptr) {
             Some(ptr) => Ok(ptr),
@@ -312,7 +333,7 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
     }
 
     fn is_valid(&self) -> bool {
-        // As well as if the stored pointer is null, PyCapsule_IsValid also returns false if
+        // SAFETY: As well as if the stored pointer is null, PyCapsule_IsValid also returns false if
         // self.as_ptr() is null or not a ptr to a PyCapsule object. Both of these are guaranteed
         // to not be the case thanks to invariants of this PyCapsule struct.
         let r = unsafe { ffi::PyCapsule_IsValid(self.as_ptr(), name_ptr_ignore_error(self)) };
@@ -320,11 +341,18 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
     }
 
     fn is_valid_checked(&self, name: Option<&CStr>) -> bool {
+        // SAFETY:
+        // - `self.as_ptr()` is a valid object pointer
+        // - `name_ptr` is either a valid C string or null
+        // - thread is attached to the Python interpreter
         let r = unsafe { ffi::PyCapsule_IsValid(self.as_ptr(), name_ptr(name)) };
         r != 0
     }
 
     fn name(&self) -> PyResult<*const c_char> {
+        // SAFETY:
+        // - `self.as_ptr()` is a valid object pointer
+        // - thread is attached to the Python interpreter
         let name = unsafe { ffi::PyCapsule_GetName(self.as_ptr()) };
         if name.is_null() {
             ensure_no_error(self.py())?;
@@ -348,14 +376,37 @@ struct CapsuleContents<T: 'static + Send, D: FnOnce(T, *mut c_void) + Send> {
 unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_void) + Send>(
     capsule: *mut ffi::PyObject,
 ) {
-    unsafe {
-        let ptr = ffi::PyCapsule_GetPointer(capsule, ffi::PyCapsule_GetName(capsule));
-        let ctx = ffi::PyCapsule_GetContext(capsule);
-        let CapsuleContents {
-            value, destructor, ..
-        } = *Box::from_raw(ptr.cast::<CapsuleContents<T, F>>());
-        destructor(value, ctx)
+    /// Gets the pointer and context from the capsule.
+    ///
+    /// # Safety
+    ///
+    /// - `capsule` must be a valid capsule object
+    unsafe fn get_pointer_ctx(capsule: *mut ffi::PyObject) -> (*mut c_void, *mut c_void) {
+        // SAFETY: `capsule` is known to be a borrowed reference to the capsule being destroyed
+        let name = unsafe { ffi::PyCapsule_GetName(capsule) };
+
+        // SAFETY:
+        // - `capsule` is known to be a borrowed reference to the capsule being destroyed
+        // - `name` is known to be the capsule's name
+        let ptr = unsafe { ffi::PyCapsule_GetPointer(capsule, name) };
+
+        // SAFETY:
+        // - `capsule` is known to be a borrowed reference to the capsule being destroyed
+        let ctx = unsafe { ffi::PyCapsule_GetContext(capsule) };
+
+        (ptr, ctx)
     }
+
+    // SAFETY: `capsule` is known to be a valid capsule object
+    let (ptr, ctx) = unsafe { get_pointer_ctx(capsule) };
+
+    // SAFETY: `capsule` was knowingly constructred with a boxed `CapsuleContents<T, F>`
+    // and is now being destroyed, so we can move the data from the box.
+    let CapsuleContents::<T, F> {
+        value, destructor, ..
+    } = *unsafe { Box::from_raw(ptr.cast()) };
+
+    destructor(value, ctx);
 }
 
 /// Guarantee `T` is not zero sized at compile time.
@@ -382,8 +433,12 @@ fn ensure_no_error(py: Python<'_>) -> PyResult<()> {
 }
 
 fn name_ptr_ignore_error(slf: &Bound<'_, PyCapsule>) -> *const c_char {
+    // SAFETY:
+    // - `slf` is known to be a valid capsule object
+    // - thread is attached to the Python interpreter
     let ptr = unsafe { ffi::PyCapsule_GetName(slf.as_ptr()) };
     if ptr.is_null() {
+        // SAFETY: thread is attached to the Python interpreter
         unsafe { ffi::PyErr_Clear() };
     }
     ptr
@@ -409,7 +464,7 @@ mod tests {
     const NAME: &CStr = ffi::c_str!("foo");
 
     #[test]
-    fn test_pycapsule_struct() -> PyResult<()> {
+    fn test_pycapsule_struct() {
         #[repr(C)]
         struct Foo {
             pub val: u32,
@@ -421,17 +476,19 @@ mod tests {
             }
         }
 
-        Python::attach(|py| -> PyResult<()> {
+        Python::attach(|py| {
             let foo = Foo { val: 123 };
 
-            let cap = PyCapsule::new(py, foo, Some(NAME.to_owned()))?;
+            let cap = PyCapsule::new(py, foo, Some(NAME.to_owned())).unwrap();
             assert!(cap.is_valid_checked(Some(NAME)));
 
             let foo_capi = cap.pointer_checked(Some(NAME)).unwrap().cast::<Foo>();
+            // SAFETY: `foo_capi` contains a `Foo` and will be valid for the duration of the assert
             assert_eq!(unsafe { foo_capi.as_ref() }.val, 123);
+            // SAFETY: as above
             assert_eq!(unsafe { foo_capi.as_ref() }.get_val(), 123);
+            // SAFETY: `cap.name()` has a non-null name
             assert_eq!(unsafe { CStr::from_ptr(cap.name().unwrap()) }, NAME);
-            Ok(())
         })
     }
 
@@ -452,30 +509,31 @@ mod tests {
                 .pointer_checked(Some(NAME))
                 .unwrap()
                 .cast::<fn(u32) -> u32>();
+            // SAFETY: `f` contains a `fn(u32) -> u32` and will be valid for the duration of the assert
             assert_eq!(unsafe { f.as_ref() }(123), 123);
         });
     }
 
     #[test]
-    fn test_pycapsule_context() -> PyResult<()> {
+    fn test_pycapsule_context() {
         Python::attach(|py| {
-            let cap = PyCapsule::new(py, 0, Some(NAME.to_owned()))?;
+            let cap = PyCapsule::new(py, 0, Some(NAME.to_owned())).unwrap();
 
-            let c = cap.context()?;
+            let c = cap.context().unwrap();
             assert!(c.is_null());
 
             let ctx = Box::new(123_u32);
-            cap.set_context(Box::into_raw(ctx).cast())?;
+            cap.set_context(Box::into_raw(ctx).cast()).unwrap();
 
-            let ctx_ptr: *mut c_void = cap.context()?;
+            let ctx_ptr: *mut c_void = cap.context().unwrap();
+            // SAFETY: `ctx_ptr` contains a boxed `u32` which is being moved out of the capsule
             let ctx = unsafe { *Box::from_raw(ctx_ptr.cast::<u32>()) };
             assert_eq!(ctx, 123);
-            Ok(())
         })
     }
 
     #[test]
-    fn test_pycapsule_import() -> PyResult<()> {
+    fn test_pycapsule_import() {
         #[repr(C)]
         struct Foo {
             pub val: u32,
@@ -491,14 +549,15 @@ mod tests {
             module.add("capsule", capsule).unwrap();
 
             // check error when wrong named passed for capsule.
+            // SAFETY: this function will fail so the cast is never done
             let result: PyResult<&Foo> =
                 unsafe { PyCapsule::import(py, ffi::c_str!("builtins.non_existant")) };
             assert!(result.is_err());
 
             // correct name is okay.
+            // SAFETY: we know the capsule at `name` contains a `Foo`
             let cap: &Foo = unsafe { PyCapsule::import(py, name) }.unwrap();
             assert_eq!(cap.val, 123);
-            Ok(())
         })
     }
 
@@ -516,6 +575,7 @@ mod tests {
                 .pointer_checked(Some(NAME))
                 .unwrap()
                 .cast::<Vec<u8>>();
+            // SAFETY: `stuff` contains a `Vec<u8>` and will be valid for the duration of the assert
             assert_eq!(unsafe { stuff.as_ref() }, &[1, 2, 3, 4]);
         })
     }
@@ -534,6 +594,7 @@ mod tests {
 
         Python::attach(move |py| {
             let ctx_ptr: *mut c_void = cap.bind(py).context().unwrap();
+            // SAFETY: `ctx_ptr` contains a boxed `&Vec<u8>` which is being moved out of the capsule
             let ctx = unsafe { *Box::from_raw(ctx_ptr.cast::<&Vec<u8>>()) };
             assert_eq!(ctx, &vec![1_u8, 2, 3, 4]);
         })
@@ -545,6 +606,7 @@ mod tests {
 
         fn destructor(_val: u32, ctx: *mut c_void) {
             assert!(!ctx.is_null());
+            // SAFETY: `ctx` is known to be a boxed `Sender<bool>` needing deletion
             let context = unsafe { *Box::from_raw(ctx.cast::<Sender<bool>>()) };
             context.send(true).unwrap();
         }
@@ -565,6 +627,7 @@ mod tests {
             let cap = PyCapsule::new(py, 0usize, None).unwrap();
 
             assert_eq!(
+                // SAFETY: `cap` is known to contain a `usize`
                 unsafe { cap.pointer_checked(None).unwrap().cast::<usize>().as_ref() },
                 &0usize
             );

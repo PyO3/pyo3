@@ -125,21 +125,36 @@ macro_rules! pyobject_native_type_named (
     };
 );
 
+/// Helper for defining the `$typeobject` argument for other macros in this module.
+///
+/// # Safety
+///
+/// - `$typeobject` must be a known `static mut PyTypeObject`
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_static_type_object(
     ($typeobject:expr) => {
         |_py| {
+            // TODO: remove `unsafe` and `allow` on MSRV 1.82+
             #[allow(unused_unsafe)] // https://github.com/rust-lang/rust/pull/125834
+            // SAFETY: `typeobject` is a known `static mut PyTypeObject`
             unsafe { ::std::ptr::addr_of_mut!($typeobject) }
         }
     };
 );
 
+/// Implements the `PyTypeInfo` trait for a native Python type.
+///
+/// # Safety
+///
+/// - `$typeobject` must be a function that produces a valid `*mut PyTypeObject`
+/// - `$checkfunction` must be a function that accepts arbitrary `*mut PyObject` and returns true /
+///   false according to whether the object is an instance of the type from `$typeobject`
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_info(
     ($name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        // SAFETY: macro caller has upheld the safety contracts
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
             const NAME: &'static str = stringify!($name);
             const MODULE: ::std::option::Option<&'static str> = $module;
@@ -153,7 +168,8 @@ macro_rules! pyobject_native_type_info(
             $(
                 #[inline]
                 fn is_type_of(obj: &$crate::Bound<'_, $crate::PyAny>) -> bool {
-                    #[allow(unused_unsafe)]
+                    #[allow(unused_unsafe)] // not all `$checkfunction` are unsafe extern "C" fn
+                    // SAFETY: `$checkfunction` is being called with a valid `PyObject` pointer
                     unsafe { $checkfunction(obj.as_ptr()) > 0 }
                 }
             )?
