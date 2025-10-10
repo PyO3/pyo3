@@ -97,10 +97,14 @@ static mut METHODS: &[PyMethodDef] = &[
 ];
 
 static mut SLOTS: &[PyModuleDef_Slot] = &[
+    // NB: only include this slot if the module does not store any global state in `static` variables
+    // or other data which could cross between subinterpreters
+    #[cfg(Py_3_12)]
     PyModuleDef_Slot {
         slot: Py_mod_multiple_interpreters,
         value: Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
     },
+    // NB: only include this slot if the module does not depend on the GIL for thread safety
     #[cfg(Py_GIL_DISABLED)]
     PyModuleDef_Slot {
         slot: Py_mod_gil,
