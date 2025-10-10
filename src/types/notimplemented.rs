@@ -16,10 +16,11 @@ impl PyNotImplemented {
     /// Returns the `NotImplemented` object.
     #[inline]
     pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyNotImplemented> {
+        // SAFETY: `Py_NotImplemented` is a global singleton which is known to be the NotImplemented object
         unsafe {
             ffi::Py_NotImplemented()
-                .assume_borrowed(py)
-                .downcast_unchecked()
+                .assume_borrowed_unchecked(py)
+                .cast_unchecked()
         }
     }
 }
@@ -52,7 +53,7 @@ mod tests {
 
     #[test]
     fn test_notimplemented_is_itself() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyNotImplemented::get(py).is_instance_of::<PyNotImplemented>());
             assert!(PyNotImplemented::get(py).is_exact_instance_of::<PyNotImplemented>());
         })
@@ -60,7 +61,7 @@ mod tests {
 
     #[test]
     fn test_notimplemented_type_object_consistent() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyNotImplemented::get(py)
                 .get_type()
                 .is(PyNotImplemented::type_object(py)));
@@ -69,8 +70,8 @@ mod tests {
 
     #[test]
     fn test_dict_is_not_notimplemented() {
-        Python::with_gil(|py| {
-            assert!(PyDict::new(py).downcast::<PyNotImplemented>().is_err());
+        Python::attach(|py| {
+            assert!(PyDict::new(py).cast::<PyNotImplemented>().is_err());
         })
     }
 }

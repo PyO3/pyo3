@@ -1,7 +1,7 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use libc::wchar_t;
-use std::os::raw::{c_char, c_int, c_void};
+use std::ffi::{c_char, c_int, c_void};
 #[cfg(not(PyPy))]
 use std::ptr::addr_of_mut;
 

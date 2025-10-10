@@ -6,8 +6,7 @@ use pyo3::py_run;
 use pyo3::ffi;
 use pyo3::types::IntoPyDict;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass(subclass)]
 struct BaseClass {
@@ -20,7 +19,7 @@ struct SubclassAble {}
 
 #[test]
 fn subclass() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = [("SubclassAble", py.get_type::<SubclassAble>())]
             .into_py_dict(py)
             .unwrap();
@@ -74,7 +73,7 @@ impl SubClass {
 
 #[test]
 fn inheritance_with_new_methods() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let typeobj = py.get_type::<SubClass>();
         let inst = typeobj.call((), None).unwrap();
         py_run!(py, inst, "assert inst.val1 == 10; assert inst.val2 == 5");
@@ -83,7 +82,7 @@ fn inheritance_with_new_methods() {
 
 #[test]
 fn call_base_and_sub_methods() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let obj = Py::new(py, SubClass::new()).unwrap();
         py_run!(
             py,
@@ -98,7 +97,7 @@ fn call_base_and_sub_methods() {
 
 #[test]
 fn mutation_fails() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let obj = Py::new(py, SubClass::new()).unwrap();
         let global = [("obj", obj)].into_py_dict(py).unwrap();
         let e = py
@@ -114,7 +113,7 @@ fn mutation_fails() {
 
 #[test]
 fn is_subclass_and_is_instance() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let sub_ty = py.get_type::<SubClass>();
         let base_ty = py.get_type::<BaseClass>();
         assert!(sub_ty.is_subclass_of::<BaseClass>().unwrap());
@@ -157,7 +156,7 @@ impl SubClass2 {
 
 #[test]
 fn handle_result_in_new() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let subclass = py.get_type::<SubClass2>();
         py_run!(
             py,
@@ -202,7 +201,7 @@ mod inheriting_native_type {
             }
         }
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let set_sub = pyo3::Py::new(py, SetWithName::new()).unwrap();
             py_run!(
                 py,
@@ -229,7 +228,7 @@ mod inheriting_native_type {
 
     #[test]
     fn inherit_dict() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
             py_run!(
                 py,
@@ -241,7 +240,7 @@ mod inheriting_native_type {
 
     #[test]
     fn inherit_dict_drop() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
             assert_eq!(dict_sub.get_refcnt(py), 1);
 
@@ -274,7 +273,7 @@ mod inheriting_native_type {
 
     #[test]
     fn custom_exception() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let cls = py.get_type::<CustomException>();
             let dict = [("cls", &cls)].into_py_dict(py).unwrap();
             let res = py.run(
@@ -314,7 +313,7 @@ impl SimpleClass {
 #[test]
 fn test_subclass_ref_counts() {
     // regression test for issue #1363
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         #[allow(non_snake_case)]
         let SimpleClass = py.get_type::<SimpleClass>();
         py_run!(

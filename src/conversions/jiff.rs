@@ -14,8 +14,7 @@
 //! ```
 //!
 //! Note that you must use compatible versions of jiff and PyO3.
-//! The required jiff version may vary based on the version of PyO3. Jiff also requires a MSRV
-//! of 1.70.
+//! The required jiff version may vary based on the version of PyO3.
 //!
 //! # Example: Convert a `datetime.datetime` to jiff `Zoned`
 //!
@@ -29,8 +28,8 @@
 //! # fn main() -> () {}
 //! # #[cfg(not(windows))]
 //! fn main() -> PyResult<()> {
-//!     pyo3::prepare_freethreaded_python();
-//!     Python::with_gil(|py| {
+//!     Python::initialize();
+//!     Python::attach(|py| {
 //!         // Build some jiff values
 //!         let jiff_zoned = Zoned::now();
 //!         let jiff_span = 1.second();
@@ -52,8 +51,8 @@ use crate::types::{PyAnyMethods, PyNone};
 use crate::types::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
-use crate::{intern, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
-use jiff::civil::{Date, DateTime, Time};
+use crate::{intern, Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
+use jiff::civil::{Date, DateTime, ISOWeekDate, Time};
 use jiff::tz::{Offset, TimeZone};
 use jiff::{SignedDuration, Span, Timestamp, Zoned};
 #[cfg(feature = "jiff-02")]
@@ -123,8 +122,10 @@ impl<'py> IntoPyObject<'py> for &Timestamp {
     }
 }
 
-impl<'py> FromPyObject<'py> for Timestamp {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+impl<'a, 'py> FromPyObject<'a, 'py> for Timestamp {
+    type Error = <Zoned as FromPyObject<'a, 'py>>::Error;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let zoned = ob.extract::<Zoned>()?;
         Ok(zoned.timestamp())
     }
@@ -155,9 +156,11 @@ impl<'py> IntoPyObject<'py> for &Date {
     }
 }
 
-impl<'py> FromPyObject<'py> for Date {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let date = ob.downcast::<PyDate>()?;
+impl<'py> FromPyObject<'_, 'py> for Date {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        let date = ob.cast::<PyDate>()?;
 
         #[cfg(not(Py_LIMITED_API))]
         {
@@ -207,11 +210,13 @@ impl<'py> IntoPyObject<'py> for &Time {
     }
 }
 
-impl<'py> FromPyObject<'py> for Time {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let ob = ob.downcast::<PyTime>()?;
+impl<'py> FromPyObject<'_, 'py> for Time {
+    type Error = PyErr;
 
-        pytime_to_time(ob)
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        let ob = ob.cast::<PyTime>()?;
+        #[allow(clippy::explicit_auto_deref)]
+        pytime_to_time(&*ob)
     }
 }
 
@@ -235,16 +240,19 @@ impl<'py> IntoPyObject<'py> for &DateTime {
     }
 }
 
-impl<'py> FromPyObject<'py> for DateTime {
-    fn extract_bound(dt: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let dt = dt.downcast::<PyDateTime>()?;
+impl<'py> FromPyObject<'_, 'py> for DateTime {
+    type Error = PyErr;
+
+    fn extract(dt: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        let dt = dt.cast::<PyDateTime>()?;
         let has_tzinfo = dt.get_tzinfo().is_some();
 
         if has_tzinfo {
             return Err(PyTypeError::new_err("expected a datetime without tzinfo"));
         }
 
-        Ok(DateTime::from_parts(dt.extract()?, pytime_to_time(dt)?))
+        #[allow(clippy::explicit_auto_deref)]
+        Ok(DateTime::from_parts(dt.extract()?, pytime_to_time(&*dt)?))
     }
 }
 
@@ -284,9 +292,11 @@ impl<'py> IntoPyObject<'py> for &Zoned {
     }
 }
 
-impl<'py> FromPyObject<'py> for Zoned {
-    fn extract_bound(dt: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let dt = dt.downcast::<PyDateTime>()?;
+impl<'py> FromPyObject<'_, 'py> for Zoned {
+    type Error = PyErr;
+
+    fn extract(dt: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        let dt = dt.cast::<PyDateTime>()?;
 
         let tz = dt
             .get_tzinfo()
@@ -296,7 +306,8 @@ impl<'py> FromPyObject<'py> for Zoned {
                     "expected a datetime with non-None tzinfo",
                 ))
             })?;
-        let datetime = DateTime::from_parts(dt.extract()?, pytime_to_time(dt)?);
+        #[allow(clippy::explicit_auto_deref)]
+        let datetime = DateTime::from_parts(dt.extract()?, pytime_to_time(&*dt)?);
         let zoned = tz.into_ambiguous_zoned(datetime);
 
         #[cfg(not(Py_LIMITED_API))]
@@ -341,9 +352,11 @@ impl<'py> IntoPyObject<'py> for &TimeZone {
     }
 }
 
-impl<'py> FromPyObject<'py> for TimeZone {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let ob = ob.downcast::<PyTzInfo>()?;
+impl<'py> FromPyObject<'_, 'py> for TimeZone {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        let ob = ob.cast::<PyTzInfo>()?;
 
         let attr = intern!(ob.py(), "key");
         if ob.hasattr(attr)? {
@@ -378,10 +391,12 @@ impl<'py> IntoPyObject<'py> for Offset {
     }
 }
 
-impl<'py> FromPyObject<'py> for Offset {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for Offset {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let py = ob.py();
-        let ob = ob.downcast::<PyTzInfo>()?;
+        let ob = ob.cast::<PyTzInfo>()?;
 
         let py_timedelta = ob.call_method1(intern!(py, "utcoffset"), (PyNone::get(py),))?;
         if py_timedelta.is_none() {
@@ -426,9 +441,11 @@ impl<'py> IntoPyObject<'py> for SignedDuration {
     }
 }
 
-impl<'py> FromPyObject<'py> for SignedDuration {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let delta = ob.downcast::<PyDelta>()?;
+impl<'py> FromPyObject<'_, 'py> for SignedDuration {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        let delta = ob.cast::<PyDelta>()?;
 
         #[cfg(not(Py_LIMITED_API))]
         let (seconds, microseconds) = {
@@ -451,10 +468,40 @@ impl<'py> FromPyObject<'py> for SignedDuration {
     }
 }
 
-impl<'py> FromPyObject<'py> for Span {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for Span {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let duration = ob.extract::<SignedDuration>()?;
         Ok(duration.try_into()?)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for ISOWeekDate {
+    type Target = PyDate;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.date().into_pyobject(py)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &ISOWeekDate {
+    type Target = PyDate;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
+impl FromPyObject<'_, '_> for ISOWeekDate {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
+        Ok(ob.extract::<Date>()?.iso_week_date())
     }
 }
 
@@ -481,7 +528,7 @@ mod tests {
         use crate::types::any::PyAnyMethods;
         use crate::types::dict::PyDictMethods;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = crate::types::PyDict::new(py);
             py.run(
                 ffi::c_str!("import zoneinfo; zi = zoneinfo.ZoneInfo('Europe/London')"),
@@ -502,7 +549,7 @@ mod tests {
     fn test_timezone_aware_to_naive_fails() {
         // Test that if a user tries to convert a python's timezone aware datetime into a naive
         // one, the conversion fails.
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_datetime =
                 new_py_datetime_ob(py, "datetime", (2022, 1, 1, 1, 0, 0, 0, python_utc(py)));
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
@@ -518,7 +565,7 @@ mod tests {
     fn test_naive_to_timezone_aware_fails() {
         // Test that if a user tries to convert a python's naive datetime into a timezone aware
         // one, the conversion fails.
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_datetime = new_py_datetime_ob(py, "datetime", (2022, 1, 1, 1, 0, 0, 0));
             let res: PyResult<Zoned> = py_datetime.extract();
             assert_eq!(
@@ -530,35 +577,35 @@ mod tests {
 
     #[test]
     fn test_invalid_types_fail() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let none = py.None().into_bound(py);
             assert_eq!(
                 none.extract::<Span>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'PyDelta'"
+                "TypeError: 'NoneType' object cannot be cast as 'timedelta'"
             );
             assert_eq!(
                 none.extract::<Offset>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'PyTzInfo'"
+                "TypeError: 'NoneType' object cannot be cast as 'tzinfo'"
             );
             assert_eq!(
                 none.extract::<TimeZone>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'PyTzInfo'"
+                "TypeError: 'NoneType' object cannot be cast as 'tzinfo'"
             );
             assert_eq!(
                 none.extract::<Time>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'PyTime'"
+                "TypeError: 'NoneType' object cannot be cast as 'time'"
             );
             assert_eq!(
                 none.extract::<Date>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'PyDate'"
+                "TypeError: 'NoneType' object cannot be cast as 'date'"
             );
             assert_eq!(
                 none.extract::<DateTime>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'PyDateTime'"
+                "TypeError: 'NoneType' object cannot be cast as 'datetime'"
             );
             assert_eq!(
                 none.extract::<Zoned>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'PyDateTime'"
+                "TypeError: 'NoneType' object cannot be cast as 'datetime'"
             );
         });
     }
@@ -566,7 +613,7 @@ mod tests {
     #[test]
     fn test_pyo3_date_into_pyobject() {
         let eq_ymd = |name: &'static str, year, month, day| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let date = Date::new(year, month, day)
                     .unwrap()
                     .into_pyobject(py)
@@ -589,7 +636,7 @@ mod tests {
     #[test]
     fn test_pyo3_date_frompyobject() {
         let eq_ymd = |name: &'static str, year, month, day| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let py_date = new_py_datetime_ob(py, "date", (year, month, day));
                 let py_date: Date = py_date.extract().unwrap();
                 let date = Date::new(year, month, day).unwrap();
@@ -605,7 +652,7 @@ mod tests {
 
     #[test]
     fn test_pyo3_datetime_into_pyobject_utc() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let check_utc =
                 |name: &'static str, year, month, day, hour, minute, second, ms, py_ms| {
                     let datetime = DateTime::new(year, month, day, hour, minute, second, ms * 1000)
@@ -640,7 +687,7 @@ mod tests {
 
     #[test]
     fn test_pyo3_datetime_into_pyobject_fixed_offset() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let check_fixed_offset =
                 |name: &'static str, year, month, day, hour, minute, second, ms, py_ms| {
                     let offset = Offset::from_seconds(3600).unwrap();
@@ -673,7 +720,7 @@ mod tests {
     #[test]
     #[cfg(all(Py_3_9, not(windows)))]
     fn test_pyo3_datetime_into_pyobject_tz() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let datetime = DateTime::new(2024, 12, 11, 23, 3, 13, 0)
                 .unwrap()
                 .to_zoned(TimeZone::get("Europe/London").unwrap())
@@ -699,7 +746,7 @@ mod tests {
 
     #[test]
     fn test_pyo3_datetime_frompyobject_utc() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let year = 2014;
             let month = 5;
             let day = 6;
@@ -746,7 +793,7 @@ mod tests {
             ]
         );
 
-        let dates = Python::with_gil(|py| {
+        let dates = Python::attach(|py| {
             let pydates = dates.map(|dt| dt.into_pyobject(py).unwrap());
             assert_eq!(
                 pydates
@@ -778,7 +825,7 @@ mod tests {
 
     #[test]
     fn test_pyo3_datetime_frompyobject_fixed_offset() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let year = 2014;
             let month = 5;
             let day = 6;
@@ -804,7 +851,7 @@ mod tests {
 
     #[test]
     fn test_pyo3_offset_fixed_into_pyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // jiff offset
             let offset = Offset::from_seconds(3600)
                 .unwrap()
@@ -829,7 +876,7 @@ mod tests {
 
     #[test]
     fn test_pyo3_offset_fixed_frompyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_timedelta = new_py_datetime_ob(py, "timedelta", (0, 3600, 0));
             let py_tzinfo = new_py_datetime_ob(py, "timezone", (py_timedelta,));
             let offset: Offset = py_tzinfo.extract().unwrap();
@@ -839,7 +886,7 @@ mod tests {
 
     #[test]
     fn test_pyo3_offset_utc_into_pyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let utc = Offset::UTC.into_pyobject(py).unwrap();
             let py_utc = python_utc(py);
             assert!(utc.is(&py_utc));
@@ -848,7 +895,7 @@ mod tests {
 
     #[test]
     fn test_pyo3_offset_utc_frompyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_utc = python_utc(py);
             let py_utc: Offset = py_utc.extract().unwrap();
             assert_eq!(Offset::UTC, py_utc);
@@ -866,7 +913,7 @@ mod tests {
 
     #[test]
     fn test_pyo3_time_into_pyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let check_time = |name: &'static str, hour, minute, second, ms, py_ms| {
                 let time = Time::new(hour, minute, second, ms * 1000)
                     .unwrap()
@@ -886,7 +933,7 @@ mod tests {
         let minute = 5;
         let second = 7;
         let micro = 999_999;
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_time = new_py_datetime_ob(py, "time", (hour, minute, second, micro));
             let py_time: Time = py_time.extract().unwrap();
             let time = Time::new(hour, minute, second, micro * 1000).unwrap();
@@ -940,21 +987,37 @@ mod tests {
         use std::ffi::CString;
 
         // This is to skip the test if we are creating an invalid date, like February 31.
-        fn try_date(year: i32, month: u32, day: u32) -> PyResult<Date> {
-            Ok(Date::new(
-                year.try_into()?,
-                month.try_into()?,
-                day.try_into()?,
-            )?)
+        #[track_caller]
+        fn try_date(year: i16, month: i8, day: i8) -> Result<Date, TestCaseError> {
+            let location = std::panic::Location::caller();
+            Date::new(year, month, day)
+                .map_err(|err| TestCaseError::reject(format!("{location}: {err:?}")))
         }
 
-        fn try_time(hour: u32, min: u32, sec: u32, micro: u32) -> PyResult<Time> {
-            Ok(Time::new(
-                hour.try_into()?,
-                min.try_into()?,
-                sec.try_into()?,
-                (micro * 1000).try_into()?,
-            )?)
+        #[track_caller]
+        fn try_time(hour: i8, min: i8, sec: i8, micro: i32) -> Result<Time, TestCaseError> {
+            let location = std::panic::Location::caller();
+            Time::new(hour, min, sec, micro * 1000)
+                .map_err(|err| TestCaseError::reject(format!("{location}: {err:?}")))
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        fn try_zoned(
+            year: i16,
+            month: i8,
+            day: i8,
+            hour: i8,
+            min: i8,
+            sec: i8,
+            micro: i32,
+            tz: TimeZone,
+        ) -> Result<Zoned, TestCaseError> {
+            let date = try_date(year, month, day)?;
+            let time = try_time(hour, min, sec, micro)?;
+            let location = std::panic::Location::caller();
+            DateTime::from_parts(date, time)
+                .to_zoned(tz)
+                .map_err(|err| TestCaseError::reject(format!("{location}: {err:?}")))
         }
 
         prop_compose! {
@@ -972,8 +1035,7 @@ mod tests {
             // Range is limited to 1970 to 2038 due to windows limitations
             #[test]
             fn test_pyo3_offset_fixed_frompyobject_created_in_python(timestamp in 0..(i32::MAX as i64), timedelta in -86399i32..=86399i32) {
-                Python::with_gil(|py| {
-
+                Python::attach(|py| {
                     let globals = [("datetime", py.import("datetime").unwrap())].into_py_dict(py).unwrap();
                     let code = format!("datetime.datetime.fromtimestamp({timestamp}).replace(tzinfo=datetime.timezone(datetime.timedelta(seconds={timedelta})))");
                     let t = py.eval(&CString::new(code).unwrap(), Some(&globals), None).unwrap();
@@ -985,146 +1047,160 @@ mod tests {
                     let rust_iso_str = t.extract::<Zoned>().unwrap().strftime("%Y-%m-%dT%H:%M:%S%:z").to_string();
 
                     // They should be equal
-                    assert_eq!(py_iso_str.to_string(), rust_iso_str);
-                })
+                    prop_assert_eq!(py_iso_str.to_string(), rust_iso_str);
+                    Ok(())
+                })?;
             }
 
             #[test]
             fn test_duration_roundtrip(days in -999999999i64..=999999999i64) {
                 // Test roundtrip conversion rust->python->rust for all allowed
                 // python values of durations (from -999999999 to 999999999 days),
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dur = SignedDuration::new(days * 24 * 60 * 60, 0);
                     let py_delta = dur.into_pyobject(py).unwrap();
                     let roundtripped: SignedDuration = py_delta.extract().expect("Round trip");
-                    assert_eq!(dur, roundtripped);
-                })
+                    prop_assert_eq!(dur, roundtripped);
+                    Ok(())
+                })?;
             }
 
             #[test]
             fn test_span_roundtrip(days in -999999999i64..=999999999i64) {
                 // Test roundtrip conversion rust->python->rust for all allowed
                 // python values of durations (from -999999999 to 999999999 days),
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     if let Ok(span) = Span::new().try_days(days) {
                         let relative_to = SpanRelativeTo::days_are_24_hours();
                         let jiff_duration = span.to_duration(relative_to).unwrap();
                         let py_delta = jiff_duration.into_pyobject(py).unwrap();
                         let roundtripped: Span = py_delta.extract().expect("Round trip");
-                        assert_eq!(span.compare((roundtripped, relative_to)).unwrap(), Ordering::Equal);
+                        prop_assert_eq!(span.compare((roundtripped, relative_to)).unwrap(), Ordering::Equal);
                     }
-                })
+                    Ok(())
+                })?;
             }
 
             #[test]
             fn test_fixed_offset_roundtrip(secs in -86399i32..=86399i32) {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let offset = Offset::from_seconds(secs).unwrap();
                     let py_offset = offset.into_pyobject(py).unwrap();
                     let roundtripped: Offset = py_offset.extract().expect("Round trip");
-                    assert_eq!(offset, roundtripped);
-                })
+                    prop_assert_eq!(offset, roundtripped);
+                    Ok(())
+                })?;
             }
 
             #[test]
             fn test_naive_date_roundtrip(
-                year in 1i32..=9999i32,
-                month in 1u32..=12u32,
-                day in 1u32..=31u32
+                year in 1i16..=9999i16,
+                month in 1i8..=12i8,
+                day in 1i8..=31i8
             ) {
                 // Test roundtrip conversion rust->python->rust for all allowed
                 // python dates (from year 1 to year 9999)
-                Python::with_gil(|py| {
-                    if let Ok(date) = try_date(year, month, day) {
-                        let py_date = date.into_pyobject(py).unwrap();
-                        let roundtripped: Date = py_date.extract().expect("Round trip");
-                        assert_eq!(date, roundtripped);
-                    }
-                })
+                Python::attach(|py| {
+                    let date = try_date(year, month, day)?;
+                    let py_date = date.into_pyobject(py).unwrap();
+                    let roundtripped: Date = py_date.extract().expect("Round trip");
+                    prop_assert_eq!(date, roundtripped);
+                    Ok(())
+                })?;
+            }
+
+            #[test]
+            fn test_weekdate_roundtrip(
+                year in 1i16..=9999i16,
+                month in 1i8..=12i8,
+                day in 1i8..=31i8
+            ) {
+                // Test roundtrip conversion rust->python->rust for all allowed
+                // python dates (from year 1 to year 9999)
+                Python::attach(|py| {
+                    let weekdate = try_date(year, month, day)?.iso_week_date();
+                    let py_date = weekdate.into_pyobject(py).unwrap();
+                    let roundtripped = py_date.extract::<ISOWeekDate>().expect("Round trip");
+                    prop_assert_eq!(weekdate, roundtripped);
+                    Ok(())
+                })?;
             }
 
             #[test]
             fn test_naive_time_roundtrip(
-                hour in 0u32..=23u32,
-                min in 0u32..=59u32,
-                sec in 0u32..=59u32,
-                micro in 0u32..=1_999_999u32
+                hour in 0i8..=23i8,
+                min in 0i8..=59i8,
+                sec in 0i8..=59i8,
+                micro in 0i32..=999_999i32
             ) {
-                Python::with_gil(|py| {
-                    if let Ok(time) = try_time(hour, min, sec, micro) {
-                        let py_time = time.into_pyobject(py).unwrap();
-                        let roundtripped: Time = py_time.extract().expect("Round trip");
-                        assert_eq!(time, roundtripped);
-                    }
-                })
+                Python::attach(|py| {
+                    let time = try_time(hour, min, sec, micro)?;
+                    let py_time = time.into_pyobject(py).unwrap();
+                    let roundtripped: Time = py_time.extract().expect("Round trip");
+                    prop_assert_eq!(time, roundtripped);
+                    Ok(())
+                })?;
             }
 
             #[test]
             fn test_naive_datetime_roundtrip(
-                year in 1i32..=9999i32,
-                month in 1u32..=12u32,
-                day in 1u32..=31u32,
-                hour in 0u32..=24u32,
-                min in 0u32..=60u32,
-                sec in 0u32..=60u32,
-                micro in 0u32..=999_999u32
+                year in 1i16..=9999i16,
+                month in 1i8..=12i8,
+                day in 1i8..=31i8,
+                hour in 0i8..=23i8,
+                min in 0i8..=59i8,
+                sec in 0i8..=59i8,
+                micro in 0i32..=999_999i32
             ) {
-                Python::with_gil(|py| {
-                    let date_opt = try_date(year, month, day);
-                    let time_opt = try_time(hour, min, sec, micro);
-                    if let (Ok(date), Ok(time)) = (date_opt, time_opt) {
-                        let dt = DateTime::from_parts(date, time);
-                        let pydt = dt.into_pyobject(py).unwrap();
-                        let roundtripped: DateTime = pydt.extract().expect("Round trip");
-                        assert_eq!(dt, roundtripped);
-                    }
-                })
+                Python::attach(|py| {
+                    let date = try_date(year, month, day)?;
+                    let time = try_time(hour, min, sec, micro)?;
+                    let dt = DateTime::from_parts(date, time);
+                    let pydt = dt.into_pyobject(py).unwrap();
+                    let roundtripped: DateTime = pydt.extract().expect("Round trip");
+                    prop_assert_eq!(dt, roundtripped);
+                    Ok(())
+                })?;
             }
 
             #[test]
             fn test_utc_datetime_roundtrip(
-                year in 1i32..=9999i32,
-                month in 1u32..=12u32,
-                day in 1u32..=31u32,
-                hour in 0u32..=23u32,
-                min in 0u32..=59u32,
-                sec in 0u32..=59u32,
-                micro in 0u32..=1_999_999u32
+                year in 1i16..=9999i16,
+                month in 1i8..=12i8,
+                day in 1i8..=31i8,
+                hour in 0i8..=23i8,
+                min in 0i8..=59i8,
+                sec in 0i8..=59i8,
+                micro in 0i32..=999_999i32
             ) {
-                Python::with_gil(|py| {
-                    let date_opt = try_date(year, month, day);
-                    let time_opt = try_time(hour, min, sec, micro);
-                    if let (Ok(date), Ok(time)) = (date_opt, time_opt) {
-                        let dt: Zoned = DateTime::from_parts(date, time).to_zoned(TimeZone::UTC).unwrap();
-                        let py_dt = (&dt).into_pyobject(py).unwrap();
-                        let roundtripped: Zoned = py_dt.extract().expect("Round trip");
-                        assert_eq!(dt, roundtripped);
-                    }
-                })
+                Python::attach(|py| {
+                    let dt: Zoned = try_zoned(year, month, day, hour, min, sec, micro, TimeZone::UTC)?;
+                    let py_dt = (&dt).into_pyobject(py).unwrap();
+                    let roundtripped: Zoned = py_dt.extract().expect("Round trip");
+                    prop_assert_eq!(dt, roundtripped);
+                    Ok(())
+                })?;
             }
 
             #[test]
             fn test_fixed_offset_datetime_roundtrip(
-                year in 1i32..=9999i32,
-                month in 1u32..=12u32,
-                day in 1u32..=31u32,
-                hour in 0u32..=23u32,
-                min in 0u32..=59u32,
-                sec in 0u32..=59u32,
-                micro in 0u32..=1_999_999u32,
+                year in 1i16..=9999i16,
+                month in 1i8..=12i8,
+                day in 1i8..=31i8,
+                hour in 0i8..=23i8,
+                min in 0i8..=59i8,
+                sec in 0i8..=59i8,
+                micro in 0i32..=999_999i32,
                 offset_secs in -86399i32..=86399i32
             ) {
-                Python::with_gil(|py| {
-                    let date_opt = try_date(year, month, day);
-                    let time_opt = try_time(hour, min, sec, micro);
+                Python::attach(|py| {
                     let offset = Offset::from_seconds(offset_secs).unwrap();
-                    if let (Ok(date), Ok(time)) = (date_opt, time_opt) {
-                        let dt: Zoned = DateTime::from_parts(date, time).to_zoned(offset.to_time_zone()).unwrap();
-                        let py_dt = (&dt).into_pyobject(py).unwrap();
-                        let roundtripped: Zoned = py_dt.extract().expect("Round trip");
-                        assert_eq!(dt, roundtripped);
-                    }
-                })
+                    let dt = try_zoned(year, month, day, hour, min, sec, micro, offset.to_time_zone())?;
+                    let py_dt = (&dt).into_pyobject(py).unwrap();
+                    let roundtripped: Zoned = py_dt.extract().expect("Round trip");
+                    prop_assert_eq!(dt, roundtripped);
+                    Ok(())
+                })?;
             }
 
             #[test]
@@ -1138,17 +1214,16 @@ mod tests {
                 hour in -2i32..=2i32,
                 min in 0u32..=59u32,
             ) {
-
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let transition_moment = transition.timestamp();
                     let zoned = (transition_moment - Span::new().hours(hour).minutes(min))
                         .to_zoned(timezone.clone());
 
                     let py_dt = (&zoned).into_pyobject(py).unwrap();
                     let roundtripped: Zoned = py_dt.extract().expect("Round trip");
-                    assert_eq!(zoned, roundtripped);
-                })
-
+                    prop_assert_eq!(zoned, roundtripped);
+                    Ok(())
+                })?;
             }
         }
     }

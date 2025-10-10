@@ -3,8 +3,8 @@
 use crate::err::{PyErr, PyResult};
 use crate::exceptions::PyOverflowError;
 use crate::ffi::{self, Py_hash_t};
-use crate::{BoundObject, IntoPyObject, PyObject, Python};
-use std::os::raw::c_int;
+use crate::{BoundObject, IntoPyObject, Py, PyAny, Python};
+use std::ffi::c_int;
 
 /// A type which can be the return type of a python C-API callback
 pub trait PyCallbackOutput: Copy {
@@ -16,7 +16,7 @@ impl PyCallbackOutput for *mut ffi::PyObject {
     const ERR_VALUE: Self = std::ptr::null_mut();
 }
 
-impl PyCallbackOutput for std::os::raw::c_int {
+impl PyCallbackOutput for std::ffi::c_int {
     const ERR_VALUE: Self = -1;
 }
 
@@ -62,16 +62,16 @@ impl IntoPyCallbackOutput<'_, Self> for *mut ffi::PyObject {
     }
 }
 
-impl IntoPyCallbackOutput<'_, std::os::raw::c_int> for () {
+impl IntoPyCallbackOutput<'_, std::ffi::c_int> for () {
     #[inline]
-    fn convert(self, _: Python<'_>) -> PyResult<std::os::raw::c_int> {
+    fn convert(self, _: Python<'_>) -> PyResult<std::ffi::c_int> {
         Ok(0)
     }
 }
 
-impl IntoPyCallbackOutput<'_, std::os::raw::c_int> for bool {
+impl IntoPyCallbackOutput<'_, std::ffi::c_int> for bool {
     #[inline]
-    fn convert(self, _: Python<'_>) -> PyResult<std::os::raw::c_int> {
+    fn convert(self, _: Python<'_>) -> PyResult<std::ffi::c_int> {
         Ok(self as c_int)
     }
 }
@@ -106,12 +106,12 @@ impl IntoPyCallbackOutput<'_, usize> for usize {
     }
 }
 
-impl<'py, T> IntoPyCallbackOutput<'py, PyObject> for T
+impl<'py, T> IntoPyCallbackOutput<'py, Py<PyAny>> for T
 where
     T: IntoPyObject<'py>,
 {
     #[inline]
-    fn convert(self, py: Python<'py>) -> PyResult<PyObject> {
+    fn convert(self, py: Python<'py>) -> PyResult<Py<PyAny>> {
         self.into_pyobject(py)
             .map(BoundObject::into_any)
             .map(BoundObject::unbind)

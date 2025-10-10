@@ -2,7 +2,7 @@
 name = "maturin-starter"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.63"
+rust-version = "1.74"
 
 [lib]
 name = "maturin_starter"

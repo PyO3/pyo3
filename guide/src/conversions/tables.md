@@ -1,6 +1,6 @@
 ## Mapping of Rust types to Python types
 
-When writing functions callable from Python (such as a `#[pyfunction]` or in a `#[pymethods]` block), the trait `FromPyObject` is required for function arguments, and `IntoPy<PyObject>` is required for function return values.
+When writing functions callable from Python (such as a `#[pyfunction]` or in a `#[pymethods]` block), the trait `FromPyObject` is required for function arguments, and `IntoPyObject` is required for function return values.
 
 Consult the tables in the following section to find the Rust types provided by PyO3 which implement these traits.
 
@@ -51,10 +51,9 @@ It is also worth remembering the following special types:
 
 | What             | Description                           |
 | ---------------- | ------------------------------------- |
-| `Python<'py>`    | A GIL token, used to pass to PyO3 constructors to prove ownership of the GIL. |
-| `Bound<'py, T>`  | A Python object connected to the GIL lifetime. This provides access to most of PyO3's APIs. |
-| `Py<T>`          | A Python object isolated from the GIL lifetime. This can be sent to other threads. |
-| `PyObject`       | An alias for `Py<PyAny>`              |
+| `Python<'py>`    | A token used to prove attachment to the Python interpreter. |
+| `Bound<'py, T>`  | A Python object with a lifetime which binds it to the attachment to the Python interpreter. This provides access to most of PyO3's APIs. |
+| `Py<T>`          | A Python object not connected to any lifetime of attachment to the Python interpreter. This can be sent to other threads. |
 | `PyRef<T>`       | A `#[pyclass]` borrowed immutably.    |
 | `PyRefMut<T>`    | A `#[pyclass]` borrowed mutably.      |
 
@@ -67,7 +66,7 @@ Using Rust library types as function arguments will incur a conversion cost comp
 However, once that conversion cost has been paid, the Rust standard library types offer a number of benefits:
 - You can write functionality in native-speed Rust code (free of Python's runtime costs).
 - You get better interoperability with the rest of the Rust ecosystem.
-- You can use `Python::allow_threads` to release the Python GIL and let other Python threads make progress while your Rust code is executing.
+- You can use `Python::detach` to detach from the interpreter and let other Python threads make progress while your Rust code is executing.
 - You also benefit from stricter type checking. For example you can specify `Vec<i32>`, which will only accept a Python `list` containing integers. The Python-native equivalent, `&PyList`, would accept a Python `list` containing Python objects of any type.
 
 For most PyO3 usage the conversion cost is worth paying to get these benefits. As always, if you're not sure it's worth it in your case, benchmark it!

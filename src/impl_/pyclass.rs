@@ -1,5 +1,5 @@
 use crate::{
-    exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
+    exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError},
     ffi,
     impl_::{
         freelist::PyObjectFreeList,
@@ -9,12 +9,11 @@ use crate::{
     },
     pycell::PyBorrowError,
     types::{any::PyAnyMethods, PyBool},
-    Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyErr, PyRef,
+    Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr,
     PyResult, PyTypeInfo, Python,
 };
 use std::{
-    borrow::Cow,
-    ffi::{CStr, CString},
+    ffi::CStr,
     marker::PhantomData,
     os::raw::{c_int, c_void},
     ptr,
@@ -24,11 +23,13 @@ use std::{
 };
 
 mod assertions;
+pub mod doc;
 mod lazy_type_object;
+#[macro_use]
 mod probes;
 
 pub use assertions::*;
-pub use lazy_type_object::LazyTypeObject;
+pub use lazy_type_object::{type_object_init_failed, LazyTypeObject};
 pub use probes::*;
 
 /// Gets the offset of the dictionary from the start of the object in bytes.
@@ -207,8 +208,19 @@ pub trait PyClassImpl: Sized + 'static {
     #[cfg(feature = "multiple-pymethods")]
     type Inventory: PyClassInventory;
 
-    /// Rendered class doc
-    fn doc(py: Python<'_>) -> PyResult<&'static CStr>;
+    /// Docstring for the class provided on the struct or enum.
+    ///
+    /// This is exposed for `PyClassDocGenerator` to use as a docstring piece.
+    const RAW_DOC: &'static CStr;
+
+    /// Fully rendered class doc, including the `text_signature` if a constructor is defined.
+    ///
+    /// This is constructed at compile-time with const specialization via the proc macros with help
+    /// from the PyClassDocGenerator` type.
+    const DOC: &'static CStr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const TYPE_NAME: &'static str;
 
     fn items_iter() -> PyClassItemsIter;
 
@@ -223,29 +235,6 @@ pub trait PyClassImpl: Sized + 'static {
     }
 
     fn lazy_type_object() -> &'static LazyTypeObject<Self>;
-}
-
-/// Runtime helper to build a class docstring from the `doc` and `text_signature`.
-///
-/// This is done at runtime because the class text signature is collected via dtolnay
-/// specialization in to the `#[pyclass]` macro from the `#[pymethods]` macro.
-pub fn build_pyclass_doc(
-    class_name: &'static str,
-    doc: &'static CStr,
-    text_signature: Option<&'static str>,
-) -> PyResult<Cow<'static, CStr>> {
-    if let Some(text_signature) = text_signature {
-        let doc = CString::new(format!(
-            "{}{}\n--\n\n{}",
-            class_name,
-            text_signature,
-            doc.to_str().unwrap(),
-        ))
-        .map_err(|_| PyValueError::new_err("class doc cannot contain nul bytes"))?;
-        Ok(Cow::Owned(doc))
-    } else {
-        Ok(Cow::Borrowed(doc))
-    }
 }
 
 /// Iterator used to process all class items during type instantiation.
@@ -453,7 +442,7 @@ macro_rules! define_pyclass_setattr_slot {
                     _slf: *mut $crate::ffi::PyObject,
                     attr: *mut $crate::ffi::PyObject,
                     value: *mut $crate::ffi::PyObject,
-                ) -> ::std::os::raw::c_int {
+                ) -> ::std::ffi::c_int {
                     unsafe {
                         $crate::impl_::trampoline::setattrofunc(
                             _slf,
@@ -896,7 +885,7 @@ macro_rules! generate_pyclass_richcompare_slot {
             unsafe extern "C" fn __pymethod___richcmp____(
                 slf: *mut $crate::ffi::PyObject,
                 other: *mut $crate::ffi::PyObject,
-                op: ::std::os::raw::c_int,
+                op: ::std::ffi::c_int,
             ) -> *mut $crate::ffi::PyObject {
                 unsafe {
                     $crate::impl_::trampoline::richcmpfunc(slf, other, op, |py, slf, other, op| {
@@ -923,7 +912,7 @@ macro_rules! generate_pyclass_richcompare_slot {
 }
 pub use generate_pyclass_richcompare_slot;
 
-use super::{pycell::PyClassObject, pymethods::BoundRef};
+use super::pycell::PyClassObject;
 
 /// Implements a freelist.
 ///
@@ -937,12 +926,12 @@ pub trait PyClassWithFreeList: PyClass {
 ///
 /// # Safety
 /// - `subtype` must be a valid pointer to the type object of T or a subclass.
-/// - The GIL must be held.
+/// - The calling thread must be attached to the interpreter
 pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
     subtype: *mut ffi::PyTypeObject,
     nitems: ffi::Py_ssize_t,
 ) -> *mut ffi::PyObject {
-    let py = unsafe { Python::assume_gil_acquired() };
+    let py = unsafe { Python::assume_attached() };
 
     #[cfg(not(Py_3_8))]
     unsafe {
@@ -969,17 +958,15 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
 ///
 /// # Safety
 /// - `obj` must be a valid pointer to an instance of T (not a subclass).
-/// - The GIL must be held.
+/// - The calling thread must be attached to the interpreter
 pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_void) {
     let obj = obj as *mut ffi::PyObject;
     unsafe {
         debug_assert_eq!(
-            T::type_object_raw(Python::assume_gil_acquired()),
+            T::type_object_raw(Python::assume_attached()),
             ffi::Py_TYPE(obj)
         );
-        let mut free_list = T::get_free_list(Python::assume_gil_acquired())
-            .lock()
-            .unwrap();
+        let mut free_list = T::get_free_list(Python::assume_attached()).lock().unwrap();
         if let Some(obj) = free_list.insert(obj) {
             drop(free_list);
             let ty = ffi::Py_TYPE(obj);
@@ -1008,8 +995,8 @@ unsafe fn bpo_35810_workaround(py: Python<'_>, ty: *mut ffi::PyTypeObject) {
     {
         // Must check version at runtime for abi3 wheels - they could run against a higher version
         // than the build config suggests.
-        use crate::sync::GILOnceCell;
-        static IS_PYTHON_3_8: GILOnceCell<bool> = GILOnceCell::new();
+        use crate::sync::PyOnceLock;
+        static IS_PYTHON_3_8: PyOnceLock<bool> = PyOnceLock::new();
 
         if *IS_PYTHON_3_8.get_or_init(py, || py.version_info() >= (3, 8)) {
             // No fix needed - the wheel is running on a sufficiently new interpreter.
@@ -1049,18 +1036,6 @@ impl<T> PyMethods<T> for &'_ PyClassImplCollector<T> {
             methods: &[],
             slots: &[],
         }
-    }
-}
-
-// Text signature for __new__
-pub trait PyClassNewTextSignature<T> {
-    fn new_text_signature(self) -> Option<&'static str>;
-}
-
-impl<T> PyClassNewTextSignature<T> for &'_ PyClassImplCollector<T> {
-    #[inline]
-    fn new_text_signature(self) -> Option<&'static str> {
-        None
     }
 }
 
@@ -1315,7 +1290,7 @@ impl<
     }
 }
 
-/// Field is not `Py<T>`; try to use `IntoPyObject` for `&T` (prefered over `ToPyObject`) to avoid
+/// Field is not `Py<T>`; try to use `IntoPyObject` for `&T` (preferred over `ToPyObject`) to avoid
 /// potentially expensive clones of containers like `Vec`
 impl<ClassT, FieldT, Offset, const IMPLEMENTS_INTOPYOBJECT: bool>
     PyClassGetterGenerator<ClassT, FieldT, Offset, false, true, IMPLEMENTS_INTOPYOBJECT>
@@ -1368,15 +1343,11 @@ impl<
 
 /// ensures `obj` is not mutably aliased
 #[inline]
-unsafe fn ensure_no_mutable_alias<'py, ClassT: PyClass>(
-    py: Python<'py>,
-    obj: &*mut ffi::PyObject,
-) -> Result<PyRef<'py, ClassT>, PyBorrowError> {
-    unsafe {
-        BoundRef::ref_from_ptr(py, obj)
-            .downcast_unchecked::<ClassT>()
-            .try_borrow()
-    }
+unsafe fn ensure_no_mutable_alias<'a, ClassT: PyClass>(
+    _py: Python<'_>,
+    obj: &'a *mut ffi::PyObject,
+) -> Result<PyClassGuard<'a, ClassT>, PyBorrowError> {
+    unsafe { PyClassGuard::try_borrow(NonNull::from(obj).cast::<Py<ClassT>>().as_ref()) }
 }
 
 /// calculates the field pointer from an PyObject pointer
@@ -1455,6 +1426,8 @@ impl<const IMPLEMENTS_INTOPYOBJECT: bool> ConvertField<false, IMPLEMENTS_INTOPYO
     }
 }
 
+pub trait ExtractPyClassWithClone {}
+
 #[cfg(test)]
 #[cfg(feature = "macros")]
 mod tests {
@@ -1473,7 +1446,7 @@ mod tests {
 
         for items in FrozenClass::items_iter() {
             methods.extend(items.methods.iter().map(|m| match m {
-                MaybeRuntimePyMethodDef::Static(m) => m.clone(),
+                MaybeRuntimePyMethodDef::Static(m) => *m,
                 MaybeRuntimePyMethodDef::Runtime(r) => r(),
             }));
             slots.extend_from_slice(items.slots);
@@ -1511,7 +1484,7 @@ mod tests {
 
         for items in FrozenClass::items_iter() {
             methods.extend(items.methods.iter().map(|m| match m {
-                MaybeRuntimePyMethodDef::Static(m) => m.clone(),
+                MaybeRuntimePyMethodDef::Static(m) => *m,
                 MaybeRuntimePyMethodDef::Runtime(r) => r(),
             }));
             slots.extend_from_slice(items.slots);

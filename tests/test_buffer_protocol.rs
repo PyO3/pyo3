@@ -1,6 +1,6 @@
 #![cfg(feature = "macros")]
 #![cfg(any(not(Py_LIMITED_API), Py_3_11))]
-#![cfg_attr(not(cargo_toml_lints), warn(unsafe_op_in_unsafe_fn))]
+#![warn(unsafe_op_in_unsafe_fn)]
 
 use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::PyBufferError;
@@ -8,13 +8,12 @@ use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use std::ffi::CString;
-use std::os::raw::{c_int, c_void};
+use std::ffi::{c_int, c_void};
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct TestBufferClass {
@@ -49,7 +48,7 @@ impl Drop for TestBufferClass {
 fn test_buffer() {
     let drop_called = Arc::new(AtomicBool::new(false));
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let instance = Py::new(
             py,
             TestBufferClass {
@@ -71,7 +70,7 @@ fn test_buffer_referenced() {
 
     let buf = {
         let input = vec![b' ', b'2', b'3'];
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let instance = TestBufferClass {
                 vec: input.clone(),
                 drop_called: drop_called.clone(),
@@ -88,7 +87,7 @@ fn test_buffer_referenced() {
 
     assert!(!drop_called.load(Ordering::Relaxed));
 
-    Python::with_gil(|_| {
+    Python::attach(|_| {
         drop(buf);
     });
 
@@ -98,8 +97,8 @@ fn test_buffer_referenced() {
 #[test]
 #[cfg(all(Py_3_8, not(Py_GIL_DISABLED)))] // sys.unraisablehook not available until Python 3.8
 fn test_releasebuffer_unraisable_error() {
-    use common::UnraisableCapture;
     use pyo3::exceptions::PyValueError;
+    use test_utils::UnraisableCapture;
 
     #[pyclass]
     struct ReleaseBufferError {}
@@ -120,7 +119,7 @@ fn test_releasebuffer_unraisable_error() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let capture = UnraisableCapture::install(py);
 
         let instance = Py::new(py, ReleaseBufferError {}).unwrap();

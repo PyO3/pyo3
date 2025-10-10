@@ -26,6 +26,8 @@ pub struct RegularArg<'a> {
     pub from_py_with: Option<FromPyWithAttribute>,
     pub default_value: Option<syn::Expr>,
     pub option_wrapped_type: Option<&'a syn::Type>,
+    #[cfg(feature = "experimental-inspect")]
+    pub annotation: Option<String>,
 }
 
 impl RegularArg<'_> {
@@ -55,6 +57,8 @@ impl RegularArg<'_> {
 pub struct VarargsArg<'a> {
     pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
+    #[cfg(feature = "experimental-inspect")]
+    pub annotation: Option<String>,
 }
 
 /// Pythons **kwarg argument
@@ -62,6 +66,8 @@ pub struct VarargsArg<'a> {
 pub struct KwargsArg<'a> {
     pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
+    #[cfg(feature = "experimental-inspect")]
+    pub annotation: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -121,12 +127,16 @@ impl<'a> FnArg<'a> {
             name,
             ty,
             option_wrapped_type: None,
+            #[cfg(feature = "experimental-inspect")]
+            annotation,
             ..
         }) = self
         {
             *self = Self::VarArgs(VarargsArg {
                 name: name.clone(),
                 ty,
+                #[cfg(feature = "experimental-inspect")]
+                annotation: annotation.clone(),
             });
             Ok(self)
         } else {
@@ -139,12 +149,16 @@ impl<'a> FnArg<'a> {
             name,
             ty,
             option_wrapped_type: Some(..),
+            #[cfg(feature = "experimental-inspect")]
+            annotation,
             ..
         }) = self
         {
             *self = Self::KwArgs(KwargsArg {
                 name: name.clone(),
                 ty,
+                #[cfg(feature = "experimental-inspect")]
+                annotation: annotation.clone(),
             });
             Ok(self)
         } else {
@@ -182,7 +196,7 @@ impl<'a> FnArg<'a> {
                 if cancel_handle.is_some() {
                     // `PyFunctionArgPyO3Attributes::from_attrs` validates that
                     // only compatible attributes are specified, either
-                    // `cancel_handle` or `from_py_with`, dublicates and any
+                    // `cancel_handle` or `from_py_with`, duplicates and any
                     // combination of the two are already rejected.
                     return Ok(Self::CancelHandle(CancelHandleArg {
                         name: ident,
@@ -196,6 +210,8 @@ impl<'a> FnArg<'a> {
                     from_py_with,
                     default_value: None,
                     option_wrapped_type: utils::option_type_argument(&cap.ty),
+                    #[cfg(feature = "experimental-inspect")]
+                    annotation: None,
                 }))
             }
         }
@@ -300,7 +316,7 @@ impl FnType {
                     #[allow(clippy::useless_conversion)]
                     ::std::convert::Into::into(
                         #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
-                            .downcast_unchecked::<#pyo3_path::types::PyType>()
+                            .cast_unchecked::<#pyo3_path::types::PyType>()
                     )
                 };
                 Some(quote! { unsafe { #ret }, })
@@ -313,7 +329,7 @@ impl FnType {
                     #[allow(clippy::useless_conversion)]
                     ::std::convert::Into::into(
                         #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
-                            .downcast_unchecked::<#pyo3_path::types::PyModule>()
+                            .cast_unchecked::<#pyo3_path::types::PyModule>()
                     )
                 };
                 Some(quote! { unsafe { #ret }, })
@@ -388,7 +404,7 @@ impl SelfType {
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 error_mode.handle_error(
                     quote_spanned! { *span =>
-                        #bound_ref.downcast::<#cls>()
+                        #bound_ref.cast::<#cls>()
                             .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
                             .and_then(
                                 #[allow(unknown_lints, clippy::unnecessary_fallible_conversions)]  // In case slf is Py<Self> (unknown_lints can be removed when MSRV is 1.75+)
@@ -432,6 +448,7 @@ impl CallingConvention {
     }
 }
 
+#[derive(Clone)]
 pub struct FnSpec<'a> {
     pub tp: FnType,
     // Rust function name
@@ -445,6 +462,8 @@ pub struct FnSpec<'a> {
     pub asyncness: Option<syn::Token![async]>,
     pub unsafety: Option<syn::Token![unsafe]>,
     pub warnings: Vec<PyFunctionWarning>,
+    #[cfg(feature = "experimental-inspect")]
+    pub output: syn::ReturnType,
 }
 
 pub fn parse_method_receiver(arg: &syn::FnArg) -> Result<SelfType> {
@@ -526,6 +545,8 @@ impl<'a> FnSpec<'a> {
             asyncness: sig.asyncness,
             unsafety: sig.unsafety,
             warnings,
+            #[cfg(feature = "experimental-inspect")]
+            output: sig.output.clone(),
         })
     }
 
@@ -955,7 +976,7 @@ impl<'a> FnSpec<'a> {
     }
 
     /// Forwards to [utils::get_doc] with the text signature of this spec.
-    pub fn get_doc(&self, attrs: &[syn::Attribute], ctx: &Ctx) -> PythonDoc {
+    pub fn get_doc(&self, attrs: &[syn::Attribute], ctx: &Ctx) -> syn::Result<PythonDoc> {
         let text_signature = self
             .text_signature_call_signature()
             .map(|sig| format!("{}{}", self.python_name, sig));
@@ -1105,7 +1126,7 @@ fn parse_method_attributes(attrs: &mut Vec<syn::Attribute>) -> Result<Vec<Method
 const IMPL_TRAIT_ERR: &str = "Python functions cannot have `impl Trait` arguments";
 const RECEIVER_BY_VALUE_ERR: &str =
     "Python objects are shared, so 'self' cannot be moved out of the Python interpreter.
-Try `&self`, `&mut self, `slf: PyRef<'_, Self>` or `slf: PyRefMut<'_, Self>`.";
+Try `&self`, `&mut self, `slf: PyClassGuard<'_, Self>` or `slf: PyClassGuardMut<'_, Self>`.";
 
 fn ensure_signatures_on_valid_method(
     fn_type: &FnType,

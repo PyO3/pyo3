@@ -1,4 +1,5 @@
 use crate::attributes::KeywordAttribute;
+use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{function_introspection_code, introspection_id_const};
 use crate::utils::{Ctx, LitCStr};
@@ -95,13 +96,14 @@ pub struct PyFunctionWarningAttribute {
     pub span: Span,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum PyFunctionWarningCategory {
     Path(Path),
     UserWarning,
     DeprecationWarning, // TODO: unused for now, intended for pyo3(deprecated) special-case
 }
 
+#[derive(Clone)]
 pub struct PyFunctionWarning {
     pub message: LitStr,
     pub category: PyFunctionWarningCategory,
@@ -372,7 +374,7 @@ pub fn impl_wrap_pyfunction(
             0
         })
         .map(FnArg::parse)
-        .collect::<syn::Result<Vec<_>>>()?;
+        .try_combine_syn_errors()?;
 
     let signature = if let Some(signature) = signature {
         FunctionSignature::from_arguments_and_attribute(arguments, signature)?
@@ -390,6 +392,7 @@ pub fn impl_wrap_pyfunction(
         &name.to_string(),
         &signature,
         None,
+        func.sig.output.clone(),
         [] as [String; 0],
         None,
     );
@@ -410,6 +413,8 @@ pub fn impl_wrap_pyfunction(
         asyncness: func.sig.asyncness,
         unsafety: func.sig.unsafety,
         warnings,
+        #[cfg(feature = "experimental-inspect")]
+        output: func.sig.output.clone(),
     };
 
     let wrapper_ident = format_ident!("__pyfunction_{}", spec.name);
@@ -420,7 +425,7 @@ pub fn impl_wrap_pyfunction(
         );
     }
     let wrapper = spec.get_wrapper_function(&wrapper_ident, None, ctx)?;
-    let methoddef = spec.get_methoddef(wrapper_ident, &spec.get_doc(&func.attrs, ctx), ctx);
+    let methoddef = spec.get_methoddef(wrapper_ident, &spec.get_doc(&func.attrs, ctx)?, ctx);
 
     let wrapped_pyfunction = quote! {
         // Create a module with the same name as the `#[pyfunction]` - this way `use <the function>`
@@ -428,17 +433,18 @@ pub fn impl_wrap_pyfunction(
         #[doc(hidden)]
         #vis mod #name {
             pub(crate) struct MakeDef;
-            pub const _PYO3_DEF: #pyo3_path::impl_::pymethods::PyMethodDef = MakeDef::_PYO3_DEF;
+            pub static _PYO3_DEF: #pyo3_path::impl_::pyfunction::PyFunctionDef = MakeDef::_PYO3_DEF;
             #introspection_id
         }
 
-        // Generate the definition inside an anonymous function in the same scope as the original function -
+        // Generate the definition in the same scope as the original function -
         // this avoids complications around the fact that the generated module has a different scope
         // (and `super` doesn't always refer to the outer scope, e.g. if the `#[pyfunction] is
         // inside a function body)
         #[allow(unknown_lints, non_local_definitions)]
         impl #name::MakeDef {
-            const _PYO3_DEF: #pyo3_path::impl_::pymethods::PyMethodDef = #methoddef;
+            const _PYO3_DEF: #pyo3_path::impl_::pyfunction::PyFunctionDef =
+                #pyo3_path::impl_::pyfunction::PyFunctionDef::from_method_def(#methoddef);
         }
 
         #[allow(non_snake_case)]

@@ -63,7 +63,7 @@ impl PySuper {
     ) -> PyResult<Bound<'py, PySuper>> {
         PySuper::type_object(ty.py()).call1((ty, obj)).map(|any| {
             // Safety: super() always returns instance of super
-            unsafe { any.downcast_into_unchecked() }
+            unsafe { any.cast_into_unchecked() }
         })
     }
 }

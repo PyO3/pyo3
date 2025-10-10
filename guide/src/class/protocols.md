@@ -59,7 +59,7 @@ given signatures should be interpreted as follows:
     #[pymethods]
     impl NotHashable {
         #[classattr]
-        const __hash__: Option<PyObject> = None;
+        const __hash__: Option<Py<PyAny>> = None;
     }
     ```
     </details>
@@ -162,7 +162,7 @@ use std::sync::Mutex;
 
 #[pyclass]
 struct MyIterator {
-    iter: Mutex<Box<dyn Iterator<Item = PyObject> + Send>>,
+    iter: Mutex<Box<dyn Iterator<Item = Py<PyAny>> + Send>>,
 }
 
 #[pymethods]
@@ -170,7 +170,7 @@ impl MyIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(slf: PyRefMut<'_, Self>) -> Option<PyObject> {
+    fn __next__(slf: PyRefMut<'_, Self>) -> Option<Py<PyAny>> {
         slf.iter.lock().unwrap().next()
     }
 }
@@ -215,7 +215,7 @@ impl Container {
     }
 }
 
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 #     let container = Container { iter: vec![1, 2, 3, 4] };
 #     let inst = pyo3::Py::new(py, container).unwrap();
 #     pyo3::py_run!(py, inst, "assert list(inst) == [1, 2, 3, 4]");
@@ -283,7 +283,7 @@ Use the `#[pyclass(sequence)]` annotation to instruct PyO3 to fill the `sq_lengt
     #[pymethods]
     impl NoContains {
         #[classattr]
-        const __contains__: Option<PyObject> = None;
+        const __contains__: Option<Py<PyAny>> = None;
     }
     ```
     </details>
@@ -439,7 +439,7 @@ use pyo3::gc::PyVisit;
 
 #[pyclass]
 struct ClassWithGCSupport {
-    obj: Option<PyObject>,
+    obj: Option<Py<PyAny>>,
 }
 
 #[pymethods]
@@ -457,8 +457,8 @@ impl ClassWithGCSupport {
 ```
 
 Usually, an implementation of `__traverse__` should do nothing but calls to `visit.call`.
-Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`,
-i.e. `Python::with_gil` will panic.
+Most importantly, safe access to the interpreter is prohibited inside implementations of `__traverse__`,
+i.e. `Python::attach` will panic.
 
 > Note: these methods are part of the C API, PyPy does not necessarily honor them. If you are building for PyPy you should measure memory consumption to make sure you do not have runaway memory growth. See [this issue on the PyPy bug tracker](https://github.com/pypy/pypy/issues/3848).
 

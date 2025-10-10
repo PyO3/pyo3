@@ -22,15 +22,15 @@ The recommendation of when to use each of these smart pointers is as follows:
 
 The sections below also explain these smart pointers in a little more detail.
 
-### `Py<T>` (and `PyObject`)
+### `Py<T>`
 
-[`Py<T>`][Py] is the foundational smart pointer in PyO3's API. The type parameter `T` denotes the type of the Python object. Very frequently this is `PyAny`, meaning any Python object. This is so common that `Py<PyAny>` has a type alias `PyObject`.
+[`Py<T>`][Py] is the foundational smart pointer in PyO3's API. The type parameter `T` denotes the type of the Python object. Very frequently this is `PyAny`, meaning any Python object.
 
 Because `Py<T>` is not bound to [the `'py` lifetime](./python-from-rust.md#the-py-lifetime), it is the type to use when storing a Python object inside a Rust `struct` or `enum` which do not want to have a lifetime parameter. In particular, [`#[pyclass]`][pyclass] types are not permitted to have a lifetime, so `Py<T>` is the correct type to store Python objects inside them.
 
 The lack of binding to the `'py` lifetime also carries drawbacks:
  - Almost all methods on `Py<T>` require a `Python<'py>` token as the first argument
- - Other functionality, such as [`Drop`][Drop], needs to check at runtime for attachment to the Python GIL, at a small performance cost
+ - Other functionality, such as [`Drop`][Drop], needs to check at runtime for attachment to the Python interpreter, at a small performance cost
 
 Because of the drawbacks `Bound<'py, T>` is preferred for many of PyO3's APIs. In particular, `Bound<'py, T>` is better for function arguments.
 
@@ -67,7 +67,7 @@ fn example<'py>(py: Python<'py>) -> PyResult<()> {
     drop(x); // release the original reference x
     Ok(())
 }
-# Python::with_gil(example).unwrap();
+# Python::attach(example).unwrap();
 ```
 
 Or, without the type annotations:
@@ -83,7 +83,7 @@ fn example(py: Python<'_>) -> PyResult<()> {
     drop(x);
     Ok(())
 }
-# Python::with_gil(example).unwrap();
+# Python::attach(example).unwrap();
 ```
 
 #### Function argument lifetimes
@@ -111,21 +111,21 @@ fn add<'py>(
 ) -> PyResult<Bound<'py, PyAny>> {
     left.add(right)
 }
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 #     let s = pyo3::types::PyString::new(py, "s");
 #     assert!(add(&s, &s).unwrap().eq("ss").unwrap());
 # })
 ```
 
-If naming the `'py` lifetime adds unwanted complexity to the function signature, it is also acceptable to return `PyObject` (aka `Py<PyAny>`), which has no lifetime. The cost is instead paid by a slight increase in implementation complexity, as seen by the introduction of a call to [`Bound::unbind`]:
+If naming the `'py` lifetime adds unwanted complexity to the function signature, it is also acceptable to return `Py<PyAny>`, which has no lifetime. The cost is instead paid by a slight increase in implementation complexity, as seen by the introduction of a call to [`Bound::unbind`]:
 
 ```rust
 # use pyo3::prelude::*;
-fn add(left: &Bound<'_, PyAny>, right: &Bound<'_, PyAny>) -> PyResult<PyObject> {
+fn add(left: &Bound<'_, PyAny>, right: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
     let output: Bound<'_, PyAny> = left.add(right)?;
     Ok(output.unbind())
 }
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 #     let s = pyo3::types::PyString::new(py, "s");
 #     assert!(add(&s, &s).unwrap().bind(py).eq("ss").unwrap());
 # })
@@ -155,7 +155,7 @@ for i in 0..=2 {
 }
 # Ok(())
 # }
-# Python::with_gil(example).unwrap();
+# Python::attach(example).unwrap();
 ```
 
 ### Casting between smart pointer types
@@ -231,7 +231,7 @@ use pyo3::types::PyList;
 fn get_first_item<'py>(list: &Bound<'py, PyList>) -> PyResult<Bound<'py, PyAny>> {
     list.get_item(0)
 }
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 #     let l = PyList::new(py, ["hello world"]).unwrap();
 #     assert!(get_first_item(&l).unwrap().eq("hello world").unwrap());
 # })
@@ -239,7 +239,7 @@ fn get_first_item<'py>(list: &Bound<'py, PyList>) -> PyResult<Bound<'py, PyAny>>
 
 ### Casting between Python object types
 
-To cast `Bound<'py, T>` smart pointers to some other type, use the [`.downcast()`][PyAnyMethods::downcast] family of functions. This converts `&Bound<'py, T>` to a different `&Bound<'py, U>`, without transferring ownership. There is also [`.downcast_into()`][PyAnyMethods::downcast_into] to convert `Bound<'py, T>` to `Bound<'py, U>` with transfer of ownership. These methods are available for all types `T` which implement the [`PyTypeCheck`] trait.
+To cast `Bound<'py, T>` smart pointers to some other type, use the [`.cast()`][Bound::cast] family of functions. This converts `&Bound<'py, T>` to a different `&Bound<'py, U>`, without transferring ownership. There is also [`.cast_into()`][Bound::cast_into] to convert `Bound<'py, T>` to `Bound<'py, U>` with transfer of ownership. These methods are available for all types `T` which implement the [`PyTypeCheck`] trait.
 
 Casting to `Bound<'py, PyAny>` can be done with `.as_any()` or `.into_any()`.
 
@@ -252,17 +252,17 @@ For example, the following snippet shows how to cast `Bound<'py, PyAny>` to `Bou
 // create a new Python `tuple`, and use `.into_any()` to erase the type
 let obj: Bound<'py, PyAny> = PyTuple::empty(py).into_any();
 
-// use `.downcast()` to cast to `PyTuple` without transferring ownership
-let _: &Bound<'py, PyTuple> = obj.downcast()?;
+// use `.cast()` to cast to `PyTuple` without transferring ownership
+let _: &Bound<'py, PyTuple> = obj.cast()?;
 
-// use `.downcast_into()` to cast to `PyTuple` with transfer of ownership
-let _: Bound<'py, PyTuple> = obj.downcast_into()?;
+// use `.cast_into()` to cast to `PyTuple` with transfer of ownership
+let _: Bound<'py, PyTuple> = obj.cast_into()?;
 # Ok(())
 # }
-# Python::with_gil(example).unwrap()
+# Python::attach(example).unwrap()
 ```
 
-Custom [`#[pyclass]`][pyclass] types implement [`PyTypeCheck`], so `.downcast()` also works for these types. The snippet below is the same as the snippet above casting instead to a custom type `MyClass`:
+Custom [`#[pyclass]`][pyclass] types implement [`PyTypeCheck`], so `.cast()` also works for these types. The snippet below is the same as the snippet above casting instead to a custom type `MyClass`:
 
 ```rust
 use pyo3::prelude::*;
@@ -274,19 +274,19 @@ struct MyClass {}
 // create a new Python `tuple`, and use `.into_any()` to erase the type
 let obj: Bound<'py, PyAny> = Bound::new(py, MyClass {})?.into_any();
 
-// use `.downcast()` to cast to `MyClass` without transferring ownership
-let _: &Bound<'py, MyClass> = obj.downcast()?;
+// use `.cast()` to cast to `MyClass` without transferring ownership
+let _: &Bound<'py, MyClass> = obj.cast()?;
 
-// use `.downcast_into()` to cast to `MyClass` with transfer of ownership
-let _: Bound<'py, MyClass> = obj.downcast_into()?;
+// use `.cast_into()` to cast to `MyClass` with transfer of ownership
+let _: Bound<'py, MyClass> = obj.cast_into()?;
 # Ok(())
 # }
-# Python::with_gil(example).unwrap()
+# Python::attach(example).unwrap()
 ```
 
 ### Extracting Rust data from Python objects
 
-To extract Rust data from Python objects, use [`.extract()`][PyAnyMethods::extract] instead of `.downcast()`. This method is available for all types which implement the [`FromPyObject`] trait.
+To extract Rust data from Python objects, use [`.extract()`][PyAnyMethods::extract] instead of `.cast()`. This method is available for all types which implement the [`FromPyObject`] trait.
 
 For example, the following snippet extracts a Rust tuple of integers from a Python tuple:
 
@@ -302,7 +302,7 @@ let (x, y, z) = obj.extract::<(i32, i32, i32)>()?;
 assert_eq!((x, y, z), (1, 2, 3));
 # Ok(())
 # }
-# Python::with_gil(example).unwrap()
+# Python::attach(example).unwrap()
 ```
 
 To avoid copying data, [`#[pyclass]`][pyclass] types can directly reference Rust data stored within the Python objects without needing to `.extract()`. See the [corresponding documentation in the class section of the guide](./class.md#bound-and-interior-mutability)
@@ -313,8 +313,8 @@ for more detail.
 [Py]: {{#PYO3_DOCS_URL}}/pyo3/struct.Py.html
 [PyAnyMethods::add]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.add
 [PyAnyMethods::extract]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.extract
-[PyAnyMethods::downcast]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.downcast
-[PyAnyMethods::downcast_into]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.downcast_into
+[Bound::cast]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html#method.cast
+[Bound::cast_into]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html#method.cast_into
 [`PyTypeCheck`]: {{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PyTypeCheck.html
 [`PyAnyMethods`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html
 [`PyDictMethods`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyDictMethods.html

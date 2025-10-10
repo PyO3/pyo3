@@ -16,7 +16,7 @@
 
 ## Usage
 
-Requires Rust 1.63 or greater.
+Requires Rust 1.74 or greater.
 
 PyO3 supports the following Python distributions:
   - CPython 3.7 or greater
@@ -71,27 +71,24 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.25.0", features = ["extension-module"] }
+pyo3 = { version = "0.26.0", features = ["extension-module"] }
 ```
 
 **`src/lib.rs`**
 
 ```rust
-use pyo3::prelude::*;
-
-/// Formats the sum of two numbers as string.
-#[pyfunction]
-fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
-    Ok((a + b).to_string())
-}
-
-/// A Python module implemented in Rust. The name of this function must match
+/// A Python module implemented in Rust. The name of this module must match
 /// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
 /// import the module.
-#[pymodule]
-fn string_sum(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
-    Ok(())
+#[pyo3::pymodule]
+mod string_sum {
+  use pyo3::prelude::*;
+
+  /// Formats the sum of two numbers as string.
+  #[pyfunction]
+  fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
+    Ok((a + b).to_string())
+  }
 }
 ```
 
@@ -140,7 +137,7 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.25.0"
+version = "0.26.0"
 features = ["auto-initialize"]
 ```
 
@@ -152,7 +149,7 @@ use pyo3::types::IntoPyDict;
 use pyo3::ffi::c_str;
 
 fn main() -> PyResult<()> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let sys = py.import("sys")?;
         let version: String = sys.getattr("version")?.extract()?;
 
@@ -182,9 +179,14 @@ about this topic.
 - [rustimport](https://github.com/mityax/rustimport) _Directly import Rust files or crates from Python, without manual compilation step. Provides pyo3 integration by default and generates pyo3 binding code automatically._
 - [pyo3-arrow](https://crates.io/crates/pyo3-arrow) _Lightweight [Apache Arrow](https://arrow.apache.org/) integration for pyo3._
 - [pyo3-bytes](https://crates.io/crates/pyo3-bytes) _Integration between [`bytes`](https://crates.io/crates/bytes) and pyo3._
+- [pyo3-object_store](https://github.com/developmentseed/obstore/tree/main/pyo3-object_store) _Integration between [`object_store`](https://docs.rs/object_store) and [`pyo3`](https://github.com/PyO3/pyo3)._
 
 ## Examples
 
+- [arro3](https://github.com/kylebarron/arro3) _A minimal Python library for Apache Arrow, connecting to the Rust arrow crate._
+    - [arro3-compute](https://github.com/kylebarron/arro3/tree/main/arro3-compute) _`arro3-compute`_
+    - [arro3-core](https://github.com/kylebarron/arro3/tree/main/arro3-core) _`arro3-core`_
+    - [arro3-io](https://github.com/kylebarron/arro3/tree/main/arro3-io) _`arro3-io`_
 - [bed-reader](https://github.com/fastlmm/bed-reader) _Read and write the PLINK BED format, simply and efficiently._
     - Shows Rayon/ndarray::parallel (including capturing errors, controlling thread num), Python types to Rust generics, Github Actions
 - [blake3-py](https://github.com/oconnor663/blake3-py) _Python bindings for the [BLAKE3](https://github.com/BLAKE3-team/BLAKE3) cryptographic hash function._
@@ -198,15 +200,19 @@ about this topic.
 - [fastbloom](https://github.com/yankun1992/fastbloom) _A fast [bloom filter](https://github.com/yankun1992/fastbloom#BloomFilter) | [counting bloom filter](https://github.com/yankun1992/fastbloom#countingbloomfilter) implemented by Rust for Rust and Python!_
 - [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library._
 - [feos](https://github.com/feos-org/feos) _Lightning fast thermodynamic modeling in Rust with fully developed Python interface._
+- [finalytics](https://github.com/Nnamdi-sys/finalytics) _Investment Analysis library in Rust | Python._
 - [forust](https://github.com/jinlow/forust) _A lightweight gradient boosted decision tree library written in Rust._
+- [geo-index](https://github.com/kylebarron/geo-index) _A Rust crate and [Python library](https://github.com/kylebarron/geo-index/tree/main/python) for packed, immutable, zero-copy spatial indexes._
 - [granian](https://github.com/emmett-framework/granian) _A Rust HTTP server for Python applications._
 - [haem](https://github.com/BooleanCat/haem) _A Python library for working on Bioinformatics problems._
 - [html2text-rs](https://github.com/deedy5/html2text_rs) _Python library for converting HTML to markup or plain text._
 - [html-py-ever](https://github.com/PyO3/setuptools-rust/tree/main/examples/html-py-ever) _Using [html5ever](https://github.com/servo/html5ever) through [kuchiki](https://github.com/kuchiki-rs/kuchiki) to speed up html parsing and css-selecting._
+- [hudi-rs](https://github.com/apache/hudi-rs) _The native Rust implementation for Apache Hudi, with C++ & Python API bindings._
 - [inline-python](https://github.com/m-ou-se/inline-python) _Inline Python code directly in your Rust code._
 - [johnnycanencrypt](https://github.com/kushaldas/johnnycanencrypt) OpenPGP library with Yubikey support.
 - [jsonschema](https://github.com/Stranger6667/jsonschema/tree/master/crates/jsonschema-py) _A high-performance JSON Schema validator for Python._
 - [mocpy](https://github.com/cds-astro/mocpy) _Astronomical Python library offering data structures for describing any arbitrary coverage regions on the unit sphere._
+- [obstore](https://github.com/developmentseed/obstore) _The simplest, highest-throughput Python interface to Amazon S3, Google Cloud Storage, Azure Storage, & other S3-compliant APIs, powered by Rust._
 - [opendal](https://github.com/apache/opendal/tree/main/bindings/python) _A data access layer that allows users to easily and efficiently retrieve data from various storage services in a unified way._
 - [orjson](https://github.com/ijl/orjson) _Fast Python JSON library._
 - [ormsgpack](https://github.com/aviramha/ormsgpack) _Fast Python msgpack library._
@@ -227,9 +233,12 @@ about this topic.
 
 ## Articles and other media
 
+- [(Video) Using Rust in Free-Threaded vs Regular Python 3.13](https://www.youtube.com/watch?v=J7phN_M4GLM) - Jun 4, 2025
+- [(Video) Techniques learned from five years finding the way for Rust in Python](https://www.youtube.com/watch?v=KTQn_PTHNCw) - Feb 26, 2025
+- [(Podcast) Bridging Python and Rust: An Interview with PyO3 Maintainer David Hewitt](https://www.youtube.com/watch?v=P47JUMSQagU) - Aug 30, 2024
 - [(Video) PyO3: From Python to Rust and Back Again](https://www.youtube.com/watch?v=UmL_CA-v3O8) - Jul 3, 2024
 - [Parsing Python ASTs 20x Faster with Rust](https://www.gauge.sh/blog/parsing-python-asts-20x-faster-with-rust) - Jun 17, 2024
-- [(Video) How Python Harnesses Rust through PyO3](https://www.youtube.com/watch?v=UkZ_m3Wj2hA) - May 18, 2024
+- [(Video) How Python Harnesses Rust through PyO3](https://www.youtube.com/watch?v=UilujdubqVU) - May 18, 2024
 - [(Video) Combining Rust and Python: The Best of Both Worlds?](https://www.youtube.com/watch?v=lyG6AKzu4ew) - Mar 1, 2024
 - [(Video) Extending Python with Rust using PyO3](https://www.youtube.com/watch?v=T45ZEmSR1-s) - Dec 16, 2023
 - [A Week of PyO3 + rust-numpy (How to Speed Up Your Data Pipeline X Times)](https://terencezl.github.io/blog/2023/06/06/a-week-of-pyo3-rust-numpy/) - Jun 6, 2023
@@ -241,7 +250,7 @@ about this topic.
 - [Calling Rust from Python using PyO3](https://saidvandeklundert.net/learn/2021-11-18-calling-rust-from-python-using-pyo3/) - Nov 18, 2021
 - [davidhewitt's 2021 talk at Rust Manchester meetup](https://www.youtube.com/watch?v=-XyWG_klSAw&t=320s) - Aug 19, 2021
 - [Incrementally porting a small Python project to Rust](https://blog.waleedkhan.name/port-python-to-rust/) - Apr 29, 2021
-- [Vortexa - Integrating Rust into Python](https://www.vortexa.com/insight/integrating-rust-into-python) - Apr 12, 2021
+- [Vortexa - Integrating Rust into Python](https://www.vortexa.com/blog/integrating-rust-into-python) - Apr 12, 2021
 - [Writing and publishing a Python module in Rust](https://blog.yossarian.net/2020/08/02/Writing-and-publishing-a-python-module-in-rust) - Aug 2, 2020
 
 ## Contributing

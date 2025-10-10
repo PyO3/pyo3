@@ -1,8 +1,8 @@
 use crate::object::*;
 use crate::PyFrameObject;
 #[cfg(all(Py_3_11, not(any(PyPy, GraalPy, Py_3_14))))]
-use std::os::raw::c_char;
-use std::os::raw::c_int;
+use std::ffi::c_char;
+use std::ffi::c_int;
 use std::ptr::addr_of_mut;
 
 #[cfg(not(any(PyPy, GraalPy, Py_3_14)))]
@@ -18,6 +18,7 @@ pub struct PyGenObject {
     pub gi_weakreflist: *mut PyObject,
     pub gi_name: *mut PyObject,
     pub gi_qualname: *mut PyObject,
+    #[allow(private_interfaces)]
     pub gi_exc_state: crate::cpython::pystate::_PyErr_StackItem,
     #[cfg(Py_3_11)]
     pub gi_origin_or_finalizer: *mut PyObject,

@@ -65,7 +65,7 @@
 //! #       #[allow(deprecated)]
 //!         let _cell = py
 //!             .from_borrowed_ptr::<_pyo3::PyAny>(_slf)
-//!             .downcast::<_pyo3::PyCell<Number>>()?;
+//!             .cast::<_pyo3::PyCell<Number>>()?;
 //!         let mut _ref = _cell.try_borrow_mut()?;
 //!         let _slf: &mut Number = &mut *_ref;
 //!         _pyo3::impl_::callback::convert(py, Number::increment(_slf))
@@ -92,7 +92,7 @@
 //! #     }
 //! # }
 //! # fn main() -> PyResult<()> {
-//! Python::with_gil(|py| {
+//! Python::attach(|py| {
 //!     let n = Py::new(py, Number { inner: 0 })?;
 //!
 //!     // We borrow the guard and then dereference
@@ -128,7 +128,7 @@
 //!     std::mem::swap(&mut a.inner, &mut b.inner);
 //! }
 //! # fn main() {
-//! #     Python::with_gil(|py| {
+//! #     Python::attach(|py| {
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = n.clone_ref(py);
 //! #         assert!(n.is(&n2));
@@ -166,7 +166,7 @@
 //! }
 //! # fn main() {
 //! #     // With duplicate numbers
-//! #     Python::with_gil(|py| {
+//! #     Python::attach(|py| {
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = n.clone_ref(py);
 //! #         assert!(n.is(&n2));
@@ -175,7 +175,7 @@
 //! #     });
 //! #
 //! #     // With two different numbers
-//! #     Python::with_gil(|py| {
+//! #     Python::attach(|py| {
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = Py::new(py, Number{inner: 42}).unwrap();
 //! #         assert!(!n.is(&n2));
@@ -198,7 +198,6 @@ use crate::exceptions::PyRuntimeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::{ptr_from_mut, ptr_from_ref};
 use crate::pyclass::{boolean_struct::False, PyClass};
-use crate::types::any::PyAnyMethods;
 use crate::{ffi, Borrowed, Bound, PyErr, Python};
 use std::convert::Infallible;
 use std::fmt;
@@ -244,7 +243,7 @@ use impl_::{PyClassBorrowChecker, PyClassObjectLayout};
 ///         format!("{}(base: {}, cnt: {})", slf.name, basename, refcnt)
 ///     }
 /// }
-/// # Python::with_gil(|py| {
+/// # Python::attach(|py| {
 /// #     let sub = Py::new(py, Child::new()).unwrap();
 /// #     pyo3::py_run!(py, sub, "assert sub.format() == 'Caterpillar(base: Butterfly, cnt: 4)', sub.format()");
 /// # });
@@ -359,19 +358,44 @@ where
     ///         format!("{} {} {}", super_.as_ref().name1, super_.name2, subname)
     ///     }
     /// }
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// #     let sub = Py::new(py, Sub::new()).unwrap();
     /// #     pyo3::py_run!(py, sub, "assert sub.name() == 'base1 base2 sub'")
     /// # });
     /// ```
     pub fn into_super(self) -> PyRef<'p, U> {
         let py = self.py();
+        let t_not_frozen = !<T::Frozen as crate::pyclass::boolean_struct::private::Boolean>::VALUE;
+        let u_frozen = <U::Frozen as crate::pyclass::boolean_struct::private::Boolean>::VALUE;
+        if t_not_frozen && u_frozen {
+            // If `T` is mutable subclass of `U` differ, then it is possible that we need to
+            // release the borrow count now. (e.g. `U` may have a noop borrow checker so
+            // dropping the `PyRef<U>` later would noop and leak the borrow we currently hold.)
+            //
+            // However it's nontrivial, if `U` itself has a mutable base class `V`,
+            // then the borrow checker of both `T` and `U` is the shared borrow checker of `V`.
+            //
+            // But it's really hard to prove that in the type system, the soundest thing we
+            // can do is just add a borrow to `U` now and then release the borrow of `T`.
+
+            self.inner
+                .as_super()
+                .get_class_object()
+                .borrow_checker()
+                .try_borrow()
+                .expect("this object is already borrowed");
+
+            self.inner
+                .get_class_object()
+                .borrow_checker()
+                .release_borrow()
+        };
         PyRef {
             inner: unsafe {
                 ManuallyDrop::new(self)
                     .as_ptr()
                     .assume_owned_unchecked(py)
-                    .downcast_into_unchecked()
+                    .cast_into_unchecked()
             },
         }
     }
@@ -414,7 +438,7 @@ where
     ///         format!("{} {}", slf.as_super().base_name_len(), slf.sub_name_len())
     ///     }
     /// }
-    /// # Python::with_gil(|py| {
+    /// # Python::attach(|py| {
     /// #     let sub = Py::new(py, Sub::new()).unwrap();
     /// #     pyo3::py_run!(py, sub, "assert sub.format_name_lengths() == '9 8'")
     /// # });
@@ -452,6 +476,9 @@ impl<'py, T: PyClass> IntoPyObject<'py> for PyRef<'py, T> {
     type Output = Bound<'py, T>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = T::PYTHON_TYPE;
+
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.inner.clone())
     }
@@ -461,6 +488,9 @@ impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &'a PyRef<'py, T> {
     type Target = T;
     type Output = Borrowed<'a, 'py, T>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = T::PYTHON_TYPE;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.inner.as_borrowed())
@@ -570,7 +600,7 @@ where
                 ManuallyDrop::new(self)
                     .as_ptr()
                     .assume_owned_unchecked(py)
-                    .downcast_into_unchecked()
+                    .cast_into_unchecked()
             },
         }
     }
@@ -623,6 +653,9 @@ impl<'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for PyRefMut<'py, T> {
     type Output = Bound<'py, T>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = T::PYTHON_TYPE;
+
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.inner.clone())
     }
@@ -632,6 +665,9 @@ impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &'a PyRefMut<'py
     type Target = T;
     type Output = Borrowed<'a, 'py, T>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: &'static str = T::PYTHON_TYPE;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.inner.as_borrowed())
@@ -649,6 +685,12 @@ impl<T: PyClass<Frozen = False> + fmt::Debug> fmt::Debug for PyRefMut<'_, T> {
 /// If this error is allowed to bubble up into Python code it will raise a `RuntimeError`.
 pub struct PyBorrowError {
     _private: (),
+}
+
+impl PyBorrowError {
+    pub(crate) fn new() -> Self {
+        Self { _private: () }
+    }
 }
 
 impl fmt::Debug for PyBorrowError {
@@ -674,6 +716,12 @@ impl From<PyBorrowError> for PyErr {
 /// If this error is allowed to bubble up into Python code it will raise a `RuntimeError`.
 pub struct PyBorrowMutError {
     _private: (),
+}
+
+impl PyBorrowMutError {
+    pub(crate) fn new() -> Self {
+        Self { _private: () }
+    }
 }
 
 impl fmt::Debug for PyBorrowMutError {
@@ -707,7 +755,7 @@ mod tests {
 
     #[test]
     fn test_as_ptr() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let cell = Bound::new(py, SomeClass(0)).unwrap();
             let ptr = cell.as_ptr();
 
@@ -718,7 +766,7 @@ mod tests {
 
     #[test]
     fn test_into_ptr() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let cell = Bound::new(py, SomeClass(0)).unwrap();
             let ptr = cell.as_ptr();
 
@@ -774,7 +822,7 @@ mod tests {
 
     #[test]
     fn test_pyref_as_super() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = SubSubClass::new(py).into_bound(py);
             let pyref = obj.borrow();
             assert_eq!(pyref.as_super().as_super().val1, 10);
@@ -787,7 +835,7 @@ mod tests {
 
     #[test]
     fn test_pyrefmut_as_super() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = SubSubClass::new(py).into_bound(py);
             assert_eq!(SubSubClass::get_values(obj.borrow()), (10, 15, 20));
             {
@@ -806,11 +854,73 @@ mod tests {
 
     #[test]
     fn test_pyrefs_in_python() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = SubSubClass::new(py);
             crate::py_run!(py, obj, "assert obj.get_values() == (10, 15, 20)");
             crate::py_run!(py, obj, "assert obj.double_values() is None");
             crate::py_run!(py, obj, "assert obj.get_values() == (20, 30, 40)");
         });
+    }
+
+    #[test]
+    fn test_into_frozen_super_released_borrow() {
+        #[crate::pyclass]
+        #[pyo3(crate = "crate", subclass, frozen)]
+        struct BaseClass {}
+
+        #[crate::pyclass]
+        #[pyo3(crate = "crate", extends=BaseClass, subclass)]
+        struct SubClass {}
+
+        #[crate::pymethods]
+        #[pyo3(crate = "crate")]
+        impl SubClass {
+            #[new]
+            fn new(py: Python<'_>) -> Bound<'_, SubClass> {
+                let init = crate::PyClassInitializer::from(BaseClass {}).add_subclass(SubClass {});
+                Bound::new(py, init).expect("allocation error")
+            }
+        }
+
+        Python::attach(|py| {
+            let obj = SubClass::new(py);
+            drop(obj.borrow().into_super());
+            assert!(obj.try_borrow_mut().is_ok());
+        })
+    }
+
+    #[test]
+    fn test_into_frozen_super_mutable_base_holds_borrow() {
+        #[crate::pyclass]
+        #[pyo3(crate = "crate", subclass)]
+        struct BaseClass {}
+
+        #[crate::pyclass]
+        #[pyo3(crate = "crate", extends=BaseClass, subclass, frozen)]
+        struct SubClass {}
+
+        #[crate::pyclass]
+        #[pyo3(crate = "crate", extends=SubClass, subclass)]
+        struct SubSubClass {}
+
+        #[crate::pymethods]
+        #[pyo3(crate = "crate")]
+        impl SubSubClass {
+            #[new]
+            fn new(py: Python<'_>) -> Bound<'_, SubSubClass> {
+                let init = crate::PyClassInitializer::from(BaseClass {})
+                    .add_subclass(SubClass {})
+                    .add_subclass(SubSubClass {});
+                Bound::new(py, init).expect("allocation error")
+            }
+        }
+
+        Python::attach(|py| {
+            let obj = SubSubClass::new(py);
+            let _super_borrow = obj.borrow().into_super();
+            // the whole object still has an immutable borrow, so we cannot
+            // borrow any part mutably (the borrowflag is shared)
+            assert!(obj.try_borrow_mut().is_err());
+        })
     }
 }

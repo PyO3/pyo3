@@ -1,5 +1,5 @@
 #![cfg(feature = "macros")]
-#![cfg_attr(not(cargo_toml_lints), warn(unsafe_op_in_unsafe_fn))]
+#![warn(unsafe_op_in_unsafe_fn)]
 
 use std::collections::HashMap;
 
@@ -7,7 +7,6 @@ use std::collections::HashMap;
 use pyo3::buffer::PyBuffer;
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::exceptions::PyWarning;
-#[cfg(not(Py_GIL_DISABLED))]
 use pyo3::exceptions::{PyFutureWarning, PyUserWarning};
 use pyo3::ffi::c_str;
 use pyo3::prelude::*;
@@ -18,15 +17,14 @@ use pyo3::types::PyFunction;
 use pyo3::types::{self, PyCFunction};
 use pyo3_macros::pyclass;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyfunction(name = "struct")]
 fn struct_function() {}
 
 #[test]
 fn test_rust_keyword_name() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let f = wrap_pyfunction!(struct_function)(py).unwrap();
 
         py_assert!(py, f, "f.__name__ == 'struct'");
@@ -41,7 +39,7 @@ fn optional_bool(arg: Option<bool>) -> String {
 #[test]
 fn test_optional_bool() {
     // Regression test for issue #932
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let f = wrap_pyfunction!(optional_bool)(py).unwrap();
 
         py_assert!(py, f, "f() == 'Some(true)'");
@@ -60,7 +58,7 @@ fn required_optional_str(arg: Option<&str>) -> &str {
 #[test]
 fn test_optional_str() {
     // Regression test for issue #4965
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let f = wrap_pyfunction!(required_optional_str)(py).unwrap();
 
         py_assert!(py, f, "f('') == ''");
@@ -81,7 +79,7 @@ fn required_optional_class(arg: Option<&MyClass>) {
 #[test]
 fn test_required_optional_class() {
     // Regression test for issue #4965
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let f = wrap_pyfunction!(required_optional_class)(py).unwrap();
         let val = Bound::new(py, MyClass()).unwrap();
 
@@ -104,7 +102,7 @@ fn buffer_inplace_add(py: Python<'_>, x: PyBuffer<i32>, y: PyBuffer<i32>) {
 #[cfg(not(Py_LIMITED_API))]
 #[test]
 fn test_buffer_add() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let f = wrap_pyfunction!(buffer_inplace_add)(py).unwrap();
 
         py_expect_exception!(
@@ -148,7 +146,7 @@ fn function_with_pycfunction_arg<'py>(
 
 #[test]
 fn test_functions_with_function_args() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let py_cfunc_arg = wrap_pyfunction!(function_with_pycfunction_arg)(py).unwrap();
         let bool_to_string = wrap_pyfunction!(optional_bool)(py).unwrap();
 
@@ -179,7 +177,7 @@ fn test_functions_with_function_args() {
 
 #[cfg(not(Py_LIMITED_API))]
 fn datetime_to_timestamp(dt: &Bound<'_, PyAny>) -> PyResult<i64> {
-    let dt = dt.downcast::<PyDateTime>()?;
+    let dt = dt.cast::<PyDateTime>()?;
     let ts: f64 = dt.call_method0("timestamp")?.extract()?;
 
     Ok(ts as i64)
@@ -196,7 +194,7 @@ fn function_with_custom_conversion(
 #[cfg(not(Py_LIMITED_API))]
 #[test]
 fn test_function_with_custom_conversion() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let custom_conv_func = wrap_pyfunction!(function_with_custom_conversion)(py).unwrap();
 
         pyo3::py_run!(
@@ -215,7 +213,7 @@ fn test_function_with_custom_conversion() {
 #[cfg(not(Py_LIMITED_API))]
 #[test]
 fn test_function_with_custom_conversion_error() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let custom_conv_func = wrap_pyfunction!(function_with_custom_conversion)(py).unwrap();
 
         py_expect_exception!(
@@ -223,7 +221,7 @@ fn test_function_with_custom_conversion_error() {
             custom_conv_func,
             "custom_conv_func(['a'])",
             PyTypeError,
-            "argument 'timestamp': 'list' object cannot be converted to 'PyDateTime'"
+            "argument 'timestamp': 'list' object cannot be cast as 'datetime'"
         );
     });
 }
@@ -252,7 +250,7 @@ fn test_from_py_with_defaults() {
         len
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let f = wrap_pyfunction!(from_py_with_option)(py).unwrap();
 
         assert_eq!(f.call0().unwrap().extract::<i32>().unwrap(), 0);
@@ -288,21 +286,21 @@ fn conversion_error(
 
 #[test]
 fn test_conversion_error() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let conversion_error = wrap_pyfunction!(conversion_error)(py).unwrap();
         py_expect_exception!(
             py,
             conversion_error,
             "conversion_error(None, None, None, None, None)",
             PyTypeError,
-            "argument 'str_arg': 'NoneType' object cannot be converted to 'PyString'"
+            "argument 'str_arg': 'NoneType' object cannot be cast as 'str'"
         );
         py_expect_exception!(
             py,
             conversion_error,
             "conversion_error(100, None, None, None, None)",
             PyTypeError,
-            "argument 'str_arg': 'int' object cannot be converted to 'PyString'"
+            "argument 'str_arg': 'int' object cannot be cast as 'str'"
         );
         py_expect_exception!(
             py,
@@ -316,7 +314,7 @@ fn test_conversion_error() {
             conversion_error,
             "conversion_error('string1', -100, 'string2', None, None)",
             PyTypeError,
-            "argument 'tuple_arg': 'str' object cannot be converted to 'PyTuple'"
+            "argument 'tuple_arg': 'str' object cannot be cast as 'tuple'"
         );
         py_expect_exception!(
             py,
@@ -376,7 +374,7 @@ fn extract_traceback(py: Python<'_>, mut error: PyErr) -> String {
 fn test_pycfunction_new() {
     use pyo3::ffi;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         unsafe extern "C" fn c_fn(
             _self: *mut ffi::PyObject,
             _args: *mut ffi::PyObject,
@@ -405,10 +403,10 @@ fn test_pycfunction_new() {
 #[test]
 fn test_pycfunction_new_with_keywords() {
     use pyo3::ffi;
-    use std::os::raw::c_long;
+    use std::ffi::c_long;
     use std::ptr;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         unsafe extern "C" fn c_fn(
             _self: *mut ffi::PyObject,
             args: *mut ffi::PyObject,
@@ -474,11 +472,11 @@ fn test_pycfunction_new_with_keywords() {
 
 #[test]
 fn test_closure() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let f = |args: &Bound<'_, types::PyTuple>,
                  _kwargs: Option<&Bound<'_, types::PyDict>>|
          -> PyResult<_> {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let res: PyResult<Vec<_>> = args
                     .iter()
                     .map(|elem| {
@@ -514,7 +512,7 @@ fn test_closure() {
 
 #[test]
 fn test_closure_counter() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let counter = std::cell::RefCell::new(0);
         let counter_fn = move |_args: &Bound<'_, types::PyTuple>,
                                _kwargs: Option<&Bound<'_, types::PyDict>>|
@@ -542,7 +540,7 @@ fn use_pyfunction() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         use function_in_module::foo;
 
         // check imported name can be wrapped
@@ -569,7 +567,7 @@ fn return_value_borrows_from_arguments<'py>(
     key: &'py Key,
     value: &'py Value,
 ) -> HashMap<&'py str, i32> {
-    py.allow_threads(move || {
+    py.detach(move || {
         let mut map = HashMap::new();
         map.insert(key.0.as_str(), value.0);
         map
@@ -578,7 +576,7 @@ fn return_value_borrows_from_arguments<'py>(
 
 #[test]
 fn test_return_value_borrows_from_arguments() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let function = wrap_pyfunction!(return_value_borrows_from_arguments, py).unwrap();
 
         let key = Py::new(py, Key("key".to_owned())).unwrap();
@@ -591,6 +589,7 @@ fn test_return_value_borrows_from_arguments() {
 #[test]
 fn test_some_wrap_arguments() {
     // https://github.com/PyO3/pyo3/issues/3460
+    #[allow(unused)]
     const NONE: Option<u8> = None;
     #[pyfunction(signature = (a = 1, b = Some(2), c = None, d = NONE))]
     fn some_wrap_arguments(
@@ -602,7 +601,7 @@ fn test_some_wrap_arguments() {
         [a, b, c, d]
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let function = wrap_pyfunction!(some_wrap_arguments, py).unwrap();
         py_assert!(py, function, "function() == [1, 2, None, None]");
     })
@@ -619,7 +618,7 @@ fn test_reference_to_bound_arguments() {
         y.map_or_else(|| Ok(x.clone()), |y| y.add(x))
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let function = wrap_pyfunction!(reference_args, py).unwrap();
         py_assert!(py, function, "function(1) == 1");
         py_assert!(py, function, "function(1, 2) == 3");
@@ -646,7 +645,7 @@ fn test_pyfunction_raw_ident() {
         Ok(())
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let m = pyo3::wrap_pymodule!(m)(py);
         py_assert!(py, m, "m.struct()");
         py_assert!(py, m, "m.enum()");
@@ -668,7 +667,6 @@ impl UserDefinedWarning {
 }
 
 #[test]
-#[cfg(not(Py_GIL_DISABLED))] // FIXME: enable once `warnings` is thread-safe
 fn test_pyfunction_warn() {
     #[pyfunction]
     #[pyo3(warn(message = "this function raises warning"))]
@@ -723,7 +721,6 @@ fn test_pyfunction_warn() {
 }
 
 #[test]
-#[cfg(not(Py_GIL_DISABLED))] // FIXME: enable once `warnings` is thread-safe
 fn test_pyfunction_multiple_warnings() {
     #[pyfunction]
     #[pyo3(warn(message = "this function raises warning"))]

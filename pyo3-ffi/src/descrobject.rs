@@ -1,7 +1,7 @@
 use crate::methodobject::PyMethodDef;
 use crate::object::{PyObject, PyTypeObject};
 use crate::Py_ssize_t;
-use std::os::raw::{c_char, c_int, c_void};
+use std::ffi::{c_char, c_int, c_void};
 use std::ptr;
 
 pub type getter = unsafe extern "C" fn(slf: *mut PyObject, closure: *mut c_void) -> *mut PyObject;
@@ -14,7 +14,7 @@ pub type setter =
 /// Note that CPython may leave fields uninitialized. You must ensure that
 /// `name` != NULL before dereferencing or reading other fields.
 #[repr(C)]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug)]
 pub struct PyGetSetDef {
     pub name: *const c_char,
     pub get: Option<getter>,

@@ -14,7 +14,12 @@ impl PyNone {
     /// Returns the `None` object.
     #[inline]
     pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyNone> {
-        unsafe { ffi::Py_None().assume_borrowed(py).downcast_unchecked() }
+        // SAFETY: `Py_None` is a global singleton which is known to be the None object
+        unsafe {
+            ffi::Py_None()
+                .assume_borrowed_unchecked(py)
+                .cast_unchecked()
+        }
     }
 }
 
@@ -47,7 +52,7 @@ mod tests {
 
     #[test]
     fn test_none_is_itself() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyNone::get(py).is_instance_of::<PyNone>());
             assert!(PyNone::get(py).is_exact_instance_of::<PyNone>());
         })
@@ -55,22 +60,22 @@ mod tests {
 
     #[test]
     fn test_none_type_object_consistent() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(PyNone::get(py).get_type().is(PyNone::type_object(py)));
         })
     }
 
     #[test]
     fn test_none_is_none() {
-        Python::with_gil(|py| {
-            assert!(PyNone::get(py).downcast::<PyNone>().unwrap().is_none());
+        Python::attach(|py| {
+            assert!(PyNone::get(py).cast::<PyNone>().unwrap().is_none());
         })
     }
 
     #[test]
     fn test_dict_is_not_none() {
-        Python::with_gil(|py| {
-            assert!(PyDict::new(py).downcast::<PyNone>().is_err());
+        Python::attach(|py| {
+            assert!(PyDict::new(py).cast::<PyNone>().is_err());
         })
     }
 }

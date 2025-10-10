@@ -2,11 +2,13 @@ use std::borrow::Cow;
 use std::ffi::CString;
 
 use crate::attributes::{FromPyWithAttribute, NameAttribute, RenamingRule};
+#[cfg(feature = "experimental-inspect")]
+use crate::introspection::unique_element_id;
 use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
 use crate::params::{impl_regular_arg_param, Holders};
 use crate::pyfunction::WarningFactory;
+use crate::utils::PythonDoc;
 use crate::utils::{Ctx, LitCStr};
-use crate::utils::{PythonDoc, TypeExt as _};
 use crate::{
     method::{FnArg, FnSpec, FnType, SelfType},
     pyfunction::PyFunctionOptions,
@@ -14,7 +16,7 @@ use crate::{
 use crate::{quotes, utils};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
-use syn::{ext::IdentExt, spanned::Spanned, Result};
+use syn::{ext::IdentExt, spanned::Spanned, Field, Ident, Result};
 
 /// Generated code for a single pymethod item.
 pub struct MethodAndMethodDef {
@@ -24,12 +26,36 @@ pub struct MethodAndMethodDef {
     pub method_def: TokenStream,
 }
 
+#[cfg(feature = "experimental-inspect")]
+impl MethodAndMethodDef {
+    pub fn add_introspection(&mut self, data: TokenStream) {
+        let const_name = format_ident!("_{}", unique_element_id()); // We need an explicit name here
+        self.associated_method.extend(quote! {
+            const #const_name: () = {
+                #data
+            };
+        });
+    }
+}
+
 /// Generated code for a single pymethod item which is registered by a slot.
 pub struct MethodAndSlotDef {
     /// The implementation of the Python wrapper for the pymethod
     pub associated_method: TokenStream,
     /// The slot def which will be used to register this pymethod
     pub slot_def: TokenStream,
+}
+
+#[cfg(feature = "experimental-inspect")]
+impl MethodAndSlotDef {
+    pub fn add_introspection(&mut self, data: TokenStream) {
+        let const_name = format_ident!("_{}", unique_element_id()); // We need an explicit name here
+        self.associated_method.extend(quote! {
+            const #const_name: () = {
+                #data
+            };
+        });
+    }
 }
 
 pub enum GeneratedPyMethod {
@@ -236,21 +262,21 @@ pub fn gen_py_method(
         (_, FnType::Fn(_)) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &spec.get_doc(meth_attrs, ctx),
+            &spec.get_doc(meth_attrs, ctx)?,
             None,
             ctx,
         )?),
         (_, FnType::FnClass(_)) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &spec.get_doc(meth_attrs, ctx),
+            &spec.get_doc(meth_attrs, ctx)?,
             Some(quote!(#pyo3_path::ffi::METH_CLASS)),
             ctx,
         )?),
         (_, FnType::FnStatic) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &spec.get_doc(meth_attrs, ctx),
+            &spec.get_doc(meth_attrs, ctx)?,
             Some(quote!(#pyo3_path::ffi::METH_STATIC)),
             ctx,
         )?),
@@ -264,7 +290,7 @@ pub fn gen_py_method(
             PropertyType::Function {
                 self_type,
                 spec,
-                doc: spec.get_doc(meth_attrs, ctx),
+                doc: spec.get_doc(meth_attrs, ctx)?,
             },
             ctx,
         )?),
@@ -273,7 +299,7 @@ pub fn gen_py_method(
             PropertyType::Function {
                 self_type,
                 spec,
-                doc: spec.get_doc(meth_attrs, ctx),
+                doc: spec.get_doc(meth_attrs, ctx)?,
             },
             ctx,
         )?),
@@ -360,10 +386,14 @@ pub fn impl_py_method_def_new(
     // Use just the text_signature_call_signature() because the class' Python name
     // isn't known to `#[pymethods]` - that has to be attached at runtime from the PyClassImpl
     // trait implementation created by `#[pyclass]`.
-    let text_signature_body = spec.text_signature_call_signature().map_or_else(
-        || quote!(::std::option::Option::None),
-        |text_signature| quote!(::std::option::Option::Some(#text_signature)),
-    );
+    let text_signature_impl = spec.text_signature_call_signature().map(|text_signature| {
+        quote! {
+            #[allow(unknown_lints, non_local_definitions)]
+            impl #pyo3_path::impl_::pyclass::doc::PyClassNewTextSignature for #cls {
+                const TEXT_SIGNATURE: &'static str = #text_signature;
+            }
+        }
+    });
     let slot_def = quote! {
         #pyo3_path::ffi::PyType_Slot {
             slot: #pyo3_path::ffi::Py_tp_new,
@@ -373,13 +403,8 @@ pub fn impl_py_method_def_new(
                     args: *mut #pyo3_path::ffi::PyObject,
                     kwargs: *mut #pyo3_path::ffi::PyObject,
                 ) -> *mut #pyo3_path::ffi::PyObject {
-                    #[allow(unknown_lints, non_local_definitions)]
-                    impl #pyo3_path::impl_::pyclass::PyClassNewTextSignature<#cls> for #pyo3_path::impl_::pyclass::PyClassImplCollector<#cls> {
-                        #[inline]
-                        fn new_text_signature(self) -> ::std::option::Option<&'static str> {
-                            #text_signature_body
-                        }
-                    }
+
+                    #text_signature_impl
 
                     #pyo3_path::impl_::trampoline::newfunc(
                         subtype,
@@ -444,7 +469,7 @@ fn impl_traverse_slot(
         return Err(syn::Error::new_spanned(py_arg.ty, "__traverse__ may not take `Python`. \
             Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` \
             should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited \
-            inside implementations of `__traverse__`, i.e. `Python::with_gil` will panic."));
+            inside implementations of `__traverse__`, i.e. `Python::attach` will panic."));
     }
 
     // check that the receiver does not try to smuggle an (implicit) `Python` token into here
@@ -458,7 +483,7 @@ fn impl_traverse_slot(
             "__traverse__ may not take a receiver other than `&self`. Usually, an implementation of \
             `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` \
             should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited \
-            inside implementations of `__traverse__`, i.e. `Python::with_gil` will panic."
+            inside implementations of `__traverse__`, i.e. `Python::attach` will panic."
         }
     }
 
@@ -473,8 +498,8 @@ fn impl_traverse_slot(
         pub unsafe extern "C" fn __pymethod_traverse__(
             slf: *mut #pyo3_path::ffi::PyObject,
             visit: #pyo3_path::ffi::visitproc,
-            arg: *mut ::std::os::raw::c_void,
-        ) -> ::std::os::raw::c_int {
+            arg: *mut ::std::ffi::c_void,
+        ) -> ::std::ffi::c_int {
             #pyo3_path::impl_::pymethods::_call_traverse::<#cls>(slf, #cls::#rust_fn_ident, visit, arg, #cls::__pymethod_traverse__)
         }
     };
@@ -515,7 +540,7 @@ fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result
     let associated_method = quote! {
         pub unsafe extern "C" fn __pymethod___clear____(
             _slf: *mut #pyo3_path::ffi::PyObject,
-        ) -> ::std::os::raw::c_int {
+        ) -> ::std::ffi::c_int {
             #pyo3_path::impl_::pymethods::_call_clear(_slf, |py, _slf| {
                 #holders
                 let result = #fncall;
@@ -566,7 +591,7 @@ pub(crate) fn impl_py_class_attribute(
     let body = quotes::ok_wrap(fncall, ctx);
 
     let associated_method = quote! {
-        fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+        fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
             let function = #cls::#name; // Shadow the method name to avoid #3017
             let result = #body;
             #pyo3_path::impl_::wrap::converter(&result).map_into_pyobject(py, result)
@@ -627,7 +652,7 @@ pub fn impl_py_setter_def(
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
     let python_name = property_type.null_terminated_python_name(ctx)?;
-    let doc = property_type.doc(ctx);
+    let doc = property_type.doc(ctx)?;
     let mut holders = Holders::new();
     let setter_impl = match property_type {
         PropertyType::Descriptor {
@@ -714,14 +739,10 @@ pub fn impl_py_setter_def(
                 .unwrap_or_default();
 
             let holder = holders.push_holder(span);
-            let ty = field.ty.clone().elide_lifetimes();
             quote! {
                 #[allow(unused_imports)]
                 use #pyo3_path::impl_::pyclass::Probe as _;
-                let _val = #pyo3_path::impl_::extract_argument::extract_argument::<
-                    _,
-                    { #pyo3_path::impl_::pyclass::IsOption::<#ty>::VALUE }
-                >(_value.into(), &mut #holder, #name)?;
+                let _val = #pyo3_path::impl_::extract_argument::extract_argument(_value.into(), &mut #holder, #name)?;
             }
         }
     };
@@ -750,7 +771,7 @@ pub fn impl_py_setter_def(
             py: #pyo3_path::Python<'_>,
             _slf: *mut #pyo3_path::ffi::PyObject,
             _value: *mut #pyo3_path::ffi::PyObject,
-        ) -> #pyo3_path::PyResult<::std::os::raw::c_int> {
+        ) -> #pyo3_path::PyResult<::std::ffi::c_int> {
             use ::std::convert::Into;
             let _value = #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr_or_opt(py, &_value)
                 .ok_or_else(|| {
@@ -815,7 +836,7 @@ pub fn impl_py_getter_def(
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
     let python_name = property_type.null_terminated_python_name(ctx)?;
-    let doc = property_type.doc(ctx);
+    let doc = property_type.doc(ctx)?;
 
     let mut cfg_attrs = TokenStream::new();
     if let PropertyType::Descriptor { field, .. } = &property_type {
@@ -852,8 +873,8 @@ pub fn impl_py_getter_def(
             let method_def = quote! {
                 #cfg_attrs
                 {
-                    #[allow(unused_imports)]  // might not be used if all probes are positve
-                    use #pyo3_path::impl_::pyclass::Probe;
+                    #[allow(unused_imports)]  // might not be used if all probes are positive
+                    use #pyo3_path::impl_::pyclass::Probe as _;
 
                     struct Offset;
                     unsafe impl #pyo3_path::impl_::pyclass::OffsetCalculator<#cls, #ty> for Offset {
@@ -958,19 +979,7 @@ impl PropertyType<'_> {
                 renaming_rule,
                 ..
             } => {
-                let name = match (python_name, &field.ident) {
-                    (Some(name), _) => name.value.0.to_string(),
-                    (None, Some(field_name)) => {
-                        let mut name = field_name.unraw().to_string();
-                        if let Some(rule) = renaming_rule {
-                            name = utils::apply_renaming_rule(*rule, &name);
-                        }
-                        name
-                    }
-                    (None, None) => {
-                        bail_spanned!(field.span() => "`get` and `set` with tuple struct fields require `name`");
-                    }
-                };
+                let name = field_python_name(field, *python_name, *renaming_rule)?;
                 let name = CString::new(name).unwrap();
                 Ok(LitCStr::new(name, field.span(), ctx))
             }
@@ -978,12 +987,12 @@ impl PropertyType<'_> {
         }
     }
 
-    fn doc(&self, ctx: &Ctx) -> Cow<'_, PythonDoc> {
+    fn doc(&self, ctx: &Ctx) -> Result<Cow<'_, PythonDoc>> {
         match self {
             PropertyType::Descriptor { field, .. } => {
-                Cow::Owned(utils::get_doc(&field.attrs, None, ctx))
+                utils::get_doc(&field.attrs, None, ctx).map(Cow::Owned)
             }
-            PropertyType::Function { doc, .. } => Cow::Borrowed(doc),
+            PropertyType::Function { doc, .. } => Ok(Cow::Borrowed(doc)),
         }
     }
 }
@@ -1125,7 +1134,7 @@ impl Ty {
             Ty::Object | Ty::MaybeNullObject => quote! { *mut #pyo3_path::ffi::PyObject },
             Ty::NonNullObject => quote! { ::std::ptr::NonNull<#pyo3_path::ffi::PyObject> },
             Ty::IPowModulo => quote! { #pyo3_path::impl_::pymethods::IPowModulo },
-            Ty::Int | Ty::CompareOp => quote! { ::std::os::raw::c_int },
+            Ty::Int | Ty::CompareOp => quote! { ::std::ffi::c_int },
             Ty::PyHashT => quote! { #pyo3_path::ffi::Py_hash_t },
             Ty::PySsizeT => quote! { #pyo3_path::ffi::Py_ssize_t },
             Ty::Void => quote! { () },
@@ -1147,6 +1156,7 @@ impl Ty {
                 extract_error_mode,
                 holders,
                 arg,
+                format_ident!("ref_from_ptr"),
                 quote! { #ident },
                 ctx
             ),
@@ -1154,6 +1164,7 @@ impl Ty {
                 extract_error_mode,
                 holders,
                 arg,
+                format_ident!("ref_from_ptr"),
                 quote! {
                     if #ident.is_null() {
                         #pyo3_path::ffi::Py_None()
@@ -1167,13 +1178,15 @@ impl Ty {
                 extract_error_mode,
                 holders,
                 arg,
-                quote! { #ident.as_ptr() },
+                format_ident!("ref_from_non_null"),
+                quote! { #ident },
                 ctx
             ),
             Ty::IPowModulo => extract_object(
                 extract_error_mode,
                 holders,
                 arg,
+                format_ident!("ref_from_ptr"),
                 quote! { #ident.as_ptr() },
                 ctx
             ),
@@ -1203,6 +1216,7 @@ fn extract_object(
     extract_error_mode: ExtractErrorMode,
     holders: &mut Holders,
     arg: &FnArg<'_>,
+    ref_from_method: Ident,
     source_ptr: TokenStream,
     ctx: &Ctx,
 ) -> TokenStream {
@@ -1220,22 +1234,18 @@ fn extract_object(
 
         quote! {
             #pyo3_path::impl_::extract_argument::from_py_with(
-                unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0 },
+                unsafe { #pyo3_path::impl_::pymethods::BoundRef::#ref_from_method(py, &#source_ptr).0 },
                 #name,
                 #extractor,
             )
         }
     } else {
         let holder = holders.push_holder(Span::call_site());
-        let ty = arg.ty().clone().elide_lifetimes();
         quote! {{
             #[allow(unused_imports)]
             use #pyo3_path::impl_::pyclass::Probe as _;
-            #pyo3_path::impl_::extract_argument::extract_argument::<
-                _,
-                { #pyo3_path::impl_::pyclass::IsOption::<#ty>::VALUE }
-            >(
-                unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0 },
+            #pyo3_path::impl_::extract_argument::extract_argument(
+                unsafe { #pyo3_path::impl_::pymethods::BoundRef::#ref_from_method(py, &#source_ptr).0 },
                 &mut #holder,
                 #name
             )
@@ -1667,4 +1677,22 @@ impl ToTokens for TokenGeneratorCtx<'_> {
         let Self(TokenGenerator(gen), ctx) = self;
         (gen)(ctx).to_tokens(tokens)
     }
+}
+
+pub fn field_python_name(
+    field: &Field,
+    name_attr: Option<&NameAttribute>,
+    renaming_rule: Option<RenamingRule>,
+) -> Result<String> {
+    if let Some(name_attr) = name_attr {
+        return Ok(name_attr.value.0.to_string());
+    }
+    let Some(ident) = &field.ident else {
+        bail_spanned!(field.span() => "`get` and `set` with tuple struct fields require `name`");
+    };
+    let mut name = ident.unraw().to_string();
+    if let Some(rule) = renaming_rule {
+        name = utils::apply_renaming_rule(rule, &name);
+    }
+    Ok(name)
 }

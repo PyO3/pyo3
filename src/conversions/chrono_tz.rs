@@ -24,8 +24,8 @@
 //! use pyo3::{Python, PyResult, IntoPyObject, types::PyAnyMethods};
 //!
 //! fn main() -> PyResult<()> {
-//!     pyo3::prepare_freethreaded_python();
-//!     Python::with_gil(|py| {
+//!     Python::initialize();
+//!     Python::attach(|py| {
 //!         // Convert to Python
 //!         let py_tzinfo = Tz::Europe__Paris.into_pyobject(py)?;
 //!         // Convert back to Rust
@@ -38,7 +38,7 @@ use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
 use crate::pybacked::PyBackedStr;
 use crate::types::{any::PyAnyMethods, PyTzInfo};
-use crate::{intern, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
+use crate::{intern, Borrowed, Bound, FromPyObject, PyAny, PyErr, Python};
 use chrono_tz::Tz;
 use std::str::FromStr;
 
@@ -63,8 +63,10 @@ impl<'py> IntoPyObject<'py> for &Tz {
     }
 }
 
-impl FromPyObject<'_> for Tz {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Tz> {
+impl FromPyObject<'_, '_> for Tz {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         Tz::from_str(
             &ob.getattr(intern!(ob.py(), "key"))?
                 .extract::<PyBackedStr>()?,
@@ -78,13 +80,14 @@ mod tests {
     use super::*;
     use crate::prelude::PyAnyMethods;
     use crate::types::PyTzInfo;
+    use crate::Bound;
     use crate::Python;
     use chrono::{DateTime, Utc};
     use chrono_tz::Tz;
 
     #[test]
     fn test_frompyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert_eq!(
                 new_zoneinfo(py, "Europe/Paris").extract::<Tz>().unwrap(),
                 Tz::Europe__Paris
@@ -116,7 +119,7 @@ mod tests {
             ]
         );
 
-        let dates = Python::with_gil(|py| {
+        let dates = Python::attach(|py| {
             let pydates = dates.map(|dt| dt.into_pyobject(py).unwrap());
             assert_eq!(
                 pydates
@@ -148,7 +151,7 @@ mod tests {
     #[test]
     #[cfg(not(Py_GIL_DISABLED))] // https://github.com/python/cpython/issues/116738#issuecomment-2404360445
     fn test_into_pyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let assert_eq = |l: Bound<'_, PyTzInfo>, r: Bound<'_, PyTzInfo>| {
                 assert!(l.eq(&r).unwrap(), "{l:?} != {r:?}");
             };

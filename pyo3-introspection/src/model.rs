@@ -4,13 +4,15 @@ pub struct Module {
     pub modules: Vec<Module>,
     pub classes: Vec<Class>,
     pub functions: Vec<Function>,
-    pub consts: Vec<Const>,
+    pub attributes: Vec<Attribute>,
+    pub incomplete: bool,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct Class {
     pub name: String,
     pub methods: Vec<Function>,
+    pub attributes: Vec<Attribute>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
@@ -19,12 +21,17 @@ pub struct Function {
     /// decorator like 'property' or 'staticmethod'
     pub decorators: Vec<String>,
     pub arguments: Arguments,
+    /// return type
+    pub returns: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
-pub struct Const {
+pub struct Attribute {
     pub name: String,
-    pub value: String,
+    /// Value as a Python expression if easily expressible
+    pub value: Option<String>,
+    /// Type annotation as a Python expression
+    pub annotation: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
@@ -46,10 +53,14 @@ pub struct Argument {
     pub name: String,
     /// Default value as a Python expression
     pub default_value: Option<String>,
+    /// Type annotation as a Python expression
+    pub annotation: Option<String>,
 }
 
 /// A variable length argument ie. *vararg or **kwarg
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct VariableLengthArgument {
     pub name: String,
+    /// Type annotation as a Python expression
+    pub annotation: Option<String>,
 }

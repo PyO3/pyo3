@@ -44,7 +44,7 @@ How could we expose this solver to Python thanks to PyO3 ?
 ## Implementation of the trait bounds for the Python class
 
 If a Python class implements the same three methods as the `Model` trait, it seems logical it could be adapted to use the solver.
-However, it is not possible to pass a `PyObject` to it as it does not implement the Rust trait (even if the Python model has the required methods).
+However, it is not possible to pass a `Py<PyAny>` to it as it does not implement the Rust trait (even if the Python model has the required methods).
 
 In order to implement the trait, we must write a wrapper around the calls in Rust to the Python model.
 The method signatures must be the same as the trait, keeping in mind that the Rust trait cannot be changed for the purpose of making the code available in Python.
@@ -81,7 +81,7 @@ struct UserModel {
 impl Model for UserModel {
     fn set_variables(&mut self, var: &Vec<f64>) {
         println!("Rust calling Python to set the variables");
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.model
                 .bind(py)
                 .call_method("set_variables", (PyList::new(py, var).unwrap(),), None)
@@ -91,7 +91,7 @@ impl Model for UserModel {
 
     fn get_results(&self) -> Vec<f64> {
         println!("Rust calling Python to get the results");
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.model
                 .bind(py)
                 .call_method("get_results", (), None)
@@ -103,7 +103,7 @@ impl Model for UserModel {
 
     fn compute(&mut self) {
         println!("Rust calling Python to perform the computation");
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.model
                 .bind(py)
                 .call_method("compute", (), None)
@@ -118,6 +118,7 @@ Let's add the PyO3 annotations and add a constructor:
 
 ```rust,no_run
 # #![allow(dead_code)]
+# fn main() {}
 # pub trait Model {
 #   fn set_variables(&mut self, inputs: &Vec<f64>);
 #   fn compute(&mut self);
@@ -130,18 +131,18 @@ struct UserModel {
     model: Py<PyAny>,
 }
 
-#[pymodule]
-fn trait_exposure(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<UserModel>()?;
-    Ok(())
-}
-
 #[pymethods]
 impl UserModel {
     #[new]
     pub fn new(model: Py<PyAny>) -> Self {
         UserModel { model }
     }
+}
+
+#[pymodule]
+mod trait_exposure {
+    #[pymodule_export]
+    use super::UserModel;
 }
 ```
 
@@ -180,7 +181,7 @@ This wrapper will also perform the type conversions between Python and Rust.
 # impl Model for UserModel {
 #  fn set_variables(&mut self, var: &Vec<f64>) {
 #      println!("Rust calling Python to set the variables");
-#      Python::with_gil(|py| {
+#      Python::attach(|py| {
 #          self.model.bind(py)
 #              .call_method("set_variables", (PyList::new(py, var).unwrap(),), None)
 #              .unwrap();
@@ -189,7 +190,7 @@ This wrapper will also perform the type conversions between Python and Rust.
 #
 #  fn get_results(&self) -> Vec<f64> {
 #      println!("Rust calling Python to get the results");
-#      Python::with_gil(|py| {
+#      Python::attach(|py| {
 #          self.model
 #              .bind(py)
 #              .call_method("get_results", (), None)
@@ -201,7 +202,7 @@ This wrapper will also perform the type conversions between Python and Rust.
 #
 #  fn compute(&mut self) {
 #      println!("Rust calling Python to perform the computation");
-#      Python::with_gil(|py| {
+#      Python::attach(|py| {
 #          self.model
 #              .bind(py)
 #              .call_method("compute", (), None)
@@ -347,7 +348,7 @@ We used in our `get_results` method the following call that performs the type co
 impl Model for UserModel {
     fn get_results(&self) -> Vec<f64> {
         println!("Rust calling Python to get the results");
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.model
                 .bind(py)
                 .call_method("get_results", (), None)
@@ -358,7 +359,7 @@ impl Model for UserModel {
     }
 #     fn set_variables(&mut self, var: &Vec<f64>) {
 #         println!("Rust calling Python to set the variables");
-#         Python::with_gil(|py| {
+#         Python::attach(|py| {
 #             self.model.bind(py)
 #                 .call_method("set_variables", (PyList::new(py, var).unwrap(),), None)
 #                 .unwrap();
@@ -367,7 +368,7 @@ impl Model for UserModel {
 #
 #     fn compute(&mut self) {
 #         println!("Rust calling Python to perform the computation");
-#         Python::with_gil(|py| {
+#         Python::attach(|py| {
 #             self.model
 #                 .bind(py)
 #                 .call_method("compute", (), None)
@@ -398,7 +399,7 @@ Let's break it down in order to perform better error handling:
 impl Model for UserModel {
     fn get_results(&self) -> Vec<f64> {
         println!("Get results from Rust calling Python");
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_result: Bound<'_, PyAny> = self
                 .model
                 .bind(py)
@@ -417,7 +418,7 @@ impl Model for UserModel {
     }
 #     fn set_variables(&mut self, var: &Vec<f64>) {
 #         println!("Rust calling Python to set the variables");
-#         Python::with_gil(|py| {
+#         Python::attach(|py| {
 #             let py_model = self.model.bind(py)
 #                 .call_method("set_variables", (PyList::new(py, var).unwrap(),), None)
 #                 .unwrap();
@@ -426,7 +427,7 @@ impl Model for UserModel {
 #
 #     fn compute(&mut self) {
 #         println!("Rust calling Python to perform the computation");
-#         Python::with_gil(|py| {
+#         Python::attach(|py| {
 #             self.model
 #                 .bind(py)
 #                 .call_method("compute", (), None)
@@ -458,6 +459,7 @@ It is also required to make the struct public.
 
 ```rust,no_run
 # #![allow(dead_code)]
+# fn main() {}
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
@@ -482,13 +484,6 @@ pub struct UserModel {
     model: Py<PyAny>,
 }
 
-#[pymodule]
-fn trait_exposure(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<UserModel>()?;
-    m.add_function(wrap_pyfunction!(solve_wrapper, m)?)?;
-    Ok(())
-}
-
 #[pymethods]
 impl UserModel {
     #[new]
@@ -511,10 +506,16 @@ impl UserModel {
     }
 }
 
+#[pymodule]
+mod trait_exposure {
+    #[pymodule_export]
+    use super::{UserModel, solve_wrapper};
+}
+
 impl Model for UserModel {
     fn set_variables(&mut self, var: &Vec<f64>) {
         println!("Rust calling Python to set the variables");
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.model
                 .bind(py)
                 .call_method("set_variables", (PyList::new(py, var).unwrap(),), None)
@@ -524,7 +525,7 @@ impl Model for UserModel {
 
     fn get_results(&self) -> Vec<f64> {
         println!("Get results from Rust calling Python");
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_result: Bound<'_, PyAny> = self
                 .model
                 .bind(py)
@@ -544,7 +545,7 @@ impl Model for UserModel {
 
     fn compute(&mut self) {
         println!("Rust calling Python to perform the computation");
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.model
                 .bind(py)
                 .call_method("compute", (), None)

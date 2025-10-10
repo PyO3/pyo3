@@ -5,6 +5,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyType;
 
 #[pyclass]
+#[derive(Clone, Default)]
 struct EmptyClass {}
 
 #[pymethods]
@@ -62,7 +63,7 @@ impl PyClassThreadIter {
         let current_count = self.count;
         self.count += 1;
         if current_count == 0 {
-            py.allow_threads(|| thread::sleep(time::Duration::from_millis(100)));
+            py.detach(|| thread::sleep(time::Duration::from_millis(100)));
         }
         self.count
     }
@@ -104,6 +105,7 @@ impl ClassWithDict {
 }
 
 #[pyclass]
+#[derive(Clone)]
 struct ClassWithDecorators {
     attr: usize,
 }
@@ -142,6 +144,30 @@ impl ClassWithDecorators {
     }
 }
 
+#[pyclass(get_all, set_all)]
+struct PlainObject {
+    foo: String,
+    bar: usize,
+}
+
+#[derive(FromPyObject, IntoPyObject)]
+enum AClass {
+    NewType(EmptyClass),
+    Tuple(EmptyClass, EmptyClass),
+    Struct {
+        f: EmptyClass,
+        #[pyo3(item(42))]
+        g: EmptyClass,
+        #[pyo3(default)]
+        h: EmptyClass,
+    },
+}
+
+#[pyfunction]
+fn map_a_class(cls: AClass) -> AClass {
+    cls
+}
+
 #[pymodule(gil_used = false)]
 pub mod pyclasses {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
@@ -149,7 +175,7 @@ pub mod pyclasses {
     use super::ClassWithDict;
     #[pymodule_export]
     use super::{
-        AssertingBaseClass, ClassWithDecorators, ClassWithoutConstructor, EmptyClass, PyClassIter,
-        PyClassThreadIter,
+        map_a_class, AssertingBaseClass, ClassWithDecorators, ClassWithoutConstructor, EmptyClass,
+        PlainObject, PyClassIter, PyClassThreadIter,
     };
 }

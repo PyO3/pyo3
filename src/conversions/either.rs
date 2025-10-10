@@ -29,8 +29,8 @@
 //! use pyo3::{Python, PyResult, IntoPyObject, types::PyAnyMethods};
 //!
 //! fn main() -> PyResult<()> {
-//!     pyo3::prepare_freethreaded_python();
-//!     Python::with_gil(|py| {
+//!     Python::initialize();
+//!     Python::attach(|py| {
 //!         // Create a string and an int in Python.
 //!         let py_str = "crab".into_pyobject(py)?;
 //!         let py_int = 42i32.into_pyobject(py)?;
@@ -47,8 +47,8 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    exceptions::PyTypeError, types::any::PyAnyMethods, Bound, FromPyObject, IntoPyObject,
-    IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
+    exceptions::PyTypeError, Borrowed, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny,
+    PyErr, Python,
 };
 use either::Either;
 
@@ -89,13 +89,15 @@ where
 }
 
 #[cfg_attr(docsrs, doc(cfg(feature = "either")))]
-impl<'py, L, R> FromPyObject<'py> for Either<L, R>
+impl<'a, 'py, L, R> FromPyObject<'a, 'py> for Either<L, R>
 where
-    L: FromPyObject<'py>,
-    R: FromPyObject<'py>,
+    L: FromPyObject<'a, 'py>,
+    R: FromPyObject<'a, 'py>,
 {
+    type Error = PyErr;
+
     #[inline]
-    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         if let Ok(l) = obj.extract::<L>() {
             Ok(Either::Left(l))
         } else if let Ok(r) = obj.extract::<R>() {
@@ -134,7 +136,7 @@ mod tests {
         type E1 = Either<i32, f32>;
         type E2 = Either<f32, i32>;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let l = E::Left(42);
             let obj_l = (&l).into_pyobject(py).unwrap();
             assert_eq!(obj_l.extract::<i32>().unwrap(), 42);

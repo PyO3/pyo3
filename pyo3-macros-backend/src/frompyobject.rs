@@ -1,5 +1,7 @@
 use crate::attributes::{DefaultAttribute, FromPyWithAttribute, RenamingRule};
 use crate::derive_attributes::{ContainerAttributes, FieldAttributes, FieldGetter};
+#[cfg(feature = "experimental-inspect")]
+use crate::introspection::{elide_lifetimes, ConcatenationBuilder};
 use crate::utils::{self, Ctx};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
@@ -96,6 +98,16 @@ impl<'a> Enum<'a> {
             )
         )
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn write_input_type(&self, builder: &mut ConcatenationBuilder, ctx: &Ctx) {
+        for (i, var) in self.variants.iter().enumerate() {
+            if i > 0 {
+                builder.push_str(" | ");
+            }
+            var.write_input_type(builder, ctx);
+        }
+    }
 }
 
 struct NamedStructField<'a> {
@@ -103,10 +115,12 @@ struct NamedStructField<'a> {
     getter: Option<FieldGetter>,
     from_py_with: Option<FromPyWithAttribute>,
     default: Option<DefaultAttribute>,
+    ty: &'a syn::Type,
 }
 
 struct TupleStructField {
     from_py_with: Option<FromPyWithAttribute>,
+    ty: syn::Type,
 }
 
 /// Container Style
@@ -120,7 +134,8 @@ enum ContainerType<'a> {
     /// Newtype struct container, e.g. `#[transparent] struct Foo { a: String }`
     ///
     /// The field specified by the identifier is extracted directly from the object.
-    StructNewtype(&'a syn::Ident, Option<FromPyWithAttribute>),
+    #[cfg_attr(not(feature = "experimental-inspect"), allow(unused))]
+    StructNewtype(&'a syn::Ident, Option<FromPyWithAttribute>, &'a syn::Type),
     /// Tuple struct, e.g. `struct Foo(String)`.
     ///
     /// Variant contains a list of conversion methods for each of the fields that are directly
@@ -129,7 +144,8 @@ enum ContainerType<'a> {
     /// Tuple newtype, e.g. `#[transparent] struct Foo(String)`
     ///
     /// The wrapped field is directly extracted from the object.
-    TupleNewtype(Option<FromPyWithAttribute>),
+    #[cfg_attr(not(feature = "experimental-inspect"), allow(unused))]
+    TupleNewtype(Option<FromPyWithAttribute>, Box<syn::Type>),
 }
 
 /// Data container
@@ -168,6 +184,7 @@ impl<'a> Container<'a> {
                         );
                         Ok(TupleStructField {
                             from_py_with: attrs.from_py_with,
+                            ty: field.ty.clone(),
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -176,7 +193,7 @@ impl<'a> Container<'a> {
                     // Always treat a 1-length tuple struct as "transparent", even without the
                     // explicit annotation.
                     let field = tuple_fields.pop().unwrap();
-                    ContainerType::TupleNewtype(field.from_py_with)
+                    ContainerType::TupleNewtype(field.from_py_with, Box::new(field.ty))
                 } else if options.transparent.is_some() {
                     bail_spanned!(
                         fields.span() => "transparent structs and variants can only have 1 field"
@@ -216,6 +233,7 @@ impl<'a> Container<'a> {
                             getter: attrs.getter,
                             from_py_with: attrs.from_py_with,
                             default: attrs.default,
+                            ty: &field.ty,
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -237,7 +255,7 @@ impl<'a> Container<'a> {
                         field.getter.is_none(),
                         field.ident.span() => "`transparent` structs may not have a `getter` for the inner field"
                     );
-                    ContainerType::StructNewtype(field.ident, field.from_py_with)
+                    ContainerType::StructNewtype(field.ident, field.from_py_with, field.ty)
                 } else {
                     ContainerType::Struct(struct_fields)
                 }
@@ -274,10 +292,10 @@ impl<'a> Container<'a> {
     /// Build derivation body for a struct.
     fn build(&self, ctx: &Ctx) -> TokenStream {
         match &self.ty {
-            ContainerType::StructNewtype(ident, from_py_with) => {
+            ContainerType::StructNewtype(ident, from_py_with, _) => {
                 self.build_newtype_struct(Some(ident), from_py_with, ctx)
             }
-            ContainerType::TupleNewtype(from_py_with) => {
+            ContainerType::TupleNewtype(from_py_with, _) => {
                 self.build_newtype_struct(None, from_py_with, ctx)
             }
             ContainerType::Tuple(tups) => self.build_tuple_struct(tups, ctx),
@@ -438,6 +456,52 @@ impl<'a> Container<'a> {
 
         quote!(::std::result::Result::Ok(#self_ty{#fields}))
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn write_input_type(&self, builder: &mut ConcatenationBuilder, ctx: &Ctx) {
+        match &self.ty {
+            ContainerType::StructNewtype(_, from_py_with, ty) => {
+                Self::write_field_input_type(from_py_with, ty, builder, ctx);
+            }
+            ContainerType::TupleNewtype(from_py_with, ty) => {
+                Self::write_field_input_type(from_py_with, ty, builder, ctx);
+            }
+            ContainerType::Tuple(tups) => {
+                builder.push_str("tuple[");
+                for (i, TupleStructField { from_py_with, ty }) in tups.iter().enumerate() {
+                    if i > 0 {
+                        builder.push_str(", ");
+                    }
+                    Self::write_field_input_type(from_py_with, ty, builder, ctx);
+                }
+                builder.push_str("]");
+            }
+            ContainerType::Struct(_) => {
+                // TODO: implement using a Protocol?
+                builder.push_str("_typeshed.Incomplete")
+            }
+        }
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn write_field_input_type(
+        from_py_with: &Option<FromPyWithAttribute>,
+        ty: &syn::Type,
+        builder: &mut ConcatenationBuilder,
+        ctx: &Ctx,
+    ) {
+        if from_py_with.is_some() {
+            // We don't know what from_py_with is doing
+            builder.push_str("_typeshed.Incomplete")
+        } else {
+            let mut ty = ty.clone();
+            elide_lifetimes(&mut ty);
+            let pyo3_crate_path = &ctx.pyo3_path;
+            builder.push_tokens(
+                quote! { <#ty as #pyo3_crate_path::FromPyObject<'_, '_>>::INPUT_TYPE.as_bytes() },
+            )
+        }
+    }
 }
 
 fn verify_and_get_lifetime(generics: &syn::Generics) -> Result<Option<&syn::LifetimeParam>> {
@@ -478,7 +542,7 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
         let gen_ident = &param.ident;
         where_clause
             .predicates
-            .push(parse_quote!(#gen_ident: #pyo3_path::FromPyObject<'py>))
+            .push(parse_quote!(#gen_ident: #pyo3_path::conversion::FromPyObjectOwned<#lt_param>))
     }
 
     let derives = match &tokens.data {
@@ -487,7 +551,7 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
                 bail_spanned!(tokens.span() => "`transparent` or `annotation` is not supported \
                                                 at top level for enums");
             }
-            let en = Enum::new(en, &tokens.ident, options)?;
+            let en = Enum::new(en, &tokens.ident, options.clone())?;
             en.build(ctx)
         }
         syn::Data::Struct(st) => {
@@ -495,7 +559,7 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
                 bail_spanned!(lit_str.span() => "`annotation` is unsupported for structs");
             }
             let ident = &tokens.ident;
-            let st = Container::new(&st.fields, parse_quote!(#ident), options)?;
+            let st = Container::new(&st.fields, parse_quote!(#ident), options.clone())?;
             st.build(ctx)
         }
         syn::Data::Union(_) => bail_spanned!(
@@ -503,13 +567,50 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
         ),
     };
 
+    #[cfg(feature = "experimental-inspect")]
+    let input_type = {
+        let mut builder = ConcatenationBuilder::default();
+        if tokens
+            .generics
+            .params
+            .iter()
+            .all(|p| matches!(p, syn::GenericParam::Lifetime(_)))
+        {
+            match &tokens.data {
+                syn::Data::Enum(en) => {
+                    Enum::new(en, &tokens.ident, options)?.write_input_type(&mut builder, ctx)
+                }
+                syn::Data::Struct(st) => {
+                    let ident = &tokens.ident;
+                    Container::new(&st.fields, parse_quote!(#ident), options.clone())?
+                        .write_input_type(&mut builder, ctx)
+                }
+                syn::Data::Union(_) => {
+                    // Not supported at this point
+                    builder.push_str("_typeshed.Incomplete")
+                }
+            }
+        } else {
+            // We don't know how to deal with generic parameters
+            // Blocked by https://github.com/rust-lang/rust/issues/76560
+            builder.push_str("_typeshed.Incomplete")
+        };
+        let input_type = builder.into_token_stream(&ctx.pyo3_path);
+        quote! { const INPUT_TYPE: &'static str = unsafe { ::std::str::from_utf8_unchecked(#input_type) }; }
+    };
+    #[cfg(not(feature = "experimental-inspect"))]
+    let input_type = quote! {};
+
     let ident = &tokens.ident;
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics #pyo3_path::FromPyObject<#lt_param> for #ident #ty_generics #where_clause {
-            fn extract_bound(obj: &#pyo3_path::Bound<#lt_param, #pyo3_path::PyAny>) -> #pyo3_path::PyResult<Self>  {
+        impl #impl_generics #pyo3_path::FromPyObject<'_, #lt_param> for #ident #ty_generics #where_clause {
+            type Error = #pyo3_path::PyErr;
+            fn extract(obj: #pyo3_path::Borrowed<'_, #lt_param, #pyo3_path::PyAny>) -> ::std::result::Result<Self, Self::Error> {
+                let obj: &#pyo3_path::Bound<'_, _> = &*obj;
                 #derives
             }
+            #input_type
         }
     ))
 }

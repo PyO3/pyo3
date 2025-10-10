@@ -54,7 +54,7 @@
 //! # use pyo3::types::PyComplex;
 //! #
 //! # fn main() -> PyResult<()> {
-//! #     Python::with_gil(|py| -> PyResult<()> {
+//! #     Python::attach(|py| -> PyResult<()> {
 //! #         let module = PyModule::new(py, "my_module")?;
 //! #
 //! #         module.add_function(&wrap_pyfunction!(get_eigenvalues, module)?)?;
@@ -94,13 +94,11 @@
 //! assert result == [complex(1,-1), complex(-2,0)]
 //! ```
 use crate::{
-    ffi,
-    ffi_ptr_ext::FfiPtrExt,
-    types::{any::PyAnyMethods, PyComplex},
-    Bound, FromPyObject, PyAny, PyErr, PyResult, Python,
+    ffi, ffi_ptr_ext::FfiPtrExt, types::PyComplex, Borrowed, Bound, FromPyObject, PyAny, PyErr,
+    Python,
 };
 use num_complex::Complex;
-use std::os::raw::c_double;
+use std::ffi::c_double;
 
 impl PyComplex {
     /// Creates a new Python `PyComplex` object from `num_complex`'s [`Complex`].
@@ -111,7 +109,7 @@ impl PyComplex {
         unsafe {
             ffi::PyComplex_FromDoubles(complex.re.into(), complex.im.into())
                 .assume_owned(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 }
@@ -129,7 +127,7 @@ macro_rules! complex_conversion {
                     Ok(
                         ffi::PyComplex_FromDoubles(self.re as c_double, self.im as c_double)
                             .assume_owned(py)
-                            .downcast_into_unchecked(),
+                            .cast_into_unchecked(),
                     )
                 }
             }
@@ -148,8 +146,10 @@ macro_rules! complex_conversion {
         }
 
         #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
-        impl FromPyObject<'_> for Complex<$float> {
-            fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Complex<$float>> {
+        impl FromPyObject<'_, '_> for Complex<$float> {
+            type Error = PyErr;
+
+            fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Complex<$float>, Self::Error> {
                 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
                 unsafe {
                     let val = ffi::PyComplex_AsCComplex(obj.as_ptr());
@@ -163,6 +163,7 @@ macro_rules! complex_conversion {
 
                 #[cfg(any(Py_LIMITED_API, PyPy))]
                 unsafe {
+                    use $crate::types::any::PyAnyMethods;
                     let complex;
                     let obj = if obj.is_instance_of::<PyComplex>() {
                         obj
@@ -170,7 +171,7 @@ macro_rules! complex_conversion {
                         obj.lookup_special(crate::intern!(obj.py(), "__complex__"))?
                     {
                         complex = method.call0()?;
-                        &complex
+                        complex.as_borrowed()
                     } else {
                         // `obj` might still implement `__float__` or `__index__`, which will be
                         // handled by `PyComplex_{Real,Imag}AsDouble`, including propagating any
@@ -197,14 +198,15 @@ complex_conversion!(f64);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::common::generate_unique_module_name;
+    use crate::test_utils::generate_unique_module_name;
+    use crate::types::PyAnyMethods as _;
     use crate::types::{complex::PyComplexMethods, PyModule};
     use crate::IntoPyObject;
     use pyo3_ffi::c_str;
 
     #[test]
     fn from_complex() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let complex = Complex::new(3.0, 1.2);
             let py_c = PyComplex::from_complex_bound(py, complex);
             assert_eq!(py_c.real(), 3.0);
@@ -213,7 +215,7 @@ mod tests {
     }
     #[test]
     fn to_from_complex() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let val = Complex::new(3.0f64, 1.2);
             let obj = val.into_pyobject(py).unwrap();
             assert_eq!(obj.extract::<Complex<f64>>().unwrap(), val);
@@ -221,14 +223,14 @@ mod tests {
     }
     #[test]
     fn from_complex_err() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let obj = vec![1i32].into_pyobject(py).unwrap();
             assert!(obj.extract::<Complex<f64>>().is_err());
         });
     }
     #[test]
     fn from_python_magic() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module = PyModule::from_code(
                 py,
                 c_str!(
@@ -268,7 +270,7 @@ class C:
     }
     #[test]
     fn from_python_inherited_magic() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module = PyModule::from_code(
                 py,
                 c_str!(
@@ -314,7 +316,7 @@ class C(First, IndexMixin): pass
         // Functions and lambdas implement the descriptor protocol in a way that makes
         // `type(inst).attr(inst)` equivalent to `inst.attr()` for methods, but this isn't the only
         // way the descriptor protocol might be implemented.
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module = PyModule::from_code(
                 py,
                 c_str!(
@@ -339,7 +341,7 @@ class A:
     #[test]
     fn from_python_nondescriptor_magic() {
         // Magic methods don't need to implement the descriptor protocol, if they're callable.
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module = PyModule::from_code(
                 py,
                 c_str!(

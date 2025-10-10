@@ -17,10 +17,10 @@ jobs:
   benchmarks:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
+          python-version: "3.13"
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-src
@@ -31,16 +31,19 @@ jobs:
             .
             pyo3-benches
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          cache-all-crates: "true"
+          cache-workspace-crates: "true"
 
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-codspeed
 
       - name: Install nox
-        run: pip install nox
+        run: pip install nox[uv]
 
       - name: Run the benchmarks
-        uses: CodSpeedHQ/action@v3
+        uses: CodSpeedHQ/action@v4
         with:
           run: nox -s codspeed
           token: ${{ secrets.CODSPEED_TOKEN }}
+          mode: instrumentation

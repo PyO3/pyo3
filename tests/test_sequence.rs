@@ -6,8 +6,7 @@ use pyo3::{ffi, prelude::*};
 
 use pyo3::py_run;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct ByteSequence {
@@ -117,7 +116,7 @@ fn seq_dict(py: Python<'_>) -> Bound<'_, pyo3::types::PyDict> {
 
 #[test]
 fn test_getitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = seq_dict(py);
 
         py_assert!(py, *d, "s[0] == 1");
@@ -130,7 +129,7 @@ fn test_getitem() {
 
 #[test]
 fn test_setitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = seq_dict(py);
 
         py_run!(py, *d, "s[0] = 4; assert list(s) == [4, 2, 3]");
@@ -140,7 +139,7 @@ fn test_setitem() {
 
 #[test]
 fn test_delitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = [("ByteSequence", py.get_type::<ByteSequence>())]
             .into_py_dict(py)
             .unwrap();
@@ -182,7 +181,7 @@ fn test_delitem() {
 
 #[test]
 fn test_contains() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = seq_dict(py);
 
         py_assert!(py, *d, "1 in s");
@@ -195,7 +194,7 @@ fn test_contains() {
 
 #[test]
 fn test_concat() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = seq_dict(py);
 
         py_run!(
@@ -214,7 +213,7 @@ fn test_concat() {
 
 #[test]
 fn test_inplace_concat() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = seq_dict(py);
 
         py_run!(
@@ -228,7 +227,7 @@ fn test_inplace_concat() {
 
 #[test]
 fn test_repeat() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = seq_dict(py);
 
         py_run!(py, *d, "s2 = s * 2; assert list(s2) == [1, 2, 3, 1, 2, 3]");
@@ -238,7 +237,7 @@ fn test_repeat() {
 
 #[test]
 fn test_inplace_repeat() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = [("ByteSequence", py.get_type::<ByteSequence>())]
             .into_py_dict(py)
             .unwrap();
@@ -257,12 +256,12 @@ fn test_inplace_repeat() {
 #[pyclass]
 struct AnyObjectList {
     #[pyo3(get, set)]
-    items: Vec<PyObject>,
+    items: Vec<Py<PyAny>>,
 }
 
 #[test]
 fn test_any_object_list_get() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let list = AnyObjectList {
             items: [1i32, 2, 3]
                 .iter()
@@ -278,7 +277,7 @@ fn test_any_object_list_get() {
 
 #[test]
 fn test_any_object_list_set() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let list = Bound::new(py, AnyObjectList { items: vec![] }).unwrap();
 
         py_run!(py, list, "list.items = [1, 2, 3]");
@@ -314,7 +313,7 @@ impl OptionList {
 #[test]
 fn test_option_list_get() {
     // Regression test for #798
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let list = Py::new(
             py,
             OptionList {
@@ -331,7 +330,7 @@ fn test_option_list_get() {
 
 #[test]
 fn sequence_is_not_mapping() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let list = Bound::new(
             py,
             OptionList {
@@ -343,14 +342,14 @@ fn sequence_is_not_mapping() {
 
         PySequence::register::<OptionList>(py).unwrap();
 
-        assert!(list.downcast::<PyMapping>().is_err());
-        assert!(list.downcast::<PySequence>().is_ok());
+        assert!(list.cast::<PyMapping>().is_err());
+        assert!(list.cast::<PySequence>().is_ok());
     })
 }
 
 #[test]
 fn sequence_length() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let list = Bound::new(
             py,
             OptionList {
@@ -372,7 +371,7 @@ fn sequence_length() {
 #[pyclass(generic, sequence)]
 struct GenericList {
     #[pyo3(get, set)]
-    items: Vec<PyObject>,
+    items: Vec<Py<PyAny>>,
 }
 
 #[cfg(Py_3_10)]
@@ -382,9 +381,9 @@ impl GenericList {
         self.items.len()
     }
 
-    fn __getitem__(&self, idx: isize) -> PyResult<PyObject> {
+    fn __getitem__(&self, idx: isize) -> PyResult<Py<PyAny>> {
         match self.items.get(idx as usize) {
-            Some(x) => pyo3::Python::with_gil(|py| Ok(x.clone_ref(py))),
+            Some(x) => pyo3::Python::attach(|py| Ok(x.clone_ref(py))),
             None => Err(PyIndexError::new_err("Index out of bounds")),
         }
     }
@@ -396,13 +395,13 @@ fn test_generic_both_subscriptions_types() {
     use pyo3::types::PyInt;
     use std::convert::Infallible;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let l = Bound::new(
             py,
             GenericList {
                 items: [1, 2, 3]
                     .iter()
-                    .map(|x| -> PyObject {
+                    .map(|x| -> Py<PyAny> {
                         let x: Result<Bound<'_, PyInt>, Infallible> = x.into_pyobject(py);
                         x.unwrap().into_any().unbind()
                     })

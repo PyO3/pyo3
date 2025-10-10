@@ -1,6 +1,6 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::os::raw::c_int;
+use std::ffi::c_int;
 
 opaque_struct!(pub PyDictKeysObject);
 

@@ -6,8 +6,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 #[macro_use]
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[derive(Debug, Clone, IntoPyObject, IntoPyObjectRef, FromPyObject)]
 pub struct A<'py> {
@@ -21,7 +20,7 @@ pub struct A<'py> {
 
 #[test]
 fn test_named_fields_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let a = A {
             s: "Hello".into(),
             t: PyString::new(py, "World"),
@@ -57,7 +56,7 @@ pub struct B {
 
 #[test]
 fn test_transparent_named_field_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let b = B {
             test: "test".into(),
         };
@@ -79,7 +78,7 @@ pub struct D<T> {
 
 #[test]
 fn test_generic_transparent_named_field_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = D {
             test: String::from("test"),
         };
@@ -111,7 +110,7 @@ pub struct GenericWithBound<K: Hash + Eq, V>(HashMap<K, V>);
 
 #[test]
 fn test_generic_with_bound() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let mut hash_map = HashMap::<String, i32>::new();
         hash_map.insert("1".into(), 1);
         hash_map.insert("2".into(), 2);
@@ -167,7 +166,7 @@ pub struct Tuple(String, usize);
 
 #[test]
 fn test_tuple_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = Tuple(String::from("test"), 1);
         let tuple = (&tup).into_pyobject(py).unwrap();
         let new_tup = tuple.extract::<Tuple>().unwrap();
@@ -184,7 +183,7 @@ pub struct TransparentTuple(String);
 
 #[test]
 fn test_transparent_tuple_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = TransparentTuple(String::from("test"));
         let tuple = (&tup).into_pyobject(py).unwrap();
         let new_tup = tuple.extract::<TransparentTuple>().unwrap();
@@ -234,7 +233,7 @@ pub enum Foo {
 
 #[test]
 fn test_enum() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tuple_var = Foo::TupleVar(1, "test".into());
         let foo = (&tuple_var).into_pyobject(py).unwrap();
         assert_eq!(tuple_var, foo.extract::<Foo>().unwrap());
@@ -249,7 +248,7 @@ fn test_enum() {
         let foo = (&struct_var)
             .into_pyobject(py)
             .unwrap()
-            .downcast_into::<PyDict>()
+            .cast_into::<PyDict>()
             .unwrap();
         assert_eq!(struct_var, foo.extract::<Foo>().unwrap());
 
@@ -257,7 +256,7 @@ fn test_enum() {
             .clone()
             .into_pyobject(py)
             .unwrap()
-            .downcast_into::<PyDict>()
+            .cast_into::<PyDict>()
             .unwrap();
 
         assert_eq!(struct_var, foo.extract::<Foo>().unwrap());

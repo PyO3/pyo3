@@ -1,7 +1,7 @@
 #[cfg(not(GraalPy))]
 use crate::longobject::PyLongObject;
 use crate::object::*;
-use std::os::raw::{c_int, c_long};
+use std::ffi::{c_int, c_long};
 use std::ptr::addr_of_mut;
 
 #[inline]

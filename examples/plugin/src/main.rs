@@ -7,11 +7,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //"export" our API module to the python runtime
     pyo3::append_to_inittab!(pylib_module);
     //spawn runtime
-    pyo3::prepare_freethreaded_python();
+    Python::initialize();
     //import path for python
     let path = Path::new("./python_plugin/");
     //do useful work
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         //add the current directory to import path of Python (do not use this in production!)
         let syspath: Bound<PyList> = py.import("sys")?.getattr("path")?.extract()?;
         syspath.insert(0, &path)?;

@@ -87,9 +87,9 @@
 //! # if another hash table was used, the order could be random
 //! ```
 
-use crate::conversion::IntoPyObject;
+use crate::conversion::{FromPyObjectOwned, IntoPyObject};
 use crate::types::*;
-use crate::{Bound, FromPyObject, PyErr, Python};
+use crate::{Borrowed, Bound, FromPyObject, PyErr, Python};
 use std::{cmp, hash};
 
 impl<'py, K, V, H> IntoPyObject<'py> for indexmap::IndexMap<K, V, H>
@@ -130,17 +130,22 @@ where
     }
 }
 
-impl<'py, K, V, S> FromPyObject<'py> for indexmap::IndexMap<K, V, S>
+impl<'py, K, V, S> FromPyObject<'_, 'py> for indexmap::IndexMap<K, V, S>
 where
-    K: FromPyObject<'py> + cmp::Eq + hash::Hash,
-    V: FromPyObject<'py>,
+    K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
+    V: FromPyObjectOwned<'py>,
     S: hash::BuildHasher + Default,
 {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
-        let dict = ob.downcast::<PyDict>()?;
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
+        let dict = ob.cast::<PyDict>()?;
         let mut ret = indexmap::IndexMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict {
-            ret.insert(k.extract()?, v.extract()?);
+        for (k, v) in dict.iter() {
+            ret.insert(
+                k.extract().map_err(Into::into)?,
+                v.extract().map_err(Into::into)?,
+            );
         }
         Ok(ret)
     }
@@ -154,7 +159,7 @@ mod test_indexmap {
 
     #[test]
     fn test_indexmap_indexmap_into_pyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut map = indexmap::IndexMap::<i32, i32>::new();
             map.insert(1, 1);
 
@@ -179,7 +184,7 @@ mod test_indexmap {
 
     #[test]
     fn test_indexmap_indexmap_into_dict() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut map = indexmap::IndexMap::<i32, i32>::new();
             map.insert(1, 1);
 
@@ -200,7 +205,7 @@ mod test_indexmap {
 
     #[test]
     fn test_indexmap_indexmap_insertion_order_round_trip() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let n = 20;
             let mut map = indexmap::IndexMap::<i32, i32>::new();
 

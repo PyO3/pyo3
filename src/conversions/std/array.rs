@@ -1,9 +1,8 @@
-use crate::conversion::IntoPyObject;
-use crate::instance::Bound;
+use crate::conversion::{FromPyObjectOwned, IntoPyObject};
 use crate::types::any::PyAnyMethods;
 use crate::types::PySequence;
-use crate::{err::DowncastError, ffi, FromPyObject, PyAny, PyResult, Python};
-use crate::{exceptions, PyErr};
+use crate::{err::CastError, ffi, FromPyObject, PyAny, PyResult, PyTypeInfo, Python};
+use crate::{exceptions, Borrowed, Bound, PyErr};
 
 impl<'py, T, const N: usize> IntoPyObject<'py> for [T; N]
 where
@@ -37,33 +36,56 @@ where
     }
 }
 
-impl<'py, T, const N: usize> FromPyObject<'py> for [T; N]
+impl<'py, T, const N: usize> FromPyObject<'_, 'py> for [T; N]
 where
-    T: FromPyObject<'py>,
+    T: FromPyObjectOwned<'py>,
 {
-    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        if let Some(extractor) = T::sequence_extractor(obj, crate::conversion::private::Token) {
+            #[cfg(return_position_impl_trait_in_traits)]
+            {
+                use crate::conversion::FromPyObjectSequence;
+                return extractor.to_array();
+            }
+
+            #[cfg(not(return_position_impl_trait_in_traits))]
+            {
+                use std::array;
+
+                let mut out = array::from_fn(|_| std::mem::MaybeUninit::uninit());
+                extractor.fill_slice(&mut out)?;
+                // Safety: `out` is fully initialized by successful `fill_slice`
+                return Ok(out.map(|x| unsafe { x.assume_init() }));
+            }
+        }
+
         create_array_from_obj(obj)
     }
 }
 
-fn create_array_from_obj<'py, T, const N: usize>(obj: &Bound<'py, PyAny>) -> PyResult<[T; N]>
+fn create_array_from_obj<'py, T, const N: usize>(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<[T; N]>
 where
-    T: FromPyObject<'py>,
+    T: FromPyObjectOwned<'py>,
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
     let seq = unsafe {
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-            obj.downcast_unchecked::<PySequence>()
+            obj.cast_unchecked::<PySequence>()
         } else {
-            return Err(DowncastError::new(obj, "Sequence").into());
+            return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
         }
     };
     let seq_len = seq.len()?;
     if seq_len != N {
         return Err(invalid_sequence_length(N, seq_len));
     }
-    array_try_from_fn(|idx| seq.get_item(idx).and_then(|any| any.extract()))
+    array_try_from_fn(|idx| {
+        seq.get_item(idx)
+            .and_then(|any| any.extract().map_err(Into::into))
+    })
 }
 
 // TODO use std::array::try_from_fn, if that stabilises:
@@ -108,7 +130,7 @@ where
     }
 }
 
-fn invalid_sequence_length(expected: usize, actual: usize) -> PyErr {
+pub(crate) fn invalid_sequence_length(expected: usize, actual: usize) -> PyErr {
     exceptions::PyValueError::new_err(format!(
         "expected a sequence of length {expected} (got {actual})"
     ))
@@ -150,8 +172,38 @@ mod tests {
     }
 
     #[test]
+    fn test_extract_bytes_to_array() {
+        Python::attach(|py| {
+            let v: [u8; 33] = py
+                .eval(
+                    ffi::c_str!("b'abcabcabcabcabcabcabcabcabcabcabc'"),
+                    None,
+                    None,
+                )
+                .unwrap()
+                .extract()
+                .unwrap();
+            assert!(&v == b"abcabcabcabcabcabcabcabcabcabcabc");
+        })
+    }
+
+    #[test]
+    fn test_extract_bytes_wrong_length() {
+        Python::attach(|py| {
+            let v: PyResult<[u8; 3]> = py
+                .eval(ffi::c_str!("b'abcdefg'"), None, None)
+                .unwrap()
+                .extract();
+            assert_eq!(
+                v.unwrap_err().to_string(),
+                "ValueError: expected a sequence of length 3 (got 7)"
+            );
+        })
+    }
+
+    #[test]
     fn test_extract_bytearray_to_array() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v: [u8; 33] = py
                 .eval(
                     ffi::c_str!("bytearray(b'abcabcabcabcabcabcabcabcabcabcabc')"),
@@ -167,7 +219,7 @@ mod tests {
 
     #[test]
     fn test_extract_small_bytearray_to_array() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v: [u8; 3] = py
                 .eval(ffi::c_str!("bytearray(b'abc')"), None, None)
                 .unwrap()
@@ -178,10 +230,10 @@ mod tests {
     }
     #[test]
     fn test_into_pyobject_array_conversion() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let array: [f32; 4] = [0.0, -16.0, 16.0, 42.0];
             let pyobject = array.into_pyobject(py).unwrap();
-            let pylist = pyobject.downcast::<PyList>().unwrap();
+            let pylist = pyobject.cast::<PyList>().unwrap();
             assert_eq!(pylist.get_item(0).unwrap().extract::<f32>().unwrap(), 0.0);
             assert_eq!(pylist.get_item(1).unwrap().extract::<f32>().unwrap(), -16.0);
             assert_eq!(pylist.get_item(2).unwrap().extract::<f32>().unwrap(), 16.0);
@@ -191,7 +243,7 @@ mod tests {
 
     #[test]
     fn test_extract_invalid_sequence_length() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v: PyResult<[u8; 3]> = py
                 .eval(ffi::c_str!("bytearray(b'abcdefg')"), None, None)
                 .unwrap()
@@ -205,12 +257,12 @@ mod tests {
 
     #[test]
     fn test_intopyobject_array_conversion() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let array: [f32; 4] = [0.0, -16.0, 16.0, 42.0];
             let pylist = array
                 .into_pyobject(py)
                 .unwrap()
-                .downcast_into::<PyList>()
+                .cast_into::<PyList>()
                 .unwrap();
 
             assert_eq!(pylist.get_item(0).unwrap().extract::<f32>().unwrap(), 0.0);
@@ -222,11 +274,11 @@ mod tests {
 
     #[test]
     fn test_array_intopyobject_impl() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes: [u8; 6] = *b"foobar";
             let obj = bytes.into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
-            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            let obj = obj.cast_into::<PyBytes>().unwrap();
             assert_eq!(obj.as_bytes(), &bytes);
 
             let nums: [u16; 4] = [0, 1, 2, 3];
@@ -237,7 +289,7 @@ mod tests {
 
     #[test]
     fn test_extract_non_iterable_to_array() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let v = py.eval(ffi::c_str!("42"), None, None).unwrap();
             v.extract::<i32>().unwrap();
             v.extract::<[i32; 1]>().unwrap_err();
@@ -250,14 +302,14 @@ mod tests {
         #[crate::pyclass(crate = "crate")]
         struct Foo;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let array: [Foo; 8] = [Foo, Foo, Foo, Foo, Foo, Foo, Foo, Foo];
             let list = array
                 .into_pyobject(py)
                 .unwrap()
-                .downcast_into::<PyList>()
+                .cast_into::<PyList>()
                 .unwrap();
-            let _bound = list.get_item(4).unwrap().downcast::<Foo>().unwrap();
+            let _bound = list.get_item(4).unwrap().cast::<Foo>().unwrap();
         });
     }
 

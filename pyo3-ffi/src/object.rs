@@ -3,13 +3,11 @@ use crate::pyport::{Py_hash_t, Py_ssize_t};
 use crate::refcount;
 #[cfg(Py_GIL_DISABLED)]
 use crate::PyMutex;
-#[cfg(Py_GIL_DISABLED)]
-use std::marker::PhantomPinned;
+use std::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::mem;
-use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::ptr;
 #[cfg(Py_GIL_DISABLED)]
-use std::sync::atomic::{AtomicIsize, AtomicU32, AtomicU8};
+use std::sync::atomic::{AtomicIsize, AtomicU32};
 
 #[cfg(Py_LIMITED_API)]
 opaque_struct!(pub PyTypeObject);
@@ -21,7 +19,12 @@ pub use crate::cpython::object::PyTypeObject;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
-#[cfg(all(Py_3_14, not(Py_GIL_DISABLED), target_endian = "big"))]
+#[cfg(all(
+    target_pointer_width = "64",
+    Py_3_14,
+    not(Py_GIL_DISABLED),
+    target_endian = "big"
+))]
 /// This struct is anonymous in CPython, so the name was given by PyO3 because
 /// Rust structs need a name.
 pub struct PyObjectObFlagsAndRefcnt {
@@ -32,7 +35,12 @@ pub struct PyObjectObFlagsAndRefcnt {
 
 #[repr(C)]
 #[derive(Copy, Clone)]
-#[cfg(all(Py_3_14, not(Py_GIL_DISABLED), target_endian = "little"))]
+#[cfg(all(
+    target_pointer_width = "64",
+    Py_3_14,
+    not(Py_GIL_DISABLED),
+    target_endian = "little"
+))]
 /// This struct is anonymous in CPython, so the name was given by PyO3 because
 /// Rust structs need a name.
 pub struct PyObjectObFlagsAndRefcnt {
@@ -49,7 +57,7 @@ pub struct PyObjectObFlagsAndRefcnt {
 pub union PyObjectObRefcnt {
     #[cfg(all(target_pointer_width = "64", Py_3_14))]
     pub ob_refcnt_full: crate::PY_INT64_T,
-    #[cfg(Py_3_14)]
+    #[cfg(all(target_pointer_width = "64", Py_3_14))]
     pub refcnt_and_flags: PyObjectObFlagsAndRefcnt,
     pub ob_refcnt: Py_ssize_t,
     #[cfg(all(target_pointer_width = "64", not(Py_3_14)))]
@@ -110,10 +118,7 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     #[cfg(all(Py_GIL_DISABLED, not(Py_3_14)))]
     _padding: 0,
     #[cfg(Py_GIL_DISABLED)]
-    ob_mutex: PyMutex {
-        _bits: AtomicU8::new(0),
-        _pin: PhantomPinned,
-    },
+    ob_mutex: PyMutex::new(),
     #[cfg(Py_GIL_DISABLED)]
     ob_gc_bits: 0,
     #[cfg(Py_GIL_DISABLED)]

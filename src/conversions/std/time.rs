@@ -2,7 +2,7 @@ use crate::conversion::IntoPyObject;
 use crate::exceptions::{PyOverflowError, PyValueError};
 #[cfg(Py_LIMITED_API)]
 use crate::intern;
-use crate::sync::GILOnceCell;
+use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::PyDeltaAccess;
@@ -12,9 +12,11 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
 
-impl FromPyObject<'_> for Duration {
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let delta = obj.downcast::<PyDelta>()?;
+impl FromPyObject<'_, '_> for Duration {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
+        let delta = obj.cast::<PyDelta>()?;
         #[cfg(not(Py_LIMITED_API))]
         let (days, seconds, microseconds) = {
             (
@@ -87,8 +89,10 @@ impl<'py> IntoPyObject<'py> for &Duration {
 //
 // TODO: it might be nice to investigate using timestamps anyway, at least when the datetime is a safe range.
 
-impl FromPyObject<'_> for SystemTime {
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for SystemTime {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let duration_since_unix_epoch: Duration = obj.sub(unix_epoch_py(obj.py())?)?.extract()?;
         UNIX_EPOCH
             .checked_add(duration_since_unix_epoch)
@@ -108,7 +112,7 @@ impl<'py> IntoPyObject<'py> for SystemTime {
             self.duration_since(UNIX_EPOCH).unwrap().into_pyobject(py)?;
         unix_epoch_py(py)?
             .add(duration_since_unix_epoch)?
-            .downcast_into()
+            .cast_into()
             .map_err(Into::into)
     }
 }
@@ -125,7 +129,7 @@ impl<'py> IntoPyObject<'py> for &SystemTime {
 }
 
 fn unix_epoch_py(py: Python<'_>) -> PyResult<Borrowed<'_, '_, PyDateTime>> {
-    static UNIX_EPOCH: GILOnceCell<Py<PyDateTime>> = GILOnceCell::new();
+    static UNIX_EPOCH: PyOnceLock<Py<PyDateTime>> = PyOnceLock::new();
     Ok(UNIX_EPOCH
         .get_or_try_init(py, || {
             let utc = PyTzInfo::utc(py)?;
@@ -141,7 +145,7 @@ mod tests {
 
     #[test]
     fn test_duration_frompyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert_eq!(
                 new_timedelta(py, 0, 0, 0).extract::<Duration>().unwrap(),
                 Duration::new(0, 0)
@@ -175,7 +179,7 @@ mod tests {
 
     #[test]
     fn test_duration_frompyobject_negative() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert_eq!(
                 new_timedelta(py, 0, -1, 0)
                     .extract::<Duration>()
@@ -188,7 +192,7 @@ mod tests {
 
     #[test]
     fn test_duration_into_pyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let assert_eq = |l: Bound<'_, PyAny>, r: Bound<'_, PyAny>| {
                 assert!(l.eq(r).unwrap());
             };
@@ -238,14 +242,14 @@ mod tests {
 
     #[test]
     fn test_duration_into_pyobject_overflow() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(Duration::MAX.into_pyobject(py).is_err());
         })
     }
 
     #[test]
     fn test_time_frompyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert_eq!(
                 new_datetime(py, 1970, 1, 1, 0, 0, 0, 0)
                     .extract::<SystemTime>()
@@ -271,7 +275,7 @@ mod tests {
 
     #[test]
     fn test_time_frompyobject_before_epoch() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert_eq!(
                 new_datetime(py, 1950, 1, 1, 0, 0, 0, 0)
                     .extract::<SystemTime>()
@@ -284,7 +288,7 @@ mod tests {
 
     #[test]
     fn test_time_intopyobject() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let assert_eq = |l: Bound<'_, PyDateTime>, r: Bound<'_, PyDateTime>| {
                 assert!(l.eq(r).unwrap());
             };
@@ -343,7 +347,7 @@ mod tests {
         naive_max
             .call_method("replace", (), Some(&kargs))
             .unwrap()
-            .downcast_into()
+            .cast_into()
             .unwrap()
     }
 
@@ -352,7 +356,7 @@ mod tests {
         let big_system_time = UNIX_EPOCH
             .checked_add(Duration::new(300000000000, 0))
             .unwrap();
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(big_system_time.into_pyobject(py).is_err());
         })
     }

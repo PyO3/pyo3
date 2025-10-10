@@ -1,6 +1,6 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::os::raw::{c_char, c_int};
+use std::ffi::{c_char, c_int};
 use std::ptr::addr_of_mut;
 
 // skipped _PyManagedBuffer_Type
@@ -17,7 +17,7 @@ pub unsafe fn PyMemoryView_Check(op: *mut PyObject) -> c_int {
 }
 
 // skipped non-limited PyMemoryView_GET_BUFFER
-// skipped non-limited PyMemeryView_GET_BASE
+// skipped non-limited PyMemoryView_GET_BASE
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyMemoryView_FromObject")]

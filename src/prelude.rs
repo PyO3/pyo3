@@ -8,9 +8,11 @@
 //! use pyo3::prelude::*;
 //! ```
 
-pub use crate::conversion::{FromPyObject, IntoPyObject};
+pub use crate::conversion::{FromPyObject, FromPyObjectOwned, IntoPyObject};
 pub use crate::err::{PyErr, PyResult};
-pub use crate::instance::{Borrowed, Bound, Py, PyObject};
+#[allow(deprecated)]
+pub use crate::instance::PyObject;
+pub use crate::instance::{Borrowed, Bound, Py};
 pub use crate::marker::Python;
 pub use crate::pycell::{PyRef, PyRefMut};
 pub use crate::pyclass_init::PyClassInitializer;

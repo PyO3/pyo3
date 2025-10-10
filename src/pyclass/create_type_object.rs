@@ -92,7 +92,7 @@ where
             T::IS_MAPPING,
             T::IS_SEQUENCE,
             T::IS_IMMUTABLE_TYPE,
-            T::doc(py)?,
+            T::DOC,
             T::dict_offset(),
             T::weaklist_offset(),
             T::IS_BASETYPE,
@@ -195,7 +195,7 @@ impl PyTypeBuilder {
                 .add_setter(setter),
             PyMethodDefType::Method(def)
             | PyMethodDefType::Class(def)
-            | PyMethodDefType::Static(def) => self.method_defs.push(def.as_method_def()),
+            | PyMethodDefType::Static(def) => self.method_defs.push(def.into_raw()),
             // These class attributes are added after the type gets created by LazyStaticType
             PyMethodDefType::ClassAttribute(_) => {}
             PyMethodDefType::StructMember(def) => self.member_defs.push(*def),
@@ -437,8 +437,16 @@ impl PyTypeBuilder {
         unsafe { self.push_slot(ffi::Py_tp_base, self.tp_base) }
 
         if !self.has_new {
-            // Safety: This is the correct slot type for Py_tp_new
-            unsafe { self.push_slot(ffi::Py_tp_new, no_constructor_defined as *mut c_void) }
+            // Flag introduced in 3.10, only worked in PyPy on 3.11
+            #[cfg(not(any(all(Py_3_10, not(PyPy)), all(Py_3_11, PyPy))))]
+            {
+                // Safety: This is the correct slot type for Py_tp_new
+                unsafe { self.push_slot(ffi::Py_tp_new, no_constructor_defined as *mut c_void) }
+            }
+            #[cfg(any(all(Py_3_10, not(PyPy)), all(Py_3_11, PyPy)))]
+            {
+                self.class_flags |= ffi::Py_TPFLAGS_DISALLOW_INSTANTIATION;
+            }
         }
 
         let base_is_gc = unsafe { ffi::PyType_IS_GC(self.tp_base) == 1 };
@@ -531,8 +539,8 @@ fn bpo_45315_workaround(py: Python<'_>, class_name: CString) {
     {
         // Must check version at runtime for abi3 wheels - they could run against a higher version
         // than the build config suggests.
-        use crate::sync::GILOnceCell;
-        static IS_PYTHON_3_11: GILOnceCell<bool> = GILOnceCell::new();
+        use crate::sync::PyOnceLock;
+        static IS_PYTHON_3_11: PyOnceLock<bool> = PyOnceLock::new();
 
         if *IS_PYTHON_3_11.get_or_init(py, || py.version_info() >= (3, 11)) {
             // No fix needed - the wheel is running on a sufficiently new interpreter.
@@ -549,6 +557,7 @@ fn bpo_45315_workaround(py: Python<'_>, class_name: CString) {
 }
 
 /// Default new implementation
+#[cfg(not(any(all(Py_3_10, not(PyPy)), all(Py_3_11, PyPy))))]
 unsafe extern "C" fn no_constructor_defined(
     subtype: *mut ffi::PyTypeObject,
     _args: *mut ffi::PyObject,
@@ -557,11 +566,14 @@ unsafe extern "C" fn no_constructor_defined(
     unsafe {
         trampoline(|py| {
             let tpobj = PyType::from_borrowed_type_ptr(py, subtype);
-            let name = tpobj
-                .name()
-                .map_or_else(|_| "<unknown>".into(), |name| name.to_string());
+            // unlike `fully_qualified_name`, this always include the module
+            let module = tpobj
+                .module()
+                .map_or_else(|_| "<unknown>".into(), |s| s.to_string());
+            let qualname = tpobj.qualname();
+            let qualname = qualname.map_or_else(|_| "<unknown>".into(), |s| s.to_string());
             Err(crate::exceptions::PyTypeError::new_err(format!(
-                "No constructor defined for {name}"
+                "cannot create '{module}.{qualname}' instances"
             )))
         })
     }

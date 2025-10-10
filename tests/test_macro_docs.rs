@@ -4,8 +4,7 @@ use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 
 #[macro_use]
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 /// The MacroDocs class.
@@ -22,7 +21,7 @@ impl MacroDocs {
 
 #[test]
 fn meth_doc() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = [("C", py.get_type::<MacroDocs>())]
             .into_py_dict(py)
             .unwrap();

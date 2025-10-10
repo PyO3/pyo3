@@ -1,7 +1,7 @@
 use core::sync::atomic::{AtomicU64, Ordering};
 use core::{mem, ptr};
 use std::ffi::CString;
-use std::os::raw::{c_char, c_int, c_uint, c_ulonglong, c_void};
+use std::ffi::{c_char, c_int, c_uint, c_ulonglong, c_void};
 
 use pyo3_ffi::*;
 

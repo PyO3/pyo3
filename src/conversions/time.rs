@@ -21,8 +21,8 @@
 //! use pyo3::{Python, PyResult, IntoPyObject, types::PyAnyMethods};
 //!
 //! fn main() -> PyResult<()> {
-//!     pyo3::prepare_freethreaded_python();
-//!     Python::with_gil(|py| {
+//!     Python::initialize();
+//!     Python::attach(|py| {
 //!         // Create a fixed date and time (2022-01-01 12:00:00 UTC)
 //!         let date = Date::from_calendar_date(2022, Month::January, 1).unwrap();
 //!         let time = Time::from_hms(12, 0, 0).unwrap();
@@ -58,7 +58,7 @@ use crate::types::datetime::{PyDateAccess, PyDeltaAccess};
 use crate::types::{PyAnyMethods, PyDate, PyDateTime, PyDelta, PyNone, PyTime, PyTzInfo};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyTimeAccess, PyTzInfoAccess};
-use crate::{Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
+use crate::{Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
 use time::{
     Date, Duration, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcDateTime, UtcOffset,
 };
@@ -105,7 +105,7 @@ macro_rules! month_from_number {
 fn extract_date_time(dt: &Bound<'_, PyAny>) -> PyResult<(Date, Time)> {
     #[cfg(not(Py_LIMITED_API))]
     {
-        let dt = dt.downcast::<PyDateTime>()?;
+        let dt = dt.cast::<PyDateTime>()?;
         let date = Date::from_calendar_date(
             dt.get_year(),
             month_from_number!(dt.get_month()),
@@ -180,11 +180,13 @@ impl<'py> IntoPyObject<'py> for Duration {
     }
 }
 
-impl FromPyObject<'_> for Duration {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Duration> {
+impl FromPyObject<'_, '_> for Duration {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         #[cfg(not(Py_LIMITED_API))]
         let (days, seconds, microseconds) = {
-            let delta = ob.downcast::<PyDelta>()?;
+            let delta = ob.cast::<PyDelta>()?;
             (
                 delta.get_days().into(),
                 delta.get_seconds().into(),
@@ -223,12 +225,14 @@ impl<'py> IntoPyObject<'py> for Date {
     }
 }
 
-impl FromPyObject<'_> for Date {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Date> {
+impl FromPyObject<'_, '_> for Date {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let (year, month, day) = {
             #[cfg(not(Py_LIMITED_API))]
             {
-                let date = ob.downcast::<PyDate>()?;
+                let date = ob.cast::<PyDate>()?;
                 (date.get_year(), date.get_month(), date.get_day())
             }
 
@@ -264,12 +268,14 @@ impl<'py> IntoPyObject<'py> for Time {
     }
 }
 
-impl FromPyObject<'_> for Time {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Time> {
+impl FromPyObject<'_, '_> for Time {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let (hour, minute, second, microsecond) = {
             #[cfg(not(Py_LIMITED_API))]
             {
-                let time = ob.downcast::<PyTime>()?;
+                let time = ob.cast::<PyTime>()?;
                 let hour: u8 = time.get_hour();
                 let minute: u8 = time.get_minute();
                 let second: u8 = time.get_second();
@@ -323,12 +329,14 @@ impl<'py> IntoPyObject<'py> for PrimitiveDateTime {
     }
 }
 
-impl FromPyObject<'_> for PrimitiveDateTime {
-    fn extract_bound(dt: &Bound<'_, PyAny>) -> PyResult<PrimitiveDateTime> {
+impl FromPyObject<'_, '_> for PrimitiveDateTime {
+    type Error = PyErr;
+
+    fn extract(dt: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let has_tzinfo = {
             #[cfg(not(Py_LIMITED_API))]
             {
-                let dt = dt.downcast::<PyDateTime>()?;
+                let dt = dt.cast::<PyDateTime>()?;
                 dt.get_tzinfo().is_some()
             }
             #[cfg(Py_LIMITED_API)]
@@ -341,7 +349,7 @@ impl FromPyObject<'_> for PrimitiveDateTime {
             return Err(PyTypeError::new_err("expected a datetime without tzinfo"));
         }
 
-        let (date, time) = extract_date_time(dt)?;
+        let (date, time) = extract_date_time(&dt)?;
 
         Ok(PrimitiveDateTime::new(date, time))
     }
@@ -360,10 +368,12 @@ impl<'py> IntoPyObject<'py> for UtcOffset {
     }
 }
 
-impl FromPyObject<'_> for UtcOffset {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<UtcOffset> {
+impl FromPyObject<'_, '_> for UtcOffset {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         #[cfg(not(Py_LIMITED_API))]
-        let ob = ob.downcast::<PyTzInfo>()?;
+        let ob = ob.cast::<PyTzInfo>()?;
 
         // Get the offset in seconds from the Python tzinfo
         let py_timedelta = ob.call_method1("utcoffset", (PyNone::get(ob.py()),))?;
@@ -412,17 +422,19 @@ impl<'py> IntoPyObject<'py> for OffsetDateTime {
             minute,
             second,
             microsecond,
-            Some(py_tzinfo.downcast()?),
+            Some(py_tzinfo.cast()?),
         )
     }
 }
 
-impl FromPyObject<'_> for OffsetDateTime {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<OffsetDateTime> {
+impl FromPyObject<'_, '_> for OffsetDateTime {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let offset: UtcOffset = {
             #[cfg(not(Py_LIMITED_API))]
             {
-                let dt = ob.downcast::<PyDateTime>()?;
+                let dt = ob.cast::<PyDateTime>()?;
                 let tzinfo = dt.get_tzinfo().ok_or_else(|| {
                     PyTypeError::new_err("expected a datetime with non-None tzinfo")
                 })?;
@@ -440,7 +452,7 @@ impl FromPyObject<'_> for OffsetDateTime {
             }
         };
 
-        let (date, time) = extract_date_time(ob)?;
+        let (date, time) = extract_date_time(&ob)?;
 
         let primitive_dt = PrimitiveDateTime::new(date, time);
         Ok(primitive_dt.assume_offset(offset))
@@ -480,12 +492,14 @@ impl<'py> IntoPyObject<'py> for UtcDateTime {
     }
 }
 
-impl FromPyObject<'_> for UtcDateTime {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<UtcDateTime> {
+impl FromPyObject<'_, '_> for UtcDateTime {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let tzinfo = {
             #[cfg(not(Py_LIMITED_API))]
             {
-                let dt = ob.downcast::<PyDateTime>()?;
+                let dt = ob.cast::<PyDateTime>()?;
                 dt.get_tzinfo().ok_or_else(|| {
                     PyTypeError::new_err("expected a datetime with non-None tzinfo")
                 })?
@@ -512,7 +526,7 @@ impl FromPyObject<'_> for UtcDateTime {
             ));
         }
 
-        let (date, time) = extract_date_time(ob)?;
+        let (date, time) = extract_date_time(&ob)?;
         let primitive_dt = PrimitiveDateTime::new(date, time);
         Ok(primitive_dt.assume_utc().into())
     }
@@ -761,7 +775,7 @@ mod tests {
     }
     #[test]
     fn test_time_duration_conversion() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // Regular duration
             let duration = Duration::new(1, 500_000_000); // 1.5 seconds
             let (_, seconds, microseconds) = utils::extract_py_delta_from_duration(duration, py);
@@ -786,7 +800,7 @@ mod tests {
 
     #[test]
     fn test_time_duration_conversion_large_values() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // Large duration (close to max)
             let large_duration = Duration::seconds(86_399_999_000_000); // Almost max
             let (days, _, _) = utils::extract_py_delta_from_duration(large_duration, py);
@@ -803,7 +817,7 @@ mod tests {
 
     #[test]
     fn test_time_duration_nanosecond_resolution() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // Test nanosecond conversion to microseconds
             let duration = Duration::new(0, 1_234_567);
             let (_, _, microseconds) = utils::extract_py_delta_from_duration(duration, py);
@@ -814,7 +828,7 @@ mod tests {
 
     #[test]
     fn test_time_duration_from_python() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // Create Python timedeltas with various values
             let datetime = py.import("datetime").unwrap();
             let timedelta = datetime.getattr(intern!(py, "timedelta")).unwrap();
@@ -836,7 +850,7 @@ mod tests {
 
     #[test]
     fn test_time_date_conversion() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // Regular date
             let date = Date::from_calendar_date(2023, Month::April, 15).unwrap();
             let (year, month, day) = utils::extract_py_date_from_date(date, py);
@@ -861,7 +875,7 @@ mod tests {
 
     #[test]
     fn test_time_date_from_python() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let date1 = utils::create_date_from_py_date(py, 2023, 4, 15).unwrap();
             assert_eq!(date1.year(), 2023);
             assert_eq!(date1.month(), Month::April);
@@ -889,7 +903,7 @@ mod tests {
 
     #[test]
     fn test_time_date_invalid_values() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let invalid_date = utils::create_date_from_py_date(py, 2023, 2, 30);
             assert!(invalid_date.is_err());
 
@@ -901,7 +915,7 @@ mod tests {
 
     #[test]
     fn test_time_time_conversion() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // Regular time
             let time = Time::from_hms_micro(14, 30, 45, 123456).unwrap();
             let (hour, minute, second, microsecond) = utils::extract_py_time_from_time(time, py);
@@ -931,7 +945,7 @@ mod tests {
 
     #[test]
     fn test_time_time_from_python() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let time1 = utils::create_time_from_py_time(py, 14, 30, 45, 123456).unwrap();
             assert_eq!(time1.hour(), 14);
             assert_eq!(time1.minute(), 30);
@@ -956,7 +970,7 @@ mod tests {
 
     #[test]
     fn test_time_time_invalid_values() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = utils::create_time_from_py_time(py, 24, 0, 0, 0);
             assert!(result.is_err());
             let result = utils::create_time_from_py_time(py, 12, 60, 0, 0);
@@ -970,7 +984,7 @@ mod tests {
 
     #[test]
     fn test_time_time_with_timezone() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // Create Python time with timezone (just to ensure we can handle it properly)
             let datetime = py.import("datetime").unwrap();
             let time_type = datetime.getattr(intern!(py, "time")).unwrap();
@@ -988,7 +1002,7 @@ mod tests {
 
     #[test]
     fn test_time_primitive_datetime_conversion() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // Regular datetime
             let date = Date::from_calendar_date(2023, Month::April, 15).unwrap();
             let time = Time::from_hms_micro(14, 30, 45, 123456).unwrap();
@@ -1022,7 +1036,7 @@ mod tests {
 
     #[test]
     fn test_time_primitive_datetime_from_python() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dt1 =
                 utils::create_primitive_date_time_from_py(py, 2023, 4, 15, 14, 30, 45, 123456)
                     .unwrap();
@@ -1045,7 +1059,7 @@ mod tests {
 
     #[test]
     fn test_time_utc_offset_conversion() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // Test positive offset
             let offset = UtcOffset::from_hms(5, 30, 0).unwrap();
             let total_seconds = utils::extract_total_seconds_from_utcoffset(offset, py);
@@ -1060,7 +1074,7 @@ mod tests {
 
     #[test]
     fn test_time_utc_offset_from_python() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // Create timezone objects
             let datetime = py.import("datetime").unwrap();
             let timezone = datetime.getattr(intern!(py, "timezone")).unwrap();
@@ -1091,7 +1105,7 @@ mod tests {
 
     #[test]
     fn test_time_offset_datetime_conversion() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // Create an OffsetDateTime with +5:30 offset
             let date = Date::from_calendar_date(2023, Month::April, 15).unwrap();
             let time = Time::from_hms_micro(14, 30, 45, 123456).unwrap();
@@ -1160,7 +1174,7 @@ mod tests {
 
     #[test]
     fn test_time_offset_datetime_from_python() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // Create Python datetime with timezone
             let datetime = py.import("datetime").unwrap();
             let datetime_type = datetime.getattr(intern!(py, "datetime")).unwrap();
@@ -1194,7 +1208,7 @@ mod tests {
 
     #[test]
     fn test_time_utc_datetime_conversion() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let date = Date::from_calendar_date(2023, Month::April, 15).unwrap();
             let time = Time::from_hms_micro(14, 30, 45, 123456).unwrap();
             let primitive_dt = PrimitiveDateTime::new(date, time);
@@ -1214,7 +1228,7 @@ mod tests {
 
     #[test]
     fn test_time_utc_datetime_from_python() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // Create Python UTC datetime
             let datetime = py.import("datetime").unwrap();
             let datetime_type = datetime.getattr(intern!(py, "datetime")).unwrap();
@@ -1241,7 +1255,7 @@ mod tests {
 
     #[test]
     fn test_time_utc_datetime_non_utc_timezone() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // Create Python datetime with non-UTC timezone
             let datetime = py.import("datetime").unwrap();
             let datetime_type = datetime.getattr(intern!(py, "datetime")).unwrap();
@@ -1272,7 +1286,7 @@ mod tests {
             #[test]
             fn test_time_duration_roundtrip(days in -9999i64..=9999i64, seconds in -86399i64..=86399i64, microseconds in -999999i64..=999999i64) {
                 // Generate a valid duration that should roundtrip successfully
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let duration = Duration::days(days) + Duration::seconds(seconds) + Duration::microseconds(microseconds);
 
                     // Skip if outside Python's timedelta bounds
@@ -1296,7 +1310,7 @@ mod tests {
                 year in 1i32..=9999,
                 month_num in 1u8..=12,
             ) {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let month = match month_num {
                         1 => (Month::January, 31),
                         2 => {
@@ -1337,7 +1351,7 @@ mod tests {
                 second in 0u8..=59u8,
                 microsecond in 0u32..=999999u32
             ) {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let time = Time::from_hms_micro(hour, minute, second, microsecond).unwrap();
                     let py_time = time.into_pyobject(py).unwrap();
                     let roundtripped: Time = py_time.extract().unwrap();
@@ -1355,7 +1369,7 @@ mod tests {
                 second in 0u8..=59u8,
                 microsecond in 0u32..=999999u32
             ) {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let month = match month {
                         1 => Month::January,
                         2 => Month::February,
@@ -1392,7 +1406,7 @@ mod tests {
                     return Ok(());
                 }
 
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     if let Ok(offset) = UtcOffset::from_hms(hours, minutes, 0) {
                         let py_tz = offset.into_pyobject(py).unwrap();
                         let roundtripped: UtcOffset = py_tz.extract().unwrap();
@@ -1414,7 +1428,7 @@ mod tests {
                 tz_hour in -23i8..=23i8,
                 tz_minute in 0i8..=59i8
             ) {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let month = match month {
                         1 => Month::January,
                         2 => Month::February,
@@ -1465,7 +1479,7 @@ mod tests {
                 second in 0u8..=59u8,
                 microsecond in 0u32..=999999u32
             ) {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let month = match month {
                         1 => Month::January,
                         2 => Month::February,

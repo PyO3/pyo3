@@ -1,19 +1,19 @@
 /// Represents the major, minor, and patch (if any) versions of this interpreter.
 ///
-/// This struct is usually created with [`Python::version`].
+/// This struct is usually created with [`Python::version_info`].
 ///
 /// # Examples
 ///
 /// ```rust
 /// # use pyo3::Python;
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     // PyO3 supports Python 3.7 and up.
 ///     assert!(py.version_info() >= (3, 7));
 ///     assert!(py.version_info() >= (3, 7, 0));
 /// });
 /// ```
 ///
-/// [`Python::version`]: crate::marker::Python::version
+/// [`Python::version_info`]: crate::marker::Python::version_info
 #[derive(Debug)]
 pub struct PythonVersionInfo<'a> {
     /// Python major version (e.g. `3`).
@@ -99,7 +99,7 @@ mod test {
     use crate::Python;
     #[test]
     fn test_python_version_info() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let version = py.version_info();
             #[cfg(Py_3_7)]
             assert!(version >= (3, 7));

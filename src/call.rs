@@ -27,7 +27,7 @@ pub(crate) mod private {
 /// to `call`.
 ///
 /// This trait is not intended to used by downstream crates directly. As such it
-/// has no publicly available methods and cannot be implemented ouside of
+/// has no publicly available methods and cannot be implemented outside of
 /// `pyo3`. The corresponding public API is available through [`call`]
 /// ([`call0`], [`call1`] and friends) on [`PyAnyMethods`].
 ///
@@ -240,7 +240,7 @@ mod tests {
             wrap_pyfunction, Py, Python,
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let f = wrap_pyfunction!(args_kwargs, py).unwrap();
 
             let args = PyTuple::new(py, [1, 2, 3]).unwrap();
@@ -282,7 +282,7 @@ mod tests {
             wrap_pyfunction, Py, Python,
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let f = wrap_pyfunction!(args_kwargs, py).unwrap();
 
             let args = PyTuple::new(py, [1, 2, 3]).unwrap();

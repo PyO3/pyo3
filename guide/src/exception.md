@@ -24,7 +24,7 @@ use pyo3::exceptions::PyException;
 create_exception!(mymodule, CustomError, PyException);
 
 # fn main() -> PyResult<()> {
-Python::with_gil(|py| {
+Python::attach(|py| {
     let ctx = [("CustomError", py.get_type::<CustomError>())].into_py_dict(py)?;
     pyo3::py_run!(
         py,
@@ -41,17 +41,18 @@ When using PyO3 to create an extension module, you can add the new exception to
 the module like this, so that it is importable from Python:
 
 ```rust,no_run
+# fn main() {}
 use pyo3::prelude::*;
 use pyo3::exceptions::PyException;
 
 pyo3::create_exception!(mymodule, CustomError, PyException);
 
 #[pymodule]
-fn mymodule(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // ... other elements added to module ...
-    m.add("CustomError", py.get_type::<CustomError>())?;
+mod mymodule {
+    #[pymodule_export]
+    use super::CustomError;
 
-    Ok(())
+    // ... other elements added to module ...
 }
 ```
 
@@ -65,7 +66,7 @@ You can also manually write and fetch errors in the Python interpreter's global 
 use pyo3::{Python, PyErr};
 use pyo3::exceptions::PyTypeError;
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     PyTypeError::new_err("Error").restore(py);
     assert!(PyErr::occurred(py));
     drop(PyErr::fetch(py));
@@ -82,7 +83,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyList};
 
 # fn main() -> PyResult<()> {
-Python::with_gil(|py| {
+Python::attach(|py| {
     assert!(PyBool::new(py, true).is_instance_of::<PyBool>());
     let list = PyList::new(py, &[1, 2, 3, 4])?;
     assert!(!list.is_instance_of::<PyBool>());
@@ -97,7 +98,7 @@ To check the type of an exception, you can similarly do:
 ```rust,no_run
 # use pyo3::exceptions::PyTypeError;
 # use pyo3::prelude::*;
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 # let err = PyTypeError::new_err(());
 err.is_instance_of::<PyTypeError>(py);
 # });
@@ -166,7 +167,7 @@ impl CustomError {
 }
 
 # fn main() -> PyResult<()> {
-Python::with_gil(|py| {
+Python::attach(|py| {
     let ctx = [("CustomError", py.get_type::<CustomError>())].into_py_dict(py)?;
     pyo3::py_run!(
         py,

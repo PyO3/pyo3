@@ -1,7 +1,6 @@
 //! Python type object information
 
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyType};
 use crate::{ffi, Bound, Python};
 use std::ptr;
@@ -36,12 +35,20 @@ pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 ///
 /// Implementations must provide an implementation for `type_object_raw` which infallibly produces a
 /// non-null pointer to the corresponding Python type object.
+///
+/// `is_type_of` must only return true for objects which can safely be treated as instances of `Self`.
+///
+/// `is_exact_type_of` must only return true for objects whose type is exactly `Self`.
 pub unsafe trait PyTypeInfo: Sized {
     /// Class name.
     const NAME: &'static str;
 
     /// Module name, if any.
     const MODULE: Option<&'static str>;
+
+    /// Provides the full python type paths.
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = "typing.Any";
 
     /// Returns the PyTypeObject instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;
@@ -59,7 +66,7 @@ pub unsafe trait PyTypeInfo: Sized {
                 .cast::<ffi::PyObject>()
                 .assume_borrowed_unchecked(py)
                 .to_owned()
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -82,24 +89,51 @@ pub unsafe trait PyTypeInfo: Sized {
 }
 
 /// Implemented by types which can be used as a concrete Python type inside `Py<T>` smart pointers.
-pub trait PyTypeCheck {
+///
+/// # Safety
+///
+/// This trait is used to determine whether [`Bound::cast`] and similar functions can safely cast
+/// to a concrete type. The implementor is responsible for ensuring that `type_check` only returns
+/// true for objects which can safely be treated as Python instances of `Self`.
+pub unsafe trait PyTypeCheck {
     /// Name of self. This is used in error messages, for example.
+    #[deprecated(
+        since = "0.27.0",
+        note = "Use ::classinfo_object() instead and format the type name at runtime. Note that using built-in cast features is often better than manual PyTypeCheck usage."
+    )]
     const NAME: &'static str;
+
+    /// Provides the full python type of the allowed values.
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str;
 
     /// Checks if `object` is an instance of `Self`, which may include a subtype.
     ///
     /// This should be equivalent to the Python expression `isinstance(object, Self)`.
     fn type_check(object: &Bound<'_, PyAny>) -> bool;
+
+    /// Returns the expected type as a possible argument for the `isinstance` and `issubclass` function.
+    ///
+    /// It may be a single type or a tuple of types.
+    fn classinfo_object(py: Python<'_>) -> Bound<'_, PyAny>;
 }
 
-impl<T> PyTypeCheck for T
+unsafe impl<T> PyTypeCheck for T
 where
     T: PyTypeInfo,
 {
-    const NAME: &'static str = <T as PyTypeInfo>::NAME;
+    const NAME: &'static str = T::NAME;
+
+    #[cfg(feature = "experimental-inspect")]
+    const PYTHON_TYPE: &'static str = <T as PyTypeInfo>::PYTHON_TYPE;
 
     #[inline]
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         T::is_type_of(object)
+    }
+
+    #[inline]
+    fn classinfo_object(py: Python<'_>) -> Bound<'_, PyAny> {
+        T::type_object(py).into_any()
     }
 }

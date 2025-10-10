@@ -1,5 +1,5 @@
 #![cfg(feature = "macros")]
-#![cfg_attr(not(cargo_toml_lints), warn(unsafe_op_in_unsafe_fn))]
+#![warn(unsafe_op_in_unsafe_fn)]
 
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
@@ -13,15 +13,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Once;
 use std::sync::{Arc, Mutex};
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass(freelist = 2)]
 struct ClassWithFreelist {}
 
 #[test]
 fn class_with_freelist() {
-    let ptr = Python::with_gil(|py| {
+    let ptr = Python::attach(|py| {
         let inst = Py::new(py, ClassWithFreelist {}).unwrap();
         let _inst2 = Py::new(py, ClassWithFreelist {}).unwrap();
         let ptr = inst.as_ptr();
@@ -29,7 +28,7 @@ fn class_with_freelist() {
         ptr
     });
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst3 = Py::new(py, ClassWithFreelist {}).unwrap();
         assert_eq!(ptr, inst3.as_ptr());
 
@@ -59,10 +58,10 @@ fn spin_freelist(py: Python<'_>, data: usize) {
 fn multithreaded_class_with_freelist() {
     std::thread::scope(|s| {
         s.spawn(|| {
-            Python::with_gil(|py| spin_freelist(py, 12));
+            Python::attach(|py| spin_freelist(py, 12));
         });
         s.spawn(|| {
-            Python::with_gil(|py| spin_freelist(py, 0x4d3d3d3));
+            Python::attach(|py| spin_freelist(py, 0x4d3d3d3));
         });
     });
 }
@@ -103,7 +102,7 @@ impl DropCheck {
                 return;
             }
 
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 py.run(ffi::c_str!("import gc; gc.collect()"), None, None)
                     .unwrap();
             });
@@ -134,7 +133,7 @@ fn data_is_dropped() {
     let (guard1, check1) = drop_check();
     let (guard2, check2) = drop_check();
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let data_is_dropped = DataIsDropped {
             _guard1: guard1,
             _guard2: guard2,
@@ -151,7 +150,7 @@ fn data_is_dropped() {
 
 #[pyclass(subclass)]
 struct CycleWithClear {
-    cycle: Option<PyObject>,
+    cycle: Option<Py<PyAny>>,
     _guard: DropGuard,
 }
 
@@ -172,7 +171,7 @@ impl CycleWithClear {
 fn test_cycle_clear() {
     let (guard, check) = drop_check();
 
-    let ptr = Python::with_gil(|py| {
+    let ptr = Python::attach(|py| {
         let inst = Bound::new(
             py,
             CycleWithClear {
@@ -219,7 +218,7 @@ fn gc_null_traversal() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let obj = Py::new(
             py,
             GcNullTraversal {
@@ -270,12 +269,12 @@ fn inheritance_with_new_methods_with_drop() {
     let (guard_base, check_base) = drop_check();
     let (guard_sub, check_sub) = drop_check();
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let typeobj = py.get_type::<SubClassWithDrop>();
         let inst = typeobj
             .call((), None)
             .unwrap()
-            .downcast_into::<SubClassWithDrop>()
+            .cast_into::<SubClassWithDrop>()
             .unwrap();
 
         inst.as_super().borrow_mut().guard = Some(guard_base);
@@ -315,7 +314,7 @@ fn gc_during_borrow() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // get the traverse function
         let ty = py.get_type::<TraversableClass>();
         let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
@@ -342,7 +341,7 @@ fn gc_during_borrow() {
 fn traverse_partial() {
     #[pyclass]
     struct PartialTraverse {
-        member: PyObject,
+        member: Py<PyAny>,
     }
 
     impl PartialTraverse {
@@ -360,7 +359,7 @@ fn traverse_partial() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // get the traverse function
         let ty = py.get_type::<PartialTraverse>();
         let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
@@ -378,7 +377,7 @@ fn traverse_partial() {
 fn traverse_panic() {
     #[pyclass]
     struct PanickyTraverse {
-        member: PyObject,
+        member: Py<PyAny>,
     }
 
     impl PanickyTraverse {
@@ -395,7 +394,7 @@ fn traverse_panic() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // get the traverse function
         let ty = py.get_type::<PanickyTraverse>();
         let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
@@ -417,11 +416,11 @@ fn tries_gil_in_traverse() {
     #[pymethods]
     impl TriesGILInTraverse {
         fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-            Python::with_gil(|_py| Ok(()))
+            Python::attach(|_py| Ok(()))
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // get the traverse function
         let ty = py.get_type::<TriesGILInTraverse>();
         let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
@@ -480,7 +479,7 @@ fn traverse_cannot_be_hijacked() {
         }
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // get the traverse function
         let ty = py.get_type::<HijackedTraverse>();
         let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
@@ -513,7 +512,7 @@ impl DropDuringTraversal {
 fn drop_during_traversal_with_gil() {
     let (guard, check) = drop_check();
 
-    let ptr = Python::with_gil(|py| {
+    let ptr = Python::attach(|py| {
         let cycle = Mutex::new(None);
         let inst = Py::new(
             py,
@@ -547,7 +546,7 @@ fn drop_during_traversal_with_gil() {
 fn drop_during_traversal_without_gil() {
     let (guard, check) = drop_check();
 
-    let inst = Python::with_gil(|py| {
+    let inst = Python::attach(|py| {
         let cycle = Mutex::new(None);
         let inst = Py::new(
             py,
@@ -594,7 +593,7 @@ fn unsendable_are_not_traversed_on_foreign_thread() {
 
     unsafe impl Send for SendablePtr {}
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let ty = py.get_type::<UnsendableTraversal>();
         let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
 
@@ -646,7 +645,7 @@ fn test_traverse_subclass() {
 
     let (guard, check) = drop_check();
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let base = CycleWithClear {
             cycle: None,
             _guard: guard,
@@ -693,7 +692,7 @@ fn test_traverse_subclass_override_clear() {
 
     let (guard, check) = drop_check();
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let base = CycleWithClear {
             cycle: None,
             _guard: guard,
@@ -728,7 +727,7 @@ unsafe fn get_type_traverse(tp: *mut pyo3::ffi::PyTypeObject) -> Option<pyo3::ff
 extern "C" fn novisit(
     _object: *mut pyo3::ffi::PyObject,
     _arg: *mut core::ffi::c_void,
-) -> std::os::raw::c_int {
+) -> std::ffi::c_int {
     0
 }
 
@@ -736,6 +735,58 @@ extern "C" fn novisit(
 extern "C" fn visit_error(
     _object: *mut pyo3::ffi::PyObject,
     _arg: *mut core::ffi::c_void,
-) -> std::os::raw::c_int {
+) -> std::ffi::c_int {
     -1
+}
+
+#[test]
+#[cfg(any(not(Py_LIMITED_API), Py_3_11))] // buffer availability
+fn test_drop_buffer_during_traversal_without_gil() {
+    use pyo3::buffer::PyBuffer;
+    use pyo3::types::PyBytes;
+
+    // `PyBuffer` has a drop method which attempts to attach to the Python interpreter,
+    // if the thread is during traverse we leak it for safety. This should _never_ be happening
+    // so it's purely a user bug, but we leak to be safe.
+
+    #[pyclass]
+    struct BufferDropDuringTraversal {
+        inner: Mutex<Option<(DropGuard, PyBuffer<u8>)>>,
+        cycle: Option<Py<PyAny>>,
+    }
+
+    #[pymethods]
+    impl BufferDropDuringTraversal {
+        #[allow(clippy::unnecessary_wraps)]
+        fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            self.inner.lock().unwrap().take();
+            Ok(())
+        }
+
+        fn __clear__(&mut self) {
+            self.cycle = None;
+        }
+    }
+
+    let (guard, check) = drop_check();
+    Python::attach(|py| {
+        let obj = Py::new(
+            py,
+            BufferDropDuringTraversal {
+                inner: Mutex::new(Some((
+                    guard,
+                    PyBuffer::get(&PyBytes::new(py, b"test")).unwrap(),
+                ))),
+                cycle: None,
+            },
+        )
+        .unwrap();
+
+        obj.borrow_mut(py).cycle = Some(obj.clone_ref(py).into_any());
+
+        let ptr = obj.as_ptr();
+        drop(obj);
+
+        check.assert_drops_with_gc(ptr);
+    });
 }

@@ -12,7 +12,7 @@ fails, so usually you will use something like
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let list = PyList::new(py, b"foo")?;
 let v: Vec<i32> = list.extract()?;
 #         assert_eq!(&v, &[102, 111, 111]);
@@ -54,13 +54,13 @@ struct RustyStruct {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         let module = PyModule::from_code(
 #             py,
 #             c_str!("class Foo:
 #             def __init__(self):
 #                 self.my_string = 'test'"),
-#             c_str!(""),
+#             c_str!("<string>"),
 #             c_str!(""),
 #         )?;
 #
@@ -86,7 +86,7 @@ struct RustyStruct {
 #
 # use pyo3::types::PyDict;
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         let dict = PyDict::new(py);
 #         dict.set_item("my_string", "test")?;
 #
@@ -112,14 +112,14 @@ struct RustyStruct {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         let module = PyModule::from_code(
 #             py,
 #             c_str!("class Foo(dict):
 #             def __init__(self):
 #                 self.name = 'test'
 #                 self['key'] = 'test2'"),
-#             c_str!(""),
+#             c_str!("<string>"),
 #             c_str!(""),
 #         )?;
 #
@@ -156,7 +156,7 @@ struct RustyStruct {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         let py_dict = py.eval(pyo3::ffi::c_str!("{'foo': 'foo', 'bar': 'bar', 'foobar': 'foobar'}"), None, None)?;
 #         let rustystruct: RustyStruct = py_dict.extract()?;
 # 		  assert_eq!(rustystruct.foo, "foo");
@@ -182,7 +182,7 @@ struct RustyTuple(String, String);
 
 # use pyo3::types::PyTuple;
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         let tuple = PyTuple::new(py, vec!["test", "test2"])?;
 #
 #         let rustytuple: RustyTuple = tuple.extract()?;
@@ -205,7 +205,7 @@ struct RustyTuple((String,));
 
 # use pyo3::types::PyTuple;
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         let tuple = PyTuple::new(py, vec!["test"])?;
 #
 #         let rustytuple: RustyTuple = tuple.extract()?;
@@ -237,7 +237,7 @@ struct RustyTransparentStruct {
 
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         let s = PyString::new(py, "test");
 #
 #         let tup: RustyTransparentTupleStruct = s.extract()?;
@@ -292,7 +292,7 @@ enum RustyEnum<'py> {
 #
 # use pyo3::types::{PyBytes, PyString};
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         {
 #             let thing = 42_u8.into_pyobject(py)?;
 #             let rust_thing: RustyEnum<'_> = thing.extract()?;
@@ -349,7 +349,7 @@ enum RustyEnum<'py> {
 #                 self.x = 0
 #                 self.y = 1
 #                 self.z = 2"),
-#                 c_str!(""),
+#                 c_str!("<string>"),
 #                 c_str!(""),
 #             )?;
 #
@@ -373,7 +373,7 @@ enum RustyEnum<'py> {
 #             def __init__(self):
 #                 self.x = 3
 #                 self.y = 4"),
-#                 c_str!(""),
+#                 c_str!("<string>"),
 #                 c_str!(""),
 #             )?;
 #
@@ -397,7 +397,7 @@ enum RustyEnum<'py> {
 #             assert_eq!(
 #                 b"text",
 #                 match rust_thing {
-#                     RustyEnum::CatchAll(ref i) => i.downcast::<PyBytes>()?.as_bytes(),
+#                     RustyEnum::CatchAll(ref i) => i.cast::<PyBytes>()?.as_bytes(),
 #                     other => unreachable!("Error extracting: {:?}", other),
 #                 }
 #             );
@@ -425,7 +425,7 @@ enum RustyEnum {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         {
 #             let thing = 42_u8.into_pyobject(py)?;
 #             let rust_thing: RustyEnum = thing.extract()?;
@@ -464,7 +464,7 @@ enum RustyEnum {
 ```
 
 If the input is neither a string nor an integer, the error message will be:
-`"'<INPUT_TYPE>' cannot be converted to 'str | int'"`.
+`"'<INPUT_TYPE>' cannot be cast as 'str | int'"`.
 
 #### `#[derive(FromPyObject)]` Container Attributes
 - `pyo3(transparent)`
@@ -515,7 +515,7 @@ struct RustyStruct {
 #
 # use pyo3::types::PyDict;
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| -> PyResult<()> {
+#     Python::attach(|py| -> PyResult<()> {
 #         // Filled case
 #         let dict = PyDict::new(py);
 #         dict.set_item("value", (1,)).unwrap();
@@ -533,6 +533,29 @@ struct RustyStruct {
 #         Ok(())
 #     })
 # }
+```
+
+#### ⚠ Phase-Out of `FromPyObject` blanket implementation for cloneable PyClasses ⚠
+Historically PyO3 has provided a blanket implementation for `#[pyclass]` types that also implement `Clone`, to allow extraction of such types by value. Over time this has turned out problematic for a few reasons, the major one being the prevention of custom conversions by downstream crates if their type is `Clone`. Over the next few releases the blanket implementation is gradually phased out, and eventually replaced by an opt-in option. As a first step of this migration a new `skip_from_py_object` option for `#[pyclass]` was introduced, to opt-out of the blanket implementation and allow downstream users to provide their own implementation:
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+
+#[pyclass(skip_from_py_object)] // opt-out of the PyO3 FromPyObject blanket
+#[derive(Clone)]
+struct Number(i32);
+
+impl<'py> FromPyObject<'_, 'py> for Number {
+    type Error = PyErr;
+
+    fn extract(obj: pyo3::Borrowed<'_, 'py, pyo3::PyAny>) -> Result<Self, Self::Error> {
+        if let Ok(obj) = obj.cast::<Self>() { // first try extraction via class object
+            Ok(obj.borrow().clone())
+        } else {
+            obj.extract::<i32>().map(Self) // otherwise try integer directly
+        }
+    }
+}
 ```
 
 ### `IntoPyObject`
@@ -580,7 +603,7 @@ forward the implementation to the inner type.
 
 // newtype tuple structs are implicitly `transparent`
 #[derive(IntoPyObject)]
-struct TransparentTuple(PyObject);
+struct TransparentTuple(Py<PyAny>);
 
 #[derive(IntoPyObject)]
 #[pyo3(transparent)]
@@ -599,7 +622,7 @@ For `enum`s each variant is converted according to the rules for `struct`s above
 
 #[derive(IntoPyObject)]
 enum Enum<'a, 'py, K: Hash + Eq, V> { // enums are supported and convert using the same
-    TransparentTuple(PyObject),       // rules on the variants as the structs above
+    TransparentTuple(Py<PyAny>),       // rules on the variants as the structs above
     #[pyo3(transparent)]
     TransparentStruct { inner: Bound<'py, PyAny> },
     Tuple(&'a str, HashMap<K, V>),
@@ -613,7 +636,7 @@ Additionally `IntoPyObject` can be derived for a reference to a struct or enum u
 ##### `#[derive(IntoPyObject)]`/`#[derive(IntoPyObjectRef)]` Field Attributes
 - `pyo3(into_py_with = ...)`
     - apply a custom function to convert the field from Rust into Python.
-    - the argument must be the function indentifier
+    - the argument must be the function identifier
     - the function signature must be `fn(Cow<'_, T>, Python<'py>) -> PyResult<Bound<'py, PyAny>>` where `T` is the Rust type of the argument.
       - `#[derive(IntoPyObject)]` will invoke the function with `Cow::Owned`
       - `#[derive(IntoPyObjectRef)]` will invoke the function with `Cow::Borrowed`
@@ -645,12 +668,12 @@ demonstrated below.
 ```rust,no_run
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
-struct MyPyObjectWrapper(PyObject);
+struct MyPyObjectWrapper(Py<PyAny>);
 
 impl<'py> IntoPyObject<'py> for MyPyObjectWrapper {
     type Target = PyAny; // the Python type
     type Output = Bound<'py, Self::Target>; // in most cases this will be `Bound`
-    type Error = std::convert::Infallible; // the conversion error type, has to be convertable to `PyErr`
+    type Error = std::convert::Infallible; // the conversion error type, has to be convertible to `PyErr`
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.0.into_bound(py))
@@ -681,7 +704,7 @@ use pyo3::types::{PyBool, PyInt};
 let ints: Vec<u32> = vec![1, 2, 3, 4];
 let bools = vec![true, false, false, true];
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     let ints_as_pyint: Vec<Bound<'_, PyInt>> = ints
         .iter()
         .map(|x| Ok(x.into_pyobject(py)?))
@@ -696,7 +719,7 @@ Python::with_gil(|py| {
 });
 ```
 
-In this example if we wanted to combine `ints_as_pyints` and `bools_as_pybool` into a single `Vec<Py<PyAny>>` to return from the `with_gil` closure, we would have to manually convert the concrete types for the smart pointers and the python types.
+In this example if we wanted to combine `ints_as_pyints` and `bools_as_pybool` into a single `Vec<Py<PyAny>>` to return from the `Python::attach` closure, we would have to manually convert the concrete types for the smart pointers and the python types.
 
 Instead, we can write a function that generically converts vectors of either integers or bools into a vector of `Py<PyAny>` using the [`BoundObject`] trait:
 
@@ -726,7 +749,7 @@ where
         .collect()
 }
 
-let vec_of_pyobjs: Vec<Py<PyAny>> = Python::with_gil(|py| {
+let vec_of_pyobjs: Vec<Py<PyAny>> = Python::attach(|py| {
     let mut bools_as_pyany = convert_to_vec_of_pyobj(py, bools).unwrap();
     let mut ints_as_pyany = convert_to_vec_of_pyobj(py, ints).unwrap();
     let mut result: Vec<Py<PyAny>> = vec![];
@@ -741,7 +764,6 @@ In the example above we used `BoundObject::into_any` and `BoundObject::unbind` t
 [`FromPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.FromPyObject.html
 [`IntoPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.IntoPyObject.html
 [`IntoPyObjectExt`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.IntoPyObjectExt.html
-[`PyObject`]: {{#PYO3_DOCS_URL}}/pyo3/type.PyObject.html
 
 [`PyRef`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
 [`PyRefMut`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRefMut.html

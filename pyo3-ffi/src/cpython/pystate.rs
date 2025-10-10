@@ -1,7 +1,7 @@
 #[cfg(not(PyPy))]
 use crate::PyThreadState;
 use crate::{PyFrameObject, PyInterpreterState, PyObject};
-use std::os::raw::c_int;
+use std::ffi::c_int;
 
 // skipped _PyInterpreterState_RequiresIDRef
 // skipped _PyInterpreterState_RequireIDRef
@@ -31,8 +31,7 @@ pub const PyTrace_OPCODE: c_int = 7;
 #[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Clone, Copy)]
-#[doc(hidden)] // TODO should be able to make pub(crate) after MSRV 1.74
-pub struct _PyErr_StackItem {
+pub(crate) struct _PyErr_StackItem {
     #[cfg(not(Py_3_11))]
     exc_type: *mut PyObject,
     exc_value: *mut PyObject,

@@ -2,11 +2,11 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 #[cfg(any(Py_3_12, all(Py_3_8, not(Py_LIMITED_API))))]
 use libc::size_t;
-use std::os::raw::{c_char, c_int};
+use std::ffi::{c_char, c_int};
 
 #[inline]
 #[cfg(all(
-    not(Py_3_13), // CPython exposed as a function in 3.13, in object.h 
+    not(Py_3_13), // CPython exposed as a function in 3.13, in object.h
     not(all(PyPy, not(Py_3_11))) // PyPy exposed as a function until PyPy 3.10, macro in 3.11+
 ))]
 pub unsafe fn PyObject_DelAttrString(o: *mut PyObject, attr_name: *const c_char) -> c_int {
@@ -15,7 +15,7 @@ pub unsafe fn PyObject_DelAttrString(o: *mut PyObject, attr_name: *const c_char)
 
 #[inline]
 #[cfg(all(
-    not(Py_3_13), // CPython exposed as a function in 3.13, in object.h 
+    not(Py_3_13), // CPython exposed as a function in 3.13, in object.h
     not(all(PyPy, not(Py_3_11))) // PyPy exposed as a function until PyPy 3.10, macro in 3.11+
 ))]
 pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_int {

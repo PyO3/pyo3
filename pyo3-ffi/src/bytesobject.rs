@@ -1,6 +1,6 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::os::raw::{c_char, c_int};
+use std::ffi::{c_char, c_int};
 use std::ptr::addr_of_mut;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

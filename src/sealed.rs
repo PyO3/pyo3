@@ -1,3 +1,4 @@
+use crate::impl_::pyfunction::PyFunctionDef;
 use crate::types::{
     PyBool, PyByteArray, PyBytes, PyCapsule, PyComplex, PyDict, PyFloat, PyFrozenSet, PyList,
     PyMapping, PyMappingProxy, PyModule, PyRange, PySequence, PySet, PySlice, PyString,
@@ -50,6 +51,7 @@ impl Sealed for Bound<'_, PyWeakrefReference> {}
 impl<T> Sealed for AddTypeToModule<T> {}
 impl<T> Sealed for AddClassToModule<T> {}
 impl Sealed for PyMethodDef {}
+impl Sealed for PyFunctionDef {}
 impl Sealed for ModuleDef {}
 
 impl<T: crate::type_object::PyTypeInfo> Sealed for PyNativeTypeInitializer<T> {}
@@ -62,4 +64,8 @@ impl<R, T> Sealed for lock_api::Mutex<R, T> {}
 #[cfg(feature = "parking_lot")]
 impl Sealed for parking_lot::Once {}
 #[cfg(feature = "arc_lock")]
-impl<R: lock_api::RawMutex, T> Sealed for std::sync::Arc<lock_api::Mutex<R, T>> {}
+impl<R, T> Sealed for std::sync::Arc<lock_api::Mutex<R, T>> {}
+#[cfg(feature = "lock_api")]
+impl<R, G, T> Sealed for lock_api::ReentrantMutex<R, G, T> {}
+#[cfg(feature = "arc_lock")]
+impl<R, G, T> Sealed for std::sync::Arc<lock_api::ReentrantMutex<R, G, T>> {}

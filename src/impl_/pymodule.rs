@@ -20,13 +20,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
+use crate::prelude::PyTypeMethods;
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
 use crate::PyErr;
 use crate::{
     ffi,
-    impl_::pymethods::PyMethodDef,
-    sync::GILOnceCell,
-    types::{PyCFunction, PyModule, PyModuleMethods},
+    impl_::pyfunction::PyFunctionDef,
+    sync::PyOnceLock,
+    types::{PyModule, PyModuleMethods},
     Bound, Py, PyClass, PyResult, PyTypeInfo, Python,
 };
 
@@ -43,7 +44,7 @@ pub struct ModuleDef {
     ))]
     interpreter: AtomicI64,
     /// Initialized module object, cached to avoid reinitialization.
-    module: GILOnceCell<Py<PyModule>>,
+    module: PyOnceLock<Py<PyModule>>,
     /// Whether or not the module supports running without the GIL
     gil_used: AtomicBool,
 }
@@ -89,7 +90,7 @@ impl ModuleDef {
                 not(all(windows, Py_LIMITED_API, not(Py_3_10)))
             ))]
             interpreter: AtomicI64::new(-1),
-            module: GILOnceCell::new(),
+            module: PyOnceLock::new(),
             gil_used: AtomicBool::new(true),
         }
     }
@@ -180,7 +181,8 @@ impl<T> AddTypeToModule<T> {
 
 impl<T: PyTypeInfo> PyAddToModule for AddTypeToModule<T> {
     fn add_to_module(&'static self, module: &Bound<'_, PyModule>) -> PyResult<()> {
-        module.add(T::NAME, T::type_object(module.py()))
+        let object = T::type_object(module.py());
+        module.add(object.name()?, object)
     }
 }
 
@@ -201,9 +203,10 @@ impl<T: PyClass> PyAddToModule for AddClassToModule<T> {
 }
 
 /// For adding a function to a module.
-impl PyAddToModule for PyMethodDef {
+impl PyAddToModule for PyFunctionDef {
     fn add_to_module(&'static self, module: &Bound<'_, PyModule>) -> PyResult<()> {
-        module.add_function(PyCFunction::internal_new(module.py(), self, Some(module))?)
+        // safety: self is static
+        module.add_function(self.create_py_c_function(module.py(), Some(module))?)
     }
 }
 
@@ -245,7 +248,7 @@ mod tests {
                 }),
             )
         };
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let module = MODULE_DEF.make_module(py, false).unwrap().into_bound(py);
             assert_eq!(
                 module
@@ -294,7 +297,7 @@ mod tests {
             assert_eq!((*module_def.ffi_def.get()).m_name, NAME.as_ptr() as _);
             assert_eq!((*module_def.ffi_def.get()).m_doc, DOC.as_ptr() as _);
 
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 module_def.initializer.0(&py.import("builtins").unwrap()).unwrap();
                 assert!(INIT_CALLED.load(Ordering::SeqCst));
             })

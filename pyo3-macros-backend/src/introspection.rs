@@ -19,19 +19,18 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use syn::ext::IdentExt;
-use syn::{Attribute, Ident, Type, TypePath};
+use syn::visit_mut::{visit_type_mut, VisitMut};
+use syn::{Attribute, Ident, Lifetime, ReturnType, Type, TypePath};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
 
+#[allow(clippy::too_many_arguments)]
 pub fn module_introspection_code<'a>(
     pyo3_crate_path: &PyO3CratePath,
     name: &str,
     members: impl IntoIterator<Item = &'a Ident>,
     members_cfg_attrs: impl IntoIterator<Item = &'a Vec<Attribute>>,
-    consts: impl IntoIterator<Item = &'a Ident>,
-    consts_values: impl IntoIterator<Item = &'a String>,
-    consts_cfg_attrs: impl IntoIterator<Item = &'a Vec<Attribute>>,
+    incomplete: bool,
 ) -> TokenStream {
     IntrospectionNode::Map(
         [
@@ -44,35 +43,14 @@ pub fn module_introspection_code<'a>(
                     members
                         .into_iter()
                         .zip(members_cfg_attrs)
-                        .filter_map(|(member, attributes)| {
-                            if attributes.is_empty() {
-                                Some(IntrospectionNode::IntrospectionId(Some(ident_to_type(
-                                    member,
-                                ))))
-                            } else {
-                                None // TODO: properly interpret cfg attributes
-                            }
+                        .map(|(member, attributes)| AttributedIntrospectionNode {
+                            node: IntrospectionNode::IntrospectionId(Some(ident_to_type(member))),
+                            attributes,
                         })
                         .collect(),
                 ),
             ),
-            (
-                "consts",
-                IntrospectionNode::List(
-                    consts
-                        .into_iter()
-                        .zip(consts_values)
-                        .zip(consts_cfg_attrs)
-                        .filter_map(|((ident, value), attributes)| {
-                            if attributes.is_empty() {
-                                Some(const_introspection_code(ident, value))
-                            } else {
-                                None // TODO: properly interpret cfg attributes
-                            }
-                        })
-                        .collect(),
-                ),
-            ),
+            ("incomplete", IntrospectionNode::Bool(incomplete)),
         ]
         .into(),
     )
@@ -98,12 +76,14 @@ pub fn class_introspection_code(
     .emit(pyo3_crate_path)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn function_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
     ident: Option<&Ident>,
     name: &str,
     signature: &FunctionSignature<'_>,
     first_argument: Option<&'static str>,
+    returns: ReturnType,
     decorators: impl IntoIterator<Item = String>,
     parent: Option<&Type>,
 ) -> TokenStream {
@@ -112,7 +92,37 @@ pub fn function_introspection_code(
         ("name", IntrospectionNode::String(name.into())),
         (
             "arguments",
-            arguments_introspection_data(signature, first_argument),
+            arguments_introspection_data(signature, first_argument, parent),
+        ),
+        (
+            "returns",
+            if let Some((_, returns)) = signature
+                .attribute
+                .as_ref()
+                .and_then(|attribute| attribute.value.returns.as_ref())
+            {
+                IntrospectionNode::String(returns.to_python().into())
+            } else {
+                match returns {
+                    ReturnType::Default => IntrospectionNode::String("None".into()),
+                    ReturnType::Type(_, ty) => match *ty {
+                        Type::Tuple(t) if t.elems.is_empty() => {
+                            // () is converted to None in return types
+                            IntrospectionNode::String("None".into())
+                        }
+                        mut ty => {
+                            if let Some(class_type) = parent {
+                                replace_self(&mut ty, class_type);
+                            }
+                            elide_lifetimes(&mut ty);
+                            IntrospectionNode::OutputType {
+                                rust_type: ty,
+                                is_final: false,
+                            }
+                        }
+                    },
+                }
+            },
         ),
     ]);
     if let Some(ident) = ident {
@@ -123,7 +133,7 @@ pub fn function_introspection_code(
     }
     let decorators = decorators
         .into_iter()
-        .map(|d| IntrospectionNode::String(d.into()))
+        .map(|d| IntrospectionNode::String(d.into()).into())
         .collect::<Vec<_>>();
     if !decorators.is_empty() {
         desc.insert("decorators", IntrospectionNode::List(decorators));
@@ -137,30 +147,65 @@ pub fn function_introspection_code(
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
 
-fn const_introspection_code<'a>(ident: &'a Ident, value: &'a String) -> IntrospectionNode<'a> {
-    IntrospectionNode::Map(
-        [
-            ("type", IntrospectionNode::String("const".into())),
-            (
-                "name",
-                IntrospectionNode::String(ident.unraw().to_string().into()),
-            ),
-            ("value", IntrospectionNode::String(value.into())),
-        ]
-        .into(),
-    )
+pub fn attribute_introspection_code(
+    pyo3_crate_path: &PyO3CratePath,
+    parent: Option<&Type>,
+    name: String,
+    value: String,
+    mut rust_type: Type,
+    is_final: bool,
+) -> TokenStream {
+    let mut desc = HashMap::from([
+        ("type", IntrospectionNode::String("attribute".into())),
+        ("name", IntrospectionNode::String(name.into())),
+        (
+            "parent",
+            IntrospectionNode::IntrospectionId(parent.map(Cow::Borrowed)),
+        ),
+    ]);
+    if value == "..." {
+        // We need to set a type, but not need to set the value to ..., all attributes have a value
+        if let Some(parent) = parent {
+            replace_self(&mut rust_type, parent);
+        }
+        elide_lifetimes(&mut rust_type);
+        desc.insert(
+            "annotation",
+            IntrospectionNode::OutputType {
+                rust_type,
+                is_final,
+            },
+        );
+    } else {
+        desc.insert(
+            "annotation",
+            if is_final {
+                // Type checkers can infer the type from the value because it's typing.Literal[value]
+                // So, following stubs best practices, we only write typing.Final and not
+                // typing.Final[typing.literal[value]]
+                IntrospectionNode::String("typing.Final".into())
+            } else {
+                IntrospectionNode::OutputType {
+                    rust_type,
+                    is_final,
+                }
+            },
+        );
+        desc.insert("value", IntrospectionNode::String(value.into()));
+    }
+    IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
 
 fn arguments_introspection_data<'a>(
     signature: &'a FunctionSignature<'a>,
     first_argument: Option<&'a str>,
+    class_type: Option<&Type>,
 ) -> IntrospectionNode<'a> {
-    let mut argument_desc = signature.arguments.iter().filter_map(|arg| {
-        if let FnArg::Regular(arg) = arg {
-            Some(arg)
-        } else {
-            None
-        }
+    let mut argument_desc = signature.arguments.iter().filter(|arg| {
+        matches!(
+            arg,
+            FnArg::Regular(_) | FnArg::VarArgs(_) | FnArg::KwArgs(_)
+        )
     });
 
     let mut posonlyargs = Vec::new();
@@ -170,9 +215,12 @@ fn arguments_introspection_data<'a>(
     let mut kwarg = None;
 
     if let Some(first_argument) = first_argument {
-        posonlyargs.push(IntrospectionNode::Map(
-            [("name", IntrospectionNode::String(first_argument.into()))].into(),
-        ));
+        posonlyargs.push(
+            IntrospectionNode::Map(
+                [("name", IntrospectionNode::String(first_argument.into()))].into(),
+            )
+            .into(),
+        );
     }
 
     for (i, param) in signature
@@ -181,12 +229,12 @@ fn arguments_introspection_data<'a>(
         .iter()
         .enumerate()
     {
-        let arg_desc = if let Some(arg_desc) = argument_desc.next() {
+        let arg_desc = if let Some(FnArg::Regular(arg_desc)) = argument_desc.next() {
             arg_desc
         } else {
             panic!("Less arguments than in python signature");
         };
-        let arg = argument_introspection_data(param, arg_desc);
+        let arg = argument_introspection_data(param, arg_desc, class_type);
         if i < signature.python_signature.positional_only_parameters {
             posonlyargs.push(arg);
         } else {
@@ -195,28 +243,32 @@ fn arguments_introspection_data<'a>(
     }
 
     if let Some(param) = &signature.python_signature.varargs {
-        vararg = Some(IntrospectionNode::Map(
-            [("name", IntrospectionNode::String(param.into()))].into(),
-        ));
+        let Some(FnArg::VarArgs(arg_desc)) = argument_desc.next() else {
+            panic!("Fewer arguments than in python signature");
+        };
+        let mut params = HashMap::from([("name", IntrospectionNode::String(param.into()))]);
+        if let Some(annotation) = &arg_desc.annotation {
+            params.insert("annotation", IntrospectionNode::String(annotation.into()));
+        }
+        vararg = Some(IntrospectionNode::Map(params));
     }
 
     for (param, _) in &signature.python_signature.keyword_only_parameters {
-        let arg_desc = if let Some(arg_desc) = argument_desc.next() {
-            arg_desc
-        } else {
+        let Some(FnArg::Regular(arg_desc)) = argument_desc.next() else {
             panic!("Less arguments than in python signature");
         };
-        kwonlyargs.push(argument_introspection_data(param, arg_desc));
+        kwonlyargs.push(argument_introspection_data(param, arg_desc, class_type));
     }
 
     if let Some(param) = &signature.python_signature.kwargs {
-        kwarg = Some(IntrospectionNode::Map(
-            [
-                ("name", IntrospectionNode::String(param.into())),
-                ("kind", IntrospectionNode::String("VAR_KEYWORD".into())),
-            ]
-            .into(),
-        ));
+        let Some(FnArg::KwArgs(arg_desc)) = argument_desc.next() else {
+            panic!("Less arguments than in python signature");
+        };
+        let mut params = HashMap::from([("name", IntrospectionNode::String(param.into()))]);
+        if let Some(annotation) = &arg_desc.annotation {
+            params.insert("annotation", IntrospectionNode::String(annotation.into()));
+        }
+        kwarg = Some(IntrospectionNode::Map(params));
     }
 
     let mut map = HashMap::new();
@@ -241,7 +293,8 @@ fn arguments_introspection_data<'a>(
 fn argument_introspection_data<'a>(
     name: &'a str,
     desc: &'a RegularArg<'_>,
-) -> IntrospectionNode<'a> {
+    class_type: Option<&Type>,
+) -> AttributedIntrospectionNode<'a> {
     let mut params: HashMap<_, _> = [("name", IntrospectionNode::String(name.into()))].into();
     if desc.default_value.is_some() {
         params.insert(
@@ -249,45 +302,113 @@ fn argument_introspection_data<'a>(
             IntrospectionNode::String(desc.default_value().into()),
         );
     }
-    IntrospectionNode::Map(params)
+
+    if let Some(annotation) = &desc.annotation {
+        params.insert("annotation", IntrospectionNode::String(annotation.into()));
+    } else if desc.from_py_with.is_none() {
+        // If from_py_with is set we don't know anything on the input type
+        if let Some(ty) = desc.option_wrapped_type {
+            // Special case to properly generate a `T | None` annotation
+            let mut ty = ty.clone();
+            if let Some(class_type) = class_type {
+                replace_self(&mut ty, class_type);
+            }
+            elide_lifetimes(&mut ty);
+            params.insert(
+                "annotation",
+                IntrospectionNode::InputType {
+                    rust_type: ty,
+                    nullable: true,
+                },
+            );
+        } else {
+            let mut ty = desc.ty.clone();
+            if let Some(class_type) = class_type {
+                replace_self(&mut ty, class_type);
+            }
+            elide_lifetimes(&mut ty);
+            params.insert(
+                "annotation",
+                IntrospectionNode::InputType {
+                    rust_type: ty,
+                    nullable: false,
+                },
+            );
+        }
+    }
+    IntrospectionNode::Map(params).into()
 }
 
 enum IntrospectionNode<'a> {
     String(Cow<'a, str>),
+    Bool(bool),
     IntrospectionId(Option<Cow<'a, Type>>),
+    InputType { rust_type: Type, nullable: bool },
+    OutputType { rust_type: Type, is_final: bool },
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
-    List(Vec<IntrospectionNode<'a>>),
+    List(Vec<AttributedIntrospectionNode<'a>>),
 }
 
 impl IntrospectionNode<'_> {
     fn emit(self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
         let mut content = ConcatenationBuilder::default();
-        self.add_to_serialization(&mut content);
-        let content = content.into_token_stream(pyo3_crate_path);
-
-        let static_name = format_ident!("PYO3_INTROSPECTION_0_{}", unique_element_id());
-        // #[no_mangle] is required to make sure some linkers like Linux ones do not mangle the section name too.
-        quote! {
-            const _: () = {
-                #[used]
-                #[no_mangle]
-                static #static_name: &'static str = #content;
-            };
-        }
+        self.add_to_serialization(&mut content, pyo3_crate_path);
+        content.into_static(
+            pyo3_crate_path,
+            format_ident!("PYO3_INTROSPECTION_1_{}", unique_element_id()),
+        )
     }
 
-    fn add_to_serialization(self, content: &mut ConcatenationBuilder) {
+    fn add_to_serialization(
+        self,
+        content: &mut ConcatenationBuilder,
+        pyo3_crate_path: &PyO3CratePath,
+    ) {
         match self {
             Self::String(string) => {
                 content.push_str_to_escape(&string);
             }
+            Self::Bool(value) => content.push_str(if value { "true" } else { "false" }),
             Self::IntrospectionId(ident) => {
                 content.push_str("\"");
                 content.push_tokens(if let Some(ident) = ident {
-                    quote! { #ident::_PYO3_INTROSPECTION_ID }
+                    quote! { #ident::_PYO3_INTROSPECTION_ID.as_bytes() }
                 } else {
-                    Ident::new("_PYO3_INTROSPECTION_ID", Span::call_site()).into_token_stream()
+                    quote! { _PYO3_INTROSPECTION_ID.as_bytes() }
                 });
+                content.push_str("\"");
+            }
+            Self::InputType {
+                rust_type,
+                nullable,
+            } => {
+                content.push_str("\"");
+                content.push_tokens(quote! {
+                    <#rust_type as #pyo3_crate_path::impl_::extract_argument::PyFunctionArgument<
+                        {
+                            #[allow(unused_imports)]
+                            use #pyo3_crate_path::impl_::pyclass::Probe as _;
+                            #pyo3_crate_path::impl_::pyclass::IsFromPyObject::<#rust_type>::VALUE
+                        }
+                    >>::INPUT_TYPE.as_bytes()
+                });
+                if nullable {
+                    content.push_str(" | None");
+                }
+                content.push_str("\"");
+            }
+            Self::OutputType {
+                rust_type,
+                is_final,
+            } => {
+                content.push_str("\"");
+                if is_final {
+                    content.push_str("typing.Final[");
+                }
+                content.push_tokens(quote! { <#rust_type as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE.as_bytes() });
+                if is_final {
+                    content.push_str("]");
+                }
                 content.push_str("\"");
             }
             Self::Map(map) => {
@@ -298,17 +419,30 @@ impl IntrospectionNode<'_> {
                     }
                     content.push_str_to_escape(key);
                     content.push_str(":");
-                    value.add_to_serialization(content);
+                    value.add_to_serialization(content, pyo3_crate_path);
                 }
                 content.push_str("}");
             }
             Self::List(list) => {
                 content.push_str("[");
-                for (i, value) in list.into_iter().enumerate() {
-                    if i > 0 {
-                        content.push_str(",");
+                for (i, AttributedIntrospectionNode { node, attributes }) in
+                    list.into_iter().enumerate()
+                {
+                    if attributes.is_empty() {
+                        if i > 0 {
+                            content.push_str(",");
+                        }
+                        node.add_to_serialization(content, pyo3_crate_path);
+                    } else {
+                        // We serialize the element to easily gate it behind the attributes
+                        let mut nested_builder = ConcatenationBuilder::default();
+                        if i > 0 {
+                            nested_builder.push_str(",");
+                        }
+                        node.add_to_serialization(&mut nested_builder, pyo3_crate_path);
+                        let nested_content = nested_builder.into_token_stream(pyo3_crate_path);
+                        content.push_tokens(quote! { #(#attributes)* #nested_content });
                     }
-                    value.add_to_serialization(content);
                 }
                 content.push_str("]");
             }
@@ -316,14 +450,28 @@ impl IntrospectionNode<'_> {
     }
 }
 
+struct AttributedIntrospectionNode<'a> {
+    node: IntrospectionNode<'a>,
+    attributes: &'a [Attribute],
+}
+
+impl<'a> From<IntrospectionNode<'a>> for AttributedIntrospectionNode<'a> {
+    fn from(node: IntrospectionNode<'a>) -> Self {
+        Self {
+            node,
+            attributes: &[],
+        }
+    }
+}
+
 #[derive(Default)]
-struct ConcatenationBuilder {
+pub struct ConcatenationBuilder {
     elements: Vec<ConcatenationBuilderElement>,
     current_string: String,
 }
 
 impl ConcatenationBuilder {
-    fn push_tokens(&mut self, token_stream: TokenStream) {
+    pub fn push_tokens(&mut self, token_stream: TokenStream) {
         if !self.current_string.is_empty() {
             self.elements.push(ConcatenationBuilderElement::String(take(
                 &mut self.current_string,
@@ -333,7 +481,7 @@ impl ConcatenationBuilder {
             .push(ConcatenationBuilderElement::TokenStream(token_stream));
     }
 
-    fn push_str(&mut self, value: &str) {
+    pub fn push_str(&mut self, value: &str) {
         self.current_string.push_str(value);
     }
 
@@ -355,7 +503,7 @@ impl ConcatenationBuilder {
         self.current_string.push('"');
     }
 
-    fn into_token_stream(self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
+    pub fn into_token_stream(self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
         let mut elements = self.elements;
         if !self.current_string.is_empty() {
             elements.push(ConcatenationBuilderElement::String(self.current_string));
@@ -363,11 +511,37 @@ impl ConcatenationBuilder {
 
         if let [ConcatenationBuilderElement::String(string)] = elements.as_slice() {
             // We avoid the const_concat! macro if there is only a single string
-            return string.to_token_stream();
+            return quote! { #string.as_bytes() };
         }
 
         quote! {
-            #pyo3_crate_path::impl_::concat::const_concat!(#(#elements , )*)
+            {
+                const PIECES: &[&[u8]] = &[#(#elements , )*];
+                &#pyo3_crate_path::impl_::concat::combine_to_array::<{
+                    #pyo3_crate_path::impl_::concat::combined_len(PIECES)
+                }>(PIECES)
+            }
+        }
+    }
+
+    fn into_static(self, pyo3_crate_path: &PyO3CratePath, ident: Ident) -> TokenStream {
+        let mut elements = self.elements;
+        if !self.current_string.is_empty() {
+            elements.push(ConcatenationBuilderElement::String(self.current_string));
+        }
+
+        // #[no_mangle] is required to make sure some linkers like Linux ones do not mangle the section name too.
+        quote! {
+            const _: () = {
+                const PIECES: &[&[u8]] = &[#(#elements , )*];
+                const PIECES_LEN: usize = #pyo3_crate_path::impl_::concat::combined_len(PIECES);
+                #[used]
+                #[no_mangle]
+                static #ident: #pyo3_crate_path::impl_::introspection::SerializedIntrospectionFragment<PIECES_LEN> = #pyo3_crate_path::impl_::introspection::SerializedIntrospectionFragment {
+                    length: PIECES_LEN as u32,
+                    fragment: #pyo3_crate_path::impl_::concat::combine_to_array::<PIECES_LEN>(PIECES)
+                };
+            };
         }
     }
 }
@@ -380,7 +554,7 @@ enum ConcatenationBuilderElement {
 impl ToTokens for ConcatenationBuilderElement {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Self::String(s) => s.to_tokens(tokens),
+            Self::String(s) => quote! { #s.as_bytes() }.to_tokens(tokens),
             Self::TokenStream(ts) => ts.to_tokens(tokens),
         }
     }
@@ -395,7 +569,7 @@ pub fn introspection_id_const() -> TokenStream {
     }
 }
 
-fn unique_element_id() -> u64 {
+pub fn unique_element_id() -> u64 {
     let mut hasher = DefaultHasher::new();
     format!("{:?}", Span::call_site()).hash(&mut hasher); // Distinguishes between call sites
     GLOBAL_COUNTER_FOR_UNIQUE_NAMES
@@ -412,4 +586,46 @@ fn ident_to_type(ident: &Ident) -> Cow<'static, Type> {
         }
         .into(),
     )
+}
+
+/// Replaces all explicit lifetimes in `self` with elided (`'_`) lifetimes
+///
+/// This is useful if `Self` is used in `const` context, where explicit
+/// lifetimes are not allowed (yet).
+pub fn elide_lifetimes(ty: &mut Type) {
+    struct ElideLifetimesVisitor;
+
+    impl VisitMut for ElideLifetimesVisitor {
+        fn visit_lifetime_mut(&mut self, l: &mut syn::Lifetime) {
+            *l = Lifetime::new("'_", l.span());
+        }
+    }
+
+    ElideLifetimesVisitor.visit_type_mut(ty);
+}
+
+// Replace Self in types with the given type
+fn replace_self(ty: &mut Type, self_target: &Type) {
+    struct SelfReplacementVisitor<'a> {
+        self_target: &'a Type,
+    }
+
+    impl VisitMut for SelfReplacementVisitor<'_> {
+        fn visit_type_mut(&mut self, ty: &mut Type) {
+            if let Type::Path(type_path) = ty {
+                if type_path.qself.is_none()
+                    && type_path.path.segments.len() == 1
+                    && type_path.path.segments[0].ident == "Self"
+                    && type_path.path.segments[0].arguments.is_empty()
+                {
+                    // It is Self
+                    *ty = self.self_target.clone();
+                    return;
+                }
+            }
+            visit_type_mut(self, ty);
+        }
+    }
+
+    SelfReplacementVisitor { self_target }.visit_type_mut(ty);
 }
