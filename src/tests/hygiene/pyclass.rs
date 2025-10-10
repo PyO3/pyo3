@@ -151,3 +151,9 @@ impl ::std::fmt::Display for Point {
         ::std::write!(f, "({}, {}, {})", self.x, self.y, self.z)
     }
 }
+
+#[crate::pyclass(crate = "crate", from_py_object)]
+#[derive(Clone)]
+pub struct Foo5 {
+    a: i32,
+}

@@ -636,4 +636,25 @@ mod tests {
         })
         .unwrap();
     }
+
+    #[test]
+    #[cfg(feature = "macros")]
+    fn test_pyclass_from_py_object() {
+        use crate::{types::PyAnyMethods, IntoPyObject, PyErr, Python};
+
+        #[crate::pyclass(crate = "crate", from_py_object)]
+        #[derive(Clone)]
+        struct Foo(i32);
+
+        Python::attach(|py| {
+            let foo1 = 42i32.into_pyobject(py)?;
+            assert!(foo1.extract::<Foo>().is_err());
+
+            let foo2 = Foo(0).into_pyobject(py)?;
+            assert_eq!(foo2.extract::<Foo>()?.0, 0);
+
+            Ok::<_, PyErr>(())
+        })
+        .unwrap();
+    }
 }

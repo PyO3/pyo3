@@ -558,6 +558,8 @@ impl<'py> FromPyObject<'_, 'py> for Number {
 }
 ```
 
+As a second step the `from_py_object` option was introduced. This option also opts-out of the blanket implementation and instead generates a custom `FromPyObject` implementation for the pyclass which is functionally equivalent to the blanket.
+
 ### `IntoPyObject`
 The [`IntoPyObject`] trait defines the to-python conversion for a Rust type. All types in PyO3 implement this trait,
 as does a `#[pyclass]` which doesn't use `extends`.

@@ -181,4 +181,16 @@ impl Display for MyEnumInvalidStrFmt {
     }
 }
 
+#[pyclass(from_py_object, skip_from_py_object)]
+struct StructTooManyFromPyObject {
+    a: String,
+    b: String,
+}
+
+#[pyclass(from_py_object)]
+struct StructFromPyObjectNoClone {
+    a: String,
+    b: String,
+}
+
 fn main() {}
