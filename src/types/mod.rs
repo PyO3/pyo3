@@ -139,9 +139,9 @@ macro_rules! pyobject_native_static_type_object(
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_info(
-    ($name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
-            const NAME: &'static str = stringify!($name);
+    ($rust_name:ty, $typeobject:expr, $python_name:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $rust_name {
+            const NAME: &'static str = $python_name;
             const MODULE: ::std::option::Option<&'static str> = $module;
 
             #[inline]
@@ -159,13 +159,13 @@ macro_rules! pyobject_native_type_info(
             )?
         }
 
-        impl $name {
+        impl $rust_name {
             #[doc(hidden)]
             pub const _PYO3_DEF: $crate::impl_::pymodule::AddTypeToModule<Self> = $crate::impl_::pymodule::AddTypeToModule::new();
 
             #[allow(dead_code)]
             #[doc(hidden)]
-            pub const _PYO3_INTROSPECTION_ID: &'static str = concat!(stringify!($module), stringify!($name));
+            pub const _PYO3_INTROSPECTION_ID: &'static str = concat!(stringify!($module), stringify!($rust_name));
         }
     };
 );
@@ -174,12 +174,12 @@ macro_rules! pyobject_native_type_info(
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_core {
-    ($name:ty, $typeobject:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_named!($name $(;$generics)*);
-        $crate::pyobject_native_type_info!($name, $typeobject, $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
+    ($rust_name:ty, $typeobject:expr, $python_name:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_named!($rust_name $(;$generics)*);
+        $crate::pyobject_native_type_info!($rust_name, $typeobject, $python_name, $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
-    ($name:ty, $typeobject:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_core!($name, $typeobject, #module=::std::option::Option::Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
+    ($rust_name:ty, $typeobject:expr, $python_name:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_core!($rust_name, $typeobject, $python_name, #module=::std::option::Option::None $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
 }
 
@@ -211,11 +211,11 @@ macro_rules! pyobject_native_type_sized {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type {
-    ($name:ty, $layout:path, $typeobject:expr $(, #module=$module:expr)? $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_core!($name, $typeobject $(, #module=$module)? $(, #checkfunction=$checkfunction)? $(;$generics)*);
+    ($rust_name:ty, $layout:path, $typeobject:expr, $python_name:expr $(, #module=$module:expr)? $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_core!($rust_name, $typeobject, $python_name $(, #module=$module)? $(, #checkfunction=$checkfunction)? $(;$generics)*);
         // To prevent inheriting native types with ABI3
         #[cfg(not(Py_LIMITED_API))]
-        $crate::pyobject_native_type_sized!($name, $layout $(;$generics)*);
+        $crate::pyobject_native_type_sized!($rust_name, $layout $(;$generics)*);
     };
 }
 
