@@ -345,6 +345,12 @@ where
         let tz = if let Some(tzinfo) = tzinfo {
             tzinfo.extract().map_err(Into::into)?
         } else {
+            // Special case: allow naive `datetime` objects for `DateTime<Local>`, interpreting them as local time.
+            #[cfg(feature = "chrono-local")]
+            if let Some(tz) = Tz::as_local_tz(crate::conversion::private::Token) {
+                return py_datetime_to_datetime_with_timezone(dt, tz);
+            }
+
             return Err(PyTypeError::new_err(
                 "expected a datetime with non-None tzinfo",
             ));
@@ -1014,7 +1020,7 @@ mod tests {
     #[test]
     #[cfg(feature = "chrono-local")]
     fn test_pyo3_naive_datetime_frompyobject_local() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let year = 2014;
             let month = 5;
             let day = 6;

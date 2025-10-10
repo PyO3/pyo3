@@ -449,6 +449,14 @@ pub trait FromPyObject<'a, 'py>: Sized {
     ) -> Option<Box<dyn FromPyObjectSequence<Target = Self> + 'b>> {
         None
     }
+
+    /// Helper used to make a specialized path in extracting `DateTime<Tz>` where `Tz` is
+    /// `chrono::Local`, which will accept "naive" datetime objects as being in the local timezone.
+    #[cfg(feature = "chrono-local")]
+    #[inline]
+    fn as_local_tz(_: private::Token) -> Option<Self> {
+        None
+    }
 }
 
 mod from_py_object_sequence {
