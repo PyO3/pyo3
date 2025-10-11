@@ -495,6 +495,11 @@ impl FromPyObject<'_, '_> for Local {
             )))
         }
     }
+
+    #[inline]
+    fn as_local_tz(_: crate::conversion::private::Token) -> Option<Self> {
+        Some(Local)
+    }
 }
 
 struct DateArgs {
