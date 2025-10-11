@@ -1473,7 +1473,7 @@ mod tests {
     #[cfg(feature = "macros")]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
-    fn test_rwlock_ext() {
+    fn test_rwlock_ext_writer_blocks_reader() {
         use std::sync::RwLock;
 
         let barrier = Barrier::new(2);
@@ -1505,12 +1505,57 @@ mod tests {
     }
 
     #[cfg(feature = "macros")]
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[test]
+    fn test_rwlock_ext_reader_blocks_writer() {
+        use std::sync::RwLock;
+
+        let barrier = Barrier::new(2);
+
+        let rwlock = Python::attach(|py| -> RwLock<Py<BoolWrapper>> {
+            RwLock::new(Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap())
+        });
+
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                Python::attach(|py| {
+                    let b = rwlock.read_py_attached(py).unwrap();
+                    barrier.wait();
+
+                    // sleep to ensure the other thread actually blocks
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+
+                    // The bool must still be false (i.e., the writer did not actually write the
+                    // value yet).
+                    assert!(!(*b).bind(py).borrow().0.load(Ordering::Acquire));
+                });
+            });
+            s.spawn(|| {
+                barrier.wait();
+                Python::attach(|py| {
+                    // blocks until the other thread releases the lock
+                    let b = rwlock.write_py_attached(py).unwrap();
+                    (*b).bind(py).borrow().0.store(true, Ordering::Release);
+                    drop(b);
+                });
+            });
+        });
+
+        // Confirm that the writer did in fact run and write the expected `true` value.
+        Python::attach(|py| {
+            let b = rwlock.read_py_attached(py).unwrap();
+            assert!((*b).bind(py).borrow().0.load(Ordering::Acquire));
+            drop(b);
+        });
+    }
+
+    #[cfg(feature = "macros")]
     #[cfg(all(
         any(feature = "parking_lot", feature = "lock_api"),
         not(target_arch = "wasm32") // We are building wasm Python with pthreads disabled
     ))]
     #[test]
-    fn test_parking_lot_rwlock_ext() {
+    fn test_parking_lot_rwlock_ext_writer_blocks_reader() {
         macro_rules! test_rwlock {
             ($write_guard:ty, $read_guard:ty, $rwlock:stmt) => {{
                 let barrier = Barrier::new(2);
@@ -1561,6 +1606,75 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "macros")]
+    #[cfg(all(
+        any(feature = "parking_lot", feature = "lock_api"),
+        not(target_arch = "wasm32") // We are building wasm Python with pthreads disabled
+    ))]
+    #[test]
+    fn test_parking_lot_rwlock_ext_reader_blocks_writer() {
+        macro_rules! test_rwlock {
+            ($write_guard:ty, $read_guard:ty, $rwlock:stmt) => {{
+                let barrier = Barrier::new(2);
+
+                let rwlock = Python::attach({ $rwlock });
+
+                std::thread::scope(|s| {
+                    s.spawn(|| {
+                        Python::attach(|py| {
+                            let b: $read_guard = rwlock.read_py_attached(py);
+                            barrier.wait();
+
+                            // sleep to ensure the other thread actually blocks
+                            std::thread::sleep(std::time::Duration::from_millis(10));
+
+                            // The bool must still be false (i.e., the writer did not actually write the
+                            // value yet).
+                            assert!(!(*b).bind(py).borrow().0.load(Ordering::Acquire));                            (*b).bind(py).borrow().0.store(true, Ordering::Release);
+
+                            drop(b);
+                        });
+                    });
+                    s.spawn(|| {
+                        barrier.wait();
+                        Python::attach(|py| {
+                            // blocks until the other thread releases the lock
+                            let b: $write_guard = rwlock.write_py_attached(py);
+                            (*b).bind(py).borrow().0.store(true, Ordering::Release);
+                        });
+                    });
+                });
+
+                // Confirm that the writer did in fact run and write the expected `true` value.
+                Python::attach(|py| {
+                    let b: $read_guard = rwlock.read_py_attached(py);
+                    assert!((*b).bind(py).borrow().0.load(Ordering::Acquire));
+                    drop(b);
+                });
+            }};
+        }
+
+        test_rwlock!(
+            parking_lot::RwLockWriteGuard<'_, _>,
+            parking_lot::RwLockReadGuard<'_, _>,
+            |py| {
+                parking_lot::RwLock::new(Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap())
+            }
+        );
+
+        #[cfg(feature = "arc_lock")]
+        test_rwlock!(
+            parking_lot::ArcRwLockWriteGuard<_, _>,
+            parking_lot::ArcRwLockReadGuard<_, _>,
+            |py| {
+                let rwlock = parking_lot::RwLock::new(
+                    Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap(),
+                );
+                std::sync::Arc::new(rwlock)
+            }
+        );
+    }
+
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_rwlock_ext_poison() {
@@ -1577,14 +1691,15 @@ mod tests {
             });
             assert!(lock_result.join().is_err());
             assert!(rwlock.is_poisoned());
+            Python::attach(|py| {
+                assert!(rwlock.read_py_attached(py).is_err());
+                assert!(rwlock.write_py_attached(py).is_err());
+            });
         });
-        let guard = Python::attach(|py| {
+        Python::attach(|py| {
             // recover from the poisoning
-            match rwlock.write_py_attached(py) {
-                Ok(guard) => guard,
-                Err(poisoned) => poisoned.into_inner(),
-            }
+            let guard = rwlock.write_py_attached(py).unwrap_err().into_inner();
+            assert!(*guard == 42);
         });
-        assert!(*guard == 42);
     }
 }
