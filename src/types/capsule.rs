@@ -264,15 +264,15 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     /// Checks that the capsule name matches `name` and that the pointer is not null.
     fn is_valid_checked(&self, name: Option<&CStr>) -> bool;
 
-    /// Retrieves the name of this capsule. If there is no name, the pointer will be null.
+    /// Retrieves the name of this capsule, if set.
     ///
     /// Returns an error if this capsule is not valid.
     ///
-    /// This method returns `*const c_char` instead of `&CStr` because it's possible for
-    /// arbitrary Python code to change the capsule name. Callers can use `CStr::from_ptr()`
+    /// This method returns a `NonNull<CStr>` instead of `&CStr` because it's possible for
+    /// arbitrary Python code to change the capsule name. Callers can use [`.as_ref()`][NonNull::as_ref]
     /// to get a `&CStr` when needed, however they should beware the fact that the pointer
     /// may become invalid after arbitrary Python code has run.
-    fn name(&self) -> PyResult<*const c_char>;
+    fn name(&self) -> PyResult<Option<CapsuleName>>;
 }
 
 impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
@@ -349,15 +349,55 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
         r != 0
     }
 
-    fn name(&self) -> PyResult<*const c_char> {
+    fn name(&self) -> PyResult<Option<CapsuleName>> {
         // SAFETY:
         // - `self.as_ptr()` is a valid object pointer
         // - thread is attached to the Python interpreter
         let name = unsafe { ffi::PyCapsule_GetName(self.as_ptr()) };
-        if name.is_null() {
-            ensure_no_error(self.py())?;
+
+        match NonNull::new(name.cast_mut()) {
+            Some(name) => Ok(Some(CapsuleName { ptr: name })),
+            None => {
+                ensure_no_error(self.py())?;
+                Ok(None)
+            }
         }
-        Ok(name)
+    }
+}
+
+/// The name contained within the capsule.
+///
+/// This is a thin wrapper around `*const c_char`, which can be accessed with the [`as_ptr`][Self::as_ptr]
+/// method. The [`as_cstr`][Self::as_cstr] method can be used as a convenience to access the name as a `&CStr`.
+#[derive(Clone, Copy)]
+pub struct CapsuleName {
+    /// Pointer to the name c-string, known to be non-null.
+    ptr: NonNull<c_char>,
+}
+
+impl CapsuleName {
+    /// Returns the capsule name as a `&CStr`.
+    ///
+    /// Note: this method is a thin wrapper around [`CStr::from_ptr`] so (as of Rust 1.91) incurs a
+    /// length calculation on each call.
+    ///
+    /// # Safety
+    ///
+    /// There is no guarantee that the capsule name remains valid for any length of time, as arbitrary
+    /// Python code may change the name of the capsule. The caller should be aware of any conventions
+    /// of the capsule in question related to the lifetime of the name (many capsule names are
+    /// statically allocated, i.e. have the `'static` lifetime, but Python does not require this).
+    ///
+    /// The returned lifetime `'a` is not related to the lifetime of the capsule itself, and the caller is
+    /// responsible for using the `&CStr` for as short a time as possible.
+    pub unsafe fn as_cstr<'a>(self) -> &'a CStr {
+        // SAFETY: caller has upheld the safety contract
+        unsafe { CStr::from_ptr(self.as_ptr()) }
+    }
+
+    /// Returns the raw pointer to the capsule name.
+    pub fn as_ptr(self) -> *const c_char {
+        self.ptr.as_ptr().cast_const()
     }
 }
 
@@ -488,7 +528,12 @@ mod tests {
             // SAFETY: as above
             assert_eq!(unsafe { foo_capi.as_ref() }.get_val(), 123);
             // SAFETY: `cap.name()` has a non-null name
-            assert_eq!(unsafe { CStr::from_ptr(cap.name().unwrap()) }, NAME);
+            assert_eq!(
+                unsafe { CStr::from_ptr(cap.name().unwrap().unwrap().as_ptr()) },
+                NAME
+            );
+            // SAFETY: as above
+            assert_eq!(unsafe { cap.name().unwrap().unwrap().as_cstr() }, NAME)
         })
     }
 
@@ -631,7 +676,7 @@ mod tests {
                 unsafe { cap.pointer_checked(None).unwrap().cast::<usize>().as_ref() },
                 &0usize
             );
-            assert_eq!(cap.name().unwrap(), std::ptr::null());
+            assert!(cap.name().unwrap().is_none());
             assert_eq!(cap.context().unwrap(), std::ptr::null_mut());
         });
     }
