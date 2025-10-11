@@ -109,7 +109,7 @@ Finally, the following Rust types are also able to convert to Python as return v
 
 [^4]: Requires the `indexmap` optional feature.
 
-[^5]: Requires the `chrono` optional feature.
+[^5]: Requires the `chrono` (and maybe `chrono-local`) optional feature(s).
 
 [^6]: Requires the `chrono-tz` optional feature.
 
