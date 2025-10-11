@@ -634,9 +634,9 @@ pub trait RwLockExt<T>: rwlock_ext_sealed::Sealed {
     /// Lock this `RwLock` for reading in a manner that cannot deadlock with
     /// the Python interpreter.
     ///
-    /// Before attempting to lock the mutex, this function detaches from the
+    /// Before attempting to lock the rwlock, this function detaches from the
     /// Python runtime. When the lock is acquired, it re-attaches to the Python
-    /// runtime before returning the `LockResult`. This avoids deadlocks between
+    /// runtime before returning the `ReadLockResult`. This avoids deadlocks between
     /// the GIL and other global synchronization events triggered by the Python
     /// interpreter.
     fn read_py_attached(&self, py: Python<'_>) -> Self::ReadLockResult<'_>;
@@ -644,9 +644,9 @@ pub trait RwLockExt<T>: rwlock_ext_sealed::Sealed {
     /// Lock this `RwLock` for writing in a manner that cannot deadlock with
     /// the Python interpreter.
     ///
-    /// Before attempting to lock the mutex, this function detaches from the
+    /// Before attempting to lock the rwlock, this function detaches from the
     /// Python runtime. When the lock is acquired, it re-attaches to the Python
-    /// runtime before returning the `LockResult`. This avoids deadlocks between
+    /// runtime before returning the `WriteLockResult`. This avoids deadlocks between
     /// the GIL and other global synchronization events triggered by the Python
     /// interpreter.
     fn write_py_attached(&self, py: Python<'_>) -> Self::WriteLockResult<'_>;
@@ -873,7 +873,7 @@ impl<T> RwLockExt<T> for std::sync::RwLock<T> {
     fn write_py_attached(&self, _py: Python<'_>) -> Self::WriteLockResult<'_> {
         // If try_write is successful or returns a poisoned rwlock, return them so
         // the caller can deal with them. Otherwise we need to use blocking
-        // read lock, which requires detaching from the Python runtime to avoid
+        // write lock, which requires detaching from the Python runtime to avoid
         // possible deadlocks.
         match self.try_write() {
             Ok(inner) => return Ok(inner),
