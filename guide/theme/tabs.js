@@ -73,3 +73,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+
+// Language switcher function
+// function switchLanguage(lang) {
+//   var currentPath = window.location.pathname;
+//   var newPath = currentPath.replace(/\/(en|cn)\//, '/' + lang + '/');
+//   window.location.href = newPath;
+// }
