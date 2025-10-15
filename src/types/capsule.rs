@@ -528,10 +528,10 @@ mod tests {
             assert_eq!(unsafe { foo_capi.as_ref() }.val, 123);
             // SAFETY: as above
             assert_eq!(unsafe { foo_capi.as_ref() }.get_val(), 123);
-            // SAFETY: `cap.name()` has a non-null name
             assert_eq!(
+                // SAFETY: `cap.name()` has a non-null name
                 unsafe { CStr::from_ptr(cap.name().unwrap().unwrap().as_ptr()) },
-                NAME
+                NAME.as_ptr()
             );
             // SAFETY: as above
             assert_eq!(unsafe { cap.name().unwrap().unwrap().as_cstr() }, NAME)
