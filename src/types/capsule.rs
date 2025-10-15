@@ -268,10 +268,7 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// Returns an error if this capsule is not valid.
     ///
-    /// This method returns a `NonNull<CStr>` instead of `&CStr` because it's possible for
-    /// arbitrary Python code to change the capsule name. Callers can use [`.as_ref()`][NonNull::as_ref]
-    /// to get a `&CStr` when needed, however they should beware the fact that the pointer
-    /// may become invalid after arbitrary Python code has run.
+    /// See [`CapsuleName`] for details of how to consume the return value.
     fn name(&self) -> PyResult<Option<CapsuleName>>;
 }
 
@@ -365,10 +362,14 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
     }
 }
 
-/// The name contained within the capsule.
+/// The name given to a `capsule` object.
 ///
 /// This is a thin wrapper around `*const c_char`, which can be accessed with the [`as_ptr`][Self::as_ptr]
 /// method. The [`as_cstr`][Self::as_cstr] method can be used as a convenience to access the name as a `&CStr`.
+///
+/// There is no guarantee that this capsule name pointer valid for any length of time, as arbitrary
+/// Python code may change the name of a capsule object (by reaching native code which calls
+/// [`PyCapsule_SetName`][ffi::PyCapsule_SetName]). See the safety notes on [`as_cstr`][Self::as_cstr].
 #[derive(Clone, Copy)]
 pub struct CapsuleName {
     /// Pointer to the name c-string, known to be non-null.

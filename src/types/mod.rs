@@ -4,7 +4,7 @@ pub use self::any::{PyAny, PyAnyMethods};
 pub use self::boolobject::{PyBool, PyBoolMethods};
 pub use self::bytearray::{PyByteArray, PyByteArrayMethods};
 pub use self::bytes::{PyBytes, PyBytesMethods};
-pub use self::capsule::{PyCapsule, PyCapsuleMethods};
+pub use self::capsule::{CapsuleName, PyCapsule, PyCapsuleMethods};
 pub use self::code::{PyCode, PyCodeInput, PyCodeMethods};
 pub use self::complex::{PyComplex, PyComplexMethods};
 #[allow(deprecated)]
