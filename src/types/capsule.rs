@@ -531,7 +531,7 @@ mod tests {
             assert_eq!(
                 // SAFETY: `cap.name()` has a non-null name
                 unsafe { CStr::from_ptr(cap.name().unwrap().unwrap().as_ptr()) },
-                NAME.as_ptr()
+                NAME
             );
             // SAFETY: as above
             assert_eq!(unsafe { cap.name().unwrap().unwrap().as_cstr() }, NAME)
