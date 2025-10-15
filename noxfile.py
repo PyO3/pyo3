@@ -738,6 +738,7 @@ def check_guide(session: nox.Session):
         *remap_args,
         "--accept=200,429",
         *session.posargs,
+        external=True,
     )
     # check external links in the docs
     # (intra-doc links are checked by rustdoc)
@@ -754,6 +755,7 @@ def check_guide(session: nox.Session):
         # reduce the concurrency to avoid rate-limit from `pyo3.rs`
         "--max-concurrency=32",
         *session.posargs,
+        external=True,
     )
 
 
