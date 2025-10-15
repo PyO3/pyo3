@@ -2,7 +2,7 @@
 
 If you already have some existing Python code that you need to execute from Rust, the following FAQs can help you select the right PyO3 functionality for your situation:
 
-## Want to access Python APIs? Then use `PyModule::import`.
+## Want to access Python APIs? Then use `PyModule::import`
 
 [`PyModule::import`] can be used to get handle to a Python module from Rust. You can use this to import and use any Python
 module available in your environment.
@@ -25,7 +25,7 @@ fn main() -> PyResult<()> {
 
 [`PyModule::import`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.import
 
-## Want to run just an expression? Then use `eval`.
+## Want to run just an expression? Then use `eval`
 
 [`Python::eval`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval) is
 a method to execute a [Python expression](https://docs.python.org/3/reference/expressions.html)
@@ -49,7 +49,7 @@ Python::attach(|py| {
 # }
 ```
 
-## Want to run statements? Then use `run`.
+## Want to run statements? Then use `run`
 
 [`Python::run`] is a method to execute one or more
 [Python statements](https://docs.python.org/3/reference/simple_stmts.html).
@@ -59,8 +59,6 @@ access to manipulated objects via the `locals` dict.
 You can also use the [`py_run!`] macro, which is a shorthand for [`Python::run`].
 Since [`py_run!`] panics on exceptions, we recommend you use this macro only for
 quickly testing your Python extensions.
-
-[`Python::run`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.run
 
 ```rust
 use pyo3::prelude::*;
@@ -99,7 +97,7 @@ assert userdata.as_tuple() == userdata_as_tuple
 # }
 ```
 
-## You have a Python file or code snippet? Then use `PyModule::from_code`.
+## You have a Python file or code snippet? Then use `PyModule::from_code`
 
 [`PyModule::from_code`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.from_code)
 can be used to generate a Python module which can then be used just as if it was imported with
@@ -162,7 +160,7 @@ use pyo3::ffi::c_str;
 #[pymodule]
 mod foo {
     use pyo3::prelude::*;
-    
+
     #[pyfunction]
     fn add_one(x: i64) -> i64 {
         x + 1
@@ -220,6 +218,7 @@ Many Python files can be included and loaded as modules. If one file depends on
 another you must preserve correct order while declaring `PyModule`.
 
 Example directory structure:
+
 ```text
 .
 ├── Cargo.lock
@@ -233,6 +232,7 @@ Example directory structure:
 ```
 
 `python_app/app.py`:
+
 ```python
 from utils.foo import bar
 
@@ -242,17 +242,20 @@ def run():
 ```
 
 `python_app/utils/foo.py`:
+
 ```python
 def bar():
     return "baz"
 ```
 
 The example below shows:
-* how to include content of `app.py` and `utils/foo.py` into your rust binary
-* how to call function `run()` (declared in `app.py`) that needs function
+
+- how to include content of `app.py` and `utils/foo.py` into your rust binary
+- how to call function `run()` (declared in `app.py`) that needs function
   imported from `utils/foo.py`
 
 `src/main.rs`:
+
 ```rust,ignore
 use pyo3::prelude::*;
 use pyo3_ffi::c_str;
@@ -277,9 +280,10 @@ fn main() -> PyResult<()> {
 ```
 
 The example below shows:
-* how to load content of `app.py` at runtime so that it sees its dependencies
+
+- how to load content of `app.py` at runtime so that it sees its dependencies
   automatically
-* how to call function `run()` (declared in `app.py`) that needs function
+- how to call function `run()` (declared in `app.py`) that needs function
   imported from `utils/foo.py`
 
 It is recommended to use absolute paths because then your binary can be run
@@ -287,6 +291,7 @@ from anywhere as long as your `app.py` is in the expected directory (in this exa
 that directory is `/usr/share/python_app`).
 
 `src/main.rs`:
+
 ```rust,no_run
 use pyo3::prelude::*;
 use pyo3::types::PyList;
@@ -314,10 +319,6 @@ fn main() -> PyResult<()> {
     Ok(())
 }
 ```
-
-
-[`Python::run`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.run
-[`py_run!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.py_run.html
 
 ## Need to use a context manager from Rust?
 
@@ -403,5 +404,6 @@ Python::attach(|py| -> PyResult<()> {
 # }
 ```
 
-
+[`py_run!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.py_run.html
+[`Python::run`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.run
 [`PyModule::new`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.new

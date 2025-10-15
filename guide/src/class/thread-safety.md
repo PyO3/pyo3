@@ -1,6 +1,7 @@
 # `#[pyclass]` thread safety
 
 Python objects are freely shared between threads by the Python interpreter. This means that:
+
 - there is no control which thread might eventually drop the `#[pyclass]` object, meaning `Send` is required.
 - multiple threads can potentially be reading the `#[pyclass]` data simultaneously, meaning `Sync` is required.
 

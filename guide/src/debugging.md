@@ -34,11 +34,11 @@ Run Valgrind with `valgrind --suppressions=valgrind-python.supp ./my-command --w
 
 The best start to investigate a crash such as an segmentation fault is a backtrace. You can set `RUST_BACKTRACE=1` as an environment variable to get the stack trace on a `panic!`. Alternatively you can use a debugger such as `gdb` to explore the issue. Rust provides a wrapper, `rust-gdb`, which has pretty-printers for inspecting Rust variables. Since PyO3 uses `cdylib` for Python shared objects, it does not receive the pretty-print debug hooks in `rust-gdb` ([rust-lang/rust#96365](https://github.com/rust-lang/rust/issues/96365)). The mentioned issue contains a workaround for enabling pretty-printers in this case.
 
-* Link against a debug build of python as described in the previous chapter
-* Run `rust-gdb <my-binary>`
-* Set a breakpoint (`b`) on `rust_panic` if you are investigating a `panic!`
-* Enter `r` to run
-* After the crash occurred, enter `bt` or `bt full` to print the stacktrace
+- Link against a debug build of python as described in the previous chapter
+- Run `rust-gdb <my-binary>`
+- Set a breakpoint (`b`) on `rust_panic` if you are investigating a `panic!`
+- Enter `r` to run
+- After the crash occurred, enter `bt` or `bt full` to print the stacktrace
 
  Often it is helpful to run a small piece of Python code to exercise a section of Rust.
 
@@ -134,76 +134,82 @@ Depending on your OS and your preferences you can use two different debuggers, `
 VS Code with the Rust and Python extensions provides an integrated debugging experience:
 
 1. First, install the necessary VS Code extensions:
-   * [Rust Analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
-   * [CodeLLDB](https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb)
-   * [Python](https://marketplace.visualstudio.com/items?itemName=ms-python.python)
+
+   - [Rust Analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+   - [CodeLLDB](https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb)
+   - [Python](https://marketplace.visualstudio.com/items?itemName=ms-python.python)
 
 2. Create a `.vscode/launch.json` file with a configuration that uses the LLDB Debug Launcher:
 
-    ```json
-    {
-        "version": "0.2.0",
-        "configurations": [
-            {
-                "name": "Debug PyO3",
-                "type": "lldb",
-                "request": "attach",
-                "program": "${workspaceFolder}/.venv/bin/python",
-                "pid": "${command:pickProcess}",
-                "sourceLanguages": [
-                    "rust"
-                ]
-            },
-            {
-                "name": "Launch Python with PyO3",
-                "type": "lldb",
-                "request": "launch",
-                "program": "${workspaceFolder}/.venv/bin/python",
-                "args": ["${file}"],
-                "cwd": "${workspaceFolder}",
-                "sourceLanguages": ["rust"]
-            },
-            {
-                "name": "Debug PyO3 with Args",
-                "type": "lldb",
-                "request": "launch",
-                "program": "${workspaceFolder}/.venv/bin/python",
-                "args": ["path/to/your/script.py", "arg1", "arg2"],
-                "cwd": "${workspaceFolder}",
-                "sourceLanguages": ["rust"]
-            },
-            {
-                "name": "Debug PyO3 Tests",
-                "type": "lldb",
-                "request": "launch",
-                "program": "${workspaceFolder}/.venv/bin/python",
-                "args": ["-m", "pytest", "tests/your_test.py::test_function", "-v"],
-                "cwd": "${workspaceFolder}",
-                "sourceLanguages": ["rust"]
-            }
+   ```json
+   {
+       "version": "0.2.0",
+       "configurations": [
+           {
+               "name": "Debug PyO3",
+               "type": "lldb",
+               "request": "attach",
+               "program": "${workspaceFolder}/.venv/bin/python",
+               "pid": "${command:pickProcess}",
+               "sourceLanguages": [
+                   "rust"
+               ]
+           },
+           {
+               "name": "Launch Python with PyO3",
+               "type": "lldb",
+               "request": "launch",
+               "program": "${workspaceFolder}/.venv/bin/python",
+               "args": ["${file}"],
+               "cwd": "${workspaceFolder}",
+               "sourceLanguages": ["rust"]
+           },
+           {
+               "name": "Debug PyO3 with Args",
+               "type": "lldb",
+               "request": "launch",
+               "program": "${workspaceFolder}/.venv/bin/python",
+               "args": ["path/to/your/script.py", "arg1", "arg2"],
+               "cwd": "${workspaceFolder}",
+               "sourceLanguages": ["rust"]
+           },
+           {
+               "name": "Debug PyO3 Tests",
+               "type": "lldb",
+               "request": "launch",
+               "program": "${workspaceFolder}/.venv/bin/python",
+               "args": ["-m", "pytest", "tests/your_test.py::test_function", "-v"],
+               "cwd": "${workspaceFolder}",
+               "sourceLanguages": ["rust"]
+           }
         ]
-    }
-    ```
+   }
+   ```
 
-    This configuration supports multiple debugging scenarios:
-    * Attaching to a running Python process
-    * Launching the currently open Python file
-    * Running a specific script with command-line arguments
-    * Running pytest tests
+   This configuration supports multiple debugging scenarios:
+
+   - Attaching to a running Python process
+   - Launching the currently open Python file
+   - Running a specific script with command-line arguments
+   - Running pytest tests
+
+<!-- rumdl-disable MD029 - nested lists & code blocks false positive -->
 
 3. Set breakpoints in your Rust code by clicking in the gutter next to line numbers.
 
 4. Start debugging:
-   * For attaching to a running Python process: First start the process, then select the "Debug PyO3" configuration and click Start Debugging (F5). You'll be prompted to select the Python process to attach to.
-   * For launching a Python script: Open your Python script, select the "Launch Python with PyO3" configuration and click Start Debugging (F5).
-   * For running with arguments: Select "Debug PyO3 with Args" (remember to edit the configuration with your actual script path and arguments).
-   * For running tests: Select "Debug PyO3 Tests" (edit the test path as needed).
+   - For attaching to a running Python process: First start the process, then select the "Debug PyO3" configuration and click Start Debugging (F5). You'll be prompted to select the Python process to attach to.
+   - For launching a Python script: Open your Python script, select the "Launch Python with PyO3" configuration and click Start Debugging (F5).
+   - For running with arguments: Select "Debug PyO3 with Args" (remember to edit the configuration with your actual script path and arguments).
+   - For running tests: Select "Debug PyO3 Tests" (edit the test path as needed).
 
 5. When debugging PyO3 code:
-   * You can inspect Rust variables and data structures
-   * Use the debug console to evaluate expressions
-   * Step through Rust code line by line using the step controls
-   * Set conditional breakpoints for more complex debugging scenarios
+   - You can inspect Rust variables and data structures
+   - Use the debug console to evaluate expressions
+   - Step through Rust code line by line using the step controls
+   - Set conditional breakpoints for more complex debugging scenarios
+
+<!-- rumdl-enable MD029 -->
 
 ### Advanced Debugging Configurations
 
@@ -334,7 +340,6 @@ To use these functions:
 1. Run the cell containing these functions in your Jupyter notebook
 2. Run `update_launch_json()` in a cell
 3. In VS Code, select the "Debug PyO3 (Jupyter)" configuration and start debugging
-
 
 ## Thread Safety and Compiler Sanitizers
 

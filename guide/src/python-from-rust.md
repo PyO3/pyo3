@@ -5,10 +5,11 @@ This chapter of the guide documents some ways to interact with Python code from 
 Below is an introduction to the `'py` lifetime and some general remarks about how PyO3's API reasons about Python code.
 
 The subchapters also cover the following topics:
- - Python object types available in PyO3's API
- - How to work with Python exceptions
- - How to call Python functions
- - How to execute existing Python code
+
+- Python object types available in PyO3's API
+- How to work with Python exceptions
+- How to call Python functions
+- How to execute existing Python code
 
 ## The `'py` lifetime
 
@@ -18,9 +19,9 @@ Its lifetime `'py` is a central part of PyO3's API.
 
 The `Python<'py>` token serves three purposes:
 
-* It provides global APIs for the Python interpreter, such as [`py.eval()`][eval] and [`py.import()`][import].
-* It can be passed to functions that require a proof of attachment, such as [`Py::clone_ref`][clone_ref].
-* Its lifetime `'py` is used to bind many of PyO3's types to the Python interpreter, such as [`Bound<'py, T>`][Bound].
+- It provides global APIs for the Python interpreter, such as [`py.eval()`][eval] and [`py.import()`][import].
+- It can be passed to functions that require a proof of attachment, such as [`Py::clone_ref`][clone_ref].
+- Its lifetime `'py` is used to bind many of PyO3's types to the Python interpreter, such as [`Bound<'py, T>`][Bound].
 
 PyO3's types that are bound to the `'py` lifetime, for example `Bound<'py, T>`, all contain a `Python<'py>` token. This means they have full access to the Python interpreter and offer a complete API for interacting with Python objects.
 
@@ -39,6 +40,7 @@ To enable any parallelism on the GIL-enabled build, and best throughput on the f
 ## Python's memory model
 
 Python's memory model differs from Rust's memory model in two key ways:
+
 - There is no concept of ownership; all Python objects are shared and usually implemented via reference counting
 - There is no concept of exclusive (`&mut`) references; any reference can mutate a Python object
 
@@ -55,3 +57,4 @@ Because of the lack of exclusive `&mut` references, PyO3's APIs for Python objec
 [import]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.import
 [clone_ref]: {{#PYO3_DOCS_URL}}/pyo3/prelude/struct.Py.html#method.clone_ref
 [Bound]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html
+[`PyListMethods::append`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyListMethods.html#tymethod.append

@@ -120,14 +120,17 @@ Adds a dependency on [anyhow](https://docs.rs/anyhow). Enables a conversion from
 Enables Pyo3's `MutexExt` trait for all Mutexes that extend on [`lock_api::Mutex`](https://docs.rs/lock_api/latest/lock_api/struct.Mutex.html) or [`parking_lot::ReentrantMutex`](https://docs.rs/lock_api/latest/lock_api/struct.ReentrantMutex.html) and are wrapped in an [`Arc`](https://doc.rust-lang.org/std/sync/struct.Arc.html) type. Like [`Arc<parking_lot::Mutex>`](https://docs.rs/parking_lot/latest/parking_lot/type.Mutex.html#method.lock_arc)
 
 ### `bigdecimal`
+
 Adds a dependency on [bigdecimal](https://docs.rs/bigdecimal) and enables conversions into its [`BigDecimal`](https://docs.rs/bigdecimal/latest/bigdecimal/struct.BigDecimal.html) type.
 
 ### `bytes`
+
 Adds a dependency on [bytes](https://docs.rs/bytes/latest/bytes) and enables conversions into its [`Bytes`](https://docs.rs/bytes/latest/bytes/struct.Bytes.html) type.
 
 ### `chrono`
 
 Adds a dependency on [chrono](https://docs.rs/chrono). Enables a conversion from [chrono](https://docs.rs/chrono)'s types to python:
+
 - [TimeDelta](https://docs.rs/chrono/latest/chrono/struct.TimeDelta.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
 - [FixedOffset](https://docs.rs/chrono/latest/chrono/offset/struct.FixedOffset.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
 - [Utc](https://docs.rs/chrono/latest/chrono/offset/struct.Utc.html) -> [`PyTzInfo`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTzInfo.html)
@@ -164,6 +167,7 @@ Adds a dependency on [indexmap](https://docs.rs/indexmap) and enables conversion
 ### `jiff-02`
 
 Adds a dependency on [jiff@0.2](https://docs.rs/jiff/0.2) and requires MSRV 1.70. Enables a conversion from [jiff](https://docs.rs/jiff)'s types to python:
+
 - [SignedDuration](https://docs.rs/jiff/0.2/jiff/struct.SignedDuration.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
 - [TimeZone](https://docs.rs/jiff/0.2/jiff/tz/struct.TimeZone.html) -> [`PyTzInfo`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTzInfo.html)
 - [Offset](https://docs.rs/jiff/0.2/jiff/tz/struct.Offset.html) -> [`PyTzInfo`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTzInfo.html)
@@ -193,6 +197,7 @@ Adds a dependency on [num-rational](https://docs.rs/num-rational) and enables co
 ### `ordered-float`
 
 Adds a dependency on [ordered-float](https://docs.rs/ordered-float) and enables conversions between [ordered-float](https://docs.rs/ordered-float)'s types and Python:
+
 - [NotNan](https://docs.rs/ordered-float/latest/ordered_float/struct.NotNan.html) -> [`PyFloat`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyFloat.html)
 - [OrderedFloat](https://docs.rs/ordered-float/latest/ordered_float/struct.OrderedFloat.html) -> [`PyFloat`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyFloat.html)
 
@@ -207,6 +212,7 @@ Adds a dependency on [rust_decimal](https://docs.rs/rust_decimal) and enables co
 ### `time`
 
 Adds a dependency on [time](https://docs.rs/time) and requires MSRV 1.67.1. Enables conversions between [time](https://docs.rs/time)'s types and Python:
+
 - [Date](https://docs.rs/time/0.3.38/time/struct.Date.html) -> [`PyDate`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDate.html)
 - [Time](https://docs.rs/time/0.3.38/time/struct.Time.html) -> [`PyTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTime.html)
 - [OffsetDateTime](https://docs.rs/time/0.3.38/time/struct.OffsetDateTime.html) -> [`PyDateTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDateTime.html)

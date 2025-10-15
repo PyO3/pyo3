@@ -118,7 +118,6 @@ section](./building-and-distribution/multiple-python-versions.md) for more
 details about supporting multiple different Python versions, including the
 free-threaded build.
 
-
 ## Special considerations for the free-threaded build
 
 The free-threaded interpreter does not have a GIL. Many existing extensions
@@ -155,13 +154,13 @@ calls into your extension.
 The free-threaded build triggers global synchronization events in the following
 situations:
 
-* During garbage collection in order to get a globally consistent view of
+- During garbage collection in order to get a globally consistent view of
   reference counts and references between objects
-* In Python 3.13, when the first background thread is started in
+- In Python 3.13, when the first background thread is started in
   order to mark certain objects as immortal
-* When either `sys.settrace` or `sys.setprofile` are called in order to
+- When either `sys.settrace` or `sys.setprofile` are called in order to
   instrument running code objects and threads
-* During a call to `os.fork()`, to ensure a process-wide consistent state.
+- During a call to `os.fork()`, to ensure a process-wide consistent state.
 
 This is a non-exhaustive list and there may be other situations in future Python
 versions that can trigger global synchronization events.
@@ -396,7 +395,6 @@ interpreter.
 [`OnceLockExt`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceLockExt.html
 [`OnceLockExt::get_or_init_py_attached`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceLockExt.html#tymethod.get_or_init_py_attached
 [`OnceLock`]: https://doc.rust-lang.org/stable/std/sync/struct.OnceLock.html
-[`OnceLock::get_or_init`]: https://doc.rust-lang.org/stable/std/sync/struct.OnceLock.html#method.get_or_init
 [`Python::detach`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.detach
 [`Python::attach`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.attach
 [`Python<'py>`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html

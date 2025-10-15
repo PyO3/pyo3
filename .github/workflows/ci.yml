@@ -29,6 +29,8 @@ jobs:
         run: nox -s ruff
       - name: Check rust formatting (rustfmt)
         run: nox -s rustfmt
+      - name: Check markdown formatting (rumdl)
+        run: nox -s rumdl
 
   resolve:
     runs-on: ubuntu-latest

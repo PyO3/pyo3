@@ -102,11 +102,12 @@ impl PartialEq<Foo> for FooBound<'_> {
 CPython support multiple calling protocols: [`tp_call`] and [`vectorcall`]. [`vectorcall`] is a more efficient protocol unlocking faster calls.
 PyO3 will try to dispatch Python `call`s using the [`vectorcall`] calling convention to archive maximum performance if possible and falling back to [`tp_call`] otherwise.
 This is implemented using the (internal) `PyCallArgs` trait. It defines how Rust types can be used as Python `call` arguments. This trait is currently implemented for
+
 - Rust tuples, where each member implements `IntoPyObject`,
 - `Bound<'_, PyTuple>`
 - `Py<PyTuple>`
-Rust tuples may make use of [`vectorcall`] where as `Bound<'_, PyTuple>` and `Py<PyTuple>` can only use [`tp_call`]. For maximum performance prefer using Rust tuples as arguments.
 
+Rust tuples may make use of [`vectorcall`] where as `Bound<'_, PyTuple>` and `Py<PyTuple>` can only use [`tp_call`]. For maximum performance prefer using Rust tuples as arguments.
 
 [`tp_call`]: https://docs.python.org/3/c-api/call.html#the-tp-call-protocol
 [`vectorcall`]: https://docs.python.org/3/c-api/call.html#the-vectorcall-protocol
@@ -164,5 +165,3 @@ Python::attach(move |py| {
     drop(numbers);
 });
 ```
-
-[conditional-compilation]: https://doc.rust-lang.org/reference/conditional-compilation.html
