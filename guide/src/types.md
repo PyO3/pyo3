@@ -328,4 +328,4 @@ for more detail.
 [Drop]: https://doc.rust-lang.org/std/ops/trait.Drop.html
 [PyAny]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html
 [smart-pointers]: https://doc.rust-lang.org/book/ch15-00-smart-pointers.html
-[`FromPyObject`]: {{$PYO3_DOCS_URL}}/pyo3/conversion/trait.FromPyObject.html
+[`FromPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.FromPyObject.html
