@@ -2462,7 +2462,7 @@ mod tests {
             pyo3_cross: None,
             pyo3_cross_lib_dir: None,
             pyo3_cross_python_implementation: Some("PyPy".into()),
-            pyo3_cross_python_version: Some("3.10".into()),
+            pyo3_cross_python_version: Some("3.11".into()),
         };
 
         let triple = triple!("x86_64-unknown-linux-gnu");
