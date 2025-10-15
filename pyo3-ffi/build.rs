@@ -2,7 +2,8 @@ use pyo3_build_config::{
     bail, ensure, print_feature_cfgs,
     pyo3_build_script_impl::{
         cargo_env_var, env_var, errors::Result, is_linking_libpython, resolve_build_config,
-        target_triple_from_env, BuildConfig, BuildConfigSource, InterpreterConfig, PythonVersion,
+        target_triple_from_env, BuildConfig, BuildConfigSource, InterpreterConfig,
+        MaximumVersionExceeded, PythonVersion,
     },
     warn, PythonImplementation,
 };
@@ -51,20 +52,20 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 versions.min,
             );
             if interpreter_config.version > versions.max {
-                ensure!(!interpreter_config.is_free_threaded(),
-                        "The configured Python interpreter version ({}) is newer than PyO3's maximum supported version ({})\n\
-                         = help: please check if an updated version of PyO3 is available. Current version: {}\n\
-                         = help: The free-threaded build of CPython does not support the limited API so this check cannot be suppressed.",
-                        interpreter_config.version, versions.max, std::env::var("CARGO_PKG_VERSION").unwrap()
-                );
-                ensure!(env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").is_some_and(|os_str| os_str == "1"),
-                        "the configured Python interpreter version ({}) is newer than PyO3's maximum supported version ({})\n\
-                         = help: please check if an updated version of PyO3 is available. Current version: {}\n\
-                         = help: set PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 to suppress this check and build anyway using the stable ABI",
-                        interpreter_config.version,
-                        versions.max,
-                        std::env::var("CARGO_PKG_VERSION").unwrap(),
-                );
+                let mut error = MaximumVersionExceeded::new(interpreter_config, versions.max);
+                if interpreter_config.is_free_threaded() {
+                    error.add_help(
+                        "the free-threaded build of CPython does not support the limited API so this check cannot be suppressed.",
+                    );
+                    return Err(error.finish().into());
+                }
+
+                if !env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY")
+                    .is_some_and(|os_str| os_str == "1")
+                {
+                    error.add_help("set PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 to suppress this check and build anyway using the stable ABI");
+                    return Err(error.finish().into());
+                }
             }
         }
         PythonImplementation::PyPy => {
@@ -76,14 +77,10 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 versions.min,
             );
             // PyO3 does not support abi3, so we cannot offer forward compatibility
-            ensure!(
-                interpreter_config.version <= versions.max,
-                "the configured PyPy interpreter version ({}) is newer than PyO3's maximum supported version ({})\n\
-                 = help: please check if an updated version of PyO3 is available. Current version: {}",
-                interpreter_config.version,
-                versions.max,
-                std::env::var("CARGO_PKG_VERSION").unwrap()
-            );
+            if interpreter_config.version > versions.max {
+                let error = MaximumVersionExceeded::new(interpreter_config, versions.max);
+                return Err(error.finish().into());
+            }
         }
         PythonImplementation::GraalPy => {
             let versions = SUPPORTED_VERSIONS_GRAALPY;
@@ -94,14 +91,10 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 versions.min,
             );
             // GraalPy does not support abi3, so we cannot offer forward compatibility
-            ensure!(
-                interpreter_config.version <= versions.max,
-                "the configured GraalPy interpreter version ({}) is newer than PyO3's maximum supported version ({})\n\
-                 = help: please check if an updated version of PyO3 is available. Current version: {}",
-                interpreter_config.version,
-                versions.max,
-                std::env::var("CARGO_PKG_VERSION").unwrap()
-            );
+            if interpreter_config.version > versions.max {
+                let error = MaximumVersionExceeded::new(interpreter_config, versions.max);
+                return Err(error.finish().into());
+            }
         }
     }
 
