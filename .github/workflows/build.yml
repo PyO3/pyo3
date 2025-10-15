@@ -25,6 +25,7 @@ on:
 
 env:
   NOX_DEFAULT_VENV_BACKEND: uv
+  UV_PYTHON: ${{ inputs.python-version}}
 
 jobs:
   build:
@@ -43,9 +44,7 @@ jobs:
           # with the commit diff, because the merge may affect line numbers.
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
-      # installs using setup-python do not work for arm macOS 3.9 and below
-      - if: ${{ !(inputs.os == 'macos-latest' && contains(fromJSON('["3.7", "3.8", "3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64') }}
-        name: Set up Python ${{ inputs.python-version }}
+      - name: Set up Python ${{ inputs.python-version }}
         uses: actions/setup-python@v6
         with:
           python-version: ${{ inputs.python-version }}
@@ -53,15 +52,11 @@ jobs:
           # PyPy can have FFI changes within Python versions, which creates pain in CI
           check-latest: ${{ startsWith(inputs.python-version, 'pypy') }}
 
-      # workaround for the above, only available for 3.9
-      - if: ${{ inputs.os == 'macos-latest' && contains(fromJSON('["3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64' }}
-        name: Set up Python ${{ inputs.python-version }}
+      - name: Set up UV
         uses: astral-sh/setup-uv@v6
-        with:
-          python-version: cpython-${{ inputs.python-version }}-macos-x86-64
 
       - name: Install nox
-        run: python -m pip install --upgrade pip && pip install nox[uv]
+        run: uv tool install nox
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
