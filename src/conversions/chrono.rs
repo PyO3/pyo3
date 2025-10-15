@@ -692,11 +692,11 @@ mod tests {
             let none = py.None().into_bound(py);
             assert_eq!(
                 none.extract::<Duration>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'timedelta'"
+                "TypeError: 'NoneType' object cannot be cast as 'timedelta'"
             );
             assert_eq!(
                 none.extract::<FixedOffset>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'tzinfo'"
+                "TypeError: 'NoneType' object cannot be cast as 'tzinfo'"
             );
             assert_eq!(
                 none.extract::<Utc>().unwrap_err().to_string(),
@@ -704,25 +704,25 @@ mod tests {
             );
             assert_eq!(
                 none.extract::<NaiveTime>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'time'"
+                "TypeError: 'NoneType' object cannot be cast as 'time'"
             );
             assert_eq!(
                 none.extract::<NaiveDate>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'date'"
+                "TypeError: 'NoneType' object cannot be cast as 'date'"
             );
             assert_eq!(
                 none.extract::<NaiveDateTime>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'datetime'"
+                "TypeError: 'NoneType' object cannot be cast as 'datetime'"
             );
             assert_eq!(
                 none.extract::<DateTime<Utc>>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'datetime'"
+                "TypeError: 'NoneType' object cannot be cast as 'datetime'"
             );
             assert_eq!(
                 none.extract::<DateTime<FixedOffset>>()
                     .unwrap_err()
                     .to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'datetime'"
+                "TypeError: 'NoneType' object cannot be cast as 'datetime'"
             );
         });
     }

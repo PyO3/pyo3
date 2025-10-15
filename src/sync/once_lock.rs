@@ -162,10 +162,7 @@ where
         attr_name: &str,
     ) -> PyResult<&Bound<'py, T>> {
         self.get_or_try_init(py, || {
-            let type_object = py
-                .import(module_name)?
-                .getattr(attr_name)?
-                .downcast_into()?;
+            let type_object = py.import(module_name)?.getattr(attr_name)?.cast_into()?;
             Ok(type_object.unbind())
         })
         .map(|ty| ty.bind(py))

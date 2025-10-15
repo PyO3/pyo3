@@ -23,7 +23,7 @@ impl<'py> IntoPyObject<'py> for &OsStr {
         #[cfg(not(windows))]
         {
             #[cfg(target_os = "wasi")]
-            let bytes = std::os::wasi::ffi::OsStrExt::as_bytes(self);
+            let bytes = self.to_str().expect("wasi strings are UTF8").as_bytes();
             #[cfg(not(target_os = "wasi"))]
             let bytes = std::os::unix::ffi::OsStrExt::as_bytes(self);
 
@@ -67,9 +67,6 @@ impl<'py> IntoPyObject<'py> for &&OsStr {
     }
 }
 
-// There's no FromPyObject implementation for &OsStr because albeit possible on Unix, this would
-// be impossible to implement on Windows. Hence it's omitted entirely
-
 impl FromPyObject<'_, '_> for OsString {
     type Error = PyErr;
 
@@ -87,9 +84,11 @@ impl FromPyObject<'_, '_> for OsString {
             };
 
             // Create an OsStr view into the raw bytes from Python
+            //
+            // For WASI: OS strings are UTF-8 by definition.
             #[cfg(target_os = "wasi")]
             let os_str: &OsStr =
-                std::os::wasi::ffi::OsStrExt::from_bytes(fs_encoded_bytes.as_bytes(ob.py()));
+                OsStr::new(std::str::from_utf8(fs_encoded_bytes.as_bytes(ob.py()))?);
             #[cfg(not(target_os = "wasi"))]
             let os_str: &OsStr =
                 std::os::unix::ffi::OsStrExt::from_bytes(fs_encoded_bytes.as_bytes(ob.py()));
@@ -151,6 +150,19 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, OsStr> {
     }
 }
 
+impl<'a> FromPyObject<'a, '_> for Cow<'a, OsStr> {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
+        #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+        if let Ok(s) = obj.extract::<&str>() {
+            return Ok(Cow::Borrowed(s.as_ref()));
+        }
+
+        obj.extract::<OsString>().map(Cow::Owned)
+    }
+}
+
 impl<'py> IntoPyObject<'py> for OsString {
     type Target = PyString;
     type Output = Bound<'py, Self::Target>;
@@ -176,8 +188,12 @@ impl<'py> IntoPyObject<'py> for &OsString {
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAnyMethods, PyString, PyStringMethods};
-    use crate::{BoundObject, IntoPyObject, Python};
+    use crate::{Bound, BoundObject, IntoPyObject, Python};
     use std::fmt::Debug;
+    #[cfg(unix)]
+    use std::os::unix::ffi::OsStringExt;
+    #[cfg(windows)]
+    use std::os::windows::ffi::OsStringExt;
     use std::{
         borrow::Cow,
         ffi::{OsStr, OsString},
@@ -250,6 +266,42 @@ mod tests {
             // Show that encode_wide is necessary: direct UTF-8 conversion would lose information
             let encoded: Vec<u16> = os_str.encode_wide().collect();
             assert_eq!(encoded, wide);
+        });
+    }
+
+    #[test]
+    fn test_extract_cow() {
+        Python::attach(|py| {
+            fn test_extract<'py, T>(py: Python<'py>, input: &T, is_borrowed: bool)
+            where
+                for<'a> &'a T: IntoPyObject<'py, Output = Bound<'py, PyString>>,
+                for<'a> <&'a T as IntoPyObject<'py>>::Error: Debug,
+                T: AsRef<OsStr> + ?Sized,
+            {
+                let pystring = input.into_pyobject(py).unwrap();
+                let cow: Cow<'_, OsStr> = pystring.extract().unwrap();
+                assert_eq!(cow, input.as_ref());
+                assert_eq!(is_borrowed, matches!(cow, Cow::Borrowed(_)));
+            }
+
+            // On Python 3.10+ or when not using the limited API, we can borrow strings from python
+            let can_borrow_str = cfg!(any(Py_3_10, not(Py_LIMITED_API)));
+            // This can be borrowed because it is valid UTF-8
+            test_extract::<str>(py, "Hello\0\n🐍", can_borrow_str);
+            test_extract::<str>(py, "Hello, world!", can_borrow_str);
+
+            #[cfg(windows)]
+            let os_str = {
+                // 'A', unpaired surrogate, 'B'
+                OsString::from_wide(&['A' as u16, 0xD800, 'B' as u16])
+            };
+
+            #[cfg(unix)]
+            let os_str = { OsString::from_vec(vec![250, 251, 252, 253, 254, 255, 0, 255]) };
+
+            // This cannot be borrowed because it is not valid UTF-8
+            #[cfg(any(windows, unix))]
+            test_extract::<OsStr>(py, &os_str, false);
         });
     }
 }

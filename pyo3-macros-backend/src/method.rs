@@ -316,7 +316,7 @@ impl FnType {
                     #[allow(clippy::useless_conversion)]
                     ::std::convert::Into::into(
                         #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
-                            .downcast_unchecked::<#pyo3_path::types::PyType>()
+                            .cast_unchecked::<#pyo3_path::types::PyType>()
                     )
                 };
                 Some(quote! { unsafe { #ret }, })
@@ -329,7 +329,7 @@ impl FnType {
                     #[allow(clippy::useless_conversion)]
                     ::std::convert::Into::into(
                         #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
-                            .downcast_unchecked::<#pyo3_path::types::PyModule>()
+                            .cast_unchecked::<#pyo3_path::types::PyModule>()
                     )
                 };
                 Some(quote! { unsafe { #ret }, })
@@ -404,7 +404,7 @@ impl SelfType {
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 error_mode.handle_error(
                     quote_spanned! { *span =>
-                        #bound_ref.downcast::<#cls>()
+                        #bound_ref.cast::<#cls>()
                             .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
                             .and_then(
                                 #[allow(unknown_lints, clippy::unnecessary_fallible_conversions)]  // In case slf is Py<Self> (unknown_lints can be removed when MSRV is 1.75+)

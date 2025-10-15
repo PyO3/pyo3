@@ -133,6 +133,16 @@ This is very similar to `serde`s [`Deserialize`] and [`DeserializeOwned`] traits
 [`DeserializeOwned`]: https://docs.rs/serde/latest/serde/de/trait.DeserializeOwned.html
 </details>
 
+## `.downcast()` and `DowncastError` replaced with `.cast()` and `CastError`
+
+The `.downcast()` family of functions were only available on `Bound<PyAny>`. In corner cases (particularly related to `.downcast_into()`) this would require use of `.as_any().downcast()` or `.into_any().downcast_into()` chains. Additionally, `DowncastError` produced Python exception messages which are not very Pythonic due to use of Rust type names in the error messages.
+
+The `.cast()` family of functions are available on all `Bound` and `Borrowed` smart pointers, whatever the type, and have error messages derived from the actual type at runtime. This produces a nicer experience for both PyO3 module authors and consumers.
+
+To migrate, replace `.downcast()` with `.cast()` and `DowncastError` with `CastError` (and similar with `.downcast_into()` / `DowncastIntoError` etc).
+
+`CastError` requires a Python `type` object (or other "classinfo" object compatible with `isinstance()`) as the second object, so in the rare case where `DowncastError` was manually constructed, small adjustments to code may apply.
+
 ## `PyTypeCheck` is now an `unsafe trait`
 
 Because `PyTypeCheck` is the trait used to guard the `.cast()` functions to treat Python objects as specific concrete types, the trait is `unsafe` to implement.
