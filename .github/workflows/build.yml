@@ -25,7 +25,6 @@ on:
 
 env:
   NOX_DEFAULT_VENV_BACKEND: uv
-  UV_PYTHON: ${{ inputs.python-version}}
 
 jobs:
   build:
@@ -46,11 +45,16 @@ jobs:
 
       - name: Set up Python ${{ inputs.python-version }}
         uses: actions/setup-python@v6
+        id: install-python
         with:
           python-version: ${{ inputs.python-version }}
           architecture: ${{ inputs.python-architecture }}
           # PyPy can have FFI changes within Python versions, which creates pain in CI
           check-latest: ${{ startsWith(inputs.python-version, 'pypy') }}
+
+      - name: Set UV_PYTHON to installed Python
+        shell: bash
+        run: echo "UV_PYTHON=${{ steps.install-python.outputs.python-path }}" >> $GITHUB_ENV
 
       - name: Set up UV
         uses: astral-sh/setup-uv@v6

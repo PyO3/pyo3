@@ -220,8 +220,7 @@ jobs:
       fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
         rust: [stable]
-        python-version:
-          [
+        python-version: [
             "3.7",
             "3.8",
             "3.9",
@@ -235,8 +234,8 @@ jobs:
             "pypy3.9",
             "pypy3.10",
             "pypy3.11",
-            "graalpy3.11",
-            "graalpy3.12",
+            "graalpy24.2", # last graalpy 3.11 release
+            "graalpy25.0", # current graalpy 3.12 release
           ]
         platform:
           [
