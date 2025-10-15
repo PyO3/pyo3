@@ -2462,7 +2462,7 @@ mod tests {
             pyo3_cross: None,
             pyo3_cross_lib_dir: None,
             pyo3_cross_python_implementation: Some("PyPy".into()),
-            pyo3_cross_python_version: Some("3.10".into()),
+            pyo3_cross_python_version: Some("3.11".into()),
         };
 
         let triple = triple!("x86_64-unknown-linux-gnu");
@@ -2477,11 +2477,11 @@ mod tests {
                 implementation: PythonImplementation::PyPy,
                 version: PythonVersion {
                     major: 3,
-                    minor: 10
+                    minor: 11
                 },
                 shared: true,
                 abi3: false,
-                lib_name: Some("pypy3.10-c".into()),
+                lib_name: Some("pypy3.11-c".into()),
                 lib_dir: None,
                 executable: None,
                 pointer_width: None,
@@ -2726,22 +2726,30 @@ mod tests {
             "python3.7md",
         );
 
-        // PyPy 3.9 includes ldversion
+        // PyPy 3.11 includes ldversion
         assert_eq!(
-            super::default_lib_name_unix(PythonVersion { major: 3, minor: 9 }, PyPy, None, false)
-                .unwrap(),
-            "pypy3.9-c",
+            super::default_lib_name_unix(
+                PythonVersion {
+                    major: 3,
+                    minor: 11
+                },
+                PyPy,
+                None,
+                false
+            )
+            .unwrap(),
+            "pypy3.11-c",
         );
 
         assert_eq!(
             super::default_lib_name_unix(
                 PythonVersion { major: 3, minor: 9 },
                 PyPy,
-                Some("3.9d"),
+                Some("3.11d"),
                 false
             )
             .unwrap(),
-            "pypy3.9d-c",
+            "pypy3.11d-c",
         );
 
         // free-threading adds a t suffix
@@ -3046,7 +3054,10 @@ mod tests {
     fn test_build_script_outputs_base() {
         let interpreter_config = InterpreterConfig {
             implementation: PythonImplementation::CPython,
-            version: PythonVersion { major: 3, minor: 9 },
+            version: PythonVersion {
+                major: 3,
+                minor: 11,
+            },
             shared: true,
             abi3: false,
             lib_name: Some("python3".into()),
@@ -3064,6 +3075,8 @@ mod tests {
                 "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
+                "cargo:rustc-cfg=Py_3_10".to_owned(),
+                "cargo:rustc-cfg=Py_3_11".to_owned(),
             ]
         );
 
@@ -3077,6 +3090,8 @@ mod tests {
                 "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
+                "cargo:rustc-cfg=Py_3_10".to_owned(),
+                "cargo:rustc-cfg=Py_3_11".to_owned(),
                 "cargo:rustc-cfg=PyPy".to_owned(),
             ]
         );
@@ -3253,9 +3268,13 @@ mod tests {
 
         // PyPy
         config.implementation = PythonImplementation::PyPy;
+        config.version = PythonVersion {
+            major: 3,
+            minor: 11,
+        };
         config.lib_name = None;
         config.apply_default_lib_name_to_config_file(&unix);
-        assert_eq!(config.lib_name, Some("pypy3.9-c".into()));
+        assert_eq!(config.lib_name, Some("pypy3.11-c".into()));
 
         config.implementation = PythonImplementation::CPython;
 

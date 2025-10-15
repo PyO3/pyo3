@@ -953,8 +953,8 @@ def test_version_limits(session: nox.Session):
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
 
-        assert "3.8" not in PYPY_VERSIONS
-        config_file.set("PyPy", "3.8")
+        assert "3.10" not in PYPY_VERSIONS
+        config_file.set("PyPy", "3.10")
         _run_cargo(session, "check", env=env, expect_error=True)
 
     # attempt to build with latest version and check that abi3 version
