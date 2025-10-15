@@ -152,13 +152,13 @@ pub struct PyVarObject {
 // skipped private _PyVarObject_CAST
 
 #[inline]
-#[cfg(not(any(GraalPy, all(PyPy, Py_3_10))))]
+#[cfg(not(any(GraalPy, PyPy)))]
 #[cfg_attr(docsrs, doc(cfg(all())))]
 pub unsafe fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int {
     (x == y).into()
 }
 
-#[cfg(any(GraalPy, all(PyPy, Py_3_10)))]
+#[cfg(any(GraalPy, PyPy))]
 #[cfg_attr(docsrs, doc(cfg(all())))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPy_Is")]
