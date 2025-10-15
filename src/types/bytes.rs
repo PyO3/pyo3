@@ -195,6 +195,12 @@ impl PartialEq<&'_ [u8]> for Bound<'_, PyBytes> {
     }
 }
 
+impl<const N: usize> PartialEq<[u8; N]> for Bound<'_, PyBytes> {
+    fn eq(&self, other: &[u8; N]) -> bool {
+        self.as_borrowed() == *other
+    }
+}
+
 /// Compares whether the Python bytes object is equal to the [u8].
 ///
 /// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
@@ -241,6 +247,13 @@ impl PartialEq<[u8]> for &'_ Bound<'_, PyBytes> {
 impl PartialEq<[u8]> for Borrowed<'_, '_, PyBytes> {
     #[inline]
     fn eq(&self, other: &[u8]) -> bool {
+        self.as_bytes() == other
+    }
+}
+
+impl<const N: usize> PartialEq<[u8; N]> for Borrowed<'_, '_, PyBytes> {
+    #[inline]
+    fn eq(&self, other: &[u8; N]) -> bool {
         self.as_bytes() == other
     }
 }
