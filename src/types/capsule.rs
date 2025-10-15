@@ -441,7 +441,7 @@ unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_v
     // SAFETY: `capsule` is known to be a valid capsule object
     let (ptr, ctx) = unsafe { get_pointer_ctx(capsule) };
 
-    // SAFETY: `capsule` was knowingly constructred with a boxed `CapsuleContents<T, F>`
+    // SAFETY: `capsule` was knowingly constructed with a boxed `CapsuleContents<T, F>`
     // and is now being destroyed, so we can move the data from the box.
     let CapsuleContents::<T, F> {
         value, destructor, ..
