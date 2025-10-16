@@ -37,13 +37,13 @@ disable = [
 ]
 
 exclude = [
-    # cannot figure out how to ignore MD041 in this file
-    "guide/pyclass-parameters.md",
-
     # just has an include to the top-level files
     "guide/src/changelog.md",
     "guide/src/contributing.md"
 ]
+
+[tool.rumdl.per-file-ignores]
+"guide/pyclass-parameters.md" = ["MD041"]
 
 [tool.rumdl.MD004]
 style = "dash"
