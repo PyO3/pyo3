@@ -315,40 +315,6 @@ pub mod pyo3_build_script_impl {
         }
     }
 
-    /// Python code to get the latest PyO3 version from crates.io
-    ///
-    /// Uses the Python interpreter to avoid needing to build an HTTP client in the Rust build script.
-    const GET_PYO3_VERSION: &str = r#"
-import urllib.request
-import json
-
-def get_pyo3_version():
-    try:
-        with urllib.request.urlopen('https://crates.io/api/v1/crates/pyo3') as response:
-            data = json.load(response)
-            return max(
-                (v for v in data['versions'] if not v['yanked']),
-                key=lambda v: v['id']
-            )['num']
-    except Exception:
-        return None
-
-print(get_pyo3_version(), end='')  # Avoid newline
-"#;
-
-    /// Uses the Python interpreter to determine the latest PyO3 version.
-    ///
-    /// Returns None if getting the version fails for any reason.
-    pub(crate) fn get_pyo3_version(interpreter_config: &InterpreterConfig) -> Option<String> {
-        // get latest version of pyo3 from crates.io via urllib
-        let python = interpreter_config.executable.as_ref()?;
-        let output = std::process::Command::new(python)
-            .args(&["-c", GET_PYO3_VERSION])
-            .output()
-            .ok()?;
-        String::from_utf8(output.stdout).ok()
-    }
-
     /// Helper to generate an error message when the configured Python version is newer
     /// than PyO3's current supported version.
     pub struct MaximumVersionExceeded {
@@ -360,18 +326,6 @@ print(get_pyo3_version(), end='')  # Avoid newline
             interpreter_config: &InterpreterConfig,
             supported_version: PythonVersion,
         ) -> Self {
-            Self::new_with_latest_version(
-                interpreter_config,
-                supported_version,
-                get_pyo3_version(interpreter_config).as_deref(),
-            )
-        }
-
-        pub(crate) fn new_with_latest_version(
-            interpreter_config: &InterpreterConfig,
-            supported_version: PythonVersion,
-            latest_pyo3_version: Option<&str>,
-        ) -> Self {
             let implementation = match interpreter_config.implementation {
                 PythonImplementation::CPython => "Python",
                 PythonImplementation::PyPy => "PyPy",
@@ -379,40 +333,18 @@ print(get_pyo3_version(), end='')  # Avoid newline
             };
             let version = &interpreter_config.version;
             let message = format!(
-            "the configured {implementation} version ({version}) is newer than PyO3's maximum supported version ({supported_version})"
-        );
-            let mut out = Self { message };
-            out.add_pyo3_versions(latest_pyo3_version);
-            out
+                "the configured {implementation} version ({version}) is newer than PyO3's maximum supported version ({supported_version})\n\
+                = help: this package is being built with PyO3 version {current_version}\n\
+                = help: check https://crates.io/crates/pyo3 for the latest PyO3 version available\n\
+                = help: updating this package to the latest version of PyO3 may provide compatibility with this {implementation} version",
+                current_version = env!("CARGO_PKG_VERSION")
+            );
+            Self { message }
         }
 
         pub fn add_help(&mut self, help: &str) {
             self.message.push_str("\n= help: ");
             self.message.push_str(help);
-        }
-
-        fn add_pyo3_versions(&mut self, latest_pyo3_version: Option<&str>) {
-            let current_version = env!("CARGO_PKG_VERSION");
-
-            self.add_help(&format!(
-                "this package is being built with PyO3 version {current_version}"
-            ));
-
-            if let Some(latest_version) = latest_pyo3_version {
-                self.add_help(&format!(
-                    "PyO3 {latest_version} is the latest version available"
-                ));
-                if latest_version != current_version {
-                    self.add_help(
-                        "updating this package to the latest version of PyO3 may provide \
-                               compatibility with this Python version",
-                    );
-                }
-            } else {
-                self.add_help(
-                    "check https://crates.io/crates/pyo3 for the latest version available",
-                );
-            }
         }
 
         pub fn finish(self) -> String {
@@ -519,17 +451,6 @@ mod tests {
 
     #[test]
     #[cfg(feature = "resolve-config")]
-    fn test_get_pyo3_version() {
-        // Just a sanity check that the script runs without error, if an interpreter is available.
-        if let Ok(interpreter_config) = impl_::make_interpreter_config() {
-            if interpreter_config.executable.is_some() {
-                assert!(pyo3_build_script_impl::get_pyo3_version(&interpreter_config).is_some());
-            }
-        }
-    }
-
-    #[test]
-    #[cfg(feature = "resolve-config")]
     fn test_maximum_version_exceeded_formatting() {
         let interpreter_config = InterpreterConfig {
             implementation: PythonImplementation::CPython,
@@ -548,20 +469,21 @@ mod tests {
             extra_build_script_lines: vec![],
             python_framework_prefix: None,
         };
-        let error = pyo3_build_script_impl::MaximumVersionExceeded::new_with_latest_version(
+        let mut error = pyo3_build_script_impl::MaximumVersionExceeded::new(
             &interpreter_config,
             PythonVersion {
                 major: 3,
                 minor: 12,
             },
-            Some("X.Y.Z"),
-        )
-        .finish();
+        );
+        error.add_help("this is a help message");
+        let error = error.finish();
         let expected = concat!("\
             the configured Python version (3.13) is newer than PyO3's maximum supported version (3.12)\n\
             = help: this package is being built with PyO3 version ", env!("CARGO_PKG_VERSION"), "\n\
-            = help: PyO3 X.Y.Z is the latest version available\n\
-            = help: updating this package to the latest version of PyO3 may provide compatibility with this Python version"
+            = help: check https://crates.io/crates/pyo3 for the latest PyO3 version available\n\
+            = help: updating this package to the latest version of PyO3 may provide compatibility with this Python version\n\
+            = help: this is a help message"
         );
         assert_eq!(error, expected);
     }
