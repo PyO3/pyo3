@@ -311,17 +311,31 @@ jobs:
                 rust-target: "x86_64-unknown-linux-gnu",
               }
 
-          # arm64 macOS Python not available on GitHub Actions until 3.10,
-          # and 3.7 & 3.8 not available to install from uv, but can backfill 3.9 with x64 from uv
-          # FIXME: setup-uv issue prevents this from working, https://github.com/astral-sh/setup-uv/issues/554
-          # - rust: stable
-          #   python-version: "3.9"
-          #   platform:
-          #     {
-          #       os: "macos-latest",
-          #       python-architecture: "x64",
-          #       rust-target: "x86_64-apple-darwin",
-          #     }
+          # arm64 macOS Python not available on GitHub Actions until 3.10, test older versions on x64
+          - rust: stable
+            python-version: "3.7"
+            platform:
+              {
+                os: "macos-15-intel",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
+          - rust: stable
+            python-version: "3.8"
+            platform:
+              {
+                os: "macos-15-intel",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
+          - rust: stable
+            python-version: "3.9"
+            platform:
+              {
+                os: "macos-15-intel",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
           # test latest Python on arm64 linux & windows runners
           - rust: stable
             python-version: "3.14"
