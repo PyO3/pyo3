@@ -323,10 +323,7 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
         // - `name_ptr` is either a valid C string or null
         // - thread is attached to the Python interpreter
         let ptr = unsafe { ffi::PyCapsule_GetPointer(self.as_ptr(), name_ptr(name)) };
-        match NonNull::new(ptr) {
-            Some(ptr) => Ok(ptr),
-            None => Err(PyErr::fetch(self.py())),
-        }
+        NonNull::new(ptr).ok_or_else(|| PyErr::fetch(self.py()))
     }
 
     fn is_valid(&self) -> bool {
