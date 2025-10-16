@@ -96,16 +96,15 @@ import mymodule
 mc = mymodule.MyClass()
 print(mc.method(44, False, "World", 666, x=44, y=55))
 print(mc.method(num=-1, name="World"))
-print(mc.make_change(44, False))
+print(mc.make_change(44))
 ```
 
 Produces output:
 
 ```text
-py_args=('World', 666), py_kwargs=Some({'x': 44, 'y': 55}), name=Hello, num=44
-py_args=(), py_kwargs=None, name=World, num=-1
+num=44 (was previously=-1), py_args=(False, 'World', 666), name=Hello, py_kwargs=Some({'x': 44, 'y': 55})
+num=-1 (was previously=44), py_args=(), name=World, py_kwargs=None
 num=44
-num=-1
 ```
 
 <!-- rumdl-disable MD052 - code block in quote confuses linter -->
