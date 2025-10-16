@@ -615,7 +615,7 @@ fn access_frozen_class_without_gil() {
 }
 
 #[test]
-#[cfg(all(Py_3_8, not(Py_GIL_DISABLED)))] // sys.unraisablehook not available until Python 3.8
+#[cfg(all(Py_3_8))]
 #[cfg_attr(target_arch = "wasm32", ignore)]
 fn drop_unsendable_elsewhere() {
     use std::sync::{
@@ -637,35 +637,37 @@ fn drop_unsendable_elsewhere() {
     }
 
     Python::attach(|py| {
-        let capture = UnraisableCapture::install(py);
+        let ((), Some((err, object))) = UnraisableCapture::enter(py, || {
+            let dropped = Arc::new(AtomicBool::new(false));
 
-        let dropped = Arc::new(AtomicBool::new(false));
-
-        let unsendable = Py::new(
-            py,
-            Unsendable {
-                dropped: dropped.clone(),
-            },
-        )
-        .unwrap();
-
-        py.detach(|| {
-            spawn(move || {
-                Python::attach(move |_py| {
-                    drop(unsendable);
-                });
-            })
-            .join()
+            let unsendable = Py::new(
+                py,
+                Unsendable {
+                    dropped: dropped.clone(),
+                },
+            )
             .unwrap();
-        });
 
-        assert!(!dropped.load(Ordering::SeqCst));
+            py.detach(|| {
+                spawn(move || {
+                    Python::attach(move |_py| {
+                        drop(unsendable);
+                    });
+                })
+                .join()
+                .unwrap();
+            });
 
-        let (err, object) = capture.borrow_mut(py).capture.take().unwrap();
+            assert!(!dropped.load(Ordering::SeqCst));
+
+            Ok(())
+        })
+        .unwrap() else {
+            panic!("no unraisable error captured");
+        };
+
         assert_eq!(err.to_string(), "RuntimeError: test_class_basics::drop_unsendable_elsewhere::Unsendable is unsendable, but is being dropped on another thread");
-        assert!(object.is_none(py));
-
-        capture.borrow_mut(py).uninstall(py);
+        assert!(object.is_none());
     });
 }
 

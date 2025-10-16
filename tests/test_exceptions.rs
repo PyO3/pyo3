@@ -98,31 +98,34 @@ fn test_exception_nosegfault() {
 }
 
 #[test]
-#[cfg(all(Py_3_8, not(Py_GIL_DISABLED)))]
+#[cfg(all(Py_3_8))]
 fn test_write_unraisable() {
-    use pyo3::{exceptions::PyRuntimeError, ffi, types::PyNotImplemented};
-    use std::ptr;
+    use pyo3::{exceptions::PyRuntimeError, types::PyNotImplemented};
     use test_utils::UnraisableCapture;
 
     Python::attach(|py| {
-        let capture = UnraisableCapture::install(py);
+        let ((), Some((err, object))) = UnraisableCapture::enter(py, || {
+            let err = PyRuntimeError::new_err("foo");
+            err.write_unraisable(py, None);
+            Ok(())
+        })
+        .unwrap() else {
+            panic!("no unraisable error captured");
+        };
 
-        assert!(capture.borrow(py).capture.is_none());
-
-        let err = PyRuntimeError::new_err("foo");
-        err.write_unraisable(py, None);
-
-        let (err, object) = capture.borrow_mut(py).capture.take().unwrap();
         assert_eq!(err.to_string(), "RuntimeError: foo");
-        assert!(object.is_none(py));
+        assert!(object.is_none());
 
-        let err = PyRuntimeError::new_err("bar");
-        err.write_unraisable(py, Some(&PyNotImplemented::get(py)));
+        let ((), Some((err, object))) = UnraisableCapture::enter(py, || {
+            let err = PyRuntimeError::new_err("bar");
+            err.write_unraisable(py, Some(&PyNotImplemented::get(py)));
+            Ok(())
+        })
+        .unwrap() else {
+            panic!("no unraisable error captured");
+        };
 
-        let (err, object) = capture.borrow_mut(py).capture.take().unwrap();
         assert_eq!(err.to_string(), "RuntimeError: bar");
-        assert!(unsafe { ptr::eq(object.as_ptr(), ffi::Py_NotImplemented()) });
-
-        capture.borrow_mut(py).uninstall(py);
+        assert!(object.is(PyNotImplemented::get(py)));
     });
 }
