@@ -83,10 +83,11 @@ fn _add_extension_module_link_args(triple: &Triple, mut writer: impl std::io::Wr
 /// All other platforms currently are no-ops.
 #[cfg(feature = "resolve-config")]
 pub fn add_python_framework_link_args() {
+    let target = impl_::target_triple_from_env();
     _add_python_framework_link_args(
         get(),
-        &impl_::target_triple_from_env(),
-        impl_::is_linking_libpython(),
+        &target,
+        impl_::is_linking_libpython_for_target(&target),
         std::io::stdout(),
     )
 }
@@ -235,21 +236,19 @@ pub fn print_expected_cfgs() {
 ///
 /// Please don't use these - they could change at any time.
 #[doc(hidden)]
+#[cfg(feature = "resolve-config")]
 pub mod pyo3_build_script_impl {
-    #[cfg(feature = "resolve-config")]
     use crate::errors::{Context, Result};
 
-    #[cfg(feature = "resolve-config")]
     use super::*;
 
     pub mod errors {
         pub use crate::errors::*;
     }
     pub use crate::impl_::{
-        cargo_env_var, env_var, is_linking_libpython, make_cross_compile_config,
+        cargo_env_var, env_var, is_linking_libpython_for_target, make_cross_compile_config,
         target_triple_from_env, InterpreterConfig, PythonVersion,
     };
-
     pub enum BuildConfigSource {
         /// Config was provided by `PYO3_CONFIG_FILE`.
         ConfigFile,
@@ -273,7 +272,6 @@ pub mod pyo3_build_script_impl {
     ///
     /// Steps 2 and 3 are necessary because `pyo3-ffi`'s build script is the first code run which knows
     /// the correct target triple.
-    #[cfg(feature = "resolve-config")]
     pub fn resolve_build_config(target: &Triple) -> Result<BuildConfig> {
         // CONFIG_FILE is generated in build.rs, so it's content can vary
         #[allow(unknown_lints, clippy::const_is_empty)]
@@ -313,6 +311,43 @@ pub mod pyo3_build_script_impl {
                 interpreter_config,
                 source: BuildConfigSource::Host,
             })
+        }
+    }
+
+    /// Helper to generate an error message when the configured Python version is newer
+    /// than PyO3's current supported version.
+    pub struct MaximumVersionExceeded {
+        message: String,
+    }
+
+    impl MaximumVersionExceeded {
+        pub fn new(
+            interpreter_config: &InterpreterConfig,
+            supported_version: PythonVersion,
+        ) -> Self {
+            let implementation = match interpreter_config.implementation {
+                PythonImplementation::CPython => "Python",
+                PythonImplementation::PyPy => "PyPy",
+                PythonImplementation::GraalPy => "GraalPy",
+            };
+            let version = &interpreter_config.version;
+            let message = format!(
+                "the configured {implementation} version ({version}) is newer than PyO3's maximum supported version ({supported_version})\n\
+                = help: this package is being built with PyO3 version {current_version}\n\
+                = help: check https://crates.io/crates/pyo3 for the latest PyO3 version available\n\
+                = help: updating this package to the latest version of PyO3 may provide compatibility with this {implementation} version",
+                current_version = env!("CARGO_PKG_VERSION")
+            );
+            Self { message }
+        }
+
+        pub fn add_help(&mut self, help: &str) {
+            self.message.push_str("\n= help: ");
+            self.message.push_str(help);
+        }
+
+        pub fn finish(self) -> String {
+            self.message
         }
     }
 }
@@ -411,5 +446,44 @@ mod tests {
             std::str::from_utf8(&buf).unwrap(),
             "cargo:rustc-link-arg=-Wl,-rpath,/Applications/Xcode.app/Contents/Developer/Library/Frameworks\n"
         );
+    }
+
+    #[test]
+    #[cfg(feature = "resolve-config")]
+    fn test_maximum_version_exceeded_formatting() {
+        let interpreter_config = InterpreterConfig {
+            implementation: PythonImplementation::CPython,
+            version: PythonVersion {
+                major: 3,
+                minor: 13,
+            },
+            shared: true,
+            abi3: false,
+            lib_name: None,
+            lib_dir: None,
+            executable: None,
+            pointer_width: None,
+            build_flags: BuildFlags::default(),
+            suppress_build_script_link_lines: false,
+            extra_build_script_lines: vec![],
+            python_framework_prefix: None,
+        };
+        let mut error = pyo3_build_script_impl::MaximumVersionExceeded::new(
+            &interpreter_config,
+            PythonVersion {
+                major: 3,
+                minor: 12,
+            },
+        );
+        error.add_help("this is a help message");
+        let error = error.finish();
+        let expected = concat!("\
+            the configured Python version (3.13) is newer than PyO3's maximum supported version (3.12)\n\
+            = help: this package is being built with PyO3 version ", env!("CARGO_PKG_VERSION"), "\n\
+            = help: check https://crates.io/crates/pyo3 for the latest PyO3 version available\n\
+            = help: updating this package to the latest version of PyO3 may provide compatibility with this Python version\n\
+            = help: this is a help message"
+        );
+        assert_eq!(error, expected);
     }
 }
