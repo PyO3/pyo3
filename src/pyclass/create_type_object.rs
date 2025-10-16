@@ -10,7 +10,6 @@ use crate::{
         pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, _call_clear},
         trampoline::trampoline,
     },
-    internal_tricks::ptr_from_ref,
     types::{typeobject::PyTypeMethods, PyType},
     Py, PyClass, PyResult, PyTypeInfo, Python,
 };
@@ -18,7 +17,7 @@ use std::{
     collections::HashMap,
     ffi::{CStr, CString},
     os::raw::{c_char, c_int, c_ulong, c_void},
-    ptr,
+    ptr::{self, NonNull},
 };
 
 pub(crate) struct PyClassTypeObject {
@@ -700,7 +699,9 @@ impl GetSetDefType {
                     (
                         Some(getset_getter),
                         Some(getset_setter),
-                        ptr_from_ref::<GetterAndSetter>(closure) as *mut _,
+                        NonNull::<GetterAndSetter>::from(closure.as_ref())
+                            .cast()
+                            .as_ptr(),
                     )
                 }
             };
