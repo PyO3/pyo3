@@ -24,3 +24,26 @@ name = "Removed"
 
 [tool.towncrier.fragment.fixed]
 name = "Fixed"
+
+[tool.rumdl]
+
+disable = [
+    # TODO: enable in a follow-up, probably with `sentence-per-line` reflow
+    "MD013",
+    # TODO: what to do about inline HTML, probably allow?
+    "MD033",
+    # TODO: {{#PYO3_DOCS_URL}} placeholder confuses rumdl, change syntax perhaps?
+    "MD051"
+]
+
+exclude = [
+    # cannot figure out how to ignore MD041 in this file
+    "guide/pyclass-parameters.md",
+
+    # just has an include to the top-level files
+    "guide/src/changelog.md",
+    "guide/src/contributing.md"
+]
+
+[tool.rumdl.MD004]
+style = "dash"

@@ -4,13 +4,13 @@ The `Bound<'py, T>` smart pointer (such as `Bound<'py, PyAny>`, `Bound<'py, PyLi
 
 PyO3 offers two APIs to make function calls:
 
-* [`call`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call) - call any callable Python object.
-* [`call_method`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call_method) - call a method on the Python object.
+- [`call`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call) - call any callable Python object.
+- [`call_method`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call_method) - call a method on the Python object.
 
 Both of these APIs take `args` and `kwargs` arguments (for positional and keyword arguments respectively). There are variants for less complex calls:
 
-* [`call1`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call1) and [`call_method1`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call_method1) to call only with positional `args`.
-* [`call0`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call0) and [`call_method0`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call_method0) to call with no arguments.
+- [`call1`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call1) and [`call_method1`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call_method1) to call only with positional `args`.
+- [`call0`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call0) and [`call_method0`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call_method0) to call with no arguments.
 
 For convenience the [`Py<T>`](../types.md#pyt) smart pointer also exposes these same six API methods, but needs a `Python` token as an additional first argument to prove the thread is attached to the Python interpreter.
 

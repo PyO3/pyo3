@@ -93,7 +93,6 @@ There's no way to detect your user doing that at compile time, so instead you ne
 
 PyO3 provides the APIs [`Python::version()`] and [`Python::version_info()`] to query the running Python version. This allows you to do the following, for example:
 
-
 ```rust
 use pyo3::Python;
 

@@ -102,6 +102,9 @@ You can run these checks yourself with `nox`. Use  `nox -l` to list the full set
 #### Linting Rust code
 `nox -s rustfmt`
 
+#### Linting Markdown documentation
+`nox -s rumdl`
+
 #### Semver checks
 `cargo semver-checks check-release`
 

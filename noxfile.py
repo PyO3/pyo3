@@ -38,7 +38,7 @@ try:
 except ImportError:
     requests = None
 
-nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "docs"]
+nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "rumdl", "docs"]
 
 PYO3_DIR = Path(__file__).parent
 PYO3_TARGET = Path(os.environ.get("CARGO_TARGET_DIR", PYO3_DIR / "target")).absolute()
@@ -200,6 +200,16 @@ def ruff(session: nox.Session):
     session.install("ruff")
     _run(session, "ruff", "format", ".", "--check")
     _run(session, "ruff", "check", ".")
+
+
+@nox.session(name="rumdl")
+def rumdl(session: nox.Session):
+    """Run rumdl to check markdown formatting in the guide.
+
+    Can also run with uv directly, e.g. `uvx rumdl check guide`.
+    """
+    session.install("rumdl")
+    _run(session, "rumdl", "check", "guide", *session.posargs)
 
 
 @nox.session(name="clippy", venv_backend="none")
@@ -686,7 +696,7 @@ def _build_netlify_redirects(preview: bool) -> None:
             redirects_file.write(f"/ /v{current_version}/ 302\n")
 
 
-@nox.session(name="check-guide", venv_backend="none")
+@nox.session(name="check-guide")
 def check_guide(session: nox.Session):
     # reuse other sessions, but with default args
     posargs = [*session.posargs]
@@ -728,6 +738,7 @@ def check_guide(session: nox.Session):
         *remap_args,
         "--accept=200,429",
         *session.posargs,
+        external=True,
     )
     # check external links in the docs
     # (intra-doc links are checked by rustdoc)
@@ -744,6 +755,7 @@ def check_guide(session: nox.Session):
         # reduce the concurrency to avoid rate-limit from `pyo3.rs`
         "--max-concurrency=32",
         *session.posargs,
+        external=True,
     )
 
 

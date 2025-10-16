@@ -7,11 +7,13 @@
 PyO3 has a work in progress support to generate [type stub files](https://typing.python.org/en/latest/spec/distributing.html#stub-files).
 
 It works using:
+
 1. PyO3 macros (`#[pyclass]`) that generate constant JSON strings that are then included in the built binaries by rustc if the `experimental-inspect` feature is enabled.
 2. The `pyo3-introspection` crate that can parse the generated binaries, extract the JSON strings and build stub files from it.
-3. [Not done yet] Build tools like `maturin` exposing `pyo3-introspection` features in their CLI API.
+3. \[Not done yet\] Build tools like `maturin` exposing `pyo3-introspection` features in their CLI API.
 
 For example, the following Rust code
+
 ```rust
 #[pymodule]
 pub mod example {
@@ -32,13 +34,13 @@ pub mod example {
         fn new(value: usize) -> Self {
             Self { value }
         }
-        
+
         #[getter]
         fn value(&self) -> usize {
             self.value
         }
     }
-    
+
     #[pyfunction]
     #[pyo3(signature = (arg: "list[int]") -> "list[int]")]
     fn list_of_int_identity(arg: Bound<'_, PyAny>) -> Bound<'_, PyAny> {
@@ -46,7 +48,9 @@ pub mod example {
     }
 }
 ```
+
 will generate the following stub file:
+
 ```python
 import typing
 
