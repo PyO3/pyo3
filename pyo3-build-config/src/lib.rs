@@ -83,10 +83,11 @@ fn _add_extension_module_link_args(triple: &Triple, mut writer: impl std::io::Wr
 /// All other platforms currently are no-ops.
 #[cfg(feature = "resolve-config")]
 pub fn add_python_framework_link_args() {
+    let target = impl_::target_triple_from_env();
     _add_python_framework_link_args(
         get(),
-        &impl_::target_triple_from_env(),
-        impl_::is_linking_libpython(),
+        &target,
+        impl_::is_linking_libpython_for_target(&target),
         std::io::stdout(),
     )
 }
@@ -245,10 +246,9 @@ pub mod pyo3_build_script_impl {
         pub use crate::errors::*;
     }
     pub use crate::impl_::{
-        cargo_env_var, env_var, is_linking_libpython, make_cross_compile_config,
+        cargo_env_var, env_var, is_linking_libpython_for_target, make_cross_compile_config,
         target_triple_from_env, InterpreterConfig, PythonVersion,
     };
-
     pub enum BuildConfigSource {
         /// Config was provided by `PYO3_CONFIG_FILE`.
         ConfigFile,
@@ -272,7 +272,6 @@ pub mod pyo3_build_script_impl {
     ///
     /// Steps 2 and 3 are necessary because `pyo3-ffi`'s build script is the first code run which knows
     /// the correct target triple.
-    #[cfg(feature = "resolve-config")]
     pub fn resolve_build_config(target: &Triple) -> Result<BuildConfig> {
         // CONFIG_FILE is generated in build.rs, so it's content can vary
         #[allow(unknown_lints, clippy::const_is_empty)]

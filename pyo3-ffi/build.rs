@@ -1,9 +1,9 @@
 use pyo3_build_config::{
     bail, ensure, print_feature_cfgs,
     pyo3_build_script_impl::{
-        cargo_env_var, env_var, errors::Result, is_linking_libpython, resolve_build_config,
-        target_triple_from_env, BuildConfig, BuildConfigSource, InterpreterConfig,
-        MaximumVersionExceeded, PythonVersion,
+        cargo_env_var, env_var, errors::Result, is_linking_libpython_for_target,
+        resolve_build_config, target_triple_from_env, BuildConfig, BuildConfigSource,
+        InterpreterConfig, MaximumVersionExceeded, PythonVersion,
     },
     warn, PythonImplementation,
 };
@@ -199,7 +199,9 @@ fn configure_pyo3() -> Result<()> {
     // Serialize the whole interpreter config into DEP_PYTHON_PYO3_CONFIG env var.
     interpreter_config.to_cargo_dep_env()?;
 
-    if is_linking_libpython() && !interpreter_config.suppress_build_script_link_lines {
+    if is_linking_libpython_for_target(&target)
+        && !interpreter_config.suppress_build_script_link_lines
+    {
         emit_link_config(&build_config)?;
     }
 

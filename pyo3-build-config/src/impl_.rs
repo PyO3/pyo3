@@ -881,17 +881,10 @@ pub fn is_extension_module() -> bool {
         || env_var("PYO3_BUILD_EXTENSION_MODULE").is_some()
 }
 
-/// Checks if we need to link to `libpython` for the current build target.
-///
-/// Must be called from a PyO3 crate build script.
-pub fn is_linking_libpython() -> bool {
-    is_linking_libpython_for_target(&target_triple_from_env())
-}
-
 /// Checks if we need to link to `libpython` for the target.
 ///
 /// Must be called from a PyO3 crate build script.
-fn is_linking_libpython_for_target(target: &Triple) -> bool {
+pub fn is_linking_libpython_for_target(target: &Triple) -> bool {
     target.operating_system == OperatingSystem::Windows
         // See https://github.com/PyO3/pyo3/issues/4068#issuecomment-2051159852
         || target.operating_system == OperatingSystem::Aix
@@ -992,6 +985,7 @@ impl CrossCompileConfig {
     ///
     /// The conversion can not fail because `PYO3_CROSS_LIB_DIR` variable
     /// is ensured contain a valid UTF-8 string.
+    #[allow(dead_code)]
     fn lib_dir_string(&self) -> Option<String> {
         self.lib_dir
             .as_ref()
@@ -1118,6 +1112,7 @@ pub fn cross_compiling_from_to(
 ///
 /// This must be called from PyO3's build script, because it relies on environment
 /// variables such as `CARGO_CFG_TARGET_OS` which aren't available at any other time.
+#[allow(dead_code)]
 pub fn cross_compiling_from_cargo_env() -> Result<Option<CrossCompileConfig>> {
     let env_vars = CrossCompileEnvVars::from_env();
     let host = Triple::host();
@@ -1350,6 +1345,7 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
 ///
 /// Returns `None` if the library directory is not available, and a runtime error
 /// when no or multiple sysconfigdata files are found.
+#[allow(dead_code)]
 fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<Option<PathBuf>> {
     let mut sysconfig_paths = find_all_sysconfigdata(cross)?;
     if sysconfig_paths.is_empty() {
@@ -1541,6 +1537,7 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Result<
 /// [1]: https://github.com/python/cpython/blob/3.8/Lib/sysconfig.py#L348
 ///
 /// Returns `None` when the target Python library directory is not set.
+#[allow(dead_code)]
 fn cross_compile_from_sysconfigdata(
     cross_compile_config: &CrossCompileConfig,
 ) -> Result<Option<InterpreterConfig>> {
@@ -1563,7 +1560,7 @@ fn cross_compile_from_sysconfigdata(
 /// Windows, macOS and Linux.
 ///
 /// Must be called from a PyO3 crate build script.
-#[allow(unused_mut)]
+#[allow(unused_mut, dead_code)]
 fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<InterpreterConfig> {
     let version = cross_compile_config
         .version
@@ -1678,6 +1675,7 @@ fn default_abi3_config(host: &Triple, version: PythonVersion) -> Result<Interpre
 /// when no target Python interpreter is found.
 ///
 /// Must be called from a PyO3 crate build script.
+#[allow(dead_code)]
 fn load_cross_compile_config(
     cross_compile_config: CrossCompileConfig,
 ) -> Result<InterpreterConfig> {
@@ -1704,6 +1702,7 @@ const WINDOWS_ABI3_LIB_NAME: &str = "python3";
 const WINDOWS_ABI3_DEBUG_LIB_NAME: &str = "python3_d";
 
 /// Generates the default library name for the target platform.
+#[allow(dead_code)]
 fn default_lib_name_for_target(
     version: PythonVersion,
     implementation: PythonImplementation,
@@ -1915,6 +1914,7 @@ fn get_host_interpreter(abi3_version: Option<PythonVersion>) -> Result<Interpret
 ///
 /// This must be called from PyO3's build script, because it relies on environment variables such as
 /// CARGO_CFG_TARGET_OS which aren't available at any other time.
+#[allow(dead_code)]
 pub fn make_cross_compile_config() -> Result<Option<InterpreterConfig>> {
     let interpreter_config = if let Some(cross_config) = cross_compiling_from_cargo_env()? {
         let mut interpreter_config = load_cross_compile_config(cross_config)?;
