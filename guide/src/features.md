@@ -143,6 +143,7 @@ Adds a dependency on [chrono](https://docs.rs/chrono). Enables a conversion from
 Enables conversion from and to [Local](https://docs.rs/chrono/latest/chrono/struct.Local.html) timezones. The current system timezone as determined by [`iana_time_zone::get_timezone()`](https://docs.rs/iana-time-zone/latest/iana_time_zone/fn.get_timezone.html) will be used for conversions.
 
 `chrono::DateTime<Local>` will convert from either of:
+
 - `datetime` objects with `tzinfo` equivalent to the current system timezone.
 - "naive" `datetime` objects (those without a `tzinfo`), as it is a convention that naive datetime objects should be treated as using the system timezone.
 
