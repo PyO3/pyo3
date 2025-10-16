@@ -151,7 +151,7 @@ fn recursive_class_attributes() {
 }
 
 #[test]
-#[cfg(all(Py_3_8))] // sys.unraisablehook not available until Python 3.8
+#[cfg(Py_3_8)] // sys.unraisablehook not available until Python 3.8
 fn test_fallible_class_attribute() {
     use pyo3::exceptions::PyValueError;
     use test_utils::UnraisableCapture;
@@ -168,14 +168,12 @@ fn test_fallible_class_attribute() {
     }
 
     Python::attach(|py| {
-        let ((), Some((err, object))) = UnraisableCapture::enter(py, || {
+        let (err, object) = UnraisableCapture::enter(py, |capture| {
             // Accessing the type will attempt to initialize the class attributes
             assert!(std::panic::catch_unwind(|| py.get_type::<BrokenClass>()).is_err());
-            Ok(())
-        })
-        .unwrap() else {
-            panic!("no unraisable error captured");
-        };
+
+            capture.take_capture().unwrap()
+        });
 
         assert!(object.is_none());
         assert_eq!(

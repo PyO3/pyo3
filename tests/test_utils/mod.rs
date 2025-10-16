@@ -128,27 +128,31 @@ mod inner {
 
     #[cfg(all(feature = "macros", Py_3_8))]
     impl<'py> UnraisableCapture<'py> {
-        pub fn enter<R>(
-            py: Python<'py>,
-            f: impl FnOnce() -> PyResult<R>,
-        ) -> PyResult<(R, Option<(PyErr, Bound<'py, PyAny>)>)> {
+        /// Runs the closure `f` with a custom sys.unraisablehook installed.
+        ///
+        /// `f`
+        pub fn enter<R>(py: Python<'py>, f: impl FnOnce(&Self) -> R) -> R {
             // NB this is best-effort, other tests could always modify sys.unraisablehook directly.
-            let _mutex_guard = UNRAISABLE_HOOK_MUTEX
+            let mutex_guard = UNRAISABLE_HOOK_MUTEX
                 .lock_py_attached(py)
                 .unwrap_or_else(PoisonError::into_inner);
 
-            let hook = UnraisableCaptureHook::install(py).into_bound(py);
-            let guard = Self { hook: hook.clone() };
-            let result = f()?;
+            let guard = Self {
+                hook: UnraisableCaptureHook::install(py),
+            };
+
+            let result = f(&guard);
+
             drop(guard);
+            drop(mutex_guard);
 
-            let capture = hook
-                .borrow_mut()
-                .capture
-                .take()
-                .map(|(e, o)| (e, o.into_bound(py)));
+            result
+        }
 
-            Ok((result, capture))
+        /// Takes the captured unraisable error, if any.
+        pub fn take_capture(&self) -> Option<(PyErr, Bound<'py, PyAny>)> {
+            let mut guard = self.hook.get().capture.lock().unwrap();
+            guard.take().map(|(e, o)| (e, o.into_bound(self.hook.py())))
         }
     }
 
@@ -156,53 +160,46 @@ mod inner {
     impl Drop for UnraisableCapture<'_> {
         fn drop(&mut self) {
             let py = self.hook.py();
-            self.hook.borrow_mut().uninstall(py);
+            self.hook.get().uninstall(py);
         }
     }
 
     #[cfg(all(feature = "macros", Py_3_8))]
-    #[pyclass(crate = "pyo3")]
+    #[pyclass(crate = "pyo3", frozen)]
     struct UnraisableCaptureHook {
-        pub capture: Option<(PyErr, Py<PyAny>)>,
-        old_hook: Option<Py<PyAny>>,
+        pub capture: Mutex<Option<(PyErr, Py<PyAny>)>>,
+        old_hook: Py<PyAny>,
     }
 
     #[cfg(all(feature = "macros", Py_3_8))]
     #[pymethods(crate = "pyo3")]
     impl UnraisableCaptureHook {
-        pub fn hook(&mut self, unraisable: Bound<'_, PyAny>) {
+        pub fn hook(&self, unraisable: Bound<'_, PyAny>) {
             let err = PyErr::from_value(unraisable.getattr("exc_value").unwrap());
             let instance = unraisable.getattr("object").unwrap();
-            self.capture = Some((err, instance.into()));
+            self.capture.lock().unwrap().replace((err, instance.into()));
         }
     }
 
     #[cfg(all(feature = "macros", Py_3_8))]
     impl UnraisableCaptureHook {
-        pub fn install(py: Python<'_>) -> Py<Self> {
+        fn install(py: Python<'_>) -> Bound<'_, Self> {
             let sys = py.import("sys").unwrap();
+
             let old_hook = sys.getattr("unraisablehook").unwrap().into();
+            let capture = Mutex::new(None);
 
-            let capture = Py::new(
-                py,
-                UnraisableCaptureHook {
-                    capture: None,
-                    old_hook: Some(old_hook),
-                },
-            )
-            .unwrap();
+            let capture = Bound::new(py, UnraisableCaptureHook { capture, old_hook }).unwrap();
 
-            sys.setattr("unraisablehook", capture.getattr(py, "hook").unwrap())
+            sys.setattr("unraisablehook", capture.getattr("hook").unwrap())
                 .unwrap();
 
             capture
         }
 
-        pub fn uninstall(&mut self, py: Python<'_>) {
-            let old_hook = self.old_hook.take().unwrap();
-
+        fn uninstall(&self, py: Python<'_>) {
             let sys = py.import("sys").unwrap();
-            sys.setattr("unraisablehook", old_hook).unwrap();
+            sys.setattr("unraisablehook", &self.old_hook).unwrap();
         }
     }
 

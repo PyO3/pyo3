@@ -98,34 +98,28 @@ fn test_exception_nosegfault() {
 }
 
 #[test]
-#[cfg(all(Py_3_8))]
+#[cfg(Py_3_8)]
 fn test_write_unraisable() {
     use pyo3::{exceptions::PyRuntimeError, types::PyNotImplemented};
     use test_utils::UnraisableCapture;
 
     Python::attach(|py| {
-        let ((), Some((err, object))) = UnraisableCapture::enter(py, || {
+        UnraisableCapture::enter(py, |capture| {
             let err = PyRuntimeError::new_err("foo");
             err.write_unraisable(py, None);
-            Ok(())
-        })
-        .unwrap() else {
-            panic!("no unraisable error captured");
-        };
 
-        assert_eq!(err.to_string(), "RuntimeError: foo");
-        assert!(object.is_none());
+            let (err, object) = capture.take_capture().unwrap();
 
-        let ((), Some((err, object))) = UnraisableCapture::enter(py, || {
+            assert_eq!(err.to_string(), "RuntimeError: foo");
+            assert!(object.is_none());
+
             let err = PyRuntimeError::new_err("bar");
             err.write_unraisable(py, Some(&PyNotImplemented::get(py)));
-            Ok(())
-        })
-        .unwrap() else {
-            panic!("no unraisable error captured");
-        };
 
-        assert_eq!(err.to_string(), "RuntimeError: bar");
-        assert!(object.is(PyNotImplemented::get(py)));
+            let (err, object) = capture.take_capture().unwrap();
+
+            assert_eq!(err.to_string(), "RuntimeError: bar");
+            assert!(object.is(PyNotImplemented::get(py)));
+        });
     });
 }

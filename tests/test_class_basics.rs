@@ -615,7 +615,7 @@ fn access_frozen_class_without_gil() {
 }
 
 #[test]
-#[cfg(all(Py_3_8))]
+#[cfg(Py_3_8)]
 #[cfg_attr(target_arch = "wasm32", ignore)]
 fn drop_unsendable_elsewhere() {
     use std::sync::{
@@ -637,7 +637,7 @@ fn drop_unsendable_elsewhere() {
     }
 
     Python::attach(|py| {
-        let ((), Some((err, object))) = UnraisableCapture::enter(py, || {
+        let (err, object) = UnraisableCapture::enter(py, |capture| {
             let dropped = Arc::new(AtomicBool::new(false));
 
             let unsendable = Py::new(
@@ -660,11 +660,8 @@ fn drop_unsendable_elsewhere() {
 
             assert!(!dropped.load(Ordering::SeqCst));
 
-            Ok(())
-        })
-        .unwrap() else {
-            panic!("no unraisable error captured");
-        };
+            capture.take_capture().unwrap()
+        });
 
         assert_eq!(err.to_string(), "RuntimeError: test_class_basics::drop_unsendable_elsewhere::Unsendable is unsendable, but is being dropped on another thread");
         assert!(object.is_none());
