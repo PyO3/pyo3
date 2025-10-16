@@ -345,8 +345,7 @@ impl PyTypeBuilder {
         if !slice.is_empty() {
             unsafe { self.push_slot(ffi::Py_tp_doc, type_doc.as_ptr() as *mut c_char) }
 
-            // Running this causes PyPy to segfault.
-            #[cfg(all(not(PyPy), not(Py_LIMITED_API), not(Py_3_10)))]
+            #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
             {
                 // Until CPython 3.10, tp_doc was treated specially for
                 // heap-types, and it removed the text_signature value from it.
@@ -437,13 +436,12 @@ impl PyTypeBuilder {
         unsafe { self.push_slot(ffi::Py_tp_base, self.tp_base) }
 
         if !self.has_new {
-            // Flag introduced in 3.10, only worked in PyPy on 3.11
-            #[cfg(not(any(all(Py_3_10, not(PyPy)), all(Py_3_11, PyPy))))]
+            #[cfg(not(Py_3_10))]
             {
                 // Safety: This is the correct slot type for Py_tp_new
                 unsafe { self.push_slot(ffi::Py_tp_new, no_constructor_defined as *mut c_void) }
             }
-            #[cfg(any(all(Py_3_10, not(PyPy)), all(Py_3_11, PyPy)))]
+            #[cfg(Py_3_10)]
             {
                 self.class_flags |= ffi::Py_TPFLAGS_DISALLOW_INSTANTIATION;
             }
@@ -557,7 +555,7 @@ fn bpo_45315_workaround(py: Python<'_>, class_name: CString) {
 }
 
 /// Default new implementation
-#[cfg(not(any(all(Py_3_10, not(PyPy)), all(Py_3_11, PyPy))))]
+#[cfg(not(Py_3_10))]
 unsafe extern "C" fn no_constructor_defined(
     subtype: *mut ffi::PyTypeObject,
     _args: *mut ffi::PyObject,

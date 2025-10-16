@@ -262,7 +262,6 @@ fn ucs4() {
 #[test]
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
-#[cfg(not(all(PyPy, not(Py_3_10))))]
 fn test_get_tzinfo() {
     use crate::types::PyTzInfo;
 

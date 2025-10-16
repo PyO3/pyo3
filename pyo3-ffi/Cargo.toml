@@ -54,5 +54,5 @@ min-version = "3.7"
 max-version = "3.14" # inclusive
 
 [package.metadata.pypy]
-min-version = "3.9"
+min-version = "3.11"
 max-version = "3.11" # inclusive

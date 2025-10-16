@@ -36,8 +36,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyState_RemoveModule")]
     pub fn PyState_RemoveModule(arg1: *mut PyModuleDef) -> c_int;
 
-    // only has PyPy prefix since 3.10
-    #[cfg_attr(all(PyPy, Py_3_10), link_name = "PyPyState_FindModule")]
+    #[cfg_attr(PyPy, link_name = "PyPyState_FindModule")]
     pub fn PyState_FindModule(arg1: *mut PyModuleDef) -> *mut PyObject;
 
     #[cfg_attr(PyPy, link_name = "PyPyThreadState_New")]

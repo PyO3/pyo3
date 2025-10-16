@@ -152,7 +152,7 @@
 //!
 //! PyO3 supports the following Python distributions:
 //!   - CPython 3.7 or greater
-//!   - PyPy 7.3 (Python 3.9+)
+//!   - PyPy 7.3 (Python 3.11+)
 //!   - GraalPy 24.0 or greater (Python 3.10+)
 //!
 //! # Example: Building a native Python module

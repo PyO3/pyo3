@@ -393,7 +393,8 @@ impl Python<'_> {
     /// - If the [`auto-initialize`] feature is not enabled and the Python interpreter is not
     ///   initialized.
     /// - If the Python interpreter is in the process of [shutting down].
-    /// - If the middle of GC traversal.
+    /// - If the current thread is currently in the middle of a GC traversal (i.e. called from
+    ///   within a `__traverse__` method).
     ///
     /// To avoid possible initialization or panics if calling in a context where the Python
     /// interpreter might be unavailable, consider using [`Python::try_attach`].
@@ -427,9 +428,14 @@ impl Python<'_> {
 
     /// Variant of [`Python::attach`] which will return without attaching to the Python
     /// interpreter if the interpreter is in a state where it cannot be attached to:
-    /// - in the middle of GC traversal
-    /// - in the process of shutting down
-    /// - not initialized
+    ///
+    /// - If the Python interpreter is not initialized.
+    /// - If the Python interpreter is in the process of [shutting down].
+    /// - If the current thread is currently in the middle of a GC traversal (i.e. called from
+    ///   within a `__traverse__` method).
+    ///
+    /// Unlike `Python::attach`, this function will not initialize the Python interpreter,
+    /// even if the [`auto-initialize`] feature is enabled.
     ///
     /// Note that due to the nature of the underlying Python APIs used to implement this,
     /// the behavior is currently provided on a best-effort basis; it is expected that a
@@ -437,6 +443,9 @@ impl Python<'_> {
     /// function is still recommended for use in the meanwhile as it provides the best
     /// possible behaviour and should transparently change to an optimal implementation
     /// once such APIs are available.
+    ///
+    /// [`auto-initialize`]: https://pyo3.rs/main/features.html#auto-initialize
+    /// [shutting down]: https://docs.python.org/3/glossary.html#term-interpreter-shutdown
     #[inline]
     #[track_caller]
     pub fn try_attach<F, R>(f: F) -> Option<R>
