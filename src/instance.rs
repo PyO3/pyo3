@@ -4,7 +4,6 @@ use crate::call::PyCallArgs;
 use crate::conversion::IntoPyObject;
 use crate::err::{PyErr, PyResult};
 use crate::impl_::pycell::PyClassObject;
-use crate::internal_tricks::ptr_from_ref;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
@@ -444,9 +443,10 @@ impl<'py> Bound<'py, PyAny> {
         _py: Python<'py>,
         ptr: &'a *mut ffi::PyObject,
     ) -> &'a Self {
+        let ptr = NonNull::from(ptr).cast();
         // SAFETY: caller has upheld the safety contract,
         // and `Bound<PyAny>` is layout-compatible with `*mut ffi::PyObject`.
-        unsafe { &*ptr_from_ref(ptr).cast::<Bound<'py, PyAny>>() }
+        unsafe { ptr.as_ref() }
     }
 
     /// Variant of the above which returns `None` for null pointers.
@@ -458,9 +458,10 @@ impl<'py> Bound<'py, PyAny> {
         _py: Python<'py>,
         ptr: &'a *mut ffi::PyObject,
     ) -> &'a Option<Self> {
+        let ptr = NonNull::from(ptr).cast();
         // SAFETY: caller has upheld the safety contract,
         // and `Option<Bound<PyAny>>` is layout-compatible with `*mut ffi::PyObject`.
-        unsafe { &*ptr_from_ref(ptr).cast::<Option<Bound<'py, PyAny>>>() }
+        unsafe { ptr.as_ref() }
     }
 
     /// This slightly strange method is used to obtain `&Bound<PyAny>` from a [`NonNull`] in macro
@@ -477,9 +478,10 @@ impl<'py> Bound<'py, PyAny> {
         _py: Python<'py>,
         ptr: &'a NonNull<ffi::PyObject>,
     ) -> &'a Self {
+        let ptr = NonNull::from(ptr).cast();
         // SAFETY: caller has upheld the safety contract,
         // and `Bound<PyAny>` is layout-compatible with `NonNull<ffi::PyObject>`.
-        unsafe { NonNull::from(ptr).cast().as_ref() }
+        unsafe { ptr.as_ref() }
     }
 }
 
@@ -839,9 +841,10 @@ impl<'py, T> Bound<'py, T> {
     /// Helper to cast to `Bound<'py, PyAny>`.
     #[inline]
     pub fn as_any(&self) -> &Bound<'py, PyAny> {
+        let ptr = NonNull::from(self).cast();
         // Safety: all Bound<T> have the same memory layout, and all Bound<T> are valid
         // Bound<PyAny>, so pointer casting is valid.
-        unsafe { &*ptr_from_ref(self).cast::<Bound<'py, PyAny>>() }
+        unsafe { ptr.as_ref() }
     }
 
     /// Helper to cast to `Bound<'py, PyAny>`, transferring ownership.
@@ -1171,8 +1174,8 @@ impl<'py, T> Deref for Borrowed<'_, 'py, T> {
 
     #[inline]
     fn deref(&self) -> &Bound<'py, T> {
-        // safety: Bound has the same layout as NonNull<ffi::PyObject>
-        unsafe { &*ptr_from_ref(&self.0).cast() }
+        // SAFETY: self.0 is a valid object of type T
+        unsafe { Bound::ref_from_non_null(self.2, &self.0).cast_unchecked() }
     }
 }
 
@@ -1483,9 +1486,10 @@ impl<T> Py<T> {
     /// Helper to cast to `Py<PyAny>`.
     #[inline]
     pub fn as_any(&self) -> &Py<PyAny> {
+        let ptr = NonNull::from(self).cast();
         // Safety: all Py<T> have the same memory layout, and all Py<T> are valid
         // Py<PyAny>, so pointer casting is valid.
-        unsafe { &*ptr_from_ref(self).cast::<Py<PyAny>>() }
+        unsafe { ptr.as_ref() }
     }
 
     /// Helper to cast to `Py<PyAny>`, transferring ownership.
