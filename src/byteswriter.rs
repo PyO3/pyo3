@@ -10,9 +10,9 @@ use crate::{
         },
     },
     ffi_ptr_ext::FfiPtrExt,
-    py_result_ext::PyResultExt,
 };
 use crate::{Bound, IntoPyObject, PyErr, PyResult, Python};
+use std::convert::Infallible;
 use std::io::IoSlice;
 #[cfg(not(Py_LIMITED_API))]
 use std::{
@@ -85,24 +85,20 @@ impl<'py> PyBytesWriter<'py> {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
-impl<'py> TryFrom<PyBytesWriter<'py>> for Bound<'py, PyBytes> {
-    type Error = PyErr;
-
+impl<'py> From<PyBytesWriter<'py>> for Bound<'py, PyBytes> {
     #[inline]
-    fn try_from(value: PyBytesWriter<'py>) -> Result<Self, Self::Error> {
+    #[cfg(not(Py_LIMITED_API))]
+    fn from(value: PyBytesWriter<'py>) -> Self {
         let py = value.python;
         unsafe {
             PyBytesWriter_Finish(ManuallyDrop::new(value).writer.as_ptr())
-                .assume_owned_or_err(py)
+                .assume_owned(py)
                 .cast_into_unchecked()
         }
     }
-}
 
-#[cfg(Py_LIMITED_API)]
-impl<'py> From<PyBytesWriter<'py>> for Bound<'py, PyBytes> {
     #[inline]
+    #[cfg(Py_LIMITED_API)]
     fn from(writer: PyBytesWriter<'py>) -> Self {
         PyBytes::new(writer.python, &writer.buffer)
     }
@@ -111,11 +107,11 @@ impl<'py> From<PyBytesWriter<'py>> for Bound<'py, PyBytes> {
 impl<'py> IntoPyObject<'py> for PyBytesWriter<'py> {
     type Target = PyBytes;
     type Output = Bound<'py, PyBytes>;
-    type Error = PyErr;
+    type Error = Infallible;
 
     #[inline]
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        self.try_into().map_err(Into::into)
+        Ok(self.into())
     }
 }
 
@@ -211,8 +207,8 @@ mod tests {
         Python::attach(|py| {
             let buf = [1, 2, 3, 4];
             let mut writer = PyBytesWriter::new(py).unwrap();
-            writer.write(&buf).unwrap();
-            let bytes: Bound<'_, PyBytes> = writer.try_into().unwrap();
+            assert_eq!(writer.write(&buf).unwrap(), 4);
+            let bytes: Bound<'_, PyBytes> = writer.into();
             assert_eq!(bytes, buf);
         })
     }
@@ -222,8 +218,8 @@ mod tests {
         Python::attach(|py| {
             let bufs = [IoSlice::new(&[1, 2]), IoSlice::new(&[3, 4])];
             let mut writer = PyBytesWriter::new(py).unwrap();
-            writer.write_vectored(&bufs).unwrap();
-            let bytes: Bound<'_, PyBytes> = writer.try_into().unwrap();
+            assert_eq!(writer.write_vectored(&bufs).unwrap(), 4);
+            let bytes: Bound<'_, PyBytes> = writer.into();
             assert_eq!(bytes, [1, 2, 3, 4]);
         })
     }
