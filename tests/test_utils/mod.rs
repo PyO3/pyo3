@@ -18,9 +18,11 @@ mod inner {
 
     use pyo3::prelude::*;
 
+    #[cfg(any(not(all(Py_GIL_DISABLED, Py_3_14)), all(feature = "macros", Py_3_8)))]
     use pyo3::sync::MutexExt;
     use pyo3::types::{IntoPyDict, PyList};
 
+    #[cfg(any(not(all(Py_GIL_DISABLED, Py_3_14)), all(feature = "macros", Py_3_8)))]
     use std::sync::{Mutex, PoisonError};
 
     use uuid::Uuid;
@@ -117,9 +119,6 @@ mod inner {
         };
     }
 
-    /// unraisablehook is a global, so only one thread can be using this struct at a time.
-    static UNRAISABLE_HOOK_MUTEX: Mutex<()> = Mutex::new(());
-
     // sys.unraisablehook not available until Python 3.8
     #[cfg(all(feature = "macros", Py_3_8))]
     pub struct UnraisableCapture<'py> {
@@ -132,6 +131,9 @@ mod inner {
         ///
         /// `f`
         pub fn enter<R>(py: Python<'py>, f: impl FnOnce(&Self) -> R) -> R {
+            // unraisablehook is a global, so only one thread can be using this struct at a time.
+            static UNRAISABLE_HOOK_MUTEX: Mutex<()> = Mutex::new(());
+
             // NB this is best-effort, other tests could always modify sys.unraisablehook directly.
             let mutex_guard = UNRAISABLE_HOOK_MUTEX
                 .lock_py_attached(py)
