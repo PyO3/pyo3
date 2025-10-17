@@ -1,3 +1,4 @@
+#[cfg(not(Py_LIMITED_API))]
 compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
@@ -11,7 +12,7 @@ compat_function!(
             return std::ptr::null_mut();
         }
 
-        let writer: *mut crate::PyBytesWriter = crate::PyMem_Malloc(size_of::<crate::PyBytesWriter>()).cast();
+        let writer: *mut crate::PyBytesWriter = crate::PyMem_Malloc(std::mem::size_of::<crate::PyBytesWriter>()).cast();
         if writer.is_null() {
             crate::PyErr_NoMemory();
             return std::ptr::null_mut();
@@ -33,6 +34,7 @@ compat_function!(
     }
 );
 
+#[cfg(not(Py_LIMITED_API))]
 compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
@@ -47,6 +49,7 @@ compat_function!(
     }
 );
 
+#[cfg(not(Py_LIMITED_API))]
 compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
@@ -56,23 +59,22 @@ compat_function!(
     }
 );
 
+#[cfg(not(Py_LIMITED_API))]
 compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
     #[inline]
     pub unsafe fn PyBytesWriter_FinishWithSize(writer: *mut crate::PyBytesWriter, size: crate::Py_ssize_t) -> *mut crate::PyObject {
         let result = if size == 0 {
-            crate:: PyBytes_FromStringAndSize(c_str!("").as_ptr(), 0)
+            crate::PyBytes_FromStringAndSize(c_str!("").as_ptr(), 0)
         } else if (*writer).obj.is_null() {
             crate::PyBytes_FromStringAndSize((*writer).small_buffer.as_ptr(), size)
         } else {
             if size != crate::PyBytes_Size((*writer).obj) && crate::_PyBytes_Resize(&mut (*writer).obj, size) < 0{
-
                     PyBytesWriter_Discard(writer);
                     return std::ptr::null_mut();
-
             }
-            std::mem::take(&mut (*writer).obj)
+            std::mem::replace(&mut (*writer).obj, std::ptr::null_mut())
         };
 
         PyBytesWriter_Discard(writer);
@@ -80,19 +82,21 @@ compat_function!(
     }
 );
 
+#[cfg(not(Py_LIMITED_API))]
 compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
     #[inline]
     pub unsafe fn _PyBytesWriter_GetAllocated(writer: *mut crate::PyBytesWriter) -> crate::Py_ssize_t {
         if (*writer).obj.is_null() {
-            size_of_val(&(*writer).small_buffer) as _
+            std::mem::size_of_val(&(*writer).small_buffer) as _
         } else {
             crate::PyBytes_Size((*writer).obj)
         }
     }
 );
 
+#[cfg(not(Py_LIMITED_API))]
 compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
@@ -101,19 +105,12 @@ compat_function!(
         if (*writer).obj.is_null() {
             (*writer).small_buffer.as_ptr() as *mut _
         } else {
-            #[cfg(Py_LIMITED_API)]
-            {
-                crate::PyBytes_AsString((*writer).obj) as *mut _
-            }
-
-            #[cfg(not(Py_LIMITED_API))]
-            {
                 crate::PyBytes_AS_STRING((*writer).obj) as *mut _
-            }
         }
     }
 );
 
+#[cfg(not(Py_LIMITED_API))]
 compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
@@ -123,6 +120,7 @@ compat_function!(
     }
 );
 
+#[cfg(not(Py_LIMITED_API))]
 compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
@@ -150,6 +148,7 @@ compat_function!(
     }
 );
 
+#[cfg(not(Py_LIMITED_API))]
 compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
@@ -176,6 +175,7 @@ compat_function!(
 );
 
 #[inline]
+#[cfg(not(Py_LIMITED_API))]
 unsafe fn _PyBytesWriter_Resize_impl(
     writer: *mut crate::PyBytesWriter,
     mut size: crate::Py_ssize_t,
@@ -212,18 +212,12 @@ unsafe fn _PyBytesWriter_Resize_impl(
         }
 
         if resize > 0 {
-            assert!((size as usize) > size_of_val(&(*writer).small_buffer));
-
-            #[cfg(Py_LIMITED_API)]
-            let dest = crate::PyBytes_AsString((*writer).obj) as *mut _;
-
-            #[cfg(not(Py_LIMITED_API))]
-            let dest = crate::PyBytes_AS_STRING((*writer).obj) as *mut _;
+            assert!((size as usize) > std::mem::size_of_val(&(*writer).small_buffer));
 
             std::ptr::copy_nonoverlapping(
                 (*writer).small_buffer.as_ptr(),
-                dest,
-                size_of_val(&(*writer).small_buffer),
+                crate::PyBytes_AS_STRING((*writer).obj) as *mut _,
+                std::mem::size_of_val(&(*writer).small_buffer),
             );
         }
     }
