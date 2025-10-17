@@ -437,7 +437,7 @@ mod tests {
         static NAME: &CStr = ffi::c_str!("test_module");
         static DOC: &CStr = ffi::c_str!("some doc");
 
-        static SLOTS: PyModuleSlots<2> = PyModuleSlotsBuilder::new().build();
+        static SLOTS: PyModuleSlots<2> = PyModuleSlotsBuilder::new().with_gil_used(true).build();
 
         unsafe {
             let module_def: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS);
