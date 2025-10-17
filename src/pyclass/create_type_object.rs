@@ -250,11 +250,8 @@ impl PyTypeBuilder {
                             let dict_offset = closure as ffi::Py_ssize_t;
                             // we don't support negative dict_offset here; PyO3 doesn't set it negative
                             assert!(dict_offset > 0);
-                            // TODO: use `.byte_offset` on MSRV 1.75
-                            let dict_ptr = object
-                                .cast::<u8>()
-                                .offset(dict_offset)
-                                .cast::<*mut ffi::PyObject>();
+                            let dict_ptr =
+                                object.byte_offset(dict_offset).cast::<*mut ffi::PyObject>();
                             if (*dict_ptr).is_null() {
                                 std::ptr::write(dict_ptr, ffi::PyDict_New());
                             }

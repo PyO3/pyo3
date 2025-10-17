@@ -35,7 +35,6 @@ where
 impl<'a, 'py, T> IntoPyObject<'py> for &'a Vec<T>
 where
     &'a T: IntoPyObject<'py>,
-    T: 'a, // MSRV
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;

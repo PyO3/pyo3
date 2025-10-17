@@ -624,7 +624,6 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     impl <'a, 'py, $($T),+> IntoPyObject<'py> for &'a ($($T,)+)
     where
         $(&'a $T: IntoPyObject<'py>,)+
-        $($T: 'a,)+ // MSRV
     {
         type Target = PyTuple;
         type Output = Bound<'py, Self::Target>;
@@ -769,11 +768,10 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
-    impl<'a, 'py, $($T),+> crate::call::private::Sealed for &'a ($($T,)+) where $(&'a $T: IntoPyObject<'py>,)+ $($T: 'a,)+ /*MSRV */ {}
+    impl<'a, 'py, $($T),+> crate::call::private::Sealed for &'a ($($T,)+) where $(&'a $T: IntoPyObject<'py>,)+ {}
     impl<'a, 'py, $($T),+> crate::call::PyCallArgs<'py> for &'a ($($T,)+)
     where
         $(&'a $T: IntoPyObject<'py>,)+
-        $($T: 'a,)+ // MSRV
     {
         #[cfg(all(Py_3_9, not(any(PyPy, GraalPy, Py_LIMITED_API))))]
         fn call(
