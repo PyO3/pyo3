@@ -1,5 +1,7 @@
 #![cfg(feature = "macros")]
 
+#[cfg(Py_3_8)]
+use pyo3::ffi::c_str;
 use pyo3::prelude::*;
 use pyo3::types::PyType;
 use pyo3::{py_run, PyClass};
@@ -650,8 +652,14 @@ fn drop_unsendable_elsewhere() {
 
             py.detach(|| {
                 spawn(move || {
-                    Python::attach(move |_py| {
+                    Python::attach(move |py| {
                         drop(unsendable);
+                        // On the free-threaded build, dropping an object on its non-origin thread
+                        // will not immediately drop it because the refcounts need to be merged.
+                        //
+                        // Force GC to ensure the drop happens now on the wrong thread.
+                        py.run(c_str!("import gc; gc.collect()"), None, None)
+                            .unwrap();
                     });
                 })
                 .join()
