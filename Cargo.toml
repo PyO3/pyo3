@@ -188,7 +188,7 @@ members = [
     "pytests",
     "examples",
 ]
-package.rust-version = "1.74"
+package.rust-version = "1.83"
 
 [package.metadata.docs.rs]
 no-default-features = true

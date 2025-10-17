@@ -1119,7 +1119,7 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
 
 /// Trait denoting that this class is suitable to be used as a base type for PyClass.
 #[cfg_attr(
-    all(diagnostic_namespace, Py_LIMITED_API),
+    Py_LIMITED_API,
     diagnostic::on_unimplemented(
         message = "pyclass `{Self}` cannot be subclassed",
         label = "required for `#[pyclass(extends={Self})]`",
@@ -1128,7 +1128,7 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     )
 )]
 #[cfg_attr(
-    all(diagnostic_namespace, not(Py_LIMITED_API)),
+    not(Py_LIMITED_API),
     diagnostic::on_unimplemented(
         message = "pyclass `{Self}` cannot be subclassed",
         label = "required for `#[pyclass(extends={Self})]`",
@@ -1308,13 +1308,10 @@ where
     }
 }
 
-#[cfg_attr(
-    diagnostic_namespace,
-    diagnostic::on_unimplemented(
-        message = "`{Self}` cannot be converted to a Python object",
-        label = "required by `#[pyo3(get)]` to create a readable property from a field of type `{Self}`",
-        note = "implement `IntoPyObject` for `&{Self}` or `IntoPyObject + Clone` for `{Self}` to define the conversion"
-    )
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be converted to a Python object",
+    label = "required by `#[pyo3(get)]` to create a readable property from a field of type `{Self}`",
+    note = "implement `IntoPyObject` for `&{Self}` or `IntoPyObject + Clone` for `{Self}` to define the conversion"
 )]
 pub trait PyO3GetField<'py>: IntoPyObject<'py> + Clone {}
 impl<'py, T> PyO3GetField<'py> for T where T: IntoPyObject<'py> + Clone {}

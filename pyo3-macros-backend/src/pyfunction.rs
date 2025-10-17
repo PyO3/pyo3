@@ -2,7 +2,7 @@ use crate::attributes::KeywordAttribute;
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{function_introspection_code, introspection_id_const};
-use crate::utils::{Ctx, LitCStr};
+use crate::utils::Ctx;
 use crate::{
     attributes::{
         self, get_pyo3_options, take_attributes, take_pyo3_options, CrateAttribute,
@@ -17,6 +17,7 @@ use std::cmp::PartialEq;
 use std::ffi::CString;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
+use syn::LitCStr;
 use syn::{ext::IdentExt, spanned::Spanned, LitStr, Path, Result, Token};
 
 mod signature;
@@ -133,9 +134,8 @@ impl WarningFactory for PyFunctionWarning {
     fn build_py_warning(&self, ctx: &Ctx) -> TokenStream {
         let message = &self.message.value();
         let c_message = LitCStr::new(
-            CString::new(message.clone()).unwrap(),
+            &CString::new(message.clone()).unwrap(),
             Spanned::span(&message),
-            ctx,
         );
         let pyo3_path = &ctx.pyo3_path;
         let category = match &self.category {

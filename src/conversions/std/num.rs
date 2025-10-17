@@ -296,7 +296,6 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
         Self::type_output()
     }
 
-    #[cfg(return_position_impl_trait_in_traits)]
     #[inline]
     fn sequence_extractor(
         obj: Borrowed<'_, 'py, PyAny>,
@@ -306,21 +305,6 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
             Some(BytesSequenceExtractor::Bytes(bytes))
         } else if let Ok(byte_array) = obj.cast::<PyByteArray>() {
             Some(BytesSequenceExtractor::ByteArray(byte_array))
-        } else {
-            None
-        }
-    }
-
-    #[cfg(not(return_position_impl_trait_in_traits))]
-    #[inline]
-    fn sequence_extractor<'b>(
-        obj: Borrowed<'b, 'b, PyAny>,
-        _: crate::conversion::private::Token,
-    ) -> Option<Box<dyn FromPyObjectSequence<Target = u8> + 'b>> {
-        if let Ok(bytes) = obj.cast::<PyBytes>() {
-            Some(Box::new(BytesSequenceExtractor::Bytes(bytes)))
-        } else if let Ok(byte_array) = obj.cast::<PyByteArray>() {
-            Some(Box::new(BytesSequenceExtractor::ByteArray(byte_array)))
         } else {
             None
         }
@@ -365,7 +349,6 @@ impl FromPyObjectSequence for BytesSequenceExtractor<'_, '_> {
         }
     }
 
-    #[cfg(return_position_impl_trait_in_traits)]
     fn to_array<const N: usize>(&self) -> PyResult<[u8; N]> {
         let mut out: MaybeUninit<[u8; N]> = MaybeUninit::uninit();
 
@@ -378,11 +361,6 @@ impl FromPyObjectSequence for BytesSequenceExtractor<'_, '_> {
 
         // Safety: `out` is fully initialized
         Ok(unsafe { out.assume_init() })
-    }
-
-    #[cfg(not(return_position_impl_trait_in_traits))]
-    fn fill_slice(&self, out: &mut [MaybeUninit<Self::Target>]) -> PyResult<()> {
-        self.fill_slice(out)
     }
 }
 

@@ -15,11 +15,12 @@ use crate::{
     get_doc,
     pyclass::PyClassPyO3Option,
     pyfunction::{impl_wrap_pyfunction, PyFunctionOptions},
-    utils::{has_attribute, has_attribute_with_namespace, Ctx, IdentOrStr, LitCStr},
+    utils::{has_attribute, has_attribute_with_namespace, Ctx, IdentOrStr},
 };
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use std::ffi::CString;
+use syn::LitCStr;
 use syn::{
     ext::IdentExt,
     parse::{Parse, ParseStream},
@@ -523,7 +524,7 @@ fn module_initialization(
     let Ctx { pyo3_path, .. } = ctx;
     let pyinit_symbol = format!("PyInit_{name}");
     let name = name.to_string();
-    let pyo3_name = LitCStr::new(CString::new(name).unwrap(), Span::call_site(), ctx);
+    let pyo3_name = LitCStr::new(&CString::new(name).unwrap(), Span::call_site());
 
     let mut result = quote! {
         #[doc(hidden)]

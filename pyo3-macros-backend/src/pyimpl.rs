@@ -232,7 +232,7 @@ pub fn impl_methods(
 pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec, ctx: &Ctx) -> MethodAndMethodDef {
     let member = &spec.rust_ident;
     let wrapper_ident = format_ident!("__pymethod_{}__", member);
-    let python_name = spec.null_terminated_python_name(ctx);
+    let python_name = spec.null_terminated_python_name();
     let Ctx { pyo3_path, .. } = ctx;
 
     let associated_method = quote! {

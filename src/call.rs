@@ -42,14 +42,11 @@ pub(crate) mod private {
 /// [`call1`]: crate::types::PyAnyMethods::call1
 /// [`call`]: crate::types::PyAnyMethods::call
 /// [`PyAnyMethods`]: crate::types::PyAnyMethods
-#[cfg_attr(
-    diagnostic_namespace,
-    diagnostic::on_unimplemented(
-        message = "`{Self}` cannot used as a Python `call` argument",
-        note = "`PyCallArgs` is implemented for Rust tuples, `Bound<'py, PyTuple>` and `Py<PyTuple>`",
-        note = "if your type is convertable to `PyTuple` via `IntoPyObject`, call `<arg>.into_pyobject(py)` manually",
-        note = "if you meant to pass the type as a single argument, wrap it in a 1-tuple, `(<arg>,)`"
-    )
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot used as a Python `call` argument",
+    note = "`PyCallArgs` is implemented for Rust tuples, `Bound<'py, PyTuple>` and `Py<PyTuple>`",
+    note = "if your type is convertable to `PyTuple` via `IntoPyObject`, call `<arg>.into_pyobject(py)` manually",
+    note = "if you meant to pass the type as a single argument, wrap it in a 1-tuple, `(<arg>,)`"
 )]
 pub trait PyCallArgs<'py>: Sized + private::Sealed {
     #[doc(hidden)]
