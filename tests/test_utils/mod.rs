@@ -18,9 +18,11 @@ mod inner {
 
     use pyo3::prelude::*;
 
+    #[cfg(any(not(all(Py_GIL_DISABLED, Py_3_14)), all(feature = "macros", Py_3_8)))]
     use pyo3::sync::MutexExt;
     use pyo3::types::{IntoPyDict, PyList};
 
+    #[cfg(any(not(all(Py_GIL_DISABLED, Py_3_14)), all(feature = "macros", Py_3_8)))]
     use std::sync::{Mutex, PoisonError};
 
     use uuid::Uuid;
@@ -118,49 +120,88 @@ mod inner {
     }
 
     // sys.unraisablehook not available until Python 3.8
-    #[cfg(all(feature = "macros", Py_3_8, not(Py_GIL_DISABLED)))]
-    #[pyclass(crate = "pyo3")]
-    pub struct UnraisableCapture {
-        pub capture: Option<(PyErr, Py<PyAny>)>,
-        old_hook: Option<Py<PyAny>>,
+    #[cfg(all(feature = "macros", Py_3_8))]
+    pub struct UnraisableCapture<'py> {
+        hook: Bound<'py, UnraisableCaptureHook>,
     }
 
-    #[cfg(all(feature = "macros", Py_3_8, not(Py_GIL_DISABLED)))]
-    #[pymethods(crate = "pyo3")]
-    impl UnraisableCapture {
-        pub fn hook(&mut self, unraisable: Bound<'_, PyAny>) {
-            let err = PyErr::from_value(unraisable.getattr("exc_value").unwrap());
-            let instance = unraisable.getattr("object").unwrap();
-            self.capture = Some((err, instance.into()));
+    #[cfg(all(feature = "macros", Py_3_8))]
+    impl<'py> UnraisableCapture<'py> {
+        /// Runs the closure `f` with a custom sys.unraisablehook installed.
+        ///
+        /// `f`
+        pub fn enter<R>(py: Python<'py>, f: impl FnOnce(&Self) -> R) -> R {
+            // unraisablehook is a global, so only one thread can be using this struct at a time.
+            static UNRAISABLE_HOOK_MUTEX: Mutex<()> = Mutex::new(());
+
+            // NB this is best-effort, other tests could always modify sys.unraisablehook directly.
+            let mutex_guard = UNRAISABLE_HOOK_MUTEX
+                .lock_py_attached(py)
+                .unwrap_or_else(PoisonError::into_inner);
+
+            let guard = Self {
+                hook: UnraisableCaptureHook::install(py),
+            };
+
+            let result = f(&guard);
+
+            drop(guard);
+            drop(mutex_guard);
+
+            result
+        }
+
+        /// Takes the captured unraisable error, if any.
+        pub fn take_capture(&self) -> Option<(PyErr, Bound<'py, PyAny>)> {
+            let mut guard = self.hook.get().capture.lock().unwrap();
+            guard.take().map(|(e, o)| (e, o.into_bound(self.hook.py())))
         }
     }
 
-    #[cfg(all(feature = "macros", Py_3_8, not(Py_GIL_DISABLED)))]
-    impl UnraisableCapture {
-        pub fn install(py: Python<'_>) -> Py<Self> {
+    #[cfg(all(feature = "macros", Py_3_8))]
+    impl Drop for UnraisableCapture<'_> {
+        fn drop(&mut self) {
+            let py = self.hook.py();
+            self.hook.get().uninstall(py);
+        }
+    }
+
+    #[cfg(all(feature = "macros", Py_3_8))]
+    #[pyclass(crate = "pyo3", frozen)]
+    struct UnraisableCaptureHook {
+        pub capture: Mutex<Option<(PyErr, Py<PyAny>)>>,
+        old_hook: Py<PyAny>,
+    }
+
+    #[cfg(all(feature = "macros", Py_3_8))]
+    #[pymethods(crate = "pyo3")]
+    impl UnraisableCaptureHook {
+        pub fn hook(&self, unraisable: Bound<'_, PyAny>) {
+            let err = PyErr::from_value(unraisable.getattr("exc_value").unwrap());
+            let instance = unraisable.getattr("object").unwrap();
+            self.capture.lock().unwrap().replace((err, instance.into()));
+        }
+    }
+
+    #[cfg(all(feature = "macros", Py_3_8))]
+    impl UnraisableCaptureHook {
+        fn install(py: Python<'_>) -> Bound<'_, Self> {
             let sys = py.import("sys").unwrap();
+
             let old_hook = sys.getattr("unraisablehook").unwrap().into();
+            let capture = Mutex::new(None);
 
-            let capture = Py::new(
-                py,
-                UnraisableCapture {
-                    capture: None,
-                    old_hook: Some(old_hook),
-                },
-            )
-            .unwrap();
+            let capture = Bound::new(py, UnraisableCaptureHook { capture, old_hook }).unwrap();
 
-            sys.setattr("unraisablehook", capture.getattr(py, "hook").unwrap())
+            sys.setattr("unraisablehook", capture.getattr("hook").unwrap())
                 .unwrap();
 
             capture
         }
 
-        pub fn uninstall(&mut self, py: Python<'_>) {
-            let old_hook = self.old_hook.take().unwrap();
-
+        fn uninstall(&self, py: Python<'_>) {
             let sys = py.import("sys").unwrap();
-            sys.setattr("unraisablehook", old_hook).unwrap();
+            sys.setattr("unraisablehook", &self.old_hook).unwrap();
         }
     }
 
@@ -170,6 +211,7 @@ mod inner {
 
     /// catch_warnings is not thread-safe, so only one thread can be using this struct at
     /// a time.
+    #[cfg(not(all(Py_GIL_DISABLED, Py_3_14)))] // Python 3.14t has thread-safe catch_warnings
     static CATCH_WARNINGS_MUTEX: Mutex<()> = Mutex::new(());
 
     impl<'py> CatchWarnings<'py> {
@@ -178,6 +220,7 @@ mod inner {
             f: impl FnOnce(&Bound<'py, PyList>) -> PyResult<R>,
         ) -> PyResult<R> {
             // NB this is best-effort, other tests could always call the warnings API directly.
+            #[cfg(not(all(Py_GIL_DISABLED, Py_3_14)))]
             let _mutex_guard = CATCH_WARNINGS_MUTEX
                 .lock_py_attached(py)
                 .unwrap_or_else(PoisonError::into_inner);

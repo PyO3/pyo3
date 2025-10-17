@@ -1,5 +1,7 @@
 #![cfg(feature = "macros")]
 
+#[cfg(Py_3_8)]
+use pyo3::ffi::c_str;
 use pyo3::prelude::*;
 use pyo3::types::PyType;
 use pyo3::{py_run, PyClass};
@@ -615,7 +617,7 @@ fn access_frozen_class_without_gil() {
 }
 
 #[test]
-#[cfg(all(Py_3_8, not(Py_GIL_DISABLED)))] // sys.unraisablehook not available until Python 3.8
+#[cfg(Py_3_8)]
 #[cfg_attr(target_arch = "wasm32", ignore)]
 fn drop_unsendable_elsewhere() {
     use std::sync::{
@@ -637,35 +639,40 @@ fn drop_unsendable_elsewhere() {
     }
 
     Python::attach(|py| {
-        let capture = UnraisableCapture::install(py);
+        let (err, object) = UnraisableCapture::enter(py, |capture| {
+            let dropped = Arc::new(AtomicBool::new(false));
 
-        let dropped = Arc::new(AtomicBool::new(false));
-
-        let unsendable = Py::new(
-            py,
-            Unsendable {
-                dropped: dropped.clone(),
-            },
-        )
-        .unwrap();
-
-        py.detach(|| {
-            spawn(move || {
-                Python::attach(move |_py| {
-                    drop(unsendable);
-                });
-            })
-            .join()
+            let unsendable = Py::new(
+                py,
+                Unsendable {
+                    dropped: dropped.clone(),
+                },
+            )
             .unwrap();
+
+            py.detach(|| {
+                spawn(move || {
+                    Python::attach(move |py| {
+                        drop(unsendable);
+                        // On the free-threaded build, dropping an object on its non-origin thread
+                        // will not immediately drop it because the refcounts need to be merged.
+                        //
+                        // Force GC to ensure the drop happens now on the wrong thread.
+                        py.run(c_str!("import gc; gc.collect()"), None, None)
+                            .unwrap();
+                    });
+                })
+                .join()
+                .unwrap();
+            });
+
+            assert!(!dropped.load(Ordering::SeqCst));
+
+            capture.take_capture().unwrap()
         });
 
-        assert!(!dropped.load(Ordering::SeqCst));
-
-        let (err, object) = capture.borrow_mut(py).capture.take().unwrap();
         assert_eq!(err.to_string(), "RuntimeError: test_class_basics::drop_unsendable_elsewhere::Unsendable is unsendable, but is being dropped on another thread");
-        assert!(object.is_none(py));
-
-        capture.borrow_mut(py).uninstall(py);
+        assert!(object.is_none());
     });
 }
 
