@@ -194,10 +194,6 @@ fn print_feature_cfg(minor_version_required: u32, cfg: &str) {
 /// so this function is unstable.
 #[doc(hidden)]
 pub fn print_feature_cfgs() {
-    print_feature_cfg(79, "c_str_lit");
-    // Actually this is available on 1.78, but we should avoid
-    // https://github.com/rust-lang/rust/issues/124651 just in case
-    print_feature_cfg(79, "diagnostic_namespace");
     print_feature_cfg(83, "io_error_more");
     print_feature_cfg(83, "mut_ref_in_const_fn");
     print_feature_cfg(85, "fn_ptr_eq");

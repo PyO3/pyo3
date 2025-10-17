@@ -31,14 +31,11 @@ use std::marker::PhantomData;
 ///
 /// - The [`IntoPyObjectExt`] trait, which provides convenience methods for common usages of
 ///   `IntoPyObject` which erase type information and convert errors to `PyErr`.
-#[cfg_attr(
-    diagnostic_namespace,
-    diagnostic::on_unimplemented(
-        message = "`{Self}` cannot be converted to a Python object",
-        note = "`IntoPyObject` is automatically implemented by the `#[pyclass]` macro",
-        note = "if you do not wish to have a corresponding Python type, implement it manually",
-        note = "if you do not own `{Self}` you can perform a manual conversion to one of the types in `pyo3::types::*`"
-    )
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be converted to a Python object",
+    note = "`IntoPyObject` is automatically implemented by the `#[pyclass]` macro",
+    note = "if you do not wish to have a corresponding Python type, implement it manually",
+    note = "if you do not own `{Self}` you can perform a manual conversion to one of the types in `pyo3::types::*`"
 )]
 pub trait IntoPyObject<'py>: Sized {
     /// The Python output type
