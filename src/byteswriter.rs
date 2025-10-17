@@ -15,7 +15,10 @@ use crate::{
 use crate::{Bound, IntoPyObject, PyErr, PyResult, Python};
 use std::io::IoSlice;
 #[cfg(not(Py_LIMITED_API))]
-use std::ptr::{self, NonNull};
+use std::{
+    mem::ManuallyDrop,
+    ptr::{self, NonNull},
+};
 
 pub struct PyBytesWriter<'py> {
     python: Python<'py>,
@@ -88,9 +91,10 @@ impl<'py> TryFrom<PyBytesWriter<'py>> for Bound<'py, PyBytes> {
 
     #[inline]
     fn try_from(value: PyBytesWriter<'py>) -> Result<Self, Self::Error> {
+        let py = value.python;
         unsafe {
-            PyBytesWriter_Finish(value.writer.as_ptr())
-                .assume_owned_or_err(value.python)
+            PyBytesWriter_Finish(ManuallyDrop::new(value).writer.as_ptr())
+                .assume_owned_or_err(py)
                 .cast_into_unchecked()
         }
     }
