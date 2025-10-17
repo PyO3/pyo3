@@ -1,7 +1,7 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    conversion::{FromPyObject, FromPyObjectOwned, IntoPyObject},
+    conversion::{FromPyObject, FromPyObjectOwned, FromPyObjectSequence, IntoPyObject},
     exceptions::PyTypeError,
     ffi,
     types::{PyAnyMethods, PySequence, PyString},
@@ -62,8 +62,6 @@ where
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Some(extractor) = T::sequence_extractor(obj, crate::conversion::private::Token) {
-            #[cfg(return_position_impl_trait_in_traits)]
-            use crate::conversion::FromPyObjectSequence;
             return Ok(extractor.to_vec());
         }
 
