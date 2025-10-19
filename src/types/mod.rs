@@ -26,7 +26,7 @@ pub use self::function::PyCFunction;
 pub use self::function::PyFunction;
 #[cfg(Py_3_9)]
 pub use self::genericalias::PyGenericAlias;
-pub use self::iterator::PyIterator;
+pub use self::iterator::{PyIterator, PySendResult};
 pub use self::list::{PyList, PyListMethods};
 pub use self::mapping::{PyMapping, PyMappingMethods};
 pub use self::mappingproxy::PyMappingProxy;
