@@ -10,8 +10,8 @@ use pyo3::create_exception;
 create_exception!(module, MyError, pyo3::exceptions::PyException);
 ```
 
-* `module` is the name of the containing module.
-* `MyError` is the name of the new exception type.
+- `module` is the name of the containing module.
+- `MyError` is the name of the new exception type.
 
 For example:
 
@@ -23,32 +23,36 @@ use pyo3::exceptions::PyException;
 
 create_exception!(mymodule, CustomError, PyException);
 
-Python::with_gil(|py| {
-    let ctx = [("CustomError", py.get_type_bound::<CustomError>())].into_py_dict_bound(py);
+# fn main() -> PyResult<()> {
+Python::attach(|py| {
+    let ctx = [("CustomError", py.get_type::<CustomError>())].into_py_dict(py)?;
     pyo3::py_run!(
         py,
         *ctx,
         "assert str(CustomError) == \"<class 'mymodule.CustomError'>\""
     );
     pyo3::py_run!(py, *ctx, "assert CustomError('oops').args == ('oops',)");
-});
+#   Ok(())
+})
+# }
 ```
 
 When using PyO3 to create an extension module, you can add the new exception to
 the module like this, so that it is importable from Python:
 
-```rust
+```rust,no_run
+# fn main() {}
 use pyo3::prelude::*;
 use pyo3::exceptions::PyException;
 
 pyo3::create_exception!(mymodule, CustomError, PyException);
 
 #[pymodule]
-fn mymodule(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // ... other elements added to module ...
-    m.add("CustomError", py.get_type_bound::<CustomError>())?;
+mod mymodule {
+    #[pymodule_export]
+    use super::CustomError;
 
-    Ok(())
+    // ... other elements added to module ...
 }
 ```
 
@@ -62,7 +66,7 @@ You can also manually write and fetch errors in the Python interpreter's global 
 use pyo3::{Python, PyErr};
 use pyo3::exceptions::PyTypeError;
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     PyTypeError::new_err("Error").restore(py);
     assert!(PyErr::occurred(py));
     drop(PyErr::fetch(py));
@@ -74,24 +78,27 @@ Python::with_gil(|py| {
 Python has an [`isinstance`](https://docs.python.org/3/library/functions.html#isinstance) method to check an object's type.
 In PyO3 every object has the [`PyAny::is_instance`] and [`PyAny::is_instance_of`] methods which do the same thing.
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyList};
 
-Python::with_gil(|py| {
-    assert!(PyBool::new_bound(py, true).is_instance_of::<PyBool>());
-    let list = PyList::new_bound(py, &[1, 2, 3, 4]);
+# fn main() -> PyResult<()> {
+Python::attach(|py| {
+    assert!(PyBool::new(py, true).is_instance_of::<PyBool>());
+    let list = PyList::new(py, &[1, 2, 3, 4])?;
     assert!(!list.is_instance_of::<PyBool>());
     assert!(list.is_instance_of::<PyList>());
-});
+# Ok(())
+})
+# }
 ```
 
 To check the type of an exception, you can similarly do:
 
-```rust
+```rust,no_run
 # use pyo3::exceptions::PyTypeError;
 # use pyo3::prelude::*;
-# Python::with_gil(|py| {
+# Python::attach(|py| {
 # let err = PyTypeError::new_err(());
 err.is_instance_of::<PyTypeError>(py);
 # });
@@ -100,10 +107,10 @@ err.is_instance_of::<PyTypeError>(py);
 ## Using exceptions defined in Python code
 
 It is possible to use an exception defined in Python code as a native Rust type.
-The `import_exception!` macro allows importing a specific exception class and defines a Rust type
+The [`import_exception!`] macro allows importing a specific exception class and defines a Rust type
 for that exception.
 
-```rust
+```rust,no_run
 #![allow(dead_code)]
 use pyo3::prelude::*;
 
@@ -122,11 +129,54 @@ fn tell(file: &Bound<'_, PyAny>) -> PyResult<u64> {
 [`pyo3::exceptions`]({{#PYO3_DOCS_URL}}/pyo3/exceptions/index.html)
 defines exceptions for several standard library modules.
 
+## Creating more complex exceptions
+
+If you need to create an exception with more complex behavior, you can also manually create a subclass of `PyException`:
+
+```rust
+#![allow(dead_code)]
+# #[cfg(any(not(feature = "abi3")))] {
+use pyo3::prelude::*;
+use pyo3::types::IntoPyDict;
+use pyo3::exceptions::PyException;
+
+#[pyclass(extends=PyException)]
+struct CustomError {
+    #[pyo3(get)]
+    url: String,
+
+    #[pyo3(get)]
+    message: String,
+}
+
+#[pymethods]
+impl CustomError {
+    #[new]
+    fn new(url: String, message: String) -> Self {
+        Self { url, message }
+    }
+}
+
+# fn main() -> PyResult<()> {
+Python::attach(|py| {
+    let ctx = [("CustomError", py.get_type::<CustomError>())].into_py_dict(py)?;
+    pyo3::py_run!(
+        py,
+        *ctx,
+        "assert str(CustomError) == \"<class 'builtins.CustomError'>\", repr(CustomError)"
+    );
+    pyo3::py_run!(py, *ctx, "assert CustomError('https://example.com', 'something went bad').args == ('https://example.com', 'something went bad')");
+    pyo3::py_run!(py, *ctx, "assert CustomError('https://example.com', 'something went bad').url == 'https://example.com'");
+#   Ok(())
+})
+# }
+# }
+
+```
+
+Note that this is not possible when the ``abi3`` feature is enabled, as that prevents subclassing ``PyException``.
+
 [`create_exception!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.create_exception.html
 [`import_exception!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.import_exception.html
-
-[`PyErr`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html
-[`PyResult`]: {{#PYO3_DOCS_URL}}/pyo3/type.PyResult.html
-[`PyErr::from_value`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html#method.from_value
-[`PyAny::is_instance`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.is_instance
-[`PyAny::is_instance_of`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.is_instance_of
+[`PyAny::is_instance`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.is_instance
+[`PyAny::is_instance_of`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.is_instance_of

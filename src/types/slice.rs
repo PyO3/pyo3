@@ -1,10 +1,17 @@
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::types::any::PyAnyMethods;
-use crate::{Bound, PyAny, PyNativeType, PyObject, Python, ToPyObject};
+use crate::types::{PyRange, PyRangeMethods};
+use crate::{Bound, IntoPyObject, PyAny, Python};
+use std::convert::Infallible;
 
 /// Represents a Python `slice`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PySlice>`][crate::Py] or [`Bound<'py, PySlice>`][Bound].
+///
+/// For APIs available on `slice` objects, see the [`PySliceMethods`] trait which is implemented for
+/// [`Bound<'py, PySlice>`][Bound].
 ///
 /// Only `isize` indices supported at the moment by the `PySlice` object.
 #[repr(transparent)]
@@ -17,7 +24,7 @@ pyobject_native_type!(
     #checkfunction=ffi::PySlice_Check
 );
 
-/// Return value from [`PySlice::indices`].
+/// Return value from [`PySliceMethods::indices`].
 #[derive(Debug, Eq, PartialEq)]
 pub struct PySliceIndices {
     /// Start of the slice
@@ -47,20 +54,8 @@ impl PySliceIndices {
 }
 
 impl PySlice {
-    /// Deprecated form of `PySlice::new_bound`.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PySlice::new` will be replaced by `PySlice::new_bound` in a future PyO3 version"
-        )
-    )]
-    pub fn new(py: Python<'_>, start: isize, stop: isize, step: isize) -> &PySlice {
-        Self::new_bound(py, start, stop, step).into_gil_ref()
-    }
-
     /// Constructs a new slice with the given elements.
-    pub fn new_bound(py: Python<'_>, start: isize, stop: isize, step: isize) -> Bound<'_, PySlice> {
+    pub fn new(py: Python<'_>, start: isize, stop: isize, step: isize) -> Bound<'_, PySlice> {
         unsafe {
             ffi::PySlice_New(
                 ffi::PyLong_FromSsize_t(start),
@@ -68,37 +63,17 @@ impl PySlice {
                 ffi::PyLong_FromSsize_t(step),
             )
             .assume_owned(py)
-            .downcast_into_unchecked()
+            .cast_into_unchecked()
         }
-    }
-
-    /// Deprecated form of `PySlice::full_bound`.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PySlice::full` will be replaced by `PySlice::full_bound` in a future PyO3 version"
-        )
-    )]
-    pub fn full(py: Python<'_>) -> &PySlice {
-        PySlice::full_bound(py).into_gil_ref()
     }
 
     /// Constructs a new full slice that is equivalent to `::`.
-    pub fn full_bound(py: Python<'_>) -> Bound<'_, PySlice> {
+    pub fn full(py: Python<'_>) -> Bound<'_, PySlice> {
         unsafe {
             ffi::PySlice_New(ffi::Py_None(), ffi::Py_None(), ffi::Py_None())
                 .assume_owned(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
-    }
-
-    /// Retrieves the start, stop, and step indices from the slice object,
-    /// assuming a sequence of length `length`, and stores the length of the
-    /// slice in its `slicelength` member.
-    #[inline]
-    pub fn indices(&self, length: isize) -> PyResult<PySliceIndices> {
-        self.as_borrowed().indices(length)
     }
 }
 
@@ -145,20 +120,48 @@ impl<'py> PySliceMethods<'py> for Bound<'py, PySlice> {
     }
 }
 
-impl ToPyObject for PySliceIndices {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        PySlice::new_bound(py, self.start, self.stop, self.step).into()
+impl<'py> IntoPyObject<'py> for PySliceIndices {
+    type Target = PySlice;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PySlice::new(py, self.start, self.stop, self.step))
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &PySliceIndices {
+    type Target = PySlice;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PySlice::new(py, self.start, self.stop, self.step))
+    }
+}
+
+impl<'py> TryFrom<Bound<'py, PyRange>> for Bound<'py, PySlice> {
+    type Error = PyErr;
+
+    fn try_from(range: Bound<'py, PyRange>) -> Result<Self, Self::Error> {
+        Ok(PySlice::new(
+            range.py(),
+            range.start()?,
+            range.stop()?,
+            range.step()?,
+        ))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::PyAnyMethods as _;
 
     #[test]
     fn test_py_slice_new() {
-        Python::with_gil(|py| {
-            let slice = PySlice::new_bound(py, isize::MIN, isize::MAX, 1);
+        Python::attach(|py| {
+            let slice = PySlice::new(py, isize::MIN, isize::MAX, 1);
             assert_eq!(
                 slice.getattr("start").unwrap().extract::<isize>().unwrap(),
                 isize::MIN
@@ -176,8 +179,8 @@ mod tests {
 
     #[test]
     fn test_py_slice_full() {
-        Python::with_gil(|py| {
-            let slice = PySlice::full_bound(py);
+        Python::attach(|py| {
+            let slice = PySlice::full(py);
             assert!(slice.getattr("start").unwrap().is_none(),);
             assert!(slice.getattr("stop").unwrap().is_none(),);
             assert!(slice.getattr("step").unwrap().is_none(),);

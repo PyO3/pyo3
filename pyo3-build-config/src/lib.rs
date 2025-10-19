@@ -16,15 +16,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use std::{env, process::Command, str::FromStr};
-
-#[cfg(feature = "resolve-config")]
-use once_cell::sync::OnceCell;
+use std::{env, process::Command, str::FromStr, sync::OnceLock};
 
 pub use impl_::{
     cross_compiling_from_to, find_all_sysconfigdata, parse_sysconfigdata, BuildFlag, BuildFlags,
     CrossCompileConfig, InterpreterConfig, PythonImplementation, PythonVersion, Triple,
 };
+
 use target_lexicon::OperatingSystem;
 
 /// Adds all the [`#[cfg]` flags](index.html) to the current compilation.
@@ -40,11 +38,14 @@ use target_lexicon::OperatingSystem;
 /// | `#[cfg(PyPy)]` | This marks code which is run when compiling for PyPy. |
 /// | `#[cfg(GraalPy)]` | This marks code which is run when compiling for GraalPy. |
 ///
-/// For examples of how to use these attributes, [see PyO3's guide](https://pyo3.rs/latest/building-and-distribution/multiple_python_versions.html).
+/// For examples of how to use these attributes,
+#[doc = concat!("[see PyO3's guide](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/building-and-distribution/multiple_python_versions.html)")]
+/// .
 #[cfg(feature = "resolve-config")]
 pub fn use_pyo3_cfgs() {
+    print_expected_cfgs();
     for cargo_command in get().build_script_outputs() {
-        println!("{}", cargo_command)
+        println!("{cargo_command}")
     }
 }
 
@@ -63,7 +64,7 @@ pub fn add_extension_module_link_args() {
 }
 
 fn _add_extension_module_link_args(triple: &Triple, mut writer: impl std::io::Write) {
-    if triple.operating_system == OperatingSystem::Darwin {
+    if matches!(triple.operating_system, OperatingSystem::Darwin(_)) {
         writeln!(writer, "cargo:rustc-cdylib-link-arg=-undefined").unwrap();
         writeln!(writer, "cargo:rustc-cdylib-link-arg=dynamic_lookup").unwrap();
     } else if triple == &Triple::from_str("wasm32-unknown-emscripten").unwrap() {
@@ -72,12 +73,45 @@ fn _add_extension_module_link_args(triple: &Triple, mut writer: impl std::io::Wr
     }
 }
 
+/// Adds linker arguments suitable for linking against the Python framework on macOS.
+///
+/// This should be called from a build script.
+///
+/// The following link flags are added:
+/// - macOS: `-Wl,-rpath,<framework_prefix>`
+///
+/// All other platforms currently are no-ops.
+#[cfg(feature = "resolve-config")]
+pub fn add_python_framework_link_args() {
+    let target = impl_::target_triple_from_env();
+    _add_python_framework_link_args(
+        get(),
+        &target,
+        impl_::is_linking_libpython_for_target(&target),
+        std::io::stdout(),
+    )
+}
+
+#[cfg(feature = "resolve-config")]
+fn _add_python_framework_link_args(
+    interpreter_config: &InterpreterConfig,
+    triple: &Triple,
+    link_libpython: bool,
+    mut writer: impl std::io::Write,
+) {
+    if matches!(triple.operating_system, OperatingSystem::Darwin(_)) && link_libpython {
+        if let Some(framework_prefix) = interpreter_config.python_framework_prefix.as_ref() {
+            writeln!(writer, "cargo:rustc-link-arg=-Wl,-rpath,{framework_prefix}").unwrap();
+        }
+    }
+}
+
 /// Loads the configuration determined from the build environment.
 ///
-/// Because this will never change in a given compilation run, this is cached in a `once_cell`.
+/// Because this will never change in a given compilation run, this is cached in a `OnceLock`.
 #[cfg(feature = "resolve-config")]
 pub fn get() -> &'static InterpreterConfig {
-    static CONFIG: OnceCell<InterpreterConfig> = OnceCell::new();
+    static CONFIG: OnceLock<InterpreterConfig> = OnceLock::new();
     CONFIG.get_or_init(|| {
         // Check if we are in a build script and cross compiling to a different target.
         let cross_compile_config_path = resolve_cross_compile_config_path();
@@ -86,10 +120,12 @@ pub fn get() -> &'static InterpreterConfig {
             .map(|path| path.exists())
             .unwrap_or(false);
 
+        // CONFIG_FILE is generated in build.rs, so its content can vary
+        #[allow(unknown_lints, clippy::const_is_empty)]
         if let Some(interpreter_config) = InterpreterConfig::from_cargo_dep_env() {
             interpreter_config
-        } else if !CONFIG_FILE.is_empty() {
-            InterpreterConfig::from_reader(Cursor::new(CONFIG_FILE))
+        } else if let Some(interpreter_config) = config_from_pyo3_config_file_env() {
+            Ok(interpreter_config)
         } else if cross_compiling {
             InterpreterConfig::from_path(cross_compile_config_path.as_ref().unwrap())
         } else {
@@ -99,13 +135,26 @@ pub fn get() -> &'static InterpreterConfig {
     })
 }
 
-/// Build configuration provided by `PYO3_CONFIG_FILE`. May be empty if env var not set.
-#[doc(hidden)]
+/// Build configuration provided by `PYO3_CONFIG_FILE`, inlined into the `pyo3-build-config` binary.
 #[cfg(feature = "resolve-config")]
-const CONFIG_FILE: &str = include_str!(concat!(env!("OUT_DIR"), "/pyo3-build-config-file.txt"));
+fn config_from_pyo3_config_file_env() -> Option<InterpreterConfig> {
+    #[doc(hidden)]
+    const CONFIG_FILE: &str = include_str!(concat!(env!("OUT_DIR"), "/pyo3-build-config-file.txt"));
+
+    // CONFIG_FILE is generated in build.rs, so its content can vary
+    // TODO: `unknown_lints` allow not needed on MSRV 1.79+
+    #[allow(unknown_lints, clippy::const_is_empty)]
+    if !CONFIG_FILE.is_empty() {
+        let config = InterpreterConfig::from_reader(Cursor::new(CONFIG_FILE))
+            .expect("contents of CONFIG_FILE should always be valid (generated by pyo3-build-config's build.rs)");
+        Some(config)
+    } else {
+        None
+    }
+}
 
 /// Build configuration discovered by `pyo3-build-config` build script. Not aware of
-/// cross-compilation settings.
+/// cross-compilation settings. Not generated if `PYO3_CONFIG_FILE` is set.
 #[doc(hidden)]
 #[cfg(feature = "resolve-config")]
 const HOST_CONFIG: &str = include_str!(concat!(env!("OUT_DIR"), "/pyo3-build-config.txt"));
@@ -126,33 +175,60 @@ fn resolve_cross_compile_config_path() -> Option<PathBuf> {
     })
 }
 
+/// Helper to print a feature cfg with a minimum rust version required.
+fn print_feature_cfg(minor_version_required: u32, cfg: &str) {
+    let minor_version = rustc_minor_version().unwrap_or(0);
+
+    if minor_version >= minor_version_required {
+        println!("cargo:rustc-cfg={cfg}");
+    }
+
+    // rustc 1.80.0 stabilized `rustc-check-cfg` feature, don't emit before
+    if minor_version >= 80 {
+        println!("cargo:rustc-check-cfg=cfg({cfg})");
+    }
+}
+
 /// Use certain features if we detect the compiler being used supports them.
 ///
 /// Features may be removed or added as MSRV gets bumped or new features become available,
 /// so this function is unstable.
 #[doc(hidden)]
 pub fn print_feature_cfgs() {
-    fn rustc_minor_version() -> Option<u32> {
-        let rustc = env::var_os("RUSTC")?;
-        let output = Command::new(rustc).arg("--version").output().ok()?;
-        let version = core::str::from_utf8(&output.stdout).ok()?;
-        let mut pieces = version.split('.');
-        if pieces.next() != Some("rustc 1") {
-            return None;
-        }
-        pieces.next()?.parse().ok()
+    print_feature_cfg(75, "return_position_impl_trait_in_traits");
+    print_feature_cfg(79, "c_str_lit");
+    // Actually this is available on 1.78, but we should avoid
+    // https://github.com/rust-lang/rust/issues/124651 just in case
+    print_feature_cfg(79, "diagnostic_namespace");
+    print_feature_cfg(83, "io_error_more");
+    print_feature_cfg(83, "mut_ref_in_const_fn");
+    print_feature_cfg(85, "fn_ptr_eq");
+    print_feature_cfg(86, "from_bytes_with_nul_error");
+}
+
+/// Registers `pyo3`s config names as reachable cfg expressions
+///
+/// - <https://github.com/rust-lang/cargo/pull/13571>
+/// - <https://doc.rust-lang.org/nightly/cargo/reference/build-scripts.html#rustc-check-cfg>
+#[doc(hidden)]
+pub fn print_expected_cfgs() {
+    if rustc_minor_version().is_some_and(|version| version < 80) {
+        // rustc 1.80.0 stabilized `rustc-check-cfg` feature, don't emit before
+        return;
     }
 
-    let rustc_minor_version = rustc_minor_version().unwrap_or(0);
+    println!("cargo:rustc-check-cfg=cfg(Py_LIMITED_API)");
+    println!("cargo:rustc-check-cfg=cfg(Py_GIL_DISABLED)");
+    println!("cargo:rustc-check-cfg=cfg(PyPy)");
+    println!("cargo:rustc-check-cfg=cfg(GraalPy)");
+    println!("cargo:rustc-check-cfg=cfg(py_sys_config, values(\"Py_DEBUG\", \"Py_REF_DEBUG\", \"Py_TRACE_REFS\", \"COUNT_ALLOCS\"))");
+    println!("cargo:rustc-check-cfg=cfg(pyo3_disable_reference_pool)");
+    println!("cargo:rustc-check-cfg=cfg(pyo3_leak_on_drop_without_reference_pool)");
 
-    // Enable use of const initializer for thread_local! on Rust 1.59 and greater
-    if rustc_minor_version >= 59 {
-        println!("cargo:rustc-cfg=thread_local_const_init");
-    }
-
-    // invalid_from_utf8 lint was added in Rust 1.74
-    if rustc_minor_version >= 74 {
-        println!("cargo:rustc-cfg=invalid_from_utf8_lint");
+    // allow `Py_3_*` cfgs from the minimum supported version up to the
+    // maximum minor version (+1 for development for the next)
+    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::ABI3_MAX_MINOR + 1 {
+        println!("cargo:rustc-check-cfg=cfg(Py_3_{i})");
     }
 }
 
@@ -160,36 +236,56 @@ pub fn print_feature_cfgs() {
 ///
 /// Please don't use these - they could change at any time.
 #[doc(hidden)]
+#[cfg(feature = "resolve-config")]
 pub mod pyo3_build_script_impl {
-    #[cfg(feature = "resolve-config")]
     use crate::errors::{Context, Result};
 
-    #[cfg(feature = "resolve-config")]
     use super::*;
 
     pub mod errors {
         pub use crate::errors::*;
     }
     pub use crate::impl_::{
-        cargo_env_var, env_var, is_linking_libpython, make_cross_compile_config, InterpreterConfig,
-        PythonVersion,
+        cargo_env_var, env_var, is_linking_libpython_for_target, make_cross_compile_config,
+        target_triple_from_env, InterpreterConfig, PythonVersion,
     };
+    pub enum BuildConfigSource {
+        /// Config was provided by `PYO3_CONFIG_FILE`.
+        ConfigFile,
+        /// Config was found by an interpreter on the host system.
+        Host,
+        /// Config was configured by cross-compilation settings.
+        CrossCompile,
+    }
 
-    /// Gets the configuration for use from PyO3's build script.
+    pub struct BuildConfig {
+        pub interpreter_config: InterpreterConfig,
+        pub source: BuildConfigSource,
+    }
+
+    /// Gets the configuration for use from `pyo3-ffi`'s build script.
     ///
-    /// Differs from .get() above only in the cross-compile case, where PyO3's build script is
-    /// required to generate a new config (as it's the first build script which has access to the
-    /// correct value for CARGO_CFG_TARGET_OS).
-    #[cfg(feature = "resolve-config")]
-    pub fn resolve_interpreter_config() -> Result<InterpreterConfig> {
-        if !CONFIG_FILE.is_empty() {
-            let mut interperter_config = InterpreterConfig::from_reader(Cursor::new(CONFIG_FILE))?;
-            interperter_config.generate_import_libs()?;
-            Ok(interperter_config)
+    /// Differs from `.get()` in three ways:
+    /// 1. The cargo_dep_env config is not yet available (exported by `pyo3-ffi`'s build script).
+    /// 1. If `PYO3_CONFIG_FILE` is set, lib name is fixed up and the windows import libs might be generated.
+    /// 2. The cross-compile config file is generated if necessary.
+    ///
+    /// Steps 2 and 3 are necessary because `pyo3-ffi`'s build script is the first code run which knows
+    /// the correct target triple.
+    pub fn resolve_build_config(target: &Triple) -> Result<BuildConfig> {
+        // CONFIG_FILE is generated in build.rs, so it's content can vary
+        #[allow(unknown_lints, clippy::const_is_empty)]
+        if let Some(mut interpreter_config) = config_from_pyo3_config_file_env() {
+            interpreter_config.apply_default_lib_name_to_config_file(target);
+            interpreter_config.generate_import_libs()?;
+            Ok(BuildConfig {
+                interpreter_config,
+                source: BuildConfigSource::ConfigFile,
+            })
         } else if let Some(interpreter_config) = make_cross_compile_config()? {
             // This is a cross compile and need to write the config file.
             let path = resolve_cross_compile_config_path()
-                .expect("resolve_interpreter_config() must be called from a build script");
+                .expect("resolve_build_config() must be called from a build script");
             let parent_dir = path.parent().ok_or_else(|| {
                 format!(
                     "failed to resolve parent directory of config file {}",
@@ -205,11 +301,69 @@ pub mod pyo3_build_script_impl {
             interpreter_config.to_writer(&mut std::fs::File::create(&path).with_context(
                 || format!("failed to create config file at {}", path.display()),
             )?)?;
-            Ok(interpreter_config)
+            Ok(BuildConfig {
+                interpreter_config,
+                source: BuildConfigSource::CrossCompile,
+            })
         } else {
-            InterpreterConfig::from_reader(Cursor::new(HOST_CONFIG))
+            let interpreter_config = InterpreterConfig::from_reader(Cursor::new(HOST_CONFIG))?;
+            Ok(BuildConfig {
+                interpreter_config,
+                source: BuildConfigSource::Host,
+            })
         }
     }
+
+    /// Helper to generate an error message when the configured Python version is newer
+    /// than PyO3's current supported version.
+    pub struct MaximumVersionExceeded {
+        message: String,
+    }
+
+    impl MaximumVersionExceeded {
+        pub fn new(
+            interpreter_config: &InterpreterConfig,
+            supported_version: PythonVersion,
+        ) -> Self {
+            let implementation = match interpreter_config.implementation {
+                PythonImplementation::CPython => "Python",
+                PythonImplementation::PyPy => "PyPy",
+                PythonImplementation::GraalPy => "GraalPy",
+            };
+            let version = &interpreter_config.version;
+            let message = format!(
+                "the configured {implementation} version ({version}) is newer than PyO3's maximum supported version ({supported_version})\n\
+                = help: this package is being built with PyO3 version {current_version}\n\
+                = help: check https://crates.io/crates/pyo3 for the latest PyO3 version available\n\
+                = help: updating this package to the latest version of PyO3 may provide compatibility with this {implementation} version",
+                current_version = env!("CARGO_PKG_VERSION")
+            );
+            Self { message }
+        }
+
+        pub fn add_help(&mut self, help: &str) {
+            self.message.push_str("\n= help: ");
+            self.message.push_str(help);
+        }
+
+        pub fn finish(self) -> String {
+            self.message
+        }
+    }
+}
+
+fn rustc_minor_version() -> Option<u32> {
+    static RUSTC_MINOR_VERSION: OnceLock<Option<u32>> = OnceLock::new();
+    *RUSTC_MINOR_VERSION.get_or_init(|| {
+        let rustc = env::var_os("RUSTC")?;
+        let output = Command::new(rustc).arg("--version").output().ok()?;
+        let version = core::str::from_utf8(&output.stdout).ok()?;
+        let mut pieces = version.split('.');
+        if pieces.next() != Some("rustc 1") {
+            return None;
+        }
+        pieces.next()?.parse().ok()
+    })
 }
 
 #[cfg(test)]
@@ -247,5 +401,89 @@ mod tests {
             "cargo:rustc-cdylib-link-arg=-sSIDE_MODULE=2\n\
              cargo:rustc-cdylib-link-arg=-sWASM_BIGINT\n"
         );
+    }
+
+    #[cfg(feature = "resolve-config")]
+    #[test]
+    fn python_framework_link_args() {
+        let mut buf = Vec::new();
+
+        let interpreter_config = InterpreterConfig {
+            implementation: PythonImplementation::CPython,
+            version: PythonVersion {
+                major: 3,
+                minor: 13,
+            },
+            shared: true,
+            abi3: false,
+            lib_name: None,
+            lib_dir: None,
+            executable: None,
+            pointer_width: None,
+            build_flags: BuildFlags::default(),
+            suppress_build_script_link_lines: false,
+            extra_build_script_lines: vec![],
+            python_framework_prefix: Some(
+                "/Applications/Xcode.app/Contents/Developer/Library/Frameworks".to_string(),
+            ),
+        };
+        // Does nothing on non-mac
+        _add_python_framework_link_args(
+            &interpreter_config,
+            &Triple::from_str("x86_64-pc-windows-msvc").unwrap(),
+            true,
+            &mut buf,
+        );
+        assert_eq!(buf, Vec::new());
+
+        _add_python_framework_link_args(
+            &interpreter_config,
+            &Triple::from_str("x86_64-apple-darwin").unwrap(),
+            true,
+            &mut buf,
+        );
+        assert_eq!(
+            std::str::from_utf8(&buf).unwrap(),
+            "cargo:rustc-link-arg=-Wl,-rpath,/Applications/Xcode.app/Contents/Developer/Library/Frameworks\n"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "resolve-config")]
+    fn test_maximum_version_exceeded_formatting() {
+        let interpreter_config = InterpreterConfig {
+            implementation: PythonImplementation::CPython,
+            version: PythonVersion {
+                major: 3,
+                minor: 13,
+            },
+            shared: true,
+            abi3: false,
+            lib_name: None,
+            lib_dir: None,
+            executable: None,
+            pointer_width: None,
+            build_flags: BuildFlags::default(),
+            suppress_build_script_link_lines: false,
+            extra_build_script_lines: vec![],
+            python_framework_prefix: None,
+        };
+        let mut error = pyo3_build_script_impl::MaximumVersionExceeded::new(
+            &interpreter_config,
+            PythonVersion {
+                major: 3,
+                minor: 12,
+            },
+        );
+        error.add_help("this is a help message");
+        let error = error.finish();
+        let expected = concat!("\
+            the configured Python version (3.13) is newer than PyO3's maximum supported version (3.12)\n\
+            = help: this package is being built with PyO3 version ", env!("CARGO_PKG_VERSION"), "\n\
+            = help: check https://crates.io/crates/pyo3 for the latest PyO3 version available\n\
+            = help: updating this package to the latest version of PyO3 may provide compatibility with this Python version\n\
+            = help: this is a help message"
+        );
+        assert_eq!(error, expected);
     }
 }

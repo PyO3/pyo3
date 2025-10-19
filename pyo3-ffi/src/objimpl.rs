@@ -1,5 +1,5 @@
 use libc::size_t;
-use std::os::raw::{c_int, c_void};
+use std::ffi::{c_int, c_void};
 
 use crate::object::*;
 use crate::pyport::Py_ssize_t;

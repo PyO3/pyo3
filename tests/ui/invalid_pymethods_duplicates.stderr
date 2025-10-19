@@ -1,18 +1,18 @@
-error[E0119]: conflicting implementations of trait `pyo3::impl_::pyclass::PyClassNewTextSignature<TwoNew>` for type `pyo3::impl_::pyclass::PyClassImplCollector<TwoNew>`
- --> tests/ui/invalid_pymethods_duplicates.rs:8:1
+error[E0119]: conflicting implementations of trait `PyClassNewTextSignature` for type `TwoNew`
+ --> tests/ui/invalid_pymethods_duplicates.rs:9:1
   |
-8 | #[pymethods]
+9 | #[pymethods]
   | ^^^^^^^^^^^^
   | |
   | first implementation here
-  | conflicting implementation for `pyo3::impl_::pyclass::PyClassImplCollector<TwoNew>`
+  | conflicting implementation for `TwoNew`
   |
   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0592]: duplicate definitions with name `__pymethod___new____`
- --> tests/ui/invalid_pymethods_duplicates.rs:8:1
+ --> tests/ui/invalid_pymethods_duplicates.rs:9:1
   |
-8 | #[pymethods]
+9 | #[pymethods]
   | ^^^^^^^^^^^^
   | |
   | duplicate definitions for `__pymethod___new____`
@@ -21,9 +21,9 @@ error[E0592]: duplicate definitions with name `__pymethod___new____`
   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0592]: duplicate definitions with name `__pymethod_func__`
-  --> tests/ui/invalid_pymethods_duplicates.rs:23:1
+  --> tests/ui/invalid_pymethods_duplicates.rs:25:1
    |
-23 | #[pymethods]
+25 | #[pymethods]
    | ^^^^^^^^^^^^
    | |
    | duplicate definitions for `__pymethod_func__`

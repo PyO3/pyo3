@@ -1,0 +1,17 @@
+error: async functions are only supported with the `experimental-async` feature
+ --> tests/ui/invalid_async.rs:4:1
+  |
+4 | async fn check(){}
+  | ^^^^^
+
+error: async functions are only supported with the `experimental-async` feature
+  --> tests/ui/invalid_async.rs:13:5
+   |
+13 |     async fn __anext__(mut _pyself: PyRefMut<'_, Self>) -> PyResult<i32> {
+   |     ^^^^^
+
+error: async functions are only supported with the `experimental-async` feature
+  --> tests/ui/invalid_async.rs:17:5
+   |
+17 |     async fn foo(&self) {}
+   |     ^^^^^

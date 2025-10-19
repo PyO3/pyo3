@@ -160,7 +160,7 @@ struct InvalidFromPyWith {
 }
 
 #[derive(FromPyObject)]
-struct InvalidFromPyWithLiteral {
+struct InvalidFromPyWithNotFound {
     #[pyo3(from_py_with = func)]
     field: String,
 }
@@ -211,6 +211,52 @@ struct FromItemAllConflictAttr {
 struct FromItemAllConflictAttrWithArgs {
     #[pyo3(attribute("f"))]
     field: String,
+}
+
+#[derive(FromPyObject)]
+struct StructWithOnlyDefaultValues {
+    #[pyo3(default)]
+    field: String,
+}
+
+#[derive(FromPyObject)]
+enum EnumVariantWithOnlyDefaultValues {
+    Foo {
+        #[pyo3(default)]
+        field: String,
+    },
+}
+
+#[derive(FromPyObject)]
+struct NamedTuplesWithDefaultValues(#[pyo3(default)] String);
+
+#[derive(FromPyObject)]
+#[pyo3(rename_all = "camelCase", rename_all = "kebab-case")]
+struct MultipleRenames {
+    snake_case: String,
+}
+
+#[derive(FromPyObject)]
+#[pyo3(rename_all = "camelCase")]
+struct RenameAllTuple(String);
+
+#[derive(FromPyObject)]
+enum RenameAllEnum {
+    #[pyo3(rename_all = "camelCase")]
+    Tuple(String),
+}
+
+#[derive(FromPyObject)]
+#[pyo3(transparent, rename_all = "camelCase")]
+struct RenameAllTransparent {
+    inner: String,
+}
+
+#[derive(FromPyObject)]
+#[pyo3(rename_all = "camelCase")]
+enum UselessRenameAllEnum {
+    #[pyo3(rename_all = "camelCase")]
+    Tuple { inner_field: String },
 }
 
 fn main() {}

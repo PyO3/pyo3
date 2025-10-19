@@ -4,33 +4,23 @@ use crate::{
 };
 
 /// Represents the Python `NotImplemented` object.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyNotImplemented>`][crate::Py] or [`Bound<'py, PyNotImplemented>`][Bound].
 #[repr(transparent)]
 pub struct PyNotImplemented(PyAny);
 
 pyobject_native_type_named!(PyNotImplemented);
-pyobject_native_type_extract!(PyNotImplemented);
 
 impl PyNotImplemented {
     /// Returns the `NotImplemented` object.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyNotImplemented::get` will be replaced by `PyNotImplemented::get_bound` in a future PyO3 version"
-        )
-    )]
     #[inline]
-    pub fn get(py: Python<'_>) -> &PyNotImplemented {
-        Self::get_bound(py).into_gil_ref()
-    }
-
-    /// Returns the `NotImplemented` object.
-    #[inline]
-    pub fn get_bound(py: Python<'_>) -> Borrowed<'_, '_, PyNotImplemented> {
+    pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyNotImplemented> {
+        // SAFETY: `Py_NotImplemented` is a global singleton which is known to be the NotImplemented object
         unsafe {
             ffi::Py_NotImplemented()
-                .assume_borrowed(py)
-                .downcast_unchecked()
+                .assume_borrowed_unchecked(py)
+                .cast_unchecked()
         }
     }
 }
@@ -44,14 +34,14 @@ unsafe impl PyTypeInfo for PyNotImplemented {
     }
 
     #[inline]
-    fn is_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
+    fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
         // NotImplementedType is not usable as a base type
-        Self::is_exact_type_of_bound(object)
+        Self::is_exact_type_of(object)
     }
 
     #[inline]
-    fn is_exact_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
-        object.is(&**Self::get_bound(object.py()))
+    fn is_exact_type_of(object: &Bound<'_, PyAny>) -> bool {
+        object.is(&**Self::get(object.py()))
     }
 }
 
@@ -63,27 +53,25 @@ mod tests {
 
     #[test]
     fn test_notimplemented_is_itself() {
-        Python::with_gil(|py| {
-            assert!(PyNotImplemented::get_bound(py).is_instance_of::<PyNotImplemented>());
-            assert!(PyNotImplemented::get_bound(py).is_exact_instance_of::<PyNotImplemented>());
+        Python::attach(|py| {
+            assert!(PyNotImplemented::get(py).is_instance_of::<PyNotImplemented>());
+            assert!(PyNotImplemented::get(py).is_exact_instance_of::<PyNotImplemented>());
         })
     }
 
     #[test]
     fn test_notimplemented_type_object_consistent() {
-        Python::with_gil(|py| {
-            assert!(PyNotImplemented::get_bound(py)
+        Python::attach(|py| {
+            assert!(PyNotImplemented::get(py)
                 .get_type()
-                .is(&PyNotImplemented::type_object_bound(py)));
+                .is(PyNotImplemented::type_object(py)));
         })
     }
 
     #[test]
     fn test_dict_is_not_notimplemented() {
-        Python::with_gil(|py| {
-            assert!(PyDict::new_bound(py)
-                .downcast::<PyNotImplemented>()
-                .is_err());
+        Python::attach(|py| {
+            assert!(PyDict::new(py).cast::<PyNotImplemented>().is_err());
         })
     }
 }

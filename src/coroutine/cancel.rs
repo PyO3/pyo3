@@ -1,13 +1,12 @@
-use crate::{Py, PyAny, PyObject};
-use parking_lot::Mutex;
+use crate::{Py, PyAny};
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll, Waker};
 
 #[derive(Debug, Default)]
 struct Inner {
-    exception: Option<PyObject>,
+    exception: Option<Py<PyAny>>,
     waker: Option<Waker>,
 }
 
@@ -25,12 +24,12 @@ impl CancelHandle {
 
     /// Returns whether the associated coroutine has been cancelled.
     pub fn is_cancelled(&self) -> bool {
-        self.0.lock().exception.is_some()
+        self.0.lock().unwrap().exception.is_some()
     }
 
     /// Poll to retrieve the exception thrown in the associated coroutine.
-    pub fn poll_cancelled(&mut self, cx: &mut Context<'_>) -> Poll<PyObject> {
-        let mut inner = self.0.lock();
+    pub fn poll_cancelled(&mut self, cx: &mut Context<'_>) -> Poll<Py<PyAny>> {
+        let mut inner = self.0.lock().unwrap();
         if let Some(exc) = inner.exception.take() {
             return Poll::Ready(exc);
         }
@@ -44,7 +43,7 @@ impl CancelHandle {
     }
 
     /// Retrieve the exception thrown in the associated coroutine.
-    pub async fn cancelled(&mut self) -> PyObject {
+    pub async fn cancelled(&mut self) -> Py<PyAny> {
         Cancelled(self).await
     }
 
@@ -58,7 +57,7 @@ impl CancelHandle {
 struct Cancelled<'a>(&'a mut CancelHandle);
 
 impl Future for Cancelled<'_> {
-    type Output = PyObject;
+    type Output = Py<PyAny>;
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         self.0.poll_cancelled(cx)
     }
@@ -69,7 +68,7 @@ pub struct ThrowCallback(Arc<Mutex<Inner>>);
 
 impl ThrowCallback {
     pub(super) fn throw(&self, exc: Py<PyAny>) {
-        let mut inner = self.0.lock();
+        let mut inner = self.0.lock().unwrap();
         inner.exception = Some(exc);
         if let Some(waker) = inner.waker.take() {
             waker.wake();

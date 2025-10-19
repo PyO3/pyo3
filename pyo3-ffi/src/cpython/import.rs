@@ -1,7 +1,7 @@
 use crate::{PyInterpreterState, PyObject};
 #[cfg(not(PyPy))]
-use std::os::raw::c_uchar;
-use std::os::raw::{c_char, c_int};
+use std::ffi::c_uchar;
+use std::ffi::{c_char, c_int};
 
 // skipped PyInit__imp
 
@@ -57,7 +57,7 @@ pub struct _frozen {
     pub size: c_int,
     #[cfg(Py_3_11)]
     pub is_package: c_int,
-    #[cfg(Py_3_11)]
+    #[cfg(all(Py_3_11, not(Py_3_13)))]
     pub get_code: Option<unsafe extern "C" fn() -> *mut PyObject>,
 }
 
@@ -65,10 +65,8 @@ pub struct _frozen {
 extern "C" {
     #[cfg(not(PyPy))]
     pub static mut PyImport_FrozenModules: *const _frozen;
-    #[cfg(all(not(PyPy), Py_3_11))]
-    pub static mut _PyImport_FrozenBootstrap: *const _frozen;
-    #[cfg(all(not(PyPy), Py_3_11))]
-    pub static mut _PyImport_FrozenStdlib: *const _frozen;
-    #[cfg(all(not(PyPy), Py_3_11))]
-    pub static mut _PyImport_FrozenTest: *const _frozen;
 }
+
+// skipped _PyImport_FrozenBootstrap
+// skipped _PyImport_FrozenStdlib
+// skipped _PyImport_FrozenTest

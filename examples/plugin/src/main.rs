@@ -7,19 +7,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //"export" our API module to the python runtime
     pyo3::append_to_inittab!(pylib_module);
     //spawn runtime
-    pyo3::prepare_freethreaded_python();
+    Python::initialize();
     //import path for python
     let path = Path::new("./python_plugin/");
     //do useful work
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         //add the current directory to import path of Python (do not use this in production!)
-        let syspath: &PyList = py.import("sys")?.getattr("path")?.extract()?;
+        let syspath: Bound<PyList> = py.import("sys")?.getattr("path")?.extract()?;
         syspath.insert(0, &path)?;
         println!("Import path is: {:?}", syspath);
 
         // Now we can load our python_plugin/gadget_init_plugin.py file.
         // It can in turn import other stuff as it deems appropriate
-        let plugin = PyModule::import_bound(py, "gadget_init_plugin")?;
+        let plugin = PyModule::import(py, "gadget_init_plugin")?;
         // and call start function there, which will return a python reference to Gadget.
         // Gadget here is a "pyclass" object reference
         let gadget = plugin.getattr("start")?.call0()?;

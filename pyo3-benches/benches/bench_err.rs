@@ -3,7 +3,7 @@ use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criter
 use pyo3::{exceptions::PyValueError, prelude::*};
 
 fn err_new_restore_and_fetch(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         b.iter(|| {
             PyValueError::new_err("some exception message").restore(py);
             PyErr::fetch(py)

@@ -13,6 +13,7 @@ Rust code uses the generic [`Result<T, E>`] enum to propagate errors. The error 
 PyO3 has the [`PyErr`] type which represents a Python exception. If a PyO3 API could result in a Python exception being raised, the return type of that `API` will be [`PyResult<T>`], which is an alias for the type `Result<T, PyErr>`.
 
 In summary:
+
 - When Python exceptions are raised and caught by PyO3, the exception will be stored in the `Err` variant of the `PyResult`.
 - Passing Python exceptions through Rust code then uses all the "normal" techniques such as the `?` operator, with `PyErr` as the error type.
 - Finally, when a `PyResult` crosses from Rust back to Python via PyO3, if the result is an `Err` variant the contained exception will be raised.
@@ -43,8 +44,8 @@ fn check_positive(x: i32) -> PyResult<()> {
 }
 #
 # fn main(){
-# 	Python::with_gil(|py|{
-# 		let fun = pyo3::wrap_pyfunction_bound!(check_positive, py).unwrap();
+# 	Python::attach(|py|{
+# 		let fun = pyo3::wrap_pyfunction!(check_positive, py).unwrap();
 # 		fun.call1((-1,)).unwrap_err();
 # 		fun.call1((1,)).unwrap();
 # 	});
@@ -71,8 +72,8 @@ fn parse_int(x: &str) -> Result<usize, ParseIntError> {
 }
 
 # fn main() {
-#     Python::with_gil(|py| {
-#         let fun = pyo3::wrap_pyfunction_bound!(parse_int, py).unwrap();
+#     Python::attach(|py| {
+#         let fun = pyo3::wrap_pyfunction!(parse_int, py).unwrap();
 #         let value: usize = fun.call1(("5",)).unwrap().extract().unwrap();
 #         assert_eq!(value, 5);
 #     });
@@ -131,8 +132,8 @@ fn connect(s: String) -> Result<(), CustomIOError> {
 }
 
 fn main() {
-    Python::with_gil(|py| {
-        let fun = pyo3::wrap_pyfunction_bound!(connect, py).unwrap();
+    Python::attach(|py| {
+        let fun = pyo3::wrap_pyfunction!(connect, py).unwrap();
         let err = fun.call1(("0.0.0.0",)).unwrap_err();
         assert!(err.is_instance_of::<PyOSError>(py));
     });
@@ -158,7 +159,7 @@ fn parse_int(s: String) -> PyResult<usize> {
 # use pyo3::exceptions::PyValueError;
 #
 # fn main() {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         assert_eq!(parse_int(String::from("1")).unwrap(), 1);
 #         assert_eq!(parse_int(String::from("1337")).unwrap(), 1337);
 #
@@ -223,14 +224,17 @@ fn wrapped_get_x() -> Result<i32, MyOtherError> {
 }
 
 # fn main() {
-#     Python::with_gil(|py| {
-#         let fun = pyo3::wrap_pyfunction_bound!(wrapped_get_x, py).unwrap();
+#     Python::attach(|py| {
+#         let fun = pyo3::wrap_pyfunction!(wrapped_get_x, py).unwrap();
 #         let value: usize = fun.call0().unwrap().extract().unwrap();
 #         assert_eq!(value, 5);
 #     });
 # }
 ```
 
+## Notes
+
+In Python 3.11 and up, notes can be added to Python exceptions to provide additional debugging information when printing the exception. In PyO3, you can use the `add_note` method on `PyErr` to accomplish this functionality.
 
 [`From`]: https://doc.rust-lang.org/stable/std/convert/trait.From.html
 [`Result<T, E>`]: https://doc.rust-lang.org/stable/std/result/enum.Result.html

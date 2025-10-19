@@ -1,10 +1,11 @@
-use crate::{err::PyErrArguments, exceptions, IntoPy, PyErr, PyObject, Python};
+use crate::{err::PyErrArguments, exceptions, PyErr, Python};
+use crate::{IntoPyObject, Py, PyAny};
 use std::io;
 
 /// Convert `PyErr` to `io::Error`
 impl From<PyErr> for io::Error {
     fn from(err: PyErr) -> Self {
-        let kind = Python::with_gil(|py| {
+        let kind = Python::attach(|py| {
             if err.is_instance_of::<exceptions::PyBrokenPipeError>(py) {
                 io::ErrorKind::BrokenPipe
             } else if err.is_instance_of::<exceptions::PyConnectionRefusedError>(py) {
@@ -25,7 +26,19 @@ impl From<PyErr> for io::Error {
                 io::ErrorKind::WouldBlock
             } else if err.is_instance_of::<exceptions::PyTimeoutError>(py) {
                 io::ErrorKind::TimedOut
+            } else if err.is_instance_of::<exceptions::PyMemoryError>(py) {
+                io::ErrorKind::OutOfMemory
             } else {
+                #[cfg(io_error_more)]
+                #[allow(clippy::incompatible_msrv)] // gated by `io_error_more`
+                if err.is_instance_of::<exceptions::PyIsADirectoryError>(py) {
+                    io::ErrorKind::IsADirectory
+                } else if err.is_instance_of::<exceptions::PyNotADirectoryError>(py) {
+                    io::ErrorKind::NotADirectory
+                } else {
+                    io::ErrorKind::Other
+                }
+                #[cfg(not(io_error_more))]
                 io::ErrorKind::Other
             }
         });
@@ -39,7 +52,7 @@ impl From<PyErr> for io::Error {
 impl From<io::Error> for PyErr {
     fn from(err: io::Error) -> PyErr {
         // If the error wraps a Python error we return it
-        if err.get_ref().map_or(false, |e| e.is::<PyErr>()) {
+        if err.get_ref().is_some_and(|e| e.is::<PyErr>()) {
             return *err.into_inner().unwrap().downcast().unwrap();
         }
         match err.kind() {
@@ -53,14 +66,24 @@ impl From<io::Error> for PyErr {
             io::ErrorKind::AlreadyExists => exceptions::PyFileExistsError::new_err(err),
             io::ErrorKind::WouldBlock => exceptions::PyBlockingIOError::new_err(err),
             io::ErrorKind::TimedOut => exceptions::PyTimeoutError::new_err(err),
+            io::ErrorKind::OutOfMemory => exceptions::PyMemoryError::new_err(err),
+            #[cfg(io_error_more)]
+            io::ErrorKind::IsADirectory => exceptions::PyIsADirectoryError::new_err(err),
+            #[cfg(io_error_more)]
+            io::ErrorKind::NotADirectory => exceptions::PyNotADirectoryError::new_err(err),
             _ => exceptions::PyOSError::new_err(err),
         }
     }
 }
 
 impl PyErrArguments for io::Error {
-    fn arguments(self, py: Python<'_>) -> PyObject {
-        self.to_string().into_py(py)
+    fn arguments(self, py: Python<'_>) -> Py<PyAny> {
+        //FIXME(icxolu) remove unwrap
+        self.to_string()
+            .into_pyobject(py)
+            .unwrap()
+            .into_any()
+            .unbind()
     }
 }
 
@@ -71,7 +94,7 @@ impl<W> From<io::IntoInnerError<W>> for PyErr {
 }
 
 impl<W: Send + Sync> PyErrArguments for io::IntoInnerError<W> {
-    fn arguments(self, py: Python<'_>) -> PyObject {
+    fn arguments(self, py: Python<'_>) -> Py<PyAny> {
         self.into_error().arguments(py)
     }
 }
@@ -85,8 +108,13 @@ impl From<std::convert::Infallible> for PyErr {
 macro_rules! impl_to_pyerr {
     ($err: ty, $pyexc: ty) => {
         impl PyErrArguments for $err {
-            fn arguments(self, py: Python<'_>) -> PyObject {
-                self.to_string().into_py(py)
+            fn arguments(self, py: Python<'_>) -> $crate::Py<$crate::PyAny> {
+                // FIXME(icxolu) remove unwrap
+                self.to_string()
+                    .into_pyobject(py)
+                    .unwrap()
+                    .into_any()
+                    .unbind()
             }
         }
 
@@ -127,11 +155,11 @@ mod tests {
         use crate::types::any::PyAnyMethods;
 
         let check_err = |kind, expected_ty| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let rust_err = io::Error::new(kind, "some error msg");
 
                 let py_err: PyErr = rust_err.into();
-                let py_err_msg = format!("{}: some error msg", expected_ty);
+                let py_err_msg = format!("{expected_ty}: some error msg");
                 assert_eq!(py_err.to_string(), py_err_msg);
                 let py_error_clone = py_err.clone_ref(py);
 
@@ -141,8 +169,8 @@ mod tests {
 
                 let py_err_recovered_from_rust_err: PyErr = rust_err_from_py_err.into();
                 assert!(py_err_recovered_from_rust_err
-                    .value_bound(py)
-                    .is(py_error_clone.value_bound(py))); // It should be the same exception
+                    .value(py)
+                    .is(py_error_clone.value(py))); // It should be the same exception
             })
         };
 
@@ -156,5 +184,9 @@ mod tests {
         check_err(io::ErrorKind::AlreadyExists, "FileExistsError");
         check_err(io::ErrorKind::WouldBlock, "BlockingIOError");
         check_err(io::ErrorKind::TimedOut, "TimeoutError");
+        #[cfg(io_error_more)]
+        check_err(io::ErrorKind::IsADirectory, "IsADirectoryError");
+        #[cfg(io_error_more)]
+        check_err(io::ErrorKind::NotADirectory, "NotADirectoryError");
     }
 }

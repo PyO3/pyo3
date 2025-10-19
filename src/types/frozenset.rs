@@ -4,9 +4,9 @@ use crate::{
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     py_result_ext::PyResultExt,
-    types::any::PyAnyMethods,
-    Bound, PyAny, PyNativeType, PyObject, Python, ToPyObject,
+    Bound, PyAny, Python,
 };
+use crate::{Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt};
 use std::ptr;
 
 /// Allows building a Python `frozenset` one item at a time
@@ -20,46 +20,48 @@ impl<'py> PyFrozenSetBuilder<'py> {
     /// panic when running out of memory.
     pub fn new(py: Python<'py>) -> PyResult<PyFrozenSetBuilder<'py>> {
         Ok(PyFrozenSetBuilder {
-            py_frozen_set: PyFrozenSet::empty_bound(py)?,
+            py_frozen_set: PyFrozenSet::empty(py)?,
         })
     }
 
     /// Adds an element to the set.
     pub fn add<K>(&mut self, key: K) -> PyResult<()>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
     {
-        fn inner(frozenset: &Bound<'_, PyFrozenSet>, key: PyObject) -> PyResult<()> {
+        fn inner(frozenset: &Bound<'_, PyFrozenSet>, key: Borrowed<'_, '_, PyAny>) -> PyResult<()> {
             err::error_on_minusone(frozenset.py(), unsafe {
                 ffi::PySet_Add(frozenset.as_ptr(), key.as_ptr())
             })
         }
 
-        inner(&self.py_frozen_set, key.to_object(self.py_frozen_set.py()))
-    }
-
-    /// Deprecated form of [`PyFrozenSetBuilder::finalize_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyFrozenSetBuilder::finalize` will be replaced by `PyFrozenSetBuilder::finalize_bound` in a future PyO3 version"
+        inner(
+            &self.py_frozen_set,
+            key.into_pyobject(self.py_frozen_set.py())
+                .map_err(Into::into)?
+                .into_any()
+                .as_borrowed(),
         )
-    )]
-    pub fn finalize(self) -> &'py PyFrozenSet {
-        self.finalize_bound().into_gil_ref()
     }
 
     /// Finish building the set and take ownership of its current value
-    pub fn finalize_bound(self) -> Bound<'py, PyFrozenSet> {
+    pub fn finalize(self) -> Bound<'py, PyFrozenSet> {
         self.py_frozen_set
     }
 }
 
-/// Represents a  Python `frozenset`
+/// Represents a  Python `frozenset`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyFrozenSet>`][crate::Py] or [`Bound<'py, PyFrozenSet>`][Bound].
+///
+/// For APIs available on `frozenset` objects, see the [`PyFrozenSetMethods`] trait which is implemented for
+/// [`Bound<'py, PyFrozenSet>`][Bound].
 #[repr(transparent)]
 pub struct PyFrozenSet(PyAny);
 
+#[cfg(not(any(PyPy, GraalPy)))]
+pyobject_subclassable_native_type!(PyFrozenSet, crate::ffi::PySetObject);
 #[cfg(not(any(PyPy, GraalPy)))]
 pyobject_native_type!(
     PyFrozenSet,
@@ -76,78 +78,27 @@ pyobject_native_type_core!(
 );
 
 impl PyFrozenSet {
-    /// Deprecated form of [`PyFrozenSet::new_bound`].
-    #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyFrozenSet::new` will be replaced by `PyFrozenSet::new_bound` in a future PyO3 version"
-        )
-    )]
-    pub fn new<'a, 'p, T: ToPyObject + 'a>(
-        py: Python<'p>,
-        elements: impl IntoIterator<Item = &'a T>,
-    ) -> PyResult<&'p PyFrozenSet> {
-        Self::new_bound(py, elements).map(Bound::into_gil_ref)
-    }
-
     /// Creates a new frozenset.
     ///
     /// May panic when running out of memory.
     #[inline]
-    pub fn new_bound<'a, 'p, T: ToPyObject + 'a>(
-        py: Python<'p>,
-        elements: impl IntoIterator<Item = &'a T>,
-    ) -> PyResult<Bound<'p, PyFrozenSet>> {
-        new_from_iter(py, elements)
-    }
-
-    /// Deprecated form of [`PyFrozenSet::empty_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyFrozenSet::empty` will be replaced by `PyFrozenSet::empty_bound` in a future PyO3 version"
-        )
-    )]
-    pub fn empty(py: Python<'_>) -> PyResult<&'_ PyFrozenSet> {
-        Self::empty_bound(py).map(Bound::into_gil_ref)
+    pub fn new<'py, T>(
+        py: Python<'py>,
+        elements: impl IntoIterator<Item = T>,
+    ) -> PyResult<Bound<'py, PyFrozenSet>>
+    where
+        T: IntoPyObject<'py>,
+    {
+        try_new_from_iter(py, elements)
     }
 
     /// Creates a new empty frozen set
-    pub fn empty_bound(py: Python<'_>) -> PyResult<Bound<'_, PyFrozenSet>> {
+    pub fn empty(py: Python<'_>) -> PyResult<Bound<'_, PyFrozenSet>> {
         unsafe {
             ffi::PyFrozenSet_New(ptr::null_mut())
                 .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
-    }
-
-    /// Return the number of items in the set.
-    /// This is equivalent to len(p) on a set.
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.as_borrowed().len()
-    }
-
-    /// Check if set is empty.
-    pub fn is_empty(&self) -> bool {
-        self.as_borrowed().is_empty()
-    }
-
-    /// Determine if the set contains the specified key.
-    /// This is equivalent to the Python expression `key in self`.
-    pub fn contains<K>(&self, key: K) -> PyResult<bool>
-    where
-        K: ToPyObject,
-    {
-        self.as_borrowed().contains(key)
-    }
-
-    /// Returns an iterator of values in this frozen set.
-    pub fn iter(&self) -> PyFrozenSetIterator<'_> {
-        PyFrozenSetIterator(BoundFrozenSetIterator::new(self.as_borrowed().to_owned()))
     }
 }
 
@@ -173,7 +124,7 @@ pub trait PyFrozenSetMethods<'py>: crate::sealed::Sealed {
     /// This is equivalent to the Python expression `key in self`.
     fn contains<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToPyObject;
+        K: IntoPyObject<'py>;
 
     /// Returns an iterator of values in this set.
     fn iter(&self) -> BoundFrozenSetIterator<'py>;
@@ -187,9 +138,12 @@ impl<'py> PyFrozenSetMethods<'py> for Bound<'py, PyFrozenSet> {
 
     fn contains<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToPyObject,
+        K: IntoPyObject<'py>,
     {
-        fn inner(frozenset: &Bound<'_, PyFrozenSet>, key: Bound<'_, PyAny>) -> PyResult<bool> {
+        fn inner(
+            frozenset: &Bound<'_, PyFrozenSet>,
+            key: Borrowed<'_, '_, PyAny>,
+        ) -> PyResult<bool> {
             match unsafe { ffi::PySet_Contains(frozenset.as_ptr(), key.as_ptr()) } {
                 1 => Ok(true),
                 0 => Ok(false),
@@ -198,44 +152,14 @@ impl<'py> PyFrozenSetMethods<'py> for Bound<'py, PyFrozenSet> {
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).into_bound(py))
+        inner(
+            self,
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
+        )
     }
 
     fn iter(&self) -> BoundFrozenSetIterator<'py> {
         BoundFrozenSetIterator::new(self.clone())
-    }
-}
-
-/// PyO3 implementation of an iterator for a Python `frozenset` object.
-pub struct PyFrozenSetIterator<'py>(BoundFrozenSetIterator<'py>);
-
-impl<'py> Iterator for PyFrozenSetIterator<'py> {
-    type Item = &'py super::PyAny;
-
-    /// Advances the iterator and returns the next value.
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(Bound::into_gil_ref)
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
-    }
-}
-
-impl ExactSizeIterator for PyFrozenSetIterator<'_> {
-    #[inline]
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-impl<'py> IntoIterator for &'py PyFrozenSet {
-    type Item = &'py PyAny;
-    type IntoIter = PyFrozenSetIterator<'py>;
-    /// Returns an iterator of values in this set.
-    fn into_iter(self) -> Self::IntoIter {
-        PyFrozenSetIterator(BoundFrozenSetIterator::new(self.as_borrowed().to_owned()))
     }
 }
 
@@ -269,7 +193,7 @@ pub struct BoundFrozenSetIterator<'p> {
 impl<'py> BoundFrozenSetIterator<'py> {
     pub(super) fn new(set: Bound<'py, PyFrozenSet>) -> Self {
         Self {
-            it: PyIterator::from_bound_object(&set).unwrap(),
+            it: PyIterator::from_object(&set).unwrap(),
             remaining: set.len(),
         }
     }
@@ -287,51 +211,55 @@ impl<'py> Iterator for BoundFrozenSetIterator<'py> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.remaining, Some(self.remaining))
     }
+
+    #[inline]
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.len()
+    }
 }
 
-impl<'py> ExactSizeIterator for BoundFrozenSetIterator<'py> {
+impl ExactSizeIterator for BoundFrozenSetIterator<'_> {
     fn len(&self) -> usize {
         self.remaining
     }
 }
 
 #[inline]
-pub(crate) fn new_from_iter<T: ToPyObject>(
-    py: Python<'_>,
+pub(crate) fn try_new_from_iter<'py, T>(
+    py: Python<'py>,
     elements: impl IntoIterator<Item = T>,
-) -> PyResult<Bound<'_, PyFrozenSet>> {
-    fn inner<'py>(
-        py: Python<'py>,
-        elements: &mut dyn Iterator<Item = PyObject>,
-    ) -> PyResult<Bound<'py, PyFrozenSet>> {
-        let set = unsafe {
-            // We create the  `Py` pointer because its Drop cleans up the set if user code panics.
-            ffi::PyFrozenSet_New(std::ptr::null_mut())
-                .assume_owned_or_err(py)?
-                .downcast_into_unchecked()
-        };
-        let ptr = set.as_ptr();
+) -> PyResult<Bound<'py, PyFrozenSet>>
+where
+    T: IntoPyObject<'py>,
+{
+    let set = unsafe {
+        // We create the  `Py` pointer because its Drop cleans up the set if user code panics.
+        ffi::PyFrozenSet_New(std::ptr::null_mut())
+            .assume_owned_or_err(py)?
+            .cast_into_unchecked()
+    };
+    let ptr = set.as_ptr();
 
-        for obj in elements {
-            err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj.as_ptr()) })?;
-        }
-
-        Ok(set)
+    for e in elements {
+        let obj = e.into_pyobject_or_pyerr(py)?;
+        err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj.as_ptr()) })?;
     }
 
-    let mut iter = elements.into_iter().map(|e| e.to_object(py));
-    inner(py, &mut iter)
+    Ok(set)
 }
 
 #[cfg(test)]
-#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::*;
+    use crate::types::PyAnyMethods as _;
 
     #[test]
     fn test_frozenset_new_and_len() {
-        Python::with_gil(|py| {
-            let set = PyFrozenSet::new(py, &[1]).unwrap();
+        Python::attach(|py| {
+            let set = PyFrozenSet::new(py, [1]).unwrap();
             assert_eq!(1, set.len());
 
             let v = vec![1];
@@ -341,7 +269,7 @@ mod tests {
 
     #[test]
     fn test_frozenset_empty() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let set = PyFrozenSet::empty(py).unwrap();
             assert_eq!(0, set.len());
             assert!(set.is_empty());
@@ -350,16 +278,16 @@ mod tests {
 
     #[test]
     fn test_frozenset_contains() {
-        Python::with_gil(|py| {
-            let set = PyFrozenSet::new(py, &[1]).unwrap();
+        Python::attach(|py| {
+            let set = PyFrozenSet::new(py, [1]).unwrap();
             assert!(set.contains(1).unwrap());
         });
     }
 
     #[test]
     fn test_frozenset_iter() {
-        Python::with_gil(|py| {
-            let set = PyFrozenSet::new(py, &[1]).unwrap();
+        Python::attach(|py| {
+            let set = PyFrozenSet::new(py, [1]).unwrap();
 
             for el in set {
                 assert_eq!(1i32, el.extract::<i32>().unwrap());
@@ -369,8 +297,8 @@ mod tests {
 
     #[test]
     fn test_frozenset_iter_bound() {
-        Python::with_gil(|py| {
-            let set = PyFrozenSet::new_bound(py, &[1]).unwrap();
+        Python::attach(|py| {
+            let set = PyFrozenSet::new(py, [1]).unwrap();
 
             for el in &set {
                 assert_eq!(1i32, el.extract::<i32>().unwrap());
@@ -380,8 +308,8 @@ mod tests {
 
     #[test]
     fn test_frozenset_iter_size_hint() {
-        Python::with_gil(|py| {
-            let set = PyFrozenSet::new(py, &[1]).unwrap();
+        Python::attach(|py| {
+            let set = PyFrozenSet::new(py, [1]).unwrap();
             let mut iter = set.iter();
 
             // Exact size
@@ -397,7 +325,7 @@ mod tests {
     fn test_frozenset_builder() {
         use super::PyFrozenSetBuilder;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut builder = PyFrozenSetBuilder::new(py).unwrap();
 
             // add an item
@@ -406,11 +334,19 @@ mod tests {
             builder.add(2).unwrap();
 
             // finalize it
-            let set = builder.finalize_bound();
+            let set = builder.finalize();
 
             assert!(set.contains(1).unwrap());
             assert!(set.contains(2).unwrap());
             assert!(!set.contains(3).unwrap());
         });
+    }
+
+    #[test]
+    fn test_iter_count() {
+        Python::attach(|py| {
+            let set = PyFrozenSet::new(py, vec![1, 2, 3]).unwrap();
+            assert_eq!(set.iter().count(), 3);
+        })
     }
 }

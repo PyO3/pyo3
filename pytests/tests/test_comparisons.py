@@ -1,7 +1,16 @@
 from typing import Type, Union
 
+import sys
 import pytest
-from pyo3_pytests.comparisons import Eq, EqDefaultNe, Ordered, OrderedDefaultNe
+from pyo3_pytests.comparisons import (
+    Eq,
+    EqDefaultNe,
+    EqDerived,
+    Ordered,
+    OrderedDefaultNe,
+    OrderedDerived,
+    OrderedRichCmp,
+)
 from typing_extensions import Self
 
 
@@ -9,15 +18,28 @@ class PyEq:
     def __init__(self, x: int) -> None:
         self.x = x
 
-    def __eq__(self, other: Self) -> bool:
-        return self.x == other.x
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, self.__class__):
+            return self.x == other.x
+        else:
+            return NotImplemented
 
     def __ne__(self, other: Self) -> bool:
-        return self.x != other.x
+        if isinstance(other, self.__class__):
+            return self.x != other.x
+        else:
+            return NotImplemented
 
 
-@pytest.mark.parametrize("ty", (Eq, PyEq), ids=("rust", "python"))
-def test_eq(ty: Type[Union[Eq, PyEq]]):
+@pytest.mark.skipif(
+    sys.implementation.name == "graalpy"
+    and __graalpython__.get_graalvm_version().startswith("24.1"),  # noqa: F821
+    reason="Bug in GraalPy 24.1",
+)
+@pytest.mark.parametrize(
+    "ty", (Eq, EqDerived, PyEq), ids=("rust", "rust-derived", "python")
+)
+def test_eq(ty: Type[Union[Eq, EqDerived, PyEq]]):
     a = ty(0)
     b = ty(0)
     c = ty(1)
@@ -31,6 +53,13 @@ def test_eq(ty: Type[Union[Eq, PyEq]]):
     assert not (a != b)
     assert b != c
     assert not (b == c)
+
+    assert not a == 0
+    assert a != 0
+    assert not b == 0
+    assert b != 1
+    assert not c == 1
+    assert c != 1
 
     with pytest.raises(TypeError):
         assert a <= b
@@ -105,8 +134,12 @@ class PyOrdered:
         return self.x >= other.x
 
 
-@pytest.mark.parametrize("ty", (Ordered, PyOrdered), ids=("rust", "python"))
-def test_ordered(ty: Type[Union[Ordered, PyOrdered]]):
+@pytest.mark.parametrize(
+    "ty",
+    (Ordered, OrderedDerived, OrderedRichCmp, PyOrdered),
+    ids=("rust", "rust-derived", "rust-richcmp", "python"),
+)
+def test_ordered(ty: Type[Union[Ordered, OrderedDerived, OrderedRichCmp, PyOrdered]]):
     a = ty(0)
     b = ty(0)
     c = ty(1)

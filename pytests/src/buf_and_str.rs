@@ -36,18 +36,18 @@ impl BytesExtractor {
 
     #[staticmethod]
     pub fn from_buffer(buf: &Bound<'_, PyAny>) -> PyResult<usize> {
-        let buf = PyBuffer::<u8>::get_bound(buf)?;
+        let buf = PyBuffer::<u8>::get(buf)?;
         Ok(buf.item_count())
     }
 }
 
 #[pyfunction]
 fn return_memoryview(py: Python<'_>) -> PyResult<Bound<'_, PyMemoryView>> {
-    let bytes = PyBytes::new_bound(py, b"hello world");
-    PyMemoryView::from_bound(&bytes)
+    let bytes = PyBytes::new(py, b"hello world");
+    PyMemoryView::from(&bytes)
 }
 
-#[pymodule]
+#[pymodule(gil_used = false)]
 pub fn buf_and_str(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<BytesExtractor>()?;
     m.add_function(wrap_pyfunction!(return_memoryview, m)?)?;

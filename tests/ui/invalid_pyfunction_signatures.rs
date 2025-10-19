@@ -35,6 +35,7 @@ fn function_with_args_sep_after_args_sep() {}
 #[pyo3(signature = (**kwargs, *args))]
 fn function_with_args_after_kwargs(kwargs: Option<&PyDict>, args: &PyTuple) {
     let _ = args;
+    let _ = kwargs;
 }
 
 #[pyfunction]
@@ -54,9 +55,17 @@ struct MyClass;
 
 #[pymethods]
 impl MyClass {
-    #[args(x)]
-    #[pyo3(signature = (x))]
-    fn method_with_both_args_and_signature(&self, x: i32) {
+    #[pyo3(signature = (**kwargs, *, *args, x))]
+    fn multiple_errors_same_order(kwargs: Option<&PyDict>, args: &PyTuple, x: i32) {
+        let _ = kwargs;
+        let _ = args;
+        let _ = x;
+    }
+
+    #[pyo3(signature = (**kwargs, *, *args, x))]
+    fn multiple_errors_different_order(args: &PyTuple, x: i32, kwargs: Option<&PyDict>) {
+        let _ = kwargs;
+        let _ = args;
         let _ = x;
     }
 }

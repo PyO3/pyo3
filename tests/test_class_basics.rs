@@ -1,19 +1,20 @@
 #![cfg(feature = "macros")]
 
+#[cfg(Py_3_8)]
+use pyo3::ffi::c_str;
 use pyo3::prelude::*;
 use pyo3::types::PyType;
 use pyo3::{py_run, PyClass};
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct EmptyClass {}
 
 #[test]
 fn empty_class() {
-    Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<EmptyClass>();
+    Python::attach(|py| {
+        let typeobj = py.get_type::<EmptyClass>();
         // By default, don't allow creating instances from python.
         assert!(typeobj.call((), None).is_err());
 
@@ -26,8 +27,8 @@ struct UnitClass;
 
 #[test]
 fn unit_class() {
-    Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<UnitClass>();
+    Python::attach(|py| {
+        let typeobj = py.get_type::<UnitClass>();
         // By default, don't allow creating instances from python.
         assert!(typeobj.call((), None).is_err());
 
@@ -57,8 +58,8 @@ struct ClassWithDocs {
 
 #[test]
 fn class_with_docstr() {
-    Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<ClassWithDocs>();
+    Python::attach(|py| {
+        let typeobj = py.get_type::<ClassWithDocs>();
         py_run!(
             py,
             typeobj,
@@ -103,8 +104,8 @@ impl EmptyClass2 {
 
 #[test]
 fn custom_names() {
-    Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<EmptyClass2>();
+    Python::attach(|py| {
+        let typeobj = py.get_type::<EmptyClass2>();
         py_assert!(py, typeobj, "typeobj.__name__ == 'CustomName'");
         py_assert!(py, typeobj, "typeobj.custom_fn.__name__ == 'custom_fn'");
         py_assert!(
@@ -123,6 +124,36 @@ fn custom_names() {
     });
 }
 
+#[pyclass(name = "loop")]
+struct ClassRustKeywords {
+    #[pyo3(name = "unsafe", get, set)]
+    unsafe_variable: usize,
+}
+
+#[pymethods]
+impl ClassRustKeywords {
+    #[pyo3(name = "struct")]
+    fn struct_method(&self) {}
+
+    #[staticmethod]
+    #[pyo3(name = "type")]
+    fn type_method() {}
+}
+
+#[test]
+fn keyword_names() {
+    Python::attach(|py| {
+        let typeobj = py.get_type::<ClassRustKeywords>();
+        py_assert!(py, typeobj, "typeobj.__name__ == 'loop'");
+        py_assert!(py, typeobj, "typeobj.struct.__name__ == 'struct'");
+        py_assert!(py, typeobj, "typeobj.type.__name__ == 'type'");
+        py_assert!(py, typeobj, "typeobj.unsafe.__name__ == 'unsafe'");
+        py_assert!(py, typeobj, "not hasattr(typeobj, 'unsafe_variable')");
+        py_assert!(py, typeobj, "not hasattr(typeobj, 'struct_method')");
+        py_assert!(py, typeobj, "not hasattr(typeobj, 'type_method')");
+    });
+}
+
 #[pyclass]
 struct RawIdents {
     #[pyo3(get, set)]
@@ -136,8 +167,8 @@ impl RawIdents {
 
 #[test]
 fn test_raw_idents() {
-    Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<RawIdents>();
+    Python::attach(|py| {
+        let typeobj = py.get_type::<RawIdents>();
         py_assert!(py, typeobj, "not hasattr(typeobj, 'r#fn')");
         py_assert!(py, typeobj, "hasattr(typeobj, 'fn')");
         py_assert!(py, typeobj, "hasattr(typeobj, 'type')");
@@ -153,8 +184,8 @@ struct EmptyClassInModule {}
 #[test]
 #[ignore]
 fn empty_class_in_module() {
-    Python::with_gil(|py| {
-        let module = PyModule::new_bound(py, "test_module.nested").unwrap();
+    Python::attach(|py| {
+        let module = PyModule::new(py, "test_module.nested").unwrap();
         module.add_class::<EmptyClassInModule>().unwrap();
 
         let ty = module.getattr("EmptyClassInModule").unwrap();
@@ -177,23 +208,52 @@ struct ClassWithObjectField {
     // It used to be that PyObject was not supported with (get, set)
     // - this test is just ensuring it compiles.
     #[pyo3(get, set)]
-    value: PyObject,
+    value: Py<PyAny>,
 }
 
 #[pymethods]
 impl ClassWithObjectField {
     #[new]
-    fn new(value: PyObject) -> ClassWithObjectField {
+    fn new(value: Py<PyAny>) -> ClassWithObjectField {
         Self { value }
     }
 }
 
 #[test]
 fn class_with_object_field() {
-    Python::with_gil(|py| {
-        let ty = py.get_type_bound::<ClassWithObjectField>();
+    Python::attach(|py| {
+        let ty = py.get_type::<ClassWithObjectField>();
         py_assert!(py, ty, "ty(5).value == 5");
         py_assert!(py, ty, "ty(None).value == None");
+    });
+}
+
+#[pyclass(frozen, eq, hash)]
+#[derive(PartialEq, Hash)]
+struct ClassWithHash {
+    value: usize,
+}
+
+#[test]
+fn class_with_hash() {
+    Python::attach(|py| {
+        use pyo3::types::IntoPyDict;
+        let class = ClassWithHash { value: 42 };
+        let hash = {
+            use std::hash::{Hash, Hasher};
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            class.hash(&mut hasher);
+            hasher.finish() as isize
+        };
+
+        let env = [
+            ("obj", Py::new(py, class).unwrap().into_any()),
+            ("hsh", hash.into_pyobject(py).unwrap().into_any().unbind()),
+        ]
+        .into_py_dict(py)
+        .unwrap();
+
+        py_assert!(py, *env, "hash(obj) == hsh");
     });
 }
 
@@ -229,8 +289,8 @@ impl UnsendableChild {
 }
 
 fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
-    let obj = Python::with_gil(|py| -> PyResult<_> {
-        let obj: Py<T> = PyType::new_bound::<T>(py).call1((5,))?.extract()?;
+    let (keep_obj_here, obj) = Python::attach(|py| -> PyResult<_> {
+        let obj: Py<T> = PyType::new::<T>(py).call1((5,))?.extract()?;
 
         // Accessing the value inside this thread should not panic
         let caught_panic =
@@ -241,20 +301,19 @@ fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
             .is_err();
 
         assert!(!caught_panic);
-        Ok(obj)
-    })?;
 
-    let keep_obj_here = obj.clone();
+        Ok((obj.clone_ref(py), obj))
+    })?;
 
     let caught_panic = std::thread::spawn(move || {
         // This access must panic
-        Python::with_gil(|py| {
+        Python::attach(move |py| {
             obj.borrow(py);
         });
     })
     .join();
 
-    Python::with_gil(|_py| drop(keep_obj_here));
+    Python::attach(|_py| drop(keep_obj_here));
 
     if let Err(err) = caught_panic {
         if let Some(msg) = err.downcast_ref::<String>() {
@@ -290,55 +349,53 @@ fn get_length(obj: &Bound<'_, PyAny>) -> PyResult<usize> {
     Ok(length)
 }
 
+fn is_even(obj: &Bound<'_, PyAny>) -> PyResult<bool> {
+    obj.extract::<i32>().map(|i| i % 2 == 0)
+}
+
 #[pyclass]
 struct ClassWithFromPyWithMethods {}
 
 #[pymethods]
 impl ClassWithFromPyWithMethods {
-    fn instance_method(&self, #[pyo3(from_py_with = "get_length")] argument: usize) -> usize {
+    fn instance_method(&self, #[pyo3(from_py_with = get_length)] argument: usize) -> usize {
         argument
     }
     #[classmethod]
     fn classmethod(
         _cls: &Bound<'_, PyType>,
-        #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")] argument: usize,
-    ) -> usize {
-        argument
-    }
-
-    #[classmethod]
-    #[cfg(feature = "gil-refs")]
-    fn classmethod_gil_ref(
-        _cls: &PyType,
-        #[pyo3(from_py_with = "PyAny::len")] argument: usize,
+        #[pyo3(from_py_with = Bound::<'_, PyAny>::len)] argument: usize,
     ) -> usize {
         argument
     }
 
     #[staticmethod]
-    fn staticmethod(#[pyo3(from_py_with = "get_length")] argument: usize) -> usize {
+    fn staticmethod(#[pyo3(from_py_with = get_length)] argument: usize) -> usize {
         argument
+    }
+
+    fn __contains__(&self, #[pyo3(from_py_with = is_even)] obj: bool) -> bool {
+        obj
     }
 }
 
 #[test]
 fn test_pymethods_from_py_with() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let instance = Py::new(py, ClassWithFromPyWithMethods {}).unwrap();
-        let has_gil_refs = cfg!(feature = "gil-refs");
 
         py_run!(
             py,
-            instance
-            has_gil_refs,
+            instance,
             r#"
         arg = {1: 1, 2: 3}
 
         assert instance.instance_method(arg) == 2
         assert instance.classmethod(arg) == 2
-        if has_gil_refs:
-            assert instance.classmethod_gil_ref(arg) == 2
         assert instance.staticmethod(arg) == 2
+
+        assert 42 in instance
+        assert 73 not in instance
         "#
         );
     })
@@ -349,8 +406,8 @@ struct TupleClass(#[pyo3(get, set, name = "value")] i32);
 
 #[test]
 fn test_tuple_struct_class() {
-    Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<TupleClass>();
+    Python::attach(|py| {
+        let typeobj = py.get_type::<TupleClass>();
         assert!(typeobj.call((), None).is_err());
 
         py_assert!(py, typeobj, "typeobj.__name__ == 'TupleClass'");
@@ -370,6 +427,7 @@ fn test_tuple_struct_class() {
     });
 }
 
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[pyclass(dict, subclass)]
 struct DunderDictSupport {
     // Make sure that dict_offset runs with non-zero sized Self
@@ -377,9 +435,9 @@ struct DunderDictSupport {
 }
 
 #[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 fn dunder_dict_support() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(
             py,
             DunderDictSupport {
@@ -398,11 +456,10 @@ fn dunder_dict_support() {
     });
 }
 
-// Accessing inst.__dict__ only supported in limited API from Python 3.10
 #[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 fn access_dunder_dict() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(
             py,
             DunderDictSupport {
@@ -422,15 +479,16 @@ fn access_dunder_dict() {
 }
 
 // If the base class has dict support, child class also has dict
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[pyclass(extends=DunderDictSupport)]
 struct InheritDict {
     _value: usize,
 }
 
 #[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 fn inherited_dict() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(
             py,
             (
@@ -452,6 +510,7 @@ fn inherited_dict() {
     });
 }
 
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[pyclass(weakref, dict)]
 struct WeakRefDunderDictSupport {
     // Make sure that weaklist_offset runs with non-zero sized Self
@@ -459,9 +518,9 @@ struct WeakRefDunderDictSupport {
 }
 
 #[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 fn weakref_dunder_dict_support() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(
             py,
             WeakRefDunderDictSupport {
@@ -477,15 +536,16 @@ fn weakref_dunder_dict_support() {
     });
 }
 
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[pyclass(weakref, subclass)]
 struct WeakRefSupport {
     _pad: [u8; 32],
 }
 
 #[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 fn weakref_support() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(
             py,
             WeakRefSupport {
@@ -502,15 +562,16 @@ fn weakref_support() {
 }
 
 // If the base class has weakref support, child class also has weakref.
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[pyclass(extends=WeakRefSupport)]
 struct InheritWeakRef {
     _value: usize,
 }
 
 #[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 fn inherited_weakref() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(
             py,
             (
@@ -538,7 +599,7 @@ fn access_frozen_class_without_gil() {
         value: AtomicUsize,
     }
 
-    let py_counter: Py<FrozenCounter> = Python::with_gil(|py| {
+    let py_counter: Py<FrozenCounter> = Python::attach(|py| {
         let counter = FrozenCounter {
             value: AtomicUsize::new(0),
         };
@@ -551,18 +612,20 @@ fn access_frozen_class_without_gil() {
     });
 
     assert_eq!(py_counter.get().value.load(Ordering::Relaxed), 1);
+
+    Python::attach(move |_py| drop(py_counter));
 }
 
 #[test]
-#[cfg(Py_3_8)] // sys.unraisablehook not available until Python 3.8
+#[cfg(Py_3_8)]
 #[cfg_attr(target_arch = "wasm32", ignore)]
 fn drop_unsendable_elsewhere() {
-    use common::UnraisableCapture;
     use std::sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
     };
     use std::thread::spawn;
+    use test_utils::UnraisableCapture;
 
     #[pyclass(unsendable)]
     struct Unsendable {
@@ -575,35 +638,116 @@ fn drop_unsendable_elsewhere() {
         }
     }
 
-    Python::with_gil(|py| {
-        let capture = UnraisableCapture::install(py);
+    Python::attach(|py| {
+        let (err, object) = UnraisableCapture::enter(py, |capture| {
+            let dropped = Arc::new(AtomicBool::new(false));
 
-        let dropped = Arc::new(AtomicBool::new(false));
-
-        let unsendable = Py::new(
-            py,
-            Unsendable {
-                dropped: dropped.clone(),
-            },
-        )
-        .unwrap();
-
-        py.allow_threads(|| {
-            spawn(move || {
-                Python::with_gil(move |_py| {
-                    drop(unsendable);
-                });
-            })
-            .join()
+            let unsendable = Py::new(
+                py,
+                Unsendable {
+                    dropped: dropped.clone(),
+                },
+            )
             .unwrap();
+
+            py.detach(|| {
+                spawn(move || {
+                    Python::attach(move |py| {
+                        drop(unsendable);
+                        // On the free-threaded build, dropping an object on its non-origin thread
+                        // will not immediately drop it because the refcounts need to be merged.
+                        //
+                        // Force GC to ensure the drop happens now on the wrong thread.
+                        py.run(c_str!("import gc; gc.collect()"), None, None)
+                            .unwrap();
+                    });
+                })
+                .join()
+                .unwrap();
+            });
+
+            assert!(!dropped.load(Ordering::SeqCst));
+
+            capture.take_capture().unwrap()
         });
 
-        assert!(!dropped.load(Ordering::SeqCst));
-
-        let (err, object) = capture.borrow_mut(py).capture.take().unwrap();
         assert_eq!(err.to_string(), "RuntimeError: test_class_basics::drop_unsendable_elsewhere::Unsendable is unsendable, but is being dropped on another thread");
-        assert!(object.is_none(py));
+        assert!(object.is_none());
+    });
+}
 
-        capture.borrow_mut(py).uninstall(py);
+#[test]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+fn test_unsendable_dict() {
+    #[pyclass(dict, unsendable)]
+    struct UnsendableDictClass {}
+
+    #[pymethods]
+    impl UnsendableDictClass {
+        #[new]
+        fn new() -> Self {
+            UnsendableDictClass {}
+        }
+    }
+
+    Python::attach(|py| {
+        let inst = Py::new(py, UnsendableDictClass {}).unwrap();
+        py_run!(py, inst, "assert inst.__dict__ == {}");
+    });
+}
+
+#[test]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+fn test_unsendable_dict_with_weakref() {
+    #[pyclass(dict, unsendable, weakref)]
+    struct UnsendableDictClassWithWeakRef {}
+
+    #[pymethods]
+    impl UnsendableDictClassWithWeakRef {
+        #[new]
+        fn new() -> Self {
+            Self {}
+        }
+    }
+
+    Python::attach(|py| {
+        let inst = Py::new(py, UnsendableDictClassWithWeakRef {}).unwrap();
+        py_run!(py, inst, "assert inst.__dict__ == {}");
+        py_run!(
+            py,
+            inst,
+            "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1"
+        );
+    });
+}
+
+#[cfg(Py_3_9)]
+#[pyclass(generic)]
+struct ClassWithRuntimeParametrization {
+    #[pyo3(get, set)]
+    value: Py<PyAny>,
+}
+
+#[cfg(Py_3_9)]
+#[pymethods]
+impl ClassWithRuntimeParametrization {
+    #[new]
+    fn new(value: Py<PyAny>) -> ClassWithRuntimeParametrization {
+        Self { value }
+    }
+}
+
+#[test]
+#[cfg(Py_3_9)]
+fn test_runtime_parametrization() {
+    Python::attach(|py| {
+        let ty = py.get_type::<ClassWithRuntimeParametrization>();
+        py_assert!(py, ty, "ty[int] == ty.__class_getitem__((int,))");
+        py_run!(
+            py,
+            ty,
+            "import types;
+            assert ty.__class_getitem__((int,)) == types.GenericAlias(ty, (int,))"
+        );
     });
 }

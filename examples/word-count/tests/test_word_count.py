@@ -50,12 +50,8 @@ def test_word_count_python_sequential(benchmark, contents):
 def run_rust_sequential_twice(
     executor: ThreadPoolExecutor, contents: str, needle: str
 ) -> int:
-    future_1 = executor.submit(
-        word_count.search_sequential_allow_threads, contents, needle
-    )
-    future_2 = executor.submit(
-        word_count.search_sequential_allow_threads, contents, needle
-    )
+    future_1 = executor.submit(word_count.search_sequential_detached, contents, needle)
+    future_2 = executor.submit(word_count.search_sequential_detached, contents, needle)
     result_1 = future_1.result()
     result_2 = future_2.result()
     return result_1 + result_2

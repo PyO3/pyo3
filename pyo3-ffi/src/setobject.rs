@@ -2,7 +2,7 @@ use crate::object::*;
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 use crate::pyport::Py_hash_t;
 use crate::pyport::Py_ssize_t;
-use std::os::raw::c_int;
+use std::ffi::c_int;
 use std::ptr::addr_of_mut;
 
 pub const PySet_MINSIZE: usize = 8;
@@ -39,11 +39,7 @@ pub unsafe fn PySet_GET_SIZE(so: *mut PyObject) -> Py_ssize_t {
     (*so).used
 }
 
-#[cfg(not(Py_LIMITED_API))]
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
-    pub static mut _PySet_Dummy: *mut PyObject;
-}
+// skipped _PySet_Dummy
 
 extern "C" {
     #[cfg(not(Py_LIMITED_API))]

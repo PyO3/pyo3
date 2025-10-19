@@ -1,7 +1,7 @@
 use crate::methodobject::PyMethodDef;
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::os::raw::{c_char, c_int, c_void};
+use std::ffi::{c_char, c_int, c_void};
 use std::ptr::addr_of_mut;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -21,6 +21,7 @@ pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int {
 }
 
 extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyModule_NewObject")]
     pub fn PyModule_NewObject(name: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyModule_New")]
     pub fn PyModule_New(name: *const c_char) -> *mut PyObject;
@@ -52,7 +53,6 @@ extern "C" {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct PyModuleDef_Base {
     pub ob_base: PyObject,
     pub m_init: Option<extern "C" fn() -> *mut PyObject>,
@@ -60,6 +60,7 @@ pub struct PyModuleDef_Base {
     pub m_copy: *mut PyObject,
 }
 
+#[allow(clippy::declare_interior_mutable_const)]
 pub const PyModuleDef_HEAD_INIT: PyModuleDef_Base = PyModuleDef_Base {
     ob_base: PyObject_HEAD_INIT,
     m_init: None,
@@ -87,18 +88,31 @@ pub const Py_mod_create: c_int = 1;
 pub const Py_mod_exec: c_int = 2;
 #[cfg(Py_3_12)]
 pub const Py_mod_multiple_interpreters: c_int = 3;
+#[cfg(Py_3_13)]
+pub const Py_mod_gil: c_int = 4;
+
+// skipped private _Py_mod_LAST_SLOT
 
 #[cfg(Py_3_12)]
+#[allow(clippy::zero_ptr)] // matches the way that the rest of these constants are defined
 pub const Py_MOD_MULTIPLE_INTERPRETERS_NOT_SUPPORTED: *mut c_void = 0 as *mut c_void;
 #[cfg(Py_3_12)]
 pub const Py_MOD_MULTIPLE_INTERPRETERS_SUPPORTED: *mut c_void = 1 as *mut c_void;
 #[cfg(Py_3_12)]
 pub const Py_MOD_PER_INTERPRETER_GIL_SUPPORTED: *mut c_void = 2 as *mut c_void;
 
-// skipped non-limited _Py_mod_LAST_SLOT
+#[cfg(Py_3_13)]
+#[allow(clippy::zero_ptr)] // matches the way that the rest of these constants are defined
+pub const Py_MOD_GIL_USED: *mut c_void = 0 as *mut c_void;
+#[cfg(Py_3_13)]
+pub const Py_MOD_GIL_NOT_USED: *mut c_void = 1 as *mut c_void;
+
+#[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
+extern "C" {
+    pub fn PyUnstable_Module_SetGIL(module: *mut PyObject, gil: *mut c_void) -> c_int;
+}
 
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct PyModuleDef {
     pub m_base: PyModuleDef_Base,
     pub m_name: *const c_char,

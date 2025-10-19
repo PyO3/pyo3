@@ -24,10 +24,6 @@ To work and develop PyO3, you need Python & Rust installed on your system.
 * [virtualenv](https://virtualenv.pypa.io/en/latest/) can also be used with or without Pyenv to use specific installed Python versions.
 * [`nox`][nox] is used to automate many of our CI tasks.
 
-### Caveats
-
-* When using pyenv on macOS, installing a Python version using `--enable-shared` is required to make it work. i.e `env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install 3.7.12`
-
 ### Testing, linting, etc. with nox
 
 [`Nox`][nox] is used to automate many of our CI tasks and can be used locally to handle verfication tasks as you code. We recommend running these actions via nox to make use of our prefered configuration options. You can install nox into your global python with pip: `pip install nox` or (recommended) with [`pipx`][pipx] `pip install pipx`, `pipx install nox`
@@ -38,6 +34,7 @@ The main nox commands we have implemented are:
 * `nox -s test-rust -- skip-full` will run a short suite of rust tests (2-3 minutes)
 * `nox -s ruff` will check python linting and apply standard formatting rules
 * `nox -s rustfmt` will check basic rust linting and apply standard formatting rules
+* `nox -s rumdl` will check the markdown in the guide
 * `nox -s clippy` will run clippy to make recommendations on rust style
 * `nox -s bench` will benchmark your rust code
 * `nox -s codspeed` will run our suite of rust and python performance tests
@@ -88,14 +85,14 @@ nox -s docs -- open
 #### Doctests
 
 We use lots of code blocks in our docs. Run `cargo test --doc` when making changes to check that
-the doctests still work, or `cargo test` to run all the tests including doctests. See
+the doctests still work, or `cargo test` to run all the Rust tests including doctests. See
 https://doc.rust-lang.org/rustdoc/documentation-tests.html for a guide on doctests.
 
 #### Building the guide
 
 You can preview the user guide by building it locally with `mdbook`.
 
-First, install [`mdbook`][mdbook] and [`nox`][nox]. Then, run
+First, install [`mdbook`][mdbook], the [`mdbook-tabs`][mdbook-tabs] plugin and [`nox`][nox]. Then, run
 
 ```shell
 nox -s build-guide -- --open
@@ -121,30 +118,18 @@ Everybody is welcome to submit comments on open PRs. Please help ensure new PyO3
 
 Here are a few things to note when you are writing PRs.
 
-### Continuous Integration
+### Testing and Continuous Integration
 
-The PyO3 repo uses GitHub Actions. PRs are blocked from merging if CI is not successful. Formatting, linting and tests are checked for all Rust and Python code. In addition, all warnings in Rust code are disallowed (using `RUSTFLAGS="-D warnings"`).
+The PyO3 repo uses GitHub Actions.
+PRs are blocked from merging if CI is not successful.
+Formatting, linting and tests are checked for all Rust and Python code (the pipeline will abort early if formatting fails to save resources).
+In addition, all warnings in Rust code are disallowed (using `RUSTFLAGS="-D warnings"`).
 
 Tests run with all supported Python versions with the latest stable Rust compiler, as well as for Python 3.9 with the minimum supported Rust version.
 
 If you are adding a new feature, you should add it to the `full` feature in our *Cargo.toml** so that it is tested in CI.
 
-You can run these tests yourself with `nox`. The full set of actions run in CI is:
-
-1. `nox -s rustfmt` - everything will abort if fmt has not been run on the code before pushing
-1. `cargo semver-checks check-release` (checks no semver violations based on currently released version of Pyo3)
-1. `nox -s set-minimal-package-versions` & `nox -s check-all`
-1. `nox -s clippy-all` on a matrix of different OS, python and rust architectures
-1. build and test against a matrix of different OS, python and rust architectures
-1. test under valgrind to identify memory leakages
-1. `nox -s coverage` for latest windows, macos and ubuntu
-1. `nox -s test` with a debug build of python
-1. `nox -s test-version-limits`
-1. `nox -s check-feature-powerset` to check conditional compilation
-1. cross-compilation tests
-1. `nox -s check-guide` to build the guide and doc-comments docummentation and use [`lychee`][lychee] to validate all links
-
-If you wish to validate your code against this suite before raising a PR, then you can manually trigger the CI in github actions.
+You can run the CI pipeline components yourself with `nox`, see [the testing section above](#testing-linting-etc-with-nox).
 
 ### Documenting changes
 
@@ -200,6 +185,20 @@ Below are guidelines on what compatibility all PRs are expected to deliver for e
 ### Python
 
 PyO3 supports all officially supported Python versions, as well as the latest PyPy3 release. All of these versions are tested in CI.
+
+#### Adding support for new CPython versions
+
+If you plan to add support for a pre-release version of CPython, here's a (non-exhaustive) checklist:
+
+ - [ ] Wait until the last alpha release (usually alpha7), since ABI is not guaranteed until the first beta release
+ - [ ] Add prerelease_ver-dev (e.g. `3.14-dev`) to `.github/workflows/ci.yml`, and bump version in `noxfile.py`, `pyo3-ffi/Cargo.toml` under `max-version` within  `[package.metadata.cpython]`, and `max` within `pyo3-ffi/build.rs`
+- [ ] Add a new abi3-prerelease feature for the version (e.g. `abi3-py314`)
+   - In `pyo3-build-config/Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease"] and abi3-prerelease to ["abi3"]
+   - In `pyo3-ffi/Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease", "pyo3-build-config/abi3-most_current_stable"] and abi3-prerelease to ["abi3", "pyo3-build-config/abi3-prerelease"]
+   - In `Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease", "pyo3-ffi/abi3-most_current_stable"] and abi3-prerelease to ["abi3", "pyo3-ffi/abi3-prerelease"]
+ - [ ] Use `#[cfg(Py_prerelease])` (e.g. `#[cfg(Py_3_14)]`) and `#[cfg(not(Py_prerelease]))` to indicate changes between the stable branches of CPython and the pre-release
+ - [ ] Do not add a Rust binding to any function, struct, or global variable prefixed with `_` in CPython's headers
+ - [ ] Ping @ngoldbaum and @davidhewitt for assistance
 
 ### Rust
 
@@ -257,6 +256,7 @@ In the meanwhile, some of our maintainers have personal GitHub sponsorship pages
 - [messense](https://github.com/sponsors/messense)
 
 [mdbook]: https://rust-lang.github.io/mdBook/cli/index.html
+[mdbook-tabs]: https://mdbook-plugins.rustforweb.org/tabs.html
 [lychee]: https://github.com/lycheeverse/lychee
 [nox]: https://github.com/theacodes/nox
 [pipx]: https://pipx.pypa.io/stable/

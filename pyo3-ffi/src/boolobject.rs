@@ -1,14 +1,8 @@
 #[cfg(not(GraalPy))]
 use crate::longobject::PyLongObject;
 use crate::object::*;
-use std::os::raw::{c_int, c_long};
+use std::ffi::{c_int, c_long};
 use std::ptr::addr_of_mut;
-
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyBool_Type")]
-    pub static mut PyBool_Type: PyTypeObject;
-}
 
 #[inline]
 pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {

@@ -3,4 +3,4 @@ for binary compatibility, with additional metadata to support PyPy.
 
 For original implementations please see:
  - https://github.com/python/cpython
- - https://foss.heptapod.net/pypy/pypy
+ - https://github.com/pypy/pypy

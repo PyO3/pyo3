@@ -1,5 +1,5 @@
 error: only one `#[pymodule_init]` may be specified
-  --> tests/ui/invalid_pymodule_two_pymodule_init.rs:11:5
+  --> tests/ui/invalid_pymodule_two_pymodule_init.rs:13:5
    |
-11 |     fn init2(m: &PyModule) -> PyResult<()> {
+13 |     fn init2(_m: &Bound<'_, PyModule>) -> PyResult<()> {
    |     ^^

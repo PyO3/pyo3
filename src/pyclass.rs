@@ -1,22 +1,23 @@
 //! `PyClass` and related traits.
-use crate::{
-    callback::IntoPyCallbackOutput, ffi, impl_::pyclass::PyClassImpl, IntoPy, PyObject, PyResult,
-    PyTypeInfo, Python,
-};
+use crate::{ffi, impl_::pyclass::PyClassImpl, PyTypeInfo};
 use std::{cmp::Ordering, os::raw::c_int};
 
 mod create_type_object;
 mod gc;
+mod guard;
 
 pub(crate) use self::create_type_object::{create_type_object, PyClassTypeObject};
+
 pub use self::gc::{PyTraverseError, PyVisit};
+pub use self::guard::{
+    PyClassGuard, PyClassGuardError, PyClassGuardMap, PyClassGuardMut, PyClassGuardMutError,
+};
 
 /// Types that can be used as Python classes.
 ///
 /// The `#[pyclass]` attribute implements this trait for your Rust struct -
 /// you shouldn't implement this trait directly.
-#[allow(deprecated)]
-pub trait PyClass: PyTypeInfo<AsRefTarget = crate::PyCell<Self>> + PyClassImpl {
+pub trait PyClass: PyTypeInfo + PyClassImpl {
     /// Whether the pyclass is frozen.
     ///
     /// This can be enabled via `#[pyclass(frozen)]`.
@@ -58,7 +59,7 @@ impl CompareOp {
     ///
     /// Usage example:
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// # use pyo3::prelude::*;
     /// # use pyo3::class::basic::CompareOp;
     ///
@@ -86,111 +87,6 @@ impl CompareOp {
     }
 }
 
-/// Output of `__next__` which can either `yield` the next value in the iteration, or
-/// `return` a value to raise `StopIteration` in Python.
-///
-/// Usage example:
-///
-/// ```rust
-/// # #![allow(deprecated)]
-/// use pyo3::prelude::*;
-/// use pyo3::iter::IterNextOutput;
-///
-/// #[pyclass]
-/// struct PyClassIter {
-///     count: usize,
-/// }
-///
-/// #[pymethods]
-/// impl PyClassIter {
-///     #[new]
-///     pub fn new() -> Self {
-///         PyClassIter { count: 0 }
-///     }
-///
-///     fn __next__(&mut self) -> IterNextOutput<usize, &'static str> {
-///         if self.count < 5 {
-///             self.count += 1;
-///             // Given an instance `counter`, First five `next(counter)` calls yield 1, 2, 3, 4, 5.
-///             IterNextOutput::Yield(self.count)
-///         } else {
-///             // At the sixth time, we get a `StopIteration` with `'Ended'`.
-///             //     try:
-///             //         next(counter)
-///             //     except StopIteration as e:
-///             //         assert e.value == 'Ended'
-///             IterNextOutput::Return("Ended")
-///         }
-///     }
-/// }
-/// ```
-#[deprecated(since = "0.21.0", note = "Use `Option` or `PyStopIteration` instead.")]
-pub enum IterNextOutput<T, U> {
-    /// The value yielded by the iterator.
-    Yield(T),
-    /// The `StopIteration` object.
-    Return(U),
-}
-
-/// Alias of `IterNextOutput` with `PyObject` yield & return values.
-#[deprecated(since = "0.21.0", note = "Use `Option` or `PyStopIteration` instead.")]
-#[allow(deprecated)]
-pub type PyIterNextOutput = IterNextOutput<PyObject, PyObject>;
-
-#[allow(deprecated)]
-impl<T, U> IntoPyCallbackOutput<*mut ffi::PyObject> for IterNextOutput<T, U>
-where
-    T: IntoPy<PyObject>,
-    U: IntoPy<PyObject>,
-{
-    fn convert(self, py: Python<'_>) -> PyResult<*mut ffi::PyObject> {
-        match self {
-            IterNextOutput::Yield(o) => Ok(o.into_py(py).into_ptr()),
-            IterNextOutput::Return(o) => {
-                Err(crate::exceptions::PyStopIteration::new_err(o.into_py(py)))
-            }
-        }
-    }
-}
-
-/// Output of `__anext__`.
-///
-/// <https://docs.python.org/3/reference/expressions.html#agen.__anext__>
-#[deprecated(
-    since = "0.21.0",
-    note = "Use `Option` or `PyStopAsyncIteration` instead."
-)]
-pub enum IterANextOutput<T, U> {
-    /// An expression which the generator yielded.
-    Yield(T),
-    /// A `StopAsyncIteration` object.
-    Return(U),
-}
-
-/// An [IterANextOutput] of Python objects.
-#[deprecated(
-    since = "0.21.0",
-    note = "Use `Option` or `PyStopAsyncIteration` instead."
-)]
-#[allow(deprecated)]
-pub type PyIterANextOutput = IterANextOutput<PyObject, PyObject>;
-
-#[allow(deprecated)]
-impl<T, U> IntoPyCallbackOutput<*mut ffi::PyObject> for IterANextOutput<T, U>
-where
-    T: IntoPy<PyObject>,
-    U: IntoPy<PyObject>,
-{
-    fn convert(self, py: Python<'_>) -> PyResult<*mut ffi::PyObject> {
-        match self {
-            IterANextOutput::Yield(o) => Ok(o.into_py(py).into_ptr()),
-            IterANextOutput::Return(o) => Err(crate::exceptions::PyStopAsyncIteration::new_err(
-                o.into_py(py),
-            )),
-        }
-    }
-}
-
 /// A workaround for [associated const equality](https://github.com/rust-lang/rust/issues/92827).
 ///
 /// This serves to have True / False values in the [`PyClass`] trait's `Frozen` type.
@@ -200,10 +96,16 @@ pub mod boolean_struct {
         use super::*;
 
         /// A way to "seal" the boolean traits.
-        pub trait Boolean {}
+        pub trait Boolean {
+            const VALUE: bool;
+        }
 
-        impl Boolean for True {}
-        impl Boolean for False {}
+        impl Boolean for True {
+            const VALUE: bool = true;
+        }
+        impl Boolean for False {
+            const VALUE: bool = false;
+        }
     }
 
     pub struct True(());

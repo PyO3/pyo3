@@ -1,11 +1,15 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use libc::wchar_t;
-use std::os::raw::{c_char, c_int, c_void};
+use std::ffi::{c_char, c_int, c_void};
 #[cfg(not(PyPy))]
 use std::ptr::addr_of_mut;
 
 #[cfg(not(Py_LIMITED_API))]
+#[cfg_attr(
+    Py_3_13,
+    deprecated(note = "Deprecated since Python 3.13. Use `libc::wchar_t` instead.")
+)]
 pub type Py_UNICODE = wchar_t;
 
 pub type Py_UCS4 = u32;
@@ -328,6 +332,15 @@ extern "C" {
     pub fn PyUnicode_Compare(left: *mut PyObject, right: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_CompareWithASCIIString")]
     pub fn PyUnicode_CompareWithASCIIString(left: *mut PyObject, right: *const c_char) -> c_int;
+    #[cfg(Py_3_13)]
+    pub fn PyUnicode_EqualToUTF8(unicode: *mut PyObject, string: *const c_char) -> c_int;
+    #[cfg(Py_3_13)]
+    pub fn PyUnicode_EqualToUTF8AndSize(
+        unicode: *mut PyObject,
+        string: *const c_char,
+        size: Py_ssize_t,
+    ) -> c_int;
+
     pub fn PyUnicode_RichCompare(
         left: *mut PyObject,
         right: *mut PyObject,

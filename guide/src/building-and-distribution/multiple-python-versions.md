@@ -1,6 +1,6 @@
 # Supporting multiple Python versions
 
-PyO3 supports all actively-supported Python 3 and PyPy versions. As much as possible, this is done internally to PyO3 so that your crate's code does not need to adapt to the differences between each version. However, as Python features grow and change between versions, PyO3 cannot a completely identical API for every Python version. This may require you to add conditional compilation to your crate or runtime checks for the Python version.
+PyO3 supports all actively-supported Python 3 and PyPy versions. As much as possible, this is done internally to PyO3 so that your crate's code does not need to adapt to the differences between each version. However, as Python features grow and change between versions, PyO3 cannot offer a completely identical API for every Python version. This may require you to add conditional compilation to your crate or runtime checks for the Python version.
 
 This section of the guide first introduces the `pyo3-build-config` crate, which you can use as a `build-dependency` to add additional `#[cfg]` flags which allow you to support multiple Python versions at compile-time.
 
@@ -93,11 +93,10 @@ There's no way to detect your user doing that at compile time, so instead you ne
 
 PyO3 provides the APIs [`Python::version()`] and [`Python::version_info()`] to query the running Python version. This allows you to do the following, for example:
 
-
 ```rust
 use pyo3::Python;
 
-Python::with_gil(|py| {
+Python::attach(|py| {
     // PyO3 supports Python 3.7 and up.
     assert!(py.version_info() >= (3, 7));
     assert!(py.version_info() >= (3, 7, 0));

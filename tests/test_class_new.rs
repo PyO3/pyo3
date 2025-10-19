@@ -2,7 +2,7 @@
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::sync::GILOnceCell;
+use pyo3::sync::PyOnceLock;
 use pyo3::types::IntoPyDict;
 
 #[pyclass]
@@ -18,18 +18,18 @@ impl EmptyClassWithNew {
 
 #[test]
 fn empty_class_with_new() {
-    Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<EmptyClassWithNew>();
+    Python::attach(|py| {
+        let typeobj = py.get_type::<EmptyClassWithNew>();
         assert!(typeobj
             .call((), None)
             .unwrap()
-            .downcast::<EmptyClassWithNew>()
+            .cast::<EmptyClassWithNew>()
             .is_ok());
 
         // Calling with arbitrary args or kwargs is not ok
         assert!(typeobj.call(("some", "args"), None).is_err());
         assert!(typeobj
-            .call((), Some(&[("some", "kwarg")].into_py_dict_bound(py)))
+            .call((), Some(&[("some", "kwarg")].into_py_dict(py).unwrap()))
             .is_err());
     });
 }
@@ -47,12 +47,12 @@ impl UnitClassWithNew {
 
 #[test]
 fn unit_class_with_new() {
-    Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<UnitClassWithNew>();
+    Python::attach(|py| {
+        let typeobj = py.get_type::<UnitClassWithNew>();
         assert!(typeobj
             .call((), None)
             .unwrap()
-            .downcast::<UnitClassWithNew>()
+            .cast::<UnitClassWithNew>()
             .is_ok());
     });
 }
@@ -70,10 +70,10 @@ impl TupleClassWithNew {
 
 #[test]
 fn tuple_class_with_new() {
-    Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<TupleClassWithNew>();
+    Python::attach(|py| {
+        let typeobj = py.get_type::<TupleClassWithNew>();
         let wrp = typeobj.call((42,), None).unwrap();
-        let obj = wrp.downcast::<TupleClassWithNew>().unwrap();
+        let obj = wrp.cast::<TupleClassWithNew>().unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.0, 42);
     });
@@ -95,10 +95,10 @@ impl NewWithOneArg {
 
 #[test]
 fn new_with_one_arg() {
-    Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<NewWithOneArg>();
+    Python::attach(|py| {
+        let typeobj = py.get_type::<NewWithOneArg>();
         let wrp = typeobj.call((42,), None).unwrap();
-        let obj = wrp.downcast::<NewWithOneArg>().unwrap();
+        let obj = wrp.cast::<NewWithOneArg>().unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.data, 42);
     });
@@ -123,13 +123,13 @@ impl NewWithTwoArgs {
 
 #[test]
 fn new_with_two_args() {
-    Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<NewWithTwoArgs>();
+    Python::attach(|py| {
+        let typeobj = py.get_type::<NewWithTwoArgs>();
         let wrp = typeobj
             .call((10, 20), None)
             .map_err(|e| e.display(py))
             .unwrap();
-        let obj = wrp.downcast::<NewWithTwoArgs>().unwrap();
+        let obj = wrp.cast::<NewWithTwoArgs>().unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.data1, 10);
         assert_eq!(obj_ref.data2, 20);
@@ -154,9 +154,9 @@ impl SuperClass {
 /// See https://github.com/PyO3/pyo3/issues/947 for the corresponding bug.
 #[test]
 fn subclass_new() {
-    Python::with_gil(|py| {
-        let super_cls = py.get_type_bound::<SuperClass>();
-        let source = pyo3::indoc::indoc!(
+    Python::attach(|py| {
+        let super_cls = py.get_type::<SuperClass>();
+        let source = pyo3_ffi::c_str!(pyo3::indoc::indoc!(
             r#"
 class Class(SuperClass):
     def __new__(cls):
@@ -168,10 +168,10 @@ class Class(SuperClass):
 c = Class()
 assert c.from_rust is False
 "#
-        );
-        let globals = PyModule::import_bound(py, "__main__").unwrap().dict();
+        ));
+        let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("SuperClass", super_cls).unwrap();
-        py.run_bound(source, Some(&globals), None)
+        py.run(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });
@@ -199,8 +199,8 @@ impl NewWithCustomError {
 
 #[test]
 fn new_with_custom_error() {
-    Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<NewWithCustomError>();
+    Python::attach(|py| {
+        let typeobj = py.get_type::<NewWithCustomError>();
         let err = typeobj.call0().unwrap_err();
         assert_eq!(err.to_string(), "ValueError: custom error");
     });
@@ -216,7 +216,7 @@ struct NewExisting {
 impl NewExisting {
     #[new]
     fn new(py: pyo3::Python<'_>, val: usize) -> pyo3::Py<NewExisting> {
-        static PRE_BUILT: GILOnceCell<[pyo3::Py<NewExisting>; 2]> = GILOnceCell::new();
+        static PRE_BUILT: PyOnceLock<[pyo3::Py<NewExisting>; 2]> = PyOnceLock::new();
         let existing = PRE_BUILT.get_or_init(py, || {
             [
                 pyo3::Py::new(py, NewExisting { num: 0 }).unwrap(),
@@ -234,8 +234,8 @@ impl NewExisting {
 
 #[test]
 fn test_new_existing() {
-    Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<NewExisting>();
+    Python::attach(|py| {
+        let typeobj = py.get_type::<NewExisting>();
 
         let obj1 = typeobj.call1((0,)).unwrap();
         let obj2 = typeobj.call1((0,)).unwrap();
@@ -256,5 +256,70 @@ fn test_new_existing() {
         assert!(!obj1.is(&obj3));
         assert!(!obj1.is(&obj5));
         assert!(!obj5.is(&obj6));
+    });
+}
+
+#[pyclass]
+struct NewReturnsPy;
+
+#[pymethods]
+impl NewReturnsPy {
+    #[new]
+    fn new(py: Python<'_>) -> PyResult<Py<NewReturnsPy>> {
+        Py::new(py, NewReturnsPy)
+    }
+}
+
+#[test]
+fn test_new_returns_py() {
+    Python::attach(|py| {
+        let type_ = py.get_type::<NewReturnsPy>();
+        let obj = type_.call0().unwrap();
+        assert!(obj.is_exact_instance_of::<NewReturnsPy>());
+    })
+}
+
+#[pyclass]
+struct NewReturnsBound;
+
+#[pymethods]
+impl NewReturnsBound {
+    #[new]
+    fn new(py: Python<'_>) -> PyResult<Bound<'_, NewReturnsBound>> {
+        Bound::new(py, NewReturnsBound)
+    }
+}
+
+#[test]
+fn test_new_returns_bound() {
+    Python::attach(|py| {
+        let type_ = py.get_type::<NewReturnsBound>();
+        let obj = type_.call0().unwrap();
+        assert!(obj.is_exact_instance_of::<NewReturnsBound>());
+    })
+}
+
+#[pyo3::pyclass]
+struct NewClassMethod {
+    #[pyo3(get)]
+    cls: pyo3::Py<PyAny>,
+}
+
+#[pyo3::pymethods]
+impl NewClassMethod {
+    #[new]
+    #[classmethod]
+    fn new(cls: &pyo3::Bound<'_, pyo3::types::PyType>) -> Self {
+        Self {
+            cls: cls.clone().into_any().unbind(),
+        }
+    }
+}
+
+#[test]
+fn test_new_class_method() {
+    pyo3::Python::attach(|py| {
+        let cls = py.get_type::<NewClassMethod>();
+        pyo3::py_run!(py, cls, "assert cls().cls is cls");
     });
 }

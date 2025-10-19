@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=1,<2"]
+requires = ["maturin>=1.9.4,<2"]
 build-backend = "maturin"
 
 [tool.pytest.ini_options]
@@ -20,11 +20,9 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
-    "gevent>=22.10.2; implementation_name == 'cpython'",
     "hypothesis>=3.55",
-    "pytest-asyncio>=0.21",
+    "pytest-asyncio>=0.21,<2",
     "pytest-benchmark>=3.4",
-    # pinned < 8.1 because https://github.com/CodSpeedHQ/pytest-codspeed/issues/27
-    "pytest>=7,<8.1",
+    "pytest>=7",
     "typing_extensions>=4.0.0"
 ]

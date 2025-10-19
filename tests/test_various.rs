@@ -2,12 +2,11 @@
 
 use pyo3::prelude::*;
 use pyo3::py_run;
-use pyo3::types::{PyDict, PyTuple};
+use pyo3::types::PyTuple;
 
 use std::fmt;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct MutRefArg {
@@ -26,7 +25,7 @@ impl MutRefArg {
 
 #[test]
 fn mut_ref_arg() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst1 = Py::new(py, MutRefArg { n: 0 }).unwrap();
         let inst2 = Py::new(py, MutRefArg { n: 0 }).unwrap();
 
@@ -51,19 +50,19 @@ fn get_zero() -> PyUsize {
 /// Checks that we can use return a custom class in arbitrary function and use those functions
 /// both in rust and python
 fn return_custom_class() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // Using from rust
         assert_eq!(get_zero().value, 0);
 
         // Using from python
-        let get_zero = wrap_pyfunction_bound!(get_zero)(py).unwrap();
+        let get_zero = wrap_pyfunction!(get_zero)(py).unwrap();
         py_assert!(py, get_zero, "get_zero().value == 0");
     });
 }
 
 #[test]
 fn intopytuple_primitive() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = (1, 2, "foo");
         py_assert!(py, tup, "tup == (1, 2, 'foo')");
         py_assert!(py, tup, "tup[0] == 1");
@@ -77,7 +76,7 @@ struct SimplePyClass {}
 
 #[test]
 fn intopytuple_pyclass() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = (
             Py::new(py, SimplePyClass {}).unwrap(),
             Py::new(py, SimplePyClass {}).unwrap(),
@@ -90,64 +89,67 @@ fn intopytuple_pyclass() {
 
 #[test]
 fn pytuple_primitive_iter() {
-    Python::with_gil(|py| {
-        let tup = PyTuple::new_bound(py, [1u32, 2, 3].iter());
+    Python::attach(|py| {
+        let tup = PyTuple::new(py, [1u32, 2, 3].iter()).unwrap();
         py_assert!(py, tup, "tup == (1, 2, 3)");
     });
 }
 
 #[test]
 fn pytuple_pyclass_iter() {
-    Python::with_gil(|py| {
-        let tup = PyTuple::new_bound(
+    Python::attach(|py| {
+        let tup = PyTuple::new(
             py,
             [
                 Py::new(py, SimplePyClass {}).unwrap(),
                 Py::new(py, SimplePyClass {}).unwrap(),
             ]
             .iter(),
-        );
+        )
+        .unwrap();
         py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
         py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[0]).__name__");
         py_assert!(py, tup, "tup[0] != tup[1]");
     });
 }
 
-#[pyclass(dict, module = "test_module")]
-struct PickleSupport {}
-
-#[pymethods]
-impl PickleSupport {
-    #[new]
-    fn new() -> PickleSupport {
-        PickleSupport {}
-    }
-
-    pub fn __reduce__<'py>(
-        slf: &Bound<'py, Self>,
-        py: Python<'py>,
-    ) -> PyResult<(PyObject, Bound<'py, PyTuple>, PyObject)> {
-        let cls = slf.to_object(py).getattr(py, "__class__")?;
-        let dict = slf.to_object(py).getattr(py, "__dict__")?;
-        Ok((cls, PyTuple::empty_bound(py), dict))
-    }
-}
-
-fn add_module(module: Bound<'_, PyModule>) -> PyResult<()> {
-    PyModule::import_bound(module.py(), "sys")?
-        .dict()
-        .get_item("modules")
-        .unwrap()
-        .unwrap()
-        .downcast::<PyDict>()?
-        .set_item(module.name()?, module)
-}
-
 #[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 fn test_pickle() {
-    Python::with_gil(|py| {
-        let module = PyModule::new_bound(py, "test_module").unwrap();
+    use pyo3::types::PyDict;
+
+    #[pyclass(dict, module = "test_module")]
+    struct PickleSupport {}
+
+    #[pymethods]
+    impl PickleSupport {
+        #[new]
+        fn new() -> PickleSupport {
+            PickleSupport {}
+        }
+
+        pub fn __reduce__<'py>(
+            slf: &Bound<'py, Self>,
+            py: Python<'py>,
+        ) -> PyResult<(Bound<'py, PyAny>, Bound<'py, PyTuple>, Bound<'py, PyAny>)> {
+            let cls = slf.getattr("__class__")?;
+            let dict = slf.getattr("__dict__")?;
+            Ok((cls, PyTuple::empty(py), dict))
+        }
+    }
+
+    fn add_module(module: Bound<'_, PyModule>) -> PyResult<()> {
+        PyModule::import(module.py(), "sys")?
+            .dict()
+            .get_item("modules")
+            .unwrap()
+            .unwrap()
+            .cast::<PyDict>()?
+            .set_item(module.name()?, module)
+    }
+
+    Python::attach(|py| {
+        let module = PyModule::new(py, "test_module").unwrap();
         module.add_class::<PickleSupport>().unwrap();
         add_module(module).unwrap();
         let inst = Py::new(py, PickleSupport {}).unwrap();
@@ -200,7 +202,7 @@ fn result_conversion_function() -> Result<(), MyError> {
 
 #[test]
 fn test_result_conversion() {
-    Python::with_gil(|py| {
-        wrap_pyfunction_bound!(result_conversion_function)(py).unwrap();
+    Python::attach(|py| {
+        wrap_pyfunction!(result_conversion_function)(py).unwrap();
     });
 }

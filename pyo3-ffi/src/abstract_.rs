@@ -1,29 +1,30 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::os::raw::{c_char, c_int};
-use std::ptr;
-
-extern "C" {
-    #[cfg(PyPy)]
-    #[link_name = "PyPyObject_DelAttrString"]
-    pub fn PyObject_DelAttrString(o: *mut PyObject, attr_name: *const c_char) -> c_int;
-}
+#[cfg(any(Py_3_12, all(Py_3_8, not(Py_LIMITED_API))))]
+use libc::size_t;
+use std::ffi::{c_char, c_int};
 
 #[inline]
-#[cfg(not(PyPy))]
+#[cfg(all(
+    not(Py_3_13), // CPython exposed as a function in 3.13, in object.h
+    not(all(PyPy, not(Py_3_11))) // PyPy exposed as a function until PyPy 3.10, macro in 3.11+
+))]
 pub unsafe fn PyObject_DelAttrString(o: *mut PyObject, attr_name: *const c_char) -> c_int {
-    PyObject_SetAttrString(o, attr_name, ptr::null_mut())
+    PyObject_SetAttrString(o, attr_name, std::ptr::null_mut())
 }
 
 #[inline]
+#[cfg(all(
+    not(Py_3_13), // CPython exposed as a function in 3.13, in object.h
+    not(all(PyPy, not(Py_3_11))) // PyPy exposed as a function until PyPy 3.10, macro in 3.11+
+))]
 pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_int {
-    PyObject_SetAttr(o, attr_name, ptr::null_mut())
+    PyObject_SetAttr(o, attr_name, std::ptr::null_mut())
 }
 
 extern "C" {
     #[cfg(all(
         not(PyPy),
-        not(GraalPy),
         any(Py_3_10, all(not(Py_LIMITED_API), Py_3_9)) // Added to python in 3.9 but to limited API in 3.10
     ))]
     #[cfg_attr(PyPy, link_name = "PyPyObject_CallNoArgs")]
@@ -77,6 +78,28 @@ extern "C" {
         method: *mut PyObject,
         ...
     ) -> *mut PyObject;
+}
+#[cfg(any(Py_3_12, all(Py_3_8, not(Py_LIMITED_API))))]
+pub const PY_VECTORCALL_ARGUMENTS_OFFSET: size_t =
+    1 << (8 * std::mem::size_of::<size_t>() as size_t - 1);
+
+extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyObject_Vectorcall")]
+    #[cfg(any(Py_3_12, all(Py_3_11, not(Py_LIMITED_API))))]
+    pub fn PyObject_Vectorcall(
+        callable: *mut PyObject,
+        args: *const *mut PyObject,
+        nargsf: size_t,
+        kwnames: *mut PyObject,
+    ) -> *mut PyObject;
+
+    #[cfg(any(Py_3_12, all(Py_3_9, not(any(Py_LIMITED_API, PyPy)))))]
+    pub fn PyObject_VectorcallMethod(
+        name: *mut PyObject,
+        args: *const *mut PyObject,
+        nargsf: size_t,
+        kwnames: *mut PyObject,
+    ) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyObject_Type")]
     pub fn PyObject_Type(o: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyObject_Size")]
@@ -114,10 +137,7 @@ extern "C" {
 #[cfg(not(any(Py_3_8, PyPy)))]
 #[inline]
 pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
-    crate::PyObject_HasAttrString(
-        crate::Py_TYPE(o).cast(),
-        "__next__\0".as_ptr() as *const c_char,
-    )
+    crate::PyObject_HasAttrString(crate::Py_TYPE(o).cast(), c_str!("__next__").as_ptr())
 }
 
 extern "C" {
@@ -129,7 +149,11 @@ extern "C" {
     pub fn PyIter_Next(arg1: *mut PyObject) -> *mut PyObject;
     #[cfg(all(not(PyPy), Py_3_10))]
     #[cfg_attr(PyPy, link_name = "PyPyIter_Send")]
-    pub fn PyIter_Send(iter: *mut PyObject, arg: *mut PyObject, presult: *mut *mut PyObject);
+    pub fn PyIter_Send(
+        iter: *mut PyObject,
+        arg: *mut PyObject,
+        presult: *mut *mut PyObject,
+    ) -> PySendResult;
 
     #[cfg_attr(PyPy, link_name = "PyPyNumber_Check")]
     pub fn PyNumber_Check(o: *mut PyObject) -> c_int;

@@ -1,88 +1,18 @@
 //! Contains initialization utilities for `#[pyclass]`.
-use crate::callback::IntoPyCallbackOutput;
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, PyClassWeakRef};
-use crate::types::PyAnyMethods;
-use crate::{ffi, Bound, Py, PyClass, PyErr, PyResult, Python};
+use crate::impl_::pyclass_init::{PyNativeTypeInitializer, PyObjectInit};
+use crate::{ffi, Bound, Py, PyClass, PyResult, Python};
 use crate::{
     ffi::PyTypeObject,
     pycell::impl_::{PyClassBorrowChecker, PyClassMutability, PyClassObjectContents},
-    type_object::{get_tp_alloc, PyTypeInfo},
 };
 use std::{
     cell::UnsafeCell,
     marker::PhantomData,
     mem::{ManuallyDrop, MaybeUninit},
 };
-
-/// Initializer for Python types.
-///
-/// This trait is intended to use internally for distinguishing `#[pyclass]` and
-/// Python native types.
-pub trait PyObjectInit<T>: Sized {
-    /// # Safety
-    /// - `subtype` must be a valid pointer to a type object of T or a subclass.
-    unsafe fn into_new_object(
-        self,
-        py: Python<'_>,
-        subtype: *mut PyTypeObject,
-    ) -> PyResult<*mut ffi::PyObject>;
-    private_decl! {}
-}
-
-/// Initializer for Python native types, like `PyDict`.
-pub struct PyNativeTypeInitializer<T: PyTypeInfo>(PhantomData<T>);
-
-impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
-    unsafe fn into_new_object(
-        self,
-        py: Python<'_>,
-        subtype: *mut PyTypeObject,
-    ) -> PyResult<*mut ffi::PyObject> {
-        unsafe fn inner(
-            py: Python<'_>,
-            type_object: *mut PyTypeObject,
-            subtype: *mut PyTypeObject,
-        ) -> PyResult<*mut ffi::PyObject> {
-            // HACK (due to FIXME below): PyBaseObject_Type's tp_new isn't happy with NULL arguments
-            let is_base_object = type_object == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type);
-            if is_base_object {
-                let alloc = get_tp_alloc(subtype).unwrap_or(ffi::PyType_GenericAlloc);
-                let obj = alloc(subtype, 0);
-                return if obj.is_null() {
-                    Err(PyErr::fetch(py))
-                } else {
-                    Ok(obj)
-                };
-            }
-
-            #[cfg(Py_LIMITED_API)]
-            unreachable!("subclassing native types is not possible with the `abi3` feature");
-
-            #[cfg(not(Py_LIMITED_API))]
-            {
-                match (*type_object).tp_new {
-                    // FIXME: Call __new__ with actual arguments
-                    Some(newfunc) => {
-                        let obj = newfunc(subtype, std::ptr::null_mut(), std::ptr::null_mut());
-                        if obj.is_null() {
-                            Err(PyErr::fetch(py))
-                        } else {
-                            Ok(obj)
-                        }
-                    }
-                    None => Err(crate::exceptions::PyTypeError::new_err(
-                        "base type without tp_new",
-                    )),
-                }
-            }
-        }
-        let type_object = T::type_object_raw(py);
-        inner(py, type_object, subtype)
-    }
-
-    private_impl! {}
-}
 
 /// Initializer for our `#[pyclass]` system.
 ///
@@ -120,8 +50,8 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
 ///             })
 ///     }
 /// }
-/// Python::with_gil(|py| {
-///     let typeobj = py.get_type_bound::<SubSubClass>();
+/// Python::attach(|py| {
+///     let typeobj = py.get_type::<SubSubClass>();
 ///     let sub_sub_class = typeobj.call((), None).unwrap();
 ///     py_run!(
 ///         py,
@@ -147,7 +77,14 @@ impl<T: PyClass> PyClassInitializer<T> {
     /// Constructs a new initializer from value `T` and base class' initializer.
     ///
     /// It is recommended to use `add_subclass` instead of this method for most usage.
+    #[track_caller]
+    #[inline]
     pub fn new(init: T, super_init: <T::BaseType as PyClassBaseType>::Initializer) -> Self {
+        // This is unsound; see https://github.com/PyO3/pyo3/issues/4452.
+        assert!(
+            super_init.can_be_subclassed(),
+            "you cannot add a subclass to an existing value",
+        );
         Self(PyClassInitializerImpl::New { init, super_init })
     }
 
@@ -182,8 +119,8 @@ impl<T: PyClass> PyClassInitializer<T> {
     /// }
     ///
     /// fn main() -> PyResult<()> {
-    ///     Python::with_gil(|py| {
-    ///         let m = PyModule::new_bound(py, "example")?;
+    ///     Python::attach(|py| {
+    ///         let m = PyModule::new(py, "example")?;
     ///         m.add_class::<SubClass>()?;
     ///         m.add_class::<BaseClass>()?;
     ///
@@ -197,6 +134,8 @@ impl<T: PyClass> PyClassInitializer<T> {
     ///     })
     /// }
     /// ```
+    #[track_caller]
+    #[inline]
     pub fn add_subclass<S>(self, subclass_value: S) -> PyClassInitializer<S>
     where
         S: PyClass<BaseType = T>,
@@ -205,7 +144,7 @@ impl<T: PyClass> PyClassInitializer<T> {
         PyClassInitializer::new(subclass_value, self)
     }
 
-    /// Creates a new PyCell and initializes it.
+    /// Creates a new class object and initializes it.
     pub(crate) fn create_class_object(self, py: Python<'_>) -> PyResult<Bound<'_, T>>
     where
         T: PyClass,
@@ -238,23 +177,25 @@ impl<T: PyClass> PyClassInitializer<T> {
             PyClassInitializerImpl::New { init, super_init } => (init, super_init),
         };
 
-        let obj = super_init.into_new_object(py, target_type)?;
+        let obj = unsafe { super_init.into_new_object(py, target_type)? };
 
         let part_init: *mut PartiallyInitializedClassObject<T> = obj.cast();
-        std::ptr::write(
-            (*part_init).contents.as_mut_ptr(),
-            PyClassObjectContents {
-                value: ManuallyDrop::new(UnsafeCell::new(init)),
-                borrow_checker: <T::PyClassMutability as PyClassMutability>::Storage::new(),
-                thread_checker: T::ThreadChecker::new(),
-                dict: T::Dict::INIT,
-                weakref: T::WeakRef::INIT,
-            },
-        );
+        unsafe {
+            std::ptr::write(
+                (*part_init).contents.as_mut_ptr(),
+                PyClassObjectContents {
+                    value: ManuallyDrop::new(UnsafeCell::new(init)),
+                    borrow_checker: <T::PyClassMutability as PyClassMutability>::Storage::new(),
+                    thread_checker: T::ThreadChecker::new(),
+                    dict: T::Dict::INIT,
+                    weakref: T::WeakRef::INIT,
+                },
+            );
+        }
 
         // Safety: obj is a valid pointer to an object of type `target_type`, which` is a known
         // subclass of `T`
-        Ok(obj.assume_owned(py).downcast_into_unchecked())
+        Ok(unsafe { obj.assume_owned(py).cast_into_unchecked() })
     }
 }
 
@@ -264,11 +205,16 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
         py: Python<'_>,
         subtype: *mut PyTypeObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        self.create_class_object_of_type(py, subtype)
-            .map(Bound::into_ptr)
+        unsafe {
+            self.create_class_object_of_type(py, subtype)
+                .map(Bound::into_ptr)
+        }
     }
 
-    private_impl! {}
+    #[inline]
+    fn can_be_subclassed(&self) -> bool {
+        !matches!(self.0, PyClassInitializerImpl::Existing(..))
+    }
 }
 
 impl<T> From<T> for PyClassInitializer<T>
@@ -285,9 +231,11 @@ where
 impl<S, B> From<(S, B)> for PyClassInitializer<S>
 where
     S: PyClass<BaseType = B>,
-    B: PyClass,
+    B: PyClass + PyClassBaseType<Initializer = PyClassInitializer<B>>,
     B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
 {
+    #[track_caller]
+    #[inline]
     fn from(sub_and_base: (S, B)) -> PyClassInitializer<S> {
         let (sub, base) = sub_and_base;
         PyClassInitializer::from(base).add_subclass(sub)
@@ -301,9 +249,16 @@ impl<T: PyClass> From<Py<T>> for PyClassInitializer<T> {
     }
 }
 
+impl<'py, T: PyClass> From<Bound<'py, T>> for PyClassInitializer<T> {
+    #[inline]
+    fn from(value: Bound<'py, T>) -> PyClassInitializer<T> {
+        PyClassInitializer::from(value.unbind())
+    }
+}
+
 // Implementation used by proc macros to allow anything convertible to PyClassInitializer<T> to be
 // the return value of pyclass #[new] method (optionally wrapped in `Result<U, E>`).
-impl<T, U> IntoPyCallbackOutput<PyClassInitializer<T>> for U
+impl<T, U> IntoPyCallbackOutput<'_, PyClassInitializer<T>> for U
 where
     T: PyClass,
     U: Into<PyClassInitializer<T>>,
@@ -311,5 +266,29 @@ where
     #[inline]
     fn convert(self, _py: Python<'_>) -> PyResult<PyClassInitializer<T>> {
         Ok(self.into())
+    }
+}
+
+#[cfg(all(test, feature = "macros"))]
+mod tests {
+    //! See https://github.com/PyO3/pyo3/issues/4452.
+
+    use crate::prelude::*;
+
+    #[pyclass(crate = "crate", subclass)]
+    struct BaseClass {}
+
+    #[pyclass(crate = "crate", extends=BaseClass)]
+    struct SubClass {
+        _data: i32,
+    }
+
+    #[test]
+    #[should_panic]
+    fn add_subclass_to_py_is_unsound() {
+        Python::attach(|py| {
+            let base = Py::new(py, BaseClass {}).unwrap();
+            let _subclass = PyClassInitializer::from(base).add_subclass(SubClass { _data: 42 });
+        });
     }
 }

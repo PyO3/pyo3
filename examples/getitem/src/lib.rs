@@ -25,7 +25,7 @@ impl ExampleContainer {
     fn __getitem__(&self, key: &Bound<'_, PyAny>) -> PyResult<i32> {
         if let Ok(position) = key.extract::<i32>() {
             return Ok(position);
-        } else if let Ok(slice) = key.downcast::<PySlice>() {
+        } else if let Ok(slice) = key.cast::<PySlice>() {
             // METHOD 1 - the use PySliceIndices to help with bounds checking and for cases when only start or end are provided
             // in this case the start/stop/step all filled in to give valid values based on the max_length given
             let index = slice.indices(self.max_length as isize).unwrap();
@@ -75,8 +75,7 @@ impl ExampleContainer {
     }
 }
 
-#[pymodule]
-#[pyo3(name = "getitem")]
+#[pymodule(name = "getitem")]
 fn example(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // ? -https://github.com/PyO3/maturin/issues/475
     m.add_class::<ExampleContainer>()?;

@@ -1,9 +1,9 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
+use pyo3::py_run;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct Foo {
@@ -55,8 +55,8 @@ impl Foo {
 
 #[test]
 fn class_attributes() {
-    Python::with_gil(|py| {
-        let foo_obj = py.get_type_bound::<Foo>();
+    Python::attach(|py| {
+        let foo_obj = py.get_type::<Foo>();
         py_assert!(py, foo_obj, "foo_obj.MY_CONST == 'foobar'");
         py_assert!(py, foo_obj, "foo_obj.RENAMED_CONST == 'foobar_2'");
         py_assert!(py, foo_obj, "foo_obj.a == 5");
@@ -66,14 +66,68 @@ fn class_attributes() {
     });
 }
 
-// Ignored because heap types are not immutable:
-// https://github.com/python/cpython/blob/master/Objects/typeobject.c#L3399-L3409
 #[test]
-#[ignore]
-fn class_attributes_are_immutable() {
-    Python::with_gil(|py| {
-        let foo_obj = py.get_type_bound::<Foo>();
-        py_expect_exception!(py, foo_obj, "foo_obj.a = 6", PyTypeError);
+fn class_attributes_mutable() {
+    #[pyclass]
+    struct Foo {}
+
+    #[pymethods]
+    impl Foo {
+        #[classattr]
+        const MY_CONST: &'static str = "foobar";
+
+        #[classattr]
+        fn a() -> i32 {
+            5
+        }
+    }
+
+    Python::attach(|py| {
+        let obj = py.get_type::<Foo>();
+        py_run!(py, obj, "obj.MY_CONST = 'BAZ'");
+        py_run!(py, obj, "obj.a = 42");
+        py_assert!(py, obj, "obj.MY_CONST == 'BAZ'");
+        py_assert!(py, obj, "obj.a == 42");
+    });
+}
+
+#[test]
+#[cfg(any(Py_3_14, all(Py_3_10, not(Py_LIMITED_API))))]
+fn immutable_type_object() {
+    #[pyclass(immutable_type)]
+    struct ImmutableType {}
+
+    #[pymethods]
+    impl ImmutableType {
+        #[classattr]
+        const MY_CONST: &'static str = "foobar";
+
+        #[classattr]
+        fn a() -> i32 {
+            5
+        }
+    }
+
+    #[pyclass(immutable_type)]
+    enum SimpleImmutable {
+        Variant = 42,
+    }
+
+    #[pyclass(immutable_type)]
+    enum ComplexImmutable {
+        Variant(u32),
+    }
+
+    Python::attach(|py| {
+        let obj = py.get_type::<ImmutableType>();
+        py_expect_exception!(py, obj, "obj.MY_CONST = 'FOOBAR'", PyTypeError);
+        py_expect_exception!(py, obj, "obj.a = 6", PyTypeError);
+
+        let obj = py.get_type::<SimpleImmutable>();
+        py_expect_exception!(py, obj, "obj.Variant = 0", PyTypeError);
+
+        let obj = py.get_type::<ComplexImmutable>();
+        py_expect_exception!(py, obj, "obj.Variant = 0", PyTypeError);
     });
 }
 
@@ -87,9 +141,9 @@ impl Bar {
 
 #[test]
 fn recursive_class_attributes() {
-    Python::with_gil(|py| {
-        let foo_obj = py.get_type_bound::<Foo>();
-        let bar_obj = py.get_type_bound::<Bar>();
+    Python::attach(|py| {
+        let foo_obj = py.get_type::<Foo>();
+        let bar_obj = py.get_type::<Bar>();
         py_assert!(py, foo_obj, "foo_obj.a_foo.x == 1");
         py_assert!(py, foo_obj, "foo_obj.bar.x == 2");
         py_assert!(py, bar_obj, "bar_obj.a_foo.x == 3");
@@ -97,40 +151,10 @@ fn recursive_class_attributes() {
 }
 
 #[test]
+#[cfg(Py_3_8)] // sys.unraisablehook not available until Python 3.8
 fn test_fallible_class_attribute() {
-    use pyo3::{exceptions::PyValueError, types::PyString};
-
-    struct CaptureStdErr<'py> {
-        oldstderr: Bound<'py, PyAny>,
-        string_io: Bound<'py, PyAny>,
-    }
-
-    impl<'py> CaptureStdErr<'py> {
-        fn new(py: Python<'py>) -> PyResult<Self> {
-            let sys = py.import_bound("sys")?;
-            let oldstderr = sys.getattr("stderr")?;
-            let string_io = py.import_bound("io")?.getattr("StringIO")?.call0()?;
-            sys.setattr("stderr", &string_io)?;
-            Ok(Self {
-                oldstderr,
-                string_io,
-            })
-        }
-
-        fn reset(self) -> PyResult<String> {
-            let py = self.string_io.py();
-            let payload = self
-                .string_io
-                .getattr("getvalue")?
-                .call0()?
-                .downcast::<PyString>()?
-                .to_cow()?
-                .into_owned();
-            let sys = py.import_bound("sys")?;
-            sys.setattr("stderr", self.oldstderr)?;
-            Ok(payload)
-        }
-    }
+    use pyo3::exceptions::PyValueError;
+    use test_utils::UnraisableCapture;
 
     #[pyclass]
     struct BrokenClass;
@@ -143,22 +167,32 @@ fn test_fallible_class_attribute() {
         }
     }
 
-    Python::with_gil(|py| {
-        let stderr = CaptureStdErr::new(py).unwrap();
-        assert!(std::panic::catch_unwind(|| py.get_type_bound::<BrokenClass>()).is_err());
+    Python::attach(|py| {
+        let (err, object) = UnraisableCapture::enter(py, |capture| {
+            // Accessing the type will attempt to initialize the class attributes
+            assert!(std::panic::catch_unwind(|| py.get_type::<BrokenClass>()).is_err());
+
+            capture.take_capture().unwrap()
+        });
+
+        assert!(object.is_none());
         assert_eq!(
-            stderr.reset().unwrap().trim(),
-            "\
-ValueError: failed to create class attribute
+            err.to_string(),
+            "RuntimeError: An error occurred while initializing class BrokenClass"
+        );
 
-The above exception was the direct cause of the following exception:
+        let cause = err.cause(py).unwrap();
+        assert_eq!(
+            cause.to_string(),
+            "RuntimeError: An error occurred while initializing `BrokenClass.fails_to_init`"
+        );
 
-RuntimeError: An error occurred while initializing `BrokenClass.fails_to_init`
-
-The above exception was the direct cause of the following exception:
-
-RuntimeError: An error occurred while initializing class BrokenClass"
-        )
+        let cause = cause.cause(py).unwrap();
+        assert_eq!(
+            cause.to_string(),
+            "ValueError: failed to create class attribute"
+        );
+        assert!(cause.cause(py).is_none());
     });
 }
 
@@ -186,16 +220,16 @@ impl StructWithRenamedFields {
 fn test_renaming_all_struct_fields() {
     use pyo3::types::PyBool;
 
-    Python::with_gil(|py| {
-        let struct_class = py.get_type_bound::<StructWithRenamedFields>();
+    Python::attach(|py| {
+        let struct_class = py.get_type::<StructWithRenamedFields>();
         let struct_obj = struct_class.call0().unwrap();
         assert!(struct_obj
-            .setattr("firstField", PyBool::new_bound(py, false))
+            .setattr("firstField", PyBool::new(py, false))
             .is_ok());
         py_assert!(py, struct_obj, "struct_obj.firstField == False");
         py_assert!(py, struct_obj, "struct_obj.secondField == 5");
         assert!(struct_obj
-            .setattr("third_field", PyBool::new_bound(py, true))
+            .setattr("third_field", PyBool::new(py, true))
             .is_ok());
         py_assert!(py, struct_obj, "struct_obj.third_field == True");
     });
@@ -219,12 +253,12 @@ macro_rules! test_case {
         fn $test_name() {
             //use pyo3::types::PyInt;
 
-            Python::with_gil(|py| {
-                let struct_class = py.get_type_bound::<$struct_name>();
+            Python::attach(|py| {
+                let struct_class = py.get_type::<$struct_name>();
                 let struct_obj = struct_class.call0().unwrap();
                 assert!(struct_obj.setattr($renamed_field_name, 2).is_ok());
                 let attr = struct_obj.getattr($renamed_field_name).unwrap();
-                assert_eq!(2, attr.extract().unwrap());
+                assert_eq!(2, attr.extract::<u8>().unwrap());
             });
         }
     };

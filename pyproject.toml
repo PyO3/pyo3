@@ -1,9 +1,9 @@
-[tool.ruff.extend-per-file-ignores]
+[tool.ruff.lint.extend-per-file-ignores]
 "__init__.py" = ["F403"]
 
 [tool.towncrier]
 filename = "CHANGELOG.md"
-version = "0.21.2"
+version = "0.26.0"
 start_string = "<!-- towncrier release notes start -->\n"
 template = ".towncrier.template.md"
 title_format = "## [{version}] - {project_date}"
@@ -24,3 +24,26 @@ name = "Removed"
 
 [tool.towncrier.fragment.fixed]
 name = "Fixed"
+
+[tool.rumdl]
+
+disable = [
+    # TODO: enable in a follow-up, probably with `sentence-per-line` reflow
+    "MD013",
+    # TODO: what to do about inline HTML, probably allow?
+    "MD033",
+    # TODO: {{#PYO3_DOCS_URL}} placeholder confuses rumdl, change syntax perhaps?
+    "MD051"
+]
+
+exclude = [
+    # just has an include to the top-level files
+    "guide/src/changelog.md",
+    "guide/src/contributing.md"
+]
+
+[tool.rumdl.per-file-ignores]
+"guide/pyclass-parameters.md" = ["MD041"]
+
+[tool.rumdl.MD004]
+style = "dash"

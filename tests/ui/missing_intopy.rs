@@ -1,8 +1,8 @@
 struct Blah;
 
 #[pyo3::pyfunction]
-fn blah() -> Blah{
+fn blah() -> Blah {
     Blah
 }
 
-fn main(){}
+fn main() {}

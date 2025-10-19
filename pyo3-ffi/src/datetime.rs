@@ -3,39 +3,33 @@
 //! This is the unsafe thin  wrapper around the [CPython C API](https://docs.python.org/3/c-api/datetime.html),
 //! and covers the various date and time related objects in the Python `datetime`
 //! standard library module.
-//!
-//! A note regarding PyPy (cpyext) support:
-//!
-//! Support for `PyDateTime_CAPI` is limited as of PyPy 7.0.0.
-//! `DateTime_FromTimestamp` and `Date_FromTimestamp` are currently not supported.
 
+#[cfg(not(PyPy))]
+use crate::PyCapsule_Import;
 #[cfg(GraalPy)]
 use crate::{PyLong_AsLong, PyLong_Check, PyObject_GetAttrString, Py_DecRef};
 use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_TYPE};
-use std::cell::UnsafeCell;
-use std::os::raw::{c_char, c_int};
+use std::ffi::c_char;
+use std::ffi::c_int;
 use std::ptr;
+use std::sync::Once;
+use std::{cell::UnsafeCell, ffi::CStr};
 #[cfg(not(PyPy))]
-use {crate::PyCapsule_Import, std::ffi::CString};
-#[cfg(not(any(PyPy, GraalPy)))]
-use {crate::Py_hash_t, std::os::raw::c_uchar};
+use {crate::Py_hash_t, std::ffi::c_uchar};
 // Type struct wrappers
 const _PyDateTime_DATE_DATASIZE: usize = 4;
 const _PyDateTime_TIME_DATASIZE: usize = 6;
 const _PyDateTime_DATETIME_DATASIZE: usize = 10;
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 /// Structure representing a `datetime.timedelta`.
 pub struct PyDateTime_Delta {
     pub ob_base: PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub hashcode: Py_hash_t,
-    #[cfg(not(GraalPy))]
     pub days: c_int,
-    #[cfg(not(GraalPy))]
     pub seconds: c_int,
-    #[cfg(not(GraalPy))]
     pub microseconds: c_int,
 }
 
@@ -44,7 +38,7 @@ pub struct PyDateTime_Delta {
 
 #[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 /// Structure representing a `datetime.time` without a `tzinfo` member.
 pub struct _PyDateTime_BaseTime {
     pub ob_base: PyObject,
@@ -54,42 +48,40 @@ pub struct _PyDateTime_BaseTime {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 /// Structure representing a `datetime.time`.
 pub struct PyDateTime_Time {
     pub ob_base: PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub hashcode: Py_hash_t,
-    #[cfg(not(GraalPy))]
     pub hastzinfo: c_char,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub data: [c_uchar; _PyDateTime_TIME_DATASIZE],
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub fold: c_uchar,
     /// # Safety
     ///
     /// Care should be taken when reading this field. If the time does not have a
     /// tzinfo then CPython may allocate as a `_PyDateTime_BaseTime` without this field.
-    #[cfg(not(GraalPy))]
     pub tzinfo: *mut PyObject,
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 /// Structure representing a `datetime.date`
 pub struct PyDateTime_Date {
     pub ob_base: PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub hashcode: Py_hash_t,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub hastzinfo: c_char,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub data: [c_uchar; _PyDateTime_DATE_DATASIZE],
 }
 
 #[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 /// Structure representing a `datetime.datetime` without a `tzinfo` member.
 pub struct _PyDateTime_BaseDateTime {
     pub ob_base: PyObject,
@@ -99,23 +91,21 @@ pub struct _PyDateTime_BaseDateTime {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 /// Structure representing a `datetime.datetime`.
 pub struct PyDateTime_DateTime {
     pub ob_base: PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub hashcode: Py_hash_t,
-    #[cfg(not(GraalPy))]
     pub hastzinfo: c_char,
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub data: [c_uchar; _PyDateTime_DATETIME_DATASIZE],
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(PyPy))]
     pub fold: c_uchar,
     /// # Safety
     ///
     /// Care should be taken when reading this field. If the time does not have a
     /// tzinfo then CPython may allocate as a `_PyDateTime_BaseDateTime` without this field.
-    #[cfg(not(GraalPy))]
     pub tzinfo: *mut PyObject,
 }
 
@@ -128,8 +118,8 @@ pub struct PyDateTime_DateTime {
 /// Returns a signed integer greater than 0.
 pub unsafe fn PyDateTime_GET_YEAR(o: *mut PyObject) -> c_int {
     // This should work for Date or DateTime
-    let d = *(o as *mut PyDateTime_Date);
-    c_int::from(d.data[0]) << 8 | c_int::from(d.data[1])
+    let data = (*(o as *mut PyDateTime_Date)).data;
+    (c_int::from(data[0]) << 8) | c_int::from(data[1])
 }
 
 #[inline]
@@ -137,8 +127,8 @@ pub unsafe fn PyDateTime_GET_YEAR(o: *mut PyObject) -> c_int {
 /// Retrieve the month component of a `PyDateTime_Date` or `PyDateTime_DateTime`.
 /// Returns a signed integer in the range `[1, 12]`.
 pub unsafe fn PyDateTime_GET_MONTH(o: *mut PyObject) -> c_int {
-    let d = *(o as *mut PyDateTime_Date);
-    c_int::from(d.data[2])
+    let data = (*(o as *mut PyDateTime_Date)).data;
+    c_int::from(data[2])
 }
 
 #[inline]
@@ -146,8 +136,8 @@ pub unsafe fn PyDateTime_GET_MONTH(o: *mut PyObject) -> c_int {
 /// Retrieve the day component of a `PyDateTime_Date` or `PyDateTime_DateTime`.
 /// Returns a signed integer in the interval `[1, 31]`.
 pub unsafe fn PyDateTime_GET_DAY(o: *mut PyObject) -> c_int {
-    let d = *(o as *mut PyDateTime_Date);
-    c_int::from(d.data[3])
+    let data = (*(o as *mut PyDateTime_Date)).data;
+    c_int::from(data[3])
 }
 
 // Accessor macros for times
@@ -355,8 +345,8 @@ pub unsafe fn PyDateTime_DELTA_GET_MICROSECONDS(o: *mut PyObject) -> c_int {
 // but copying them seems suboptimal
 #[inline]
 #[cfg(GraalPy)]
-pub unsafe fn _get_attr(obj: *mut PyObject, field: &str) -> c_int {
-    let result = PyObject_GetAttrString(obj, field.as_ptr() as *const c_char);
+pub unsafe fn _get_attr(obj: *mut PyObject, field: &std::ffi::CStr) -> c_int {
+    let result = PyObject_GetAttrString(obj, field.as_ptr());
     Py_DecRef(result); // the original macros are borrowing
     if PyLong_Check(result) == 1 {
         PyLong_AsLong(result) as c_int
@@ -368,55 +358,55 @@ pub unsafe fn _get_attr(obj: *mut PyObject, field: &str) -> c_int {
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_GET_YEAR(o: *mut PyObject) -> c_int {
-    _get_attr(o, "year\0")
+    _get_attr(o, c_str!("year"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_GET_MONTH(o: *mut PyObject) -> c_int {
-    _get_attr(o, "month\0")
+    _get_attr(o, c_str!("month"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_GET_DAY(o: *mut PyObject) -> c_int {
-    _get_attr(o, "day\0")
+    _get_attr(o, c_str!("day"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_HOUR(o: *mut PyObject) -> c_int {
-    _get_attr(o, "hour\0")
+    _get_attr(o, c_str!("hour"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_MINUTE(o: *mut PyObject) -> c_int {
-    _get_attr(o, "minute\0")
+    _get_attr(o, c_str!("minute"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_SECOND(o: *mut PyObject) -> c_int {
-    _get_attr(o, "second\0")
+    _get_attr(o, c_str!("second"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_MICROSECOND(o: *mut PyObject) -> c_int {
-    _get_attr(o, "microsecond\0")
+    _get_attr(o, c_str!("microsecond"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_FOLD(o: *mut PyObject) -> c_int {
-    _get_attr(o, "fold\0")
+    _get_attr(o, c_str!("fold"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
-    let res = PyObject_GetAttrString(o, "tzinfo\0".as_ptr() as *const c_char);
+    let res = PyObject_GetAttrString(o, c_str!("tzinfo").as_ptr().cast());
     Py_DecRef(res); // the original macros are borrowing
     res
 }
@@ -424,37 +414,37 @@ pub unsafe fn PyDateTime_DATE_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_HOUR(o: *mut PyObject) -> c_int {
-    _get_attr(o, "hour\0")
+    _get_attr(o, c_str!("hour"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_MINUTE(o: *mut PyObject) -> c_int {
-    _get_attr(o, "minute\0")
+    _get_attr(o, c_str!("minute"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_SECOND(o: *mut PyObject) -> c_int {
-    _get_attr(o, "second\0")
+    _get_attr(o, c_str!("second"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_MICROSECOND(o: *mut PyObject) -> c_int {
-    _get_attr(o, "microsecond\0")
+    _get_attr(o, c_str!("microsecond"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_FOLD(o: *mut PyObject) -> c_int {
-    _get_attr(o, "fold\0")
+    _get_attr(o, c_str!("fold"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
-    let res = PyObject_GetAttrString(o, "tzinfo\0".as_ptr() as *const c_char);
+    let res = PyObject_GetAttrString(o, c_str!("tzinfo").as_ptr().cast());
     Py_DecRef(res); // the original macros are borrowing
     res
 }
@@ -462,19 +452,19 @@ pub unsafe fn PyDateTime_TIME_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DELTA_GET_DAYS(o: *mut PyObject) -> c_int {
-    _get_attr(o, "days\0")
+    _get_attr(o, c_str!("days"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DELTA_GET_SECONDS(o: *mut PyObject) -> c_int {
-    _get_attr(o, "seconds\0")
+    _get_attr(o, c_str!("seconds"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DELTA_GET_MICROSECONDS(o: *mut PyObject) -> c_int {
-    _get_attr(o, "microseconds\0")
+    _get_attr(o, c_str!("microseconds"))
 }
 
 #[cfg(PyPy)]
@@ -497,7 +487,9 @@ extern "C" {
     pub fn PyDateTime_DATE_GET_MICROSECOND(o: *mut PyObject) -> c_int;
     #[link_name = "PyPyDateTime_GET_FOLD"]
     pub fn PyDateTime_DATE_GET_FOLD(o: *mut PyObject) -> c_int;
-    // skipped PyDateTime_DATE_GET_TZINFO (not in PyPy)
+    #[link_name = "PyPyDateTime_DATE_GET_TZINFO"]
+    #[cfg(Py_3_10)]
+    pub fn PyDateTime_DATE_GET_TZINFO(o: *mut PyObject) -> *mut PyObject;
 
     #[link_name = "PyPyDateTime_TIME_GET_HOUR"]
     pub fn PyDateTime_TIME_GET_HOUR(o: *mut PyObject) -> c_int;
@@ -509,7 +501,9 @@ extern "C" {
     pub fn PyDateTime_TIME_GET_MICROSECOND(o: *mut PyObject) -> c_int;
     #[link_name = "PyPyDateTime_TIME_GET_FOLD"]
     pub fn PyDateTime_TIME_GET_FOLD(o: *mut PyObject) -> c_int;
-    // skipped PyDateTime_TIME_GET_TZINFO (not in PyPy)
+    #[link_name = "PyPyDateTime_TIME_GET_TZINFO"]
+    #[cfg(Py_3_10)]
+    pub fn PyDateTime_TIME_GET_TZINFO(o: *mut PyObject) -> *mut PyObject;
 
     #[link_name = "PyPyDateTime_DELTA_GET_DAYS"]
     pub fn PyDateTime_DELTA_GET_DAYS(o: *mut PyObject) -> c_int;
@@ -596,6 +590,8 @@ pub struct PyDateTime_CAPI {
 // Python already shares this object between threads, so it's no more evil for us to do it too!
 unsafe impl Sync for PyDateTime_CAPI {}
 
+pub const PyDateTime_CAPSULE_NAME: &CStr = c_str!("datetime.datetime_CAPI");
+
 /// Returns a pointer to a `PyDateTime_CAPI` instance
 ///
 /// # Note
@@ -603,33 +599,38 @@ unsafe impl Sync for PyDateTime_CAPI {}
 /// `PyDateTime_IMPORT` is called
 #[inline]
 pub unsafe fn PyDateTimeAPI() -> *mut PyDateTime_CAPI {
-    *PyDateTimeAPI_impl.0.get()
+    *PyDateTimeAPI_impl.ptr.get()
+}
+
+/// Populates the `PyDateTimeAPI` object
+pub unsafe fn PyDateTime_IMPORT() {
+    if !PyDateTimeAPI_impl.once.is_completed() {
+        // PyPy expects the C-API to be initialized via PyDateTime_Import, so trying to use
+        // `PyCapsule_Import` will behave unexpectedly in pypy.
+        #[cfg(PyPy)]
+        let py_datetime_c_api = PyDateTime_Import();
+
+        #[cfg(not(PyPy))]
+        let py_datetime_c_api =
+            PyCapsule_Import(PyDateTime_CAPSULE_NAME.as_ptr(), 1) as *mut PyDateTime_CAPI;
+
+        if py_datetime_c_api.is_null() {
+            return;
+        }
+
+        // Protect against race conditions when the datetime API is concurrently
+        // initialized in multiple threads. UnsafeCell.get() cannot panic so this
+        // won't panic either.
+        PyDateTimeAPI_impl.once.call_once(|| {
+            *PyDateTimeAPI_impl.ptr.get() = py_datetime_c_api;
+        });
+    }
 }
 
 #[inline]
 pub unsafe fn PyDateTime_TimeZone_UTC() -> *mut PyObject {
     (*PyDateTimeAPI()).TimeZone_UTC
 }
-
-/// Populates the `PyDateTimeAPI` object
-pub unsafe fn PyDateTime_IMPORT() {
-    // PyPy expects the C-API to be initialized via PyDateTime_Import, so trying to use
-    // `PyCapsule_Import` will behave unexpectedly in pypy.
-    #[cfg(PyPy)]
-    let py_datetime_c_api = PyDateTime_Import();
-
-    #[cfg(not(PyPy))]
-    let py_datetime_c_api = {
-        // PyDateTime_CAPSULE_NAME is a macro in C
-        let PyDateTime_CAPSULE_NAME = CString::new("datetime.datetime_CAPI").unwrap();
-
-        PyCapsule_Import(PyDateTime_CAPSULE_NAME.as_ptr(), 1) as *mut PyDateTime_CAPI
-    };
-
-    *PyDateTimeAPI_impl.0.get() = py_datetime_c_api;
-}
-
-// skipped non-limited PyDateTime_TimeZone_UTC
 
 /// Type Check macros
 ///
@@ -742,8 +743,13 @@ extern "C" {
 
 // Rust specific implementation details
 
-struct PyDateTimeAPISingleton(UnsafeCell<*mut PyDateTime_CAPI>);
+struct PyDateTimeAPISingleton {
+    once: Once,
+    ptr: UnsafeCell<*mut PyDateTime_CAPI>,
+}
 unsafe impl Sync for PyDateTimeAPISingleton {}
 
-static PyDateTimeAPI_impl: PyDateTimeAPISingleton =
-    PyDateTimeAPISingleton(UnsafeCell::new(ptr::null_mut()));
+static PyDateTimeAPI_impl: PyDateTimeAPISingleton = PyDateTimeAPISingleton {
+    once: Once::new(),
+    ptr: UnsafeCell::new(ptr::null_mut()),
+};

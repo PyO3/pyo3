@@ -37,12 +37,9 @@ automated tooling because:
   - it gives us best control about how to adapt C conventions to Rust, and
   - there are many Python interpreter versions we support in a single set of files.
 
-We aim to provide straight-forward Rust wrappers resembling the file structure of
-[`cpython/Include`](https://github.com/python/cpython/tree/v3.9.2/Include).
+We aim to provide straight-forward Rust wrappers resembling the file structure of [`cpython/Include`](https://github.com/python/cpython/tree/main/Include).
 
-However, we still lack some APIs and are continuously updating the module to match
-the file contents upstream in CPython.
-The tracking issue is [#1289](https://github.com/PyO3/pyo3/issues/1289), and contribution is welcome.
+We are continuously updating the module to match the latest CPython version which PyO3 supports (i.e. as of time of writing Python 3.13). The tracking issue is [#1289](https://github.com/PyO3/pyo3/issues/1289), and contribution is welcome.
 
 In the [`pyo3-ffi`] crate, there is lots of conditional compilation such as `#[cfg(Py_LIMITED_API)]`,
 `#[cfg(Py_3_7)]`, and `#[cfg(PyPy)]`.
@@ -88,23 +85,23 @@ To realize object-oriented programming in C, all Python objects have `ob_base: P
 first field in their structure definition. Thanks to this guarantee, casting `*mut A` to `*mut PyObject`
 is valid if `A` is a Python object.
 
-To ensure this guarantee, we have a wrapper struct `PyCell<T>` in [`src/pycell.rs`] which is roughly:
+To ensure this guarantee, we have a wrapper struct `PyClassObject<T>` in [`src/pycell/impl_.rs`] which is roughly:
 
 ```rust
 #[repr(C)]
-pub struct PyCell<T: PyClass> {
+pub struct PyClassObject<T> {
     ob_base: crate::ffi::PyObject,
     inner: T,
 }
 ```
 
-Thus, when copying a Rust struct to a Python object, we first allocate `PyCell` on the Python heap and then
+Thus, when copying a Rust struct to a Python object, we first allocate `PyClassObject` on the Python heap and then
 move `T` into it.
-Also, `PyCell` provides [RefCell](https://doc.rust-lang.org/std/cell/struct.RefCell.html)-like methods
-to ensure Rust's borrow rules.
-See [the documentation](https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyCell.html) for more.
 
-`PyCell<T>` requires that `T` implements `PyClass`.
+The primary way to interact with Python objects implemented in Rust is through the `Bound<'py, T>` smart pointer.
+By having the `'py` lifetime of the `Python<'py>` token, this ties the lifetime of the `Bound<'py, T>` smart pointer to the lifetime for which the thread is attached to the Python interpreter and allows PyO3 to call Python APIs at maximum efficiency.
+
+`Bound<'py, T>` requires that `T` implements `PyClass`.
 This trait is somewhat complex and derives many traits, but the most important one is `PyTypeInfo`
 in [`src/type_object.rs`].
 `PyTypeInfo` is also implemented for built-in types.

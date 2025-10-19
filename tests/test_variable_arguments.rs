@@ -3,8 +3,7 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct MyClass {}
@@ -26,8 +25,8 @@ impl MyClass {
 
 #[test]
 fn variable_args() {
-    Python::with_gil(|py| {
-        let my_obj = py.get_type_bound::<MyClass>();
+    Python::attach(|py| {
+        let my_obj = py.get_type::<MyClass>();
         py_assert!(py, my_obj, "my_obj.test_args() == ()");
         py_assert!(py, my_obj, "my_obj.test_args(1) == (1,)");
         py_assert!(py, my_obj, "my_obj.test_args(1, 2) == (1, 2)");
@@ -36,8 +35,8 @@ fn variable_args() {
 
 #[test]
 fn variable_kwargs() {
-    Python::with_gil(|py| {
-        let my_obj = py.get_type_bound::<MyClass>();
+    Python::attach(|py| {
+        let my_obj = py.get_type::<MyClass>();
         py_assert!(py, my_obj, "my_obj.test_kwargs() == None");
         py_assert!(py, my_obj, "my_obj.test_kwargs(test=1) == {'test': 1}");
         py_assert!(

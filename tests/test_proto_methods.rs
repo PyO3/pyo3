@@ -4,9 +4,9 @@ use pyo3::exceptions::{PyAttributeError, PyIndexError, PyValueError};
 use pyo3::types::{PyDict, PyList, PyMapping, PySequence, PySlice, PyType};
 use pyo3::{prelude::*, py_run};
 use std::iter;
+use std::sync::Mutex;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct EmptyClass;
@@ -20,9 +20,9 @@ struct ExampleClass {
 
 #[pymethods]
 impl ExampleClass {
-    fn __getattr__(&self, py: Python<'_>, attr: &str) -> PyResult<PyObject> {
+    fn __getattr__(&self, py: Python<'_>, attr: &str) -> PyResult<Py<PyAny>> {
         if attr == "special_custom_attr" {
-            Ok(self.custom_attr.into_py(py))
+            Ok(self.custom_attr.into_pyobject(py)?.into_any().unbind())
         } else {
             Err(PyAttributeError::new_err(attr.to_string()))
         }
@@ -77,7 +77,7 @@ fn make_example(py: Python<'_>) -> Bound<'_, ExampleClass> {
 
 #[test]
 fn test_getattr() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let example_py = make_example(py);
         assert_eq!(
             example_py
@@ -104,7 +104,7 @@ fn test_getattr() {
 
 #[test]
 fn test_setattr() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let example_py = make_example(py);
         example_py.setattr("special_custom_attr", 15).unwrap();
         assert_eq!(
@@ -120,7 +120,7 @@ fn test_setattr() {
 
 #[test]
 fn test_delattr() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let example_py = make_example(py);
         example_py.delattr("special_custom_attr").unwrap();
         assert!(example_py.getattr("special_custom_attr").unwrap().is_none());
@@ -129,26 +129,23 @@ fn test_delattr() {
 
 #[test]
 fn test_str() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let example_py = make_example(py);
-        assert_eq!(example_py.str().unwrap().to_cow().unwrap(), "5");
+        assert_eq!(example_py.str().unwrap(), "5");
     })
 }
 
 #[test]
 fn test_repr() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let example_py = make_example(py);
-        assert_eq!(
-            example_py.repr().unwrap().to_cow().unwrap(),
-            "ExampleClass(value=5)"
-        );
+        assert_eq!(example_py.repr().unwrap(), "ExampleClass(value=5)");
     })
 }
 
 #[test]
 fn test_hash() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let example_py = make_example(py);
         assert_eq!(example_py.hash().unwrap(), 5);
     })
@@ -156,7 +153,7 @@ fn test_hash() {
 
 #[test]
 fn test_bool() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let example_py = make_example(py);
         assert!(example_py.is_truthy().unwrap());
         example_py.borrow_mut().value = 0;
@@ -176,7 +173,7 @@ impl LenOverflow {
 
 #[test]
 fn len_overflow() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(py, LenOverflow).unwrap();
         py_expect_exception!(py, inst, "len(inst)", PyOverflowError);
     });
@@ -209,18 +206,18 @@ impl Mapping {
 
 #[test]
 fn mapping() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         PyMapping::register::<Mapping>(py).unwrap();
 
         let inst = Py::new(
             py,
             Mapping {
-                values: PyDict::new_bound(py).into(),
+                values: PyDict::new(py).into(),
             },
         )
         .unwrap();
 
-        let mapping: &Bound<'_, PyMapping> = inst.bind(py).downcast().unwrap();
+        let mapping: &Bound<'_, PyMapping> = inst.bind(py).cast().unwrap();
 
         py_assert!(py, inst, "len(inst) == 0");
 
@@ -247,14 +244,14 @@ fn mapping() {
 }
 
 #[derive(FromPyObject)]
-enum SequenceIndex<'a> {
+enum SequenceIndex<'py> {
     Integer(isize),
-    Slice(&'a PySlice),
+    Slice(Bound<'py, PySlice>),
 }
 
 #[pyclass]
 pub struct Sequence {
-    values: Vec<PyObject>,
+    values: Vec<Py<PyAny>>,
 }
 
 #[pymethods]
@@ -263,7 +260,7 @@ impl Sequence {
         self.values.len()
     }
 
-    fn __getitem__(&self, index: SequenceIndex<'_>, py: Python<'_>) -> PyResult<PyObject> {
+    fn __getitem__(&self, index: SequenceIndex<'_>, py: Python<'_>) -> PyResult<Py<PyAny>> {
         match index {
             SequenceIndex::Integer(index) => {
                 let uindex = self.usize_index(index)?;
@@ -277,7 +274,7 @@ impl Sequence {
         }
     }
 
-    fn __setitem__(&mut self, index: isize, value: PyObject) -> PyResult<()> {
+    fn __setitem__(&mut self, index: isize, value: Py<PyAny>) -> PyResult<()> {
         let uindex = self.usize_index(index)?;
         self.values
             .get_mut(uindex)
@@ -295,7 +292,7 @@ impl Sequence {
         }
     }
 
-    fn append(&mut self, value: PyObject) {
+    fn append(&mut self, value: Py<PyAny>) {
         self.values.push(value);
     }
 }
@@ -317,12 +314,12 @@ impl Sequence {
 
 #[test]
 fn sequence() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         PySequence::register::<Sequence>(py).unwrap();
 
         let inst = Py::new(py, Sequence { values: vec![] }).unwrap();
 
-        let sequence: &Bound<'_, PySequence> = inst.bind(py).downcast().unwrap();
+        let sequence: &Bound<'_, PySequence> = inst.bind(py).cast().unwrap();
 
         py_assert!(py, inst, "len(inst) == 0");
 
@@ -364,7 +361,7 @@ fn sequence() {
 
 #[pyclass]
 struct Iterator {
-    iter: Box<dyn iter::Iterator<Item = i32> + Send>,
+    iter: Mutex<Box<dyn iter::Iterator<Item = i32> + Send>>,
 }
 
 #[pymethods]
@@ -373,18 +370,18 @@ impl Iterator {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<i32> {
-        slf.iter.next()
+    fn __next__(slf: PyRefMut<'_, Self>) -> Option<i32> {
+        slf.iter.lock().unwrap().next()
     }
 }
 
 #[test]
 fn iterator() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(
             py,
             Iterator {
-                iter: Box::new(5..8),
+                iter: Mutex::new(Box::new(5..8)),
             },
         )
         .unwrap();
@@ -408,7 +405,7 @@ struct NotCallable;
 
 #[test]
 fn callable() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Py::new(py, Callable).unwrap();
         py_assert!(py, c, "callable(c)");
         py_assert!(py, c, "c(7) == 42");
@@ -435,7 +432,7 @@ impl SetItem {
 
 #[test]
 fn setitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Bound::new(py, SetItem { key: 0, val: 0 }).unwrap();
         py_run!(py, c, "c[1] = 2");
         {
@@ -461,7 +458,7 @@ impl DelItem {
 
 #[test]
 fn delitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Bound::new(py, DelItem { key: 0 }).unwrap();
         py_run!(py, c, "del c[1]");
         {
@@ -490,7 +487,7 @@ impl SetDelItem {
 
 #[test]
 fn setdelitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Bound::new(py, SetDelItem { val: None }).unwrap();
         py_run!(py, c, "c[1] = 2");
         {
@@ -515,7 +512,7 @@ impl Contains {
 
 #[test]
 fn contains() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let c = Py::new(py, Contains {}).unwrap();
         py_run!(py, c, "assert 1 in c");
         py_run!(py, c, "assert -1 not in c");
@@ -529,7 +526,7 @@ struct GetItem {}
 #[pymethods]
 impl GetItem {
     fn __getitem__(&self, idx: &Bound<'_, PyAny>) -> PyResult<&'static str> {
-        if let Ok(slice) = idx.downcast::<PySlice>() {
+        if let Ok(slice) = idx.cast::<PySlice>() {
             let indices = slice.indices(1000)?;
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
                 return Ok("slice");
@@ -545,7 +542,7 @@ impl GetItem {
 
 #[test]
 fn test_getitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let ob = Py::new(py, GetItem {}).unwrap();
 
         py_assert!(py, ob, "ob[1] == 'int'");
@@ -568,7 +565,7 @@ impl ClassWithGetAttr {
 
 #[test]
 fn getattr_doesnt_override_member() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(py, ClassWithGetAttr { data: 4 }).unwrap();
         py_assert!(py, inst, "inst.data == 4");
         py_assert!(py, inst, "inst.a == 8");
@@ -590,7 +587,7 @@ impl ClassWithGetAttribute {
 
 #[test]
 fn getattribute_overrides_member() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(py, ClassWithGetAttribute { data: 4 }).unwrap();
         py_assert!(py, inst, "inst.data == 8");
         py_assert!(py, inst, "inst.y == 8");
@@ -623,7 +620,7 @@ impl ClassWithGetAttrAndGetAttribute {
 
 #[test]
 fn getattr_and_getattribute() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let inst = Py::new(py, ClassWithGetAttrAndGetAttribute).unwrap();
         py_assert!(py, inst, "inst.exists == 42");
         py_assert!(py, inst, "inst.lucky == 57");
@@ -636,14 +633,14 @@ fn getattr_and_getattribute() {
 #[pyclass]
 #[derive(Debug)]
 struct OnceFuture {
-    future: PyObject,
+    future: Py<PyAny>,
     polled: bool,
 }
 
 #[pymethods]
 impl OnceFuture {
     #[new]
-    fn new(future: PyObject) -> Self {
+    fn new(future: Py<PyAny>) -> Self {
         OnceFuture {
             future,
             polled: false,
@@ -670,9 +667,10 @@ impl OnceFuture {
 #[test]
 #[cfg(not(target_arch = "wasm32"))] // Won't work without wasm32 event loop (e.g., Pyodide has WebLoop)
 fn test_await() {
-    Python::with_gil(|py| {
-        let once = py.get_type_bound::<OnceFuture>();
-        let source = r#"
+    Python::attach(|py| {
+        let once = py.get_type::<OnceFuture>();
+        let source = pyo3_ffi::c_str!(
+            r#"
 import asyncio
 import sys
 
@@ -685,10 +683,11 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 asyncio.run(main())
-"#;
-        let globals = PyModule::import_bound(py, "__main__").unwrap().dict();
+"#
+        );
+        let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("Once", once).unwrap();
-        py.run_bound(source, Some(&globals), None)
+        py.run(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });
@@ -720,9 +719,10 @@ impl AsyncIterator {
 #[test]
 #[cfg(not(target_arch = "wasm32"))] // Won't work without wasm32 event loop (e.g., Pyodide has WebLoop)
 fn test_anext_aiter() {
-    Python::with_gil(|py| {
-        let once = py.get_type_bound::<OnceFuture>();
-        let source = r#"
+    Python::attach(|py| {
+        let once = py.get_type::<OnceFuture>();
+        let source = pyo3_ffi::c_str!(
+            r#"
 import asyncio
 import sys
 
@@ -739,13 +739,14 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 asyncio.run(main())
-"#;
-        let globals = PyModule::import_bound(py, "__main__").unwrap().dict();
+"#
+        );
+        let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("Once", once).unwrap();
         globals
-            .set_item("AsyncIterator", py.get_type_bound::<AsyncIterator>())
+            .set_item("AsyncIterator", py.get_type::<AsyncIterator>())
             .unwrap();
-        py.run_bound(source, Some(&globals), None)
+        py.run(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });
@@ -785,9 +786,9 @@ impl DescrCounter {
 
 #[test]
 fn descr_getset() {
-    Python::with_gil(|py| {
-        let counter = py.get_type_bound::<DescrCounter>();
-        let source = pyo3::indoc::indoc!(
+    Python::attach(|py| {
+        let counter = py.get_type::<DescrCounter>();
+        let source = pyo3_ffi::c_str!(pyo3::indoc::indoc!(
             r#"
 class Class:
     counter = Counter()
@@ -811,10 +812,10 @@ assert c.counter.count == 4
 del c.counter
 assert c.counter.count == 1
 "#
-        );
-        let globals = PyModule::import_bound(py, "__main__").unwrap().dict();
+        ));
+        let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("Counter", counter).unwrap();
-        py.run_bound(source, Some(&globals), None)
+        py.run(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });
@@ -826,14 +827,14 @@ struct NotHashable;
 #[pymethods]
 impl NotHashable {
     #[classattr]
-    const __hash__: Option<PyObject> = None;
+    const __hash__: Option<Py<PyAny>> = None;
 }
 
 #[test]
 fn test_hash_opt_out() {
     // By default Python provides a hash implementation, which can be disabled by setting __hash__
     // to None.
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let empty = Py::new(py, EmptyClass).unwrap();
         py_assert!(py, empty, "hash(empty) is not None");
 
@@ -848,10 +849,11 @@ struct DefaultedContains;
 
 #[pymethods]
 impl DefaultedContains {
-    fn __iter__(&self, py: Python<'_>) -> PyObject {
-        PyList::new_bound(py, ["a", "b", "c"])
-            .as_ref()
-            .iter()
+    fn __iter__(&self, py: Python<'_>) -> Py<PyAny> {
+        PyList::new(py, ["a", "b", "c"])
+            .unwrap()
+            .as_any()
+            .try_iter()
             .unwrap()
             .into()
     }
@@ -862,10 +864,11 @@ struct NoContains;
 
 #[pymethods]
 impl NoContains {
-    fn __iter__(&self, py: Python<'_>) -> PyObject {
-        PyList::new_bound(py, ["a", "b", "c"])
-            .as_ref()
-            .iter()
+    fn __iter__(&self, py: Python<'_>) -> Py<PyAny> {
+        PyList::new(py, ["a", "b", "c"])
+            .unwrap()
+            .as_any()
+            .try_iter()
             .unwrap()
             .into()
     }
@@ -873,14 +876,14 @@ impl NoContains {
     // Equivalent to the opt-out const form in NotHashable above, just more verbose, to confirm this
     // also works.
     #[classattr]
-    fn __contains__() -> Option<PyObject> {
+    fn __contains__() -> Option<Py<PyAny>> {
         None
     }
 }
 
 #[test]
 fn test_contains_opt_out() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let defaulted_contains = Py::new(py, DefaultedContains).unwrap();
         py_assert!(py, defaulted_contains, "'a' in defaulted_contains");
 

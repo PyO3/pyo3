@@ -2,7 +2,7 @@
 
 use crate::Py_ssize_t;
 use libc::wchar_t;
-use std::os::raw::{c_char, c_int, c_ulong};
+use std::ffi::{c_char, c_int, c_ulong};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -93,6 +93,8 @@ pub struct PyConfig {
     pub tracemalloc: c_int,
     #[cfg(Py_3_12)]
     pub perf_profiling: c_int,
+    #[cfg(Py_3_14)]
+    pub remote_debug: c_int,
     pub import_time: c_int,
     #[cfg(Py_3_11)]
     pub code_debug_ranges: c_int,
@@ -141,6 +143,18 @@ pub struct PyConfig {
     pub safe_path: c_int,
     #[cfg(Py_3_12)]
     pub int_max_str_digits: c_int,
+    #[cfg(Py_3_14)]
+    pub thread_inherit_context: c_int,
+    #[cfg(Py_3_14)]
+    pub context_aware_warnings: c_int,
+    #[cfg(all(Py_3_14, target_os = "macos"))]
+    pub use_system_logger: c_int,
+    #[cfg(Py_3_13)]
+    pub cpu_count: c_int,
+    #[cfg(Py_GIL_DISABLED)]
+    pub enable_gil: c_int,
+    #[cfg(all(Py_3_14, Py_GIL_DISABLED))]
+    pub tlbc_enabled: c_int,
     pub pathconfig_warnings: c_int,
     #[cfg(Py_3_10)]
     pub program_name: *mut wchar_t,
@@ -165,6 +179,8 @@ pub struct PyConfig {
     pub run_command: *mut wchar_t,
     pub run_module: *mut wchar_t,
     pub run_filename: *mut wchar_t,
+    #[cfg(Py_3_13)]
+    pub sys_path_0: *mut wchar_t,
     pub _install_importlib: c_int,
     pub _init_main: c_int,
     #[cfg(all(Py_3_9, not(Py_3_12)))]
@@ -173,6 +189,8 @@ pub struct PyConfig {
     pub _is_python_build: c_int,
     #[cfg(all(Py_3_9, not(Py_3_10)))]
     pub _orig_argv: PyWideStringList,
+    #[cfg(all(Py_3_13, py_sys_config = "Py_DEBUG"))]
+    pub run_presite: *mut wchar_t,
 }
 
 extern "C" {

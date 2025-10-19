@@ -6,9 +6,9 @@ use pyo3::prelude::*;
 use pyo3::types::{PyList, PySequence, PyTuple};
 
 fn iter_tuple(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 100_000;
-        let tuple = PyTuple::new_bound(py, 0..LEN);
+        let tuple = PyTuple::new(py, 0..LEN).unwrap();
         let mut sum = 0;
         b.iter(|| {
             for x in tuple.iter_borrowed() {
@@ -20,16 +20,16 @@ fn iter_tuple(b: &mut Bencher<'_>) {
 }
 
 fn tuple_new(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 50_000;
-        b.iter_with_large_drop(|| PyTuple::new_bound(py, 0..LEN));
+        b.iter_with_large_drop(|| PyTuple::new(py, 0..LEN).unwrap());
     });
 }
 
 fn tuple_get_item(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 50_000;
-        let tuple = PyTuple::new_bound(py, 0..LEN);
+        let tuple = PyTuple::new(py, 0..LEN).unwrap();
         let mut sum = 0;
         b.iter(|| {
             for i in 0..LEN {
@@ -41,9 +41,9 @@ fn tuple_get_item(b: &mut Bencher<'_>) {
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
 fn tuple_get_item_unchecked(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 50_000;
-        let tuple = PyTuple::new_bound(py, 0..LEN);
+        let tuple = PyTuple::new(py, 0..LEN).unwrap();
         let mut sum = 0;
         b.iter(|| {
             for i in 0..LEN {
@@ -56,9 +56,9 @@ fn tuple_get_item_unchecked(b: &mut Bencher<'_>) {
 }
 
 fn tuple_get_borrowed_item(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 50_000;
-        let tuple = PyTuple::new_bound(py, 0..LEN);
+        let tuple = PyTuple::new(py, 0..LEN).unwrap();
         let mut sum = 0;
         b.iter(|| {
             for i in 0..LEN {
@@ -74,9 +74,9 @@ fn tuple_get_borrowed_item(b: &mut Bencher<'_>) {
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
 fn tuple_get_borrowed_item_unchecked(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 50_000;
-        let tuple = PyTuple::new_bound(py, 0..LEN);
+        let tuple = PyTuple::new(py, 0..LEN).unwrap();
         let mut sum = 0;
         b.iter(|| {
             for i in 0..LEN {
@@ -92,32 +92,62 @@ fn tuple_get_borrowed_item_unchecked(b: &mut Bencher<'_>) {
 }
 
 fn sequence_from_tuple(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 50_000;
-        let tuple = PyTuple::new_bound(py, 0..LEN).into_any();
-        b.iter(|| black_box(&tuple).downcast::<PySequence>().unwrap());
+        let tuple = PyTuple::new(py, 0..LEN).unwrap().into_any();
+        b.iter(|| black_box(&tuple).cast::<PySequence>().unwrap());
     });
 }
 
 fn tuple_new_list(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 50_000;
-        let tuple = PyTuple::new_bound(py, 0..LEN);
-        b.iter_with_large_drop(|| PyList::new_bound(py, tuple.iter_borrowed()));
+        let tuple = PyTuple::new(py, 0..LEN).unwrap();
+        b.iter_with_large_drop(|| PyList::new(py, tuple.iter_borrowed()));
     });
 }
 
 fn tuple_to_list(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 50_000;
-        let tuple = PyTuple::new_bound(py, 0..LEN);
+        let tuple = PyTuple::new(py, 0..LEN).unwrap();
         b.iter_with_large_drop(|| tuple.to_list());
     });
 }
 
-fn tuple_into_py(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
-        b.iter(|| -> PyObject { (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).into_py(py) });
+fn tuple_into_pyobject(b: &mut Bencher<'_>) {
+    Python::attach(|py| {
+        b.iter(|| {
+            (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+                .into_pyobject(py)
+                .unwrap()
+        });
+    });
+}
+
+fn tuple_nth(b: &mut Bencher<'_>) {
+    Python::attach(|py| {
+        const LEN: usize = 50;
+        let list = PyTuple::new(py, 0..LEN).unwrap();
+        let mut sum = 0;
+        b.iter(|| {
+            for i in 0..LEN {
+                sum += list.iter().nth(i).unwrap().extract::<usize>().unwrap();
+            }
+        });
+    });
+}
+
+fn tuple_nth_back(b: &mut Bencher<'_>) {
+    Python::attach(|py| {
+        const LEN: usize = 50;
+        let list = PyTuple::new(py, 0..LEN).unwrap();
+        let mut sum = 0;
+        b.iter(|| {
+            for i in 0..LEN {
+                sum += list.iter().nth_back(i).unwrap().extract::<usize>().unwrap();
+            }
+        });
     });
 }
 
@@ -125,6 +155,8 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("iter_tuple", iter_tuple);
     c.bench_function("tuple_new", tuple_new);
     c.bench_function("tuple_get_item", tuple_get_item);
+    c.bench_function("tuple_nth", tuple_nth);
+    c.bench_function("tuple_nth_back", tuple_nth_back);
     #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     c.bench_function("tuple_get_item_unchecked", tuple_get_item_unchecked);
     c.bench_function("tuple_get_borrowed_item", tuple_get_borrowed_item);
@@ -136,7 +168,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("sequence_from_tuple", sequence_from_tuple);
     c.bench_function("tuple_new_list", tuple_new_list);
     c.bench_function("tuple_to_list", tuple_to_list);
-    c.bench_function("tuple_into_py", tuple_into_py);
+    c.bench_function("tuple_into_pyobject", tuple_into_pyobject);
 }
 
 criterion_group!(benches, criterion_benchmark);

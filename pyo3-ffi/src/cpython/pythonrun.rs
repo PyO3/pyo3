@@ -5,7 +5,7 @@ use crate::PyCompilerFlags;
 #[cfg(not(any(PyPy, GraalPy, Py_3_10)))]
 use crate::{_mod, _node};
 use libc::FILE;
-use std::os::raw::{c_char, c_int};
+use std::ffi::{c_char, c_int};
 
 extern "C" {
     pub fn PyRun_SimpleStringFlags(arg1: *const c_char, arg2: *mut PyCompilerFlags) -> c_int;
@@ -135,13 +135,9 @@ extern "C" {
 }
 
 #[inline]
-#[cfg(not(GraalPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int) -> *mut PyObject {
-    #[cfg(not(PyPy))]
-    return Py_CompileStringExFlags(string, p, s, std::ptr::null_mut(), -1);
-
-    #[cfg(PyPy)]
-    Py_CompileStringFlags(string, p, s, std::ptr::null_mut())
+    Py_CompileStringExFlags(string, p, s, std::ptr::null_mut(), -1)
 }
 
 #[inline]

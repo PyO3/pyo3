@@ -7,9 +7,12 @@ use pyo3::types::IntoPyDict;
 use pyo3::{prelude::*, types::PyMapping};
 
 fn iter_dict(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 100_000;
-        let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict_bound(py);
+        let dict = (0..LEN as u64)
+            .map(|i| (i, i * 2))
+            .into_py_dict(py)
+            .unwrap();
         let mut sum = 0;
         b.iter(|| {
             for (k, _v) in &dict {
@@ -21,16 +24,24 @@ fn iter_dict(b: &mut Bencher<'_>) {
 }
 
 fn dict_new(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 50_000;
-        b.iter_with_large_drop(|| (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict_bound(py));
+        b.iter_with_large_drop(|| {
+            (0..LEN as u64)
+                .map(|i| (i, i * 2))
+                .into_py_dict(py)
+                .unwrap()
+        });
     });
 }
 
 fn dict_get_item(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 50_000;
-        let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict_bound(py);
+        let dict = (0..LEN as u64)
+            .map(|i| (i, i * 2))
+            .into_py_dict(py)
+            .unwrap();
         let mut sum = 0;
         b.iter(|| {
             for i in 0..LEN {
@@ -46,35 +57,49 @@ fn dict_get_item(b: &mut Bencher<'_>) {
 }
 
 fn extract_hashmap(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 100_000;
-        let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict_bound(py);
-        b.iter(|| HashMap::<u64, u64>::extract_bound(&dict));
+        let dict = (0..LEN as u64)
+            .map(|i| (i, i * 2))
+            .into_py_dict(py)
+            .unwrap()
+            .into_any();
+        b.iter(|| HashMap::<u64, u64>::extract(dict.as_borrowed()));
     });
 }
 
 fn extract_btreemap(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 100_000;
-        let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict_bound(py);
-        b.iter(|| BTreeMap::<u64, u64>::extract_bound(&dict));
+        let dict = (0..LEN as u64)
+            .map(|i| (i, i * 2))
+            .into_py_dict(py)
+            .unwrap()
+            .into_any();
+        b.iter(|| BTreeMap::<u64, u64>::extract(dict.as_borrowed()));
     });
 }
 
-#[cfg(feature = "hashbrown")]
 fn extract_hashbrown_map(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 100_000;
-        let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict_bound(py);
-        b.iter(|| hashbrown::HashMap::<u64, u64>::extract_bound(&dict));
+        let dict = (0..LEN as u64)
+            .map(|i| (i, i * 2))
+            .into_py_dict(py)
+            .unwrap()
+            .into_any();
+        b.iter(|| hashbrown::HashMap::<u64, u64>::extract(dict.as_borrowed()));
     });
 }
 
 fn mapping_from_dict(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 100_000;
-        let dict = &(0..LEN as u64).map(|i| (i, i * 2)).into_py_dict_bound(py);
-        b.iter(|| black_box(dict).downcast::<PyMapping>().unwrap());
+        let dict = &(0..LEN as u64)
+            .map(|i| (i, i * 2))
+            .into_py_dict(py)
+            .unwrap();
+        b.iter(|| black_box(dict).cast::<PyMapping>().unwrap());
     });
 }
 
@@ -85,8 +110,6 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("extract_hashmap", extract_hashmap);
     c.bench_function("extract_btreemap", extract_btreemap);
     c.bench_function("mapping_from_dict", mapping_from_dict);
-
-    #[cfg(feature = "hashbrown")]
     c.bench_function("extract_hashbrown_map", extract_hashbrown_map);
 }
 

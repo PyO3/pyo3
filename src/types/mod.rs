@@ -4,18 +4,15 @@ pub use self::any::{PyAny, PyAnyMethods};
 pub use self::boolobject::{PyBool, PyBoolMethods};
 pub use self::bytearray::{PyByteArray, PyByteArrayMethods};
 pub use self::bytes::{PyBytes, PyBytesMethods};
-pub use self::capsule::{PyCapsule, PyCapsuleMethods};
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
-pub use self::code::PyCode;
+pub use self::capsule::{CapsuleName, PyCapsule, PyCapsuleMethods};
+pub use self::code::{PyCode, PyCodeInput, PyCodeMethods};
 pub use self::complex::{PyComplex, PyComplexMethods};
 #[allow(deprecated)]
-#[cfg(not(Py_LIMITED_API))]
-pub use self::datetime::timezone_utc;
-#[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::{
-    timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime,
-    PyTimeAccess, PyTzInfo, PyTzInfoAccess,
+    timezone_utc, PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess,
 };
+#[cfg(not(Py_LIMITED_API))]
+pub use self::datetime::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
 pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::dict::{PyDictItems, PyDictKeys, PyDictValues};
@@ -25,28 +22,34 @@ pub use self::float::{PyFloat, PyFloatMethods};
 pub use self::frame::PyFrame;
 pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
 pub use self::function::PyCFunction;
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+#[cfg(not(Py_LIMITED_API))]
 pub use self::function::PyFunction;
+#[cfg(Py_3_9)]
+pub use self::genericalias::PyGenericAlias;
 pub use self::iterator::PyIterator;
 pub use self::list::{PyList, PyListMethods};
 pub use self::mapping::{PyMapping, PyMappingMethods};
+pub use self::mappingproxy::PyMappingProxy;
 pub use self::memoryview::PyMemoryView;
 pub use self::module::{PyModule, PyModuleMethods};
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+pub use self::mutex::{PyMutex, PyMutexGuard};
 pub use self::none::PyNone;
 pub use self::notimplemented::PyNotImplemented;
-pub use self::num::PyLong;
-pub use self::num::PyLong as PyInt;
+pub use self::num::PyInt;
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::pysuper::PySuper;
+pub use self::range::{PyRange, PyRangeMethods};
 pub use self::sequence::{PySequence, PySequenceMethods};
 pub use self::set::{PySet, PySetMethods};
 pub use self::slice::{PySlice, PySliceIndices, PySliceMethods};
 #[cfg(not(Py_LIMITED_API))]
 pub use self::string::PyStringData;
-pub use self::string::{PyString, PyString as PyUnicode, PyStringMethods};
+pub use self::string::{PyString, PyStringMethods};
 pub use self::traceback::{PyTraceback, PyTracebackMethods};
 pub use self::tuple::{PyTuple, PyTupleMethods};
 pub use self::typeobject::{PyType, PyTypeMethods};
+pub use self::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefReference};
 
 /// Iteration over Python collections.
 ///
@@ -59,10 +62,11 @@ pub use self::typeobject::{PyType, PyTypeMethods};
 /// ```rust
 /// use pyo3::prelude::*;
 /// use pyo3::types::PyDict;
+/// use pyo3::ffi::c_str;
 ///
 /// # pub fn main() -> PyResult<()> {
-/// Python::with_gil(|py| {
-///     let dict = py.eval_bound("{'a':'b', 'c':'d'}", None, None)?.downcast_into::<PyDict>()?;
+/// Python::attach(|py| {
+///     let dict = py.eval(c_str!("{'a':'b', 'c':'d'}"), None, None)?.cast_into::<PyDict>()?;
 ///
 ///     for (key, value) in &dict {
 ///         println!("key: {}, value: {}", key, value);
@@ -79,11 +83,11 @@ pub use self::typeobject::{PyType, PyTypeMethods};
 /// the Limited API and PyPy, the underlying structures are opaque and that may not be possible.
 /// In these cases the iterators are implemented by forwarding to [`PyIterator`].
 pub mod iter {
-    pub use super::dict::{BoundDictIterator, PyDictIterator};
-    pub use super::frozenset::{BoundFrozenSetIterator, PyFrozenSetIterator};
-    pub use super::list::{BoundListIterator, PyListIterator};
-    pub use super::set::{BoundSetIterator, PySetIterator};
-    pub use super::tuple::{BorrowedTupleIterator, BoundTupleIterator, PyTupleIterator};
+    pub use super::dict::BoundDictIterator;
+    pub use super::frozenset::BoundFrozenSetIterator;
+    pub use super::list::BoundListIterator;
+    pub use super::set::BoundSetIterator;
+    pub use super::tuple::{BorrowedTupleIterator, BoundTupleIterator};
 }
 
 /// Python objects that have a base type.
@@ -111,126 +115,46 @@ pub trait DerefToPyAny {
     // Empty.
 }
 
-// Implementations core to all native types
-#[doc(hidden)]
-#[macro_export]
-macro_rules! pyobject_native_type_base(
-    ($name:ty $(;$generics:ident)* ) => {
-        unsafe impl<$($generics,)*> $crate::PyNativeType for $name {
-            type AsRefSource = Self;
-        }
-
-        impl<$($generics,)*> ::std::fmt::Debug for $name {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
-                   -> ::std::result::Result<(), ::std::fmt::Error>
-            {
-                let s = self.repr().or(::std::result::Result::Err(::std::fmt::Error))?;
-                f.write_str(&s.to_string_lossy())
-            }
-        }
-
-        impl<$($generics,)*> ::std::fmt::Display for $name {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
-                   -> ::std::result::Result<(), ::std::fmt::Error>
-            {
-                use $crate::PyNativeType;
-                match self.str() {
-                    ::std::result::Result::Ok(s) => return f.write_str(&s.to_string_lossy()),
-                    ::std::result::Result::Err(err) => err.write_unraisable_bound(self.py(), ::std::option::Option::Some(&self.as_borrowed())),
-                }
-
-                match self.get_type().name() {
-                    ::std::result::Result::Ok(name) => ::std::write!(f, "<unprintable {} object>", name),
-                    ::std::result::Result::Err(_err) => f.write_str("<unprintable object>"),
-                }
-            }
-        }
-
-        impl<$($generics,)*> $crate::ToPyObject for $name
-        {
-            #[inline]
-            fn to_object(&self, py: $crate::Python<'_>) -> $crate::PyObject {
-                unsafe { $crate::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
-            }
-        }
-    };
-);
-
 // Implementations core to all native types except for PyAny (because they don't
 // make sense on PyAny / have different implementations).
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_named (
     ($name:ty $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_base!($name $(;$generics)*);
-
-        impl<$($generics,)*> ::std::convert::AsRef<$crate::PyAny> for $name {
-            #[inline]
-            fn as_ref(&self) -> &$crate::PyAny {
-                &self.0
-            }
-        }
-
-        impl<$($generics,)*> ::std::ops::Deref for $name {
-            type Target = $crate::PyAny;
-
-            #[inline]
-            fn deref(&self) -> &$crate::PyAny {
-                &self.0
-            }
-        }
-
-        unsafe impl<$($generics,)*> $crate::AsPyPointer for $name {
-            /// Gets the underlying FFI pointer, returns a borrowed pointer.
-            #[inline]
-            fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
-                self.0.as_ptr()
-            }
-        }
-
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        impl<$($generics,)*> $crate::IntoPy<$crate::Py<$name>> for &'_ $name {
-            #[inline]
-            fn into_py(self, py: $crate::Python<'_>) -> $crate::Py<$name> {
-                unsafe { $crate::Py::from_borrowed_ptr(py, self.as_ptr()) }
-            }
-        }
-
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        impl<$($generics,)*> ::std::convert::From<&'_ $name> for $crate::Py<$name> {
-            #[inline]
-            fn from(other: &$name) -> Self {
-                use $crate::PyNativeType;
-                unsafe { $crate::Py::from_borrowed_ptr(other.py(), other.as_ptr()) }
-            }
-        }
-
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        impl<'a, $($generics,)*> ::std::convert::From<&'a $name> for &'a $crate::PyAny {
-            fn from(ob: &'a $name) -> Self {
-                unsafe{&*(ob as *const $name as *const $crate::PyAny)}
-            }
-        }
-
         impl $crate::types::DerefToPyAny for $name {}
     };
 );
 
+/// Helper for defining the `$typeobject` argument for other macros in this module.
+///
+/// # Safety
+///
+/// - `$typeobject` must be a known `static mut PyTypeObject`
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_static_type_object(
     ($typeobject:expr) => {
-        |_py| unsafe { ::std::ptr::addr_of_mut!($typeobject) }
+        |_py| {
+            // TODO: remove `unsafe` and `allow` on MSRV 1.82+
+            #[allow(unused_unsafe)] // https://github.com/rust-lang/rust/pull/125834
+            // SAFETY: `typeobject` is a known `static mut PyTypeObject`
+            unsafe { ::std::ptr::addr_of_mut!($typeobject) }
+        }
     };
 );
 
+/// Implements the `PyTypeInfo` trait for a native Python type.
+///
+/// # Safety
+///
+/// - `$typeobject` must be a function that produces a valid `*mut PyTypeObject`
+/// - `$checkfunction` must be a function that accepts arbitrary `*mut PyObject` and returns true /
+///   false according to whether the object is an instance of the type from `$typeobject`
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_info(
     ($name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        // SAFETY: macro caller has upheld the safety contracts
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
             const NAME: &'static str = stringify!($name);
             const MODULE: ::std::option::Option<&'static str> = $module;
@@ -243,8 +167,9 @@ macro_rules! pyobject_native_type_info(
 
             $(
                 #[inline]
-                fn is_type_of_bound(obj: &$crate::Bound<'_, $crate::PyAny>) -> bool {
-                    #[allow(unused_unsafe)]
+                fn is_type_of(obj: &$crate::Bound<'_, $crate::PyAny>) -> bool {
+                    #[allow(unused_unsafe)] // not all `$checkfunction` are unsafe extern "C" fn
+                    // SAFETY: `$checkfunction` is being called with a valid `PyObject` pointer
                     unsafe { $checkfunction(obj.as_ptr()) > 0 }
                 }
             )?
@@ -253,26 +178,13 @@ macro_rules! pyobject_native_type_info(
         impl $name {
             #[doc(hidden)]
             pub const _PYO3_DEF: $crate::impl_::pymodule::AddTypeToModule<Self> = $crate::impl_::pymodule::AddTypeToModule::new();
+
+            #[allow(dead_code)]
+            #[doc(hidden)]
+            pub const _PYO3_INTROSPECTION_ID: &'static str = concat!(stringify!($module), stringify!($name));
         }
     };
 );
-
-// NOTE: This macro is not included in pyobject_native_type_base!
-// because rust-numpy has a special implementation.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! pyobject_native_type_extract {
-    ($name:ty $(;$generics:ident)*) => {
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        impl<'py, $($generics,)*> $crate::FromPyObject<'py> for &'py $name {
-            #[inline]
-            fn extract_bound(obj: &$crate::Bound<'py, $crate::PyAny>) -> $crate::PyResult<Self> {
-                ::std::clone::Clone::clone(obj).into_gil_ref().downcast().map_err(::std::convert::Into::into)
-            }
-        }
-    }
-}
 
 /// Declares all of the boilerplate for Python types.
 #[doc(hidden)]
@@ -281,7 +193,6 @@ macro_rules! pyobject_native_type_core {
     ($name:ty, $typeobject:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_named!($name $(;$generics)*);
         $crate::pyobject_native_type_info!($name, $typeobject, $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
-        $crate::pyobject_native_type_extract!($name $(;$generics)*);
     };
     ($name:ty, $typeobject:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_core!($name, $typeobject, #module=::std::option::Option::Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
@@ -290,17 +201,25 @@ macro_rules! pyobject_native_type_core {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! pyobject_subclassable_native_type {
+    ($name:ty, $layout:path $(;$generics:ident)*) => {
+        #[cfg(not(Py_LIMITED_API))]
+        impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
+            type LayoutAsBase = $crate::impl_::pycell::PyClassObjectBase<$layout>;
+            type BaseNativeType = $name;
+            type Initializer = $crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
+            type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
+        }
+    }
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! pyobject_native_type_sized {
     ($name:ty, $layout:path $(;$generics:ident)*) => {
         unsafe impl $crate::type_object::PyLayout<$name> for $layout {}
         impl $crate::type_object::PySizedLayout<$name> for $layout {}
-        impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
-            type LayoutAsBase = $crate::impl_::pycell::PyClassObjectBase<$layout>;
-            type BaseNativeType = $name;
-            type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
-            type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
-        }
-    }
+    };
 }
 
 /// Declares all of the boilerplate for Python types which can be inherited from (because the exact
@@ -321,10 +240,8 @@ pub(crate) mod boolobject;
 pub(crate) mod bytearray;
 pub(crate) mod bytes;
 pub(crate) mod capsule;
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 mod code;
 pub(crate) mod complex;
-#[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
 pub(crate) mod dict;
 mod ellipsis;
@@ -333,16 +250,22 @@ pub(crate) mod float;
 mod frame;
 pub(crate) mod frozenset;
 mod function;
+#[cfg(Py_3_9)]
+pub(crate) mod genericalias;
 pub(crate) mod iterator;
 pub(crate) mod list;
 pub(crate) mod mapping;
+pub(crate) mod mappingproxy;
 mod memoryview;
 pub(crate) mod module;
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+mod mutex;
 mod none;
 mod notimplemented;
 mod num;
 #[cfg(not(any(PyPy, GraalPy)))]
 mod pysuper;
+pub(crate) mod range;
 pub(crate) mod sequence;
 pub(crate) mod set;
 pub(crate) mod slice;
@@ -350,3 +273,4 @@ pub(crate) mod string;
 pub(crate) mod traceback;
 pub(crate) mod tuple;
 pub(crate) mod typeobject;
+pub(crate) mod weakref;

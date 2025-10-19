@@ -1,6 +1,3 @@
-#![no_implicit_prelude]
-#![allow(unused_variables, clippy::unnecessary_wraps)]
-
 #[crate::pyclass]
 #[pyo3(crate = "crate")]
 pub struct Dummy;
@@ -24,7 +21,7 @@ impl Dummy {
     }
 
     fn __bytes__<'py>(&self, py: crate::Python<'py>) -> crate::Bound<'py, crate::types::PyBytes> {
-        crate::types::PyBytes::new_bound(py, &[0])
+        crate::types::PyBytes::new(py, &[0])
     }
 
     fn __format__(&self, format_spec: ::std::string::String) -> ::std::string::String {
@@ -75,8 +72,11 @@ impl Dummy {
 
     fn __delattr__(&mut self, name: ::std::string::String) {}
 
-    fn __dir__<'py>(&self, py: crate::Python<'py>) -> crate::Bound<'py, crate::types::PyList> {
-        crate::types::PyList::new_bound(py, ::std::vec![0_u8])
+    fn __dir__<'py>(
+        &self,
+        py: crate::Python<'py>,
+    ) -> crate::PyResult<crate::Bound<'py, crate::types::PyList>> {
+        crate::types::PyList::new(py, ::std::vec![0_u8])
     }
 
     //////////////////////
@@ -294,7 +294,7 @@ impl Dummy {
         &self,
         py: crate::Python<'py>,
     ) -> crate::Bound<'py, crate::types::PyComplex> {
-        crate::types::PyComplex::from_doubles_bound(py, 0.0, 0.0)
+        crate::types::PyComplex::from_doubles(py, 0.0, 0.0)
     }
 
     fn __int__(&self) -> u32 {
@@ -309,6 +309,7 @@ impl Dummy {
         0
     }
 
+    #[pyo3(signature=(ndigits=::std::option::Option::None))]
     fn __round__(&self, ndigits: ::std::option::Option<u32>) -> u32 {
         0
     }
@@ -414,10 +415,146 @@ impl Dummy {
     // Buffer protocol?
 }
 
+#[crate::pyclass(crate = "crate")]
+struct Clear;
+
+#[crate::pymethods(crate = "crate")]
+impl Clear {
+    pub fn __traverse__(
+        &self,
+        visit: crate::PyVisit<'_>,
+    ) -> ::std::result::Result<(), crate::PyTraverseError> {
+        ::std::result::Result::Ok(())
+    }
+
+    pub fn __clear__(&self) {}
+
+    #[pyo3(signature=(*, reuse=false))]
+    pub fn clear(&self, reuse: bool) {}
+}
+
 // Ensure that crate argument is also accepted inline
 
 #[crate::pyclass(crate = "crate")]
 struct Dummy2;
 
 #[crate::pymethods(crate = "crate")]
-impl Dummy2 {}
+impl Dummy2 {
+    #[classmethod]
+    fn __len__(cls: &crate::Bound<'_, crate::types::PyType>) -> crate::PyResult<usize> {
+        ::std::result::Result::Ok(0)
+    }
+
+    #[staticmethod]
+    fn __repr__() -> &'static str {
+        "Dummy"
+    }
+}
+
+#[crate::pyclass(crate = "crate")]
+struct WarningDummy {
+    value: i32,
+}
+
+#[cfg(not(Py_LIMITED_API))]
+#[crate::pyclass(crate = "crate", extends=crate::exceptions::PyWarning)]
+pub struct UserDefinedWarning {}
+
+#[cfg(not(Py_LIMITED_API))]
+#[crate::pymethods(crate = "crate")]
+impl UserDefinedWarning {
+    #[new]
+    #[pyo3(signature = (*_args, **_kwargs))]
+    fn new(
+        _args: crate::Bound<'_, crate::PyAny>,
+        _kwargs: ::std::option::Option<crate::Bound<'_, crate::PyAny>>,
+    ) -> Self {
+        Self {}
+    }
+}
+
+#[crate::pymethods(crate = "crate")]
+impl WarningDummy {
+    #[new]
+    #[pyo3(warn(message = "this __new__ method raises warning"))]
+    fn new() -> Self {
+        Self { value: 0 }
+    }
+
+    #[pyo3(warn(message = "this method raises warning"))]
+    fn method_with_warning(_slf: crate::PyRef<'_, Self>) {}
+
+    #[pyo3(warn(message = "this method raises warning", category = crate::exceptions::PyFutureWarning))]
+    fn method_with_warning_and_custom_category(_slf: crate::PyRef<'_, Self>) {}
+
+    #[cfg(not(Py_LIMITED_API))]
+    #[pyo3(warn(message = "this method raises user-defined warning", category = UserDefinedWarning))]
+    fn method_with_warning_and_user_defined_category(&self) {}
+
+    #[staticmethod]
+    #[pyo3(warn(message = "this static method raises warning"))]
+    fn static_method() {}
+
+    #[staticmethod]
+    #[pyo3(warn(message = "this class method raises warning"))]
+    fn class_method() {}
+
+    #[getter]
+    #[pyo3(warn(message = "this getter raises warning"))]
+    fn get_value(&self) -> i32 {
+        self.value
+    }
+
+    #[setter]
+    #[pyo3(warn(message = "this setter raises warning"))]
+    fn set_value(&mut self, value: i32) {
+        self.value = value;
+    }
+
+    #[pyo3(warn(message = "this subscript op method raises warning"))]
+    fn __getitem__(&self, _key: i32) -> i32 {
+        0
+    }
+
+    #[pyo3(warn(message = "the + op method raises warning"))]
+    fn __add__(&self, other: crate::PyRef<'_, Self>) -> Self {
+        Self {
+            value: self.value + other.value,
+        }
+    }
+
+    #[pyo3(warn(message = "this __call__ method raises warning"))]
+    fn __call__(&self) -> i32 {
+        self.value
+    }
+
+    #[pyo3(warn(message = "this method raises warning 1"))]
+    #[pyo3(warn(message = "this method raises warning 2", category = crate::exceptions::PyFutureWarning))]
+    fn multiple_warn_method(&self) {}
+}
+
+#[crate::pyclass(crate = "crate")]
+struct WarningDummy2;
+
+#[crate::pymethods(crate = "crate")]
+impl WarningDummy2 {
+    #[new]
+    #[classmethod]
+    #[pyo3(warn(message = "this class-method __new__ method raises warning"))]
+    fn new(_cls: crate::Bound<'_, crate::types::PyType>) -> Self {
+        Self {}
+    }
+
+    #[pyo3(warn(message = "this class-method raises warning 1"))]
+    #[pyo3(warn(message = "this class-method raises warning 2"))]
+    fn multiple_default_warnings_fn(&self) {}
+
+    #[pyo3(warn(message = "this class-method raises warning"))]
+    #[pyo3(warn(message = "this class-method raises future warning", category = crate::exceptions::PyFutureWarning))]
+    fn multiple_warnings_fn(&self) {}
+
+    #[cfg(not(Py_LIMITED_API))]
+    #[pyo3(warn(message = "this class-method raises future warning", category = crate::exceptions::PyFutureWarning))]
+    #[pyo3(warn(message = "this class-method raises user-defined warning", category = UserDefinedWarning))]
+    fn multiple_warnings_fn_with_custom_category(&self) {}
+}

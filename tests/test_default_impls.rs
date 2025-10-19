@@ -2,18 +2,18 @@
 
 use pyo3::prelude::*;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 // Test default generated __repr__.
-#[pyclass]
+#[pyclass(eq, eq_int)]
+#[derive(PartialEq)]
 enum TestDefaultRepr {
     Var,
 }
 
 #[test]
 fn test_default_slot_exists() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let test_object = Py::new(py, TestDefaultRepr::Var).unwrap();
         py_assert!(
             py,
@@ -23,7 +23,8 @@ fn test_default_slot_exists() {
     })
 }
 
-#[pyclass]
+#[pyclass(eq, eq_int)]
+#[derive(PartialEq)]
 enum OverrideSlot {
     Var,
 }
@@ -37,7 +38,7 @@ impl OverrideSlot {
 
 #[test]
 fn test_override_slot() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let test_object = Py::new(py, OverrideSlot::Var).unwrap();
         py_assert!(py, test_object, "repr(test_object) == 'overridden'");
     })
