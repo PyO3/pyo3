@@ -214,7 +214,7 @@ def rumdl(session: nox.Session):
 
 @nox.session(name="clippy", venv_backend="none")
 def clippy(session: nox.Session) -> bool:
-    if not _clippy(session) and _clippy_additional_workspaces(session):
+    if not (_clippy(session) and _clippy_additional_workspaces(session)):
         session.error("one or more jobs failed")
 
 
