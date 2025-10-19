@@ -1,8 +1,12 @@
 # Function signatures
 
-The `#[pyfunction]` attribute also accepts parameters to control how the generated Python function accepts arguments. Just like in Python, arguments can be positional-only, keyword-only, or accept either. `*args` lists and `**kwargs` dicts can also be accepted. These parameters also work for `#[pymethods]` which will be introduced in the [Python Classes](../class.md) section of the guide.
+The `#[pyfunction]` attribute also accepts parameters to control how the generated Python function accepts arguments.
+Just like in Python, arguments can be positional-only, keyword-only, or accept either. `*args` lists and `**kwargs` dicts can also be accepted.
+These parameters also work for `#[pymethods]` which will be introduced in the [Python Classes](../class.md) section of the guide.
 
-Like Python, by default PyO3 accepts all arguments as either positional or keyword arguments. All arguments are required by default. This behaviour can be configured by the `#[pyo3(signature = (...))]` option which allows writing a signature in Python syntax.
+Like Python, by default PyO3 accepts all arguments as either positional or keyword arguments.
+All arguments are required by default.
+This behaviour can be configured by the `#[pyo3(signature = (...))]` option which allows writing a signature in Python syntax.
 
 This section of the guide goes into detail about use of the `#[pyo3(signature = (...))]` option and its related option `#[pyo3(text_signature = "...")]`
 
@@ -28,12 +32,13 @@ Just like in Python, the following constructs can be part of the signature::
 
 - `/`: positional-only arguments separator, each parameter defined before `/` is a positional-only parameter.
 - `*`: var arguments separator, each parameter defined after `*` is a keyword-only parameter.
-- `*args`: "args" is var args. Type of the `args` parameter has to be `&Bound<'_, PyTuple>`.
-- `**kwargs`: "kwargs" receives keyword arguments. The type of the `kwargs` parameter has to be `Option<&Bound<'_, PyDict>>`.
+- `*args`: "args" is var args.
+  Type of the `args` parameter has to be `&Bound<'_, PyTuple>`.
+- `**kwargs`: "kwargs" receives keyword arguments.
+  The type of the `kwargs` parameter has to be `Option<&Bound<'_, PyDict>>`.
 - `arg=Value`: arguments with default value.
    If the `arg` argument is defined after var arguments, it is treated as a keyword-only argument.
-   Note that `Value` has to be valid rust code, PyO3 just inserts it into the generated
-   code unmodified.
+   Note that `Value` has to be valid rust code, PyO3 just inserts it into the generated code unmodified.
 
 Example:
 
@@ -88,7 +93,8 @@ pub fn simple_python_bound_function(py: Python<'_>, lambda: Py<PyAny>) -> PyResu
 }
 ```
 
-N.B. the position of the `/` and `*` arguments (if included) control the system of handling positional and keyword arguments. In Python:
+N.B. the position of the `/` and `*` arguments (if included) control the system of handling positional and keyword arguments.
+In Python:
 
 ```python
 import mymodule
@@ -125,9 +131,11 @@ num=44
 
 ## Making the function signature available to Python
 
-The function signature is exposed to Python via the `__text_signature__` attribute. PyO3 automatically generates this for every `#[pyfunction]` and all `#[pymethods]` directly from the Rust function, taking into account any override done with the `#[pyo3(signature = (...))]` option.
+The function signature is exposed to Python via the `__text_signature__` attribute.
+PyO3 automatically generates this for every `#[pyfunction]` and all `#[pymethods]` directly from the Rust function, taking into account any override done with the `#[pyo3(signature = (...))]` option.
 
-This automatic generation can only display the value of default arguments for strings, integers, boolean types, and `None`. Any other default arguments will be displayed as `...`. (`.pyi` type stub files commonly also use `...` for default arguments in the same way.)
+This automatic generation can only display the value of default arguments for strings, integers, boolean types, and `None`.
+Any other default arguments will be displayed as `...`. (`.pyi` type stub files commonly also use `...` for default arguments in the same way.)
 
 In cases where the automatically-generated signature needs adjusting, it can [be overridden](#overriding-the-generated-signature) using the `#[pyo3(text_signature)]` option.)
 
@@ -210,7 +218,8 @@ fn add(a: u64, b: u64) -> u64 {
 # }
 ```
 
-PyO3 will include the contents of the annotation unmodified as the `__text_signature__`. Below shows how IPython will now present this (see the default value of 0 for b):
+PyO3 will include the contents of the annotation unmodified as the `__text_signature__`.
+Below shows how IPython will now present this (see the default value of 0 for b):
 
 ```text
 >>> pyo3_test.add.__text_signature__
@@ -221,7 +230,8 @@ Docstring: This function adds two unsigned 64-bit integers.
 Type:      builtin_function_or_method
 ```
 
-If no signature is wanted at all, `#[pyo3(text_signature = None)]` will disable the built-in signature. The snippet below demonstrates use of this:
+If no signature is wanted at all, `#[pyo3(text_signature = None)]` will disable the built-in signature.
+The snippet below demonstrates use of this:
 
 ```rust
 use pyo3::prelude::*;

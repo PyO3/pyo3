@@ -5,16 +5,13 @@ tap into [Rust's `tracing` ecosystem] to gain insight into the performance of
 their extension module.
 
 This section of the guide describes a few crates that provide ways to do that.
-They build on [`tracing_subscriber`][tracing-subscriber] and require code
-changes in both Python and Rust to integrate. Note that each extension module
-must configure its own `tracing` integration; one extension module will not see
-`tracing` data from a different module.
+They build on [`tracing_subscriber`][tracing-subscriber] and require code changes in both Python and Rust to integrate.
+Note that each extension module must configure its own `tracing` integration; one extension module will not see `tracing` data from a different module.
 
 ## `pyo3-tracing-subscriber` ([documentation][pyo3-tracing-subscriber-docs])
 
-[`pyo3-tracing-subscriber`][pyo3-tracing-subscriber] provides a way for Python
-projects to configure `tracing_subscriber`. It exposes a few
-`tracing_subscriber` layers:
+[`pyo3-tracing-subscriber`][pyo3-tracing-subscriber] provides a way for Python projects to configure `tracing_subscriber`.
+It exposes a few `tracing_subscriber` layers:
 
 - `tracing_subscriber::fmt` for writing human-readable output to file or stdout
 - `opentelemetry-stdout` for writing OTLP output to file or stdout
@@ -54,11 +51,8 @@ pub fn initialize_tracing(py_impl: Bound<'_, PyAny>) {
 }
 ```
 
-The extension module must provide some way for Python to pass in one or more
-Python objects that implement [the `Layer` interface]. Then it should construct
-[`pyo3_python_tracing_subscriber::PythonCallbackLayerBridge`][PythonCallbackLayerBridge]
-instances with each of those Python objects and initialize `tracing_subscriber`
-as shown above.
+The extension module must provide some way for Python to pass in one or more Python objects that implement [the `Layer` interface].
+Then it should construct [`pyo3_python_tracing_subscriber::PythonCallbackLayerBridge`][PythonCallbackLayerBridge] instances with each of those Python objects and initialize `tracing_subscriber` as shown above.
 
 The Python objects implement a modified version of the `Layer` interface:
 

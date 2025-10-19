@@ -2,7 +2,8 @@
 
 ## Macros
 
-PyO3's attributes (`#[pyclass]`, `#[pymodule]`, etc.) are [procedural macros](https://doc.rust-lang.org/reference/procedural-macros.html), which means that they rewrite the source of the annotated item. You can view the generated source with the following command, which also expands a few other things:
+PyO3's attributes (`#[pyclass]`, `#[pymodule]`, etc.) are [procedural macros](https://doc.rust-lang.org/reference/procedural-macros.html), which means that they rewrite the source of the annotated item.
+You can view the generated source with the following command, which also expands a few other things:
 
 ```bash
 cargo rustc --profile=check -- -Z unstable-options --pretty=expanded > expanded.rs; rustfmt expanded.rs
@@ -16,15 +17,18 @@ You can also debug classic `!`-macros by adding `-Z trace-macros`:
 cargo rustc --profile=check -- -Z unstable-options --pretty=expanded -Z trace-macros > expanded.rs; rustfmt expanded.rs
 ```
 
-Note that those commands require using the nightly build of rust and may occasionally have bugs. See [cargo expand](https://github.com/dtolnay/cargo-expand) for a more elaborate and stable version of those commands.
+Note that those commands require using the nightly build of rust and may occasionally have bugs.
+See [cargo expand](https://github.com/dtolnay/cargo-expand) for a more elaborate and stable version of those commands.
 
 ## Running with Valgrind
 
 Valgrind is a tool to detect memory management bugs such as memory leaks.
 
-You first need to install a debug build of Python, otherwise Valgrind won't produce usable results. In Ubuntu there's e.g. a `python3-dbg` package.
+You first need to install a debug build of Python, otherwise Valgrind won't produce usable results.
+In Ubuntu there's e.g. a `python3-dbg` package.
 
-Activate an environment with the debug interpreter and recompile. If you're on Linux, use `ldd` with the name of your binary and check that you're linking e.g. `libpython3.7d.so.1.0` instead of `libpython3.7.so.1.0`.
+Activate an environment with the debug interpreter and recompile.
+If you're on Linux, use `ldd` with the name of your binary and check that you're linking e.g. `libpython3.7d.so.1.0` instead of `libpython3.7.so.1.0`.
 
 [Download the suppressions file for CPython](https://raw.githubusercontent.com/python/cpython/master/Misc/valgrind-python.supp).
 
@@ -32,7 +36,12 @@ Run Valgrind with `valgrind --suppressions=valgrind-python.supp ./my-command --w
 
 ## Getting a stacktrace
 
-The best start to investigate a crash such as an segmentation fault is a backtrace. You can set `RUST_BACKTRACE=1` as an environment variable to get the stack trace on a `panic!`. Alternatively you can use a debugger such as `gdb` to explore the issue. Rust provides a wrapper, `rust-gdb`, which has pretty-printers for inspecting Rust variables. Since PyO3 uses `cdylib` for Python shared objects, it does not receive the pretty-print debug hooks in `rust-gdb` ([rust-lang/rust#96365](https://github.com/rust-lang/rust/issues/96365)). The mentioned issue contains a workaround for enabling pretty-printers in this case.
+The best start to investigate a crash such as an segmentation fault is a backtrace.
+You can set `RUST_BACKTRACE=1` as an environment variable to get the stack trace on a `panic!`.
+Alternatively you can use a debugger such as `gdb` to explore the issue.
+Rust provides a wrapper, `rust-gdb`, which has pretty-printers for inspecting Rust variables.
+Since PyO3 uses `cdylib` for Python shared objects, it does not receive the pretty-print debug hooks in `rust-gdb` ([rust-lang/rust#96365](https://github.com/rust-lang/rust/issues/96365)).
+The mentioned issue contains a workaround for enabling pretty-printers in this case.
 
 - Link against a debug build of python as described in the previous chapter
 - Run `rust-gdb <my-binary>`
@@ -48,7 +57,8 @@ The best start to investigate a crash such as an segmentation fault is a backtra
 
 ## Setting breakpoints in your Rust code
 
-One of the preferred ways by developers to debug their code is by setting breakpoints. This can be achieved in PyO3 by using a debugger like `rust-gdb` or `rust-lldb` with your Python interpreter.
+One of the preferred ways by developers to debug their code is by setting breakpoints.
+This can be achieved in PyO3 by using a debugger like `rust-gdb` or `rust-lldb` with your Python interpreter.
 
 For more information about how to use both `lldb` and `gdb` you can read the [gdb to lldb command map](https://lldb.llvm.org/use/map.html) from the lldb documentation.
 
@@ -64,7 +74,8 @@ For more information about how to use both `lldb` and `gdb` you can read the [gd
    pip install -e .
    ```
 
-   > **Note**: When using debuggers, make sure that `python` resolves to an actual Python binary or symlink and not a shim script. Some tools like pyenv use shim scripts which can interfere with debugging.
+   > **Note**: When using debuggers, make sure that `python` resolves to an actual Python binary or symlink and not a shim script.
+   Some tools like pyenv use shim scripts which can interfere with debugging.
 
 ### Debugger specific setup
 
@@ -198,7 +209,8 @@ VS Code with the Rust and Python extensions provides an integrated debugging exp
 3. Set breakpoints in your Rust code by clicking in the gutter next to line numbers.
 
 4. Start debugging:
-   - For attaching to a running Python process: First start the process, then select the "Debug PyO3" configuration and click Start Debugging (F5). You'll be prompted to select the Python process to attach to.
+   - For attaching to a running Python process: First start the process, then select the "Debug PyO3" configuration and click Start Debugging (F5).
+     You'll be prompted to select the Python process to attach to.
    - For launching a Python script: Open your Python script, select the "Launch Python with PyO3" configuration and click Start Debugging (F5).
    - For running with arguments: Select "Debug PyO3 with Args" (remember to edit the configuration with your actual script path and arguments).
    - For running tests: Select "Debug PyO3 Tests" (edit the test path as needed).
@@ -343,19 +355,12 @@ To use these functions:
 
 ## Thread Safety and Compiler Sanitizers
 
-PyO3 attempts to match the Rust language-level guarantees for thread safety, but
-that does not preclude other code outside of the control of PyO3 or buggy code
-managed by a PyO3 extension from creating a thread safety issue. Analyzing
-whether or not a piece of Rust code that uses the CPython C API is thread safe
-can be quite complicated, since many Python operations can lead to arbitrary
-Python code execution. Automated ways to discover thread safety issues can often
-be more fruitful than code analysis.
+PyO3 attempts to match the Rust language-level guarantees for thread safety, but that does not preclude other code outside of the control of PyO3 or buggy code managed by a PyO3 extension from creating a thread safety issue.
+Analyzing whether or not a piece of Rust code that uses the CPython C API is thread safe can be quite complicated, since many Python operations can lead to arbitrary Python code execution.
+Automated ways to discover thread safety issues can often be more fruitful than code analysis.
 
-[ThreadSanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html) is a thread
-safety checking runtime that can be used to detect data races triggered by
-thread safety bugs or incorrect use of thread-unsafe data structures. While it
-can only detect data races triggered by code at runtime, if it does detect
-something the reports often point to exactly where the problem is happening.
+[ThreadSanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html) is a thread safety checking runtime that can be used to detect data races triggered by thread safety bugs or incorrect use of thread-unsafe data structures.
+While it can only detect data races triggered by code at runtime, if it does detect something the reports often point to exactly where the problem is happening.
 
 To use `ThreadSanitizer` with a library that depends on PyO3, you will need to
 install a nightly Rust toolchain, along with the `rust-src` component, since you
@@ -367,9 +372,8 @@ rustup override set nightly
 rustup component add rust-src
 ```
 
-You will also need a version of CPython compiled using LLVM/Clang with the same
-major version of LLVM as is currently used to compile nightly Rust. As of March
-2025, Rust nightly uses LLVM 20.
+You will also need a version of CPython compiled using LLVM/Clang with the same major version of LLVM as is currently used to compile nightly Rust.
+As of March 2025, Rust nightly uses LLVM 20.
 
 The [cpython_sanity docker images](https://github.com/nascheme/cpython_sanity)
 contain a development environment with a pre-compiled version of CPython 3.13 or
@@ -383,18 +387,9 @@ After activating a nightly Rust toolchain, you can build your project using
 RUSTFLAGS="-Zsanitizer=thread" maturin develop -Zbuild-std --target x86_64-unknown-linux-gnu
 ```
 
-If you are not running on an x86_64 Linux machine, you should replace
-`x86_64-unknown-linux-gnu` with the [target
-triple](https://doc.rust-lang.org/rustc/platform-support.html#tier-1-with-host-tools)
-that is appropriate for your system. You can also replace `maturin develop` with
-`cargo test` to run `cargo` tests. Note that `cargo` runs tests in a thread
-pool, so `cargo` tests can be a good way to find thread safety issues.
+If you are not running on an x86_64 Linux machine, you should replace `x86_64-unknown-linux-gnu` with the [target triple](https://doc.rust-lang.org/rustc/platform-support.html#tier-1-with-host-tools) that is appropriate for your system.
+You can also replace `maturin develop` with `cargo test` to run `cargo` tests.
+Note that `cargo` runs tests in a thread pool, so `cargo` tests can be a good way to find thread safety issues.
 
-You can also replace `-Zsanitizer=thread` with `-Zsanitizer=address` or any of
-the other sanitizers that are [supported by
-Rust](https://doc.rust-lang.org/beta/unstable-book/compiler-flags/sanitizer.html). Note
-that you'll need to build CPython from source with the appropriate [configure
-script
-flags](https://docs.python.org/3/using/configure.html#cmdoption-with-address-sanitizer)
-to use the same sanitizer environment as you want to use for your Rust
-code.
+You can also replace `-Zsanitizer=thread` with `-Zsanitizer=address` or any of the other sanitizers that are [supported by Rust](https://doc.rust-lang.org/beta/unstable-book/compiler-flags/sanitizer.html).
+Note that you'll need to build CPython from source with the appropriate [configure script flags](https://docs.python.org/3/using/configure.html#cmdoption-with-address-sanitizer) to use the same sanitizer environment as you want to use for your Rust code.

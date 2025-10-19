@@ -1,6 +1,8 @@
 # Class customizations
 
-Python's object model defines several protocols for different object behavior, such as the sequence, mapping, and number protocols. Python classes support these protocols by implementing "magic" methods, such as `__str__` or `__repr__`. Because of the double-underscores surrounding their name, these are also known as "dunder" methods.
+Python's object model defines several protocols for different object behavior, such as the sequence, mapping, and number protocols.
+Python classes support these protocols by implementing "magic" methods, such as `__str__` or `__repr__`.
+Because of the double-underscores surrounding their name, these are also known as "dunder" methods.
 
 PyO3 makes it possible for every magic method to be implemented in `#[pymethods]` just as they would be done in a regular Python class, with a few notable differences:
 
@@ -8,13 +10,17 @@ PyO3 makes it possible for every magic method to be implemented in `#[pymethods]
 - `__del__` is not yet supported, but may be in the future.
 - `__buffer__` and `__release_buffer__` are currently not supported and instead PyO3 supports [`__getbuffer__` and `__releasebuffer__`](#buffer-objects) methods (these predate [PEP 688](https://peps.python.org/pep-0688/#python-level-buffer-protocol)), again this may change in the future.
 - PyO3 adds [`__traverse__` and `__clear__`](#garbage-collector-integration) methods for controlling garbage collection.
-- The Python C-API which PyO3 is implemented upon requires many magic methods to have a specific function signature in C and be placed into special "slots" on the class type object. This limits the allowed argument and return types for these methods. They are listed in detail in the section below.
+- The Python C-API which PyO3 is implemented upon requires many magic methods to have a specific function signature in C and be placed into special "slots" on the class type object.
+  This limits the allowed argument and return types for these methods.
+  They are listed in detail in the section below.
 
-If a magic method is not on the list above (for example `__init_subclass__`), then it should just work in PyO3. If this is not the case, please file a bug report.
+If a magic method is not on the list above (for example `__init_subclass__`), then it should just work in PyO3.
+If this is not the case, please file a bug report.
 
 ## Magic Methods handled by PyO3
 
-If a function name in `#[pymethods]` is a magic method which is known to need special handling, it will be automatically placed into the correct slot in the Python type object. The function name is taken from the usual rules for naming `#[pymethods]`: the `#[pyo3(name = "...")]` attribute is used if present, otherwise the Rust function name is used.
+If a function name in `#[pymethods]` is a magic method which is known to need special handling, it will be automatically placed into the correct slot in the Python type object.
+The function name is taken from the usual rules for naming `#[pymethods]`: the `#[pyo3(name = "...")]` attribute is used if present, otherwise the Rust function name is used.
 
 The magic methods handled by PyO3 are very similar to the standard Python ones on [this page](https://docs.python.org/3/reference/datamodel.html#special-method-names) - in particular they are the subset which have slots as [defined here](https://docs.python.org/3/c-api/typeobj.html).
 
@@ -26,9 +32,8 @@ When PyO3 handles a magic method, a couple of changes apply compared to other `#
 The following sections list all magic methods for which PyO3 implements the necessary special handling.  The
 given signatures should be interpreted as follows:
 
-- All methods take a receiver as first argument, shown as `<self>`. It can be
-   `&self`, `&mut self` or a `Bound` reference like `self_: PyRef<'_, Self>` and
-   `self_: PyRefMut<'_, Self>`, as described [here](../class.md#inheritance).
+- All methods take a receiver as first argument, shown as `<self>`.
+   It can be `&self`, `&mut self` or a `Bound` reference like `self_: PyRef<'_, Self>` and `self_: PyRefMut<'_, Self>`, as described [here](../class.md#inheritance).
 - An optional `Python<'py>` argument is always allowed as the first argument.
 - Return values can be optionally wrapped in `PyResult`.
 - `object` means that any type is allowed that can be extracted from a Python
@@ -37,9 +42,8 @@ given signatures should be interpreted as follows:
    `__richcmp__`'s second argument.
 - For the comparison and arithmetic methods, extraction errors are not
    propagated as exceptions, but lead to a return of `NotImplemented`.
-- For some magic methods, the return values are not restricted by PyO3, but
-   checked by the Python interpreter. For example, `__str__` needs to return a
-   string object.  This is indicated by `object (Python type)`.
+- For some magic methods, the return values are not restricted by PyO3, but checked by the Python interpreter.
+   For example, `__str__` needs to return a string object.  This is indicated by `object (Python type)`.
 
 ### Basic object customization
 
@@ -181,10 +185,9 @@ impl MyIterator {
 }
 ```
 
-In many cases you'll have a distinction between the type being iterated over
-(i.e. the *iterable*) and the iterator it provides. In this case, the iterable
-only needs to implement `__iter__()` while the iterator must implement both
-`__iter__()` and `__next__()`. For example:
+In many cases you'll have a distinction between the type being iterated over (i.e. the *iterable*) and the iterator it provides.
+In this case, the iterable only needs to implement `__iter__()` while the iterator must implement both `__iter__()` and `__next__()`.
+For example:
 
 ```rust,no_run
 # use pyo3::prelude::*;
@@ -233,10 +236,9 @@ documentation](https://docs.python.org/library/stdtypes.html#iterator-types).
 
 #### Returning a value from iteration
 
-This guide has so far shown how to use `Option<T>` to implement yielding values
-during iteration.  In Python a generator can also return a value. This is done by
-raising a `StopIteration` exception. To express this in Rust, return `PyResult::Err`
-with a `PyStopIteration` as the error.
+This guide has so far shown how to use `Option<T>` to implement yielding values during iteration.  In Python a generator can also return a value.
+This is done by raising a `StopIteration` exception.
+To express this in Rust, return `PyResult::Err` with a `PyStopIteration` as the error.
 
 ### Awaitable objects
 
@@ -246,20 +248,28 @@ with a `PyStopIteration` as the error.
 
 ### Mapping & Sequence types
 
-The magic methods in this section can be used to implement Python container types. They are two main categories of container in Python: "mappings" such as `dict`, with arbitrary keys, and "sequences" such as `list` and `tuple`, with integer keys.
+The magic methods in this section can be used to implement Python container types.
+They are two main categories of container in Python: "mappings" such as `dict`, with arbitrary keys, and "sequences" such as `list` and `tuple`, with integer keys.
 
-The Python C-API which PyO3 is built upon has separate "slots" for sequences and mappings. When writing a `class` in pure Python, there is no such distinction in the implementation - a `__getitem__` implementation will fill the slots for both the mapping and sequence forms, for example.
+The Python C-API which PyO3 is built upon has separate "slots" for sequences and mappings.
+When writing a `class` in pure Python, there is no such distinction in the implementation - a `__getitem__` implementation will fill the slots for both the mapping and sequence forms, for example.
 
-By default PyO3 reproduces the Python behaviour of filling both mapping and sequence slots. This makes sense for the "simple" case which matches Python, and also for sequences, where the mapping slot is used anyway to implement slice indexing.
+By default PyO3 reproduces the Python behaviour of filling both mapping and sequence slots.
+This makes sense for the "simple" case which matches Python, and also for sequences, where the mapping slot is used anyway to implement slice indexing.
 
-Mapping types usually will not want the sequence slots filled. Having them filled will lead to outcomes which may be unwanted, such as:
+Mapping types usually will not want the sequence slots filled.
+Having them filled will lead to outcomes which may be unwanted, such as:
 
-- The mapping type will successfully cast to [`PySequence`]. This may lead to consumers of the type handling it incorrectly.
-- Python provides a default implementation of `__iter__` for sequences, which calls `__getitem__` with consecutive positive integers starting from 0 until an `IndexError` is returned. Unless the mapping only contains consecutive positive integer keys, this `__iter__` implementation will likely not be the intended behavior.
+- The mapping type will successfully cast to [`PySequence`].
+  This may lead to consumers of the type handling it incorrectly.
+- Python provides a default implementation of `__iter__` for sequences, which calls `__getitem__` with consecutive positive integers starting from 0 until an `IndexError` is returned.
+  Unless the mapping only contains consecutive positive integer keys, this `__iter__` implementation will likely not be the intended behavior.
 
-Use the `#[pyclass(mapping)]` annotation to instruct PyO3 to only fill the mapping slots, leaving the sequence ones empty. This will apply to `__getitem__`, `__setitem__`, and `__delitem__`.
+Use the `#[pyclass(mapping)]` annotation to instruct PyO3 to only fill the mapping slots, leaving the sequence ones empty.
+This will apply to `__getitem__`, `__setitem__`, and `__delitem__`.
 
-Use the `#[pyclass(sequence)]` annotation to instruct PyO3 to fill the `sq_length` slot instead of the `mp_length` slot for `__len__`. This will help libraries such as `numpy` recognise the class as a sequence, however will also cause CPython to automatically add the sequence length to any negative indices before passing them to `__getitem__`. (`__getitem__`, `__setitem__` and `__delitem__` mapping slots are still used for sequences, for slice operations.)
+Use the `#[pyclass(sequence)]` annotation to instruct PyO3 to fill the `sq_length` slot instead of the `mp_length` slot for `__len__`.
+This will help libraries such as `numpy` recognise the class as a sequence, however will also cause CPython to automatically add the sequence length to any negative indices before passing them to `__getitem__`. (`__getitem__`, `__setitem__` and `__delitem__` mapping slots are still used for sequences, for slice operations.)
 
 - `__len__(<self>) -> usize`
 
@@ -418,19 +428,13 @@ Coercions:
 ### Buffer objects
 
 - `__getbuffer__(<self>, *mut ffi::Py_buffer, flags) -> ()`
-- `__releasebuffer__(<self>, *mut ffi::Py_buffer) -> ()`
-    Errors returned from `__releasebuffer__` will be sent to `sys.unraiseablehook`. It is strongly advised to never return an error from `__releasebuffer__`, and if it really is necessary, to make best effort to perform any required freeing operations before returning. `__releasebuffer__` will not be called a second time; anything not freed will be leaked.
+- `__releasebuffer__(<self>, *mut ffi::Py_buffer) -> ()` Errors returned from `__releasebuffer__` will be sent to `sys.unraiseablehook`.
+    It is strongly advised to never return an error from `__releasebuffer__`, and if it really is necessary, to make best effort to perform any required freeing operations before returning. `__releasebuffer__` will not be called a second time; anything not freed will be leaked.
 
 ### Garbage Collector Integration
 
-If your type owns references to other Python objects, you will need to integrate
-with Python's garbage collector so that the GC is aware of those references.  To
-do this, implement the two methods `__traverse__` and `__clear__`.  These
-correspond to the slots `tp_traverse` and `tp_clear` in the Python C API.
-`__traverse__` must call `visit.call()` for each reference to another Python
-object.  `__clear__` must clear out any mutable references to other Python
-objects (thus breaking reference cycles). Immutable references do not have to be
-cleared, as every cycle must contain at least one mutable reference.
+If your type owns references to other Python objects, you will need to integrate with Python's garbage collector so that the GC is aware of those references.  To do this, implement the two methods `__traverse__` and `__clear__`.  These correspond to the slots `tp_traverse` and `tp_clear` in the Python C API. `__traverse__` must call `visit.call()` for each reference to another Python object.  `__clear__` must clear out any mutable references to other Python objects (thus breaking reference cycles).
+Immutable references do not have to be cleared, as every cycle must contain at least one mutable reference.
 
 - `__traverse__(<self>, pyo3::class::gc::PyVisit<'_>) -> Result<(), pyo3::class::gc::PyTraverseError>`
 - `__clear__(<self>) -> ()`
