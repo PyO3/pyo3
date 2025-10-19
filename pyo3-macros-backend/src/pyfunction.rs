@@ -443,6 +443,8 @@ pub fn impl_wrap_pyfunction(
         // inside a function body)
         #[allow(unknown_lints, non_local_definitions)]
         impl #name::MakeDef {
+            // We're using this to initialize a static, so it's fine.
+            #[allow(clippy::declare_interior_mutable_const)]
             const _PYO3_DEF: #pyo3_path::impl_::pyfunction::PyFunctionDef =
                 #pyo3_path::impl_::pyfunction::PyFunctionDef::from_method_def(#methoddef);
         }
