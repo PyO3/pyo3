@@ -91,8 +91,8 @@ fn __call__(
 }
 ```
 
-The problem with this is that the `&mut self` receiver means PyO3 has to borrow it exclusively,  and hold this borrow across the `self.wraps.call(py, args, kwargs)` call.
-This call returns control to the user's Python code  which is free to call arbitrary things, *including* the decorated function.
+The problem with this is that the `&mut self` receiver means PyO3 has to borrow it exclusively, and hold this borrow across the `self.wraps.call(py, args, kwargs)` call.
+This call returns control to the user's Python code which is free to call arbitrary things, *including* the decorated function.
 If that happens PyO3 is unable to create a second unique borrow and will be forced to raise an exception.
 
 As a result, something innocent like this will raise an exception:

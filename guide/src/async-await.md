@@ -25,7 +25,7 @@ async fn sleep(seconds: f64, result: Option<Py<PyAny>>) -> Option<Py<PyAny>> {
 # }
 ```
 
-*Python awaitables instantiated with this method can only be awaited in *asyncio * context. Other Python async runtime may be supported in the future.*
+*Python awaitables instantiated with this method can only be awaited in `asyncio` context. Other Python async runtime may be supported in the future.*
 
 ## `Send + 'static` constraint
 
