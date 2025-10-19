@@ -669,44 +669,44 @@ impl UserDefinedWarning {
 #[test]
 fn test_pyfunction_warn() {
     #[pyfunction]
-    #[pyo3(warn(message = "this function raises warning"))]
+    #[pyo3(warn(message = "TPW: this function raises warning"))]
     fn function_with_warning() {}
 
     py_expect_warning_for_fn!(
         function_with_warning,
         f,
-        [("this function raises warning", PyUserWarning)]
+        [("TPW: this function raises warning", PyUserWarning)]
     );
 
     #[pyfunction]
-    #[pyo3(warn(message = "this function raises warning with category", category = PyFutureWarning))]
+    #[pyo3(warn(message = "TPW: this function raises warning with category", category = PyFutureWarning))]
     fn function_with_warning_with_category() {}
 
     py_expect_warning_for_fn!(
         function_with_warning_with_category,
         f,
         [(
-            "this function raises warning with category",
+            "TPW: this function raises warning with category",
             PyFutureWarning
         )]
     );
 
     #[pyfunction]
-    #[pyo3(warn(message = "custom deprecated category", category = pyo3::exceptions::PyDeprecationWarning))]
+    #[pyo3(warn(message = "TPW: custom deprecated category", category = pyo3::exceptions::PyDeprecationWarning))]
     fn function_with_warning_with_custom_category() {}
 
     py_expect_warning_for_fn!(
         function_with_warning_with_custom_category,
         f,
         [(
-            "custom deprecated category",
+            "TPW: custom deprecated category",
             pyo3::exceptions::PyDeprecationWarning
         )]
     );
 
     #[cfg(not(Py_LIMITED_API))]
     #[pyfunction]
-    #[pyo3(warn(message = "this function raises user-defined warning", category = UserDefinedWarning))]
+    #[pyo3(warn(message = "TPW: this function raises user-defined warning", category = UserDefinedWarning))]
     fn function_with_warning_and_user_defined_category() {}
 
     #[cfg(not(Py_LIMITED_API))]
@@ -714,7 +714,7 @@ fn test_pyfunction_warn() {
         function_with_warning_and_user_defined_category,
         f,
         [(
-            "this function raises user-defined warning",
+            "TPW: this function raises user-defined warning",
             UserDefinedWarning
         )]
     );
@@ -723,23 +723,23 @@ fn test_pyfunction_warn() {
 #[test]
 fn test_pyfunction_multiple_warnings() {
     #[pyfunction]
-    #[pyo3(warn(message = "this function raises warning"))]
-    #[pyo3(warn(message = "this function raises FutureWarning", category = PyFutureWarning))]
+    #[pyo3(warn(message = "TPMW: this function raises warning"))]
+    #[pyo3(warn(message = "TPMW: this function raises FutureWarning", category = PyFutureWarning))]
     fn function_with_multiple_warnings() {}
 
     py_expect_warning_for_fn!(
         function_with_multiple_warnings,
         f,
         [
-            ("this function raises warning", PyUserWarning),
-            ("this function raises FutureWarning", PyFutureWarning)
+            ("TPMW: this function raises warning", PyUserWarning),
+            ("TPMW: this function raises FutureWarning", PyFutureWarning)
         ]
     );
 
     #[cfg(not(Py_LIMITED_API))]
     #[pyfunction]
-    #[pyo3(warn(message = "this function raises FutureWarning", category = PyFutureWarning))]
-    #[pyo3(warn(message = "this function raises user-defined warning", category = UserDefinedWarning))]
+    #[pyo3(warn(message = "TPMW: this function raises FutureWarning", category = PyFutureWarning))]
+    #[pyo3(warn(message = "TPMW: this function raises user-defined warning", category = UserDefinedWarning))]
     fn function_with_multiple_custom_warnings() {}
 
     #[cfg(not(Py_LIMITED_API))]
@@ -747,9 +747,9 @@ fn test_pyfunction_multiple_warnings() {
         function_with_multiple_custom_warnings,
         f,
         [
-            ("this function raises FutureWarning", PyFutureWarning),
+            ("TPMW: this function raises FutureWarning", PyFutureWarning),
             (
-                "this function raises user-defined warning",
+                "TPMW: this function raises user-defined warning",
                 UserDefinedWarning
             )
         ]
