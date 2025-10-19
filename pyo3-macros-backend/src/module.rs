@@ -405,7 +405,7 @@ pub fn pymodule_module_impl(
         ctx,
         module_def,
         options.submodule.is_some(),
-        options.gil_used.map_or(true, |op| op.value.value),
+        options.gil_used.is_none_or(|op| op.value.value),
     );
 
     let module_consts_names = module_consts.iter().map(|i| i.unraw().to_string());
@@ -461,7 +461,7 @@ pub fn pymodule_function_impl(
         ctx,
         quote! { MakeDef::make_def() },
         false,
-        options.gil_used.map_or(true, |op| op.value.value),
+        options.gil_used.is_none_or(|op| op.value.value),
     );
 
     #[cfg(feature = "experimental-inspect")]
