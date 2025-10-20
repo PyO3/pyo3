@@ -9,15 +9,15 @@ use crate::{
     },
     pycell::PyBorrowError,
     types::{any::PyAnyMethods, PyBool},
-    Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr,
-    PyResult, PyTypeInfo, Python,
+    Borrowed, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult,
+    PyTypeInfo, Python,
 };
 use std::{
     ffi::CStr,
     marker::PhantomData,
+    mem::offset_of,
     os::raw::{c_int, c_void},
-    ptr,
-    ptr::NonNull,
+    ptr::{self, NonNull},
     sync::Mutex,
     thread,
 };
@@ -1189,46 +1189,25 @@ pub(crate) unsafe extern "C" fn assign_sequence_item_from_mapping(
     }
 }
 
-/// Helper trait to locate field within a `#[pyclass]` for a `#[pyo3(get)]`.
-///
-/// Below MSRV 1.77 we can't use `std::mem::offset_of!`, and the replacement in
-/// `memoffset::offset_of` doesn't work in const contexts for types containing `UnsafeCell`.
-///
-/// # Safety
-///
-/// The trait is unsafe to implement because producing an incorrect offset will lead to UB.
-pub unsafe trait OffsetCalculator<T: PyClass, U> {
-    /// Offset to the field within a `PyClassObject<T>`, in bytes.
-    fn offset() -> usize;
-}
-
-// Used in generated implementations of OffsetCalculator
-pub fn class_offset<T: PyClass>() -> usize {
-    offset_of!(PyClassObject<T>, contents)
-}
-
-// Used in generated implementations of OffsetCalculator
-pub use memoffset::offset_of;
-
 /// Type which uses specialization on impl blocks to determine how to read a field from a Rust pyclass
 /// as part of a `#[pyo3(get)]` annotation.
 pub struct PyClassGetterGenerator<
-    // structural information about the field: class type, field type, where the field is within the
-    // class struct
+    // structural information about the field: class type, field type, offset of the field within
+    // the class struct
     ClassT: PyClass,
     FieldT,
-    Offset: OffsetCalculator<ClassT, FieldT>, // on Rust 1.77+ this could be a const OFFSET: usize
+    const OFFSET: usize,
     // additional metadata about the field which is used to switch between different implementations
     // at compile time
     const IS_PY_T: bool,
     const IMPLEMENTS_INTOPYOBJECT_REF: bool,
     const IMPLEMENTS_INTOPYOBJECT: bool,
->(PhantomData<(ClassT, FieldT, Offset)>);
+>(PhantomData<(ClassT, FieldT)>);
 
 impl<
         ClassT: PyClass,
         FieldT,
-        Offset: OffsetCalculator<ClassT, FieldT>,
+        const OFFSET: usize,
         const IS_PY_T: bool,
         const IMPLEMENTS_INTOPYOBJECT_REF: bool,
         const IMPLEMENTS_INTOPYOBJECT: bool,
@@ -1236,7 +1215,7 @@ impl<
     PyClassGetterGenerator<
         ClassT,
         FieldT,
-        Offset,
+        OFFSET,
         IS_PY_T,
         IMPLEMENTS_INTOPYOBJECT_REF,
         IMPLEMENTS_INTOPYOBJECT,
@@ -1252,14 +1231,14 @@ impl<
 impl<
         ClassT: PyClass,
         U,
-        Offset: OffsetCalculator<ClassT, Py<U>>,
+        const OFFSET: usize,
         const IMPLEMENTS_INTOPYOBJECT_REF: bool,
         const IMPLEMENTS_INTOPYOBJECT: bool,
     >
     PyClassGetterGenerator<
         ClassT,
         Py<U>,
-        Offset,
+        OFFSET,
         true,
         IMPLEMENTS_INTOPYOBJECT_REF,
         IMPLEMENTS_INTOPYOBJECT,
@@ -1270,20 +1249,20 @@ impl<
     ///
     /// This is the most efficient operation the Python interpreter could possibly do to
     /// read a field, but it's only possible for us to allow this for frozen classes.
-    pub fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
+    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         use crate::pyclass::boolean_struct::private::Boolean;
         if ClassT::Frozen::VALUE {
             PyMethodDefType::StructMember(ffi::PyMemberDef {
                 name: name.as_ptr(),
                 type_code: ffi::Py_T_OBJECT_EX,
-                offset: Offset::offset() as ffi::Py_ssize_t,
+                offset: (offset_of!(PyClassObject<ClassT>, contents) + OFFSET) as ffi::Py_ssize_t,
                 flags: ffi::Py_READONLY,
                 doc: doc.as_ptr(),
             })
         } else {
             PyMethodDefType::Getter(PyGetterDef {
                 name,
-                meth: pyo3_get_value_into_pyobject_ref::<ClassT, Py<U>, Offset>,
+                meth: pyo3_get_value_into_pyobject_ref::<ClassT, Py<U>, OFFSET>,
                 doc,
             })
         }
@@ -1292,17 +1271,16 @@ impl<
 
 /// Field is not `Py<T>`; try to use `IntoPyObject` for `&T` (preferred over `ToPyObject`) to avoid
 /// potentially expensive clones of containers like `Vec`
-impl<ClassT, FieldT, Offset, const IMPLEMENTS_INTOPYOBJECT: bool>
-    PyClassGetterGenerator<ClassT, FieldT, Offset, false, true, IMPLEMENTS_INTOPYOBJECT>
+impl<ClassT, FieldT, const OFFSET: usize, const IMPLEMENTS_INTOPYOBJECT: bool>
+    PyClassGetterGenerator<ClassT, FieldT, OFFSET, false, true, IMPLEMENTS_INTOPYOBJECT>
 where
     ClassT: PyClass,
     for<'a, 'py> &'a FieldT: IntoPyObject<'py>,
-    Offset: OffsetCalculator<ClassT, FieldT>,
 {
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         PyMethodDefType::Getter(PyGetterDef {
             name,
-            meth: pyo3_get_value_into_pyobject_ref::<ClassT, FieldT, Offset>,
+            meth: pyo3_get_value_into_pyobject_ref::<ClassT, FieldT, OFFSET>,
             doc,
         })
     }
@@ -1320,12 +1298,8 @@ pub trait PyO3GetField<'py>: IntoPyObject<'py> + Clone {}
 impl<'py, T> PyO3GetField<'py> for T where T: IntoPyObject<'py> + Clone {}
 
 /// Base case attempts to use IntoPyObject + Clone
-impl<
-        ClassT: PyClass,
-        FieldT,
-        Offset: OffsetCalculator<ClassT, FieldT>,
-        const IMPLEMENTS_INTOPYOBJECT: bool,
-    > PyClassGetterGenerator<ClassT, FieldT, Offset, false, false, IMPLEMENTS_INTOPYOBJECT>
+impl<ClassT: PyClass, FieldT, const OFFSET: usize, const IMPLEMENTS_INTOPYOBJECT: bool>
+    PyClassGetterGenerator<ClassT, FieldT, OFFSET, false, false, IMPLEMENTS_INTOPYOBJECT>
 {
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType
     // The bound goes here rather than on the block so that this impl is always available
@@ -1335,7 +1309,7 @@ impl<
     {
         PyMethodDefType::Getter(PyGetterDef {
             name,
-            meth: pyo3_get_value_into_pyobject::<ClassT, FieldT, Offset>,
+            meth: pyo3_get_value_into_pyobject::<ClassT, FieldT, OFFSET>,
             doc,
         })
     }
@@ -1350,55 +1324,91 @@ unsafe fn ensure_no_mutable_alias<'a, ClassT: PyClass>(
     unsafe { PyClassGuard::try_borrow(NonNull::from(obj).cast::<Py<ClassT>>().as_ref()) }
 }
 
-/// calculates the field pointer from an PyObject pointer
-#[inline]
-fn field_from_object<ClassT, FieldT, Offset>(obj: *mut ffi::PyObject) -> *mut FieldT
-where
-    ClassT: PyClass,
-    Offset: OffsetCalculator<ClassT, FieldT>,
-{
-    unsafe { obj.cast::<u8>().add(Offset::offset()).cast::<FieldT>() }
-}
-
-fn pyo3_get_value_into_pyobject_ref<ClassT, FieldT, Offset>(
+/// Gets a field value from a pyclass and produces a python value using `IntoPyObject` for `&FieldT`
+///
+/// # Safety
+/// - `obj` must be a valid pointer to an instance of `ClassT`
+/// - there must be a value of type `FieldT` at the calculated offset within `ClassT`
+unsafe fn pyo3_get_value_into_pyobject_ref<ClassT, FieldT, const OFFSET: usize>(
     py: Python<'_>,
     obj: *mut ffi::PyObject,
 ) -> PyResult<*mut ffi::PyObject>
 where
     ClassT: PyClass,
     for<'a, 'py> &'a FieldT: IntoPyObject<'py>,
-    Offset: OffsetCalculator<ClassT, FieldT>,
 {
-    let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
-    let value = field_from_object::<ClassT, FieldT, Offset>(obj);
+    /// Inner function to convert the field value at the given offset
+    ///
+    /// # Safety
+    /// - mutable aliasing is prevented by the caller
+    /// - value of type `FieldT` must exist at the given offset within obj
+    unsafe fn inner<FieldT>(
+        py: Python<'_>,
+        obj: *mut ffi::PyObject,
+        offset: usize,
+    ) -> PyResult<*mut ffi::PyObject>
+    where
+        for<'a, 'py> &'a FieldT: IntoPyObject<'py>,
+    {
+        // SAFETY: caller upholds safety invariants
+        let value = unsafe { &*obj.byte_add(offset).cast::<FieldT>() };
+        value.into_py_any(py).map(Py::into_ptr)
+    }
 
-    // SAFETY: Offset is known to describe the location of the value, and
-    // _holder is preventing mutable aliasing
-    Ok((unsafe { &*value })
-        .into_pyobject(py)
-        .map_err(Into::into)?
-        .into_ptr())
+    // SAFETY: `obj` is a valid pointer to `ClassT`
+    let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
+    // SAFETY: _holder prevents mutable aliasing, caller upholds other safety invariants
+    unsafe {
+        inner::<FieldT>(
+            py,
+            obj,
+            offset_of!(PyClassObject<ClassT>, contents) + OFFSET,
+        )
+    }
 }
 
-fn pyo3_get_value_into_pyobject<ClassT, FieldT, Offset>(
+/// Gets a field value from a pyclass and produces a python value using `IntoPyObject` for `FieldT`,
+/// after cloning the value.
+///
+/// # Safety
+/// - `obj` must be a valid pointer to an instance of `ClassT`
+/// - there must be a value of type `FieldT` at the calculated offset within `ClassT`
+fn pyo3_get_value_into_pyobject<ClassT, FieldT, const OFFSET: usize>(
     py: Python<'_>,
     obj: *mut ffi::PyObject,
 ) -> PyResult<*mut ffi::PyObject>
 where
     ClassT: PyClass,
     for<'py> FieldT: IntoPyObject<'py> + Clone,
-    Offset: OffsetCalculator<ClassT, FieldT>,
 {
-    let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
-    let value = field_from_object::<ClassT, FieldT, Offset>(obj);
+    /// Inner function to convert the field value at the given offset
+    ///
+    /// # Safety
+    /// - mutable aliasing is prevented by the caller
+    /// - value of type `FieldT` must exist at the given offset within obj
+    unsafe fn inner<FieldT>(
+        py: Python<'_>,
+        obj: *mut ffi::PyObject,
+        offset: usize,
+    ) -> PyResult<*mut ffi::PyObject>
+    where
+        for<'py> FieldT: IntoPyObject<'py> + Clone,
+    {
+        // SAFETY: caller upholds safety invariants
+        let value = unsafe { &*obj.byte_add(offset).cast::<FieldT>() };
+        value.clone().into_py_any(py).map(Py::into_ptr)
+    }
 
-    // SAFETY: Offset is known to describe the location of the value, and
-    // _holder is preventing mutable aliasing
-    Ok((unsafe { &*value })
-        .clone()
-        .into_pyobject(py)
-        .map_err(Into::into)?
-        .into_ptr())
+    // SAFETY: `obj` is a valid pointer to `ClassT`
+    let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
+    // SAFETY: _holder prevents mutable aliasing, caller upholds other safety invariants
+    unsafe {
+        inner::<FieldT>(
+            py,
+            obj,
+            offset_of!(PyClassObject<ClassT>, contents) + OFFSET,
+        )
+    }
 }
 
 pub struct ConvertField<
@@ -1461,9 +1471,8 @@ mod tests {
                 assert_eq!(member.type_code, ffi::Py_T_OBJECT_EX);
                 assert_eq!(
                     member.offset,
-                    (memoffset::offset_of!(PyClassObject<FrozenClass>, contents)
-                        + memoffset::offset_of!(FrozenClass, value))
-                        as ffi::Py_ssize_t
+                    (offset_of!(PyClassObject<FrozenClass>, contents)
+                        + offset_of!(FrozenClass, value)) as ffi::Py_ssize_t
                 );
                 assert_eq!(member.flags, ffi::Py_READONLY);
             }
