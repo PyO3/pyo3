@@ -145,15 +145,8 @@ impl<T> Clone for PyClassImplCollector<T> {
 
 impl<T> Copy for PyClassImplCollector<T> {}
 
-pub enum MaybeRuntimePyMethodDef {
-    /// Used in cases where const functionality is not sufficient to define the method
-    /// purely at compile time.
-    Runtime(fn() -> PyMethodDefType),
-    Static(PyMethodDefType),
-}
-
 pub struct PyClassItems {
-    pub methods: &'static [MaybeRuntimePyMethodDef],
+    pub methods: &'static [PyMethodDefType],
     pub slots: &'static [ffi::PyType_Slot],
 }
 
@@ -1455,10 +1448,7 @@ mod tests {
         let mut slots = Vec::new();
 
         for items in FrozenClass::items_iter() {
-            methods.extend(items.methods.iter().map(|m| match m {
-                MaybeRuntimePyMethodDef::Static(m) => *m,
-                MaybeRuntimePyMethodDef::Runtime(r) => r(),
-            }));
+            methods.extend_from_slice(items.methods);
             slots.extend_from_slice(items.slots);
         }
 
@@ -1492,10 +1482,7 @@ mod tests {
         let mut slots = Vec::new();
 
         for items in FrozenClass::items_iter() {
-            methods.extend(items.methods.iter().map(|m| match m {
-                MaybeRuntimePyMethodDef::Static(m) => *m,
-                MaybeRuntimePyMethodDef::Runtime(r) => r(),
-            }));
+            methods.extend_from_slice(items.methods);
             slots.extend_from_slice(items.slots);
         }
 

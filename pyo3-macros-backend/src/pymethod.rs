@@ -364,9 +364,7 @@ pub fn impl_py_method_def(
     };
     let methoddef = spec.get_methoddef(quote! { #cls::#wrapper_ident }, doc, ctx);
     let method_def = quote! {
-        #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
-            #pyo3_path::impl_::pymethods::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
-        )
+        #pyo3_path::impl_::pymethods::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
     };
     Ok(MethodAndMethodDef {
         associated_method,
@@ -599,14 +597,12 @@ pub(crate) fn impl_py_class_attribute(
     };
 
     let method_def = quote! {
-        #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
-            #pyo3_path::impl_::pymethods::PyMethodDefType::ClassAttribute({
-                #pyo3_path::impl_::pymethods::PyClassAttributeDef::new(
-                    #python_name,
-                    #cls::#wrapper_ident
-                )
-            })
-        )
+        #pyo3_path::impl_::pymethods::PyMethodDefType::ClassAttribute({
+            #pyo3_path::impl_::pymethods::PyClassAttributeDef::new(
+                #python_name,
+                #cls::#wrapper_ident
+            )
+        })
     };
 
     Ok(MethodAndMethodDef {
@@ -787,13 +783,11 @@ pub fn impl_py_setter_def(
 
     let method_def = quote! {
         #cfg_attrs
-        #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
-            #pyo3_path::impl_::pymethods::PyMethodDefType::Setter(
-                #pyo3_path::impl_::pymethods::PySetterDef::new(
-                    #python_name,
-                    #cls::#wrapper_ident,
-                    #doc
-                )
+        #pyo3_path::impl_::pymethods::PyMethodDefType::Setter(
+            #pyo3_path::impl_::pymethods::PySetterDef::new(
+                #python_name,
+                #cls::#wrapper_ident,
+                #doc
             )
         )
     };
@@ -862,9 +856,9 @@ pub fn impl_py_getter_def(
             };
 
             let generator = quote_spanned! { ty.span() =>
-                #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(GENERATOR.generate(#python_name, #doc))
+                GENERATOR.generate(#python_name, #doc)
             };
-            // This is separate so that the unsafe below does not inherit the span and thus does not
+            // This is separate from `generator` so that the unsafe below does not inherit the span and thus does not
             // trigger the `unsafe_code` lint
             let method_def = quote! {
                 #cfg_attrs
@@ -917,13 +911,11 @@ pub fn impl_py_getter_def(
 
             let method_def = quote! {
                 #cfg_attrs
-                #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
-                    #pyo3_path::impl_::pymethods::PyMethodDefType::Getter(
-                        #pyo3_path::impl_::pymethods::PyGetterDef::new(
-                            #python_name,
-                            #cls::#wrapper_ident,
-                            #doc
-                        )
+                #pyo3_path::impl_::pymethods::PyMethodDefType::Getter(
+                    #pyo3_path::impl_::pymethods::PyGetterDef::new(
+                        #python_name,
+                        #cls::#wrapper_ident,
+                        #doc
                     )
                 )
             };
