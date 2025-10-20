@@ -58,10 +58,13 @@ impl PyIterator {
     }
 }
 
+/// Outcomes from sending a value into a python generator
 #[derive(Debug)]
 #[cfg(all(not(PyPy), Py_3_10))]
 pub enum PySendResult<'py> {
+    /// The generator yielded a new value
     Next(Bound<'py, PyAny>),
+    /// The generator completed, returning a (possibly None) final value
     Return(Bound<'py, PyAny>),
 }
 
