@@ -35,7 +35,7 @@ pub(crate) const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { majo
 
 /// GraalPy may implement the same CPython version over multiple releases.
 const MINIMUM_SUPPORTED_VERSION_GRAALPY: PythonVersion = PythonVersion {
-    major: 24,
+    major: 25,
     minor: 0,
 };
 

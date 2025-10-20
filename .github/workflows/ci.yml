@@ -235,7 +235,7 @@ jobs:
             "3.14",
             "3.14t",
             "pypy3.11",
-            "graalpy24.2",
+            "graalpy25.0",
           ]
         platform:
           [
