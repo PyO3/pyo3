@@ -165,7 +165,7 @@ mod tests {
                 .unwrap()
                 .extract()
                 .unwrap();
-            assert!(v == [1, 2]);
+            assert_eq!(v, [1, 2]);
         });
     }
 
@@ -177,7 +177,7 @@ mod tests {
                 .unwrap()
                 .extract()
                 .unwrap();
-            assert!(v == [1, 2, 3, 4]);
+            assert_eq!(v, [1, 2, 3, 4]);
         });
     }
 
@@ -189,7 +189,7 @@ mod tests {
                 .unwrap()
                 .extract()
                 .unwrap();
-            assert!(v == b"abc");
+            assert_eq!(v, b"abc");
         });
     }
 }
