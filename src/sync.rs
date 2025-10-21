@@ -1467,7 +1467,7 @@ mod tests {
                 Err(poisoned) => poisoned.into_inner(),
             }
         });
-        assert!(*guard == 42);
+        assert_eq!(*guard, 42);
     }
 
     #[cfg(feature = "macros")]
@@ -1699,7 +1699,7 @@ mod tests {
         Python::attach(|py| {
             // recover from the poisoning
             let guard = rwlock.write_py_attached(py).unwrap_err().into_inner();
-            assert!(*guard == 42);
+            assert_eq!(*guard, 42);
         });
     }
 }
