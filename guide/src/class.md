@@ -191,11 +191,11 @@ For example, you define a class that extends `PyDict` and don't want that the or
 `__init__` method of `PyDict` been called. In this case by defining an own `init` method
 it's possible to stop initialization flow.
 
-If you declare an own `init` method you may need to call a super class `__init__` method
+If you declare an own `init` method you may need to call a super class' `__init__` method
 explicitly like that happens in a regular Python code.
 
 To declare an initializer, you need to define a method and annotate it with the `#[init]`
-attribute. An `init` method must have the same input paretemeters signature like
+attribute. An `init` method must have the same input parameters signature like
 in the constructor method.
 
 Like in the constructor case the Rust method name isn't important.
