@@ -63,8 +63,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                     return Err(error.finish().into());
                 }
 
-                if !env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY")
-                    .is_some_and(|os_str| os_str == "1")
+                if env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").is_none_or(|os_str| os_str != "1")
                 {
                     error.add_help("set PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 to suppress this check and build anyway using the stable ABI");
                     return Err(error.finish().into());

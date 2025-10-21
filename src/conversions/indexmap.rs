@@ -165,7 +165,7 @@ mod test_indexmap {
 
             let py_map = (&map).into_pyobject(py).unwrap();
 
-            assert!(py_map.len() == 1);
+            assert_eq!(py_map.len(), 1);
             assert!(
                 py_map
                     .get_item(1)

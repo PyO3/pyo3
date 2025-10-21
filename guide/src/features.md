@@ -172,7 +172,7 @@ Adds a dependency on [indexmap](https://docs.rs/indexmap) and enables conversion
 
 ### `jiff-02`
 
-Adds a dependency on [jiff@0.2](https://docs.rs/jiff/0.2) and requires MSRV 1.70. Enables a conversion from [jiff](https://docs.rs/jiff)'s types to python:
+Adds a dependency on [jiff@0.2](https://docs.rs/jiff/0.2). Enables a conversion from [jiff](https://docs.rs/jiff)'s types to python:
 
 - [SignedDuration](https://docs.rs/jiff/0.2/jiff/struct.SignedDuration.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
 - [TimeZone](https://docs.rs/jiff/0.2/jiff/tz/struct.TimeZone.html) -> [`PyTzInfo`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTzInfo.html)
@@ -217,7 +217,7 @@ Adds a dependency on [rust_decimal](https://docs.rs/rust_decimal) and enables co
 
 ### `time`
 
-Adds a dependency on [time](https://docs.rs/time) and requires MSRV 1.67.1. Enables conversions between [time](https://docs.rs/time)'s types and Python:
+Adds a dependency on [time](https://docs.rs/time). Enables conversions between [time](https://docs.rs/time)'s types and Python:
 
 - [Date](https://docs.rs/time/0.3.38/time/struct.Date.html) -> [`PyDate`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDate.html)
 - [Time](https://docs.rs/time/0.3.38/time/struct.Time.html) -> [`PyTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTime.html)

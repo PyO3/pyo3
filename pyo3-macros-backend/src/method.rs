@@ -4,11 +4,12 @@ use std::fmt::Display;
 
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
+use syn::LitCStr;
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
 use crate::pyfunction::{PyFunctionWarning, WarningFactory};
 use crate::pyversions::is_abi3_before;
-use crate::utils::{expr_to_python, Ctx, LitCStr};
+use crate::utils::{expr_to_python, Ctx};
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
     params::{impl_arg_params, Holders},
@@ -407,7 +408,7 @@ impl SelfType {
                         #bound_ref.cast::<#cls>()
                             .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
                             .and_then(
-                                #[allow(unknown_lints, clippy::unnecessary_fallible_conversions)]  // In case slf is Py<Self> (unknown_lints can be removed when MSRV is 1.75+)
+                                #[allow(clippy::unnecessary_fallible_conversions)]  // In case slf is Py<Self>
                                 |bound| ::std::convert::TryFrom::try_from(bound).map_err(::std::convert::Into::into)
                             )
 
@@ -550,10 +551,10 @@ impl<'a> FnSpec<'a> {
         })
     }
 
-    pub fn null_terminated_python_name(&self, ctx: &Ctx) -> LitCStr {
+    pub fn null_terminated_python_name(&self) -> LitCStr {
         let name = self.python_name.to_string();
         let name = CString::new(name).unwrap();
-        LitCStr::new(name, self.python_name.span(), ctx)
+        LitCStr::new(&name, self.python_name.span())
     }
 
     fn parse_fn_type(
@@ -901,7 +902,7 @@ impl<'a> FnSpec<'a> {
     /// calling convention.
     pub fn get_methoddef(&self, wrapper: impl ToTokens, doc: &PythonDoc, ctx: &Ctx) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
-        let python_name = self.null_terminated_python_name(ctx);
+        let python_name = self.null_terminated_python_name();
         match self.convention {
             CallingConvention::Noargs => quote! {
                 #pyo3_path::impl_::pymethods::PyMethodDef::noargs(

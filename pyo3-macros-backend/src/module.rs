@@ -15,11 +15,12 @@ use crate::{
     get_doc,
     pyclass::PyClassPyO3Option,
     pyfunction::{impl_wrap_pyfunction, PyFunctionOptions},
-    utils::{has_attribute, has_attribute_with_namespace, Ctx, IdentOrStr, LitCStr},
+    utils::{has_attribute, has_attribute_with_namespace, Ctx, IdentOrStr},
 };
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use std::ffi::CString;
+use syn::LitCStr;
 use syn::{
     ext::IdentExt,
     parse::{Parse, ParseStream},
@@ -404,7 +405,7 @@ pub fn pymodule_module_impl(
         ctx,
         module_def,
         options.submodule.is_some(),
-        options.gil_used.map_or(true, |op| op.value.value),
+        options.gil_used.is_none_or(|op| op.value.value),
     );
 
     let module_consts_names = module_consts.iter().map(|i| i.unraw().to_string());
@@ -460,7 +461,7 @@ pub fn pymodule_function_impl(
         ctx,
         quote! { MakeDef::make_def() },
         false,
-        options.gil_used.map_or(true, |op| op.value.value),
+        options.gil_used.is_none_or(|op| op.value.value),
     );
 
     #[cfg(feature = "experimental-inspect")]
@@ -523,7 +524,7 @@ fn module_initialization(
     let Ctx { pyo3_path, .. } = ctx;
     let pyinit_symbol = format!("PyInit_{name}");
     let name = name.to_string();
-    let pyo3_name = LitCStr::new(CString::new(name).unwrap(), Span::call_site(), ctx);
+    let pyo3_name = LitCStr::new(&CString::new(name).unwrap(), Span::call_site());
 
     let mut result = quote! {
         #[doc(hidden)]

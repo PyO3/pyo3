@@ -452,7 +452,7 @@ mod tests {
             .join()
         });
         mutex.clear_poison();
-        assert!(*mutex.lock().unwrap() == 0);
+        assert_eq!(*mutex.lock().unwrap(), 0);
     }
 
     #[test]

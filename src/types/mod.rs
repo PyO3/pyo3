@@ -136,12 +136,7 @@ macro_rules! pyobject_native_type_named (
 #[macro_export]
 macro_rules! pyobject_native_static_type_object(
     ($typeobject:expr) => {
-        |_py| {
-            // TODO: remove `unsafe` and `allow` on MSRV 1.82+
-            #[allow(unused_unsafe)] // https://github.com/rust-lang/rust/pull/125834
-            // SAFETY: `typeobject` is a known `static mut PyTypeObject`
-            unsafe { ::std::ptr::addr_of_mut!($typeobject) }
-        }
+        |_py| ::std::ptr::addr_of_mut!($typeobject)
     };
 );
 

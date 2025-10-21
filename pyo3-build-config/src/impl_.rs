@@ -35,7 +35,7 @@ pub(crate) const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { majo
 
 /// GraalPy may implement the same CPython version over multiple releases.
 const MINIMUM_SUPPORTED_VERSION_GRAALPY: PythonVersion = PythonVersion {
-    major: 24,
+    major: 25,
     minor: 0,
 };
 
@@ -1998,7 +1998,7 @@ fn escape(bytes: &[u8]) -> String {
 }
 
 fn unescape(escaped: &str) -> Vec<u8> {
-    assert!(escaped.len() % 2 == 0, "invalid hex encoding");
+    assert_eq!(escaped.len() % 2, 0, "invalid hex encoding");
 
     let mut bytes = Vec::with_capacity(escaped.len() / 2);
 
