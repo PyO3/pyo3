@@ -389,7 +389,7 @@ pub fn pymodule_module_impl(
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection_id = quote! {};
 
-    let gil_used = options.gil_used.map_or(true, |op| op.value.value);
+    let gil_used = options.gil_used.is_some_and(|op| op.value.value);
 
     let initialization = module_initialization(
         &name,
@@ -448,7 +448,7 @@ pub fn pymodule_function_impl(
     let vis = &function.vis;
     let doc = get_doc(&function.attrs, None, ctx)?;
 
-    let gil_used = options.gil_used.map_or(true, |op| op.value.value);
+    let gil_used = options.gil_used.is_some_and(|op| op.value.value);
 
     let initialization = module_initialization(
         &name,

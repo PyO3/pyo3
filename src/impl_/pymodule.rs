@@ -95,7 +95,7 @@ impl ModuleDef {
             ))]
             interpreter: AtomicI64::new(-1),
             module: PyOnceLock::new(),
-            gil_used: true,
+            gil_used: false,
         }
     }
 
