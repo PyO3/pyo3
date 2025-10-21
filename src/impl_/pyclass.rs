@@ -1366,7 +1366,7 @@ where
 /// # Safety
 /// - `obj` must be a valid pointer to an instance of `ClassT`
 /// - there must be a value of type `FieldT` at the calculated offset within `ClassT`
-fn pyo3_get_value_into_pyobject<ClassT, FieldT, const OFFSET: usize>(
+unsafe fn pyo3_get_value_into_pyobject<ClassT, FieldT, const OFFSET: usize>(
     py: Python<'_>,
     obj: *mut ffi::PyObject,
 ) -> PyResult<*mut ffi::PyObject>
