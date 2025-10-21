@@ -2250,9 +2250,10 @@ fn pyclass_auto_new<'a>(
 ) -> Result<Option<syn::ItemImpl>> {
     if options.auto_new.is_some() {
         ensure_spanned!(
-            options.set_all.is_some(), options.hash.span() => "The `auto_new` option requires the `set_all` option.";
-        );
+            options.extends.is_none(), options.hash.span() => "The `auto_new` option cannot be used with `extends`.";
+        );    
     }
+
     match options.auto_new {
         Some(opt) => {
             if matches!(methods_type, PyClassMethodsType::Specialization) {
