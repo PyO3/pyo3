@@ -44,13 +44,10 @@ mod function_argument {
 /// some additional types which don't implement `FromPyObject`, such as `&T` for `#[pyclass]` types.
 /// All types should only implement this trait once; either by the `FromPyObject` blanket or one
 /// of the specialized implementations which needs a `Holder`.
-#[cfg_attr(
-    diagnostic_namespace,
-    diagnostic::on_unimplemented(
-        message = "`{Self}` cannot be used as a Python function argument",
-        note = "implement `FromPyObject` to enable using `{Self}` as a function argument",
-        note = "`Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`"
-    )
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be used as a Python function argument",
+    note = "implement `FromPyObject` to enable using `{Self}` as a function argument",
+    note = "`Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`"
 )]
 pub trait PyFunctionArgument<'a, 'holder, 'py, const IMPLEMENTS_FROMPYOBJECT: bool>:
     Sized + function_argument::Sealed<IMPLEMENTS_FROMPYOBJECT>

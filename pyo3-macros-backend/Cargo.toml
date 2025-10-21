@@ -18,7 +18,7 @@ rust-version.workspace = true
 heck = "0.5"
 proc-macro2 = { version = "1.0.60", default-features = false }
 pyo3-build-config = { path = "../pyo3-build-config", version = "=0.27.0", features = ["resolve-config"] }
-quote = { version = "1", default-features = false }
+quote = { version = "1.0.37", default-features = false }
 
 [dependencies.syn]
 # 2.0.59 for `LitCStr`

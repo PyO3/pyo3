@@ -28,17 +28,11 @@ impl From<PyErr> for io::Error {
                 io::ErrorKind::TimedOut
             } else if err.is_instance_of::<exceptions::PyMemoryError>(py) {
                 io::ErrorKind::OutOfMemory
+            } else if err.is_instance_of::<exceptions::PyIsADirectoryError>(py) {
+                io::ErrorKind::IsADirectory
+            } else if err.is_instance_of::<exceptions::PyNotADirectoryError>(py) {
+                io::ErrorKind::NotADirectory
             } else {
-                #[cfg(io_error_more)]
-                #[allow(clippy::incompatible_msrv)] // gated by `io_error_more`
-                if err.is_instance_of::<exceptions::PyIsADirectoryError>(py) {
-                    io::ErrorKind::IsADirectory
-                } else if err.is_instance_of::<exceptions::PyNotADirectoryError>(py) {
-                    io::ErrorKind::NotADirectory
-                } else {
-                    io::ErrorKind::Other
-                }
-                #[cfg(not(io_error_more))]
                 io::ErrorKind::Other
             }
         });
@@ -67,9 +61,7 @@ impl From<io::Error> for PyErr {
             io::ErrorKind::WouldBlock => exceptions::PyBlockingIOError::new_err(err),
             io::ErrorKind::TimedOut => exceptions::PyTimeoutError::new_err(err),
             io::ErrorKind::OutOfMemory => exceptions::PyMemoryError::new_err(err),
-            #[cfg(io_error_more)]
             io::ErrorKind::IsADirectory => exceptions::PyIsADirectoryError::new_err(err),
-            #[cfg(io_error_more)]
             io::ErrorKind::NotADirectory => exceptions::PyNotADirectoryError::new_err(err),
             _ => exceptions::PyOSError::new_err(err),
         }
@@ -184,9 +176,7 @@ mod tests {
         check_err(io::ErrorKind::AlreadyExists, "FileExistsError");
         check_err(io::ErrorKind::WouldBlock, "BlockingIOError");
         check_err(io::ErrorKind::TimedOut, "TimeoutError");
-        #[cfg(io_error_more)]
         check_err(io::ErrorKind::IsADirectory, "IsADirectoryError");
-        #[cfg(io_error_more)]
         check_err(io::ErrorKind::NotADirectory, "NotADirectoryError");
     }
 }

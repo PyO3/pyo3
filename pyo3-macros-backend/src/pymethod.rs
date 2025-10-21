@@ -7,8 +7,8 @@ use crate::introspection::unique_element_id;
 use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
 use crate::params::{impl_regular_arg_param, Holders};
 use crate::pyfunction::WarningFactory;
+use crate::utils::Ctx;
 use crate::utils::PythonDoc;
-use crate::utils::{Ctx, LitCStr};
 use crate::{
     method::{FnArg, FnSpec, FnType, SelfType},
     pyfunction::PyFunctionOptions,
@@ -16,6 +16,7 @@ use crate::{
 use crate::{quotes, utils};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
+use syn::LitCStr;
 use syn::{ext::IdentExt, spanned::Spanned, Field, Ident, Result};
 
 /// Generated code for a single pymethod item.
@@ -587,7 +588,7 @@ pub(crate) fn impl_py_class_attribute(
     };
 
     let wrapper_ident = format_ident!("__pymethod_{}__", name);
-    let python_name = spec.null_terminated_python_name(ctx);
+    let python_name = spec.null_terminated_python_name();
     let body = quotes::ok_wrap(fncall, ctx);
 
     let associated_method = quote! {
@@ -651,7 +652,7 @@ pub fn impl_py_setter_def(
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
-    let python_name = property_type.null_terminated_python_name(ctx)?;
+    let python_name = property_type.null_terminated_python_name()?;
     let doc = property_type.doc(ctx)?;
     let mut holders = Holders::new();
     let setter_impl = match property_type {
@@ -835,7 +836,7 @@ pub fn impl_py_getter_def(
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
-    let python_name = property_type.null_terminated_python_name(ctx)?;
+    let python_name = property_type.null_terminated_python_name()?;
     let doc = property_type.doc(ctx)?;
 
     let mut cfg_attrs = TokenStream::new();
@@ -971,7 +972,7 @@ pub enum PropertyType<'a> {
 }
 
 impl PropertyType<'_> {
-    fn null_terminated_python_name(&self, ctx: &Ctx) -> Result<LitCStr> {
+    fn null_terminated_python_name(&self) -> Result<LitCStr> {
         match self {
             PropertyType::Descriptor {
                 field,
@@ -981,9 +982,9 @@ impl PropertyType<'_> {
             } => {
                 let name = field_python_name(field, *python_name, *renaming_rule)?;
                 let name = CString::new(name).unwrap();
-                Ok(LitCStr::new(name, field.span(), ctx))
+                Ok(LitCStr::new(&name, field.span()))
             }
-            PropertyType::Function { spec, .. } => Ok(spec.null_terminated_python_name(ctx)),
+            PropertyType::Function { spec, .. } => Ok(spec.null_terminated_python_name()),
         }
     }
 
