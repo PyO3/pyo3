@@ -18,7 +18,7 @@ const SUPPORTED_VERSIONS_CPYTHON: SupportedVersions = SupportedVersions {
     min: PythonVersion { major: 3, minor: 7 },
     max: PythonVersion {
         major: 3,
-        minor: 14,
+        minor: 15,
     },
 };
 
