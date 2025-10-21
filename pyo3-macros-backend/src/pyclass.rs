@@ -2251,7 +2251,7 @@ fn pyclass_auto_new<'a>(
     if options.auto_new.is_some() {
         ensure_spanned!(
             options.extends.is_none(), options.hash.span() => "The `auto_new` option cannot be used with `extends`.";
-        );    
+        );
     }
 
     match options.auto_new {
