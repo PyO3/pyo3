@@ -110,7 +110,7 @@ struct Coord(u32, u32, u32);
 #[derive(PartialEq)]
 struct Coord2(u32, u32, u32);
 
-#[pyclass(str = "X: {aaaa}, Y: {y}, Z: {z}")]
+#[pyclass(str = "X: {aaaa}, Y: {y}, Z: {z}", skip_from_py_object)]
 #[derive(PartialEq, Eq, Clone, PartialOrd)]
 pub struct Point {
     x: i32,
@@ -118,7 +118,7 @@ pub struct Point {
     z: i32,
 }
 
-#[pyclass(str = "X: {x}, Y: {y}}}, Z: {zzz}")]
+#[pyclass(str = "X: {x}, Y: {y}}}, Z: {zzz}", skip_from_py_object)]
 #[derive(PartialEq, Eq, Clone, PartialOrd)]
 pub struct Point2 {
     x: i32,
@@ -189,6 +189,13 @@ struct StructTooManyFromPyObject {
 
 #[pyclass(from_py_object)]
 struct StructFromPyObjectNoClone {
+    a: String,
+    b: String,
+}
+
+#[pyclass]
+#[derive(Clone)]
+struct StructImplictFromPyObjectDeprecated {
     a: String,
     b: String,
 }

@@ -893,7 +893,7 @@ Classes can also be passed by value if they can be cloned, i.e. they automatical
 ```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 struct MyClass {
     my_field: Box<i32>,

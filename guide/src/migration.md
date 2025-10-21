@@ -3,6 +3,18 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.27.* to 0.28
+
+### Deprecation of automatic `FromPyObject` for `#[pyclass]` types which implement `Clone`
+
+`#[pyclass]` types which implement `Clone` used to also implement `FromPyObject` automatically.
+This behaviour is phased out and replaced by an explicit opt-in.
+Affected types will by marked by a deprecation message.
+To migrate use either
+
+- `from_py_object` to keep the automatic derive, or
+- `skip_from_py_object` to accept the new behaviour
+
 ## from 0.26.* to 0.27
 
 ### `FromPyObject` reworked for flexibility and efficiency

@@ -129,7 +129,7 @@ pub struct E<T, T2> {
     test2: T2,
 }
 
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 #[derive(Clone)]
 pub struct PyE {
     #[pyo3(get)]

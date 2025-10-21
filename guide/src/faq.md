@@ -99,7 +99,7 @@ You may have a nested struct similar to this:
 
 ```rust,no_run
 # use pyo3::prelude::*;
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 struct Inner {/* fields omitted */}
 
