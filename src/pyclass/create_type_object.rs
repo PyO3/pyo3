@@ -265,7 +265,7 @@ impl PyTypeBuilder {
             }
 
             property_defs.push(ffi::PyGetSetDef {
-                name: ffi::c_str!("__dict__").as_ptr(),
+                name: c"__dict__".as_ptr(),
                 get: Some(get_dict),
                 set: Some(ffi::PyObject_GenericSetDict),
                 doc: ptr::null(),
@@ -382,15 +382,13 @@ impl PyTypeBuilder {
             // __dict__ support
             if let Some(dict_offset) = dict_offset {
                 self.member_defs
-                    .push(offset_def(ffi::c_str!("__dictoffset__"), dict_offset));
+                    .push(offset_def(c"__dictoffset__", dict_offset));
             }
 
             // weakref support
             if let Some(weaklist_offset) = weaklist_offset {
-                self.member_defs.push(offset_def(
-                    ffi::c_str!("__weaklistoffset__"),
-                    weaklist_offset,
-                ));
+                self.member_defs
+                    .push(offset_def(c"__weaklistoffset__", weaklist_offset));
             }
         }
 

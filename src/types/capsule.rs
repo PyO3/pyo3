@@ -34,12 +34,12 @@ use std::ptr::{self, NonNull};
 ///
 /// let r = Python::attach(|py| -> PyResult<()> {
 ///     let foo = Foo { val: 123 };
-///     let capsule = PyCapsule::new(py, foo, Some(c_str!("builtins.capsule").to_owned()))?;
+///     let capsule = PyCapsule::new(py, foo, Some(c"builtins.capsule".to_owned()))?;
 ///
 ///     let module = PyModule::import(py, "builtins")?;
 ///     module.add("capsule", capsule)?;
 ///
-///     let cap: &Foo = unsafe { PyCapsule::import(py, c_str!("builtins.capsule"))? };
+///     let cap: &Foo = unsafe { PyCapsule::import(py, c"builtins.capsule")? };
 ///     assert_eq!(cap.val, 123);
 ///     Ok(())
 /// });
@@ -66,7 +66,7 @@ impl PyCapsule {
     /// use std::ptr::NonNull;
     ///
     /// // this can be c"foo" on Rust 1.77+
-    /// const NAME: &CStr = c_str!("foo");
+    /// const NAME: &CStr = c"foo";
     ///
     /// Python::attach(|py| {
     ///     let capsule = PyCapsule::new(py, 123_u32, Some(NAME.to_owned())).unwrap();
@@ -491,7 +491,6 @@ fn name_ptr(name: Option<&CStr>) -> *const c_char {
 
 #[cfg(test)]
 mod tests {
-    use crate::ffi;
     use crate::prelude::PyModule;
     use crate::types::capsule::PyCapsuleMethods;
     use crate::types::module::PyModuleMethods;
@@ -499,7 +498,7 @@ mod tests {
     use std::ffi::{c_void, CStr};
     use std::sync::mpsc::{channel, Sender};
 
-    const NAME: &CStr = ffi::c_str!("foo");
+    const NAME: &CStr = c"foo";
 
     #[test]
     fn test_pycapsule_struct() {
@@ -584,7 +583,7 @@ mod tests {
 
         Python::attach(|py| {
             let foo = Foo { val: 123 };
-            let name = ffi::c_str!("builtins.capsule");
+            let name = c"builtins.capsule";
 
             let capsule = PyCapsule::new(py, foo, Some(name.to_owned())).unwrap();
 
@@ -593,8 +592,7 @@ mod tests {
 
             // check error when wrong named passed for capsule.
             // SAFETY: this function will fail so the cast is never done
-            let result: PyResult<&Foo> =
-                unsafe { PyCapsule::import(py, ffi::c_str!("builtins.non_existant")) };
+            let result: PyResult<&Foo> = unsafe { PyCapsule::import(py, c"builtins.non_existant") };
             assert!(result.is_err());
 
             // correct name is okay.

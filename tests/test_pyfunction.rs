@@ -8,7 +8,6 @@ use pyo3::buffer::PyBuffer;
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::exceptions::PyWarning;
 use pyo3::exceptions::{PyFutureWarning, PyUserWarning};
-use pyo3::ffi::c_str;
 use pyo3::prelude::*;
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::types::PyDateTime;
@@ -385,8 +384,8 @@ fn test_pycfunction_new() {
         let py_fn = PyCFunction::new(
             py,
             c_fn,
-            c_str!("py_fn"),
-            c_str!("py_fn for test (this is the docstring)"),
+            c"py_fn",
+            c"py_fn for test (this is the docstring)",
             None,
         )
         .unwrap();
@@ -423,17 +422,13 @@ fn test_pycfunction_new_with_keywords() {
             let mut args_names = [foo_name.into_raw(), kw_bar_name.into_raw(), ptr::null_mut()];
 
             #[cfg(Py_3_13)]
-            let args_names = [
-                c_str!("foo").as_ptr(),
-                c_str!("kw_bar").as_ptr(),
-                ptr::null_mut(),
-            ];
+            let args_names = [c"foo".as_ptr(), c"kw_bar".as_ptr(), ptr::null_mut()];
 
             unsafe {
                 ffi::PyArg_ParseTupleAndKeywords(
                     args,
                     kwds,
-                    c_str!("l|l").as_ptr(),
+                    c"l|l".as_ptr(),
                     #[cfg(Py_3_13)]
                     args_names.as_ptr(),
                     #[cfg(not(Py_3_13))]
@@ -454,8 +449,8 @@ fn test_pycfunction_new_with_keywords() {
         let py_fn = PyCFunction::new_with_keywords(
             py,
             c_fn,
-            c_str!("py_fn"),
-            c_str!("py_fn for test (this is the docstring)"),
+            c"py_fn",
+            c"py_fn for test (this is the docstring)",
             None,
         )
         .unwrap();
@@ -496,8 +491,7 @@ fn test_closure() {
             })
         };
         let closure_py =
-            PyCFunction::new_closure(py, Some(c_str!("test_fn")), Some(c_str!("test_fn doc")), f)
-                .unwrap();
+            PyCFunction::new_closure(py, Some(c"test_fn"), Some(c"test_fn doc"), f).unwrap();
 
         py_assert!(py, closure_py, "closure_py(42) == [43]");
         py_assert!(py, closure_py, "closure_py.__name__ == 'test_fn'");

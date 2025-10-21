@@ -113,7 +113,6 @@ mod test_rust_decimal {
     use crate::types::PyDict;
     use std::ffi::CString;
 
-    use crate::ffi;
     #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;
 
@@ -194,7 +193,7 @@ mod test_rust_decimal {
         Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
-                ffi::c_str!("import decimal\npy_dec = decimal.Decimal(\"NaN\")"),
+                c"import decimal\npy_dec = decimal.Decimal(\"NaN\")",
                 None,
                 Some(&locals),
             )
@@ -210,7 +209,7 @@ mod test_rust_decimal {
         Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
-                ffi::c_str!("import decimal\npy_dec = decimal.Decimal(\"1e3\")"),
+                c"import decimal\npy_dec = decimal.Decimal(\"1e3\")",
                 None,
                 Some(&locals),
             )
@@ -227,7 +226,7 @@ mod test_rust_decimal {
         Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
-                ffi::c_str!("import decimal\npy_dec = decimal.Decimal(\"Infinity\")"),
+                c"import decimal\npy_dec = decimal.Decimal(\"Infinity\")",
                 None,
                 Some(&locals),
             )

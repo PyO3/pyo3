@@ -356,7 +356,7 @@ fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
         if ffi::PyExceptionClass_Check(ptype.as_ptr()) == 0 {
             ffi::PyErr_SetString(
                 PyTypeError::type_object_raw(py).cast(),
-                ffi::c_str!("exceptions must derive from BaseException").as_ptr(),
+                c"exceptions must derive from BaseException".as_ptr(),
             )
         } else {
             ffi::PyErr_SetObject(ptype.as_ptr(), pvalue.as_ptr())

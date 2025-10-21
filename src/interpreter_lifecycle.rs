@@ -51,7 +51,7 @@ pub fn prepare_freethreaded_python() {
 /// ```rust
 /// unsafe {
 ///     pyo3::with_embedded_python_interpreter(|py| {
-///         if let Err(e) = py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None) {
+///         if let Err(e) = py.run(c"print('Hello World')", None, None) {
 ///             // We must make sure to not return a `PyErr`!
 ///             e.print(py);
 ///         }

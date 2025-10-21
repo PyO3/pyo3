@@ -31,7 +31,7 @@ unsafe extern "C" fn id_new(
         // We use pyo3-ffi's `c_str!` macro to create null-terminated literals because
         // Rust's string literals are not null-terminated
         // On Rust 1.77 or newer you can use `c"text"` instead.
-        PyErr_SetString(PyExc_TypeError, c_str!("Id() takes no arguments").as_ptr());
+        PyErr_SetString(PyExc_TypeError, c"Id() takes no arguments".as_ptr());
         return ptr::null_mut();
     }
 
@@ -106,8 +106,7 @@ static mut SLOTS: &[PyType_Slot] = &[
     },
     PyType_Slot {
         slot: Py_tp_doc,
-        pfunc: c_str!("An id that is increased every time an instance is created").as_ptr()
-            as *mut c_void,
+        pfunc: c"An id that is increased every time an instance is created".as_ptr() as *mut c_void,
     },
     PyType_Slot {
         slot: Py_tp_repr,
@@ -128,7 +127,7 @@ static mut SLOTS: &[PyType_Slot] = &[
 ];
 
 pub static mut ID_SPEC: PyType_Spec = PyType_Spec {
-    name: c_str!("sequential.Id").as_ptr(),
+    name: c"sequential.Id".as_ptr(),
     basicsize: mem::size_of::<PyId>() as c_int,
     itemsize: 0,
     flags: (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_IMMUTABLETYPE) as c_uint,

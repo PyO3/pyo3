@@ -837,7 +837,7 @@ mod test_128bit_integers {
     #[test]
     fn test_i128_overflow() {
         Python::attach(|py| {
-            let obj = py.eval(ffi::c_str!("(1 << 130) * -1"), None, None).unwrap();
+            let obj = py.eval(c"(1 << 130) * -1", None, None).unwrap();
             let err = obj.extract::<i128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
         })
@@ -846,7 +846,7 @@ mod test_128bit_integers {
     #[test]
     fn test_u128_overflow() {
         Python::attach(|py| {
-            let obj = py.eval(ffi::c_str!("1 << 130"), None, None).unwrap();
+            let obj = py.eval(c"1 << 130", None, None).unwrap();
             let err = obj.extract::<u128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
         })
@@ -890,7 +890,7 @@ mod test_128bit_integers {
     #[test]
     fn test_nonzero_i128_overflow() {
         Python::attach(|py| {
-            let obj = py.eval(ffi::c_str!("(1 << 130) * -1"), None, None).unwrap();
+            let obj = py.eval(c"(1 << 130) * -1", None, None).unwrap();
             let err = obj.extract::<NonZeroI128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
         })
@@ -899,7 +899,7 @@ mod test_128bit_integers {
     #[test]
     fn test_nonzero_u128_overflow() {
         Python::attach(|py| {
-            let obj = py.eval(ffi::c_str!("1 << 130"), None, None).unwrap();
+            let obj = py.eval(c"1 << 130", None, None).unwrap();
             let err = obj.extract::<NonZeroU128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
         })
@@ -908,7 +908,7 @@ mod test_128bit_integers {
     #[test]
     fn test_nonzero_i128_zero_value() {
         Python::attach(|py| {
-            let obj = py.eval(ffi::c_str!("0"), None, None).unwrap();
+            let obj = py.eval(c"0", None, None).unwrap();
             let err = obj.extract::<NonZeroI128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyValueError>(py));
         })
@@ -917,7 +917,7 @@ mod test_128bit_integers {
     #[test]
     fn test_nonzero_u128_zero_value() {
         Python::attach(|py| {
-            let obj = py.eval(ffi::c_str!("0"), None, None).unwrap();
+            let obj = py.eval(c"0", None, None).unwrap();
             let err = obj.extract::<NonZeroU128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyValueError>(py));
         })

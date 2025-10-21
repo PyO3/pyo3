@@ -202,7 +202,6 @@ mod tests {
     use crate::types::PyAnyMethods as _;
     use crate::types::{complex::PyComplexMethods, PyModule};
     use crate::IntoPyObject;
-    use pyo3_ffi::c_str;
 
     #[test]
     fn from_complex() {
@@ -233,17 +232,15 @@ mod tests {
         Python::attach(|py| {
             let module = PyModule::from_code(
                 py,
-                c_str!(
-                    r#"
+                cr#"
 class A:
     def __complex__(self): return 3.0+1.2j
 class B:
     def __float__(self): return 3.0
 class C:
     def __index__(self): return 3
-                "#
-                ),
-                c_str!("test.py"),
+                "#,
+                c"test.py",
                 &generate_unique_module_name("test"),
             )
             .unwrap();
@@ -273,8 +270,7 @@ class C:
         Python::attach(|py| {
             let module = PyModule::from_code(
                 py,
-                c_str!(
-                    r#"
+                cr#"
 class First: pass
 class ComplexMixin:
     def __complex__(self): return 3.0+1.2j
@@ -285,9 +281,8 @@ class IndexMixin:
 class A(First, ComplexMixin): pass
 class B(First, FloatMixin): pass
 class C(First, IndexMixin): pass
-                "#
-                ),
-                c_str!("test.py"),
+                "#,
+                c"test.py",
                 &generate_unique_module_name("test"),
             )
             .unwrap();
@@ -319,15 +314,13 @@ class C(First, IndexMixin): pass
         Python::attach(|py| {
             let module = PyModule::from_code(
                 py,
-                c_str!(
-                    r#"
+                cr#"
 class A:
     @property
     def __complex__(self):
         return lambda: 3.0+1.2j
-                "#
-                ),
-                c_str!("test.py"),
+                "#,
+                c"test.py",
                 &generate_unique_module_name("test"),
             )
             .unwrap();
@@ -344,15 +337,13 @@ class A:
         Python::attach(|py| {
             let module = PyModule::from_code(
                 py,
-                c_str!(
-                    r#"
+                cr#"
 class MyComplex:
     def __call__(self): return 3.0+1.2j
 class A:
     __complex__ = MyComplex()
-                "#
-                ),
-                c_str!("test.py"),
+                "#,
+                c"test.py",
                 &generate_unique_module_name("test"),
             )
             .unwrap();

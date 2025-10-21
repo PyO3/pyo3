@@ -1454,7 +1454,7 @@ mod tests {
 
         match methods.first() {
             Some(PyMethodDefType::StructMember(member)) => {
-                assert_eq!(unsafe { CStr::from_ptr(member.name) }, ffi::c_str!("value"));
+                assert_eq!(unsafe { CStr::from_ptr(member.name) }, c"value");
                 assert_eq!(member.type_code, ffi::Py_T_OBJECT_EX);
                 assert_eq!(
                     member.offset,
@@ -1492,8 +1492,8 @@ mod tests {
 
         match methods.first() {
             Some(PyMethodDefType::Getter(getter)) => {
-                assert_eq!(getter.name, ffi::c_str!("value"));
-                assert_eq!(getter.doc, ffi::c_str!(""));
+                assert_eq!(getter.name, c"value");
+                assert_eq!(getter.doc, c"");
                 // tests for the function pointer are in test_getter_setter.py
             }
             _ => panic!("Expected a StructMember"),

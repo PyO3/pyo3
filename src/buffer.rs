@@ -367,7 +367,7 @@ impl<T> PyBuffer<T> {
     #[inline]
     pub fn format(&self) -> &CStr {
         if self.raw().format.is_null() {
-            ffi::c_str!("B")
+            c"B"
         } else {
             unsafe { CStr::from_ptr(self.raw().format) }
         }
@@ -774,114 +774,114 @@ mod tests {
         for (cstr, expected) in [
             // @ prefix goes to native_element_type_from_type_char
             (
-                ffi::c_str!("@b"),
+                c"@b",
                 SignedInteger {
                     bytes: size_of::<c_schar>(),
                 },
             ),
             (
-                ffi::c_str!("@c"),
+                c"@c",
                 UnsignedInteger {
                     bytes: size_of::<c_char>(),
                 },
             ),
             (
-                ffi::c_str!("@b"),
+                c"@b",
                 SignedInteger {
                     bytes: size_of::<c_schar>(),
                 },
             ),
             (
-                ffi::c_str!("@B"),
+                c"@B",
                 UnsignedInteger {
                     bytes: size_of::<c_uchar>(),
                 },
             ),
-            (ffi::c_str!("@?"), Bool),
+            (c"@?", Bool),
             (
-                ffi::c_str!("@h"),
+                c"@h",
                 SignedInteger {
                     bytes: size_of::<c_short>(),
                 },
             ),
             (
-                ffi::c_str!("@H"),
+                c"@H",
                 UnsignedInteger {
                     bytes: size_of::<c_ushort>(),
                 },
             ),
             (
-                ffi::c_str!("@i"),
+                c"@i",
                 SignedInteger {
                     bytes: size_of::<c_int>(),
                 },
             ),
             (
-                ffi::c_str!("@I"),
+                c"@I",
                 UnsignedInteger {
                     bytes: size_of::<c_uint>(),
                 },
             ),
             (
-                ffi::c_str!("@l"),
+                c"@l",
                 SignedInteger {
                     bytes: size_of::<c_long>(),
                 },
             ),
             (
-                ffi::c_str!("@L"),
+                c"@L",
                 UnsignedInteger {
                     bytes: size_of::<c_ulong>(),
                 },
             ),
             (
-                ffi::c_str!("@q"),
+                c"@q",
                 SignedInteger {
                     bytes: size_of::<c_longlong>(),
                 },
             ),
             (
-                ffi::c_str!("@Q"),
+                c"@Q",
                 UnsignedInteger {
                     bytes: size_of::<c_ulonglong>(),
                 },
             ),
             (
-                ffi::c_str!("@n"),
+                c"@n",
                 SignedInteger {
                     bytes: size_of::<libc::ssize_t>(),
                 },
             ),
             (
-                ffi::c_str!("@N"),
+                c"@N",
                 UnsignedInteger {
                     bytes: size_of::<libc::size_t>(),
                 },
             ),
-            (ffi::c_str!("@e"), Float { bytes: 2 }),
-            (ffi::c_str!("@f"), Float { bytes: 4 }),
-            (ffi::c_str!("@d"), Float { bytes: 8 }),
-            (ffi::c_str!("@z"), Unknown),
+            (c"@e", Float { bytes: 2 }),
+            (c"@f", Float { bytes: 4 }),
+            (c"@d", Float { bytes: 8 }),
+            (c"@z", Unknown),
             // = prefix goes to standard_element_type_from_type_char
-            (ffi::c_str!("=b"), SignedInteger { bytes: 1 }),
-            (ffi::c_str!("=c"), UnsignedInteger { bytes: 1 }),
-            (ffi::c_str!("=B"), UnsignedInteger { bytes: 1 }),
-            (ffi::c_str!("=?"), Bool),
-            (ffi::c_str!("=h"), SignedInteger { bytes: 2 }),
-            (ffi::c_str!("=H"), UnsignedInteger { bytes: 2 }),
-            (ffi::c_str!("=l"), SignedInteger { bytes: 4 }),
-            (ffi::c_str!("=l"), SignedInteger { bytes: 4 }),
-            (ffi::c_str!("=I"), UnsignedInteger { bytes: 4 }),
-            (ffi::c_str!("=L"), UnsignedInteger { bytes: 4 }),
-            (ffi::c_str!("=q"), SignedInteger { bytes: 8 }),
-            (ffi::c_str!("=Q"), UnsignedInteger { bytes: 8 }),
-            (ffi::c_str!("=e"), Float { bytes: 2 }),
-            (ffi::c_str!("=f"), Float { bytes: 4 }),
-            (ffi::c_str!("=d"), Float { bytes: 8 }),
-            (ffi::c_str!("=z"), Unknown),
-            (ffi::c_str!("=0"), Unknown),
+            (c"=b", SignedInteger { bytes: 1 }),
+            (c"=c", UnsignedInteger { bytes: 1 }),
+            (c"=B", UnsignedInteger { bytes: 1 }),
+            (c"=?", Bool),
+            (c"=h", SignedInteger { bytes: 2 }),
+            (c"=H", UnsignedInteger { bytes: 2 }),
+            (c"=l", SignedInteger { bytes: 4 }),
+            (c"=l", SignedInteger { bytes: 4 }),
+            (c"=I", UnsignedInteger { bytes: 4 }),
+            (c"=L", UnsignedInteger { bytes: 4 }),
+            (c"=q", SignedInteger { bytes: 8 }),
+            (c"=Q", UnsignedInteger { bytes: 8 }),
+            (c"=e", Float { bytes: 2 }),
+            (c"=f", Float { bytes: 4 }),
+            (c"=d", Float { bytes: 8 }),
+            (c"=z", Unknown),
+            (c"=0", Unknown),
             // unknown prefix -> Unknown
-            (ffi::c_str!(":b"), Unknown),
+            (c":b", Unknown),
         ] {
             assert_eq!(
                 ElementType::from_format(cstr),
