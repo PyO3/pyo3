@@ -73,6 +73,12 @@ impl<T: super::doc::PyClassNewTextSignature> HasNewTextSignature<T> {
     pub const VALUE: bool = true;
 }
 
+probe!(IsClone);
+
+impl<T: Clone> IsClone<T> {
+    pub const VALUE: bool = true;
+}
+
 #[cfg(test)]
 macro_rules! value_of {
     ($probe:ident, $ty:ty) => {{

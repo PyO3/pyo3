@@ -2517,6 +2517,20 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! {}
         };
 
+        let deprecation = if self.attr.options.skip_from_py_object.is_none()
+            && self.attr.options.from_py_object.is_none()
+        {
+            quote! {
+                const _: () = {
+                    #[allow(unused_import)]
+                    use #pyo3_path::impl_::pyclass::Probe as _;
+                    #pyo3_path::impl_::deprecated::DeprecatedFromPyObjectBlanket::<{ #pyo3_path::impl_::pyclass::IsClone::<#cls>::VALUE }>::MSG
+                };
+            }
+        } else {
+            TokenStream::new()
+        };
+
         let extract_pyclass_with_clone = if let Some(from_py_object) =
             self.attr.options.from_py_object
         {
@@ -2546,6 +2560,8 @@ impl<'a> PyClassImplsBuilder<'a> {
         };
 
         Ok(quote! {
+            #deprecation
+
             #extract_pyclass_with_clone
 
             #assertions

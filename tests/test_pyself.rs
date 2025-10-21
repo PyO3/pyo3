@@ -9,7 +9,7 @@ mod test_utils;
 
 /// Assumes it's a file reader or so.
 /// Inspired by https://github.com/jothan/cordoba, thanks.
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 #[derive(Clone, Debug)]
 struct Reader {
     inner: HashMap<u8, String>,
