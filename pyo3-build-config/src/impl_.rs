@@ -1998,7 +1998,7 @@ fn escape(bytes: &[u8]) -> String {
 }
 
 fn unescape(escaped: &str) -> Vec<u8> {
-    assert!(escaped.len() % 2 == 0, "invalid hex encoding");
+    assert_eq!(escaped.len() % 2, 0, "invalid hex encoding");
 
     let mut bytes = Vec::with_capacity(escaped.len() / 2);
 
