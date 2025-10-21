@@ -1,7 +1,5 @@
 //! Implementation details of `#[pymodule]` which need to be accessible from proc-macro generated code.
 
-#[cfg(Py_3_13)]
-use std::sync::Once;
 use std::{
     cell::UnsafeCell,
     ffi::CStr,
@@ -51,10 +49,6 @@ pub struct ModuleDef {
     module: PyOnceLock<Py<PyModule>>,
     /// Whether or not the module supports running without the GIL
     gil_used: bool,
-    /// Guard to allow updating the `Py_mod_gil` slot within `ffi_def`
-    /// before first use.
-    #[cfg(Py_3_13)]
-    gil_used_once: Once,
 }
 
 unsafe impl Sync for ModuleDef {}
@@ -102,21 +96,16 @@ impl ModuleDef {
             interpreter: AtomicI64::new(-1),
             module: PyOnceLock::new(),
             gil_used: true,
-            #[cfg(Py_3_13)]
-            gil_used_once: Once::new(),
         }
     }
 
     pub fn init_multi_phase(&'static self, _py: Python<'_>, _gil_used: bool) -> *mut ffi::PyObject {
-        // Once the ffi_def has been used, we can no longer modify, so we set the once.
-        #[cfg(Py_3_13)]
-        self.gil_used_once.call_once(|| {});
         unsafe { ffi::PyModuleDef_Init(self.ffi_def.get()) }
     }
 
     /// Builds a module object directly. Used for [`#[pymodule]`][crate::pymodule] submodules.
     #[cfg_attr(any(Py_LIMITED_API, not(Py_GIL_DISABLED)), allow(unused_variables))]
-    pub fn make_module(&'static self, py: Python<'_>, gil_used: bool) -> PyResult<Py<PyModule>> {
+    pub fn make_module(&'static self, py: Python<'_>, _gil_used: bool) -> PyResult<Py<PyModule>> {
         // Check the interpreter ID has not changed, since we currently have no way to guarantee
         // that static data is not reused across interpreters.
         //
@@ -170,42 +159,6 @@ impl ModuleDef {
         let kwargs = PyDict::new(py);
         kwargs.set_item("name", name)?;
         let spec = simple_ns.call((), Some(&kwargs))?;
-
-        // If the first time writing this ffi def, we can inherit `gil_used` from parent
-        // modules.
-        //
-        // TODO: remove this once we default to `gil_used = false` (i.e. assume free-threading
-        // support in extensions). This is purely a convenience so that users only need to
-        // annotate the top-level module.
-        //
-        // SAFETY:
-        //   - ffi_def is known to be non-null
-        //   - we check slots is non-null
-        //   - it is valid for a slot to be zeroed
-        //   - we are writing to the slot under the protection of a `Once`.
-        #[cfg(Py_3_13)]
-        self.gil_used_once.call_once(|| {
-            // SAFETY: ffi_def is non-null
-            let slots = unsafe { (*ffi_def).m_slots };
-            if !slots.is_null() {
-                let mut slot_ptr = slots;
-                // SAFETY: non-null slots pointer
-                while unsafe { *slot_ptr != ZEROED_SLOT } {
-                    // SAFETY: no other accessors due to call_once guard
-                    let slot = unsafe { &mut *slot_ptr };
-                    if slot.slot == ffi::Py_mod_gil {
-                        slot.value = if gil_used {
-                            ffi::Py_MOD_GIL_USED
-                        } else {
-                            ffi::Py_MOD_GIL_NOT_USED
-                        };
-                        break;
-                    }
-                    // SAFETY: we have guaranteed there is a trailer zeroed slot
-                    slot_ptr = unsafe { slot_ptr.add(1) };
-                }
-            }
-        });
 
         self.module
             .get_or_try_init(py, || {
