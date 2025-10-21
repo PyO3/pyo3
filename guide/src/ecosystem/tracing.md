@@ -15,6 +15,7 @@ must configure its own `tracing` integration; one extension module will not see
 [`pyo3-tracing-subscriber`][pyo3-tracing-subscriber] provides a way for Python
 projects to configure `tracing_subscriber`. It exposes a few
 `tracing_subscriber` layers:
+
 - `tracing_subscriber::fmt` for writing human-readable output to file or stdout
 - `opentelemetry-stdout` for writing OTLP output to file or stdout
 - `opentelemetry-otlp` for writing OTLP output to an OTLP endpoint
@@ -37,6 +38,7 @@ implementation defined in and passed in from Python.
 
 There are many ways an extension module could integrate `pyo3-python-tracing-subscriber`
 but a simple one may look something like this:
+
 ```rust,no_run
 #[tracing::instrument]
 #[pyfunction]
@@ -51,6 +53,7 @@ pub fn initialize_tracing(py_impl: Bound<'_, PyAny>) {
         .init();
 }
 ```
+
 The extension module must provide some way for Python to pass in one or more
 Python objects that implement [the `Layer` interface]. Then it should construct
 [`pyo3_python_tracing_subscriber::PythonCallbackLayerBridge`][PythonCallbackLayerBridge]
@@ -58,10 +61,12 @@ instances with each of those Python objects and initialize `tracing_subscriber`
 as shown above.
 
 The Python objects implement a modified version of the `Layer` interface:
+
 - `on_new_span()` may return some state that will stored inside the Rust span
 - other callbacks will be given that state as an additional positional argument
 
 A dummy `Layer` implementation may look like this:
+
 ```python
 import rust_extension
 

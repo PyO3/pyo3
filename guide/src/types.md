@@ -29,8 +29,9 @@ The sections below also explain these smart pointers in a little more detail.
 Because `Py<T>` is not bound to [the `'py` lifetime](./python-from-rust.md#the-py-lifetime), it is the type to use when storing a Python object inside a Rust `struct` or `enum` which do not want to have a lifetime parameter. In particular, [`#[pyclass]`][pyclass] types are not permitted to have a lifetime, so `Py<T>` is the correct type to store Python objects inside them.
 
 The lack of binding to the `'py` lifetime also carries drawbacks:
- - Almost all methods on `Py<T>` require a `Python<'py>` token as the first argument
- - Other functionality, such as [`Drop`][Drop], needs to check at runtime for attachment to the Python interpreter, at a small performance cost
+
+- Almost all methods on `Py<T>` require a `Python<'py>` token as the first argument
+- Other functionality, such as [`Drop`][Drop], needs to check at runtime for attachment to the Python interpreter, at a small performance cost
 
 Because of the drawbacks `Bound<'py, T>` is preferred for many of PyO3's APIs. In particular, `Bound<'py, T>` is better for function arguments.
 
@@ -202,11 +203,13 @@ let obj: Py<PyAny> = borrowed.to_owned().unbind().
 In all of `Py<T>`, `Bound<'py, T>`, and `Borrowed<'a, 'py, T>`, the type parameter `T` denotes the type of the Python object referred to by the smart pointer.
 
 This parameter `T` can be filled by:
- - [`PyAny`][PyAny], which represents any Python object,
- - Native Python types such as `PyList`, `PyTuple`, and `PyDict`, and
- - [`#[pyclass]`][pyclass] types defined from Rust
+
+- [`PyAny`][PyAny], which represents any Python object,
+- Native Python types such as `PyList`, `PyTuple`, and `PyDict`, and
+- [`#[pyclass]`][pyclass] types defined from Rust
 
 The following subsections covers some further detail about how to work with these types:
+
 - the APIs that are available for these concrete types,
 - how to cast `Bound<'py, T>` to a specific concrete type, and
 - how to get Rust data out of a `Bound<'py, T>`.
@@ -216,6 +219,7 @@ The following subsections covers some further detail about how to work with thes
 Each concrete Python type such as `PyAny`, `PyTuple` and `PyDict` exposes its API on the corresponding bound smart pointer `Bound<'py, PyAny>`, `Bound<'py, PyTuple>` and `Bound<'py, PyDict>`.
 
 Each type's API is exposed as a trait: [`PyAnyMethods`], [`PyTupleMethods`], [`PyDictMethods`], and so on for all concrete types. Using traits rather than associated methods on the `Bound` smart pointer is done for a couple of reasons:
+
 - Clarity of documentation: each trait gets its own documentation page in the PyO3 API docs. If all methods were on the `Bound` smart pointer directly, the vast majority of PyO3's API would be on a single, extremely long, documentation page.
 - Consistency: downstream code implementing Rust APIs for existing Python types can also follow this pattern of using a trait. Downstream code would not be allowed to add new associated methods directly on the `Bound` type.
 - Future design: it is hoped that a future Rust with [arbitrary self types](https://github.com/rust-lang/rust/issues/44874) will remove the need for these traits in favour of placing the methods directly on `PyAny`, `PyTuple`, `PyDict`, and so on.
@@ -322,10 +326,6 @@ for more detail.
 [pyclass]: class.md
 [Borrowed]: {{#PYO3_DOCS_URL}}/pyo3/struct.Borrowed.html
 [Drop]: https://doc.rust-lang.org/std/ops/trait.Drop.html
-[eval]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval
-[clone_ref]: {{#PYO3_DOCS_URL}}/pyo3/struct.Py.html#method.clone_ref
-[pyo3::types]: {{#PYO3_DOCS_URL}}/pyo3/types/index.html
 [PyAny]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html
-[PyList_append]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyList.html#method.append
-[RefCell]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
 [smart-pointers]: https://doc.rust-lang.org/book/ch15-00-smart-pointers.html
+[`FromPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.FromPyObject.html

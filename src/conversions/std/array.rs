@@ -1,7 +1,7 @@
-use crate::conversion::{FromPyObjectOwned, IntoPyObject};
+use crate::conversion::{FromPyObjectOwned, FromPyObjectSequence, IntoPyObject};
 use crate::types::any::PyAnyMethods;
 use crate::types::PySequence;
-use crate::{err::DowncastError, ffi, FromPyObject, PyAny, PyResult, PyTypeInfo, Python};
+use crate::{err::CastError, ffi, FromPyObject, PyAny, PyResult, PyTypeInfo, Python};
 use crate::{exceptions, Borrowed, Bound, PyErr};
 
 impl<'py, T, const N: usize> IntoPyObject<'py> for [T; N]
@@ -44,21 +44,7 @@ where
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Some(extractor) = T::sequence_extractor(obj, crate::conversion::private::Token) {
-            #[cfg(return_position_impl_trait_in_traits)]
-            {
-                use crate::conversion::FromPyObjectSequence;
-                return extractor.to_array();
-            }
-
-            #[cfg(not(return_position_impl_trait_in_traits))]
-            {
-                use std::array;
-
-                let mut out = array::from_fn(|_| std::mem::MaybeUninit::uninit());
-                extractor.fill_slice(&mut out)?;
-                // Safety: `out` is fully initialized by successful `fill_slice`
-                return Ok(out.map(|x| unsafe { x.assume_init() }));
-            }
+            return extractor.to_array();
         }
 
         create_array_from_obj(obj)
@@ -75,11 +61,7 @@ where
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
             obj.cast_unchecked::<PySequence>()
         } else {
-            return Err(DowncastError::new_from_type(
-                obj,
-                PySequence::type_object(obj.py()).into_any(),
-            )
-            .into());
+            return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
         }
     };
     let seq_len = seq.len()?;
@@ -187,7 +169,7 @@ mod tests {
                 .unwrap()
                 .extract()
                 .unwrap();
-            assert!(&v == b"abcabcabcabcabcabcabcabcabcabcabc");
+            assert_eq!(&v, b"abcabcabcabcabcabcabcabcabcabcabc");
         })
     }
 
@@ -217,7 +199,7 @@ mod tests {
                 .unwrap()
                 .extract()
                 .unwrap();
-            assert!(&v == b"abcabcabcabcabcabcabcabcabcabcabc");
+            assert_eq!(&v, b"abcabcabcabcabcabcabcabcabcabcabc");
         })
     }
 
@@ -229,7 +211,7 @@ mod tests {
                 .unwrap()
                 .extract()
                 .unwrap();
-            assert!(&v == b"abc");
+            assert_eq!(&v, b"abc");
         });
     }
     #[test]

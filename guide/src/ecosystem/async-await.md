@@ -11,5 +11,6 @@ code runs on the default `asyncio` event loop, so `pyo3-async-runtimes` should w
 Python libraries.
 
 ## Additional Information
+
 - Managing event loop references can be tricky with `pyo3-async-runtimes`. See [Event Loop References](https://docs.rs/pyo3-async-runtimes/#event-loop-references-and-contextvars) in the API docs to get a better intuition for how event loop references are managed in this library.
 - Testing `pyo3-async-runtimes` libraries and applications requires a custom test harness since Python requires control over the main thread. You can find a testing guide in the [API docs for the `testing` module](https://docs.rs/pyo3-async-runtimes/latest/pyo3_async_runtimes/testing)

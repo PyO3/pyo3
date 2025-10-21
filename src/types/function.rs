@@ -10,6 +10,7 @@ use crate::{
 use crate::{Bound, PyAny, PyResult, Python};
 use std::cell::UnsafeCell;
 use std::ffi::CStr;
+use std::ptr::NonNull;
 
 /// Represents a builtin Python function object.
 ///
@@ -99,11 +100,17 @@ impl PyCFunction {
             Some(CLOSURE_CAPSULE_NAME.to_owned()),
         )?;
 
-        // Safety: just created the capsule with type ClosureDestructor<F> above
-        let data = unsafe { capsule.reference::<ClosureDestructor<F>>() };
+        let data: NonNull<ClosureDestructor<F>> =
+            capsule.pointer_checked(Some(CLOSURE_CAPSULE_NAME))?.cast();
 
+        // SAFETY: The capsule has just been created with the value, and will exist as long as
+        // the function object exists.
+        let method_def = unsafe { data.as_ref().def.get() };
+
+        // SAFETY: The arguments to `PyCFunction_NewEx` are valid, we are attached to the
+        // interpreter and we know the function either returns a new reference or errors.
         unsafe {
-            ffi::PyCFunction_NewEx(data.def.get(), capsule.as_ptr(), std::ptr::null_mut())
+            ffi::PyCFunction_NewEx(method_def, capsule.as_ptr(), std::ptr::null_mut())
                 .assume_owned_or_err(py)
                 .cast_into_unchecked()
         }

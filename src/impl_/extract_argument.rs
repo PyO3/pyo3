@@ -3,8 +3,8 @@ use crate::{
     ffi,
     pyclass::boolean_struct::False,
     types::{any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods, PyDict, PyTuple},
-    Borrowed, Bound, DowncastError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut,
-    PyErr, PyResult, PyTypeCheck, Python,
+    Borrowed, Bound, CastError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr,
+    PyResult, PyTypeCheck, Python,
 };
 
 /// Helper type used to keep implementation more concise.
@@ -44,13 +44,10 @@ mod function_argument {
 /// some additional types which don't implement `FromPyObject`, such as `&T` for `#[pyclass]` types.
 /// All types should only implement this trait once; either by the `FromPyObject` blanket or one
 /// of the specialized implementations which needs a `Holder`.
-#[cfg_attr(
-    diagnostic_namespace,
-    diagnostic::on_unimplemented(
-        message = "`{Self}` cannot be used as a Python function argument",
-        note = "implement `FromPyObject` to enable using `{Self}` as a function argument",
-        note = "`Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`"
-    )
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be used as a Python function argument",
+    note = "implement `FromPyObject` to enable using `{Self}` as a function argument",
+    note = "`Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`"
 )]
 pub trait PyFunctionArgument<'a, 'holder, 'py, const IMPLEMENTS_FROMPYOBJECT: bool>:
     Sized + function_argument::Sealed<IMPLEMENTS_FROMPYOBJECT>
@@ -89,7 +86,7 @@ where
     T: PyTypeCheck,
 {
     type Holder = ();
-    type Error = DowncastError<'a, 'py>;
+    type Error = CastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = T::PYTHON_TYPE;
@@ -188,7 +185,7 @@ pub fn extract_pyclass_ref<'a, 'holder, T: PyClass>(
     obj: &'a Bound<'_, PyAny>,
     holder: &'holder mut Option<PyClassGuard<'a, T>>,
 ) -> PyResult<&'holder T> {
-    Ok(&*holder.insert(PyClassGuard::try_borrow(obj.downcast()?.as_unbound())?))
+    Ok(&*holder.insert(PyClassGuard::try_borrow(obj.cast()?.as_unbound())?))
 }
 
 #[inline]
@@ -196,9 +193,7 @@ pub fn extract_pyclass_ref_mut<'a, 'holder, T: PyClass<Frozen = False>>(
     obj: &'a Bound<'_, PyAny>,
     holder: &'holder mut Option<PyClassGuardMut<'a, T>>,
 ) -> PyResult<&'holder mut T> {
-    Ok(&mut *holder.insert(PyClassGuardMut::try_borrow_mut(
-        obj.downcast()?.as_unbound(),
-    )?))
+    Ok(&mut *holder.insert(PyClassGuardMut::try_borrow_mut(obj.cast()?.as_unbound())?))
 }
 
 /// The standard implementation of how PyO3 extracts a `#[pyfunction]` or `#[pymethod]` function argument.

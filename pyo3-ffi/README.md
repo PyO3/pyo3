@@ -41,13 +41,13 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3-ffi]
-version = "0.26.0"
+version = "0.27.0"
 features = ["extension-module"]
 
 [build-dependencies]
 # This is only necessary if you need to configure your build based on
 # the Python version or the compile-time configuration for the interpreter.
-pyo3_build_config = "0.26.0"
+pyo3_build_config = "0.27.0"
 ```
 
 If you need to use conditional compilation based on Python version or how
@@ -77,7 +77,7 @@ static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_doc: c_str!("A Python module written in Rust.").as_ptr(),
     m_size: 0,
     m_methods: std::ptr::addr_of_mut!(METHODS).cast(),
-    m_slots: std::ptr::null_mut(),
+    m_slots: unsafe { SLOTS as *const [PyModuleDef_Slot] as *mut PyModuleDef_Slot },
     m_traverse: None,
     m_clear: None,
     m_free: None,
@@ -96,22 +96,31 @@ static mut METHODS: [PyMethodDef; 2] = [
     PyMethodDef::zeroed(),
 ];
 
+static mut SLOTS: &[PyModuleDef_Slot] = &[
+    // NB: only include this slot if the module does not store any global state in `static` variables
+    // or other data which could cross between subinterpreters
+    #[cfg(Py_3_12)]
+    PyModuleDef_Slot {
+        slot: Py_mod_multiple_interpreters,
+        value: Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
+    },
+    // NB: only include this slot if the module does not depend on the GIL for thread safety
+    #[cfg(Py_GIL_DISABLED)]
+    PyModuleDef_Slot {
+        slot: Py_mod_gil,
+        value: Py_MOD_GIL_NOT_USED,
+    },
+    PyModuleDef_Slot {
+        slot: 0,
+        value: ptr::null_mut(),
+    },
+];
+
 // The module initialization function, which must be named `PyInit_<your_module>`.
 #[allow(non_snake_case)]
 #[no_mangle]
 pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
-    let module = PyModule_Create(ptr::addr_of_mut!(MODULE_DEF));
-    if module.is_null() {
-        return module;
-    }
-    #[cfg(Py_GIL_DISABLED)]
-    {
-        if PyUnstable_Module_SetGIL(module, Py_MOD_GIL_NOT_USED) < 0 {
-            Py_DECREF(module);
-            return std::ptr::null_mut();
-        }
-    }
-    module
+    PyModuleDef_Init(ptr::addr_of_mut!(MODULE_DEF))
 }
 
 /// A helper to parse function arguments

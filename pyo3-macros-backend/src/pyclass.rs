@@ -32,7 +32,7 @@ use crate::pymethod::{
     __RICHCMP__, __STR__,
 };
 use crate::pyversions::{is_abi3_before, is_py_before};
-use crate::utils::{self, apply_renaming_rule, Ctx, LitCStr, PythonDoc};
+use crate::utils::{self, apply_renaming_rule, Ctx, PythonDoc};
 use crate::PyFunctionOptions;
 
 /// If the class is derived from a Rust `struct` or `enum`.
@@ -90,6 +90,8 @@ pub struct PyClassPyO3Options {
     pub unsendable: Option<kw::unsendable>,
     pub weakref: Option<kw::weakref>,
     pub generic: Option<kw::generic>,
+    pub from_py_object: Option<kw::from_py_object>,
+    pub skip_from_py_object: Option<kw::skip_from_py_object>,
 }
 
 pub enum PyClassPyO3Option {
@@ -115,6 +117,8 @@ pub enum PyClassPyO3Option {
     Unsendable(kw::unsendable),
     Weakref(kw::weakref),
     Generic(kw::generic),
+    FromPyObject(kw::from_py_object),
+    SkipFromPyObject(kw::skip_from_py_object),
 }
 
 impl Parse for PyClassPyO3Option {
@@ -164,6 +168,10 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Weakref)
         } else if lookahead.peek(attributes::kw::generic) {
             input.parse().map(PyClassPyO3Option::Generic)
+        } else if lookahead.peek(attributes::kw::from_py_object) {
+            input.parse().map(PyClassPyO3Option::FromPyObject)
+        } else if lookahead.peek(attributes::kw::skip_from_py_object) {
+            input.parse().map(PyClassPyO3Option::SkipFromPyObject)
         } else {
             Err(lookahead.error())
         }
@@ -243,6 +251,20 @@ impl PyClassPyO3Options {
                 set_option!(weakref);
             }
             PyClassPyO3Option::Generic(generic) => set_option!(generic),
+            PyClassPyO3Option::SkipFromPyObject(skip_from_py_object) => {
+                ensure_spanned!(
+                    self.from_py_object.is_none(),
+                    skip_from_py_object.span() => "`skip_from_py_object` and `from_py_object` are mutually exclusive"
+                );
+                set_option!(skip_from_py_object)
+            }
+            PyClassPyO3Option::FromPyObject(from_py_object) => {
+                ensure_spanned!(
+                    self.skip_from_py_object.is_none(),
+                    from_py_object.span() => "`skip_from_py_object` and `from_py_object` are mutually exclusive"
+                );
+                set_option!(from_py_object)
+            }
         }
         Ok(())
     }
@@ -1639,7 +1661,7 @@ pub fn gen_complex_enum_variant_attr(
     let Ctx { pyo3_path, .. } = ctx;
     let member = &spec.rust_ident;
     let wrapper_ident = format_ident!("__pymethod_variant_cls_{}__", member);
-    let python_name = spec.null_terminated_python_name(ctx);
+    let python_name = spec.null_terminated_python_name();
 
     let variant_cls = format_ident!("{}_{}", cls, member);
     let associated_method = quote! {
@@ -2354,10 +2376,10 @@ impl<'a> PyClassImplsBuilder<'a> {
     fn impl_pyclassimpl(&self, ctx: &Ctx) -> Result<TokenStream> {
         let Ctx { pyo3_path, .. } = ctx;
         let cls = self.cls;
-        let doc = self.doc.as_ref().map_or(
-            LitCStr::empty(ctx).to_token_stream(),
-            PythonDoc::to_token_stream,
-        );
+        let doc = self
+            .doc
+            .as_ref()
+            .map_or(c"".to_token_stream(), PythonDoc::to_token_stream);
         let is_basetype = self.attr.options.subclass.is_some();
         let base = match &self.attr.options.extends {
             Some(extends_attr) => extends_attr.value.clone(),
@@ -2497,7 +2519,37 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! {}
         };
 
+        let extract_pyclass_with_clone = if let Some(from_py_object) =
+            self.attr.options.from_py_object
+        {
+            let input_ty = if cfg!(feature = "experimental-inspect") {
+                quote!(const INPUT_TYPE: &'static str = <#cls as #pyo3_path::impl_::pyclass::PyClassImpl>::TYPE_NAME;)
+            } else {
+                TokenStream::new()
+            };
+            quote_spanned! { from_py_object.span() =>
+                impl<'a, 'py> #pyo3_path::FromPyObject<'a, 'py> for #cls
+                where
+                    Self: ::std::clone::Clone,
+                {
+                    type Error = #pyo3_path::pyclass::PyClassGuardError<'a, 'py>;
+
+                    #input_ty
+
+                    fn extract(obj: #pyo3_path::Borrowed<'a, 'py, #pyo3_path::PyAny>) -> ::std::result::Result<Self, Self::Error> {
+                        ::std::result::Result::Ok(::std::clone::Clone::clone(&*obj.extract::<#pyo3_path::PyClassGuard<'_, #cls>>()?))
+                    }
+                }
+            }
+        } else if self.attr.options.skip_from_py_object.is_none() {
+            quote!( impl #pyo3_path::impl_::pyclass::ExtractPyClassWithClone for #cls {} )
+        } else {
+            TokenStream::new()
+        };
+
         Ok(quote! {
+            #extract_pyclass_with_clone
+
             #assertions
 
             #pyclass_base_type_impl

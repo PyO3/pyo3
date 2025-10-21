@@ -58,6 +58,7 @@ fn search_sequential(contents: &str, needle: &str) -> usize {
 ```
 
 To enable parallel execution of this function, the [`Python::detach`] method can be used to temporarily release the GIL, thus allowing other Python threads to run. We then have a function exposed to the Python runtime which calls `search_sequential` inside a closure passed to [`Python::detach`] to enable true parallelism:
+
 ```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
@@ -82,6 +83,7 @@ fn search_sequential_detached(py: Python<'_>, contents: &str, needle: &str) -> u
 ```
 
 Now Python threads can use more than one CPU core, resolving the limitation which usually makes multi-threading in Python only good for IO-bound tasks:
+
 ```Python
 from concurrent.futures import ThreadPoolExecutor
 from word_count import search_sequential_detached
@@ -112,6 +114,7 @@ We are using `pytest-benchmark` to benchmark four word count functions:
 The benchmark script can be found [here](https://github.com/PyO3/pyo3/blob/main/examples/word-count/tests/test_word_count.py), and we can run `nox` in the `word-count` folder to benchmark these functions.
 
 While the results of the benchmark of course depend on your machine, the relative results should be similar to this (mid 2020):
+
 ```text
 -------------------------------------------------------------------------------------------------- benchmark: 4 tests -------------------------------------------------------------------------------------------------
 Name (time in ms)                                          Min                Max               Mean            StdDev             Median               IQR            Outliers       OPS            Rounds  Iterations
@@ -133,7 +136,7 @@ in parallel. It is also possible to spawn threads in Rust that acquire the GIL
 and operate on Python objects. However, care must be taken to avoid writing code
 that deadlocks with the GIL in these cases.
 
-* Note: This example is meant to illustrate how to drop and re-acquire the GIL
+- Note: This example is meant to illustrate how to drop and re-acquire the GIL
         to avoid creating deadlocks. Unless the spawned threads subsequently
         release the GIL or you are using the free-threaded build of CPython, you
         will not see any speedups due to multi-threaded parallelism using `rayon`

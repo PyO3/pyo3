@@ -1,10 +1,10 @@
-## Mapping of Rust types to Python types
+# Mapping of Rust types to Python types
 
 When writing functions callable from Python (such as a `#[pyfunction]` or in a `#[pymethods]` block), the trait `FromPyObject` is required for function arguments, and `IntoPyObject` is required for function return values.
 
 Consult the tables in the following section to find the Rust types provided by PyO3 which implement these traits.
 
-### Argument Types
+## Argument Types
 
 When accepting a function argument, it is possible to either use Rust library types or PyO3's Python-native types. (See the next section for discussion on when to use each.)
 
@@ -39,7 +39,7 @@ The table below contains the Python type and the corresponding function argument
 | `decimal.Decimal` | `bigdecimal::BigDecimal`[^9] | -                   |
 | `ipaddress.IPv4Address` | `std::net::IpAddr`, `std::net::Ipv4Addr` | - |
 | `ipaddress.IPv6Address` | `std::net::IpAddr`, `std::net::Ipv6Addr` | - |
-| `os.PathLike ` | `PathBuf`, `Path`              | `PyString` |
+| `os.PathLike` | `PathBuf`, `Path`              | `PyString` |
 | `pathlib.Path` | `PathBuf`, `Path`              | `PyString` |
 | `typing.Optional[T]` | `Option<T>`              | -                    |
 | `typing.Sequence[T]` | `Vec<T>`                 | `PySequence`        |
@@ -59,11 +59,12 @@ It is also worth remembering the following special types:
 
 For more detail on accepting `#[pyclass]` values as function arguments, see [the section of this guide on Python Classes](../class.md).
 
-#### Using Rust library types vs Python-native types
+### Using Rust library types vs Python-native types
 
 Using Rust library types as function arguments will incur a conversion cost compared to using the Python-native types. Using the Python-native types is almost zero-cost (they just require a type check similar to the Python builtin function `isinstance()`).
 
 However, once that conversion cost has been paid, the Rust standard library types offer a number of benefits:
+
 - You can write functionality in native-speed Rust code (free of Python's runtime costs).
 - You get better interoperability with the rest of the Rust ecosystem.
 - You can use `Python::detach` to detach from the interpreter and let other Python threads make progress while your Rust code is executing.
@@ -71,7 +72,7 @@ However, once that conversion cost has been paid, the Rust standard library type
 
 For most PyO3 usage the conversion cost is worth paying to get these benefits. As always, if you're not sure it's worth it in your case, benchmark it!
 
-### Returning Rust values to Python
+## Returning Rust values to Python
 
 When returning values from functions callable from Python, [PyO3's smart pointers](../types.md#pyo3s-smart-pointers) (`Py<T>`, `Bound<'py, T>`, and `Borrowed<'a, 'py, T>`) can be used with zero cost.
 
@@ -109,7 +110,7 @@ Finally, the following Rust types are also able to convert to Python as return v
 
 [^4]: Requires the `indexmap` optional feature.
 
-[^5]: Requires the `chrono` optional feature.
+[^5]: Requires the `chrono` (and maybe `chrono-local`) optional feature(s).
 
 [^6]: Requires the `chrono-tz` optional feature.
 

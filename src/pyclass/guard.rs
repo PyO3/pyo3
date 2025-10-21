@@ -2,7 +2,7 @@ use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout as _};
 use crate::pycell::PyBorrowMutError;
 use crate::pycell::{impl_::PyClassBorrowChecker, PyBorrowError};
 use crate::pyclass::boolean_struct::False;
-use crate::{ffi, Borrowed, DowncastError, FromPyObject, IntoPyObject, Py, PyClass, PyErr};
+use crate::{ffi, Borrowed, CastError, FromPyObject, IntoPyObject, Py, PyClass, PyErr};
 use std::convert::Infallible;
 use std::fmt;
 use std::marker::PhantomData;
@@ -334,7 +334,7 @@ unsafe impl<T: PyClass + Sync> Send for PyClassGuard<'_, T> {}
 unsafe impl<T: PyClass + Sync> Sync for PyClassGuard<'_, T> {}
 
 /// Custom error type for extracting a [PyClassGuard]
-pub struct PyClassGuardError<'a, 'py>(pub(crate) Option<DowncastError<'a, 'py>>);
+pub struct PyClassGuardError<'a, 'py>(pub(crate) Option<CastError<'a, 'py>>);
 
 impl fmt::Debug for PyClassGuardError<'_, '_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -735,7 +735,7 @@ unsafe impl<T: PyClass<Frozen = False> + Send + Sync> Send for PyClassGuardMut<'
 unsafe impl<T: PyClass<Frozen = False> + Sync> Sync for PyClassGuardMut<'_, T> {}
 
 /// Custom error type for extracting a [PyClassGuardMut]
-pub struct PyClassGuardMutError<'a, 'py>(pub(crate) Option<DowncastError<'a, 'py>>);
+pub struct PyClassGuardMutError<'a, 'py>(pub(crate) Option<CastError<'a, 'py>>);
 
 impl fmt::Debug for PyClassGuardMutError<'_, '_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

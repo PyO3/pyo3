@@ -1,11 +1,11 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    conversion::{FromPyObject, FromPyObjectOwned, IntoPyObject},
+    conversion::{FromPyObject, FromPyObjectOwned, FromPyObjectSequence, IntoPyObject},
     exceptions::PyTypeError,
     ffi,
     types::{PyAnyMethods, PySequence, PyString},
-    Borrowed, DowncastError, PyResult, PyTypeInfo,
+    Borrowed, CastError, PyResult, PyTypeInfo,
 };
 use crate::{Bound, PyAny, PyErr, Python};
 
@@ -35,7 +35,6 @@ where
 impl<'a, 'py, T> IntoPyObject<'py> for &'a Vec<T>
 where
     &'a T: IntoPyObject<'py>,
-    T: 'a, // MSRV
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -63,8 +62,6 @@ where
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Some(extractor) = T::sequence_extractor(obj, crate::conversion::private::Token) {
-            #[cfg(return_position_impl_trait_in_traits)]
-            use crate::conversion::FromPyObjectSequence;
             return Ok(extractor.to_vec());
         }
 
@@ -89,13 +86,9 @@ where
     // to support this function and if not, we will only fail extraction safely.
     let seq = unsafe {
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-            obj.downcast_unchecked::<PySequence>()
+            obj.cast_unchecked::<PySequence>()
         } else {
-            return Err(DowncastError::new_from_type(
-                obj,
-                PySequence::type_object(obj.py()).into_any(),
-            )
-            .into());
+            return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
         }
     };
 
@@ -169,7 +162,7 @@ mod tests {
                 .unwrap()
                 .extract()
                 .unwrap();
-            assert!(v == [1, 2]);
+            assert_eq!(v, [1, 2]);
         });
     }
 
@@ -181,7 +174,7 @@ mod tests {
                 .unwrap()
                 .extract()
                 .unwrap();
-            assert!(v == [1, 2, 3, 4]);
+            assert_eq!(v, [1, 2, 3, 4]);
         });
     }
 
@@ -193,7 +186,7 @@ mod tests {
                 .unwrap()
                 .extract()
                 .unwrap();
-            assert!(v == b"abc");
+            assert_eq!(v, b"abc");
         });
     }
 }

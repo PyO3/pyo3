@@ -22,6 +22,7 @@ This chapter will discuss the functionality and configuration these attributes o
 ## Defining a new class
 
 To define a custom Python class, add the `#[pyclass]` attribute to a Rust struct or enum.
+
 ```rust
 # #![allow(dead_code)]
 use pyo3::prelude::*;
@@ -81,7 +82,7 @@ Rust lifetimes are used by the Rust compiler to reason about a program's memory 
 
 As soon as Rust data is exposed to Python, there is no guarantee that the Rust compiler can make on how long the data will live. Python is a reference-counted language and those references can be held for an arbitrarily long time which is untraceable by the Rust compiler. The only possible way to express this correctly is to require that any `#[pyclass]` does not borrow data for any lifetime shorter than the `'static` lifetime, i.e. the `#[pyclass]` cannot have any lifetime parameters.
 
-When you need to share ownership of data between Python and Rust, instead of using borrowed references with lifetimes consider using reference-counted smart pointers such as [`Arc`] or [`Py`].
+When you need to share ownership of data between Python and Rust, instead of using borrowed references with lifetimes consider using reference-counted smart pointers such as [`Arc`] or [`Py`][`Py<T>`].
 
 #### No generic parameters
 
@@ -122,6 +123,7 @@ create_interface!(FloatClass, String);
 #### Must be thread-safe
 
 Python objects are freely shared between threads by the Python interpreter. This means that:
+
 - Python objects may be created and destroyed by different Python threads; therefore `#[pyclass]` objects must be `Send`.
 - Python objects may be accessed by multiple Python threads simultaneously; therefore `#[pyclass]` objects must be `Sync`.
 
@@ -211,6 +213,7 @@ To solve this, PyO3 does borrow checking at runtime using a scheme very similar 
 Users who are familiar with `RefCell<T>` can use `Py<T>` and `Bound<'py, T>` just like `RefCell<T>`.
 
 For users who are not very familiar with `RefCell<T>`, here is a reminder of Rust's rules of borrowing:
+
 - At any given time, you can have either (but not both of) one mutable reference or any number of immutable references.
 - References can never outlast the data they refer to.
 
@@ -324,7 +327,6 @@ use the `extends` parameter for `pyclass` with the full path to the base class.
 Currently, only classes defined in Rust and builtins provided by PyO3 can be inherited
 from; inheriting from other classes defined in Python is not yet supported
 ([#991](https://github.com/PyO3/pyo3/issues/991)).
-
 
 For convenience, `(T, U)` implements `Into<PyClassInitializer<T>>` where `U` is the
 base class of `T`.
@@ -483,6 +485,7 @@ impl DictWithCounter {
 ```
 
 If `SubClass` does not provide a base class initialization, the compilation fails.
+
 ```rust,compile_fail
 # use pyo3::prelude::*;
 
@@ -544,6 +547,7 @@ initial items, such as `MyDict(item_sequence)` or `MyDict(a=1, b=2)`.
 ## Object properties
 
 PyO3 supports two ways to add properties to your `#[pyclass]`:
+
 - For simple struct fields with no side effects, a `#[pyo3(get, set)]` attribute can be added directly to the field definition in the `#[pyclass]`.
 - For properties which require computation you can define `#[getter]` and `#[setter]` functions in the [`#[pymethods]`](#instance-methods) block.
 
@@ -568,6 +572,7 @@ The above would make the `num` field available for reading and writing as a `sel
 Properties can be readonly or writeonly by using just `#[pyo3(get)]` or `#[pyo3(set)]` respectively.
 
 To use these annotations, your field type must implement some conversion traits:
+
 - For `get` the field type `T` must implement either `&T: IntoPyObject` or `T: IntoPyObject + Clone`.
 - For `set` the field type must implement `FromPyObject`.
 
@@ -736,15 +741,16 @@ impl MyClass {
 
 Declares a class method callable from Python.
 
-* The first parameter is the type object of the class on which the method is called.
+- The first parameter is the type object of the class on which the method is called.
   This may be the type object of a derived class.
-* The first parameter implicitly has type `&Bound<'_, PyType>`.
-* For details on `parameter-list`, see the documentation of `Method arguments` section.
-* The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPyObject`.
+- The first parameter implicitly has type `&Bound<'_, PyType>`.
+- For details on `parameter-list`, see the documentation of `Method arguments` section.
+- The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPyObject`.
 
 ### Constructors which accept a class argument
 
 To create a constructor which takes a positional class argument, you can combine the `#[classmethod]` and `#[new]` modifiers:
+
 ```rust
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
@@ -831,6 +837,7 @@ impl MyClass {
 ## Classes as function arguments
 
 Class objects can be used as arguments to `#[pyfunction]`s and `#[pymethods]` in the same way as the self parameters of instance methods, i.e. they can be passed as:
+
 - `Py<T>` or `Bound<'py, T>` smart pointers to the class Python object,
 - `&T` or `&mut T` references to the Rust data contained in the Python object, or
 - `PyRef<T>` and `PyRefMut<T>` reference wrappers.
@@ -1443,18 +1450,16 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
 # }
 ```
 
-
 [`PyTypeInfo`]: {{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PyTypeInfo.html
 
-[`Py`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Py.html
-[`Bound<'_, T>`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html
+[`Py<T>`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Py.html
+[`Bound<'py, T>`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html
 [`PyClass`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/trait.PyClass.html
 [`PyRef`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
 [`PyRefMut`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRefMut.html
 [`PyClassInitializer<T>`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass_init/struct.PyClassInitializer.html
 
 [`Arc`]: https://doc.rust-lang.org/std/sync/struct.Arc.html
-[`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
 
 [classattr]: https://docs.python.org/3/tutorial/classes.html#class-and-instance-variables
 

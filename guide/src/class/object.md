@@ -39,7 +39,7 @@ print(n)
 <builtins.Number object at 0x000002B4D185D7D0>
 ```
 
-### String representations
+## String representations
 
 It can't even print an user-readable representation of itself! We can fix that by defining the
 `__repr__` and `__str__` methods inside a `#[pymethods]` block. We do this by accessing the value
@@ -94,9 +94,9 @@ impl Display for Coordinate {
 
 For convenience, a shorthand format string can be passed to `str` as `str="<format string>"` for **structs only**.  It expands and is passed into the `format!` macro in the following ways:
 
-* `"{x}"` -> `"{}", self.x`
-* `"{0}"` -> `"{}", self.0`
-* `"{x:?}"` -> `"{:?}", self.x`
+- `"{x}"` -> `"{}", self.x`
+- `"{0}"` -> `"{}", self.0`
+- `"{x:?}"` -> `"{:?}", self.x`
 
 *Note: Depending upon the format string you use, this may require implementation of the `Display` or `Debug` traits for the given Rust types.*
 *Note: the pyclass args `name` and `rename_all` are incompatible with the shorthand format string and will raise a compile time error.*
@@ -113,7 +113,7 @@ struct Coordinate {
 }
 ```
 
-#### Accessing the class name
+### Accessing the class name
 
 In the `__repr__`, we used a hard-coded class name. This is sometimes not ideal,
 because if the class is subclassed in Python, we would like the repr to reflect
@@ -142,7 +142,6 @@ impl Number {
 
 ### Hashing
 
-
 Let's also implement hashing. We'll just hash the `i32`. For that we need a [`Hasher`]. The one
 provided by `std` is [`DefaultHasher`], which uses the [SipHash] algorithm.
 
@@ -167,11 +166,13 @@ impl Number {
     }
 }
 ```
+
 To implement `__hash__` using the Rust [`Hash`] trait implementation, the `hash` option can be used.
 This option is only available for `frozen` classes to prevent accidental hash changes from mutating the object. If you need
 an `__hash__` implementation for a mutable class, use the manual method from above. This option also requires `eq`: According to the
 [Python docs](https://docs.python.org/3/reference/datamodel.html#object.__hash__) "If a class does not define an `__eq__()`
 method it should not define a `__hash__()` operation either"
+
 ```rust,no_run
 # use pyo3::prelude::*;
 #
@@ -181,6 +182,7 @@ method it should not define a `__hash__()` operation either"
 struct Number(i32);
 ```
 
+<!-- rumdl-disable MD052 - code block in quote confusing rumdl -->
 
 > **Note**: When implementing `__hash__` and comparisons, it is important that the following property holds:
 >
@@ -207,6 +209,8 @@ struct Number(i32);
 >     const __hash__: Option<Py<PyAny>> = None;
 > }
 > ```
+
+<!-- rumdl-enable MD052 -->
 
 ### Comparisons
 
@@ -262,7 +266,6 @@ It checks that the `std::cmp::Ordering` obtained from Rust's `Ord` matches
 the given `CompareOp`.
 
 Alternatively, you can implement just equality using `__eq__`:
-
 
 ```rust
 # use pyo3::prelude::*;

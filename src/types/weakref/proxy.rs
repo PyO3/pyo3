@@ -443,7 +443,7 @@ mod tests {
                             .cast_into::<PyWeakrefProxy>()
                             .unwrap_err()
                             .to_string(),
-                        "'int' object cannot be converted to 'ProxyType | CallableProxyType'"
+                        "'int' object cannot be cast as 'ProxyType | CallableProxyType'"
                     );
                     Ok(())
                 })

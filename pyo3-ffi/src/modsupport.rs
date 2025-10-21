@@ -73,6 +73,7 @@ extern "C" {
     // skipped PyModule_AddStringMacro
     pub fn PyModule_SetDocString(arg1: *mut PyObject, arg2: *const c_char) -> c_int;
     pub fn PyModule_AddFunctions(arg1: *mut PyObject, arg2: *mut PyMethodDef) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyModule_ExecDef")]
     pub fn PyModule_ExecDef(module: *mut PyObject, def: *mut PyModuleDef) -> c_int;
 }
 
@@ -90,6 +91,7 @@ extern "C" {
     fn PyModule_Create2TraceRefs(module: *mut PyModuleDef, apiver: c_int) -> *mut PyObject;
 
     #[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
+    #[cfg_attr(PyPy, link_name = "PyPyModule_FromDefAndSpec2")]
     pub fn PyModule_FromDefAndSpec2(
         def: *mut PyModuleDef,
         spec: *mut PyObject,

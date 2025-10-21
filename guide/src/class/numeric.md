@@ -3,13 +3,17 @@
 At this point we have a `Number` class that we can't actually do any math on!
 
 Before proceeding, we should think about how we want to handle overflows. There are three obvious solutions:
+
 - We can have infinite precision just like Python's `int`. However that would be quite boring - we'd
+
  be reinventing the wheel.
+
 - We can raise exceptions whenever `Number` overflows, but that makes the API painful to use.
 - We can wrap around the boundary of `i32`. This is the approach we'll take here. To do that we'll just forward to `i32`'s
+
  `wrapping_*` methods.
 
-### Fixing our constructor
+## Fixing our constructor
 
 Let's address the first overflow, in `Number`'s constructor:
 
@@ -42,6 +46,7 @@ fn wrap(obj: &Bound<'_, PyAny>) -> PyResult<i32> {
     Ok(val as i32)
 }
 ```
+
 We also add documentation, via `///` comments, which are visible to Python users.
 
 ```rust,no_run
@@ -68,8 +73,8 @@ impl Number {
 }
 ```
 
-
 With that out of the way, let's implement some operators:
+
 ```rust,no_run
 use pyo3::exceptions::{PyZeroDivisionError, PyValueError};
 
@@ -150,7 +155,7 @@ impl Number {
 }
 ```
 
-### Support for the `complex()`, `int()` and `float()` built-in functions.
+### Support for the `complex()`, `int()` and `float()` built-in functions
 
 ```rust,no_run
 # use pyo3::prelude::*;
@@ -408,10 +413,12 @@ unsigned long PyLong_AsUnsignedLongMask(PyObject *obj)
 We can call this function from Rust by using [`pyo3::ffi::PyLong_AsUnsignedLongMask`]. This is an *unsafe*
 function, which means we have to use an unsafe block to call it and take responsibility for upholding
 the contracts of this function. Let's review those contracts:
+
 - We must be attached to the interpreter. If we're not, calling this function causes a data race.
 - The pointer must be valid, i.e. it must be properly aligned and point to a valid Python object.
 
 Let's create that helper function. The signature has to be `fn(&Bound<'_, PyAny>) -> PyResult<T>`.
+
 - `&Bound<'_, PyAny>` represents a checked bound reference, so the pointer derived from it is valid (and not null).
 - Whenever we have bound references to Python objects in scope, it is guaranteed that we're attached to the interpreter. This reference is also where we can get a [`Python`] token to use in our call to [`PyErr::take`].
 

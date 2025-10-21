@@ -26,16 +26,17 @@ mod module_with_functions {
 
 Just like in Python, the following constructs can be part of the signature::
 
- * `/`: positional-only arguments separator, each parameter defined before `/` is a positional-only parameter.
- * `*`: var arguments separator, each parameter defined after `*` is a keyword-only parameter.
- * `*args`: "args" is var args. Type of the `args` parameter has to be `&Bound<'_, PyTuple>`.
- * `**kwargs`: "kwargs" receives keyword arguments. The type of the `kwargs` parameter has to be `Option<&Bound<'_, PyDict>>`.
- * `arg=Value`: arguments with default value.
+- `/`: positional-only arguments separator, each parameter defined before `/` is a positional-only parameter.
+- `*`: var arguments separator, each parameter defined after `*` is a keyword-only parameter.
+- `*args`: "args" is var args. Type of the `args` parameter has to be `&Bound<'_, PyTuple>`.
+- `**kwargs`: "kwargs" receives keyword arguments. The type of the `kwargs` parameter has to be `Option<&Bound<'_, PyDict>>`.
+- `arg=Value`: arguments with default value.
    If the `arg` argument is defined after var arguments, it is treated as a keyword-only argument.
    Note that `Value` has to be valid rust code, PyO3 just inserts it into the generated
    code unmodified.
 
 Example:
+
 ```rust,no_run
 # use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
@@ -88,21 +89,25 @@ pub fn simple_python_bound_function(py: Python<'_>, lambda: Py<PyAny>) -> PyResu
 ```
 
 N.B. the position of the `/` and `*` arguments (if included) control the system of handling positional and keyword arguments. In Python:
+
 ```python
 import mymodule
 
 mc = mymodule.MyClass()
 print(mc.method(44, False, "World", 666, x=44, y=55))
 print(mc.method(num=-1, name="World"))
-print(mc.make_change(44, False))
+print(mc.make_change(44))
 ```
+
 Produces output:
+
 ```text
-py_args=('World', 666), py_kwargs=Some({'x': 44, 'y': 55}), name=Hello, num=44
-py_args=(), py_kwargs=None, name=World, num=-1
+num=44 (was previously=-1), py_args=(False, 'World', 666), name=Hello, py_kwargs=Some({'x': 44, 'y': 55})
+num=-1 (was previously=44), py_args=(), name=World, py_kwargs=None
 num=44
-num=-1
 ```
+
+<!-- rumdl-disable MD052 - code block in quote confuses linter -->
 
 > Note: to use keywords like `struct` as a function argument, use "raw identifier" syntax `r#struct` in both the signature and the function definition:
 >
@@ -115,6 +120,8 @@ num=-1
 >     /* ... */
 > }
 > ```
+
+<!-- rumdl-enable MD052 -->
 
 ## Making the function signature available to Python
 
@@ -252,6 +259,7 @@ Type:      builtin_function_or_method
 ### Type annotations in the signature
 
 When the `experimental-inspect` Cargo feature is enabled, the `signature` attribute can also contain type hints:
+
 ```rust
 # #[cfg(feature = "experimental-inspect")] {
 use pyo3::prelude::*;
@@ -270,10 +278,13 @@ pub mod example {
 ```
 
 It enables the [work-in-progress capacity of PyO3 to autogenerate type stubs](../type-stub.md) to generate a file with the correct type hints:
+
 ```python
 def list_of_int_identity(arg: list[int]) -> list[int]: ...
 ```
+
 instead of the generic:
+
 ```python
 import typing
 
