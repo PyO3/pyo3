@@ -36,7 +36,7 @@ abi3-py311 = ["abi3-py312", "pyo3-build-config/abi3-py311"]
 abi3-py312 = ["abi3-py313", "pyo3-build-config/abi3-py312"]
 abi3-py313 = ["abi3-py314", "pyo3-build-config/abi3-py313"]
 abi3-py314 = ["abi3-py315", "pyo3-build-config/abi3-py314"]
-abi3-py314 = ["abi3", "pyo3-build-config/abi3-py315"]
+abi3-py315 = ["abi3", "pyo3-build-config/abi3-py315"]
 
 # Automatically generates `python3.dll` import libraries for Windows targets.
 generate-import-lib = ["pyo3-build-config/generate-import-lib"]
