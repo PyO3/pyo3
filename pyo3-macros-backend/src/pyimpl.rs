@@ -395,7 +395,6 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
 
     // We introduce self/cls argument and setup decorators
     let mut first_argument = None;
-    let mut output = spec.output.clone();
     let mut decorators = Vec::new();
     match &spec.tp {
         FnType::Getter(_) => {
@@ -408,10 +407,6 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
         }
         FnType::Fn(_) => {
             first_argument = Some("self");
-        }
-        FnType::FnNew | FnType::FnNewClass(_) => {
-            first_argument = Some("cls");
-            output = syn::ReturnType::Default; // The __new__ Python function return type is None
         }
         FnType::FnClass(_) => {
             first_argument = Some("cls");
@@ -428,13 +423,19 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
             decorators.push("property".into());
         }
     }
+    let return_type = if spec.python_name.to_string() == "__new__" {
+        // FIXME: should create a proper return type for __new__ methods
+        syn::ReturnType::Default
+    } else {
+        spec.output.clone()
+    };
     function_introspection_code(
         pyo3_path,
         None,
         &name,
         &spec.signature,
         first_argument,
-        output,
+        return_type,
         decorators,
         Some(parent),
     )

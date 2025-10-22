@@ -4,11 +4,11 @@ use std::ffi::CString;
 use crate::attributes::{FromPyWithAttribute, NameAttribute, RenamingRule};
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::unique_element_id;
-use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
-use crate::params::{impl_regular_arg_param, Holders};
+use crate::method::{CallingConvention, ExtractErrorMode, MethodBody, PyArg};
+use crate::params::{impl_arg_params, impl_regular_arg_param, Holders};
 use crate::pyfunction::WarningFactory;
-use crate::utils::Ctx;
 use crate::utils::PythonDoc;
+use crate::utils::{Ctx, StaticIdent};
 use crate::{
     method::{FnArg, FnSpec, FnType, SelfType},
     pyfunction::PyFunctionOptions,
@@ -80,6 +80,7 @@ impl PyMethodKind {
     fn from_name(name: &str) -> Self {
         match name {
             // Protocol implemented through slots
+            "__new__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__NEW__)),
             "__str__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__STR__)),
             "__repr__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__REPR__)),
             "__hash__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__HASH__)),
@@ -222,7 +223,6 @@ pub fn gen_py_method(
     ctx: &Ctx,
 ) -> Result<GeneratedPyMethod> {
     let spec = &method.spec;
-    let Ctx { pyo3_path, .. } = ctx;
 
     if spec.asyncness.is_some() {
         ensure_spanned!(
@@ -245,7 +245,7 @@ pub fn gen_py_method(
                     GeneratedPyMethod::Proto(slot)
                 }
                 PyMethodProtoKind::Call => {
-                    GeneratedPyMethod::Proto(impl_call_slot(cls, method.spec, ctx)?)
+                    GeneratedPyMethod::Proto(impl_call_slot(cls, spec, ctx)?)
                 }
                 PyMethodProtoKind::Traverse => {
                     GeneratedPyMethod::Proto(impl_traverse_slot(cls, spec, ctx)?)
@@ -260,32 +260,9 @@ pub fn gen_py_method(
             }
         }
         // ordinary functions (with some specialties)
-        (_, FnType::Fn(_)) => GeneratedPyMethod::Method(impl_py_method_def(
-            cls,
-            spec,
-            &spec.get_doc(meth_attrs, ctx)?,
-            None,
-            ctx,
-        )?),
-        (_, FnType::FnClass(_)) => GeneratedPyMethod::Method(impl_py_method_def(
-            cls,
-            spec,
-            &spec.get_doc(meth_attrs, ctx)?,
-            Some(quote!(#pyo3_path::ffi::METH_CLASS)),
-            ctx,
-        )?),
-        (_, FnType::FnStatic) => GeneratedPyMethod::Method(impl_py_method_def(
-            cls,
-            spec,
-            &spec.get_doc(meth_attrs, ctx)?,
-            Some(quote!(#pyo3_path::ffi::METH_STATIC)),
-            ctx,
-        )?),
-        // special prototypes
-        (_, FnType::FnNew) | (_, FnType::FnNewClass(_)) => {
-            GeneratedPyMethod::Proto(impl_py_method_def_new(cls, spec, ctx)?)
-        }
-
+        (_, FnType::Fn(_) | FnType::FnClass(_) | FnType::FnStatic) => GeneratedPyMethod::Method(
+            impl_py_method_def(cls, spec, &spec.get_doc(meth_attrs, ctx)?, ctx)?,
+        ),
         (_, FnType::Getter(self_type)) => GeneratedPyMethod::Method(impl_py_getter_def(
             cls,
             PropertyType::Function {
@@ -335,37 +312,52 @@ fn ensure_no_forbidden_protocol_attributes(
     method_name: &str,
 ) -> syn::Result<()> {
     if let Some(signature) = &spec.signature.attribute {
-        // __call__ is allowed to have a signature, but nothing else is.
-        if !matches!(proto_kind, PyMethodProtoKind::Call) {
+        // __new__ and __call__ are allowed to have a signature, but nothing else is.
+        if !matches!(
+            proto_kind,
+            PyMethodProtoKind::Slot(SlotDef {
+                calling_convention: SlotCallingConvention::TpNew,
+                ..
+            })
+        ) && !matches!(proto_kind, PyMethodProtoKind::Call)
+        {
             bail_spanned!(signature.kw.span() => format!("`signature` cannot be used with magic method `{}`", method_name));
         }
     }
     if let Some(text_signature) = &spec.text_signature {
-        bail_spanned!(text_signature.kw.span() => format!("`text_signature` cannot be used with magic method `{}`", method_name));
+        // __new__ is also allowed a text_signature (no other proto method is)
+        if !matches!(
+            proto_kind,
+            PyMethodProtoKind::Slot(SlotDef {
+                calling_convention: SlotCallingConvention::TpNew,
+                ..
+            })
+        ) {
+            bail_spanned!(text_signature.kw.span() => format!("`text_signature` cannot be used with magic method `{}`", method_name));
+        }
     }
     Ok(())
 }
 
-/// Also used by pyfunction.
 pub fn impl_py_method_def(
     cls: &syn::Type,
     spec: &FnSpec<'_>,
     doc: &PythonDoc,
-    flags: Option<TokenStream>,
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
     let wrapper_ident = format_ident!("__pymethod_{}__", spec.python_name);
-    let associated_method = spec.get_wrapper_function(&wrapper_ident, Some(cls), ctx)?;
-    let add_flags = flags.map(|flags| quote!(.flags(#flags)));
-    let methoddef_type = match spec.tp {
-        FnType::FnStatic => quote!(Static),
-        FnType::FnClass(_) => quote!(Class),
-        _ => quote!(Method),
-    };
-    let methoddef = spec.get_methoddef(quote! { #cls::#wrapper_ident }, doc, ctx);
+    let calling_convention = CallingConvention::from_signature(&spec.signature);
+    let associated_method =
+        spec.get_wrapper_function(&wrapper_ident, Some(cls), calling_convention, ctx)?;
+    let methoddef = spec.get_methoddef(
+        quote! { #cls::#wrapper_ident },
+        doc,
+        calling_convention,
+        ctx,
+    );
     let method_def = quote! {
-        #pyo3_path::impl_::pymethods::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
+        #pyo3_path::impl_::pymethods::PyMethodDefType::Method(#methoddef)
     };
     Ok(MethodAndMethodDef {
         associated_method,
@@ -373,83 +365,16 @@ pub fn impl_py_method_def(
     })
 }
 
-/// Also used by pyclass.
-pub fn impl_py_method_def_new(
-    cls: &syn::Type,
-    spec: &FnSpec<'_>,
-    ctx: &Ctx,
-) -> Result<MethodAndSlotDef> {
+fn impl_call_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> Result<MethodAndSlotDef> {
     let Ctx { pyo3_path, .. } = ctx;
-    let wrapper_ident = syn::Ident::new("__pymethod___new____", Span::call_site());
-    let associated_method = spec.get_wrapper_function(&wrapper_ident, Some(cls), ctx)?;
-    // Use just the text_signature_call_signature() because the class' Python name
-    // isn't known to `#[pymethods]` - that has to be attached at runtime from the PyClassImpl
-    // trait implementation created by `#[pyclass]`.
-    let text_signature_impl = spec.text_signature_call_signature().map(|text_signature| {
-        quote! {
-            #[allow(unknown_lints, non_local_definitions)]
-            impl #pyo3_path::impl_::pyclass::doc::PyClassNewTextSignature for #cls {
-                const TEXT_SIGNATURE: &'static str = #text_signature;
-            }
-        }
-    });
-    let slot_def = quote! {
-        #pyo3_path::ffi::PyType_Slot {
-            slot: #pyo3_path::ffi::Py_tp_new,
-            pfunc: {
-                unsafe extern "C" fn trampoline(
-                    subtype: *mut #pyo3_path::ffi::PyTypeObject,
-                    args: *mut #pyo3_path::ffi::PyObject,
-                    kwargs: *mut #pyo3_path::ffi::PyObject,
-                ) -> *mut #pyo3_path::ffi::PyObject {
-
-                    #text_signature_impl
-
-                    #pyo3_path::impl_::trampoline::newfunc(
-                        subtype,
-                        args,
-                        kwargs,
-                        #cls::#wrapper_ident
-                    )
-                }
-                trampoline
-            } as #pyo3_path::ffi::newfunc as _
-        }
-    };
-    Ok(MethodAndSlotDef {
-        associated_method,
-        slot_def,
-    })
-}
-
-fn impl_call_slot(cls: &syn::Type, mut spec: FnSpec<'_>, ctx: &Ctx) -> Result<MethodAndSlotDef> {
-    let Ctx { pyo3_path, .. } = ctx;
-
-    // HACK: __call__ proto slot must always use varargs calling convention, so change the spec.
-    // Probably indicates there's a refactoring opportunity somewhere.
-    spec.convention = CallingConvention::Varargs;
 
     let wrapper_ident = syn::Ident::new("__pymethod___call____", Span::call_site());
-    let associated_method = spec.get_wrapper_function(&wrapper_ident, Some(cls), ctx)?;
+    let associated_method =
+        spec.get_wrapper_function(&wrapper_ident, Some(cls), CallingConvention::Varargs, ctx)?;
     let slot_def = quote! {
         #pyo3_path::ffi::PyType_Slot {
             slot: #pyo3_path::ffi::Py_tp_call,
-            pfunc: {
-                unsafe extern "C" fn trampoline(
-                    slf: *mut #pyo3_path::ffi::PyObject,
-                    args: *mut #pyo3_path::ffi::PyObject,
-                    kwargs: *mut #pyo3_path::ffi::PyObject,
-                ) -> *mut #pyo3_path::ffi::PyObject
-                {
-                    #pyo3_path::impl_::trampoline::ternaryfunc(
-                        slf,
-                        args,
-                        kwargs,
-                        #cls::#wrapper_ident
-                    )
-                }
-                trampoline
-            } as #pyo3_path::ffi::ternaryfunc as _
+            pfunc: #cls::#wrapper_ident as #pyo3_path::ffi::ternaryfunc as _
         }
     };
     Ok(MethodAndSlotDef {
@@ -978,6 +903,7 @@ impl PropertyType<'_> {
     }
 }
 
+pub const __NEW__: SlotDef = SlotDef::new("Py_tp_new", "newfunc");
 pub const __STR__: SlotDef = SlotDef::new("Py_tp_str", "reprfunc");
 pub const __REPR__: SlotDef = SlotDef::new("Py_tp_repr", "reprfunc");
 pub const __HASH__: SlotDef = SlotDef::new("Py_tp_hash", "hashfunc")
@@ -1266,8 +1192,8 @@ impl ReturnMode {
             ReturnMode::ReturnSelf => quote! {
                 let _result: #pyo3_path::PyResult<()> = #pyo3_path::impl_::callback::convert(py, #call);
                 _result?;
-                #pyo3_path::ffi::Py_XINCREF(_raw_slf);
-                ::std::result::Result::Ok(_raw_slf)
+                #pyo3_path::ffi::Py_XINCREF(_slf);
+                ::std::result::Result::Ok(_slf)
             },
         }
     }
@@ -1275,22 +1201,36 @@ impl ReturnMode {
 
 pub struct SlotDef {
     slot: StaticIdent,
-    func_ty: StaticIdent,
-    arguments: &'static [Ty],
+    calling_convention: SlotCallingConvention,
     ret_ty: Ty,
     extract_error_mode: ExtractErrorMode,
     return_mode: Option<ReturnMode>,
     require_unsafe: bool,
 }
 
+enum SlotCallingConvention {
+    Fixed {
+        func_ty: StaticIdent,
+        arguments: &'static [Ty],
+    },
+    TpNew,
+}
+
 const NO_ARGUMENTS: &[Ty] = &[];
 
 impl SlotDef {
     const fn new(slot: &'static str, func_ty: &'static str) -> Self {
+        let calling_convention = if matches!(func_ty.as_bytes(), b"newfunc") {
+            SlotCallingConvention::TpNew
+        } else {
+            SlotCallingConvention::Fixed {
+                func_ty: StaticIdent::new(func_ty),
+                arguments: NO_ARGUMENTS,
+            }
+        };
         SlotDef {
-            slot: StaticIdent(slot),
-            func_ty: StaticIdent(func_ty),
-            arguments: NO_ARGUMENTS,
+            slot: StaticIdent::new(slot),
+            calling_convention,
             ret_ty: Ty::Object,
             extract_error_mode: ExtractErrorMode::Raise,
             return_mode: None,
@@ -1299,7 +1239,14 @@ impl SlotDef {
     }
 
     const fn arguments(mut self, arguments: &'static [Ty]) -> Self {
-        self.arguments = arguments;
+        match self.calling_convention {
+            SlotCallingConvention::TpNew => {
+                panic!("TpNew calling convention does not support custom arguments");
+            }
+            SlotCallingConvention::Fixed { func_ty, .. } => {
+                self.calling_convention = SlotCallingConvention::Fixed { func_ty, arguments };
+            }
+        }
         self
     }
 
@@ -1347,8 +1294,7 @@ impl SlotDef {
         let Ctx { pyo3_path, .. } = ctx;
         let SlotDef {
             slot,
-            func_ty,
-            arguments,
+            calling_convention,
             extract_error_mode,
             ret_ty,
             return_mode,
@@ -1360,17 +1306,18 @@ impl SlotDef {
                 spec.name.span() => format!("`{}` must be `unsafe fn`", method_name)
             );
         }
-        let arg_types: &Vec<_> = &arguments.iter().map(|arg| arg.ffi_type(ctx)).collect();
-        let arg_idents: &Vec<_> = &(0..arguments.len())
-            .map(|i| format_ident!("arg{}", i))
-            .collect();
         let wrapper_ident = format_ident!("__pymethod_{}__", method_name);
         let ret_ty = ret_ty.ffi_type(ctx);
         let mut holders = Holders::new();
-        let body = generate_method_body(
+        let MethodBody {
+            arg_idents,
+            arg_types,
+            trampoline: func_ty,
+            body,
+        } = generate_method_body(
             cls,
             spec,
-            arguments,
+            calling_convention,
             *extract_error_mode,
             &mut holders,
             return_mode.as_ref(),
@@ -1380,35 +1327,27 @@ impl SlotDef {
         let holders = holders.init_holders(ctx);
         let associated_method = quote! {
             #[allow(non_snake_case)]
-            unsafe fn #wrapper_ident(
-                py: #pyo3_path::Python<'_>,
-                _raw_slf: *mut #pyo3_path::ffi::PyObject,
+            unsafe extern "C" fn #wrapper_ident(
                 #(#arg_idents: #arg_types),*
-            ) -> #pyo3_path::PyResult<#ret_ty> {
-                let function = #cls::#name; // Shadow the method name to avoid #3017
-                let _slf = _raw_slf;
-                #holders
-                #body
+            ) -> #ret_ty {
+                unsafe fn inner(
+                    py: #pyo3_path::Python<'_>,
+                    #(#arg_idents: #arg_types),*
+                ) -> #pyo3_path::PyResult<#ret_ty> {
+                    let function = #cls::#name; // Shadow the method name to avoid #3017
+                    #holders
+                    #body
+                }
+
+                unsafe { #pyo3_path::impl_::trampoline::#func_ty(#(#arg_idents,)* inner) }
             }
         };
-        let slot_def = quote! {{
-            unsafe extern "C" fn trampoline(
-                _slf: *mut #pyo3_path::ffi::PyObject,
-                #(#arg_idents: #arg_types),*
-            ) -> #ret_ty
-            {
-                #pyo3_path::impl_::trampoline:: #func_ty (
-                    _slf,
-                    #(#arg_idents,)*
-                    #cls::#wrapper_ident
-                )
-            }
-
+        let slot_def = quote! {
             #pyo3_path::ffi::PyType_Slot {
                 slot: #pyo3_path::ffi::#slot,
-                pfunc: trampoline as #pyo3_path::ffi::#func_ty as _
+                pfunc: #cls::#wrapper_ident as #pyo3_path::ffi::#func_ty as _
             }
-        }};
+        };
         Ok(MethodAndSlotDef {
             associated_method,
             slot_def,
@@ -1419,32 +1358,94 @@ impl SlotDef {
 fn generate_method_body(
     cls: &syn::Type,
     spec: &FnSpec<'_>,
-    arguments: &[Ty],
+    calling_convention: &SlotCallingConvention,
     extract_error_mode: ExtractErrorMode,
     holders: &mut Holders,
+    // NB ignored if calling_convention is SlotCallingConvention::TpNew, possibly should merge into that enum
     return_mode: Option<&ReturnMode>,
     ctx: &Ctx,
-) -> Result<TokenStream> {
-    let Ctx { pyo3_path, .. } = ctx;
+) -> Result<MethodBody> {
+    let Ctx {
+        pyo3_path,
+        output_span,
+    } = ctx;
     let self_arg = spec
         .tp
         .self_arg(Some(cls), extract_error_mode, holders, ctx);
     let rust_name = spec.name;
-    let args = extract_proto_arguments(spec, arguments, extract_error_mode, holders, ctx)?;
-    let call = quote! { #cls::#rust_name(#self_arg #(#args),*) };
-    let body = if let Some(return_mode) = return_mode {
-        return_mode.return_call_output(call, ctx)
-    } else {
-        quote! {
-            let result = #call;
-            #pyo3_path::impl_::callback::convert(py, result)
-        }
-    };
     let warnings = spec.warnings.build_py_warning(ctx);
 
-    Ok(quote! {
-        #warnings
-        #body
+    let (arg_idents, arg_types, trampoline, body) = match calling_convention {
+        SlotCallingConvention::TpNew => {
+            let arg_idents = vec![
+                format_ident!("_slf"),
+                format_ident!("_args"),
+                format_ident!("_kwargs"),
+            ];
+            let arg_types = vec![
+                quote! { *mut #pyo3_path::ffi::PyTypeObject },
+                quote! { *mut #pyo3_path::ffi::PyObject },
+                quote! { *mut #pyo3_path::ffi::PyObject },
+            ];
+            let (arg_convert, args) = impl_arg_params(spec, Some(cls), false, holders, ctx);
+            let call = quote_spanned! {*output_span=> #cls::#rust_name(#self_arg #(#args),*) };
+
+            // Use just the text_signature_call_signature() because the class' Python name
+            // isn't known to `#[pymethods]` - that has to be attached at runtime from the PyClassImpl
+            // trait implementation created by `#[pyclass]`.
+            let text_signature_impl = spec.text_signature_call_signature().map(|text_signature| {
+                quote! {
+                    #[allow(unknown_lints, non_local_definitions)]
+                    impl #pyo3_path::impl_::pyclass::doc::PyClassNewTextSignature for #cls {
+                        const TEXT_SIGNATURE: &'static str = #text_signature;
+                    }
+                }
+            });
+
+            let body = quote! {
+                #text_signature_impl
+
+                use #pyo3_path::impl_::callback::IntoPyCallbackOutput;
+                #warnings
+                #arg_convert
+                let result = #call;
+                let initializer: #pyo3_path::PyClassInitializer::<#cls> = result.convert(py)?;
+                #pyo3_path::impl_::pymethods::tp_new_impl(py, initializer, _slf)
+            };
+            (arg_idents, arg_types, StaticIdent::new("newfunc"), body)
+        }
+        SlotCallingConvention::Fixed { func_ty, arguments } => {
+            let arg_idents: Vec<_> = std::iter::once(format_ident!("_slf"))
+                .chain((0..arguments.len()).map(|i| format_ident!("arg{}", i)))
+                .collect();
+            let arg_types: Vec<_> = std::iter::once(quote! { *mut #pyo3_path::ffi::PyObject })
+                .chain(arguments.iter().map(|arg| arg.ffi_type(ctx)))
+                .collect();
+
+            let args = extract_proto_arguments(spec, &arguments, extract_error_mode, holders, ctx)?;
+            let call = quote! { #cls::#rust_name(#self_arg #(#args),*) };
+            let result = if let Some(return_mode) = return_mode {
+                return_mode.return_call_output(call, ctx)
+            } else {
+                quote! {
+                    let result = #call;
+                    #pyo3_path::impl_::callback::convert(py, result)
+                }
+            };
+            let body = quote! {
+                #warnings
+                #result
+            };
+            // TODO: maybe use `StaticIdent` in `MethodBody` to avoid the formatting?
+            (arg_idents, arg_types, *func_ty, body)
+        }
+    };
+
+    Ok(MethodBody {
+        arg_idents,
+        arg_types,
+        trampoline,
+        body,
     })
 }
 
@@ -1491,15 +1492,21 @@ impl SlotFragmentDef {
         let fragment_trait = format_ident!("PyClass{}SlotFragment", fragment);
         let method = syn::Ident::new(fragment, Span::call_site());
         let wrapper_ident = format_ident!("__pymethod_{}__", fragment);
-        let arg_types: &Vec<_> = &arguments.iter().map(|arg| arg.ffi_type(ctx)).collect();
-        let arg_idents: &Vec<_> = &(0..arguments.len())
-            .map(|i| format_ident!("arg{}", i))
-            .collect();
+
         let mut holders = Holders::new();
-        let body = generate_method_body(
+        let MethodBody {
+            arg_idents,
+            arg_types,
+            trampoline: _,
+            body,
+        } = generate_method_body(
             cls,
             spec,
-            arguments,
+            &SlotCallingConvention::Fixed {
+                // the func_ty is not used here
+                func_ty: StaticIdent::new(""),
+                arguments,
+            },
             *extract_error_mode,
             &mut holders,
             None,
@@ -1512,10 +1519,8 @@ impl SlotFragmentDef {
                 #[allow(non_snake_case)]
                 unsafe fn #wrapper_ident(
                     py: #pyo3_path::Python,
-                    _raw_slf: *mut #pyo3_path::ffi::PyObject,
                     #(#arg_idents: #arg_types),*
                 ) -> #pyo3_path::PyResult<#ret_ty> {
-                    let _slf = _raw_slf;
                     #holders
                     #body
                 }
@@ -1527,10 +1532,9 @@ impl SlotFragmentDef {
                 unsafe fn #method(
                     self,
                     py: #pyo3_path::Python,
-                    _raw_slf: *mut #pyo3_path::ffi::PyObject,
                     #(#arg_idents: #arg_types),*
                 ) -> #pyo3_path::PyResult<#ret_ty> {
-                    #cls::#wrapper_ident(py, _raw_slf, #(#arg_idents),*)
+                    #cls::#wrapper_ident(py, #(#arg_idents),*)
                 }
             }
         })
@@ -1638,14 +1642,6 @@ fn extract_proto_arguments(
         bail_spanned!(spec.name.span() => format!("Expected {} arguments, got {}", proto_args.len(), non_python_args));
     }
     Ok(args)
-}
-
-struct StaticIdent(&'static str);
-
-impl ToTokens for StaticIdent {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        syn::Ident::new(self.0, Span::call_site()).to_tokens(tokens)
-    }
 }
 
 #[derive(Clone, Copy)]
