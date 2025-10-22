@@ -5,7 +5,7 @@ use std::thread;
 use pyo3_ffi::*;
 use sequential::PyInit_sequential;
 
-static COMMAND: &'static str = c"
+static COMMAND: &'static CStr= c"
 from sequential import Id
 
 s = sum(int(Id()) for _ in range(12))
