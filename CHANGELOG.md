@@ -10,6 +10,79 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.27.0] - 2025-10-19
+
+### Packaging
+
+- Extend range of supported versions of `hashbrown` optional dependency to include version 0.16. [#5428](https://github.com/PyO3/pyo3/pull/5428)
+- Bump optional `num-bigint` dependency minimum version to 0.4.4. [#5471](https://github.com/PyO3/pyo3/pull/5471)
+- Test against Python 3.14 final release. [#5499](https://github.com/PyO3/pyo3/pull/5499)
+- Drop support for PyPy 3.9 and 3.10. [#5516](https://github.com/PyO3/pyo3/pull/5516)
+- Provide a better error message when building an outdated PyO3 for a too-new Python version. [#5519](https://github.com/PyO3/pyo3/pull/5519)
+
+### Added
+
+- Add `FromPyObjectOwned` as convenient trait bound for `FromPyObject` when the data is not borrowed from Python. [#4390](https://github.com/PyO3/pyo3/pull/4390)
+- Add `Borrowed::extract`, same as `PyAnyMethods::extract`, but does not restrict the lifetime by deref. [#4390](https://github.com/PyO3/pyo3/pull/4390)
+- `experimental-inspect`: basic support for `#[derive(IntoPyObject)]` (no struct fields support yet). [#5365](https://github.com/PyO3/pyo3/pull/5365)
+- `experimental-inspect`: support `#[pyo3(get, set)]` and `#[pyclass(get_all, set_all)]`. [#5370](https://github.com/PyO3/pyo3/pull/5370)
+- Add `PyTypeCheck::classinfo_object` that returns an object that can be used as parameter in `isinstance` or `issubclass`. [#5387](https://github.com/PyO3/pyo3/pull/5387)
+- Implement `PyTypeInfo` on `datetime.*` types even when the limited API is enabled. [#5388](https://github.com/PyO3/pyo3/pull/5388)
+- Implement `PyTypeInfo` on `PyIterator`, `PyMapping` and `PySequence`. [#5402](https://github.com/PyO3/pyo3/pull/5402)
+- Implement `PyTypeInfo` on `PyCode` when using the stable ABI. [#5403](https://github.com/PyO3/pyo3/pull/5403)
+- Implement `PyTypeInfo` on `PyWeakrefReference` when using the stable ABI. [#5404](https://github.com/PyO3/pyo3/pull/5404)
+- Add `pyo3::sync::RwLockExt` trait, analogous to `pyo3::sync::MutexExt` for readwrite locks. [#5435](https://github.com/PyO3/pyo3/pull/5435)
+- Add `PyString::from_bytes`. [#5437](https://github.com/PyO3/pyo3/pull/5437)
+- Implement `AsRef<[u8]>` for `PyBytes`. [#5445](https://github.com/PyO3/pyo3/pull/5445)
+- Add `CastError` and `CastIntoError`. [#5468](https://github.com/PyO3/pyo3/pull/5468)
+- Add `PyCapsuleMethods::pointer_checked` and `PyCapsuleMethods::is_valid_checked`. [#5474](https://github.com/PyO3/pyo3/pull/5474)
+- Add `Borrowed::cast`, `Borrowed::cast_exact` and `Borrowed::cast_unchecked`. [#5475](https://github.com/PyO3/pyo3/pull/5475)
+- Add conversions for `jiff::civil::ISOWeekDate`. [#5478](https://github.com/PyO3/pyo3/pull/5478)
+- Add conversions for `&Cstr`, `Cstring` and `Cow<Cstr>`. [#5482](https://github.com/PyO3/pyo3/pull/5482)
+- add `#[pyclass(skip_from_py_object)]` option, to opt-out of the `FromPyObject: PyClass + Clone` blanket impl. [#5488](https://github.com/PyO3/pyo3/pull/5488)
+- Add `PyErr::add_note`. [#5489](https://github.com/PyO3/pyo3/pull/5489)
+- Add `FromPyObject` impl for `Cow<Path>` & `Cow<OsStr>`. [#5497](https://github.com/PyO3/pyo3/pull/5497)
+- Add `#[pyclass(from_py_object)]` pyclass option, to opt-in to the extraction of pyclasses by value (requires `Clone`). [#5506](https://github.com/PyO3/pyo3/pull/5506)
+
+### Changed
+
+- Rework `FromPyObject` trait for flexibility and performance: [#4390](https://github.com/PyO3/pyo3/pull/4390)
+  - Add a second lifetime to `FromPyObject`, to allow borrowing data from Python objects (e.g. `&str` from Python `str`).
+  - Replace `extract_bound` with `extract`, which takes `Borrowed<'a, 'py, PyAny>`.
+- Optimize `FromPyObject` implementations for `Vec<u8>` and `[u8; N]` from `bytes` and `bytearray`. [#5244](https://github.com/PyO3/pyo3/pull/5244)
+- Deprecate `#[pyfn]` attribute. [#5384](https://github.com/PyO3/pyo3/pull/5384)
+- Fetch type name dynamically on cast errors instead of using `PyTypeCheck::NAME`. [#5387](https://github.com/PyO3/pyo3/pull/5387)
+- Deprecate `PyTypeCheck::NAME` in favour of `PyTypeCheck::classinfo_object` which provides the type information at runtime. [#5387](https://github.com/PyO3/pyo3/pull/5387)
+- `PyClassGuard(Mut)` and `PyRef(Mut)` extraction now returns an opaque Rust error [#5413](https://github.com/PyO3/pyo3/pull/5413)
+- Fetch type name dynamically when exporting types implementing `PyTypeInfo` with `#[pymodule_use]`. [#5414](https://github.com/PyO3/pyo3/pull/5414)
+- Improve `Debug` representation of `PyBuffer<T>`. [#5442](https://github.com/PyO3/pyo3/pull/5442)
+- `experimental-inspect`: change the way introspection data is emitted in the binaries to avoid a pointer indirection and simplify parsing. [#5450](https://github.com/PyO3/pyo3/pull/5450)
+- Optimize `Py<T>::drop` for the case when attached to the Python interpreter. [#5454](https://github.com/PyO3/pyo3/pull/5454)
+- Replace `DowncastError` and `DowncastIntoError` with `CastError` and `CastIntoError`. [#5468](https://github.com/PyO3/pyo3/pull/5468)
+- Enable fast-path for 128-bit integer conversions on `GraalPy`. [#5471](https://github.com/PyO3/pyo3/pull/5471)
+- Deprecate `PyAnyMethods::downcast` functions in favour of `Bound::cast` functions. [#5472](https://github.com/PyO3/pyo3/pull/5472)
+- Make `PyTypeCheck` an `unsafe trait`. [#5473](https://github.com/PyO3/pyo3/pull/5473)
+- Deprecate unchecked `PyCapsuleMethods`: `pointer()`, `reference()`, and `is_valid()`. [#5474](https://github.com/PyO3/pyo3/pull/5474)
+- Reduce lifetime of return value in `PyCapsuleMethods::reference`. [#5474](https://github.com/PyO3/pyo3/pull/5474)
+- `PyCapsuleMethods::name` now returns `CapsuleName` wrapper instead of `&CStr`. [#5474](https://github.com/PyO3/pyo3/pull/5474)
+- Deprecate `import_exception_bound` in favour of `import_exception`. [#5480](https://github.com/PyO3/pyo3/pull/5480)
+- `PyList::get_item_unchecked`, `PyTuple::get_item_unchecked`, and `PyTuple::get_borrowed_item_unchecked` no longer check for null values at the provided index. [#5494](https://github.com/PyO3/pyo3/pull/5494)
+- Allow converting naive datetime into chrono `DateTime<Local>`. [#5507](https://github.com/PyO3/pyo3/pull/5507)
+
+### Removed
+
+- Removed `FromPyObjectBound` trait. [#4390](https://github.com/PyO3/pyo3/pull/4390)
+
+### Fixed
+
+- Fix compilation failure on `wasm32-wasip2`. [#5368](https://github.com/PyO3/pyo3/pull/5368)
+- Fix `OsStr` conversion for non-utf8 strings on Windows. [#5444](https://github.com/PyO3/pyo3/pull/5444)
+- Fix issue with `cargo vendor` caused by gitignored build artifact `emscripten/pybuilddir.txt`. [#5456](https://github.com/PyO3/pyo3/pull/5456)
+- Stop leaking `PyMethodDef` instances inside `#[pyfunction]` macro generated code. [#5459](https://github.com/PyO3/pyo3/pull/5459)
+- Don't export definition of FFI struct `PyObjectObFlagsAndRefcnt` on 32-bit Python 3.14 (doesn't exist). [#5499](https://github.com/PyO3/pyo3/pull/5499)
+- Fix failure to build for `abi3` interpreters on Windows using maturin's built-in sysconfig in combination with the `generate-import-lib` feature. [#5503](https://github.com/PyO3/pyo3/pull/5503)
+- Fix FFI definitions `PyModule_ExecDef` and `PyModule_FromDefAndSpec2` on PyPy. [#5529](https://github.com/PyO3/pyo3/pull/5529)
+
 ## [0.26.0] - 2025-08-29
 
 ### Packaging
@@ -2296,7 +2369,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/pyo3/pyo3/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/pyo3/pyo3/compare/v0.25.1...v0.26.0
 [0.25.1]: https://github.com/pyo3/pyo3/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/pyo3/pyo3/compare/v0.24.2...v0.25.0

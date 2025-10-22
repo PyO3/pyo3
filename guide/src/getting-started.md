@@ -6,7 +6,7 @@ To get started using PyO3 you will need three things: a Rust toolchain, a Python
 
 ## Rust
 
-First, make sure you have Rust installed on your system. If you haven't already done so, try following the instructions [here](https://www.rust-lang.org/tools/install). PyO3 runs on both the `stable` and `nightly` versions so you can choose whichever one fits you best. The minimum required Rust version is 1.74.
+First, make sure you have Rust installed on your system. If you haven't already done so, try following the instructions [here](https://www.rust-lang.org/tools/install). PyO3 runs on both the `stable` and `nightly` versions so you can choose whichever one fits you best. The minimum required Rust version is 1.83.
 
 If you can run `rustc --version` and the version is new enough you're good to go!
 
@@ -31,29 +31,33 @@ pyenv install 3.12 --keep
 There are a number of build and Python package management systems such as [`setuptools-rust`](https://github.com/PyO3/setuptools-rust) or [manually](./building-and-distribution.md#manual-builds). We recommend the use of `maturin`, which you can install [here](https://maturin.rs/installation.html). It is developed to work with PyO3 and provides the most "batteries included" experience, especially if you are aiming to publish to PyPI. `maturin` is just a Python package, so you can add it in the same way you already install Python packages.
 
 System Python:
+
 ```bash
 pip install maturin --user
 ```
 
 pipx:
+
 ```bash
 pipx install maturin
 ```
 
 pyenv:
+
 ```bash
 pyenv activate pyo3
 pip install maturin
 ```
 
 poetry:
+
 ```bash
 poetry add -G dev maturin
 ```
 
 After installation, you can run `maturin --version` to check that you have correctly installed it.
 
-# Starting a new project
+## Starting a new project
 
 First you should create the folder and virtual environment that are going to contain your new project. Here we will use the recommended `pyenv`:
 
@@ -85,7 +89,7 @@ pyenv virtualenv pyo3
 pyenv local pyo3
 ```
 
-# Adding to an existing project
+## Adding to an existing project
 
 Sadly, `maturin` cannot currently be run in existing projects, so if you want to use Python in an existing project you basically have two options:
 
@@ -97,7 +101,6 @@ If you opt for the second option, here are the things you need to pay attention 
 ## Cargo.toml
 
 Make sure that the Rust crate you want to be able to access from Python is compiled into a library. You can have a binary output as well, but the code you want to access from Python has to be in the library part. Also, make sure that the crate type is `cdylib` and add PyO3 as a dependency as so:
-
 
 ```toml
 # If you already have [package] information in `Cargo.toml`, you can ignore

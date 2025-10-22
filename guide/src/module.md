@@ -18,7 +18,7 @@ mod my_extension {
 
     #[pymodule_export]
     use super::double; // The double function is made available from Python, works also with classes
-    
+
     #[pyfunction] // Inline definition of a pyfunction, also made availlable to Python
     fn triple(x: usize) -> usize {
         x * 3
@@ -55,8 +55,9 @@ file. Otherwise, you will get an import error in Python with the following messa
 `ImportError: dynamic module does not define module export function (PyInit_name_of_your_module)`
 
 To import the module, either:
- - copy the shared library as described in [Manual builds](building-and-distribution.md#manual-builds), or
- - use a tool, e.g. `maturin develop` with [maturin](https://github.com/PyO3/maturin) or
+
+- copy the shared library as described in [Manual builds](building-and-distribution.md#manual-builds), or
+- use a tool, e.g. `maturin develop` with [maturin](https://github.com/PyO3/maturin) or
 `python setup.py develop` with [setuptools-rust](https://github.com/PyO3/setuptools-rust).
 
 ## Documentation
@@ -121,6 +122,7 @@ You can provide the `submodule` argument to `#[pymodule()]` for modules that are
 It is possible to declare functions, classes, sub-modules and constants inline in a module:
 
 For example:
+
 ```rust,no_run
 # mod declarative_module_test {
 #[pyo3::pymodule]
@@ -157,6 +159,7 @@ In the previous example, the `Nested` class will have for `module` `my_extension
 ## Procedural initialization
 
 If the macros provided by PyO3 are not enough, it is possible to run code at the module initialization:
+
 ```rust,no_run
 # mod procedural_module_test {
 #[pyo3::pymodule]

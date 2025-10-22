@@ -46,7 +46,6 @@ pub struct PyBuffer<T>(
 struct RawBuffer(ffi::Py_buffer, PhantomPinned);
 
 // PyBuffer is thread-safe: the shape of the buffer is immutable while a Py_buffer exists.
-// Accessing the buffer contents is protected using the GIL.
 unsafe impl<T> Send for PyBuffer<T> {}
 unsafe impl<T> Sync for PyBuffer<T> {}
 
@@ -208,8 +207,7 @@ impl<T: Element> FromPyObject<'_, '_> for PyBuffer<T> {
 impl<T: Element> PyBuffer<T> {
     /// Gets the underlying buffer from the specified python object.
     pub fn get(obj: &Bound<'_, PyAny>) -> PyResult<PyBuffer<T>> {
-        // TODO: use nightly API Box::new_uninit() once our MSRV is 1.82
-        let mut buf = Box::new(mem::MaybeUninit::<RawBuffer>::uninit());
+        let mut buf = Box::<RawBuffer>::new_uninit();
         let buf: Box<RawBuffer> = {
             err::error_on_minusone(obj.py(), unsafe {
                 ffi::PyObject_GetBuffer(
@@ -220,8 +218,7 @@ impl<T: Element> PyBuffer<T> {
                 )
             })?;
             // Safety: buf is initialized by PyObject_GetBuffer.
-            // TODO: use nightly API Box::assume_init() once our MSRV is 1.82
-            unsafe { mem::transmute(buf) }
+            unsafe { buf.assume_init() }
         };
         // Create PyBuffer immediately so that if validation checks fail, the PyBuffer::drop code
         // will call PyBuffer_Release (thus avoiding any leaks).
@@ -641,7 +638,7 @@ impl<T: Element> PyBuffer<T> {
     /// This will automatically be called on drop.
     pub fn release(self, _py: Python<'_>) {
         // First move self into a ManuallyDrop, so that PyBuffer::drop will
-        // never be called. (It would acquire the GIL and call PyBuffer_Release
+        // never be called. (It would attach to the interpreter and call PyBuffer_Release
         // again.)
         let mut mdself = mem::ManuallyDrop::new(self);
         unsafe {

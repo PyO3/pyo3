@@ -1,28 +1,28 @@
-error: __traverse__ may not take a receiver other than `&self`. Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic.
+error: __traverse__ may not take a receiver other than `&self`. Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` should do nothing but calls to `visit.call`. Most importantly, safe access to the Python interpreter is prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic.
   --> tests/ui/traverse.rs:10:27
    |
 10 |     fn __traverse__(_slf: PyRef<Self>, _visit: PyVisit) -> Result<(), PyTraverseError> {
    |                           ^^^^^
 
-error: __traverse__ may not take a receiver other than `&self`. Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic.
+error: __traverse__ may not take a receiver other than `&self`. Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` should do nothing but calls to `visit.call`. Most importantly, safe access to the Python interpreter is prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic.
   --> tests/ui/traverse.rs:20:27
    |
 20 |     fn __traverse__(_slf: PyRefMut<Self>, _visit: PyVisit) -> Result<(), PyTraverseError> {
    |                           ^^^^^^^^
 
-error: __traverse__ may not take a receiver other than `&self`. Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic.
+error: __traverse__ may not take a receiver other than `&self`. Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` should do nothing but calls to `visit.call`. Most importantly, safe access to the Python interpreter is prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic.
   --> tests/ui/traverse.rs:30:27
    |
 30 |     fn __traverse__(_slf: Bound<'_, Self>, _visit: PyVisit) -> Result<(), PyTraverseError> {
    |                           ^^^^^
 
-error: __traverse__ may not take a receiver other than `&self`. Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic.
+error: __traverse__ may not take a receiver other than `&self`. Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` should do nothing but calls to `visit.call`. Most importantly, safe access to the Python interpreter is prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic.
   --> tests/ui/traverse.rs:40:21
    |
 40 |     fn __traverse__(&mut self, _visit: PyVisit) -> Result<(), PyTraverseError> {
    |                     ^
 
-error: __traverse__ may not take `Python`. Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic.
+error: __traverse__ may not take `Python`. Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` should do nothing but calls to `visit.call`. Most importantly, safe access to the Python interpreter is prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic.
   --> tests/ui/traverse.rs:60:33
    |
 60 |     fn __traverse__(&self, _py: Python<'_>, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {

@@ -61,9 +61,9 @@ It contains a specification for them (highly recommended reading, since it conta
 
 [PEP561](https://www.python.org/dev/peps/pep-0561/) recognizes three ways of distributing type information:
 
-* `inline` - the typing is placed directly in source (`py`) files;
-* `separate package with stub files` - the typing is placed in `pyi` files distributed in their own, separate package;
-* `in-package stub files` - the typing is placed in `pyi` files distributed in the same package as source files.
+- `inline` - the typing is placed directly in source (`py`) files;
+- `separate package with stub files` - the typing is placed in `pyi` files distributed in their own, separate package;
+- `in-package stub files` - the typing is placed in `pyi` files distributed in the same package as source files.
 
 The first way is tricky with PyO3 since we do not have `py` files. When it has been investigated and necessary changes are implemented, this document will be updated.
 

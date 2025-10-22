@@ -95,7 +95,7 @@ fn test_buffer_referenced() {
 }
 
 #[test]
-#[cfg(all(Py_3_8, not(Py_GIL_DISABLED)))] // sys.unraisablehook not available until Python 3.8
+#[cfg(Py_3_8)] // sys.unraisablehook not available until Python 3.8
 fn test_releasebuffer_unraisable_error() {
     use pyo3::exceptions::PyValueError;
     use test_utils::UnraisableCapture;
@@ -120,20 +120,20 @@ fn test_releasebuffer_unraisable_error() {
     }
 
     Python::attach(|py| {
-        let capture = UnraisableCapture::install(py);
-
         let instance = Py::new(py, ReleaseBufferError {}).unwrap();
-        let env = [("ob", instance.clone_ref(py))].into_py_dict(py).unwrap();
 
-        assert!(capture.borrow(py).capture.is_none());
+        let (err, object) = UnraisableCapture::enter(py, |capture| {
+            let env = [("ob", instance.clone_ref(py))].into_py_dict(py).unwrap();
 
-        py_assert!(py, *env, "bytes(ob) == b'hello world'");
+            assert!(capture.take_capture().is_none());
 
-        let (err, object) = capture.borrow_mut(py).capture.take().unwrap();
+            py_assert!(py, *env, "bytes(ob) == b'hello world'");
+
+            capture.take_capture().unwrap()
+        });
+
         assert_eq!(err.to_string(), "ValueError: oh dear");
         assert!(object.is(&instance));
-
-        capture.borrow_mut(py).uninstall(py);
     });
 }
 

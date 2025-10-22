@@ -61,7 +61,7 @@ use num_bigint::Sign;
 
 // for identical functionality between BigInt and BigUint
 macro_rules! bigint_conversion {
-    ($rust_ty: ty, $is_signed: literal, $to_bytes: path) => {
+    ($rust_ty: ty, $is_signed: literal) => {
         #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
         impl<'py> IntoPyObject<'py> for $rust_ty {
             type Target = PyInt;
@@ -80,47 +80,49 @@ macro_rules! bigint_conversion {
             type Output = Bound<'py, Self::Target>;
             type Error = PyErr;
 
-            #[cfg(not(Py_LIMITED_API))]
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-                use crate::ffi_ptr_ext::FfiPtrExt;
-                let bytes = $to_bytes(&self);
-                unsafe {
-                    Ok(ffi::_PyLong_FromByteArray(
-                        bytes.as_ptr().cast(),
-                        bytes.len(),
-                        1,
-                        $is_signed.into(),
-                    )
-                    .assume_owned(py)
-                    .cast_into_unchecked())
-                }
-            }
+                use num_traits::ToBytes;
 
-            #[cfg(Py_LIMITED_API)]
-            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-                use $crate::py_result_ext::PyResultExt;
-                use $crate::types::any::PyAnyMethods;
-                let bytes = $to_bytes(&self);
-                let bytes_obj = PyBytes::new(py, &bytes);
-                let kwargs = if $is_signed {
-                    let kwargs = crate::types::PyDict::new(py);
-                    kwargs.set_item(crate::intern!(py, "signed"), true)?;
-                    Some(kwargs)
-                } else {
-                    None
-                };
-                unsafe {
-                    py.get_type::<PyInt>()
-                        .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
-                        .cast_into_unchecked()
+                #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+                {
+                    use crate::conversions::std::num::int_from_ne_bytes;
+                    let bytes = self.to_ne_bytes();
+                    Ok(int_from_ne_bytes::<{ $is_signed }>(py, &bytes))
+                }
+
+                #[cfg(all(not(Py_LIMITED_API), not(Py_3_13)))]
+                {
+                    use crate::conversions::std::num::int_from_le_bytes;
+                    let bytes = self.to_le_bytes();
+                    Ok(int_from_le_bytes::<{ $is_signed }>(py, &bytes))
+                }
+
+                #[cfg(Py_LIMITED_API)]
+                {
+                    use $crate::py_result_ext::PyResultExt;
+                    use $crate::types::any::PyAnyMethods;
+                    let bytes = self.to_le_bytes();
+                    let bytes_obj = PyBytes::new(py, &bytes);
+                    let kwargs = if $is_signed {
+                        let kwargs = crate::types::PyDict::new(py);
+                        kwargs.set_item(crate::intern!(py, "signed"), true)?;
+                        Some(kwargs)
+                    } else {
+                        None
+                    };
+                    unsafe {
+                        py.get_type::<PyInt>()
+                            .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
+                            .cast_into_unchecked()
+                    }
                 }
             }
         }
     };
 }
 
-bigint_conversion!(BigUint, false, BigUint::to_bytes_le);
-bigint_conversion!(BigInt, true, BigInt::to_signed_bytes_le);
+bigint_conversion!(BigUint, false);
+bigint_conversion!(BigInt, true);
 
 #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
 impl<'py> FromPyObject<'_, 'py> for BigInt {

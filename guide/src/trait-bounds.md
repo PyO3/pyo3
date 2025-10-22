@@ -7,11 +7,13 @@ This tutorial explains how to convert a Rust function that takes a trait as argu
 
 Why is this useful?
 
-### Pros
+## Pros
+
 - Make your Rust code available to Python users
 - Code complex algorithms in Rust with the help of the borrow checker
 
 ### Cons
+
 - Not as fast as native Rust (type conversion has to be performed and one part of the code runs in Python)
 - You need to adapt your code to expose it
 
@@ -34,9 +36,12 @@ pub fn solve<T: Model>(model: &mut T) {
     println!("Magic solver that mutates the model into a resolved state");
 }
 ```
+
 Let's assume we have the following constraints:
+
 - We cannot change that code as it runs on many Rust models.
 - We also have many Python models that cannot be solved as this solver is not available in that language.
+
 Rewriting it in Python would be cumbersome and error-prone, as everything is already available in Rust.
 
 How could we expose this solver to Python thanks to PyO3 ?
@@ -230,8 +235,10 @@ impl UserModel {
     }
 }
 ```
+
 This wrapper handles the type conversion between the PyO3 requirements and the trait.
 In order to meet PyO3 requirements, this wrapper must:
+
 - return an object of type `PyResult`
 - use only values, not references in the method signatures
 
@@ -279,7 +286,6 @@ We will now expose the `solve` function, but before, let's talk about types erro
 ## Type errors in Python
 
 What happens if you have type errors when using Python and how can you improve the error messages?
-
 
 ### Wrong types in Python function arguments
 

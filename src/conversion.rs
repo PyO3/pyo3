@@ -1,5 +1,6 @@
 //! Defines conversions between Rust and Python types.
 use crate::err::PyResult;
+use crate::impl_::pyclass::ExtractPyClassWithClone;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]
@@ -11,7 +12,6 @@ use crate::{
     Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyClassGuard, PyErr, PyRef, PyRefMut, Python,
 };
 use std::convert::Infallible;
-#[cfg(return_position_impl_trait_in_traits)]
 use std::marker::PhantomData;
 
 /// Defines a conversion from a Rust type to a Python object, which may fail.
@@ -33,14 +33,11 @@ use std::marker::PhantomData;
 ///
 /// - The [`IntoPyObjectExt`] trait, which provides convenience methods for common usages of
 ///   `IntoPyObject` which erase type information and convert errors to `PyErr`.
-#[cfg_attr(
-    diagnostic_namespace,
-    diagnostic::on_unimplemented(
-        message = "`{Self}` cannot be converted to a Python object",
-        note = "`IntoPyObject` is automatically implemented by the `#[pyclass]` macro",
-        note = "if you do not wish to have a corresponding Python type, implement it manually",
-        note = "if you do not own `{Self}` you can perform a manual conversion to one of the types in `pyo3::types::*`"
-    )
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be converted to a Python object",
+    note = "`IntoPyObject` is automatically implemented by the `#[pyclass]` macro",
+    note = "if you do not wish to have a corresponding Python type, implement it manually",
+    note = "if you do not own `{Self}` you can perform a manual conversion to one of the types in `pyo3::types::*`"
 )]
 pub trait IntoPyObject<'py>: Sized {
     /// The Python output type
@@ -418,7 +415,6 @@ pub trait FromPyObject<'a, 'py>: Sized {
     /// iteration.
     #[doc(hidden)]
     #[inline(always)]
-    #[cfg(return_position_impl_trait_in_traits)]
     fn sequence_extractor(
         _obj: Borrowed<'_, 'py, PyAny>,
         _: private::Token,
@@ -440,14 +436,11 @@ pub trait FromPyObject<'a, 'py>: Sized {
         Option::<NeverASequence<Self>>::None
     }
 
-    /// Equivalent to the above for MSRV < 1.75, which pays an additional allocation cost.
-    #[doc(hidden)]
-    #[inline(always)]
-    #[cfg(not(return_position_impl_trait_in_traits))]
-    fn sequence_extractor<'b>(
-        _obj: Borrowed<'b, 'b, PyAny>,
-        _: private::Token,
-    ) -> Option<Box<dyn FromPyObjectSequence<Target = Self> + 'b>> {
+    /// Helper used to make a specialized path in extracting `DateTime<Tz>` where `Tz` is
+    /// `chrono::Local`, which will accept "naive" datetime objects as being in the local timezone.
+    #[cfg(feature = "chrono-local")]
+    #[inline]
+    fn as_local_tz(_: private::Token) -> Option<Self> {
         None
     }
 }
@@ -462,14 +455,7 @@ mod from_py_object_sequence {
 
         fn to_vec(&self) -> Vec<Self::Target>;
 
-        #[cfg(return_position_impl_trait_in_traits)]
         fn to_array<const N: usize>(&self) -> PyResult<[Self::Target; N]>;
-
-        /// Fills an uninit slice with values from the object.
-        ///
-        /// on success, `out` is fully initialized, on failure, `out` should be considered uninitialized.
-        #[cfg(not(return_position_impl_trait_in_traits))]
-        fn fill_slice(&self, out: &mut [std::mem::MaybeUninit<Self::Target>]) -> PyResult<()>;
     }
 }
 
@@ -531,7 +517,7 @@ impl<'py, T> FromPyObjectOwned<'py> for T where T: for<'a> FromPyObject<'a, 'py>
 
 impl<'a, 'py, T> FromPyObject<'a, 'py> for T
 where
-    T: PyClass + Clone,
+    T: PyClass + Clone + ExtractPyClassWithClone,
 {
     type Error = PyClassGuardError<'a, 'py>;
 
@@ -603,3 +589,59 @@ impl<'py> IntoPyObject<'py> for () {
 /// })
 /// ```
 mod test_no_clone {}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[cfg(feature = "macros")]
+    fn test_pyclass_skip_from_py_object() {
+        use crate::{types::PyAnyMethods, FromPyObject, IntoPyObject, PyErr, Python};
+
+        #[crate::pyclass(crate = "crate", skip_from_py_object)]
+        #[derive(Clone)]
+        struct Foo(i32);
+
+        impl<'py> FromPyObject<'_, 'py> for Foo {
+            type Error = PyErr;
+
+            fn extract(obj: crate::Borrowed<'_, 'py, crate::PyAny>) -> Result<Self, Self::Error> {
+                if let Ok(obj) = obj.cast::<Self>() {
+                    Ok(obj.borrow().clone())
+                } else {
+                    obj.extract::<i32>().map(Self)
+                }
+            }
+        }
+        Python::attach(|py| {
+            let foo1 = 42i32.into_pyobject(py)?;
+            assert_eq!(foo1.extract::<Foo>()?.0, 42);
+
+            let foo2 = Foo(0).into_pyobject(py)?;
+            assert_eq!(foo2.extract::<Foo>()?.0, 0);
+
+            Ok::<_, PyErr>(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    #[cfg(feature = "macros")]
+    fn test_pyclass_from_py_object() {
+        use crate::{types::PyAnyMethods, IntoPyObject, PyErr, Python};
+
+        #[crate::pyclass(crate = "crate", from_py_object)]
+        #[derive(Clone)]
+        struct Foo(i32);
+
+        Python::attach(|py| {
+            let foo1 = 42i32.into_pyobject(py)?;
+            assert!(foo1.extract::<Foo>().is_err());
+
+            let foo2 = Foo(0).into_pyobject(py)?;
+            assert_eq!(foo2.extract::<Foo>()?.0, 0);
+
+            Ok::<_, PyErr>(())
+        })
+        .unwrap();
+    }
+}

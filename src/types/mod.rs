@@ -4,7 +4,7 @@ pub use self::any::{PyAny, PyAnyMethods};
 pub use self::boolobject::{PyBool, PyBoolMethods};
 pub use self::bytearray::{PyByteArray, PyByteArrayMethods};
 pub use self::bytes::{PyBytes, PyBytesMethods};
-pub use self::capsule::{PyCapsule, PyCapsuleMethods};
+pub use self::capsule::{CapsuleName, PyCapsule, PyCapsuleMethods};
 pub use self::code::{PyCode, PyCodeInput, PyCodeMethods};
 pub use self::complex::{PyComplex, PyComplexMethods};
 #[allow(deprecated)]
@@ -22,11 +22,13 @@ pub use self::float::{PyFloat, PyFloatMethods};
 pub use self::frame::PyFrame;
 pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
 pub use self::function::PyCFunction;
-#[cfg(all(not(Py_LIMITED_API), not(all(PyPy, not(Py_3_8)))))]
+#[cfg(not(Py_LIMITED_API))]
 pub use self::function::PyFunction;
 #[cfg(Py_3_9)]
 pub use self::genericalias::PyGenericAlias;
 pub use self::iterator::PyIterator;
+#[cfg(all(not(PyPy), Py_3_10))]
+pub use self::iterator::PySendResult;
 pub use self::list::{PyList, PyListMethods};
 pub use self::mapping::{PyMapping, PyMappingMethods};
 pub use self::mappingproxy::PyMappingProxy;
@@ -125,21 +127,31 @@ macro_rules! pyobject_native_type_named (
     };
 );
 
+/// Helper for defining the `$typeobject` argument for other macros in this module.
+///
+/// # Safety
+///
+/// - `$typeobject` must be a known `static mut PyTypeObject`
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_static_type_object(
     ($typeobject:expr) => {
-        |_py| {
-            #[allow(unused_unsafe)] // https://github.com/rust-lang/rust/pull/125834
-            unsafe { ::std::ptr::addr_of_mut!($typeobject) }
-        }
+        |_py| ::std::ptr::addr_of_mut!($typeobject)
     };
 );
 
+/// Implements the `PyTypeInfo` trait for a native Python type.
+///
+/// # Safety
+///
+/// - `$typeobject` must be a function that produces a valid `*mut PyTypeObject`
+/// - `$checkfunction` must be a function that accepts arbitrary `*mut PyObject` and returns true /
+///   false according to whether the object is an instance of the type from `$typeobject`
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_info(
     ($name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        // SAFETY: macro caller has upheld the safety contracts
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
             const NAME: &'static str = stringify!($name);
             const MODULE: ::std::option::Option<&'static str> = $module;
@@ -153,7 +165,8 @@ macro_rules! pyobject_native_type_info(
             $(
                 #[inline]
                 fn is_type_of(obj: &$crate::Bound<'_, $crate::PyAny>) -> bool {
-                    #[allow(unused_unsafe)]
+                    #[allow(unused_unsafe)] // not all `$checkfunction` are unsafe extern "C" fn
+                    // SAFETY: `$checkfunction` is being called with a valid `PyObject` pointer
                     unsafe { $checkfunction(obj.as_ptr()) > 0 }
                 }
             )?
