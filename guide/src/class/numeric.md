@@ -335,7 +335,7 @@ mod my_module {
     #[pymodule_export]
     use super::Number;
 }
-# const SCRIPT: &'static std::ffi::CStr = pyo3::ffi::c_str!(r#"
+# const SCRIPT: &'static std::ffi::CStr = cr#"
 # def hash_djb2(s: str):
 #     n = Number(0)
 #     five = Number(5)
@@ -384,7 +384,7 @@ mod my_module {
 #     pass
 # assert Number(1337).__str__() == '1337'
 # assert Number(1337).__repr__() == 'Number(1337)'
-"#);
+"#;
 
 #
 # use pyo3::PyTypeInfo;
