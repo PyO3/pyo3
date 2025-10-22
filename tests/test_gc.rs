@@ -103,8 +103,7 @@ impl DropCheck {
             }
 
             Python::attach(|py| {
-                py.run(ffi::c_str!("import gc; gc.collect()"), None, None)
-                    .unwrap();
+                py.run(c"import gc; gc.collect()", None, None).unwrap();
             });
             #[cfg(Py_GIL_DISABLED)]
             {
@@ -230,8 +229,7 @@ fn gc_null_traversal() {
         obj.borrow_mut(py).cycle = Some(obj.clone_ref(py));
 
         // the object doesn't have to be cleaned up, it just needs to be traversed.
-        py.run(ffi::c_str!("import gc; gc.collect()"), None, None)
-            .unwrap();
+        py.run(c"import gc; gc.collect()", None, None).unwrap();
     });
 }
 

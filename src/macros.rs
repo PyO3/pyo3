@@ -117,7 +117,7 @@ macro_rules! py_run_impl {
             // So when this c api function the last line called printed the error to stderr,
             // the output is only written into a buffer which is never flushed because we
             // panic before flushing. This is where this hack comes into place
-            $py.run($crate::ffi::c_str!("import sys; sys.stderr.flush()"), None, None)
+            $py.run(c"import sys; sys.stderr.flush()", None, None)
                 .unwrap();
             ::std::panic!("{}", $code)
         }

@@ -120,13 +120,13 @@ impl PyWeakrefReference {
     /// fn callback(wref: Bound<'_, PyWeakrefReference>) -> PyResult<()> {
     ///         let py = wref.py();
     ///         assert!(wref.upgrade_as::<Foo>()?.is_none());
-    ///         py.run(c_str!("counter = 1"), None, None)
+    ///         py.run(c"counter = 1", None, None)
     /// }
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| {
-    ///     py.run(c_str!("counter = 0"), None, None)?;
-    ///     assert_eq!(py.eval(c_str!("counter"), None, None)?.extract::<u32>()?, 0);
+    ///     py.run(c"counter = 0", None, None)?;
+    ///     assert_eq!(py.eval(c"counter", None, None)?.extract::<u32>()?, 0);
     ///     let foo = Bound::new(py, Foo{})?;
     ///
     ///     // This is fine.
@@ -136,7 +136,7 @@ impl PyWeakrefReference {
     ///         // In normal situations where a direct `Bound<'py, Foo>` is required use `upgrade::<Foo>`
     ///         weakref.upgrade().is_some_and(|obj| obj.is(&foo))
     ///     );
-    ///     assert_eq!(py.eval(c_str!("counter"), None, None)?.extract::<u32>()?, 0);
+    ///     assert_eq!(py.eval(c"counter", None, None)?.extract::<u32>()?, 0);
     ///
     ///     let weakref2 = PyWeakrefReference::new_with(&foo, wrap_pyfunction!(callback, py)?)?;
     ///     assert!(!weakref.is(&weakref2)); // Not the same weakref
@@ -145,7 +145,7 @@ impl PyWeakrefReference {
     ///     drop(foo);
     ///
     ///     assert!(weakref.upgrade_as::<Foo>()?.is_none());
-    ///     assert_eq!(py.eval(c_str!("counter"), None, None)?.extract::<u32>()?, 1);
+    ///     assert_eq!(py.eval(c"counter", None, None)?.extract::<u32>()?, 1);
     ///     Ok(())
     /// })
     /// # }
@@ -242,13 +242,13 @@ mod tests {
 
     mod python_class {
         use super::*;
-        use crate::{ffi, PyTypeInfo};
+        use crate::PyTypeInfo;
         use crate::{py_result_ext::PyResultExt, types::PyType};
         use std::ptr;
 
         fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
-            py.run(ffi::c_str!("class A:\n    pass\n"), None, None)?;
-            py.eval(ffi::c_str!("A"), None, None).cast_into::<PyType>()
+            py.run(c"class A:\n    pass\n", None, None)?;
+            py.eval(c"A", None, None).cast_into::<PyType>()
         }
 
         #[test]

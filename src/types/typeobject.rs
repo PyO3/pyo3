@@ -313,12 +313,10 @@ mod tests {
             let module_name = generate_unique_module_name("test_module");
             let module = PyModule::from_code(
                 py,
-                c_str!(
-                    r#"
+                cr#"
 class MyClass:
     pass
-"#
-                ),
+"#,
                 c_str!(file!()),
                 &module_name,
             )
@@ -355,13 +353,11 @@ class MyClass:
             let module_name = generate_unique_module_name("test_module");
             let module = PyModule::from_code(
                 py,
-                c_str!(
-                    r#"
+                cr#"
 class OuterClass:
     class InnerClass:
         pass
-"#
-                ),
+"#,
                 c_str!(file!()),
                 &module_name,
             )

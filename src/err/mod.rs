@@ -490,7 +490,7 @@ impl PyErr {
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| {
     ///     let user_warning = py.get_type::<pyo3::exceptions::PyUserWarning>();
-    ///     PyErr::warn(py, &user_warning, c_str!("I am warning you"), 0)?;
+    ///     PyErr::warn(py, &user_warning, c"I am warning you", 0)?;
     ///     Ok(())
     /// })
     /// # }
@@ -745,7 +745,7 @@ mod tests {
     use crate::exceptions::{self, PyTypeError, PyValueError};
     use crate::impl_::pyclass::{value_of, IsSend, IsSync};
     use crate::test_utils::assert_warnings;
-    use crate::{ffi, PyErr, PyTypeInfo, Python};
+    use crate::{PyErr, PyTypeInfo, Python};
 
     #[test]
     fn no_error() {
@@ -836,7 +836,7 @@ mod tests {
 
         Python::attach(|py| {
             let err = py
-                .run(ffi::c_str!("raise Exception('banana')"), None, None)
+                .run(c"raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error");
 
             let debug_str = format!("{err:?}");
@@ -862,7 +862,7 @@ mod tests {
     fn err_display() {
         Python::attach(|py| {
             let err = py
-                .run(ffi::c_str!("raise Exception('banana')"), None, None)
+                .run(c"raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error");
             assert_eq!(err.to_string(), "Exception: banana");
         });
@@ -902,13 +902,13 @@ mod tests {
     fn test_pyerr_cause() {
         Python::attach(|py| {
             let err = py
-                .run(ffi::c_str!("raise Exception('banana')"), None, None)
+                .run(c"raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error");
             assert!(err.cause(py).is_none());
 
             let err = py
                 .run(
-                    ffi::c_str!("raise Exception('banana') from Exception('apple')"),
+                    c"raise Exception('banana') from Exception('apple')",
                     None,
                     None,
                 )
@@ -946,7 +946,7 @@ mod tests {
             // First, test the warning is emitted
             assert_warnings!(
                 py,
-                { PyErr::warn(py, &cls, ffi::c_str!("I am warning you"), 0).unwrap() },
+                { PyErr::warn(py, &cls, c"I am warning you", 0).unwrap() },
                 [(exceptions::PyUserWarning, "I am warning you")]
             );
 
@@ -954,7 +954,7 @@ mod tests {
             warnings
                 .call_method1("simplefilter", ("error", &cls))
                 .unwrap();
-            PyErr::warn(py, &cls, ffi::c_str!("I am warning you"), 0).unwrap_err();
+            PyErr::warn(py, &cls, c"I am warning you", 0).unwrap_err();
 
             // Test with error for an explicit module
             warnings.call_method0("resetwarnings").unwrap();
@@ -965,15 +965,15 @@ mod tests {
             // This has the wrong module and will not raise, just be emitted
             assert_warnings!(
                 py,
-                { PyErr::warn(py, &cls, ffi::c_str!("I am warning you"), 0).unwrap() },
+                { PyErr::warn(py, &cls, c"I am warning you", 0).unwrap() },
                 [(exceptions::PyUserWarning, "I am warning you")]
             );
 
             let err = PyErr::warn_explicit(
                 py,
                 &cls,
-                ffi::c_str!("I am warning you"),
-                ffi::c_str!("pyo3test.py"),
+                c"I am warning you",
+                c"pyo3test.py",
                 427,
                 None,
                 None,

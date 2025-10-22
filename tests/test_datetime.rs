@@ -1,7 +1,7 @@
 #![cfg(not(Py_LIMITED_API))]
 
+use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDate, PyDateTime, PyTime, PyTzInfo};
-use pyo3::{ffi, prelude::*};
 use pyo3_ffi::PyDateTime_IMPORT;
 use std::ffi::CString;
 
@@ -19,7 +19,7 @@ fn _get_subclasses<'py>(
 
     let make_subclass_py = CString::new(format!("class Subklass({py_type}):\n    pass"))?;
 
-    let make_sub_subclass_py = ffi::c_str!("class SubSubklass(Subklass):\n    pass");
+    let make_sub_subclass_py = c"class SubSubklass(Subklass):\n    pass";
 
     py.run(&make_subclass_py, None, Some(&locals))?;
     py.run(make_sub_subclass_py, None, Some(&locals))?;
@@ -140,11 +140,7 @@ fn test_datetime_utc() {
         let locals = [("dt", dt)].into_py_dict(py).unwrap();
 
         let offset: f32 = py
-            .eval(
-                ffi::c_str!("dt.utcoffset().total_seconds()"),
-                None,
-                Some(&locals),
-            )
+            .eval(c"dt.utcoffset().total_seconds()", None, Some(&locals))
             .unwrap()
             .extract()
             .unwrap();

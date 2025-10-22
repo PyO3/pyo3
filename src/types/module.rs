@@ -1,5 +1,3 @@
-use pyo3_ffi::c_str;
-
 use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::callback::IntoPyCallbackOutput;
@@ -125,7 +123,7 @@ impl PyModule {
     /// let code = c_str!(include_str!("../../assets/script.py"));
     ///
     /// Python::attach(|py| -> PyResult<()> {
-    ///     PyModule::from_code(py, code, c_str!("example.py"), c_str!("example"))?;
+    ///     PyModule::from_code(py, code, c"example.py", c"example")?;
     ///     Ok(())
     /// })?;
     /// # Ok(())
@@ -148,7 +146,7 @@ impl PyModule {
     /// let code = std::fs::read_to_string("assets/script.py")?;
     ///
     /// Python::attach(|py| -> PyResult<()> {
-    ///     PyModule::from_code(py, CString::new(code)?.as_c_str(), c_str!("example.py"), c_str!("example"))?;
+    ///     PyModule::from_code(py, CString::new(code)?.as_c_str(), c"example.py", c"example")?;
     ///     Ok(())
     /// })?;
     /// # }
@@ -162,7 +160,7 @@ impl PyModule {
         module_name: &CStr,
     ) -> PyResult<Bound<'py, PyModule>> {
         let file_name = if file_name.is_empty() {
-            c_str!("<string>")
+            c"<string>"
         } else {
             file_name
         };
@@ -551,8 +549,6 @@ fn __name__(py: Python<'_>) -> &Bound<'_, PyString> {
 
 #[cfg(test)]
 mod tests {
-    use pyo3_ffi::c_str;
-
     use crate::{
         types::{module::PyModuleMethods, PyModule},
         Python,
@@ -583,7 +579,7 @@ mod tests {
     #[test]
     fn module_from_code_empty_file() {
         Python::attach(|py| {
-            let builtins = PyModule::from_code(py, c_str!(""), c_str!(""), c_str!("")).unwrap();
+            let builtins = PyModule::from_code(py, c"", c"", c"").unwrap();
             assert_eq!(builtins.filename().unwrap(), "<string>");
         })
     }

@@ -56,7 +56,7 @@ use crate::{
     types::{PyString, PyStringMethods},
     Py,
 };
-use crate::{ffi, Borrowed, Bound, FromPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python};
+use crate::{Borrowed, Bound, FromPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python};
 use chrono::offset::{FixedOffset, Utc};
 #[cfg(feature = "chrono-local")]
 use chrono::Local;
@@ -547,7 +547,7 @@ fn warn_truncated_leap_second(obj: &Bound<'_, PyAny>) {
     if let Err(e) = PyErr::warn(
         py,
         &py.get_type::<PyUserWarning>(),
-        ffi::c_str!("ignored leap-second, `datetime` does not support leap-seconds"),
+        c"ignored leap-second, `datetime` does not support leap-seconds",
         0,
     ) {
         e.write_unraisable(py, Some(obj))
@@ -644,14 +644,13 @@ mod tests {
     // tzdata there to make this work.
     #[cfg(all(Py_3_9, not(target_os = "windows")))]
     fn test_zoneinfo_is_not_fixed_offset() {
-        use crate::ffi;
         use crate::types::any::PyAnyMethods;
         use crate::types::dict::PyDictMethods;
 
         Python::attach(|py| {
             let locals = crate::types::PyDict::new(py);
             py.run(
-                ffi::c_str!("import zoneinfo; zi = zoneinfo.ZoneInfo('Europe/London')"),
+                c"import zoneinfo; zi = zoneinfo.ZoneInfo('Europe/London')",
                 None,
                 Some(&locals),
             )

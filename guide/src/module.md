@@ -101,11 +101,10 @@ fn func() -> String {
 #   Python::attach(|py| {
 #       use pyo3::wrap_pymodule;
 #       use pyo3::types::IntoPyDict;
-#       use pyo3::ffi::c_str;
 #       let parent_module = wrap_pymodule!(parent_module)(py);
 #       let ctx = [("parent_module", parent_module)].into_py_dict(py).unwrap();
 #
-#      py.run(c_str!("assert parent_module.child_module.func() == 'func'"), None, Some(&ctx)).unwrap();
+#      py.run(c"assert parent_module.child_module.func() == 'func'", None, Some(&ctx)).unwrap();
 #   })
 }
 ```

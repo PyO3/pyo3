@@ -131,7 +131,6 @@ mod tests {
 
     use crate::{
         conversion::IntoPyObject,
-        ffi,
         types::{any::PyAnyMethods, PyBytes, PyBytesMethods},
     };
     use crate::{types::PyList, PyResult, Python};
@@ -161,11 +160,7 @@ mod tests {
     fn test_extract_bytes_to_array() {
         Python::attach(|py| {
             let v: [u8; 33] = py
-                .eval(
-                    ffi::c_str!("b'abcabcabcabcabcabcabcabcabcabcabc'"),
-                    None,
-                    None,
-                )
+                .eval(c"b'abcabcabcabcabcabcabcabcabcabcabc'", None, None)
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -176,10 +171,7 @@ mod tests {
     #[test]
     fn test_extract_bytes_wrong_length() {
         Python::attach(|py| {
-            let v: PyResult<[u8; 3]> = py
-                .eval(ffi::c_str!("b'abcdefg'"), None, None)
-                .unwrap()
-                .extract();
+            let v: PyResult<[u8; 3]> = py.eval(c"b'abcdefg'", None, None).unwrap().extract();
             assert_eq!(
                 v.unwrap_err().to_string(),
                 "ValueError: expected a sequence of length 3 (got 7)"
@@ -192,7 +184,7 @@ mod tests {
         Python::attach(|py| {
             let v: [u8; 33] = py
                 .eval(
-                    ffi::c_str!("bytearray(b'abcabcabcabcabcabcabcabcabcabcabc')"),
+                    c"bytearray(b'abcabcabcabcabcabcabcabcabcabcabc')",
                     None,
                     None,
                 )
@@ -207,7 +199,7 @@ mod tests {
     fn test_extract_small_bytearray_to_array() {
         Python::attach(|py| {
             let v: [u8; 3] = py
-                .eval(ffi::c_str!("bytearray(b'abc')"), None, None)
+                .eval(c"bytearray(b'abc')", None, None)
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -231,7 +223,7 @@ mod tests {
     fn test_extract_invalid_sequence_length() {
         Python::attach(|py| {
             let v: PyResult<[u8; 3]> = py
-                .eval(ffi::c_str!("bytearray(b'abcdefg')"), None, None)
+                .eval(c"bytearray(b'abcdefg')", None, None)
                 .unwrap()
                 .extract();
             assert_eq!(
@@ -276,7 +268,7 @@ mod tests {
     #[test]
     fn test_extract_non_iterable_to_array() {
         Python::attach(|py| {
-            let v = py.eval(ffi::c_str!("42"), None, None).unwrap();
+            let v = py.eval(c"42", None, None).unwrap();
             v.extract::<i32>().unwrap();
             v.extract::<[i32; 1]>().unwrap_err();
         });

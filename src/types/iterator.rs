@@ -18,7 +18,7 @@ use crate::{ffi, Bound, Py, PyAny, PyErr, PyResult};
 ///
 /// # fn main() -> PyResult<()> {
 /// Python::attach(|py| -> PyResult<()> {
-///     let list = py.eval(c_str!("iter([1, 2, 3, 4])"), None, None)?;
+///     let list = py.eval(c"iter([1, 2, 3, 4])", None, None)?;
 ///     let numbers: PyResult<Vec<usize>> = list
 ///         .try_iter()?
 ///         .map(|i| i.and_then(|i|i.extract::<usize>()))
@@ -142,7 +142,7 @@ mod tests {
     #[cfg(all(not(PyPy), Py_3_10))]
     use crate::types::PyNone;
     use crate::types::{PyAnyMethods, PyDict, PyList, PyListMethods};
-    use crate::{ffi, IntoPyObject, PyTypeInfo, Python};
+    use crate::{IntoPyObject, PyTypeInfo, Python};
 
     #[test]
     fn vec_iter() {
@@ -188,7 +188,7 @@ mod tests {
     fn iter_item_refcnt() {
         Python::attach(|py| {
             let count;
-            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let obj = py.eval(c"object()", None, None).unwrap();
             let list = {
                 let list = PyList::empty(py);
                 list.append(10).unwrap();
@@ -210,24 +210,20 @@ mod tests {
 
     #[test]
     fn fibonacci_generator() {
-        let fibonacci_generator = ffi::c_str!(
-            r#"
+        let fibonacci_generator = cr#"
 def fibonacci(target):
     a = 1
     b = 1
     for _ in range(target):
         yield a
         a, b = b, a + b
-"#
-        );
+"#;
 
         Python::attach(|py| {
             let context = PyDict::new(py);
             py.run(fibonacci_generator, None, Some(&context)).unwrap();
 
-            let generator = py
-                .eval(ffi::c_str!("fibonacci(5)"), None, Some(&context))
-                .unwrap();
+            let generator = py.eval(c"fibonacci(5)", None, Some(&context)).unwrap();
             for (actual, expected) in generator.try_iter().unwrap().zip(&[1, 1, 2, 3, 5]) {
                 let actual = actual.unwrap().extract::<usize>().unwrap();
                 assert_eq!(actual, *expected)
@@ -238,22 +234,20 @@ def fibonacci(target):
     #[test]
     #[cfg(all(not(PyPy), Py_3_10))]
     fn send_generator() {
-        let generator = ffi::c_str!(
-            r#"
+        let generator = cr#"
 def gen():
     value = None
     while(True):
         value = yield value
         if value is None:
             return
-"#
-        );
+"#;
 
         Python::attach(|py| {
             let context = PyDict::new(py);
             py.run(generator, None, Some(&context)).unwrap();
 
-            let generator = py.eval(ffi::c_str!("gen()"), None, Some(&context)).unwrap();
+            let generator = py.eval(c"gen()", None, Some(&context)).unwrap();
 
             let one = 1i32.into_pyobject(py).unwrap();
             assert!(matches!(
@@ -276,23 +270,21 @@ def gen():
         use crate::types::any::PyAnyMethods;
         use crate::Bound;
 
-        let fibonacci_generator = ffi::c_str!(
-            r#"
+        let fibonacci_generator = cr#"
 def fibonacci(target):
     a = 1
     b = 1
     for _ in range(target):
         yield a
         a, b = b, a + b
-"#
-        );
+"#;
 
         Python::attach(|py| {
             let context = PyDict::new(py);
             py.run(fibonacci_generator, None, Some(&context)).unwrap();
 
             let generator: Bound<'_, PyIterator> = py
-                .eval(ffi::c_str!("fibonacci(5)"), None, Some(&context))
+                .eval(c"fibonacci(5)", None, Some(&context))
                 .unwrap()
                 .cast_into()
                 .unwrap();
@@ -391,7 +383,7 @@ def fibonacci(target):
     #[cfg(not(Py_LIMITED_API))]
     fn length_hint_becomes_size_hint_lower_bound() {
         Python::attach(|py| {
-            let list = py.eval(ffi::c_str!("[1, 2, 3]"), None, None).unwrap();
+            let list = py.eval(c"[1, 2, 3]", None, None).unwrap();
             let iter = list.try_iter().unwrap();
             let hint = iter.size_hint();
             assert_eq!(hint, (3, None));
@@ -402,7 +394,7 @@ def fibonacci(target):
     fn test_type_object() {
         Python::attach(|py| {
             let abc = PyIterator::type_object(py);
-            let iter = py.eval(ffi::c_str!("iter(())"), None, None).unwrap();
+            let iter = py.eval(c"iter(())", None, None).unwrap();
             assert!(iter.is_instance(&abc).unwrap());
         })
     }
