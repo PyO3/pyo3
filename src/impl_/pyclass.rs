@@ -1495,4 +1495,96 @@ mod tests {
             _ => panic!("Expected a StructMember"),
         }
     }
+
+    #[test]
+    fn test_field_getter_generator() {
+        #[crate::pyclass(crate = "crate")]
+        struct MyClass {
+            my_field: i32,
+        }
+
+        const FIELD_OFFSET: usize = offset_of!(MyClass, my_field);
+
+        // generate for a non-py field using IntoPyObject for &i32
+        // SAFETY: offset is correct
+        let generator = unsafe {
+            PyClassGetterGenerator::<MyClass, i32, FIELD_OFFSET, false, true, false>::new()
+        };
+        let PyMethodDefType::Getter(def) = generator.generate(c"my_field", c"My field doc") else {
+            panic!("Expected a Getter");
+        };
+
+        assert_eq!(def.name, c"my_field");
+        assert_eq!(def.doc, c"My field doc");
+        assert_eq!(
+            def.meth as usize,
+            pyo3_get_value_into_pyobject_ref::<MyClass, i32, FIELD_OFFSET> as usize
+        );
+
+        // generate for a field via `IntoPyObject` + `Clone`
+        // SAFETY: offset is correct
+        let generator = unsafe {
+            PyClassGetterGenerator::<MyClass, String, FIELD_OFFSET, false, false, true>::new()
+        };
+        let PyMethodDefType::Getter(def) = generator.generate(c"my_field", c"My field doc") else {
+            panic!("Expected a Getter");
+        };
+        assert_eq!(def.name, c"my_field");
+        assert_eq!(def.doc, c"My field doc");
+        assert_eq!(
+            def.meth as usize,
+            pyo3_get_value_into_pyobject::<MyClass, String, FIELD_OFFSET> as usize
+        );
+    }
+
+    #[test]
+    fn test_field_getter_generator_py_field_frozen() {
+        #[crate::pyclass(crate = "crate", frozen)]
+        struct MyClass {
+            my_field: Py<PyAny>,
+        }
+
+        const FIELD_OFFSET: usize = offset_of!(MyClass, my_field);
+        // SAFETY: offset is correct
+        let generator = unsafe {
+            PyClassGetterGenerator::<MyClass, Py<PyAny>, FIELD_OFFSET, true, true, true>::new()
+        };
+        let PyMethodDefType::StructMember(def) = generator.generate(c"my_field", c"My field doc")
+        else {
+            panic!("Expected a StructMember");
+        };
+        // SAFETY: def.name originated from a CStr
+        assert_eq!(unsafe { CStr::from_ptr(def.name) }, c"my_field");
+        // SAFETY: def.doc originated from a CStr
+        assert_eq!(unsafe { CStr::from_ptr(def.doc) }, c"My field doc");
+        assert_eq!(def.type_code, ffi::Py_T_OBJECT_EX);
+        assert_eq!(
+            def.offset,
+            (offset_of!(PyClassObject<MyClass>, contents) + FIELD_OFFSET) as ffi::Py_ssize_t
+        );
+        assert_eq!(def.flags, ffi::Py_READONLY);
+    }
+
+    #[test]
+    fn test_field_getter_generator_py_field_non_frozen() {
+        #[crate::pyclass(crate = "crate")]
+        struct MyClass {
+            my_field: Py<PyAny>,
+        }
+
+        const FIELD_OFFSET: usize = offset_of!(MyClass, my_field);
+        // SAFETY: offset is correct
+        let generator = unsafe {
+            PyClassGetterGenerator::<MyClass, Py<PyAny>, FIELD_OFFSET, true, true, true>::new()
+        };
+        let PyMethodDefType::Getter(def) = generator.generate(c"my_field", c"My field doc") else {
+            panic!("Expected a Getter");
+        };
+        assert_eq!(def.name, c"my_field");
+        assert_eq!(def.doc, c"My field doc");
+        assert_eq!(
+            def.meth as usize,
+            pyo3_get_value_into_pyobject_ref::<MyClass, Py<PyAny>, FIELD_OFFSET> as usize
+        );
+    }
 }
