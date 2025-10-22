@@ -96,88 +96,86 @@ impl TypeHint {
             inner: TypeHintExpr::Subscript { value, slice },
         }
     }
+}
 
-    /// Serialize the type for introspection and return the number of written bytes
-    ///
-    /// We use the same AST as Python: https://docs.python.org/3/library/ast.html#abstract-grammar
-    #[doc(hidden)]
-    pub const fn serialize_for_introspection(&self, mut output: &mut [u8]) -> usize {
-        let original_len = output.len();
-        match &self.inner {
-            TypeHintExpr::Builtin { id } => {
-                output = write_slice_and_move_forward(b"{\"type\":\"builtin\",\"id\":\"", output);
-                output = write_slice_and_move_forward(id.as_bytes(), output);
-                output = write_slice_and_move_forward(b"\"}", output);
-            }
-            TypeHintExpr::ModuleAttribute { module, attr } => {
-                output =
-                    write_slice_and_move_forward(b"{\"type\":\"attribute\",\"module\":\"", output);
-                output = write_slice_and_move_forward(module.as_bytes(), output);
-                output = write_slice_and_move_forward(b"\",\"attr\":\"", output);
-                output = write_slice_and_move_forward(attr.as_bytes(), output);
-                output = write_slice_and_move_forward(b"\"}", output);
-            }
-            TypeHintExpr::Union { elts } => {
-                output = write_slice_and_move_forward(b"{\"type\":\"union\",\"elts\":[", output);
-                let mut i = 0;
-                while i < elts.len() {
-                    if i > 0 {
-                        output = write_slice_and_move_forward(b",", output);
-                    }
-                    output = write_type_hint_and_move_forward(&elts[i], output);
-                    i += 1;
-                }
-                output = write_slice_and_move_forward(b"]}", output);
-            }
-            TypeHintExpr::Subscript { value, slice } => {
-                output =
-                    write_slice_and_move_forward(b"{\"type\":\"subscript\",\"value\":", output);
-                output = write_type_hint_and_move_forward(value, output);
-                output = write_slice_and_move_forward(b",\"slice\":[", output);
-                let mut i = 0;
-                while i < slice.len() {
-                    if i > 0 {
-                        output = write_slice_and_move_forward(b",", output);
-                    }
-                    output = write_type_hint_and_move_forward(&slice[i], output);
-                    i += 1;
-                }
-                output = write_slice_and_move_forward(b"]}", output);
-            }
+/// Serialize the type for introspection and return the number of written bytes
+///
+/// We use the same AST as Python: https://docs.python.org/3/library/ast.html#abstract-grammar
+#[doc(hidden)]
+pub const fn serialize_for_introspection(hint: &TypeHint, mut output: &mut [u8]) -> usize {
+    let original_len = output.len();
+    match &hint.inner {
+        TypeHintExpr::Builtin { id } => {
+            output = write_slice_and_move_forward(b"{\"type\":\"builtin\",\"id\":\"", output);
+            output = write_slice_and_move_forward(id.as_bytes(), output);
+            output = write_slice_and_move_forward(b"\"}", output);
         }
-        original_len - output.len()
+        TypeHintExpr::ModuleAttribute { module, attr } => {
+            output = write_slice_and_move_forward(b"{\"type\":\"attribute\",\"module\":\"", output);
+            output = write_slice_and_move_forward(module.as_bytes(), output);
+            output = write_slice_and_move_forward(b"\",\"attr\":\"", output);
+            output = write_slice_and_move_forward(attr.as_bytes(), output);
+            output = write_slice_and_move_forward(b"\"}", output);
+        }
+        TypeHintExpr::Union { elts } => {
+            output = write_slice_and_move_forward(b"{\"type\":\"union\",\"elts\":[", output);
+            let mut i = 0;
+            while i < elts.len() {
+                if i > 0 {
+                    output = write_slice_and_move_forward(b",", output);
+                }
+                output = write_type_hint_and_move_forward(&elts[i], output);
+                i += 1;
+            }
+            output = write_slice_and_move_forward(b"]}", output);
+        }
+        TypeHintExpr::Subscript { value, slice } => {
+            output = write_slice_and_move_forward(b"{\"type\":\"subscript\",\"value\":", output);
+            output = write_type_hint_and_move_forward(value, output);
+            output = write_slice_and_move_forward(b",\"slice\":[", output);
+            let mut i = 0;
+            while i < slice.len() {
+                if i > 0 {
+                    output = write_slice_and_move_forward(b",", output);
+                }
+                output = write_type_hint_and_move_forward(&slice[i], output);
+                i += 1;
+            }
+            output = write_slice_and_move_forward(b"]}", output);
+        }
     }
+    original_len - output.len()
+}
 
-    /// Length required by [`Self::serialize_for_introspection`]
-    #[doc(hidden)]
-    pub const fn serialized_len_for_introspection(&self) -> usize {
-        match &self.inner {
-            TypeHintExpr::Builtin { id } => 26 + id.len(),
-            TypeHintExpr::ModuleAttribute { module, attr } => 42 + module.len() + attr.len(),
-            TypeHintExpr::Union { elts } => {
-                let mut count = 26;
-                let mut i = 0;
-                while i < elts.len() {
-                    if i > 0 {
-                        count += 1;
-                    }
-                    count += elts[i].serialized_len_for_introspection();
-                    i += 1;
+/// Length required by [`Self::serialize_for_introspection`]
+#[doc(hidden)]
+pub const fn serialized_len_for_introspection(hint: &TypeHint) -> usize {
+    match &hint.inner {
+        TypeHintExpr::Builtin { id } => 26 + id.len(),
+        TypeHintExpr::ModuleAttribute { module, attr } => 42 + module.len() + attr.len(),
+        TypeHintExpr::Union { elts } => {
+            let mut count = 26;
+            let mut i = 0;
+            while i < elts.len() {
+                if i > 0 {
+                    count += 1;
                 }
-                count
+                count += serialized_len_for_introspection(&elts[i]);
+                i += 1;
             }
-            TypeHintExpr::Subscript { value, slice } => {
-                let mut count = 40 + value.serialized_len_for_introspection();
-                let mut i = 0;
-                while i < slice.len() {
-                    if i > 0 {
-                        count += 1;
-                    }
-                    count += slice[i].serialized_len_for_introspection();
-                    i += 1;
+            count
+        }
+        TypeHintExpr::Subscript { value, slice } => {
+            let mut count = 40 + serialized_len_for_introspection(value);
+            let mut i = 0;
+            while i < slice.len() {
+                if i > 0 {
+                    count += 1;
                 }
-                count
+                count += serialized_len_for_introspection(&slice[i]);
+                i += 1;
             }
+            count
         }
     }
 }
@@ -230,7 +228,7 @@ const fn write_type_hint_and_move_forward<'a>(
     value: &TypeHint,
     output: &'a mut [u8],
 ) -> &'a mut [u8] {
-    let written = value.serialize_for_introspection(output);
+    let written = serialize_for_introspection(value, output);
     output.split_at_mut(written).1
 }
 
@@ -259,14 +257,14 @@ mod tests {
                 TypeHint::module_attr("datetime", "time"),
             ],
         );
-        const SER_LEN: usize = T.serialized_len_for_introspection();
+        const SER_LEN: usize = serialized_len_for_introspection(&T);
         const SER: [u8; SER_LEN] = {
             let mut out: [u8; SER_LEN] = [0; SER_LEN];
-            T.serialize_for_introspection(&mut out);
+            serialize_for_introspection(&T, &mut out);
             out
         };
         assert_eq!(
-            str::from_utf8(&SER).unwrap(),
+            std::str::from_utf8(&SER).unwrap(),
             r#"{"type":"subscript","value":{"type":"builtin","id":"dict"},"slice":[{"type":"union","elts":[{"type":"builtin","id":"int"},{"type":"builtin","id":"float"}]},{"type":"attribute","module":"datetime","attr":"time"}]}"#
         )
     }

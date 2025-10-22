@@ -475,10 +475,10 @@ impl IntrospectionNode<'_> {
 fn serialize_type_hint(hint: TokenStream, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
     quote! {{
         const TYPE_HINT: #pyo3_crate_path::inspect::TypeHint = #hint;
-        const TYPE_HINT_LEN: usize = TYPE_HINT.serialized_len_for_introspection();
+        const TYPE_HINT_LEN: usize = #pyo3_crate_path::inspect::serialized_len_for_introspection(&TYPE_HINT);
         const TYPE_HINT_SER: [u8; TYPE_HINT_LEN] = {
             let mut result: [u8; TYPE_HINT_LEN] = [0; TYPE_HINT_LEN];
-            TYPE_HINT.serialize_for_introspection(&mut result);
+            #pyo3_crate_path::inspect::serialize_for_introspection(&TYPE_HINT, &mut result);
             result
         };
         &TYPE_HINT_SER
