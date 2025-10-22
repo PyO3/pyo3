@@ -11,20 +11,20 @@ mod gh_4394 {
     use pyo3::prelude::*;
 
     #[derive(Eq, Ord, PartialEq, PartialOrd, Clone)]
-    #[pyclass(get_all)]
+    #[pyclass(get_all, skip_from_py_object)]
     pub struct VersionSpecifier {
         pub(crate) operator: Operator,
         pub(crate) version: Version,
     }
 
     #[derive(Eq, Ord, PartialEq, PartialOrd, Debug, Hash, Clone, Copy)]
-    #[pyo3::pyclass(eq, eq_int)]
+    #[pyo3::pyclass(eq, eq_int, skip_from_py_object)]
     pub enum Operator {
         Equal,
     }
 
     #[derive(Clone, Eq, PartialEq, PartialOrd, Ord)]
-    #[pyclass]
+    #[pyclass(skip_from_py_object)]
     pub struct Version;
 }
 

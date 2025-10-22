@@ -1,4 +1,4 @@
-#[crate::pyclass]
+#[crate::pyclass(from_py_object)]
 #[pyo3(crate = "crate")]
 #[derive(::std::clone::Clone)]
 pub struct Foo;
