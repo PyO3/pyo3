@@ -7,8 +7,11 @@ edition = "2021"
 publish = false
 rust-version = "1.83"
 
+[features]
+experimental-inspect = ["pyo3/experimental-inspect"]
+
 [dependencies]
-pyo3 = { path = "../", features = ["experimental-inspect"] }
+pyo3.path = "../"
 
 [build-dependencies]
 pyo3-build-config = { path = "../pyo3-build-config" }

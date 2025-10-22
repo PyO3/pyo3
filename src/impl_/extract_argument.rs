@@ -1,3 +1,5 @@
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::{
     exceptions::PyTypeError,
     ffi,
@@ -57,7 +59,7 @@ pub trait PyFunctionArgument<'a, 'holder, 'py, const IMPLEMENTS_FROMPYOBJECT: bo
 
     /// Provides the type hint information for which Python types are allowed.
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str;
+    const INPUT_TYPE: TypeHint;
 
     fn extract(
         obj: &'a Bound<'py, PyAny>,
@@ -73,7 +75,7 @@ where
     type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = T::INPUT_TYPE;
+    const INPUT_TYPE: TypeHint = T::INPUT_TYPE;
 
     #[inline]
     fn extract(obj: &'a Bound<'py, PyAny>, _: &'_ mut ()) -> Result<Self, Self::Error> {
@@ -89,7 +91,7 @@ where
     type Error = CastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = T::PYTHON_TYPE;
+    const INPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     #[inline]
     fn extract(obj: &'a Bound<'py, PyAny>, _: &'_ mut ()) -> Result<Self, Self::Error> {
@@ -106,7 +108,10 @@ where
     type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "typing.Any | None";
+    const INPUT_TYPE: TypeHint = TypeHint::union(&[
+        TypeHint::module_attr("typing", "Any"),
+        TypeHint::builtin("None"),
+    ]);
 
     #[inline]
     fn extract(
@@ -127,7 +132,7 @@ impl<'a, 'holder, 'py> PyFunctionArgument<'a, 'holder, 'py, false> for &'holder 
     type Error = <std::borrow::Cow<'a, str> as FromPyObject<'a, 'py>>::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "str";
+    const INPUT_TYPE: TypeHint = TypeHint::builtin("str");
 
     #[inline]
     fn extract(
@@ -157,7 +162,7 @@ impl<'a, 'holder, T: PyClass> PyFunctionArgument<'a, 'holder, '_, false> for &'h
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = T::PYTHON_TYPE;
+    const INPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     #[inline]
     fn extract(obj: &'a Bound<'_, PyAny>, holder: &'holder mut Self::Holder) -> PyResult<Self> {
@@ -172,7 +177,7 @@ impl<'a, 'holder, T: PyClass<Frozen = False>> PyFunctionArgument<'a, 'holder, '_
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = T::PYTHON_TYPE;
+    const INPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     #[inline]
     fn extract(obj: &'a Bound<'_, PyAny>, holder: &'holder mut Self::Holder) -> PyResult<Self> {
