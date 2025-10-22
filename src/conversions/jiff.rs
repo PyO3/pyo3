@@ -524,14 +524,13 @@ mod tests {
     // tzdata there to make this work.
     #[cfg(all(Py_3_9, not(target_os = "windows")))]
     fn test_zoneinfo_is_not_fixed_offset() {
-        use crate::ffi;
         use crate::types::any::PyAnyMethods;
         use crate::types::dict::PyDictMethods;
 
         Python::attach(|py| {
             let locals = crate::types::PyDict::new(py);
             py.run(
-                ffi::c_str!("import zoneinfo; zi = zoneinfo.ZoneInfo('Europe/London')"),
+                c"import zoneinfo; zi = zoneinfo.ZoneInfo('Europe/London')",
                 None,
                 Some(&locals),
             )

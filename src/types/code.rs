@@ -87,7 +87,7 @@ impl<'py> PyCodeMethods<'py> for Bound<'py, PyCode> {
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let mptr = unsafe {
-            ffi::compat::PyImport_AddModuleRef(ffi::c_str!("__main__").as_ptr())
+            ffi::compat::PyImport_AddModuleRef(c"__main__".as_ptr())
                 .assume_owned_or_err(self.py())?
         };
         let attr = mptr.getattr(crate::intern!(self.py(), "__dict__"))?;

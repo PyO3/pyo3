@@ -2398,7 +2398,6 @@ mod tests {
     use crate::test_utils::generate_unique_module_name;
     use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
     use crate::{ffi, Borrowed, IntoPyObjectExt, PyAny, PyResult, Python};
-    use pyo3_ffi::c_str;
     use std::ffi::CStr;
 
     #[test]
@@ -2507,15 +2506,12 @@ mod tests {
         use crate::types::PyModule;
 
         Python::attach(|py| {
-            const CODE: &CStr = c_str!(
-                r#"
+            const CODE: &CStr = cr#"
 class A:
     pass
 a = A()
-   "#
-            );
-            let module =
-                PyModule::from_code(py, CODE, c_str!(""), &generate_unique_module_name(""))?;
+   "#;
+            let module = PyModule::from_code(py, CODE, c"", &generate_unique_module_name(""))?;
             let instance: Py<PyAny> = module.getattr("a")?.into();
 
             instance.getattr(py, "foo").unwrap_err();
@@ -2537,15 +2533,12 @@ a = A()
         use crate::types::PyModule;
 
         Python::attach(|py| {
-            const CODE: &CStr = c_str!(
-                r#"
+            const CODE: &CStr = cr#"
 class A:
     pass
 a = A()
-   "#
-            );
-            let module =
-                PyModule::from_code(py, CODE, c_str!(""), &generate_unique_module_name(""))?;
+   "#;
+            let module = PyModule::from_code(py, CODE, c"", &generate_unique_module_name(""))?;
             let instance: Py<PyAny> = module.getattr("a")?.into();
 
             let foo = crate::intern!(py, "foo");
@@ -2561,7 +2554,7 @@ a = A()
     #[test]
     fn invalid_attr() -> PyResult<()> {
         Python::attach(|py| {
-            let instance: Py<PyAny> = py.eval(ffi::c_str!("object()"), None, None)?.into();
+            let instance: Py<PyAny> = py.eval(c"object()", None, None)?.into();
 
             instance.getattr(py, "foo").unwrap_err();
 
@@ -2574,7 +2567,7 @@ a = A()
     #[test]
     fn test_py2_from_py_object() {
         Python::attach(|py| {
-            let instance = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let instance = py.eval(c"object()", None, None).unwrap();
             let ptr = instance.as_ptr();
             let instance: Bound<'_, PyAny> = instance.extract().unwrap();
             assert_eq!(instance.as_ptr(), ptr);
@@ -2584,7 +2577,7 @@ a = A()
     #[test]
     fn test_py2_into_py_object() {
         Python::attach(|py| {
-            let instance = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let instance = py.eval(c"object()", None, None).unwrap();
             let ptr = instance.as_ptr();
             let instance: Py<PyAny> = instance.clone().unbind();
             assert_eq!(instance.as_ptr(), ptr);

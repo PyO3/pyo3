@@ -101,7 +101,6 @@ float_conversions!(NotNan, f64, |val| NotNan::new(val)
 #[cfg(test)]
 mod test_ordered_float {
     use super::*;
-    use crate::ffi::c_str;
     use crate::py_run;
     use crate::types::PyAnyMethods;
 
@@ -295,7 +294,7 @@ mod test_ordered_float {
             #[test]
             fn $test_name() {
                 Python::attach(|py| {
-                    let nan_py = py.eval(c_str!("float('nan')"), None, None).unwrap();
+                    let nan_py = py.eval(c"float('nan')", None, None).unwrap();
 
                     let nan_rs: Result<NotNan<$float_type>, _> = nan_py.extract();
 

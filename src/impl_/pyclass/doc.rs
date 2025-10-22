@@ -60,9 +60,6 @@ pub const fn doc_bytes_as_cstr(bytes: &'static [u8]) -> &'static ::std::ffi::CSt
 
 #[cfg(test)]
 mod tests {
-
-    use crate::ffi;
-
     use super::*;
 
     #[test]
@@ -104,7 +101,7 @@ mod tests {
     #[test]
     fn test_doc_bytes_as_cstr() {
         let cstr = doc_bytes_as_cstr(b"MyClass\0");
-        assert_eq!(cstr, ffi::c_str!("MyClass"));
+        assert_eq!(cstr, c"MyClass");
     }
 
     #[test]

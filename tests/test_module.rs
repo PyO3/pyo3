@@ -5,7 +5,6 @@ use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::PyString;
 use pyo3::types::{IntoPyDict, PyDict, PyTuple};
-use pyo3_ffi::c_str;
 
 mod test_utils;
 
@@ -248,8 +247,8 @@ fn test_module_from_code_bound() {
     Python::attach(|py| {
         let adder_mod = PyModule::from_code(
             py,
-            c_str!("def add(a,b):\n\treturn a+b"),
-            c_str!("adder_mod.py"),
+            c"def add(a,b):\n\treturn a+b",
+            c"adder_mod.py",
             &test_utils::generate_unique_module_name("adder_mod"),
         )
         .expect("Module code should be loaded");

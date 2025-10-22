@@ -103,7 +103,7 @@ where
 mod tests {
     use crate::conversion::IntoPyObject;
     use crate::types::{PyAnyMethods, PyBytes, PyBytesMethods, PyList};
-    use crate::{ffi, Python};
+    use crate::Python;
 
     #[test]
     fn test_vec_intopyobject_impl() {
@@ -157,11 +157,7 @@ mod tests {
     #[test]
     fn test_extract_tuple_to_vec() {
         Python::attach(|py| {
-            let v: Vec<i32> = py
-                .eval(ffi::c_str!("(1, 2)"), None, None)
-                .unwrap()
-                .extract()
-                .unwrap();
+            let v: Vec<i32> = py.eval(c"(1, 2)", None, None).unwrap().extract().unwrap();
             assert_eq!(v, [1, 2]);
         });
     }
@@ -170,7 +166,7 @@ mod tests {
     fn test_extract_range_to_vec() {
         Python::attach(|py| {
             let v: Vec<i32> = py
-                .eval(ffi::c_str!("range(1, 5)"), None, None)
+                .eval(c"range(1, 5)", None, None)
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -182,7 +178,7 @@ mod tests {
     fn test_extract_bytearray_to_vec() {
         Python::attach(|py| {
             let v: Vec<u8> = py
-                .eval(ffi::c_str!("bytearray(b'abc')"), None, None)
+                .eval(c"bytearray(b'abc')", None, None)
                 .unwrap()
                 .extract()
                 .unwrap();

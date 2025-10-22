@@ -378,13 +378,13 @@ mod tests {
         use super::*;
         #[cfg(Py_3_10)]
         use crate::types::PyInt;
-        use crate::{ffi, PyTypeCheck};
+        use crate::PyTypeCheck;
         use crate::{py_result_ext::PyResultExt, types::PyType};
         use std::ptr;
 
         fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
-            py.run(ffi::c_str!("class A:\n    pass\n"), None, None)?;
-            py.eval(ffi::c_str!("A"), None, None).cast_into::<PyType>()
+            py.run(c"class A:\n    pass\n", None, None)?;
+            py.eval(c"A", None, None).cast_into::<PyType>()
         }
 
         #[test]

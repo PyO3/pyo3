@@ -945,7 +945,7 @@ mod tests {
     use crate::types::list::PyListMethods;
     use crate::types::sequence::PySequenceMethods;
     use crate::types::{PyList, PyTuple};
-    use crate::{ffi, IntoPyObject, PyResult, Python};
+    use crate::{IntoPyObject, PyResult, Python};
     #[cfg(feature = "nightly")]
     use std::num::NonZero;
 
@@ -1006,7 +1006,7 @@ mod tests {
     #[test]
     fn test_set_item_refcnt() {
         Python::attach(|py| {
-            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let obj = py.eval(c"object()", None, None).unwrap();
             let cnt;
             {
                 let v = vec![2];
@@ -1041,7 +1041,7 @@ mod tests {
     fn test_insert_refcnt() {
         Python::attach(|py| {
             let cnt;
-            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let obj = py.eval(c"object()", None, None).unwrap();
             {
                 let list = PyList::empty(py);
                 cnt = obj.get_refcnt();
@@ -1066,7 +1066,7 @@ mod tests {
     fn test_append_refcnt() {
         Python::attach(|py| {
             let cnt;
-            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let obj = py.eval(c"object()", None, None).unwrap();
             {
                 let list = PyList::empty(py);
                 cnt = obj.get_refcnt();
