@@ -1177,10 +1177,6 @@ def _get_feature_sets() -> Tuple[Optional[str], ...]:
         # multiple-pymethods not supported on wasm
         features += ",multiple-pymethods"
 
-    if get_rust_version() >= (1, 83, 0):
-        # experimental-inspect requires 1.83+
-        features += ",experimental-inspect"
-
     if is_rust_nightly():
         features += ",nightly"
 

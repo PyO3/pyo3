@@ -101,7 +101,6 @@ impl TypeHint {
     ///
     /// We use the same AST as Python: https://docs.python.org/3/library/ast.html#abstract-grammar
     #[doc(hidden)]
-    #[allow(clippy::incompatible_msrv)] // The introspection feature target 1.83+
     pub const fn serialize_for_introspection(&self, mut output: &mut [u8]) -> usize {
         let original_len = output.len();
         match &self.inner {
@@ -217,7 +216,6 @@ impl fmt::Display for TypeHint {
     }
 }
 
-#[allow(clippy::incompatible_msrv)] // The experimental-inspect feature is targeting 1.83+
 const fn write_slice_and_move_forward<'a>(value: &[u8], output: &'a mut [u8]) -> &'a mut [u8] {
     // TODO: use copy_from_slice with MSRV 1.87+
     let mut i = 0;
@@ -228,7 +226,6 @@ const fn write_slice_and_move_forward<'a>(value: &[u8], output: &'a mut [u8]) ->
     output.split_at_mut(value.len()).1
 }
 
-#[allow(clippy::incompatible_msrv)] // The experimental-inspect feature is targeting 1.83+
 const fn write_type_hint_and_move_forward<'a>(
     value: &TypeHint,
     output: &'a mut [u8],
