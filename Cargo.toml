@@ -26,7 +26,6 @@ rust-version.workspace = true
 
 [dependencies]
 libc = "0.2.62"
-memoffset = "0.9"
 once_cell = "1.21"
 
 # ffi bindings to the python interpreter, split into a separate crate so they can be used independently

@@ -5,7 +5,7 @@ use crate::{
         pycell::PyClassObject,
         pyclass::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
-            tp_dealloc_with_gc, MaybeRuntimePyMethodDef, PyClassItemsIter,
+            tp_dealloc_with_gc, PyClassItemsIter,
         },
         pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, _call_clear},
         trampoline::trampoline,
@@ -322,14 +322,6 @@ impl PyTypeBuilder {
                 unsafe { self.push_slot(slot.slot, slot.pfunc) };
             }
             for method in items.methods {
-                let built_method;
-                let method = match method {
-                    MaybeRuntimePyMethodDef::Runtime(builder) => {
-                        built_method = builder();
-                        &built_method
-                    }
-                    MaybeRuntimePyMethodDef::Static(method) => method,
-                };
                 self.pymethod_def(method);
             }
         }

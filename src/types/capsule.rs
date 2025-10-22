@@ -7,6 +7,7 @@ use crate::{Bound, Python};
 use crate::{PyErr, PyResult};
 use std::ffi::{c_char, c_int, c_void};
 use std::ffi::{CStr, CString};
+use std::mem::offset_of;
 use std::ptr::{self, NonNull};
 
 /// Represents a Python Capsule
@@ -112,7 +113,7 @@ impl PyCapsule {
         AssertNotZeroSized::assert_not_zero_sized(&value);
 
         // Sanity check for capsule layout
-        debug_assert_eq!(memoffset::offset_of!(CapsuleContents::<T, F>, value), 0);
+        debug_assert_eq!(offset_of!(CapsuleContents::<T, F>, value), 0);
 
         let name_ptr = name.as_ref().map_or(std::ptr::null(), |name| name.as_ptr());
         let val = Box::into_raw(Box::new(CapsuleContents {
