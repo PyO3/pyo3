@@ -193,9 +193,7 @@ impl<const N: usize> PyModuleSlotsBuilder<N> {
     #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
-            // Because the array is c-style, the empty elements should be zeroed.
-            // `std::mem::zeroed()` requires msrv 1.75 for const
-            values: [ZEROED_SLOT; N],
+            values: [unsafe { std::mem::zeroed() }; N],
             len: 0,
         }
     }
@@ -257,11 +255,6 @@ pub struct PyModuleSlots<const N: usize>(UnsafeCell<[ffi::PyModuleDef_Slot; N]>)
 // SAFETY: the inner values are only accessed within a `ModuleDef`,
 // which only uses them to build the `ffi::ModuleDef`.
 unsafe impl<const N: usize> Sync for PyModuleSlots<N> {}
-
-const ZEROED_SLOT: ffi::PyModuleDef_Slot = ffi::PyModuleDef_Slot {
-    slot: 0,
-    value: std::ptr::null_mut(),
-};
 
 /// Trait to add an element (class, function...) to a module.
 ///
