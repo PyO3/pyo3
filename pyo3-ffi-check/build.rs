@@ -59,6 +59,7 @@ fn main() {
         .blocklist_item("FP_INT_TONEARESTFROMZERO")
         .blocklist_item("FP_INT_TONEAREST")
         .blocklist_item("FP_ZERO")
+        .blocklist_item("PyBytesWriter")
         .generate()
         .expect("Unable to generate bindings");
 
