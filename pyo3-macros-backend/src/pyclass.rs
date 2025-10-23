@@ -28,8 +28,8 @@ use crate::pyimpl::{gen_py_const, get_cfg_attributes, PyClassMethodsType};
 use crate::pymethod::field_python_name;
 use crate::pymethod::{
     impl_py_class_attribute, impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef,
-    MethodAndSlotDef, PropertyType, SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __REPR__,
-    __RICHCMP__, __STR__,
+    MethodAndSlotDef, PropertyType, SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __NEW__,
+    __REPR__, __RICHCMP__, __STR__,
 };
 use crate::pyversions::{is_abi3_before, is_py_before};
 use crate::utils::{self, apply_renaming_rule, Ctx, PythonDoc};
@@ -1746,11 +1746,10 @@ fn complex_enum_struct_variant_new<'a>(
     };
 
     let spec = FnSpec {
-        tp: crate::method::FnType::FnNew,
+        tp: crate::method::FnType::FnStatic,
         name: &format_ident!("__pymethod_constructor__"),
         python_name: format_ident!("__new__"),
         signature,
-        convention: crate::method::CallingConvention::TpNew,
         text_signature: None,
         asyncness: None,
         unsafety: None,
@@ -1759,7 +1758,12 @@ fn complex_enum_struct_variant_new<'a>(
         output: syn::ReturnType::Default,
     };
 
-    crate::pymethod::impl_py_method_def_new(&variant_cls_type, &spec, ctx)
+    __NEW__.generate_type_slot(
+        &variant_cls_type,
+        &spec,
+        &format!("__default___new____"),
+        ctx,
+    )
 }
 
 fn complex_enum_tuple_variant_new<'a>(
@@ -1805,11 +1809,10 @@ fn complex_enum_tuple_variant_new<'a>(
     };
 
     let spec = FnSpec {
-        tp: crate::method::FnType::FnNew,
+        tp: crate::method::FnType::FnStatic,
         name: &format_ident!("__pymethod_constructor__"),
         python_name: format_ident!("__new__"),
         signature,
-        convention: crate::method::CallingConvention::TpNew,
         text_signature: None,
         asyncness: None,
         unsafety: None,
@@ -1818,7 +1821,12 @@ fn complex_enum_tuple_variant_new<'a>(
         output: syn::ReturnType::Default,
     };
 
-    crate::pymethod::impl_py_method_def_new(&variant_cls_type, &spec, ctx)
+    __NEW__.generate_type_slot(
+        &variant_cls_type,
+        &spec,
+        &format!("__default___new____"),
+        ctx,
+    )
 }
 
 fn complex_enum_variant_field_getter<'a>(
@@ -1838,7 +1846,6 @@ fn complex_enum_variant_field_getter<'a>(
         name: field_name,
         python_name: field_name.unraw(),
         signature,
-        convention: crate::method::CallingConvention::Noargs,
         text_signature: None,
         asyncness: None,
         unsafety: None,
@@ -2264,7 +2271,6 @@ fn pyclass_class_geitem(
                 cls,
                 &spec,
                 &spec.get_doc(&class_geitem_impl.attrs, ctx)?,
-                Some(quote!(#pyo3_path::ffi::METH_CLASS)),
                 ctx,
             )?;
             Ok((Some(class_geitem_impl), Some(class_geitem_method)))
