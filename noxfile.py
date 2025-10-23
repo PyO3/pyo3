@@ -209,8 +209,6 @@ def rumdl(session: nox.Session):
     Can also run with uv directly, e.g. `uvx rumdl check guide`.
     """
     session.install("rumdl")
-
-    # _run(session, "rumdl", "config", *session.posargs)
     _run(session, "rumdl", "check", "guide", *session.posargs)
 
 
