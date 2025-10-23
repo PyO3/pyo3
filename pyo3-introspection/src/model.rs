@@ -77,6 +77,8 @@ pub enum TypeHint {
 /// A type hint annotation as an AST fragment
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub enum TypeHintExpr {
+    /// A local identifier which module is unknown
+    Local { id: String },
     /// A Python builtin like `int`
     Builtin { id: String },
     /// The attribute of a python object like `{value}.{attr}`
