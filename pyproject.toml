@@ -47,5 +47,9 @@ exclude = [
 style = "dash"
 
 [tool.rumdl.MD013]
+paragraphs = false
+code_blocks = false
+tables = false
+headings = false
 reflow = true
 reflow_mode = "sentence-per-line"
