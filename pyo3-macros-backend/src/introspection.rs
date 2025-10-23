@@ -61,6 +61,7 @@ pub fn class_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
     ident: &Ident,
     name: &str,
+    is_final: bool,
 ) -> TokenStream {
     IntrospectionNode::Map(
         [
@@ -70,6 +71,7 @@ pub fn class_introspection_code(
                 IntrospectionNode::IntrospectionId(Some(ident_to_type(ident))),
             ),
             ("name", IntrospectionNode::String(name.into())),
+            ("final", IntrospectionNode::Bool(is_final)),
         ]
         .into(),
     )

@@ -13,6 +13,7 @@ pub struct Class {
     pub name: String,
     pub methods: Vec<Function>,
     pub attributes: Vec<Attribute>,
+    pub is_final: bool,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]

@@ -124,9 +124,13 @@ fn convert_members<'a>(
                     chunks_by_parent,
                 )?);
             }
-            Chunk::Class { name, id } => {
-                classes.push(convert_class(id, name, chunks_by_id, chunks_by_parent)?)
-            }
+            Chunk::Class { name, id, is_final } => classes.push(convert_class(
+                id,
+                name,
+                *is_final,
+                chunks_by_id,
+                chunks_by_parent,
+            )?),
             Chunk::Function {
                 name,
                 id: _,
@@ -168,6 +172,7 @@ fn convert_members<'a>(
 fn convert_class(
     id: &str,
     name: &str,
+    is_final: bool,
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
 ) -> Result<Class> {
@@ -188,6 +193,7 @@ fn convert_class(
         name: name.into(),
         methods,
         attributes,
+        is_final,
     })
 }
 
@@ -409,6 +415,8 @@ enum Chunk {
     Class {
         id: String,
         name: String,
+        #[serde(default, rename = "final")]
+        is_final: bool,
     },
     Function {
         #[serde(default)]
