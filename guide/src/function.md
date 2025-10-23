@@ -1,6 +1,7 @@
 # Python functions
 
-The `#[pyfunction]` attribute is used to define a Python function from a Rust function. Once defined, the function needs to be added to a [module](./module.md).
+The `#[pyfunction]` attribute is used to define a Python function from a Rust function.
+Once defined, the function needs to be added to a [module](./module.md).
 
 The following example defines a function called `double` in a Python module called `my_extension`:
 
@@ -16,7 +17,8 @@ mod my_extension {
 }
 ```
 
-This chapter of the guide explains full usage of the `#[pyfunction]` attribute. In this first section, the following topics are covered:
+This chapter of the guide explains full usage of the `#[pyfunction]` attribute.
+In this first section, the following topics are covered:
 
 - [Function options](#function-options)
   - [`#[pyo3(name = "...")]`](#name)
@@ -34,7 +36,8 @@ There are also additional sections on the following topics:
 
 ## Function options
 
-The `#[pyo3]` attribute can be used to modify properties of the generated Python function. It can take any combination of the following options:
+The `#[pyo3]` attribute can be used to modify properties of the generated Python function.
+It can take any combination of the following options:
 
 - <a id="name"></a> `#[pyo3(name = "...")]`
 
@@ -200,7 +203,8 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
 
 ## Per-argument options
 
-The `#[pyo3]` attribute can be used on individual arguments to modify properties of them in the generated function. It can take any combination of the following options:
+The `#[pyo3]` attribute can be used on individual arguments to modify properties of them in the generated function.
+It can take any combination of the following options:
 
 - <a id="from_py_with"></a> `#[pyo3(from_py_with = ...)]`
 
@@ -234,11 +238,9 @@ You can pass Python `def`'d functions and built-in functions to Rust functions [
 corresponds to regular Python functions while [`PyCFunction`] describes built-ins such as
 `repr()`.
 
-You can also use [`Bound<'_, PyAny>::is_callable`] to check if you have a callable object. `is_callable`
-will return `true` for functions (including lambdas), methods and objects with a `__call__` method.
-You can call the object with [`Bound<'_, PyAny>::call`] with the args as first parameter and the kwargs
-(or `None`) as second parameter. There are also [`Bound<'_, PyAny>::call0`] with no args and
-[`Bound<'_, PyAny>::call1`] with only positional args.
+You can also use [`Bound<'_, PyAny>::is_callable`] to check if you have a callable object. `is_callable` will return `true` for functions (including lambdas), methods and objects with a `__call__` method.
+You can call the object with [`Bound<'_, PyAny>::call`] with the args as first parameter and the kwargs (or `None`) as second parameter.
+There are also [`Bound<'_, PyAny>::call0`] with no args and [`Bound<'_, PyAny>::call1`] with only positional args.
 
 ### Calling Rust functions in Python
 
@@ -251,11 +253,8 @@ The ways to convert a Rust function into a Python object vary depending on the f
 
 ### Accessing the FFI functions
 
-In order to make Rust functions callable from Python, PyO3 generates an `extern "C"`
-function whose exact signature depends on the Rust signature.  (PyO3 chooses the optimal
-Python argument passing convention.) It then embeds the call to the Rust function inside this
-FFI-wrapper function. This wrapper handles extraction of the regular arguments and the keyword
-arguments from the input `PyObject`s.
+In order to make Rust functions callable from Python, PyO3 generates an `extern "C"` function whose exact signature depends on the Rust signature.  (PyO3 chooses the optimal Python argument passing convention.) It then embeds the call to the Rust function inside this FFI-wrapper function.
+This wrapper handles extraction of the regular arguments and the keyword arguments from the input `PyObject`s.
 
 The `wrap_pyfunction` macro can be used to directly get a `Bound<PyCFunction>` given a
 `#[pyfunction]` and a `Bound<PyModule>`: `wrap_pyfunction!(rust_fun, module)`.

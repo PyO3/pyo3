@@ -1,10 +1,12 @@
 # Frequently Asked Questions and troubleshooting
 
-Sorry that you're having trouble using PyO3. If you can't find the answer to your problem in the list below, you can also reach out for help on [GitHub Discussions](https://github.com/PyO3/pyo3/discussions) and on [Discord](https://discord.gg/33kcChzH7f).
+Sorry that you're having trouble using PyO3.
+If you can't find the answer to your problem in the list below, you can also reach out for help on [GitHub Discussions](https://github.com/PyO3/pyo3/discussions) and on [Discord](https://discord.gg/33kcChzH7f).
 
 ## I'm experiencing deadlocks using PyO3 with `std::sync::OnceLock`, `std::sync::LazyLock`, `lazy_static`, and `once_cell`
 
-`OnceLock`, `LazyLock`, and their thirdparty predecessors use blocking to ensure only one thread ever initializes them. Because the Python interpreter can introduce additional locks (the Python GIL and GC can both require all other threads to pause) this can lead to deadlocks in the following way:
+`OnceLock`, `LazyLock`, and their thirdparty predecessors use blocking to ensure only one thread ever initializes them.
+Because the Python interpreter can introduce additional locks (the Python GIL and GC can both require all other threads to pause) this can lead to deadlocks in the following way:
 
 1. A thread (thread A) which is attached to the Python interpreter starts initialization of a `OnceLock` value.
 2. The initialization code calls some Python API which temporarily detaches from the interpreter e.g. `Python::import`.
@@ -13,7 +15,10 @@ Sorry that you're having trouble using PyO3. If you can't find the answer to you
 5. On non-free-threaded Python, thread A is now also blocked, because it waits to re-attach to the interpreter (by taking the GIL which thread B still holds).
 6. Deadlock.
 
-PyO3 provides a struct [`PyOnceLock`] which implements a single-initialization API based on these types that avoids deadlocks. You can also make use of the [`OnceExt`] and [`OnceLockExt`] extension traits that enable using the standard library types for this purpose by providing new methods for these types that avoid the risk of deadlocking with the Python interpreter. This means they can be used in place of other choices when you are experiencing the deadlock described above. See the documentation for [`PyOnceLock`] and [`OnceExt`] for further details and an example how to use them.
+PyO3 provides a struct [`PyOnceLock`] which implements a single-initialization API based on these types that avoids deadlocks.
+You can also make use of the [`OnceExt`] and [`OnceLockExt`] extension traits that enable using the standard library types for this purpose by providing new methods for these types that avoid the risk of deadlocking with the Python interpreter.
+This means they can be used in place of other choices when you are experiencing the deadlock described above.
+See the documentation for [`PyOnceLock`] and [`OnceExt`] for further details and an example how to use them.
 
 [`PyOnceLock`]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.PyOnceLock.html
 [`OnceExt`]: {{#PYO3_DOCS_URL}}/pyo3/sync/trait.OnceExt.html
@@ -21,9 +26,12 @@ PyO3 provides a struct [`PyOnceLock`] which implements a single-initialization A
 
 ## I can't run `cargo test`; or I can't build in a Cargo workspace: I'm having linker issues like "Symbol not found" or "Undefined reference to _PyExc_SystemError"
 
-Currently, [#340](https://github.com/PyO3/pyo3/issues/340) causes `cargo test` to fail with linking errors when the `extension-module` feature is activated. Linking errors can also happen when building in a cargo workspace where a different crate also uses PyO3 (see [#2521](https://github.com/PyO3/pyo3/issues/2521)). For now, there are three ways we can work around these issues.
+Currently, [#340](https://github.com/PyO3/pyo3/issues/340) causes `cargo test` to fail with linking errors when the `extension-module` feature is activated.
+Linking errors can also happen when building in a cargo workspace where a different crate also uses PyO3 (see [#2521](https://github.com/PyO3/pyo3/issues/2521)).
+For now, there are three ways we can work around these issues.
 
-1. Make the `extension-module` feature optional. Build with `maturin develop --features "extension-module"`
+1. Make the `extension-module` feature optional.
+   Build with `maturin develop --features "extension-module"`
 
    ```toml
    [dependencies.pyo3]
@@ -33,7 +41,8 @@ Currently, [#340](https://github.com/PyO3/pyo3/issues/340) causes `cargo test` t
    extension-module = ["pyo3/extension-module"]
    ```
 
-2. Make the `extension-module` feature optional and default. Run tests with `cargo test --no-default-features`:
+2. Make the `extension-module` feature optional and default.
+   Run tests with `cargo test --no-default-features`:
 
    ```toml
    [dependencies.pyo3]
@@ -78,9 +87,11 @@ crate-type = ["cdylib", "rlib"]
 
 ## Ctrl-C doesn't do anything while my Rust code is executing
 
-This is because Ctrl-C raises a SIGINT signal, which is handled by the calling Python process by simply setting a flag to action upon later. This flag isn't checked while Rust code called from Python is executing, only once control returns to the Python interpreter.
+This is because Ctrl-C raises a SIGINT signal, which is handled by the calling Python process by simply setting a flag to action upon later.
+This flag isn't checked while Rust code called from Python is executing, only once control returns to the Python interpreter.
 
-You can give the Python interpreter a chance to process the signal properly by calling `Python::check_signals`. It's good practice to call this function regularly if you have a long-running Rust function so that your users can cancel it.
+You can give the Python interpreter a chance to process the signal properly by calling `Python::check_signals`.
+It's good practice to call this function regularly if you have a long-running Rust function so that your users can cancel it.
 
 ## `#[pyo3(get)]` clones my field
 
@@ -123,7 +134,9 @@ AssertionError: a: <builtins.Inner object at 0x00000238FFB9C7B0>
 b: <builtins.Inner object at 0x00000238FFB9C830>
 ```
 
-This can be especially confusing if the field is mutable, as getting the field and then mutating it won't persist - you'll just get a fresh clone of the original on the next access. Unfortunately Python and Rust don't agree about ownership - if PyO3 gave out references to (possibly) temporary Rust objects to Python code, Python code could then keep that reference alive indefinitely. Therefore returning Rust objects requires cloning.
+This can be especially confusing if the field is mutable, as getting the field and then mutating it won't persist - you'll just get a fresh clone of the original on the next access.
+Unfortunately Python and Rust don't agree about ownership - if PyO3 gave out references to (possibly) temporary Rust objects to Python code, Python code could then keep that reference alive indefinitely.
+Therefore returning Rust objects requires cloning.
 
 If you don't want that cloning to happen, a workaround is to allocate the field on the Python heap and store a reference to that, by using [`Py<...>`]({{#PYO3_DOCS_URL}}/pyo3/struct.Py.html):
 
@@ -196,18 +209,21 @@ struct MyClass;
 
 ## I'm trying to call Python from Rust but I get `STATUS_DLL_NOT_FOUND` or `STATUS_ENTRYPOINT_NOT_FOUND`
 
-This happens on Windows when linking to the python DLL fails or the wrong one is linked. The Python DLL on Windows will usually be called something like:
+This happens on Windows when linking to the python DLL fails or the wrong one is linked.
+The Python DLL on Windows will usually be called something like:
 
 - `python3X.dll` for Python 3.X, e.g. `python310.dll` for Python 3.10
 - `python3.dll` when using PyO3's `abi3` feature
 
-The DLL needs to be locatable using the [Windows DLL search order](https://learn.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-search-order#standard-search-order-for-unpackaged-apps). Some ways to achieve this are:
+The DLL needs to be locatable using the [Windows DLL search order](https://learn.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-search-order#standard-search-order-for-unpackaged-apps).
+Some ways to achieve this are:
 
 - Put the Python DLL in the same folder as your build artifacts
 - Add the directory containing the Python DLL to your `PATH` environment variable, for example `C:\Users\<You>\AppData\Local\Programs\Python\Python310`
 - If this happens when you are *distributing* your program, consider using [PyOxidizer](https://github.com/indygreg/PyOxidizer) to package it with your binary.
 
-If the wrong DLL is linked it is possible that this happened because another program added itself and its own Python DLLs to `PATH`. Rearrange your `PATH` variables to give the correct DLL priority.
+If the wrong DLL is linked it is possible that this happened because another program added itself and its own Python DLLs to `PATH`.
+Rearrange your `PATH` variables to give the correct DLL priority.
 
 > **Note**: Changes to `PATH` (or any other environment variable) are not visible to existing shells. Restart it for changes to take effect.
 

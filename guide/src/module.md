@@ -30,8 +30,8 @@ mod my_extension {
 The `#[pymodule]` procedural macro takes care of creating the initialization function of your
 module and exposing it to Python.
 
-The module's name defaults to the name of the Rust module. You can override the module name by
-using `#[pyo3(name = "custom_name")]`:
+The module's name defaults to the name of the Rust module.
+You can override the module name by using `#[pyo3(name = "custom_name")]`:
 
 ```rust,no_run
 # mod declarative_module_custom_name_test {
@@ -50,9 +50,8 @@ mod my_extension {
 # }
 ```
 
-The name of the module must match the name of the `.so` or `.pyd`
-file. Otherwise, you will get an import error in Python with the following message:
-`ImportError: dynamic module does not define module export function (PyInit_name_of_your_module)`
+The name of the module must match the name of the `.so` or `.pyd` file.
+Otherwise, you will get an import error in Python with the following message: `ImportError: dynamic module does not define module export function (PyInit_name_of_your_module)`
 
 To import the module, either:
 
@@ -109,10 +108,8 @@ fn func() -> String {
 }
 ```
 
-Note that this does not define a package, so this won’t allow Python code to directly import
-submodules by using `from parent_module import child_module`. For more information, see
-[#759](https://github.com/PyO3/pyo3/issues/759) and
-[#1517](https://github.com/PyO3/pyo3/issues/1517#issuecomment-808664021).
+Note that this does not define a package, so this won’t allow Python code to directly import submodules by using `from parent_module import child_module`.
+For more information, see [#759](https://github.com/PyO3/pyo3/issues/759) and [#1517](https://github.com/PyO3/pyo3/issues/1517#issuecomment-808664021).
 
 You can provide the `submodule` argument to `#[pymodule()]` for modules that are not top-level modules in order for them to properly generate the `#[pyclass]` `module` attribute automatically.
 

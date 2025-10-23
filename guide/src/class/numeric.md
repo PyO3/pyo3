@@ -2,16 +2,15 @@
 
 At this point we have a `Number` class that we can't actually do any math on!
 
-Before proceeding, we should think about how we want to handle overflows. There are three obvious solutions:
+Before proceeding, we should think about how we want to handle overflows.
+There are three obvious solutions:
 
-- We can have infinite precision just like Python's `int`. However that would be quite boring - we'd
-
- be reinventing the wheel.
-
+- We can have infinite precision just like Python's `int`.
+  However that would be quite boring - we'd be reinventing the wheel.
 - We can raise exceptions whenever `Number` overflows, but that makes the API painful to use.
-- We can wrap around the boundary of `i32`. This is the approach we'll take here. To do that we'll just forward to `i32`'s
-
- `wrapping_*` methods.
+- We can wrap around the boundary of `i32`.
+  This is the approach we'll take here.
+  To do that we'll just forward to `i32`'s `wrapping_*` methods.
 
 ## Fixing our constructor
 
@@ -30,10 +29,8 @@ Traceback (most recent call last):
 OverflowError: Python int too large to convert to C long
 ```
 
-Instead of relying on the default [`FromPyObject`] extraction to parse arguments, we can specify our
-own extraction function, using the `#[pyo3(from_py_with = ...)]` attribute. Unfortunately PyO3
-doesn't provide a way to wrap Python integers out of the box, but we can do a Python call to mask it
-and cast it to an `i32`.
+Instead of relying on the default [`FromPyObject`] extraction to parse arguments, we can specify our own extraction function, using the `#[pyo3(from_py_with = ...)]` attribute.
+Unfortunately PyO3 doesn't provide a way to wrap Python integers out of the box, but we can do a Python call to mask it and cast it to an `i32`.
 
 ```rust,no_run
 # #![allow(dead_code)]
@@ -402,25 +399,27 @@ mod my_module {
 
 ## Appendix: Writing some unsafe code
 
-At the beginning of this chapter we said that PyO3 doesn't provide a way to wrap Python integers out
-of the box but that's a half truth. There's not a PyO3 API for it, but there's a Python C API
-function that does:
+At the beginning of this chapter we said that PyO3 doesn't provide a way to wrap Python integers out of the box but that's a half truth.
+There's not a PyO3 API for it, but there's a Python C API function that does:
 
 ```c
 unsigned long PyLong_AsUnsignedLongMask(PyObject *obj)
 ```
 
-We can call this function from Rust by using [`pyo3::ffi::PyLong_AsUnsignedLongMask`]. This is an *unsafe*
-function, which means we have to use an unsafe block to call it and take responsibility for upholding
-the contracts of this function. Let's review those contracts:
+We can call this function from Rust by using [`pyo3::ffi::PyLong_AsUnsignedLongMask`].
+This is an *unsafe* function, which means we have to use an unsafe block to call it and take responsibility for upholding the contracts of this function.
+Let's review those contracts:
 
-- We must be attached to the interpreter. If we're not, calling this function causes a data race.
+- We must be attached to the interpreter.
+  If we're not, calling this function causes a data race.
 - The pointer must be valid, i.e. it must be properly aligned and point to a valid Python object.
 
-Let's create that helper function. The signature has to be `fn(&Bound<'_, PyAny>) -> PyResult<T>`.
+Let's create that helper function.
+The signature has to be `fn(&Bound<'_, PyAny>) -> PyResult<T>`.
 
 - `&Bound<'_, PyAny>` represents a checked bound reference, so the pointer derived from it is valid (and not null).
-- Whenever we have bound references to Python objects in scope, it is guaranteed that we're attached to the interpreter. This reference is also where we can get a [`Python`] token to use in our call to [`PyErr::take`].
+- Whenever we have bound references to Python objects in scope, it is guaranteed that we're attached to the interpreter.
+  This reference is also where we can get a [`Python`] token to use in our call to [`PyErr::take`].
 
 ```rust,no_run
 # #![allow(dead_code)]

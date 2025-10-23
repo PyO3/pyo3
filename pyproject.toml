@@ -28,8 +28,6 @@ name = "Fixed"
 [tool.rumdl]
 
 disable = [
-    # TODO: enable in a follow-up, probably with `sentence-per-line` reflow
-    "MD013",
     # TODO: what to do about inline HTML, probably allow?
     "MD033",
     # TODO: {{#PYO3_DOCS_URL}} placeholder confuses rumdl, change syntax perhaps?
@@ -47,3 +45,11 @@ exclude = [
 
 [tool.rumdl.MD004]
 style = "dash"
+
+[tool.rumdl.MD013]
+paragraphs = false
+code_blocks = false
+tables = false
+headings = false
+reflow = true
+reflow_mode = "sentence-per-line"

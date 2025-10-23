@@ -34,10 +34,9 @@ and [`PyRefMut`].  They work like the reference wrappers of
 
 ### Deriving [`FromPyObject`]
 
-[`FromPyObject`] can be automatically derived for many kinds of structs and enums
-if the member types themselves implement `FromPyObject`. This even includes members
-with a generic type `T: FromPyObject`. Derivation for empty enums, enum variants and
-structs is not supported.
+[`FromPyObject`] can be automatically derived for many kinds of structs and enums if the member types themselves implement `FromPyObject`.
+This even includes members with a generic type `T: FromPyObject`.
+Derivation for empty enums, enum variants and structs is not supported.
 
 ### Deriving [`FromPyObject`] for structs
 
@@ -132,10 +131,8 @@ struct RustyStruct {
 # }
 ```
 
-This tries to extract `string_attr` from the attribute `name` and `string_in_mapping`
-from a mapping with the key `"key"`. The arguments for `attribute` are restricted to
-non-empty string literals while `item` can take any valid literal that implements
-`ToBorrowedObject`.
+This tries to extract `string_attr` from the attribute `name` and `string_in_mapping` from a mapping with the key `"key"`.
+The arguments for `attribute` are restricted to non-empty string literals while `item` can take any valid literal that implements `ToBorrowedObject`.
 
 You can use `#[pyo3(from_item_all)]` on a struct to extract every field with `get_item` method.
 In this case, you can't use `#[pyo3(attribute)]` or barely use `#[pyo3(item)]` on any field.
@@ -168,9 +165,8 @@ struct RustyStruct {
 
 ### Deriving [`FromPyObject`] for tuple structs
 
-Tuple structs are also supported but do not allow customizing the extraction. The input is
-always assumed to be a Python tuple with the same length as the Rust type, the `n`th field
-is extracted from the `n`th item in the Python tuple.
+Tuple structs are also supported but do not allow customizing the extraction.
+The input is always assumed to be a Python tuple with the same length as the Rust type, the `n`th field is extracted from the `n`th item in the Python tuple.
 
 ```rust
 use pyo3::prelude::*;
@@ -192,9 +188,8 @@ struct RustyTuple(String, String);
 # }
 ```
 
-Tuple structs with a single field are treated as wrapper types which are described in the
-following section. To override this behaviour and ensure that the input is in fact a tuple,
-specify the struct as
+Tuple structs with a single field are treated as wrapper types which are described in the following section.
+To override this behaviour and ensure that the input is in fact a tuple, specify the struct as
 
 ```rust
 use pyo3::prelude::*;
@@ -217,10 +212,9 @@ struct RustyTuple((String,));
 
 ### Deriving [`FromPyObject`] for wrapper types
 
-The `pyo3(transparent)` attribute can be used on structs with exactly one field. This results
-in extracting directly from the input object, i.e. `obj.extract()`, rather than trying to access
-an item or attribute. This behaviour is enabled per default for newtype structs and tuple-variants
-with a single field.
+The `pyo3(transparent)` attribute can be used on structs with exactly one field.
+This results in extracting directly from the input object, i.e. `obj.extract()`, rather than trying to access an item or attribute.
+This behaviour is enabled per default for newtype structs and tuple-variants with a single field.
 
 ```rust
 use pyo3::prelude::*;
@@ -252,14 +246,12 @@ struct RustyTransparentStruct {
 
 ### Deriving [`FromPyObject`] for enums
 
-The `FromPyObject` derivation for enums generates code that tries to extract the variants in the
-order of the fields. As soon as a variant can be extracted successfully, that variant is returned.
+The `FromPyObject` derivation for enums generates code that tries to extract the variants in the order of the fields.
+As soon as a variant can be extracted successfully, that variant is returned.
 This makes it possible to extract Python union types like `str | int`.
 
-The same customizations and restrictions described for struct derivations apply to enum variants,
-i.e. a tuple variant assumes that the input is a Python tuple, and a struct variant defaults to
-extracting fields as attributes but can be configured in the same manner. The `transparent`
-attribute can be applied to single-field-variants.
+The same customizations and restrictions described for struct derivations apply to enum variants, i.e. a tuple variant assumes that the input is a Python tuple, and a struct variant defaults to extracting fields as attributes but can be configured in the same manner.
+The `transparent` attribute can be applied to single-field-variants.
 
 ```rust
 use pyo3::prelude::*;
@@ -405,10 +397,8 @@ enum RustyEnum<'py> {
 # }
 ```
 
-If none of the enum variants match, a `PyTypeError` containing the names of the
-tested variants is returned. The names reported in the error message can be customized
-through the `#[pyo3(annotation = "name")]` attribute, e.g. to use conventional Python type
-names:
+If none of the enum variants match, a `PyTypeError` containing the names of the tested variants is returned.
+The names reported in the error message can be customized through the `#[pyo3(annotation = "name")]` attribute, e.g. to use conventional Python type names:
 
 ```rust
 use pyo3::prelude::*;
@@ -537,7 +527,10 @@ struct RustyStruct {
 
 ### ⚠ Phase-Out of `FromPyObject` blanket implementation for cloneable PyClasses ⚠
 
-Historically PyO3 has provided a blanket implementation for `#[pyclass]` types that also implement `Clone`, to allow extraction of such types by value. Over time this has turned out problematic for a few reasons, the major one being the prevention of custom conversions by downstream crates if their type is `Clone`. Over the next few releases the blanket implementation is gradually phased out, and eventually replaced by an opt-in option. As a first step of this migration a new `skip_from_py_object` option for `#[pyclass]` was introduced, to opt-out of the blanket implementation and allow downstream users to provide their own implementation:
+Historically PyO3 has provided a blanket implementation for `#[pyclass]` types that also implement `Clone`, to allow extraction of such types by value.
+Over time this has turned out problematic for a few reasons, the major one being the prevention of custom conversions by downstream crates if their type is `Clone`.
+Over the next few releases the blanket implementation is gradually phased out, and eventually replaced by an opt-in option.
+As a first step of this migration a new `skip_from_py_object` option for `#[pyclass]` was introduced, to opt-out of the blanket implementation and allow downstream users to provide their own implementation:
 
 ```rust
 # #![allow(dead_code)]
@@ -560,21 +553,24 @@ impl<'py> FromPyObject<'_, 'py> for Number {
 }
 ```
 
-As a second step the `from_py_object` option was introduced. This option also opts-out of the blanket implementation and instead generates a custom `FromPyObject` implementation for the pyclass which is functionally equivalent to the blanket.
+As a second step the `from_py_object` option was introduced.
+This option also opts-out of the blanket implementation and instead generates a custom `FromPyObject` implementation for the pyclass which is functionally equivalent to the blanket.
 
 ## `IntoPyObject`
 
-The [`IntoPyObject`] trait defines the to-python conversion for a Rust type. All types in PyO3 implement this trait,
-as does a `#[pyclass]` which doesn't use `extends`.
+The [`IntoPyObject`] trait defines the to-python conversion for a Rust type.
+All types in PyO3 implement this trait, as does a `#[pyclass]` which doesn't use `extends`.
 
-This trait defines a single method, `into_pyobject()`, which returns a [`Result`] with `Ok` and `Err` types depending on the input value. For convenience, there is a companion [`IntoPyObjectExt`] trait which adds methods such as `into_py_any()` which converts the `Ok` and `Err` types to commonly used types (in the case of `into_py_any()`, `Py<PyAny>` and `PyErr` respectively).
+This trait defines a single method, `into_pyobject()`, which returns a [`Result`] with `Ok` and `Err` types depending on the input value.
+For convenience, there is a companion [`IntoPyObjectExt`] trait which adds methods such as `into_py_any()` which converts the `Ok` and `Err` types to commonly used types (in the case of `into_py_any()`, `Py<PyAny>` and `PyErr` respectively).
 
 Occasionally you may choose to implement this for custom types which are mapped to Python types
 *without* having a unique python type.
 
 ### derive macro
 
-`IntoPyObject` can be implemented using our derive macro. Both `struct`s and `enum`s are supported.
+`IntoPyObject` can be implemented using our derive macro.
+Both `struct`s and `enum`s are supported.
 
 `struct`s will turn into a `PyDict` using the field names as keys, tuple `struct`s will turn convert
 into `PyTuple` with the fields in declaration order.
@@ -635,8 +631,8 @@ enum Enum<'a, 'py, K: Hash + Eq, V> { // enums are supported and convert using t
 }
 ```
 
-Additionally `IntoPyObject` can be derived for a reference to a struct or enum using the
-`IntoPyObjectRef` derive macro. All the same rules from above apply as well.
+Additionally `IntoPyObject` can be derived for a reference to a struct or enum using the `IntoPyObjectRef` derive macro.
+All the same rules from above apply as well.
 
 #### `#[derive(IntoPyObject)]`/`#[derive(IntoPyObjectRef)]` Field Attributes
 
@@ -700,7 +696,8 @@ impl<'a, 'py> IntoPyObject<'py> for &'a MyPyObjectWrapper {
 
 ### `BoundObject` for conversions that may be `Bound` or `Borrowed`
 
-`IntoPyObject::into_py_object` returns either `Bound` or `Borrowed` depending on the implementation for a concrete type. For example, the `IntoPyObject` implementation for `u32` produces a `Bound<'py, PyInt>` and the `bool` implementation produces a `Borrowed<'py, 'py, PyBool>`:
+`IntoPyObject::into_py_object` returns either `Bound` or `Borrowed` depending on the implementation for a concrete type.
+For example, the `IntoPyObject` implementation for `u32` produces a `Bound<'py, PyInt>` and the `bool` implementation produces a `Borrowed<'py, 'py, PyBool>`:
 
 ```rust,no_run
 use pyo3::prelude::*;

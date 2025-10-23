@@ -4,8 +4,8 @@ If you already have some existing Python code that you need to execute from Rust
 
 ## Want to access Python APIs? Then use `PyModule::import`
 
-[`PyModule::import`] can be used to get handle to a Python module from Rust. You can use this to import and use any Python
-module available in your environment.
+[`PyModule::import`] can be used to get handle to a Python module from Rust.
+You can use this to import and use any Python module available in your environment.
 
 ```rust
 use pyo3::prelude::*;
@@ -145,9 +145,8 @@ An import in Python will first attempt to lookup the module from this dict,
 and if not present will use various strategies to attempt to locate and load
 the module.
 
-The [`append_to_inittab`]({{#PYO3_DOCS_URL}}/pyo3/macro.append_to_inittab.html)
-macro can be used to add additional `#[pymodule]` modules to an embedded
-Python interpreter. The macro **must** be invoked _before_ initializing Python.
+The [`append_to_inittab`]({{#PYO3_DOCS_URL}}/pyo3/macro.append_to_inittab.html) macro can be used to add additional `#[pymodule]` modules to an embedded Python interpreter.
+The macro **must** be invoked _before_ initializing Python.
 
 As an example, the below adds the module `foo` to the embedded interpreter:
 
@@ -210,8 +209,8 @@ You can include a file at compile time by using
 Or you can load a file at runtime by using
 [`std::fs::read_to_string`](https://doc.rust-lang.org/std/fs/fn.read_to_string.html) function.
 
-Many Python files can be included and loaded as modules. If one file depends on
-another you must preserve correct order while declaring `PyModule`.
+Many Python files can be included and loaded as modules.
+If one file depends on another you must preserve correct order while declaring `PyModule`.
 
 Example directory structure:
 
@@ -379,7 +378,8 @@ class House(object):
 
 ## Handling system signals/interrupts (Ctrl-C)
 
-The best way to handle system signals when running Rust code is to periodically call `Python::check_signals` to handle any signals captured by Python's signal handler. See also [the FAQ entry](../faq.md#ctrl-c-doesnt-do-anything-while-my-rust-code-is-executing).
+The best way to handle system signals when running Rust code is to periodically call `Python::check_signals` to handle any signals captured by Python's signal handler.
+See also [the FAQ entry](../faq.md#ctrl-c-doesnt-do-anything-while-my-rust-code-is-executing).
 
 Alternatively, set Python's `signal` module to take the default action for a signal:
 
