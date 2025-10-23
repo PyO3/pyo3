@@ -399,7 +399,7 @@ mod tests {
         PyModule::from_code(
             py,
             index_code,
-            c_str!("index.py"),
+            c"index.py",
             &generate_unique_module_name("index"),
         )
         .unwrap()
@@ -411,9 +411,7 @@ mod tests {
             let index = python_index_class(py);
             let locals = PyDict::new(py);
             locals.set_item("index", index).unwrap();
-            let ob = py
-                .eval(ffi::c_str!("index.C(10)"), None, Some(&locals))
-                .unwrap();
+            let ob = py.eval(c"index.C(10)", None, Some(&locals)).unwrap();
             let _: BigInt = ob.extract().unwrap();
         });
     }

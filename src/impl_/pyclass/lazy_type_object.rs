@@ -13,7 +13,7 @@ use crate::types::PyTypeMethods;
 use crate::{
     exceptions::PyRuntimeError,
     ffi,
-    impl_::{pyclass::MaybeRuntimePyMethodDef, pymethods::PyMethodDefType},
+    impl_::pymethods::PyMethodDefType,
     pyclass::{create_type_object, PyClassTypeObject},
     types::PyType,
     Bound, Py, PyAny, PyClass, PyErr, PyResult, Python,
@@ -162,15 +162,7 @@ impl LazyTypeObjectInner {
         // meantime: at worst, we'll just make a useless computation.
         let mut items = vec![];
         for class_items in items_iter {
-            for def in class_items.methods {
-                let built_method;
-                let method = match def {
-                    MaybeRuntimePyMethodDef::Runtime(builder) => {
-                        built_method = builder();
-                        &built_method
-                    }
-                    MaybeRuntimePyMethodDef::Static(method) => method,
-                };
+            for method in class_items.methods {
                 if let PyMethodDefType::ClassAttribute(attr) = method {
                     match (attr.meth)(py) {
                         Ok(val) => items.push((attr.name, val)),

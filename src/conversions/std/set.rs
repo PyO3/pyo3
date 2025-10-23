@@ -35,7 +35,6 @@ where
 impl<'a, 'py, K, H> IntoPyObject<'py> for &'a collections::HashSet<K, H>
 where
     &'a K: IntoPyObject<'py> + Eq + hash::Hash,
-    K: 'a, // MSRV
     H: hash::BuildHasher,
 {
     type Target = PySet;

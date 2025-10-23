@@ -407,7 +407,7 @@ impl Python<'_> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| -> PyResult<()> {
-    ///     let x: i32 = py.eval(c_str!("5"), None, None)?.extract()?;
+    ///     let x: i32 = py.eval(c"5", None, None)?.extract()?;
     ///     assert_eq!(x, 5);
     ///     Ok(())
     /// })
@@ -475,7 +475,7 @@ impl Python<'_> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::initialize();
-    /// Python::attach(|py| py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None))
+    /// Python::attach(|py| py.run(c"print('Hello World')", None, None))
     /// # }
     /// ```
     #[cfg(not(any(PyPy, GraalPy)))]
@@ -618,7 +618,7 @@ impl<'py> Python<'py> {
     /// # use pyo3::prelude::*;
     /// # use pyo3::ffi::c_str;
     /// # Python::attach(|py| {
-    /// let result = py.eval(c_str!("[i * 10 for i in range(5)]"), None, None).unwrap();
+    /// let result = py.eval(c"[i * 10 for i in range(5)]", None, None).unwrap();
     /// let res: Vec<i64> = result.extract().unwrap();
     /// assert_eq!(res, vec![0, 10, 20, 30, 40])
     /// # });
@@ -629,12 +629,7 @@ impl<'py> Python<'py> {
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let code = PyCode::compile(
-            self,
-            code,
-            ffi::c_str!("<string>"),
-            crate::types::PyCodeInput::Eval,
-        )?;
+        let code = PyCode::compile(self, code, c"<string>", crate::types::PyCodeInput::Eval)?;
         code.run(globals, locals)
     }
 
@@ -655,12 +650,11 @@ impl<'py> Python<'py> {
     /// };
     /// Python::attach(|py| {
     ///     let locals = PyDict::new(py);
-    ///     py.run(c_str!(
-    ///         r#"
+    ///     py.run(cr#"
     /// import base64
     /// s = 'Hello Rust!'
     /// ret = base64.b64encode(s.encode('utf-8'))
-    /// "#),
+    /// "#,
     ///         None,
     ///         Some(&locals),
     ///     )
@@ -679,12 +673,7 @@ impl<'py> Python<'py> {
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
-        let code = PyCode::compile(
-            self,
-            code,
-            ffi::c_str!("<string>"),
-            crate::types::PyCodeInput::File,
-        )?;
+        let code = PyCode::compile(self, code, c"<string>", crate::types::PyCodeInput::File)?;
         code.run(globals, locals).map(|obj| {
             debug_assert!(obj.is_none());
         })
@@ -861,7 +850,7 @@ mod tests {
         Python::attach(|py| {
             // Make sure builtin names are accessible
             let v: i32 = py
-                .eval(ffi::c_str!("min(1, 2)"), None, None)
+                .eval(c"min(1, 2)", None, None)
                 .map_err(|e| e.display(py))
                 .unwrap()
                 .extract()
@@ -872,7 +861,7 @@ mod tests {
 
             // Inject our own global namespace
             let v: i32 = py
-                .eval(ffi::c_str!("foo + 29"), Some(&d), None)
+                .eval(c"foo + 29", Some(&d), None)
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -880,7 +869,7 @@ mod tests {
 
             // Inject our own local namespace
             let v: i32 = py
-                .eval(ffi::c_str!("foo + 29"), None, Some(&d))
+                .eval(c"foo + 29", None, Some(&d))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -888,7 +877,7 @@ mod tests {
 
             // Make sure builtin names are still accessible when using a local namespace
             let v: i32 = py
-                .eval(ffi::c_str!("min(foo, 2)"), None, Some(&d))
+                .eval(c"min(foo, 2)", None, Some(&d))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -985,7 +974,7 @@ mod tests {
             assert_eq!(py.Ellipsis().to_string(), "Ellipsis");
 
             let v = py
-                .eval(ffi::c_str!("..."), None, None)
+                .eval(c"...", None, None)
                 .map_err(|e| e.display(py))
                 .unwrap();
 
@@ -1000,7 +989,7 @@ mod tests {
         Python::attach(|py| {
             let namespace = PyDict::new(py);
             py.run(
-                ffi::c_str!("class Foo: pass\na = int(3)"),
+                c"class Foo: pass\na = int(3)",
                 Some(&namespace),
                 Some(&namespace),
             )

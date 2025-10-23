@@ -18,10 +18,42 @@ The following sections also contain specific ideas on where to start contributin
 ## Setting up a development environment
 
 To work and develop PyO3, you need Python & Rust installed on your system.
+
 * We encourage the use of [rustup](https://rustup.rs/) to be able to select and choose specific toolchains based on the project.
 * [Pyenv](https://github.com/pyenv/pyenv) is also highly recommended for being able to choose a specific Python version.
 * [virtualenv](https://virtualenv.pypa.io/en/latest/) can also be used with or without Pyenv to use specific installed Python versions.
 * [`nox`][nox] is used to automate many of our CI tasks.
+
+### Testing, linting, etc. with nox
+
+[`Nox`][nox] is used to automate many of our CI tasks and can be used locally to handle verfication tasks as you code. We recommend running these actions via nox to make use of our prefered configuration options. You can install nox into your global python with pip: `pip install nox` or (recommended) with [`pipx`][pipx] `pip install pipx`, `pipx install nox`
+
+The main nox commands we have implemented are:
+
+* `nox -s test` will run the full suite of recommended rust and python tests (>10 minutes)
+* `nox -s test-rust -- skip-full` will run a short suite of rust tests (2-3 minutes)
+* `nox -s ruff` will check python linting and apply standard formatting rules
+* `nox -s rustfmt` will check basic rust linting and apply standard formatting rules
+* `nox -s rumdl` will check the markdown in the guide
+* `nox -s clippy` will run clippy to make recommendations on rust style
+* `nox -s bench` will benchmark your rust code
+* `nox -s codspeed` will run our suite of rust and python performance tests
+* `nox -s coverage` will analyse test coverage and output `coverage.json` (alternatively: `nox -s coverage lcov` outputs `lcov.info`)
+* `nox -s check-guide` will use [`lychee`][lychee] to check all the links in the guide and doc comments.
+
+Use  `nox -l` to list the full set of subcommands you can run.
+
+#### UI Tests
+
+PyO3 uses [`trybuild`][trybuild] to develop UI tests to capture error messages from the Rust compiler for some of the macro functionality.
+
+Because there are several feature combinations for these UI tests, when updating them all (e.g. for a new Rust compiler version) it may be helpful to use the `update-ui-tests` nox session:
+
+```bash
+nox -s update-ui-tests
+```
+
+## Ways to help
 
 ### Help users identify bugs
 
@@ -88,44 +120,16 @@ Here are a few things to note when you are writing PRs.
 
 ### Testing and Continuous Integration
 
-The PyO3 repo uses GitHub Actions. PRs are blocked from merging if CI is not successful. Formatting, linting and tests are checked for all Rust and Python code. In addition, all warnings in Rust code are disallowed (using `RUSTFLAGS="-D warnings"`).
+The PyO3 repo uses GitHub Actions.
+PRs are blocked from merging if CI is not successful.
+Formatting, linting and tests are checked for all Rust and Python code (the pipeline will abort early if formatting fails to save resources).
+In addition, all warnings in Rust code are disallowed (using `RUSTFLAGS="-D warnings"`).
 
 Tests run with all supported Python versions with the latest stable Rust compiler, as well as for Python 3.9 with the minimum supported Rust version.
 
 If you are adding a new feature, you should add it to the `full` feature in our *Cargo.toml** so that it is tested in CI.
 
-You can run these checks yourself with `nox`. Use  `nox -l` to list the full set of subcommands you can run.
-
-#### Linting Python code
-`nox -s ruff`
-
-#### Linting Rust code
-`nox -s rustfmt`
-
-#### Linting Markdown documentation
-`nox -s rumdl`
-
-#### Semver checks
-`cargo semver-checks check-release`
-
-#### Clippy
-`nox -s clippy-all`
-
-#### Tests
-`nox -s test` or `cargo test` for Rust tests only, `nox -f pytests/noxfile.py -s test` for Python tests only
-
-#### Check all conditional compilation
-`nox -s check-feature-powerset`
-
-#### UI Tests
-
-PyO3 uses [`trybuild`](https://github.com/dtolnay/trybuild) to develop UI tests to capture error messages from the Rust compiler for some of the macro functionality.
-
-Because there are several feature combinations for these UI tests, when updating them all (e.g. for a new Rust compiler version) it may be helpful to use the `update-ui-tests` nox session:
-
-```bash
-nox -s update-ui-tests
-```
+You can run the CI pipeline components yourself with `nox`, see [the testing section above](#testing-linting-etc-with-nox).
 
 ### Documenting changes
 
@@ -255,3 +259,5 @@ In the meanwhile, some of our maintainers have personal GitHub sponsorship pages
 [mdbook-tabs]: https://mdbook-plugins.rustforweb.org/tabs.html
 [lychee]: https://github.com/lycheeverse/lychee
 [nox]: https://github.com/theacodes/nox
+[pipx]: https://pipx.pypa.io/stable/
+[trybuild]: https://github.com/dtolnay/trybuild

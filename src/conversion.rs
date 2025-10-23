@@ -3,6 +3,8 @@ use crate::err::PyResult;
 use crate::impl_::pyclass::ExtractPyClassWithClone;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::pyclass::boolean_struct::False;
 use crate::pyclass::{PyClassGuardError, PyClassGuardMutError};
 use crate::types::PyTuple;
@@ -10,7 +12,6 @@ use crate::{
     Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyClassGuard, PyErr, PyRef, PyRefMut, Python,
 };
 use std::convert::Infallible;
-#[cfg(return_position_impl_trait_in_traits)]
 use std::marker::PhantomData;
 
 /// Defines a conversion from a Rust type to a Python object, which may fail.
@@ -32,14 +33,11 @@ use std::marker::PhantomData;
 ///
 /// - The [`IntoPyObjectExt`] trait, which provides convenience methods for common usages of
 ///   `IntoPyObject` which erase type information and convert errors to `PyErr`.
-#[cfg_attr(
-    diagnostic_namespace,
-    diagnostic::on_unimplemented(
-        message = "`{Self}` cannot be converted to a Python object",
-        note = "`IntoPyObject` is automatically implemented by the `#[pyclass]` macro",
-        note = "if you do not wish to have a corresponding Python type, implement it manually",
-        note = "if you do not own `{Self}` you can perform a manual conversion to one of the types in `pyo3::types::*`"
-    )
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be converted to a Python object",
+    note = "`IntoPyObject` is automatically implemented by the `#[pyclass]` macro",
+    note = "if you do not wish to have a corresponding Python type, implement it manually",
+    note = "if you do not own `{Self}` you can perform a manual conversion to one of the types in `pyo3::types::*`"
 )]
 pub trait IntoPyObject<'py>: Sized {
     /// The Python output type
@@ -60,7 +58,7 @@ pub trait IntoPyObject<'py>: Sized {
     /// For most types, the return value for this method will be identical to that of [`FromPyObject::INPUT_TYPE`].
     /// It may be different for some types, such as `Dict`, to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = "typing.Any";
+    const OUTPUT_TYPE: TypeHint = TypeHint::module_attr("typing", "Any");
 
     /// Performs the conversion.
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error>;
@@ -194,7 +192,7 @@ where
     type Error = <&'a T as IntoPyObject<'py>>::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = <&'a T as IntoPyObject<'py>>::OUTPUT_TYPE;
+    const OUTPUT_TYPE: TypeHint = <&'a T as IntoPyObject<'py>>::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -391,7 +389,7 @@ pub trait FromPyObject<'a, 'py>: Sized {
     /// For example, `Vec<u32>` would be `collections.abc.Sequence[int]`.
     /// The default value is `typing.Any`, which is correct for any type.
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "typing.Any";
+    const INPUT_TYPE: TypeHint = TypeHint::module_attr("typing", "Any");
 
     /// Extracts `Self` from the bound smart pointer `obj`.
     ///
@@ -417,7 +415,6 @@ pub trait FromPyObject<'a, 'py>: Sized {
     /// iteration.
     #[doc(hidden)]
     #[inline(always)]
-    #[cfg(return_position_impl_trait_in_traits)]
     fn sequence_extractor(
         _obj: Borrowed<'_, 'py, PyAny>,
         _: private::Token,
@@ -439,17 +436,6 @@ pub trait FromPyObject<'a, 'py>: Sized {
         Option::<NeverASequence<Self>>::None
     }
 
-    /// Equivalent to the above for MSRV < 1.75, which pays an additional allocation cost.
-    #[doc(hidden)]
-    #[inline(always)]
-    #[cfg(not(return_position_impl_trait_in_traits))]
-    fn sequence_extractor<'b>(
-        _obj: Borrowed<'b, 'b, PyAny>,
-        _: private::Token,
-    ) -> Option<Box<dyn FromPyObjectSequence<Target = Self> + 'b>> {
-        None
-    }
-
     /// Helper used to make a specialized path in extracting `DateTime<Tz>` where `Tz` is
     /// `chrono::Local`, which will accept "naive" datetime objects as being in the local timezone.
     #[cfg(feature = "chrono-local")]
@@ -469,14 +455,7 @@ mod from_py_object_sequence {
 
         fn to_vec(&self) -> Vec<Self::Target>;
 
-        #[cfg(return_position_impl_trait_in_traits)]
         fn to_array<const N: usize>(&self) -> PyResult<[Self::Target; N]>;
-
-        /// Fills an uninit slice with values from the object.
-        ///
-        /// on success, `out` is fully initialized, on failure, `out` should be considered uninitialized.
-        #[cfg(not(return_position_impl_trait_in_traits))]
-        fn fill_slice(&self, out: &mut [std::mem::MaybeUninit<Self::Target>]) -> PyResult<()>;
     }
 }
 
@@ -543,7 +522,7 @@ where
     type Error = PyClassGuardError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = <T as crate::impl_::pyclass::PyClassImpl>::TYPE_NAME;
+    const INPUT_TYPE: TypeHint = <T as crate::PyTypeInfo>::TYPE_HINT;
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         Ok(obj.extract::<PyClassGuard<'_, T>>()?.clone())
@@ -557,7 +536,7 @@ where
     type Error = PyClassGuardError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = <T as crate::impl_::pyclass::PyClassImpl>::TYPE_NAME;
+    const INPUT_TYPE: TypeHint = <T as crate::PyTypeInfo>::TYPE_HINT;
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         obj.cast::<T>()
@@ -574,7 +553,7 @@ where
     type Error = PyClassGuardMutError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = <T as crate::impl_::pyclass::PyClassImpl>::TYPE_NAME;
+    const INPUT_TYPE: TypeHint = <T as crate::PyTypeInfo>::TYPE_HINT;
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         obj.cast::<T>()

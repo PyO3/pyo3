@@ -1,6 +1,8 @@
 use super::PyWeakrefMethods;
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeCheck;
@@ -24,7 +26,10 @@ unsafe impl PyTypeCheck for PyWeakrefProxy {
     const NAME: &'static str = "weakref.ProxyTypes";
 
     #[cfg(feature = "experimental-inspect")]
-    const PYTHON_TYPE: &'static str = "weakref.ProxyType | weakref.CallableProxyType";
+    const TYPE_HINT: TypeHint = TypeHint::union(&[
+        TypeHint::module_attr("weakref", "ProxyType"),
+        TypeHint::module_attr("weakref", "CallableProxyType"),
+    ]);
 
     #[inline]
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
@@ -112,13 +117,13 @@ impl PyWeakrefProxy {
     /// fn callback(wref: Bound<'_, PyWeakrefProxy>) -> PyResult<()> {
     ///         let py = wref.py();
     ///         assert!(wref.upgrade_as::<Foo>()?.is_none());
-    ///         py.run(c_str!("counter = 1"), None, None)
+    ///         py.run(c"counter = 1", None, None)
     /// }
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| {
-    ///     py.run(c_str!("counter = 0"), None, None)?;
-    ///     assert_eq!(py.eval(c_str!("counter"), None, None)?.extract::<u32>()?, 0);
+    ///     py.run(c"counter = 0", None, None)?;
+    ///     assert_eq!(py.eval(c"counter", None, None)?.extract::<u32>()?, 0);
     ///     let foo = Bound::new(py, Foo{})?;
     ///
     ///     // This is fine.
@@ -128,7 +133,7 @@ impl PyWeakrefProxy {
     ///         // In normal situations where a direct `Bound<'py, Foo>` is required use `upgrade::<Foo>`
     ///         weakref.upgrade().is_some_and(|obj| obj.is(&foo))
     ///     );
-    ///     assert_eq!(py.eval(c_str!("counter"), None, None)?.extract::<u32>()?, 0);
+    ///     assert_eq!(py.eval(c"counter", None, None)?.extract::<u32>()?, 0);
     ///
     ///     let weakref2 = PyWeakrefProxy::new_with(&foo, wrap_pyfunction!(callback, py)?)?;
     ///     assert!(!weakref.is(&weakref2)); // Not the same weakref
@@ -137,7 +142,7 @@ impl PyWeakrefProxy {
     ///     drop(foo);
     ///
     ///     assert!(weakref.upgrade_as::<Foo>()?.is_none());
-    ///     assert_eq!(py.eval(c_str!("counter"), None, None)?.extract::<u32>()?, 1);
+    ///     assert_eq!(py.eval(c"counter", None, None)?.extract::<u32>()?, 1);
     ///     Ok(())
     /// })
     /// # }
@@ -250,15 +255,14 @@ mod tests {
             use super::*;
             #[cfg(Py_3_10)]
             use crate::types::PyInt;
-            use crate::{ffi, PyTypeCheck};
+            use crate::PyTypeCheck;
             use crate::{py_result_ext::PyResultExt, types::PyDict, types::PyType};
             use std::ptr;
 
             fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
                 let globals = PyDict::new(py);
-                py.run(ffi::c_str!("class A:\n    pass\n"), Some(&globals), None)?;
-                py.eval(ffi::c_str!("A"), Some(&globals), None)
-                    .cast_into::<PyType>()
+                py.run(c"class A:\n    pass\n", Some(&globals), None)?;
+                py.eval(c"A", Some(&globals), None).cast_into::<PyType>()
             }
 
             #[test]
@@ -609,19 +613,18 @@ mod tests {
 
         mod python_class {
             use super::*;
-            use crate::{ffi, PyTypeCheck};
+            use crate::PyTypeCheck;
             use crate::{py_result_ext::PyResultExt, types::PyDict, types::PyType};
             use std::ptr;
 
             fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
                 let globals = PyDict::new(py);
                 py.run(
-                    ffi::c_str!("class A:\n    def __call__(self):\n        return 'This class is callable!'\n"),
+                    c"class A:\n    def __call__(self):\n        return 'This class is callable!'\n",
                     Some(&globals),
                     None,
                 )?;
-                py.eval(ffi::c_str!("A"), Some(&globals), None)
-                    .cast_into::<PyType>()
+                py.eval(c"A", Some(&globals), None).cast_into::<PyType>()
             }
 
             #[test]

@@ -1,8 +1,8 @@
-import _typeshed
-import typing
+from _typeshed import Incomplete
+from typing import Any
 
 class AssertingBaseClass:
-    def __new__(cls, /, expected_type: typing.Any) -> None: ...
+    def __new__(cls, /, expected_type: Any) -> None: ...
 
 class ClassWithDecorators:
     def __new__(cls, /) -> None: ...
@@ -47,5 +47,5 @@ class PyClassThreadIter:
     def __next__(self, /) -> int: ...
 
 def map_a_class(
-    cls: EmptyClass | tuple[EmptyClass, EmptyClass] | _typeshed.Incomplete,
-) -> EmptyClass | tuple[EmptyClass, EmptyClass] | _typeshed.Incomplete: ...
+    cls: EmptyClass | tuple[EmptyClass, EmptyClass] | Incomplete,
+) -> EmptyClass | tuple[EmptyClass, EmptyClass] | Incomplete: ...

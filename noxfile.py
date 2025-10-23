@@ -214,7 +214,7 @@ def rumdl(session: nox.Session):
 
 @nox.session(name="clippy", venv_backend="none")
 def clippy(session: nox.Session) -> bool:
-    if not _clippy(session) and _clippy_additional_workspaces(session):
+    if not (_clippy(session) and _clippy_additional_workspaces(session)):
         session.error("one or more jobs failed")
 
 
@@ -1109,7 +1109,15 @@ def test_introspection(session: nox.Session):
     profile = os.environ.get("CARGO_BUILD_PROFILE")
     if profile == "release":
         options.append("--release")
-    session.run_always("maturin", "develop", "-m", "./pytests/Cargo.toml", *options)
+    session.run_always(
+        "maturin",
+        "develop",
+        "-m",
+        "./pytests/Cargo.toml",
+        "--features",
+        "experimental-inspect",
+        *options,
+    )
     # We look for the built library
     lib_file = None
     for file in Path(session.virtualenv.location).rglob("pyo3_pytests.*"):

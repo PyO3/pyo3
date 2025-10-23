@@ -45,7 +45,6 @@ the Python object, i.e. `obj.getattr("my_string")`, and call `extract()` on the 
 
 ```rust
 use pyo3::prelude::*;
-use pyo3_ffi::c_str;
 
 #[derive(FromPyObject)]
 struct RustyStruct {
@@ -56,11 +55,11 @@ struct RustyStruct {
 #     Python::attach(|py| -> PyResult<()> {
 #         let module = PyModule::from_code(
 #             py,
-#             c_str!("class Foo:
+#             c"class Foo:
 #             def __init__(self):
-#                 self.my_string = 'test'"),
-#             c_str!("<string>"),
-#             c_str!(""),
+#                 self.my_string = 'test'",
+#             c"<string>",
+#             c"",
 #         )?;
 #
 #         let class = module.getattr("Foo")?;
@@ -100,7 +99,6 @@ The argument passed to `getattr` and `get_item` can also be configured:
 
 ```rust
 use pyo3::prelude::*;
-use pyo3_ffi::c_str;
 
 #[derive(FromPyObject)]
 struct RustyStruct {
@@ -114,12 +112,12 @@ struct RustyStruct {
 #     Python::attach(|py| -> PyResult<()> {
 #         let module = PyModule::from_code(
 #             py,
-#             c_str!("class Foo(dict):
+#             c"class Foo(dict):
 #             def __init__(self):
 #                 self.name = 'test'
-#                 self['key'] = 'test2'"),
-#             c_str!("<string>"),
-#             c_str!(""),
+#                 self['key'] = 'test2'",
+#             c"<string>",
+#             c"",
 #         )?;
 #
 #         let class = module.getattr("Foo")?;
@@ -154,7 +152,7 @@ struct RustyStruct {
 #
 # fn main() -> PyResult<()> {
 #     Python::attach(|py| -> PyResult<()> {
-#         let py_dict = py.eval(pyo3::ffi::c_str!("{'foo': 'foo', 'bar': 'bar', 'foobar': 'foobar'}"), None, None)?;
+#         let py_dict = py.eval(c"{'foo': 'foo', 'bar': 'bar', 'foobar': 'foobar'}", None, None)?;
 #         let rustystruct: RustyStruct = py_dict.extract()?;
 # 		  assert_eq!(rustystruct.foo, "foo");
 #         assert_eq!(rustystruct.bar, "bar");
@@ -257,7 +255,6 @@ The `transparent` attribute can be applied to single-field-variants.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3_ffi::c_str;
 
 #[derive(FromPyObject)]
 # #[derive(Debug)]
@@ -337,13 +334,13 @@ enum RustyEnum<'py> {
 #         {
 #             let module = PyModule::from_code(
 #                 py,
-#                 c_str!("class Foo(dict):
+#                 c"class Foo(dict):
 #             def __init__(self):
 #                 self.x = 0
 #                 self.y = 1
-#                 self.z = 2"),
-#                 c_str!("<string>"),
-#                 c_str!(""),
+#                 self.z = 2",
+#                 c"<string>",
+#                 c"",
 #             )?;
 #
 #             let class = module.getattr("Foo")?;
@@ -362,12 +359,12 @@ enum RustyEnum<'py> {
 #         {
 #             let module = PyModule::from_code(
 #                 py,
-#                 c_str!("class Foo(dict):
+#                 c"class Foo(dict):
 #             def __init__(self):
 #                 self.x = 3
-#                 self.y = 4"),
-#                 c_str!("<string>"),
-#                 c_str!(""),
+#                 self.y = 4",
+#                 c"<string>",
+#                 c"",
 #             )?;
 #
 #             let class = module.getattr("Foo")?;

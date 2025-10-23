@@ -1,4 +1,4 @@
-use crate::conversion::{FromPyObjectOwned, IntoPyObject};
+use crate::conversion::{FromPyObjectOwned, FromPyObjectSequence, IntoPyObject};
 use crate::types::any::PyAnyMethods;
 use crate::types::PySequence;
 use crate::{err::CastError, ffi, FromPyObject, PyAny, PyResult, PyTypeInfo, Python};
@@ -44,21 +44,7 @@ where
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Some(extractor) = T::sequence_extractor(obj, crate::conversion::private::Token) {
-            #[cfg(return_position_impl_trait_in_traits)]
-            {
-                use crate::conversion::FromPyObjectSequence;
-                return extractor.to_array();
-            }
-
-            #[cfg(not(return_position_impl_trait_in_traits))]
-            {
-                use std::array;
-
-                let mut out = array::from_fn(|_| std::mem::MaybeUninit::uninit());
-                extractor.fill_slice(&mut out)?;
-                // Safety: `out` is fully initialized by successful `fill_slice`
-                return Ok(out.map(|x| unsafe { x.assume_init() }));
-            }
+            return extractor.to_array();
         }
 
         create_array_from_obj(obj)
@@ -145,7 +131,6 @@ mod tests {
 
     use crate::{
         conversion::IntoPyObject,
-        ffi,
         types::{any::PyAnyMethods, PyBytes, PyBytesMethods},
     };
     use crate::{types::PyList, PyResult, Python};
@@ -175,25 +160,18 @@ mod tests {
     fn test_extract_bytes_to_array() {
         Python::attach(|py| {
             let v: [u8; 33] = py
-                .eval(
-                    ffi::c_str!("b'abcabcabcabcabcabcabcabcabcabcabc'"),
-                    None,
-                    None,
-                )
+                .eval(c"b'abcabcabcabcabcabcabcabcabcabcabc'", None, None)
                 .unwrap()
                 .extract()
                 .unwrap();
-            assert!(&v == b"abcabcabcabcabcabcabcabcabcabcabc");
+            assert_eq!(&v, b"abcabcabcabcabcabcabcabcabcabcabc");
         })
     }
 
     #[test]
     fn test_extract_bytes_wrong_length() {
         Python::attach(|py| {
-            let v: PyResult<[u8; 3]> = py
-                .eval(ffi::c_str!("b'abcdefg'"), None, None)
-                .unwrap()
-                .extract();
+            let v: PyResult<[u8; 3]> = py.eval(c"b'abcdefg'", None, None).unwrap().extract();
             assert_eq!(
                 v.unwrap_err().to_string(),
                 "ValueError: expected a sequence of length 3 (got 7)"
@@ -206,14 +184,14 @@ mod tests {
         Python::attach(|py| {
             let v: [u8; 33] = py
                 .eval(
-                    ffi::c_str!("bytearray(b'abcabcabcabcabcabcabcabcabcabcabc')"),
+                    c"bytearray(b'abcabcabcabcabcabcabcabcabcabcabc')",
                     None,
                     None,
                 )
                 .unwrap()
                 .extract()
                 .unwrap();
-            assert!(&v == b"abcabcabcabcabcabcabcabcabcabcabc");
+            assert_eq!(&v, b"abcabcabcabcabcabcabcabcabcabcabc");
         })
     }
 
@@ -221,11 +199,11 @@ mod tests {
     fn test_extract_small_bytearray_to_array() {
         Python::attach(|py| {
             let v: [u8; 3] = py
-                .eval(ffi::c_str!("bytearray(b'abc')"), None, None)
+                .eval(c"bytearray(b'abc')", None, None)
                 .unwrap()
                 .extract()
                 .unwrap();
-            assert!(&v == b"abc");
+            assert_eq!(&v, b"abc");
         });
     }
     #[test]
@@ -245,7 +223,7 @@ mod tests {
     fn test_extract_invalid_sequence_length() {
         Python::attach(|py| {
             let v: PyResult<[u8; 3]> = py
-                .eval(ffi::c_str!("bytearray(b'abcdefg')"), None, None)
+                .eval(c"bytearray(b'abcdefg')", None, None)
                 .unwrap()
                 .extract();
             assert_eq!(
@@ -290,7 +268,7 @@ mod tests {
     #[test]
     fn test_extract_non_iterable_to_array() {
         Python::attach(|py| {
-            let v = py.eval(ffi::c_str!("42"), None, None).unwrap();
+            let v = py.eval(c"42", None, None).unwrap();
             v.extract::<i32>().unwrap();
             v.extract::<[i32; 1]>().unwrap_err();
         });

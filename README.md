@@ -4,7 +4,7 @@
 [![benchmark](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://codspeed.io/PyO3/pyo3)
 [![codecov](https://img.shields.io/codecov/c/gh/PyO3/pyo3?logo=codecov)](https://codecov.io/gh/PyO3/pyo3)
 [![crates.io](https://img.shields.io/crates/v/pyo3?logo=rust)](https://crates.io/crates/pyo3)
-[![minimum rustc 1.63](https://img.shields.io/badge/rustc-1.63+-blue?logo=rust)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
+[![minimum rustc 1.83](https://img.shields.io/badge/rustc-1.83+-blue?logo=rust)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
 [![discord server](https://img.shields.io/discord/1209263839632424990?logo=discord)](https://discord.gg/33kcChzH7f)
 [![contributing notes](https://img.shields.io/badge/contribute-on%20github-Green?logo=github)](https://github.com/PyO3/pyo3/blob/main/Contributing.md)
 
@@ -16,12 +16,12 @@
 
 ## Usage
 
-Requires Rust 1.74 or greater.
+Requires Rust 1.83 or greater.
 
 PyO3 supports the following Python distributions:
   - CPython 3.7 or greater
   - PyPy 7.3 (Python 3.11+)
-  - GraalPy 24.2 or greater (Python 3.11+)
+  - GraalPy 25.0 or greater (Python 3.12+)
 
 You can use PyO3 to write a native Python module in Rust, or to embed Python in a Rust binary. The following sections explain each of these in turn.
 
@@ -71,7 +71,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.26.0", features = ["extension-module"] }
+pyo3 = { version = "0.27.0", features = ["extension-module"] }
 ```
 
 **`src/lib.rs`**
@@ -137,7 +137,7 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.26.0"
+version = "0.27.0"
 features = ["auto-initialize"]
 ```
 
@@ -146,7 +146,6 @@ Example program displaying the value of `sys.version` and the current user name:
 ```rust
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
-use pyo3::ffi::c_str;
 
 fn main() -> PyResult<()> {
     Python::attach(|py| {
@@ -154,7 +153,7 @@ fn main() -> PyResult<()> {
         let version: String = sys.getattr("version")?.extract()?;
 
         let locals = [("os", py.import("os")?)].into_py_dict(py)?;
-        let code = c_str!("os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'");
+        let code = c"os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
         let user: String = py.eval(code, None, Some(&locals))?.extract()?;
 
         println!("Hello {}, I'm Python {}", user, version);

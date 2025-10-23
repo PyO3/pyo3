@@ -5,7 +5,7 @@ use crate::{
         pycell::PyClassObject,
         pyclass::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
-            tp_dealloc_with_gc, MaybeRuntimePyMethodDef, PyClassItemsIter,
+            tp_dealloc_with_gc, PyClassItemsIter,
         },
         pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, _call_clear},
         trampoline::trampoline,
@@ -250,11 +250,8 @@ impl PyTypeBuilder {
                             let dict_offset = closure as ffi::Py_ssize_t;
                             // we don't support negative dict_offset here; PyO3 doesn't set it negative
                             assert!(dict_offset > 0);
-                            // TODO: use `.byte_offset` on MSRV 1.75
-                            let dict_ptr = object
-                                .cast::<u8>()
-                                .offset(dict_offset)
-                                .cast::<*mut ffi::PyObject>();
+                            let dict_ptr =
+                                object.byte_offset(dict_offset).cast::<*mut ffi::PyObject>();
                             if (*dict_ptr).is_null() {
                                 std::ptr::write(dict_ptr, ffi::PyDict_New());
                             }
@@ -268,7 +265,7 @@ impl PyTypeBuilder {
             }
 
             property_defs.push(ffi::PyGetSetDef {
-                name: ffi::c_str!("__dict__").as_ptr(),
+                name: c"__dict__".as_ptr(),
                 get: Some(get_dict),
                 set: Some(ffi::PyObject_GenericSetDict),
                 doc: ptr::null(),
@@ -325,14 +322,6 @@ impl PyTypeBuilder {
                 unsafe { self.push_slot(slot.slot, slot.pfunc) };
             }
             for method in items.methods {
-                let built_method;
-                let method = match method {
-                    MaybeRuntimePyMethodDef::Runtime(builder) => {
-                        built_method = builder();
-                        &built_method
-                    }
-                    MaybeRuntimePyMethodDef::Static(method) => method,
-                };
                 self.pymethod_def(method);
             }
         }
@@ -385,15 +374,13 @@ impl PyTypeBuilder {
             // __dict__ support
             if let Some(dict_offset) = dict_offset {
                 self.member_defs
-                    .push(offset_def(ffi::c_str!("__dictoffset__"), dict_offset));
+                    .push(offset_def(c"__dictoffset__", dict_offset));
             }
 
             // weakref support
             if let Some(weaklist_offset) = weaklist_offset {
-                self.member_defs.push(offset_def(
-                    ffi::c_str!("__weaklistoffset__"),
-                    weaklist_offset,
-                ));
+                self.member_defs
+                    .push(offset_def(c"__weaklistoffset__", weaklist_offset));
             }
         }
 

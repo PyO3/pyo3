@@ -1,5 +1,7 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::sync::PyOnceLock;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::any::PyAny;
@@ -22,8 +24,10 @@ unsafe impl PyTypeCheck for PyWeakref {
     const NAME: &'static str = "weakref";
 
     #[cfg(feature = "experimental-inspect")]
-    const PYTHON_TYPE: &'static str =
-        "weakref.ProxyType | weakref.CallableProxyType | weakref.ReferenceType";
+    const TYPE_HINT: TypeHint = TypeHint::union(&[
+        PyWeakrefProxy::TYPE_HINT,
+        <PyWeakrefReference as PyTypeCheck>::TYPE_HINT,
+    ]);
 
     #[inline]
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
@@ -378,13 +382,13 @@ mod tests {
         use super::*;
         #[cfg(Py_3_10)]
         use crate::types::PyInt;
-        use crate::{ffi, PyTypeCheck};
+        use crate::PyTypeCheck;
         use crate::{py_result_ext::PyResultExt, types::PyType};
         use std::ptr;
 
         fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
-            py.run(ffi::c_str!("class A:\n    pass\n"), None, None)?;
-            py.eval(ffi::c_str!("A"), None, None).cast_into::<PyType>()
+            py.run(c"class A:\n    pass\n", None, None)?;
+            py.eval(c"A", None, None).cast_into::<PyType>()
         }
 
         #[test]

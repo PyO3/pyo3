@@ -27,6 +27,8 @@ pub use self::function::PyFunction;
 #[cfg(Py_3_9)]
 pub use self::genericalias::PyGenericAlias;
 pub use self::iterator::PyIterator;
+#[cfg(all(not(PyPy), Py_3_10))]
+pub use self::iterator::PySendResult;
 pub use self::list::{PyList, PyListMethods};
 pub use self::mapping::{PyMapping, PyMappingMethods};
 pub use self::mappingproxy::PyMappingProxy;
@@ -66,7 +68,7 @@ pub use self::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefRe
 ///
 /// # pub fn main() -> PyResult<()> {
 /// Python::attach(|py| {
-///     let dict = py.eval(c_str!("{'a':'b', 'c':'d'}"), None, None)?.cast_into::<PyDict>()?;
+///     let dict = py.eval(c"{'a':'b', 'c':'d'}", None, None)?.cast_into::<PyDict>()?;
 ///
 ///     for (key, value) in &dict {
 ///         println!("key: {}, value: {}", key, value);
@@ -134,12 +136,7 @@ macro_rules! pyobject_native_type_named (
 #[macro_export]
 macro_rules! pyobject_native_static_type_object(
     ($typeobject:expr) => {
-        |_py| {
-            // TODO: remove `unsafe` and `allow` on MSRV 1.82+
-            #[allow(unused_unsafe)] // https://github.com/rust-lang/rust/pull/125834
-            // SAFETY: `typeobject` is a known `static mut PyTypeObject`
-            unsafe { ::std::ptr::addr_of_mut!($typeobject) }
-        }
+        |_py| ::std::ptr::addr_of_mut!($typeobject)
     };
 );
 

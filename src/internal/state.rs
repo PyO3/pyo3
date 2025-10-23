@@ -362,12 +362,10 @@ fn decrement_attach_count() {
 mod tests {
     use super::*;
 
-    use crate::{ffi, types::PyAnyMethods, Py, PyAny, Python};
+    use crate::{types::PyAnyMethods, Py, PyAny, Python};
 
     fn get_object(py: Python<'_>) -> Py<PyAny> {
-        py.eval(ffi::c_str!("object()"), None, None)
-            .unwrap()
-            .unbind()
+        py.eval(c"object()", None, None).unwrap().unbind()
     }
 
     #[cfg(not(pyo3_disable_reference_pool))]
@@ -504,7 +502,7 @@ mod tests {
         Python::attach(|py| {
             // Make a simple object with 1 reference
             let obj = get_object(py);
-            assert!(obj.get_refcnt(py) == 1);
+            assert_eq!(obj.get_refcnt(py), 1);
             // Cloning the object when detached should panic
             py.detach(|| obj.clone());
         });
@@ -513,7 +511,7 @@ mod tests {
     #[test]
     fn recursive_attach_ok() {
         Python::attach(|py| {
-            let obj = Python::attach(|_| py.eval(ffi::c_str!("object()"), None, None).unwrap());
+            let obj = Python::attach(|_| py.eval(c"object()", None, None).unwrap());
             assert_eq!(obj.get_refcnt(), 1);
         })
     }

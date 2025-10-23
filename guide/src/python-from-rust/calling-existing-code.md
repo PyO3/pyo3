@@ -33,12 +33,11 @@ and return the evaluated value as a `Bound<'py, PyAny>` object.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::ffi::c_str;
 
 # fn main() -> Result<(), ()> {
 Python::attach(|py| {
     let result = py
-        .eval(c_str!("[i * 10 for i in range(5)]"), None, None)
+        .eval(c"[i * 10 for i in range(5)]", None, None)
         .map_err(|e| {
             e.print_and_set_sys_last_vars(py);
         })?;
@@ -108,22 +107,21 @@ to this function!
 
 ```rust
 use pyo3::{prelude::*, types::IntoPyDict};
-use pyo3_ffi::c_str;
 
 # fn main() -> PyResult<()> {
 Python::attach(|py| {
     let activators = PyModule::from_code(
         py,
-        c_str!(r#"
+        cr#"
 def relu(x):
     """see https://en.wikipedia.org/wiki/Rectifier_(neural_networks)"""
     return max(0.0, x)
 
 def leaky_relu(x, slope=0.01):
     return x if x >= 0 else x * slope
-    "#),
-        c_str!("activators.py"),
-        c_str!("activators"),
+    "#,
+        c"activators.py",
+        c"activators",
     )?;
 
     let relu_result: f64 = activators.getattr("relu")?.call1((-1.0,))?.extract()?;
@@ -154,7 +152,6 @@ As an example, the below adds the module `foo` to the embedded interpreter:
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::ffi::c_str;
 
 #[pymodule]
 mod foo {
@@ -168,7 +165,7 @@ mod foo {
 
 fn main() -> PyResult<()> {
     pyo3::append_to_inittab!(foo);
-    Python::attach(|py| Python::run(py, c_str!("import foo; foo.add_one(6)"), None, None))
+    Python::attach(|py| Python::run(py, c"import foo; foo.add_one(6)", None, None))
 }
 ```
 
@@ -179,7 +176,6 @@ and insert it manually into `sys.modules`:
 ```rust
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use pyo3::ffi::c_str;
 
 #[pyfunction]
 pub fn add_one(x: i64) -> i64 {
@@ -200,7 +196,7 @@ fn main() -> PyResult<()> {
         py_modules.set_item("foo", foo_module)?;
 
         // Now we can import + run our python code
-        Python::run(py, c_str!("import foo; foo.add_one(6)"), None, None)
+        Python::run(py, c"import foo; foo.add_one(6)", None, None)
     })
 }
 ```
@@ -266,8 +262,8 @@ fn main() -> PyResult<()> {
     )));
     let py_app = c_str!(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py")));
     let from_python = Python::attach(|py| -> PyResult<Py<PyAny>> {
-        PyModule::from_code(py, py_foo, c_str!("foo.py"), c_str!("utils.foo"))?;
-        let app: Py<PyAny> = PyModule::from_code(py, py_app, c_str!("app.py"), c_str!(""))?
+        PyModule::from_code(py, py_foo, c"foo.py", c"utils.foo")?;
+        let app: Py<PyAny> = PyModule::from_code(py, py_app, c"app.py", c"")?
             .getattr("run")?
             .into();
         app.call0(py)
@@ -294,7 +290,6 @@ that directory is `/usr/share/python_app`).
 ```rust,no_run
 use pyo3::prelude::*;
 use pyo3::types::PyList;
-use pyo3_ffi::c_str;
 use std::fs;
 use std::path::Path;
 use std::ffi::CString;
@@ -308,7 +303,7 @@ fn main() -> PyResult<()> {
             .getattr("path")?
             .cast_into::<PyList>()?;
         syspath.insert(0, path)?;
-        let app: Py<PyAny> = PyModule::from_code(py, py_app.as_c_str(), c_str!("app.py"), c_str!(""))?
+        let app: Py<PyAny> = PyModule::from_code(py, py_app.as_c_str(), c"app.py", c"")?
             .getattr("run")?
             .into();
         app.call0(py)
@@ -325,13 +320,12 @@ Use context managers by directly invoking `__enter__` and `__exit__`.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::ffi::c_str;
 
 fn main() {
     Python::attach(|py| {
         let custom_manager = PyModule::from_code(
             py,
-            c_str!(r#"
+            cr#"
 class House(object):
     def __init__(self, address):
         self.address = address
@@ -343,9 +337,9 @@ class House(object):
         else:
             print(f"Thank you for visiting {self.address}, come again soon!")
 
-        "#),
-            c_str!("house.py"),
-            c_str!("house"),
+        "#,
+            c"house.py",
+            c"house",
         )
         .unwrap();
 
@@ -354,7 +348,7 @@ class House(object):
 
         house.call_method0("__enter__").unwrap();
 
-        let result = py.eval(c_str!("undefined_variable + 1"), None, None);
+        let result = py.eval(c"undefined_variable + 1", None, None);
 
         // If the eval threw an exception we'll pass it through to the context manager.
         // Otherwise, __exit__  is called with empty arguments (Python "None").

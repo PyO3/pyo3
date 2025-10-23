@@ -1,4 +1,4 @@
-use crate::ffi::{self, *};
+use crate::ffi::*;
 use crate::types::any::PyAnyMethods;
 use crate::Python;
 
@@ -24,7 +24,7 @@ fn test_datetime_fromtimestamp() {
         let locals = PyDict::new(py);
         locals.set_item("dt", dt).unwrap();
         py.run(
-            ffi::c_str!("import datetime; assert dt == datetime.datetime.fromtimestamp(100)"),
+            c"import datetime; assert dt == datetime.datetime.fromtimestamp(100)",
             None,
             Some(&locals),
         )
@@ -46,7 +46,7 @@ fn test_date_fromtimestamp() {
         let locals = PyDict::new(py);
         locals.set_item("dt", dt).unwrap();
         py.run(
-            ffi::c_str!("import datetime; assert dt == datetime.date.fromtimestamp(100)"),
+            c"import datetime; assert dt == datetime.date.fromtimestamp(100)",
             None,
             Some(&locals),
         )
@@ -66,7 +66,7 @@ fn test_utc_timezone() {
         let locals = PyDict::new(py);
         locals.set_item("utc_timezone", utc_timezone).unwrap();
         py.run(
-            ffi::c_str!("import datetime; assert utc_timezone is datetime.timezone.utc"),
+            c"import datetime; assert utc_timezone is datetime.timezone.utc",
             None,
             Some(&locals),
         )
@@ -302,7 +302,7 @@ fn test_get_tzinfo() {
 #[test]
 fn test_inc_dec_ref() {
     Python::attach(|py| {
-        let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+        let obj = py.eval(c"object()", None, None).unwrap();
 
         let ref_count = obj.get_refcnt();
         let ptr = obj.as_ptr();

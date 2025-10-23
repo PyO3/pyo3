@@ -1,4 +1,6 @@
 use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout as _};
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::pycell::PyBorrowMutError;
 use crate::pycell::{impl_::PyClassBorrowChecker, PyBorrowError};
 use crate::pyclass::boolean_struct::False;
@@ -307,7 +309,7 @@ impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &PyClassGuard<'a, T> {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = T::PYTHON_TYPE;
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     #[inline]
     fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {

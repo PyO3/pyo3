@@ -731,9 +731,9 @@ mod tests {
         Python::attach(|py| {
             let def =
                 PyFunctionDef::from_method_def(PyMethodDef::fastcall_cfunction_with_keywords(
-                    ffi::c_str!("test"),
+                    c"test",
                     accepts_no_arguments,
-                    ffi::c_str!("doc"),
+                    c"doc",
                 ));
             // leak to make it 'static
             // deliberately done at runtime to have coverage of `PyFunctionDef::from_method_def`

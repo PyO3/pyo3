@@ -3,6 +3,8 @@ use crate::conversion::{FromPyObjectSequence, IntoPyObject};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::types::{PyByteArray, PyByteArrayMethods, PyBytes, PyInt};
 use crate::{exceptions, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
 use std::convert::Infallible;
@@ -23,7 +25,7 @@ macro_rules! int_fits_larger_int {
             type Error = Infallible;
 
             #[cfg(feature = "experimental-inspect")]
-            const OUTPUT_TYPE: &'static str = <$larger_type>::OUTPUT_TYPE;
+            const OUTPUT_TYPE: TypeHint = <$larger_type>::OUTPUT_TYPE;
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 (self as $larger_type).into_pyobject(py)
@@ -41,7 +43,7 @@ macro_rules! int_fits_larger_int {
             type Error = Infallible;
 
             #[cfg(feature = "experimental-inspect")]
-            const OUTPUT_TYPE: &'static str = <$larger_type>::OUTPUT_TYPE;
+            const OUTPUT_TYPE: TypeHint = <$larger_type>::OUTPUT_TYPE;
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 (*self).into_pyobject(py)
@@ -57,7 +59,7 @@ macro_rules! int_fits_larger_int {
             type Error = PyErr;
 
             #[cfg(feature = "experimental-inspect")]
-            const INPUT_TYPE: &'static str = <$larger_type>::INPUT_TYPE;
+            const INPUT_TYPE: TypeHint = <$larger_type>::INPUT_TYPE;
 
             fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
                 let val: $larger_type = obj.extract()?;
@@ -106,7 +108,7 @@ macro_rules! int_convert_u64_or_i64 {
             type Error = Infallible;
 
             #[cfg(feature = "experimental-inspect")]
-            const OUTPUT_TYPE: &'static str = "int";
+            const OUTPUT_TYPE: TypeHint = TypeHint::builtin("int");
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 unsafe {
@@ -127,7 +129,7 @@ macro_rules! int_convert_u64_or_i64 {
             type Error = Infallible;
 
             #[cfg(feature = "experimental-inspect")]
-            const OUTPUT_TYPE: &'static str = "int";
+            const OUTPUT_TYPE: TypeHint = <$rust_type>::OUTPUT_TYPE;
 
             #[inline]
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -138,7 +140,7 @@ macro_rules! int_convert_u64_or_i64 {
             type Error = PyErr;
 
             #[cfg(feature = "experimental-inspect")]
-            const INPUT_TYPE: &'static str = "int";
+            const INPUT_TYPE: TypeHint = TypeHint::builtin("int");
 
             fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
                 extract_int!(obj, !0, $pylong_as_ll_or_ull, $force_index_call)
@@ -160,7 +162,7 @@ macro_rules! int_fits_c_long {
             type Error = Infallible;
 
             #[cfg(feature = "experimental-inspect")]
-            const OUTPUT_TYPE: &'static str = "int";
+            const OUTPUT_TYPE: TypeHint = TypeHint::builtin("int");
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 unsafe {
@@ -182,7 +184,7 @@ macro_rules! int_fits_c_long {
             type Error = Infallible;
 
             #[cfg(feature = "experimental-inspect")]
-            const OUTPUT_TYPE: &'static str = "int";
+            const OUTPUT_TYPE: TypeHint = <$rust_type>::OUTPUT_TYPE;
 
             #[inline]
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -199,7 +201,7 @@ macro_rules! int_fits_c_long {
             type Error = PyErr;
 
             #[cfg(feature = "experimental-inspect")]
-            const INPUT_TYPE: &'static str = "int";
+            const INPUT_TYPE: TypeHint = TypeHint::builtin("int");
 
             fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
                 let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
@@ -221,7 +223,7 @@ impl<'py> IntoPyObject<'py> for u8 {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = "int";
+    const OUTPUT_TYPE: TypeHint = TypeHint::builtin("int");
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         unsafe {
@@ -255,7 +257,7 @@ impl<'py> IntoPyObject<'py> for &'_ u8 {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = "int";
+    const OUTPUT_TYPE: TypeHint = u8::OUTPUT_TYPE;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         u8::into_pyobject(*self, py)
@@ -284,7 +286,7 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "int";
+    const INPUT_TYPE: TypeHint = TypeHint::builtin("int");
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
@@ -296,7 +298,6 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
         Self::type_output()
     }
 
-    #[cfg(return_position_impl_trait_in_traits)]
     #[inline]
     fn sequence_extractor(
         obj: Borrowed<'_, 'py, PyAny>,
@@ -306,21 +307,6 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
             Some(BytesSequenceExtractor::Bytes(bytes))
         } else if let Ok(byte_array) = obj.cast::<PyByteArray>() {
             Some(BytesSequenceExtractor::ByteArray(byte_array))
-        } else {
-            None
-        }
-    }
-
-    #[cfg(not(return_position_impl_trait_in_traits))]
-    #[inline]
-    fn sequence_extractor<'b>(
-        obj: Borrowed<'b, 'b, PyAny>,
-        _: crate::conversion::private::Token,
-    ) -> Option<Box<dyn FromPyObjectSequence<Target = u8> + 'b>> {
-        if let Ok(bytes) = obj.cast::<PyBytes>() {
-            Some(Box::new(BytesSequenceExtractor::Bytes(bytes)))
-        } else if let Ok(byte_array) = obj.cast::<PyByteArray>() {
-            Some(Box::new(BytesSequenceExtractor::ByteArray(byte_array)))
         } else {
             None
         }
@@ -365,7 +351,6 @@ impl FromPyObjectSequence for BytesSequenceExtractor<'_, '_> {
         }
     }
 
-    #[cfg(return_position_impl_trait_in_traits)]
     fn to_array<const N: usize>(&self) -> PyResult<[u8; N]> {
         let mut out: MaybeUninit<[u8; N]> = MaybeUninit::uninit();
 
@@ -378,11 +363,6 @@ impl FromPyObjectSequence for BytesSequenceExtractor<'_, '_> {
 
         // Safety: `out` is fully initialized
         Ok(unsafe { out.assume_init() })
-    }
-
-    #[cfg(not(return_position_impl_trait_in_traits))]
-    fn fill_slice(&self, out: &mut [MaybeUninit<Self::Target>]) -> PyResult<()> {
-        self.fill_slice(out)
     }
 }
 
@@ -432,7 +412,7 @@ mod fast_128bit_int_conversion {
                 type Error = Infallible;
 
                 #[cfg(feature = "experimental-inspect")]
-                const OUTPUT_TYPE: &'static str = "int";
+                const OUTPUT_TYPE: TypeHint = TypeHint::builtin("int");
 
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                     #[cfg(Py_3_13)]
@@ -459,7 +439,7 @@ mod fast_128bit_int_conversion {
                 type Error = Infallible;
 
                 #[cfg(feature = "experimental-inspect")]
-                const OUTPUT_TYPE: &'static str = "int";
+                const OUTPUT_TYPE: TypeHint = <$rust_type>::OUTPUT_TYPE;
 
                 #[inline]
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -476,7 +456,7 @@ mod fast_128bit_int_conversion {
                 type Error = PyErr;
 
                 #[cfg(feature = "experimental-inspect")]
-                const INPUT_TYPE: &'static str = "int";
+                const INPUT_TYPE: TypeHint = TypeHint::builtin("int");
 
                 fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
                     let num =
@@ -581,7 +561,7 @@ mod slow_128bit_int_conversion {
                 type Error = Infallible;
 
                 #[cfg(feature = "experimental-inspect")]
-                const OUTPUT_TYPE: &'static str = "int";
+                const OUTPUT_TYPE: TypeHint = TypeHint::builtin("int");
 
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                     let lower = (self as u64).into_pyobject(py)?;
@@ -609,7 +589,7 @@ mod slow_128bit_int_conversion {
                 type Error = Infallible;
 
                 #[cfg(feature = "experimental-inspect")]
-                const OUTPUT_TYPE: &'static str = "int";
+                const OUTPUT_TYPE: TypeHint = <$rust_type>::OUTPUT_TYPE;
 
                 #[inline]
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -626,7 +606,7 @@ mod slow_128bit_int_conversion {
                 type Error = PyErr;
 
                 #[cfg(feature = "experimental-inspect")]
-                const INPUT_TYPE: &'static str = "int";
+                const INPUT_TYPE: TypeHint = TypeHint::builtin("int");
 
                 fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
                     let py = ob.py();
@@ -680,7 +660,7 @@ macro_rules! nonzero_int_impl {
             type Error = Infallible;
 
             #[cfg(feature = "experimental-inspect")]
-            const OUTPUT_TYPE: &'static str = "int";
+            const OUTPUT_TYPE: TypeHint = TypeHint::builtin("int");
 
             #[inline]
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -699,7 +679,7 @@ macro_rules! nonzero_int_impl {
             type Error = Infallible;
 
             #[cfg(feature = "experimental-inspect")]
-            const OUTPUT_TYPE: &'static str = "int";
+            const OUTPUT_TYPE: TypeHint = <$nonzero_type>::OUTPUT_TYPE;
 
             #[inline]
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -716,7 +696,7 @@ macro_rules! nonzero_int_impl {
             type Error = PyErr;
 
             #[cfg(feature = "experimental-inspect")]
-            const INPUT_TYPE: &'static str = <$primitive_type>::INPUT_TYPE;
+            const INPUT_TYPE: TypeHint = <$primitive_type>::INPUT_TYPE;
 
             fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
                 let val: $primitive_type = obj.extract()?;
@@ -859,7 +839,7 @@ mod test_128bit_integers {
     #[test]
     fn test_i128_overflow() {
         Python::attach(|py| {
-            let obj = py.eval(ffi::c_str!("(1 << 130) * -1"), None, None).unwrap();
+            let obj = py.eval(c"(1 << 130) * -1", None, None).unwrap();
             let err = obj.extract::<i128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
         })
@@ -868,7 +848,7 @@ mod test_128bit_integers {
     #[test]
     fn test_u128_overflow() {
         Python::attach(|py| {
-            let obj = py.eval(ffi::c_str!("1 << 130"), None, None).unwrap();
+            let obj = py.eval(c"1 << 130", None, None).unwrap();
             let err = obj.extract::<u128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
         })
@@ -912,7 +892,7 @@ mod test_128bit_integers {
     #[test]
     fn test_nonzero_i128_overflow() {
         Python::attach(|py| {
-            let obj = py.eval(ffi::c_str!("(1 << 130) * -1"), None, None).unwrap();
+            let obj = py.eval(c"(1 << 130) * -1", None, None).unwrap();
             let err = obj.extract::<NonZeroI128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
         })
@@ -921,7 +901,7 @@ mod test_128bit_integers {
     #[test]
     fn test_nonzero_u128_overflow() {
         Python::attach(|py| {
-            let obj = py.eval(ffi::c_str!("1 << 130"), None, None).unwrap();
+            let obj = py.eval(c"1 << 130", None, None).unwrap();
             let err = obj.extract::<NonZeroU128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
         })
@@ -930,7 +910,7 @@ mod test_128bit_integers {
     #[test]
     fn test_nonzero_i128_zero_value() {
         Python::attach(|py| {
-            let obj = py.eval(ffi::c_str!("0"), None, None).unwrap();
+            let obj = py.eval(c"0", None, None).unwrap();
             let err = obj.extract::<NonZeroI128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyValueError>(py));
         })
@@ -939,7 +919,7 @@ mod test_128bit_integers {
     #[test]
     fn test_nonzero_u128_zero_value() {
         Python::attach(|py| {
-            let obj = py.eval(ffi::c_str!("0"), None, None).unwrap();
+            let obj = py.eval(c"0", None, None).unwrap();
             let err = obj.extract::<NonZeroU128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyValueError>(py));
         })

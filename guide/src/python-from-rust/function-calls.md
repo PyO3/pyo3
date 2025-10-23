@@ -20,7 +20,6 @@ The example below calls a Python function behind a `Py<PyAny>` reference:
 ```rust
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
-use pyo3_ffi::c_str;
 
 fn main() -> PyResult<()> {
     let arg1 = "arg1";
@@ -30,15 +29,15 @@ fn main() -> PyResult<()> {
     Python::attach(|py| {
         let fun: Py<PyAny> = PyModule::from_code(
             py,
-            c_str!("def example(*args, **kwargs):
+            c"def example(*args, **kwargs):
                 if args != ():
                     print('called with args', args)
                 if kwargs != {}:
                     print('called with kwargs', kwargs)
                 if args == () and kwargs == {}:
-                    print('called with no arguments')"),
-            c_str!("example.py"),
-            c_str!(""),
+                    print('called with no arguments')",
+            c"example.py",
+            c"",
         )?
         .getattr("example")?
         .into();
@@ -68,7 +67,6 @@ To pass keyword arguments of different types, construct a `PyDict` object.
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, IntoPyDict};
 use std::collections::HashMap;
-use pyo3::ffi::c_str;
 
 fn main() -> PyResult<()> {
     let key1 = "key1";
@@ -79,15 +77,15 @@ fn main() -> PyResult<()> {
     Python::attach(|py| {
         let fun: Py<PyAny> = PyModule::from_code(
             py,
-            c_str!("def example(*args, **kwargs):
+            c"def example(*args, **kwargs):
                 if args != ():
                     print('called with args', args)
                 if kwargs != {}:
                     print('called with kwargs', kwargs)
                 if args == () and kwargs == {}:
-                    print('called with no arguments')"),
-            c_str!("example.py"),
-            c_str!(""),
+                    print('called with no arguments')",
+            c"example.py",
+            c"",
         )?
         .getattr("example")?
         .into();
