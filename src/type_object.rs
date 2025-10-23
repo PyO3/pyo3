@@ -48,10 +48,6 @@ pub unsafe trait PyTypeInfo: Sized {
     /// Module name, if any.
     const MODULE: Option<&'static str>;
 
-    /// Provides the full python type as a type hint.
-    #[cfg(feature = "experimental-inspect")]
-    const TYPE_HINT: TypeHint = TypeHint::module_attr("typing", "Any");
-
     /// Returns the PyTypeObject instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;
 
@@ -127,7 +123,11 @@ where
     const NAME: &'static str = T::NAME;
 
     #[cfg(feature = "experimental-inspect")]
-    const TYPE_HINT: TypeHint = <T as PyTypeInfo>::TYPE_HINT;
+    const TYPE_HINT: TypeHint = if let Some(module) = <T as PyTypeInfo>::MODULE {
+        TypeHint::module_attr(module, <T as PyTypeInfo>::NAME)
+    } else {
+        TypeHint::builtin(<T as PyTypeInfo>::NAME)
+    };
 
     #[inline]
     fn type_check(object: &Bound<'_, PyAny>) -> bool {

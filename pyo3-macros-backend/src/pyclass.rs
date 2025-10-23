@@ -435,18 +435,6 @@ fn get_class_python_name<'a>(cls: &'a syn::Ident, args: &'a PyClassArgs) -> Cow<
         .unwrap_or_else(|| Cow::Owned(cls.unraw()))
 }
 
-#[cfg(feature = "experimental-inspect")]
-fn get_class_type_hint(cls: &Ident, args: &PyClassArgs, ctx: &Ctx) -> TokenStream {
-    let pyo3_path = &ctx.pyo3_path;
-    let name = get_class_python_name(cls, args).to_string();
-    if let Some(module) = &args.options.module {
-        let module = module.value.value();
-        quote! { #pyo3_path::inspect::TypeHint::module_attr(#module, #name) }
-    } else {
-        quote! { #pyo3_path::inspect::TypeHint::builtin(#name) }
-    }
-}
-
 fn impl_class(
     cls: &syn::Ident,
     args: &PyClassArgs,
@@ -1119,7 +1107,7 @@ fn impl_complex_enum(
                 }
             });
         let output_type = if cfg!(feature = "experimental-inspect") {
-            quote!(const OUTPUT_TYPE: #pyo3_path::inspect::TypeHint = <#cls as #pyo3_path::PyTypeInfo>::TYPE_HINT;)
+            quote!(const OUTPUT_TYPE: #pyo3_path::inspect::TypeHint = <#cls as #pyo3_path::PyTypeCheck>::TYPE_HINT;)
         } else {
             TokenStream::new()
         };
@@ -1959,20 +1947,10 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
         quote! { ::core::option::Option::None }
     };
 
-    #[cfg(feature = "experimental-inspect")]
-    let type_hint = {
-        let type_hint = get_class_type_hint(cls, attr, ctx);
-        quote! { const TYPE_HINT: #pyo3_path::inspect::TypeHint = #type_hint; }
-    };
-    #[cfg(not(feature = "experimental-inspect"))]
-    let type_hint = quote! {};
-
     quote! {
         unsafe impl #pyo3_path::type_object::PyTypeInfo for #cls {
             const NAME: &'static str = #cls_name;
             const MODULE: ::std::option::Option<&'static str> = #module;
-
-            #type_hint
 
             #[inline]
             fn type_object_raw(py: #pyo3_path::Python<'_>) -> *mut #pyo3_path::ffi::PyTypeObject {
@@ -2349,7 +2327,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         // If #cls is not extended type, we allow Self->PyObject conversion
         if attr.options.extends.is_none() {
             let output_type = if cfg!(feature = "experimental-inspect") {
-                quote!(const OUTPUT_TYPE: #pyo3_path::inspect::TypeHint = <#cls as #pyo3_path::PyTypeInfo>::TYPE_HINT;)
+                quote!(const OUTPUT_TYPE: #pyo3_path::inspect::TypeHint = <#cls as #pyo3_path::PyTypeCheck>::TYPE_HINT;)
             } else {
                 TokenStream::new()
             };
@@ -2515,7 +2493,7 @@ impl<'a> PyClassImplsBuilder<'a> {
             self.attr.options.from_py_object
         {
             let input_type = if cfg!(feature = "experimental-inspect") {
-                quote!(const INPUT_TYPE: #pyo3_path::inspect::TypeHint = <#cls as #pyo3_path::PyTypeInfo>::TYPE_HINT;)
+                quote!(const INPUT_TYPE: #pyo3_path::inspect::TypeHint = <#cls as #pyo3_path::PyTypeCheck>::TYPE_HINT;)
             } else {
                 TokenStream::new()
             };

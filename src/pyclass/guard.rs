@@ -4,6 +4,8 @@ use crate::inspect::TypeHint;
 use crate::pycell::PyBorrowMutError;
 use crate::pycell::{impl_::PyClassBorrowChecker, PyBorrowError};
 use crate::pyclass::boolean_struct::False;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_object::PyTypeCheck;
 use crate::{ffi, Borrowed, CastError, FromPyObject, IntoPyObject, Py, PyClass, PyErr};
 use std::convert::Infallible;
 use std::fmt;
