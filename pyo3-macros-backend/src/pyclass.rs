@@ -443,7 +443,7 @@ fn get_class_type_hint(cls: &Ident, args: &PyClassArgs, ctx: &Ctx) -> TokenStrea
         let module = module.value.value();
         quote! { #pyo3_path::inspect::TypeHint::module_attr(#module, #name) }
     } else {
-        quote! { #pyo3_path::inspect::TypeHint::builtin(#name) }
+        quote! { #pyo3_path::inspect::TypeHint::local(#name) }
     }
 }
 
