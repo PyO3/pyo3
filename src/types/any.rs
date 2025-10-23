@@ -43,6 +43,7 @@ fn PyObject_Check(_: *mut ffi::PyObject) -> c_int {
 pyobject_native_type_info!(
     PyAny,
     pyobject_native_static_type_object!(ffi::PyBaseObject_Type),
+    "object",
     Some("builtins"),
     #checkfunction=PyObject_Check
 );

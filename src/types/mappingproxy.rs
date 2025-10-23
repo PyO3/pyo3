@@ -22,6 +22,7 @@ unsafe fn dict_proxy_check(op: *mut ffi::PyObject) -> c_int {
 pyobject_native_type_core!(
     PyMappingProxy,
     pyobject_native_static_type_object!(ffi::PyDictProxy_Type),
+    "mappingproxy",
     #checkfunction=dict_proxy_check
 );
 

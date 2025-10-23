@@ -29,6 +29,7 @@ pyobject_native_type!(
     ffi::PyWeakReference,
     // TODO: should not be depending on a private symbol here!
     pyobject_native_static_type_object!(ffi::_PyWeakref_RefType),
+    "ReferenceType",
     #module=Some("weakref"),
     #checkfunction=ffi::PyWeakref_CheckRefExact
 );
@@ -43,6 +44,7 @@ pyobject_native_type_core!(
             .unwrap()
             .as_type_ptr()
     },
+    "ReferenceType",
     #module=Some("weakref"),
     #checkfunction=ffi::PyWeakref_CheckRef
 );

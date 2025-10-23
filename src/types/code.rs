@@ -22,14 +22,19 @@ pub struct PyCode(PyAny);
 pyobject_native_type_core!(
     PyCode,
     pyobject_native_static_type_object!(ffi::PyCode_Type),
+    "code",
     #checkfunction=ffi::PyCode_Check
 );
 
 #[cfg(any(Py_LIMITED_API, PyPy))]
-pyobject_native_type_core!(PyCode, |py| {
-    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-    TYPE.import(py, "types", "CodeType").unwrap().as_type_ptr()
-});
+pyobject_native_type_core!(
+    PyCode,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "types", "CodeType").unwrap().as_type_ptr()
+    },
+    "code"
+);
 
 /// Compilation mode of [`PyCode::compile`]
 pub enum PyCodeInput {
