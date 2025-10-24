@@ -33,7 +33,8 @@ pub struct PyModule(PyAny);
 pyobject_native_type_core!(PyModule, pyobject_native_static_type_object!(ffi::PyModule_Type), #checkfunction=ffi::PyModule_Check);
 
 impl PyModule {
-    /// Creates a new module object with the `__name__` attribute set to `name`.
+    /// Creates a new module object with the `__name__` attribute set to `name`.  When creating
+    /// a submodule pass the full path as the name such as `top_level.name`.
     ///
     /// # Examples
     ///
@@ -512,7 +513,11 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
     }
 
     fn add_submodule(&self, module: &Bound<'_, PyModule>) -> PyResult<()> {
-        let name = module.name()?;
+        let name = module
+            .name()?
+            .call_method1("rpartition", (".",))?
+            .get_item(2)?
+            .downcast_into::<PyString>()?;
         self.add(name, module)
     }
 
