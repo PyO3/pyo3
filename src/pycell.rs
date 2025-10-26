@@ -753,7 +753,7 @@ mod tests {
 
     use super::*;
 
-    #[crate::pyclass]
+    #[crate::pyclass(skip_from_py_object)]
     #[pyo3(crate = "crate")]
     #[derive(Copy, Clone, PartialEq, Eq, Debug)]
     struct SomeClass(i32);

@@ -371,7 +371,7 @@ note: candidate #2 is defined in an impl for the type `StrOptAndManualStr`
 error[E0609]: no field `aaaa` on type `&Point`
    --> tests/ui/invalid_pyclass_args.rs:113:17
     |
-113 | #[pyclass(str = "X: {aaaa}, Y: {y}, Z: {z}")]
+113 | #[pyclass(str = "X: {aaaa}, Y: {y}, Z: {z}", skip_from_py_object)]
     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^ unknown field
     |
     = note: available fields are: `x`, `y`, `z`
@@ -379,7 +379,7 @@ error[E0609]: no field `aaaa` on type `&Point`
 error[E0609]: no field `zzz` on type `&Point2`
    --> tests/ui/invalid_pyclass_args.rs:121:17
     |
-121 | #[pyclass(str = "X: {x}, Y: {y}}}, Z: {zzz}")]
+121 | #[pyclass(str = "X: {x}, Y: {y}}}, Z: {zzz}", skip_from_py_object)]
     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unknown field
     |
     = note: available fields are: `x`, `y`, `z`
@@ -391,3 +391,12 @@ error[E0609]: no field `162543` on type `&Coord3`
     |                 ^^^^^^^^^^^^^^^^^^^^ unknown field
     |
     = note: available fields are: `0`, `1`, `2`
+
+warning: use of deprecated associated constant `pyo3::impl_::deprecated::HasAutomaticFromPyObject::<true>::MSG`: The automatically derived `FromPyObject` implementation for `#[pyclass]` types which implement `Clone` is being phased out. Use `from_py_object` to keep the automatic derive or `skip_from_py_object` to accept the new behaviour.
+   --> tests/ui/invalid_pyclass_args.rs:196:1
+    |
+196 | #[pyclass]
+    | ^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+    = note: this warning originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
