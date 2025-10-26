@@ -54,7 +54,7 @@ fn get_item_and_run_callback(dict: Bound<'_, PyDict>, callback: Bound<'_, PyAny>
     Ok(())
 }
 
-#[pymodule(gil_used = false)]
+#[pymodule]
 pub fn misc(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(issue_219, m)?)?;
     m.add_function(wrap_pyfunction!(hammer_attaching_in_thread, m)?)?;

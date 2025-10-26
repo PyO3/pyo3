@@ -38,7 +38,7 @@ fn test_module_with_functions() {
     use pyo3::wrap_pymodule;
 
     /// This module is implemented in Rust.
-    #[pymodule(gil_used = false)]
+    #[pymodule]
     mod module_with_functions {
         use super::*;
 
@@ -125,7 +125,7 @@ fn test_module_with_pyfn() {
     use pyo3::wrap_pymodule;
 
     /// This module is implemented in Rust.
-    #[pymodule(gil_used = false)]
+    #[pymodule]
     fn module_with_pyfn(m: &Bound<'_, PyModule>) -> PyResult<()> {
         #[pyfn(m)]
         #[pyo3(name = "no_parameters")]
@@ -262,8 +262,6 @@ fn test_module_from_code_bound() {
             .expect("A value should be returned")
             .extract()
             .expect("The value should be able to be converted to an i32");
-
-        adder_mod.gil_used(false).expect("Disabling the GIL failed");
 
         assert_eq!(ret_value, 3);
     });

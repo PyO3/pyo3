@@ -385,7 +385,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// ```rust,no_run
     /// use pyo3::prelude::*;
     ///
-    /// #[pymodule(gil_used = false)]
+    /// #[pymodule]
     /// fn my_module(py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     let submodule = PyModule::new(py, "submodule")?;
     ///     submodule.gil_used(true)?;
