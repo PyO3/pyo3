@@ -29,16 +29,16 @@ free-threaded Python.
 
 ## Supporting free-threaded Python with PyO3
 
-Many simple uses of PyO3, like exposing bindings for a "pure" Rust function with no side-effects or defining an immutable Python class, will likely work "out of the box" on the free-threaded build.
-All that will be necessary is to annotate Python modules declared by rust code in your project to declare that they support free-threaded Python, for example by declaring the module with `#[pymodule(gil_used = false)]`.
+Since PyO3 0.28, PyO3 defaults to assuming Python modules created with it are thread-safe.
+This will be the case except for Rust code which has used `unsafe` to assume thread-safety incorrectly.
+An example of this is `unsafe` code which was written with the historical assumption that Python was single-threaded due to the GIL, and so the `Python<'py>` token used by PyO3 could be used to guarantee thread-safety.
+A module can opt-out of supporting free-threaded Python until it has audited its `unsafe` code for correctness by declaring the module with `#[pymodule(gil_used = true)]` (see below).
 
-More complicated `#[pyclass]` types may need to deal with thread-safety directly; there is [a dedicated section of the guide](./class/thread-safety.md) to discuss this.
+Complicated `#[pyclass]` types may need to deal with thread-safety directly; there is [a dedicated section of the guide](./class/thread-safety.md) to discuss this.
 
-At a low-level, annotating a module sets the `Py_MOD_GIL` slot on modules defined by an extension to `Py_MOD_GIL_NOT_USED`, which allows the interpreter to see at runtime that the author of the extension thinks the extension is thread-safe.
-You should only do this if you know that your extension is thread-safe.
-Because of Rust's guarantees, this is already true for many extensions, however see below for more discussion about how to evaluate the thread safety of existing Rust extensions and how to think about the PyO3 API using a Python runtime with no GIL.
+> At a low-level, annotating a module sets the `Py_MOD_GIL` slot on modules defined by an extension to `Py_MOD_GIL_NOT_USED`, which allows the interpreter to see at runtime that the author of the extension thinks the extension is thread-safe.
 
-If you do not explicitly mark that modules are thread-safe, the Python interpreter will re-enable the GIL at runtime while importing your module and print a `RuntimeWarning` with a message containing the name of the module causing it to re-enable the GIL.
+By opting-out of supporting free-threaded Python, the Python interpreter will re-enable the GIL at runtime while importing your module and print a `RuntimeWarning` with a message containing the name of the module causing it to re-enable the GIL.
 You can force the GIL to remain disabled by setting the `PYTHON_GIL=0` as an environment variable or passing `-Xgil=0` when starting Python (`0` means the GIL is turned off).
 
 If you are sure that all data structures exposed in a `PyModule` are
@@ -46,14 +46,21 @@ thread-safe, then pass `gil_used = false` as a parameter to the
 `pymodule` procedural macro declaring the module or call
 `PyModule::gil_used` on a `PyModule` instance.  For example:
 
-```rust,no_run
-use pyo3::prelude::*;
+### Example opting-in
 
-/// This module supports free-threaded Python
-#[pymodule(gil_used = false)]
-fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // add members to the module that you know are thread-safe
-    Ok(())
+(Note: for PyO3 versions 0.23 through 0.27, the default was `gil_used = true` and so the opposite was needed; modules needed to opt-in to free-threaded Python support with `gil_used = false`.)
+
+```rust,no_run
+/// This module does not free-threaded Python
+#[pyo3::pymodule(gil_used = true)]
+mod my_extension {
+    use pyo3::prelude::*;
+
+    // this type is not thread-safe
+    #[pyclass]
+    struct MyNotThreadSafeType {
+        // insert not thread-safe code
+    }
 }
 ```
 
@@ -65,14 +72,11 @@ use pyo3::prelude::*;
 # #[allow(dead_code)]
 fn register_child_module(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let child_module = PyModule::new(parent_module.py(), "child_module")?;
-    child_module.gil_used(false)?;
+    child_module.gil_used(true)?;
     parent_module.add_submodule(&child_module)
 }
 
 ```
-
-For now you must explicitly opt in to free-threading support by annotating modules defined in your extension.
-In a future version of `PyO3`, we plan to make `gil_used = false` the default.
 
 See the
 [`string-sum`](https://github.com/PyO3/pyo3/tree/main/pyo3-ffi/examples/string-sum)

@@ -3,6 +3,14 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.27.* to 0.28
+
+### Default to supporting free-threaded Python
+
+When PyO3 0.23 added support for free-threaded Python, this was as an opt-in feature for modules by annotating with `#[pymodule(gil_used = false)]`.
+
+As the support has matured and PyO3's own API has evolved to remove reliance on the GIL, the time is right to switch the default. Modules now automatically allow use on free-threaded Python, unless they directly state they require the GIL with `#[pymodule(gil_used = true)]`.
+
 ## from 0.26.* to 0.27
 
 ### `FromPyObject` reworked for flexibility and efficiency
