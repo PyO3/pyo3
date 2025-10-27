@@ -12,6 +12,16 @@ When PyO3 0.23 added support for free-threaded Python, this was as an opt-in fea
 As the support has matured and PyO3's own API has evolved to remove reliance on the GIL, the time is right to switch the default.
 Modules now automatically allow use on free-threaded Python, unless they directly state they require the GIL with `#[pymodule(gil_used = true)]`.
 
+### Deprecation of automatic `FromPyObject` for `#[pyclass]` types which implement `Clone`
+
+`#[pyclass]` types which implement `Clone` used to also implement `FromPyObject` automatically.
+This behaviour is phased out and replaced by an explicit opt-in.
+Affected types will by marked by a deprecation message.
+To migrate use either
+
+- `from_py_object` to keep the automatic derive, or
+- `skip_from_py_object` to accept the new behaviour
+
 ## from 0.26.* to 0.27
 
 ### `FromPyObject` reworked for flexibility and efficiency

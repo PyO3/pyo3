@@ -4,7 +4,7 @@ use pyo3::exceptions::{PyStopIteration, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyType;
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 struct EmptyClass {}
 
@@ -70,7 +70,7 @@ impl PyClassThreadIter {
 }
 
 /// Demonstrates a base class which can operate on the relevant subclass in its constructor.
-#[pyclass(subclass)]
+#[pyclass(subclass, skip_from_py_object)]
 #[derive(Clone, Debug)]
 struct AssertingBaseClass;
 
@@ -104,7 +104,7 @@ impl ClassWithDict {
     }
 }
 
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 #[derive(Clone)]
 struct ClassWithDecorators {
     attr: usize,
