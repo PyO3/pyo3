@@ -10,7 +10,7 @@ use crate::{PyResult, Python};
 use std::ffi::c_int;
 
 /// The current version of the marshal binary format.
-pub const VERSION: i32 = 4;
+pub const VERSION: i32 = 5;
 
 /// Serialize an object to bytes using the Python built-in marshal module.
 ///
