@@ -1,7 +1,8 @@
 # Function signatures
 
 The `#[pyfunction]` attribute also accepts parameters to control how the generated Python function accepts arguments.
-Just like in Python, arguments can be positional-only, keyword-only, or accept either. `*args` lists and `**kwargs` dicts can also be accepted.
+Just like in Python, arguments can be positional-only, keyword-only, or accept either.
+`*args` lists and `**kwargs` dicts can also be accepted.
 These parameters also work for `#[pymethods]` which will be introduced in the [Python Classes](../class.md) section of the guide.
 
 Like Python, by default PyO3 accepts all arguments as either positional or keyword arguments.

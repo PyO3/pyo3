@@ -41,10 +41,8 @@ Because of Rust's guarantees, this is already true for many extensions, however 
 If you do not explicitly mark that modules are thread-safe, the Python interpreter will re-enable the GIL at runtime while importing your module and print a `RuntimeWarning` with a message containing the name of the module causing it to re-enable the GIL.
 You can force the GIL to remain disabled by setting the `PYTHON_GIL=0` as an environment variable or passing `-Xgil=0` when starting Python (`0` means the GIL is turned off).
 
-If you are sure that all data structures exposed in a `PyModule` are
-thread-safe, then pass `gil_used = false` as a parameter to the
-`pymodule` procedural macro declaring the module or call
-`PyModule::gil_used` on a `PyModule` instance.  For example:
+If you are sure that all data structures exposed in a `PyModule` are thread-safe, then pass `gil_used = false` as a parameter to the `pymodule` procedural macro declaring the module or call `PyModule::gil_used` on a `PyModule` instance.
+For example:
 
 ```rust,no_run
 use pyo3::prelude::*;

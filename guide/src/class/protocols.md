@@ -29,8 +29,8 @@ When PyO3 handles a magic method, a couple of changes apply compared to other `#
 - The Rust function signature is restricted to match the magic method.
 - The `#[pyo3(signature = (...)]` and `#[pyo3(text_signature = "...")]` attributes are not allowed.
 
-The following sections list all magic methods for which PyO3 implements the necessary special handling.  The
-given signatures should be interpreted as follows:
+The following sections list all magic methods for which PyO3 implements the necessary special handling.
+The given signatures should be interpreted as follows:
 
 - All methods take a receiver as first argument, shown as `<self>`.
    It can be `&self`, `&mut self` or a `Bound` reference like `self_: PyRef<'_, Self>` and `self_: PyRefMut<'_, Self>`, as described [here](../class.md#inheritance).
@@ -43,7 +43,8 @@ given signatures should be interpreted as follows:
 - For the comparison and arithmetic methods, extraction errors are not
    propagated as exceptions, but lead to a return of `NotImplemented`.
 - For some magic methods, the return values are not restricted by PyO3, but checked by the Python interpreter.
-   For example, `__str__` needs to return a string object.  This is indicated by `object (Python type)`.
+   For example, `__str__` needs to return a string object.
+   This is indicated by `object (Python type)`.
 
 ### Basic object customization
 
@@ -236,7 +237,8 @@ documentation](https://docs.python.org/library/stdtypes.html#iterator-types).
 
 #### Returning a value from iteration
 
-This guide has so far shown how to use `Option<T>` to implement yielding values during iteration.  In Python a generator can also return a value.
+This guide has so far shown how to use `Option<T>` to implement yielding values during iteration.
+In Python a generator can also return a value.
 This is done by raising a `StopIteration` exception.
 To express this in Rust, return `PyResult::Err` with a `PyStopIteration` as the error.
 
@@ -433,7 +435,9 @@ Coercions:
 
 ### Garbage Collector Integration
 
-If your type owns references to other Python objects, you will need to integrate with Python's garbage collector so that the GC is aware of those references.  To do this, implement the two methods `__traverse__` and `__clear__`.  These correspond to the slots `tp_traverse` and `tp_clear` in the Python C API. `__traverse__` must call `visit.call()` for each reference to another Python object.  `__clear__` must clear out any mutable references to other Python objects (thus breaking reference cycles).
+If your type owns references to other Python objects, you will need to integrate with Python's garbage collector so that the GC is aware of those references.
+To do this, implement the two methods `__traverse__` and `__clear__`.
+These correspond to the slots `tp_traverse` and `tp_clear` in the Python C API. `__traverse__` must call `visit.call()` for each reference to another Python object.  `__clear__` must clear out any mutable references to other Python objects (thus breaking reference cycles).
 Immutable references do not have to be cleared, as every cycle must contain at least one mutable reference.
 
 - `__traverse__(<self>, pyo3::class::gc::PyVisit<'_>) -> Result<(), pyo3::class::gc::PyTraverseError>`
@@ -468,8 +472,7 @@ impl ClassWithGCSupport {
 ```
 
 Usually, an implementation of `__traverse__` should do nothing but calls to `visit.call`.
-Most importantly, safe access to the interpreter is prohibited inside implementations of `__traverse__`,
-i.e. `Python::attach` will panic.
+Most importantly, safe access to the interpreter is prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic.
 
 > Note: these methods are part of the C API, PyPy does not necessarily honor them. If you are building for PyPy you should measure memory consumption to make sure you do not have runaway memory growth. See [this issue on the PyPy bug tracker](https://github.com/pypy/pypy/issues/3848).
 

@@ -1606,11 +1606,8 @@ fn function_with_defaults(a: i32, b: i32, c: i32) {}
 <details>
 <summary><small>Click to expand</small></summary>
 
-Previously the type checks for `PyMapping` and `PySequence` (implemented in `PyTryFrom`)
-used the Python C-API functions `PyMapping_Check` and `PySequence_Check`.
-Unfortunately these functions are not sufficient for distinguishing such types,
-leading to inconsistent behavior (see
-[pyo3/pyo3#2072](https://github.com/PyO3/pyo3/issues/2072)).
+Previously the type checks for `PyMapping` and `PySequence` (implemented in `PyTryFrom`) used the Python C-API functions `PyMapping_Check` and `PySequence_Check`.
+Unfortunately these functions are not sufficient for distinguishing such types, leading to inconsistent behavior (see [pyo3/pyo3#2072](https://github.com/PyO3/pyo3/issues/2072)).
 
 PyO3 0.17 changes these downcast checks to explicitly test if the type is a subclass of the corresponding abstract base class `collections.abc.Mapping` or `collections.abc.Sequence`.
 Note this requires calling into Python, which may incur a performance penalty over the previous method.
@@ -1841,13 +1838,9 @@ impl MyClass {
 <details>
 <summary><small>Click to expand</small></summary>
 
-The Python object wrappers `Py` and `PyAny` had implementations of `PartialEq`
-so that `object_a == object_b` would compare the Python objects for pointer
-equality, which corresponds to the `is` operator, not the `==` operator in
-Python.  This has been removed in favor of a new method: use
-`object_a.is(object_b)`.  This also has the advantage of not requiring the same
-wrapper type for `object_a` and `object_b`; you can now directly compare a
-`Py<T>` with a `&PyAny` without having to convert.
+The Python object wrappers `Py` and `PyAny` had implementations of `PartialEq` so that `object_a == object_b` would compare the Python objects for pointer equality, which corresponds to the `is` operator, not the `==` operator in Python.
+This has been removed in favor of a new method: use `object_a.is(object_b)`.
+This also has the advantage of not requiring the same wrapper type for `object_a` and `object_b`; you can now directly compare a `Py<T>` with a `&PyAny` without having to convert.
 
 To check for Python object equality (the Python `==` operator), use the new
 method `eq()`.
@@ -1954,15 +1947,11 @@ fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 <details>
 <summary><small>Click to expand</small></summary>
 
-For all types that take sequence indices (`PyList`, `PyTuple` and `PySequence`),
-the API has been made consistent to only take `usize` indices, for consistency
-with Rust's indexing conventions.  Negative indices, which were only
-sporadically supported even in APIs that took `isize`, now aren't supported
-anywhere.
+For all types that take sequence indices (`PyList`, `PyTuple` and `PySequence`), the API has been made consistent to only take `usize` indices, for consistency with Rust's indexing conventions.
+Negative indices, which were only sporadically supported even in APIs that took `isize`, now aren't supported anywhere.
 
-Further, the `get_item` methods now always return a `PyResult` instead of
-panicking on invalid indices.  The `Index` trait has been implemented instead,
-and provides the same panic behavior as on Rust vectors.
+Further, the `get_item` methods now always return a `PyResult` instead of panicking on invalid indices.
+The `Index` trait has been implemented instead, and provides the same panic behavior as on Rust vectors.
 
 Note that _slice_ indices (accepted by `PySequence::get_slice` and other) still
 inherit the Python behavior of clamping the indices to the actual length, and
@@ -2306,8 +2295,7 @@ The minimum required version is 1.39.0.
 <details>
 <summary><small>Click to expand</small></summary>
 
-Because `#[pyclass]` structs can be sent between threads by the Python interpreter, they must implement
-`Send` or declared as `unsendable` (by `#[pyclass(unsendable)]`).
+Because `#[pyclass]` structs can be sent between threads by the Python interpreter, they must implement `Send` or declared as `unsendable` (by `#[pyclass(unsendable)]`).
 Note that `unsendable` is added in PyO3 `0.11.1` and `Send` is always required in PyO3 `0.11.0`.
 
 This may "break" some code which previously was accepted, even though it could be unsound.
@@ -2412,8 +2400,7 @@ py.None().get_refcnt(py);
 <summary><small>Click to expand</small></summary>
 
 All methods are moved to [`PyAny`].
-And since now all native types (e.g., `PyList`) implements `Deref<Target=PyAny>`,
-all you need to do is remove `ObjectProtocol` from your code.
+And since now all native types (e.g., `PyList`) implements `Deref<Target=PyAny>`, all you need to do is remove `ObjectProtocol` from your code.
 Or if you use `ObjectProtocol` by `use pyo3::prelude::*`, you have to do nothing.
 
 Before:
@@ -2456,8 +2443,7 @@ now you don't have to use `#![feature(specialization)]` in your crate.
 <details>
 <summary><small>Click to expand</small></summary>
 
-[`PyRawObject`](https://docs.rs/pyo3/0.8.5/pyo3/type_object/struct.PyRawObject.html)
-is now removed and our syntax for constructors has changed.
+[`PyRawObject`](https://docs.rs/pyo3/0.8.5/pyo3/type_object/struct.PyRawObject.html) is now removed and our syntax for constructors has changed.
 
 Before:
 
@@ -2499,14 +2485,11 @@ For more, see [the constructor section](class.md#constructor) of this guide.
 <details>
 <summary><small>Click to expand</small></summary>
 
-PyO3 0.9 introduces `PyCell`, which is a [`RefCell`]-like object wrapper
-for ensuring Rust's rules regarding aliasing of references are upheld.
-For more detail, see the
-[Rust Book's section on Rust's rules of references](https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references)
+PyO3 0.9 introduces `PyCell`, which is a [`RefCell`]-like object wrapper for ensuring Rust's rules regarding aliasing of references are upheld.
+For more detail, see the [Rust Book's section on Rust's rules of references](https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references)
 
 For `#[pymethods]` or `#[pyfunction]`s, your existing code should continue to work without any change.
-Python exceptions will automatically be raised when your functions are used in a way which breaks Rust's
-rules of references.
+Python exceptions will automatically be raised when your functions are used in a way which breaks Rust's rules of references.
 
 Here is an example.
 
@@ -2541,8 +2524,7 @@ impl Names {
 ```
 
 `Names` has a `merge` method, which takes `&mut self` and another argument of type `&mut Self`.
-Given this `#[pyclass]`, calling `names.merge(names)` in Python raises
-a [`PyBorrowMutError`] exception, since it requires two mutable borrows of `names`.
+Given this `#[pyclass]`, calling `names.merge(names)` in Python raises a [`PyBorrowMutError`] exception, since it requires two mutable borrows of `names`.
 
 However, for `#[pyproto]` and some functions, you need to manually fix the code.
 
@@ -2550,10 +2532,8 @@ However, for `#[pyproto]` and some functions, you need to manually fix the code.
 
 In 0.8 object creation was done with `PyRef::new` and `PyRefMut::new`.
 In 0.9 these have both been removed.
-To upgrade code, please use
-`PyCell::new` instead.
-If you need [`PyRef`] or [`PyRefMut`], just call `.borrow()` or `.borrow_mut()`
-on the newly-created `PyCell`.
+To upgrade code, please use `PyCell::new` instead.
+If you need [`PyRef`] or [`PyRefMut`], just call `.borrow()` or `.borrow_mut()` on the newly-created `PyCell`.
 
 Before:
 
@@ -2617,10 +2597,8 @@ let obj_ref_mut: PyRefMut<'_, MyClass> = obj.extract().unwrap();
 
 #### `#[pyproto]`
 
-Most of the arguments to methods in `#[pyproto]` impls require a
-[`FromPyObject`] implementation.
-So if your protocol methods take `&T` or `&mut T` (where `T: PyClass`),
-please use [`PyRef`] or [`PyRefMut`] instead.
+Most of the arguments to methods in `#[pyproto]` impls require a [`FromPyObject`] implementation.
+So if your protocol methods take `&T` or `&mut T` (where `T: PyClass`), please use [`PyRef`] or [`PyRefMut`] instead.
 
 Before:
 

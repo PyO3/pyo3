@@ -24,8 +24,7 @@ On the Python side, use the `Tracing` context manager to initialize tracing and
 run Rust code inside the context manager's block. `Tracing` takes a
 `GlobalTracingConfig` instance describing the layers to be used.
 
-See [the README on crates.io][pyo3-tracing-subscriber]
-for example code.
+See [the README on crates.io][pyo3-tracing-subscriber] for example code.
 
 ## `pyo3-python-tracing-subscriber` ([documentation][pyo3-python-tracing-subscriber-docs])
 

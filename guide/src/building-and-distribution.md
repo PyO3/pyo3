@@ -208,7 +208,8 @@ See [the FAQ](faq.md#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-
 ### `Py_LIMITED_API`/`abi3`
 
 By default, Python extension modules can only be used with the same Python version they were compiled against.
-For example, an extension module built for Python 3.5 can't be imported in Python 3.8. [PEP 384](https://www.python.org/dev/peps/pep-0384/) introduced the idea of the limited Python API, which would have a stable ABI enabling extension modules built with it to be used against multiple Python versions.
+For example, an extension module built for Python 3.5 can't be imported in Python 3.8.
+[PEP 384](https://www.python.org/dev/peps/pep-0384/) introduced the idea of the limited Python API, which would have a stable ABI enabling extension modules built with it to be used against multiple Python versions.
 This is also known as `abi3`.
 
 The advantage of building extension modules using the limited Python API is that package vendors only need to build and distribute a single copy (for each OS / architecture), and users can install it on all Python versions from the [minimum version](#minimum-python-version-for-abi3) and up.
@@ -227,7 +228,8 @@ There are three steps involved in making use of `abi3` when building Python pack
    ```
 
 2. Ensure that the built shared objects are correctly marked as `abi3`.
-   This is accomplished by telling your build system that you're using the limited API. [`maturin`] >= 0.9.0 and [`setuptools-rust`] >= 0.11.4 support `abi3` wheels.
+   This is accomplished by telling your build system that you're using the limited API.
+   [`maturin`] >= 0.9.0 and [`setuptools-rust`] >= 0.11.4 support `abi3` wheels.
 
    See the [corresponding](https://github.com/PyO3/maturin/pull/353) [PRs](https://github.com/PyO3/setuptools-rust/pull/82) for more.
 
@@ -250,10 +252,8 @@ E.g., if you set `abi3-py38` and try to compile the crate with a host of Python 
 #### Building `abi3` extensions without a Python interpreter
 
 As an advanced feature, you can build PyO3 wheel without calling Python interpreter with the environment variable `PYO3_NO_PYTHON` set.
-Also, if the build host Python interpreter is not found or is too old or otherwise unusable,
-PyO3 will still attempt to compile `abi3` extension modules after displaying a warning message.
-On Unix-like systems this works unconditionally; on Windows you must also set the `RUSTFLAGS` environment variable
-to contain `-L native=/path/to/python/libs` so that the linker can find `python3.lib`.
+Also, if the build host Python interpreter is not found or is too old or otherwise unusable, PyO3 will still attempt to compile `abi3` extension modules after displaying a warning message.
+On Unix-like systems this works unconditionally; on Windows you must also set the `RUSTFLAGS` environment variable to contain `-L native=/path/to/python/libs` so that the linker can find `python3.lib`.
 
 If the `python3.dll` import library is not available, an experimental `generate-import-lib` crate
 feature may be enabled, and the required library will be created and used by PyO3 automatically.

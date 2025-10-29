@@ -193,9 +193,8 @@ and so on) expect the `pyo3` crate to be available under that name in your crate
 root, which is the normal situation when `pyo3` is a direct dependency of your
 crate.
 
-However, when the dependency is renamed, or your crate only indirectly depends
-on `pyo3`, you need to let the macro code know where to find the crate.  This is
-done with the `crate` attribute:
+However, when the dependency is renamed, or your crate only indirectly depends on `pyo3`, you need to let the macro code know where to find the crate.
+This is done with the `crate` attribute:
 
 ```rust,no_run
 # use pyo3::prelude::*;

@@ -92,7 +92,8 @@ impl Display for Coordinate {
 }
 ```
 
-For convenience, a shorthand format string can be passed to `str` as `str="<format string>"` for **structs only**.  It expands and is passed into the `format!` macro in the following ways:
+For convenience, a shorthand format string can be passed to `str` as `str="<format string>"` for **structs only**.
+It expands and is passed into the `format!` macro in the following ways:
 
 - `"{x}"` -> `"{}", self.x`
 - `"{0}"` -> `"{}", self.0`
