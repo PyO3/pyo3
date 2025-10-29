@@ -108,8 +108,7 @@ err.is_instance_of::<PyTypeError>(py);
 ## Using exceptions defined in Python code
 
 It is possible to use an exception defined in Python code as a native Rust type.
-The [`import_exception!`] macro allows importing a specific exception class and defines a Rust type
-for that exception.
+The [`import_exception!`] macro allows importing a specific exception class and defines a Rust type for that exception.
 
 ```rust,no_run
 #![allow(dead_code)]

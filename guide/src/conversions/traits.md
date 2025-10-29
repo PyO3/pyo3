@@ -4,9 +4,8 @@ PyO3 provides some handy traits to convert between Python types and Rust types.
 
 ## `.extract()` and the `FromPyObject` trait
 
-The easiest way to convert a Python object to a Rust value is using
-`.extract()`.  It returns a `PyResult` with a type error if the conversion
-fails, so usually you will use something like
+The easiest way to convert a Python object to a Rust value is using `.extract()`.
+It returns a `PyResult` with a type error if the conversion fails, so usually you will use something like
 
 ```rust
 # use pyo3::prelude::*;
@@ -25,12 +24,9 @@ This method is available for many Python object types, and can produce a wide
 variety of Rust types, which you can check out in the implementor list of
 [`FromPyObject`].
 
-[`FromPyObject`] is also implemented for your own Rust types wrapped as Python
-objects (see [the chapter about classes](../class.md)).  There, in order to both be
-able to operate on mutable references *and* satisfy Rust's rules of non-aliasing
-mutable references, you have to extract the PyO3 reference wrappers [`PyRef`]
-and [`PyRefMut`].  They work like the reference wrappers of
-`std::cell::RefCell` and ensure (at runtime) that Rust borrows are allowed.
+[`FromPyObject`] is also implemented for your own Rust types wrapped as Python objects (see [the chapter about classes](../class.md)).
+There, in order to both be able to operate on mutable references *and* satisfy Rust's rules of non-aliasing mutable references, you have to extract the PyO3 reference wrappers [`PyRef`] and [`PyRefMut`].
+They work like the reference wrappers of `std::cell::RefCell` and ensure (at runtime) that Rust borrows are allowed.
 
 ### Deriving [`FromPyObject`]
 

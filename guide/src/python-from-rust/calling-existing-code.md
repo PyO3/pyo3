@@ -50,14 +50,11 @@ Python::attach(|py| {
 
 ## Want to run statements? Then use `run`
 
-[`Python::run`] is a method to execute one or more
-[Python statements](https://docs.python.org/3/reference/simple_stmts.html).
-This method returns nothing (like any Python statement), but you can get
-access to manipulated objects via the `locals` dict.
+[`Python::run`] is a method to execute one or more [Python statements](https://docs.python.org/3/reference/simple_stmts.html).
+This method returns nothing (like any Python statement), but you can get access to manipulated objects via the `locals` dict.
 
 You can also use the [`py_run!`] macro, which is a shorthand for [`Python::run`].
-Since [`py_run!`] panics on exceptions, we recommend you use this macro only for
-quickly testing your Python extensions.
+Since [`py_run!`] panics on exceptions, we recommend you use this macro only for quickly testing your Python extensions.
 
 ```rust
 use pyo3::prelude::*;
@@ -141,9 +138,7 @@ def leaky_relu(x, slope=0.01):
 ## Want to embed Python in Rust with additional modules?
 
 Python maintains the `sys.modules` dict as a cache of all imported modules.
-An import in Python will first attempt to lookup the module from this dict,
-and if not present will use various strategies to attempt to locate and load
-the module.
+An import in Python will first attempt to lookup the module from this dict, and if not present will use various strategies to attempt to locate and load the module.
 
 The [`append_to_inittab`]({{#PYO3_DOCS_URL}}/pyo3/macro.append_to_inittab.html) macro can be used to add additional `#[pymodule]` modules to an embedded Python interpreter.
 The macro **must** be invoked _before_ initializing Python.
@@ -203,8 +198,7 @@ fn main() -> PyResult<()> {
 
 ## Include multiple Python files
 
-You can include a file at compile time by using
-[`std::include_str`](https://doc.rust-lang.org/std/macro.include_str.html) macro.
+You can include a file at compile time by using [`std::include_str`](https://doc.rust-lang.org/std/macro.include_str.html) macro.
 
 Or you can load a file at runtime by using
 [`std::fs::read_to_string`](https://doc.rust-lang.org/std/fs/fn.read_to_string.html) function.
