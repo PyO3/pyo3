@@ -36,7 +36,7 @@ Most implementations can just add an elided lifetime to migrate.
 
 Additionally `FromPyObject` gained an associated type `Error`.
 This is the error type that can be used in case of a conversion error.
-During migration using `PyErr` is a good default, later a custom error type can be introduced to prevent unneccessary creation of Python exception objects and improved type safety.
+During migration using `PyErr` is a good default, later a custom error type can be introduced to prevent unnecessary creation of Python exception objects and improved type safety.
 
 Before:
 
@@ -101,7 +101,7 @@ where
 }
 ```
 
-Container types that need to create temporary Python references during extraction, for example extracing from a `PyList`, requires a stronger bound.
+Container types that need to create temporary Python references during extraction, for example extracting from a `PyList`, requires a stronger bound.
 For these the `FromPyObjectOwned` trait was introduced.
 It is automatically implemented for any type that implements `FromPyObject` and does not borrow from the input.
 It is intended to be used as a trait bound in these situations.
@@ -365,7 +365,7 @@ It may be preferable to instead use `std::sync::OnceLock` in combination with th
 
 Future PyO3 versions will likely add more traits and data structures to make working with free-threaded Python easier.
 
-Some features are unaccessible on the free-threaded build:
+Some features are inaccessible on the free-threaded build:
 
 - The `GILProtected` type, which relied on the GIL to expose synchronized access to inner contents
 - `PyList::get_item_unchecked`, which cannot soundly be used due to races between time-of-check and time-of-use

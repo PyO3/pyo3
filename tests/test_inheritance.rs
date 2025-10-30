@@ -162,7 +162,7 @@ fn handle_result_in_new() {
             r#"
 try:
     subclass(-10)
-    assert Fals
+    assert False
 except ValueError as e:
     pass
 except Exception as e:
