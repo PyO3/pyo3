@@ -27,8 +27,7 @@ mod my_extension {
 # }
 ```
 
-The `#[pymodule]` procedural macro takes care of creating the initialization function of your
-module and exposing it to Python.
+The `#[pymodule]` procedural macro takes care of creating the initialization function of your module and exposing it to Python.
 
 The module's name defaults to the name of the Rust module.
 You can override the module name by using `#[pyo3(name = "custom_name")]`:

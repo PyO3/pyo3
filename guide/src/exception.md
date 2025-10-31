@@ -37,8 +37,7 @@ Python::attach(|py| {
 # }
 ```
 
-When using PyO3 to create an extension module, you can add the new exception to
-the module like this, so that it is importable from Python:
+When using PyO3 to create an extension module, you can add the new exception to the module like this, so that it is importable from Python:
 
 ```rust,no_run
 # fn main() {}
@@ -126,8 +125,7 @@ fn tell(file: &Bound<'_, PyAny>) -> PyResult<u64> {
 }
 ```
 
-[`pyo3::exceptions`]({{#PYO3_DOCS_URL}}/pyo3/exceptions/index.html)
-defines exceptions for several standard library modules.
+[`pyo3::exceptions`]({{#PYO3_DOCS_URL}}/pyo3/exceptions/index.html) defines exceptions for several standard library modules.
 
 ## Creating more complex exceptions
 

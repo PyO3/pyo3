@@ -255,11 +255,9 @@ As an advanced feature, you can build PyO3 wheel without calling Python interpre
 Also, if the build host Python interpreter is not found or is too old or otherwise unusable, PyO3 will still attempt to compile `abi3` extension modules after displaying a warning message.
 On Unix-like systems this works unconditionally; on Windows you must also set the `RUSTFLAGS` environment variable to contain `-L native=/path/to/python/libs` so that the linker can find `python3.lib`.
 
-If the `python3.dll` import library is not available, an experimental `generate-import-lib` crate
-feature may be enabled, and the required library will be created and used by PyO3 automatically.
+If the `python3.dll` import library is not available, an experimental `generate-import-lib` crate feature may be enabled, and the required library will be created and used by PyO3 automatically.
 
-*Note*: MSVC targets require LLVM binutils (`llvm-dlltool`) to be available in `PATH` for
-the automatic import library generation feature to work.
+*Note*: MSVC targets require LLVM binutils (`llvm-dlltool`) to be available in `PATH` for the automatic import library generation feature to work.
 
 #### Missing features
 
@@ -395,9 +393,7 @@ cargo build --target x86_64-pc-windows-gnu
 
 Any of the `abi3-py3*` features can be enabled instead of setting `PYO3_CROSS_PYTHON_VERSION` in the above examples.
 
-`PYO3_CROSS_LIB_DIR` can often be omitted when cross compiling extension modules for Unix and macOS targets,
-or when cross compiling extension modules for Windows and the experimental `generate-import-lib`
-crate feature is enabled.
+`PYO3_CROSS_LIB_DIR` can often be omitted when cross compiling extension modules for Unix and macOS targets, or when cross compiling extension modules for Windows and the experimental `generate-import-lib` crate feature is enabled.
 
 The following resources may also be useful for cross-compiling:
 

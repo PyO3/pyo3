@@ -58,7 +58,7 @@ exclude = [
 style = "dash"
 
 [tool.rumdl.MD013]
-paragraphs = false
+line_length = 0
 code_blocks = false
 tables = false
 headings = false

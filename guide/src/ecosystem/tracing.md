@@ -1,8 +1,6 @@
 # Tracing
 
-Python projects that write extension modules for performance reasons may want to
-tap into [Rust's `tracing` ecosystem] to gain insight into the performance of
-their extension module.
+Python projects that write extension modules for performance reasons may want to tap into [Rust's `tracing` ecosystem] to gain insight into the performance of their extension module.
 
 This section of the guide describes a few crates that provide ways to do that.
 They build on [`tracing_subscriber`][tracing-subscriber] and require code changes in both Python and Rust to integrate.
@@ -17,23 +15,17 @@ It exposes a few `tracing_subscriber` layers:
 - `opentelemetry-stdout` for writing OTLP output to file or stdout
 - `opentelemetry-otlp` for writing OTLP output to an OTLP endpoint
 
-The extension module must call [`pyo3_tracing_subscriber::add_submodule`][add-submodule]
-to export the Python classes needed to configure and initialize `tracing`.
+The extension module must call [`pyo3_tracing_subscriber::add_submodule`][add-submodule] to export the Python classes needed to configure and initialize `tracing`.
 
-On the Python side, use the `Tracing` context manager to initialize tracing and
-run Rust code inside the context manager's block. `Tracing` takes a
-`GlobalTracingConfig` instance describing the layers to be used.
+On the Python side, use the `Tracing` context manager to initialize tracing and run Rust code inside the context manager's block. `Tracing` takes a `GlobalTracingConfig` instance describing the layers to be used.
 
 See [the README on crates.io][pyo3-tracing-subscriber] for example code.
 
 ## `pyo3-python-tracing-subscriber` ([documentation][pyo3-python-tracing-subscriber-docs])
 
-The similarly-named [`pyo3-python-tracing-subscriber`][pyo3-python-tracing-subscriber]
-implements a shim in Rust that forwards `tracing` data to a `Layer`
-implementation defined in and passed in from Python.
+The similarly-named [`pyo3-python-tracing-subscriber`][pyo3-python-tracing-subscriber] implements a shim in Rust that forwards `tracing` data to a `Layer` implementation defined in and passed in from Python.
 
-There are many ways an extension module could integrate `pyo3-python-tracing-subscriber`
-but a simple one may look something like this:
+There are many ways an extension module could integrate `pyo3-python-tracing-subscriber` but a simple one may look something like this:
 
 ```rust,no_run
 #[tracing::instrument]
@@ -88,8 +80,7 @@ def main():
     print("10th fibonacci number: ", rust_extension.fibonacci(10, True))
 ```
 
-`pyo3-python-tracing-subscriber` has [working examples]
-showing both the Rust side and the Python side of an integration.
+`pyo3-python-tracing-subscriber` has [working examples] showing both the Rust side and the Python side of an integration.
 
 [pyo3-tracing-subscriber]: https://crates.io/crates/pyo3-tracing-subscriber
 [pyo3-tracing-subscriber-docs]: https://docs.rs/pyo3-tracing-subscriber

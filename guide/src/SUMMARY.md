@@ -43,8 +43,11 @@
 ---
 
 [Appendix A: Migration guide](migration.md)
+
 [Appendix B: Trait bounds](trait-bounds.md)
+
 [Appendix C: Python typing hints](python-typing-hints.md)
+
 [CHANGELOG](changelog.md)
 
 ---
