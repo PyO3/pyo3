@@ -197,6 +197,8 @@ use crate::conversion::IntoPyObject;
 use crate::exceptions::PyRuntimeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::pyclass::{boolean_struct::False, PyClass};
+#[cfg(feature = "experimental-inspect")]
+use crate::type_object::PyTypeCheck;
 use crate::{ffi, Borrowed, Bound, PyErr, Python};
 use std::convert::Infallible;
 use std::fmt;

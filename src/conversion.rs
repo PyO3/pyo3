@@ -522,7 +522,7 @@ where
     type Error = PyClassGuardError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = <T as crate::PyTypeInfo>::TYPE_HINT;
+    const INPUT_TYPE: TypeHint = <T as crate::PyTypeCheck>::TYPE_HINT;
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         Ok(obj.extract::<PyClassGuard<'_, T>>()?.clone())
@@ -536,7 +536,7 @@ where
     type Error = PyClassGuardError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = <T as crate::PyTypeInfo>::TYPE_HINT;
+    const INPUT_TYPE: TypeHint = <T as crate::PyTypeCheck>::TYPE_HINT;
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         obj.cast::<T>()
@@ -553,7 +553,7 @@ where
     type Error = PyClassGuardMutError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = <T as crate::PyTypeInfo>::TYPE_HINT;
+    const INPUT_TYPE: TypeHint = <T as crate::PyTypeCheck>::TYPE_HINT;
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         obj.cast::<T>()
