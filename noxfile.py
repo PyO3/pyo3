@@ -202,14 +202,15 @@ def ruff(session: nox.Session):
     _run(session, "ruff", "check", ".")
 
 
-@nox.session(name="rumdl")
+@nox.session(name="rumdl", venv_backend="none")
 def rumdl(session: nox.Session):
     """Run rumdl to check markdown formatting in the guide.
 
-    Can also run with uv directly, e.g. `uvx rumdl check guide`.
+    Can also run with uv directly, e.g. `uv run rumdl check guide`.
     """
-    session.install("rumdl")
-    _run(session, "rumdl", "check", "guide", *session.posargs)
+    _run(
+        session, "uv", "run", "rumdl", "check", "guide", *session.posargs, external=True
+    )
 
 
 @nox.session(name="clippy", venv_backend="none")

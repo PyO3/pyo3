@@ -1,3 +1,8 @@
+[project]
+requires-python = ">=3.7"
+name = "pyo3"
+dynamic = ["version"]
+
 [tool.ruff.lint.extend-per-file-ignores]
 "__init__.py" = ["F403"]
 
@@ -53,3 +58,11 @@ tables = false
 headings = false
 reflow = true
 reflow_mode = "sentence-per-line"
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+  "rumdl"
+]
