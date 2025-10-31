@@ -1,3 +1,14 @@
+[project]
+requires-python = ">=3.7"
+name = "pyo3"
+dynamic = ["version"]
+
+[tool.ruff.per-file-target-version]
+# experimental-inspect generates .pyi files that use positional-only `/` marker
+"*.pyi" = "py38"
+# uses `match` statement
+"pytests/tests/test_enums_match.py" = "py310"
+
 [tool.ruff.lint.extend-per-file-ignores]
 "__init__.py" = ["F403"]
 
@@ -53,3 +64,11 @@ tables = false
 headings = false
 reflow = true
 reflow_mode = "sentence-per-line"
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+  "rumdl"
+]

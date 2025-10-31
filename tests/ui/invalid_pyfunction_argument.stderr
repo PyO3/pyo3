@@ -70,8 +70,13 @@ error[E0277]: `Foo` cannot be used as a Python function argument
   --> tests/ui/invalid_pyfunction_argument.rs:14:59
    |
 14 | fn skip_from_py_object_without_custom_from_py_object(arg: Foo) {
-   |                                                           ^^^ the trait `ExtractPyClassWithClone` is not implemented for `Foo`
+   |                                                           ^^^ unsatisfied trait bound
    |
+help: the trait `ExtractPyClassWithClone` is not implemented for `Foo`
+  --> tests/ui/invalid_pyfunction_argument.rs:11:1
+   |
+11 | struct Foo;
+   | ^^^^^^^^^^
    = note: implement `FromPyObject` to enable using `Foo` as a function argument
    = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
    = help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`:
