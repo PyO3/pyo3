@@ -19,7 +19,7 @@ mod my_extension {
     #[pymodule_export]
     use super::double; // The double function is made available from Python, works also with classes
 
-    #[pyfunction] // Inline definition of a pyfunction, also made availlable to Python
+    #[pyfunction] // Inline definition of a pyfunction, also made available to Python
     fn triple(x: usize) -> usize {
         x * 3
     }

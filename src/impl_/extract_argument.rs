@@ -531,7 +531,7 @@ impl FunctionDescription {
                 if let Some(i) = self.find_keyword_parameter_in_positional(kwarg_name) {
                     if i < self.positional_only_parameters {
                         // If accepting **kwargs, then it's allowed for the name of the
-                        // kwarg to conflict with a postional-only argument - the value
+                        // kwarg to conflict with a positional-only argument - the value
                         // will go into **kwargs anyway.
                         if K::handle_varkeyword(varkeywords, kwarg_name_py, value, self).is_err() {
                             positional_only_keyword_arguments.push(kwarg_name_owned);

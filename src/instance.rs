@@ -925,7 +925,7 @@ impl<'py, T> BoundObject<'py, T> for Bound<'py, T> {
 ///
 /// Some Python C APIs also return "borrowed" pointers, which need to be increfd by the caller to
 /// keep them alive. This can also be modelled using [`Borrowed`]. However with free-threading these
-/// APIs are gradually replaced, because in absense of the GIL it is very hard to guarantee that the
+/// APIs are gradually replaced, because in absence of the GIL it is very hard to guarantee that the
 /// referred to object is not deallocated between receiving the pointer and incrementing the
 /// reference count. When possible APIs which return a "strong" reference (modelled by [`Bound`])
 /// should be using instead and otherwise great care needs to be taken to ensure safety.

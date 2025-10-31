@@ -334,7 +334,7 @@ impl<'py, T> IntoPyObjectExt<'py> for T where T: IntoPyObject<'py> {}
 /// ```
 /// This is basically what the derive macro above expands to.
 ///
-/// ## Manual implementation for types with lifetime paramaters
+/// ## Manual implementation for types with lifetime parameters
 /// For types that contain lifetimes, these lifetimes need to be bound to the corresponding
 /// [`FromPyObject`] lifetime. This is roughly how the extraction of a typed [`Bound`] is
 /// implemented within PyO3.
