@@ -18,13 +18,13 @@ use crate::{
 };
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-#[cfg(feature = "experimental-inspect")]
-use syn::Ident;
 use syn::{
     parse::{Parse, ParseStream},
     spanned::Spanned,
     ImplItemFn, Result,
 };
+#[cfg(feature = "experimental-inspect")]
+use syn::{parse_quote, Ident};
 
 /// The mechanism used to collect `#[pymethods]` into the type object
 #[derive(Copy, Clone)]
@@ -411,7 +411,7 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
         }
         FnType::FnNew | FnType::FnNewClass(_) => {
             first_argument = Some("cls");
-            output = syn::ReturnType::Default; // The __new__ Python function return type is None
+            output = parse_quote!(-> #pyo3_path::PyRef<Self>); // Hack to return Self while implementing IntoPyObject
         }
         FnType::FnClass(_) => {
             first_argument = Some("cls");
