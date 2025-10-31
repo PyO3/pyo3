@@ -146,7 +146,7 @@ mod tests {
         }
         let _ = catch_unwind_silent(move || {
             let _: Result<[CountDrop; 4], ()> = super::array_try_from_fn(|idx| {
-                #[allow(clippy::manual_assert)]
+                #[expect(clippy::manual_assert, reason = "testing panic during array creation")]
                 if idx == 2 {
                     panic!("peek a boo");
                 }

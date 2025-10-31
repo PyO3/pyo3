@@ -524,7 +524,7 @@ fn test_module_functions_with_module() {
 #[test]
 fn test_module_doc_hidden() {
     #[doc(hidden)]
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     #[pymodule]
     fn my_module(_m: &Bound<'_, PyModule>) -> PyResult<()> {
         Ok(())

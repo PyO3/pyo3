@@ -2646,7 +2646,10 @@ a = A()
     }
 
     #[test]
-    #[allow(clippy::undocumented_unsafe_blocks)] // Doing evil things to try to make `Bound` blow up
+    #[expect(
+        clippy::undocumented_unsafe_blocks,
+        reason = "Doing evil things to try to make `Bound` blow up"
+    )]
     fn bound_from_borrowed_ptr_constructors() {
         Python::attach(|py| {
             fn check_drop<'py>(
@@ -2685,7 +2688,10 @@ a = A()
     }
 
     #[test]
-    #[allow(clippy::undocumented_unsafe_blocks)] // Doing evil things to try to make `Borrowed` blow up
+    #[expect(
+        clippy::undocumented_unsafe_blocks,
+        reason = "Doing evil things to try to make `Borrowed` blow up"
+    )]
     fn borrowed_ptr_constructors() {
         Python::attach(|py| {
             fn check_drop<'py>(

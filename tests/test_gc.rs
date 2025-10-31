@@ -305,7 +305,7 @@ fn gc_during_borrow() {
     impl TraversableClass {
         fn __clear__(&mut self) {}
 
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
             self.traversed.store(true, Ordering::Relaxed);
             Ok(())
@@ -458,14 +458,14 @@ fn traverse_cannot_be_hijacked() {
 
     #[pymethods]
     impl HijackedTraverse {
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
             self.traversed.store(true, Ordering::Release);
             Ok(())
         }
     }
 
-    #[allow(dead_code)]
+    #[allow(dead_code, reason = "used to test the trait method is not used")]
     trait Traversable {
         fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>;
     }
@@ -497,7 +497,7 @@ struct DropDuringTraversal {
 
 #[pymethods]
 impl DropDuringTraversal {
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         let mut cycle_ref = self.cycle.lock().unwrap();
         *cycle_ref = None;
@@ -579,7 +579,7 @@ fn unsendable_are_not_traversed_on_foreign_thread() {
     impl UnsendableTraversal {
         fn __clear__(&mut self) {}
 
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
             self.traversed.set(true);
             Ok(())
@@ -634,7 +634,7 @@ fn test_traverse_subclass() {
 
     #[pymethods]
     impl SubOverrideTraverse {
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
             // subclass traverse overrides the base class traverse
             Ok(())
@@ -675,7 +675,7 @@ fn test_traverse_subclass_override_clear() {
 
     #[pymethods]
     impl SubOverrideClear {
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
             // subclass traverse overrides the base class traverse, necessary for
             // the sub clear to be called
@@ -755,7 +755,7 @@ fn test_drop_buffer_during_traversal_without_gil() {
 
     #[pymethods]
     impl BufferDropDuringTraversal {
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
             self.inner.lock().unwrap().take();
             Ok(())

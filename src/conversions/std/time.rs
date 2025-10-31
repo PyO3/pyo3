@@ -312,7 +312,7 @@ mod tests {
         });
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new_datetime(
         py: Python<'_>,
         year: i32,

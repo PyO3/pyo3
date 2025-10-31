@@ -50,7 +50,6 @@ struct ClassWithDocs {
 
     /// Write-only property field
     #[pyo3(set)]
-    #[allow(dead_code)] // Rust detects field is never read
     writeonly: i32,
 }
 

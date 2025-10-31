@@ -25,7 +25,6 @@ unsafe impl PyTypeInfo for PySequence {
     const MODULE: Option<&'static str> = Some("collections.abc");
 
     #[inline]
-    #[allow(clippy::redundant_closure_call)]
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject {
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         TYPE.import(py, "collections.abc", "Sequence")

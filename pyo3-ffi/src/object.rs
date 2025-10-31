@@ -105,7 +105,10 @@ pub struct PyObject {
     pub ob_type: *mut PyTypeObject,
 }
 
-#[allow(clippy::declare_interior_mutable_const)]
+#[allow(
+    clippy::declare_interior_mutable_const,
+    reason = "contains atomic refcount on free-threaded builds"
+)]
 pub const PyObject_HEAD_INIT: PyObject = PyObject {
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     _ob_next: std::ptr::null_mut(),

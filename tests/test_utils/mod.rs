@@ -7,13 +7,19 @@
 // the inner mod enables the #![allow(dead_code)] to
 // be applied - `src/test_utils.rs` uses `include!` to pull in this file
 
-#[allow(dead_code, unused_macros)] // many tests do not use the complete set of functionality offered here
-#[allow(missing_docs)] // only used in tests
+#[allow(
+    dead_code,
+    unused_macros,
+    reason = "many tests do not use the complete set of functionality offered here"
+)]
+#[allow(missing_docs, reason = "only used in tests")]
 #[macro_use]
 mod inner {
 
-    #[allow(unused_imports)]
-    // pulls in `use crate as pyo3` in `src/test_utils.rs`, no function in integration tests
+    #[allow(
+        unused_imports,
+        reason = "pulls in `use crate as pyo3` from src/test_utils.rs, no function in integration tests"
+    )]
     use super::*;
 
     use pyo3::prelude::*;
@@ -266,7 +272,7 @@ mod inner {
         }};
     }
 
-    #[allow(unused_imports)] // not all tests use this macro
+    #[allow(unused_imports, reason = "not all tests use this macro")]
     pub(crate) use assert_warnings;
 
     pub fn generate_unique_module_name(base: &str) -> std::ffi::CString {
@@ -275,5 +281,5 @@ mod inner {
     }
 }
 
-#[allow(unused_imports)] // some tests use just the macros and none of the other functionality
+#[allow(unused_imports, reason = "some integration tests use just the macros")]
 pub use inner::*;

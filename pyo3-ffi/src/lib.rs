@@ -160,8 +160,8 @@
 //!     PyMethodDef::zeroed(),
 //! ];
 //!
-//! // The module initialization function, which must be named `PyInit_<your_module>`.
-//! #[allow(non_snake_case)]
+//! // The module initialization function.
+//! #[allow(non_snake_case, reason = "must be named `PyInit_<your_module>`")]
 //! #[no_mangle]
 //! pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
 //!     let module = PyModule_Create(ptr::addr_of_mut!(MODULE_DEF));
@@ -195,7 +195,7 @@
 //!     let mut overflow = 0;
 //!     let i_long: c_long = PyLong_AsLongAndOverflow(obj, &mut overflow);
 //!
-//!     #[allow(irrefutable_let_patterns)] // some platforms have c_long equal to i32
+//!     #[allow(irrefutable_let_patterns, reason = "some platforms have c_long equal to i32")]
 //!     if overflow != 0 {
 //!         raise_overflowerror(obj);
 //!         None

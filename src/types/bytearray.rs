@@ -215,7 +215,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// Any other accesses of the `bytearray`'s buffer invalidate the slice. If it is used
     /// afterwards, the behavior is undefined. The safety requirements of [`PyByteArrayMethods::as_bytes`]
     /// apply to this function as well.
-    #[allow(clippy::mut_from_ref)]
+    #[expect(clippy::mut_from_ref)]
     unsafe fn as_bytes_mut(&self) -> &mut [u8];
 
     /// Copies the contents of the bytearray to a Rust vector.
@@ -264,7 +264,6 @@ impl<'py> PyByteArrayMethods<'py> for Bound<'py, PyByteArray> {
         unsafe { self.as_borrowed().as_bytes() }
     }
 
-    #[allow(clippy::mut_from_ref)]
     unsafe fn as_bytes_mut(&self) -> &mut [u8] {
         unsafe { self.as_borrowed().as_bytes_mut() }
     }
@@ -297,12 +296,10 @@ impl<'a> Borrowed<'a, '_, PyByteArray> {
         unsafe { ffi::PyByteArray_AsString(self.as_ptr()).cast() }
     }
 
-    #[allow(clippy::wrong_self_convention)]
     pub(crate) unsafe fn as_bytes(self) -> &'a [u8] {
         unsafe { slice::from_raw_parts(self.data(), self.len()) }
     }
 
-    #[allow(clippy::wrong_self_convention)]
     unsafe fn as_bytes_mut(self) -> &'a mut [u8] {
         unsafe { slice::from_raw_parts_mut(self.data(), self.len()) }
     }

@@ -144,7 +144,7 @@ fn test_enum_compare_int_no_throw_when_overflow() {
 #[pyclass(eq, eq_int, skip_from_py_object)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[repr(usize)]
-#[allow(clippy::enum_clike_unportable_variant)]
+#[expect(clippy::enum_clike_unportable_variant)]
 enum BigEnum {
     V = usize::MAX,
 }
@@ -203,7 +203,7 @@ fn test_rename_variant_repr_correct() {
 
 #[pyclass(eq, eq_int, rename_all = "SCREAMING_SNAKE_CASE", skip_from_py_object)]
 #[derive(Debug, PartialEq, Eq, Clone)]
-#[allow(clippy::enum_variant_names)]
+#[expect(clippy::enum_variant_names)]
 enum RenameAllVariantsEnum {
     VariantOne,
     VariantTwo,
