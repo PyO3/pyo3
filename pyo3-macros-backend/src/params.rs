@@ -131,7 +131,7 @@ pub fn impl_arg_params(
     };
 
     let cls_name = if let Some(cls) = self_ {
-        quote! { ::std::option::Option::Some(<#cls as #pyo3_path::type_object::PyTypeInfo>::NAME) }
+        quote! { ::std::option::Option::Some(<#cls as #pyo3_path::PyClass>::NAME) }
     } else {
         quote! { ::std::option::Option::None }
     };
