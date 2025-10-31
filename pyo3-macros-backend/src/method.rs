@@ -903,6 +903,11 @@ impl<'a> FnSpec<'a> {
     pub fn get_methoddef(&self, wrapper: impl ToTokens, doc: &PythonDoc, ctx: &Ctx) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
         let python_name = self.null_terminated_python_name();
+        let flags = match self.tp {
+            FnType::FnClass(_) => quote! { .flags(#pyo3_path::ffi::METH_CLASS) },
+            FnType::FnStatic => quote! { .flags(#pyo3_path::ffi::METH_STATIC) },
+            _ => quote! {},
+        };
         match self.convention {
             CallingConvention::Noargs => quote! {
                 #pyo3_path::impl_::pymethods::PyMethodDef::noargs(
@@ -924,7 +929,7 @@ impl<'a> FnSpec<'a> {
                         trampoline
                     },
                     #doc,
-                )
+                ) #flags
             },
             CallingConvention::Fastcall => quote! {
                 #pyo3_path::impl_::pymethods::PyMethodDef::fastcall_cfunction_with_keywords(
@@ -948,7 +953,7 @@ impl<'a> FnSpec<'a> {
                         trampoline
                     },
                     #doc,
-                )
+                ) #flags
             },
             CallingConvention::Varargs => quote! {
                 #pyo3_path::impl_::pymethods::PyMethodDef::cfunction_with_keywords(
@@ -970,7 +975,7 @@ impl<'a> FnSpec<'a> {
                         trampoline
                     },
                     #doc,
-                )
+                ) #flags
             },
             CallingConvention::TpNew => unreachable!("tp_new cannot get a methoddef"),
         }

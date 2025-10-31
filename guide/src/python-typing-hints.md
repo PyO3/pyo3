@@ -237,7 +237,7 @@ To overcome this limitation, implementers can pass the `generic` parameter to `p
 #### Advanced Users
 
 `#[pyclass(generic)]` implements a very simple runtime behavior that accepts any generic argument.
-Advanced users can opt to manually implement [`__class_geitem__`](https://docs.python.org/3/reference/datamodel.html#emulating-generic-types) for the generic class to have more control.
+Advanced users can opt to manually implement [`__class_getitem__`](https://docs.python.org/3/reference/datamodel.html#emulating-generic-types) for the generic class to have more control.
 
 ```rust ignore
 impl MyClass {

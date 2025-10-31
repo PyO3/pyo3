@@ -476,11 +476,11 @@ fn impl_class(
         ctx,
     )?;
 
-    let (default_class_geitem, default_class_geitem_method) =
-        pyclass_class_geitem(&args.options, &syn::parse_quote!(#cls), ctx)?;
+    let (default_class_getitem, default_class_getitem_method) =
+        pyclass_class_getitem(&args.options, &syn::parse_quote!(#cls), ctx)?;
 
-    if let Some(default_class_geitem_method) = default_class_geitem_method {
-        default_methods.push(default_class_geitem_method);
+    if let Some(default_class_getitem_method) = default_class_getitem_method {
+        default_methods.push(default_class_getitem_method);
     }
 
     let (default_str, default_str_slot) =
@@ -514,7 +514,7 @@ fn impl_class(
             #default_richcmp
             #default_hash
             #default_str
-            #default_class_geitem
+            #default_class_getitem
         }
     })
 }
@@ -2233,7 +2233,7 @@ fn pyclass_hash(
     }
 }
 
-fn pyclass_class_geitem(
+fn pyclass_class_getitem(
     options: &PyClassPyO3Options,
     cls: &syn::Type,
     ctx: &Ctx,
@@ -2242,7 +2242,7 @@ fn pyclass_class_geitem(
     match options.generic {
         Some(_) => {
             let ident = format_ident!("__class_getitem__");
-            let mut class_geitem_impl: syn::ImplItemFn = {
+            let mut class_getitem_impl: syn::ImplItemFn = {
                 parse_quote! {
                     #[classmethod]
                     fn #ident<'py>(
@@ -2255,19 +2255,18 @@ fn pyclass_class_geitem(
             };
 
             let spec = FnSpec::parse(
-                &mut class_geitem_impl.sig,
-                &mut class_geitem_impl.attrs,
+                &mut class_getitem_impl.sig,
+                &mut class_getitem_impl.attrs,
                 Default::default(),
             )?;
 
-            let class_geitem_method = crate::pymethod::impl_py_method_def(
+            let class_getitem_method = crate::pymethod::impl_py_method_def(
                 cls,
                 &spec,
-                &spec.get_doc(&class_geitem_impl.attrs, ctx)?,
-                Some(quote!(#pyo3_path::ffi::METH_CLASS)),
+                &spec.get_doc(&class_getitem_impl.attrs, ctx)?,
                 ctx,
             )?;
-            Ok((Some(class_geitem_impl), Some(class_geitem_method)))
+            Ok((Some(class_getitem_impl), Some(class_getitem_method)))
         }
         None => Ok((None, None)),
     }
