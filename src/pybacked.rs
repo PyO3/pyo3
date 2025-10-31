@@ -15,6 +15,10 @@ use crate::{
 /// This type gives access to the underlying data via a `Deref` implementation.
 #[cfg_attr(feature = "py-clone", derive(Clone))]
 pub struct PyBackedStr {
+    #[allow(
+        dead_code,
+        reason = "not read on Python 3.9 and older limited API, storage only on those versions"
+    )]
     storage: Py<PyAny>,
     data: NonNull<str>,
 }
