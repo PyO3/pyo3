@@ -114,8 +114,6 @@ num=-1 (was previously=44), py_args=(), name=World, py_kwargs=None
 num=44
 ```
 
-<!-- rumdl-disable MD052 - code block in quote confuses linter -->
-
 > Note: to use keywords like `struct` as a function argument, use "raw identifier" syntax `r#struct` in both the signature and the function definition:
 >
 > ```rust,no_run
@@ -127,8 +125,6 @@ num=44
 >     /* ... */
 > }
 > ```
-
-<!-- rumdl-enable MD052 -->
 
 ## Making the function signature available to Python
 

@@ -1758,8 +1758,6 @@ Attempting to do this will now raise an `ImportError`.
 
 ## from 0.15.* to 0.16
 
-<!-- rumdl-disable MD024 - same heading used above -->
-
 ### Drop support for older technologies
 
 <!-- rumdl-enable MD024 -->

@@ -183,8 +183,6 @@ This option also requires `eq`: According to the [Python docs](https://docs.pyth
 struct Number(i32);
 ```
 
-<!-- rumdl-disable MD052 - code block in quote confusing rumdl -->
-
 > **Note**: When implementing `__hash__` and comparisons, it is important that the following property holds:
 >
 > ```text
@@ -210,8 +208,6 @@ struct Number(i32);
 >     const __hash__: Option<Py<PyAny>> = None;
 > }
 > ```
-
-<!-- rumdl-enable MD052 -->
 
 ### Comparisons
 
