@@ -85,6 +85,7 @@ pub struct PyClassPyO3Options {
     pub rename_all: Option<RenameAllAttribute>,
     pub sequence: Option<kw::sequence>,
     pub set_all: Option<kw::set_all>,
+    pub auto_new: Option<kw::auto_new>,
     pub str: Option<StrFormatterAttribute>,
     pub subclass: Option<kw::subclass>,
     pub unsendable: Option<kw::unsendable>,
@@ -112,6 +113,7 @@ pub enum PyClassPyO3Option {
     RenameAll(RenameAllAttribute),
     Sequence(kw::sequence),
     SetAll(kw::set_all),
+    AutoNew(kw::auto_new),
     Str(StrFormatterAttribute),
     Subclass(kw::subclass),
     Unsendable(kw::unsendable),
@@ -158,6 +160,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Sequence)
         } else if lookahead.peek(attributes::kw::set_all) {
             input.parse().map(PyClassPyO3Option::SetAll)
+        } else if lookahead.peek(attributes::kw::auto_new) {
+            input.parse().map(PyClassPyO3Option::AutoNew)
         } else if lookahead.peek(attributes::kw::str) {
             input.parse().map(PyClassPyO3Option::Str)
         } else if lookahead.peek(attributes::kw::subclass) {
@@ -240,6 +244,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::RenameAll(rename_all) => set_option!(rename_all),
             PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
             PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
+            PyClassPyO3Option::AutoNew(auto_new) => set_option!(auto_new),
             PyClassPyO3Option::Str(str) => set_option!(str),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
@@ -468,6 +473,14 @@ fn impl_class(
         }
     }
 
+    let auto_new = pyclass_auto_new(
+        &args.options,
+        cls,
+        field_options.iter().map(|(f, _)| f),
+        methods_type,
+        ctx,
+    )?;
+
     let mut default_methods = descriptors_to_items(
         cls,
         args.options.rename_all.as_ref(),
@@ -507,6 +520,8 @@ fn impl_class(
         #pytypeinfo_impl
 
         #py_class_impl
+
+        #auto_new
 
         #[doc(hidden)]
         #[allow(non_snake_case)]
@@ -2230,6 +2245,59 @@ fn pyclass_hash(
             Ok((Some(hash_impl), Some(hash_slot)))
         }
         None => Ok((None, None)),
+    }
+}
+
+fn pyclass_auto_new<'a>(
+    options: &PyClassPyO3Options,
+    cls: &syn::Ident,
+    fields: impl Iterator<Item = &'a &'a syn::Field>,
+    methods_type: PyClassMethodsType,
+    ctx: &Ctx,
+) -> Result<Option<syn::ItemImpl>> {
+    if options.auto_new.is_some() {
+        ensure_spanned!(
+            options.extends.is_none(), options.hash.span() => "The `auto_new` option cannot be used with `extends`.";
+        );
+    }
+
+    match options.auto_new {
+        Some(opt) => {
+            if matches!(methods_type, PyClassMethodsType::Specialization) {
+                bail_spanned!(opt.span() => "`auto_new` requires the `multiple-pymethods` feature.");
+            }
+
+            let autonew_impl = {
+                let Ctx { pyo3_path, .. } = ctx;
+                let mut field_idents = vec![];
+                let mut field_types = vec![];
+                for (idx, field) in fields.enumerate() {
+                    field_idents.push(
+                        field
+                            .ident
+                            .clone()
+                            .unwrap_or_else(|| format_ident!("_{}", idx)),
+                    );
+                    field_types.push(&field.ty);
+                }
+
+                parse_quote_spanned! { opt.span() =>
+                    #[#pyo3_path::pymethods]
+                    impl #cls {
+                        #[new]
+                        fn _pyo3_generated_new( #( #field_idents : #field_types ),* ) -> Self {
+                            Self {
+                                #( #field_idents, )*
+                            }
+                        }
+                    }
+
+                }
+            };
+
+            Ok(Some(autonew_impl))
+        }
+        None => Ok(None),
     }
 }
 
