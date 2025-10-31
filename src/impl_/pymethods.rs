@@ -59,11 +59,7 @@ impl IPowModulo {
 /// It is used by the `#[pymethods]` attribute.
 #[derive(Copy, Clone)]
 pub enum PyMethodDefType {
-    /// Represents class method
-    Class(PyMethodDef),
-    /// Represents static method
-    Static(PyMethodDef),
-    /// Represents normal method
+    /// Represents a class method (might be `classmethod` or `staticmethod`, depends on `ml_flags`)
     Method(PyMethodDef),
     /// Represents class attribute, used by `#[attribute]`
     ClassAttribute(PyClassAttributeDef),

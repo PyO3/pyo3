@@ -477,7 +477,7 @@ fn impl_class(
     )?;
 
     let (default_class_geitem, default_class_geitem_method) =
-        pyclass_class_geitem(&args.options, &syn::parse_quote!(#cls), ctx)?;
+        pyclass_class_getitem(&args.options, &syn::parse_quote!(#cls), ctx)?;
 
     if let Some(default_class_geitem_method) = default_class_geitem_method {
         default_methods.push(default_class_geitem_method);
@@ -2233,7 +2233,7 @@ fn pyclass_hash(
     }
 }
 
-fn pyclass_class_geitem(
+fn pyclass_class_getitem(
     options: &PyClassPyO3Options,
     cls: &syn::Type,
     ctx: &Ctx,
@@ -2264,7 +2264,6 @@ fn pyclass_class_geitem(
                 cls,
                 &spec,
                 &spec.get_doc(&class_geitem_impl.attrs, ctx)?,
-                Some(quote!(#pyo3_path::ffi::METH_CLASS)),
                 ctx,
             )?;
             Ok((Some(class_geitem_impl), Some(class_geitem_method)))
