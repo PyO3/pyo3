@@ -133,6 +133,7 @@ The given signatures should be interpreted as follows:
 
 - `__getattr__(<self>, object) -> object`
 - `__getattribute__(<self>, object) -> object`
+
     <details>
     <summary>Differences between `__getattr__` and `__getattribute__`</summary>
     As in Python, `__getattr__` is only called if the attribute is not found
