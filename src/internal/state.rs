@@ -548,7 +548,9 @@ mod tests {
 
                 // Rebuild obj so that it can be dropped
                 unsafe {
-                    Py::<PyAny>::from_owned_ptr(
+                    use crate::Bound;
+
+                    Bound::from_owned_ptr(
                         pool.python(),
                         ffi::PyCapsule_GetPointer(capsule, std::ptr::null()) as _,
                     )
