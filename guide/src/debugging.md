@@ -204,8 +204,6 @@ VS Code with the Rust and Python extensions provides an integrated debugging exp
    - Running a specific script with command-line arguments
    - Running pytest tests
 
-<!-- rumdl-disable MD029 - nested lists & code blocks false positive -->
-
 3. Set breakpoints in your Rust code by clicking in the gutter next to line numbers.
 
 4. Start debugging:
@@ -220,8 +218,6 @@ VS Code with the Rust and Python extensions provides an integrated debugging exp
    - Use the debug console to evaluate expressions
    - Step through Rust code line by line using the step controls
    - Set conditional breakpoints for more complex debugging scenarios
-
-<!-- rumdl-enable MD029 -->
 
 ### Advanced Debugging Configurations
 
