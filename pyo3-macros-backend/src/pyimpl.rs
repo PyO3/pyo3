@@ -395,7 +395,6 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
 
     // We introduce self/cls argument and setup decorators
     let mut first_argument = None;
-    let mut output = spec.output.clone();
     let mut decorators = Vec::new();
     match &spec.tp {
         FnType::Getter(_) => {
@@ -408,10 +407,6 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
         }
         FnType::Fn(_) => {
             first_argument = Some("self");
-        }
-        FnType::FnNew | FnType::FnNewClass(_) => {
-            first_argument = Some("cls");
-            output = parse_quote!(-> #pyo3_path::PyRef<Self>); // Hack to return Self while implementing IntoPyObject
         }
         FnType::FnClass(_) => {
             first_argument = Some("cls");
@@ -428,13 +423,19 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
             decorators.push("property".into());
         }
     }
+    let return_type = if spec.python_name.to_string() == "__new__" {
+        // Hack to return Self while implementing IntoPyObject
+        parse_quote!(-> #pyo3_path::PyRef<Self>)
+    } else {
+        spec.output.clone()
+    };
     function_introspection_code(
         pyo3_path,
         None,
         &name,
         &spec.signature,
         first_argument,
-        output,
+        return_type,
         decorators,
         Some(parent),
     )
