@@ -1,7 +1,6 @@
 # Logging
 
-It is desirable if both the Python and Rust parts of the application end up
-logging using the same configuration into the same place.
+It is desirable if both the Python and Rust parts of the application end up logging using the same configuration into the same place.
 
 This section of the guide briefly discusses how to connect the two languages' logging ecosystems together.
 The recommended way for Python extension modules is to configure Rust's logger to send log messages to Python using the `pyo3-log` crate.

@@ -15,7 +15,10 @@ use crate::{
 /// This type gives access to the underlying data via a `Deref` implementation.
 #[cfg_attr(feature = "py-clone", derive(Clone))]
 pub struct PyBackedStr {
-    #[allow(dead_code)] // only held so that the storage is not dropped
+    #[allow(
+        dead_code,
+        reason = "not read on Python 3.9 and older limited API, storage only on those versions"
+    )]
     storage: Py<PyAny>,
     data: NonNull<str>,
 }
@@ -124,12 +127,10 @@ impl<'py> IntoPyObject<'py> for &PyBackedStr {
 /// This type gives access to the underlying data via a `Deref` implementation.
 #[cfg_attr(feature = "py-clone", derive(Clone))]
 pub struct PyBackedBytes {
-    #[allow(dead_code)] // only held so that the storage is not dropped
     storage: PyBackedBytesStorage,
     data: NonNull<[u8]>,
 }
 
-#[allow(dead_code)]
 #[cfg_attr(feature = "py-clone", derive(Clone))]
 enum PyBackedBytesStorage {
     Python(Py<PyBytes>),

@@ -195,7 +195,7 @@ struct StructFromPyObjectNoClone {
 
 #[pyclass]
 #[derive(Clone)]
-struct StructImplictFromPyObjectDeprecated {
+struct StructImplicitFromPyObjectDeprecated {
     a: String,
     b: String,
 }

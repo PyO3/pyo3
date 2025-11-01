@@ -36,7 +36,7 @@ macro_rules! compat_function {
             // cfgs line up, then the the two glob imports will resolve to the same item via the
             // re-export. If the cfgs mismatch, then the use of $name will be ambiguous in cases
             // where the function is defined twice, and the test will fail to compile.
-            #[allow(unused_imports)]
+            #[allow(unused_imports, reason = "imports exist to try to trigger name conflicts")]
             mod [<test_ $name _export>] {
                 use $crate::*;
                 use $crate::compat::*;

@@ -19,7 +19,7 @@ mod my_extension {
     #[pymodule_export]
     use super::double; // The double function is made available from Python, works also with classes
 
-    #[pyfunction] // Inline definition of a pyfunction, also made availlable to Python
+    #[pyfunction] // Inline definition of a pyfunction, also made available to Python
     fn triple(x: usize) -> usize {
         x * 3
     }
@@ -27,8 +27,7 @@ mod my_extension {
 # }
 ```
 
-The `#[pymodule]` procedural macro takes care of creating the initialization function of your
-module and exposing it to Python.
+The `#[pymodule]` procedural macro takes care of creating the initialization function of your module and exposing it to Python.
 
 The module's name defaults to the name of the Rust module.
 You can override the module name by using `#[pyo3(name = "custom_name")]`:

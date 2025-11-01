@@ -1000,7 +1000,7 @@ mod tests {
                 .map_err(|err| TestCaseError::reject(format!("{location}: {err:?}")))
         }
 
-        #[allow(clippy::too_many_arguments)]
+        #[expect(clippy::too_many_arguments)]
         fn try_zoned(
             year: i16,
             month: i8,

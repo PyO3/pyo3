@@ -162,7 +162,7 @@ fn handle_result_in_new() {
             r#"
 try:
     subclass(-10)
-    assert Fals
+    assert False
 except ValueError as e:
     pass
 except Exception as e:
@@ -312,7 +312,7 @@ impl SimpleClass {
 fn test_subclass_ref_counts() {
     // regression test for issue #1363
     Python::attach(|py| {
-        #[allow(non_snake_case)]
+        #[expect(non_snake_case)]
         let SimpleClass = py.get_type::<SimpleClass>();
         py_run!(
             py,

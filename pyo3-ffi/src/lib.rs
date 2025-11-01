@@ -160,8 +160,8 @@
 //!     PyMethodDef::zeroed(),
 //! ];
 //!
-//! // The module initialization function, which must be named `PyInit_<your_module>`.
-//! #[allow(non_snake_case)]
+//! // The module initialization function.
+//! #[allow(non_snake_case, reason = "must be named `PyInit_<your_module>`")]
 //! #[no_mangle]
 //! pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
 //!     let module = PyModule_Create(ptr::addr_of_mut!(MODULE_DEF));
@@ -195,7 +195,7 @@
 //!     let mut overflow = 0;
 //!     let i_long: c_long = PyLong_AsLongAndOverflow(obj, &mut overflow);
 //!
-//!     #[allow(irrefutable_let_patterns)] // some platforms have c_long equal to i32
+//!     #[allow(irrefutable_let_patterns, reason = "some platforms have c_long equal to i32")]
 //!     if overflow != 0 {
 //!         raise_overflowerror(obj);
 //!         None
@@ -320,7 +320,7 @@
 #![doc = concat!("[manual_builds]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/building-and-distribution.html#manual-builds \"Manual builds - Building and Distribution - PyO3 user guide\"")]
 //! [setuptools-rust]: https://github.com/PyO3/setuptools-rust "Setuptools plugin for Rust extensions"
 //! [PEP 384]: https://www.python.org/dev/peps/pep-0384 "PEP 384 -- Defining a Stable ABI"
-#![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features eference - PyO3 user guide\"")]
+#![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features reference - PyO3 user guide\"")]
 #![allow(
     missing_docs,
     non_camel_case_types,

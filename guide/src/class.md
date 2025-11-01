@@ -184,14 +184,11 @@ impl Nonzero {
 }
 ```
 
-If you want to return an existing object (for example, because your `new`
-method caches the values it returns), `new` can return `pyo3::Py<Self>`.
+If you want to return an existing object (for example, because your `new` method caches the values it returns), `new` can return `pyo3::Py<Self>`.
 
-As you can see, the Rust method name is not important here; this way you can
-still, use `new()` for a Rust-level constructor.
+As you can see, the Rust method name is not important here; this way you can still, use `new()` for a Rust-level constructor.
 
-If no method marked with `#[new]` is declared, object instances can only be
-created from Rust, but not from Python.
+If no method marked with `#[new]` is declared, object instances can only be created from Rust, but not from Python.
 
 For arguments, see the [`Method arguments`](#method-arguments) section below.
 
@@ -327,8 +324,7 @@ These parameters are covered in various sections of this guide.
 
 ### Return type
 
-Generally, `#[new]` methods have to return `T: Into<PyClassInitializer<Self>>` or
-`PyResult<T> where T: Into<PyClassInitializer<Self>>`.
+Generally, `#[new]` methods have to return `T: Into<PyClassInitializer<Self>>` or `PyResult<T> where T: Into<PyClassInitializer<Self>>`.
 
 For constructors that may fail, you should wrap the return type in a PyResult as well.
 Consult the table below to determine which type your constructor should return:
@@ -345,10 +341,8 @@ By default, `object`, i.e. `PyAny` is used as the base class.
 To override this default, use the `extends` parameter for `pyclass` with the full path to the base class.
 Currently, only classes defined in Rust and builtins provided by PyO3 can be inherited from; inheriting from other classes defined in Python is not yet supported ([#991](https://github.com/PyO3/pyo3/issues/991)).
 
-For convenience, `(T, U)` implements `Into<PyClassInitializer<T>>` where `U` is the
-base class of `T`.
-But for a more deeply nested inheritance, you have to return `PyClassInitializer<T>`
-explicitly.
+For convenience, `(T, U)` implements `Into<PyClassInitializer<T>>` where `U` is the base class of `T`.
+But for a more deeply nested inheritance, you have to return `PyClassInitializer<T>` explicitly.
 
 To get a parent class from a child, use [`PyRef`] instead of `&self` for methods, or [`PyRefMut`] instead of `&mut self`.
 Then you can access a parent class by `self_.as_super()` as `&PyRef<Self::BaseClass>`, or by `self_.into_super()` as `PyRef<Self::BaseClass>` (and similar for the `PyRefMut` case).
@@ -456,8 +450,7 @@ impl SubSubClass {
 # });
 ```
 
-You can inherit native types such as `PyDict`, if they implement
-[`PySizedLayout`]({{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PySizedLayout.html).
+You can inherit native types such as `PyDict`, if they implement [`PySizedLayout`]({{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PySizedLayout.html).
 This is not supported when building for the Python limited API (aka the `abi3` feature of PyO3).
 
 To convert between the Rust type and its native base class, you can take `slf` as a Python object.
@@ -519,10 +512,8 @@ impl SubClass {
 }
 ```
 
-The `__new__` constructor of a native base class is called implicitly when
-creating a new instance from Python.  Be sure to accept arguments in the
-`#[new]` method that you want the base class to get, even if they are not used
-in that `fn`:
+The `__new__` constructor of a native base class is called implicitly when creating a new instance from Python.
+Be sure to accept arguments in the `#[new]` method that you want the base class to get, even if they are not used in that `fn`:
 
 ```rust
 # #[allow(dead_code)]
@@ -552,8 +543,7 @@ impl MyDict {
 # }
 ```
 
-Here, the `args` and `kwargs` allow creating instances of the subclass passing
-initial items, such as `MyDict(item_sequence)` or `MyDict(a=1, b=2)`.
+Here, the `args` and `kwargs` allow creating instances of the subclass passing initial items, such as `MyDict(item_sequence)` or `MyDict(a=1, b=2)`.
 
 ## Object properties
 
@@ -700,11 +690,9 @@ impl MyClass {
 
 Both `&self` and `&mut self` can be used, due to the use of [runtime borrow checking](#bound-and-interior-mutability).
 
-The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPyObject`;
-the latter is allowed if the method cannot raise Python exceptions.
+The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPyObject`; the latter is allowed if the method cannot raise Python exceptions.
 
-A `Python` parameter can be specified as part of method signature, in this case the `py` argument
-gets injected by the method wrapper, e.g.
+A `Python` parameter can be specified as part of method signature, in this case the `py` argument gets injected by the method wrapper, e.g.
 
 ```rust
 # use pyo3::prelude::*;
@@ -725,8 +713,7 @@ From the Python perspective, the `method2` in this example does not accept any a
 
 ## Class methods
 
-To create a class method for a custom class, the method needs to be annotated
-with the `#[classmethod]` attribute.
+To create a class method for a custom class, the method needs to be annotated with the `#[classmethod]` attribute.
 This is the equivalent of the Python decorator `@classmethod`.
 
 ```rust
@@ -800,8 +787,7 @@ impl MyClass {
 
 ## Class attributes
 
-To create a class attribute (also called [class variable][classattr]), a method without
-any arguments can be annotated with the `#[classattr]` attribute.
+To create a class attribute (also called [class variable][classattr]), a method without any arguments can be annotated with the `#[classattr]` attribute.
 
 ```rust,no_run
 # use pyo3::prelude::*;
@@ -826,8 +812,7 @@ class creation.
 
 > Note: `#[classattr]` does not work with [`#[pyo3(warn(...))]`](./function.md#warn) attribute.
 
-If the class attribute is defined with `const` code only, one can also annotate associated
-constants:
+If the class attribute is defined with `const` code only, one can also annotate associated constants:
 
 ```rust,no_run
 # use pyo3::prelude::*;
@@ -1060,8 +1045,7 @@ impl MyClass {
 # }
 ```
 
-Note that `text_signature` on `#[new]` is not compatible with compilation in
-`abi3` mode until Python 3.10 or greater.
+Note that `text_signature` on `#[new]` is not compatible with compilation in `abi3` mode until Python 3.10 or greater.
 
 ### Method receivers and lifetime elision
 
@@ -1223,8 +1207,7 @@ Python::attach(|py| {
 })
 ```
 
-Ordering of enum variants is optionally added using `#[pyo3(ord)]`.
-*Note: Implementation of the `PartialOrd` trait is required when passing the `ord` argument.  If not implemented, a compile time error is raised.*
+Ordering of enum variants is optionally added using `#[pyo3(ord)]`. *Note: Implementation of the `PartialOrd` trait is required when passing the `ord` argument.  If not implemented, a compile time error is raised.*
 
 ```rust
 # use pyo3::prelude::*;

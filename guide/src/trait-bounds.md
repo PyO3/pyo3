@@ -445,8 +445,7 @@ impl Model for UserModel {
 
 By doing so, you catch the result of the Python computation and check its type in order to be able to deliver a better error message before performing the unwrapping.
 
-Of course, it does not cover all the possible wrong outputs:
-the user could return a list of strings instead of a list of floats.
+Of course, it does not cover all the possible wrong outputs: the user could return a list of strings instead of a list of floats.
 In this case, a runtime panic would still occur due to PyO3, but with an error message much more difficult to decipher for non-rust user.
 
 It is up to the developer exposing the rust code to decide how much effort to invest into Python type error handling and improved error messages.

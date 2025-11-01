@@ -100,7 +100,7 @@ fn get_delta_tuple<'py>(delta: &Bound<'py, PyDelta>) -> PyResult<Bound<'py, PyTu
     )
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 #[pyfunction]
 #[pyo3(signature=(year, month, day, hour, minute, second, microsecond, tzinfo=None))]
 fn make_datetime<'py>(

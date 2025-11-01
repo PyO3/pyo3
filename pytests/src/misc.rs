@@ -11,7 +11,7 @@ fn issue_219() {
 
 #[pyclass]
 struct LockHolder {
-    #[allow(unused)]
+    #[expect(unused, reason = "used to block until sender is dropped")]
     sender: std::sync::mpsc::Sender<()>,
 }
 

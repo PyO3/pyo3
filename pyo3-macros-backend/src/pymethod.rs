@@ -222,7 +222,6 @@ pub fn gen_py_method(
     ctx: &Ctx,
 ) -> Result<GeneratedPyMethod> {
     let spec = &method.spec;
-    let Ctx { pyo3_path, .. } = ctx;
 
     if spec.asyncness.is_some() {
         ensure_spanned!(
@@ -260,27 +259,14 @@ pub fn gen_py_method(
             }
         }
         // ordinary functions (with some specialties)
-        (_, FnType::Fn(_)) => GeneratedPyMethod::Method(impl_py_method_def(
-            cls,
-            spec,
-            &spec.get_doc(meth_attrs, ctx)?,
-            None,
-            ctx,
-        )?),
-        (_, FnType::FnClass(_)) => GeneratedPyMethod::Method(impl_py_method_def(
-            cls,
-            spec,
-            &spec.get_doc(meth_attrs, ctx)?,
-            Some(quote!(#pyo3_path::ffi::METH_CLASS)),
-            ctx,
-        )?),
-        (_, FnType::FnStatic) => GeneratedPyMethod::Method(impl_py_method_def(
-            cls,
-            spec,
-            &spec.get_doc(meth_attrs, ctx)?,
-            Some(quote!(#pyo3_path::ffi::METH_STATIC)),
-            ctx,
-        )?),
+        (_, FnType::Fn(_)) | (_, FnType::FnClass(_)) | (_, FnType::FnStatic) => {
+            GeneratedPyMethod::Method(impl_py_method_def(
+                cls,
+                spec,
+                &spec.get_doc(meth_attrs, ctx)?,
+                ctx,
+            )?)
+        }
         // special prototypes
         (_, FnType::FnNew) | (_, FnType::FnNewClass(_)) => {
             GeneratedPyMethod::Proto(impl_py_method_def_new(cls, spec, ctx)?)
@@ -351,21 +337,14 @@ pub fn impl_py_method_def(
     cls: &syn::Type,
     spec: &FnSpec<'_>,
     doc: &PythonDoc,
-    flags: Option<TokenStream>,
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
     let wrapper_ident = format_ident!("__pymethod_{}__", spec.python_name);
     let associated_method = spec.get_wrapper_function(&wrapper_ident, Some(cls), ctx)?;
-    let add_flags = flags.map(|flags| quote!(.flags(#flags)));
-    let methoddef_type = match spec.tp {
-        FnType::FnStatic => quote!(Static),
-        FnType::FnClass(_) => quote!(Class),
-        _ => quote!(Method),
-    };
     let methoddef = spec.get_methoddef(quote! { #cls::#wrapper_ident }, doc, ctx);
     let method_def = quote! {
-        #pyo3_path::impl_::pymethods::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
+        #pyo3_path::impl_::pymethods::PyMethodDefType::Method(#methoddef)
     };
     Ok(MethodAndMethodDef {
         associated_method,
@@ -737,7 +716,7 @@ pub fn impl_py_setter_def(
 
             let holder = holders.push_holder(span);
             quote! {
-                #[allow(unused_imports)]
+                #[allow(unused_imports, reason = "`Probe` trait used on negative case only")]
                 use #pyo3_path::impl_::pyclass::Probe as _;
                 let _val = #pyo3_path::impl_::extract_argument::extract_argument(_value.into(), &mut #holder, #name)?;
             }
@@ -864,7 +843,7 @@ pub fn impl_py_getter_def(
             let method_def = quote! {
                 #cfg_attrs
                 {
-                    #[allow(unused_imports)]  // might not be used if all probes are positive
+                    #[allow(unused_imports, reason = "`Probe` trait used on negative case only")]
                     use #pyo3_path::impl_::pyclass::Probe as _;
 
                     const GENERATOR: #pyo3_path::impl_::pyclass::PyClassGetterGenerator::<
@@ -1223,7 +1202,7 @@ fn extract_object(
     } else {
         let holder = holders.push_holder(Span::call_site());
         quote! {{
-            #[allow(unused_imports)]
+            #[allow(unused_imports, reason = "`Probe` trait used on negative case only")]
             use #pyo3_path::impl_::pyclass::Probe as _;
             #pyo3_path::impl_::extract_argument::extract_argument(
                 unsafe { #pyo3_path::impl_::pymethods::BoundRef::#ref_from_method(py, &#source_ptr).0 },

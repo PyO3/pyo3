@@ -31,9 +31,9 @@ enum TypeHintExpr {
         module: &'static str,
         attr: &'static str,
     },
-    /// A union elts[0] | ... | elts[len]
+    /// A union `elts[0] | ... | elts[len]`
     Union { elts: &'static [TypeHint] },
-    /// A subscript main[*args]
+    /// A subscript `main[*args]`
     Subscript {
         value: &'static TypeHint,
         slice: &'static [TypeHint],
@@ -100,7 +100,7 @@ impl TypeHint {
 
 /// Serialize the type for introspection and return the number of written bytes
 ///
-/// We use the same AST as Python: https://docs.python.org/3/library/ast.html#abstract-grammar
+/// We use the same AST as Python: <https://docs.python.org/3/library/ast.html#abstract-grammar>
 #[doc(hidden)]
 pub const fn serialize_for_introspection(hint: &TypeHint, mut output: &mut [u8]) -> usize {
     let original_len = output.len();
@@ -147,7 +147,7 @@ pub const fn serialize_for_introspection(hint: &TypeHint, mut output: &mut [u8])
     original_len - output.len()
 }
 
-/// Length required by [`Self::serialize_for_introspection`]
+/// Length required by [`serialize_for_introspection`]
 #[doc(hidden)]
 pub const fn serialized_len_for_introspection(hint: &TypeHint) -> usize {
     match &hint.inner {

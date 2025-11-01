@@ -25,8 +25,7 @@ mod my_module {
 }
 ```
 
-At this point Python code can import the module, access the class and create class instances - but
-nothing else.
+At this point Python code can import the module, access the class and create class instances - but nothing else.
 
 ```python
 from my_module import Number
@@ -92,14 +91,14 @@ impl Display for Coordinate {
 }
 ```
 
-For convenience, a shorthand format string can be passed to `str` as `str="<format string>"` for **structs only**.  It expands and is passed into the `format!` macro in the following ways:
+For convenience, a shorthand format string can be passed to `str` as `str="<format string>"` for **structs only**.
+It expands and is passed into the `format!` macro in the following ways:
 
 - `"{x}"` -> `"{}", self.x`
 - `"{0}"` -> `"{}", self.0`
 - `"{x:?}"` -> `"{:?}", self.x`
 
-*Note: Depending upon the format string you use, this may require implementation of the `Display` or `Debug` traits for the given Rust types.*
-*Note: the pyclass args `name` and `rename_all` are incompatible with the shorthand format string and will raise a compile time error.*
+*Note: Depending upon the format string you use, this may require implementation of the `Display` or `Debug` traits for the given Rust types.* *Note: the pyclass args `name` and `rename_all` are incompatible with the shorthand format string and will raise a compile time error.*
 
 ```rust,no_run
 # use pyo3::prelude::*;
@@ -182,8 +181,6 @@ This option also requires `eq`: According to the [Python docs](https://docs.pyth
 struct Number(i32);
 ```
 
-<!-- rumdl-disable MD052 - code block in quote confusing rumdl -->
-
 > **Note**: When implementing `__hash__` and comparisons, it is important that the following property holds:
 >
 > ```text
@@ -209,8 +206,6 @@ struct Number(i32);
 >     const __hash__: Option<Py<PyAny>> = None;
 > }
 > ```
-
-<!-- rumdl-enable MD052 -->
 
 ### Comparisons
 
@@ -242,8 +237,7 @@ impl Number {
 }
 ```
 
-If you obtain the result by comparing two Rust values, as in this example, you
-can take a shortcut using `CompareOp::matches`:
+If you obtain the result by comparing two Rust values, as in this example, you can take a shortcut using `CompareOp::matches`:
 
 ```rust,no_run
 use pyo3::class::basic::CompareOp;
@@ -262,8 +256,7 @@ impl Number {
 }
 ```
 
-It checks that the `std::cmp::Ordering` obtained from Rust's `Ord` matches
-the given `CompareOp`.
+It checks that the `std::cmp::Ordering` obtained from Rust's `Ord` matches the given `CompareOp`.
 
 Alternatively, you can implement just equality using `__eq__`:
 

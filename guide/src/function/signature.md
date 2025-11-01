@@ -1,7 +1,8 @@
 # Function signatures
 
 The `#[pyfunction]` attribute also accepts parameters to control how the generated Python function accepts arguments.
-Just like in Python, arguments can be positional-only, keyword-only, or accept either. `*args` lists and `**kwargs` dicts can also be accepted.
+Just like in Python, arguments can be positional-only, keyword-only, or accept either.
+`*args` lists and `**kwargs` dicts can also be accepted.
 These parameters also work for `#[pymethods]` which will be introduced in the [Python Classes](../class.md) section of the guide.
 
 Like Python, by default PyO3 accepts all arguments as either positional or keyword arguments.
@@ -113,8 +114,6 @@ num=-1 (was previously=44), py_args=(), name=World, py_kwargs=None
 num=44
 ```
 
-<!-- rumdl-disable MD052 - code block in quote confuses linter -->
-
 > Note: to use keywords like `struct` as a function argument, use "raw identifier" syntax `r#struct` in both the signature and the function definition:
 >
 > ```rust,no_run
@@ -126,8 +125,6 @@ num=44
 >     /* ... */
 > }
 > ```
-
-<!-- rumdl-enable MD052 -->
 
 ## Making the function signature available to Python
 

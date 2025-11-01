@@ -2180,7 +2180,7 @@ default = ["extension-module"]
 
 ### Fixed
 
-- Fix undeterministic segfaults when creating many objects by kngwyu in [#281](https://github.com/PyO3/pyo3/pull/281)
+- Fix indeterministic segfaults when creating many objects by kngwyu in [#281](https://github.com/PyO3/pyo3/pull/281)
 
 ## [0.5.1] - 2018-11-24
 

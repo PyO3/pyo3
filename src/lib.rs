@@ -450,7 +450,10 @@ pub mod type_object;
 pub mod types;
 mod version;
 
-#[allow(unused_imports)] // with no features enabled this module has no public exports
+#[allow(
+    unused_imports,
+    reason = "with no features enabled this module has no public exports"
+)]
 pub use crate::conversions::*;
 
 #[cfg(feature = "macros")]

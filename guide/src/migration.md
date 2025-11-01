@@ -36,14 +36,13 @@ This allows borrowing from the input data without extending the lifetime of bein
 The argument type of the `extract` method changed from `&Bound<'py, PyAny>` to `Borrowed<'a, 'py, PyAny>`.
 This was done because `&'a Bound<'py, PyAny>` would have an implicit restriction `'py: 'a` due to the reference type.
 
-This new form was partly implemented already in 0.22 using the internal `FromPyObjectBound` trait and
-is now extended to all types.
+This new form was partly implemented already in 0.22 using the internal `FromPyObjectBound` trait and is now extended to all types.
 
 Most implementations can just add an elided lifetime to migrate.
 
 Additionally `FromPyObject` gained an associated type `Error`.
 This is the error type that can be used in case of a conversion error.
-During migration using `PyErr` is a good default, later a custom error type can be introduced to prevent unneccessary creation of Python exception objects and improved type safety.
+During migration using `PyErr` is a good default, later a custom error type can be introduced to prevent unnecessary creation of Python exception objects and improved type safety.
 
 Before:
 
@@ -108,7 +107,7 @@ where
 }
 ```
 
-Container types that need to create temporary Python references during extraction, for example extracing from a `PyList`, requires a stronger bound.
+Container types that need to create temporary Python references during extraction, for example extracting from a `PyList`, requires a stronger bound.
 For these the `FromPyObjectOwned` trait was introduced.
 It is automatically implemented for any type that implements `FromPyObject` and does not borrow from the input.
 It is intended to be used as a trait bound in these situations.
@@ -360,8 +359,7 @@ The sections below discuss the rationale and details of each change in more dept
 <details>
 <summary><small>Click to expand</small></summary>
 
-PyO3 0.23 introduces initial support for the new free-threaded build of
-CPython 3.13, aka "3.13t".
+PyO3 0.23 introduces initial support for the new free-threaded build of CPython 3.13, aka "3.13t".
 
 Because this build allows multiple Python threads to operate simultaneously on underlying Rust data, the `#[pyclass]` macro now requires that types it operates on implement `Sync`.
 
@@ -372,7 +370,7 @@ It may be preferable to instead use `std::sync::OnceLock` in combination with th
 
 Future PyO3 versions will likely add more traits and data structures to make working with free-threaded Python easier.
 
-Some features are unaccessible on the free-threaded build:
+Some features are inaccessible on the free-threaded build:
 
 - The `GILProtected` type, which relied on the GIL to expose synchronized access to inner contents
 - `PyList::get_item_unchecked`, which cannot soundly be used due to races between time-of-check and time-of-use
@@ -405,8 +403,7 @@ In many cases the new [`#[derive(IntoPyObject)]`](#intopyobject-and-intopyobject
 
 Since `IntoPyObject::into_pyobject` may return either a `Bound` or `Borrowed`, you may find the [`BoundObject`](conversions/traits.md#boundobject-for-conversions-that-may-be-bound-or-borrowed) trait to be useful to write code that generically handles either type of smart pointer.
 
-Together with the introduction of `IntoPyObject` the old conversion traits `ToPyObject` and `IntoPy`
-are deprecated and will be removed in a future PyO3 version.
+Together with the introduction of `IntoPyObject` the old conversion traits `ToPyObject` and `IntoPy` are deprecated and will be removed in a future PyO3 version.
 
 #### `IntoPyObject` and `IntoPyObjectRef` derive macros
 
@@ -733,8 +730,7 @@ However the contents of `tp_name` don't have well-defined semantics.
 
 Instead `PyType::name()` now returns the equivalent of Python `__name__` and returns `PyResult<Bound<'py, PyString>>`.
 
-The closest equivalent to PyO3 0.21's version of `PyType::name()` has been introduced as a new function `PyType::fully_qualified_name()`,
-which is equivalent to `__module__` and `__qualname__` joined as `module.qualname`.
+The closest equivalent to PyO3 0.21's version of `PyType::name()` has been introduced as a new function `PyType::fully_qualified_name()`, which is equivalent to `__module__` and `__qualname__` joined as `module.qualname`.
 
 Before:
 
@@ -1613,11 +1609,8 @@ fn function_with_defaults(a: i32, b: i32, c: i32) {}
 <details>
 <summary><small>Click to expand</small></summary>
 
-Previously the type checks for `PyMapping` and `PySequence` (implemented in `PyTryFrom`)
-used the Python C-API functions `PyMapping_Check` and `PySequence_Check`.
-Unfortunately these functions are not sufficient for distinguishing such types,
-leading to inconsistent behavior (see
-[pyo3/pyo3#2072](https://github.com/PyO3/pyo3/issues/2072)).
+Previously the type checks for `PyMapping` and `PySequence` (implemented in `PyTryFrom`) used the Python C-API functions `PyMapping_Check` and `PySequence_Check`.
+Unfortunately these functions are not sufficient for distinguishing such types, leading to inconsistent behavior (see [pyo3/pyo3#2072](https://github.com/PyO3/pyo3/issues/2072)).
 
 PyO3 0.17 changes these downcast checks to explicitly test if the type is a subclass of the corresponding abstract base class `collections.abc.Mapping` or `collections.abc.Sequence`.
 Note this requires calling into Python, which may incur a performance penalty over the previous method.
@@ -1768,8 +1761,6 @@ Attempting to do this will now raise an `ImportError`.
 
 ## from 0.15.* to 0.16
 
-<!-- rumdl-disable MD024 - same heading used above -->
-
 ### Drop support for older technologies
 
 <!-- rumdl-enable MD024 -->
@@ -1848,16 +1839,11 @@ impl MyClass {
 <details>
 <summary><small>Click to expand</small></summary>
 
-The Python object wrappers `Py` and `PyAny` had implementations of `PartialEq`
-so that `object_a == object_b` would compare the Python objects for pointer
-equality, which corresponds to the `is` operator, not the `==` operator in
-Python.  This has been removed in favor of a new method: use
-`object_a.is(object_b)`.  This also has the advantage of not requiring the same
-wrapper type for `object_a` and `object_b`; you can now directly compare a
-`Py<T>` with a `&PyAny` without having to convert.
+The Python object wrappers `Py` and `PyAny` had implementations of `PartialEq` so that `object_a == object_b` would compare the Python objects for pointer equality, which corresponds to the `is` operator, not the `==` operator in Python.
+This has been removed in favor of a new method: use `object_a.is(object_b)`.
+This also has the advantage of not requiring the same wrapper type for `object_a` and `object_b`; you can now directly compare a `Py<T>` with a `&PyAny` without having to convert.
 
-To check for Python object equality (the Python `==` operator), use the new
-method `eq()`.
+To check for Python object equality (the Python `==` operator), use the new method `eq()`.
 </details>
 
 ### Container magic methods now match Python behavior
@@ -1961,23 +1947,15 @@ fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 <details>
 <summary><small>Click to expand</small></summary>
 
-For all types that take sequence indices (`PyList`, `PyTuple` and `PySequence`),
-the API has been made consistent to only take `usize` indices, for consistency
-with Rust's indexing conventions.  Negative indices, which were only
-sporadically supported even in APIs that took `isize`, now aren't supported
-anywhere.
+For all types that take sequence indices (`PyList`, `PyTuple` and `PySequence`), the API has been made consistent to only take `usize` indices, for consistency with Rust's indexing conventions.
+Negative indices, which were only sporadically supported even in APIs that took `isize`, now aren't supported anywhere.
 
-Further, the `get_item` methods now always return a `PyResult` instead of
-panicking on invalid indices.  The `Index` trait has been implemented instead,
-and provides the same panic behavior as on Rust vectors.
+Further, the `get_item` methods now always return a `PyResult` instead of panicking on invalid indices.
+The `Index` trait has been implemented instead, and provides the same panic behavior as on Rust vectors.
 
-Note that _slice_ indices (accepted by `PySequence::get_slice` and other) still
-inherit the Python behavior of clamping the indices to the actual length, and
-not panicking/returning an error on out of range indices.
+Note that _slice_ indices (accepted by `PySequence::get_slice` and other) still inherit the Python behavior of clamping the indices to the actual length, and not panicking/returning an error on out of range indices.
 
-An additional advantage of using Rust's indexing conventions for these types is
-that these types can now also support Rust's indexing operators as part of a
-consistent API:
+An additional advantage of using Rust's indexing conventions for these types is that these types can now also support Rust's indexing operators as part of a consistent API:
 
 ```rust,ignore
 #![allow(deprecated)]
@@ -2128,8 +2106,7 @@ You should instead now use the new methods `PyErr::ptype`, `PyErr::pvalue` and `
 
 As these were part the internals of `PyErr` which have been reworked, these APIs no longer exist.
 
-If you used this API, it is recommended to use `PyException::new_err` (see [the section on
-Exception types](#exception-types-have-been-reworked)).
+If you used this API, it is recommended to use `PyException::new_err` (see [the section on Exception types](#exception-types-have-been-reworked)).
 </details>
 
 #### `Into<PyResult<T>>` for `PyErr` has been removed
@@ -2201,8 +2178,7 @@ assert_eq!(
 To simplify the PyO3 conversion traits, the `FromPy` trait has been removed.
 Previously there were two ways to define the to-Python conversion for a type: `FromPy<T> for PyObject` and `IntoPy<PyObject> for T`.
 
-Now there is only one way to define the conversion, `IntoPy`, so downstream crates may need to
-adjust accordingly.
+Now there is only one way to define the conversion, `IntoPy`, so downstream crates may need to adjust accordingly.
 
 Before:
 
@@ -2272,8 +2248,7 @@ If you implemented traits for both `PyObject` and `Py<T>`, you may find you can 
 As `PyObject` has been changed to be just a type alias, the only remaining implementor of `AsPyRef` was `Py<T>`.
 This removed the need for a trait, so the `AsPyRef::as_ref` method has been moved to `Py::as_ref`.
 
-This should require no code changes except removing `use pyo3::AsPyRef` for code which did not use
-`pyo3::prelude::*`.
+This should require no code changes except removing `use pyo3::AsPyRef` for code which did not use `pyo3::prelude::*`.
 
 Before:
 
@@ -2313,8 +2288,7 @@ The minimum required version is 1.39.0.
 <details>
 <summary><small>Click to expand</small></summary>
 
-Because `#[pyclass]` structs can be sent between threads by the Python interpreter, they must implement
-`Send` or declared as `unsendable` (by `#[pyclass(unsendable)]`).
+Because `#[pyclass]` structs can be sent between threads by the Python interpreter, they must implement `Send` or declared as `unsendable` (by `#[pyclass(unsendable)]`).
 Note that `unsendable` is added in PyO3 `0.11.1` and `Send` is always required in PyO3 `0.11.0`.
 
 This may "break" some code which previously was accepted, even though it could be unsound.
@@ -2419,8 +2393,7 @@ py.None().get_refcnt(py);
 <summary><small>Click to expand</small></summary>
 
 All methods are moved to [`PyAny`].
-And since now all native types (e.g., `PyList`) implements `Deref<Target=PyAny>`,
-all you need to do is remove `ObjectProtocol` from your code.
+And since now all native types (e.g., `PyList`) implements `Deref<Target=PyAny>`, all you need to do is remove `ObjectProtocol` from your code.
 Or if you use `ObjectProtocol` by `use pyo3::prelude::*`, you have to do nothing.
 
 Before:
@@ -2452,8 +2425,7 @@ assert_eq!(hi.len().unwrap(), 5);
 <details>
 <summary><small>Click to expand</small></summary>
 
-While PyO3 itself still requires specialization and nightly Rust,
-now you don't have to use `#![feature(specialization)]` in your crate.
+While PyO3 itself still requires specialization and nightly Rust, now you don't have to use `#![feature(specialization)]` in your crate.
 </details>
 
 ## from 0.8.* to 0.9
@@ -2463,8 +2435,7 @@ now you don't have to use `#![feature(specialization)]` in your crate.
 <details>
 <summary><small>Click to expand</small></summary>
 
-[`PyRawObject`](https://docs.rs/pyo3/0.8.5/pyo3/type_object/struct.PyRawObject.html)
-is now removed and our syntax for constructors has changed.
+[`PyRawObject`](https://docs.rs/pyo3/0.8.5/pyo3/type_object/struct.PyRawObject.html) is now removed and our syntax for constructors has changed.
 
 Before:
 
@@ -2506,14 +2477,11 @@ For more, see [the constructor section](class.md#constructor) of this guide.
 <details>
 <summary><small>Click to expand</small></summary>
 
-PyO3 0.9 introduces `PyCell`, which is a [`RefCell`]-like object wrapper
-for ensuring Rust's rules regarding aliasing of references are upheld.
-For more detail, see the
-[Rust Book's section on Rust's rules of references](https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references)
+PyO3 0.9 introduces `PyCell`, which is a [`RefCell`]-like object wrapper for ensuring Rust's rules regarding aliasing of references are upheld.
+For more detail, see the [Rust Book's section on Rust's rules of references](https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references)
 
 For `#[pymethods]` or `#[pyfunction]`s, your existing code should continue to work without any change.
-Python exceptions will automatically be raised when your functions are used in a way which breaks Rust's
-rules of references.
+Python exceptions will automatically be raised when your functions are used in a way which breaks Rust's rules of references.
 
 Here is an example.
 
@@ -2548,8 +2516,7 @@ impl Names {
 ```
 
 `Names` has a `merge` method, which takes `&mut self` and another argument of type `&mut Self`.
-Given this `#[pyclass]`, calling `names.merge(names)` in Python raises
-a [`PyBorrowMutError`] exception, since it requires two mutable borrows of `names`.
+Given this `#[pyclass]`, calling `names.merge(names)` in Python raises a [`PyBorrowMutError`] exception, since it requires two mutable borrows of `names`.
 
 However, for `#[pyproto]` and some functions, you need to manually fix the code.
 
@@ -2557,10 +2524,8 @@ However, for `#[pyproto]` and some functions, you need to manually fix the code.
 
 In 0.8 object creation was done with `PyRef::new` and `PyRefMut::new`.
 In 0.9 these have both been removed.
-To upgrade code, please use
-`PyCell::new` instead.
-If you need [`PyRef`] or [`PyRefMut`], just call `.borrow()` or `.borrow_mut()`
-on the newly-created `PyCell`.
+To upgrade code, please use `PyCell::new` instead.
+If you need [`PyRef`] or [`PyRefMut`], just call `.borrow()` or `.borrow_mut()` on the newly-created `PyCell`.
 
 Before:
 
@@ -2624,10 +2589,8 @@ let obj_ref_mut: PyRefMut<'_, MyClass> = obj.extract().unwrap();
 
 #### `#[pyproto]`
 
-Most of the arguments to methods in `#[pyproto]` impls require a
-[`FromPyObject`] implementation.
-So if your protocol methods take `&T` or `&mut T` (where `T: PyClass`),
-please use [`PyRef`] or [`PyRefMut`] instead.
+Most of the arguments to methods in `#[pyproto]` impls require a [`FromPyObject`] implementation.
+So if your protocol methods take `&T` or `&mut T` (where `T: PyClass`), please use [`PyRef`] or [`PyRefMut`] instead.
 
 Before:
 

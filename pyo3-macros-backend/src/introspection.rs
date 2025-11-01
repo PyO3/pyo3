@@ -24,7 +24,6 @@ use syn::{Attribute, Ident, Lifetime, ReturnType, Type, TypePath};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
 
-#[allow(clippy::too_many_arguments)]
 pub fn module_introspection_code<'a>(
     pyo3_crate_path: &PyO3CratePath,
     name: &str,
@@ -76,7 +75,7 @@ pub fn class_introspection_code(
     .emit(pyo3_crate_path)
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn function_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
     ident: Option<&Ident>,
@@ -404,7 +403,7 @@ impl IntrospectionNode<'_> {
                 let mut annotation = quote! {
                     <#rust_type as #pyo3_crate_path::impl_::extract_argument::PyFunctionArgument<
                         {
-                            #[allow(unused_imports)]
+                            #[allow(unused_imports, reason = "`Probe` trait used on negative case only")]
                             use #pyo3_crate_path::impl_::pyclass::Probe as _;
                             #pyo3_crate_path::impl_::pyclass::IsFromPyObject::<#rust_type>::VALUE
                         }

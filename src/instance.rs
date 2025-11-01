@@ -925,7 +925,7 @@ impl<'py, T> BoundObject<'py, T> for Bound<'py, T> {
 ///
 /// Some Python C APIs also return "borrowed" pointers, which need to be increfd by the caller to
 /// keep them alive. This can also be modelled using [`Borrowed`]. However with free-threading these
-/// APIs are gradually replaced, because in absense of the GIL it is very hard to guarantee that the
+/// APIs are gradually replaced, because in absence of the GIL it is very hard to guarantee that the
 /// referred to object is not deallocated between receiving the pointer and incrementing the
 /// reference count. When possible APIs which return a "strong" reference (modelled by [`Bound`])
 /// should be using instead and otherwise great care needs to be taken to ensure safety.
@@ -2646,7 +2646,10 @@ a = A()
     }
 
     #[test]
-    #[allow(clippy::undocumented_unsafe_blocks)] // Doing evil things to try to make `Bound` blow up
+    #[expect(
+        clippy::undocumented_unsafe_blocks,
+        reason = "Doing evil things to try to make `Bound` blow up"
+    )]
     fn bound_from_borrowed_ptr_constructors() {
         Python::attach(|py| {
             fn check_drop<'py>(
@@ -2685,7 +2688,10 @@ a = A()
     }
 
     #[test]
-    #[allow(clippy::undocumented_unsafe_blocks)] // Doing evil things to try to make `Borrowed` blow up
+    #[expect(
+        clippy::undocumented_unsafe_blocks,
+        reason = "Doing evil things to try to make `Borrowed` blow up"
+    )]
     fn borrowed_ptr_constructors() {
         Python::attach(|py| {
             fn check_drop<'py>(

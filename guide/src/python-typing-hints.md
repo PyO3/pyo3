@@ -192,8 +192,7 @@ Type annotations can also be made generic in Python.
 They are useful for working with different types while maintaining type safety.
 Usually, generic classes inherit from the `typing.Generic` metaclass.
 
-Take for example the following `.pyi` file that specifies a `Car` that can
-accept multiple types of wheels:
+Take for example the following `.pyi` file that specifies a `Car` that can accept multiple types of wheels:
 
 ```python
 from typing import Generic, TypeVar
@@ -208,8 +207,7 @@ class Car(Generic[W]):
     def change_wheel(self, wheel_number: int, wheel: W) -> None: ...
 ```
 
-This way, the end-user can specify the type with variables such as `truck: Car[SteelWheel] = ...`
-and `f1_car: Car[AlloyWheel] = ...`.
+This way, the end-user can specify the type with variables such as `truck: Car[SteelWheel] = ...` and `f1_car: Car[AlloyWheel] = ...`.
 
 There is also a special syntax for specifying generic types in Python 3.12+:
 
@@ -225,8 +223,7 @@ class Car[W]:
 Stub files (`pyi`) are only useful for static type checkers and ignored at runtime.
 Therefore, PyO3 classes do not inherit from `typing.Generic` even if specified in the stub files.
 
-This can cause some runtime issues, as annotating a variable like `f1_car: Car[AlloyWheel] = ...`
-can make Python call magic methods that are not defined.
+This can cause some runtime issues, as annotating a variable like `f1_car: Car[AlloyWheel] = ...` can make Python call magic methods that are not defined.
 
 To overcome this limitation, implementers can pass the `generic` parameter to `pyclass` in Rust:
 
@@ -237,7 +234,7 @@ To overcome this limitation, implementers can pass the `generic` parameter to `p
 #### Advanced Users
 
 `#[pyclass(generic)]` implements a very simple runtime behavior that accepts any generic argument.
-Advanced users can opt to manually implement [`__class_geitem__`](https://docs.python.org/3/reference/datamodel.html#emulating-generic-types) for the generic class to have more control.
+Advanced users can opt to manually implement [`__class_getitem__`](https://docs.python.org/3/reference/datamodel.html#emulating-generic-types) for the generic class to have more control.
 
 ```rust ignore
 impl MyClass {
@@ -252,8 +249,7 @@ impl MyClass {
 }
 ```
 
-Note that [`pyo3::types::PyGenericAlias`][pygenericalias] can be helpful when implementing
-`__class_getitem__` as it can create [`types.GenericAlias`][genericalias] objects from Rust.
+Note that [`pyo3::types::PyGenericAlias`][pygenericalias] can be helpful when implementing `__class_getitem__` as it can create [`types.GenericAlias`][genericalias] objects from Rust.
 
 [pygenericalias]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyGenericAlias.html
 [genericalias]: https://docs.python.org/3/library/types.html#types.GenericAlias
