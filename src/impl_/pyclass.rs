@@ -1,6 +1,7 @@
 use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError},
     ffi,
+    ffi_ptr_ext::FfiPtrExt,
     impl_::{
         freelist::PyObjectFreeList,
         pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
@@ -332,7 +333,8 @@ slot_fragment_trait! {
         attr: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
         Err(PyErr::new::<PyAttributeError, _>(
-            (unsafe {Py::<PyAny>::from_borrowed_ptr(py, attr)},)
+            // SAFETY: caller has upheld the safety contract
+            (unsafe { attr.assume_borrowed_unchecked(py) }.to_owned().unbind(),)
         ))
     }
 }

@@ -147,10 +147,9 @@ impl PyErrStateNormalized {
             ptype: pvalue.get_type().into(),
             #[cfg(not(Py_3_12))]
             ptraceback: unsafe {
-                Py::from_owned_ptr_or_opt(
-                    pvalue.py(),
-                    ffi::PyException_GetTraceback(pvalue.as_ptr()),
-                )
+                ffi::PyException_GetTraceback(pvalue.as_ptr())
+                    .assume_owned_or_opt(pvalue.py())
+                    .map(|b| b.cast_into_unchecked().unbind())
             },
             pvalue: pvalue.into(),
         }
@@ -240,11 +239,22 @@ impl PyErrStateNormalized {
         ptraceback: *mut ffi::PyObject,
     ) -> Self {
         PyErrStateNormalized {
-            ptype: unsafe { Py::from_owned_ptr_or_opt(py, ptype).expect("Exception type missing") },
+            ptype: unsafe {
+                ptype
+                    .assume_owned_or_opt(py)
+                    .expect("Exception type missing")
+                    .cast_into_unchecked()
+            }
+            .unbind(),
             pvalue: unsafe {
-                Py::from_owned_ptr_or_opt(py, pvalue).expect("Exception value missing")
-            },
-            ptraceback: unsafe { Py::from_owned_ptr_or_opt(py, ptraceback) },
+                pvalue
+                    .assume_owned_or_opt(py)
+                    .expect("Exception value missing")
+                    .cast_into_unchecked()
+            }
+            .unbind(),
+            ptraceback: unsafe { ptraceback.assume_owned_or_opt(py) }
+                .map(|b| unsafe { b.cast_into_unchecked() }.unbind()),
         }
     }
 

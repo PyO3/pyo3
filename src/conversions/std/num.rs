@@ -5,6 +5,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::TypeHint;
+use crate::py_result_ext::PyResultExt;
 use crate::types::{PyByteArray, PyByteArrayMethods, PyBytes, PyInt};
 use crate::{exceptions, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
 use std::convert::Infallible;
@@ -93,7 +94,7 @@ macro_rules! extract_int {
             err_if_invalid_value($obj.py(), $error_val, unsafe { $pylong_as(long.as_ptr()) })
         } else {
             unsafe {
-                let num = ffi::PyNumber_Index($obj.as_ptr()).assume_owned_or_err($obj.py())?;
+                let num = nb_index(&$obj)?;
                 err_if_invalid_value($obj.py(), $error_val, $pylong_as(num.as_ptr()))
             }
         }
@@ -459,8 +460,7 @@ mod fast_128bit_int_conversion {
                 const INPUT_TYPE: TypeHint = TypeHint::builtin("int");
 
                 fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
-                    let num =
-                        unsafe { ffi::PyNumber_Index(ob.as_ptr()).assume_owned_or_err(ob.py())? };
+                    let num = nb_index(&ob)?;
                     let mut buffer = [0u8; std::mem::size_of::<$rust_type>()];
                     #[cfg(not(Py_3_13))]
                     {
@@ -543,6 +543,11 @@ pub(crate) fn int_from_ne_bytes<'py, const IS_SIGNED: bool>(
             .assume_owned(py)
             .cast_into_unchecked()
     }
+}
+
+pub(crate) fn nb_index<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyInt>> {
+    // SAFETY: PyNumber_Index returns a new reference or NULL on error
+    unsafe { ffi::PyNumber_Index(obj.as_ptr()).assume_owned_or_err(obj.py()) }.cast_into()
 }
 
 // For ABI3 we implement the conversion manually.
