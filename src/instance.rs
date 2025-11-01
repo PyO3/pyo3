@@ -2445,7 +2445,9 @@ fn panic_on_null(py: Python<'_>) -> ! {
 #[cfg(test)]
 mod tests {
     use super::{Bound, IntoPyObject, Py};
+    use crate::exceptions::PyValueError;
     use crate::test_utils::generate_unique_module_name;
+    use crate::test_utils::UnraisableCapture;
     use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
     use crate::{ffi, Borrowed, IntoPyObjectExt, PyAny, PyResult, Python};
     use std::ffi::CStr;
@@ -2799,6 +2801,55 @@ a = A()
 
             assert!(yes.is_truthy(py).unwrap());
             assert!(!no.is_truthy(py).unwrap());
+        });
+    }
+
+    #[test]
+    fn test_constructors_panic_on_null() {
+        Python::attach(|py| {
+            #[expect(deprecated, reason = "Py<T> constructors")]
+            for constructor in [
+                (|py, ptr| unsafe {
+                    Py::<PyAny>::from_owned_ptr(py, ptr);
+                }) as fn(Python<'_>, *mut ffi::PyObject),
+                (|py, ptr| unsafe {
+                    Py::<PyAny>::from_borrowed_ptr(py, ptr);
+                }) as fn(Python<'_>, *mut ffi::PyObject),
+                (|py, ptr| unsafe {
+                    Bound::from_owned_ptr(py, ptr);
+                }) as fn(Python<'_>, *mut ffi::PyObject),
+                (|py, ptr| unsafe {
+                    Bound::from_borrowed_ptr(py, ptr);
+                }) as fn(Python<'_>, *mut ffi::PyObject),
+                (|py, ptr| unsafe {
+                    Borrowed::from_ptr(py, ptr);
+                }) as fn(Python<'_>, *mut ffi::PyObject),
+            ] {
+                UnraisableCapture::enter(py, |capture| {
+                    // panic without exception set, no unraisable hook called
+                    let result = std::panic::catch_unwind(|| {
+                        constructor(py, std::ptr::null_mut());
+                    });
+                    assert_eq!(
+                        result.unwrap_err().downcast_ref::<&str>(),
+                        Some(&"PyObject pointer is null")
+                    );
+                    assert!(capture.take_capture().is_none());
+
+                    // set an exception, panic, unraisable hook called
+                    PyValueError::new_err("error").restore(py);
+                    let result = std::panic::catch_unwind(|| {
+                        constructor(py, std::ptr::null_mut());
+                    });
+                    assert_eq!(
+                        result.unwrap_err().downcast_ref::<&str>(),
+                        Some(&"PyObject pointer is null")
+                    );
+                    assert!(capture.take_capture().is_some_and(|(err, obj)| {
+                        err.is_instance_of::<PyValueError>(py) && obj.is_none()
+                    }));
+                });
+            }
         });
     }
 
