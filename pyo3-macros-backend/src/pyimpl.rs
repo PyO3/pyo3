@@ -425,7 +425,7 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
     }
     let return_type = if spec.python_name.to_string() == "__new__" {
         // Hack to return Self while implementing IntoPyObject
-        parse_quote!(-> #pyo3_path::PyRef<Self>);
+        parse_quote!(-> #pyo3_path::PyRef<Self>)
     } else {
         spec.output.clone()
     };
