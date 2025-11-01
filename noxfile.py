@@ -955,8 +955,8 @@ def test_version_limits(session: nox.Session):
         config_file.set("CPython", "3.6")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        assert "3.15" not in PY_VERSIONS
-        config_file.set("CPython", "3.15")
+        assert "3.16" not in PY_VERSIONS
+        config_file.set("CPython", "3.16")
         _run_cargo(session, "check", env=env, expect_error=True)
 
         # 3.15 CPython should build if abi3 is explicitly requested
