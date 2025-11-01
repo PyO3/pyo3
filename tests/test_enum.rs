@@ -144,7 +144,7 @@ fn test_enum_compare_int_no_throw_when_overflow() {
 #[pyclass(eq, eq_int, skip_from_py_object)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[repr(usize)]
-#[expect(clippy::enum_clike_unportable_variant)]
+#[allow(clippy::enum_clike_unportable_variant)]
 enum BigEnum {
     V = usize::MAX,
 }
