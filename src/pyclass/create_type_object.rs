@@ -1,4 +1,4 @@
-#[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
+#[cfg(not(Py_3_10))]
 use crate::types::typeobject::PyTypeMethods;
 use crate::{
     exceptions::PyTypeError,
