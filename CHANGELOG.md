@@ -10,6 +10,13 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.27.1] - 2025-10-21
+
+### Fixed
+
+- Fix `clippy:declare_interior_mutable_const` warning from `#[pyfunction]`. [#5538](https://github.com/PyO3/pyo3/pull/5538)
+- Expose `pyo3::types::PySendResult` in public API. [#5539](https://github.com/PyO3/pyo3/pull/5539)
+
 ## [0.27.0] - 2025-10-19
 
 ### Packaging
@@ -2369,7 +2376,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.27.0...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.27.1...HEAD
+[0.27.1]: https://github.com/pyo3/pyo3/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/pyo3/pyo3/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/pyo3/pyo3/compare/v0.25.1...v0.26.0
 [0.25.1]: https://github.com/pyo3/pyo3/compare/v0.25.0...v0.25.1
