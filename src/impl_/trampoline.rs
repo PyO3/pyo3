@@ -61,7 +61,6 @@ macro_rules! trampoline {
         /// External symbol called by Python, which calls the provided Rust function.
         ///
         /// The Rust function is supplied via the generic parameter `Meth`.
-        #[inline]
         pub unsafe extern "C" fn $name<Meth: MethodDef<$name::Func>>(
             $($arg_names: $arg_types,)*
         ) -> $ret {
@@ -73,6 +72,7 @@ macro_rules! trampoline {
             use super::*;
 
             /// Non-generic inner function to ensure only one trampoline instantiated
+            #[inline]
             pub(crate) unsafe fn inner($($arg_names: $arg_types),*, f: $name::Func) -> $ret {
                 unsafe { trampoline(|py| f(py, $($arg_names,)*)) }
             }
@@ -94,6 +94,7 @@ pub unsafe extern "C" fn noargs<Meth: MethodDef<noargs::Func>>(
 pub mod noargs {
     use super::*;
 
+    #[inline]
     pub(crate) unsafe fn inner(slf: *mut ffi::PyObject, f: Func) -> *mut ffi::PyObject {
         unsafe { trampoline(|py| f(py, slf)) }
     }
@@ -185,7 +186,6 @@ trampoline! {
 /// Releasebufferproc is a special case where the function cannot return an error,
 /// so we use trampoline_unraisable.
 #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
-#[inline]
 pub unsafe extern "C" fn releasebufferproc<Meth: MethodDef<releasebufferproc::Func>>(
     slf: *mut ffi::PyObject,
     buf: *mut ffi::Py_buffer,
@@ -193,9 +193,11 @@ pub unsafe extern "C" fn releasebufferproc<Meth: MethodDef<releasebufferproc::Fu
     unsafe { releasebufferproc::inner(slf, buf, Meth::METH) }
 }
 
+#[cfg(any(not(Py_LIMITED_API), Py_3_11))]
 pub mod releasebufferproc {
     use super::*;
 
+    #[inline]
     pub(crate) unsafe fn inner(slf: *mut ffi::PyObject, buf: *mut ffi::Py_buffer, f: Func) {
         unsafe { trampoline_unraisable(|py| f(py, slf, buf), slf) }
     }
