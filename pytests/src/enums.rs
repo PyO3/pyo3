@@ -1,6 +1,6 @@
 use pyo3::{pyclass, pyfunction, pymodule};
 
-#[pymodule(gil_used = false)]
+#[pymodule]
 pub mod enums {
     #[pymodule_export]
     use super::{

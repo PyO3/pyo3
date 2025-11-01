@@ -147,7 +147,7 @@ impl OrderedDefaultNe {
     }
 }
 
-#[pymodule(gil_used = false)]
+#[pymodule]
 pub mod comparisons {
     #[pymodule_export]
     use super::{

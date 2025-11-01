@@ -17,7 +17,7 @@ impl Subclassable {
     }
 }
 
-#[pymodule(gil_used = false)]
+#[pymodule]
 pub fn subclassing(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Subclassable>()?;
     Ok(())
