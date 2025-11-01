@@ -105,14 +105,14 @@ pub fn function_introspection_code(
                 match returns {
                     ReturnType::Default => IntrospectionNode::ConstantType {
                         name: "None",
-                        module: None,
+                        module: "builtins",
                     },
                     ReturnType::Type(_, ty) => match *ty {
                         Type::Tuple(t) if t.elems.is_empty() => {
                             // () is converted to None in return types
                             IntrospectionNode::ConstantType {
                                 name: "None",
-                                module: None,
+                                module: "builtins",
                             }
                         }
                         mut ty => {
@@ -190,7 +190,7 @@ pub fn attribute_introspection_code(
                 // typing.Final[typing.literal[value]]
                 IntrospectionNode::ConstantType {
                     name: "Final",
-                    module: Some("typing"),
+                    module: "typing",
                 }
             } else {
                 IntrospectionNode::OutputType {
@@ -361,7 +361,7 @@ enum IntrospectionNode<'a> {
     },
     ConstantType {
         name: &'static str,
-        module: Option<&'static str>,
+        module: &'static str,
     },
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<AttributedIntrospectionNode<'a>>),
@@ -425,11 +425,8 @@ impl IntrospectionNode<'_> {
                 content.push_tokens(serialize_type_hint(annotation, pyo3_crate_path));
             }
             Self::ConstantType { name, module } => {
-                let annotation = if let Some(module) = module {
-                    quote! { #pyo3_crate_path::inspect::TypeHint::module_attr(#module, #name) }
-                } else {
-                    quote! { #pyo3_crate_path::inspect::TypeHint::builtin(#name) }
-                };
+                let annotation =
+                    quote! { #pyo3_crate_path::inspect::TypeHint::module_attr(#module, #name) };
                 content.push_tokens(serialize_type_hint(annotation, pyo3_crate_path));
             }
             Self::Map(map) => {

@@ -253,6 +253,7 @@ fn convert_type_hint(arg: &ChunkTypeHint) -> TypeHint {
 
 fn convert_type_hint_expr(expr: &ChunkTypeHintExpr) -> TypeHintExpr {
     match expr {
+        ChunkTypeHintExpr::Local { id } => TypeHintExpr::Local { id: id.clone() },
         ChunkTypeHintExpr::Builtin { id } => TypeHintExpr::Builtin { id: id.clone() },
         ChunkTypeHintExpr::Attribute { module, attr } => TypeHintExpr::Attribute {
             module: module.clone(),
@@ -469,6 +470,9 @@ enum ChunkTypeHint {
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 enum ChunkTypeHintExpr {
+    Local {
+        id: String,
+    },
     Builtin {
         id: String,
     },

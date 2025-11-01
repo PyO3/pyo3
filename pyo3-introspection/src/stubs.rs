@@ -254,7 +254,7 @@ impl Imports {
             .map(|c| c.name.clone())
             .chain(module.functions.iter().map(|f| f.name.clone()))
             .chain(module.attributes.iter().map(|a| a.name.clone()))
-            .chain(elements_used_in_annotations.builtins)
+            .chain(elements_used_in_annotations.locals)
         {
             local_name_to_module_and_attribute.insert(name.clone(), (None, name.clone()));
         }
@@ -324,18 +324,24 @@ impl Imports {
                         local_name.clone(),
                         (normalized_module.clone(), root_attr.to_owned()),
                     );
-                    import_for_module.push(if local_name == root_attr {
-                        local_name
-                    } else {
-                        format!("{root_attr} as {local_name}")
-                    });
+                    let is_not_aliased_builtin =
+                        normalized_module.as_deref() == Some("builtins") && local_name == root_attr;
+                    if !is_not_aliased_builtin {
+                        import_for_module.push(if local_name == root_attr {
+                            local_name
+                        } else {
+                            format!("{root_attr} as {local_name}")
+                        });
+                    }
                 }
             }
             if let Some(module) = normalized_module {
-                imports.push(format!(
-                    "from {module} import {}",
-                    import_for_module.join(", ")
-                ));
+                if !import_for_module.is_empty() {
+                    imports.push(format!(
+                        "from {module} import {}",
+                        import_for_module.join(", ")
+                    ));
+                }
             }
         }
 
@@ -344,7 +350,14 @@ impl Imports {
 
     fn serialize_type_hint(&self, expr: &TypeHintExpr, buffer: &mut String) {
         match expr {
-            TypeHintExpr::Builtin { id } => buffer.push_str(id),
+            TypeHintExpr::Local { id } => buffer.push_str(id),
+            TypeHintExpr::Builtin { id } => {
+                let alias = self
+                    .renaming
+                    .get(&("builtins".to_string(), id.clone()))
+                    .expect("All type hint attributes should have been visited");
+                buffer.push_str(alias)
+            }
             TypeHintExpr::Attribute { module, attr } => {
                 let alias = self
                     .renaming
@@ -379,14 +392,14 @@ impl Imports {
 struct ElementsUsedInAnnotations {
     /// module -> name
     module_members: BTreeMap<String, BTreeSet<String>>,
-    builtins: BTreeSet<String>,
+    locals: BTreeSet<String>,
 }
 
 impl ElementsUsedInAnnotations {
     fn new() -> Self {
         Self {
             module_members: BTreeMap::new(),
-            builtins: BTreeSet::new(),
+            locals: BTreeSet::new(),
         }
     }
 
@@ -401,7 +414,10 @@ impl ElementsUsedInAnnotations {
             self.walk_function(function);
         }
         if module.incomplete {
-            self.builtins.insert("str".into());
+            self.module_members
+                .entry("builtins".into())
+                .or_default()
+                .insert("str".into());
             self.module_members
                 .entry("_typeshed".into())
                 .or_default()
@@ -426,7 +442,7 @@ impl ElementsUsedInAnnotations {
 
     fn walk_function(&mut self, function: &Function) {
         for decorator in &function.decorators {
-            self.builtins.insert(decorator.clone());
+            self.locals.insert(decorator.clone()); // TODO: better decorator support
         }
         for arg in function
             .arguments
@@ -463,8 +479,14 @@ impl ElementsUsedInAnnotations {
 
     fn walk_type_hint_expr(&mut self, expr: &TypeHintExpr) {
         match expr {
+            TypeHintExpr::Local { id } => {
+                self.locals.insert(id.clone());
+            }
             TypeHintExpr::Builtin { id } => {
-                self.builtins.insert(id.clone());
+                self.module_members
+                    .entry("builtins".into())
+                    .or_default()
+                    .insert(id.clone());
             }
             TypeHintExpr::Attribute { module, attr } => {
                 self.module_members
@@ -593,6 +615,9 @@ mod tests {
                             module: "bat".into(),
                             attr: "A".into(),
                         },
+                        TypeHintExpr::Local { id: "int".into() },
+                        TypeHintExpr::Builtin { id: "int".into() },
+                        TypeHintExpr::Builtin { id: "float".into() },
                     ],
                 },
             ],
@@ -628,11 +653,15 @@ mod tests {
             &[
                 "from _typeshed import Incomplete",
                 "from bat import A as A2",
-                "from foo import A as A3, B"
+                "from builtins import int as int2",
+                "from foo import A as A3, B",
             ]
         );
         let mut output = String::new();
         imports.serialize_type_hint(&big_type, &mut output);
-        assert_eq!(output, "dict[A, A | A3.C | A3.D | B | A2]");
+        assert_eq!(
+            output,
+            "dict[A, A | A3.C | A3.D | B | A2 | int | int2 | float]"
+        );
     }
 }
