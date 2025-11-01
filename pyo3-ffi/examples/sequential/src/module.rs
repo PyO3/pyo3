@@ -14,7 +14,8 @@ pub static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_free: Some(sequential_free),
 };
 
-const SEQUENTIAL_SLOTS_LEN: usize = 3 + if cfg!(Py_GIL_DISABLED) { 1 } else { 0 };
+const SEQUENTIAL_SLOTS_LEN: usize =
+    2 + if cfg!(Py_3_12) { 1 } else { 0 } + if cfg!(Py_GIL_DISABLED) { 1 } else { 0 };
 static mut SEQUENTIAL_SLOTS: [PyModuleDef_Slot; SEQUENTIAL_SLOTS_LEN] = [
     PyModuleDef_Slot {
         slot: Py_mod_exec,
