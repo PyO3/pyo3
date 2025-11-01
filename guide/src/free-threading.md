@@ -36,7 +36,7 @@ A module can opt-out of supporting free-threaded Python until it has audited its
 
 Complicated `#[pyclass]` types may need to deal with thread-safety directly; there is [a dedicated section of the guide](./class/thread-safety.md) to discuss this.
 
-> At a low-level, annotating a module sets the `Py_MOD_GIL` slot on modules defined by an extension to `Py_MOD_GIL_NOT_USED`, which allows the interpreter to see at runtime that the author of the extension thinks the extension is thread-safe.
+At a low-level, annotating a module sets the `Py_MOD_GIL` slot on modules defined by an extension to `Py_MOD_GIL_NOT_USED`, which allows the interpreter to see at runtime that the author of the extension thinks the extension is thread-safe.
 
 By opting-out of supporting free-threaded Python, the Python interpreter will re-enable the GIL at runtime while importing your module and print a `RuntimeWarning` with a message containing the name of the module causing it to re-enable the GIL.
 You can force the GIL to remain disabled by setting the `PYTHON_GIL=0` as an environment variable or passing `-Xgil=0` when starting Python (`0` means the GIL is turned off).
@@ -51,7 +51,7 @@ thread-safe, then pass `gil_used = false` as a parameter to the
 (Note: for PyO3 versions 0.23 through 0.27, the default was `gil_used = true` and so the opposite was needed; modules needed to opt-in to free-threaded Python support with `gil_used = false`.)
 
 ```rust,no_run
-/// This module does not free-threaded Python
+/// This module relies on the GIL for thread safety
 #[pyo3::pymodule(gil_used = true)]
 mod my_extension {
     use pyo3::prelude::*;
