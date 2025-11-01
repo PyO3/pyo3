@@ -911,76 +911,20 @@ impl<'a> FnSpec<'a> {
             FnType::FnStatic => quote! { .flags(#pyo3_path::ffi::METH_STATIC) },
             _ => quote! {},
         };
-        match self.convention {
-            CallingConvention::Noargs => quote! {
-                #pyo3_path::impl_::pymethods::PyMethodDef::noargs(
-                    #python_name,
-                    {
-                        unsafe extern "C" fn trampoline(
-                            _slf: *mut #pyo3_path::ffi::PyObject,
-                            _args: *mut #pyo3_path::ffi::PyObject,
-                        ) -> *mut #pyo3_path::ffi::PyObject
-                        {
-                            unsafe {
-                                #pyo3_path::impl_::trampoline::noargs(
-                                    _slf,
-                                    _args,
-                                    #wrapper
-                                )
-                            }
-                        }
-                        trampoline
-                    },
-                    #doc,
-                ) #flags
-            },
-            CallingConvention::Fastcall => quote! {
-                #pyo3_path::impl_::pymethods::PyMethodDef::fastcall_cfunction_with_keywords(
-                    #python_name,
-                    {
-                        unsafe extern "C" fn trampoline(
-                            _slf: *mut #pyo3_path::ffi::PyObject,
-                            _args: *const *mut #pyo3_path::ffi::PyObject,
-                            _nargs: #pyo3_path::ffi::Py_ssize_t,
-                            _kwnames: *mut #pyo3_path::ffi::PyObject
-                        ) -> *mut #pyo3_path::ffi::PyObject
-                        {
-                            #pyo3_path::impl_::trampoline::fastcall_with_keywords(
-                                _slf,
-                                _args,
-                                _nargs,
-                                _kwnames,
-                                #wrapper
-                            )
-                        }
-                        trampoline
-                    },
-                    #doc,
-                ) #flags
-            },
-            CallingConvention::Varargs => quote! {
-                #pyo3_path::impl_::pymethods::PyMethodDef::cfunction_with_keywords(
-                    #python_name,
-                    {
-                        unsafe extern "C" fn trampoline(
-                            _slf: *mut #pyo3_path::ffi::PyObject,
-                            _args: *mut #pyo3_path::ffi::PyObject,
-                            _kwargs: *mut #pyo3_path::ffi::PyObject,
-                        ) -> *mut #pyo3_path::ffi::PyObject
-                        {
-                            #pyo3_path::impl_::trampoline::cfunction_with_keywords(
-                                _slf,
-                                _args,
-                                _kwargs,
-                                #wrapper
-                            )
-                        }
-                        trampoline
-                    },
-                    #doc,
-                ) #flags
-            },
+        let trampoline = match self.convention {
+            CallingConvention::Noargs => Ident::new("noargs", Span::call_site()),
+            CallingConvention::Fastcall => {
+                Ident::new("fastcall_cfunction_with_keywords", Span::call_site())
+            }
+            CallingConvention::Varargs => Ident::new("cfunction_with_keywords", Span::call_site()),
             CallingConvention::TpNew => unreachable!("tp_new cannot get a methoddef"),
+        };
+        quote! {
+            #pyo3_path::impl_::pymethods::PyMethodDef::#trampoline(
+                #python_name,
+                #pyo3_path::impl_::trampoline::get_trampoline_function!(#trampoline, #wrapper),
+                #doc,
+            ) #flags
         }
     }
 

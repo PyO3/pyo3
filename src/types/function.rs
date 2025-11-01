@@ -129,7 +129,7 @@ where
     for<'py> R: crate::impl_::callback::IntoPyCallbackOutput<'py, *mut ffi::PyObject>,
 {
     unsafe {
-        crate::impl_::trampoline::cfunction_with_keywords(
+        crate::impl_::trampoline::cfunction_with_keywords::inner(
             capsule_ptr,
             args,
             kwargs,
