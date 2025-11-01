@@ -18,7 +18,10 @@ pub struct PyGenObject {
     pub gi_weakreflist: *mut PyObject,
     pub gi_name: *mut PyObject,
     pub gi_qualname: *mut PyObject,
-    #[allow(private_interfaces)]
+    #[allow(
+        private_interfaces,
+        reason = "PyGenObject layout was public until 3.14"
+    )]
     pub gi_exc_state: crate::cpython::pystate::_PyErr_StackItem,
     #[cfg(Py_3_11)]
     pub gi_origin_or_finalizer: *mut PyObject,

@@ -114,7 +114,10 @@ impl<'a> FnArg<'a> {
         }
     }
 
-    #[allow(clippy::wrong_self_convention)]
+    #[expect(
+        clippy::wrong_self_convention,
+        reason = "called `from_` but not a constructor"
+    )]
     pub fn from_py_with(&self) -> Option<&FromPyWithAttribute> {
         if let FnArg::Regular(RegularArg { from_py_with, .. }) = self {
             from_py_with.as_ref()
@@ -314,7 +317,7 @@ impl FnType {
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let ret = quote_spanned! { *span =>
-                    #[allow(clippy::useless_conversion)]
+                    #[allow(clippy::useless_conversion, reason = "#[classmethod] accepts anything which implements `From<BoundRef<PyType>>`")]
                     ::std::convert::Into::into(
                         #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
                             .cast_unchecked::<#pyo3_path::types::PyType>()
@@ -327,7 +330,7 @@ impl FnType {
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let ret = quote_spanned! { *span =>
-                    #[allow(clippy::useless_conversion)]
+                    #[allow(clippy::useless_conversion, reason = "`pass_module` accepts anything which implements `From<BoundRef<PyModule>>`")]
                     ::std::convert::Into::into(
                         #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
                             .cast_unchecked::<#pyo3_path::types::PyModule>()
@@ -408,7 +411,7 @@ impl SelfType {
                         #bound_ref.cast::<#cls>()
                             .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
                             .and_then(
-                                #[allow(clippy::unnecessary_fallible_conversions)]  // In case slf is Py<Self>
+                                #[allow(clippy::unnecessary_fallible_conversions, reason = "anything implementing `TryFrom<BoundRef>` is permitted")]
                                 |bound| ::std::convert::TryFrom::try_from(bound).map_err(::std::convert::Into::into)
                             )
 

@@ -23,7 +23,7 @@ macro_rules! impl_exception_boilerplate {
             ///
             /// [`PyErr`]: https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html "PyErr in pyo3"
             #[inline]
-            #[allow(dead_code)]
+            #[allow(dead_code, reason = "user may not call this function")]
             pub fn new_err<A>(args: A) -> $crate::PyErr
             where
                 A: $crate::PyErrArguments + ::std::marker::Send + ::std::marker::Sync + 'static,
@@ -72,7 +72,7 @@ macro_rules! import_exception {
         ///
         /// [`pyo3::import_exception!`]: https://docs.rs/pyo3/latest/pyo3/macro.import_exception.html "import_exception in pyo3"
         #[repr(transparent)]
-        #[allow(non_camel_case_types)] // E.g. `socket.herror`
+        #[allow(non_camel_case_types, reason = "matches imported exception name, e.g. `socket.herror`")]
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
@@ -173,7 +173,6 @@ macro_rules! import_exception_bound {
 macro_rules! create_exception {
     ($module: expr, $name: ident, $base: ty) => {
         #[repr(transparent)]
-        #[allow(non_camel_case_types)] // E.g. `socket.herror`
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
@@ -182,7 +181,6 @@ macro_rules! create_exception {
     };
     ($module: expr, $name: ident, $base: ty, $doc: expr) => {
         #[repr(transparent)]
-        #[allow(non_camel_case_types)] // E.g. `socket.herror`
         #[doc = $doc]
         pub struct $name($crate::PyAny);
 
@@ -235,7 +233,7 @@ macro_rules! impl_native_exception (
     ($name:ident, $exc_name:ident, $doc:expr, $layout:path $(, #checkfunction=$checkfunction:path)?) => (
         #[doc = $doc]
         #[repr(transparent)]
-        #[allow(clippy::upper_case_acronyms)]
+        #[allow(clippy::upper_case_acronyms, reason = "Python exception names")]
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
@@ -253,7 +251,7 @@ macro_rules! impl_windows_native_exception (
         #[cfg(windows)]
         #[doc = $doc]
         #[repr(transparent)]
-        #[allow(clippy::upper_case_acronyms)]
+        #[allow(clippy::upper_case_acronyms, reason = "Python exception names")]
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
@@ -624,7 +622,7 @@ impl PyUnicodeDecodeError {
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| {
     ///     let invalid_utf8 = b"fo\xd8o";
-    /// #   #[allow(invalid_from_utf8)]
+    /// #   #[expect(invalid_from_utf8)]
     ///     let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
     ///     let decode_err = PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err)?;
     ///     assert_eq!(
@@ -702,7 +700,7 @@ impl_native_exception!(
 #[cfg(test)]
 macro_rules! test_exception {
     ($exc_ty:ident $(, |$py:tt| $constructor:expr )?) => {
-        #[allow(non_snake_case)]
+        #[allow(non_snake_case, reason = "test matches exception name")]
         #[test]
         fn $exc_ty () {
             use super::$exc_ty;
@@ -965,7 +963,7 @@ mod tests {
     #[test]
     fn unicode_decode_error() {
         let invalid_utf8 = b"fo\xd8o";
-        #[allow(invalid_from_utf8)]
+        #[expect(invalid_from_utf8)]
         let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
         Python::attach(|py| {
             let decode_err = PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap();
@@ -1022,7 +1020,7 @@ mod tests {
     test_exception!(PyUnicodeError);
     test_exception!(PyUnicodeDecodeError, |py| {
         let invalid_utf8 = b"fo\xd8o";
-        #[allow(invalid_from_utf8)]
+        #[expect(invalid_from_utf8)]
         let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
         PyErr::from_value(
             PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err)

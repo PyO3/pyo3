@@ -31,7 +31,7 @@ pub struct Coroutine {
     name: Option<Py<PyString>>,
     qualname_prefix: Option<&'static str>,
     throw_callback: Option<ThrowCallback>,
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity)]
     future: Option<Pin<Box<dyn Future<Output = PyResult<Py<PyAny>>> + Send>>>,
     waker: Option<Arc<AsyncioWaker>>,
 }

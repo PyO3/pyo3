@@ -30,14 +30,11 @@ pub unsafe fn module_exec(
 }
 
 #[inline]
-#[allow(clippy::used_underscore_binding)]
 pub unsafe fn noargs(
     slf: *mut ffi::PyObject,
     _args: *mut ffi::PyObject,
     f: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<*mut ffi::PyObject>,
 ) -> *mut ffi::PyObject {
-    #[cfg(not(GraalPy))] // this is not specified and GraalPy does not pass null here
-    debug_assert!(_args.is_null());
     unsafe { trampoline(|py| f(py, slf)) }
 }
 

@@ -3,7 +3,7 @@
 
 use pyo3::*;
 
-#[allow(unexpected_cfgs)]
+#[expect(unexpected_cfgs)]
 #[path = "../../src/tests/hygiene/mod.rs"]
 mod hygiene;
 

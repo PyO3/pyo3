@@ -30,7 +30,7 @@ impl Holders {
         let Ctx { pyo3_path, .. } = ctx;
         let holders = &self.holders;
         quote! {
-            #[allow(clippy::let_unit_value)]
+            #[allow(clippy::let_unit_value, reason = "many holders are just `()`")]
             #(let mut #holders = #pyo3_path::impl_::extract_argument::FunctionArgumentHolder::INIT;)*
         }
     }
@@ -237,7 +237,7 @@ pub(crate) fn impl_regular_arg_param(
     // Use this macro inside this function, to ensure that all code generated here is associated
     // with the function argument
     let use_probe = quote! {
-        #[allow(unused_imports)]
+        #[allow(unused_imports, reason = "`Probe` trait used on negative case only")]
         use #pyo3_path::impl_::pyclass::Probe as _;
     };
     macro_rules! quote_arg_span {
@@ -263,7 +263,7 @@ pub(crate) fn impl_regular_arg_param(
                     #arg_value,
                     #name_str,
                     #extractor,
-                    #[allow(clippy::redundant_closure)]
+                    #[allow(clippy::redundant_closure, reason = "wrapping user-provided default expression")]
                     {
                         || #default
                     }
@@ -286,7 +286,7 @@ pub(crate) fn impl_regular_arg_param(
                 #arg_value,
                 &mut #holder,
                 #name_str,
-                #[allow(clippy::redundant_closure)]
+                #[allow(clippy::redundant_closure, reason = "wrapping user-provided default expression")]
                 {
                     || #default
                 }

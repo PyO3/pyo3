@@ -302,8 +302,10 @@ impl<T: PyClassImpl> PyClassObject<T> {
         let offset =
             offset_of!(PyClassObject<T>, contents) + offset_of!(PyClassObjectContents<T>, dict);
 
-        // Py_ssize_t may not be equal to isize on all platforms
-        #[allow(clippy::useless_conversion)]
+        #[allow(
+            clippy::useless_conversion,
+            reason = "Py_ssize_t may not be isize on all platforms"
+        )]
         offset.try_into().expect("offset should fit in Py_ssize_t")
     }
 
@@ -312,8 +314,10 @@ impl<T: PyClassImpl> PyClassObject<T> {
         let offset =
             offset_of!(PyClassObject<T>, contents) + offset_of!(PyClassObjectContents<T>, weakref);
 
-        // Py_ssize_t may not be equal to isize on all platforms
-        #[allow(clippy::useless_conversion)]
+        #[allow(
+            clippy::useless_conversion,
+            reason = "Py_ssize_t may not be isize on all platforms"
+        )]
         offset.try_into().expect("offset should fit in Py_ssize_t")
     }
 }

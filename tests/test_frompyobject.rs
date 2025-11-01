@@ -236,7 +236,7 @@ struct PyBaz {
 }
 
 #[derive(Debug, FromPyObject)]
-#[allow(dead_code)]
+#[expect(dead_code)]
 struct Baz<U, T> {
     e: E<U, T>,
     tup: Tuple,
@@ -568,7 +568,7 @@ TypeError: failed to extract enum Foo ('TupleVar | StructVar | TransparentTuple 
 
 #[derive(Debug, FromPyObject)]
 enum EnumWithCatchAll<'py> {
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     #[pyo3(transparent)]
     Foo(Foo<'py>),
     #[pyo3(transparent)]

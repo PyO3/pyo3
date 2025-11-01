@@ -23,8 +23,11 @@ use std::{
 pub(crate) struct PyClassTypeObject {
     pub type_object: Py<PyType>,
     pub is_immutable_type: bool,
-    #[allow(dead_code)] // This is purely a cache that must live as long as the type object
-    getset_destructors: Vec<GetSetDefDestructor>,
+    #[expect(
+        dead_code,
+        reason = "this is just storage that must live as long as the type object"
+    )]
+    getset_defs: Vec<GetSetDefType>,
 }
 
 pub(crate) fn create_type_object<T>(py: Python<'_>) -> PyResult<PyClassTypeObject>
@@ -32,7 +35,7 @@ where
     T: PyClass,
 {
     // Written this way to monomorphize the majority of the logic.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     unsafe fn inner(
         py: Python<'_>,
         base: *mut ffi::PyTypeObject,
@@ -199,7 +202,7 @@ impl PyTypeBuilder {
         }
     }
 
-    fn finalize_methods_and_properties(&mut self) -> Vec<GetSetDefDestructor> {
+    fn finalize_methods_and_properties(&mut self) -> Vec<GetSetDefType> {
         let method_defs: Vec<pyo3_ffi::PyMethodDef> = std::mem::take(&mut self.method_defs);
         // Safety: Py_tp_methods expects a raw vec of PyMethodDef
         unsafe { self.push_raw_vec_slot(ffi::Py_tp_methods, method_defs) };
@@ -210,7 +213,7 @@ impl PyTypeBuilder {
 
         let mut getset_destructors = Vec::with_capacity(self.getset_builders.len());
 
-        #[allow(unused_mut)]
+        #[allow(unused_mut, reason = "not modified on PyPy")]
         let mut property_defs: Vec<_> = self
             .getset_builders
             .iter()
@@ -415,7 +418,7 @@ impl PyTypeBuilder {
         // on some platforms (like windows)
         #![allow(clippy::useless_conversion)]
 
-        let getset_destructors = self.finalize_methods_and_properties();
+        let getset_defs = self.finalize_methods_and_properties();
 
         unsafe { self.push_slot(ffi::Py_tp_base, self.tp_base) }
 
@@ -500,7 +503,7 @@ impl PyTypeBuilder {
         Ok(PyClassTypeObject {
             type_object,
             is_immutable_type: self.is_immutable_type,
-            getset_destructors,
+            getset_defs,
         })
     }
 }
@@ -591,7 +594,7 @@ impl GetSetDefBuilder {
         self.setter = Some(setter.meth)
     }
 
-    fn as_get_set_def(&self, name: &'static CStr) -> (ffi::PyGetSetDef, GetSetDefDestructor) {
+    fn as_get_set_def(&self, name: &'static CStr) -> (ffi::PyGetSetDef, GetSetDefType) {
         let getset_type = match (self.getter, self.setter) {
             (Some(getter), None) => GetSetDefType::Getter(getter),
             (None, Some(setter)) => GetSetDefType::Setter(setter),
@@ -604,16 +607,8 @@ impl GetSetDefBuilder {
         };
 
         let getset_def = getset_type.create_py_get_set_def(name, self.doc);
-        let destructor = GetSetDefDestructor {
-            closure: getset_type,
-        };
-        (getset_def, destructor)
+        (getset_def, getset_type)
     }
-}
-
-#[allow(dead_code)] // a stack of fields which are purely to cache until dropped
-struct GetSetDefDestructor {
-    closure: GetSetDefType,
 }
 
 /// Possible forms of property - either a getter, setter, or both
