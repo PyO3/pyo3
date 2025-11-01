@@ -42,7 +42,6 @@ crate-type = ["cdylib"]
 
 [dependencies.pyo3-ffi]
 version = "0.27.0"
-features = ["extension-module"]
 
 [build-dependencies]
 # This is only necessary if you need to configure your build based on

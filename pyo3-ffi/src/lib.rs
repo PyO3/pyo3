@@ -34,9 +34,6 @@
 //!
 //! - `abi3`: Restricts PyO3's API to a subset of the full Python API which is guaranteed by
 //! [PEP 384] to be forward-compatible with future Python versions.
-//! - `extension-module`: This will tell the linker to keep the Python symbols unresolved, so that
-//! your module can also be used with statically linked Python interpreters. Use this feature when
-//! building an extension module.
 //!
 //! ## `rustc` environment flags
 //!
@@ -107,7 +104,6 @@
 //!
 //! [dependencies.pyo3-ffi]
 #![doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")]
-//! features = ["extension-module"]
 //!
 //! [build-dependencies]
 //! # This is only necessary if you need to configure your build based on

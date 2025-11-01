@@ -138,7 +138,7 @@ name = "pyo3_example"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { {{#PYO3_CRATE_VERSION}}, features = ["extension-module"] }
+pyo3 = {{#PYO3_CRATE_VERSION}}
 ```
 
 ## pyproject.toml
@@ -147,7 +147,7 @@ You should also create a `pyproject.toml` with the following contents:
 
 ```toml
 [build-system]
-requires = ["maturin>=1,<2"]
+requires = ["maturin>=1.9.4,<2"]
 build-backend = "maturin"
 
 [project]
