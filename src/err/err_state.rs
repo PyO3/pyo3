@@ -149,9 +149,8 @@ impl PyErrStateNormalized {
             ptraceback: unsafe {
                 ffi::PyException_GetTraceback(pvalue.as_ptr())
                     .assume_owned_or_opt(pvalue.py())
-                    .cast_into_unchecked()
-            }
-            .map(Bound::unbind),
+                    .map(|b| b.cast_into_unchecked().unbind())
+            },
             pvalue: pvalue.into(),
         }
     }
@@ -242,18 +241,19 @@ impl PyErrStateNormalized {
         PyErrStateNormalized {
             ptype: unsafe {
                 ptype
-                    .assume_borrowed_or_opt(py)
+                    .assume_owned_or_opt(py)
                     .expect("Exception type missing")
                     .cast_into_unchecked()
             }
             .unbind(),
             pvalue: unsafe {
                 pvalue
-                    .assume_borrowed_or_opt(py)
+                    .assume_owned_or_opt(py)
                     .expect("Exception value missing")
                     .cast_into_unchecked()
-            },
-            ptraceback: unsafe { ptraceback.assume_borrowed_or_opt(py) }
+            }
+            .unbind(),
+            ptraceback: unsafe { ptraceback.assume_owned_or_opt(py) }
                 .map(|b| unsafe { b.cast_into_unchecked() }.unbind()),
         }
     }
