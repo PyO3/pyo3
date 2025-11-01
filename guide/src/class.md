@@ -184,14 +184,11 @@ impl Nonzero {
 }
 ```
 
-If you want to return an existing object (for example, because your `new`
-method caches the values it returns), `new` can return `pyo3::Py<Self>`.
+If you want to return an existing object (for example, because your `new` method caches the values it returns), `new` can return `pyo3::Py<Self>`.
 
-As you can see, the Rust method name is not important here; this way you can
-still, use `new()` for a Rust-level constructor.
+As you can see, the Rust method name is not important here; this way you can still, use `new()` for a Rust-level constructor.
 
-If no method marked with `#[new]` is declared, object instances can only be
-created from Rust, but not from Python.
+If no method marked with `#[new]` is declared, object instances can only be created from Rust, but not from Python.
 
 For arguments, see the [`Method arguments`](#method-arguments) section below.
 
@@ -327,8 +324,7 @@ These parameters are covered in various sections of this guide.
 
 ### Return type
 
-Generally, `#[new]` methods have to return `T: Into<PyClassInitializer<Self>>` or
-`PyResult<T> where T: Into<PyClassInitializer<Self>>`.
+Generally, `#[new]` methods have to return `T: Into<PyClassInitializer<Self>>` or `PyResult<T> where T: Into<PyClassInitializer<Self>>`.
 
 For constructors that may fail, you should wrap the return type in a PyResult as well.
 Consult the table below to determine which type your constructor should return:
@@ -547,8 +543,7 @@ impl MyDict {
 # }
 ```
 
-Here, the `args` and `kwargs` allow creating instances of the subclass passing
-initial items, such as `MyDict(item_sequence)` or `MyDict(a=1, b=2)`.
+Here, the `args` and `kwargs` allow creating instances of the subclass passing initial items, such as `MyDict(item_sequence)` or `MyDict(a=1, b=2)`.
 
 ## Object properties
 
@@ -695,11 +690,9 @@ impl MyClass {
 
 Both `&self` and `&mut self` can be used, due to the use of [runtime borrow checking](#bound-and-interior-mutability).
 
-The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPyObject`;
-the latter is allowed if the method cannot raise Python exceptions.
+The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPyObject`; the latter is allowed if the method cannot raise Python exceptions.
 
-A `Python` parameter can be specified as part of method signature, in this case the `py` argument
-gets injected by the method wrapper, e.g.
+A `Python` parameter can be specified as part of method signature, in this case the `py` argument gets injected by the method wrapper, e.g.
 
 ```rust
 # use pyo3::prelude::*;
@@ -794,8 +787,7 @@ impl MyClass {
 
 ## Class attributes
 
-To create a class attribute (also called [class variable][classattr]), a method without
-any arguments can be annotated with the `#[classattr]` attribute.
+To create a class attribute (also called [class variable][classattr]), a method without any arguments can be annotated with the `#[classattr]` attribute.
 
 ```rust,no_run
 # use pyo3::prelude::*;
@@ -820,8 +812,7 @@ class creation.
 
 > Note: `#[classattr]` does not work with [`#[pyo3(warn(...))]`](./function.md#warn) attribute.
 
-If the class attribute is defined with `const` code only, one can also annotate associated
-constants:
+If the class attribute is defined with `const` code only, one can also annotate associated constants:
 
 ```rust,no_run
 # use pyo3::prelude::*;
@@ -1054,8 +1045,7 @@ impl MyClass {
 # }
 ```
 
-Note that `text_signature` on `#[new]` is not compatible with compilation in
-`abi3` mode until Python 3.10 or greater.
+Note that `text_signature` on `#[new]` is not compatible with compilation in `abi3` mode until Python 3.10 or greater.
 
 ### Method receivers and lifetime elision
 

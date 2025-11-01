@@ -66,8 +66,7 @@ For now, there are three ways we can work around these issues.
 
 The Rust book suggests to [put integration tests inside a `tests/` directory](https://doc.rust-lang.org/book/ch11-03-test-organization.html#integration-tests).
 
-For a PyO3 `extension-module` project where the `crate-type` is set to `"cdylib"` in your `Cargo.toml`,
-the compiler won't be able to find your crate and will display errors such as `E0432` or `E0463`:
+For a PyO3 `extension-module` project where the `crate-type` is set to `"cdylib"` in your `Cargo.toml`, the compiler won't be able to find your crate and will display errors such as `E0432` or `E0463`:
 
 ```text
 error[E0432]: unresolved import `my_crate`
@@ -183,15 +182,11 @@ a: <builtins.Inner object at 0x0000020044FCC670>
 b: <builtins.Inner object at 0x0000020044FCC670>
 ```
 
-The downside to this approach is that any Rust code working on the `Outer` struct potentially has to attach to the Python interpreter to do anything with the `inner` field. (If `Inner` is `#[pyclass(frozen)]` and implements `Sync`, then `Py::get`
-may be used to access the `Inner` contents from `Py<Inner>` without needing to attach to the interpreter.)
+The downside to this approach is that any Rust code working on the `Outer` struct potentially has to attach to the Python interpreter to do anything with the `inner` field. (If `Inner` is `#[pyclass(frozen)]` and implements `Sync`, then `Py::get` may be used to access the `Inner` contents from `Py<Inner>` without needing to attach to the interpreter.)
 
 ## I want to use the `pyo3` crate re-exported from dependency but the proc-macros fail
 
-All PyO3 proc-macros (`#[pyclass]`, `#[pyfunction]`, `#[derive(FromPyObject)]`
-and so on) expect the `pyo3` crate to be available under that name in your crate
-root, which is the normal situation when `pyo3` is a direct dependency of your
-crate.
+All PyO3 proc-macros (`#[pyclass]`, `#[pyfunction]`, `#[derive(FromPyObject)]` and so on) expect the `pyo3` crate to be available under that name in your crate root, which is the normal situation when `pyo3` is a direct dependency of your crate.
 
 However, when the dependency is renamed, or your crate only indirectly depends on `pyo3`, you need to let the macro code know where to find the crate.
 This is done with the `crate` attribute:

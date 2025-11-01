@@ -27,9 +27,7 @@ fn main() -> PyResult<()> {
 
 ## Want to run just an expression? Then use `eval`
 
-[`Python::eval`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval) is
-a method to execute a [Python expression](https://docs.python.org/3/reference/expressions.html)
-and return the evaluated value as a `Bound<'py, PyAny>` object.
+[`Python::eval`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval) is a method to execute a [Python expression](https://docs.python.org/3/reference/expressions.html) and return the evaluated value as a `Bound<'py, PyAny>` object.
 
 ```rust
 use pyo3::prelude::*;
@@ -95,12 +93,9 @@ assert userdata.as_tuple() == userdata_as_tuple
 
 ## You have a Python file or code snippet? Then use `PyModule::from_code`
 
-[`PyModule::from_code`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.from_code)
-can be used to generate a Python module which can then be used just as if it was imported with
-`PyModule::import`.
+[`PyModule::from_code`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.from_code) can be used to generate a Python module which can then be used just as if it was imported with `PyModule::import`.
 
-**Warning**: This will compile and execute code. **Never** pass untrusted code
-to this function!
+**Warning**: This will compile and execute code. **Never** pass untrusted code to this function!
 
 ```rust
 use pyo3::{prelude::*, types::IntoPyDict};
@@ -164,9 +159,7 @@ fn main() -> PyResult<()> {
 }
 ```
 
-If `append_to_inittab` cannot be used due to constraints in the program,
-an alternative is to create a module using [`PyModule::new`]
-and insert it manually into `sys.modules`:
+If `append_to_inittab` cannot be used due to constraints in the program, an alternative is to create a module using [`PyModule::new`] and insert it manually into `sys.modules`:
 
 ```rust
 use pyo3::prelude::*;
@@ -200,8 +193,7 @@ fn main() -> PyResult<()> {
 
 You can include a file at compile time by using [`std::include_str`](https://doc.rust-lang.org/std/macro.include_str.html) macro.
 
-Or you can load a file at runtime by using
-[`std::fs::read_to_string`](https://doc.rust-lang.org/std/fs/fn.read_to_string.html) function.
+Or you can load a file at runtime by using [`std::fs::read_to_string`](https://doc.rust-lang.org/std/fs/fn.read_to_string.html) function.
 
 Many Python files can be included and loaded as modules.
 If one file depends on another you must preserve correct order while declaring `PyModule`.
@@ -275,9 +267,7 @@ The example below shows:
 - how to call function `run()` (declared in `app.py`) that needs function
   imported from `utils/foo.py`
 
-It is recommended to use absolute paths because then your binary can be run
-from anywhere as long as your `app.py` is in the expected directory (in this example
-that directory is `/usr/share/python_app`).
+It is recommended to use absolute paths because then your binary can be run from anywhere as long as your `app.py` is in the expected directory (in this example that directory is `/usr/share/python_app`).
 
 `src/main.rs`:
 
