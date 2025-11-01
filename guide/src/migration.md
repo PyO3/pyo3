@@ -5,6 +5,17 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.27.* to 0.28
 
+### Internal change to use multi-phase initialization
+
+[PEP 489](https://peps.python.org/pep-0489/) introduced "multi-phase initialiation" for extension modules which provides ways to allocate and clean up per-module state.
+This is a necessary step towards supporting Python "subinterpreters" which run on their own copy of state.
+
+Starting in PyO3 0.28, the `#[pymodule]` macro machinery has been reworked to use multi-phase initialization.
+The possibility of creating and consuming per-module state (and supporting subinterpreters) is left for a future PyO3 version.
+This should not require migration, nor is there expected to be breakage caused by the change.
+
+Nevertheless, this affects the order of initialization and seemed prudent to flag in this guide.
+
 ### Deprecation of automatic `FromPyObject` for `#[pyclass]` types which implement `Clone`
 
 `#[pyclass]` types which implement `Clone` used to also implement `FromPyObject` automatically.

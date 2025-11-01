@@ -77,7 +77,7 @@ static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_doc: c"A Python module written in Rust.".as_ptr(),
     m_size: 0,
     m_methods: std::ptr::addr_of_mut!(METHODS).cast(),
-    m_slots: unsafe { SLOTS as *const [PyModuleDef_Slot] as *mut PyModuleDef_Slot },
+    m_slots: std::ptr::addr_of_mut!(SLOTS).cast(),
     m_traverse: None,
     m_clear: None,
     m_free: None,
@@ -96,7 +96,8 @@ static mut METHODS: [PyMethodDef; 2] = [
     PyMethodDef::zeroed(),
 ];
 
-static mut SLOTS: &[PyModuleDef_Slot] = &[
+const SLOTS_LEN: usize = 1 + if cfg!(Py_3_12) { 1 } else { 0 } + if cfg!(Py_GIL_DISABLED) { 1 } else { 0 };
+static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
     // NB: only include this slot if the module does not store any global state in `static` variables
     // or other data which could cross between subinterpreters
     #[cfg(Py_3_12)]
