@@ -78,12 +78,13 @@ impl FromPyObject<'_, '_> for OsString {
             use crate::types::{PyBytes, PyBytesMethods};
 
             // Decode from Python's lossless bytes string representation back into raw bytes
-            // SAFETY: PyUnicode_EncodeFSDefault returns a new reference or null on error,
-            //         thread is attached to the interpreter
+            // SAFETY: PyUnicode_EncodeFSDefault returns a new reference or null on error, known to
+            // be a `bytes` object, thread is attached to the interpreter
             let fs_encoded_bytes = unsafe {
-                ffi::PyUnicode_EncodeFSDefault(pystring.as_ptr()).assume_owned_or_err(ob.py())?
-            }
-            .cast_into::<PyBytes>()?;
+                ffi::PyUnicode_EncodeFSDefault(pystring.as_ptr())
+                    .assume_owned_or_err(ob.py())?
+                    .cast_into_unchecked::<PyBytes>()
+            };
 
             // Create an OsStr view into the raw bytes from Python
             //

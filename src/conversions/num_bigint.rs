@@ -325,6 +325,7 @@ fn int_n_bits(long: &Bound<'_, PyInt>) -> PyResult<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::exceptions::PyTypeError;
     use crate::test_utils::generate_unique_module_name;
     use crate::types::{PyAnyMethods as _, PyDict, PyModule};
     use indoc::indoc;
@@ -415,6 +416,7 @@ mod tests {
             locals.set_item("index", index).unwrap();
             let ob = py.eval(c"index.C(10)", None, Some(&locals)).unwrap();
             let _: BigInt = ob.extract().unwrap();
+            let _: BigUint = ob.extract().unwrap();
         });
     }
 
@@ -455,6 +457,18 @@ mod tests {
                 test!(BigUint, (BigUint::from(1u32) << i) - 1u32, py);
                 test!(BigInt, (-BigInt::from(1) << i) - 1u32, py);
             }
+        });
+    }
+
+    #[test]
+    fn from_py_float_type_error() {
+        Python::attach(|py| {
+            let obj = (12.3f64).into_pyobject(py).unwrap();
+            let err = obj.extract::<BigInt>().unwrap_err();
+            assert!(err.is_instance_of::<PyTypeError>(py));
+
+            let err = obj.extract::<BigUint>().unwrap_err();
+            assert!(err.is_instance_of::<PyTypeError>(py));
         });
     }
 }
