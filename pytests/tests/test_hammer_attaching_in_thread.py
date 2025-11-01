@@ -24,5 +24,5 @@ loopy = [make_loop()]
     sysconfig.get_config_var("Py_DEBUG"),
     reason="causes a crash on debug builds, see discussion in https://github.com/PyO3/pyo3/pull/4874",
 )
-def test_hammer_gil():
-    loopy.append(misc.hammer_gil_in_thread())
+def test_hammer_attaching_in_thread():
+    loopy.append(misc.hammer_attaching_in_thread())

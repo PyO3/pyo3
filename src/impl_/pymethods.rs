@@ -9,9 +9,8 @@ use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
 use crate::types::PyType;
 use crate::{
-    ffi, Bound, DowncastError, Py, PyAny, PyClass, PyClassGuard, PyClassGuardMut,
-    PyClassInitializer, PyErr, PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit,
-    Python,
+    ffi, Bound, CastError, Py, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyClassInitializer,
+    PyErr, PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
 };
 use std::ffi::CStr;
 use std::ffi::{c_int, c_void};
@@ -60,11 +59,7 @@ impl IPowModulo {
 /// It is used by the `#[pymethods]` attribute.
 #[derive(Copy, Clone)]
 pub enum PyMethodDefType {
-    /// Represents class method
-    Class(PyMethodDef),
-    /// Represents static method
-    Static(PyMethodDef),
-    /// Represents normal method
+    /// Represents a class method (might be `classmethod` or `staticmethod`, depends on `ml_flags`)
     Method(PyMethodDef),
     /// Represents class attribute, used by `#[attribute]`
     ClassAttribute(PyClassAttributeDef),
@@ -637,11 +632,11 @@ impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
         unsafe { Self(Bound::ref_from_non_null(py, ptr)) }
     }
 
-    pub fn downcast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, DowncastError<'a, 'py>> {
+    pub fn cast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, CastError<'a, 'py>> {
         self.0.cast::<T>().map(BoundRef)
     }
 
-    pub unsafe fn downcast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
+    pub unsafe fn cast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
         unsafe { BoundRef(self.0.cast_unchecked::<T>()) }
     }
 }
@@ -732,9 +727,9 @@ mod tests {
         Python::attach(|py| {
             let def =
                 PyFunctionDef::from_method_def(PyMethodDef::fastcall_cfunction_with_keywords(
-                    ffi::c_str!("test"),
+                    c"test",
                     accepts_no_arguments,
-                    ffi::c_str!("doc"),
+                    c"doc",
                 ));
             // leak to make it 'static
             // deliberately done at runtime to have coverage of `PyFunctionDef::from_method_def`

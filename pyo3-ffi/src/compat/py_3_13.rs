@@ -66,7 +66,7 @@ compat_function!(
 
         if !reference.is_null() && PyWeakref_Check(reference) == 0 {
             *pobj = std::ptr::null_mut();
-            PyErr_SetString(PyExc_TypeError, c_str!("expected a weakref").as_ptr());
+            PyErr_SetString(PyExc_TypeError, c"expected a weakref".as_ptr());
             return -1;
         }
         let obj = PyWeakref_GetObject(reference);

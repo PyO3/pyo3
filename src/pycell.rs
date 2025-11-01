@@ -196,15 +196,17 @@
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyRuntimeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::internal_tricks::{ptr_from_mut, ptr_from_ref};
 use crate::pyclass::{boolean_struct::False, PyClass};
 use crate::{ffi, Borrowed, Bound, PyErr, Python};
 use std::convert::Infallible;
 use std::fmt;
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
+use std::ptr::NonNull;
 
 pub(crate) mod impl_;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use impl_::{PyClassBorrowChecker, PyClassObjectLayout};
 
 /// A wrapper type for an immutably borrowed value from a [`Bound<'py, T>`].
@@ -444,12 +446,13 @@ where
     /// # });
     /// ```
     pub fn as_super(&self) -> &PyRef<'p, U> {
-        let ptr = ptr_from_ref::<Bound<'p, T>>(&self.inner)
+        let ptr = NonNull::from(&self.inner)
             // `Bound<T>` has the same layout as `Bound<T::BaseType>`
             .cast::<Bound<'p, T::BaseType>>()
             // `Bound<T::BaseType>` has the same layout as `PyRef<T::BaseType>`
             .cast::<PyRef<'p, T::BaseType>>();
-        unsafe { &*ptr }
+        // SAFETY: lifetimes are correctly transferred, and `PyRef<T>` and `PyRef<U>` have the same layout
+        unsafe { ptr.as_ref() }
     }
 }
 
@@ -477,7 +480,7 @@ impl<'py, T: PyClass> IntoPyObject<'py> for PyRef<'py, T> {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = T::PYTHON_TYPE;
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.inner.clone())
@@ -490,7 +493,7 @@ impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &'a PyRef<'py, T> {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = T::PYTHON_TYPE;
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.inner.as_borrowed())
@@ -580,8 +583,9 @@ impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
     }
 
     pub(crate) fn downgrade(slf: &Self) -> &PyRef<'py, T> {
-        // `PyRefMut<T>` and `PyRef<T>` have the same layout
-        unsafe { &*ptr_from_ref(slf).cast() }
+        let ptr = NonNull::from(slf).cast();
+        // SAFETY: `PyRefMut<T>` and `PyRef<T>` have the same layout
+        unsafe { ptr.as_ref() }
     }
 }
 
@@ -613,13 +617,14 @@ where
     ///
     /// See [`PyRef::as_super`] for more.
     pub fn as_super(&mut self) -> &mut PyRefMut<'p, U> {
-        let ptr = ptr_from_mut::<Bound<'p, T>>(&mut self.inner)
+        let mut ptr = NonNull::from(&mut self.inner)
             // `Bound<T>` has the same layout as `Bound<T::BaseType>`
             .cast::<Bound<'p, T::BaseType>>()
             // `Bound<T::BaseType>` has the same layout as `PyRefMut<T::BaseType>`,
             // and the mutable borrow on `self` prevents aliasing
             .cast::<PyRefMut<'p, T::BaseType>>();
-        unsafe { &mut *ptr }
+        // SAFETY: lifetimes are correctly transferred, and `PyRefMut<T>` and `PyRefMut<U>` have the same layout
+        unsafe { ptr.as_mut() }
     }
 }
 
@@ -654,7 +659,7 @@ impl<'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for PyRefMut<'py, T> {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = T::PYTHON_TYPE;
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.inner.clone())
@@ -667,7 +672,7 @@ impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &'a PyRefMut<'py
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = T::PYTHON_TYPE;
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.inner.as_borrowed())
@@ -748,7 +753,7 @@ mod tests {
 
     use super::*;
 
-    #[crate::pyclass]
+    #[crate::pyclass(skip_from_py_object)]
     #[pyo3(crate = "crate")]
     #[derive(Copy, Clone, PartialEq, Eq, Debug)]
     struct SomeClass(i32);

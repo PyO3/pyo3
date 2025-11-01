@@ -1,6 +1,7 @@
 # Python functions
 
-The `#[pyfunction]` attribute is used to define a Python function from a Rust function. Once defined, the function needs to be added to a [module](./module.md).
+The `#[pyfunction]` attribute is used to define a Python function from a Rust function.
+Once defined, the function needs to be added to a [module](./module.md).
 
 The following example defines a function called `double` in a Python module called `my_extension`:
 
@@ -16,7 +17,8 @@ mod my_extension {
 }
 ```
 
-This chapter of the guide explains full usage of the `#[pyfunction]` attribute. In this first section, the following topics are covered:
+This chapter of the guide explains full usage of the `#[pyfunction]` attribute.
+In this first section, the following topics are covered:
 
 - [Function options](#function-options)
   - [`#[pyo3(name = "...")]`](#name)
@@ -34,9 +36,10 @@ There are also additional sections on the following topics:
 
 ## Function options
 
-The `#[pyo3]` attribute can be used to modify properties of the generated Python function. It can take any combination of the following options:
+The `#[pyo3]` attribute can be used to modify properties of the generated Python function.
+It can take any combination of the following options:
 
-  - <a id="name"></a> `#[pyo3(name = "...")]`
+- <a id="name"></a> `#[pyo3(name = "...")]`
 
     Overrides the name exposed to Python.
 
@@ -63,15 +66,15 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     # });
     ```
 
-  - <a id="signature"></a> `#[pyo3(signature = (...))]`
+- <a id="signature"></a> `#[pyo3(signature = (...))]`
 
     Defines the function signature in Python. See [Function Signatures](./function/signature.md).
 
-  - <a id="text_signature"></a> `#[pyo3(text_signature = "...")]`
+- <a id="text_signature"></a> `#[pyo3(text_signature = "...")]`
 
     Overrides the PyO3-generated function signature visible in Python tooling (such as via [`inspect.signature`]). See the [corresponding topic in the Function Signatures subchapter](./function/signature.md#making-the-function-signature-available-to-python).
 
-  - <a id="pass_module" ></a> `#[pyo3(pass_module)]`
+- <a id="pass_module" ></a> `#[pyo3(pass_module)]`
 
     Set this option to make PyO3 pass the containing module as the first argument to the function. It is then possible to use the module in the function body. The first argument **must** be of type `&Bound<'_, PyModule>`, `Bound<'_, PyModule>`, or `Py<PyModule>`.
 
@@ -92,7 +95,8 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
         }
     }
     ```
-  - <a id="warn"></a> `#[pyo3(warn(message = "...", category = ...))]`
+
+- <a id="warn"></a> `#[pyo3(warn(message = "...", category = ...))]`
 
     This option is used to display a warning when the function is used in Python. It is equivalent to [`warnings.warn(message, category)`](https://docs.python.org/3/library/warnings.html#warnings.warn).
     The `message` parameter is a string that will be displayed when the function is called, and the `category` parameter is optional and has to be a subclass of [`Warning`](https://docs.python.org/3/library/exceptions.html#Warning).
@@ -199,9 +203,10 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
 
 ## Per-argument options
 
-The `#[pyo3]` attribute can be used on individual arguments to modify properties of them in the generated function. It can take any combination of the following options:
+The `#[pyo3]` attribute can be used on individual arguments to modify properties of them in the generated function.
+It can take any combination of the following options:
 
-  - <a id="from_py_with"></a> `#[pyo3(from_py_with = ...)]`
+- <a id="from_py_with"></a> `#[pyo3(from_py_with = ...)]`
 
     Set this on an option to specify a custom function to convert the function argument from Python to the desired Rust type, instead of using the default `FromPyObject` extraction. The function signature must be `fn(&Bound<'_, PyAny>) -> PyResult<T>` where `T` is the Rust type of the argument.
 
@@ -229,15 +234,11 @@ The `#[pyo3]` attribute can be used on individual arguments to modify properties
 
 ### Calling Python functions in Rust
 
-You can pass Python `def`'d functions and built-in functions to Rust functions [`PyFunction`]
-corresponds to regular Python functions while [`PyCFunction`] describes built-ins such as
-`repr()`.
+You can pass Python `def`'d functions and built-in functions to Rust functions [`PyFunction`] corresponds to regular Python functions while [`PyCFunction`] describes built-ins such as `repr()`.
 
-You can also use [`Bound<'_, PyAny>::is_callable`] to check if you have a callable object. `is_callable`
-will return `true` for functions (including lambdas), methods and objects with a `__call__` method.
-You can call the object with [`Bound<'_, PyAny>::call`] with the args as first parameter and the kwargs
-(or `None`) as second parameter. There are also [`Bound<'_, PyAny>::call0`] with no args and
-[`Bound<'_, PyAny>::call1`] with only positional args.
+You can also use [`Bound<'_, PyAny>::is_callable`] to check if you have a callable object. `is_callable` will return `true` for functions (including lambdas), methods and objects with a `__call__` method.
+You can call the object with [`Bound<'_, PyAny>::call`] with the args as first parameter and the kwargs (or `None`) as second parameter.
+There are also [`Bound<'_, PyAny>::call0`] with no args and [`Bound<'_, PyAny>::call1`] with only positional args.
 
 ### Calling Rust functions in Python
 
@@ -248,23 +249,23 @@ The ways to convert a Rust function into a Python object vary depending on the f
   - use a `#[pyclass]` struct which stores the function as a field and implement `__call__` to call the stored function.
   - use `PyCFunction::new_closure` to create an object directly from the function.
 
+### Accessing the FFI functions
+
+In order to make Rust functions callable from Python, PyO3 generates an `extern "C"` function whose exact signature depends on the Rust signature.  (PyO3 chooses the optimal Python argument passing convention.) It then embeds the call to the Rust function inside this FFI-wrapper function.
+This wrapper handles extraction of the regular arguments and the keyword arguments from the input `PyObject`s.
+
+The `wrap_pyfunction` macro can be used to directly get a `Bound<PyCFunction>` given a `#[pyfunction]` and a `Bound<PyModule>`: `wrap_pyfunction!(rust_fun, module)`.
+
+<!-- rumdl-disable-next-line MD053 - false positive -->
 [`Bound<'_, PyAny>::is_callable`]: {{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods.html#tymethod.is_callable
+<!-- rumdl-disable-next-line MD053 - false positive -->
 [`Bound<'_, PyAny>::call`]: {{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods.html#tymethod.call
+<!-- rumdl-disable-next-line MD053 - false positive -->
 [`Bound<'_, PyAny>::call0`]: {{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods.html#tymethod.call0
+<!-- rumdl-disable-next-line MD053 - false positive -->
 [`Bound<'_, PyAny>::call1`]: {{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods.html#tymethod.call1
 [`wrap_pyfunction!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.wrap_pyfunction.html
 [`PyFunction`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyFunction.html
 [`PyCFunction`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyCFunction.html
-
-### Accessing the FFI functions
-
-In order to make Rust functions callable from Python, PyO3 generates an `extern "C"`
-function whose exact signature depends on the Rust signature.  (PyO3 chooses the optimal
-Python argument passing convention.) It then embeds the call to the Rust function inside this
-FFI-wrapper function. This wrapper handles extraction of the regular arguments and the keyword
-arguments from the input `PyObject`s.
-
-The `wrap_pyfunction` macro can be used to directly get a `Bound<PyCFunction>` given a
-`#[pyfunction]` and a `Bound<PyModule>`: `wrap_pyfunction!(rust_fun, module)`.
-
+<!-- rumdl-disable-next-line MD053 - false positive -->
 [`inspect.signature`]: https://docs.python.org/3/library/inspect.html#inspect.signature

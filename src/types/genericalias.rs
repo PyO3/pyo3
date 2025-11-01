@@ -42,7 +42,7 @@ impl PyGenericAlias {
 mod tests {
     use crate::instance::BoundObject;
     use crate::types::any::PyAnyMethods;
-    use crate::{ffi, Python};
+    use crate::Python;
 
     use super::PyGenericAlias;
 
@@ -51,19 +51,10 @@ mod tests {
     #[test]
     fn equivalency_test() {
         Python::attach(|py| {
-            let list_int = py
-                .eval(ffi::c_str!("list[int]"), None, None)
-                .unwrap()
-                .into_bound();
+            let list_int = py.eval(c"list[int]", None, None).unwrap().into_bound();
 
-            let cls = py
-                .eval(ffi::c_str!("list"), None, None)
-                .unwrap()
-                .into_bound();
-            let key = py
-                .eval(ffi::c_str!("(int,)"), None, None)
-                .unwrap()
-                .into_bound();
+            let cls = py.eval(c"list", None, None).unwrap().into_bound();
+            let key = py.eval(c"(int,)", None, None).unwrap().into_bound();
             let generic_alias = PyGenericAlias::new(py, &cls, &key).unwrap();
 
             assert!(generic_alias.eq(list_int).unwrap());

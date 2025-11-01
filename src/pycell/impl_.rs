@@ -3,7 +3,7 @@
 
 use std::cell::UnsafeCell;
 use std::marker::PhantomData;
-use std::mem::ManuallyDrop;
+use std::mem::{offset_of, ManuallyDrop};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::impl_::pyclass::{
@@ -299,25 +299,25 @@ impl<T: PyClassImpl> PyClassObject<T> {
 
     /// Gets the offset of the dictionary from the start of the struct in bytes.
     pub(crate) fn dict_offset() -> ffi::Py_ssize_t {
-        use memoffset::offset_of;
-
         let offset =
             offset_of!(PyClassObject<T>, contents) + offset_of!(PyClassObjectContents<T>, dict);
 
-        // Py_ssize_t may not be equal to isize on all platforms
-        #[allow(clippy::useless_conversion)]
+        #[allow(
+            clippy::useless_conversion,
+            reason = "Py_ssize_t may not be isize on all platforms"
+        )]
         offset.try_into().expect("offset should fit in Py_ssize_t")
     }
 
     /// Gets the offset of the weakref list from the start of the struct in bytes.
     pub(crate) fn weaklist_offset() -> ffi::Py_ssize_t {
-        use memoffset::offset_of;
-
         let offset =
             offset_of!(PyClassObject<T>, contents) + offset_of!(PyClassObjectContents<T>, weakref);
 
-        // Py_ssize_t may not be equal to isize on all platforms
-        #[allow(clippy::useless_conversion)]
+        #[allow(
+            clippy::useless_conversion,
+            reason = "Py_ssize_t may not be isize on all platforms"
+        )]
         offset.try_into().expect("offset should fit in Py_ssize_t")
     }
 }

@@ -29,6 +29,8 @@ jobs:
         run: nox -s ruff
       - name: Check rust formatting (rustfmt)
         run: nox -s rustfmt
+      - name: Check markdown formatting (rumdl)
+        run: nox -s rumdl
 
   resolve:
     runs-on: ubuntu-latest
@@ -121,7 +123,7 @@ jobs:
           toolchain: ${{ matrix.rust }}
           targets: ${{ matrix.target }}
           components: clippy,rust-src
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
       - run: uvx nox -s clippy-all
     env:
       CARGO_BUILD_TARGET: ${{ matrix.target }}
@@ -145,7 +147,7 @@ jobs:
       fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
         rust: [stable]
-        python-version: ["3.13"]
+        python-version: ["3.14"]
         platform:
           [
             {
@@ -159,7 +161,7 @@ jobs:
               rust-target: "x86_64-unknown-linux-gnu",
             },
             {
-              os: "ubuntu-22.04-arm",
+              os: "ubuntu-24.04-arm",
               python-architecture: "arm64",
               rust-target: "aarch64-unknown-linux-gnu",
             },
@@ -173,12 +175,17 @@ jobs:
               python-architecture: "x86",
               rust-target: "i686-pc-windows-msvc",
             },
+            {
+              os: "windows-11-arm",
+              python-architecture: "arm64",
+              rust-target: "aarch64-pc-windows-msvc",
+            },
           ]
         include:
           # Test nightly Rust on PRs so that PR authors have a chance to fix nightly
           # failures, as nightly does not block merge.
           - rust: nightly
-            python-version: "3.13"
+            python-version: "3.14"
             platform:
               {
                 os: "ubuntu-latest",
@@ -188,25 +195,7 @@ jobs:
           # Also test free-threaded Python just for latest Python version, on ubuntu
           # (run for all OSes on build-full)
           - rust: stable
-            python-version: "3.13t"
-            platform:
-              {
-                os: "ubuntu-latest",
-                python-architecture: "x64",
-                rust-target: "x86_64-unknown-linux-gnu",
-              }
-          # As we approach 3.14 release date, let's also have testing for 3.14 and 3.14t
-          # on linux
-          - rust: stable
-            python-version: "3.14-dev"
-            platform:
-              {
-                os: "ubuntu-latest",
-                python-architecture: "x64",
-                rust-target: "x86_64-unknown-linux-gnu",
-              }
-          - rust: stable
-            python-version: "3.14t-dev"
+            python-version: "3.14t"
             platform:
               {
                 os: "ubuntu-latest",
@@ -243,12 +232,10 @@ jobs:
             "3.12",
             "3.13",
             "3.13t",
-            "3.14-dev",
-            "3.14t-dev",
-            "pypy3.9",
-            "pypy3.10",
+            "3.14",
+            "3.14t",
             "pypy3.11",
-            "graalpy24.2",
+            "graalpy25.0",
           ]
         platform:
           [
@@ -271,7 +258,7 @@ jobs:
         include:
           # Test minimal supported Rust version
           - rust: ${{ needs.resolve.outputs.MSRV }}
-            python-version: "3.13"
+            python-version: "3.14"
             platform:
               {
                 os: "ubuntu-latest",
@@ -281,7 +268,7 @@ jobs:
 
           # Test the `nightly` feature
           - rust: nightly
-            python-version: "3.13"
+            python-version: "3.14"
             platform:
               {
                 os: "ubuntu-latest",
@@ -291,7 +278,7 @@ jobs:
 
           # Run rust beta to help catch toolchain regressions
           - rust: beta
-            python-version: "3.13"
+            python-version: "3.14"
             platform:
               {
                 os: "ubuntu-latest",
@@ -301,7 +288,7 @@ jobs:
 
           # Test 32-bit Windows and x64 macOS only with the latest Python version
           - rust: stable
-            python-version: "3.13"
+            python-version: "3.14"
             platform:
               {
                 os: "windows-latest",
@@ -309,7 +296,7 @@ jobs:
                 rust-target: "i686-pc-windows-msvc",
               }
           - rust: stable
-            python-version: "3.13"
+            python-version: "3.14"
             platform:
               {
                 os: "macos-latest",
@@ -326,28 +313,42 @@ jobs:
                 rust-target: "x86_64-unknown-linux-gnu",
               }
 
-          # arm64 macOS Python not available on GitHub Actions until 3.10,
-          # and 3.7 & 3.8 not available to install from uv, but can backfill 3.9 with x64 from uv
-          # FIXME: setup-uv issue prevents this from working, https://github.com/astral-sh/setup-uv/issues/554
-          # - rust: stable
-          #   python-version: "3.9"
-          #   platform:
-          #     {
-          #       os: "macos-latest",
-          #       python-architecture: "x64",
-          #       rust-target: "x86_64-apple-darwin",
-          #     }
-          # arm64 Linux runner is in public preview, so test 3.13 on it
+          # arm64 macOS Python not available on GitHub Actions until 3.10, test older versions on x64
           - rust: stable
-            python-version: "3.13"
+            python-version: "3.7"
             platform:
               {
-                os: "ubuntu-22.04-arm",
+                os: "macos-15-intel",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
+          - rust: stable
+            python-version: "3.8"
+            platform:
+              {
+                os: "macos-15-intel",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
+          - rust: stable
+            python-version: "3.9"
+            platform:
+              {
+                os: "macos-15-intel",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
+          # test latest Python on arm64 linux & windows runners
+          - rust: stable
+            python-version: "3.14"
+            platform:
+              {
+                os: "ubuntu-24.04-arm",
                 python-architecture: "arm64",
                 rust-target: "aarch64-unknown-linux-gnu",
               }
           - rust: stable
-            python-version: "3.13"
+            python-version: "3.14"
             platform:
               {
                 os: "windows-11-arm",
@@ -461,7 +462,7 @@ jobs:
         with:
           targets: wasm32-unknown-emscripten
           components: rust-src
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: 18
       - run: python -m pip install --upgrade pip && pip install nox[uv]

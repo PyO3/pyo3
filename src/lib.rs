@@ -152,7 +152,7 @@
 //!
 //! PyO3 supports the following Python distributions:
 //!   - CPython 3.7 or greater
-//!   - PyPy 7.3 (Python 3.9+)
+//!   - PyPy 7.3 (Python 3.11+)
 //!   - GraalPy 24.0 or greater (Python 3.10+)
 //!
 //! # Example: Building a native Python module
@@ -260,7 +260,7 @@
 //!         let version: String = sys.getattr("version")?.extract()?;
 //!
 //!         let locals = [("os", py.import("os")?)].into_py_dict(py)?;
-//!         let code = c_str!("os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'");
+//!         let code = c"os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
 //!         let user: String = py.eval(code, None, Some(&locals))?.extract()?;
 //!
 //!         println!("Hello {}, I'm Python {}", user, version);
@@ -342,7 +342,9 @@
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
 pub use crate::conversion::{FromPyObject, IntoPyObject, IntoPyObjectExt};
-pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
+pub use crate::err::{CastError, CastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
+#[allow(deprecated)]
+pub use crate::err::{DowncastError, DowncastIntoError};
 #[allow(deprecated)]
 pub use crate::instance::PyObject;
 pub use crate::instance::{Borrowed, Bound, BoundObject, Py};
@@ -448,7 +450,10 @@ pub mod type_object;
 pub mod types;
 mod version;
 
-#[allow(unused_imports)] // with no features enabled this module has no public exports
+#[allow(
+    unused_imports,
+    reason = "with no features enabled this module has no public exports"
+)]
 pub use crate::conversions::*;
 
 #[cfg(feature = "macros")]

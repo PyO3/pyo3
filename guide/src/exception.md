@@ -10,8 +10,8 @@ use pyo3::create_exception;
 create_exception!(module, MyError, pyo3::exceptions::PyException);
 ```
 
-* `module` is the name of the containing module.
-* `MyError` is the name of the new exception type.
+- `module` is the name of the containing module.
+- `MyError` is the name of the new exception type.
 
 For example:
 
@@ -37,8 +37,7 @@ Python::attach(|py| {
 # }
 ```
 
-When using PyO3 to create an extension module, you can add the new exception to
-the module like this, so that it is importable from Python:
+When using PyO3 to create an extension module, you can add the new exception to the module like this, so that it is importable from Python:
 
 ```rust,no_run
 # fn main() {}
@@ -58,7 +57,8 @@ mod mymodule {
 
 ## Raising an exception
 
-As described in the [function error handling](./function/error-handling.md) chapter, to raise an exception from a `#[pyfunction]` or `#[pymethods]`, return an `Err(PyErr)`. PyO3 will automatically raise this exception for you when returning the result to Python.
+As described in the [function error handling](./function/error-handling.md) chapter, to raise an exception from a `#[pyfunction]` or `#[pymethods]`, return an `Err(PyErr)`.
+PyO3 will automatically raise this exception for you when returning the result to Python.
 
 You can also manually write and fetch errors in the Python interpreter's global state:
 
@@ -107,8 +107,7 @@ err.is_instance_of::<PyTypeError>(py);
 ## Using exceptions defined in Python code
 
 It is possible to use an exception defined in Python code as a native Rust type.
-The `import_exception!` macro allows importing a specific exception class and defines a Rust type
-for that exception.
+The [`import_exception!`] macro allows importing a specific exception class and defines a Rust type for that exception.
 
 ```rust,no_run
 #![allow(dead_code)]
@@ -126,17 +125,7 @@ fn tell(file: &Bound<'_, PyAny>) -> PyResult<u64> {
 }
 ```
 
-[`pyo3::exceptions`]({{#PYO3_DOCS_URL}}/pyo3/exceptions/index.html)
-defines exceptions for several standard library modules.
-
-[`create_exception!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.create_exception.html
-[`import_exception!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.import_exception.html
-
-[`PyErr`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html
-[`PyResult`]: {{#PYO3_DOCS_URL}}/pyo3/type.PyResult.html
-[`PyErr::from_value`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html#method.from_value
-[`PyAny::is_instance`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.is_instance
-[`PyAny::is_instance_of`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.is_instance_of
+[`pyo3::exceptions`]({{#PYO3_DOCS_URL}}/pyo3/exceptions/index.html) defines exceptions for several standard library modules.
 
 ## Creating more complex exceptions
 
@@ -184,3 +173,8 @@ Python::attach(|py| {
 ```
 
 Note that this is not possible when the ``abi3`` feature is enabled, as that prevents subclassing ``PyException``.
+
+[`create_exception!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.create_exception.html
+[`import_exception!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.import_exception.html
+[`PyAny::is_instance`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.is_instance
+[`PyAny::is_instance_of`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.is_instance_of

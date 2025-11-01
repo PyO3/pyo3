@@ -7,8 +7,7 @@ use crate::{
         bytearray::PyByteArrayMethods, bytes::PyBytesMethods, string::PyStringMethods, PyByteArray,
         PyBytes, PyString, PyTuple,
     },
-    Borrowed, Bound, DowncastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyTypeInfo,
-    Python,
+    Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyTypeInfo, Python,
 };
 
 /// A wrapper around `str` where the storage is owned by a Python `bytes` or `str` object.
@@ -16,7 +15,10 @@ use crate::{
 /// This type gives access to the underlying data via a `Deref` implementation.
 #[cfg_attr(feature = "py-clone", derive(Clone))]
 pub struct PyBackedStr {
-    #[allow(dead_code)] // only held so that the storage is not dropped
+    #[allow(
+        dead_code,
+        reason = "not read on Python 3.9 and older limited API, storage only on those versions"
+    )]
     storage: Py<PyAny>,
     data: NonNull<str>,
 }
@@ -125,12 +127,10 @@ impl<'py> IntoPyObject<'py> for &PyBackedStr {
 /// This type gives access to the underlying data via a `Deref` implementation.
 #[cfg_attr(feature = "py-clone", derive(Clone))]
 pub struct PyBackedBytes {
-    #[allow(dead_code)] // only held so that the storage is not dropped
     storage: PyBackedBytesStorage,
     data: NonNull<[u8]>,
 }
 
-#[allow(dead_code)]
 #[cfg_attr(feature = "py-clone", derive(Clone))]
 enum PyBackedBytesStorage {
     Python(Py<PyBytes>),
@@ -205,7 +205,7 @@ impl From<Bound<'_, PyByteArray>> for PyBackedBytes {
 }
 
 impl<'a, 'py> FromPyObject<'a, 'py> for PyBackedBytes {
-    type Error = DowncastError<'a, 'py>;
+    type Error = CastError<'a, 'py>;
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         if let Ok(bytes) = obj.cast::<PyBytes>() {
@@ -213,7 +213,7 @@ impl<'a, 'py> FromPyObject<'a, 'py> for PyBackedBytes {
         } else if let Ok(bytearray) = obj.cast::<PyByteArray>() {
             Ok(Self::from(bytearray.to_owned()))
         } else {
-            Err(DowncastError::new_from_type(
+            Err(CastError::new(
                 obj,
                 PyTuple::new(
                     obj.py(),

@@ -268,10 +268,8 @@ pub struct PyTypeObject {
     pub tp_vectorcall: Option<vectorcallfunc>,
     #[cfg(Py_3_12)]
     pub tp_watched: c_char,
-    #[cfg(any(all(PyPy, Py_3_8, not(Py_3_10)), all(not(PyPy), Py_3_8, not(Py_3_9))))]
+    #[cfg(all(not(PyPy), Py_3_8, not(Py_3_9)))]
     pub tp_print: Option<printfunc>,
-    #[cfg(all(PyPy, not(Py_3_10)))]
-    pub tp_pypy_flags: std::ffi::c_long,
     #[cfg(py_sys_config = "COUNT_ALLOCS")]
     pub tp_allocs: Py_ssize_t,
     #[cfg(py_sys_config = "COUNT_ALLOCS")]

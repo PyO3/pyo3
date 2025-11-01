@@ -13,14 +13,11 @@ where
 {
 }
 
-#[cfg_attr(
-    diagnostic_namespace,
-    diagnostic::on_unimplemented(
-        message = "the trait `Sync` is not implemented for `{Self}`",
-        label = "required by `#[pyclass]`",
-        note = "replace thread-unsafe fields with thread-safe alternatives",
-        note = "see <TODO INSERT PYO3 GUIDE> for more information",
-    )
+#[diagnostic::on_unimplemented(
+    message = "the trait `Sync` is not implemented for `{Self}`",
+    label = "required by `#[pyclass]`",
+    note = "replace thread-unsafe fields with thread-safe alternatives",
+    note = "see <TODO INSERT PYO3 GUIDE> for more information"
 )]
 pub trait PyClassSync<T: Sync = Self> {}
 

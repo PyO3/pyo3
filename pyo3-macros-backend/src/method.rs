@@ -4,11 +4,12 @@ use std::fmt::Display;
 
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
+use syn::LitCStr;
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
 use crate::pyfunction::{PyFunctionWarning, WarningFactory};
 use crate::pyversions::is_abi3_before;
-use crate::utils::{expr_to_python, Ctx, LitCStr};
+use crate::utils::{expr_to_python, Ctx};
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
     params::{impl_arg_params, Holders},
@@ -113,7 +114,10 @@ impl<'a> FnArg<'a> {
         }
     }
 
-    #[allow(clippy::wrong_self_convention)]
+    #[expect(
+        clippy::wrong_self_convention,
+        reason = "called `from_` but not a constructor"
+    )]
     pub fn from_py_with(&self) -> Option<&FromPyWithAttribute> {
         if let FnArg::Regular(RegularArg { from_py_with, .. }) = self {
             from_py_with.as_ref()
@@ -313,10 +317,10 @@ impl FnType {
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let ret = quote_spanned! { *span =>
-                    #[allow(clippy::useless_conversion)]
+                    #[allow(clippy::useless_conversion, reason = "#[classmethod] accepts anything which implements `From<BoundRef<PyType>>`")]
                     ::std::convert::Into::into(
                         #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
-                            .downcast_unchecked::<#pyo3_path::types::PyType>()
+                            .cast_unchecked::<#pyo3_path::types::PyType>()
                     )
                 };
                 Some(quote! { unsafe { #ret }, })
@@ -326,10 +330,10 @@ impl FnType {
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let ret = quote_spanned! { *span =>
-                    #[allow(clippy::useless_conversion)]
+                    #[allow(clippy::useless_conversion, reason = "`pass_module` accepts anything which implements `From<BoundRef<PyModule>>`")]
                     ::std::convert::Into::into(
                         #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
-                            .downcast_unchecked::<#pyo3_path::types::PyModule>()
+                            .cast_unchecked::<#pyo3_path::types::PyModule>()
                     )
                 };
                 Some(quote! { unsafe { #ret }, })
@@ -404,10 +408,10 @@ impl SelfType {
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 error_mode.handle_error(
                     quote_spanned! { *span =>
-                        #bound_ref.downcast::<#cls>()
+                        #bound_ref.cast::<#cls>()
                             .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
                             .and_then(
-                                #[allow(unknown_lints, clippy::unnecessary_fallible_conversions)]  // In case slf is Py<Self> (unknown_lints can be removed when MSRV is 1.75+)
+                                #[allow(clippy::unnecessary_fallible_conversions, reason = "anything implementing `TryFrom<BoundRef>` is permitted")]
                                 |bound| ::std::convert::TryFrom::try_from(bound).map_err(::std::convert::Into::into)
                             )
 
@@ -550,10 +554,10 @@ impl<'a> FnSpec<'a> {
         })
     }
 
-    pub fn null_terminated_python_name(&self, ctx: &Ctx) -> LitCStr {
+    pub fn null_terminated_python_name(&self) -> LitCStr {
         let name = self.python_name.to_string();
         let name = CString::new(name).unwrap();
-        LitCStr::new(name, self.python_name.span(), ctx)
+        LitCStr::new(&name, self.python_name.span())
     }
 
     fn parse_fn_type(
@@ -901,7 +905,12 @@ impl<'a> FnSpec<'a> {
     /// calling convention.
     pub fn get_methoddef(&self, wrapper: impl ToTokens, doc: &PythonDoc, ctx: &Ctx) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
-        let python_name = self.null_terminated_python_name(ctx);
+        let python_name = self.null_terminated_python_name();
+        let flags = match self.tp {
+            FnType::FnClass(_) => quote! { .flags(#pyo3_path::ffi::METH_CLASS) },
+            FnType::FnStatic => quote! { .flags(#pyo3_path::ffi::METH_STATIC) },
+            _ => quote! {},
+        };
         match self.convention {
             CallingConvention::Noargs => quote! {
                 #pyo3_path::impl_::pymethods::PyMethodDef::noargs(
@@ -923,7 +932,7 @@ impl<'a> FnSpec<'a> {
                         trampoline
                     },
                     #doc,
-                )
+                ) #flags
             },
             CallingConvention::Fastcall => quote! {
                 #pyo3_path::impl_::pymethods::PyMethodDef::fastcall_cfunction_with_keywords(
@@ -947,7 +956,7 @@ impl<'a> FnSpec<'a> {
                         trampoline
                     },
                     #doc,
-                )
+                ) #flags
             },
             CallingConvention::Varargs => quote! {
                 #pyo3_path::impl_::pymethods::PyMethodDef::cfunction_with_keywords(
@@ -969,7 +978,7 @@ impl<'a> FnSpec<'a> {
                         trampoline
                     },
                     #doc,
-                )
+                ) #flags
             },
             CallingConvention::TpNew => unreachable!("tp_new cannot get a methoddef"),
         }

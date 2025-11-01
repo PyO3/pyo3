@@ -25,7 +25,6 @@ unsafe impl PyTypeInfo for PySequence {
     const MODULE: Option<&'static str> = Some("collections.abc");
 
     #[inline]
-    #[allow(clippy::redundant_closure_call)]
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject {
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         TYPE.import(py, "collections.abc", "Sequence")
@@ -357,13 +356,13 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAnyMethods, PyList, PySequence, PySequenceMethods, PyTuple};
-    use crate::{ffi, IntoPyObject, Py, PyAny, PyTypeInfo, Python};
+    use crate::{IntoPyObject, Py, PyAny, PyTypeInfo, Python};
     use std::ptr;
 
     fn get_object() -> Py<PyAny> {
         // Convenience function for getting a single unique object
         Python::attach(|py| {
-            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let obj = py.eval(c"object()", None, None).unwrap();
 
             obj.into_pyobject(py).unwrap().unbind()
         })

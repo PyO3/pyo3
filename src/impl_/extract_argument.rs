@@ -1,10 +1,12 @@
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::{
     exceptions::PyTypeError,
     ffi,
     pyclass::boolean_struct::False,
     types::{any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods, PyDict, PyTuple},
-    Borrowed, Bound, DowncastError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut,
-    PyErr, PyResult, PyTypeCheck, Python,
+    Borrowed, Bound, CastError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr,
+    PyResult, PyTypeCheck, Python,
 };
 
 /// Helper type used to keep implementation more concise.
@@ -44,13 +46,10 @@ mod function_argument {
 /// some additional types which don't implement `FromPyObject`, such as `&T` for `#[pyclass]` types.
 /// All types should only implement this trait once; either by the `FromPyObject` blanket or one
 /// of the specialized implementations which needs a `Holder`.
-#[cfg_attr(
-    diagnostic_namespace,
-    diagnostic::on_unimplemented(
-        message = "`{Self}` cannot be used as a Python function argument",
-        note = "implement `FromPyObject` to enable using `{Self}` as a function argument",
-        note = "`Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`"
-    )
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be used as a Python function argument",
+    note = "implement `FromPyObject` to enable using `{Self}` as a function argument",
+    note = "`Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`"
 )]
 pub trait PyFunctionArgument<'a, 'holder, 'py, const IMPLEMENTS_FROMPYOBJECT: bool>:
     Sized + function_argument::Sealed<IMPLEMENTS_FROMPYOBJECT>
@@ -60,7 +59,7 @@ pub trait PyFunctionArgument<'a, 'holder, 'py, const IMPLEMENTS_FROMPYOBJECT: bo
 
     /// Provides the type hint information for which Python types are allowed.
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str;
+    const INPUT_TYPE: TypeHint;
 
     fn extract(
         obj: &'a Bound<'py, PyAny>,
@@ -76,7 +75,7 @@ where
     type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = T::INPUT_TYPE;
+    const INPUT_TYPE: TypeHint = T::INPUT_TYPE;
 
     #[inline]
     fn extract(obj: &'a Bound<'py, PyAny>, _: &'_ mut ()) -> Result<Self, Self::Error> {
@@ -89,10 +88,10 @@ where
     T: PyTypeCheck,
 {
     type Holder = ();
-    type Error = DowncastError<'a, 'py>;
+    type Error = CastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = T::PYTHON_TYPE;
+    const INPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     #[inline]
     fn extract(obj: &'a Bound<'py, PyAny>, _: &'_ mut ()) -> Result<Self, Self::Error> {
@@ -109,7 +108,10 @@ where
     type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "typing.Any | None";
+    const INPUT_TYPE: TypeHint = TypeHint::union(&[
+        TypeHint::module_attr("typing", "Any"),
+        TypeHint::builtin("None"),
+    ]);
 
     #[inline]
     fn extract(
@@ -130,7 +132,7 @@ impl<'a, 'holder, 'py> PyFunctionArgument<'a, 'holder, 'py, false> for &'holder 
     type Error = <std::borrow::Cow<'a, str> as FromPyObject<'a, 'py>>::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "str";
+    const INPUT_TYPE: TypeHint = TypeHint::builtin("str");
 
     #[inline]
     fn extract(
@@ -160,7 +162,7 @@ impl<'a, 'holder, T: PyClass> PyFunctionArgument<'a, 'holder, '_, false> for &'h
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = T::PYTHON_TYPE;
+    const INPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     #[inline]
     fn extract(obj: &'a Bound<'_, PyAny>, holder: &'holder mut Self::Holder) -> PyResult<Self> {
@@ -175,7 +177,7 @@ impl<'a, 'holder, T: PyClass<Frozen = False>> PyFunctionArgument<'a, 'holder, '_
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = T::PYTHON_TYPE;
+    const INPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     #[inline]
     fn extract(obj: &'a Bound<'_, PyAny>, holder: &'holder mut Self::Holder) -> PyResult<Self> {
@@ -188,7 +190,7 @@ pub fn extract_pyclass_ref<'a, 'holder, T: PyClass>(
     obj: &'a Bound<'_, PyAny>,
     holder: &'holder mut Option<PyClassGuard<'a, T>>,
 ) -> PyResult<&'holder T> {
-    Ok(&*holder.insert(PyClassGuard::try_borrow(obj.downcast()?.as_unbound())?))
+    Ok(&*holder.insert(PyClassGuard::try_borrow(obj.cast()?.as_unbound())?))
 }
 
 #[inline]
@@ -196,9 +198,7 @@ pub fn extract_pyclass_ref_mut<'a, 'holder, T: PyClass<Frozen = False>>(
     obj: &'a Bound<'_, PyAny>,
     holder: &'holder mut Option<PyClassGuardMut<'a, T>>,
 ) -> PyResult<&'holder mut T> {
-    Ok(&mut *holder.insert(PyClassGuardMut::try_borrow_mut(
-        obj.downcast()?.as_unbound(),
-    )?))
+    Ok(&mut *holder.insert(PyClassGuardMut::try_borrow_mut(obj.cast()?.as_unbound())?))
 }
 
 /// The standard implementation of how PyO3 extracts a `#[pyfunction]` or `#[pymethod]` function argument.
@@ -531,7 +531,7 @@ impl FunctionDescription {
                 if let Some(i) = self.find_keyword_parameter_in_positional(kwarg_name) {
                     if i < self.positional_only_parameters {
                         // If accepting **kwargs, then it's allowed for the name of the
-                        // kwarg to conflict with a postional-only argument - the value
+                        // kwarg to conflict with a positional-only argument - the value
                         // will go into **kwargs anyway.
                         if K::handle_varkeyword(varkeywords, kwarg_name_py, value, self).is_err() {
                             positional_only_keyword_arguments.push(kwarg_name_owned);

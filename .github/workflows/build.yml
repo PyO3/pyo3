@@ -56,7 +56,7 @@ jobs:
       # workaround for the above, only available for 3.9
       - if: ${{ inputs.os == 'macos-latest' && contains(fromJSON('["3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64' }}
         name: Set up Python ${{ inputs.python-version }}
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           python-version: cpython-${{ inputs.python-version }}-macos-x86-64
 
@@ -122,8 +122,8 @@ jobs:
               - '.github/workflows/build.yml'
 
       - name: Run pyo3-ffi-check
-        # pypy 3.9 on windows is not PEP 3123 compliant, nor is graalpy
-        if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows'))) }}
+        # TODO: investigate graalpy failures
+        if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy')) }}
         run: nox -s ffi-check
 
       - name: Install cargo-llvm-cov

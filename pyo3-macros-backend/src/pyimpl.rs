@@ -18,13 +18,13 @@ use crate::{
 };
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-#[cfg(feature = "experimental-inspect")]
-use syn::Ident;
 use syn::{
     parse::{Parse, ParseStream},
     spanned::Spanned,
     ImplItemFn, Result,
 };
+#[cfg(feature = "experimental-inspect")]
+use syn::{parse_quote, Ident};
 
 /// The mechanism used to collect `#[pymethods]` into the type object
 #[derive(Copy, Clone)]
@@ -232,7 +232,7 @@ pub fn impl_methods(
 pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec, ctx: &Ctx) -> MethodAndMethodDef {
     let member = &spec.rust_ident;
     let wrapper_ident = format_ident!("__pymethod_{}__", member);
-    let python_name = spec.null_terminated_python_name(ctx);
+    let python_name = spec.null_terminated_python_name();
     let Ctx { pyo3_path, .. } = ctx;
 
     let associated_method = quote! {
@@ -242,14 +242,12 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec, ctx: &Ctx) -> MethodAndMe
     };
 
     let method_def = quote! {
-        #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
-            #pyo3_path::impl_::pymethods::PyMethodDefType::ClassAttribute({
-                #pyo3_path::impl_::pymethods::PyClassAttributeDef::new(
-                    #python_name,
-                    #cls::#wrapper_ident
-                )
-            })
-        )
+        #pyo3_path::impl_::pymethods::PyMethodDefType::ClassAttribute({
+            #pyo3_path::impl_::pymethods::PyClassAttributeDef::new(
+                #python_name,
+                #cls::#wrapper_ident
+            )
+        })
     };
 
     MethodAndMethodDef {
@@ -413,7 +411,7 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
         }
         FnType::FnNew | FnType::FnNewClass(_) => {
             first_argument = Some("cls");
-            output = syn::ReturnType::Default; // The __new__ Python function return type is None
+            output = parse_quote!(-> #pyo3_path::PyRef<Self>); // Hack to return Self while implementing IntoPyObject
         }
         FnType::FnClass(_) => {
             first_argument = Some("cls");

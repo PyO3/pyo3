@@ -1,11 +1,11 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    conversion::{FromPyObject, FromPyObjectOwned, IntoPyObject},
+    conversion::{FromPyObject, FromPyObjectOwned, FromPyObjectSequence, IntoPyObject},
     exceptions::PyTypeError,
     ffi,
     types::{PyAnyMethods, PySequence, PyString},
-    Borrowed, DowncastError, PyResult, PyTypeInfo,
+    Borrowed, CastError, PyResult, PyTypeInfo,
 };
 use crate::{Bound, PyAny, PyErr, Python};
 
@@ -35,7 +35,6 @@ where
 impl<'a, 'py, T> IntoPyObject<'py> for &'a Vec<T>
 where
     &'a T: IntoPyObject<'py>,
-    T: 'a, // MSRV
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -63,8 +62,6 @@ where
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Some(extractor) = T::sequence_extractor(obj, crate::conversion::private::Token) {
-            #[cfg(return_position_impl_trait_in_traits)]
-            use crate::conversion::FromPyObjectSequence;
             return Ok(extractor.to_vec());
         }
 
@@ -89,13 +86,9 @@ where
     // to support this function and if not, we will only fail extraction safely.
     let seq = unsafe {
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-            obj.downcast_unchecked::<PySequence>()
+            obj.cast_unchecked::<PySequence>()
         } else {
-            return Err(DowncastError::new_from_type(
-                obj,
-                PySequence::type_object(obj.py()).into_any(),
-            )
-            .into());
+            return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
         }
     };
 
@@ -110,7 +103,7 @@ where
 mod tests {
     use crate::conversion::IntoPyObject;
     use crate::types::{PyAnyMethods, PyBytes, PyBytesMethods, PyList};
-    use crate::{ffi, Python};
+    use crate::Python;
 
     #[test]
     fn test_vec_intopyobject_impl() {
@@ -164,12 +157,8 @@ mod tests {
     #[test]
     fn test_extract_tuple_to_vec() {
         Python::attach(|py| {
-            let v: Vec<i32> = py
-                .eval(ffi::c_str!("(1, 2)"), None, None)
-                .unwrap()
-                .extract()
-                .unwrap();
-            assert!(v == [1, 2]);
+            let v: Vec<i32> = py.eval(c"(1, 2)", None, None).unwrap().extract().unwrap();
+            assert_eq!(v, [1, 2]);
         });
     }
 
@@ -177,11 +166,11 @@ mod tests {
     fn test_extract_range_to_vec() {
         Python::attach(|py| {
             let v: Vec<i32> = py
-                .eval(ffi::c_str!("range(1, 5)"), None, None)
+                .eval(c"range(1, 5)", None, None)
                 .unwrap()
                 .extract()
                 .unwrap();
-            assert!(v == [1, 2, 3, 4]);
+            assert_eq!(v, [1, 2, 3, 4]);
         });
     }
 
@@ -189,11 +178,11 @@ mod tests {
     fn test_extract_bytearray_to_vec() {
         Python::attach(|py| {
             let v: Vec<u8> = py
-                .eval(ffi::c_str!("bytearray(b'abc')"), None, None)
+                .eval(c"bytearray(b'abc')", None, None)
                 .unwrap()
                 .extract()
                 .unwrap();
-            assert!(v == b"abc");
+            assert_eq!(v, b"abc");
         });
     }
 }

@@ -56,7 +56,7 @@ use crate::{
     types::{PyString, PyStringMethods},
     Py,
 };
-use crate::{ffi, Borrowed, Bound, FromPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python};
+use crate::{Borrowed, Bound, FromPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python};
 use chrono::offset::{FixedOffset, Utc};
 #[cfg(feature = "chrono-local")]
 use chrono::Local;
@@ -345,30 +345,18 @@ where
         let tz = if let Some(tzinfo) = tzinfo {
             tzinfo.extract().map_err(Into::into)?
         } else {
+            // Special case: allow naive `datetime` objects for `DateTime<Local>`, interpreting them as local time.
+            #[cfg(feature = "chrono-local")]
+            if let Some(tz) = Tz::as_local_tz(crate::conversion::private::Token) {
+                return py_datetime_to_datetime_with_timezone(dt, tz);
+            }
+
             return Err(PyTypeError::new_err(
                 "expected a datetime with non-None tzinfo",
             ));
         };
-        let naive_dt = NaiveDateTime::new(py_date_to_naive_date(dt)?, py_time_to_naive_time(dt)?);
-        match naive_dt.and_local_timezone(tz) {
-            LocalResult::Single(value) => Ok(value),
-            LocalResult::Ambiguous(earliest, latest) => {
-                #[cfg(not(Py_LIMITED_API))]
-                let fold = dt.get_fold();
 
-                #[cfg(Py_LIMITED_API)]
-                let fold = dt.getattr(intern!(dt.py(), "fold"))?.extract::<usize>()? > 0;
-
-                if fold {
-                    Ok(latest)
-                } else {
-                    Ok(earliest)
-                }
-            }
-            LocalResult::None => Err(PyValueError::new_err(format!(
-                "The datetime {dt:?} contains an incompatible timezone"
-            ))),
-        }
+        py_datetime_to_datetime_with_timezone(dt, tz)
     }
 }
 
@@ -507,6 +495,11 @@ impl FromPyObject<'_, '_> for Local {
             )))
         }
     }
+
+    #[inline]
+    fn as_local_tz(_: crate::conversion::private::Token) -> Option<Self> {
+        Some(Local)
+    }
 }
 
 struct DateArgs {
@@ -554,7 +547,7 @@ fn warn_truncated_leap_second(obj: &Bound<'_, PyAny>) {
     if let Err(e) = PyErr::warn(
         py,
         &py.get_type::<PyUserWarning>(),
-        ffi::c_str!("ignored leap-second, `datetime` does not support leap-seconds"),
+        c"ignored leap-second, `datetime` does not support leap-seconds",
         0,
     ) {
         e.write_unraisable(py, Some(obj))
@@ -613,6 +606,32 @@ fn py_time_to_naive_time(py_time: &Bound<'_, PyAny>) -> PyResult<NaiveTime> {
     .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))
 }
 
+fn py_datetime_to_datetime_with_timezone<Tz: TimeZone>(
+    dt: &Bound<'_, PyDateTime>,
+    tz: Tz,
+) -> PyResult<DateTime<Tz>> {
+    let naive_dt = NaiveDateTime::new(py_date_to_naive_date(dt)?, py_time_to_naive_time(dt)?);
+    match naive_dt.and_local_timezone(tz) {
+        LocalResult::Single(value) => Ok(value),
+        LocalResult::Ambiguous(earliest, latest) => {
+            #[cfg(not(Py_LIMITED_API))]
+            let fold = dt.get_fold();
+
+            #[cfg(Py_LIMITED_API)]
+            let fold = dt.getattr(intern!(dt.py(), "fold"))?.extract::<usize>()? > 0;
+
+            if fold {
+                Ok(latest)
+            } else {
+                Ok(earliest)
+            }
+        }
+        LocalResult::None => Err(PyValueError::new_err(format!(
+            "The datetime {dt:?} contains an incompatible timezone"
+        ))),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -625,14 +644,13 @@ mod tests {
     // tzdata there to make this work.
     #[cfg(all(Py_3_9, not(target_os = "windows")))]
     fn test_zoneinfo_is_not_fixed_offset() {
-        use crate::ffi;
         use crate::types::any::PyAnyMethods;
         use crate::types::dict::PyDictMethods;
 
         Python::attach(|py| {
             let locals = crate::types::PyDict::new(py);
             py.run(
-                ffi::c_str!("import zoneinfo; zi = zoneinfo.ZoneInfo('Europe/London')"),
+                c"import zoneinfo; zi = zoneinfo.ZoneInfo('Europe/London')",
                 None,
                 Some(&locals),
             )
@@ -692,11 +710,11 @@ mod tests {
             let none = py.None().into_bound(py);
             assert_eq!(
                 none.extract::<Duration>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'timedelta'"
+                "TypeError: 'NoneType' object cannot be cast as 'timedelta'"
             );
             assert_eq!(
                 none.extract::<FixedOffset>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'tzinfo'"
+                "TypeError: 'NoneType' object cannot be cast as 'tzinfo'"
             );
             assert_eq!(
                 none.extract::<Utc>().unwrap_err().to_string(),
@@ -704,25 +722,25 @@ mod tests {
             );
             assert_eq!(
                 none.extract::<NaiveTime>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'time'"
+                "TypeError: 'NoneType' object cannot be cast as 'time'"
             );
             assert_eq!(
                 none.extract::<NaiveDate>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'date'"
+                "TypeError: 'NoneType' object cannot be cast as 'date'"
             );
             assert_eq!(
                 none.extract::<NaiveDateTime>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'datetime'"
+                "TypeError: 'NoneType' object cannot be cast as 'datetime'"
             );
             assert_eq!(
                 none.extract::<DateTime<Utc>>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'datetime'"
+                "TypeError: 'NoneType' object cannot be cast as 'datetime'"
             );
             assert_eq!(
                 none.extract::<DateTime<FixedOffset>>()
                     .unwrap_err()
                     .to_string(),
-                "TypeError: 'NoneType' object cannot be converted to 'datetime'"
+                "TypeError: 'NoneType' object cannot be cast as 'datetime'"
             );
         });
     }
@@ -1000,6 +1018,33 @@ mod tests {
                 .unwrap()
                 .and_utc();
             assert_eq!(py_datetime, datetime,);
+        })
+    }
+
+    #[test]
+    #[cfg(feature = "chrono-local")]
+    fn test_pyo3_naive_datetime_frompyobject_local() {
+        Python::attach(|py| {
+            let year = 2014;
+            let month = 5;
+            let day = 6;
+            let hour = 7;
+            let minute = 8;
+            let second = 9;
+            let micro = 999_999;
+            let py_datetime = new_py_datetime_ob(
+                py,
+                "datetime",
+                (year, month, day, hour, minute, second, micro),
+            );
+            let py_datetime: DateTime<Local> = py_datetime.extract().unwrap();
+            let expected_datetime = NaiveDate::from_ymd_opt(year, month, day)
+                .unwrap()
+                .and_hms_micro_opt(hour, minute, second, micro)
+                .unwrap()
+                .and_local_timezone(Local)
+                .unwrap();
+            assert_eq!(py_datetime, expected_datetime);
         })
     }
 

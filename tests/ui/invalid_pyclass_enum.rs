@@ -7,7 +7,7 @@ enum NotBaseClass {
 }
 
 #[pyclass(extends = PyList)]
-enum NotDrivedClass {
+enum NotDerivedClass {
     X,
     Y,
 }
