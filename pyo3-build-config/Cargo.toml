@@ -13,11 +13,11 @@ rust-version.workspace = true
 
 [dependencies]
 python3-dll-a = { version = "0.2.12", optional = true }
-target-lexicon = "0.13"
+target-lexicon = "0.13.3"
 
 [build-dependencies]
 python3-dll-a = { version = "0.2.12", optional = true }
-target-lexicon = "0.13"
+target-lexicon = "0.13.3"
 
 [features]
 default = []

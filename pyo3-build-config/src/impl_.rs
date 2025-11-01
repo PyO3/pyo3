@@ -890,6 +890,7 @@ pub fn is_linking_libpython_for_target(target: &Triple) -> bool {
         || target.operating_system == OperatingSystem::Aix
         || target.environment == Environment::Android
         || target.environment == Environment::Androideabi
+        || target.operating_system == OperatingSystem::Cygwin
         || !is_extension_module()
 }
 
