@@ -1,8 +1,10 @@
 # Parallelism
 
-Historically, CPython was limited by the [global interpreter lock](https://docs.python.org/3/glossary.html#term-global-interpreter-lock) (GIL), which only allowed a single thread to drive the Python interpreter at a time. This made threading in Python a bad fit for [CPU-bound](https://en.wikipedia.org/wiki/CPU-bound) tasks and often forced developers to accept the overhead of multiprocessing.
+Historically, CPython was limited by the [global interpreter lock](https://docs.python.org/3/glossary.html#term-global-interpreter-lock) (GIL), which only allowed a single thread to drive the Python interpreter at a time.
+This made threading in Python a bad fit for [CPU-bound](https://en.wikipedia.org/wiki/CPU-bound) tasks and often forced developers to accept the overhead of multiprocessing.
 
-Rust is well-suited to multithreaded code, and libraries like [`rayon`] can help you leverage safe parallelism with minimal effort. The [`Python::detach`] method can be used to allow the Python interpreter to do other work while the Rust work is ongoing.
+Rust is well-suited to multithreaded code, and libraries like [`rayon`] can help you leverage safe parallelism with minimal effort.
+The [`Python::detach`] method can be used to allow the Python interpreter to do other work while the Rust work is ongoing.
 
 To enable full parallelism in your application, consider also using [free-threaded Python](./free-threading.md) which is supported since Python 3.14.
 
@@ -38,7 +40,8 @@ fn search(contents: &str, needle: &str) -> usize {
 }
 ```
 
-But let's assume you have a long running Rust function which you would like to execute several times in parallel. For the sake of example let's take a sequential version of the word count:
+But let's assume you have a long running Rust function which you would like to execute several times in parallel.
+For the sake of example let's take a sequential version of the word count:
 
 ```rust,no_run
 # #![allow(dead_code)]
@@ -57,7 +60,8 @@ fn search_sequential(contents: &str, needle: &str) -> usize {
 }
 ```
 
-To enable parallel execution of this function, the [`Python::detach`] method can be used to temporarily release the GIL, thus allowing other Python threads to run. We then have a function exposed to the Python runtime which calls `search_sequential` inside a closure passed to [`Python::detach`] to enable true parallelism:
+To enable parallel execution of this function, the [`Python::detach`] method can be used to temporarily release the GIL, thus allowing other Python threads to run.
+We then have a function exposed to the Python runtime which calls `search_sequential` inside a closure passed to [`Python::detach`] to enable true parallelism:
 
 ```rust,no_run
 # #![allow(dead_code)]
@@ -130,11 +134,9 @@ You can see that the Python threaded version is not much slower than the Rust se
 
 ## Sharing Python objects between Rust threads
 
-In the example above we made a Python interface to a low-level rust function,
-and then leveraged the python `threading` module to run the low-level function
-in parallel. It is also possible to spawn threads in Rust that acquire the GIL
-and operate on Python objects. However, care must be taken to avoid writing code
-that deadlocks with the GIL in these cases.
+In the example above we made a Python interface to a low-level rust function, and then leveraged the python `threading` module to run the low-level function in parallel.
+It is also possible to spawn threads in Rust that acquire the GIL and operate on Python objects.
+However, care must be taken to avoid writing code that deadlocks with the GIL in these cases.
 
 - Note: This example is meant to illustrate how to drop and re-acquire the GIL
         to avoid creating deadlocks. Unless the spawned threads subsequently
@@ -171,19 +173,13 @@ let allowed_ids: Vec<bool> = Python::attach(|outer_py| {
 assert!(allowed_ids.into_iter().filter(|b| *b).count() == 4);
 ```
 
-It's important to note that there is an `outer_py` Python token as well as
-an `inner_py` token. Sharing Python tokens between threads is not allowed
-and threads must individually attach to the interpreter to access data wrapped by a Python
-object.
+It's important to note that there is an `outer_py` Python token as well as an `inner_py` token.
+Sharing Python tokens between threads is not allowed and threads must individually attach to the interpreter to access data wrapped by a Python object.
 
-It's also important to see that this example uses [`Python::detach`] to
-wrap the code that spawns OS threads via `rayon`. If this example didn't use
-`detach`, a `rayon` worker thread would block on acquiring the GIL while a
-thread that owns the GIL spins forever waiting for the result of the `rayon`
-thread. Calling `detach` allows the GIL to be released in the thread
-collecting the results from the worker threads. You should always call
-`detach` in situations that spawn worker threads, but especially so in
-cases where worker threads need to acquire the GIL, to prevent deadlocks.
+It's also important to see that this example uses [`Python::detach`] to wrap the code that spawns OS threads via `rayon`.
+If this example didn't use `detach`, a `rayon` worker thread would block on acquiring the GIL while a thread that owns the GIL spins forever waiting for the result of the `rayon` thread.
+Calling `detach` allows the GIL to be released in the thread collecting the results from the worker threads.
+You should always call `detach` in situations that spawn worker threads, but especially so in cases where worker threads need to acquire the GIL, to prevent deadlocks.
 
 [`Python::detach`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.detach
 [`rayon`]: https://github.com/rayon-rs/rayon

@@ -77,6 +77,7 @@ fn with_typed_args(a: bool, b: u64, c: f64, d: &str) -> (bool, u64, f64, &str) {
     (a, b, c, d)
 }
 
+#[cfg(feature = "experimental-inspect")]
 #[pyfunction(signature = (a: "int", *_args: "str", _b: "int | None" = None, **_kwargs: "bool") -> "int")]
 fn with_custom_type_annotations<'py>(
     a: Any<'py>,
@@ -135,9 +136,12 @@ fn many_keyword_arguments<'py>(
 
 #[pymodule]
 pub mod pyfunctions {
+    #[cfg(feature = "experimental-inspect")]
+    #[pymodule_export]
+    use super::with_custom_type_annotations;
     #[pymodule_export]
     use super::{
         args_kwargs, many_keyword_arguments, none, positional_only, simple, simple_args,
-        simple_args_kwargs, simple_kwargs, with_custom_type_annotations, with_typed_args,
+        simple_args_kwargs, simple_kwargs, with_typed_args,
     };
 }

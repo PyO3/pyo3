@@ -23,7 +23,8 @@ The `Python<'py>` token serves three purposes:
 - It can be passed to functions that require a proof of attachment, such as [`Py::clone_ref`][clone_ref].
 - Its lifetime `'py` is used to bind many of PyO3's types to the Python interpreter, such as [`Bound<'py, T>`][Bound].
 
-PyO3's types that are bound to the `'py` lifetime, for example `Bound<'py, T>`, all contain a `Python<'py>` token. This means they have full access to the Python interpreter and offer a complete API for interacting with Python objects.
+PyO3's types that are bound to the `'py` lifetime, for example `Bound<'py, T>`, all contain a `Python<'py>` token.
+This means they have full access to the Python interpreter and offer a complete API for interacting with Python objects.
 
 Consult [PyO3's API documentation][obtaining-py] to learn how to acquire one of these tokens.
 
@@ -35,7 +36,8 @@ Historically, Rust code was able to use the GIL as a synchronization guarantee, 
 
 The [`pyo3::sync`] module offers synchronization tools which abstract over both Python builds.
 
-To enable any parallelism on the GIL-enabled build, and best throughput on the free-threaded build, non-Python operations (system calls and native Rust code) should consider detaching from the Python interpreter to allow other work to proceed. See [the section on parallelism](parallelism.md) for how to do that using PyO3's API.
+To enable any parallelism on the GIL-enabled build, and best throughput on the free-threaded build, non-Python operations (system calls and native Rust code) should consider detaching from the Python interpreter to allow other work to proceed.
+See [the section on parallelism](parallelism.md) for how to do that using PyO3's API.
 
 ## Python's memory model
 
@@ -44,9 +46,12 @@ Python's memory model differs from Rust's memory model in two key ways:
 - There is no concept of ownership; all Python objects are shared and usually implemented via reference counting
 - There is no concept of exclusive (`&mut`) references; any reference can mutate a Python object
 
-PyO3's API reflects this by providing [smart pointer][smart-pointers] types, `Py<T>`, `Bound<'py, T>`, and (the very rarely used) `Borrowed<'a, 'py, T>`. These smart pointers all use Python reference counting. See the [subchapter on types](./types.md) for more detail on these types.
+PyO3's API reflects this by providing [smart pointer][smart-pointers] types, `Py<T>`, `Bound<'py, T>`, and (the very rarely used) `Borrowed<'a, 'py, T>`.
+These smart pointers all use Python reference counting.
+See the [subchapter on types](./types.md) for more detail on these types.
 
-Because of the lack of exclusive `&mut` references, PyO3's APIs for Python objects, for example [`PyListMethods::append`], use shared references. This is safe because Python objects have internal mechanisms to prevent data races (as of time of writing, the Python GIL).
+Because of the lack of exclusive `&mut` references, PyO3's APIs for Python objects, for example [`PyListMethods::append`], use shared references.
+This is safe because Python objects have internal mechanisms to prevent data races (as of time of writing, the Python GIL).
 
 [attached]: https://docs.python.org/3.14/glossary.html#term-attached-thread-state
 [global interpreter lock]: https://docs.python.org/3/c-api/init.html#thread-state-and-the-global-interpreter-lock

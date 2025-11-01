@@ -23,7 +23,7 @@ pub(crate) mod private {
 ///
 /// This trait is currently implemented for Rust tuple (up to a size of 12),
 /// [`Bound<'py, PyTuple>`] and [`Py<PyTuple>`]. Custom types that are
-/// convertable to `PyTuple` via `IntoPyObject` need to do so before passing it
+/// convertible to `PyTuple` via `IntoPyObject` need to do so before passing it
 /// to `call`.
 ///
 /// This trait is not intended to used by downstream crates directly. As such it
@@ -45,7 +45,7 @@ pub(crate) mod private {
 #[diagnostic::on_unimplemented(
     message = "`{Self}` cannot used as a Python `call` argument",
     note = "`PyCallArgs` is implemented for Rust tuples, `Bound<'py, PyTuple>` and `Py<PyTuple>`",
-    note = "if your type is convertable to `PyTuple` via `IntoPyObject`, call `<arg>.into_pyobject(py)` manually",
+    note = "if your type is convertible to `PyTuple` via `IntoPyObject`, call `<arg>.into_pyobject(py)` manually",
     note = "if you meant to pass the type as a single argument, wrap it in a 1-tuple, `(<arg>,)`"
 )]
 pub trait PyCallArgs<'py>: Sized + private::Sealed {

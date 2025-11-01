@@ -3,17 +3,14 @@
 It is desirable if both the Python and Rust parts of the application end up
 logging using the same configuration into the same place.
 
-This section of the guide briefly discusses how to connect the two languages'
-logging ecosystems together. The recommended way for Python extension modules is
-to configure Rust's logger to send log messages to Python using the `pyo3-log`
-crate. For users who want to do the opposite and send Python log messages to
-Rust, see the note at the end of this guide.
+This section of the guide briefly discusses how to connect the two languages' logging ecosystems together.
+The recommended way for Python extension modules is to configure Rust's logger to send log messages to Python using the `pyo3-log` crate.
+For users who want to do the opposite and send Python log messages to Rust, see the note at the end of this guide.
 
 ## Using `pyo3-log` to send Rust log messages to Python
 
-The [pyo3-log] crate allows sending the messages from the Rust side to Python's
-[logging] system. This is mostly suitable for writing native extensions for
-Python programs.
+The [pyo3-log] crate allows sending the messages from the Rust side to Python's [logging] system.
+This is mostly suitable for writing native extensions for Python programs.
 
 Use [`pyo3_log::init`][init] to install the logger in its default configuration.
 It's also possible to tweak its configuration (mostly to tune its performance).
@@ -51,9 +48,8 @@ logging.getLogger().setLevel(logging.INFO)
 my_module.log_something()
 ```
 
-It is important to initialize the Python loggers first, before calling any Rust
-functions that may log. This limitation can be worked around if it is not
-possible to satisfy, read the documentation about [caching].
+It is important to initialize the Python loggers first, before calling any Rust functions that may log.
+This limitation can be worked around if it is not possible to satisfy, read the documentation about [caching].
 
 ## The Python to Rust direction
 

@@ -28,7 +28,7 @@ use std::ptr::addr_of_mut;
 
 // skipped private _PyCoCached
 // skipped private _PyCoLineInstrumentationData
-// skipped private _PyCoMontoringData
+// skipped private _PyCoMonitoringData
 
 // skipped private _PyExecutorArray
 

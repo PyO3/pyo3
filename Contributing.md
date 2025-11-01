@@ -26,7 +26,7 @@ To work and develop PyO3, you need Python & Rust installed on your system.
 
 ### Testing, linting, etc. with nox
 
-[`Nox`][nox] is used to automate many of our CI tasks and can be used locally to handle verfication tasks as you code. We recommend running these actions via nox to make use of our prefered configuration options. You can install nox into your global python with pip: `pip install nox` or (recommended) with [`pipx`][pipx] `pip install pipx`, `pipx install nox`
+[`Nox`][nox] is used to automate many of our CI tasks and can be used locally to handle verification tasks as you code. We recommend running these actions via nox to make use of our preferred configuration options. You can install nox into your global python with pip: `pip install nox` or (recommended) with [`pipx`][pipx] `pip install pipx`, `pipx install nox`
 
 The main nox commands we have implemented are:
 

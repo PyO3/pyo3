@@ -58,7 +58,8 @@ mod mymodule {
 
 ## Raising an exception
 
-As described in the [function error handling](./function/error-handling.md) chapter, to raise an exception from a `#[pyfunction]` or `#[pymethods]`, return an `Err(PyErr)`. PyO3 will automatically raise this exception for you when returning the result to Python.
+As described in the [function error handling](./function/error-handling.md) chapter, to raise an exception from a `#[pyfunction]` or `#[pymethods]`, return an `Err(PyErr)`.
+PyO3 will automatically raise this exception for you when returning the result to Python.
 
 You can also manually write and fetch errors in the Python interpreter's global state:
 
@@ -107,8 +108,7 @@ err.is_instance_of::<PyTypeError>(py);
 ## Using exceptions defined in Python code
 
 It is possible to use an exception defined in Python code as a native Rust type.
-The [`import_exception!`] macro allows importing a specific exception class and defines a Rust type
-for that exception.
+The [`import_exception!`] macro allows importing a specific exception class and defines a Rust type for that exception.
 
 ```rust,no_run
 #![allow(dead_code)]

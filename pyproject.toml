@@ -1,3 +1,14 @@
+[project]
+requires-python = ">=3.7"
+name = "pyo3"
+dynamic = ["version"]
+
+[tool.ruff.per-file-target-version]
+# experimental-inspect generates .pyi files that use positional-only `/` marker
+"*.pyi" = "py38"
+# uses `match` statement
+"pytests/tests/test_enums_match.py" = "py310"
+
 [tool.ruff.lint.extend-per-file-ignores]
 "__init__.py" = ["F403"]
 
@@ -28,8 +39,6 @@ name = "Fixed"
 [tool.rumdl]
 
 disable = [
-    # TODO: enable in a follow-up, probably with `sentence-per-line` reflow
-    "MD013",
     # TODO: what to do about inline HTML, probably allow?
     "MD033",
     # TODO: {{#PYO3_DOCS_URL}} placeholder confuses rumdl, change syntax perhaps?
@@ -47,3 +56,19 @@ exclude = [
 
 [tool.rumdl.MD004]
 style = "dash"
+
+[tool.rumdl.MD013]
+paragraphs = false
+code_blocks = false
+tables = false
+headings = false
+reflow = true
+reflow_mode = "sentence-per-line"
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+  "rumdl"
+]

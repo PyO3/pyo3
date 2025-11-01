@@ -61,24 +61,30 @@ For more detail on accepting `#[pyclass]` values as function arguments, see [the
 
 ### Using Rust library types vs Python-native types
 
-Using Rust library types as function arguments will incur a conversion cost compared to using the Python-native types. Using the Python-native types is almost zero-cost (they just require a type check similar to the Python builtin function `isinstance()`).
+Using Rust library types as function arguments will incur a conversion cost compared to using the Python-native types.
+Using the Python-native types is almost zero-cost (they just require a type check similar to the Python builtin function `isinstance()`).
 
 However, once that conversion cost has been paid, the Rust standard library types offer a number of benefits:
 
 - You can write functionality in native-speed Rust code (free of Python's runtime costs).
 - You get better interoperability with the rest of the Rust ecosystem.
 - You can use `Python::detach` to detach from the interpreter and let other Python threads make progress while your Rust code is executing.
-- You also benefit from stricter type checking. For example you can specify `Vec<i32>`, which will only accept a Python `list` containing integers. The Python-native equivalent, `&PyList`, would accept a Python `list` containing Python objects of any type.
+- You also benefit from stricter type checking.
+  For example you can specify `Vec<i32>`, which will only accept a Python `list` containing integers.
+  The Python-native equivalent, `&PyList`, would accept a Python `list` containing Python objects of any type.
 
-For most PyO3 usage the conversion cost is worth paying to get these benefits. As always, if you're not sure it's worth it in your case, benchmark it!
+For most PyO3 usage the conversion cost is worth paying to get these benefits.
+As always, if you're not sure it's worth it in your case, benchmark it!
 
 ## Returning Rust values to Python
 
 When returning values from functions callable from Python, [PyO3's smart pointers](../types.md#pyo3s-smart-pointers) (`Py<T>`, `Bound<'py, T>`, and `Borrowed<'a, 'py, T>`) can be used with zero cost.
 
-Because `Bound<'py, T>` and `Borrowed<'a, 'py, T>` have lifetime parameters, the Rust compiler may ask for lifetime annotations to be added to your function. See the [section of the guide dedicated to this](../types.md#function-argument-lifetimes).
+Because `Bound<'py, T>` and `Borrowed<'a, 'py, T>` have lifetime parameters, the Rust compiler may ask for lifetime annotations to be added to your function.
+See the [section of the guide dedicated to this](../types.md#function-argument-lifetimes).
 
-If your function is fallible, it should return `PyResult<T>` or `Result<T, E>` where `E` implements `From<E> for PyErr`. This will raise a `Python` exception if the `Err` variant is returned.
+If your function is fallible, it should return `PyResult<T>` or `Result<T, E>` where `E` implements `From<E> for PyErr`.
+This will raise a `Python` exception if the `Err` variant is returned.
 
 Finally, the following Rust types are also able to convert to Python as return values:
 

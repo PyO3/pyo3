@@ -202,14 +202,15 @@ def ruff(session: nox.Session):
     _run(session, "ruff", "check", ".")
 
 
-@nox.session(name="rumdl")
+@nox.session(name="rumdl", venv_backend="none")
 def rumdl(session: nox.Session):
     """Run rumdl to check markdown formatting in the guide.
 
-    Can also run with uv directly, e.g. `uvx rumdl check guide`.
+    Can also run with uv directly, e.g. `uv run rumdl check guide`.
     """
-    session.install("rumdl")
-    _run(session, "rumdl", "check", "guide", *session.posargs)
+    _run(
+        session, "uv", "run", "rumdl", "check", "guide", *session.posargs, external=True
+    )
 
 
 @nox.session(name="clippy", venv_backend="none")
@@ -1109,7 +1110,15 @@ def test_introspection(session: nox.Session):
     profile = os.environ.get("CARGO_BUILD_PROFILE")
     if profile == "release":
         options.append("--release")
-    session.run_always("maturin", "develop", "-m", "./pytests/Cargo.toml", *options)
+    session.run_always(
+        "maturin",
+        "develop",
+        "-m",
+        "./pytests/Cargo.toml",
+        "--features",
+        "experimental-inspect",
+        *options,
+    )
     # We look for the built library
     lib_file = None
     for file in Path(session.virtualenv.location).rglob("pyo3_pytests.*"):

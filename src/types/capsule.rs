@@ -593,7 +593,7 @@ mod tests {
 
             // check error when wrong named passed for capsule.
             // SAFETY: this function will fail so the cast is never done
-            let result: PyResult<&Foo> = unsafe { PyCapsule::import(py, c"builtins.non_existant") };
+            let result: PyResult<&Foo> = unsafe { PyCapsule::import(py, c"builtins.non_existent") };
             assert!(result.is_err());
 
             // correct name is okay.
