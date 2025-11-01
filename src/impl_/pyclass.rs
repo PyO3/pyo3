@@ -157,6 +157,12 @@ unsafe impl Sync for PyClassItems {}
 /// Users are discouraged from implementing this trait manually; it is a PyO3 implementation detail
 /// and may be changed at any time.
 pub trait PyClassImpl: Sized + 'static {
+    /// Module which the class will be associated with.
+    ///
+    /// (Currently defaults to `builtins` if unset, this will likely be improved in the future, it
+    /// may also be removed when passing module objects in class init.)
+    const MODULE: Option<&'static str>;
+
     /// #[pyclass(subclass)]
     const IS_BASETYPE: bool = false;
 
