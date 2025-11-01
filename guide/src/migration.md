@@ -7,7 +7,7 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ### Internal change to use multi-phase initialization
 
-[PEP 489](https://peps.python.org/pep-0489/) introduced "multi-phase initialiation" for extension modules which provides ways to allocate and clean up per-module state.
+[PEP 489](https://peps.python.org/pep-0489/) introduced "multi-phase initialization" for extension modules which provides ways to allocate and clean up per-module state.
 This is a necessary step towards supporting Python "subinterpreters" which run on their own copy of state.
 
 Starting in PyO3 0.28, the `#[pymodule]` macro machinery has been reworked to use multi-phase initialization.
