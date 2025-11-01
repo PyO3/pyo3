@@ -20,7 +20,8 @@ To migrate use either
 The constructors `Py::from_owned_ptr`, `Py::from_owned_ptr_or_opt`, and `Py::from_owned_ptr_or_err` (and similar "borrowed" variants) perform an unchecked cast to the `Py<T>` target type `T`.
 This unchecked cast is a footgun on APIs where the primary concern is about constructing PyO3's safe smart pointer types correctly from the raw pointer value.
 
-The equivalent constructors on `Bound` always produce a `Bound<PyAny>`, which encourages any subsequent cast to be done explicitly as either checked or unchecked. These should be used instead.
+The equivalent constructors on `Bound` always produce a `Bound<PyAny>`, which encourages any subsequent cast to be done explicitly as either checked or unchecked.
+These should be used instead.
 
 Before:
 
