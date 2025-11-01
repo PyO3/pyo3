@@ -26,7 +26,8 @@ See the documentation for [`PyOnceLock`] and [`OnceExt`] for further details and
 
 ## I can't run `cargo test`; or I can't build in a Cargo workspace: I'm having linker issues like "Symbol not found" or "Undefined reference to _PyExc_SystemError"
 
-The `extension-module` feature (now deprecated) disables linking to `libpython`. This breaks binaries and tests which need to load symbols from `libpython` to execute.
+The `extension-module` feature (now deprecated) disables linking to `libpython`.
+This breaks binaries and tests which need to load symbols from `libpython` to execute.
 
 Remove the `extension-module` feature and upgrade to `maturin >= 1.9.4` or `setuptools-rust 1.12`.
 
