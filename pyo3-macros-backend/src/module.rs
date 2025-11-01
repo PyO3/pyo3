@@ -536,9 +536,6 @@ fn module_initialization(
 
             impl_::ModuleDef::new(__PYO3_NAME, #doc, &SLOTS)
         };
-        #[doc(hidden)]
-        // so wrapped submodules can see what gil_used is
-        pub static __PYO3_GIL_USED: bool = #gil_used;
     };
     if !is_submodule {
         result.extend(quote! {
@@ -547,10 +544,7 @@ fn module_initialization(
             #[doc(hidden)]
             #[export_name = #pyinit_symbol]
             pub unsafe extern "C" fn __pyo3_init() -> *mut #pyo3_path::ffi::PyObject {
-                _PYO3_DEF.init_multi_phase(
-                    unsafe { #pyo3_path::Python::assume_attached() },
-                    #gil_used
-                )
+                _PYO3_DEF.init_multi_phase()
             }
         });
     }

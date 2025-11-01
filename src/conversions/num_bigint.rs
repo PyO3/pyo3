@@ -50,8 +50,8 @@
 #[cfg(Py_LIMITED_API)]
 use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
-    conversion::IntoPyObject, ffi, types::PyInt, Borrowed, Bound, FromPyObject, Py, PyAny, PyErr,
-    PyResult, Python,
+    conversion::IntoPyObject, std::num::nb_index, types::PyInt, Borrowed, Bound, FromPyObject,
+    PyAny, PyErr, PyResult, Python,
 };
 
 use num_bigint::{BigInt, BigUint};
@@ -129,14 +129,13 @@ impl<'py> FromPyObject<'_, 'py> for BigInt {
     type Error = PyErr;
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<BigInt, Self::Error> {
-        let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
-        let num_owned: Py<PyInt>;
+        let num_owned: Bound<'_, PyInt>;
         let num = if let Ok(long) = ob.cast::<PyInt>() {
             long
         } else {
-            num_owned = unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
-            num_owned.bind_borrowed(py)
+            num_owned = nb_index(&ob)?;
+            num_owned.as_borrowed()
         };
         #[cfg(not(Py_LIMITED_API))]
         {
@@ -179,14 +178,13 @@ impl<'py> FromPyObject<'_, 'py> for BigUint {
     type Error = PyErr;
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<BigUint, Self::Error> {
-        let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
-        let num_owned: Py<PyInt>;
+        let num_owned: Bound<'_, PyInt>;
         let num = if let Ok(long) = ob.cast::<PyInt>() {
             long
         } else {
-            num_owned = unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
-            num_owned.bind_borrowed(py)
+            num_owned = nb_index(&ob)?;
+            num_owned.as_borrowed()
         };
         #[cfg(not(Py_LIMITED_API))]
         {
@@ -208,6 +206,8 @@ impl<'py> FromPyObject<'_, 'py> for BigUint {
 #[cfg(not(any(Py_LIMITED_API, Py_3_13)))]
 #[inline]
 fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u32>> {
+    use crate::ffi;
+
     let mut buffer = Vec::new();
     let n_bits = int_n_bits(long)?;
     if n_bits == 0 {
@@ -242,6 +242,8 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
 #[inline]
 fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u32>> {
+    use crate::ffi;
+
     let mut buffer = Vec::new();
     let mut flags = ffi::Py_ASNATIVEBYTES_LITTLE_ENDIAN;
     if !SIGNED {
@@ -304,7 +306,7 @@ fn int_n_bits(long: &Bound<'_, PyInt>) -> PyResult<usize> {
     #[cfg(not(Py_LIMITED_API))]
     {
         // fast path
-        let n_bits = unsafe { ffi::_PyLong_NumBits(long.as_ptr()) };
+        let n_bits = unsafe { crate::ffi::_PyLong_NumBits(long.as_ptr()) };
         if n_bits == (-1isize as usize) {
             return Err(crate::PyErr::fetch(py));
         }
@@ -323,6 +325,7 @@ fn int_n_bits(long: &Bound<'_, PyInt>) -> PyResult<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::exceptions::PyTypeError;
     use crate::test_utils::generate_unique_module_name;
     use crate::types::{PyAnyMethods as _, PyDict, PyModule};
     use indoc::indoc;
@@ -413,6 +416,7 @@ mod tests {
             locals.set_item("index", index).unwrap();
             let ob = py.eval(c"index.C(10)", None, Some(&locals)).unwrap();
             let _: BigInt = ob.extract().unwrap();
+            let _: BigUint = ob.extract().unwrap();
         });
     }
 
@@ -453,6 +457,18 @@ mod tests {
                 test!(BigUint, (BigUint::from(1u32) << i) - 1u32, py);
                 test!(BigInt, (-BigInt::from(1) << i) - 1u32, py);
             }
+        });
+    }
+
+    #[test]
+    fn from_py_float_type_error() {
+        Python::attach(|py| {
+            let obj = (12.3f64).into_pyobject(py).unwrap();
+            let err = obj.extract::<BigInt>().unwrap_err();
+            assert!(err.is_instance_of::<PyTypeError>(py));
+
+            let err = obj.extract::<BigUint>().unwrap_err();
+            assert!(err.is_instance_of::<PyTypeError>(py));
         });
     }
 }

@@ -5,16 +5,12 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.27.* to 0.28
 
-### Internal change to use multi-phase initialization
+### Default to supporting free-threaded Python
 
-[PEP 489](https://peps.python.org/pep-0489/) introduced "multi-phase initialization" for extension modules which provides ways to allocate and clean up per-module state.
-This is a necessary step towards supporting Python "subinterpreters" which run on their own copy of state.
+When PyO3 0.23 added support for free-threaded Python, this was as an opt-in feature for modules by annotating with `#[pymodule(gil_used = false)]`.
 
-Starting in PyO3 0.28, the `#[pymodule]` macro machinery has been reworked to use multi-phase initialization.
-The possibility of creating and consuming per-module state (and supporting subinterpreters) is left for a future PyO3 version.
-This should not require migration, nor is there expected to be breakage caused by the change.
-
-Nevertheless, this affects the order of initialization and seemed prudent to flag in this guide.
+As the support has matured and PyO3's own API has evolved to remove reliance on the GIL, the time is right to switch the default.
+Modules now automatically allow use on free-threaded Python, unless they directly state they require the GIL with `#[pymodule(gil_used = true)]`.
 
 ### Deprecation of automatic `FromPyObject` for `#[pyclass]` types which implement `Clone`
 
@@ -25,6 +21,54 @@ To migrate use either
 
 - `from_py_object` to keep the automatic derive, or
 - `skip_from_py_object` to accept the new behaviour
+
+### Deprecation of `Py<T>` constructors from raw pointer
+
+The constructors `Py::from_owned_ptr`, `Py::from_owned_ptr_or_opt`, and `Py::from_owned_ptr_or_err` (and similar "borrowed" variants) perform an unchecked cast to the `Py<T>` target type `T`.
+This unchecked cast is a footgun on APIs where the primary concern is about constructing PyO3's safe smart pointer types correctly from the raw pointer value.
+
+The equivalent constructors on `Bound` always produce a `Bound<PyAny>`, which encourages any subsequent cast to be done explicitly as either checked or unchecked.
+These should be used instead.
+
+Before:
+
+```rust
+#![allow(deprecated)]
+# use pyo3::prelude::*;
+# use pyo3::types::PyNone;
+# Python::attach(|py| {
+let raw_ptr = py.None().into_ptr();
+
+let _: Py<PyNone> = unsafe { Py::from_borrowed_ptr(py, raw_ptr) };
+let _: Py<PyNone> = unsafe { Py::from_owned_ptr(py, raw_ptr) };
+# })
+```
+
+Before:
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::types::PyNone;
+# Python::attach(|py| {
+let raw_ptr = py.None().into_ptr();
+
+// Bound APIs require choice of doing unchecked or checked cast. Optionally `.unbind()` to
+// produce `Py<T>` values.
+let _: Bound<'_, PyNone> = unsafe { Bound::from_borrowed_ptr(py, raw_ptr).cast_into_unchecked() };
+let _: Bound<'_, PyNone> = unsafe { Bound::from_owned_ptr(py, raw_ptr).cast_into_unchecked() };
+# })
+```
+
+### Internal change to use multi-phase initialization
+
+[PEP 489](https://peps.python.org/pep-0489/) introduced "multi-phase initialization" for extension modules which provides ways to allocate and clean up per-module state.
+This is a necessary step towards supporting Python "subinterpreters" which run on their own copy of state.
+
+Starting in PyO3 0.28, the `#[pymodule]` macro machinery has been reworked to use multi-phase initialization.
+The possibility of creating and consuming per-module state (and supporting subinterpreters) is left for a future PyO3 version.
+This should not require migration, nor is there expected to be breakage caused by the change.
+
+Nevertheless, this affects the order of initialization so seemed worth noting in this guide.
 
 ## from 0.26.* to 0.27
 

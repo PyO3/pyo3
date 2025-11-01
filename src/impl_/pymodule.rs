@@ -47,8 +47,6 @@ pub struct ModuleDef {
     interpreter: AtomicI64,
     /// Initialized module object, cached to avoid reinitialization.
     module: PyOnceLock<Py<PyModule>>,
-    /// Whether or not the module supports running without the GIL
-    gil_used: bool,
 }
 
 unsafe impl Sync for ModuleDef {}
@@ -95,17 +93,16 @@ impl ModuleDef {
             ))]
             interpreter: AtomicI64::new(-1),
             module: PyOnceLock::new(),
-            gil_used: false,
         }
     }
 
-    pub fn init_multi_phase(&'static self, _py: Python<'_>, _gil_used: bool) -> *mut ffi::PyObject {
+    pub fn init_multi_phase(&'static self) -> *mut ffi::PyObject {
+        // SAFETY: `ffi_def` is correctly initialized in `new()`
         unsafe { ffi::PyModuleDef_Init(self.ffi_def.get()) }
     }
 
     /// Builds a module object directly. Used for [`#[pymodule]`][crate::pymodule] submodules.
-    #[cfg_attr(any(Py_LIMITED_API, not(Py_GIL_DISABLED)), allow(unused_variables))]
-    pub fn make_module(&'static self, py: Python<'_>, _gil_used: bool) -> PyResult<Py<PyModule>> {
+    pub fn make_module(&'static self, py: Python<'_>) -> PyResult<Py<PyModule>> {
         // Check the interpreter ID has not changed, since we currently have no way to guarantee
         // that static data is not reused across interpreters.
         //
@@ -307,10 +304,7 @@ impl PyAddToModule for PyFunctionDef {
 /// For adding a module to a module.
 impl PyAddToModule for ModuleDef {
     fn add_to_module(&'static self, module: &Bound<'_, PyModule>) -> PyResult<()> {
-        module.add_submodule(
-            self.make_module(module.py(), self.gil_used)?
-                .bind(module.py()),
-        )
+        module.add_submodule(self.make_module(module.py())?.bind(module.py()))
     }
 }
 
@@ -347,7 +341,7 @@ mod tests {
         static MODULE_DEF: ModuleDef = ModuleDef::new(c"test_module", c"some doc", &SLOTS);
 
         Python::attach(|py| {
-            let module = MODULE_DEF.make_module(py, false).unwrap().into_bound(py);
+            let module = MODULE_DEF.make_module(py).unwrap().into_bound(py);
             assert_eq!(
                 module
                     .getattr("__name__")

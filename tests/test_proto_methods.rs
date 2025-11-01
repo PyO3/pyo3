@@ -580,8 +580,14 @@ struct ClassWithGetAttribute {
 
 #[pymethods]
 impl ClassWithGetAttribute {
-    fn __getattribute__(&self, _name: &str) -> u32 {
-        self.data * 2
+    fn __getattribute__(&self, name: &str) -> PyResult<u32> {
+        if name == "data" {
+            Ok(self.data * 2)
+        } else {
+            Err(PyAttributeError::new_err(
+                "this message will be swallowed by default `__getattr__`",
+            ))
+        }
     }
 }
 
@@ -590,7 +596,7 @@ fn getattribute_overrides_member() {
     Python::attach(|py| {
         let inst = Py::new(py, ClassWithGetAttribute { data: 4 }).unwrap();
         py_assert!(py, inst, "inst.data == 8");
-        py_assert!(py, inst, "inst.y == 8");
+        py_expect_exception!(py, inst, "inst.y == 8", PyAttributeError, "y");
     });
 }
 

@@ -18,7 +18,7 @@ impl ObjStore {
     }
 }
 
-#[pymodule(gil_used = false)]
+#[pymodule]
 pub fn objstore(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ObjStore>()
 }

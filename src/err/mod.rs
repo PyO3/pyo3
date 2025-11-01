@@ -1,7 +1,9 @@
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 #[cfg(Py_3_11)]
 use crate::intern;
 use crate::panic::PanicException;
+use crate::py_result_ext::PyResultExt;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 #[cfg(Py_3_11)]
@@ -361,9 +363,14 @@ impl PyErr {
             None => std::ptr::null(),
         };
 
-        let ptr = unsafe { ffi::PyErr_NewExceptionWithDoc(name.as_ptr(), doc_ptr, base, dict) };
-
-        unsafe { Py::from_owned_ptr_or_err(py, ptr) }
+        // SAFETY: correct call to FFI function, return value is known to be a new
+        // exception type or null on error
+        unsafe {
+            ffi::PyErr_NewExceptionWithDoc(name.as_ptr(), doc_ptr, base, dict)
+                .assume_owned_or_err(py)
+                .cast_into_unchecked()
+        }
+        .map(Bound::unbind)
     }
 
     /// Prints a standard traceback to `sys.stderr`.

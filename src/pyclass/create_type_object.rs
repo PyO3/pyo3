@@ -1,6 +1,9 @@
+#[cfg(not(Py_3_10))]
+use crate::types::typeobject::PyTypeMethods;
 use crate::{
     exceptions::PyTypeError,
     ffi,
+    ffi_ptr_ext::FfiPtrExt,
     impl_::{
         pycell::PyClassObject,
         pyclass::{
@@ -10,7 +13,7 @@ use crate::{
         pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, _call_clear},
         trampoline::trampoline,
     },
-    types::{typeobject::PyTypeMethods, PyType},
+    types::PyType,
     Py, PyClass, PyResult, PyTypeInfo, Python,
 };
 use std::{
@@ -59,6 +62,7 @@ where
                 method_defs: Vec::new(),
                 member_defs: Vec::new(),
                 getset_builders: HashMap::new(),
+                #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
                 cleanup: Vec::new(),
                 tp_base: base,
                 tp_dealloc: dealloc,
@@ -106,6 +110,7 @@ where
     }
 }
 
+#[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
 type PyTypeBuilderCleanup = Box<dyn Fn(&PyTypeBuilder, *mut ffi::PyTypeObject)>;
 
 struct PyTypeBuilder {
@@ -116,6 +121,7 @@ struct PyTypeBuilder {
     /// Used to patch the type objects for the things there's no
     /// PyType_FromSpec API for... there's no reason this should work,
     /// except for that it does and we have tests.
+    #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
     cleanup: Vec<PyTypeBuilderCleanup>,
     tp_base: *mut ffi::PyTypeObject,
     tp_dealloc: ffi::destructor,
@@ -489,19 +495,24 @@ impl PyTypeBuilder {
             slots: self.slots.as_mut_ptr(),
         };
 
-        // Safety: We've correctly setup the PyType_Spec at this point
-        let type_object: Py<PyType> =
-            unsafe { Py::from_owned_ptr_or_err(py, ffi::PyType_FromSpec(&mut spec))? };
+        // SAFETY: We've correctly setup the PyType_Spec at this point
+        // The FFI call is known to return a new type object or null on error
+        let type_object = unsafe {
+            ffi::PyType_FromSpec(&mut spec)
+                .assume_owned_or_err(py)?
+                .cast_into_unchecked::<PyType>()
+        };
 
         #[cfg(not(Py_3_11))]
         bpo_45315_workaround(py, class_name);
 
+        #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
         for cleanup in std::mem::take(&mut self.cleanup) {
-            cleanup(&self, type_object.bind(py).as_type_ptr());
+            cleanup(&self, type_object.as_type_ptr());
         }
 
         Ok(PyClassTypeObject {
-            type_object,
+            type_object: type_object.unbind(),
             is_immutable_type: self.is_immutable_type,
             getset_defs,
         })
