@@ -70,10 +70,12 @@ pub enum PySendResult<'py> {
 
 #[cfg(all(not(PyPy), Py_3_10))]
 impl<'py> Bound<'py, PyIterator> {
-    /// Sends a value into a python generator. This is the equivalent of calling `generator.send(value)` in Python.
-    /// This resumes the generator and continues its execution until the next `yield` or `return` statement.
-    /// If the generator exits without returning a value, this function returns a `StopException`.
-    /// The first call to `send` must be made with `None` as the argument to start the generator, failing to do so will raise a `TypeError`.
+    /// Sends a value into a python generator. This is the equivalent of calling
+    /// `generator.send(value)` in Python. This resumes the generator and continues its execution
+    /// until the next `yield` or `return` statement. When the generator completes, the (optional)
+    /// return value will be returned as `PySendResult::Return`. All subsequent calls will return
+    /// `PySendResult::Return(None)`. The first call to `send` must be made with `None` as the
+    /// argument to start the generator, failing to do so will raise a `TypeError`.
     #[inline]
     pub fn send(&self, value: &Bound<'py, PyAny>) -> PyResult<PySendResult<'py>> {
         let py = self.py();
