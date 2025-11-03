@@ -336,18 +336,18 @@ impl<'py> Bound<'py, PyAny> {
     ///
     /// # Safety
     ///
-    /// - `ptr` must be a valid pointer to a Python object
+    /// - `ptr` must be a valid pointer to a Python object (or null, which will cause a panic)
     /// - `ptr` must be an owned Python reference, as the `Bound<'py, PyAny>` will assume ownership
+    ///
+    /// # Panics
+    ///
+    /// Panics if `ptr` is null.
     #[inline]
     #[track_caller]
     pub unsafe fn from_owned_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
-        match NonNull::new(ptr) {
-            Some(nonnull_ptr) => {
-                // SAFETY: caller has upheld the safety contract, ptr is known to be non-null
-                unsafe { Py::from_non_null(nonnull_ptr) }.into_bound(py)
-            }
-            None => crate::err::panic_after_error(py),
-        }
+        let non_null = NonNull::new(ptr).unwrap_or_else(|| panic_on_null(py));
+        // SAFETY: caller has upheld the safety contract, ptr is known to be non-null
+        unsafe { Py::from_non_null(non_null) }.into_bound(py)
     }
 
     /// Constructs a new `Bound<'py, PyAny>` from a pointer. Returns `None` if `ptr` is null.
@@ -405,16 +405,16 @@ impl<'py> Bound<'py, PyAny> {
     /// # Safety
     ///
     /// - `ptr` must be a valid pointer to a Python object
+    ///
+    /// # Panics
+    ///
+    /// Panics if `ptr` is null
     #[inline]
     #[track_caller]
     pub unsafe fn from_borrowed_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
-        match NonNull::new(ptr) {
-            Some(nonnull_ptr) => {
-                // SAFETY: caller has upheld the safety contract, ptr is known to be non-null
-                unsafe { Py::from_borrowed_non_null(py, nonnull_ptr) }.into_bound(py)
-            }
-            None => crate::err::panic_after_error(py),
-        }
+        let non_null = NonNull::new(ptr).unwrap_or_else(|| panic_on_null(py));
+        // SAFETY: caller has upheld the safety contract, ptr is known to be non-null
+        unsafe { Py::from_borrowed_non_null(py, non_null) }.into_bound(py)
     }
 
     /// Constructs a new `Bound<'py, PyAny>` from a pointer by creating a new Python reference.
@@ -1095,14 +1095,18 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     ///
     /// # Safety
     ///
-    /// - `ptr` must be a valid pointer to a Python object
+    /// - `ptr` must be a valid pointer to a Python object (or null, which will cause a panic)
     /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `ptr` is null
     #[inline]
     #[track_caller]
     pub unsafe fn from_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
-        let non_null = NonNull::new(ptr).unwrap_or_else(|| crate::err::panic_after_error(py));
+        let non_null = NonNull::new(ptr).unwrap_or_else(|| panic_on_null(py));
         // SAFETY: caller has upheld the safety contract
         unsafe { Self::from_non_null(py, non_null) }
     }
@@ -1965,12 +1969,12 @@ impl<T> Py<T> {
     /// Create a `Py<T>` instance by taking ownership of the given FFI pointer.
     ///
     /// # Safety
-    /// `ptr` must be a pointer to a Python object of type T.
     ///
-    /// Callers must own the object referred to by `ptr`, as this function
-    /// implicitly takes ownership of that object.
+    /// - `ptr` must be a valid pointer to a Python object (or null, which will cause a panic)
+    /// - `ptr` must be an owned Python reference, as the `Py<T>` will assume ownership
     ///
     /// # Panics
+    ///
     /// Panics if `ptr` is null.
     #[inline]
     #[track_caller]
@@ -1981,7 +1985,7 @@ impl<T> Py<T> {
                 // SAFETY: caller has upheld the safety contract, ptr is known to be non-null
                 unsafe { Self::from_non_null(nonnull_ptr) }
             }
-            None => crate::err::panic_after_error(py),
+            None => panic_on_null(py),
         }
     }
 
@@ -1990,7 +1994,9 @@ impl<T> Py<T> {
     /// If `ptr` is null then the current Python exception is fetched as a [`PyErr`].
     ///
     /// # Safety
-    /// If non-null, `ptr` must be a pointer to a Python object of type T.
+    ///
+    /// - `ptr` must be a valid pointer to a Python object, or null
+    /// - a non-null `ptr` must be an owned Python reference, as the `Py<T>` will assume ownership
     #[inline]
     #[deprecated(note = "use `Bound::from_owned_ptr_or_err` instead", since = "0.28.0")]
     pub unsafe fn from_owned_ptr_or_err(
@@ -2011,7 +2017,9 @@ impl<T> Py<T> {
     /// If `ptr` is null then `None` is returned.
     ///
     /// # Safety
-    /// If non-null, `ptr` must be a pointer to a Python object of type T.
+    ///
+    /// - `ptr` must be a valid pointer to a Python object, or null
+    /// - a non-null `ptr` must be an owned Python reference, as the `Py<T>` will assume ownership
     #[inline]
     #[deprecated(note = "use `Bound::from_owned_ptr_or_opt` instead", since = "0.28.0")]
     pub unsafe fn from_owned_ptr_or_opt(_py: Python<'_>, ptr: *mut ffi::PyObject) -> Option<Self> {
@@ -2027,6 +2035,7 @@ impl<T> Py<T> {
     /// `ptr` must be a pointer to a Python object of type T.
     ///
     /// # Panics
+    ///
     /// Panics if `ptr` is null.
     #[inline]
     #[track_caller]
@@ -2034,8 +2043,7 @@ impl<T> Py<T> {
     pub unsafe fn from_borrowed_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<T> {
         // SAFETY: caller has upheld the safety contract
         #[allow(deprecated)]
-        unsafe { Self::from_borrowed_ptr_or_opt(py, ptr) }
-            .unwrap_or_else(|| crate::err::panic_after_error(py))
+        unsafe { Self::from_borrowed_ptr_or_opt(py, ptr) }.unwrap_or_else(|| panic_on_null(py))
     }
 
     /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.
@@ -2437,10 +2445,23 @@ impl<T> Py<T> {
     }
 }
 
+#[track_caller]
+#[cold]
+fn panic_on_null(py: Python<'_>) -> ! {
+    if let Some(err) = PyErr::take(py) {
+        err.write_unraisable(py, None);
+    }
+    panic!("PyObject pointer is null");
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Bound, IntoPyObject, Py};
+    #[cfg(all(feature = "macros", Py_3_8))]
+    use crate::exceptions::PyValueError;
     use crate::test_utils::generate_unique_module_name;
+    #[cfg(all(feature = "macros", Py_3_8))]
+    use crate::test_utils::UnraisableCapture;
     use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
     use crate::{ffi, Borrowed, IntoPyObjectExt, PyAny, PyResult, Python};
     use std::ffi::CStr;
@@ -2794,6 +2815,61 @@ a = A()
 
             assert!(yes.is_truthy(py).unwrap());
             assert!(!no.is_truthy(py).unwrap());
+        });
+    }
+
+    #[cfg(all(feature = "macros", Py_3_8))]
+    #[test]
+    fn test_constructors_panic_on_null() {
+        Python::attach(|py| {
+            const NULL: *mut ffi::PyObject = std::ptr::null_mut();
+
+            #[expect(deprecated, reason = "Py<T> constructors")]
+            // SAFETY: calling all constructors with null pointer to test panic behavior
+            for constructor in unsafe {
+                [
+                    (|py| {
+                        Py::<PyAny>::from_owned_ptr(py, NULL);
+                    }) as fn(Python<'_>),
+                    (|py| {
+                        Py::<PyAny>::from_borrowed_ptr(py, NULL);
+                    }) as fn(Python<'_>),
+                    (|py| {
+                        Bound::from_owned_ptr(py, NULL);
+                    }) as fn(Python<'_>),
+                    (|py| {
+                        Bound::from_borrowed_ptr(py, NULL);
+                    }) as fn(Python<'_>),
+                    (|py| {
+                        Borrowed::from_ptr(py, NULL);
+                    }) as fn(Python<'_>),
+                ]
+            } {
+                UnraisableCapture::enter(py, |capture| {
+                    // panic without exception set, no unraisable hook called
+                    let result = std::panic::catch_unwind(|| {
+                        constructor(py);
+                    });
+                    assert_eq!(
+                        result.unwrap_err().downcast_ref::<&str>(),
+                        Some(&"PyObject pointer is null")
+                    );
+                    assert!(capture.take_capture().is_none());
+
+                    // set an exception, panic, unraisable hook called
+                    PyValueError::new_err("error").restore(py);
+                    let result = std::panic::catch_unwind(|| {
+                        constructor(py);
+                    });
+                    assert_eq!(
+                        result.unwrap_err().downcast_ref::<&str>(),
+                        Some(&"PyObject pointer is null")
+                    );
+                    assert!(capture.take_capture().is_some_and(|(err, obj)| {
+                        err.is_instance_of::<PyValueError>(py) && obj.is_none()
+                    }));
+                });
+            }
         });
     }
 

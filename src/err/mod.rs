@@ -709,14 +709,6 @@ where
     }
 }
 
-#[track_caller]
-pub fn panic_after_error(_py: Python<'_>) -> ! {
-    unsafe {
-        ffi::PyErr_Print();
-    }
-    panic!("Python API call failed");
-}
-
 /// Returns Ok if the error code is not -1.
 #[inline]
 pub(crate) fn error_on_minusone<T: SignedInteger>(py: Python<'_>, result: T) -> PyResult<()> {
