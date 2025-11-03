@@ -67,7 +67,7 @@ impl TypeHint {
     /// ```
     pub const fn module_attr(module: &'static str, attr: &'static str) -> Self {
         Self {
-            inner: if str_equals(module, "builtins") {
+            inner: if matches!(module.as_bytes(), b"builtins") {
                 TypeHintExpr::Builtin { id: attr }
             } else {
                 TypeHintExpr::ModuleAttribute { module, attr }
@@ -250,21 +250,6 @@ const fn write_type_hint_and_move_forward<'a>(
 ) -> &'a mut [u8] {
     let written = serialize_for_introspection(value, output);
     output.split_at_mut(written).1
-}
-
-/// Const &str equality
-const fn str_equals(left: &str, right: &str) -> bool {
-    if left.len() != right.len() {
-        return false;
-    }
-    let mut i = 0;
-    while i < left.len() {
-        if left.as_bytes()[i] != right.as_bytes()[i] {
-            return false;
-        }
-        i += 1;
-    }
-    true
 }
 
 #[cfg(test)]
