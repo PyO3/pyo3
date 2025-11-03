@@ -2810,28 +2810,33 @@ a = A()
     #[test]
     fn test_constructors_panic_on_null() {
         Python::attach(|py| {
+            const NULL: *mut ffi::PyObject = std::ptr::null_mut();
+
             #[expect(deprecated, reason = "Py<T> constructors")]
-            for constructor in [
-                (|py, ptr| unsafe {
-                    Py::<PyAny>::from_owned_ptr(py, ptr);
-                }) as fn(Python<'_>, *mut ffi::PyObject),
-                (|py, ptr| unsafe {
-                    Py::<PyAny>::from_borrowed_ptr(py, ptr);
-                }) as fn(Python<'_>, *mut ffi::PyObject),
-                (|py, ptr| unsafe {
-                    Bound::from_owned_ptr(py, ptr);
-                }) as fn(Python<'_>, *mut ffi::PyObject),
-                (|py, ptr| unsafe {
-                    Bound::from_borrowed_ptr(py, ptr);
-                }) as fn(Python<'_>, *mut ffi::PyObject),
-                (|py, ptr| unsafe {
-                    Borrowed::from_ptr(py, ptr);
-                }) as fn(Python<'_>, *mut ffi::PyObject),
-            ] {
+            // SAFETY: calling all constructors with null pointer to test panic behavior
+            for constructor in unsafe {
+                [
+                    (|py| {
+                        Py::<PyAny>::from_owned_ptr(py, NULL);
+                    }) as fn(Python<'_>),
+                    (|py| {
+                        Py::<PyAny>::from_borrowed_ptr(py, NULL);
+                    }) as fn(Python<'_>),
+                    (|py| {
+                        Bound::from_owned_ptr(py, NULL);
+                    }) as fn(Python<'_>),
+                    (|py| {
+                        Bound::from_borrowed_ptr(py, NULL);
+                    }) as fn(Python<'_>),
+                    (|py| {
+                        Borrowed::from_ptr(py, NULL);
+                    }) as fn(Python<'_>),
+                ]
+            } {
                 UnraisableCapture::enter(py, |capture| {
                     // panic without exception set, no unraisable hook called
                     let result = std::panic::catch_unwind(|| {
-                        constructor(py, std::ptr::null_mut());
+                        constructor(py);
                     });
                     assert_eq!(
                         result.unwrap_err().downcast_ref::<&str>(),
@@ -2842,7 +2847,7 @@ a = A()
                     // set an exception, panic, unraisable hook called
                     PyValueError::new_err("error").restore(py);
                     let result = std::panic::catch_unwind(|| {
-                        constructor(py, std::ptr::null_mut());
+                        constructor(py);
                     });
                     assert_eq!(
                         result.unwrap_err().downcast_ref::<&str>(),
