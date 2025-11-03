@@ -71,12 +71,12 @@ Package vendors can opt-in to the "abi3" limited Python API which allows their w
 There are many ways to go about this: it is possible to use `cargo` to build the extension module (along with some manual work, which varies with OS).
 The PyO3 ecosystem has two packaging tools, [`maturin`] and [`setuptools-rust`], which abstract over the OS difference and also support building wheels for PyPI upload.
 
-PyO3 has some Cargo features to configure projects for building Python extension modules:
+PyO3 has some functionality for configuring projects when building Python extension modules:
 
 - The `PYO3_BUILD_EXTENSION_MODULE` environment variable, which must be set when building Python extension modules.
-- The `abi3` feature and its version-specific `abi3-pyXY` companions, which are used to opt-in to the limited Python API in order to support multiple Python versions in a single wheel.
+- The `abi3` Cargo feature and its version-specific `abi3-pyXY` companions, which are used to opt-in to the limited Python API in order to support multiple Python versions in a single wheel.
 
-This section describes each of these packaging tools before describing how to build manually without them.
+This section describes the packaging tools before describing how to build manually without them.
 It then proceeds with an explanation of the `PYO3_BUILD_EXTENSION_MODULE` environment variable.
 Finally, there is a section describing PyO3's `abi3` features.
 
