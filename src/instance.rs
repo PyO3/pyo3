@@ -338,6 +338,10 @@ impl<'py> Bound<'py, PyAny> {
     ///
     /// - `ptr` must be a valid pointer to a Python object (or null, which will cause a panic)
     /// - `ptr` must be an owned Python reference, as the `Bound<'py, PyAny>` will assume ownership
+    ///
+    /// # Panics
+    ///
+    /// Panics if `ptr` is null.
     #[inline]
     #[track_caller]
     pub unsafe fn from_owned_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
@@ -401,6 +405,10 @@ impl<'py> Bound<'py, PyAny> {
     /// # Safety
     ///
     /// - `ptr` must be a valid pointer to a Python object
+    ///
+    /// # Panics
+    ///
+    /// Panics if `ptr` is null
     #[inline]
     #[track_caller]
     pub unsafe fn from_borrowed_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
@@ -1091,6 +1099,10 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `ptr` is null
     #[inline]
     #[track_caller]
     pub unsafe fn from_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
