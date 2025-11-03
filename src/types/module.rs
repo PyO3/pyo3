@@ -518,7 +518,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
             .name()?
             .call_method1("rpartition", (".",))?
             .get_item(2)?
-            .downcast_into::<PyString>()?;
+            .cast_into::<PyString>()?;
         self.add(name, module)
     }
 
